@@ -26,7 +26,7 @@ import uuid
 from collections import deque
 from datetime import datetime, timedelta
 from datetime import time as datetime_time
-from typing import Any, Dict, List, Optional, Tuple, TypedDict, cast
+from typing import Any, Optional, TypedDict, cast
 
 import numpy as np
 import pandas as pd
@@ -122,7 +122,7 @@ except (ImportError, ModuleNotFoundError, ValueError, KeyError, TypeError, Attri
     _WIND_MCP_AVAILABLE = False
 
 
-def _to_wind_code(symbol: str) -> Tuple[str, bool]:
+def _to_wind_code(symbol: str) -> tuple[str, bool]:
     s = str(symbol).strip()
     for prefix in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
         if s.startswith(prefix):
@@ -151,7 +151,7 @@ class TradingCalendar:
     """
 
     def __init__(self) -> None:
-        self.trading_schedule: Dict[str, Any] = {
+        self.trading_schedule: dict[str, Any] = {
             "morning_open": datetime_time(7, 0),  # 7:00 AM
             "morning_close": datetime_time(11, 30),  # 11:30 AM
             "afternoon_open": datetime_time(13, 0),  # 1:00 PM
@@ -165,7 +165,7 @@ class TradingCalendar:
 
         # 特殊交易日处理 (2025-2027 中国A股休市日)
         # W6.3.3: 显式标注为 Dict[str, SpecialDayEntry], 消除 is_trading_day 的 [index] ignore。
-        self.special_days: Dict[str, SpecialDayEntry] = {
+        self.special_days: dict[str, SpecialDayEntry] = {
             # === 2025 ===
             "2025-01-01": {"is_trading": False, "name": "元旦"},
             "2025-01-28": {"is_trading": False, "name": "春节除夕"},
@@ -213,7 +213,7 @@ class TradingCalendar:
         }
 
         # 执行窗口（允许的执行时间范围）
-        self.execution_windows: Dict[str, Dict[str, Any]] = {
+        self.execution_windows: dict[str, dict[str, Any]] = {
             "daily_execution": {
                 "start": datetime_time(6, 30),
                 "end": datetime_time(8, 0),  # 放宽为 6:30-8:00
@@ -269,7 +269,7 @@ class TradingCalendar:
 
         return True
 
-    def is_within_execution_window(self, execution_name: str) -> Tuple[bool, str]:
+    def is_within_execution_window(self, execution_name: str) -> tuple[bool, str]:
         """判断当前是否在执行窗口内"""
         now = datetime.now().time()
         window = self.execution_windows.get(execution_name)
@@ -328,7 +328,7 @@ class TradingCalendar:
             tomorrow += timedelta(days=1)
         return datetime.combine(tomorrow, self.trading_schedule["executions"][0]["time"])
 
-    def get_execution_schedule(self, days_ahead: int = 7) -> List[Dict]:
+    def get_execution_schedule(self, days_ahead: int = 7) -> list[dict]:
         """获取未来几天的执行计划"""
         schedule = []
         now = datetime.now()
@@ -338,7 +338,7 @@ class TradingCalendar:
             if self.is_trading_day(date):
                 # W6.3.3: 显式标注为 Dict[str, Any], 否则 mypy 推断值为
                 # str | bool | list 的联合, .append() 触发 [union-attr] 裸 ignore。
-                day_schedule: Dict[str, Any] = {
+                day_schedule: dict[str, Any] = {
                     "date": date.strftime("%Y-%m-%d"),
                     "is_trading": True,
                     "executions": [],
@@ -359,7 +359,7 @@ class TradingCalendar:
         return schedule
 
     def record_execution(
-        self, execution_name: str, start_time: datetime, end_time: datetime, success: bool, details: Dict
+        self, execution_name: str, start_time: datetime, end_time: datetime, success: bool, details: dict
     ) -> None:
         """记录执行历史"""
         record = {
@@ -375,7 +375,7 @@ class TradingCalendar:
         self.execution_history.append(record)
         logger.info(f"执行记录: {execution_name} - {'成功' if success else '失败'}")
 
-    def get_execution_summary(self) -> Dict:
+    def get_execution_summary(self) -> dict:
         """获取执行总结"""
         if not self.execution_history:
             return {"message": "暂无执行历史"}
@@ -478,7 +478,7 @@ class MarketStateEvaluator:
 
         logger.info("市场状态评估器初始化完成")
 
-    def evaluate_market_state(self, market_data: Dict) -> Dict:
+    def evaluate_market_state(self, market_data: dict) -> dict:
         """
         评估当前市场状态
 
@@ -683,7 +683,7 @@ class MarketStateEvaluator:
 
         return min(confidence, 1.0)
 
-    def get_market_state_summary(self) -> Dict:
+    def get_market_state_summary(self) -> dict:
         """获取市场状态总结"""
         if not self.state_history:
             return {"message": "暂无市场状态数据"}
@@ -691,7 +691,7 @@ class MarketStateEvaluator:
         latest_state = self.state_history[-1]
 
         # 状态分布统计
-        state_distribution: Dict[str, int] = {}
+        state_distribution: dict[str, int] = {}
         for state_record in self.state_history:
             state = state_record["market_state"]
             state_distribution[state] = state_distribution.get(state, 0) + 1
@@ -725,7 +725,7 @@ class ExecutionStrategy:
 
     def __init__(self) -> None:
         # 执行策略定义
-        self.execution_strategies: Dict[str, Dict[str, Any]] = {
+        self.execution_strategies: dict[str, dict[str, Any]] = {
             "aggressive": {
                 "strategy_name": "aggressive",
                 "description": "激进执行",
@@ -792,7 +792,7 @@ class ExecutionStrategy:
 
         logger.info("执行策略控制器初始化完成")
 
-    def select_execution_strategy(self, market_state: str, trade_info: Dict) -> Dict:
+    def select_execution_strategy(self, market_state: str, trade_info: dict) -> dict:
         """
         选择执行策略
 
@@ -843,7 +843,7 @@ class ExecutionStrategy:
                 "error": str(e),
             }
 
-    def generate_execution_plan(self, trade_info: Dict, strategy_config: Dict) -> Dict:
+    def generate_execution_plan(self, trade_info: dict, strategy_config: dict) -> dict:
         """
         生成执行计划
 
@@ -867,7 +867,7 @@ class ExecutionStrategy:
             instrument = trade_info.get("instrument", "")
             direction = trade_info.get("direction", "buy")
 
-            slices: List[Any] = []
+            slices: list[Any] = []
             for i in range(num_slices):
                 if i == num_slices - 1:  # 最后一片
                     slice_size = trade_size - sum(s["size"] for s in slices)
@@ -913,7 +913,7 @@ class ExecutionStrategy:
             logger.error(f"执行计划生成失败: {e}")
             return {"error": str(e)}
 
-    def record_execution_result(self, execution_plan: Dict, execution_result: Dict) -> None:
+    def record_execution_result(self, execution_plan: dict, execution_result: dict) -> None:
         """记录执行结果"""
         record = {
             "timestamp": datetime.now().isoformat(),
@@ -928,7 +928,7 @@ class ExecutionStrategy:
         self.execution_history.append(record)
         logger.info(f"执行结果记录: {'成功' if record['success'] else '失败'}")
 
-    def get_execution_summary(self) -> Dict:
+    def get_execution_summary(self) -> dict:
         """获取执行总结"""
         if not self.execution_history:
             return {"message": "暂无执行历史"}
@@ -1001,7 +1001,7 @@ class OrderRouter:
 
         # 执行池配置
         # W6.3.3: 标注为 Dict[str, ExecutionPoolEntry], 消除 pool["max_concurrent"] 的 [index] ignore。
-        self.execution_pools: Dict[str, ExecutionPoolEntry] = {
+        self.execution_pools: dict[str, ExecutionPoolEntry] = {
             "normal": {"broker": "broker_a", "priority": "normal", "max_concurrent": 10, "min_balance": 100000},
             "priority": {"broker": "broker_b", "priority": "high", "max_concurrent": 5, "min_balance": 500000},
             "emergency": {"broker": "broker_c", "priority": "critical", "max_concurrent": 3, "min_balance": 1000000},
@@ -1032,7 +1032,7 @@ class OrderRouter:
         mode = "实盘" if self._use_live else "回测/模拟"
         logger.info(f"订单路由器初始化完成 (模式={mode})")
 
-    def route_order(self, execution_plan: Dict, market_state: str) -> Dict:
+    def route_order(self, execution_plan: dict, market_state: str) -> dict:
         """
         路由订单到执行池
 
@@ -1248,7 +1248,7 @@ class OrderRouter:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"执行队列处理失败: {e}")
 
-    def _can_execute_order(self, order: Dict) -> bool:
+    def _can_execute_order(self, order: dict) -> bool:
         """检查是否可以执行订单"""
         # 检查执行池可用性
         pool_name = order.get("target_pool", "normal")
@@ -1275,7 +1275,7 @@ class OrderRouter:
 
         return True
 
-    def _execute_order(self, order: Dict) -> Dict:
+    def _execute_order(self, order: dict) -> dict:
         """执行单个订单 — 生产级: SmartOrderRouter 路由 + Iceberg + 滑点熔断"""
         try:
             slice_info = order.get("slice_info") or {}
@@ -1469,7 +1469,7 @@ class OrderRouter:
         except (json.JSONDecodeError, OSError, ValueError, TypeError):  # noqa: BLE001
             return None
 
-    def _record_fill_for_order(self, order: Dict, execution_result: Dict) -> None:
+    def _record_fill_for_order(self, order: dict, execution_result: dict) -> None:
         """G2 补齐: 将成功执行的成交回报统一落盘到 FillsStore。
 
         fail-open: 任何异常只记日志, 绝不阻断执行链路。
@@ -1503,7 +1503,7 @@ class OrderRouter:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("[OrderRouter] 成交落盘失败 (已忽略): %s", e)
 
-    def _update_execution_stats(self, execution_result: Dict) -> None:
+    def _update_execution_stats(self, execution_result: dict) -> None:
         """更新执行统计 (P1 修复: 加锁保护多线程写入)"""
         # P1 修复: 用 .get() 保护字段访问, 避免 KeyError
         success = execution_result.get("success", False)
@@ -1526,7 +1526,7 @@ class OrderRouter:
             else:
                 self.execution_stats["failed_orders"] += 1
 
-    def get_router_summary(self) -> Dict:
+    def get_router_summary(self) -> dict:
         """获取路由器总结 (P1 修复: 加锁保护读取, 避免读到中间状态)"""
         # 活跃订单统计 (P1 修复: 加锁保护快照)
         with self._orders_lock:
@@ -1537,13 +1537,13 @@ class OrderRouter:
             stats_snapshot = dict(self.execution_stats)
 
         # 按状态统计
-        status_stats: Dict[str, int] = {}
+        status_stats: dict[str, int] = {}
         for order in active_orders:
             status = order.get("status", "unknown")
             status_stats[status] = status_stats.get(status, 0) + 1
 
         # 按池统计
-        pool_stats: Dict[str, int] = {}
+        pool_stats: dict[str, int] = {}
         for order in active_orders:
             pool = order.get("target_pool", "unknown")
             pool_stats[pool] = pool_stats.get(pool, 0) + 1
@@ -1591,7 +1591,7 @@ class AutomatedExecutionSystem:
         # W6.3.3: 标注为 Optional[HedgeCoordinator], 消除 _run_hedge_decision 中
         # .coordinate() 的裸 ignore (原 = None 让 mypy 无法收窄实例属性)。
         self.hedge_coordinator: Optional["HedgeCoordinator"] = None
-        self.last_hedge_plan: Optional[Dict] = None
+        self.last_hedge_plan: Optional[dict] = None
         if _HEDGE_AVAILABLE:
             try:
                 self.hedge_coordinator = HedgeCoordinator()
@@ -1602,7 +1602,7 @@ class AutomatedExecutionSystem:
         # 执行状态
         self.current_market_state = "normal"
         self.current_execution_plan = None
-        self.current_routed_orders: List[Any] = []
+        self.current_routed_orders: list[Any] = []
 
         # 系统历史
         self.system_history: deque = deque(maxlen=100)
@@ -1706,7 +1706,7 @@ class AutomatedExecutionSystem:
                 return name
         return None
 
-    def _execute_daily_trading(self, execution_name: str = "daily_execution") -> Optional[Dict]:
+    def _execute_daily_trading(self, execution_name: str = "daily_execution") -> Optional[dict]:
         """执行每日交易"""
         try:
             logger.info(f"开始每日交易执行: {execution_name}")
@@ -1747,7 +1747,7 @@ class AutomatedExecutionSystem:
             # 3. 对冲决策（可选）
             # W6.3.3: 显式标注 hedge_plan: Optional[Dict], 与 last_hedge_plan 类型一致,
             # 消除 [assignment] ignore (原 hedge_plan = None 让 mypy 推断为 None 单例)。
-            hedge_plan: Optional[Dict] = None
+            hedge_plan: Optional[dict] = None
             if self.hedge_enabled and self.hedge_coordinator is not None:
                 hedge_plan = self._run_hedge_decision(market_data, market_state_data)
                 hedge_plan = self._apply_hedge_triggers(market_data, hedge_plan)
@@ -1764,7 +1764,7 @@ class AutomatedExecutionSystem:
             # 9. 记录执行结果 (rebalance_plan 在步骤 11 填充)
             # W6.3.3: 显式标注 Dict[str, Any], 消除 [var-annotated]
             # (execution_plan=None + routing_result 混合类型让 mypy 无法推断)。
-            execution_result: Dict[str, Any] = {
+            execution_result: dict[str, Any] = {
                 "market_state": self.current_market_state,
                 "execution_plan": execution_plan,
                 "routed_orders": [],
@@ -1860,7 +1860,7 @@ class AutomatedExecutionSystem:
             }
             self.system_history.append(failure_record)
 
-    def _run_hedge_decision(self, market_data: Dict, market_state_data: Dict) -> Optional[Dict]:
+    def _run_hedge_decision(self, market_data: dict, market_state_data: dict) -> Optional[dict]:
         """运行对冲决策"""
         try:
             # 1. 读取真实持仓与价格
@@ -1939,7 +1939,7 @@ class AutomatedExecutionSystem:
                 logger.warning("对冲协调器未初始化, 跳过对冲决策")
                 return None
             plan = cast(
-                Dict,
+                dict,
                 coordinator.coordinate(
                     positions=positions,
                     prices=prices,
@@ -2071,7 +2071,7 @@ class AutomatedExecutionSystem:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("历史收益率自动更新异常: %s", e)
 
-    def _apply_hedge_triggers(self, market_data: Dict, hedge_plan: Optional[Dict]) -> Optional[Dict]:
+    def _apply_hedge_triggers(self, market_data: dict, hedge_plan: Optional[dict]) -> Optional[dict]:
         """基于 VIX / 回撤 / 市场状态做强制触发覆盖"""
         if not hedge_plan:
             return hedge_plan
@@ -2096,7 +2096,7 @@ class AutomatedExecutionSystem:
 
         return plan
 
-    def _generate_hedge_execution_orders(self, hedge_plan: Optional[Dict]) -> Optional[Dict]:
+    def _generate_hedge_execution_orders(self, hedge_plan: Optional[dict]) -> Optional[dict]:
         """根据对冲决策生成可执行订单文件"""
         try:
             positions_path = os.path.join(
@@ -2175,7 +2175,7 @@ class AutomatedExecutionSystem:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("生成对冲执行单失败: %s", e)
 
-    def _writeback_hedge_orders_to_trade_plan(self, orders_result: Dict) -> None:
+    def _writeback_hedge_orders_to_trade_plan(self, orders_result: dict) -> None:
         """将 build_orders 产出的对冲订单回写进 trade_plan, 供 hedge_order_executor 撮合。
 
         build_orders() 返回 {date, action, portfolio_beta, hedge_pct, orders:[...]}。
@@ -2328,7 +2328,7 @@ class AutomatedExecutionSystem:
         except (OSError, json.JSONDecodeError, TypeError) as e:
             logger.error("对冲订单回写 trade_plan 失败: %s", e)
 
-    def _get_market_data(self) -> Dict:
+    def _get_market_data(self) -> dict:
         """获取市场数据 - 优先 Wind MCP"""
         try:
             # 优先从 Wind MCP 获取沪深300实时价格
@@ -2442,7 +2442,7 @@ class AutomatedExecutionSystem:
                 f"市场数据完全不可用 (index_price={index_price})，拒绝返回全量硬编码假数据。原始错误: {e}"
             ) from e
 
-    def _risk_pre_check(self, market_state_data: Dict) -> bool:
+    def _risk_pre_check(self, market_state_data: dict) -> bool:
         """执行风险预检查"""
         try:
             market_state = market_state_data["market_state"]
@@ -2498,7 +2498,7 @@ class AutomatedExecutionSystem:
                 logger.error(f"性能监控错误: {e}")
                 time.sleep(300)
 
-    def get_system_summary(self) -> Dict:
+    def get_system_summary(self) -> dict:
         """获取系统总结"""
         market_evaluator_summary = self.market_evaluator.get_market_state_summary()
 
@@ -2538,11 +2538,11 @@ class AutomatedExecutionSystem:
             },
         }
 
-    def get_execution_schedule(self, days_ahead: int = 7) -> List[Dict]:
+    def get_execution_schedule(self, days_ahead: int = 7) -> list[dict]:
         """获取执行计划"""
         return self.trading_calendar.get_execution_schedule(days_ahead)
 
-    def _generate_rebalance_orders(self) -> Optional[Dict]:
+    def _generate_rebalance_orders(self) -> Optional[dict]:
         """生成再平衡执行订单"""
         try:
             # T3.6 迁移修正: 使用绝对路径导入, 不再 sys.path.insert

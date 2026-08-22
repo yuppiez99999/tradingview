@@ -47,7 +47,7 @@ from __future__ import annotations
 
 import logging
 from decimal import ROUND_HALF_UP, Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import pandas as pd
@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # 板块类型枚举
 # ============================================================
-class BoardType(str, Enum):
+class BoardType(StrEnum):
     """A股板块分类 (决定涨跌停比例)"""
 
     MAIN_SH = "main_sh"  # 沪市主板 ±10%

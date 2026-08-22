@@ -14,7 +14,7 @@ import logging
 import pathlib
 import threading
 from datetime import datetime
-from typing import Any, Dict, List, Optional, TypedDict, cast
+from typing import Any, Optional, TypedDict, cast
 
 import pandas as pd
 
@@ -61,7 +61,7 @@ class SourceHealth(TypedDict):
     sina_http: SourceHealthEntry
 
 
-def _parse_markdown_table(text: str) -> List[Dict[str, str]]:
+def _parse_markdown_table(text: str) -> list[dict[str, str]]:
     if not text:
         return []
     lines = [line.strip() for line in text.splitlines() if line.strip().startswith("|")]
@@ -77,24 +77,24 @@ def _parse_markdown_table(text: str) -> List[Dict[str, str]]:
     return rows
 
 
-def _mean(values: List[float]) -> float:
+def _mean(values: list[float]) -> float:
     if not values:
         return 0.0
     return sum(values) / len(values)
 
 
-def _std(values: List[float]) -> float:
+def _std(values: list[float]) -> float:
     if len(values) < 2:
         return 0.0
     mean = _mean(values)
     return float((sum((x - mean) ** 2 for x in values) / (len(values) - 1)) ** 0.5)
 
 
-def _diff(values: List[float]) -> List[float]:
+def _diff(values: list[float]) -> list[float]:
     return [values[i] - values[i - 1] for i in range(1, len(values))]
 
 
-def _where(condition: List[bool], x: Any, y: Any) -> List[Any]:
+def _where(condition: list[bool], x: Any, y: Any) -> list[Any]:
     """条件选择器 (元素级)
 
     注: x/y 既支持标量也支持列表, 保持无类型注解以兼容现有调用模式
@@ -104,11 +104,11 @@ def _where(condition: List[bool], x: Any, y: Any) -> List[Any]:
     return [x if c else y for c in condition]
 
 
-def _eye(size: int) -> List[List[float]]:
+def _eye(size: int) -> list[list[float]]:
     return [[1.0 if i == j else 0.0 for j in range(size)] for i in range(size)]
 
 
-def _zeros(size: int) -> List[float]:
+def _zeros(size: int) -> list[float]:
     return [0.0] * size
 
 
@@ -119,7 +119,7 @@ class MarketDataProvider:
         self.cache_size = cache_size
         self.backtest_mode = backtest_mode
         self._backtest_date: Optional[str] = None
-        self.data_cache: Dict[str, Dict[str, Any]] = {}
+        self.data_cache: dict[str, dict[str, Any]] = {}
         self.cache_lock = threading.Lock()
         self.persistent_cache_dir = pathlib.Path(__file__).resolve().parents[1] / "data_cache"
         self.persistent_cache_dir.mkdir(exist_ok=True)
@@ -130,13 +130,13 @@ class MarketDataProvider:
             "sina_http": {"ok": False, "last_error": None},
         }
 
-        self.data_sources: Dict[str, Any] = {
+        self.data_sources: dict[str, Any] = {
             "real_time": {"enabled": True, "refresh_interval": 60, "last_update": None},
             "historical": {"enabled": True, "cache_days": 365, "update_frequency": "daily"},
             "sentiment": {"enabled": True, "refresh_interval": 300, "last_update": None},
         }
 
-        self._wind_mcp_client: Optional[Dict[str, Any]] = None
+        self._wind_mcp_client: Optional[dict[str, Any]] = None
         self._tdx_source: Optional[Any] = None
         self._akshare_source: Optional[Any] = None
         self._init_wind_mcp()
@@ -306,7 +306,7 @@ class MarketDataProvider:
             return f"bj{s}"
         return f"sh{s}"
 
-    def _try_wind_mcp_realtime(self, symbol: str) -> Optional[Dict]:
+    def _try_wind_mcp_realtime(self, symbol: str) -> Optional[dict]:
         if not self._wind_mcp_client:
             return None
         try:
@@ -383,7 +383,7 @@ class MarketDataProvider:
             logger.error(f"Wind MCP 获取历史数据失败: {e}")
             return None
 
-    def _try_tdx_realtime(self, symbol: str) -> Optional[Dict]:
+    def _try_tdx_realtime(self, symbol: str) -> Optional[dict]:
         """通达信实时数据 (P3)"""
         if not self._tdx_source:
             return None
@@ -453,7 +453,7 @@ class MarketDataProvider:
             logger.error(f"通达信获取历史数据失败: {e}")
             return None
 
-    def _try_akshare_realtime(self, symbol: str) -> Optional[Dict]:
+    def _try_akshare_realtime(self, symbol: str) -> Optional[dict]:
         """AKShare 实时数据 (P4)"""
         if not self._akshare_source:
             return None
@@ -579,7 +579,7 @@ class MarketDataProvider:
             logger.error(f"新浪 HTTP 获取历史数据失败: {e}")
             return None
 
-    def _try_sina_http_realtime(self, symbol: str) -> Optional[Dict]:
+    def _try_sina_http_realtime(self, symbol: str) -> Optional[dict]:
         """新浪财经实时行情（P4，绕过系统代理）。
 
         接口: https://hq.sinajs.cn/list={sina_code}
@@ -648,7 +648,7 @@ class MarketDataProvider:
             logger.error(f"新浪 HTTP 获取实时行情失败: {e}")
             return None
 
-    def get_market_data(self, symbol: Optional[str] = None) -> Dict:
+    def get_market_data(self, symbol: Optional[str] = None) -> dict:
         cache_key = f"market_{symbol or 'SPY'}{self._cache_suffix()}"
 
         with self.cache_lock:
@@ -658,7 +658,7 @@ class MarketDataProvider:
 
                 if cache_time and (datetime.now() - cache_time).total_seconds() < 60:
                     logger.debug(f"使用缓存的市场数据: {cache_key}")
-                    return cast(Dict, cached_data["data"])
+                    return cast(dict, cached_data["data"])
 
         try:
             market_data = self._fetch_real_time_data(symbol or "SPY")
@@ -743,7 +743,7 @@ class MarketDataProvider:
             logger.error(f"获取历史数据失败: {e}")
             raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
 
-    def get_sentiment_data(self, symbol: Optional[str] = None) -> Optional[Dict]:
+    def get_sentiment_data(self, symbol: Optional[str] = None) -> Optional[dict]:
         cache_key = f"sentiment_{symbol or 'SPY'}{self._cache_suffix()}"
 
         with self.cache_lock:
@@ -753,7 +753,7 @@ class MarketDataProvider:
 
                 if cache_time and (datetime.now() - cache_time).total_seconds() < 300:
                     logger.debug(f"使用缓存的情绪数据: {cache_key}")
-                    return cast(Optional[Dict], cached_data["data"])
+                    return cast(Optional[dict], cached_data["data"])
 
         try:
             sentiment_data = self._fetch_sentiment_data(symbol or "SPY")
@@ -771,7 +771,7 @@ class MarketDataProvider:
             logger.error(f"获取情绪数据失败: {e}")
             return None
 
-    def get_technical_indicators(self, symbol: str) -> Dict:
+    def get_technical_indicators(self, symbol: str) -> dict:
         try:
             historical_data = self.get_historical_data(symbol)
             technical_indicators = self._calculate_technical_indicators(historical_data)
@@ -782,7 +782,7 @@ class MarketDataProvider:
             logger.error(f"获取技术指标失败: {e}")
             return {}
 
-    def _fetch_real_time_data(self, symbol: str) -> Dict:
+    def _fetch_real_time_data(self, symbol: str) -> dict:
         try:
             # P1: Wind MCP
             wind_data = self._try_wind_mcp_realtime(symbol)
@@ -866,7 +866,7 @@ class MarketDataProvider:
             logger.error(f"获取历史数据失败: {e}")
             raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
 
-    def _fetch_sentiment_data(self, symbol: str) -> Optional[Dict]:
+    def _fetch_sentiment_data(self, symbol: str) -> Optional[dict]:
         """获取情绪数据
 
         当前无真实情绪数据源接入，返回 None 并记录 warning。
@@ -876,7 +876,7 @@ class MarketDataProvider:
         logger.warning(f"无真实情绪数据源可用，无法获取情绪数据 ({symbol or 'SPY'})")
         return None
 
-    def _calculate_technical_indicators(self, data: pd.DataFrame) -> Dict:
+    def _calculate_technical_indicators(self, data: pd.DataFrame) -> dict:
         try:
             if len(data) < 20:
                 return {}
@@ -931,7 +931,7 @@ class MarketDataProvider:
             logger.error(f"计算技术指标失败: {e}")
             return {}
 
-    def _calculate_ema(self, data: List[float], period: int) -> float:
+    def _calculate_ema(self, data: list[float], period: int) -> float:
         if len(data) < period:
             return _mean(data)
 
@@ -943,7 +943,7 @@ class MarketDataProvider:
 
         return ema
 
-    def _get_default_market_data(self) -> Dict:
+    def _get_default_market_data(self) -> dict:
         """返回硬编码假数据 (index_price=3000 等)，仅供测试/调试使用。
 
         .. deprecated:: 此方法已不再被主数据流调用。
@@ -966,7 +966,7 @@ class MarketDataProvider:
             "主数据流已 fail-fast。"
         )
 
-    def _get_default_sentiment_data(self) -> Dict:
+    def _get_default_sentiment_data(self) -> dict:
         """返回硬编码假情绪数据，仅供测试/调试使用。
 
         .. deprecated:: 此方法已不再被主数据流调用。
@@ -981,7 +981,7 @@ class MarketDataProvider:
     # 新增模块集成 (v7.5+): 价格预测 + 外部数据源 + 网页抓取 + AI 报告
     # ===========================================================
 
-    def get_price_prediction(self, symbol: str, horizon: int = 5) -> Dict:
+    def get_price_prediction(self, symbol: str, horizon: int = 5) -> dict:
         """获取价格预测 (来自 tf_price_predictor)
 
         降级链: TimesFM → TensorFlow LSTM → ARIMA → 移动平均兜底
@@ -1015,7 +1015,7 @@ class MarketDataProvider:
             logger.debug(f"获取预测价格序列失败 ({symbol}): {e}")
             return None
 
-    def get_external_macro(self) -> Dict:
+    def get_external_macro(self) -> dict:
         """获取外部宏观数据 (FRED/Econdb/Treasury)"""
         try:
             from utils.external_data_source import ExternalDataManager
@@ -1026,7 +1026,7 @@ class MarketDataProvider:
             logger.warning(f"外部宏观数据获取失败: {e}")
             return {}
 
-    def get_risk_sentiment(self) -> Dict:
+    def get_risk_sentiment(self) -> dict:
         """获取风险情绪指标 (加密货币/国债收益率/VIX代理)"""
         try:
             from utils.external_data_source import ExternalDataManager
@@ -1037,7 +1037,7 @@ class MarketDataProvider:
             logger.warning(f"风险情绪指标获取失败: {e}")
             return {}
 
-    def get_news_sentiment(self, symbol: str, limit: int = 20) -> List[Dict]:
+    def get_news_sentiment(self, symbol: str, limit: int = 20) -> list[dict]:
         """获取新闻+情感分析 (web_scraper + ai_report_agent)"""
         try:
             from utils.ai_report_agent import AIReportAgent
@@ -1060,7 +1060,7 @@ class MarketDataProvider:
             logger.warning(f"新闻情感分析失败 ({symbol}): {e}")
             return []
 
-    def get_ai_daily_report(self, symbols: List[str]) -> Dict:
+    def get_ai_daily_report(self, symbols: list[str]) -> dict:
         """生成 AI 每日投资报告"""
         try:
             from utils.ai_report_agent import AIReportAgent
@@ -1072,9 +1072,9 @@ class MarketDataProvider:
             logger.warning(f"AI 每日报告生成失败: {e}")
             return {"error": str(e)}
 
-    def get_extended_status(self) -> Dict:
+    def get_extended_status(self) -> dict:
         """获取扩展状态 (含新模块健康检查)"""
-        status: Dict[str, Any] = {
+        status: dict[str, Any] = {
             "data_sources": {
                 "wind_mcp": self.source_health.get("wind_mcp", {}).get("ok", False),
                 "tdx": self.source_health.get("tdx", {}).get("ok", False),
@@ -1097,7 +1097,7 @@ class MarketDataProvider:
             self.data_cache.clear()
             logger.info("数据缓存已清除")
 
-    def get_cache_info(self) -> Dict:
+    def get_cache_info(self) -> dict:
         with self.cache_lock:
             return {
                 "cache_size": len(self.data_cache),
@@ -1128,7 +1128,7 @@ class MarketDataProvider:
             logger.debug("获取 hfq 因子失败 (%s): %s", symbol, e)
             return 1.0
 
-    def enrich_realtime_with_hfq(self, quote: Dict, symbol: str) -> Dict:
+    def enrich_realtime_with_hfq(self, quote: dict, symbol: str) -> dict:
         """U3: 为实时行情字典注入复权因子 + hfq 对齐价.
 
         在原有实时行情 (未复权) 基础上新增:
@@ -1178,7 +1178,7 @@ class MarketDataProvider:
 _data_provider: Optional["MarketDataProvider"] = None
 
 
-def get_market_data(symbol: Optional[str] = None) -> Dict:
+def get_market_data(symbol: Optional[str] = None) -> dict:
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
@@ -1192,21 +1192,21 @@ def get_historical_data(symbol: str, period: str = "1y") -> pd.DataFrame:
     return _data_provider.get_historical_data(symbol, period)
 
 
-def get_sentiment_data(symbol: Optional[str] = None) -> Optional[Dict]:
+def get_sentiment_data(symbol: Optional[str] = None) -> Optional[dict]:
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
     return _data_provider.get_sentiment_data(symbol)
 
 
-def get_technical_indicators(symbol: str) -> Dict:
+def get_technical_indicators(symbol: str) -> dict:
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
     return _data_provider.get_technical_indicators(symbol)
 
 
-def get_price_prediction(symbol: str, horizon: int = 5) -> Dict:
+def get_price_prediction(symbol: str, horizon: int = 5) -> dict:
     """价格预测便捷函数"""
     global _data_provider
     if _data_provider is None:
@@ -1214,7 +1214,7 @@ def get_price_prediction(symbol: str, horizon: int = 5) -> Dict:
     return _data_provider.get_price_prediction(symbol, horizon)
 
 
-def get_external_macro() -> Dict:
+def get_external_macro() -> dict:
     """外部宏观数据便捷函数"""
     global _data_provider
     if _data_provider is None:
@@ -1222,7 +1222,7 @@ def get_external_macro() -> Dict:
     return _data_provider.get_external_macro()
 
 
-def get_risk_sentiment() -> Dict:
+def get_risk_sentiment() -> dict:
     """风险情绪指标便捷函数"""
     global _data_provider
     if _data_provider is None:
@@ -1230,7 +1230,7 @@ def get_risk_sentiment() -> Dict:
     return _data_provider.get_risk_sentiment()
 
 
-def get_news_sentiment(symbol: str, limit: int = 20) -> List[Dict]:
+def get_news_sentiment(symbol: str, limit: int = 20) -> list[dict]:
     """新闻情感分析便捷函数"""
     global _data_provider
     if _data_provider is None:
@@ -1238,7 +1238,7 @@ def get_news_sentiment(symbol: str, limit: int = 20) -> List[Dict]:
     return _data_provider.get_news_sentiment(symbol, limit)
 
 
-def get_ai_daily_report(symbols: List[str]) -> Dict:
+def get_ai_daily_report(symbols: list[str]) -> dict:
     """AI 每日报告便捷函数"""
     global _data_provider
     if _data_provider is None:

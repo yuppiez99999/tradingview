@@ -3,14 +3,14 @@ type: project_topic
 status: active
 authoring_mode: ai_generated
 created: 2026-08-02
-updated: 2026-08-12
+updated: 2026-08-21
 related:
   - cairn/gnn-supply-chain-factor.md
 ---
 
 # 终极量化交易系统 v8.6.14 路线图
 
-**当前焦点**：Wave 6 全部提前完成 (2026-08-12, 超前 107-141 天) → **Wave 7 统一整合已设计并启动** (2026-08-13 ~ 12-31, 4 Sprint, 目标 12-31 v8.7 发布)。Wave 7 整合 Wave 1-5 剩余任务 (Phase B 启用 / 实盘验证四件套 / S6-S7 入库 / G6 Phase D) + 工业级差距 (R10 残债 42 处 / daily_workflow ≤3000 / 覆盖率 0.80) + 工程基础层 Phase 0-3 (uv/dotenv/Prefect/DuckDB/LiteLLM) + AutoResearch Skill + ocr/ECC 工具增强。详见 `docs/高价值项目集成排期计划_20260811.md` §7 + `cairn/github-integration-wave6.md` §九。**Wave 5 (GNN 因子) 2026-08-03 重大更新**: B1-B5 全套修复后 Gate1 PASS (CHAIN_MOM_60D 反向因子 effICIR=0.503/多空夏普1.766) + Gate2 FAIL (+0.039 增益证伪, 实际+0.0017/+0.0064 t值0.15/0.76不显著) — 决策: Layer 2 回退, GAT 代码保留为研究资产不在生产路径, Layer 1 CHAIN_MOM_60D 推进 S5-S7 入库流程 (S1-S5 已通过, S6/S7 长期任务, 归入 Wave 7 Sprint 2/3); 排期时间不变 (10-06~11-30), 与自我进化 Wave 1/2 (09-05 前收尾) 无时间冲突, 仅与 Wave 4 后半 (10-06~10-31) 部分重叠 — W5.2 验证避开 Wave 4 实盘验证窗口
+**当前焦点**：Wave 6 全部提前完成 (2026-08-12, 超前 107-141 天) → **Wave 7 统一整合已设计并启动** (2026-08-13 ~ 12-31, 4 Sprint, 目标 12-31 v8.7 发布)。Wave 7 整合 Wave 1-5 剩余任务 (Phase B 启用 / 实盘验证四件套 / S6-S7 入库 / G6 Phase D) + 工业级差距 (R10 残债 42 处 / daily_workflow ≤3000 / 覆盖率 0.80) + 工程基础层 Phase 0-3 (uv/dotenv/Prefect/DuckDB/LiteLLM) + AutoResearch Skill + ocr/ECC 工具增强。详见 `docs/高价值项目集成排期计划_20260811.md` §7 + `cairn/github-integration-wave6.md` §九。**Wave 7-QC 子轨道已启动** (2026-08-22 ~ 10-05, 3 Sprint, 代码质量提升) — QC-1 P0落地(CI修复+ocr固化+工作区收敛) / QC-2 P1+外部接入(daily_workflow拆分+mypy strict+五轴审查+重构规则) / QC-3 P2收尾(ruff清零+覆盖率80%+)。详见 `docs/代码质量提升排期计划_20260821.md`。**Wave 5 (GNN 因子) 2026-08-03 重大更新**: B1-B5 全套修复后 Gate1 PASS (CHAIN_MOM_60D 反向因子 effICIR=0.503/多空夏普1.766) + Gate2 FAIL (+0.039 增益证伪, 实际+0.0017/+0.0064 t值0.15/0.76不显著) — 决策: Layer 2 回退, GAT 代码保留为研究资产不在生产路径, Layer 1 CHAIN_MOM_60D 推进 S5-S7 入库流程 (S1-S5 已通过, S6/S7 长期任务, 归入 Wave 7 Sprint 2/3); 排期时间不变 (10-06~11-30), 与自我进化 Wave 1/2 (09-05 前收尾) 无时间冲突, 仅与 Wave 4 后半 (10-06~10-31) 部分重叠 — W5.2 验证避开 Wave 4 实盘验证窗口
 
 ## 里程碑
 
@@ -30,6 +30,15 @@ related:
   - **方案C**: daily_workflow.py phase_hedge 后自动串联 RiskGuardIntegrator
   - **DeepSeek+GLM 双模型自我判断**: dual_model_judge.py — 双模型独立判断→交叉验证→共识决策, 优雅降级 (双失败→规则兜底)
   - **指针**: `cairn/LOG.md` 2026-08-19 执行层自动闭环条目
+- [x] **自我进化迭代再平衡闭环补齐 (2026-08-21)** — 4处断裂修复，进化框架与再平衡引擎从"双孤岛"打通为完整闭环
+  - **断裂1**: `hedge_rebalance_integrator.check_rebalance` 新增 `_load_evolution_factor_weights()` 消费 `factor_weights.json`（乘子约束[0.5,2.0]）
+  - **断裂2**: EOD工作流新增 `run_phase4_9_evolution_cycle()` 调用 `EvolutionOrchestratorV2.run_cycle()`
+  - **断裂3**: `etf_option_hedge_rebalancer.run_daily_rebalance` 进化前置→再平衡，修正时序倒置
+  - **断裂4**: `drift_monitor` 新增 `rebalance_callback`，漂移触发时同时触发再平衡
+  - **设计**: 优雅降级 + 乘子约束 + fail-safe + Feature Flag 向后兼容
+  - **验证**: ruff 4文件全绿 + pytest 229 passed（5失败为修改前配置漂移）
+  - **后续**: Feature Flag 启用 + E2E测试 + 再平衡反馈进化链 + 闭环健康度指标
+  - **指针**: `cairn/evolution-rebalance-loop.md`
 - [ ] C++/Rust 核心路径重写（超低延迟行情解码、订单生成、风控检查）
 - [ ] PTP 硬件时钟采购与部署（¥360K-710K 预算）
 - [ ] 多策略组合优化（跨信号协方差矩阵 + 动态风险预算分配）

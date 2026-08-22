@@ -16,7 +16,7 @@ from typing import Any
 
 import pandas as pd
 
-from utils.path_config import get_config_dir, get_report_dir, setup_sys_path
+from utils.path_config import get_config_dir, get_reports_dir, setup_sys_path
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +25,10 @@ setup_sys_path()
 
 # 数据目录 (通过 path_config 统一派生)
 DATA_DIR = get_config_dir()
-REPORT_DIR = get_report_dir()
+REPORT_DIR = get_reports_dir()
 
-from hedging.hedge_coordinator import HedgeCoordinator
-from wind_mcp_fetcher import wind_get_kline, wind_get_quote
+from ms_strategy.src.hedging.hedge_coordinator import HedgeCoordinator
+from tools.wind_mcp_fetcher import wind_get_kline, wind_get_quote
 
 # B2.4: 通用并发 IO 批量执行 (替代串行 for 循环拉取 Wind MCP 行情)
 from utils.concurrency import run_io_batch

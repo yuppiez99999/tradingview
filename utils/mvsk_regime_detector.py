@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 import numpy as np
 
 
-class Regime(str, Enum):
+class Regime(StrEnum):
     HIGH_VOL_FAT_TAIL = "high_vol_fat_tail"
     LOW_VOL_NORMAL = "low_vol_normal"
 

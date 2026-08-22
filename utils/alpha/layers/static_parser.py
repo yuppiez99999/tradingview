@@ -32,7 +32,7 @@ import logging
 import re
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -274,7 +274,7 @@ class StaticParser:
             List[RootCause] 代码层根因列表
         """
         if now is None:
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
 
         causes: list[RootCause] = []
         for err in errors:

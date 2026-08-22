@@ -1,10 +1,9 @@
 import json
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
-from typing_extensions import Literal
 
 from quant_modules.ai_hedge_fund.data_adapter import (
     get_company_news,

@@ -22,10 +22,11 @@ import os
 import tempfile
 import threading
 import time
+from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Iterator, TypeVar, Union
+from typing import Any, TypeVar, Union
 
 logger = logging.getLogger(__name__)
 

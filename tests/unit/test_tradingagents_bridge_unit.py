@@ -105,9 +105,8 @@ class TestTradingAgentsBridge:
             assert b._check_port() is False
 
     def test_check_port_timeout(self):
-        import socket as sock_mod
         b = TradingAgentsBridge()
-        with patch("socket.create_connection", side_effect=sock_mod.timeout()):
+        with patch("socket.create_connection", side_effect=TimeoutError()):
             assert b._check_port() is False
 
     def test_get_analysts_unavailable(self):

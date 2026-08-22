@@ -184,6 +184,22 @@ def collect_progress_snapshot() -> dict:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         snapshot["feature_flags"] = {"error": str(e)}
 
+    # 3.5 闭环健康度指标 (阶段4)
+    try:
+        from utils.evolution.orchestrator import EvolutionOrchestratorV2
+        _orch = EvolutionOrchestratorV2()
+        snapshot["loop_health"] = _orch.get_loop_health_metrics()
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ImportError) as e:
+        snapshot["loop_health"] = {"error": str(e)}
+
+    # 3.6 灰度发布状态 (阶段5)
+    try:
+        from scripts.gradual_rollout_manager import load_status as _load_rollout
+        _rollout = _load_rollout()
+        snapshot["rollout"] = _rollout.to_dict()
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ImportError) as e:
+        snapshot["rollout"] = {"error": str(e)}
+
     # 4. 自动推断下一步动作
     shadow_days = snapshot["shadow_data"].get("total_days", 0)
     flags = snapshot.get("feature_flags", {})
@@ -377,6 +393,29 @@ def print_progress_summary(snapshot: dict, logger: logging.Logger) -> None:
             flags.get("USE_MLOPS_PIPELINE", False),
             flags.get("USE_DRIFT_DETECTOR", False),
             flags.get("USE_AUTO_RETRAIN", False),
+        )
+
+    # 闭环健康度 (阶段4)
+    lh = snapshot.get("loop_health", {})
+    if "error" not in lh:
+        logger.info(
+            "[闭环健康] cycles=%s, trigger_rate=%.2f, l2_promote=%s, l2_rollback=%s, promote_rate=%.2f, avg_latency=%.1fms",
+            lh.get("total_cycles", 0),
+            lh.get("evolution_trigger_rate", 0.0),
+            lh.get("l2_promote_count", 0),
+            lh.get("l2_rollback_count", 0),
+            lh.get("l2_promote_rate", 0.0),
+            lh.get("avg_latency_ms", 0.0),
+        )
+
+    # 灰度发布状态 (阶段5)
+    ro = snapshot.get("rollout", {})
+    if "error" not in ro:
+        logger.info(
+            "[灰度发布] stage=%s, percent=%s%%, start=%s",
+            ro.get("stage", "N/A"),
+            ro.get("percent", 0),
+            ro.get("stage_start_date", "N/A"),
         )
 
     # 下一步动作 (最关键)

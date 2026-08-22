@@ -26,7 +26,6 @@
     -5.0%  → L2 (预警: 禁止开仓)
     -7.0%  → L3 (熔断: 全局平仓)
 """
-from typing import Dict
 from unittest.mock import patch
 
 import pytest
@@ -74,7 +73,7 @@ class MarketCircuitBreakerWithL1(MarketCircuitBreaker):
             float(l1_threshold) if l1_threshold is not None else self.L1_THRESHOLD
         )
 
-    def check_market_status(self) -> Dict:
+    def check_market_status(self) -> dict:
         """重写: 在父类基础上新增 L1 警戒线判断.
 
         L3 > L2 > L1, 取最高级别.
@@ -113,7 +112,7 @@ class MarketCircuitBreakerWithL1(MarketCircuitBreaker):
 
         return result
 
-    def apply_to_plan(self, plan: Dict, status: Dict) -> Dict:
+    def apply_to_plan(self, plan: dict, status: dict) -> dict:
         """重写: 在父类基础上新增 L1 分支.
 
         L1: 收紧集中度上限, 不清空订单, 不过滤 BUY.

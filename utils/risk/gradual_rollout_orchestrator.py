@@ -44,7 +44,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from utils.risk.risk_audit_logger import RiskAuditLogger
 
@@ -55,7 +55,7 @@ logger = logging.getLogger("rollout_orchestrator")
 # 数据结构
 # ============================================================
 
-class RolloutStage(str, Enum):
+class RolloutStage(StrEnum):
     """灰度发布 4 阶段 (严格递进, 不可跳)."""
 
     PAPER_TRADING = "paper_trading"   # 0% 实盘

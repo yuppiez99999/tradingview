@@ -18,7 +18,7 @@ AI Hedge Fund — 对冲分析师 Agent (v5.8)
 
 import json
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -95,7 +95,7 @@ reasoning: "分析推理过程"
 请基于这些数据做出专业判断。如果你的判断缺乏足够数据支持，请在confidence中体现。"""
 
 
-def hedge_analyst_agent(state: Dict[str, Any]) -> Dict[str, Any]:
+def hedge_analyst_agent(state: dict[str, Any]) -> dict[str, Any]:
     """
     对冲分析师 Agent — 三位一体对冲决策
 

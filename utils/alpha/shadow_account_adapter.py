@@ -36,10 +36,11 @@ from __future__ import annotations
 import logging
 import math
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Sequence, cast
+from typing import Any, cast
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]

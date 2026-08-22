@@ -62,10 +62,11 @@ import logging
 import os
 import sys
 import tempfile
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -650,9 +651,9 @@ class EvolutionMemory:
     @staticmethod
     def _now_iso() -> str:
         """当前时间 ISO8601 (UTC, 带 Z 后缀)."""
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
     @staticmethod
     def _tz() -> timezone:
         """返回 UTC 时区."""
-        return timezone.utc
+        return UTC

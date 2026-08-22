@@ -47,7 +47,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -250,7 +250,7 @@ class OpsDiagnoser:
         Returns:
             List[RootCause] 运维层根因列表
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         causes: list[RootCause] = []
 
         # 1. 数据源连通性诊断 (reports/system_check/ 最新归档 C3 项)
@@ -441,7 +441,7 @@ class OpsDiagnoser:
 
             # 检查最新文件新鲜度
             latest_file = max(files, key=lambda f: f.stat().st_mtime)
-            age_seconds = datetime.now(timezone.utc).timestamp() - latest_file.stat().st_mtime
+            age_seconds = datetime.now(UTC).timestamp() - latest_file.stat().st_mtime
             if age_seconds > DEFAULT_DATA_QUALITY_STALE_WINDOW:
                 causes.append(RootCause(
                     cause_id=f"ops-data_quality_stale-{latest_file.name}",
@@ -493,7 +493,7 @@ class OpsDiagnoser:
             if not files:
                 return causes  # 无告警文件 = 无漂移
 
-            cutoff_ts = datetime.now(timezone.utc).timestamp() - DEFAULT_ALERT_RECENCY_WINDOW
+            cutoff_ts = datetime.now(UTC).timestamp() - DEFAULT_ALERT_RECENCY_WINDOW
             recent_files = [f for f in files if f.stat().st_mtime >= cutoff_ts]
             if not recent_files:
                 return causes  # 无 24h 内告警
@@ -553,7 +553,7 @@ class OpsDiagnoser:
                 return causes  # 无审计目录 = 无变更 = 无根因
 
             files = list(fa_dir.glob("*.json")) + list(fa_dir.glob("*.jsonl"))
-            now_ts = datetime.now(timezone.utc).timestamp()
+            now_ts = datetime.now(UTC).timestamp()
             recent_changes = sum(
                 1 for f in files
                 if (now_ts - f.stat().st_mtime) < DEFAULT_FLAG_AUDIT_WINDOW
@@ -605,7 +605,7 @@ class OpsDiagnoser:
                 return causes  # 无事件目录 = 无事件 = 无根因
 
             files = list(rb_dir.glob("*.json")) + list(rb_dir.glob("*.jsonl"))
-            now_ts = datetime.now(timezone.utc).timestamp()
+            now_ts = datetime.now(UTC).timestamp()
             recent_events = sum(
                 1 for f in files
                 if (now_ts - f.stat().st_mtime) < DEFAULT_RISK_EVENT_WINDOW

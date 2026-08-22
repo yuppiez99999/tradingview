@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -323,7 +323,7 @@ class TestShadowIsolation:
 class TestKillSwitchFreeze:
     def _make_event(self, level: int, hours_ago: float = 1.0) -> dict:
         """构造熔断事件 (hours_ago 小时前触发)."""
-        ts = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+        ts = datetime.now(UTC) - timedelta(hours=hours_ago)
         return {
             "level": level,
             "timestamp": ts.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
@@ -415,7 +415,7 @@ class TestKillSwitchFreeze:
     def test_event_missing_level_skipped(self, tmp_memory: EvolutionMemory):
         """缺 level 的事件应被跳过."""
         ks = MockKillSwitch(
-            events=[{"timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")}]
+            events=[{"timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")}]
         )
         guard = EvolutionGuard(memory=tmp_memory, kill_switch=ks)
         decision = guard.check_proposal(make_proposal(level=LEVEL_L2))
@@ -489,7 +489,7 @@ class TestCombinedDefenses:
         """熔断冻结应优先于其他防线 (即使其他防线也失败)."""
         ks = MockKillSwitch(events=[{
             "level": 3,
-            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
         }])
         guard = EvolutionGuard(memory=tmp_memory, kill_switch=ks)
         # 注意: 熔断检查在防线5, 前面防线需先通过才会到防线5

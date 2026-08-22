@@ -25,10 +25,10 @@ import logging
 import threading
 import uuid
 from collections import defaultdict
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator
 
 logger = logging.getLogger("risk_audit")
 

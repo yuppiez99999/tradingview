@@ -172,6 +172,24 @@ def analyze_signal_effectiveness() -> None:
     long_stocks = [s for s in stock_signals if isinstance(s, dict) and s.get("direction") == "看多"]
     short_stocks = [s for s in stock_signals if isinstance(s, dict) and s.get("direction") == "看空"]
 
+    # GitHub 集成钩子: OpenViking 记录信号评估结果到 Agent 长期记忆 (2026-08-21)
+    try:
+        sys.path.insert(0, str(PROJECT_ROOT))
+        from quant_modules.ai_hedge_fund.openviking_memory import (
+            get_openviking_memory,
+            is_openviking_available,
+        )
+        if is_openviking_available():
+            get_openviking_memory().add_context(
+                agent_id="signal_monitor",
+                content=f"信号有效性评估: quality={quality}, ic_ir={ic_ir:.4f}, "
+                        f"total={total}, long={len(long_stocks)}, short={len(short_stocks)}",
+                metadata={"report": str(report_path), "type": "signal_evaluation"},
+                memory_type="decision",
+            )
+    except (ImportError, RuntimeError, ValueError, OSError):
+        pass
+
     if long_stocks and short_stocks:
         # 用 .get() 防 KeyError, 过滤非数值信号
         long_signals = [s.get("latest_signal") for s in long_stocks if isinstance(s.get("latest_signal"), (int, float))]

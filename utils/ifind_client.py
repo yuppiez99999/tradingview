@@ -16,7 +16,7 @@ import re
 import threading
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import requests
 
@@ -73,7 +73,7 @@ SERVERS = {
 }
 
 
-def _parse_markdown_table(text: str) -> List[Dict[str, str]]:
+def _parse_markdown_table(text: str) -> list[dict[str, str]]:
     if not text:
         return []
     lines = text.strip().split("\n")
@@ -123,7 +123,7 @@ def _parse_markdown_table(text: str) -> List[Dict[str, str]]:
     return rows
 
 
-def _col(row: Dict[str, str], *keywords: str) -> Optional[str]:
+def _col(row: dict[str, str], *keywords: str) -> Optional[str]:
     for k, v in row.items():
         for kw in keywords:
             if k == kw:
@@ -137,7 +137,7 @@ def _col(row: Dict[str, str], *keywords: str) -> Optional[str]:
     return None
 
 
-def _parse_ifind_response(result: Dict) -> Dict[str, Any]:
+def _parse_ifind_response(result: dict) -> dict[str, Any]:
     out = {"text": "", "tables": [], "datas": []}
 
     try:
@@ -197,11 +197,11 @@ def _parse_ifind_response(result: Dict) -> Dict[str, Any]:
     return out
 
 
-def _normalize_row(row: Dict[str, Any]) -> Dict[str, str]:
+def _normalize_row(row: dict[str, Any]) -> dict[str, str]:
     return {str(k): str(v) if v is not None else "" for k, v in row.items()}
 
 
-def _extract_indicators_from_row(row: Dict[str, Any]) -> Dict[str, float]:
+def _extract_indicators_from_row(row: dict[str, Any]) -> dict[str, float]:
     """从一行 dict 提取数值型指标, 容错处理 "12.34亿" / "--" / "N/A" 等
 
     Args:
@@ -210,7 +210,7 @@ def _extract_indicators_from_row(row: Dict[str, Any]) -> Dict[str, float]:
     Returns:
         {指标名: float}, 跳过无法解析的项
     """
-    out: Dict[str, float] = {}
+    out: dict[str, float] = {}
     for k, v in row.items():
         if v is None:
             continue
@@ -241,22 +241,22 @@ class IFindClient:
     def __init__(self, max_concurrency: int = 2):
         # Token 从环境变量读取,不通过构造函数传递
         self.max_concurrency = max_concurrency
-        self._sessions: Dict[str, str] = {}
-        self._req_ids: Dict[str, int] = {}
+        self._sessions: dict[str, str] = {}
+        self._req_ids: dict[str, int] = {}
         self._lock = threading.Lock()
         self._semaphore = threading.Semaphore(max_concurrency)
-        self._last_request_time: Dict[str, float] = {}
+        self._last_request_time: dict[str, float] = {}
         self.call_count = 0
         self.error_count = 0
         self.last_success: float = 0
-        self._quota_exceeded: Dict[str, float] = {}
+        self._quota_exceeded: dict[str, float] = {}
         self._quota_retry_delay = 3600
 
     def _next_id(self, t: str) -> int:
         self._req_ids[t] = self._req_ids.get(t, 0) + 1
         return self._req_ids[t]
 
-    def _headers(self, t: Optional[str] = None) -> Dict[str, str]:
+    def _headers(self, t: Optional[str] = None) -> dict[str, str]:
         h = {
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
@@ -316,7 +316,7 @@ class IFindClient:
                 timeout=10,
             )
 
-    def call(self, server_type: str, tool_name: str, params: Dict) -> Dict:
+    def call(self, server_type: str, tool_name: str, params: dict) -> dict:
         if server_type not in SERVERS:
             return {"ok": False, "error": f"unknown server_type: {server_type}"}
 
@@ -386,13 +386,13 @@ class IFindClient:
         self.last_success = time.time()
         return {"ok": True, "status_code": resp.status_code, "data": data}
 
-    def get_historical_klines(self, code: str, days: int = 252) -> Optional[List[Dict]]:
+    def get_historical_klines(self, code: str, days: int = 252) -> Optional[list[dict]]:
         if code.startswith("5"):
             return self._get_fund_historical(code, days)
         else:
             return self._get_stock_historical(code, days)
 
-    def _get_stock_historical(self, code: str, days: int = 252) -> Optional[List[Dict]]:
+    def _get_stock_historical(self, code: str, days: int = 252) -> Optional[list[dict]]:
         all_rows = []
         seen_dates = set()
 
@@ -440,7 +440,7 @@ class IFindClient:
         all_rows.sort(key=lambda x: x["日期"])
         return all_rows if all_rows else None
 
-    def _get_fund_historical(self, code: str, days: int = 252) -> Optional[List[Dict]]:
+    def _get_fund_historical(self, code: str, days: int = 252) -> Optional[list[dict]]:
         etf_data = self.get_etf_historical(code, days)
         if not etf_data:
             return None
@@ -459,7 +459,7 @@ class IFindClient:
             )
         return rows
 
-    def get_etf_quotes(self, codes: List[str]) -> Dict[str, Dict]:
+    def get_etf_quotes(self, codes: list[str]) -> dict[str, dict]:
         query = "、".join(codes)
         result = self.call("fund", "get_fund_market_performance", {"query": f"{query}最新单位净值和涨跌幅"})
         parsed = _parse_ifind_response(result)
@@ -480,7 +480,7 @@ class IFindClient:
                     continue
         return quotes
 
-    def get_etf_historical(self, code: str, days: int = 252) -> Optional[List[Dict]]:
+    def get_etf_historical(self, code: str, days: int = 252) -> Optional[list[dict]]:
         result = self.call(
             "fund", "get_fund_market_performance", {"query": f"{code}近{days}个交易日的单位净值、涨跌幅"}
         )
@@ -510,7 +510,7 @@ class IFindClient:
                 continue
         return rows if rows else None
 
-    def get_index_historical(self, index_name: str, days: int = 252) -> Optional[List[Dict]]:
+    def get_index_historical(self, index_name: str, days: int = 252) -> Optional[list[dict]]:
         all_rows = []
         seen_dates = set()
 
@@ -552,7 +552,7 @@ class IFindClient:
             all_rows.sort(key=lambda x: x["date"])
         return all_rows if all_rows else None
 
-    def get_index_latest(self, index_name: str) -> Optional[Dict]:
+    def get_index_latest(self, index_name: str) -> Optional[dict]:
         result = self.call("index", "index_data", {"query": f"{index_name}最新收盘价和涨跌幅"})
         parsed = _parse_ifind_response(result)
         tables = parsed.get("tables", [])
@@ -581,13 +581,13 @@ class IFindClient:
                     continue
         return None
 
-    def search_edb(self, query: str) -> Dict:
+    def search_edb(self, query: str) -> dict:
         return self.call("edb", "search_edb", {"query": query})
 
-    def get_bond_market(self, query: str) -> Dict:
+    def get_bond_market(self, query: str) -> dict:
         return self.call("bond", "bond_market_data", {"query": query})
 
-    def get_futures_realtime(self, codes: List[str]) -> Optional[List[Dict]]:
+    def get_futures_realtime(self, codes: list[str]) -> Optional[list[dict]]:
         if not codes:
             return None
 
@@ -651,7 +651,7 @@ class IFindClient:
 
         return rows if rows else None
 
-    def search_news(self, query: str, time_start: str = "", time_end: str = "", size: int = 5) -> Dict:
+    def search_news(self, query: str, time_start: str = "", time_end: str = "", size: int = 5) -> dict:
         params = {"query": query, "size": size}
         if time_start:
             params["time_start"] = time_start
@@ -667,11 +667,11 @@ class IFindClient:
     # ------------------------------------------------------------
     def get_fundamentals_batch(
         self,
-        symbols: List[str],
-        indicators: Optional[List[str]] = None,
+        symbols: list[str],
+        indicators: Optional[list[str]] = None,
         report_date: Optional[str] = None,
         max_workers: int = 4,
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """批量拉取多只股票的财务指标 (PE/PB/ROE/总市值/流通市值)
 
         Args:
@@ -692,12 +692,12 @@ class IFindClient:
 
         indicator_str = "、".join(indicators)
         date_suffix = f"在{report_date}的" if report_date else "最新"
-        results: Dict[str, Dict[str, float]] = {}
+        results: dict[str, dict[str, float]] = {}
 
         # 并发拉取 (受 self._semaphore 限制)
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        def _fetch_one(sym: str) -> Tuple[str, Dict[str, float]]:
+        def _fetch_one(sym: str) -> tuple[str, dict[str, float]]:
             # 简称映射: 600519.SH -> 贵州茅台(用代码即可, iFinD 支持代码查询)
             query = f"{sym}{date_suffix}{indicator_str}"
             try:
@@ -748,9 +748,9 @@ class IFindClient:
 
     def _parse_financials_content(
         self,
-        content: List[Dict],
+        content: list[dict],
         symbol: str,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """解析 get_stock_financials 返回的 markdown 表格为指标字典
 
         iFinD 返回格式: [{"type": "text", "text": "| 指标 | 数值 |\\n|...|...|"}]
@@ -758,7 +758,7 @@ class IFindClient:
         if not content:
             return {}
 
-        parsed: Dict[str, float] = {}
+        parsed: dict[str, float] = {}
         for item in content:
             text = item.get("text", "")
             if not text:
@@ -786,7 +786,7 @@ class IFindClient:
                     parsed.update(_extract_indicators_from_row(row))
 
         # 归一化键名 (PE/市盈率 -> pe, PB/市净率 -> pb, ROE/净资产收益率 -> roe)
-        normalized: Dict[str, float] = {}
+        normalized: dict[str, float] = {}
         for k, v in parsed.items():
             key = k.lower().strip()
             val: Optional[float] = None

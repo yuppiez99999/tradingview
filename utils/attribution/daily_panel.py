@@ -44,7 +44,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, cast
+from typing import Any, Optional, cast
 
 from utils.config_manager import get_config
 
@@ -873,7 +873,7 @@ class DailyAttributionPanel:
             "risk_bps": float(summary.get("risk_bps", 0.0) or 0.0),
         }
         # 残差验证 (total = alpha + execution + risk)
-        normalized_dict = cast(Dict[str, Any], normalized)
+        normalized_dict = cast(dict[str, Any], normalized)
         residual = (
             normalized_dict["total_pnl"]
             - normalized_dict["alpha_pnl"]

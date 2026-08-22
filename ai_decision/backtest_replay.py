@@ -38,22 +38,38 @@ ai_decision.backtest_replay — 历史回放 + 三基线对比
     replay = BacktestReplay(loader=loader)
     report = replay.compare_baselines()
     path = replay.save(report)
+
+模块拆分 (v8.6.15, AGENTS.md §5.3 文件 ≤800 行约束):
+  - backtest_replay_types.py: 类型 / 协议 / 常量
+  - backtest_replay_mocks.py: MockHistoryDataLoader
+  - backtest_replay.py (本文件): BacktestReplay 核心 + re-export
 """
 from __future__ import annotations
 
 import json
 import logging
 import math
-import random
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
-import numpy as np
 import pandas as pd
 
+from ai_decision.backtest_replay_mocks import MockHistoryDataLoader  # noqa: E402,F401
+
+# Re-export 类型 / 协议 / 常量 / Mock (向后兼容, 严禁删除)
+from ai_decision.backtest_replay_types import (  # noqa: E402,F401
+    MARGINAL_SHARPE_THRESHOLD,
+    MIN_IC_SAMPLES,
+    MIN_TRADING_DAYS,
+    RISK_FREE_RATE,
+    TRADING_DAYS_PER_YEAR,
+    BaselineResult,
+    BaselineType,
+    ComparisonReport,
+    HistoryDataLoader,
+    ReplayConfig,
+)
 from ai_decision.decision_gate import RiskContext, apply_mode, run_hard_risk
 from ai_decision.health import ModelHealthMonitor, get_default_monitor
 from ai_decision.models import TradingDecision
@@ -64,286 +80,6 @@ logger = logging.getLogger("ai_decision.backtest_replay")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _REPORT_DIR = _PROJECT_ROOT / "reports" / "ai_decision"
-
-# ============================================================
-# 常量
-# ============================================================
-
-# 边际夏普阈值: 超过此值才值得上线 auto 模式 (路线图 line 358)
-MARGINAL_SHARPE_THRESHOLD = 0.05
-
-# IC 最小样本数 (对齐 multi_factor_signal.MIN_IC_SAMPLES)
-MIN_IC_SAMPLES = 5
-
-# 回测所需最小交易日数 (对齐 fast_backtest.InsufficientDataError)
-MIN_TRADING_DAYS = 30
-
-# 无风险利率 (对齐 fast_backtest.DEFAULT_RF)
-RISK_FREE_RATE = 0.02
-
-# 年交易日数 (对齐 fast_backtest.DEFAULT_TRADING_DAYS)
-TRADING_DAYS_PER_YEAR = 252
-
-
-class BaselineType(str, Enum):
-    """三基线类型"""
-    AI_DEBATE = "ai_debate"        # 完整 run_decision (辩论+聚合+风控)
-    FIVE_AGENTS = "five_agents"    # 仅五 Agent 共识 (跳过辩论/judge)
-    RULE_ONLY = "rule_only"        # 纯规则兜底 (跳过 AI)
-
-
-# ============================================================
-# 数据结构
-# ============================================================
-
-@dataclass
-class ReplayConfig:
-    """回放配置
-
-    Attributes:
-        start_date: 回放开始日期 (YYYY-MM-DD)
-        end_date: 回放结束日期 (YYYY-MM-DD)
-        symbols: 标的池 (None 时用 loader.get_constituents)
-        rebalance_freq: 调仓频率 ("D"=日 / "W"=周 / "M"=月)
-        forward_return_horizon: 前瞻收益天数 (用于 IC 计算)
-        use_mock_providers: 是否强制使用 MockProvider (避免真实 API 调用)
-        initial_capital: 初始资金 (用于仓位计算)
-    """
-    start_date: str = ""
-    end_date: str = ""
-    symbols: list[str] | None = None
-    rebalance_freq: str = "W"
-    forward_return_horizon: int = 5
-    use_mock_providers: bool = True
-    initial_capital: float = 1_000_000.0
-
-
-@dataclass
-class BaselineResult:
-    """单基线回放结果
-
-    Attributes:
-        baseline: 基线类型
-        decisions: 决策序列 (每日每标的一条)
-        returns: 日收益率序列
-        ic_series: 每日 IC 序列 (Spearman)
-        metrics: 绩效指标 (from FastBacktest.summary())
-        debate_trigger_rate: 辩论触发率 (仅 ai_debate 有效)
-        n_decisions: 决策总数
-        n_buy / n_sell / n_hold: action 分布
-    """
-    baseline: str = ""
-    decisions: list[dict[str, Any]] = field(default_factory=list)
-    returns: list[float] = field(default_factory=list)
-    ic_series: list[float] = field(default_factory=list)
-    metrics: dict[str, Any] = field(default_factory=dict)
-    debate_trigger_rate: float = 0.0
-    n_decisions: int = 0
-    n_buy: int = 0
-    n_sell: int = 0
-    n_hold: int = 0
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "baseline": self.baseline,
-            "n_decisions": self.n_decisions,
-            "n_buy": self.n_buy,
-            "n_sell": self.n_sell,
-            "n_hold": self.n_hold,
-            "debate_trigger_rate": self.debate_trigger_rate,
-            "metrics": self.metrics,
-            # decisions / returns / ic_series 不序列化 (过大), 仅保留统计
-            "n_returns": len(self.returns),
-            "n_ic": len(self.ic_series),
-        }
-
-
-@dataclass
-class ComparisonReport:
-    """三基线对比报告
-
-    Attributes:
-        config: 回放配置
-        baselines: {baseline_type: BaselineResult}
-        marginal_sharpe_debate_vs_agents: ai_debate - five_agents 的边际夏普
-        marginal_sharpe_agents_vs_rule: five_agents - rule_only 的边际夏普
-        recommendation: 上线建议 ("auto" / "paper" / "shadow")
-        bias_checks: 前视偏差校验结果
-        generated_at: 生成时间
-    """
-    config: dict[str, Any] = field(default_factory=dict)
-    baselines: dict[str, dict[str, Any]] = field(default_factory=dict)
-    marginal_sharpe_debate_vs_agents: float = 0.0
-    marginal_sharpe_agents_vs_rule: float = 0.0
-    recommendation: str = "shadow"
-    bias_checks: dict[str, bool] = field(default_factory=dict)
-    generated_at: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "config": self.config,
-            "baselines": self.baselines,
-            "marginal_sharpe_debate_vs_agents": self.marginal_sharpe_debate_vs_agents,
-            "marginal_sharpe_agents_vs_rule": self.marginal_sharpe_agents_vs_rule,
-            "recommendation": self.recommendation,
-            "bias_checks": self.bias_checks,
-            "generated_at": self.generated_at,
-        }
-
-
-# ============================================================
-# 历史数据加载协议
-# ============================================================
-
-class HistoryDataLoader(Protocol):
-    """历史数据加载协议 (Protocol)
-
-    实现此协议的类需提供以下方法. 用于解耦回放引擎与具体数据源.
-    """
-
-    def get_trading_dates(self, start: str, end: str) -> list[str]:
-        """获取交易日列表 (YYYY-MM-DD)"""
-        ...
-
-    def get_market_data(self, symbol: str, date: str) -> dict[str, Any]:
-        """获取指定日期的行情数据
-
-        Returns:
-            {"close": float, "change_pct": float, "volume": float, "is_halted": bool,
-             "is_limit_up": bool, "is_limit_down": bool}
-        """
-        ...
-
-    def get_fundamentals(self, symbol: str, date: str) -> dict[str, Any]:
-        """获取指定日期可见的基本面 (用披露日, 非报告期截止日)
-
-        Returns:
-            {"pe": float, "pb": float, "roe": float, "disclosure_date": str}
-        """
-        ...
-
-    def get_forward_return(self, symbol: str, date: str, horizon: int) -> float:
-        """获取指定日期的未来 horizon 天收益率 (用于 IC 计算)
-
-        Returns:
-            前瞻收益率 (如 0.05 = +5%), 停牌/数据缺失返回 nan
-        """
-        ...
-
-    def get_constituents(self, date: str) -> list[str]:
-        """获取指定日期的成分股快照 (防幸存者偏差)"""
-        ...
-
-    def is_tradable(self, symbol: str, date: str) -> bool:
-        """检查指定日期是否可交易 (未停牌 + 未涨跌停)"""
-        ...
-
-
-# ============================================================
-# Mock 历史数据加载器 (测试用)
-# ============================================================
-
-class MockHistoryDataLoader:
-    """合成历史数据加载器 (测试 / CI 用)
-
-    生成确定性随机数据 (seed 固定), 满足回放引擎的所有数据需求.
-    不依赖外部数据源, 确保测试可重复.
-    """
-
-    def __init__(
-        self,
-        symbols: list[str] | None = None,
-        days: int = 60,
-        start_date: str = "2025-01-01",
-        seed: int = 42,
-    ) -> None:
-        self._symbols = symbols or ["600519", "000001", "300750"]
-        self._seed = seed
-        self._rng = random.Random(seed)
-        np.random.seed(seed)
-
-        # 生成交易日序列 (跳过周末)
-        self._dates: list[str] = []
-        d = datetime.strptime(start_date, "%Y-%m-%d")
-        for _ in range(days):
-            while d.weekday() >= 5:  # 5=周六, 6=周日
-                d += timedelta(days=1)
-            self._dates.append(d.strftime("%Y-%m-%d"))
-            d += timedelta(days=1)
-
-        # 为每个 symbol 生成价格序列 (随机游走)
-        self._prices: dict[str, list[float]] = {}
-        self._halts: dict[str, set] = {s: set() for s in self._symbols}
-        for sym in self._symbols:
-            price = 10.0 + self._rng.uniform(0, 90)  # 10~100 元
-            prices = [price]
-            for _i in range(1, len(self._dates)):
-                # 随机游走 + 微小正漂移
-                ret = self._rng.gauss(0.001, 0.02)
-                price = price * (1 + ret)
-                prices.append(round(price, 2))
-            self._prices[sym] = prices
-            # 随机停牌 (5% 概率)
-            for _i, dt in enumerate(self._dates):
-                if self._rng.random() < 0.05:
-                    self._halts[sym].add(dt)
-
-    def get_trading_dates(self, start: str, end: str) -> list[str]:
-        return [d for d in self._dates if start <= d <= end]
-
-    def get_market_data(self, symbol: str, date: str) -> dict[str, Any]:
-        if symbol not in self._prices or date not in self._dates:
-            return {"close": 0.0, "change_pct": 0.0, "volume": 0.0,
-                    "is_halted": True, "is_limit_up": False, "is_limit_down": False}
-        idx = self._dates.index(date)
-        close = self._prices[symbol][idx]
-        prev_close = self._prices[symbol][idx - 1] if idx > 0 else close
-        change_pct = (close - prev_close) / prev_close if prev_close > 0 else 0.0
-        is_halted = date in self._halts.get(symbol, set())
-        # 涨跌停 (|change_pct| > 9.9%)
-        is_limit_up = change_pct > 0.099
-        is_limit_down = change_pct < -0.099
-        return {
-            "close": close,
-            "change_pct": round(change_pct, 4),
-            "volume": float(self._rng.randint(100000, 1000000)),
-            "is_halted": is_halted,
-            "is_limit_up": is_limit_up,
-            "is_limit_down": is_limit_down,
-        }
-
-    def get_fundamentals(self, symbol: str, date: str) -> dict[str, Any]:
-        # 用披露日而非报告期截止日: disclosure_date <= date 才可见
-        return {
-            "pe": round(self._rng.uniform(5, 50), 2),
-            "pb": round(self._rng.uniform(0.5, 5), 2),
-            "roe": round(self._rng.uniform(0.05, 0.30), 4),
-            "disclosure_date": date,  # 简化: 当日披露
-        }
-
-    def get_forward_return(self, symbol: str, date: str, horizon: int) -> float:
-        if symbol not in self._prices or date not in self._dates:
-            return float("nan")
-        idx = self._dates.index(date)
-        if idx + horizon >= len(self._prices[symbol]):
-            return float("nan")
-        p0 = self._prices[symbol][idx]
-        p1 = self._prices[symbol][idx + horizon]
-        if p0 <= 0:
-            return float("nan")
-        return (p1 - p0) / p0
-
-    def get_constituents(self, date: str) -> list[str]:
-        # 简化: 成分股固定 (实际应逐日快照防幸存者偏差)
-        return list(self._symbols)
-
-    def is_tradable(self, symbol: str, date: str) -> bool:
-        md = self.get_market_data(symbol, date)
-        if md.get("is_halted", True):
-            return False
-        if md.get("is_limit_up", False) or md.get("is_limit_down", False):
-            return False
-        return True
 
 
 # ============================================================
@@ -1004,3 +740,27 @@ class BacktestReplay:
 
         logger.info("[Replay] 回放报告已落盘: %s + %s", md_path, json_path)
         return str(md_path)
+
+
+# ============================================================
+# Re-export 兼容声明 (防 ruff isort 误删)
+# ============================================================
+
+__all__ = [
+    # 常量 (from backtest_replay_types)
+    "MARGINAL_SHARPE_THRESHOLD",
+    "MIN_IC_SAMPLES",
+    "MIN_TRADING_DAYS",
+    "RISK_FREE_RATE",
+    "TRADING_DAYS_PER_YEAR",
+    # 类型 (from backtest_replay_types)
+    "BaselineType",
+    "ReplayConfig",
+    "BaselineResult",
+    "ComparisonReport",
+    "HistoryDataLoader",
+    # Mock (from backtest_replay_mocks)
+    "MockHistoryDataLoader",
+    # 核心引擎 (本文件)
+    "BacktestReplay",
+]

@@ -10,7 +10,7 @@ Date: 2026-07-23
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import pandas as pd
 import requests
@@ -33,7 +33,7 @@ class EastMoneyDataFetcher:
 
         logger.info("东方财富数据获取器初始化完成")
 
-    def get_realtime_quotes(self, symbols: List[str]) -> Dict[str, Any]:
+    def get_realtime_quotes(self, symbols: list[str]) -> dict[str, Any]:
         """
         获取实时行情
 
@@ -162,7 +162,7 @@ class EastMoneyDataFetcher:
             logger.error(f"获取K线数据异常: {e}")
             return pd.DataFrame()
 
-    def get_stock_info(self, symbol: str) -> Dict[str, Any]:
+    def get_stock_info(self, symbol: str) -> dict[str, Any]:
         """
         获取股票基本信息
 
@@ -209,7 +209,7 @@ class EastMoneyDataFetcher:
             logger.error(f"获取股票信息失败: {e}")
             return {'error': str(e)}
 
-    def get_flow_data(self, symbol: str) -> Dict[str, Any]:
+    def get_flow_data(self, symbol: str) -> dict[str, Any]:
         """
         获取资金流向数据
 

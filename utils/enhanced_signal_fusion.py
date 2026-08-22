@@ -27,7 +27,7 @@ import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 
@@ -80,7 +80,7 @@ except ImportError:
                 self._sources[name] = getter
                 self._source_weights[name] = initial_weight or 1.0 / max(len(self._sources), 1)
 
-            def _compute_dynamic_weights(self) -> Dict[str, float]:
+            def _compute_dynamic_weights(self) -> dict[str, float]:
                 if not self._source_weights:
                     return {}
                 total = sum(self._source_weights.values())
@@ -115,7 +115,7 @@ class SourcePerformanceMetrics:
     response_time_avg: float = 0.0
     response_time_std: float = 0.0
     last_updated: str = ""
-    performance_history: List[float] = field(default_factory=list)
+    performance_history: list[float] = field(default_factory=list)
     consecutive_losses: int = 0
     consecutive_wins: int = 0
     diversity_score: float = 0.0
@@ -141,9 +141,9 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
     def __init__(self, db_path: str = None, config: WeightAdjustmentConfig = None):
         super().__init__(db_path)
         self.config = config or WeightAdjustmentConfig()
-        self._performance_metrics: Dict[str, SourcePerformanceMetrics] = {}
-        self._weight_history: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
-        self._correlation_matrix: Dict[str, Dict[str, float]] = {}
+        self._performance_metrics: dict[str, SourcePerformanceMetrics] = {}
+        self._weight_history: dict[str, list[tuple[str, float]]] = defaultdict(list)
+        self._correlation_matrix: dict[str, dict[str, float]] = {}
         self._last_weight_update: str = ""
         self._weight_lock = threading.RLock()
         self._initialized = False
@@ -215,7 +215,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         name: str,
         getter: callable,
         initial_weight: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> None:
         """注册增强版信号源"""
         super().register_source(name, getter, initial_weight)
@@ -258,7 +258,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"记录权重变化失败: {e}")
 
-    def _compute_enhanced_dynamic_weights(self) -> Dict[str, float]:
+    def _compute_enhanced_dynamic_weights(self) -> dict[str, float]:
         """计算增强版动态权重"""
         if not self._initialized:
             return super()._compute_dynamic_weights()
@@ -286,7 +286,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
             return optimized_weights
 
-    def _compute_multi_dimensional_scores(self, sources: List[str]) -> Dict[str, float]:
+    def _compute_multi_dimensional_scores(self, sources: list[str]) -> dict[str, float]:
         """计算多维度性能分数"""
         performance_scores = {}
 
@@ -320,7 +320,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
         return performance_scores
 
-    def _compute_correlation_penalty(self, sources: List[str]) -> Dict[str, float]:
+    def _compute_correlation_penalty(self, sources: list[str]) -> dict[str, float]:
         """计算相关性惩罚"""
         correlation_penalty = {}
 
@@ -424,9 +424,9 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"保存相关性矩阵失败: {e}")
 
-    def _apply_weight_constraints(self, performance_scores: Dict[str, float],
-                                 correlation_penalty: Dict[str, float],
-                                 sources: List[str]) -> Dict[str, float]:
+    def _apply_weight_constraints(self, performance_scores: dict[str, float],
+                                 correlation_penalty: dict[str, float],
+                                 sources: list[str]) -> dict[str, float]:
         """应用权重约束和优化"""
         # 应用相关性惩罚
         adjusted_scores = {}
@@ -456,7 +456,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
         return weights
 
-    def _update_weight_history(self, new_weights: Dict[str, float]) -> None:
+    def _update_weight_history(self, new_weights: dict[str, float]) -> None:
         """更新权重历史并记录变化"""
         for source_name, new_weight in new_weights.items():
             old_weight = self._source_weights.get(source_name, 0.0)
@@ -618,7 +618,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
         logger.info(f"执行紧急重新平衡: {len(sources)}个信号源，均匀权重{uniform_weight:.3f}")
 
-    def get_enhanced_stats(self) -> Dict[str, Any]:
+    def get_enhanced_stats(self) -> dict[str, Any]:
         """获取增强版统计信息"""
         stats = super().get_stats()
 
@@ -649,7 +649,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
         return stats
 
-    def get_weight_change_analysis(self, source_name: str, days: int = 30) -> Dict[str, Any]:
+    def get_weight_change_analysis(self, source_name: str, days: int = 30) -> dict[str, Any]:
         """获取特定信号源的权重变化分析"""
         try:
             conn = sqlite3.connect(self.db_path)

@@ -161,7 +161,7 @@ class TestLLMRouterBasics:
     def test_default_fallback_chain(self):
         """默认 fallback 链: deepseek → doubao → glm → siliconflow → ollama."""
         router = LLMRouter.get_instance()
-        assert router._fallback_chain == ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ollama"]
+        assert router._fallback_chain == ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"]
 
     def test_default_timeout_5_seconds(self):
         """默认超时 5 秒 (云 API, HC-2)."""
@@ -319,7 +319,7 @@ class TestFallbackChain:
         router._silent_fallback = False
 
         # 注入全部失败的 mock (含 deepseek, 当前 fallback chain 第一位)
-        for name in ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ollama"]:
+        for name in ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"]:
             router.register_provider(name, MagicMock(return_value=None))
 
         with pytest.raises(AllProvidersFailedError) as exc_info:
@@ -327,7 +327,7 @@ class TestFallbackChain:
 
         # 验证异常信息
         assert "所有 provider 失败" in str(exc_info.value)
-        assert exc_info.value.tried_providers == ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ollama"]
+        assert exc_info.value.tried_providers == ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"]
 
     def test_provider_exception_continues_fallback(self, router_with_mocks):
         """Provider 抛异常时继续 fallback."""
@@ -647,9 +647,9 @@ class TestConnectionAndList:
 
         providers = router.list_providers()
 
-        assert len(providers) == 6
+        assert len(providers) == 7
         names = [p["name"] for p in providers]
-        assert names == ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ollama"]
+        assert names == ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"]
 
     def test_list_providers_in_fallback_chain(self, flag_enabled):
         """所有 provider 都在 fallback 链中."""
@@ -678,7 +678,7 @@ class TestConnectionAndList:
         router = LLMRouter.get_instance()
 
         # 所有 provider 都返回 None (无可用), 必须包含 deepseek (fallback chain 第一位)
-        for name in ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ollama"]:
+        for name in ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"]:
             router.register_provider(name, MagicMock(return_value=None))
 
         result = router.test_connection()
@@ -737,7 +737,7 @@ class TestModuleLevelFunctions:
         """test_connection() 快捷函数."""
         router = LLMRouter.get_instance()
         # 必须包含 deepseek (fallback chain 第一位) 以避免真实 API 调用
-        for name in ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ollama"]:
+        for name in ["omniroute", "deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"]:
             router.register_provider(name, MagicMock(return_value=None))
 
         result = test_connection()
@@ -749,7 +749,7 @@ class TestModuleLevelFunctions:
         """list_providers() 快捷函数."""
         result = list_providers()
 
-        assert len(result) == 6
+        assert len(result) == 7
 
     def test_reload_function(self, flag_enabled):
         """reload() 快捷函数."""

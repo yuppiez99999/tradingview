@@ -51,10 +51,11 @@ from __future__ import annotations
 import json
 import logging
 import sys
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Optional
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]

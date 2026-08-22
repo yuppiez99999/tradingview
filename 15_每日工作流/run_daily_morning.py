@@ -449,6 +449,18 @@ def print_morning_summary(success_count, fail_count, today_dir):
 def main():
     args = parse_morning_args()
     run_p0_system_check_morning(args)
+
+    # GitHub 周热门项目集成自检 (2026-08-21, v8.6)
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(PROJECT_ROOT))
+        from utils.github_integration_registry import run_startup_selfcheck
+        gh_report = run_startup_selfcheck()
+        log(f"GitHub 集成自检: available={gh_report.available}/{gh_report.total}, "
+            f"overall_ok={gh_report.overall_ok}")
+    except Exception as _e:
+        log(f"GitHub 集成自检跳过: {_e}", "WARNING")
+
     today_str, today_dir, prev_trading_day_str = setup_morning_context(args)
     today_dir.mkdir(parents=True, exist_ok=True)
 

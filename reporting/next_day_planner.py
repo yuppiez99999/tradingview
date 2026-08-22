@@ -7,10 +7,10 @@
 import json
 from datetime import datetime, timedelta
 from pathlib import Path as _Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 # 阶段中文名映射
-_PHASE_NAMES: Dict[str, str] = {
+_PHASE_NAMES: dict[str, str] = {
     "phase_1_accumulation": "建仓期",
     "phase_2_holding": "持有期",
     "phase_3_reduction": "减仓期",
@@ -18,14 +18,14 @@ _PHASE_NAMES: Dict[str, str] = {
 }
 
 # 阶段键列表
-_PHASE_KEYS: Tuple[str, ...] = (
+_PHASE_KEYS: tuple[str, ...] = (
     "phase_1_accumulation", "phase_2_holding", "phase_3_reduction", "phase_4_clearance",
 )
 
 
 def _compute_next_trading_day(
     report_date: Optional[str],
-) -> Tuple[str, Optional[datetime], str, Optional[str]]:
+) -> tuple[str, Optional[datetime], str, Optional[str]]:
     """计算下一交易日及其星期信息。
 
     Args:
@@ -53,7 +53,7 @@ def _compute_next_trading_day(
 
 def _load_trade_plan(
     project_root: Optional[_Path],
-) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+) -> tuple[Optional[dict[str, Any]], Optional[str]]:
     """加载 auto_trade_plan_500w_2026-2030.json。
 
     Args:
@@ -76,8 +76,8 @@ def _load_trade_plan(
 
 
 def _determine_phase(
-    exec_plan: Dict[str, Any], next_day: str, next_dt: Optional[datetime]
-) -> Tuple[str, Dict[str, Any]]:
+    exec_plan: dict[str, Any], next_day: str, next_dt: Optional[datetime]
+) -> tuple[str, dict[str, Any]]:
     """判断次日所属阶段并计算 day_index。
 
     Args:
@@ -88,7 +88,7 @@ def _determine_phase(
     Returns:
         (phase_key, phase_info) 元组
     """
-    phase_info: Dict[str, Any] = {}
+    phase_info: dict[str, Any] = {}
     phase_key = "phase_1_accumulation"
 
     for key in _PHASE_KEYS:
@@ -125,9 +125,9 @@ def _determine_phase(
 
 def _generate_phase_actions(
     phase_key: str,
-    phase_info: Dict[str, Any],
+    phase_info: dict[str, Any],
     next_day: str,
-) -> Tuple[List[str], float]:
+) -> tuple[list[str], float]:
     """根据阶段生成次日交易动作列表和当日资金。
 
     Args:
@@ -138,7 +138,7 @@ def _generate_phase_actions(
     Returns:
         (daily_actions, daily_capital) 元组, daily_capital 正为买入, 负为卖出
     """
-    daily_actions: List[str] = []
+    daily_actions: list[str] = []
     daily_capital = 0.0
 
     if phase_key == "phase_1_accumulation":
@@ -185,7 +185,7 @@ def _compute_position_action(
     weight: float,
     daily_capital: float,
     next_day: str,
-) -> Tuple[str, float]:
+) -> tuple[str, float]:
     """计算单个标的的当日动作和金额。
 
     Args:
@@ -214,11 +214,11 @@ def _compute_position_action(
 
 
 def _build_target_positions_detail(
-    stock_account: Dict[str, Any],
+    stock_account: dict[str, Any],
     phase_key: str,
     daily_capital: float,
     next_day: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """构建次日标的明细列表。
 
     Args:
@@ -230,7 +230,7 @@ def _build_target_positions_detail(
     Returns:
         标的明细列表
     """
-    target_positions_detail: List[Dict[str, Any]] = []
+    target_positions_detail: list[dict[str, Any]] = []
     plan_positions = stock_account.get("positions", [])
     if not plan_positions:
         return target_positions_detail
@@ -270,7 +270,7 @@ def _build_target_positions_detail(
 
 def _build_hedge_positions_detail(
     project_root: _Path,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """从 positions.json 读取 hedge_positions 明细。
 
     Args:
@@ -279,7 +279,7 @@ def _build_hedge_positions_detail(
     Returns:
         对冲持仓明细列表
     """
-    hedge_positions_detail: List[Dict[str, Any]] = []
+    hedge_positions_detail: list[dict[str, Any]] = []
     try:
         positions_file = project_root / "config" / "positions.json"
         if not positions_file.exists():
@@ -324,8 +324,8 @@ def _build_hedge_positions_detail(
 
 
 def _build_hedge_action(
-    hedge_account: Dict[str, Any], project_root: _Path
-) -> Dict[str, Any]:
+    hedge_account: dict[str, Any], project_root: _Path
+) -> dict[str, Any]:
     """构建对冲账户策略。
 
     Args:
@@ -359,7 +359,7 @@ def _build_hedge_action(
 def generate_next_day_plan(
     report_date: Optional[str] = None,
     project_root: Optional[_Path] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """生成第二天交易计划 (基于 auto_trade_plan_500w_2026-2030.json 的4阶段)。
 
     根据 auto_trade_plan_500w_2026-2030.json 的 4 阶段执行计划,

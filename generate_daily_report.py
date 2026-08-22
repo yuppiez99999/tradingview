@@ -12,7 +12,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path as _Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import requests as _requests
 
@@ -179,7 +179,7 @@ from reporting.price_fetcher import (  # noqa: E402
 )
 
 
-def _load_trade_plan_prices(trade_plan_path: Optional[str]) -> Dict[str, float]:
+def _load_trade_plan_prices(trade_plan_path: Optional[str]) -> dict[str, float]:
     """加载 trade_plan 获取 est_price，返回 {code_num: est_price}"""
     plan_prices = {}
     if not trade_plan_path:
@@ -203,7 +203,7 @@ def _load_trade_plan_prices(trade_plan_path: Optional[str]) -> Dict[str, float]:
     return plan_prices
 
 
-def _build_snap_index(sim_positions: Dict[str, Dict]) -> Dict[str, Dict]:
+def _build_snap_index(sim_positions: dict[str, dict]) -> dict[str, dict]:
     """建立快照索引: 去掉 sh/sz/bj 前缀后的代码 -> 快照记录"""
     snap_index = {}
     for sk, sv in sim_positions.items():
@@ -235,10 +235,10 @@ class PortfolioAnalyzer:
     def __init__(self, positions_file: str, hedge_file: str):
         self.positions_data = self._load_json(positions_file)
         self.hedge_data = self._load_json(hedge_file)
-        self.market_prices: Dict[str, Dict] = {}
+        self.market_prices: dict[str, dict] = {}
         self._data_provider = None
 
-    def _load_json(self, path: str) -> Dict:
+    def _load_json(self, path: str) -> dict:
         try:
             with open(path, encoding="utf-8") as f:
                 return json.load(f)
@@ -257,9 +257,9 @@ class PortfolioAnalyzer:
     def _merge_position(
         self,
         key: str,
-        pos: Dict,
-        snap: Dict,
-        plan_prices: Dict[str, float],
+        pos: dict,
+        snap: dict,
+        plan_prices: dict[str, float],
     ) -> int:
         """合并单个持仓，返回 matched 增量"""
         code_num = key.split(".")[0]
@@ -278,7 +278,7 @@ class PortfolioAnalyzer:
         pos["est_price"] = first_open_price
         return 1
 
-    def _add_extra_position(self, norm_code: str, sv: Dict, positions: Dict) -> None:
+    def _add_extra_position(self, norm_code: str, sv: dict, positions: dict) -> None:
         """添加快照中有但 positions 未计划的标的"""
         positions.setdefault("positions", {})[norm_code] = {
             "code": norm_code,
@@ -347,11 +347,11 @@ class PortfolioAnalyzer:
         """[B3.2 委托] 将标准代码转为新浪代码: 688041.SH -> sh688041, 000333.SZ -> sz000333"""
         return _price_to_sina_code(code)
 
-    def _fetch_sina_realtime(self, codes: List[str]) -> Dict[str, Dict]:
+    def _fetch_sina_realtime(self, codes: list[str]) -> dict[str, dict]:
         """[B3.2 委托] 通过新浪财经 API 批量获取实时行情"""
         return _price_fetch_sina_realtime(codes)
 
-    def fetch_market_prices(self) -> Dict[str, Dict]:
+    def fetch_market_prices(self) -> dict[str, dict]:
         """[B3.2 委托] 获取所有持仓标的的收盘价格
 
         价格验证规则详见 reporting.price_fetcher.fetch_market_prices
@@ -364,7 +364,7 @@ class PortfolioAnalyzer:
         self.market_prices = prices
         return prices
 
-    def calculate_pnl(self) -> Dict[str, Any]:
+    def calculate_pnl(self) -> dict[str, Any]:
         """[B3.2 委托] 计算持仓盈亏明细
 
         G4 补齐: 若当日有真实成交回报落盘, 用 fills 成交均价覆盖行情估算的
@@ -391,7 +391,7 @@ class PortfolioAnalyzer:
         """[B3.2 委托] 判断持仓状态 — 止损线由调用方保证为负值（如 -0.15）"""
         return _pnl_get_position_status(pnl_pct, stop_loss)
 
-    def analyze_hedge_position(self, market_prices: Optional[Dict[str, Dict]] = None) -> Dict[str, Any]:
+    def analyze_hedge_position(self, market_prices: Optional[dict[str, dict]] = None) -> dict[str, Any]:
         """[B3.2 委托] 分析对冲头寸
 
         Args:
@@ -400,11 +400,11 @@ class PortfolioAnalyzer:
         mp = market_prices if market_prices is not None else getattr(self, "market_prices", None)
         return _hedge_analyze_position(self.hedge_data, data_provider=self._data_provider, market_prices=mp)
 
-    def _calculate_hedge_effectiveness(self, hedge_details: List) -> float:
+    def _calculate_hedge_effectiveness(self, hedge_details: list) -> float:
         """[B3.2 委托] 计算对冲有效性"""
         return _hedge_calculate_effectiveness(hedge_details, self.hedge_data)
 
-    def analyze_hedge_positions_plan(self) -> Dict[str, Any]:
+    def analyze_hedge_positions_plan(self) -> dict[str, Any]:
         """[B3.2 委托] 分析期货期权计划头寸 (来自 positions.json 的 hedge_positions)
 
         覆盖三类对冲工具:
@@ -414,7 +414,7 @@ class PortfolioAnalyzer:
         """
         return _hedge_analyze_positions_plan(self.positions_data)
 
-    def generate_report(self, report_date: Optional[str] = None) -> Dict[str, Any]:
+    def generate_report(self, report_date: Optional[str] = None) -> dict[str, Any]:
         """[B3.2 委托] 生成完整收盘报告
 
         Args:
@@ -451,7 +451,7 @@ class PortfolioAnalyzer:
             next_day_plan=next_day_plan,
         )
 
-    def _load_return_projection(self) -> Dict[str, Any]:
+    def _load_return_projection(self) -> dict[str, Any]:
         """加载 portfolio_return_projection.json 收益率预测数据
 
         读取四场景预测(bull/base/bear/black_swan)、加权期望、风险披露等。
@@ -497,7 +497,7 @@ class PortfolioAnalyzer:
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             return {"error": f"projection load failed: {e}"}
 
-    def _derive_risk_disclosure(self) -> Dict[str, str]:
+    def _derive_risk_disclosure(self) -> dict[str, str]:
         """从 positions.json 派生风险披露 (当 projection 文件缺 risk_disclosure 时 fallback)"""
         positions = self.positions_data.get("positions", {})
         hedge = self.positions_data.get("hedge_positions", {})
@@ -521,26 +521,26 @@ class PortfolioAnalyzer:
             "liquidity_risk": "500 万规模对个股冲击成本约 0.1-0.3%",
         }
 
-    def _assess_data_source_health(self, pnl_data: Dict) -> Dict[str, Any]:
+    def _assess_data_source_health(self, pnl_data: dict) -> dict[str, Any]:
         """[B3.2 委托] 评估当前报告使用的数据源健康状态"""
         return _price_assess_data_source_health(pnl_data)
 
-    def _calculate_volatility(self, returns: List[float]) -> float:
+    def _calculate_volatility(self, returns: list[float]) -> float:
         """[B3.2 委托] 计算波动率"""
         return _pnl_calculate_volatility(returns)
 
-    def _calculate_max_drawdown(self, details: List) -> float:
+    def _calculate_max_drawdown(self, details: list) -> float:
         """[B3.2 委托] 计算组合层面真实最大回撤
 
         详见 reporting.pnl_calculator.calculate_max_drawdown
         """
         return _pnl_calculate_max_drawdown(details)
 
-    def _count_stop_loss_status(self, details: List) -> Dict:
+    def _count_stop_loss_status(self, details: list) -> dict:
         """[B3.2 委托] 统计止损状态"""
         return _pnl_count_stop_loss_status(details)
 
-    def _generate_ai_recommendations(self, pnl_data: Dict, hedge_data: Dict, net_pnl: float) -> List[str]:
+    def _generate_ai_recommendations(self, pnl_data: dict, hedge_data: dict, net_pnl: float) -> list[str]:
         """[B3.2 委托] 生成AI决策建议 (DeepSeek 优先, 降级到规则引擎)"""
         return _ai_generate_recommendations(
             pnl_data,
@@ -552,8 +552,8 @@ class PortfolioAnalyzer:
         )
 
     def _generate_deepseek_recommendations(
-        self, pnl_data: Dict, hedge_data: Dict, net_pnl: float
-    ) -> Optional[List[str]]:
+        self, pnl_data: dict, hedge_data: dict, net_pnl: float
+    ) -> Optional[list[str]]:
         """[B3.2 委托] 调用 DeepSeek 生成结构化交易决策建议
 
         生成包含具体操作关键词的建议, 以便 apply_llm_decisions_to_plan.py 识别:
@@ -570,7 +570,7 @@ class PortfolioAnalyzer:
             call_deepseek_fn=_call_deepseek,
         )
 
-    def generate_next_day_plan(self, report_date: Optional[str] = None) -> Dict[str, Any]:
+    def generate_next_day_plan(self, report_date: Optional[str] = None) -> dict[str, Any]:
         """[B3.2 委托] 生成第二天交易计划 (基于 auto_trade_plan_500w_2026-2030.json 的4阶段)
 
         根据 auto_trade_plan_500w_2026-2030.json 的 4 阶段执行计划,
@@ -588,13 +588,13 @@ class PortfolioAnalyzer:
         )
 
 
-def save_report(report: Dict, output_path: str) -> None:
+def save_report(report: dict, output_path: str) -> None:
     """保存报告"""
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
 
 
-def print_report_summary(report: Dict) -> None:
+def print_report_summary(report: dict) -> None:
     """打印报告摘要"""
 
     # 组合盈亏
@@ -616,7 +616,7 @@ def print_report_summary(report: Dict) -> None:
 
 
 
-def _build_data_integrity_warning(data_health: Dict) -> str:
+def _build_data_integrity_warning(data_health: dict) -> str:
     """构建数据完整性警告文本"""
     data_status = data_health.get("status", "UNKNOWN")
     no_data_ratio = data_health.get("no_data_ratio", 0)
@@ -647,7 +647,7 @@ def _build_data_integrity_warning(data_health: Dict) -> str:
     return ""
 
 
-def _render_position_details(details: List[Dict]) -> str:
+def _render_position_details(details: list[dict]) -> str:
     """渲染现货持仓明细表"""
     md = "| 代码 | 名称 | 股数 | 成本价 | 收盘价 | 日涨跌% | 盈亏 | 模式 | 状态 |\n"
     md += "|------|------|------|------|------|------|------|------|------|\n"
@@ -668,7 +668,7 @@ def _render_position_details(details: List[Dict]) -> str:
     return md
 
 
-def _render_hedge_details(details: List[Dict]) -> str:
+def _render_hedge_details(details: list[dict]) -> str:
     """渲染期货期权对冲盈亏明细"""
     md = ""
     for h in details:
@@ -696,7 +696,7 @@ def _render_hedge_details(details: List[Dict]) -> str:
     return md
 
 
-def _render_hedge_plan(plan: Dict) -> str:
+def _render_hedge_plan(plan: dict) -> str:
     """渲染期货期权计划头寸"""
     md = ""
     plan_details = plan.get("details", [])
@@ -727,7 +727,7 @@ def _render_hedge_plan(plan: Dict) -> str:
     return md
 
 
-def _render_next_day_stock_plan(stock_acc: Dict, next_day_plan: Dict) -> str:
+def _render_next_day_stock_plan(stock_acc: dict, next_day_plan: dict) -> str:
     """渲染次日股票ETF账户计划"""
     md = "| 项目 | 数值 |\n"
     md += "|------|------|\n"
@@ -760,7 +760,7 @@ def _render_next_day_stock_plan(stock_acc: Dict, next_day_plan: Dict) -> str:
     return md
 
 
-def _render_next_day_hedge_plan(hedge_acc: Dict) -> str:
+def _render_next_day_hedge_plan(hedge_acc: dict) -> str:
     """渲染次日对冲账户计划"""
     md = "| 项目 | 数值 |\n"
     md += "|------|------|\n"
@@ -797,7 +797,7 @@ def _render_next_day_hedge_plan(hedge_acc: Dict) -> str:
     return md
 
 
-def _render_expected_performance(exp_perf: Dict, proj: Dict) -> str:
+def _render_expected_performance(exp_perf: dict, proj: dict) -> str:
     """渲染预期绩效对照"""
     if not exp_perf:
         return ""
@@ -850,7 +850,7 @@ def _render_expected_performance(exp_perf: Dict, proj: Dict) -> str:
 """
 
 
-def _render_return_projection_section(proj: Dict) -> str:
+def _render_return_projection_section(proj: dict) -> str:
     """渲染收益率预测章节"""
     if not proj or proj.get("error"):
         return ""
@@ -906,7 +906,7 @@ def _render_return_projection_section(proj: Dict) -> str:
     return md
 
 
-def generate_markdown_report(report: Dict) -> str:
+def generate_markdown_report(report: dict) -> str:
     """生成Markdown格式报告"""
     pnl_summary = report["portfolio_pnl"]["summary"]
     net_perf = report["net_performance"]

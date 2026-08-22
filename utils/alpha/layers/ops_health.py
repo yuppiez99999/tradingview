@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -143,7 +143,7 @@ class OpsHealthLayer:
     # ============================================================
     def collect(self) -> LayerScore:
         """采集运维层指标 (只读聚合). 失败时返回降级 LayerScore."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         if not self._enabled:
             return LayerScore(
@@ -243,7 +243,7 @@ class OpsHealthLayer:
                 return 0.8  # 无告警文件 = 无漂移
             # 检查最新告警时间
             latest_file = max(files, key=lambda f: f.stat().st_mtime)
-            age_seconds = (datetime.now(timezone.utc).timestamp() - latest_file.stat().st_mtime)
+            age_seconds = (datetime.now(UTC).timestamp() - latest_file.stat().st_mtime)
             if age_seconds < DEFAULT_ALERT_RECENCY_WINDOW:
                 # 24h 内有告警, 扣分 (越新扣分越多)
                 # age=0 → 0.2 (最新告警, 扣分最多)
@@ -262,7 +262,7 @@ class OpsHealthLayer:
                 return 0.9  # 无审计目录 = 无变更 = 高分
             # 统计最近 7 天的 Flag 变更记录数
             files = list(fa_dir.glob("*.json")) + list(fa_dir.glob("*.jsonl"))
-            now_ts = datetime.now(timezone.utc).timestamp()
+            now_ts = datetime.now(UTC).timestamp()
             recent_changes = sum(
                 1 for f in files
                 if (now_ts - f.stat().st_mtime) < (7 * 86400)
@@ -280,7 +280,7 @@ class OpsHealthLayer:
             if not rb_dir or not rb_dir.exists():
                 return 0.9  # 无事件目录 = 无事件 = 高分
             files = list(rb_dir.glob("*.json")) + list(rb_dir.glob("*.jsonl"))
-            now_ts = datetime.now(timezone.utc).timestamp()
+            now_ts = datetime.now(UTC).timestamp()
             recent_events = sum(
                 1 for f in files
                 if (now_ts - f.stat().st_mtime) < (7 * 86400)

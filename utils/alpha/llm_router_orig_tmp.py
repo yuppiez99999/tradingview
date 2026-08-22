@@ -37,9 +37,10 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Optional, cast
+from typing import Any, Optional, cast
 
 # 复用 ConfigManager 4 级优先级 (HC-5)
 from utils.config_manager import get_config

@@ -5,11 +5,11 @@
 """
 
 from utils.observability.event_schema import (
-    OrderEvent,
-    RiskEvent,
     ExecutionEvent,
-    PipelineEvent,
     ObservabilityEvent,
+    OrderEvent,
+    PipelineEvent,
+    RiskEvent,
 )
 
 __all__ = [

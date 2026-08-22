@@ -607,3 +607,22 @@ def add_cross_market_features(
         _attach_derived_signals(new_df, style_rotation, gold_vol_ratio)
         out[code] = new_df
     return out
+
+
+def add_technical_features(df: pd.DataFrame) -> pd.DataFrame:
+    """技术指标特征 (stub — 拆分时遗漏, 保留 passthrough 避免 import 断裂).
+
+    TODO: 从旧 lgb_enhanced_trainer God Object 恢复完整技术指标计算
+    (MA/EMA/MACD/RSI/KDJ/Bollinger 等).
+    """
+    return df.copy()
+
+
+def add_cross_sectional_features(
+    featured_dict: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
+    """截面特征 (stub — 拆分时遗漏, 保留 passthrough 避免 import 断裂).
+
+    TODO: 从旧 lgb_enhanced_trainer God Object 恢复截面排名/标准化/中性化.
+    """
+    return {k: v.copy() for k, v in featured_dict.items()}

@@ -34,8 +34,9 @@ API:
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from typing import Any, Sequence
+from typing import Any
 
 from utils.config_manager import get_config
 

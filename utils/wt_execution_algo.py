@@ -13,14 +13,13 @@ import logging
 import math
 import time
 from datetime import datetime
-from typing import Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 def _get_adaptive_execution_params(
     target_amount: float, ref_price: float, avg_daily_volume: float, volatility: float
-) -> Dict:
+) -> dict:
     """根据实时市场数据计算自适应执行参数
 
     Args:
@@ -94,7 +93,7 @@ class MinImpactExecutor:
 
     def calculate_optimal_splits(
         self, target_amount: float, ref_price: float, avg_daily_volume: float = 0, volatility: float = 0.02
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """计算最优拆单方案
 
         Args:
@@ -168,7 +167,7 @@ class MinImpactExecutor:
 
         return orders
 
-    def simulate_execution(self, orders: List[Dict], market_impact_factor: float = 0.001) -> Dict:
+    def simulate_execution(self, orders: list[dict], market_impact_factor: float = 0.001) -> dict:
         """模拟执行结果
 
         Args:
@@ -222,13 +221,13 @@ class TWAPExecutor:
         self.execution_window_minutes = execution_window_minutes
         self.interval_minutes = interval_minutes
 
-    def calculate_splits(self, target_amount: float, ref_price: float) -> List[Dict]:
+    def calculate_splits(self, target_amount: float, ref_price: float) -> list[dict]:
         """计算TWAP拆单方案"""
         return self.calculate_optimal_splits(target_amount, ref_price)
 
     def calculate_optimal_splits(
         self, target_amount: float, ref_price: float, avg_daily_volume: float = 0, volatility: float = 0.02
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """计算TWAP拆单方案
 
         Args:
@@ -289,7 +288,7 @@ class VWAPExecutor:
     def __init__(self):
         pass
 
-    def get_volume_profile(self, session_type: str = "day") -> List[Tuple[int, float]]:
+    def get_volume_profile(self, session_type: str = "day") -> list[tuple[int, float]]:
         """获取成交量分布曲线
 
         Args:
@@ -343,7 +342,7 @@ class VWAPExecutor:
                 (120, 0.06),
             ]
 
-    def calculate_splits(self, target_amount: float, ref_price: float, session_type: str = "day") -> List[Dict]:
+    def calculate_splits(self, target_amount: float, ref_price: float, session_type: str = "day") -> list[dict]:
         """计算VWAP拆单方案"""
         return self.calculate_optimal_splits(target_amount, ref_price, session_type=session_type)
 
@@ -354,7 +353,7 @@ class VWAPExecutor:
         avg_daily_volume: float = 0,
         volatility: float = 0.02,
         session_type: str = "day",
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """计算VWAP拆单方案
 
         Args:
@@ -453,7 +452,7 @@ class OrderExecutor:
             self.cost_model = TransactionCostModel()
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
             self.cost_model = None
-    def _create_executor(self, algorithm: str, kwargs: Dict):
+    def _create_executor(self, algorithm: str, kwargs: dict):
         if algorithm == "min_impact":
             return MinImpactExecutor(
                 max_participation_pct=kwargs.get("max_participation_pct", 0.15),
@@ -471,7 +470,7 @@ class OrderExecutor:
 
     def split_order(
         self, target_amount: float, ref_price: float, avg_daily_volume: float = 0, volatility: float = 0.02
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """拆分订单
 
         Args:
@@ -504,7 +503,7 @@ class OrderExecutor:
         else:
             return []
 
-    def simulate(self, orders: List[Dict]) -> Dict:
+    def simulate(self, orders: list[dict]) -> dict:
         """模拟执行"""
         if isinstance(self._executor, MinImpactExecutor):
             return self._executor.simulate_execution(orders)
@@ -524,7 +523,7 @@ class OrderExecutor:
             }
 
     @staticmethod
-    def compare_algorithms(target_amount: float, ref_price: float, avg_daily_volume: float = 0) -> Dict:
+    def compare_algorithms(target_amount: float, ref_price: float, avg_daily_volume: float = 0) -> dict:
         """比较不同执行算法的效果
 
         Args:
@@ -565,7 +564,7 @@ class OrderExecutor:
         return results
 
 
-def split_order(target_amount: float, ref_price: float, algorithm: str = "min_impact", **kwargs) -> List[Dict]:
+def split_order(target_amount: float, ref_price: float, algorithm: str = "min_impact", **kwargs) -> list[dict]:
     """便捷函数：拆分订单"""
     executor = OrderExecutor(algorithm=algorithm, **kwargs)
     return executor.split_order(
@@ -573,14 +572,14 @@ def split_order(target_amount: float, ref_price: float, algorithm: str = "min_im
     )
 
 
-def compare_execution(target_amount: float, ref_price: float, avg_daily_volume: float = 0) -> Dict:
+def compare_execution(target_amount: float, ref_price: float, avg_daily_volume: float = 0) -> dict:
     """便捷函数：比较执行算法"""
     return OrderExecutor.compare_algorithms(target_amount, ref_price, avg_daily_volume)
 
 
 def execute_order_with_algorithm(
     target_amount: float, ref_price: float, algorithm: str = "min_impact", **kwargs
-) -> Dict:
+) -> dict:
     """便捷函数：使用指定算法执行订单"""
     executor = OrderExecutor(algorithm=algorithm, **kwargs)
     orders = executor.split_order(

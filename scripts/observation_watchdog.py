@@ -51,7 +51,7 @@ import io
 import json
 import logging
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -154,7 +154,7 @@ def count_trading_days_between(start: date, end: date) -> int:
 
 def utc_now_iso() -> str:
     """返回 UTC 时间 ISO 字符串 (带 Z 后缀)."""
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 # ============================================================

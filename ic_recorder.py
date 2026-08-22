@@ -16,7 +16,7 @@ import json
 import logging
 import os
 from datetime import date, datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 import numpy as np
 
@@ -32,7 +32,7 @@ def _ensure_store_dir() -> None:
 
 
 def compute_ic_from_signals(
-    signal_history: List[Dict],
+    signal_history: list[dict],
     min_samples: int = 10,
 ) -> Optional[float]:
     """从信号历史计算当日 IC (Pearson 相关)
@@ -62,7 +62,7 @@ def compute_ic_from_signals(
     return ic
 
 
-def load_ic_store() -> Dict:
+def load_ic_store() -> dict:
     """加载 IC 存储
 
     Returns:
@@ -99,7 +99,7 @@ def record_daily_ic(
     store["latest_source"] = source
     store["updated_at"] = datetime.now().isoformat()
 
-    history: List[Dict] = store.get("history", [])
+    history: list[dict] = store.get("history", [])
     history.append(
         {
             "date": trade_date.isoformat(),

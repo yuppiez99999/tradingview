@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 from utils.infra.feature_flags import is_enabled
 from utils.risk.risk_bus import RiskBus, get_bus
@@ -112,7 +112,7 @@ class KillSwitchAdapter:
         """
         # 同步直调原 KillSwitch (HC-2 铁律: 不走总线)
         start_ts = time.perf_counter()
-        status = cast(Dict[str, Any], self._ks.check_margin_status(margin_usage=margin_usage))
+        status = cast(dict[str, Any], self._ks.check_margin_status(margin_usage=margin_usage))
         elapsed_ms = (time.perf_counter() - start_ts) * 1000
 
         # 仅在 level>=1 时发布归档事件 (best-effort, 不影响同步路径)
@@ -144,7 +144,7 @@ class KillSwitchAdapter:
             - 执行后会发布 KILL_SWITCH_TRIGGERED 归档事件 (best-effort)
         """
         # 同步直调原 KillSwitch (HC-2 铁律)
-        result = cast(Dict[str, Any], self._ks.execute_kill_switch(level))
+        result = cast(dict[str, Any], self._ks.execute_kill_switch(level))
 
         # 执行成功后发布归档事件 (best-effort)
         if result.get("executed", False):

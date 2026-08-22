@@ -1177,6 +1177,68 @@ def is_sentiment_signal_enabled() -> bool:
         return False
 
 
+# ── 新闻智能信号源集成 (S1, TradingAgents 启发) ──
+
+def _get_news_intelligence_signal_source(code: str) -> Optional[SignalResult]:
+    """新闻智能信号源 — 财经新闻采集 + LLM 深度解读
+
+    受 USE_NEWS_INTELLIGENCE_SIGNAL feature-flag 控制, 关闭时返回 None.
+    区别于 sentiment (自媒体词典打分), news_intel 用 LLM 做深度新闻分析.
+    """
+    try:
+        from utils.infra.feature_flags import is_enabled
+        if not is_enabled("USE_NEWS_INTELLIGENCE_SIGNAL"):
+            return None
+    except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
+        logger.debug(f"news_intel flag 检查失败: {e}")
+        return None
+
+    try:
+        from .signal_sources.news_intelligence_signal_source import NewsIntelligenceSignalSource
+        source = NewsIntelligenceSignalSource()
+        return source.get_signal(code)
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ImportError) as e:
+        logger.warning(f"新闻智能信号获取失败 code={code}: {e}")
+        return None
+
+
+def register_news_intelligence_signal_source(initial_weight: float = 0.08) -> None:
+    """注册新闻智能信号源 (第 7 信号源)
+
+    受 USE_NEWS_INTELLIGENCE_SIGNAL feature-flag 控制, 关闭时不注册.
+    初始权重 0.08 (略高于 sentiment 的 0.05, 因 LLM 解读通常更可靠),
+    由 EnhancedSignalFusionEngine 动态权重机制自动调整.
+    """
+    try:
+        from utils.infra.feature_flags import is_enabled
+        if not is_enabled("USE_NEWS_INTELLIGENCE_SIGNAL"):
+            logger.info("USE_NEWS_INTELLIGENCE_SIGNAL=False, 跳过新闻智能信号源注册")
+            return
+    except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
+        logger.warning(f"news_intel flag 检查失败: {e}")
+        return
+
+    try:
+        engine = get_fusion_engine()
+        if engine.has_source('news_intel'):
+            logger.info("新闻智能信号源已注册, 跳过 (幂等)")
+            return
+        engine.register_source('news_intel', _get_news_intelligence_signal_source, initial_weight)
+        logger.info(f"新闻智能信号源已注册 (权重={initial_weight:.3f})")
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        logger.error(f"注册新闻智能信号源失败: {e}")
+
+
+def is_news_intelligence_signal_enabled() -> bool:
+    """检查新闻智能信号源是否已注册"""
+    try:
+        engine = get_fusion_engine()
+        return engine.has_source('news_intel')
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        logger.warning(f"检查新闻智能信号源失败: {e}")
+        return False
+
+
 # ============================================================
 # qlib_lgb_v2 shadow 接入 (2026-08-18, Sprint 1.6)
 # ============================================================

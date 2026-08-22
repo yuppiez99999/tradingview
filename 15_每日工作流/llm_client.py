@@ -7,7 +7,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 # ============================================================
 # 项目根目录与 .env 加载
@@ -92,7 +92,7 @@ _ollama_lock = threading.Lock()
 
 # MC2 修复: Provider 熔断器 — 记录失败时间, 冷却期内跳过 (避免每次重试不可用 provider 浪费 60s)
 # 冷却时间 300 秒 (5 分钟), 无 Key 的 provider 不计入熔断 (直接跳过)
-_PROVIDER_FAILURE_TIME: Dict[str, float] = {}
+_PROVIDER_FAILURE_TIME: dict[str, float] = {}
 _PROVIDER_COOLDOWN_SEC = 300  # 5 分钟冷却
 
 
@@ -551,7 +551,7 @@ def _chat_ollama_deep_api(prompt: str, system: str = "",
         return None
 
 
-def test_connection() -> Dict[str, Any]:
+def test_connection() -> dict[str, Any]:
     """连通性探测 (DeepSeek 优先)"""
     providers = {
         "deepseek": bool(DEEPSEEK_API_KEY),

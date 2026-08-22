@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 # ============================================================
 # 异常波动阈值 (按板别差异化)

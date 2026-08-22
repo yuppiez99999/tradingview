@@ -39,7 +39,7 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -308,7 +308,7 @@ class UnifiedHealthMetrics:
         Returns:
             HealthReport (不可变)
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # HC-1: Flag 关闭 → 降级报告
         if not self._enabled:

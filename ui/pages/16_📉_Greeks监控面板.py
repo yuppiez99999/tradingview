@@ -11,7 +11,6 @@ Greeks 监控面板 v1.0
 import os
 import sys
 from datetime import datetime
-from typing import List
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
@@ -36,7 +35,7 @@ inject_global_style()
 # ============================================================
 
 @st.cache_data(ttl=30)
-def _load_option_contracts() -> List:
+def _load_option_contracts() -> list:
     try:
         from quant_modules.greeks_calculator import build_demo_contracts, load_positions_for_greeks
         contracts = load_positions_for_greeks()

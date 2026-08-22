@@ -35,10 +35,11 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Callable, Protocol
+from enum import StrEnum
+from typing import Any, Protocol
 
 from utils.risk.risk_audit_logger import RiskAuditLogger
 
@@ -64,7 +65,7 @@ class BrokerProtocol(Protocol):
 # 数据结构
 # ============================================================
 
-class OrderState(str, Enum):
+class OrderState(StrEnum):
     """订单 8 态状态机."""
 
     PENDING = "pending"

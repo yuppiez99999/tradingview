@@ -23,7 +23,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable, Optional, Union
+from collections.abc import Iterable
+from typing import Optional, Union
 
 logger = logging.getLogger("safe_math")
 

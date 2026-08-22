@@ -27,7 +27,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 # 添加当前目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -72,8 +72,8 @@ class DecisionResult:
     """决策结果"""
     timestamp: str
     market_summary: str  # 市场概况
-    trading_signals: List[TradingSignal] = field(default_factory=list)
-    risk_alerts: List[RiskAlert] = field(default_factory=list)
+    trading_signals: list[TradingSignal] = field(default_factory=list)
+    risk_alerts: list[RiskAlert] = field(default_factory=list)
     portfolio_advice: str = ""  # 组合调整建议
     macro_outlook: str = ""  # 宏观展望
     ai_confidence: float = 0.0  # AI 整体置信度
@@ -106,7 +106,7 @@ class GLM5DecisionEngine:
         "light_analysis": "轻量分析 (情感/分类)",
     }
 
-    def __init__(self, config: Optional[Dict] = None, **kwargs):
+    def __init__(self, config: Optional[dict] = None, **kwargs):
         """
         初始化决策引擎
 
@@ -285,10 +285,10 @@ class GLM5DecisionEngine:
 
     def make_decisions(
         self,
-        market_data: Dict[str, Any],
-        portfolio_data: Dict[str, Any],
-        risk_rules: Optional[Dict[str, Any]] = None,
-        macro_indicators: Optional[Dict[str, Any]] = None,
+        market_data: dict[str, Any],
+        portfolio_data: dict[str, Any],
+        risk_rules: Optional[dict[str, Any]] = None,
+        macro_indicators: Optional[dict[str, Any]] = None,
         scene: str = "intraday_decision",
         include_fundamentals: Optional[bool] = None,
     ) -> DecisionResult:
@@ -379,9 +379,9 @@ class GLM5DecisionEngine:
         self,
         prompt: str,
         scene: str,
-        market_data: Dict,
-        portfolio_data: Dict,
-        risk_rules: Optional[Dict],
+        market_data: dict,
+        portfolio_data: dict,
+        risk_rules: Optional[dict],
     ) -> DecisionResult:
         """v5.8 多模型场景路由决策"""
         system_prompt_template = self._scene_prompts.get(scene, self.system_prompt)
@@ -460,9 +460,9 @@ class GLM5DecisionEngine:
     def _make_decision_legacy(
         self,
         prompt: str,
-        market_data: Dict,
-        portfolio_data: Dict,
-        risk_rules: Optional[Dict],
+        market_data: dict,
+        portfolio_data: dict,
+        risk_rules: Optional[dict],
     ) -> DecisionResult:
         """v5.7 旧版决策模式 (向后兼容降级)"""
         if not self.client:
@@ -492,10 +492,10 @@ class GLM5DecisionEngine:
 
     def _build_decision_prompt(
         self,
-        market_data: Dict,
-        portfolio_data: Dict,
-        risk_rules: Optional[Dict],
-        macro_indicators: Optional[Dict],
+        market_data: dict,
+        portfolio_data: dict,
+        risk_rules: Optional[dict],
+        macro_indicators: Optional[dict],
     ) -> str:
         """构建决策提示词 (v5.8+ 2026-08-07 升级: 摘要化 + few-shot + 精简表格)"""
 
@@ -572,9 +572,9 @@ class GLM5DecisionEngine:
     def _parse_decision_result(
         self,
         raw_analysis: str,
-        market_data: Dict,
-        portfolio_data: Dict,
-        risk_rules: Optional[Dict],
+        market_data: dict,
+        portfolio_data: dict,
+        risk_rules: Optional[dict],
         scene: str = "intraday_decision",
     ) -> DecisionResult:
         """解析 GLM-5 的输出结果"""
@@ -631,7 +631,7 @@ class GLM5DecisionEngine:
             raw_analysis=raw_analysis,
         )
 
-    def _extract_trading_signals(self, text: str) -> List[TradingSignal]:
+    def _extract_trading_signals(self, text: str) -> list[TradingSignal]:
         """从文本中提取交易信号 (v5.8+ 兼容简表格式)"""
         signals = []
 
@@ -716,7 +716,7 @@ class GLM5DecisionEngine:
 
         return signals
 
-    def _extract_signals_from_text(self, text: str) -> List[TradingSignal]:
+    def _extract_signals_from_text(self, text: str) -> list[TradingSignal]:
         """从纯文本中提取交易信号（备用方案）"""
         signals = []
 
@@ -745,7 +745,7 @@ class GLM5DecisionEngine:
 
         return signals
 
-    def _extract_risk_alerts(self, text: str) -> List[RiskAlert]:
+    def _extract_risk_alerts(self, text: str) -> list[RiskAlert]:
         """从文本中提取风险预警"""
         alerts = []
 
@@ -797,7 +797,7 @@ class GLM5DecisionEngine:
             ai_confidence=0.0,
         )
 
-    def quick_check(self, portfolio_data: Dict) -> DecisionResult:
+    def quick_check(self, portfolio_data: dict) -> DecisionResult:
         """
         快速检查（简化版，仅检查持仓风险）
 
@@ -893,8 +893,8 @@ class GLM5DecisionEngine:
 # ==================== 快捷函数 ====================
 
 def auto_trade_decision(
-    market_data: Dict,
-    portfolio_data: Dict,
+    market_data: dict,
+    portfolio_data: dict,
     **kwargs
 ) -> DecisionResult:
     """

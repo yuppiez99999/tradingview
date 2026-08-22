@@ -33,14 +33,14 @@ import json
 import logging
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("param_governor")
 
 
-class AdjustmentReason(str, Enum):
+class AdjustmentReason(StrEnum):
     """参数调整的合法理由 (白名单)"""
 
     IC_DECAY = "ic_decay"  # IC 衰减 (T17 OOS gap 触发)
@@ -52,7 +52,7 @@ class AdjustmentReason(str, Enum):
     MANUAL_OVERRIDE = "manual_override"  # 人工紧急覆盖 (需额外审批)
 
 
-class RejectionCode(str, Enum):
+class RejectionCode(StrEnum):
     """拒绝码"""
 
     COOLDOWN_ACTIVE = "cooldown_active"  # 冷却期内

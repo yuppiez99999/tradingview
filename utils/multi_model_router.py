@@ -27,7 +27,7 @@ from concurrent.futures import TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import requests
 import yaml
@@ -46,7 +46,7 @@ class ModelCallResult:
     latency_ms: float
     success: bool = True
     error: str = ""
-    usage: Dict[str, int] = field(default_factory=dict)
+    usage: dict[str, int] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -59,7 +59,7 @@ class RoutingResult:
     merged_content: str = ""
     confidence: float = 0.0
     agreement: bool = False          # 双模型是否一致
-    divergent_points: List[str] = field(default_factory=list)  # 分歧点
+    divergent_points: list[str] = field(default_factory=list)  # 分歧点
     latency_ms: float = 0.0
     cost_estimate: float = 0.0
     model_path: str = ""             # 实际使用的模型路径
@@ -135,20 +135,20 @@ class ModelRouter:
             self.config = yaml.safe_load(f)
 
         # 初始化熔断器
-        self.circuit_breakers: Dict[str, CircuitBreaker] = {}
+        self.circuit_breakers: dict[str, CircuitBreaker] = {}
         providers = self.config.get('providers', {})
         for provider_key in providers:
             self.circuit_breakers[provider_key] = CircuitBreaker(provider=provider_key)
 
         # 审计日志
-        self.audit_log: List[Dict] = []
+        self.audit_log: list[dict] = []
         self.audit_lock = threading.Lock()
 
         # API 会话缓存 (避免 SSL 握手重复)
-        self._sessions: Dict[str, requests.Session] = {}
+        self._sessions: dict[str, requests.Session] = {}
 
         # 性能统计
-        self.stats: Dict[str, Dict] = {
+        self.stats: dict[str, dict] = {
             provider_key: {"calls": 0, "successes": 0, "total_latency_ms": 0}
             for provider_key in providers
         }
@@ -173,7 +173,7 @@ class ModelRouter:
         scene: str,
         prompt: str,
         system_prompt: Optional[str] = None,
-        extra_context: Optional[Dict] = None,
+        extra_context: Optional[dict] = None,
         timeout: Optional[int] = None,
     ) -> RoutingResult:
         """
@@ -262,7 +262,7 @@ class ModelRouter:
 
     def _execute_parallel_hedge(
         self,
-        scene_config: Dict,
+        scene_config: dict,
         prompt: str,
         system_prompt: Optional[str],
         rag_context: str,
@@ -349,7 +349,7 @@ class ModelRouter:
 
     def _execute_cross_validation(
         self,
-        scene_config: Dict,
+        scene_config: dict,
         prompt: str,
         system_prompt: Optional[str],
         rag_context: str,
@@ -543,11 +543,11 @@ class ModelRouter:
         api_base: str,
         api_key: str,
         model: str,
-        messages: List[Dict],
+        messages: list[dict],
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[Dict]:
+    ) -> Optional[dict]:
         """调用 OpenAI 兼容格式的 API (DeepSeek / Zhipu / Qwen)"""
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -577,11 +577,11 @@ class ModelRouter:
         self,
         session: requests.Session,
         model: str,
-        messages: List[Dict],
+        messages: list[dict],
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[Dict]:
+    ) -> Optional[dict]:
         """调用火山引擎豆包 API (Responses 格式)"""
         api_key = os.environ.get('VOLCENGINE_API_KEY', '')
         api_base = "https://ark.cn-beijing.volces.com/api/v3/responses"
@@ -636,7 +636,7 @@ class ModelRouter:
             return cb.is_open
         return False
 
-    def _build_rag_context(self, scene: str, extra_context: Optional[Dict]) -> str:
+    def _build_rag_context(self, scene: str, extra_context: Optional[dict]) -> str:
         """构建 RAG 上下文"""
         rag_config = self.config.get('rag', {})
         disabled = rag_config.get('disabled_scenes', [])
@@ -711,7 +711,7 @@ class ModelRouter:
 
         return overlap > 0.3
 
-    def _find_divergent_points(self, content1: str, content2: str) -> List[str]:
+    def _find_divergent_points(self, content1: str, content2: str) -> list[str]:
         """识别分歧点"""
         divergences = []
 
@@ -735,7 +735,7 @@ class ModelRouter:
         return (content1 if len(content1) >= len(content2) else content2) + \
                "\n\n---\n双模型交叉验证：一致 ✅ (高置信度)"
 
-    def _merge_divergent(self, content1: str, content2: str, divergences: List[str]) -> str:
+    def _merge_divergent(self, content1: str, content2: str, divergences: list[str]) -> str:
         """合并有分歧的结果"""
         merged = "## 主模型分析 (DeepSeek V4 Pro)\n\n"
         merged += content1
@@ -795,7 +795,7 @@ class ModelRouter:
             if len(self.audit_log) > 1000:
                 self.audit_log = self.audit_log[-1000:]
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取性能统计"""
         result = {}
         for provider, s in self.stats.items():
@@ -809,7 +809,7 @@ class ModelRouter:
                 }
         return result
 
-    def get_audit_log(self, limit: int = 20) -> List[Dict]:
+    def get_audit_log(self, limit: int = 20) -> list[dict]:
         """获取最近审计日志"""
         with self.audit_lock:
             return self.audit_log[-limit:]

@@ -8,7 +8,7 @@ import os
 import re
 import subprocess
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import requests as _requests
 
@@ -31,7 +31,7 @@ def _ensure_wind_cli() -> Optional[str]:
     return None
 
 
-def _parse_sse_generic(text: str) -> Optional[Dict]:
+def _parse_sse_generic(text: str) -> Optional[dict]:
     """通用 SSE 解析: 提取 "data: {json}" 行并解析为 dict
 
     Wind MCP 的 initialize/tools/list 等 RPC 返回 SSE 格式:
@@ -54,7 +54,7 @@ def _parse_sse_generic(text: str) -> Optional[Dict]:
     return None
 
 
-def _parse_sse_minute_quote(text: str) -> Optional[Dict]:
+def _parse_sse_minute_quote(text: str) -> Optional[dict]:
     """解析 Wind MCP stock_data.get_stock_quote 返回的 SSE 分钟级行情，并打包成 OHLCV。"""
     m = re.search(r"data:\s*(\{.*\})\s*$", text, re.S)
     if not m:
@@ -147,7 +147,7 @@ def _parse_sse_minute_quote(text: str) -> Optional[Dict]:
     }
 
 
-def _wind_http(server_endpoint: str, tool_name: str, params: Dict, api_key: str, retries: int = 2) -> Dict:
+def _wind_http(server_endpoint: str, tool_name: str, params: dict, api_key: str, retries: int = 2) -> dict:
     """绕过 CLI，直接请求 Wind MCP，并尝试解析 SSE。失败时自动重试。"""
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -215,7 +215,7 @@ def _wind_http(server_endpoint: str, tool_name: str, params: Dict, api_key: str,
     return {"ok": False, "error": last_err or "wind_http_failed"}
 
 
-def _wind_http_generic(server_endpoint: str, tool_name: str, params: Dict, api_key: str, retries: int = 2) -> Dict:
+def _wind_http_generic(server_endpoint: str, tool_name: str, params: dict, api_key: str, retries: int = 2) -> dict:
     """v8.6.11 新增: 通用 HTTP 调用 (不调用 _parse_sse_minute_quote)
 
     用于 K 线类工具 (get_stock_kline / get_fund_kline), 这类工具返回多行 K 线数据,
@@ -317,7 +317,7 @@ def _get_wind_api_key() -> Optional[str]:
     return None
 
 
-def _call_wind(server_type: str, tool_name: str, params: Dict, retries: int = 2) -> Dict:
+def _call_wind(server_type: str, tool_name: str, params: dict, retries: int = 2) -> dict:
     node = _ensure_wind_cli()
     if not node:
         return {"ok": False, "error": "wind_cli_missing"}
@@ -375,7 +375,7 @@ def _call_wind(server_type: str, tool_name: str, params: Dict, retries: int = 2)
     return {"ok": False, "error": last_err or "wind_cli_failed"}
 
 
-def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[Dict]:
+def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[dict]:
     """获取股票/ETF 实时行情快照
 
     使用 get_stock_price_indicators 工具 (实时快照), 而非 get_stock_quote (分钟级时间序列)。
@@ -462,7 +462,7 @@ def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[Dict]:
     }
 
 
-def _extract_price_indicators(data: Dict) -> Optional[Dict]:
+def _extract_price_indicators(data: dict) -> Optional[dict]:
     """从 get_stock_price_indicators 响应中提取价格数据
 
     Wind MCP 返回结构 (SSE 或普通 JSON):
@@ -544,7 +544,7 @@ def _extract_price_indicators(data: Dict) -> Optional[Dict]:
     }
 
 
-def wind_get_batch_quotes(windcodes: List[str], is_fund: bool = False) -> Dict[str, Optional[Dict]]:
+def wind_get_batch_quotes(windcodes: list[str], is_fund: bool = False) -> dict[str, Optional[dict]]:
     result = {}
     for code in windcodes:
         quote = wind_get_quote(code, is_fund=is_fund)
@@ -552,7 +552,7 @@ def wind_get_batch_quotes(windcodes: List[str], is_fund: bool = False) -> Dict[s
     return result
 
 
-def wind_get_kline(windcode: str, days: int = 2, is_fund: bool = False) -> Optional[List[Dict]]:
+def wind_get_kline(windcode: str, days: int = 2, is_fund: bool = False) -> Optional[list[dict]]:
     """获取股票/ETF 历史 K 线数据
 
     v8.6.11 FIX:
@@ -607,7 +607,7 @@ def wind_get_kline(windcode: str, days: int = 2, is_fund: bool = False) -> Optio
     return records[-days:] if len(records) > days else records
 
 
-def _extract_kline_records(data: Dict) -> List[Dict]:
+def _extract_kline_records(data: dict) -> list[dict]:
     """从 Wind MCP 响应中提取 K 线记录 (CLI 和 HTTP 通用)
 
     支持多种返回格式:
@@ -686,7 +686,7 @@ def fetch_realtime_price(windcode: str) -> Optional[float]:
 # ============================================================
 # 财经新闻搜索 (financial_docs 域)
 # ============================================================
-def wind_search_news(query: str, top_k: int = 20) -> List[Dict]:
+def wind_search_news(query: str, top_k: int = 20) -> list[dict]:
     """通过 Wind MCP financial_docs.get_financial_news 搜索财经新闻
 
     Args:
@@ -731,7 +731,7 @@ def wind_search_news(query: str, top_k: int = 20) -> List[Dict]:
     return _extract_news_items(data)
 
 
-def _extract_news_items(data: Any) -> List[Dict]:
+def _extract_news_items(data: Any) -> list[dict]:
     """从 Wind MCP 响应中提取新闻条目
 
     Wind MCP 返回格式 (CLI / HTTP 两种):
@@ -744,7 +744,7 @@ def _extract_news_items(data: Any) -> List[Dict]:
 
     items = []
 
-    def _parse_text_to_items(text: str) -> List[Dict]:
+    def _parse_text_to_items(text: str) -> list[dict]:
         """解析 text 字段 (可能是 JSON 字符串) 为新闻列表"""
         if not text:
             return []

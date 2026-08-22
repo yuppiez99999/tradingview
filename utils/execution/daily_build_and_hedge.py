@@ -25,7 +25,7 @@ import logging
 import sys
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 # T3.6 迁移修正: __file__ 从根目录变为 utils/execution/, 需回退两级到项目根目录
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -563,7 +563,7 @@ class DailyBuildHedgeSystem:
         if getattr(self, "_target_plan_cache", None) is None:
             try:
                 with open(BASE_DIR / "500万建仓计划_20260706.json", encoding="utf-8") as f:
-                    self._target_plan_cache = cast(Dict[str, Any], json.load(f))
+                    self._target_plan_cache = cast(dict[str, Any], json.load(f))
             except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
                 logger.warning(f"加载目标建仓计划失败: {e}")
                 self._target_plan_cache = {}
@@ -586,7 +586,7 @@ class DailyBuildHedgeSystem:
             tp_plan = self._load_target_portfolio_plan()
             codes.update(tp_plan.get("target_portfolio", {}).keys())
 
-            quotes = cast(Dict[str, Any], get_realtime_quotes(sorted(codes)))
+            quotes = cast(dict[str, Any], get_realtime_quotes(sorted(codes)))
             self.realtime_quotes = quotes
             logger.info(f"实时行情已获取: {len(quotes)} 只标的 (源: 东财/腾讯)")
             return quotes

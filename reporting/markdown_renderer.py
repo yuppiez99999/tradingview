@@ -8,7 +8,7 @@
 """
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from reporting.pnl_calculator import (
     calculate_max_drawdown,
@@ -40,16 +40,16 @@ def _fetch_vix_or_default(default: float = 18.5) -> float:
 
 def generate_report(
     report_date: str,
-    positions_data: Dict[str, Any],
-    hedge_data: Dict[str, Any],
-    market_prices: Dict[str, Dict],
-    pnl_data: Dict[str, Any],
-    hedge_position_data: Dict[str, Any],
-    hedge_plan: Dict[str, Any],
-    return_projection: Dict[str, Any],
-    ai_recommendations: List[str],
-    next_day_plan: Dict[str, Any],
-) -> Dict[str, Any]:
+    positions_data: dict[str, Any],
+    hedge_data: dict[str, Any],
+    market_prices: dict[str, dict],
+    pnl_data: dict[str, Any],
+    hedge_position_data: dict[str, Any],
+    hedge_plan: dict[str, Any],
+    return_projection: dict[str, Any],
+    ai_recommendations: list[str],
+    next_day_plan: dict[str, Any],
+) -> dict[str, Any]:
     """生成完整收盘报告
 
     Args:

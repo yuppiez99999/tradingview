@@ -30,8 +30,9 @@ import json
 import logging
 import sys
 import traceback
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 # Windows编码修复
 if sys.platform == 'win32':

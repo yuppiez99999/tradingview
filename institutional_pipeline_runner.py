@@ -22,7 +22,7 @@ import math
 import os
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -107,9 +107,8 @@ except Exception as e:  # noqa: BLE001
     logger.debug("BlackLittermanOptimizer 加载失败, BL 影子模式不可用: %s", e)
 
 try:
-    from lgb_enhanced_trainer import (
-        LGB_ENHANCED_CONFIG,
-        POSITION_SYMBOLS,
+    from lgb_enhanced_trainer import LGB_ENHANCED_CONFIG, POSITION_SYMBOLS
+    from lgb_trainer import (
         add_capital_flow_features,
         add_cross_market_features,
         add_cross_sectional_features,
@@ -293,7 +292,9 @@ class InstitutionalPipelineRunner:
 
         # Step 3: 信号融合
         fusion_signals = self._step_signal_fusion(alpha_report)
-        result["steps"]["signal_fusion"] = [s.to_dict() for s in fusion_signals]
+        result["steps"]["signal_fusion"] = [
+            s.to_dict() if hasattr(s, "to_dict") else asdict(s) for s in fusion_signals
+        ]
 
         # Step 4: 组合优化
         portfolio_decision = self._step_portfolio_optimization(fusion_signals)
@@ -402,6 +403,9 @@ class InstitutionalPipelineRunner:
         execution_plans = self._step_execution_routing(portfolio_decision, fusion_signals)
         result["steps"]["execution_plans"] = [p.to_dict() for p in execution_plans]
 
+        # Step 6.5: AI EOD 复盘 (phase_review) — v86 集成 W35, feature flag 控制
+        self._run_eod_review_phase(result, portfolio_decision)
+
         # 回测完整性守卫：前视偏差 / mock alpha 一律不得报告为有效回测
         if self.ctx.mode == "backtest":
             is_valid, integrity_issues = validate_backtest(
@@ -426,6 +430,10 @@ class InstitutionalPipelineRunner:
                 return result
 
         result["status"] = "ok"
+
+        # Step 7: 盘后报告生成 (phase_report) — v86 集成 W35
+        self._run_report_phase(result)
+
         self._save(result)
         logger.info("[Pipeline] 运行完成: %s", result["status"])
         return result
@@ -658,7 +666,23 @@ class InstitutionalPipelineRunner:
         # 保存 alpha 信号报告到 reports/pipeline/ (供 DriftShadowIntegrator 读取)
         self._save_alpha_signals_report(alpha_signals)
 
-        return self.signal_fusion.fuse(alpha_signals, llm_signals, etf_signals, macro_signals)
+        fused = self.signal_fusion.fuse(
+            alpha_signals,
+            llm_signals=llm_signals,
+            etf_signals=etf_signals,
+            macro_signals=macro_signals,
+        )
+        # FusedSignalV2 → FusionSignal 兼容转换
+        # (下游 _step_portfolio_optimization / _step_execution_routing 期望 FusionSignal 接口)
+        return [
+            FusionSignal(
+                symbol=s.symbol,
+                strength=s.strength,
+                confidence=float(s.meta.get("confidence", 0.5)) if hasattr(s, "meta") else 0.5,
+                source="post_mix_v2",
+            )
+            for s in fused
+        ]
 
     # ------------------------------------------------------------
     # Step 4: 组合优化
@@ -1548,7 +1572,9 @@ class InstitutionalPipelineRunner:
         signals: list[FusionSignal],
     ) -> list[ExecutionPlan]:
         logger.info("[Pipeline] Step 6: 执行路由")
-        signal_map = {s.symbol: s.to_dict() for s in signals}
+        signal_map = {
+            s.symbol: (s.to_dict() if hasattr(s, "to_dict") else asdict(s)) for s in signals
+        }
         plans = []
         for trade in decision.trades:
             symbol = trade.get("symbol", "")
@@ -1566,6 +1592,197 @@ class InstitutionalPipelineRunner:
             )
             plans.append(plan)
         return plans
+
+    # ------------------------------------------------------------
+    # Step 6.5 + 7: EOD 收尾阶段入口 (v86 集成 W35)
+    # ------------------------------------------------------------
+
+    def _run_eod_review_phase(
+        self, result: dict[str, Any], portfolio_decision: PortfolioDecision
+    ) -> None:
+        """Step 6.5 入口: AI EOD 复盘, feature flag 控制, 失败不阻塞."""
+        review_result = self._step_ai_eod_review(result, portfolio_decision)
+        if review_result is not None:
+            result["steps"]["ai_eod_review"] = review_result
+
+    def _run_report_phase(self, result: dict[str, Any]) -> None:
+        """Step 7 入口: 盘后报告生成, 失败不阻塞."""
+        try:
+            report_path = self._step_report_generation(result)
+            result["report_path"] = str(report_path)
+        except Exception as e:
+            logger.error("[Pipeline] 报告生成异常: %s", e, exc_info=True)
+            result["report_path"] = None
+
+    # ------------------------------------------------------------
+    # Step 6.5: AI EOD 复盘 (phase_review) — v86 集成 W35
+    # ------------------------------------------------------------
+
+    def _step_ai_eod_review(
+        self, result: dict[str, Any], portfolio_decision: PortfolioDecision
+    ) -> dict[str, Any] | None:
+        """AI EOD 复盘 (phase_review)。
+
+        调用 ai_decision/eod_review.py 生成 5 维度复盘报告
+        (决策分布/辩论效能/风险拦截/执行质量/异常检测 + 告警)。
+        feature flag AI_DECISION_INTEGRATED=1 开启, 默认关闭。
+        失败优雅降级, 不阻塞管道。
+        """
+        if os.environ.get("AI_DECISION_INTEGRATED") != "1":
+            return None
+        if self.ctx.mode == "smoke":
+            return None
+        try:
+            from ai_decision.eod_review import EODReviewGenerator
+
+            review_gen = EODReviewGenerator()
+            review_report = review_gen.generate_eod_review(self.ctx.report_date)
+            logger.info("[Pipeline] AI EOD 复盘完成 (date=%s)", self.ctx.report_date)
+            return review_report
+        except Exception as e:
+            logger.warning("[Pipeline] AI EOD 复盘失败，降级到规则复盘: %s", e)
+            return {"error": str(e), "status": "degraded"}
+
+    # ------------------------------------------------------------
+    # Step 7: 盘后报告生成 (phase_report) — v86 集成 W35
+    # ------------------------------------------------------------
+
+    def _step_report_generation(self, result: dict[str, Any]) -> Path:
+        """盘后报告生成 (phase_report)。
+
+        生成 Markdown 格式的 pipeline 运行报告, 含各步骤状态/权重/风险/执行计划。
+        v86 集成: AI_DECISION_INTEGRATED=1 时追加 AI 复盘 + dashboard 章节。
+        """
+        date = self.ctx.report_date
+        mode = self.ctx.mode
+        report_path = self.ctx.output_path / f"pipeline_report_{mode}_{date}.md"
+
+        lines: list[str] = []
+        lines.append(f"# 机构级量化闭环报告 — {date}")
+        lines.append("")
+        lines.append(
+            f"> 模式: `{mode}` | 标的: {', '.join(self.ctx.symbols)} "
+            f"| 资金: {self.ctx.total_capital:,.0f}"
+        )
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append("")
+
+        steps = result.get("steps", {})
+
+        lines.append("## 步骤状态摘要")
+        lines.append("")
+        lines.append("| 步骤 | 状态 |")
+        lines.append("|------|------|")
+        step_names = [
+            ("data_gate", "1. 数据门控"),
+            ("alpha_evaluation", "2. Alpha 评估"),
+            ("signal_fusion", "3. 信号融合"),
+            ("portfolio_decision", "4. 组合优化"),
+            ("market_regime", "4.5 市场状态"),
+            ("v72_bull_regime_cap", "V7.2 Bull Cap"),
+            ("drawdown_breaker", "回撤熔断"),
+            ("risk_budget", "5. 风险预算"),
+            ("kill_switch", "KillSwitch"),
+            ("trades_sync", "trades 同步"),
+            ("execution_plans", "6. 执行路由"),
+            ("ai_eod_review", "6.5 AI 复盘"),
+        ]
+        for key, name in step_names:
+            if key in steps:
+                step_data = steps[key]
+                if isinstance(step_data, dict):
+                    status = step_data.get("status", "OK")
+                elif isinstance(step_data, list):
+                    status = f"{len(step_data)} 项"
+                else:
+                    status = "OK"
+                lines.append(f"| {name} | {status} |")
+        lines.append("")
+
+        portfolio = steps.get("portfolio_decision", {})
+        if isinstance(portfolio, dict) and portfolio.get("target_weights"):
+            lines.append("## 目标权重")
+            lines.append("")
+            lines.append("| 标的 | 权重 |")
+            lines.append("|------|------|")
+            for sym, w in portfolio["target_weights"].items():
+                lines.append(f"| {sym} | {w:.2%} |")
+            lines.append("")
+
+        risk = steps.get("risk_budget", {})
+        if isinstance(risk, dict):
+            lines.append("## 风险预算")
+            lines.append("")
+            lines.append(f"- 允许: {risk.get('allowed', 'N/A')}")
+            if risk.get("portfolio_var95") is not None:
+                lines.append(f"- 组合 VaR95: {risk['portfolio_var95']:.4f}")
+            if risk.get("max_weight_used") is not None:
+                lines.append(f"- 最大权重: {risk['max_weight_used']:.2%}")
+            lines.append("")
+
+        exec_plans = steps.get("execution_plans", [])
+        if exec_plans:
+            lines.append("## 执行计划")
+            lines.append("")
+            lines.append(f"共 {len(exec_plans)} 笔执行计划")
+            lines.append("")
+
+        self._report_ai_review_section(lines, steps.get("ai_eod_review", {}), date)
+        self._report_dashboard_section(result, lines, date)
+
+        lines.append("---")
+        lines.append("*由 institutional_pipeline_runner.py 自动生成 | v8.6 EOD 闭环*")
+
+        report_path.write_text("\n".join(lines), encoding="utf-8")
+        logger.info("[Pipeline] 盘后报告已生成: %s", report_path)
+        return report_path
+
+    def _report_ai_review_section(
+        self, lines: list[str], review: Any, date: str
+    ) -> None:
+        """报告 AI 复盘章节 (降级/正常两分支)."""
+        if isinstance(review, dict) and review.get("error"):
+            lines.append("## AI EOD 复盘 (降级)")
+            lines.append("")
+            lines.append(f"降级原因: {review.get('error', 'N/A')}")
+            lines.append("")
+        elif isinstance(review, dict) and review:
+            lines.append("## AI EOD 复盘")
+            lines.append("")
+            lines.append(f"- 日期: {review.get('date', date)}")
+            alerts = review.get("alerts")
+            if alerts is not None:
+                if isinstance(alerts, list):
+                    lines.append(f"- 告警数: {len(alerts)}")
+                elif isinstance(alerts, dict):
+                    lines.append(f"- 告警: {alerts}")
+            lines.append("")
+
+    def _report_dashboard_section(
+        self, result: dict[str, Any], lines: list[str], date: str
+    ) -> None:
+        """报告 dashboard 章节 (v86 集成, feature flag 控制, 失败降级)."""
+        if os.environ.get("AI_DECISION_INTEGRATED") != "1" or self.ctx.mode == "smoke":
+            return
+        try:
+            from ai_decision.dashboard import DashboardGenerator
+
+            dash_gen = DashboardGenerator()
+            dash_report = dash_gen.generate_daily_dashboard(date)
+            lines.append("## AI 决策看板")
+            lines.append("")
+            lines.append(f"- 看板已生成 (date={date})")
+            dash_alerts = dash_report.get("alerts")
+            if dash_alerts is not None:
+                lines.append(f"- 看板告警: {dash_alerts}")
+            lines.append("")
+            result["steps"]["ai_dashboard"] = dash_report
+        except Exception as e:
+            logger.warning("[Pipeline] AI 看板生成失败，降级: %s", e)
+            lines.append("## AI 决策看板 (降级)")
+            lines.append("")
+            lines.append(f"降级原因: {e}")
+            lines.append("")
 
     # ------------------------------------------------------------
     # 持久化

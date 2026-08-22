@@ -58,7 +58,9 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from dataclasses import dataclass, field
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -84,6 +86,13 @@ CYCLE_STATUS_DISABLED = "disabled"  # Flag 关闭
 CYCLE_STATUS_FROZEN = "frozen"  # Kill Switch 冻结
 CYCLE_STATUS_DEGRADED = "degraded"  # 子模块失败
 CYCLE_STATUS_NO_ACTION = "no_action"  # 无需进化动作
+CYCLE_STATUS_ROLLED_BACK = "rolled_back"  # L2 影子验证未通过, 自动回滚
+
+# L2 影子验证 DSR 阈值 (低于此值则 rollback)
+DEFAULT_L2_DSR_THRESHOLD = 0.5
+
+# daily_returns.jsonl 路径
+_SHADOW_RETURNS_PATH = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
 
 
 # ============================================================
@@ -104,6 +113,7 @@ class CycleResult:
     evaluator_report: dict[str, Any] = field(default_factory=dict)
     guard_decision: dict[str, Any] = field(default_factory=dict)
     executed: bool = False  # 是否真正执行了进化动作
+    weight_adjustments: dict[str, float] = field(default_factory=dict)  # {code: multiplier} 进化→再平衡权重乘子
     timestamp: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -118,6 +128,7 @@ class CycleResult:
             "evaluator_report": self.evaluator_report,
             "guard_decision": self.guard_decision,
             "executed": self.executed,
+            "weight_adjustments": self.weight_adjustments,
             "timestamp": self.timestamp,
         }
 
@@ -154,7 +165,9 @@ class EvolutionOrchestratorV2:
         kill_switch: Any | None = None,
         v1_orchestrator: Any | None = None,
         ab_test_framework: Any | None = None,
+        shadow_adapter: Any | None = None,
         feature_flag_name: str = FLAG_ORCHESTRATOR,
+        l2_dsr_threshold: float = DEFAULT_L2_DSR_THRESHOLD,
     ) -> None:
         """初始化编排器 v2.
 
@@ -165,10 +178,13 @@ class EvolutionOrchestratorV2:
             kill_switch: KillSwitch 实例 (None=懒加载, 用于 Guard)
             v1_orchestrator: v1 原型实例 (None=懒加载, 复用 collect/evaluate)
             ab_test_framework: ABTestFramework 实例 (None=懒加载)
+            shadow_adapter: ShadowAccountAdapter 实例 (None=懒加载, L2 影子验证)
             feature_flag_name: Feature Flag 名称 (HC-1)
+            l2_dsr_threshold: L2 影子验证 DSR 阈值, 低于此值则 rollback
         """
         self.feature_flag_name = feature_flag_name
         self._enabled = self._check_feature_flag(feature_flag_name)
+        self._l2_dsr_threshold = float(l2_dsr_threshold)
 
         # 组件懒加载 (避免初始化时强依赖)
         self._memory = memory
@@ -177,11 +193,26 @@ class EvolutionOrchestratorV2:
         self._kill_switch = kill_switch
         self._ab_test_framework = ab_test_framework
         self._v1 = v1_orchestrator
+        self._shadow_adapter = shadow_adapter
+
+        # 闭环健康度指标 (阶段4)
+        self._loop_health: dict[str, Any] = {
+            "total_cycles": 0,
+            "evolution_trigger_count": 0,
+            "l1_count": 0,
+            "l2_promote_count": 0,
+            "l2_rollback_count": 0,
+            "l3_pending_count": 0,
+            "total_latency_ms": 0.0,
+            "last_cycle_latency_ms": 0.0,
+            "weight_adjustment_magnitudes": [],
+        }
 
         logger.info(
-            "EvolutionOrchestratorV2 初始化: enabled=%s (flag=%s)",
+            "EvolutionOrchestratorV2 初始化: enabled=%s (flag=%s, dsr_threshold=%.2f)",
             self._enabled,
             feature_flag_name,
+            self._l2_dsr_threshold,
         )
 
     # ============================================================
@@ -203,6 +234,23 @@ class EvolutionOrchestratorV2:
     def enabled(self) -> bool:
         """是否启用."""
         return self._enabled
+
+    def _check_rollout_eligible(self) -> bool:
+        """检查当前日期是否命中灰度比例 (阶段5).
+
+        灰度判断: hash(date) % 100 < rollout_percent
+        若灰度管理器不可用或未启动 → 返回 True (不阻塞, 由 Feature Flag 控制)
+
+        Returns:
+            True 如果应运行进化 (命中灰度 或 灰度未启动)
+        """
+        try:
+            from scripts.gradual_rollout_manager import should_run_today
+
+            return should_run_today()
+        except (ImportError, AttributeError, RuntimeError, OSError, ValueError, TypeError, KeyError) as e:
+            logger.debug("灰度比例检查跳过 (容错, 不阻塞): %s", e)
+            return True
 
     # ============================================================
     # 组件懒加载
@@ -269,6 +317,53 @@ class EvolutionOrchestratorV2:
                 self._v1 = None
         return self._v1
 
+    def _get_shadow_adapter(self) -> Any | None:
+        """懒加载 ShadowAccountAdapter (L2 影子验证, 失败返回 None)."""
+        if self._shadow_adapter is None:
+            try:
+                from utils.alpha.shadow_account_adapter import ShadowAccountAdapter
+
+                self._shadow_adapter = ShadowAccountAdapter()
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError, ImportError) as e:
+                logger.warning("ShadowAccountAdapter 加载失败, L2 影子验证将跳过: %s", e)
+                self._shadow_adapter = None
+        return self._shadow_adapter
+
+    def _load_shadow_daily_returns(self) -> tuple[list[float], list[str]]:
+        """从 daily_returns.jsonl 加载影子收益率序列.
+
+        Returns:
+            (daily_returns, dates) — 收益率列表 + 对应日期列表
+            失败时返回 ([], [])
+        """
+        import json
+
+        try:
+            if not _SHADOW_RETURNS_PATH.exists():
+                return [], []
+
+            returns: list[float] = []
+            dates: list[str] = []
+            with open(_SHADOW_RETURNS_PATH, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        logger.warning("daily_returns.jsonl 跳过无效行: %s", line[:50])
+                        continue
+                    ret = record.get("daily_return")
+                    date_str = record.get("date", "")
+                    if ret is not None and date_str:
+                        returns.append(float(ret))
+                        dates.append(str(date_str))
+            return returns, dates
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+            logger.warning("加载 daily_returns.jsonl 失败: %s", e)
+            return [], []
+
     # ============================================================
     # 核心 API: run_cycle (感知→决策→行动→学习)
     # ============================================================
@@ -289,12 +384,21 @@ class EvolutionOrchestratorV2:
             CycleResult 循环结果摘要
         """
         timestamp = self._now_iso()
+        _t_start = time.perf_counter()
 
         # HC-1: Feature Flag 检查
         if not self._enabled:
             return CycleResult(
                 status=CYCLE_STATUS_DISABLED,
                 reason=f"feature_flag_disabled ({self.feature_flag_name}=False)",
+                timestamp=timestamp,
+            )
+
+        # 灰度比例检查 (阶段5: 生产灰度发布)
+        if not self._check_rollout_eligible():
+            return CycleResult(
+                status=CYCLE_STATUS_DISABLED,
+                reason="rollout_percent_excluded (灰度比例未命中)",
                 timestamp=timestamp,
             )
 
@@ -357,7 +461,82 @@ class EvolutionOrchestratorV2:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("v1 log_decision 失败 (容错, Memory 已记录): %s", e)
 
+        # 5. 闭环健康度指标更新 (阶段4)
+        self._update_loop_health(result, _t_start)
+
         return result
+
+    # ============================================================
+    # 闭环健康度指标 (阶段4)
+    # ============================================================
+
+    def _update_loop_health(self, result: CycleResult, t_start: float) -> None:
+        """更新闭环健康度指标 (run_cycle 结束时调用).
+
+        指标:
+            - total_cycles: 总循环次数
+            - evolution_trigger_count: 触发进化动作的次数 (非 no_action/disabled/frozen)
+            - l1_count / l2_promote_count / l2_rollback_count / l3_pending_count
+            - total_latency_ms / last_cycle_latency_ms
+            - weight_adjustment_magnitudes: 每次循环的权重调整幅度均值列表
+        """
+        latency_ms = (time.perf_counter() - t_start) * 1000.0
+        self._loop_health["total_cycles"] += 1
+        self._loop_health["total_latency_ms"] += latency_ms
+        self._loop_health["last_cycle_latency_ms"] = round(latency_ms, 2)
+
+        if result.status not in (CYCLE_STATUS_NO_ACTION, CYCLE_STATUS_DISABLED, CYCLE_STATUS_FROZEN):
+            self._loop_health["evolution_trigger_count"] += 1
+
+        if result.level == "L1":
+            self._loop_health["l1_count"] += 1
+        elif result.level == "L2":
+            if result.status == CYCLE_STATUS_SUCCESS:
+                self._loop_health["l2_promote_count"] += 1
+            elif result.status == CYCLE_STATUS_ROLLED_BACK:
+                self._loop_health["l2_rollback_count"] += 1
+        elif result.level == "L3":
+            self._loop_health["l3_pending_count"] += 1
+
+        # 权重调整幅度: avg(|multiplier - 1.0|) over all codes
+        if result.weight_adjustments:
+            magnitudes = [abs(v - 1.0) for v in result.weight_adjustments.values()]
+            avg_mag = sum(magnitudes) / len(magnitudes) if magnitudes else 0.0
+            self._loop_health["weight_adjustment_magnitudes"].append(round(avg_mag, 6))
+
+    def get_loop_health_metrics(self) -> dict[str, Any]:
+        """获取闭环健康度指标快照.
+
+        Returns:
+            包含以下字段的字典:
+            - total_cycles: 总循环次数
+            - evolution_trigger_rate: 进化触发率 (evolution_trigger_count / total_cycles)
+            - l1_count / l2_promote_count / l2_rollback_count / l3_pending_count
+            - avg_latency_ms: 平均循环延迟 (ms)
+            - last_latency_ms: 最近一次循环延迟 (ms)
+            - avg_weight_adjustment_magnitude: 平均权重调整幅度
+            - l2_promote_rate: L2 promote 率 (promote / (promote + rollback))
+        """
+        h = self._loop_health
+        total = h["total_cycles"]
+        promote = h["l2_promote_count"]
+        rollback = h["l2_rollback_count"]
+        l2_total = promote + rollback
+        mags = h["weight_adjustment_magnitudes"]
+
+        return {
+            "total_cycles": total,
+            "evolution_trigger_count": h["evolution_trigger_count"],
+            "evolution_trigger_rate": (h["evolution_trigger_count"] / total) if total > 0 else 0.0,
+            "l1_count": h["l1_count"],
+            "l2_promote_count": promote,
+            "l2_rollback_count": rollback,
+            "l2_promote_rate": (promote / l2_total) if l2_total > 0 else 0.0,
+            "l3_pending_count": h["l3_pending_count"],
+            "avg_latency_ms": round(h["total_latency_ms"] / total, 2) if total > 0 else 0.0,
+            "last_latency_ms": h["last_cycle_latency_ms"],
+            "avg_weight_adjustment_magnitude": round(sum(mags) / len(mags), 6) if mags else 0.0,
+        }
 
     # ============================================================
     # A/B 测试生命周期
@@ -737,8 +916,10 @@ class EvolutionOrchestratorV2:
     def _route_l2(self, proposal: Any, decision: Any, timestamp: str) -> CycleResult:
         """L2 路由: 影子验证 + 自动 Promote/Rollback.
 
-        L2 通过 Guard 后, 记录 pending → 模拟影子验证 → executed.
-        实际影子验证由 ShadowAccountAdapter 完成 (本编排器只做路由).
+        L2 通过 Guard 后, 记录 pending → 调用 ShadowAccountAdapter 实际验证
+        → DSR ≥ 阈值则 promote (executed), DSR < 阈值则 rollback (rolled_back).
+
+        fail-safe: adapter 不可用 / 样本不足 / 异常 → 降级 (假设通过, 不阻塞).
         """
         memory = self._get_memory()
 
@@ -762,27 +943,184 @@ class EvolutionOrchestratorV2:
                 timestamp=timestamp,
             )
 
-        # 模拟影子验证 + 自动 Promote (实际由 ShadowAccountAdapter 完成)
-        # 本编排器只做路由, 标记为 executed (假设影子验证通过)
-        try:
-            memory.update_status(pid, "executed", result={
-                "guard_passed": True,
-                "note": "L2 提案通过 Guard, 影子验证由 ShadowAccountAdapter 完成",
-            })
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
-            # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
-            logger.warning("L2 状态更新失败 (容错): %s", e)
+        # --- 影子验证 (阶段4: 直接调用 ShadowAccountAdapter) ---
+        adapter = self._get_shadow_adapter()
+        guard_dict = decision.to_dict() if hasattr(decision, "to_dict") else {}
 
-        return CycleResult(
-            status=CYCLE_STATUS_SUCCESS,
-            level="L2",
-            action=getattr(proposal, "action_type", ""),
-            proposal_id=pid,
-            reason="L2 提案通过 Guard, 已路由到影子验证",
-            guard_decision=decision.to_dict() if hasattr(decision, "to_dict") else {},
-            executed=True,
-            timestamp=timestamp,
-        )
+        if adapter is None:
+            # fail-safe: adapter 不可用, 降级假设通过
+            logger.warning("L2 影子验证: ShadowAccountAdapter 不可用, 降级假设通过")
+            self._loop_health["l2_promote_count"] += 1
+            try:
+                memory.update_status(pid, "executed", result={
+                    "guard_passed": True,
+                    "shadow_verified": False,
+                    "note": "shadow_adapter_unavailable, degraded_assume_pass",
+                })
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                logger.warning("L2 状态更新失败 (容错): %s", e)
+            return CycleResult(
+                status=CYCLE_STATUS_DEGRADED,
+                level="L2",
+                action=getattr(proposal, "action_type", ""),
+                proposal_id=pid,
+                reason="L2 影子验证降级 (adapter 不可用), 假设通过",
+                guard_decision=guard_dict,
+                executed=True,
+                timestamp=timestamp,
+            )
+
+        # 加载影子收益率
+        daily_returns, dates = self._load_shadow_daily_returns()
+
+        try:
+            from utils.alpha import shadow_account_adapter as _sa_mod
+            _min_samples = _sa_mod.MIN_SAMPLES_FOR_DSR
+        except (ImportError, AttributeError, RuntimeError) as e:
+            logger.warning("MIN_SAMPLES_FOR_DSR 导入失败, 使用默认 20: %s", e)
+            _min_samples = 20
+
+        if len(daily_returns) < _min_samples:
+            # 样本不足, 降级假设通过 (不阻塞进化)
+            logger.warning(
+                "L2 影子验证: 样本不足 %d < %d, 降级假设通过",
+                len(daily_returns),
+                _min_samples,
+            )
+            self._loop_health["l2_promote_count"] += 1
+            try:
+                memory.update_status(pid, "executed", result={
+                    "guard_passed": True,
+                    "shadow_verified": False,
+                    "note": f"insufficient_samples ({len(daily_returns)} < {_min_samples})",
+                })
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                logger.warning("L2 状态更新失败 (容错): %s", e)
+            return CycleResult(
+                status=CYCLE_STATUS_DEGRADED,
+                level="L2",
+                action=getattr(proposal, "action_type", ""),
+                proposal_id=pid,
+                reason=f"L2 影子验证降级 (样本不足 {len(daily_returns)}), 假设通过",
+                guard_decision=guard_dict,
+                executed=True,
+                timestamp=timestamp,
+            )
+
+        # 实际调用 ShadowAccountAdapter
+        try:
+            run_result = adapter.run_shadow(daily_returns=daily_returns, dates=dates, is_real_data=True)
+
+            if not run_result.success or run_result.fail_fast_triggered:
+                # Fail-Fast 触发 → rollback
+                logger.warning(
+                    "L2 影子验证: run_shadow 失败/fail-fast (reason=%s), 自动 rollback",
+                    run_result.fail_fast_reason,
+                )
+                self._loop_health["l2_rollback_count"] += 1
+                try:
+                    memory.update_status(pid, "rolled_back", result={
+                        "guard_passed": True,
+                        "shadow_verified": True,
+                        "shadow_success": False,
+                        "fail_fast_reason": run_result.fail_fast_reason,
+                        "note": "L2 影子验证 fail-fast, 自动回滚",
+                    })
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    logger.warning("L2 状态更新失败 (容错): %s", e)
+                return CycleResult(
+                    status=CYCLE_STATUS_ROLLED_BACK,
+                    level="L2",
+                    action=getattr(proposal, "action_type", ""),
+                    proposal_id=pid,
+                    reason=f"L2 影子验证 fail-fast: {run_result.fail_fast_reason}",
+                    guard_decision=guard_dict,
+                    executed=False,
+                    timestamp=timestamp,
+                )
+
+            # 获取 DSR 指标
+            metrics = adapter.get_metrics()
+            dsr = float(metrics.dsr)
+
+            if dsr >= self._l2_dsr_threshold:
+                # DSR 达标 → promote
+                logger.info("L2 影子验证通过: DSR=%.4f ≥ %.2f, 自动 promote", dsr, self._l2_dsr_threshold)
+                self._loop_health["l2_promote_count"] += 1
+                try:
+                    memory.update_status(pid, "executed", result={
+                        "guard_passed": True,
+                        "shadow_verified": True,
+                        "shadow_success": True,
+                        "dsr": dsr,
+                        "annual_return": metrics.annual_return,
+                        "max_drawdown": metrics.max_drawdown,
+                        "sharpe_cv": metrics.sharpe_cv,
+                        "note": f"L2 影子验证通过 (DSR={dsr:.4f}), 自动 promote",
+                    })
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    logger.warning("L2 状态更新失败 (容错): %s", e)
+                return CycleResult(
+                    status=CYCLE_STATUS_SUCCESS,
+                    level="L2",
+                    action=getattr(proposal, "action_type", ""),
+                    proposal_id=pid,
+                    reason=f"L2 影子验证通过 (DSR={dsr:.4f}), 已 promote",
+                    guard_decision=guard_dict,
+                    executed=True,
+                    timestamp=timestamp,
+                )
+            else:
+                # DSR 不达标 → rollback
+                logger.warning(
+                    "L2 影子验证未通过: DSR=%.4f < %.2f, 自动 rollback",
+                    dsr,
+                    self._l2_dsr_threshold,
+                )
+                self._loop_health["l2_rollback_count"] += 1
+                try:
+                    memory.update_status(pid, "rolled_back", result={
+                        "guard_passed": True,
+                        "shadow_verified": True,
+                        "shadow_success": False,
+                        "dsr": dsr,
+                        "note": f"L2 影子验证未通过 (DSR={dsr:.4f} < {self._l2_dsr_threshold}), 自动 rollback",
+                    })
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    logger.warning("L2 状态更新失败 (容错): %s", e)
+                return CycleResult(
+                    status=CYCLE_STATUS_ROLLED_BACK,
+                    level="L2",
+                    action=getattr(proposal, "action_type", ""),
+                    proposal_id=pid,
+                    reason=f"L2 影子验证未通过 (DSR={dsr:.4f} < {self._l2_dsr_threshold}), 已 rollback",
+                    guard_decision=guard_dict,
+                    executed=False,
+                    timestamp=timestamp,
+                )
+
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            # fail-safe: 影子验证异常, 降级假设通过 (不阻塞进化)
+            logger.warning("L2 影子验证异常 (容错降级): %s", e)
+            self._loop_health["l2_promote_count"] += 1
+            try:
+                memory.update_status(pid, "executed", result={
+                    "guard_passed": True,
+                    "shadow_verified": False,
+                    "note": f"shadow_validation_error: {e}",
+                })
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e2:
+                logger.warning("L2 状态更新失败 (容错): %s", e2)
+            return CycleResult(
+                status=CYCLE_STATUS_DEGRADED,
+                level="L2",
+                action=getattr(proposal, "action_type", ""),
+                proposal_id=pid,
+                reason=f"L2 影子验证异常 (容错降级): {e}",
+                guard_decision=guard_dict,
+                executed=True,
+                timestamp=timestamp,
+            )
 
     def _route_l3(self, proposal: Any, decision: Any, timestamp: str) -> CycleResult:
         """L3 路由: 人工审批闸门 (HC-4).
@@ -896,6 +1234,8 @@ class EvolutionOrchestratorV2:
         if hasattr(metrics, "to_dict"):
             metrics_snapshot = metrics.to_dict()
 
+        weight_adjustments = self._derive_weight_adjustments(evaluator_report)
+
         # continue: 无需进化动作, 仅记录评估结果
         if recommendation == "continue":
             memory = self._get_memory()
@@ -920,6 +1260,7 @@ class EvolutionOrchestratorV2:
                 reason=f"recommendation=continue, private={private_score:.3f}",
                 metrics_snapshot=metrics_snapshot,
                 evaluator_report=evaluator_report,
+                weight_adjustments=weight_adjustments,
                 timestamp=timestamp,
             )
 
@@ -947,6 +1288,7 @@ class EvolutionOrchestratorV2:
         # 补充评估报告和指标快照
         result.evaluator_report = evaluator_report
         result.metrics_snapshot = metrics_snapshot
+        result.weight_adjustments = weight_adjustments
         return result
 
     # ============================================================
@@ -954,8 +1296,54 @@ class EvolutionOrchestratorV2:
     # ============================================================
 
     @staticmethod
+    def _derive_weight_adjustments(evaluator_report: dict[str, Any]) -> dict[str, float]:
+        """从评估报告推导再平衡权重乘子.
+
+        进化→再平衡闭环的关键转换:
+            evaluator_report (策略级聚合指标) → weight_adjustments ({code: multiplier})
+
+        推导逻辑 (按优先级):
+            1. 显式 weight_adjustments 键: 前置阶段已计算好 per-code 乘子, 直接提取 + clamp
+            2. factor_scores 键: 因子评分 → 乘子 (score > 0.6 → 轻微放大, < 0.4 → 缩小)
+            3. 无 per-code 信息: 返回空字典 (优雅降级, 由 factor_weights.json 文件传输)
+
+        Args:
+            evaluator_report: ScoreReport.to_dict() 或类似字典
+
+        Returns:
+            {code: multiplier} 乘子限制 [0.5, 2.0]
+        """
+        if not isinstance(evaluator_report, dict):
+            return {}
+
+        # 1. 显式 weight_adjustments
+        explicit = evaluator_report.get("weight_adjustments")
+        if isinstance(explicit, dict) and explicit:
+            return {
+                str(k): float(v)
+                for k, v in explicit.items()
+                if isinstance(v, (int, float)) and 0.5 <= v <= 2.0
+            }
+
+        # 2. factor_scores → multiplier
+        factor_scores = evaluator_report.get("factor_scores")
+        if isinstance(factor_scores, dict) and factor_scores:
+            multipliers: dict[str, float] = {}
+            for code, score in factor_scores.items():
+                if not isinstance(score, (int, float)):
+                    continue
+                # score 0.0-1.0 → multiplier 0.5-2.0 线性映射
+                # score=0.6 → 1.0 (中性), score=1.0 → 2.0, score=0.0 → 0.5
+                raw = 0.5 + 1.5 * max(0.0, min(1.0, score))
+                multipliers[str(code)] = max(0.5, min(2.0, raw))
+            return multipliers
+
+        # 3. 无 per-code 信息
+        return {}
+
+    @staticmethod
     def _now_iso() -> str:
         """当前时间 ISO8601 (UTC)."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")

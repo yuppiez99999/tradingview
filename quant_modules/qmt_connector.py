@@ -43,7 +43,7 @@ import os
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -148,13 +148,13 @@ class _PaperOrderBook:
         self._positions: dict[str, dict[str, Any]] = {}  # {symbol: {qty, avg_price, buy_date}}
         self._cash = config.initial_capital
         self._market_value = 0.0
-        self._today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        self._today = datetime.now(UTC).strftime("%Y-%m-%d")
 
     def place_order(
         self, symbol: str, side: str, qty: int, price: float, order_type: str = "limit",
     ) -> PaperOrder:
         oid = f"PAPER-{uuid.uuid4().hex[:12]}"
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         side_sign = 1.0 if side.upper() == "BUY" else -1.0
         fill_price = price * (1.0 + side_sign * self._cfg.slippage_bps / 10000.0)
@@ -411,7 +411,7 @@ class QmtConnector:
         """JSONL 审计日志 (fail-open, 落盘失败仅告警)."""
         if not self._cfg.audit_path:
             return
-        record = {"ts": datetime.now(timezone.utc).isoformat(), "event": event, **data}
+        record = {"ts": datetime.now(UTC).isoformat(), "event": event, **data}
         try:
             path = Path(self._cfg.audit_path)
             path.parent.mkdir(parents=True, exist_ok=True)

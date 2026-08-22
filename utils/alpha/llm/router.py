@@ -37,6 +37,7 @@ from utils.alpha.llm.providers import (
     call_deepseek,
     call_deepseek_reasoner,
     call_doubao,
+    call_ds4,
     call_glm,
     call_ollama,
     call_ollama_deep,
@@ -129,7 +130,7 @@ class LLMRouter:
             logger.warning("llm_router.yaml 未找到, 使用默认配置")
             self._settings = {}
             self._providers_config = {}
-            chain = ["deepseek", "doubao", "glm", "siliconflow", "ollama"]
+            chain = ["deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"]
             if use_omniroute:
                 chain.insert(0, "omniroute")
             self._fallback_chain = chain
@@ -143,7 +144,7 @@ class LLMRouter:
 
         # fallback 链
         self._fallback_chain = list(
-            self._settings.get("fallback_chain", ["deepseek", "doubao", "glm", "siliconflow", "ollama"])
+            self._settings.get("fallback_chain", ["deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"])
         )
         if use_omniroute and "omniroute" not in self._fallback_chain:
             self._fallback_chain.insert(0, "omniroute")
@@ -214,6 +215,7 @@ class LLMRouter:
         self.register_provider("doubao", self._call_doubao)
         self.register_provider("glm", self._call_glm)
         self.register_provider("siliconflow", self._call_siliconflow)
+        self.register_provider("ds4", self._call_ds4)
         self.register_provider("ollama", self._call_ollama)
 
     # ============================================================
@@ -573,6 +575,25 @@ class LLMRouter:
         """代理: SiliconFlow — OpenAI 兼容接口."""
         cfg = self._providers_config.get("siliconflow", {})
         return call_siliconflow(
+            prompt, system, temperature, max_tokens, timeout, cfg,
+            max_retries=self._max_retries,
+            retry_delay=self._retry_delay,
+        )
+
+    def _call_ds4(
+        self,
+        prompt: str,
+        system: str,
+        temperature: float,
+        max_tokens: int,
+        timeout: int,
+    ) -> str | None:
+        """代理: ds4 本地 (DwarfStar, GLM 5.2 + DeepSeek V4 Flash) — OpenAI 兼容接口.
+
+        Feature Flag: GLM5_DS4_ENABLED=1 开启 (默认关闭, shadow 验证后启用).
+        """
+        cfg = self._providers_config.get("ds4", {})
+        return call_ds4(
             prompt, system, temperature, max_tokens, timeout, cfg,
             max_retries=self._max_retries,
             retry_delay=self._retry_delay,

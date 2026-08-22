@@ -44,7 +44,7 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -400,7 +400,7 @@ class SystemCheckDiff:
             List[RootCause]
         """
         if now is None:
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
 
         causes: list[RootCause] = []
         # 回归项 (PASS→FAIL) 优先, 置信度更高

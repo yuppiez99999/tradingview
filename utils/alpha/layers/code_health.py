@@ -28,7 +28,7 @@ import contextlib
 import io
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -116,7 +116,7 @@ class CodeHealthLayer:
     # ============================================================
     def collect(self) -> LayerScore:
         """采集代码层指标. 失败时返回降级 LayerScore."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         if not self._enabled:
             return LayerScore(

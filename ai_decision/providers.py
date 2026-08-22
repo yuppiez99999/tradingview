@@ -6,7 +6,7 @@ ai_decision.providers — 统一 Provider 抽象层 + 优雅降级
 
 Provider 体系:
   - BaseProvider:     抽象基类, 统一 generate(prompt, system, timeout) -> str|None
-  - LlmClientProvider: 适配现有 15_每日工作流/llm_client.py (DeepSeek/GLM/混元/千帆/豆包/Ollama)
+  - LlmClientProvider: 适配现有 15_每日工作流/llm_client.py (DeepSeek/GLM/Ollama)
   - MoonshotProvider:  Kimi3 (Moonshot) OpenAI 兼容 /chat/completions
   - ClaudeProvider:    Claude OpenAI 兼容代理 /chat/completions
   - MockProvider:      零网络依赖, 基于规则 (动量/估值) 返回结构化投资语言, 保证全链路可跑
@@ -58,7 +58,7 @@ def _ollama_reachable(host: str = "localhost", port: int = 11434, timeout: float
     try:
         with socket.create_connection((host, port), timeout=timeout):
             return True
-    except (socket.timeout, ConnectionRefusedError, OSError):
+    except (TimeoutError, ConnectionRefusedError, OSError):
         return False
 
 
@@ -116,7 +116,7 @@ class LlmClientProvider(BaseProvider):
             return None
         try:
             # llm_client 的 chat/chat_deep 内部已做多级降级
-            # (DeepSeek → Ollama API → Ollama CLI → 混元 → 千帆 → GLM → 豆包)
+            # (DeepSeek → GLM → Ollama API → Ollama CLI)
             # 不接受 provider/timeout 参数, 全部按 temperature=0.3 调用
             if system:
                 resp = chat_deep(prompt, system=system, temperature=0.3, max_tokens=4000)

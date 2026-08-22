@@ -13,7 +13,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +67,8 @@ def load_positions():
     return positions, prices, styles
 
 
-def classify_style(style_map: dict) -> Dict[str, Dict[str, Any]]:
-    style_allocation: Dict[str, Dict[str, Any]] = {}
+def classify_style(style_map: dict) -> dict[str, dict[str, Any]]:
+    style_allocation: dict[str, dict[str, Any]] = {}
     for code, style in style_map.items():
         if style not in style_allocation:
             style_allocation[style] = {"amount": 0.0, "codes": []}

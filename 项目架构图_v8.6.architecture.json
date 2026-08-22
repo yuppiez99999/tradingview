@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "量化策略系统 v8.6 架构",
+    "quality_profile": "showcase",
+    "viewBox": [1180, 700],
+    "views": [
+      { "id": "main-flow", "label": "主数据流", "focus": ["entry", "pipeline", "data", "factor", "signal", "ai", "hedge", "exec", "store"], "note": "EOD 全流程：入口触发 → 数据采集 → 因子计算 → 信号融合 → AI 决策 → 对冲 → 执行 → 归档" },
+      { "id": "ai-stack", "label": "AI 决策栈", "focus": ["signal", "ai", "hedge", "risk", "llm"], "note": "GLM-5 盘中决策 + 20 位分析师 + 五阶段对冲联动 + 风控门" },
+      { "id": "data-stack", "label": "数据采集栈", "focus": ["data", "sources", "factor", "signal"], "note": "6 级数据源降级链：Wind → TDX → AKShare → 新浪 → 缓存 → 兜底价" }
+    ]
+  },
+  "components": [
+    { "id": "llm", "type": "external", "label": "LLM 集群", "sublabel": "豆包/GLM-5/DeepSeek", "pos": [800, 80], "size": [130, 60] },
+    { "id": "entry", "type": "frontend", "label": "统一入口", "sublabel": "CLI 35+ / UI 19页", "pos": [30, 270], "size": [140, 70], "tag": "v8.6" },
+    { "id": "pipeline", "type": "backend", "label": "机构管道", "sublabel": "EOD 全流程", "pos": [230, 275], "size": [130, 60] },
+    { "id": "data", "type": "backend", "label": "数据层", "sublabel": "6 级降级", "pos": [420, 275], "size": [130, 60] },
+    { "id": "factor", "type": "backend", "label": "因子引擎", "sublabel": "11 类 Alpha", "pos": [610, 170], "size": [130, 60] },
+    { "id": "signal", "type": "backend", "label": "信号融合", "sublabel": "多源加权", "pos": [610, 275], "size": [130, 60] },
+    { "id": "ai", "type": "backend", "label": "AI 决策", "sublabel": "GLM-5 + 20 分析师", "pos": [800, 170], "size": [130, 60] },
+    { "id": "hedge", "type": "backend", "label": "对冲再平衡", "sublabel": "五阶段联动", "pos": [800, 275], "size": [130, 60] },
+    { "id": "risk", "type": "security", "label": "风险控制", "sublabel": "止损/回撤熔断", "pos": [800, 380], "size": [130, 60] },
+    { "id": "exec", "type": "backend", "label": "交易执行", "sublabel": "实盘指令", "pos": [990, 275], "size": [130, 60] },
+    { "id": "sources", "type": "external", "label": "数据源", "sublabel": "Wind/TDX/AKShare", "pos": [420, 460], "size": [130, 60] },
+    { "id": "store", "type": "database", "label": "模型与报告", "sublabel": "models/归档", "pos": [990, 460], "size": [130, 60] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "决策与风控层", "wraps": ["ai", "hedge", "risk"] },
+    { "kind": "region", "label": "外部依赖", "wraps": ["sources", "llm"] }
+  ],
+  "connections": [
+    { "id": "entry-to-pipeline", "from": "entry", "to": "pipeline", "label": "触发", "variant": "emphasis" },
+    { "id": "pipeline-to-data", "from": "pipeline", "to": "data", "label": "采集" },
+    { "id": "data-to-factor", "from": "data", "to": "factor", "label": "因子计算", "fromSide": "top", "toSide": "left", "labelAt": [560, 220] },
+    { "id": "data-to-signal", "from": "data", "to": "signal", "label": "行情", "fromSide": "right", "toSide": "left", "labelAt": [580, 322] },
+    { "id": "factor-to-signal", "from": "factor", "to": "signal", "label": "因子信号", "fromSide": "bottom", "toSide": "top", "labelAt": [675, 252] },
+    { "id": "signal-to-ai", "from": "signal", "to": "ai", "label": "AI 增强", "fromSide": "right", "toSide": "bottom", "labelAt": [770, 220] },
+    { "id": "ai-to-hedge", "from": "ai", "to": "hedge", "label": "对冲决策", "fromSide": "bottom", "toSide": "top", "labelAt": [898, 252] },
+    { "id": "hedge-to-exec", "from": "hedge", "to": "exec", "label": "执行指令" },
+    { "id": "exec-to-store", "from": "exec", "to": "store", "label": "归档", "fromSide": "bottom", "toSide": "top", "labelAt": [1055, 397] },
+    { "id": "sources-to-data", "from": "sources", "to": "data", "label": "数据供给", "variant": "emphasis", "fromSide": "top", "toSide": "bottom", "labelAt": [485, 397] },
+    { "id": "llm-to-ai", "from": "llm", "to": "ai", "label": "模型调用", "fromSide": "bottom", "toSide": "top", "labelAt": [865, 155] },
+    { "id": "hedge-to-risk", "from": "hedge", "to": "risk", "label": "风控检查", "fromSide": "bottom", "toSide": "top", "labelAt": [865, 357] },
+    { "id": "risk-to-exec", "from": "risk", "to": "exec", "label": "风控门", "fromSide": "right", "toSide": "left", "via": [[970, 410], [970, 305]], "labelAt": [970, 357] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "入口与编排", "items": ["CLI 统一入口 v8.6 — 35+ 模式", "Streamlit UI — 19 页可视化面板", "机构 EOD 管道 — 数据→因子→信号→执行→报告"] },
+    { "dot": "emerald", "title": "核心引擎", "items": ["Alpha 因子引擎 — 11 大类 + GTJA191", "信号融合 — ML + AI + 康波周期加权", "对冲再平衡 — 五阶段联合决策引擎"] },
+    { "dot": "violet", "title": "AI 与宏观", "items": ["GLM-5 盘中决策 + AI Hedge Fund 20 位分析师", "康波周期 / 十五五规划 / 社保 ETF 追踪", "豆包 → GLM-5 → DeepSeek → Ollama 多模型路由"] },
+    { "dot": "rose", "title": "风控与执行", "items": ["止损止盈 + 回撤熔断 + 涨跌停守卫", "每日交易执行 — 实盘指令生成 (63KB)", "每日报告 Markdown 归档到 每日报告归档/YYYY-MM-DD/"] },
+    { "dot": "amber", "title": "数据源降级链", "items": ["Wind 数据终端 (P0) → Wind MCP (P1)", "TDX 通达信 (P2) → AKShare (P3)", "新浪 API (P4) → 本地缓存 (P5) → 兜底价 (P6)"] }
+  ]
+}

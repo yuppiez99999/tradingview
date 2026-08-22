@@ -28,9 +28,10 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Optional, cast
+from typing import Any, Optional, cast
 
 logger = logging.getLogger("drift_monitor")
 
@@ -117,6 +118,7 @@ class DriftMonitor:
         retrain_callback: Callable[[list[Any]], bool] | None = None,
         retrain_threshold_count: int = 3,
         retrain_threshold_severity: str = "critical",
+        rebalance_callback: Callable[[list[Any]], bool] | None = None,
     ) -> None:
         """初始化.
 
@@ -127,6 +129,7 @@ class DriftMonitor:
             retrain_callback: 重训练回调 (返回 True 表示已触发)
             retrain_threshold_count: 触发重训练的最少告警数
             retrain_threshold_severity: 触发重训练的最低严重级别
+            rebalance_callback: 再平衡回调 (漂移触发时同时触发再平衡, 返回 True 表示已触发)
         """
         self.model_name = model_name
         if detector is None and _DRIFT_DETECTOR_AVAILABLE:
@@ -148,6 +151,8 @@ class DriftMonitor:
         self.retrain_callback = retrain_callback
         self.retrain_threshold_count = retrain_threshold_count
         self.retrain_threshold_severity = retrain_threshold_severity
+        # 再平衡回调 (漂移→再平衡触发链)
+        self.rebalance_callback = rebalance_callback
         # 状态
         self._alerts_history: list[dict[str, Any]] = []
         self._retrain_triggered: bool = False
@@ -277,6 +282,19 @@ class DriftMonitor:
                     len(alerts),
                     self.retrain_threshold_severity,
                 )
+            # 漂移→再平衡触发链: 同时触发再平衡回调
+            if self.rebalance_callback is not None:
+                try:
+                    rebalanced = bool(self.rebalance_callback(alerts))
+                    if rebalanced:
+                        logger.warning(
+                            "模型 %s 漂移触发再平衡 (alerts=%d, severity=%s)",
+                            self.model_name,
+                            len(alerts),
+                            self.retrain_threshold_severity,
+                        )
+                except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+                    logger.exception("再平衡回调异常: %s", e)
             return triggered
         except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.exception("重训练回调异常: %s", e)
@@ -402,9 +420,9 @@ def create_drift_monitor(
 # ============================================================
 
 import os  # noqa: E402
+from collections.abc import Sequence  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
-from enum import Enum  # noqa: E402
-from typing import Sequence  # noqa: E402
+from enum import StrEnum  # noqa: E402
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -435,7 +453,7 @@ except (ImportError, Exception):
     )
 
 
-class DriftSeverity(str, Enum):
+class DriftSeverity(StrEnum):
     """GAP-6 漂移严重等级 (独立于 legacy Severity 枚举).
 
     阈值定义 (基于工业级标准):

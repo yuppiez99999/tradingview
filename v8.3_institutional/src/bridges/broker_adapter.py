@@ -26,7 +26,7 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("broker_adapter")
 
@@ -64,7 +64,7 @@ class BrokerOrder:
         quantity: int,
         price: Optional[float] = None,
         strategy: str = "P0_HEDGE",
-        tags: Optional[Dict[str, str]] = None,
+        tags: Optional[dict[str, str]] = None,
     ):
         self.order_id = f"{strategy}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{symbol}_{side.value}"
         self.symbol = symbol
@@ -82,7 +82,7 @@ class BrokerOrder:
         self.rejection_reason = None
         self.execution_details = []
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "order_id": self.order_id,
             "symbol": self.symbol,
@@ -105,7 +105,7 @@ class BrokerOrder:
 class BrokerAdapter(ABC):
     """券商适配器抽象基类"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
         self.api_client = None
         self.order_log = []
@@ -124,7 +124,7 @@ class BrokerAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_market_data(self, symbol: str, period: str = "1d", count: int = 100) -> Dict:
+    def get_market_data(self, symbol: str, period: str = "1d", count: int = 100) -> dict:
         """获取市场数据"""
         pass
 
@@ -139,12 +139,12 @@ class BrokerAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_positions(self) -> List[Dict]:
+    def get_positions(self) -> list[dict]:
         """查询持仓"""
         pass
 
     @abstractmethod
-    def get_account_info(self) -> Dict:
+    def get_account_info(self) -> dict:
         """查询账户信息"""
         pass
 
@@ -172,7 +172,7 @@ class SimulatedBroker(BrokerAdapter):
     5. 支持回测和历史信号验证
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.is_live = False
         self.simulation_settings = {
@@ -199,7 +199,7 @@ class SimulatedBroker(BrokerAdapter):
     def disconnect(self) -> None:
         logger.info("[SIMULATED] 模拟盘环境已断开")
 
-    def get_market_data(self, symbol: str, period: str = "1d", count: int = 100) -> Dict:
+    def get_market_data(self, symbol: str, period: str = "1d", count: int = 100) -> dict:
         """
         获取真实行情数据(通过Wind或其他数据源)
         """
@@ -326,7 +326,7 @@ class SimulatedBroker(BrokerAdapter):
                 return True
         return False
 
-    def get_positions(self) -> List[Dict]:
+    def get_positions(self) -> list[dict]:
         """查询持仓"""
         positions = []
         for symbol, pos in self.position_book.items():
@@ -346,7 +346,7 @@ class SimulatedBroker(BrokerAdapter):
                 )
         return positions
 
-    def get_account_info(self) -> Dict:
+    def get_account_info(self) -> dict:
         """查询账户信息"""
         return {
             "account_id": "SIMULATED_001",
@@ -357,7 +357,7 @@ class SimulatedBroker(BrokerAdapter):
             "simulation_settings": self.simulation_settings,
         }
 
-    def generate_simulation_report(self) -> Dict:
+    def generate_simulation_report(self) -> dict:
         """生成模拟盘报告"""
         return {
             "report_date": datetime.now().isoformat(),
@@ -395,7 +395,7 @@ class LiveBrokerAdapter(BrokerAdapter):
     5. 操作日志全量审计(不可篡改)
     """
 
-    def __init__(self, broker_name: str, config: Dict[str, Any]):
+    def __init__(self, broker_name: str, config: dict[str, Any]):
         super().__init__(config)
         self.broker_name = broker_name
         self.is_live = True
@@ -463,7 +463,7 @@ class BrokerFactory:
     }
 
     @classmethod
-    def create(cls, broker_type: str, config: Dict[str, Any]) -> BrokerAdapter:
+    def create(cls, broker_type: str, config: dict[str, Any]) -> BrokerAdapter:
         """创建券商适配器"""
         adapter_class = cls._adapters.get(broker_type)
         if not adapter_class:
@@ -475,7 +475,7 @@ class BrokerFactory:
 broker_instance: Optional[BrokerAdapter] = None
 
 
-def initialize_broker(mode: str = "simulated", config: Optional[Dict] = None) -> BrokerAdapter:
+def initialize_broker(mode: str = "simulated", config: Optional[dict] = None) -> BrokerAdapter:
     """
     初始化券商适配器
 

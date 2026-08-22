@@ -31,10 +31,9 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
-from typing_extensions import Literal
 
 logger = logging.getLogger("ai_hedge_fund.debate")
 

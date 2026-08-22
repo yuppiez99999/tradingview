@@ -7,7 +7,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -215,7 +215,7 @@ def build_factor_panel(start_date: str = "2023-01-01", step: int = 10):
 def train_and_analyze(
     panel: pd.DataFrame,
     config: Optional[TrainingConfig] = None,
-) -> Optional[Tuple[pd.DataFrame, list]]:
+) -> Optional[tuple[pd.DataFrame, list]]:
     """训练 LightGBM 并分析特征重要性.
 
     ECC GAP-7 修改:
@@ -321,7 +321,7 @@ def train_and_analyze(
 
     # ECC GAP-7: 落盘 manifest.json (warn_only, 失败不阻断)
     try:
-        manifest_metrics: Dict[str, Any] = {
+        manifest_metrics: dict[str, Any] = {
             "feature_importance": {
                 row["factor"]: float(row["importance"])
                 for _, row in imp_df.iterrows()

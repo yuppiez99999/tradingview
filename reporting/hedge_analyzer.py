@@ -8,7 +8,7 @@
 
 import math
 from datetime import datetime as _dt
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from reporting.price_fetcher import fetch_sina_realtime
 
@@ -59,7 +59,7 @@ def _estimate_option_expiry() -> str:
     return f"{year:04d}-{month:02d}-{day:02d}"
 
 
-def _resolve_option_underlying_price(underlying: str, market_prices: Optional[Dict]) -> Optional[float]:
+def _resolve_option_underlying_price(underlying: str, market_prices: Optional[dict]) -> Optional[float]:
     """从 market_prices 解析期权标的今日收盘价。
 
     fill 文件中 underlying 可能为 '510300' / '510300.SH' / '510050'，
@@ -111,7 +111,7 @@ def _parse_option_strike(strike_raw, spot: float, is_put: bool) -> float:
     return spot * (1.0 + pct)
 
 
-def _resolve_order_direction(order: Dict[str, Any]) -> str:
+def _resolve_order_direction(order: dict[str, Any]) -> str:
     """兼容 direction / side 字段，统一返回方向 (SELL_SHORT → SELL)"""
     direction = order.get("direction", "")
     if not direction:
@@ -120,7 +120,7 @@ def _resolve_order_direction(order: Dict[str, Any]) -> str:
     return direction
 
 
-def _resolve_order_futures_price(order: Dict[str, Any]) -> float:
+def _resolve_order_futures_price(order: dict[str, Any]) -> float:
     """兼容 futures_price / price 字段"""
     futures_price = order.get("futures_price", 0)
     if not futures_price:
@@ -128,7 +128,7 @@ def _resolve_order_futures_price(order: Dict[str, Any]) -> float:
     return futures_price
 
 
-def _generate_if_contract_codes() -> List[str]:
+def _generate_if_contract_codes() -> list[str]:
     """动态生成当月/下月/季月主力合约代码 (RC2 修复: 替代过期硬编码 IF2407)"""
     _now = _dt.now()
     _yy = _now.year % 100
@@ -144,7 +144,7 @@ def _generate_if_contract_codes() -> List[str]:
     return [_cur, _next, _quarter]
 
 
-def _fetch_if_close_from_sina(futures_price: float, if_codes: List[str]) -> float:
+def _fetch_if_close_from_sina(futures_price: float, if_codes: list[str]) -> float:
     """从新浪财经获取 IF 期货实时价格，未找到有效价格时返回原 futures_price"""
     # 新浪期货代码: hf_ 前缀 (小写) + 合约代码 (大写)
     if_codes_sina = [f"hf_{c}" for c in if_codes]
@@ -159,7 +159,7 @@ def _fetch_if_close_from_sina(futures_price: float, if_codes: List[str]) -> floa
     return futures_price
 
 
-def _fetch_if_close_from_provider(futures_price: float, if_codes: List[str],
+def _fetch_if_close_from_provider(futures_price: float, if_codes: list[str],
                                   data_provider) -> float:
     """从 data_provider 获取 IF 期货收盘价，未找到有效价格时返回原 futures_price"""
     if not data_provider:
@@ -187,8 +187,8 @@ def _fetch_if_close_from_provider(futures_price: float, if_codes: List[str],
 
 
 def analyze_hedge_position(
-    hedge_data: Dict[str, Any], data_provider=None, market_prices: Optional[Dict] = None
-) -> Dict[str, Any]:
+    hedge_data: dict[str, Any], data_provider=None, market_prices: Optional[dict] = None
+) -> dict[str, Any]:
     """分析对冲头寸
 
     Args:
@@ -346,7 +346,7 @@ def analyze_hedge_position(
     }
 
 
-def calculate_hedge_effectiveness(hedge_details: List, hedge_data: Dict) -> float:
+def calculate_hedge_effectiveness(hedge_details: list, hedge_data: dict) -> float:
     """计算对冲有效性"""
     # 简化模型：Beta降低比例作为有效性指标
     beta_reduced = sum(h.get("beta_reduced", 0) for h in hedge_details)
@@ -380,7 +380,7 @@ def _build_hedge_detail(
     beta_reduction: float,
     underlying_price: float,
     reason: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """构造单个对冲头寸明细项 (统一字段契约)"""
     is_option = "put" in instrument.lower() or "call" in instrument.lower()
     multiplier = 10000 if is_option else 0
@@ -411,7 +411,7 @@ def _build_hedge_detail(
     }
 
 
-def analyze_hedge_positions_plan(positions_data: Dict[str, Any]) -> Dict[str, Any]:
+def analyze_hedge_positions_plan(positions_data: dict[str, Any]) -> dict[str, Any]:
     """分析期货期权计划头寸 (来自 positions.json 的 hedge_positions)
 
     优先从 active_orders / actual_positions 提取已执行的真实头寸

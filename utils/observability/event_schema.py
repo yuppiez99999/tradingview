@@ -5,20 +5,20 @@
 """
 
 from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, Optional
+from enum import StrEnum
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
 
-class EventSeverity(str, Enum):
+class EventSeverity(StrEnum):
     INFO = "info"
     WARN = "warn"
     ERROR = "error"
     CRITICAL = "critical"
 
 
-class EventStatus(str, Enum):
+class EventStatus(StrEnum):
     SUCCESS = "success"
     FAILURE = "failure"
     SKIPPED = "skipped"
@@ -33,7 +33,7 @@ class ObservabilityEvent(BaseModel):
     status: EventStatus = EventStatus.SUCCESS
     event_type: str = Field(..., description="事件类型标识")
     message: str = Field(default="", description="人类可读消息")
-    context: Dict[str, Any] = Field(default_factory=dict, description="扩展上下文")
+    context: dict[str, Any] = Field(default_factory=dict, description="扩展上下文")
     trace_id: Optional[str] = Field(default=None, description="追踪 ID (后续 OpenTelemetry 接入)")
 
 

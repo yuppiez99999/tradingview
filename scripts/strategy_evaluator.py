@@ -27,7 +27,7 @@ import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 # ========== 配置 (复用 Day 1 EVOLUTION_CONFIG) ==========
 EVOLUTION_CONFIG = {
@@ -95,7 +95,7 @@ class ScoreReport:
     degraded_reason: str = ""
     evaluated_at: str = ""
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> dict[str, any]:
         d = asdict(self)
         d["return_metrics"] = asdict(self.return_metrics)
         d["divers_metrics"] = asdict(self.divers_metrics)
@@ -105,7 +105,7 @@ class ScoreReport:
 
 
 # ========== 工具函数 ==========
-def load_daily_returns(jsonl_path: str) -> List[Tuple[str, float]]:
+def load_daily_returns(jsonl_path: str) -> list[tuple[str, float]]:
     """从 JSONL 加载日期-回报对.
 
     Returns: [(date, daily_return), ...] 按日期排序
@@ -130,7 +130,7 @@ def load_daily_returns(jsonl_path: str) -> List[Tuple[str, float]]:
     return records
 
 
-def compute_annual_return(daily_returns: List[float]) -> float:
+def compute_annual_return(daily_returns: list[float]) -> float:
     """计算年化收益率."""
     if len(daily_returns) < 2:
         return 0.0
@@ -147,7 +147,7 @@ def compute_annual_return(daily_returns: List[float]) -> float:
     return annualized
 
 
-def compute_max_drawdown(daily_returns: List[float]) -> float:
+def compute_max_drawdown(daily_returns: list[float]) -> float:
     """计算最大回撤."""
     nav = 1.0
     peak = 1.0
@@ -162,7 +162,7 @@ def compute_max_drawdown(daily_returns: List[float]) -> float:
     return max_dd
 
 
-def compute_sharpe(daily_returns: List[float], risk_free: float = 0.03) -> float:
+def compute_sharpe(daily_returns: list[float], risk_free: float = 0.03) -> float:
     """计算年化 Sharpe ratio."""
     n = len(daily_returns)
     if n < 2 or risk_free == 0:
@@ -179,13 +179,13 @@ def compute_sharpe(daily_returns: List[float], risk_free: float = 0.03) -> float
     return daily_sharpe * (252.0 ** 0.5)
 
 
-def load_positions(pos_path: str) -> Dict:
+def load_positions(pos_path: str) -> dict:
     """加载 positions.json."""
     with open(pos_path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def evaluate_diversification(positions: Dict) -> DiversificationMetrics:
+def evaluate_diversification(positions: dict) -> DiversificationMetrics:
     """计算持仓分散度指标.
 
     Args:
@@ -382,7 +382,7 @@ class StrategyEvaluator:
         daily_returns_path: Optional[str],
         pos_path: Optional[str],
         use_shadow_data: bool,
-    ) -> Tuple[ReturnMetrics, List[float]]:
+    ) -> tuple[ReturnMetrics, list[float]]:
         """计算资金回报指标并返回原始日回报序列 (T1.6 扩展, 供 WF 分析)."""
         paths_to_try = []
         if daily_returns_path:
@@ -393,7 +393,7 @@ class StrategyEvaluator:
             if os.path.exists(shadow_path):
                 paths_to_try.append(shadow_path)
 
-        returns_list: List[float] = []
+        returns_list: list[float] = []
         for p in paths_to_try:
             if os.path.exists(p):
                 records = load_daily_returns(p)
@@ -444,7 +444,7 @@ class StrategyEvaluator:
         ), returns_list
 
     # ── T1.6 新增: Walk-Forward 验证 ──
-    def _walk_forward_validate(self, returns_list: List[float]) -> WalkForwardResult:
+    def _walk_forward_validate(self, returns_list: list[float]) -> WalkForwardResult:
         """Walk-Forward 样本外验证 — 检测过拟合.
 
         将日回报序列按时间拆分:
@@ -492,7 +492,7 @@ class StrategyEvaluator:
 
     def _compute_overall_scores(
         self, return_metrics: ReturnMetrics, divers_metrics: DiversificationMetrics
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """计算 Public Score (III.a) 和 Private Score (III.b)."""
         # Public Score: 基于当前表现的相对评分
         # - 年化收益打分
@@ -529,7 +529,7 @@ class StrategyEvaluator:
     def _make_recommendation(
         self, public_score: float, private_score: float,
         return_metrics: ReturnMetrics, divers_metrics: DiversificationMetrics
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """生成决策建议."""
         # Public 足够好且 Private 强 → promote
         if public_score >= 0.6 and private_score >= 0.65:

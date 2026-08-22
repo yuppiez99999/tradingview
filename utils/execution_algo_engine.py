@@ -51,7 +51,7 @@ import logging
 import math
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, time, timedelta
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 logger = logging.getLogger("execution_algo")
@@ -60,7 +60,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PLAN_DIR = BASE_DIR / "trade_instructions" / "execution_plans"
 
 
-class AlgoType(str, Enum):
+class AlgoType(StrEnum):
     """执行算法类型"""
 
     TWAP = "TWAP"

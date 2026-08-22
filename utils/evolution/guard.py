@@ -50,7 +50,7 @@ from __future__ import annotations
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -453,7 +453,7 @@ class EvolutionGuard:
             logger.warning("防线5 熔断检查异常 (容错放行): %s", e)
             return True, f"跳过 (KillSwitch 查询异常: {e})"
 
-        cutoff_ts = datetime.now(timezone.utc).timestamp() - self.kill_switch_freeze_hours * 3600
+        cutoff_ts = datetime.now(UTC).timestamp() - self.kill_switch_freeze_hours * 3600
 
         for event in events:
             # 解析事件级别和时间
@@ -497,7 +497,7 @@ class EvolutionGuard:
 
         用于 Memory.query(since=...) 的频率检查.
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         return cutoff.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
     @staticmethod
@@ -511,5 +511,5 @@ class EvolutionGuard:
             ts_str = ts_str[:-1] + "+00:00"
         dt = datetime.fromisoformat(ts_str)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt.timestamp()

@@ -22,7 +22,7 @@ Claude Audit 2026-07-22 改进项 #4 — 过拟合防护 (评级 B- → A)
 from __future__ import annotations
 
 import logging
-from typing import Generator
+from collections.abc import Generator
 
 import numpy as np
 

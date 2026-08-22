@@ -25,8 +25,9 @@ import logging
 import threading
 import time
 from collections import OrderedDict, defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("ai_hedge_fund.rate_limiter")
 

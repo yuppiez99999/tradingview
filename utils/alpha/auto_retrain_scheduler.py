@@ -40,7 +40,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -63,7 +63,7 @@ class TrainingInProgressError(AutoRetrainError):
 # ============================================================
 # 状态枚举
 # ============================================================
-class RetrainTrigger(str, Enum):
+class RetrainTrigger(StrEnum):
     """重训练触发源."""
 
     DRIFT_DETECTED = "drift_detected"
@@ -72,7 +72,7 @@ class RetrainTrigger(str, Enum):
     PERFORMANCE_DROP = "performance_drop"
 
 
-class RetrainStatus(str, Enum):
+class RetrainStatus(StrEnum):
     """重训练任务状态."""
 
     PENDING = "pending"

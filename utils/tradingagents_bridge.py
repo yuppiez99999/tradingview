@@ -175,7 +175,7 @@ class TradingAgentsBridge:
                 (self.host, self.port), timeout=2
             ):
                 return True
-        except (socket.timeout, ConnectionRefusedError, OSError):
+        except (TimeoutError, ConnectionRefusedError, OSError):
             return False
 
     # ------------------------------------------------------------

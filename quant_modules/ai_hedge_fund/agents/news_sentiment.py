@@ -1,12 +1,12 @@
 
 
 import json
+from typing import Literal
 
 import numpy as np
 import pandas as pd
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
-from typing_extensions import Literal
 
 from quant_modules.ai_hedge_fund.data_adapter import get_company_news
 from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning

@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -116,7 +116,7 @@ class StrategyHealthLayer:
     # ============================================================
     def collect(self) -> LayerScore:
         """采集策略层指标 (只读历史). 失败时返回降级 LayerScore."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         if not self._enabled:
             return LayerScore(

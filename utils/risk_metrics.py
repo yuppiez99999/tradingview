@@ -11,7 +11,7 @@
 """
 
 import logging
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -127,7 +127,7 @@ def calculate_es(returns: np.ndarray, confidence_level: float = 0.95) -> float:
         return 0.04
 
 
-def calculate_max_drawdown(prices: np.ndarray) -> Tuple[float, int, int]:
+def calculate_max_drawdown(prices: np.ndarray) -> tuple[float, int, int]:
     """
     计算最大回撤
 
@@ -361,7 +361,7 @@ def calculate_beta(returns: np.ndarray, market_returns: np.ndarray) -> float:
         return 1.0
 
 
-def _align_and_dropna(a: np.ndarray, b: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def _align_and_dropna(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """尾部对齐两个收益率序列并联合剔除 NaN。
 
     P1 修复 (2026-07-29): calculate_alpha / calculate_tracking_error /
@@ -596,7 +596,7 @@ def calculate_performance_metrics(
     prices: Optional[np.ndarray] = None,
     benchmark_returns: Optional[np.ndarray] = None,
     risk_free_rate: float = 0.02,
-) -> Dict:
+) -> dict:
     """
     计算完整的绩效指标
 
@@ -657,7 +657,7 @@ def calculate_performance_metrics(
         return {}
 
 
-def calculate_portfolio_weights(positions: Dict[str, Dict]) -> Dict[str, float]:
+def calculate_portfolio_weights(positions: dict[str, dict]) -> dict[str, float]:
     """
     计算组合权重
 

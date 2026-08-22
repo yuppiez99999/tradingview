@@ -15,7 +15,7 @@ import logging
 import math
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Optional, cast
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ _CVAR_CONFIG_DEFAULT = {
 }
 
 
-def _load_cvar_config() -> Dict:
+def _load_cvar_config() -> dict:
     """读取 system_config.json 的 risk_management.cvar 段 (G11).
 
     失败 (文件缺失/JSON损坏/段不存在) 一律返回安全默认, fail-open 不阻断主流程.
@@ -63,7 +63,7 @@ class RiskControl:
     """多层次风控管理器"""
 
     # 类级可选属性显式注解 — 根除 __init__ 中 =0 / =0.0 单态窄化推断
-    config: Dict[str, Any]
+    config: dict[str, Any]
     daily_trades: int
     daily_volume: float
     daily_pnl: float
@@ -74,8 +74,8 @@ class RiskControl:
     circuit_breaker_tripped: bool
     circuit_breaker_reason: str
 
-    def __init__(self, config: Optional[Dict] = None):
-        self.config = cast(Dict[str, Any], config) if config is not None else {
+    def __init__(self, config: Optional[dict] = None):
+        self.config = cast(dict[str, Any], config) if config is not None else {
             "max_daily_loss_pct": 0.03,
             "max_portfolio_drawdown_pct": 0.05,
             "max_position_concentration_pct": 0.3,
@@ -110,7 +110,7 @@ class RiskControl:
         if equity > self.max_equity:
             self.max_equity = equity
 
-    def check_circuit_breaker(self) -> Tuple[bool, str]:
+    def check_circuit_breaker(self) -> tuple[bool, str]:
         """检查熔断机制"""
         if not self.config["circuit_breaker_enabled"]:
             return True, ""
@@ -134,7 +134,7 @@ class RiskControl:
 
         return True, ""
 
-    def check_position_concentration(self, code: str, position_value: float, total_equity: float) -> Tuple[bool, str]:
+    def check_position_concentration(self, code: str, position_value: float, total_equity: float) -> tuple[bool, str]:
         """检查单标的集中度"""
         if not self.config["position_limit_enabled"]:
             return True, ""
@@ -145,7 +145,7 @@ class RiskControl:
 
         return True, ""
 
-    def check_single_trade(self, trade_amount: float, total_equity: float) -> Tuple[bool, str]:
+    def check_single_trade(self, trade_amount: float, total_equity: float) -> tuple[bool, str]:
         """检查单笔交易限额"""
         pct = trade_amount / total_equity if total_equity > 0 else 0
         if pct >= self.config["max_single_trade_pct"]:
@@ -153,14 +153,14 @@ class RiskControl:
 
         return True, ""
 
-    def check_daily_trade_count(self) -> Tuple[bool, str]:
+    def check_daily_trade_count(self) -> tuple[bool, str]:
         """检查每日交易次数"""
         if self.daily_trades >= self.config["max_daily_trades"]:
             return False, f"当日交易次数 {self.daily_trades} >= 上限 {self.config['max_daily_trades']}"
 
         return True, ""
 
-    def check_daily_volume(self, volume: float) -> Tuple[bool, str]:
+    def check_daily_volume(self, volume: float) -> tuple[bool, str]:
         """检查每日成交量"""
         if self.daily_volume + volume >= self.config["max_daily_volume"]:
             return False, "当日成交量接近上限"
@@ -175,7 +175,7 @@ class RiskControl:
         if pnl < 0:
             self.daily_loss += abs(pnl)
 
-    def get_risk_status(self) -> Dict:
+    def get_risk_status(self) -> dict:
         """获取风控状态"""
         drawdown = (self.max_equity - self.current_equity) / self.max_equity if self.max_equity > 0 else 0
 
@@ -198,7 +198,7 @@ class RiskControl:
 
     def pre_trade_check(
         self, code: str, trade_amount: float, volume: float, position_value: float, total_equity: float
-    ) -> Tuple[bool, List[str]]:
+    ) -> tuple[bool, list[str]]:
         """交易前风控检查
 
         Args:
@@ -242,7 +242,7 @@ class StopLossManager:
     def __init__(self, stop_loss_pct: float = 0.05, take_profit_pct: float = 0.10):
         self.stop_loss_pct = stop_loss_pct
         self.take_profit_pct = take_profit_pct
-        self.stop_loss_orders: Dict = {}
+        self.stop_loss_orders: dict = {}
 
     def set_stop_loss(self, code: str, avg_cost: float, qty: int) -> None:
         """设置止损单"""
@@ -258,7 +258,7 @@ class StopLossManager:
             "created_at": datetime.now().isoformat(),
         }
 
-    def check_stop_loss(self, code: str, current_price: float) -> Tuple[str, Optional[Dict]]:
+    def check_stop_loss(self, code: str, current_price: float) -> tuple[str, Optional[dict]]:
         """检查止损条件
 
         Returns:
@@ -298,7 +298,7 @@ class StopLossManager:
         if code in self.stop_loss_orders:
             del self.stop_loss_orders[code]
 
-    def get_stop_loss_status(self) -> Dict:
+    def get_stop_loss_status(self) -> dict:
         """获取所有止损单状态"""
         return self.stop_loss_orders
 
@@ -310,7 +310,7 @@ class PortfolioRiskAnalyzer:
         pass
 
     @staticmethod
-    def _normalize_positions(positions: Dict) -> Dict:
+    def _normalize_positions(positions: dict) -> dict:
         """标准化持仓字段，兼容 qty / shares"""
         normalized = {}
         for code, pos in positions.items():
@@ -321,7 +321,7 @@ class PortfolioRiskAnalyzer:
         return normalized
 
     @staticmethod
-    def calculate_var(positions: Dict, volatility: float = 0.02, confidence_level: float = 0.95) -> float:
+    def calculate_var(positions: dict, volatility: float = 0.02, confidence_level: float = 0.95) -> float:
         """计算在险价值(VaR)
 
         Args:
@@ -338,7 +338,7 @@ class PortfolioRiskAnalyzer:
         return float(total_value * volatility * z_score)
     @staticmethod
     def calculate_cvar(
-        positions: Dict,
+        positions: dict,
         volatility: float = 0.02,
         confidence_level: float = 0.95,
         method: str = "analytic",
@@ -444,7 +444,7 @@ class PortfolioRiskAnalyzer:
         )
         return float(total_value * cvar_factor)
     @staticmethod
-    def calculate_position_concentration(positions: Dict) -> Dict:
+    def calculate_position_concentration(positions: dict) -> dict:
         """计算持仓集中度"""
         normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
         total_value = sum(pos["qty"] * pos["avg_cost"] for pos in normalized.values())
@@ -464,10 +464,10 @@ class PortfolioRiskAnalyzer:
         return dict(sorted(concentration.items(), key=lambda x: -x[1]["percentage"]))
 
     @staticmethod
-    def analyze_sector_distribution(positions: Dict, sector_map: Dict) -> Dict:
+    def analyze_sector_distribution(positions: dict, sector_map: dict) -> dict:
         """分析行业分布"""
         normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
-        sectors: Dict[str, Dict[str, Any]] = {}
+        sectors: dict[str, dict[str, Any]] = {}
         total_value = 0
 
         for code, pos in normalized.items():
@@ -487,7 +487,7 @@ class PortfolioRiskAnalyzer:
                 sectors[sector]["percentage"] = sectors[sector]["value"] / total_value
         return dict(sorted(sectors.items(), key=lambda x: -x[1]["value"]))
 
-    def analyze_portfolio(self, positions: Dict, total_built: float, target: float) -> Dict:
+    def analyze_portfolio(self, positions: dict, total_built: float, target: float) -> dict:
         """组合级风险分析
 
         参数:
@@ -567,8 +567,8 @@ class RiskReportGenerator:
     def generate_risk_report(
         risk_control: RiskControl,
         stop_loss_manager: StopLossManager,
-        positions: Dict,
-        sector_map: Optional[Dict] = None,
+        positions: dict,
+        sector_map: Optional[dict] = None,
     ) -> str:
         """生成风险报告"""
         risk_status = risk_control.get_risk_status()
@@ -660,7 +660,7 @@ class RiskReportGenerator:
         return "\n".join(lines)
 
 
-def create_risk_control(config: Optional[Dict] = None) -> RiskControl:
+def create_risk_control(config: Optional[dict] = None) -> RiskControl:
     """创建风控管理器"""
     return RiskControl(config)
 

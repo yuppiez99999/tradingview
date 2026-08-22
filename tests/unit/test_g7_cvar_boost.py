@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import math
 
-
 from utils.risk.cvar import (
     CVaRCalculator,
     CVaRConfig,

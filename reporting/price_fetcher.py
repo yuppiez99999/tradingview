@@ -10,7 +10,7 @@
 绕过系统代理以避免国内金融 API 被代理拦截。
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 # B-4.1: 统一无代理 Session 工厂 (绕过系统代理, 避免新浪 API 被拦截)
 from utils.http_session import make_no_proxy_session
@@ -44,7 +44,7 @@ def to_sina_code(code: str) -> str:
     return f"sz{code_upper}"
 
 
-def fetch_sina_realtime(codes: List[str]) -> Dict[str, Dict]:
+def fetch_sina_realtime(codes: list[str]) -> dict[str, dict]:
     """通过新浪财经 API 批量获取实时行情
 
     API: https://hq.sinajs.cn/list=sh688041,sz000333
@@ -109,7 +109,7 @@ def fetch_sina_realtime(codes: List[str]) -> Dict[str, Dict]:
     return result
 
 
-def _build_code_to_cost_map(positions: Dict[str, Any]) -> Dict[str, float]:
+def _build_code_to_cost_map(positions: dict[str, Any]) -> dict[str, float]:
     """构建代码 -> 成本价 (est_price) 映射, 用于比例验证"""
     code_to_cost = {}
     for _key, pos in positions.items():
@@ -142,7 +142,7 @@ def _validate_price_range(code: str, close: Any, cost_price: float) -> bool:
     return True
 
 
-def _fetch_price_from_provider(code: str, cost_price: float, data_provider: Any) -> Optional[Dict]:
+def _fetch_price_from_provider(code: str, cost_price: float, data_provider: Any) -> Optional[dict]:
     """从 data_provider 获取单个标的的价格数据, 验证后返回价格字典或 None"""
     if not data_provider:
         return None
@@ -165,7 +165,7 @@ def _fetch_price_from_provider(code: str, cost_price: float, data_provider: Any)
     return {"close": close, "prev_close": prev_close, "change_pct": change_pct, "source": p_source}
 
 
-def _get_fallback_prices() -> Dict[str, Dict]:
+def _get_fallback_prices() -> dict[str, dict]:
     """获取预定义的兜底价格 (当 Wind MCP 不可用时的最后防线)
 
     ⚠ 注意: change_pct 为历史快照时的日内涨跌，已过时。
@@ -221,9 +221,9 @@ def _get_fallback_prices() -> Dict[str, Dict]:
 
 
 def _correct_price_anomalies(
-    prices: Dict[str, Dict],
-    code_to_cost: Dict[str, float],
-    fallback_prices: Dict[str, Dict],
+    prices: dict[str, dict],
+    code_to_cost: dict[str, float],
+    fallback_prices: dict[str, dict],
 ) -> None:
     """价格异常修正: 对无成本价的个股, 如果价格 > 500 且不是 ETF, 使用 fallback"""
     for code, pd in list(prices.items()):
@@ -245,10 +245,10 @@ def _correct_price_anomalies(
 
 
 def fetch_market_prices(
-    positions_data: Dict[str, Any],
+    positions_data: dict[str, Any],
     data_provider: Optional[Any] = None,
     init_data_provider_fn: Optional[Any] = None,
-) -> Dict[str, Dict]:
+) -> dict[str, dict]:
     """获取所有持仓标的的收盘价格
 
     价格验证规则 (防止 data_provider 返回指数点位):
@@ -312,7 +312,7 @@ def fetch_market_prices(
     return prices
 
 
-def assess_data_source_health(pnl_data: Dict) -> Dict[str, Any]:
+def assess_data_source_health(pnl_data: dict) -> dict[str, Any]:
     """评估当前报告使用的数据源健康状态"""
     details = pnl_data.get("details", [])
     snapshot_count = sum(1 for d in details if d.get("calc_mode") == "snapshot")

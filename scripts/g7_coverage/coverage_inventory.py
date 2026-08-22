@@ -10,10 +10,11 @@ import os
 import sys
 import time
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

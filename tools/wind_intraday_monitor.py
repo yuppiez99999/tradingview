@@ -10,7 +10,7 @@ Wind 终端盘中标的抓取与研判
 import json
 import os
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _PLAN_FILE = os.path.join(_BASE_DIR, "500万建仓计划_20260706.json")
@@ -18,7 +18,7 @@ _REPORT_DIR = os.path.join(_BASE_DIR, "reports")
 os.makedirs(_REPORT_DIR, exist_ok=True)
 
 
-def _load_plan_codes() -> List[Dict]:
+def _load_plan_codes() -> list[dict]:
     if not os.path.isfile(_PLAN_FILE):
         return []
     with open(_PLAN_FILE, encoding="utf-8") as f:
@@ -99,7 +99,7 @@ def _import_wind():
         return None, None, None
 
 
-def _estimate_fund_flow_from_quote(quote: Dict, prev_close: Optional[float] = None) -> float:
+def _estimate_fund_flow_from_quote(quote: dict, prev_close: Optional[float] = None) -> float:
     price = quote.get("price")
     change_pct = quote.get("change")
     volume = quote.get("volume")
@@ -123,7 +123,7 @@ def _estimate_fund_flow_from_quote(quote: Dict, prev_close: Optional[float] = No
     return 0.0
 
 
-def _judge(row: Dict) -> str:
+def _judge(row: dict) -> str:
     cp = row.get("change_pct")
     if cp is None:
         return "观察"
@@ -138,9 +138,9 @@ def _judge(row: Dict) -> str:
     return "震荡"
 
 
-def _batch_fetch_klines(codes: List[str], is_fund_map: Dict[str, bool], wind_get_kline, max_workers: int = 4) -> Dict[str, Optional[float]]:
+def _batch_fetch_klines(codes: list[str], is_fund_map: dict[str, bool], wind_get_kline, max_workers: int = 4) -> dict[str, Optional[float]]:
     from concurrent.futures import ThreadPoolExecutor, as_completed
-    prev_close_map: Dict[str, Optional[float]] = {code: None for code in codes}
+    prev_close_map: dict[str, Optional[float]] = {code: None for code in codes}
     if wind_get_kline is None:
         return prev_close_map
     def _fetch_one(code_and_fund):
@@ -163,7 +163,7 @@ def _batch_fetch_klines(codes: List[str], is_fund_map: Dict[str, bool], wind_get
     return prev_close_map
 
 
-def run(target_date: Optional[str] = None) -> Dict:
+def run(target_date: Optional[str] = None) -> dict:
     now = datetime.now()
     target_date = target_date or now.strftime("%Y-%m-%d")
     target_short = target_date.replace("-", "")
@@ -175,9 +175,9 @@ def run(target_date: Optional[str] = None) -> Dict:
         print("❌ Wind MCP 不可用，无法生成盘中研判")
         return {"ok": False, "error": "wind_mcp_unavailable"}
 
-    items: List[Dict] = []
-    clean_codes: List[str] = []
-    is_fund_flags: List[bool] = []
+    items: list[dict] = []
+    clean_codes: list[str] = []
+    is_fund_flags: list[bool] = []
     for item in plan_codes:
         raw_code = item["code"]
         clean_code = _strip_prefix(raw_code)
@@ -192,7 +192,7 @@ def run(target_date: Optional[str] = None) -> Dict:
     is_fund_map = {code: flag for code, flag in zip(clean_codes, is_fund_flags)}
     prev_close_map = _batch_fetch_klines(clean_codes, is_fund_map, wind_get_kline, max_workers=4)
 
-    rows: List[Dict] = []
+    rows: list[dict] = []
     for item, clean_code in zip(items, clean_codes):
         raw_code = item["code"]
         quote = batch_quotes.get(clean_code)
@@ -240,8 +240,8 @@ def run(target_date: Optional[str] = None) -> Dict:
             "judgment": _judge({"change_pct": change_pct}),
         })
 
-    style_stats: Dict[str, List[float]] = {}
-    abnormal_rows: List[Dict] = []
+    style_stats: dict[str, list[float]] = {}
+    abnormal_rows: list[dict] = []
     for r in rows:
         style = r.get("style") or "其他"
         style_stats.setdefault(style, []).append(r.get("change_pct") or 0.0)

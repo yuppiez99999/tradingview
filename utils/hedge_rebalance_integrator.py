@@ -698,6 +698,32 @@ class HedgeRebalanceIntegrator:
             }
         return DEFAULT_SECTOR_WEIGHTS.copy()
 
+    def _load_evolution_factor_weights(self) -> dict[str, float]:
+        """加载进化框架产出的因子权重 (FeedbackLoop 更新).
+
+        读取 config/factor_weights.json, 返回 {code: weight_multiplier}.
+        进化框架通过 EOD phase4_6 FeedbackLoop 更新此文件.
+        失败时返回空字典 (优雅降级, 不影响再平衡).
+        """
+        try:
+            fw_path = os.path.join(self.config_dir, 'factor_weights.json')
+            if not os.path.exists(fw_path):
+                return {}
+            with open(fw_path, encoding='utf-8') as f:
+                fw = json.load(f)
+            if not isinstance(fw, dict):
+                return {}
+            multipliers: dict[str, float] = {}
+            for code, val in fw.items():
+                if isinstance(val, (int, float)) and 0.5 <= val <= 2.0:
+                    multipliers[code] = float(val)
+            if multipliers:
+                logger.info("[进化权重] 加载 %d 个因子权重乘子", len(multipliers))
+            return multipliers
+        except (ValueError, KeyError, TypeError, OSError) as e:
+            logger.warning("[进化权重] 加载失败, 降级到无进化调整: %s", e)
+            return {}
+
     def check_rebalance(
         self, risk: PortfolioRisk,
         portfolio_volatility: float = None,
@@ -713,6 +739,7 @@ class HedgeRebalanceIntegrator:
             total_stock_value = self.portfolio_value
 
         sector_weights = self._get_sector_adjusted_weights()
+        evolution_weights = self._load_evolution_factor_weights()
         portfolio_vol = portfolio_volatility if portfolio_volatility else 0.18
         threshold, check_freq, max_adjust = self._get_dynamic_rebalance_threshold(portfolio_vol)
 
@@ -722,6 +749,9 @@ class HedgeRebalanceIntegrator:
             name = asset.get('name', code)
             category = asset.get('category', 'unknown')
             target_weight = asset.get('target_weight', 0.07)
+
+            if code in evolution_weights:
+                target_weight = target_weight * evolution_weights[code]
 
             if category in sector_weights:
                 cat_sector_w = sector_weights[category]

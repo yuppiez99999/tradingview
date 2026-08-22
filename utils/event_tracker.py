@@ -4,9 +4,10 @@
 """
 
 import time
+from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Optional
 
 from .logging_manager import get_logger
 
@@ -16,9 +17,9 @@ class EventTracker:
 
     def __init__(self, logger_name: str = 'quant'):
         self._logger = get_logger(logger_name)
-        self._active_sessions: Dict[str, Dict[str, Any]] = {}
+        self._active_sessions: dict[str, dict[str, Any]] = {}
 
-    def start_session(self, session_id: str, meta: Optional[Dict] = None) -> str:
+    def start_session(self, session_id: str, meta: Optional[dict] = None) -> str:
         """开始一个追踪会话"""
         self._active_sessions[session_id] = {
             'start_time': time.time(),
@@ -168,7 +169,7 @@ class EventTracker:
             'valid': valid, 'event_type': 'price_check',
         })
 
-    def finish_session(self, session_id: str) -> Dict[str, Any]:
+    def finish_session(self, session_id: str) -> dict[str, Any]:
         """结束追踪会话并返回统计"""
         if session_id not in self._active_sessions:
             return {}
@@ -186,7 +187,7 @@ class EventTracker:
                    'duration_ms': total_ms, **summary})
         return summary
 
-    def track(self, event_name: str, data: Optional[Dict[str, Any]] = None) -> None:
+    def track(self, event_name: str, data: Optional[dict[str, Any]] = None) -> None:
         """通用事件追踪接口 — 兼容外部调用"""
         self._logger.info(
             f"📊 [追踪] {event_name}",

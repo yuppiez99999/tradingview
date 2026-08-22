@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 from rich.console import Console
 from rich.live import Live
@@ -57,7 +58,7 @@ class AgentProgress:
             self.agent_status[agent_name]["analysis"] = analysis
 
         # Set the timestamp as UTC datetime
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
         self.agent_status[agent_name]["timestamp"] = timestamp
 
         # Notify all registered handlers

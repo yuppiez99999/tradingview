@@ -28,7 +28,7 @@ import contextlib
 import io
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -92,7 +92,7 @@ class CodeDiagnoser:
         Returns:
             List[RootCause] 代码层根因列表
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         causes: list[RootCause] = []
 
         # 1. 运行 SystemChecker 获取检查结果

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -116,7 +116,7 @@ class MockV1Orchestrator:
                 daily_returns=[0.001] * 30,
                 dates=["2026-08-01"] * 30,
                 sample_count=30,
-                collected_at=datetime.now(timezone.utc).isoformat(),
+                collected_at=datetime.now(UTC).isoformat(),
             )
         return self._metrics
 
@@ -154,7 +154,7 @@ class MockKillSwitch:
 
 def make_ks_event(level: int, hours_ago: float = 1.0) -> dict:
     """构造熔断事件."""
-    ts = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    ts = datetime.now(UTC) - timedelta(hours=hours_ago)
     return {
         "level": level,
         "timestamp": ts.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
@@ -429,7 +429,7 @@ class TestRunCycle:
             metrics=MockMetricsSnapshot(
                 daily_returns=[0.001] * 30,
                 sample_count=30,
-                collected_at=datetime.now(timezone.utc).isoformat(),
+                collected_at=datetime.now(UTC).isoformat(),
             ),
             report=MockScoreReport(
                 public_score=0.5, private_score=0.5,
@@ -464,7 +464,7 @@ class TestRunCycle:
             metrics=MockMetricsSnapshot(
                 daily_returns=[0.001] * 30,
                 sample_count=30,
-                collected_at=datetime.now(timezone.utc).isoformat(),
+                collected_at=datetime.now(UTC).isoformat(),
             ),
             report=MockScoreReport(
                 public_score=0.8, private_score=0.75,
@@ -496,7 +496,7 @@ class TestRunCycle:
             metrics=MockMetricsSnapshot(
                 daily_returns=[0.001] * 30,
                 sample_count=30,
-                collected_at=datetime.now(timezone.utc).isoformat(),
+                collected_at=datetime.now(UTC).isoformat(),
             ),
             report=MockScoreReport(
                 public_score=0.3, private_score=0.2,
@@ -525,7 +525,7 @@ class TestRunCycle:
             metrics=MockMetricsSnapshot(
                 is_degraded=True,
                 degraded_reason="file_not_found",
-                collected_at=datetime.now(timezone.utc).isoformat(),
+                collected_at=datetime.now(UTC).isoformat(),
             ),
         )
         orch = EvolutionOrchestratorV2(
@@ -545,7 +545,7 @@ class TestRunCycle:
             metrics=MockMetricsSnapshot(
                 daily_returns=[0.001] * 10,  # 样本不足
                 sample_count=10,
-                collected_at=datetime.now(timezone.utc).isoformat(),
+                collected_at=datetime.now(UTC).isoformat(),
             ),
             report=None,  # 评估跳过
         )
@@ -635,7 +635,7 @@ class TestEndToEndLifecycle:
             metrics=MockMetricsSnapshot(
                 daily_returns=[0.001] * 30,
                 sample_count=30,
-                collected_at=datetime.now(timezone.utc).isoformat(),
+                collected_at=datetime.now(UTC).isoformat(),
             ),
             report=MockScoreReport(
                 public_score=0.85, private_score=0.78,

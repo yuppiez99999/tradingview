@@ -17,7 +17,7 @@ import sys
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class FillsStore:
 
     def _init(self):
         self._write_lock = threading.Lock()
-        self._buffer: Dict[str, List[Dict[str, Any]]] = {}  # date -> records
+        self._buffer: dict[str, list[dict[str, Any]]] = {}  # date -> records
 
     # ------------------------------------------------------------------ #
     # 公共 API
@@ -74,8 +74,8 @@ class FillsStore:
         strategy: str = "rebalance",
         source: str = "sim_route",
         date: Optional[str] = None,
-        meta: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        meta: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """记录一笔成交并落盘。返回记录 dict (便于调用方复用)。
 
         fail-open: 任何异常只记日志, 不影响执行链路。
@@ -103,7 +103,7 @@ class FillsStore:
                 self._buffer.setdefault(rec_date, []).append(record)
         return record
 
-    def load_day(self, date: Optional[str] = None) -> List[Dict[str, Any]]:
+    def load_day(self, date: Optional[str] = None) -> list[dict[str, Any]]:
         """读取某交易日全部成交 (文件为事实源, 内存仅含落盘失败兜底记录)。
 
         G4 修复 (2026-08-08): 此前把内存 buffer 与文件合并, 因 record_fill 对同一条记录
@@ -112,7 +112,7 @@ class FillsStore:
         """
         rec_date = date or datetime.now().strftime("%Y-%m-%d")
         # 文件是权威事实源, 先读文件
-        records: List[Dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         path = self._file_path(rec_date)
         if path.exists():
             try:
@@ -129,22 +129,22 @@ class FillsStore:
                 records.append(rec)
         return records
 
-    def latest_avg_price_by_symbol(self, date: Optional[str] = None) -> Dict[str, float]:
+    def latest_avg_price_by_symbol(self, date: Optional[str] = None) -> dict[str, float]:
         """返回每个标的当日最新成交均价 (按记录顺序末次覆盖)。"""
-        result: Dict[str, float] = {}
+        result: dict[str, float] = {}
         for rec in self.load_day(date):
             result[rec["symbol"]] = rec["avg_price"]
         return result
 
-    def realized_pnl(self, date: Optional[str] = None) -> Dict[str, float]:
+    def realized_pnl(self, date: Optional[str] = None) -> dict[str, float]:
         """估算当日已实现 PnL: SELL 成交价 vs 上一笔 BUY 均价 (简化 FIFO 近似)。
 
         仅用于日常监控参考, 不作为会计级成本基础。返回 {symbol: realized_pnl}。
         """
         from collections import defaultdict
 
-        buys: Dict[str, List[float]] = defaultdict(list)
-        realized: Dict[str, float] = defaultdict(float)
+        buys: dict[str, list[float]] = defaultdict(list)
+        realized: dict[str, float] = defaultdict(float)
         for rec in self.load_day(date):
             sym = rec["symbol"]
             qty = rec["filled_qty"]
@@ -164,7 +164,7 @@ class FillsStore:
     def _file_path(self, date: str) -> Path:
         return _FILLS_DIR / f"fills_{date}.jsonl"
 
-    def _append_to_file(self, date: str, record: Dict[str, Any]) -> None:
+    def _append_to_file(self, date: str, record: dict[str, Any]) -> None:
         _FILLS_DIR.mkdir(parents=True, exist_ok=True)
         with open(self._file_path(date), "a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -174,12 +174,12 @@ class FillsStore:
 _store = FillsStore()
 
 
-def record_fill(*args, **kwargs) -> Dict[str, Any]:
+def record_fill(*args, **kwargs) -> dict[str, Any]:
     """模块级便捷函数 — 直接调用 FillsStore 单例。"""
     return _store.record_fill(*args, **kwargs)
 
 
-def load_day(date: Optional[str] = None) -> List[Dict[str, Any]]:
+def load_day(date: Optional[str] = None) -> list[dict[str, Any]]:
     return _store.load_day(date)
 
 

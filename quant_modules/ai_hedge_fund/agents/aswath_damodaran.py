@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
+from typing import Literal
 
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
-from typing_extensions import Literal
 
 from quant_modules.ai_hedge_fund.data_adapter import (
     get_financial_metrics,

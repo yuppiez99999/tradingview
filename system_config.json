@@ -195,5 +195,63 @@
         "B4": {"flag": "USE_MLOPS_PIPELINE", "after": "B3_OK", "watch_days": 7}
       }
     }
+  },
+  "github_integration": {
+    "_doc": "GitHub 周热门项目集成 (2026-08-21). 详见 docs/GitHub周热门项目集成_20260821.md",
+    "_source": "10_第三方项目/",
+    "unsloth": {
+      "enabled": true,
+      "_doc": "本地 LLM 训练增强, 接入 GLM5DecisionEngine",
+      "adapter": "utils/unsloth_adapter.py",
+      "model_name": "unsloth/Qwen3-8B-Instruct",
+      "max_seq_length": 4096,
+      "load_in_4bit": true,
+      "finetuned_dir": "models/unsloth_finetuned/",
+      "activation": "pip install unsloth_zoo"
+    },
+    "switchyard": {
+      "enabled": true,
+      "_doc": "LLM 多模型路由, 接入 GLM5Client/LiteLLMRouter",
+      "adapter": "utils/switchyard_adapter.py",
+      "server_url": "http://localhost:7777",
+      "default_strategy": "cost_aware",
+      "scene_model_map": {
+        "intraday_decision": "qwen3-flash",
+        "rebalancing_analysis": "deepseek-v4-pro",
+        "macro_analysis": "glm-5.2",
+        "report_generation": "qwen-plus",
+        "light_analysis": "doubao-speed"
+      },
+      "activation": "cd 10_第三方项目/Switchyard && cargo build --release"
+    },
+    "openviking": {
+      "enabled": true,
+      "_doc": "AI Hedge Fund Agent 长期记忆 + RAG",
+      "adapter": "quant_modules/ai_hedge_fund/openviking_memory.py",
+      "server_url": "http://localhost:8765",
+      "collection_prefix": "ai_hedge_fund",
+      "embedding_model": "bge-m3",
+      "agent_count": 10,
+      "activation": "见 OpenViking/README.md 部署说明"
+    },
+    "onnxruntime": {
+      "enabled": true,
+      "_doc": "ML 模型推理加速, 接入 lgb_enhanced_trainer / tf_price_predictor",
+      "adapter": "utils/onnxruntime_adapter.py",
+      "providers": ["CUDAExecutionProvider", "CPUExecutionProvider"],
+      "intra_op_num_threads": 4,
+      "graph_optimization_level": "all",
+      "model_dir": "models/onnx_exported/",
+      "activation": "pip install onnxruntime (已安装 1.29.0)"
+    },
+    "superpowers": {
+      "enabled": true,
+      "_doc": "Agent 技能框架, 接入 AI Hedge Fund 20 分析师",
+      "adapter": "utils/superpowers_adapter.py",
+      "skills_dir": "10_第三方项目/superpowers/skills/",
+      "skill_count": 14,
+      "agent_count": 10,
+      "activation": "无需安装, 直接读取 skills/ 目录"
+    }
   }
 }

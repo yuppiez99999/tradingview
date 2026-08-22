@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 # ============================================================
 # 项目根定位 (比硬编码 parent.parent.parent 更健壮)

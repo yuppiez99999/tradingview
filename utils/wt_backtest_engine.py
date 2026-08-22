@@ -17,8 +17,9 @@ import json
 import logging
 import math
 import os
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, Callable, ClassVar, Optional, TypedDict
+from typing import Any, ClassVar, Optional, TypedDict
 
 # E1 加固: 补全 pandas 导入。wt_backtest_engine.py:543 的 `price_data: Dict[str, "pd.DataFrame"]`
 # 仅作字符串类型注解, 普通运行不求值; 但为消除 F821 未定义名隐患(审查报告 B1 降 P1 项),

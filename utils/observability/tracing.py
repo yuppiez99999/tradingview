@@ -13,8 +13,9 @@
         ...
 """
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator, Optional
+from typing import Any, Optional
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider

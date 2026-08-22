@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -55,7 +55,7 @@ class MockKillSwitch:
 
 def make_ks_event(level: int, hours_ago: float = 1.0) -> dict:
     """构造熔断事件."""
-    ts = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    ts = datetime.now(UTC) - timedelta(hours=hours_ago)
     return {
         "level": level,
         "timestamp": ts.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),

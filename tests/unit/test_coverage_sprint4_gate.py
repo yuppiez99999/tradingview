@@ -14,15 +14,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 _ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_ROOT / "scripts"))
 
-from engineering_debt_gate import _check_d9_coverage_sprint4_target  # noqa: E402
+from _detect_coverage_stagnation import detect_stagnation  # noqa: E402
 from _detect_lookahead_tests import detect_lookahead_tests  # noqa: E402
 from _detect_mock_inflation import detect_mock_inflation  # noqa: E402
-from _detect_coverage_stagnation import detect_stagnation  # noqa: E402
 from _find_uncovered_p02_branches import find_uncovered_p02_branches  # noqa: E402
+from engineering_debt_gate import _check_d9_coverage_sprint4_target  # noqa: E402
 
 
 class TestCheckD9CoverageSprint4Target:

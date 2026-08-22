@@ -45,7 +45,7 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -442,7 +442,7 @@ class UnifiedRootCauseAnalyzer:
         Returns:
             RootCauseReport (不可变)
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         source_at = self._extract_health_report_time(health_report)
 
         # HC-1: Flag 关闭 → 降级报告

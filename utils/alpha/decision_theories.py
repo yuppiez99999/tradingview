@@ -43,7 +43,7 @@
 import logging
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger("utils.alpha.decision_theories")
 
@@ -58,7 +58,7 @@ class TheoryDecision:
     score: float  # 0.0~1.0 综合置信度
     conviction: str  # LOW / MEDIUM / HIGH
     summary: str  # 一句话摘要
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     timestamp: str = ""
 
     def __post_init__(self):
@@ -110,11 +110,11 @@ class SorosReflexivityEngine:
 
     def compute_reflexivity_score(
         self,
-        price_data: Dict[str, Any],
-        volume_data: Optional[Dict[str, Any]] = None,
-        sentiment_data: Optional[Dict[str, Any]] = None,
-        valuation_data: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        price_data: dict[str, Any],
+        volume_data: Optional[dict[str, Any]] = None,
+        sentiment_data: Optional[dict[str, Any]] = None,
+        valuation_data: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         计算每只标的的反身性得分
 
@@ -143,7 +143,7 @@ class SorosReflexivityEngine:
 
             # 2. 成交量放大 (volume amplification)
             vol_score = 0.5
-            vd: Dict[str, Any] = volume_data.get(code, {}) if volume_data else {}
+            vd: dict[str, Any] = volume_data.get(code, {}) if volume_data else {}
             if vd:
                 current_vol = vd.get("current_vol", 0)
                 avg_vol = vd.get("avg_vol_20d", 1)
@@ -153,7 +153,7 @@ class SorosReflexivityEngine:
 
             # 3. 估值偏离 (valuation deviation)
             val_score = 0.5
-            vld: Dict[str, Any] = valuation_data.get(code, {}) if valuation_data else {}
+            vld: dict[str, Any] = valuation_data.get(code, {}) if valuation_data else {}
             if vld:
                 pe = vld.get("pe_ttm", 0)
                 pe_median = vld.get("pe_historical_median", pe)
@@ -163,7 +163,7 @@ class SorosReflexivityEngine:
 
             # 4. 情绪一致性 (sentiment alignment)
             sent_score = 0.5
-            sd: Dict[str, Any] = sentiment_data.get(code, {}) if sentiment_data else {}
+            sd: dict[str, Any] = sentiment_data.get(code, {}) if sentiment_data else {}
             if sd:
                 sentiment = sd.get("sentiment_score", 0)
                 narrative = sd.get("narrative_strength", 0)
@@ -233,7 +233,7 @@ class SorosReflexivityEngine:
             return "GERMINAL"
         return "GERMINAL"
 
-    def generate_decision(self, stock_results: Dict[str, Any]) -> TheoryDecision:
+    def generate_decision(self, stock_results: dict[str, Any]) -> TheoryDecision:
         """基于反身性分析生成整体决策"""
         if not stock_results:
             return TheoryDecision(
@@ -334,9 +334,9 @@ class DalioEconomicMachine:
 
     def classify_economic_regime(
         self,
-        growth_data: Optional[Dict[str, float]] = None,
-        inflation_data: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, Any]:
+        growth_data: Optional[dict[str, float]] = None,
+        inflation_data: Optional[dict[str, float]] = None,
+    ) -> dict[str, Any]:
         """
         经济环境四象限分类
 
@@ -398,8 +398,8 @@ class DalioEconomicMachine:
 
     def assess_debt_cycle(
         self,
-        debt_data: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, Any]:
+        debt_data: Optional[dict[str, float]] = None,
+    ) -> dict[str, Any]:
         """
         债务周期阶段评估
 
@@ -476,8 +476,8 @@ class DalioEconomicMachine:
 
     def compute_risk_parity_weights(
         self,
-        asset_volatilities: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, float]:
+        asset_volatilities: Optional[dict[str, float]] = None,
+    ) -> dict[str, float]:
         """
         风险平价权重计算
         核心公式: w_i ∝ 1/σ_i (各资产风险贡献相等)
@@ -507,8 +507,8 @@ class DalioEconomicMachine:
 
     def generate_decision(
         self,
-        regime_result: Dict[str, Any],
-        debt_result: Dict[str, Any],
+        regime_result: dict[str, Any],
+        debt_result: dict[str, Any],
     ) -> TheoryDecision:
         """生成达利奥框架综合决策"""
         regime = regime_result.get("regime", "RECESSION")
@@ -618,8 +618,8 @@ class FirstPrinciplesAnalyzer:
 
     def decompose_value_drivers(
         self,
-        stock_data: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        stock_data: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """
         分解每只标的的第一性价值驱动
 
@@ -678,7 +678,7 @@ class FirstPrinciplesAnalyzer:
         discount_rate: float = 0.10,
         terminal_growth: float = 0.03,
         years: int = 5,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         简化DCF估算内在价值区间
 
@@ -723,8 +723,8 @@ class FirstPrinciplesAnalyzer:
         self,
         stock_code: str,
         market_consensus: str,
-        fundamental_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        fundamental_data: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         挑战市场共识叙事 — 第一性原理的核心价值
 
@@ -737,8 +737,8 @@ class FirstPrinciplesAnalyzer:
             挑战分析
         """
         # 识别叙事中可能的问题
-        narrative_flaws: List[str] = []
-        counter_points: List[str] = []
+        narrative_flaws: list[str] = []
+        counter_points: list[str] = []
 
         pe = fundamental_data.get("pe", 0)
         roe = fundamental_data.get("roe", 0)
@@ -773,8 +773,8 @@ class FirstPrinciplesAnalyzer:
 
     def generate_decision(
         self,
-        driver_results: Dict[str, Any],
-        market_narratives: Optional[Dict[str, str]] = None,
+        driver_results: dict[str, Any],
+        market_narratives: Optional[dict[str, str]] = None,
     ) -> TheoryDecision:
         """生成第一性原理综合决策"""
         if not driver_results:
@@ -863,8 +863,8 @@ class BuffettMungerFramework:
 
     def evaluate_moat(
         self,
-        stock_data: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        stock_data: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """
         护城河评估
 
@@ -948,7 +948,7 @@ class BuffettMungerFramework:
         self,
         intrinsic_value: float,
         market_price: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         安全边际计算
 
@@ -1005,7 +1005,7 @@ class BuffettMungerFramework:
         self,
         sector: str,
         user_knowledge_score: float = 0.5,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         能力圈评估
 
@@ -1053,8 +1053,8 @@ class BuffettMungerFramework:
 
     def get_quality_score(
         self,
-        financial_data: Dict[str, float],
-    ) -> Dict[str, Any]:
+        financial_data: dict[str, float],
+    ) -> dict[str, Any]:
         """
         企业质量评分 (Quality Score)
 
@@ -1110,9 +1110,9 @@ class BuffettMungerFramework:
 
     def generate_decision(
         self,
-        moat_results: Dict[str, Any],
-        margin_results: Optional[Dict[str, Any]] = None,
-        quality_results: Optional[Dict[str, Any]] = None,
+        moat_results: dict[str, Any],
+        margin_results: Optional[dict[str, Any]] = None,
+        quality_results: Optional[dict[str, Any]] = None,
     ) -> TheoryDecision:
         """生成巴菲特芒格框架综合决策"""
         if not moat_results:
@@ -1197,13 +1197,13 @@ class TheoryFusionEngine:
 
     SIGNAL_SCORES = {"BUY": 1.0, "HOLD": 0.5, "SELL": 0.0, "NEUTRAL": 0.5}
 
-    def __init__(self, weights: Optional[Dict[str, float]] = None):
+    def __init__(self, weights: Optional[dict[str, float]] = None):
         self.weights = weights or self.DEFAULT_WEIGHTS
 
     def fuse_decisions(
         self,
-        decisions: List[TheoryDecision],
-    ) -> Dict[str, Any]:
+        decisions: list[TheoryDecision],
+    ) -> dict[str, Any]:
         """
         融合四个理论的决策为一个综合观点
 
@@ -1292,7 +1292,7 @@ class TheoryFusionEngine:
             ],
         }
 
-    def generate_fusion_report(self, fusion_result: Dict[str, Any]) -> str:
+    def generate_fusion_report(self, fusion_result: dict[str, Any]) -> str:
         """生成融合报告 Markdown 文本"""
         lines = []
         lines.append("## 🧬 四大理论融合决策")
@@ -1339,11 +1339,11 @@ class TheoryFusionEngine:
 # 6. 便捷函数 — 一键运行全部理论分析
 # ============================================================
 def run_full_theory_analysis(
-    price_data: Dict[str, Any],
-    macro_data: Optional[Dict[str, Any]] = None,
-    financial_data: Optional[Dict[str, Any]] = None,
-    sector_map: Optional[Dict[str, str]] = None,
-) -> Dict[str, Any]:
+    price_data: dict[str, Any],
+    macro_data: Optional[dict[str, Any]] = None,
+    financial_data: Optional[dict[str, Any]] = None,
+    sector_map: Optional[dict[str, str]] = None,
+) -> dict[str, Any]:
     """
     一键运行四大理论完整分析
 

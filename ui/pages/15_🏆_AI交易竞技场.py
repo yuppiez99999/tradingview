@@ -6,7 +6,7 @@ _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
@@ -290,7 +290,7 @@ with h_right:
         f'<div style="font-size:0.72rem;color:#8b949e;letter-spacing:0.08em;">北京时间</div>'
         f'<div style="font-size:1.25rem;font-weight:700;color:#f8fafc;font-variant-numeric:tabular-nums;">'
         f'{now:%Y-%m-%d %H:%M:%S}</div>'
-        f'<div style="font-size:0.72rem;color:#8b949e;">UTC {datetime.now(timezone.utc):%H:%M:%S}</div>'
+        f'<div style="font-size:0.72rem;color:#8b949e;">UTC {datetime.now(UTC):%H:%M:%S}</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -572,7 +572,7 @@ if st.session_state.get("show_pulse", True):
 
     with p_mid:
         rs = np.random.RandomState(9)
-        times = pd.date_range(end=datetime.now(timezone.utc), periods=80, freq="1min")
+        times = pd.date_range(end=datetime.now(UTC), periods=80, freq="1min")
         price = 75260 + np.cumsum(rs.randn(80) * 18)
         target = 76000
 

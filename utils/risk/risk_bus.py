@@ -34,10 +34,10 @@ import asyncio
 import json
 import logging
 from collections import defaultdict, deque
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
 from threading import RLock
-from typing import Callable, Sequence
 
 from utils.infra.feature_flags import is_enabled
 from utils.risk.risk_event import (

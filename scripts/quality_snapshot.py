@@ -21,7 +21,6 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -49,7 +48,7 @@ TRACKED_ZONES = ("utils", "v8.3_institutional", "scripts", "research",
                  "tests", "tools", "ui", "ai_decision")
 
 
-def git_ls(pattern: str) -> List[str]:
+def git_ls(pattern: str) -> list[str]:
     """git 索引查询。注意: 索引可能与工作区脱节, 仅用于污染检测。"""
     try:
         out = subprocess.run(
@@ -61,7 +60,7 @@ def git_ls(pattern: str) -> List[str]:
     return [f for f in out.split("\n") if f.strip()]
 
 
-def git_worktree_status() -> Dict[str, int]:
+def git_worktree_status() -> dict[str, int]:
     """工作区与 git 索引的偏离度。
 
     代码审查的前提是变更被提交。未提交的删除/修改越多,
@@ -88,7 +87,7 @@ def git_worktree_status() -> Dict[str, int]:
     return result
 
 
-def walk_py_files() -> List[str]:
+def walk_py_files() -> list[str]:
     """扫描磁盘上真实存在的业务 Python 文件 (相对路径, 正斜杠)。
 
     不用 git ls-files: 该仓库索引中有大量已删除文件的幽灵条目,
@@ -151,7 +150,7 @@ def count_silent_except(text: str) -> int:
     return n
 
 
-def scan_zone(files: List[str]) -> Dict[str, int]:
+def scan_zone(files: list[str]) -> dict[str, int]:
     agg = {"files": 0, "print": 0, "exception": 0, "error": 0, "silent_except": 0}
     for rel in files:
         p = REPO / rel
@@ -168,7 +167,7 @@ def scan_zone(files: List[str]) -> Dict[str, int]:
     return agg
 
 
-def collect() -> Dict:
+def collect() -> dict:
     all_py = walk_py_files()
 
     buckets = {}  # type: Dict[str, List[str]]
@@ -222,7 +221,7 @@ GATES = [
 ]
 
 
-def render(data: Dict) -> None:
+def render(data: dict) -> None:
     print("=" * 74)
     print("  代码质量快照   {}".format(data["timestamp"]))
     print("=" * 74)

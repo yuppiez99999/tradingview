@@ -34,7 +34,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, cast
+from typing import Any, ClassVar, Optional, cast
 
 import numpy as np
 
@@ -61,10 +61,10 @@ class PredictionResult:
     expected_return: float = 0.0  # 预期收益率
     signal_strength: float = 0.0  # 信号强度 [-1, 1]
     method: str = "unknown"  # timesfm/tensorflow/arima/fallback
-    quantiles: Dict[str, List[float]] = field(default_factory=dict)  # 分位数预测 (每个 key → horizon 长度的 list)
+    quantiles: dict[str, list[float]] = field(default_factory=dict)  # 分位数预测 (每个 key → horizon 长度的 list)
     forecast_timestamp: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "symbol": self.symbol,
             "horizon": self.horizon,
@@ -137,7 +137,7 @@ class TimesFMForecaster:
     def available(self) -> bool:
         return self._available
 
-    def forecast(self, prices: np.ndarray, horizon: int = 5) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    def forecast(self, prices: np.ndarray, horizon: int = 5) -> Optional[tuple[np.ndarray, np.ndarray]]:
         """预测未来 horizon 步
 
         Args:
@@ -247,7 +247,7 @@ class TensorflowLSTMPredictor:
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
         return model
 
-    def _prepare_data(self, prices: np.ndarray, horizon: int) -> Tuple[np.ndarray, np.ndarray]:
+    def _prepare_data(self, prices: np.ndarray, horizon: int) -> tuple[np.ndarray, np.ndarray]:
         """准备训练数据: 滑动窗口"""
         # 归一化
         mean = prices.mean()
@@ -342,7 +342,7 @@ class StatisticalForecaster:
     def available(self) -> bool:
         return True  # 始终可用
 
-    def forecast(self, prices: np.ndarray, horizon: int = 5) -> Tuple[np.ndarray, Dict[str, List[float]]]:
+    def forecast(self, prices: np.ndarray, horizon: int = 5) -> tuple[np.ndarray, dict[str, list[float]]]:
         """统计模型预测
 
         Returns:
@@ -352,7 +352,7 @@ class StatisticalForecaster:
             return self._arima_forecast(prices, horizon)
         return self._ma_momentum_forecast(prices, horizon)
 
-    def _arima_forecast(self, prices: np.ndarray, horizon: int) -> Tuple[np.ndarray, Dict[str, List[float]]]:
+    def _arima_forecast(self, prices: np.ndarray, horizon: int) -> tuple[np.ndarray, dict[str, list[float]]]:
         """ARIMA 预测"""
         try:
             from statsmodels.tsa.arima.model import ARIMA
@@ -379,7 +379,7 @@ class StatisticalForecaster:
             logger.warning(f"ARIMA 预测失败, 回退到移动平均: {e}")
             return self._ma_momentum_forecast(prices, horizon)
 
-    def _ma_momentum_forecast(self, prices: np.ndarray, horizon: int) -> Tuple[np.ndarray, Dict[str, List[float]]]:
+    def _ma_momentum_forecast(self, prices: np.ndarray, horizon: int) -> tuple[np.ndarray, dict[str, list[float]]]:
         """移动平均 + 动量外推 (最终兜底)"""
         # 5日均线
         ma5 = np.mean(prices[-5:]) if len(prices) >= 5 else np.mean(prices)
@@ -397,7 +397,7 @@ class StatisticalForecaster:
 
         # 外推: 均线 + 动量*衰减
         current = float(prices[-1])
-        forecast_list: List[float] = []
+        forecast_list: list[float] = []
         for i in range(horizon):
             # 衰减因子
             decay = 0.8 ** (i + 1)
@@ -409,7 +409,7 @@ class StatisticalForecaster:
         forecast_arr = np.array(forecast_list, dtype=np.float64)
 
         # 简单置信区间 (±5%)
-        quantiles: Dict[str, List[float]] = {
+        quantiles: dict[str, list[float]] = {
             "q10": (forecast_arr * 0.95).tolist(),
             "q50": forecast_arr.tolist(),
             "q90": (forecast_arr * 1.05).tolist(),
@@ -460,7 +460,7 @@ class PricePredictor:
 
         current = float(current_price or prices[-1])
         forecast: Optional[np.ndarray] = None
-        quantiles: Dict[str, List[float]] = {}
+        quantiles: dict[str, list[float]] = {}
         method = "fallback"
 
         # 优先级 1: TimesFM
@@ -546,7 +546,7 @@ class PricePredictor:
             forecast_timestamp=datetime.now().isoformat(),
         )
 
-    def batch_predict(self, symbols_prices: Dict[str, np.ndarray], horizon: int = 5) -> Dict[str, PredictionResult]:
+    def batch_predict(self, symbols_prices: dict[str, np.ndarray], horizon: int = 5) -> dict[str, PredictionResult]:
         """批量预测
 
         Args:

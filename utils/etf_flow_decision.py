@@ -39,7 +39,7 @@ import time
 import types
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypedDict, cast
+from typing import Any, Optional, TypedDict, cast
 
 logger = logging.getLogger(__name__)
 
@@ -106,12 +106,12 @@ class DecisionResult(TypedDict, total=False):
     timestamp: str
     elapsed_seconds: float
     summary: DecisionSummary
-    signals: Dict[str, Dict]
-    sudden_changes: List[Dict]
-    fused_signals: List[Dict[str, Any]]
-    recommendations: List[Dict]
+    signals: dict[str, dict]
+    sudden_changes: list[dict]
+    fused_signals: list[dict[str, Any]]
+    recommendations: list[dict]
     llm_analysis: Optional[str]
-    realtime_snapshot: Dict[str, Any]
+    realtime_snapshot: dict[str, Any]
 
 
 # ============================================================
@@ -124,7 +124,7 @@ class ETFFlowDecisionEngine:
 
     # 可选懒加载属性 — 根除 None 单例推断触发的 [union-attr]
     _local_llm_client: Optional[Any]
-    _decision_cache: Dict[str, Dict[str, Any]]
+    _decision_cache: dict[str, dict[str, Any]]
     _cache_ttl: int
     tracker: Any
     fusion_engine: Any
@@ -133,7 +133,7 @@ class ETFFlowDecisionEngine:
         self.tracker = ETFRealTimeTracker()
         self.fusion_engine = SignalFusionEngine()
         self._local_llm_client = None
-        self._decision_cache: Dict[str, Dict[str, Any]] = {}
+        self._decision_cache: dict[str, dict[str, Any]] = {}
         self._cache_ttl = 300  # 5分钟缓存
 
     def _get_llm_client(self):
@@ -184,7 +184,7 @@ class ETFFlowDecisionEngine:
             logger.error(f"LLM调用失败: {e}")
             return None
 
-    def _parse_etf_flow_data(self, flow_data: Dict) -> Dict[str, Dict]:
+    def _parse_etf_flow_data(self, flow_data: dict) -> dict[str, dict]:
         """解析ETF资金流数据为标准化格式"""
         standardized = {}
         for code, data in flow_data.items():
@@ -226,7 +226,7 @@ class ETFFlowDecisionEngine:
 
         return standardized
 
-    def _build_llm_prompt(self, flow_data: Dict, realtime_data: Dict, timestamp: str) -> str:
+    def _build_llm_prompt(self, flow_data: dict, realtime_data: dict, timestamp: str) -> str:
         """构建LLM分析prompt"""
         # 提取关键信号
         strong_signals = []
@@ -263,7 +263,7 @@ class ETFFlowDecisionEngine:
     # 盘前决策 (09:15-09:25)
     # ------------------------------------------------------------
 
-    def pre_market_decision(self) -> Dict[str, Any]:
+    def pre_market_decision(self) -> dict[str, Any]:
         """盘前决策: 基于昨日收盘后资金流信号生成今日预配置
 
         时间窗口: 09:15-09:25 (集合竞价前)
@@ -364,7 +364,7 @@ class ETFFlowDecisionEngine:
     # 盘中决策 (09:30-15:00)
     # ------------------------------------------------------------
 
-    def intraday_decision(self, refresh_interval: int = 300) -> Dict[str, Any]:
+    def intraday_decision(self, refresh_interval: int = 300) -> dict[str, Any]:
         """盘中决策: 实时监控资金流变化 + LLM辅助调仓
 
         时间窗口: 09:30-15:00 (交易时段)
@@ -386,7 +386,7 @@ class ETFFlowDecisionEngine:
             ts = cached.get("timestamp", 0.0)
             if time.time() - ts < refresh_interval:
                 logger.info(f"命中盘中决策缓存 (剩余 {refresh_interval - (time.time() - ts):.0f}秒)")
-                return cast(Dict[str, Any], cached.get("result"))
+                return cast(dict[str, Any], cached.get("result"))
 
         # Step 1: 获取实时资金流 (东财push2实时数据)
         logger.info("Step 1: 获取实时资金流...")
@@ -463,7 +463,7 @@ class ETFFlowDecisionEngine:
         return decision_result
 
     def _build_intraday_llm_prompt(
-        self, flow_data: Dict, realtime_data: Dict, sudden_changes: List[Dict], timestamp: str
+        self, flow_data: dict, realtime_data: dict, sudden_changes: list[dict], timestamp: str
     ) -> str:
         """构建盘中LLM分析prompt (含突变信号)"""
         prompt = f"""ETF盘中突变信号分析 ({timestamp})
@@ -493,7 +493,7 @@ class ETFFlowDecisionEngine:
     # 盘后复盘 (15:00-15:30)
     # ------------------------------------------------------------
 
-    def post_market_review(self) -> Dict[str, Any]:
+    def post_market_review(self) -> dict[str, Any]:
         """盘后复盘: 总结当日资金流走势 + 信号有效性评估
 
         时间窗口: 15:00-15:30
@@ -557,8 +557,8 @@ class ETFFlowDecisionEngine:
     # ------------------------------------------------------------
 
     def _generate_recommendations(
-        self, signals: Dict, realtime_data: Dict, sudden_changes: Optional[List[Dict]] = None
-    ) -> List[Dict]:
+        self, signals: dict, realtime_data: dict, sudden_changes: Optional[list[dict]] = None
+    ) -> list[dict]:
         """生成交易建议"""
         recommendations = []
         sudden_changes = sudden_changes or []
@@ -612,7 +612,7 @@ class ETFFlowDecisionEngine:
 
         return recommendations
 
-    def _detect_sudden_changes(self, flow_data: Dict, threshold: float = 0.5) -> List[Dict]:
+    def _detect_sudden_changes(self, flow_data: dict, threshold: float = 0.5) -> list[dict]:
         """检测资金流突变 (较前值变化>threshold)"""
         changes = []
         for code, data in flow_data.items():
@@ -631,7 +631,7 @@ class ETFFlowDecisionEngine:
                 )
         return changes
 
-    def _evaluate_signal_effectiveness(self, signals: Dict, realtime_data: Dict) -> Dict:
+    def _evaluate_signal_effectiveness(self, signals: dict, realtime_data: dict) -> dict:
         """评估信号有效性 (资金流方向 vs 价格变动方向)"""
         correct_predictions = 0
         total_predictions = 0
@@ -657,7 +657,7 @@ class ETFFlowDecisionEngine:
             "evaluation_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-    def _generate_tomorrow_preview(self, signals: Dict, effectiveness: Dict) -> Dict:
+    def _generate_tomorrow_preview(self, signals: dict, effectiveness: dict) -> dict:
         """生成明日预配置建议"""
         top_inflow = sorted(
             [(c, s) for c, s in signals.items() if s["strength"] > 0],
@@ -753,19 +753,19 @@ class ETFFlowDecisionScheduler:
 # ============================================================
 
 
-def pre_market_decision() -> Dict[str, Any]:
+def pre_market_decision() -> dict[str, Any]:
     """便捷函数: 盘前决策"""
     engine = ETFFlowDecisionEngine()
     return engine.pre_market_decision()
 
 
-def intraday_decision() -> Dict[str, Any]:
+def intraday_decision() -> dict[str, Any]:
     """便捷函数: 盘中决策"""
     engine = ETFFlowDecisionEngine()
     return engine.intraday_decision()
 
 
-def post_market_review() -> Dict[str, Any]:
+def post_market_review() -> dict[str, Any]:
     """便捷函数: 盘后复盘"""
     engine = ETFFlowDecisionEngine()
     return engine.post_market_review()

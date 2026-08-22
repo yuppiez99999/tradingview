@@ -1,9 +1,10 @@
 import json
 import operator
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Annotated, Any
 
 from langchain_core.messages import BaseMessage
-from typing_extensions import Annotated, TypedDict
+from typing_extensions import TypedDict
 
 
 def merge_dicts(a: dict[str, any], b: dict[str, any]) -> dict[str, any]:

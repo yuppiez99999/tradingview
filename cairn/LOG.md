@@ -2,6 +2,348 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-22 · 灰度发布配置收尾 — STAGE_2_50PCT 推进完成
+
+- **背景**: 阶段5代码完成后，需收尾配置：10%比例下首次命中在9/4太慢，推进至50%使8/24(周一)立即命中
+- **配置更新**: `config/feature_flags.yaml` rollout 块 `percent: 30→50`, `stage: STAGE_1_10PCT→STAGE_2_50PCT`
+- **观察期修正**: 基于实际循环次数(total_cycles≥3)而非日历天数，低灰度比例下更合理
+- **清理**: 删除临时脚本 `_check_rollout.py`
+- **验证**: 140 passed (5.62s), ruff 无新违规（仅3个预存 C901 复杂度）
+- **当前状态**: Feature Flag 双签启用 ✅, 灰度 50%, Shadow 22天, 每日15:30定时监控
+- **下一步**: 8/24 周一 EOD 首次进化循环 → 收集3 cycles 健康度 → 推进至 100%
+- **指针**: `config/feature_flags.yaml:rollout` · `cairn/evolution-rebalance-loop.md` §十三
+
+## 2026-08-22 · 生产灰度发布完成（阶段5✅ — 闭环全部5阶段完成）
+
+- **背景**: 阶段1-4完成闭环补齐+Shadow验证+反馈链+L2集成+健康度后，需实现生产灰度发布机制
+- **灰度发布管理器**: `scripts/gradual_rollout_manager.py` — 三阶段 10%→50%→100%，hash(date)%100<percent 灰度判断，健康度检查自动推进/暂停
+- **orchestrator 集成**: `run_cycle()` 新增 `_check_rollout_eligible()` 灰度比例检查，未命中 → DISABLED，灰度管理器不可用 → 不阻塞（容错 True）
+- **feature_flags.yaml**: `USE_EVOLUTION_ORCHESTRATOR` 新增 `rollout` 配置块（percent/stage/observation_days/health_thresholds）
+- **监控集成**: `run_evolution_eval.py` `collect_progress_snapshot()` 新增 `loop_health` + `rollout` 字段，`print_progress_summary()` 输出健康度+灰度状态
+- **健康度阈值**: min_l2_promote_rate=0.3, max_avg_latency_ms=5000, min_evolution_trigger_rate=0.1
+- **测试**: 29 unit 测试，全部通过（累计 140 passed）
+- **沉淀**: `cairn/evolution-rebalance-loop.md` §十二 生产灰度发布
+- **指针**: `scripts/gradual_rollout_manager.py` · `utils/evolution/orchestrator.py:_check_rollout_eligible` · `tests/unit/test_gradual_rollout_unit.py`
+
+## 2026-08-22 · L2 影子验证 ShadowAccountAdapter 集成 + 闭环健康度指标（阶段4✅）
+
+- **背景**: V2 `_route_l2` 原仅注释"影子验证由 ShadowAccountAdapter 完成"但未实际调用 — 阶段4补齐此缺口
+- **L2 路由重构**: `_route_l2()` 现在 Guard 通过后直接调用 `ShadowAccountAdapter.run_shadow()` + `get_metrics()`，DSR ≥ 阈值 → promote，DSR < 阈值 → rollback（`CYCLE_STATUS_ROLLED_BACK`），fail-fast → rollback
+- **新增组件**: `shadow_adapter` 参数（懒加载）+ `_load_shadow_daily_returns()` 从 `daily_returns.jsonl` 读取 + `_get_shadow_adapter()` 懒加载 + `l2_dsr_threshold` 参数（默认 0.5）
+- **闭环健康度指标**: `get_loop_health_metrics()` — total_cycles / evolution_trigger_rate / l2_promote_count / l2_rollback_count / l2_promote_rate / avg_latency_ms / avg_weight_adjustment_magnitude
+- **fail-safe**: adapter 不可用 / 样本不足 / 异常 → 降级假设通过（不阻塞进化）
+- **测试**: 27 unit + 14 E2E = 41 新测试，全部通过（累计 111 passed）
+- **沉淀**: `cairn/evolution-rebalance-loop.md` §十一 L2 影子验证集成 + 闭环健康度
+- **指针**: `utils/evolution/orchestrator.py:_route_l2` · `tests/unit/test_l2_shadow_integration_unit.py` · `tests/e2e/test_l2_shadow_verification_e2e.py`
+
+## 2026-08-22 · 第三方项目批量集成（6项目/9子项全部✅）
+
+- **背景**: 从 `10_第三方项目/` 筛选 6 个高价值项目，融合式接入主系统 v8.6.14
+- **原则**: 保留主系统现有优势（20大师分析师+Wind/TDX数据链+LangGraph），引入第三方工程化能力，不替换
+- **P0-1 TradingAgents** (6阶段): 多provider LLM(Bedrock/OpenAI-compatible) + LangGraph checkpoint + 3debator风控辩论 + 结构化输出 + 决策日志 → `ai_hedge_fund/llm_clients/`+`graph/`+`risk_debate_layer.py`+`agents/schemas.py`
+- **P0-2 Vibe-Trading**: 跨资产相关性+风险透视+regime状态机 → `utils/correlation_matrix.py`+`risk_xray.py`+`correlation_regime.py`
+- **P1-1 timesfm**: 零样本时序预测封装 → `utils/timesfm_forecast.py` (is_available=True)
+- **P1-2 ai-berkshire**: 价值投资7工具+4大师prompt → `utils/value_investing/` (PEP 562懒加载)
+- **P2-1 FinceptTerminal**: 100+数据源目录文档 → `docs/data_source_catalog/` (C++本体不可移植)
+- **P2-2 AERS**: 8个实证研究prompt(因果推断/面板/ML因果) → `docs/empirical_research_skills/`
+- **P2-3 unsloth**: LLM训练加速封装 → `utils/llm_finetune.py` (is_available=True, 支持GLM4MoE/Qwen)
+- **P2-4 supply_chain_risk**: 双领域风险评分(预训练模型) → `utils/supply_chain_risk/` (验证: score=84.0✅通过)
+- **P3 awesome-trading**: 参考资源目录 → `docs/awesome_systematic_trading_reference.md`
+- **pyproject**: 新增 ai-hedge/ai-hedge-bedrock/timesfm/llm-finetune 4个optional-dependencies组
+- **feature-flag**: AI_HEDGE_RISK_DEBATE_DISABLED / LLM_FINETUNE_DISABLED / checkpoint_enabled 向后兼容
+- **踩坑**: TradingAgents dataflows深依赖→只移植零依赖子模块; PowerShell不支持&&→改用;if($?){}; unsloth triton Windows编译警告→不影响封装层
+- **沉淀**: `cairn/third-party-integration-batch-20260822.md` (完整接入经验+决策树+踩坑+协同映射)
+- **指针**: `utils/value_investing/__init__.py` · `utils/llm_finetune.py` · `utils/supply_chain_risk/__init__.py` · `quant_modules/ai_hedge_fund/risk_debate_layer.py`
+
+## 2026-08-22 · 再平衡→进化反馈链补齐（阶段3✅）
+
+- **背景**: 阶段1-2完成单向闭环（进化→再平衡）+ Shadow验证后，需补齐"再平衡结果→进化"反馈链
+- **实现**: `etf_option_hedge_rebalancer.py` 新增 `_write_rebalance_feedback_to_shadow()` — 再平衡后组合日收益回写 `daily_returns.jsonl`（source=rebalance_feedback_v86），`run_daily_rebalance` return plan 前调用
+- **覆盖语义**: 同日期再平衡回写覆盖市场行情记录，下一轮 `collect_metrics` 读再平衡后收益
+- **格式兼容**: 与 ShadowRealDataFeeder 格式一致 + 3扩展标记字段（rebalance_executed/orders_count/evolution_applied）
+- **fail-safe**: None position 防御 + 异常仅 logger.warning 不影响再平衡
+- **测试**: 14 unit + 8 E2E = 22 新测试，全部通过（累计 70 passed）
+- **沉淀**: `cairn/evolution-rebalance-loop.md` §九 反馈链实现
+- **指针**: `etf_option_hedge_rebalancer.py:_write_rebalance_feedback_to_shadow` · `tests/unit/test_rebalance_feedback_chain_unit.py`
+
+## 2026-08-21 · 进化→再平衡闭环 Shadow 验证完成（阶段2✅）
+
+- **背景**: 阶段1闭环补齐后，需在 Shadow 账户环境中验证进化→再平衡闭环的行为正确性
+- **Flag 修复**: `USE_DRIFT_DETECTOR` 原未在 `feature_flags.yaml` 注册（仅靠环境变量回退），已补齐注册（default=false, dual_sign=true）
+- **Shadow E2E 测试**: 18 场景 `test_evolution_rebalance_shadow_e2e.py` — 进化驱动再平衡/Flag禁用降级/乘子约束/fail-safe/完整闭环/指标对比
+- **验证**: ruff 全绿 + pytest 48 passed（23 unit + 7 E2E + 18 Shadow E2E）
+- **关键发现**: ShadowAccountAdapter.final_nav 是比率非金额；V2 L2 路由未直接调用 adapter（待阶段4增强）
+- **沉淀**: `cairn/evolution-rebalance-loop.md` §八 Shadow 验证结果
+- **指针**: `tests/e2e/test_evolution_rebalance_shadow_e2e.py` · `config/feature_flags.yaml:USE_DRIFT_DETECTOR`
+
+## 2026-08-21 · GitHub 周热门项目集成 Wave10（unsloth+Switchyard+OpenViking 全部激活✅）
+
+- **背景**: GitHub 本周热门项目中筛选 3 个高适配度项目，下载→适配→集成→安装→自检全链路打通
+- **筛选**: 18 个 trending 项目中，unsloth(本地LLM训练) / Switchyard(LLM多模型路由) / OpenViking(Agent记忆+RAG) 与系统 AI 决策核心链路最匹配
+- **下载**: `git clone --depth 1` 到 `10_第三方项目/{unsloth,Switchyard,OpenViking}/`
+- **适配器** (3个新建, 200-280行/个):
+  - `utils/unsloth_adapter.py` → GLM5DecisionEngine 本地推理 (GPU 直连)
+  - `utils/switchyard_adapter.py` → GLM5Client 多模型路由 (含跨版本桥接)
+  - `quant_modules/ai_hedge_fund/openviking_memory.py` → 20分析师长期记忆+RAG
+- **注册器**: `utils/github_integration_registry.py` 统一聚合 3 适配器状态 + `run_startup_selfcheck()` 一行自检
+- **核心模块接入** (3处钩子, 零侵入):
+  - `15_每日工作流/run_daily_morning.py:main()` 添加启动自检
+  - `lgb_enhanced_trainer.py:main()` 添加 unsloth GPU 信息钩子
+  - `signal_monitor.py:analyze_signal_effectiveness()` 添加 OpenViking 记忆钩子
+- **配置**: `system_config.json` 新增 `github_integration` 段 (3子段+激活说明)
+- **安装** (全部成功):
+  - unsloth: `unsloth-2026.8.19` + `torch 2.11.0+cu126` + `torchvision 0.26.0+cu126` (RTX 3060 6GB)
+  - Switchyard: `nemo-switchyard-0.2.0` (Python 3.12 环境) + `switchyard_bridge.py` 跨版本 subprocess 桥接
+  - OpenViking: `openviking-sdk-0.1.dev1` (editable install)
+- **踩坑**: torch cu121 索引仅到 2.5.1 (unsloth 需 2.11+) → 改用 cu126; torchvision 0.28.0 算子不兼容 → 降级 0.26.0; 磁盘满 → pip cache purge 释放 5GB; Switchyard 需 Python 3.12+ → 跨版本桥接
+- **验证**: `run_startup_selfcheck()` → available=3/3, overall_ok=true
+- **沉淀**: `cairn/github-integration-wave10-20260821.md` (完整集成经验 + 踩坑 + API 示例)
+- **指针**: `utils/github_integration_registry.py:run_startup_selfcheck` · `docs/GitHub周热门项目集成_20260821.md`
+
+## 2026-08-21 · 进化→再平衡闭环 V2 对接 + 测试覆盖（阶段1完成✅）
+
+- **背景**: 4处断裂修复后，CycleResult 缺 weight_adjustments 字段、_derive_weight_adjustments 未实现、消费端仍用 v1 run_observation_cycle
+- **orchestrator.py**: 新增 `_derive_weight_adjustments()` 方法（从 evaluator_report 提取显式 weight_adjustments 或 factor_scores→乘子，clamp [0.5,2.0]）；promote/rollback 分支补充 `result.weight_adjustments` 填充
+- **etf_option_hedge_rebalancer.py**: 新增 v2 导入 + `_init_evolution_orchestrator` 优先 v2 降级 v1 + `_run_evolution_cycle` 区分 v2 `run_cycle().to_dict()` / v1 `run_observation_cycle()`
+- **测试**: 23 单元测试 (`test_evolution_rebalance_loop_unit.py`) + 7 E2E 测试 (`test_evolution_rebalance_loop_e2e.py`) 全部通过
+- **验证**: ruff orchestrator.py 全绿；pytest 183 passed（5失败为预存配置漂移 target_annual_return 0.08→0.095）
+- **沉淀**: `cairn/evolution-rebalance-loop.md` 更新
+- **指针**: `utils/evolution/orchestrator.py:_derive_weight_adjustments` · `etf_option_hedge_rebalancer.py:_run_evolution_cycle`
+
+## 2026-08-21 · 自我进化迭代再平衡闭环补齐（4处断裂✅）
+
+- **背景**: 进化框架与再平衡引擎是"独立完整但未连接"的双孤岛架构，4处断裂导致闭环未打通
+- **断裂1**: `hedge_rebalance_integrator.check_rebalance` 新增 `_load_evolution_factor_weights()` 消费 `config/factor_weights.json`，乘子约束[0.5,2.0]
+- **断裂2**: EOD工作流新增 `run_phase4_9_evolution_cycle()` 调用 `EvolutionOrchestratorV2.run_cycle()`，插入 phase4_6 之后
+- **断裂3**: `etf_option_hedge_rebalancer.run_daily_rebalance` 重构6阶段，进化前置(Phase5/6)→再平衡(Phase6/6)修正时序倒置
+- **断裂4**: `drift_monitor.__init__` 新增 `rebalance_callback`，漂移触发时同时触发再平衡
+- **设计原则**: 优雅降级 + 乘子约束 + fail-safe + 向后兼容(Feature Flag)
+- **验证**: ruff 4文件全绿 + pytest 229 passed(5失败经git stash验证为修改前配置漂移)
+- **沉淀**: `cairn/evolution-rebalance-loop.md`
+- **指针**: `cairn/evolution-rebalance-loop.md` · `utils/hedge_rebalance_integrator.py:_load_evolution_factor_weights`
+
+## 2026-08-21 · 代码质量提升外部资源评估 + 排期计划（Wave 7-QC 子轨道启动）
+
+- **背景**: 扫描 `E:\各种PY程序` 全目录（428+ 条目），找出可提升 28 量化系统代码质量的工具/项目
+- **扫描范围**: ECC(64 Agent+261 Skill) / .skills(264 Skill) / open-code-review / 10_第三方项目 / 28系统自有工具
+- **核心结论**: 量化系统代码质量体系已业界领先，外部资源增量价值有限；真正瓶颈在落地执行（CI 6脚本缺失 / 工作区915未提交 / daily_workflow 6230行）
+- **外部资源增量排序**: P0=ocr固化+CI修复 / P1=addyosmani五轴审查+code-refactor规则+diagnosing-bugs调试 / P2=不建议接入(ECC是CI极弱子集/FinClaw名不副实)
+- **排期**: Wave 7-QC 子轨道 3 Sprint（08-22~10-05，6周，~30人天）— QC-1 P0落地 / QC-2 P1+外部接入 / QC-3 P2收尾
+- **沉淀**: `cairn/code-quality-external-resources-20260821.md` + `docs/代码质量提升资源分析_20260821.md` + `docs/代码质量提升排期计划_20260821.md`
+- **指针**: `cairn/code-quality-external-resources-20260821.md` · `docs/代码质量提升排期计划_20260821.md`
+
+## 2026-08-21 · EOD 闭环补齐 + daily_return=0.0 修复 + 调度后移 1.5h（C轨 ✅）
+
+- **背景**: institutional_pipeline_runner 仅 6 步缺盘后报告+AI复盘；08-21 EOD daily_return=0.0（Wind MCP 历史数据 16:02 未更新 08-21 收盘价，feeder 回退 iloc[-1]=prev_close → ret=0）
+- **Step 6.5+7**: institutional_pipeline_runner 新增 AI EOD 复盘（feature flag）+ 盘后 Markdown 报告生成（6 方法），smoke 8 步闭环验证通过
+- **3 处接口修复**: fuse() 签名适配 + FusedSignalV2 asdict() 转换 + confidence 从 meta 提取
+- **feeder 修复**: `utils/alpha/shadow_real_data_feeder.py` `_fetch_symbol_prices` 回退逻辑 — iloc[-1] 日期≠目标日时不回退（target_close=None → error="no_close_price" 跳过），提取 `_idx_date_str` 辅助函数降 C901 17→15
+- **调度后移**: `scripts/register_all_tasks_unified.ps1` EOD 15:30→17:00 等 8 任务整体后移 1.5h（universe scan→08:30 盘前），dry-run 11 任务验证通过，用户已重新注册
+- **验证**: py_compile + ruff 全绿；pipeline smoke 8 步 ok 报告已生成
+- **指针**: `institutional_pipeline_runner.py:Step6.5/7` · `utils/alpha/shadow_real_data_feeder.py:1318` · `scripts/register_all_tasks_unified.ps1:55`
+
+## 2026-08-21 · ETF期权对冲 Phase 2 回测完成（S1-S5 五策略 2021-2026 ✅）
+
+- **背景**: v86 方案 B 轨 ETF 期权对冲 Phase 2 — 14 ETF 五策略历史回测
+- **数据**: 14 ETF Wind MCP 2021-01-04~2026-08-20 (1365交易日), `data/etf_option_backtest/`
+- **脚本**: `data/etf_option_backtest/run_etf_option_backtest.py`（新建，~330行）
+- **结果**: S2再平衡最优(年化4.58%/回撤34.89%/Sharpe0.131), 基准沪深300年化-0.43%, 超额+5.01%
+- **发现**: ①所有策略跑赢基准 ②再平衡增益+0.74% ③期权成本2.56%≈目标2.5% ④回撤34-39%超15%目标 ⑤期权对冲需改进(仅扣成本未模拟保护)
+- **预测修正**: 2026-2030若结构性慢牛年化6-10%, 若继续震荡3-5%（原外推8-12%偏乐观）
+- **沉淀**: `cairn/etf-option-hedge-model.md` §十追加回测结果 + §十一Phase 2标完成
+- **指针**: `cairn/etf-option-hedge-model.md` §十 · `data/etf_option_backtest/backtest_result_20260821_125003.json`
+
+## 2026-08-21 · 十五五权重复核落地完成（A轨收尾 ✅）
+
+- **背景**: `cairn/fifteen-five-policy-alignment.md` §二-§四建议落地到 `utils/five_year_plan.py`
+- **权重调整**: 绿色低碳 15→18%（6专项规划密度最高）+ 健康中国 10→11% + 安全发展 10→11%，从新质生产力 25→22% + 制造强国 20→18% 归零，总和 100%
+- **alignment**: 中国神华 78→82（绿色低碳 75→80，智能化75%+煤层气260亿）+ 长江电力 68→72（绿色低碳 80→85，常规水电4.1亿千瓦+抽水蓄能1.6亿千瓦）+ 新增宁德时代（绿色低碳 90+安全发展 75+制造强国 82）
+- **关键词**: 4方向共追加 40+ 关键词（绿色低碳 21 + 健康中国 8 + 安全发展 7 + 新质生产力 7）
+- **验证**: ruff 全绿 + 19 单测全绿 + 权重总和 1.0 + ast 解析确认
+- **沉淀**: `cairn/fifteen-five-policy-alignment.md` §二 追加"落地执行"小节
+- **指针**: `cairn/fifteen-five-policy-alignment.md` §二 · `utils/five_year_plan.py`
+
+## 2026-08-21 · ds4 本机硬件评估完成（❌ 不可行 — 6GB 显存 + 无 Windows 编译）
+
+- **背景**: v86 方案 B 轨 ds4 POC — 评估本机能否运行 ds4 shadow 验证
+- **硬件**: win32 + NVIDIA RTX 3060 Laptop 6GB 显存（空闲 5877 MiB）+ Ampere compute 8.6
+- **阻断 1**: ds4 Makefile 仅支持 macOS Metal / Linux CUDA / ROCm / CPU，无 Windows 原生编译（需 WSL2，Beta 未验证）
+- **阻断 2**: 6GB 远不够 — GLM 5.2 dense parts（attention/shared experts/projections，保持 Q8/F32）估计 10-20GB+；IQ2_XXS 已是最激进量化；SSD streaming 也救不了（dense parts 必须驻留）
+- **决策**: ds4 代码集成保留（91 passed），`GLM5_DS4_ENABLED=0` 永久保持，fallback 链不变（→ ollama 终端），待远程 GPU（≥24GB）或 Mac（≥96GB）触发
+- **沉淀**: `cairn/ds4-integration.md` §九 新增（硬件评估 + 双重阻断 + 5 级降级表 + 后续触发条件）
+- **指针**: `cairn/ds4-integration.md` §九 · `v86集成升级最优方案_20260821.md` §4.1
+
+## 2026-08-21 · loopx POC 验证完成（0.5.1 安装 + doctor + quota）
+
+- **背景**: v86 方案 W34 旧 Phase1 loopx 调研后续 — 验证 loopx 可用性
+- **安装**: `pip install loopx` 成功，版本 0.5.1，Python 3.11+ 零依赖长跑 Agent 控制平面
+- **验证**: `doctor` 返回 ok=True；`quota should-run` 返回结构化 JSON 决策；100+ 子模块
+- **集成点**: `live_scheduler.py` 配额感知唤醒；feature flag `LOOPX_INTEGRATED=0` 默认关闭
+- **指针**: `cairn/loopx-integration.md`
+
+## 2026-08-21 · backtest_replay.py 拆分完成（C 轨 P2 行数合规）✅
+
+- **背景**: `ai_decision/backtest_replay.py` 860 行超 800 硬约束（P2，不在主管道 hook 路径）
+- **拆分**: 860 行 → 3 文件：`backtest_replay.py`(766 核心) + `backtest_replay_types.py`(220 类型/协议/常量) + `backtest_replay_mocks.py`(125 MockHistoryDataLoader)
+- **验证**: 32 单测全绿 + ruff 全绿
+- **接口不变**: re-export 保持，`from ai_decision.backtest_replay import BacktestReplay` 仍可用
+- **沉淀**: 更新 `cairn/ai-decision-integration.md` §1.2 backtest_replay 状态 → ✅ 已完成
+- **指针**: `cairn/ai-decision-integration.md` §1.2 · `ai_decision/backtest_replay.py`
+
+## 2026-08-21 · ETF 期权对冲 Phase 2.1 数据拉取完成（14/14 Wind MCP ✅）
+
+- **背景**: v86 方案 B 轨 ETF 期权对冲回测前置 — 需 14 ETF 2021-2026 历史日线
+- **数据源**: 全部经 Wind MCP（P1）拉取，`wind_get_kline(windcode, days=2100, is_fund=True)`，零降级
+- **结果**: 14/14 成功，19101 行合并，日期 2021-01-04~2026-08-20，保存 `data/etf_option_backtest/`（14 × `{code}.parquet` + `all_etf_daily.parquet`）
+- **配置**: `config/etf_option_subportfolio.yaml` — 14 ETF（宽基60%+行业25%+防御15%，200万）
+- **指针**: `data/etf_option_backtest/_fetch_report.json` · `config/etf_option_subportfolio.yaml`
+
+## 2026-08-21 · 十五五政策研究收尾（美丽中国建设规划全文归档 + 5 主题搜索结果归档）
+
+- **美丽中国建设规划全文**: webfetch 抓取生态环境部 `t20260703_1160943.shtml`（国发〔2026〕20号），9 节 28 项重点任务完整正文 → `cairn/Reference/美丽中国建设十五五规划全文_20260821.md`
+- **关键量化目标**: PM2.5 25μg/m³(2035)/温室气体净排放降 7-10%/森林蓄积 224 亿m³/自然保护地 18%/水土保持 74%/清洁运输 75%/危废填埋 ≤10%/畜禽粪污 85%/受污染耕地 95%/8 万行政村整治
+- **5 主题搜索结果**: ProSearch 搜索石油天然气/新型电力系统/生态保护/工运事业/纲要 18 篇，各 10 条 → `cairn/Reference/result_{oilgas,newpower,eco,union,outline}.md`
+- **知识专题更新**: `cairn/fifteen-five-policy-alignment.md` — 专项规划 14→15 个（美丽中国建设补入，正文 10→11 个）+ 未完成项标记完成 + 搜索结果归档表
+- **指针**: `cairn/fifteen-five-policy-alignment.md` §一/§六 · `cairn/Reference/美丽中国建设十五五规划全文_20260821.md`
+
+
+
+- **背景**: execution_bridge 拆分完成后，扫描 `institutional_pipeline_runner.py` run() 方法（line 266-431，6 步编排），确定 HOOK 1-4 精确注入点
+- **注入点**: HOOK1 signals → line 296 后（Step3 信号融合后）; HOOK2 review → line 403 后（Step6 执行路由后）; HOOK3 execute → line 403 后（HOOK2 后，先接 get_grayscale_summary 只读）; HOOK4 report → line 428 前（W37）
+- **设计**: 每个 hook 用 `os.environ.get("AI_DECISION_INTEGRATED","0")=="1"` feature flag 控制 + try/except 优雅降级（显式异常元组，非裸 except）+ 失败不阻塞主管道
+- **沉淀**: 更新 `cairn/ai-decision-integration.md` §3.1-§3.4（伪代码→精确注入代码含行号）+ §4 排期表（W35 设计✅就绪，W35 实现⏳待8/25）
+- **指针**: `cairn/ai-decision-integration.md` §3/§4
+
+## 2026-08-21 · execution_bridge.py 拆分完成（C 轨 P0 阻塞项消除）✅
+
+- **背景**: `ai_decision/execution_bridge.py` 1363 行超 800 硬约束，阻塞 C 轨 HOOK 3 execute 桥接
+- **拆分**: 1363 行 → 5 文件：`execution_bridge.py`(437 核心) + `grayscale_state.py`(362) + `execution_risk.py`(226) + `execution_tca.py`(225) + `execution_audit.py`(109)，全部 ≤500 行
+- **验证**: 89 单测全绿（64 unit + 6 integration + 19 modules）+ ruff 全绿
+- **接口不变**: re-export + `__all__` 声明 23 个符号，所有 `from ai_decision.execution_bridge import X` 仍可用；单测未改
+- **关键设计**: monkey patch 兼容（延迟 import）+ 循环 import 规避（TYPE_CHECKING guard）+ logger 名对应模块 + 异常处理完整保留
+- **沉淀**: 更新 `cairn/ai-decision-integration.md` §1.1/§1.2/§4/§5.2 标注拆分完成
+- **指针**: `cairn/ai-decision-integration.md` §5.2 · `ai_decision/execution_bridge.py`
+
+## 2026-08-21 · C 轨 ai_decision 集成准备（17 模块接口扫描 + 5 挂接点设计 + 阻塞项识别）
+
+- **背景**: v86 方案两轮修复完成后，提前启动 W35 C 轨准备工作（设计阶段，不写生产代码）
+- **接口扫描**: ai_decision/ 17 模块全貌 — 104 个 class/function 签名；关键入口：`rag_context.build_context` / `eod_review.EODReviewGenerator` / `debate_engine.run_debate` / `consensus_aggregator.aggregate` / `decision_gate.run_hard_risk` / `execution_bridge.execute_decision` / `dashboard.DashboardGenerator` / `orchestrator.run_decision`
+- **5 挂接点设计**: HOOK1 signals(RAG上下文) + HOOK2 review(复盘+辩论+共识+门控) + HOOK3 execute(桥接) + HOOK4 report(仪表盘) + HOOK5 CLI/UI(统一+健康)
+- **阻塞项**: ① `execution_bridge.py` 1198行超800硬约束 → C轨前置拆分(1198→4文件≤400) ② `backtest_replay.py` 860行超800(不阻塞,可延后) ③ ds4 未安装(clone+编译,Beta) → provider统一 ds4 部分阻塞
+- **沉淀**: `cairn/ai-decision-integration.md`（17模块清单+行数合规+5挂接点伪代码+集成排期+阻塞项+验收门禁）
+- **§九 更新**: ai-decision-integration ✅已建，配套沉淀 10/10 全绿，无待建项
+- **指针**: `cairn/ai-decision-integration.md` · `v86集成升级最优方案_20260821.md` §九
+
+## 2026-08-21 · v86 方案二轮修复（§十执行顺序 + §六甘特图 + 基线去重 + ROADMAP元数据）
+
+- **背景**: 方案同步后深入扫描发现 4 处剩余过时（§十仍写"立即启动 A 轨 iFinD 清理"但 A 轨已完成 / §六甘特图 A 轨未标完成 / 第 536 行基线与头部重复过时 / ROADMAP updated 停在 8/12）
+- **修复**: §十 执行顺序更新为 W34 后视角（✅已完成 + W35 起下一步 + 关键路径用删除线标注 A 轨）+ §六 甘特图 A 轨改 ✅DONE + 第 536 行基线改为指向头部 + ROADMAP updated 8/12→8/21
+- **指针**: `v86集成升级最优方案_20260821.md` §六/§十 · `cairn/ROADMAP.md` 元数据
+
+## 2026-08-21 · v86 方案同步收尾（tech-debt-cleanup 补建 + 旧排期回写 + §九 状态更新）
+
+- **背景**: v86 方案同步后 §九 配套沉淀表格仍有 2 项待建/待标注，继续收尾
+- **补建**: `cairn/tech-debt-cleanup.md`（A 轨 44 测试修复确认记录，9 类明细 + 验证证据 + 3 条经验：失败清单时效性/iFinD 剔除测试同步/零向量 vs None 断言哲学）
+- **回写**: `github_trending_高价值统计与升级计划_20260807.md` §二 加 W34 进度回写表（Phase 0-3b 逐项标注 ✅/⏳/❌ + v86 方案指针）
+- **更新**: v86 方案 §九 表格 — tech-debt-cleanup ✅已建 / 旧排期 ✅已标注 / 方案同步记录 ✅已建；待建项仅剩 `cairn/ai-decision-integration.md`（C 轨 W35）
+- **指针**: `cairn/tech-debt-cleanup.md` · `github_trending_高价值统计与升级计划_20260807.md` §二
+
+## 2026-08-21 · v86 集成升级方案同步（7 处脱节修正 + 同步机制建立）
+
+- **背景**: 用户提问"系统自我升级计划是否需要优化" → 评估 `v86集成升级最优方案_20260821.md` 与 8/21 实际知识沉淀，发现 7 处脱节（3 严重 + 4 中等）
+- **严重脱节**: ① 第三方项目集成（S1-S3/A1-A2 98 单测）未纳入方案 ② 头部知识沉淀基线过时（遗漏十五五/ECC/duckduckgo/EOD三重保障） ③ A 轨状态分裂（§三 待执行 vs §十一 已完成）
+- **中等脱节**: ④ ds4 集成点未同步（glm5_client→router.py） ⑤ C 轨与 ROADMAP Wave 7 协调缺失 ⑥ ds4 shadow 硬件未评估 ⑦ 配套沉淀文档缺失
+- **优化方案**: 4 阶段 9 步 — 阶段0 基线对齐(3步) + 阶段1 状态同步(4步) + 阶段2 机制建立(1步) + 阶段3 沉淀归档(1步)
+- **执行**: 全部 9 步完成 — 头部基线扩展 + §4.0 已完成项回填 + §4.1 ds4 集成点修正 + §4.1.1 硬件评估(RTX3060 6GB+4级降级) + §三 A轨状态横幅 + §5.6 Wave7 协调 + §九 配套文档状态列 + §十二 同步机制
+- **硬件实测**: win32 + NVIDIA RTX 3060 Laptop 6GB 显存 — ds4 shadow 需先 POC，失败则降级(更小量化/CPU/远程/Ollama)
+- **沉淀**: `cairn/v86-plan-sync-20260821.md` (7 处脱节明细 + 优化方案 + 执行过程 + 验收 + 可复用经验)
+- **指针**: `cairn/v86-plan-sync-20260821.md` · `v86集成升级最优方案_20260821.md` §十二
+
+## 2026-08-21 · v8.6 集成升级 W34 启动（三轨并行：A轨完成 + B轨ds4集成 + 旧Phase1 loopx调研）
+
+- **背景**: 基于 `v86集成升级最优方案_20260821.md` 三轨并行设计启动 W34
+- **A轨 技术债清偿**: 发现 `failed_tests.txt` 是 8/12 过时数据; 重跑 pytest 确认 44 失败**全部已修复** (iFind 22 测试已 skip + limit_pool/transformer/tdx/qlib 等 22 测试已修复); 归档 `failed_tests_过时_20260812.txt`; A轨**零代码改动**完成
+- **B轨 ds4 集成**: 新建 `utils/alpha/llm/providers/ds4.py` (复用 openai_compatible_chat, ~80行) + 注册到 `router.py` LLMRouter fallback 链 (omniroute→deepseek→doubao→glm→siliconflow→**ds4**→ollama) + feature flag `GLM5_DS4_ENABLED=0` 默认关闭; 更新 `test_llm_router.py` 断言 (6→7 provider); **91 passed**
+- **旧Phase1 loopx 调研**: webfetch loopx 仓库完成; loopx 是 Python 3.11+ 零依赖长跑 Agent 控制平面; 核心 tick `quota should-run / todo claim / todo update / refresh-state / quota spend-slot`; 集成点 `live_scheduler.py` 配额感知唤醒; feature flag `LOOPX_INTEGRATED=0`
+- **沉淀**: `cairn/ds4-integration.md` (POC指南+shadow验证步骤) + `cairn/loopx-integration.md` (集成方案+验收标准) + `v86集成升级最优方案_20260821.md` (三轨并行总规划)
+- **指针**: `cairn/ds4-integration.md` · `cairn/loopx-integration.md` · `v86集成升级最优方案_20260821.md`
+
+## 2026-08-21 · 第三方项目集成（5 子项 S3→S2→A2→A1→S1 全部完成）
+
+- **背景**: 评估 `10_第三方项目/` 中项目对主系统 v8.6 的增量价值，选 5 个高价值项目按 S3→S2→A2→A1→S1 顺序连续集成
+- **S3 ai-berkshire 决策纪律层**: 四大师信息分级 + 质量筛选 + 镜像测试 → `utils/value_discipline_layer.py` + 子包 + 集成 `glm5_decision_engine.py` (26 单测)
+- **S2 TimesFM 预测头**: 零样本时序预测 + 分位区间 → `utils/timesfm_predictor.py` + 集成 `lgb_tscv_trainer.py --predictor` (14 单测); pip install timesfm[torch] 2.0.2 + 适配新 API (`TimesFM_2p5_200M_torch` 工厂函数) + enabled=true
+- **A2 SkillSpector 安全门禁**: SARIF 解析 → `scripts/skill_security_scan.py` + 集成 `pre_commit_check.py` (18 单测)
+- **A1 codebase-memory-mcp**: tree-sitter 知识图谱 v0.10.8 安装 + Codex CLI 配置 (MCP+skill+agents+hooks); 3 agent 配置失败不影响二进制
+- **S1 TradingAgents 新闻模块**: LLM 驱动深度新闻分析 → `utils/news_intelligence.py` + `utils/signal_sources/news_intelligence_signal_source.py` + 集成 `signal_fusion.py` (40 单测)
+- **累计**: 98 单测全绿 + ruff 全绿; 4 项代码集成 + 2 项环境启用
+- **关键经验**: 信号源适配器模式 (复用 sentiment_signal_source 模板) / fail-safe 降级链 / TimesFM 2.0.2 API 变更适配 / ruff per-file-ignores 豁免模式
+- **沉淀**: `cairn/third-party-integration-20260821.md` (选型评估 + 架构模式 + 可复用经验 + 踩坑记录)
+- **指针**: `cairn/third-party-integration-20260821.md` · `docs/第三方项目集成总体计划_20260821.md`
+
+## 2026-08-21 · 十五五规划纲要全文获取（ProSearch 搜索成功）
+
+- **背景**: 用户提供 qclaw online-search skill（腾讯元宝 ProSearch），用 `prosearch.cjs` 搜索"十五五规划纲要全文"
+- **搜索结果**: 10 条结果，第 3 条为新华社 2026-03-13 受权发布纲要全文
+- **webfetch 抓取**: 133KB+ 全文，18 篇 62 章完整目录 + 主要目标 + 前五篇正文
+- **纲要结构**: 18 篇 62 章 — 第一篇(1-3章)到第十八篇(61-62章)，覆盖现代化产业体系/科技自立自强/数字中国/国内市场/绿色转型/国家安全等
+- **主要目标**: 研发经费年均增7%+/失业率<5.5%/受教育年限11.7年/人均寿命80岁/CO2降17%/PM2.5<27μg/m³/粮食1.45万亿斤/能源58亿吨标准煤
+- **沉淀**: `cairn/Reference/十五五规划纲要全文_20260821.md`（18篇62章目录+主要目标+七大方向映射+关键正文摘录）/ 更新 `cairn/fifteen-five-policy-alignment.md`（纲要结构+未完成项更新）
+- **指针**: `cairn/Reference/十五五规划纲要全文_20260821.md` · `cairn/fifteen-five-policy-alignment.md`
+
+## 2026-08-21 · 十五五专项规划正文批量抓取（10 个规划获正文）
+
+- **背景**: 用户选择用 webfetch 继续抓取十五五规划正文；发改委答记者问列表页发现 6 个新专项规划
+- **新增正文**: 新型电力系统（经济日报+人民日报海外版）/ 碳达峰行动方案 / 扩大消费 / 循环经济 / 就业优先战略 / 石油天然气输油管道投产新闻
+- **累计 10 个规划获详尽正文**（原 4 个 + 新 6 个），仅石油天然气 PDF + 生态保护音视频未获取
+- **关键量化目标**: 非化石能源发电量 50% / 碳达峰 17% / 社零 60 万亿 / 循环经济 8 万亿 / 虚拟电厂 5000 万千瓦 / 西电东送 4.2 亿千瓦
+- **权重复核更新**: 绿色低碳 15→18-20%（6 个专项最高密度）/ 健康中国 10→11-12% / 安全发展 10→11-12%
+- **沉淀**: 更新 `cairn/Reference/十五五专项规划正文汇编_20260821.md`（13 节 + 13 条引用）/ 新建 `cairn/Reference/十五五规划纲要及专项规划清单_20260821.md`（14 个专项规划清单 + 七大方向映射 + 18 个量化目标 + duckduckgo 搜索命令）
+- **指针**: `cairn/Reference/十五五专项规划正文汇编_20260821.md` · `cairn/Reference/十五五规划纲要及专项规划清单_20260821.md`
+
+## 2026-08-21 · duckduckgo-mcp 安装配置（deep-research 免费替代）
+
+- **背景**: deep-research skill 依赖 exa/firecrawl MCP（付费 key），CodeArts 环境 MCP 不可用；GitHub 搜索找到免费替代
+- **选型**: `Nipurn123/duckduckgo-mcp`（npm v1.0.1）— 100% 免费、无 API key、无速率限制、DuckDuckGo HTML 端点绕过 CAPTCHA
+- **工具**: search / search_and_crawl（并行抓取）/ research（AI 相关性排序+来源权威评分）
+- **安装**: `npm install -g duckduckgo-mcp`（95 包 9s）✅；`.mcp.json` 加 duckduckgo 条目 ✅ JSON 有效
+- **对比 deep-research**: 免费无 key vs 付费；DuckDuckGo 搜索 vs exa 语义搜索；均有 crawl+research；缺 firecrawl 深度爬取
+- **生效**: 需 Claude Code CLI 或 CodeArts 重启加载 .mcp.json；当前会话 MCP 未连接，重启后可用
+- **指针**: `.mcp.json` · https://github.com/Nipurn123/duckduckgo-mcp
+
+## 2026-08-21 · 十五五专项规划正文抓取归档
+
+- **背景**: 用户要求用 deep-research skill 抓专项规划正文；CodeArts 环境 MCP 不可用，改用 webfetch 直接抓发改委答记者问页 + 人民日报正文
+- **抓取结果**: 4 个规划获详尽正文（煤炭 9 任务/可再生能源 8 问/中医药 10 任务/全民医保 6 维愿景），2 个仅通知页（石油天然气/新型电力系统正文在 PDF），1 个音视频无文字（生态保护）
+- **关键量化目标**: 煤炭智能化 75%/大型煤矿 87%/煤层气 260 亿m³；可再生能源 35 亿千瓦/发电 6 万亿千瓦时/绿氢 200 万吨/海上风电 1 亿千瓦；中医药人人享有/10 指标；医保 8 指标/省级统筹 2029
+- **对系统建议**: 绿色低碳/健康中国/安全发展 权重复核上调；中国神华 alignment 上调 78→82-85；长江电力/宁德时代 补 alignment；关键词补充
+- **沉淀**: `cairn/Reference/十五五专项规划正文汇编_20260821.md`（正文 + 精细化建议 + 7 条引用）
+- **局限**: 石油天然气/新型电力系统 PDF 正文未抓，如需完整正文建议 Claude Code CLI 用 deep-research 或手动下载 PDF
+- **指针**: `cairn/Reference/十五五专项规划正文汇编_20260821.md`
+
+## 2026-08-21 · ECC 赋能评估 + 十五五政策研究归档
+
+- **背景**: ECC v2.0.0-rc.1 已装到 `~/.claude/`（64 agents/84 commands/104 rules/33 skills）；评估对 28 量化系统增量价值
+- **调研修正**: 量化系统 v8.6.14 远比预想成熟（482 自有测试 / 6-job CI / 229 处前视偏差检测 / cairn 几十专题），ECC 增量价值有限，不重复造轮子
+- **产出**:
+  - `docs/ECC赋能量化系统工作计划_20260821.md`（计划 + 诚实修正初始判断）
+  - `cairn/strategy-iteration-compact-template.md`（借鉴 ECC Iteration Compact 格式，映射量化语境）
+  - `docs/ecc-python-rules-crosscheck_20260821.md`（ECC rules 是量化 CI 极弱子集 → 不接入）
+  - `docs/deep-research接入可行性_20260821.md`（exa MCP 已配 → 有条件接入 Claude Code CLI）
+  - `cairn/Reference/十五五政策研究_20260821.md`（webfetch 抓发改委+新华社，8 个十五五专项规划 + 10 动态，带 12 条引用）
+- **关键发现**: 绿色低碳/健康中国/安全发展 本期政策密度显著高于 `five_year_plan.py` 现权重，建议走策略迭代评审复核
+- **不接入**: ECC agents/rules 不接入 CI（避免回退）；不替代前视偏差/反回归框架
+- **指针**: `docs/ECC赋能量化系统工作计划_20260821.md` · `cairn/Reference/十五五政策研究_20260821.md`
+
+## 2026-08-20 · 08-21 EOD 三重保障建立 (SYSTEM 用户 PYTHONPATH 隔离修复) ✅
+
+- **根因**: v84_PostMarket 15:30 SYSTEM 用户运行, 上次结果=1 — urllib3 装在 Administrator user site (`AppData\Roaming\Python\Python311\site-packages`), SYSTEM 用户级隔离不可见; wind_mcp_fetcher 在 tools/ 需项目根在 sys.path → 3 阶段失败 (收盘报告/Shadow Feeder/iFinD)
+- **第一重 wrapper**: `15_每日工作流/run_eod_with_env.bat` — set PYTHONPATH 补齐 user site + tools + src → `C:\Users\Administrator\py311\python.exe run_daily_eod_workflow.py --skip-system-check` → v84_PostMarket 重新注册, 验证 20:20 触发上次结果=0 ✅
+- **第二重兜底**: `scripts/eod_health_check_and_rerun.py` — 检查 daily_returns.jsonl 最新日期, 缺失则重跑 EOD (PYTHONPATH + --skip-system-check), 重试 2 次间隔 60s → 注册 v84_EOD_Fallback MON-FRI 16:00
+- **第三重告警**: 全部失败写 `reports/shadow/eod_fallback_alert.json` 供次日晨间人工介入
+- **验证**: PYTHONPATH 设置后 urllib3 2.7.0 + wind_mcp_fetcher 均可加载 ✅ / shadow 21 条完整 ✅ / 主任务 wrapper exit 0 ✅
+- **沉淀**: `cairn/eod-fallback-guarantee-20260820.md` (根因 + 三重方案 + 08-21 预期流程 + 风险)
+
 ## 2026-08-20 · ETF期权对冲子模型排期计划加入 ROADMAP
 
 - **排期**: Phase 1(已完成) → Phase 2(08-21~09-05回测验证) → Phase 3(09-06~10-05 shadow 30天) → Phase 4(10-06~11-05灰度5%→25%) → Phase 5(11-06~12-31全量+年度报告)

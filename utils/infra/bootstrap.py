@@ -35,10 +35,11 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
-from typing import Any, Callable
+from typing import Any
 
 
 def _find_project_root() -> Path:

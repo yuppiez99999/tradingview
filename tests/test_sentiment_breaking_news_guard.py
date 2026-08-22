@@ -21,7 +21,6 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -40,7 +39,7 @@ class MockStockInsight:
     name: str
     direction: str
     confidence: float
-    reasons: List[str] = None
+    reasons: list[str] = None
     news_count: int = 0
     updated_at: str = "2026-07-30T10:00:00"
 

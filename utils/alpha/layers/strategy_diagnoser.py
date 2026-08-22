@@ -38,7 +38,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -217,7 +217,7 @@ class StrategyDiagnoser:
         Returns:
             List[RootCause] 策略层根因列表
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         causes: list[RootCause] = []
 
         # 1. 漂移告警诊断 (只读 reports/drift_alerts/)
@@ -246,7 +246,7 @@ class StrategyDiagnoser:
                 return causes
 
             # 扫描最近 24h 内修改的告警文件
-            cutoff_ts = datetime.now(timezone.utc).timestamp() - self.alert_recency_window
+            cutoff_ts = datetime.now(UTC).timestamp() - self.alert_recency_window
             alert_files = [
                 f for f in self.drift_alerts_dir.glob("*.jsonl")
                 if f.stat().st_mtime >= cutoff_ts

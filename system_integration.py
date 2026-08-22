@@ -30,7 +30,7 @@ import os
 import sys
 import traceback
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -267,7 +267,7 @@ def load_qlib_bin(field: str, qlib_code: str) -> Optional[pd.Series]:
     return series
 
 
-def load_close_prices(codes: List[str]) -> pd.DataFrame:
+def load_close_prices(codes: list[str]) -> pd.DataFrame:
     """批量加载多只标的的收盘价 DataFrame
 
     Args:
@@ -340,7 +340,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         # P0-2: 漂移检测器
         self.drift_detector = self._init_drift_detector()
         self.last_drift_check: Optional[str] = None
-        self.last_retrain_trigger: Optional[Dict] = None
+        self.last_retrain_trigger: Optional[dict] = None
 
         # 步骤4: 止损监控器
         self.stop_loss_monitor = self._init_stop_loss_monitor()
@@ -487,7 +487,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             logger.warning(f"SignalFusion 初始化失败: {e}")
             return None
 
-    def _load_signal_weights(self) -> Dict[str, float]:
+    def _load_signal_weights(self) -> dict[str, float]:
         """从 QLib 训练报告读取 IC, 据此分配初始权重
 
         如果 IC > 0, 提升 ML 权重; 否则降低

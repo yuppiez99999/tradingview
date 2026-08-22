@@ -13,7 +13,7 @@
 import logging
 import os
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ class SocialSecurityStyleClassifier:
     def __init__(self):
         self.styles = SOCIAL_SECURITY_STYLES
 
-    def classify_etf(self, code: str) -> Optional[Dict]:
+    def classify_etf(self, code: str) -> Optional[dict]:
         """将ETF代码分类到社保基金风格"""
         for style_name, style_config in self.styles.items():
             for etf in style_config["matching_etfs"]:
@@ -113,7 +113,7 @@ class SocialSecurityStyleClassifier:
                     }
         return None
 
-    def get_all_etf_classifications(self) -> List[Dict]:
+    def get_all_etf_classifications(self) -> list[dict]:
         """获取所有ETF的风格分类"""
         results = []
         seen = set()
@@ -136,7 +136,7 @@ class SocialSecurityStyleClassifier:
         results.sort(key=lambda x: x["match_score"], reverse=True)
         return results
 
-    def get_style_summary(self) -> Dict:
+    def get_style_summary(self) -> dict:
         """获取社保基金风格配置摘要"""
         summary = {}
         for style_name, style_config in self.styles.items():
@@ -167,7 +167,7 @@ class NationalTeamSignalDetector:
         self.config = NATIONAL_TEAM_SIGNAL_CONFIG
         self.classifier = SocialSecurityStyleClassifier()
 
-    def detect_signals(self, flow_data: Dict[str, Dict]) -> List[Dict]:
+    def detect_signals(self, flow_data: dict[str, dict]) -> list[dict]:
         """
         检测国家队资金信号
 
@@ -228,7 +228,7 @@ class NationalTeamSignalDetector:
 
         return signals
 
-    def get_style_flow_summary(self, signals: List[Dict]) -> Dict:
+    def get_style_flow_summary(self, signals: list[dict]) -> dict:
         """按社保基金风格汇总资金流向"""
         style_flows = {}
 
@@ -281,7 +281,7 @@ class SocialSecurityETFTracker:
         self.classifier = SocialSecurityStyleClassifier()
         self.detector = NationalTeamSignalDetector()
 
-    def analyze(self, flow_data: Dict = None) -> Dict:
+    def analyze(self, flow_data: dict = None) -> dict:
         """
         综合分析
 
@@ -316,7 +316,7 @@ class SocialSecurityETFTracker:
 
         return result
 
-    def generate_report(self, flow_data: Dict = None, save_dir: str = None) -> str:
+    def generate_report(self, flow_data: dict = None, save_dir: str = None) -> str:
         """生成社保基金ETF风格追踪报告"""
         analysis = self.analyze(flow_data)
 

@@ -25,7 +25,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import yaml
 
@@ -124,12 +124,12 @@ class StopLossMonitor:
             )
 
         # 最高价记录 (多头移动止损用)
-        self._high_water_mark: Dict[str, float] = {}
+        self._high_water_mark: dict[str, float] = {}
         # 最低价记录 (空头移动止损用, S2 修复)
-        self._low_water_mark: Dict[str, float] = {}
+        self._low_water_mark: dict[str, float] = {}
 
         # 触发历史
-        self.trigger_history: List[TriggerRecord] = []
+        self.trigger_history: list[TriggerRecord] = []
 
         logger.info(f"止损监控器初始化: {len(self.rules)} 条规则, broker={self.broker.__class__.__name__}")
 
@@ -159,7 +159,7 @@ class StopLossMonitor:
 
         return pattern.sub(_replace, text)
 
-    def _load_rules(self, rules_file: str) -> Dict[str, dict]:
+    def _load_rules(self, rules_file: str) -> dict[str, dict]:
         """加载止损规则
 
         兼容两种 YAML 格式:
@@ -243,7 +243,7 @@ class StopLossMonitor:
             logger.error(f"创建 MockBroker 失败: {e}")
             return None
 
-    def _get_positions(self) -> Dict[str, dict]:
+    def _get_positions(self) -> dict[str, dict]:
         """获取当前持仓"""
         if self.broker:
             return self.broker.get_positions()
@@ -503,7 +503,7 @@ class StopLossMonitor:
 
         return None
 
-    def check_and_execute(self) -> List[TriggerRecord]:
+    def check_and_execute(self) -> list[TriggerRecord]:
         """检查所有持仓并执行止损止盈
 
         Returns:
@@ -544,7 +544,7 @@ class StopLossMonitor:
 
         return triggered
 
-    def _execute_close(self, code: str, side: str, shares: int, price: float) -> Tuple[bool, str]:
+    def _execute_close(self, code: str, side: str, shares: int, price: float) -> tuple[bool, str]:
         """通过 broker 执行平仓 (side='sell' 多头卖出 / 'buy' 空头买回)"""
         if not self.broker:
             logger.warning(f"无 broker, 仅记录: {side.upper()} {code} {shares}@{price:.2f}")
@@ -563,7 +563,7 @@ class StopLossMonitor:
             logger.error(f"平仓异常: {code} - {e}")
             return False, str(e)
 
-    def _save_trigger_log(self, records: List[TriggerRecord]) -> None:
+    def _save_trigger_log(self, records: list[TriggerRecord]) -> None:
         """保存触发日志 (P0-C1: 原子写 + 异常隔离, 防止日志写坏影响主流程)"""
         log_dir = os.path.join(_BASE, "reports")
         os.makedirs(log_dir, exist_ok=True)

@@ -24,7 +24,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -48,7 +48,7 @@ class FactorResult:
 
     code: str
     composite: float  # 综合得分 [-1, 1]
-    factors: Dict[str, float]  # 各因子得分
+    factors: dict[str, float]  # 各因子得分
     signal: str  # strong_buy/buy/hold/sell/strong_sell
     rank: int = 0  # 排名
 
@@ -76,7 +76,7 @@ class FactorModel:
         "sell": -0.30,
     }
 
-    def __init__(self, weights: Optional[Dict[str, float]] = None, lookback: int = 252):
+    def __init__(self, weights: Optional[dict[str, float]] = None, lookback: int = 252):
         """
         Args:
             weights: 因子权重，默认使用 DEFAULT_WEIGHTS
@@ -267,10 +267,10 @@ class FactorModel:
     # ============================================================
     def evaluate(
         self,
-        klines: Dict[str, pd.DataFrame],
-        fundamentals: Optional[Dict[str, Dict]] = None,
-        event_factors: Optional[Dict[str, Dict]] = None,
-    ) -> Dict[str, FactorResult]:
+        klines: dict[str, pd.DataFrame],
+        fundamentals: Optional[dict[str, dict]] = None,
+        event_factors: Optional[dict[str, dict]] = None,
+    ) -> dict[str, FactorResult]:
         """
         对所有标的进行五维因子评估。
 
@@ -332,7 +332,7 @@ class FactorModel:
 
         return results
 
-    def generate_signal(self, results: Dict[str, FactorResult]) -> Dict:
+    def generate_signal(self, results: dict[str, FactorResult]) -> dict:
         """
         根据因子评估结果生成组合级别信号。
 
@@ -382,7 +382,7 @@ class FactorModel:
         else:
             return "strong_sell"
 
-    def compute_factor_correlation(self, results: Dict[str, FactorResult]) -> pd.DataFrame:
+    def compute_factor_correlation(self, results: dict[str, FactorResult]) -> pd.DataFrame:
         """
         计算因子间相关性矩阵（用于评估因子独立性）。
         """

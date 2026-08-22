@@ -8,7 +8,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -57,7 +57,7 @@ class BaseRiskControl:
             'critical': 0.6
         }
 
-    def calculate_risk_score(self, data: Dict) -> float:
+    def calculate_risk_score(self, data: dict) -> float:
         """计算风险分数，子类需要重写此方法"""
         raise NotImplementedError("子类必须实现calculate_risk_score方法")
 
@@ -72,7 +72,7 @@ class BaseRiskControl:
         else:
             return RiskLevel.CRITICAL
 
-    def generate_alert(self, data: Dict) -> Optional[RiskAlert]:
+    def generate_alert(self, data: dict) -> Optional[RiskAlert]:
         """生成风险告警"""
         if not self.is_active:
             return None
@@ -111,7 +111,7 @@ class BaseRiskControl:
         # 分数越高，置信度越高
         return min(score * 1.2, 1.0)
 
-    def update_thresholds(self, thresholds: Dict[str, float]):
+    def update_thresholds(self, thresholds: dict[str, float]):
         """更新风险阈值"""
         self.thresholds.update(thresholds)
 
@@ -127,7 +127,7 @@ class MarketRiskControl(BaseRiskControl):
         self.max_drawdown = 0.20
         self.max_sharpe_ratio = 0.8
 
-    def calculate_risk_score(self, data: Dict) -> float:
+    def calculate_risk_score(self, data: dict) -> float:
         """计算市场风险分数"""
         market_data = data.get('market', {})
 
@@ -149,7 +149,7 @@ class MarketRiskControl(BaseRiskControl):
 
         return min(risk_score, 1.0)
 
-    def _calculate_volatility_risk(self, market_data: Dict) -> float:
+    def _calculate_volatility_risk(self, market_data: dict) -> float:
         """计算波动率风险"""
         if 'returns' not in market_data or not market_data['returns']:
             return 0.0
@@ -165,7 +165,7 @@ class MarketRiskControl(BaseRiskControl):
         else:
             return min(0.5 + (volatility - 0.2) * 5, 1.0)  # 高波动时急剧增长
 
-    def _calculate_drawdown_risk(self, market_data: Dict) -> float:
+    def _calculate_drawdown_risk(self, market_data: dict) -> float:
         """计算最大回撤风险"""
         if 'prices' not in market_data or not market_data['prices']:
             return 0.0
@@ -184,7 +184,7 @@ class MarketRiskControl(BaseRiskControl):
         else:
             return min(0.9 + (max_drawdown - 0.15) * 2, 1.0)  # 高回撤时急剧增长
 
-    def _calculate_systemic_risk(self, market_data: Dict) -> float:
+    def _calculate_systemic_risk(self, market_data: dict) -> float:
         """计算系统性风险"""
         if 'vix' not in market_data:
             return 0.0
@@ -231,7 +231,7 @@ class SingleStockRiskControl(BaseRiskControl):
         self.min_dividend_yield = 0.02
         self.valuation_threshold = 0.8  # 估值风险阈值
 
-    def calculate_risk_score(self, data: Dict) -> float:
+    def calculate_risk_score(self, data: dict) -> float:
         """计算单股票风险分数"""
         stock_data = data.get('stock', {})
 
@@ -257,7 +257,7 @@ class SingleStockRiskControl(BaseRiskControl):
 
         return min(risk_score, 1.0)
 
-    def _calculate_position_risk(self, stock_data: Dict) -> float:
+    def _calculate_position_risk(self, stock_data: dict) -> float:
         """计算仓位风险"""
         if 'position_size' not in stock_data:
             return 0.0
@@ -274,7 +274,7 @@ class SingleStockRiskControl(BaseRiskControl):
         else:
             return min(0.75 + (position_size - 0.2) * 3, 1.0)  # 高仓位时急剧增长
 
-    def _calculate_beta_risk(self, stock_data: Dict) -> float:
+    def _calculate_beta_risk(self, stock_data: dict) -> float:
         """计算Beta风险"""
         if 'beta' not in stock_data:
             return 0.0
@@ -286,7 +286,7 @@ class SingleStockRiskControl(BaseRiskControl):
             return min((beta - self.max_beta) / (3.0 - self.max_beta), 1.0)
         return 0.0
 
-    def _calculate_valuation_risk(self, stock_data: Dict) -> float:
+    def _calculate_valuation_risk(self, stock_data: dict) -> float:
         """计算估值风险"""
         valuation_risk = 0.0
 
@@ -310,7 +310,7 @@ class SingleStockRiskControl(BaseRiskControl):
 
         return min(valuation_risk, 1.0)
 
-    def _calculate_liquidity_risk(self, stock_data: Dict) -> float:
+    def _calculate_liquidity_risk(self, stock_data: dict) -> float:
         """计算流动性风险"""
         if 'volume' not in stock_data or 'market_cap' not in stock_data:
             return 0.0
@@ -348,7 +348,7 @@ class PortfolioRiskControl(BaseRiskControl):
         self.max_correlation = 0.7     # 最大相关性
         self.max_sector_exposure = 0.4  # 最大单一行业暴露
 
-    def calculate_risk_score(self, data: Dict) -> float:
+    def calculate_risk_score(self, data: dict) -> float:
         """计算组合风险分数"""
         portfolio_data = data.get('portfolio', {})
 
@@ -374,7 +374,7 @@ class PortfolioRiskControl(BaseRiskControl):
 
         return min(risk_score, 1.0)
 
-    def _calculate_concentration_risk(self, portfolio_data: Dict) -> float:
+    def _calculate_concentration_risk(self, portfolio_data: dict) -> float:
         """计算集中度风险"""
         if 'positions' not in portfolio_data:
             return 0.0
@@ -395,7 +395,7 @@ class PortfolioRiskControl(BaseRiskControl):
         else:
             return min(0.85 + (hhi - 0.5) * 3, 1.0)  # 高集中度时急剧增长
 
-    def _calculate_diversification_risk(self, portfolio_data: Dict) -> float:
+    def _calculate_diversification_risk(self, portfolio_data: dict) -> float:
         """计算分散度风险"""
         if 'positions' not in portfolio_data:
             return 0.0
@@ -408,7 +408,7 @@ class PortfolioRiskControl(BaseRiskControl):
             return max(0, (self.min_diversification - num_stocks) / self.min_diversification)
         return 0.0
 
-    def _calculate_correlation_risk(self, portfolio_data: Dict) -> float:
+    def _calculate_correlation_risk(self, portfolio_data: dict) -> float:
         """计算相关性风险"""
         if 'correlation_matrix' not in portfolio_data:
             return 0.0
@@ -424,7 +424,7 @@ class PortfolioRiskControl(BaseRiskControl):
             return (avg_correlation - self.max_correlation) / (1.0 - self.max_correlation)
         return 0.0
 
-    def _calculate_sector_risk(self, portfolio_data: Dict) -> float:
+    def _calculate_sector_risk(self, portfolio_data: dict) -> float:
         """计算行业风险"""
         if 'sector_allocation' not in portfolio_data:
             return 0.0
@@ -461,7 +461,7 @@ class OperationalRiskControl(BaseRiskControl):
         self.max_trade_frequency = 0.8  # 最大交易频率
         self.system_health_threshold = 0.9
 
-    def calculate_risk_score(self, data: Dict) -> float:
+    def calculate_risk_score(self, data: dict) -> float:
         """计算操作风险分数"""
         operational_data = data.get('operational', {})
 
@@ -487,7 +487,7 @@ class OperationalRiskControl(BaseRiskControl):
 
         return min(risk_score, 1.0)
 
-    def _calculate_frequency_risk(self, operational_data: Dict) -> float:
+    def _calculate_frequency_risk(self, operational_data: dict) -> float:
         """计算交易频率风险"""
         if 'trades_per_day' not in operational_data:
             return 0.0
@@ -499,7 +499,7 @@ class OperationalRiskControl(BaseRiskControl):
             return min((trades_per_day - self.max_trades_per_day) / (200 - self.max_trades_per_day), 1.0)
         return 0.0
 
-    def _calculate_slippage_risk(self, operational_data: Dict) -> float:
+    def _calculate_slippage_risk(self, operational_data: dict) -> float:
         """计算滑点风险"""
         if 'avg_slippage' not in operational_data:
             return 0.0
@@ -511,7 +511,7 @@ class OperationalRiskControl(BaseRiskControl):
             return min((avg_slippage - self.max_slippage) / (0.1 - self.max_slippage), 1.0)
         return 0.0
 
-    def _calculate_system_risk(self, operational_data: Dict) -> float:
+    def _calculate_system_risk(self, operational_data: dict) -> float:
         """计算系统健康风险"""
         if 'system_health' not in operational_data:
             return 0.0
@@ -523,7 +523,7 @@ class OperationalRiskControl(BaseRiskControl):
             return (self.system_health_threshold - system_health) / self.system_health_threshold
         return 0.0
 
-    def _calculate_execution_risk(self, operational_data: Dict) -> float:
+    def _calculate_execution_risk(self, operational_data: dict) -> float:
         """计算执行质量风险"""
         if 'execution_quality' not in operational_data:
             return 0.0
@@ -554,7 +554,7 @@ class EmotionalRiskControl(BaseRiskControl):
         self.max_herding_score = 0.7     # 最大跟风指数
         self.max_sentiment_extreme = 0.8 # 最大情绪极端程度
 
-    def calculate_risk_score(self, data: Dict) -> float:
+    def calculate_risk_score(self, data: dict) -> float:
         """计算情绪风险分数"""
         emotional_data = data.get('emotional', {})
 
@@ -576,7 +576,7 @@ class EmotionalRiskControl(BaseRiskControl):
 
         return min(risk_score, 1.0)
 
-    def _calculate_fear_greed_risk(self, emotional_data: Dict) -> float:
+    def _calculate_fear_greed_risk(self, emotional_data: dict) -> float:
         """计算贪婪恐惧风险"""
         if 'fear_greed_index' not in emotional_data:
             return 0.0
@@ -590,7 +590,7 @@ class EmotionalRiskControl(BaseRiskControl):
             return min(deviation * 1.2, 1.0)
         return 0.0
 
-    def _calculate_herding_risk(self, emotional_data: Dict) -> float:
+    def _calculate_herding_risk(self, emotional_data: dict) -> float:
         """计算跟风行为风险"""
         if 'herding_score' not in emotional_data:
             return 0.0
@@ -602,7 +602,7 @@ class EmotionalRiskControl(BaseRiskControl):
             return (herding_score - self.max_herding_score) / (1.0 - self.max_herding_score)
         return 0.0
 
-    def _calculate_sentiment_risk(self, emotional_data: Dict) -> float:
+    def _calculate_sentiment_risk(self, emotional_data: dict) -> float:
         """计算极端情绪风险"""
         if 'sentiment_extreme' not in emotional_data:
             return 0.0
@@ -642,7 +642,7 @@ class MultiLevelRiskControlSystem:
         self.risk_history = []
         self.confidence_threshold = 0.7
 
-    def calculate_overall_risk(self, data: Dict) -> Tuple[float, Dict[str, float]]:
+    def calculate_overall_risk(self, data: dict) -> tuple[float, dict[str, float]]:
         """计算整体风险分数"""
         individual_scores = {}
 
@@ -667,7 +667,7 @@ class MultiLevelRiskControlSystem:
 
         return overall_score, individual_scores
 
-    def generate_all_alerts(self, data: Dict) -> List[RiskAlert]:
+    def generate_all_alerts(self, data: dict) -> list[RiskAlert]:
         """生成所有风险告警"""
         self.alerts = []
 
@@ -678,7 +678,7 @@ class MultiLevelRiskControlSystem:
 
         return self.alerts
 
-    def get_risk_summary(self, data: Dict) -> Dict:
+    def get_risk_summary(self, data: dict) -> dict:
         """获取风险摘要"""
         overall_score, individual_scores = self.calculate_overall_risk(data)
         alerts = self.generate_all_alerts(data)
@@ -703,7 +703,7 @@ class MultiLevelRiskControlSystem:
         else:
             return "CRITICAL"
 
-    def _count_alerts_by_type(self, alerts: List[RiskAlert]) -> Dict[str, int]:
+    def _count_alerts_by_type(self, alerts: list[RiskAlert]) -> dict[str, int]:
         """按类型统计告警数量"""
         alert_counts = {}
         for alert in alerts:
@@ -711,7 +711,7 @@ class MultiLevelRiskControlSystem:
             alert_counts[risk_type] = alert_counts.get(risk_type, 0) + 1
         return alert_counts
 
-    def update_control_thresholds(self, risk_type: RiskType, thresholds: Dict[str, float]):
+    def update_control_thresholds(self, risk_type: RiskType, thresholds: dict[str, float]):
         """更新特定风险控制器的阈值"""
         if risk_type in self.risk_controls:
             self.risk_controls[risk_type].update_thresholds(thresholds)
@@ -730,7 +730,7 @@ class MultiLevelRiskControlSystem:
         """设置置信度阈值"""
         self.confidence_threshold = max(0.0, min(1.0, threshold))
 
-    def get_risk_recommendations(self, data: Dict) -> List[str]:
+    def get_risk_recommendations(self, data: dict) -> list[str]:
         """获取风险控制建议"""
         alerts = self.generate_all_alerts(data)
         recommendations = []
@@ -750,7 +750,7 @@ class MultiLevelRiskControlSystem:
 
         return list(set(recommendations))  # 去重
 
-    def simulate_risk_scenarios(self, base_data: Dict, scenarios: List[Dict]) -> List[Dict]:
+    def simulate_risk_scenarios(self, base_data: dict, scenarios: list[dict]) -> list[dict]:
         """模拟不同风险场景"""
         results = []
 
@@ -772,7 +772,7 @@ class MultiLevelRiskControlSystem:
 
         return results
 
-    def get_risk_trend_analysis(self, historical_data: List[Dict]) -> Dict:
+    def get_risk_trend_analysis(self, historical_data: list[dict]) -> dict:
         """分析风险趋势"""
         if not historical_data:
             return {'error': '没有历史数据'}
@@ -818,7 +818,7 @@ class MultiLevelRiskControlSystem:
         }
 
 
-def create_test_data() -> Dict:
+def create_test_data() -> dict:
     """创建测试数据"""
     return {
         'market': {

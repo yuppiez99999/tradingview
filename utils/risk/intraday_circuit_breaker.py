@@ -31,12 +31,12 @@ import math
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 
 logger = logging.getLogger("intraday_cb")
 
 
-class CBState(str, Enum):
+class CBState(StrEnum):
     CLOSED = "CLOSED"          # 正常, 允许交易
     OPEN = "OPEN"              # 熔断, 阻断新交易
     HALF_OPEN = "HALF_OPEN"    # 半开, 试探恢复, 若再失败立即回到 OPEN

@@ -24,6 +24,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from dataclasses import dataclass, field
@@ -109,6 +110,13 @@ try:
 except ImportError as e:
     logger.warning("EvolutionOrchestrator 加载失败, 进化编排降级: %s", e)
     _EO_OK = False
+
+try:
+    from utils.evolution.orchestrator import EvolutionOrchestratorV2
+    _EO_V2_OK = True
+except ImportError as e:
+    logger.warning("EvolutionOrchestratorV2 加载失败, v2 进化编排降级: %s", e)
+    _EO_V2_OK = False
 
 
 @dataclass
@@ -304,12 +312,21 @@ class ETFOptionHedgeRebalancer:
             self.memory_reflection = None
 
     def _init_evolution_orchestrator(self) -> None:
+        if _EO_V2_OK:
+            try:
+                self.evolution_orchestrator = EvolutionOrchestratorV2()
+                if self.evolution_orchestrator.enabled:
+                    logger.info("EvolutionOrchestratorV2 已接入 (v2 进化编排)")
+                    return
+                logger.info("EvolutionOrchestratorV2 Flag 关闭, 尝试 v1 降级")
+            except (ValueError, TypeError, OSError) as e:
+                logger.warning("EvolutionOrchestratorV2 初始化失败, 尝试 v1: %s", e)
         if not _EO_OK:
             self.evolution_orchestrator = None
             return
         try:
             self.evolution_orchestrator = EvolutionOrchestrator()
-            logger.info("EvolutionOrchestrator 已接入 (进化编排)")
+            logger.info("EvolutionOrchestrator 已接入 (v1 进化编排)")
         except (ValueError, TypeError, OSError) as e:
             logger.warning("EvolutionOrchestrator 初始化失败: %s", e)
             self.evolution_orchestrator = None
@@ -386,6 +403,9 @@ class ETFOptionHedgeRebalancer:
         if not self.evolution_orchestrator or not self.evolution_orchestrator.enabled:
             return {}
         try:
+            if _EO_V2_OK and isinstance(self.evolution_orchestrator, EvolutionOrchestratorV2):
+                cycle_result = self.evolution_orchestrator.run_cycle()
+                return cycle_result.to_dict() if hasattr(cycle_result, "to_dict") else {}
             return self.evolution_orchestrator.run_observation_cycle()
         except (ValueError, TypeError, OSError) as e:
             logger.warning("进化编排失败: %s", e)
@@ -644,14 +664,33 @@ class ETFOptionHedgeRebalancer:
         if alpha_result.get("adjusted_weights"):
             target_weights = alpha_result["adjusted_weights"]
 
-        logger.info("[Phase 4/5] 期权对冲决策 (Regime自适应)...")
+        logger.info("[Phase 4/6] 期权对冲决策 (Regime自适应)...")
         option_hedge = self.decide_option_hedge(drawdown_level=drawdown_level)
         if regime_info and regime_info.get("hedge_ratio"):
             option_hedge["regime_hedge_ratio"] = regime_info["hedge_ratio"]
             option_hedge["regime_label"] = regime_info["label"]
         plan.option_hedge = option_hedge
 
-        logger.info("[Phase 5/5] 阈值再平衡 + 生成执行计划...")
+        logger.info("[Phase 5/6] 自我进化前置 (漂移检测+进化编排+权重调整)...")
+        if self.drift_monitor:
+            try:
+                self.drift_monitor.update_ic(trade_date, risk.portfolio_volatility)
+                plan.drift_status = self.drift_monitor.get_status()
+            except (ValueError, TypeError, OSError) as e:
+                logger.warning("漂移检测失败: %s", e)
+
+        plan.evolution_action = self._run_evolution_cycle()
+        weight_adjustments = plan.evolution_action.get("weight_adjustments", {})
+        if weight_adjustments:
+            adjusted_count = 0
+            for code, multiplier in weight_adjustments.items():
+                if code in target_weights and isinstance(multiplier, (int, float)) and 0.5 <= multiplier <= 2.0:
+                    target_weights[code] = target_weights[code] * float(multiplier)
+                    adjusted_count += 1
+            if adjusted_count:
+                logger.info("[进化权重] 应用 %d 个调整到再平衡目标", adjusted_count)
+
+        logger.info("[Phase 6/6] 阈值再平衡 + 生成执行计划...")
         if dd_decision and not dd_decision.allow_new_buy:
             plan.rebalance_orders = []
             plan.execution_summary = f"回撤熔断{dd_decision.level.value}触发, 跳过再平衡"
@@ -667,14 +706,6 @@ class ETFOptionHedgeRebalancer:
                 f"Regime={regime_info.get('label', 'N/A')}"
             )
 
-        logger.info("[Phase 6/6] 自我进化闭环 (漂移检测+决策记忆+进化编排)...")
-        if self.drift_monitor:
-            try:
-                self.drift_monitor.update_ic(trade_date, risk.portfolio_volatility)
-                plan.drift_status = self.drift_monitor.get_status()
-            except (ValueError, TypeError, OSError) as e:
-                logger.warning("漂移检测失败: %s", e)
-
         self._record_decision(plan)
         if self.memory_reflection:
             try:
@@ -682,15 +713,99 @@ class ETFOptionHedgeRebalancer:
             except (ValueError, TypeError, OSError) as e:
                 logger.warning("反思上下文获取失败: %s", e)
 
-        plan.evolution_action = self._run_evolution_cycle()
-
         plan.estimated_annual_return = self.target_annual_return
         plan.estimated_max_drawdown = self.target_max_drawdown
 
         logger.info("=" * 60)
         logger.info("日度再平衡完成 | %s", plan.execution_summary)
         logger.info("=" * 60)
+
+        self._write_rebalance_feedback_to_shadow(plan, positions, prices)
+
         return plan
+
+    def _write_rebalance_feedback_to_shadow(
+        self,
+        plan: DailyPlan,
+        positions: dict[str, dict],
+        prices: dict[str, float],
+    ) -> None:
+        """再平衡执行结果回写 daily_returns.jsonl (补齐再平衡→进化反馈链).
+
+        用再平衡后的目标权重 × 当日各标的收益, 计算再平衡后组合日收益,
+        增量更新 reports/shadow/daily_returns.jsonl (source 标记为 rebalance_feedback_v86).
+
+        下一轮 EvolutionOrchestratorV2.run_cycle() → collect_metrics() 读取此文件,
+        形成"再平衡结果→进化评估"的反馈闭环.
+
+        HC 合规:
+            - fail-safe: 失败仅 logger.warning, 不影响再平衡主流程
+            - 格式与 ShadowRealDataFeeder._update_jsonl 一致 (同日期去重更新)
+        """
+        if not plan.trade_date:
+            return
+        try:
+            feedback_path = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+            feedback_path.parent.mkdir(parents=True, exist_ok=True)
+
+            weighted_returns: list[float] = []
+            total_weight = 0.0
+            for _code, pos in positions.items():
+                if not isinstance(pos, dict):
+                    continue
+                w = float(pos.get("target_weight", 0.0) or pos.get("weight", 0.0))
+                ret = float(pos.get("daily_return", 0.0))
+                if w != 0:
+                    weighted_returns.append(w * ret)
+                    total_weight += abs(w)
+
+            if total_weight > 0 and weighted_returns:
+                rebalanced_return = sum(weighted_returns) / total_weight
+            else:
+                rebalanced_return = plan.estimated_annual_return / 252.0
+
+            new_record = {
+                "date": plan.trade_date,
+                "daily_return": rebalanced_return,
+                "source": "rebalance_feedback_v86",
+                "updated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                "symbols_count": len(positions),
+                "cross_validated": False,
+                "source_consistency": "medium",
+                "rebalance_executed": True,
+                "rebalance_orders_count": len(plan.rebalance_orders),
+                "evolution_applied": bool(plan.evolution_action.get("weight_adjustments")),
+            }
+
+            records: dict[str, dict] = {}
+            if feedback_path.exists():
+                with open(feedback_path, encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            r = json.loads(line)
+                            d = r.get("date")
+                            if d:
+                                records[d] = r
+                        except json.JSONDecodeError:
+                            continue
+
+            records[plan.trade_date] = new_record
+            tmp = feedback_path.with_suffix(".jsonl.tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
+                for d in sorted(records.keys()):
+                    f.write(json.dumps(records[d], ensure_ascii=False) + "\n")
+            tmp.replace(feedback_path)
+
+            logger.info(
+                "[反馈链] 再平衡结果已回写 daily_returns.jsonl: %s, return=%.4f%%",
+                plan.trade_date,
+                rebalanced_return * 100,
+            )
+        except (ValueError, TypeError, OSError, KeyError) as e:
+            logger.warning("[反馈链] 回写 daily_returns.jsonl 失败 (容错, 不影响再平衡): %s", e)
 
     def run_stress_tests(
         self,

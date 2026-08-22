@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -90,7 +90,7 @@ def _make_layer_score(
         sub_metrics={"m1": score},
         is_degraded=is_degraded,
         degraded_reason=degraded_reason,
-        collected_at=datetime.now(timezone.utc).isoformat(),
+        collected_at=datetime.now(UTC).isoformat(),
     )
 
 
@@ -465,7 +465,7 @@ class TestSafeCollect:
         mock_layer = MagicMock()
         expected = _make_layer_score("code", 0.9)
         mock_layer.collect.return_value = expected
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         result = m._safe_collect(mock_layer, "code", now)
         assert result is expected
 
@@ -474,7 +474,7 @@ class TestSafeCollect:
         m = UnifiedHealthMetrics(history_path=tmp_path / "h.jsonl")
         mock_layer = MagicMock()
         mock_layer.collect.return_value = {"not": "a LayerScore"}  # type: ignore[assignment]
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         result = m._safe_collect(mock_layer, "code", now)
         assert result.is_degraded is True
         assert "INVALID_RETURN_TYPE" in result.degraded_reason
@@ -484,7 +484,7 @@ class TestSafeCollect:
         m = UnifiedHealthMetrics(history_path=tmp_path / "h.jsonl")
         mock_layer = MagicMock()
         mock_layer.collect.side_effect = RuntimeError("boom")
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         result = m._safe_collect(mock_layer, "code", now)
         assert result.is_degraded is True
         assert "COLLECT_ERROR" in result.degraded_reason

@@ -31,7 +31,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import pandas as pd
@@ -58,7 +58,7 @@ class DataContractViolationError(DataContractError):
 # ============================================================
 # 枚举与数据类 (frozen=True)
 # ============================================================
-class Severity(str, Enum):
+class Severity(StrEnum):
     """违规严重等级."""
 
     INFO = "info"
@@ -67,7 +67,7 @@ class Severity(str, Enum):
     CRITICAL = "critical"
 
 
-class ValidationMode(str, Enum):
+class ValidationMode(StrEnum):
     """校验模式.
 
     - warn_only: 失败仅 logger.warning, 不抛异常 (默认, 7 天观察期)
@@ -78,7 +78,7 @@ class ValidationMode(str, Enum):
     ENFORCE = "enforce"
 
 
-class NullPolicy(str, Enum):
+class NullPolicy(StrEnum):
     """null 处理策略."""
 
     DROP = "drop"  # 删除行

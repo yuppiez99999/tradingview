@@ -9,7 +9,7 @@
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 # ============================================
 # 安全类型转换
@@ -206,7 +206,7 @@ class SourceHealth:
     latency_ms: Optional[float] = None
     last_checked_at: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "code": self.code,
             "available": self.available,

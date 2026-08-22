@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Optional, cast
 
 import requests
 
@@ -96,7 +96,7 @@ class MacroIndicator:
     previous: Optional[float] = None
     change: Optional[float] = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "value": self.value,
@@ -184,7 +184,7 @@ class FREDApi:
             logger.error(f"FRED 获取 {series_id} 失败: {e}")
             return None
 
-    def get_macro_snapshot(self) -> Dict[str, MacroIndicator]:
+    def get_macro_snapshot(self) -> dict[str, MacroIndicator]:
         """获取宏观经济快照"""
         indicators = {
             "CPI": "CPIAUCSL",
@@ -272,7 +272,7 @@ class FedTreasuryApi:
     def __init__(self):
         self.available = True
 
-    def get_treasury_yields(self) -> Dict[str, float]:
+    def get_treasury_yields(self) -> dict[str, float]:
         """获取最新国债收益率
 
         Returns:
@@ -336,7 +336,7 @@ class AlphaVantageApi:
         self.api_key = api_key or os.environ.get("ALPHAVANTAGE_API_KEY", "")
         self.available = bool(self.api_key)
 
-    def get_global_quote(self, symbol: str) -> Optional[Dict]:
+    def get_global_quote(self, symbol: str) -> Optional[dict]:
         """获取全球股票报价
 
         Args:
@@ -391,7 +391,7 @@ class FinnhubApi:
         self.api_key = api_key or os.environ.get("FINNHUB_API_KEY", "")
         self.available = bool(self.api_key)
 
-    def get_quote(self, symbol: str) -> Optional[Dict]:
+    def get_quote(self, symbol: str) -> Optional[dict]:
         """获取股票报价 (美股/港股)"""
         if not self.available:
             return None
@@ -429,7 +429,7 @@ class FinnhubApi:
             logger.error(f"Finnhub 获取 {symbol} 失败: {e}")
             return None
 
-    def get_market_news(self, category: str = "general") -> List[Dict]:
+    def get_market_news(self, category: str = "general") -> list[dict]:
         """获取市场新闻
 
         Args:
@@ -479,7 +479,7 @@ class CoinGeckoApi:
     def __init__(self):
         self.available = True
 
-    def get_price(self, coin_id: str = "bitcoin", vs_currency: str = "usd") -> Optional[Dict]:
+    def get_price(self, coin_id: str = "bitcoin", vs_currency: str = "usd") -> Optional[dict]:
         """获取加密货币价格
 
         Args:
@@ -515,7 +515,7 @@ class CoinGeckoApi:
             logger.error(f"CoinGecko 获取 {coin_id} 失败: {e}")
             return None
 
-    def get_global_market(self) -> Optional[Dict]:
+    def get_global_market(self) -> Optional[dict]:
         """获取加密货币全球市场数据 (作为风险情绪指标)"""
         try:
             url = f"{self.BASE_URL}/global"
@@ -603,7 +603,7 @@ class ExternalDataManager:
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # 缓存失败不阻断主流程
             logger.warning(f"缓存保存失败: {e}")
 
-    def get_macro_snapshot(self) -> Dict[str, Any]:
+    def get_macro_snapshot(self) -> dict[str, Any]:
         """获取宏观经济快照
 
         Returns:
@@ -616,8 +616,8 @@ class ExternalDataManager:
         # 检查缓存
         cached = self._load_cache("macro", "snapshot")
         if cached:
-            return cast(Dict, cached)
-        snapshot: Dict[str, Any] = {}
+            return cast(dict, cached)
+        snapshot: dict[str, Any] = {}
 
         # FRED 宏观指标
         if self.fred.available:
@@ -639,7 +639,7 @@ class ExternalDataManager:
 
         return snapshot
 
-    def get_global_stock(self, symbol: str) -> Optional[Dict]:
+    def get_global_stock(self, symbol: str) -> Optional[dict]:
         """获取全球股票行情
 
         优先级: Finnhub > Alpha Vantage
@@ -650,7 +650,7 @@ class ExternalDataManager:
         # 检查缓存
         cached = self._load_cache("stock", symbol)
         if cached:
-            return cast(Dict, cached)
+            return cast(dict, cached)
         quote = None
 
         # 优先级 1: Finnhub
@@ -666,22 +666,22 @@ class ExternalDataManager:
 
         return quote
 
-    def get_crypto_price(self, coin_id: str = "bitcoin") -> Optional[Dict]:
+    def get_crypto_price(self, coin_id: str = "bitcoin") -> Optional[dict]:
         """获取加密货币价格"""
         cached = self._load_cache("crypto", coin_id)
         if cached:
-            return cast(Dict, cached)
+            return cast(dict, cached)
         quote = self.coingecko.get_price(coin_id)
         if quote:
             self._save_cache("crypto", coin_id, quote)
 
         return quote
 
-    def get_market_news(self) -> List[Dict]:
+    def get_market_news(self) -> list[dict]:
         """获取市场新闻"""
         cached = self._load_cache("news", "market")
         if cached:
-            return cast(List[Dict], cached)
+            return cast(list[dict], cached)
         news = self.finnhub.get_market_news("general") if self.finnhub.available else []
 
         if news:
@@ -689,7 +689,7 @@ class ExternalDataManager:
 
         return news
 
-    def get_risk_sentiment(self) -> Dict[str, Any]:
+    def get_risk_sentiment(self) -> dict[str, Any]:
         """获取风险情绪指标
 
         Returns:
@@ -701,7 +701,7 @@ class ExternalDataManager:
         """
         snapshot = self.get_macro_snapshot()
 
-        sentiment: Dict[str, Any] = {
+        sentiment: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "vix_proxy": None,
             "treasury_yield_curve": {},

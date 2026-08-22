@@ -7,10 +7,11 @@ from __future__ import annotations
 import json
 import sys
 import time
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 import sys as _sys

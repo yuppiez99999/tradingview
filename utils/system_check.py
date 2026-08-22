@@ -51,7 +51,7 @@ import shutil
 import sys
 import traceback
 from dataclasses import asdict, dataclass, field
-from enum import Enum
+from enum import Enum, StrEnum
 from pathlib import Path
 
 # 项目根目录 (此模块位于 utils/system_check.py, 父目录即项目根)
@@ -59,6 +59,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # 日志 (避免循环导入,使用独立 logger)
 import logging  # noqa: E402
+from datetime import UTC
 
 logger = logging.getLogger("system_check")
 
@@ -88,14 +89,14 @@ def _is_research_mode() -> bool:
 # 数据结构
 # ============================================================================
 
-class CheckLevel(str, Enum):
+class CheckLevel(StrEnum):
     """检查项级别"""
     ERROR = "ERROR"  # 必须通过,否则阻止工作流
     WARN = "WARN"    # 警告,不阻止但需关注
     INFO = "INFO"    # 信息性,不影响通过
 
 
-class CheckStatus(str, Enum):
+class CheckStatus(StrEnum):
     """检查结果状态"""
     PASS = "PASS"
     FAIL = "FAIL"
@@ -1239,13 +1240,13 @@ def _log_auto_fix_result(check_result, fix_result) -> None:
         fix_result: FixResult (修复结果)
     """
     import json
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     log_path = Path("reports") / "system_check" / "auto_fix_log.jsonl"
     try:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         entry = {
-            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             "check_code": getattr(check_result, "code", ""),
             "check_name": getattr(check_result, "name", ""),
             "check_detail": getattr(check_result, "detail", "")[:500],

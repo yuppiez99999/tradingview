@@ -20,7 +20,8 @@ import importlib
 import logging
 import os
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 

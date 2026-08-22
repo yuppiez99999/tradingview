@@ -251,7 +251,7 @@ def fetch_hn_top_stories(
             if created_at_i is None:
                 continue
             start_ts = int(
-                datetime.datetime.combine(target_date, datetime.time.min, tzinfo=datetime.timezone.utc).timestamp()
+                datetime.datetime.combine(target_date, datetime.time.min, tzinfo=datetime.UTC).timestamp()
             )
             end_ts = start_ts + 86400
             if not (start_ts <= created_at_i < end_ts):
@@ -274,7 +274,7 @@ def fetch_hn_top_stories(
         created_at_i = hit.get("created_at_i")
         date_str = ""
         if created_at_i:
-            dt = datetime.datetime.fromtimestamp(created_at_i, tz=datetime.timezone.utc)
+            dt = datetime.datetime.fromtimestamp(created_at_i, tz=datetime.UTC)
             date_str = dt.strftime("%Y-%m-%d %H:%M UTC")
 
         results.append(

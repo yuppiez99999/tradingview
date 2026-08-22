@@ -15,7 +15,6 @@
 import logging
 import os
 from datetime import datetime
-from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +127,7 @@ class KondratievCycleAnalyzer:
 
     # ---------- 周期阶段判定 ----------
 
-    def get_current_phase(self) -> Dict:
+    def get_current_phase(self) -> dict:
         """获取当前康波周期阶段"""
         estimate = self.wave_config["current_phase_estimate"]
         phase = estimate["phase"]
@@ -172,7 +171,7 @@ class KondratievCycleAnalyzer:
 
     # ---------- 行业轮动映射 ----------
 
-    def get_sector_allocation(self) -> List[Dict]:
+    def get_sector_allocation(self) -> list[dict]:
         """获取康波周期驱动的行业配置建议"""
         phase = self.get_current_phase()
         allocation = self.wave_config["phase_allocation"].get(
@@ -202,7 +201,7 @@ class KondratievCycleAnalyzer:
 
     # ---------- 大宗商品周期信号 ----------
 
-    def get_commodity_signals(self) -> List[Dict]:
+    def get_commodity_signals(self) -> list[dict]:
         """生成大宗商品周期信号"""
         phase = self.get_current_phase()
         allocation = self.wave_config["phase_allocation"].get(
@@ -233,7 +232,7 @@ class KondratievCycleAnalyzer:
 
     # ---------- 十五五与康波交叠分析 ----------
 
-    def get_fifteen_five_overlay(self) -> Dict:
+    def get_fifteen_five_overlay(self) -> dict:
         """十五五规划与康波周期交叠分析"""
         phase = self.get_current_phase()
 

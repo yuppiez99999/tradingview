@@ -22,7 +22,7 @@
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from .types import (
     AlphaSignalResult,
@@ -89,10 +89,10 @@ class ExecutionPipeline:
     def run(
         self,
         signal_result: AlphaSignalResult,
-        current_positions: Optional[Dict[str, float]] = None,
+        current_positions: Optional[dict[str, float]] = None,
         dry_run: Optional[bool] = None,
         confirmation_token: Optional[str] = None,
-    ) -> Tuple[ExecutionResult, PipelineResult]:
+    ) -> tuple[ExecutionResult, PipelineResult]:
         """
         执行交易流水线
 
@@ -210,7 +210,7 @@ class ExecutionPipeline:
     def _generate_target_positions(
         self,
         signal_result: AlphaSignalResult,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """将信号转化为目标持仓权重"""
         signals = signal_result.signals
 
@@ -250,9 +250,9 @@ class ExecutionPipeline:
 
     def _generate_orders(
         self,
-        target_positions: Dict[str, float],
-        current_positions: Dict[str, float],
-    ) -> List[Dict]:
+        target_positions: dict[str, float],
+        current_positions: dict[str, float],
+    ) -> list[dict]:
         """生成订单列表"""
         orders = []
 
@@ -291,7 +291,7 @@ class ExecutionPipeline:
 
     def _execute_orders(
         self,
-        orders: List[Dict],
+        orders: list[dict],
         dry_run: bool,
         confirmation_token: Optional[str],
         batch_id: str,
@@ -362,7 +362,7 @@ class ExecutionPipeline:
 
         return result
 
-    def _execute_single_order(self, order: Dict) -> Dict[str, Any]:
+    def _execute_single_order(self, order: dict) -> dict[str, Any]:
         """执行单个订单"""
         # 优先使用 ExecutionRouter
         if self._execution_router:

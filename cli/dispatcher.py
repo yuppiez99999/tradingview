@@ -15,7 +15,8 @@ CLI 命令调度器 — v5.10 P0-9 重构第二步
 """
 
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any, Optional
 
 
 class Dispatcher:
@@ -23,15 +24,15 @@ class Dispatcher:
 
     def __init__(self, name: str = "量化策略系统"):
         self.name = name
-        self._modes: List[Tuple[str, str, str, Callable]] = []
-        self._registry: Dict[str, Callable] = {}
+        self._modes: list[tuple[str, str, str, Callable]] = []
+        self._registry: dict[str, Callable] = {}
 
     def register(self, flag: str, dest: str, help_text: str, handler: Callable) -> None:
         """注册一个 CLI 模式"""
         self._modes.append((flag, dest, help_text, handler))
         self._registry[dest] = handler
 
-    def get_modes(self) -> List[Tuple[str, str, str, Callable]]:
+    def get_modes(self) -> list[tuple[str, str, str, Callable]]:
         """获取所有注册的模式"""
         return list(self._modes)
 

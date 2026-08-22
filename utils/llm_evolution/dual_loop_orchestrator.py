@@ -31,9 +31,10 @@ Shadow 模式连续运行 ≥1 周无人工干预、无 Kill Switch 误触发后
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from utils.llm_evolution.hypothesis_verifier import HypothesisVerifier
 from utils.llm_evolution.knowledge_base import KnowledgeBase

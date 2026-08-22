@@ -6,7 +6,6 @@ test_g7_kill_switch_mgr_boost.py — 三级熔断管理器覆盖率补强测试
 """
 from __future__ import annotations
 
-
 from utils.risk.kill_switch_manager import (
     KillDecision,
     KillLevel,

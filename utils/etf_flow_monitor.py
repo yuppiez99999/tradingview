@@ -14,7 +14,7 @@ import json
 import os
 import urllib.request
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 # W6.3.3 Step 1: 统一合约代码解析入口 (替代 _to_wind_code + 行内 secid 拼接)
 from utils.contracts.symbols import to_eastmoney_secid, to_wind_code
@@ -107,7 +107,7 @@ class ETFRealTimeTracker:
         """
         return to_wind_code(etf_code)
 
-    def _fetch_wind_fund_flow(self, etf_code: str) -> Optional[Dict]:
+    def _fetch_wind_fund_flow(self, etf_code: str) -> Optional[dict]:
         if not self._wind_mcp_client or not self.wind_mcp_available:
             return None
         try:
@@ -143,7 +143,7 @@ class ETFRealTimeTracker:
             return None
 
 
-    def _fetch_eastmoney_fund_flow(self, etf_code: str) -> Optional[Dict]:
+    def _fetch_eastmoney_fund_flow(self, etf_code: str) -> Optional[dict]:
         """东财 push2 真实主力净流入 (元 -> 亿), 零 key 不封 IP。
 
         来自 A股全栈数据 skill 验证过的 fflow/kline 接口, 比新浪成交额近似更准,
@@ -190,7 +190,7 @@ class ETFRealTimeTracker:
             logger.warning(f"东财 push2 获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
-    def _fetch_price_based_flow(self, etf_code: str) -> Optional[Dict]:
+    def _fetch_price_based_flow(self, etf_code: str) -> Optional[dict]:
         """价格动量代理资金流: 用腾讯实时涨跌% 映射为净流信号 (东财 push2 被封时的可用真实源)。
 
         东财 push2 资金流接口当前出口 IP 被反爬限流, 改用实时涨跌% 作为加减仓信号代理:
@@ -225,7 +225,7 @@ class ETFRealTimeTracker:
             logger.warning(f"价格动量代理资金流失败 ({etf_code}): {e}")
             return None
 
-    def _fetch_sina_fund_flow(self, etf_code: str) -> Optional[Dict]:
+    def _fetch_sina_fund_flow(self, etf_code: str) -> Optional[dict]:
         try:
             import requests as _requests
 
@@ -300,7 +300,7 @@ class ETFRealTimeTracker:
             logger.error(f"新浪财经获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
-    def get_etf_fund_flow(self, etf_code: str) -> Optional[Dict]:
+    def get_etf_fund_flow(self, etf_code: str) -> Optional[dict]:
         flow_data = self._fetch_wind_fund_flow(etf_code)
         if flow_data:
             return flow_data
@@ -327,7 +327,7 @@ class ETFRealTimeTracker:
 
         return None
 
-    def get_all_etf_fund_flows(self) -> Dict[str, Dict]:
+    def get_all_etf_fund_flows(self) -> dict[str, dict]:
         flow_data = {}
         logger.info(f"正在获取 {len(NATIONAL_TEAM_ETFS)} 只ETF资金流向数据...")
 
@@ -353,7 +353,7 @@ class ETFRealTimeTracker:
 
         return flow_data
 
-    def detect_signals(self, flow_data: Dict) -> List[Dict]:
+    def detect_signals(self, flow_data: dict) -> list[dict]:
         signals = []
 
         for code, data in flow_data.items():
@@ -403,7 +403,7 @@ class ETFRealTimeTracker:
 
         return signals
 
-    def get_signal_summary(self, flow_data: Dict) -> Dict:
+    def get_signal_summary(self, flow_data: dict) -> dict:
         signals = self.detect_signals(flow_data)
         total_flow = sum(d.get("net_flow_yi", 0) for d in flow_data.values())
         overall_trend = "净流入" if total_flow > 0 else "净流出" if total_flow < 0 else "平衡"
@@ -419,7 +419,7 @@ class ETFRealTimeTracker:
             "flow_data": flow_data,
         }
 
-    def update_positions_json(self, positions_file: str) -> Dict:
+    def update_positions_json(self, positions_file: str) -> dict:
         try:
             with open(positions_file, encoding="utf-8") as f:
                 positions_data = json.load(f)
@@ -495,7 +495,7 @@ class ETFRealTimeTracker:
             return {"status": "error", "message": str(e)}
 
 
-def refresh_etf_flow_signals(positions_file: Optional[str] = None) -> Dict[str, Any]:
+def refresh_etf_flow_signals(positions_file: Optional[str] = None) -> dict[str, Any]:
     if positions_file is None:
         positions_file = os.path.join(os.path.dirname(__file__), "..", "config", "positions.json")
         positions_file = os.path.normpath(positions_file)
@@ -510,7 +510,7 @@ def refresh_etf_flow_signals(positions_file: Optional[str] = None) -> Dict[str, 
     return result
 
 
-def get_etf_flow_summary() -> Dict:
+def get_etf_flow_summary() -> dict:
     tracker = ETFRealTimeTracker()
     flow_data = tracker.get_all_etf_fund_flows()
     return tracker.get_signal_summary(flow_data)

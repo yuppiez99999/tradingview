@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger("risk_event")
@@ -28,7 +28,7 @@ logger = logging.getLogger("risk_event")
 # ============================================================
 # 事件类型枚举 (7 种)
 # ============================================================
-class RiskEventType(str, Enum):
+class RiskEventType(StrEnum):
     """风控事件类型 — 7 种核心场景."""
 
     # 1. 保证金突破 — KillSwitch L1/L2/L3 触发
@@ -53,7 +53,7 @@ class RiskEventType(str, Enum):
     KILL_SWITCH_TRIGGERED = "kill_switch_triggered"
 
 
-class RiskSeverity(str, Enum):
+class RiskSeverity(StrEnum):
     """事件严重级别."""
 
     INFO = "info"  # 信息级 (日志记录)
@@ -61,7 +61,7 @@ class RiskSeverity(str, Enum):
     CRITICAL = "critical"  # 严重级 (强制平仓/熔断)
 
 
-class RiskAction(str, Enum):
+class RiskAction(StrEnum):
     """风控决策动作."""
 
     PASS = "pass"  # nosec B105 # 风控动作枚举值, 非密码  # 通过 (无动作)

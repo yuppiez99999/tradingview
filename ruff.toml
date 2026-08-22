@@ -2,7 +2,7 @@
 # https://docs.astral.sh/ruff/configuration/
 
 # 目标 Python 版本
-target-version = "py38"
+target-version = "py311"
 
 # 行长度（与 black 一致）
 line-length = 120
@@ -22,6 +22,7 @@ extend-exclude = [
     # B7 修复 (2026-08-08): 排除第三方 vendored 代码 (F821 噪声).
     # 见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B7.
     "external/airllm_src",
+    "unsloth_compiled_cache",
 ]
 
 [lint]
@@ -246,5 +247,17 @@ force-single-line = false
 "utils/free_stockdb_adapter.py" = ["C901"]
 "utils/tdx_data_source.py" = ["C901"]
 "utils/glm5_decision_engine.py" = ["C901"]
+
+# S3 价值纪律层 (2026-08-21): fail-safe 降级设计, 任何异常不崩溃主决策 (与 llm_gateway/risk/execution 同类)
+# BLE001: 四大师 LLM/镜子测试/降级链 blind except 是有意设计
+# C901: quality_screen 7 指标+3 豁免规则密集, 复杂度固有
+"utils/value_discipline_layer.py" = ["BLE001", "C901"]
+"utils/value_discipline/**/*.py" = ["BLE001", "C901"]
+# S2 TimesFM 预测器 (2026-08-21): fail-safe 降级, timesfm 未安装/预检失败/forecast 异常时 available=False 不崩溃
+"utils/timesfm_predictor.py" = ["BLE001"]
+# S1 新闻智能引擎 (2026-08-21): fail-safe 降级, 采集/LLM/词典打分异常时返回中性报告不崩溃主流程
+# BLE001: _fallback_to_sentiment 捕获 ImportError+宽泛异常降级, 是有意设计
+# C901: get_report 多层降级链 (采集→LLM→词典→中性) 固有复杂
+"utils/news_intelligence.py" = ["BLE001", "C901"]
 
 

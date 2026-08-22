@@ -35,7 +35,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Optional, cast
 
 import requests
 import urllib3
@@ -138,10 +138,10 @@ class NewsItem:
     published_at: str = ""  # ISO 格式时间
     symbol: str = ""  # 关联股票代码
     sentiment_score: float = 0.0  # [-1, 1] 情感分 (需 NLP 模型填充)
-    keywords: List[str] = field(default_factory=list)
-    raw: Dict[str, Any] = field(default_factory=dict)
+    keywords: list[str] = field(default_factory=list)
+    raw: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -150,12 +150,12 @@ class ScrapeResult:
     """抓取结果"""
 
     success: bool
-    items: List[NewsItem] = field(default_factory=list)
+    items: list[NewsItem] = field(default_factory=list)
     source: str = ""
     error: str = ""
     elapsed_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "source": self.source,
@@ -176,7 +176,7 @@ class _TTLCache:
 
     def __init__(self, ttl_seconds: int = 600):
         self.ttl = ttl_seconds
-        self._store: Dict[str, tuple] = {}  # key -> (value, expire_at)
+        self._store: dict[str, tuple] = {}  # key -> (value, expire_at)
 
     def get(self, key: str) -> Optional[Any]:
         entry = self._store.get(key)
@@ -195,7 +195,7 @@ class _TTLCache:
     def clear(self):
         self._store.clear()
 
-    def info(self) -> Dict[str, Any]:
+    def info(self) -> dict[str, Any]:
         now = time.time()
         valid = sum(1 for _, exp in self._store.values() if now <= exp)
         return {"total_entries": len(self._store), "valid_entries": valid}
@@ -265,7 +265,7 @@ class WebScraper:
     # HTTP 请求 (降级链)
     # ----------------------------------------------------------
 
-    def _fetch_html(self, url: str, params: Optional[Dict] = None) -> Optional[str]:
+    def _fetch_html(self, url: str, params: Optional[dict] = None) -> Optional[str]:
         """获取 HTML 内容 (降级链: Scrapling → requests)"""
         # P3: 域名白名单校验 (防止 SSRF)
         if not is_allowed_domain(url):
@@ -295,7 +295,7 @@ class WebScraper:
             logger.warning(f"请求失败 ({url}): {e}")
         return None
 
-    def _fetch_json(self, url: str, params: Optional[Dict] = None, headers: Optional[Dict] = None) -> Optional[Any]:
+    def _fetch_json(self, url: str, params: Optional[dict] = None, headers: Optional[dict] = None) -> Optional[Any]:
         """获取 JSON API 响应"""
         # P3: 域名白名单校验 (防止 SSRF)
         if not is_allowed_domain(url):
@@ -338,7 +338,7 @@ class WebScraper:
         el = soup.select_one(selector)
         return el.get_text(strip=True) if el else ""
 
-    def _extract_items(self, soup: Optional[BeautifulSoup], selector: str) -> List:
+    def _extract_items(self, soup: Optional[BeautifulSoup], selector: str) -> list:
         if soup is None:
             return []
         return soup.select(selector)
@@ -347,7 +347,7 @@ class WebScraper:
     # 公告抓取
     # ----------------------------------------------------------
 
-    def fetch_announcements(self, symbol: str, limit: int = 20) -> List[NewsItem]:
+    def fetch_announcements(self, symbol: str, limit: int = 20) -> list[NewsItem]:
         """抓取指定股票的公告
 
         Args:
@@ -361,7 +361,7 @@ class WebScraper:
         cached = self.cache.get(cache_key)
         if cached is not None:
             logger.debug(f"公告缓存命中: {symbol}")
-            return cast(List[NewsItem], cached)
+            return cast(list[NewsItem], cached)
 
         # 东方财富公告 API (JSON 接口, 无需 HTML 解析)
         result = self._fetch_eastmoney_announcements(symbol, limit)
@@ -373,7 +373,7 @@ class WebScraper:
         self.cache.set(cache_key, result, ttl=self.CACHE_TTL["announcement"])
         return result
 
-    def _fetch_eastmoney_announcements(self, symbol: str, limit: int) -> List[NewsItem]:
+    def _fetch_eastmoney_announcements(self, symbol: str, limit: int) -> list[NewsItem]:
         """东方财富公告 API"""
         # 判断市场 (沪/深)
         if symbol.startswith("6") or symbol.startswith("9"):
@@ -420,7 +420,7 @@ class WebScraper:
         logger.info(f"东方财富公告 ({symbol}): 获取 {len(items)} 条")
         return items
 
-    def _fetch_cninfo_announcements(self, symbol: str, limit: int) -> List[NewsItem]:
+    def _fetch_cninfo_announcements(self, symbol: str, limit: int) -> list[NewsItem]:
         """巨潮资讯公告 (证监会指定披露平台)"""
         url = "https://www.cninfo.com.cn/new/hisAnnouncement/query"
         # 判断板块
@@ -481,7 +481,7 @@ class WebScraper:
     # 研报抓取
     # ----------------------------------------------------------
 
-    def fetch_research_reports(self, symbol: str, limit: int = 15) -> List[NewsItem]:
+    def fetch_research_reports(self, symbol: str, limit: int = 15) -> list[NewsItem]:
         """抓取研报
 
         Args:
@@ -491,13 +491,13 @@ class WebScraper:
         cache_key = f"res_{symbol}_{limit}"
         cached = self.cache.get(cache_key)
         if cached is not None:
-            return cast(List[NewsItem], cached)
+            return cast(list[NewsItem], cached)
 
         result = self._fetch_eastmoney_research(symbol, limit)
         self.cache.set(cache_key, result, ttl=self.CACHE_TTL["research"])
         return result
 
-    def _fetch_eastmoney_research(self, symbol: str, limit: int) -> List[NewsItem]:
+    def _fetch_eastmoney_research(self, symbol: str, limit: int) -> list[NewsItem]:
         """东方财富研报 API"""
         # 判断沪市/深市前缀
         if symbol.startswith("6") or symbol.startswith("9"):
@@ -573,7 +573,7 @@ class WebScraper:
     # 新闻舆情
     # ----------------------------------------------------------
 
-    def fetch_news(self, keyword: str, limit: int = 20) -> List[NewsItem]:
+    def fetch_news(self, keyword: str, limit: int = 20) -> list[NewsItem]:
         """抓取新闻舆情 (按关键词)
 
         Args:
@@ -583,7 +583,7 @@ class WebScraper:
         cache_key = f"news_{keyword}_{limit}"
         cached = self.cache.get(cache_key)
         if cached is not None:
-            return cast(List[NewsItem], cached)
+            return cast(list[NewsItem], cached)
 
         # 优先: 新浪财经搜索 API
         result = self._fetch_sina_news(keyword, limit)
@@ -593,7 +593,7 @@ class WebScraper:
         self.cache.set(cache_key, result, ttl=self.CACHE_TTL["news"])
         return result
 
-    def _fetch_sina_news(self, keyword: str, limit: int) -> List[NewsItem]:
+    def _fetch_sina_news(self, keyword: str, limit: int) -> list[NewsItem]:
         """新浪财经新闻搜索"""
         url = "https://search.sina.com.cn/news"
         params = {
@@ -636,7 +636,7 @@ class WebScraper:
         logger.info(f"新浪新闻 ({keyword}): 获取 {len(items)} 条")
         return items
 
-    def _fetch_eastmoney_news(self, keyword: str, limit: int) -> List[NewsItem]:
+    def _fetch_eastmoney_news(self, keyword: str, limit: int) -> list[NewsItem]:
         """东方财富新闻搜索 API"""
         url = "https://search-api-web.eastmoney.com/search/jsonp"
         params = {
@@ -691,7 +691,7 @@ class WebScraper:
     # 行业/板块舆情
     # ----------------------------------------------------------
 
-    def fetch_industry_sentiment(self, industry: str, limit: int = 30) -> Dict[str, Any]:
+    def fetch_industry_sentiment(self, industry: str, limit: int = 30) -> dict[str, Any]:
         """抓取行业舆情汇总
 
         Args:
@@ -710,7 +710,7 @@ class WebScraper:
         news_items = self.fetch_news(industry, limit=limit)
 
         # 提取热门关键词 (简单词频统计)
-        word_count: Dict[str, int] = {}
+        word_count: dict[str, int] = {}
         stop_words = {"的", "了", "在", "是", "和", "与", "及", "或", "为", "对", "由", "从"}
         for item in news_items:
             # 从标题和内容中提取关键词
@@ -739,7 +739,7 @@ class WebScraper:
     # 批量抓取 (供组合分析用)
     # ----------------------------------------------------------
 
-    def fetch_portfolio_news(self, symbols: List[str], limit_per_symbol: int = 10) -> Dict[str, List[NewsItem]]:
+    def fetch_portfolio_news(self, symbols: list[str], limit_per_symbol: int = 10) -> dict[str, list[NewsItem]]:
         """批量抓取组合内所有标的的新闻/公告
 
         Args:
@@ -749,7 +749,7 @@ class WebScraper:
         Returns:
             {symbol: [NewsItem, ...], ...}
         """
-        result: Dict[str, List[NewsItem]] = {}
+        result: dict[str, list[NewsItem]] = {}
         for symbol in symbols:
             try:
                 items = self.fetch_announcements(symbol, limit=limit_per_symbol)
@@ -789,10 +789,10 @@ class WebScraper:
     def fetch_social_media_news(
         self,
         keyword: str,
-        platforms: Optional[List[str]] = None,
+        platforms: Optional[list[str]] = None,
         max_items: int = 50,
         use_cache: bool = True,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         抓取自媒体平台舆情新闻 (小红书/抖音/B站/微博/知乎等)
 
@@ -881,7 +881,7 @@ class WebScraper:
         self.cache.clear()
         logger.info("已清空内存缓存")
 
-    def cache_info(self) -> Dict[str, Any]:
+    def cache_info(self) -> dict[str, Any]:
         """获取缓存信息"""
         return {
             "memory_cache": self.cache.info(),
@@ -890,7 +890,7 @@ class WebScraper:
             "bs4_enabled": HAS_BS4,
         }
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取抓取器状态"""
         return {
             "scrapling_available": HAS_SCRAPLING,
@@ -916,19 +916,19 @@ def get_scraper() -> WebScraper:
     return _scraper_instance
 
 
-def fetch_announcements(symbol: str, limit: int = 20) -> List[Dict]:
+def fetch_announcements(symbol: str, limit: int = 20) -> list[dict]:
     """便捷函数: 抓取公告"""
     items = get_scraper().fetch_announcements(symbol, limit)
     return [item.to_dict() for item in items]
 
 
-def fetch_research_reports(symbol: str, limit: int = 15) -> List[Dict]:
+def fetch_research_reports(symbol: str, limit: int = 15) -> list[dict]:
     """便捷函数: 抓取研报"""
     items = get_scraper().fetch_research_reports(symbol, limit)
     return [item.to_dict() for item in items]
 
 
-def fetch_news(keyword: str, limit: int = 20) -> List[Dict]:
+def fetch_news(keyword: str, limit: int = 20) -> list[dict]:
     """便捷函数: 抓取新闻"""
     items = get_scraper().fetch_news(keyword, limit)
     return [item.to_dict() for item in items]

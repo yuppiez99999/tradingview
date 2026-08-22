@@ -45,7 +45,7 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -754,7 +754,7 @@ class EvolutionOrchestrator:
     @staticmethod
     def _now_iso() -> str:
         """当前 UTC 时间 ISO8601 字符串."""
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     def get_recent_decisions(self, limit: int = 10) -> list[dict[str, Any]]:
         """读取最近的决策记录 (只读).

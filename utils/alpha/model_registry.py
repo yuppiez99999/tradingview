@@ -33,7 +33,7 @@ import logging
 import shutil
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -68,7 +68,7 @@ class StageTransitionError(ModelRegistryError):
 # ============================================================
 # 模型阶段 (对齐 MLflow Model Registry)
 # ============================================================
-class ModelStage(str, Enum):
+class ModelStage(StrEnum):
     """模型生命周期阶段."""
 
     REGISTERED = "registered"  # 已注册 (初始)

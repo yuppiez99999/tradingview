@@ -33,7 +33,7 @@ import logging
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, TypedDict, cast
+from typing import Any, TypedDict, cast
 
 import numpy as np
 
@@ -290,7 +290,7 @@ class VolTargetController:
         avg_vol = np.mean(vols)
         rng = np.random.default_rng(42)
         simulated_returns = rng.normal(0, avg_vol, 20).tolist()
-        return cast(List[float], simulated_returns)
+        return cast(list[float], simulated_returns)
 
     def _save_cache(self, result: dict) -> None:
         """缓存结果供其他模块读取"""
@@ -310,7 +310,7 @@ class VolTargetController:
         try:
             with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
-            vol_scale_val = cast(Dict[str, Any], data).get("vol_scale")
+            vol_scale_val = cast(dict[str, Any], data).get("vol_scale")
             return float(vol_scale_val) if isinstance(vol_scale_val, (int, float)) else None
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return None

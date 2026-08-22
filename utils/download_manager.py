@@ -28,7 +28,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Optional
 
@@ -45,7 +45,7 @@ except ImportError:
 # 任务状态机
 # ============================================================
 
-class DownloadStatus(str, Enum):
+class DownloadStatus(StrEnum):
     PENDING = "pending"
     DOWNLOADING = "downloading"
     PAUSED = "paused"

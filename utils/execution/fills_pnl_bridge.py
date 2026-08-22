@@ -14,7 +14,7 @@
 """
 
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +29,9 @@ except ImportError:  # 兼容不同工作目录调用
 
 
 def augment_market_prices(
-    market_prices: Dict[str, Dict],
+    market_prices: dict[str, dict],
     date: Optional[str] = None,
-) -> Dict[str, Dict]:
+) -> dict[str, dict]:
     """用当日真实成交均价覆盖 market_prices 中的 close。
 
     Args:
@@ -77,7 +77,7 @@ def augment_market_prices(
     return augmented
 
 
-def realized_pnl(date: Optional[str] = None) -> Dict[str, float]:
+def realized_pnl(date: Optional[str] = None) -> dict[str, float]:
     """返回当日已实现 PnL 汇总 (fail-open)。"""
     try:
         return FillsStore().realized_pnl(date)

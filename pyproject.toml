@@ -72,6 +72,41 @@ dev = [
     "bandit>=1.7.5",
     "memory-profiler>=0.61.0",
 ]
+# ── AI Hedge Fund 多Agent框架 (v8.6+ 融合 TradingAgents-src v0.3.1) ──
+# 安装: pip install -e .[ai-hedge]
+ai-hedge = [
+    "langchain-core>=0.3.81",
+    "langchain-openai>=0.3.23",
+    "langchain-anthropic>=0.3.15",
+    "langchain-google-genai>=4.0.0",
+    "langchain-experimental>=0.3.4",
+    "langchain-ollama>=0.3.0",
+    "langgraph>=0.4.8",
+    "langgraph-checkpoint-sqlite>=2.0.0",
+    "stockstats>=0.6.5",
+    "questionary>=2.1.0",
+    "typer>=0.21.0",
+    "parsel>=1.10.0",
+    "redis>=6.2.0",
+    "backtrader>=1.9.78.123",
+]
+# ── AWS Bedrock 支持 (可选, 需 boto3) ──
+ai-hedge-bedrock = [
+    "langchain-aws>=1.5.0",
+]
+# ── TimesFM 2.5 时序基础模型 (可选, 需 torch, ~800MB 模型权重) ──
+# 安装: pip install -e .[timesfm]
+# 用途: utils/timesfm_forecast.py 零样本时序预测 (价格/收益率)
+timesfm = [
+    "timesfm[torch]>=2.0.0",
+]
+# ── unsloth LLM 训练加速 (可选, 需 CUDA GPU, 2x-5x 加速 + 50% VRAM 节省) ──
+# 安装: pip install -e .[llm-finetune]
+# 用途: utils/llm_finetune.py GLM-5/豆包/Qwen 微调加速
+# 支持: GLM4 MoE / Qwen2/Qwen3 / Llama / Mistral / Gemma
+llm-finetune = [
+    "unsloth>=2025.8.0",
+]
 
 [tool.setuptools]
 # 非包项目: 不安装任何包, 仅用于依赖管理

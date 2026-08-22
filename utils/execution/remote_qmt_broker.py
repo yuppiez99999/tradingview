@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable, Optional
+from typing import Optional
 
 from ms_strategy.src.execution.broker_api import BrokerAPI, Fill, Order
 

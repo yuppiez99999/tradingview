@@ -602,6 +602,17 @@ def cmd_auto() -> int:
         except ValueError:
             pass
 
+    # Stage 1 drift_monitor: 每日健康检查 + 累积 consecutive_stable_days
+    if status.stage == PhaseBStage.STAGE_1_DRIFT_MONITOR.value:
+        today = datetime.now().strftime("%Y-%m-%d")
+        try:
+            verdict = evaluate_daily_shadow_health(today)
+            status = update_stable_days(status, verdict)
+            print(f"[AUTO] 健康检查 {today}: healthy={verdict.healthy}, reason={verdict.reason}, "
+                  f"stable_days={status.consecutive_stable_days}/{status.stable_days_target}")
+        except Exception as e:
+            print(f"[AUTO] 健康检查异常: {e}")
+
     _save_phase_b_status(status)
 
     # 自动推进逻辑

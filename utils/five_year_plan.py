@@ -12,7 +12,6 @@
 import logging
 import os
 from datetime import datetime
-from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +24,17 @@ logger = logging.getLogger(__name__)
 # 十五五规划（2026-2030）七大战略方向
 FIFTEEN_FIVE_POLICIES = {
     "新质生产力": {
-        "weight": 0.25,
+        "weight": 0.22,  # 25→22，让渡给绿色低碳/健康中国/安全发展（十五五权重复核 2026-08-21）
         "description": "以科技创新为核心驱动力，培育新产业、新模式、新动能",
         "keywords": ["AI", "人工智能", "大模型", "算力", "机器人", "量子计算",
-                      "低空经济", "商业航天", "6G", "脑机接口"],
+                      "低空经济", "商业航天", "6G", "脑机接口",
+                      "银发经济", "数字消费", "首发经济", "体验式消费",
+                      "AI促进就业", "新就业形态", "灵活就业"],
         "target_sectors": ["半导体", "AI算力", "软件服务", "通信设备", "航空航天"],
         "relevance_score": 95,  # 政策优先级 0-100
     },
     "制造强国": {
-        "weight": 0.20,
+        "weight": 0.18,  # 20→18，让渡给绿色低碳/健康中国/安全发展（十五五权重复核 2026-08-21）
         "description": "推动制造业高端化、智能化、绿色化发展",
         "keywords": ["高端装备", "智能制造", "数控机床", "工业母机", "新材料",
                       "新能源汽车", "轨道交通", "船舶制造", "航空航天"],
@@ -49,26 +50,35 @@ FIFTEEN_FIVE_POLICIES = {
         "relevance_score": 88,
     },
     "绿色低碳": {
-        "weight": 0.15,
+        "weight": 0.18,  # 15→18，政策密度最高（6个专项规划）（十五五权重复核 2026-08-21）
         "description": "推动能源革命，实现碳达峰碳中和目标",
         "keywords": ["光伏", "风电", "储能", "氢能", "核能", "碳交易",
-                      "新型电力系统", "特高压", "节能环保", "新能源车"],
+                      "新型电力系统", "特高压", "节能环保", "新能源车",
+                      "35亿千瓦", "绿氢200万吨", "海上风电", "抽水蓄能", "构网型",
+                      "置信出力", "非化石能源50%", "虚拟电厂5000万千瓦", "西电东送4.2亿",
+                      "电力+算力", "主配微协同", "碳达峰17%", "非化石25%",
+                      "零碳园区", "零碳工厂", "碳汇", "零碳运输走廊",
+                      "资源产出率16%", "新三样固废", "城市矿产", "动力电池回收"],
         "target_sectors": ["新能源", "储能", "电力", "环保", "新能源汽车"],
         "relevance_score": 85,
     },
     "健康中国": {
-        "weight": 0.10,
+        "weight": 0.11,  # 10→11，中医药+全民医保2个专项规划（十五五权重复核 2026-08-21）
         "description": "全面推进健康中国建设，发展生物医药产业",
         "keywords": ["创新药", "生物制药", "医疗器械", "精准医疗", "基因治疗",
-                      "中医药", "智慧医疗", "养老产业", "健康管理"],
+                      "中医药", "智慧医疗", "养老产业", "健康管理",
+                      "数智化赋能", "人人享有中医药", "15分钟医疗服务", "中药制造",
+                      "长期护理保险", "省级统筹", "异地直接结算", "数智医保"],
         "target_sectors": ["医药", "医疗器械", "生物科技", "医疗服务"],
         "relevance_score": 80,
     },
     "安全发展": {
-        "weight": 0.10,
+        "weight": 0.11,  # 10→11，煤炭兜底+油气+煤层气+电力韧性4个涉及（十五五权重复核 2026-08-21）
         "description": "统筹发展和安全，保障粮食/能源/产业链安全",
         "keywords": ["粮食安全", "能源安全", "种业", "关键矿产", "稀土",
-                      "信创", "国产替代", "网络安全", "军工"],
+                      "信创", "国产替代", "网络安全", "军工",
+                      "智能化75%", "煤层气260亿", "油气供应量目标2030", "煤炭兜底保障",
+                      "千万吨级输油管道", "油气全国一张网", "国家管网集团"],
         "target_sectors": ["农业", "能源", "矿产", "信息安全", "军工"],
         "relevance_score": 82,
     },
@@ -93,11 +103,11 @@ STOCK_POLICY_ALIGNMENT = {
     "601088": {  # 中国神华
         "name": "中国神华",
         "alignments": {
-            "绿色低碳": 75,    # 煤炭清洁利用+能源安全
+            "绿色低碳": 80,    # 煤炭清洁利用+智能化75%+煤层气260亿（十五五权重复核 2026-08-21）
             "安全发展": 85,    # 能源安全核心标的
         },
-        "overall_score": 78,
-        "rationale": "煤炭龙头+能源安全核心标的，十五五期间受益于能源保供政策",
+        "overall_score": 82,
+        "rationale": "煤炭龙头+能源安全核心标的，十五五受益于能源保供+智能化75%+煤层气260亿m³",
     },
     "600276": {  # 恒瑞医药
         "name": "恒瑞医药",
@@ -215,11 +225,11 @@ STOCK_POLICY_ALIGNMENT = {
     "600900": {  # 长江电力
         "name": "长江电力",
         "alignments": {
-            "绿色低碳": 80,    # 水电清洁能源
+            "绿色低碳": 85,    # 水电清洁能源+常规水电4.1亿千瓦+抽水蓄能1.6亿千瓦（十五五权重复核 2026-08-21）
             "安全发展": 75,    # 能源安全/水电基荷
         },
-        "overall_score": 68,
-        "rationale": "水电龙头，清洁能源+能源安全，但属于成熟防御资产，成长弹性有限",
+        "overall_score": 72,
+        "rationale": "水电龙头，清洁能源+能源安全，常规水电4.1亿千瓦+抽水蓄能1.6亿千瓦，十五五绿色低碳核心",
     },
     "600219": {  # 南山铝业
         "name": "南山铝业",
@@ -285,6 +295,16 @@ STOCK_POLICY_ALIGNMENT = {
         },
         "overall_score": 90,
         "rationale": "智算中心与服务器龙头，数字中国核心基础设施，十五五新质生产力旗舰",
+    },
+    "300750": {  # 宁德时代
+        "name": "宁德时代",
+        "alignments": {
+            "绿色低碳": 90,    # 28亿千瓦新能源消纳+新型储能+1.1亿辆充电网络+绿氢200万吨
+            "安全发展": 75,    # "新三样"固废回收+动力电池回收+关键矿产安全
+            "制造强国": 82,    # 高端制造+新能源汽车产业链
+        },
+        "overall_score": 85,
+        "rationale": "动力电池全球龙头，28亿千瓦新能源消纳+新型储能+绿氢200万吨+新三样回收，十五五绿色低碳旗舰",
     },
 
     # ETF
@@ -377,7 +397,7 @@ class FifteenFivePlanAnalyzer:
 
     # ---------- 政策概览 ----------
 
-    def get_policy_overview(self) -> List[Dict]:
+    def get_policy_overview(self) -> list[dict]:
         """获取十五五政策方向概览"""
         overview = []
         for name, detail in self.policies.items():
@@ -395,7 +415,7 @@ class FifteenFivePlanAnalyzer:
 
     # ---------- 持仓适配分析 ----------
 
-    def analyze_holdings(self, positions: Dict = None) -> List[Dict]:
+    def analyze_holdings(self, positions: dict = None) -> list[dict]:
         """
         分析持仓与十五五规划的对齐度
 
@@ -441,7 +461,7 @@ class FifteenFivePlanAnalyzer:
 
     # ---------- 权重调整建议 ----------
 
-    def get_weight_adjustments(self, positions: Dict = None) -> List[Dict]:
+    def get_weight_adjustments(self, positions: dict = None) -> list[dict]:
         """
         基于十五五适配评分生成权重调整建议
         借鉴 QuantDinger policy 矩阵的配置推荐逻辑
@@ -486,7 +506,7 @@ class FifteenFivePlanAnalyzer:
 
     # ---------- 报告生成 ----------
 
-    def generate_report(self, positions: Dict = None, save_dir: str = None) -> str:
+    def generate_report(self, positions: dict = None, save_dir: str = None) -> str:
         """生成十五五适配分析报告"""
         overview = self.get_policy_overview()
         analysis = self.analyze_holdings(positions)

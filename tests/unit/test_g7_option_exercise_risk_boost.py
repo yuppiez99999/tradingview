@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from datetime import date
 
-
 from utils.option_exercise_risk import (
     ExerciseRiskResult,
     OptionExerciseRiskManager,

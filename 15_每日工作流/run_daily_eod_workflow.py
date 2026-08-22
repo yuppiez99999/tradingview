@@ -1011,6 +1011,49 @@ def run_phase4_6_feedback_loop(report_date, eod_summary, args):
         return False
 
 
+def run_phase4_9_evolution_cycle(report_date, eod_summary, args):
+    """阶段四点九: EvolutionOrchestratorV2 进化编排 (自我进化→再平衡闭环)
+
+    在 FeedbackLoop 因子权重更新 (phase4_6) 之后执行:
+        1. 实例化 EvolutionOrchestratorV2
+        2. 运行 run_cycle() 感知→决策→行动→学习
+        3. 进化决策通过 factor_weights.json 传递给再平衡引擎
+
+    HC 合规:
+        - Feature Flag 控制启用 (orchestrator.enabled)
+        - fail-safe: 失败不中断 EOD 主流程
+    """
+    if getattr(args, "skip_evolution_cycle", False):
+        log("\n>>> 阶段四点九: 跳过进化编排 (--skip-evolution-cycle) <<<")
+        eod_summary["phases"]["phase4_9_evolution_cycle"] = {"skipped": True}
+        return False
+
+    log("\n>>> 阶段四点九: EvolutionOrchestratorV2 进化编排 <<<")
+    try:
+        from utils.evolution.orchestrator import EvolutionOrchestratorV2
+
+        orchestrator = EvolutionOrchestratorV2()
+        if not getattr(orchestrator, "enabled", False):
+            log("[SKIP] EvolutionOrchestratorV2 未启用 (Feature Flag 关闭)")
+            eod_summary["phases"]["phase4_9_evolution_cycle"] = {"skipped": True, "reason": "flag_disabled"}
+            return True
+
+        result = orchestrator.run_cycle()
+        phase_result = {
+            "success": True,
+            "action": getattr(result, "action", None),
+            "proposals": len(getattr(result, "proposals", [])),
+        }
+        log(f"[OK] 进化编排: action={phase_result['action']}, proposals={phase_result['proposals']}")
+        eod_summary["phases"]["phase4_9_evolution_cycle"] = phase_result
+        return True
+
+    except Exception as e:
+        log(f"[FAIL] 进化编排异常: {e}", "ERROR")
+        eod_summary["phases"]["phase4_9_evolution_cycle"] = {"success": False, "error": str(e)}
+        return False
+
+
 def run_phase4_7_drift_integration(report_date, eod_summary, args):
     """阶段四点七: DriftMonitor + DelayedLabelTracker 集成 (W1.3b Day 4)
 
@@ -1314,6 +1357,10 @@ def main():
     phase_feedback_success = run_phase4_6_feedback_loop(report_date, eod_summary, args)
     success_count += phase_feedback_success
     fail_count += not phase_feedback_success
+
+    phase_evolution_success = run_phase4_9_evolution_cycle(report_date, eod_summary, args)
+    success_count += phase_evolution_success
+    fail_count += not phase_evolution_success
 
     phase5_success = run_phase5_archive(report_date, today_dir, eod_summary, args)
     success_count += phase5_success

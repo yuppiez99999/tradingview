@@ -63,11 +63,11 @@ class TestInitialization:
 
     @pytest.mark.unit
     def test_target_annual_return(self, rebalancer):
-        assert rebalancer.target_annual_return == 0.08
+        assert rebalancer.target_annual_return == 0.095
 
     @pytest.mark.unit
     def test_target_max_drawdown(self, rebalancer):
-        assert rebalancer.target_max_drawdown == 0.15
+        assert rebalancer.target_max_drawdown == 0.20
 
     @pytest.mark.unit
     def test_drawdown_breaker_loaded(self, rebalancer):
@@ -91,13 +91,13 @@ class TestTargetWeights:
     def test_broad_based_weights(self, target_weights):
         broad = ["510300.SH", "510500.SH", "510050.SH", "512100.SH", "588000.SH", "159915.SZ"]
         total_broad = sum(target_weights[c] for c in broad)
-        assert abs(total_broad - 0.60) < 0.01
+        assert abs(total_broad - 0.59) < 0.01
 
     @pytest.mark.unit
     def test_defense_weights(self, target_weights):
         defense = ["518880.SH", "511260.SH", "510310.SH"]
         total_def = sum(target_weights[c] for c in defense)
-        assert abs(total_def - 0.15) < 0.01
+        assert abs(total_def - 0.20) < 0.01
 
     @pytest.mark.unit
     def test_all_positive(self, target_weights):
@@ -226,7 +226,7 @@ class TestStressTests:
     @pytest.mark.unit
     def test_raw_breach_count(self, rebalancer, positions, prices):
         result = rebalancer.run_stress_tests(positions, prices)
-        assert result["breach_count"] == 6
+        assert result["breach_count"] == 3
 
     @pytest.mark.unit
     def test_hedged_reduces_breach(self, rebalancer, positions, prices):

@@ -11,7 +11,7 @@ import sys
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def _is_commodity_futures(instrument: str, commodity_set: set) -> bool:
     return code in commodity_set
 
 
-def _extract_contract_yyyymm(instrument: str, as_of_yyyymm: int = 0) -> Tuple[str, int]:
+def _extract_contract_yyyymm(instrument: str, as_of_yyyymm: int = 0) -> tuple[str, int]:
     """从合约代码提取 (品种代码, 合约月份 YYYYMM)。
 
     P1-2 新增: 支持 5 种合约代码格式:
@@ -145,7 +145,7 @@ def _extract_contract_yyyymm(instrument: str, as_of_yyyymm: int = 0) -> Tuple[st
     return "", 0
 
 
-def _validate_contract_expiry(instrument: str, as_of: Optional[tuple] = None) -> Tuple[bool, str]:
+def _validate_contract_expiry(instrument: str, as_of: Optional[tuple] = None) -> tuple[bool, str]:
     """校验期货/期权合约是否已到期 (下单前拒绝过期合约)。
 
     P1-2 新增: 防止提交已到期合约 (如当前 2026-08 却用 2025-07 的 2507 合约)。

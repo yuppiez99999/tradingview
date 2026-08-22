@@ -50,7 +50,7 @@ import io
 import json
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -197,7 +197,7 @@ def run_drift_detection(real_records: list[dict[str, Any]]) -> dict[str, Any]:
         告警条目字典 (可序列化为 jsonl 一行)
     """
     n = len(real_records)
-    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    timestamp = datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
     base_entry: dict[str, Any] = {
         "timestamp": timestamp,
@@ -321,7 +321,7 @@ def upsert_alert(alert_entry: dict[str, Any], output_file: Path, force: bool) ->
     """
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_str = datetime.now(UTC).strftime("%Y-%m-%d")
     # 也匹配 YYYY-MM-DD 前缀 (从 timestamp 提取)
     today_local = datetime.now().strftime("%Y-%m-%d")
 
@@ -621,7 +621,7 @@ def run_integration(
 
     # 7. 写集成日志
     log_entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "dry_run": dry_run,
         "alert_status": alert.get("status"),
         "alert_severity": alert.get("severity"),

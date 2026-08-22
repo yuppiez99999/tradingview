@@ -28,7 +28,6 @@ import math
 from pathlib import Path
 from typing import Any
 
-
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent

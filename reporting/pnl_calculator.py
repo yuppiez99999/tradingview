@@ -12,15 +12,15 @@
 
 import json
 from pathlib import Path as _Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 def calculate_pnl(
-    positions_data: Dict[str, Any],
-    market_prices: Dict[str, Dict],
+    positions_data: dict[str, Any],
+    market_prices: dict[str, dict],
     align_hfq: bool = False,
     hfq_date: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """计算持仓盈亏明细
 
     Args:
@@ -271,7 +271,7 @@ def get_position_status(pnl_pct: float, stop_loss: float) -> str:
         return "NORMAL"
 
 
-def calculate_volatility(returns: List[float]) -> float:
+def calculate_volatility(returns: list[float]) -> float:
     """计算波动率"""
     if len(returns) < 2:
         return 0
@@ -375,7 +375,7 @@ def _compute_max_dd_from_nav(unique: list) -> float:
     return round(max_dd * 100, 2)  # 转为百分比
 
 
-def calculate_max_drawdown(details: List) -> float:
+def calculate_max_drawdown(details: list) -> float:
     """计算组合层面真实最大回撤（从历史每日PnL报告构建累计净值曲线）
 
     注意：这不是单标的跌幅，而是组合累计净值从峰值到谷底的最大跌幅。
@@ -411,7 +411,7 @@ def calculate_max_drawdown(details: List) -> float:
     return _compute_max_dd_from_nav(unique)
 
 
-def count_stop_loss_status(details: List) -> Dict:
+def count_stop_loss_status(details: list) -> dict:
     """统计止损状态"""
     status_count = {}
     for d in details:

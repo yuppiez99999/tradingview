@@ -251,6 +251,19 @@ def main() -> int:
     else:
         print("[pre-commit] ⚠️ NaN 守卫检查脚本未找到,跳过", file=sys.stderr)
 
+    # A2: skill 安全扫描 (SkillSpector, 增量扫描改动的 skill 文件, 容错不阻断)
+    try:
+        from scripts.skill_security_scan import run_precommit_check as _skill_check
+
+        skill_passed, skill_msg = _skill_check(PROJECT_ROOT)
+        print(f"[pre-commit] {skill_msg}")
+        if not skill_passed:
+            print("[pre-commit] ❌ skill 安全扫描阻断,阻止提交", file=sys.stderr)
+            print("[pre-commit] 修复: 检查 SARIF 报告 critical/high 漏洞; 或 SKIP_SKILL_SCAN=1 临时跳过", file=sys.stderr)
+            return 1
+    except Exception as e:
+        print(f"[pre-commit] skill 安全扫描异常 (容错通过): {e}", file=sys.stderr)
+
     print("[pre-commit] ✅ 全部门禁通过,允许提交")
     return 0
 

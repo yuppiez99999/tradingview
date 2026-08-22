@@ -20,10 +20,10 @@ alpha 引擎虽有 max_drawdown_limit=0.15，但从未在运行时被调用。
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class DrawdownLevel(str, Enum):
+class DrawdownLevel(StrEnum):
     NORMAL = "NORMAL"
     WATCH = "WATCH"
     REDUCE = "REDUCE"

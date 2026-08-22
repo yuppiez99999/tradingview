@@ -26,9 +26,10 @@
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from enum import Enum
-from typing import Callable, Optional, Union
+from enum import StrEnum
+from typing import Optional, Union
 
 from utils.backtest.constraints import check_tradable
 from utils.wt_structs import BarData, OrderData, TickData
@@ -36,7 +37,7 @@ from utils.wt_structs import BarData, OrderData, TickData
 MarketEvent = Union[TickData, BarData]
 
 
-class MatchingMode(str, Enum):
+class MatchingMode(StrEnum):
     """撮合模式。"""
     TICK = "TICK"
     BAR = "BAR"

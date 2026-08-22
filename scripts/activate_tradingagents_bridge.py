@@ -135,7 +135,7 @@ def check_port(host: str, port: int) -> bool:
     try:
         with socket.create_connection((host, port), timeout=2):
             return True
-    except (socket.timeout, ConnectionRefusedError, OSError):
+    except (TimeoutError, ConnectionRefusedError, OSError):
         return False
 
 

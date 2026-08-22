@@ -41,10 +41,11 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from datetime import time as dt_time
-from typing import Any, Callable
+from typing import Any
 
 from utils.path_config import get_logs_dir, get_project_root, setup_sys_path
 

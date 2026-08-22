@@ -53,6 +53,7 @@ import math
 import sys
 from collections import deque
 from dataclasses import dataclass, field
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -673,6 +674,6 @@ class FeedbackLoop:
     @staticmethod
     def _now_iso() -> str:
         """当前时间 ISO8601 (UTC)."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")

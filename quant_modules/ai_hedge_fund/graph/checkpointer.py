@@ -1,0 +1,103 @@
+"""LangGraph checkpoint support for resumable analysis runs.
+
+Per-ticker SQLite databases so concurrent tickers don't contend.
+适配自 TradingAgents-src v0.3.1 (tradingagents/graph/checkpointer.py),
+将 safe_ticker_component 内联实现以解除对 tradingagents.dataflows 的依赖。
+"""
+
+from __future__ import annotations
+
+import hashlib
+import re
+import sqlite3
+from collections.abc import Generator
+from contextlib import contextmanager
+from pathlib import Path
+
+from langgraph.checkpoint.sqlite import SqliteSaver
+
+
+def _safe_ticker_component(ticker: str) -> str:
+    """Sanitize ticker to a safe filesystem component (内联实现)."""
+    return re.sub(r'[^A-Za-z0-9._-]', '_', str(ticker))
+
+
+def _db_path(data_dir: str | Path, ticker: str) -> Path:
+    """Return the SQLite checkpoint DB path for a ticker."""
+    safe = _safe_ticker_component(ticker).upper()
+    p = Path(data_dir) / "checkpoints"
+    p.mkdir(parents=True, exist_ok=True)
+    return p / f"{safe}.db"
+
+
+def thread_id(ticker: str, date: str, signature: str = "") -> str:
+    """Deterministic thread ID for a ticker+date pair.
+
+    ``signature`` folds in graph-shape-affecting run choices so a resume under a
+    different graph can't reuse this checkpoint; omitting it keeps the
+    legacy ID.
+    """
+    base = f"{ticker.upper()}:{date}"
+    if signature:
+        base = f"{base}:{signature}"
+    return hashlib.sha256(base.encode()).hexdigest()[:16]
+
+
+@contextmanager
+def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver, None, None]:
+    """Context manager yielding a SqliteSaver backed by a per-ticker DB."""
+    db = _db_path(data_dir, ticker)
+    conn = sqlite3.connect(str(db), check_same_thread=False)
+    try:
+        saver = SqliteSaver(conn)
+        saver.setup()
+        yield saver
+    finally:
+        conn.close()
+
+
+def has_checkpoint(data_dir: str | Path, ticker: str, date: str, signature: str = "") -> bool:
+    """Check whether a resumable checkpoint exists for ticker+date."""
+    return checkpoint_step(data_dir, ticker, date, signature) is not None
+
+
+def checkpoint_step(data_dir: str | Path, ticker: str, date: str, signature: str = "") -> int | None:
+    """Return the step number of the latest checkpoint, or None if none exists."""
+    db = _db_path(data_dir, ticker)
+    if not db.exists():
+        return None
+    tid = thread_id(ticker, date, signature)
+    with get_checkpointer(data_dir, ticker) as saver:
+        config = {"configurable": {"thread_id": tid}}
+        cp = saver.get_tuple(config)
+        if cp is None:
+            return None
+        return cp.metadata.get("step")
+
+
+def clear_all_checkpoints(data_dir: str | Path) -> int:
+    """Remove all checkpoint DBs. Returns number of files deleted."""
+    cp_dir = Path(data_dir) / "checkpoints"
+    if not cp_dir.exists():
+        return 0
+    dbs = list(cp_dir.glob("*.db"))
+    for db in dbs:
+        db.unlink()
+    return len(dbs)
+
+
+def clear_checkpoint(data_dir: str | Path, ticker: str, date: str, signature: str = "") -> None:
+    """Remove checkpoint for a specific ticker+date by deleting the thread's rows."""
+    db = _db_path(data_dir, ticker)
+    if not db.exists():
+        return
+    tid = thread_id(ticker, date, signature)
+    conn = sqlite3.connect(str(db))
+    try:
+        for table in ("writes", "checkpoints"):
+            conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (tid,))  # nosec B608 — table from hardcoded tuple
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()

@@ -45,9 +45,9 @@ from __future__ import annotations
 
 import logging
 import sys
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ class CausalChainBuilder:
         if not causes or len(causes) < 2:
             return []
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         chains: list[CausalChain] = []
 
         for rule_fn in self._rules:

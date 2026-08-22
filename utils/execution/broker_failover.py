@@ -37,7 +37,7 @@ import json
 import logging
 import threading
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -603,7 +603,7 @@ class BrokerFailoverManager:
                 "auto_failover": self._auto_failover,
                 "is_running": not self._stopped,
                 "brokers": brokers_status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
     def _audit(self, event: str, data: dict[str, Any]) -> None:
@@ -613,7 +613,7 @@ class BrokerFailoverManager:
             "event": event,
             **data,
         }
-        audit_file = self._audit_log_dir / f"failover_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.jsonl"
+        audit_file = self._audit_log_dir / f"failover_{datetime.now(UTC).strftime('%Y-%m-%d')}.jsonl"
         try:
             with open(audit_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")

@@ -41,7 +41,7 @@ import logging
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, TypedDict, cast
+from typing import Any, TypedDict, cast
 
 logger = logging.getLogger("protective_put_engine")
 
@@ -175,7 +175,7 @@ class ProtectivePutEngine:
         # 尝试匹配 code.SH 或 code.SZ
         for key, pos in positions.get("positions", {}).items():
             if key.startswith(code) or pos.get("code", "").startswith(code):
-                price_val = cast(Dict[str, Any], pos).get("est_price", 0)
+                price_val = cast(dict[str, Any], pos).get("est_price", 0)
                 return float(price_val) if isinstance(price_val, (int, float)) else 0.0
         return 0
 

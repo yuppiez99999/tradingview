@@ -15,8 +15,8 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 
 from utils.wt_hedge_strategy import HedgeContext, HedgeStrategy
 from utils.wt_structs import BarData, OrderData, TickData

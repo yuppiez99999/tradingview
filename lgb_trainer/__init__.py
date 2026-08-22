@@ -19,9 +19,11 @@ from .data_loader import fetch_all_real_ohlcv, load_real_ohlcv
 from .feature_engineering import (
     add_capital_flow_features,
     add_cross_market_features,
+    add_cross_sectional_features,
     add_industry_relative_strength_features,
     add_mean_reversion_features,
     add_regime_aware_features,
+    add_technical_features,
 )
 from .metrics import (
     ic_score as _ic_score,
@@ -59,6 +61,8 @@ __all__ = [
     "add_industry_relative_strength_features",
     "add_capital_flow_features",
     "add_cross_market_features",
+    "add_technical_features",
+    "add_cross_sectional_features",
     # 评估
     "time_series_cv_evaluate",
     "select_features_by_importance",

@@ -44,8 +44,9 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
 
 from utils.config_manager import get_config
 from utils.infra.feature_flags import is_enabled

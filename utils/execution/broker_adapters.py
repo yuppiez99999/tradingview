@@ -37,7 +37,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -329,7 +329,6 @@ class _BaseLiveAdapter(BrokerAdapter):
         # 1. 单日交易额限制
         # P1-4 修复: 用 CST 时区 (UTC+8) 判断交易日, 避免 UTC 跨日时 CST 仍是同一天导致限额被错误重置
         from datetime import timedelta as _td
-        from datetime import timezone
 
         cst_tz = timezone(_td(hours=8))
         today = datetime.now(cst_tz).strftime("%Y-%m-%d")
@@ -419,13 +418,13 @@ class _BaseLiveAdapter(BrokerAdapter):
     def _audit(self, event: str, data: dict[str, Any]) -> None:
         """写审计日志 (JSONL 格式, 追加)."""
         record = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "broker": self.broker_name,
             "event": event,
             "live_mode": self.is_live,
             **data,
         }
-        audit_file = self._audit_log_dir / f"{self.broker_name}_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.jsonl"
+        audit_file = self._audit_log_dir / f"{self.broker_name}_{datetime.now(UTC).strftime('%Y-%m-%d')}.jsonl"
         try:
             with open(audit_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")

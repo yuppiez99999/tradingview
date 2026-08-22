@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import os
 import warnings as _warnings
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Iterator
 
 from utils.contracts.symbols import SymbolParseError, normalize_exchange
 

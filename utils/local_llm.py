@@ -1,6 +1,7 @@
 import logging
 import os
-from typing import Any, Dict, Generator, List, Optional
+from collections.abc import Generator
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ class LocalLLMClient:
         logger.info('✅ 本地模型加载完成')
         return self._model
 
-    def _format_prompt(self, messages: List[Dict[str, str]]) -> str:
+    def _format_prompt(self, messages: list[dict[str, str]]) -> str:
         """格式化消息为 Qwen2.5 chat template
 
         Args:
@@ -122,11 +123,11 @@ class LocalLLMClient:
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         stream: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """对话接口（兼容 OpenAI 格式）
 
         Args:

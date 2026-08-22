@@ -30,10 +30,11 @@ import json
 import logging
 import os
 import sys
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 import pandas as pd
 

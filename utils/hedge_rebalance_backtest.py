@@ -20,7 +20,7 @@ import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -131,12 +131,12 @@ END_DATE = "2026-06-29"
 @dataclass
 class BacktestResult:
     name: str
-    equity_curve: List[float]
-    dates: List[pd.Timestamp]
-    daily_returns: List[float]
+    equity_curve: list[float]
+    dates: list[pd.Timestamp]
+    daily_returns: list[float]
     trade_count: int
-    hedge_costs: List[float]
-    transaction_costs: List[float]
+    hedge_costs: list[float]
+    transaction_costs: list[float]
     total_return: float = 0.0
     annual_return: float = 0.0
     annual_volatility: float = 0.0
@@ -146,7 +146,7 @@ class BacktestResult:
     win_rate: float = 0.0
     total_hedge_cost: float = 0.0
     total_transaction_cost: float = 0.0
-    yearly_stats: List[Dict] = field(default_factory=list)
+    yearly_stats: list[dict] = field(default_factory=list)
     # v2.0 新增
     hedge_pnl_total: float = 0.0           # 对冲总盈亏
     hedge_days: int = 0                     # 对冲激活天数
@@ -161,11 +161,11 @@ class BacktestResult:
     turnover_window: int = 0                # 换手率窗口
     annual_turnover: float = 0.0            # 实际年化换手率
     window_turnover: float = 0.0            # 窗口内换手率
-    turnover_daily: List[float] = field(default_factory=list)  # 每日换手率
+    turnover_daily: list[float] = field(default_factory=list)  # 每日换手率
 
 @dataclass
 class MultiStrategyResult:
-    strategies: List[BacktestResult]
+    strategies: list[BacktestResult]
 
 
 # ============================================================
@@ -204,11 +204,11 @@ class BacktestDataLoader:
         else:
             self.cache_dir = cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
-        self._price_data: Dict[str, pd.DataFrame] = {}
+        self._price_data: dict[str, pd.DataFrame] = {}
         self._csi300: Optional[pd.DataFrame] = None
-        self._index_data: Dict[str, pd.Series] = {}  # v2.0 多指数数据
+        self._index_data: dict[str, pd.Series] = {}  # v2.0 多指数数据
 
-    def load_or_download(self, codes: List[str], start: str, end: str, retry: bool = False) -> Dict[str, pd.DataFrame]:
+    def load_or_download(self, codes: list[str], start: str, end: str, retry: bool = False) -> dict[str, pd.DataFrame]:
         result = {}
         missing = []
         for code in codes:
@@ -247,7 +247,7 @@ class BacktestDataLoader:
             self._csi300 = df
         return df or pd.DataFrame()
 
-    def load_multi_index(self, start: str, end: str) -> Dict[str, pd.Series]:
+    def load_multi_index(self, start: str, end: str) -> dict[str, pd.Series]:
         """v2.0: 加载多指数数据 (CSI300/500/1000)"""
         indices = {
             "IF": ("sh.000300", "000300"),
@@ -299,7 +299,7 @@ class BacktestDataLoader:
             return df
         return None
 
-    def _bs_download(self, codes: List[str], start: str, end: str) -> None:
+    def _bs_download(self, codes: list[str], start: str, end: str) -> None:
         import baostock as bs
         bs.login()
         n = len(codes)
@@ -330,7 +330,7 @@ class BacktestDataLoader:
                 logger.info(f"  [{i+1}/{n}] XX {name} ({code}): {e}")
         bs.logout()
 
-    def build_unified_dataframe(self, start: str, end: str) -> Tuple[pd.DataFrame, pd.Series, Dict[str, pd.Series]]:
+    def build_unified_dataframe(self, start: str, end: str) -> tuple[pd.DataFrame, pd.Series, dict[str, pd.Series]]:
         """构建统一价格矩阵"""
         all_dates = set()
         for df in self._price_data.values():
@@ -386,7 +386,7 @@ def determine_regime_from_csi300(csi300_ret: pd.Series, idx: int) -> str:
     return "recovery"
 
 
-def compute_portfolio_vol_30d(daily_rets: List[float], idx: int, min_len: int = 10) -> float:
+def compute_portfolio_vol_30d(daily_rets: list[float], idx: int, min_len: int = 10) -> float:
     """v2.0: 计算组合自身30日年化波动率"""
     if idx < min_len:
         return 0.18
@@ -396,7 +396,7 @@ def compute_portfolio_vol_30d(daily_rets: List[float], idx: int, min_len: int = 
     return float(np.std(window) * np.sqrt(252))
 
 
-def compute_portfolio_dd_60d(equity: List[float], idx: int) -> float:
+def compute_portfolio_dd_60d(equity: list[float], idx: int) -> float:
     """v2.0: 计算组合自身60日最大回撤"""
     if idx < 20:
         return 0.0
@@ -430,7 +430,7 @@ def get_tail_hedge_ratio(vol_30d: float, dd_60d: float) -> float:
     return ratio
 
 
-def compute_multi_index_beta_weights() -> Tuple[Dict[str, float], float]:
+def compute_multi_index_beta_weights() -> tuple[dict[str, float], float]:
     """v2.0: 计算组合对各指数的加权Beta
 
     Returns:
@@ -487,7 +487,7 @@ def get_dynamic_rebalance_threshold(vol_30d: float) -> float:
 
 class HedgeRebalanceBacktest:
 
-    def __init__(self, price_df: pd.DataFrame, csi300_ret: pd.Series, index_rets: Optional[Dict[str, pd.Series]] = None) -> None:
+    def __init__(self, price_df: pd.DataFrame, csi300_ret: pd.Series, index_rets: Optional[dict[str, pd.Series]] = None) -> None:
         self.price_df = price_df
         self.csi300_ret = csi300_ret
         self.index_rets = index_rets or {}
@@ -497,7 +497,7 @@ class HedgeRebalanceBacktest:
         self.multi_betas, self.total_beta = compute_multi_index_beta_weights()
 
     @staticmethod
-    def _compute_turnover(prev_pos: Dict[str, int], pos: Dict[str, int], px: Dict[str, float]) -> float:
+    def _compute_turnover(prev_pos: dict[str, int], pos: dict[str, int], px: dict[str, float]) -> float:
         if prev_pos is None:
             return 0.0
         turnover = 0.0
@@ -1137,7 +1137,7 @@ class HedgeRebalanceBacktest:
             return float(v) if pd.notna(v) and v > 0 else 0.0
         return 0.0
 
-    def _rets(self, eq: List[float]) -> List[float]:
+    def _rets(self, eq: list[float]) -> list[float]:
         rets = [0.0]
         for i in range(1, len(eq)):
             rets.append((eq[i] - eq[i-1]) / max(1, eq[i-1]) if eq[i-1] > 0 else 0)
@@ -1370,7 +1370,7 @@ def save_report(report: str, output_dir: Optional[str] = None) -> str:
     return fpath
 
 
-def run_backtest(start: str = START_DATE, end: str = END_DATE, output_dir: Optional[str] = None, force_dl: bool = False) -> Tuple[MultiStrategyResult, str]:
+def run_backtest(start: str = START_DATE, end: str = END_DATE, output_dir: Optional[str] = None, force_dl: bool = False) -> tuple[MultiStrategyResult, str]:
     import time
     t0 = time.time()
 

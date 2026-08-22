@@ -15,7 +15,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 logger = logging.getLogger('hedge_engine')
 
@@ -114,15 +114,15 @@ class PortfolioRisk:
     var_95_daily: float = 0.0
     cvar_95_daily: float = 0.0
     max_drawdown_current: float = 0.0
-    correlation_matrix: Dict[str, float] = field(default_factory=dict)
+    correlation_matrix: dict[str, float] = field(default_factory=dict)
     concentration_risk: float = 0.0
     # v5.10 P0-6/P0-7: 集中度和相关性增强
-    sector_weights: Dict[str, float] = field(default_factory=dict)
+    sector_weights: dict[str, float] = field(default_factory=dict)
     max_sector_weight: float = 0.0
     sector_concentration_warning: str = ""
     avg_pairwise_correlation: float = 0.0
     correlation_warning: str = ""
-    mrc_warnings: List[str] = field(default_factory=list)
+    mrc_warnings: list[str] = field(default_factory=list)
     max_single_mrc: float = 0.0
 
 
@@ -133,14 +133,14 @@ class HedgeRecommendation:
     strength: HedgeSignalStrength = HedgeSignalStrength.NO_HEDGE
     urgency_score: float = 0.0
 
-    futures_instruments: List[str] = field(default_factory=list)
-    futures_contracts: Dict[str, int] = field(default_factory=dict)
-    futures_notional: Dict[str, float] = field(default_factory=dict)
-    futures_margin: Dict[str, float] = field(default_factory=dict)
+    futures_instruments: list[str] = field(default_factory=list)
+    futures_contracts: dict[str, int] = field(default_factory=dict)
+    futures_notional: dict[str, float] = field(default_factory=dict)
+    futures_margin: dict[str, float] = field(default_factory=dict)
 
-    options_instruments: List[str] = field(default_factory=list)
+    options_instruments: list[str] = field(default_factory=list)
     options_strategy: str = ""
-    options_contracts: List[Dict] = field(default_factory=list)
+    options_contracts: list[dict] = field(default_factory=list)
     options_cost: float = 0.0
     options_max_loss: float = 0.0
 
@@ -150,12 +150,12 @@ class HedgeRecommendation:
     expected_drawdown_reduce: float = 0.0
 
     reasoning: str = ""
-    risk_signals: Dict[str, Any] = field(default_factory=dict)
+    risk_signals: dict[str, Any] = field(default_factory=dict)
     timestamp: str = ""
-    stress_tests: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # v5.10 P0-8
-    sector_warnings: List[str] = field(default_factory=list)  # v5.10 P0-6
+    stress_tests: dict[str, dict[str, Any]] = field(default_factory=dict)  # v5.10 P0-8
+    sector_warnings: list[str] = field(default_factory=list)  # v5.10 P0-6
     correlation_warning: str = ""  # v5.10 P0-7
-    mrc_warnings: List[str] = field(default_factory=list)  # v5.10 P0-6
+    mrc_warnings: list[str] = field(default_factory=list)  # v5.10 P0-6
 
 
 # ── 默认期货价格回退表 ──
@@ -195,7 +195,7 @@ COST_BENEFIT_THRESHOLD = 1.5   # 预期对冲收益必须 > 对冲成本 * 1.5 �
 # 期货价格获取（多源回退）
 # ============================================================
 
-def fetch_futures_prices_from_wind() -> Dict[str, float]:
+def fetch_futures_prices_from_wind() -> dict[str, float]:
     """P0: Wind MCP → 股指期货价格 (analytics_data NL查询 + index_data 回退)"""
     results = {}
     try:
@@ -229,7 +229,7 @@ def fetch_futures_prices_from_wind() -> Dict[str, float]:
     return results
 
 
-def fetch_futures_prices_from_sina() -> Dict[str, float]:
+def fetch_futures_prices_from_sina() -> dict[str, float]:
     import re
     import urllib.request
     sina_codes = {"IF": "nf_IF0", "IC": "nf_IC0", "IM": "nf_IM0", "IH": "nf_IH0"}
@@ -252,7 +252,7 @@ def fetch_futures_prices_from_sina() -> Dict[str, float]:
     return results
 
 
-def fetch_futures_prices_from_akshare() -> Dict[str, float]:
+def fetch_futures_prices_from_akshare() -> dict[str, float]:
     results = {}
     try:
         import akshare as ak
@@ -272,7 +272,7 @@ def fetch_futures_prices_from_akshare() -> Dict[str, float]:
     return results
 
 
-def fetch_futures_prices_from_efinance() -> Dict[str, float]:
+def fetch_futures_prices_from_efinance() -> dict[str, float]:
     results = {}
     try:
         import efinance as ef
@@ -295,7 +295,7 @@ def fetch_futures_prices_from_efinance() -> Dict[str, float]:
     return results
 
 
-def get_live_futures_prices(force_refresh: bool = False) -> Dict[str, float]:
+def get_live_futures_prices(force_refresh: bool = False) -> dict[str, float]:
     # v5.10: Wind MCP (P0) → AKShare (P1) → Sina (P2) → efinance (P3) → 默认回退 (P4)
     prices = {}
     source_used = "none"
@@ -365,16 +365,16 @@ class HedgeEngine:
 
     def __init__(self, portfolio_value: float = 1_000_000):
         self.portfolio_value = portfolio_value
-        self._price_cache: Dict[str, float] = {}
-        self._beta_cache: Dict[str, float] = {}
+        self._price_cache: dict[str, float] = {}
+        self._beta_cache: dict[str, float] = {}
 
     # ── 风险评估 ──
 
     def assess_portfolio_risk(
         self,
-        positions: Dict[str, Dict[str, Any]],
-        prices: Dict[str, float],
-        historical_returns: Dict[str, List[float]] = None,
+        positions: dict[str, dict[str, Any]],
+        prices: dict[str, float],
+        historical_returns: dict[str, list[float]] = None,
         cash: float = 0.0,
     ) -> PortfolioRisk:
         """评估组合风险 v5.10 — 协方差矩阵VaR修复 (P0-5)
@@ -471,7 +471,7 @@ class HedgeEngine:
         risk.concentration_risk = hhi
 
         # P0-6: 板块集中度 (排除固收/国债ETF)
-        sector_values: Dict[str, float] = {}
+        sector_values: dict[str, float] = {}
         stock_only_weight = 0.0
         for code, w in stock_weights.items():
             pure = code.split('.')[0] if '.' in code else code
@@ -562,7 +562,7 @@ class HedgeEngine:
     MRC_LIMIT = 0.25     # 单标的边际风险贡献上限25%
     CORRELATION_WARN = 0.70  # 平均相关性 > 0.7 触发预警 (P0-7)
 
-    def _compute_weighted_beta(self, weights: Dict[str, float], index: str) -> float:
+    def _compute_weighted_beta(self, weights: dict[str, float], index: str) -> float:
         idx_map = {"CSI300": 0, "CSI500": 1, "CSI1000": 2, "SSE50": 3}
         idx = idx_map.get(index, 0)
 
@@ -609,9 +609,9 @@ class HedgeEngine:
 
     def run_historical_stress_tests(
         self,
-        positions: Dict[str, Dict[str, Any]],
-        prices: Dict[str, float],
-    ) -> Dict[str, Dict[str, Any]]:
+        positions: dict[str, dict[str, Any]],
+        prices: dict[str, float],
+    ) -> dict[str, dict[str, Any]]:
         """v5.10 P0-8修复: 6个历史极端情景压力测试
 
         返回每个情景下的:
@@ -700,9 +700,9 @@ class HedgeEngine:
 
     def _compute_portfolio_vol_cov(
         self,
-        weights: Dict[str, float],
-        historical_returns: Dict[str, List[float]],
-        codes: List[str],
+        weights: dict[str, float],
+        historical_returns: dict[str, list[float]],
+        codes: list[str],
     ) -> float:
         """v5.10 协方差矩阵组合波动率 (P0-5修复核心)
 
@@ -766,9 +766,9 @@ class HedgeEngine:
 
     def _compute_expected_shortfall(
         self,
-        weights: Dict[str, float],
-        historical_returns: Dict[str, List[float]],
-        codes: List[str],
+        weights: dict[str, float],
+        historical_returns: dict[str, list[float]],
+        codes: list[str],
         total_value: float,
         confidence: float = 0.95,
     ) -> float:
@@ -811,11 +811,11 @@ class HedgeEngine:
 
     def _compute_mrc(
         self,
-        weights: Dict[str, float],
-        historical_returns: Dict[str, List[float]],
-        codes: List[str],
+        weights: dict[str, float],
+        historical_returns: dict[str, list[float]],
+        codes: list[str],
         portfolio_vol: float,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """v5.10 P0-6: 计算每个标的的边际风险贡献
 
         MRC_i = w_i * (Σw)_i / σ_p
@@ -870,10 +870,10 @@ class HedgeEngine:
     def determine_hedge_signal_strength(
         self,
         risk: PortfolioRisk,
-        market_signals: Dict[str, Any] = None,
+        market_signals: dict[str, Any] = None,
         portfolio_volatility: float = None,
         portfolio_drawdown_60d: float = None,
-    ) -> Tuple[HedgeSignalStrength, float]:
+    ) -> tuple[HedgeSignalStrength, float]:
         """v5.9 五因子模型 — 组合自触发权重提升
 
         因子权重:
@@ -1039,8 +1039,8 @@ class HedgeEngine:
         self,
         risk: PortfolioRisk,
         hedge_ratio: float,
-        futures_prices: Dict[str, float] = None,
-    ) -> Dict[str, Any]:
+        futures_prices: dict[str, float] = None,
+    ) -> dict[str, Any]:
         """v5.9 多指数Beta加权对冲方案
 
         IC/IM/IF按组合Beta比例分配, 不再单一依赖IF。
@@ -1151,8 +1151,8 @@ class HedgeEngine:
 
     def generate_options_hedge(
         self, risk: PortfolioRisk, hedge_ratio: float,
-        options_data: Dict[str, Any] = None, strategy: str = "protective_put",
-    ) -> Dict[str, Any]:
+        options_data: dict[str, Any] = None, strategy: str = "protective_put",
+    ) -> dict[str, Any]:
         if hedge_ratio <= 0:
             return {"contracts": [], "total_cost": 0, "reason": "对冲比率=0"}
 
@@ -1225,11 +1225,11 @@ class HedgeEngine:
         return {"contracts": [], "total_cost": 0, "reason": "未知策略"}
 
     def generate_hedge_plan(
-        self, risk: PortfolioRisk, market_signals: Dict[str, Any] = None,
-        futures_prices: Dict[str, float] = None, prefer_options: bool = False,
+        self, risk: PortfolioRisk, market_signals: dict[str, Any] = None,
+        futures_prices: dict[str, float] = None, prefer_options: bool = False,
         portfolio_volatility: float = None, portfolio_drawdown_60d: float = None,
-        positions: Dict[str, Dict[str, Any]] = None,
-        prices: Dict[str, float] = None,
+        positions: dict[str, dict[str, Any]] = None,
+        prices: dict[str, float] = None,
     ) -> HedgeRecommendation:
         """v5.10 完整对冲方案 — 组合自触发增强 + P0-8压力测试"""
         recommendation = HedgeRecommendation()
@@ -1335,7 +1335,7 @@ class HedgeEngine:
 
         return recommendation
 
-    def _generate_hedge_reason(self, risk: float, hedge_ratio: float, contracts: Dict[str, Any]) -> str:
+    def _generate_hedge_reason(self, risk: float, hedge_ratio: float, contracts: dict[str, Any]) -> str:
         parts = []
         for code, detail in contracts.items():
             spec = detail.get("spec", {})
@@ -1429,7 +1429,7 @@ class HedgeEngine:
 
         return "\n".join(lines)
 
-    def get_hedge_signal_for_fusion(self, portfolio_code: str = "portfolio") -> Dict[str, Any]:
+    def get_hedge_signal_for_fusion(self, portfolio_code: str = "portfolio") -> dict[str, Any]:
         return {
             "code": portfolio_code, "source": "hedge_engine_v59",
             "action": "HOLD", "score": 0.5, "confidence": 0.3,
@@ -1439,10 +1439,10 @@ class HedgeEngine:
 
     def compute_correlation_matrix(
         self,
-        historical_returns: Dict[str, List[float]],
-        codes: List[str],
+        historical_returns: dict[str, list[float]],
+        codes: list[str],
         lookback_days: int = 60,
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """v5.10 计算组合内资产相关性矩阵 (P0-7修复)
 
         返回N×N的相关性矩阵，用于实盘风控链路监控。
@@ -1509,11 +1509,11 @@ class HedgeEngine:
 
     def monitor_daily_correlation(
         self,
-        positions: Dict[str, Dict[str, Any]],
-        historical_returns: Dict[str, List[float]],
+        positions: dict[str, dict[str, Any]],
+        historical_returns: dict[str, list[float]],
         alert_threshold: float = 0.7,
         lookback_days: int = 60,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """v5.10 每日相关性监控 (P0-7修复核心)
 
         监控组合内资产间的相关性变化，当滚动60日平均相关系数>0.7时触发预警。
@@ -1594,10 +1594,10 @@ class HedgeEngine:
 
     def check_sector_concentration(
         self,
-        positions: Dict[str, Dict[str, Any]],
-        historical_returns: Dict[str, List[float]],
+        positions: dict[str, dict[str, Any]],
+        historical_returns: dict[str, list[float]],
         lookback_days: int = 60,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """v5.10 板块集中度风险检查 (P0-6/P0-7联动)
 
         检查同一板块内标的的相关性是否过高，识别"伪分散化"风险。
@@ -1651,8 +1651,8 @@ def get_hedge_engine(portfolio_value: float = None) -> HedgeEngine:
 
 
 def calculate_portfolio_beta(
-    positions: Dict[str, Dict[str, Any]], prices: Dict[str, float],
-) -> Dict[str, float]:
+    positions: dict[str, dict[str, Any]], prices: dict[str, float],
+) -> dict[str, float]:
     engine = HedgeEngine()
     risk = engine.assess_portfolio_risk(positions, prices)
     return {

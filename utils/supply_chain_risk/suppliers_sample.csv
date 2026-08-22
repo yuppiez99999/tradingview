@@ -1,0 +1,11 @@
+supplier_id,category,data_type,data_quality_score,completeness,accuracy,timeliness,compliance_score
+SUP001,banking,credit_score,97.5,98.0,97.8,96.5,100.0
+SUP002,insurance,risk_control,92.0,93.0,92.5,91.0,100.0
+SUP003,fintech,credit_score,88.5,87.0,89.0,85.0,95.0
+SUP004,fund,risk_control,95.0,96.0,95.5,94.0,100.0
+SUP005,trust,antitrust,85.0,83.0,84.0,82.0,90.0
+SUP006,securities,credit_score,99.0,99.5,99.2,98.0,100.0
+SUP007,new_energy,production,96.0,97.0,96.5,95.0,100.0
+SUP008,futures,contract,94.0,94.5,93.0,92.0,100.0
+SUP009,electricity,consumption,90.0,91.0,90.5,89.0,100.0
+SUP010,banking,risk_control,87.0,86.0,87.5,85.0,92.0

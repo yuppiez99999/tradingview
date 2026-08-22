@@ -20,7 +20,7 @@ r"""
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Optional
 
 from utils.data_types import safe_float
 
@@ -64,7 +64,7 @@ class StopLossMonitor:
         self.critical_threshold = abs(critical_threshold_pct)
         self.trailing_drawdown_pct = abs(trailing_drawdown_pct)
         self.max_single_loss = max_single_loss_rmb
-        self.alerts_history: List[Dict] = []
+        self.alerts_history: list[dict] = []
 
     def check_single(
         self,
@@ -80,7 +80,7 @@ class StopLossMonitor:
         position_weight: float = 0.0,
         risk_level: str = "medium",
         trailing_stop: bool = False,
-    ) -> Dict:
+    ) -> dict:
         """
         检查单只标的止损止盈状态。
 
@@ -209,7 +209,7 @@ class StopLossMonitor:
         self.alerts_history.append({**result, "timestamp": datetime.now().isoformat()})
         return result
 
-    def check_all(self, rules: List[Dict], quotes: Dict[str, Dict]) -> List[Dict]:
+    def check_all(self, rules: list[dict], quotes: dict[str, dict]) -> list[dict]:
         """
         批量检查所有标的。
 
@@ -313,7 +313,7 @@ class StopLossMonitor:
         return min(100, max(0, score))
 
 
-def generate_risk_report(alerts: List[Dict]) -> str:
+def generate_risk_report(alerts: list[dict]) -> str:
     """
     生成格式化的止损止盈预警报告。
 

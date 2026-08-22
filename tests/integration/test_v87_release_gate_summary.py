@@ -23,10 +23,10 @@ sys.path.insert(0, str(_ROOT / "scripts"))
 
 from engineering_debt_gate import (  # noqa: E402
     V87GateSummary,
-    check_v87_release_gate_summary,
     _check_d9_coverage_sprint4_target,
     _check_d10_oversized_file_split,
     _check_d11_phase_b_shadow_stable,
+    check_v87_release_gate_summary,
 )
 
 

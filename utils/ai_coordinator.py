@@ -15,7 +15,7 @@ import os
 import sqlite3
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 try:
     from .logging_manager import get_logger
@@ -297,7 +297,7 @@ class AICoordinator:
             self._token_used_today = 0
             self._today = today
 
-    def can_proceed(self, estimated_tokens: int = 1000) -> Tuple[bool, str]:
+    def can_proceed(self, estimated_tokens: int = 1000) -> tuple[bool, str]:
         """检查是否可以继续调用AI（预算内）"""
         self._refresh_daily_budget()
         after = self._token_used_today + estimated_tokens
@@ -365,7 +365,7 @@ class AICoordinator:
         model_used: str = "",
         tokens: int = 0,
         task_type: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """记录 AI 决策 + 代码影响半径 (W.A.2 code-graph-rag 接入)
 
         当 change_path 非空时, 调用 CodeGraphRAG.impact_analysis 计算影响半径,
@@ -374,7 +374,7 @@ class AICoordinator:
         Returns:
             {"impact_radius": int, "impacted_files": list} 或空字典 (无 change_path / 失败)
         """
-        impact_info: Dict[str, Any] = {}
+        impact_info: dict[str, Any] = {}
         enriched_reasoning = reasoning
 
         if change_path:
@@ -411,8 +411,8 @@ class AICoordinator:
 
     # ── 冲突检测 ──
 
-    def resolve_conflicts(self, decisions_by_source: Dict[str, Dict[str, str]]
-                          ) -> Dict[str, Dict[str, Any]]:
+    def resolve_conflicts(self, decisions_by_source: dict[str, dict[str, str]]
+                          ) -> dict[str, dict[str, Any]]:
         """检测并解决多AI系统对同一标的的矛盾信号。
 
         Args:
@@ -437,8 +437,8 @@ class AICoordinator:
             return self._resolve_conflicts_via_plugins(decisions_by_source)
         return self._resolve_conflicts_legacy(decisions_by_source)
 
-    def _resolve_conflicts_legacy(self, decisions_by_source: Dict[str, Dict[str, str]]
-                                  ) -> Dict[str, Dict[str, Any]]:
+    def _resolve_conflicts_legacy(self, decisions_by_source: dict[str, dict[str, str]]
+                                  ) -> dict[str, dict[str, Any]]:
         """旧路径冲突检测 — 原多数投票 (保留向后兼容)"""
         # 收集所有标的
         all_tickers = set()
@@ -482,8 +482,8 @@ class AICoordinator:
 
         return resolved
 
-    def _resolve_conflicts_via_plugins(self, decisions_by_source: Dict[str, Dict[str, str]]
-                                       ) -> Dict[str, Dict[str, Any]]:
+    def _resolve_conflicts_via_plugins(self, decisions_by_source: dict[str, dict[str, str]]
+                                       ) -> dict[str, dict[str, Any]]:
         """插件路径冲突检测 — 委托 PluginRegistry.resolve_conflict
 
         含 shadow 比对: 同时跑旧路径, 比较结果一致性, 不一致时记日志.
@@ -513,7 +513,7 @@ class AICoordinator:
 
     # ── 统计与查询 ──
 
-    def get_daily_usage(self, date: str = None) -> Dict[str, Any]:
+    def get_daily_usage(self, date: str = None) -> dict[str, Any]:
         """获取指定日期的Token使用统计"""
         date = date or datetime.now().strftime('%Y-%m-%d')
         conn = sqlite3.connect(self.db_path)
@@ -554,7 +554,7 @@ class AICoordinator:
         }
 
     def get_decision_history(self, ticker: str = None, source: str = None,
-                              days: int = 7) -> List[Dict[str, Any]]:
+                              days: int = 7) -> list[dict[str, Any]]:
         """查询AI决策历史"""
         since = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
         conn = sqlite3.connect(self.db_path)
@@ -587,7 +587,7 @@ class AICoordinator:
             for r in rows
         ]
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取协调器统计"""
         self._refresh_daily_budget()
         daily = self.get_daily_usage()
@@ -616,7 +616,7 @@ class AICoordinator:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.debug(f"记录AI决策准确率失败: {e}")
 
-    def get_source_accuracy(self, days: int = 30) -> Dict[str, Any]:
+    def get_source_accuracy(self, days: int = 30) -> dict[str, Any]:
         """统计各AI信号源的近期准确率（有验证数据的）。
 
         Returns:

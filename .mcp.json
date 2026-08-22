@@ -13,6 +13,11 @@
       ],
       "cwd": "E:\\\u5404\u79cdPY\u7a0b\u5e8f\\28-\u7ec8\u6781\u91cf\u5316\u4ea4\u6613\u7cfb\u7edf8.4",
       "type": "stdio"
+    },
+    "duckduckgo": {
+      "command": "npx",
+      "args": ["-y", "duckduckgo-mcp"],
+      "type": "stdio"
     }
   }
 }

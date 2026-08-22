@@ -1,14 +1,13 @@
 import json
 import math
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
-from typing_extensions import Literal
 
 from quant_modules.ai_hedge_fund.data_adapter import (
     get_company_news,

@@ -9,7 +9,6 @@
 import json
 import sys
 from datetime import datetime
-from typing import Dict, List
 
 # 统一成本模型（与 annualized_return_forecast.py 共用，消除 0.45% vs 2.8% 矛盾）
 from utils.cost_model import get_cost_model
@@ -25,7 +24,7 @@ class PortfolioProjection:
         self.hedge_data = self._load_json(hedge_file)
         self.projection = {}
 
-    def _load_json(self, path: str) -> Dict:
+    def _load_json(self, path: str) -> dict:
         try:
             with open(path, encoding='utf-8') as f:
                 return json.load(f)
@@ -34,7 +33,7 @@ class PortfolioProjection:
             print(f"加载文件失败: {path}, {e}")
             return {}
 
-    def analyze_portfolio(self) -> Dict:
+    def analyze_portfolio(self) -> dict:
         """分析组合结构"""
         positions = self.positions_data.get('positions', {})
 
@@ -67,7 +66,7 @@ class PortfolioProjection:
             'avg_stop_loss': round(sum(p.get('stop_loss', 0) for p in positions.values()) / len(positions), 3)
         }
 
-    def calculate_expected_returns(self) -> Dict:
+    def calculate_expected_returns(self) -> dict:
         """计算各风格预期年化收益率"""
         style_returns = {
             '科技': {'base_return': 0.18, 'volatility': 0.35, 'beta': 1.4},
@@ -108,7 +107,7 @@ class PortfolioProjection:
             'style_weights': style_weights
         }
 
-    def project_5_year_performance(self) -> Dict:
+    def project_5_year_performance(self) -> dict:
         """5年业绩预测"""
         returns = self.calculate_expected_returns()
         self.analyze_portfolio()
@@ -165,7 +164,7 @@ class PortfolioProjection:
             }
         }
 
-    def identify_black_swan_risk(self) -> List[Dict]:
+    def identify_black_swan_risk(self) -> list[dict]:
         """识别黑天鹅风险"""
         portfolio_analysis = self.analyze_portfolio()
         style_weights = portfolio_analysis['style_weights']
@@ -272,7 +271,7 @@ class PortfolioProjection:
 
         return risks
 
-    def generate_comprehensive_report(self) -> Dict:
+    def generate_comprehensive_report(self) -> dict:
         """生成综合预测报告"""
         portfolio_analysis = self.analyze_portfolio()
         expected_returns = self.calculate_expected_returns()
@@ -296,7 +295,7 @@ class PortfolioProjection:
 
         return report
 
-    def _generate_strategic_recommendations(self, five_year: Dict, black_swans: List[Dict]) -> List[str]:
+    def _generate_strategic_recommendations(self, five_year: dict, black_swans: list[dict]) -> list[str]:
         """生成战略建议"""
         recommendations = []
 
@@ -317,7 +316,7 @@ class PortfolioProjection:
 
         return recommendations
 
-    def _generate_scenario_analysis(self, five_year: Dict, black_swans: List[Dict]) -> Dict:
+    def _generate_scenario_analysis(self, five_year: dict, black_swans: list[dict]) -> dict:
         """生成情景分析"""
         base_case = {
             'description': '基准情景：经济平稳增长，政策稳定',
@@ -359,7 +358,7 @@ class PortfolioProjection:
         }
 
 
-def print_report(report: Dict):
+def print_report(report: dict):
     """打印报告"""
     print("=" * 70)
     print("5年投资组合预测分析报告")
@@ -427,14 +426,14 @@ def print_report(report: Dict):
     print("=" * 70)
 
 
-def save_report(report: Dict, output_path: str):
+def save_report(report: dict, output_path: str):
     """保存报告"""
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
     print(f"报告已保存: {output_path}")
 
 
-def generate_markdown_report(report: Dict) -> str:
+def generate_markdown_report(report: dict) -> str:
     er = report['expected_returns']
     fy = report['five_year_projection']
     sa = report['scenario_analysis']

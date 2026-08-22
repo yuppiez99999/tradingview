@@ -38,7 +38,7 @@ import logging
 import math
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -74,7 +74,7 @@ class InsufficientDataError(ABTestError):
 # ============================================================
 # 测试状态枚举
 # ============================================================
-class ABTestStatus(str, Enum):
+class ABTestStatus(StrEnum):
     """A/B 测试生命周期."""
 
     CREATED = "created"  # 已创建, 未启动
@@ -85,7 +85,7 @@ class ABTestStatus(str, Enum):
     ROLLED_BACK = "rolled_back"  # 已回滚到 champion
 
 
-class SplitStrategy(str, Enum):
+class SplitStrategy(StrEnum):
     """流量分割策略."""
 
     HASH_SYMBOL = "hash_symbol"  # 基于 symbol hash 分桶 (推荐, 确保可重现)

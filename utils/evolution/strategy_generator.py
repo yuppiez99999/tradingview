@@ -54,7 +54,7 @@ import logging
 import random
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -586,7 +586,7 @@ class StrategyGenerator:
                 style=template.style,
                 factor_weights=dict(factor_weights),
                 params=params,
-                created_at=datetime.now(timezone.utc).isoformat() + "Z",
+                created_at=datetime.now(UTC).isoformat() + "Z",
                 source="memory_evolution" if memory_params else "template",
                 generation=0,
                 status="pending",
@@ -955,7 +955,7 @@ class StrategyGenerator:
             errors.append(f"生成失败: {e}")
             return GenerationReport(
                 run_id=run_id,
-                timestamp=datetime.now(timezone.utc).isoformat() + "Z",
+                timestamp=datetime.now(UTC).isoformat() + "Z",
                 n_templates_used=len(self._templates),
                 n_generated=0,
                 n_validated=0,
@@ -968,7 +968,7 @@ class StrategyGenerator:
             errors.append("无策略生成")
             return GenerationReport(
                 run_id=run_id,
-                timestamp=datetime.now(timezone.utc).isoformat() + "Z",
+                timestamp=datetime.now(UTC).isoformat() + "Z",
                 n_templates_used=len(self._templates),
                 n_generated=0,
                 n_validated=0,
@@ -1000,7 +1000,7 @@ class StrategyGenerator:
 
         return GenerationReport(
             run_id=run_id,
-            timestamp=datetime.now(timezone.utc).isoformat() + "Z",
+            timestamp=datetime.now(UTC).isoformat() + "Z",
             n_templates_used=len(self._templates),
             n_generated=len(instances),
             n_validated=len(validated),

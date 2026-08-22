@@ -85,87 +85,99 @@ $tasks = @(
     },
     @{
         Name = "v84_PostMarket"
-        StartTime = "15:30"
+        StartTime = "17:00"
         Script = "15_每日工作流\run_daily_eod_workflow.py"
         Args = ""
         Timeout = "PT2H"
-        Desc = "盘后工作流（含EOD四Guard风控链：保证金熔断→回撤→波动率→对冲→认沽保护）15:30"
+        Desc = "盘后工作流（含EOD四Guard风控链：保证金熔断→回撤→波动率→对冲→认沽保护）17:00 (2026-08-21 后移: Wind MCP 历史数据 ~16:30 更新)"
         RepetitionInterval = $null
         RepetitionDuration = $null
     },
     @{
         Name = "v84_PostMarketExecute"
-        StartTime = "15:35"
+        StartTime = "17:05"
         Script = "daily_trade_executor.py"
         Args = "post-market"
         Timeout = "PT30M"
-        Desc = "盘后执行已确认指令 15:35"
+        Desc = "盘后执行已确认指令 17:05"
         RepetitionInterval = $null
         RepetitionDuration = $null
     },
     @{
         Name = "v84_DailyPnlReport"
-        StartTime = "16:00"
+        StartTime = "17:30"
         Script = "generate_daily_report.py"
         Args = ""
         Timeout = "PT30M"
-        Desc = "收盘PnL报告自动生成 16:00"
+        Desc = "收盘PnL报告自动生成 17:30"
         RepetitionInterval = $null
         RepetitionDuration = $null
     },
     @{
         Name = "v84_EvolutionEval"
-        StartTime = "16:05"
+        StartTime = "17:35"
         Script = "scripts\run_evolution_eval.py"
         Args = ""
         Timeout = "PT30M"
-        Desc = "策略进化评估 16:05"
+        Desc = "策略进化评估 17:35"
         RepetitionInterval = $null
         RepetitionDuration = $null
     },
     @{
         Name = "v84_ObservationBriefing"
-        StartTime = "16:10"
+        StartTime = "17:40"
         Script = "scripts\observation_daily_briefing.py"
         Args = ""
         Timeout = "PT15M"
-        Desc = "观察简报 16:10"
+        Desc = "观察简报 17:40"
         RepetitionInterval = $null
         RepetitionDuration = $null
     },
     @{
         # 2026-07-30 新增: 修复 shadow_admission_launcher.py daily 无自动触发机制的链路缺口
         # (daily_workflow.py shadow_monitor 只写 daily_returns.jsonl, 不调用 daily)
-        # 与 v84_PostMarket(15:30) 错开 45 分钟, 确保 daily_returns.jsonl 已写完
+        # 与 v84_PostMarket(17:00) 错开 45 分钟, 确保 daily_returns.jsonl 已写完
         Name = "v84_ShadowAdmissionDaily"
-        StartTime = "16:15"
+        StartTime = "17:45"
         Script = "scripts\shadow_admission_launcher.py"
         Args = "daily"
         Timeout = "PT15M"
-        Desc = "观察期每日 DSR 报告生成+fail-fast 风控检查 16:15 (shadow_admission_launcher daily)"
+        Desc = "观察期每日 DSR 报告生成+fail-fast 风控检查 17:45 (shadow_admission_launcher daily)"
+        RepetitionInterval = $null
+        RepetitionDuration = $null
+    },
+    @{
+        # 2026-08-21 新增: Phase B 每日健康检查 + consecutive_stable_days 累积
+        # 在 DSR(17:45) 之后运行, 确保 daily_returns.jsonl 已更新
+        Name = "v84_PhaseBAuto"
+        StartTime = "17:50"
+        Script = "scripts\phase_b_progressive_enabler.py"
+        Args = "--auto"
+        Timeout = "PT10M"
+        Desc = "Phase B 每日自动调度 (健康检查+stable_days 累积+阶段推进) 17:50"
         RepetitionInterval = $null
         RepetitionDuration = $null
     },
     @{
         Name = "v84_UniverseScan"
-        StartTime = "16:30"
+        StartTime = "08:30"
         Script = "research\run_universe_scan.py"
         Args = "--pool hs300_zz500"
         Timeout = "PT1H"
-        Desc = "标的池扫描 16:30"
+        Desc = "标的池扫描 08:30 (2026-08-21 从盘后移至盘前, 避开 EOD 后移时段)"
         RepetitionInterval = $null
         RepetitionDuration = $null
     },
     @{
         # 2026-07-30 新增: Shadow Admission Watchdog 反馈机制
-        # 检测 v84_ShadowAdmissionDaily (16:15) 是否成功生成 DSR, 未生成则补跑+告警
+        # 检测 v84_ShadowAdmissionDaily (17:45) 是否成功生成 DSR, 未生成则补跑+告警
         # 与主任务错开 45 分钟, 确保 DSR 已写完或主任务已超时
         Name = "v84_ShadowAdmissionWatchdog"
-        StartTime = "17:00"
+        StartTime = "18:30"
         Script = "scripts\shadow_admission_watchdog.py"
         Args = ""
         Timeout = "PT5M"
-        Desc = "Shadow 准入 DSR 自愈 watchdog (检测+补跑+告警) 17:00"
+        Desc = "Shadow 准入 DSR 自愈 watchdog (检测+补跑+告警) 18:30"
         RepetitionInterval = $null
         RepetitionDuration = $null
     }

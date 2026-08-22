@@ -16,7 +16,6 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -328,7 +327,7 @@ def compute_historical_stats(prices: pd.Series, window: int = 252) -> dict:
     }
 
 
-def load_ml_signals() -> Dict[str, float]:
+def load_ml_signals() -> dict[str, float]:
     """加载最新 ML 模型预测信号"""
     report_dir = os.path.join(os.path.dirname(__file__), "reports")
     if os.path.exists(report_dir):

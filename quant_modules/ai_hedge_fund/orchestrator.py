@@ -35,6 +35,7 @@ from quant_modules.ai_hedge_fund.agents.risk_manager import risk_management_agen
 from quant_modules.ai_hedge_fund.data_adapter import clear_cache
 from quant_modules.ai_hedge_fund.debate_layer import debate_node  # Wave 6 W6.2.1 多空辩论层
 from quant_modules.ai_hedge_fund.graph.state import AgentState
+from quant_modules.ai_hedge_fund.risk_debate_layer import risk_debate_node  # v8.6+ 3方风控辩论
 from quant_modules.ai_hedge_fund.utils.analysts import (
     get_agents_list,
     get_analyst_nodes,
@@ -96,9 +97,16 @@ def create_workflow(selected_analysts: list[str] = None):
             # 分析师 → 辩论层 (Wave 6: 原来直接连 risk_management, 现在中间插入 debate_layer)
             workflow.add_edge(node_name, "debate_layer")
 
-    # 辩论层 → 风控 → 组合管理
+    # 辩论层 → 风控 → [风控辩论] → 组合管理
     workflow.add_edge("debate_layer", "risk_management_agent")
-    workflow.add_edge("risk_management_agent", "portfolio_manager")
+
+    _risk_debate_disabled = os.environ.get("AI_HEDGE_RISK_DEBATE_DISABLED", "").lower() in ("1", "true", "yes")
+    if not _risk_debate_disabled:
+        workflow.add_node("risk_debate", risk_debate_node)
+        workflow.add_edge("risk_management_agent", "risk_debate")
+        workflow.add_edge("risk_debate", "portfolio_manager")
+    else:
+        workflow.add_edge("risk_management_agent", "portfolio_manager")
 
     if hedge_node_name:
         # 对冲分析师: 同时接收 分析师信号 + portfolio_manager 输出
@@ -144,6 +152,8 @@ def run_ai_hedge_fund(
     model_provider: str = None,
     initial_cash: float = 100_000.0,
     margin_requirement: float = 0.0,
+    checkpoint_enabled: bool = False,
+    checkpoint_dir: str | None = None,
 ) -> dict:
     """
     运行 AI Hedge Fund 分析
@@ -213,12 +223,46 @@ def run_ai_hedge_fund(
 
     try:
         workflow = create_workflow(selected_analysts)
-        agent = workflow.compile()
+
+        # ── checkpoint: 崩溃恢复 (v8.6+ 融合 TradingAgents) ──
+        _checkpointer = None
+        _invoke_config = None
+        if checkpoint_enabled:
+            try:
+                from quant_modules.ai_hedge_fund.graph import get_checkpointer, thread_id
+                _cp_dir = checkpoint_dir or os.path.join(os.path.expanduser("~"), ".ai_hedge_fund")
+                _portfolio_key = "portfolio_" + "_".join(tickers[:3])
+                _tid = thread_id(_portfolio_key, end_date or datetime.now().strftime("%Y-%m-%d"))
+                _checkpointer_ctx = get_checkpointer(_cp_dir, _portfolio_key)
+                _checkpointer = _checkpointer_ctx.__enter__()
+                _invoke_config = {"configurable": {"thread_id": _tid}}
+                logger.info(f"checkpoint 已启用: dir={_cp_dir}, thread_id={_tid}")
+            except Exception as _e:
+                logger.warning(f"checkpoint 启用失败, 回退无 checkpoint 模式: {_e}")
+                _checkpointer = None
+                _invoke_config = None
+
+        agent = workflow.compile(checkpointer=_checkpointer) if _checkpointer else workflow.compile()
 
         # W.B.2 团队级共享记忆: 注入历史教训到 state (feature-flag 控制)
         historical_lessons = _build_historical_lessons_block(tickers)
 
         final_state = agent.invoke({
+            "messages": [HumanMessage(content="Make trading decisions based on the provided data.")],
+            "data": {
+                "tickers": tickers,
+                "portfolio": portfolio,
+                "start_date": start_date,
+                "end_date": end_date,
+                "analyst_signals": {},
+                "historical_lessons": historical_lessons,
+            },
+            "metadata": {
+                "show_reasoning": show_reasoning,
+                "model_name": model_name or default_model,
+                "model_provider": model_provider or default_provider,
+            },
+        }, config=_invoke_config) if _invoke_config else agent.invoke({
             "messages": [HumanMessage(content="Make trading decisions based on the provided data.")],
             "data": {
                 "tickers": tickers,
@@ -241,6 +285,22 @@ def run_ai_hedge_fund(
         # 提取对冲分析师信号
         hedge_signal = signals.get("hedge_analyst_agent", {})
 
+        # ── 决策日志 (v8.6+ 融合 TradingAgents TradingMemoryLog) ──
+        try:
+            from quant_modules.ai_hedge_fund.utils.trading_memory import TradingMemoryLog
+            _log_path = os.environ.get("AI_HEDGE_MEMORY_LOG_PATH") or os.path.join(
+                os.path.expanduser("~"), ".ai_hedge_fund", "memory", "trading_memory.md"
+            )
+            _mem = TradingMemoryLog({"memory_log_path": _log_path})
+            _trade_date = end_date or datetime.now().strftime("%Y-%m-%d")
+            for _tk in tickers:
+                _dec = decisions.get(_tk) if decisions else None
+                if _dec:
+                    _dec_text = json.dumps(_dec, ensure_ascii=False) if isinstance(_dec, dict) else str(_dec)
+                    _mem.store_decision(_tk, _trade_date, _dec_text)
+        except Exception as _e:
+            logger.debug("决策日志记录失败: %s", _e)
+
         return {
             'success': True,
             'decisions': decisions or {},
@@ -258,6 +318,13 @@ def run_ai_hedge_fund(
             'decisions': {},
             'analyst_signals': {},
         }
+    finally:
+        _ctx = locals().get('_checkpointer_ctx')
+        if _ctx is not None:
+            try:
+                _ctx.__exit__(None, None, None)
+            except Exception:
+                pass
 
 
 def get_available_analysts() -> list[dict]:

@@ -44,11 +44,12 @@ import logging
 import sys
 import threading
 from collections import OrderedDict
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Optional
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -1315,6 +1316,13 @@ class ShadowRealDataFeeder:
                 bytes_estimate=self._cache_stats.bytes_estimate,
             )
 
+    @staticmethod
+    def _idx_date_str(idx: Any) -> str:
+        """将 df 索引转为 YYYY-MM-DD 字符串 (兼容 datetime/date/str)."""
+        if hasattr(idx, "strftime"):
+            return idx.strftime(DATE_FMT)
+        return str(idx)[:10]
+
     def _fetch_symbol_prices(
         self,
         symbol: str,
@@ -1348,11 +1356,7 @@ class ShadowRealDataFeeder:
         prev_close: Optional[float] = None
 
         for idx, row in df.iterrows():
-            # 提取日期字符串 (兼容 datetime/date/str index)
-            if hasattr(idx, "strftime"):
-                idx_str = idx.strftime(DATE_FMT)
-            else:
-                idx_str = str(idx)[:10]
+            idx_str = self._idx_date_str(idx)
 
             # 精确匹配目标日
             if idx_str == date:
@@ -1368,16 +1372,17 @@ class ShadowRealDataFeeder:
                 except (ValueError, TypeError, KeyError):
                     pass
 
-        # 精确匹配失败的回退: 取 df 末尾两个值 (假设是最新交易日)
+        # 精确匹配失败的回退: 仅当 df 末行日期等于目标日时才回退 (避免数据未更新导致 ret=0)
         if target_close is None:
             try:
-                target_close = float(df["close"].iloc[-1])
+                if self._idx_date_str(df.index[-1]) == date:
+                    target_close = float(df["close"].iloc[-1])
             except (ValueError, TypeError, KeyError, IndexError):
                 pass
 
         if prev_close is None:
             try:
-                if len(df) >= 2:
+                if len(df) >= 2 and self._idx_date_str(df.index[-2]) < date:
                     prev_close = float(df["close"].iloc[-2])
             except (ValueError, TypeError, KeyError, IndexError):
                 pass

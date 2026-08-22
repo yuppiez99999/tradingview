@@ -1,8 +1,8 @@
 import json
 import os
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any
 
 from langchain_ollama import ChatOllama
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
@@ -59,7 +59,7 @@ def _get_gigachat() -> Any:
     return _GigaChat
 
 
-class ModelProvider(str, Enum):
+class ModelProvider(StrEnum):
     """Enum for supported LLM providers"""
 
     ALIBABA = "Alibaba"
@@ -76,6 +76,8 @@ class ModelProvider(str, Enum):
     GIGACHAT = "GigaChat"
     AZURE_OPENAI = "Azure OpenAI"
     XAI = "xAI"
+    BEDROCK = "Bedrock"
+    OPENAI_COMPATIBLE = "OpenAI-Compatible"
 
 
 class LLMModel(BaseModel):
@@ -85,7 +87,7 @@ class LLMModel(BaseModel):
     model_name: str
     provider: ModelProvider
 
-    def to_choice_tuple(self) -> Tuple[str, str, str]:
+    def to_choice_tuple(self) -> tuple[str, str, str]:
         """Convert to format needed for questionary choices"""
         return (self.display_name, self.model_name, self.provider.value)
 
@@ -123,7 +125,7 @@ class LLMModel(BaseModel):
 
 
 # Load models from JSON file
-def load_models_from_json(json_path: str) -> List[LLMModel]:
+def load_models_from_json(json_path: str) -> list[LLMModel]:
     """Load models from a JSON file"""
     with open(json_path) as f:
         models_data = json.load(f)
@@ -274,6 +276,15 @@ def get_model(model_name: str, model_provider: ModelProvider, api_keys: dict = N
             # Print error to console
             raise ValueError("Azure OpenAI deployment name not found.  Please make sure AZURE_OPENAI_DEPLOYMENT_NAME is set in your .env file.")
         return AzureChatOpenAI(azure_endpoint=azure_endpoint, azure_deployment=azure_deployment_name, api_key=api_key, api_version="2024-10-21")
+    elif model_provider == ModelProvider.BEDROCK:
+        from quant_modules.ai_hedge_fund.llm_clients import create_llm_client
+        client = create_llm_client(provider="bedrock", model=model_name, base_url=None)
+        return client.get_llm()
+    elif model_provider == ModelProvider.OPENAI_COMPATIBLE:
+        from quant_modules.ai_hedge_fund.llm_clients import create_llm_client
+        backend_url = os.getenv("TRADINGAGENTS_LLM_BACKEND_URL") or os.getenv("OPENAI_COMPATIBLE_BASE_URL")
+        client = create_llm_client(provider="openai_compatible", model=model_name, base_url=backend_url)
+        return client.get_llm()
     else:
         raise ValueError(
             f"Unsupported model provider: {model_provider}. "

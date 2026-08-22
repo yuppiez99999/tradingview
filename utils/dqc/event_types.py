@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Optional
 
 logger = logging.getLogger("dqc.event")
@@ -20,7 +20,7 @@ logger = logging.getLogger("dqc.event")
 # ============================================================
 # 严重级别 (4 级, 比 RiskSeverity 多 ERROR 级)
 # ============================================================
-class DQCLevel(str, Enum):
+class DQCLevel(StrEnum):
     """DQC 严重级别 — 4 级.
 
     级别递增:
@@ -58,7 +58,7 @@ class DQCLevel(str, Enum):
 # ============================================================
 # 检查点枚举 (5 个)
 # ============================================================
-class DQCCheckpoint(str, Enum):
+class DQCCheckpoint(StrEnum):
     """DQC 检查点 — 数据流 5 道防线."""
 
     P1_SOURCE = "P1"  # 源头完整性 (数据源 → 缓存)
@@ -71,7 +71,7 @@ class DQCCheckpoint(str, Enum):
 # ============================================================
 # 指标枚举 (六维, 共 30+ 指标)
 # ============================================================
-class DQCMetric(str, Enum):
+class DQCMetric(StrEnum):
     """DQC 指标 ID — 六维分类."""
 
     # 维度 C: 完整性 (Completeness) — P1/P2

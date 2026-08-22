@@ -187,6 +187,17 @@ def main() -> None:
     if args.symbols:
         symbols = [s for s in POSITION_SYMBOLS if s[0] in args.symbols]
 
+    # GitHub 集成钩子: unsloth 本地 LLM 可用时, 记录 GPU 信息供训练决策 (2026-08-21)
+    try:
+        from utils.unsloth_adapter import get_unsloth_adapter, is_unsloth_available
+        if is_unsloth_available():
+            gpu_info = get_unsloth_adapter().get_gpu_info()
+            logger.info(f"unsloth 本地 LLM 可用: {gpu_info}")
+        else:
+            logger.debug("unsloth 不可用, 训练走标准 LightGBM 路径")
+    except (ImportError, RuntimeError, OSError, ValueError) as _e:
+        logger.debug(f"unsloth 钩子跳过: {_e}")
+
     result = run_enhanced_training(
         symbols=symbols,
         force_retrain=args.force_retrain,

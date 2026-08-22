@@ -95,8 +95,9 @@ import logging
 import os
 import sys
 import time
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable, Dict, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -698,7 +699,7 @@ def get_ml_signal_section(external_signals: dict = None, return_raw: bool = Fals
         return None
 
 
-def _get_portfolio_quotes() -> Dict[str, Dict[str, float]]:
+def _get_portfolio_quotes() -> dict[str, dict[str, float]]:
     """加载持仓配置并批量获取行情，返回 {code: {'price': p}}（行情不可用时返回空字典）。"""
     get_quotes_batch = data_provider.get('get_quotes_batch')
     config = load_portfolio_config()

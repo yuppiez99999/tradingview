@@ -123,13 +123,17 @@ def generate_qlib_signals(ctx: WorkflowContext) -> dict[str, float]:
         {symbol: signal_value} 信号值在 [-1, 1] 区间
     """
     try:
-        from alpha.qlib_signal_adapter import (
-            fetch_ifind_ohlcv,
-            generate_signal,
-            is_qlib_available,
-        )
-    except ImportError:
-        logger.warning("Qlib 信号适配器不可用")
+        import importlib.util as _ilu
+        from pathlib import Path as _Path
+        _adapter_path = _Path(__file__).resolve().parents[3] / "ms_strategy" / "src" / "alpha" / "qlib_signal_adapter.py"
+        _spec = _ilu.spec_from_file_location("qlib_signal_adapter", _adapter_path)
+        _mod = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_mod)
+        fetch_ifind_ohlcv = _mod.fetch_ifind_ohlcv
+        generate_signal = _mod.generate_signal
+        is_qlib_available = _mod.is_qlib_available
+    except ImportError as _e:
+        logger.warning("Qlib 信号适配器不可用: %s", _e)
         return {}
 
     if not is_qlib_available():

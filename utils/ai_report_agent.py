@@ -32,7 +32,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from utils.logger import get_logger
 
@@ -79,7 +79,7 @@ class SentimentResult:
     sentiment: str = "neutral"  # positive/negative/neutral
     score: float = 0.0  # [-1, 1]
     summary: str = ""  # AI 摘要
-    keywords: List[str] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
     confidence: float = 0.0  # [0, 1]
 
 
@@ -105,11 +105,11 @@ class DailyReport:
     generated_at: str
     market_overview: str = ""  # 市场总览 (AI 生成)
     portfolio_analysis: str = ""  # 组合分析
-    news_highlights: List[Dict] = field(default_factory=list)  # 重要新闻
+    news_highlights: list[dict] = field(default_factory=list)  # 重要新闻
     sentiment_summary: str = ""  # 情感汇总
-    trade_signals: List[Dict] = field(default_factory=list)  # 交易信号
-    risk_warnings: List[str] = field(default_factory=list)  # 风险提示
-    recommendations: List[str] = field(default_factory=list)  # 建议
+    trade_signals: list[dict] = field(default_factory=list)  # 交易信号
+    risk_warnings: list[str] = field(default_factory=list)  # 风险提示
+    recommendations: list[str] = field(default_factory=list)  # 建议
     model_used: str = "rule_engine"  # llm 名称 / rule_engine
     raw_llm_output: str = ""
 
@@ -194,7 +194,7 @@ class AIReportAgent:
         self.llm_available = _LLM_CLIENT_AVAILABLE
         self.audit_log_dir = audit_log_dir or Path("data/ai_audit_logs")
         self.audit_log_dir.mkdir(parents=True, exist_ok=True)
-        self.audit_records: List[AnalysisRecord] = []
+        self.audit_records: list[AnalysisRecord] = []
 
     # ----------------------------------------------------------
     # LLM 调用封装
@@ -257,7 +257,7 @@ class AIReportAgent:
     # 情感分析
     # ----------------------------------------------------------
 
-    def analyze_news_sentiment(self, news_items: List[Dict], use_llm: bool = True) -> List[SentimentResult]:
+    def analyze_news_sentiment(self, news_items: list[dict], use_llm: bool = True) -> list[SentimentResult]:
         """批量分析新闻情感
 
         Args:
@@ -270,7 +270,7 @@ class AIReportAgent:
         if not news_items:
             return []
 
-        results: List[SentimentResult] = []
+        results: list[SentimentResult] = []
 
         # 批量调用 LLM (合并多条新闻为单次 prompt, 节省成本)
         if use_llm and self.llm_available and len(news_items) <= 10:
@@ -285,7 +285,7 @@ class AIReportAgent:
 
         return results
 
-    def _llm_batch_sentiment(self, news_items: List[Dict]) -> Optional[List[SentimentResult]]:
+    def _llm_batch_sentiment(self, news_items: list[dict]) -> Optional[list[SentimentResult]]:
         """LLM 批量情感分析 (单次调用处理多条新闻)"""
         # 构造批量 prompt
         items_text = []
@@ -342,7 +342,7 @@ class AIReportAgent:
             logger.warning(f"LLM 情感分析 JSON 解析失败: {e}")
             return None
 
-    def _rule_sentiment(self, item: Dict) -> SentimentResult:
+    def _rule_sentiment(self, item: dict) -> SentimentResult:
         """规则引擎情感分析 (关键词匹配)"""
         title = item.get("title", "")
         content = item.get("content", "")
@@ -388,10 +388,10 @@ class AIReportAgent:
 
     def generate_daily_report(
         self,
-        symbols: List[str],
-        positions_data: Optional[Dict] = None,
-        predictions: Optional[List[Dict]] = None,
-        news_items: Optional[List[Dict]] = None,
+        symbols: list[str],
+        positions_data: Optional[dict] = None,
+        predictions: Optional[list[dict]] = None,
+        news_items: Optional[list[dict]] = None,
         report_date: Optional[str] = None,
     ) -> DailyReport:
         """生成每日投资分析报告
@@ -486,12 +486,12 @@ class AIReportAgent:
 
     def _build_daily_report_prompt(
         self,
-        symbols: List[str],
-        positions_data: Optional[Dict],
-        predictions: Optional[List[Dict]],
-        news_highlights: List[Dict],
-        risk_warnings: List[str],
-        trade_signals: List[Dict],
+        symbols: list[str],
+        positions_data: Optional[dict],
+        predictions: Optional[list[dict]],
+        news_highlights: list[dict],
+        risk_warnings: list[str],
+        trade_signals: list[dict],
     ) -> str:
         """构造每日报告 prompt"""
         # 持仓摘要
@@ -563,7 +563,7 @@ class AIReportAgent:
 """
 
     def _rule_market_overview(
-        self, symbols: List[str], predictions: Optional[List[Dict]], risk_warnings: List[str]
+        self, symbols: list[str], predictions: Optional[list[dict]], risk_warnings: list[str]
     ) -> str:
         """规则引擎市场总览 (LLM 不可用时兜底)"""
         if risk_warnings:
@@ -579,7 +579,7 @@ class AIReportAgent:
         return "暂无足够数据生成市场总览。"
 
     def _rule_portfolio_analysis(
-        self, symbols: List[str], positions_data: Optional[Dict], predictions: Optional[List[Dict]]
+        self, symbols: list[str], positions_data: Optional[dict], predictions: Optional[list[dict]]
     ) -> str:
         """规则引擎组合分析"""
         if not positions_data or "positions" not in positions_data:
@@ -599,7 +599,7 @@ class AIReportAgent:
             f"其中 {pred_up} 个预测上涨。"
         )
 
-    def _summarize_sentiments(self, sentiments: List[SentimentResult]) -> str:
+    def _summarize_sentiments(self, sentiments: list[SentimentResult]) -> str:
         """汇总情感分析结果"""
         if not sentiments:
             return "无新闻数据"
@@ -615,7 +615,7 @@ class AIReportAgent:
     # 交易信号解读
     # ----------------------------------------------------------
 
-    def explain_trade_signals(self, predictions: List[Dict], news_sentiments: Optional[List[Dict]] = None) -> str:
+    def explain_trade_signals(self, predictions: list[dict], news_sentiments: Optional[list[dict]] = None) -> str:
         """将交易信号转化为可读建议
 
         Args:
@@ -790,7 +790,7 @@ class AIReportAgent:
     # 状态查询
     # ----------------------------------------------------------
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """获取 AI 代理状态"""
         status = {
             "llm_available": self.llm_available,
@@ -813,8 +813,8 @@ class AIReportAgent:
     def to_agent_decision(
         self,
         symbol: str,
-        news_items: Optional[List[Dict]] = None,
-    ) -> Dict[str, Any]:
+        news_items: Optional[list[dict]] = None,
+    ) -> dict[str, Any]:
         """将新闻情感分析结果适配为 AgentDecision 兼容格式
 
         供 utils.finance_agents.SentimentAgent 复用, 避免重复实现情感分析.
@@ -934,13 +934,13 @@ def get_agent() -> AIReportAgent:
     return _agent_instance
 
 
-def analyze_sentiment(news_items: List[Dict]) -> List[Dict]:
+def analyze_sentiment(news_items: list[dict]) -> list[dict]:
     """便捷函数: 批量情感分析"""
     results = get_agent().analyze_news_sentiment(news_items)
     return [r.__dict__ for r in results]
 
 
-def generate_daily_report(symbols: List[str], **kwargs) -> Dict:
+def generate_daily_report(symbols: list[str], **kwargs) -> dict:
     """便捷函数: 生成每日报告"""
     report = get_agent().generate_daily_report(symbols, **kwargs)
     return report.__dict__
