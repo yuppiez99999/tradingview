@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-3.4 RegimeFolio 制度感知组合优化
+
+- **任务**: LIT-3.4 RegimeFolio 制度感知组合优化 — Sprint LIT-S3
+- **文献**: #41 RegimeFolio (2025.10)
+- **新增**: `utils/regime_aware_allocator.py` (~440行) — RegimeClassifier + CovarianceShrinkage + RegimeAwareAllocator
+- **新增**: `tests/unit/test_regime_aware_allocator_unit.py` (~290行) — 27 单元测试全绿
+- **核心**: VIX 4级制度分类 + Ledoit-Wolf 收缩协方差 + 制度感知权重调整 + 防御/进攻加成
+- **验证**: 端到端 低波动夏普 0.62, 危机时均匀防御, 收缩强度 0.74
+- **ruff**: regime_aware_allocator.py 新增 T201/UP042 豁免
+- **后续**: LIT-3.5 隐含波动率曲面深度对冲 (可选)
+- **指针**: `cairn/regime-aware-allocator.md`
+
 ## 2026-08-23 · LIT-3.3 skfolio 统一优化后端
 
 - **任务**: LIT-3.3 集成 skfolio 统一优化后端 — Sprint LIT-S3
