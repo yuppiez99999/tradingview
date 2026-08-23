@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-1.4 AI-Trader 实时未污染评估基准
+
+- **任务**: LIT-1.4 部署 AI-Trader 实时未污染基准 — Agent-Native Trading
+- **新增**: `tests/eval/ai_trader_harness.py` (~780行) — DataRecord + RealTimeStream + DataContaminationDetector + AgentAdapter + AITraderHarness
+- **新增**: `tests/unit/test_ai_trader_harness_unit.py` (~440行) — 37 单元测试全绿
+- **核心**: 五层防线数据污染检测 — 哈希校验 + 时序(按标的分组) + 未来时间戳 + 隔离 + 来源
+- **5 Agent 策略**: momentum · mean_revert · value · sentiment · ensemble
+- **与 DeepFund 互补**: DeepFund 检测 LLM 内部时间穿越, AI-Trader 检测数据管道污染
+- **验证**: mock 端到端 5 agent 全部数据干净 + 100% 准确率 + 污染注入测试全部检出
+- **后续**: LIT-1.5 AlphaCFG 语法引导因子发现 (可选增强)
+- **指针**: `cairn/ai-trader-eval-benchmark.md`
+
 ## 2026-08-23 · LIT-1.3 DeepFund 防泄漏评估基准 (NeurIPS 2025)
 
 - **任务**: LIT-1.3 部署 DeepFund 防泄漏评估基准 — "Time Travel is Cheating"
