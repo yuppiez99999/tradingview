@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-1.3 DeepFund 防泄漏评估基准 (NeurIPS 2025)
+
+- **任务**: LIT-1.3 部署 DeepFund 防泄漏评估基准 — "Time Travel is Cheating"
+- **新增**: `tests/eval/deepfund_harness.py` (~775行) — LLMAdapter + BenchmarkDataLoader + TimeLeakageDetector + DeepFundHarness
+- **新增**: `tests/unit/test_deepfund_harness_unit.py` (~385行) — 31 单元测试全绿
+- **核心**: 四层防线时间穿越检测 — 时序检查 + 信息边界 + 统计异常(Sharpe>3/胜率>75%) + 对照组对比
+- **9 LLM**: GPT-4o/4o-mini/4-turbo · Claude-3.5-S/H · DeepSeek-V3/R1 · GLM-5 · Qwen2.5-72B
+- **验证**: mock 端到端 9 LLM 全部通过泄漏检测, 报告归档 `reports/eval/deepfund/`
+- **后续**: LIT-1.4 AI-Trader 实时未污染基准 → LIT-1.5 AlphaCFG
+- **指针**: `cairn/deepfund-eval-benchmark.md`
+
 ## 2026-08-24 · LIT-1.2 AlphaForge 动态权重组合机制
 
 - **任务**: LIT-1.2 AlphaForge 动态权重组合 (AAAI 2025)
