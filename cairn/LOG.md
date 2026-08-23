@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · P0大文件拆分 + 8/24进化循环干跑验证
+
+- **背景**: 代码质量检查发现3个P0文件超2000行门禁，且8/24(周一)首次进化循环需准备
+- **Step 5**: `institutional_pipeline_runner.py` 2529→1841行 — Mixin模式抽取3文件: `pipeline_{data,lgb,signal}_mixin.py` (382+361+363行), MRO=[Runner,Data,LGB,Signal], 99测试通过 — `58d10dcd`
+- **Step 6**: `automated_execution_system.py` 2691→1860行 — 组件抽取 `execution_components.py` (763行, TradingCalendar+MarketStateEvaluator+ExecutionStrategy), SpecialDayEntry re-export向后兼容, mock路径修正, 100测试通过 — `6a1cba92`
+- **Step 7**: 8/24干跑验证 — 双签启用 USE_EVOLUTION_ORCHESTRATOR + USE_STRATEGY_EVALUATOR, EvolutionOrchestratorV2 import OK, 200万ETF配置验证(11只ETF/200万), 首笔定投计划生成(12万/月, 4核心各3万, 未提交实盘) — `ad997e91`
+- **ruff**: 4新文件 per-file-ignores 配置, 零违规
+- **沉淀**: `cairn/large-file-split-20260823.md` (Mixin模式 + 组件抽取方法论)
+- **指针**: `utils/pipeline_*_mixin.py` · `utils/execution/execution_components.py` · `scripts/evolution_dry_run_0824.py`
+
 ## 2026-08-23 · 系统升级文献调研与排期（Wave 8-LIT 主轨道）
 
 - **背景**: 全网检索 arXiv + Google Scholar + Google Patents，针对 v8.6 核心模块精准匹配，筛得 80 项高价值公开文献
