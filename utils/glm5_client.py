@@ -33,6 +33,13 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
+# LIT-2.5: FinGPT 备选模型 (可选依赖, 缺失时降级)
+try:
+    from .fingpt_integration import FinGPTClient, ModelRouter, ModelType, TaskCategory
+    _FINGPT_AVAILABLE = True
+except ImportError:
+    _FINGPT_AVAILABLE = False
+
 
 # ============================================================
 # GLM5Config (向后兼容, mode 字段保留但 deprecated)
@@ -270,6 +277,55 @@ def quick_chat(message: str, **kwargs: Any) -> str:
     client = get_glm5_client()
     result = client.chat(message, **{k: v for k, v in kwargs.items() if k != "config"})
     return result.get("content", "")
+
+
+# ============================================================
+# LIT-2.5: FinGPT 备选模型集成
+# ============================================================
+
+def get_fingpt_client() -> Any:
+    """获取 FinGPT 客户端实例 (FinGPT 不可用时返回 None)."""
+    if not _FINGPT_AVAILABLE:
+        return None
+    return FinGPTClient()
+
+
+def quick_chat_with_fallback(message: str,
+                             task: str = "daily_report",
+                             **kwargs: Any) -> str:
+    """带 FinGPT 备选的快速对话.
+
+    路由策略:
+    - 交易/盘中/情绪 → 优先 FinGPT, 回退 GLM-5
+    - 研究/报告 → 优先 GLM-5, 回退 FinGPT
+
+    Args:
+        message: 消息内容
+        task: 任务类型 (intraday/daily_report/research/sentiment/trading)
+
+    Returns:
+        回复文本
+    """
+    if _FINGPT_AVAILABLE:
+        router = ModelRouter(
+            glm5_available=True,
+            fingpt_available=True,
+        )
+        task_map = {
+            "intraday": TaskCategory.INTRADAY,
+            "daily_report": TaskCategory.DAILY_REPORT,
+            "research": TaskCategory.RESEARCH,
+            "sentiment": TaskCategory.SENTIMENT,
+            "trading": TaskCategory.TRADING,
+        }
+        task_cat = task_map.get(task, TaskCategory.DAILY_REPORT)
+        model = router.route(task_cat)
+
+        if model == ModelType.FINGPT:
+            fingpt = FinGPTClient()
+            return fingpt.chat(message, **kwargs)
+
+    return quick_chat(message, **kwargs)
 
 
 if __name__ == "__main__":

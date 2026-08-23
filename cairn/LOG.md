@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-2.5 FinGPT 系列集成
+
+- **任务**: LIT-2.5 FinGPT 系列集成（轻量 LoRA）— Sprint LIT-S2
+- **文献**: #14 FinGPT 系列（6 篇）(2023-2025, ★★★★★)
+- **新增**: `utils/fingpt_integration.py` (~490行) — LoRAConfig + FinGPTClient + RLSPTrainer + ModelRouter
+- **新增**: `tests/unit/test_fingpt_integration_unit.py` (~360行) — 37 单元测试全绿
+- **增强**: `utils/glm5_client.py` (+50行) — get_fingpt_client + quick_chat_with_fallback
+- **核心**: FinGPT备选模型 + LoRA微调(rank/alpha/scaling) + RLSP训练(奖励=超额收益-风险惩罚) + 模型路由
+- **ruff**: fingpt_integration.py 新增 T201/UP042 豁免
+- **后续**: LIT-2.6 对抗新闻攻击防护 → Sprint LIT-S2 收尾
+- **指针**: `cairn/fingpt-integration.md`
+
 ## 2026-08-23 · LIT-2.4 KTD-Fin 记忆控制评估
 
 - **任务**: LIT-2.4 KTD-Fin 记忆控制评估 — Sprint LIT-S2
