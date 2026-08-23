@@ -188,7 +188,9 @@ force-single-line = false
 # ============================================================
 
 # E402: ai_hedge_fund 条件依赖导入 (optional deps: torch/openai etc.)
-"quant_modules/ai_hedge_fund/**/*.py" = ["E402", "ANN", "C901"]
+# T201: CLI main() 演示入口 print 是合理的 (fine_grained_workflow.py 等)
+# UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
+"quant_modules/ai_hedge_fund/**/*.py" = ["E402", "ANN", "C901", "T201", "UP042"]
 
 # N806/N803: 金融数学大写变量名是行业惯例 (S/K/T/N/Delta/Gamma/Vega/Theta/Rho/IC/VaR/Sharpe)
 "utils/fineng/**/*.py" = ["N806", "N803", "C901"]

@@ -2,6 +2,19 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-2.1 细粒度任务分解重构 AI Hedge Fund
+
+- **任务**: LIT-2.1 细粒度任务分解 (Fine-Grained Task Decomposition) — Sprint LIT-S2 P0
+- **文献**: #15 Toward Expert Investment Teams (2026.02, ★★★★★)
+- **新增**: `quant_modules/ai_hedge_fund/fine_grained_workflow.py` (~578行) — TaskType + TaskNode + TaskGraph(DAG) + FineGrainedWorkflow + 旧接口兼容层
+- **新增**: `tests/unit/test_fine_grained_workflow_unit.py` (~603行) — 60 单元测试全绿
+- **核心**: 20 分析师从纯角色模拟 → 7种任务类型 DAG 编排 (数据→特征→信号→风险→反思)
+- **团队架构**: 共享数据收集 + 并行特征提取 + 多空辩论(可选) + 组合构建
+- **兼容**: `create_fine_grained_agent()` 保持旧 `agent_func(state)→state` 接口
+- **ruff**: ai_hedge_fund 模块新增 T201/UP042 豁免 (CLI print + Py3.8 str+Enum 兼容)
+- **后续**: LIT-2.2 TradingGroup 自反思 → LIT-2.3 CN-Buzz2Portfolio
+- **指针**: `cairn/fine-grained-workflow.md`
+
 ## 2026-08-23 · LIT-1.5 AlphaCFG 语法引导因子发现
 
 - **任务**: LIT-1.5 AlphaCFG 语法引导因子发现 (可选增强)
