@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-3.2 DeltaHedge 多智能体期权优化
+
+- **任务**: LIT-3.2 DeltaHedge 多智能体期权优化 — Sprint LIT-S3
+- **文献**: #37 PACIS 2025 — Multi-Agent Delta Hedging
+- **新增**: `utils/delta_hedge_multi_agent.py` (~440行) — GreeksCalculator + HedgingAgent + RLWeightOptimizer + MultiAgentCoordinator + DeltaHedgeEngine
+- **新增**: `tests/unit/test_delta_hedge_multi_agent_unit.py` (~375行) — 37 单元测试全绿
+- **核心**: 多智能体分别对冲 delta/gamma/vega + 期权作为对冲工具 + RL 权重优化 + 超越纯 Beta 加权
+- **验证**: 端到端 Vega 完全中和, 多智能体同时减少 gamma/vega 暴露
+- **ruff**: delta_hedge_multi_agent.py 新增 T201/UP042 豁免
+- **后续**: LIT-3.3 skfolio 统一优化后端 (无依赖, 可并行)
+- **指针**: `cairn/delta-hedge-multi-agent.md`
+
 ## 2026-08-23 · LIT-3.1 Deep Hedging RL 范式集成
 
 - **任务**: LIT-3.1 Deep Hedging RL 范式集成 — Sprint LIT-S3 P0
