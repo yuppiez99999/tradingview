@@ -201,6 +201,11 @@ force-single-line = false
 # T201: __main__ 自检入口 print 是合理的 (rd_agent_quant.py 等)
 "utils/alpha_factor/**/*.py" = ["N806", "N803", "ANN", "C901", "N812", "T201"]
 
+# LIT-2.2: TradingGroup 自反思机制
+# T201: CLI main() 演示入口 print 是合理的
+# UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
+"utils/trading_group_reflector.py" = ["T201", "UP042"]
+
 # ANN: 非核心/非生产代码不强制类型注解 (逐步为核心模块补齐)
 # research/tests/scripts/tools/15_每日工作流 已在上方各自行中包含 ANN, 不重复声明
 "docs/**/*.py" = ["ANN"]

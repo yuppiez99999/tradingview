@@ -40,6 +40,13 @@ try:
 except ImportError:
     _PLUGINS_AVAILABLE = False
 
+# LIT-2.2: TradingGroup 自反思机制 (可选依赖, 缺失时降级)
+try:
+    from .trading_group_reflector import TradingGroupReflector
+    _REFLECTOR_AVAILABLE = True
+except ImportError:
+    _REFLECTOR_AVAILABLE = False
+
 
 class TaskType(Enum):
     """AI任务类型"""
@@ -111,6 +118,8 @@ class AICoordinator:
         self._use_plugin_coordinator = _PLUGINS_AVAILABLE and _is_flag_enabled("USE_PLUGIN_COORDINATOR")
         if self._use_plugin_coordinator:
             self._init_plugin_registry()
+        # LIT-2.2: TradingGroup 自反思引擎 (延迟初始化)
+        self._reflector: Optional[Any] = None
 
     @staticmethod
     def _load_pricing(pricing_path: str = None) -> dict:
@@ -651,6 +660,56 @@ class AICoordinator:
                 'avg_pnl': round(avg_pnl or 0, 4),
             }
         return result
+
+    # ============================================================
+    # LIT-2.2: TradingGroup 自反思集成
+    # ============================================================
+
+    def get_reflector(self) -> Any:
+        """获取 TradingGroup 自反思引擎 (延迟初始化)。"""
+        if self._reflector is None and _REFLECTOR_AVAILABLE:
+            self._reflector = TradingGroupReflector()
+        return self._reflector
+
+    def reflect_decision(self, decision: dict[str, Any],
+                         outcome: dict[str, Any],
+                         market_state: Optional[dict[str, Any]] = None) -> Optional[Any]:
+        """对 AI 决策进行自反思评估。
+
+        Args:
+            decision: 决策信息 {decision_id, ticker, action, entry_price}
+            outcome: 结果信息 {exit_price, return, timestamp}
+            market_state: 决策时市场状态
+
+        Returns:
+            ReflectionRecord 或 None (reflector 不可用时)
+        """
+        reflector = self.get_reflector()
+        if reflector is None:
+            logger.debug("TradingGroup 反思器不可用, 跳过自反思")
+            return None
+        return reflector.reflect(decision, outcome, market_state)
+
+    def synthesize_training_data(self) -> list[Any]:
+        """从历史反思合成训练数据。"""
+        reflector = self.get_reflector()
+        if reflector is None:
+            return []
+        return reflector.synthesize_data()
+
+    def compute_dynamic_stops(self, entry_price: float, atr: float,
+                              trend_strength: float = 0.0,
+                              holding_days: int = 0,
+                              action: str = "buy") -> Optional[Any]:
+        """计算动态止盈止损。"""
+        reflector = self.get_reflector()
+        if reflector is None:
+            return None
+        return reflector.compute_dynamic_stops(
+            entry_price=entry_price, atr=atr,
+            trend_strength=trend_strength, holding_days=holding_days,
+            action=action,
+        )
 
 
 # ── 全局单例 ──

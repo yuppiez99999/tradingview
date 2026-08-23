@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-2.2 TradingGroup 自反思机制
+
+- **任务**: LIT-2.2 集成 TradingGroup 自反思机制 — Sprint LIT-S2
+- **文献**: #16 TradingGroup: Self-Reflection + Data-Synthesis (2025.08, ★★★★★)
+- **新增**: `utils/trading_group_reflector.py` (~620行) — ErrorType + ReflectionRecord + DataSynthesizer + DynamicStopLossManager + TradingGroupReflector
+- **新增**: `tests/unit/test_trading_group_reflector_unit.py` (~555行) — 50 单元测试全绿
+- **增强**: `utils/ai_coordinator.py` (+40行) — get_reflector + reflect_decision + synthesize_training_data + compute_dynamic_stops
+- **核心**: 自反思(5错误类型+5评级) + 数据合成(正/负/困难样本) + 动态止盈止损(ATR+时间衰减+趋势+仓位)
+- **ruff**: trading_group_reflector.py 新增 T201/UP042 豁免
+- **后续**: LIT-2.3 CN-Buzz2Portfolio → LIT-2.4 KTD-Fin
+- **指针**: `cairn/trading-group-reflection.md`
+
 ## 2026-08-23 · LIT-2.1 细粒度任务分解重构 AI Hedge Fund
 
 - **任务**: LIT-2.1 细粒度任务分解 (Fine-Grained Task Decomposition) — Sprint LIT-S2 P0
