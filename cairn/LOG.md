@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-3.5 隐含波动率曲面深度对冲
+
+- **任务**: LIT-3.5 隐含波动率曲面深度对冲（可选）— Sprint LIT-S3 收尾
+- **文献**: #38 IV Surface Deep Hedging (2025.04)
+- **新增**: `utils/iv_surface_deep_hedge.py` (~330行) — VRPCalculator + SecondOrderGreeks + MultiToolHedger + IVSurfaceDeepHedgeEngine
+- **新增**: `tests/unit/test_iv_surface_deep_hedge_unit.py` (~190行) — 18 单元测试全绿
+- **核心**: 方差风险溢价(VRP) + vanna/volga二阶希腊 + 多工具最小二乘对冲 + VRP感知调整
+- **ruff**: iv_surface_deep_hedge.py 新增 T201/UP042/N806 豁免
+- **里程碑**: Sprint LIT-S3 全部 5 个任务 (LIT-3.1~3.5) 完成
+- **后续**: Sprint LIT-S4 系统架构+执行算法 (10-06~10-19)
+- **指针**: `cairn/iv-surface-deep-hedge.md`
+
 ## 2026-08-23 · LIT-3.4 RegimeFolio 制度感知组合优化
 
 - **任务**: LIT-3.4 RegimeFolio 制度感知组合优化 — Sprint LIT-S3
