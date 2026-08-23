@@ -122,7 +122,11 @@ force-single-line = false
 # + N806 (金融数学大写变量名是行业惯例)
 "v8.3_institutional/**/*.py" = ["BLE001", "N806", "C901", "ANN"]
 # institutional_pipeline_runner: 机构级管线运行器, 编排层 fail-safe
-"institutional_pipeline_runner.py" = ["BLE001", "ANN"]
+"institutional_pipeline_runner.py" = ["BLE001", "ANN", "B905"]
+# pipeline mixin: 从 institutional_pipeline_runner 抽取的数据/LGB/信号方法, fail-safe 降级
+"utils/pipeline_data_mixin.py" = ["BLE001", "ANN"]
+"utils/pipeline_lgb_mixin.py" = ["BLE001", "ANN"]
+"utils/pipeline_signal_mixin.py" = ["BLE001", "ANN"]
 # realtime_monitor: 实时监控线程, 异常不能导致监控中断
 "realtime_monitor/**/*.py" = ["BLE001", "ANN"]
 # 顶层每日入口: 工作流编排 fail-safe + E402(先改 sys.path 再导入)
