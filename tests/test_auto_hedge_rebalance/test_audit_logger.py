@@ -268,7 +268,7 @@ class TestAuditLoggerRecordContent:
         # Arrange
         flag = {"flag_name": "对冲降级", "source": "hedge_engine", "level": 2}
         # Act
-        record_id = audit_logger.log_degradation_flag(flag)
+        audit_logger.log_degradation_flag(flag)
         records = audit_logger.query(event_type="degradation_flag")
         # Assert
         assert len(records) == 1

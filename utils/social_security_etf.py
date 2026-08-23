@@ -13,7 +13,7 @@
 import logging
 import os
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # 社保基金投资风格配置（借鉴 social_security_tracker.py）
 # ============================================================
 
-SOCIAL_SECURITY_STYLES = {
+SOCIAL_SECURITY_STYLES: dict[str, dict[str, Any]] = {
     "顺周期": {
         "weight": 0.25,
         "description": "金融、有色、钢铁等顺周期板块，受益于经济复苏",
@@ -74,7 +74,7 @@ SOCIAL_SECURITY_STYLES = {
 
 
 # 国家队资金流向信号阈值（借鉴 etf_tracker.py 的 Wind MCP 数据）
-NATIONAL_TEAM_SIGNAL_CONFIG = {
+NATIONAL_TEAM_SIGNAL_CONFIG: dict[str, Any] = {
     "high_threshold_yi": 50,     # 50亿以上 → 强信号
     "medium_threshold_yi": 10,   # 10亿以上 → 中等信号
     "low_threshold_yi": 2,       # 2亿以上 → 关注信号
@@ -230,7 +230,7 @@ class NationalTeamSignalDetector:
 
     def get_style_flow_summary(self, signals: list[dict]) -> dict:
         """按社保基金风格汇总资金流向"""
-        style_flows = {}
+        style_flows: dict[str, dict[str, Any]] = {}
 
         for signal in signals:
             style = signal.get("social_style", "未匹配")
@@ -281,7 +281,7 @@ class SocialSecurityETFTracker:
         self.classifier = SocialSecurityStyleClassifier()
         self.detector = NationalTeamSignalDetector()
 
-    def analyze(self, flow_data: dict = None) -> dict:
+    def analyze(self, flow_data: dict | None = None) -> dict:
         """
         综合分析
 
@@ -291,7 +291,7 @@ class SocialSecurityETFTracker:
         Returns:
             综合分析结果
         """
-        result = {
+        result: dict[str, Any] = {
             "style_summary": self.classifier.get_style_summary(),
             "etf_classifications": self.classifier.get_all_etf_classifications(),
             "signals": [],
@@ -316,7 +316,7 @@ class SocialSecurityETFTracker:
 
         return result
 
-    def generate_report(self, flow_data: dict = None, save_dir: str = None) -> str:
+    def generate_report(self, flow_data: dict | None = None, save_dir: str | None = None) -> str:
         """生成社保基金ETF风格追踪报告"""
         analysis = self.analyze(flow_data)
 

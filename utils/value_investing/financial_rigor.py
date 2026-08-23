@@ -16,8 +16,10 @@ Usage (called automatically by Skills, no manual execution needed):
 """
 
 import argparse
+import ast
 import json
 import math
+import operator
 from decimal import ROUND_HALF_EVEN, Context, Decimal
 
 # ---------------------------------------------------------------------------
@@ -229,6 +231,45 @@ def benford_check(values: list):
 # 5. Exact Calculator (精确计算器)
 # ---------------------------------------------------------------------------
 
+# 安全算术求值 — 仅允许数字和 + - * / () 运算 (CWE-95 防护)
+_ALLOWED_BINOPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+}
+_ALLOWED_UNARYOPS = {
+    ast.UAdd: operator.pos,
+    ast.USub: operator.neg,
+}
+
+
+def _safe_arith_eval(expr: str) -> float:
+    """安全算术表达式求值 — 用 ast 白名单节点杜绝任意代码执行."""
+    tree = ast.parse(expr, mode="eval")
+
+    def _eval(node):
+        if isinstance(node, ast.Expression):
+            return _eval(node.body)
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, (int, float)):
+                return node.value
+            raise ValueError(f"不允许的常量类型: {type(node.value).__name__}")
+        if isinstance(node, ast.BinOp):
+            op = _ALLOWED_BINOPS.get(type(node.op))
+            if op is None:
+                raise ValueError(f"不允许的二元运算: {type(node.op).__name__}")
+            return op(_eval(node.left), _eval(node.right))
+        if isinstance(node, ast.UnaryOp):
+            op = _ALLOWED_UNARYOPS.get(type(node.op))
+            if op is None:
+                raise ValueError(f"不允许的一元运算: {type(node.op).__name__}")
+            return op(_eval(node.operand))
+        raise ValueError(f"不允许的节点: {type(node).__name__}")
+
+    return _eval(tree)
+
+
 def exact_calc(expr: str):
     """Evaluate a financial expression with exact decimal arithmetic.
 
@@ -241,8 +282,8 @@ def exact_calc(expr: str):
         return None
 
     try:
-        # Replace scientific notation for Decimal compatibility
-        result = eval(expr, {"__builtins__": {}}, {})
+        # 安全求值: ast 白名单节点, 杜绝任意代码执行 (替代 eval)
+        result = _safe_arith_eval(expr)
         d_result = exact(result)
         return float(d_result)
     except Exception:

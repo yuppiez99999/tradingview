@@ -272,5 +272,7 @@ force-single-line = false
 "ai/recommendation_generator.py" = ["UP006", "UP007", "UP035", "C901"]
 # llmfit 集成 (2026-08-23): 本地 LLM 模型选型器, __main__ 自检入口 print 是合理的
 "utils/local_model_selector.py" = ["T201"]
+# value_investing: 研究性回测代码, ANN/BLE001/C901/B007/E741 豁免 (与 research/ 同类)
+"utils/value_investing/**/*.py" = ["ANN", "BLE001", "C901", "B007", "E741"]
 
 

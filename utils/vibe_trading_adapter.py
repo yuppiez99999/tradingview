@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -126,8 +127,8 @@ class _VibeTradingCore:
     _initialized: bool = False
 
     def __init__(self) -> None:
-        self._loader_registry = None
-        self._resolve_loader = None
+        self._loader_registry: dict[str, Any] | None = None
+        self._resolve_loader: Any = None
         self._available_sources: list[str] = []
         self._init_error: str | None = None
 
@@ -198,7 +199,9 @@ class _VibeTradingCore:
         Returns:
             可用 source 名称列表
         """
-        available = []
+        available: list[str] = []
+        if self._loader_registry is None:
+            return available
         for name, cls in self._loader_registry.items():
             try:
                 instance = cls()

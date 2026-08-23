@@ -6,7 +6,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from utils.infra.feature_flags import enable, is_enabled, disable
+from utils.infra.feature_flags import enable, is_enabled
 
 print("=== 8/24 进化循环干跑验证 ===")
 
@@ -40,7 +40,7 @@ except Exception as e:
     else:
         print(f"  USE_STRATEGY_EVALUATOR: FAILED - {e}")
 
-print(f"\n  Flag 状态:")
+print("\n  Flag 状态:")
 print(f"    USE_EVOLUTION_ORCHESTRATOR = {is_enabled('USE_EVOLUTION_ORCHESTRATOR')}")
 print(f"    USE_STRATEGY_EVALUATOR = {is_enabled('USE_STRATEGY_EVALUATOR')}")
 
@@ -63,7 +63,7 @@ try:
     import yaml
 
     config_path = _ROOT / "config" / "portfolio_200w_etf.yaml"
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(config_path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     core_etfs = config.get("core_holdings", [])
@@ -90,7 +90,7 @@ try:
     print(f"  建仓阶段: {phase1.get('period', 'N/A')}")
     print(f"  生成日期: {datetime.now().strftime('%Y-%m-%d')}")
 
-    print(f"\n  首笔分配明细 (核心仓, 按权重):")
+    print("\n  首笔分配明细 (核心仓, 按权重):")
     total_weight = 0
     for etf in core_etfs:
         w = etf.get("weight", 0)

@@ -123,7 +123,7 @@ class TDXDataSource:
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信连接失败: {e}")
 
-    def _ensure_connected(self) -> None:
+    def _ensure_connected(self) -> bool:
         """确保连接有效，必要时重连"""
         if self._api_cls is None:
             return False
