@@ -285,3 +285,183 @@ class TestClassifyOrderUrgency:
     def test_negative_signal(self):
         result = classify_order_urgency(order_shares=20000, adv=100000, alpha_signal_strength=-0.8)
         assert result == "HIGH"
+
+
+# ============================================================
+# 永久冲击指数衰减 (文献 #50, LIT-4.2)
+# ============================================================
+
+class TestPermanentImpactExponentialDecay:
+    """文献 #50: 永久冲击指数衰减模型测试."""
+
+    def test_decay_params_defaults(self):
+        params = ImpactParams(permanent_impact_model="exponential_decay")
+        assert params.permanent_impact_model == "exponential_decay"
+        assert params.gamma_sat == 0.314
+        assert params.permanent_decay_beta == 10.0
+
+    def test_decay_lower_than_linear_small_order(self):
+        """小单场景: 指数衰减 ≈ 线性 (一阶近似)."""
+        linear_model = MarketImpactModel()
+        decay_params = ImpactParams(permanent_impact_model="exponential_decay")
+        decay_model = MarketImpactModel(params=decay_params)
+        participation = 0.001
+        vol_scale = 1.0
+        linear_perm = linear_model._permanent_impact_bps(participation, vol_scale)
+        decay_perm = decay_model._permanent_impact_bps(participation, vol_scale)
+        # 小单时两者接近 (指数衰减一阶近似 = 线性)
+        ratio = decay_perm / max(linear_perm, 1e-10)
+        assert 0.8 < ratio < 1.2
+
+    def test_decay_lower_than_linear_large_order(self):
+        """大单场景: 指数衰减 << 线性 (饱和效应)."""
+        linear_model = MarketImpactModel()
+        decay_params = ImpactParams(permanent_impact_model="exponential_decay")
+        decay_model = MarketImpactModel(params=decay_params)
+        linear_est = linear_model.estimate(symbol="X", order_shares=50000, adv=100000)
+        decay_est = decay_model.estimate(symbol="X", order_shares=50000, adv=100000)
+        assert decay_est.permanent_impact_bps < linear_est.permanent_impact_bps
+
+    def test_decay_saturation(self):
+        """极大单: 指数衰减趋于饱和值 γ/β."""
+        decay_params = ImpactParams(
+            permanent_impact_model="exponential_decay",
+            gamma=0.314,
+            permanent_decay_beta=10.0,
+        )
+        decay_model = MarketImpactModel(params=decay_params)
+        est = decay_model.estimate(symbol="X", order_shares=1000000, adv=100000)
+        # 饱和值 = γ / β × 10000 × 0.5 = 0.314 / 10.0 × 10000 × 0.5 = 157 bps
+        saturated_bps = 0.314 / 10.0 * 10000 * 0.5
+        assert est.permanent_impact_bps < saturated_bps * 1.01
+        assert est.permanent_impact_bps > saturated_bps * 0.99
+
+    def test_decay_beta_effect(self):
+        """β 越大饱和越快, 大单永久冲击越低."""
+        fast_params = ImpactParams(
+            permanent_impact_model="exponential_decay", permanent_decay_beta=50.0,
+        )
+        slow_params = ImpactParams(
+            permanent_impact_model="exponential_decay", permanent_decay_beta=1.0,
+        )
+        fast_model = MarketImpactModel(params=fast_params)
+        slow_model = MarketImpactModel(params=slow_params)
+        fast_est = fast_model.estimate(symbol="X", order_shares=30000, adv=100000)
+        slow_est = slow_model.estimate(symbol="X", order_shares=30000, adv=100000)
+        assert fast_est.permanent_impact_bps <= slow_est.permanent_impact_bps
+
+    def test_metadata_records_model(self):
+        decay_params = ImpactParams(permanent_impact_model="exponential_decay")
+        decay_model = MarketImpactModel(params=decay_params)
+        est = decay_model.estimate(symbol="X", order_shares=1000, adv=100000)
+        assert est.metadata["permanent_impact_model"] == "exponential_decay"
+
+    def test_linear_metadata(self):
+        model = MarketImpactModel()
+        est = model.estimate(symbol="X", order_shares=1000, adv=100000)
+        assert est.metadata["permanent_impact_model"] == "linear"
+
+
+class TestCompareImpactModels:
+    """模型对比测试."""
+
+    def test_compare_basic(self):
+        model = MarketImpactModel()
+        comparison = model.compare_impact_models(
+            symbol="600519", order_shares=50000, adv=100000,
+        )
+        assert comparison["symbol"] == "600519"
+        assert comparison["linear_permanent_bps"] > 0
+        assert comparison["decay_permanent_bps"] > 0
+        assert comparison["permanent_reduction_pct"] >= 0
+
+    def test_compare_large_order_reduction(self):
+        """大单场景: 永久冲击降低 > 0."""
+        model = MarketImpactModel()
+        comparison = model.compare_impact_models(
+            symbol="X", order_shares=80000, adv=100000,
+        )
+        assert comparison["permanent_reduction_pct"] > 0
+
+    def test_compare_small_order_near_zero_reduction(self):
+        """小单场景: 永久冲击降低接近 0 (一阶近似)."""
+        model = MarketImpactModel()
+        comparison = model.compare_impact_models(
+            symbol="X", order_shares=100, adv=100000,
+        )
+        assert abs(comparison["permanent_reduction_pct"]) < 20.0
+
+    def test_compare_saturated_flag(self):
+        """极大单: 衰减模型达到饱和."""
+        model = MarketImpactModel()
+        comparison = model.compare_impact_models(
+            symbol="X", order_shares=500000, adv=100000,
+        )
+        assert comparison["decay_model_saturated"] is True
+
+
+class TestValidateCostReduction:
+    """成本降低验证测试 (文献 #50 验收: ≥ 50%)."""
+
+    def test_large_order_passes_threshold(self):
+        """大单 (参与度 50%): 永久冲击降低 ≥ 50%."""
+        decay_params = ImpactParams(
+            permanent_impact_model="exponential_decay",
+            permanent_decay_beta=10.0,
+        )
+        model = MarketImpactModel(params=decay_params)
+        validation = model.validate_cost_reduction(
+            symbol="600519", large_order_shares=50000, adv=100000, threshold_pct=50.0,
+        )
+        assert validation["passed"] is True
+        assert validation["permanent_reduction_pct"] >= 50.0
+
+    def test_small_order_fails_threshold(self):
+        """小单: 永久冲击降低 < 50% (一阶近似, 无饱和效应)."""
+        model = MarketImpactModel()
+        validation = model.validate_cost_reduction(
+            symbol="X", large_order_shares=100, adv=100000, threshold_pct=50.0,
+        )
+        assert validation["passed"] is False
+
+    def test_custom_threshold(self):
+        model = MarketImpactModel()
+        validation = model.validate_cost_reduction(
+            symbol="X", large_order_shares=30000, adv=100000, threshold_pct=10.0,
+        )
+        assert validation["threshold_pct"] == 10.0
+
+    def test_validation_report_fields(self):
+        model = MarketImpactModel()
+        validation = model.validate_cost_reduction(
+            symbol="TEST", large_order_shares=50000, adv=100000,
+        )
+        assert "symbol" in validation
+        assert "participation_rate" in validation
+        assert "permanent_reduction_pct" in validation
+        assert "passed" in validation
+        assert validation["symbol"] == "TEST"
+
+
+class TestOptimalTrajectoryDecayModel:
+    """最优轨迹 + 指数衰减永久冲击成本."""
+
+    def test_decay_trajectory_cost_lower(self):
+        """指数衰减模型的最优轨迹永久冲击成本更低."""
+        linear_model = MarketImpactModel()
+        decay_params = ImpactParams(permanent_impact_model="exponential_decay")
+        decay_model = MarketImpactModel(params=decay_params)
+        linear_traj = linear_model.optimal_trajectory(total_shares=50000, n_steps=10)
+        decay_traj = decay_model.optimal_trajectory(total_shares=50000, n_steps=10)
+        assert decay_traj.expected_cost <= linear_traj.expected_cost
+
+    def test_decay_trajectory_same_holdings(self):
+        """轨迹形状相同 (闭式解基于线性), 仅成本不同."""
+        linear_model = MarketImpactModel()
+        decay_params = ImpactParams(permanent_impact_model="exponential_decay")
+        decay_model = MarketImpactModel(params=decay_params)
+        linear_traj = linear_model.optimal_trajectory(total_shares=1000, n_steps=5)
+        decay_traj = decay_model.optimal_trajectory(total_shares=1000, n_steps=5)
+        # 持仓轨迹应完全一致 (闭式解不依赖永久冲击模型)
+        for i in range(6):
+            assert decay_traj.holdings[i] == pytest.approx(linear_traj.holdings[i], rel=1e-6)

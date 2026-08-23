@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-4.2 Almgren-Chriss 市场冲击模型 — 永久冲击指数衰减
+
+- **任务**: LIT-4.2 Almgren-Chriss 市场冲击模型 — Sprint LIT-S4 P1
+- **文献**: #50 Realistic Market Impact Modeling (2026.03) FinRL-Meta 扩展
+- **增强**: `utils/market_impact_model.py` v1.0→v2.0 — 新增永久冲击指数衰减模型
+- **新增**: `compare_impact_models()` + `validate_cost_reduction()` + `_permanent_impact_bps()` + CLI main()
+- **新增**: `tests/unit/test_market_impact_model_unit.py` 34→51 测试 (新增 17 测试)
+- **核心**: g(v)=γ×(1-exp(-β×v))/β (小单≈线性, 大单→γ/β饱和); 大单(50%参与度)永久冲击降80.1%≥50%阈值
+- **ruff**: market_impact_model.py 新增 T201 豁免 (CLI main print)
+- **后续**: LIT-4.3 TT-DAC-PS 最优执行算法 (依赖本任务)
+- **指针**: `cairn/market-impact-model.md`
+
 ## 2026-08-23 · LIT-4.1 FinRL-X 权重中心接口架构
 
 - **任务**: LIT-4.1 FinRL-X 权重中心接口架构 — Sprint LIT-S4 P0
