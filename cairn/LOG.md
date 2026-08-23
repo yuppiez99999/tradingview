@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-3.3 skfolio 统一优化后端
+
+- **任务**: LIT-3.3 集成 skfolio 统一优化后端 — Sprint LIT-S3
+- **文献**: #42 skfolio (2025.07)
+- **新增**: `utils/portfolio_optimizer_skfolio.py` (~490行) — NumpyOptimizer(5策略) + SkfolioOptimizer + 便捷函数
+- **新增**: `tests/unit/test_portfolio_optimizer_skfolio_unit.py` (~295行) — 28 单元测试全绿
+- **核心**: MeanVariance + MaxSharpe + MinVariance + RiskParity(平方根更新) + HRP(层次聚类)
+- **验证**: 端到端 MaxSharpe 夏普 1.07 最高, MinVariance 风险 0.15 最低
+- **ruff**: portfolio_optimizer_skfolio.py 新增 T201/UP042/BLE001 豁免
+- **后续**: LIT-3.4 RegimeFolio 制度感知组合优化 (依赖本任务)
+- **指针**: `cairn/portfolio-optimizer-skfolio.md`
+
 ## 2026-08-23 · LIT-3.2 DeltaHedge 多智能体期权优化
 
 - **任务**: LIT-3.2 DeltaHedge 多智能体期权优化 — Sprint LIT-S3

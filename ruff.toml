@@ -226,6 +226,12 @@ force-single-line = false
 # UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
 "utils/delta_hedge_multi_agent.py" = ["T201", "UP042"]
 
+# LIT-3.3: skfolio 统一优化后端
+# T201: CLI main() 演示入口 print 是合理的
+# UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
+# BLE001: compare_strategies fail-safe, 单策略失败不崩溃对比
+"utils/portfolio_optimizer_skfolio.py" = ["T201", "UP042", "BLE001"]
+
 # LIT-2.3: CN-Buzz2Portfolio 中国市场基准
 # UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
 "tests/eval/cn_buzz2portfolio.py" = ["UP042"]
