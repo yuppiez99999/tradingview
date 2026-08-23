@@ -248,6 +248,10 @@ force-single-line = false
 # UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
 "core/finrl_x_interface.py" = ["T201", "UP042"]
 
+# LIT-4.3: TT-DAC-PS 最优执行算法
+# T201: CLI main() 演示入口 print 是合理的
+"utils/execution/tt_dac_ps.py" = ["T201"]
+
 # LIT-2.3: CN-Buzz2Portfolio 中国市场基准
 # UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
 "tests/eval/cn_buzz2portfolio.py" = ["UP042"]

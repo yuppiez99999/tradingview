@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-4.3 TT-DAC-PS 最优执行算法
+
+- **任务**: LIT-4.3 TT-DAC-PS 最优执行算法 — Sprint LIT-S4 P2
+- **文献**: #51 TT-DAC-PS Optimal Execution (2026.06)
+- **新增**: `utils/execution/tt_dac_ps.py` (~530行) — OUNoiseProcess + LimitOrderBookModel + TTDACPSExecutor
+- **新增**: `tests/unit/test_tt_dac_ps_unit.py` (~330行) — 36 单元测试全绿
+- **核心**: AC轨迹+VWAP权重+OU噪声+LOB感知; 超越TWAP(+44.58bps)/VWAP(+20.64bps)/AC(+44.58bps)
+- **ruff**: tt_dac_ps.py 新增 T201 豁免 (CLI main print)
+- **后续**: LIT-4.4 安全合规跨市场执行 (依赖本任务)
+- **指针**: `cairn/tt-dac-ps.md`
+
 ## 2026-08-23 · LIT-4.2 Almgren-Chriss 市场冲击模型 — 永久冲击指数衰减
 
 - **任务**: LIT-4.2 Almgren-Chriss 市场冲击模型 — Sprint LIT-S4 P1
