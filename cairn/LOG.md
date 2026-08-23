@@ -2,6 +2,19 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-2.6 对抗新闻攻击防护
+
+- **任务**: LIT-2.6 对抗新闻攻击防护（安全加固）— Sprint LIT-S2 收尾
+- **文献**: #35 SaTML 2026 — LLM 安全攻击防护
+- **新增**: `utils/adversarial_news_guard.py` (~511行) — HomoglyphDetector + HiddenTextFilter + PromptInjectionDetector + AdversarialNewsGuard
+- **新增**: `tests/unit/test_adversarial_news_guard_unit.py` (~366行) — 39 单元测试全绿
+- **增强**: `utils/ai_coordinator.py` (+30行) — sanitize_news_input() 可选集成
+- **核心**: 同形字归一化(西里尔/希腊/全角→拉丁) + 隐藏文本移除(零宽/控制/方向覆盖) + 注入中和(9模式+情绪词)
+- **ruff**: adversarial_news_guard.py 新增 T201/UP042 豁免
+- **里程碑**: Sprint LIT-S2 全部 6 个任务 (LIT-2.1~2.6) 完成
+- **后续**: Sprint LIT-S3 对冲引擎升级 (09-22~09-28)
+- **指针**: `cairn/adversarial-news-guard.md`
+
 ## 2026-08-23 · LIT-2.5 FinGPT 系列集成
 
 - **任务**: LIT-2.5 FinGPT 系列集成（轻量 LoRA）— Sprint LIT-S2

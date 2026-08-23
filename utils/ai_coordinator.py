@@ -47,6 +47,13 @@ try:
 except ImportError:
     _REFLECTOR_AVAILABLE = False
 
+# LIT-2.6: 对抗新闻攻击防护 (可选依赖, 缺失时降级)
+try:
+    from .adversarial_news_guard import AdversarialNewsGuard
+    _NEWS_GUARD_AVAILABLE = True
+except ImportError:
+    _NEWS_GUARD_AVAILABLE = False
+
 
 class TaskType(Enum):
     """AI任务类型"""
@@ -710,6 +717,31 @@ class AICoordinator:
             trend_strength=trend_strength, holding_days=holding_days,
             action=action,
         )
+
+    # ============================================================
+    # LIT-2.6: 对抗新闻攻击防护集成
+    # ============================================================
+
+    def sanitize_news_input(self, text: str) -> dict[str, Any]:
+        """净化新闻输入 (对抗攻击防护)。
+
+        Args:
+            text: 原始新闻文本
+
+        Returns:
+            {clean_text, is_safe, severity, threats} 或 {error} (guard 不可用时)
+        """
+        if not _NEWS_GUARD_AVAILABLE:
+            return {"clean_text": text, "is_safe": True, "error": "guard_unavailable"}
+        guard = AdversarialNewsGuard()
+        result = guard.sanitize(text)
+        return {
+            "clean_text": result.clean_text,
+            "is_safe": result.is_safe,
+            "severity": result.report.severity.value,
+            "threats": [t.value for t in result.report.threat_types],
+            "modifications": result.modifications,
+        }
 
 
 # ── 全局单例 ──
