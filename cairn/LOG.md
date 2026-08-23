@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-4.4 安全合规跨市场执行
+
+- **任务**: LIT-4.4 安全合规跨市场执行 — Sprint LIT-S4 P3
+- **文献**: #53 Safe Cross-Market Execution (2025.10)
+- **新增**: `utils/safe_execution_agent.py` (~430行) — ConstrainedMDP + CVaRController + ZeroKnowledgeAudit + SafeExecutionAgent
+- **新增**: `tests/unit/test_safe_execution_agent_unit.py` (~330行) — 41 单元测试全绿
+- **核心**: 约束MDP(持仓/单笔/占比/涨跌停) + CVaR尾部控制 + 零知识审计(哈希承诺); 调整后全部合规
+- **ruff**: safe_execution_agent.py 新增 T201/UP042 豁免
+- **后续**: LIT-4.5 篮子清算最小 shortfall (可选)
+- **指针**: `cairn/safe-execution-agent.md`
+
 ## 2026-08-23 · LIT-4.3 TT-DAC-PS 最优执行算法
 
 - **任务**: LIT-4.3 TT-DAC-PS 最优执行算法 — Sprint LIT-S4 P2
