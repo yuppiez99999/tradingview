@@ -2,6 +2,30 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-4.1 FinRL-X 权重中心接口架构
+
+- **任务**: LIT-4.1 FinRL-X 权重中心接口架构 — Sprint LIT-S4 P0
+- **文献**: #49 FinRL-X (PAKDD 2026)
+- **新增**: `core/finrl_x_interface.py` (~370行) — WeightCenter + StrategyPipeline + BacktestLiveConsistency + LegacyAdapter
+- **新增**: `tests/unit/test_finrl_x_interface_unit.py` (~240行) — 26 单元测试全绿
+- **核心**: 权重中心(回测=实盘单一真相源) + 可组合策略管线 + 一致性验证 + 旧管道兼容
+- **ruff**: finrl_x_interface.py 新增 T201/UP042 豁免
+- **后续**: LIT-4.2 Almgren-Chriss 市场冲击模型 (依赖本任务)
+- **指针**: `cairn/finrl-x-interface.md`
+
+## 2026-08-23 · P0 经典理论四件套实现 (Hurst + Info + Coint + DC)
+
+- **任务**: P0 经典理论 Top 10 #1-#4 实现 (cairn/classic-theory-coverage-20260819.md)
+- **新增 4 模块 7 因子**:
+  - `utils/alpha_factor/hurst.py` (~170行) — R/S 分析 Hurst 指数, 4 因子 (HURST_60D/120D/252D/TREND_SCORE)
+  - `utils/alpha_factor/information_theory.py` (~280行) — 香农熵/KL散度/互信息, 3 因子 (INFO_ENTROPY_60D/120D/DRIFT_60D) + 因子筛选接口
+  - `utils/stat_arb/` 新目录 (~400行) — 零依赖 Engle-Granger + Johansen 协整 + 配对交易引擎 (PairsTradingEngine)
+  - `utils/timing/directional_change.py` (~230行) — DC 事件驱动择时, 3 因子 (DC_VOL_60D/120D/TREND_60D) + 流式提取器
+- **集成**: AlphaFactorLibrary 新增第 17-18 大类 (enable_hurst/enable_info 默认 ON), 总因子数 120→127
+- **测试**: `tests/unit/test_p0_classic_theory_unit.py` — 36 单元测试全绿; 回归 78 passed 零破坏
+- **特性**: 全部纯 numpy 零第三方依赖, 永不降级 (与 strategy_lib/pairs_trading.py 互补)
+- **指针**: `cairn/p0-classic-theory-impl-20260823.md`
+
 ## 2026-08-23 · LIT-3.5 隐含波动率曲面深度对冲
 
 - **任务**: LIT-3.5 隐含波动率曲面深度对冲（可选）— Sprint LIT-S3 收尾
