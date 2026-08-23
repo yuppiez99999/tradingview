@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · Wave 8-LIT Sprint 1 启动 — LIT-1.1 R&D-Agent-Quant 骨架
+
+- **任务**: LIT-1.1 集成 R&D-Agent-Quant 多智能体因子挖掘 (NeurIPS 2025)
+- **新增**: `utils/alpha_factor/rd_agent_quant.py` (~310行) — 4角色(Researcher/Developer/Reviewer/Manager)因子挖掘引擎
+- **API**: `RDAgentQuant.run_mining_cycle()` → `MiningResult` + `quick_check()` 自检
+- **降级**: LLM 不可用时降级为规则因子 (momentum_20d/reversal_5d/volume_price_divergence)
+- **验证**: 自检通过 — 3因子提案全部接受 (IC=0.04, IR=0.67, turnover=0.3)
+- **ruff.toml**: alpha_factor/**/*.py 新增 T201 豁免
+- **后续**: LIT-1.2 AlphaForge动态权重 → LIT-1.3 DeepFund防泄漏 → LIT-1.4 AI-Trader基准 → LIT-1.5 AlphaCFG
+- **指针**: `utils/alpha_factor/rd_agent_quant.py` · `docs/系统升级文献调研与排期_20260823.md`
+
 ## 2026-08-24 · ETF期权对冲Phase 2回测验证
 
 - **脚本**: `scripts/run_200w_etf_backtest.py` — 消费 `portfolio_200w_etf.yaml` + ETF历史数据 + BS期权模拟

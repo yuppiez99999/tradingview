@@ -196,7 +196,8 @@ force-single-line = false
 "utils/black_litterman_optimizer.py" = ["N806", "N803"]
 
 # alpha_factor: ML/金融数学大写变量名 (L=Loss, T=Time/Tensor, H=Hidden, W=Weight, S=Spot, K=Strike)
-"utils/alpha_factor/**/*.py" = ["N806", "N803", "ANN", "C901", "N812"]
+# T201: __main__ 自检入口 print 是合理的 (rd_agent_quant.py 等)
+"utils/alpha_factor/**/*.py" = ["N806", "N803", "ANN", "C901", "N812", "T201"]
 
 # ANN: 非核心/非生产代码不强制类型注解 (逐步为核心模块补齐)
 # research/tests/scripts/tools/15_每日工作流 已在上方各自行中包含 ANN, 不重复声明
