@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-1.5 AlphaCFG 语法引导因子发现
+
+- **任务**: LIT-1.5 AlphaCFG 语法引导因子发现 (可选增强)
+- **新增**: `utils/alpha_factor/alpha_cfg.py` (~370行) — CFGGrammar + FactorEvaluator + MCTSNode + MCTSSearcher + AlphaCFGDiscoverer
+- **新增**: `tests/unit/test_alpha_cfg_unit.py` (~230行) — 27 单元测试全绿
+- **核心**: CFG 文法约束 + MCTS 搜索 (UCB1 选择 + CFG 扩展 + 随机 rollout + IC 回传)
+- **CFG 规则**: binary/unary/ts_expr/cs_expr/terminal, 7终端 + 6一元 + 5时序 + 2截面 + 5窗口
+- **验证**: 端到端 200 迭代发现 top-10 因子, 最佳 IC=+0.0978
+- **LIT-S1 全部完成**: LIT-1.1~1.5 ✅
+- **指针**: `cairn/alpha-cfg-discovery.md`
+
 ## 2026-08-23 · LIT-1.4 AI-Trader 实时未污染评估基准
 
 - **任务**: LIT-1.4 部署 AI-Trader 实时未污染基准 — Agent-Native Trading
