@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · LIT-1.2 AlphaForge 动态权重组合机制
+
+- **任务**: LIT-1.2 AlphaForge 动态权重组合 (AAAI 2025)
+- **新增**: `utils/alpha_factor/alpha_forge_combiner.py` (~335行) — 滚动窗口IC/IR + Softmax温度加权 + 衰减惩罚 + 换手率约束
+- **API**: `AlphaForgeCombiner.compute_dynamic_weights()` → `CombinationResult`
+- **零行为变更**: 旧固定权重接口保留, 新接口通过 `enable_dynamic=True` 启用
+- **验证**: 自检通过 — 3因子等权0.333, IC_expected=0.034, turnover=0.0
+- **后续**: LIT-1.3 DeepFund防泄漏 → LIT-1.4 AI-Trader基准 → LIT-1.5 AlphaCFG
+- **指针**: `utils/alpha_factor/alpha_forge_combiner.py`
+
 ## 2026-08-24 · Wave 8-LIT Sprint 1 启动 — LIT-1.1 R&D-Agent-Quant 骨架
 
 - **任务**: LIT-1.1 集成 R&D-Agent-Quant 多智能体因子挖掘 (NeurIPS 2025)
