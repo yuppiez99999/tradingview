@@ -2,6 +2,19 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · 首次进化循环实跑（非实盘）+ llmfit 集成提交
+
+- **背景**: 8/24(周一) Wave 7 首次自我进化循环预定执行日，干跑已验证通过
+- **执行**: `scripts/evolution_cycle_0824.py` — 调用 `EvolutionOrchestratorV2.run_cycle()` 完整进化循环
+- **结果**: `status=no_action, level=L2, executed=False, reason=recommendation=continue, private=0.479`
+  - 策略评估器建议 continue（private score 0.479），无需权重调整
+  - L2 层评估完成，未触发 promote/rollback
+- **200万ETF定投**: 核心仓4只→12万/月 + 卫星仓7只→3万/月 = 15万/月（非实盘，仅生成计划）
+- **报告**: `每日报告归档/2026-08-24/进化循环_20260824.{md,json}`
+- **安全**: L3 HC-4 人工审批闸门 executed=False，L2 影子验证 DSR 阈值保护，未提交实盘订单
+- **llmfit**: `utils/local_model_selector.py` 提交 (c58fece0) — 本地 LLM 模型科学选型，主入口自检集成
+- **指针**: `scripts/evolution_cycle_0824.py` · `每日报告归档/2026-08-24/进化循环_20260824.md`
+
 ## 2026-08-23 · llmfit 集成 — 本地 LLM 模型科学选型（P0 完成）
 
 - **背景**: GitHub 本周 trending 筛选 3 个强相关项目，P0 选中 AlexsJones/llmfit 解决 Ollama 回退硬编码 "glm-5" 无硬件感知问题
