@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-2.3 CN-Buzz2Portfolio 中国市场基准
+
+- **任务**: LIT-2.3 部署 CN-Buzz2Portfolio 中国市场基准 — Sprint LIT-S2
+- **文献**: #24 CN-Buzz2Portfolio (中国市场) (2026.03, ★★★★★)
+- **新增**: `tests/eval/cn_buzz2portfolio.py` (~530行) — NewsClassifier + BuzzAnalyzer + PortfolioConstructor + TriStageCPAAgent + CNBuzz2PortfolioBenchmark
+- **新增**: `tests/unit/test_cn_buzz2portfolio_unit.py` (~470行) — 44 单元测试全绿
+- **核心**: Tri-Stage CPA Agent (新闻分类→舆情分析→组合构建), 9行业映射, 5新闻类别
+- **ruff**: cn_buzz2portfolio.py 新增 UP042 豁免
+- **后续**: LIT-2.4 KTD-Fin 记忆控制评估 → LIT-2.5 FinGPT
+- **指针**: `cairn/cn-buzz2portfolio.md`
+
 ## 2026-08-23 · LIT-2.2 TradingGroup 自反思机制
 
 - **任务**: LIT-2.2 集成 TradingGroup 自反思机制 — Sprint LIT-S2
