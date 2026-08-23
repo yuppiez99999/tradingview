@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-2.4 KTD-Fin 记忆控制评估
+
+- **任务**: LIT-2.4 KTD-Fin 记忆控制评估 — Sprint LIT-S2
+- **文献**: #25 KTD-Fin: Memory-Controlled Benchmark (2026.05, ★★★★)
+- **新增**: `tests/eval/ktd_fin.py` (~660行) — DataMasker + BarraAttributor + MemoryLeakDetector + KTDFinBenchmark + MockAgent
+- **新增**: `tests/unit/test_ktd_fin_unit.py` (~445行) — 39 单元测试全绿
+- **核心**: 数据侧掩码(4策略) + Barra 6因子归因 + 记忆泄漏检测(5级严重度)
+- **ruff**: ktd_fin.py 新增 UP042 豁免
+- **后续**: LIT-2.5 FinGPT 系列集成 → LIT-2.6 对抗新闻攻击防护
+- **指针**: `cairn/ktd-fin-eval.md`
+
 ## 2026-08-23 · LIT-2.3 CN-Buzz2Portfolio 中国市场基准
 
 - **任务**: LIT-2.3 部署 CN-Buzz2Portfolio 中国市场基准 — Sprint LIT-S2
