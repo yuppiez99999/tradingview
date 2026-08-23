@@ -385,7 +385,75 @@ CLI: `--check` / `--advance` / `--rollback` / `--auto`
 - **HC-4**: 灰度管理器不可用时不阻塞（容错 True，由 Feature Flag 兜底）
 - **HC-5**: Feature Flag 双签启用 + 单签禁用
 
-## 十三、指针
+## 十三、剩余缺口补全计划（Wave 7-ERL 子轨道）
+
+> 创建 2026-08-22 · CodeArts
+> 状态：计划已排期，待 09-05 启动
+> 背景：阶段 1-5 完成策略级进化→再平衡闭环后，调查发现 4 个剩余缺口阻碍"完成进化后能自我再平衡"全链路自动化
+
+### 13.1 缺口分析
+
+| 缺口 | 现状 | 影响 | 证据 |
+|------|------|------|------|
+| **G1** 模型训练→再平衡联动 | `autolearn_trainer.py`/`lgb_enhanced_trainer.py`/`lgb_tscv_trainer.py`/`ml_enhanced` 训练后无回调 | 训练成果无法自动应用到组合，需手动运行 `python etf_option_hedge_rebalancer.py` | 训练器无 `rebalance`/`trigger`/`callback` 关键词 |
+| **G2** 漂移→再平衡回调生产启用 | `DriftMonitor.rebalance_callback` 参数已存在（`drift_monitor.py:121`）但生产实例化未传入 | 漂移仅触发重训，不触发再平衡 | `etf_option_hedge_rebalancer.py:296` 等处 `DriftMonitor()` 不传 `rebalance_callback` |
+| **G3** institutional pipeline 集成 | `institutional_pipeline_runner.py` 无 evolution/rebalance phase | 机构管道与进化再平衡脱节 | 管道步骤 Step 1-7 无 evolution/rebalance |
+| **G4** 灰度发布推进 | `USE_EVOLUTION_ORCHESTRATOR` 默认 false，阶段5灰度进行中（STAGE_2_50PCT） | 闭环未全量生产启用 | `feature_flags.yaml:9` |
+
+### 13.2 排期（09-05 ~ 12-31，3 Sprint）
+
+> 与 Wave 7 Sprint 1-4 并行，避开 ETF期权对冲 Phase 4 灰度窗口（10-06~11-05）实盘验证资源争用
+
+#### Sprint 1（09-05 ~ 09-26）：训练→再平衡联动 + 漂移回调启用
+
+| 任务 | 时间 | 内容 | 关联缺口 |
+|------|------|------|---------|
+| ER-1.1 | 09-05~09-12 | 训练器新增 `post_train_callback` 钩子（`autolearn_trainer.py`/`lgb_enhanced_trainer.py`/`lgb_tscv_trainer.py`），fail-safe 降级 | G1 |
+| ER-1.2 | 09-13~09-19 | 训练→进化→再平衡串联：训练完成 → `EvolutionOrchestratorV2.run_cycle()` → `run_daily_rebalance()`，受 `USE_EVOLUTION_ORCHESTRATOR` 控制 | G1 |
+| ER-1.3 | 09-20~09-26 | 漂移→再平衡回调生产启用：`etf_option_hedge_rebalancer.py:296` 等处实例化 `DriftMonitor` 时传入 `rebalance_callback`，受 `USE_DRIFT_DETECTOR` 控制 | G2 |
+
+#### Sprint 2（09-27 ~ 10-31）：institutional pipeline 集成
+
+| 任务 | 时间 | 内容 | 关联缺口 |
+|------|------|------|---------|
+| ER-2.1 | 09-27~10-10 | `institutional_pipeline_runner.py` 新增 `phase_evolution`（Step 4.6），调用 `EvolutionOrchestratorV2` | G3 |
+| ER-2.2 | 10-11~10-24 | 新增 `phase_rebalance`（Step 6.5），调用 `etf_option_hedge_rebalancer.run_daily_rebalance()` | G3 |
+| ER-2.3 | 10-25~10-31 | 管道编排确认：data→factors→**evolution**→signals→**rebalance**→execution→report，Feature Flag 控制 | G3 |
+
+#### Sprint 3（11-01 ~ 12-31）：灰度发布 + 端到端验证
+
+| 任务 | 时间 | 内容 | 关联缺口 |
+|------|------|------|---------|
+| ER-3.1 | 11-01~11-14 | 灰度 Stage 1 (10%)，观察 `evolution_trigger_rate`/`l2_promote_rate`/`avg_weight_adjustment_magnitude` | G4 |
+| ER-3.2 | 11-15~11-30 | 灰度 Stage 2 (50%)，健康度达标后推进 | G4 |
+| ER-3.3 | 12-01~12-15 | 灰度 Stage 3 (100%)，全量启用 | G4 |
+| ER-3.4 | 12-16~12-31 | 端到端验证 + 知识沉淀（更新本文档 + LOG） | 全部 |
+
+### 13.3 验收标准
+
+- [ ] 训练完成→再平衡自动触发（无需人工干预）
+- [ ] 漂移→再平衡回调生产生效（`DriftMonitor` 实例化传入 `rebalance_callback`）
+- [ ] `institutional_pipeline --phase all` 含 evolution + rebalance 阶段
+- [ ] 灰度 100% 健康度达标（`l2_promote_rate` ≥ 0.3 / `evolution_trigger_rate` ≥ 0.1 / `avg_latency_ms` ≤ 5000）
+- [ ] 全链路测试覆盖（单元 + E2E + Shadow）
+
+### 13.4 设计原则
+
+1. **优雅降级**：所有新增联动 fail-safe，回调异常不阻断训练/管道主流程
+2. **Feature Flag 控制**：G1/G2 受 `USE_EVOLUTION_ORCHESTRATOR`/`USE_DRIFT_DETECTOR` 控制，关闭时行为不变
+3. **乘子约束**：训练→进化产出的 `weight_adjustments` 仍限 [0.5, 2.0]（与 §2.1 一致）
+4. **向后兼容**：`post_train_callback` 默认 None，不传时训练行为不变
+5. **与 Wave 7 协调**：Sprint 1-2 不侵入生产链路（纯新增 phase + 回调），Sprint 3 灰度与 Wave 7 Sprint 3-4 实盘验证窗口错开
+
+### 13.5 与既有排期协调
+
+| Wave 7-ERL 任务 | 时间窗口 | 与 Wave 7 重叠 | 协调措施 |
+|----------------|---------|--------------|---------|
+| ER-1.x | 09-05~09-26 | Wave 7 Sprint 1 后半 + Sprint 2 前半 | 纯新增钩子/回调，不侵入既有任务 |
+| ER-2.x | 09-27~10-31 | Wave 7 Sprint 2 后半 + Sprint 3 前半 | 管道新增 phase，与 W7.2.x 实盘验证错开 |
+| ER-3.x | 11-01~12-31 | Wave 7 Sprint 3 后半 + Sprint 4 | 灰度发布复用 `gradual_rollout_manager.py`，与 v8.7 发布同步 |
+
+## 十四、指针
 
 - 本文档: `cairn/evolution-rebalance-loop.md`
 - 断裂1实现: `utils/hedge_rebalance_integrator.py:_load_evolution_factor_weights` + `check_rebalance`

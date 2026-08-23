@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-22 · 进化→再平衡闭环补全计划排期（Wave 7-ERL 子轨道）
+
+- **背景**: 策略级进化→再平衡闭环（阶段1-5）已完成，调查发现 4 个剩余缺口阻碍"完成进化后能自我再平衡"全链路自动化
+- **缺口**: G1 训练→再平衡联动缺失 / G2 漂移→再平衡回调未生产启用 / G3 institutional pipeline 无 evolution/rebalance phase / G4 灰度发布推进中
+- **排期**: Wave 7-ERL 子轨道 09-05~12-31，3 Sprint（Sprint 1 训练联动+漂移回调 / Sprint 2 管道集成 / Sprint 3 灰度发布+验证）
+- **与 Wave 7 协调**: 并行不冲突，避开 ETF期权对冲 Phase 4 灰度窗口实盘验证资源争用
+- **沉淀**: `cairn/evolution-rebalance-loop.md` §十三 + `cairn/ROADMAP.md` Wave 7-ERL 子轨道
+- **指针**: `cairn/evolution-rebalance-loop.md:十三` · `cairn/ROADMAP.md:Wave 7-ERL`
+
 ## 2026-08-22 · 灰度发布配置收尾 — STAGE_2_50PCT 推进完成
 
 - **背景**: 阶段5代码完成后，需收尾配置：10%比例下首次命中在9/4太慢，推进至50%使8/24(周一)立即命中

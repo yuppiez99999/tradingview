@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录本模块的实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-22 · sentiment_hub 接入 Wind MCP 新闻扫描
+
+- `nlp/sentiment_hub.py` 新增 `_fetch_wind_news_alerts` + `_render_news_alerts_section` — 对每只持仓标的调 `tools.wind_mcp_fetcher.wind_search_news(top_k=5)` 抓新闻，用 CRITICAL_NEGATIVE/POSITIVE_KEYWORDS 命中检测，报告新增"五、新闻舆情预警 (Wind MCP)"章节。
+- 三条降级路径: SENTIMENT_HUB_USE_WIND_NEWS=0 关闭 / Wind MCP 不可用显示提示 / 可用时列出命中表。fail-safe, 不崩溃报告生成。
+- 本模块 `task_sentiment` (morning_info_runner.py:154) 调 `sentiment_hub.run_all()` 自动受益, 无需改动; `run_daily_morning.py` 用 os.environ.copy() 透传环境变量, 无需改动。
+- 修正 `task_sentiment` ImportError 占位文案 (原"模块尚未实现"已过时)。
+- ruff.toml 给 `nlp/sentiment_hub.py` 加 BLE001 豁免 (fail-safe 降级同类)。
+- 验证: 8-22 报告扫描 26 标的 → 18 负面 + 26 正面命中, 归档到 每日报告归档/2026-08-22/。
+
 ## 2026-08-18 · 补跑 8-17 EOD 工作流 + FeedbackLoop 参数修复
 
 - 补跑 8-17 EOD 工作流（`run_daily_eod_workflow.py --date 2026-08-17`），9 成功 3 失败。

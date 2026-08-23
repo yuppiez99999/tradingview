@@ -309,6 +309,46 @@ related:
 - **11-12 Sprint 3 收尾**：S7 入库 + FeatureStore 落地 + CVaR 接入 + Prefect/DuckDB 完成，方可进入 Sprint 4。
 - **12-31 v8.7 发布**：门禁三件套连续 21 天 0 FAIL + 影子账户 2 周稳定 + 灰度 100% + daily_workflow ≤3000 + 覆盖率 ≥0.80，方可发布 v8.7。
 
+### Wave 7-ERL：进化→再平衡闭环补全子轨道（2026-09-05 ~ 12-31，新增 2026-08-22）
+
+> **定位**：策略级进化→再平衡闭环（阶段1-5）已完成，但调查发现 4 个剩余缺口阻碍"完成进化后能自我再平衡"全链路自动化。本子轨道补齐训练→再平衡联动、漂移回调生产启用、institutional pipeline 集成、灰度发布推进。
+> **主文档**：`cairn/evolution-rebalance-loop.md` §十三 剩余缺口补全计划
+> **与 Wave 7 协调**：3 Sprint 与 Wave 7 Sprint 1-4 并行，避开 ETF期权对冲 Phase 4 灰度窗口（10-06~11-05）实盘验证资源争用
+
+#### Wave 7-ERL 缺口与排期总表
+
+| 缺口 | 现状 | Sprint | 时间窗口 |
+|------|------|--------|---------|
+| G1 模型训练→再平衡联动 | 训练后无回调，需手动运行 | Sprint 1 | 09-05~09-19 |
+| G2 漂移→再平衡回调生产启用 | `rebalance_callback` 未生产传入 | Sprint 1 | 09-20~09-26 |
+| G3 institutional pipeline 集成 | 管道无 evolution/rebalance phase | Sprint 2 | 09-27~10-31 |
+| G4 灰度发布推进 | STAGE_2_50PCT 进行中 | Sprint 3 | 11-01~12-31 |
+
+#### Wave 7-ERL 任务清单
+
+**Sprint 1（09-05 ~ 09-26）：训练→再平衡联动 + 漂移回调启用**
+- [ ] ER-1.1 (09-05~09-12) 训练器新增 `post_train_callback` 钩子（`autolearn_trainer.py`/`lgb_enhanced_trainer.py`/`lgb_tscv_trainer.py`），fail-safe 降级
+- [ ] ER-1.2 (09-13~09-19) 训练→进化→再平衡串联：训练完成 → `EvolutionOrchestratorV2.run_cycle()` → `run_daily_rebalance()`，受 `USE_EVOLUTION_ORCHESTRATOR` 控制
+- [ ] ER-1.3 (09-20~09-26) 漂移→再平衡回调生产启用：`etf_option_hedge_rebalancer.py` 等处实例化 `DriftMonitor` 时传入 `rebalance_callback`，受 `USE_DRIFT_DETECTOR` 控制
+
+**Sprint 2（09-27 ~ 10-31）：institutional pipeline 集成**
+- [ ] ER-2.1 (09-27~10-10) `institutional_pipeline_runner.py` 新增 `phase_evolution`（Step 4.6），调用 `EvolutionOrchestratorV2`
+- [ ] ER-2.2 (10-11~10-24) 新增 `phase_rebalance`（Step 6.5），调用 `etf_option_hedge_rebalancer.run_daily_rebalance()`
+- [ ] ER-2.3 (10-25~10-31) 管道编排确认：data→factors→evolution→signals→rebalance→execution→report
+
+**Sprint 3（11-01 ~ 12-31）：灰度发布 + 端到端验证**
+- [ ] ER-3.1 (11-01~11-14) 灰度 Stage 1 (10%)，观察闭环健康度指标
+- [ ] ER-3.2 (11-15~11-30) 灰度 Stage 2 (50%)，健康度达标后推进
+- [ ] ER-3.3 (12-01~12-15) 灰度 Stage 3 (100%)，全量启用
+- [ ] ER-3.4 (12-16~12-31) 端到端验证 + 知识沉淀
+
+#### Wave 7-ERL 验收清单
+
+- [ ] 训练完成→再平衡自动触发（无需人工）
+- [ ] 漂移→再平衡回调生产生效
+- [ ] `institutional_pipeline --phase all` 含 evolution + rebalance
+- [ ] 灰度 100% 健康度达标
+
 ## 开放问题
 
 1. 情绪因子数据源质量 — 当前新闻数据覆盖率和时效性不足，需要更高质量的中文财经新闻源或替代情绪指标

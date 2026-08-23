@@ -259,5 +259,8 @@ force-single-line = false
 # BLE001: _fallback_to_sentiment 捕获 ImportError+宽泛异常降级, 是有意设计
 # C901: get_report 多层降级链 (采集→LLM→词典→中性) 固有复杂
 "utils/news_intelligence.py" = ["BLE001", "C901"]
+# S1 同类 (2026-08-22): nlp/sentiment_hub Wind MCP 新闻扫描 fail-safe 降级
+# BLE001: wind_search_news 导入/调用失败时降级为 unavailable/skip, 不崩溃报告生成
+"nlp/sentiment_hub.py" = ["BLE001"]
 
 
