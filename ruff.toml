@@ -114,7 +114,8 @@ force-single-line = false
 "utils/llm_gateway/**/*.py" = ["BLE001", "ANN"]
 # 风控/执行模块: 实盘下单 fail-safe, 异常不能导致重复下单或漏单
 "utils/risk/**/*.py" = ["BLE001"]
-"utils/execution/automated_execution_system.py" = ["BLE001", "E402"]
+"utils/execution/automated_execution_system.py" = ["BLE001", "E402", "C901"]
+"utils/execution/execution_components.py" = ["BLE001", "C901"]
 # 阶段2 (2026-08-19): 编排层/工作流 blind except 是有意设计 (fail-safe 降级链)
 # 15_每日工作流: LLM 多提供商降级客户端 + 熔断器 + 工作流编排, 任何异常降级为日志不崩溃
 "15_每日工作流/**/*.py" = ["BLE001", "ANN", "N806", "C901"]

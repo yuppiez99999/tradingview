@@ -1684,7 +1684,7 @@ class TestCalendarAndSystemLifecycle:
         # daily_execution: start=6:30, early_minutes=30
         # 当前 6:15 → 提前 15 分钟 → 允许
         with patch(
-            "utils.execution.automated_execution_system.datetime",
+            "utils.execution.execution_components.datetime",
         ) as mock_dt:
             mock_dt.now.return_value.time.return_value = datetime_time(6, 15)
             mock_dt.min = datetime.min
