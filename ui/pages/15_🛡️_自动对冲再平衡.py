@@ -27,7 +27,6 @@ import streamlit as st
 from utils.auto_hedge_rebalance.engine import AutoHedgeRebalanceEngine
 from utils.auto_hedge_rebalance.models import StrategyLevel
 
-
 # ============================================================================
 # 策略等级颜色编码
 # ============================================================================

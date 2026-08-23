@@ -13,7 +13,6 @@ import pytest
 from utils.auto_hedge_rebalance.engine import AutoHedgeRebalanceEngine
 from utils.auto_hedge_rebalance.models import (
     AutoHedgePlan,
-    HedgeToolType,
     StrategyLevel,
 )
 

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import logging
-import signal
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -94,7 +93,7 @@ class TargetMonitor:
         if not self.nav_history_path.exists():
             return []
         try:
-            with open(self.nav_history_path, "r", encoding="utf-8") as f:
+            with open(self.nav_history_path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as exc:
             logger.warning("加载净值历史失败: %s", exc)

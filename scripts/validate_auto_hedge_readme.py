@@ -4,7 +4,7 @@ import sys
 
 path = "utils/auto_hedge_rebalance/README.md"
 size = os.path.getsize(path)
-with open(path, "r", encoding="utf-8") as f:
+with open(path, encoding="utf-8") as f:
     lines = f.readlines()
 line_count = len(lines)
 

@@ -16,7 +16,6 @@ from utils.auto_hedge_rebalance.cost_benefit_filter import PortfolioRisk
 from utils.auto_hedge_rebalance.models import (
     HedgeToolType,
     OptionsStrategy,
-    ToolSelection,
 )
 from utils.auto_hedge_rebalance.tool_selector import (
     HedgeToolSelector,

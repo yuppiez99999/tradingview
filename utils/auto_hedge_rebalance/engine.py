@@ -20,7 +20,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -30,19 +29,11 @@ from utils.auto_hedge_rebalance.audit_logger import AuditLogger
 from utils.auto_hedge_rebalance.circuit_breaker import CircuitBreaker, EmergencyAction
 from utils.auto_hedge_rebalance.cost_benefit_filter import CostBenefitFilter, PortfolioRisk
 from utils.auto_hedge_rebalance.data_fetcher import HedgeToolDataFetcher
-from utils.auto_hedge_rebalance.exceptions import (
-    AllHedgeToolPriceUnavailable,
-    CircuitBreakerActive,
-    PortfolioRiskAssessmentError,
-)
 from utils.auto_hedge_rebalance.models import (
     AutoHedgePlan,
-    BreakerStatus,
     CorrectionAction,
     FilterResult,
-    HedgeToolType,
     MonitorResult,
-    StrategyLevel,
     StrategyState,
     ToolSelection,
 )
@@ -151,7 +142,7 @@ class AutoHedgeRebalanceEngine:
 
             full_path = self.base_dir / config_path
             if full_path.exists():
-                with open(full_path, "r", encoding="utf-8") as f:
+                with open(full_path, encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}
         except Exception as exc:
             logger.warning("加载配置失败，使用默认配置: %s", exc)

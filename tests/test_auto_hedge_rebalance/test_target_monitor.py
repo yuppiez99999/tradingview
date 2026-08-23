@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from utils.auto_hedge_rebalance.models import CorrectionAction, StrategyLevel
+from utils.auto_hedge_rebalance.models import CorrectionAction
 from utils.auto_hedge_rebalance.target_monitor import TargetMonitor
 
 
@@ -210,7 +210,7 @@ class TestUpdateNavHistory:
         monitor.update_nav_history(1.0, "2026-01-01")
         monitor.update_nav_history(1.01, "2026-01-02")
         # Assert
-        with open(nav_path, "r", encoding="utf-8") as f:
+        with open(nav_path, encoding="utf-8") as f:
             history = json.load(f)
         assert len(history) == 2
         assert history[0]["nav"] == 1.0

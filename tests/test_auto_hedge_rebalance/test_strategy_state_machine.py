@@ -16,7 +16,6 @@ import pytest
 from utils.auto_hedge_rebalance.models import (
     CorrectionAction,
     StrategyLevel,
-    StrategyState,
 )
 from utils.auto_hedge_rebalance.strategy_state_machine import StrategyStateMachine
 
@@ -138,7 +137,7 @@ class TestStatePersistence:
         state_machine.transition(StrategyLevel.NORMAL, CorrectionAction.MILD_TUNE)
         # Assert
         assert Path(state_path).exists()
-        with open(state_path, "r", encoding="utf-8") as f:
+        with open(state_path, encoding="utf-8") as f:
             data = json.load(f)
         assert data["strategy_state"]["current_level"] == "MILD_CORRECTION"
 

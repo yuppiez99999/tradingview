@@ -9,14 +9,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from utils.auto_hedge_rebalance.engine import AutoHedgeRebalanceEngine
 from utils.auto_hedge_rebalance.models import (
     AutoHedgePlan,
-    CorrectionAction,
     HedgeToolType,
     StrategyLevel,
 )

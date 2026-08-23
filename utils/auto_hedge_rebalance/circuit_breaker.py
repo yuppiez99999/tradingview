@@ -18,7 +18,6 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from utils.auto_hedge_rebalance.models import BreakerStatus
 
@@ -100,7 +99,7 @@ class CircuitBreaker:
         if not self.state_path.exists():
             return BreakerStatus()
         try:
-            with open(self.state_path, "r", encoding="utf-8") as f:
+            with open(self.state_path, encoding="utf-8") as f:
                 data = json.load(f)
             status_data = data.get("breaker_status", {})
             return BreakerStatus(
@@ -121,7 +120,7 @@ class CircuitBreaker:
         data: dict = {}
         if self.state_path.exists():
             try:
-                with open(self.state_path, "r", encoding="utf-8") as f:
+                with open(self.state_path, encoding="utf-8") as f:
                     data = json.load(f)
             except Exception:
                 data = {}

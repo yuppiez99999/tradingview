@@ -13,7 +13,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from utils.auto_hedge_rebalance.data_fetcher import HedgeToolDataFetcher
-from utils.auto_hedge_rebalance.exceptions import AllHedgeToolPriceUnavailable
 
 
 @pytest.fixture

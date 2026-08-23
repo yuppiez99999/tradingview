@@ -12,8 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from utils.auto_hedge_rebalance.circuit_breaker import CircuitBreaker, EmergencyAction
-from utils.auto_hedge_rebalance.models import BreakerStatus
+from utils.auto_hedge_rebalance.circuit_breaker import CircuitBreaker
 
 
 @pytest.fixture
@@ -122,7 +121,7 @@ class TestStatePersistence:
         breaker.check(daily_drop=0.02, max_drawdown=0.26)
         # Assert
         assert Path(state_path).exists()
-        with open(state_path, "r", encoding="utf-8") as f:
+        with open(state_path, encoding="utf-8") as f:
             data = json.load(f)
         assert data["breaker_status"]["active"] is True
 
@@ -141,6 +140,6 @@ class TestStatePersistence:
         # Act
         breaker.release("admin", "解除")
         # Assert
-        with open(state_path, "r", encoding="utf-8") as f:
+        with open(state_path, encoding="utf-8") as f:
             data = json.load(f)
         assert data["breaker_status"]["active"] is False

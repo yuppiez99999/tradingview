@@ -18,14 +18,8 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
-
-from utils.auto_hedge_rebalance.exceptions import (
-    AllHedgeToolPriceUnavailable,
-    ToolPriceUnavailable,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -262,7 +256,7 @@ class HedgeToolDataFetcher:
         try:
             if not self.cache_path.exists():
                 return {}
-            with open(self.cache_path, "r", encoding="utf-8") as f:
+            with open(self.cache_path, encoding="utf-8") as f:
                 cache = json.load(f)
             option_cache = cache.get("etf_options", {}).get(code, {})
             if option_cache:
@@ -385,7 +379,7 @@ class HedgeToolDataFetcher:
         try:
             if not self.cache_path.exists():
                 return 0.0
-            with open(self.cache_path, "r", encoding="utf-8") as f:
+            with open(self.cache_path, encoding="utf-8") as f:
                 cache = json.load(f)
             return float(cache.get("reverse_etf", {}).get(code, 0) or 0)
         except Exception as exc:

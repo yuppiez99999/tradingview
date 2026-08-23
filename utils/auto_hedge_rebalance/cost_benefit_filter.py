@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 from utils.auto_hedge_rebalance.models import FilterResult, HedgeToolType, ToolSelection
 

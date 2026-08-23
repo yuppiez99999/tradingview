@@ -100,7 +100,7 @@ class StrategyStateMachine:
         if not self.state_path.exists():
             return StrategyState()
         try:
-            with open(self.state_path, "r", encoding="utf-8") as f:
+            with open(self.state_path, encoding="utf-8") as f:
                 data = json.load(f)
             state_data = data.get("strategy_state", {})
             return StrategyState(
@@ -122,7 +122,7 @@ class StrategyStateMachine:
         data: dict = {}
         if self.state_path.exists():
             try:
-                with open(self.state_path, "r", encoding="utf-8") as f:
+                with open(self.state_path, encoding="utf-8") as f:
                     data = json.load(f)
             except Exception:
                 data = {}

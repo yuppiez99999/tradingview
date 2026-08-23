@@ -9,17 +9,17 @@
 """
 
 from collections.abc import Callable
-from typing import Optional
+from typing import Dict, List, Optional
 
 
 def generate_ai_recommendations(
-    pnl_data: dict,
-    hedge_data: dict,
+    pnl_data: Dict,
+    hedge_data: Dict,
     net_pnl: float,
     report_date: str,
     deepseek_model: str,
     call_deepseek_fn: Callable[..., Optional[str]],
-) -> list[str]:
+) -> List[str]:
     """生成AI决策建议 (DeepSeek 优先, 降级到规则引擎)
 
     Args:
@@ -78,13 +78,13 @@ def generate_ai_recommendations(
 
 
 def generate_deepseek_recommendations(
-    pnl_data: dict,
-    hedge_data: dict,
+    pnl_data: Dict,
+    hedge_data: Dict,
     net_pnl: float,
     report_date: str,
     deepseek_model: str,
     call_deepseek_fn: Callable[..., Optional[str]],
-) -> Optional[list[str]]:
+) -> Optional[List[str]]:
     """调用 DeepSeek 生成结构化交易决策建议
 
     生成包含具体操作关键词的建议, 以便 apply_llm_decisions_to_plan.py 识别:
