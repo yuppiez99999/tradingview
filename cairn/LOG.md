@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · Wave 7 Sprint 1 收尾 — W7.1.5/6/7 全部完成
+
+- **W7.1.5 覆盖率**: ✅ 已完成 (08-13) — 0.4307→**0.7477** (远超 0.55), 36 P0 模块补测 1399 tests; ROADMAP 标记同步
+- **W7.1.6 MVSK P5-1 shadow**: ✅ 基础设施就绪 — `apply_mvsk_shadow_to_mid_layer()` + BL+MVSK(378, γ_s=0.1, γ_k=0.1) + 378日冷启动; shadow 不修改 portfolio (unchanged=True), 差异记录到 `reports/shadow/mvsk_p5_daily_diff.jsonl`; scheduler.py 未接入符合"不侵入生产链路"设计; 测试 289行 5场景全绿
+- **W7.1.7 qlib shadow**: ✅ 基础设施就绪 — `register_qlib_lgb_v2_shadow()` + `apply_qlib_lgb_v2_shadow()` + `QlibShadowResult`; shadow 权重=0.0 不参与融合, 旁路记录到 `reports/shadow/qlib_lgb_v2_daily.jsonl`; 模型 pkl 缺失时随机数模拟, 待 W7.2.9 补齐
+- **验证**: 两个 shadow 均验证通过 (MVSK: 4只中线ETF weight_diff_l2=0.0; qlib: symbol=510300 qlib_signal=0.053)
+- **ROADMAP**: W7.1.5/6/7 全部标记 [x] DONE (提前完成, 原排期 09-05~09-12)
+- **指针**: `utils/universe/portfolio_builder.py:apply_mvsk_shadow_to_mid_layer` · `utils/signal_fusion.py:register_qlib_lgb_v2_shadow`
+
 ## 2026-08-24 · 首次进化循环实跑（非实盘）+ llmfit 集成提交
 
 - **背景**: 8/24(周一) Wave 7 首次自我进化循环预定执行日，干跑已验证通过

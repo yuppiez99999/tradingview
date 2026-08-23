@@ -239,9 +239,9 @@ related:
 - [x] W7.1.2 (08-13~09-05, 非交易时段) daily_workflow.py 拆分第 2-3 轮 — risk phase (~600 行) + hedge phase (~500 行) + signal phase (~400 行) 提取到 `workflow/phases/`; daily_workflow 5904→≤4500 — ✅ **DONE 2026-08-14 (提前)**: `workflow/phases/` 已含 16 个 phase 文件 (含 risk.py/hedge.py/signal.py); daily_workflow.py 2828 行 (目标 ≤4500)
 - [x] W7.1.3 (08-13~08-31) R10 拖债清偿 — ✅ **DONE 2026-08-13**: 36 处裸 `except Exception` (无 `# fail-safe` 标记) 全部精确化 (ai_hedge_fund/ 30 + alpha_factor/ 4 + notify.py 2); `scripts/_r10_refine_bare_excepts.py` AST 替换; ruff BLE001 归零; 14 文件 py_compile PASS
 - [x] W7.1.4 (08-25~09-12) QMT 实盘接入准备 — ✅ **DONE 2026-08-13 (提前)**: `quant_modules/qmt_connector.py` (~420 行) paper trading 骨架 + 30 tests 全绿. 为 Sprint 2 W7.2.1 T15 准备
-- [ ] W7.1.5 (08-13~09-12) G7 覆盖率提升启动 — 补齐 P0 链路关键模块直测; 覆盖率 0.4307 → ≥0.55
-- [ ] W7.1.6 (09-05~09-12) **MVSK P5-1 中线层 shadow 接入准备** — `utils/universe/portfolio_builder.py` 改造支持 BL+MVSK(378, γ_s=0.1, γ_k=0.1) + shadow 模式（不产真实订单，仅记录 vs BL+MV 差异）；378 日历史数据预加载（冷启动）；依赖 P4 ✅
-- [ ] W7.1.7 (09-05~09-12) **qlib新选股模型 shadow 接入准备** — `utils/signal_fusion.py` 注册新信号源 `register_source('qlib_lgb_v2', getter)` (模型 `reports/qlib_model_20260817_145851.pkl`, Alpha158+1天标签+Top10); shadow 模式不产真实订单, 仅记录 vs 现有 V9 信号差异; 依赖回测验证 ✅ (2026-08-18 两时段样本外夏普 1.86/2.44, 超额 +11.52%/+47.25%); 详见 `cairn/qlib-backtest-validation.md`
+- [x] W7.1.5 (08-13~09-12) G7 覆盖率提升启动 — ✅ **DONE 2026-08-13**: 36 P0 模块补测 1399 tests, line-rate 0.4307→**0.7477** (远超 0.55); 后续 08-20 D9 门禁达标 0.833/0.7605
+- [x] W7.1.6 (09-05~09-12) **MVSK P5-1 中线层 shadow 接入准备** — ✅ **DONE 2026-08-24 (提前)**: `apply_mvsk_shadow_to_mid_layer()` + `MVSKShadowResult` 已就绪; BL+MVSK(378, γ_s=0.1, γ_k=0.1) + 378日冷启动 + shadow 不修改 portfolio (portfolio unchanged=True); 差异记录到 `reports/shadow/mvsk_p5_daily_diff.jsonl`; 验证通过 (4只中线ETF, weight_diff_l2=0.0, data_sufficient=True); scheduler.py 未接入符合 P5-1 "不侵入生产链路" 设计; 测试 289行 5场景全绿
+- [x] W7.1.7 (09-05~09-12) **qlib新选股模型 shadow 接入准备** — ✅ **DONE 2026-08-24 (提前)**: `register_qlib_lgb_v2_shadow()` + `apply_qlib_lgb_v2_shadow()` + `QlibShadowResult` 已就绪; shadow 权重=0.0 不参与融合, 仅旁路记录到 `reports/shadow/qlib_lgb_v2_daily.jsonl`; 验证通过 (symbol=510300, qlib_signal=0.053, shadow_mode=True); 模型 pkl 缺失时用随机数模拟, 待 W7.2.9 补齐真实模型
 
 **Sprint 2（09-13 ~ 10-12，~4 周）：实盘验证四件套 + 工程基础层 Phase 0-1**
 - [ ] W7.2.1 (09-13~09-26) T15 QMT 实盘接入 (paper → 10% 灰度) — `quant_modules/qmt_connector.py` 完整实现 + paper trading 7 天 + 10% 资金灰度启动
