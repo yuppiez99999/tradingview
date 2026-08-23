@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-4.5 篮子清算最小 shortfall (Sprint LIT-S4 完成)
+
+- **任务**: LIT-4.5 篮子清算最小 shortfall (可选) — Sprint LIT-S4 P4
+- **文献**: #55 Minimal Shortfall Basket Liquidation (2025.02)
+- **新增**: `utils/basket_liquidation.py` (~350行) — FactorModel(PCA降维) + BasketLiquidator(联合清算)
+- **新增**: `tests/unit/test_basket_liquidation_unit.py` (~230行) — 18 单元测试全绿
+- **核心**: 因子模型降维(Σ=BB^T+D, N×N→N×K) + 相关性调整 + vs朴素清算对比
+- **ruff**: basket_liquidation.py 新增 T201/N806 豁免
+- **Sprint LIT-S4 全部完成**: LIT-4.1~4.5 (5/5), 累计 21/26 任务, 732 单元测试
+- **指针**: `cairn/basket-liquidation.md`
+
 ## 2026-08-23 · LIT-4.4 安全合规跨市场执行
 
 - **任务**: LIT-4.4 安全合规跨市场执行 — Sprint LIT-S4 P3
