@@ -1,0 +1,549 @@
+# ============================================================================
+# 200万ETF+期权投资组合配置 v1.0
+# ============================================================================
+# 计划期限: 2026.08 - 2030.08 (4年, 可弹性延至2031)
+# 驱动逻辑: 康波第六轮复苏期 + 十五五规划 + AI/科技主线
+# 对应文档: 每日报告归档/2026-08-23/200万ETF期权投资计划_系统完善报告_20260823.md
+# 引擎入口: AutoHedgeRebalanceEngine(config_path="config/portfolio_200w_etf.yaml")
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# 组合概览
+# ---------------------------------------------------------------------------
+portfolio:
+  name: "200万ETF+期权投资组合"
+  total_capital: 2000000               # 200万元
+  currency: CNY
+  inception: "2026-08-23"
+  horizon: "2030-08-31"               # 计划到期 (弹性延至2031)
+  strategy: "core_satellite_with_options"
+  description: |
+    核心-卫星架构 (60%核心 + 25%卫星 + 15%现金/对冲),
+    期权用于保护与增强 (Protective Put / Covered Call / Deep OTM Put),
+    禁止组合 Delta 为负 (不主动做空),
+    2030年6月前全部清仓退出 (弹性退出条件: 康波繁荣期强势)。
+
+# ---------------------------------------------------------------------------
+# 目标约束
+# ---------------------------------------------------------------------------
+target:
+  annual_return: 0.08                  # 年化收益目标 8%
+  max_drawdown: 0.15                   # 最大回撤约束 15% (ETF组合更保守)
+  min_sharpe: 0.5                      # 最低夏普比率
+
+# ---------------------------------------------------------------------------
+# 资产配置: 核心仓位 (60% / 120万)
+# ---------------------------------------------------------------------------
+core_holdings:
+  - code: "510300"
+    name: "沪深300ETF"
+    type: etf
+    market: "SH"
+    capital: 300000                    # 30万
+    weight: 0.15
+    option_available: true
+    hedge_strategy: "protective_put"   # 保护性看跌
+    description: "大盘基石"
+
+  - code: "510500"
+    name: "中证500ETF"
+    type: etf
+    market: "SH"
+    capital: 300000                    # 30万
+    weight: 0.15
+    option_available: true
+    hedge_strategy: "protective_put"   # 保护性看跌
+    description: "中盘成长"
+
+  - code: "513100"
+    name: "纳斯达克100ETF(QDII)"
+    type: etf
+    market: "SH"
+    capital: 300000                    # 30万
+    weight: 0.15
+    option_available: false            # QDII期权不可用
+    hedge_strategy: "reverse_etf_or_futures"  # 用境内反向ETF/期货替代
+    fx_risk_budget_pct: 0.01           # 汇率风险预算 1%/年
+    description: "全球科技增长引擎"
+
+  - code: "512890"
+    name: "红利低波ETF"
+    type: etf
+    market: "SH"
+    capital: 300000                    # 30万
+    weight: 0.15
+    option_available: true
+    hedge_strategy: "covered_call"     # 备兑看涨 (增强收益)
+    description: "稳定现金流"
+
+# ---------------------------------------------------------------------------
+# 资产配置: 卫星仓位 (25% / 50万)
+# ---------------------------------------------------------------------------
+satellite_holdings:
+  - code: "588000"
+    name: "科创50ETF"
+    type: etf
+    market: "SH"
+    base_capital: 70000                # 7万 (基准)
+    max_capital: 100000                # 10万 (上限)
+    weight_base: 0.035
+    weight_max: 0.050
+    sector: "AI/科技"
+    option_available: true
+
+  - code: "512760"
+    name: "半导体芯片ETF"
+    type: etf
+    market: "SH"
+    base_capital: 70000                # 7万
+    max_capital: 100000                # 10万
+    weight_base: 0.035
+    weight_max: 0.050
+    sector: "AI/科技"
+    option_available: true
+
+  - code: "515070"
+    name: "人工智能ETF"
+    type: etf
+    market: "SH"
+    base_capital: 60000                # 6万
+    max_capital: 100000                # 10万
+    weight_base: 0.030
+    weight_max: 0.050
+    sector: "AI/科技"
+    option_available: false
+
+  - code: "516160"
+    name: "新能源ETF"
+    type: etf
+    market: "SH"
+    base_capital: 80000                # 8万
+    max_capital: 125000                # 12.5万
+    weight_base: 0.040
+    weight_max: 0.062
+    sector: "新能源/绿色"
+    option_available: false
+
+  - code: "515790"
+    name: "光伏ETF"
+    type: etf
+    market: "SH"
+    base_capital: 70000                # 7万
+    max_capital: 125000                # 12.5万
+    weight_base: 0.035
+    weight_max: 0.062
+    sector: "新能源/绿色"
+    option_available: false
+
+  - code: "513180"
+    name: "恒生科技ETF(QDII)"
+    type: etf
+    market: "SH"
+    base_capital: 80000                # 8万
+    max_capital: 125000                # 12.5万
+    weight_base: 0.040
+    weight_max: 0.062
+    sector: "港股/中概"
+    option_available: false
+
+  - code: "159920"
+    name: "恒生ETF(QDII)"
+    type: etf
+    market: "SZ"
+    base_capital: 70000                # 7万
+    max_capital: 125000                # 12.5万
+    weight_base: 0.035
+    weight_max: 0.062
+    sector: "港股/中概"
+    option_available: false
+
+# ---------------------------------------------------------------------------
+# 现金/对冲仓位 (15% / 30万)
+# ---------------------------------------------------------------------------
+cash_holdings:
+  - code: "511010"
+    name: "国债ETF"
+    type: etf
+    market: "SH"
+    capital: 200000                    # 20万
+    weight: 0.10
+    description: "低风险流动性管理"
+
+  - code: "511880"
+    name: "银华日利(货币ETF)"
+    type: etf
+    market: "SH"
+    capital: 100000                    # 10万
+    weight: 0.05
+    description: "随时可部署的现金"
+
+# ---------------------------------------------------------------------------
+# 卫星仓位轮动规则
+# ---------------------------------------------------------------------------
+satellite_rotation:
+  scoring_formula: "景气度×0.5 + 估值分位×0.3 + 资金流向×0.2"
+  indicators:
+    prosperity:
+      weight: 0.50
+      high_score: "PMI > 52, 营收增速 > 20% (8-10分)"
+      low_score: "PMI < 48, 营收负增长 (0-3分)"
+      data_source: "Wind MCP / AKShare"
+    pe_pb_percentile:
+      weight: 0.30
+      high_score: "PE/PB 分位 < 30% (8-10分)"
+      low_score: "PE/PB 分位 > 70% (0-3分)"
+      data_source: "feature_store / AKShare"
+    fund_flow:
+      weight: 0.20
+      high_score: "连续3月净流入 (8-10分)"
+      low_score: "连续3月净流出 (0-3分)"
+      data_source: "ETF资金流向模块"
+  actions:
+    - score: [7, 10]
+      action: "增持"
+      limit: "至 max_capital"
+      tag: "green"
+    - score: [5, 7]
+      action: "持有"
+      limit: "不动"
+      tag: "blue"
+    - score: [0, 5]
+      action: "减持"
+      limit: "每次 ≤ 50%"
+      tag: "orange"
+    - score: [0, 3]
+      extra_condition: "连续2个月"
+      action: "清仓"
+      limit: "至少6个月不重建"
+      tag: "red"
+
+# ---------------------------------------------------------------------------
+# 期权对冲策略
+# ---------------------------------------------------------------------------
+options_strategy:
+  protective_put:
+    enabled: true
+    targets: ["510300", "510500", "588000", "512760"]  # 期权可用的ETF
+    budget_annual_pct: 0.015           # 1.5%/年
+    tenor: "3个月"
+    strike_rules:
+      - regime: "CALM"
+        pe_percentile_max: 50
+        strike_otm_pct: [10, 15]       # 虚值10-15%
+        annual_cost_pct: [0.8, 1.2]
+      - regime: "MILD"
+        pe_percentile: [50, 70]
+        strike_otm_pct: [5, 10]        # 虚值5-10%
+        annual_cost_pct: [1.2, 1.8]
+      - regime: "HIGH"
+        pe_percentile_min: 70
+        strike_otm_pct: [2, 5]         # 虚值2-5% 或平值
+        annual_cost_pct: [1.8, 2.5]
+      - regime: "TAIL_EVENT"
+        action: "暂停买入Put"
+
+  covered_call:
+    enabled: true
+    targets: ["512890", "510300", "510500"]  # 红利+宽基
+    tenor: "1个月"
+    constraints:
+      - pe_percentile_max: 60           # PE分位 > 60% 才允许卖Call
+      - pe_percentile_min: 0            # PE分位 >= 40%
+      - monthly_premium_cap_pct: 0.3    # 月权利金 > 0.3% 下月降虚值度
+    strike_rules:
+      - regime: "震荡/温和看涨"
+        strike_otm_pct: [5, 10]
+        monthly_premium_pct: [0.5, 1.0]
+      - regime: "强烈看涨"
+        strike_otm_pct: [10, 15]
+        monthly_premium_pct: [0.3, 0.6]
+      - regime: "悲观/偏弱"
+        strike_otm_pct: [2, 5]
+        monthly_premium_pct: [0.8, 1.5]
+
+  tail_protection:
+    enabled: true
+    targets: ["510300", "510500"]       # 核心宽基
+    budget_annual_pct: 0.005            # 0.5%/年
+    tenor: "1年"                        # LEAPS 长期期权
+    strike_otm_pct: 20                  # 深度虚值 20%
+    description: "防范系统性崩盘 (1987/2008/2015级别)"
+
+# ---------------------------------------------------------------------------
+# Greeks 风险管理
+# ---------------------------------------------------------------------------
+greeks:
+  delta:
+    target_range: [0.70, 0.85]         # 组合 Delta 目标区间
+    formula: "Σ(ETF市值×Delta) + Σ(期权Delta贡献)"
+    rules:
+      - condition: "Delta > 0.85"
+        action: "增加 Put 买入 或 增加 Call 卖出"
+      - condition: "Delta < 0.70"
+        action: "减少 Put 保护 或 平仓部分期权"
+      - condition: "Delta < 0"
+        action: "禁止 (不主动做空)"
+        severity: "block"
+  gamma:
+    rules:
+      - "组合总 Gamma 应为正 (净买入期权为主)"
+      - "卖出 Call 的 Gamma 负值 ≤ 买入 Put Gamma 正值的 50%"
+      - "到期前 1 周内, 不持有接近平值的卖方期权"
+      - "市场单日涨跌 > 3% 时, 检查 Gamma 失衡"
+  theta:
+    annual_budget_pct: 0.02             # 总权利金 ≤ 2%/年
+    put_cost_limit_pct: 0.015           # Put 买入 ≤ 1.5%/年
+    monthly_cap_pct: 0.005              # 月支出 > 0.5% 下月暂停新 Put
+  vega:
+    rules:
+      - vix_range: [0, 18]
+        action: "买入虚值 10% Put; 暂缓卖 Call"
+      - vix_range: [18, 25]
+        action: "按 PE 分位决定"
+      - vix_range: [25, 30]
+        action: "减少 Put 买入"
+      - vix_range: [30, 35]
+        action: "暂停买 Put; 卖虚值 5% Call"
+      - vix_range: [35, 100]
+        action: "暂停买 Put + 停期权卖方 + 卫星清仓"
+
+# ---------------------------------------------------------------------------
+# 再平衡触发条件
+# ---------------------------------------------------------------------------
+rebalance:
+  scheduled:
+    - frequency: "半年度"
+      months: [3, 9]
+      action: "全面资产再平衡 + 行业轮动评估 + 期权策略检视"
+    - frequency: "年度"
+      months: [12]
+      action: "全面再平衡 + 制定下一年度计划"
+  triggered:
+    - type: "比例偏离"
+      condition: "任一类别偏离目标 ±5 个百分点"
+      action: "1-2 周内调回目标比例"
+    - type: "估值极端"
+      condition: "PE 分位 > 85% 或 < 15%"
+      action: "增减仓 + 调整期权保护"
+    - type: "回撤预警"
+      condition: "组合回撤 8-12%"
+      action: "增加 Put 保护; 卫星减持 20%"
+    - type: "回撤危险"
+      condition: "组合回撤 12-15%"
+      action: "核心减持 10%; 卫星全清"
+    - type: "回撤突破"
+      condition: "组合回撤 > 15%"
+      action: "核心减至 40% 转现金; 卫星清仓; 暂停期权卖方"
+    - type: "波动率极端"
+      condition: "隐含波动率 > 35"
+      action: "暂停所有期权卖方; 卫星清仓"
+
+# ---------------------------------------------------------------------------
+# VIX 择时规则
+# ---------------------------------------------------------------------------
+vix_timing:
+  - vix: [0, 18]
+    buy_put: true
+    sell_call: false
+    satellite: "正常"
+  - vix: [18, 25]
+    buy_put: "按PE分位"
+    sell_call: "按PE分位"
+    satellite: "正常"
+  - vix: [25, 30]
+    buy_put: "减少"
+    sell_call: true
+    satellite: "正常"
+  - vix: [30, 35]
+    buy_put: false
+    sell_call: "虚值5%"
+    satellite: "正常"
+  - vix: [35, 999]
+    buy_put: false
+    sell_call: false
+    satellite: "清仓"
+
+# ---------------------------------------------------------------------------
+# 退出计划 (2030年)
+# ---------------------------------------------------------------------------
+exit_plan:
+  initial_target: "2030-06-30"
+  flexible: true
+  extend_condition: "康波繁荣期强势 (phase=PROSPERITY, progress < 50%)"
+  steps:
+    - time: "T - 8个月 (2029.12)"
+      action: "停止新 Put 买入; 卫星每月减 20%"
+    - time: "T - 6个月 (2030.02)"
+      action: "核心科技/成长类减持"
+      hold_condition: "PE 分位 < 50% → 暂停减持"
+    - time: "T - 4个月 (2030.04)"
+      action: "核心再减 20%; 停 Covered Call"
+    - time: "T - 2个月 (2030.06)"
+      action: "权益 ETF 清仓; 无期权头寸"
+    - time: "T (2030.08)"
+      action: "现金归位, 完成退出"
+
+# ---------------------------------------------------------------------------
+# 分阶段执行
+# ---------------------------------------------------------------------------
+execution_phases:
+  phase_1_build:
+    period: "2026.08 - 2026.12"
+    months: 5
+    core: "每月定投约 12 万 (60/5), 不一次性满仓"
+    satellite: "回调时分批买入"
+    options: "建仓首日同步启动 Protective Put (虚值 15%); Covered Call 仅红利 ETF"
+
+  phase_2_hold:
+    period: "2027.01 - 2029.12"
+    years: 3
+    core: "长期持有, 半年度/年度再平衡"
+    satellite: "每半年调整一次"
+    options: "按季度/月度执行"
+    monitors:
+      - "沪深 300 PE 分位 (> 70% 降权益)"
+      - "纳指 PE 分位 (> 70% 同上)"
+      - "组合最大回撤 (> 15% 触发保护)"
+
+  phase_3_exit:
+    period: "2030.01 - 2030.08"
+    months: 8
+    notes: "参见 exit_plan 分步清仓"
+
+# ---------------------------------------------------------------------------
+# 日常管理自动化
+# ---------------------------------------------------------------------------
+automation:
+  daily:
+    script: "morning_info_runner.py"
+    tasks:
+      - "拉取 PMI/PE/资金流数据"
+      - "sentiment_hub Wind MCP 新闻扫描"
+      - "生成舆情日报"
+  weekly:
+    cli: "--auto-hedge-report"
+    duration_min: 5
+  monthly:
+    cli: "--auto-hedge-rebalance --volatility 0.18"
+    duration_min: 10
+    tasks:
+      - "卫星三重指标评分"
+      - "滚动期权策略"
+      - "Greeks 区间检查"
+  semi_annual:
+    cli: "institutional_pipeline --phase rebalance"
+    duration_h: 2
+  annual:
+    duration_h: 4
+    tasks:
+      - "下一年度计划"
+      - "期权预算核定"
+      - "卫星仓位评估"
+
+# ---------------------------------------------------------------------------
+# 滚动窗口配置
+# ---------------------------------------------------------------------------
+rolling_window:
+  days: 252                            # 一年交易日
+  min_sample_days: 30                   # 最小样本日
+
+# ---------------------------------------------------------------------------
+# 成本效益过滤
+# ---------------------------------------------------------------------------
+cost_benefit:
+  threshold: 1.5
+  roll_cost_annual: 0.025
+  margin_opp_cost: 0.020
+
+# ---------------------------------------------------------------------------
+# 纠偏分级 (与主配置对齐)
+# ---------------------------------------------------------------------------
+correction:
+  mild_deviation: 0.02
+  moderate_deviation: 0.04
+  severe_deviation_days: 20
+  mild_hold_days: 5
+  moderate_hold_days: 10
+  severe_hold_days: 20
+  conservative_hold_days: 20
+
+# ---------------------------------------------------------------------------
+# 回撤动作分级
+# ---------------------------------------------------------------------------
+drawdown_action:
+  warning_threshold: 0.12              # 预警 (12%, 比主配置的 15% 更敏感)
+  danger_threshold: 0.15               # 危险 (15%)
+  breach_threshold: 0.20               # 突破 (20%)
+
+# ---------------------------------------------------------------------------
+# 熔断器
+# ---------------------------------------------------------------------------
+circuit_breaker:
+  daily_drop_trigger: 0.05
+  extreme_drawdown_trigger: 0.25
+  high_vol_sell_threshold: 0.50
+  defense_cash_min: 0.60
+
+# ---------------------------------------------------------------------------
+# 对冲工具池 (ETF 期权为主, 期货为辅)
+# ---------------------------------------------------------------------------
+tool_pool:
+  futures_whitelist:
+    - "IF"                                # 沪深300 (必要时)
+    - "IC"                                # 中证500 (必要时)
+  etf_options_whitelist:
+    - "510300"                            # 沪深300ETF 期权
+    - "510500"                            # 中证500ETF 期权
+    - "510050"                            # 上证50ETF 期权 (备用)
+    - "588000"                            # 科创50ETF 期权
+    - "512760"                            # 芯片ETF 期权
+    - "000300"                            # 沪深300 指数期权
+  reverse_etf_whitelist:                 # 用于纳指 QDII 替代对冲
+    - "513100"                            # 纳指 100 (自身)
+  options_strategies:
+    - "protective_put"
+    - "covered_call"
+    - "collar"
+    - "put_spread"
+    - "deep_otm_put"                      # 尾部保护
+
+# ---------------------------------------------------------------------------
+# 持久化路径
+# ---------------------------------------------------------------------------
+state_file: "config/portfolio_200w_etf_state.json"
+nav_history_file: "config/portfolio_200w_etf_nav.json"
+audit_db: "data/portfolio_200w_etf_audit.db"
+
+# ---------------------------------------------------------------------------
+# 风险提示 (与报告对齐)
+# ---------------------------------------------------------------------------
+risk_disclaimers:
+  - "期权成本侵蚀: 长期震荡/慢牛时 Put 保护成本持续侵蚀, 需动态调整对冲比例"
+  - "流动性风险: 部分行业 ETF 和期权流动性不足, 仅选日均成交 > 1000 万 + 持仓 > 10 万手"
+  - "汇率风险: QDII ETF 受人民币汇率影响"
+  - "波动率风险: 隐含波动率高位时买 Put 成本极高, 低位时卖 Call 收益较好 — 需择时"
+  - "Covered Call 牛市限涨: PE < 40% 分位禁止卖 Call"
+  - "康波判断偏差: 第六轮康波启动失败或推迟, 科技类 ETF 可能长期低迷"
+  - "模型风险: Greeks 依赖 B-S 模型假设, 实际表现可能有偏差"
+  - "极端事件: 黑天鹅事件可能导致期权流动性枯竭、滑点增大"
+
+# ---------------------------------------------------------------------------
+# 情景分析 (仅供参考)
+# ---------------------------------------------------------------------------
+scenario_analysis:
+  optimistic:
+    description: "AI 康波全面兑现, 全球增长强劲"
+    annual_return_pct: [12, 15]
+    four_year_cumulative_pct: [60, 75]
+    probability: 0.20
+  base:
+    description: "温和增长 + 震荡市"
+    annual_return_pct: [6, 8]
+    four_year_cumulative_pct: [25, 35]
+    probability: 0.50
+  pessimistic:
+    description: "经济下行 + 黑天鹅"
+    annual_return_pct: [-5, 0]
+    four_year_cumulative_pct: [-15, 0]
+    probability: 0.30
+    protection_note: "期权保护可将悲观情景最大回撤控制在 15% 以内"
