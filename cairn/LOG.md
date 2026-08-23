@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · LIT-3.1 Deep Hedging RL 范式集成
+
+- **任务**: LIT-3.1 Deep Hedging RL 范式集成 — Sprint LIT-S3 P0
+- **文献**: #36 Deep Hedging (Buehler et al. 2018/2025.12)
+- **新增**: `utils/deep_hedging_rl.py` (~551行) — VolatilitySurface + MarketSimulator + HedgingActor + RiskMeasure + DeepHedgingTrainer + DeepHedgingEngine
+- **新增**: `tests/unit/test_deep_hedging_rl_unit.py` (~398行) — 40 单元测试全绿
+- **核心**: Buehler 范式 + 进化策略(ES)优化 + CVaR/VaR/MSE/效用 + SVI IV面 + 跳空模拟
+- **验证**: 端到端 CVaR 改善 20.4% (50 episodes), Std PnL 改善 28%
+- **ruff**: deep_hedging_rl.py 新增 T201/N806 豁免
+- **后续**: LIT-3.2 DeltaHedge 多智能体期权优化 (依赖本任务)
+- **指针**: `cairn/deep-hedging-rl.md`
+
 ## 2026-08-23 · LIT-2.6 对抗新闻攻击防护
 
 - **任务**: LIT-2.6 对抗新闻攻击防护（安全加固）— Sprint LIT-S2 收尾
