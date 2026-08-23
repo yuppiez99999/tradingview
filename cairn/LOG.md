@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-23 · llmfit 集成 — 本地 LLM 模型科学选型（P0 完成）
+
+- **背景**: GitHub 本周 trending 筛选 3 个强相关项目，P0 选中 AlexsJones/llmfit 解决 Ollama 回退硬编码 "glm-5" 无硬件感知问题
+- **新增**: `utils/local_model_selector.py` (~280行) — 硬件检测/模型推荐/配置持久化/自检接口，零硬依赖优雅降级
+- **接入**: `量化策略系统_统一入口_v8.6.py` `run_quick_check` 注入 "🖥️ 本地 LLM 选型 (llmfit)" 检查段
+- **API**: `select_local_model()` / `recommend_models()` / `persist_to_settings()` / `quick_check()`
+- **验证**: py_compile 双文件通过，llmfit 未安装时降级返回 available=False + 安装提示
+- **配置**: 选型结果写入 `config/settings.yaml` 的 `local_llm` 段（幂等，仅更新该段）
+- **安装**: `scoop install llmfit` (Windows)
+- **沉淀**: `docs/高价值项目接入落地指南_20260809.md` §3 新增 llmfit 节
+- **指针**: `utils/local_model_selector.py` · `量化策略系统_统一入口_v8.6.py:run_quick_check`
+
 ## 2026-08-23 · P0大文件拆分 + 8/24进化循环干跑验证
 
 - **背景**: 代码质量检查发现3个P0文件超2000行门禁，且8/24(周一)首次进化循环需准备

@@ -270,5 +270,7 @@ force-single-line = false
 # Py38 兼容性: recommendation_generator.py 需从 typing 导入 List/Dict (PEP 585 在 Py38 不可用)
 # UP006/UP007 会将 typing.List→list 现代化, UP035 标记 typing.List/Dict deprecated, 需豁免以保持 Py38 兼容
 "ai/recommendation_generator.py" = ["UP006", "UP007", "UP035", "C901"]
+# llmfit 集成 (2026-08-23): 本地 LLM 模型选型器, __main__ 自检入口 print 是合理的
+"utils/local_model_selector.py" = ["T201"]
 
 

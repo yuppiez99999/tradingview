@@ -1103,6 +1103,24 @@ def run_quick_check(args: argparse.Namespace) -> None:
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.error(f"  ❌ Wind 数据供应器: {e}")
 
+    # 本地 LLM 模型选型 (llmfit 集成, P0)
+    logger.info("\n🖥️ 本地 LLM 选型 (llmfit):")
+    try:
+        from utils.local_model_selector import quick_check as llmfit_quick_check
+
+        llmfit_status = llmfit_quick_check()
+        if llmfit_status["available"]:
+            logger.info(f"  ✅ llmfit 可用 | 硬件: {llmfit_status['hardware']}")
+            logger.info(f"  ✅ 推荐模型: {llmfit_status['selected']}")
+            for i, rec in enumerate(llmfit_status["recommendations"][:3], 1):
+                logger.info(f"    {i}. {rec}")
+        else:
+            logger.warning(
+                f"  ⚠️ llmfit 不可用: {llmfit_status['reason']}"
+            )
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.warning(f"  ⚠️ 本地 LLM 选型检查跳过: {e}")
+
     # 检查配置文件
     logger.info("\n📋 配置文件:")
     config_files = [
