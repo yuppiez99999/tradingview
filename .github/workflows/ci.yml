@@ -340,6 +340,21 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pyyaml pandas numpy scipy
+          # 安装项目核心依赖 (smoke runner import 链需要)
+          if (Test-Path requirements.txt) { pip install -r requirements.txt -q 2>$null }
+
+      - name: Generate CI contract files (config/positions.json + system_config.json)
+        shell: powershell
+        # config/* 在 .gitignore 中 (含敏感数据/实时持仓), CI 环境需最小占位
+        run: |
+          New-Item -ItemType Directory -Path config -Force | Out-Null
+          if (-not (Test-Path config/positions.json)) {
+            '{"positions": [], "last_updated": "CI"}' | Out-File -Encoding utf8 config/positions.json
+          }
+          if (-not (Test-Path config/system_config.json)) {
+            '{"environment": "ci", "trading": {"dry_run": true}}' | Out-File -Encoding utf8 config/system_config.json
+          }
+          Write-Host "Contract files ready"
 
       - name: Run smoke runner script
         shell: powershell
@@ -635,12 +650,32 @@ jobs:
           Write-Host "============================================================"
 
   # ============================================================
+  # Job 8: 依赖安全审计 (pip-audit, LOW-1 升级闭环, 2026-08-24)
+  # ============================================================
+  dep-audit:
+    name: 依赖安全审计 (pip-audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: 安装 pip-audit
+        run: pip install pip-audit
+      - name: 扫描 requirements.txt 已知漏洞
+        run: pip-audit -r requirements.txt --strict --desc
+      - name: 扫描 lockfile
+        run: pip-audit -r requirements.lock.txt --strict
+        continue-on-error: true
+
+  # ============================================================
   # Job 7: CI Summary (聚合所有 job 状态, 作为最终闸门)
   # ============================================================
   ci-summary:
     name: CI Summary (最终闸门)
     runs-on: windows-latest
-    needs: [lint-typecheck, smoke-tests, unit-tests, integration-tests, reexport-compat, v9-quick-regression]
+    needs: [lint-typecheck, smoke-tests, unit-tests, integration-tests, reexport-compat, v9-quick-regression, dep-audit]
     if: always()
     timeout-minutes: 5
     steps:
@@ -653,6 +688,7 @@ jobs:
           $integration = "${{ needs.integration-tests.result }}"
           $reexport = "${{ needs.reexport-compat.result }}"
           $v9 = "${{ needs.v9-quick-regression.result }}"
+          $audit = "${{ needs.dep-audit.result }}"
 
           Write-Host "============================================================"
           Write-Host "CI Summary"
@@ -663,6 +699,7 @@ jobs:
           Write-Host "integration-tests:    $integration"
           Write-Host "reexport-compat:      $reexport"
           Write-Host "v9-quick-regression:  $v9"
+          Write-Host "dep-audit:            $audit"
           Write-Host "============================================================"
 
           # P0-4 FIX: lint-typecheck 现已阻断 (移除了 continue-on-error)
@@ -674,6 +711,7 @@ jobs:
           if ($integration -ne "success") { $failed += "integration-tests" }
           if ($reexport -ne "success") { $failed += "reexport-compat" }
           if ($v9 -ne "success") { $failed += "v9-quick-regression" }
+          if ($audit -ne "success") { $failed += "dep-audit" }
 
           if ($failed.Count -gt 0) {
             Write-Host "::error::CI 阻断 — 失败的 job: $($failed -join ', ')"
