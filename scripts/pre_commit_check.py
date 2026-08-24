@@ -37,6 +37,12 @@ from pathlib import Path
 # 项目根目录 (此脚本位于 scripts/pre_commit_check.py)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+# 确保项目根在 sys.path 中: 脚本模式下 sys.path[0] 是 scripts/, 项目根不在 path,
+# 而 pywin32.pth 会把 site-packages/win32 (含 scripts/ 子目录) 注入 sys.path,
+# 导致 `import scripts.xxx` 被 namespace 劫持到 win32/scripts → No module named.
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 # Windows 下强制 UTF-8, 避免控制台 GBK 编码错误
 if sys.platform == "win32":
     os.environ.setdefault("PYTHONIOENCODING", "utf-8")

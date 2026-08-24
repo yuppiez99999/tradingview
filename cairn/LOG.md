@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · pre-commit skill 安全扫描失效根因修复
+
+- **任务**: pre-commit 每次报 `No module named 'scripts.skill_security_scan'` (容错通过, 功能静默失效)
+- **根因**: ①`pywin32.pth` 把 `site-packages\win32` 注入 sys.path, 其下有 `scripts\` 子目录 → `import scripts` 被解析为 namespace package (项目根 scripts + win32/scripts 合并); ②脚本模式下 sys.path[0]=`scripts/` 目录而非项目根, 项目根不在 path → `from scripts.skill_security_scan` 落到 win32/scripts 找不到模块
+- **修复**: `scripts/pre_commit_check.py` 顶部 `sys.path.insert(0, PROJECT_ROOT)` 显式挂载项目根 (6 行)
+- **验证**: `python scripts/pre_commit_check.py` skill 扫描从"异常容错"→"正常执行 (无 skill 文件改动, 跳过扫描)"; `test_skill_security_scan.py` 18 passed; lint 0 错误
+- **教训**: 带 `from scripts.xxx` 导入的脚本若以 `python scripts/X.py` 方式运行, 必须显式把项目根加入 sys.path; pywin32 的 win32/scripts 是 namespace 劫持元凶
+
 ## 2026-08-24 · B905 zip strict 全量治理清零
 
 - **任务**: ruff 报告基线逐批清零收尾 — B905（zip strict）53→0 + B007 12→0 + BLE001 2→0
