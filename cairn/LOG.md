@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · LIT-5.3 FinMultiTime 多模态基准数据
+
+- **任务**: LIT-5.3 FinMultiTime 多模态基准数据 — Sprint LIT-S5 P3
+- **文献**: #63 FinMultiTime (2025.06)
+- **新增**: `tests/eval/finmultitime_benchmark.py` (~390行) — FinMultiTimeBenchmark + 多分辨率生成 + 对齐验证
+- **新增**: `tests/unit/test_finmultitime_benchmark_unit.py` (~210行) — 19 单元测试全绿
+- **核心**: S&P500+HS300 双市场对齐 + 分钟(390/240)/日/季度三分辨率 + 价格+新闻+财报多模态
+- **验收**: 时间戳对齐✅ + 分辨率一致性✅ + 跨市场覆盖率100% + 多模态完整性100%
+- **后续**: LIT-5.4 RAG+RL 情感分析 (无依赖, 可并行)
+- **指针**: `cairn/finmultitime-benchmark.md`
+
 ## 2026-08-24 · LIT-5.2 分数阶差分替代对数收益
 
 - **任务**: LIT-5.2 分数阶差分替代对数收益 — Sprint LIT-S5 P2
