@@ -343,6 +343,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         except Exception as e:
             logger.error("[DrawdownBreaker] 检查异常: %s", e, exc_info=True)
 
+        # Step 4.6: 自我进化编排 (phase_evolution) — G3 ER-2.1, feature flag 控制
+        self._run_evolution_phase(result)
+
         # Step 5: 风险预算检查
         risk_result = self._step_risk_budget(portfolio_decision)
         result["steps"]["risk_budget"] = risk_result.to_dict() if hasattr(risk_result, "to_dict") else risk_result
@@ -397,6 +400,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         # Step 6: 执行路由
         execution_plans = self._step_execution_routing(portfolio_decision, fusion_signals)
         result["steps"]["execution_plans"] = [p.to_dict() for p in execution_plans]
+
+        # Step 6.6: ETF期权对冲再平衡 (phase_rebalance) — G3 ER-2.2, feature flag 控制
+        self._run_rebalance_phase(result, portfolio_decision)
 
         # Step 6.5: AI EOD 复盘 (phase_review) — v86 集成 W35, feature flag 控制
         self._run_eod_review_phase(result, portfolio_decision)
@@ -1587,6 +1593,119 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             )
             plans.append(plan)
         return plans
+
+    # ------------------------------------------------------------
+    # Step 4.6: 自我进化编排 (phase_evolution) — G3 ER-2.1
+    # ------------------------------------------------------------
+
+    def _run_evolution_phase(self, result: dict[str, Any]) -> None:
+        """Step 4.6 入口: 自我进化编排, feature flag 控制, 失败不阻塞."""
+        evolution_result = self._step_evolution()
+        if evolution_result is not None:
+            result["steps"]["evolution"] = evolution_result
+
+    def _step_evolution(self) -> dict[str, Any] | None:
+        """自我进化编排 (phase_evolution) — G3 ER-2.1.
+
+        调用 EvolutionOrchestratorV2.run_cycle() 或 V1.run_observation_cycle()
+        feature flag USE_EVOLUTION_ORCHESTRATOR 控制, 默认关闭。
+        失败优雅降级, 不阻塞管道。
+        """
+        if self.ctx.mode == "smoke":
+            return None
+        try:
+            from utils.infra.feature_flags import is_enabled
+
+            if not is_enabled("USE_EVOLUTION_ORCHESTRATOR"):
+                return {"status": "disabled", "reason": "USE_EVOLUTION_ORCHESTRATOR=false"}
+
+            # 优先 V2, 降级 V1
+            try:
+                from utils.evolution.orchestrator import EvolutionOrchestratorV2
+
+                orchestrator_v2 = EvolutionOrchestratorV2()
+                if orchestrator_v2.enabled:
+                    cycle_result = orchestrator_v2.run_cycle()
+                    logger.info("[Pipeline] Step 4.6: 自我进化 (V2) 完成")
+                    return cycle_result.to_dict() if hasattr(cycle_result, "to_dict") else {"status": "ok", "version": "v2"}
+                logger.info("[Pipeline] Step 4.6: EvolutionOrchestratorV2 flag 关闭, 降级 V1")
+            except (ImportError, ValueError, TypeError, OSError, AttributeError) as e:
+                logger.warning("[Pipeline] EvolutionOrchestratorV2 不可用, 降级 V1: %s", e)
+
+            from utils.alpha.evolution_orchestrator import EvolutionOrchestrator
+
+            orchestrator_v1 = EvolutionOrchestrator()
+            cycle_result = orchestrator_v1.run_observation_cycle()
+            logger.info("[Pipeline] Step 4.6: 自我进化 (V1) 完成")
+            return cycle_result
+        except Exception as e:
+            logger.warning("[Pipeline] Step 4.6: 自我进化失败，降级跳过: %s", e)
+            return {"status": "degraded", "error": str(e)}
+
+    # ------------------------------------------------------------
+    # Step 6.6: ETF期权对冲再平衡 (phase_rebalance) — G3 ER-2.2
+    # ------------------------------------------------------------
+
+    def _run_rebalance_phase(
+        self, result: dict[str, Any], portfolio_decision: PortfolioDecision
+    ) -> None:
+        """Step 6.6 入口: ETF期权对冲再平衡, feature flag 控制, 失败不阻塞."""
+        rebalance_result = self._step_rebalance(portfolio_decision)
+        if rebalance_result is not None:
+            result["steps"]["eod_rebalance"] = rebalance_result
+
+    def _step_rebalance(self, portfolio_decision: PortfolioDecision) -> dict[str, Any] | None:
+        """ETF期权对冲再平衡 (phase_rebalance) — G3 ER-2.2.
+
+        调用 ETFOptionHedgeRebalancer.run_daily_rebalance()
+        feature flag USE_EOD_REBALANCE 控制, 默认关闭。
+        失败优雅降级, 不阻塞管道。
+        """
+        if self.ctx.mode == "smoke":
+            return None
+        try:
+            from utils.infra.feature_flags import is_enabled
+
+            if not is_enabled("USE_EOD_REBALANCE"):
+                return {"status": "disabled", "reason": "USE_EOD_REBALANCE=false"}
+
+            from etf_option_hedge_rebalancer import ETFOptionHedgeRebalancer
+
+            rebalancer = ETFOptionHedgeRebalancer()
+            positions = self._extract_positions_for_rebalance()
+            prices = self._extract_prices_for_rebalance(portfolio_decision)
+            current_drawdown = float(portfolio_decision.meta.get("current_drawdown", 0.0))
+
+            plan = rebalancer.run_daily_rebalance(
+                positions=positions,
+                prices=prices,
+                trade_date=self.ctx.report_date,
+                current_drawdown=current_drawdown,
+            )
+            logger.info("[Pipeline] Step 6.6: ETF期权对冲再平衡完成 (date=%s)", self.ctx.report_date)
+            return plan.to_dict() if hasattr(plan, "to_dict") else {"status": "ok"}
+        except Exception as e:
+            logger.warning("[Pipeline] Step 6.6: 再平衡失败，降级跳过: %s", e)
+            return {"status": "degraded", "error": str(e)}
+
+    def _extract_positions_for_rebalance(self) -> dict[str, dict]:
+        """从 config/positions.json 加载持仓 (fail-safe, 缺失返回空)."""
+        try:
+            positions_path = Path("config/positions.json")
+            if positions_path.exists():
+                with open(positions_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                    return data if isinstance(data, dict) else {}
+        except (OSError, ValueError, TypeError) as e:
+            logger.warning("[Pipeline] 加载 positions.json 失败, 用空持仓: %s", e)
+        return {}
+
+    def _extract_prices_for_rebalance(self, portfolio_decision: PortfolioDecision) -> dict[str, float]:
+        """从 portfolio_decision.meta 提取价格 (fail-safe, 缺失返回空)."""
+        prices = portfolio_decision.meta.get("prices", {})
+        if isinstance(prices, dict):
+            return {k: float(v) for k, v in prices.items() if isinstance(v, (int, float))}
+        return {}
 
     # ------------------------------------------------------------
     # Step 6.5 + 7: EOD 收尾阶段入口 (v86 集成 W35)

@@ -23,6 +23,8 @@ qmt_rpc_server — Windows 实盘机侧 QMT RPC 网关 (云上桥接的"手脚")
 from __future__ import annotations
 
 import argparse
+import hashlib  # noqa: F401  (保留以备扩展)
+import hmac
 import logging
 import os
 import sys
@@ -74,7 +76,8 @@ def _verify_token(x_token: Optional[str] = Header(None, alias="X-Token")) -> Non
     expected = os.environ.get("QMT_RPC_TOKEN", "")
     if not expected:
         raise HTTPException(status_code=503, detail="QMT_RPC_TOKEN 未配置, 网关拒绝服务")
-    if not x_token or x_token != expected:
+    # 恒定时间比较, 避免时序侧信道泄露 token 长度/内容
+    if not x_token or not hmac.compare_digest(x_token, expected):
         raise HTTPException(status_code=401, detail="invalid token")
 
 
@@ -86,6 +89,35 @@ def _verify_ip(request: Request) -> None:
     allowed_list = [ip.strip() for ip in allowed.split(",") if ip.strip()]
     if client_ip and client_ip not in allowed_list:
         raise HTTPException(status_code=403, detail=f"IP {client_ip} not allowed")
+
+
+def _mask_account(account: str) -> str:
+    """对外暴露接口只回传账户尾 4 位, 避免账户 ID 泄露 (CWE-200)."""
+    account = account or ""
+    if len(account) <= 4:
+        return "****"
+    return "****" + account[-4:]
+
+
+def _assert_safe_bind(host: str) -> None:
+    """fail-closed 启动守卫: 禁止在非回环地址且未配置 IP 白名单时启动。
+
+    防止网关以 0.0.0.0/内网网卡对外暴露却只有 Token 一道防线 (HIGH-1)。
+    回到回环地址 (127.0.0.1/localhost/::1) 默认放行; 非回环必须配置
+    QMT_RPC_ALLOWED_IPS, 或显式 QMT_RPC_ALLOW_PUBLIC=1 覆盖 (需确认已前置 TLS/隔离)。
+    """
+    loopback = {"127.0.0.1", "localhost", "::1"}
+    if host in loopback:
+        return
+    allowed = os.environ.get("QMT_RPC_ALLOWED_IPS", "").strip()
+    allow_public = os.environ.get("QMT_RPC_ALLOW_PUBLIC", "").strip().lower() in {"1", "true", "yes"}
+    if not allowed and not allow_public:
+        raise SystemExit(
+            "安全策略拒绝启动: 网关绑定到非回环地址 %r 但未配置 QMT_RPC_ALLOWED_IPS。"
+            "请设置白名单 (QMT_RPC_ALLOWED_IPS) 或显式 QMT_RPC_ALLOW_PUBLIC=1"
+            "并确认已前置 TLS 终止且网络隔离到位。" % host
+        )
+    logger.warning("网关以非回环地址 %s 启动, 请确认已前置 TLS 终止且网络隔离到位。", host)
 
 
 # ============================================================
@@ -153,9 +185,9 @@ async def _startup() -> None:
 
 
 @app.get("/health")
-async def health(_: None = Depends(_verify_token)) -> dict:
+async def health(_: None = Depends(_verify_token), _ip: None = Depends(_verify_ip)) -> dict:
     connected = gateway.ensure_connected()
-    return {"connected": connected, "account": os.environ.get("QMT_ACCOUNT_ID", "")}
+    return {"connected": connected, "account": _mask_account(os.environ.get("QMT_ACCOUNT_ID", ""))}
 
 
 @app.post("/order")
@@ -189,6 +221,7 @@ async def place_order(
 async def cancel_order(
     req: CancelReq,
     _: None = Depends(_verify_token),
+    _ip: None = Depends(_verify_ip),
 ) -> dict:
     if not gateway.ensure_connected():
         raise HTTPException(status_code=503, detail="QMT 未连接")
@@ -209,6 +242,7 @@ async def cancel_order(
 async def wait_fill(
     req: WaitFillReq,
     _: None = Depends(_verify_token),
+    _ip: None = Depends(_verify_ip),
 ) -> JSONResponse:
     if not gateway.ensure_connected():
         raise HTTPException(status_code=503, detail="QMT 未连接")
@@ -228,7 +262,7 @@ async def wait_fill(
 
 
 @app.get("/positions")
-async def get_positions(_: None = Depends(_verify_token)) -> dict:
+async def get_positions(_: None = Depends(_verify_token), _ip: None = Depends(_verify_ip)) -> dict:
     if not gateway.ensure_connected():
         raise HTTPException(status_code=503, detail="QMT 未连接")
     try:
@@ -239,7 +273,7 @@ async def get_positions(_: None = Depends(_verify_token)) -> dict:
 
 
 @app.get("/account")
-async def get_account(_: None = Depends(_verify_token)) -> dict:
+async def get_account(_: None = Depends(_verify_token), _ip: None = Depends(_verify_ip)) -> dict:
     if not gateway.ensure_connected():
         raise HTTPException(status_code=503, detail="QMT 未连接")
     try:
@@ -250,7 +284,7 @@ async def get_account(_: None = Depends(_verify_token)) -> dict:
 
 
 @app.get("/orders")
-async def get_orders(_: None = Depends(_verify_token)) -> dict:
+async def get_orders(_: None = Depends(_verify_token), _ip: None = Depends(_verify_ip)) -> dict:
     if not gateway.ensure_connected():
         raise HTTPException(status_code=503, detail="QMT 未连接")
     try:
@@ -278,6 +312,8 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=int(os.environ.get("QMT_RPC_PORT", "8765")))
     parser.add_argument("--reload", action="store_true", help="开发模式热重载")
     args = parser.parse_args()
+
+    _assert_safe_bind(args.host)  # fail-closed: 非回环且无白名单则拒绝启动
 
     import uvicorn
     logger.info("启动 QMT RPC Gateway: %s:%d", args.host, args.port)

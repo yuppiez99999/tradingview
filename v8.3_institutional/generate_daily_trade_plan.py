@@ -122,7 +122,7 @@ def _save_alpha_signals_for_drift(trade_date: str) -> None:
             arr = np.array(list(vals.values()), dtype=float)
             if arr.std() > 1e-12:
                 z = (arr - arr.mean()) / arr.std()
-                standardized.append(dict(zip(vals.keys(), z.tolist())))
+                standardized.append(dict(zip(vals.keys(), z.tolist(), strict=True)))
 
         if not standardized:
             return

@@ -376,7 +376,7 @@ class ExecutionAlgorithmEngine:
         remaining = order.total_shares
         child_orders: list[ChildOrder] = []
 
-        for _i, (slot, mkt_vol) in enumerate(zip(slots, vol_per_slot)):
+        for _i, (slot, mkt_vol) in enumerate(zip(slots, vol_per_slot, strict=True)):
             if remaining <= 0:
                 break
             target = min(participation * mkt_vol, remaining)
@@ -550,7 +550,7 @@ class ExecutionAlgorithmEngine:
         导致无法成交. 检测到午休时段时, 将时间调整到最近的可用时段边界.
         """
         randomized: list[tuple[float, pd.Timestamp]] = []
-        for shares, slot in zip(shares_per_slot, slots):
+        for shares, slot in zip(shares_per_slot, slots, strict=True):
             # 大小随机化
             size_noise = 1.0 + self.rng.uniform(-self.randomize_size, self.randomize_size)
             actual_shares = max(shares * size_noise, 0.0)

@@ -412,7 +412,7 @@ class SmartOrderRouter:
         weights = weights / weights.sum()
 
         allocated = []
-        for score, w in zip(scores, weights):
+        for score, w in zip(scores, weights, strict=True):
             shares = total_shares * w
             if shares < min_shares:
                 continue
