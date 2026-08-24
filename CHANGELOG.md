@@ -7,6 +7,44 @@
 
 ## [8.7] - 2026-08-20 ~ 12-31 (Sprint 1 冲刺中)
 
+### 新增 (Added) — Wave 8-LIT 系统升级 (Sprint LIT-S1~S5, 26任务, 808测试全绿)
+
+**Sprint LIT-S1: AI 因子挖掘与评估基准 (5任务)**
+- LIT-1.1 R&D-Agent-Quant 多智能体因子挖掘
+- LIT-1.2 AlphaForge 动态权重组合
+- LIT-1.3 DeepFund 防泄漏评估基准 (31测试)
+- LIT-1.4 AI-Trader 实时未污染评估 (37测试)
+- LIT-1.5 AlphaCFG 语法引导因子发现 (27测试)
+
+**Sprint LIT-S2: AI 决策重构 (6任务)**
+- LIT-2.1 细粒度任务分解 (60测试) + LIT-2.2 TradingGroup 自反思 (50测试)
+- LIT-2.3 CN-Buzz2Portfolio (44测试) + LIT-2.4 KTD-Fin 记忆控制 (39测试)
+- LIT-2.5 FinGPT LoRA+RLSP (37测试) + LIT-2.6 对抗新闻攻击防护 (39测试)
+
+**Sprint LIT-S3: 对冲与组合优化 (5任务)**
+- LIT-3.1 Deep Hedging RL (40测试, CVaR改善20.4%)
+- LIT-3.2 DeltaHedge 多智能体 (37测试, Vega完全中和)
+- LIT-3.3 skfolio 统一优化后端 (28测试, MaxSharpe夏普1.07)
+- LIT-3.4 RegimeFolio 制度感知 (27测试, 低波夏普0.62)
+- LIT-3.5 IV曲面深度对冲 (18测试, VRP+vanna/volga)
+
+**Sprint LIT-S4: 架构与执行 (5任务)**
+- LIT-4.1 FinRL-X 权重中心接口 (26测试)
+- LIT-4.2 Almgren-Chriss 永久冲击指数衰减 (51测试, 大单成本降80.1%)
+- LIT-4.3 TT-DAC-PS 最优执行算法 (36测试, 超越TWAP/VWAP/AC)
+- LIT-4.4 安全合规跨市场执行 (41测试, 约束MDP+CVaR+零知识审计)
+- LIT-4.5 篮子清算最小 shortfall (18测试, 因子降维+相关性调整)
+
+**Sprint LIT-S5: ML增强+情感分析+收尾 (6任务)**
+- LIT-5.1 制度门控 Transformer (27测试, 95→11语义类, 复杂度降88.4%)
+- LIT-5.2 分数阶差分替代对数收益 (24测试, 记忆保持70%+平稳)
+- LIT-5.3 FinMultiTime 多模态基准数据 (19测试, S&P500+HS300对齐)
+- LIT-5.4 RAG+RL 自适应情感分析 (24测试, 准确率33%→100%)
+- LIT-5.5 排序损失函数系统评估 (20测试, listwise最优NDCG=0.9948)
+- LIT-5.6 全量集成验收 (808测试全绿, v8.7发布)
+
+**知识沉淀**: 26个 `cairn/` 知识专题文档 + LOG.md 完整记录
+
 ### 新增 (Added) — ETF期权对冲再平衡子模型 Phase 1
 
 - **独立200万纯ETF子组合**（14 ETF/100%纯ETF）+ ETF期权对冲（4标的认沽保护）+ 自我再平衡（五阶段）
