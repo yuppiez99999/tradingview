@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · LIT-5.1 制度门控 Transformer 集成
+
+- **任务**: LIT-5.1 制度门控 Transformer 集成 — Sprint LIT-S5 P1
+- **文献**: #58 Adaptive Financial Transformer (Regime-Gated) (2026.06)
+- **新增**: `utils/regime_gated_transformer.py` (~400行) — FeatureSemanticMapper + RegimeDetector + RegimeGatedTransformer
+- **新增**: `tests/unit/test_regime_gated_transformer_unit.py` (~260行) — 27 单元测试全绿
+- **核心**: 95特征→11语义类(复杂度降88.4%≥10%) + 4制度门控(低波/高波/趋势/反转) + numpy自注意力
+- **ruff**: regime_gated_transformer.py 新增 T201/UP042/N806/B905 豁免
+- **后续**: LIT-5.2 分数阶差分 + LIT-5.5 排序损失评估 (均依赖本任务)
+- **指针**: `cairn/regime-gated-transformer.md`
+
 ## 2026-08-23 · LIT-4.5 篮子清算最小 shortfall (Sprint LIT-S4 完成)
 
 - **任务**: LIT-4.5 篮子清算最小 shortfall (可选) — Sprint LIT-S4 P4
