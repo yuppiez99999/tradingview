@@ -31,7 +31,10 @@ from pathlib import Path
 from typing import NamedTuple, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
-CI_YML = ROOT / ".github" / "workflows" / "ci.yml"
+WORKFLOWS_DIR = ROOT / ".github" / "workflows"
+CI_YML = WORKFLOWS_DIR / "ci.yml"
+# 需要校验的 workflow 文件 (按 QC-1.1: ci / quality-gate / tdd-guard 引用的脚本必须存在)
+WORKFLOW_FILES = ("ci.yml", "quality-gate.yml", "tdd-guard.yml")
 PYTHON = os.environ.get("PYTHON_EXECUTABLE") or (
     str(ROOT / ".venv" / "Scripts" / "python.exe")
     if (ROOT / ".venv" / "Scripts" / "python.exe").exists() else "python"
@@ -45,12 +48,13 @@ class ScriptRef(NamedTuple):
     detail: str
 
 
-def extract_refs() -> list[str]:
-    if not CI_YML.exists():
+def extract_refs(workflow: str = "ci.yml") -> list[str]:
+    """提取单个 workflow 文件引用的 `python scripts/*.py` 路径 (去重保序)。"""
+    wf = WORKFLOWS_DIR / workflow
+    if not wf.exists():
         return []
-    content = CI_YML.read_text(encoding="utf-8", errors="replace")
+    content = wf.read_text(encoding="utf-8", errors="replace")
     refs = re.findall(r"python\s+(scripts/[^\s\"']+\.py)", content)
-    # 去重保序
     seen = set()
     out = []
     for r in refs:
@@ -58,6 +62,15 @@ def extract_refs() -> list[str]:
             seen.add(r)
             out.append(r)
     return out
+
+
+def extract_refs_all() -> list[str]:
+    """提取 WORKFLOW_FILES 中所有 workflow 引用的脚本路径 (附带来源标记)。"""
+    refs = []
+    for wf_name in WORKFLOW_FILES:
+        for r in extract_refs(wf_name):
+            refs.append(r)
+    return refs
 
 
 def smoke(ref: str) -> (bool, str):
@@ -89,7 +102,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    refs = extract_refs()
+    refs = extract_refs_all()
     results: list[ScriptRef] = []
     for ref in refs:
         p = ROOT / ref
@@ -105,9 +118,20 @@ def main(argv: Optional[list[str]] = None) -> int:
     n_total = len(results)
     passed = n_missing == 0 and (not args.strict or n_unrunnable == 0)
 
+    # 按 workflow 汇总, 便于定位缺口
+    per_workflow = {}
+    for wf_name in WORKFLOW_FILES:
+        refs_wf = extract_refs(wf_name)
+        per_workflow[wf_name] = {
+            "refs": len(refs_wf),
+            "missing": sum(1 for r in refs_wf if not (ROOT / r).exists()),
+        }
+
     report = {
         "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "ci_yaml": str(CI_YML),
+        "workflows": list(WORKFLOW_FILES),
+        "per_workflow": per_workflow,
         "total_refs": n_total,
         "missing": n_missing,
         "unrunnable_strict": n_unrunnable,
@@ -117,9 +141,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2),
                         encoding="utf-8")
 
-    print(f"[CI-INTEGRITY] refs={n_total} missing={n_missing} "
-          f"unrunnable={n_unrunnable} passed={passed}")
+    print(f"[CI-INTEGRITY] workflows={','.join(WORKFLOW_FILES)} refs={n_total} "
+          f"missing={n_missing} unrunnable={n_unrunnable} passed={passed}")
     print(f"[CI-INTEGRITY] report -> {out_path}")
+    for wf_name, stat in per_workflow.items():
+        print(f"  {wf_name}: refs={stat['refs']} missing={stat['missing']}")
     for r in results:
         if not r.exists:
             print(f"  [MISSING] {r.ref}")

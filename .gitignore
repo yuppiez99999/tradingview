@@ -155,6 +155,10 @@ portfolio_return_projection.json
 
 # Skill state files
 .agents/skills/wind-mcp-skill/scripts/update-state.json
+skills/wind-mcp-skill/scripts/update.lock
+
+# IDE workdir
+.workbuddy/
 
 # Screenshots and UI captures
 v7.5_institutional/*.png
