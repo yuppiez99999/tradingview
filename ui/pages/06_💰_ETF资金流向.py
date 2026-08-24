@@ -316,7 +316,7 @@ with tab2:
     fig_hist = go.Figure()
     colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272']
 
-    for cat, color in zip(categories, colors):
+    for cat, color in zip(categories, colors, strict=True):
         fig_hist.add_trace(go.Scatter(
             x=hist_dates, y=cumulative_flows[cat],
             mode='lines', name=cat, stackgroup='one',

@@ -180,7 +180,7 @@ def test_risk_trend_comparison():
     risk_datasets = [mild_risk, moderate_risk, severe_risk]
 
     print("风险级别对比:")
-    for _i, (level, data) in enumerate(zip(risk_levels, risk_datasets)):
+    for _i, (level, data) in enumerate(zip(risk_levels, risk_datasets, strict=True)):
         overall_score, individual_scores = risk_system.calculate_overall_risk(data)
         alerts = risk_system.generate_all_alerts(data)
 

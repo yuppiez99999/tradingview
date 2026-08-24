@@ -196,7 +196,7 @@ def render_kpi_row(items: list) -> None:
         return
 
     cols = st.columns(len(items))
-    for col, item in zip(cols, items):
+    for col, item in zip(cols, items, strict=True):
         with col:
             render_kpi_card(
                 label=item.get("label", ""),

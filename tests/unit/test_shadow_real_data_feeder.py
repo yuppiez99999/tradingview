@@ -1554,7 +1554,7 @@ class TestFeedHistoryParallel:
         # 日期顺序一致
         assert [r.date for r in results_serial] == [r.date for r in results_parallel]
         # daily_return 一致 (允许浮点误差)
-        for r_s, r_p in zip(results_serial, results_parallel):
+        for r_s, r_p in zip(results_serial, results_parallel, strict=True):
             assert r_s.daily_return == pytest.approx(r_p.daily_return, abs=1e-9)
 
     def test_progress_callback_invoked(self, mock_provider_with_prices, tmp_path):

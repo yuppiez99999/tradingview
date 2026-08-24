@@ -59,7 +59,7 @@ def _make_bar(close: float, open_: float | None = None, code: str = "600519.SH")
 
 def _make_bars(closes: list[float], opens: list[float] | None = None, code: str = "600519.SH") -> list[BarData]:
     opens = opens or closes
-    return [_make_bar(c, o, code) for c, o in zip(closes, opens)]
+    return [_make_bar(c, o, code) for c, o in zip(closes, opens, strict=True)]
 
 
 # ============================================================

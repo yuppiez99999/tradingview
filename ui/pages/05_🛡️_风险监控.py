@@ -291,7 +291,7 @@ with tab2:
         conf_levels = [0.90, 0.95, 0.975, 0.99]
         z_scores = [1.28, 1.645, 1.96, 2.33]
         var_data = []
-        for cl, z in zip(conf_levels, z_scores):
+        for cl, z in zip(conf_levels, z_scores, strict=True):
             var_pct = port_vol * z
             var_data.append({
                 "置信度": f"{cl*100:.0f}%",

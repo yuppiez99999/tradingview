@@ -145,7 +145,7 @@ def finetune(
     model = apply_lora(model, config)
 
     train_texts_formatted = [
-        _format_instruction(t, label) for t, label in zip(train_texts, train_labels)
+        _format_instruction(t, label) for t, label in zip(train_texts, train_labels, strict=True)
     ]
 
     from datasets import Dataset
@@ -153,7 +153,7 @@ def finetune(
 
     eval_dataset = None
     if eval_texts and eval_labels:
-        eval_formatted = [_format_instruction(t, label) for t, label in zip(eval_texts, eval_labels)]
+        eval_formatted = [_format_instruction(t, label) for t, label in zip(eval_texts, eval_labels, strict=True)]
         eval_dataset = Dataset.from_dict({"text": eval_formatted})
 
     sft_config = SFTConfig(

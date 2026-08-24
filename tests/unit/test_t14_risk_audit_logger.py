@@ -121,7 +121,7 @@ class TestReplayApis:
         today = datetime.now().strftime("%Y-%m-%d")
         recs = list(logger.replay_stream(today))
         # 按时间排序
-        for a, b in zip(recs, recs[1:]):
+        for a, b in zip(recs, recs[1:]):  # noqa: B905 - 相邻元素比较, 末尾天然少一项, 截断为设计语义
             assert a.timestamp <= b.timestamp
 
 

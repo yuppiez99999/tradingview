@@ -96,7 +96,7 @@ class TestICSeriesConsistency:
         # 符号一致率 (排除两端都接近 0 的情况)
         n_consistent = 0
         n_total = 0
-        for u, r in zip(u1_series, research_series):
+        for u, r in zip(u1_series, research_series, strict=True):
             if abs(u) < 1e-6 or abs(r) < 1e-6:
                 continue
             n_total += 1

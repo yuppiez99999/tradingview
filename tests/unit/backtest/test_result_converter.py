@@ -203,7 +203,7 @@ def test_daily_returns_formula() -> None:
     result = converter.convert(summary)
 
     expected_rets = [0.0, 0.1, 0.1]  # 10% each day
-    for actual, expected in zip(result.daily_returns, expected_rets):
+    for actual, expected in zip(result.daily_returns, expected_rets, strict=True):
         assert actual == pytest.approx(expected, rel=1e-6)
 
 

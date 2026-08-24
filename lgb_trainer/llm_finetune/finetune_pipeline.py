@@ -99,7 +99,7 @@ def _load_synthetic(max_samples: int) -> tuple[list[str], list[str], list[str], 
             texts.append(text)
             labels.append(label)
 
-    combined = list(zip(texts, labels))
+    combined = list(zip(texts, labels, strict=True))
     random.shuffle(combined)
     texts, labels = [t for t, _ in combined], [lbl for _, lbl in combined]
 
@@ -162,7 +162,7 @@ def evaluate(
     correct = 0
     predictions: list[dict[str, Any]] = []
 
-    for text, true_label in zip(eval_texts, eval_labels):
+    for text, true_label in zip(eval_texts, eval_labels, strict=True):
         pred = predict(text, model_dir, config)
         is_correct = pred == true_label
         if is_correct:

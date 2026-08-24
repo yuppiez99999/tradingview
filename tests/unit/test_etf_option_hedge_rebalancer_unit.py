@@ -241,6 +241,6 @@ class TestStressTests:
     @pytest.mark.unit
     def test_scenario_has_hedged_drawdown(self, rebalancer, positions, prices):
         result = rebalancer.run_stress_tests(positions, prices)
-        for name, scenario in result["scenarios"].items():
+        for _, scenario in result["scenarios"].items():
             assert "drawdown_hedged_pct" in scenario
             assert scenario["drawdown_hedged_pct"] >= 0

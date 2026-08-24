@@ -192,7 +192,7 @@ force-single-line = false
 # E402: ai_hedge_fund 条件依赖导入 (optional deps: torch/openai etc.)
 # T201: CLI main() 演示入口 print 是合理的 (fine_grained_workflow.py 等)
 # UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
-"quant_modules/ai_hedge_fund/**/*.py" = ["E402", "ANN", "C901", "T201", "UP042"]
+"quant_modules/ai_hedge_fund/**/*.py" = ["E402", "ANN", "C901", "T201", "UP042", "BLE001"]
 
 # N806/N803: 金融数学大写变量名是行业惯例 (S/K/T/N/Delta/Gamma/Vega/Theta/Rho/IC/VaR/Sharpe)
 "utils/fineng/**/*.py" = ["N806", "N803", "C901"]
@@ -364,5 +364,18 @@ force-single-line = false
 "utils/local_model_selector.py" = ["T201"]
 # value_investing: 研究性回测代码, ANN/BLE001/C901/B007/E741 豁免 (与 research/ 同类)
 "utils/value_investing/**/*.py" = ["ANN", "BLE001", "C901", "B007", "E741"]
+
+# ============================================================
+# 代码质量审查 (2026-08-24): BLE001 泄漏补豁免
+# 以下模块为明确的 fail-safe 编排/降级层, 盲 except 是有意设计
+# (与 utils/risk utils/execution utils/pipeline llm_gateway 同类治理)
+# ============================================================
+# auto_hedge_rebalance: 自动对冲再平衡 (断路器/数据拉取/引擎/状态机/目标监控/工具选择)
+# 任一环节异常不应导致再平衡中断或重复下单, 降级为日志
+"utils/auto_hedge_rebalance/**/*.py" = ["BLE001"]
+# run_eod_evolution_rebalance: EOD 演化再平衡编排入口, 异常降级不阻断日终流程
+"run_eod_evolution_rebalance.py" = ["BLE001"]
+# llm_finetune: GLM-5/Qwen 微调脚本, 顶层训练入口 fail-safe
+"utils/llm_finetune.py" = ["BLE001"]
 
 

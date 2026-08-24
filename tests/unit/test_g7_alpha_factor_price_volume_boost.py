@@ -49,7 +49,7 @@ def _make_price_data(n_syms=5, n_days=300):
         price_data[f"S{i}"] = {
             "closes": closes, "volumes": vols,
             "highs": highs, "lows": lows,
-            "opens": closes, "amounts": [c * v for c, v in zip(closes, vols)],
+            "opens": closes, "amounts": [c * v for c, v in zip(closes, vols, strict=True)],
         }
     return price_data
 
@@ -295,7 +295,7 @@ class TestFactorMiningFactors:
         """提供显式 amounts 字段."""
         closes = list(range(100, 130))
         vols = [1000] * 30
-        amounts = [c * v * 2 for c, v in zip(closes, vols)]  # 显式 amounts
+        amounts = [c * v * 2 for c, v in zip(closes, vols, strict=True)]  # 显式 amounts
         price_data = {"A": {"closes": closes, "volumes": vols, "amounts": amounts}}
         result = compute_factor_mining_factors(price_data, {})
         assert "FM_AMIHUD_AMT" in result

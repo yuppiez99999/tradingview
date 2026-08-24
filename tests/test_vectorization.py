@@ -184,7 +184,7 @@ def original_signal_dict(latest_data):
 
 def vectorized_signal_dict(latest_data):
     """向量化实现"""
-    return dict(zip(latest_data["instrument"], latest_data["signal"].astype(float)))
+    return dict(zip(latest_data["instrument"], latest_data["signal"].astype(float), strict=True))
 
 # 测试数据
 test_data = pd.DataFrame({

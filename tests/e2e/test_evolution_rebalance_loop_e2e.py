@@ -89,7 +89,7 @@ class TestEvolutionToRebalanceE2E:
 
         consumed = d.get("weight_adjustments", {})
         assert consumed == adjustments
-        for code, mult in consumed.items():
+        for _, mult in consumed.items():
             assert 0.5 <= mult <= 2.0
 
     @pytest.mark.e2e

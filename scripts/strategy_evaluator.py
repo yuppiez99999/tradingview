@@ -228,9 +228,9 @@ def evaluate_diversification(positions: dict) -> DiversificationMetrics:
 
     # 行业集中度: 最大行业占比
     Counter(sectors)
-    sector_weights = [w for w, s in zip(weights, sectors)]
+    sector_weights = [w for w, s in zip(weights, sectors, strict=True)]
     sector_dist = {}
-    for s, w in zip(sectors, sector_weights):
+    for s, w in zip(sectors, sector_weights, strict=True):
         sector_dist[s] = sector_dist.get(s, 0) + w
     if sector_dist:
         max_sector = max(sector_dist.values()) / total_value

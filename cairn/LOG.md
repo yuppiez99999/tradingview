@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · B905 zip strict 全量治理清零
+
+- **任务**: ruff 报告基线逐批清零收尾 — B905（zip strict）53→0 + B007 12→0 + BLE001 2→0
+- **处置**: 全库 65 处 B905 = 61 处 `zip(strict=True)` + 4 处 noqa（price_volume:603 vols 可更长 / technical:86 default 近似 / lgbm_reproducibility:339 比较语义 / t14:124 相邻对比较）
+- **方法论**: 等长有保证（同列/同循环/前置len检查/同源推导/自构造）→ strict；不等长是设计语义 → noqa；`zip(recs, recs[1:])` 相邻比较是高频误判点
+- **验证**: B905 全量 0 + 硬 bug 门禁 0 + py_compile 全 OK + 测试 235 passed（4 预存失败已 git stash 对照确认无关）
+- **状态**: 总违规 348→282，报告遗留全部处置完毕
+- **指针**: `cairn/zip-strict-gate-cleanup-20260824.md`
+
 ## 2026-08-24 · W7.2.8 + W7.2.9 shadow 30天验证启动器
 
 - **任务**: MVSK P5-2 + qlib_lgb_v2 shadow 30天验证每日运行器 + 评估器

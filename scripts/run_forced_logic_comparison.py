@@ -135,7 +135,7 @@ def main():
     comparison_data = []
     reclassified_count = 0
 
-    for old, new in zip(old_results, new_results):
+    for old, new in zip(old_results, new_results, strict=True):
         date = old["date"]
         old_details = {d["symbol"]: d for d in old["details"]}
         new_details = {d["symbol"]: d for d in new["details"]}
