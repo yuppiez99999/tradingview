@@ -594,6 +594,24 @@ class GLM5DecisionEngine:
         # 提取市场概况
         market_summary = self._extract_section(raw_analysis, "AI 决策总结") or "AI 分析完成"
 
+        # HIGH-2 加固: 标的代码持仓池白名单 (防 AI 输出越池标的, 2026-08-24)
+        # AI 输出的标的代码必须在持仓池内, 否则降级 HOLD 并记审计
+        allowed_codes = set()
+        for _h in portfolio_data.get('持仓', []):
+            _code = _h.get('代码', _h.get('code', ''))
+            if _code:
+                allowed_codes.add(str(_code))
+        if allowed_codes:
+            for _s in trading_signals:
+                if _s.code and str(_s.code) not in allowed_codes:
+                    logger.warning(
+                        "AI输出非持仓池标的 %s, 降级HOLD (HIGH-2白名单)", _s.code,
+                    )
+                    risk_alerts.append(
+                        f"[白名单拦截] AI建议操作非持仓标的 {_s.code}, 已降级HOLD"
+                    )
+                    _s.action = "HOLD"
+
         # 计算整体置信度
         if trading_signals:
             avg_confidence = sum(s.confidence for s in trading_signals) / len(trading_signals)

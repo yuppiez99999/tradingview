@@ -600,7 +600,7 @@ def compute_factor_mining_factors(
         if n > 20 and len(vols) >= n:
             # 优先用真实 amounts, 缺失则用 closes*volumes 近似 (同 technical.py _to_ohlcv_df 惯例)
             if amounts is None or len(amounts) < n:
-                amounts = [c * v for c, v in zip(closes, vols)]
+                amounts = [c * v for c, v in zip(closes, vols)]  # noqa: B905 - vols 允许长于 closes, 按较短截断为设计语义
             window = min(20, n - 1)
             illiq_list = []
             for t in range(n - window, n):

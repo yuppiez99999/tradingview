@@ -167,11 +167,11 @@ def calc_long_short_sharpe(
     每个测试时点按因子排序 Top20%-Bottom20%, 得多空收益序列, 年化夏普。
     """
     ls_returns: list[float] = []
-    for factor, ret in zip(factor_series, ret_series):
+    for factor, ret in zip(factor_series, ret_series, strict=True):
         valid = ~np.isnan(factor) & ~np.isnan(ret)
         if valid.sum() < 10:
             continue
-        rows = sorted(zip(factor[valid], ret[valid]), reverse=True)
+        rows = sorted(zip(factor[valid], ret[valid], strict=True), reverse=True)
         n = len(rows)
         top_n = max(2, n // 5)
         long_ret = float(np.mean([r for _, r in rows[:top_n]]))
@@ -416,7 +416,7 @@ def main() -> int:
     logger.info("-" * 80)
     logger.info(f"{'测试时点':>10}{'GAT IC':>12}{'静态 IC':>12}{'增益':>12}")
     logger.info("-" * 80)
-    for i, (g, s) in enumerate(zip(result["gat_ics"], result["static_ics"])):
+    for i, (g, s) in enumerate(zip(result["gat_ics"], result["static_ics"], strict=True)):
         logger.info(f"{'T'+str(i+1):>10}{g:>12.4f}{s:>12.4f}{g - s:>12.4f}")
     logger.info("-" * 80)
     logger.info(f"{'均值':>10}{result['gat_mean_ic']:>12.4f}{result['static_mean_ic']:>12.4f}"

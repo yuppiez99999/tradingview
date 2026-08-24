@@ -81,7 +81,7 @@ def _load_brier_weights(roles: list[str], window_days: int) -> dict[str, float]:
         mx = max(vals)
         exps = [math.exp(v - mx) for v in vals]
         s = sum(exps)
-        return {r: e / s for r, e in zip(roles, exps)}
+        return {r: e / s for r, e in zip(roles, exps, strict=True)}
     except (sqlite3.Error, ValueError, TypeError, ZeroDivisionError) as exc:  # 表不存在/不可用时均匀
         logger.debug("Brier 权重加载失败, 用均匀权重: %s", exc)
         return uniform
@@ -151,7 +151,7 @@ def aggregate(views: list[ModelView],
     # 加权合成 strength (按 action 符号)
     sw_sum = sum(eff_weights) or 1.0
     strength = 0.0
-    for v, w in zip(views, eff_weights):
+    for v, w in zip(views, eff_weights, strict=True):
         sign = 1.0 if v.action == "buy" else (-1.0 if v.action == "sell" else 0.0)
         strength += sign * v.strength * w / sw_sum
 

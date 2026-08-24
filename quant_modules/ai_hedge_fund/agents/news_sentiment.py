@@ -14,6 +14,18 @@ from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
 from quant_modules.ai_hedge_fund.utils.llm import call_llm
 from quant_modules.ai_hedge_fund.utils.progress import progress
 
+import logging
+
+# HIGH-2 加固: 激活对抗新闻注入防护 (adversarial_news_guard, 2026-08-24)
+# 将新闻标题净化后再喂给 LLM, 防御提示注入/同形字/隐藏文本攻击
+try:
+    from utils.adversarial_news_guard import AdversarialNewsGuard
+    _news_guard = AdversarialNewsGuard()
+except (ImportError, ModuleNotFoundError, OSError, AttributeError):
+    _news_guard = None
+
+logger = logging.getLogger("ai_hedge_fund.news_sentiment")
+
 
 class Sentiment(BaseModel):
     """Represents the sentiment of a news article."""
@@ -74,6 +86,22 @@ def news_sentiment_agent(state: AgentState, agent_id: str = "news_sentiment_agen
                 # but this is more expensive and requires extracting the text from the article.
                 # Note: this is an opportunity for improvement!
                 progress.update_status(agent_id, ticker, f"Analyzing sentiment for article {idx + 1} of {len(articles_to_analyze)}")
+                # HIGH-2: 净化新闻标题防提示注入 (激活 adversarial_news_guard)
+                headline = news.title
+                if _news_guard is not None:
+                    try:
+                        _sanitized = _news_guard.sanitize(news.title)
+                        if not _sanitized.is_safe:
+                            logger.warning(
+                                "注入威胁拦截 ticker=%s threat=%s, 降级neutral",
+                                ticker, _sanitized.report.threat_types,
+                            )
+                            news.sentiment = "neutral"
+                            sentiment_confidences[id(news)] = 0
+                            continue
+                        headline = _sanitized.clean_text
+                    except (ValueError, TypeError, AttributeError, RuntimeError):
+                        pass
                 prompt = (
                     f"Please analyze the sentiment of the following news headline "
                     f"with the following context: "
@@ -81,7 +109,7 @@ def news_sentiment_agent(state: AgentState, agent_id: str = "news_sentiment_agen
                     f"Determine if sentiment is 'positive', 'negative', or 'neutral' for the stock {ticker} only. "
                     f"Also provide a confidence score for your prediction from 0 to 100. "
                     f"Respond in JSON format.\n\n"
-                    f"Headline: {news.title}"
+                    f"Headline: {headline}"
                 )
                 response = call_llm(prompt, Sentiment, agent_name=agent_id, state=state)
                 if response:

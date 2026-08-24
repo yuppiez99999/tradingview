@@ -222,7 +222,7 @@ class _LogisticRegressionNumpy:
         importance = np.abs(self.weights)
         if feature_names is None:
             feature_names = [f"f{i}" for i in range(len(importance))]
-        return dict(zip(feature_names, importance.tolist()))
+        return dict(zip(feature_names, importance.tolist(), strict=True))
 
 
 # ============================================================

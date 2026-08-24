@@ -125,7 +125,7 @@ def neutralize_by_size(
         slope = np.cov(x, y)[0, 1] / max(np.var(x), 1e-10)
         intercept = float(np.mean(y) - slope * np.mean(x))
         residuals = y - (slope * x + intercept)
-        return {s: float(r) for s, r in zip(common_syms, residuals)}
+        return {s: float(r) for s, r in zip(common_syms, residuals, strict=True)}
 
     return values
 

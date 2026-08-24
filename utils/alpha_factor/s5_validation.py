@@ -98,7 +98,7 @@ def _top_bottom_ls(
     top_pct: float = 0.2,
 ) -> float:
     """按因子值排序, 计算 Top/Bottom 多空收益."""
-    rows = sorted(zip(factor_values, returns), key=lambda x: x[0], reverse=True)
+    rows = sorted(zip(factor_values, returns, strict=True), key=lambda x: x[0], reverse=True)
     n = len(rows)
     top_n = max(2, int(n * top_pct))
     long_ret = float(np.mean([r[1] for r in rows[:top_n]]))

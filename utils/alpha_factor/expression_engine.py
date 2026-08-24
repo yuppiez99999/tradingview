@@ -316,7 +316,7 @@ def _op_rank(x: dict[str, float]) -> dict[str, float]:
         final_ranks = (final_ranks - 1) / (n - 1)
     else:
         final_ranks[:] = 0.5
-    return {s: float(r) for s, r in zip(syms, final_ranks)}
+    return {s: float(r) for s, r in zip(syms, final_ranks, strict=True)}
 
 
 def _op_zscore(x: dict[str, float]) -> dict[str, float]:

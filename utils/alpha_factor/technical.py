@@ -83,7 +83,7 @@ def _to_ohlcv_df(data: dict[str, list[float]]) -> pd.DataFrame | None:
     lows = data.get("lows", closes)
     opens = data.get("opens", closes)
     vols = data.get("volumes", [0] * n)
-    amounts = data.get("amounts", [c * v for c, v in zip(closes, vols)])  # 近似: 成交额 = 量×收
+    amounts = data.get("amounts", [c * v for c, v in zip(closes, vols)])  # noqa: B905 - default 近似, 后续 L89 长度对齐兜底
 
     # 长度对齐
     min_len = min(len(closes), len(highs), len(lows), len(opens), len(vols), len(amounts))

@@ -294,6 +294,16 @@ INJECTION_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"system\s*:\s*", re.IGNORECASE),
     re.compile(r"<\s*system\s*>", re.IGNORECASE),
     re.compile(r"override\s+(previous|default|current)", re.IGNORECASE),
+    # 中文提示注入模式 (HIGH-2 加固, 2026-08-24)
+    re.compile(r"忽略(以上|之前|前面|上文|前文)(指令|规则|提示|要求|内容)"),
+    re.compile(r"无视(以上|之前|前面|上文|前文)(指令|规则|提示|要求)"),
+    re.compile(r"不(执行|遵守|理会|遵循)(以上|之前|前面|上文)(指令|规则)"),
+    re.compile(r"你(现在|如今|从此)(是|为|扮演)"),
+    re.compile(r"(扮演|假装|装作)(一个|成|为)"),
+    re.compile(r"新(指令|规则|要求)\s*[：:]"),
+    re.compile(r"系统\s*[：:]"),
+    re.compile(r"覆盖(之前|原来|原有|默认)(指令|规则|设置)"),
+    re.compile(r"对\s*\d{6}\s*(输出|返回|给出)\s*(positive|negative|买入|卖出)", re.IGNORECASE),
 ]
 
 # 极端情绪词汇 (情绪操纵检测)

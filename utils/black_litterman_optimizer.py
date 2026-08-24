@@ -253,7 +253,7 @@ class BlackLittermanOptimizer:
                 raise ValueError(f"View #{i}: confidence 必须在 [0,1]")
 
             # 填充 P
-            for asset, weight in zip(view.assets, view.weights):
+            for asset, weight in zip(view.assets, view.weights, strict=True):
                 if asset not in asset_idx:
                     raise ValueError(f"View #{i}: asset '{asset}' 不在 assets 列表中")
                 P[i, asset_idx[asset]] = weight

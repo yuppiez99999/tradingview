@@ -137,7 +137,7 @@ def risk_debate_node(state) -> dict:
 
     history = ""
     responses: dict[str, str] = {}
-    for round_idx in range(_MAX_ROUNDS):
+    for _ in range(_MAX_ROUNDS):
         for role in ("aggressive", "conservative", "neutral"):
             prompt = _build_prompt(role, trader_decision, risk_report, history, responses)
             argument = _invoke_debator(role, prompt, state)

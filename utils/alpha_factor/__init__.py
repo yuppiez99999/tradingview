@@ -13,10 +13,15 @@
 10. Technical 量价技术类 (technical.py)  — GTJA191 精选 9 个低相关因子 (国泰君安191因子)
 11. Expectation 预期微观类 (expectation.py) — SUE/预期调整/尾盘成交/大单/研发投入 (6)
 
+第 17-18 大类 (2026-08-23 P0 经典理论):
+17. Hurst 长记忆类 (hurst.py)           — HURST_60D/120D/252D/TREND_SCORE (4, R/S 分析)
+18. InformationTheory 信息论类 (information_theory.py) — INFO_ENTROPY_60D/120D/DRIFT_60D (3, 熵/KL)
+
 参考:
 - 国泰君安《多因子选股模型之因子分析与筛选》(估值7+成长15+质量10)
 - 国泰海通《量化2025年度复盘系列》(PB_INT/SUE/尾盘成交占比/大单净买入)
 - 国泰君安 GTJA191 (2017) 191个短周期量价因子
+- Hurst (1951) R/S 分析; Shannon (1948) 信息论
 """
 
 from utils.alpha_factor.base import (

@@ -17,6 +17,8 @@
 14. factor-mining 移植因子 (Wave 6 W6.1.1, FM_ 前缀差异补充) — 6+ (Always ON)
 15. EigenAlpha 装饰器注册因子 (Wave 6 W6.1.3) — 动态 (默认 ON)
 16. Expression 表达式因子 (expression_engine.py, W6.6.1) — 动态 (用户 DSL 定义, 默认 OFF)
+17. Hurst 长记忆因子 (hurst.py, 2026-08-23 P0) — 4 (R/S 分析, 默认 ON)
+18. InformationTheory 信息论因子 (information_theory.py, 2026-08-23 P0) — 3 (熵/KL, 默认 ON)
 
 用法:
     lib = AlphaFactorLibrary()
@@ -51,7 +53,7 @@ from utils.alpha_factor.base import (
 )
 from utils.alpha_factor.chip_distribution import compute_chip_factors  # 第 13 大类 ChipDistribution (2026-08-12)
 from utils.alpha_factor.expectation import compute_expectation_factors
-from utils.alpha_factor.expression_engine import (  # 第 14 大类 Expression (W6.6.1)
+from utils.alpha_factor.expression_engine import (  # 第 16 大类 Expression (W6.6.1)
     compute_expression_factors,
 )
 from utils.alpha_factor.fundamental import (
@@ -64,6 +66,10 @@ from utils.alpha_factor.fundamental import (
 from utils.alpha_factor.graph import (
     compute_lead_lag_factors,
     orthogonalize_chain_factors,
+)
+from utils.alpha_factor.hurst import compute_hurst_factors  # 第 17 大类 Hurst (2026-08-23 P0)
+from utils.alpha_factor.information_theory import (  # 第 18 大类 InformationTheory (2026-08-23 P0)
+    compute_information_factors,
 )
 from utils.alpha_factor.price_volume import (
     compute_factor_mining_factors,
@@ -101,6 +107,8 @@ class AlphaFactorLibrary:
         chip_window: int = 150,            # 筹码分布滚动窗口 (季线级, 150 天)
         enable_expression: bool = False,  # 第 16 大类: 表达式因子总开关 (需提供 expressions)
         expressions: list | None = None,  # 表达式因子规格 [(name, expr_str), ...] 或 [ExpressionFactorSpec]
+        enable_hurst: bool = True,        # 第 17 大类: Hurst 指数因子 (2026-08-23 P0, 默认开)
+        enable_info: bool = True,         # 第 18 大类: 信息论因子 (2026-08-23 P0, 默认开)
     ):
         self.neutralize_industry = bool(neutralize_industry)
         self.neutralize_size = bool(neutralize_size)
@@ -113,6 +121,8 @@ class AlphaFactorLibrary:
         self.chip_window = int(chip_window)
         self.enable_expression = bool(enable_expression)
         self.expressions = expressions or []
+        self.enable_hurst = bool(enable_hurst)
+        self.enable_info = bool(enable_info)
 
     # ------------------------------------------------------------
     # 主入口
@@ -246,6 +256,22 @@ class AlphaFactorLibrary:
             if expr_factors:
                 result.factors.update(expr_factors)
                 result.debug_info["expression_factors"] = list(expr_factors.keys())
+
+        # 17. Hurst 指数因子 (第 17 大类 · LongMemory, 2026-08-23 P0 经典理论)
+        #     R/S 分析判断序列长记忆性: H>0.5 趋势 / H<0.5 均值回归
+        #     4 因子: HURST_60D / HURST_120D / HURST_252D / HURST_TREND_SCORE
+        if self.enable_hurst:
+            hurst_factors = compute_hurst_factors(price_data)
+            if hurst_factors:
+                result.factors.update(hurst_factors)
+
+        # 18. 信息论因子 (第 18 大类 · InformationTheory, 2026-08-23 P0 经典理论)
+        #     香农熵 / KL 散度: 量化收益率分布复杂度与漂移
+        #     3 因子: INFO_ENTROPY_60D / INFO_ENTROPY_120D / INFO_DRIFT_60D
+        if self.enable_info:
+            info_factors = compute_information_factors(price_data)
+            if info_factors:
+                result.factors.update(info_factors)
 
         # 中性化处理
         if self.neutralize_industry and industries:

@@ -336,7 +336,7 @@ def verify_reproducibility(
     top_a = [k for k, _ in sorted(importance_a.items(), key=lambda x: -x[1])[:top_k]]
     top_b = [k for k, _ in sorted(importance_b.items(), key=lambda x: -x[1])[:top_k]]
     overlap = len(set(top_a) & set(top_b)) / max(top_k, 1)
-    same_order = sum(1 for a, b in zip(top_a, top_b) if a == b) / max(top_k, 1)
+    same_order = sum(1 for a, b in zip(top_a, top_b) if a == b) / max(top_k, 1)  # noqa: B905 - top_a/top_b 因输入 dict 大小不同可能不等长, 按较短比较为设计语义
 
     config_match = config_a.config_hash == config_b.config_hash
     dataset_match = config_a.dataset_uri == config_b.dataset_uri
