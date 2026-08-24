@@ -127,7 +127,7 @@ def rolling_ols_beta(
         mx = sum(x_win) / window
         my = sum(y_win) / window
 
-        cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x_win, y_win)) / (window - 1)
+        cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x_win, y_win, strict=True)) / (window - 1)
         var_x = sum((xi - mx) ** 2 for xi in x_win) / (window - 1)
 
         if var_x > 1e-12:
@@ -224,7 +224,7 @@ def _estimate_q_r(
     # OLS 估计整体 Beta
     mx = sum(x) / n
     my = sum(y) / n
-    cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y)) / n
+    cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x, y, strict=True)) / n
     var_x = sum((xi - mx) ** 2 for xi in x) / n
 
     if var_x < 1e-12:
@@ -233,7 +233,7 @@ def _estimate_q_r(
     ols_beta = cov / var_x
 
     # R = 残差方差
-    residuals = [yi - ols_beta * xi for yi, xi in zip(y, x)]
+    residuals = [yi - ols_beta * xi for yi, xi in zip(y, x, strict=True)]
     R = sum(r * r for r in residuals) / max(n - 1, 1)
     R = max(R, 1e-8)
 
@@ -293,7 +293,7 @@ def fit_kalman_beta(
             if var_x > 1e-12:
                 cov = sum(
                     (xi - mx) * (yi - my)
-                    for xi, yi in zip(index_returns, portfolio_returns)
+                    for xi, yi in zip(index_returns, portfolio_returns, strict=True)
                 ) / n
                 ols_beta_val = cov / var_x
 
@@ -331,7 +331,7 @@ def fit_kalman_beta(
         var_x = sum((xi - mx) ** 2 for xi in init_x) / 29
         if var_x > 1e-12:
             cov = sum(
-                (xi - mx) * (yi - my) for xi, yi in zip(init_x, init_y)
+                (xi - mx) * (yi - my) for xi, yi in zip(init_x, init_y, strict=True)
             ) / 29
             beta0 = cov / var_x
         else:

@@ -265,7 +265,7 @@ def interactive_evaluation():
 
         # 展示结果
 
-        for suggestion in result['suggestions']:
+        for _ in result['suggestions']:
             pass
 
         # 保存结果
@@ -287,7 +287,7 @@ def interactive_evaluation():
         decisions = [r['decision'] for r in all_results]
 
         from collections import Counter
-        for decision, count in Counter(decisions).items():
+        for _, _ in Counter(decisions).items():
             pass
 
         # 保存报告
@@ -477,7 +477,7 @@ def main():
         # 执行批量评估
         result_df = evaluate_batch(df, output_path)
 
-        for decision, count in result_df['decision'].value_counts().items():
+        for _, _ in result_df['decision'].value_counts().items():
             pass
 
         return

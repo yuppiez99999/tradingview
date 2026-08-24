@@ -68,7 +68,7 @@ def fetch_sina_realtime(codes: list[str]) -> dict[str, dict]:
         return {}
 
     result = {}
-    for orig_code, sina_code in zip(codes, sina_codes):
+    for orig_code, sina_code in zip(codes, sina_codes, strict=True):
         # 提取 var hq_str_sh688041="..."; 中的内容
         prefix = f'hq_str_{sina_code}="'
         idx = text.find(prefix)

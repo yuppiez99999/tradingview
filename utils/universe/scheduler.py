@@ -301,7 +301,7 @@ def run_daily_scan(
         # ============================================================
         logger.info("\n[3/6] 批量计算因子...")
         symbols = filtered_df["code"].tolist()
-        name_map = dict(zip(filtered_df["code"], filtered_df.get("name", filtered_df["code"])))
+        name_map = dict(zip(filtered_df["code"], filtered_df.get("name", filtered_df["code"]), strict=True))
 
         klines_loader = KlinesLoader(count=300)
         # 预热 K 线（烟雾测试不需要预热所有）

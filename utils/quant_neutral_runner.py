@@ -573,7 +573,7 @@ class QuantNeutralRunner:
         total_score = sum(adjusted_scores)
 
         positions = []
-        for stock, score in zip(selected, adjusted_scores):
+        for stock, score in zip(selected, adjusted_scores, strict=True):
             weight = score / total_score
             amount = target_value * weight
             positions.append(

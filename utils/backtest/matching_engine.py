@@ -226,7 +226,7 @@ class MatchingEngine:
         fill_value = 0.0
         remaining = order.volume
 
-        for price, vol in zip(tick.ask_prices, tick.ask_volumes):
+        for price, vol in zip(tick.ask_prices, tick.ask_volumes, strict=True):
             if remaining <= 0 or vol <= 0:
                 break
             # 限价单: 出价低于该档价位则停止
@@ -262,7 +262,7 @@ class MatchingEngine:
         fill_value = 0.0
         remaining = order.volume
 
-        for price, vol in zip(tick.bid_prices, tick.bid_volumes):
+        for price, vol in zip(tick.bid_prices, tick.bid_volumes, strict=True):
             if remaining <= 0 or vol <= 0:
                 break
             # 限价单: 要价高于该档价位则停止

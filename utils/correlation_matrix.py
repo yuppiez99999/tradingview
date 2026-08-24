@@ -232,7 +232,7 @@ def _fetch_price_series(
                 continue
             try:
                 loader = loader_cls()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - loader fallback 链: 构造异常类型不可枚举(依赖缺失/网络/配置), 降级下一 loader
                 logger.debug("correlation: loader %s failed to construct: %s", name, exc)
                 continue
             if not loader.is_available():
@@ -245,7 +245,7 @@ def _fetch_price_series(
                     interval="1D",
                     fields=["trade_date", "open", "high", "low", "close", "volume"],
                 )
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - loader fallback 链: 网络/格式/接口异常不可枚举, 降级下一 loader
                 logger.warning("correlation: %s fetch via %s failed: %s", symbol, name, exc)
                 continue
             if symbol in result and not result[symbol].empty:

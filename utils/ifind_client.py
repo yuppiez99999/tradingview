@@ -27,9 +27,9 @@ except ImportError:
     _SSL_VERIFY = True
 
 logger = logging.getLogger("ifind_client")
-import urllib3  # noqa: E402
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# 安全加固: TLS 证书验证通过 certifi.where() 保持启用, 不再抑制 InsecureRequest 警告
+# (抑制警告会掩盖未来的 MITM / 证书失效回归, 历史日志曾出现 api-mcp.51ifind.com 未验证 HTTPS)
 
 # 从环境变量读取 JWT Token,禁止明文存储
 _AUTH_TOKEN = os.environ.get("IFIND_TOKEN", "")
@@ -51,9 +51,7 @@ if not _AUTH_TOKEN:
 #   - futures: 期货实时行情（支持 THS_RQ 接口字段）
 # 注意: ETF 必须使用 fund 服务，stock 服务不支持 ETF 代码
 
-import urllib3  # noqa: E402
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# 安全加固: 不抑制 InsecureRequest 警告 (TLS 验证保持 certifi 默认启用)
 
 # B-4.1: 统一无代理 Session 工厂 (绕过系统代理, 避免 iFinD API 被拦截)
 from utils.http_session import make_no_proxy_session

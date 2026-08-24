@@ -34,9 +34,9 @@ from datetime import datetime
 from typing import Any
 
 import requests
-import urllib3
+import urllib3  # noqa: F401  (保留以备显式 verify=certifi.where())
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# 安全加固: 不抑制 InsecureRequest 警告 (TLS 验证保持默认启用, 避免掩盖 MITM 回归)
 
 logger = logging.getLogger(__name__)
 

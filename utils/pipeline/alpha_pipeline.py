@@ -359,7 +359,7 @@ class AlphaPipeline:
             arr = np.array(list(vals.values()), dtype=float)
             if arr.std() > 1e-12:
                 z = (arr - arr.mean()) / arr.std()
-                standardized_factors.append(dict(zip(vals.keys(), z.tolist())))
+                standardized_factors.append(dict(zip(vals.keys(), z.tolist(), strict=True)))
 
         if not standardized_factors:
             return scores
@@ -455,7 +455,7 @@ class AlphaPipeline:
         clipped = np.clip(values, q01, q99)
         max_abs = max(abs(clipped.min()), abs(clipped.max()), 1e-10)
         normalized = clipped / max_abs
-        return dict(zip(signals.keys(), [round(float(v), 6) for v in normalized]))
+        return dict(zip(signals.keys(), [round(float(v), 6) for v in normalized], strict=True))
 
     def _inject_to_fusion(self, signal_result: AlphaSignalResult) -> None:
         """注入信号到 SignalFusionEngine (通过 register_source 注册 pipeline_alpha 源)."""

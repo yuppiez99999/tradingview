@@ -73,7 +73,7 @@ def _parse_markdown_table(text: str) -> list[dict[str, str]]:
         cells = [cell.strip() for cell in line.strip("|").split("|")]
         if len(cells) != len(headers):
             continue
-        rows.append(dict(zip(headers, cells)))
+        rows.append(dict(zip(headers, cells, strict=True)))
     return rows
 
 
@@ -100,7 +100,7 @@ def _where(condition: list[bool], x: Any, y: Any) -> list[Any]:
     注: x/y 既支持标量也支持列表, 保持无类型注解以兼容现有调用模式
     """
     if hasattr(x, '__iter__') and not isinstance(x, (str, bytes)):
-        return [x_i if c else y for c, x_i in zip(condition, x)]
+        return [x_i if c else y for c, x_i in zip(condition, x, strict=True)]
     return [x if c else y for c in condition]
 
 

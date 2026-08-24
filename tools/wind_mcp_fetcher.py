@@ -91,7 +91,7 @@ def _parse_sse_minute_quote(text: str) -> Optional[dict]:
     for row in rows:
         if len(columns) != len(row):
             continue
-        records.append(dict(zip(columns, row)))
+        records.append(dict(zip(columns, row, strict=True)))
     if not records:
         return None
 
@@ -636,7 +636,7 @@ def _extract_kline_records(data: dict) -> list[dict]:
                     records = []
                     for row in rows:
                         if len(columns) == len(row):
-                            records.append(dict(zip(columns, row)))
+                            records.append(dict(zip(columns, row, strict=True)))
                     return records
                 # 也可能是 list 直接返回
                 if isinstance(inner, list):
@@ -650,7 +650,7 @@ def _extract_kline_records(data: dict) -> list[dict]:
         records = []
         for row in rows:
             if len(columns) == len(row):
-                records.append(dict(zip(columns, row)))
+                records.append(dict(zip(columns, row, strict=True)))
         return records
 
     return []
@@ -766,7 +766,7 @@ def _extract_news_items(data: Any) -> list[dict]:
                 cols = [c.get("name") for c in (inner_data.get("columns") or [])]
                 rows = inner_data.get("rows") or []
                 if cols and rows:
-                    return [dict(zip(cols, row)) for row in rows if len(cols) == len(row)]
+                    return [dict(zip(cols, row, strict=True)) for row in rows if len(cols) == len(row)]
             elif isinstance(inner_data, list):
                 return [i for i in inner_data if isinstance(i, dict)]
         elif isinstance(inner, list):

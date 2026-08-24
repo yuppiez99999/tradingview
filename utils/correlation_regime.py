@@ -131,7 +131,7 @@ def _fused_episodes(dates: list[str], fused: list[int]) -> list[dict[str, Option
     episodes: list[dict[str, Optional[str]]] = []
     start: Optional[str] = None
     last_fused: Optional[str] = None
-    for date, state in zip(dates, fused):
+    for date, state in zip(dates, fused, strict=True):
         if state:
             if start is None:
                 start = date

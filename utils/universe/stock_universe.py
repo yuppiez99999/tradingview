@@ -24,13 +24,8 @@ os.environ.setdefault("HTTPS_PROXY", "")
 os.environ.setdefault("http_proxy", "")
 os.environ.setdefault("https_proxy", "")
 
-# 降低 SSL 验证强度（兼容 Python 3.8 + 旧 OpenSSL）
-try:
-    import urllib3
-
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-except ImportError:
-    pass
+# 安全加固: TLS 证书验证保持系统默认启用, 不调用 disable_warnings, 不降低验证强度
+# (若旧 OpenSSL 报证书错误, 应升级 certifi/openssl, 而非关闭验证)
 
 logger = logging.getLogger(__name__)
 

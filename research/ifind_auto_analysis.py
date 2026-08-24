@@ -105,7 +105,7 @@ def _build_markdown_report(insights: list[StockInsight], items: list[dict[str, A
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     direction_emoji = {'positive': '📈', 'negative': '📉', 'neutral': '➡️'}
-    for item, insight in zip(items, insights):
+    for item, insight in zip(items, insights, strict=True):
         emoji = direction_emoji.get(insight.direction, '➡️')
         technical_alpha = _calc_technical_alpha(item['code'])
         alpha_str = f"{technical_alpha:.4f}" if technical_alpha is not None else "N/A"
@@ -117,7 +117,7 @@ def _build_markdown_report(insights: list[StockInsight], items: list[dict[str, A
         "## 逐标的详情",
         "",
     ])
-    for item, insight in zip(items, insights):
+    for item, insight in zip(items, insights, strict=True):
         technical_alpha = _calc_technical_alpha(item['code'])
         alpha_str = f"{technical_alpha:.4f}" if technical_alpha is not None else "N/A"
         lines.extend([

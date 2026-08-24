@@ -38,7 +38,6 @@ from pathlib import Path
 from typing import Any, Optional, cast
 
 import requests
-import urllib3
 
 try:
     import certifi
@@ -48,7 +47,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# 安全加固: TLS 验证保持 certifi.where() 启用, 不抑制 InsecureRequest 警告 (避免掩盖 MITM 回归)
 
 # BeautifulSoup 前向声明(模块级) — 根除 ImportError fallback 时 =None 触发 [assignment]
 # 此声明与 try/except 的成功/失败分支独立，保证 mypy 看到的类型永远是 Optional[type]

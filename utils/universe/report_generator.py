@@ -106,7 +106,7 @@ def _save_factor_contrib_bar(portfolio_df: pd.DataFrame, output_path: Path) -> s
     ax.set_xlabel("因子主题", fontsize=12)
     ax.set_ylabel("平均得分 (z-score)", fontsize=12)
     ax.set_title("组合各因子主题贡献度", fontsize=14, pad=15)
-    for bar, val in zip(bars, avg_scores.values):
+    for bar, val in zip(bars, avg_scores.values, strict=True):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
             bar.get_height(),

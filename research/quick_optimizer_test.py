@@ -10,12 +10,12 @@ mu = np.array([0.711, -0.533, 0.513]) * 0.10  # 来自 pipeline_backtest.json �
 cov = pd.DataFrame(np.diag(np.full(len(symbols), 0.04 / 252)), index=symbols, columns=symbols)
 
 decision = optimizer.optimize(
-    expected_returns=dict(zip(symbols, mu)),
+    expected_returns=dict(zip(symbols, mu, strict=True)),
     covariance_matrix=cov,
     current_positions={},
     impact_model=None,
 )
-print("expected_returns:", dict(zip(symbols, mu.tolist())))
+print("expected_returns:", dict(zip(symbols, mu.tolist(), strict=True)))
 print("target_weights:", decision.target_weights)
 print("expected_return:", decision.expected_return)
 print("expected_risk:", decision.expected_risk)

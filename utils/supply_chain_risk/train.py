@@ -24,7 +24,9 @@
   - 模型持久化: joblib/pickle
 """
 
+import hashlib
 import json
+import logging
 import os
 import pickle
 import warnings
@@ -41,6 +43,49 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 warnings.filterwarnings('ignore')
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# 安全加固: pickle 完整性校验 (CWE-502)
+# ============================================================
+
+def _sha256_file(path):
+    """流式计算文件 SHA256 (分块读取, 兼容大文件)."""
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(1 << 20), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def load_model_safe(path, expected_sha256=None):
+    """安全加载 pickle 模型, 防供应链投毒 (CWE-502).
+
+    - expected_sha256 非空: 哈希不一致直接拒绝加载
+    - 否则尝试读取 <path>.sha256 侧车:
+        - 侧车存在: 校验失败拒绝加载
+        - 侧车不存在: 计算并记录哈希作审计线索 (warning, 不阻断默认流程)
+    """
+    if expected_sha256 is None:
+        sidecar = str(path) + '.sha256'
+        if os.path.exists(sidecar):
+            with open(sidecar, 'r', encoding='utf-8') as f:
+                expected_sha256 = f.read().strip()
+    if expected_sha256:
+        actual = _sha256_file(path)
+        if actual != expected_sha256:
+            raise ValueError(
+                '模型完整性校验失败: %s (expected=%s..., actual=%s...) — 文件可能被篡改, 拒绝加载'
+                % (path, expected_sha256[:12], actual[:12])
+            )
+    else:
+        digest = _sha256_file(path)
+        logger.warning('模型无 SHA256 侧车, 记录哈希作审计线索: %s sha256=%s', path, digest)
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
 
 DATA_DIR = Path(os.environ.get(
     "SUPPLY_CHAIN_DATA_DIR",
@@ -240,7 +285,7 @@ class FinancialRiskScorecard:
         return {
             'logistic_regression_accuracy': self.lr_acc,
             'random_forest_accuracy': self.rf_acc,
-            'feature_importance': dict(zip(X.columns, rf.feature_importances_))
+            'feature_importance': dict(zip(X.columns, rf.feature_importances_, strict=True))
         }
 
     def _build_single_feature_vector(self, row):
@@ -660,12 +705,15 @@ class CombinedDecisionEngine:
 
         with open(path, 'wb') as f:
             pickle.dump(model_data, f)
+        # CWE-502 加固: 同步写 SHA256 侧车, 供 load_model_safe 完整性校验
+        sidecar = str(path) + '.sha256'
+        with open(sidecar, 'w', encoding='utf-8') as f:
+            f.write(_sha256_file(path))
 
     @classmethod
     def load(cls, path):
-        """加载模型"""
-        with open(path, 'rb') as f:
-            model_data = pickle.load(f)
+        """加载模型 (CWE-502 加固: 经 load_model_safe 做 SHA256 侧车校验)"""
+        model_data = load_model_safe(path)
 
         engine = cls(
             finance_weight=model_data['weights']['finance'],
@@ -720,23 +768,23 @@ def main():
     test_finance_rows = finance_df.sample(5, random_state=42)
     test_finance_features = finance_features.iloc[test_finance_rows.index]
 
-    for i, (idx, row) in enumerate(test_finance_rows.iterrows()):
+    for i, (_, row) in enumerate(test_finance_rows.iterrows()):
         score = engine.finance_model.predict_score(row, test_finance_features.iloc[i])
         level, emoji, advice = engine.finance_model.get_risk_level(score)
 
     # 测试能源预警
     test_energy_rows = energy_df.sample(5, random_state=42)
-    for i, (_, row) in enumerate(test_energy_rows.iterrows()):
+    for _, (_, row) in enumerate(test_energy_rows.iterrows()):
         engine.energy_model.predict_alert(row)
 
     # 测试综合决策
     test_indices = [0, len(finance_df)//2, len(finance_df)-1]
-    for i, idx in enumerate(test_indices):
+    for _, idx in enumerate(test_indices):
         finance_row = finance_df.iloc[idx]
         energy_sample = energy_df.sample(min(3, len(energy_df)), random_state=idx+42)
         result = engine.evaluate_supplier(finance_row, energy_sample)
 
-        for s in result['suggestions']:
+        for _ in result['suggestions']:
             pass
 
     # 步骤 5: 批量评分统计

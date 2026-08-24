@@ -189,11 +189,11 @@ def run(target_date: Optional[str] = None) -> dict:
     print(f"开始批量抓取 {len(clean_codes)} 只标的...")
     batch_quotes = wind_get_batch_quotes(clean_codes, is_fund=False)
 
-    is_fund_map = {code: flag for code, flag in zip(clean_codes, is_fund_flags)}
+    is_fund_map = {code: flag for code, flag in zip(clean_codes, is_fund_flags, strict=True)}
     prev_close_map = _batch_fetch_klines(clean_codes, is_fund_map, wind_get_kline, max_workers=4)
 
     rows: list[dict] = []
-    for item, clean_code in zip(items, clean_codes):
+    for item, clean_code in zip(items, clean_codes, strict=True):
         raw_code = item["code"]
         quote = batch_quotes.get(clean_code)
         source = "wind_mcp" if quote else "无数据"
