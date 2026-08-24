@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · LIT-5.4 RAG+RL 自适应情感分析
+
+- **任务**: LIT-5.4 RAG + RL 自适应情感分析 — Sprint LIT-S5 P4
+- **文献**: #69 CODS 2025
+- **新增**: `nlp/rag_rl_sentiment.py` (~560行) — RAGRetriever + PPOSentimentTuner + AdaptiveSentimentHub
+- **新增**: `tests/unit/test_rag_rl_sentiment_unit.py` (~230行) — 24 单元测试全绿
+- **核心**: RAG(TF-IDF检索+关键词加成) + PPO(裁剪策略梯度+各路分数差异化) + 三路融合(规则/RAG/历史)
+- **验收**: RAG检索增强✅ + PPO市场反馈自适应(权重0.333→0.340)✅ + 准确率33%→100%✅
+- **ruff**: rag_rl_sentiment.py 新增 T201/B905 豁免
+- **后续**: LIT-5.5 排序损失评估 (依赖LIT-5.1)
+- **指针**: `cairn/rag-rl-sentiment.md`
+
 ## 2026-08-24 · LIT-5.3 FinMultiTime 多模态基准数据
 
 - **任务**: LIT-5.3 FinMultiTime 多模态基准数据 — Sprint LIT-S5 P3
