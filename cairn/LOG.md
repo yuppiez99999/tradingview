@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · LIT-5.2 分数阶差分替代对数收益
+
+- **任务**: LIT-5.2 分数阶差分替代对数收益 — Sprint LIT-S5 P2
+- **文献**: #65 Comparative Financial Data Differentiation (2025.05)
+- **新增**: `utils/fractional_differencing.py` (~390行) — FractionalDifferencing + FractionalDifferencingBacktest + CLI
+- **新增**: `tests/unit/test_fractional_differencing_unit.py` (~250行) — 24 单元测试全绿
+- **核心**: 分数阶差分 Δ^d x_t = Σ w_k × x_{t-k} (w_k = w_{k-1}×(k-1-d)/k) + 方差比平稳性检验 + 4指数回测
+- **修复**: 短序列权重截断 + 尾部零权重去除 + 方差比检验替代自相关 (随机游走误判修复)
+- **ruff**: fractional_differencing.py 新增 T201 豁免 (CLI print)
+- **后续**: LIT-5.3 FinMultiTime + LIT-5.4 RAG+RL 情感分析 (无依赖, 可并行)
+- **指针**: `cairn/fractional-differencing.md`
+
 ## 2026-08-24 · LIT-5.1 制度门控 Transformer 集成
 
 - **任务**: LIT-5.1 制度门控 Transformer 集成 — Sprint LIT-S5 P1

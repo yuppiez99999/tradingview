@@ -269,6 +269,10 @@ force-single-line = false
 # B905: zip(scores.keys(), probs) 长度已知相同, strict= 不必要
 "utils/regime_gated_transformer.py" = ["T201", "UP042", "N806", "B905"]
 
+# LIT-5.2: 分数阶差分 CLI 演示
+# T201: CLI main() 使用 print 输出演示结果
+"utils/fractional_differencing.py" = ["T201"]
+
 # LIT-2.3: CN-Buzz2Portfolio 中国市场基准
 # UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
 "tests/eval/cn_buzz2portfolio.py" = ["UP042"]
