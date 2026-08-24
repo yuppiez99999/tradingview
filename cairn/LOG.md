@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · LIT-5.5 排序损失函数系统评估
+
+- **任务**: LIT-5.5 排序损失函数系统评估 — Sprint LIT-S5 P5
+- **文献**: #59 CIKM 2025
+- **新增**: `tests/eval/ranking_loss_eval.py` (~430行) — PointwiseLoss + PairwiseLoss + ListwiseLoss + RankingLossEvaluator
+- **新增**: `tests/unit/test_ranking_loss_eval_unit.py` (~200行) — 20 单元测试全绿
+- **核心**: pointwise(MSE) + pairwise(BPR) + listwise(ListNet) 对比 + NDCG/MAP/MRR 评估
+- **验收**: 三种损失实现✅ + 最优选择(listwise NDCG=0.9948)✅ + 金融选股排序(NDCG>0.5)✅
+- **结论**: listwise 最优 (NDCG=0.9948), pointwise 次之 (0.8772), pairwise 最差 (0.2280)
+- **后续**: LIT-5.6 全量集成验收 + v8.7 发布
+- **指针**: `cairn/ranking-loss-eval.md`
+
 ## 2026-08-24 · LIT-5.4 RAG+RL 自适应情感分析
 
 - **任务**: LIT-5.4 RAG + RL 自适应情感分析 — Sprint LIT-S5 P4
