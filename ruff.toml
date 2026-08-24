@@ -159,6 +159,8 @@ force-single-line = false
 "utils/download_manager.py" = ["BLE001"]
 "utils/signal_fusion.py" = ["BLE001", "E402"]
 "utils/universe/portfolio_builder.py" = ["BLE001", "E402"]
+# W7.2.8/W7.2.9 shadow 30天评估器: 文件加载 fail-safe, 异常降级为日志不崩溃
+"utils/shadow_30day_evaluator.py" = ["BLE001"]
 "量化策略系统_统一入口_v8.6.py" = ["BLE001", "E402", "N806", "C901"]
 "skills/ifind-finance-data/call.py" = ["BLE001"]
 # limit_pool_provider: 涨跌停价计算 fail-safe, 异常时返回保守估计

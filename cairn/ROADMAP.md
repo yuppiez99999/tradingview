@@ -251,8 +251,8 @@ related:
 - [ ] W7.2.5 (09-13~10-12) Wave 5 S6 纸交易启动 — CHAIN_MOM_60D 纸交易 ≥30 天跟踪报告
 - [ ] W7.2.6 (09-13~10-12) 工程基础层 Phase 0-1 — uv 环境管理迁移 + python-dotenv 密钥安全 + ruff T201/BLE001 收紧
 - [ ] W7.2.7 (09-13~10-12) ocr 三步固化 Step 1-2 — GLM API 充值 → 补扫 16 文件 → PR 自动审查接入
-- [ ] W7.2.8 (09-13~10-12) **MVSK P5-2 shadow 运行 30 天验证** — 实盘 shadow 对比 BL+MVSK(378) vs BL+MV(252)，每日记录权重/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.6 P5-1
-- [ ] W7.2.9 (09-13~10-12) **qlib新选股模型 shadow 运行 30 天对比 V9** — 实盘 shadow 对比 qlib_lgb_v2 vs V9 Regime-Specific，每日记录信号/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.7；详见 `cairn/qlib-backtest-validation.md`
+- [~] W7.2.8 (09-13~10-12) **MVSK P5-2 shadow 运行 30 天验证** — 实盘 shadow 对比 BL+MVSK(378) vs BL+MV(252)，每日记录权重/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.6 P5-1 — **启动器就绪 2026-08-24**: `scripts/launch_shadow_30day.py` + `utils/shadow_30day_evaluator.py` + 22测试全绿; 待 09-13 cron 启动 30天窗口; 详见 `cairn/shadow-30day-validation.md`
+- [~] W7.2.9 (09-13~10-12) **qlib新选股模型 shadow 运行 30 天对比 V9** — 实盘 shadow 对比 qlib_lgb_v2 vs V9 Regime-Specific，每日记录信号/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.7；详见 `cairn/qlib-backtest-validation.md` — **启动器就绪 2026-08-24** (与 W7.2.8 同包)
 
 **Sprint 3（10-13 ~ 11-12，~4 周）：因子入库 + 风控增强 + 工程基础层 Phase 2**
 - [ ] W7.3.1 (10-13~11-12) Wave 5 S7 小资金 5-10% 灰度入库 — CHAIN_MOM_60D 小资金灰度 ≥30 天跟踪报告 + 完整入库决策

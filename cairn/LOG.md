@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-24 · W7.2.8 + W7.2.9 shadow 30天验证启动器
+
+- **任务**: MVSK P5-2 + qlib_lgb_v2 shadow 30天验证每日运行器 + 评估器
+- **交付**: `scripts/launch_shadow_30day.py` (490行) + `utils/shadow_30day_evaluator.py` (449行) + 22测试全绿
+- **设计**: shadow 不侵入生产链路 (MVSK portfolio unchanged + qlib weight=0.0); fail-fast 监控 (单日差异>3%); Δ夏普代理估算 (MVSK 稳定性代理 + qlib OOS先验×方向一致率)
+- **状态**: 基础设施就绪, 待 09-13 cron 启动 30天窗口 → 10-12 评估 → W7.3.7/W7.3.8 正式启用决策
+- **指针**: `cairn/shadow-30day-validation.md`
+
 ## 2026-08-24 · LIT-5.6 全量集成验收 + v8.7 发布
 
 - **任务**: LIT-5.6 全量集成验收 + v8.7 发布 — Sprint LIT-S5 收尾
