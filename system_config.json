@@ -164,15 +164,15 @@
     },
     "guard": {
       "daily_evolution_limit": 1,
-      "max_weight_change": 0.10,
+      "max_weight_change": 0.1,
       "shadow_days_required": 5,
       "_doc": "EvolutionGuard 五道防线参数"
     },
     "feedback_loop": {
       "enabled": false,
       "learning_rate": 0.1,
-      "max_daily_change": 0.10,
-      "alarm_threshold_7d": 0.30,
+      "max_daily_change": 0.1,
+      "alarm_threshold_7d": 0.3,
       "_doc": "FeedbackLoop 反馈闭环参数, 默认关闭(P2阶段启用)"
     },
     "feature_flags": {
@@ -180,7 +180,7 @@
       "_note": "观察期内 USE_STRATEGY_EVALUATOR + USE_EVOLUTION_ORCHESTRATOR 已灰度启用; 其余待阶段B渐进开放",
       "USE_STRATEGY_EVALUATOR": true,
       "USE_EVOLUTION_ORCHESTRATOR": true,
-      "USE_DRIFT_DETECTOR": false,
+      "USE_DRIFT_DETECTOR": true,
       "USE_AUTO_RETRAIN": false,
       "USE_MLOPS_PIPELINE": false,
       "USE_FEEDBACK_LOOP": false,
@@ -189,11 +189,28 @@
       "USE_FINENG_EVT": false,
       "USE_FINENG_PATH_SIM": false,
       "_stage_b_plan": {
-        "B1": {"flag": "USE_DRIFT_DETECTOR", "after_observation": "2026-08-13", "watch_days": 3},
-        "B2": {"flag": "USE_FEEDBACK_LOOP", "after": "B1_OK", "watch_days": 3},
-        "B3": {"flag": "USE_AUTO_RETRAIN", "after": "B2_OK", "watch_days": 3},
-        "B4": {"flag": "USE_MLOPS_PIPELINE", "after": "B3_OK", "watch_days": 7}
-      }
+        "B1": {
+          "flag": "USE_DRIFT_DETECTOR",
+          "after_observation": "2026-08-13",
+          "watch_days": 3
+        },
+        "B2": {
+          "flag": "USE_FEEDBACK_LOOP",
+          "after": "B1_OK",
+          "watch_days": 3
+        },
+        "B3": {
+          "flag": "USE_AUTO_RETRAIN",
+          "after": "B2_OK",
+          "watch_days": 3
+        },
+        "B4": {
+          "flag": "USE_MLOPS_PIPELINE",
+          "after": "B3_OK",
+          "watch_days": 7
+        }
+      },
+      "USE_ABTEST": true
     }
   },
   "github_integration": {
@@ -238,7 +255,10 @@
       "enabled": true,
       "_doc": "ML 模型推理加速, 接入 lgb_enhanced_trainer / tf_price_predictor",
       "adapter": "utils/onnxruntime_adapter.py",
-      "providers": ["CUDAExecutionProvider", "CPUExecutionProvider"],
+      "providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ],
       "intra_op_num_threads": 4,
       "graph_optimization_level": "all",
       "model_dir": "models/onnx_exported/",

@@ -151,12 +151,12 @@ class TestAugmentMarketPricesDateParam:
     def test_date_forwarded_to_store(self, patched_bridge):
         patched_bridge.latest_avg_price_by_symbol.return_value = {}
         fills_pnl_bridge.augment_market_prices({}, date="2026-08-14")
-        patched_bridge.latest_avg_price_by_symbol.assert_called_once_with("2026-08-14")
+        patched_bridge.latest_avg_price_by_symbol.assert_called_once_with("2026-08-14", strategies=None)
 
     def test_date_none_forwarded(self, patched_bridge):
         patched_bridge.latest_avg_price_by_symbol.return_value = {}
         fills_pnl_bridge.augment_market_prices({})
-        patched_bridge.latest_avg_price_by_symbol.assert_called_once_with(None)
+        patched_bridge.latest_avg_price_by_symbol.assert_called_once_with(None, strategies=None)
 
 
 class TestRealizedPnl:
@@ -164,13 +164,13 @@ class TestRealizedPnl:
         patched_bridge.realized_pnl.return_value = {"600519": 1234.5, "000001": -50.0}
         result = fills_pnl_bridge.realized_pnl("2026-08-14")
         assert result == {"600519": 1234.5, "000001": -50.0}
-        patched_bridge.realized_pnl.assert_called_once_with("2026-08-14")
+        patched_bridge.realized_pnl.assert_called_once_with("2026-08-14", strategies=None)
 
     def test_success_no_date(self, patched_bridge):
         patched_bridge.realized_pnl.return_value = {"600519": 100.0}
         result = fills_pnl_bridge.realized_pnl()
         assert result == {"600519": 100.0}
-        patched_bridge.realized_pnl.assert_called_once_with(None)
+        patched_bridge.realized_pnl.assert_called_once_with(None, strategies=None)
 
     def test_value_error_returns_empty(self, patched_bridge):
         patched_bridge.realized_pnl.side_effect = ValueError("boom")

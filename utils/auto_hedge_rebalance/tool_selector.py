@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import logging
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Optional
 
 from utils.auto_hedge_rebalance.cost_benefit_filter import PortfolioRisk
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 
-class MarketRegime(str, Enum):
+class MarketRegime(StrEnum):
     """组合自驱动市场状态 — 4 档。
 
     由组合自身波动率与回撤判定，非大盘市场状态。

@@ -447,16 +447,30 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         logger.info("[Pipeline] Step 1: 数据门控")
         gate_results = []
         all_allowed = True
+        mock_used = 0
 
         for symbol in self.ctx.symbols:
             snapshot = self._real_snapshot(symbol)
+            # PI-2: 真实数据不可用返回 mock 快照 (price=10.0) 时, 数据门控不能静默用假价
+            # 做风控判定。显式标记 data_degraded 并告警 (观测路径 fail-open 留日志, 不静默)。
+            if snapshot.get("source") == "mock":
+                mock_used += 1
+                logger.warning(
+                    "[DATA_DEGRADED] %s 无真实快照 (mock price=%.1f), 数据门控基于降级数据",
+                    symbol, snapshot.get("price", 0.0),
+                )
             gate = self.data_gate.check_and_gate(symbol, snapshot)
-            gate_results.append(gate.to_dict())
+            gate_dict = gate.to_dict()
+            if snapshot.get("source") == "mock":
+                gate_dict["data_degraded"] = True
+            gate_results.append(gate_dict)
             if not gate.allowed:
                 all_allowed = False
 
         return {
             "all_symbols_allowed": all_allowed,
+            "mock_used": mock_used,
+            "data_degraded": mock_used > 0,
             "results": gate_results,
         }
 

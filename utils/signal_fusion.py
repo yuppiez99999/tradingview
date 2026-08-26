@@ -1239,6 +1239,68 @@ def is_news_intelligence_signal_enabled() -> bool:
         return False
 
 
+# ── FinnewsHunter 事件驱动 alpha 信号源集成 (2026-08-26, FinnewsHunter 启发) ──
+
+def _get_finnhunter_signal_source(code: str) -> Optional[SignalResult]:
+    """FinnewsHunter 信号源 — 金融新闻事件类型 → alpha 强度
+
+    受 USE_FINNEWS_HUNTER_SIGNAL feature-flag 控制, 关闭时返回 None.
+    区别于 news_intel (LLM 深度解读), finnhunter 聚焦事件类型 → alpha 方向.
+    """
+    try:
+        from utils.infra.feature_flags import is_enabled
+        if not is_enabled("USE_FINNEWS_HUNTER_SIGNAL"):
+            return None
+    except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
+        logger.debug(f"finnhunter flag 检查失败: {e}")
+        return None
+
+    try:
+        from .signal_sources.finnhunter_signal_source import FinnewsHunterSignalSource
+        source = FinnewsHunterSignalSource()
+        return source.get_signal(code)
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ImportError) as e:
+        logger.warning(f"FinnewsHunter 信号获取失败 code={code}: {e}")
+        return None
+
+
+def register_finnhunter_signal_source(initial_weight: float = 0.06) -> None:
+    """注册 FinnewsHunter 事件驱动 alpha 信号源 (第 8 信号源)
+
+    受 USE_FINNEWS_HUNTER_SIGNAL feature-flag 控制, 关闭时不注册.
+    初始权重 0.06 (介于 sentiment 0.05 与 news_intel 0.08 之间),
+    由 EnhancedSignalFusionEngine 动态权重机制自动调整.
+    """
+    try:
+        from utils.infra.feature_flags import is_enabled
+        if not is_enabled("USE_FINNEWS_HUNTER_SIGNAL"):
+            logger.info("USE_FINNEWS_HUNTER_SIGNAL=False, 跳过 FinnewsHunter 信号源注册")
+            return
+    except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
+        logger.warning(f"finnhunter flag 检查失败: {e}")
+        return
+
+    try:
+        engine = get_fusion_engine()
+        if engine.has_source('finnhunter'):
+            logger.info("FinnewsHunter 信号源已注册, 跳过 (幂等)")
+            return
+        engine.register_source('finnhunter', _get_finnhunter_signal_source, initial_weight)
+        logger.info(f"FinnewsHunter 信号源已注册 (权重={initial_weight:.3f})")
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        logger.error(f"注册 FinnewsHunter 信号源失败: {e}")
+
+
+def is_finnhunter_signal_enabled() -> bool:
+    """检查 FinnewsHunter 信号源是否已注册"""
+    try:
+        engine = get_fusion_engine()
+        return engine.has_source('finnhunter')
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        logger.warning(f"检查 FinnewsHunter 信号源失败: {e}")
+        return False
+
+
 # ============================================================
 # qlib_lgb_v2 shadow 接入 (2026-08-18, Sprint 1.6)
 # ============================================================
@@ -1252,8 +1314,11 @@ if str(_QLIB_PROJECT_ROOT) not in _sys.path:
 
 QLIB_SHADOW_REPORT_PATH = _QLIB_PROJECT_ROOT / "reports" / "shadow" / "qlib_lgb_v2_daily.jsonl"
 QLIB_LGB_V2_MODEL_NAME = "qlib_lgb_v2"
-QLIB_LGB_V2_SHARPE_OOS = {"train": 1.86, "test": 2.44}
-QLIB_LGB_V2_EXCESS_RETURN = {"train": 0.1152, "test": 0.4725}
+# 注: 以下 Sharpe/超额收益为 W7.1.7 设计文档中 2015起训练的规划值,
+# 当前模型为 2020-01-01 起训练 (reports/qlib_model_*.pkl), 真实 OOS 指标
+# 待 backtest 评估后填入。shadow 报告运行时以 model_meta() 记录实际状态。
+QLIB_LGB_V2_SHARPE_OOS = {"train": 1.86, "test": 2.44, "verified": False}
+QLIB_LGB_V2_EXCESS_RETURN = {"train": 0.1152, "test": 0.4725, "verified": False}
 
 
 @dataclass
@@ -1285,23 +1350,46 @@ def _save_qlib_shadow_signal(
         "signal_diff": qlib_signal - v9_signal,
         "model": QLIB_LGB_V2_MODEL_NAME,
         "sharpe_oos": QLIB_LGB_V2_SHARPE_OOS,
+        "model_meta": _qlib_lgb_v2_meta(),
     }
     with open(QLIB_SHADOW_REPORT_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
     return str(QLIB_SHADOW_REPORT_PATH)
 
 
+def _qlib_lgb_v2_meta() -> dict:
+    """返回 qlib_lgb_v2 模型真实元信息 (供 shadow 报告记录)。"""
+    try:
+        from utils.qlib_lgb_v2_model import model_meta
+
+        return model_meta()
+    except Exception:  # noqa: BLE001
+        return {"model_path": None, "n_signals": 0}
+
+
 def _get_qlib_lgb_v2_signal(symbol: str) -> float:
-    """通过 qlib_data_bridge 获取 qlib_lgb_v2 模型信号.
+    """通过 qlib_lgb_v2 真实模型获取信号 (W7.2.9 补齐, 替代原随机数模拟).
+
+    信号源: reports/predictions_*.csv (模型对 test 段的 OOS 预测, 由
+    ms_strategy/cloud_train/modelscope_train.py 训练产出)。未命中时降级到
+    确定性随机数 (保留原 fallback 语义, 但标记为非真实模型信号)。
 
     Returns:
-        float: 信号强度 [-1, 1], 正数看多, 负数看空
+        float: 信号强度 (模型 score, 约 [-0.5, 0.35]), 正数看多, 负数看空
     """
     try:
         from utils.qlib_data_bridge import to_qlib_symbol
+        from utils.qlib_lgb_v2_model import get_lgb_v2_signal
+
         qlib_code = to_qlib_symbol(symbol)
+        signal = get_lgb_v2_signal(qlib_code)
+        if signal is not None:
+            return float(signal)
+        # 未命中 (该标的无模型预测): 降级到确定性随机数, 维持管线不中断
         import numpy as np
+
         rng = np.random.default_rng(hash(qlib_code) % (2**32))
+        logger.info("qlib_lgb_v2: %s 无模型信号, 降级随机数 fallback", qlib_code)
         return float(rng.normal(0.0, 0.3))
     except Exception as e:
         logger.warning("qlib_lgb_v2 信号获取失败: %s", e)

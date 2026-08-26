@@ -57,7 +57,7 @@ def phase_autolearn(ctx: WorkflowContext) -> bool:
         try:
             report_path = _generate_autolearn_report(result)
             logger.info(f"自主学习日报: {report_path}")
-        except Exception as e:
+        except Exception as e:  # fail-safe
             logger.warning(f"日报生成失败: {e}")
             report_path = None
 
@@ -85,7 +85,7 @@ def phase_autolearn(ctx: WorkflowContext) -> bool:
                     f"中性 {summary.get('neutral', 0)})")
         return True
 
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.error(f"Phase 8 异常: {e}", exc_info=True)
         ctx.state["phases"]["autolearn"] = {
             "status": "FAIL",

@@ -71,14 +71,13 @@ def load_model_safe(path, expected_sha256=None):
     if expected_sha256 is None:
         sidecar = str(path) + '.sha256'
         if os.path.exists(sidecar):
-            with open(sidecar, 'r', encoding='utf-8') as f:
+            with open(sidecar, encoding='utf-8') as f:
                 expected_sha256 = f.read().strip()
     if expected_sha256:
         actual = _sha256_file(path)
         if actual != expected_sha256:
             raise ValueError(
-                '模型完整性校验失败: %s (expected=%s..., actual=%s...) — 文件可能被篡改, 拒绝加载'
-                % (path, expected_sha256[:12], actual[:12])
+                f'模型完整性校验失败: {path} (expected={expected_sha256[:12]}..., actual={actual[:12]}...) — 文件可能被篡改, 拒绝加载'
             )
     else:
         digest = _sha256_file(path)

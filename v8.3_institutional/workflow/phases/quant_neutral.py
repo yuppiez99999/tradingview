@@ -69,7 +69,7 @@ def _get_ic_basis() -> Optional[float]:
         # 从市场数据中获取 IC 基差
         # 简化: 默认无基差警告
         return 0.0
-    except Exception:
+    except Exception:  # fail-safe
         return None
 
 
@@ -247,7 +247,7 @@ def phase_quant_neutral(ctx: WorkflowContext) -> dict[str, Any]:
             logger.warning(f"[QuantNeutral] 策略暂停: {qn_result.reason}")
             result["status"] = "ALERT"
 
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.error(f"[QuantNeutral] 月度调仓失败: {e}", exc_info=True)
         result["status"] = "ERROR"
         result["reason"] = str(e)

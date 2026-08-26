@@ -164,7 +164,7 @@ def generate_qlib_signals(ctx: WorkflowContext) -> dict[str, float]:
                 latest_signal = float(signal.iloc[-1])
                 signals[symbol] = round(latest_signal, 4)
                 logger.info(f"Qlib 信号 [{symbol}]: {latest_signal:+.4f}")
-        except Exception as e:
+        except Exception as e:  # fail-safe
             logger.warning(f"Qlib 信号生成失败 [{symbol}]: {e}")
 
     # === 将 Qlib 信号注入 SignalFusion ===
@@ -175,7 +175,7 @@ def generate_qlib_signals(ctx: WorkflowContext) -> dict[str, float]:
             signal_series = qlib_pd.Series(list(signals.values()), index=list(signals.keys()))
             ctx.signal_fusion.inject_qlib_signal(signal_series)
             logger.info(f"Qlib 信号已注入 SignalFusion: {len(signals)} 个标的")
-        except Exception as e:
+        except Exception as e:  # fail-safe
             logger.warning(f"Qlib 信号注入 SignalFusion 失败: {e}")
 
     return signals
@@ -212,6 +212,6 @@ def generate_mock_ohlcv(symbol: str, days: int = 120) -> Optional[Any]:
         }, index=dates)
 
         return df
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.warning(f"模拟数据生成失败 [{symbol}]: {e}")
         return None

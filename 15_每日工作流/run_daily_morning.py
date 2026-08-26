@@ -50,6 +50,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 ARCHIVE_DIR = PROJECT_ROOT / "每日报告归档"  # 归档到项目根目录下
 # Python 解释器: 优先用环境变量 QUANT_PYTHON (Mac/Linux 跨平台), 回退本脚本同 venv
 import os as _os
+
 VENV_PYTHON = _os.environ.get("QUANT_PYTHON") or _os.environ.get("QUANT_VENV_PYTHON") or sys.executable
 
 # 关键脚本路径

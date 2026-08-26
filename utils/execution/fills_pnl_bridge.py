@@ -14,7 +14,7 @@
 """
 
 import logging
-from typing import Optional
+from typing import Collection, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +31,14 @@ except ImportError:  # 兼容不同工作目录调用
 def augment_market_prices(
     market_prices: dict[str, dict],
     date: Optional[str] = None,
+    strategies: Optional[Collection[str]] = None,
 ) -> dict[str, dict]:
     """用当日真实成交均价覆盖 market_prices 中的 close。
 
     Args:
         market_prices: fetch_market_prices 返回的价格字典 (key 可能为带/不带后缀 code)
         date: 交易日, None 取今天
+        strategies: P3.0 门禁新增 — 只用指定策略的 fills 覆盖 (None=全部, 兼容)
 
     Returns:
         增强后的价格字典 (原字典被复制, 不原地修改 — 遵循不可变性原则)。
@@ -44,7 +46,7 @@ def augment_market_prices(
     """
     try:
         store = FillsStore()
-        latest = store.latest_avg_price_by_symbol(date)
+        latest = store.latest_avg_price_by_symbol(date, strategies=strategies)
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning("[FillsPnLBridge] 读取 fills 失败, 回退行情估算: %s", e)
         return dict(market_prices)
@@ -77,10 +79,13 @@ def augment_market_prices(
     return augmented
 
 
-def realized_pnl(date: Optional[str] = None) -> dict[str, float]:
+def realized_pnl(
+    date: Optional[str] = None,
+    strategies: Optional[Collection[str]] = None,
+) -> dict[str, float]:
     """返回当日已实现 PnL 汇总 (fail-open)。"""
     try:
-        return FillsStore().realized_pnl(date)
+        return FillsStore().realized_pnl(date, strategies=strategies)
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning("[FillsPnLBridge] 计算已实现 PnL 失败: %s", e)
         return {}

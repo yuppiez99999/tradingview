@@ -80,7 +80,7 @@ def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
                     "annualized_pct": monthly_plan.get("portfolio_yield_annualized", 0),
                     "plan_path": monthly_plan.get("plan_path", ""),
                 }
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.error(f"[Theta] 引擎执行失败: {e}", exc_info=True)
         result["theta"] = {"status": "ERROR", "error": str(e)}
 
@@ -100,7 +100,7 @@ def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
             logger.warning("[Gamma] 尾部对冲触发! 类型=%s, 预算=%.0f",
                            monitor_result.get("trigger_type"),
                            monitor_result.get("budget", 0))
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.error(f"[Gamma] 引擎执行失败: {e}", exc_info=True)
         result["gamma"] = {"status": "ERROR", "error": str(e)}
 
@@ -130,9 +130,9 @@ def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
             # 执行L3紧急协议
             try:
                 ks.execute_kill_switch(3)
-            except Exception as e3:
+            except Exception as e3:  # fail-safe
                 logger.error(f"[KillSwitch] L3执行失败: {e3}")
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.error(f"[KillSwitch] 检查失败: {e}", exc_info=True)
         result["kill_switch"] = {"status": "ERROR", "error": str(e)}
 
@@ -157,7 +157,7 @@ def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
         }
         if alert and alert.get("alert"):
             logger.warning("[Liquidation] 清仓预警: %s", alert.get("message", ""))
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.error(f"[Liquidation] 调度器检查失败: {e}", exc_info=True)
         result["liquidation"] = {"status": "ERROR", "error": str(e)}
 

@@ -377,7 +377,7 @@ def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
         planned_symbols = [str(o.get("code", "")) for o in adjusted_morning + adjusted_afternoon if o.get("code")]
         macro_scores = score_macro_policy(planned_symbols)
         logger.info("十五五/康波宏观评分完成: %d 个标的", len(macro_scores))
-    except Exception as exc:
+    except Exception as exc:  # fail-safe
         logger.warning("十五五/康波宏观评分跳过: %s", exc)
 
     # === 计算调整后的金额 ===
@@ -468,7 +468,7 @@ def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
                     boost_count=signal["lgb_boost_count"],
                     cut_count=signal["lgb_cut_count"],
                 )
-            except Exception:
+            except Exception:  # fail-safe
                 logger.debug("LGB 监控记录失败 (非关键)", exc_info=True)
         else:
             signal["qlib_adjusted"] = False
@@ -556,7 +556,7 @@ def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
                         bl_result.diversification_ratio,
                         bl_result.effective_n,
                     )
-        except Exception as exc:
+        except Exception as exc:  # fail-safe
             logger.error("[BlackLitterman] 优化失败: %s", exc, exc_info=True)
 
     # === Alpha 生成: Alpha 因子库 + 动量反转引擎 + Smart Beta 优化 ===
@@ -682,7 +682,7 @@ def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
                                 sb_result.sharpe_ratio,
                                 sb_result.tracking_error,
                             )
-        except Exception as exc:
+        except Exception as exc:  # fail-safe
             logger.error("[AlphaModules] 信号生成失败: %s", exc, exc_info=True)
 
     # === 另类数据视角: 新闻情感 + 供应链 + 卫星/搜索/招聘/专利 ===
@@ -746,7 +746,7 @@ def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
                         int(ns_positive),
                         int(ns_negative),
                     )
-                except Exception as exc_ns:
+                except Exception as exc_ns:  # fail-safe
                     logger.error("[NewsSentiment] 信号生成失败: %s", exc_ns, exc_info=True)
 
             # 2) 供应链关系图谱分析
@@ -785,7 +785,7 @@ def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
                         len(sc_metrics),
                         float(getattr(sc_result, "network_density", 0.0)),
                     )
-                except Exception as exc_sc:
+                except Exception as exc_sc:  # fail-safe
                     logger.error("[SupplyChain] 信号生成失败: %s", exc_sc, exc_info=True)
 
             # 3) 另类数据综合指标
@@ -827,9 +827,9 @@ def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
                         float(getattr(ad_result, "market_alt_score", 0.0)),
                         float(ad_avg_cov) * 100,
                     )
-                except Exception as exc_ad:
+                except Exception as exc_ad:  # fail-safe
                     logger.error("[AltData] 信号生成失败: %s", exc_ad, exc_info=True)
-        except Exception as exc_outer:
+        except Exception as exc_outer:  # fail-safe
             logger.error("[AltDataModules] 信号生成失败: %s", exc_outer, exc_info=True)
 
     # === 对冲基金视角: 多策略协调器 (冲突检测 + 风险预算审计) ===
@@ -921,7 +921,7 @@ def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
                     coord_decision.risk_budget_limit,
                     len(coord_decision.conflicts),
                 )
-        except Exception as exc:
+        except Exception as exc:  # fail-safe
             logger.error("[MultiStrategy] 协调失败: %s", exc, exc_info=True)
 
     ctx.state["phases"]["signal"] = {"status": "PASS", **signal}

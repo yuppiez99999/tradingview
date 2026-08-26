@@ -781,7 +781,7 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
     # 连接管理
     # ------------------------------------------------------------
     @staticmethod
-    def _import_ctp_tdapi():
+    def _import_ctp_tdapi() -> Any:
         """延迟导入 CTP 交易 API, 未安装时返回 None"""
         try:
             import importlib

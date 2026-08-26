@@ -21,6 +21,7 @@
 import argparse
 import glob as _glob
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -791,12 +792,26 @@ TASKS = [
 ]
 
 
-def run_all(target_date: str = None, force: bool = False) -> dict:
-    """运行全部信息采集任务
+def _run_task(name_fn_tuple, archive, target_date, force):
+    """执行单个任务并返回 (name, ok) — 供 ThreadPoolExecutor 调用"""
+    name, fn = name_fn_tuple
+    try:
+        return name, bool(fn(archive, target_date, force))
+    except Exception:
+        return name, False
+
+
+def run_all(target_date: str = None, force: bool = False,
+            max_workers: int = 4) -> dict:
+    """运行全部信息采集任务 (两阶段并行)
+
+    阶段1: 并行执行任务 1-6 (彼此独立)
+    阶段2: 执行任务 7 (大宗商品扫描, 依赖任务1的 morning_market_data json + 任务4的舆情日报)
 
     Args:
         target_date: 目标日期 YYYY-MM-DD (默认今日)
         force: 强制重新生成 (忽略已存在文件)
+        max_workers: 线程池大小 (默认 4)
 
     Returns:
         {"ok": bool, "success": int, "total": int, "archive_dir": str, "date": str}
@@ -805,16 +820,28 @@ def run_all(target_date: str = None, force: bool = False) -> dict:
         target_date = datetime.now().strftime('%Y-%m-%d')
     archive = _archive_today(target_date)
 
-
     success, total = 0, 0
-    for _name, fn in TASKS:
-        total += 1
-        try:
-            if fn(archive, target_date, force):
-                success += 1
-        except Exception:
-            pass
 
+    # 阶段1: 任务 1-6 并行 (彼此无依赖)
+    phase1_tasks = TASKS[:6]
+    total += len(phase1_tasks)
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(phase1_tasks))) as pool:
+        futures = {
+            pool.submit(_run_task, t, archive, target_date, force): t[0]
+            for t in phase1_tasks
+        }
+        for fut in as_completed(futures):
+            _name, ok = fut.result()
+            if ok:
+                success += 1
+
+    # 阶段2: 任务 7 (依赖阶段1的任务1行情json + 任务4舆情日报)
+    phase2_tasks = TASKS[6:]
+    total += len(phase2_tasks)
+    for t in phase2_tasks:
+        _name, ok = _run_task(t, archive, target_date, force)
+        if ok:
+            success += 1
 
     return {
         "ok": success == total,

@@ -123,8 +123,9 @@ if '--gemma' in sys.argv or any(arg.startswith('--gemma-') for arg in sys.argv):
             gemma_args.extend(['--prompt', args.gemma_prompt])
         if args.gemma_output:
             gemma_args.extend(['--output', args.gemma_output])
-        subprocess.run(gemma_args)
-        sys.exit(0)
+        # UE-2: 捕获子进程失败, 不无条件 exit(0) (否则 run_llm_analyze.py 失败也假成功)。
+        proc = subprocess.run(gemma_args)
+        sys.exit(proc.returncode)
 
 import pandas as pd
 
@@ -1485,9 +1486,18 @@ def run_stress_test_mode(args: argparse.Namespace) -> None:
         logger.error("❌ 无法获取有效价格数据")
         return
 
-    weights = np.array([positions[code]['shares'] * prices.get(code, 1) / total_value for code in positions.keys()])
-    names = list(positions.keys())
-    sectors = {code: positions[code].get('sector', '未分类') for code in names}
+    # UE-3: 缺行情标的不再用硬编码占位价 1 计算权重 (会严重失真, 如真实 100 元股按 1 元计)。
+    # 缺价标的值跳过并告警, 避免污染风控压力测试结果。
+    missing = [code for code in positions if prices.get(code, 0) <= 0]
+    if missing:
+        logger.warning(f"[STALE] {len(missing)} 个标的无有效价格, 已从压力测试权重中跳过: {missing}")
+    valid_codes = [code for code in positions if prices.get(code, 0) > 0]
+    if not valid_codes:
+        logger.error("❌ 无任何标的有有效价格, 无法计算压力测试权重")
+        return
+    weights = np.array([positions[code]['shares'] * prices[code] / total_value for code in valid_codes])
+    names = list(valid_codes)
+    sectors = {code: positions[code].get('sector', '未分类') for code in valid_codes}
 
     logger.info(f"✅ 组合总市值: ¥{total_value:.2f}")
 
@@ -1595,6 +1605,56 @@ def run_stop_loss_config_mode(args: argparse.Namespace) -> None:
     logger.info("=" * 70)
 
 
+def _enforce_live_gate(dry_run: bool, confirm_only: bool, action: str,
+                       confirm: bool = False) -> bool:
+    """UE-1 统一实盘门控 (2026-08-24).
+
+    当系统 broker 配置为"真实下单就绪" (broker.enabled=true 且 TRADING_ENV=production)
+    时, 非 dry_run/非 confirm_only 的撮合/下单动作必须显式 --yes 确认, 否则阻断。
+
+    当前系统 broker.enabled=false (模拟盘), 门控直接放行, 不影响现有模拟流程;
+    未来接 QMT 置 enabled=true 后此门控自动激活, 防止裸实盘 (memory 23032726 双签模式).
+
+    Returns:
+        True=放行; False=已阻断 (告警)
+    """
+    # 模拟/演练路径: 直接放行
+    if dry_run or confirm_only:
+        return True
+
+    # 读取 broker 配置
+    try:
+        from utils.execution.broker_factory import _load_broker_config
+        broker_cfg = _load_broker_config()
+        broker_enabled = broker_cfg.get("enabled", False)
+    except Exception:  # noqa: BLE001  # 配置读取失败按未启用处理 (安全默认)
+        broker_enabled = False
+
+    if not broker_enabled:
+        # 模拟盘: 放行 (当前状态)
+        return True
+
+    # 真实 broker 已启用: 需 TRADING_ENV=production + 显式 --yes
+    env = os.environ.get("TRADING_ENV", "sim").lower()
+    if env != "production":
+        msg = f"UE-1 阻断: broker.enabled=true 但 TRADING_ENV≠production ({env}), {action} 已禁止 (防裸实盘)"
+        logger.error(f"[BLOCK] {msg}")
+        try:
+            from utils.notify import send_alert
+            send_alert(title=f"[UE-1][BLOCK] {action}", content=msg, level="critical")
+        except (ImportError, AttributeError):
+            pass
+        return False
+
+    if not confirm:
+        msg = (f"UE-1 阻断: {action} 将真实下单 (TRADING_ENV=production + broker.enabled=true), "
+               f"必须加 --yes 显式确认")
+        logger.error(f"[BLOCK] {msg}")
+        return False
+
+    return True
+
+
 def run_hedge_execute_mode(args: argparse.Namespace) -> None:
     """期权对冲订单执行模式 — 撮合执行 trade_plan 中 PENDING 期权订单 (P0 修复, 2026-08-06)
 
@@ -1609,6 +1669,12 @@ def run_hedge_execute_mode(args: argparse.Namespace) -> None:
     trade_date = getattr(args, 'date', None) or datetime.now().strftime('%Y-%m-%d')
     dry_run = bool(getattr(args, 'dry_run', False))
     confirm_only = bool(getattr(args, 'confirm_only', False))
+
+    # UE-1: 统一实盘门控 — 真实 broker 就绪时非 dry_run 撮合需 --yes 确认
+    if not _enforce_live_gate(dry_run, confirm_only, "期权对冲撮合",
+                              confirm=bool(getattr(args, 'yes', False))):
+        logger.error("期权对冲撮合被实盘门控阻断, 中止")
+        return
 
     logger.info(f"目标日期: {trade_date} | dry_run={dry_run} | confirm_only={confirm_only}")
     result = execute_hedge_orders(
@@ -1644,6 +1710,12 @@ def run_rebalance_execute_mode(args: argparse.Namespace) -> dict:
 
     trade_date = getattr(args, 'date', None) or datetime.now().strftime('%Y-%m-%d')
     dry_run = bool(getattr(args, 'dry_run', False))
+
+    # UE-1: 统一实盘门控 — 真实 broker 就绪时非 dry_run 撮合需 --yes 确认
+    if not _enforce_live_gate(dry_run, False, "再平衡撮合",
+                              confirm=bool(getattr(args, 'yes', False))):
+        logger.error("再平衡撮合被实盘门控阻断, 中止")
+        return {}
 
     logger.info(f"目标日期: {trade_date} | dry_run={dry_run}")
     result = execute_rebalance_orders(
@@ -1811,6 +1883,7 @@ def main() -> None:
     parser.add_argument('--date', type=str, default=None, help='期权对冲执行器: 目标交易日 YYYY-MM-DD')
     parser.add_argument('--dry-run', action='store_true', help='期权对冲执行器: 干跑模式 (不落盘不更新持仓)')
     parser.add_argument('--confirm-only', action='store_true', help='期权对冲执行器: 仅输出待确认订单, 不撮合')
+    parser.add_argument('--yes', action='store_true', help='UE-1 实盘门控: 真实 broker 就绪时确认真实下单 (防裸实盘双签)')
 
     # 假设验证选项
     parser.add_argument('--list', action='store_true', help='列出研究假设')

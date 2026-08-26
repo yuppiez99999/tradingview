@@ -144,6 +144,25 @@ def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
     os.replace(tmp, path)
 
 
+def _filter_rebalance_fills(fills: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """隔离原则: 仅保留 strategy == rebalance 的成交回报。
+
+    FillsStore 按日聚合全部策略的成交 (对冲/建仓/自检等均带各自 strategy 标签),
+    再平衡持仓回写必须只消费"再平衡"成交, 否则会把当日其他策略成交误写进
+    positions.json, 污染真实持仓口径。
+    """
+    rebalance_fills = [
+        rec for rec in fills
+        if str(rec.get("strategy", "") or "").strip().lower() == "rebalance"
+    ]
+    if len(rebalance_fills) != len(fills):
+        logger.warning(
+            "过滤掉 %d 笔非再平衡成交 (strategy!=rebalance), 仅回写 %d 笔再平衡成交",
+            len(fills) - len(rebalance_fills), len(rebalance_fills),
+        )
+    return rebalance_fills
+
+
 def apply_fills_to_positions(fills: list[dict[str, Any]], date: str) -> int:
     """G2 补齐: 将再平衡撮合成交回报回写 positions.json 真实持仓口径。
 
@@ -160,8 +179,12 @@ def apply_fills_to_positions(fills: list[dict[str, Any]], date: str) -> int:
     Returns:
         实际更新持仓的标的数 (0 表示无更新)
     """
+    # 隔离原则: 只回写"再平衡"策略的成交, 防止把当日对冲/建仓等其他成交
+    # (strategy != rebalance) 误写进 positions.json, 污染真实持仓口径。
+    fills = _filter_rebalance_fills(fills)
+
     if not fills:
-        logger.info("apply_fills_to_positions: 无成交回报, 跳过持仓回写")
+        logger.info("apply_fills_to_positions: 无再平衡成交回报, 跳过持仓回写")
         return 0
 
     positions_data = _load_positions()

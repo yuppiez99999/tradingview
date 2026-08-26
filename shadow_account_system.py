@@ -44,7 +44,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Collection, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -252,6 +252,92 @@ class ShadowAccount:
             "days_tracked": len(self.daily_nav),
             "initial_capital": self.initial_capital,
         }
+
+    def consume_fills_from_store(
+        self,
+        dates: Collection[str],
+        strategies: Collection[str] = ("build",),
+    ) -> dict[str, Any]:
+        """从 FillsStore 读取多日指定策略成交, 填入 trade_log, 构建 cumulative holdings, 算 NAV.
+
+        P3.0 门禁 ① (2026-08-26): shadow 实读 strategy=build fills 出 NAV.
+        影子账户此前 trade_log 恒空 (NAV 全靠外部注入或行情估值), 本方法打通
+        "fills → trade_log → holdings → NAV" 链路, 使影子账户能消费真实成交.
+
+        Args:
+            dates: 交易日集合 (将按时间顺序处理, 构建 cumulative holdings)
+            strategies: 策略标签, 默认 ("build",) — 只消费建仓成交
+
+        Returns:
+            {fills_count, holdings, nav, trade_log_len, dates_processed}
+            fail-open: FillsStore 不可用时返回零值, 不抛异常.
+        """
+        try:
+            from utils.execution.fills_store import FillsStore
+        except ImportError:
+            logger.warning("[ShadowAccount] consume_fills: FillsStore 不可用")
+            return {"fills_count": 0, "holdings": {}, "nav": 1.0, "trade_log_len": len(self.trade_log), "dates_processed": []}
+
+        if self.status == AccountStatus.TERMINATED:
+            logger.warning("[ShadowAccount] 已终止, 忽略 consume_fills")
+            return {"fills_count": 0, "holdings": {}, "nav": self.current_nav, "trade_log_len": len(self.trade_log), "dates_processed": []}
+
+        store = FillsStore()
+        holdings: dict[str, float] = {}
+        cash = float(self.initial_capital)
+        fills_count = 0
+        latest_prices: dict[str, float] = {}
+        nav = 1.0
+        dates_processed: list[str] = []
+
+        for date in sorted(dates):
+            day_fills = store.load_day(date, strategies=strategies)
+            if not day_fills:
+                continue
+            dates_processed.append(date)
+            for fill in day_fills:
+                sym = fill.get("symbol", "")
+                qty = fill.get("filled_qty", 0)
+                price = fill.get("avg_price", 0)
+                side = fill.get("side", "")
+                self.trade_log.append({
+                    "date": fill.get("date", date),
+                    "symbol": sym,
+                    "side": side,
+                    "qty": qty,
+                    "price": price,
+                    "strategy": fill.get("strategy"),
+                    "source": "fills_store",
+                })
+                if side == "BUY":
+                    holdings[sym] = holdings.get(sym, 0) + qty
+                    cash -= qty * price
+                elif side == "SELL":
+                    holdings[sym] = holdings.get(sym, 0) - qty
+                    cash += qty * price
+                latest_prices[sym] = price
+                fills_count += 1
+
+            # 逐日 NAV (用当日成交均价估值持仓)
+            position_value = sum(
+                qty * latest_prices.get(sym, 0)
+                for sym, qty in holdings.items() if qty > 0
+            )
+            nav = (cash + position_value) / self.initial_capital if self.initial_capital > 0 else 0
+            self.record_daily_nav(date, nav)
+
+        result = {
+            "fills_count": fills_count,
+            "holdings": {s: q for s, q in holdings.items() if q != 0},
+            "nav": nav,
+            "trade_log_len": len(self.trade_log),
+            "dates_processed": dates_processed,
+        }
+        logger.info(
+            "[ShadowAccount] consume_fills: fills=%d holdings=%d nav=%.6f dates=%s",
+            fills_count, len(result["holdings"]), nav, dates_processed,
+        )
+        return result
 
     def to_state_dict(self) -> dict[str, Any]:
         """导出为可序列化的状态字典 (供 shadow_state.json 持久化)."""

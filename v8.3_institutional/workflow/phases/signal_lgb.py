@@ -75,7 +75,7 @@ def load_lgb_enhanced_signals() -> dict[str, dict[str, Any]]:
         logger.info("LGB增强信号加载: %d 个标的 (trade_date=%s)", len(result), file_date)
         return result
 
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.warning("LGB增强信号加载失败: %s", e)
         return {}
 

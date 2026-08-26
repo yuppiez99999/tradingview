@@ -90,7 +90,7 @@ def apply_ifind_news_adjustments(
 
     try:
         insights = ctx.ifind_analyzer.batch_analyze(symbols, name_map=name_map, size=4, days=3)
-    except Exception:
+    except Exception:  # fail-safe
         logger.error("iFinD 批量研判失败", exc_info=True)
         return {}
 
@@ -171,7 +171,7 @@ def apply_macro_policy_adjustments(
 
     try:
         from src.macro.macro_policy_scoring import macro_score_to_factor
-    except Exception:
+    except Exception:  # fail-safe
         return {}
 
     def _apply(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:

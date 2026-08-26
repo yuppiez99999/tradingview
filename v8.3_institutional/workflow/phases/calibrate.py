@@ -98,7 +98,7 @@ def phase_calibrate(ctx: WorkflowContext) -> bool:
             logger.info("Phase 1.5 完成: 收益预测校准成功")
         return True
 
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.error(f"Phase 1.5 异常: {e}", exc_info=True)
         ctx.state["phases"]["calibrate"] = {
             "status": "FAIL",

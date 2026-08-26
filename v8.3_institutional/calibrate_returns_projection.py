@@ -55,7 +55,11 @@ LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
 # Wind MCP CLI
-WIND_SKILL_DIR = Path(r"C:\Users\Administrator\.agents\skills\wind-mcp-skill")
+WIND_SKILL_DIR = Path.home() / ".agents" / "skills" / "wind-mcp-skill"
+if not WIND_SKILL_DIR.exists():
+    _project_skill = PROJECT_ROOT / "skills" / "wind-mcp-skill"
+    if _project_skill.exists():
+        WIND_SKILL_DIR = _project_skill
 WIND_CLI = WIND_SKILL_DIR / "scripts" / "cli.mjs"
 
 # API Key (环境变量优先, 兜底硬编码仅本机使用)
@@ -159,7 +163,7 @@ def call_wind_kline(windcode: str, server_type: str,
                 timeout=90,
                 env=os.environ,
             )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:  # pragma: no cover  # fail-safe
             return None, f"exception:{e}"
         out = r.stdout.strip()
         if not out:
@@ -409,7 +413,7 @@ def calc_realized_returns() -> dict[str, Any]:
         try:
             reordered = [data[date_to_row[d]] for d in sorted_dates]
             data = np.array(reordered)
-        except Exception as _exc:
+        except Exception as _exc:  # fail-safe
             logger.warning("重排 data 矩阵失败，将使用原始顺序: %s", _exc)
         dates = sorted_dates
 

@@ -1,6 +1,7 @@
 
 
 import json
+import logging
 from typing import Literal
 
 import numpy as np
@@ -13,8 +14,6 @@ from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reaso
 from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
 from quant_modules.ai_hedge_fund.utils.llm import call_llm
 from quant_modules.ai_hedge_fund.utils.progress import progress
-
-import logging
 
 # HIGH-2 加固: 激活对抗新闻注入防护 (adversarial_news_guard, 2026-08-24)
 # 将新闻标题净化后再喂给 LLM, 防御提示注入/同形字/隐藏文本攻击

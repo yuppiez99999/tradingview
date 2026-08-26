@@ -239,21 +239,31 @@ def load_shadow_status() -> dict:
 
 
 def update_shadow_status(result: ShadowRunResult, date: str) -> dict:
-    """原位更新 b2_shadow_status.json (独立于生产 phase_b_status.json)."""
+    """原位更新 b2_shadow_status.json (独立于生产 phase_b_status.json).
+
+    幂等性 (v8.7 2026-08-26): 同一日期重复运行只覆盖该日记录, 不重复累计
+    warmup_days — 防止手动+EOD 双跑把 1 天算成 2 天, 使 3 天预热门禁失真。
+    """
     status = load_shadow_status()
 
     history = status.get("history", [])
-    history.append({
+    entry = {
         "date": date,
         "diff_rate": result.diff_rate,
         "suggestion": result.suggestion,
-    })
+    }
+    date_seen = any(h.get("date") == date for h in history)
+    if date_seen:
+        history = [entry if h.get("date") == date else h for h in history]
+    else:
+        history.append(entry)
     if len(history) > 30:
         history = history[-30:]
 
     status["run_count"] = status.get("run_count", 0) + 1
     status["last_run"] = date
-    status["warmup_days"] = status.get("warmup_days", 0) + 1
+    if not date_seen:
+        status["warmup_days"] = status.get("warmup_days", 0) + 1
     status["history"] = history
 
     SHADOW_REPORT_DIR.mkdir(parents=True, exist_ok=True)

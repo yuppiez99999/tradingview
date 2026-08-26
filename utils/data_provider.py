@@ -378,6 +378,7 @@ class MarketDataProvider:
                 logger.warning("Wind MCP 返回历史数据但解析后为空，尝试下一数据源")
                 return None
             df.set_index("date", inplace=True)
+            df.attrs["adjust"] = "qfq"  # v8.6.14: Wind MCP 默认前复权 (显式标注口径)
             return df
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"Wind MCP 获取历史数据失败: {e}")
@@ -448,6 +449,7 @@ class MarketDataProvider:
                 return None
 
             self.source_health["tdx"]["ok"] = True
+            df.attrs["adjust"] = "none"  # v8.6.14: 通达信历史K线为未复权 (显式标注口径)
             return df
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"通达信获取历史数据失败: {e}")
@@ -518,6 +520,7 @@ class MarketDataProvider:
                 return None
 
             self.source_health["akshare"]["ok"] = True
+            df.attrs["adjust"] = "hfq"  # v8.6.14: AKShare 历史K线统一后复权 (akshare_data_source.py P2-1 口径)
             return df
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
             logger.error(f"AKShare 获取历史数据失败: {e}")
@@ -573,6 +576,7 @@ class MarketDataProvider:
                 return None
             df = pd.DataFrame(records)
             df.set_index("date", inplace=True)
+            df.attrs["adjust"] = "none"  # v8.6.14: 新浪 HTTP 历史K线为未复权 (显式标注口径)
             self.source_health["sina_http"]["ok"] = True
             return df
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
@@ -867,14 +871,39 @@ class MarketDataProvider:
             raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
 
     def _fetch_sentiment_data(self, symbol: str) -> Optional[dict]:
-        """获取情绪数据
+        """获取情绪数据 — FinnewsHunter 事件驱动 alpha 信号 (受 feature-flag 控制)
 
-        当前无真实情绪数据源接入，返回 None 并记录 warning。
-        接入真实数据源后应在此处实现实际获取逻辑，
-        而非返回硬编码假值导致系统基于虚构情绪数据做交易决策。
+        受 USE_FINNEWS_HUNTER_SIGNAL feature-flag 控制:
+        - 开启: 调用 FinnewsHunterSignalSource 获取事件驱动 alpha 信号, 返回 dict
+        - 关闭: fail-closed 返回 None (不破坏现状, 不返回虚构情绪数据)
         """
-        logger.warning(f"无真实情绪数据源可用，无法获取情绪数据 ({symbol or 'SPY'})")
-        return None
+        try:
+            from utils.infra.feature_flags import is_enabled
+            if not is_enabled("USE_FINNEWS_HUNTER_SIGNAL"):
+                logger.debug(f"USE_FINNEWS_HUNTER_SIGNAL=False, 情绪数据 fail-closed ({symbol or 'SPY'})")
+                return None
+        except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
+            logger.debug(f"finnhunter flag 检查失败, fail-closed: {e}")
+            return None
+
+        try:
+            from .signal_sources.finnhunter_signal_source import FinnewsHunterSignalSource
+            source = FinnewsHunterSignalSource()
+            signal = source.get_signal(symbol or "SPY")
+            if signal is None:
+                return None
+            return {
+                "symbol": getattr(signal, "code", symbol or "SPY"),
+                "score": float(getattr(signal, "score", 0.5)),
+                "action": str(getattr(signal, "action", "HOLD")),
+                "confidence": float(getattr(signal, "confidence", 0.0)),
+                "source": "finnhunter",
+                "reason": str(getattr(signal, "reason", "")),
+                "timestamp": str(getattr(signal, "timestamp", "")),
+            }
+        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+            logger.warning(f"FinnewsHunter 情绪数据获取失败 ({symbol or 'SPY'}): {e}")
+            return None
 
     def _calculate_technical_indicators(self, data: pd.DataFrame) -> dict:
         try:

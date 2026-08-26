@@ -1,5 +1,5 @@
 {
-  "schema_version": 14,
+  "schema_version": 18,
   "description": "Runtime normalization and validation rules for Wind MCP tool calls.",
   "kline_period_map": {
     "1min": "1",
@@ -40,7 +40,6 @@
       "query",
       "windcode",
       "indexes",
-      "executionMode",
       "observation",
       "begin_date",
       "end_date",
@@ -108,6 +107,12 @@
           "values": ["0", "1"],
           "message": "字段 'issusp' 只能是 '0' 或 '1'"
         }
+      },
+      "patterns": {
+        "count": {
+          "pattern": "^-?\\d+$",
+          "message": "字段 'count' 只能是整数：正数从开始日期往后取 N 条，负数从结束日期往前取 N 条，0 取区间全部"
+        }
       }
     },
     {
@@ -115,35 +120,40 @@
       "label": "分钟行情",
       "tools": ["get_stock_quote", "get_fund_quote", "get_index_quote"],
       "required": ["windcode"],
-      "ordered_dates": [["begin", "end"]]
+      "ordered_dates": [["begin", "end"]],
+      "patterns": {
+        "count": {
+          "pattern": "^-?\\d+$",
+          "message": "字段 'count' 只能是整数：正数从 begin 往后取 N 条，负数从 end 往前取 N 条，0 取区间全部"
+        }
+      }
     },
     {
-      "name": "economic_edb",
-      "label": "宏观 EDB",
-      "tools": ["natural_language_get_edb_data"],
-      "allowed": ["executionMode", "question", "beginDate", "endDate", "observation"],
-      "required": ["executionMode", "question"],
-      "enum_fields": {
-        "executionMode": {
-          "values": ["search", "fetch", "searchFetch", "仅搜索", "仅提数", "搜索并提数"],
-          "message": "字段 'executionMode' 只能是 search/fetch/searchFetch 或 仅搜索/仅提数/搜索并提数"
-        }
-      },
+      "name": "economic_search",
+      "label": "宏观 EDB 搜索指标",
+      "tools": ["search_economic_indicator"],
+      "allowed": ["question"],
+      "required": ["question"]
+    },
+    {
+      "name": "economic_query",
+      "label": "宏观 EDB 取数",
+      "tools": ["query_economic_indicator_data"],
+      "allowed": ["question", "beginDate", "endDate", "observation"],
+      "required": ["question"],
       "paired": [["beginDate", "endDate"]],
       "mutually_exclusive": [["observation", "beginDate"], ["observation", "endDate"]],
       "ordered_dates": [["beginDate", "endDate"]],
       "patterns": {
         "observation": {
-          "pattern": "^(\\d+|all)$",
-          "message": "字段 'observation' 只能是数字字符串或 'all'"
+          "pattern": "^\\d+$",
+          "message": "字段 'observation' 只能是数字字符串（近 N 期）"
         }
       },
-      "required_one_of_when": [
+      "required_one_of": [
         {
-          "field": "executionMode",
-          "values": ["fetch", "searchFetch", "仅提数", "搜索并提数"],
           "one_of": [["observation"], ["beginDate", "endDate"]],
-          "message": "executionMode 为 fetch/searchFetch 时，必须显式提供 beginDate/endDate 或 observation"
+          "message": "query_economic_indicator_data 必须显式提供 observation 或 beginDate/endDate（不能只给 question）"
         }
       ]
     }

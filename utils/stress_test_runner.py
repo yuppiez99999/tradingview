@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,17 @@ logger = logging.getLogger("stress_test")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPORT_DIR = BASE_DIR / "reports"
+
+# 模拟持仓 (--simulate 或显式要求时使用)。集中定义避免散落重复、便于维护。
+# 注意: 真实持仓路径在任何情况下都不得静默回退到此数据, 否则会产出"假真实"报告。
+_SIMULATED_POSITIONS = [
+    {"code": "stock", "name": "股票多头", "amount": 1_800_000, "strategy": "stock_long"},
+    {"code": "etf", "name": "ETF组合", "amount": 500_000, "strategy": "etf"},
+    {"code": "quant", "name": "量化中性", "amount": 700_000, "strategy": "quant_neutral"},
+    {"code": "option", "name": "期权尾部", "amount": 200_000, "strategy": "options_tail"},
+    {"code": "future", "name": "期货对冲", "amount": 500_000, "strategy": "futures_hedge"},
+    {"code": "cash", "name": "现金管理", "amount": 1_300_000, "strategy": "cash"},
+]
 
 
 # 四大压力测试场景定义 (v10.0 手册)
@@ -113,7 +125,11 @@ class StressTestRunner:
         REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     def run_all_scenarios(
-        self, positions: list[dict[str, Any]], portfolio_value: float = 5_000_000, with_intervention: bool = True
+        self,
+        positions: list[dict[str, Any]],
+        portfolio_value: float = 5_000_000,
+        with_intervention: bool = True,
+        is_simulated: bool = False,
     ) -> dict[str, Any]:
         """运行所有压力测试场景
 
@@ -121,6 +137,8 @@ class StressTestRunner:
             positions: 持仓列表 [{"code", "name", "amount", "style", "strategy"}, ...]
             portfolio_value: 组合净值
             with_intervention: 是否包含干预措施 (对冲+减仓)
+            is_simulated: 是否模拟持仓。True 时报告写独立文件名并在报告中标记,
+                供 assert_data_validity D1 区分真实/模拟数据。
 
         Returns:
             {
@@ -136,6 +154,7 @@ class StressTestRunner:
             "timestamp": datetime.now().isoformat(),
             "portfolio_value": portfolio_value,
             "with_intervention": with_intervention,
+            "is_simulated": is_simulated,
             "scenarios": {},
         }
 
@@ -252,9 +271,14 @@ class StressTestRunner:
         }
 
     def _save_report(self, results: dict) -> Path:
-        """保存压力测试报告"""
+        """保存压力测试报告
+
+        模拟持仓报告使用独立文件名 (stress_test_SIMULATED_*.json), 避免覆盖真实报告,
+        也便于 assert_data_validity D1 通过 is_simulated 字段区分真实/模拟数据。
+        """
         date_str = datetime.now().strftime("%Y%m%d")
-        report_path = REPORT_DIR / f"stress_test_{date_str}.json"
+        prefix = "stress_test_SIMULATED" if results.get("is_simulated", False) else "stress_test"
+        report_path = REPORT_DIR / f"{prefix}_{date_str}.json"
         try:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2, default=str)
@@ -270,6 +294,16 @@ class StressTestRunner:
 if __name__ == "__main__":
     import argparse
 
+    # notify 导入容错: 直接运行脚本时 utils 可能不在 sys.path, 降级为 logger 告警 (观测路径 fail-open)
+    try:
+        from utils.notify import send_alert
+    except ImportError:
+        try:
+            from notify import send_alert
+        except ImportError:
+            def send_alert(title: str, content: str, level: str = "warning") -> None:  # type: ignore
+                logger.error(f"[ALERT-{level}] {title}: {content}")
+
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     parser = argparse.ArgumentParser(description="压力测试自动化")
@@ -280,19 +314,15 @@ if __name__ == "__main__":
     runner = StressTestRunner()
 
     if args.simulate:
-        # 模拟持仓
-        positions = [
-            {"code": "stock", "name": "股票多头", "amount": 1_800_000, "strategy": "stock_long"},
-            {"code": "etf", "name": "ETF组合", "amount": 500_000, "strategy": "etf"},
-            {"code": "quant", "name": "量化中性", "amount": 700_000, "strategy": "quant_neutral"},
-            {"code": "option", "name": "期权尾部", "amount": 200_000, "strategy": "options_tail"},
-            {"code": "future", "name": "期货对冲", "amount": 500_000, "strategy": "futures_hedge"},
-            {"code": "cash", "name": "现金管理", "amount": 1_300_000, "strategy": "cash"},
-        ]
+        # 模拟持仓: 显式标记 is_simulated, 供 assert_data_validity D1 区分真实/模拟
+        positions = _SIMULATED_POSITIONS
         portfolio_value = args.portfolio or 5_000_000
-        result = runner.run_all_scenarios(positions, portfolio_value, with_intervention=True)
+        result = runner.run_all_scenarios(positions, portfolio_value, with_intervention=True, is_simulated=True)
+        logger.warning("[SIMULATE] 使用模拟持仓, 报告不反映真实组合风险")
     else:
         # 真实持仓: 从 config/positions.json 加载并映射为压力测试格式
+        # 失败友好原则: 决策/数据完整性路径必须 fail-close, 绝不在非 --simulate 模式
+        # 静默回退到模拟持仓 (否则会产出"假真实"报告骗过 D1 门禁)。
         positions_path = BASE_DIR / "config" / "positions.json"
         try:
             with open(positions_path, encoding="utf-8") as f:
@@ -313,28 +343,19 @@ if __name__ == "__main__":
                     "strategy": style,
                 })
             if not positions:
-                logger.error("positions.json 无有效持仓 (amount<=0), 回退到模拟持仓")
-                positions = [
-                    {"code": "stock", "name": "股票多头", "amount": 1_800_000, "strategy": "stock_long"},
-                    {"code": "etf", "name": "ETF组合", "amount": 500_000, "strategy": "etf"},
-                    {"code": "quant", "name": "量化中性", "amount": 700_000, "strategy": "quant_neutral"},
-                    {"code": "option", "name": "期权尾部", "amount": 200_000, "strategy": "options_tail"},
-                    {"code": "future", "name": "期货对冲", "amount": 500_000, "strategy": "futures_hedge"},
-                    {"code": "cash", "name": "现金管理", "amount": 1_300_000, "strategy": "cash"},
-                ]
+                # 空仓/初始化态: fail-close 阻断, 不产出假真实报告
+                msg = "positions.json 无有效持仓 (amount<=0), 拒绝以模拟持仓冒充真实报告"
+                logger.error(msg)
+                send_alert(title="压力测试数据缺失", content=msg, level="critical")
+                sys.exit(1)
             logger.info(f"已从 positions.json 加载 {len(positions)} 个真实持仓, 组合净值 {portfolio_value:,.0f}")
+            result = runner.run_all_scenarios(positions, portfolio_value, with_intervention=True, is_simulated=False)
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
-            logger.error(f"加载 positions.json 失败 ({e}), 回退到模拟持仓")
-            positions = [
-                {"code": "stock", "name": "股票多头", "amount": 1_800_000, "strategy": "stock_long"},
-                {"code": "etf", "name": "ETF组合", "amount": 500_000, "strategy": "etf"},
-                {"code": "quant", "name": "量化中性", "amount": 700_000, "strategy": "quant_neutral"},
-                {"code": "option", "name": "期权尾部", "amount": 200_000, "strategy": "options_tail"},
-                {"code": "future", "name": "期货对冲", "amount": 500_000, "strategy": "futures_hedge"},
-                {"code": "cash", "name": "现金管理", "amount": 1_300_000, "strategy": "cash"},
-            ]
-            portfolio_value = args.portfolio or 5_000_000
-        result = runner.run_all_scenarios(positions, portfolio_value, with_intervention=True)
+            # 加载失败: fail-close 阻断, 不静默回退
+            msg = f"加载 positions.json 失败 ({e}), 拒绝以模拟持仓冒充真实报告"
+            logger.error(msg)
+            send_alert(title="压力测试数据加载失败", content=msg, level="critical")
+            sys.exit(1)
 
         logger.info("\n" + "=" * 60)
         logger.info("压力测试结果")

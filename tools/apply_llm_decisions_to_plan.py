@@ -90,6 +90,97 @@ def _load_json(path: Path) -> dict:
         return json.load(f)
 
 
+def _load_sentiment_recs(plan_date: str) -> list[str]:
+    """从舆情综合日报提取情感信号, 转为 ai_recommendations 格式
+
+    读取 每日报告归档/{plan_date}/舆情综合日报_{date}.md, 解析:
+      - 负面命中数量 (Wind MCP 新闻扫描)
+      - 正面命中数量
+      - 情绪判断文本
+
+    转换为与 daily_pnl_report.ai_recommendations 同格式的建议文本,
+    供下游 7 类调整解析器 (止损/减持/板块权重/Put保护等) 消费.
+
+    Returns:
+        list[str]: 情感信号建议列表 (可能为空)
+    """
+    date_short = plan_date.replace("-", "")
+    archive_dirs = [
+        PROJECT_ROOT / "每日报告归档" / plan_date,
+        REPORTS_DIR_ARCHIVE / plan_date,
+    ]
+    sentiment_path = None
+    for d in archive_dirs:
+        p = d / f"舆情综合日报_{date_short}.md"
+        if p.exists():
+            sentiment_path = p
+            break
+    if sentiment_path is None:
+        return []
+
+    try:
+        content = sentiment_path.read_text(encoding="utf-8")
+    except Exception:
+        return []
+
+    recs: list[str] = []
+
+    # 解析负面命中数 (表格行数, 排除表头和"无正面关键词命中"等)
+    neg_count = 0
+    pos_count = 0
+    in_neg_table = False
+    in_pos_table = False
+    for line in content.splitlines():
+        if "负面命中" in line and "##" in line:
+            in_neg_table = True
+            in_pos_table = False
+            continue
+        if "正面命中" in line and "##" in line:
+            in_pos_table = True
+            in_neg_table = False
+            continue
+        if line.startswith("## ") or line.startswith("### "):
+            in_neg_table = False
+            in_pos_table = False
+            continue
+        if in_neg_table and line.startswith("|") and not line.startswith("|------") and not line.startswith("| 标的"):
+            neg_count += 1
+        if in_pos_table and line.startswith("|") and not line.startswith("|------") and not line.startswith("| 标的"):
+            pos_count += 1
+
+    # 解析情绪判断
+    sentiment_label = ""
+    for line in content.splitlines():
+        if "情绪判断" in line:
+            sentiment_label = line
+            break
+
+    # 生成建议文本 (与 daily_pnl_report.ai_recommendations 同格式)
+    if neg_count >= 5:
+        recs.append(
+            f"舆情预警: 负面命中 {neg_count} 条, 市场情绪偏空. "
+            "建议买入Put保护 510050 和 510300, 增加防御板块权重, 减少科技板块权重."
+        )
+    elif neg_count >= 3:
+        recs.append(
+            f"舆情关注: 负面命中 {neg_count} 条, 市场情绪偏谨慎. "
+            "建议调整板块权重, 防御板块超配, 科技板块低配."
+        )
+
+    if pos_count >= 5 and neg_count < 3:
+        recs.append(
+            f"舆情正面: 正面命中 {pos_count} 条, 市场情绪偏多. "
+            "可适当加仓相关标的, 维持现有对冲比例."
+        )
+
+    if "谨慎乐观" in sentiment_label:
+        recs.append("市场情绪谨慎乐观 (有尾部保护), 维持现有仓位和对冲结构.")
+    elif "中性" in sentiment_label and not recs:
+        recs.append("市场情绪中性, 维持现有仓位, 无需调整.")
+
+    return recs
+
+
 def apply_llm_decisions(report_date: str, plan_date: str) -> Path:
     plan_dir = _find_plan_dir()
     report_path = _find_report(report_date)
@@ -103,6 +194,12 @@ def apply_llm_decisions(report_date: str, plan_date: str) -> Path:
     plan = _load_json(plan_path)
 
     ai_recs = report.get("ai_recommendations", [])
+
+    # 情感信号注入: 从舆情综合日报提取信号, 合并到 ai_recs
+    sentiment_recs = _load_sentiment_recs(plan_date)
+    if sentiment_recs:
+        ai_recs = list(ai_recs) + sentiment_recs
+
     rec_text = "\n".join(ai_recs)
 
     # === 1) 期货对冲升级 ===

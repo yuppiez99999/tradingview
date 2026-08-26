@@ -16,6 +16,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -240,7 +241,7 @@ class BacktestGate:
     # 指标计算（真实历史数据驱动）
     # ============================================================
 
-    def _get_data_provider(self):
+    def _get_data_provider(self) -> Any:
         """惰性获取多源数据提供器（Wind/通达信/AKShare/新浪 四级降级）"""
         if getattr(self, "_data_provider", None) is None:
             try:
@@ -254,7 +255,7 @@ class BacktestGate:
         return self._data_provider
 
     @staticmethod
-    def _extract_close_series(df, symbol: str):
+    def _extract_close_series(df: Any, symbol: str) -> Any:
         """从不同数据源的 DataFrame 中提取以日期为索引的收盘价序列"""
         if df is None or df.empty:
             return None

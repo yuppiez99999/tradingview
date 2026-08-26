@@ -287,7 +287,7 @@ def _load_hedge_execution_plan(trade_date: str, hedge_capital: float = 1_060_000
             pass
 
         return result
-    except Exception:
+    except Exception:  # fail-safe
         return result
 
 
@@ -342,7 +342,7 @@ def _load_hedge_fund_overlays(trade_date: str) -> dict:
             "actions": ks_status.get("actions", []) if isinstance(ks_status, dict) else [],
             "build_allowed": ks_level == 0,  # L1+ 触发则禁止新开仓
         }
-    except Exception as e:
+    except Exception as e:  # fail-safe
         overlays["kill_switch"] = {"available": False, "error": str(e), "build_allowed": True}
 
     # === 2. Theta引擎 — 加载月度Covered Call计划 ===
@@ -360,7 +360,7 @@ def _load_hedge_fund_overlays(trade_date: str) -> dict:
                 try:
                     with open(theta_plan_path, encoding="utf-8") as f:
                         theta_plan = json.load(f)
-                except Exception:
+                except Exception:  # fail-safe
                     theta_plan = None
 
             # 不存在则生成
@@ -404,7 +404,7 @@ def _load_hedge_fund_overlays(trade_date: str) -> dict:
                 "positions": positions,
             }
             overlays["options_orders"] = options_orders
-    except Exception as e:
+    except Exception as e:  # fail-safe
         overlays["theta"] = {"available": False, "error": str(e), "plan_loaded": False}
 
     # === 3. Gamma引擎 — 尾部危机监控状态 ===
@@ -419,7 +419,7 @@ def _load_hedge_fund_overlays(trade_date: str) -> dict:
             "iv_percentile": monitor_result.get("iv_percentile"),
             "budget": monitor_result.get("budget", 0),
         }
-    except Exception as e:
+    except Exception as e:  # fail-safe
         overlays["gamma"] = {"available": False, "error": str(e), "triggered": False}
 
     # === 4. LiquidationScheduler — 2030清仓阶段 ===
@@ -436,7 +436,7 @@ def _load_hedge_fund_overlays(trade_date: str) -> dict:
             "days_to_next": days_to_next,
             "build_allowed": phase_num == 0,  # 进入清仓阶段后不允许新建仓
         }
-    except Exception as e:
+    except Exception as e:  # fail-safe
         overlays["liquidation"] = {"available": False, "error": str(e), "phase": 0, "build_allowed": True}
 
     return overlays
@@ -532,7 +532,7 @@ def _load_real_time_prices() -> dict[str, float]:
                 prices[code] = est_price
                 prices[code.replace(".SH", "").replace(".SZ", "")] = est_price
         return prices
-    except Exception:
+    except Exception:  # fail-safe
         return {}
 
 

@@ -7,6 +7,7 @@
 可用信号源:
 - sentiment: 舆情情感信号源 (OpenBiliClaw / MediaCrawler 采集 + NewsSentimentEngine 打分)
 - news_intel: 新闻智能信号源 (财经新闻 + LLM 深度解读, TradingAgents 启发)
+- finnhunter: FinnewsHunter 事件驱动 alpha 信号源 (新闻事件类型 → alpha 强度, FinnewsHunter 启发)
 """
 from __future__ import annotations
 
@@ -20,4 +21,9 @@ try:
 except ImportError:
     pass
 
-__all__ = ["SentimentSignalSource", "NewsIntelligenceSignalSource"]
+try:
+    from .finnhunter_signal_source import FinnewsHunterSignalSource
+except ImportError:
+    pass
+
+__all__ = ["SentimentSignalSource", "NewsIntelligenceSignalSource", "FinnewsHunterSignalSource"]

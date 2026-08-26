@@ -65,20 +65,22 @@
 | ruff 全通过 | ✅ |
 | CHANGELOG.md 更新 | ✅ |
 
-## 知识专题文档清单 (26个)
+## 知识专题文档清单（26 个，已全部齐全）
+
+> **2026-08-26 指针核对注记**：① 5 处文件名与 `cairn/` 实际不符已对齐 (deepfund-harness→deepfund-eval-benchmark / ai-trader-harness→ai-trader-eval-benchmark / alpha-cfg→alpha-cfg-discovery / trading-group-reflector→trading-group-reflection / ktd-fin→ktd-fin-eval); ② LIT-1.1 (R&D-Agent-Quant) 与 LIT-1.2 (AlphaForge) 原本仅代码无专题文档, 已于此日补写 `cairn/rd-agent-quant.md` + `cairn/alpha-forge-combiner.md`。
 
 ### LIT-S1
 - `cairn/rd-agent-quant.md`
 - `cairn/alpha-forge-combiner.md`
-- `cairn/deepfund-harness.md`
-- `cairn/ai-trader-harness.md`
-- `cairn/alpha-cfg.md`
+- `cairn/deepfund-eval-benchmark.md`
+- `cairn/ai-trader-eval-benchmark.md`
+- `cairn/alpha-cfg-discovery.md`
 
 ### LIT-S2
 - `cairn/fine-grained-workflow.md`
-- `cairn/trading-group-reflector.md`
+- `cairn/trading-group-reflection.md`
 - `cairn/cn-buzz2portfolio.md`
-- `cairn/ktd-fin.md`
+- `cairn/ktd-fin-eval.md`
 - `cairn/fingpt-integration.md`
 - `cairn/adversarial-news-guard.md`
 

@@ -113,9 +113,9 @@ def _assert_safe_bind(host: str) -> None:
     allow_public = os.environ.get("QMT_RPC_ALLOW_PUBLIC", "").strip().lower() in {"1", "true", "yes"}
     if not allowed and not allow_public:
         raise SystemExit(
-            "安全策略拒绝启动: 网关绑定到非回环地址 %r 但未配置 QMT_RPC_ALLOWED_IPS。"
+            f"安全策略拒绝启动: 网关绑定到非回环地址 {host!r} 但未配置 QMT_RPC_ALLOWED_IPS。"
             "请设置白名单 (QMT_RPC_ALLOWED_IPS) 或显式 QMT_RPC_ALLOW_PUBLIC=1"
-            "并确认已前置 TLS 终止且网络隔离到位。" % host
+            "并确认已前置 TLS 终止且网络隔离到位。"
         )
     logger.warning("网关以非回环地址 %s 启动, 请确认已前置 TLS 终止且网络隔离到位。", host)
 

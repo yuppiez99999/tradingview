@@ -48,6 +48,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import threading
 from datetime import date, datetime
@@ -64,6 +65,9 @@ from utils.path_config import setup_sys_path  # noqa: E402
 
 setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 from utils.concurrency import atomic_write_json  # noqa: E402  # P0-C1 原子写
+
+# DTE-1 (2026-08-24): 建仓执行接入 FillsStore 事实源, 使模拟成交可追溯 (不再账本自我记账)
+from utils.execution.fills_store import FillsStore  # noqa: E402
 
 # B1.2: 统一使用 utils.trade_calendar 判断交易日 (支持节假日)
 from utils.trade_calendar import is_trading_day  # noqa: E402
@@ -675,8 +679,14 @@ def _run_stop_loss_check(wt_modules: dict, positions: dict) -> list:
     """
     sl_manager = wt_modules.get("stop_loss_manager")
     if not sl_manager:
-        logger.warning("[StopLoss] stop_loss_manager 不可用, 跳过止损检查")
-        return []
+        # DTE-3: 止损管理器不可用时, 返回特殊标记项让调用方 L1686 告警可见,
+        # 而非静默返回 [] (否则止损风控完全失效且无人察觉)。
+        logger.error("[StopLoss] stop_loss_manager 不可用, 止损检查被跳过 (风控降级)")
+        return [{
+            "code": "__manager_unavailable",
+            "action": "HOLD",
+            "order_info": "stop_loss_manager 不可用, 止损风控降级",
+        }]
 
     triggered = []
     for code, item in positions.items():
@@ -778,9 +788,16 @@ def _run_wt_risk_precheck(wt_modules: dict, positions_data: dict, progress: dict
                 "risk_score": score_val,
                 "concentration": conc_val,
             }
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
-        logger.error(f"[WARN] WT风控分析执行失败: {e}")
-    return None
+    except Exception as e:  # noqa: BLE001
+        # DTE-2: 风控是决策路径, 崩溃时必须 fail-close 保守阻断, 而非静默放行
+        # (否则"风控崩溃=无风控", 违反"决策路径 fail-close"铁律)。
+        logger.error(f"[BLOCK] WT风控分析异常, 保守阻断: {e}")
+        return {
+            "status": "blocked",
+            "reason": f"WT风控分析异常, 保守阻断: {e}",
+            "risk_score": 1.0,
+            "concentration": 1.0,
+        }
 
 
 def _compute_progress_ratio(target_date: date) -> float:
@@ -886,7 +903,17 @@ def _allocate_position(
     code_clean = pos["code_clean"]
     ref_price = latest_prices.get(code_clean, 0)
     if not ref_price:
-        ref_price = DEFAULT_PRICES.get(code_clean, 10.0)
+        # DTE-4: 行情缺失时不再静默用假价 10.0 分配 (会导致按 10 元/股虚增股数)。
+        # 优先回退 DEFAULT_PRICES 历史价 (显式告警, 标记 stale), 连兜底也没有则跳过该标的。
+        ref_price = DEFAULT_PRICES.get(code_clean, 0.0)
+        if ref_price > 0:
+            logger.warning(
+                "[STALE] %s 无实时行情, 使用 DEFAULT_PRICES 历史价 %.2f (资金分配基于陈旧价)",
+                code_clean, ref_price,
+            )
+        else:
+            logger.warning("[STALE] %s 无实时行情且无兜底价, 跳过该标的 (不按假价分配)", code_clean)
+            return None, 0.0
 
     max_buy_price, min_buy_price = _compute_price_band(ref_price)
     min_lot_cost = 100 * ref_price
@@ -1429,6 +1456,46 @@ def _sync_positions_idempotent(target_date_str: str, confirmed: list, positions:
     }
 
 
+def _record_build_fill(inst: dict, result: dict, target_date_str: str) -> None:
+    """DTE-1 (2026-08-24): 建仓成交落盘 FillsStore 事实源.
+
+    使 daily_trade_executor 的"账本自我记账"成为可追溯成交 (reports/fills/fills_YYYY-MM-DD.jsonl),
+    供 PnL / TCA / 影子账户消费, 与 rebalance (strategy=rebalance) / hedge (strategy=hedge)
+    执行器一致。仅记录实际成交 (status=FILLED), SKIPPED/异常不落盘。
+
+    观测路径 fail-open: FillsStore.record_fill 本身 fail-open (异常只记日志), 不影响执行链路。
+    """
+    if result.get("status") != "FILLED":
+        return
+    qty = float(result.get("qty", 0) or 0)
+    fill_price = float(result.get("fill_price", 0) or 0)
+    if qty <= 0 or fill_price <= 0:
+        return
+    symbol = str(inst.get("full_code") or inst.get("code", ""))
+    side = str(result.get("action", "BUY"))
+    try:
+        FillsStore().record_fill(
+            symbol=symbol,
+            side=side,
+            filled_qty=qty,
+            avg_price=fill_price,
+            broker="SimulatedBroker",
+            is_live=False,
+            strategy="build",
+            source="sim_route",
+            date=target_date_str,
+            meta={
+                "slippage_rate": inst.get("slippage", 0.0),
+                "commission": result.get("commission", 0.0),
+                "transfer_fee": result.get("transfer_fee", 0.0),
+                "stamp_duty": result.get("stamp_duty", 0.0),
+            },
+        )
+        logger.info(f"[DTE-1] 建仓成交已落盘 FillsStore: {symbol} {side} {qty:.0f}@{fill_price:.4f}")
+    except Exception as e:  # noqa: BLE001  # 观测路径 fail-open, 不阻断建仓执行
+        logger.warning(f"[DTE-1] 建仓成交落盘失败 (不影响执行): {e}")
+
+
 def _execute_single_instruction(inst: dict, wt_modules: dict, progress: dict, positions: dict) -> dict:
     """执行单条已确认指令 (WT 拆分 + 更新建仓进度 + 同步 positions)。
 
@@ -1567,7 +1634,7 @@ def _execute_single_instruction(inst: dict, wt_modules: dict, progress: dict, po
         pos["est_price"] = exec_price  # 含滑点成交价
         pos["avg_cost"] = new_avg_cost
 
-    return {
+    exec_result = {
         "code": inst["code"],
         "name": inst["name"],
         "action": action,  # B2 修复: 透传指令 action (原硬编码 "BUY")
@@ -1582,6 +1649,14 @@ def _execute_single_instruction(inst: dict, wt_modules: dict, progress: dict, po
         "built_before": built_before,
         "built_after": progress["built_amounts"][code],
     }
+
+    # DTE-1 (2026-08-24): 建仓成交落盘 FillsStore 事实源 (观测路径 fail-open)
+    try:
+        _record_build_fill(inst, exec_result, datetime.now().strftime("%Y-%m-%d"))
+    except Exception as e:  # noqa: BLE001  # 落盘失败不影响建仓执行
+        logger.warning(f"[DTE-1] 建仓成交落盘调用失败 (不影响执行): {e}")
+
+    return exec_result
 
 
 def _build_and_save_execution_report(
@@ -1714,7 +1789,9 @@ def execute_instructions(target_date_str: str) -> dict:
             "date": target_date_str,
             "executed_count": len(execution_results),
             "total_amount": sum(r["fill_amount"] for r in execution_results),
-            "total_built_after": progress.get("total_built", 0) + sum(r.get("fill_amount", 0) for r in execution_results),
+            # DTE-7: total_built 已在 _execute_single_instruction 累加过 actual_amount,
+            # 此处直接读进度值即可, 再加本次成交额会造成"重复累加/虚增当日成交额"。
+            "total_built_after": progress.get("total_built", 0),
             "executed_at": datetime.now().isoformat(),
         }
     )
@@ -1877,8 +1954,21 @@ def main() -> None:
 def _run_mode(args: argparse.Namespace, target_date: str) -> None:
     logger.info("=" * 70)
     logger.info(f"每日自动执行交易计划 - {args.mode} - {target_date}")
+
+    # DTE-6 (2026-08-24): --auto-confirm 风控护栏 — 自动确认会绕过人工审核直接下单,
+    # 仅在显式声明的演练/生产环境 (TRADING_ENV ∈ {shadow, production}) 下允许;
+    # 否则 (默认 ci/sim/未设置) 告警并降级为"不自动确认" (安全默认, 需人工确认)。
     if args.auto_confirm:
-        logger.info("Auto-confirm mode: all instructions will be confirmed")
+        _env = os.environ.get("TRADING_ENV", "sim").strip().lower()
+        if _env not in ("shadow", "production"):
+            logger.error(
+                "[BLOCK] --auto-confirm 需显式 TRADING_ENV=shadow|production (当前=%s), "
+                "已降级为不自动确认 (人工确认保护), 跳过全部自动确认",
+                _env,
+            )
+            args.auto_confirm = False
+        else:
+            logger.info("Auto-confirm mode enabled (TRADING_ENV=%s): all instructions will be confirmed", _env)
     logger.info("=" * 70)
 
     if args.mode == "pre-market":

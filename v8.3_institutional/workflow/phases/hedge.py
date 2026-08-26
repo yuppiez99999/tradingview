@@ -72,7 +72,7 @@ def _get_edb_futures_data(ctx: WorkflowContext, names: Optional[list[str]] = Non
         wf._edb_cache_date = today
         logger.info("EDB 期货数据获取完成 (已缓存): %d 个品种", len(wf._edb_cache))
         return wf._edb_cache
-    except Exception:
+    except Exception:  # fail-safe
         logger.error("EDB 期货数据获取失败", exc_info=True)
         return {}
 
@@ -107,7 +107,7 @@ def _get_futures_scanner_summary() -> dict[str, dict[str, Any]]:
                 "scanner_category": item.get("category"),
             }
         return summary
-    except Exception:
+    except Exception:  # fail-safe
         logger.error("期货期权扫描器执行失败", exc_info=True)
         return {}
 
@@ -181,7 +181,7 @@ def _compute_beta_hedge_order(portfolio_beta: float, portfolio_value: float, deg
             }
             logger.warning(f"降级兜底: Beta {portfolio_beta:.3f} 仍触发 NO_HEDGE，强制 {n_contracts} 手 IF 空头")
         return order
-    except Exception as exc:
+    except Exception as exc:  # fail-safe
         logger.error("风格 Beta 代理计算对冲指令失败: %s", exc)
         return {"action": "ERROR", "reason": str(exc)}
 
@@ -275,7 +275,7 @@ def _execute_sim_hedge_orders(sim_engine: Any, mock_prices: dict[str, float], or
                     "status": "FILLED",
                     "fill_record": fill,
                 })
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.error("SHORT_FUTURES 模拟执行失败: %s", exc)
                 executed.append({
                     "type": hedge_type,
@@ -331,7 +331,7 @@ def _execute_sim_hedge_orders(sim_engine: Any, mock_prices: dict[str, float], or
                         "status": "FILLED",
                         "fill_record": fill,
                     })
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.error("%s 模拟执行失败: %s", action, exc)
                 executed.append({
                     "type": hedge_type,
@@ -378,7 +378,7 @@ def _execute_sim_hedge_orders(sim_engine: Any, mock_prices: dict[str, float], or
                     "status": "FILLED",
                     "fill_record": fill,
                 })
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.error("SAFE_HAVEN_ALLOC 模拟执行失败: %s", exc)
                 executed.append({
                     "type": hedge_type,
@@ -460,7 +460,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
         def _fetch_one(code):
             try:
                 return code, market_data_provider.get_market_data(code)
-            except Exception:
+            except Exception:  # fail-safe
                 return code, None
         try:
             with ThreadPoolExecutor(max_workers=4) as pool:
@@ -473,9 +473,9 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                             _fetched += 1
                         else:
                             _skipped += 1
-                    except Exception:
+                    except Exception:  # fail-safe
                         _skipped += 1
-        except Exception as exc:
+        except Exception as exc:  # fail-safe
             logger.warning("获取实时价格失败 (超时/异常)，回退 MOCK_PRICES: %s", exc)
         logger.info("实时价格获取: %d 成功, %d 回退 MOCK", _fetched, _skipped)
 
@@ -496,7 +496,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                       if _to_mock_key(c) in ctx.config.MOCK_PRICES]
             if _codes:
                 logger.info("phase_hedge 加载真实持仓代码: %d 只", len(_codes))
-        except Exception as _exc:
+        except Exception as _exc:  # fail-safe
             logger.warning("读取 config/positions.json 失败，回退 MOCK_PRICES: %s", _exc)
 
     _n = len(_codes)
@@ -536,7 +536,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
             for fut in as_completed(hist_futures, timeout=60):
                 try:
                     code, hist = fut.result(timeout=10)
-                except Exception:
+                except Exception:  # fail-safe
                     continue
                 if hist is None or (hasattr(hist, "empty") and hist.empty):
                     continue
@@ -558,7 +558,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
             if market_data_provider is not None:
                 try:
                     mkt = market_data_provider.get_historical_data(idx_code, period="3m")
-                except Exception:
+                except Exception:  # fail-safe
                     mkt = None
             if mkt is not None and "close" in mkt.columns and not mkt.empty:
                 market_series = mkt["close"].astype(float).pct_change().dropna()
@@ -569,7 +569,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
             raise RuntimeError("no_market_series")
         market_returns = market_series.reset_index(drop=True)
         logger.info("对冲评估已使用真实价格与历史收益率")
-    except Exception as exc:
+    except Exception as exc:  # fail-safe
         logger.warning("真实收益率获取失败，回退模拟数据: %s", exc)
         import numpy as np
         import pandas as pd
@@ -600,7 +600,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
         logger.info(f"对冲协调: action={coordinated.get('action')}, "
                     f"总对冲比例={coordinated.get('total_hedge_pct', 0):.2%}, "
                     f"组合Beta={coordinated.get('portfolio_beta', 0):.3f}")
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.error(f"对冲协调器执行失败: {e}")
         coordinated = {
             "action": "ERROR", "reason": str(e),
@@ -651,7 +651,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                 _total_cost += float(_o.get("estimated_cost", 0.0) or _o.get("cost", 0.0) or 0.0)
             coordinated["total_hedge_pct"] = _total_hedge_value / _pv if _pv > 0 else 0.0
             coordinated["total_cost"] = _total_cost
-        except Exception as _exc:
+        except Exception as _exc:  # fail-safe
             logger.warning("回退后重算对冲汇总失败: %s", _exc)
 
     # === 自动执行对冲指令 (与 7.4 AutoHedgeExecutor 对齐) ===
@@ -700,7 +700,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                                 "order_id": oid,
                                 "cost_breakdown": order.get("cost_breakdown"),
                             })
-                        except Exception as exc:
+                        except Exception as exc:  # fail-safe
                             logger.error(f"Beta 对冲执行失败: {exc}")
                             executed_orders.append({
                                 "type": hedge_type,
@@ -769,7 +769,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                                     "reason": f"Tail 对冲自动执行 (regime={regime_lbl}, OTM={otm_pct:.0%})",
                                     "order_id": oid,
                                 })
-                            except Exception as exc:
+                            except Exception as exc:  # fail-safe
                                 logger.error(f"Tail 对冲执行失败 {symbol}: {exc}")
                                 executed_orders.append({
                                     "type": hedge_type,
@@ -814,7 +814,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                                 "reason": f"Vol 对冲自动执行 (VIX={vix_level})",
                                 "order_id": oid,
                             })
-                        except Exception as exc:
+                        except Exception as exc:  # fail-safe
                             logger.error(f"Vol 对冲执行失败: {exc}")
                             executed_orders.append({
                                 "type": hedge_type,
@@ -861,7 +861,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                                 "reason": f"Correlation 对冲自动执行 (ρ̄={order.get('avg_corr', 0):.3f})",
                                 "order_id": oid,
                             })
-                    except Exception as exc:
+                    except Exception as exc:  # fail-safe
                         logger.error(f"Correlation 对冲执行失败: {exc}")
                         executed_orders.append({
                             "type": hedge_type,
@@ -886,7 +886,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
 
             logger.info(f"对冲执行完成: {len(executed_orders)} 笔指令已成交")
 
-        except Exception as e:
+        except Exception as e:  # fail-safe
             logger.error(f"对冲执行通道异常: {e}")
             executed_orders.append({
                 "type": "EXECUTION_ERROR",
@@ -949,7 +949,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
         with open(hedge_fill_path, "w", encoding="utf-8") as f:
             json.dump(fill_payload, f, ensure_ascii=False, indent=2)
         logger.info(f"对冲成交记录已落盘: {hedge_fill_path}")
-    except Exception as exc:
+    except Exception as exc:  # fail-safe
         logger.error(f"对冲成交记录落盘失败: {exc}")
 
     return hedge_status

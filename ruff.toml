@@ -47,6 +47,7 @@ ignore = [
     "ANN204", # 特殊方法 __init__/__str__ 等不需要返回注解
     "B008",   # 函数默认值中的函数调用（如 Depends()）
     "UP045",  # 保持 Optional[X] 语法 (py38 target, 与项目现有代码一致)
+    "UP007",  # 保持 Optional[X] → X|Y 不强制 (与 UP045 同理, py38 兼容)
     "UP037",  # 保持引号注解一致性 (py38 target)
     "ANN401", # 允许 Any 类型 (DQC 事件 context 等动态字段需要)
 ]
@@ -71,8 +72,10 @@ force-single-line = false
 # 测试文件允许缺少类型注解 + print + 宽泛 except (测试断言常用)
 # + E402 (先 setup sys.path 再导入被测模块) + N806 (金融常量 S/K/T/N 大写是惯例)
 # **/tests/ 匹配所有层级的 tests/ 子目录 (含 utils/evolution/tests/ 等)
-"tests/**/*.py" = ["ANN", "T201", "BLE001", "E402", "N806", "N803", "C901", "N801"]
-"**/tests/**/*.py" = ["ANN", "T201", "BLE001", "E402", "N806", "N803", "C901", "N801"]
+# N802: 测试函数名允许大写/中文 (test_zero_S/test_known_style_科技 等)
+# N811/N813/N814/N815/N817: 测试中别名导入/常量导入灵活
+"tests/**/*.py" = ["ANN", "T201", "BLE001", "E402", "N806", "N803", "C901", "N801", "N802", "N811", "N813", "N814", "N815", "N817"]
+"**/tests/**/*.py" = ["ANN", "T201", "BLE001", "E402", "N806", "N803", "C901", "N801", "N802", "N811", "N813", "N814", "N815", "N817"]
 # __init__.py 允许未使用导入（re-export 模式）
 "__init__.py" = ["F401"]
 # 脚本目录放宽限制 (用户交互/调试输出合理) + E402 (先 setup sys.path 再导入)
@@ -106,19 +109,21 @@ force-single-line = false
 # vol_regime_weighter.py: __main__ 自检入口
 # notify.py: _self_check() 自检函数
 "utils/annual_return_forecast.py" = ["T201"]
-"utils/alpha/vol_regime_weighter.py" = ["T201"]
+"utils/alpha/vol_regime_weighter.py" = ["T201", "C901"]
 "utils/notify.py" = ["T201"]
 # W7.2.6 工程基础 Phase 1 (2026-08-14): fail-safe 模块的 blind except 是有意设计
 # LLM/外部 API 调用: 任何异常都不应崩溃主流程, 降级为日志
 "utils/llm_evolution/**/*.py" = ["BLE001", "ANN"]
 "utils/llm_gateway/**/*.py" = ["BLE001", "ANN"]
 # 风控/执行模块: 实盘下单 fail-safe, 异常不能导致重复下单或漏单
-"utils/risk/**/*.py" = ["BLE001"]
+# N815: kill_switch_manager 计数器 total_triggered_L1/L2/L3 混合命名是分级标识
+"utils/risk/**/*.py" = ["BLE001", "N815"]
 "utils/execution/automated_execution_system.py" = ["BLE001", "E402", "C901"]
 "utils/execution/execution_components.py" = ["BLE001", "C901"]
 # 阶段2 (2026-08-19): 编排层/工作流 blind except 是有意设计 (fail-safe 降级链)
 # 15_每日工作流: LLM 多提供商降级客户端 + 熔断器 + 工作流编排, 任何异常降级为日志不崩溃
-"15_每日工作流/**/*.py" = ["BLE001", "ANN", "N806", "C901"]
+# E402: 先改 sys.path 再导入被测模块
+"15_每日工作流/**/*.py" = ["BLE001", "ANN", "N806", "C901", "E402"]
 # v8.3_institutional: 机构级管线编排 (daily_workflow/phases/generate_daily_trade_plan), fail-safe
 # + N806 (金融数学大写变量名是行业惯例)
 "v8.3_institutional/**/*.py" = ["BLE001", "N806", "C901", "ANN"]
@@ -135,17 +140,17 @@ force-single-line = false
 "run_daily_eod.py" = ["BLE001", "ANN"]
 "daily_trading_workflow.py" = ["BLE001"]
 "daily_hedge_update.py" = ["BLE001", "E402"]
-"hedge_execution_orders.py" = ["BLE001", "E402"]
+"hedge_execution_orders.py" = ["BLE001", "E402", "ANN"]
 "build_plan_executor.py" = ["BLE001", "E402"]
 # 阶段2 (2026-08-19): CLI 模式/用户交互/报告生成 fail-safe
 # cli/modes: CLI 子命令入口, 异常不应崩溃用户交互
-"cli/modes/**/*.py" = ["BLE001", "N806", "C901", "ANN"]
-"cli/dispatcher.py" = ["BLE001"]
+"cli/modes/**/*.py" = ["BLE001", "N806", "C901", "ANN", "E402"]
+"cli/dispatcher.py" = ["BLE001", "ANN"]
 # ui: Streamlit 页面/组件, 异常不应崩溃 UI + E402(先设置页面配置) + ANN(非核心)
 "ui/**/*.py" = ["BLE001", "E402", "ANN"]
 "ui_original/**/*.py" = ["BLE001", "E402", "ANN"]
 # reporting: 报告生成 fail-safe, 异常降级为日志不阻断主流程
-"reporting/**/*.py" = ["BLE001", "N806", "N803", "ANN"]
+"reporting/**/*.py" = ["BLE001", "N806", "N803", "ANN", "C901"]
 # lgb_trainer: LightGBM 训练 GPU→CPU 降级/数据加载 fail-safe
 "lgb_trainer/**/*.py" = ["BLE001", "E402"]
 # 阶段2 (2026-08-19): 剩余 fail-safe 模块 blind except 是有意设计
@@ -164,17 +169,17 @@ force-single-line = false
 "量化策略系统_统一入口_v8.6.py" = ["BLE001", "E402", "N806", "C901"]
 "skills/ifind-finance-data/call.py" = ["BLE001"]
 # limit_pool_provider: 涨跌停价计算 fail-safe, 异常时返回保守估计
-"utils/limit_pool_provider.py" = ["BLE001"]
+"utils/limit_pool_provider.py" = ["BLE001", "ANN"]
 # drift_monitor / price_limit_calculator / feature_store config: fail-safe
 "utils/alpha/drift_monitor.py" = ["BLE001"]
-"utils/price_limit_calculator.py" = ["BLE001"]
+"utils/price_limit_calculator.py" = ["BLE001", "C901"]
 "utils/feature_store/config.py" = ["BLE001"]
 # FeatureStore online/offline store: redis/duckdb/parquet fail-closed
 "utils/feature_store/online_store.py" = ["BLE001"]
 "utils/feature_store/offline_store.py" = ["BLE001"]
 # CLI 辅助/系统检查/自检入口: print 是合理的用户交互
 "utils/cli_helpers.py" = ["T201"]
-"utils/system_check.py" = ["T201", "ANN"]
+"utils/system_check.py" = ["T201", "ANN", "E402"]
 "utils/execution/fills_store.py" = ["T201"]
 "utils/execution/fills_pnl_bridge.py" = ["T201"]
 "utils/execution/broker_factory.py" = ["T201"]
@@ -192,16 +197,16 @@ force-single-line = false
 # E402: ai_hedge_fund 条件依赖导入 (optional deps: torch/openai etc.)
 # T201: CLI main() 演示入口 print 是合理的 (fine_grained_workflow.py 等)
 # UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
-"quant_modules/ai_hedge_fund/**/*.py" = ["E402", "ANN", "C901", "T201", "UP042", "BLE001"]
+"quant_modules/ai_hedge_fund/**/*.py" = ["E402", "ANN", "C901", "T201", "UP042", "BLE001", "N814"]
 
 # N806/N803: 金融数学大写变量名是行业惯例 (S/K/T/N/Delta/Gamma/Vega/Theta/Rho/IC/VaR/Sharpe)
 "utils/fineng/**/*.py" = ["N806", "N803", "C901"]
-"utils/greek_hedge_manager.py" = ["N806", "N803"]
-"utils/black_litterman_optimizer.py" = ["N806", "N803"]
+"utils/greek_hedge_manager.py" = ["N806", "N803", "ANN"]
+"utils/black_litterman_optimizer.py" = ["N806", "N803", "ANN"]
 
 # alpha_factor: ML/金融数学大写变量名 (L=Loss, T=Time/Tensor, H=Hidden, W=Weight, S=Spot, K=Strike)
 # T201: __main__ 自检入口 print 是合理的 (rd_agent_quant.py 等)
-"utils/alpha_factor/**/*.py" = ["N806", "N803", "ANN", "C901", "N812", "T201"]
+"utils/alpha_factor/**/*.py" = ["N806", "N803", "ANN", "C901", "N812", "T201", "N814"]
 
 # LIT-2.2: TradingGroup 自反思机制
 # T201: CLI main() 演示入口 print 是合理的
@@ -298,30 +303,30 @@ force-single-line = false
 
 # E402: 剩余模块 sys.path 前置/条件导入
 
-"hedge_quantity_calculator.py" = ["E402"]
+"hedge_quantity_calculator.py" = ["E402", "N811"]
 "supplement_returns.py" = ["E402"]
-"today_hedge_decision.py" = ["E402"]
+"today_hedge_decision.py" = ["E402", "N811"]
 "utils/etf_flow_decision.py" = ["E402", "ANN"]
-"utils/ifind_client.py" = ["E402"]
-"utils/web_scraper.py" = ["E402"]
+"utils/ifind_client.py" = ["E402", "C901", "ANN"]
+"utils/web_scraper.py" = ["E402", "ANN"]
 
 # ============================================================
 # 代码质量修复 (2026-08-19): N806/N803 金融符号与常量豁免
 # 金融数学大写变量名 (T=到期时间, R=收益率, X=特征矩阵, L=损失) 是行业惯例
 # 函数内大写常量 (_ALLOWED_EXT, SECTOR_BETA, MIN_WEIGHT_FLOOR) 表示常量语义
 # ============================================================
-"utils/hedge_engine.py" = ["N806"]
+"utils/hedge_engine.py" = ["N806", "C901"]
 "utils/hedge_execution_engine.py" = ["N806"]
-"utils/hedge_rebalance_backtest.py" = ["N806"]
+"utils/hedge_rebalance_backtest.py" = ["N806", "C901"]
 "utils/market_impact_model.py" = ["N806", "T201"]
 "utils/mvsk_regime_detector.py" = ["N806"]
-"utils/protective_put_engine.py" = ["N806"]
-"utils/tf_price_predictor.py" = ["N806"]
-"utils/alpha/ml_enhanced_selector.py" = ["N806"]
+"utils/protective_put_engine.py" = ["N806", "ANN"]
+"utils/tf_price_predictor.py" = ["N806", "ANN"]
+"utils/alpha/ml_enhanced_selector.py" = ["N806", "N802"]
 "utils/alpha/strategy_evaluator.py" = ["N806"]
 "utils/evolution/feedback_loop.py" = ["N806"]
-"utils/ai_report_agent.py" = ["N806"]
-"utils/risk_guard_integrator.py" = ["N806"]
+"utils/ai_report_agent.py" = ["N806", "ANN"]
+"utils/risk_guard_integrator.py" = ["N806", "C901"]
 
 # ============================================================
 # 代码质量修复 (2026-08-19): ANN 类型注解非核心模块豁免
@@ -332,16 +337,16 @@ force-single-line = false
 "utils/alpha/**/*.py" = ["ANN"]
 "utils/evolution/**/*.py" = ["ANN", "C901"]
 "utils/finance_agents/**/*.py" = ["ANN", "C901"]
-"utils/attribution/**/*.py" = ["ANN"]
-"utils/universe/**/*.py" = ["ANN"]
-"utils/infra/**/*.py" = ["ANN"]
+"utils/attribution/**/*.py" = ["ANN", "C901"]
+"utils/universe/**/*.py" = ["ANN", "C901"]
+"utils/infra/**/*.py" = ["ANN", "N814", "C901"]
 "utils/signal_sources/**/*.py" = ["ANN"]
 "ai_decision/**/*.py" = ["ANN"]
 
 # C901: 非核心模块固有复杂度豁免 (数据适配/外部客户端)
 "utils/free_stockdb_adapter.py" = ["C901"]
 "utils/tdx_data_source.py" = ["C901"]
-"utils/glm5_decision_engine.py" = ["C901"]
+"utils/glm5_decision_engine.py" = ["C901", "ANN"]
 
 # S3 价值纪律层 (2026-08-21): fail-safe 降级设计, 任何异常不崩溃主决策 (与 llm_gateway/risk/execution 同类)
 # BLE001: 四大师 LLM/镜子测试/降级链 blind except 是有意设计
@@ -363,7 +368,7 @@ force-single-line = false
 # llmfit 集成 (2026-08-23): 本地 LLM 模型选型器, __main__ 自检入口 print 是合理的
 "utils/local_model_selector.py" = ["T201"]
 # value_investing: 研究性回测代码, ANN/BLE001/C901/B007/E741 豁免 (与 research/ 同类)
-"utils/value_investing/**/*.py" = ["ANN", "BLE001", "C901", "B007", "E741"]
+"utils/value_investing/**/*.py" = ["ANN", "BLE001", "C901", "B007", "E741", "N806"]
 
 # ============================================================
 # 代码质量审查 (2026-08-24): BLE001 泄漏补豁免
@@ -372,10 +377,91 @@ force-single-line = false
 # ============================================================
 # auto_hedge_rebalance: 自动对冲再平衡 (断路器/数据拉取/引擎/状态机/目标监控/工具选择)
 # 任一环节异常不应导致再平衡中断或重复下单, 降级为日志
-"utils/auto_hedge_rebalance/**/*.py" = ["BLE001"]
+"utils/auto_hedge_rebalance/**/*.py" = ["BLE001", "ANN"]
 # run_eod_evolution_rebalance: EOD 演化再平衡编排入口, 异常降级不阻断日终流程
 "run_eod_evolution_rebalance.py" = ["BLE001"]
 # llm_finetune: GLM-5/Qwen 微调脚本, 顶层训练入口 fail-safe
-"utils/llm_finetune.py" = ["BLE001"]
+"utils/llm_finetune.py" = ["BLE001", "N806", "ANN"]
+
+# QC-3.1 (2026-08-24): 供应链风险 ML 训练模块
+# ANN: 训练/预测函数类型注解逐步补齐 (与 alpha_factor/alpha/evolution 同类豁免)
+# N806: X/X_train/X_test 特征矩阵大写是 ML 行业惯例 (与 hedge_engine/fineng 同例)
+"utils/supply_chain_risk/**/*.py" = ["ANN", "N806", "E402"]
+
+# QC-3.1 (2026-08-24): C901 复杂度豁免 — 金融/数据/报告模块固有复杂
+# 对冲再平衡/风控预算/数据质量/回测约束等模块多条件分支是业务固有复杂度
+"etf_option_hedge_rebalancer.py" = ["C901"]
+"hedge_order_executor.py" = ["C901"]
+"lgb_tscv_trainer.py" = ["C901"]
+"utils/akshare_data_source.py" = ["C901"]
+"utils/backtest/triple_barrier.py" = ["C901"]
+"utils/data_quality_monitor.py" = ["C901"]
+"utils/etf_flow_monitor.py" = ["C901", "ANN"]
+"utils/hedge_rebalance_integrator.py" = ["C901"]
+"utils/overnight_gap_guard.py" = ["C901"]
+"utils/risk_budget_allocator.py" = ["C901"]
+"utils/stress_test_scenario_library.py" = ["C901"]
+"utils/weather_factor_engine.py" = ["C901", "ANN"]
+
+# QC-3.1 (2026-08-24): 非核心模块 ANN 类型注解豁免 (逐步补齐, 与 alpha/evolution 同类)
+"signal_post_processing.py" = ["ANN"]
+"utils/wt_execution_algo.py" = ["ANN"]
+"utils/backtest_integrity.py" = ["ANN"]
+"utils/risk_budget_optimizer.py" = ["ANN"]
+"utils/factor_research/**/*.py" = ["ANN"]
+"utils/media_crawler_adapter.py" = ["ANN"]
+"utils/graph_data_source.py" = ["ANN"]
+"utils/local_llm.py" = ["ANN"]
+"utils/akshare_futures.py" = ["ANN"]
+"utils/backtest/**/*.py" = ["ANN"]
+"utils/option_margin_monitor.py" = ["ANN"]
+
+# QC-3.1 (2026-08-24): 非核心模块单函数 ANN 豁免 (逐步补齐)
+"archive_dead_code.py" = ["ANN"]
+"utils/adjust_factor_provider.py" = ["ANN"]
+"utils/alpha_factor_library.py" = ["ANN"]
+"utils/broad_based_etf_policy.py" = ["ANN"]
+"utils/cash_manager.py" = ["ANN"]
+"utils/execution_router.py" = ["ANN"]
+"utils/external_data_source.py" = ["ANN"]
+"utils/greek_exposure_dashboard.py" = ["ANN"]
+"utils/kill_switch.py" = ["ANN"]
+"utils/killswitch_guard.py" = ["ANN"]
+"utils/kondratiev_cycle.py" = ["ANN"]
+"utils/lgb_signal_monitor.py" = ["ANN"]
+"utils/overnight_gap_monitor.py" = ["ANN"]
+
+# QC-3.1 (2026-08-24): 命名规范豁免 — 金融/ML 行业惯例 + 外部客户端复杂度
+# N813: ai_hedge_fund/llm/models.py 条件导入别名 _cls (可选依赖 langchain/openai 等)
+"quant_modules/ai_hedge_fund/llm/models.py" = ["N813"]
+# N818: auto_hedge_rebalance/exceptions.py 业务异常名不加 Error 后缀 (描述性命名更清晰)
+"utils/auto_hedge_rebalance/exceptions.py" = ["N818"]
+# N803/N806/N802: option_data_fetcher.py 期权定价 S/K/T 是 Black-Scholes 标准命名
+"utils/option_data_fetcher.py" = ["N803", "N806", "N802"]
+# C901/ANN: ifind_client.py 外部客户端解析逻辑固有复杂 (markdown 表格/财务报表解析)
+
+# N814/ANN: auto_trading_system.py 别名导入 _AES/_ES 避免命名冲突 + 类型注解逐步补齐
+"utils/auto_trading_system.py" = ["N814", "ANN"]
+
+# QC-3.1 (2026-08-24): C901 复杂度 + N814 别名导入豁免
+
+# N814/C901: quant_neutral_runner.py 别名导入 _ICHC/_ICHR/_V10CL + score_factors 多因子评分复杂
+"utils/quant_neutral_runner.py" = ["N814", "C901", "ANN"]
+# N814: llm_client.py _P=Path 别名导入
+"utils/llm_client.py" = ["N814", "ANN"]
 
 
+
+# ============================================================
+# 代码质量审查 (2026-08-25): google-skills 借鉴模块豁免
+# tier_safety/prompt_registry/eval_flywheel/experience_rag 是 fail-safe
+# 降级设计 (LLM/embedding/持久化异常降级为日志不崩溃), 盲 except 是有意设计
+# (与 utils/llm_gateway utils/risk 同类治理)。
+# tier_safety: 确认门禁是交互式 CLI, print 是合理的用户交互;
+# google_skills_adapter: 桥接层 fail-safe。
+# ============================================================
+"utils/tier_safety.py" = ["BLE001", "T201"]
+"utils/prompt_registry.py" = ["BLE001"]
+"utils/eval_flywheel.py" = ["BLE001"]
+"utils/experience_rag.py" = ["BLE001"]
+"utils/google_skills_adapter.py" = ["BLE001"]

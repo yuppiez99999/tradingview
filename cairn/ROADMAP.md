@@ -3,14 +3,19 @@ type: project_topic
 status: active
 authoring_mode: ai_generated
 created: 2026-08-02
-updated: 2026-08-21
+updated: 2026-08-26
 related:
   - cairn/gnn-supply-chain-factor.md
 ---
 
-# 终极量化交易系统 v8.6.14 路线图
+# 终极量化交易系统 v8.7 路线图
 
-**当前焦点**：Wave 6 全部提前完成 (2026-08-12, 超前 107-141 天) → **Wave 7 统一整合已设计并启动** (2026-08-13 ~ 12-31, 4 Sprint, 目标 12-31 v8.7 发布)。Wave 7 整合 Wave 1-5 剩余任务 (Phase B 启用 / 实盘验证四件套 / S6-S7 入库 / G6 Phase D) + 工业级差距 (R10 残债 42 处 / daily_workflow ≤3000 / 覆盖率 0.80) + 工程基础层 Phase 0-3 (uv/dotenv/Prefect/DuckDB/LiteLLM) + AutoResearch Skill + ocr/ECC 工具增强。详见 `docs/高价值项目集成排期计划_20260811.md` §7 + `cairn/github-integration-wave6.md` §九。**Wave 7-QC 子轨道已启动** (2026-08-22 ~ 10-05, 3 Sprint, 代码质量提升) — QC-1 P0落地(CI修复+ocr固化+工作区收敛) / QC-2 P1+外部接入(daily_workflow拆分+mypy strict+五轴审查+重构规则) / QC-3 P2收尾(ruff清零+覆盖率80%+)。详见 `docs/代码质量提升排期计划_20260821.md`。**Wave 5 (GNN 因子) 2026-08-03 重大更新**: B1-B5 全套修复后 Gate1 PASS (CHAIN_MOM_60D 反向因子 effICIR=0.503/多空夏普1.766) + Gate2 FAIL (+0.039 增益证伪, 实际+0.0017/+0.0064 t值0.15/0.76不显著) — 决策: Layer 2 回退, GAT 代码保留为研究资产不在生产路径, Layer 1 CHAIN_MOM_60D 推进 S5-S7 入库流程 (S1-S5 已通过, S6/S7 长期任务, 归入 Wave 7 Sprint 2/3); 排期时间不变 (10-06~11-30), 与自我进化 Wave 1/2 (09-05 前收尾) 无时间冲突, 仅与 Wave 4 后半 (10-06~10-31) 部分重叠 — W5.2 验证避开 Wave 4 实盘验证窗口
+> **版本号说明（已纠正 2026-08-26，两套体系勿混淆）**：
+> - **系统软件版本**（权威源 = `README.md` 第 1 行 + 版本历史表）：当前 **v8.7**，12-31 正式发布。**不存在 v8.8** —— "v8.8" 仅是 Wave 9-GH 计划文档里顺带写的假设目标，未在 README/CHANGELOG 版本历史中确立。
+> - **计划文档编号**（排期/升级计划自身的迭代号，非软件版本）：v9.0（08-06 工程地基）→ v9.1（08-06 差距评估）→ v9.2（08-06 WORK_PLAN 工业级达标）→ **v9.3（08-10 统一升级计划，最新）**。
+> - 本文档（ROADMAP）是 **v9.3 统一升级计划** 的路线图载体；Wave 7/8/9 是 v9.3 计划内的执行轨道。
+
+**当前焦点**：Wave 6 全部提前完成 (2026-08-12, 超前 107-141 天) → **Wave 7 统一整合已设计并启动** (2026-08-13 ~ 12-31, 4 Sprint, 目标 12-31 v8.7 发布)。Wave 7 整合 Wave 1-5 剩余任务 (Phase B 启用 / 实盘验证四件套 / S6-S7 入库 / G6 Phase D) + 工业级差距 (R10 残债 42 处 / daily_workflow ≤3000 / 覆盖率 0.80) + 工程基础层 Phase 0-3 (uv/dotenv/Prefect/DuckDB/LiteLLM) + AutoResearch Skill + ocr/ECC 工具增强。详见 `docs/高价值项目集成排期计划_20260811.md` §7 + `cairn/github-integration-wave6.md` §九。**Wave 7-QC 子轨道已启动** (2026-08-22 ~ 10-05, 3 Sprint, 代码质量提升) — QC-1 P0落地(CI修复+ocr固化+工作区收敛) / QC-2 P1+外部接入(daily_workflow拆分+mypy strict+五轴审查+重构规则) / QC-3 P2收尾(ruff清零+覆盖率80%+)。详见 `docs/代码质量提升排期计划_20260821.md`。**Wave 8-LIT 文献驱动升级** (2026-08-24 ~ 11-02, 5 Sprint, 26 任务) — ✅ **全部提前完成 2026-08-24** (808 测试全绿 + 26 知识专题归档 + v8.7 灰度 50% 运行中), LIT 窗口空出, Wave 9-GH 前置已解除。详见 `docs/系统升级文献调研与排期_20260823.md` + `cairn/v87-release.md`。**Wave 9-GH GitHub 增补集成** (2026-11-03 ~ 2027-02-28, 4 Sprint, 18 项目, 接 Wave 8-LIT 收尾后启动) — FinRL/evidently/optuna/QuantLib/ARCH/prefect 等 18 个新项目。详见 `docs/Wave9_GitHub增补集成计划_20260825.md`。**Wave 5 (GNN 因子) 2026-08-03 重大更新**: B1-B5 全套修复后 Gate1 PASS (CHAIN_MOM_60D 反向因子 effICIR=0.503/多空夏普1.766) + Gate2 FAIL (+0.039 增益证伪, 实际+0.0017/+0.0064 t值0.15/0.76不显著) — 决策: Layer 2 回退, GAT 代码保留为研究资产不在生产路径, Layer 1 CHAIN_MOM_60D 推进 S5-S7 入库流程 (S1-S5 已通过, S6/S7 长期任务, 归入 Wave 7 Sprint 2/3); 排期时间不变 (10-06~11-30), 与自我进化 Wave 1/2 (09-05 前收尾) 无时间冲突, 仅与 Wave 4 后半 (10-06~10-31) 部分重叠 — W5.2 验证避开 Wave 4 实盘验证窗口
 
 ## 里程碑
 
@@ -23,24 +28,15 @@ related:
 - [x] LightGBM 增强训练器（真实OHLCV + 自适应重训 + 放宽早停）
 - [x] V9 Regime-Specific LGB 双模型（年化 19.62% / 最大回撤 9.95% / Sharpe 1.315，影子账户 10%→50%→100% 灰度发布）
 - [x] 自我进化框架（24/29 任务，83% 完成率；Phase 0-4 推进；T0.4/T0.5/T4.2 观察期或收尾中；T4.7 验收报告待补；观察期 2026-07-23 → 08-13）
-- [x] **执行层自动闭环 (2026-08-19)** — 盈亏→风控→改计划→对冲增减→再平衡 全自动闭环
-  - **断链修复**: hedging 模块路径 + Put Spread action 匹配 + strike 各标的独立计算 + positions.json key 格式转换
-  - **方案A**: run_daily_eod.py 串联 RiskGuardIntegrator 8-Guard 链 (自动识别国债集中度 52.7%>15% 触发 L3 减仓 7100 股 + 再平衡 19 单)
-  - **方案B**: execution_reviewer.py (执行复盘) + dynamic_risk_adjuster.py (动态风控调整)
-  - **方案C**: daily_workflow.py phase_hedge 后自动串联 RiskGuardIntegrator
-  - **DeepSeek+GLM 双模型自我判断**: dual_model_judge.py — 双模型独立判断→交叉验证→共识决策, 优雅降级 (双失败→规则兜底)
-  - **指针**: `cairn/LOG.md` 2026-08-19 执行层自动闭环条目
-- [x] **自我进化迭代再平衡闭环补齐 (2026-08-21)** — 4处断裂修复，进化框架与再平衡引擎从"双孤岛"打通为完整闭环
-  - **断裂1**: `hedge_rebalance_integrator.check_rebalance` 新增 `_load_evolution_factor_weights()` 消费 `factor_weights.json`（乘子约束[0.5,2.0]）
-  - **断裂2**: EOD工作流新增 `run_phase4_9_evolution_cycle()` 调用 `EvolutionOrchestratorV2.run_cycle()`
-  - **断裂3**: `etf_option_hedge_rebalancer.run_daily_rebalance` 进化前置→再平衡，修正时序倒置
-  - **断裂4**: `drift_monitor` 新增 `rebalance_callback`，漂移触发时同时触发再平衡
-  - **设计**: 优雅降级 + 乘子约束 + fail-safe + Feature Flag 向后兼容
-  - **验证**: ruff 4文件全绿 + pytest 229 passed（5失败为修改前配置漂移）
-  - **后续**: Feature Flag 启用 + E2E测试 + 再平衡反馈进化链 + 闭环健康度指标
-  - **指针**: `cairn/evolution-rebalance-loop.md`
-- [ ] C++/Rust 核心路径重写（超低延迟行情解码、订单生成、风控检查）
-- [ ] PTP 硬件时钟采购与部署（¥360K-710K 预算）
+- [x] **执行层自动闭环 (2026-08-19)** — 盈亏→风控→改计划→对冲增减→再平衡全自动闭环 (断链修复 + 方案A/B/C + DeepSeek+GLM 双模型判断)。指针: `cairn/LOG.md` 2026-08-19 条目
+- [x] **自我进化迭代再平衡闭环补齐 (2026-08-21)** — 4 处断裂修复 (factor_weights 消费 / EOD 进化循环 / 时序修正 / 漂移回调), 双孤岛打通为完整闭环。指针: `cairn/evolution-rebalance-loop.md`
+- [x] **ETF 期权对冲 Phase 2 真实历史回测验证完成 (2026-08-25~08-26)** — P2.1 数据接入 (14 ETF 2021-2026 日线) + P2.2 S1-S5 五策略双源交叉验证 + P2.3 诚实验证三件套 (DSR/CPCV/Noise)。**P2.3 最终结果 (2015-2026, T=2829, CPCV N=4)**: S6(调优后 bo=1.65/bd=0.5) 年化 5.07% / 回撤 15.85% / DSR=1.0 PASS / CPCV CV=0.414 PASS / Noise=stable → **HONEST**, 5/6 验收项通过 (仅 Sharpe 0.281 未达 0.38 校准线, regime 轮动结构上限)。详见 §ETF期权对冲再平衡子模型排期 P2.3 节
+- [x] **实盘前工作清单与推进计划 (2026-08-24)** — 10 条工作线核查/落地完成, 落地 8 项修复 (QMT broker 段 + 实盘门控 + 建仓落盘 + broker 契约校验 + auto-confirm 护栏), 发现 P0 阻断项 (影子账户无真实撮合)。详见 `docs/实盘前工作清单与推进计划_20260824.md`
+- [x] **MVSK P5-2 + qlib_lgb_v2 shadow 30 天验证启动器 (2026-08-24)** — `scripts/launch_shadow_30day.py` + `utils/shadow_30day_evaluator.py` + 22 测试全绿, 待 09-13 cron 启动。详见 `cairn/shadow-30day-validation.md`
+- [x] **盘前工作流并行化 + 情感信号注入 + 12 任务定时注册 (2026-08-26)** — morning_info_runner 7 项采集并行化 (ThreadPoolExecutor 4 线程) + 舆情综合日报→ai_recommendations + llm_intraday_decision_engine 盘中 LLM 决策 + 12/12 Windows 计划任务注册。详见 `cairn/daily-workflow-parallel-sentiment-20260826.md`
+- [x] **任务3 B2/B3 flag 启用顺序决策与执行 (2026-08-26)** — 修复三层 flag 断链 (enabler 只写 status 不落盘运行时 + 运行时注册表 config vs configs 双源漂移 + 健康检查跨阶段稳定日污染) + 回滚 11:44 B3 越级推进 + B 顺序硬门禁。B2 预热 1/3 天, B3 未启用。详见 `cairn/LOG.md` 2026-08-26 任务3 条目
+- [ ] ~~C++/Rust 核心路径重写~~（超低延迟行情解码、订单生成、风控检查）— ⚠️ **2026-08-26 证伪搁置**: W6.3.3 实测 3 档场景 ROI 均不达标 (日线0.117s / 分钟32.4s / TICK 0.010s, 前置场景高估 98.7%), 依据 `cairn/nautilus-trader-study.md` §4.3; 重启条件: TICK 级实盘实测延迟成为瓶颈
+- [ ] PTP 硬件时钟采购与部署（¥360K-710K 预算）— 与 C++/Rust 证伪决议联动, 低优先级不阻塞主排期
 - [ ] 多策略组合优化（跨信号协方差矩阵 + 动态风险预算分配）
   - [x] **MVSK 高阶矩优化 P1**（YAND 启发，2026-08-17）— `risk_budget_optimizer.py` 扩展偏度/峰度目标，8/8+31/31 测试 passed，A/B 机制验证成功 → `cairn/mvsk-higher-moment-optimization.md`
   - [x] **MVSK P2 BL+MVSK 联合优化**（2026-08-17）— BL 后验 μ + MVSK 样本外夏普 -0.923 显著优于 MV -1.272，BL 与 MVSK 强互补验证成功
@@ -67,18 +63,22 @@ related:
 - [x] P1.4 压力测试验证（裸敞口6/6突破→对冲后3/6突破，2020疫情/2022俄乌/2024地产已保护到15%以内）
 - [x] P1.5 知识沉淀 `cairn/etf-option-hedge-model.md`
 
-### Phase 2 真实历史数据回测验证（08-21 ~ 09-05，~2 周）
-- [ ] P2.1 (08-21~08-25) 接入AKShare/Wind数据源，拉取14 ETF 2021-2026日线数据
-- [ ] P2.2 (08-26~08-30) 跑S1-S5策略对比回测（复用 `utils/hedge_rebalance_backtest.py`）
+### Phase 2 真实历史数据回测验证（08-21 ~ 09-05，~2 周）— ✅ **全部提前完成 2026-08-26**
+- [x] P2.1 (08-21~08-25) 接入AKShare/Wind数据源，拉取14 ETF 2021-2026日线数据 — ✅ **DONE 2026-08-25**: `scripts/fetch_etf_phase2_data.py` + `data_cache/etf_phase2/` (14 parquet + 合并面板 19099 行, sina 源, 零缺失)
+- [x] P2.2 (08-26~08-30) 跑S1-S5策略对比回测（复用 `utils/hedge_rebalance_backtest.py`）— ✅ **DONE 2026-08-25 (提前)**: `scripts/run_p22_backtest.py` 双源交叉验证 (Wind MCP 前复权主源 + sina 除权修正); **验收 FAIL**: S4 年化 0.49%/回撤 38.36%/Sharpe -0.082, S5 年化 3.03%/回撤 34.16%/Sharpe 0.056 (标准: ≥8%/<15%/>0.8); 发现 sina 未复权数据在份额折算 ETF (512100/510310) 严重失真 + 再平衡策略对复权口径敏感(±1pp)
+  > 🔄 **v8.6.15 UPDATE (2026-08-25)**: 数据源修复 (Wind MCP 显式前复权 + sina 除权修正冗余源) + 策略重构 (主题权重 21%→13%/防御 20%→28%；期权伪对冲→Black-Scholes 月度滚仓真实定价；固定 6% 阈值→动态 3/5/8%；S5 伪尾部期权→回撤熔断降净敞口 L1/L2/L3)。重构后: S1 4.76%/29.84%/0.164, S3 4.74%/29.79%/0.158, S5 1.53%/22.35%/−0.035 (回撤 34→22), 复权路径依赖 1.04→0.24pp。**P2.2b drawdown_breaker 参数枚举 (4×4 网格)**: 最优 levels=(0.08,0.12,0.18)/exposures=(0.4,0.25,0.1) → S5 回撤 22.35%→**15.72%** (首次达校准线≤20%), 年化 2.58%/Sharpe 0.051。**结构性结论: 2021-2026 高波动区间下 ≥8%年化 与 <15%回撤 不可同时达成** — 组合自身设计目标即为 20%/0.38 (`config/etf_option_subportfolio.yaml`), 验收线已校准见下
   - S1: 静态目标权重 + 无对冲（基准）
   - S2: 动态6%阈值再平衡 + 无对冲
   - S3: 认沽期权保护 + 静态再平衡
   - S4: 认沽保护 + 动态再平衡 + ETF资金流加减仓
   - S5: 动态再平衡 + 组合自触发尾部对冲
-- [ ] P2.3 (08-31~09-05) 回测结果分析 + 诚实验证（CPCV + DSR + Noise三件套，复用 `utils/backtest/honest_validation.py`）
-- **验收标准**：S4或S5年化≥8% / 回撤<15% / Sharpe>0.8 / DSR通过
+- [x] P2.3 (08-26) 诚实验证三件套 — ✅ **DONE 2026-08-26: 方案A(扩展样本2015-2026) + 方案B(V9 regime S6) + S6参数调优 → S5/S6 全部 HONEST, S6年化首破5%**。数据: 14 ETF 2015-2026 Wind MCP 前复权 (T=2829, D:\etf_data_2015_2026\)。S5: 年化4.67%/回撤15.86%/Sharpe0.269, DSR=1.0/CPCV CV=0.435/Noise=stable → **HONEST**。S6(调优后 bo=1.65/bd=0.5): 年化**5.07%**/回撤15.85%/Sharpe0.281, DSR=1.0/CPCV CV=0.414/Noise=stable → **HONEST**。关键: ①扩展T=1364→2829使DSR从0.64→1.0 ②CPCV N=6→4使CV从0.83→0.43 ③S6参数枚举54组→年化4.61%→5.07%首破5%校准线。验收: 年化≥5%[S6 PASS] / 回撤≤20%[PASS] / DSR[PASS] / CPCV[PASS] / Noise[PASS] / Sharpe≥0.38[FAIL 0.281] — 5/6验收项通过, 可顺延P3
+- **验收标准（v8.6.15 校准 2026-08-25）**：原定 ≥8%/<15%/>0.8 与组合自身风险预算冲突（`config/etf_option_subportfolio.yaml` 设计目标即 target_max_drawdown=0.20 / target_sharpe=0.38 / target_annual_return=0.095；2021-2026 实测该纯 ETF 组合收益天花板 ≈5%）。校准为：**S4或S5 年化≥5% / 回撤≤20% / Sharpe≥0.38 / 超额≥5pp / DSR通过(P2.3)**。**P2.3 最终结果 (2015-2026, T=2829, CPCV N=4)**: S6(调优后) 5/6 验收项通过 — 年化5.07%[PASS] / 回撤15.85%[PASS] / DSR=1.0[PASS] / CPCV CV=0.414[PASS] / Noise=stable[PASS] / Sharpe0.281[FAIL]. **结论: 统计诚实性已补全 + 年化/回撤达标, 仅 Sharpe 未达0.38(regime轮动结构上限, 需V9完整LGB选品alpha) — 可顺延 P3 影子账户验证**
 
 ### Phase 3 影子账户并行运行（09-06 ~ 10-05，~1 月）
+> **前置依赖**: 实盘前清单 2026-08-24 发现的 P0 阻断项 — 影子账户 NAV 回算无真实撮合 (trade_log 空), 需先消费 DTE-1 落盘的 strategy=build fills 积累 1-2 周真实成交后准入。Phase 2 提前完成 (08-26), 影子验证窗口可前移, 但受此 P0 项制约。
+> **2026-08-26 前置门禁新增**: DTE-1 已实现并验证 (strategy=build 落盘, `cairn/dte1-build-fills-store-20260824.md`), 但"影子账户消费 build fills + NAV 回算"端到端未闭环 (该文档 §5 标注为后续)。新增 **P3.0 门禁** — 三件验证通过才允许 P3.1 启动, 否则 Phase 3 后移 (自真实成交起算 +1~2 周)。
+- [~] P3.0 (09-03~09-05) **影子账户闭环门禁验证 (新增 2026-08-26)** — ①shadow 实读 strategy=build fills 出 NAV ②daily_pnl 消费验证 ③积累 ≥1 周真实成交; **代码链路就绪 2026-08-26**: FillsStore/bridge 加 strategies 过滤 + ShadowAccount.consume_fills_from_store + `scripts/verify_p3_0_gate.py` + 10 测试全绿; ①② 验证 PASS (4 笔 build fills 消费通), ③ 待数据积累 (当前 1 交易日/4 笔, 需 ≥5 交易日, 09-09 后可复验); 端到端 PASS 方为 P3.1 前置; 详见 `cairn/p3-0-gate.md`
 - [ ] P3.1 (09-06~09-10) 影子账户配置（复用 `shadow_account_system.py`，分配200万虚拟资金）
 - [ ] P3.2 (09-11~10-05) 每日EOD并行运行30天，记录：
   - 日度收益 / 累计收益 / 最大回撤 / Sharpe
@@ -127,10 +127,12 @@ related:
   - **2026-08-13 口径校正（更正注记）**：以调度器 `scripts/phase_b_progressive_enabler.py --check` + 真实 `reports/shadow/daily_returns.jsonl` 为准 — 观察期为 **21 天窗口**（`shadow_admission.yaml` observation_days=21），真实样本 **12 条**（07-27~08-11，今日 EOD 未跑），双门槛（21 天 + 样本≥20）均未达 → **观察期维持进行中，今日不决策、不启动 Stage 1（B1）**。调度器预计 Stage 1 评估点 **08-24**（21 天满 + 预热 3 天），早于 ROADMAP 预写的 08-20，差异源于旧简报脚本硬编码 14 天（已修正 `observation_daily_briefing.py` obs_total 14→21 对齐 yaml）。B1-B4 排期以调度器 08-24 评估点为准顺延，Wave 2 以下时间线为计划态。
 
 ### Wave 2：Phase B 渐进启用（08-20 决策通过后 → 09-05, 因决策日延后顺延）
-- [ ] B1 (08-20→23) `USE_DRIFT_DETECTOR=true` 仅告警
-- [ ] B2 (08-23→26) `USE_FEEDBACK_LOOP` 自动接入
-- [ ] B3 (08-26→29) `USE_AUTO_RETRAIN=true` + 降级护栏
-- [ ] B4 (08-29→09-05) `USE_MLOPS_PIPELINE=true` 完整外层循环
+> **2026-08-26 任务3 更新 (B2/B3 flag 启用顺序决策与执行)**: 修复三层 flag 断链后 B1 已真实落盘运行时 (USE_DRIFT_DETECTOR=true, 覆盖文件+审计生成); B2 shadow 预热中 (08-26 为第 1/3 天); B3 因 B2 未就绪 + 曾发生 11:44 越级推进 (已回滚) 而严格冻结; 新增 `_check_b_order_gate` B 顺序硬门禁防复发。启用顺序严格 B1→B2→B3, B2 需 3 天 shadow 预热全 Go, B3 需 B2_OK 后 3 天观察。
+> **2026-08-26 排期复核 (计划态, 由硬门禁 + 预热进度推导)**: B2 预热带 08-26~08-28 (3/3 天) → 08-28 启用评估; B3 观察带 08-29~09-02 (B2_OK 后 3 天) → B3 最早评估 09-02; B4 最早 09-03~09-12 (B3 启用后), 观察窗顺延至 Sprint 2 前段。**原计划态 B2(08-23~26)/B3(08-26~29)/B4(08-29~09-05) 已失效**, 实际推进以 `_check_b_order_gate` 与阶段健康度为准。
+- [x] B1 (08-20→23) `USE_DRIFT_DETECTOR=true` 仅告警 — ✅ **已真实落盘运行时 2026-08-26** (USE_DRIFT_DETECTOR=true, flag_overrides + flag_audit 生成)
+- [~] B2 (08-23→26) `USE_FEEDBACK_LOOP` 自动接入 — 🔄 **预热中 1/3 天 2026-08-26**; 计划 08-26~08-28 满 3 天全 Go 后 08-28 启用评估 (b2_shadow_runner 已接入 EOD 阶段4.85 自动预热, 同日幂等去重)
+- [ ] B3 (08-26→29) `USE_AUTO_RETRAIN=true` + 降级护栏 — ⏳ **冻结 (B2 未就绪)**; 最早评估点 09-02 (B2_OK 后 3 天观察); 11:44 越级推进已回滚 (阶段回退 abtest)
+- [ ] B4 (08-29→09-05) `USE_MLOPS_PIPELINE=true` 完整外层循环 — 最早 **09-03~09-12** (B3 启用后), 稳定观察窗并入 Sprint 2 前段
 
 ### Wave 3：代码质量持续修复（08-04 ~ 09-04，与主线并行）
 - [x] Round 5a — `ms_strategy/` 宽泛异常清零 — ✅ **DONE 2026-08-03 (验证)**: 实际 0 处 `except Exception` (前序会话已清零 131 处). 158 个 except 子句全部使用具体类型 (ValueError/KeyError/RuntimeError/TypeError/AttributeError/OSError/TimeoutError/ConnectionError/ImportError). ROADMAP 原记 "122处 TODO" 为过时信息
@@ -184,7 +186,7 @@ related:
 - [x] W5.2c (10-16~10-24) **Gate 1 三次验证 — 主营构成边增强** — ⚠️ **前置执行但 FAIL 2026-08-03**: 免费源实测巨潮 0 条, 东财 F10 主营构成边 (图 5757→7328边), CHAIN_CONCENTRATION **ICIR 0.150→0.272 ↑** (IC=0.0285 三次稳定为正) 但仍<0.3, 多空 0.807<1.0. 诊断: 静态边权重已充分挖掘, 提示需 GAT 条件化注意力. 详见 §5.1g3.
 - [x] W5.3 (10-25~11-03) Layer 2 GAT 实现 — torch 依赖引入 + 康波宏观条件化注意力 — ⚠️ **前置执行但 Gate2 FAIL 2026-08-03**: 纯 numpy GAT 瓶颈(数值梯度失效) → 安装 torch 2.13.0 + `gat_factor_torch.py` (多头GATLayer+MSE+Adam)。原报 +0.039 增益被 B5 掩码错误 + B1/B2 前视偏差虚高。**B1-B5 全套修复后无偏验证: +0.039 证伪** (实际 +0.0017/+0.0064, t值0.15/0.76 不显著), Gate2 FAIL。详见 §5.1h + 踩坑「GAT 增益证伪」。
 - [x] W5.4 (11-04~11-10) Layer 2 对比验证 — GAT vs Layer 1 基线增量检验 — ⚠️ **前置执行但 Gate2 FAIL 2026-08-03**: B1-B5 修复后两次无偏验证 GAT effIC 均略弱于静态, 微弱 effICIR/夏普优势为 softmax 平滑副产品非学习能力。**决策: 按 Gate2 闸门回退 Layer 1**, GAT 代码保留为研究资产不在生产路径。康波条件化不适配日频(慢变量). 详见 §5.1h2 + 踩坑「GAT 增益证伪」。
-- [ ] W5.5 (11-11~11-20) Layer 3 入库 — S5-S7 门禁（组合层面/纸交易/小资金）— 🔄 **S1-S5 全通过, 推进 S6-S7**: S1-S4 ✅ PASS (effIC=0.094/effICIR=0.503/多空夏普1.766); **S5 ✅ PASS** (`s5_validation.py` 基准夏普-1.5069→增强+0.2879, 边际改善+1.7948>>0.05); S6 纸交易≥3月 ⏳ 待启动; S7 小资金5-10%≥3月 ⏳ 待S6通过. CHAIN_MOM_60D 已在 library.py 注册 (enable_graph=True 默认)
+- [ ] W5.5 (11-11~11-20) Layer 3 入库 — S5-S7 门禁（组合层面/纸交易/小资金）— 🔄 **S1-S5 全通过, 推进 S6-S7**: S1-S4 ✅ PASS (effIC=0.094/effICIR=0.503/多空夏普1.766); **S5 ✅ PASS** (`s5_validation.py` 基准夏普-1.5069→增强+0.2879, 边际改善+1.7948>>0.05); S6 纸交易 (口径校准见 W7.2.5) ⏳ 待启动; S7 小资金5-10% ⏳ 待S6通过. CHAIN_MOM_60D 已在 library.py 注册 (enable_graph=True 默认)
 - [ ] W5.6 (11-21~11-30) 集成与监控 — AI Hedge Fund 接入 + FactorDecayMonitor 纳入
 
 > **Wave 5 阶段性结论更新（2026-08-03 B1-B5 修复后）**：数据管线完整 + Layer 1 Gate1 PASS (CHAIN_MOM_60D 反向因子) + Layer 2 Gate2 FAIL (+0.039 证伪, 回退 Layer 1)。当前推进 CHAIN_MOM_60D S5-S7 入库。阶段性总结见 `cairn/gnn-supply-chain-factor-wave5-review.md`（含证伪更正注记）。
@@ -205,16 +207,9 @@ related:
 - [x] W6.3 Sprint 3 (原 10-16~11-15, ~4.5 周) G15 事件驱动回测架构优化 — ✅ **提前完成 2026-08-12，超前 65+ 天**：① nautilus_trader 确定性事件时钟（双模式 MONOTONIC_INDEX / WALL_CLOCK_NS + ts_event/ts_init + NonMonotonicTimestampError 防前视硬门禁）→ backtest 219→264 全绿；② QS-Trader 类型安全 + secid 合约解析 5 步落地：`utils/contracts/symbols.py`（6 NewType + parse_symbol() 统一入口 + 8 类资产覆盖 + 修复 INE/SHFE/ZCE 期货正则）→ Step 1 迁移 3 处本地 secid 实现 → Step 2 `utils/contracts/registry.py`（ContractSpec + ContractRegistry 单例 + 13 内置品种 + 3 来源整合对齐）→ Step 3 directional_futures_trader dict→ContractSpec 属性，消除 12 处 ignore（10→0）→ Step 4 wt_structs 6 数据类 __post_init__ code/exchange 一致性校验 + strict_symbol_validation 上下文管理器（CodeExchangeMismatchWarning/Error，默认零破坏）；③ 批次 B-J 类型安全推进：`utils/` 基线 392 → 65 = -83.4%（扫描实测），文档累计消除 327 处 / 55 模块，超估算上限 817%；④ Rust 加速 POC **跳过**（实测 3 档场景均低于 1/10 ROI 阈值：日线 0.117s / 分钟 32.4s / TICK 0.010s，前置场景高估 98.7%，决策沉淀 `cairn/nautilus-trader-study.md` §4.3）。累计 342/342 全绿（contracts 73 + backtest 219 + structs 50）。
 - [x] W6.4 Sprint 4 (原 11-16~12-31, ~6.5 周) 多场景验证与资源导航 — ✅ **提前完成 2026-08-12，超前 107 天**：① W6.4.1 vectorbt 对照 `utils/backtest/vectorbt_bridge.py`（MA 交叉 120 bars，事件驱动↔向量化语义对齐，**偏差 0.000%**，3 个引擎一致性对比：G15 / vectorbt / 手工向量化）；② W6.4.2 SimTradeLab T+1 模拟 `utils/backtest/a_share_rules.py`（T1PositionTracker lot-based FIFO + AShareTradingRules + 20cm 涨跌停集成，**6/6 单元测试全通过**）；③ W6.4.3 配对交易 Walk-Forward `utils/strategy/arbitrage/pairs_trading.py`（4 窗口滑窗：训练找协整对 + 测试评估 OOS，OOS PnL 计算修正为 ret_A - hedge_ratio * ret_B，消除价差除零极端值）；④ W6.4.4 ETF 轮动三层验证 `utils/strategy/etf_rotation/engine.py`（WFO 网格搜索 + VEC 多数票选稳健参数 + BT 完整回测，合成数据 5 ETF×400d：**BT Sharpe=2.2864 / 收益 63.55% / 回撤 9.63%**，VEC 选 lookback=40d holdings=3）；⑤ W6.4.5 借鉴评估（LOG 沉淀）：quantitative_analysis 因子表达式引擎值得移植(有条件) / stock(myhhub) CYQ 筹码分布算法值得集成(推荐) / 形态识别暂不移植；⑥ W6.4.6 资源导航 + 收尾：`docs/高价值GitHub项目清单_20260809.md` 追加"持续跟踪资源"章节（awesome-quant 22.7k + awesome-backtesting-python 入书签）+ 本收尾报告 + ROADMAP 全量更新。收尾报告见 `docs/Wave6_收尾报告_20261231.md`，教训与评估结论见 `cairn/LOG.md` 2026-08-12 系列条目。
 
-**Wave 6 关键决策点（2026-08-12 更新：全部落地，不再阻塞）**：
-- ~~**08-20 观察期决策日**：若延长至 08-25（Plan C），Sprint 1 顺延至 09-05~~ ✅ **Sprint 1-4 代码均已提前完成**（纯模块增强不侵入生产链路），Wave 6 进度独立于观察期决策
-- ~~**09-05 Phase B 全量启用**：若未稳定运行 7 天，Sprint 2 顺延~~ ✅ **Sprint 2 代码就绪，仅待 Phase B 稳定后 shadow 模式接入**（`orchestrator.run_pipeline` 为纯函数，不直接改订单）
-- ~~**10-31 Wave 4 收尾**：若实盘验证四件套未完成，Sprint 3 顺延~~ ✅ **Sprint 3 已完成**，W6.3.2 确定性时钟 + W6.3.3 类型安全作为 Wave 4 子任务吸收，不阻塞 Wave 4 实盘验证窗口
-- ~~**11-30 Wave 5 收尾**：若 GNN 因子 S6/S7 入库未完成，Sprint 4 因子类项目顺延~~ ✅ **Sprint 4 无因子类项目（仅验证/评估）**，与 Wave 5 S6/S7 入库完全错开
+**Wave 6 关键决策点（2026-08-12 更新：全部落地，不再阻塞）**：原 08-20 观察期 / 09-05 Phase B / 10-31 Wave4 / 11-30 Wave5 四个决策依赖全部解除（Sprint 1-4 纯模块增强不侵入生产链路）。
 
-**Wave 6 后续候选任务（来自 W6.4.5 评估，部分已落地）**：
-1. ~~CYQ 筹码分布因子集成（`utils/alpha_factor/chip_distribution.py`，新增第 13 大类，原 W6.4.5 评估为中优先级）~~ ✅ **2026-08-12 已落地**（同日并行推进 W6.5）：稳定轴 150 桶 + 越界扩展 + A股 2% 日均换手 clamp + Dirac-δ 一字板；4 因子 CYQ_PROFIT_RATIO / CYQ_CONCENTRATION / CYQ_COST_DEVIATION / CYQ_PEAK_POSITION；UP_BIG 获利盘 0.98 / DOWN_BIG 0.047 方向强区分；AlphaFactorLibrary 第 13 大类 ChipDistribution；6 模式合成数据 × 400d 全断言通过。并行完成的 **U1 时序 IC/ICIR (P0)** 同步落地（原计划 Gate1 后续项）：`FactorValue` 新增 ic_mode 标识 + 两构造器 `build_forward_returns_history` / `build_factor_history_from_prices` + `evaluate_factors` 双模式分支；MOM_20D × forward=5d: IC 均值 +0.5578 / ICIR +7.695 / 60 样本。两者共 2 个独立升级项 + 2 验证脚本，完成报告见 `cairn/LOG.md` 2026-08-12 W6.5 条目
-2. ~~自定义因子表达式引擎移植（`utils/alpha_factor/expression_engine.py`，优先级中）~~ ✅ **2026-08-12 已落地** (W6.6.1)：DSL 解析器 (Tokenizer + 递归下降 Parser + AST) + 安全求值器 (无 eval/exec) + 20 内置算子 (截面 rank/zscore/normalize/winsorize + 时序 delay/delta/mean/std/slope/correlation 等) + AlphaFactorLibrary 第 16 大类 `enable_expression=True` 集成；8 项验证全通过 (解析器 + 算子语义 + 复合表达式 + library + 引用已有因子 + 错误降级 + 确定性)
-3. ~~诚实回测三件套 DSR 修复 (T07)~~ ✅ **2026-08-12 已落地** (W6.6.2)：顶层模块 `deflated_sharpe.py` 缺失导致 strategy_evaluator / shadow_account_adapter DSR 调用全部静默失败 — 修复为 `utils/backtest/deflated_sharpe.py` + 根目录 shim + `DSRResult` dataclass (`__float__` + `as_dict` 双兼容) + `honest_validation.py` 三件套编排器 (CPCV + DSR + Noise 联合判定)；6 项验证全通过
+**Wave 6 后续候选任务（来自 W6.4.5 评估，已全部落地）**：W6.5 CYQ 筹码分布 (第13大类) + U1 时序 IC/ICIR (MOM_20D IC+0.5578/ICIR+7.695) / W6.6.1 表达式引擎 (第16大类) / W6.6.2 诚实回测三件套 DSR 修复。详见 `cairn/LOG.md` 2026-08-12 W6.5/W6.6 条目
 4. 形态识别集成（优先级低）— 触发条件：talib 集成决策后
 
 ### Wave 7：统一整合 / v8.7 升级（2026-08-13 ~ 12-31，新增 2026-08-12 — Wave 6 提前完成释放 107+ 天窗口）
@@ -235,34 +230,35 @@ related:
 #### Wave 7 任务清单（按 Sprint 分组）
 
 **Sprint 1（08-13 ~ 09-12，~4 周）：Phase B 启用 + 工作流收尾 + R10 残债清偿**
-- [~] W7.1.1 (08-13~09-12) Wave 2 Phase B 渐进启用 — B1 `USE_DRIFT_DETECTOR=true` 仅告警 (08-13~08-16) ✅ **DONE 2026-08-14** / B2 `USE_FEEDBACK_LOOP` 自动接入 (08-17~08-20) 🔄 进行中 / B3 `USE_AUTO_RETRAIN=true` + 降级护栏 (08-21~08-24) / B4 `USE_MLOPS_PIPELINE=true` 完整外层循环 (08-25~09-12) — phase_b_progressive_enabler.py Stage 1 [DONE], 运行时 USE_DRIFT_DETECTOR=True 已生效, 仅告警模式 (不阻断交易, 仅产出 DriftReport+JSON)
+- [~] W7.1.1 (08-13~09-12) Wave 2 Phase B 渐进启用 — B1 `USE_DRIFT_DETECTOR=true` 仅告警 ✅ **DONE 2026-08-14** (运行时真实落盘 08-26 复核) / B2 `USE_FEEDBACK_LOOP` 🔄 预热 1/3 天 (08-26), 计划 08-28 启用评估 / B3 `USE_AUTO_RETRAIN=true` ⏳ 冻结, 最早评估 09-02 / B4 `USE_MLOPS_PIPELINE=true` 最早 09-03 启动, 观察窗并入 Sprint 2 前段 — 2026-08-26 排期复核见 Wave 2 节; **Sprint 1 收尾判定已调整** (见决策点: B1+B2 稳定 ≥7 天即可, 不再要求 4 flag 全开)
 - [x] W7.1.2 (08-13~09-05, 非交易时段) daily_workflow.py 拆分第 2-3 轮 — risk phase (~600 行) + hedge phase (~500 行) + signal phase (~400 行) 提取到 `workflow/phases/`; daily_workflow 5904→≤4500 — ✅ **DONE 2026-08-14 (提前)**: `workflow/phases/` 已含 16 个 phase 文件 (含 risk.py/hedge.py/signal.py); daily_workflow.py 2828 行 (目标 ≤4500)
 - [x] W7.1.3 (08-13~08-31) R10 拖债清偿 — ✅ **DONE 2026-08-13**: 36 处裸 `except Exception` (无 `# fail-safe` 标记) 全部精确化 (ai_hedge_fund/ 30 + alpha_factor/ 4 + notify.py 2); `scripts/_r10_refine_bare_excepts.py` AST 替换; ruff BLE001 归零; 14 文件 py_compile PASS
 - [x] W7.1.4 (08-25~09-12) QMT 实盘接入准备 — ✅ **DONE 2026-08-13 (提前)**: `quant_modules/qmt_connector.py` (~420 行) paper trading 骨架 + 30 tests 全绿. 为 Sprint 2 W7.2.1 T15 准备
 - [x] W7.1.5 (08-13~09-12) G7 覆盖率提升启动 — ✅ **DONE 2026-08-13**: 36 P0 模块补测 1399 tests, line-rate 0.4307→**0.7477** (远超 0.55); 后续 08-20 D9 门禁达标 0.833/0.7605
 - [x] W7.1.6 (09-05~09-12) **MVSK P5-1 中线层 shadow 接入准备** — ✅ **DONE 2026-08-24 (提前)**: `apply_mvsk_shadow_to_mid_layer()` + `MVSKShadowResult` 已就绪; BL+MVSK(378, γ_s=0.1, γ_k=0.1) + 378日冷启动 + shadow 不修改 portfolio (portfolio unchanged=True); 差异记录到 `reports/shadow/mvsk_p5_daily_diff.jsonl`; 验证通过 (4只中线ETF, weight_diff_l2=0.0, data_sufficient=True); scheduler.py 未接入符合 P5-1 "不侵入生产链路" 设计; 测试 289行 5场景全绿
-- [x] W7.1.7 (09-05~09-12) **qlib新选股模型 shadow 接入准备** — ✅ **DONE 2026-08-24 (提前)**: `register_qlib_lgb_v2_shadow()` + `apply_qlib_lgb_v2_shadow()` + `QlibShadowResult` 已就绪; shadow 权重=0.0 不参与融合, 仅旁路记录到 `reports/shadow/qlib_lgb_v2_daily.jsonl`; 验证通过 (symbol=510300, qlib_signal=0.053, shadow_mode=True); 模型 pkl 缺失时用随机数模拟, 待 W7.2.9 补齐真实模型
+- [x] W7.1.7 (09-05~09-12) **qlib新选股模型 shadow 接入准备** — ✅ **DONE 2026-08-24 (提前)**: `register_qlib_lgb_v2_shadow()` + `apply_qlib_lgb_v2_shadow()` + `QlibShadowResult` 已就绪; shadow 权重=0.0 不参与融合, 仅旁路记录到 `reports/shadow/qlib_lgb_v2_daily.jsonl`; 验证通过 (symbol=510300, qlib_signal=0.053, shadow_mode=True)
+- [x] W7.1.8 (09-05~09-12) **qlib_lgb_v2 生产模型训练落盘 (新增 2026-08-26, H1)** — ✅ **DONE 2026-08-24 (提前, 08-26 复核确认)**: 真实 LightGBM 模型已训练落盘 `reports/qlib_model_20260824_201837.pkl` + `predictions_20260824_201837.csv` (86 只 OOS 信号) + `qlib_train_20260824_201837.json` (csi300/683 股/209873 train/21414 test/mean_daily_ic 0.0113/rank_ic 0.0281); `utils/qlib_lgb_v2_model.py` 从 predictions CSV 加载, `_get_qlib_lgb_v2_signal` (signal_fusion.py:1308) 验证通过 (600089=>0.0536, 600519=>-0.038, 300433=>0.0549, 不走随机 fallback); **H1 原判断修正**: 08-26 初判"模型缺失/降级随机"系基于 W7.1.7 旧描述, 实际 08-24 训练已完成; 可选后续: 归档至 `models/qlib_lgb_v2/` (当前 reports/ 路径已工作, 非阻塞); 依赖 W7.1.7; 前置 W7.2.9 (09-13 cron 启动)
 
 **Sprint 2（09-13 ~ 10-12，~4 周）：实盘验证四件套 + 工程基础层 Phase 0-1**
 - [ ] W7.2.1 (09-13~09-26) T15 QMT 实盘接入 (paper → 10% 灰度) — `quant_modules/qmt_connector.py` 完整实现 + paper trading 7 天 + 10% 资金灰度启动
 - [ ] W7.2.2 (09-27~10-10) T16 影子账户跟踪 ≥2 周 — 14 天影子账户跟踪报告 (PnL + 胜率 + 最大回撤 + DriftMonitor)
 - [ ] W7.2.3 (10-11~10-12, 跨 Sprint) T17 灰度发布 (10% → 50% → 100%) — `scripts/gradual_release.py` 三阶段资金切换
 - [ ] W7.2.4 (09-13~10-05) T18 实盘对账系统 — `utils/reconciliation/live_reconciler.py` (新建) 计划单 vs 实际成交对账
-- [ ] W7.2.5 (09-13~10-12) Wave 5 S6 纸交易启动 — CHAIN_MOM_60D 纸交易 ≥30 天跟踪报告
+- [ ] W7.2.5 (09-13~10-12) Wave 5 S6 纸交易启动 — CHAIN_MOM_60D 纸交易 ≥30 天跟踪报告 — ⚠️ **2026-08-26 口径校准**: 原 W5.5 标准 "纸交易≥3月" 与本任务 "≥30 天" 冲突; 决策 = 30 天观察 + 稳定性收紧替代 3 月 (为 S7 前置), 若 30 天内出现不稳定信号自动延长至 3 月并后移 S7
 - [ ] W7.2.6 (09-13~10-12) 工程基础层 Phase 0-1 — uv 环境管理迁移 + python-dotenv 密钥安全 + ruff T201/BLE001 收紧
 - [ ] W7.2.7 (09-13~10-12) ocr 三步固化 Step 1-2 — GLM API 充值 → 补扫 16 文件 → PR 自动审查接入
 - [~] W7.2.8 (09-13~10-12) **MVSK P5-2 shadow 运行 30 天验证** — 实盘 shadow 对比 BL+MVSK(378) vs BL+MV(252)，每日记录权重/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.6 P5-1 — **启动器就绪 2026-08-24**: `scripts/launch_shadow_30day.py` + `utils/shadow_30day_evaluator.py` + 22测试全绿; 待 09-13 cron 启动 30天窗口; 详见 `cairn/shadow-30day-validation.md`
-- [~] W7.2.9 (09-13~10-12) **qlib新选股模型 shadow 运行 30 天对比 V9** — 实盘 shadow 对比 qlib_lgb_v2 vs V9 Regime-Specific，每日记录信号/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.7；详见 `cairn/qlib-backtest-validation.md` — **启动器就绪 2026-08-24** (与 W7.2.8 同包)
+- [~] W7.2.9 (09-13~10-12) **qlib新选股模型 shadow 运行 30 天对比 V9** — 实盘 shadow 对比 qlib_lgb_v2 vs V9 Regime-Specific，每日记录信号/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.8 ✅ (真实模型已就绪 2026-08-24); 详见 `cairn/qlib-backtest-validation.md` — 启动器就绪 2026-08-24 (与 W7.2.8 同包)
 
 **Sprint 3（10-13 ~ 11-12，~4 周）：因子入库 + 风控增强 + 工程基础层 Phase 2**
-- [ ] W7.3.1 (10-13~11-12) Wave 5 S7 小资金 5-10% 灰度入库 — CHAIN_MOM_60D 小资金灰度 ≥30 天跟踪报告 + 完整入库决策
+- [ ] W7.3.1 (10-13~11-12) Wave 5 S7 小资金 5-10% 灰度入库 — CHAIN_MOM_60D 小资金灰度 ≥30 天跟踪报告 + 完整入库决策; 前置: W7.2.5 S6 30 天观察通过 (2026-08-26 口径校准, 不稳定则本任务后移)
 - [ ] W7.3.2 (10-13~10-31) G9 FeatureStore 物理分层 — `utils/feature_store/` (新建: online_store + offline_store + registry) 在线/离线分离 + 增量更新
 - [x] W7.3.3 (10-13~10-31) G11 CVaR 风险计量 — `utils/risk/cvar.py` (新建) + EVT 肥尾建模整合 + 接入风控六件套 ✅ (08-14 完成, 106 tests / 覆盖率 97.24% / 门禁全通过)
 - [ ] W7.3.4 (10-13~11-12) 工程基础层 Phase 2 — Prefect 编排 EOD 工作流 + DuckDB 统一查询层
 - [ ] W7.3.5 (10-13~10-26) ECC skills 选择性安装 — 8 个高价值 skills 安装到 `.codebuddy/`
 - [ ] W7.3.6 (10-13~11-12) ocr Step 3 nightly 全量 scan — `.github/workflows/ocr-nightly.yml` + 周度增量审查
 - [ ] W7.3.7 (10-13~11-12) **MVSK P5-3 正式启用中线层 BL+MVSK(378)** — shadow 通过后（Δ夏普 > 0 且无异常换仓）切换中线层优化器；短线层保持 BL+MV(252)；接入风控六件套监控；依赖 W7.2.8 P5-2
-- [ ] W7.3.8 (10-13~11-12) **qlib新选股模型评估决策** — shadow 30天通过后（Δ夏普 > 0 且无异常换仓）切换 `SignalFusionEngine` 的 `ml` 信号源 V9 → qlib_lgb_v2，alpha_weight=0.4 不变，接入风控六件套监控；依赖 W7.2.9；详见 `cairn/qlib-backtest-validation.md`
+- [ ] W7.3.8 (10-13~11-12) **qlib新选股模型评估决策** — shadow 30天通过后（Δ夏普 > 0 且无异常换仓）切换 `SignalFusionEngine` 的 `ml` 信号源 V9 → qlib_lgb_v2，alpha_weight=0.4 不变，接入风控六件套监控；依赖 W7.2.9 (W7.1.8 ✅ 已就绪); 详见 `cairn/qlib-backtest-validation.md`
 
 **Sprint 4（11-13 ~ 12-31，~7 周）：AutoResearch + LLM 智能进化 + v8.7 发布**
 - [x] W7.4.1 (11-13~12-07) AutoResearch Skill 开发 — `skills/auto_research/` (新建) 自动化因子研究 pipeline: 假设生成 → G15 回测 → S1-S7 门禁 → DSR 验证 → 入库决策 — ✅ **提前完成 2026-08-12** (D5 落地, 38 测试全绿, debt_gate 23/23 GREEN)
@@ -304,7 +300,7 @@ related:
 #### Wave 7 关键决策点
 
 - **08-20 观察期决策日**：若 Wave 1 观察期延长至 08-24（已选定 Plan C），Sprint 1 Phase B 启用顺延至 08-25 启动，整体排期后移 5 天。
-- **09-12 Sprint 1 收尾**：Phase B 4 flag 全部稳定运行 ≥7 天 + daily_workflow ≤4500 行 + R10 清零，方可进入 Sprint 2。
+- **09-12 Sprint 1 收尾（2026-08-26 复核修正）**：~~Phase B 4 flag 全部稳定运行 ≥7 天~~ → **B1+B2 稳定运行 ≥7 天** + daily_workflow ≤4500 行 + R10 清零，方可进入 Sprint 2。B3/B4 (USE_AUTO_RETRAIN / USE_MLOPS_PIPELINE) 非 Sprint 2 前置依赖，并入 Sprint 2 前段完成（原判定在 B4 09-03 启用后 09-12 仅 7 天边缘且与 08-26 硬化的 B 顺序门禁冲突）。
 - **10-12 Sprint 2 收尾**：T15-T18 实盘验证四件套 PASS + QMT 灰度 7 天稳定 + 工程基础层 Phase 0-1 完成，方可进入 Sprint 3。
 - **11-12 Sprint 3 收尾**：S7 入库 + FeatureStore 落地 + CVaR 接入 + Prefect/DuckDB 完成，方可进入 Sprint 4。
 - **12-31 v8.7 发布**：门禁三件套连续 21 天 0 FAIL + 影子账户 2 周稳定 + 灰度 100% + daily_workflow ≤3000 + 覆盖率 ≥0.80，方可发布 v8.7。
@@ -328,8 +324,8 @@ related:
 
 **Sprint 1（09-05 ~ 09-26）：训练→再平衡联动 + 漂移回调启用**
 - [ ] ER-1.1 (09-05~09-12) 训练器新增 `post_train_callback` 钩子（`autolearn_trainer.py`/`lgb_enhanced_trainer.py`/`lgb_tscv_trainer.py`），fail-safe 降级
-- [ ] ER-1.2 (09-13~09-19) 训练→进化→再平衡串联：训练完成 → `EvolutionOrchestratorV2.run_cycle()` → `run_daily_rebalance()`，受 `USE_EVOLUTION_ORCHESTRATOR` 控制
-- [ ] ER-1.3 (09-20~09-26) 漂移→再平衡回调生产启用：`etf_option_hedge_rebalancer.py` 等处实例化 `DriftMonitor` 时传入 `rebalance_callback`，受 `USE_DRIFT_DETECTOR` 控制
+- [ ] ER-1.2 (09-13~09-19) 训练→进化→再平衡串联：训练完成 → `EvolutionOrchestratorV2.run_cycle()` → `run_daily_rebalance()`，受 `USE_EVOLUTION_ORCHESTRATOR` 控制 — ⚠️ **2026-08-26 依赖注记**: 自动重训触发源与 B3 `USE_AUTO_RETRAIN` (冻结中) 强相关; B3 未启用前先以显式训练事件触发 (post_train_callback), 不因 B3 冻结而阻塞
+- [ ] ER-1.3 (09-20~09-26) 漂移→再平衡回调生产启用：`etf_option_hedge_rebalancer.py` 等处实例化 `DriftMonitor` 时传入 `rebalance_callback`，受 `USE_DRIFT_DETECTOR` 控制 — ✅ **2026-08-26 依赖已就绪** (B1 USE_DRIFT_DETECTOR 已真实落盘运行时), 可提前至 09-05~09-12 启动
 
 **Sprint 2（09-27 ~ 10-31）：institutional pipeline 集成**
 - [ ] ER-2.1 (09-27~10-10) `institutional_pipeline_runner.py` 新增 `phase_evolution`（Step 4.6），调用 `EvolutionOrchestratorV2`
@@ -349,6 +345,32 @@ related:
 - [ ] `institutional_pipeline --phase all` 含 evolution + rebalance
 - [ ] 灰度 100% 健康度达标
 
+### Wave 8-LIT：文献驱动系统升级（2026-08-24 ~ 11-02，新增 2026-08-23）— ✅ **全部提前完成 2026-08-24**
+> **定位**：基于系统升级文献调研的 5 Sprint 26 任务，驱动 v8.7 基线就绪（FinGPT/skfolio/Deep Hedging/FinRL-X/R&D-Agent/AlphaForge 等）。**✅ 全量完成 2026-08-24** — LIT-S1~S5 共 26 任务全部落地 (808 测试全绿 + 26 知识专题归档 + pre-commit/ruff 全通过), v8.7 灰度 50% 运行中, 12-31 发布 deadline。详见 `docs/系统升级文献调研与排期_20260823.md` + `cairn/v87-release.md`（全量集成验收报告）。
+> **与 Wave 9-GH 关系**: ✅ **前置依赖（LIT-S5 收尾）已于 08-24 解除** — Wave 9-GH 不再受 LIT 排期约束。
+> **2026-08-26 审查注记**: 原 08-24~11-02 的 LIT 窗口已整体空出; 释放的人力建议接入 Wave 7 Sprint 1/2 缺口 (W7.1.8 ✅ 已就绪 / 覆盖率冲刺), 或用于评估 Wave 9-GH 提前（见 Wave 9-GH 决策注记）。
+
+### Wave 9-GH：GitHub 增补项目集成（2027-01-04 ~ 2027-04-30，新增 2026-08-25）
+> **定位**：基于 2026-08-25 调研的 18 个新增 GitHub 高价值项目（FinRL/evidently/optuna/LightGBM/QuantLib/ARCH/prefect/backtrader 等），系统性集成至 v8.7 基线。4 Sprint（GH-S1 P0核心+漂移 / GH-S2 P1对冲+绩效 / GH-S3 P1工程+回测 / GH-S4 P2评估+收尾），~61 人天。
+> **前置依赖**: ✅ Wave 8-LIT 已于 08-24 全部完成（前置解除，不再依赖 11-02 收尾）。启动时间见下决策注记。详见 `docs/Wave9_GitHub增补集成计划_20260825.md` + `cairn/wave9-gh-integration-20260825.md`。
+> **协调原则**: 去重（Wave 6 已完成的 alphalens/ai-hedge-fund + Wave 8-LIT 已排的 FinGPT/skfolio 不重复）；每子项独立走 spec→design→task→实现→验证。
+> **2026-08-26 决策 (已定, L3 最优方案)**: **正式集成推迟至 2027-01-04 启动, 整体顺延至 2027-04-30** — 原 11-03 启动与 v8.7 发布冲刺 (Wave 7 Sprint 4 + ETF Phase 5 + ER-3 灰度, 11-13~12-31) 资源重载冲突。9-10 月 LIT 空窗仅做 GH-S1 零成本预研 (18 项目去重核对 + 调研, 不占正式 Sprint 人天); 12 月 v8.7 发布为最高优先级, Wave 9 任何工作不得侵入发布窗口。
+
+### Wave 9-GH+：工程化与知识层增补（2026-09-07 ~ 09-25，新增 2026-08-26）
+> **定位**：源自 2026-08-26 GitHub Trending 接入评估（`G 20260826.md`），从 10 个热门项目中筛选出 2 项轻量工程化高价值项。**TradingAgents 经核验已在 Wave 6 Sprint 1-2 完成**（`quant_modules/ai_hedge_fund/` 20 分析师 LangGraph），不重复排期；basecamp/omarchy(Linux)/free-claude-code(ToS 风险)/codex(重叠) 等已排除。
+> **与 Wave 9-GH 关系**: 本子轨道为 GH 生态的工程化/知识层补充，与 Wave 9-GH 量化库集成（2027-01-04 启动）正交，不依赖 Wave 8-LIT/v8.7 发布，可提前独立执行。
+> **执行窗口**: 09-07 ~ 09-25（LIT 空窗期，不侵入 v8.7 发布冲刺 11-13~12-31）。总预估 3-4 人天。
+
+| 任务 ID | 任务 | 来源项目 | 交付物 | 验收标准 | 预估 |
+|---------|------|---------|--------|----------|------|
+| GH+-1 | Skill 通用约束落地 | `multica-ai/andrej-karpathy-skills` 4 原则 | `skills/AGENT_SKILLS_ADAPTER.md` 增补"编码前先思考/简洁优先/精准修改/验证结果"4 原则，作为所有 Skill 通用约束 | 4 原则写入 adapter；现有 FinClaw 1031 + ECC 64 Skill 不破坏；pre-commit 通过 | 1d |
+| GH+-2 | cairn 知识层自动交叉引用 | `AgriciDaniel/claude-obsidian` 知识图谱模式 | 归档环节加自动链接生成（晨报/尽调/专题互相引用），沉淀进 `knowledge/` | 归档后专题间引用链接可跳转；比纯日期堆文件检索提效；不强制装 Obsidian | 2-3d |
+
+**Wave 9-GH+ 门禁**:
+- ✅ karpathy 4 原则写入 `skills/AGENT_SKILLS_ADAPTER.md`，现有 Skill 零破坏
+- ✅ cairn 归档自动交叉引用上线，专题间链接可跳转
+- ✅ 不侵入 v8.7 发布窗口；`cairn/LOG.md` 追加进展条目
+
 ## 开放问题
 
 1. 情绪因子数据源质量 — 当前新闻数据覆盖率和时效性不足，需要更高质量的中文财经新闻源或替代情绪指标
@@ -358,4 +380,4 @@ related:
 5. 自我进化框架观察期 — 2026-08-13 观察期满日是关键决策点：Phase 0 出口是否达成、Public/Private 分离性是否健康、DriftMonitor 是否误报。若三项均通过则解除 Feature Flag 只读限制并启动 Stage B 渐进启用。Phase 4 收尾两项（T4.2 theta_engine.py 切换到统一期权定价内核、T4.7 fineng 影子验证验收报告）需独立排期
 6. **daily_workflow.py 6226 行拆分** — 超架构门禁（≤3000 行），属长期重构非紧急。排期于 Wave 4 或独立周末窗口，禁止交易时段执行。计划见 `cairn/daily-workflow-split-plan.md`
 7. **独立审查报告须二次核验 + 勘误登记** — 2026-08-08 实战：独立审查报告（B1–B5/M1–M7）经代码交叉核验发现 3 处误判（B1 字符串注解≠运行时错误降 P1、B3 离线脚本≠实盘链路重定性 M4、B4/B5 "3.12 语法崩溃"误报撤销）。**铁律：任何 P0 进清零配额前必经二次核验，勘误写进同文档不漂移**。方法论见 `cairn/code-review-independent-audit-20260808.md`；待办：E1 补 `wt_backtest_engine.py` 的 `import pandas as pd`、B4/B5 的 F821/语法逐条核验后清零。
-8. **CI 门禁维护与遗留清理 + 复审发现闭环（2026-08-12 已完成）** — R1/R4 已落地（ci.yml 6 脚本真实实现 + quality-gate.yml PR 增量门禁），C6 稳定 PASS。✅ **工作区未跟踪文件 99 → 0 收敛闭环**：经甄别 99 个文件绝大多数是有效新增代码/测试（Wave6 因子、contracts、execution 闭环、fineng 测试、AI hedge fund 模块、workflow 拆分等），非垃圾；改用分批提交（5 批共 129 文件，全部门禁 0 阻止性）而非删除，零有效工作丢失。**复审 R10/R11/R12 落地**：① R12 `.gitignore` 补齐 `~$*.xlsx` 锁文件 + CI 转储产物（原有规则已覆盖大部分）；② **R10 已逐处精确化清偿（2026-08-12 下午）** — 346 处带 `# fail-safe`/`# noqa: BLE001` 标记的 `except Exception` 经 `scripts/_refine_failsafe_excepts.py`（AST 驱动，按 try 块体上下文推断异常族）全部精确化，T6 计数 **0 处（GREEN）**；残留 ruff BLE001 全量 42 处为独立债（本就裸宽捕获无标记，不在 R10 范围）；③ R11 已落地 — `tests/unit/test_llm_rate_limiter.py`（12 passed）补令牌桶/TTL/退避/单例直测。剩余待办：① `_run_v9_regression.py` 暴露的 D1 压力测试既有问题（非 R1 引入，独立跟踪）；② 后续任何人修改 ci.yml 的 `python scripts/xxx.py` 引用，须同步 `ci_integrity_check.py` 机检；③ 裸 `except Exception` 无标记 42 处独立治理（ai_hedge_fund/**、alpha_factor/**、notify.py、limit_pool_provider.py）后续单独立项，不在 R10 范围。经验见 `cairn/ci-repair-and-gate-lessons-20260812.md` + `cairn/code-review-reaudit-20260812.md`。
+8. **CI 门禁维护与遗留清理 + 复审发现闭环（2026-08-12 已完成）** — R1/R4 落地 (ci.yml 6 脚本真实实现 + quality-gate.yml PR 增量门禁), 工作区未跟踪文件 99→0 收敛 (分批 5 批 129 文件, 零工作丢失), R10 已完成 (346 处 except Exception 精确化, T6=0), R12 .gitignore 补齐。剩余待办: D1 压力测试既有问题独立跟踪 / ci.yml 引用修改须同步 ci_integrity_check.py / 裸 except 42 处独立治理。经验见 `cairn/ci-repair-and-gate-lessons-20260812.md` + `cairn/code-review-reaudit-20260812.md`

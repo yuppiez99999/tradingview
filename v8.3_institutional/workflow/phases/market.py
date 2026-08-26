@@ -29,7 +29,7 @@ class _SafeLevel:
         # 比较时视为低于 LEVEL_3 (LEVEL_3.value=3)
         try:
             return int(getattr(other, "value", 0)) <= 0
-        except Exception:
+        except Exception:  # fail-safe
             return False
 
 
@@ -47,7 +47,7 @@ def phase_market(ctx: WorkflowContext):
         try:
             from risk.circuit_breaker import CircuitBreaker
             ctx.cb = CircuitBreaker()
-        except Exception as e:
+        except Exception as e:  # fail-safe
             logger.warning(f"CircuitBreaker 初始化失败，使用模拟模式: {e}")
             ctx.cb = None
 
@@ -75,7 +75,7 @@ def phase_market(ctx: WorkflowContext):
             portfolio_drop=market_data["portfolio_drop"],
             vix=market_data["vix"],
         )
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.warning(f"CircuitBreaker.check 异常, 降级到 SAFE_LEVEL: {e}")
         level = _SafeLevel()
 
@@ -97,13 +97,13 @@ def phase_market(ctx: WorkflowContext):
     _level_value = getattr(level, "value", 0)
     try:
         _level_value = int(_level_value)
-    except Exception:
+    except Exception:  # fail-safe
         _level_value = 0
     _is_level3_plus = False
     if CircuitLevel is not None:
         try:
             _is_level3_plus = level >= CircuitLevel.LEVEL_3
-        except Exception:
+        except Exception:  # fail-safe
             _is_level3_plus = _level_value >= 3
     else:
         _is_level3_plus = _level_value >= 3
@@ -151,7 +151,7 @@ def phase_market(ctx: WorkflowContext):
                         "[DataQuality] 数据质量通过: %.1f/100",
                         dq_report.overall_score,
                     )
-        except Exception as e:
+        except Exception as e:  # fail-safe
             logger.error(f"[DataQuality] 数据质量检查失败: {e}", exc_info=True)
 
     # === AnySearch 实时新闻扫描 (v7.8: 作为 iFinD 的 fallback) ===
@@ -182,5 +182,5 @@ def _scan_anysearch_news(ctx: WorkflowContext):
             logger.info("[AnySearch] 不可用，跳过")
     except ImportError:
         logger.info("[AnySearch] 模块未安装，跳过")
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.warning(f"[AnySearch] 新闻扫描失败: {e}")

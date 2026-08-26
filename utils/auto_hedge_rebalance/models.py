@@ -26,7 +26,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Optional
 
 # ============================================================================
@@ -34,7 +34,7 @@ from typing import Any, Optional
 # ============================================================================
 
 
-class StrategyLevel(str, Enum):
+class StrategyLevel(StrEnum):
     """策略等级状态机 — 6 档单向降级 + 冷却期升级。
 
     降级链: NORMAL → MILD_CORRECTION → MODERATE_CORRECTION → SEVERE_CORRECTION
@@ -49,7 +49,7 @@ class StrategyLevel(str, Enum):
     CIRCUIT_BREAKER = "CIRCUIT_BREAKER"
 
 
-class CorrectionAction(str, Enum):
+class CorrectionAction(StrEnum):
     """纠偏动作 — 按偏离度分级触发。"""
 
     NONE = "NONE"
@@ -60,7 +60,7 @@ class CorrectionAction(str, Enum):
     EMERGENCY_LIQUIDATE = "EMERGENCY_LIQUIDATE"
 
 
-class HedgeToolType(str, Enum):
+class HedgeToolType(StrEnum):
     """对冲工具类型 — 按市场状态 + Beta 特征选择。"""
 
     NONE = "NONE"
@@ -70,7 +70,7 @@ class HedgeToolType(str, Enum):
     MIXED = "MIXED"
 
 
-class OptionsStrategy(str, Enum):
+class OptionsStrategy(StrEnum):
     """期权策略 — TAIL_EVENT 状态下选择保护性策略。"""
 
     PROTECTIVE_PUT = "PROTECTIVE_PUT"

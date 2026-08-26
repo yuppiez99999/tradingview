@@ -1891,8 +1891,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     health = getattr(provider, "source_health", {}) or {}
     for src, info in health.items():
         ok = info.get("ok", False) if isinstance(info, dict) else False
-        marker = "[OK]" if ok else "[FAIL]"
         err = info.get("last_error", "") if isinstance(info, dict) else ""
+        if ok:
+            marker = "[OK]"
+        elif err:
+            marker = "[FAIL]"
+        else:
+            marker = "[UNUSED]"
         logger.info(f"  {marker} {src}: ok={ok} {err}")
 
     feeder = ShadowRealDataFeeder(

@@ -68,3 +68,8 @@ A股量化交易系统 — 多因子选股、LightGBM增强训练、策略回测
 - 每个实质性推进步骤后，在 `cairn/LOG.md` 顶部追加一条（摘要 + 指针）；让结论沉淀为 `cairn/` 知识专题文档。
 - 跨项目可复用的经验通过毕业机制沉淀（provider 暂缓 — 见上方"初始化配置"）。
 - 开发工作流自动化（Wave 0）：Claude Code Hooks（`.claude/settings.json`）+ pre-commit `forbid-p0-risk` 自动执行质量检查与 cairn 上下文加载；claude-mem 与 cairn 协调原则为"**结论走 cairn，过程走 claude-mem**"；详见 `cairn/dev-workflow-automation.md`。
+
+## Agent-Skills 适配层
+
+- 通用工程 skill（Addy Osmani 的 24 个）已装于 `~/.codebuddy/skills/agent-skills/`。
+- 项目级桥接与量化专属 DoD：`skills/AGENT_SKILLS_ADAPTER.md`（把通用 skill 映射到本系统门禁脚本与领域铁律，勿改写通用 skill 本体）。

@@ -87,7 +87,7 @@ def phase_check(ctx: WorkflowContext) -> bool:
         offset = ntp.get_offset()
         checks["ntp_sync"] = abs(offset) < 0.05
         logger.info(f"NTP 同步: offset={offset:.3f}s {'OK' if checks['ntp_sync'] else 'DRIFT'}")
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.warning(f"NTP 同步失败 (使用本地时间): {e}")
         checks["ntp_sync"] = True  # 降级允许
 
@@ -98,7 +98,7 @@ def phase_check(ctx: WorkflowContext) -> bool:
         checks["risk_manager"] = True
         checks["circuit_breaker"] = True
         logger.info(f"风险模式: {ctx.rm.mode}, 仓位系数: {ctx.rm.position_size_factor}")
-    except Exception as e:
+    except Exception as e:  # fail-safe
         logger.error(f"风控初始化失败: {e}")
         checks["risk_manager"] = False
         checks["circuit_breaker"] = False

@@ -78,7 +78,7 @@ class DailyBuildHedgeSystem:
         self.prices: dict[str, float] = {}
         self._load_plan()
 
-    def _load_plan(self):
+    def _load_plan(self) -> None:
         """加载自动交易计划"""
         plan_path = BASE_DIR / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
         backup_path = BASE_DIR / "500万建仓计划_20260706.json"
@@ -1022,7 +1022,7 @@ class DailyBuildHedgeSystem:
         return lines
 
 
-    def save_report(self, output_dir: str | None = None):
+    def save_report(self, output_dir: str | None = None) -> str:
         """保存报告到文件"""
         out_dir = Path(output_dir) if output_dir else BASE_DIR / "每日报告归档" / self.target_date.strftime("%Y-%m-%d")
         out_dir.mkdir(parents=True, exist_ok=True)

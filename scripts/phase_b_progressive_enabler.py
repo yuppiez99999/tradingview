@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -40,6 +41,7 @@ STATUS_PATH = PROJECT_ROOT / "reports" / "evolution" / "phase_b_status.json"
 DECISIONS_PATH = PROJECT_ROOT / "reports" / "evolution" / "decisions.jsonl"
 OBSERVATION_DATA = PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
 FEATURE_FLAGS_PATH = PROJECT_ROOT / "configs" / "feature_flags.yaml"
+SYSTEM_CONFIG_FILE = PROJECT_ROOT / "system_config.json"
 SHADOW_ADMISSION_YAML = (
     PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
 )
@@ -230,11 +232,21 @@ def update_stable_days(status: PhaseBStatus, verdict: DailyHealthVerdict) -> Pha
 
     健康 +1, 异常归零, 持久化到 phase_b_status.json.
     禁止补录历史样本: verdict.date 早于最后记录日期则拒绝.
+
+    v8.7 修复 (2026-08-26): "数据未生成" ≠ "不健康"。当日 daily_returns.jsonl
+    尚无 date 条目 (no_daily_return) 时, 说明当日 EOD 尚未产出收益数据 — 这是
+    时序问题而非健康异常, 应跳过本次记录 (保持原稳定天数), 而不是归零。
+    否则盘前/盘中误跑 --auto 会把连续稳定天数错误归零 (实测 08-26 从 3→0)。
+    归零仅应发生在"当日数据已生成且确实异常" (kill_switch/lookahead_bias)。
     """
     if status.daily_health_log:
         last_date = status.daily_health_log[-1].get("date", "")
         if verdict.date <= last_date:
             return status
+
+    # 数据未生成 (当日 EOD 未跑) → 跳过, 不归零不记录
+    if verdict.reason == "no_daily_return":
+        return status
 
     if verdict.healthy:
         status.consecutive_stable_days += 1
@@ -384,6 +396,21 @@ STAGE_PROGRESSION = [
 ]
 
 
+def should_run_daily_health_check(stage: str) -> bool:
+    """判断该阶段是否须执行每日 shadow 健康检查.
+
+    v8.6.16 修复 (2026-08-26): D11 门禁的 consecutive_stable_days 是对
+    Phase B 全过程的稳定性要求, 所有已运行阶段 (STAGE_PROGRESSION) 都须
+    持续记录健康日志; 原实现仅 drift_monitor 阶段记录, 导致 08-24 推进到
+    abtest 后 D11 卡 2/7 永不增长。
+
+    Returns:
+        True — 处于 STAGE_1~STAGE_4 任一已运行阶段
+        False — waiting/ready (未启动) / paused / rollback (非运行态)
+    """
+    return stage in {s.value for s in STAGE_PROGRESSION}
+
+
 def _check_stage_health(status: PhaseBStatus) -> tuple[bool, str]:
     """检查当前阶段健康状态 (前阶段是否稳定)."""
     # Stage 1: 仅需观察期满
@@ -394,10 +421,29 @@ def _check_stage_health(status: PhaseBStatus) -> tuple[bool, str]:
         return True, "观察期满, 可启动 Stage 1"
 
     # Stage N>1: 检查前阶段已运行 >= 3 天
-    stage_days = status.current_stage_days
+    # v8.6.16 修复 (2026-08-26): current_stage_days(墙钟天数) 与 EOD 实际稳定日
+    # 是两套独立计数器, 跨周末不连续会导致墙钟计数滞后, 取两者较大值统一口径。
+    # v8.7 修正 (2026-08-26 11:44 事故): 原实现 max(墙钟, consecutive_stable_days)
+    # 中 consecutive_stable_days 是 Phase B 全程累计稳定日 — 会把上一阶段
+    # (如 drift_monitor 08-21) 的稳定日污染进当前阶段计数, 导致 abtest 仅
+    # 实际运行 2 天即被判 3 天达标而越级推进 (B3 顺序断链事故根因)。
+    # 现改为: 只统计 current_stage_start 之后的健康日志天数 (阶段内稳定日),
+    # 墙钟与阶段内稳定日取大 — 保留跨周末补偿意图, 消除跨阶段污染。
+    stage_start = status.current_stage_start or ""
+    stage_stable_days = 0
+    for rec in status.daily_health_log:
+        try:
+            if str(rec.get("date", "")) >= stage_start and rec.get("healthy"):
+                stage_stable_days += 1
+        except (AttributeError, TypeError):
+            continue
+    stage_days = max(status.current_stage_days, stage_stable_days)
     required = status.current_stage_required_days
     if stage_days < required:
-        return False, f"当前阶段运行 {stage_days}/{required} 天不足"
+        return False, (
+            f"当前阶段运行 {stage_days}/{required} 天不足 "
+            f"(墙钟={status.current_stage_days}, 阶段内稳定日={stage_stable_days})"
+        )
 
     # 简单健康检查: 决策日志中最近 3 天无严重错误
     recent_errors = 0
@@ -434,24 +480,212 @@ def _next_stage(current: str) -> str | None:
     return None
 
 
-def _get_flag_state(flag_name: str) -> bool:
-    """从 feature_flags.yaml 读取当前标志位."""
+def _prev_stage(current: str) -> str:
+    """获取上一阶段 (用于推进失败的回滚还原)."""
+    stages = [s.value for s in STAGE_PROGRESSION]
     try:
-        if not FEATURE_FLAGS_PATH.exists():
+        idx = stages.index(current)
+        if idx - 1 >= 0:
+            return stages[idx - 1]
+    except ValueError:
+        pass
+    return PhaseBStage.STAGE_1_DRIFT_MONITOR.value
+
+
+# B flag 顺序门禁 (v8.7 2026-08-26, 任务3 B2/B3 启用顺序决策)
+# spec 单事实源: system_config.json evolution.feature_flags._stage_b_plan
+#   B1 USE_DRIFT_DETECTOR → B2 USE_FEEDBACK_LOOP → B3 USE_AUTO_RETRAIN → B4 USE_MLOPS_PIPELINE
+# 阶段轨 (STAGE_PROGRESSION) 与 B-flag 轨并行, 但 B3 阶段 (auto_retrain)
+# 进入前 B2 flag 必须已启用且 shadow 预热达标 — 防止 08-26 11:44 类越级推进。
+_B2_SHADOW_STATUS_FILE = PROJECT_ROOT / "reports" / "shadow" / "b2_shadow_status.json"
+_B2_WARMUP_TARGET_DAYS = 3
+
+
+def _check_b_order_gate(next_stage: str, status: PhaseBStatus) -> tuple[bool, str]:
+    """B-flag 启用顺序不变式: 高阶阶段推进前校验低阶 B flag 已就绪.
+
+    规则 (对齐 system_config.json _stage_b_plan):
+        - Stage 2 (abtest): B1 USE_DRIFT_DETECTOR 必须已启用
+        - Stage 3 (auto_retrain): B2 USE_FEEDBACK_LOOP 必须已启用 (B2_OK)
+          且 B2 shadow 预热 ≥ 3 天且全部 Go (diff_rate < 0.05)
+        - Stage 4 (orchestrator): B3 USE_AUTO_RETRAIN 必须已启用 (B3_OK)
+    """
+    if next_stage == PhaseBStage.STAGE_2_ABTEST.value:
+        if not status.flags_enabled.get("USE_DRIFT_DETECTOR", False):
+            return False, "B 顺序门禁: 推进到 abtest 需 B1 USE_DRIFT_DETECTOR 已启用"
+        return True, ""
+
+    if next_stage == PhaseBStage.STAGE_3_AUTO_RETRAIN.value:
+        if not status.flags_enabled.get("USE_FEEDBACK_LOOP", False):
+            return False, (
+                "B 顺序门禁: 推进到 auto_retrain (B3) 需 B2 USE_FEEDBACK_LOOP 已启用 "
+                "(当前仍为 False, B2 shadow 预热中 — 禁止越级)"
+            )
+        warmup_days, all_go = _read_b2_shadow_warmup()
+        if warmup_days < _B2_WARMUP_TARGET_DAYS or not all_go:
+            return False, (
+                f"B 顺序门禁: B2 shadow 预热 {warmup_days}/{_B2_WARMUP_TARGET_DAYS} 天 "
+                f"未达标 (all_go={all_go})"
+            )
+        return True, ""
+
+    if next_stage == PhaseBStage.STAGE_4_ORCHESTRATOR.value:
+        if not status.flags_enabled.get("USE_AUTO_RETRAIN", False):
+            return False, (
+                "B 顺序门禁: 推进到 orchestrator 需 B3 USE_AUTO_RETRAIN 已启用"
+            )
+        return True, ""
+
+    return True, ""
+
+
+def _read_b2_shadow_warmup() -> tuple[int, bool]:
+    """读取 B2 shadow 预热状态: (warmup_days, history 全部 Go)."""
+    try:
+        if not _B2_SHADOW_STATUS_FILE.exists():
+            return 0, False
+        data = json.loads(_B2_SHADOW_STATUS_FILE.read_text(encoding="utf-8"))
+        warmup = int(data.get("warmup_days", 0))
+        history = data.get("history", [])
+        all_go = all("Go" in str(h.get("suggestion", "")) for h in history) if history else False
+        return warmup, all_go
+    except (ValueError, TypeError, KeyError, OSError):
+        return 0, False
+
+
+def _get_flag_state(flag_name: str) -> bool:
+    """从 system_config.json 读取当前标志位 (单事实源: feature_flags).
+
+    v8.7 修复 (2026-08-26): 原实现是空壳 — 注释明说 "不直接解析 YAML, 走
+    status.json 记录" 且永远返回 False, 导致 enabler 无法感知真实 flag 状态,
+    出现 "status.json 说 B1=true 但 system_config 实际 false" 的断链。
+    现改为真正读取 system_config.json 的 feature_flags (兼容 evolution.feature_flags)。
+    """
+    try:
+        if not SYSTEM_CONFIG_FILE.exists():
             return False
-        with FEATURE_FLAGS_PATH.open("r", encoding="utf-8") as f:
-            content = f.read()
-        # 简单 YAML 解析 (仅匹配 default: true/false)
-        for line in content.split("\n"):
-            line = line.strip()
-            if line.startswith(f"{flag_name}:"):
-                # 向下找 default:
-                continue
-        # 简化: 不直接解析 YAML, 走 status.json 记录
-        return False
+        with SYSTEM_CONFIG_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        evolution = data.get("evolution", data)
+        feature_flags = evolution.get("feature_flags", {})
+        return bool(feature_flags.get(flag_name, False))
     except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return False
+
+
+def _sync_flags_to_system_config(flags: dict[str, bool]) -> tuple[bool, str]:
+    """把 enabler 决策出的 flags 原子落盘到 system_config.json 的 feature_flags.
+
+    v8.7 修复 (2026-08-26): 原 cmd_advance 只把 flag 写进 phase_b_status.json 的
+    flags_enabled, 从不写回 system_config.json, 造成决策与真实运行脱节 (B1 显示已启用
+    但运行时 feature_flags.USE_DRIFT_DETECTOR 仍为 false)。本函数补齐"决策→执行"闭环:
+    每次推进都把该阶段应启用的 flag 同步到运行时权威源, 带原子写 + 审计日志。
+
+    Args:
+        flags: 需确保为指定值的 flag 字典 (如 {"USE_DRIFT_DETECTOR": True, "USE_ABTEST": True})
+
+    Returns:
+        (success, message)
+    """
+    try:
+        if not SYSTEM_CONFIG_FILE.exists():
+            return False, f"system_config.json 不存在: {SYSTEM_CONFIG_FILE}"
+        with SYSTEM_CONFIG_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # 定位 feature_flags (优先 evolution.feature_flags, 回退顶层)
+        if "evolution" in data and isinstance(data["evolution"], dict):
+            feature_flags = data["evolution"].setdefault("feature_flags", {})
+        else:
+            feature_flags = data.setdefault("feature_flags", {})
+
+        applied = {}
+        for flag_name, flag_value in flags.items():
+            old = bool(feature_flags.get(flag_name, False))
+            feature_flags[flag_name] = bool(flag_value)
+            if old != bool(flag_value):
+                applied[flag_name] = flag_value
+
+        tmp_path = str(SYSTEM_CONFIG_FILE) + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, str(SYSTEM_CONFIG_FILE))
+
+        if applied:
+            logger.info("Flag 已同步到 system_config.json: %s", applied)
+            return True, f"已落盘 {len(applied)} 个 flag 变更: {applied}"
+        return True, "flag 状态无变化, 无需落盘"
+    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        return False, f"同步 flag 失败: {e}"
+
+
+# 自动化推进的身份标识 (审计用, 与人工双签区分)
+_ENABLER_SIGNER = "phase_b_enabler"
+_ENABLER_CO_SIGNER = "phase_b_health_gate"
+
+
+def _apply_flags_to_runtime(flags: dict[str, bool], reason: str) -> tuple[bool, str]:
+    """通过 FeatureFlags 官方 API 把 flag 决策写入运行时覆盖层.
+
+    v8.7 修复 (2026-08-26): 运行时真实消费链是
+    configs 注册表 (config/feature_flags.yaml) + 运行时覆盖
+    (reports/flag_overrides/{FLAG}.json), 而 phase_b_status.json /
+    system_config.json 都只是快照。本函数走 utils.infra.feature_flags 的
+    enable()/disable() 官方 API — 自动满足 ADR-003 双签约束并写审计日志
+    (reports/flag_audit/{FLAG}.jsonl), 使阶段推进的 flag 决策真正作用于运行时。
+
+    Args:
+        flags: 需确保为指定值的 flag 字典
+        reason: 审计原因 (如 "Stage 1 启动" / "紧急回滚")
+
+    Returns:
+        (success, message)
+    """
+    try:
+        from utils.infra.feature_flags import FeatureFlags
+
+        ff = FeatureFlags.get_instance()
+        applied = {}
+        skipped = []
+        for flag_name, flag_value in flags.items():
+            want = bool(flag_value)
+            current = ff.is_enabled(flag_name)
+            if current == want:
+                continue
+            try:
+                if want:
+                    ff.enable(flag_name, signer=_ENABLER_SIGNER, co_signer=_ENABLER_CO_SIGNER, reason=reason)
+                else:
+                    ff.disable(flag_name, signer=_ENABLER_SIGNER, reason=reason)
+                applied[flag_name] = want
+            except Exception as e:  # noqa: BLE001 — 单 flag 失败不应中断其余
+                skipped.append(f"{flag_name}({e})")
+
+        if skipped:
+            return False, f"部分 flag 失败: {', '.join(skipped)}; 已应用: {applied or '无'}"
+        if applied:
+            return True, f"运行时已应用 {len(applied)} 个 flag: {applied}"
+        return True, "运行时 flag 已一致, 无需变更"
+    except ImportError as e:
+        return False, f"FeatureFlags 模块不可用: {e}"
+    except Exception as e:  # noqa: BLE001 — 决策路径异常须显式上报
+        return False, f"运行时 flag 应用失败: {e}"
+
+
+def _execute_flag_decisions(flags: dict[str, bool], reason: str) -> tuple[bool, list[str]]:
+    """决策→执行总入口: 同时落盘运行时覆盖层 + system_config 快照.
+
+    Returns:
+        (success, messages) — messages 用于 notes 审计留痕
+    """
+    messages: list[str] = []
+    ok_runtime, msg_runtime = _apply_flags_to_runtime(flags, reason)
+    messages.append(f"runtime: {msg_runtime}")
+    ok_config, msg_config = _sync_flags_to_system_config(flags)
+    messages.append(f"config: {msg_config}")
+    success = ok_runtime and ok_config
+    return success, messages
 
 
 # ============================================================
@@ -521,7 +755,8 @@ def cmd_advance() -> int:
             print("[OK] 观察期已满 → Stage 0 (Ready)")
             return 0
         else:
-            print(f"[WAIT] 观察期 {obs_days}/{status.observation_days_required} 天, 还需 {status.observation_days_required - obs_days} 天")
+            need = status.observation_days_required - obs_days
+            print(f"[WAIT] 观察期 {obs_days}/{status.observation_days_required} 天, 还需 {need} 天")
             return 1
 
     # 2) 如果处于就绪状态 → 启动 Stage 1
@@ -534,10 +769,23 @@ def cmd_advance() -> int:
         status.current_stage_start = datetime.now().strftime("%Y-%m-%d")
         status.current_stage_days = 0
         status.flags_enabled = STAGE_FLAGS.get(PhaseBStage.STAGE_1_DRIFT_MONITOR.value, {})
-        status.notes.append(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 启动 Stage 1: DriftMonitor 只读监控")
+        # v8.7 修复: 决策→执行闭环 — 先落盘 flag 再提交状态, 失败则还原 (fail-close)
+        ok_exec, exec_msgs = _execute_flag_decisions(status.flags_enabled, "Phase B 启动 Stage 1 DriftMonitor")
+        if not ok_exec:
+            status.stage = PhaseBStage.STAGE_0_READY.value
+            status.flags_enabled = {}
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+            status.notes.append(f"[{ts}] 启动 Stage 1 失败 (flag 落盘失败): {'; '.join(exec_msgs)}")
+            _save_phase_b_status(status)
+            print(f"[FAIL] 启动中止 — flag 落盘失败: {'; '.join(exec_msgs)}")
+            return 1
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        status.notes.append(f"[{ts}] 启动 Stage 1: DriftMonitor 只读监控; {'; '.join(exec_msgs)}")
         _save_phase_b_status(status)
         print("[OK] → Stage 1: DriftMonitor 只读监控")
         print(f"     Flags 已设置: {status.flags_enabled}")
+        for m in exec_msgs:
+            print(f"     [{m}]")
         return 0
 
     # 3) 推进到下一阶段
@@ -552,16 +800,43 @@ def cmd_advance() -> int:
         print("    请等待当前阶段稳定后再推进")
         return 1
 
+    # v8.7 任务3: B-flag 启用顺序硬门禁 (B2 未就绪禁止推进 B3 阶段)
+    b_order_ok, b_order_msg = _check_b_order_gate(next_stage, status)
+    if not b_order_ok:
+        print(f"[BLOCK] {b_order_msg}")
+        status.notes.append(
+            f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 推进到 {next_stage} 被顺序门禁拦截: {b_order_msg}"
+        )
+        _save_phase_b_status(status)
+        return 1
+
     status.stage = next_stage
     status.current_stage_start = datetime.now().strftime("%Y-%m-%d")
     status.current_stage_days = 0
     new_flags = STAGE_FLAGS.get(next_stage, {})
     status.flags_enabled.update(new_flags)
-    status.notes.append(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 推进到 {next_stage}")
+    # v8.7 修复: 决策→执行闭环 — 推进前先落盘 flag (运行时覆盖层 + system_config 快照),
+    # 失败则还原状态并中止 (fail-close: 决策路径不静默降级)
+    ok_exec, exec_msgs = _execute_flag_decisions(status.flags_enabled, f"Phase B 推进到 {next_stage}")
+    if not ok_exec:
+        status.stage = _prev_stage(next_stage)
+        status.current_stage_start = datetime.now().strftime("%Y-%m-%d")
+        status.current_stage_days = 0
+        for k in new_flags:
+            status.flags_enabled.pop(k, None)
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        status.notes.append(f"[{ts}] 推进到 {next_stage} 失败 (flag 落盘失败): {'; '.join(exec_msgs)}")
+        _save_phase_b_status(status)
+        print(f"[FAIL] 推进中止 — flag 落盘失败: {'; '.join(exec_msgs)}")
+        return 1
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    status.notes.append(f"[{ts}] 推进到 {next_stage}; {'; '.join(exec_msgs)}")
     _save_phase_b_status(status)
 
     print(f"[OK] → {next_stage}")
     print(f"     Flags: {new_flags}")
+    for m in exec_msgs:
+        print(f"     [{m}]")
     return 0
 
 
@@ -582,9 +857,73 @@ def cmd_rollback() -> int:
     status.notes.append(
         f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 紧急回滚: 所有进化 Flag 已关闭"
     )
+    # v8.7 修复: 决策→执行闭环 — 回滚必须真正关闭运行时 flag (安全关键路径)
+    rollback_flags = {
+        "USE_DRIFT_DETECTOR": False,
+        "USE_ABTEST": False,
+        "USE_FEEDBACK_LOOP": False,
+        "USE_AUTO_RETRAIN": False,
+        "USE_MLOPS_PIPELINE": False,
+        "USE_EVOLUTION_ORCHESTRATOR": False,
+        "USE_FINENG_GARCH": False,
+        "USE_FINENG_KALMAN_BETA": False,
+        "USE_FINENG_EVT": False,
+        "USE_FINENG_PATH_SIM": False,
+    }
+    ok_exec, exec_msgs = _execute_flag_decisions(rollback_flags, "Phase B 紧急回滚")
+    status.notes.append(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 回滚执行: {'; '.join(exec_msgs)}")
     _save_phase_b_status(status)
     print("[ROLLBACK] 所有进化 Feature Flag 已关闭")
     print(f"     Flags: {status.flags_enabled}")
+    for m in exec_msgs:
+        print(f"     [{m}]")
+    if not ok_exec:
+        print("[WARN] 回滚存在失败项 — 请人工核查 reports/flag_overrides/ 并手动关闭!")
+        return 1
+    return 0
+
+
+def cmd_sync_flags() -> int:
+    """对账: 把 phase_b_status.json 已决策的 flags 执行到运行时 (幂等).
+
+    v8.7 (2026-08-26): 修复历史遗留的"已决策未执行"漂移 — 旧版 cmd_advance
+    只写 status.json 不落盘任何运行时事实源, 导致阶段已推进但运行时 flag 仍为
+    False (如 B1 USE_DRIFT_DETECTOR)。本命令读取当前阶段的 flags_enabled,
+    通过 FeatureFlags 官方 API + system_config 快照双落盘对齐。
+
+    安全约束: 仅执行 status.json 中已存在的决策 (不产生新决策);
+    B2/B3 等未启用 flag 因 status 中为 False, 不会被打开。
+    """
+    status = _load_phase_b_status()
+    if not status.flags_enabled:
+        print("[WAIT] status.json 无已决策 flags, 无需对账")
+        return 0
+
+    # kill_switch 当日触发时拒绝执行 (fail-close)
+    today = datetime.now().strftime("%Y-%m-%d")
+    ks_ok, ks_msg = _check_kill_switch_inactive(today)
+    if not ks_ok:
+        print(f"[BLOCK] kill_switch 当日已触发 ({ks_msg}), 拒绝对账执行")
+        return 1
+
+    print(f"[SYNC] 对账 {len(status.flags_enabled)} 个已决策 flags (stage={status.stage}):")
+    for name, val in sorted(status.flags_enabled.items()):
+        print(f"    {name} = {val}")
+
+    ok_exec, exec_msgs = _execute_flag_decisions(
+        dict(status.flags_enabled), f"Phase B 对账执行 (stage={status.stage})"
+    )
+    status.notes.append(
+        f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] --sync-flags 对账: {'; '.join(exec_msgs)}"
+    )
+    _save_phase_b_status(status)
+
+    for m in exec_msgs:
+        print(f"    [{m}]")
+    if not ok_exec:
+        print("[FAIL] 对账存在失败项 (见上)")
+        return 1
+    print("[OK] 运行时与快照均已对齐已决策状态")
     return 0
 
 
@@ -602,8 +941,10 @@ def cmd_auto() -> int:
         except ValueError:
             pass
 
-    # Stage 1 drift_monitor: 每日健康检查 + 累积 consecutive_stable_days
-    if status.stage == PhaseBStage.STAGE_1_DRIFT_MONITOR.value:
+    # 每日健康检查 + 累积 consecutive_stable_days
+    # v8.6.16 修复 (2026-08-26): 原仅 STAGE_1_DRIFT_MONITOR 执行, 阶段推进到 abtest 后
+    # D11 稳定天数累计断链 (卡 2/7 永不增长), 已运行阶段都须持续健康记录。
+    if should_run_daily_health_check(status.stage):
         today = datetime.now().strftime("%Y-%m-%d")
         try:
             verdict = evaluate_daily_shadow_health(today)
@@ -659,6 +1000,7 @@ def main() -> int:
     group.add_argument("--advance", action="store_true", help="尝试推进到下一阶段")
     group.add_argument("--rollback", action="store_true", help="紧急回滚全部 Flag")
     group.add_argument("--auto", action="store_true", help="每日自动调度 (定时任务)")
+    group.add_argument("--sync-flags", action="store_true", help="把已决策 flags 对账执行到运行时 (幂等)")
     args = parser.parse_args()
 
     if args.check:
@@ -669,6 +1011,8 @@ def main() -> int:
         return cmd_rollback()
     elif args.auto:
         return cmd_auto()
+    elif args.sync_flags:
+        return cmd_sync_flags()
     return 0
 
 

@@ -55,11 +55,11 @@ if (-not (Test-Path $logDir)) {
 $tasks = @(
     @{
         Name = "v84_PreMarket"
-        StartTime = "07:00"
+        StartTime = "08:00"
         Script = "15_每日工作流\run_daily_morning.py"
         Args = "--phase all"
         Timeout = "PT2H"
-        Desc = "盘前工作流（晨间信息采集+康波+ETF+舆情）07:00"
+        Desc = "盘前工作流（晨间信息采集+校准+交易计划+LLM决策+综合报告）08:00"
         RepetitionInterval = $null
         RepetitionDuration = $null
     },

@@ -81,9 +81,9 @@
 | 门禁 | 状态 | 当前值 | 目标 |
 |------|------|--------|------|
 | D9 覆盖率 Sprint4 | ✅ 达标 | line_rate=0.833, branch_rate=0.7605 | ≥0.80 |
-| D10 超大文件拆分 | ❌ 待拆 | 2620+2691行 | ≤2000行 |
+| D10 超大文件拆分 | ✅ 达标 | institutional_pipeline_runner 1744行 + automated_execution_system 1860行 | ≤2000行 |
 | D11 PhaseB shadow 7天稳定 | ⏳ 进行中 | 0/7天 | 7天稳定 |
-| v8.7 汇总判定 | ❌ BLOCK | 三门禁未全达标 | 全PASS放行 |
+| v8.7 汇总判定 | ⏳ 待D11 | D9✅ D10✅ D11待积累 | 全PASS放行 |
 
 ### Phase B 观察期达标 + B1 自动启用 ✅
 - **观察期达标**：`daily_returns.jsonl` 21条（07-23~08-20），真实样本21/20 ✅

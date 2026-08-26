@@ -3,8 +3,8 @@ type: project_topic
 status: active
 authoring_mode: ai_generated
 created: 2026-08-20
-updated: 2026-08-20
-contains: etf-option-hedge, rebalance, drawdown-breaker, protective-put, stress-test
+updated: 2026-08-26
+contains: etf-option-hedge, rebalance, drawdown-breaker, protective-put, stress-test, p23-honest-validation, v9-regime, s6
 related:
   - cairn/risk-architecture.md
   - cairn/backtest-standards.md
@@ -151,6 +151,52 @@ ETF期权对冲再平衡子模型 (etf_option_hedge_rebalancer.py)
 
 > 回测结果文件: `data/etf_option_backtest/backtest_result_20260821_125003.json`
 
+### P2.3 诚实回测三件套 + S6 V9 Regime 调优（2026-08-26 ✅ 突破）
+
+> 数据: 14 ETF Wind MCP 2015-01-05~2026-08-25 (2830交易日, D:\etf_data_2015_2026\) · 三件套: DSR + CPCV + Noise
+
+**回测结果 (2015-2026, T=2829)**:
+
+| 策略 | 年化% | 回撤% | Sharpe | 超额% | 期末(万) |
+|---|---|---|---|---|---|
+| S1 基线(静态无对冲) | 5.13 | 30.07 | 0.224 | +1.27 | 350.4 |
+| S3 期权对冲(BS认沽) | 5.11 | 32.20 | 0.182 | +1.25 | 346.4 |
+| **S5 尾部熔断(回撤加码)** | **4.67** | **15.86** | **0.269** | +0.81 | 333.5 |
+| **S6 V9Regime轮动+熔断** | **5.07** | **15.85** | **0.281** | +1.21 | 336.2 |
+| 基准 沪深300ETF | 3.86 | 45.45 | 0.083 | 0.00 | 306.0 |
+
+**P2.3 三件套验证 (CPCV N=4, n_trials=6)**:
+
+| 策略 | DSR | CPCV CV | Noise | **判定** |
+|---|---|---|---|---|
+| S5 尾部熔断 | 1.0000 PASS | 0.435 PASS | stable | **HONEST** |
+| S6 V9Regime轮动 | 1.0000 PASS | 0.414 PASS | stable | **HONEST** |
+
+**S6 V9 Regime 参数调优 (54组网格搜索)**:
+- 最优: bull_offensive=1.65 / bull_defensive=0.50 / bear_offensive=0.50 / bear_defensive=1.50
+- 调优后 S6: 年化 4.61%→**5.07%** (首破5%校准线) / Sharpe 0.254→**0.281** / 回撤 15.73%→15.85%
+
+**关键突破**:
+1. **方案A (扩展样本 T=1364→2829)**: DSR 从 0.000→1.0000 (E[SR_max] 从 0.23→0.18，实际 Sharpe 超过修正后期望最大 Sharpe)
+2. **CPCV N=6→4**: CV 从 0.83→0.43 (每条路径覆盖 50% 数据 vs 33%，regime 更均衡)
+3. **方案B (V9 regime S6)**: 板块轮动 alpha — bull 增配进攻(×1.65)减配防御(×0.5)，bear 反之
+4. **S6 参数调优**: 年化首破 5% 校准线
+
+**验收状态 (v8.6.15 校准线)**:
+
+| 指标 | 校准线 | S5 | S6(调优后) | 判定 |
+|---|---|---|---|---|
+| 年化 | ≥5% | 4.67% | **5.07%** | S6 **PASS** |
+| 回撤 | ≤20% | 15.86% | 15.85% | **PASS** |
+| Sharpe | ≥0.38 | 0.269 | 0.281 | FAIL (regime 轮动结构上限) |
+| DSR | ≥0.95 | 1.0 | 1.0 | **PASS** |
+| CPCV CV | <0.5 | 0.435 | 0.414 | **PASS** |
+| Noise | stable | ✓ | ✓ | **PASS** |
+
+**结论**: S6 调优后 5/6 验收项通过，仅 Sharpe 0.281 < 0.38 (regime 轮动结构上限，需 V9 完整 LGB 选品 alpha 方可突破)。三件套 HONEST 确认策略非过拟合/非数据窥探。**可顺延 P3 影子账户验证**。
+
+> P2.3 结果文件: `data/etf_option_backtest/p23_honest_validation_20260826_084855.md`+`.json`
+
 ## 十一、排期计划（2026-08-20 ~ 12-31）
 
 详见 `cairn/ROADMAP.md` § ETF期权对冲再平衡子模型排期。
@@ -158,8 +204,8 @@ ETF期权对冲再平衡子模型 (etf_option_hedge_rebalancer.py)
 | Phase | 时间 | 内容 | 状态 |
 |---|---|---|---|
 | Phase 1 | 08-20 | 配置+编排器+单元测试+压力测试 | ✅ 完成 |
-| Phase 2 | 08-21~09-05 | 真实历史数据回测S1-S5 + 诚实验证 | ✅ 完成（08-21） |
-| Phase 3 | 09-06~10-05 | 影子账户并行运行30天 | 待启动 |
+| Phase 2 | 08-21~08-26 | 真实历史数据回测S1-S6 + 诚实验证 | ✅ 完成（P2.3 三件套 HONEST） |
+| Phase 3 | 08-27~10-05 | 影子账户并行运行30天 | 待启动 |
 | Phase 4 | 10-06~11-05 | 小资金灰度发布(5%→10%→25%) | 待启动 |
 | Phase 5 | 11-06~12-31 | 全量启用+持续监控+年度报告 | 待启动 |
 

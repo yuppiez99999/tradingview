@@ -100,6 +100,11 @@ SHADOW_STATE_REBUILD_SCRIPT = PROJECT_ROOT / "scripts" / "rebuild_shadow_state_f
 #   daily_returns.jsonl 实时天数, 并在观察期满时条件推进阶段 B.
 # 修复决策日 (08-24, 2026-08-11 从 08-20 延期) 读到陈旧 5/14 的双源分裂: phase_b_status.json 从未被 EOD 自动回写.
 PHASE_B_ENABLER_SCRIPT = PROJECT_ROOT / "scripts" / "phase_b_progressive_enabler.py"
+# 阶段四点九: B2 shadow 每日预热 (任务3 B2/B3 启用顺序决策, 2026-08-26)
+# 在 Phase B 状态回写 (4.8) 之后执行: 运行 FeedbackLoop shadow 比对 (不切 flag,
+# USE_FEEDBACK_LOOP 保持 False), 累积 b2_shadow_status.json 的 warmup_days (目标 3 天)。
+# 修复断链: 此前 b2_shadow_runner 从未接入任何调度, 预热永远卡 0/3, B2 永远无法启用。
+PHASE_B_B2_SHADOW_SCRIPT = PROJECT_ROOT / "scripts" / "phase_b_b2_shadow_runner.py"
 # 阶段零: 年化收益预测校准 (生成 portfolio_return_projection.json, 供阶段一报告引用)
 CALIBRATE_PROJECTION_SCRIPT = PROJECT_ROOT / "v8.3_institutional" / "calibrate_returns_projection.py"
 TRADE_PLANS_DIR = PROJECT_ROOT / "v8.3_institutional" / "trade_plans"
@@ -1150,6 +1155,56 @@ def run_phase4_8_phase_b_sync(report_date, eod_summary, args):
     return phase_sync_success
 
 
+def run_phase4_85_b2_shadow_warmup(report_date, eod_summary, args):
+    """阶段四点八五: B2 shadow 每日预热 (任务3 B2/B3 启用顺序决策, 2026-08-26).
+
+    在 Phase B 状态回写 (4.8) 之后执行:
+        1. 调用 scripts/phase_b_b2_shadow_runner.py (每日 shadow 比对, 不切 flag)
+        2. 累积 reports/shadow/b2_shadow_status.json 的 warmup_days (目标 3 天)
+        3. B2 flag (USE_FEEDBACK_LOOP) 保持 False — shadow 模式硬约束
+
+    修复断链: b2_shadow_runner.py 此前从未接入任何调度 (定时任务/EOD 均无),
+    预热永远卡 0/3 天, B2 永远无法满足启用前置 — 与 D11 卡 2/7 同类断链。
+
+    HC 合规:
+        - HC-1: shadow 模式不切 Flag (USE_FEEDBACK_LOOP=False 不变式由 runner 自检)
+        - fail-safe: 失败不中断 EOD 主流程 (仅 WARN + summary 记录)
+    """
+    if args.skip_shadow:
+        log("\n>>> 阶段四点八五: 跳过 B2 shadow 预热 (--skip-shadow) <<<")
+        eod_summary["phases"]["phase4_85_b2_shadow"] = {"skipped": True}
+        return False
+
+    if not PHASE_B_B2_SHADOW_SCRIPT.exists():
+        log(f"\n>>> 阶段四点八五: 跳过 B2 shadow 预热 (脚本不存在: {PHASE_B_B2_SHADOW_SCRIPT}) <<<", "WARN")
+        eod_summary["phases"]["phase4_85_b2_shadow"] = {
+            "skipped": True,
+            "reason": "script not found",
+        }
+        return False
+
+    log("\n>>> 阶段四点八五: B2 shadow 每日预热 (USE_FEEDBACK_LOOP=False 不变式) <<<")
+    log(f"  日期: {report_date}")
+    b2_success, _ = run_step(
+        "B2 Shadow Warmup",
+        PHASE_B_B2_SHADOW_SCRIPT,
+        ["--date", str(report_date)],
+        timeout_minutes=3,
+        allowed_exit_codes=[0],
+    )
+    eod_summary["phases"]["phase4_85_b2_shadow"] = {
+        "success": b2_success,
+        "script": str(PHASE_B_B2_SHADOW_SCRIPT),
+        "date": report_date,
+        "flag_invariant": "USE_FEEDBACK_LOOP=False",
+    }
+    if b2_success:
+        log("  ✅ B2 shadow 预热已累积 (见 reports/shadow/b2_shadow_status.json)")
+    else:
+        log("  ⚠️ B2 shadow 预热失败, 不影响 EOD 主流程 (fail-open)", "WARN")
+    return b2_success
+
+
 def run_phase5_archive(report_date, today_dir, eod_summary, args):
     """阶段五：归档报告"""
     if args.skip_archive:
@@ -1346,6 +1401,12 @@ def main():
     phase_phaseb_success = run_phase4_8_phase_b_sync(report_date, eod_summary, args)
     success_count += phase_phaseb_success
     fail_count += not phase_phaseb_success
+
+    # 任务3 (2026-08-26): B2 shadow 每日预热 — 在 Phase B 状态回写后累积 warmup_days,
+    # B2 (USE_FEEDBACK_LOOP) 启用前置 (3 天预热全 Go), 不切 flag
+    phase_b2_shadow_success = run_phase4_85_b2_shadow_warmup(report_date, eod_summary, args)
+    success_count += phase_b2_shadow_success
+    fail_count += not phase_b2_shadow_success
 
     # 阶段四点五五: PnL 归因报告生成 (FeedbackLoop 前置依赖, 2026-08-18)
     # 在 Shadow 数据 + 漂移检测 + Phase B 回写之后、FeedbackLoop 之前执行,

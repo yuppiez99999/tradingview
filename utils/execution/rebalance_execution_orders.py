@@ -41,7 +41,7 @@ MIN_LOT_SIZE = 100
 TARGET_TOTAL = 5_000_000.0
 
 
-def load_positions():
+def load_positions() -> tuple[dict[str, float], dict[str, float], dict[str, str]]:
     # T3.6 修正: 使用动态解析的项目根目录 (不再硬编码 v7.1 路径)
     path = _PROJECT_ROOT / "config" / "positions.json"
     try:
@@ -258,7 +258,7 @@ def build_report(style_allocation: dict, target_allocation: dict, orders: list) 
     return report
 
 
-def main():
+def main() -> None:
     positions, prices, styles = load_positions()
     style_allocation = calc_current_allocation(positions, prices, styles)
     orders = generate_rebalance_orders(style_allocation, TARGET_ALLOCATION, positions, prices)

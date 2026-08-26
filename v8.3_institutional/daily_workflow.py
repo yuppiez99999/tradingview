@@ -495,7 +495,7 @@ class DailyWorkflow:
                 self.ifind_analyzer = None
             else:
                 logger.info("iFinD 新闻资讯分析模块已就绪")
-        except Exception as exc:
+        except Exception as exc:  # fail-safe
             logger.warning("iFinD 新闻资讯模块导入失败: %s", exc)
             self.ifind_analyzer = None
 
@@ -520,7 +520,7 @@ class DailyWorkflow:
                 # 解析 trade_date 为 date 对象用于阶段判断
                 try:
                     sim_date = datetime.strptime(self.trade_date, "%Y-%m-%d").date()
-                except Exception:
+                except Exception:  # fail-safe
                     sim_date = None
                 self.current_phase_info = self.phase_manager.get_current_phase(sim_date)
                 logger.info(
@@ -529,7 +529,7 @@ class DailyWorkflow:
                     f"回撤限 {self.current_phase_info.max_drawdown:.0%}, "
                     f"杠杆 {self.current_phase_info.leverage_target}x)"
                 )
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("PhaseManager 初始化失败: %s", exc)
                 self.phase_manager = None
 
@@ -547,7 +547,7 @@ class DailyWorkflow:
                     total_capital=getattr(self, "capital", 5_000_000)
                 )
                 logger.info("对冲基金模块初始化成功 (ExecutionAlgo/PnLAttribution/DataQuality/MultiStrategyCoord)")
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("对冲基金模块初始化失败: %s", exc)
 
         # 机构级配置模块 (Black-Litterman / TCA / Barra)
@@ -564,7 +564,7 @@ class DailyWorkflow:
                 self.tca_manager = TCAManager()
                 self.barra_decomposer = BarraRiskDecomposer()
                 logger.info("机构级模块初始化成功 (BlackLitterman/TCA/Barra)")
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("机构级模块初始化失败: %s", exc)
 
         # 顶级风险管理模块 (Ledoit-Wolf / 风险预算约束 / 压力测试)
@@ -583,7 +583,7 @@ class DailyWorkflow:
                     risk_threshold=-0.10,
                 )
                 logger.info("风险管理模块初始化成功 (LedoitWolf/RiskBudgetOpt/StressTest)")
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("风险管理模块初始化失败: %s", exc)
 
         # 顶级 Alpha 生成模块 (Alpha 因子库 / 动量反转 / Smart Beta)
@@ -596,7 +596,7 @@ class DailyWorkflow:
                 self.momentum_engine = MomentumReversalEngine()
                 self.smart_beta_engine = SmartBetaEngine()
                 logger.info("Alpha 生成模块初始化成功 (AlphaFactorLib/MomentumReversal/SmartBeta)")
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("Alpha 生成模块初始化失败: %s", exc)
 
         # 顶级执行层模块 (执行算法 / 市场冲击 / 智能路由)
@@ -609,7 +609,7 @@ class DailyWorkflow:
                 self.market_impact_model = MarketImpactModel()
                 self.smart_order_router_inst = InstitutionSmartRouter()
                 logger.info("执行层模块初始化成功 (ExecAlgo/MarketImpact/SmartRouter)")
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("执行层模块初始化失败: %s", exc)
 
         # 顶级另类数据模块 (新闻情感 / 供应链 / 另类数据)
@@ -623,7 +623,7 @@ class DailyWorkflow:
                 self.supply_chain_graph.load_default_chains()
                 self.alt_data_indicators = AltDataIndicators()
                 logger.info("另类数据模块初始化成功 (NewsSentiment/SupplyChain/AltData)")
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("另类数据模块初始化失败: %s", exc)
 
         # 市场数据提供器 (真实行情回退)
@@ -632,7 +632,7 @@ class DailyWorkflow:
             from utils.data_provider import MarketDataProvider
             self.market_data_provider = MarketDataProvider()
             logger.info("MarketDataProvider 已初始化")
-        except Exception as exc:
+        except Exception as exc:  # fail-safe
             logger.warning("MarketDataProvider 初始化失败: %s", exc)
 
         # 外部报告加载器（15_每日工作流报告）
@@ -641,7 +641,7 @@ class DailyWorkflow:
             from report_parsers import ExternalReportLoader
             self.external_report_loader = ExternalReportLoader(base_dir=external_reports_dir)
             logger.info("ExternalReportLoader 已初始化，目录: %s", external_reports_dir or ExternalReportLoader.BASE_DIR)
-        except Exception as exc:
+        except Exception as exc:  # fail-safe
             logger.warning("ExternalReportLoader 初始化失败: %s", exc)
 
         # 模拟盘执行引擎（可选）
@@ -695,7 +695,7 @@ class DailyWorkflow:
                 )
                 self.position_sync = PositionSync(self.sim_engine.router)
                 logger.info("模拟盘执行引擎已初始化 (股票+同花顺期货+期权)")
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("模拟盘执行引擎初始化失败，回退 MockBroker: %s", exc)
                 self.sim_engine = None
                 self.sim_mode = False
@@ -747,7 +747,7 @@ class DailyWorkflow:
                            sf.get("ifind_weight", 0.3),
                            sf.get("external_weight", 0.2),
                            sf.get("regime_adaptive", True))
-        except Exception as exc:
+        except Exception as exc:  # fail-safe
             logger.warning("加载 signal_fusion 配置失败，使用默认值: %s", exc)
         return defaults
 
@@ -777,7 +777,7 @@ class DailyWorkflow:
 
         try:
             return self.external_report_loader.load_reports(self.trade_date)
-        except Exception as exc:
+        except Exception as exc:  # fail-safe
             logger.error("加载外部报告失败: %s", exc, exc_info=True)
             return {
                 "loaded": False,
@@ -803,7 +803,7 @@ class DailyWorkflow:
             if circuit_level in ("LEVEL_1", "LEVEL_2") or vix >= 30 or drawdown <= -0.05:
                 return "bear"
             return "bull"
-        except Exception:
+        except Exception:  # fail-safe
             return "bull"
 
     def _get_regime_weights(self, regime: str) -> dict[str, float]:
@@ -902,7 +902,7 @@ class DailyWorkflow:
             self._ifind_cache_date = today
             logger.info("iFinD 新闻研判完成 (已缓存): %d 个标的", len(self._ifind_cache))
             return self._ifind_cache
-        except Exception:
+        except Exception:  # fail-safe
             logger.error("iFinD 批量研判失败", exc_info=True)
             return {}
 
@@ -949,10 +949,10 @@ class DailyWorkflow:
                             if code:
                                 planned.append(str(code))
                         self._ifind_planned_symbols = planned
-                    except Exception:
+                    except Exception:  # fail-safe
                         self._ifind_planned_symbols = []
                     return plan
-                except Exception as e:
+                except Exception as e:  # fail-safe
                     logger.error(f"加载交易计划失败 {path}: {e}")
                     return {}
 
@@ -964,7 +964,7 @@ class DailyWorkflow:
                 logger.info(f"已回退加载主计划: {master_plan.name}")
                 self._ifind_planned_symbols = []
                 return plan
-            except Exception as e:
+            except Exception as e:  # fail-safe
                 logger.error(f"加载主计划失败 {master_plan}: {e}")
                 return {}
 
@@ -1264,7 +1264,7 @@ class DailyWorkflow:
                     event_calendar=options_plan.get("event_calendar", []),
                 )
                 logger.info("期权策略执行完成: %d 条 fills", len(options_fills))
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("期权策略执行失败: %s", exc, exc_info=True)
                 options_fills = []
         else:
@@ -1363,7 +1363,7 @@ class DailyWorkflow:
                                     code, algo_type.value, len(plan.slices),
                                     plan.expected_slippage_bps, plan.expected_cost,
                                 )
-                            except Exception as exc:
+                            except Exception as exc:  # fail-safe
                                 _split_fail += 1
                                 logger.error("[ExecAlgo] %s 拆单失败: %s", code, exc, exc_info=True)
                         else:
@@ -1399,7 +1399,7 @@ class DailyWorkflow:
                                         "[ExecAlgo] %s 小单TWAP: %d slices (slippage=%.1fbps)",
                                         code, len(_plan.slices), _plan.expected_slippage_bps,
                                     )
-                                except Exception as exc:
+                                except Exception as exc:  # fail-safe
                                     _split_fail += 1
                                     logger.error("[ExecAlgo] %s 小单TWAP失败: %s", code, exc, exc_info=True)
                             else:
@@ -1431,7 +1431,7 @@ class DailyWorkflow:
                             )
                     if execution_plans:
                         logger.info("[ExecAlgo] 共生成 %d 个拆单计划", len(execution_plans))
-                except Exception as exc:
+                except Exception as exc:  # fail-safe
                     logger.error("[ExecAlgo] 执行算法引擎失败: %s", exc, exc_info=True)
 
             dry_orders = []
@@ -1508,7 +1508,7 @@ class DailyWorkflow:
                                 code, algo_type.value, len(plan.slices),
                                 plan.expected_slippage_bps, plan.expected_cost,
                             )
-                        except Exception as exc:
+                        except Exception as exc:  # fail-safe
                             _split_fail += 1
                             logger.error("[ExecAlgo] %s 拆单失败: %s", code, exc, exc_info=True)
                     else:
@@ -1543,7 +1543,7 @@ class DailyWorkflow:
                                     "[ExecAlgo] %s 小单TWAP: %d slices (slippage=%.1fbps)",
                                     code, len(_plan.slices), _plan.expected_slippage_bps,
                                 )
-                            except Exception as exc:
+                            except Exception as exc:  # fail-safe
                                 _split_fail += 1
                                 logger.error("[ExecAlgo] %s 小单TWAP失败: %s", code, exc, exc_info=True)
                         else:
@@ -1575,7 +1575,7 @@ class DailyWorkflow:
                         )
                 if execution_plans:
                     logger.info("[ExecAlgo] 共生成 %d 个拆单计划", len(execution_plans))
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.error("[ExecAlgo] 执行算法引擎失败: %s", exc, exc_info=True)
 
         # === MockBroker 执行 ===
@@ -1683,7 +1683,7 @@ class DailyWorkflow:
                         tca_summary.get("avg_vwap_deviation_bps", 0),
                         tca_summary.get("avg_fill_rate", 0) * 100,
                     )
-                except Exception as exc:
+                except Exception as exc:  # fail-safe
                     logger.error("[TCA] 分析失败: %s", exc, exc_info=True)
 
             # === 执行层: 执行算法 + 市场冲击 + 智能路由 ===
@@ -1766,7 +1766,7 @@ class DailyWorkflow:
                                 plan_summary = self.execution_algo_engine.summarize_plan(plan)
                                 plan_summary["selected_by"] = "auto"
                                 exec_plans_summary.append(plan_summary)
-                            except Exception as ex_inner:
+                            except Exception as ex_inner:  # fail-safe
                                 logger.debug("[ExecAlgo] %s 计划生成失败: %s", sym, ex_inner)
 
                         # 3) 智能路由决策
@@ -1783,7 +1783,7 @@ class DailyWorkflow:
                                 routing_decisions.append(
                                     self.smart_order_router_inst.summarize_decision(routing)
                                 )
-                            except Exception as ex_router:
+                            except Exception as ex_router:  # fail-safe
                                 logger.debug("[SmartRouter] %s 路由失败: %s", sym, ex_router)
 
                     if exec_plans_summary:
@@ -1812,12 +1812,12 @@ class DailyWorkflow:
                             len(routing_decisions),
                             dict((v, primary_venues.count(v)) for v in set(primary_venues)),
                         )
-                except Exception as exc:
+                except Exception as exc:  # fail-safe
                     logger.error("[ExecutionModules] 执行层分析失败: %s", exc, exc_info=True)
 
             return all_fills
 
-        except Exception as e:
+        except Exception as e:  # fail-safe
             logger.error(f"执行失败: {e}", exc_info=True)
             self.state["phases"]["execute"] = {
                 "status": "FAIL",
@@ -1866,7 +1866,7 @@ class DailyWorkflow:
         if self.position_sync:
             try:
                 self.position_sync.update_positions_from_fills(all_fills)
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("更新持仓失败: %s", exc)
 
         # === 日末持仓快照 ===
@@ -1874,7 +1874,7 @@ class DailyWorkflow:
             try:
                 snapshot_path = self.position_sync.save_daily_snapshot(self.trade_date)
                 self.state.setdefault("phases", {}).setdefault("execute", {})["sim_snapshot"] = str(snapshot_path)
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.warning("保存日末持仓快照失败: %s", exc)
 
         # === 订单级汇总 ===
@@ -2040,7 +2040,7 @@ class DailyWorkflow:
                 logger.info(f"  [{session}] {symbol} {name}: {side} {qty}股 @ {est_price} → "
                             f"{len(fill_objs)} 笔成交, 金额 {sum(f.fill_qty*f.fill_price for f in fill_objs):,.0f}")
 
-            except Exception as e:
+            except Exception as e:  # fail-safe
                 logger.error(f"  [{session}] {symbol} {name} 执行失败: {e}")
                 fills.append({
                     "symbol": symbol,
@@ -2531,7 +2531,7 @@ class DailyWorkflow:
                             f"| {fc.factor_name} | {fc.exposure:.4f} | {fc.factor_return:.4f} | ¥{fc.contribution:,.0f} |"
                         )
                     lines.append("")
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.error("[PnLAttribution] 归因失败: %s", exc, exc_info=True)
                 lines.extend(["", f"**P&L 归因失败**: {exc}", ""])
 
@@ -2615,7 +2615,7 @@ class DailyWorkflow:
                     if barra_result.risk_budget_utilization > 0.9:
                         lines.append(f"⚠️ **风险预算紧张**: 利用率 {barra_result.risk_budget_utilization:.1%}")
                     lines.append("")
-            except Exception as exc:
+            except Exception as exc:  # fail-safe
                 logger.error("[Barra] 风险分解失败: %s", exc, exc_info=True)
                 lines.extend(["", f"**Barra 风险分解失败**: {exc}", ""])
 
@@ -2650,7 +2650,7 @@ class DailyWorkflow:
                 with open(json_path, "w", encoding="utf-8") as f:
                     json.dump(self.state, f, ensure_ascii=False, default=str)
                 logger.info(f"状态 JSON (无缩进): {json_path}")
-            except Exception as e2:
+            except Exception as e2:  # fail-safe
                 logger.error(f"状态 JSON 保存彻底失败: {e2}")
 
         return report_path
@@ -2724,7 +2724,7 @@ class DailyWorkflow:
                         break
                     if check_status != "PASS":
                         logger.warning("系统自检状态异常: %s，继续执行", check_status)
-            except Exception as e:
+            except Exception as e:  # fail-safe
                 logger.error(f"Phase {phase_name} 异常: {e}", exc_info=True)
                 self.state["phases"][phase_name] = {"status": "FAIL", "error": str(e)}
                 break
@@ -2838,7 +2838,7 @@ def main() -> None:
             _integrator = RiskGuardIntegrator(report_date=args.date)
             _integrator.run_all_guards(next_trade_date=_next_date)
             logger.info("[AutoClosedLoop] 8-Guard 链执行完成, trade_plan 已自动改写")
-        except Exception as _e:
+        except Exception as _e:  # fail-safe
             logger.warning(f"[AutoClosedLoop] 8-Guard 链失败 (fail-open): {_e}")
 
     # 退出码：check 阶段单独允许降级通过，避免计划文件缺失导致整条自动任务失败

@@ -552,8 +552,22 @@ def wind_get_batch_quotes(windcodes: list[str], is_fund: bool = False) -> dict[s
     return result
 
 
-def wind_get_kline(windcode: str, days: int = 2, is_fund: bool = False) -> Optional[list[dict]]:
+# Wind MCP K线复权类型 (与 Wind 终端 WSD PriceAdj 语义一致, 用于 get_stock_kline / get_fund_kline):
+#   0 = 未复权, 1 = 前复权(qfq, 默认, 与 Wind 终端实测一致 — 份额折算 ETF 回测必须复权), 2 = 后复权(hfq)
+KLINE_ADJUST_QFQ = 1
+KLINE_ADJUST_NONE = 0
+KLINE_ADJUST_HFQ = 2
+
+
+def wind_get_kline(windcode: str, days: int = 2, is_fund: bool = False,
+                   adjust: Optional[int] = KLINE_ADJUST_QFQ) -> Optional[list[dict]]:
     """获取股票/ETF 历史 K 线数据
+
+    v8.6.14 FIX (2026-08-25 复权口径修复):
+        1. 新增 adjust 参数, 显式传 price_type 给 Wind MCP, 默认 1=前复权(qfq)。
+           背景: sina 未复权在份额折算 ETF 上严重失真 (512100: +221.5% vs Wind +19.8%),
+           ETF 回测必须使用复权数据。
+        2. 服务端不支持 price_type 参数时, 自动回退无参调用 (万得服务端默认前复权, 兼容历史口径)。
 
     v8.6.11 FIX:
         1. 添加 HTTP 直连优先路径 (原仅走 CLI, CLI 不可用时全部失败)
@@ -568,43 +582,54 @@ def wind_get_kline(windcode: str, days: int = 2, is_fund: bool = False) -> Optio
     start_date = end_date - dt.timedelta(days=int(days * 1.5))
 
     # 构造请求参数
-    kline_params = {
+    base_params = {
         "windcode": windcode,
         "begin_date": start_date.strftime("%Y%m%d"),
         "end_date": end_date.strftime("%Y%m%d"),
     }
 
-    # === 优先路径 1: HTTP 直连 (有 api_key 时, 使用 generic SSE 解析) ===
-    api_key = _get_wind_api_key()
-    if api_key:
-        endpoint = WIND_FUND_ENDPOINT if is_fund else WIND_STOCK_ENDPOINT
-        # v8.6.11 FIX: 使用 _wind_http_generic 避免被 _parse_sse_minute_quote 误解析
-        http_res = _wind_http_generic(endpoint, tool_name, kline_params, api_key)
-        if http_res.get("ok") and isinstance(http_res.get("data"), dict):
-            records = _extract_kline_records(http_res["data"])
-            if records:
-                return records[-days:] if len(records) > days else records
-        # HTTP 失败, 回退到 CLI
-        if http_res.get("error"):
-            import logging
-            logging.getLogger(__name__).debug(
-                f"Wind HTTP ({tool_name}) 失败, 回退到 CLI: {http_res.get('error')}"
-            )
+    def _fetch_with(price_type: Optional[int]) -> Optional[list[dict]]:
+        params = dict(base_params)
+        if price_type is not None:
+            params["price_type"] = price_type
 
-    # === 回退路径 2: CLI 调用 ===
-    res = _call_wind(
-        server_type,
-        tool_name,
-        kline_params,
-    )
-    if not res.get("ok"):
-        return None
+        # === 优先路径 1: HTTP 直连 (有 api_key 时, 使用 generic SSE 解析) ===
+        api_key = _get_wind_api_key()
+        if api_key:
+            endpoint = WIND_FUND_ENDPOINT if is_fund else WIND_STOCK_ENDPOINT
+            # v8.6.11 FIX: 使用 _wind_http_generic 避免被 _parse_sse_minute_quote 误解析
+            http_res = _wind_http_generic(endpoint, tool_name, params, api_key)
+            if http_res.get("ok") and isinstance(http_res.get("data"), dict):
+                records = _extract_kline_records(http_res["data"])
+                if records:
+                    return records[-days:] if len(records) > days else records
+            # HTTP 失败, 回退到 CLI
+            if http_res.get("error"):
+                import logging
+                logging.getLogger(__name__).debug(
+                    f"Wind HTTP ({tool_name}) 失败, 回退到 CLI: {http_res.get('error')}"
+                )
 
-    data = res.get("data") or {}
-    records = _extract_kline_records(data)
-    if not records:
-        return None
-    return records[-days:] if len(records) > days else records
+        # === 回退路径 2: CLI 调用 ===
+        res = _call_wind(
+            server_type,
+            tool_name,
+            params,
+        )
+        if not res.get("ok"):
+            return None
+
+        data = res.get("data") or {}
+        records = _extract_kline_records(data)
+        if not records:
+            return None
+        return records[-days:] if len(records) > days else records
+
+    records = _fetch_with(adjust)
+    if not records and adjust is not None:
+        # v8.6.14: 服务端可能不支持 price_type 参数, 回退无参调用 (默认前复权, 兼容历史口径)
+        records = _fetch_with(None)
+    return records
 
 
 def _extract_kline_records(data: dict) -> list[dict]:

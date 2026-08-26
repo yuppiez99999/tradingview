@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录本模块的实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-26 · morning_info_runner 两阶段并行化
+
+- **改动**: `morning_info_runner.py` run_all() 从串行改为两阶段并行 — 任务1-6用`ThreadPoolExecutor(max_workers=4)`并行, 任务7(大宗商品扫描, 依赖任务1的json+任务4的舆情)在阶段2串行
+- **新增**: `_run_task()` 辅助函数封装异常处理, 供线程池调用; `max_workers`参数暴露到run_all签名(默认4)
+- **预期**: 盘前准备时间缩短40-60% (I/O密集型任务在GIL下仍可从线程并行受益)
+- **指针**: `morning_info_runner.py:794-852` · 上层 `cairn/daily-workflow-parallel-sentiment-20260826.md`
+
 ## 2026-08-22 · sentiment_hub 接入 Wind MCP 新闻扫描
 
 - `nlp/sentiment_hub.py` 新增 `_fetch_wind_news_alerts` + `_render_news_alerts_section` — 对每只持仓标的调 `tools.wind_mcp_fetcher.wind_search_news(top_k=5)` 抓新闻，用 CRITICAL_NEGATIVE/POSITIVE_KEYWORDS 命中检测，报告新增"五、新闻舆情预警 (Wind MCP)"章节。

@@ -28,8 +28,27 @@ from phase_b_progressive_enabler import (  # noqa: E402
     _check_no_lookahead_bias,
     evaluate_daily_shadow_health,
     generate_shadow_stable_report,
+    should_run_daily_health_check,
     update_stable_days,
 )
+
+
+class TestShouldRunDailyHealthCheck:
+    """should_run_daily_health_check() 阶段覆盖测试 (v8.6.16 回归).
+
+    修复背景: cmd_auto 健康检查原仅 drift_monitor 阶段执行, 推进到 abtest 后
+    D11 consecutive_stable_days 断链卡 2/7。回归断言所有已运行阶段都须记录。
+    """
+
+    def test_all_running_stages_checked(self) -> None:
+        """STAGE_1~STAGE_4 全部已运行阶段都须执行每日健康检查."""
+        for stage in ("drift_monitor", "abtest", "auto_retrain", "orchestrator"):
+            assert should_run_daily_health_check(stage) is True, f"{stage} 应执行健康检查"
+
+    def test_non_running_stages_skipped(self) -> None:
+        """未启动/非运行态不执行."""
+        for stage in ("waiting_observation", "ready", "paused", "rollback"):
+            assert should_run_daily_health_check(stage) is False, f"{stage} 不应执行健康检查"
 
 
 class TestPhaseBStatusFromDict:
@@ -193,6 +212,23 @@ class TestUpdateStableDays:
         verdict = DailyHealthVerdict(date="2026-08-20", healthy=False, reason="kill_switch_triggered")
         new_status = update_stable_days(status, verdict)
         assert new_status.consecutive_stable_days == 0
+
+    def test_no_daily_return_does_not_reset(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """v8.7 回归: no_daily_return (当日数据未生成) 跳过, 不归零不记录.
+
+        修复背景: 盘前/盘中误跑 --auto 时 daily_returns.jsonl 尚无当日条目,
+        evaluate_daily_shadow_health 返回 no_daily_return, 旧实现把它当 unhealthy
+        归零连续稳定天数 (实测 08-26 从 3→0)。数据未生成是时序问题而非健康异常。
+        """
+        monkeypatch.setattr("phase_b_progressive_enabler._SHADOW_DAILY_HEALTH_LOG", tmp_path / "health.jsonl")
+        status = PhaseBStatus(
+            consecutive_stable_days=3,
+            daily_health_log=[{"date": "2026-08-25", "healthy": True}],
+        )
+        verdict = DailyHealthVerdict(date="2026-08-26", healthy=False, reason="no_daily_return")
+        new_status = update_stable_days(status, verdict)
+        assert new_status.consecutive_stable_days == 3  # 保持, 不归零
+        assert len(new_status.daily_health_log) == 1  # 不追加污染记录
 
     def test_reject_historical_backfill(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """补录历史样本 (date 早于最后记录) → 拒绝, 不修改状态."""

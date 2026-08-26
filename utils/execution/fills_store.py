@@ -17,7 +17,7 @@ import sys
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Collection, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class FillsStore:
                 cls._instance._init()
         return cls._instance
 
-    def _init(self):
+    def _init(self) -> None:
         self._write_lock = threading.Lock()
         self._buffer: dict[str, list[dict[str, Any]]] = {}  # date -> records
 
@@ -103,12 +103,19 @@ class FillsStore:
                 self._buffer.setdefault(rec_date, []).append(record)
         return record
 
-    def load_day(self, date: Optional[str] = None) -> list[dict[str, Any]]:
+    def load_day(
+        self,
+        date: Optional[str] = None,
+        strategies: Optional[Collection[str]] = None,
+    ) -> list[dict[str, Any]]:
         """读取某交易日全部成交 (文件为事实源, 内存仅含落盘失败兜底记录)。
 
         G4 修复 (2026-08-08): 此前把内存 buffer 与文件合并, 因 record_fill 对同一条记录
         同时写 buffer 和文件, 导致同一进程内读取时每条成交被重复计数 (如 15 笔被读成 30)。
         现改为: 文件是权威落盘源; buffer 只在落盘失败时保留该条作为兜底, 合并后不重复。
+
+        P3.0 门禁 (2026-08-26): 新增 ``strategies`` 可选参数, None=全部 (兼容),
+        指定则只返回 ``rec["strategy"] in strategies`` 的记录。
         """
         rec_date = date or datetime.now().strftime("%Y-%m-%d")
         # 文件是权威事实源, 先读文件
@@ -127,16 +134,28 @@ class FillsStore:
         for rec in self._buffer.get(rec_date, []):
             if rec not in records:
                 records.append(rec)
+        # P3.0: 按 strategy 过滤
+        if strategies is not None:
+            strategies_set = set(strategies)
+            records = [r for r in records if r.get("strategy") in strategies_set]
         return records
 
-    def latest_avg_price_by_symbol(self, date: Optional[str] = None) -> dict[str, float]:
+    def latest_avg_price_by_symbol(
+        self,
+        date: Optional[str] = None,
+        strategies: Optional[Collection[str]] = None,
+    ) -> dict[str, float]:
         """返回每个标的当日最新成交均价 (按记录顺序末次覆盖)。"""
         result: dict[str, float] = {}
-        for rec in self.load_day(date):
+        for rec in self.load_day(date, strategies=strategies):
             result[rec["symbol"]] = rec["avg_price"]
         return result
 
-    def realized_pnl(self, date: Optional[str] = None) -> dict[str, float]:
+    def realized_pnl(
+        self,
+        date: Optional[str] = None,
+        strategies: Optional[Collection[str]] = None,
+    ) -> dict[str, float]:
         """估算当日已实现 PnL: SELL 成交价 vs 上一笔 BUY 均价 (简化 FIFO 近似)。
 
         仅用于日常监控参考, 不作为会计级成本基础。返回 {symbol: realized_pnl}。
@@ -145,7 +164,7 @@ class FillsStore:
 
         buys: dict[str, list[float]] = defaultdict(list)
         realized: dict[str, float] = defaultdict(float)
-        for rec in self.load_day(date):
+        for rec in self.load_day(date, strategies=strategies):
             sym = rec["symbol"]
             qty = rec["filled_qty"]
             price = rec["avg_price"]
@@ -174,13 +193,16 @@ class FillsStore:
 _store = FillsStore()
 
 
-def record_fill(*args, **kwargs) -> dict[str, Any]:
+def record_fill(*args: Any, **kwargs: Any) -> dict[str, Any]:
     """模块级便捷函数 — 直接调用 FillsStore 单例。"""
     return _store.record_fill(*args, **kwargs)
 
 
-def load_day(date: Optional[str] = None) -> list[dict[str, Any]]:
-    return _store.load_day(date)
+def load_day(
+    date: Optional[str] = None,
+    strategies: Optional[Collection[str]] = None,
+) -> list[dict[str, Any]]:
+    return _store.load_day(date, strategies=strategies)
 
 
 if __name__ == "__main__":
