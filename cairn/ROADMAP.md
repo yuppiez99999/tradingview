@@ -19,7 +19,7 @@ related:
 > **最新状态同步（2026-08-29，排期优化）**：
 >
 > - **升级路线优化与排期完成**：详见 `docs/升级路线优化与排期_20260829.md`。核心结论：发布门禁 D1-D10 全绿、**仅剩 D11**（Phase B shadow 6/7 天，09-02 满 7/7 后复验）；距 12-31 发布 17 周。8 项路线修正：①版本口径统一（LOG 中 "v8.8 对冲调优" 成果归入 v8.7 发布内容，见版本号说明注记）②ETF P5 前置修正（"v8.7 发布" → "发布门禁全绿 + Sprint 3 收尾"，P5.1 顺延至 11-13）③P3.1 提前至 09-04（P3.0 ③ 数据 5/5 @09-03）④总验收清单 3 项已完成项补打勾（daily_workflow 2159 / R10 裸债清零 / 覆盖率 0.833）⑤支线预算制（每周支线合计 ≤2 人天）⑥新增 **12-10 功能冻结窗**（门禁三件套 21 天 0 FAIL 观察窗起点）⑦Wave10-CTX Phase A 已提前完成（94 用例全绿 flag off diff=0），剩余 A2-T4/A4 并入 10 月中旬一次性执行 ⑧R10/T6 fail-safe 宽捕获 222 处按每周 30 处渐进清理（不阻塞发布，T7 GREEN）。
-> - 关键路径锚点：09-02 D11 复验 → 09-02~04 B3 评估 → 09-05 B4 启动+P3.2 开跑 → 09-12 Sprint 1 收尾 → 09-13 shadow 30 天 cron + T15 QMT paper → 10-12 Sprint 2 收尾 → 11-12 Sprint 3 收尾 → 12-10 冻结 → 12-31 v8.7 发布。
+> - 关键路径锚点：D11 复验（consecutive_stable_days 6/7，差 1 个交易日约 09-01~09-02 满 7/7）→ Stage 3 auto_retrain 稳定 ≥3 天 (现 2/3) 后 enabler `--auto` 推进 B4 (USE_MLOPS_PIPELINE) → P3.2 开跑 → 09-12 Sprint 1 收尾 → 09-13 shadow 30 天 cron + T15 QMT paper → 10-12 Sprint 2 收尾 → 11-12 Sprint 3 收尾 → 12-10 冻结 → 12-31 v8.7 发布。**2026-08-29 实测纠正**：B1+B2+B3 已于 08-27 全启用 (原 "B3 评估 09-02~04" 失效)，当前 Stage 3 auto_retrain。
 
 > **历史状态同步（2026-08-28）**：
 >
@@ -33,7 +33,7 @@ related:
 > - `ER-1.1` / `ER-1.3` 今日已落地，并由对应 24/24 单测验证通过；`W7.2.6` 基础设施层也已确认就位（`uv.lock` + `pyproject.toml` + `python-dotenv` + `.env` 约束 + `ruff` 收紧）。
 > - `Wave 8-LIT` 与 `Wave 9-GH` 前置依赖已解除，v8.7 发布窗仍是最高优先级。
 
-**当前焦点**：Wave 6 全部提前完成 (2026-08-12, 超前 107-141 天) → **v8.7 发布主线已成为唯一最高优先级**。当前重点不是“继续扩张研究项”，而是完成以下门禁：B1 已真实启用、B2 预热 1/3 天（08-26）并需 08-26~08-28 三天完成后评估、P3.0 闭环代码链路已就绪但需至少 5 个交易日真实成交数据才允许 `P3.1` 启动、`W7.1.8` 真实 qlib LightGBM 模型已落盘。**今日已补齐的执行动作**：`ER-1.1` / `ER-1.3` 钩子与再平衡回调已落地，且基础设施层检查已进入绿色；下一步仍然是让 B2 预热跑满三天并继续积累真实成交数据，以满足 Sprint 1 收尾门禁。**第一优先级**为：巩固 B2 预热、完成真实数据积累、让 `daily_workflow ≤4500` 与 `R10 清零` 稳定；v8.7 发布窗口仍为最高优先级。
+**当前焦点**：Wave 6 全部提前完成 (2026-08-12, 超前 107-141 天) → **v8.7 发布主线已成为唯一最高优先级**。当前重点不是“继续扩张研究项”，而是完成以下门禁：B1+B2+B3 已于 08-27 全启用（Stage 3 auto_retrain，consecutive_stable_days=6/7 推进 D11）、P3.0 闭环代码链路已就绪但需至少 5 个交易日真实成交数据才允许 `P3.1` 启动、`W7.1.8` 真实 qlib LightGBM 模型已落盘。**下一步**：守住 Stage 3 auto_retrain 健康门禁（稳定 ≥3 天）由 enabler `--auto` 自然推进 B4，继续积累真实成交数据满足 Sprint 1 收尾，并待 D11 满 7/7 复验。**第一优先级**为：巩固 Phase B 稳定、完成真实数据积累、让 `daily_workflow ≤3000` 与 `R10 清零` 稳定；v8.7 发布窗口仍为最高优先级。**2026-08-29 实测纠正**：原 "B2 预热 1/3 天 (08-26) / B3 冻结" 与运行时不符，详见 W7.1.1 与 Wave 2 B 状态段。
 
 ## 优化后的升级路径（2026-08-27）
 
@@ -194,10 +194,10 @@ related:
 > **2026-08-26 任务3 更新 (B2/B3 flag 启用顺序决策与执行)**: 修复三层 flag 断链后 B1 已真实落盘运行时 (USE_DRIFT_DETECTOR=true, 覆盖文件+审计生成); B2 shadow 预热中 (08-26 为第 1/3 天); B3 因 B2 未就绪 + 曾发生 11:44 越级推进 (已回滚) 而严格冻结; 新增 `_check_b_order_gate` B 顺序硬门禁防复发。启用顺序严格 B1→B2→B3, B2 需 3 天 shadow 预热全 Go, B3 需 B2_OK 后 3 天观察。
 > **2026-08-26 排期复核 (计划态, 由硬门禁 + 预热进度推导)**: B2 预热带 08-26~08-28 (3/3 天) → 08-28 启用评估; B3 观察带 08-29~09-02 (B2_OK 后 3 天) → B3 最早评估 09-02; B4 最早 09-03~09-12 (B3 启用后), 观察窗顺延至 Sprint 2 前段。**原计划态 B2(08-23~26)/B3(08-26~29)/B4(08-29~09-05) 已失效**, 实际推进以 `_check_b_order_gate` 与阶段健康度为准。
 
-- [x] B1 (08-20→23) `USE_DRIFT_DETECTOR=true` 仅告警 — ✅ **已真实落盘运行时 2026-08-26** (USE_DRIFT_DETECTOR=true, flag_overrides + flag_audit 生成)
-- [~] B2 (08-23→26) `USE_FEEDBACK_LOOP` 自动接入 — 🔄 **预热中 1/3 天 2026-08-26**; 计划 08-26~08-28 满 3 天全 Go 后 08-28 启用评估 (b2_shadow_runner 已接入 EOD 阶段4.85 自动预热, 同日幂等去重)
-- [ ] B3 (08-26→29) `USE_AUTO_RETRAIN=true` + 降级护栏 — ⏳ **冻结 (B2 未就绪)**; 最早评估点 09-02 (B2_OK 后 3 天观察); 11:44 越级推进已回滚 (阶段回退 abtest)
-- [ ] B4 (08-29→09-05) `USE_MLOPS_PIPELINE=true` 完整外层循环 — 最早 **09-03~09-12** (B3 启用后), 稳定观察窗并入 Sprint 2 前段
+- [x] B1 (08-20→23) `USE_DRIFT_DETECTOR=true` 仅告警 — ✅ **已真实落盘运行时 2026-08-26** (USE_DRIFT_DETECTOR=true)
+- [x] B2 (08-23→27) `USE_FEEDBACK_LOOP` 自动接入 — ✅ **已启用 2026-08-27** (b2_shadow_runner EOD 阶段4.85 自动预热 3/3 天全 Go 后, 08-27 10:25 落盘 USE_FEEDBACK_LOOP=true)
+- [x] B3 (08-27→) `USE_AUTO_RETRAIN=true` + 降级护栏 — ✅ **已启用 2026-08-27** (Stage 3 auto_retrain 激活, 落盘 USE_AUTO_RETRAIN=true + USE_FINENG_GARCH=true + USE_FINENG_KALMAN_BETA=true); 11:44 越级推进已于 08-26 12:05 回滚, 08-27 经 B 顺序门禁合法推进
+- [~] B4 (→09-12+) `USE_MLOPS_PIPELINE=true` 完整外层循环 — ⏳ **未启用** (USE_MLOPS_PIPELINE=false); 需 Stage 3 auto_retrain 稳定 ≥3 天 (现 2/3) + 观察窗, 由 enabler `--auto` cron 推进; 并入 Sprint 2 前段
 
 ### Wave 3：代码质量持续修复（08-04 ~ 09-04，与主线并行）
 
@@ -306,7 +306,7 @@ related:
 
 **Sprint 1（08-13 ~ 09-12，~4 周）：Phase B 启用 + 工作流收尾 + R10 残债清偿**
 
-- [~] W7.1.1 (08-13~09-12) Wave 2 Phase B 渐进启用 — B1 `USE_DRIFT_DETECTOR=true` 仅告警 ✅ **DONE 2026-08-14** (运行时真实落盘 08-26 复核) / B2 `USE_FEEDBACK_LOOP` 🔄 预热 1/3 天 (08-26), 计划 08-28 启用评估 / B3 `USE_AUTO_RETRAIN=true` ⏳ 冻结, 最早评估 09-02 / B4 `USE_MLOPS_PIPELINE=true` 最早 09-03 启动, 观察窗并入 Sprint 2 前段 — 2026-08-26 排期复核见 Wave 2 节; **Sprint 1 收尾判定已调整** (见决策点: B1+B2 稳定 ≥7 天即可, 不再要求 4 flag 全开)
+- [~] W7.1.1 (08-13~09-12) Wave 2 Phase B 渐进启用 — B1 `USE_DRIFT_DETECTOR=true` ✅ **DONE 2026-08-26 真实落盘** / B2 `USE_FEEDBACK_LOOP` ✅ **已启用 2026-08-27** (预热 3/3 天全 Go) / B3 `USE_AUTO_RETRAIN=true` ✅ **已启用 2026-08-27** (Stage 3 auto_retrain 激活) / B4 `USE_MLOPS_PIPELINE=true` ⏳ 未启用 (现 Stage 3, 稳定 2/3 天, 待 enabler `--auto` 推进) — **2026-08-29 实测纠正**: ROADMAP 此前记 "B2 预热 1/3 天 / B3 冻结至 09-02" 与运行时不符; 实测 `phase_b_progressive_enabler.py --check` 显示 B1+B2+B3 已于 08-27 全启用, 当前 Stage 3 auto_retrain, `consecutive_stable_days=6/7` (D11 进度); **Sprint 1 收尾判定**: B1+B2 稳定 ≥7 天即可 (现 6/7, 差 1 个交易日)
 - [x] W7.1.2 (08-13~09-05, 非交易时段) daily_workflow.py 拆分第 2-3 轮 — risk phase (~600 行) + hedge phase (~500 行) + signal phase (~400 行) 提取到 `workflow/phases/`; daily_workflow 5904→≤4500 — ✅ **DONE 2026-08-14 (提前)**: `workflow/phases/` 已含 16 个 phase 文件 (含 risk.py/hedge.py/signal.py); daily_workflow.py 2828 行 (目标 ≤4500)
 - [x] W7.1.3 (08-13~08-31) R10 拖债清偿 — ✅ **DONE 2026-08-13**: 36 处裸 `except Exception` (无 `# fail-safe` 标记) 全部精确化 (ai_hedge_fund/ 30 + alpha_factor/ 4 + notify.py 2); `scripts/_r10_refine_bare_excepts.py` AST 替换; ruff BLE001 归零; 14 文件 py_compile PASS
 - [x] W7.1.4 (08-25~09-12) QMT 实盘接入准备 — ✅ **DONE 2026-08-13 (提前)**: `quant_modules/qmt_connector.py` (~420 行) paper trading 骨架 + 30 tests 全绿. 为 Sprint 2 W7.2.1 T15 准备
