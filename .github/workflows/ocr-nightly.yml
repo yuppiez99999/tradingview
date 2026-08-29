@@ -4,7 +4,7 @@ name: OCR Nightly Full Scan
 # 每日凌晨对全量 Python 源码执行 LLM 代码审查, 结果归档到 reports/ocr_reviews/
 # Secrets 需配置: OCR_LLM_URL, OCR_LLM_AUTH_TOKEN, OCR_LLM_MODEL
 
-on:
+"on":
   schedule:
     - cron: "0 18 * * *"  # UTC 18:00 = 北京时间 02:00
   workflow_dispatch: {}

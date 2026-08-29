@@ -5,7 +5,7 @@ name: MMR Judge (ocr 候选二次验证)
 # 0-1/3 dismissed -> 标记 false_positive (降低 ocr 单模型误报)
 # Secrets: OCR_LLM_AUTH_TOKEN (GLM, 复用), DEEPSEEK_API_KEY (新增)
 
-on:
+"on":
   workflow_run:
     workflows: ["OCR Code Review (PR)"]
     types: [completed]

@@ -4,7 +4,7 @@ name: OCR Code Review (PR)
 # 使用 open-code-review (GLM-4.5-air) 对 PR 变更文件进行 LLM 代码审查
 # Secrets 需配置: OCR_LLM_URL, OCR_LLM_AUTH_TOKEN, OCR_LLM_MODEL
 
-on:
+"on":
   pull_request:
     branches: [main, master, "1"]
     types: [opened, synchronize, reopened]

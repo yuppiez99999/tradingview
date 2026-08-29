@@ -9,7 +9,7 @@ name: Quality Gate (PR Incremental)
 #   5. bandit 安全扫描门禁 (中危即 FAIL)
 # 任何一项失败都会阻断合并。
 
-on:
+"on":
   pull_request:
     branches: [main, master]
   push:

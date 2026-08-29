@@ -13,7 +13,7 @@
 
 name: TDD Guard
 
-on:
+"on":
   pull_request:
     branches: [ main, 'integration/**' ]
     paths:
