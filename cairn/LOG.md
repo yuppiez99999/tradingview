@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-29 · 知识沉淀 + 全量同步 GitHub (commit ac8fbbf, 1641 文件)
+
+- **知识沉淀**: 新增 `cairn/completion-claim-vs-actual-state-20260829.md` —— 「完成声明 ≠ 完成」三类状态失真：**A 验证维度缺失**（pytest 全绿 ≠ 完成，工程维度 ruff/black 未跑）/** B 验收清单模板化**（门禁清单从模板复制后未回查实物，未开始的 GH+-2 也标 ✅）/** C 口径漂移**（摘要与权威原文不一致，GH+-1 第 4 条"验证结果" vs 原文"目标驱动执行"）。共同根因 = 状态声明的事实源与实物分离。
+- **防复发 4 条**: ①完成三连（ruff --fix + black + pytest 同轮必跑，批量生成文件 black 兜底 W292）②打勾三要素（文件 + 日期/实证值 + 复现命令，模板预置 ✅ 一律视为未验证）③权威原文锚定（第三方原则类集成必须在文档中写死原文路径，"改以原文为准勿以摘要为准"）④排期/验收双向核对（正向查 ✅ 是否有实物，反向查已完成未打勾）。
+- **上传 GitHub**: `git add -A` → 单 commit **ac8fbbf**（1641 文件, +113703/-47303）→ `git push origin 1` 成功；pre-commit 门禁全过，**未使用 --no-verify**。含：CTX-A 经验上下文层实现、ECL 门禁闭环、GH+-1、排期优化、D10 拆分、black 全量格式化。
+- **上传前安全核查（可复用清单）**: 远端 `zhunbeibanjia` 实测为**私有**（未登录 404）；`.gitignore` 覆盖 `.env`/`.venv`/`qlib_env`；`git ls-files | grep .env` = 0；untracked 无 secret/credential；`system_config.json` diff 仅为 flag 开关（USE_AUTO_RETRAIN/USE_FEEDBACK_LOOP/USE_FINENG_GARCH/USE_FINENG_KALMAN_BETA → true），无账号密钥。
+- **遗留待决策**: `external/airllm_src` 子模块 31 个文件未提交，其中 **25 个含实质代码改动**（`airllm_base.py` +235/-106、`airllm_llama_mlx.py` +129/-64，非纯格式化）→ 未擅自 `checkout` 丢弃，也未提交进父仓库；父仓库仅记录 gitlink，子模块内容需单独在子模块内提交或整体忽略。
+- **指针**: `cairn/completion-claim-vs-actual-state-20260829.md`
+
 ## 2026-08-29 · GH+-1 karpathy 4 原则收尾 (adapter §0 补全检验标准 + 第 4 条口径校正)
 
 - **实证起点**: GH+-1 主体 08-28 已写入 `skills/AGENT_SKILLS_ADAPTER.md` §0，但只是 **4 行摘要**；排期文档 (08-29 Stage 0) 仍列其为待办 → 属"已完成项未闭环"第 4 例（前 3 例在 ROADMAP 总验收清单，见 2-5）。
