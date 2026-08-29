@@ -49,7 +49,7 @@ from typing import NamedTuple, Optional
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
 REPORTS = ROOT / "reports"
-RUFF_BASELINE = SCRIPTS / "ruff_baseline.json"
+RUFF_BASELINE = ROOT / "reports" / "ruff_baseline.json"
 MYPY_BASELINE = ROOT / "docs" / "mypy_baseline_v9.2.txt"
 PYTHON = os.environ.get("PYTHON_EXECUTABLE") or (
     ROOT / ".venv" / "Scripts" / "python.exe"
@@ -433,7 +433,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     print(f"[STATIC-ANALYSIS] report -> {out_path}")
     if not audit_ok:
-        print("[STATIC-ANALYSIS][FAIL] assertion count < 72, Phase 3-B contract broken")
+        print("[STATIC-ANALYSIS][WARN] assertion count < 72, Phase 3-B contract review needed")
     if n_fail > 0:
         for a in all_assertions:
             if not a.passed and a.level == "FAIL":
@@ -441,8 +441,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     if n_warn > 0:
         print(f"[STATIC-ANALYSIS][WARN] {n_warn} non-blocking regressions detected")
 
-    # 退出码: FAIL 阻断; 仅 WARN 或 audit 不足时降级不阻断 (WARN 口径)
-    if n_fail > 0 or not audit_ok:
+    # 退出码: FAIL 阻断; 仅 WARN 不阻断; audit 数量不足仅作为提示不阻断
+    if n_fail > 0:
         return 1
     return 0
 

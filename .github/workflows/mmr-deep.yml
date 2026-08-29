@@ -7,7 +7,7 @@ name: MMR Deep Review (文档 + 数据结论)
 
 on:
   pull_request:
-    branches: [main, master, "1"]
+    branches: [main, master]
     types: [opened, synchronize, reopened]
     paths:
       - 'docs/**/*.md'
@@ -80,17 +80,18 @@ jobs:
           BIGMODEL_API_KEY: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
-          pip install -q openai
+          # openai 为可选依赖; 安装失败不阻断观测性审查
+          pip install -q openai || echo "[MMR-DEEP] openai install skipped, proceeding anyway"
           mkdir -p reports/mmr_reviews/docs reports/mmr_reviews/data
 
           python -c "
           import json, sys, os, traceback
           from pathlib import Path
           sys.path.insert(0, '.')
-          from utils.alpha.llm.consensus import run_consensus
 
           # mmr-deep 是观测性审查, 不应阻断 CI; 任何异常打印 traceback 后继续
           try:
+              from utils.alpha.llm.consensus import run_consensus
               changed = '${{ steps.changed.outputs.all_changed_files }}'.split()
               pr_num = '${{ github.event.pull_request.number || \"manual\" }}'
 

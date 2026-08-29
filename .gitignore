@@ -98,6 +98,9 @@ mlruns/
 reports/*
 !reports/.gitkeep
 !reports/README.md
+# CI 基线文件必须提交, 否则 ruff 增量门禁与 Phase 3-B 静态分析无法通过
+!reports/ruff_baseline.json
+!reports/ci/coverage_baseline.json
 v7.5_institutional/reports/*
 !v7.5_institutional/reports/.gitkeep
 
