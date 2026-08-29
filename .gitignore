@@ -371,6 +371,7 @@ coverage_output.txt
 !utils/fineng/models/*.py
 # --- 配置 schema (被 config/* 误伤, config 目录本身未被排除) ---
 !config/schema.py
+!config/feature_flags.yaml
 # --- ETF 期权对冲回测脚本 (被根目录 data/ 误伤, 需先放行目录再收窄) ---
 # data/etf_option_backtest 下还有 26 个生成报告(.md) 与大量回测产物(.json/.txt),
 # 这些是运行产物不该入库, 故先整体排除再只放行 *.py。

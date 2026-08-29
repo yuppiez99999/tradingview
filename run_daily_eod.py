@@ -313,8 +313,14 @@ def run_rebalance(risk_cfg: dict) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="EOD 四 Guard 风控链")
     parser.add_argument("--date", type=str, default=None, help="报告日期 YYYY-MM-DD")
+    parser.add_argument("--skip-system-check", action="store_true", help="跳过 P0 系统自检")
     args = parser.parse_args()
     report_date = args.date or datetime.now().strftime("%Y-%m-%d")
+
+    if not args.skip_system_check:
+        from utils.system_check import assert_system_ready
+
+        assert_system_ready()
 
     logger.info("=" * 60)
     logger.info(f"EOD 四 Guard 风控链启动 (date={report_date})")

@@ -1,0 +1,280 @@
+# Feature Flags 注册表
+# 设计原则: 所有 flag 默认 False (不改变现状)
+# 启用方式: 通过 enable() API (双签) 或运行时覆盖文件
+
+settings:
+  audit_log_dir: reports/flag_audit
+
+flags:
+  USE_EVOLUTION_ORCHESTRATOR:
+    description: "自我进化编排器 — 从观察期进入实际进化阶段"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 300
+    rollout:
+      enabled: true
+      percent: 50
+      stage: "STAGE_2_50PCT"
+      observation_days: 3
+      health_thresholds:
+        min_l2_promote_rate: 0.3
+        max_avg_latency_ms: 5000
+        min_evolution_trigger_rate: 0.1
+
+  USE_STRATEGY_EVALUATOR:
+    description: "策略评估器 — 启用后 EvolutionOrchestrator 可调用评估逻辑"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 300
+
+  USE_AUTO_FACTOR_FACTORY:
+    description: "自动因子工厂 — 因子自动发现/验证/部署/淘汰全流水线 (L3 进化层, 代码已引用 utils/evolution/auto_factor_factory.py 但此前未注册, 补注册以修复 FlagNotFoundError; 启用需 CRO Gate + 影子账户验证)"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 300
+
+  USE_VOL_REGIME_WEIGHTER:
+    description: "波动率Regime权重调整器"
+    default: true
+    requires_dual_sign: false
+    rollback_seconds: 60
+
+  USE_DRIFT_MONITOR:
+    description: "模型漂移监控器 (ADR-003: 默认 False; 漂移激活实际由 USE_DRIFT_DETECTOR + sim_mode 控制, 本 flag 当前无生产消费者, 2026-08-29 由 default:true 更正为 false 以通过注册表铁律)"
+    default: false
+    requires_dual_sign: false
+    rollback_seconds: 60
+
+  USE_DRIFT_DETECTOR:
+    description: "漂移检测器 — 启用后 DriftMonitor 执行 KS/PSI 检测并触发再平衡回调"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 300
+
+  USE_SIGNAL_FUSION:
+    description: "多源信号融合引擎 (ADR-003: 默认 False; 2026-08-29 由 default:true 更正, 本 flag 当前无生产消费者)"
+    default: false
+    requires_dual_sign: false
+    rollback_seconds: 60
+
+  USE_MEMORY_REFLECTION:
+    description: "决策记忆与反思引擎 (ADR-003: 默认 False; 2026-08-29 由 default:true 更正, 本 flag 当前无生产消费者)"
+    default: false
+    requires_dual_sign: false
+    rollback_seconds: 60
+
+  # ============================================================
+  # 回归保护 flag — 现有关键路径 (test_existing_flags_not_broken)
+  # ============================================================
+  USE_LLM_REPORT_ANALYZER:
+    description: "LLM 报告分析器 — 启用后走 LLMRouter 否则回退原 LLMClient"
+    default: false
+    requires: []
+    rollback_seconds: 60
+    fallback: "utils.llm_client.LLMClient"
+    critical_path: false
+
+  USE_MULTI_FACTOR_SIGNAL:
+    description: "多因子信号开关 — 启用后融合多因子选股信号"
+    default: false
+    requires: []
+    rollback_seconds: 60
+    fallback: "single_factor_signal"
+    critical_path: false
+
+  USE_AB_TESTING_FRAMEWORK:
+    description: "A/B 测试框架 — 启用后对策略变更做 A/B 对比验证"
+    default: false
+    requires: []
+    rollback_seconds: 300
+    fallback: "direct_rollout"
+    critical_path: false
+
+  # ============================================================
+  # GitHub 热门项目集成 Flag (Phase 1 — 仅配置层, ADR-003)
+  # 参考: .trae/documents/GitHub热门项目集成方案.md §2.5
+  # ============================================================
+  USE_VIBE_BACKTEST_BRIDGE:
+    description: "Vibe-Trading 回测桥接 — 启用后接入 Vibe-Trading 回测引擎"
+    default: false
+    requires: []
+    rollback_seconds: 60
+    fallback: "native_backtest_engine"
+    critical_path: false
+
+  USE_VIBE_FACTOR_INJECTION:
+    description: "Vibe-Trading 因子注入 — 启用后从 Vibe-Trading 注入外部因子"
+    default: false
+    requires: []
+    rollback_seconds: 60
+    fallback: "internal_factor_only"
+    critical_path: false
+
+  USE_KRONOS_PREDICTOR:
+    description: "Kronos 预测器 — 启用后接入 Kronos 时序预测模型"
+    default: false
+    requires: []
+    rollback_seconds: 120
+    fallback: "native_forecast"
+    critical_path: false
+
+  USE_LAST30DAYS_SENTIMENT:
+    description: "近30天情绪信号 — 启用后使用近30天滚动窗口情绪因子"
+    default: false
+    requires: []
+    rollback_seconds: 60
+    fallback: "default_sentiment_window"
+    critical_path: false
+
+  USE_UNLIMITED_OCR:
+    description: "无限制 OCR — 启用后解除 OCR 调用频率/页数限制"
+    default: false
+    requires: []
+    rollback_seconds: 60
+    fallback: "rate_limited_ocr"
+    critical_path: false
+
+  # ============================================================
+  # G3 机构管道集成 Flag (Wave 7-ERL Sprint 2 — ER-2.2)
+  # 参考: cairn/evolution-rebalance-loop.md §13.2
+  # 控制 institutional_pipeline_runner.py Step 6.6 phase_rebalance
+  # 与 USE_DRIFT_DETECTOR (漂移被动回调) 分离, 此 flag 控制 EOD 主动再平衡
+  # ============================================================
+  USE_EOD_REBALANCE:
+    description: "EOD 主动再平衡 — 启用后 institutional pipeline Step 6.6 调用 ETFOptionHedgeRebalancer.run_daily_rebalance()"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 300
+    fallback: "skip_rebalance_phase"
+    critical_path: false
+
+  # ============================================================
+  # Phase B 渐进启用 Flag (v8.7 2026-08-26 补注册)
+  # 参考: system_config.json evolution.feature_flags._stage_b_plan
+  #   B1 USE_DRIFT_DETECTOR (已注册见上) / B2 USE_FEEDBACK_LOOP /
+  #   B3 USE_AUTO_RETRAIN / B4 USE_MLOPS_PIPELINE
+  # 修复: 此前仅 configs/(复数, 优先级4) 注册了这些 flag, 但 ConfigManager
+  # 实际解析到 config/(单数, 优先级3) — 运行时 is_enabled() 报
+  # "Flag not registered" 永远返回 False, 导致 Phase B 推进后 flag 不生效。
+  # ============================================================
+  USE_FEEDBACK_LOOP:
+    description: "实时反馈闭环 — B2: 交易结果驱动因子权重自适应调整 (T2.1), 启用需 B1_OK + 3日 shadow 预热"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 30
+
+  USE_AUTO_RETRAIN:
+    description: "自动重训调度器 — B3: 漂移触发后自动重训模型, 启用需 B2_OK + 3天观察"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 60
+
+  USE_MLOPS_PIPELINE:
+    description: "MLOps 流水线 — B4: 模型训练/部署/监控闭环, 启用需 B3_OK + 7天观察"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 60
+
+  USE_ABTEST:
+    description: "Phase B Stage 2 受控实验标记 — ABTest 阶段状态 flag (阶段推进由 phase_b_progressive_enabler 调度)"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 60
+
+  USE_FINENG_GARCH:
+    description: "GARCH(1,1) 波动率预测 (只读对照, 与 EWMA 并行输出) — Stage 3 启用"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 30
+
+  USE_FINENG_KALMAN_BETA:
+    description: "Kalman 时变 Beta 对冲对比 (只读, 与滚动OLS并行) — Stage 3 启用"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 30
+
+  USE_FINENG_EVT:
+    description: "EVT 尾部风险估计 (只读辅助观察, 严禁接触发器) — Stage 4 启用"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 30
+
+  USE_FINENG_PATH_SIM:
+    description: "组合路径蒙特卡洛模拟 (升级 stress_test_runner 输出) — Stage 4 启用"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 30
+
+  # ============================================================
+  # FinnewsHunter 事件驱动 alpha 信号源 (2026-08-26, FinnewsHunter 启发)
+  # 参考: utils/signal_sources/finnhunter_signal_source.py
+  # 接入 SignalFusionEngine 第 8 信号源, 与 sentiment/news_intel 互补
+  # ============================================================
+  USE_FINNEWS_HUNTER_SIGNAL:
+    description: "FinnewsHunter 事件驱动 alpha 信号源 — 新闻事件类型 → alpha 强度映射"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 60
+    fallback: "neutral_signal"
+    critical_path: false
+
+  # ============================================================
+  # Wave10-CTX 经验上下文层 ECL (2026-09, 只读旁路)
+  # 参考: cairn/experience-context-layer.md + docs/Wave10_经验上下文层集成计划_20260828.md
+  # 铁律: 全部旁路只读, 开启后生产决策输出必须与关闭时逐字节一致 (diff=0 E2E)
+  # 启用顺序: EVENT_LOG → EXPERIENCE → RETRIEVAL (后者依赖前者数据积累)
+  # ============================================================
+  USE_ECL_EVENT_LOG:
+    description: "ECL 事件日志 — log_decision 旁路双写 EventStore (append-only), sink 失败静默降级"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 60
+    fallback: "jsonl_only"
+    critical_path: false
+
+  USE_ECL_EXPERIENCE:
+    description: "ECL 经验提炼 — EOD 阶段4.95 从当日事件生成经验条目 (场景指纹+延迟outcome)"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 60
+    fallback: "skip_derive"
+    critical_path: false
+
+  USE_ECL_RETRIEVAL:
+    description: "ECL 相似检索 — EOD 阶段4.95 输出相似历史场景报告到 reports/ecl/ (仅记录不注入)"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 60
+    fallback: "skip_retrieval"
+    critical_path: false
+
+  # ============================================================
+  # 关键路径 flag (代码已引用但未在注册表注册 — 补齐以修复 FlagNotFoundError)
+  # 参考: utils/infra/bootstrap.py / utils/risk/risk_bus.py / utils/risk/kill_switch_adapter.py
+  # 默认全部 False (ADR-003 铁律), 启用需双签 + 灰度
+  # ============================================================
+  USE_INTEGRATED_BOOTSTRAP:
+    description: "集成 Bootstrap — 启用后走 utils.infra.bootstrap 统一引导路径"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 300
+    fallback: "legacy_bootstrap"
+    critical_path: false
+
+  USE_RISK_BUS_EVENT_DRIVEN:
+    description: "风险事件总线 — 启用后 RiskBus 激活异步事件订阅与发布路径"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 0
+    fallback: "sync_only"
+    critical_path: true
+    requires:
+      - "Shadow 14天"
+
+  USE_AUTOMATED_EXECUTION_ROUTER:
+    description: "自动化执行路由 — 启用后 AutomatedExecutionSystem 走 OrderRouter 统一下单"
+    default: false
+    requires_dual_sign: true
+    rollback_seconds: 0
+    fallback: "direct_execution"
+    critical_path: true
