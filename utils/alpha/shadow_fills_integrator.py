@@ -223,7 +223,7 @@ class ShadowFillsIntegrator:
                 d = stem[len("fills_") :] if stem.startswith("fills_") else None
                 out.extend(store.load_day(d) or [])
             return out
-        except Exception as e:  # noqa: BLE001
+        except (ImportError, ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("[INTEGRATOR] FillsStore 读取失败: %s", e)
             return []
 
@@ -282,7 +282,7 @@ class ShadowFillsIntegrator:
                 result.dates_bridged,
                 result.nav_by_fills_len,
             )
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
             logger.exception("[INTEGRATOR] 桥接异常: %s", e)
             result.error = str(e)
             result.success = False

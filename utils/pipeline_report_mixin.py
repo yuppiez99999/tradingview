@@ -300,7 +300,7 @@ class PipelineReportMixin:
                 lines.append(f"- 看板告警: {dash_alerts}")
             lines.append("")
             result["steps"]["ai_dashboard"] = dash_report
-        except Exception as e:  # noqa: BLE001  # fail-safe
+        except (ImportError, ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("[Pipeline] AI 看板生成失败，降级: %s", e)
             lines.append("## AI 决策看板 (降级)")
             lines.append("")

@@ -767,7 +767,7 @@ def _apply_flags_to_runtime(flags: dict[str, bool], reason: str) -> tuple[bool, 
                 else:
                     ff.disable(flag_name, signer=_ENABLER_SIGNER, reason=reason)
                 applied[flag_name] = want
-            except Exception as e:  # noqa: BLE001 — 单 flag 失败不应中断其余
+            except (OSError, ValueError, TypeError, KeyError) as e:
                 skipped.append(f"{flag_name}({e})")
 
         if skipped:
@@ -780,7 +780,7 @@ def _apply_flags_to_runtime(flags: dict[str, bool], reason: str) -> tuple[bool, 
         return True, "运行时 flag 已一致, 无需变更"
     except ImportError as e:
         return False, f"FeatureFlags 模块不可用: {e}"
-    except Exception as e:  # noqa: BLE001 — 决策路径异常须显式上报
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError, AttributeError) as e:
         return False, f"运行时 flag 应用失败: {e}"
 
 

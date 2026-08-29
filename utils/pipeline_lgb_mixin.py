@@ -37,7 +37,7 @@ try:
     )
 
     _HAS_LGB = True
-except Exception as _lgb_import_err:  # noqa: BLE001
+except (ImportError, AttributeError) as _lgb_import_err:
     _HAS_LGB = False
     _LGB_IMPORT_ERR = str(_lgb_import_err)
     POSITION_SYMBOLS = []

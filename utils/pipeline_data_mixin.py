@@ -29,7 +29,7 @@ try:
     from lgb_enhanced_trainer import POSITION_SYMBOLS
 
     _HAS_LGB = True
-except Exception:  # noqa: BLE001
+except (ImportError, AttributeError):
     _HAS_LGB = False
     POSITION_SYMBOLS = []
 
@@ -97,13 +97,13 @@ class DataMixin:
                         for d in idx
                     ]
                 )
-            except Exception as e:  # noqa: BLE001
+            except (ValueError, TypeError, AttributeError, KeyError) as e:
                 logger.exception(f"DatetimeIndex 时区规范化失败, 已降级返回原 idx: {e}")
                 return idx
 
         try:
             df.index = _to_naive_idx(df.index)
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.exception(f"索引时区转换失败, 已降级跳过 (后续比较仍处理): {e}")
 
         cutoff_naive = pd.Timestamp(cutoff)

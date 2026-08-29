@@ -86,10 +86,10 @@ def _run_evolution_cycle() -> dict:
         try:
             health = orch.get_loop_health_metrics()
             result["loop_health"] = health
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             result["loop_health"] = {"error": str(e)}
 
-    except Exception as e:  # noqa: BLE001
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
         result["status"] = "error"
         result["reason"] = str(e)
     return result

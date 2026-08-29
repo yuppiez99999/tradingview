@@ -1575,7 +1575,7 @@ def _qlib_lgb_v2_meta() -> dict:
         from utils.qlib_lgb_v2_model import model_meta
 
         return model_meta()
-    except Exception:  # noqa: BLE001
+    except (ImportError, AttributeError, ValueError, TypeError, OSError):
         return {"model_path": None, "n_signals": 0}
 
 

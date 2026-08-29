@@ -708,7 +708,7 @@ class HedgeEngine:
                 )
                 if not self._deep_hedge_engine.load_model(model_path):
                     logger.info("Deep Hedging 无预训练模型, 将在首次使用时训练")
-            except Exception as exc:  # noqa: BLE001
+            except (ImportError, AttributeError, OSError, ValueError, TypeError, RuntimeError) as exc:
                 logger.warning("Deep Hedging RL 初始化失败, 降级到解析 delta: %s", exc)
 
         # v8.7: 初始化多智能体对冲引擎 (delta+gamma+vega)
@@ -716,7 +716,7 @@ class HedgeEngine:
         if _MULTI_AGENT_AVAILABLE:
             try:
                 self._multi_agent_engine = DeltaHedgeEngine(use_rl_weights=True)
-            except Exception as exc:  # noqa: BLE001
+            except (ImportError, ValueError, TypeError, RuntimeError, OSError) as exc:
                 logger.warning("多智能体对冲初始化失败, 降级到 Beta 加权: %s", exc)
 
     # ── 风险评估 ──
@@ -1763,7 +1763,7 @@ class HedgeEngine:
                 "risk_measure": "CVaR",
                 "reason": f"Deep Hedging RL: CVaR优化, 对冲误差={result.hedging_error:.4f}",
             }
-        except Exception as exc:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as exc:
             logger.warning("Deep Hedging RL 执行失败, 降级到解析 delta: %s", exc)
             return {"available": False, "reason": f"Deep Hedging 执行失败: {exc}"}
 
@@ -1831,7 +1831,7 @@ class HedgeEngine:
                 "n_instruments": len(hedge_instruments),
                 "reason": f"多智能体对冲: delta+gamma+vega, 减少暴露={result.total_reduction:.4f}",
             }
-        except Exception as exc:  # noqa: BLE001
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as exc:
             logger.warning("多智能体对冲执行失败, 降级到 Beta 加权: %s", exc)
             return {"available": False, "reason": f"多智能体对冲失败: {exc}"}
 

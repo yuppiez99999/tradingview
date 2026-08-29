@@ -74,7 +74,7 @@ def _run_gate(script_rel: str) -> dict:
             "stdout_tail": (proc.stdout or "")[-500:],
             "stderr_tail": (proc.stderr or "")[-300:],
         }
-    except Exception as e:  # noqa: BLE001
+    except (subprocess.TimeoutExpired, OSError, ValueError) as e:
         return {"name": name, "ok": False, "exit_code": -2, "error": str(e)}
 
 

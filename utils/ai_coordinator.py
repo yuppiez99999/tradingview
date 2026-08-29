@@ -540,7 +540,7 @@ class AICoordinator:
                 if rag is not None:
                     try:
                         rag.close()
-                    except Exception:  # noqa: BLE001
+                    except (OSError, RuntimeError, ValueError):
                         pass
 
         self.record_decision(

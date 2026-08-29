@@ -86,7 +86,7 @@ def load_lgb_v2_signals(force: bool = False) -> dict[str, float]:
             os.path.basename(csv_path),
             os.path.basename(_latest_model_pkl() or "NA"),
         )
-    except Exception as e:  # noqa: BLE001 - fail-safe: 加载失败降级
+    except (ImportError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.warning("qlib_lgb_v2: 信号加载失败 (%s), 降级到随机数", e)
         _CACHE_LOADED = True
     return _SIGNAL_CACHE
