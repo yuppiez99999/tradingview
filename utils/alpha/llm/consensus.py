@@ -189,8 +189,10 @@ class MultiModelConsensus:
         return self._router
 
     def _call_model(self, model: str, prompt: str, system: str) -> str | None:
-        router = self._get_router()
+        # router 初始化也纳入 try: CI/异常环境下 LLMRouter 可能抛异常
+        # (例: 配置缺失、依赖不可用), 直接抛会导致 mmr-deep 等观测路径失败
         try:
+            router = self._get_router()
             if model == "deepseek":
                 return router._call_deepseek(
                     prompt,

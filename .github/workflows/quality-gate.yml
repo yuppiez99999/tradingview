@@ -77,7 +77,8 @@ jobs:
         shell: pwsh
         run: |
           $max = 100
-          $changed = (git status --short).Length
+          # BUGFIX: (git status --short).Length 是字符串字符数, 不是文件数
+          $changed = (git status --short | Measure-Object -Line).Lines
           Write-Output "[WORKSPACE-GATE] changed/untracked files: $changed (max $max)"
           if ($changed -gt $max) {
             Write-Output "[WORKSPACE-GATE][FAIL] too many uncommitted changes ($changed > $max)"

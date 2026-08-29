@@ -84,46 +84,53 @@ jobs:
           mkdir -p reports/mmr_reviews/docs reports/mmr_reviews/data
 
           python -c "
-          import json, sys, os
+          import json, sys, os, traceback
           from pathlib import Path
           sys.path.insert(0, '.')
           from utils.alpha.llm.consensus import run_consensus
 
-          changed = '${{ steps.changed.outputs.all_changed_files }}'.split()
-          pr_num = '${{ github.event.pull_request.number || \"manual\" }}'
+          # mmr-deep 是观测性审查, 不应阻断 CI; 任何异常打印 traceback 后继续
+          try:
+              changed = '${{ steps.changed.outputs.all_changed_files }}'.split()
+              pr_num = '${{ github.event.pull_request.number || \"manual\" }}'
 
-          doc_files = [f for f in changed if f.endswith('.md')]
-          data_files = [f for f in changed if f.endswith('.json')]
+              doc_files = [f for f in changed if f.endswith('.md')]
+              data_files = [f for f in changed if f.endswith('.json')]
 
-          results = []
+              results = []
 
-          for fpath in doc_files:
-              p = Path(fpath)
-              if not p.exists():
-                  continue
-              artifact = p.read_text(encoding='utf-8')[:8000]
-              lens = 'architecture' if 'design' in fpath or 'plan' in fpath else 'product'
-              out = f'reports/mmr_reviews/docs/{p.stem}_pr{pr_num}.json'
-              r = run_consensus(artifact=artifact, lens=lens,
-                                models=['deepseek', 'glm'], judge_mode='vote',
-                                output_path=out)
-              results.append((fpath, lens, len(r.confirmed_findings), r.mode))
+              for fpath in doc_files:
+                  p = Path(fpath)
+                  if not p.exists():
+                      continue
+                  artifact = p.read_text(encoding='utf-8')[:8000]
+                  lens = 'architecture' if 'design' in fpath or 'plan' in fpath else 'product'
+                  out = f'reports/mmr_reviews/docs/{p.stem}_pr{pr_num}.json'
+                  r = run_consensus(artifact=artifact, lens=lens,
+                                    models=['deepseek', 'glm'], judge_mode='vote',
+                                    output_path=out)
+                  results.append((fpath, lens, len(r.confirmed_findings), r.mode))
 
-          for fpath in data_files:
-              p = Path(fpath)
-              if not p.exists():
-                  continue
-              artifact = p.read_text(encoding='utf-8')[:8000]
-              out = f'reports/mmr_reviews/data/{p.stem}_pr{pr_num}.json'
-              r = run_consensus(artifact=artifact, lens='data-claim',
-                                models=['deepseek', 'glm'], judge_mode='vote',
-                                output_path=out)
-              results.append((fpath, 'data-claim', len(r.confirmed_findings), r.mode))
+              for fpath in data_files:
+                  p = Path(fpath)
+                  if not p.exists():
+                      continue
+                  artifact = p.read_text(encoding='utf-8')[:8000]
+                  out = f'reports/mmr_reviews/data/{p.stem}_pr{pr_num}.json'
+                  r = run_consensus(artifact=artifact, lens='data-claim',
+                                    models=['deepseek', 'glm'], judge_mode='vote',
+                                    output_path=out)
+                  results.append((fpath, 'data-claim', len(r.confirmed_findings), r.mode))
 
-          print('=== MMR Deep Review Summary ===')
-          for fpath, lens, confirmed, mode in results:
-              print(f'  {fpath} | lens={lens} | confirmed={confirmed} | mode={mode}')
-          print(f'Total: {len(results)} artifacts reviewed')
+              print('=== MMR Deep Review Summary ===')
+              for fpath, lens, confirmed, mode in results:
+                  print(f'  {fpath} | lens={lens} | confirmed={confirmed} | mode={mode}')
+              print(f'Total: {len(results)} artifacts reviewed')
+          except Exception as exc:
+              print(f'[MMR-DEEP][WARN] 审查步骤异常, 降级为空结果: {exc}', file=sys.stderr)
+              traceback.print_exc()
+              print('=== MMR Deep Review Summary ===')
+              print('Total: 0 artifacts reviewed (degraded due to error)')
           "
 
       - name: Upload mmr deep artifacts
