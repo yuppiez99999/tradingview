@@ -132,6 +132,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         default=None,
         help="可选: 直接传入变更文件列表 (逗号分隔), 跳过 git diff",
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="静默模式: 抑制 stderr 上的告警/进度输出 (结果 token 始终输出到 stdout)",
+    )
     args = parser.parse_args(argv)
 
     out_path = Path(args.output_file)
@@ -145,8 +150,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             changed = get_changed_files(args.base, args.head)
         except RuntimeError as e:
             # git 不可用 / 无远端 -> fail-open 返回 ALL (运行全量)
-            print("ALL", file=sys.stderr)
-            print(f"[SELECT-TESTS][WARN] {e}; defaulting to ALL", file=sys.stderr)
+            # 结果 token 必须走 stdout: CI 用 $(...) 只捕获 stdout, 写到 stderr 会导致
+            # 调用方拿到空字符串 (2026-08-29 修正)
+            print("ALL")
+            if not args.quiet:
+                print(f"[SELECT-TESTS][WARN] {e}; defaulting to ALL", file=sys.stderr)
             out_path.write_text("ALL\n", encoding="utf-8")
             return 0
 

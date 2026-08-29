@@ -57,6 +57,10 @@ env:
   PYTHONUNBUFFERED: '1'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
   PIP_DEFAULT_TIMEOUT: '300'
+  # 编码修复 (2026-08-29): Windows runner 默认 cp1252, Python print 中文抛
+  # UnicodeEncodeError ('charmap' codec) 导致 quality-gate/smoke/v9 等 job 崩溃。
+  PYTHONIOENCODING: 'utf-8'
+  PYTHONUTF8: '1'
   # CI 环境标识 (ConfigManager / TradingEnv 可识别)
   TRADING_ENV: 'ci'
   QUANT_ENV: 'ci'
@@ -84,14 +88,14 @@ jobs:
           cache: 'pip'
 
       - name: Install incremental lint dependencies
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install pyflakes ruff
 
       - name: 计算 PR 改动 Python 文件
         id: diff
-        shell: powershell
+        shell: pwsh
         run: |
           $base = "${{ github.event.pull_request.base.sha }}"
           $head = "${{ github.event.pull_request.head.sha }}"
@@ -109,7 +113,7 @@ jobs:
 
       - name: Pyflakes (零容忍, 仅改文件)
         if: ${{ steps.diff.outputs.pyfiles != '' }}
-        shell: powershell
+        shell: pwsh
         run: |
           $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
           pyflakes @files
@@ -118,7 +122,7 @@ jobs:
         # G-3 修复 (2026-08-08): 阻断 D-4 类语法错误 (f-string 反斜杠 / docstring 重复粘贴).
         # 见 docs/CODE_REVIEW_GAP_AUDIT_2026-08-08.md D-4 + docs/CODE_REVIEW_COMPREHENSIVE_20260808.md G-3.
         if: ${{ steps.diff.outputs.pyfiles != '' }}
-        shell: powershell
+        shell: pwsh
         run: |
           $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
           $failed = @()
@@ -139,7 +143,7 @@ jobs:
         # G-4 修复 (2026-08-08): 增量门禁加 F821, 阻断新未定义名入库.
         # 见 docs/CODE_REVIEW_GAP_AUDIT_2026-08-08.md G-1 + docs/CODE_REVIEW_COMPREHENSIVE_20260808.md G-4.
         if: ${{ steps.diff.outputs.pyfiles != '' }}
-        shell: powershell
+        shell: pwsh
         run: |
           $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
           $result = ruff check --select F821 --no-cache @files 2>&1
@@ -151,7 +155,7 @@ jobs:
 
       - name: Ruff T201 print 检查 (非 P0 仅 warning)
         if: ${{ steps.diff.outputs.pyfiles != '' }}
-        shell: powershell
+        shell: pwsh
         run: |
           $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
           # --exit-zero: 不阻断, 仅报告
@@ -159,7 +163,7 @@ jobs:
 
       - name: P0 文件 print 门禁 (阻断式)
         if: ${{ steps.diff.outputs.pyfiles != '' }}
-        shell: powershell
+        shell: pwsh
         run: |
           $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
           # G-2 修复 (2026-08-08): P0 列表与 scripts/check_no_print_p0.py 同步, 补 automated_execution_system + wt_backtest_engine.
@@ -186,7 +190,7 @@ jobs:
 
       - name: 量化专项静态检查 (--strict 阻断, CODE_REVIEW_PLAN Task 3.1)
         if: ${{ steps.diff.outputs.pyfiles != '' }}
-        shell: powershell
+        shell: pwsh
         run: |
           $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
           python scripts/quant_review_lint.py --strict @files
@@ -197,7 +201,7 @@ jobs:
 
       - name: G-1 ruff 增量零新增门禁 (CODE_REVIEW_AUDIT 2026-08-09)
         if: ${{ steps.diff.outputs.pyfiles != '' }}
-        shell: powershell
+        shell: pwsh
         run: |
           $files = "${{ steps.diff.outputs.pyfiles }}" -split "`n" | Where-Object { $_ }
           # 受控规则集 E,F,W,B,C90,I,N,UP,T,BLE 增量零新增; 阻断子集 F,B,N,BLE,T 任何新增即失败。
@@ -228,13 +232,13 @@ jobs:
           cache: 'pip'
 
       - name: Install deps
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install pyyaml
 
       - name: Run quality snapshot (PR 门禁)
-        shell: powershell
+        shell: pwsh
         # quality_snapshot.py 命中门禁失败会 exit 非 0 阻断合并
         # 脚本仅支持 --json (无 --mode), JSON 输出同时生成报表文件
         run: |
@@ -273,13 +277,13 @@ jobs:
             setup.py
 
       - name: Install lint dependencies
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install mypy pylint pyyaml pandas numpy
 
       - name: MyPy Typecheck (utils/* — warning 级, 不阻断)
-        shell: powershell
+        shell: pwsh
         # 当前 utils/ 历史 mypy 债务较高, 先降级为 warning 不阻断 CI;
         # 待 G6 mypy 清零后重新改为阻断 (P0-4 原定目标保留)。
         run: |
@@ -287,7 +291,7 @@ jobs:
             || Write-Host "[mypy][utils/] 类型错误待修复, 本次不阻断 CI (warning 级)"
 
       - name: MyPy Typecheck (P0 根文件 — 容忍 warning, CODE_REVIEW_PLAN Task 2.1)
-        shell: powershell
+        shell: pwsh
         # P0 动态执行入口脚本当前 error 较多, 经 mypy.ini 的 [mypy-<file>] ignore_errors=True
         # 暂容忍; 仅当这些段被移除后才会阻断。逐步收紧路线见 CODE_REVIEW_PLAN.md M2。
         run: |
@@ -300,7 +304,7 @@ jobs:
             || Write-Host "[mypy] P0 文件 error 被 mypy.ini 容忍 (warning 级), 不阻断"
 
       - name: Pylint (utils/infra, utils/risk, utils/execution — warning 级, 不阻断)
-        shell: powershell
+        shell: pwsh
         # 当前 pylint 历史债务较高, 先降级为 warning 不阻断 CI;
         # 待修复后恢复 --fail-on 阻断 (P0-4 原定目标保留)。
         run: |
@@ -309,7 +313,7 @@ jobs:
             || Write-Host "[pylint] 检查完成, 存在历史债务, 本次不阻断 CI (warning 级)"
 
       - name: Phase 3-B 静态分析验证 (72/72 断言, 阻断)
-        shell: powershell
+        shell: pwsh
         # 此脚本含 72 个断言, 任何失败即 CI 阻断
         run: |
           python scripts/_verify_phase3b_static_analysis.py
@@ -337,7 +341,7 @@ jobs:
             setup.py
 
       - name: Install smoke dependencies
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install pytest pyyaml pandas numpy scipy
@@ -345,7 +349,7 @@ jobs:
           if (Test-Path requirements.txt) { pip install -r requirements.txt -q 2>$null }
 
       - name: Generate CI contract files (config/positions.json + system_config.json)
-        shell: powershell
+        shell: pwsh
         # config/* 在 .gitignore 中 (含敏感数据/实时持仓), CI 环境需最小占位
         run: |
           New-Item -ItemType Directory -Path config -Force | Out-Null
@@ -358,19 +362,19 @@ jobs:
           Write-Host "Contract files ready"
 
       - name: Run smoke runner script
-        shell: powershell
+        shell: pwsh
         # GAP-1: 18 项烟雾测试, < 60s, 失败阻断合并
         run: |
           python scripts/_smoke_runner.py
 
       - name: Run smoke pytest tests
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pytest tests/smoke -v --tb=short -m "smoke"
 
       - name: Smoke tests summary
         if: always()
-        shell: powershell
+        shell: pwsh
         run: |
           Write-Host "Smoke tests completed. Status: ${{ job.status }}"
 
@@ -397,14 +401,14 @@ jobs:
             setup.py
 
       - name: Install test dependencies
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pytest-xdist pyyaml pandas numpy
 
       - name: Select affected tests (GAP-5)
         id: select-tests
-        shell: powershell
+        shell: pwsh
         # GAP-5: 智能测试选择, 基于 AST 依赖图只跑受影响测试
         # 输出 ALL=全量 / NONE=无需跑 / 空格分隔的测试列表=子集
         run: |
@@ -419,7 +423,7 @@ jobs:
           }
 
       - name: Run unit tests (parallel + coverage — warning 级, 不阻断)
-        shell: powershell
+        shell: pwsh
         # GAP-3: 覆盖率 CI 集成 --cov --cov-fail-under=60 (渐进式, 阶段 2 升 70)
         # GAP-5: 智能测试选择, ${{ steps.select-tests.outputs.test_list }} 为受影响测试
         # 历史测试债务较高 (55+ 失败项, 多为环境缺失/硬编码日期/test rot),
@@ -429,7 +433,7 @@ jobs:
             || Write-Host "[unit-tests] 存在历史测试债务, 本次不阻断 CI (warning 级)"
 
       - name: Run contract + unit-regression tests (快测层)
-        shell: powershell
+        shell: pwsh
         # v8.6.12 新增: 数据契约测试 + 回归测试 (排除 integration 标记的慢测)
         # - 契约测试: 16 项 <0.3s (纯 JSON Schema 校验)
         # - 回归测试: 14 项 <0.5s (排除 1 项 integration 标记的 TDX 连接测试)
@@ -439,7 +443,7 @@ jobs:
 
       - name: Check coverage trend
         if: always()
-        shell: powershell
+        shell: pwsh
         # GAP-3: 覆盖率趋势检测, 下降 > 2% 时 exit 1
         run: |
           python scripts/_check_coverage_trend.py
@@ -456,7 +460,7 @@ jobs:
 
       - name: Unit tests summary
         if: always()
-        shell: powershell
+        shell: pwsh
         run: |
           Write-Host "Unit tests completed. Status: ${{ job.status }}"
 
@@ -483,18 +487,18 @@ jobs:
             setup.py
 
       - name: Install test dependencies
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pytest-xdist pyyaml pandas numpy
 
       - name: Run integration tests
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pytest tests/integration -v --tb=short -m "not slow"
 
       - name: Run integration-marked regression tests (慢测层)
-        shell: powershell
+        shell: pwsh
         # v8.6.12 新增: 跑 integration 标记的回归测试 (如 TDX 连接验证)
         # 与单元回归测试分离,避免拖慢 PR 快测
         run: |
@@ -502,7 +506,7 @@ jobs:
 
       - name: Integration tests summary
         if: always()
-        shell: powershell
+        shell: pwsh
         run: |
           Write-Host "Integration tests completed. Status: ${{ job.status }}"
 
@@ -529,13 +533,13 @@ jobs:
             setup.py
 
       - name: Install dependencies
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install pyyaml pandas numpy
 
       - name: Verify re-export compatibility
-        shell: powershell
+        shell: pwsh
         # 0 错误通过 (16 个软性警告允许, 历史路径非 re-export 责任)
         # 脚本 exit code: 0=通过, 非 0=失败
         run: |
@@ -564,13 +568,13 @@ jobs:
             setup.py
 
       - name: Install dependencies
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install pytest pyyaml pandas numpy
 
       - name: Run V9 Quick Regression (Layer 1-4, <30s)
-        shell: powershell
+        shell: pwsh
         # 默认快速回归 (Layer 1-4): 基线完整性 + 指标重算一致性 +
         # 阈值通过检查 + V9 代码可导入性
         # 跳过 Layer 5 (nightly 完整回测, >30 分钟)
@@ -614,18 +618,18 @@ jobs:
             setup.py
 
       - name: Install dependencies
-        shell: powershell
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pytest-xdist pyyaml pandas numpy
 
       - name: Run V9 Full Regression (含 Layer 5, >30 分钟)
-        shell: powershell
+        shell: pwsh
         run: |
           python scripts/_run_v9_regression.py --full
 
       - name: Run full test suite (含 nightly marked + GAP-2 E2E)
-        shell: powershell
+        shell: pwsh
         # nightly marker 测试默认 deselected, 这里主动包含
         # GAP-2: tests/e2e/ 下的 E2E 测试 (含 test_ecc_ml_pipeline_e2e.py) 也在此跑
         run: |
@@ -645,7 +649,7 @@ jobs:
 
       - name: Nightly summary
         if: always()
-        shell: powershell
+        shell: pwsh
         run: |
           Write-Host "============================================================"
           Write-Host "Nightly regression completed. Status: ${{ job.status }}"
@@ -687,7 +691,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: 判断所有 job 状态
-        shell: powershell
+        shell: pwsh
         run: |
           $lint = "${{ needs.lint-typecheck.result }}"
           $smoke = "${{ needs.smoke-tests.result }}"

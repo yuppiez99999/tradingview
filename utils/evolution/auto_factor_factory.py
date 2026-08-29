@@ -1241,7 +1241,9 @@ def compute_{safe_name}(
         """收集活跃因子的近期 IC 表现 (从 DriftMonitor 或模拟)."""
         # 尝试从 DriftMonitor 获取
         try:
-            from utils.alpha.drift_monitor import ModelDriftDetector  # noqa: F401
+            import importlib
+
+            importlib.import_module("utils.alpha.drift_monitor")
 
             for name in self._deployed:
                 if name not in self._ic_history:
@@ -1292,6 +1294,26 @@ def compute_{safe_name}(
             ):
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 pass
+
+    def retire_factor(self, name: str, reason: str = "") -> bool:
+        """公开淘汰接口 — 由人工审批工单驱动 (FactorApprovalExecutor 调用).
+
+        Args:
+            name: 因子名
+            reason: 淘汰原因 (审计留痕)
+
+        Returns:
+            是否成功淘汰 (因子不存在返回 False)
+        """
+        if name not in self._deployed:
+            logger.warning(f"[Retire] 因子 {name} 不存在, 跳过")
+            return False
+
+        self._retire_factor(name)
+        self._save_state()
+        self._audit("retire_factor", {"name": name, "reason": reason})
+        logger.info(f"[Retire] 因子 {name} 已下线 (reason={reason or '人工审批'})")
+        return True
 
     # ------------------------------------------------------------
     # 全流水线一键运行

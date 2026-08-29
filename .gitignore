@@ -348,3 +348,46 @@ coverage_output.txt
 # === 工作区清理 (2026-08-15) ===
 # loopx agent 运行时 handoff 目录
 .loopx_handoffs/
+
+# ============================================================
+# 白名单例外 (2026-08-29)
+# 背景: 通用忽略规则 data/ models/ cache/ config/* reports/* 会误伤同名
+# 生产代码目录, 导致这些源码从未入库 —— 本地存在但 CI checkout 拿不到,
+# 表现为 "No module named 'utils.data'" 类恒定失败, 且本地磁盘故障即永久丢失。
+# gitignore 语义铁律: 父目录被排除时, 文件级否定无效, 必须先否定目录本身;
+# 多条规则冲突时"最后匹配者胜", 故否定必须写在被否定规则之后 (即本文件末尾)。
+# ============================================================
+# 写法约定: 只"取消目录排除 + 放行 *.py", 绝不用 !dir/** ——
+# 后者会覆盖全局 *.parquet / *.db / __pycache__ 等规则, 把大文件与缓存一起放行。
+# --- 生产源码目录 (被 data/ 规则误伤, 父目录未被排除, 直接否定即可) ---
+!utils/data/
+!utils/data/*.py
+!quant_modules/ai_hedge_fund/data/
+!quant_modules/ai_hedge_fund/data/*.py
+!ms_strategy/src/data/
+!ms_strategy/src/data/*.py
+# --- 生产源码目录 (被 models/ 规则误伤) ---
+!utils/fineng/models/
+!utils/fineng/models/*.py
+# --- 配置 schema (被 config/* 误伤, config 目录本身未被排除) ---
+!config/schema.py
+# --- ETF 期权对冲回测脚本 (被根目录 data/ 误伤, 需先放行目录再收窄) ---
+# data/etf_option_backtest 下还有 26 个生成报告(.md) 与大量回测产物(.json/.txt),
+# 这些是运行产物不该入库, 故先整体排除再只放行 *.py。
+!data/
+data/*
+!data/etf_option_backtest/
+data/etf_option_backtest/*
+!data/etf_option_backtest/*.py
+# --- cache/ 下的工具脚本 (被 cache/ 误伤) ---
+!cache/
+cache/*
+!cache/*.py
+# --- CI 冻结基线: reports/ci 目录被 reports/* 排除, 须先取消目录排除,
+#     再排除运行时产物, 最后放行冻结基线 (与 reports/ruff_baseline.json 同性质) ---
+!reports/ci/
+reports/ci/*
+!reports/ci/coverage_baseline.json
+# --- 运维工具脚本 (被 check_*.py 临时脚本规则误伤) ---
+!scripts/check_eod_status.py
+!scripts/check_trade_logic.py
