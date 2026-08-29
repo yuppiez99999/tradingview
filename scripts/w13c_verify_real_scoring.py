@@ -22,6 +22,7 @@ HC 合规:
     - HC-4: 只读评估, 不修改 daily_returns.jsonl / positions.json
 =================================================================
 """
+
 from __future__ import annotations
 
 import json
@@ -123,7 +124,9 @@ def verify_public_private_separation(logger: logging.Logger) -> dict:
         import utils.infra.feature_flags as ff_mod
 
         original_is_enabled = ff_mod.is_enabled
-        ff_mod.is_enabled = lambda name: True if name == "USE_STRATEGY_EVALUATOR" else original_is_enabled(name)
+        ff_mod.is_enabled = lambda name: (
+            True if name == "USE_STRATEGY_EVALUATOR" else original_is_enabled(name)
+        )
 
         try:
             from utils.alpha.strategy_evaluator import ScoreReport, StrategyEvaluator
@@ -132,7 +135,9 @@ def verify_public_private_separation(logger: logging.Logger) -> dict:
             report = evaluator.evaluate_from_jsonl()
 
             # 验证 1: 返回 ScoreReport 类型
-            assert isinstance(report, ScoreReport), f"期望 ScoreReport, 实际 {type(report).__name__}"
+            assert isinstance(
+                report, ScoreReport
+            ), f"期望 ScoreReport, 实际 {type(report).__name__}"
 
             # 验证 2: public_score 和 private_score 字段存在且分离
             assert hasattr(report, "public_score"), "缺少 public_score 字段"
@@ -142,17 +147,29 @@ def verify_public_private_separation(logger: logging.Logger) -> dict:
             # 注意: StrategyEvaluator 不会整体降级, 而是 DSR/WF 等子指标在 private_metrics 中降级
             # 顶层 is_degraded 仅在 Flag 关闭或 n=0 时为 True
             # 这里验证: sample_count 正确 + 各字段值范围合法
-            assert report.sample_count >= 5, f"sample_count 应 >=5, 实际 {report.sample_count}"
+            assert (
+                report.sample_count >= 5
+            ), f"sample_count 应 >=5, 实际 {report.sample_count}"
 
             # 验证 4: recommendation 为 continue (不晋升不回滚, 样本不足时不做激进决策)
-            assert report.recommendation in ("continue", "promote", "rollback"), f"recommendation 非法值: {report.recommendation}"
+            assert report.recommendation in (
+                "continue",
+                "promote",
+                "rollback",
+            ), f"recommendation 非法值: {report.recommendation}"
 
             # 验证 5: reward_hacking_risk 在 [0, 1] 范围
-            assert 0.0 <= report.reward_hacking_risk <= 1.0, f"reward_hacking_risk 越界: {report.reward_hacking_risk}"
+            assert (
+                0.0 <= report.reward_hacking_risk <= 1.0
+            ), f"reward_hacking_risk 越界: {report.reward_hacking_risk}"
 
             # 验证 6: public_score 和 private_score 在 [0, 1] 范围
-            assert 0.0 <= report.public_score <= 1.0, f"public_score 越界: {report.public_score}"
-            assert 0.0 <= report.private_score <= 1.0, f"private_score 越界: {report.private_score}"
+            assert (
+                0.0 <= report.public_score <= 1.0
+            ), f"public_score 越界: {report.public_score}"
+            assert (
+                0.0 <= report.private_score <= 1.0
+            ), f"private_score 越界: {report.private_score}"
 
             result["passed"] = True
             result["details"] = {
@@ -161,7 +178,8 @@ def verify_public_private_separation(logger: logging.Logger) -> dict:
                 "has_private_score": True,
                 "public_score": round(report.public_score, 4),
                 "private_score": round(report.private_score, 4),
-                "is_separated": report.public_score != report.private_score or report.is_degraded,
+                "is_separated": report.public_score != report.private_score
+                or report.is_degraded,
                 "sample_count": report.sample_count,
                 "is_degraded": report.is_degraded,
                 "degraded_reason": report.degraded_reason,
@@ -172,7 +190,10 @@ def verify_public_private_separation(logger: logging.Logger) -> dict:
             }
             logger.info(
                 "Public/Private 分离验证 PASS: public=%.4f, private=%.4f, degraded=%s, sample=%d",
-                report.public_score, report.private_score, report.is_degraded, report.sample_count,
+                report.public_score,
+                report.private_score,
+                report.is_degraded,
+                report.sample_count,
             )
         finally:
             # 恢复原始 is_enabled
@@ -216,7 +237,9 @@ def verify_feature_flag_passthrough(logger: logging.Logger) -> dict:
         flag_enabled = is_enabled("USE_STRATEGY_EVALUATOR")
 
         # 检查 override 文件是否存在 (双签记录)
-        override_path = _PROJECT_ROOT / "reports" / "flag_overrides" / "USE_STRATEGY_EVALUATOR.json"
+        override_path = (
+            _PROJECT_ROOT / "reports" / "flag_overrides" / "USE_STRATEGY_EVALUATOR.json"
+        )
         override_exists = override_path.exists()
         override_data = {}
         if override_exists:
@@ -229,12 +252,16 @@ def verify_feature_flag_passthrough(logger: logging.Logger) -> dict:
         evaluator = StrategyEvaluator()
 
         # 验证 1: evaluator.enabled 与 is_enabled() 一致
-        assert evaluator.enabled == flag_enabled, f"evaluator.enabled={evaluator.enabled} 与 is_enabled()={flag_enabled} 不一致"
+        assert (
+            evaluator.enabled == flag_enabled
+        ), f"evaluator.enabled={evaluator.enabled} 与 is_enabled()={flag_enabled} 不一致"
 
         # 验证 2: Flag 启用时返回正常报告 (非降级)
         report = evaluator.evaluate_from_jsonl()
         if flag_enabled:
-            assert not report.is_degraded, f"Flag 启用时不应降级, 实际 is_degraded={report.is_degraded}"
+            assert (
+                not report.is_degraded
+            ), f"Flag 启用时不应降级, 实际 is_degraded={report.is_degraded}"
         else:
             assert report.is_degraded, "Flag 关闭时应返回降级报告"
 
@@ -256,14 +283,17 @@ def verify_feature_flag_passthrough(logger: logging.Logger) -> dict:
         }
         logging.getLogger("w13c_verify_real_scoring").info(
             "Feature Flag 透传验证 PASS: enabled=%s, override=%s (signer=%s, co_signer=%s)",
-            flag_enabled, override_exists,
+            flag_enabled,
+            override_exists,
             override_data.get("signer", "N/A"),
             override_data.get("co_signer", "N/A"),
         )
     except AssertionError as e:
         result["passed"] = False
         result["details"]["error"] = f"assertion_failed: {e}"
-        logging.getLogger("w13c_verify_real_scoring").error("Feature Flag 透传验证 FAIL: %s", e)
+        logging.getLogger("w13c_verify_real_scoring").error(
+            "Feature Flag 透传验证 FAIL: %s", e
+        )
     except (ImportError, RuntimeError, ValueError, OSError) as e:
         result["passed"] = False
         result["details"]["error"] = f"{type(e).__name__}: {e}"
@@ -296,11 +326,15 @@ def verify_read_only(logger: logging.Logger) -> dict:
 
     try:
         import utils.infra.feature_flags as ff_mod
+
         original_is_enabled = ff_mod.is_enabled
-        ff_mod.is_enabled = lambda name: True if name == "USE_STRATEGY_EVALUATOR" else original_is_enabled(name)
+        ff_mod.is_enabled = lambda name: (
+            True if name == "USE_STRATEGY_EVALUATOR" else original_is_enabled(name)
+        )
 
         try:
             from utils.alpha.strategy_evaluator import StrategyEvaluator
+
             evaluator = StrategyEvaluator()
             _ = evaluator.evaluate_from_jsonl()
         finally:
@@ -310,7 +344,9 @@ def verify_read_only(logger: logging.Logger) -> dict:
         new_mtime = jsonl_path.stat().st_mtime
 
         assert new_size == original_size, f"文件大小变化: {original_size} → {new_size}"
-        assert new_mtime == original_mtime, f"修改时间变化: {original_mtime} → {new_mtime}"
+        assert (
+            new_mtime == original_mtime
+        ), f"修改时间变化: {original_mtime} → {new_mtime}"
 
         result["passed"] = True
         result["details"] = {
@@ -319,7 +355,9 @@ def verify_read_only(logger: logging.Logger) -> dict:
             "size_unchanged": True,
             "mtime_unchanged": True,
         }
-        logger.info("只读验证 PASS: daily_returns.jsonl 未被修改 (size=%d)", original_size)
+        logger.info(
+            "只读验证 PASS: daily_returns.jsonl 未被修改 (size=%d)", original_size
+        )
     except AssertionError as e:
         result["passed"] = False
         result["details"]["error"] = f"assertion_failed: {e}"
@@ -356,7 +394,11 @@ def main() -> int:
     logger.info("  total_samples:    %d", sample_stats["total_samples"])
     logger.info("  valid_samples:    %d", sample_stats["valid_samples"])
     logger.info("  zero_return:      %d", sample_stats["zero_return_samples"])
-    logger.info("  date_range:       %s ~ %s", sample_stats["first_date"], sample_stats["last_date"])
+    logger.info(
+        "  date_range:       %s ~ %s",
+        sample_stats["first_date"],
+        sample_stats["last_date"],
+    )
     logger.info("  days_to_target_20:  %d", sample_stats["days_to_target_20"])
     logger.info("  days_to_healthy_120: %d", sample_stats["days_to_healthy_120"])
 
@@ -376,7 +418,9 @@ def main() -> int:
     readonly_result = verify_read_only(logger)
 
     # 5. 汇总
-    all_passed = sep_result["passed"] and flag_result["passed"] and readonly_result["passed"]
+    all_passed = (
+        sep_result["passed"] and flag_result["passed"] and readonly_result["passed"]
+    )
     verification_report = {
         "verification_date": datetime.now().isoformat(),
         "task": "W1.3c",
@@ -398,7 +442,9 @@ def main() -> int:
         logger.info("[OK] W1.3c 验证 PASS — 机制健康, 样本不足待积累")
         logger.info("=" * 60)
     else:
-        verification_report["conclusion"] = "StrategyEvaluator 机制存在 bug, 需修复后再验证"
+        verification_report["conclusion"] = (
+            "StrategyEvaluator 机制存在 bug, 需修复后再验证"
+        )
         logger.error("")
         logger.error("=" * 60)
         logger.error("[FAIL] W1.3c 验证 FAIL — 机制存在 bug")

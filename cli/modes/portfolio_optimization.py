@@ -26,7 +26,7 @@ def run_portfolio_optimization(args):
     progress.update(2, "生成模拟数据...")
     if not engine.generate_simulation_data():
         progress.complete("❌ 数据生成失败")
-        return
+        return None
 
     progress.update(3, "计算相关性矩阵...")
     engine.calculate_correlation_matrix()
@@ -38,8 +38,8 @@ def run_portfolio_optimization(args):
     report = engine.generate_report()
     print("\n" + report)
 
-    write_report_file(report, getattr(args, 'output', None))
-    archive_report(report, '投资组合优化')
+    write_report_file(report, getattr(args, "output", None))
+    archive_report(report, "投资组合优化")
 
     progress.complete("✅ 投资组合优化完成")
 

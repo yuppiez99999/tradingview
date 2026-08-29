@@ -8,6 +8,7 @@
 用法 (由 switchyard_adapter.py 自动调用):
     python3.12 switchyard_bridge.py '{"messages":[...],"model":"auto",...}'
 """
+
 from __future__ import annotations
 
 import json
@@ -27,6 +28,7 @@ def main() -> None:
 
     try:
         from switchyard_rust import server  # type: ignore
+
         response = server.route_request(
             messages=params.get("messages", []),
             model=params.get("model", "auto"),
@@ -38,8 +40,20 @@ def main() -> None:
             timeout=params.get("timeout", 30),
         )
         sys.stdout.write(json.dumps(response, ensure_ascii=False))
-    except (ImportError, RuntimeError, ValueError, ConnectionError, TimeoutError, OSError) as e:
-        sys.stdout.write(json.dumps({"content": "", "error": f"switchyard 路由失败: {e}"}, ensure_ascii=False))
+    except (
+        ImportError,
+        RuntimeError,
+        ValueError,
+        ConnectionError,
+        TimeoutError,
+        OSError,
+    ) as e:
+        sys.stdout.write(
+            json.dumps(
+                {"content": "", "error": f"switchyard 路由失败: {e}"},
+                ensure_ascii=False,
+            )
+        )
 
 
 if __name__ == "__main__":

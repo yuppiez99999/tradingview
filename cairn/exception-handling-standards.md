@@ -472,3 +472,14 @@ contains: E741, rename-gotcha, F821-validation
 
 - [cairn/test-health-20260819.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/cairn/test-health-20260819.md) §三 — Tier 1 批量修复明细与踩坑记录
 - [cairn/code-review-ruff-fix-batch-20260818.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/cairn/code-review-ruff-fix-batch-20260818.md) — 0818 ruff F821/F811/B904 清零批次
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [重构规约 (Refactoring Standards)](refactoring-standards.md) (相似度 28%)
+- [W6.3.3 预研 · QS-Trader 风格 secid 合约解析难点清单](w633_secid_contract_parsing_challenges.md) (相似度 24%)
+- [测试债清零经验沉淀 (2026-08-16)](test-debt-clearance-20260816.md) (相似度 16%)
+- [新代码审查 bug 模式与根因（2026-08-17）](code-review-newcode-bug-patterns-20260817.md) (相似度 15%)
+- [Bug修复追踪表 v2.4](bug_fix_tracker.md) (相似度 13%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

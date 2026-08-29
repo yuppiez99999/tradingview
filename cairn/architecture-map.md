@@ -201,3 +201,14 @@ WonderTrader 集成 + 因子库 + 回测 + 风控 + 对冲 + 执行：
 - 想理解"怎么风控的"：先看 `cairn/risk-architecture.md`，再看 `utils/pipeline/risk_monitor.py`
 - 想理解"模型怎么训练和进化的"：先看 `cairn/model-training.md`，再看 `lgb_trainer/trainer.py`
 - 想定位具体函数/类：用 code-review-graph MCP 的 `semantic_search_nodes_tool` 或 `query_graph_tool`
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [模型训练与生命周期](model-training.md) (相似度 12%)
+- [数据管道架构](data-pipeline.md) (相似度 11%)
+- [qlib 选股模型回测验证与 V9 对比](qlib-backtest-validation.md) (相似度 10%)
+- [自我进化迭代再平衡闭环（Evolution-Rebalance Loop）](evolution-rebalance-loop.md) (相似度 9%)
+- [自我进化框架](self-evolution-framework.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

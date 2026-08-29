@@ -16,7 +16,16 @@ try:
     import pandas as pd
 
     _HAS_PANDAS = True
-except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+except (
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    RuntimeError,
+    OSError,
+    TimeoutError,
+    ConnectionError,
+):
     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     pd = None
     _HAS_PANDAS = False
@@ -76,22 +85,45 @@ def dataframe_to_qlib_record(df: Any) -> list[dict[str, Any]]:
             df.index = pd.to_datetime(df.index, errors="coerce")
         # 向量化重构：消除 iterrows() 逐行遍历，使用 numpy 数组操作
         idx = df.index
-        dates = [ts.strftime("%Y-%m-%d") if hasattr(ts, "strftime") else str(ts) for ts in idx]
+        dates = [
+            ts.strftime("%Y-%m-%d") if hasattr(ts, "strftime") else str(ts)
+            for ts in idx
+        ]
 
         # 批量提取列数据为 numpy 数组，避免逐行 Series 创建
-        opens = pd.to_numeric(df.get("open", pd.Series(0, index=idx)), errors="coerce").fillna(0).to_numpy(dtype=float)
-        highs = pd.to_numeric(df.get("high", pd.Series(0, index=idx)), errors="coerce").fillna(0).to_numpy(dtype=float)
-        lows = pd.to_numeric(df.get("low", pd.Series(0, index=idx)), errors="coerce").fillna(0).to_numpy(dtype=float)
+        opens = (
+            pd.to_numeric(df.get("open", pd.Series(0, index=idx)), errors="coerce")
+            .fillna(0)
+            .to_numpy(dtype=float)
+        )
+        highs = (
+            pd.to_numeric(df.get("high", pd.Series(0, index=idx)), errors="coerce")
+            .fillna(0)
+            .to_numpy(dtype=float)
+        )
+        lows = (
+            pd.to_numeric(df.get("low", pd.Series(0, index=idx)), errors="coerce")
+            .fillna(0)
+            .to_numpy(dtype=float)
+        )
         closes = (
-            pd.to_numeric(df.get("close", pd.Series(0, index=idx)), errors="coerce").fillna(0).to_numpy(dtype=float)
+            pd.to_numeric(df.get("close", pd.Series(0, index=idx)), errors="coerce")
+            .fillna(0)
+            .to_numpy(dtype=float)
         )
         volumes = (
-            pd.to_numeric(df.get("volume", pd.Series(0, index=idx)), errors="coerce").fillna(0).to_numpy(dtype=float)
+            pd.to_numeric(df.get("volume", pd.Series(0, index=idx)), errors="coerce")
+            .fillna(0)
+            .to_numpy(dtype=float)
         )
 
         # amount 列不存在时回退到 volume
         if "amount" in df.columns:
-            amounts = pd.to_numeric(df["amount"], errors="coerce").fillna(0).to_numpy(dtype=float)
+            amounts = (
+                pd.to_numeric(df["amount"], errors="coerce")
+                .fillna(0)
+                .to_numpy(dtype=float)
+            )
         else:
             amounts = volumes.copy()
 
@@ -118,9 +150,13 @@ def qlib_signal_to_system(qlib_signal: Any) -> dict[str, Any]:
     尽量兼容多种常见返回结构
     """
     if isinstance(qlib_signal, dict):
-        score = qlib_signal.get("score", qlib_signal.get("y", qlib_signal.get("pred", 0)))
+        score = qlib_signal.get(
+            "score", qlib_signal.get("y", qlib_signal.get("pred", 0))
+        )
         direction = qlib_signal.get("direction", qlib_signal.get("signal", "neutral"))
-        confidence = float(qlib_signal.get("confidence", qlib_signal.get("confidence_level", 0)) or 0)
+        confidence = float(
+            qlib_signal.get("confidence", qlib_signal.get("confidence_level", 0)) or 0
+        )
         return {
             "score": float(score) if score is not None else 0.0,
             "direction": str(direction),
@@ -130,9 +166,23 @@ def qlib_signal_to_system(qlib_signal: Any) -> dict[str, Any]:
     if hasattr(qlib_signal, "item"):
         try:
             score = float(qlib_signal.item())
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             score = 0.0
-        return {"score": score, "direction": "buy" if score > 0 else "sell", "confidence": 0.0, "source": "qlib"}
+        return {
+            "score": score,
+            "direction": "buy" if score > 0 else "sell",
+            "confidence": 0.0,
+            "source": "qlib",
+        }
     return {"score": 0.0, "direction": "neutral", "confidence": 0.0, "source": "qlib"}
 
 

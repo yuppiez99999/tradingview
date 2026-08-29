@@ -7,6 +7,7 @@
     NewType: AShareCode6 / WindCode / EastMoneySecId / FuturesContractCode / ExchangeCode / ProductCode
     ContractSpec / ContractRegistry / default_registry — 合约规格注册表 (Step 2)
 """
+
 from utils.contracts.registry import ContractRegistry, ContractSpec, default_registry
 from utils.contracts.symbols import (
     EXCHANGES,

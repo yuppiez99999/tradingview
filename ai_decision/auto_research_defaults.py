@@ -23,6 +23,7 @@
 
 集成日期: 2026-08-12 (W7.4.1, AutoResearch Skill 开发)
 """
+
 from __future__ import annotations
 
 import logging
@@ -64,26 +65,45 @@ class ExpressionFactorGenerator(FactorGenerator):
         ("EXPR_RET_1D", "Momentum", "close / close[-1] - 1", "1 日收益率"),
         ("EXPR_RET_5D", "Momentum", "close / close[-5] - 1", "5 日收益率"),
         ("EXPR_RET_20D", "Momentum", "close / close[-20] - 1", "20 日收益率"),
-        ("EXPR_VOL_20D", "Volatility", "std(close, 20) / mean(close, 20)", "20 日波动率"),
-        ("EXPR_VOL_RATIO_5_20", "Volatility", "std(close, 5) / std(close, 20)", "5/20 日波动比"),
+        (
+            "EXPR_VOL_20D",
+            "Volatility",
+            "std(close, 20) / mean(close, 20)",
+            "20 日波动率",
+        ),
+        (
+            "EXPR_VOL_RATIO_5_20",
+            "Volatility",
+            "std(close, 5) / std(close, 20)",
+            "5/20 日波动比",
+        ),
         ("EXPR_TURN_5D", "Liquidity", "mean(turnover, 5)", "5 日平均换手率"),
-        ("EXPR_AMIHUD_5D", "Liquidity", "mean(|ret| / amount, 5)", "5 日 Amihud 非流动性"),
+        (
+            "EXPR_AMIHUD_5D",
+            "Liquidity",
+            "mean(|ret| / amount, 5)",
+            "5 日 Amihud 非流动性",
+        ),
     ]
 
-    def __init__(self, templates: list[tuple[str, str, str, str]] | None = None) -> None:
+    def __init__(
+        self, templates: list[tuple[str, str, str, str]] | None = None
+    ) -> None:
         self._templates = templates or self._DEFAULT_TEMPLATES
 
     def generate(self, context: ResearchContext) -> list[FactorCandidate]:
         candidates: list[FactorCandidate] = []
         for name, category, expr, desc in self._templates:
-            candidates.append(FactorCandidate(
-                name=name,
-                category=category,
-                source="expression",
-                expression=expr,
-                description=desc,
-                metadata={"template_idx": len(candidates)},
-            ))
+            candidates.append(
+                FactorCandidate(
+                    name=name,
+                    category=category,
+                    source="expression",
+                    expression=expr,
+                    description=desc,
+                    metadata={"template_idx": len(candidates)},
+                )
+            )
         logger.info("ExpressionFactorGenerator 生成 %d 个候选", len(candidates))
         return candidates
 
@@ -116,6 +136,7 @@ class StandardFactorEvaluator(FactorEvaluator):
         context: ResearchContext,
     ) -> FactorEvaluationResult:
         import time
+
         started = time.monotonic()
 
         try:
@@ -139,7 +160,7 @@ class StandardFactorEvaluator(FactorEvaluator):
                 s2_effective_icir=abs(ic_ir),
                 s3_long_short_sharpe=ls_sharpe,
                 s4_max_corr_with_existing=0.0,  # 由 S4 门禁动态计算
-                s5_backtest_increment=0.0,      # 由 S5 门禁动态计算
+                s5_backtest_increment=0.0,  # 由 S5 门禁动态计算
             )
 
             # 4. 可选: HonestValidation
@@ -218,7 +239,9 @@ class StandardFactorEvaluator(FactorEvaluator):
         return ic_series, forward_returns
 
     @staticmethod
-    def _spearman_corr(x: list[float] | np.ndarray, y: list[float] | np.ndarray) -> float:
+    def _spearman_corr(
+        x: list[float] | np.ndarray, y: list[float] | np.ndarray
+    ) -> float:
         """简化 Spearman 相关 (用 Pearson on ranks 近似)."""
         xa = np.array(x, dtype=float)
         ya = np.array(y, dtype=float)
@@ -266,6 +289,7 @@ class StandardFactorEvaluator(FactorEvaluator):
         """
         try:
             from utils.backtest.honest_validation import run_honest_validation
+
             arr = np.array(daily_returns, dtype=float)
             return run_honest_validation(arr, n_trials_dsr=10)
         except (ImportError, RuntimeError, ValueError) as exc:
@@ -420,7 +444,10 @@ def create_default_skill(config: AutoResearchConfig | None = None) -> Any:
     Returns:
         AutoResearchSkill 实例, 含默认 Generator/Evaluator/Gates/Registry
     """
-    from ai_decision.auto_research_skill import AutoResearchSkill, InMemoryFactorRegistry
+    from ai_decision.auto_research_skill import (
+        AutoResearchSkill,
+        InMemoryFactorRegistry,
+    )
 
     cfg = config or AutoResearchConfig()
     return AutoResearchSkill(

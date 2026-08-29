@@ -245,7 +245,9 @@ class DelayedLabelTracker:
         except OSError as e:
             logger.warning("持久化预测记录失败: %s", e)
 
-    def _update_record_label(self, date: str, symbol: str, actual_label: float, observed_at: str) -> None:
+    def _update_record_label(
+        self, date: str, symbol: str, actual_label: float, observed_at: str
+    ) -> None:
         """更新记录的实际标签 (重写当日文件)."""
         file = self._storage_file(date)
         if not file.exists():
@@ -439,7 +441,9 @@ class DelayedLabelTracker:
     # ============================================================
     # 指标计算
     # ============================================================
-    def compute_delayed_metrics(self, model_version: str | None = None) -> DelayedMetrics:
+    def compute_delayed_metrics(
+        self, model_version: str | None = None
+    ) -> DelayedMetrics:
         """计算延迟指标 (IC / IC_IR / RankIC).
 
         基于 label 已观测的记录, 计算预测分数与实际标签的相关性.
@@ -455,7 +459,8 @@ class DelayedLabelTracker:
         observed_records = [
             r
             for r in all_records
-            if r.actual_label is not None and (model_version is None or r.model_version == model_version)
+            if r.actual_label is not None
+            and (model_version is None or r.model_version == model_version)
         ]
 
         if len(observed_records) < 2:
@@ -464,7 +469,11 @@ class DelayedLabelTracker:
                 n_predictions=len(all_records),
                 n_observed=len(observed_records),
                 n_pending=len(all_records) - len(observed_records),
-                observation_rate=(len(observed_records) / len(all_records) if len(all_records) > 0 else 0.0),
+                observation_rate=(
+                    len(observed_records) / len(all_records)
+                    if len(all_records) > 0
+                    else 0.0
+                ),
                 timestamp=datetime.utcnow().isoformat() + "Z",
             )
 
@@ -477,7 +486,16 @@ class DelayedLabelTracker:
                 ic = float(np.corrcoef(predicted, actual)[0, 1])
             else:
                 ic = 0.0
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             ic = 0.0
 
@@ -492,7 +510,11 @@ class DelayedLabelTracker:
                     rank_ic = 0.0
             else:
                 rank_ic = 0.0
-        except (ImportError, ValueError, TypeError):  # noqa: BLE001  # scipy.stats 不可用/数据异常时降级, 待后续精确化
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+        ):  # noqa: BLE001  # scipy.stats 不可用/数据异常时降级, 待后续精确化
             rank_ic = 0.0
 
         # IC IR (按日聚合 IC, 然后计算 IC 均值 / IC 标准差)
@@ -545,7 +567,16 @@ class DelayedLabelTracker:
                     ic_day = float(np.corrcoef(pred, act)[0, 1])
                     if np.isfinite(ic_day):
                         daily_ic.append(ic_day)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.0
 

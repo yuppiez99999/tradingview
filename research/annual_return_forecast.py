@@ -10,6 +10,7 @@
 
 生产代码 (如 system_health_check.py) 应直接 `from utils.annual_return_forecast import ...`。
 """
+
 from utils.annual_return_forecast import *  # noqa: F401,F403 — 向后兼容转发
 from utils.annual_return_forecast import (
     forecast_annual_return,

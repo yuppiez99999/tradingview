@@ -18,6 +18,7 @@ VixDataSource 单元测试
     - test_fetch_vix_all_fail: 全失败返回 None
     - test_cache_dir_auto_creation: 自动创建缓存目录
 """
+
 from __future__ import annotations
 
 import json
@@ -86,9 +87,13 @@ class TestShadowStateRv:
         assert vix is not None
         assert 5 <= vix <= 50  # 合理区间
 
-    def test_fetch_from_shadow_state_rv_insufficient_data(self, tmp_path, temp_cache_dir):
+    def test_fetch_from_shadow_state_rv_insufficient_data(
+        self, tmp_path, temp_cache_dir
+    ):
         """daily_nav 数据不足 2 条时返回 None."""
-        state_data = {"daily_nav": [{"date": "2026-08-04", "nav": 1.0, "daily_return": None}]}
+        state_data = {
+            "daily_nav": [{"date": "2026-08-04", "nav": 1.0, "daily_return": None}]
+        }
         state_path = tmp_path / "shadow_state.json"
         state_path.write_text(json.dumps(state_data), encoding="utf-8")
 
@@ -103,7 +108,10 @@ class TestShadowStateRv:
         """文件不存在时返回 None."""
         ds = VixDataSource()
         ds.CACHE_PATH = temp_cache_dir / "vix_cache.json"
-        with patch("utils.alpha.vix_data_source._SHADOW_STATE_PATH", tmp_path / "nonexistent.json"):
+        with patch(
+            "utils.alpha.vix_data_source._SHADOW_STATE_PATH",
+            tmp_path / "nonexistent.json",
+        ):
             vix = ds._fetch_from_shadow_state_rv()
 
         assert vix is None
@@ -180,7 +188,10 @@ class TestCacheMechanism:
         assert cached is None
 
         # 写入缺少 vix 字段的缓存
-        cache_path.write_text(json.dumps({"source": "test", "timestamp": datetime.now().isoformat()}), encoding="utf-8")
+        cache_path.write_text(
+            json.dumps({"source": "test", "timestamp": datetime.now().isoformat()}),
+            encoding="utf-8",
+        )
         cached = ds._load_cache()
         assert cached is None
 
@@ -216,8 +227,13 @@ class TestFetchVixFullChain:
         ds = VixDataSource()
         ds.CACHE_PATH = temp_cache_dir / "vix_cache.json"
         # shadow_state 不存在 + Wind K 线失败 + 无缓存
-        with patch("utils.alpha.vix_data_source._SHADOW_STATE_PATH", tmp_path / "nonexistent.json"), \
-             patch.object(ds, "_fetch_from_wind_kline", return_value=None):
+        with (
+            patch(
+                "utils.alpha.vix_data_source._SHADOW_STATE_PATH",
+                tmp_path / "nonexistent.json",
+            ),
+            patch.object(ds, "_fetch_from_wind_kline", return_value=None),
+        ):
             vix = ds.fetch_vix(use_cache=False)
 
         assert vix is None
@@ -232,8 +248,13 @@ class TestFetchVixFullChain:
         ds._save_cache(28.5, source="shadow_state_rv")
 
         # shadow_state 不可用 + Wind 失败 → 应该回退到缓存
-        with patch("utils.alpha.vix_data_source._SHADOW_STATE_PATH", temp_cache_dir / "nonexistent.json"), \
-             patch.object(ds, "_fetch_from_wind_kline", return_value=None):
+        with (
+            patch(
+                "utils.alpha.vix_data_source._SHADOW_STATE_PATH",
+                temp_cache_dir / "nonexistent.json",
+            ),
+            patch.object(ds, "_fetch_from_wind_kline", return_value=None),
+        ):
             vix = ds.fetch_vix(use_cache=True)
 
         assert vix == 28.5
@@ -246,12 +267,17 @@ class TestFetchVixFullChain:
 
         # 预写入过期缓存
         expired_time = (datetime.now() - timedelta(minutes=10)).isoformat()
-        cache_path.write_text(json.dumps({
-            "vix": 99.9,  # 不应该返回这个值
-            "source": "test",
-            "timestamp": expired_time,
-            "ttl": 300,
-        }), encoding="utf-8")
+        cache_path.write_text(
+            json.dumps(
+                {
+                    "vix": 99.9,  # 不应该返回这个值
+                    "source": "test",
+                    "timestamp": expired_time,
+                    "ttl": 300,
+                }
+            ),
+            encoding="utf-8",
+        )
 
         # shadow_state 可用 → 应该返回 shadow_state RV, 不是缓存
         with patch("utils.alpha.vix_data_source._SHADOW_STATE_PATH", temp_state_file):

@@ -25,6 +25,7 @@
     - HC-4: 观察期内不触发任何进化动作
     - HC-5: 配置走 ConfigManager 4 级优先级
 """
+
 from __future__ import annotations
 
 import json
@@ -100,10 +101,9 @@ def deterministic_returns() -> list[float]:
 def overfit_returns() -> list[float]:
     """过拟合数据: 前期近线性高 Sharpe, 后期随机."""
     random.seed(7)
-    return (
-        [0.005 + random.gauss(0, 0.0005) for _ in range(200)]
-        + [random.gauss(0, 0.02) for _ in range(52)]
-    )
+    return [0.005 + random.gauss(0, 0.0005) for _ in range(200)] + [
+        random.gauss(0, 0.02) for _ in range(52)
+    ]
 
 
 @pytest.fixture
@@ -164,8 +164,10 @@ class TestFeatureFlagPassThrough:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Feature Flag 检查异常时默认禁用 (fail-safe)."""
+
         def _raise(name: str) -> bool:
             raise RuntimeError("feature_flags module broken")
+
         monkeypatch.setattr("utils.infra.feature_flags.is_enabled", _raise)
         evaluator = StrategyEvaluator()
         assert evaluator.enabled is False
@@ -373,9 +375,7 @@ class TestPublicPrivateSeparation:
         assert report.public_metrics["ic_ir"] == 0.65
         assert report.public_metrics["ic_mean"] == pytest.approx(0.054, abs=1e-6)
 
-    def test_features_used_recorded(
-        self, enabled_evaluator: StrategyEvaluator
-    ) -> None:
+    def test_features_used_recorded(self, enabled_evaluator: StrategyEvaluator) -> None:
         """signal_history.features_used 记录到 private_metrics.n_features."""
         returns = [0.01, -0.005, 0.008] * 50
         signal_history = {"features_used": ["f1", "f2", "f3"]}
@@ -399,9 +399,7 @@ class TestAntiCheatDetection:
         overfit_returns: list[float],
     ) -> None:
         """过拟合数据 wf_sharpe_decay > 0.5."""
-        report = enabled_evaluator.evaluate(
-            daily_returns=overfit_returns, n_trials=100
-        )
+        report = enabled_evaluator.evaluate(daily_returns=overfit_returns, n_trials=100)
         decay = report.private_metrics.get("wf_sharpe_decay", 0)
         assert decay > 0.5, f"decay={decay:.4f} 应 > 0.5"
 
@@ -411,12 +409,10 @@ class TestAntiCheatDetection:
         overfit_returns: list[float],
     ) -> None:
         """过拟合数据 reward_hacking_risk > 0.25."""
-        report = enabled_evaluator.evaluate(
-            daily_returns=overfit_returns, n_trials=100
-        )
-        assert report.reward_hacking_risk > 0.25, (
-            f"risk={report.reward_hacking_risk:.4f} 应 > 0.25"
-        )
+        report = enabled_evaluator.evaluate(daily_returns=overfit_returns, n_trials=100)
+        assert (
+            report.reward_hacking_risk > 0.25
+        ), f"risk={report.reward_hacking_risk:.4f} 应 > 0.25"
 
     def test_pit_violation_detected(self, enabled_evaluator: StrategyEvaluator) -> None:
         """PIT 违规 (timestamps 非单调) 被检测."""
@@ -425,9 +421,12 @@ class TestAntiCheatDetection:
         # 2099-12-31 是未来时间戳, 破坏单调性
         signal_history = {
             "timestamps": [
-                "2026-01-01", "2026-01-02",
+                "2026-01-01",
+                "2026-01-02",
                 "2099-12-31",
-                "2026-01-04", "2026-01-05", "2026-01-06",
+                "2026-01-04",
+                "2026-01-05",
+                "2026-01-06",
             ],
         }
         report = enabled_evaluator.evaluate(
@@ -437,7 +436,8 @@ class TestAntiCheatDetection:
         # PIT 违规触发风险加分
         assert report.reward_hacking_risk >= RH_RISK_PIT_VIOLATION or (
             # 简化版检查器可能仅返回违规数而不加分 (降级模式)
-            report.pit_violations > 0
+            report.pit_violations
+            > 0
         )
 
     def test_pit_clean_data_no_violation(
@@ -447,8 +447,12 @@ class TestAntiCheatDetection:
         returns = [0.01, -0.005, 0.008, 0.002, -0.003, 0.005]
         signal_history = {
             "timestamps": [
-                "2026-01-01", "2026-01-02", "2026-01-03",
-                "2026-01-04", "2026-01-05", "2026-01-06",
+                "2026-01-01",
+                "2026-01-02",
+                "2026-01-03",
+                "2026-01-04",
+                "2026-01-05",
+                "2026-01-06",
             ],
         }
         report = enabled_evaluator.evaluate(
@@ -514,11 +518,18 @@ class TestScoreReportSerialization:
         report = enabled_evaluator.evaluate(daily_returns=deterministic_returns)
         d = report.to_dict()
         expected_keys = {
-            "public_score", "public_metrics",
-            "private_score", "private_metrics",
-            "reward_hacking_risk", "pit_violations", "overfit_score",
-            "recommendation", "reason",
-            "sample_count", "is_degraded", "degraded_reason",
+            "public_score",
+            "public_metrics",
+            "private_score",
+            "private_metrics",
+            "reward_hacking_risk",
+            "pit_violations",
+            "overfit_score",
+            "recommendation",
+            "reason",
+            "sample_count",
+            "is_degraded",
+            "degraded_reason",
         }
         assert set(d.keys()) == expected_keys
 
@@ -596,9 +607,7 @@ class TestEvaluateFromJsonl:
 class TestRecommendationLogic:
     """promote/rollback/continue 阈值测试."""
 
-    def test_bad_data_not_promote(
-        self, enabled_evaluator: StrategyEvaluator
-    ) -> None:
+    def test_bad_data_not_promote(self, enabled_evaluator: StrategyEvaluator) -> None:
         """负收益高波动数据不应 promote."""
         random.seed(999)
         bad = [random.gauss(-0.001, 0.02) for _ in range(TRADING_DAYS_PER_YEAR)]
@@ -735,7 +744,9 @@ class TestUnderlyingComputation:
         """年化收益打分限幅在 [0, 1]."""
         assert enabled_evaluator._score_absolute_return(0.0) == 0.0
         assert enabled_evaluator._score_absolute_return(BASELINE_ANNUAL_RETURN) == 0.0
-        assert enabled_evaluator._score_absolute_return(BASELINE_ANNUAL_RETURN + 0.15) == pytest.approx(1.0)
+        assert enabled_evaluator._score_absolute_return(
+            BASELINE_ANNUAL_RETURN + 0.15
+        ) == pytest.approx(1.0)
         assert enabled_evaluator._score_absolute_return(10.0) == 1.0
         assert enabled_evaluator._score_absolute_return(-0.5) == 0.0
 
@@ -784,9 +795,7 @@ class TestConvenienceFunctions:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """evaluate_strategy 返回 ScoreReport."""
-        monkeypatch.setattr(
-            "utils.infra.feature_flags.is_enabled", lambda name: True
-        )
+        monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: True)
         report = evaluate_strategy(daily_returns=[0.01] * 50, n_trials=10)
         assert isinstance(report, ScoreReport)
 
@@ -794,13 +803,9 @@ class TestConvenienceFunctions:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """evaluate_from_shadow 文件不存在时返回降级报告."""
-        monkeypatch.setattr(
-            "utils.infra.feature_flags.is_enabled", lambda name: True
-        )
+        monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: True)
         # patch 默认路径到 tmp_path (确保文件不存在)
-        monkeypatch.setattr(
-            "utils.alpha.strategy_evaluator._PROJECT_ROOT", tmp_path
-        )
+        monkeypatch.setattr("utils.alpha.strategy_evaluator._PROJECT_ROOT", tmp_path)
         report = evaluate_from_shadow()
         assert isinstance(report, ScoreReport)
         assert report.is_degraded is True
@@ -823,7 +828,8 @@ class TestEvolutionOrchestratorWorkflow:
         """启用 Flag 的 Orchestrator (临时目录隔离)."""
         monkeypatch.setattr(
             "utils.infra.feature_flags.is_enabled",
-            lambda name: name in ("USE_EVOLUTION_ORCHESTRATOR", "USE_STRATEGY_EVALUATOR"),
+            lambda name: name
+            in ("USE_EVOLUTION_ORCHESTRATOR", "USE_STRATEGY_EVALUATOR"),
         )
         daily_returns_path = tmp_path / "daily_returns.jsonl"
         decisions_log = tmp_path / "decisions.jsonl"
@@ -849,9 +855,7 @@ class TestEvolutionOrchestratorWorkflow:
         tmp_path: Path,
     ) -> EvolutionOrchestrator:
         """禁用 Flag 的 Orchestrator."""
-        monkeypatch.setattr(
-            "utils.infra.feature_flags.is_enabled", lambda name: False
-        )
+        monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: False)
         return EvolutionOrchestrator(
             daily_returns_path=tmp_path / "daily_returns.jsonl",
             decisions_log_path=tmp_path / "decisions.jsonl",
@@ -875,7 +879,9 @@ class TestEvolutionOrchestratorWorkflow:
         assert "enabled" in status
         assert "observation_day" in status
 
-    def test_disabled_status(self, disabled_orchestrator: EvolutionOrchestrator) -> None:
+    def test_disabled_status(
+        self, disabled_orchestrator: EvolutionOrchestrator
+    ) -> None:
         """禁用时 status=disabled."""
         status = disabled_orchestrator.get_status()
         assert status["status"] == STATUS_DISABLED
@@ -903,9 +909,7 @@ class TestEvolutionOrchestratorWorkflow:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """文件不存在返回降级快照."""
-        monkeypatch.setattr(
-            "utils.infra.feature_flags.is_enabled", lambda name: True
-        )
+        monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: True)
         orch = EvolutionOrchestrator(
             daily_returns_path=tmp_path / "missing.jsonl",
             decisions_log_path=tmp_path / "dec.jsonl",
@@ -983,12 +987,11 @@ class TestObservationPeriod:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """观察期内 in_observation=True, status=observation."""
-        monkeypatch.setattr(
-            "utils.infra.feature_flags.is_enabled", lambda name: True
-        )
+        monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: True)
         daily_returns_path = tmp_path / "daily_returns.jsonl"
         # 首条日期 = 今天 (在观察期内)
         from datetime import date
+
         today = date.today().isoformat()
         records = [
             {"date": today, "daily_return": 0.001},
@@ -1009,10 +1012,9 @@ class TestObservationPeriod:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """观察期内 action 强制改为 evaluate_only (HC-4)."""
-        monkeypatch.setattr(
-            "utils.infra.feature_flags.is_enabled", lambda name: True
-        )
+        monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: True)
         from datetime import date
+
         today = date.today().isoformat()
         daily_returns_path = tmp_path / "daily_returns.jsonl"
         records = [{"date": today, "daily_return": 0.001}]
@@ -1068,9 +1070,7 @@ class TestDecisionLogPersistence:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """多次 log_decision 追加写入."""
-        monkeypatch.setattr(
-            "utils.infra.feature_flags.is_enabled", lambda name: True
-        )
+        monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: True)
         decisions_log = tmp_path / "dec.jsonl"
         orch = EvolutionOrchestrator(
             daily_returns_path=tmp_path / "missing.jsonl",
@@ -1087,9 +1087,7 @@ class TestDecisionLogPersistence:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """get_recent_decisions 倒序返回."""
-        monkeypatch.setattr(
-            "utils.infra.feature_flags.is_enabled", lambda name: True
-        )
+        monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: True)
         decisions_log = tmp_path / "dec.jsonl"
         orch = EvolutionOrchestrator(
             daily_returns_path=tmp_path / "missing.jsonl",
@@ -1107,9 +1105,7 @@ class TestDecisionLogPersistence:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """日志文件不存在时返回空列表."""
-        monkeypatch.setattr(
-            "utils.infra.feature_flags.is_enabled", lambda name: True
-        )
+        monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: True)
         orch = EvolutionOrchestrator(
             daily_returns_path=tmp_path / "missing.jsonl",
             decisions_log_path=tmp_path / "missing_decisions.jsonl",
@@ -1168,9 +1164,7 @@ class TestDataclassSerialization:
 class TestRealDataCompatibility:
     """与生产 daily_returns.jsonl 兼容 (只读, 不修改)."""
 
-    def test_read_real_shadow_data(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_read_real_shadow_data(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """读取真实 shadow/daily_returns.jsonl (如果存在)."""
         project_root = Path(__file__).resolve().parents[2]
         jsonl_path = project_root / "reports" / "shadow" / "daily_returns.jsonl"
@@ -1179,9 +1173,7 @@ class TestRealDataCompatibility:
 
         original_size = jsonl_path.stat().st_size
 
-        monkeypatch.setattr(
-            "utils.infra.feature_flags.is_enabled", lambda name: True
-        )
+        monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: True)
         evaluator = StrategyEvaluator()
         report = evaluator.evaluate_from_jsonl(jsonl_path=str(jsonl_path))
 

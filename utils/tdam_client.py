@@ -250,7 +250,9 @@ class TDAMConfig:
     cache_dir: Path = CACHE_DIR
     user_key: str = ""  # sk-mem-xxx, /v3/* 路由必需 (从 .admin-credentials.json 加载)
     service_id: str = DEFAULT_SERVICE_ID  # x-tdai-service-id header 值
-    user_id: str = DEFAULT_USER_ID  # usr-xxx, body 参数 (从 .admin-credentials.json 加载)
+    user_id: str = (
+        DEFAULT_USER_ID  # usr-xxx, body 参数 (从 .admin-credentials.json 加载)
+    )
     team_id: str = DEFAULT_TEAM_ID
     agent_id: str = "default"  # agent 标识 (conversation/add 必需)
     admin_creds_file: Path = ADMIN_CREDS_FILE
@@ -266,13 +268,18 @@ class TDAMConfig:
         if (not self.user_key or not self.user_id) and self.admin_creds_file.exists():
             try:
                 import json as _json
+
                 creds = _json.loads(self.admin_creds_file.read_text(encoding="utf-8"))
                 if not self.user_key:
                     self.user_key = creds.get("user_key", "")
                 if not self.user_id:
                     self.user_id = creds.get("user_id", "")
             except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
-                logger.warning("[tdam_client] 读取 admin 凭据失败: %s — %s", self.admin_creds_file, e)
+                logger.warning(
+                    "[tdam_client] 读取 admin 凭据失败: %s — %s",
+                    self.admin_creds_file,
+                    e,
+                )
         # 4. team_id / agent_id 支持环境变量覆盖 (TDAM_TEAM_ID / TDAM_AGENT_ID)
         #    TDAM 的 team/agent 用系统生成的带前缀 id (如 team-xxx / agt-xxx),
         #    需与 v3-meta 创建的实体一致, 否则 skill 写入会报 team/agent not found。
@@ -350,16 +357,20 @@ class TDAMClient:
         session = requests.Session()
         session.trust_env = False  # 不读取系统代理 (数据不出网)
         session.proxies = {"http": None, "https": None}
-        session.headers.update({
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        })
+        session.headers.update(
+            {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+        )
         # 鉴权 header (user_key 非空时启用, /v3/* 路由必需)
         if self.config.user_key:
-            session.headers.update({
-                "Authorization": f"Bearer {self.config.user_key}",
-                "x-tdai-service-id": self.config.service_id,
-            })
+            session.headers.update(
+                {
+                    "Authorization": f"Bearer {self.config.user_key}",
+                    "x-tdai-service-id": self.config.service_id,
+                }
+            )
         return session
 
     def _check_flag(self) -> bool:
@@ -369,6 +380,7 @@ class TDAMClient:
 
         try:
             from utils.infra.feature_flags import is_enabled
+
             self._flag_enabled = is_enabled("USE_TDAM_MEMORY_ENHANCEMENT")
         except (ImportError, AttributeError, RuntimeError) as e:
             logger.warning("[tdam_client] Feature Flag 检查失败, 视为未启用: %s", e)
@@ -435,7 +447,11 @@ class TDAMClient:
                 timeout=5,
             )
             return resp.status_code == 200
-        except (requests.Timeout, requests.ConnectionError, requests.RequestException) as e:
+        except (
+            requests.Timeout,
+            requests.ConnectionError,
+            requests.RequestException,
+        ) as e:
             logger.debug("[tdam_client] 健康检查失败: %s", e)
             return False
 
@@ -470,7 +486,11 @@ class TDAMClient:
 
         endpoint = ASSET_LIST_ENDPOINT.get(asset_type)
         if not endpoint:
-            return {"error": f"unsupported_asset_type:{asset_type}", "items": [], "total": 0}
+            return {
+                "error": f"unsupported_asset_type:{asset_type}",
+                "items": [],
+                "total": 0,
+            }
 
         body: dict[str, Any] = {"limit": limit, "team_id": self.config.team_id}
         if asset_type == "skill":
@@ -515,14 +535,16 @@ class TDAMClient:
         # 1. Feature Flag 检查
         if not self._check_flag():
             return TDAMSearchResult(
-                success=False, degraded=True,
+                success=False,
+                degraded=True,
                 error="feature_flag_disabled",
             )
 
         # 2. 离线模式
         if self.config.offline:
             return TDAMSearchResult(
-                success=False, degraded=True,
+                success=False,
+                degraded=True,
                 error="offline_mode",
             )
 
@@ -530,7 +552,8 @@ class TDAMClient:
         endpoint = ASSET_SEARCH_ENDPOINT.get(asset_type)
         if not endpoint:
             return TDAMSearchResult(
-                success=False, degraded=True,
+                success=False,
+                degraded=True,
                 error=f"unsupported_asset_type:{asset_type}",
             )
 
@@ -539,10 +562,12 @@ class TDAMClient:
             remaining = self._circuit.reset_in_seconds()
             logger.warning(
                 "[tdam_client] 熔断中, 跳过检索 (剩余 %.0fs): query=%s",
-                remaining, query[:50],
+                remaining,
+                query[:50],
             )
             return TDAMSearchResult(
-                success=False, degraded=True,
+                success=False,
+                degraded=True,
                 error=f"circuit_open (reset in {remaining:.0f}s)",
             )
 
@@ -572,7 +597,8 @@ class TDAMClient:
         # 7. 处理结果
         if result is None:
             return TDAMSearchResult(
-                success=False, degraded=True,
+                success=False,
+                degraded=True,
                 error="request_failed_after_retries",
                 latency_ms=latency_ms,
             )
@@ -584,7 +610,10 @@ class TDAMClient:
 
         logger.info(
             "[tdam_client] 检索成功: asset=%s, query=%s, items=%d, latency=%.0fms",
-            asset_type, query[:30], total, latency_ms,
+            asset_type,
+            query[:30],
+            total,
+            latency_ms,
         )
 
         return TDAMSearchResult(
@@ -680,6 +709,7 @@ class TDAMClient:
         # session_id 必需, 不能含 |
         if not session_id:
             from datetime import datetime
+
             session_id = f"cairn-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         session_id = session_id.replace("|", "-")
 
@@ -724,9 +754,13 @@ class TDAMClient:
         for attempt in range(self.config.max_retries + 1):
             try:
                 if method == "GET":
-                    resp = self._session.get(url, params=params, timeout=self.config.timeout)
+                    resp = self._session.get(
+                        url, params=params, timeout=self.config.timeout
+                    )
                 elif method == "POST":
-                    resp = self._session.post(url, json=json_body, timeout=self.config.timeout)
+                    resp = self._session.post(
+                        url, json=json_body, timeout=self.config.timeout
+                    )
                 else:
                     raise TDAMError(f"不支持的 HTTP 方法: {method}")
 
@@ -749,7 +783,9 @@ class TDAMClient:
                         status_code=resp.status_code,
                         body=resp.text[:500],
                     ) from exc
-                biz_code = body_json.get("code", 0) if isinstance(body_json, dict) else 0
+                biz_code = (
+                    body_json.get("code", 0) if isinstance(body_json, dict) else 0
+                )
                 if biz_code not in (0, "0", None):
                     raise TDAMAPIError(
                         f"TDAM 业务错误: {biz_code}",
@@ -764,14 +800,18 @@ class TDAMClient:
                 last_exception = e
                 logger.debug(
                     "[tdam_client] 连接失败 (attempt %d/%d): %s",
-                    attempt + 1, self.config.max_retries + 1, e,
+                    attempt + 1,
+                    self.config.max_retries + 1,
+                    e,
                 )
 
             except TDAMAPIError as e:
                 last_exception = e
                 logger.warning(
                     "[tdam_client] API 错误 %d (attempt %d/%d): %s",
-                    e.status_code, attempt + 1, self.config.max_retries + 1,
+                    e.status_code,
+                    attempt + 1,
+                    self.config.max_retries + 1,
                     e.body[:100],
                 )
                 # 4xx 错误不重试 (除了 429 限流)
@@ -782,12 +822,14 @@ class TDAMClient:
                 last_exception = e
                 logger.debug(
                     "[tdam_client] 请求异常 (attempt %d/%d): %s",
-                    attempt + 1, self.config.max_retries + 1, e,
+                    attempt + 1,
+                    self.config.max_retries + 1,
+                    e,
                 )
 
             # 重试前等待 (指数退避)
             if attempt < self.config.max_retries:
-                wait = 0.5 * (2 ** attempt)
+                wait = 0.5 * (2**attempt)
                 time.sleep(wait)
 
         # 全部重试失败
@@ -824,8 +866,11 @@ class TDAMClient:
         """
         import hashlib
         from datetime import datetime
+
         date = date_str or datetime.now().strftime("%Y-%m-%d")
-        query_hash = hashlib.md5(query.encode("utf-8")).hexdigest()[:8]  # nosec B324 — 非安全用途, 仅作查询缓存键
+        query_hash = hashlib.md5(query.encode("utf-8"), usedforsecurity=False).hexdigest()[
+            :8
+        ]  # 非安全用途, 仅作查询缓存键
 
         cache_dir = self.config.cache_dir
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -878,7 +923,9 @@ def get_default_client() -> TDAMClient:
     return _default_client
 
 
-def search_memory(query: str, asset_type: str = "skill", top_k: int = 5) -> TDAMSearchResult:
+def search_memory(
+    query: str, asset_type: str = "skill", top_k: int = 5
+) -> TDAMSearchResult:
     """快捷函数: 使用默认客户端检索记忆."""
     return get_default_client().search_memory(query, asset_type, top_k)
 

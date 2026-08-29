@@ -12,6 +12,7 @@
     - 便捷函数
     - 边界条件
 """
+
 from __future__ import annotations
 
 import sys
@@ -67,13 +68,22 @@ from utils.alpha.macro_indicator import (  # noqa: E402
 # TestConstants - 常量定义测试
 # ============================================================
 
+
 class TestConstants:
     """常量定义测试."""
 
     def test_all_regimes_contains_seven_labels(self):
         """ALL_REGIMES 包含 7 个 regime 标签."""
         assert len(ALL_REGIMES) == 7
-        for label in ["bull", "bear", "choppy", "rebound", "warmup", "unknown", "insufficient_samples"]:
+        for label in [
+            "bull",
+            "bear",
+            "choppy",
+            "rebound",
+            "warmup",
+            "unknown",
+            "insufficient_samples",
+        ]:
             assert label in ALL_REGIMES
 
     def test_regime_labels_are_strings(self):
@@ -124,6 +134,7 @@ class TestConstants:
 # TestExceptions - 异常体系测试
 # ============================================================
 
+
 class TestExceptions:
     """异常体系测试."""
 
@@ -153,6 +164,7 @@ class TestExceptions:
 # ============================================================
 # TestDataClasses - 数据类测试
 # ============================================================
+
 
 class TestDataClasses:
     """数据类测试."""
@@ -198,6 +210,7 @@ class TestDataClasses:
 # ============================================================
 # TestClassifyRegime - Regime 分类测试
 # ============================================================
+
 
 class TestClassifyRegime:
     """classify_regime() 函数测试."""
@@ -312,6 +325,7 @@ class TestClassifyRegimesBatch:
 # TestMacroIndicatorClassification - 宏观指标分类测试
 # ============================================================
 
+
 class TestMacroIndicatorClassification:
     """CPI / PMI / M2 / 利率 分类测试."""
 
@@ -383,12 +397,15 @@ class TestMacroIndicatorClassification:
         """支持自定义阈值."""
         # 2.0 在 [1.5, 2.5) 区间, 按代码逻辑 < moderate=1.5 才是 moderate, >= 1.5 且 < high=2.5 是 high
         assert classify_cpi(2.0, {"low": 0.5, "moderate": 1.5, "high": 2.5}) == "high"
-        assert classify_cpi(1.0, {"low": 0.5, "moderate": 1.5, "high": 2.5}) == "moderate"
+        assert (
+            classify_cpi(1.0, {"low": 0.5, "moderate": 1.5, "high": 2.5}) == "moderate"
+        )
 
 
 # ============================================================
 # TestCompositeScore - 综合评分测试
 # ============================================================
+
 
 class TestCompositeScore:
     """compute_composite_score() 测试."""
@@ -444,13 +461,16 @@ class TestCompositeScore:
 
     def test_custom_weights(self):
         """支持自定义权重."""
-        score = compute_composite_score(cpi=2.0, weights={"cpi": 1.0, "pmi": 0.0, "m2": 0.0, "rate": 0.0})
+        score = compute_composite_score(
+            cpi=2.0, weights={"cpi": 1.0, "pmi": 0.0, "m2": 0.0, "rate": 0.0}
+        )
         assert score > 50.0
 
 
 # ============================================================
 # TestMacroIndicatorManager - 主类测试
 # ============================================================
+
 
 class TestMacroIndicatorManager:
     """MacroIndicatorManager 主类测试."""
@@ -523,6 +543,7 @@ class TestMacroIndicatorManager:
 # TestFeatureFlag - Feature Flag 透传测试 (HC-1)
 # ============================================================
 
+
 class TestFeatureFlag:
     """Feature Flag 透传测试 (HC-1)."""
 
@@ -559,6 +580,7 @@ class TestFeatureFlag:
 # ============================================================
 # TestMacroSnapshot - 宏观快照测试
 # ============================================================
+
 
 class TestMacroSnapshot:
     """get_macro_snapshot() 测试."""
@@ -608,7 +630,10 @@ class TestMacroSnapshot:
         mgr = MacroIndicatorManager()
         mgr._is_enabled = lambda: True
         mgr._fetch_macro_data = lambda: {
-            "cpi": 2.0, "pmi": 53.0, "m2": 11.0, "treasury_10y": 2.0,
+            "cpi": 2.0,
+            "pmi": 53.0,
+            "m2": 11.0,
+            "treasury_10y": 2.0,
         }
         snapshot = mgr.get_macro_snapshot()
         assert snapshot.composite_score > 50.0
@@ -617,6 +642,7 @@ class TestMacroSnapshot:
 # ============================================================
 # TestConvenienceFunctions - 便捷函数测试
 # ============================================================
+
 
 class TestConvenienceFunctions:
     """便捷函数测试."""
@@ -641,6 +667,7 @@ class TestConvenienceFunctions:
 # TestEdgeCases - 边界条件测试
 # ============================================================
 
+
 class TestEdgeCases:
     """边界条件测试."""
 
@@ -659,6 +686,7 @@ class TestEdgeCases:
     def test_extreme_volatility(self):
         """极端波动不崩溃."""
         import random
+
         random.seed(42)
         rets = [random.gauss(0, 0.1) for _ in range(70)]
         result = classify_regime(rets)

@@ -1,4 +1,5 @@
 """drawdown_breaker 单元测试 — 回撤分级熔断全分支覆盖"""
+
 from __future__ import annotations
 
 import logging

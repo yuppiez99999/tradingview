@@ -3,6 +3,7 @@
 被测模块: utils/fractional_differencing.py
 文献: #65 Comparative Financial Data Differentiation (2025.05)
 """
+
 from __future__ import annotations
 
 import sys
@@ -24,6 +25,7 @@ from utils.fractional_differencing import (  # noqa: E402
 # ============================================================
 # 权重计算测试
 # ============================================================
+
 
 class TestComputeWeights:
     def test_d_zero(self):
@@ -68,6 +70,7 @@ class TestComputeWeights:
 # 差分测试
 # ============================================================
 
+
 class TestDifferencing:
     def test_basic_differencing(self):
         fd = FractionalDifferencing()
@@ -82,7 +85,9 @@ class TestDifferencing:
         series = np.random.default_rng(42).standard_normal(100)
         result = fd.differencing(series, d=0.0)
         # d=0 时, 差分 = 原始 (去除前缀 NaN)
-        assert np.allclose(result.differenced, series[result.n_weights - 1:], atol=1e-6)
+        assert np.allclose(
+            result.differenced, series[result.n_weights - 1 :], atol=1e-6
+        )
 
     def test_d_one_first_difference(self):
         """d=1: 差分 = 一阶差分."""
@@ -126,6 +131,7 @@ class TestDifferencing:
 # 最优 d 搜索测试
 # ============================================================
 
+
 class TestFindOptimalD:
     def test_returns_d_and_result(self):
         fd = FractionalDifferencing()
@@ -153,10 +159,13 @@ class TestFindOptimalD:
 # 对比测试
 # ============================================================
 
+
 class TestCompareWithLogReturns:
     def test_comparison_report(self):
         fd = FractionalDifferencing()
-        prices = 100 * np.exp(np.cumsum(np.random.default_rng(42).normal(0.0002, 0.01, 200)))
+        prices = 100 * np.exp(
+            np.cumsum(np.random.default_rng(42).normal(0.0002, 0.01, 200))
+        )
         report = fd.compare_with_log_returns(prices, d=0.4)
         assert report["d"] == 0.4
         assert report["fd_memory_retained"] == pytest.approx(0.6)
@@ -166,7 +175,9 @@ class TestCompareWithLogReturns:
     def test_memory_advantage_positive(self):
         """分数阶差分记忆优势 > 0."""
         fd = FractionalDifferencing()
-        prices = 100 * np.exp(np.cumsum(np.random.default_rng(42).normal(0.0002, 0.01, 200)))
+        prices = 100 * np.exp(
+            np.cumsum(np.random.default_rng(42).normal(0.0002, 0.01, 200))
+        )
         report = fd.compare_with_log_returns(prices, d=0.4)
         assert report["memory_advantage"] > 0
 
@@ -174,6 +185,7 @@ class TestCompareWithLogReturns:
 # ============================================================
 # 回测验证测试
 # ============================================================
+
 
 class TestFractionalDifferencingBacktest:
     def test_generate_synthetic_index(self):
@@ -217,13 +229,16 @@ class TestFractionalDifferencingBacktest:
 # 验收标准测试
 # ============================================================
 
+
 class TestAcceptanceCriteria:
     """LIT-5.2 验收: 记忆保持 + 预测精度提升 + 4 指数回测."""
 
     def test_memory_preservation(self):
         """验收: 分数阶差分保持记忆 (vs 对数收益无记忆)."""
         fd = FractionalDifferencing()
-        prices = 100 * np.exp(np.cumsum(np.random.default_rng(42).normal(0.0002, 0.01, 200)))
+        prices = 100 * np.exp(
+            np.cumsum(np.random.default_rng(42).normal(0.0002, 0.01, 200))
+        )
         report = fd.compare_with_log_returns(prices, d=0.4)
         assert report["fd_memory_retained"] > 0  # 分数阶有记忆
         assert report["lr_memory_retained"] == 0  # 对数收益无记忆

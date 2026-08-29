@@ -1,4 +1,5 @@
 """graph_data_source 单元测试 — GNN 图数据源边构建"""
+
 from unittest.mock import MagicMock, patch
 
 from utils.graph_data_source import (
@@ -110,6 +111,7 @@ class TestCached:
     def test_ttl_expiry(self):
         ds = GraphDataSource(cache_ttl=0)
         import time
+
         fetcher = MagicMock(side_effect=["v1", "v2"])
         r1 = ds._cached("key1", fetcher)
         time.sleep(0.01)
@@ -127,9 +129,11 @@ class TestBuildConceptEdges:
 
     def test_shared_concepts(self):
         ds = GraphDataSource()
-        with patch.object(ds, "get_concept_blocks", side_effect=[
-            ["AI", "芯片", "科技"], ["AI", "芯片", "新能源"]
-        ]):
+        with patch.object(
+            ds,
+            "get_concept_blocks",
+            side_effect=[["AI", "芯片", "科技"], ["AI", "芯片", "新能源"]],
+        ):
             edges = ds.build_concept_edges(["A", "B"])
         assert len(edges) == 1
         assert edges[0]["source"] == "A"
@@ -139,25 +143,25 @@ class TestBuildConceptEdges:
 
     def test_no_shared_concepts(self):
         ds = GraphDataSource()
-        with patch.object(ds, "get_concept_blocks", side_effect=[
-            ["AI", "芯片"], ["新能源", "光伏"]
-        ]):
+        with patch.object(
+            ds, "get_concept_blocks", side_effect=[["AI", "芯片"], ["新能源", "光伏"]]
+        ):
             edges = ds.build_concept_edges(["A", "B"])
         assert edges == []
 
     def test_min_concept_share(self):
         ds = GraphDataSource()
-        with patch.object(ds, "get_concept_blocks", side_effect=[
-            ["AI"], ["AI"]
-        ]):
+        with patch.object(ds, "get_concept_blocks", side_effect=[["AI"], ["AI"]]):
             edges = ds.build_concept_edges(["A", "B"], min_concept_share=2)
         assert edges == []
 
     def test_three_symbols(self):
         ds = GraphDataSource()
-        with patch.object(ds, "get_concept_blocks", side_effect=[
-            ["AI", "芯片"], ["AI", "光伏"], ["AI", "芯片"]
-        ]):
+        with patch.object(
+            ds,
+            "get_concept_blocks",
+            side_effect=[["AI", "芯片"], ["AI", "光伏"], ["AI", "芯片"]],
+        ):
             edges = ds.build_concept_edges(["A", "B", "C"])
         assert len(edges) == 3
 
@@ -165,9 +169,11 @@ class TestBuildConceptEdges:
 class TestBuildIndustryEdges:
     def test_same_industry(self):
         ds = GraphDataSource()
-        with patch.object(ds, "get_industry_relationship", side_effect=[
-            {"industry": "半导体"}, {"industry": "半导体"}
-        ]):
+        with patch.object(
+            ds,
+            "get_industry_relationship",
+            side_effect=[{"industry": "半导体"}, {"industry": "半导体"}],
+        ):
             edges = ds.build_industry_edges(["A", "B"])
         assert len(edges) == 1
         assert edges[0]["relation_type"] == "COMPETITOR"
@@ -175,9 +181,11 @@ class TestBuildIndustryEdges:
 
     def test_different_industry(self):
         ds = GraphDataSource()
-        with patch.object(ds, "get_industry_relationship", side_effect=[
-            {"industry": "半导体"}, {"industry": "银行"}
-        ]):
+        with patch.object(
+            ds,
+            "get_industry_relationship",
+            side_effect=[{"industry": "半导体"}, {"industry": "银行"}],
+        ):
             edges = ds.build_industry_edges(["A", "B"])
         assert edges == []
 
@@ -189,9 +197,11 @@ class TestBuildIndustryEdges:
 
     def test_empty_industry(self):
         ds = GraphDataSource()
-        with patch.object(ds, "get_industry_relationship", side_effect=[
-            {"industry": ""}, {"industry": ""}
-        ]):
+        with patch.object(
+            ds,
+            "get_industry_relationship",
+            side_effect=[{"industry": ""}, {"industry": ""}],
+        ):
             edges = ds.build_industry_edges(["A", "B"])
         assert edges == []
 
@@ -231,20 +241,28 @@ class TestBuildMainBusinessEdges:
 
     def test_shared_products(self):
         ds = GraphDataSource()
-        with patch.object(ds, "fetch_main_business", side_effect=[
-            {"products": ["芯片设计", "EDA"], "industries": []},
-            {"products": ["芯片设计", "封测"], "industries": []},
-        ]):
+        with patch.object(
+            ds,
+            "fetch_main_business",
+            side_effect=[
+                {"products": ["芯片设计", "EDA"], "industries": []},
+                {"products": ["芯片设计", "封测"], "industries": []},
+            ],
+        ):
             edges = ds.build_main_business_edges(["A", "B"])
         assert len(edges) == 1
         assert edges[0]["relation_type"] == "PARTNER"
 
     def test_no_shared(self):
         ds = GraphDataSource()
-        with patch.object(ds, "fetch_main_business", side_effect=[
-            {"products": ["芯片"], "industries": []},
-            {"products": ["银行"], "industries": []},
-        ]):
+        with patch.object(
+            ds,
+            "fetch_main_business",
+            side_effect=[
+                {"products": ["芯片"], "industries": []},
+                {"products": ["银行"], "industries": []},
+            ],
+        ):
             edges = ds.build_main_business_edges(["A", "B"])
         assert edges == []
 
@@ -252,28 +270,34 @@ class TestBuildMainBusinessEdges:
 class TestBuildGraphEdges:
     def test_combines_all(self):
         ds = GraphDataSource()
-        with patch.object(ds, "build_industry_edges", return_value=[{"s": 1}]), \
-             patch.object(ds, "build_concept_edges", return_value=[{"s": 2}]), \
-             patch.object(ds, "build_main_business_edges", return_value=[{"s": 3}]), \
-             patch.object(ds, "build_thematic_edges", return_value=[{"s": 4}]):
+        with (
+            patch.object(ds, "build_industry_edges", return_value=[{"s": 1}]),
+            patch.object(ds, "build_concept_edges", return_value=[{"s": 2}]),
+            patch.object(ds, "build_main_business_edges", return_value=[{"s": 3}]),
+            patch.object(ds, "build_thematic_edges", return_value=[{"s": 4}]),
+        ):
             edges = ds.build_graph_edges(["A", "B"])
         assert len(edges) == 4
 
     def test_exclude_themes(self):
         ds = GraphDataSource()
-        with patch.object(ds, "build_industry_edges", return_value=[{"s": 1}]), \
-             patch.object(ds, "build_concept_edges", return_value=[{"s": 2}]), \
-             patch.object(ds, "build_main_business_edges", return_value=[{"s": 3}]), \
-             patch.object(ds, "build_thematic_edges", return_value=[{"s": 4}]):
+        with (
+            patch.object(ds, "build_industry_edges", return_value=[{"s": 1}]),
+            patch.object(ds, "build_concept_edges", return_value=[{"s": 2}]),
+            patch.object(ds, "build_main_business_edges", return_value=[{"s": 3}]),
+            patch.object(ds, "build_thematic_edges", return_value=[{"s": 4}]),
+        ):
             edges = ds.build_graph_edges(["A", "B"], include_themes=False)
         assert len(edges) == 3
 
     def test_exclude_main_business(self):
         ds = GraphDataSource()
-        with patch.object(ds, "build_industry_edges", return_value=[{"s": 1}]), \
-             patch.object(ds, "build_concept_edges", return_value=[{"s": 2}]), \
-             patch.object(ds, "build_main_business_edges", return_value=[{"s": 3}]), \
-             patch.object(ds, "build_thematic_edges", return_value=[{"s": 4}]):
+        with (
+            patch.object(ds, "build_industry_edges", return_value=[{"s": 1}]),
+            patch.object(ds, "build_concept_edges", return_value=[{"s": 2}]),
+            patch.object(ds, "build_main_business_edges", return_value=[{"s": 3}]),
+            patch.object(ds, "build_thematic_edges", return_value=[{"s": 4}]),
+        ):
             edges = ds.build_graph_edges(["A", "B"], include_main_business=False)
         assert len(edges) == 3
 

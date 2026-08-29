@@ -12,6 +12,7 @@
   python scripts/etf_shadow_eod.py              # 每日EOD
   python scripts/etf_shadow_eod.py --dry-run    # 干跑(不保存)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -28,22 +29,37 @@ NAV_LOG_PATH = PROJECT_ROOT / "reports" / "shadow_etf" / "daily_returns.jsonl"
 NAV_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 ETF_CODES = [
-    "510300", "510500", "510050", "512100", "588000", "159915",
-    "512480", "512010", "512660", "515170", "159939",
-    "518880", "511260", "510310",
+    "510300",
+    "510500",
+    "510050",
+    "512100",
+    "588000",
+    "159915",
+    "512480",
+    "512010",
+    "512660",
+    "515170",
+    "159939",
+    "518880",
+    "511260",
+    "510310",
 ]
 
 
 def fetch_latest_prices() -> dict[str, float]:
     """拉取最新ETF收盘价 (Wind MCP → sina兜底)"""
     import os
-    os.environ["NO_PROXY"] = "push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com,sinajs.cn,sina.com.cn"
+
+    os.environ["NO_PROXY"] = (
+        "push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com,sinajs.cn,sina.com.cn"
+    )
     os.environ["no_proxy"] = os.environ["NO_PROXY"]
 
     prices = {}
     try:
         sys.path.insert(0, str(PROJECT_ROOT / "tools"))
         from wind_mcp_fetcher import wind_get_kline
+
         for code in ETF_CODES:
             windcode = f"{code}.SH" if code.startswith(("51", "58")) else f"{code}.SZ"
             try:
@@ -58,6 +74,7 @@ def fetch_latest_prices() -> dict[str, float]:
             if code not in prices:
                 try:
                     import akshare as ak
+
                     sym = f"sh{code}" if code.startswith(("51", "58")) else f"sz{code}"
                     df = ak.fund_etf_hist_sina(symbol=sym)
                     if df is not None and len(df) > 0:
@@ -77,7 +94,9 @@ def load_state() -> dict | None:
 
 
 def save_state(state: dict) -> None:
-    STATE_PATH.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
+    STATE_PATH.write_text(
+        json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
 
 def log_nav(date: str, nav: float, daily_ret: float, regime: str) -> None:
@@ -92,8 +111,9 @@ def log_nav(date: str, nav: float, daily_ret: float, regime: str) -> None:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def check_fail_fast(nav_history: list[dict], daily_dd_thresh: float = 0.03,
-                     cum_3d_thresh: float = 0.05) -> tuple[bool, str]:
+def check_fail_fast(
+    nav_history: list[dict], daily_dd_thresh: float = 0.03, cum_3d_thresh: float = 0.05
+) -> tuple[bool, str]:
     if len(nav_history) < 1:
         return False, ""
     today = nav_history[-1]
@@ -151,11 +171,15 @@ def main():
     daily_ret = (nav / prev_nav - 1) if prev_nav > 0 else 0
 
     nav_history = state.get("nav_history", [])
-    nav_history.append({"date": datetime.now().strftime("%Y-%m-%d"), "nav": round(nav, 2)})
+    nav_history.append(
+        {"date": datetime.now().strftime("%Y-%m-%d"), "nav": round(nav, 2)}
+    )
 
-    ff_triggered, ff_reason = check_fail_fast(nav_history,
-                                               state.get("fail_fast", {}).get("daily_drawdown_threshold", 0.03),
-                                               state.get("fail_fast", {}).get("cumulative_3d_drawdown_threshold", 0.05))
+    ff_triggered, ff_reason = check_fail_fast(
+        nav_history,
+        state.get("fail_fast", {}).get("daily_drawdown_threshold", 0.03),
+        state.get("fail_fast", {}).get("cumulative_3d_drawdown_threshold", 0.05),
+    )
 
     days_elapsed = state.get("days_elapsed", 0) + 1
     observation_days = state.get("observation_days", 30)
@@ -179,7 +203,12 @@ def main():
 
     if not args.dry_run:
         save_state(state)
-        log_nav(datetime.now().strftime("%Y-%m-%d"), nav, daily_ret, state.get("current_regime", "unknown"))
+        log_nav(
+            datetime.now().strftime("%Y-%m-%d"),
+            nav,
+            daily_ret,
+            state.get("current_regime", "unknown"),
+        )
         print(f"已保存: {STATE_PATH}")
         print(f"日志: {NAV_LOG_PATH}")
 

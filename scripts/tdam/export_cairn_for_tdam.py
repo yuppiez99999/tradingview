@@ -22,8 +22,11 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("tdam_export")
+
 
 # 项目根目录 (向上查找 utils/ marker)
 def _find_project_root() -> Path:
@@ -34,10 +37,10 @@ def _find_project_root() -> Path:
         current = current.parent
     return Path(__file__).resolve().parent.parent.parent
 
+
 PROJECT_ROOT = _find_project_root()
 CAIRN_DIR = PROJECT_ROOT / "cairn"
 OUTPUT_DEFAULT = PROJECT_ROOT / "reports" / "tdam_cache" / "cairn_export.json"
-
 
 
 def _add_frontmatter(title: str, content: str, source_stem: str = "") -> str:
@@ -51,19 +54,20 @@ def _add_frontmatter(title: str, content: str, source_stem: str = "") -> str:
     - description: 用中文标题/摘要
     """
     import re as _re
+
     title = title or "untitled"
     title.replace('"', '\\"')[:100]
     # TDAM skill name 必须匹配 ^[a-z0-9][a-z0-9-]*$, 不能用中文
     # 优先用 source_stem (文件名), 因为文件名通常是英文 slug
     if source_stem:
-        slug = _re.sub(r'[^a-z0-9-]', '-', source_stem.lower()).strip('-')
+        slug = _re.sub(r"[^a-z0-9-]", "-", source_stem.lower()).strip("-")
     else:
-        slug = _re.sub(r'[^a-z0-9-]', '-', title.lower()).strip('-')
+        slug = _re.sub(r"[^a-z0-9-]", "-", title.lower()).strip("-")
     if not slug or not slug[0].isalnum():
         slug = f"cairn-skill-{abs(hash(title)) % 100000}"
     slug = slug[:64]
     summary = extract_summary(content, max_chars=200)
-    safe_summary = (summary or title).replace('"', '\\"').replace('\n', ' ')[:200]
+    safe_summary = (summary or title).replace('"', '\\"').replace("\n", " ")[:200]
 
     # 已有 frontmatter: 检查是否含 name 和 description 字段
     if content.startswith("---\n"):
@@ -71,7 +75,7 @@ def _add_frontmatter(title: str, content: str, source_stem: str = "") -> str:
         end_idx = content.find("\n---\n", 4)
         if end_idx > 0:
             fm = content[4:end_idx]
-            body = content[end_idx + 5:]
+            body = content[end_idx + 5 :]
             # 检查缺失的字段并插入 (name 用 slug, description 用中文标题)
             insert_lines = []
             if "\nname:" not in fm and not fm.startswith("name:"):
@@ -81,13 +85,13 @@ def _add_frontmatter(title: str, content: str, source_stem: str = "") -> str:
             if insert_lines:
                 new_fm = "\n".join(insert_lines) + "\n" + fm
                 # 去掉正文中的 H1 标题 (TDAM 校验 frontmatter.name != body.name 时会冲突)
-                body = _re.sub(r'^#\s+.+\n', '', body, count=1, flags=_re.MULTILINE)
-                return f'---\n{new_fm}\n---\n{body}'
+                body = _re.sub(r"^#\s+.+\n", "", body, count=1, flags=_re.MULTILINE)
+                return f"---\n{new_fm}\n---\n{body}"
             return content  # name 和 description 都已有, 无需修改
 
     # 无 frontmatter: 添加完整的 (name 用 slug, description 用中文标题)
     # 同时去掉正文中的 H1 标题 (TDAM 校验 frontmatter.name != body.name 时会冲突)
-    body = _re.sub(r'^#\s+.+\n', '', content, count=1, flags=_re.MULTILINE)
+    body = _re.sub(r"^#\s+.+\n", "", content, count=1, flags=_re.MULTILINE)
     return f'---\nname: "{slug}"\ndescription: "{safe_summary}"\n---\n{body}'
 
 
@@ -116,12 +120,14 @@ def parse_log_entries(log_content: str) -> list[dict]:
         title = lines[0].strip() if lines else ""
         body = "\n".join(lines[1:]).strip()
         if title and body:
-            entries.append({
-                "title": title,
-                "content": body,
-                "summary": extract_summary(body),
-                "doc_type": "log_entry",
-            })
+            entries.append(
+                {
+                    "title": title,
+                    "content": body,
+                    "summary": extract_summary(body),
+                    "doc_type": "log_entry",
+                }
+            )
     return entries
 
 
@@ -149,16 +155,18 @@ def export_cairn() -> dict:
         log_content = log_path.read_text(encoding="utf-8")
         log_entries = parse_log_entries(log_content)
         for i, entry in enumerate(log_entries):
-            documents.append({
-                "id": f"cairn_log_{i:04d}",
-                "title": entry["title"],
-                "content": entry["content"],
-                "summary": entry["summary"],
-                "source_path": "cairn/LOG.md",
-                "asset_type": "chat_memory",
-                "layer": "L0",
-                "timestamp": datetime.now().isoformat(),
-            })
+            documents.append(
+                {
+                    "id": f"cairn_log_{i:04d}",
+                    "title": entry["title"],
+                    "content": entry["content"],
+                    "summary": entry["summary"],
+                    "source_path": "cairn/LOG.md",
+                    "asset_type": "chat_memory",
+                    "layer": "L0",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
         logger.info("LOG.md: 导出 %d 条条目", len(log_entries))
 
     # 2. 专题文档 → wiki
@@ -169,16 +177,18 @@ def export_cairn() -> dict:
         title = extract_title(content, md_file.stem)
         # TDAM skill 要求 YAML frontmatter, 否则返回 42203 SKILL_FRONTMATTER_INVALID
         content = _add_frontmatter(title, content, source_stem=md_file.stem)
-        documents.append({
-            "id": f"cairn_wiki_{md_file.stem}",
-            "title": title,
-            "content": content,
-            "summary": extract_summary(content),
-            "source_path": f"cairn/{md_file.name}",
-            "asset_type": "wiki",
-            "layer": "L2",
-            "timestamp": datetime.now().isoformat(),
-        })
+        documents.append(
+            {
+                "id": f"cairn_wiki_{md_file.stem}",
+                "title": title,
+                "content": content,
+                "summary": extract_summary(content),
+                "source_path": f"cairn/{md_file.name}",
+                "asset_type": "wiki",
+                "layer": "L2",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
     logger.info("专题文档: 导出 %d 个", len(md_files))
 
     # 3. Reference/ 子目录
@@ -189,16 +199,18 @@ def export_cairn() -> dict:
             content = md_file.read_text(encoding="utf-8")
             title = extract_title(content, md_file.stem)
             content = _add_frontmatter(title, content, source_stem=md_file.stem)
-            documents.append({
-                "id": f"cairn_ref_{md_file.stem}",
-                "title": extract_title(content, md_file.stem),
-                "content": content,
-                "summary": extract_summary(content),
-                "source_path": f"cairn/Reference/{md_file.name}",
-                "asset_type": "wiki",
-                "layer": "L1",
-                "timestamp": datetime.now().isoformat(),
-            })
+            documents.append(
+                {
+                    "id": f"cairn_ref_{md_file.stem}",
+                    "title": extract_title(content, md_file.stem),
+                    "content": content,
+                    "summary": extract_summary(content),
+                    "source_path": f"cairn/Reference/{md_file.name}",
+                    "asset_type": "wiki",
+                    "layer": "L1",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
         logger.info("Reference/: 导出 %d 个", len(ref_files))
 
     export_data = {
@@ -207,7 +219,9 @@ def export_cairn() -> dict:
         "total_documents": len(documents),
         "documents": documents,
         "stats": {
-            "chat_memory_count": sum(1 for d in documents if d["asset_type"] == "chat_memory"),
+            "chat_memory_count": sum(
+                1 for d in documents if d["asset_type"] == "chat_memory"
+            ),
             "wiki_count": sum(1 for d in documents if d["asset_type"] == "wiki"),
         },
     }
@@ -219,12 +233,14 @@ def main() -> None:
     """主入口."""
     parser = argparse.ArgumentParser(description="导出 cairn/ 为 TDAM 可导入格式")
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         default=str(OUTPUT_DEFAULT),
         help=f"输出文件路径 (默认: {OUTPUT_DEFAULT})",
     )
     parser.add_argument(
-        "--preview", action="store_true",
+        "--preview",
+        action="store_true",
         help="仅预览统计, 不写文件",
     )
     args = parser.parse_args()

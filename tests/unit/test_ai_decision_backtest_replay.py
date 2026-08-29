@@ -13,6 +13,7 @@
   8. CLI 入口主流程 + 退出码
   9. 向后兼容 (数据不足 / 异常降级)
 """
+
 from __future__ import annotations
 
 import json
@@ -21,7 +22,9 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from ai_decision.backtest_replay import (
     BacktestReplay,
@@ -51,7 +54,8 @@ def _make_loader(symbols=None, days=60, seed=42):
     """构造 MockHistoryDataLoader"""
     return MockHistoryDataLoader(
         symbols=symbols or ["600519", "000001", "300750"],
-        days=days, seed=seed,
+        days=days,
+        seed=seed,
     )
 
 
@@ -69,6 +73,7 @@ def _make_replay(symbols=None, days=60, seed=42, horizon=5):
 # 验收 1: MockHistoryDataLoader 合成数据正确性
 # ============================================================
 
+
 def test_mock_loader_returns_trading_dates():
     """验收 1: Mock loader 跳过周末返回交易日"""
     loader = MockHistoryDataLoader(symbols=["600519"], days=10, start_date="2025-01-06")
@@ -77,6 +82,7 @@ def test_mock_loader_returns_trading_dates():
     # 不含周末 (2025-01-04 周六, 2025-01-05 周日)
     for d in dates:
         from datetime import datetime
+
         dt = datetime.strptime(d, "%Y-%m-%d")
         assert dt.weekday() < 5  # 0-4 = 周一到周五
 
@@ -131,6 +137,7 @@ def test_mock_loader_is_tradable_respects_halt():
 # 验收 1: 前视偏差校验
 # ============================================================
 
+
 def test_bias_checks_all_pass_with_mock_loader():
     """验收 1: Mock loader 通过全部 4 项前视偏差校验"""
     _cleanup_reports()
@@ -154,6 +161,7 @@ def test_bias_check_signal_lag_respects_horizon():
 # ============================================================
 # 验收 2: 三条基线均产出完整决策序列
 # ============================================================
+
 
 def test_replay_ai_debate_produces_decisions():
     """验收 2: ai_debate 基线产出完整决策序列"""
@@ -220,6 +228,7 @@ def test_replay_action_distribution_sum_matches_total():
 # 验收 3: 输出报告含 IC/夏普/命中率/辩论触发率
 # ============================================================
 
+
 def test_compare_baselines_returns_complete_report():
     """验收 3: compare_baselines 返回完整对比报告"""
     _cleanup_reports()
@@ -275,6 +284,7 @@ def test_report_contains_marginal_sharpe():
 # 验收 4: 边际夏普 > 0.05 才建议上线 auto 模式
 # ============================================================
 
+
 def test_recommendation_shadow_when_marginal_below_threshold():
     """验收 4: 边际夏普 < 阈值时建议 shadow"""
     _cleanup_reports()
@@ -300,8 +310,8 @@ def test_make_recommendation_auto_when_both_valuable():
     """验收 4: 辩论+Agent 均超阈值时建议 auto"""
     replay = _make_replay(days=45)
     rec = replay._make_recommendation(
-        marginal_debate_vs_agents=0.1,   # > 0.05
-        marginal_agents_vs_rule=0.08,    # > 0.05
+        marginal_debate_vs_agents=0.1,  # > 0.05
+        marginal_agents_vs_rule=0.08,  # > 0.05
         bias_checks={
             "disclosure_date_check": True,
             "constituent_snapshot_check": True,
@@ -317,7 +327,7 @@ def test_make_recommendation_paper_when_only_agents_valuable():
     replay = _make_replay(days=45)
     rec = replay._make_recommendation(
         marginal_debate_vs_agents=0.01,  # < 0.05
-        marginal_agents_vs_rule=0.08,    # > 0.05
+        marginal_agents_vs_rule=0.08,  # > 0.05
         bias_checks={
             "disclosure_date_check": True,
             "constituent_snapshot_check": True,
@@ -332,8 +342,8 @@ def test_make_recommendation_shadow_when_bias_fails():
     """验收 4: 偏差校验失败时即使夏普高也建议 shadow"""
     replay = _make_replay(days=45)
     rec = replay._make_recommendation(
-        marginal_debate_vs_agents=1.0,   # 极高
-        marginal_agents_vs_rule=1.0,     # 极高
+        marginal_debate_vs_agents=1.0,  # 极高
+        marginal_agents_vs_rule=1.0,  # 极高
         bias_checks={
             "disclosure_date_check": True,
             "constituent_snapshot_check": False,  # 失败
@@ -347,6 +357,7 @@ def test_make_recommendation_shadow_when_bias_fails():
 # ============================================================
 # 验收 5: 落盘 Markdown + JSON
 # ============================================================
+
 
 def test_save_creates_md_and_json():
     """验收 5: save() 后 backtest_replay_*.md + .json 存在且非空"""
@@ -399,6 +410,7 @@ def test_markdown_contains_baseline_table():
 # 验收 6: 向后兼容 (数据不足 / 异常降级)
 # ============================================================
 
+
 def test_replay_with_insufficient_days():
     """验收 6: 交易日不足时不崩溃 (降级返回空指标)"""
     _cleanup_reports()
@@ -418,8 +430,13 @@ def test_replay_handles_loader_exception():
             return ["2025-01-06"]
 
         def get_market_data(self, symbol, date):
-            return {"close": 10.0, "change_pct": 0.01, "is_halted": False,
-                    "is_limit_up": False, "is_limit_down": False}
+            return {
+                "close": 10.0,
+                "change_pct": 0.01,
+                "is_halted": False,
+                "is_limit_up": False,
+                "is_limit_down": False,
+            }
 
         def get_fundamentals(self, symbol, date):
             return {"pe": 15.0, "disclosure_date": date}
@@ -433,7 +450,9 @@ def test_replay_handles_loader_exception():
         def is_tradable(self, symbol, date):
             return True
 
-    config = ReplayConfig(symbols=["600519"], start_date="2025-01-06", end_date="2025-01-06")
+    config = ReplayConfig(
+        symbols=["600519"], start_date="2025-01-06", end_date="2025-01-06"
+    )
     replay = BacktestReplay(loader=BrokenLoader(), config=config)
     # 不应抛异常
     result = replay.replay_history(BaselineType.RULE_ONLY)
@@ -450,7 +469,9 @@ def test_empty_metrics_on_no_returns():
 
 def test_ic_series_skips_insufficient_samples():
     """验收 6: IC 计算跳过样本不足的日期 (< MIN_IC_SAMPLES)"""
-    replay = _make_replay(symbols=["600519"], days=30, seed=42)  # 单标的 < MIN_IC_SAMPLES=5
+    replay = _make_replay(
+        symbols=["600519"], days=30, seed=42
+    )  # 单标的 < MIN_IC_SAMPLES=5
     # 单标的无法计算 Spearman IC (需 >=5)
     daily_factor = {"2025-01-06": {"600519": 0.5}}
     daily_forward = {"2025-01-06": {"600519": 0.02}}
@@ -480,19 +501,24 @@ def test_spearman_ic_computes_on_sufficient_samples():
 # 验收 7: CLI 入口
 # ============================================================
 
+
 def test_cli_main_success():
     """验收 7: CLI 主流程不崩溃"""
     _cleanup_reports()
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
     import importlib
+
     cli = importlib.import_module("run_ai_decision_backtest")
 
     orig_argv = sys.argv
     try:
         sys.argv = [
             "run_ai_decision_backtest.py",
-            "--symbols", "600519", "000001",
-            "--days", "45",
+            "--symbols",
+            "600519",
+            "000001",
+            "--days",
+            "45",
             "--no-save",  # 不落盘, 加快测试
         ]
         rc = cli.main()
@@ -507,14 +533,18 @@ def test_cli_main_with_save():
     _cleanup_reports()
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
     import importlib
+
     cli = importlib.import_module("run_ai_decision_backtest")
 
     orig_argv = sys.argv
     try:
         sys.argv = [
             "run_ai_decision_backtest.py",
-            "--symbols", "600519", "000001",
-            "--days", "45",
+            "--symbols",
+            "600519",
+            "000001",
+            "--days",
+            "45",
         ]
         rc = cli.main()
         assert rc in (0, 1, 2)

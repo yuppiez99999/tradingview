@@ -79,8 +79,20 @@ def get_hs300_constituents() -> pd.DataFrame:
             df["code"] = df["code"].astype(str).str.zfill(6)
             df["index"] = "HS300"
             logger.info(f"沪深300 成分股: {len(df)} 只")
-            return df[["code", "name", "index"] + (["weight"] if "weight" in df.columns else [])]
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+            return df[
+                ["code", "name", "index"]
+                + (["weight"] if "weight" in df.columns else [])
+            ]
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001
             logger.warning(f"获取沪深300成分股失败 (attempt {attempt + 1}/3): {e}")
             time.sleep(2)
 
@@ -113,8 +125,20 @@ def get_zz500_constituents() -> pd.DataFrame:
             df["code"] = df["code"].astype(str).str.zfill(6)
             df["index"] = "ZZ500"
             logger.info(f"中证500 成分股: {len(df)} 只")
-            return df[["code", "name", "index"] + (["weight"] if "weight" in df.columns else [])]
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+            return df[
+                ["code", "name", "index"]
+                + (["weight"] if "weight" in df.columns else [])
+            ]
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001
             logger.warning(f"获取中证500成分股失败 (attempt {attempt + 1}/3): {e}")
             time.sleep(2)
 
@@ -173,7 +197,9 @@ def get_universe(pool: str = "hs300_zz500") -> pd.DataFrame:
         return _get_builtin_pool()
 
     merged = pd.concat(frames, ignore_index=True)
-    merged = merged.drop_duplicates(subset=["code"], keep="first").reset_index(drop=True)
+    merged = merged.drop_duplicates(subset=["code"], keep="first").reset_index(
+        drop=True
+    )
     logger.info(f"合并股票池 [{pool}]: {len(merged)} 只 (去重后)")
     return merged
 
@@ -195,7 +221,9 @@ def _get_top_by_marketcap(n: int = 800) -> pd.DataFrame:
     # 标准化列名
     spot_df = spot_df.copy()
     if "代码" in spot_df.columns:
-        spot_df = spot_df.rename(columns={"代码": "code", "名称": "name", "总市值": "market_cap"})
+        spot_df = spot_df.rename(
+            columns={"代码": "code", "名称": "name", "总市值": "market_cap"}
+        )
     spot_df["code"] = spot_df["code"].astype(str).str.zfill(6)
 
     # 按市值降序
@@ -207,7 +235,11 @@ def _get_top_by_marketcap(n: int = 800) -> pd.DataFrame:
     result = pd.DataFrame(
         {
             "code": spot_df["code"].values,
-            "name": spot_df["name"].values if "name" in spot_df.columns else spot_df["code"].values,
+            "name": (
+                spot_df["name"].values
+                if "name" in spot_df.columns
+                else spot_df["code"].values
+            ),
             "index": "TOP800_BY_MCAP",
         }
     )
@@ -235,7 +267,16 @@ def get_full_market_snapshot() -> pd.DataFrame:
                 if df is not None and not df.empty:
                     logger.info(f"[AKShare] 全市场实时快照: {len(df)} 只股票")
                     return df
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001
                 logger.debug(f"[AKShare] 快照失败 (attempt {attempt + 1}/2): {e}")
                 time.sleep(1)
 
@@ -243,7 +284,16 @@ def get_full_market_snapshot() -> pd.DataFrame:
     logger.info("AKShare 不可用，尝试通达信数据源...")
     try:
         return _get_tdx_full_snapshot()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # noqa: BLE001
         logger.warning(f"[TDX] 全市场快照失败: {e}")
         return pd.DataFrame()
 
@@ -300,10 +350,21 @@ def _get_tdx_full_snapshot() -> pd.DataFrame:
                                     "成交额": float(q.get("amount", 0) or 0),
                                     "成交量": float(q.get("vol", 0) or 0),
                                     "换手率": _calc_turnover(q),
-                                    "总市值": float(q.get("liaohuan", 0) or 0),  # 流通市值
+                                    "总市值": float(
+                                        q.get("liaohuan", 0) or 0
+                                    ),  # 流通市值
                                 }
                             )
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        AttributeError,
+                        RuntimeError,
+                        OSError,
+                        TimeoutError,
+                        ConnectionError,
+                    ):
                         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                         continue
 
@@ -311,7 +372,16 @@ def _get_tdx_full_snapshot() -> pd.DataFrame:
                 # 如果本页不足 1000 条，说明到底了
                 if len(stocks) < page_size:
                     break
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001
                 logger.debug(f"TDX market={market} start={start} 失败: {e}")
                 break
 
@@ -384,11 +454,22 @@ def get_tdx_full_stock_list() -> pd.DataFrame:
                         continue
                     if "指数" in name or "ETF" in name.upper() or "债" in name:
                         continue
-                    rows.append({"code": code, "name": name, "index": f"TDX_{market_name}"})
+                    rows.append(
+                        {"code": code, "name": name, "index": f"TDX_{market_name}"}
+                    )
                 start += page_size
                 if len(stocks) < page_size:
                     break
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 break
 
@@ -479,10 +560,28 @@ def get_industry_map(symbols: list[str]) -> dict:
                 for code in cons_df["代码"].astype(str).str.zfill(6):
                     if code in symbols:
                         industry_map[code] = industry_name
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # noqa: BLE001
                 continue
         logger.info(f"行业映射: {len(industry_map)} / {len(symbols)} 只匹配成功")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # noqa: BLE001
         logger.warning(f"获取行业映射失败: {e}")
 
     return industry_map

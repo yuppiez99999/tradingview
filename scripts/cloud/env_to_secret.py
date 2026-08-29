@@ -11,6 +11,7 @@ env_to_secret.py — 从 .env 生成 K8s Secret YAML (stdout)
 
 只输出非空值, 空值跳过 (避免覆盖已配置的 key)。
 """
+
 from __future__ import annotations
 
 import sys
@@ -34,7 +35,9 @@ def parse_env(path: Path) -> dict[str, str]:
     return result
 
 
-def to_secret_yaml(env: dict[str, str], name: str = "quant-secret", namespace: str = "quant") -> str:
+def to_secret_yaml(
+    env: dict[str, str], name: str = "quant-secret", namespace: str = "quant"
+) -> str:
     """生成 K8s Secret YAML (stringData, 明文, kubectl 会 base64)."""
     lines = [
         "apiVersion: v1",

@@ -11,6 +11,7 @@
     - _diagnose (各种问题)
     - save_report
 """
+
 from __future__ import annotations
 
 import json
@@ -32,7 +33,13 @@ from utils.tca_engine import (
 class TestFillRecord:
     @pytest.mark.unit
     def test_construction(self):
-        r = FillRecord(symbol="000001", side="BUY", shares=1000, price=10.5, timestamp="2026-01-01T09:30:00")
+        r = FillRecord(
+            symbol="000001",
+            side="BUY",
+            shares=1000,
+            price=10.5,
+            timestamp="2026-01-01T09:30:00",
+        )
         assert r.symbol == "000001"
         assert r.side == "BUY"
         assert r.shares == 1000
@@ -58,11 +65,26 @@ class TestTCAReport:
     @pytest.mark.unit
     def test_defaults(self):
         r = TCAReport(
-            symbol="000001", side="BUY", total_shares=1000, avg_exec_price=10.0, vwap=10.0,
-            is_cost_bps=5.0, arrival_cost_bps=3.0, vwap_deviation_bps=2.0, close_deviation_bps=1.0,
-            market_impact_bps=2.0, timing_cost_bps=3.0, opportunity_cost_bps=0.0, slippage_bps=2.0,
-            fill_rate=1.0, participation_rate=0.01, timing_skill_score=-0.1,
-            commission=5.0, fees=0.67, total_cost=10.67, quality_grade="A",
+            symbol="000001",
+            side="BUY",
+            total_shares=1000,
+            avg_exec_price=10.0,
+            vwap=10.0,
+            is_cost_bps=5.0,
+            arrival_cost_bps=3.0,
+            vwap_deviation_bps=2.0,
+            close_deviation_bps=1.0,
+            market_impact_bps=2.0,
+            timing_cost_bps=3.0,
+            opportunity_cost_bps=0.0,
+            slippage_bps=2.0,
+            fill_rate=1.0,
+            participation_rate=0.01,
+            timing_skill_score=-0.1,
+            commission=5.0,
+            fees=0.67,
+            total_cost=10.67,
+            quality_grade="A",
         )
         assert r.symbol == "000001"
         assert r.issues == []
@@ -84,7 +106,12 @@ class TestInit:
 
     @pytest.mark.unit
     def test_custom(self):
-        tca = TCAManager(commission_rate=0.0005, min_commission=10.0, fee_rate=0.0001, stamp_duty_rate=0.001)
+        tca = TCAManager(
+            commission_rate=0.0005,
+            min_commission=10.0,
+            fee_rate=0.0001,
+            stamp_duty_rate=0.001,
+        )
         assert tca.commission_rate == 0.0005
         assert tca.min_commission == 10.0
 
@@ -173,8 +200,12 @@ class TestDiagnose:
     def test_no_issues(self):
         tca = TCAManager()
         issues = tca._diagnose(
-            is_cost_bps=5.0, vwap_deviation_bps=3.0, market_impact_bps=5.0,
-            timing_cost_bps=3.0, fill_rate=1.0, participation_rate=0.05,
+            is_cost_bps=5.0,
+            vwap_deviation_bps=3.0,
+            market_impact_bps=5.0,
+            timing_cost_bps=3.0,
+            fill_rate=1.0,
+            participation_rate=0.05,
         )
         assert issues == []
 
@@ -182,8 +213,12 @@ class TestDiagnose:
     def test_high_is_cost(self):
         tca = TCAManager()
         issues = tca._diagnose(
-            is_cost_bps=25.0, vwap_deviation_bps=3.0, market_impact_bps=5.0,
-            timing_cost_bps=3.0, fill_rate=1.0, participation_rate=0.05,
+            is_cost_bps=25.0,
+            vwap_deviation_bps=3.0,
+            market_impact_bps=5.0,
+            timing_cost_bps=3.0,
+            fill_rate=1.0,
+            participation_rate=0.05,
         )
         assert any("IS 成本过高" in i for i in issues)
 
@@ -191,8 +226,12 @@ class TestDiagnose:
     def test_low_fill_rate(self):
         tca = TCAManager()
         issues = tca._diagnose(
-            is_cost_bps=5.0, vwap_deviation_bps=3.0, market_impact_bps=5.0,
-            timing_cost_bps=3.0, fill_rate=0.80, participation_rate=0.05,
+            is_cost_bps=5.0,
+            vwap_deviation_bps=3.0,
+            market_impact_bps=5.0,
+            timing_cost_bps=3.0,
+            fill_rate=0.80,
+            participation_rate=0.05,
         )
         assert any("成交率低" in i for i in issues)
 
@@ -200,8 +239,12 @@ class TestDiagnose:
     def test_high_participation(self):
         tca = TCAManager()
         issues = tca._diagnose(
-            is_cost_bps=5.0, vwap_deviation_bps=3.0, market_impact_bps=5.0,
-            timing_cost_bps=3.0, fill_rate=1.0, participation_rate=0.25,
+            is_cost_bps=5.0,
+            vwap_deviation_bps=3.0,
+            market_impact_bps=5.0,
+            timing_cost_bps=3.0,
+            fill_rate=1.0,
+            participation_rate=0.25,
         )
         assert any("参与率过高" in i for i in issues)
 
@@ -209,8 +252,12 @@ class TestDiagnose:
     def test_low_participation(self):
         tca = TCAManager()
         issues = tca._diagnose(
-            is_cost_bps=5.0, vwap_deviation_bps=3.0, market_impact_bps=5.0,
-            timing_cost_bps=3.0, fill_rate=1.0, participation_rate=0.005,
+            is_cost_bps=5.0,
+            vwap_deviation_bps=3.0,
+            market_impact_bps=5.0,
+            timing_cost_bps=3.0,
+            fill_rate=1.0,
+            participation_rate=0.005,
         )
         assert any("参与率过低" in i for i in issues)
 
@@ -239,7 +286,9 @@ class TestAnalyze:
     @pytest.mark.unit
     def test_buy_basic(self, tca):
         fills = [FillRecord("000001", "BUY", 1000, 10.05, "2026-01-01")]
-        bench = BenchmarkPrices(decision_price=10.0, arrival_price=10.02, vwap=10.04, close_price=10.10)
+        bench = BenchmarkPrices(
+            decision_price=10.0, arrival_price=10.02, vwap=10.04, close_price=10.10
+        )
         r = tca.analyze(fills, bench)
         assert r.symbol == "000001"
         assert r.side == "BUY"
@@ -252,7 +301,9 @@ class TestAnalyze:
     @pytest.mark.unit
     def test_sell_basic(self, tca):
         fills = [FillRecord("000001", "SELL", 1000, 9.95, "2026-01-01")]
-        bench = BenchmarkPrices(decision_price=10.0, arrival_price=9.98, vwap=9.96, close_price=9.90)
+        bench = BenchmarkPrices(
+            decision_price=10.0, arrival_price=9.98, vwap=9.96, close_price=9.90
+        )
         r = tca.analyze(fills, bench)
         assert r.side == "SELL"
         # IS (sell) = (10.0 - 9.95) / 10.0 * 10000 = 50 bps
@@ -349,8 +400,14 @@ class TestAnalyzeBatch:
     @pytest.mark.unit
     def test_empty_fills_skipped(self):
         tca = TCAManager()
-        fills_by_sym = {"000001": [], "000002": [FillRecord("000002", "BUY", 500, 20.0, "2026-01-01")]}
-        benchmarks = {"000001": BenchmarkPrices(10.0, 10.0), "000002": BenchmarkPrices(20.0, 20.0)}
+        fills_by_sym = {
+            "000001": [],
+            "000002": [FillRecord("000002", "BUY", 500, 20.0, "2026-01-01")],
+        }
+        benchmarks = {
+            "000001": BenchmarkPrices(10.0, 10.0),
+            "000002": BenchmarkPrices(20.0, 20.0),
+        }
         reports = tca.analyze_batch(fills_by_sym, benchmarks)
         assert "000001" not in reports
         assert "000002" in reports
@@ -358,7 +415,9 @@ class TestAnalyzeBatch:
     @pytest.mark.unit
     def test_missing_benchmark_skipped(self):
         tca = TCAManager()
-        fills_by_sym = {"000001": [FillRecord("000001", "BUY", 1000, 10.0, "2026-01-01")]}
+        fills_by_sym = {
+            "000001": [FillRecord("000001", "BUY", 1000, 10.0, "2026-01-01")]
+        }
         benchmarks = {}
         reports = tca.analyze_batch(fills_by_sym, benchmarks)
         assert "000001" not in reports

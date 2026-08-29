@@ -178,7 +178,11 @@ def show_status() -> None:
     logger.info("  账户 ID:        %s", state.get("account_id", ""))
     logger.info("  策略 ID:        %s", state.get("strategy_id", ""))
     logger.info("  状态:           %s", state.get("status", ""))
-    logger.info("  当前阶段:       %s (%s)", state.get("stage_name", ""), state.get("current_stage", 0))
+    logger.info(
+        "  当前阶段:       %s (%s)",
+        state.get("stage_name", ""),
+        state.get("current_stage", 0),
+    )
     logger.info("  初始资金:       ¥%.0f", state.get("initial_capital", 0))
     logger.info("  当前资金:       ¥%.0f", state.get("current_capital", 0))
     logger.info("  当前净值:       %.4f", state.get("current_nav", 1.0))
@@ -209,6 +213,96 @@ def show_status() -> None:
         logger.info("  累计收益:       %.2f%%", total_return * 100)
 
     logger.info("=" * 70)
+
+
+# [2026-08-27 P0-1] 推进条件守卫开关 (默认开启)
+ENABLE_ADVANCE_TRADE_LOG_GUARD = True
+
+
+def _load_daily_returns(returns_file: Path) -> list[float]:
+    """从 JSONL 文件读取 daily_return 列表。"""
+    daily_rets: list[float] = []
+    with open(returns_file, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+                daily_return = rec.get("daily_return")
+                if daily_return is not None:
+                    daily_rets.append(float(daily_return))
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
+    return daily_rets
+
+
+def _calc_annual_return(daily_rets: list[float]) -> float:
+    """根据日收益率序列计算年化收益。"""
+    if not daily_rets:
+        return 0.0
+    cum = 1.0
+    for daily_return in daily_rets:
+        cum *= 1.0 + daily_return
+    years = len(daily_rets) / 252.0
+    return (cum ** (1.0 / years) - 1.0) if years > 0 else 0.0
+
+
+def _resolve_min_annual_return(thr_file: Path) -> float:
+    """读取 yaml 中的 min_annual_return 阈值。"""
+    min_annual = 0.08
+    if not thr_file.exists():
+        return min_annual
+
+    try:
+        import re
+
+        txt = thr_file.read_text(encoding="utf-8")
+        match = re.search(r"min_annual_return:\s*([0-9.]+)", txt)
+        if match:
+            min_annual = float(match.group(1))
+    except OSError:
+        pass
+    return min_annual
+
+
+def _enforce_advance_guards(state: dict, returns_file: "Path | None" = None) -> bool:
+    """推进阶段前的额外守卫 (对齐 cairn 准入框架第 4/7 项)."""
+    if not ENABLE_ADVANCE_TRADE_LOG_GUARD:
+        return True
+
+    trade_log = state.get("trade_log", [])
+    if not trade_log:
+        logger.warning(
+            "[GUARD] trade_log 为空 — 影子账户未进行真实撮合, 暂缓推进\n"
+            "        请确认 ShadowFillsIntegrator 已接入 EOD 管道并成功写入成交"
+        )
+        return False
+
+    try:
+        if returns_file is None:
+            returns_file = BASE_DIR / "reports" / "shadow" / "daily_returns.jsonl"
+        if not returns_file.exists():
+            return True
+
+        daily_rets = _load_daily_returns(returns_file)
+        if not daily_rets:
+            return True
+
+        annual_return = _calc_annual_return(daily_rets)
+        min_annual = _resolve_min_annual_return(BASE_DIR / "v8.3_institutional" / "config" / "shadow_admission.yaml")
+        if annual_return < min_annual:
+            logger.warning(
+                "[GUARD] 绩效未达标: 年化 %.2f%% < 阈值 %.2f%%, 暂缓推进",
+                annual_return * 100,
+                min_annual * 100,
+            )
+            return False
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
+        logger.warning("[GUARD] 绩效计算异常, 放行推进: %s", exc)
+        return True
+
+    return True
 
 
 def advance_stage() -> None:
@@ -242,6 +336,12 @@ def advance_stage() -> None:
         logger.error("影子账户已被 fail-fast 终止! 无法推进, 需回滚")
         return
 
+    # [2026-08-27 P0-1] 加强推进条件: trade_log 非空 + 绩效达标
+    # 消除 advance_stage 只查天数的漏洞, 对齐 cairn 准入框架
+    if not _enforce_advance_guards(state):
+        logger.warning("推进条件守卫未通过 (trade_log/绩效), 暂缓推进")
+        return
+
     # 推进阶段
     next_stage = current_stage + 1
     next_stage_info = stages[next_stage]
@@ -254,8 +354,16 @@ def advance_stage() -> None:
     save_state(state)
 
     logger.info("=" * 70)
-    logger.info("✓ 灰度阶段推进: %s → %s", stages[current_stage].get("name", ""), next_stage_info.get("name", ""))
-    logger.info("  资金分配: ¥%.0f (%.0f%%)", state["capital_allocated"], state["capital_pct"] * 100)
+    logger.info(
+        "✓ 灰度阶段推进: %s → %s",
+        stages[current_stage].get("name", ""),
+        next_stage_info.get("name", ""),
+    )
+    logger.info(
+        "  资金分配: ¥%.0f (%.0f%%)",
+        state["capital_allocated"],
+        state["capital_pct"] * 100,
+    )
     logger.info("=" * 70)
 
 

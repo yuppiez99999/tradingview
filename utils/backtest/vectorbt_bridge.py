@@ -30,6 +30,7 @@
     - 单一职责: 只做桥接 + 对比, 不替代任一引擎
     - 多小文件 (§5.3): 本模块 < 400 行
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -37,7 +38,11 @@ from typing import Optional
 
 import pandas as pd
 
-from utils.backtest.adapters import OrderSubmitter, StrategyAdapter, _EngineBackedHedgeContext
+from utils.backtest.adapters import (
+    OrderSubmitter,
+    StrategyAdapter,
+    _EngineBackedHedgeContext,
+)
 from utils.backtest.event_driven_engine import EngineSummary, EventDrivenEngine
 from utils.backtest.latency_model import FixedLatency
 from utils.backtest.matching_engine import MatchingEngine
@@ -173,7 +178,9 @@ class _MACrossStrategy(HedgeStrategy):
         ls_ctx = ctx  # type: _LongShortContext
 
         if signal == "BUY" and self._held_volume == 0:
-            success = ls_ctx.buy(self._target_code, self._position_size, price=bar.close)
+            success = ls_ctx.buy(
+                self._target_code, self._position_size, price=bar.close
+            )
             if success:
                 self._held_volume = self._position_size
 
@@ -186,7 +193,9 @@ class _MACrossStrategy(HedgeStrategy):
 class _LongShortAdapter(StrategyAdapter):
     """使用 _LongShortContext 的策略适配器。"""
 
-    def __init__(self, strategy: HedgeStrategy, order_submitter: OrderSubmitter) -> None:
+    def __init__(
+        self, strategy: HedgeStrategy, order_submitter: OrderSubmitter
+    ) -> None:
         self.strategy = strategy
         self.context = _LongShortContext(strategy, order_submitter)
 
@@ -260,6 +269,7 @@ class ComparisonReport:
         n_sell_signals: SELL 信号数
         threshold_pct: 偏差门禁阈值 (默认 5.0)
     """
+
     g15_final_equity: float
     vbt_final_equity: float
     equity_deviation_pct: float
@@ -372,7 +382,9 @@ class VectorBtBridge:
         )
 
         # 替换默认 adapter 为 _LongShortAdapter (注入 buy/sell 能力)
-        engine._adapter = _LongShortAdapter(strategy, order_submitter=engine.submit_order)
+        engine._adapter = _LongShortAdapter(
+            strategy, order_submitter=engine.submit_order
+        )
 
         return engine.run(bars)
 

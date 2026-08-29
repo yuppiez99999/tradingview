@@ -8,6 +8,7 @@ pytest 自动加载规则: 仅识别名为 conftest.py 的文件
     - production_kill_switch: 复用主 KillSwitch 实例 (模拟 daily_workflow 集成)
     - mock_all_external_sources: mock 所有外部数据源, 模拟网络全不可用
 """
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -50,6 +51,7 @@ def production_kill_switch(clean_env):
     - 与 daily_workflow.py 中 `getattr(self, 'ks', None) or KillSwitch()` 逻辑一致
     """
     from utils.kill_switch import KillSwitch
+
     ks = KillSwitch()
 
     callback = MagicMock(return_value={"executed": True, "orders_sent": 3})
@@ -68,13 +70,12 @@ def mock_all_external_sources(monkeypatch):
         - akshare.stock_zh_index_spot_em → 抛 ImportError
         - ExternalDataManager → 抛 ConnectionError
     """
+
     def _empty_quotes(codes):
         return {}
 
     try:
-        monkeypatch.setattr(
-            "utils.astock_realtime.get_realtime_quotes", _empty_quotes
-        )
+        monkeypatch.setattr("utils.astock_realtime.get_realtime_quotes", _empty_quotes)
     except (AttributeError, ImportError):
         pass
 
@@ -150,24 +151,37 @@ def temp_shadow_env(
 
     # Patch observation_watchdog 常量
     monkeypatch.setattr("scripts.observation_watchdog.EVOLUTION_DIR", evolution_dir)
-    monkeypatch.setattr("scripts.observation_watchdog.OBSERVATION_PROGRESS_FILE", progress_file)
+    monkeypatch.setattr(
+        "scripts.observation_watchdog.OBSERVATION_PROGRESS_FILE", progress_file
+    )
     monkeypatch.setattr("scripts.observation_watchdog.CLEANED_FILE", cleaned_file)
     monkeypatch.setattr("scripts.observation_watchdog.RAW_SHADOW_FILE", raw_file)
     monkeypatch.setattr("scripts.observation_watchdog.WATCHDOG_LOG_FILE", watchdog_log)
 
     # Patch integrate_cleaned_to_drift 常量
-    monkeypatch.setattr("scripts.integrate_cleaned_to_drift.DEFAULT_CLEANED_INPUT", cleaned_file)
+    monkeypatch.setattr(
+        "scripts.integrate_cleaned_to_drift.DEFAULT_CLEANED_INPUT", cleaned_file
+    )
     monkeypatch.setattr("scripts.integrate_cleaned_to_drift.RAW_SHADOW_INPUT", raw_file)
-    monkeypatch.setattr("scripts.integrate_cleaned_to_drift.EVOLUTION_DIR", evolution_dir)
-    monkeypatch.setattr("scripts.integrate_cleaned_to_drift.DRIFT_ALERTS_FILE", drift_alerts)
-    monkeypatch.setattr("scripts.integrate_cleaned_to_drift.OBSERVATION_PROGRESS_FILE", progress_file)
-    monkeypatch.setattr("scripts.integrate_cleaned_to_drift.INTEGRATION_LOG_FILE", integration_log)
+    monkeypatch.setattr(
+        "scripts.integrate_cleaned_to_drift.EVOLUTION_DIR", evolution_dir
+    )
+    monkeypatch.setattr(
+        "scripts.integrate_cleaned_to_drift.DRIFT_ALERTS_FILE", drift_alerts
+    )
+    monkeypatch.setattr(
+        "scripts.integrate_cleaned_to_drift.OBSERVATION_PROGRESS_FILE", progress_file
+    )
+    monkeypatch.setattr(
+        "scripts.integrate_cleaned_to_drift.INTEGRATION_LOG_FILE", integration_log
+    )
     # _PROJ 用于 relative_to(), 必须指向 tmp_path 避免 ValueError
     monkeypatch.setattr("scripts.integrate_cleaned_to_drift._PROJ", tmp_path)
 
     # Patch write_integration_log 的默认参数
     # (函数默认参数在定义时绑定, monkeypatch 模块属性无法修改默认参数)
     from scripts.integrate_cleaned_to_drift import write_integration_log
+
     monkeypatch.setattr(write_integration_log, "__defaults__", (integration_log,))
 
     # 设置 compute_prediction_drift 的动态 side_effect
@@ -204,7 +218,9 @@ def temp_shadow_env(
             },
         }
 
-    monkeypatch.setattr("scripts.observation_tracker.generate_snapshot", _mock_generate_snapshot)
+    monkeypatch.setattr(
+        "scripts.observation_tracker.generate_snapshot", _mock_generate_snapshot
+    )
 
     return {
         "root": tmp_path,

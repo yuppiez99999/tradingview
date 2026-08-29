@@ -12,6 +12,7 @@
     9. 便捷函数 (run_fast_backtest / check_v9_standards)
     10. 公式对齐 (与 v8.3 metrics.py 一致性)
 """
+
 from __future__ import annotations
 
 import math
@@ -268,7 +269,9 @@ class TestDSR:
         """n_observations <= 1 时 DSR 为 0."""
         engine = FastBacktest()
         dsr = engine._compute_dsr(
-            sharpe_ratio=2.0, n_trials=10, n_observations=1,
+            sharpe_ratio=2.0,
+            n_trials=10,
+            n_observations=1,
         )
         assert dsr == 0.0
 
@@ -378,7 +381,9 @@ class TestV9Standards:
         # DSR 应该较高
         assert result.dsr * 10 >= V9_DSR_THRESHOLD or not result.passed_v9
         # 至少年化和回撤应通过
-        assert result.annual_return >= V9_ANNUAL_RETURN_THRESHOLD or "年化" in " ".join(result.v9_failures)
+        assert result.annual_return >= V9_ANNUAL_RETURN_THRESHOLD or "年化" in " ".join(
+            result.v9_failures
+        )
 
     def test_v9_fail_low_return(self):
         """低收益不通过 V9."""
@@ -570,8 +575,11 @@ class TestFormulaAlignment:
 
         # 手动计算
         from scipy.stats import norm
+
         z_max = math.sqrt(2 * math.log(n_trials))
-        correction = 1 + (skew / 6) * (z_max ** 2 - 1) + ((kurt - 3) / 24) * (z_max ** 3 - 3 * z_max)
+        correction = (
+            1 + (skew / 6) * (z_max**2 - 1) + ((kurt - 3) / 24) * (z_max**3 - 3 * z_max)
+        )
         e_max_sr = z_max * correction / math.sqrt(n_obs)
         z_score = (sharpe - e_max_sr) * math.sqrt(n_obs - 1)
         expected_dsr = float(norm.cdf(z_score))
@@ -638,6 +646,7 @@ class TestModuleConstants:
             V9_MAX_DRAWDOWN_THRESHOLD,
             V9_SHARPE_CV_THRESHOLD,
         )
+
         assert V9_DSR_THRESHOLD == 5.0
         assert V9_ANNUAL_RETURN_THRESHOLD == 0.15
         assert V9_MAX_DRAWDOWN_THRESHOLD == 0.10
@@ -646,10 +655,15 @@ class TestModuleConstants:
     def test_all_exported(self):
         """__all__ 完整."""
         from utils.alpha import fast_backtest
+
         expected = {
-            "FastBacktest", "BacktestConfig", "BacktestResult",
-            "FastBacktestError", "InsufficientDataError",
-            "run_fast_backtest", "check_v9_standards",
+            "FastBacktest",
+            "BacktestConfig",
+            "BacktestResult",
+            "FastBacktestError",
+            "InsufficientDataError",
+            "run_fast_backtest",
+            "check_v9_standards",
         }
         assert expected.issubset(set(fast_backtest.__all__))
 

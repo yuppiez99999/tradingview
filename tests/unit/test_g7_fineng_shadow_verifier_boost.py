@@ -25,6 +25,7 @@
     - 测试文件可独立运行:
       python -m pytest tests/unit/test_g7_fineng_shadow_verifier_boost.py -q
 """
+
 from __future__ import annotations
 
 import json
@@ -40,7 +41,9 @@ import pytest
 # ============================================================
 # 路径设置 (必须在导入被测模块前完成)
 # ============================================================
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -64,9 +67,14 @@ from utils.fineng.fineng_shadow_verifier import (  # noqa: E402
 # 工厂辅助
 # ============================================================
 
-def _make_garch_mock(converged: bool = True, persistence: float = 0.95,
-                     forecast_vol: float = 0.20, long_run_vol: float = 0.18,
-                     half_life_days: float = 13.0) -> MagicMock:
+
+def _make_garch_mock(
+    converged: bool = True,
+    persistence: float = 0.95,
+    forecast_vol: float = 0.20,
+    long_run_vol: float = 0.18,
+    half_life_days: float = 13.0,
+) -> MagicMock:
     g = MagicMock()
     g.converged = converged
     g.persistence = persistence
@@ -76,8 +84,9 @@ def _make_garch_mock(converged: bool = True, persistence: float = 0.95,
     return g
 
 
-def _make_kalman_mock(converged: bool = True, latest_beta: float = 1.0,
-                      mean_beta: float = 1.0) -> MagicMock:
+def _make_kalman_mock(
+    converged: bool = True, latest_beta: float = 1.0, mean_beta: float = 1.0
+) -> MagicMock:
     k = MagicMock()
     k.converged = converged
     k.latest_beta = latest_beta
@@ -85,8 +94,9 @@ def _make_kalman_mock(converged: bool = True, latest_beta: float = 1.0,
     return k
 
 
-def _make_hedge_mock(kalman_var: float = 0.001, ols_var: float = 0.002,
-                     reduction_pct: float = 0.5) -> MagicMock:
+def _make_hedge_mock(
+    kalman_var: float = 0.001, ols_var: float = 0.002, reduction_pct: float = 0.5
+) -> MagicMock:
     c = MagicMock()
     c.kalman_hedged_variance = kalman_var
     c.ols_hedged_variance = ols_var
@@ -94,9 +104,14 @@ def _make_hedge_mock(kalman_var: float = 0.001, ols_var: float = 0.002,
     return c
 
 
-def _make_evt_mock(converged: bool = True, xi: float = 0.1, sigma: float = 0.01,
-                   n_excess: int = 30, es_99: float = -0.05,
-                   var_99: float = -0.04) -> MagicMock:
+def _make_evt_mock(
+    converged: bool = True,
+    xi: float = 0.1,
+    sigma: float = 0.01,
+    n_excess: int = 30,
+    es_99: float = -0.05,
+    var_99: float = -0.04,
+) -> MagicMock:
     e = MagicMock()
     e.converged = converged
     e.xi = xi
@@ -107,10 +122,15 @@ def _make_evt_mock(converged: bool = True, xi: float = 0.1, sigma: float = 0.01,
     return e
 
 
-def _make_pathsim_result(dd_p50: float = 0.05, dd_p75: float = 0.07,
-                         dd_p90: float = 0.10, dd_p95: float = 0.12,
-                         dd_p99: float = 0.18, dd_max: float = 0.25,
-                         nav_terminal_p50: float = 1.0) -> MagicMock:
+def _make_pathsim_result(
+    dd_p50: float = 0.05,
+    dd_p75: float = 0.07,
+    dd_p90: float = 0.10,
+    dd_p95: float = 0.12,
+    dd_p99: float = 0.18,
+    dd_max: float = 0.25,
+    nav_terminal_p50: float = 1.0,
+) -> MagicMock:
     r = MagicMock()
     r.dd_p50 = dd_p50
     r.dd_p75 = dd_p75
@@ -125,10 +145,16 @@ def _make_pathsim_result(dd_p50: float = 0.05, dd_p75: float = 0.07,
 def _make_verifier_with_mocks(**overrides) -> FinengShadowVerifier:
     """构造一个 Verifier, 并把四模块 fit 函数替换为可控 mock (全部 available)."""
     v = FinengShadowVerifier()
-    v._fit_garch = overrides.get("fit_garch", MagicMock(return_value=_make_garch_mock()))
+    v._fit_garch = overrides.get(
+        "fit_garch", MagicMock(return_value=_make_garch_mock())
+    )
     v._ewma_vol = overrides.get("ewma_vol", MagicMock(return_value=(0.18, [])))
-    v._fit_kalman = overrides.get("fit_kalman", MagicMock(return_value=_make_kalman_mock()))
-    v._backtest_hedge = overrides.get("backtest_hedge", MagicMock(return_value=_make_hedge_mock()))
+    v._fit_kalman = overrides.get(
+        "fit_kalman", MagicMock(return_value=_make_kalman_mock())
+    )
+    v._backtest_hedge = overrides.get(
+        "backtest_hedge", MagicMock(return_value=_make_hedge_mock())
+    )
     v._fit_evt = overrides.get("fit_evt", MagicMock(return_value=_make_evt_mock()))
     ps_result = overrides.get("pathsim_result", _make_pathsim_result())
     ps_inst = MagicMock()
@@ -141,8 +167,9 @@ def _make_verifier_with_mocks(**overrides) -> FinengShadowVerifier:
     return v
 
 
-def _synthetic_returns(n: int = 300, mu: float = 0.0, sigma: float = 0.01,
-                       seed: int = 42) -> list:
+def _synthetic_returns(
+    n: int = 300, mu: float = 0.0, sigma: float = 0.01, seed: int = 42
+) -> list:
     rng = random.Random(seed)
     return [rng.gauss(mu, sigma) for _ in range(n)]
 
@@ -225,8 +252,9 @@ class TestDataclassDefaults:
     """dataclass 默认值与字段."""
 
     def test_module_window_result_defaults(self) -> None:
-        wr = ModuleWindowResult(window_idx=0, data_start="d0", data_end="d9", n_days=10,
-                                metrics={"x": 1.0})
+        wr = ModuleWindowResult(
+            window_idx=0, data_start="d0", data_end="d9", n_days=10, metrics={"x": 1.0}
+        )
         assert wr.window_idx == 0
         assert wr.warnings == []
         assert wr.converged is True
@@ -248,8 +276,10 @@ class TestDataclassDefaults:
 
     def test_fineng_verification_report_defaults(self) -> None:
         rep = FinengVerificationReport(
-            run_timestamp="2026-01-01", min_windows=5,
-            total_data_days=300, actual_windows=7,
+            run_timestamp="2026-01-01",
+            min_windows=5,
+            total_data_days=300,
+            actual_windows=7,
         )
         assert rep.portfolio_symbols == []
         assert rep.modules == {}
@@ -534,8 +564,12 @@ class TestRunPathsimWindow:
     def test_dd_p99_too_small_warning(self) -> None:
         v = _make_verifier_with_mocks(
             pathsim_result=_make_pathsim_result(
-                dd_p50=0.001, dd_p75=0.002, dd_p90=0.003,
-                dd_p95=0.0035, dd_p99=0.004, dd_max=0.005,
+                dd_p50=0.001,
+                dd_p75=0.002,
+                dd_p90=0.003,
+                dd_p95=0.0035,
+                dd_p99=0.004,
+                dd_max=0.005,
             )
         )
         wr = v._run_pathsim_window([0.01] * 130)
@@ -544,8 +578,12 @@ class TestRunPathsimWindow:
     def test_dd_p99_too_large_warning(self) -> None:
         v = _make_verifier_with_mocks(
             pathsim_result=_make_pathsim_result(
-                dd_p50=0.50, dd_p75=0.55, dd_p90=0.60,
-                dd_p95=0.65, dd_p99=0.70, dd_max=0.80,
+                dd_p50=0.50,
+                dd_p75=0.55,
+                dd_p90=0.60,
+                dd_p95=0.65,
+                dd_p99=0.70,
+                dd_max=0.80,
             )
         )
         wr = v._run_pathsim_window([0.01] * 130)
@@ -555,8 +593,12 @@ class TestRunPathsimWindow:
         # dd_p99 < dd_p95 → 非单调
         v = _make_verifier_with_mocks(
             pathsim_result=_make_pathsim_result(
-                dd_p50=0.05, dd_p75=0.07, dd_p90=0.10,
-                dd_p95=0.20, dd_p99=0.15, dd_max=0.25,
+                dd_p50=0.05,
+                dd_p75=0.07,
+                dd_p90=0.10,
+                dd_p95=0.20,
+                dd_p99=0.15,
+                dd_max=0.25,
             )
         )
         wr = v._run_pathsim_window([0.01] * 130)
@@ -566,9 +608,11 @@ class TestRunPathsimWindow:
     def test_exception_returns_failed_result(self) -> None:
         v = _make_verifier_with_mocks()
         # 让 PathSimulator 实例的 simulate_portfolio 抛异常
-        v._PathSimulator = MagicMock(return_value=MagicMock(
-            simulate_portfolio=MagicMock(side_effect=OverflowError("ps boom"))
-        ))
+        v._PathSimulator = MagicMock(
+            return_value=MagicMock(
+                simulate_portfolio=MagicMock(side_effect=OverflowError("ps boom"))
+            )
+        )
         wr = v._run_pathsim_window([0.01] * 130)
         assert wr.converged is False
         assert wr.metrics == {}
@@ -732,8 +776,10 @@ class TestComputeFinalVerdict:
 
     def _make_report(self) -> FinengVerificationReport:
         return FinengVerificationReport(
-            run_timestamp="2026-01-01", min_windows=5,
-            total_data_days=300, actual_windows=7,
+            run_timestamp="2026-01-01",
+            min_windows=5,
+            total_data_days=300,
+            actual_windows=7,
         )
 
     def test_all_passed_accepted(self) -> None:
@@ -741,9 +787,13 @@ class TestComputeFinalVerdict:
         report = self._make_report()
         full_results = {
             "garch": ModuleFullResult(module="garch", full_converged=True, passed=True),
-            "kalman": ModuleFullResult(module="kalman", full_converged=True, passed=True),
+            "kalman": ModuleFullResult(
+                module="kalman", full_converged=True, passed=True
+            ),
             "evt": ModuleFullResult(module="evt", full_converged=True, passed=True),
-            "pathsim": ModuleFullResult(module="pathsim", full_converged=True, passed=True),
+            "pathsim": ModuleFullResult(
+                module="pathsim", full_converged=True, passed=True
+            ),
         }
         v._compute_final_verdict(report, full_results, [(0, 120), (30, 150)])
         assert report.accepted is True
@@ -757,9 +807,13 @@ class TestComputeFinalVerdict:
         report = self._make_report()
         full_results = {
             "garch": ModuleFullResult(module="garch", full_converged=True, passed=True),
-            "kalman": ModuleFullResult(module="kalman", full_converged=False, passed=False),
+            "kalman": ModuleFullResult(
+                module="kalman", full_converged=False, passed=False
+            ),
             "evt": ModuleFullResult(module="evt", full_converged=False, passed=False),
-            "pathsim": ModuleFullResult(module="pathsim", full_converged=True, passed=True),
+            "pathsim": ModuleFullResult(
+                module="pathsim", full_converged=True, passed=True
+            ),
         }
         v._compute_final_verdict(report, full_results, [(0, 120)])
         # 2 通过 + 2 失败 → max(2, 4-1=3) = 3 > 2 → 不通过
@@ -869,9 +923,13 @@ class TestSaveReport:
     def test_writes_json_files(self, tmp_path) -> None:
         v = _make_verifier_with_mocks()
         report = FinengVerificationReport(
-            run_timestamp="2026-01-01T00:00:00", min_windows=5,
-            total_data_days=300, actual_windows=7, accepted=True,
-            acceptance_detail="测试", next_step="下一步",
+            run_timestamp="2026-01-01T00:00:00",
+            min_windows=5,
+            total_data_days=300,
+            actual_windows=7,
+            accepted=True,
+            acceptance_detail="测试",
+            next_step="下一步",
         )
         with patch.object(fsv, "REPORT_DIR", tmp_path):
             path_str = v._save_report(report)
@@ -899,10 +957,20 @@ class TestExtractKeyMetrics:
 
     def test_garch_keys(self) -> None:
         windows = [
-            ModuleWindowResult(0, "d0", "d9", 10,
-                               {"forecast_vol": 0.2, "persistence": 0.95, "ratio_garch_ewma": 1.1}),
-            ModuleWindowResult(1, "d10", "d19", 10,
-                               {"forecast_vol": 0.21, "persistence": 0.94, "ratio_garch_ewma": 1.2}),
+            ModuleWindowResult(
+                0,
+                "d0",
+                "d9",
+                10,
+                {"forecast_vol": 0.2, "persistence": 0.95, "ratio_garch_ewma": 1.1},
+            ),
+            ModuleWindowResult(
+                1,
+                "d10",
+                "d19",
+                10,
+                {"forecast_vol": 0.21, "persistence": 0.94, "ratio_garch_ewma": 1.2},
+            ),
         ]
         result = _extract_key_metrics("garch", windows)
         assert set(result.keys()) == {"forecast_vol", "persistence", "ratio_garch_ewma"}
@@ -910,24 +978,31 @@ class TestExtractKeyMetrics:
 
     def test_kalman_keys(self) -> None:
         windows = [
-            ModuleWindowResult(0, "d0", "d9", 10,
-                               {"latest_beta": 1.0, "mean_beta": 1.0, "var_reduction_pct": 0.5}),
+            ModuleWindowResult(
+                0,
+                "d0",
+                "d9",
+                10,
+                {"latest_beta": 1.0, "mean_beta": 1.0, "var_reduction_pct": 0.5},
+            ),
         ]
         result = _extract_key_metrics("kalman", windows)
         assert set(result.keys()) == {"latest_beta", "mean_beta", "var_reduction_pct"}
 
     def test_evt_keys(self) -> None:
         windows = [
-            ModuleWindowResult(0, "d0", "d9", 10,
-                               {"xi": 0.1, "es_99": -0.05, "n_excess": 30.0}),
+            ModuleWindowResult(
+                0, "d0", "d9", 10, {"xi": 0.1, "es_99": -0.05, "n_excess": 30.0}
+            ),
         ]
         result = _extract_key_metrics("evt", windows)
         assert set(result.keys()) == {"xi", "es_99", "n_excess"}
 
     def test_pathsim_keys(self) -> None:
         windows = [
-            ModuleWindowResult(0, "d0", "d9", 10,
-                               {"dd_p50": 0.05, "dd_p90": 0.10, "dd_p99": 0.18}),
+            ModuleWindowResult(
+                0, "d0", "d9", 10, {"dd_p50": 0.05, "dd_p90": 0.10, "dd_p99": 0.18}
+            ),
         ]
         result = _extract_key_metrics("pathsim", windows)
         assert set(result.keys()) == {"dd_p50", "dd_p90", "dd_p99"}
@@ -939,7 +1014,9 @@ class TestExtractKeyMetrics:
 
     def test_missing_keys_partial(self) -> None:
         windows = [
-            ModuleWindowResult(0, "d0", "d9", 10, {"forecast_vol": 0.2}),  # 缺 persistence
+            ModuleWindowResult(
+                0, "d0", "d9", 10, {"forecast_vol": 0.2}
+            ),  # 缺 persistence
         ]
         result = _extract_key_metrics("garch", windows)
         assert "forecast_vol" in result
@@ -982,8 +1059,10 @@ class TestSerialize:
 
     def test_empty_report(self) -> None:
         report = FinengVerificationReport(
-            run_timestamp="2026-01-01", min_windows=5,
-            total_data_days=300, actual_windows=7,
+            run_timestamp="2026-01-01",
+            min_windows=5,
+            total_data_days=300,
+            actual_windows=7,
         )
         data = _serialize(report)
         assert data["run_timestamp"] == "2026-01-01"
@@ -994,17 +1073,22 @@ class TestSerialize:
 
     def test_with_modules_and_windows(self) -> None:
         report = FinengVerificationReport(
-            run_timestamp="2026-01-01", min_windows=5,
-            total_data_days=300, actual_windows=7,
+            run_timestamp="2026-01-01",
+            min_windows=5,
+            total_data_days=300,
+            actual_windows=7,
             portfolio_symbols=["600519"],
         )
         mr = ModuleFullResult(
-            module="garch", full_converged=True,
+            module="garch",
+            full_converged=True,
             full_metrics={"persistence": 0.95},
             full_warnings=["w1"],
             windows=[ModuleWindowResult(0, "d0", "d9", 10, {"forecast_vol": 0.2})],
-            n_windows=1, n_converged_windows=1,
-            cross_window_cv=0.1, direction_consistency=0.9,
+            n_windows=1,
+            n_converged_windows=1,
+            cross_window_cv=0.1,
+            direction_consistency=0.9,
             passed=True,
         )
         report.modules = {"garch": mr}
@@ -1025,7 +1109,10 @@ class TestSerialize:
     def test_serialize_non_numeric_metric_preserved(self) -> None:
         """_serialize 中非数值 metric 原样保留."""
         report = FinengVerificationReport(
-            run_timestamp="ts", min_windows=5, total_data_days=10, actual_windows=1,
+            run_timestamp="ts",
+            min_windows=5,
+            total_data_days=10,
+            actual_windows=1,
         )
         mr = ModuleFullResult(
             module="evt",

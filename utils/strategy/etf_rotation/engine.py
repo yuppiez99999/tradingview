@@ -23,6 +23,7 @@ etf-rotation-strategy 三层验证借鉴:
     - 不可变性 (§5.1): 验证报告为 dataclass
     - 多小文件 (§5.3): 本模块 < 350 行
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -39,6 +40,7 @@ import pandas as pd
 @dataclass
 class WFOResult:
     """WFO (Walk-Forward Optimization) 单窗口结果。"""
+
     window_id: int
     train_start: str
     train_end: str
@@ -54,6 +56,7 @@ class WFOResult:
 @dataclass
 class VECResult:
     """VEC (Vectorized Ensemble Cross-validation) 结果。"""
+
     n_folds: int
     avg_sharpe: float
     sharpe_std: float
@@ -64,6 +67,7 @@ class VECResult:
 @dataclass
 class BTResult:
     """BT (Backtest) 最终回测结果。"""
+
     final_equity: float
     total_return: float
     sharpe_ratio: float
@@ -75,6 +79,7 @@ class BTResult:
 @dataclass
 class ThreeTierReport:
     """三层验证汇总报告。"""
+
     wfo_results: list[WFOResult] = field(default_factory=list)
     vec_result: Optional[VECResult] = None
     bt_result: Optional[BTResult] = None
@@ -95,7 +100,9 @@ class ThreeTierReport:
             f"  VEC: {self.vec_result.n_folds if self.vec_result else 0} 折, "
             f"平均 Sharpe={vec_sharpe:.4f}\n"
             f"  BT:  Sharpe={bt_sharpe:.4f}, 收益={bt_ret:.4%}, "
-            f"最终权益={self.bt_result.final_equity:,.2f}" if self.bt_result else ""
+            f"最终权益={self.bt_result.final_equity:,.2f}"
+            if self.bt_result
+            else ""
         )
 
 
@@ -175,7 +182,9 @@ def _run_backtest(
 
     # 权益曲线
     equity_curve = (1 + net_returns).cumprod() * initial_capital
-    final_equity = float(equity_curve.iloc[-1]) if len(equity_curve) > 0 else initial_capital
+    final_equity = (
+        float(equity_curve.iloc[-1]) if len(equity_curve) > 0 else initial_capital
+    )
     total_return = (final_equity - initial_capital) / initial_capital
 
     # Sharpe
@@ -316,18 +325,20 @@ class ThreeTierETFRotationValidator:
             oos_bt = _run_backtest(test_data, signals, initial_capital)
 
             dates = closes.index
-            results.append(WFOResult(
-                window_id=window_id,
-                train_start=str(dates[start])[:10],
-                train_end=str(dates[min(train_end - 1, len(dates) - 1)])[:10],
-                test_start=str(dates[min(train_end, len(dates) - 1)])[:10],
-                test_end=str(dates[min(test_end - 1, len(dates) - 1)])[:10],
-                best_lookback=best_lb,
-                best_holdings=best_h,
-                train_sharpe=best_sharpe,
-                oos_sharpe=oos_bt.sharpe_ratio,
-                oos_return=oos_bt.total_return,
-            ))
+            results.append(
+                WFOResult(
+                    window_id=window_id,
+                    train_start=str(dates[start])[:10],
+                    train_end=str(dates[min(train_end - 1, len(dates) - 1)])[:10],
+                    test_start=str(dates[min(train_end, len(dates) - 1)])[:10],
+                    test_end=str(dates[min(test_end - 1, len(dates) - 1)])[:10],
+                    best_lookback=best_lb,
+                    best_holdings=best_h,
+                    train_sharpe=best_sharpe,
+                    oos_sharpe=oos_bt.sharpe_ratio,
+                    oos_return=oos_bt.total_return,
+                )
+            )
 
             window_id += 1
             start += step

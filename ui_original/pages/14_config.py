@@ -5,6 +5,7 @@
     - ConfigManager 4 级优先级说明
     - 关键配置文件浏览 (kill_switch / multi_factor_signal / shadow_admission 等)
 """
+
 from __future__ import annotations
 
 import sys
@@ -121,6 +122,7 @@ def main() -> None:
             # 显示配置来源
             try:
                 from utils.config_manager import get_config_source
+
                 source = get_config_source(selected_cfg)
                 st.info(f"📁 配置来源: `{source}`")
             except Exception:
@@ -129,13 +131,16 @@ def main() -> None:
             with st.expander(f"查看 {selected_cfg}.yaml 内容", expanded=True):
                 st.json(cfg_data)
         else:
-            render_empty_state(f"配置文件 `{selected_cfg}.yaml` 不存在或为空", icon="📂")
+            render_empty_state(
+                f"配置文件 `{selected_cfg}.yaml` 不存在或为空", icon="📂"
+            )
 
     st.divider()
 
     # ===== 当前环境信息 =====
     st.subheader("🌐 当前环境信息")
     import os
+
     env_vars = {
         "TRADING_ENV": os.environ.get("TRADING_ENV", "(未设置)"),
         "QUANT_CONFIG_DIR": os.environ.get("QUANT_CONFIG_DIR", "(未设置)"),

@@ -71,3 +71,14 @@ related:
 - `代码审查标准与流程_v1.0.md` §6 反模式库已含"硬编码实时行情""修复只留注释""双份分歧文件"——本次新增的"离线脚本应 OFFLINE_ONLY 标注"可补入该库。
 - `cairn/code-review-lessons-v8.4.md` 侧重 2026-08-05 的资金安全/前视偏差；本文侧重 2026-08-08 的"审查报告本身需被审查"方法论，二者互补。
 - 后续任何独立审查报告，都应默认带"§N 复核勘误"小节，作为标准动作。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [2026-08-08 代码审查修复批次经验沉淀](code-review-fix-batch-20260808.md) (相似度 14%)
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 14%)
+- [代码质量修复批次 2026-08-18：ruff 高危规则清零](code-review-ruff-fix-batch-20260818.md) (相似度 12%)
+- [代码质量审查 Wave6（2026-08-06）— 对冲/执行/管道/数据模块 + 待复核项复核](code-quality-review-wave6-20260806.md) (相似度 12%)
+- [GLM 4.5-air LLM 驱动代码审查方法论（open-code-review + GLM 4.5-air）](code-review-glm45-llm-scan.md) (相似度 10%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

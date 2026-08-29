@@ -1,5 +1,6 @@
 """Smoke tests for Tier-1 type:ignore elimination batch (drift_monitor, daily_panel,
 data_quality_monitor, external_data_source, stock_universe)."""
+
 from __future__ import annotations
 
 import importlib
@@ -61,7 +62,9 @@ try:
     assert hasattr(modules["drift"], "_scipy_stats"), "drift _scipy_stats missing"
     # Either scipy installed (module) or None. It should match Optional[type] pattern.
     val = modules["drift"]._scipy_stats
-    assert val is None or hasattr(val, "__name__"), f"_scipy_stats type issue: {type(val)}"
+    assert val is None or hasattr(
+        val, "__name__"
+    ), f"_scipy_stats type issue: {type(val)}"
     print(f"  [OK] drift._scipy_stats = {type(val).__name__}")
     passed += 1
 except Exception as e:  # noqa: BLE001

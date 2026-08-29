@@ -1,4 +1,5 @@
 """backtest_integrity 单元测试 — 前视偏差/alpha 来源/综合校验全分支覆盖"""
+
 from __future__ import annotations
 
 import sys

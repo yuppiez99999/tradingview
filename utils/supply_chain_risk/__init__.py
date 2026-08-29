@@ -22,6 +22,7 @@ Usage:
         'accuracy': 97.8, 'timeliness': 96.5, 'compliance_score': 100.0,
     })
 """
+
 from __future__ import annotations
 
 from .predict import evaluate_batch, evaluate_supplier, load_engine

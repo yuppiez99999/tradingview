@@ -1,4 +1,5 @@
 """T14 单元测试 — RiskAuditLogger 风控审计回放."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -90,10 +91,10 @@ class TestReplayApis:
 
     def test_query_rejections_filters(self, tmp_path):
         logger = _make_logger(tmp_path)
-        logger.log("T09_PRETRADE", "ALLOW")           # not rejection
-        logger.log("T09_PRETRADE", "BLOCK")           # rejection 1
-        logger.log("T11_CB", "TRIP")                  # rejection 2
-        logger.log("T12_KILL", "LEVEL_CHANGE")        # not
+        logger.log("T09_PRETRADE", "ALLOW")  # not rejection
+        logger.log("T09_PRETRADE", "BLOCK")  # rejection 1
+        logger.log("T11_CB", "TRIP")  # rejection 2
+        logger.log("T12_KILL", "LEVEL_CHANGE")  # not
         logger.flush()
         today = datetime.now().strftime("%Y-%m-%d")
         rej = logger.query_rejections(today)
@@ -121,7 +122,7 @@ class TestReplayApis:
         today = datetime.now().strftime("%Y-%m-%d")
         recs = list(logger.replay_stream(today))
         # 按时间排序
-        for a, b in zip(recs, recs[1:]):  # noqa: B905 - 相邻元素比较, 末尾天然少一项, 截断为设计语义
+        for a, b in zip(recs, recs[1:], strict=False):  # noqa: B905 - 相邻元素比较, 末尾天然少一项, 截断为设计语义
             assert a.timestamp <= b.timestamp
 
 

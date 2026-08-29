@@ -39,6 +39,7 @@ class TestExecutionAlgorithmEngine(unittest.TestCase):
         cls.start = pd.Timestamp("2026-07-15 09:30:00")
         cls.end = pd.Timestamp("2026-07-15 15:00:00")
         from utils.execution_algorithm_engine import Order
+
         cls.Order = Order
         cls.order = Order(
             symbol="600519.SH",
@@ -54,11 +55,13 @@ class TestExecutionAlgorithmEngine(unittest.TestCase):
         from utils.execution_algorithm_engine import (
             ExecutionAlgorithmEngine,
         )
+
         self.assertTrue(callable(ExecutionAlgorithmEngine))
 
     def test_vwap(self):
         """测试 VWAP — 切片数 > 0, 总股数匹配"""
         from utils.execution_algorithm_engine import ExecutionAlgorithmEngine
+
         engine = ExecutionAlgorithmEngine()
         plan = engine.vwap(self.order)
         self.assertEqual(plan.algorithm, "VWAP")
@@ -72,6 +75,7 @@ class TestExecutionAlgorithmEngine(unittest.TestCase):
     def test_twap(self):
         """测试 TWAP — 均匀切片"""
         from utils.execution_algorithm_engine import ExecutionAlgorithmEngine
+
         engine = ExecutionAlgorithmEngine()
         plan = engine.twap(self.order)
         self.assertEqual(plan.algorithm, "TWAP")
@@ -82,6 +86,7 @@ class TestExecutionAlgorithmEngine(unittest.TestCase):
     def test_pov(self):
         """测试 POV — 参与度约束"""
         from utils.execution_algorithm_engine import ExecutionAlgorithmEngine
+
         engine = ExecutionAlgorithmEngine()
         plan = engine.pov(self.order, expected_market_volume=500_000)
         self.assertEqual(plan.algorithm, "POV")
@@ -93,6 +98,7 @@ class TestExecutionAlgorithmEngine(unittest.TestCase):
     def test_is_algo(self):
         """测试 IS — 前置加权"""
         from utils.execution_algorithm_engine import ExecutionAlgorithmEngine
+
         engine = ExecutionAlgorithmEngine()
         plan = engine.is_algo(self.order, daily_volatility=0.02)
         self.assertEqual(plan.algorithm, "IS")
@@ -103,18 +109,27 @@ class TestExecutionAlgorithmEngine(unittest.TestCase):
     def test_select_algorithm(self):
         """测试算法自动选择"""
         from utils.execution_algorithm_engine import ExecutionAlgorithmEngine
+
         engine = ExecutionAlgorithmEngine()
         # 小单 + 高紧迫 → TWAP
         small_order = self.Order(
-            symbol="TEST", side="BUY", total_shares=1000,
-            start_time=self.start, end_time=self.end, urgency="HIGH",
+            symbol="TEST",
+            side="BUY",
+            total_shares=1000,
+            start_time=self.start,
+            end_time=self.end,
+            urgency="HIGH",
         )
         algo = engine.select_algorithm(small_order, adv=500_000)
         self.assertEqual(algo, "TWAP")
         # 大单 (>20% ADV) → POV
         big_order = self.Order(
-            symbol="TEST", side="BUY", total_shares=200_000,
-            start_time=self.start, end_time=self.end, urgency="MEDIUM",
+            symbol="TEST",
+            side="BUY",
+            total_shares=200_000,
+            start_time=self.start,
+            end_time=self.end,
+            urgency="MEDIUM",
         )
         algo = engine.select_algorithm(big_order, adv=500_000)
         self.assertEqual(algo, "POV")
@@ -127,11 +142,13 @@ class TestMarketImpactModel(unittest.TestCase):
         from utils.market_impact_model import (
             MarketImpactModel,
         )
+
         self.assertTrue(callable(MarketImpactModel))
 
     def test_impact_estimate(self):
         """测试冲击估计 — 总冲击 > 0, 永久/临时合理"""
         from utils.market_impact_model import MarketImpactModel
+
         model = MarketImpactModel()
         est = model.estimate(
             symbol="600519.SH",
@@ -150,14 +167,20 @@ class TestMarketImpactModel(unittest.TestCase):
     def test_participation_scaling(self):
         """参与度越高, 冲击越大"""
         from utils.market_impact_model import MarketImpactModel
+
         model = MarketImpactModel()
-        small = model.estimate(symbol="X", order_shares=1000, adv=500_000, decision_price=100.0)
-        large = model.estimate(symbol="X", order_shares=100_000, adv=500_000, decision_price=100.0)
+        small = model.estimate(
+            symbol="X", order_shares=1000, adv=500_000, decision_price=100.0
+        )
+        large = model.estimate(
+            symbol="X", order_shares=100_000, adv=500_000, decision_price=100.0
+        )
         self.assertGreater(large.total_impact_bps, small.total_impact_bps)
 
     def test_optimal_trajectory(self):
         """测试 AC 最优轨迹 — 半衰期合理"""
         from utils.market_impact_model import MarketImpactModel
+
         model = MarketImpactModel()
         traj = model.optimal_trajectory(
             total_shares=10000,
@@ -178,6 +201,7 @@ class TestMarketImpactModel(unittest.TestCase):
     def test_efficient_frontier(self):
         """测试有效前沿 — λ 越大成本越高, 风险越低"""
         from utils.market_impact_model import MarketImpactModel
+
         model = MarketImpactModel()
         frontier = model.efficient_frontier(
             total_shares=10000,
@@ -197,11 +221,13 @@ class TestSmartOrderRouter(unittest.TestCase):
         from utils.smart_order_router import (
             SmartOrderRouter,
         )
+
         self.assertTrue(callable(SmartOrderRouter))
 
     def test_default_venues(self):
         """测试默认场所加载"""
         from utils.smart_order_router import SmartOrderRouter
+
         router = SmartOrderRouter()
         # 应该至少有 2 个场所
         self.assertGreaterEqual(len(router.venues), 2)
@@ -211,6 +237,7 @@ class TestSmartOrderRouter(unittest.TestCase):
     def test_route_decision(self):
         """测试路由决策 — 应该有主场所和分配"""
         from utils.smart_order_router import SmartOrderRouter
+
         router = SmartOrderRouter()
         decision = router.route(
             symbol="600519.SH",
@@ -230,6 +257,7 @@ class TestSmartOrderRouter(unittest.TestCase):
     def test_iceberg_strategy(self):
         """测试冰山策略 — 主场所占比小"""
         from utils.smart_order_router import SmartOrderRouter
+
         router = SmartOrderRouter()
         decision = router.route(
             symbol="600519.SH",
@@ -246,6 +274,7 @@ class TestSmartOrderRouter(unittest.TestCase):
     def test_gaming_detection(self):
         """测试反贪吃检测"""
         from utils.smart_order_router import OrderBookSnapshot, SmartOrderRouter
+
         router = SmartOrderRouter(gaming_threshold=0.5)
         # 构造不平衡盘口
         book = OrderBookSnapshot(
@@ -258,7 +287,9 @@ class TestSmartOrderRouter(unittest.TestCase):
             last_price=100.0,
         )
         decision = router.route(
-            symbol="TEST", side="BUY", total_shares=1000,
+            symbol="TEST",
+            side="BUY",
+            total_shares=1000,
             order_books={"SSE_MAIN": book},
         )
         # 不平衡度高, gaming_risk_score 应该 > 0
@@ -271,9 +302,12 @@ class TestEdgeCases(unittest.TestCase):
     def test_zero_shares(self):
         """零股订单"""
         from utils.execution_algorithm_engine import ExecutionAlgorithmEngine, Order
+
         engine = ExecutionAlgorithmEngine()
         order = Order(
-            symbol="X", side="BUY", total_shares=0,
+            symbol="X",
+            side="BUY",
+            total_shares=0,
             start_time=pd.Timestamp("2026-07-15 09:30:00"),
             end_time=pd.Timestamp("2026-07-15 15:00:00"),
         )
@@ -284,10 +318,15 @@ class TestEdgeCases(unittest.TestCase):
     def test_no_venues(self):
         """无可用场所 — 显式禁用所有场所"""
         from utils.smart_order_router import SmartOrderRouter, Venue
+
         # 用空场所列表初始化 (不用默认值)
-        router = SmartOrderRouter(venues=[Venue(name="EMPTY", venue_type="EXCHANGE", available=False)])
+        router = SmartOrderRouter(
+            venues=[Venue(name="EMPTY", venue_type="EXCHANGE", available=False)]
+        )
         decision = router.route(
-            symbol="X", side="BUY", total_shares=1000,
+            symbol="X",
+            side="BUY",
+            total_shares=1000,
         )
         self.assertEqual(len(decision.allocations), 0)
         self.assertEqual(decision.primary_venue, "")
@@ -295,10 +334,13 @@ class TestEdgeCases(unittest.TestCase):
     def test_very_short_execution_window(self):
         """极短执行窗口"""
         from utils.execution_algorithm_engine import ExecutionAlgorithmEngine, Order
+
         engine = ExecutionAlgorithmEngine()
         # 9:30-9:40 仅 10 分钟
         order = Order(
-            symbol="X", side="BUY", total_shares=1000,
+            symbol="X",
+            side="BUY",
+            total_shares=1000,
             start_time=pd.Timestamp("2026-07-15 09:30:00"),
             end_time=pd.Timestamp("2026-07-15 09:40:00"),
         )

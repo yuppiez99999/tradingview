@@ -15,7 +15,9 @@ import os
 import sys
 from unittest.mock import MagicMock, patch
 
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
@@ -25,8 +27,13 @@ if _PROJECT_ROOT not in sys.path:
 # which imports langchain_openai/langchain_ollama) without a real langchain installation.
 from unittest.mock import MagicMock as _MagicMock
 
-for _mod_name in ('langchain_openai', 'langchain_ollama', 'langchain_core',
-                  'langchain_core.prompts', 'langchain_core.messages'):
+for _mod_name in (
+    "langchain_openai",
+    "langchain_ollama",
+    "langchain_core",
+    "langchain_core.prompts",
+    "langchain_core.messages",
+):
     if _mod_name not in sys.modules:
         sys.modules[_mod_name] = _MagicMock()
 
@@ -38,9 +45,10 @@ try:
     import quant_modules.ai_hedge_fund.utils.llm  # noqa: F401
 except (ImportError, TypeError):
     import quant_modules.ai_hedge_fund.utils as _utils_pkg
+
     _mock_utils_llm = _MagicMock()
     _mock_utils_llm.call_llm = _MagicMock()
-    sys.modules['quant_modules.ai_hedge_fund.utils.llm'] = _mock_utils_llm
+    sys.modules["quant_modules.ai_hedge_fund.utils.llm"] = _mock_utils_llm
     _utils_pkg.llm = _mock_utils_llm  # patch() does getattr(utils, 'llm')
 
 
@@ -54,7 +62,9 @@ class TestMemoryReflectionPriceProvider:
 
     def test_shadow_returns_provider_loads_jsonl(self):
         """验证 make_shadow_returns_provider 能加载 daily_returns.jsonl"""
-        from quant_modules.ai_hedge_fund.memory_reflection import make_shadow_returns_provider
+        from quant_modules.ai_hedge_fund.memory_reflection import (
+            make_shadow_returns_provider,
+        )
 
         provider = make_shadow_returns_provider()
 
@@ -67,7 +77,9 @@ class TestMemoryReflectionPriceProvider:
 
     def test_shadow_returns_provider_date_not_found(self):
         """不存在的日期返回 None"""
-        from quant_modules.ai_hedge_fund.memory_reflection import make_shadow_returns_provider
+        from quant_modules.ai_hedge_fund.memory_reflection import (
+            make_shadow_returns_provider,
+        )
 
         provider = make_shadow_returns_provider()
         result = provider("ANY_TICKER", "2025-01-01")  # 远早于数据范围
@@ -75,7 +87,9 @@ class TestMemoryReflectionPriceProvider:
 
     def test_shadow_returns_provider_nearest_date(self):
         """非交易日日期应取最近交易日 (±3 天窗口)"""
-        from quant_modules.ai_hedge_fund.memory_reflection import make_shadow_returns_provider
+        from quant_modules.ai_hedge_fund.memory_reflection import (
+            make_shadow_returns_provider,
+        )
 
         provider = make_shadow_returns_provider()
         # 2026-08-08 是周六, 应取 2026-08-07 的数据
@@ -87,7 +101,9 @@ class TestMemoryReflectionPriceProvider:
         """验证 make_market_price_provider 用 mock MarketDataProvider"""
         import pandas as pd
 
-        from quant_modules.ai_hedge_fund.memory_reflection import make_market_price_provider
+        from quant_modules.ai_hedge_fund.memory_reflection import (
+            make_market_price_provider,
+        )
 
         # 构造 mock provider 返回 DataFrame
         dates = pd.date_range("2026-08-01", periods=10, freq="D")
@@ -113,7 +129,9 @@ class TestMemoryReflectionPriceProvider:
         """空 DataFrame 返回 None"""
         import pandas as pd
 
-        from quant_modules.ai_hedge_fund.memory_reflection import make_market_price_provider
+        from quant_modules.ai_hedge_fund.memory_reflection import (
+            make_market_price_provider,
+        )
 
         mock_provider = MagicMock()
         mock_provider.get_historical_data = MagicMock(return_value=pd.DataFrame())
@@ -126,7 +144,9 @@ class TestMemoryReflectionPriceProvider:
         """非交易日日期应取最近交易日"""
         import pandas as pd
 
-        from quant_modules.ai_hedge_fund.memory_reflection import make_market_price_provider
+        from quant_modules.ai_hedge_fund.memory_reflection import (
+            make_market_price_provider,
+        )
 
         # 只有 08-05 和 08-06 的数据
         dates = pd.to_datetime(["2026-08-05", "2026-08-06"])
@@ -390,7 +410,8 @@ class TestDebateLayerRateLimiter:
         from quant_modules.ai_hedge_fund.debate_layer import DebateLayer
 
         layer = DebateLayer(
-            use_llm=False, log_dir=str(tmp_path),
+            use_llm=False,
+            log_dir=str(tmp_path),
             use_rate_limiter=True,
         )
         assert layer.use_rate_limiter is True
@@ -411,7 +432,9 @@ class TestDebateLayerRateLimiter:
             use_rate_limiter=True,
         )
         signals = {
-            "warren_buffett": {"AAPL": {"signal": "bullish", "confidence": 80, "reasoning": "test"}},
+            "warren_buffett": {
+                "AAPL": {"signal": "bullish", "confidence": 80, "reasoning": "test"}
+            },
         }
 
         layer.run_full_debate(["AAPL"], signals)
@@ -440,15 +463,26 @@ class TestDebateLayerRateLimiter:
         from quant_modules.ai_hedge_fund.debate_layer import DebateStance
 
         mock_stance = DebateStance(
-            stance="bullish", confidence=75,
-            key_arguments=["test arg"], rebuttals=[],
+            stance="bullish",
+            confidence=75,
+            key_arguments=["test arg"],
+            rebuttals=[],
             evidence_summary="test evidence",
         )
 
         with patch.object(DebateLayer, "_llm_available", return_value=True):
-            with patch("quant_modules.ai_hedge_fund.utils.llm.call_llm", return_value=mock_stance) as mock_call:
+            with patch(
+                "quant_modules.ai_hedge_fund.utils.llm.call_llm",
+                return_value=mock_stance,
+            ) as mock_call:
                 signals = {
-                    "warren_buffett": {"AAPL": {"signal": "bullish", "confidence": 80, "reasoning": "test"}},
+                    "warren_buffett": {
+                        "AAPL": {
+                            "signal": "bullish",
+                            "confidence": 80,
+                            "reasoning": "test",
+                        }
+                    },
                 }
                 layer.run_full_debate(["AAPL"], signals)
 
@@ -479,22 +513,36 @@ class TestDebateLayerRateLimiter:
         )
 
         from quant_modules.ai_hedge_fund.debate_layer import DebateStance
+
         mock_stance = DebateStance(
-            stance="bullish", confidence=75,
-            key_arguments=["test"], rebuttals=[], evidence_summary="test",
+            stance="bullish",
+            confidence=75,
+            key_arguments=["test"],
+            rebuttals=[],
+            evidence_summary="test",
         )
 
         with patch.object(DebateLayer, "_llm_available", return_value=True):
-            with patch("quant_modules.ai_hedge_fund.utils.llm.call_llm", return_value=mock_stance):
+            with patch(
+                "quant_modules.ai_hedge_fund.utils.llm.call_llm",
+                return_value=mock_stance,
+            ):
                 signals = {
-                    "warren_buffett": {"AAPL": {"signal": "bullish", "confidence": 80, "reasoning": "test"}},
+                    "warren_buffett": {
+                        "AAPL": {
+                            "signal": "bullish",
+                            "confidence": 80,
+                            "reasoning": "test",
+                        }
+                    },
                 }
                 # 第一次调用
                 layer.run_full_debate(["AAPL"], signals)
 
                 # 第二次调用 (相同 prompt, 应命中缓存)
                 layer2 = DebateLayer(
-                    use_llm=True, log_dir=str(tmp_path),
+                    use_llm=True,
+                    log_dir=str(tmp_path),
                     use_rate_limiter=True,
                 )
                 layer2.run_full_debate(["AAPL"], signals)
@@ -517,10 +565,18 @@ class TestDebateLayerRateLimiter:
 
         # Mock _llm_available 返回 True, 但 call_llm 抛异常
         with patch.object(DebateLayer, "_llm_available", return_value=True):
-            with patch("quant_modules.ai_hedge_fund.utils.llm.call_llm",
-                       side_effect=RuntimeError("LLM 服务不可用")):
+            with patch(
+                "quant_modules.ai_hedge_fund.utils.llm.call_llm",
+                side_effect=RuntimeError("LLM 服务不可用"),
+            ):
                 signals = {
-                    "warren_buffett": {"AAPL": {"signal": "bullish", "confidence": 80, "reasoning": "test"}},
+                    "warren_buffett": {
+                        "AAPL": {
+                            "signal": "bullish",
+                            "confidence": 80,
+                            "reasoning": "test",
+                        }
+                    },
                 }
                 session = layer.run_full_debate(["AAPL"], signals)
 
@@ -538,16 +594,24 @@ class TestDebateLayerRateLimiter:
             "data": {
                 "tickers": ["AAPL"],
                 "analyst_signals": {
-                    "warren_buffett": {"AAPL": {"signal": "bullish", "confidence": 80, "reasoning": "test"}},
+                    "warren_buffett": {
+                        "AAPL": {
+                            "signal": "bullish",
+                            "confidence": 80,
+                            "reasoning": "test",
+                        }
+                    },
                 },
             },
             "metadata": {
                 "enable_debate_llm": False,  # 规则模式
-                "use_rate_limiter": True,    # 启用 rate_limiter (但 use_llm=False 不触发)
+                "use_rate_limiter": True,  # 启用 rate_limiter (但 use_llm=False 不触发)
             },
         }
 
-        with patch("quant_modules.ai_hedge_fund.debate_layer._DEBATE_LOG_DIR", str(tmp_path)):
+        with patch(
+            "quant_modules.ai_hedge_fund.debate_layer._DEBATE_LOG_DIR", str(tmp_path)
+        ):
             result_state = debate_node(state)
 
         # 应正常完成
@@ -571,9 +635,15 @@ class TestEndToEndDebateMemoryLoop:
         # 1. 运行辩论 (规则模式)
         debate = DebateLayer(use_llm=False, log_dir=str(tmp_path / "debates"))
         signals = {
-            "warren_buffett": {"AAPL": {"signal": "bullish", "confidence": 80, "reasoning": "护城河强"}},
-            "ben_graham": {"AAPL": {"signal": "bullish", "confidence": 75, "reasoning": "估值合理"}},
-            "michael_burry": {"AAPL": {"signal": "bearish", "confidence": 60, "reasoning": "估值过高"}},
+            "warren_buffett": {
+                "AAPL": {"signal": "bullish", "confidence": 80, "reasoning": "护城河强"}
+            },
+            "ben_graham": {
+                "AAPL": {"signal": "bullish", "confidence": 75, "reasoning": "估值合理"}
+            },
+            "michael_burry": {
+                "AAPL": {"signal": "bearish", "confidence": 60, "reasoning": "估值过高"}
+            },
         }
         session = debate.run_full_debate(["AAPL"], signals)
         assert session.debate_results["AAPL"].final_signal == "bullish"

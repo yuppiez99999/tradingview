@@ -3,6 +3,7 @@
 覆盖 NoiseInjectionResult / run_noise_injection_test / noise_injection_summary
 及内部辅助函数 _compute_sharpe / _compute_max_dd 的核心路径与边界分支.
 """
+
 from __future__ import annotations
 
 import math
@@ -109,8 +110,9 @@ class TestRunNoiseInjectionNormal:
         np.random.seed(42)
         # 稳定正收益策略
         rets = np.random.normal(0.002, 0.01, 252)
-        result = run_noise_injection_test(rets, noise_ratio=0.05, n_trials=200,
-                                          random_seed=42)
+        result = run_noise_injection_test(
+            rets, noise_ratio=0.05, n_trials=200, random_seed=42
+        )
         assert result.n_trials == 200
         assert result.original_sharpe > 0
         assert len(result.all_sharpes) == 200
@@ -161,8 +163,9 @@ class TestStabilityVerdict:
     def test_stable_verdict_message(self):
         np.random.seed(42)
         rets = np.random.normal(0.005, 0.005, 252)  # 强信号
-        result = run_noise_injection_test(rets, noise_ratio=0.01, n_trials=100,
-                                          random_seed=42)
+        result = run_noise_injection_test(
+            rets, noise_ratio=0.01, n_trials=100, random_seed=42
+        )
         if result.is_stable:
             assert "通过稳定性检验" in result.verdict
         else:
@@ -172,8 +175,9 @@ class TestStabilityVerdict:
         np.random.seed(42)
         rets = np.random.normal(0.001, 0.01, 100)
         # 极高噪音 → 不稳定
-        result = run_noise_injection_test(rets, noise_ratio=2.0, n_trials=100,
-                                          random_seed=42)
+        result = run_noise_injection_test(
+            rets, noise_ratio=2.0, n_trials=100, random_seed=42
+        )
         # 高噪音下 pct_positive 应较低
         assert isinstance(result.is_stable, bool)
         assert isinstance(result.verdict, str)
@@ -188,9 +192,13 @@ class TestStabilityVerdict:
     def test_custom_thresholds(self):
         np.random.seed(42)
         rets = np.random.normal(0.001, 0.01, 100)
-        result = run_noise_injection_test(rets, n_trials=50, random_seed=42,
-                                          required_pct_positive=0.5,
-                                          required_pct_above_half=0.1)
+        result = run_noise_injection_test(
+            rets,
+            n_trials=50,
+            random_seed=42,
+            required_pct_positive=0.5,
+            required_pct_above_half=0.1,
+        )
         assert isinstance(result.is_stable, bool)
 
 
@@ -203,8 +211,9 @@ class TestNoiseInjectionSummary:
     def test_summary_stable(self):
         np.random.seed(42)
         rets = np.random.normal(0.005, 0.005, 252)
-        result = run_noise_injection_test(rets, noise_ratio=0.01, n_trials=50,
-                                          random_seed=42)
+        result = run_noise_injection_test(
+            rets, noise_ratio=0.01, n_trials=50, random_seed=42
+        )
         s = noise_injection_summary(result)
         assert "Noise Injection 稳定性测试" in s
         assert "原始 Sharpe" in s

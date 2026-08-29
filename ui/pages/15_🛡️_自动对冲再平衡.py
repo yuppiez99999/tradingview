@@ -32,12 +32,12 @@ from utils.auto_hedge_rebalance.models import StrategyLevel
 # ============================================================================
 
 _LEVEL_COLORS = {
-    StrategyLevel.NORMAL: "#28a745",              # 绿
-    StrategyLevel.MILD_CORRECTION: "#ffc107",     # 黄
-    StrategyLevel.MODERATE_CORRECTION: "#fd7e14", # 橙
-    StrategyLevel.SEVERE_CORRECTION: "#dc3545",   # 红
-    StrategyLevel.CONSERVATIVE_DEFENSE: "#a71d2d",# 深红
-    StrategyLevel.CIRCUIT_BREAKER: "#000000",     # 黑
+    StrategyLevel.NORMAL: "#28a745",  # 绿
+    StrategyLevel.MILD_CORRECTION: "#ffc107",  # 黄
+    StrategyLevel.MODERATE_CORRECTION: "#fd7e14",  # 橙
+    StrategyLevel.SEVERE_CORRECTION: "#dc3545",  # 红
+    StrategyLevel.CONSERVATIVE_DEFENSE: "#a71d2d",  # 深红
+    StrategyLevel.CIRCUIT_BREAKER: "#000000",  # 黑
 }
 
 _LEVEL_LABELS = {

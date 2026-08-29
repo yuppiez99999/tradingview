@@ -152,14 +152,29 @@ class CashManager:
                 if cash_cfg:
                     self.total_cash = float(cash_cfg.get("capital", self.total_cash))
                     if "allocation" in cash_cfg:
-                        self.allocation = {k: float(v) for k, v in cash_cfg["allocation"].items()}
-                    self.yield_target = float(cash_cfg.get("yield_target", self.yield_target))
+                        self.allocation = {
+                            k: float(v) for k, v in cash_cfg["allocation"].items()
+                        }
+                    self.yield_target = float(
+                        cash_cfg.get("yield_target", self.yield_target)
+                    )
                     if "instruments" in cash_cfg:
                         self.instruments = cash_cfg["instruments"]
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"v10.0 现金配置加载失败, 使用默认值: {e}")
 
-        logger.info(f"[CashManager] 初始化: 总资金 ¥{self.total_cash:,.0f}, 目标年化 {self.yield_target:.2%}")
+        logger.info(
+            f"[CashManager] 初始化: 总资金 ¥{self.total_cash:,.0f}, 目标年化 {self.yield_target:.2%}"
+        )
 
     # ------------------------------------------------------------
     # 主流程: 闲置资金分配
@@ -203,10 +218,14 @@ class CashManager:
         # 留出 20% 缓冲
         futures_with_buffer = futures_allocated * 1.20
         result.futures_margin = futures_with_buffer
-        result.futures_margin_ratio = futures_margin_used / futures_with_buffer if futures_with_buffer > 0 else 0
+        result.futures_margin_ratio = (
+            futures_margin_used / futures_with_buffer if futures_with_buffer > 0 else 0
+        )
 
         # 2. 期权抵押金
-        options_allocated = max(options_collateral_used, self.allocation["options_collateral"])
+        options_allocated = max(
+            options_collateral_used, self.allocation["options_collateral"]
+        )
         result.options_collateral = options_allocated
 
         # 3. 应急保证金 (扣除已动用)
@@ -217,7 +236,9 @@ class CashManager:
             result.reason = f"应急金已动用 ¥{emergency_used:,.0f}, 需在 {EMERGENCY_REPLENISH_DAYS} 日内补足"
 
         # 4. 计算闲置资金 = 总现金 - 期货 - 期权 - 应急
-        allocated_total = result.futures_margin + result.options_collateral + result.emergency_margin
+        allocated_total = (
+            result.futures_margin + result.options_collateral + result.emergency_margin
+        )
         idle_cash = max(0, total_cash - allocated_total)
         result.idle_cash = idle_cash
 
@@ -228,9 +249,7 @@ class CashManager:
         if current_repo_rate > HIGH_RATE_THRESHOLD:
             # 高利率期: 加大投放
             repo_amount = min(idle_cash, base_repo * HIGH_RATE_BOOST_PCT)
-            result.reason += (
-                f" | 高利率 {current_repo_rate * 100:.2f}% > {HIGH_RATE_THRESHOLD * 100:.0f}%, 加大逆回购投放"
-            )
+            result.reason += f" | 高利率 {current_repo_rate * 100:.2f}% > {HIGH_RATE_THRESHOLD * 100:.0f}%, 加大逆回购投放"
         else:
             repo_amount = min(idle_cash, base_repo)
 
@@ -268,7 +287,9 @@ class CashManager:
         result.estimated_daily_income = daily_repo_income + daily_mmf_income
         # 年化收益预测 (按交易日 250 日)
         result.estimated_annual_yield = (
-            (daily_repo_income + daily_mmf_income) * 250 / total_cash if total_cash > 0 else 0
+            (daily_repo_income + daily_mmf_income) * 250 / total_cash
+            if total_cash > 0
+            else 0
         )
 
         # 8. 月末/季末加码
@@ -362,14 +383,15 @@ class CashManager:
                 "days_overdue": days_since - EMERGENCY_REPLENISH_DAYS,
                 "reason": f"应急金动用已 {days_since} 日, 超过 {EMERGENCY_REPLENISH_DAYS} 日补足期限",
             }
-        else:
-            return {
-                "action": "schedule_replenish",
-                "amount_needed": emergency_used,
-                "days_remaining": EMERGENCY_REPLENISH_DAYS - days_since,
-                "replenish_date": (last_date + timedelta(days=EMERGENCY_REPLENISH_DAYS)).isoformat(),
-                "reason": f"应急金动用 ¥{emergency_used:,.0f}, 计划 {EMERGENCY_REPLENISH_DAYS} 日内补足",
-            }
+        return {
+            "action": "schedule_replenish",
+            "amount_needed": emergency_used,
+            "days_remaining": EMERGENCY_REPLENISH_DAYS - days_since,
+            "replenish_date": (
+                last_date + timedelta(days=EMERGENCY_REPLENISH_DAYS)
+            ).isoformat(),
+            "reason": f"应急金动用 ¥{emergency_used:,.0f}, 计划 {EMERGENCY_REPLENISH_DAYS} 日内补足",
+        }
 
     # ------------------------------------------------------------
     # 期货保证金追加
@@ -391,7 +413,11 @@ class CashManager:
         if futures_account_value <= 0:
             return {"action": "no_action", "reason": "期货账户权益 <= 0"}
 
-        margin_ratio = futures_margin_used / futures_account_value if futures_account_value > 0 else 0
+        margin_ratio = (
+            futures_margin_used / futures_account_value
+            if futures_account_value > 0
+            else 0
+        )
 
         # 维持率 < 60% 触发追加
         if margin_ratio > 0.60:
@@ -405,14 +431,13 @@ class CashManager:
                     "source": "emergency_margin",
                     "reason": f"期货保证金维持率 {margin_ratio:.1%} > 60%, 从应急金划拨 ¥{needed:,.0f}",
                 }
-            else:
-                return {
-                    "action": "margin_call_urgent",
-                    "margin_ratio": margin_ratio,
-                    "amount_needed": needed,
-                    "source": "external",
-                    "reason": f"期货保证金维持率 {margin_ratio:.1%} > 60%, 应急金不足, 需外部追加 ¥{needed:,.0f}",
-                }
+            return {
+                "action": "margin_call_urgent",
+                "margin_ratio": margin_ratio,
+                "amount_needed": needed,
+                "source": "external",
+                "reason": f"期货保证金维持率 {margin_ratio:.1%} > 60%, 应急金不足, 需外部追加 ¥{needed:,.0f}",
+            }
 
         return {
             "action": "no_action",
@@ -430,7 +455,9 @@ class CashManager:
             "total_cash": self.total_cash,
             "yield_target": self.yield_target,
             "allocation": self.allocation,
-            "allocation_pct": {k: v / total for k, v in self.allocation.items()} if total > 0 else {},
+            "allocation_pct": (
+                {k: v / total for k, v in self.allocation.items()} if total > 0 else {}
+            ),
             "instruments": self.instruments,
         }
 
@@ -443,7 +470,16 @@ class CashManager:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"[CashManager] 报告已保存: {report_path}")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"[CashManager] 报告保存失败: {e}")
 
     def summary(self, result: CashAllocation) -> str:
@@ -495,10 +531,16 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="现金管理器")
     parser.add_argument("--total-cash", type=float, default=1_300_000, help="总现金")
-    parser.add_argument("--futures-margin-used", type=float, default=480_000, help="期货已用保证金")
-    parser.add_argument("--options-collateral-used", type=float, default=10_000, help="期权已用抵押金")
+    parser.add_argument(
+        "--futures-margin-used", type=float, default=480_000, help="期货已用保证金"
+    )
+    parser.add_argument(
+        "--options-collateral-used", type=float, default=10_000, help="期权已用抵押金"
+    )
     parser.add_argument("--repo-rate", type=float, default=0.025, help="逆回购利率")
-    parser.add_argument("--emergency-used", type=float, default=0, help="应急金已动用金额")
+    parser.add_argument(
+        "--emergency-used", type=float, default=0, help="应急金已动用金额"
+    )
     args = parser.parse_args()
 
     cm = CashManager()

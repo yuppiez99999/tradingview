@@ -64,3 +64,14 @@
 | `utils/delta_hedge_multi_agent.py` | ~440 | 核心实现 |
 | `tests/unit/test_delta_hedge_multi_agent_unit.py` | ~375 | 单元测试 |
 | `ruff.toml` | (+4行) | T201/UP042 豁免 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [隐含波动率曲面深度对冲](iv-surface-deep-hedge.md) (相似度 35%)
+- [Deep Hedging RL 范式集成](deep-hedging-rl.md) (相似度 27%)
+- [对冲方案 v8.7 优化 — RegimeFolio 动态阈值 + 紧急跨级 + IV 感知 + Deep Hedging + 多智能体](hedge-v87-regime-adaptive-20260827.md) (相似度 17%)
+- [AlphaCFG 语法引导因子发现 (LIT-1.5)](alpha-cfg-discovery.md) (相似度 16%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

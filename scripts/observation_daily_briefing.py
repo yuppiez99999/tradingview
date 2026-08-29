@@ -8,6 +8,7 @@
 查看方式:
     Get-Content reports\\evolution\\daily_briefing_latest.md -Encoding UTF8
 """
+
 from __future__ import annotations
 
 import json
@@ -23,7 +24,9 @@ DECISIONS_PATH = PROJECT_ROOT / "reports" / "evolution" / "decisions.jsonl"
 STATUS_PATH = PROJECT_ROOT / "reports" / "evolution" / "status.json"
 SHADOW_STATE_PATH = PROJECT_ROOT / "output" / "shadow_account" / "shadow_state.json"
 # Shadow Admission Watchdog 心跳文件 (shadow_admission_watchdog.py:52)
-SHADOW_WATCHDOG_HEARTBEAT_PATH = PROJECT_ROOT / "logs" / "shadow_watchdog_heartbeat.jsonl"
+SHADOW_WATCHDOG_HEARTBEAT_PATH = (
+    PROJECT_ROOT / "logs" / "shadow_watchdog_heartbeat.jsonl"
+)
 
 
 def load_jsonl(path: Path) -> list:
@@ -50,7 +53,16 @@ def load_json(path: Path) -> dict | None:
     try:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return None
 
@@ -106,7 +118,16 @@ def query_task_status(task_name: str) -> dict:
             elif line.startswith("Next Run Time:"):
                 info["next_run"] = line.split(":", 1)[1].strip()
         return info
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {"last_run": "?", "last_result": f"error: {e}", "next_run": "?"}
 
@@ -238,9 +259,7 @@ def main() -> int:
         f"**观察期剩余**: {obs_remaining} 天 "
         f"(预计 {obs_end_date.strftime('%Y-%m-%d')} 结束)"
     )
-    lines.append(
-        f"**评估启用预计**: {eval_ready_date.strftime('%Y-%m-%d')}"
-    )
+    lines.append(f"**评估启用预计**: {eval_ready_date.strftime('%Y-%m-%d')}")
     lines.append("")
 
     # 最近收益曲线
@@ -263,13 +282,9 @@ def main() -> int:
         lines.append("")
         lines.append(f"- **账户ID**: {shadow_state.get('account_id', '?')}")
         lines.append(f"- **状态**: {shadow_state.get('status', '?')}")
-        lines.append(
-            f"- **初始资金**: Y{shadow_state.get('initial_capital', '?')}"
-        )
+        lines.append(f"- **初始资金**: Y{shadow_state.get('initial_capital', '?')}")
         lines.append(f"- **当前净值**: {shadow_state.get('current_nav', '?')}")
-        lines.append(
-            f"- **当前资金**: Y{shadow_state.get('current_capital', '?')}"
-        )
+        lines.append(f"- **当前资金**: Y{shadow_state.get('current_capital', '?')}")
         nav_count = len(shadow_state.get("daily_nav", []))
         lines.append(f"- **运行天数**: {nav_count}")
         if shadow_state.get("status") == "TERMINATED":
@@ -287,12 +302,8 @@ def main() -> int:
         f"| v84_PostMarket (15:30) | {postmarket['last_run']} | "
         f"{postmarket['last_result']} |"
     )
-    lines.append(
-        f"| v84_EvolutionEval (16:05) | - | {eval_task['last_result']} |"
-    )
-    lines.append(
-        f"| v84_ObservationBriefing (16:10) | {now_str} | 0 (本次) |"
-    )
+    lines.append(f"| v84_EvolutionEval (16:05) | - | {eval_task['last_result']} |")
+    lines.append(f"| v84_ObservationBriefing (16:10) | {now_str} | 0 (本次) |")
     lines.append(
         f"| v84_ShadowAdmissionDaily (16:15) | {shadow_admission_daily_task['last_run']} | "
         f"{shadow_admission_daily_task['last_result']} |"
@@ -339,7 +350,7 @@ def main() -> int:
         lines.append('cd "E:\\各种PY程序\\28-终极量化交易系统8.4"')
         lines.append(
             f'py -3.8 "v8.3_institutional\\daily_workflow.py" '
-            f'--phase shadow_monitor --date {today_str}'
+            f"--phase shadow_monitor --date {today_str}"
         )
         lines.append("```")
         lines.append("")
@@ -349,7 +360,9 @@ def main() -> int:
     lines.append("")
     if status and status.get("feature_flags"):
         flags = status["feature_flags"]
-        lines.append(f"- USE_STRATEGY_EVALUATOR: {flags.get('USE_STRATEGY_EVALUATOR', '?')}")
+        lines.append(
+            f"- USE_STRATEGY_EVALUATOR: {flags.get('USE_STRATEGY_EVALUATOR', '?')}"
+        )
         lines.append(
             f"- USE_EVOLUTION_ORCHESTRATOR: {flags.get('USE_EVOLUTION_ORCHESTRATOR', '?')}"
         )
@@ -377,7 +390,7 @@ def main() -> int:
     lines.append("## 快速查看命令")
     lines.append("")
     lines.append("```powershell")
-    lines.append('# 查看最新播报')
+    lines.append("# 查看最新播报")
     lines.append(f'Get-Content "{latest_path}" -Encoding UTF8')
     lines.append("")
     lines.append("# 查看进度快照")

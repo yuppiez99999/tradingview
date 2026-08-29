@@ -23,6 +23,7 @@ shadow 模式运行自动重训路径但不切任何 flag (USE_AUTO_RETRAIN 保�
 
 对齐 spec §5.4 + design §2.4 + tasks T1.2.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,8 +33,14 @@ import math
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
+
+try:
+    from datetime import UTC, datetime
+except ImportError:  # Python 3.8 compatibility
+    from datetime import datetime
+
+    UTC = UTC
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -61,6 +68,7 @@ def _utc_now_iso() -> str:
 # B2StatusChecker — B2 状态前置检查器
 # ============================================================
 
+
 @dataclass
 class B2Status:
     enabled: bool
@@ -75,16 +83,28 @@ def check_b2_status() -> B2Status:
     b2_status_file = SHADOW_REPORT_DIR / "b2_shadow_status.json"
     try:
         if not b2_status_file.exists():
-            return B2Status(False, False, "unknown", 0, f"B2 状态文件不存在: {b2_status_file}")
+            return B2Status(
+                False, False, "unknown", 0, f"B2 状态文件不存在: {b2_status_file}"
+            )
         with open(b2_status_file, encoding="utf-8") as f:
             data = json.load(f)
         warmup_days = data.get("warmup_days", 0)
         run_count = data.get("run_count", 0)
         if warmup_days >= WARMUP_TARGET_DAYS and run_count > 0:
-            return B2Status(True, True, "b2_stable", warmup_days,
-                            f"B2 shadow 已跑 {warmup_days} 天, run_count={run_count}")
-        return B2Status(False, False, "b2_warmup", warmup_days,
-                        f"B2 预热不足: warmup_days={warmup_days}/{WARMUP_TARGET_DAYS}")
+            return B2Status(
+                True,
+                True,
+                "b2_stable",
+                warmup_days,
+                f"B2 shadow 已跑 {warmup_days} 天, run_count={run_count}",
+            )
+        return B2Status(
+            False,
+            False,
+            "b2_warmup",
+            warmup_days,
+            f"B2 预热不足: warmup_days={warmup_days}/{WARMUP_TARGET_DAYS}",
+        )
     except (json.JSONDecodeError, OSError) as e:
         return B2Status(False, False, "error", 0, f"读取 B2 状态失败: {e}")
 
@@ -92,6 +112,7 @@ def check_b2_status() -> B2Status:
 # ============================================================
 # FlagInvariantChecker — feature flag 不变式校验器
 # ============================================================
+
 
 def read_flag_default(flag_name: str) -> bool:
     """从 system_config.json 读取 feature_flags 中指定 flag 的值."""
@@ -123,6 +144,7 @@ def check_flag_invariant() -> bool:
 # AutoRetrainSimulator — 自动重训路径模拟器
 # ============================================================
 
+
 @dataclass
 class RetrainResult:
     retrained_weights: dict[str, float] = field(default_factory=dict)
@@ -141,7 +163,9 @@ def _simulate_auto_retrain(
     shadow 模式下不真正重训模型, 仅模拟权重调整 + 夏普估算.
     """
     if not current_weights:
-        return RetrainResult(retrain_success=False, error_message="当前权重为空, 无法重训")
+        return RetrainResult(
+            retrain_success=False, error_message="当前权重为空, 无法重训"
+        )
 
     try:
         if observation_progress_path and observation_progress_path.exists():
@@ -184,6 +208,7 @@ def _simulate_auto_retrain(
 # DegradationGuard — 降级护栏
 # ============================================================
 
+
 @dataclass
 class DegradationCheckResult:
     need_rollback: bool
@@ -209,7 +234,10 @@ def check_degradation(
     all_keys = set(retrained_weights) | set(baseline_weights)
     if all_keys:
         l2_diff = math.sqrt(
-            sum((retrained_weights.get(k, 0.0) - baseline_weights.get(k, 0.0)) ** 2 for k in all_keys)
+            sum(
+                (retrained_weights.get(k, 0.0) - baseline_weights.get(k, 0.0)) ** 2
+                for k in all_keys
+            )
         )
         weight_drift = l2_diff / math.sqrt(len(all_keys))
     else:
@@ -220,11 +248,15 @@ def check_degradation(
 
     if sharpe_degradation > SHARPE_DEGRADATION_THRESHOLD:
         need_rollback = True
-        rollback_reason = f"夏普退化 {sharpe_degradation:.4f} > {SHARPE_DEGRADATION_THRESHOLD}"
+        rollback_reason = (
+            f"夏普退化 {sharpe_degradation:.4f} > {SHARPE_DEGRADATION_THRESHOLD}"
+        )
 
     if weight_drift > WEIGHT_DRIFT_THRESHOLD:
         if need_rollback:
-            rollback_reason += f"; 权重漂移 {weight_drift:.4f} > {WEIGHT_DRIFT_THRESHOLD}"
+            rollback_reason += (
+                f"; 权重漂移 {weight_drift:.4f} > {WEIGHT_DRIFT_THRESHOLD}"
+            )
         else:
             need_rollback = True
             rollback_reason = f"权重漂移 {weight_drift:.4f} > {WEIGHT_DRIFT_THRESHOLD}"
@@ -240,6 +272,7 @@ def check_degradation(
 # ============================================================
 # ShadowRunner — B3 shadow 运行器
 # ============================================================
+
 
 @dataclass
 class B3ShadowResult:
@@ -258,9 +291,14 @@ class B3ShadowResult:
 def _build_mock_baseline() -> tuple[dict[str, float], float]:
     """构造 mock 基线权重 + 基线夏普."""
     baseline_weights = {
-        "mom_20d": 0.15, "mom_60d": 0.12, "vol_20d": 0.08,
-        "liq_amihud": 0.10, "value_ep": 0.14, "growth_roe": 0.16,
-        "quality_gross_margin": 0.13, "size_market_cap": 0.12,
+        "mom_20d": 0.15,
+        "mom_60d": 0.12,
+        "vol_20d": 0.08,
+        "liq_amihud": 0.10,
+        "value_ep": 0.14,
+        "growth_roe": 0.16,
+        "quality_gross_margin": 0.13,
+        "size_market_cap": 0.12,
     }
     baseline_sharpe = 1.5
     return baseline_weights, baseline_sharpe
@@ -327,6 +365,7 @@ def run_shadow(
 # ShadowStatus — shadow 状态独立存储
 # ============================================================
 
+
 @dataclass
 class B3ShadowRunRecord:
     date: str
@@ -338,12 +377,24 @@ class B3ShadowRunRecord:
 
 def load_shadow_status() -> dict:
     if not SHADOW_STATUS_FILE.exists():
-        return {"run_count": 0, "last_run": "", "warmup_days": 0, "rollback_count": 0, "history": []}
+        return {
+            "run_count": 0,
+            "last_run": "",
+            "warmup_days": 0,
+            "rollback_count": 0,
+            "history": [],
+        }
     try:
         with open(SHADOW_STATUS_FILE, encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError):
-        return {"run_count": 0, "last_run": "", "warmup_days": 0, "rollback_count": 0, "history": []}
+        return {
+            "run_count": 0,
+            "last_run": "",
+            "warmup_days": 0,
+            "rollback_count": 0,
+            "history": [],
+        }
 
 
 def update_shadow_status(result: B3ShadowResult, date: str) -> dict:
@@ -351,13 +402,15 @@ def update_shadow_status(result: B3ShadowResult, date: str) -> dict:
     status = load_shadow_status()
 
     history = status.get("history", [])
-    history.append({
-        "date": date,
-        "sharpe_degradation": result.sharpe_degradation,
-        "weight_drift": result.weight_drift,
-        "need_rollback": result.need_rollback,
-        "suggestion": result.suggestion,
-    })
+    history.append(
+        {
+            "date": date,
+            "sharpe_degradation": result.sharpe_degradation,
+            "weight_drift": result.weight_drift,
+            "need_rollback": result.need_rollback,
+            "suggestion": result.suggestion,
+        }
+    )
     if len(history) > 30:
         history = history[-30:]
 
@@ -379,6 +432,7 @@ def update_shadow_status(result: B3ShadowResult, date: str) -> dict:
 # ============================================================
 # ReportSaver — 报告落盘
 # ============================================================
+
 
 @dataclass
 class B3ShadowVerificationResult:
@@ -434,26 +488,42 @@ def save_verification_result(result: B3ShadowVerificationResult, date: str) -> s
 # main
 # ============================================================
 
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Phase B B3 shadow 模式运行器 (自动重训)")
+    parser = argparse.ArgumentParser(
+        description="Phase B B3 shadow 模式运行器 (自动重训)"
+    )
     parser.add_argument("--date", type=str, default=None, help="运行日期 YYYY-MM-DD")
     parser.add_argument("--warmup-only", action="store_true", help="只更新预热计数")
-    parser.add_argument("--check-invariant", action="store_true", help="只检查 flag 不变式")
-    parser.add_argument("--shadow-days", type=int, default=SHADOW_DAYS_DEFAULT, help="shadow 运行天数")
+    parser.add_argument(
+        "--check-invariant", action="store_true", help="只检查 flag 不变式"
+    )
+    parser.add_argument(
+        "--shadow-days", type=int, default=SHADOW_DAYS_DEFAULT, help="shadow 运行天数"
+    )
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s"
+    )
 
     date_str = args.date or datetime.now().strftime("%Y-%m-%d")
 
     if args.check_invariant:
         ok = check_flag_invariant()
-        print(f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}")
+        print(
+            f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}"
+        )
         return 0 if ok else 1
 
     logger.info("B2 状态前置检查...")
     b2 = check_b2_status()
-    logger.info("B2 状态: enabled=%s, healthy=%s, shadow_days=%s", b2.enabled, b2.healthy, b2.shadow_days)
+    logger.info(
+        "B2 状态: enabled=%s, healthy=%s, shadow_days=%s",
+        b2.enabled,
+        b2.healthy,
+        b2.shadow_days,
+    )
     if not b2.healthy:
         print(f"\n[B2 检查] FAIL — {b2.message}")
         print("[B3 Shadow] 拒绝启动: B2 未稳定或预热不足")
@@ -471,13 +541,19 @@ def main() -> int:
         SHADOW_REPORT_DIR.mkdir(parents=True, exist_ok=True)
         with open(SHADOW_STATUS_FILE, "w", encoding="utf-8") as f:
             json.dump(status, f, ensure_ascii=False, indent=2)
-        print(f"\n[WARMUP-ONLY] warmup_days={status['warmup_days']}/{WARMUP_TARGET_DAYS}")
+        print(
+            f"\n[WARMUP-ONLY] warmup_days={status['warmup_days']}/{WARMUP_TARGET_DAYS}"
+        )
         return 0
 
     logger.info("B3 Shadow 路径运行 (自动重训)...")
     run_result = run_shadow(shadow_days=args.shadow_days)
-    logger.info("sharpe_degradation=%.6f, weight_drift=%.6f, need_rollback=%s",
-                run_result.sharpe_degradation, run_result.weight_drift, run_result.need_rollback)
+    logger.info(
+        "sharpe_degradation=%.6f, weight_drift=%.6f, need_rollback=%s",
+        run_result.sharpe_degradation,
+        run_result.weight_drift,
+        run_result.need_rollback,
+    )
 
     logger.info("FLAG 不变式校验 (运行后)...")
     flag_ok = check_flag_invariant()
@@ -500,26 +576,36 @@ def main() -> int:
         suggestion=run_result.suggestion,
         warmup_days=warmup_days,
         flag_invariant=flag_ok,
-        b2_status={"enabled": b2.enabled, "healthy": b2.healthy, "shadow_days": b2.shadow_days},
+        b2_status={
+            "enabled": b2.enabled,
+            "healthy": b2.healthy,
+            "shadow_days": b2.shadow_days,
+        },
         warmup_sufficient=warmup_sufficient,
     )
 
     report_path = save_verification_result(result, date_str)
 
     print(f"\n[B3 Shadow 完成] 日期={date_str}")
-    print(f"[夏普] shadow={run_result.shadow_sharpe:.4f} / prod={run_result.prod_sharpe:.4f} / 退化={run_result.sharpe_degradation:.6f}")
+    print(
+        f"[夏普] shadow={run_result.shadow_sharpe:.4f} / prod={run_result.prod_sharpe:.4f} / 退化={run_result.sharpe_degradation:.6f}"
+    )
     print(f"[权重漂移] {run_result.weight_drift:.6f} (阈值 {WEIGHT_DRIFT_THRESHOLD})")
     print(f"[降级护栏] {'触发回退' if run_result.need_rollback else '未触发'}")
     if run_result.need_rollback:
         print(f"[回退原因] {run_result.rollback_reason}")
     print(f"[建议] {run_result.suggestion}")
     print(f"[FLAG 不变式] {'PASS' if flag_ok else 'FAIL'}")
-    print(f"[预热] warmup_days={warmup_days}/{WARMUP_TARGET_DAYS} {'✅ 达标' if warmup_sufficient else '⏳ 不足'}")
+    print(
+        f"[预热] warmup_days={warmup_days}/{WARMUP_TARGET_DAYS} {'✅ 达标' if warmup_sufficient else '⏳ 不足'}"
+    )
     print(f"[报告] {report_path}")
     print(f"[状态] {SHADOW_STATUS_FILE}")
 
     if not warmup_sufficient:
-        print(f"[风险] 预热不足 ({warmup_days} < {WARMUP_TARGET_DAYS} 天), 需继续每日 EOD 运行")
+        print(
+            f"[风险] 预热不足 ({warmup_days} < {WARMUP_TARGET_DAYS} 天), 需继续每日 EOD 运行"
+        )
 
     return 0 if (flag_ok and b2.healthy and run_result.retrain_success) else 1
 

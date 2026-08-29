@@ -50,7 +50,9 @@ def enforce_hard_constraints(  # noqa: C901
     for sym, w in weights.items():
         w = float(w)
         if w > max_weight + 1e-9:
-            violations.append(f"单标的 {sym} 权重 {w:.2%} 超过硬上限 {max_weight:.2%}，已截断")
+            violations.append(
+                f"单标的 {sym} 权重 {w:.2%} 超过硬上限 {max_weight:.2%}，已截断"
+            )
             w = max_weight
         if w < 0:
             w = 0.0
@@ -142,10 +144,14 @@ def validate_risk_budget(
     if price_data:
         port_var, single_vars = _approx_var(target_weights, price_data, total_capital)
         if port_var > max_daily_var:
-            violations.append(f"组合日度VaR95={port_var:.2%} 超过上限 {max_daily_var:.2%}")
+            violations.append(
+                f"组合日度VaR95={port_var:.2%} 超过上限 {max_daily_var:.2%}"
+            )
         for sym, v in single_vars.items():
             if v > max_single_var:
-                violations.append(f"单标的 {sym} VaR95={v:.2%} 超过上限 {max_single_var:.2%}")
+                violations.append(
+                    f"单标的 {sym} VaR95={v:.2%} 超过上限 {max_single_var:.2%}"
+                )
 
     return (len(violations) == 0), violations
 
@@ -168,7 +174,16 @@ def _approx_var(
         if series is not None and hasattr(series, "pct_change"):
             try:
                 r = series.pct_change().dropna().values
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 r = None
         if r is None or len(r) < 5:
             var = default_vol_daily * 1.65 * abs(w)

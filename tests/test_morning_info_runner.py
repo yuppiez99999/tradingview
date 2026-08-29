@@ -10,6 +10,7 @@ test_morning_info_runner.py — 晨间信息采集工作流单元测试
 
 标记: @pytest.mark.unit — 全 mock, <1s, 无外部 API
 """
+
 import importlib
 import sys
 from datetime import datetime
@@ -33,6 +34,7 @@ import morning_info_runner as mir  # noqa: E402
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def archive_dir(tmp_path):
     """临时归档目录"""
@@ -55,6 +57,7 @@ def date_short(target_date):
 # ============================================================
 # 测试: 路径常量与模块加载
 # ============================================================
+
 
 class TestModuleSetup:
     """验证模块路径常量与 sys.path 配置"""
@@ -97,6 +100,7 @@ class TestModuleSetup:
 # ============================================================
 # 测试: 辅助函数
 # ============================================================
+
 
 class TestHelpers:
     """验证 _archive_today / _exists_nonempty 辅助函数"""
@@ -141,19 +145,24 @@ class TestHelpers:
 # 测试: 任务 1 — 晨间行情摘要
 # ============================================================
 
+
 class TestTaskMorningMarket:
     """task_morning_market — 晨间行情摘要"""
 
     @pytest.mark.unit
-    def test_skip_when_exists_and_not_force(self, archive_dir, target_date, date_short, monkeypatch):
+    def test_skip_when_exists_and_not_force(
+        self, archive_dir, target_date, date_short, monkeypatch
+    ):
         """已存在且非 force 模式必须跳过"""
         existing = archive_dir / f"晨间行情摘要_{date_short}.md"
         existing.write_text("x" * 600)
 
         called = {"flag": False}
+
         def _fake_main(output_dir):
             called["flag"] = True
             return {"path": str(existing)}
+
         monkeypatch.setattr(mir, "task_morning_market", mir.task_morning_market)
 
         # 直接调用函数, mock 内部 import
@@ -177,7 +186,9 @@ class TestTaskMorningMarket:
         fake_module.main.assert_called_once_with(output_dir=str(archive_dir))
 
     @pytest.mark.unit
-    def test_returns_false_when_main_returns_none(self, archive_dir, target_date, monkeypatch):
+    def test_returns_false_when_main_returns_none(
+        self, archive_dir, target_date, monkeypatch
+    ):
         """main 返回 None 时返回 False"""
         fake_module = MagicMock()
         fake_module.main.return_value = None
@@ -202,6 +213,7 @@ class TestTaskMorningMarket:
 # ============================================================
 # 测试: 任务 2 — 康波周期分析
 # ============================================================
+
 
 class TestTaskKondratiev:
     """task_kondratiev — 康波周期分析"""
@@ -262,6 +274,7 @@ class TestTaskKondratiev:
 # 测试: 任务 3 — ETF 资金流向
 # ============================================================
 
+
 class TestTaskEtfFlow:
     """task_etf_flow — ETF 资金流向"""
 
@@ -278,9 +291,12 @@ class TestTaskEtfFlow:
     @pytest.mark.unit
     def test_generates_files_on_success(self, archive_dir, target_date, date_short):
         """成功生成 ETF 文件时返回 True"""
+
         # 模拟 tracker.run() 在 archive 目录创建文件
         def _fake_run(archive_dir):
-            Path(archive_dir, f"实时ETF资金流向_{date_short}_070000.md").write_text("x" * 600)
+            Path(archive_dir, f"实时ETF资金流向_{date_short}_070000.md").write_text(
+                "x" * 600
+            )
 
         fake_tracker = MagicMock()
         fake_tracker.run.side_effect = _fake_run
@@ -319,11 +335,14 @@ class TestTaskEtfFlow:
 # 测试: 任务 4 — 舆情综合 + 动力煤
 # ============================================================
 
+
 class TestTaskSentiment:
     """task_sentiment — 舆情综合日报 + 动力煤舆情日报"""
 
     @pytest.mark.unit
-    def test_skip_when_both_exist_and_not_force(self, archive_dir, target_date, date_short):
+    def test_skip_when_both_exist_and_not_force(
+        self, archive_dir, target_date, date_short
+    ):
         """两个文件都已存在且非 force 时跳过"""
         (archive_dir / f"舆情综合日报_{date_short}.md").write_text("x" * 600)
         (archive_dir / f"动力煤舆情日报_{date_short}.md").write_text("x" * 600)
@@ -385,6 +404,7 @@ class TestTaskSentiment:
 # 测试: 任务 5 — CNEMC 空气质量
 # ============================================================
 
+
 class TestTaskCnemc:
     """task_cnemc — CNEMC 空气质量日报"""
 
@@ -410,7 +430,10 @@ class TestTaskCnemc:
     @pytest.mark.unit
     def test_returns_false_when_not_ok(self, archive_dir, target_date):
         fake_module = MagicMock()
-        fake_module.generate_cnemc_report.return_value = {"ok": False, "error": "timeout"}
+        fake_module.generate_cnemc_report.return_value = {
+            "ok": False,
+            "error": "timeout",
+        }
 
         with patch.dict(sys.modules, {"cnemc_air_quality_runner": fake_module}):
             result = mir.task_cnemc(archive_dir, target_date, force=True)
@@ -432,6 +455,7 @@ class TestTaskCnemc:
 # 测试: 任务 6 — iFinD 自动研判 (复制源文件)
 # ============================================================
 
+
 class TestTaskIfindAnalysis:
     """task_ifind_analysis — iFinD 研判报告归档"""
 
@@ -443,7 +467,9 @@ class TestTaskIfindAnalysis:
         assert result is True
 
     @pytest.mark.unit
-    def test_copies_source_file_when_exists(self, archive_dir, target_date, date_short, tmp_path, monkeypatch):
+    def test_copies_source_file_when_exists(
+        self, archive_dir, target_date, date_short, tmp_path, monkeypatch
+    ):
         """源文件存在时 (且非强制) 必须复制到归档目录"""
         src = tmp_path / "ifind_auto_analysis_report.md"
         src.write_text("# iFinD 源报告\n\n" + "x" * 600)
@@ -457,7 +483,9 @@ class TestTaskIfindAnalysis:
         assert "iFinD 源报告" in dst.read_text(encoding="utf-8")
 
     @pytest.mark.unit
-    def test_generates_placeholder_when_source_missing(self, archive_dir, target_date, date_short, tmp_path, monkeypatch):
+    def test_generates_placeholder_when_source_missing(
+        self, archive_dir, target_date, date_short, tmp_path, monkeypatch
+    ):
         """源文件不存在时必须生成占位报告"""
         monkeypatch.setattr(mir, "BASE_ROOT", tmp_path)  # 空目录, 无源文件
 
@@ -474,6 +502,7 @@ class TestTaskIfindAnalysis:
 # ============================================================
 # 测试: 任务 7 — 棉花加仓方案归档 (复制源文件)
 # ============================================================
+
 
 class TestTaskCottonArchive:
     """task_cotton_archive — 棉花加仓方案报告归档"""
@@ -500,7 +529,9 @@ class TestTaskCottonArchive:
         assert "棉花策略" in dst.read_text(encoding="utf-8")
 
     @pytest.mark.unit
-    def test_generates_placeholder_when_source_missing(self, archive_dir, target_date, tmp_path, monkeypatch):
+    def test_generates_placeholder_when_source_missing(
+        self, archive_dir, target_date, tmp_path, monkeypatch
+    ):
         """源文件不存在时生成占位"""
         monkeypatch.setattr(mir, "BASE_ROOT", tmp_path)
 
@@ -516,11 +547,14 @@ class TestTaskCottonArchive:
 # 测试: run_all 编排
 # ============================================================
 
+
 class TestRunAll:
     """run_all — 编排全部任务"""
 
     @pytest.mark.unit
-    def test_returns_success_count_when_all_pass(self, tmp_path, monkeypatch, target_date):
+    def test_returns_success_count_when_all_pass(
+        self, tmp_path, monkeypatch, target_date
+    ):
         """全部任务成功时返回 ok=True"""
         monkeypatch.setattr(mir, "ARCHIVE_DIR", tmp_path / "reports")
 
@@ -529,7 +563,9 @@ class TestRunAll:
             monkeypatch.setattr(mir, "task_morning_market", lambda *a, **k: True)
         # 用更直接的方式: 替换 TASKS 内的函数
         original_tasks = mir.TASKS
-        fake_tasks = [(name, MagicMock(return_value=True)) for name, _ in original_tasks]
+        fake_tasks = [
+            (name, MagicMock(return_value=True)) for name, _ in original_tasks
+        ]
         monkeypatch.setattr(mir, "TASKS", fake_tasks)
 
         result = mir.run_all(target_date=target_date, force=True)
@@ -567,7 +603,9 @@ class TestRunAll:
         assert result["total"] == 7
 
     @pytest.mark.unit
-    def test_task_exception_does_not_crash_run_all(self, tmp_path, monkeypatch, target_date):
+    def test_task_exception_does_not_crash_run_all(
+        self, tmp_path, monkeypatch, target_date
+    ):
         """任务函数抛异常时 run_all 必须捕获, 不崩溃"""
         monkeypatch.setattr(mir, "ARCHIVE_DIR", tmp_path / "reports")
 
@@ -590,7 +628,9 @@ class TestRunAll:
         assert result["total"] == 7
 
     @pytest.mark.unit
-    def test_run_all_creates_archive_directory(self, tmp_path, monkeypatch, target_date):
+    def test_run_all_creates_archive_directory(
+        self, tmp_path, monkeypatch, target_date
+    ):
         """run_all 必须创建归档子目录"""
         archive_root = tmp_path / "reports"
         monkeypatch.setattr(mir, "ARCHIVE_DIR", archive_root)
@@ -636,6 +676,7 @@ class TestRunAll:
 # 测试: run_daily_morning.py 阶段路由 (info 阶段不依赖交易日)
 # ============================================================
 
+
 class TestRunDailyMorningPhaseRouting:
     """验证 run_daily_morning.py 中 info 阶段的路由逻辑
 
@@ -647,9 +688,13 @@ class TestRunDailyMorningPhaseRouting:
         """argparse choices 必须包含 info"""
         # 通过 --help 输出验证
         import subprocess
+
         result = subprocess.run(
             [sys.executable, str(SCRIPT_DIR / "run_daily_morning.py"), "--help"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=15,
         )
         assert "info" in result.stdout
@@ -694,13 +739,15 @@ class TestRunDailyMorningPhaseRouting:
 
         assert info_phase_pos > 0, "缺少 info 阶段代码块"
         assert trading_check_pos > 0, "缺少交易日检查代码块"
-        assert info_phase_pos < trading_check_pos, \
-            f"info 阶段({info_phase_pos}) 必须在交易日检查({trading_check_pos})之前"
+        assert (
+            info_phase_pos < trading_check_pos
+        ), f"info 阶段({info_phase_pos}) 必须在交易日检查({trading_check_pos})之前"
 
 
 # ============================================================
 # 集成测试标记 (默认跳过, 需手动启用)
 # ============================================================
+
 
 @pytest.mark.integration
 def test_info_phase_e2e_smoke():
@@ -709,10 +756,20 @@ def test_info_phase_e2e_smoke():
     运行方式: pytest tests/test_morning_info_runner.py::test_info_phase_e2e_smoke --run-integration
     """
     import subprocess
+
     result = subprocess.run(
-        [sys.executable, str(SCRIPT_DIR / "run_daily_morning.py"),
-         "--phase", "info", "--force", "--skip-archive"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "run_daily_morning.py"),
+            "--phase",
+            "info",
+            "--force",
+            "--skip-archive",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=1800,  # 30 分钟
         cwd=str(_PROJECT_ROOT),
     )

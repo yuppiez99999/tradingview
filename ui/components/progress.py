@@ -1,4 +1,5 @@
 """进度显示组件 — 适配 Streamlit"""
+
 import time
 
 import streamlit as st
@@ -24,7 +25,9 @@ class StreamlitProgress:
 
     def complete(self, message: str = "完成"):
         elapsed = time.time() - self.start_time
-        self._bar.progress(1.0, text=f"✅ {self.task_name} — {message} (耗时 {elapsed:.1f}s)")
+        self._bar.progress(
+            1.0, text=f"✅ {self.task_name} — {message} (耗时 {elapsed:.1f}s)"
+        )
 
     def error(self, message: str = "失败"):
         self._bar.progress(1.0, text=f"❌ {self.task_name} — {message}")

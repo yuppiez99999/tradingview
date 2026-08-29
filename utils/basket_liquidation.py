@@ -48,6 +48,7 @@ logger = logging.getLogger("basket_liquidation")
 # 因子模型降维
 # ============================================================
 
+
 @dataclass
 class FactorModel:
     """因子模型 (解决维度灾难).
@@ -61,12 +62,15 @@ class FactorModel:
         specific_var: 特异性方差 (N,)
         n_factors: 因子数 K
     """
+
     loadings: np.ndarray
     specific_var: np.ndarray
     n_factors: int
 
     @classmethod
-    def from_covariance(cls, cov: np.ndarray, n_factors: int | None = None) -> FactorModel:
+    def from_covariance(
+        cls, cov: np.ndarray, n_factors: int | None = None
+    ) -> FactorModel:
         """从协方差矩阵构建因子模型 (PCA 降维).
 
         Args:
@@ -92,7 +96,9 @@ class FactorModel:
             n_factors = min(n_factors, n)
 
         # 因子载荷: B = U_K × sqrt(Λ_K)
-        B = eigenvectors[:, :n_factors] * np.sqrt(np.maximum(eigenvalues[:n_factors], 0))
+        B = eigenvectors[:, :n_factors] * np.sqrt(
+            np.maximum(eigenvalues[:n_factors], 0)
+        )
         # 特异性方差: D = diag(Σ - BB^T)
         reconstructed = B @ B.T
         specific = np.maximum(np.diag(cov - reconstructed), 1e-10)
@@ -111,9 +117,11 @@ class FactorModel:
 # 篮子清算
 # ============================================================
 
+
 @dataclass
 class LiquidationSlice:
     """清算切片."""
+
     time: float
     trades: list[float]  # 各股票交易量
     shortfall: float  # 切片 shortfall
@@ -122,6 +130,7 @@ class LiquidationSlice:
 @dataclass
 class BasketLiquidationResult:
     """篮子清算结果."""
+
     symbols: list[str]
     total_shares: list[float]
     slices: list[LiquidationSlice]
@@ -221,20 +230,28 @@ class BasketLiquidator:
             # 相关性调整: 高相关股票联合清算有额外冲击
             if n > 1:
                 corr_adjustment = self._correlation_adjustment(
-                    trades, adv_arr, corr_matrix,
+                    trades,
+                    adv_arr,
+                    corr_matrix,
                 )
                 slice_shortfall += corr_adjustment
 
             total_shortfall += slice_shortfall
-            slices.append(LiquidationSlice(
-                time=t,
-                trades=trades.tolist(),
-                shortfall=slice_shortfall,
-            ))
+            slices.append(
+                LiquidationSlice(
+                    time=t,
+                    trades=trades.tolist(),
+                    shortfall=slice_shortfall,
+                )
+            )
 
         # 4. 朴素清算 (独立清算, 无相关性调整)
         naive_shortfall = self._naive_liquidation(
-            symbols, shares_arr, adv_arr, n_slices, time_horizon,
+            symbols,
+            shares_arr,
+            adv_arr,
+            n_slices,
+            time_horizon,
         )
 
         # 5. 改善量
@@ -276,7 +293,9 @@ class BasketLiquidator:
         adjustment = 0.0
         for i in range(n):
             for j in range(i + 1, n):
-                adjustment += abs(corr_matrix[i, j]) * participation[i] * participation[j]
+                adjustment += (
+                    abs(corr_matrix[i, j]) * participation[i] * participation[j]
+                )
         return adjustment * 10000  # 转为 bps
 
     def _naive_liquidation(
@@ -307,6 +326,7 @@ class BasketLiquidator:
 # CLI 入口
 # ============================================================
 
+
 def main() -> None:
     """CLI 入口: 演示篮子清算."""
     print("=" * 60)
@@ -322,11 +342,13 @@ def main() -> None:
     shares = [10000, 5000, 8000]
     adv = [500000, 1000000, 300000]
     # 相关性矩阵 (假设)
-    corr = np.array([
-        [1.0, 0.3, 0.5],
-        [0.3, 1.0, 0.4],
-        [0.5, 0.4, 1.0],
-    ])
+    corr = np.array(
+        [
+            [1.0, 0.3, 0.5],
+            [0.3, 1.0, 0.4],
+            [0.5, 0.4, 1.0],
+        ]
+    )
     result = liquidator.liquidate(symbols, shares, adv, corr)
     print(f"  股票数: {len(symbols)}")
     print(f"  切片数: {len(result.slices)}")
@@ -365,12 +387,18 @@ def main() -> None:
     # === 4. 不同相关性对比 ===
     print("\n--- 4. 不同相关性对比 ---")
     for corr_val in [0.0, 0.3, 0.5, 0.8]:
-        corr_test = np.array([
-            [1.0, corr_val],
-            [corr_val, 1.0],
-        ])
-        r = liquidator.liquidate(["A", "B"], [10000, 10000], [500000, 500000], corr_test)
-        print(f"  ρ={corr_val:.1f}: shortfall={r.total_shortfall:.2f} bps, 改善={r.vs_naive_improvement:+.2f}")
+        corr_test = np.array(
+            [
+                [1.0, corr_val],
+                [corr_val, 1.0],
+            ]
+        )
+        r = liquidator.liquidate(
+            ["A", "B"], [10000, 10000], [500000, 500000], corr_test
+        )
+        print(
+            f"  ρ={corr_val:.1f}: shortfall={r.total_shortfall:.2f} bps, 改善={r.vs_naive_improvement:+.2f}"
+        )
 
 
 if __name__ == "__main__":

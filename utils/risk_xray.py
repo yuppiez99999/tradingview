@@ -44,6 +44,7 @@ def _json_safe(value: Any) -> Any:
         return [_json_safe(item) for item in value]
     return value
 
+
 MIN_HISTORY_DAYS = 30
 PERIODS_PER_YEAR = 252
 VAR_LEVELS = (0.95, 0.99)
@@ -74,7 +75,9 @@ def _validate_weights(
 
     unknown = [sym for sym in weights if sym not in closes.columns]
     if unknown:
-        raise ValueError(f"weights reference symbols with no price data: {sorted(unknown)}")
+        raise ValueError(
+            f"weights reference symbols with no price data: {sorted(unknown)}"
+        )
 
     cleaned: dict[str, float] = {}
     for sym, raw in weights.items():
@@ -142,7 +145,12 @@ def compute_risk_xray(
     for sym in weights:
         valid = int(frame[sym].count())
         if valid < min_history:
-            skipped.append({"symbol": sym, "reason": f"only {valid} valid bars (min {min_history})"})
+            skipped.append(
+                {
+                    "symbol": sym,
+                    "reason": f"only {valid} valid bars (min {min_history})",
+                }
+            )
         else:
             kept.append(sym)
     if not kept:
@@ -155,7 +163,9 @@ def compute_risk_xray(
         if total <= 0:
             raise ValueError("surviving symbols have zero total weight")
         weights = {sym: value / total for sym, value in kept_weights.items()}
-        warnings.append("weights renormalized over symbols that survived the history filter")
+        warnings.append(
+            "weights renormalized over symbols that survived the history filter"
+        )
 
     aligned = frame[kept].dropna(axis=0, how="any")
     if len(aligned) < 2:
@@ -218,7 +228,11 @@ def _volatility(port: pd.Series, ppy: int) -> dict[str, Any]:
 
 def _drawdown(port: pd.Series) -> dict[str, Any]:
     if port.empty:
-        return {"max_drawdown": None, "max_drawdown_start": None, "max_drawdown_trough": None}
+        return {
+            "max_drawdown": None,
+            "max_drawdown_start": None,
+            "max_drawdown_trough": None,
+        }
     equity = (1.0 + port).cumprod()
     peak = equity.cummax()
     dd = equity / peak - 1.0
@@ -299,7 +313,9 @@ def _correlation(returns: pd.DataFrame, port: pd.Series) -> dict[str, Any]:
     }
 
 
-def average_invested_weights(target_pos: pd.DataFrame) -> tuple[dict[str, float], float]:
+def average_invested_weights(
+    target_pos: pd.DataFrame,
+) -> tuple[dict[str, float], float]:
     """Derive the run's average basket from the target position frame.
 
     Returns ``(weights, avg_invested)``: the mean target weight per symbol

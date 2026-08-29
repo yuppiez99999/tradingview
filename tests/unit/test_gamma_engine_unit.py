@@ -3,6 +3,7 @@
 被测模块: utils/gamma_engine.py
 覆盖目标: >=85%
 """
+
 from __future__ import annotations
 
 import json
@@ -135,7 +136,11 @@ class GammaEngineTest:
         cfg_path = tmp_path / "portfolio.yaml"
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = GammaEngine(config_path=cfg_path)
-        info = {"timestamp": datetime.now().isoformat(), "trigger_type": "test", "budget": 100}
+        info = {
+            "timestamp": datetime.now().isoformat(),
+            "trigger_type": "test",
+            "budget": 100,
+        }
         engine._log_trigger(info)
         assert log_path.exists()
         lines = log_path.read_text(encoding="utf-8").strip().split("\n")
@@ -157,9 +162,15 @@ class GammaEngineTest:
         now = datetime.now()
         records = [
             {"timestamp": now.isoformat(), "trigger_type": "ma60", "budget": 50000},
-            {"timestamp": (now - timedelta(days=40)).isoformat(), "trigger_type": "iv_low", "budget": 100000},
+            {
+                "timestamp": (now - timedelta(days=40)).isoformat(),
+                "trigger_type": "iv_low",
+                "budget": 100000,
+            },
         ]
-        log_path.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
+        log_path.write_text(
+            "\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8"
+        )
         monkeypatch.setattr(gamma_engine_mod, "TRIGGER_LOG", log_path)
         cfg = _make_config()
         cfg_path = tmp_path / "portfolio.yaml"
@@ -177,9 +188,11 @@ class GammaEngineTest:
         log_path = tmp_path / "triggers.jsonl"
         now = datetime.now()
         content = (
-            json.dumps({"timestamp": now.isoformat(), "trigger_type": "good"}) + "\n"
+            json.dumps({"timestamp": now.isoformat(), "trigger_type": "good"})
+            + "\n"
             + "not a json line\n"
-            + json.dumps({"no_timestamp": True}) + "\n"
+            + json.dumps({"no_timestamp": True})
+            + "\n"
         )
         log_path.write_text(content, encoding="utf-8")
         monkeypatch.setattr(gamma_engine_mod, "TRIGGER_LOG", log_path)
@@ -245,7 +258,9 @@ class GammaEngineTest:
         prices = np.linspace(4000, 4200, 70)  # 价格上行，不破 ma60
         df = pd.DataFrame({"close": prices})
         mock_mod.wind_get_index_data = MagicMock(return_value=df)
-        mock_mod.wind_get_option_iv = MagicMock(return_value={"iv_percentile": 0.05})  # iv < 0.10
+        mock_mod.wind_get_option_iv = MagicMock(
+            return_value={"iv_percentile": 0.05}
+        )  # iv < 0.10
         with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
             result = engine.monitor()
         assert result["triggered"] is True
@@ -265,7 +280,9 @@ class GammaEngineTest:
         prices = np.linspace(4000, 4200, 69).tolist() + [3900]  # 跌破 ma60
         df = pd.DataFrame({"close": prices})
         mock_mod.wind_get_index_data = MagicMock(return_value=df)
-        mock_mod.wind_get_option_iv = MagicMock(return_value={"iv_percentile": 0.05})  # iv 也低
+        mock_mod.wind_get_option_iv = MagicMock(
+            return_value={"iv_percentile": 0.05}
+        )  # iv 也低
         with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
             result = engine.monitor()
         assert result["triggered"] is True
@@ -330,7 +347,9 @@ class GammaEngineTest:
         mock_wind.wind_get_index_data = MagicMock(side_effect=ConnectionError("fail"))
         mock_requests = MagicMock()
         mock_requests.get = MagicMock(side_effect=ConnectionError("http fail"))
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_wind, "requests": mock_requests}):
+        with patch.dict(
+            "sys.modules", {"wind_mcp_fetcher": mock_wind, "requests": mock_requests}
+        ):
             ma60 = engine._get_market_ma60()
         assert ma60 is None
 
@@ -362,7 +381,9 @@ class GammaEngineTest:
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = GammaEngine(config_path=cfg_path)
         mock_mod = MagicMock()
-        mock_mod.wind_get_option_iv = MagicMock(return_value={"other_key": 0.2})  # 无 iv_percentile
+        mock_mod.wind_get_option_iv = MagicMock(
+            return_value={"other_key": 0.2}
+        )  # 无 iv_percentile
         with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
             iv = engine._get_market_iv_percentile()
         assert iv is None

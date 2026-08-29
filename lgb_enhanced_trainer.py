@@ -117,7 +117,13 @@ def _inject_paths_to_submodules() -> None:
     子模块默认使用 `Path(__file__).resolve().parent.parent` 作为 BASE_DIR,
     在主模块 import 后立即调用此函数, 确保所有子模块使用一致的路径。
     """
-    from lgb_trainer import data_loader, news_sentiment, persistence, report_generator, trainer
+    from lgb_trainer import (
+        data_loader,
+        news_sentiment,
+        persistence,
+        report_generator,
+        trainer,
+    )
 
     data_loader.configure_paths(BASE_DIR, CACHE_DIR)
     news_sentiment.configure_paths(BASE_DIR, CACHE_DIR, LGB_ENHANCED_CONFIG)
@@ -190,6 +196,7 @@ def main() -> None:
     # GitHub 集成钩子: unsloth 本地 LLM 可用时, 记录 GPU 信息供训练决策 (2026-08-21)
     try:
         from utils.unsloth_adapter import get_unsloth_adapter, is_unsloth_available
+
         if is_unsloth_available():
             gpu_info = get_unsloth_adapter().get_gpu_info()
             logger.info(f"unsloth 本地 LLM 可用: {gpu_info}")

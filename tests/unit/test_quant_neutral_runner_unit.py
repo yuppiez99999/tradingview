@@ -3,6 +3,7 @@
 被测模块: utils/quant_neutral_runner.py
 覆盖目标: >=80%
 """
+
 from __future__ import annotations
 
 import sys
@@ -124,7 +125,9 @@ class TestBuildRebalanceOrders:
     def test_all_new_buys(self):
         runner = QuantNeutralRunner()
         target = [{"code": "A", "amount": 50000, "name": "StockA"}]
-        orders = runner._build_rebalance_orders([], target, 0, {"contracts": 2}, date(2026, 8, 14))
+        orders = runner._build_rebalance_orders(
+            [], target, 0, {"contracts": 2}, date(2026, 8, 14)
+        )
         assert len(orders["buy_orders"]) == 1
         assert len(orders["sell_orders"]) == 0
         assert orders["ic_action"]["action"] == "add_short"
@@ -132,7 +135,9 @@ class TestBuildRebalanceOrders:
     def test_all_sells(self):
         runner = QuantNeutralRunner()
         current = [{"code": "A", "amount": 50000, "name": "StockA"}]
-        orders = runner._build_rebalance_orders(current, [], 2, {"contracts": 0}, date(2026, 8, 14))
+        orders = runner._build_rebalance_orders(
+            current, [], 2, {"contracts": 0}, date(2026, 8, 14)
+        )
         assert len(orders["sell_orders"]) == 1
         assert orders["ic_action"]["action"] == "reduce_short"
 
@@ -140,7 +145,9 @@ class TestBuildRebalanceOrders:
         runner = QuantNeutralRunner()
         current = [{"code": "A", "amount": 40000, "name": "StockA"}]
         target = [{"code": "A", "amount": 50000, "name": "StockA"}]
-        orders = runner._build_rebalance_orders(current, target, 1, {"contracts": 1}, date(2026, 8, 14))
+        orders = runner._build_rebalance_orders(
+            current, target, 1, {"contracts": 1}, date(2026, 8, 14)
+        )
         assert len(orders["adjust_orders"]) == 1
         assert orders["adjust_orders"][0]["action"] == "buy"
         assert orders["ic_action"]["action"] == "hold"
@@ -149,14 +156,18 @@ class TestBuildRebalanceOrders:
         runner = QuantNeutralRunner()
         current = [{"code": "A", "amount": 50000, "name": "StockA"}]
         target = [{"code": "A", "amount": 50500, "name": "StockA"}]
-        orders = runner._build_rebalance_orders(current, target, 0, {"contracts": 0}, date(2026, 8, 14))
+        orders = runner._build_rebalance_orders(
+            current, target, 0, {"contracts": 0}, date(2026, 8, 14)
+        )
         assert len(orders["adjust_orders"]) == 0
 
     def test_turnover_calculation(self):
         runner = QuantNeutralRunner()
         current = [{"code": "A", "amount": 50000, "name": "StockA"}]
         target = [{"code": "B", "amount": 50000, "name": "StockB"}]
-        orders = runner._build_rebalance_orders(current, target, 0, {"contracts": 0}, date(2026, 8, 14))
+        orders = runner._build_rebalance_orders(
+            current, target, 0, {"contracts": 0}, date(2026, 8, 14)
+        )
         assert orders["turnover"] > 0
 
 
@@ -165,7 +176,9 @@ class TestGeneratePauseOrder:
         runner = QuantNeutralRunner()
         result = QuantNeutralResult()
         current = [{"code": "A", "amount": 50000, "name": "StockA"}]
-        result = runner._generate_pause_order(result, current, 2, 5500.0, date(2026, 8, 14))
+        result = runner._generate_pause_order(
+            result, current, 2, 5500.0, date(2026, 8, 14)
+        )
         assert len(result.long_positions) == 1
         assert result.long_positions[0]["action"] == "sell_all"
         assert result.ic_hedge["action"] == "close_all_short"

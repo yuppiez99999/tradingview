@@ -11,6 +11,7 @@ pytest 自动加载规则: 仅识别名为 conftest.py 的文件
 本文件只保留单元测试专用的 fixture:
     - fake_logger: 捕获日志输出用于断言
 """
+
 from unittest.mock import MagicMock
 
 import pytest

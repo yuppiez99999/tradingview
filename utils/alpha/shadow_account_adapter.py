@@ -82,10 +82,15 @@ def _load_min_samples_for_dsr(default: int = 20) -> int:
     """
     try:
         import yaml  # noqa: PLC0415
-        yaml_path = _PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
+
+        yaml_path = (
+            _PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
+        )
         with open(yaml_path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
-        return int(cfg.get("admission_criteria", {}).get("min_samples_for_dsr", default))
+        return int(
+            cfg.get("admission_criteria", {}).get("min_samples_for_dsr", default)
+        )
     except (OSError, ValueError, TypeError, ImportError):
         return default
 
@@ -205,7 +210,9 @@ class ShadowAccountAdapter:
         if not (0 <= required_dsr <= 1):
             raise ValueError(f"required_dsr 必须在 [0,1], 实际 {required_dsr}")
         if sharpe_cv_window < MIN_SAMPLES_FOR_SHARPE_CV:
-            raise ValueError(f"sharpe_cv_window 必须 >= {MIN_SAMPLES_FOR_SHARPE_CV}, 实际 {sharpe_cv_window}")
+            raise ValueError(
+                f"sharpe_cv_window 必须 >= {MIN_SAMPLES_FOR_SHARPE_CV}, 实际 {sharpe_cv_window}"
+            )
 
         # 延迟导入 ShadowAccount (避免 import 时报错)
         self._shadow_account = self._create_shadow_account(
@@ -262,9 +269,14 @@ class ShadowAccountAdapter:
         # 生成日期列表 (若未提供)
         if dates is None:
             start_date = datetime.now() - timedelta(days=len(daily_returns))
-            dates = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(len(daily_returns))]
+            dates = [
+                (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+                for i in range(len(daily_returns))
+            ]
         if len(dates) != len(daily_returns):
-            raise ValueError(f"dates 长度 {len(dates)} != daily_returns 长度 {len(daily_returns)}")
+            raise ValueError(
+                f"dates 长度 {len(dates)} != daily_returns 长度 {len(daily_returns)}"
+            )
 
         # 重放每日收益率, 记录净值
         nav = 1.0  # 初始净值
@@ -327,7 +339,9 @@ class ShadowAccountAdapter:
             FailFastTriggeredError: Fail-Fast 已触发 (但仍可获取指标)
         """
         if len(self._daily_returns) < MIN_SAMPLES_FOR_DSR:
-            raise InsufficientReturnsError(f"收益率样本不足: {len(self._daily_returns)} < {MIN_SAMPLES_FOR_DSR}")
+            raise InsufficientReturnsError(
+                f"收益率样本不足: {len(self._daily_returns)} < {MIN_SAMPLES_FOR_DSR}"
+            )
 
         # 计算 DSR
         dsr_result = self.compute_dsr()
@@ -409,7 +423,9 @@ class ShadowAccountAdapter:
         """
         n = len(self._daily_returns)
         if n < MIN_SAMPLES_FOR_SHARPE_CV:
-            raise InsufficientReturnsError(f"Sharpe CV 计算需要至少 {MIN_SAMPLES_FOR_SHARPE_CV} 个样本, 实际 {n}")
+            raise InsufficientReturnsError(
+                f"Sharpe CV 计算需要至少 {MIN_SAMPLES_FOR_SHARPE_CV} 个样本, 实际 {n}"
+            )
 
         # 样本数 < 窗口: 计算单一 Sharpe, CV=0
         if n < self._sharpe_cv_window:
@@ -429,9 +445,13 @@ class ShadowAccountAdapter:
 
         # 计算变异系数
         mean_sharpe = sum(rolling_sharpes) / len(rolling_sharpes)
-        var_sharpe = sum((s - mean_sharpe) ** 2 for s in rolling_sharpes) / len(rolling_sharpes)
+        var_sharpe = sum((s - mean_sharpe) ** 2 for s in rolling_sharpes) / len(
+            rolling_sharpes
+        )
         std_sharpe = math.sqrt(var_sharpe)
-        sharpe_cv = std_sharpe / abs(mean_sharpe) if abs(mean_sharpe) > 1e-10 else float("inf")
+        sharpe_cv = (
+            std_sharpe / abs(mean_sharpe) if abs(mean_sharpe) > 1e-10 else float("inf")
+        )
 
         return mean_sharpe, sharpe_cv
 

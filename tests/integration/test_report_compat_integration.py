@@ -7,6 +7,7 @@
     - 验证报告字段缺失 (None) 时 Guard 链路的鲁棒性
     - 不修改真实报告文件 (只读)
 """
+
 from pathlib import Path
 
 import pytest
@@ -20,12 +21,8 @@ def integrator_with_real_reports(tmp_path, monkeypatch):
     project_root = Path(__file__).resolve().parent.parent.parent
     real_reports = project_root / "v8.3_institutional" / "reports"
 
-    monkeypatch.setattr(
-        "utils.risk_guard_integrator.REPORTS_DIR", real_reports
-    )
-    monkeypatch.setattr(
-        "utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs"
-    )
+    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", real_reports)
+    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs")
     monkeypatch.setattr(
         "utils.risk_guard_integrator.TRADE_PLANS_DIR", tmp_path / "trade_plans"
     )
@@ -103,22 +100,24 @@ class TestRealReportDataFlow:
 
     @pytest.mark.integration
     def test_run_all_guards_with_real_report(
-        self, integrator_with_real_reports, real_pnl_report, sample_trade_plan, monkeypatch
+        self,
+        integrator_with_real_reports,
+        real_pnl_report,
+        sample_trade_plan,
+        monkeypatch,
     ):
         """完整 run_all_guards 在真实报告下必须不中断"""
         monkeypatch.setattr(
-            integrator_with_real_reports, "_load_pnl_report",
-            lambda: real_pnl_report
+            integrator_with_real_reports, "_load_pnl_report", lambda: real_pnl_report
         )
         monkeypatch.setattr(
-            integrator_with_real_reports, "_load_next_trade_plan",
-            lambda date: sample_trade_plan
+            integrator_with_real_reports,
+            "_load_next_trade_plan",
+            lambda date: sample_trade_plan,
         )
 
         # 必须不抛异常完成执行
-        plan = integrator_with_real_reports.run_all_guards(
-            next_trade_date="2026-07-22"
-        )
+        plan = integrator_with_real_reports.run_all_guards(next_trade_date="2026-07-22")
 
         assert plan is not None
         assert "risk_guard" in plan
@@ -136,8 +135,11 @@ class TestReportFieldMissingRobustness:
     @pytest.mark.integration
     @pytest.mark.bug("P0-D")
     def test_p0d_none_margin_in_real_report_handled(
-        self, integrator_with_real_reports, sample_pnl_report_broken_p0d,
-        sample_trade_plan, monkeypatch
+        self,
+        integrator_with_real_reports,
+        sample_pnl_report_broken_p0d,
+        sample_trade_plan,
+        monkeypatch,
     ):
         """P0-D: 真实报告 margin_used=None 时不能崩溃
 
@@ -146,9 +148,9 @@ class TestReportFieldMissingRobustness:
         # Mock KillSwitch 的 _estimate_margin_from_positions 返回固定值
         # 注: 不能 patch 类的 __init__ (MagicMock 不允许), 直接 patch 方法本身
         from utils.kill_switch import KillSwitch
+
         monkeypatch.setattr(
-            KillSwitch, "_estimate_margin_from_positions",
-            lambda self: 0.40
+            KillSwitch, "_estimate_margin_from_positions", lambda self: 0.40
         )
 
         plan = integrator_with_real_reports.guard_kill_switch(

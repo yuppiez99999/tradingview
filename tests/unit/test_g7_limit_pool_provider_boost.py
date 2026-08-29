@@ -1,6 +1,7 @@
 """
 G7 Coverage Boost: utils/limit_pool_provider.py (384 lines, 0% -> target ~80%)
 """
+
 from __future__ import annotations
 
 import sys
@@ -57,7 +58,12 @@ class TestLimitPoolData:
         assert data.is_broken("000002.SZ") is False
 
     def test_repr(self):
-        data = LimitPoolData(date="20260812", limit_up_codes={"000001.SZ"}, limit_down_codes={"000002.SZ"}, broken_codes={"000003.SZ"})
+        data = LimitPoolData(
+            date="20260812",
+            limit_up_codes={"000001.SZ"},
+            limit_down_codes={"000002.SZ"},
+            broken_codes={"000003.SZ"},
+        )
         repr_str = repr(data)
         assert "LimitPoolData" in repr_str
         assert "20260812" in repr_str
@@ -207,8 +213,12 @@ class TestGetPool:
         provider._cache_lock = MagicMock()
         mock_ak = MagicMock()
         mock_ak.stock_zt_pool_em.side_effect = RuntimeError("network error")
-        mock_ak.stock_zt_pool_dt_em.return_value = pd.DataFrame({"代码": [], "名称": []})
-        mock_ak.stock_zt_pool_zbgc_em.return_value = pd.DataFrame({"代码": [], "名称": []})
+        mock_ak.stock_zt_pool_dt_em.return_value = pd.DataFrame(
+            {"代码": [], "名称": []}
+        )
+        mock_ak.stock_zt_pool_zbgc_em.return_value = pd.DataFrame(
+            {"代码": [], "名称": []}
+        )
         with patch.object(provider, "_get_ak_module", return_value=mock_ak):
             data = provider.get_pool("20260812")
         assert data.limit_up_codes == set()
@@ -218,7 +228,9 @@ class TestGetPool:
         provider = LimitPoolProvider.__new__(LimitPoolProvider)
         provider._initialized = True
         cached_data = LimitPoolData(date="20260812", limit_up_codes={"000001.SZ"})
-        provider._cache = {"20260812": {"data": cached_data, "fetched_at": datetime.now()}}
+        provider._cache = {
+            "20260812": {"data": cached_data, "fetched_at": datetime.now()}
+        }
         provider._cache_lock = MagicMock()
         with patch.object(provider, "_get_ak_module", return_value=MagicMock()):
             data = provider.get_pool("20260812")
@@ -253,9 +265,17 @@ class TestCrossValidate:
         provider._initialized = True
         pool_data = LimitPoolData(date="20260812", limit_up_codes={"000001.SZ"})
         with patch.object(provider, "get_pool", return_value=pool_data):
-            with patch("utils.price_limit_calculator.calc_limit_prices", return_value=(10.0, 9.0)):
-                with patch("utils.price_limit_calculator.is_at_limit_up", return_value=True):
-                    with patch("utils.price_limit_calculator.normalize_code", side_effect=lambda x: x):
+            with patch(
+                "utils.price_limit_calculator.calc_limit_prices",
+                return_value=(10.0, 9.0),
+            ):
+                with patch(
+                    "utils.price_limit_calculator.is_at_limit_up", return_value=True
+                ):
+                    with patch(
+                        "utils.price_limit_calculator.normalize_code",
+                        side_effect=lambda x: x,
+                    ):
                         result = provider.cross_validate_with_calc(
                             "20260812",
                             {"000001.SZ": 10.0},
@@ -293,14 +313,18 @@ class TestModuleFunctions:
 
     def test_get_limit_up_pool(self):
         LimitPoolProvider._instance = None
-        with patch.object(LimitPoolProvider, "get_limit_up_pool", return_value={"000001.SZ"}):
+        with patch.object(
+            LimitPoolProvider, "get_limit_up_pool", return_value={"000001.SZ"}
+        ):
             result = get_limit_up_pool("20260812")
         assert result == {"000001.SZ"}
         LimitPoolProvider._instance = None
 
     def test_get_limit_down_pool(self):
         LimitPoolProvider._instance = None
-        with patch.object(LimitPoolProvider, "get_limit_down_pool", return_value={"000002.SZ"}):
+        with patch.object(
+            LimitPoolProvider, "get_limit_down_pool", return_value={"000002.SZ"}
+        ):
             result = get_limit_down_pool("20260812")
         assert result == {"000002.SZ"}
         LimitPoolProvider._instance = None
@@ -312,7 +336,9 @@ class TestGetAkshare:
         provider._initialized = True
         provider._akshare_source = None
         mock_source = MagicMock()
-        with patch("utils.akshare_data_source.get_akshare_source", return_value=mock_source):
+        with patch(
+            "utils.akshare_data_source.get_akshare_source", return_value=mock_source
+        ):
             source = provider._get_akshare()
         assert source is mock_source
         assert provider._akshare_source is mock_source
@@ -321,7 +347,10 @@ class TestGetAkshare:
         provider = LimitPoolProvider.__new__(LimitPoolProvider)
         provider._initialized = True
         provider._akshare_source = None
-        with patch("utils.akshare_data_source.get_akshare_source", side_effect=ImportError("not found")):
+        with patch(
+            "utils.akshare_data_source.get_akshare_source",
+            side_effect=ImportError("not found"),
+        ):
             with patch("utils.limit_pool_provider.logger") as mock_logger:
                 source = provider._get_akshare()
         assert source is None
@@ -344,13 +373,18 @@ class TestGetAkModule:
         provider._initialized = True
         # 环境变化: akshare 现已安装, 通过模拟 import 抛出 ImportError 来测试未安装分支
         import builtins
+
         real_import = builtins.__import__
+
         def _fake_import(name, *args, **kwargs):
             if name == "akshare":
                 raise ImportError("No module named 'akshare'")
             return real_import(name, *args, **kwargs)
-        with patch("builtins.__import__", side_effect=_fake_import), \
-             patch("utils.limit_pool_provider.logger") as mock_logger:
+
+        with (
+            patch("builtins.__import__", side_effect=_fake_import),
+            patch("utils.limit_pool_provider.logger") as mock_logger,
+        ):
             module = provider._get_ak_module()
         assert module is None
         mock_logger.warning.assert_called()

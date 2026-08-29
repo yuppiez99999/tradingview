@@ -88,13 +88,23 @@ def run_monitor_report(args: argparse.Namespace) -> int:
 
 def register_args(parser: argparse.ArgumentParser) -> None:
     """注册CLI参数。"""
-    parser.add_argument("--auto-hedge-rebalance", action="store_true", help="执行EOD自动对冲再平衡决策")
-    parser.add_argument("--auto-hedge-intraday", action="store_true", help="执行盘中紧急再评估")
-    parser.add_argument("--auto-hedge-report", action="store_true", help="生成目标达成监控报告")
+    parser.add_argument(
+        "--auto-hedge-rebalance", action="store_true", help="执行EOD自动对冲再平衡决策"
+    )
+    parser.add_argument(
+        "--auto-hedge-intraday", action="store_true", help="执行盘中紧急再评估"
+    )
+    parser.add_argument(
+        "--auto-hedge-report", action="store_true", help="生成目标达成监控报告"
+    )
     parser.add_argument("--volatility", type=float, default=0.18, help="组合年化波动率")
     parser.add_argument("--drawdown", type=float, default=0.0, help="60日最大回撤")
-    parser.add_argument("--current-value", type=float, default=1000.0, help="当前组合价值")
-    parser.add_argument("--previous-value", type=float, default=1000.0, help="上一时刻组合价值")
+    parser.add_argument(
+        "--current-value", type=float, default=1000.0, help="当前组合价值"
+    )
+    parser.add_argument(
+        "--previous-value", type=float, default=1000.0, help="上一时刻组合价值"
+    )
 
 
 def run(args: argparse.Namespace) -> int:

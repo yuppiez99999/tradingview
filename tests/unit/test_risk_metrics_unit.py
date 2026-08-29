@@ -3,6 +3,7 @@
 被测模块: utils/risk_metrics.py
 覆盖目标: >=95%
 """
+
 from __future__ import annotations
 
 import sys
@@ -39,9 +40,12 @@ from utils.risk_metrics import (  # noqa: E402
 # calculate_var
 # ============================================================
 
+
 class TestCalculateVar:
     def test_historical_var(self):
-        returns = np.array([-0.05, -0.02, 0.01, 0.03, -0.01, 0.02, -0.03, 0.005, -0.015, 0.025])
+        returns = np.array(
+            [-0.05, -0.02, 0.01, 0.03, -0.01, 0.02, -0.03, 0.005, -0.015, 0.025]
+        )
         var = calculate_var(returns, confidence_level=0.95, method="historical")
         assert var > 0
 
@@ -87,9 +91,12 @@ class TestCalculateVar:
 # calculate_es
 # ============================================================
 
+
 class TestCalculateEs:
     def test_basic_es(self):
-        returns = np.array([-0.05, -0.02, 0.01, 0.03, -0.01, 0.02, -0.03, 0.005, -0.015, 0.025])
+        returns = np.array(
+            [-0.05, -0.02, 0.01, 0.03, -0.01, 0.02, -0.03, 0.005, -0.015, 0.025]
+        )
         es = calculate_es(returns, confidence_level=0.95)
         assert es > 0
 
@@ -109,6 +116,7 @@ class TestCalculateEs:
 # ============================================================
 # calculate_max_drawdown
 # ============================================================
+
 
 class TestCalculateMaxDrawdown:
     def test_basic_drawdown(self):
@@ -144,6 +152,7 @@ class TestCalculateMaxDrawdown:
 # calculate_sharpe_ratio
 # ============================================================
 
+
 class TestCalculateSharpeRatio:
     def test_positive_sharpe(self):
         returns = np.random.normal(0.001, 0.02, 252)
@@ -172,6 +181,7 @@ class TestCalculateSharpeRatio:
 # calculate_sortino_ratio
 # ============================================================
 
+
 class TestCalculateSortinoRatio:
     def test_basic(self):
         returns = np.random.normal(0.001, 0.02, 252)
@@ -193,6 +203,7 @@ class TestCalculateSortinoRatio:
 # ============================================================
 # calculate_calmar_ratio
 # ============================================================
+
 
 class TestCalculateCalmarRatio:
     def test_basic(self):
@@ -221,6 +232,7 @@ class TestCalculateCalmarRatio:
 # calculate_volatility
 # ============================================================
 
+
 class TestCalculateVolatility:
     def test_basic(self):
         returns = np.random.normal(0, 0.02, 252)
@@ -243,6 +255,7 @@ class TestCalculateVolatility:
 # ============================================================
 # calculate_beta
 # ============================================================
+
 
 class TestCalculateBeta:
     def test_basic(self):
@@ -277,6 +290,7 @@ class TestCalculateBeta:
 # _align_and_dropna
 # ============================================================
 
+
 class TestAlignAndDropna:
     def test_basic(self):
         a = np.array([1.0, 2.0, 3.0])
@@ -306,6 +320,7 @@ class TestAlignAndDropna:
 # calculate_alpha
 # ============================================================
 
+
 class TestCalculateAlpha:
     def test_basic(self):
         returns = np.random.normal(0.001, 0.02, 252)
@@ -324,6 +339,7 @@ class TestCalculateAlpha:
 # ============================================================
 # calculate_correlation
 # ============================================================
+
 
 class TestCalculateCorrelation:
     def test_basic(self):
@@ -348,6 +364,7 @@ class TestCalculateCorrelation:
 # calculate_tracking_error
 # ============================================================
 
+
 class TestCalculateTrackingError:
     def test_basic(self):
         returns = np.random.normal(0.001, 0.02, 252)
@@ -368,6 +385,7 @@ class TestCalculateTrackingError:
 # calculate_information_ratio
 # ============================================================
 
+
 class TestCalculateInformationRatio:
     def test_basic(self):
         returns = np.random.normal(0.001, 0.02, 252)
@@ -387,6 +405,7 @@ class TestCalculateInformationRatio:
 # ============================================================
 # calculate_win_rate
 # ============================================================
+
 
 class TestCalculateWinRate:
     def test_basic(self):
@@ -410,6 +429,7 @@ class TestCalculateWinRate:
 # ============================================================
 # calculate_profit_factor
 # ============================================================
+
 
 class TestCalculateProfitFactor:
     def test_basic(self):
@@ -437,6 +457,7 @@ class TestCalculateProfitFactor:
 # ============================================================
 # calculate_performance_metrics
 # ============================================================
+
 
 class TestCalculatePerformanceMetrics:
     def test_basic_with_all(self):
@@ -467,11 +488,20 @@ class TestCalculatePerformanceMetrics:
 # calculate_portfolio_weights
 # ============================================================
 
+
 class TestCalculatePortfolioWeights:
     def test_basic(self):
         positions = {
-            "600519": {"phase1_amount": 100000, "phase2_amount": 50000, "phase3_amount": 0},
-            "000001": {"phase1_amount": 200000, "phase2_amount": 0, "phase3_amount": 50000},
+            "600519": {
+                "phase1_amount": 100000,
+                "phase2_amount": 50000,
+                "phase3_amount": 0,
+            },
+            "000001": {
+                "phase1_amount": 200000,
+                "phase2_amount": 0,
+                "phase3_amount": 50000,
+            },
         }
         weights = calculate_portfolio_weights(positions)
         assert len(weights) == 2

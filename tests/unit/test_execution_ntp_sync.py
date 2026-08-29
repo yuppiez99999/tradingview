@@ -1,4 +1,5 @@
 """ms_strategy.src.execution.ntp_sync 单元测试 — NTPSync 同步逻辑 + 降级阈值 (monkeypatch 隔离网络)"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -20,11 +21,13 @@ def ntp(monkeypatch):
     inst.last_sync = datetime.utcnow()
     inst.sync_failed_count = 0
     inst.active_server = "ntp.aliyun.com"
+
     # 确保 sync/sync_if_needed 不触网
     def _fake_sync(self):
         self.last_sync = datetime.utcnow()
         self.sync_failed_count = 0
         return True
+
     monkeypatch.setattr(NTPSync, "_do_sync", _fake_sync)
     return inst
 
@@ -58,7 +61,11 @@ def test_ntp_sync_snapshot_keys(ntp):
     """snapshot() 返回完整结构 (server/offset/drift/last_sync/healthy)"""
     snap = ntp.snapshot()
     assert set(snap.keys()) >= {
-        "server", "offset_seconds", "drift_ms", "last_sync", "healthy"
+        "server",
+        "offset_seconds",
+        "drift_ms",
+        "last_sync",
+        "healthy",
     }
     assert snap["healthy"] is True
 

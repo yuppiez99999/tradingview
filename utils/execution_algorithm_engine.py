@@ -119,7 +119,9 @@ class ExecutionAlgorithmEngine:
         seed: int = 42,
     ):
         self.default_volume_curve = (
-            list(default_volume_curve) if default_volume_curve else self._default_u_shape_curve()
+            list(default_volume_curve)
+            if default_volume_curve
+            else self._default_u_shape_curve()
         )
         self.impact_coeff = float(impact_coeff)
         self.impact_decay = float(impact_decay)
@@ -191,7 +193,9 @@ class ExecutionAlgorithmEngine:
             ExecutionPlan
         """
         curve = list(volume_profile) if volume_profile else self.default_volume_curve
-        slots = self._generate_trading_slots(order.start_time, order.end_time, slot_minutes)
+        slots = self._generate_trading_slots(
+            order.start_time, order.end_time, slot_minutes
+        )
 
         # 对齐槽与曲线
         n_slots = len(slots)
@@ -245,11 +249,15 @@ class ExecutionAlgorithmEngine:
         # 无论订单大小都是固定值, 失去指导意义
         if adv is not None and adv > 0:
             adv_proxy = float(adv)
-            impact_bps = self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+            impact_bps = (
+                self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+            )
         else:
             # 占位估计 (订单自身 * 10 假设占比 10%), 标记为低置信度
             adv_proxy = max(order.total_shares * 10, 1.0)
-            impact_bps = self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+            impact_bps = (
+                self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+            )
 
         return ExecutionPlan(
             parent_order=order,
@@ -258,8 +266,14 @@ class ExecutionAlgorithmEngine:
             expected_cost_bps=impact_bps,
             expected_market_impact_bps=impact_bps * 0.7,
             expected_timing_risk_bps=impact_bps * 0.3,
-            total_duration_minutes=int((order.end_time - order.start_time).total_seconds() / 60),
-            avg_slice_size=float(np.mean([c.shares for c in child_orders])) if child_orders else 0.0,
+            total_duration_minutes=int(
+                (order.end_time - order.start_time).total_seconds() / 60
+            ),
+            avg_slice_size=(
+                float(np.mean([c.shares for c in child_orders]))
+                if child_orders
+                else 0.0
+            ),
             max_slice_size=float(max([c.shares for c in child_orders], default=0.0)),
             num_slices=len(child_orders),
             metadata={
@@ -287,7 +301,9 @@ class ExecutionAlgorithmEngine:
             slot_minutes: 槽长度 (分钟)
             adv: 日均成交量 (P1 修复: 用于精确计算冲击成本; None 时用占位估计)
         """
-        slots = self._generate_trading_slots(order.start_time, order.end_time, slot_minutes)
+        slots = self._generate_trading_slots(
+            order.start_time, order.end_time, slot_minutes
+        )
         n_slots = len(slots)
         if n_slots == 0:
             return ExecutionPlan(parent_order=order, algorithm="TWAP")
@@ -320,7 +336,9 @@ class ExecutionAlgorithmEngine:
             adv_proxy = float(adv)
         else:
             adv_proxy = max(order.total_shares * 10, 1.0)
-        impact_bps = self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+        impact_bps = (
+            self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+        )
 
         return ExecutionPlan(
             parent_order=order,
@@ -329,11 +347,21 @@ class ExecutionAlgorithmEngine:
             expected_cost_bps=impact_bps * 1.1,  # TWAP 略高于 VWAP
             expected_market_impact_bps=impact_bps * 0.7,
             expected_timing_risk_bps=impact_bps * 0.4,
-            total_duration_minutes=int((order.end_time - order.start_time).total_seconds() / 60),
-            avg_slice_size=float(np.mean([c.shares for c in child_orders])) if child_orders else 0.0,
+            total_duration_minutes=int(
+                (order.end_time - order.start_time).total_seconds() / 60
+            ),
+            avg_slice_size=(
+                float(np.mean([c.shares for c in child_orders]))
+                if child_orders
+                else 0.0
+            ),
             max_slice_size=float(max([c.shares for c in child_orders], default=0.0)),
             num_slices=len(child_orders),
-            metadata={"slot_minutes": slot_minutes, "adv_provided": adv is not None, "adv_proxy": adv_proxy},
+            metadata={
+                "slot_minutes": slot_minutes,
+                "adv_provided": adv is not None,
+                "adv_proxy": adv_proxy,
+            },
         )
 
     # ------------------------------------------------------------
@@ -353,7 +381,9 @@ class ExecutionAlgorithmEngine:
             expected_market_volume: 预期市场总成交量 (股)
             slot_minutes: 槽长度 (POV 通常用更短的槽)
         """
-        slots = self._generate_trading_slots(order.start_time, order.end_time, slot_minutes)
+        slots = self._generate_trading_slots(
+            order.start_time, order.end_time, slot_minutes
+        )
         n_slots = len(slots)
         if n_slots == 0:
             return ExecutionPlan(parent_order=order, algorithm="POV")
@@ -389,7 +419,10 @@ class ExecutionAlgorithmEngine:
             if actual < order.min_slice_size:
                 continue
             # 时间随机化
-            time_jitter = self.rng.uniform(-self.randomize_time, self.randomize_time) * slot_minutes
+            time_jitter = (
+                self.rng.uniform(-self.randomize_time, self.randomize_time)
+                * slot_minutes
+            )
             actual_time = slot + pd.Timedelta(minutes=int(time_jitter))
             child_orders.append(
                 ChildOrder(
@@ -420,8 +453,14 @@ class ExecutionAlgorithmEngine:
             expected_cost_bps=impact_bps,
             expected_market_impact_bps=impact_bps * 0.6,
             expected_timing_risk_bps=impact_bps * 0.5,
-            total_duration_minutes=int((order.end_time - order.start_time).total_seconds() / 60),
-            avg_slice_size=float(np.mean([c.shares for c in child_orders])) if child_orders else 0.0,
+            total_duration_minutes=int(
+                (order.end_time - order.start_time).total_seconds() / 60
+            ),
+            avg_slice_size=(
+                float(np.mean([c.shares for c in child_orders]))
+                if child_orders
+                else 0.0
+            ),
             max_slice_size=float(max([c.shares for c in child_orders], default=0.0)),
             num_slices=len(child_orders),
             metadata={
@@ -456,13 +495,17 @@ class ExecutionAlgorithmEngine:
             slot_minutes: 槽长度 (分钟)
             adv: 日均成交量 (P1 修复: 用于精确计算冲击成本; None 时用占位估计)
         """
-        slots = self._generate_trading_slots(order.start_time, order.end_time, slot_minutes)
+        slots = self._generate_trading_slots(
+            order.start_time, order.end_time, slot_minutes
+        )
         n_slots = len(slots)
         if n_slots == 0:
             return ExecutionPlan(parent_order=order, algorithm="IS")
 
         # 紧迫度 → λ
-        urgency_lambda = {"LOW": 0.5, "MEDIUM": 1.0, "HIGH": 2.5}.get(order.urgency, 1.0)
+        urgency_lambda = {"LOW": 0.5, "MEDIUM": 1.0, "HIGH": 2.5}.get(
+            order.urgency, 1.0
+        )
         lam = self.risk_aversion * urgency_lambda
 
         # 每槽时间权重 (越靠后越担心时机风险, 但越早冲击越大)
@@ -511,7 +554,9 @@ class ExecutionAlgorithmEngine:
             adv_proxy = float(adv)
         else:
             adv_proxy = max(order.total_shares * 10, 1.0)
-        impact_bps = self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+        impact_bps = (
+            self.impact_coeff * 10000 * math.sqrt(order.total_shares / adv_proxy)
+        )
         # P1 修复: sigma2=0 时 timing_risk_bps=0, 无需特殊处理 (sqrt(n_slots)*0=0)
         timing_risk_bps = sigma2 * math.sqrt(n_slots) * 10000 * 0.5
 
@@ -522,8 +567,14 @@ class ExecutionAlgorithmEngine:
             expected_cost_bps=impact_bps + timing_risk_bps * 0.5,
             expected_market_impact_bps=impact_bps,
             expected_timing_risk_bps=timing_risk_bps,
-            total_duration_minutes=int((order.end_time - order.start_time).total_seconds() / 60),
-            avg_slice_size=float(np.mean([c.shares for c in child_orders])) if child_orders else 0.0,
+            total_duration_minutes=int(
+                (order.end_time - order.start_time).total_seconds() / 60
+            ),
+            avg_slice_size=(
+                float(np.mean([c.shares for c in child_orders]))
+                if child_orders
+                else 0.0
+            ),
             max_slice_size=float(max([c.shares for c in child_orders], default=0.0)),
             num_slices=len(child_orders),
             metadata={
@@ -552,10 +603,14 @@ class ExecutionAlgorithmEngine:
         randomized: list[tuple[float, pd.Timestamp]] = []
         for shares, slot in zip(shares_per_slot, slots, strict=True):
             # 大小随机化
-            size_noise = 1.0 + self.rng.uniform(-self.randomize_size, self.randomize_size)
+            size_noise = 1.0 + self.rng.uniform(
+                -self.randomize_size, self.randomize_size
+            )
             actual_shares = max(shares * size_noise, 0.0)
             # 时间随机化 (±slot_minutes * randomize_time)
-            time_jitter_minutes = self.rng.uniform(-self.randomize_time, self.randomize_time) * 10
+            time_jitter_minutes = (
+                self.rng.uniform(-self.randomize_time, self.randomize_time) * 10
+            )
             actual_time = slot + pd.Timedelta(minutes=time_jitter_minutes)
             # P2 修复: 检测午休时段 (11:30-13:00), 调整到最近的可成交时间
             actual_time = self._clamp_to_trading_hours(actual_time)
@@ -611,12 +666,11 @@ class ExecutionAlgorithmEngine:
         if participation > 0.20:
             # 大单: 用 POV 严格控占比
             return "POV"
-        elif participation > 0.05:
+        if participation > 0.05:
             # 中单: 紧迫 → IS, 否则 → VWAP
             return "IS" if order.urgency == "HIGH" else "VWAP"
-        else:
-            # 小单: 紧迫 → TWAP, 否则 → VWAP
-            return "TWAP" if order.urgency == "HIGH" else "VWAP"
+        # 小单: 紧迫 → TWAP, 否则 → VWAP
+        return "TWAP" if order.urgency == "HIGH" else "VWAP"
 
     def summarize_plan(self, plan: ExecutionPlan) -> dict[str, Any]:
         """生成执行计划摘要"""

@@ -86,7 +86,7 @@ class OvernightGapMonitor:
         adr_l2_threshold: float | None = None,
         adr_l3_threshold: float | None = None,
         fail_closed_pct: float | None = None,
-        ):
+    ):
         """初始化隔夜跳空监控器
 
         Args:
@@ -96,11 +96,31 @@ class OvernightGapMonitor:
             adr_l3_threshold: ADR L3 阈值, 默认 0.06
             fail_closed_pct: fail-closed 返回值, 默认 -0.04
         """
-        self.sp500_l2 = float(sp500_l2_threshold) if sp500_l2_threshold is not None else self.SP500_L2_THRESHOLD
-        self.sp500_l3 = float(sp500_l3_threshold) if sp500_l3_threshold is not None else self.SP500_L3_THRESHOLD
-        self.adr_l2 = float(adr_l2_threshold) if adr_l2_threshold is not None else self.ADR_L2_THRESHOLD
-        self.adr_l3 = float(adr_l3_threshold) if adr_l3_threshold is not None else self.ADR_L3_THRESHOLD
-        self.fail_closed_pct = float(fail_closed_pct) if fail_closed_pct is not None else self.FAIL_CLOSED_PCT
+        self.sp500_l2 = (
+            float(sp500_l2_threshold)
+            if sp500_l2_threshold is not None
+            else self.SP500_L2_THRESHOLD
+        )
+        self.sp500_l3 = (
+            float(sp500_l3_threshold)
+            if sp500_l3_threshold is not None
+            else self.SP500_L3_THRESHOLD
+        )
+        self.adr_l2 = (
+            float(adr_l2_threshold)
+            if adr_l2_threshold is not None
+            else self.ADR_L2_THRESHOLD
+        )
+        self.adr_l3 = (
+            float(adr_l3_threshold)
+            if adr_l3_threshold is not None
+            else self.ADR_L3_THRESHOLD
+        )
+        self.fail_closed_pct = (
+            float(fail_closed_pct)
+            if fail_closed_pct is not None
+            else self.FAIL_CLOSED_PCT
+        )
 
     # ------------------------------------------------------------
     # 公开 API
@@ -148,7 +168,9 @@ class OvernightGapMonitor:
             "data_source": data_source,
             "can_trade": level < 3,
             "can_open": level < 2,
-            "trigger": self._get_trigger_reason(sp500_change, adr_deviation, sp500_level, adr_level),
+            "trigger": self._get_trigger_reason(
+                sp500_change, adr_deviation, sp500_level, adr_level
+            ),
         }
 
         if level >= 2:
@@ -211,7 +233,9 @@ class OvernightGapMonitor:
                 "trigger": risk.get("trigger", "unknown"),
                 "data_source": risk.get("data_source", "unknown"),
             }
-            logger.critical("[OvernightGapMonitor] L3 全局平仓: 已清空所有订单, halt_all_trading=True")
+            logger.critical(
+                "[OvernightGapMonitor] L3 全局平仓: 已清空所有订单, halt_all_trading=True"
+            )
 
         elif level == 2:
             # L2: 禁止开仓 (过滤 BUY 订单, 保留 SELL)
@@ -382,7 +406,9 @@ class OvernightGapMonitor:
             # 方式2: 历史K线获取前收盘价 (当 prev_close 无效时)
             if prev_close <= 0:
                 try:
-                    klines = tdx.get_historical_klines(self.TDX_PROXY_SYMBOL, period="1d", count=2)
+                    klines = tdx.get_historical_klines(
+                        self.TDX_PROXY_SYMBOL, period="1d", count=2
+                    )
                     if klines is not None and len(klines) >= 2:
                         # 倒数第二天收盘价作为前收盘
                         prev_close = float(klines.iloc[-2]["close"])
@@ -394,7 +420,16 @@ class OvernightGapMonitor:
                             prev_close,
                             price,
                         )
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e_kline:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e_kline:
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.debug(
                         "[OvernightGapMonitor] 通达信历史K线获取失败: %s",
@@ -437,7 +472,16 @@ class OvernightGapMonitor:
         except ImportError:
             logger.debug("[OvernightGapMonitor] tdx_data_source 模块未安装")
             return None, None, False
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.debug("[OvernightGapMonitor] 通达信代理获取失败: %s", e)
             return None, None, False
 
@@ -479,7 +523,16 @@ class OvernightGapMonitor:
                     adr_ratio = adv / max(dec, 1)
                     # 归一化: 当 adr_ratio=1 时偏离 0, adr_ratio=2 或 0.5 时偏离 0.5
                     adr_deviation = abs(adr_ratio - 1.0) / 2.0
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 # ADR 获取失败不影响 S&P500
                 pass
 
@@ -488,7 +541,16 @@ class OvernightGapMonitor:
 
             return sp500_change, adr_deviation, True
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.debug("[OvernightGapMonitor] ExternalDataSource 获取失败: %s", e)
             return None, None, False
 
@@ -516,7 +578,16 @@ class OvernightGapMonitor:
             )
             return float(sp500), float(adr), True
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.debug("[OvernightGapMonitor] 缓存读取失败: %s", e)
             return None, None, False
 
@@ -532,7 +603,16 @@ class OvernightGapMonitor:
             }
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.debug("[OvernightGapMonitor] 缓存保存失败: %s", e)
 
 

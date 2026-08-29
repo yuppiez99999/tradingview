@@ -75,3 +75,14 @@ L = -Σ y_i × log(p_i), p_i = exp(s_i) / Σ exp(s_j)
 ## 后续依赖
 
 - LIT-5.6 全量集成验收 (依赖全部)
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [RAG + RL 自适应情感分析 — LIT-5.4](rag-rl-sentiment.md) (相似度 19%)
+- [FinMultiTime 多模态基准数据 — LIT-5.3](finmultitime-benchmark.md) (相似度 19%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 18%)
+- [分数阶差分 (Fractional Differencing) — LIT-5.2](fractional-differencing.md) (相似度 14%)
+- [Deep Hedging RL 范式集成](deep-hedging-rl.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

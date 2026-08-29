@@ -23,6 +23,7 @@
     - tmp_path 隔离文件系统
     - monkeypatch 控制 Feature Flag 状态
 """
+
 from __future__ import annotations
 
 import json
@@ -61,20 +62,17 @@ from utils.alpha.layers.strategy_health import (  # noqa: E402
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def disabled_flags(monkeypatch: pytest.MonkeyPatch) -> None:
     """让所有 Feature Flag 返回 False (默认状态, HC-1)."""
-    monkeypatch.setattr(
-        "utils.infra.feature_flags.is_enabled", lambda name: False
-    )
+    monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: False)
 
 
 @pytest.fixture
 def enabled_flags(monkeypatch: pytest.MonkeyPatch) -> None:
     """让所有 Feature Flag 返回 True (测试开启路径)."""
-    monkeypatch.setattr(
-        "utils.infra.feature_flags.is_enabled", lambda name: True
-    )
+    monkeypatch.setattr("utils.infra.feature_flags.is_enabled", lambda name: True)
 
 
 def _make_layer_score(
@@ -123,7 +121,8 @@ class TestLayerScoreImmutability:
     def test_to_dict_round_trip(self) -> None:
         """to_dict 输出可序列化, 分数四舍五入到 4 位."""
         ls = LayerScore(
-            layer="ops", score=0.123456789,
+            layer="ops",
+            score=0.123456789,
             sub_metrics={"x": 0.987654321},
         )
         d = ls.to_dict()
@@ -232,7 +231,9 @@ class TestWeightValidation:
                 history_path=tmp_path / "h.jsonl",
             )
 
-    def test_weights_within_tolerance_accepted(self, disabled_flags, tmp_path: Path) -> None:
+    def test_weights_within_tolerance_accepted(
+        self, disabled_flags, tmp_path: Path
+    ) -> None:
         """容差 0.01 内的偏差接受."""
         m = UnifiedHealthMetrics(
             weights={"code": 0.255, "strategy": 0.49, "ops": 0.255},  # sum=1.0
@@ -252,7 +253,9 @@ class TestFeatureFlag:
         m = UnifiedHealthMetrics(history_path=tmp_path / "h.jsonl")
         assert m.get_status()["enabled"] is False
 
-    def test_disabled_returns_degraded_report(self, disabled_flags, tmp_path: Path) -> None:
+    def test_disabled_returns_degraded_report(
+        self, disabled_flags, tmp_path: Path
+    ) -> None:
         """Flag 关闭 → collect_all 返回降级报告."""
         m = UnifiedHealthMetrics(history_path=tmp_path / "h.jsonl")
         report = m.collect_all()
@@ -298,14 +301,18 @@ class TestComputeOverall:
         assert degraded is False
         assert dl == []
 
-    def test_one_layer_degraded_renormalize(self, disabled_flags, tmp_path: Path) -> None:
+    def test_one_layer_degraded_renormalize(
+        self, disabled_flags, tmp_path: Path
+    ) -> None:
         """一层降级 → 剩余层重新归一化权重."""
         m = UnifiedHealthMetrics(
             weights={"code": 0.25, "strategy": 0.50, "ops": 0.25},
             history_path=tmp_path / "h.jsonl",
         )
         scores = {
-            "code": _make_layer_score("code", 1.0, is_degraded=True, degraded_reason="X"),
+            "code": _make_layer_score(
+                "code", 1.0, is_degraded=True, degraded_reason="X"
+            ),
             "strategy": _make_layer_score("strategy", 0.8),
             "ops": _make_layer_score("ops", 0.6),
         }
@@ -354,7 +361,9 @@ class TestComputeOverall:
 class TestTrendCalculation:
     """_calc_trend 趋势计算."""
 
-    def test_insufficient_history_returns_zero(self, disabled_flags, tmp_path: Path) -> None:
+    def test_insufficient_history_returns_zero(
+        self, disabled_flags, tmp_path: Path
+    ) -> None:
         """历史不足返回 0.0."""
         m = UnifiedHealthMetrics(history_path=tmp_path / "h.jsonl")
         history: list[HealthReport] = []
@@ -369,7 +378,9 @@ class TestTrendCalculation:
         trend = m._calc_trend(0.8, history, 1)
         assert trend == pytest.approx(0.1, abs=1e-6)
 
-    def test_trend_negative_when_declining(self, disabled_flags, tmp_path: Path) -> None:
+    def test_trend_negative_when_declining(
+        self, disabled_flags, tmp_path: Path
+    ) -> None:
         """下降趋势为负值."""
         m = UnifiedHealthMetrics(history_path=tmp_path / "h.jsonl")
         history = [HealthReport(overall_score=0.9), HealthReport(overall_score=0.85)]
@@ -388,7 +399,9 @@ class TestPersistence:
         """_persist 追加一行 JSON 到历史文件."""
         hist_path = tmp_path / "h.jsonl"
         m = UnifiedHealthMetrics(history_path=hist_path)
-        report = HealthReport(overall_score=0.5, generated_at="2026-08-01T00:00:00+00:00")
+        report = HealthReport(
+            overall_score=0.5, generated_at="2026-08-01T00:00:00+00:00"
+        )
         m._persist(report)
 
         assert hist_path.exists()
@@ -414,8 +427,10 @@ class TestPersistence:
         """_read_history 解析历史为 HealthReport 列表."""
         hist_path = tmp_path / "h.jsonl"
         hist_path.write_text(
-            json.dumps({"overall_score": 0.5, "generated_at": "t1"}) + "\n"
-            + json.dumps({"overall_score": 0.6, "generated_at": "t2"}) + "\n",
+            json.dumps({"overall_score": 0.5, "generated_at": "t1"})
+            + "\n"
+            + json.dumps({"overall_score": 0.6, "generated_at": "t2"})
+            + "\n",
             encoding="utf-8",
         )
         m = UnifiedHealthMetrics(history_path=hist_path)
@@ -425,17 +440,22 @@ class TestPersistence:
         assert history[0].overall_score == 0.6
         assert history[1].overall_score == 0.5
 
-    def test_read_history_missing_file_returns_empty(self, disabled_flags, tmp_path: Path) -> None:
+    def test_read_history_missing_file_returns_empty(
+        self, disabled_flags, tmp_path: Path
+    ) -> None:
         """历史文件不存在返回空列表, 不抛异常."""
         m = UnifiedHealthMetrics(history_path=tmp_path / "nonexistent.jsonl")
         assert m._read_history(7) == []
 
-    def test_read_history_skips_corrupt_lines(self, disabled_flags, tmp_path: Path) -> None:
+    def test_read_history_skips_corrupt_lines(
+        self, disabled_flags, tmp_path: Path
+    ) -> None:
         """损坏的行被跳过, 不影响有效行解析."""
         hist_path = tmp_path / "h.jsonl"
         hist_path.write_text(
             "{invalid json}\n"
-            + json.dumps({"overall_score": 0.7, "generated_at": "t2"}) + "\n",
+            + json.dumps({"overall_score": 0.7, "generated_at": "t2"})
+            + "\n",
             encoding="utf-8",
         )
         m = UnifiedHealthMetrics(history_path=hist_path)
@@ -443,7 +463,9 @@ class TestPersistence:
         assert len(history) == 1
         assert history[0].overall_score == 0.7
 
-    def test_persist_failure_does_not_raise(self, disabled_flags, tmp_path: Path) -> None:
+    def test_persist_failure_does_not_raise(
+        self, disabled_flags, tmp_path: Path
+    ) -> None:
         """持久化失败不抛异常 (容错降级)."""
         # 用一个不可写路径触发异常 (父目录是文件)
         bad_path = tmp_path / "blocker"
@@ -530,9 +552,7 @@ class TestCollectAllEndToEnd:
         # 持久化
         assert hist_path.exists()
 
-    def test_collect_all_one_layer_fails(
-        self, enabled_flags, tmp_path: Path
-    ) -> None:
+    def test_collect_all_one_layer_fails(self, enabled_flags, tmp_path: Path) -> None:
         """一层采集失败 → 该层降级, 其他层正常."""
         m = UnifiedHealthMetrics(
             weights={"code": 0.25, "strategy": 0.50, "ops": 0.25},
@@ -560,9 +580,7 @@ class TestCollectAllEndToEnd:
         assert report.overall_score == pytest.approx(0.8, abs=1e-6)
         assert report.sample_count == 2  # strategy 降级不计
 
-    def test_collect_all_layer_unavailable(
-        self, enabled_flags, tmp_path: Path
-    ) -> None:
+    def test_collect_all_layer_unavailable(self, enabled_flags, tmp_path: Path) -> None:
         """层加载失败 (None) → 该层标记 UNAVAILABLE."""
         m = UnifiedHealthMetrics(
             weights={"code": 0.34, "strategy": 0.33, "ops": 0.33},
@@ -627,7 +645,9 @@ class TestCodeHealthLayer:
             items.append(it)
         report.results = items
         report.all_passed = False
-        assert CodeHealthLayer._calc_p0_pass_rate(report) == pytest.approx(2 / 3, abs=1e-6)
+        assert CodeHealthLayer._calc_p0_pass_rate(report) == pytest.approx(
+            2 / 3, abs=1e-6
+        )
 
     def test_calc_blocking_score_zero_failures(self) -> None:
         """0 失败 → 1.0."""
@@ -645,7 +665,9 @@ class TestCodeHealthLayer:
         """半数失败 → 0.5."""
         report = MagicMock()
         report.blocking_failures = MAX_BLOCKING_FAILURES // 2
-        assert CodeHealthLayer._calc_blocking_score(report) == pytest.approx(0.5, abs=1e-6)
+        assert CodeHealthLayer._calc_blocking_score(report) == pytest.approx(
+            0.5, abs=1e-6
+        )
 
     def test_static_analysis_score_both_configs(
         self, enabled_flags, tmp_path: Path
@@ -663,16 +685,16 @@ class TestCodeHealthLayer:
         layer._project_root = tmp_path
         assert layer._calc_static_analysis_score() == 0.0
 
-    def test_verify_scripts_score_scales(
-        self, enabled_flags, tmp_path: Path
-    ) -> None:
+    def test_verify_scripts_score_scales(self, enabled_flags, tmp_path: Path) -> None:
         """验证脚本数 / 20, 上限 1.0."""
         layer = CodeHealthLayer()
         scripts_dir = tmp_path / "scripts"
         scripts_dir.mkdir()
         # 创建 10 个验证脚本
         for i in range(10):
-            (scripts_dir / f"_verify_test_{i}.py").write_text("# test", encoding="utf-8")
+            (scripts_dir / f"_verify_test_{i}.py").write_text(
+                "# test", encoding="utf-8"
+            )
         layer._project_root = tmp_path
         score = layer._calc_verify_scripts_score()
         assert score == pytest.approx(0.5, abs=1e-6)
@@ -683,7 +705,9 @@ class TestCodeHealthLayer:
         scripts_dir = tmp_path / "scripts"
         scripts_dir.mkdir()
         for i in range(EXPECTED_VERIFY_SCRIPTS + 5):
-            (scripts_dir / f"_verify_test_{i}.py").write_text("# test", encoding="utf-8")
+            (scripts_dir / f"_verify_test_{i}.py").write_text(
+                "# test", encoding="utf-8"
+            )
         layer._project_root = tmp_path
         assert layer._calc_verify_scripts_score() == 1.0
 
@@ -716,9 +740,7 @@ class TestStrategyHealthLayer:
         assert result.is_degraded is True
         assert result.degraded_reason == "FEATURE_FLAG_DISABLED"
 
-    def test_no_decisions_history_degraded(
-        self, enabled_flags, tmp_path: Path
-    ) -> None:
+    def test_no_decisions_history_degraded(self, enabled_flags, tmp_path: Path) -> None:
         """无 decisions.jsonl → is_degraded=True, NO_DECISIONS_HISTORY."""
         layer = StrategyHealthLayer(decisions_path=tmp_path / "none.jsonl")
         result = layer.collect()
@@ -787,9 +809,11 @@ class TestStrategyHealthLayer:
         decisions_path = tmp_path / "decisions.jsonl"
         decisions_path.write_text(
             "{corrupt}\n"
-            + json.dumps({"private_score": 0.4}) + "\n"
+            + json.dumps({"private_score": 0.4})
+            + "\n"
             + "also corrupt\n"
-            + json.dumps({"private_score": 0.9}) + "\n",
+            + json.dumps({"private_score": 0.9})
+            + "\n",
             encoding="utf-8",
         )
         layer = StrategyHealthLayer(decisions_path=decisions_path)
@@ -816,14 +840,18 @@ class TestOpsHealthLayer:
         assert result.is_degraded is True
         assert result.degraded_reason == "FEATURE_FLAG_DISABLED"
 
-    def test_datasource_redundancy_missing_dir(self, enabled_flags, tmp_path: Path) -> None:
+    def test_datasource_redundancy_missing_dir(
+        self, enabled_flags, tmp_path: Path
+    ) -> None:
         """system_check 目录不存在 → 低分 0.3."""
         layer = OpsHealthLayer()
         layer._project_root = tmp_path
         layer.report_dirs = {"system_check": tmp_path / "missing"}
         assert layer._calc_datasource_redundancy() == 0.3
 
-    def test_datasource_redundancy_empty_dir(self, enabled_flags, tmp_path: Path) -> None:
+    def test_datasource_redundancy_empty_dir(
+        self, enabled_flags, tmp_path: Path
+    ) -> None:
         """目录存在但无归档 → 0.3."""
         layer = OpsHealthLayer()
         sc_dir = tmp_path / "system_check"
@@ -914,8 +942,14 @@ class TestOpsHealthLayer:
         layer = OpsHealthLayer()
         layer._project_root = tmp_path
         layer.report_dirs = {
-            k: tmp_path / k for k in
-            ("system_check", "data_quality", "drift_alerts", "flag_audit", "risk_bus")
+            k: tmp_path / k
+            for k in (
+                "system_check",
+                "data_quality",
+                "drift_alerts",
+                "flag_audit",
+                "risk_bus",
+            )
         }
         result = layer.collect()
         assert isinstance(result, LayerScore)
@@ -931,9 +965,7 @@ class TestOpsHealthLayer:
 class TestNoProductionPollution:
     """HC-4: 不修改 positions.json / daily_returns.jsonl."""
 
-    def test_production_files_unchanged(
-        self, enabled_flags, tmp_path: Path
-    ) -> None:
+    def test_production_files_unchanged(self, enabled_flags, tmp_path: Path) -> None:
         """collect_all 后生产数据文件 mtime 不变."""
         # 构造伪生产文件
         pos = tmp_path / "positions.json"
@@ -979,9 +1011,7 @@ class TestCompareBaseline:
             },
             generated_at="2026-07-15T00:00:00+00:00",
         )
-        hist_path.write_text(
-            json.dumps(baseline.to_dict()) + "\n", encoding="utf-8"
-        )
+        hist_path.write_text(json.dumps(baseline.to_dict()) + "\n", encoding="utf-8")
         m = UnifiedHealthMetrics(history_path=hist_path)
         current = HealthReport(
             overall_score=0.8,

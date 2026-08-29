@@ -26,6 +26,7 @@
     -5.0%  → L2 (预警: 禁止开仓)
     -7.0%  → L3 (熔断: 全局平仓)
 """
+
 from unittest.mock import patch
 
 import pytest
@@ -55,7 +56,7 @@ class MarketCircuitBreakerWithL1(MarketCircuitBreaker):
         l2_threshold: float = None,  # type: ignore[assignment]
         l3_threshold: float = None,  # type: ignore[assignment]
         fail_closed_pct: float = None,  # type: ignore[assignment]
-        ):
+    ):
         """初始化带 L1 警戒线的大盘熔断监控器.
 
         Args:
@@ -154,7 +155,9 @@ class TestT10L1WarningLevel:
         """T10: 沪深300 跌 -4.0% 触发 L1 警戒线."""
         mcb = MarketCircuitBreakerWithL1()
 
-        with patch.object(mcb, "_fetch_hs300_change_pct", return_value=(-0.04, "astock_realtime")):
+        with patch.object(
+            mcb, "_fetch_hs300_change_pct", return_value=(-0.04, "astock_realtime")
+        ):
             status = mcb.check_market_status()
 
         assert status["level"] == 1, f"-4% 应触发 L1, 实际: L{status['level']}"
@@ -169,7 +172,9 @@ class TestT10L1WarningLevel:
         """T10: 沪深300 跌 -3.9% (未达 -4%) 不触发任何级别."""
         mcb = MarketCircuitBreakerWithL1()
 
-        with patch.object(mcb, "_fetch_hs300_change_pct", return_value=(-0.039, "astock_realtime")):
+        with patch.object(
+            mcb, "_fetch_hs300_change_pct", return_value=(-0.039, "astock_realtime")
+        ):
             status = mcb.check_market_status()
 
         assert status["level"] == 0, "-3.9% 不应触发任何级别"
@@ -181,7 +186,9 @@ class TestT10L1WarningLevel:
         """T10: 沪深300 跌 -4.5% 触发 L1, 不触发 L2 (L2 阈值 -5%)."""
         mcb = MarketCircuitBreakerWithL1()
 
-        with patch.object(mcb, "_fetch_hs300_change_pct", return_value=(-0.045, "astock_realtime")):
+        with patch.object(
+            mcb, "_fetch_hs300_change_pct", return_value=(-0.045, "astock_realtime")
+        ):
             status = mcb.check_market_status()
 
         assert status["level"] == 1, "-4.5% 应触发 L1, 不是 L2"
@@ -193,7 +200,9 @@ class TestT10L1WarningLevel:
         """T10: 沪深300 跌 -5% 触发 L2 (L2 优先于 L1)."""
         mcb = MarketCircuitBreakerWithL1()
 
-        with patch.object(mcb, "_fetch_hs300_change_pct", return_value=(-0.05, "astock_realtime")):
+        with patch.object(
+            mcb, "_fetch_hs300_change_pct", return_value=(-0.05, "astock_realtime")
+        ):
             status = mcb.check_market_status()
 
         assert status["level"] == 2, "-5% 应触发 L2"
@@ -205,7 +214,9 @@ class TestT10L1WarningLevel:
         """T10: 沪深300 跌 -7% 触发 L3 全局平仓."""
         mcb = MarketCircuitBreakerWithL1()
 
-        with patch.object(mcb, "_fetch_hs300_change_pct", return_value=(-0.07, "astock_realtime")):
+        with patch.object(
+            mcb, "_fetch_hs300_change_pct", return_value=(-0.07, "astock_realtime")
+        ):
             status = mcb.check_market_status()
 
         assert status["level"] == 3
@@ -246,10 +257,12 @@ class TestT10L1ApplyToPlan:
 
         result = mcb.apply_to_plan(plan, l1_status)
 
-        assert result["market_state"]["concentration_limit"] == 0.20, \
-            "L1 应将集中度上限从 25% 收紧到 20%"
-        assert result["market_state"]["circuit_level"] == "ALERT", \
-            "L1 应设置 circuit_level=ALERT"
+        assert (
+            result["market_state"]["concentration_limit"] == 0.20
+        ), "L1 应将集中度上限从 25% 收紧到 20%"
+        assert (
+            result["market_state"]["circuit_level"] == "ALERT"
+        ), "L1 应设置 circuit_level=ALERT"
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -259,18 +272,30 @@ class TestT10L1ApplyToPlan:
 
         plan = {
             "execution_plan": {
-                "morning_orders": [{"symbol": "588080", "direction": "BUY", "shares": 1000}],
-                "afternoon_orders": [{"symbol": "512880", "direction": "SELL", "shares": 500}],
+                "morning_orders": [
+                    {"symbol": "588080", "direction": "BUY", "shares": 1000}
+                ],
+                "afternoon_orders": [
+                    {"symbol": "512880", "direction": "SELL", "shares": 500}
+                ],
             },
             "market_state": {},
             "risk_guard": {},
         }
 
-        l1_status = {"level": 1, "hs300_change_pct": -0.04, "data_source": "astock_realtime"}
+        l1_status = {
+            "level": 1,
+            "hs300_change_pct": -0.04,
+            "data_source": "astock_realtime",
+        }
         result = mcb.apply_to_plan(plan, l1_status)
 
-        assert len(result["execution_plan"]["morning_orders"]) == 1, "L1 不应清空 morning_orders"
-        assert len(result["execution_plan"]["afternoon_orders"]) == 1, "L1 不应清空 afternoon_orders"
+        assert (
+            len(result["execution_plan"]["morning_orders"]) == 1
+        ), "L1 不应清空 morning_orders"
+        assert (
+            len(result["execution_plan"]["afternoon_orders"]) == 1
+        ), "L1 不应清空 afternoon_orders"
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -290,10 +315,18 @@ class TestT10L1ApplyToPlan:
             "risk_guard": {},
         }
 
-        l1_status = {"level": 1, "hs300_change_pct": -0.04, "data_source": "astock_realtime"}
+        l1_status = {
+            "level": 1,
+            "hs300_change_pct": -0.04,
+            "data_source": "astock_realtime",
+        }
         result = mcb.apply_to_plan(plan, l1_status)
 
-        buy_orders = [o for o in result["execution_plan"]["morning_orders"] if o["direction"] == "BUY"]
+        buy_orders = [
+            o
+            for o in result["execution_plan"]["morning_orders"]
+            if o["direction"] == "BUY"
+        ]
         assert len(buy_orders) == 1, "L1 不应过滤 BUY 订单"
 
     @pytest.mark.unit
@@ -308,11 +341,16 @@ class TestT10L1ApplyToPlan:
             "risk_guard": {},
         }
 
-        l1_status = {"level": 1, "hs300_change_pct": -0.04, "data_source": "astock_realtime"}
+        l1_status = {
+            "level": 1,
+            "hs300_change_pct": -0.04,
+            "data_source": "astock_realtime",
+        }
         result = mcb.apply_to_plan(plan, l1_status)
 
-        assert result["market_state"]["circuit_level"] == "WARNING", \
-            "L1 不应降级 L2 的 WARNING"
+        assert (
+            result["market_state"]["circuit_level"] == "WARNING"
+        ), "L1 不应降级 L2 的 WARNING"
 
     @pytest.mark.unit
     @pytest.mark.p1
@@ -326,11 +364,16 @@ class TestT10L1ApplyToPlan:
             "risk_guard": {},
         }
 
-        l1_status = {"level": 1, "hs300_change_pct": -0.04, "data_source": "astock_realtime"}
+        l1_status = {
+            "level": 1,
+            "hs300_change_pct": -0.04,
+            "data_source": "astock_realtime",
+        }
         result = mcb.apply_to_plan(plan, l1_status)
 
-        assert result["market_state"]["circuit_level"] == "CRITICAL", \
-            "L1 不应降级 L3 的 CRITICAL"
+        assert (
+            result["market_state"]["circuit_level"] == "CRITICAL"
+        ), "L1 不应降级 L3 的 CRITICAL"
 
     @pytest.mark.unit
     @pytest.mark.p1
@@ -382,10 +425,18 @@ class TestT10BackwardCompat:
             "risk_guard": {},
         }
 
-        l2_status = {"level": 2, "hs300_change_pct": -0.05, "data_source": "astock_realtime"}
+        l2_status = {
+            "level": 2,
+            "hs300_change_pct": -0.05,
+            "data_source": "astock_realtime",
+        }
         result = mcb.apply_to_plan(plan, l2_status)
 
-        buy_orders = [o for o in result["execution_plan"]["morning_orders"] if o["direction"] == "BUY"]
+        buy_orders = [
+            o
+            for o in result["execution_plan"]["morning_orders"]
+            if o["direction"] == "BUY"
+        ]
         assert len(buy_orders) == 0, "L2 应过滤所有 BUY 订单"
         assert result["market_state"]["circuit_level"] == "WARNING"
 
@@ -397,18 +448,30 @@ class TestT10BackwardCompat:
 
         plan = {
             "execution_plan": {
-                "morning_orders": [{"symbol": "588080", "direction": "BUY", "shares": 1000}],
-                "afternoon_orders": [{"symbol": "512880", "direction": "SELL", "shares": 500}],
+                "morning_orders": [
+                    {"symbol": "588080", "direction": "BUY", "shares": 1000}
+                ],
+                "afternoon_orders": [
+                    {"symbol": "512880", "direction": "SELL", "shares": 500}
+                ],
             },
             "market_state": {},
             "risk_guard": {},
         }
 
-        l3_status = {"level": 3, "hs300_change_pct": -0.07, "data_source": "astock_realtime"}
+        l3_status = {
+            "level": 3,
+            "hs300_change_pct": -0.07,
+            "data_source": "astock_realtime",
+        }
         result = mcb.apply_to_plan(plan, l3_status)
 
-        assert len(result["execution_plan"]["morning_orders"]) == 0, "L3 应清空 morning_orders"
-        assert len(result["execution_plan"]["afternoon_orders"]) == 0, "L3 应清空 afternoon_orders"
+        assert (
+            len(result["execution_plan"]["morning_orders"]) == 0
+        ), "L3 应清空 morning_orders"
+        assert (
+            len(result["execution_plan"]["afternoon_orders"]) == 0
+        ), "L3 应清空 afternoon_orders"
         assert result["market_state"]["circuit_level"] == "CRITICAL"
         assert result["market_state"]["halt_all_trading"] is True
 
@@ -424,7 +487,11 @@ class TestT10BackwardCompat:
             "risk_guard": {},
         }
 
-        l0_status = {"level": 0, "hs300_change_pct": -0.01, "data_source": "astock_realtime"}
+        l0_status = {
+            "level": 0,
+            "hs300_change_pct": -0.01,
+            "data_source": "astock_realtime",
+        }
         result = mcb.apply_to_plan(plan, l0_status)
 
         mcb_meta = result["risk_guard"].get("market_circuit_breaker", {})
@@ -444,7 +511,9 @@ class TestT10BoundaryConditions:
         """T10: 恰好 -4.000% 触发 L1 (边界条件)."""
         mcb = MarketCircuitBreakerWithL1()
 
-        with patch.object(mcb, "_fetch_hs300_change_pct", return_value=(-0.04, "astock_realtime")):
+        with patch.object(
+            mcb, "_fetch_hs300_change_pct", return_value=(-0.04, "astock_realtime")
+        ):
             status = mcb.check_market_status()
 
         assert status["level"] == 1
@@ -455,7 +524,9 @@ class TestT10BoundaryConditions:
         """T10: 0% 不触发任何级别."""
         mcb = MarketCircuitBreakerWithL1()
 
-        with patch.object(mcb, "_fetch_hs300_change_pct", return_value=(0.0, "astock_realtime")):
+        with patch.object(
+            mcb, "_fetch_hs300_change_pct", return_value=(0.0, "astock_realtime")
+        ):
             status = mcb.check_market_status()
 
         assert status["level"] == 0
@@ -466,7 +537,9 @@ class TestT10BoundaryConditions:
         """T10: +2% (上涨) 不触发任何级别."""
         mcb = MarketCircuitBreakerWithL1()
 
-        with patch.object(mcb, "_fetch_hs300_change_pct", return_value=(0.02, "astock_realtime")):
+        with patch.object(
+            mcb, "_fetch_hs300_change_pct", return_value=(0.02, "astock_realtime")
+        ):
             status = mcb.check_market_status()
 
         assert status["level"] == 0
@@ -477,7 +550,9 @@ class TestT10BoundaryConditions:
         """T10: 数据源不可用时 fail-closed=-5% 触发 L2, 不是 L1."""
         mcb = MarketCircuitBreakerWithL1()
 
-        with patch.object(mcb, "_fetch_hs300_change_pct", return_value=(-0.05, "fail_closed")):
+        with patch.object(
+            mcb, "_fetch_hs300_change_pct", return_value=(-0.05, "fail_closed")
+        ):
             status = mcb.check_market_status()
 
         assert status["level"] == 2, "fail-closed -5% 应触发 L2"
@@ -489,7 +564,9 @@ class TestT10BoundaryConditions:
         """T10: 自定义 L1 阈值 -3%."""
         mcb = MarketCircuitBreakerWithL1(l1_threshold=-0.03)
 
-        with patch.object(mcb, "_fetch_hs300_change_pct", return_value=(-0.035, "astock_realtime")):
+        with patch.object(
+            mcb, "_fetch_hs300_change_pct", return_value=(-0.035, "astock_realtime")
+        ):
             status = mcb.check_market_status()
 
         assert status["level"] == 1, "-3.5% 应触发自定义 L1 (-3%)"

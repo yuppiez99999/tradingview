@@ -52,7 +52,9 @@ logger = logging.getLogger("tradingagents_bridge")
 # 微服务地址 (可通过环境变量覆盖)
 _DEFAULT_HOST = os.environ.get("TRADINGAGENTS_BRIDGE_HOST", "127.0.0.1")
 _DEFAULT_PORT = int(os.environ.get("TRADINGAGENTS_BRIDGE_PORT", "8490"))
-_DEFAULT_TIMEOUT = int(os.environ.get("TRADINGAGENTS_BRIDGE_TIMEOUT", "120"))  # 多Agent推理慢
+_DEFAULT_TIMEOUT = int(
+    os.environ.get("TRADINGAGENTS_BRIDGE_TIMEOUT", "120")
+)  # 多Agent推理慢
 _HEALTH_CHECK_CACHE_SEC = 30  # 健康检查缓存 30 秒, 避免频繁探测
 
 
@@ -133,9 +135,7 @@ class TradingAgentsBridge:
         if not self._check_port():
             self._available = False
             self._last_check = now
-            logger.debug(
-                f"TradingAgents 微服务端口不可达: {self.host}:{self.port}"
-            )
+            logger.debug(f"TradingAgents 微服务端口不可达: {self.host}:{self.port}")
             return False
 
         # HTTP 健康检查
@@ -153,10 +153,17 @@ class TradingAgentsBridge:
                     f"(Python: {resp.get('python_version', '?')[:20]})"
                 )
             else:
-                logger.warning(
-                    f"TradingAgents 微服务在线但框架未加载: {resp}"
-                )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                logger.warning(f"TradingAgents 微服务在线但框架未加载: {resp}")
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._available = False
             self._last_check = now
@@ -171,9 +178,7 @@ class TradingAgentsBridge:
             端口是否可连接
         """
         try:
-            with socket.create_connection(
-                (self.host, self.port), timeout=2
-            ):
+            with socket.create_connection((self.host, self.port), timeout=2):
                 return True
         except (TimeoutError, ConnectionRefusedError, OSError):
             return False
@@ -263,7 +268,16 @@ class TradingAgentsBridge:
         except URLError as e:
             logger.warning(f"TradingAgents 微服务请求超时/失败: {e}")
             return self._fallback_to_local(ticker, date)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"TradingAgents 分析异常: {e}", exc_info=True)
             return self._fallback_to_local(ticker, date)
@@ -300,7 +314,16 @@ class TradingAgentsBridge:
         except ImportError:
             logger.warning("本地 finance_agent_orchestrator 不可用, 返回中性决策")
             return self._neutral_result(ticker, date, "本地 orchestrator 不可用")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"本地 orchestrator 降级失败: {e}", exc_info=True)
             return self._neutral_result(ticker, date, f"降级异常: {e}")
@@ -333,9 +356,7 @@ class TradingAgentsBridge:
     # HTTP 工具
     # ------------------------------------------------------------
 
-    def _http_get(
-        self, path: str, timeout: int | None = None
-    ) -> dict[str, Any] | None:
+    def _http_get(self, path: str, timeout: int | None = None) -> dict[str, Any] | None:
         """HTTP GET 请求.
 
         Args:
@@ -348,10 +369,21 @@ class TradingAgentsBridge:
         url = f"{self._base_url}{path}"
         req = Request(url, method="GET")
         try:
-            with urlopen(req, timeout=timeout or self.timeout) as resp:  # nosec B310  # TradingAgents API 合法请求
+            with urlopen(
+                req, timeout=timeout or self.timeout
+            ) as resp:  # nosec B310  # TradingAgents API 合法请求
                 body = resp.read().decode("utf-8")
                 return json.loads(body)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"HTTP GET {path} 失败: {e}")
             return None

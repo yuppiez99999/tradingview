@@ -3,6 +3,7 @@
 验证修正后的 tdam_client.py 能调通真实 TDAM 端点。
 不依赖 Feature Flag (直接绕过), 仅验证连通性和响应解析。
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,7 +31,9 @@ def main() -> int:
 
     print("\n[配置]")
     print(f"  base_url:    {config.base_url}")
-    print(f"  user_key:    {config.user_key[:11]}****{config.user_key[-4:] if config.user_key else '(空)'}")
+    print(
+        f"  user_key:    {config.user_key[:11]}****{config.user_key[-4:] if config.user_key else '(空)'}"
+    )
     print(f"  user_id:     {config.user_id}")
     print(f"  service_id:  {config.service_id}")
     print(f"  team_id:     {config.team_id}")
@@ -49,7 +52,7 @@ def main() -> int:
     print(f"  success: {'error' not in result}")
     print(f"  total:   {result.get('total', 0)}")
     print(f"  items:   {len(result.get('items', []))}")
-    if 'error' in result:
+    if "error" in result:
         print(f"  error:   {result['error']}")
 
     # 4. list_knowledge
@@ -57,7 +60,7 @@ def main() -> int:
     result = client.list_knowledge(limit=10)
     print(f"  success: {'error' not in result}")
     print(f"  total:   {result.get('total', 0)}")
-    if 'error' in result:
+    if "error" in result:
         print(f"  error:   {result['error']}")
 
     # 5. search_memory (skill)

@@ -23,12 +23,12 @@ def run_kronos_predict_mode(args):
         print("   请确认 utils/kronos_predictor.py 与依赖可正常导入")
         return None
 
-    pred_len = getattr(args, 'kronos_pred_len', 24)
-    device = getattr(args, 'kronos_device', 'cpu')
-    code = getattr(args, 'kronos_code', None)
-    name = getattr(args, 'kronos_name', None)
-    batch = getattr(args, 'kronos_batch', None)
-    output = getattr(args, 'kronos_output', None)
+    pred_len = getattr(args, "kronos_pred_len", 24)
+    device = getattr(args, "kronos_device", "cpu")
+    code = getattr(args, "kronos_code", None)
+    name = getattr(args, "kronos_name", None)
+    batch = getattr(args, "kronos_batch", None)
+    output = getattr(args, "kronos_output", None)
 
     print("\n" + "=" * 70)
     print("  🔮 Kronos 金融 K 线预测")
@@ -91,36 +91,46 @@ def run_kronos_predict_mode(args):
         return None
 
     # 汇总输出
-    buy_signals = [r for r in results if r.get('signal') == 'buy']
-    sell_signals = [r for r in results if r.get('signal') == 'sell']
-    hold_signals = [r for r in results if r.get('signal') == 'hold']
+    buy_signals = [r for r in results if r.get("signal") == "buy"]
+    sell_signals = [r for r in results if r.get("signal") == "sell"]
+    hold_signals = [r for r in results if r.get("signal") == "hold"]
 
     print("\n" + "=" * 70)
     print("📊 预测汇总")
     print("=" * 70)
-    print(f"  🟢 买入: {len(buy_signals)} | 🔴 卖出: {len(sell_signals)} | 🟡 持有: {len(hold_signals)}")
+    print(
+        f"  🟢 买入: {len(buy_signals)} | 🔴 卖出: {len(sell_signals)} | 🟡 持有: {len(hold_signals)}"
+    )
 
     for label, data in [("买入", buy_signals), ("卖出", sell_signals)]:
         if data:
-            emoji = '🟢' if label == '买入' else '🔴'
+            emoji = "🟢" if label == "买入" else "🔴"
             print(f"\n{emoji} {label}信号:")
-            sort_rev = label == '买入'
-            for r in sorted(data, key=lambda x: x.get('return_pct', 0), reverse=sort_rev):
-                print(f"  {r.get('code')} {r.get('name', ''):<8} "
-                      f"收益={r.get('return_pct', 0)*100:+.2f}% "
-                      f"信号={r.get('signal', 'hold').upper()}")
+            sort_rev = label == "买入"
+            for r in sorted(
+                data, key=lambda x: x.get("return_pct", 0), reverse=sort_rev
+            ):
+                print(
+                    f"  {r.get('code')} {r.get('name', ''):<8} "
+                    f"收益={r.get('return_pct', 0)*100:+.2f}% "
+                    f"信号={r.get('signal', 'hold').upper()}"
+                )
 
     if hold_signals:
         print("\n🟡 持有信号:")
-        for r in sorted(hold_signals, key=lambda x: x.get('return_pct', 0), reverse=True)[:5]:
-            print(f"  {r.get('code')} {r.get('name', ''):<8} "
-                  f"收益={r.get('return_pct', 0)*100:+.2f}%")
+        for r in sorted(
+            hold_signals, key=lambda x: x.get("return_pct", 0), reverse=True
+        )[:5]:
+            print(
+                f"  {r.get('code')} {r.get('name', ''):<8} "
+                f"收益={r.get('return_pct', 0)*100:+.2f}%"
+            )
 
     # 可选保存 JSON
     if output:
-        output_path = os.path.join(BASE_DIR, 'reports', output)
+        output_path = os.path.join(BASE_DIR, "reports", output)
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
         print(f"\n✅ 结果已保存: {output_path}")
 

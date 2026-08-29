@@ -62,7 +62,7 @@ class DQCCheckpoint(StrEnum):
     """DQC 检查点 — 数据流 5 道防线."""
 
     P1_SOURCE = "P1"  # 源头完整性 (数据源 → 缓存)
-    P2_CACHE = "P2"   # 缓存质量 (因子计算前)
+    P2_CACHE = "P2"  # 缓存质量 (因子计算前)
     P3_FACTOR = "P3"  # 因子质量 (训练样本生成前)
     P4_SAMPLE = "P4"  # 样本质量 (模型训练前)
     P5_PREDICTION = "P5"  # 预测质量 (下单前)
@@ -75,49 +75,49 @@ class DQCMetric(StrEnum):
     """DQC 指标 ID — 六维分类."""
 
     # 维度 C: 完整性 (Completeness) — P1/P2
-    C01_SYMBOL_COVERAGE = "C-01"        # 标的覆盖率
-    C02_TRADING_DAY_COVERAGE = "C-02"   # 交易日覆盖率
-    C03_FIELD_MISSING_RATE = "C-03"     # 字段缺失率
+    C01_SYMBOL_COVERAGE = "C-01"  # 标的覆盖率
+    C02_TRADING_DAY_COVERAGE = "C-02"  # 交易日覆盖率
+    C03_FIELD_MISSING_RATE = "C-03"  # 字段缺失率
     C04_TIMESTAMP_CONTINUITY = "C-04"  # 时间戳连续性
-    C05_OHLCV_COMPLETENESS = "C-05"    # OHLCV 完整性
+    C05_OHLCV_COMPLETENESS = "C-05"  # OHLCV 完整性
     C06_ADJFACTOR_COMPLETENESS = "C-06"  # 复权因子完整性
 
     # 维度 T: 时效性 (Timeliness) — P1
-    T01_DATA_LATENCY = "T-01"          # 数据延迟
-    T02_LATEST_DATE = "T-02"           # 最新数据日期
-    T03_EOD_ARRIVAL = "T-03"           # EOD 到位时间
-    T04_FACTOR_COMPUTE_TIME = "T-04"   # 因子计算耗时
-    T05_TRAIN_DATA_READY = "T-05"      # 训练数据就绪
+    T01_DATA_LATENCY = "T-01"  # 数据延迟
+    T02_LATEST_DATE = "T-02"  # 最新数据日期
+    T03_EOD_ARRIVAL = "T-03"  # EOD 到位时间
+    T04_FACTOR_COMPUTE_TIME = "T-04"  # 因子计算耗时
+    T05_TRAIN_DATA_READY = "T-05"  # 训练数据就绪
 
     # 维度 X: 一致性 (Consistency) — P2 (跨源校验)
-    X01_CROSS_SOURCE_PRICE = "X-01"    # 跨源价格偏差
-    X02_CROSS_SOURCE_VOL = "X-02"      # 跨源成交量偏差
-    X03_HISTORY_INVARIANCE = "X-03"    # 历史值不变性
+    X01_CROSS_SOURCE_PRICE = "X-01"  # 跨源价格偏差
+    X02_CROSS_SOURCE_VOL = "X-02"  # 跨源成交量偏差
+    X03_HISTORY_INVARIANCE = "X-03"  # 历史值不变性
     X04_FACTOR_REPRODUCIBILITY = "X-04"  # 因子值可复现性
-    X05_INDEX_CONSISTENCY = "X-05"     # 指数成分股一致
+    X05_INDEX_CONSISTENCY = "X-05"  # 指数成分股一致
 
     # 维度 A: 准确性 (Accuracy) — P2 (业务规则)
-    A01_PRICE_CHANGE_LIMIT = "A-01"    # 涨跌幅边界
-    A02_OHLC_RELATION = "A-02"         # OHLC 关系
-    A03_VOLUME_NON_NEGATIVE = "A-03"   # 成交量非负
+    A01_PRICE_CHANGE_LIMIT = "A-01"  # 涨跌幅边界
+    A02_OHLC_RELATION = "A-02"  # OHLC 关系
+    A03_VOLUME_NON_NEGATIVE = "A-03"  # 成交量非负
     A04_MARKET_CAP_CONSISTENCY = "A-04"  # 市值一致性
-    A05_PRICE_JUMP = "A-05"            # 价格异常跳变
-    A06_ZERO_PRICE = "A-06"            # 零价格检测
+    A05_PRICE_JUMP = "A-05"  # 价格异常跳变
+    A06_ZERO_PRICE = "A-06"  # 零价格检测
 
     # 维度 U: 唯一性 (Uniqueness) — P2/P3
-    U01_PRIMARY_KEY_DEDUP = "U-01"     # 主键去重
-    U02_FACTOR_DEDUP = "U-02"          # 因子重复计算
-    U03_SYMBOL_CODE_FORMAT = "U-03"    # 标的代码规范
+    U01_PRIMARY_KEY_DEDUP = "U-01"  # 主键去重
+    U02_FACTOR_DEDUP = "U-02"  # 因子重复计算
+    U03_SYMBOL_CODE_FORMAT = "U-03"  # 标的代码规范
 
     # 维度 F: 分布稳定性 (Distribution Drift) — P3/P4/P5
     # (委托 DriftMonitor 实现, 这里仅做事件归档)
-    F01_FACTOR_PSI = "F-01"            # 因子 PSI
-    F02_MEAN_DRIFT = "F-02"            # 均值漂移
-    F03_VARIANCE_DRIFT = "F-03"        # 方差漂移
-    F04_EXTREME_FREQ = "F-04"          # 极值频率
-    F05_LABEL_DIST_DRIFT = "F-05"      # 标签分布漂移
-    F06_PRED_DIST_DRIFT = "F-06"       # 预测分布漂移
-    F07_IC_DECAY = "F-07"              # IC 衰减 (已实现)
+    F01_FACTOR_PSI = "F-01"  # 因子 PSI
+    F02_MEAN_DRIFT = "F-02"  # 均值漂移
+    F03_VARIANCE_DRIFT = "F-03"  # 方差漂移
+    F04_EXTREME_FREQ = "F-04"  # 极值频率
+    F05_LABEL_DIST_DRIFT = "F-05"  # 标签分布漂移
+    F06_PRED_DIST_DRIFT = "F-06"  # 预测分布漂移
+    F07_IC_DECAY = "F-07"  # IC 衰减 (已实现)
 
 
 # ============================================================
@@ -158,7 +158,9 @@ class DQCEvent:
         if not isinstance(self.level, DQCLevel):
             raise TypeError(f"level must be DQCLevel, got {type(self.level)}")
         if not isinstance(self.checkpoint, DQCCheckpoint):
-            raise TypeError(f"checkpoint must be DQCCheckpoint, got {type(self.checkpoint)}")
+            raise TypeError(
+                f"checkpoint must be DQCCheckpoint, got {type(self.checkpoint)}"
+            )
 
     @staticmethod
     def _now_iso() -> str:

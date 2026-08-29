@@ -6,6 +6,7 @@
     - 用 ResultConverter 转换为 BacktestResult
     - 手动独立计算 same 指标, 偏差 < 1e-9 视为通过 (远高于验收标准 <5%)
 """
+
 from __future__ import annotations
 
 import sys
@@ -54,30 +55,47 @@ print(f"  权益曲线后 5 点:  {[f'¥{v:,.0f}' for v in equity_curve[-5:]]}")
 trade_records: list[dict] = []
 
 # 15 笔成交订单 (模拟 15 次调仓买卖)
-stock_codes = ["600519.SH", "000001.SZ", "300750.SZ", "688981.SH", "601899.SH", "600900.SH"]
+stock_codes = [
+    "600519.SH",
+    "000001.SZ",
+    "300750.SZ",
+    "688981.SH",
+    "601899.SH",
+    "600900.SH",
+]
 directions = ["BUY", "SELL"]
 offsets = ["OPEN", "CLOSE"]
 for i in range(15):
-    trade_records.append({
-        "order_id": f"ORD_F{i:04d}",
-        "code": stock_codes[i % len(stock_codes)],
-        "direction": directions[i % 2],
-        "offset": offsets[(i // 3) % 2],
-        "price": float(100.0 + RNG.uniform(-50, 150)),
-        "volume": float(100 * (1 + (i % 5))),
-        "status": "ALL_TRADED",
-    })
+    trade_records.append(
+        {
+            "order_id": f"ORD_F{i:04d}",
+            "code": stock_codes[i % len(stock_codes)],
+            "direction": directions[i % 2],
+            "offset": offsets[(i // 3) % 2],
+            "price": float(100.0 + RNG.uniform(-50, 150)),
+            "volume": float(100 * (1 + (i % 5))),
+            "status": "ALL_TRADED",
+        }
+    )
 
 # 5 笔拒单 (涨跌停/停牌 模拟)
-reject_reasons = ["涨停无法买入", "跌停无法卖出", "标的临时停牌", "价格超出涨跌停", "成交量不足"]
+reject_reasons = [
+    "涨停无法买入",
+    "跌停无法卖出",
+    "标的临时停牌",
+    "价格超出涨跌停",
+    "成交量不足",
+]
 for i in range(5):
-    trade_records.append({
-        "order_id": f"ORD_R{i:04d}",
-        "code": stock_codes[i % len(stock_codes)],
-        "direction": directions[i % 2],
-        "reason": reject_reasons[i],
-        "status": "REJECTED",
-    })
+    trade_records.append(
+        {
+            "order_id": f"ORD_R{i:04d}",
+            "code": stock_codes[i % len(stock_codes)],
+            "direction": directions[i % 2],
+            "reason": reject_reasons[i],
+            "status": "REJECTED",
+        }
+    )
 
 N_FILLED = sum(1 for r in trade_records if r.get("status") == "ALL_TRADED")
 N_REJECTED = sum(1 for r in trade_records if r.get("status") == "REJECTED")
@@ -149,27 +167,35 @@ assert deviation_rets < 1e-9, f"daily_returns 偏差过大: {deviation_rets}"
 # --- 手动计算 total_return ---
 manual_total_return = (eq_arr[-1] - eq_arr[0]) / eq_arr[0]
 dev = abs(manual_total_return - result.total_return)
-print(f"  ✓ total_return:               RC={result.total_return:.8%}  |  手动={manual_total_return:.8%}  |  偏差={dev:.2e} (需 < 1e-9)")
+print(
+    f"  ✓ total_return:               RC={result.total_return:.8%}  |  手动={manual_total_return:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"
+)
 assert dev < 1e-9
 
 # --- 手动计算 annual_return ---
 n_years = n_days / 252
 manual_annual_return = (1 + manual_total_return) ** (1 / max(n_years, 0.5)) - 1
 dev = abs(manual_annual_return - result.annual_return)
-print(f"  ✓ annual_return:              RC={result.annual_return:.8%}  |  手动={manual_annual_return:.8%}  |  偏差={dev:.2e} (需 < 1e-9)")
+print(
+    f"  ✓ annual_return:              RC={result.annual_return:.8%}  |  手动={manual_annual_return:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"
+)
 assert dev < 1e-9
 
 # --- 手动计算 annual_volatility ---
 manual_annual_vol = float(np.std(manual_daily_rets_arr) * np.sqrt(252))
 dev = abs(manual_annual_vol - result.annual_volatility)
-print(f"  ✓ annual_volatility:          RC={result.annual_volatility:.8%}  |  手动={manual_annual_vol:.8%}  |  偏差={dev:.2e} (需 < 1e-9)")
+print(
+    f"  ✓ annual_volatility:          RC={result.annual_volatility:.8%}  |  手动={manual_annual_vol:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"
+)
 assert dev < 1e-9
 
 # --- 手动计算 sharpe_ratio ---
 RISK_FREE = 0.03
 manual_sharpe = (manual_annual_return - RISK_FREE) / max(manual_annual_vol, 0.001)
 dev = abs(manual_sharpe - result.sharpe_ratio)
-print(f"  ✓ sharpe_ratio:               RC={result.sharpe_ratio:.6f}  |  手动={manual_sharpe:.6f}  |  偏差={dev:.2e} (需 < 1e-9)")
+print(
+    f"  ✓ sharpe_ratio:               RC={result.sharpe_ratio:.6f}  |  手动={manual_sharpe:.6f}  |  偏差={dev:.2e} (需 < 1e-9)"
+)
 assert dev < 1e-9
 
 # --- 手动计算 max_drawdown ---
@@ -177,19 +203,27 @@ peak_manual = np.maximum.accumulate(eq_arr)
 dd_manual = (eq_arr - peak_manual) / peak_manual
 manual_max_dd = float(abs(np.min(dd_manual)))
 dev = abs(manual_max_dd - result.max_drawdown)
-print(f"  ✓ max_drawdown:               RC={result.max_drawdown:.8%}  |  手动={manual_max_dd:.8%}  |  偏差={dev:.2e} (需 < 1e-9)")
+print(
+    f"  ✓ max_drawdown:               RC={result.max_drawdown:.8%}  |  手动={manual_max_dd:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"
+)
 assert dev < 1e-9
 
 # --- 手动计算 calmar_ratio ---
 manual_calmar = manual_annual_return / max(manual_max_dd, 0.001)
 dev = abs(manual_calmar - result.calmar_ratio)
-print(f"  ✓ calmar_ratio:               RC={result.calmar_ratio:.6f}  |  手动={manual_calmar:.6f}  |  偏差={dev:.2e} (需 < 1e-9)")
+print(
+    f"  ✓ calmar_ratio:               RC={result.calmar_ratio:.6f}  |  手动={manual_calmar:.6f}  |  偏差={dev:.2e} (需 < 1e-9)"
+)
 assert dev < 1e-9
 
 # --- 手动计算 win_rate ---
-manual_win_rate = float(np.sum(manual_daily_rets_arr > 0) / max(len(manual_daily_rets_arr), 1))
+manual_win_rate = float(
+    np.sum(manual_daily_rets_arr > 0) / max(len(manual_daily_rets_arr), 1)
+)
 dev = abs(manual_win_rate - result.win_rate)
-print(f"  ✓ win_rate:                   RC={result.win_rate:.8%}  |  手动={manual_win_rate:.8%}  |  偏差={dev:.2e} (需 < 1e-9)")
+print(
+    f"  ✓ win_rate:                   RC={result.win_rate:.8%}  |  手动={manual_win_rate:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"
+)
 assert dev < 1e-9
 
 # --- 验证 trade_count ---
@@ -227,8 +261,10 @@ assert ys["year"] == 2021
 assert "return" in ys and "volatility" in ys and "max_drawdown" in ys
 assert ys["csi300_return"] == 0.0  # 未提供 CSI300
 assert ys["market_type"] == "震荡市"
-print(f"\n  ✓ yearly_stats:        {len(result.yearly_stats)} 条, year={ys['year']}, "
-      f"market_type={ys['market_type']}")
+print(
+    f"\n  ✓ yearly_stats:        {len(result.yearly_stats)} 条, year={ys['year']}, "
+    f"market_type={ys['market_type']}"
+)
 
 # ============================================================
 # 6. 验收标准: 偏差 < 5% 确认

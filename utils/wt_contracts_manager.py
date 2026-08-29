@@ -209,7 +209,10 @@ class ContractsManager:
                     return self._contracts[full_key]
             # 回退到期货默认模板
             return self._contracts.get(
-                "FUTURE.DEFAULT", DEFAULT_CONTRACTS.get("FUTURE.DEFAULT", DEFAULT_CONTRACTS["STOCK.DEFAULT"])
+                "FUTURE.DEFAULT",
+                DEFAULT_CONTRACTS.get(
+                    "FUTURE.DEFAULT", DEFAULT_CONTRACTS["STOCK.DEFAULT"]
+                ),
             )
 
         # 期权: 按交易所 + 标的前缀匹配 (QMT使用 .SH/.SZ)
@@ -221,23 +224,35 @@ class ContractsManager:
             if opt_match:
                 underlying = base_code[:6]
                 for _key, ct in self._contracts.items():
-                    if ct.product_class == "OPTION" and ct.code.startswith(underlying[:3]):
+                    if ct.product_class == "OPTION" and ct.code.startswith(
+                        underlying[:3]
+                    ):
                         return ct
                 return self._contracts.get(
-                    "OPTION.DEFAULT", DEFAULT_CONTRACTS.get("OPTION.DEFAULT", DEFAULT_CONTRACTS["STOCK.DEFAULT"])
+                    "OPTION.DEFAULT",
+                    DEFAULT_CONTRACTS.get(
+                        "OPTION.DEFAULT", DEFAULT_CONTRACTS["STOCK.DEFAULT"]
+                    ),
                 )
 
         # 股票/ETF: 默认模板
         return self._contracts.get(
-            "STOCK.DEFAULT", DEFAULT_CONTRACTS.get("STOCK.DEFAULT", DEFAULT_CONTRACTS["STOCK.DEFAULT"])
+            "STOCK.DEFAULT",
+            DEFAULT_CONTRACTS.get("STOCK.DEFAULT", DEFAULT_CONTRACTS["STOCK.DEFAULT"]),
         )
 
     def register_contract(self, contract: ContractData) -> None:
         """注册新合约"""
-        key = f"{contract.code}.{contract.exchange}" if "." not in contract.code else contract.code
+        key = (
+            f"{contract.code}.{contract.exchange}"
+            if "." not in contract.code
+            else contract.code
+        )
         self._contracts[key] = contract
 
-    def list_contracts(self, exchange: str | None = None, product_class: str | None = None) -> list[ContractData]:
+    def list_contracts(
+        self, exchange: str | None = None, product_class: str | None = None
+    ) -> list[ContractData]:
         """列出合约, 可按交易所/品种过滤"""
         result = []
         for c in self._contracts.values():
@@ -248,7 +263,9 @@ class ContractsManager:
             result.append(c)
         return result
 
-    def calc_commission(self, code: str, amount: float, direction: str = "BUY") -> float:
+    def calc_commission(
+        self, code: str, amount: float, direction: str = "BUY"
+    ) -> float:
         """计算手续费"""
         c = self.get_contract(code)
         commission = amount * c.commission_rate

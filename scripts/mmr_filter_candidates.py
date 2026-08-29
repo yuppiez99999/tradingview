@@ -15,6 +15,7 @@
 --format consensus: 输出 Finding 列表 (供 consensus.py 的 candidates 参数消费)
 --format raw: 输出原始 ocr comment 列表 (默认)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -47,26 +48,34 @@ def filter_candidates(
 def to_consensus_findings(filtered: list[dict]) -> list[dict]:
     findings = []
     for i, c in enumerate(filtered):
-        findings.append({
-            "id": c.get("id", f"OCR{i + 1}"),
-            "lens": "correctness",
-            "severity": c.get("severity", "medium"),
-            "title": c.get("title", c.get("message", "")[:80]),
-            "description": c.get("message", c.get("description", "")),
-            "evidence": c.get("evidence", c.get("snippet", "")),
-            "location": c.get("file", c.get("location", "")),
-            "model": "ocr-glm",
-        })
+        findings.append(
+            {
+                "id": c.get("id", f"OCR{i + 1}"),
+                "lens": "correctness",
+                "severity": c.get("severity", "medium"),
+                "title": c.get("title", c.get("message", "")[:80]),
+                "description": c.get("message", c.get("description", "")),
+                "evidence": c.get("evidence", c.get("snippet", "")),
+                "location": c.get("file", c.get("location", "")),
+                "model": "ocr-glm",
+            }
+        )
     return findings
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="MMR L3 候选过滤")
     parser.add_argument("--input", required=True, help="ocr 产出 JSON 路径")
-    parser.add_argument("--severity", default="high,critical", help="保留的严重度(逗号分隔)")
+    parser.add_argument(
+        "--severity", default="high,critical", help="保留的严重度(逗号分隔)"
+    )
     parser.add_argument("--output", required=True, help="输出 JSON 路径")
-    parser.add_argument("--format", choices=["raw", "consensus"], default="raw",
-                        help="输出格式: raw=原始comment | consensus=Finding列表")
+    parser.add_argument(
+        "--format",
+        choices=["raw", "consensus"],
+        default="raw",
+        help="输出格式: raw=原始comment | consensus=Finding列表",
+    )
     args = parser.parse_args()
 
     in_path = Path(args.input)

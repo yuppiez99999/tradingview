@@ -9,6 +9,7 @@
     6. 审计日志 JSONL 落盘
     7. live 模式禁用 + 异常处理
 """
+
 from __future__ import annotations
 
 import json
@@ -27,6 +28,7 @@ from quant_modules.qmt_connector import (
 # ============================================================
 # 配置 & 状态机
 # ============================================================
+
 
 class TestQmtConfig:
     def test_defaults(self) -> None:
@@ -55,6 +57,7 @@ class TestConnectorState:
 # ============================================================
 # 生命周期
 # ============================================================
+
 
 class TestLifecycle:
     def test_connect_paper(self) -> None:
@@ -93,6 +96,7 @@ class TestLifecycle:
 # ============================================================
 # BrokerProtocol 接口 — paper trading
 # ============================================================
+
 
 class TestPaperTrading:
     def test_place_order_buy_success(self) -> None:
@@ -153,6 +157,7 @@ class TestPaperTrading:
 # 持仓 & 账户
 # ============================================================
 
+
 class TestPositionsAccount:
     def test_positions_after_buy(self) -> None:
         conn = QmtConnector(QmtConfig(initial_capital=100_000.0))
@@ -190,6 +195,7 @@ class TestPositionsAccount:
 # health_check
 # ============================================================
 
+
 class TestHealthCheck:
     def test_idle(self) -> None:
         conn = QmtConnector()
@@ -214,6 +220,7 @@ class TestHealthCheck:
 # ============================================================
 # 审计日志
 # ============================================================
+
 
 class TestAuditLog:
     def test_audit_jsonl(self, tmp_path: Path) -> None:
@@ -242,6 +249,7 @@ class TestAuditLog:
 # ============================================================
 # live 模式
 # ============================================================
+
 
 class TestLiveMode:
     def test_live_requires_production_env(self) -> None:
@@ -272,6 +280,7 @@ class TestLiveMode:
 # 滑点 & 手续费
 # ============================================================
 
+
 class TestSlippageFee:
     def test_slippage_applied(self) -> None:
         conn = QmtConnector(QmtConfig(initial_capital=100_000.0, slippage_bps=10.0))
@@ -281,7 +290,9 @@ class TestSlippageFee:
         assert st["avg_price"] == pytest.approx(10.0 * 1.001, rel=1e-6)
 
     def test_fee_deducted(self) -> None:
-        conn = QmtConnector(QmtConfig(initial_capital=100_000.0, slippage_bps=0.0, fee_bps=10.0))
+        conn = QmtConnector(
+            QmtConfig(initial_capital=100_000.0, slippage_bps=0.0, fee_bps=10.0)
+        )
         conn.connect()
         conn.place_order("000001.SZ", "BUY", 100, 10.0)
         acct = conn.get_account()

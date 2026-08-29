@@ -7,6 +7,7 @@
     - _cancel_with_retry (成功/失败/异常)
     - _get_order_id / _get_order_status / _get_order_symbol (dict/对象)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,7 +24,13 @@ from utils.global_cancel_guard import CancelResult, GlobalCancelGuard
 class TestCancelResult:
     @pytest.mark.unit
     def test_defaults(self):
-        r = CancelResult(success=True, total_orders=0, cancelled_count=0, failed_count=0, skipped_count=0)
+        r = CancelResult(
+            success=True,
+            total_orders=0,
+            cancelled_count=0,
+            failed_count=0,
+            skipped_count=0,
+        )
         assert r.cancelled_order_ids == []
         assert r.errors == []
         assert r.trigger_reason == ""

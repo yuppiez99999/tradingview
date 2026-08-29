@@ -14,6 +14,7 @@
 输出:
   - portfolio_return_projection.json (覆盖原文件, 原文件自动备份)
 """
+
 import json
 import shutil
 from datetime import datetime
@@ -29,125 +30,217 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ASSET_DETAILS = [
     # === 新质生产力方向 (20%, 6 标的) - 已降权 ===
     {
-        "code": "588080", "name": "科创50ETF易方达", "style": "科技", "weight": 0.05, "risk": "高",
+        "code": "588080",
+        "name": "科创50ETF易方达",
+        "style": "科技",
+        "weight": 0.05,
+        "risk": "高",
         "reason": "ETF资金流强信号+国家队57亿净流入; 科创板AI/半导体龙头集合; 十五五降权新质生产力",
         "returns": {"bull": 45.0, "base": 25.0, "bear": -30.0, "black_swan": -50.0},
     },
     {
-        "code": "512760", "name": "半导体ETF国泰", "style": "科技", "weight": 0.03, "risk": "高",
+        "code": "512760",
+        "name": "半导体ETF国泰",
+        "style": "科技",
+        "weight": 0.03,
+        "risk": "高",
         "reason": "ETF资金流关注9亿; 半导体国产替代整体beta; 十五五降权新质生产力",
         "returns": {"bull": 42.0, "base": 23.0, "bear": -28.0, "black_swan": -48.0},
     },
     {
-        "code": "688041", "name": "海光信息", "style": "科技", "weight": 0.04, "risk": "高",
+        "code": "688041",
+        "name": "海光信息",
+        "style": "科技",
+        "weight": 0.04,
+        "risk": "高",
         "reason": "AI算力CPU+DCU龙头; 科创50ETF重仓; 十五五降权新质生产力",
         "returns": {"bull": 55.0, "base": 30.0, "bear": -35.0, "black_swan": -55.0},
     },
     {
-        "code": "300308", "name": "中际旭创", "style": "科技", "weight": 0.04, "risk": "高",
+        "code": "300308",
+        "name": "中际旭创",
+        "style": "科技",
+        "weight": 0.04,
+        "risk": "高",
         "reason": "光模块龙头; AI算力核心; 三重共振; 十五五降权新质生产力",
         "returns": {"bull": 60.0, "base": 35.0, "bear": -40.0, "black_swan": -60.0},
     },
     {
-        "code": "603019", "name": "中科曙光", "style": "科技", "weight": 0.02, "risk": "高",
+        "code": "603019",
+        "name": "中科曙光",
+        "style": "科技",
+        "weight": 0.02,
+        "risk": "高",
         "reason": "算力基础设施; 康波新技术革命; 十五五降权新质生产力",
         "returns": {"bull": 50.0, "base": 28.0, "bear": -32.0, "black_swan": -55.0},
     },
     {
-        "code": "688981", "name": "中芯国际", "style": "科技", "weight": 0.02, "risk": "高",
+        "code": "688981",
+        "name": "中芯国际",
+        "style": "科技",
+        "weight": 0.02,
+        "risk": "高",
         "reason": "晶圆代工龙头; 半导体制造核心; 十五五新质生产力+国产替代",
         "returns": {"bull": 45.0, "base": 25.0, "bear": -30.0, "black_swan": -50.0},
     },
     # === 健康中国方向 (16%, 2 标的) - 已加仓 ===
     {
-        "code": "512170", "name": "医疗ETF华宝", "style": "医药", "weight": 0.10, "risk": "中",
+        "code": "512170",
+        "name": "医疗ETF华宝",
+        "style": "医药",
+        "weight": 0.10,
+        "risk": "中",
         "reason": "ETF资金流关注3亿; 十五五健康中国旗舰仓位; 医药全产业链beta; 十五五降权新质生产力转移",
         "returns": {"bull": 28.0, "base": 16.0, "bear": -18.0, "black_swan": -32.0},
     },
     {
-        "code": "600276", "name": "恒瑞医药", "style": "医药", "weight": 0.06, "risk": "中高",
+        "code": "600276",
+        "name": "恒瑞医药",
+        "style": "医药",
+        "weight": 0.06,
+        "risk": "中高",
         "reason": "创新药龙头; 十五五健康中国核心仓; 十五五降权新质生产力转移",
         "returns": {"bull": 30.0, "base": 18.0, "bear": -20.0, "black_swan": -35.0},
     },
     # === 数字中国方向 (9%, 2 标的) ===
     {
-        "code": "512880", "name": "证券ETF国泰", "style": "金融", "weight": 0.05, "risk": "中",
+        "code": "512880",
+        "name": "证券ETF国泰",
+        "style": "金融",
+        "weight": 0.05,
+        "risk": "中",
         "reason": "ETF资金流最强67亿净流入; 牛市旗手; 康波复苏期券商先行",
         "returns": {"bull": 35.0, "base": 18.0, "bear": -25.0, "black_swan": -40.0},
     },
     {
-        "code": "300033", "name": "同花顺", "style": "科技", "weight": 0.04, "risk": "中高",
+        "code": "300033",
+        "name": "同花顺",
+        "style": "科技",
+        "weight": 0.04,
+        "risk": "中高",
         "reason": "金融科技AI; 证券ETF强信号受益; 十五五数字中国",
         "returns": {"bull": 40.0, "base": 22.0, "bear": -28.0, "black_swan": -45.0},
     },
     # === 绿色低碳方向 (13%, 3 标的) ===
     {
-        "code": "515030", "name": "新能源车ETF华夏", "style": "新能源", "weight": 0.05, "risk": "中高",
+        "code": "515030",
+        "name": "新能源车ETF华夏",
+        "style": "新能源",
+        "weight": 0.05,
+        "risk": "中高",
         "reason": "ETF资金流加仓11亿; 十五五双碳+新能源车战略",
         "returns": {"bull": 35.0, "base": 20.0, "bear": -25.0, "black_swan": -42.0},
     },
     {
-        "code": "300274", "name": "阳光电源", "style": "新能源", "weight": 0.04, "risk": "中高",
+        "code": "300274",
+        "name": "阳光电源",
+        "style": "新能源",
+        "weight": 0.04,
+        "risk": "中高",
         "reason": "光伏储能龙头; 十五五双碳",
         "returns": {"bull": 50.0, "base": 28.0, "bear": -30.0, "black_swan": -50.0},
     },
     {
-        "code": "600900", "name": "长江电力", "style": "防御", "weight": 0.04, "risk": "低",
+        "code": "600900",
+        "name": "长江电力",
+        "style": "防御",
+        "weight": 0.04,
+        "risk": "低",
         "reason": "水电龙头+高股息4%; 防御底仓; 降低回撤",
         "returns": {"bull": 12.0, "base": 8.0, "bear": -5.0, "black_swan": -10.0},
     },
     # === 制造强国方向 (3%, 1 标的) ===
     {
-        "code": "688017", "name": "绿的谐波", "style": "制造", "weight": 0.03, "risk": "中高",
+        "code": "688017",
+        "name": "绿的谐波",
+        "style": "制造",
+        "weight": 0.03,
+        "risk": "中高",
         "reason": "机器人精密减速器; 新技术革命核心",
         "returns": {"bull": 45.0, "base": 25.0, "bear": -30.0, "black_swan": -50.0},
     },
     # === 安全发展方向 (18%, 4 标的) ===
     {
-        "code": "510050", "name": "上证50ETF华夏", "style": "宽基", "weight": 0.06, "risk": "低",
+        "code": "510050",
+        "name": "上证50ETF华夏",
+        "style": "宽基",
+        "weight": 0.06,
+        "risk": "低",
         "reason": "ETF资金流加仓40亿; 大盘蓝筹底仓; 降低波动率",
         "returns": {"bull": 15.0, "base": 9.0, "bear": -10.0, "black_swan": -20.0},
     },
     {
-        "code": "512800", "name": "银行ETF华宝", "style": "金融", "weight": 0.06, "risk": "中",
+        "code": "512800",
+        "name": "银行ETF华宝",
+        "style": "金融",
+        "weight": 0.06,
+        "risk": "中",
         "reason": "ETF资金流加仓23亿; 高股息5%+低波动; 组合稳定器",
         "returns": {"bull": 14.0, "base": 8.0, "bear": -8.0, "black_swan": -18.0},
     },
     {
-        "code": "000408", "name": "藏格矿业", "style": "资源", "weight": 0.04, "risk": "中高",
+        "code": "000408",
+        "name": "藏格矿业",
+        "style": "资源",
+        "weight": 0.04,
+        "risk": "中高",
         "reason": "锂+钾双资源; 新能源上游",
         "returns": {"bull": 35.0, "base": 22.0, "bear": -25.0, "black_swan": -40.0},
     },
     {
-        "code": "601088", "name": "中国神华", "style": "顺周期", "weight": 0.03, "risk": "中",
+        "code": "601088",
+        "name": "中国神华",
+        "style": "顺周期",
+        "weight": 0.03,
+        "risk": "中",
         "reason": "煤炭高股息6%+低波动; 组合稳定器",
         "returns": {"bull": 15.0, "base": 10.0, "bear": -15.0, "black_swan": -25.0},
     },
     # === 区域协调方向 (0%, 未配置) ===
     # === 避险/对冲方向 (5%, 1 标的) ===
     {
-        "code": "518880", "name": "黄金ETF华安", "style": "资源", "weight": 0.05, "risk": "中",
+        "code": "518880",
+        "name": "黄金ETF华安",
+        "style": "资源",
+        "weight": 0.05,
+        "risk": "中",
         "reason": "周金涛萧条末期黄金最优; 避险+降低回撤",
         "returns": {"bull": 20.0, "base": 12.0, "bear": -10.0, "black_swan": -25.0},
     },
     # === 其他 (2 标的, 辅助配置) ===
     {
-        "code": "002371", "name": "北方华创", "style": "科技", "weight": 0.04, "risk": "高",
+        "code": "002371",
+        "name": "北方华创",
+        "style": "科技",
+        "weight": 0.04,
+        "risk": "高",
         "reason": "半导体设备龙头; 国产替代核心",
         "returns": {"bull": 50.0, "base": 28.0, "bear": -33.0, "black_swan": -55.0},
     },
     {
-        "code": "601899", "name": "紫金矿业", "style": "资源", "weight": 0.02, "risk": "中",
+        "code": "601899",
+        "name": "紫金矿业",
+        "style": "资源",
+        "weight": 0.02,
+        "risk": "中",
         "reason": "黄金+铜龙头; 战略资源安全; 周金涛萧条末期黄金最优+康波资源主升浪",
         "returns": {"bull": 35.0, "base": 20.0, "bear": -22.0, "black_swan": -38.0},
     },
     {
-        "code": "002281", "name": "光迅科技", "style": "科技", "weight": 0.02, "risk": "高",
+        "code": "002281",
+        "name": "光迅科技",
+        "style": "科技",
+        "weight": 0.02,
+        "risk": "高",
         "reason": "光模块龙头; AI算力网络层核心; 十五五算力基建+康波新技术革命",
         "returns": {"bull": 55.0, "base": 30.0, "bear": -35.0, "black_swan": -55.0},
     },
     {
-        "code": "000901", "name": "国盾量子", "style": "科技", "weight": 0.01, "risk": "高",
+        "code": "000901",
+        "name": "国盾量子",
+        "style": "科技",
+        "weight": 0.01,
+        "risk": "高",
         "reason": "量子通信龙头; 十五五新质生产力前沿方向; 高风险主题观察仓",
         "returns": {"bull": 60.0, "base": 25.0, "bear": -40.0, "black_swan": -60.0},
     },
@@ -190,7 +283,9 @@ def calc_scenario_weighted(scenario: str) -> dict:
 
     # 计算各风格隐含年化
     for _style, d in style_breakdown.items():
-        d["effective_return"] = d["weighted_return"] / d["weight"] if d["weight"] > 0 else 0
+        d["effective_return"] = (
+            d["weighted_return"] / d["weight"] if d["weight"] > 0 else 0
+        )
 
     cumulative = (1 + weighted_annualized / 100) ** HORIZON_YEARS - 1
     final_amount = INITIAL_CAPITAL * (1 + cumulative)
@@ -237,8 +332,12 @@ def main():
     for s in ["bull", "base", "bear", "black_swan"]:
         scenarios[s] = calc_scenario_weighted(s)
         sc = scenarios[s]
-        label = {"bull": "乐观 (牛市)", "base": "基准 (中性)",
-                 "bear": "悲观 (熊市)", "black_swan": "黑天鹅 (极端)"}[s]
+        label = {
+            "bull": "乐观 (牛市)",
+            "base": "基准 (中性)",
+            "bear": "悲观 (熊市)",
+            "black_swan": "黑天鹅 (极端)",
+        }[s]
         print(f"[{s}] {label}")
         print(f"  加权年化: {sc['weighted_annualized']:.2f}%")
         print(f"  累计收益: {sc['cumulative_return']:.2f}%")
@@ -266,18 +365,20 @@ def main():
         base_r = a["returns"]["base"]
         base_cum = (1 + base_r / 100) ** HORIZON_YEARS - 1
         base_profit = INITIAL_CAPITAL * a["weight"] * base_cum
-        asset_detail.append({
-            "code": a["code"],
-            "name": a["name"],
-            "weight": a["weight"],
-            "style": a["style"],
-            "risk": a["risk"],
-            "reason": a["reason"],
-            "scenario_returns": a["returns"],
-            "base_annualized": base_r,
-            "base_cumulative": round(base_cum * 100, 2),
-            "base_profit": round(base_profit, 0),
-        })
+        asset_detail.append(
+            {
+                "code": a["code"],
+                "name": a["name"],
+                "weight": a["weight"],
+                "style": a["style"],
+                "risk": a["risk"],
+                "reason": a["reason"],
+                "scenario_returns": a["returns"],
+                "base_annualized": base_r,
+                "base_cumulative": round(base_cum * 100, 2),
+                "base_profit": round(base_profit, 0),
+            }
+        )
 
     # 构造完整 projection
     projection = {
@@ -326,9 +427,7 @@ def main():
 
     # 备份原文件
     proj_path = PROJECT_ROOT / "portfolio_return_projection.json"
-    bak_path = proj_path.with_suffix(
-        f".json.bak_{datetime.now():%Y%m%d_%H%M%S}"
-    )
+    bak_path = proj_path.with_suffix(f".json.bak_{datetime.now():%Y%m%d_%H%M%S}")
     if proj_path.exists():
         shutil.copy(proj_path, bak_path)
         print(f"✓ 原文件备份: {bak_path.name}")

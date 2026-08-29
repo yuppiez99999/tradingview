@@ -22,6 +22,7 @@
     diagnoser = CodeDiagnoser()
     causes = diagnoser.diagnose(health_report)
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -112,10 +113,20 @@ class CodeDiagnoser:
         """运行 SystemChecker (skip_datasource=True, 捕获 stdout)."""
         try:
             from utils.system_check import SystemChecker
+
             checker = SystemChecker(strict=False, skip_datasource=True)
             with contextlib.redirect_stdout(io.StringIO()):
                 return checker.run_all()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("SystemChecker 运行失败 (代码层诊断降级): %s", e)
             return None
@@ -166,7 +177,16 @@ class CodeDiagnoser:
                     detected_at=now,
                 )
                 causes.append(cause)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("从 SystemCheckReport 诊断失败: %s", e)
         return causes
@@ -182,47 +202,64 @@ class CodeDiagnoser:
             # p0_pass_rate 低 → 根因
             p0_rate = float(sub_metrics.get("p0_pass_rate", 1.0))
             if p0_rate < 0.8:
-                causes.append(RootCause(
-                    cause_id=f"code-p0_low-{now}",
-                    layer=LAYER_CODE,
-                    category="p0_pass_rate_low",
-                    severity=SEVERITY_HIGH if p0_rate < 0.5 else SEVERITY_MEDIUM,
-                    evidence={
-                        "p0_pass_rate": p0_rate,
-                        "threshold": 0.8,
-                        "source": "HealthReport.code_health",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=f"P0 检查通过率偏低 ({p0_rate:.1%} < 80%), 需修复阻断性失败",
-                        estimated_risk=0.5,
-                        remediation_commands=["python scripts/run_p0_startup_check.py --strict"],
-                    ),
-                    confidence=0.7,
-                    detected_at=now,
-                ))
+                causes.append(
+                    RootCause(
+                        cause_id=f"code-p0_low-{now}",
+                        layer=LAYER_CODE,
+                        category="p0_pass_rate_low",
+                        severity=SEVERITY_HIGH if p0_rate < 0.5 else SEVERITY_MEDIUM,
+                        evidence={
+                            "p0_pass_rate": p0_rate,
+                            "threshold": 0.8,
+                            "source": "HealthReport.code_health",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_MANUAL,
+                            description=f"P0 检查通过率偏低 ({p0_rate:.1%} < 80%), 需修复阻断性失败",
+                            estimated_risk=0.5,
+                            remediation_commands=[
+                                "python scripts/run_p0_startup_check.py --strict"
+                            ],
+                        ),
+                        confidence=0.7,
+                        detected_at=now,
+                    )
+                )
             # blocking_failures 高 → 根因
             blocking = float(sub_metrics.get("blocking_failures", 1.0))
             if blocking < 0.8:
-                causes.append(RootCause(
-                    cause_id=f"code-blocking_high-{now}",
-                    layer=LAYER_CODE,
-                    category="blocking_failures_high",
-                    severity=SEVERITY_HIGH if blocking < 0.5 else SEVERITY_MEDIUM,
-                    evidence={
-                        "blocking_score": blocking,
-                        "source": "HealthReport.code_health",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=f"阻断性失败较多 (score={blocking:.2f}), 需排查 P0 自检",
-                        estimated_risk=0.5,
-                        remediation_commands=["python scripts/run_p0_startup_check.py"],
-                    ),
-                    confidence=0.7,
-                    detected_at=now,
-                ))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                causes.append(
+                    RootCause(
+                        cause_id=f"code-blocking_high-{now}",
+                        layer=LAYER_CODE,
+                        category="blocking_failures_high",
+                        severity=SEVERITY_HIGH if blocking < 0.5 else SEVERITY_MEDIUM,
+                        evidence={
+                            "blocking_score": blocking,
+                            "source": "HealthReport.code_health",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_MANUAL,
+                            description=f"阻断性失败较多 (score={blocking:.2f}), 需排查 P0 自检",
+                            estimated_risk=0.5,
+                            remediation_commands=[
+                                "python scripts/run_p0_startup_check.py"
+                            ],
+                        ),
+                        confidence=0.7,
+                        detected_at=now,
+                    )
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("从 HealthReport 诊断代码层失败: %s", e)
         return causes
@@ -237,7 +274,16 @@ class CodeDiagnoser:
             if hasattr(enum_or_str, "value"):
                 return str(enum_or_str.value)
             return str(enum_or_str)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return default
 
@@ -276,8 +322,18 @@ class CodeDiagnoser:
                     class _Wrap:
                         def __init__(self, d: dict[str, Any]) -> None:
                             self.sub_metrics = d.get("sub_metrics", {})
+
                     return _Wrap(ls)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return None

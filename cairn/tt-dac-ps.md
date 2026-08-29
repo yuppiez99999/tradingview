@@ -66,3 +66,14 @@ assert comp["beats_ac"]    # True
 **问题**: 默认 LOB 参数 (depth=1000, spread=10bps) 下, LOB 冲击仅占总成本 0.05%, LOB 感知优势不显著。
 
 **解决**: TT-DAC-PS 用更浅的 LOB (depth=300, spread=30bps), 突出 LOB 感知优势。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [市场冲击模型 (Almgren-Chriss + 永久冲击指数衰减)](market-impact-model.md) (相似度 19%)
+- [篮子清算最小 shortfall](basket-liquidation.md) (相似度 17%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 9%)
+- [代码审查明细 — backtest 模块 (2026-08-24)](code-review-backtest-20260824.md) (相似度 7%)
+- [回测标准](backtest-standards.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

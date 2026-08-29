@@ -17,6 +17,7 @@
   - PortfolioManager / ETFFlowManager 仅测试 Facade 包装 (实际逻辑由被包装模块自测)
   - 不依赖网络 (BL 优化器 / ETF 监控器懒加载, 可 mock)
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -203,7 +204,9 @@ class TestCommodityManager:
     def test_get_snapshot_basic(self):
         """基础快照 (无历史价格)."""
         cm = CommodityManager()
-        snap = cm.get_snapshot("CU", price=70000, change_pct=0.01, timestamp="2026-07-27")
+        snap = cm.get_snapshot(
+            "CU", price=70000, change_pct=0.01, timestamp="2026-07-27"
+        )
         assert snap.code == "CU"
         assert snap.name == "铜"
         assert snap.exchange == "SHFE"
@@ -303,12 +306,23 @@ class TestCommodityManager:
         """带快照的汇总."""
         cm = CommodityManager()
         snaps = [
-            CommoditySnapshot(code="CU", name="铜", exchange="SHFE",
-                              signal="TREND_UP", volatility=2.0),
-            CommoditySnapshot(code="AU", name="黄金", exchange="SHFE",
-                              signal="TREND_DOWN", volatility=1.5),
-            CommoditySnapshot(code="SC", name="原油", exchange="INE",
-                              signal="HIGH_VOLATILITY", volatility=5.0),
+            CommoditySnapshot(
+                code="CU", name="铜", exchange="SHFE", signal="TREND_UP", volatility=2.0
+            ),
+            CommoditySnapshot(
+                code="AU",
+                name="黄金",
+                exchange="SHFE",
+                signal="TREND_DOWN",
+                volatility=1.5,
+            ),
+            CommoditySnapshot(
+                code="SC",
+                name="原油",
+                exchange="INE",
+                signal="HIGH_VOLATILITY",
+                volatility=5.0,
+            ),
         ]
         summary = cm.get_summary(snaps)
         assert summary["total"] == 3
@@ -369,11 +383,13 @@ class TestPortfolioManager:
         assets = ["A", "B", "C"]
         market_weights = np.array([0.4, 0.3, 0.3])
         # 简单协方差矩阵 (正定)
-        cov_matrix = np.array([
-            [0.04, 0.01, 0.005],
-            [0.01, 0.03, 0.008],
-            [0.005, 0.008, 0.02],
-        ])
+        cov_matrix = np.array(
+            [
+                [0.04, 0.01, 0.005],
+                [0.01, 0.03, 0.008],
+                [0.005, 0.008, 0.02],
+            ]
+        )
         result = pm.optimize(
             assets=assets,
             market_weights=market_weights,
@@ -476,9 +492,13 @@ class TestETFFlowManager:
             "510300": {"flow": 200},
         }
         with patch.object(em, "get_all_flows", return_value=mock_flows):
-            with patch.object(em, "detect_signals", return_value=[
-                {"type": "HIGH", "strength": 50.0},
-            ]):
+            with patch.object(
+                em,
+                "detect_signals",
+                return_value=[
+                    {"type": "HIGH", "strength": 50.0},
+                ],
+            ):
                 with patch.object(em, "get_signal_summary", return_value={"count": 1}):
                     result = em.get_summary()
                     assert result["total_etfs"] == 2
@@ -546,14 +566,18 @@ class TestAttributionManagersFacade:
 
     def test_get_commodity_snapshot_delegates(self):
         """get_commodity_snapshot 委托给 CommodityManager."""
-        facade = AttributionManagersFacade(enable_commodity=True, enable_portfolio=False, enable_etf_flow=False)
+        facade = AttributionManagersFacade(
+            enable_commodity=True, enable_portfolio=False, enable_etf_flow=False
+        )
         snap = facade.get_commodity_snapshot("CU", price=70000)
         assert snap.code == "CU"
         assert snap.price == 70000
 
     def test_get_commodity_summary_delegates(self):
         """get_commodity_summary 委托给 CommodityManager."""
-        facade = AttributionManagersFacade(enable_commodity=True, enable_portfolio=False, enable_etf_flow=False)
+        facade = AttributionManagersFacade(
+            enable_commodity=True, enable_portfolio=False, enable_etf_flow=False
+        )
         summary = facade.get_commodity_summary([])
         assert summary["total"] == 0
 
@@ -638,8 +662,9 @@ class TestAttributionManagersFacade:
             enable_etf_flow=False,
         )
         snaps = [
-            CommoditySnapshot(code="CU", name="铜", exchange="SHFE",
-                              signal="TREND_UP", volatility=2.0),
+            CommoditySnapshot(
+                code="CU", name="铜", exchange="SHFE", signal="TREND_UP", volatility=2.0
+            ),
         ]
         report = facade.generate_report(commodity_snapshots=snaps)
         assert report.commodity_summary["total"] == 1
@@ -663,11 +688,14 @@ class TestFeatureFlag:
         """无框架环境返回 False (mock ImportError)."""
         # patch 模块内对 utils.feature_flags 的导入, 使其抛 ImportError
         import builtins
+
         original_import = builtins.__import__
+
         def mock_import(name, *args, **kwargs):
             if name == "utils.infra.feature_flags":
                 raise ImportError("mocked")
             return original_import(name, *args, **kwargs)
+
         with patch.object(builtins, "__import__", side_effect=mock_import):
             result = is_attribution_managers_enabled()
             assert result is False
@@ -751,6 +779,7 @@ class TestModuleConstants:
     def test_all_exported(self):
         """__all__ 导出完整性."""
         import utils.attribution.managers as m
+
         for name in m.__all__:
             assert hasattr(m, name), f"__all__ 中的 {name} 未导出"
 
@@ -763,13 +792,15 @@ class TestIntegrationScenarios:
 
     def test_full_commodity_monitoring_flow(self):
         """完整大宗商品监控流程."""
-        cm = CommodityManager(lookback_days=30, volatility_threshold=3.0, trend_threshold=5.0)
+        cm = CommodityManager(
+            lookback_days=30, volatility_threshold=3.0, trend_threshold=5.0
+        )
         # 模拟 8 个商品的快照
         snaps = [
             cm.get_snapshot("CU", price=70000, change_pct=0.06),  # OVERBOUGHT
-            cm.get_snapshot("AU", price=450, change_pct=0.01),     # NEUTRAL
-            cm.get_snapshot("SC", price=650, change_pct=-0.07),    # OVERSOLD
-            cm.get_snapshot("I", price=800, change_pct=0.02),      # NEUTRAL
+            cm.get_snapshot("AU", price=450, change_pct=0.01),  # NEUTRAL
+            cm.get_snapshot("SC", price=650, change_pct=-0.07),  # OVERSOLD
+            cm.get_snapshot("I", price=800, change_pct=0.02),  # NEUTRAL
         ]
         summary = cm.get_summary(snaps)
         assert summary["total"] == 4
@@ -787,11 +818,13 @@ class TestIntegrationScenarios:
         # 3 标的 BL 优化
         assets = ["510050", "510300", "588080"]
         market_weights = np.array([0.4, 0.4, 0.2])
-        cov_matrix = np.array([
-            [0.04, 0.02, 0.01],
-            [0.02, 0.05, 0.015],
-            [0.01, 0.015, 0.03],
-        ])
+        cov_matrix = np.array(
+            [
+                [0.04, 0.02, 0.01],
+                [0.02, 0.05, 0.015],
+                [0.01, 0.015, 0.03],
+            ]
+        )
         result = facade.optimize_portfolio(
             assets=assets,
             market_weights=market_weights,
@@ -812,17 +845,25 @@ class TestIntegrationScenarios:
         portfolio_config = {
             "assets": ["A", "B", "C"],
             "market_weights": np.array([0.4, 0.3, 0.3]),
-            "cov_matrix": np.array([
-                [0.04, 0.01, 0.005],
-                [0.01, 0.03, 0.008],
-                [0.005, 0.008, 0.02],
-            ]),
+            "cov_matrix": np.array(
+                [
+                    [0.04, 0.01, 0.005],
+                    [0.01, 0.03, 0.008],
+                    [0.005, 0.008, 0.02],
+                ]
+            ),
         }
         snaps = [
-            CommoditySnapshot(code="CU", name="铜", exchange="SHFE",
-                              signal="TREND_UP", volatility=2.0),
-            CommoditySnapshot(code="AU", name="黄金", exchange="SHFE",
-                              signal="NEUTRAL", volatility=1.0),
+            CommoditySnapshot(
+                code="CU", name="铜", exchange="SHFE", signal="TREND_UP", volatility=2.0
+            ),
+            CommoditySnapshot(
+                code="AU",
+                name="黄金",
+                exchange="SHFE",
+                signal="NEUTRAL",
+                volatility=1.0,
+            ),
         ]
         report = facade.generate_report(
             portfolio_config=portfolio_config,
@@ -904,8 +945,14 @@ class TestEdgeCases:
         # 代码层并未特殊处理, 但 numpy 不会抛 ZeroDivisionError
         snap = cm.get_snapshot("CU", historical_prices=[0.0, 100.0])
         # 信号应为某有效值 (可能 NEUTRAL 或基于 inf 的 OVERBOUGHT)
-        assert snap.signal in ("NEUTRAL", "OVERBOUGHT", "OVERSOLD", "TREND_UP",
-                               "TREND_DOWN", "HIGH_VOLATILITY")
+        assert snap.signal in (
+            "NEUTRAL",
+            "OVERBOUGHT",
+            "OVERSOLD",
+            "TREND_UP",
+            "TREND_DOWN",
+            "HIGH_VOLATILITY",
+        )
 
 
 # ============================================================
@@ -917,13 +964,18 @@ class TestModuleDocumentation:
     def test_module_docstring(self):
         """模块 docstring 存在."""
         import utils.attribution.managers as m
+
         assert m.__doc__ is not None
         assert "T4.3" in m.__doc__
 
     def test_classes_have_docstring(self):
         """主要类有 docstring."""
-        for cls in [PortfolioManager, CommodityManager, ETFFlowManager,
-                    AttributionManagersFacade]:
+        for cls in [
+            PortfolioManager,
+            CommodityManager,
+            ETFFlowManager,
+            AttributionManagersFacade,
+        ]:
             assert cls.__doc__ is not None
             assert len(cls.__doc__) > 10
 

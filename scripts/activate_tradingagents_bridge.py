@@ -301,9 +301,8 @@ def step5_check_source() -> bool:
     if decision:
         ok('source = "tradingagents" (微服务正常)')
         return True
-    else:
-        fail("决策为空, 可能已降级")
-        return False
+    fail("决策为空, 可能已降级")
+    return False
 
 
 def step6_check_state_summary() -> bool:
@@ -339,9 +338,8 @@ def step6_check_state_summary() -> bool:
     if len(found_keys) >= 3:
         ok("state_summary 结构完整 (≥3 个报告)")
         return True
-    else:
-        warn(f"state_summary 不完整 (仅 {len(found_keys)} 个报告)")
-        return len(found_keys) > 0
+    warn(f"state_summary 不完整 (仅 {len(found_keys)} 个报告)")
+    return len(found_keys) > 0
 
 
 def step7_bridge_from_84() -> bool:
@@ -375,17 +373,23 @@ def step7_bridge_from_84() -> bool:
         if source == "tradingagents":
             ok("端到端链路验证通过!")
             return True
-        elif source == "fallback_local":
+        if source == "fallback_local":
             warn("source=fallback_local, 微服务返回异常已降级")
             return False
-        else:
-            fail(f"source={source}, 非预期值")
-            return False
+        fail(f"source={source}, 非预期值")
+        return False
 
     except ImportError as e:
         fail(f"导入 TradingAgentsBridge 失败: {e}")
         return False
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+    ) as e:
         fail(f"桥调用异常: {e}")
         return False
 
@@ -441,16 +445,15 @@ def main() -> int:
         ok(f"{BOLD}Phase 0 校验全部通过!{RESET}")
         info("下一步: 进入 Phase 1 (TDAM 沙箱 + TA Shadow 双跑)")
         return 0
-    elif passed > 0:
+    if passed > 0:
         warn(f"{BOLD}Phase 0 部分通过, 请修复失败项后重试{RESET}")
         return 1
-    else:
-        fail(f"{BOLD}Phase 0 校验失败, 请检查前置条件{RESET}")
-        info("1. Ollama 是否运行: curl http://localhost:11434/api/tags")
-        info("2. qwen2.5:7b 是否已 pull: ollama list")
-        info("3. Python 3.11 是否可用: py -3.11 --version")
-        info("4. tradingagents 包是否安装: py -3.11 -m pip show tradingagents")
-        return 2
+    fail(f"{BOLD}Phase 0 校验失败, 请检查前置条件{RESET}")
+    info("1. Ollama 是否运行: curl http://localhost:11434/api/tags")
+    info("2. qwen2.5:7b 是否已 pull: ollama list")
+    info("3. Python 3.11 是否可用: py -3.11 --version")
+    info("4. tradingagents 包是否安装: py -3.11 -m pip show tradingagents")
+    return 2
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@
     - check_early_exit_trigger (15%/12%/8%/5%/<5%)
     - summary
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -64,8 +65,14 @@ class TestConstants:
 class TestPhaseInfo:
     @pytest.mark.unit
     def test_defaults(self):
-        p = PhaseInfo(year="2026", phase_name="建仓期", period="2026", target_return=0.08,
-                      max_drawdown=0.08, leverage_target=1.28)
+        p = PhaseInfo(
+            year="2026",
+            phase_name="建仓期",
+            period="2026",
+            target_return=0.08,
+            max_drawdown=0.08,
+            leverage_target=1.28,
+        )
         assert p.actions == {}
         assert p.is_liquidation_year is False
         assert p.liquidation_actions is None
@@ -265,14 +272,21 @@ class TestQuarterlyReview:
             {"sector": "半导体", "weight": 0.20},
             {"sector": "半导体", "weight": 0.05},
         ]
-        result = pm.trigger_quarterly_review(positions=positions, today=date(2026, 9, 30))
+        result = pm.trigger_quarterly_review(
+            positions=positions, today=date(2026, 9, 30)
+        )
         assert result.rebalance_needed is True
 
     @pytest.mark.unit
     def test_with_positions_ok(self):
         pm = PhaseManager()
-        positions = [{"sector": "半导体", "weight": 0.10}, {"sector": "医药", "weight": 0.10}]
-        result = pm.trigger_quarterly_review(positions=positions, today=date(2026, 9, 30))
+        positions = [
+            {"sector": "半导体", "weight": 0.10},
+            {"sector": "医药", "weight": 0.10},
+        ]
+        result = pm.trigger_quarterly_review(
+            positions=positions, today=date(2026, 9, 30)
+        )
         assert result.rebalance_needed is False
 
     @pytest.mark.unit

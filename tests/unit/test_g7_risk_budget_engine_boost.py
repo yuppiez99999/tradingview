@@ -4,6 +4,7 @@ test_g7_risk_budget_engine_boost.py — 风险预算引擎覆盖率补强测试
 
 覆盖 P0 risk 链路: utils/risk_budget_engine.py
 """
+
 from __future__ import annotations
 
 import pandas as pd

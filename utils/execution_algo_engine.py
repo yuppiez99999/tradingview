@@ -397,17 +397,47 @@ class ExecutionAlgoEngine:
         start_time = start_time or MORNING_START
         volume_curve = volume_curve or DEFAULT_INTRADAY_VOLUME_CURVE
 
-        plan_id = f"{algo.value}_{symbol}_{side}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        plan_id = (
+            f"{algo.value}_{symbol}_{side}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        )
 
         # 算法规划器配置表: algo -> 参数适配 lambda
         # 新增算法只需在此添加一行, 无需修改分支逻辑(表驱动化重构)
         algo_planners = {
-            AlgoType.TWAP: lambda: self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time),
-            AlgoType.VWAP: lambda: self._plan_vwap(total_shares, duration_minutes, slice_minutes, start_time, volume_curve),
-            AlgoType.POV: lambda: self._plan_pov(total_shares, duration_minutes, slice_minutes, start_time, avg_daily_volume or 1_000_000),
-            AlgoType.IS: lambda: self._plan_implementation_shortfall(total_shares, duration_minutes, slice_minutes, start_time, current_price or 0.0, volatility or 0.25, risk_aversion),
-            AlgoType.AC: lambda: self._plan_almgren_chriss(total_shares, duration_minutes, slice_minutes, start_time, current_price or 0.0, volatility or 0.25, risk_aversion),
-            AlgoType.DARK: lambda: self._plan_dark_iceberg(total_shares, duration_minutes, slice_minutes, start_time),
+            AlgoType.TWAP: lambda: self._plan_twap(
+                total_shares, duration_minutes, slice_minutes, start_time
+            ),
+            AlgoType.VWAP: lambda: self._plan_vwap(
+                total_shares, duration_minutes, slice_minutes, start_time, volume_curve
+            ),
+            AlgoType.POV: lambda: self._plan_pov(
+                total_shares,
+                duration_minutes,
+                slice_minutes,
+                start_time,
+                avg_daily_volume or 1_000_000,
+            ),
+            AlgoType.IS: lambda: self._plan_implementation_shortfall(
+                total_shares,
+                duration_minutes,
+                slice_minutes,
+                start_time,
+                current_price or 0.0,
+                volatility or 0.25,
+                risk_aversion,
+            ),
+            AlgoType.AC: lambda: self._plan_almgren_chriss(
+                total_shares,
+                duration_minutes,
+                slice_minutes,
+                start_time,
+                current_price or 0.0,
+                volatility or 0.25,
+                risk_aversion,
+            ),
+            AlgoType.DARK: lambda: self._plan_dark_iceberg(
+                total_shares, duration_minutes, slice_minutes, start_time
+            ),
         }
 
         planner = algo_planners.get(algo)
@@ -436,8 +466,12 @@ class ExecutionAlgoEngine:
 
         # 预估滑点与成本
         if current_price and current_price > 0:
-            plan.expected_slippage_bps = self._estimate_slippage_bps(total_shares, avg_daily_volume or 1_000_000)
-            plan.expected_cost = total_shares * current_price * plan.expected_slippage_bps / 10_000
+            plan.expected_slippage_bps = self._estimate_slippage_bps(
+                total_shares, avg_daily_volume or 1_000_000
+            )
+            plan.expected_cost = (
+                total_shares * current_price * plan.expected_slippage_bps / 10_000
+            )
 
         logger.info(
             "[ExecAlgo] %s %s %s %d 股 → %d 片, 预估滑点 %.1fbps",
@@ -472,7 +506,10 @@ class ExecutionAlgoEngine:
         for i in range(slices_count):
             slice_end = current_start + timedelta(minutes=slice_minutes)
             # 跳过午休 (11:30-13:00)
-            if current_start.time() >= MORNING_END and current_start.time() < AFTERNOON_START:
+            if (
+                current_start.time() >= MORNING_END
+                and current_start.time() < AFTERNOON_START
+            ):
                 current_start = datetime.combine(date.today(), AFTERNOON_START)
                 slice_end = current_start + timedelta(minutes=slice_minutes)
 
@@ -483,7 +520,9 @@ class ExecutionAlgoEngine:
                     break
 
             target = base_shares + (remainder if i < remainder else 0)
-            target = max(self.min_slice_shares, target) if i == slices_count - 1 else target
+            target = (
+                max(self.min_slice_shares, target) if i == slices_count - 1 else target
+            )
 
             slices.append(
                 ExecutionSlice(
@@ -499,8 +538,13 @@ class ExecutionAlgoEngine:
             current_start = slice_end
 
         # 修正: 确保累计等于总数
-        if slices and slices[-1].accumulated_shares + slices[-1].target_shares != total_shares:
-            diff = total_shares - (slices[-1].accumulated_shares + slices[-1].target_shares)
+        if (
+            slices
+            and slices[-1].accumulated_shares + slices[-1].target_shares != total_shares
+        ):
+            diff = total_shares - (
+                slices[-1].accumulated_shares + slices[-1].target_shares
+            )
             slices[-1].target_shares += diff
             slices[-1].remaining_shares = 0
 
@@ -538,7 +582,9 @@ class ExecutionAlgoEngine:
         total_weight = sum(weights)
         if total_weight <= 0:
             # 回退到 TWAP
-            return self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time)
+            return self._plan_twap(
+                total_shares, duration_minutes, slice_minutes, start_time
+            )
 
         slices: list[ExecutionSlice] = []
         accumulated = 0
@@ -547,7 +593,10 @@ class ExecutionAlgoEngine:
         for i, w in enumerate(weights):
             slice_end: datetime = current_start + timedelta(minutes=slice_minutes)
             # 跳过午休
-            if current_start.time() >= MORNING_END and current_start.time() < AFTERNOON_START:
+            if (
+                current_start.time() >= MORNING_END
+                and current_start.time() < AFTERNOON_START
+            ):
                 current_start = datetime.combine(date.today(), AFTERNOON_START)
                 slice_end = current_start + timedelta(minutes=slice_minutes)
             target = int(total_shares * w / total_weight)
@@ -600,7 +649,10 @@ class ExecutionAlgoEngine:
         # 预估该 duration 内的总成交量
         expected_volume_in_duration = avg_daily_volume * (duration_minutes / 240.0)
         # 计算目标参与率
-        target_participation = min(self.max_participation_rate, total_shares / max(1, expected_volume_in_duration))
+        target_participation = min(
+            self.max_participation_rate,
+            total_shares / max(1, expected_volume_in_duration),
+        )
 
         slices_count = max(1, duration_minutes // slice_minutes)
         slices: list[ExecutionSlice] = []
@@ -611,7 +663,10 @@ class ExecutionAlgoEngine:
 
         for i in range(slices_count):
             slice_end = current_start + timedelta(minutes=slice_minutes)
-            if current_start.time() >= MORNING_END and current_start.time() < AFTERNOON_START:
+            if (
+                current_start.time() >= MORNING_END
+                and current_start.time() < AFTERNOON_START
+            ):
                 current_start = datetime.combine(date.today(), AFTERNOON_START)
                 slice_end = current_start + timedelta(minutes=slice_minutes)
             if slice_end.time() > AFTERNOON_END:
@@ -669,7 +724,9 @@ class ExecutionAlgoEngine:
             weights.append(w)
         total_w = sum(weights)
         if total_w <= 0:
-            return self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time)
+            return self._plan_twap(
+                total_shares, duration_minutes, slice_minutes, start_time
+            )
 
         slices: list[ExecutionSlice] = []
         accumulated = 0
@@ -677,7 +734,10 @@ class ExecutionAlgoEngine:
 
         for i, w in enumerate(weights):
             slice_end = current_start + timedelta(minutes=slice_minutes)
-            if current_start.time() >= MORNING_END and current_start.time() < AFTERNOON_START:
+            if (
+                current_start.time() >= MORNING_END
+                and current_start.time() < AFTERNOON_START
+            ):
                 current_start = datetime.combine(date.today(), AFTERNOON_START)
                 slice_end = current_start + timedelta(minutes=slice_minutes)
             if slice_end.time() > AFTERNOON_END:
@@ -737,16 +797,24 @@ class ExecutionAlgoEngine:
         # 市场冲击系数 η (简化假设)
         eta = 0.001
         # κ
-        kappa = math.sqrt(max(0.0, risk_aversion * sigma_daily**2 / eta)) if risk_aversion > 0 else 0.0
+        kappa = (
+            math.sqrt(max(0.0, risk_aversion * sigma_daily**2 / eta))
+            if risk_aversion > 0
+            else 0.0
+        )
 
         if kappa < 1e-6 or T < 1e-6:
             # λ → 0 时退化为均匀 (TWAP)
-            return self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time)
+            return self._plan_twap(
+                total_shares, duration_minutes, slice_minutes, start_time
+            )
 
         try:
             sinh_kT = math.sinh(kappa * T)  # noqa: N806
             if abs(sinh_kT) < 1e-10:
-                return self._plan_twap(total_shares, duration_minutes, slice_minutes, start_time)
+                return self._plan_twap(
+                    total_shares, duration_minutes, slice_minutes, start_time
+                )
         except OverflowError:
             # κT 太大, 等价于瞬时完成 (front-loaded)
             return self._plan_implementation_shortfall(
@@ -768,7 +836,10 @@ class ExecutionAlgoEngine:
         prev_x: float = float(total_shares)  # x(0) = X
         for i in range(N):
             slice_end: datetime = current_start + timedelta(minutes=slice_minutes)
-            if current_start.time() >= MORNING_END and current_start.time() < AFTERNOON_START:
+            if (
+                current_start.time() >= MORNING_END
+                and current_start.time() < AFTERNOON_START
+            ):
                 current_start = datetime.combine(date.today(), AFTERNOON_START)
                 slice_end = current_start + timedelta(minutes=slice_minutes)
             if slice_end.time() > AFTERNOON_END:
@@ -824,7 +895,10 @@ class ExecutionAlgoEngine:
 
         for i in range(slices_count):
             slice_end = current_start + timedelta(minutes=actual_slice_minutes)
-            if current_start.time() >= MORNING_END and current_start.time() < AFTERNOON_START:
+            if (
+                current_start.time() >= MORNING_END
+                and current_start.time() < AFTERNOON_START
+            ):
                 current_start = datetime.combine(date.today(), AFTERNOON_START)
                 slice_end = current_start + timedelta(minutes=actual_slice_minutes)
             if slice_end.time() > AFTERNOON_END:
@@ -881,23 +955,20 @@ class ExecutionAlgoEngine:
         if urgency == "high":
             if participation < 0.05:
                 return AlgoType.IS
-            else:
-                return AlgoType.AC
+            return AlgoType.AC
 
         # 低紧急度 + 大单: VWAP/POV
         if urgency == "low":
             if participation > 0.10:
                 return AlgoType.POV
-            else:
-                return AlgoType.VWAP
+            return AlgoType.VWAP
 
         # 中等紧急度
         if participation > 0.15:
             return AlgoType.POV
-        elif participation > 0.05:
+        if participation > 0.05:
             return AlgoType.AC
-        else:
-            return AlgoType.VWAP
+        return AlgoType.VWAP
 
     # ------------------------------------------------------------
     # 辅助方法
@@ -945,7 +1016,16 @@ class ExecutionAlgoEngine:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(asdict(plan), f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"执行计划已保存: {path}")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存执行计划失败: {e}")
         return path
 
@@ -959,7 +1039,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     parser = argparse.ArgumentParser(description="执行算法引擎")
-    parser.add_argument("--algo", type=str, default="TWAP", choices=[a.value for a in AlgoType])
+    parser.add_argument(
+        "--algo", type=str, default="TWAP", choices=[a.value for a in AlgoType]
+    )
     parser.add_argument("--symbol", type=str, default="300308")
     parser.add_argument("--side", type=str, default="buy", choices=["buy", "sell"])
     parser.add_argument("--shares", type=int, default=10000)
@@ -968,9 +1050,13 @@ if __name__ == "__main__":
     parser.add_argument("--adv", type=int, default=1_000_000, help="日均成交量")
     parser.add_argument("--price", type=float, default=0.0, help="当前价格")
     parser.add_argument("--vol", type=float, default=0.25, help="年化波动率")
-    parser.add_argument("--lambda", dest="lambda_", type=float, default=1.0, help="风险厌恶系数")
+    parser.add_argument(
+        "--lambda", dest="lambda_", type=float, default=1.0, help="风险厌恶系数"
+    )
     parser.add_argument("--auto-select", action="store_true", help="自动选择算法")
-    parser.add_argument("--urgency", type=str, default="medium", choices=["low", "medium", "high"])
+    parser.add_argument(
+        "--urgency", type=str, default="medium", choices=["low", "medium", "high"]
+    )
     args = parser.parse_args()
 
     engine = ExecutionAlgoEngine()
@@ -1000,14 +1086,18 @@ if __name__ == "__main__":
     logger.info("=" * 60)
     logger.info(f"算法: {plan.algo}")
     logger.info(f"标的: {plan.symbol} {plan.side} {plan.total_shares} 股")
-    logger.info(f"时间: {plan.start_datetime} → {plan.end_datetime} ({plan.duration_minutes} 分钟)")
+    logger.info(
+        f"时间: {plan.start_datetime} → {plan.end_datetime} ({plan.duration_minutes} 分钟)"
+    )
     logger.info(f"切片数: {plan.slice_count} (每片 {plan.slice_minutes} 分钟)")
     logger.info(f"预估滑点: {plan.expected_slippage_bps:.2f} bps")
     logger.info(f"预估成本: ¥{plan.expected_cost:.2f}")
     logger.info(f"说明: {plan.notes}")
 
     logger.info("\n时间片明细 (前 10 片):")
-    logger.info(f"{'序号':<6}{'时段':<16}{'目标股数':<12}{'累计':<12}{'剩余':<12}{'参与率':<10}")
+    logger.info(
+        f"{'序号':<6}{'时段':<16}{'目标股数':<12}{'累计':<12}{'剩余':<12}{'参与率':<10}"
+    )
     for s in plan.slices[:10]:
         logger.info(
             f"{s.slice_idx:<6}{s.start_time}-{s.end_time:<12}{s.target_shares:<12}{s.accumulated_shares:<12}{s.remaining_shares:<12}{s.participation_rate:<10.2%}"

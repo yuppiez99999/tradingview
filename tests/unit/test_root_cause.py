@@ -26,6 +26,7 @@
     - tmp_path 隔离文件系统
     - monkeypatch 控制 Feature Flag 状态
 """
+
 from __future__ import annotations
 
 import json
@@ -50,6 +51,7 @@ def _flag_side_effect_main_only(flag_name: str, *args: Any, **kwargs: Any) -> bo
     避免测试中误开启 USE_LLM_ROOT_CAUSE 导致 LLM provider 连接超时.
     """
     return flag_name == "USE_ROOT_CAUSE_ANALYZER"
+
 
 from utils.alpha.causal_chain import CausalChainBuilder  # noqa: E402
 from utils.alpha.layers.code_diagnoser import CodeDiagnoser  # noqa: E402
@@ -173,7 +175,9 @@ class TestRootCause:
         """非法 layer 抛 ValueError."""
         with pytest.raises(ValueError, match="layer"):
             RootCause(
-                cause_id="test", layer="invalid", category="test",
+                cause_id="test",
+                layer="invalid",
+                category="test",
                 severity=SEVERITY_LOW,
             )
 
@@ -181,7 +185,9 @@ class TestRootCause:
         """非法 severity 抛 ValueError."""
         with pytest.raises(ValueError, match="severity"):
             RootCause(
-                cause_id="test", layer=LAYER_CODE, category="test",
+                cause_id="test",
+                layer=LAYER_CODE,
+                category="test",
                 severity="super_high",
             )
 
@@ -189,14 +195,19 @@ class TestRootCause:
         """confidence 超出 [0, 1] 抛 ValueError."""
         with pytest.raises(ValueError, match="confidence"):
             RootCause(
-                cause_id="test", layer=LAYER_CODE, category="test",
-                severity=SEVERITY_LOW, confidence=1.5,
+                cause_id="test",
+                layer=LAYER_CODE,
+                category="test",
+                severity=SEVERITY_LOW,
+                confidence=1.5,
             )
 
     def test_frozen_immutable(self) -> None:
         """frozen=True, 修改抛 FrozenInstanceError."""
         cause = RootCause(
-            cause_id="test", layer=LAYER_CODE, category="test",
+            cause_id="test",
+            layer=LAYER_CODE,
+            category="test",
             severity=SEVERITY_LOW,
         )
         with pytest.raises(FrozenInstanceError):
@@ -205,7 +216,9 @@ class TestRootCause:
     def test_evidence_structured_dict(self) -> None:
         """evidence 是结构化 Dict (非文本)."""
         cause = RootCause(
-            cause_id="test", layer=LAYER_CODE, category="test",
+            cause_id="test",
+            layer=LAYER_CODE,
+            category="test",
             severity=SEVERITY_LOW,
             evidence={"score": 0.8, "items": [1, 2, 3], "name": "test"},
         )
@@ -216,7 +229,9 @@ class TestRootCause:
     def test_to_dict_serializable(self) -> None:
         """to_dict 可 JSON 序列化."""
         cause = RootCause(
-            cause_id="test", layer=LAYER_STRATEGY, category="drift",
+            cause_id="test",
+            layer=LAYER_STRATEGY,
+            category="drift",
             severity=SEVERITY_HIGH,
             evidence={"model": "v9_lgb", "score": 0.25},
         )
@@ -229,11 +244,15 @@ class TestRootCause:
 
     def test_evidence_non_serializable_converted(self) -> None:
         """非 JSON 原生类型的 evidence 值被转为字符串."""
+
         class Custom:
             def __str__(self) -> str:
                 return "custom_object"
+
         cause = RootCause(
-            cause_id="test", layer=LAYER_CODE, category="test",
+            cause_id="test",
+            layer=LAYER_CODE,
+            category="test",
             severity=SEVERITY_LOW,
             evidence={"custom": Custom()},
         )
@@ -253,13 +272,23 @@ class TestCausalChain:
     def test_create_with_nodes(self) -> None:
         """创建含节点的因果链."""
         nodes = [
-            RootCause(cause_id="ops-1", layer=LAYER_OPS, category="ds_fail",
-                      severity=SEVERITY_HIGH),
-            RootCause(cause_id="code-1", layer=LAYER_CODE, category="check_fail",
-                      severity=SEVERITY_CRITICAL),
+            RootCause(
+                cause_id="ops-1",
+                layer=LAYER_OPS,
+                category="ds_fail",
+                severity=SEVERITY_HIGH,
+            ),
+            RootCause(
+                cause_id="code-1",
+                layer=LAYER_CODE,
+                category="check_fail",
+                severity=SEVERITY_CRITICAL,
+            ),
         ]
         chain = CausalChain(
-            chain_id="chain-1", nodes=nodes, confidence=0.8,
+            chain_id="chain-1",
+            nodes=nodes,
+            confidence=0.8,
             description="ops → code",
         )
         assert chain.chain_id == "chain-1"
@@ -280,8 +309,9 @@ class TestCausalChain:
     def test_to_dict(self) -> None:
         """to_dict 含节点列表."""
         nodes = [
-            RootCause(cause_id="n1", layer=LAYER_OPS, category="c1",
-                      severity=SEVERITY_LOW),
+            RootCause(
+                cause_id="n1", layer=LAYER_OPS, category="c1", severity=SEVERITY_LOW
+            ),
         ]
         chain = CausalChain(chain_id="chain-1", nodes=nodes, confidence=0.7)
         d = chain.to_dict()
@@ -309,7 +339,9 @@ class TestRootCauseReport:
         """to_dict / from_dict 往返保持数据."""
         causes = [
             RootCause(
-                cause_id="c1", layer=LAYER_CODE, category="test",
+                cause_id="c1",
+                layer=LAYER_CODE,
+                category="test",
                 severity=SEVERITY_HIGH,
                 evidence={"key": "value"},
                 suggested_fix=FixSuggestion(
@@ -320,12 +352,15 @@ class TestRootCauseReport:
             ),
         ]
         chains = [
-            CausalChain(chain_id="ch1", nodes=causes, confidence=0.7,
-                        description="test chain"),
+            CausalChain(
+                chain_id="ch1", nodes=causes, confidence=0.7, description="test chain"
+            ),
         ]
         original = RootCauseReport(
-            causes=causes, causal_chains=chains,
-            is_degraded=False, analyzed_at="2026-08-01T12:00:00Z",
+            causes=causes,
+            causal_chains=chains,
+            is_degraded=False,
+            analyzed_at="2026-08-01T12:00:00Z",
             summary="test",
         )
         d = original.to_dict()
@@ -365,8 +400,10 @@ class TestUnifiedRootCauseAnalyzer:
         """Flag 开启时执行分析 (可能 0 根因, 但非降级)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             persist_path = Path(tmpdir) / "rc.jsonl"
-            with patch("utils.infra.feature_flags.is_enabled",
-                       side_effect=_flag_side_effect_main_only):
+            with patch(
+                "utils.infra.feature_flags.is_enabled",
+                side_effect=_flag_side_effect_main_only,
+            ):
                 analyzer = UnifiedRootCauseAnalyzer(persistence_path=persist_path)
                 report = analyzer.analyze(None)
             assert report.is_degraded is False
@@ -377,8 +414,10 @@ class TestUnifiedRootCauseAnalyzer:
         """持久化追加模式 (HC-4)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             persist_path = Path(tmpdir) / "rc.jsonl"
-            with patch("utils.infra.feature_flags.is_enabled",
-                       side_effect=_flag_side_effect_main_only):
+            with patch(
+                "utils.infra.feature_flags.is_enabled",
+                side_effect=_flag_side_effect_main_only,
+            ):
                 analyzer = UnifiedRootCauseAnalyzer(persistence_path=persist_path)
                 analyzer.analyze(None)
                 analyzer.analyze(None)
@@ -389,8 +428,10 @@ class TestUnifiedRootCauseAnalyzer:
         """get_recent_causes 返回扁平化根因列表."""
         with tempfile.TemporaryDirectory() as tmpdir:
             persist_path = Path(tmpdir) / "rc.jsonl"
-            with patch("utils.infra.feature_flags.is_enabled",
-                       side_effect=_flag_side_effect_main_only):
+            with patch(
+                "utils.infra.feature_flags.is_enabled",
+                side_effect=_flag_side_effect_main_only,
+            ):
                 analyzer = UnifiedRootCauseAnalyzer(persistence_path=persist_path)
                 analyzer.analyze(None)
                 recent = analyzer.get_recent_causes(7)
@@ -408,8 +449,10 @@ class TestUnifiedRootCauseAnalyzer:
         """诊断器加载失败时容错降级 (不抛异常)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             persist_path = Path(tmpdir) / "rc.jsonl"
-            with patch("utils.infra.feature_flags.is_enabled",
-                       side_effect=_flag_side_effect_main_only):
+            with patch(
+                "utils.infra.feature_flags.is_enabled",
+                side_effect=_flag_side_effect_main_only,
+            ):
                 analyzer = UnifiedRootCauseAnalyzer(persistence_path=persist_path)
                 # 标记已加载, 防止 analyze() 重新加载诊断器覆盖 None
                 analyzer._diagnosers_loaded = True
@@ -426,10 +469,15 @@ class TestUnifiedRootCauseAnalyzer:
         """_extract_health_report_time 兼容对象/字典."""
         analyzer = UnifiedRootCauseAnalyzer()
         # 字典
-        assert analyzer._extract_health_report_time({"generated_at": "2026-08-01"}) == "2026-08-01"
+        assert (
+            analyzer._extract_health_report_time({"generated_at": "2026-08-01"})
+            == "2026-08-01"
+        )
+
         # 对象
         class _HR:
             generated_at = "2026-08-02"
+
         assert analyzer._extract_health_report_time(_HR()) == "2026-08-02"
         # None
         assert analyzer._extract_health_report_time(None) == ""
@@ -459,8 +507,9 @@ class TestCodeDiagnoser:
         """识别 FAIL 项生成根因."""
         mock_report = MagicMock()
         mock_report.results = [
-            self._make_check_result("C1.1", "positions.json", "FAIL", "ERROR",
-                                    "不存在", "创建文件"),
+            self._make_check_result(
+                "C1.1", "positions.json", "FAIL", "ERROR", "不存在", "创建文件"
+            ),
             self._make_check_result("C5.1", "pandas", "PASS", "INFO"),
         ]
         with patch.object(CodeDiagnoser, "_run_check", return_value=mock_report):
@@ -523,9 +572,12 @@ class TestStrategyDiagnoser:
         drift_dir = tmp_path / "drift_alerts"
         drift_dir.mkdir()
         alert = {
-            "severity": "high", "drift_type": "feature_drift",
-            "model_name": "v9_lgb", "feature_name": "MOM_5D",
-            "drift_score": 0.25, "psi": 0.35,
+            "severity": "high",
+            "drift_type": "feature_drift",
+            "model_name": "v9_lgb",
+            "feature_name": "MOM_5D",
+            "drift_score": 0.25,
+            "psi": 0.35,
             "recorded_at": "2026-08-01T10:00:00Z",
         }
         (drift_dir / "v9_lgb_2026-08-01.jsonl").write_text(
@@ -588,8 +640,12 @@ class TestStrategyDiagnoser:
         )
         causes = diagnoser.diagnose(None)
         # 无 decisions + 无 drift_alerts → 空 (除非 health_report 补充)
-        decisions_causes = [c for c in causes if c.category.startswith("private_score")
-                            or c.category == "strategy_rollback_recommended"]
+        decisions_causes = [
+            c
+            for c in causes
+            if c.category.startswith("private_score")
+            or c.category == "strategy_rollback_recommended"
+        ]
         assert len(decisions_causes) == 0
 
     def test_pit_violation_critical(self, tmp_path: Path) -> None:
@@ -630,11 +686,15 @@ class TestOpsDiagnoser:
         sc_dir.mkdir()
         archive = {
             "results": [
-                {"code": "C3.1", "name": "Wind MCP", "status": "FAIL",
-                 "level": "ERROR", "detail": "不可用",
-                 "remediation": "检查 API key"},
-                {"code": "C5.1", "name": "pandas", "status": "PASS",
-                 "level": "INFO"},
+                {
+                    "code": "C3.1",
+                    "name": "Wind MCP",
+                    "status": "FAIL",
+                    "level": "ERROR",
+                    "detail": "不可用",
+                    "remediation": "检查 API key",
+                },
+                {"code": "C5.1", "name": "pandas", "status": "PASS", "level": "INFO"},
             ],
         }
         (sc_dir / "system_check_20260801.json").write_text(
@@ -664,6 +724,7 @@ class TestOpsDiagnoser:
         old_file.write_text("{}", encoding="utf-8")
         # 修改 mtime 到 2 天前
         import os
+
         old_time = (old_file.stat().st_mtime) - 2 * 86400
         os.utime(old_file, (old_time, old_time))
 
@@ -705,6 +766,7 @@ class TestOpsDiagnoser:
 def _DATASOURCE_TARGET_MAP_CHECK() -> bool:
     """验证数据源目标映射 (辅助)."""
     from utils.alpha.layers.ops_diagnoser import _DATASOURCE_TARGET_MAP
+
     return "C3.1" in _DATASOURCE_TARGET_MAP
 
 
@@ -720,8 +782,11 @@ class TestCausalChainBuilder:
     def _make_cause(cause_id, layer, category, confidence=0.8):
         """构造测试根因."""
         return RootCause(
-            cause_id=cause_id, layer=layer, category=category,
-            severity=SEVERITY_MEDIUM, confidence=confidence,
+            cause_id=cause_id,
+            layer=layer,
+            category=category,
+            severity=SEVERITY_MEDIUM,
+            confidence=confidence,
             detected_at="2026-08-01T12:00:00Z",
         )
 
@@ -740,11 +805,17 @@ class TestCausalChainBuilder:
         """规则 1: 数据源失效链 (ops→code→strategy)."""
         causes = [
             self._make_cause("ops-1", LAYER_OPS, "datasource_fail"),
-            self._make_cause("code-1", LAYER_CODE, "system_check_fail",
-                             ).__class__(
-                cause_id="code-1", layer=LAYER_CODE,
-                category="system_check_fail", severity=SEVERITY_CRITICAL,
-                evidence={"check_code": "C3.1"}, confidence=0.9,
+            self._make_cause(
+                "code-1",
+                LAYER_CODE,
+                "system_check_fail",
+            ).__class__(
+                cause_id="code-1",
+                layer=LAYER_CODE,
+                category="system_check_fail",
+                severity=SEVERITY_CRITICAL,
+                evidence={"check_code": "C3.1"},
+                confidence=0.9,
                 detected_at="2026-08-01T12:00:00Z",
             ),
             self._make_cause("strat-1", LAYER_STRATEGY, "drift_alert"),
@@ -753,13 +824,15 @@ class TestCausalChainBuilder:
         chains = builder.build(causes)
         assert len(chains) >= 1
         # 找到数据源失效链
-        ds_chain = next(
-            (c for c in chains if "datasource_failure" in c.chain_id), None
-        )
+        ds_chain = next((c for c in chains if "datasource_failure" in c.chain_id), None)
         assert ds_chain is not None
         assert len(ds_chain.nodes) == 3
         # 因果顺序 ops → code → strategy
-        assert [n.layer for n in ds_chain.nodes] == [LAYER_OPS, LAYER_CODE, LAYER_STRATEGY]
+        assert [n.layer for n in ds_chain.nodes] == [
+            LAYER_OPS,
+            LAYER_CODE,
+            LAYER_STRATEGY,
+        ]
 
     def test_pit_violation_chain(self) -> None:
         """规则 2: PIT 违规链 (code→strategy)."""
@@ -778,9 +851,12 @@ class TestCausalChainBuilder:
         causes = [
             self._make_cause("ops-1", LAYER_OPS, "flag_instability"),
             RootCause(
-                cause_id="code-1", layer=LAYER_CODE,
-                category="system_check_fail", severity=SEVERITY_HIGH,
-                evidence={"check_code": "C2.1"}, confidence=0.8,
+                cause_id="code-1",
+                layer=LAYER_CODE,
+                category="system_check_fail",
+                severity=SEVERITY_HIGH,
+                evidence={"check_code": "C2.1"},
+                confidence=0.8,
                 detected_at="2026-08-01T12:00:00Z",
             ),
         ]
@@ -795,17 +871,18 @@ class TestCausalChainBuilder:
         causes = [
             self._make_cause("ops-1", LAYER_OPS, "datasource_fail", confidence=0.9),
             RootCause(
-                cause_id="code-1", layer=LAYER_CODE,
-                category="system_check_fail", severity=SEVERITY_CRITICAL,
-                evidence={"check_code": "C3.1"}, confidence=0.8,
+                cause_id="code-1",
+                layer=LAYER_CODE,
+                category="system_check_fail",
+                severity=SEVERITY_CRITICAL,
+                evidence={"check_code": "C3.1"},
+                confidence=0.8,
                 detected_at="2026-08-01T12:00:00Z",
             ),
         ]
         builder = CausalChainBuilder()
         chains = builder.build(causes)
-        ds_chain = next(
-            (c for c in chains if "datasource_failure" in c.chain_id), None
-        )
+        ds_chain = next((c for c in chains if "datasource_failure" in c.chain_id), None)
         assert ds_chain is not None
         # min(0.9, 0.8) * 0.9 = 0.72
         assert abs(ds_chain.confidence - 0.72) < 0.01
@@ -835,9 +912,12 @@ class TestIntegrationFullFlow:
         drift_dir = tmp_path / "drift_alerts"
         drift_dir.mkdir()
         alert = {
-            "severity": "high", "model_name": "v9_lgb",
-            "feature_name": "MOM_5D", "drift_score": 0.3,
-            "psi": 0.4, "recorded_at": "2026-08-01T10:00:00Z",
+            "severity": "high",
+            "model_name": "v9_lgb",
+            "feature_name": "MOM_5D",
+            "drift_score": 0.3,
+            "psi": 0.4,
+            "recorded_at": "2026-08-01T10:00:00Z",
         }
         (drift_dir / "v9_lgb.jsonl").write_text(
             json.dumps(alert) + "\n", encoding="utf-8"
@@ -846,8 +926,10 @@ class TestIntegrationFullFlow:
         decisions_path = tmp_path / "decisions.jsonl"
         decision = {
             "timestamp": "2026-08-01T10:00:00Z",
-            "private_score": 0.1, "public_score": 0.3,
-            "reward_hacking_risk": 0.6, "recommendation": "rollback",
+            "private_score": 0.1,
+            "public_score": 0.3,
+            "reward_hacking_risk": 0.6,
+            "recommendation": "rollback",
             "sample_count": 5,
         }
         decisions_path.write_text(json.dumps(decision) + "\n", encoding="utf-8")
@@ -871,8 +953,10 @@ class TestIntegrationFullFlow:
                     _MockCR("C1.1", "PASS", "INFO"),
                 ]
 
-        with patch("utils.infra.feature_flags.is_enabled",
-                   side_effect=_flag_side_effect_main_only):
+        with patch(
+            "utils.infra.feature_flags.is_enabled",
+            side_effect=_flag_side_effect_main_only,
+        ):
             analyzer = UnifiedRootCauseAnalyzer(persistence_path=persist_path)
             # 替换诊断器为真实实例 (但 mock CodeDiagnoser._run_check)
             from utils.alpha.layers.code_diagnoser import CodeDiagnoser as CD
@@ -915,6 +999,7 @@ class TestIntegrationFullFlow:
     def test_does_not_pollute_production(self, tmp_path: Path) -> None:
         """HC-4: 不污染生产数据."""
         import hashlib
+
         positions = _PROJECT_ROOT / "config" / "positions.json"
         daily_returns = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
 
@@ -926,11 +1011,11 @@ class TestIntegrationFullFlow:
         before_pos = hash_of(positions)
         before_dr = hash_of(daily_returns)
 
-        with patch("utils.infra.feature_flags.is_enabled",
-                   side_effect=_flag_side_effect_main_only):
-            analyzer = UnifiedRootCauseAnalyzer(
-                persistence_path=tmp_path / "rc.jsonl"
-            )
+        with patch(
+            "utils.infra.feature_flags.is_enabled",
+            side_effect=_flag_side_effect_main_only,
+        ):
+            analyzer = UnifiedRootCauseAnalyzer(persistence_path=tmp_path / "rc.jsonl")
             analyzer.analyze(None)
 
         after_pos = hash_of(positions)

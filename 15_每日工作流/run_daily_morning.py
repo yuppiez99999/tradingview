@@ -31,14 +31,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # 强制 UTF-8 输出，解决 GBK 编码问题
-if sys.stdout.encoding != 'utf-8':
+if sys.stdout.encoding != "utf-8":
     try:
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
-if sys.stderr.encoding != 'utf-8':
+if sys.stderr.encoding != "utf-8":
     try:
-        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
 
@@ -51,11 +51,17 @@ ARCHIVE_DIR = PROJECT_ROOT / "每日报告归档"  # 归档到项目根目录下
 # Python 解释器: 优先用环境变量 QUANT_PYTHON (Mac/Linux 跨平台), 回退本脚本同 venv
 import os as _os
 
-VENV_PYTHON = _os.environ.get("QUANT_PYTHON") or _os.environ.get("QUANT_VENV_PYTHON") or sys.executable
+VENV_PYTHON = (
+    _os.environ.get("QUANT_PYTHON")
+    or _os.environ.get("QUANT_VENV_PYTHON")
+    or sys.executable
+)
 
 # 关键脚本路径
 DAILY_WORKFLOW_SCRIPT = PROJECT_ROOT / "v8.3_institutional" / "daily_workflow.py"
-GENERATE_TRADE_PLAN_SCRIPT = PROJECT_ROOT / "v8.3_institutional" / "generate_daily_trade_plan.py"
+GENERATE_TRADE_PLAN_SCRIPT = (
+    PROJECT_ROOT / "v8.3_institutional" / "generate_daily_trade_plan.py"
+)
 APPLY_LLM_SCRIPT = PROJECT_ROOT / "tools" / "apply_llm_decisions_to_plan.py"
 GENERATE_REPORT_SCRIPT = PROJECT_ROOT / "generate_daily_report.py"
 RUN_DAILY_EOD_SCRIPT = PROJECT_ROOT / "run_daily_eod.py"
@@ -92,6 +98,7 @@ REPORT_PATTERNS = [
 # ═══════════════════════════════════════════════════════════════
 # 工具函数
 # ═══════════════════════════════════════════════════════════════
+
 
 def get_python() -> str:
     """获取Python解释器路径"""
@@ -135,6 +142,7 @@ def is_trading_day() -> bool:
         sys.path.insert(0, str(PROJECT_ROOT))
     try:
         from utils.trade_calendar import is_trading_day as _unified_is_trading_day
+
         result = _unified_is_trading_day()  # 无参 = 今天
         log(f"交易日历检查 (统一实现): 今天 -> {'交易日' if result else '非交易日'}")
         return result
@@ -165,10 +173,10 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30) -> 
     try:
         # 清理可能干扰子进程的环境变量，并强制UTF-8编码
         env = os.environ.copy()
-        env.pop('PYTHONHOME', None)
-        env.pop('PYTHONPATH', None)
-        env['PYTHONIOENCODING'] = 'utf-8'
-        env['PYTHONUTF8'] = '1'
+        env.pop("PYTHONHOME", None)
+        env.pop("PYTHONPATH", None)
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
 
         result = subprocess.run(
             cmd,
@@ -229,8 +237,8 @@ def archive_reports(today_dir: Path) -> int:
         PROJECT_ROOT / "v8.3_institutional" / "reports",
         SCRIPT_DIR,
         # 新增: 信息采集输出可能落在以下目录 (跨项目复用模块的直接输出)
-        PROJECT_ROOT.parent / "15_每日工作流",                          # morning_market_fetcher 直接输出
-        PROJECT_ROOT.parent / "11_量化策略" / "engine",                  # etf_flow 直接输出
+        PROJECT_ROOT.parent / "15_每日工作流",  # morning_market_fetcher 直接输出
+        PROJECT_ROOT.parent / "11_量化策略" / "engine",  # etf_flow 直接输出
         PROJECT_ROOT.parent / "02_舆情与竞品监控" / "舆情监控" / "data" / "综合日报",
         PROJECT_ROOT.parent / "02_舆情与竞品监控" / "舆情监控" / "煤炭舆情日报",
     ]
@@ -249,12 +257,12 @@ def archive_reports(today_dir: Path) -> int:
 
                 # 检查文件名是否包含今天的日期
                 is_today_report = (
-                    today_str_compact in fname or
-                    today_str_dash in fname or
-                    fname.endswith(f"_{today_str_compact}.md") or
-                    fname.endswith(f"_{today_str_compact}.json") or
-                    fname.endswith(f"_{today_str_dash}.md") or
-                    fname.endswith(f"_{today_str_dash}.json")
+                    today_str_compact in fname
+                    or today_str_dash in fname
+                    or fname.endswith(f"_{today_str_compact}.md")
+                    or fname.endswith(f"_{today_str_compact}.json")
+                    or fname.endswith(f"_{today_str_dash}.md")
+                    or fname.endswith(f"_{today_str_dash}.json")
                 )
 
                 # 额外检查：最近修改时间在今天
@@ -266,9 +274,15 @@ def archive_reports(today_dir: Path) -> int:
                             fname.startswith(pat.replace("_*.md", ""))
                             or fname.endswith(".md")
                             for pat in [
-                                "每日综合报告", "组合总盈亏报告", "交易计划",
-                                "市场环境分析", "风险评估", "信号监控",
-                                "daily_report", "pre_market", "calibrate_report",
+                                "每日综合报告",
+                                "组合总盈亏报告",
+                                "交易计划",
+                                "市场环境分析",
+                                "风险评估",
+                                "信号监控",
+                                "daily_report",
+                                "pre_market",
+                                "calibrate_report",
                             ]
                         )
 
@@ -280,7 +294,10 @@ def archive_reports(today_dir: Path) -> int:
                     except ValueError:
                         log(f"  跳过路径遍历风险文件: {fname}", "WARN")
                         continue
-                    if not dest.exists() or file_path.stat().st_mtime > dest.stat().st_mtime:
+                    if (
+                        not dest.exists()
+                        or file_path.stat().st_mtime > dest.stat().st_mtime
+                    ):
                         shutil.copy2(file_path, dest)
                         archived_count += 1
                         log(f"  归档: {file_path.name} -> {today_dir.name}/")
@@ -295,17 +312,25 @@ def archive_reports(today_dir: Path) -> int:
 # 每日早晨工作流 — 提取函数 (降低 main() 圈复杂度)
 # ═══════════════════════════════════════════════════════════════
 
+
 def parse_morning_args():
     """解析每日早晨工作流命令行参数"""
     parser = argparse.ArgumentParser(description="每日早晨工作流 (7:00AM)")
     parser.add_argument("--force", action="store_true", help="强制运行，跳过交易日检查")
     parser.add_argument("--dry-run", action="store_true", help="试运行模式，不实际执行")
-    parser.add_argument("--phase", type=str, default="calibrate",
-                        choices=["info", "calibrate", "plan", "report", "all"],
-                        help="运行阶段 (默认: calibrate; all = info→calibrate→plan→report)")
+    parser.add_argument(
+        "--phase",
+        type=str,
+        default="calibrate",
+        choices=["info", "calibrate", "plan", "report", "all"],
+        help="运行阶段 (默认: calibrate; all = info→calibrate→plan→report)",
+    )
     parser.add_argument("--skip-archive", action="store_true", help="跳过报告归档")
-    parser.add_argument("--skip-system-check", action="store_true",
-                        help="跳过 P0 启动自检 (仅紧急情况使用,默认每次启动都自检)")
+    parser.add_argument(
+        "--skip-system-check",
+        action="store_true",
+        help="跳过 P0 启动自检 (仅紧急情况使用,默认每次启动都自检)",
+    )
     return parser.parse_args()
 
 
@@ -318,6 +343,7 @@ def run_p0_system_check_morning(args):
         if str(PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(PROJECT_ROOT))
         from utils.system_check import assert_system_ready
+
         assert_system_ready()  # 失败时 sys.exit(1)
     except SystemExit:
         raise
@@ -387,7 +413,12 @@ def run_phase1_calibrate(args, success_count, fail_count):
     if args.phase not in ("calibrate", "all"):
         return success_count, fail_count
     log("\n>>> 阶段一: 盘前市场校准 <<<")
-    if run_step("市场校准与风险评估", DAILY_WORKFLOW_SCRIPT, ["--phase", "calibrate"], timeout_minutes=20):
+    if run_step(
+        "市场校准与风险评估",
+        DAILY_WORKFLOW_SCRIPT,
+        ["--phase", "calibrate"],
+        timeout_minutes=20,
+    ):
         success_count += 1
     else:
         fail_count += 1
@@ -414,8 +445,15 @@ def run_phase3_llm(args, prev_trading_day_str, today_str, success_count, fail_co
     log("\n>>> 阶段三: 应用大模型决策 <<<")
     # 读昨日 PnL 报告 → 灌入今日计划 (PnL 报告由 v84_DailyPnlReport 任务盘后 16:00 生成)
     # 盘前阶段只能用昨日报告, 而非今日 (今日报告要等今日盘后才会生成)
-    log(f"  使用昨日 PnL 报告: daily_pnl_report_{prev_trading_day_str}.json → 计划日期 {today_str}")
-    if run_step("应用LLM决策", APPLY_LLM_SCRIPT, [prev_trading_day_str, today_str], timeout_minutes=10):
+    log(
+        f"  使用昨日 PnL 报告: daily_pnl_report_{prev_trading_day_str}.json → 计划日期 {today_str}"
+    )
+    if run_step(
+        "应用LLM决策",
+        APPLY_LLM_SCRIPT,
+        [prev_trading_day_str, today_str],
+        timeout_minutes=10,
+    ):
         success_count += 1
     else:
         fail_count += 1
@@ -449,6 +487,7 @@ def print_morning_summary(success_count, fail_count, today_dir):
 # 主流程
 # ═══════════════════════════════════════════════════════════════
 
+
 def main():
     args = parse_morning_args()
     run_p0_system_check_morning(args)
@@ -456,11 +495,15 @@ def main():
     # GitHub 周热门项目集成自检 (2026-08-21, v8.6)
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(PROJECT_ROOT))
         from utils.github_integration_registry import run_startup_selfcheck
+
         gh_report = run_startup_selfcheck()
-        log(f"GitHub 集成自检: available={gh_report.available}/{gh_report.total}, "
-            f"overall_ok={gh_report.overall_ok}")
+        log(
+            f"GitHub 集成自检: available={gh_report.available}/{gh_report.total}, "
+            f"overall_ok={gh_report.overall_ok}"
+        )
     except Exception as _e:
         log(f"GitHub 集成自检跳过: {_e}", "WARNING")
 
@@ -495,7 +538,9 @@ def main():
 
     success_count, fail_count = run_phase1_calibrate(args, success_count, fail_count)
     success_count, fail_count = run_phase2_plan(args, success_count, fail_count)
-    success_count, fail_count = run_phase3_llm(args, prev_trading_day_str, today_str, success_count, fail_count)
+    success_count, fail_count = run_phase3_llm(
+        args, prev_trading_day_str, today_str, success_count, fail_count
+    )
     success_count, fail_count = run_phase4_report(args, success_count, fail_count)
 
     run_morning_archive(today_dir, args.skip_archive)

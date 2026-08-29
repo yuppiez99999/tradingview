@@ -145,17 +145,17 @@ class _LogisticRegressionNumpy:
         y_pred = np.clip(y_pred, eps, 1.0 - eps)
         return float(-np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred)))
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> tuple[float, list[float]]:  # noqa: N803
+    def fit(self, x: np.ndarray, y: np.ndarray) -> tuple[float, list[float]]:
         """训练模型.
 
         Args:
-            X: 特征矩阵 (n_samples, n_features)
+            x: 特征矩阵 (n_samples, n_features)
             y: 标签 (n_samples,) 二分类 {0, 1}
 
         Returns:
             (final_loss, training_history)
         """
-        n_samples, n_features = X.shape
+        n_samples, n_features = x.shape
         # 初始化权重 (He 初始化简化版)
         self.weights = self._rng.normal(0, 0.01, n_features)
         self.bias = 0.0
@@ -163,11 +163,11 @@ class _LogisticRegressionNumpy:
         history: list[float] = []
         for i in range(self.n_iterations):
             # 前向传播
-            linear = X @ self.weights + self.bias
+            linear = x @ self.weights + self.bias
             y_pred = self._sigmoid(linear)
 
             # 梯度计算 (含 L2 正则化)
-            dw = (X.T @ (y_pred - y)) / n_samples + self.l2_reg * self.weights
+            dw = (x.T @ (y_pred - y)) / n_samples + self.l2_reg * self.weights
             db = float(np.mean(y_pred - y))
 
             # 参数更新
@@ -182,31 +182,31 @@ class _LogisticRegressionNumpy:
         final_loss = history[-1] if history else 0.0
         return final_loss, history
 
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:  # noqa: N803
+    def predict_proba(self, x: np.ndarray) -> np.ndarray:
         """预测概率.
 
         Args:
-            X: 特征矩阵 (n_samples, n_features)
+            x: 特征矩阵 (n_samples, n_features)
 
         Returns:
             概率数组 (n_samples,) ∈ [0, 1]
         """
         if self.weights is None:
             raise ModelNotTrainedError("模型未训练, 请先调用 fit()")
-        linear = X @ self.weights + self.bias
+        linear = x @ self.weights + self.bias
         return self._sigmoid(linear)
 
-    def predict(self, X: np.ndarray, threshold: float = 0.5) -> np.ndarray:  # noqa: N803
+    def predict(self, x: np.ndarray, threshold: float = 0.5) -> np.ndarray:
         """预测类别.
 
         Args:
-            X: 特征矩阵
+            x: 特征矩阵
             threshold: 分类阈值 (默认 0.5)
 
         Returns:
             预测标签 {0, 1}
         """
-        return cast(np.ndarray, (self.predict_proba(X) >= threshold).astype(int))
+        return cast(np.ndarray, (self.predict_proba(x) >= threshold).astype(int))
 
     def get_feature_importance(self, feature_names: list[str] | None = None) -> dict[str, float]:
         """获取特征重要性 (权重绝对值).
@@ -386,7 +386,7 @@ class MLEnhancedSelector:
             "bias": self._model.bias,
             "config": self.config.__dict__,
             "feature_names": self._feature_names,
-            "training_result": self._training_result.__dict__ if self._training_result else None,
+            "training_result": (self._training_result.__dict__ if self._training_result else None),
         }
         joblib.dump(state, filepath)
         logger.info("[MLEnhancedSelector] 模型已保存: %s", filepath)
@@ -424,7 +424,16 @@ class MLEnhancedSelector:
                 self._training_result = TrainingResult(**tr_dict)
             self._is_trained = True
             logger.info("[MLEnhancedSelector] 模型已加载: %s", filepath)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             raise ModelLoadError(f"加载模型失败: {e}") from e
 
     # ============================================================
@@ -523,7 +532,16 @@ def is_ml_selector_enabled() -> bool:
         from utils.infra.feature_flags import is_enabled
 
         return bool(is_enabled("USE_ML_ENHANCED_SELECTOR"))
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         # Feature Flag 框架不可用时, fail-safe 返回 False
         return False
 

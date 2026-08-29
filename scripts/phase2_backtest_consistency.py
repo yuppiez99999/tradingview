@@ -20,6 +20,7 @@
     - 每个指标的相对误差 < 1%
     - 所有测试组全部 PASS 才算通过
 """
+
 from __future__ import annotations
 
 import argparse
@@ -78,6 +79,7 @@ def generate_deterministic_returns(
 @dataclass
 class BacktestTestCase:
     """单个回测测试用例."""
+
     name: str
     n_days: int
     n_assets: int
@@ -93,33 +95,58 @@ class BacktestTestCase:
 TEST_CASES: list[BacktestTestCase] = [
     BacktestTestCase(
         name="basic_2y_10assets",
-        n_days=504, n_assets=10, seed=42,
-        train_months=12, test_months=3, step_months=3,
-        cv_folds=3, n_trials=10,
+        n_days=504,
+        n_assets=10,
+        seed=42,
+        train_months=12,
+        test_months=3,
+        step_months=3,
+        cv_folds=3,
+        n_trials=10,
     ),
     BacktestTestCase(
         name="longer_3y_20assets",
-        n_days=756, n_assets=20, seed=123,
-        train_months=18, test_months=3, step_months=3,
-        cv_folds=5, n_trials=15,
+        n_days=756,
+        n_assets=20,
+        seed=123,
+        train_months=18,
+        test_months=3,
+        step_months=3,
+        cv_folds=5,
+        n_trials=15,
     ),
     BacktestTestCase(
         name="short_1y_5assets",
-        n_days=252, n_assets=5, seed=999,
-        train_months=6, test_months=2, step_months=2,
-        cv_folds=3, n_trials=5,
+        n_days=252,
+        n_assets=5,
+        seed=999,
+        train_months=6,
+        test_months=2,
+        step_months=2,
+        cv_folds=3,
+        n_trials=5,
     ),
     BacktestTestCase(
         name="high_vol_2y_15assets",
-        n_days=504, n_assets=15, seed=777,
-        train_months=12, test_months=3, step_months=3,
-        cv_folds=5, n_trials=10,
+        n_days=504,
+        n_assets=15,
+        seed=777,
+        train_months=12,
+        test_months=3,
+        step_months=3,
+        cv_folds=5,
+        n_trials=10,
     ),
     BacktestTestCase(
         name="large_4y_30assets",
-        n_days=1008, n_assets=30, seed=555,
-        train_months=24, test_months=3, step_months=3,
-        cv_folds=5, n_trials=20,
+        n_days=1008,
+        n_assets=30,
+        seed=555,
+        train_months=24,
+        test_months=3,
+        step_months=3,
+        cv_folds=5,
+        n_trials=20,
     ),
 ]
 
@@ -198,11 +225,13 @@ def run_all_backtests(output_path: str) -> None:
             print(f"✅ sharpe={result['metrics']['sharpe']:.4f}")
         except Exception as e:
             print(f"❌ 失败: {e}")
-            results.append({
-                "name": case.name,
-                "config": asdict(case),
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "name": case.name,
+                    "config": asdict(case),
+                    "error": str(e),
+                }
+            )
 
     # 保存结果
     output = {
@@ -246,6 +275,7 @@ COMPARE_METRICS = [
 @dataclass
 class MetricComparison:
     """单个指标的对比结果."""
+
     name: str
     py38_value: float
     py314_value: float
@@ -257,6 +287,7 @@ class MetricComparison:
 @dataclass
 class TestCaseComparison:
     """单个测试用例的对比结果."""
+
     name: str
     metrics: list[MetricComparison] = field(default_factory=list)
     all_passed: bool = True
@@ -350,7 +381,9 @@ def compare_results(py38_path: str, py314_path: str) -> None:
         metrics314 = r314["metrics"]
 
         print(f"\n📋 测试组: {case_name}")
-        print(f"  {'指标':<20} {'Python 3.8':>14} {'Python 3.14':>14} {'绝对差异':>12} {'相对差异':>10} {'结果':>6}")
+        print(
+            f"  {'指标':<20} {'Python 3.8':>14} {'Python 3.14':>14} {'绝对差异':>12} {'相对差异':>10} {'结果':>6}"
+        )
         print(f"  {'-'*20} {'-'*14} {'-'*14} {'-'*12} {'-'*10} {'-'*6}")
 
         for metric_name in COMPARE_METRICS:
@@ -364,7 +397,9 @@ def compare_results(py38_path: str, py314_path: str) -> None:
 
             status = "✅ PASS" if mc.passed else "❌ FAIL"
             rel_str = f"{mc.rel_diff:.4%}" if mc.rel_diff != float("inf") else "  inf"
-            print(f"  {metric_name:<20} {v38:>14.6f} {v314:>14.6f} {mc.abs_diff:>12.2e} {rel_str:>10} {status:>6}")
+            print(
+                f"  {metric_name:<20} {v38:>14.6f} {v314:>14.6f} {mc.abs_diff:>12.2e} {rel_str:>10} {status:>6}"
+            )
 
         if not all(m.passed for m in comparison.metrics):
             comparison.all_passed = False
@@ -379,7 +414,9 @@ def compare_results(py38_path: str, py314_path: str) -> None:
     print("汇总")
     print("=" * 80)
     print(f"测试组通过: {all_passed_cases}/{total_cases}")
-    print(f"指标通过  : {passed_metrics}/{total_metrics} ({passed_metrics/total_metrics*100:.1f}%)")
+    print(
+        f"指标通过  : {passed_metrics}/{total_metrics} ({passed_metrics/total_metrics*100:.1f}%)"
+    )
 
     if all_passed_cases == total_cases:
         print("\n🎉 Phase 2 验收通过! 回测结果在两个环境中一致 (差异 < 1%).")
@@ -393,7 +430,9 @@ def compare_results(py38_path: str, py314_path: str) -> None:
                 else:
                     failed = [m for m in case.metrics if not m.passed]
                     for m in failed:
-                        print(f"  ❌ {case.name}/{m.name}: py38={m.py38_value:.6f} vs py314={m.py314_value:.6f} (rel_diff={m.rel_diff:.4%})")
+                        print(
+                            f"  ❌ {case.name}/{m.name}: py38={m.py38_value:.6f} vs py314={m.py314_value:.6f} (rel_diff={m.rel_diff:.4%})"
+                        )
 
     # 保存对比报告
     report_path = Path(py38_path).parent / "consistency_report.json"
@@ -448,7 +487,8 @@ def main() -> int:
     # run 子命令
     run_parser = subparsers.add_parser("run", help="运行回测并保存结果")
     run_parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         required=True,
         help="结果 JSON 输出路径",
     )
@@ -471,12 +511,11 @@ def main() -> int:
     if args.command == "run":
         run_all_backtests(args.output)
         return 0
-    elif args.command == "compare":
+    if args.command == "compare":
         compare_results(args.py38, args.py314)
         return 0
-    else:
-        parser.print_help()
-        return 1
+    parser.print_help()
+    return 1
 
 
 if __name__ == "__main__":

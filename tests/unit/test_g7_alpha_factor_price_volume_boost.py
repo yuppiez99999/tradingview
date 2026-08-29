@@ -38,6 +38,7 @@ from utils.alpha_factor.price_volume import (  # noqa: E402
 # 测试数据构造
 # ============================================================
 
+
 def _make_price_data(n_syms=5, n_days=300):
     np.random.seed(42)
     price_data = {}
@@ -47,9 +48,12 @@ def _make_price_data(n_syms=5, n_days=300):
         highs = [c * 1.01 for c in closes]
         lows = [c * 0.99 for c in closes]
         price_data[f"S{i}"] = {
-            "closes": closes, "volumes": vols,
-            "highs": highs, "lows": lows,
-            "opens": closes, "amounts": [c * v for c, v in zip(closes, vols, strict=True)],
+            "closes": closes,
+            "volumes": vols,
+            "highs": highs,
+            "lows": lows,
+            "opens": closes,
+            "amounts": [c * v for c, v in zip(closes, vols, strict=True)],
         }
     return price_data
 
@@ -57,6 +61,7 @@ def _make_price_data(n_syms=5, n_days=300):
 # ============================================================
 # compute_momentum_factors
 # ============================================================
+
 
 class TestMomentumFactors:
     def test_empty_price_data(self):
@@ -120,6 +125,7 @@ class TestMomentumFactors:
 # compute_volatility_factors
 # ============================================================
 
+
 class TestVolatilityFactors:
     def test_empty_price_data(self):
         result = compute_volatility_factors({})
@@ -164,6 +170,7 @@ class TestVolatilityFactors:
 # compute_size_factors
 # ============================================================
 
+
 class TestSizeFactors:
     def test_empty_fundamentals(self):
         result = compute_size_factors({})
@@ -207,14 +214,17 @@ class TestSizeFactors:
 
     def test_negotiable_ratio_out_of_range_skipped(self):
         """流通比率 > 1.0 → 跳过."""
-        fundamentals = {"A": {"negotiable_value": 200, "market_cap": 100}}  # ratio=2 > 1
+        fundamentals = {
+            "A": {"negotiable_value": 200, "market_cap": 100}
+        }  # ratio=2 > 1
         result = compute_size_factors(fundamentals)
         assert result["SIZE_LOG_NS"].values == {}
 
 
 # ============================================================
 # compute_liquidity_factors
-#5 ============================================================
+# 5 ============================================================
+
 
 class TestLiquidityFactors:
     def test_empty_price_data(self):
@@ -252,10 +262,13 @@ class TestLiquidityFactors:
 # compute_factor_mining_factors
 # ============================================================
 
+
 class TestFactorMiningFactors:
     def test_empty_inputs(self):
         result = compute_factor_mining_factors({}, {})
-        assert len(result) == 6  # FM_RET_1D/FM_MOM_5D/FM_MOM_20D/FM_IDIO_VOL/FM_AMIHUD_AMT/FM_CIRC_MCAP
+        assert (
+            len(result) == 6
+        )  # FM_RET_1D/FM_MOM_5D/FM_MOM_20D/FM_IDIO_VOL/FM_AMIHUD_AMT/FM_CIRC_MCAP
         for fval in result.values():
             assert fval.values == {}
 
@@ -316,7 +329,9 @@ class TestFactorMiningFactors:
     def test_with_benchmark_returns(self):
         price_data = _make_price_data(n_syms=3, n_days=70)
         benchmark = list(np.random.normal(0, 0.01, 70))
-        result = compute_factor_mining_factors(price_data, {}, benchmark_returns=benchmark)
+        result = compute_factor_mining_factors(
+            price_data, {}, benchmark_returns=benchmark
+        )
         assert isinstance(result, dict)
 
 
@@ -324,18 +339,22 @@ class TestFactorMiningFactors:
 # 装饰器注册因子 (FM_DEMO_*)
 # ============================================================
 
+
 class TestDecoratorFactors:
     def test_fm_demo_vol_weighted_mom_registered(self):
         """FM_DEMO_VOL_WEIGHTED_MOM 应已注册."""
         from utils.alpha_factor.base import _FACTOR_REGISTRY
+
         assert "FM_DEMO_VOL_WEIGHTED_MOM" in _FACTOR_REGISTRY
 
     def test_fm_demo_zero_trade_days_registered(self):
         from utils.alpha_factor.base import _FACTOR_REGISTRY
+
         assert "FM_DEMO_ZERO_TRADE_DAYS" in _FACTOR_REGISTRY
 
     def test_fm_demo_roe_smoothed_registered(self):
         from utils.alpha_factor.base import _FACTOR_REGISTRY
+
         assert "FM_DEMO_ROE_SMOOTHED" in _FACTOR_REGISTRY
 
     # ---------- _fm_demo_volume_weighted_momentum 实调用 ----------

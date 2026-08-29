@@ -171,7 +171,9 @@ class RiskBudgetOptimizer:
         # P1: 高阶矩收益矩阵预处理 — 不建 coskewness/cokurtosis 张量, 直接用 R@w 算
         R = None  # noqa: N806
         mvsk_on = False
-        if return_matrix is not None and (skew_aversion != 0.0 or kurtosis_aversion != 0.0):
+        if return_matrix is not None and (
+            skew_aversion != 0.0 or kurtosis_aversion != 0.0
+        ):
             R = self._to_numpy(return_matrix)  # noqa: N806
             if R.shape[1] != n:
                 raise ValueError(f"return_matrix 列数 {R.shape[1]} != 资产数 {n}")
@@ -229,7 +231,9 @@ class RiskBudgetOptimizer:
             active_factor = factor_exposures.T @ active_w
             violated_mask = np.abs(active_factor) > max_factor_exposure
             violated_indices = np.where(violated_mask)[0]
-            factor_violations = [f"factor_{k}={active_factor[k]:.3f}" for k in violated_indices]
+            factor_violations = [
+                f"factor_{k}={active_factor[k]:.3f}" for k in violated_indices
+            ]
 
         # 目标函数值 (效用): U = w'μ - (δ/2) w'Σw
         utility = port_ret - 0.5 * self.delta * float(w_opt @ Sigma @ w_opt)
@@ -305,7 +309,9 @@ class RiskBudgetOptimizer:
             符号: +γ_s·skew 鼓励正偏度 (右尾), -γ_k·exkurt 惩罚超额峰度 (肥尾).
         """
         n = len(mu)
-        mvsk = return_matrix is not None and (skew_aversion != 0.0 or kurtosis_aversion != 0.0)
+        mvsk = return_matrix is not None and (
+            skew_aversion != 0.0 or kurtosis_aversion != 0.0
+        )
 
         # 尝试 scipy
         try:
@@ -342,7 +348,8 @@ class RiskBudgetOptimizer:
                 constraints.append(
                     {
                         "type": "ineq",
-                        "fun": lambda w: max_te**2 - float((w - w_bench) @ Sigma @ (w - w_bench)),
+                        "fun": lambda w: max_te**2
+                        - float((w - w_bench) @ Sigma @ (w - w_bench)),
                     }
                 )
 
@@ -377,7 +384,8 @@ class RiskBudgetOptimizer:
                         {
                             "type": "ineq",
                             "fun": lambda w, kk=k: (
-                                max_factor_exposure - abs(float(factor_exposures[:, kk] @ (w - w_bench)))
+                                max_factor_exposure
+                                - abs(float(factor_exposures[:, kk] @ (w - w_bench)))
                             ),
                         }
                     )
@@ -402,14 +410,29 @@ class RiskBudgetOptimizer:
                     w = w / w.sum()
                 return w, "SLSQP-OK", int(res.nit)
 
-        except (ImportError, ValueError, RuntimeError):  # noqa: BLE001  # scipy.optimize 不可用/求解异常时降级, 待后续精确化
+        except (
+            ImportError,
+            ValueError,
+            RuntimeError,
+        ):  # noqa: BLE001  # scipy.optimize 不可用/求解异常时降级, 待后续精确化
             pass
 
         # 回退 1: 投影梯度法
         try:
-            w = self._projected_gradient(mu, Sigma, w_bench, max_te, max_weight, min_weight)
+            w = self._projected_gradient(
+                mu, Sigma, w_bench, max_te, max_weight, min_weight
+            )
             return w, "ProjectedGradient", 100
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 回退 2: 缩放法 — 将基准权重向预期收益高的方向倾斜, 同时满足 TE 约束
@@ -490,7 +513,16 @@ class RiskBudgetOptimizer:
             return m.astype(float)
         try:
             return np.asarray(m, dtype=float)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             return np.array(m, dtype=float)
 
     def save_result(self, result: RiskBudgetResult, path: str | Path) -> Path:
@@ -553,7 +585,7 @@ class RiskBudgetOptimizer:
                 "new_weights": w_cur,
                 "adjustments": np.zeros_like(w_cur),
                 "expected_te": 0.0,  # type: ignore
-                }
+            }
 
         # 计算缩放因子
         scale = target_te / current_te
@@ -564,13 +596,17 @@ class RiskBudgetOptimizer:
         # 截断超调的调整
         over = np.abs(adjustments) > max_adjustment
         if np.any(over):
-            adjustments = np.sign(adjustments) * np.minimum(np.abs(adjustments), max_adjustment)
+            adjustments = np.sign(adjustments) * np.minimum(
+                np.abs(adjustments), max_adjustment
+            )
             new_active = active + adjustments
 
         new_weights = w_bench + new_active
         # 归一化
         new_weights = np.maximum(new_weights, 0)
-        new_weights = new_weights / new_weights.sum() if new_weights.sum() > 0 else w_cur
+        new_weights = (
+            new_weights / new_weights.sum() if new_weights.sum() > 0 else w_cur
+        )
 
         # 重算 TE
         new_active_final = new_weights - w_bench

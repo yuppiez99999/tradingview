@@ -46,8 +46,10 @@ logger = logging.getLogger("regime_gated_transformer")
 # 枚举
 # ============================================================
 
+
 class SemanticClass(str, Enum):
     """11 个语义类."""
+
     TREND = "trend"  # 趋势类
     MOMENTUM = "momentum"  # 动量类
     REVERSAL = "reversal"  # 反转类
@@ -63,6 +65,7 @@ class SemanticClass(str, Enum):
 
 class MarketRegime(str, Enum):
     """市场制度."""
+
     LOW_VOL = "low_vol"  # 低波动
     HIGH_VOL = "high_vol"  # 高波动
     TRENDING = "trending"  # 趋势
@@ -92,6 +95,7 @@ DEFAULT_FEATURE_MAPPING: dict[SemanticClass, list[int]] = {
 @dataclass
 class SemanticMappingResult:
     """语义映射结果."""
+
     semantic_features: np.ndarray  # (11,) 语义特征向量
     class_contributions: dict[str, float]  # 各类贡献
     n_original_features: int  # 原始特征数
@@ -158,9 +162,11 @@ class FeatureSemanticMapper:
 # 制度检测
 # ============================================================
 
+
 @dataclass
 class RegimeDetectionResult:
     """制度检测结果."""
+
     regime: MarketRegime
     confidence: float
     regime_probs: dict[str, float]  # 各制度概率
@@ -176,7 +182,9 @@ class RegimeDetector:
     - 反转: 反转类特征强
     """
 
-    def __init__(self, vol_threshold: float = 0.5, trend_threshold: float = 0.3) -> None:
+    def __init__(
+        self, vol_threshold: float = 0.5, trend_threshold: float = 0.3
+    ) -> None:
         self.vol_threshold = vol_threshold
         self.trend_threshold = trend_threshold
 
@@ -235,9 +243,11 @@ class RegimeDetector:
 # 制度门控 Transformer
 # ============================================================
 
+
 @dataclass
 class TransformerConfig:
     """Transformer 配置."""
+
     n_heads: int = 4  # 注意力头数
     d_model: int = 11  # 模型维度 (= 语义类数)
     d_ff: int = 32  # 前馈网络维度
@@ -350,9 +360,11 @@ class RegimeGatedTransformer:
 # 自适应金融 Transformer (集成接口)
 # ============================================================
 
+
 @dataclass
 class TransformerOutput:
     """Transformer 输出."""
+
     predictions: np.ndarray  # 预测值
     regime: MarketRegime  # 检测制度
     regime_confidence: float  # 制度置信度
@@ -406,7 +418,9 @@ class AdaptiveFinancialTransformer:
 
         # 3. 制度门控 Transformer
         output = self.transformer.forward(
-            semantic_features, regime_result.regime, regime_result.regime_probs,
+            semantic_features,
+            regime_result.regime,
+            regime_result.regime_probs,
         )
 
         # 4. 预测 (简单线性投影到标量)
@@ -415,7 +429,10 @@ class AdaptiveFinancialTransformer:
         # 5. 门控值
         gate = 0.0
         for i, r in enumerate(MarketRegime):
-            gate += regime_result.regime_probs.get(r.value, 0.0) * self.transformer._gate_weights[i]
+            gate += (
+                regime_result.regime_probs.get(r.value, 0.0)
+                * self.transformer._gate_weights[i]
+            )
         gate_value = 1.0 / (1.0 + math.exp(-gate))
 
         return TransformerOutput(
@@ -445,7 +462,8 @@ class AdaptiveFinancialTransformer:
         return {
             "n_original_features": self.n_features,
             "n_semantic_classes": self.feature_mapper.n_classes,
-            "complexity_reduction_pct": self.feature_mapper.complexity_reduction() * 100,
+            "complexity_reduction_pct": self.feature_mapper.complexity_reduction()
+            * 100,
             "n_regimes": len(MarketRegime),
             "transformer_config": {
                 "n_heads": self.transformer.config.n_heads,
@@ -459,6 +477,7 @@ class AdaptiveFinancialTransformer:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示制度门控 Transformer."""
@@ -488,14 +507,18 @@ def main() -> None:
 
     # === 3. 语义类贡献 ===
     print("\n--- 3. 语义类贡献 ---")
-    for cls, contrib in sorted(result.class_contributions.items(), key=lambda x: -abs(x[1])):
+    for cls, contrib in sorted(
+        result.class_contributions.items(), key=lambda x: -abs(x[1])
+    ):
         print(f"  {cls:>12s}: {contrib:+.4f}")
 
     # === 4. 不同制度提示对比 ===
     print("\n--- 4. 不同制度提示对比 ---")
     for hint in [0.0, 0.3, 0.5, 0.7, 1.0]:
         r = model.forward(features, regime_hint=hint)
-        print(f"  hint={hint:.1f}: regime={r.regime.value:>10s}, conf={r.regime_confidence:.2%}, pred={r.predictions:+.4f}")
+        print(
+            f"  hint={hint:.1f}: regime={r.regime.value:>10s}, conf={r.regime_confidence:.2%}, pred={r.predictions:+.4f}"
+        )
 
     # === 5. 批量前向传播 ===
     print("\n--- 5. 批量前向传播 (10 样本) ---")

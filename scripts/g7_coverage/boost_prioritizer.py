@@ -2,6 +2,7 @@
 
 P1（line-rate=0%）→ P2（<50%）→ P3（50-80%），同级内按链路位置排序。
 """
+
 from __future__ import annotations
 
 import json
@@ -117,7 +118,9 @@ class BoostPrioritizer:
             "by_priority": _count_by_priority(tasks),
             "tasks": [asdict(t) for t in tasks],
         }
-        out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        out_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         return str(out_path)
 
 

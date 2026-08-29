@@ -257,3 +257,14 @@ EOD 管道完成后应自动校验以下数据文件（建议在 `phase5_archive
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2026-08-06 | v1.0 | 初版：4 个数据断链的根因分析、修复方案、诊断方法论、防复发机制 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [成交回报驱动 PnL：G2/G4 执行闭环补齐经验沉淀（2026-08-08）](fills-driven-pnl-lessons-20260808.md) (相似度 19%)
+- [Agent-Skills 集成与适配（2026-08-24）](agent-skills-integration.md) (相似度 14%)
+- [EOD 运维经验沉淀：OpenBLAS 内存修复 + U9 端到端验证 + D7 断言增强（2026-08-07）](eod-operations-lessons-20260807.md) (相似度 13%)
+- [Bug修复追踪表 v2.4](bug_fix_tracker.md) (相似度 12%)
+- [代码审查质量门禁经验沉淀：为什么多次审查仍有 bug](code-review-quality-gate-lessons-20260811.md) (相似度 11%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

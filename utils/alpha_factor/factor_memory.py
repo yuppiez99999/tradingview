@@ -23,6 +23,7 @@
   - docs/高价值项目集成排期计划_20260811.md §8.3 (W9-B Sprint)
   - cairn/github-trending-wave9-20260819.md (待创建)
 """
+
 from __future__ import annotations
 
 import json
@@ -35,6 +36,7 @@ from typing import Any, Optional
 
 try:
     from utils.logging_manager import get_logger
+
     logger = get_logger("factor_memory")
 except ImportError:
     logger = logging.getLogger("factor_memory")
@@ -43,6 +45,7 @@ except ImportError:
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 @dataclass
 class FactorExperiment:
@@ -59,6 +62,7 @@ class FactorExperiment:
         created_at: 创建时间戳
         tags: 标签 (如 "wave5_gnn", "sprint1", "shadow")
     """
+
     experiment_id: str
     factor_name: str
     factor_category: str
@@ -73,6 +77,7 @@ class FactorExperiment:
 @dataclass
 class StrategyIteration:
     """策略迭代记录"""
+
     iteration_id: str
     strategy_name: str
     change_summary: str  # 本次改动摘要
@@ -85,6 +90,7 @@ class StrategyIteration:
 # ============================================================
 # 因子记忆库
 # ============================================================
+
 
 class FactorMemory:
     """因子记忆库 (OpenViking + ai-memory 风格)
@@ -154,7 +160,12 @@ class FactorMemory:
                     json.dumps(exp.tags, ensure_ascii=False),
                 ),
             )
-        logger.info("record exp: %s (%s) -> %s", exp.experiment_id, exp.factor_name, exp.conclusion)
+        logger.info(
+            "record exp: %s (%s) -> %s",
+            exp.experiment_id,
+            exp.factor_name,
+            exp.conclusion,
+        )
 
     def record_iteration(self, it: StrategyIteration) -> None:
         with sqlite3.connect(self.db_path) as conn:
@@ -170,7 +181,9 @@ class FactorMemory:
                     it.created_at,
                 ),
             )
-        logger.info("record iter: %s (%s) -> %s", it.iteration_id, it.strategy_name, it.decision)
+        logger.info(
+            "record iter: %s (%s) -> %s", it.iteration_id, it.strategy_name, it.decision
+        )
 
     def query_factor(
         self,
@@ -191,7 +204,9 @@ class FactorMemory:
             rows = conn.execute(sql, args).fetchall()
         return [self._row_to_exp(r) for r in rows]
 
-    def query_strategy(self, strategy_name: str, limit: int = 50) -> list[StrategyIteration]:
+    def query_strategy(
+        self, strategy_name: str, limit: int = 50
+    ) -> list[StrategyIteration]:
         sql = "SELECT * FROM strategy_iterations WHERE strategy_name = ? ORDER BY created_at DESC LIMIT ?"
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(sql, [strategy_name, limit]).fetchall()

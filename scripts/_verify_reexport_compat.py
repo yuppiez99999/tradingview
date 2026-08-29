@@ -28,6 +28,7 @@ R1 修复项。CI "Re-export Compatibility" 阶段引用本脚本, 缺失导致 
     python scripts/_verify_reexport_compat.py [--scripts-dir scripts] \
         [--output reports/ci/reexport_compat.json]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -63,8 +64,9 @@ def analyze_wrapper(p: Path) -> ReexportCheck:
     uses_runpy = "runpy" in src or "run_path" in src
     uses_importlib = "importlib.util" in src or "spec_from_file_location" in src
     any(
-        isinstance(n, ast.Call) and getattr(n.func, "id", "") == "sys" and
-        any(getattr(a, "attr", "") == "exit" for a in [])
+        isinstance(n, ast.Call)
+        and getattr(n.func, "id", "") == "sys"
+        and any(getattr(a, "attr", "") == "exit" for a in [])
         for n in ast.walk(tree)
     )
     # 简化: 检测 "sys.exit" 文本出现在 import 路径之外 (粗判副作用)
@@ -79,7 +81,9 @@ def analyze_wrapper(p: Path) -> ReexportCheck:
     if has_sys_exit_in_import:
         detail.append("sys.exit outside __main__ guard")
     return ReexportCheck(
-        cid, f"thin-wrapper re-export compatible: {p.name}", ok,
+        cid,
+        f"thin-wrapper re-export compatible: {p.name}",
+        ok,
         "OK" if ok else "; ".join(detail) if detail else "OK",
     )
 
@@ -87,14 +91,20 @@ def analyze_wrapper(p: Path) -> ReexportCheck:
 def try_importlib_load(p: Path) -> ReexportCheck:
     cid = "IMP-" + p.name
     try:
-        spec = importlib.util.spec_from_file_location(f"_reexport_probe_{p.stem}", str(p))
+        spec = importlib.util.spec_from_file_location(
+            f"_reexport_probe_{p.stem}", str(p)
+        )
         mod = importlib.util.module_from_spec(spec)
         # 仅加载不执行 __main__
         spec.loader.exec_module(mod)
-        return ReexportCheck(cid, f"importable without side-effect: {p.name}", True, "OK")
+        return ReexportCheck(
+            cid, f"importable without side-effect: {p.name}", True, "OK"
+        )
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         return ReexportCheck(
-            cid, f"importable without side-effect: {p.name}", False,
+            cid,
+            f"importable without side-effect: {p.name}",
+            False,
             f"{type(e).__name__}: {e}",
         )
 
@@ -102,7 +112,9 @@ def try_importlib_load(p: Path) -> ReexportCheck:
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Re-export compatibility verifier")
     parser.add_argument("--scripts-dir", default=str(ROOT / "scripts"))
-    parser.add_argument("--output", default=str(ROOT / "reports" / "ci" / "reexport_compat.json"))
+    parser.add_argument(
+        "--output", default=str(ROOT / "reports" / "ci" / "reexport_compat.json")
+    )
     args = parser.parse_args(argv)
 
     scripts_dir = Path(args.scripts_dir)
@@ -120,10 +132,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     for s in sorted(scripts_dir.glob("*.py")):
         if s.name.startswith("_"):
             continue
-        results.append(ReexportCheck(
-            "EXISTS-" + s.name, f"CI referenced script exists: {s.name}",
-            s.exists(), str(s) if s.exists() else "missing",
-        ))
+        results.append(
+            ReexportCheck(
+                "EXISTS-" + s.name,
+                f"CI referenced script exists: {s.name}",
+                s.exists(),
+                str(s) if s.exists() else "missing",
+            )
+        )
 
     n_fail = sum(1 for r in results if not r.passed)
     report = {
@@ -132,8 +148,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         "fail": n_fail,
         "results": [r._asdict() for r in results],
     }
-    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2),
-                        encoding="utf-8")
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"[REEXPORT] wrappers={len(wrappers)} fail={n_fail} report={out_path}")
     for r in results:
         if not r.passed:

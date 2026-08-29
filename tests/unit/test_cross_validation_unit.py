@@ -2,6 +2,7 @@
 
 被测模块: utils/data/cross_validation.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -13,7 +14,10 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.data.cross_validation import CrossSourceValidator, ValidationResult  # noqa: E402
+from utils.data.cross_validation import (
+    CrossSourceValidator,
+    ValidationResult,
+)  # noqa: E402
 
 _NAN = float("nan")
 
@@ -21,8 +25,11 @@ _NAN = float("nan")
 class TestValidationResultStr:
     def test_str_ok(self):
         r = ValidationResult(
-            symbol="600519", ok=True, median=1700.5,
-            max_rel_deviation=0.001, message="交叉校验通过",
+            symbol="600519",
+            ok=True,
+            median=1700.5,
+            max_rel_deviation=0.001,
+            message="交叉校验通过",
         )
         s = str(r)
         assert "[600519]" in s
@@ -33,8 +40,11 @@ class TestValidationResultStr:
 
     def test_str_fail(self):
         r = ValidationResult(
-            symbol="000001", ok=False, median=10.0,
-            max_rel_deviation=0.5, message="bad",
+            symbol="000001",
+            ok=False,
+            median=10.0,
+            max_rel_deviation=0.5,
+            message="bad",
         )
         s = str(r)
         assert "ok=False" in s

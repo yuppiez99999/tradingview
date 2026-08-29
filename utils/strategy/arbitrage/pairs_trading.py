@@ -23,6 +23,7 @@ StatisticalArbitrageEngine 核心借鉴点:
     - 单一职责: 只做 Walk-Forward 验证, 不重写协整检验
     - 多小文件 (§5.3): 本模块 < 350 行
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -51,6 +52,7 @@ class WFWindowResult:
         oos_sharpe: 样本外 Sharpe 比率
         n_trades: 测试窗口内交易次数
     """
+
     window_id: int
     train_start: str
     train_end: str
@@ -76,6 +78,7 @@ class WFValidationReport:
         passed: 是否通过 OOS Sharpe ≥1.0 门禁
         baseline_sharpe: 基线 (StatisticalArbitrageEngine OOS Sharpe 1.499)
     """
+
     windows: list[WFWindowResult] = field(default_factory=list)
     avg_oos_sharpe: float = 0.0
     avg_oos_return: float = 0.0
@@ -321,7 +324,12 @@ class WalkForwardPairsValidator:
                     elif z > self._pt.entry_z:
                         position = -1  # 做空价差 (卖 A 买 B)
                         n_trades += 1
-                elif position == 1 and z > -self._pt.exit_z or position == -1 and z < self._pt.exit_z:
+                elif (
+                    position == 1
+                    and z > -self._pt.exit_z
+                    or position == -1
+                    and z < self._pt.exit_z
+                ):
                     position = 0  # 平仓
 
                 # 日 PnL: position=+1 → ret_A - hedge_ratio * ret_B
@@ -337,7 +345,9 @@ class WalkForwardPairsValidator:
             returns_arr = np.array(daily_returns)
             oos_return = float(np.sum(returns_arr))
             if np.std(returns_arr) > 1e-10:
-                oos_sharpe = float(np.mean(returns_arr) / np.std(returns_arr) * np.sqrt(252))
+                oos_sharpe = float(
+                    np.mean(returns_arr) / np.std(returns_arr) * np.sqrt(252)
+                )
             else:
                 oos_sharpe = 0.0
         else:

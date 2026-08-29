@@ -8,6 +8,7 @@
   5. 向后兼容: 审计 jsonl 字段缺失时降级跳过, 不崩溃
   6. CLI 入口: scripts/run_ai_decision_eod.py 主流程 + 退出码
 """
+
 from __future__ import annotations
 
 import json
@@ -16,7 +17,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from ai_decision.eod_review import (
     AlertsConfig,
@@ -81,10 +84,19 @@ def _write_tca_estimates(date_str: str, records):
 
 
 def _make_record(
-    symbol="600519", action="buy", mode="paper", executed=True,
-    veto=False, veto_reason="", escalation=False, escalation_reason="",
-    verdict_type="AUTO", confidence=0.8, strength=0.6,
-    tca_post_report=None, elapsed_seconds=0.0,
+    symbol="600519",
+    action="buy",
+    mode="paper",
+    executed=True,
+    veto=False,
+    veto_reason="",
+    escalation=False,
+    escalation_reason="",
+    verdict_type="AUTO",
+    confidence=0.8,
+    strength=0.6,
+    tca_post_report=None,
+    elapsed_seconds=0.0,
 ):
     """构造单条执行审计记录"""
     return {
@@ -100,7 +112,9 @@ def _make_record(
         "verdict_type": verdict_type,
         "decision_confidence": confidence,
         "decision_strength": strength,
-        "execution_result": {"elapsed_seconds": elapsed_seconds} if elapsed_seconds > 0 else None,
+        "execution_result": (
+            {"elapsed_seconds": elapsed_seconds} if elapsed_seconds > 0 else None
+        ),
         "tca_pre_estimate": None,
         "tca_post_report": tca_post_report,
         "tca_error": "",
@@ -111,6 +125,7 @@ def _make_record(
 # 验收 1: generate_eod_review 返回完整 dict, 无 KeyError
 # ============================================================
 
+
 def test_generate_eod_review_returns_complete_dict():
     """验收 1: 返回完整 dict, 5 维度 + 告警 + 元数据, 无 KeyError"""
     _cleanup_reports()
@@ -119,9 +134,14 @@ def test_generate_eod_review_returns_complete_dict():
 
     # 5 维度 + 告警 + 元数据
     expected_keys = {
-        "date", "decision_distribution", "debate_effectiveness",
-        "risk_interception", "execution_quality", "anomaly_detection",
-        "alerts", "generated_at",
+        "date",
+        "decision_distribution",
+        "debate_effectiveness",
+        "risk_interception",
+        "execution_quality",
+        "anomaly_detection",
+        "alerts",
+        "generated_at",
     }
     assert set(report.keys()) == expected_keys
     assert report["date"] == "2026-07-28"
@@ -164,16 +184,22 @@ def test_generate_eod_review_default_today():
 # 验收 2: 5 维度分析
 # ============================================================
 
+
 def test_dimension_1_decision_distribution():
     """验收 2 维度 1: 决策分布 (action / mode / verdict_type / confidence)"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        _make_record(action="buy", mode="paper", confidence=0.8),
-        _make_record(action="buy", mode="auto", confidence=0.9),
-        _make_record(action="sell", mode="auto", confidence=0.7),
-        _make_record(action="hold", mode="shadow", confidence=0.5, verdict_type="DEBATE"),
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(action="buy", mode="paper", confidence=0.8),
+            _make_record(action="buy", mode="auto", confidence=0.9),
+            _make_record(action="sell", mode="auto", confidence=0.7),
+            _make_record(
+                action="hold", mode="shadow", confidence=0.5, verdict_type="DEBATE"
+            ),
+        ],
+    )
 
     gen = EODReviewGenerator()
     report = gen.generate_eod_review("2026-07-28")
@@ -198,13 +224,16 @@ def test_dimension_2_debate_effectiveness():
     """验收 2 维度 2: 辩论有效性 (触发率 / FP 率)"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        # 4 条总记录, 2 条 DEBATE
-        _make_record(action="buy", verdict_type="AUTO", confidence=0.8),
-        _make_record(action="hold", verdict_type="DEBATE", confidence=0.5),  # FP
-        _make_record(action="buy", verdict_type="DEBATE", confidence=0.7),   # 非 FP
-        _make_record(action="sell", verdict_type="AUTO", confidence=0.9),
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            # 4 条总记录, 2 条 DEBATE
+            _make_record(action="buy", verdict_type="AUTO", confidence=0.8),
+            _make_record(action="hold", verdict_type="DEBATE", confidence=0.5),  # FP
+            _make_record(action="buy", verdict_type="DEBATE", confidence=0.7),  # 非 FP
+            _make_record(action="sell", verdict_type="AUTO", confidence=0.9),
+        ],
+    )
 
     gen = EODReviewGenerator()
     report = gen.generate_eod_review("2026-07-28")
@@ -222,14 +251,19 @@ def test_dimension_3_risk_interception():
     """验收 2 维度 3: 风控拦截 (veto / escalation Top 5 原因)"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        _make_record(veto=True, veto_reason="[L1] 黑名单", escalation=False),
-        _make_record(veto=True, veto_reason="[L1] 涨停", escalation=False),
-        _make_record(veto=True, veto_reason="[L1] 黑名单", escalation=False),  # 重复
-        _make_record(escalation=True, escalation_reason="下单失败: timeout"),
-        _make_record(escalation=True, escalation_reason="TCA 预筛否决"),
-        _make_record(veto=False, escalation=False),
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(veto=True, veto_reason="[L1] 黑名单", escalation=False),
+            _make_record(veto=True, veto_reason="[L1] 涨停", escalation=False),
+            _make_record(
+                veto=True, veto_reason="[L1] 黑名单", escalation=False
+            ),  # 重复
+            _make_record(escalation=True, escalation_reason="下单失败: timeout"),
+            _make_record(escalation=True, escalation_reason="TCA 预筛否决"),
+            _make_record(veto=False, escalation=False),
+        ],
+    )
 
     gen = EODReviewGenerator()
     report = gen.generate_eod_review("2026-07-28")
@@ -251,13 +285,22 @@ def test_dimension_4_execution_quality():
     """验收 2 维度 4: 执行质量 (成功率 / 延迟 / TCA 评级)"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        _make_record(executed=True, elapsed_seconds=0.5,
-                     tca_post_report={"quality_grade": "A", "is_cost_bps": 5.2}),
-        _make_record(executed=True, elapsed_seconds=0.8,
-                     tca_post_report={"quality_grade": "B", "is_cost_bps": 12.5}),
-        _make_record(executed=False, elapsed_seconds=0.0),  # 失败
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(
+                executed=True,
+                elapsed_seconds=0.5,
+                tca_post_report={"quality_grade": "A", "is_cost_bps": 5.2},
+            ),
+            _make_record(
+                executed=True,
+                elapsed_seconds=0.8,
+                tca_post_report={"quality_grade": "B", "is_cost_bps": 12.5},
+            ),
+            _make_record(executed=False, elapsed_seconds=0.0),  # 失败
+        ],
+    )
 
     gen = EODReviewGenerator()
     report = gen.generate_eod_review("2026-07-28")
@@ -278,12 +321,21 @@ def test_dimension_4_tca_estimates_collected():
     """验收 2 维度 4 补充: TCA 预估记录的成本被纳入平均"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        _make_record(executed=True, tca_post_report={"quality_grade": "A", "is_cost_bps": 10.0}),
-    ])
-    _write_tca_estimates("2026-07-28", [
-        {"symbol": "600519", "estimated_cost_bps": 20.0},
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(
+                executed=True,
+                tca_post_report={"quality_grade": "A", "is_cost_bps": 10.0},
+            ),
+        ],
+    )
+    _write_tca_estimates(
+        "2026-07-28",
+        [
+            {"symbol": "600519", "estimated_cost_bps": 20.0},
+        ],
+    )
 
     gen = EODReviewGenerator()
     report = gen.generate_eod_review("2026-07-28")
@@ -297,12 +349,15 @@ def test_dimension_5_anomaly_detection_auto_count():
     """验收 2 维度 5: 异常检测 — auto 单日笔数"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        _make_record(mode="auto"),
-        _make_record(mode="auto"),
-        _make_record(mode="paper"),
-        _make_record(mode="shadow"),
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(mode="auto"),
+            _make_record(mode="auto"),
+            _make_record(mode="paper"),
+            _make_record(mode="shadow"),
+        ],
+    )
 
     gen = EODReviewGenerator()
     report = gen.generate_eod_review("2026-07-28")
@@ -336,6 +391,7 @@ def test_dimension_5_model_failures_from_monitor():
 # 验收 3: 5 条告警规则触发
 # ============================================================
 
+
 def test_alert_model_consecutive_failures():
     """验收 3 规则 1: 模型连续失败 ≥ 阈值触发 WARNING"""
     _cleanup_reports()
@@ -352,7 +408,9 @@ def test_alert_model_consecutive_failures():
     gen = EODReviewGenerator(health_monitor=mon, alerts_config=cfg)
     report = gen.generate_eod_review("2026-07-28")
 
-    alerts = [a for a in report["alerts"] if a.get("rule") == "model_consecutive_failures"]
+    alerts = [
+        a for a in report["alerts"] if a.get("rule") == "model_consecutive_failures"
+    ]
     assert len(alerts) >= 1
     assert alerts[0]["severity"] == "WARNING"
     assert alerts[0]["role"] == "judge"
@@ -368,9 +426,12 @@ def test_alert_brier_threshold():
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
     # 置信度 0.5 < confidence_floor 0.75 → 触发 CRITICAL
-    _write_exec_audit("2026-07-28", [
-        _make_record(confidence=0.5, verdict_type="AUTO"),
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(confidence=0.5, verdict_type="AUTO"),
+        ],
+    )
 
     cfg = AlertsConfig(brier_threshold=0.25)  # confidence_floor = 1 - 0.25 = 0.75
     gen = EODReviewGenerator(alerts_config=cfg)
@@ -388,9 +449,7 @@ def test_alert_auto_daily_limit():
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
     # 写 5 条 auto 记录, 阈值 = 4
-    _write_exec_audit("2026-07-28", [
-        _make_record(mode="auto") for _ in range(5)
-    ])
+    _write_exec_audit("2026-07-28", [_make_record(mode="auto") for _ in range(5)])
 
     cfg = AlertsConfig(auto_daily_limit=4)
     gen = EODReviewGenerator(alerts_config=cfg)
@@ -408,12 +467,15 @@ def test_alert_veto_spike():
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
     # 4 条记录, 3 条 veto → veto_rate = 75% > 50% (25% × 2.0)
-    _write_exec_audit("2026-07-28", [
-        _make_record(veto=True, veto_reason="测试"),
-        _make_record(veto=True, veto_reason="测试"),
-        _make_record(veto=True, veto_reason="测试"),
-        _make_record(veto=False),
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(veto=True, veto_reason="测试"),
+            _make_record(veto=True, veto_reason="测试"),
+            _make_record(veto=True, veto_reason="测试"),
+            _make_record(veto=False),
+        ],
+    )
 
     cfg = AlertsConfig(veto_spike_ratio=2.0)
     gen = EODReviewGenerator(alerts_config=cfg)
@@ -430,12 +492,15 @@ def test_alert_tca_grade_df():
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
     # 4 笔带 TCA 评级: A/B/D/F → D+F = 2/4 = 50% > 20%
-    _write_exec_audit("2026-07-28", [
-        _make_record(tca_post_report={"quality_grade": "A", "is_cost_bps": 5.0}),
-        _make_record(tca_post_report={"quality_grade": "B", "is_cost_bps": 10.0}),
-        _make_record(tca_post_report={"quality_grade": "D", "is_cost_bps": 50.0}),
-        _make_record(tca_post_report={"quality_grade": "F", "is_cost_bps": 100.0}),
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(tca_post_report={"quality_grade": "A", "is_cost_bps": 5.0}),
+            _make_record(tca_post_report={"quality_grade": "B", "is_cost_bps": 10.0}),
+            _make_record(tca_post_report={"quality_grade": "D", "is_cost_bps": 50.0}),
+            _make_record(tca_post_report={"quality_grade": "F", "is_cost_bps": 100.0}),
+        ],
+    )
 
     cfg = AlertsConfig(tca_df_ratio=0.2)
     gen = EODReviewGenerator(alerts_config=cfg)
@@ -451,9 +516,14 @@ def test_no_alert_when_healthy():
     """验收 3: 全部健康时无告警"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        _make_record(mode="paper", confidence=0.9, verdict_type="AUTO"),  # 高置信度, 无 veto
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(
+                mode="paper", confidence=0.9, verdict_type="AUTO"
+            ),  # 高置信度, 无 veto
+        ],
+    )
 
     gen = EODReviewGenerator()
     report = gen.generate_eod_review("2026-07-28")
@@ -471,6 +541,7 @@ def test_no_alert_when_healthy():
 # ============================================================
 # 验收 4: 落盘 Markdown + JSON
 # ============================================================
+
 
 def test_save_creates_md_and_json():
     """验收 4: save() 后 eod_review_{date}.md + .json 存在且非空"""
@@ -527,9 +598,10 @@ def test_markdown_alerts_section_with_alerts():
     """验收 4: 有告警时 Markdown 告警章节渲染 CRITICAL / WARNING"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        _make_record(mode="auto") for _ in range(60)  # 触发 auto_daily_limit
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [_make_record(mode="auto") for _ in range(60)],  # 触发 auto_daily_limit
+    )
 
     cfg = AlertsConfig(auto_daily_limit=50)
     gen = EODReviewGenerator(alerts_config=cfg)
@@ -544,15 +616,23 @@ def test_markdown_alerts_section_with_alerts():
 # 验收 5: 向后兼容 (字段缺失不崩溃)
 # ============================================================
 
+
 def test_backward_compat_missing_fields():
     """验收 5: 审计记录字段缺失时降级跳过, 不崩溃"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
     # 写入字段不完整的记录 (无 action / mode / verdict_type / confidence / veto)
-    _write_exec_audit("2026-07-28", [
-        {"timestamp": datetime.now().isoformat(), "symbol": "600519"},  # 最小记录
-        {"timestamp": datetime.now().isoformat(), "symbol": "000001", "action": "buy"},  # 部分
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            {"timestamp": datetime.now().isoformat(), "symbol": "600519"},  # 最小记录
+            {
+                "timestamp": datetime.now().isoformat(),
+                "symbol": "000001",
+                "action": "buy",
+            },  # 部分
+        ],
+    )
 
     gen = EODReviewGenerator()
     # 不应抛出 KeyError
@@ -560,7 +640,11 @@ def test_backward_compat_missing_fields():
     dd = report["decision_distribution"]
     # 字段缺失时退化为 unknown
     assert dd["total_decisions"] == 2
-    assert dd["action_distribution"].get("unknown", 0) + dd["action_distribution"].get("buy", 0) == 2
+    assert (
+        dd["action_distribution"].get("unknown", 0)
+        + dd["action_distribution"].get("buy", 0)
+        == 2
+    )
 
 
 def test_backward_compat_corrupted_jsonl():
@@ -585,11 +669,14 @@ def test_backward_compat_tca_post_report_not_dict():
     """验收 5: tca_post_report 不是 dict (如 None / str) 时跳过"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        _make_record(tca_post_report=None),
-        _make_record(tca_post_report="not a dict"),
-        _make_record(tca_post_report={"quality_grade": "A", "is_cost_bps": 5.0}),
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(tca_post_report=None),
+            _make_record(tca_post_report="not a dict"),
+            _make_record(tca_post_report={"quality_grade": "A", "is_cost_bps": 5.0}),
+        ],
+    )
 
     gen = EODReviewGenerator()
     report = gen.generate_eod_review("2026-07-28")
@@ -628,17 +715,22 @@ def test_eod_review_report_dataclass_to_dict():
 # 验收 6: CLI 入口 (scripts/run_ai_decision_eod.py)
 # ============================================================
 
+
 def test_cli_main_success_no_alerts():
     """验收 6: CLI 无告警时退出码 0"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        _make_record(mode="paper", confidence=0.9),  # 健康
-    ])
+    _write_exec_audit(
+        "2026-07-28",
+        [
+            _make_record(mode="paper", confidence=0.9),  # 健康
+        ],
+    )
 
     # 导入 CLI 模块
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
     import importlib
+
     cli = importlib.import_module("run_ai_decision_eod")
 
     # 调用 main (使用 sys.argv 模拟)
@@ -658,12 +750,11 @@ def test_cli_main_with_alerts_returns_nonzero():
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
     # 60 条 auto 触发 auto_daily_limit
-    _write_exec_audit("2026-07-28", [
-        _make_record(mode="auto") for _ in range(60)
-    ])
+    _write_exec_audit("2026-07-28", [_make_record(mode="auto") for _ in range(60)])
 
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
     import importlib
+
     cli = importlib.import_module("run_ai_decision_eod")
 
     orig_argv = sys.argv
@@ -680,13 +771,14 @@ def test_cli_main_with_alerts_returns_nonzero():
 # 补充: _push_alerts try-except 隔离
 # ============================================================
 
+
 def test_push_alerts_isolated_from_realtime_monitor():
     """补充: realtime_monitor 不可用时 _push_alerts 不抛异常"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _write_exec_audit("2026-07-28", [
-        _make_record(mode="auto") for _ in range(60)  # 触发告警
-    ])
+    _write_exec_audit(
+        "2026-07-28", [_make_record(mode="auto") for _ in range(60)]  # 触发告警
+    )
 
     cfg = AlertsConfig(auto_daily_limit=50)
     gen = EODReviewGenerator(alerts_config=cfg)

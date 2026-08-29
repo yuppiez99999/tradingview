@@ -24,7 +24,14 @@ class TestPredictionResult:
         assert r.quantiles == {}
 
     def test_to_dict(self):
-        r = PredictionResult(symbol="A", horizon=1, current_price=10, target_price=11, direction="UP", confidence=0.8)
+        r = PredictionResult(
+            symbol="A",
+            horizon=1,
+            current_price=10,
+            target_price=11,
+            direction="UP",
+            confidence=0.8,
+        )
         d = r.to_dict()
         assert d["symbol"] == "A"
         assert d["direction"] == "UP"
@@ -74,7 +81,9 @@ class TestStatisticalForecaster:
 
     def test_ma_momentum_forecast(self):
         f = StatisticalForecaster()
-        prices = np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], dtype=np.float64)
+        prices = np.array(
+            [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], dtype=np.float64
+        )
         forecast, quantiles = f._ma_momentum_forecast(prices, horizon=3)
         assert len(forecast) == 3
         assert "q10" in quantiles
@@ -95,7 +104,9 @@ class TestStatisticalForecaster:
 
     def test_quantile_spread(self):
         f = StatisticalForecaster()
-        prices = np.array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], dtype=np.float64)
+        prices = np.array(
+            [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], dtype=np.float64
+        )
         forecast, quantiles = f._ma_momentum_forecast(prices, horizon=3)
         for i in range(3):
             assert quantiles["q10"][i] < quantiles["q50"][i] < quantiles["q90"][i]

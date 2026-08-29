@@ -1,4 +1,5 @@
 """akshare_futures 单元测试 — 期货数据统一接口"""
+
 from unittest.mock import MagicMock
 
 from utils.akshare_futures import (
@@ -55,14 +56,16 @@ class TestNormalizeAkQuotes:
 
     def test_single_row(self):
         mock_df = MagicMock()
-        mock_df.to_dict.return_value = [{
-            "symbol": "IF2509",
-            "最新价": 4000.0,
-            "开盘价": 3950.0,
-            "最高价": 4050.0,
-            "最低价": 3900.0,
-            "成交量": 100000,
-        }]
+        mock_df.to_dict.return_value = [
+            {
+                "symbol": "IF2509",
+                "最新价": 4000.0,
+                "开盘价": 3950.0,
+                "最高价": 4050.0,
+                "最低价": 3900.0,
+                "成交量": 100000,
+            }
+        ]
         result = _normalize_ak_quotes(mock_df)
         assert "IF2509" in result
         assert result["IF2509"]["symbol"] == "IF2509"
@@ -87,14 +90,16 @@ class TestNormalizeAkQuotes:
 
     def test_english_keys(self):
         mock_df = MagicMock()
-        mock_df.to_dict.return_value = [{
-            "symbol": "A",
-            "current_price": 50.0,
-            "open": 49.0,
-            "high": 51.0,
-            "low": 48.0,
-            "volume": 1000,
-        }]
+        mock_df.to_dict.return_value = [
+            {
+                "symbol": "A",
+                "current_price": 50.0,
+                "open": 49.0,
+                "high": 51.0,
+                "low": 48.0,
+                "volume": 1000,
+            }
+        ]
         result = _normalize_ak_quotes(mock_df)
         assert result["A"]["latest"] == 50.0
         assert result["A"]["open"] == 49.0
@@ -115,15 +120,17 @@ class TestNormalizeAkDaily:
 
     def test_single_row(self):
         mock_df = MagicMock()
-        mock_df.to_dict.return_value = [{
-            "symbol": "IF2509",
-            "日期": "2026-01-01",
-            "开盘价": 3950.0,
-            "收盘价": 4000.0,
-            "最高价": 4050.0,
-            "最低价": 3900.0,
-            "成交量": 100000,
-        }]
+        mock_df.to_dict.return_value = [
+            {
+                "symbol": "IF2509",
+                "日期": "2026-01-01",
+                "开盘价": 3950.0,
+                "收盘价": 4000.0,
+                "最高价": 4050.0,
+                "最低价": 3900.0,
+                "成交量": 100000,
+            }
+        ]
         result = _normalize_ak_daily(mock_df)
         assert "IF2509" in result
         assert result["IF2509"]["source"] == "akshare_daily"
@@ -138,15 +145,17 @@ class TestNormalizeAkDaily:
 
     def test_english_keys(self):
         mock_df = MagicMock()
-        mock_df.to_dict.return_value = [{
-            "symbol": "A",
-            "date": "2026-01-01",
-            "open": 10,
-            "close": 11,
-            "high": 12,
-            "low": 9,
-            "volume": 500,
-        }]
+        mock_df.to_dict.return_value = [
+            {
+                "symbol": "A",
+                "date": "2026-01-01",
+                "open": 10,
+                "close": 11,
+                "high": 12,
+                "low": 9,
+                "volume": 500,
+            }
+        ]
         result = _normalize_ak_daily(mock_df)
         assert result["A"]["close"] == 11.0
 

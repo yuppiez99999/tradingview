@@ -3,6 +3,7 @@
 被测模块: utils/vol_target_controller.py
 覆盖目标: >=95%
 """
+
 from __future__ import annotations
 
 import sys
@@ -19,6 +20,7 @@ from utils.vol_target_controller import VolTargetController  # noqa: E402
 # ============================================================
 # calc_realized_vol
 # ============================================================
+
 
 class TestCalcRealizedVol:
     def test_with_provided_returns(self):
@@ -60,6 +62,7 @@ class TestCalcRealizedVol:
 # calc_vol_scale
 # ============================================================
 
+
 class TestCalcVolScale:
     def test_normal_vol(self):
         vtc = VolTargetController()
@@ -97,6 +100,7 @@ class TestCalcVolScale:
 # ============================================================
 # adjust_daily_budget
 # ============================================================
+
 
 class TestAdjustDailyBudget:
     def test_force_scale(self):
@@ -156,6 +160,7 @@ class TestAdjustDailyBudget:
 # ============================================================
 # load_latest_scale
 # ============================================================
+
 
 class TestLoadLatestScale:
     def test_no_cache(self, tmp_path, monkeypatch):

@@ -48,6 +48,7 @@ logger = logging.getLogger("tt_dac_ps")
 # OU 噪声过程 (Ornstein-Uhlenbeck)
 # ============================================================
 
+
 @dataclass
 class OUParams:
     """Ornstein-Uhlenbeck 过程参数.
@@ -60,6 +61,7 @@ class OUParams:
         sigma: 扩散系数 (噪声强度)
         dt: 时间步长
     """
+
     theta: float = 5.0  # 均值回归速度
     mu: float = 0.0  # 长期均值
     sigma: float = 0.001  # 扩散系数 (1bps 级噪声)
@@ -90,7 +92,9 @@ class OUNoiseProcess:
         """
         p = self.params
         z = self._rng.standard_normal()
-        self._x = self._x + p.theta * (p.mu - self._x) * p.dt + p.sigma * math.sqrt(p.dt) * z
+        self._x = (
+            self._x + p.theta * (p.mu - self._x) * p.dt + p.sigma * math.sqrt(p.dt) * z
+        )
         return self._x
 
     def simulate(self, n_steps: int) -> np.ndarray:
@@ -109,6 +113,7 @@ class OUNoiseProcess:
 # 简化限价单簿 (LOB) 模型
 # ============================================================
 
+
 @dataclass
 class LOBParams:
     """限价单簿参数.
@@ -119,6 +124,7 @@ class LOBParams:
         n_levels: 档位数
         impact_exponent: 冲击指数 (消耗第 k 档的成本 ∝ k^impact_exponent)
     """
+
     spread_bps: float = 10.0  # 买卖价差 10bps
     depth_shares: float = 1000.0  # 每档 1000 股
     n_levels: int = 10  # 10 档
@@ -140,7 +146,9 @@ class LimitOrderBookModel:
         levels = n_levels or self.params.n_levels
         return self.params.depth_shares * levels
 
-    def lob_impact_bps(self, order_shares: float, liquidity_factor: float = 1.0) -> float:
+    def lob_impact_bps(
+        self, order_shares: float, liquidity_factor: float = 1.0
+    ) -> float:
         """LOB 冲击成本 (bps).
 
         消耗第 k 档的成本 ∝ k^impact_exponent,
@@ -162,7 +170,7 @@ class LimitOrderBookModel:
         # 加权冲击: 第 k 档冲击 = k^α × (spread/2)
         alpha = self.params.impact_exponent
         half_spread = self.params.spread_bps / 2.0
-        total_impact = sum((k ** alpha) * half_spread for k in range(1, n_consumed + 1))
+        total_impact = sum((k**alpha) * half_spread for k in range(1, n_consumed + 1))
         # 平均冲击 (按消耗档数归一化)
         return total_impact / n_consumed
 
@@ -189,6 +197,7 @@ class LimitOrderBookModel:
 # TT-DAC-PS 执行器
 # ============================================================
 
+
 @dataclass
 class ExecutionSlice:
     """执行切片.
@@ -201,6 +210,7 @@ class ExecutionSlice:
         ou_noise: OU 噪声扰动
         lob_impact_bps: LOB 冲击 (bps)
     """
+
     time: float
     shares: float
     price: float
@@ -227,6 +237,7 @@ class TTDACPSResult:
         ou_noise_path: OU 噪声路径
         metadata: 元数据
     """
+
     symbol: str
     total_shares: float
     slices: list[ExecutionSlice]
@@ -263,9 +274,15 @@ class TTDACPSExecutor:
         self.impact_model = MarketImpactModel(impact_params)
         self.ou_process = OUNoiseProcess(ou_params, seed=seed)
         # TT-DAC-PS 用更浅的 LOB (冲击更大), 突出 LOB 感知优势
-        self.lob_model = LimitOrderBookModel(lob_params or LOBParams(
-            spread_bps=30.0, depth_shares=300.0, n_levels=10, impact_exponent=0.5,
-        ))
+        self.lob_model = LimitOrderBookModel(
+            lob_params
+            or LOBParams(
+                spread_bps=30.0,
+                depth_shares=300.0,
+                n_levels=10,
+                impact_exponent=0.5,
+            )
+        )
         self._seed = seed
 
     def execute(
@@ -309,7 +326,9 @@ class TTDACPSExecutor:
         # 3. 构建执行切片 (TT-DAC-PS: AC + VWAP权重 + OU + LOB)
         # VWAP U 型权重 (结合成交量分布优势)
         vwap_a = 0.5
-        vwap_weights = [1.0 + vwap_a * (2.0 * i / n_slices - 1.0) ** 2 for i in range(n_slices)]
+        vwap_weights = [
+            1.0 + vwap_a * (2.0 * i / n_slices - 1.0) ** 2 for i in range(n_slices)
+        ]
         vwap_w_sum = sum(vwap_weights)
 
         slices: list[ExecutionSlice] = []
@@ -341,7 +360,9 @@ class TTDACPSExecutor:
             )
 
             # LOB 冲击 (流动性因子 = lob_rate^3, 盘中高流动性时段冲击大幅降低)
-            lob_impact = self.lob_model.lob_impact_bps(adjusted_shares, liquidity_factor=lob_rate ** 3)
+            lob_impact = self.lob_model.lob_impact_bps(
+                adjusted_shares, liquidity_factor=lob_rate**3
+            )
 
             # OU 噪声扰动 (影响执行价)
             noise = ou_path[i]
@@ -351,14 +372,16 @@ class TTDACPSExecutor:
             slice_cost = est.total_impact_bps + lob_impact
             total_cost_bps += slice_cost
 
-            slices.append(ExecutionSlice(
-                time=t,
-                shares=adjusted_shares,
-                price=exec_price,
-                impact_bps=est.total_impact_bps,
-                ou_noise=noise,
-                lob_impact_bps=lob_impact,
-            ))
+            slices.append(
+                ExecutionSlice(
+                    time=t,
+                    shares=adjusted_shares,
+                    price=exec_price,
+                    impact_bps=est.total_impact_bps,
+                    ou_noise=noise,
+                    lob_impact_bps=lob_impact,
+                )
+            )
 
         # 4. 基准成本 (TWAP/VWAP/AC)
         twap_cost = self._twap_cost(total_shares, adv, n_slices)
@@ -398,10 +421,14 @@ class TTDACPSExecutor:
         total = 0.0
         for _ in range(n_slices):
             est = self.impact_model.estimate(
-                symbol="TWAP", order_shares=slice_shares, adv=adv,
+                symbol="TWAP",
+                order_shares=slice_shares,
+                adv=adv,
                 execution_time_days=1.0 / n_slices,
             )
-            lob_impact = self.lob_model.lob_impact_bps(slice_shares, liquidity_factor=1.0)
+            lob_impact = self.lob_model.lob_impact_bps(
+                slice_shares, liquidity_factor=1.0
+            )
             total += est.total_impact_bps + lob_impact
         return total
 
@@ -415,15 +442,23 @@ class TTDACPSExecutor:
         for i in range(n_slices):
             slice_shares = total_shares * weights[i] / w_sum
             est = self.impact_model.estimate(
-                symbol="VWAP", order_shares=slice_shares, adv=adv,
+                symbol="VWAP",
+                order_shares=slice_shares,
+                adv=adv,
                 execution_time_days=1.0 / n_slices,
             )
-            lob_impact = self.lob_model.lob_impact_bps(slice_shares, liquidity_factor=1.0)
+            lob_impact = self.lob_model.lob_impact_bps(
+                slice_shares, liquidity_factor=1.0
+            )
             total += est.total_impact_bps + lob_impact
         return total
 
     def _ac_cost(
-        self, total_shares: float, adv: float, time_horizon: float, risk_aversion: float,
+        self,
+        total_shares: float,
+        adv: float,
+        time_horizon: float,
+        risk_aversion: float,
     ) -> float:
         """AC 基准成本: 最优轨迹, 无 LOB 感知."""
         traj = self.impact_model.optimal_trajectory(
@@ -440,7 +475,9 @@ class TTDACPSExecutor:
             else:
                 shares_i = total_shares / n_slices
             est = self.impact_model.estimate(
-                symbol="AC", order_shares=shares_i, adv=adv,
+                symbol="AC",
+                order_shares=shares_i,
+                adv=adv,
                 execution_time_days=time_horizon / n_slices,
             )
             lob_impact = self.lob_model.lob_impact_bps(shares_i, liquidity_factor=1.0)
@@ -486,6 +523,7 @@ class TTDACPSExecutor:
 # CLI 入口
 # ============================================================
 
+
 def main() -> None:
     """CLI 入口: 演示 TT-DAC-PS 最优执行算法."""
     print("=" * 60)
@@ -498,8 +536,11 @@ def main() -> None:
     # === 1. 基本执行 ===
     print("\n--- 1. 基本执行 ---")
     result = executor.execute(
-        symbol="600519", total_shares=10000, adv=500000,
-        decision_price=1800.0, n_slices=10,
+        symbol="600519",
+        total_shares=10000,
+        adv=500000,
+        decision_price=1800.0,
+        n_slices=10,
     )
     print(f"  标的: {result.symbol}")
     print(f"  总股数: {result.total_shares}")
@@ -512,30 +553,47 @@ def main() -> None:
 
     # === 3. 执行切片 ===
     print("\n--- 3. 执行切片 ---")
-    print(f"  {'时间':>6s}  {'股数':>8s}  {'冲击(bps)':>10s}  {'LOB(bps)':>10s}  {'OU噪声':>10s}")
+    print(
+        f"  {'时间':>6s}  {'股数':>8s}  {'冲击(bps)':>10s}  {'LOB(bps)':>10s}  {'OU噪声':>10s}"
+    )
     for s in result.slices[:5]:
-        print(f"  {s.time:6.2f}  {s.shares:8.0f}  {s.impact_bps:10.2f}  {s.lob_impact_bps:10.2f}  {s.ou_noise:10.6f}")
+        print(
+            f"  {s.time:6.2f}  {s.shares:8.0f}  {s.impact_bps:10.2f}  {s.lob_impact_bps:10.2f}  {s.ou_noise:10.6f}"
+        )
 
     # === 4. 基准对比 ===
     print("\n--- 4. 基准对比 ---")
     comparison = executor.compare_with_benchmarks(
-        symbol="600519", total_shares=50000, adv=100000, decision_price=1800.0,
+        symbol="600519",
+        total_shares=50000,
+        adv=100000,
+        decision_price=1800.0,
     )
     print(f"  TT-DAC-PS: {comparison['tt_dac_ps_cost_bps']:.2f} bps")
     print(f"  TWAP:      {comparison['twap_cost_bps']:.2f} bps")
     print(f"  VWAP:      {comparison['vwap_cost_bps']:.2f} bps")
     print(f"  AC:        {comparison['ac_cost_bps']:.2f} bps")
-    print(f"  vs TWAP:   {comparison['vs_twap_improvement_bps']:+.2f} bps ({'✅' if comparison['beats_twap'] else '❌'})")
-    print(f"  vs VWAP:   {comparison['vs_vwap_improvement_bps']:+.2f} bps ({'✅' if comparison['beats_vwap'] else '❌'})")
-    print(f"  vs AC:     {comparison['vs_ac_improvement_bps']:+.2f} bps ({'✅' if comparison['beats_ac'] else '❌'})")
+    print(
+        f"  vs TWAP:   {comparison['vs_twap_improvement_bps']:+.2f} bps ({'✅' if comparison['beats_twap'] else '❌'})"
+    )
+    print(
+        f"  vs VWAP:   {comparison['vs_vwap_improvement_bps']:+.2f} bps ({'✅' if comparison['beats_vwap'] else '❌'})"
+    )
+    print(
+        f"  vs AC:     {comparison['vs_ac_improvement_bps']:+.2f} bps ({'✅' if comparison['beats_ac'] else '❌'})"
+    )
 
     # === 5. 不同参与度对比 ===
     print("\n--- 5. 不同参与度对比 ---")
-    print(f"  {'参与度':>8s}  {'TT-DAC-PS':>10s}  {'TWAP':>10s}  {'VWAP':>10s}  {'AC':>10s}")
+    print(
+        f"  {'参与度':>8s}  {'TT-DAC-PS':>10s}  {'TWAP':>10s}  {'VWAP':>10s}  {'AC':>10s}"
+    )
     for participation in [0.01, 0.05, 0.10, 0.20, 0.50]:
         shares = int(participation * 100000)
         comp = executor.compare_with_benchmarks(
-            symbol="TEST", total_shares=shares, adv=100000,
+            symbol="TEST",
+            total_shares=shares,
+            adv=100000,
         )
         print(
             f"  {participation:8.0%}  "

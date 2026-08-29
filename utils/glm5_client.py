@@ -24,6 +24,7 @@ W7.4.3 重构为 LiteLLMRouter 统一网关的薄包装, 保留旧 API 向后兼
 
 集成日期: 2026-08-12 (W7.4.3, LiteLLM 多模型路由统一)
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 # LIT-2.5: FinGPT 备选模型 (可选依赖, 缺失时降级)
 try:
     from .fingpt_integration import FinGPTClient, ModelRouter, ModelType, TaskCategory
+
     _FINGPT_AVAILABLE = True
 except ImportError:
     _FINGPT_AVAILABLE = False
@@ -91,9 +93,8 @@ class GLM5Config:
         if os.environ.get("GLM5_MODE"):
             self.mode = os.environ.get("GLM5_MODE", self.mode)
         if not self.api_key:
-            self.api_key = (
-                os.environ.get("VOLCENGINE_API_KEY", "")
-                or os.environ.get("ZHIPUAI_API_KEY", "")
+            self.api_key = os.environ.get("VOLCENGINE_API_KEY", "") or os.environ.get(
+                "ZHIPUAI_API_KEY", ""
             )
 
 
@@ -127,6 +128,7 @@ class GLM5Client:
             return self._router
         try:
             from utils.llm_gateway import LiteLLMRouter
+
             self._router = LiteLLMRouter.get_instance()
         except (ImportError, RuntimeError) as exc:
             logger.warning("LiteLLMRouter 加载失败: %s", exc)
@@ -185,6 +187,7 @@ class GLM5Client:
 
         try:
             from utils.llm_gateway import ChatRequest
+
             request = ChatRequest(
                 prompt=message,
                 system=system,
@@ -231,7 +234,10 @@ class GLM5Client:
 
         try:
             from utils.llm_gateway import ChatRequest
-            response = router.chat(ChatRequest(prompt="ping", system="", scene="default"))
+
+            response = router.chat(
+                ChatRequest(prompt="ping", system="", scene="default")
+            )
             return {
                 "success": response.success,
                 "provider": response.provider.name,
@@ -283,6 +289,7 @@ def quick_chat(message: str, **kwargs: Any) -> str:
 # LIT-2.5: FinGPT 备选模型集成
 # ============================================================
 
+
 def get_fingpt_client() -> Any:
     """获取 FinGPT 客户端实例 (FinGPT 不可用时返回 None)."""
     if not _FINGPT_AVAILABLE:
@@ -290,9 +297,9 @@ def get_fingpt_client() -> Any:
     return FinGPTClient()
 
 
-def quick_chat_with_fallback(message: str,
-                             task: str = "daily_report",
-                             **kwargs: Any) -> str:
+def quick_chat_with_fallback(
+    message: str, task: str = "daily_report", **kwargs: Any
+) -> str:
     """带 FinGPT 备选的快速对话.
 
     路由策略:

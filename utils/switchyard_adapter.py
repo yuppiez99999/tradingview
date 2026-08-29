@@ -28,6 +28,7 @@
 
 集成日期: 2026-08-21 (v8.6, GitHub 周热门项目集成)
 """
+
 from __future__ import annotations
 
 import json
@@ -40,7 +41,9 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-_SWITCHYARD_SRC = Path(__file__).resolve().parent.parent.parent / "10_第三方项目" / "Switchyard"
+_SWITCHYARD_SRC = (
+    Path(__file__).resolve().parent.parent.parent / "10_第三方项目" / "Switchyard"
+)
 
 
 @dataclass
@@ -48,20 +51,24 @@ class SwitchyardConfig:
     """Switchyard 适配配置."""
 
     server_url: str = "http://localhost:7777"
-    api_key: str = field(default_factory=lambda: os.environ.get("SWITCHYARD_API_KEY", ""))
+    api_key: str = field(
+        default_factory=lambda: os.environ.get("SWITCHYARD_API_KEY", "")
+    )
     default_strategy: str = "cost_aware"  # cost_aware / quality_first / latency_first
     timeout_seconds: int = 30
     fallback_to_litellm: bool = True
     use_native_binding: bool = True  # True=使用 switchyard_rust Python 绑定
 
     # 模型路由映射 (主系统场景 → Switchyard 模型)
-    scene_model_map: dict[str, str] = field(default_factory=lambda: {
-        "intraday_decision": "qwen3-flash",      # 低延迟
-        "rebalancing_analysis": "deepseek-v4-pro",  # 深度推理
-        "macro_analysis": "glm-5.2",             # 宏观分析
-        "report_generation": "qwen-plus",        # 结构化输出
-        "light_analysis": "doubao-speed",        # 情感/分类
-    })
+    scene_model_map: dict[str, str] = field(
+        default_factory=lambda: {
+            "intraday_decision": "qwen3-flash",  # 低延迟
+            "rebalancing_analysis": "deepseek-v4-pro",  # 深度推理
+            "macro_analysis": "glm-5.2",  # 宏观分析
+            "report_generation": "qwen-plus",  # 结构化输出
+            "light_analysis": "doubao-speed",  # 情感/分类
+        }
+    )
 
 
 class SwitchyardAdapter:
@@ -92,6 +99,7 @@ class SwitchyardAdapter:
                 if str_path not in sys.path:
                     sys.path.insert(0, str_path)
             import switchyard_rust  # type: ignore
+
             self._binding = switchyard_rust
             logger.info("✓ Switchyard Python 绑定已加载 (本版本)")
             return
@@ -104,14 +112,18 @@ class SwitchyardAdapter:
 
         # 降级: 查找 Python 3.12+ 通过 subprocess 桥接
         import shutil
+
         for py_cmd in ("python3.12", "python3.13", "python3.14"):
             py_path = shutil.which(py_cmd)
             if py_path:
                 try:
                     import subprocess
+
                     result = subprocess.run(
                         [py_path, "-c", "import switchyard_rust; print('ok')"],
-                        capture_output=True, text=True, timeout=10,
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
                     )
                     if result.returncode == 0 and "ok" in result.stdout:
                         self._bridge_python = py_path
@@ -161,25 +173,34 @@ class SwitchyardAdapter:
             # 跨版本桥接: 通过 subprocess 调用 Python 3.12
             if self._binding is None and self._bridge_python:
                 import subprocess
+
                 bridge_script = str(Path(__file__).parent / "switchyard_bridge.py")
-                params = json.dumps({
-                    "messages": messages,
-                    "model": model,
-                    "strategy": strategy,
-                    "max_tokens": max_tokens,
-                    "temperature": temperature,
-                    "server_url": self.config.server_url,
-                    "api_key": self.config.api_key,
-                    "timeout": self.config.timeout_seconds,
-                }, ensure_ascii=False)
+                params = json.dumps(
+                    {
+                        "messages": messages,
+                        "model": model,
+                        "strategy": strategy,
+                        "max_tokens": max_tokens,
+                        "temperature": temperature,
+                        "server_url": self.config.server_url,
+                        "api_key": self.config.api_key,
+                        "timeout": self.config.timeout_seconds,
+                    },
+                    ensure_ascii=False,
+                )
                 result = subprocess.run(
                     [self._bridge_python, bridge_script, params],
-                    capture_output=True, text=True, timeout=self.config.timeout_seconds + 10,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.config.timeout_seconds + 10,
                     encoding="utf-8",
                 )
                 if result.returncode == 0:
                     response = json.loads(result.stdout)
-                    logger.info("✓ Switchyard 桥接路由成功 (model=%s)", response.get("model", model))
+                    logger.info(
+                        "✓ Switchyard 桥接路由成功 (model=%s)",
+                        response.get("model", model),
+                    )
                     return response
                 return {"content": "", "error": f"桥接失败: {result.stderr}"}
 
@@ -201,7 +222,13 @@ class SwitchyardAdapter:
                 response.get("latency_ms", 0),
             )
             return response
-        except (RuntimeError, ValueError, ConnectionError, TimeoutError, subprocess.TimeoutExpired) as e:
+        except (
+            RuntimeError,
+            ValueError,
+            ConnectionError,
+            TimeoutError,
+            subprocess.TimeoutExpired,
+        ) as e:
             logger.warning("Switchyard 路由失败: %s, 应降级到 LiteLLMRouter", e)
             return {"content": "", "error": str(e)}
 
@@ -230,11 +257,13 @@ class SwitchyardAdapter:
                 if "latency_ms" in resp:
                     latencies.append(resp["latency_ms"])
             if latencies:
-                results.append({
-                    "model": model_name,
-                    "avg_latency_ms": sum(latencies) // len(latencies),
-                    "samples": len(latencies),
-                })
+                results.append(
+                    {
+                        "model": model_name,
+                        "avg_latency_ms": sum(latencies) // len(latencies),
+                        "samples": len(latencies),
+                    }
+                )
         return results
 
     def get_status(self) -> dict[str, Any]:
@@ -251,7 +280,9 @@ class SwitchyardAdapter:
 _switchyard_instance: Optional[SwitchyardAdapter] = None
 
 
-def get_switchyard_adapter(config: Optional[SwitchyardConfig] = None) -> SwitchyardAdapter:
+def get_switchyard_adapter(
+    config: Optional[SwitchyardConfig] = None,
+) -> SwitchyardAdapter:
     """获取 Switchyard 适配器单例."""
     global _switchyard_instance
     if _switchyard_instance is None:

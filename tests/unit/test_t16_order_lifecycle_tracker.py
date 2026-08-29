@@ -1,4 +1,5 @@
 """T16 单元测试 — OrderLifecycleTracker 订单生命周期跟踪器."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -17,6 +18,7 @@ from utils.risk.risk_audit_logger import RiskAuditLogger
 # ============================================================
 # 测试夹具
 # ============================================================
+
 
 class MockBroker:
     """模拟 broker, 可配置 get_order_status 返回值."""
@@ -46,9 +48,12 @@ class FailingCancelBroker(MockBroker):
         return False
 
 
-def _make_tracker(broker: MockBroker | None = None, timeout_sec: int = 30, orphan_sec: int = 10) -> OrderLifecycleTracker:
+def _make_tracker(
+    broker: MockBroker | None = None, timeout_sec: int = 30, orphan_sec: int = 10
+) -> OrderLifecycleTracker:
     import tempfile
     from pathlib import Path
+
     audit = RiskAuditLogger(project_root=Path(tempfile.mkdtemp()), audit_dir="audit")
     return OrderLifecycleTracker(
         broker=broker or MockBroker(),
@@ -61,6 +66,7 @@ def _make_tracker(broker: MockBroker | None = None, timeout_sec: int = 30, orpha
 # ============================================================
 # map_broker_state 测试
 # ============================================================
+
 
 class TestMapBrokerState:
     def test_qmt_numeric_codes(self):
@@ -91,6 +97,7 @@ class TestMapBrokerState:
 # OrderState 属性测试
 # ============================================================
 
+
 class TestOrderState:
     def test_is_terminal(self):
         assert OrderState.FILLED.is_terminal
@@ -112,6 +119,7 @@ class TestOrderState:
 # ============================================================
 # 注册与查询
 # ============================================================
+
 
 class TestRegister:
     def test_register_returns_tracked_order(self):
@@ -151,9 +159,12 @@ class TestRegister:
 # 轮询与状态转移
 # ============================================================
 
+
 class TestPollOnce:
     def test_submitted_to_filled(self):
-        broker = MockBroker(states=[{"state": "FILLED", "filled_qty": 100, "avg_price": 10.0}])
+        broker = MockBroker(
+            states=[{"state": "FILLED", "filled_qty": 100, "avg_price": 10.0}]
+        )
         tracker = _make_tracker(broker=broker)
         tracker.register("o1", "b1", "sh", "buy", 100)
 
@@ -165,7 +176,9 @@ class TestPollOnce:
         assert changed[0].avg_fill_price == 10.0
 
     def test_submitted_to_partial_fill(self):
-        broker = MockBroker(states=[{"state": "PART_TRADED", "filled_qty": 50, "avg_price": 10.0}])
+        broker = MockBroker(
+            states=[{"state": "PART_TRADED", "filled_qty": 50, "avg_price": 10.0}]
+        )
         tracker = _make_tracker(broker=broker)
         tracker.register("o1", "b1", "sh", "buy", 100)
 
@@ -175,7 +188,9 @@ class TestPollOnce:
         assert changed[0].filled_qty == 50
 
     def test_same_state_no_change(self):
-        broker = MockBroker(states=[{"state": "REPORTED", "filled_qty": 0, "avg_price": 0.0}])
+        broker = MockBroker(
+            states=[{"state": "REPORTED", "filled_qty": 0, "avg_price": 0.0}]
+        )
         tracker = _make_tracker(broker=broker)
         tracker.register("o1", "b1", "sh", "buy", 100)
 
@@ -184,7 +199,16 @@ class TestPollOnce:
         assert len(changed) == 0  # SUBMITTED → SUBMITTED, 无变化
 
     def test_rejected_state(self):
-        broker = MockBroker(states=[{"state": "REJECTED", "filled_qty": 0, "avg_price": 0.0, "rejection_reason": "限价无效"}])
+        broker = MockBroker(
+            states=[
+                {
+                    "state": "REJECTED",
+                    "filled_qty": 0,
+                    "avg_price": 0.0,
+                    "rejection_reason": "限价无效",
+                }
+            ]
+        )
         tracker = _make_tracker(broker=broker)
         tracker.register("o1", "b1", "sh", "buy", 100)
 
@@ -194,7 +218,9 @@ class TestPollOnce:
         assert changed[0].rejection_reason == "限价无效"
 
     def test_callback_invoked(self):
-        broker = MockBroker(states=[{"state": "FILLED", "filled_qty": 100, "avg_price": 10.0}])
+        broker = MockBroker(
+            states=[{"state": "FILLED", "filled_qty": 100, "avg_price": 10.0}]
+        )
         tracker = _make_tracker(broker=broker)
         callback = MagicMock()
         tracker.register("o1", "b1", "sh", "buy", 100, callback=callback)
@@ -208,10 +234,12 @@ class TestPollOnce:
 class TestInvalidTransition:
     def test_filled_to_submitted_ignored(self):
         """终态后不应再转移."""
-        broker = MockBroker(states=[
-            {"state": "FILLED", "filled_qty": 100, "avg_price": 10.0},
-            {"state": "REPORTED", "filled_qty": 0, "avg_price": 0.0},  # 应被忽略
-        ])
+        broker = MockBroker(
+            states=[
+                {"state": "FILLED", "filled_qty": 100, "avg_price": 10.0},
+                {"state": "REPORTED", "filled_qty": 0, "avg_price": 0.0},  # 应被忽略
+            ]
+        )
         tracker = _make_tracker(broker=broker)
         tracker.register("o1", "b1", "sh", "buy", 100)
 
@@ -225,16 +253,21 @@ class TestInvalidTransition:
 # 超时与撤单
 # ============================================================
 
+
 class TestTimeoutAndCancel:
     def test_orphaned_on_timeout(self):
         """SUBMITTED 超时 → ORPHANED."""
-        broker = MockBroker(states=[{"state": "REPORTED", "filled_qty": 0, "avg_price": 0.0}])
+        broker = MockBroker(
+            states=[{"state": "REPORTED", "filled_qty": 0, "avg_price": 0.0}]
+        )
         tracker = _make_tracker(broker=broker, timeout_sec=1, orphan_sec=1)
         tracker.register("o1", "b1", "sh", "buy", 100)
 
         # 手动调整 deadline 到过去
         with tracker._lock:
-            tracker._orders["o1"].timeout_deadline = datetime.now() - timedelta(seconds=1)
+            tracker._orders["o1"].timeout_deadline = datetime.now() - timedelta(
+                seconds=1
+            )
 
         changed = tracker.poll_once()
 
@@ -247,7 +280,9 @@ class TestTimeoutAndCancel:
         tracker.register("o1", "b1", "sh", "buy", 100)
 
         with tracker._lock:
-            tracker._orders["o1"].timeout_deadline = datetime.now() - timedelta(seconds=1)
+            tracker._orders["o1"].timeout_deadline = datetime.now() - timedelta(
+                seconds=1
+            )
 
         cancelled = tracker.cancel_stale_orders()
 
@@ -285,7 +320,9 @@ class TestTimeoutAndCancel:
         tracker.register("o1", "b1", "sh", "buy", 100)
 
         with tracker._lock:
-            tracker._orders["o1"].timeout_deadline = datetime.now() - timedelta(seconds=1)
+            tracker._orders["o1"].timeout_deadline = datetime.now() - timedelta(
+                seconds=1
+            )
 
         cancelled = tracker.cancel_stale_orders()
 
@@ -296,6 +333,7 @@ class TestTimeoutAndCancel:
 # ============================================================
 # 快照
 # ============================================================
+
 
 class TestSnapshot:
     def test_snapshot_has_expected_keys(self):
@@ -315,6 +353,7 @@ class TestSnapshot:
 # ============================================================
 # 配置校验
 # ============================================================
+
 
 class TestConfigValidation:
     def test_invalid_timeout_raises(self):

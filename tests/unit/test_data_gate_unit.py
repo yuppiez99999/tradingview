@@ -6,6 +6,7 @@
 测试数据质量门控: 基础质量分、新鲜度(行情/宏观)、多源价格偏离、
 价格异常、score clamp、DataGateResult.to_dict。
 """
+
 from __future__ import annotations
 
 import sys

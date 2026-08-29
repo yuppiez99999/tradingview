@@ -40,9 +40,11 @@ pytestmark = [pytest.mark.e2e]
 # Helper: mock compute_dsr (deflated_sharpe 模块缺失时的降级)
 # ============================================================
 
+
 @dataclass
 class _MockDsrResult:
     """Mock deflated_sharpe_ratio 返回值 (deflated_sharpe 模块缺失)."""
+
     deflated_sharpe_ratio: float = 0.85
 
 
@@ -61,6 +63,7 @@ def mock_dsr_if_missing(monkeypatch):
     """自动检测并 mock compute_dsr (仅当 deflated_sharpe 模块缺失时)."""
     try:
         import deflated_sharpe  # noqa: F401
+
         # 模块存在, 不 mock
     except ImportError:
         # 模块缺失, mock compute_dsr
@@ -70,6 +73,7 @@ def mock_dsr_if_missing(monkeypatch):
 # ============================================================
 # 场景 1: 正常生命周期 (14 天观察期) ✅
 # ============================================================
+
 
 class TestNormalLifecycle:
     """14 天观察期正常生命周期."""
@@ -100,8 +104,12 @@ class TestNormalLifecycle:
         assert isinstance(metrics, ShadowMetrics)
         assert metrics.days_tracked == n_days
         # 数值合理性
-        assert -1.0 < metrics.annual_return < 2.0, f"annual_return 异常: {metrics.annual_return}"
-        assert 0 <= metrics.max_drawdown < 1.0, f"max_drawdown 异常: {metrics.max_drawdown}"
+        assert (
+            -1.0 < metrics.annual_return < 2.0
+        ), f"annual_return 异常: {metrics.annual_return}"
+        assert (
+            0 <= metrics.max_drawdown < 1.0
+        ), f"max_drawdown 异常: {metrics.max_drawdown}"
         # is_real_data 默认 True
         assert metrics.is_real_data is True
 
@@ -124,6 +132,7 @@ class TestNormalLifecycle:
 # ============================================================
 # 场景 2: Fail-Fast 触发 (单日 >3%) 🚨
 # ============================================================
+
 
 class TestFailFastDailyBreach:
     """单日回撤 >3% 触发 Fail-Fast."""
@@ -163,6 +172,7 @@ class TestFailFastDailyBreach:
 # 场景 3: Fail-Fast 触发 (3 日累计 >5%) 🚨
 # ============================================================
 
+
 class TestFailFast3dCumulativeBreach:
     """3 日累计回撤 >5% 触发 Fail-Fast."""
 
@@ -186,12 +196,16 @@ class TestFailFast3dCumulativeBreach:
         # 3 日累计触发
         assert result.fail_fast_triggered is True
         assert result.fail_fast_reason is not None
-        assert "3日累计" in result.fail_fast_reason or "cumulative" in result.fail_fast_reason.lower()
+        assert (
+            "3日累计" in result.fail_fast_reason
+            or "cumulative" in result.fail_fast_reason.lower()
+        )
 
 
 # ============================================================
 # 场景 4: 样本不足降级 ⚠️
 # ============================================================
+
 
 class TestInsufficientSamples:
     """样本数 < MIN_SAMPLES_FOR_DSR(20) 时降级."""
@@ -237,6 +251,7 @@ class TestInsufficientSamples:
 # 场景 5: risk_managed 模式 ⏭ (跳过)
 # ============================================================
 
+
 class TestRiskManagedMode:
     """risk_managed 模式波动率缩放.
 
@@ -245,7 +260,9 @@ class TestRiskManagedMode:
     本场景标记 skip, 待后续版本 ShadowAccountAdapter 直接支持 risk_managed 时启用.
     """
 
-    @pytest.mark.skip(reason="ShadowAccountAdapter 当前版本无 risk_managed 参数, 需后续版本支持")
+    @pytest.mark.skip(
+        reason="ShadowAccountAdapter 当前版本无 risk_managed 参数, 需后续版本支持"
+    )
     def test_risk_managed_volatility_scaling(self, sample_daily_returns_14d):
         """risk_managed 模式: 波动率缩放至目标 15% + 回撤去杠杆."""
         pass
@@ -255,10 +272,13 @@ class TestRiskManagedMode:
 # 场景 6: 与 PipelineOrchestrator 集成 🔗
 # ============================================================
 
+
 class TestPipelineShadowIntegration:
     """Pipeline 产出 → Shadow 注入的端到端数据流."""
 
-    def test_pipeline_to_shadow_integration(self, pipeline_config_overrides, sample_daily_returns_14d):
+    def test_pipeline_to_shadow_integration(
+        self, pipeline_config_overrides, sample_daily_returns_14d
+    ):
         """Pipeline 完成 (dry_run) → 将收益率序列注入 ShadowAccountAdapter.
 
         验收标准:

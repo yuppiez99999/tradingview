@@ -233,3 +233,14 @@ related:
 | `cairn/self-evolution-framework.md` §八 | 控制论映射（已沉淀） |
 | `cairn/recommended-reading-20260819.md` | 推荐书目（非哲学类） |
 | `cairn/philosophy-trading-mapping-20260819.md` | 本文档 — 哲学与交易映射 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [自我进化框架](self-evolution-framework.md) (相似度 22%)
+- [推荐书目：对系统有工程指导意义的中外书籍](recommended-reading-20260819.md) (相似度 15%)
+- [经典理论覆盖度审计 — 2026-08-19](classic-theory-coverage-20260819.md) (相似度 13%)
+- [qlib 选股模型回测验证与 V9 对比](qlib-backtest-validation.md) (相似度 6%)
+- [P0 经典理论四件套实现 — 2026-08-23](p0-classic-theory-impl-20260823.md) (相似度 5%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -7,6 +7,7 @@
 
 对齐 tasks T1.3.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,6 +34,7 @@ from scripts.phase_b_b4_shadow_runner import (
 # 场景 1: 闭环正常
 # ============================================================
 
+
 class TestLoopClosed:
     """LLM 反馈闭环正常: KnowledgeBase 写入→读取→ideation 反哺."""
 
@@ -51,7 +53,7 @@ class TestLoopClosed:
         )
         monkeypatch.setattr(
             "scripts.phase_b_b4_shadow_runner._validate_llm_feedback_loop",
-            lambda *a, **kw: mock_loop_result
+            lambda *a, **kw: mock_loop_result,
         )
         result = run_shadow()
         assert result.loop_closed is True
@@ -70,7 +72,7 @@ class TestLoopClosed:
         )
         monkeypatch.setattr(
             "scripts.phase_b_b4_shadow_runner._validate_llm_feedback_loop",
-            lambda *a, **kw: mock_loop_result
+            lambda *a, **kw: mock_loop_result,
         )
         result = run_shadow()
         assert result.need_rollback is False
@@ -87,7 +89,7 @@ class TestLoopClosed:
         )
         monkeypatch.setattr(
             "scripts.phase_b_b4_shadow_runner._validate_llm_feedback_loop",
-            lambda *a, **kw: mock_loop_result
+            lambda *a, **kw: mock_loop_result,
         )
         result = run_shadow()
         assert "3" in result.suggestion
@@ -97,6 +99,7 @@ class TestLoopClosed:
 # ============================================================
 # 场景 2: LLM 不可用降级
 # ============================================================
+
 
 class TestLLMUnavailableDegradation:
     """LLM 不可用: 降级至 B3, need_rollback=False, llm_available=False."""
@@ -108,7 +111,7 @@ class TestLLMUnavailableDegradation:
         )
         monkeypatch.setattr(
             "scripts.phase_b_b4_shadow_runner._validate_llm_feedback_loop",
-            lambda *a, **kw: mock_loop_result
+            lambda *a, **kw: mock_loop_result,
         )
         result = run_shadow()
         assert result.loop_closed is False
@@ -120,10 +123,7 @@ class TestLLMUnavailableDegradation:
         def raise_import_error(*args, **kwargs):
             raise ImportError("No module named 'utils.llm_evolution'")
 
-        monkeypatch.setattr(
-            "builtins.__import__",
-            raise_import_error
-        )
+        monkeypatch.setattr("builtins.__import__", raise_import_error)
         result = _validate_llm_feedback_loop()
         assert result.loop_closed is False
         assert "不可用" in result.error_message or "ImportError" in result.error_message
@@ -132,6 +132,7 @@ class TestLLMUnavailableDegradation:
 # ============================================================
 # 场景 3: 知识库写入失败
 # ============================================================
+
 
 class TestKnowledgeBaseWriteFailure:
     """知识库写入失败: need_rollback=True + rollback_reason 记录."""
@@ -144,7 +145,7 @@ class TestKnowledgeBaseWriteFailure:
         )
         monkeypatch.setattr(
             "scripts.phase_b_b4_shadow_runner._validate_llm_feedback_loop",
-            lambda *a, **kw: mock_loop_result
+            lambda *a, **kw: mock_loop_result,
         )
         result = run_shadow()
         assert result.kb_write_success is False
@@ -161,7 +162,7 @@ class TestKnowledgeBaseWriteFailure:
         )
         monkeypatch.setattr(
             "scripts.phase_b_b4_shadow_runner._validate_llm_feedback_loop",
-            lambda *a, **kw: mock_loop_result
+            lambda *a, **kw: mock_loop_result,
         )
         result = run_shadow()
         assert result.kb_write_success is True
@@ -177,7 +178,7 @@ class TestKnowledgeBaseWriteFailure:
         )
         monkeypatch.setattr(
             "scripts.phase_b_b4_shadow_runner._validate_llm_feedback_loop",
-            lambda *a, **kw: mock_loop_result
+            lambda *a, **kw: mock_loop_result,
         )
         result = run_shadow()
         assert "需人工介入" in result.suggestion
@@ -186,6 +187,7 @@ class TestKnowledgeBaseWriteFailure:
 # ============================================================
 # 辅助测试: B3 状态检查 + Flag 不变式
 # ============================================================
+
 
 class TestB3StatusCheck:
     """B3 状态前置检查."""
@@ -203,14 +205,18 @@ class TestB3StatusCheck:
 
     def test_check_b3_status_healthy_when_stable(self, tmp_path, monkeypatch):
         b3_file = tmp_path / "b3_shadow_status.json"
-        b3_file.write_text(json.dumps({
-            "warmup_days": WARMUP_TARGET_DAYS,
-            "rollback_count": 0,
-            "run_count": 7,
-        }), encoding="utf-8")
+        b3_file.write_text(
+            json.dumps(
+                {
+                    "warmup_days": WARMUP_TARGET_DAYS,
+                    "rollback_count": 0,
+                    "run_count": 7,
+                }
+            ),
+            encoding="utf-8",
+        )
         monkeypatch.setattr(
-            "scripts.phase_b_b4_shadow_runner.SHADOW_REPORT_DIR",
-            tmp_path
+            "scripts.phase_b_b4_shadow_runner.SHADOW_REPORT_DIR", tmp_path
         )
         result = check_b3_status()
         assert result.healthy is True
@@ -218,14 +224,18 @@ class TestB3StatusCheck:
 
     def test_check_b3_status_unhealthy_when_rollback(self, tmp_path, monkeypatch):
         b3_file = tmp_path / "b3_shadow_status.json"
-        b3_file.write_text(json.dumps({
-            "warmup_days": WARMUP_TARGET_DAYS,
-            "rollback_count": 2,
-            "run_count": 7,
-        }), encoding="utf-8")
+        b3_file.write_text(
+            json.dumps(
+                {
+                    "warmup_days": WARMUP_TARGET_DAYS,
+                    "rollback_count": 2,
+                    "run_count": 7,
+                }
+            ),
+            encoding="utf-8",
+        )
         monkeypatch.setattr(
-            "scripts.phase_b_b4_shadow_runner.SHADOW_REPORT_DIR",
-            tmp_path
+            "scripts.phase_b_b4_shadow_runner.SHADOW_REPORT_DIR", tmp_path
         )
         result = check_b3_status()
         assert result.healthy is False
@@ -242,6 +252,7 @@ class TestFlagInvariant:
 # ============================================================
 # 辅助测试: LLM 反馈闭环验证器
 # ============================================================
+
 
 class TestLLMFeedbackLoopValidator:
     """LLM 反馈闭环验证器."""
@@ -260,12 +271,15 @@ class TestLLMFeedbackLoopValidator:
             assert result.kb_write_success is True
             assert result.kb_read_success is True
         else:
-            assert len(result.error_message) > 0 or not result.ideation_feedback_received
+            assert (
+                len(result.error_message) > 0 or not result.ideation_feedback_received
+            )
 
 
 # ============================================================
 # 辅助测试: 降级护栏边界
 # ============================================================
+
 
 class TestDegradationGuardBoundary:
     """降级护栏边界条件."""
@@ -281,7 +295,7 @@ class TestDegradationGuardBoundary:
         )
         monkeypatch.setattr(
             "scripts.phase_b_b4_shadow_runner._validate_llm_feedback_loop",
-            lambda *a, **kw: mock_loop_result
+            lambda *a, **kw: mock_loop_result,
         )
         result = run_shadow()
         assert result.llm_available is True
@@ -293,7 +307,7 @@ class TestDegradationGuardBoundary:
         )
         monkeypatch.setattr(
             "scripts.phase_b_b4_shadow_runner._validate_llm_feedback_loop",
-            lambda *a, **kw: mock_loop_result
+            lambda *a, **kw: mock_loop_result,
         )
         result = run_shadow()
         assert result.need_rollback is False

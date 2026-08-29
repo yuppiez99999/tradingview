@@ -138,7 +138,14 @@ class DataQualityMonitor:
     REQUIRED_FIELDS = ["close"]  # 必须非空
 
     # 数据源优先级
-    DATA_SOURCES = ["wind_terminal", "wind_mcp", "ifind_mcp", "akshare", "sina", "local_cache"]
+    DATA_SOURCES = [
+        "wind_terminal",
+        "wind_mcp",
+        "ifind_mcp",
+        "akshare",
+        "sina",
+        "local_cache",
+    ]
 
     def __init__(self, max_latency_minutes: int = 30):
         """
@@ -265,7 +272,9 @@ class DataQualityMonitor:
             for field_name in self.PRICE_FIELDS + self.VOLUME_FIELDS:
                 if field_name in fields:
                     value = fields[field_name]
-                    if value is None or (isinstance(value, float) and math.isnan(value)):
+                    if value is None or (
+                        isinstance(value, float) and math.isnan(value)
+                    ):
                         report.issues.append(
                             QualityIssue(
                                 severity="warning",
@@ -426,7 +435,9 @@ class DataQualityMonitor:
         f = int(k)
         c = k - f
         if f + 1 < n:
-            return float(sorted_values[f]) + c * (float(sorted_values[f + 1]) - float(sorted_values[f]))
+            return float(sorted_values[f]) + c * (
+                float(sorted_values[f + 1]) - float(sorted_values[f])
+            )
         return float(sorted_values[f])
 
     @staticmethod
@@ -538,10 +549,16 @@ class DataQualityMonitor:
             sorted_vals = sorted(values)
             mid = n // 2
             median = (
-                float(sorted_vals[mid]) if n % 2 == 1 else (float(sorted_vals[mid - 1]) + float(sorted_vals[mid])) / 2
+                float(sorted_vals[mid])
+                if n % 2 == 1
+                else (float(sorted_vals[mid - 1]) + float(sorted_vals[mid])) / 2
             )
             abs_devs = sorted(abs(v - median) for v in values)
-            mad = float(abs_devs[mid]) if n % 2 == 1 else (float(abs_devs[mid - 1]) + float(abs_devs[mid])) / 2
+            mad = (
+                float(abs_devs[mid])
+                if n % 2 == 1
+                else (float(abs_devs[mid - 1]) + float(abs_devs[mid])) / 2
+            )
             if mad == 0:
                 return [False] * n
             modified_z = [abs(v - median) / (1.4826 * mad) for v in values]
@@ -603,7 +620,9 @@ class DataQualityMonitor:
                             category="outlier",
                             field=field_name,
                             symbol=symbols[i],
-                            description=(f"Z-score 异常: {field_name}={vals[i]} (Z>{self.Z_SCORE_THRESHOLD})"),
+                            description=(
+                                f"Z-score 异常: {field_name}={vals[i]} (Z>{self.Z_SCORE_THRESHOLD})"
+                            ),
                             value=vals[i],
                         )
                     )
@@ -618,7 +637,9 @@ class DataQualityMonitor:
                             category="outlier",
                             field=field_name,
                             symbol=symbols[i],
-                            description=(f"IQR 异常: {field_name}={vals[i]} (IQR×{self.IQR_MULTIPLIER})"),
+                            description=(
+                                f"IQR 异常: {field_name}={vals[i]} (IQR×{self.IQR_MULTIPLIER})"
+                            ),
                             value=vals[i],
                         )
                     )
@@ -633,7 +654,9 @@ class DataQualityMonitor:
                             category="outlier",
                             field=field_name,
                             symbol=symbols[i],
-                            description=(f"MAD 异常: {field_name}={vals[i]} (modZ>{self.MAD_THRESHOLD})"),
+                            description=(
+                                f"MAD 异常: {field_name}={vals[i]} (modZ>{self.MAD_THRESHOLD})"
+                            ),
                             value=vals[i],
                         )
                     )
@@ -718,7 +741,11 @@ class DataQualityMonitor:
         now = datetime.now()
 
         for symbol, fields in data.items():
-            ts = fields.get(timestamp_field) or fields.get("timestamp") or fields.get("trade_date")
+            ts = (
+                fields.get(timestamp_field)
+                or fields.get("timestamp")
+                or fields.get("trade_date")
+            )
             if not ts:
                 continue
 
@@ -776,13 +803,18 @@ class DataQualityMonitor:
 
         # 完整性评分
         critical_completeness = sum(
-            1 for i in report.issues if i.category == "completeness" and i.severity == "critical"
+            1
+            for i in report.issues
+            if i.category == "completeness" and i.severity == "critical"
         )
         report.completeness_score = max(0, 100 - critical_completeness * 20)
 
         # 一致性评分
         consistency_issues = sum(
-            1 for i in report.issues if i.category in ("consistency", "outlier") and i.severity in ("error", "critical")
+            1
+            for i in report.issues
+            if i.category in ("consistency", "outlier")
+            and i.severity in ("error", "critical")
         )
         report.consistency_score = max(0, 100 - consistency_issues * 10)
 
@@ -792,7 +824,9 @@ class DataQualityMonitor:
 
         # 综合评分 (加权平均)
         report.overall_score = (
-            report.completeness_score * 0.40 + report.consistency_score * 0.35 + report.freshness_score * 0.25
+            report.completeness_score * 0.40
+            + report.consistency_score * 0.35
+            + report.freshness_score * 0.25
         )
 
     # ------------------------------------------------------------
@@ -841,12 +875,25 @@ class DataQualityMonitor:
     # ------------------------------------------------------------
     def save_report(self, report: QualityReport) -> Path:
         """保存数据质量报告"""
-        path = REPORT_DIR / f"data_quality_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        path = (
+            REPORT_DIR / f"data_quality_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
         try:
             with open(path, "w", encoding="utf-8") as f:
-                json.dump(report.to_dict(), f, ensure_ascii=False, indent=2, default=str)
+                json.dump(
+                    report.to_dict(), f, ensure_ascii=False, indent=2, default=str
+                )
             logger.info(f"数据质量报告已保存: {path}")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存数据质量报告失败: {e}")
         return path
 
@@ -920,7 +967,16 @@ if __name__ == "__main__":
             },
         }
 
-        expected = ["300308", "002475", "600519", "000001", "600036", "601318", "缺失标的1", "缺失标的2"]
+        expected = [
+            "300308",
+            "002475",
+            "600519",
+            "000001",
+            "600036",
+            "601318",
+            "缺失标的1",
+            "缺失标的2",
+        ]
 
         report = monitor.check_market_data(data, expected_symbols=expected)
         logger.info(report.summary)

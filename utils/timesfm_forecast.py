@@ -52,7 +52,9 @@ def load_timesfm_model(
         ) from e
 
     torch.set_float32_matmul_precision("high")
-    logger.info("加载 TimesFM 2.5 from HuggingFace (google/timesfm-2.5-200m-pytorch)...")
+    logger.info(
+        "加载 TimesFM 2.5 from HuggingFace (google/timesfm-2.5-200m-pytorch)..."
+    )
     _MODEL = timesfm.TimesFM_2p5_200M_torch.from_pretrained(
         "google/timesfm-2.5-200m-pytorch"
     )
@@ -155,6 +157,7 @@ def is_available() -> bool:
     """检查 timesfm 是否可用 (已安装)."""
     try:
         import timesfm  # noqa: F401
+
         return True
     except ImportError:
         return False

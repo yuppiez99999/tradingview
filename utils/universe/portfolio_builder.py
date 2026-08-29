@@ -248,7 +248,9 @@ def apply_risk_constraints(
     for h in portfolio.holdings:
         industry_total[h.industry] = industry_total.get(h.industry, 0) + h.weight
 
-    over_exposed = {ind: w for ind, w in industry_total.items() if w > config.max_industry_exposure}
+    over_exposed = {
+        ind: w for ind, w in industry_total.items() if w > config.max_industry_exposure
+    }
     if over_exposed:
         logger.warning(f"行业暴露超限: {over_exposed}")
         # 简单处理：超限行业按比例缩减
@@ -267,7 +269,9 @@ def apply_risk_constraints(
     # 更新行业暴露
     portfolio.industry_exposure = {}
     for h in portfolio.holdings:
-        portfolio.industry_exposure[h.industry] = portfolio.industry_exposure.get(h.industry, 0) + h.weight
+        portfolio.industry_exposure[h.industry] = (
+            portfolio.industry_exposure.get(h.industry, 0) + h.weight
+        )
 
     # 计算 HHI 集中度
     weights = np.array([h.weight for h in portfolio.holdings])
@@ -330,10 +334,14 @@ def build_layered_portfolio(
         ("long", config.long_count, config.long_emphasis, "长线"),
     ]
     for layer_name, n, emphasis, label in layers:
-        holdings = _select_layer(scores_df, n, emphasis, industry_map, name_map, exclude, layer_name)
+        holdings = _select_layer(
+            scores_df, n, emphasis, industry_map, name_map, exclude, layer_name
+        )
         exclude.update(h.symbol for h in holdings)
         portfolio.holdings.extend(holdings)
-        logger.info(f"  {label}层 [{emphasis}]: 选取 {len(holdings)} 只 (累计 {len(portfolio.holdings)})")
+        logger.info(
+            f"  {label}层 [{emphasis}]: 选取 {len(holdings)} 只 (累计 {len(portfolio.holdings)})"
+        )
 
     # 应用风险约束
     portfolio = apply_risk_constraints(portfolio, config)
@@ -354,7 +362,9 @@ _MVSK_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_MVSK_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_MVSK_PROJECT_ROOT))
 
-MVSK_SHADOW_REPORT_PATH = _MVSK_PROJECT_ROOT / "reports" / "shadow" / "mvsk_p5_daily_diff.jsonl"
+MVSK_SHADOW_REPORT_PATH = (
+    _MVSK_PROJECT_ROOT / "reports" / "shadow" / "mvsk_p5_daily_diff.jsonl"
+)
 MVSK_WARMUP_DAYS_REQUIRED = 378
 MVSK_GAMMA_S = 0.1
 MVSK_GAMMA_K = 0.1
@@ -364,6 +374,7 @@ MVSK_WINDOW = 378
 @dataclass
 class MVSKShadowResult:
     """MVSK shadow 运行结果."""
+
     success: bool = False
     mvsk_weights: dict[str, float] = field(default_factory=dict)
     baseline_weights: dict[str, float] = field(default_factory=dict)
@@ -391,9 +402,12 @@ def _load_historical_returns(
     try:
         if feature_store_path and feature_store_path.exists():
             import pandas as pd
+
             df = pd.read_parquet(feature_store_path)
             if len(df) < days_required:
-                logger.warning("MVSK 冷启动数据不足: %d < %d 天", len(df), days_required)
+                logger.warning(
+                    "MVSK 冷启动数据不足: %d < %d 天", len(df), days_required
+                )
                 return None
             return df.values[-days_required:]
         rng = np.random.default_rng(42)
@@ -527,7 +541,9 @@ def apply_mvsk_shadow_to_mid_layer(
     symbols = [h.symbol for h in mid_holdings]
     baseline_weights = _compute_baseline_weights(portfolio.holdings)
 
-    returns_matrix = _load_historical_returns(symbols, feature_store_path=feature_store_path)
+    returns_matrix = _load_historical_returns(
+        symbols, feature_store_path=feature_store_path
+    )
     if returns_matrix is None:
         return portfolio, MVSKShadowResult(
             success=False,
@@ -548,9 +564,14 @@ def apply_mvsk_shadow_to_mid_layer(
 
     all_keys = set(mvsk_weights) | set(baseline_weights)
     if all_keys:
-        weight_diff_l2 = float(np.sqrt(
-            sum((mvsk_weights.get(k, 0.0) - baseline_weights.get(k, 0.0)) ** 2 for k in all_keys)
-        ))
+        weight_diff_l2 = float(
+            np.sqrt(
+                sum(
+                    (mvsk_weights.get(k, 0.0) - baseline_weights.get(k, 0.0)) ** 2
+                    for k in all_keys
+                )
+            )
+        )
     else:
         weight_diff_l2 = 0.0
 
@@ -568,7 +589,9 @@ def apply_mvsk_shadow_to_mid_layer(
         )
 
     if mvsk_mode == "active":
-        weight_map = {h.symbol: mvsk_weights.get(h.symbol, h.weight) for h in portfolio.holdings}
+        weight_map = {
+            h.symbol: mvsk_weights.get(h.symbol, h.weight) for h in portfolio.holdings
+        }
         for h in portfolio.holdings:
             if h.layer == "mid":
                 h.weight = weight_map.get(h.symbol, h.weight)

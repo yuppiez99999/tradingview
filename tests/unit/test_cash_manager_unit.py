@@ -3,6 +3,7 @@
 被测模块: utils/cash_manager.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,6 +24,7 @@ from utils.cash_manager import (  # noqa: E402
 # __init__
 # ============================================================
 
+
 class TestInit:
     def test_default(self):
         cm = CashManager()
@@ -38,6 +40,7 @@ class TestInit:
 # ============================================================
 # allocate_idle_cash
 # ============================================================
+
 
 class TestAllocateIdleCash:
     def test_basic(self):
@@ -131,6 +134,7 @@ class TestAllocateIdleCash:
 # check_emergency_replenish
 # ============================================================
 
+
 class TestEmergencyReplenish:
     def test_no_action(self):
         cm = CashManager()
@@ -145,6 +149,7 @@ class TestEmergencyReplenish:
     def test_overdue(self):
         cm = CashManager()
         from datetime import timedelta
+
         old_date = date.today() - timedelta(days=5)
         r = cm.check_emergency_replenish(50_000, last_used_date=old_date)
         assert r["action"] == "replenish_now"
@@ -153,6 +158,7 @@ class TestEmergencyReplenish:
 # ============================================================
 # check_margin_call
 # ============================================================
+
 
 class TestMarginCall:
     def test_normal(self):
@@ -175,6 +181,7 @@ class TestMarginCall:
 # get_allocation_summary
 # ============================================================
 
+
 class TestAllocationSummary:
     def test_basic(self):
         cm = CashManager()
@@ -187,6 +194,7 @@ class TestAllocationSummary:
 # ============================================================
 # summary
 # ============================================================
+
 
 class TestSummary:
     def test_basic(self):
@@ -202,6 +210,7 @@ class TestSummary:
 # ============================================================
 # _is_month_end / _is_quarter_end
 # ============================================================
+
 
 class TestDateHelpers:
     def test_month_end(self):

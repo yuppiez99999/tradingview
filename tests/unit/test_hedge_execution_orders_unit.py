@@ -4,6 +4,7 @@
   - S4: 期权最小名义阈值 (alloc 不足 1 张 → 跳过)
   - S5: 期货 instrument/multiplier 从配置读取 (默认 IF/300)
 """
+
 from __future__ import annotations
 
 import sys
@@ -12,7 +13,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-sys.modules.pop("hedge_execution_orders", None)  # 清理缓存避免 ms_strategy/scripts 同名模块污染
+sys.modules.pop(
+    "hedge_execution_orders", None
+)  # 清理缓存避免 ms_strategy/scripts 同名模块污染
 import hedge_execution_orders as heo  # noqa: E402  -- module uses `tuple[str, int]` which requires __future__ or 3.9+
 
 

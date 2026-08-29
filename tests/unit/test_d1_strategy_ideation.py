@@ -1,4 +1,5 @@
 """D1 单元测试 — StrategyIdeationEngine LLM 策略 Ideation 引擎."""
+
 from __future__ import annotations
 
 import json
@@ -17,6 +18,7 @@ from utils.llm_evolution.strategy_ideation import (
 # 测试夹具
 # ============================================================
 
+
 class MockLLM:
     """模拟 LLM 返回预设 JSON."""
 
@@ -25,47 +27,74 @@ class MockLLM:
         self._response = response or self._default_response()
         self.call_count = 0
 
-    def chat(self, prompt: str, system: str = "", temperature: float | None = None,
-             max_tokens: int | None = None) -> str | None:
+    def chat(
+        self,
+        prompt: str,
+        system: str = "",
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str | None:
         self.call_count += 1
         return self._response
 
     def _default_response(self) -> str:
-        return json.dumps({
-            "hypotheses": [
-                {
-                    "description": "低估值因子在市场调整后表现更佳",
-                    "market_observation": "今日指数下跌 2%, 估值因子有望反弹",
-                    "factor_direction": "long_small",
-                    "proposed_factors": [
-                        {"name": "EP", "category": "Value", "formula": "1/PE"}
-                    ],
-                    "strategy_style": "value",
-                },
-                {
-                    "description": "动量因子在上涨趋势中持续有效",
-                    "market_observation": "指数连续 3 日上涨",
-                    "factor_direction": "long_large",
-                    "proposed_factors": [
-                        {"name": "MOM_20D", "category": "Momentum", "formula": "close/close[-20]-1"}
-                    ],
-                    "strategy_style": "momentum",
-                },
-            ]
-        })
+        return json.dumps(
+            {
+                "hypotheses": [
+                    {
+                        "description": "低估值因子在市场调整后表现更佳",
+                        "market_observation": "今日指数下跌 2%, 估值因子有望反弹",
+                        "factor_direction": "long_small",
+                        "proposed_factors": [
+                            {"name": "EP", "category": "Value", "formula": "1/PE"}
+                        ],
+                        "strategy_style": "value",
+                    },
+                    {
+                        "description": "动量因子在上涨趋势中持续有效",
+                        "market_observation": "指数连续 3 日上涨",
+                        "factor_direction": "long_large",
+                        "proposed_factors": [
+                            {
+                                "name": "MOM_20D",
+                                "category": "Momentum",
+                                "formula": "close/close[-20]-1",
+                            }
+                        ],
+                        "strategy_style": "momentum",
+                    },
+                ]
+            }
+        )
+
 
 class EmptyLLM:
     """返回 None 的 LLM."""
+
     name = "empty"
-    def chat(self, prompt: str, system: str = "", temperature: float | None = None,
-             max_tokens: int | None = None) -> str | None:
+
+    def chat(
+        self,
+        prompt: str,
+        system: str = "",
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str | None:
         return None
+
 
 class ErrorLLM:
     """抛异常的 LLM."""
+
     name = "error"
-    def chat(self, prompt: str, system: str = "", temperature: float | None = None,
-             max_tokens: int | None = None) -> str | None:
+
+    def chat(
+        self,
+        prompt: str,
+        system: str = "",
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str | None:
         raise RuntimeError("API timeout")
 
 
@@ -83,7 +112,9 @@ def _make_market_data() -> dict[str, Any]:
     }
 
 
-def _make_engine(llm: Any = None, audit: Any = None, **kwargs) -> StrategyIdeationEngine:
+def _make_engine(
+    llm: Any = None, audit: Any = None, **kwargs
+) -> StrategyIdeationEngine:
     return StrategyIdeationEngine(
         llm_router=llm or MockLLM(),
         audit_logger=audit or MagicMock(),
@@ -94,6 +125,7 @@ def _make_engine(llm: Any = None, audit: Any = None, **kwargs) -> StrategyIdeati
 # ============================================================
 # MarketObservation 测试
 # ============================================================
+
 
 class TestMarketObservation:
     def test_to_prompt_context(self):
@@ -123,11 +155,24 @@ class TestMarketObservation:
 # Hypothesis 测试
 # ============================================================
 
+
 class TestHypothesis:
     def test_compute_diversity_hash(self):
-        h1 = Hypothesis(description="低估值因子", factor_direction="long_small", strategy_style="value")
-        h2 = Hypothesis(description="低估值因子", factor_direction="long_small", strategy_style="value")
-        h3 = Hypothesis(description="动量因子", factor_direction="long_large", strategy_style="momentum")
+        h1 = Hypothesis(
+            description="低估值因子",
+            factor_direction="long_small",
+            strategy_style="value",
+        )
+        h2 = Hypothesis(
+            description="低估值因子",
+            factor_direction="long_small",
+            strategy_style="value",
+        )
+        h3 = Hypothesis(
+            description="动量因子",
+            factor_direction="long_large",
+            strategy_style="momentum",
+        )
         h1.compute_diversity_hash()
         h2.compute_diversity_hash()
         h3.compute_diversity_hash()
@@ -138,6 +183,7 @@ class TestHypothesis:
 # ============================================================
 # 引擎构造
 # ============================================================
+
 
 class TestEngineConstruction:
     def test_none_llm_raises(self):
@@ -157,6 +203,7 @@ class TestEngineConstruction:
 # 市场观察
 # ============================================================
 
+
 class TestObserveMarket:
     def test_observe_market(self):
         engine = _make_engine()
@@ -175,6 +222,7 @@ class TestObserveMarket:
 # ============================================================
 # 假设生成
 # ============================================================
+
 
 class TestGenerateHypotheses:
     def test_normal_generation(self):
@@ -207,10 +255,22 @@ class TestGenerateHypotheses:
     def test_json_with_code_block(self):
         """LLM 返回 ```json ... ``` 格式."""
         llm = MockLLM()
-        llm._response = '```json\n' + json.dumps({
-            "hypotheses": [{"description": "测试", "factor_direction": "long_small",
-                            "proposed_factors": [], "strategy_style": "value"}]
-        }) + '\n```'
+        llm._response = (
+            "```json\n"
+            + json.dumps(
+                {
+                    "hypotheses": [
+                        {
+                            "description": "测试",
+                            "factor_direction": "long_small",
+                            "proposed_factors": [],
+                            "strategy_style": "value",
+                        }
+                    ]
+                }
+            )
+            + "\n```"
+        )
         engine = _make_engine(llm=llm)
         obs = MarketObservation(date="2026-08-12")
         hyps = engine.generate_hypotheses(obs)
@@ -229,14 +289,24 @@ class TestGenerateHypotheses:
         """重复假设应被去重."""
         llm = MockLLM()
         # 返回两个完全相同的假设
-        llm._response = json.dumps({
-            "hypotheses": [
-                {"description": "相同假设", "factor_direction": "long_small",
-                 "proposed_factors": [], "strategy_style": "value"},
-                {"description": "相同假设", "factor_direction": "long_small",
-                 "proposed_factors": [], "strategy_style": "value"},
-            ]
-        })
+        llm._response = json.dumps(
+            {
+                "hypotheses": [
+                    {
+                        "description": "相同假设",
+                        "factor_direction": "long_small",
+                        "proposed_factors": [],
+                        "strategy_style": "value",
+                    },
+                    {
+                        "description": "相同假设",
+                        "factor_direction": "long_small",
+                        "proposed_factors": [],
+                        "strategy_style": "value",
+                    },
+                ]
+            }
+        )
         engine = _make_engine(llm=llm)
         obs = MarketObservation(date="2026-08-12")
         hyps = engine.generate_hypotheses(obs)
@@ -246,6 +316,7 @@ class TestGenerateHypotheses:
 # ============================================================
 # 因子设计与验证
 # ============================================================
+
 
 class TestDesignAndValidate:
     def test_design_factors(self):
@@ -287,6 +358,7 @@ class TestDesignAndValidate:
 # 入库
 # ============================================================
 
+
 class TestPromoteToLibrary:
     def test_shadow_mode(self):
         engine = _make_engine(shadow_mode=True)
@@ -303,6 +375,7 @@ class TestPromoteToLibrary:
 # 完整周期
 # ============================================================
 
+
 class TestIdeationCycle:
     def test_full_cycle(self):
         engine = _make_engine()
@@ -314,9 +387,15 @@ class TestIdeationCycle:
     def test_cycle_with_verifier(self):
         engine = _make_engine()
         verifier = MagicMock()
-        verifier.verify.return_value = {"pass": True, "factor_name": "EP",
-                                        "rank_ic_mean": 0.05, "icir": 0.8}
-        result = engine.run_ideation_cycle(_make_market_data(), n_hypotheses=5, verifier=verifier)
+        verifier.verify.return_value = {
+            "pass": True,
+            "factor_name": "EP",
+            "rank_ic_mean": 0.05,
+            "icir": 0.8,
+        }
+        result = engine.run_ideation_cycle(
+            _make_market_data(), n_hypotheses=5, verifier=verifier
+        )
         assert result.total_validated > 0
 
     def test_cycle_llm_error(self):
@@ -329,12 +408,19 @@ class TestIdeationCycle:
 # 多样性计算
 # ============================================================
 
+
 class TestDiversity:
     def test_all_unique(self):
         engine = _make_engine()
         hyps = [
-            Hypothesis(description="A", factor_direction="long_small", strategy_style="value"),
-            Hypothesis(description="B", factor_direction="long_large", strategy_style="momentum"),
+            Hypothesis(
+                description="A", factor_direction="long_small", strategy_style="value"
+            ),
+            Hypothesis(
+                description="B",
+                factor_direction="long_large",
+                strategy_style="momentum",
+            ),
         ]
         for h in hyps:
             h.compute_diversity_hash()
@@ -344,8 +430,12 @@ class TestDiversity:
     def test_all_same(self):
         engine = _make_engine()
         hyps = [
-            Hypothesis(description="A", factor_direction="long_small", strategy_style="value"),
-            Hypothesis(description="A", factor_direction="long_small", strategy_style="value"),
+            Hypothesis(
+                description="A", factor_direction="long_small", strategy_style="value"
+            ),
+            Hypothesis(
+                description="A", factor_direction="long_small", strategy_style="value"
+            ),
         ]
         for h in hyps:
             h.compute_diversity_hash()

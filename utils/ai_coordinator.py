@@ -19,23 +19,30 @@ from typing import Any, Optional
 
 try:
     from .logging_manager import get_logger
-    logger = get_logger('ai_coordinator')
+
+    logger = get_logger("ai_coordinator")
 except ImportError:
     import logging
-    logger = logging.getLogger('ai_coordinator')
+
+    logger = logging.getLogger("ai_coordinator")
 
 # W.C.3 插件化: feature-flag + PluginRegistry (可选依赖, 缺失时走旧路径)
 try:
     from .infra.feature_flags import is_enabled as _is_flag_enabled
 except ImportError:
+
     def _is_flag_enabled(_name: str) -> bool:
         return False
 
+
 try:
     from .ai_coordinator_plugins.base import ConflictContext, RoutingContext
-    from .ai_coordinator_plugins.conflict_detection_plugin import create_default_conflict_plugins
+    from .ai_coordinator_plugins.conflict_detection_plugin import (
+        create_default_conflict_plugins,
+    )
     from .ai_coordinator_plugins.registry import PluginRegistry
     from .ai_coordinator_plugins.routing_plugin import create_default_routing_plugins
+
     _PLUGINS_AVAILABLE = True
 except ImportError:
     _PLUGINS_AVAILABLE = False
@@ -43,6 +50,7 @@ except ImportError:
 # LIT-2.2: TradingGroup 自反思机制 (可选依赖, 缺失时降级)
 try:
     from .trading_group_reflector import TradingGroupReflector
+
     _REFLECTOR_AVAILABLE = True
 except ImportError:
     _REFLECTOR_AVAILABLE = False
@@ -50,6 +58,7 @@ except ImportError:
 # LIT-2.6: 对抗新闻攻击防护 (可选依赖, 缺失时降级)
 try:
     from .adversarial_news_guard import AdversarialNewsGuard
+
     _NEWS_GUARD_AVAILABLE = True
 except ImportError:
     _NEWS_GUARD_AVAILABLE = False
@@ -57,15 +66,17 @@ except ImportError:
 
 class TaskType(Enum):
     """AI任务类型"""
-    DAILY_REPORT = "daily_report"           # 日报告生成（质量要求中等，量大）
-    INTRADAY_DECISION = "intraday_decision" # 盘中实时决策（速度要求高）
-    DEEP_RESEARCH = "deep_research"         # 深度研究（质量要求极高，量少）
-    SENTIMENT = "sentiment"                 # 情绪分析（量中等）
-    MACRO_ANALYSIS = "macro_analysis"       # 宏观分析（质量要求高）
+
+    DAILY_REPORT = "daily_report"  # 日报告生成（质量要求中等，量大）
+    INTRADAY_DECISION = "intraday_decision"  # 盘中实时决策（速度要求高）
+    DEEP_RESEARCH = "deep_research"  # 深度研究（质量要求极高，量少）
+    SENTIMENT = "sentiment"  # 情绪分析（量中等）
+    MACRO_ANALYSIS = "macro_analysis"  # 宏观分析（质量要求高）
 
 
 class Priority(Enum):
     """任务优先级"""
+
     LOW = 1
     MEDIUM = 2
     HIGH = 3
@@ -82,47 +93,57 @@ class AICoordinator:
 
     # 模型配置（价格按 2024-2025 市场行情估算，单位：元/1K tokens）
     MODEL_CONFIG = {
-        'doubao_speed': {
-            'cost_per_1k_input': 0.0008,
-            'cost_per_1k_output': 0.002,
-            'max_tokens': 32000,
-            'roles': [TaskType.INTRADAY_DECISION, TaskType.DAILY_REPORT, TaskType.SENTIMENT],
+        "doubao_speed": {
+            "cost_per_1k_input": 0.0008,
+            "cost_per_1k_output": 0.002,
+            "max_tokens": 32000,
+            "roles": [
+                TaskType.INTRADAY_DECISION,
+                TaskType.DAILY_REPORT,
+                TaskType.SENTIMENT,
+            ],
         },
-        'glm5': {
-            'cost_per_1k_input': 0.015,
-            'cost_per_1k_output': 0.015,
-            'max_tokens': 128000,
-            'roles': [TaskType.MACRO_ANALYSIS],
+        "glm5": {
+            "cost_per_1k_input": 0.015,
+            "cost_per_1k_output": 0.015,
+            "max_tokens": 128000,
+            "roles": [TaskType.MACRO_ANALYSIS],
         },
-        'deepseek': {
-            'cost_per_1k_input': 0.002,
-            'cost_per_1k_output': 0.008,
-            'max_tokens': 64000,
-            'roles': [TaskType.DEEP_RESEARCH],
+        "deepseek": {
+            "cost_per_1k_input": 0.002,
+            "cost_per_1k_output": 0.008,
+            "max_tokens": 64000,
+            "roles": [TaskType.DEEP_RESEARCH],
         },
     }
 
-    def __init__(self, daily_token_budget: int = 500000,
-                 db_path: str = None, pricing_path: str = None):
+    def __init__(
+        self,
+        daily_token_budget: int = 500000,
+        db_path: str = None,
+        pricing_path: str = None,
+    ):
         if db_path is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            db_path = os.path.join(base_dir, 'data', 'ai_coordinator.db')
+            db_path = os.path.join(base_dir, "data", "ai_coordinator.db")
 
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.db_path = db_path
         # P2: 价格表外置到 config/llm_pricing.yaml, 缺失回退内置默认值
         self.pricing = self._load_pricing(pricing_path)
         if pricing_path is None:
-            budget = self.pricing.get('daily_token_budget')
+            budget = self.pricing.get("daily_token_budget")
             if budget:
                 daily_token_budget = budget
         self.daily_token_budget = daily_token_budget
         self._token_used_today = 0
-        self._today = datetime.now().strftime('%Y-%m-%d')
+        self._today = datetime.now().strftime("%Y-%m-%d")
         self._init_db()
         # W.C.3 插件化: 初始化 PluginRegistry (feature-flag 控制是否启用)
         self._plugin_registry: Optional[Any] = None
-        self._use_plugin_coordinator = _PLUGINS_AVAILABLE and _is_flag_enabled("USE_PLUGIN_COORDINATOR")
+        self._use_plugin_coordinator = _PLUGINS_AVAILABLE and _is_flag_enabled(
+            "USE_PLUGIN_COORDINATOR"
+        )
         if self._use_plugin_coordinator:
             self._init_plugin_registry()
         # LIT-2.2: TradingGroup 自反思引擎 (延迟初始化)
@@ -135,33 +156,61 @@ class AICoordinator:
         candidates = []
         if pricing_path:
             candidates.append(pricing_path)
-        candidates.append(os.path.join(base_dir, 'config', 'llm_pricing.yaml'))
+        candidates.append(os.path.join(base_dir, "config", "llm_pricing.yaml"))
         for path in candidates:
             try:
                 import yaml  # type: ignore
-                with open(path, encoding='utf-8') as f:
+
+                with open(path, encoding="utf-8") as f:
                     data = yaml.safe_load(f) or {}
-                if 'models' in data:
+                if "models" in data:
                     return data
             except FileNotFoundError:
                 continue
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ):
                 continue
         # 回退: 内置默认价格表 (与 MODEL_CONFIG 保持一致)
         return {
-            'models': {
-                'doubao_speed': {'cost_per_1k_input': 0.0008, 'cost_per_1k_output': 0.002, 'max_tokens': 32000},
-                'glm5': {'cost_per_1k_input': 0.015, 'cost_per_1k_output': 0.015, 'max_tokens': 128000},
-                'deepseek': {'cost_per_1k_input': 0.002, 'cost_per_1k_output': 0.008, 'max_tokens': 64000},
-                'default': {'cost_per_1k_input': 0.01, 'cost_per_1k_output': 0.03, 'max_tokens': 8000},
+            "models": {
+                "doubao_speed": {
+                    "cost_per_1k_input": 0.0008,
+                    "cost_per_1k_output": 0.002,
+                    "max_tokens": 32000,
+                },
+                "glm5": {
+                    "cost_per_1k_input": 0.015,
+                    "cost_per_1k_output": 0.015,
+                    "max_tokens": 128000,
+                },
+                "deepseek": {
+                    "cost_per_1k_input": 0.002,
+                    "cost_per_1k_output": 0.008,
+                    "max_tokens": 64000,
+                },
+                "default": {
+                    "cost_per_1k_input": 0.01,
+                    "cost_per_1k_output": 0.03,
+                    "max_tokens": 8000,
+                },
             },
-            'daily_token_budget': 500000,
+            "daily_token_budget": 500000,
         }
 
     def _price_for(self, model: str) -> dict:
         """获取某模型价格, 缺失回退 default。"""
-        models = self.pricing.get('models', {})
-        return models.get(model) or models.get('default') or {'cost_per_1k_input': 0.01, 'cost_per_1k_output': 0.03}
+        models = self.pricing.get("models", {})
+        return (
+            models.get(model)
+            or models.get("default")
+            or {"cost_per_1k_input": 0.01, "cost_per_1k_output": 0.03}
+        )
 
     def _init_db(self) -> None:
         """初始化数据库"""
@@ -231,10 +280,19 @@ class AICoordinator:
                     self._plugin_registry.register(p)
                 for p in create_default_conflict_plugins():
                     self._plugin_registry.register(p)
-                logger.info("插件化协调器: 已加载默认插件集 (%d 个)", len(self._plugin_registry))
+                logger.info(
+                    "插件化协调器: 已加载默认插件集 (%d 个)", len(self._plugin_registry)
+                )
             else:
                 logger.info("插件化协调器: 从 YAML 加载 %d 个插件", loaded)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.warning("插件化协调器初始化失败, 回退旧路径: %s", e)
             self._plugin_registry = None
             self._use_plugin_coordinator = False
@@ -249,34 +307,44 @@ class AICoordinator:
         """
         # 检查每日预算
         self._refresh_daily_budget()
-        budget_ratio = self._token_used_today / self.daily_token_budget if self.daily_token_budget > 0 else 0
+        budget_ratio = (
+            self._token_used_today / self.daily_token_budget
+            if self.daily_token_budget > 0
+            else 0
+        )
 
         # W.C.3 插件化: feature-flag 启用时走 PluginRegistry, 否则走旧路径
         if self._use_plugin_coordinator and self._plugin_registry is not None:
             return self._route_via_plugins(task_type, priority, budget_ratio)
         return self._route_legacy(task_type, priority, budget_ratio)
 
-    def _route_legacy(self, task_type: TaskType, priority: Priority, budget_ratio: float) -> str:
+    def _route_legacy(
+        self, task_type: TaskType, priority: Priority, budget_ratio: float
+    ) -> str:
         """旧路径路由 — 原硬编码 if-else (保留向后兼容)"""
         # 预算快用完 (>80%) → 强制切换便宜模型
         if budget_ratio > 0.8 and priority != Priority.CRITICAL:
-            logger.warning(f"Token预算已使用 {budget_ratio:.0%}，强制切换到 doubao_speed")
-            return 'doubao_speed'
+            logger.warning(
+                f"Token预算已使用 {budget_ratio:.0%}，强制切换到 doubao_speed"
+            )
+            return "doubao_speed"
 
         # 按任务类型匹配
         if task_type == TaskType.INTRADAY_DECISION:
-            return 'doubao_speed'  # 盘中决策：豆包 Speed 速度快成本低
+            return "doubao_speed"  # 盘中决策：豆包 Speed 速度快成本低
 
         if task_type == TaskType.DEEP_RESEARCH:
-            return 'deepseek' if budget_ratio < 0.5 else 'doubao_speed'
+            return "deepseek" if budget_ratio < 0.5 else "doubao_speed"
 
         if task_type == TaskType.MACRO_ANALYSIS:
-            return 'glm5' if budget_ratio < 0.6 else 'doubao_speed'
+            return "glm5" if budget_ratio < 0.6 else "doubao_speed"
 
         # 默认：日报/情绪分析用便宜模型
-        return 'doubao_speed'
+        return "doubao_speed"
 
-    def _route_via_plugins(self, task_type: TaskType, priority: Priority, budget_ratio: float) -> str:
+    def _route_via_plugins(
+        self, task_type: TaskType, priority: Priority, budget_ratio: float
+    ) -> str:
         """插件路径路由 — 委托 PluginRegistry.resolve_routing
 
         含 shadow 比对: 同时跑旧路径, 比较决策一致性, 不一致时记日志 (不影响插件路径结果).
@@ -299,7 +367,11 @@ class AICoordinator:
             if legacy_model != result.model:
                 logger.warning(
                     "shadow 比对不一致: task=%s priority=%s plugin=%s legacy=%s (plugin=%s)",
-                    task_type, priority, result.model, legacy_model, result.plugin_name,
+                    task_type,
+                    priority,
+                    result.model,
+                    legacy_model,
+                    result.plugin_name,
                 )
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
             logger.warning("shadow 比对异常: %s", e)
@@ -308,7 +380,7 @@ class AICoordinator:
 
     def _refresh_daily_budget(self) -> None:
         """刷新每日预算（跨天重置）"""
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now().strftime("%Y-%m-%d")
         if today != self._today:
             self._token_used_today = 0
             self._today = today
@@ -328,46 +400,91 @@ class AICoordinator:
 
     # ── Token 用量追踪 ──
 
-    def record_usage(self, model: str, task_type: str,
-                     input_tokens: int, output_tokens: int) -> None:
+    def record_usage(
+        self, model: str, task_type: str, input_tokens: int, output_tokens: int
+    ) -> None:
         """记录Token用量 (P2: 价格取自外置价格表)"""
         config = self._price_for(model)
-        cost = (input_tokens * config.get('cost_per_1k_input', 0) +
-                output_tokens * config.get('cost_per_1k_output', 0)) / 1000
+        cost = (
+            input_tokens * config.get("cost_per_1k_input", 0)
+            + output_tokens * config.get("cost_per_1k_output", 0)
+        ) / 1000
 
-        self._token_used_today += (input_tokens + output_tokens)
+        self._token_used_today += input_tokens + output_tokens
 
         try:
             conn = sqlite3.connect(self.db_path)
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO token_usage (date, model, task_type,
                     input_tokens, output_tokens, cost_estimate)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (datetime.now().strftime('%Y-%m-%d'), model, task_type,
-                  input_tokens, output_tokens, cost))
+            """,
+                (
+                    datetime.now().strftime("%Y-%m-%d"),
+                    model,
+                    task_type,
+                    input_tokens,
+                    output_tokens,
+                    cost,
+                ),
+            )
             conn.commit()
             conn.close()
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.debug(f"记录Token用量失败: {e}")
 
     # ── AI决策持久化 ──
 
-    def record_decision(self, source: str, ticker: str, action: str,
-                        confidence: float = 0.0, reasoning: str = "",
-                        model_used: str = "", tokens: int = 0,
-                        task_type: str = "") -> None:
+    def record_decision(
+        self,
+        source: str,
+        ticker: str,
+        action: str,
+        confidence: float = 0.0,
+        reasoning: str = "",
+        model_used: str = "",
+        tokens: int = 0,
+        task_type: str = "",
+    ) -> None:
         """记录AI决策"""
         try:
             conn = sqlite3.connect(self.db_path)
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO ai_decisions (timestamp, source, ticker, action,
                     confidence, reasoning, model_used, tokens_consumed, task_type)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (datetime.now().isoformat(), source, ticker, action,
-                  confidence, reasoning[:2000], model_used, tokens, task_type))
+            """,
+                (
+                    datetime.now().isoformat(),
+                    source,
+                    ticker,
+                    action,
+                    confidence,
+                    reasoning[:2000],
+                    model_used,
+                    tokens,
+                    task_type,
+                ),
+            )
             conn.commit()
             conn.close()
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.debug(f"记录AI决策失败: {e}")
 
     def record_decision_with_impact(
@@ -397,6 +514,7 @@ class AICoordinator:
             rag = None
             try:
                 from .ai_tools.code_graph_rag import CodeGraphRAG
+
                 rag = CodeGraphRAG()
                 impact = rag.impact_analysis(change_path)
                 impact_info = {
@@ -408,8 +526,15 @@ class AICoordinator:
                     f"{reasoning}\n[影响半径] radius={impact.impact_radius}, "
                     f"impacted_files={len(impact.impacted_files)}"
                 )
-            except (ImportError, ValueError, TypeError, KeyError,
-                    AttributeError, RuntimeError, OSError) as e:
+            except (
+                ImportError,
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+            ) as e:
                 logger.debug(f"影响半径计算失败 change_path={change_path}: {e}")
             finally:
                 if rag is not None:
@@ -419,16 +544,22 @@ class AICoordinator:
                         pass
 
         self.record_decision(
-            source=source, ticker=ticker, action=action,
-            confidence=confidence, reasoning=enriched_reasoning,
-            model_used=model_used, tokens=tokens, task_type=task_type,
+            source=source,
+            ticker=ticker,
+            action=action,
+            confidence=confidence,
+            reasoning=enriched_reasoning,
+            model_used=model_used,
+            tokens=tokens,
+            task_type=task_type,
         )
         return impact_info
 
     # ── 冲突检测 ──
 
-    def resolve_conflicts(self, decisions_by_source: dict[str, dict[str, str]]
-                          ) -> dict[str, dict[str, Any]]:
+    def resolve_conflicts(
+        self, decisions_by_source: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, Any]]:
         """检测并解决多AI系统对同一标的的矛盾信号。
 
         Args:
@@ -453,8 +584,9 @@ class AICoordinator:
             return self._resolve_conflicts_via_plugins(decisions_by_source)
         return self._resolve_conflicts_legacy(decisions_by_source)
 
-    def _resolve_conflicts_legacy(self, decisions_by_source: dict[str, dict[str, str]]
-                                  ) -> dict[str, dict[str, Any]]:
+    def _resolve_conflicts_legacy(
+        self, decisions_by_source: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, Any]]:
         """旧路径冲突检测 — 原多数投票 (保留向后兼容)"""
         # 收集所有标的
         all_tickers = set()
@@ -468,38 +600,39 @@ class AICoordinator:
                 if ticker in decisions:
                     actions[source] = decisions[ticker]
 
-            buy_count = sum(1 for a in actions.values() if a == 'BUY')
-            sell_count = sum(1 for a in actions.values() if a == 'SELL')
-            hold_count = sum(1 for a in actions.values() if a == 'HOLD')
+            buy_count = sum(1 for a in actions.values() if a == "BUY")
+            sell_count = sum(1 for a in actions.values() if a == "SELL")
+            hold_count = sum(1 for a in actions.values() if a == "HOLD")
 
             # 是否有冲突（同时存在买入和卖出）
             has_conflict = buy_count > 0 and sell_count > 0
 
             # 多数投票
             if buy_count > sell_count and buy_count > hold_count:
-                resolved_action = 'BUY'
+                resolved_action = "BUY"
                 confidence = buy_count / len(actions)
             elif sell_count > buy_count and sell_count > hold_count:
-                resolved_action = 'SELL'
+                resolved_action = "SELL"
                 confidence = sell_count / len(actions)
             else:
-                resolved_action = 'HOLD'
+                resolved_action = "HOLD"
                 confidence = max(buy_count, sell_count, hold_count) / len(actions)
 
             resolved[ticker] = {
-                'actions': actions,
-                'conflict': has_conflict,
-                'resolved_action': resolved_action,
-                'confidence': round(confidence, 2),
-                'buy_votes': buy_count,
-                'sell_votes': sell_count,
-                'hold_votes': hold_count,
+                "actions": actions,
+                "conflict": has_conflict,
+                "resolved_action": resolved_action,
+                "confidence": round(confidence, 2),
+                "buy_votes": buy_count,
+                "sell_votes": sell_count,
+                "hold_votes": hold_count,
             }
 
         return resolved
 
-    def _resolve_conflicts_via_plugins(self, decisions_by_source: dict[str, dict[str, str]]
-                                       ) -> dict[str, dict[str, Any]]:
+    def _resolve_conflicts_via_plugins(
+        self, decisions_by_source: dict[str, dict[str, str]]
+    ) -> dict[str, dict[str, Any]]:
         """插件路径冲突检测 — 委托 PluginRegistry.resolve_conflict
 
         含 shadow 比对: 同时跑旧路径, 比较结果一致性, 不一致时记日志.
@@ -515,12 +648,17 @@ class AICoordinator:
             legacy_resolved = self._resolve_conflicts_legacy(decisions_by_source)
             if legacy_resolved != result.resolved:
                 diff_tickers = [
-                    t for t in legacy_resolved
-                    if t not in result.resolved or legacy_resolved[t] != result.resolved[t]
+                    t
+                    for t in legacy_resolved
+                    if t not in result.resolved
+                    or legacy_resolved[t] != result.resolved[t]
                 ]
                 logger.warning(
                     "shadow 比对不一致: %d/%d 标的决策不同 (plugin=%s, tickers=%s)",
-                    len(diff_tickers), len(legacy_resolved), result.plugin_name, diff_tickers[:10],
+                    len(diff_tickers),
+                    len(legacy_resolved),
+                    result.plugin_name,
+                    diff_tickers[:10],
                 )
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
             logger.warning("shadow 比对异常: %s", e)
@@ -531,9 +669,10 @@ class AICoordinator:
 
     def get_daily_usage(self, date: str = None) -> dict[str, Any]:
         """获取指定日期的Token使用统计"""
-        date = date or datetime.now().strftime('%Y-%m-%d')
+        date = date or datetime.now().strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT model, task_type,
                    SUM(input_tokens) as total_input,
                    SUM(output_tokens) as total_output,
@@ -541,7 +680,9 @@ class AICoordinator:
             FROM token_usage
             WHERE date = ?
             GROUP BY model, task_type
-        """, (date,)).fetchall()
+        """,
+            (date,),
+        ).fetchall()
         conn.close()
 
         breakdown = []
@@ -550,29 +691,36 @@ class AICoordinator:
             total_input += r[2]
             total_output += r[3]
             total_cost += r[4]
-            breakdown.append({
-                'model': r[0], 'task_type': r[1],
-                'input_tokens': r[2], 'output_tokens': r[3],
-                'cost': round(r[4], 4),
-            })
+            breakdown.append(
+                {
+                    "model": r[0],
+                    "task_type": r[1],
+                    "input_tokens": r[2],
+                    "output_tokens": r[3],
+                    "cost": round(r[4], 4),
+                }
+            )
 
         return {
-            'date': date,
-            'total_input_tokens': total_input,
-            'total_output_tokens': total_output,
-            'total_tokens': total_input + total_output,
-            'total_cost': round(total_cost, 4),
-            'budget': self.daily_token_budget,
-            'budget_used_pct': round(
-                (total_input + total_output) / self.daily_token_budget * 100, 1
-            ) if self.daily_token_budget > 0 else 0,
-            'breakdown': breakdown,
+            "date": date,
+            "total_input_tokens": total_input,
+            "total_output_tokens": total_output,
+            "total_tokens": total_input + total_output,
+            "total_cost": round(total_cost, 4),
+            "budget": self.daily_token_budget,
+            "budget_used_pct": (
+                round((total_input + total_output) / self.daily_token_budget * 100, 1)
+                if self.daily_token_budget > 0
+                else 0
+            ),
+            "breakdown": breakdown,
         }
 
-    def get_decision_history(self, ticker: str = None, source: str = None,
-                              days: int = 7) -> list[dict[str, Any]]:
+    def get_decision_history(
+        self, ticker: str = None, source: str = None, days: int = 7
+    ) -> list[dict[str, Any]]:
         """查询AI决策历史"""
-        since = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
 
         query = """
@@ -595,10 +743,15 @@ class AICoordinator:
 
         return [
             {
-                'timestamp': r[0], 'source': r[1], 'ticker': r[2],
-                'action': r[3], 'confidence': r[4],
-                'reasoning': (r[5] or "")[:200],
-                'model_used': r[6], 'tokens': r[7], 'task_type': r[8],
+                "timestamp": r[0],
+                "source": r[1],
+                "ticker": r[2],
+                "action": r[3],
+                "confidence": r[4],
+                "reasoning": (r[5] or "")[:200],
+                "model_used": r[6],
+                "tokens": r[7],
+                "task_type": r[8],
             }
             for r in rows
         ]
@@ -608,28 +761,48 @@ class AICoordinator:
         self._refresh_daily_budget()
         daily = self.get_daily_usage()
         return {
-            'daily_token_used': self._token_used_today,
-            'daily_budget': self.daily_token_budget,
-            'daily_cost': daily['total_cost'],
-            'models_available': list(self.MODEL_CONFIG.keys()),
+            "daily_token_used": self._token_used_today,
+            "daily_budget": self.daily_token_budget,
+            "daily_cost": daily["total_cost"],
+            "models_available": list(self.MODEL_CONFIG.keys()),
         }
 
     # ── v5.7 Phase 2: AI决策准确率评估 ──
 
-    def record_accuracy(self, decision_id: int, predicted_action: str,
-                        actual_outcome: str = "", pnl_if_followed: float = 0.0) -> None:
+    def record_accuracy(
+        self,
+        decision_id: int,
+        predicted_action: str,
+        actual_outcome: str = "",
+        pnl_if_followed: float = 0.0,
+    ) -> None:
         """记录AI决策的5日验证结果。"""
         try:
             conn = sqlite3.connect(self.db_path)
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO ai_decision_accuracy
                 (decision_id, predicted_action, actual_outcome, pnl_if_followed, evaluated_at)
                 VALUES (?, ?, ?, ?, ?)
-            """, (decision_id, predicted_action, actual_outcome,
-                  pnl_if_followed, datetime.now().isoformat()))
+            """,
+                (
+                    decision_id,
+                    predicted_action,
+                    actual_outcome,
+                    pnl_if_followed,
+                    datetime.now().isoformat(),
+                ),
+            )
             conn.commit()
             conn.close()
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.debug(f"记录AI决策准确率失败: {e}")
 
     def get_source_accuracy(self, days: int = 30) -> dict[str, Any]:
@@ -638,10 +811,11 @@ class AICoordinator:
         Returns:
             {'glm5': {'accuracy': 0.62, 'count': 25, 'avg_pnl': 0.012}, ...}
         """
-        since = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
 
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT d.source,
                    COUNT(*) as total,
                    SUM(CASE
@@ -655,16 +829,18 @@ class AICoordinator:
             JOIN ai_decision_accuracy a ON d.id = a.decision_id
             WHERE d.timestamp >= ?
             GROUP BY d.source
-        """, (since,)).fetchall()
+        """,
+            (since,),
+        ).fetchall()
         conn.close()
 
         result = {}
         for r in rows:
             source, total, wins, avg_pnl = r
             result[source] = {
-                'accuracy': round(wins / total, 3) if total > 0 else 0,
-                'count': total,
-                'avg_pnl': round(avg_pnl or 0, 4),
+                "accuracy": round(wins / total, 3) if total > 0 else 0,
+                "count": total,
+                "avg_pnl": round(avg_pnl or 0, 4),
             }
         return result
 
@@ -678,9 +854,12 @@ class AICoordinator:
             self._reflector = TradingGroupReflector()
         return self._reflector
 
-    def reflect_decision(self, decision: dict[str, Any],
-                         outcome: dict[str, Any],
-                         market_state: Optional[dict[str, Any]] = None) -> Optional[Any]:
+    def reflect_decision(
+        self,
+        decision: dict[str, Any],
+        outcome: dict[str, Any],
+        market_state: Optional[dict[str, Any]] = None,
+    ) -> Optional[Any]:
         """对 AI 决策进行自反思评估。
 
         Args:
@@ -704,17 +883,23 @@ class AICoordinator:
             return []
         return reflector.synthesize_data()
 
-    def compute_dynamic_stops(self, entry_price: float, atr: float,
-                              trend_strength: float = 0.0,
-                              holding_days: int = 0,
-                              action: str = "buy") -> Optional[Any]:
+    def compute_dynamic_stops(
+        self,
+        entry_price: float,
+        atr: float,
+        trend_strength: float = 0.0,
+        holding_days: int = 0,
+        action: str = "buy",
+    ) -> Optional[Any]:
         """计算动态止盈止损。"""
         reflector = self.get_reflector()
         if reflector is None:
             return None
         return reflector.compute_dynamic_stops(
-            entry_price=entry_price, atr=atr,
-            trend_strength=trend_strength, holding_days=holding_days,
+            entry_price=entry_price,
+            atr=atr,
+            trend_strength=trend_strength,
+            holding_days=holding_days,
             action=action,
         )
 
@@ -753,6 +938,6 @@ def get_ai_coordinator() -> AICoordinator:
     """获取全局AI协调器单例"""
     global _coordinator
     if _coordinator is None:
-        budget = int(os.environ.get('AI_TOKEN_BUDGET', '500000'))
+        budget = int(os.environ.get("AI_TOKEN_BUDGET", "500000"))
         _coordinator = AICoordinator(daily_token_budget=budget)
     return _coordinator

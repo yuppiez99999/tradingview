@@ -6,6 +6,7 @@
 运行:
     python scripts/test_vectorbt_bridge.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,7 +24,9 @@ from utils.backtest.vectorbt_bridge import VectorBtBridge, generate_ma_cross_sig
 from utils.wt_structs import BarData
 
 
-def generate_synthetic_bars(n_bars: int = 100, seed: int = 42) -> tuple[list[BarData], pd.Series, pd.Series]:
+def generate_synthetic_bars(
+    n_bars: int = 100, seed: int = 42
+) -> tuple[list[BarData], pd.Series, pd.Series]:
     """生成合成 OHLC 日线数据 (正弦波 + 噪声, 确保 MA 交叉)。
 
     Returns:
@@ -52,19 +55,21 @@ def generate_synthetic_bars(n_bars: int = 100, seed: int = 42) -> tuple[list[Bar
         c = float(closes_arr[i])
         h = max(o, c) + abs(rng.normal(0, 0.2))
         low = min(o, c) - abs(rng.normal(0, 0.2))
-        bars.append(BarData(
-            code="TEST.SH",
-            exchange="SSE",
-            period="1d",
-            open=o,
-            high=h,
-            low=low,
-            close=c,
-            volume=100_000.0,  # 足够大, 确保 max_participation_rate=1.0 下全量成交
-            amount=o * 100_000.0,
-            date=int(dates[i].strftime("%Y%m%d")),
-            time=0,
-        ))
+        bars.append(
+            BarData(
+                code="TEST.SH",
+                exchange="SSE",
+                period="1d",
+                open=o,
+                high=h,
+                low=low,
+                close=c,
+                volume=100_000.0,  # 足够大, 确保 max_participation_rate=1.0 下全量成交
+                amount=o * 100_000.0,
+                date=int(dates[i].strftime("%Y%m%d")),
+                time=0,
+            )
+        )
 
     return bars, closes, opens
 
@@ -77,13 +82,17 @@ def main() -> int:
     # 1. 生成合成数据
     n_bars = 120
     bars, closes, opens = generate_synthetic_bars(n_bars=n_bars, seed=42)
-    print(f"\n[1] 合成数据: {n_bars} bars, 价格区间 {closes.min():.2f} ~ {closes.max():.2f}")
+    print(
+        f"\n[1] 合成数据: {n_bars} bars, 价格区间 {closes.min():.2f} ~ {closes.max():.2f}"
+    )
 
     # 2. 预览信号
     signals = generate_ma_cross_signals(closes, fast_window=5, slow_window=20)
     n_buy = sum(1 for s in signals if s == "BUY")
     n_sell = sum(1 for s in signals if s == "SELL")
-    print(f"[2] MA(5,20) 交叉信号: {n_buy} BUY + {n_sell} SELL + {n_bars - n_buy - n_sell} HOLD")
+    print(
+        f"[2] MA(5,20) 交叉信号: {n_buy} BUY + {n_sell} SELL + {n_bars - n_buy - n_sell} HOLD"
+    )
 
     # 3. 运行对照
     bridge = VectorBtBridge(
@@ -115,13 +124,16 @@ def main() -> int:
     # 5. 验收
     print(f"\n[5] 验收门禁 (偏差 <{report.threshold_pct:.1f}%):")
     if report.passed:
-        print(f"  ✅ PASS — G15 与 vectorbt 在 MA(5,20) 交叉策略上偏差 "
-              f"{report.equity_deviation_pct:.4f}% < {report.threshold_pct:.1f}%")
+        print(
+            f"  ✅ PASS — G15 与 vectorbt 在 MA(5,20) 交叉策略上偏差 "
+            f"{report.equity_deviation_pct:.4f}% < {report.threshold_pct:.1f}%"
+        )
         return 0
-    else:
-        print(f"  ❌ FAIL — 偏差 {report.equity_deviation_pct:.4f}% ≥ {report.threshold_pct:.1f}%")
-        print("  需排查: 信号对齐 / 手续费口径 / 成交价时点")
-        return 1
+    print(
+        f"  ❌ FAIL — 偏差 {report.equity_deviation_pct:.4f}% ≥ {report.threshold_pct:.1f}%"
+    )
+    print("  需排查: 信号对齐 / 手续费口径 / 成交价时点")
+    return 1
 
 
 if __name__ == "__main__":

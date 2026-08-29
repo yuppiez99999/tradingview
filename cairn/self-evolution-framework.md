@@ -373,3 +373,14 @@ ROADMAP Wave 2 的 Phase B 排期：B1-B4 每步 3-4 天。但 §八.3 指出反
 本节是 §九.2 改进 5"哲学模块与自我进化闭环整合度不明"的落实。改进 5 标记为 P2 优先级，本节明确了整合路径和优先级，为 Phase B 启用后的分步集成提供执行计划。
 
 **指针**：`cairn/philosophy-trading-mapping-20260819.md` §一（哲学模块代码位置）+ 本节 §十（闭环整合映射）。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [哲学与交易系统：哲学思想对量化交易的工程指导](philosophy-trading-mapping-20260819.md) (相似度 22%)
+- [自我进化迭代再平衡闭环（Evolution-Rebalance Loop）](evolution-rebalance-loop.md) (相似度 19%)
+- [推荐书目：对系统有工程指导意义的中外书籍](recommended-reading-20260819.md) (相似度 19%)
+- [GitHub 高价值项目集成策略（Wave 6）](github-integration-wave6.md) (相似度 15%)
+- [经验上下文层（ECL, Experience Context Layer）设计方案](experience-context-layer.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

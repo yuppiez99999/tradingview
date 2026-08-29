@@ -1,4 +1,5 @@
 """utils.fineng.tail_risk_evt 单元测试 — EVT GPD 拟合 / VaR / ES"""
+
 from __future__ import annotations
 
 import math
@@ -19,7 +20,7 @@ def _synthetic_heavy_tailed(n: int = 2000, seed: int = 31) -> list:
     out = []
     for _ in range(n):
         if rng.random() < 0.1:
-            out.append(rng.gauss(-0.05, 0.03))   # 极端负收益
+            out.append(rng.gauss(-0.05, 0.03))  # 极端负收益
         else:
             out.append(rng.gauss(0.0, 0.01))
     return out

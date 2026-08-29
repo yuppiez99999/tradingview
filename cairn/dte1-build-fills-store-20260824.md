@@ -53,3 +53,14 @@
 
 - 本轮审查 DTE-1 (CRITICAL) 首步落地: 建仓成交可追溯。
 - 影子观察期 (工作线 C) 的 trade_log 空问题, 可通过消费 strategy="build" fills 部分缓解。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [P3.0 影子账户闭环门禁 (2026-08-26)](p3-0-gate.md) (相似度 34%)
+- [运维部署 + 灰度发布 (2026-08-24)](ops-gray-release-20260824.md) (相似度 26%)
+- [影子观察期真实性核查 (2026-08-24)](shadow-realness-audit-20260824.md) (相似度 24%)
+- [代码审查明细 — daily_trade_executor (2026-08-24)](code-review-daily-executor-20260824.md) (相似度 23%)
+- [成交回报驱动 PnL：G2/G4 执行闭环补齐经验沉淀（2026-08-08）](fills-driven-pnl-lessons-20260808.md) (相似度 22%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -50,6 +50,7 @@ ai_decision.dashboard — 延迟/成本基准看板
         # 切换 judge 到 MockProvider
         ...
 """
+
 from __future__ import annotations
 
 import json
@@ -77,9 +78,11 @@ _TCA_ESTIMATE_DIR = _PROJECT_ROOT / "reports" / "tca"
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class BudgetConfig:
     """预算阈值配置 (从 ai_decision.yaml.budget 加载)"""
+
     monthly_token_limit: int = 5_000_000
     per_call_latency_p99_ms: float = 5000.0
     daily_cost_limit_usd: float = 10.0
@@ -91,12 +94,17 @@ class BudgetConfig:
             budget = get_config("budget", {})
             if isinstance(budget, dict):
                 return cls(
-                    monthly_token_limit=int(budget.get("monthly_token_limit", 5_000_000)),
-                    per_call_latency_p99_ms=float(budget.get("per_call_latency_p99_ms", 5000.0)),
-                    daily_cost_limit_usd=float(budget.get("daily_cost_limit_usd", 10.0)),
+                    monthly_token_limit=int(
+                        budget.get("monthly_token_limit", 5_000_000)
+                    ),
+                    per_call_latency_p99_ms=float(
+                        budget.get("per_call_latency_p99_ms", 5000.0)
+                    ),
+                    daily_cost_limit_usd=float(
+                        budget.get("daily_cost_limit_usd", 10.0)
+                    ),
                 )
-        except (ValueError, TypeError, KeyError, AttributeError,
-                RuntimeError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
             # int/float 转换可能抛 ValueError/TypeError;
             # dict 操作可能抛 KeyError/AttributeError; get_config 可能抛 RuntimeError
             logger.debug("[Dashboard] budget 配置加载失败, 用默认值: %s", e)
@@ -116,6 +124,7 @@ class DashboardReport:
         alerts: 告警列表 (预算超限/熔断/异常)
         generated_at: 生成时间 ISO
     """
+
     date: str = ""
     model_health: dict[str, Any] = field(default_factory=dict)
     tca_summary: dict[str, Any] = field(default_factory=dict)
@@ -140,6 +149,7 @@ class DashboardReport:
 # ============================================================
 # 看板生成器
 # ============================================================
+
 
 class DashboardGenerator:
     """每日延迟/成本基准看板生成器
@@ -243,8 +253,14 @@ class DashboardGenerator:
                 "roles": roles_detail,
                 "config": stats.get("config", {}),
             }
-        except (RuntimeError, KeyError, TypeError, AttributeError, ValueError,
-                OSError) as exc:
+        except (
+            RuntimeError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            ValueError,
+            OSError,
+        ) as exc:
             # monitor.get_stats()/get_health_summary() 可能抛: 运行时错误/字段缺失/
             # 类型不匹配/属性缺失/值错误/IO 错误
             logger.error("[Dashboard] 模型健康收集失败: %s", exc)
@@ -308,8 +324,7 @@ class DashboardGenerator:
                             records.append(json.loads(line))
                         except json.JSONDecodeError:
                             continue
-        except (OSError, ValueError, TypeError, AttributeError,
-                RuntimeError) as exc:
+        except (OSError, ValueError, TypeError, AttributeError, RuntimeError) as exc:
             # open() 失败抛 OSError; line.strip() 对非字符串抛 AttributeError;
             # 文件编码可能抛 ValueError; 其他运行时异常
             logger.error("[Dashboard] TCA 预估记录加载失败: %s", exc)
@@ -476,8 +491,7 @@ class DashboardGenerator:
                             records.append(json.loads(line))
                         except json.JSONDecodeError:
                             continue
-        except (OSError, ValueError, TypeError, AttributeError,
-                RuntimeError) as exc:
+        except (OSError, ValueError, TypeError, AttributeError, RuntimeError) as exc:
             # open() 失败抛 OSError; line.strip() 对非字符串抛 AttributeError;
             # 文件编码可能抛 ValueError; 其他运行时异常
             logger.error("[Dashboard] JSONL 加载失败 %s: %s", path, exc)
@@ -510,72 +524,84 @@ class DashboardGenerator:
         for role, detail in roles.items():
             latency = detail.get("latency_ms", 0.0)
             if latency > self._budget.per_call_latency_p99_ms:
-                alerts.append({
-                    "dimension": "model_latency",
-                    "severity": "WARNING",
-                    "role": role,
-                    "value": latency,
-                    "threshold": self._budget.per_call_latency_p99_ms,
-                    "message": f"{role} 延迟 {latency:.0f}ms > 阈值 {self._budget.per_call_latency_p99_ms:.0f}ms",
-                })
+                alerts.append(
+                    {
+                        "dimension": "model_latency",
+                        "severity": "WARNING",
+                        "role": role,
+                        "value": latency,
+                        "threshold": self._budget.per_call_latency_p99_ms,
+                        "message": f"{role} 延迟 {latency:.0f}ms > 阈值 {self._budget.per_call_latency_p99_ms:.0f}ms",
+                    }
+                )
 
         # 2. 模型熔断
         open_breakers = model_health.get("open_breakers", [])
         for role in open_breakers:
-            alerts.append({
-                "dimension": "model_circuit_open",
-                "severity": "CRITICAL",
-                "role": role,
-                "message": f"{role} 熔断开启, 已降级 MockProvider",
-            })
+            alerts.append(
+                {
+                    "dimension": "model_circuit_open",
+                    "severity": "CRITICAL",
+                    "role": role,
+                    "message": f"{role} 熔断开启, 已降级 MockProvider",
+                }
+            )
 
         # 3. TCA 预估成本
         max_cost = tca_summary.get("max_cost_bps", 0.0)
         if max_cost > 50.0:
-            alerts.append({
-                "dimension": "tca_cost",
-                "severity": "WARNING",
-                "value": max_cost,
-                "threshold": 50.0,
-                "message": f"TCA 最高预估成本 {max_cost:.1f}bps > 50bps",
-            })
+            alerts.append(
+                {
+                    "dimension": "tca_cost",
+                    "severity": "WARNING",
+                    "value": max_cost,
+                    "threshold": 50.0,
+                    "message": f"TCA 最高预估成本 {max_cost:.1f}bps > 50bps",
+                }
+            )
 
         # 4. TCA 否决率
         total_est = tca_summary.get("total_estimates", 0)
         rejected = tca_summary.get("rejected_count", 0)
         if total_est > 0 and rejected / total_est > 0.3:
-            alerts.append({
-                "dimension": "tca_reject_rate",
-                "severity": "WARNING",
-                "value": rejected / total_est,
-                "threshold": 0.3,
-                "message": f"TCA 否决率 {rejected}/{total_est} = {rejected/total_est:.0%} > 30%",
-            })
+            alerts.append(
+                {
+                    "dimension": "tca_reject_rate",
+                    "severity": "WARNING",
+                    "value": rejected / total_est,
+                    "threshold": 0.3,
+                    "message": f"TCA 否决率 {rejected}/{total_est} = {rejected/total_est:.0%} > 30%",
+                }
+            )
 
         # 5. 执行 escalation 率
         total_exec = execution_summary.get("total_executions", 0)
         esc_count = execution_summary.get("escalation_count", 0)
         if total_exec > 0 and esc_count / total_exec > 0.5:
-            alerts.append({
-                "dimension": "escalation_rate",
-                "severity": "WARNING",
-                "value": esc_count / total_exec,
-                "threshold": 0.5,
-                "message": f"escalation 率 {esc_count}/{total_exec} = {esc_count/total_exec:.0%} > 50%",
-            })
+            alerts.append(
+                {
+                    "dimension": "escalation_rate",
+                    "severity": "WARNING",
+                    "value": esc_count / total_exec,
+                    "threshold": 0.5,
+                    "message": f"escalation 率 {esc_count}/{total_exec} = {esc_count/total_exec:.0%} > 50%",
+                }
+            )
 
         # 6. TCA 评级 D/F 占比
         grade_dist = execution_summary.get("tca_grade_distribution", {})
         total_graded = sum(grade_dist.values())
         d_f_count = grade_dist.get("D", 0) + grade_dist.get("F", 0)
         if total_graded > 0 and d_f_count / total_graded > 0.2:
-            alerts.append({
-                "dimension": "tca_grade_df",
-                "severity": "WARNING",
-                "value": d_f_count / total_graded,
-                "threshold": 0.2,
-                "message": f"TCA 评级 D/F 占比 {d_f_count}/{total_graded} = {d_f_count/total_graded:.0%} > 20%",
-            })
+            alerts.append(
+                {
+                    "dimension": "tca_grade_df",
+                    "severity": "WARNING",
+                    "value": d_f_count / total_graded,
+                    "threshold": 0.2,
+                    "message": f"TCA 评级 D/F 占比 {d_f_count}/{total_graded} = {d_f_count/total_graded:.0%} > 20%",
+                }
+            )
 
         return alerts
 
@@ -615,7 +641,8 @@ class DashboardGenerator:
                 degrade[role] = "mock"
                 logger.warning(
                     "[Dashboard] %s 延迟 %.0fms > 2×阈值, 降级 Mock",
-                    role, latency,
+                    role,
+                    latency,
                 )
 
         return degrade
@@ -696,7 +723,9 @@ class DashboardGenerator:
         lines.append(f"- 平均成本: {avg_cost:.2f} bps | 最高成本: {max_cost:.2f} bps")
         symbols = tca.get("symbols", [])
         if symbols:
-            lines.append(f"- 涉及标的: {', '.join(symbols[:10])}{'...' if len(symbols) > 10 else ''}")
+            lines.append(
+                f"- 涉及标的: {', '.join(symbols[:10])}{'...' if len(symbols) > 10 else ''}"
+            )
         lines.append("")
         return lines
 
@@ -707,19 +736,21 @@ class DashboardGenerator:
         lines.append(f"- 决策总数: **{total}**")
         action_dist = dec.get("action_distribution", {})
         if action_dist:
-            lines.append("- Action 分布: " + " / ".join(
-                f"{k}={v}" for k, v in action_dist.items()
-            ))
+            lines.append(
+                "- Action 分布: "
+                + " / ".join(f"{k}={v}" for k, v in action_dist.items())
+            )
         mode_dist = dec.get("mode_distribution", {})
         if mode_dist:
-            lines.append("- Mode 分布: " + " / ".join(
-                f"{k}={v}" for k, v in mode_dist.items()
-            ))
+            lines.append(
+                "- Mode 分布: " + " / ".join(f"{k}={v}" for k, v in mode_dist.items())
+            )
         verdict_dist = dec.get("verdict_type_distribution", {})
         if verdict_dist:
-            lines.append("- Verdict 分布: " + " / ".join(
-                f"{k}={v}" for k, v in verdict_dist.items()
-            ))
+            lines.append(
+                "- Verdict 分布: "
+                + " / ".join(f"{k}={v}" for k, v in verdict_dist.items())
+            )
         lines.append("")
         return lines
 
@@ -735,13 +766,15 @@ class DashboardGenerator:
         # TCA 评级分布
         grade_dist = exe.get("tca_grade_distribution", {})
         if grade_dist:
-            lines.append("- TCA 评级分布: " + " / ".join(
-                f"{k}={v}" for k, v in sorted(grade_dist.items())
-            ))
+            lines.append(
+                "- TCA 评级分布: "
+                + " / ".join(f"{k}={v}" for k, v in sorted(grade_dist.items()))
+            )
         # escalation 原因 Top 5
         reasons = exe.get("escalation_reasons", [])
         if reasons:
             from collections import Counter
+
             top5 = Counter(reasons).most_common(5)
             lines.append("- Escalation 原因 Top 5:")
             for reason, count in top5:

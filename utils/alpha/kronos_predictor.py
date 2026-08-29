@@ -195,8 +195,19 @@ class KronosPredictor:
                     # 兜底: 若 _load_kronos_model 返回 False 但未设置错误信息, 补默认
                     if self._init_error is None:
                         self._init_error = "模型加载失败 (原因未记录)"
-                    logger.warning("Kronos-%s 不可用: %s", self.config.model_size, self._init_error)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 模块 fail-safe, 任何加载失败都降级
+                    logger.warning(
+                        "Kronos-%s 不可用: %s", self.config.model_size, self._init_error
+                    )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # 模块 fail-safe, 任何加载失败都降级
                 self._available = False
                 self._init_error = f"{type(e).__name__}: {e}"
                 self._init_latency_ms = (time.perf_counter() - t0) * 1000
@@ -228,7 +239,12 @@ class KronosPredictor:
         model_name = model_info["model"]
         max_ctx = model_info["max_context"]
 
-        logger.info("加载 Kronos-%s: %s (params=%sM)", self.config.model_size, model_name, model_info["params_m"])
+        logger.info(
+            "加载 Kronos-%s: %s (params=%sM)",
+            self.config.model_size,
+            model_name,
+            model_info["params_m"],
+        )
 
         tokenizer = KronosTokenizer.from_pretrained(tok_name)
         model = Kronos.from_pretrained(model_name)
@@ -297,13 +313,24 @@ class KronosPredictor:
             if self.config.audit_enabled:
                 self._write_audit(symbol, factors, latency_ms)
             return factors
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 预测 fail-safe, 不阻断主流程
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # 预测 fail-safe, 不阻断主流程
             self._error_count += 1
             logger.warning("[%s] Kronos 预测失败: %s", symbol, e)
             logger.debug(traceback.format_exc())
             return {}
 
-    def predict_batch(self, symbols: list[str], df_map: dict[str, pd.DataFrame]) -> dict[str, dict[str, float]]:
+    def predict_batch(
+        self, symbols: list[str], df_map: dict[str, pd.DataFrame]
+    ) -> dict[str, dict[str, float]]:
         """批量预测多只标的.
 
         Args:
@@ -331,7 +358,9 @@ class KronosPredictor:
             input_df["amount"] = 0.0
 
         input_df = input_df.reset_index(drop=True)
-        x_timestamp = pd.Series(pd.date_range(start="2020-01-01", periods=len(input_df), freq="D"))
+        x_timestamp = pd.Series(
+            pd.date_range(start="2020-01-01", periods=len(input_df), freq="D")
+        )
         if isinstance(df.index, pd.DatetimeIndex):
             x_timestamp = pd.Series(df.index)
 
@@ -355,7 +384,9 @@ class KronosPredictor:
         )
         return pred_df
 
-    def _extract_factors(self, pred_df: pd.DataFrame, hist_df: pd.DataFrame) -> dict[str, float]:
+    def _extract_factors(
+        self, pred_df: pd.DataFrame, hist_df: pd.DataFrame
+    ) -> dict[str, float]:
         """从预测结果提取因子信号 (不可变, 不修改输入)."""
         factors: dict[str, float] = {}
         last_close = float(hist_df["close"].iloc[-1]) if len(hist_df) > 0 else 1.0
@@ -376,7 +407,9 @@ class KronosPredictor:
         if len(pred_df) >= 5:
             ret_5d = factors.get("KRONOS_RET_5D", 0.0)
             hist_returns = hist_df["close"].pct_change().dropna()
-            hist_vol = float(hist_returns.tail(20).std()) if len(hist_returns) >= 20 else 0.02
+            hist_vol = (
+                float(hist_returns.tail(20).std()) if len(hist_returns) >= 20 else 0.02
+            )
             factors["KRONOS_MOM"] = round(ret_5d / max(hist_vol, 1e-6), 6)
 
         factors["KRONOS_DIR"] = 1.0 if factors.get("KRONOS_RET_5D", 0.0) >= 0 else -1.0
@@ -394,7 +427,9 @@ class KronosPredictor:
     # ============================================================
     # 审计
     # ============================================================
-    def _write_audit(self, symbol: str, factors: dict[str, float], latency_ms: float) -> None:
+    def _write_audit(
+        self, symbol: str, factors: dict[str, float], latency_ms: float
+    ) -> None:
         """写预测审计日志 (JSONL 格式, 追加)."""
         try:
             safe_symbol = symbol.replace(".", "_").replace("/", "_")
@@ -443,7 +478,9 @@ class KronosPredictor:
             "available": bool(self._available),
             "predict_count": self._predict_count,
             "error_count": self._error_count,
-            "error_rate": (self._error_count / max(self._predict_count + self._error_count, 1)),
+            "error_rate": (
+                self._error_count / max(self._predict_count + self._error_count, 1)
+            ),
             "init_latency_ms": round(self._init_latency_ms, 2),
         }
 
@@ -456,7 +493,9 @@ def predict(df: pd.DataFrame, symbol: str) -> dict[str, float]:
     return KronosPredictor.get_instance().predict(df, symbol)
 
 
-def predict_batch(symbols: list[str], df_map: dict[str, pd.DataFrame]) -> dict[str, dict[str, float]]:
+def predict_batch(
+    symbols: list[str], df_map: dict[str, pd.DataFrame]
+) -> dict[str, dict[str, float]]:
     """快捷函数: 批量预测."""
     return KronosPredictor.get_instance().predict_batch(symbols, df_map)
 

@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 logger = get_logger("risk_metrics")
 
 
-def calculate_var(returns: np.ndarray, confidence_level: float = 0.95, method: str = "historical") -> float:
+def calculate_var(
+    returns: np.ndarray, confidence_level: float = 0.95, method: str = "historical"
+) -> float:
     """
     计算风险价值(VaR)
 
@@ -74,10 +76,21 @@ def calculate_var(returns: np.ndarray, confidence_level: float = 0.95, method: s
         # 原代码返回分位数 (对收益率序列为负数), 与 risk_budget_engine 的正数约定不一致,
         # 导致 `if port_var_95 > max_daily_var_95` 永远不触发 (负数 < 正数)
         var_abs = abs(float(var))
-        logger.debug(f"VaR计算完成: 方法={method}, 置信水平={confidence_level}, VaR={var_abs:.4f}")
+        logger.debug(
+            f"VaR计算完成: 方法={method}, 置信水平={confidence_level}, VaR={var_abs:.4f}"
+        )
         return var_abs
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe
         # BUG-03 修复 (2026-07-31): fail-closed 而非 fail-open
         # 原代码 `return 0.0` 表示"无风险", 会让风险检查通过 (fail-open)
         # 修复: 返回安全的大正值 (日度 3% 损失, 超过常规 max_daily_var_95=3.5% 阈值附近),
@@ -121,7 +134,16 @@ def calculate_es(returns: np.ndarray, confidence_level: float = 0.95) -> float:
 
         logger.debug(f"ES计算完成: 置信水平={confidence_level}, ES={es:.4f}")
         return float(es)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe
         # BUG-03 修复 (2026-07-31): fail-closed, 返回保守估值
         logger.error(f"ES计算失败 (fail-closed, 返回保守估值 0.04): {e}")
         return 0.04
@@ -161,9 +183,20 @@ def calculate_max_drawdown(prices: np.ndarray) -> tuple[float, int, int]:
         peak_idx = np.argmax(prices[: max_dd_idx + 1])
         trough_idx = max_dd_idx
 
-        logger.debug(f"最大回撤计算完成: 最大回撤={max_dd:.4f}, 开始={peak_idx}, 结束={trough_idx}")
+        logger.debug(
+            f"最大回撤计算完成: 最大回撤={max_dd:.4f}, 开始={peak_idx}, 结束={trough_idx}"
+        )
         return float(max_dd), int(peak_idx), int(trough_idx)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"最大回撤计算失败: {e}")
         return 0.0, 0, 0
 
@@ -204,7 +237,16 @@ def calculate_sharpe_ratio(returns: np.ndarray, risk_free_rate: float = 0.02) ->
 
         logger.debug(f"夏普比率计算完成: {sharpe_ratio:.4f}")
         return float(sharpe_ratio)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"夏普比率计算失败: {e}")
         return 0.0
 
@@ -247,7 +289,16 @@ def calculate_sortino_ratio(returns: np.ndarray, risk_free_rate: float = 0.02) -
 
         logger.debug(f"索提诺比率计算完成: {sortino_ratio:.4f}")
         return float(sortino_ratio)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"索提诺比率计算失败: {e}")
         return 0.0
 
@@ -281,7 +332,16 @@ def calculate_calmar_ratio(returns: np.ndarray, prices: np.ndarray) -> float:
 
         logger.debug(f"卡玛比率计算完成: {calmar_ratio:.4f}")
         return float(calmar_ratio)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"卡玛比率计算失败: {e}")
         return 0.0
 
@@ -312,7 +372,16 @@ def calculate_volatility(returns: np.ndarray, period: int = 252) -> float:
 
         logger.debug(f"波动率计算完成: {volatility:.4f}")
         return float(volatility)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"波动率计算失败: {e}")
         return 0.0
 
@@ -356,7 +425,16 @@ def calculate_beta(returns: np.ndarray, market_returns: np.ndarray) -> float:
 
         logger.debug(f"Beta计算完成: {beta:.4f}")
         return float(beta)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"Beta计算失败: {e}")
         return 1.0
 
@@ -379,7 +457,9 @@ def _align_and_dropna(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, np.ndar
     return a[mask], b[mask]
 
 
-def calculate_alpha(returns: np.ndarray, market_returns: np.ndarray, risk_free_rate: float = 0.02) -> float:
+def calculate_alpha(
+    returns: np.ndarray, market_returns: np.ndarray, risk_free_rate: float = 0.02
+) -> float:
     """
     计算Alpha系数
 
@@ -412,7 +492,16 @@ def calculate_alpha(returns: np.ndarray, market_returns: np.ndarray, risk_free_r
 
         logger.debug(f"Alpha计算完成: {alpha:.4f}")
         return float(alpha)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"Alpha计算失败: {e}")
         return 0.0
 
@@ -442,12 +531,23 @@ def calculate_correlation(matrix: np.ndarray) -> np.ndarray:
         logger.debug("相关系数矩阵计算完成")
         return correlation_matrix
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"相关系数矩阵计算失败: {e}")
         return np.eye(matrix.shape[1])
 
 
-def calculate_tracking_error(returns: np.ndarray, benchmark_returns: np.ndarray) -> float:
+def calculate_tracking_error(
+    returns: np.ndarray, benchmark_returns: np.ndarray
+) -> float:
     """
     计算跟踪误差
 
@@ -475,12 +575,23 @@ def calculate_tracking_error(returns: np.ndarray, benchmark_returns: np.ndarray)
 
         logger.debug(f"跟踪误差计算完成: {tracking_error:.4f}")
         return float(tracking_error)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"跟踪误差计算失败: {e}")
         return 0.0
 
 
-def calculate_information_ratio(returns: np.ndarray, benchmark_returns: np.ndarray) -> float:
+def calculate_information_ratio(
+    returns: np.ndarray, benchmark_returns: np.ndarray
+) -> float:
     """
     计算信息比率
 
@@ -516,7 +627,16 @@ def calculate_information_ratio(returns: np.ndarray, benchmark_returns: np.ndarr
 
         logger.debug(f"信息比率计算完成: {information_ratio:.4f}")
         return float(information_ratio)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"信息比率计算失败: {e}")
         return 0.0
 
@@ -546,7 +666,16 @@ def calculate_win_rate(returns: np.ndarray) -> float:
 
         logger.debug(f"胜率计算完成: {win_rate:.4f}")
         return float(win_rate)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"胜率计算失败: {e}")
         return 0.0
 
@@ -586,7 +715,16 @@ def calculate_profit_factor(returns: np.ndarray) -> float:
         logger.debug(f"利润因子计算完成: {profit_factor:.4f}")
         return profit_factor
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"利润因子计算失败: {e}")
         return 0.0
 
@@ -629,7 +767,9 @@ def calculate_performance_metrics(
 
         # 回撤指标
         if prices is not None:
-            metrics["max_drawdown"], metrics["dd_start"], metrics["dd_end"] = calculate_max_drawdown(prices)
+            metrics["max_drawdown"], metrics["dd_start"], metrics["dd_end"] = (
+                calculate_max_drawdown(prices)
+            )
             metrics["calmar_ratio"] = calculate_calmar_ratio(returns, prices)
         else:
             metrics["max_drawdown"] = 0.0
@@ -640,9 +780,15 @@ def calculate_performance_metrics(
         # 相对指标
         if benchmark_returns is not None:
             metrics["beta"] = calculate_beta(returns, benchmark_returns)
-            metrics["alpha"] = calculate_alpha(returns, benchmark_returns, risk_free_rate)
-            metrics["tracking_error"] = calculate_tracking_error(returns, benchmark_returns)
-            metrics["information_ratio"] = calculate_information_ratio(returns, benchmark_returns)
+            metrics["alpha"] = calculate_alpha(
+                returns, benchmark_returns, risk_free_rate
+            )
+            metrics["tracking_error"] = calculate_tracking_error(
+                returns, benchmark_returns
+            )
+            metrics["information_ratio"] = calculate_information_ratio(
+                returns, benchmark_returns
+            )
         else:
             metrics["beta"] = 1.0
             metrics["alpha"] = 0.0
@@ -652,7 +798,16 @@ def calculate_performance_metrics(
         logger.info("绩效指标计算完成")
         return metrics
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"绩效指标计算失败: {e}")
         return {}
 
@@ -693,7 +848,16 @@ def calculate_portfolio_weights(positions: dict[str, dict]) -> dict[str, float]:
         logger.debug(f"组合权重计算完成: {len(weights)} 个标的")
         return weights
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"组合权重计算失败: {e}")
         return {}
 

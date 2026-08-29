@@ -265,3 +265,13 @@ f"```json\n{json.dumps(data)}\n```"
 f"Top5 持仓:\n{holding_summary}"
 ```
 
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [GLM 4.5-air LLM 驱动代码审查方法论（open-code-review + GLM 4.5-air）](code-review-glm45-llm-scan.md) (相似度 8%)
+- [DeepFund 防泄漏评估基准 (LIT-1.3)](deepfund-eval-benchmark.md) (相似度 7%)
+- [Agent 直接审查兜底方法论（外部 LLM 额度耗尽时）](code-review-agent-fallback-20260810.md) (相似度 6%)
+- [第三方项目集成专题 — 2026-08-21](third-party-integration-20260821.md) (相似度 6%)
+- [盘前工作流并行化 + 情感信号注入 + 12任务定时注册](daily-workflow-parallel-sentiment-20260826.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

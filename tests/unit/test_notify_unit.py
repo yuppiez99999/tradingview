@@ -8,6 +8,7 @@
     - send_sms_alert (向后兼容)
     - send_async_alert (异步线程)
 """
+
 from __future__ import annotations
 
 import importlib
@@ -35,7 +36,9 @@ class TestLogAlert:
         notify = _reload_notify()
         with caplog.at_level("CRITICAL"):
             notify._log_alert("title", "content", level="critical")
-        assert any("CRITICAL" in r.message or "title" in r.message for r in caplog.records)
+        assert any(
+            "CRITICAL" in r.message or "title" in r.message for r in caplog.records
+        )
 
     @pytest.mark.unit
     def test_log_warning(self, caplog):

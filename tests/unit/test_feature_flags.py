@@ -9,6 +9,7 @@
     5. 单测覆盖率 >= 90%
     6. mypy strict 通过
 """
+
 from __future__ import annotations
 
 import json
@@ -66,7 +67,9 @@ def flags_instance(temp_override_dir: Path) -> FeatureFlags:
 class TestFlagDefaults:
     """所有 flag 默认值必须 = False (不改变现状)."""
 
-    def test_known_flag_returns_false_by_default(self, flags_instance: FeatureFlags) -> None:
+    def test_known_flag_returns_false_by_default(
+        self, flags_instance: FeatureFlags
+    ) -> None:
         """已注册 flag 默认 False."""
         assert flags_instance.is_enabled("USE_INTEGRATED_BOOTSTRAP") is False
         assert flags_instance.is_enabled("USE_LLM_REPORT_ANALYZER") is False
@@ -76,7 +79,9 @@ class TestFlagDefaults:
         """未注册 flag 返回 False (不抛异常)."""
         assert flags_instance.is_enabled("NON_EXISTENT_FLAG_XYZ") is False
 
-    def test_all_registered_flags_default_false(self, flags_instance: FeatureFlags) -> None:
+    def test_all_registered_flags_default_false(
+        self, flags_instance: FeatureFlags
+    ) -> None:
         """遍历所有 flag, 确认默认值都是 False (ADR-003 铁律).
 
         例外: USE_VOL_REGIME_WEIGHTER (2026-08-05 双签授权 Phase 0 实战监控, 观察期只读模式).
@@ -107,7 +112,9 @@ class TestEnableFlag:
         )
         assert flags_instance.is_enabled("USE_INTEGRATED_BOOTSTRAP") is True
 
-    def test_enable_without_co_signer_raises(self, flags_instance: FeatureFlags) -> None:
+    def test_enable_without_co_signer_raises(
+        self, flags_instance: FeatureFlags
+    ) -> None:
         """缺少 co_signer 抛 FlagPermissionError."""
         with pytest.raises(FlagPermissionError):
             flags_instance.enable(
@@ -146,14 +153,17 @@ class TestDisableFlag:
     def test_disable_with_single_signature(self, flags_instance: FeatureFlags) -> None:
         """单签禁用成功."""
         # 先启用
-        flags_instance.enable("USE_LLM_REPORT_ANALYZER",
-                              signer="alice", co_signer="bob")
+        flags_instance.enable(
+            "USE_LLM_REPORT_ANALYZER", signer="alice", co_signer="bob"
+        )
         assert flags_instance.is_enabled("USE_LLM_REPORT_ANALYZER") is True
 
         # 单签禁用
-        flags_instance.disable("USE_LLM_REPORT_ANALYZER",
-                               signer="carol_risk",
-                               reason="发现 LLM 调用延迟超标, 紧急关闭")
+        flags_instance.disable(
+            "USE_LLM_REPORT_ANALYZER",
+            signer="carol_risk",
+            reason="发现 LLM 调用延迟超标, 紧急关闭",
+        )
         assert flags_instance.is_enabled("USE_LLM_REPORT_ANALYZER") is False
 
     def test_disable_without_signer_raises(self, flags_instance: FeatureFlags) -> None:
@@ -170,9 +180,12 @@ class TestAuditTrail:
 
     def test_enable_writes_audit_log(self, flags_instance: FeatureFlags) -> None:
         """enable 写入 JSONL 审计日志."""
-        flags_instance.enable("USE_INTEGRATED_BOOTSTRAP",
-                              signer="alice", co_signer="bob",
-                              reason="测试审计")
+        flags_instance.enable(
+            "USE_INTEGRATED_BOOTSTRAP",
+            signer="alice",
+            co_signer="bob",
+            reason="测试审计",
+        )
 
         trail = flags_instance.audit_trail("USE_INTEGRATED_BOOTSTRAP")
         assert len(trail) >= 1
@@ -187,10 +200,12 @@ class TestAuditTrail:
 
     def test_disable_writes_audit_log(self, flags_instance: FeatureFlags) -> None:
         """disable 写入 JSONL 审计日志."""
-        flags_instance.enable("USE_LLM_REPORT_ANALYZER",
-                              signer="alice", co_signer="bob")
-        flags_instance.disable("USE_LLM_REPORT_ANALYZER",
-                               signer="carol", reason="紧急关闭")
+        flags_instance.enable(
+            "USE_LLM_REPORT_ANALYZER", signer="alice", co_signer="bob"
+        )
+        flags_instance.disable(
+            "USE_LLM_REPORT_ANALYZER", signer="carol", reason="紧急关闭"
+        )
 
         trail = flags_instance.audit_trail("USE_LLM_REPORT_ANALYZER")
         assert len(trail) >= 2
@@ -200,7 +215,9 @@ class TestAuditTrail:
         assert last["enabled"] is False
         assert last["signer"] == "carol"
 
-    def test_audit_trail_empty_for_unknown_flag(self, flags_instance: FeatureFlags) -> None:
+    def test_audit_trail_empty_for_unknown_flag(
+        self, flags_instance: FeatureFlags
+    ) -> None:
         """未操作的 flag 审计轨迹为空."""
         trail = flags_instance.audit_trail("NEVER_TOUCHED_FLAG")
         assert trail == []
@@ -240,10 +257,13 @@ class TestModuleLevelAPI:
 class TestPersistenceAndReload:
     """覆盖文件持久化 + 热加载."""
 
-    def test_override_persists_across_instances(self, flags_instance: FeatureFlags) -> None:
+    def test_override_persists_across_instances(
+        self, flags_instance: FeatureFlags
+    ) -> None:
         """覆盖文件在单例重置后仍生效."""
-        flags_instance.enable("USE_INTEGRATED_BOOTSTRAP",
-                              signer="alice", co_signer="bob")
+        flags_instance.enable(
+            "USE_INTEGRATED_BOOTSTRAP", signer="alice", co_signer="bob"
+        )
         assert flags_instance.is_enabled("USE_INTEGRATED_BOOTSTRAP") is True
 
         # 重置单例, 重新加载
@@ -252,22 +272,28 @@ class TestPersistenceAndReload:
         # 覆盖文件仍在, flag 仍为 True
         assert new_instance.is_enabled("USE_INTEGRATED_BOOTSTRAP") is True
 
-    def test_reload_picks_up_new_override(self, flags_instance: FeatureFlags,
-                                          temp_override_dir: Path) -> None:
+    def test_reload_picks_up_new_override(
+        self, flags_instance: FeatureFlags, temp_override_dir: Path
+    ) -> None:
         """reload() 检测新覆盖文件."""
         assert flags_instance.is_enabled("USE_DAILY_WORKFLOW_V2") is False
 
         # 手动写覆盖文件
         override_file = temp_override_dir / "USE_DAILY_WORKFLOW_V2.json"
-        override_file.write_text(json.dumps({
-            "flag_name": "USE_DAILY_WORKFLOW_V2",
-            "enabled": True,
-            "signer": "external",
-            "co_signer": "risk_officer",
-            "reason": "外部覆盖",
-            "action": "enable",
-            "timestamp": "2026-07-26T12:00:00Z",
-        }), encoding="utf-8")
+        override_file.write_text(
+            json.dumps(
+                {
+                    "flag_name": "USE_DAILY_WORKFLOW_V2",
+                    "enabled": True,
+                    "signer": "external",
+                    "co_signer": "risk_officer",
+                    "reason": "外部覆盖",
+                    "action": "enable",
+                    "timestamp": "2026-07-26T12:00:00Z",
+                }
+            ),
+            encoding="utf-8",
+        )
 
         flags_instance.reload()
         assert flags_instance.is_enabled("USE_DAILY_WORKFLOW_V2") is True
@@ -290,7 +316,9 @@ class TestFlagMetadata:
         with pytest.raises(FlagNotFoundError):
             flags_instance.get_flag_def("NON_EXISTENT")
 
-    def test_list_flags_includes_current_value(self, flags_instance: FeatureFlags) -> None:
+    def test_list_flags_includes_current_value(
+        self, flags_instance: FeatureFlags
+    ) -> None:
         _AUTHORIZED_TRUE_DEFAULTS = {"USE_VOL_REGIME_WEIGHTER"}
         flags = flags_instance.list_flags()
         for flag in flags:
@@ -307,7 +335,9 @@ class TestFlagMetadata:
 class TestCriticalPathFlags:
     """关键路径 flag (执行层/风控层) 验证."""
 
-    def test_execution_router_flag_is_critical(self, flags_instance: FeatureFlags) -> None:
+    def test_execution_router_flag_is_critical(
+        self, flags_instance: FeatureFlags
+    ) -> None:
         """USE_AUTOMATED_EXECUTION_ROUTER 必须是 critical_path + rollback=0."""
         flag_def = flags_instance.get_flag_def("USE_AUTOMATED_EXECUTION_ROUTER")
         assert flag_def["critical_path"] is True

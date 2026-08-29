@@ -10,6 +10,7 @@
       这些方法是 EOD Guard 链路的数据入口, 必须兼容多种报告格式
     - 不依赖真实报告文件, 全部使用 fixture 构造样本
 """
+
 import pytest
 
 from utils.risk_guard_integrator import RiskGuardIntegrator
@@ -18,12 +19,8 @@ from utils.risk_guard_integrator import RiskGuardIntegrator
 @pytest.fixture
 def integrator(tmp_path, monkeypatch):
     """隔离文件 IO 的 RiskGuardIntegrator"""
-    monkeypatch.setattr(
-        "utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs"
-    )
-    monkeypatch.setattr(
-        "utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports"
-    )
+    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports")
     monkeypatch.setattr(
         "utils.risk_guard_integrator.TRADE_PLANS_DIR", tmp_path / "trade_plans"
     )
@@ -50,7 +47,9 @@ class TestExtractPositionsCompatibility:
         assert positions[2]["code"] == "510050.SH"
 
     @pytest.mark.unit
-    def test_simplified_format_top_level_positions(self, integrator, sample_pnl_report_simplified):
+    def test_simplified_format_top_level_positions(
+        self, integrator, sample_pnl_report_simplified
+    ):
         """简化格式: 顶层 positions (list)"""
         positions = integrator._extract_positions(sample_pnl_report_simplified)
 
@@ -81,7 +80,9 @@ class TestExtractPositionsCompatibility:
         assert positions == []
 
     @pytest.mark.unit
-    def test_broken_report_p0d_returns_empty_list(self, integrator, sample_pnl_report_broken_p0d):
+    def test_broken_report_p0d_returns_empty_list(
+        self, integrator, sample_pnl_report_broken_p0d
+    ):
         """P0-D bug 样本 (margin_used=None) → positions 为空, 但不抛异常"""
         positions = integrator._extract_positions(sample_pnl_report_broken_p0d)
         assert isinstance(positions, list)

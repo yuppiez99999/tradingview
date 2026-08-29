@@ -166,9 +166,17 @@ class FactorModel:
             return 0.0
 
         # 多周期动量
-        mom_1m = (prices[-1] / prices[-min(20, len(prices))] - 1) if len(prices) >= 20 else 0
-        mom_3m = (prices[-1] / prices[-min(60, len(prices))] - 1) if len(prices) >= 60 else 0
-        mom_6m = (prices[-1] / prices[-min(120, len(prices))] - 1) if len(prices) >= 120 else 0
+        mom_1m = (
+            (prices[-1] / prices[-min(20, len(prices))] - 1) if len(prices) >= 20 else 0
+        )
+        mom_3m = (
+            (prices[-1] / prices[-min(60, len(prices))] - 1) if len(prices) >= 60 else 0
+        )
+        mom_6m = (
+            (prices[-1] / prices[-min(120, len(prices))] - 1)
+            if len(prices) >= 120
+            else 0
+        )
 
         score = mom_1m * 0.3 + mom_3m * 0.4 + mom_6m * 0.3
         score = max(-1, min(1, score * 5))  # 归一化
@@ -178,7 +186,11 @@ class FactorModel:
     # ============================================================
     # 因子4: 增长因子
     # ============================================================
-    def growth_factor(self, revenue_growth: Optional[float] = None, earnings_growth: Optional[float] = None) -> float:
+    def growth_factor(
+        self,
+        revenue_growth: Optional[float] = None,
+        earnings_growth: Optional[float] = None,
+    ) -> float:
         """
         增长因子：高收入/盈利增长 = 高分。
         """
@@ -225,6 +237,7 @@ class FactorModel:
 
         score = vol_score * 0.4 + dd_score * 0.3 + sharpe_score * 0.3
         return float(round(score, 4))
+
     # ============================================================
     # 因子6: 技术Alpha因子（GTJA191 Alpha144）
     # ============================================================
@@ -258,7 +271,16 @@ class FactorModel:
             # 经验阈值做截断，避免极端值主导
             score = max(-1.0, min(1.0, 1.0 - float(value) * 1e8))
             return round(float(score), 4)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as exc:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"technical_alpha_factor 计算失败: {exc}")
             return 0.0
 
@@ -293,14 +315,21 @@ class FactorModel:
 
             factors = {
                 "value": self.value_factor(
-                    df, pe=fund.get("pe"), pb=fund.get("pb"), dividend_yield=fund.get("dividend_yield")
+                    df,
+                    pe=fund.get("pe"),
+                    pb=fund.get("pb"),
+                    dividend_yield=fund.get("dividend_yield"),
                 ),
                 "quality": self.quality_factor(
-                    df, roe=fund.get("roe"), debt_ratio=fund.get("debt_ratio"), profit_margin=fund.get("profit_margin")
+                    df,
+                    roe=fund.get("roe"),
+                    debt_ratio=fund.get("debt_ratio"),
+                    profit_margin=fund.get("profit_margin"),
                 ),
                 "momentum": self.momentum_factor(df),
                 "growth": self.growth_factor(
-                    revenue_growth=fund.get("revenue_growth"), earnings_growth=fund.get("earnings_growth")
+                    revenue_growth=fund.get("revenue_growth"),
+                    earnings_growth=fund.get("earnings_growth"),
                 ),
                 "safety": self.safety_factor(df),
                 "technical_alpha": self.technical_alpha_factor(df),
@@ -313,7 +342,10 @@ class FactorModel:
                 factors["event_impact"] = events["event_impact"]
 
             # 加权综合
-            composite = sum(factors.get(name, 0) * self.weights.get(name, 0) for name in self.weights)
+            composite = sum(
+                factors.get(name, 0) * self.weights.get(name, 0)
+                for name in self.weights
+            )
 
             # 信号
             signal = self._to_signal(composite)
@@ -326,7 +358,9 @@ class FactorModel:
             )
 
         # 排名
-        sorted_codes = sorted(results.keys(), key=lambda c: results[c].composite, reverse=True)
+        sorted_codes = sorted(
+            results.keys(), key=lambda c: results[c].composite, reverse=True
+        )
         for rank, code in enumerate(sorted_codes, 1):
             results[code].rank = rank
 
@@ -373,16 +407,17 @@ class FactorModel:
         """因子得分 → 交易信号"""
         if composite >= self.SIGNAL_THRESHOLDS["strong_buy"]:
             return "strong_buy"
-        elif composite >= self.SIGNAL_THRESHOLDS["buy"]:
+        if composite >= self.SIGNAL_THRESHOLDS["buy"]:
             return "buy"
-        elif composite >= self.SIGNAL_THRESHOLDS["hold_lower"]:
+        if composite >= self.SIGNAL_THRESHOLDS["hold_lower"]:
             return "hold"
-        elif composite >= self.SIGNAL_THRESHOLDS["sell"]:
+        if composite >= self.SIGNAL_THRESHOLDS["sell"]:
             return "sell"
-        else:
-            return "strong_sell"
+        return "strong_sell"
 
-    def compute_factor_correlation(self, results: dict[str, FactorResult]) -> pd.DataFrame:
+    def compute_factor_correlation(
+        self, results: dict[str, FactorResult]
+    ) -> pd.DataFrame:
         """
         计算因子间相关性矩阵（用于评估因子独立性）。
         """

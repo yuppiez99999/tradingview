@@ -12,6 +12,7 @@
 
 兼容 Python 3.8。
 """
+
 import argparse
 import ast
 import json
@@ -25,11 +26,21 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 P0_FILES = [
-    "alpha_hedge_engine.py", "build_plan_executor.py", "daily_build_and_hedge.py",
-    "daily_trade_executor.py", "hedge_execution_orders.py", "hedge_quantity_calculator.py",
-    "institutional_pipeline_runner.py", "live_scheduler.py", "rebalance_execution_orders.py",
-    "run_daily_eod.py", "signal_monitor.py", "signal_post_processing.py",
-    "stop_loss_monitor.py", "today_hedge_decision.py", "vol_adjusted_stop_loss.py",
+    "alpha_hedge_engine.py",
+    "build_plan_executor.py",
+    "daily_build_and_hedge.py",
+    "daily_trade_executor.py",
+    "hedge_execution_orders.py",
+    "hedge_quantity_calculator.py",
+    "institutional_pipeline_runner.py",
+    "live_scheduler.py",
+    "rebalance_execution_orders.py",
+    "run_daily_eod.py",
+    "signal_monitor.py",
+    "signal_post_processing.py",
+    "stop_loss_monitor.py",
+    "today_hedge_decision.py",
+    "vol_adjusted_stop_loss.py",
 ]
 
 _RE_EXCEPTION = re.compile(r"\.exception\(")
@@ -37,23 +48,48 @@ _RE_ERROR = re.compile(r"\.error\(")
 
 
 # 扫描时必须排除的目录: 第三方库/虚拟环境/归档
-EXCLUDE_DIRS = frozenset({
-    ".venv", "qlib_env", "qlib", ".tmp_pip", ".pip_cache", "backups",
-    "_archive", "_archive_dead_code", "external", ".git", "__pycache__",
-    ".mypy_cache", ".ruff_cache", "node_modules", ".pytest_cache",
-})
+EXCLUDE_DIRS = frozenset(
+    {
+        ".venv",
+        "qlib_env",
+        "qlib",
+        ".tmp_pip",
+        ".pip_cache",
+        "backups",
+        "_archive",
+        "_archive_dead_code",
+        "external",
+        ".git",
+        "__pycache__",
+        ".mypy_cache",
+        ".ruff_cache",
+        "node_modules",
+        ".pytest_cache",
+    }
+)
 
 # 参与统计的业务分区
-TRACKED_ZONES = ("utils", "v8.3_institutional", "scripts", "research",
-                 "tests", "tools", "ui", "ai_decision")
+TRACKED_ZONES = (
+    "utils",
+    "v8.3_institutional",
+    "scripts",
+    "research",
+    "tests",
+    "tools",
+    "ui",
+    "ai_decision",
+)
 
 
 def git_ls(pattern: str) -> list[str]:
     """git 索引查询。注意: 索引可能与工作区脱节, 仅用于污染检测。"""
     try:
         out = subprocess.run(
-            ["git", "ls-files", pattern], cwd=str(REPO),
-            capture_output=True, text=True, timeout=60,
+            ["git", "ls-files", pattern],
+            cwd=str(REPO),
+            capture_output=True,
+            text=True,
+            timeout=60,
         ).stdout
     except (subprocess.SubprocessError, OSError):
         return []
@@ -69,8 +105,11 @@ def git_worktree_status() -> dict[str, int]:
     result = {"deleted": 0, "modified": 0, "untracked": 0}
     try:
         out = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=str(REPO),
-            capture_output=True, text=True, timeout=120,
+            ["git", "status", "--porcelain"],
+            cwd=str(REPO),
+            capture_output=True,
+            text=True,
+            timeout=120,
         ).stdout
     except (subprocess.SubprocessError, OSError):
         return result
@@ -143,7 +182,7 @@ def count_silent_except(text: str) -> int:
     for i, line in enumerate(lines):
         s = line.strip()
         if s.startswith("except Exception") or s == "except:":
-            body = [x.strip() for x in lines[i + 1:i + 5] if x.strip()]
+            body = [x.strip() for x in lines[i + 1 : i + 5] if x.strip()]
             joined = " ".join(body[:4]).lower()
             if not ("log" in joined or "raise" in joined or "warn" in joined):
                 n += 1
@@ -230,32 +269,52 @@ def render(data: dict) -> None:
     wt = data["worktree"]
     dirty = wt["deleted"] + wt["modified"] + wt["untracked"]
     print("\n【工作区卫生】  <- 代码审查的前提")
-    print("  已删除未提交: {:<6} 已修改未提交: {:<6} 未跟踪: {}".format(
-        wt["deleted"], wt["modified"], wt["untracked"]))
+    print(
+        "  已删除未提交: {:<6} 已修改未提交: {:<6} 未跟踪: {}".format(
+            wt["deleted"], wt["modified"], wt["untracked"]
+        )
+    )
     print(f"  未提交变更合计: {dirty}")
     if dirty > 100:
         print("  [!] 变更未进版本控制, PR 无法反映真实改动, 审查将失效")
 
     print("\n【日志规范分区对比】  <- 核心治理指标")
-    print("  {:<22}{:>6}{:>9}{:>8}{:>12}{:>9}{:>7}".format(
-        "分区", "文件", "print()", "密度", "exception()", "error()", "静默"))
+    print(
+        "  {:<22}{:>6}{:>9}{:>8}{:>12}{:>9}{:>7}".format(
+            "分区", "文件", "print()", "密度", "exception()", "error()", "静默"
+        )
+    )
     for name, z in data["zones"].items():
         density = (z["print"] / z["files"]) if z["files"] else 0
-        print("  {:<22}{:>6}{:>9}{:>8.1f}{:>12}{:>9}{:>7}".format(
-            name, z["files"], z["print"], density,
-            z["exception"], z["error"], z["silent_except"]))
+        print(
+            "  {:<22}{:>6}{:>9}{:>8.1f}{:>12}{:>9}{:>7}".format(
+                name,
+                z["files"],
+                z["print"],
+                density,
+                z["exception"],
+                z["error"],
+                z["silent_except"],
+            )
+        )
     print("  注: 密度 = print()/文件。utils/ 是唯一有 CI 门禁的区, 可作基准。")
 
     p0 = data["p0"]
     print("\n【P0 生产交易路径】({} 个文件)".format(p0["files"]))
-    print("  print()     : {:<6} 静默异常: {:<6} exception(): {}".format(
-        p0["print"], p0["silent_except"], p0["exception"]))
+    print(
+        "  print()     : {:<6} 静默异常: {:<6} exception(): {}".format(
+            p0["print"], p0["silent_except"], p0["exception"]
+        )
+    )
 
     print("\n【其他】")
     print("  git 中 qlib_env 文件 : {}".format(data["git_pollution"]))
     print("  使用 Decimal 的文件: {}".format(data["decimal_files"]))
-    print("  最大文件           : {} ({} 行)".format(
-        data["biggest_file"]["path"], data["biggest_file"]["lines"]))
+    print(
+        "  最大文件           : {} ({} 行)".format(
+            data["biggest_file"]["path"], data["biggest_file"]["lines"]
+        )
+    )
 
     actual = {
         "worktree_dirty": dirty,
@@ -270,9 +329,15 @@ def render(data: dict) -> None:
         val = actual[key]
         ok = (val <= target) if op == "le" else (val >= target)
         passed += ok
-        print("  [{}] {:<20} {:>7}  (目标 {} {})".format(
-            "PASS" if ok else "FAIL", label, val,
-            "<=" if op == "le" else ">=", target))
+        print(
+            "  [{}] {:<20} {:>7}  (目标 {} {})".format(
+                "PASS" if ok else "FAIL",
+                label,
+                val,
+                "<=" if op == "le" else ">=",
+                target,
+            )
+        )
     print(f"\n  达成 {passed}/{len(GATES)}")
     print("\n依据: docs/CODE_REVIEW_STANDARD.md §5")
 

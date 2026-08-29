@@ -1,4 +1,5 @@
 """每日三阶段交易工作流 - 盘前计划/盘中策略/盘后报告"""
+
 from core.context import BASE_DIR
 
 
@@ -16,9 +17,9 @@ def run_daily_workflow(args):
         return
 
     # 执行指定阶段
-    phase = getattr(args, 'phase', 'all')
+    phase = getattr(args, "phase", "all")
     if phase is None:
-        phase = 'all'
+        phase = "all"
 
     print(f"\n🎯 执行阶段: {phase}")
     print("-" * 70)
@@ -26,9 +27,9 @@ def run_daily_workflow(args):
     try:
         # 阶段注册表：函数名 / 完成提示
         PHASE_MAP = {
-            'premarket': ('run_premarket', '盘前计划生成完成'),
-            'intraday':  ('run_intraday',  '盘中策略扫描完成'),
-            'postmarket': ('run_postmarket', '盘后报告生成完成'),
+            "premarket": ("run_premarket", "盘前计划生成完成"),
+            "intraday": ("run_intraday", "盘中策略扫描完成"),
+            "postmarket": ("run_postmarket", "盘后报告生成完成"),
         }
 
         if phase in PHASE_MAP:
@@ -40,11 +41,11 @@ def run_daily_workflow(args):
             else:
                 print(f"\n❌ {func_name} 函数不存在")
 
-        elif phase == 'all':
+        elif phase == "all":
             # 全流程执行
             print("\n🚀 开始全流程执行...")
 
-            if hasattr(dtw, 'run_all'):
+            if hasattr(dtw, "run_all"):
                 dtw.run_all()
             else:
                 # 手动串联三个阶段
@@ -58,13 +59,23 @@ def run_daily_workflow(args):
             print("\n  🔗 盘后联动分析 (对冲+再平衡 v5.9)...")
             print("  " + "-" * 60)
             try:
-                from utils.hedge_rebalance_integrator import HedgeMode, HedgeRebalanceIntegrator
-                integrator = HedgeRebalanceIntegrator(base_dir=BASE_DIR, hedge_mode=HedgeMode.TAIL_ONLY)
+                from utils.hedge_rebalance_integrator import (
+                    HedgeMode,
+                    HedgeRebalanceIntegrator,
+                )
+
+                integrator = HedgeRebalanceIntegrator(
+                    base_dir=BASE_DIR, hedge_mode=HedgeMode.TAIL_ONLY
+                )
                 plan = integrator.run_full_workflow()
                 report_path = integrator.save_report(plan)
-                print(f"  ✅ 联动分析完成 v5.9 | 模式: {integrator.hedge_mode.value} | 优先级: {plan.execution_priority} | 窗口: {plan.execution_window}")
+                print(
+                    f"  ✅ 联动分析完成 v5.9 | 模式: {integrator.hedge_mode.value} | 优先级: {plan.execution_priority} | 窗口: {plan.execution_window}"
+                )
                 print(f"  📄 报告: {report_path}")
-                print(f"  📊 预估: 年化{plan.estimated_annual_return*100:.1f}% | 最大回撤{plan.estimated_max_drawdown*100:.1f}% | 夏普{plan.estimated_sharpe:.2f}")
+                print(
+                    f"  📊 预估: 年化{plan.estimated_annual_return*100:.1f}% | 最大回撤{plan.estimated_max_drawdown*100:.1f}% | 夏普{plan.estimated_sharpe:.2f}"
+                )
             except Exception as e:
                 print(f"  ⚠️ 联动分析跳过: {e}")
 
@@ -77,4 +88,5 @@ def run_daily_workflow(args):
     except Exception as e:
         print(f"\n❌ 工作流执行失败: {e}")
         import traceback
+
         traceback.print_exc()

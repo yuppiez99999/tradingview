@@ -68,3 +68,14 @@ window -> 5 10 20 60 120
 |------|------|------|
 | `utils/alpha_factor/alpha_cfg.py` | 370 | 核心实现 |
 | `tests/unit/test_alpha_cfg_unit.py` | 230 | 单元测试 (27) |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [R&D-Agent-Quant 多智能体因子挖掘引擎 (LIT-1.1)](rd-agent-quant.md) (相似度 29%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 27%)
+- [AlphaForge 动态权重组合机制 (LIT-1.2)](alpha-forge-combiner.md) (相似度 24%)
+- [FinRL-X 权重中心接口架构](finrl-x-interface.md) (相似度 23%)
+- [DeltaHedge 多智能体期权优化](delta-hedge-multi-agent.md) (相似度 16%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

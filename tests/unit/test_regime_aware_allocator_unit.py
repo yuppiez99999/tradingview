@@ -36,6 +36,7 @@ from utils.regime_aware_allocator import (
 # 枚举测试
 # ============================================================
 
+
 class TestRegime:
     """制度枚举测试。"""
 
@@ -50,6 +51,7 @@ class TestRegime:
 # ============================================================
 # VIX 分类器测试
 # ============================================================
+
 
 class TestRegimeClassifier:
     """VIX 制度分类器测试。"""
@@ -106,6 +108,7 @@ class TestRegimeClassifier:
 # 协方差收缩测试
 # ============================================================
 
+
 class TestCovarianceShrinkage:
     """协方差收缩测试。"""
 
@@ -148,20 +151,28 @@ class TestCovarianceShrinkage:
 # 配置测试
 # ============================================================
 
+
 class TestRegimeConfig:
     """制度配置测试。"""
 
     def test_defaults(self):
         config = RegimeConfig()
-        assert config.risk_aversion[Regime.CRISIS] > config.risk_aversion[Regime.LOW_VOL]
+        assert (
+            config.risk_aversion[Regime.CRISIS] > config.risk_aversion[Regime.LOW_VOL]
+        )
         assert config.max_weight[Regime.CRISIS] < config.max_weight[Regime.LOW_VOL]
-        assert config.defense_boost[Regime.CRISIS] > config.defense_boost[Regime.LOW_VOL]
-        assert config.offense_boost[Regime.CRISIS] < config.offense_boost[Regime.LOW_VOL]
+        assert (
+            config.defense_boost[Regime.CRISIS] > config.defense_boost[Regime.LOW_VOL]
+        )
+        assert (
+            config.offense_boost[Regime.CRISIS] < config.offense_boost[Regime.LOW_VOL]
+        )
 
 
 # ============================================================
 # 分配器测试
 # ============================================================
+
 
 class TestRegimeAwareAllocator:
     """制度感知分配器测试。"""
@@ -193,8 +204,12 @@ class TestRegimeAwareAllocator:
         offense_mask = np.array([1, 1, 0, 0])
 
         allocator = RegimeAwareAllocator()
-        r_low = allocator.allocate(returns, vix=10.0, defense_mask=defense_mask, offense_mask=offense_mask)
-        r_crisis = allocator.allocate(returns, vix=40.0, defense_mask=defense_mask, offense_mask=offense_mask)
+        r_low = allocator.allocate(
+            returns, vix=10.0, defense_mask=defense_mask, offense_mask=offense_mask
+        )
+        r_crisis = allocator.allocate(
+            returns, vix=40.0, defense_mask=defense_mask, offense_mask=offense_mask
+        )
 
         defense_low = r_low.weights[defense_mask == 1].sum()
         defense_crisis = r_crisis.weights[defense_mask == 1].sum()
@@ -249,13 +264,16 @@ class TestRegimeAwareAllocator:
 # 端到端集成测试
 # ============================================================
 
+
 class TestEndToEnd:
     """端到端集成测试。"""
 
     def test_full_pipeline(self):
         """完整管道。"""
         rng = np.random.default_rng(42)
-        returns = rng.standard_normal((252, 6)) * 0.02 + np.array([0.001, 0.002, 0.0015, 0.0005, 0.0025, 0.0003])
+        returns = rng.standard_normal((252, 6)) * 0.02 + np.array(
+            [0.001, 0.002, 0.0015, 0.0005, 0.0025, 0.0003]
+        )
 
         allocator = RegimeAwareAllocator()
         defense_mask = np.array([0, 0, 0, 1, 0, 1])

@@ -6,6 +6,7 @@
     - 成本分解 (佣金/滑点/市场冲击)
     - 成交明细审计
 """
+
 from __future__ import annotations
 
 import sys
@@ -52,16 +53,36 @@ def main() -> None:
     fills = load_tca_fills(selected_date)
 
     if not tca_panel and not fills:
-        render_empty_state(f"{selected_date.strftime('%Y-%m-%d')} 无 TCA 数据", icon="💰")
+        render_empty_state(
+            f"{selected_date.strftime('%Y-%m-%d')} 无 TCA 数据", icon="💰"
+        )
         return
 
     # ===== 顶部 KPI =====
-    render_kpi_row([
-        {"label": "总成本 (bps)", "value": f"{tca_panel.get('total_cost_bps', 0):.2f}", "icon": "💵"},
-        {"label": "佣金 (bps)", "value": f"{tca_panel.get('commission_bps', 0):.2f}", "icon": "📋"},
-        {"label": "滑点 (bps)", "value": f"{tca_panel.get('slippage_bps', 0):.2f}", "icon": "📊"},
-        {"label": "市场冲击 (bps)", "value": f"{tca_panel.get('market_impact_bps', 0):.2f}", "icon": "💥"},
-    ])
+    render_kpi_row(
+        [
+            {
+                "label": "总成本 (bps)",
+                "value": f"{tca_panel.get('total_cost_bps', 0):.2f}",
+                "icon": "💵",
+            },
+            {
+                "label": "佣金 (bps)",
+                "value": f"{tca_panel.get('commission_bps', 0):.2f}",
+                "icon": "📋",
+            },
+            {
+                "label": "滑点 (bps)",
+                "value": f"{tca_panel.get('slippage_bps', 0):.2f}",
+                "icon": "📊",
+            },
+            {
+                "label": "市场冲击 (bps)",
+                "value": f"{tca_panel.get('market_impact_bps', 0):.2f}",
+                "icon": "💥",
+            },
+        ]
+    )
 
     st.divider()
 
@@ -73,12 +94,15 @@ def main() -> None:
     with col2:
         st.metric("实际总成本", f"¥{tca_panel.get('actual_total_cost', 0):,.2f}")
     with col3:
-        est = tca_panel.get('estimated_total_cost', 0)
-        act = tca_panel.get('actual_total_cost', 0)
+        est = tca_panel.get("estimated_total_cost", 0)
+        act = tca_panel.get("actual_total_cost", 0)
         diff = act - est
-        st.metric("偏差", f"¥{diff:,.2f}",
-                  delta=f"{diff/est*100:.2f}%" if est > 0 else "-",
-                  delta_color="inverse" if diff > 0 else "normal")
+        st.metric(
+            "偏差",
+            f"¥{diff:,.2f}",
+            delta=f"{diff/est*100:.2f}%" if est > 0 else "-",
+            delta_color="inverse" if diff > 0 else "normal",
+        )
 
     st.info(
         "**HC-6 同步路径延迟约束**: TCA 执行前预估延迟 <50ms\n\n"
@@ -93,13 +117,16 @@ def main() -> None:
         st.metric("成交笔数", len(fills))
         try:
             import pandas as pd
+
             df = pd.DataFrame(fills)
             st.dataframe(df, use_container_width=True, hide_index=True)
 
             # 按标的聚合成本
             if "symbol" in df.columns and "total_cost_bps" in df.columns:
                 st.subheader("按标的聚合成本 (bps)")
-                agg = df.groupby("symbol")["total_cost_bps"].agg(["mean", "max", "count"])
+                agg = df.groupby("symbol")["total_cost_bps"].agg(
+                    ["mean", "max", "count"]
+                )
                 st.dataframe(agg, use_container_width=True)
                 st.bar_chart(agg["mean"])
         except Exception as e:
@@ -112,7 +139,9 @@ def main() -> None:
 
     # ===== TCA 估算历史 =====
     st.subheader("📊 TCA 估算历史")
-    st.caption("TCA 执行前预估需持久化至 `reports/tca/estimate_{date}.jsonl` 并支持 `get_history()` 查询")
+    st.caption(
+        "TCA 执行前预估需持久化至 `reports/tca/estimate_{date}.jsonl` 并支持 `get_history()` 查询"
+    )
     # 这里仅展示说明, 实际历史查询由后端 API 提供
     st.info("如需查看历史估算记录, 请访问 `reports/tca/estimate_*.jsonl` 文件")
 

@@ -47,21 +47,26 @@ def check_distribution_drift(
         return events
 
     if baseline_df.empty or current_df.empty:
-        logger.warning("F 维度检查跳过: baseline=%d rows, current=%d rows",
-                       len(baseline_df), len(current_df))
+        logger.warning(
+            "F 维度检查跳过: baseline=%d rows, current=%d rows",
+            len(baseline_df),
+            len(current_df),
+        )
         return events
 
     for col in factor_cols:
         if col not in baseline_df.columns or col not in current_df.columns:
-            events.append(make_event(
-                metric_id="F-01",
-                level=DQCLevel.WARN,
-                checkpoint=checkpoint,
-                value=0.0,
-                threshold=0.1,
-                message=f"因子列 {col} 在 baseline 或 current 中不存在, 跳过漂移检查",
-                factor=col,
-            ))
+            events.append(
+                make_event(
+                    metric_id="F-01",
+                    level=DQCLevel.WARN,
+                    checkpoint=checkpoint,
+                    value=0.0,
+                    threshold=0.1,
+                    message=f"因子列 {col} 在 baseline 或 current 中不存在, 跳过漂移检查",
+                    factor=col,
+                )
+            )
             continue
 
         baseline_series = baseline_df[col].dropna()
@@ -74,13 +79,19 @@ def check_distribution_drift(
         events.extend(_check_f01_psi(baseline_series, current_series, col, checkpoint))
 
         # F-02: 均值漂移
-        events.extend(_check_f02_mean_drift(baseline_series, current_series, col, checkpoint))
+        events.extend(
+            _check_f02_mean_drift(baseline_series, current_series, col, checkpoint)
+        )
 
         # F-03: 方差漂移
-        events.extend(_check_f03_variance_drift(baseline_series, current_series, col, checkpoint))
+        events.extend(
+            _check_f03_variance_drift(baseline_series, current_series, col, checkpoint)
+        )
 
         # F-04: 极值频率
-        events.extend(_check_f04_extreme_freq(baseline_series, current_series, col, checkpoint))
+        events.extend(
+            _check_f04_extreme_freq(baseline_series, current_series, col, checkpoint)
+        )
 
     return events
 
@@ -105,19 +116,22 @@ def _check_f01_psi(
     events: list[DQCEvent] = []
     try:
         from utils.alpha.drift_monitor import compute_psi
+
         psi = float(compute_psi(baseline, current, n_bins=10))
     except (ImportError, RuntimeError, ValueError, TypeError) as e:
         logger.warning("F-01 PSI 计算失败 (factor=%s): %s", factor, e)
-        events.append(make_event(
-            metric_id="F-01",
-            level=DQCLevel.WARN,
-            checkpoint=checkpoint,
-            value=0.0,
-            threshold=0.1,
-            message=f"因子 {factor} PSI 计算异常: {e}",
-            factor=factor,
-            error=str(e),
-        ))
+        events.append(
+            make_event(
+                metric_id="F-01",
+                level=DQCLevel.WARN,
+                checkpoint=checkpoint,
+                value=0.0,
+                threshold=0.1,
+                message=f"因子 {factor} PSI 计算异常: {e}",
+                factor=factor,
+                error=str(e),
+            )
+        )
         return events
 
     # 级别判定
@@ -131,18 +145,20 @@ def _check_f01_psi(
         # PSI < 0.1, 无显著变化, 不产生事件
         return events
 
-    events.append(make_event(
-        metric_id="F-01",
-        level=level,
-        checkpoint=checkpoint,
-        value=psi,
-        threshold=0.1,
-        message=f"因子 {factor} PSI={psi:.4f} ({level.name})",
-        factor=factor,
-        psi=psi,
-        baseline_size=int(len(baseline)),
-        current_size=int(len(current)),
-    ))
+    events.append(
+        make_event(
+            metric_id="F-01",
+            level=level,
+            checkpoint=checkpoint,
+            value=psi,
+            threshold=0.1,
+            message=f"因子 {factor} PSI={psi:.4f} ({level.name})",
+            factor=factor,
+            psi=psi,
+            baseline_size=int(len(baseline)),
+            current_size=int(len(current)),
+        )
+    )
     return events
 
 
@@ -181,19 +197,21 @@ def _check_f02_mean_drift(
     else:
         return events
 
-    events.append(make_event(
-        metric_id="F-02",
-        level=level,
-        checkpoint=checkpoint,
-        value=drift_ratio,
-        threshold=0.5,
-        message=f"因子 {factor} 均值漂移 {drift_ratio:.3f}σ (baseline mean={mean_base:.4f}, current mean={mean_cur:.4f})",
-        factor=factor,
-        drift_ratio=drift_ratio,
-        baseline_mean=mean_base,
-        current_mean=mean_cur,
-        baseline_std=std_base,
-    ))
+    events.append(
+        make_event(
+            metric_id="F-02",
+            level=level,
+            checkpoint=checkpoint,
+            value=drift_ratio,
+            threshold=0.5,
+            message=f"因子 {factor} 均值漂移 {drift_ratio:.3f}σ (baseline mean={mean_base:.4f}, current mean={mean_cur:.4f})",
+            factor=factor,
+            drift_ratio=drift_ratio,
+            baseline_mean=mean_base,
+            current_mean=mean_cur,
+            baseline_std=std_base,
+        )
+    )
     return events
 
 
@@ -230,19 +248,21 @@ def _check_f03_variance_drift(
         return events
 
     direction = "收缩" if ratio < 1.0 else "放大"
-    events.append(make_event(
-        metric_id="F-03",
-        level=level,
-        checkpoint=checkpoint,
-        value=ratio,
-        threshold=2.0,
-        message=f"因子 {factor} 方差{direction} {ratio:.3f}x (baseline std={std_base:.4f}, current std={std_cur:.4f})",
-        factor=factor,
-        variance_ratio=ratio,
-        baseline_std=std_base,
-        current_std=std_cur,
-        direction=direction,
-    ))
+    events.append(
+        make_event(
+            metric_id="F-03",
+            level=level,
+            checkpoint=checkpoint,
+            value=ratio,
+            threshold=2.0,
+            message=f"因子 {factor} 方差{direction} {ratio:.3f}x (baseline std={std_base:.4f}, current std={std_cur:.4f})",
+            factor=factor,
+            variance_ratio=ratio,
+            baseline_std=std_base,
+            current_std=std_cur,
+            direction=direction,
+        )
+    )
     return events
 
 
@@ -283,19 +303,21 @@ def _check_f04_extreme_freq(
     else:
         return events
 
-    events.append(make_event(
-        metric_id="F-04",
-        level=level,
-        checkpoint=checkpoint,
-        value=extreme_freq,
-        threshold=0.05,
-        message=f"因子 {factor} 极值频率 {extreme_freq:.1%} ({extreme_count}/{len(current)} 超出基线 {EXTREME_SIGMA}σ)",
-        factor=factor,
-        extreme_freq=extreme_freq,
-        extreme_count=extreme_count,
-        total_count=int(len(current)),
-        sigma=EXTREME_SIGMA,
-        lower_bound=lower_bound,
-        upper_bound=upper_bound,
-    ))
+    events.append(
+        make_event(
+            metric_id="F-04",
+            level=level,
+            checkpoint=checkpoint,
+            value=extreme_freq,
+            threshold=0.05,
+            message=f"因子 {factor} 极值频率 {extreme_freq:.1%} ({extreme_count}/{len(current)} 超出基线 {EXTREME_SIGMA}σ)",
+            factor=factor,
+            extreme_freq=extreme_freq,
+            extreme_count=extreme_count,
+            total_count=int(len(current)),
+            sigma=EXTREME_SIGMA,
+            lower_bound=lower_bound,
+            upper_bound=upper_bound,
+        )
+    )
     return events

@@ -37,9 +37,9 @@ logger = logging.getLogger("intraday_cb")
 
 
 class CBState(StrEnum):
-    CLOSED = "CLOSED"          # 正常, 允许交易
-    OPEN = "OPEN"              # 熔断, 阻断新交易
-    HALF_OPEN = "HALF_OPEN"    # 半开, 试探恢复, 若再失败立即回到 OPEN
+    CLOSED = "CLOSED"  # 正常, 允许交易
+    OPEN = "OPEN"  # 熔断, 阻断新交易
+    HALF_OPEN = "HALF_OPEN"  # 半开, 试探恢复, 若再失败立即回到 OPEN
 
 
 @dataclass
@@ -198,9 +198,7 @@ class IntradayCircuitBreaker:
 
         triggered: list[str] = []
         if dd > self.intraday_dd_pct:
-            triggered.append(
-                f"DRAWDOWN={dd:.4%} > {self.intraday_dd_pct:.4%}"
-            )
+            triggered.append(f"DRAWDOWN={dd:.4%} > {self.intraday_dd_pct:.4%}")
         if m.realized_vol_annualized > self.realized_vol_annual_pct:
             triggered.append(
                 f"VOL_BURST={m.realized_vol_annualized:.4%} > "

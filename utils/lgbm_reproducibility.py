@@ -23,6 +23,7 @@ API:
         construct_default_config,
     )
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -279,7 +280,8 @@ def write_manifest(
             "manifest_version": "1.0",
             "artifact_name": artifact_name(config),
             "model_name": config.model_name,
-            "created_at": config.created_at or datetime.now().isoformat(timespec="seconds"),
+            "created_at": config.created_at
+            or datetime.now().isoformat(timespec="seconds"),
             "training_env": config.training_env,
             "seed": config.seed,
             "dataset_uri": config.dataset_uri,
@@ -313,7 +315,16 @@ def write_manifest(
         )
         logger.info(f"manifest.json 已落盘: {manifest_path}")
         return manifest_path
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"manifest.json 落盘失败 (训练继续): {e}")
         raise ManifestWriteError(str(e)) from e
@@ -336,7 +347,9 @@ def verify_reproducibility(
     top_a = [k for k, _ in sorted(importance_a.items(), key=lambda x: -x[1])[:top_k]]
     top_b = [k for k, _ in sorted(importance_b.items(), key=lambda x: -x[1])[:top_k]]
     overlap = len(set(top_a) & set(top_b)) / max(top_k, 1)
-    same_order = sum(1 for a, b in zip(top_a, top_b) if a == b) / max(top_k, 1)  # noqa: B905 - top_a/top_b 因输入 dict 大小不同可能不等长, 按较短比较为设计语义
+    same_order = sum(1 for a, b in zip(top_a, top_b, strict=False) if a == b) / max(
+        top_k, 1
+    )  # noqa: B905 - top_a/top_b 因输入 dict 大小不同可能不等长, 按较短比较为设计语义
 
     config_match = config_a.config_hash == config_b.config_hash
     dataset_match = config_a.dataset_uri == config_b.dataset_uri

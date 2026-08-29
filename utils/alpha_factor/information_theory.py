@@ -26,9 +26,7 @@ from utils.alpha_factor.base import FactorValue
 # ============================================================
 
 
-def shannon_entropy(
-    values: np.ndarray | list[float], n_bins: int = 10
-) -> float:
+def shannon_entropy(values: np.ndarray | list[float], n_bins: int = 10) -> float:
     """香农熵 H(X) = -Σ p(x) * log2(p(x))
 
     通过分箱直方图估计概率分布, 再计算熵。
@@ -133,8 +131,12 @@ def mutual_information(
         return 0.0
 
     # 2D 联合直方图
-    x_edges = np.linspace(float(np.min(x_arr)), float(np.max(x_arr)) + 1e-12, n_bins + 1)
-    y_edges = np.linspace(float(np.min(y_arr)), float(np.max(y_arr)) + 1e-12, n_bins + 1)
+    x_edges = np.linspace(
+        float(np.min(x_arr)), float(np.max(x_arr)) + 1e-12, n_bins + 1
+    )
+    y_edges = np.linspace(
+        float(np.min(y_arr)), float(np.max(y_arr)) + 1e-12, n_bins + 1
+    )
     joint, _, _ = np.histogram2d(x_arr, y_arr, bins=[x_edges, y_edges])
     total = joint.sum()
     if total <= 0:
@@ -264,9 +266,7 @@ def compute_information_factors(
         entropy_120d[sym] = shannon_entropy(rets, n_bins=10)
         # 60 日 vs 前 60 日 KL 漂移
         if len(rets) >= 120:
-            drift_60d[sym] = kl_divergence(
-                rets[-60:], rets[:60], n_bins=10
-            )
+            drift_60d[sym] = kl_divergence(rets[-60:], rets[:60], n_bins=10)
 
     factors["INFO_ENTROPY_60D"] = FactorValue(
         name="INFO_ENTROPY_60D", category="InformationTheory", values=entropy_60d

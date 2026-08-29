@@ -28,6 +28,7 @@ from typing import Any
 # 辩论触发判定
 # ============================================================
 
+
 @dataclass
 class DebateTrigger:
     """辩论触发判定
@@ -36,19 +37,23 @@ class DebateTrigger:
     常规场景 (~80%) 多空方向一致或置信度不足, 直接走快速聚合, 避免昂贵调用.
     """
 
-    bull_strength: float = 0.0           # 看多强度 [-1, 1]
-    bear_strength: float = 0.0           # 看空强度 [-1, 1]
-    bull_conf: float = 0.0               # 看多置信度 [0, 1]
-    bear_conf: float = 0.0               # 看空置信度 [0, 1]
-    debate_threshold: float = 0.6        # 置信度触发阈值
+    bull_strength: float = 0.0  # 看多强度 [-1, 1]
+    bear_strength: float = 0.0  # 看空强度 [-1, 1]
+    bull_conf: float = 0.0  # 看多置信度 [0, 1]
+    bear_conf: float = 0.0  # 看空置信度 [0, 1]
+    debate_threshold: float = 0.6  # 置信度触发阈值
 
     def should_debate(self) -> bool:
         """方向相反 (一正一负) 且双方置信度均 > 阈值才辩论"""
-        opposite = (self.bull_strength > 0 and self.bear_strength < 0) or \
-                   (self.bull_strength < 0 and self.bear_strength > 0)
+        opposite = (self.bull_strength > 0 and self.bear_strength < 0) or (
+            self.bull_strength < 0 and self.bear_strength > 0
+        )
         if not opposite:
             return False
-        return self.bull_conf > self.debate_threshold and self.bear_conf > self.debate_threshold
+        return (
+            self.bull_conf > self.debate_threshold
+            and self.bear_conf > self.debate_threshold
+        )
 
     def direction(self) -> str:
         """整体方向 (用于快速聚合路径): bull/bear/neutral"""
@@ -64,6 +69,7 @@ class DebateTrigger:
 # 单模型结构化观点
 # ============================================================
 
+
 @dataclass
 class ModelView:
     """单个模型/角色的结构化多空观点
@@ -72,12 +78,12 @@ class ModelView:
     由聚合器统一融合.
     """
 
-    role: str = ""                       # 角色名 (bull/bear/judge/value/...)
-    provider: str = ""                   # 实际使用的 Provider (deepseek/glm/mock/...)
-    action: str = "hold"                 # buy / sell / hold
-    strength: float = 0.0                # [-1, 1] 正向看涨, 负向看跌
-    confidence: float = 0.0              # [0, 1]
-    reasoning: str = ""                  # 人类可读理由 (审计)
+    role: str = ""  # 角色名 (bull/bear/judge/value/...)
+    provider: str = ""  # 实际使用的 Provider (deepseek/glm/mock/...)
+    action: str = "hold"  # buy / sell / hold
+    strength: float = 0.0  # [-1, 1] 正向看涨, 负向看跌
+    confidence: float = 0.0  # [0, 1]
+    reasoning: str = ""  # 人类可读理由 (审计)
     key_points: list[str] = field(default_factory=list)  # 关键论据 (用于语义去重)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
@@ -108,6 +114,7 @@ class ModelView:
 # 辩论记录与裁决
 # ============================================================
 
+
 @dataclass
 class DebateRecord:
     """一次完整的 Bull/Bear/Judge 辩论记录
@@ -116,11 +123,11 @@ class DebateRecord:
     """
 
     symbol: str = ""
-    bull_rounds: list[str] = field(default_factory=list)   # 看多方各轮论证
-    bear_rounds: list[str] = field(default_factory=list)   # 看空方各轮论证
-    judge_verdict: str = ""                                 # Judge 裁决文本
-    rounds: int = 0                                         # 实际辩论轮数 (0 表示跳过)
-    triggered: bool = False                                 # 是否触发完整辩论
+    bull_rounds: list[str] = field(default_factory=list)  # 看多方各轮论证
+    bear_rounds: list[str] = field(default_factory=list)  # 看空方各轮论证
+    judge_verdict: str = ""  # Judge 裁决文本
+    rounds: int = 0  # 实际辩论轮数 (0 表示跳过)
+    triggered: bool = False  # 是否触发完整辩论
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def to_dict(self) -> dict[str, Any]:
@@ -142,7 +149,9 @@ class DebateDecision:
     action: str = "hold"
     strength: float = 0.0
     confidence: float = 0.0
-    verdict_type: str = "FAST"           # FAST(快速聚合)/AUTO(自动放行)/HOLD(建议持有)/REVIEW(人工)
+    verdict_type: str = (
+        "FAST"  # FAST(快速聚合)/AUTO(自动放行)/HOLD(建议持有)/REVIEW(人工)
+    )
     summary: str = ""
 
     def __post_init__(self) -> None:
@@ -167,6 +176,7 @@ class DebateDecision:
 # 实时上下文快照
 # ============================================================
 
+
 @dataclass
 class DecisionContext:
     """实时 RAG 上下文 + 五 Agent 信号快照
@@ -175,12 +185,14 @@ class DecisionContext:
     """
 
     symbol: str = ""
-    market_data: dict[str, Any] = field(default_factory=dict)   # 行情 (close/change_pct/...)
+    market_data: dict[str, Any] = field(
+        default_factory=dict
+    )  # 行情 (close/change_pct/...)
     fundamentals: dict[str, Any] = field(default_factory=dict)  # 基本面 (pe/pb/roe/...)
-    news_items: list[str] = field(default_factory=list)         # 新闻事件
-    macro_data: dict[str, Any] = field(default_factory=dict)    # 宏观指标
+    news_items: list[str] = field(default_factory=list)  # 新闻事件
+    macro_data: dict[str, Any] = field(default_factory=dict)  # 宏观指标
     agent_decisions: list[dict[str, Any]] = field(default_factory=list)  # 五 Agent 输出
-    agent_consensus: dict[str, Any] = field(default_factory=dict)        # 加权共识
+    agent_consensus: dict[str, Any] = field(default_factory=dict)  # 加权共识
     as_of: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def to_dict(self) -> dict[str, Any]:
@@ -200,6 +212,7 @@ class DecisionContext:
 # 最终交易决策 (可审计)
 # ============================================================
 
+
 @dataclass
 class TradingDecision:
     """最终可审计交易决策
@@ -208,19 +221,19 @@ class TradingDecision:
     """
 
     symbol: str = ""
-    action: str = "hold"                 # buy / sell / hold / veto / review
-    strength: float = 0.0                # [-1, 1]
-    confidence: float = 0.0             # [0, 1]
-    mode: str = "shadow"                 # shadow / paper / auto
-    executed: bool = False               # 是否实际触发下单 (Shadow 永远 False)
-    veto: bool = False                   # 硬风控/风险 Agent 否决
+    action: str = "hold"  # buy / sell / hold / veto / review
+    strength: float = 0.0  # [-1, 1]
+    confidence: float = 0.0  # [0, 1]
+    mode: str = "shadow"  # shadow / paper / auto
+    executed: bool = False  # 是否实际触发下单 (Shadow 永远 False)
+    veto: bool = False  # 硬风控/风险 Agent 否决
     veto_reason: str = ""
     verdict_type: str = "FAST"
     debate: dict[str, Any] | None = None
     model_views: list[dict[str, Any]] = field(default_factory=list)
     agent_consensus: dict[str, Any] = field(default_factory=dict)
     risk_checks: dict[str, Any] = field(default_factory=dict)
-    escalation: bool = False             # 是否升级人工确认
+    escalation: bool = False  # 是否升级人工确认
     escalation_reason: str = ""
     summary: str = ""
     # --- 执行桥接相关字段 ---

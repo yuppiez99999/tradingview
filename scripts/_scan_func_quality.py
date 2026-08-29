@@ -28,6 +28,7 @@
     - cairn/refactoring-standards.md §8 三轴问题阈值
     - 创建于 2026-08-12 (W7.4.4 daily_workflow 拆分收尾)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -47,9 +48,19 @@ MAX_PARAMS = 5
 
 # 扫描排除目录 (第三方/生成/缓存)
 EXCLUDE_DIRS = {
-    "__pycache__", ".git", "node_modules", ".tox", ".eggs",
-    "qlib", "vnpy", "site-packages", "dist", "build",
-    ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    "__pycache__",
+    ".git",
+    "node_modules",
+    ".tox",
+    ".eggs",
+    "qlib",
+    "vnpy",
+    "site-packages",
+    "dist",
+    "build",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
 }
 
 
@@ -66,10 +77,10 @@ class FuncMetrics:
     func_name: str
     line_start: int
     line_end: int
-    length: int              # 函数长度 (扣装饰器)
+    length: int  # 函数长度 (扣装饰器)
     cyclomatic_complexity: int  # 圈复杂度
-    params_count: int        # 参数数 (扣 self/cls)
-    severity: str = ""       # Strong / Worth exploring / Speculative / OK
+    params_count: int  # 参数数 (扣 self/cls)
+    severity: str = ""  # Strong / Worth exploring / Speculative / OK
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -97,8 +108,12 @@ class FuncMetricsVisitor(ast.NodeVisitor):
         complexity = 1  # 基础复杂度
 
         for child in ast.walk(node):
-            if isinstance(child, (ast.If, ast.For, ast.While, ast.ExceptHandler,
-                                  ast.With, ast.Assert)) or isinstance(child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            if isinstance(
+                child,
+                (ast.If, ast.For, ast.While, ast.ExceptHandler, ast.With, ast.Assert),
+            ) or isinstance(
+                child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+            ):
                 complexity += 1
             elif isinstance(child, ast.BoolOp):
                 complexity += len(child.values) - 1
@@ -142,9 +157,9 @@ class FuncMetricsVisitor(ast.NodeVisitor):
 
         if overflows == 3:
             return "Strong"
-        elif overflows == 2:
+        if overflows == 2:
             return "Worth exploring"
-        elif overflows == 1:
+        if overflows == 1:
             return "Speculative"
         return "OK"
 
@@ -155,16 +170,18 @@ class FuncMetricsVisitor(ast.NodeVisitor):
         params = self._count_params(node)
         severity = self._classify_severity(length, complexity, params)
 
-        self.metrics.append(FuncMetrics(
-            file=self.filepath,
-            func_name=node.name,
-            line_start=node.lineno,
-            line_end=node.end_lineno or node.lineno,
-            length=length,
-            cyclomatic_complexity=complexity,
-            params_count=params,
-            severity=severity,
-        ))
+        self.metrics.append(
+            FuncMetrics(
+                file=self.filepath,
+                func_name=node.name,
+                line_start=node.lineno,
+                line_end=node.end_lineno or node.lineno,
+                length=length,
+                cyclomatic_complexity=complexity,
+                params_count=params,
+                severity=severity,
+            )
+        )
 
         # 递归访问函数体内的嵌套函数
         self.generic_visit(node)
@@ -258,7 +275,9 @@ def print_text_report(report: dict) -> None:
     print("=" * 60)
     print("函数质量扫描报告 (Function Quality Scan)")
     print("=" * 60)
-    print(f"阈值: 长度>{MAX_FUNCTION_LINES}行 / 圈复杂度>{MAX_CYCLOMATIC_COMPLEXITY} / 参数>{MAX_PARAMS}")
+    print(
+        f"阈值: 长度>{MAX_FUNCTION_LINES}行 / 圈复杂度>{MAX_CYCLOMATIC_COMPLEXITY} / 参数>{MAX_PARAMS}"
+    )
     print(f"总函数数: {report['total_functions']}")
     print(f"  Strong (三项超标):          {report['strong_count']}")
     print(f"  Worth exploring (两项超标): {report['worth_exploring_count']}")
@@ -269,14 +288,20 @@ def print_text_report(report: dict) -> None:
     if report["strong_functions"]:
         print("\n[Strong 函数清单] (最高优先重构)")
         for m in report["strong_functions"]:
-            print(f"  {m['file']}:{m['line_start']}-{m['line_end']} {m['func_name']}"
-                  f" (长度={m['length']} / CC={m['cyclomatic_complexity']} / 参数={m['params_count']})")
+            print(
+                f"  {m['file']}:{m['line_start']}-{m['line_end']} {m['func_name']}"
+                f" (长度={m['length']} / CC={m['cyclomatic_complexity']} / 参数={m['params_count']})"
+            )
 
     if report["worth_exploring_functions"]:
-        print(f"\n[Worth exploring 函数清单] (共 {len(report['worth_exploring_functions'])} 个, 仅显示前 10)")
+        print(
+            f"\n[Worth exploring 函数清单] (共 {len(report['worth_exploring_functions'])} 个, 仅显示前 10)"
+        )
         for m in report["worth_exploring_functions"][:10]:
-            print(f"  {m['file']}:{m['line_start']} {m['func_name']}"
-                  f" (长度={m['length']} / CC={m['cyclomatic_complexity']} / 参数={m['params_count']})")
+            print(
+                f"  {m['file']}:{m['line_start']} {m['func_name']}"
+                f" (长度={m['length']} / CC={m['cyclomatic_complexity']} / 参数={m['params_count']})"
+            )
 
     print("\n" + "=" * 60)
     if report["strong_count"] == 0:

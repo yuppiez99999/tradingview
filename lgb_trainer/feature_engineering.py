@@ -252,9 +252,15 @@ def add_regime_aware_features(
 
         # 对齐大盘 regime 序列到个股索引
         if regime_series is not None:
-            regime_aligned = regime_series.reindex(new_df.index).ffill().fillna("unknown")
-            market_vol_aligned = market_vol_series.reindex(new_df.index).ffill().fillna(0.0)
-            market_mom_aligned = market_mom_series.reindex(new_df.index).ffill().fillna(0.0)
+            regime_aligned = (
+                regime_series.reindex(new_df.index).ffill().fillna("unknown")
+            )
+            market_vol_aligned = (
+                market_vol_series.reindex(new_df.index).ffill().fillna(0.0)
+            )
+            market_mom_aligned = (
+                market_mom_series.reindex(new_df.index).ffill().fillna(0.0)
+            )
 
             new_df["market_regime_bull"] = (regime_aligned == "bull").astype(int)
             new_df["market_regime_bear"] = (regime_aligned == "bear").astype(int)
@@ -381,7 +387,9 @@ def add_industry_relative_strength_features(
             valid_codes = [c for c in sector_codes_list if c in returns_20.columns]
             if len(valid_codes) >= 2:
                 rank_df = returns_20[valid_codes].rank(axis=1, pct=True)
-                new_df["industry_rank_20"] = rank_df[code].reindex(new_df.index).fillna(0.5)
+                new_df["industry_rank_20"] = (
+                    rank_df[code].reindex(new_df.index).fillna(0.5)
+                )
             else:
                 new_df["industry_rank_20"] = 0.5
         else:
@@ -458,7 +466,9 @@ def add_capital_flow_features(
         new_df["capital_flow"] = (daily_position * v * direction).fillna(0)
 
         # 5 日累计资金流向
-        new_df["cumulative_flow_5"] = new_df["capital_flow"].rolling(5, min_periods=1).sum()
+        new_df["cumulative_flow_5"] = (
+            new_df["capital_flow"].rolling(5, min_periods=1).sum()
+        )
 
         # 量价背离: 价格 5 日收益与资金流向的符号差异
         price_ret5 = c.pct_change(5).fillna(0)
@@ -549,9 +559,7 @@ def _compute_proxy_trends(proxy_data: dict[str, pd.Series]) -> dict[str, pd.Seri
     return proxy_trend_20
 
 
-def _compute_style_rotation(
-    proxy_trend_20: dict[str, pd.Series]
-) -> pd.Series | None:
+def _compute_style_rotation(proxy_trend_20: dict[str, pd.Series]) -> pd.Series | None:
     """风格轮动: 科技 vs 红利 的 20 日趋势差 (5 日变化)。"""
     tech_trend = proxy_trend_20.get("tech_growth_proxy")
     div_trend = proxy_trend_20.get("dividend_defensive")

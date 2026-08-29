@@ -43,7 +43,7 @@ logger = logging.getLogger("pretrade_guard")
 
 DEFAULT_LOT_SIZE = 100
 DEFAULT_PRICE_LIMIT_PCT = 0.10  # ±10%
-DEFAULT_NOTIONAL_CAP = 500_000   # 单笔 50 万
+DEFAULT_NOTIONAL_CAP = 500_000  # 单笔 50 万
 ST_PREFIX_PATTERN = re.compile(r"^(ST|\*ST|SST|S\*ST)", re.IGNORECASE)
 SYMBOL_CODE_PATTERN = re.compile(r"^(sh|sz|bj)?\d{6}$", re.IGNORECASE)
 
@@ -57,9 +57,9 @@ class GuardOrderRequest:
     shares: int
     price: float
     prev_close: float | None = None  # 用于涨跌停计算
-    notional: float | None = None    # 未传时 = shares × price
-    symbol_name: str = ""            # 用于 ST 过滤 (含 ST/*ST 前缀)
-    is_suspended: bool = False       # 是否停牌 (调用方负责查停牌列表)
+    notional: float | None = None  # 未传时 = shares × price
+    symbol_name: str = ""  # 用于 ST 过滤 (含 ST/*ST 前缀)
+    is_suspended: bool = False  # 是否停牌 (调用方负责查停牌列表)
 
     def compute_notional(self) -> float:
         return self.notional if self.notional is not None else self.shares * self.price
@@ -74,7 +74,9 @@ class GuardResult:
     reasons: list[str] = field(default_factory=list)
     checked_rules: list[str] = field(default_factory=list)
     mode: str = "BLOCK"  # BLOCK | WARN
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    timestamp: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
 
     def add_reason(self, rule: str, reason: str) -> None:
         self.checked_rules.append(rule)
@@ -114,7 +116,9 @@ class PreTradeGuard:
         self.notional_cap = notional_cap
         self.enable_st_filter = enable_st_filter
         self.enable_suspend_filter = enable_suspend_filter
-        self.whitelist: set[str] = {s.upper() for s in whitelist} if whitelist else set()
+        self.whitelist: set[str] = (
+            {s.upper() for s in whitelist} if whitelist else set()
+        )
 
     # ------------------------------------------------------------
     # 主入口
@@ -202,9 +206,13 @@ class PreTradeGuard:
             # 卖出 ST 不拦截 (允许止损)
             res.checked_rules.append(rule + "_SELL_SKIP")
             return
-        name_hit = bool(req.symbol_name and ST_PREFIX_PATTERN.match(req.symbol_name.strip()))
+        name_hit = bool(
+            req.symbol_name and ST_PREFIX_PATTERN.match(req.symbol_name.strip())
+        )
         if name_hit:
-            res.add_reason(rule, f"标的名称含 ST/*ST 前缀 (name={req.symbol_name!r}), 禁止买入")
+            res.add_reason(
+                rule, f"标的名称含 ST/*ST 前缀 (name={req.symbol_name!r}), 禁止买入"
+            )
 
     def _rule_whitelist(self, req: GuardOrderRequest, res: GuardResult) -> None:
         rule = "SYMBOL_WHITELIST"
@@ -213,7 +221,9 @@ class PreTradeGuard:
             return
         key = req.symbol.upper()
         if key not in self.whitelist:
-            res.add_reason(rule, f"{req.symbol} 不在白名单 (白名单 {len(self.whitelist)} 个标的)")
+            res.add_reason(
+                rule, f"{req.symbol} 不在白名单 (白名单 {len(self.whitelist)} 个标的)"
+            )
 
     def _rule_suspend(self, req: GuardOrderRequest, res: GuardResult) -> None:
         rule = "SUSPEND_FILTER"

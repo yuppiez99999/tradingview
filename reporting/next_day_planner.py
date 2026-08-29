@@ -19,7 +19,10 @@ _PHASE_NAMES: dict[str, str] = {
 
 # 阶段键列表
 _PHASE_KEYS: tuple[str, ...] = (
-    "phase_1_accumulation", "phase_2_holding", "phase_3_reduction", "phase_4_clearance",
+    "phase_1_accumulation",
+    "phase_2_holding",
+    "phase_3_reduction",
+    "phase_4_clearance",
 )
 
 
@@ -44,7 +47,9 @@ def _compute_next_trading_day(
     next_day = next_trading_day(report_date)
     try:
         next_dt = datetime.strptime(next_day, "%Y-%m-%d")
-        weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][next_dt.weekday()]
+        weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][
+            next_dt.weekday()
+        ]
     except Exception:
         next_dt = None
         weekday_cn = ""
@@ -64,7 +69,12 @@ def _load_trade_plan(
     """
     if project_root is None:
         project_root = _Path(__file__).resolve().parent.parent
-    plan_file = project_root / "v8.3_institutional" / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
+    plan_file = (
+        project_root
+        / "v8.3_institutional"
+        / "trade_plans"
+        / "auto_trade_plan_500w_2026-2030.json"
+    )
     if not plan_file.exists():
         return None, f"plan file not found: {plan_file}"
 
@@ -144,8 +154,12 @@ def _generate_phase_actions(
     if phase_key == "phase_1_accumulation":
         monthly_inv = phase_info.get("monthly_investment", 500000)
         daily_capital = monthly_inv / 20  # 简化: 每月20交易日
-        daily_actions.append(f"建仓期: 月投 {monthly_inv:,.0f} 元, 当日预算约 {daily_capital:,.0f} 元")
-        daily_actions.append("执行策略: VWAP+TWAP混合算法, 单日最大买入不超过月度计划的50%")
+        daily_actions.append(
+            f"建仓期: 月投 {monthly_inv:,.0f} 元, 当日预算约 {daily_capital:,.0f} 元"
+        )
+        daily_actions.append(
+            "执行策略: VWAP+TWAP混合算法, 单日最大买入不超过月度计划的50%"
+        )
         daily_actions.append("ETF资金流触发: 强信号+3%加仓, 中信号+1%加仓, 反转-3%减仓")
         daily_actions.append("建仓期止损线: -18%, 止盈线: +40%")
     elif phase_key == "phase_2_holding":
@@ -156,8 +170,12 @@ def _generate_phase_actions(
     elif phase_key == "phase_3_reduction":
         monthly_red = phase_info.get("monthly_reduction", 250000)
         daily_capital = -monthly_red / 20
-        daily_actions.append(f"减仓期: 月减 {monthly_red:,.0f} 元, 当日减仓约 {abs(daily_capital):,.0f} 元")
-        daily_actions.append("优先减仓: 估值分位>80%标的 → 次优先: 科技板块 → 最后: 防御+黄金")
+        daily_actions.append(
+            f"减仓期: 月减 {monthly_red:,.0f} 元, 当日减仓约 {abs(daily_capital):,.0f} 元"
+        )
+        daily_actions.append(
+            "优先减仓: 估值分位>80%标的 → 次优先: 科技板块 → 最后: 防御+黄金"
+        )
         daily_actions.append("减仓期间停止新建仓")
     elif phase_key == "phase_4_clearance":
         try:

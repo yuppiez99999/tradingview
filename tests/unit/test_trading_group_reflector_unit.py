@@ -36,6 +36,7 @@ from utils.trading_group_reflector import (
 # 枚举测试
 # ============================================================
 
+
 class TestErrorType:
     """错误类型枚举测试。"""
 
@@ -62,12 +63,16 @@ class TestReflectionGrade:
 # ReflectionRecord 测试
 # ============================================================
 
+
 class TestReflectionRecord:
     """自反思记录测试。"""
 
     def test_default_values(self):
         record = ReflectionRecord(
-            decision_id="d1", ticker="000001.SZ", action="buy", entry_price=10.0,
+            decision_id="d1",
+            ticker="000001.SZ",
+            action="buy",
+            entry_price=10.0,
         )
         assert record.exit_price is None
         assert record.outcome_return is None
@@ -77,42 +82,61 @@ class TestReflectionRecord:
 
     def test_is_correct(self):
         record = ReflectionRecord(
-            decision_id="d1", ticker="A", action="buy", entry_price=10.0,
+            decision_id="d1",
+            ticker="A",
+            action="buy",
+            entry_price=10.0,
             error_type=ErrorType.NO_ERROR,
         )
         assert record.is_correct
 
     def test_is_not_correct(self):
         record = ReflectionRecord(
-            decision_id="d1", ticker="A", action="buy", entry_price=10.0,
+            decision_id="d1",
+            ticker="A",
+            action="buy",
+            entry_price=10.0,
             error_type=ErrorType.SIGNAL_ERROR,
         )
         assert not record.is_correct
 
     def test_is_profitable(self):
         record = ReflectionRecord(
-            decision_id="d1", ticker="A", action="buy", entry_price=10.0,
+            decision_id="d1",
+            ticker="A",
+            action="buy",
+            entry_price=10.0,
             outcome_return=0.05,
         )
         assert record.is_profitable
 
     def test_is_not_profitable(self):
         record = ReflectionRecord(
-            decision_id="d1", ticker="A", action="buy", entry_price=10.0,
+            decision_id="d1",
+            ticker="A",
+            action="buy",
+            entry_price=10.0,
             outcome_return=-0.03,
         )
         assert not record.is_profitable
 
     def test_is_profitable_none(self):
         record = ReflectionRecord(
-            decision_id="d1", ticker="A", action="buy", entry_price=10.0,
+            decision_id="d1",
+            ticker="A",
+            action="buy",
+            entry_price=10.0,
         )
         assert not record.is_profitable
 
     def test_to_dict(self):
         record = ReflectionRecord(
-            decision_id="d1", ticker="000001.SZ", action="buy", entry_price=10.0,
-            exit_price=10.5, outcome_return=0.05,
+            decision_id="d1",
+            ticker="000001.SZ",
+            action="buy",
+            entry_price=10.0,
+            exit_price=10.5,
+            outcome_return=0.05,
         )
         d = record.to_dict()
         assert d["decision_id"] == "d1"
@@ -123,6 +147,7 @@ class TestReflectionRecord:
 # ============================================================
 # SyntheticSample 测试
 # ============================================================
+
 
 class TestSyntheticSample:
     """合成样本测试。"""
@@ -145,6 +170,7 @@ class TestSyntheticSample:
 # DynamicStops 测试
 # ============================================================
 
+
 class TestDynamicStops:
     """动态止盈止损结果测试。"""
 
@@ -165,12 +191,16 @@ class TestDynamicStops:
 # DataSynthesizer 测试
 # ============================================================
 
+
 class TestDataSynthesizer:
     """数据合成器测试。"""
 
     def _make_record(self, ret: float, correct: bool = True) -> ReflectionRecord:
         return ReflectionRecord(
-            decision_id="d", ticker="A", action="buy", entry_price=10.0,
+            decision_id="d",
+            ticker="A",
+            action="buy",
+            entry_price=10.0,
             outcome_return=ret,
             error_type=ErrorType.NO_ERROR if correct else ErrorType.SIGNAL_ERROR,
         )
@@ -206,9 +236,14 @@ class TestDataSynthesizer:
     def test_skip_none_return(self):
         """outcome_return=None 的记录跳过。"""
         synth = DataSynthesizer()
-        records = [ReflectionRecord(
-            decision_id="d", ticker="A", action="buy", entry_price=10.0,
-        )]
+        records = [
+            ReflectionRecord(
+                decision_id="d",
+                ticker="A",
+                action="buy",
+                entry_price=10.0,
+            )
+        ]
         samples = synth.synthesize(records)
         assert len(samples) == 0
 
@@ -252,6 +287,7 @@ class TestDataSynthesizer:
 # DynamicStopLossManager 测试
 # ============================================================
 
+
 class TestDynamicStopLossManager:
     """动态止盈止损管理器测试。"""
 
@@ -290,7 +326,9 @@ class TestDynamicStopLossManager:
         """强趋势放宽止盈。"""
         mgr = DynamicStopLossManager()
         weak = mgr.compute(entry_price=10.0, atr=0.3, trend_strength=0.0, action="buy")
-        strong = mgr.compute(entry_price=10.0, atr=0.3, trend_strength=0.8, action="buy")
+        strong = mgr.compute(
+            entry_price=10.0, atr=0.3, trend_strength=0.8, action="buy"
+        )
         assert strong.take_profit > weak.take_profit
 
     def test_position_size_decreases_with_risk(self):
@@ -342,6 +380,7 @@ class TestDynamicStopLossManager:
 # TradingGroupReflector 测试
 # ============================================================
 
+
 class TestTradingGroupReflector:
     """TradingGroup 自反思引擎测试。"""
 
@@ -349,7 +388,12 @@ class TestTradingGroupReflector:
         """正确且盈利的决策 → EXCELLENT。"""
         reflector = TradingGroupReflector()
         record = reflector.reflect(
-            decision={"decision_id": "d1", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d1",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={"exit_price": 10.5, "return": 0.05, "timestamp": "2026-08-23"},
         )
         assert record.grade == ReflectionGrade.EXCELLENT
@@ -360,7 +404,12 @@ class TestTradingGroupReflector:
         """方向错误导致亏损 → SIGNAL_ERROR。"""
         reflector = TradingGroupReflector()
         record = reflector.reflect(
-            decision={"decision_id": "d1", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d1",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={"exit_price": 9.5, "return": -0.05, "timestamp": "2026-08-23"},
         )
         assert record.error_type == ErrorType.SIGNAL_ERROR
@@ -370,7 +419,12 @@ class TestTradingGroupReflector:
         """大幅亏损 → RISK_ERROR。"""
         reflector = TradingGroupReflector()
         record = reflector.reflect(
-            decision={"decision_id": "d1", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d1",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={"exit_price": 9.0, "return": -0.10, "timestamp": "2026-08-23"},
         )
         assert record.error_type == ErrorType.RISK_ERROR
@@ -380,7 +434,12 @@ class TestTradingGroupReflector:
         """空头盈利。"""
         reflector = TradingGroupReflector()
         record = reflector.reflect(
-            decision={"decision_id": "d1", "ticker": "A", "action": "sell", "entry_price": 10.0},
+            decision={
+                "decision_id": "d1",
+                "ticker": "A",
+                "action": "sell",
+                "entry_price": 10.0,
+            },
             outcome={"exit_price": 9.5, "return": 0.05, "timestamp": "2026-08-23"},
         )
         assert record.grade == ReflectionGrade.EXCELLENT
@@ -389,7 +448,12 @@ class TestTradingGroupReflector:
         """中性收益。"""
         reflector = TradingGroupReflector()
         record = reflector.reflect(
-            decision={"decision_id": "d1", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d1",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={"exit_price": 10.005, "return": 0.0005, "timestamp": "2026-08-23"},
         )
         assert record.grade == ReflectionGrade.NEUTRAL
@@ -398,7 +462,12 @@ class TestTradingGroupReflector:
         """无结果数据。"""
         reflector = TradingGroupReflector()
         record = reflector.reflect(
-            decision={"decision_id": "d1", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d1",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={},
         )
         assert record.grade == ReflectionGrade.NEUTRAL
@@ -409,7 +478,12 @@ class TestTradingGroupReflector:
         reflector = TradingGroupReflector()
         for i in range(3):
             reflector.reflect(
-                decision={"decision_id": f"d{i}", "ticker": "A", "action": "buy", "entry_price": 10.0},
+                decision={
+                    "decision_id": f"d{i}",
+                    "ticker": "A",
+                    "action": "buy",
+                    "entry_price": 10.0,
+                },
                 outcome={"return": 0.05},
             )
         summary = reflector.get_reflection_summary()
@@ -419,11 +493,21 @@ class TestTradingGroupReflector:
         """从历史合成数据。"""
         reflector = TradingGroupReflector()
         reflector.reflect(
-            decision={"decision_id": "d1", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d1",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={"return": 0.05},
         )
         reflector.reflect(
-            decision={"decision_id": "d2", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d2",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={"return": -0.05},
         )
         samples = reflector.synthesize_data()
@@ -433,7 +517,9 @@ class TestTradingGroupReflector:
         """计算动态止盈止损。"""
         reflector = TradingGroupReflector()
         stops = reflector.compute_dynamic_stops(
-            entry_price=10.0, atr=0.3, action="buy",
+            entry_price=10.0,
+            atr=0.3,
+            action="buy",
         )
         assert stops.stop_loss < 10.0
         assert stops.take_profit > 10.0
@@ -448,11 +534,21 @@ class TestTradingGroupReflector:
         """有记录的摘要。"""
         reflector = TradingGroupReflector()
         reflector.reflect(
-            decision={"decision_id": "d1", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d1",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={"return": 0.05},
         )
         reflector.reflect(
-            decision={"decision_id": "d2", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d2",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={"return": -0.03},
         )
         summary = reflector.get_reflection_summary()
@@ -470,7 +566,12 @@ class TestTradingGroupReflector:
         """良好决策的建议。"""
         reflector = TradingGroupReflector()
         reflector.reflect(
-            decision={"decision_id": "d1", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d1",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={"return": 0.05},
         )
         suggestions = reflector.get_improvement_suggestions()
@@ -482,7 +583,12 @@ class TestTradingGroupReflector:
         reflector = TradingGroupReflector()
         for i in range(4):
             reflector.reflect(
-                decision={"decision_id": f"d{i}", "ticker": "A", "action": "buy", "entry_price": 10.0},
+                decision={
+                    "decision_id": f"d{i}",
+                    "ticker": "A",
+                    "action": "buy",
+                    "entry_price": 10.0,
+                },
                 outcome={"return": -0.05},
             )
         suggestions = reflector.get_improvement_suggestions()
@@ -492,7 +598,12 @@ class TestTradingGroupReflector:
         """市场状态被存储。"""
         reflector = TradingGroupReflector()
         record = reflector.reflect(
-            decision={"decision_id": "d1", "ticker": "A", "action": "buy", "entry_price": 10.0},
+            decision={
+                "decision_id": "d1",
+                "ticker": "A",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
             outcome={"return": 0.05},
             market_state={"volatility": 0.02, "trend": "up"},
         )
@@ -504,6 +615,7 @@ class TestTradingGroupReflector:
 # 端到端集成测试
 # ============================================================
 
+
 class TestEndToEnd:
     """端到端集成测试。"""
 
@@ -512,12 +624,33 @@ class TestEndToEnd:
         reflector = TradingGroupReflector()
 
         decisions = [
-            ({"decision_id": "d1", "ticker": "000001.SZ", "action": "buy", "entry_price": 10.0},
-             {"exit_price": 10.5, "return": 0.05, "timestamp": "2026-08-23"}),
-            ({"decision_id": "d2", "ticker": "600519.SH", "action": "buy", "entry_price": 1500.0},
-             {"exit_price": 1450.0, "return": -0.033, "timestamp": "2026-08-23"}),
-            ({"decision_id": "d3", "ticker": "000858.SZ", "action": "sell", "entry_price": 200.0},
-             {"exit_price": 195.0, "return": 0.025, "timestamp": "2026-08-23"}),
+            (
+                {
+                    "decision_id": "d1",
+                    "ticker": "000001.SZ",
+                    "action": "buy",
+                    "entry_price": 10.0,
+                },
+                {"exit_price": 10.5, "return": 0.05, "timestamp": "2026-08-23"},
+            ),
+            (
+                {
+                    "decision_id": "d2",
+                    "ticker": "600519.SH",
+                    "action": "buy",
+                    "entry_price": 1500.0,
+                },
+                {"exit_price": 1450.0, "return": -0.033, "timestamp": "2026-08-23"},
+            ),
+            (
+                {
+                    "decision_id": "d3",
+                    "ticker": "000858.SZ",
+                    "action": "sell",
+                    "entry_price": 200.0,
+                },
+                {"exit_price": 195.0, "return": 0.025, "timestamp": "2026-08-23"},
+            ),
         ]
 
         for decision, outcome in decisions:
@@ -530,7 +663,11 @@ class TestEndToEnd:
         assert len(samples) == 3
 
         stops = reflector.compute_dynamic_stops(
-            entry_price=10.0, atr=0.3, trend_strength=0.6, holding_days=5, action="buy",
+            entry_price=10.0,
+            atr=0.3,
+            trend_strength=0.6,
+            holding_days=5,
+            action="buy",
         )
         assert stops.stop_loss < 10.0
         assert stops.take_profit > 10.0
@@ -543,12 +680,20 @@ class TestEndToEnd:
         reflector = TradingGroupReflector()
         external_records = [
             ReflectionRecord(
-                decision_id="e1", ticker="A", action="buy", entry_price=10.0,
-                outcome_return=0.05, error_type=ErrorType.NO_ERROR,
+                decision_id="e1",
+                ticker="A",
+                action="buy",
+                entry_price=10.0,
+                outcome_return=0.05,
+                error_type=ErrorType.NO_ERROR,
             ),
             ReflectionRecord(
-                decision_id="e2", ticker="A", action="buy", entry_price=10.0,
-                outcome_return=-0.05, error_type=ErrorType.SIGNAL_ERROR,
+                decision_id="e2",
+                ticker="A",
+                action="buy",
+                entry_price=10.0,
+                outcome_return=-0.05,
+                error_type=ErrorType.SIGNAL_ERROR,
             ),
         ]
         samples = reflector.synthesize_data(external_records)

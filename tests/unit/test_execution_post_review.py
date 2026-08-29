@@ -1,4 +1,5 @@
 """ms_strategy.src.execution.post_execution_review 单元测试 — ExecutionReviewer.review/save/markdown"""
+
 from __future__ import annotations
 
 import pytest
@@ -11,14 +12,27 @@ from ms_strategy.src.execution.post_execution_review import (
 )
 
 
-def _fill(symbol="510300.SH", side="BUY", quantity=1000, fill_price=4.00,
-          decision_price=4.00, arrival_price=4.00, vwap_price=4.00,
-          algo="ICEBERG", order_id="ORD1") -> FillRecord:
+def _fill(
+    symbol="510300.SH",
+    side="BUY",
+    quantity=1000,
+    fill_price=4.00,
+    decision_price=4.00,
+    arrival_price=4.00,
+    vwap_price=4.00,
+    algo="ICEBERG",
+    order_id="ORD1",
+) -> FillRecord:
     return FillRecord(
-        symbol=symbol, side=side, quantity=quantity,
-        fill_price=fill_price, decision_price=decision_price,
-        arrival_price=arrival_price, vwap_price=vwap_price,
-        algo=algo, order_id=order_id,
+        symbol=symbol,
+        side=side,
+        quantity=quantity,
+        fill_price=fill_price,
+        decision_price=decision_price,
+        arrival_price=arrival_price,
+        vwap_price=vwap_price,
+        algo=algo,
+        order_id=order_id,
     )
 
 
@@ -33,8 +47,14 @@ def test_review_empty_fills():
 def test_review_single_order_grade_a():
     """零滑点成交 → 评级 A, 综合评分满分"""
     reviewer = ExecutionReviewer()
-    fills = [_fill(fill_price=4.000, decision_price=4.000,
-                   arrival_price=4.000, vwap_price=4.000)]
+    fills = [
+        _fill(
+            fill_price=4.000,
+            decision_price=4.000,
+            arrival_price=4.000,
+            vwap_price=4.000,
+        )
+    ]
     report = reviewer.review(fills)
     assert report.total_orders == 1
     assert report.total_fills == 1
@@ -47,8 +67,9 @@ def test_review_slippage_calculation_buy():
     """BUY 成交价高于决策价 → 正滑点 (不利), 评级随滑点升高下降"""
     reviewer = ExecutionReviewer()
     # 成交 4.04 vs 决策 4.00 → 滑点 100bp → D 级
-    fills = [_fill(fill_price=4.04, decision_price=4.00,
-                   arrival_price=4.01, vwap_price=4.02)]
+    fills = [
+        _fill(fill_price=4.04, decision_price=4.00, arrival_price=4.01, vwap_price=4.02)
+    ]
     report = reviewer.review(fills)
     s = report.order_summaries[0]
     assert s.decision_slippage > 0
@@ -60,8 +81,15 @@ def test_review_slippage_calculation_buy():
 def test_review_implementation_shortfall():
     """实施差额 (IS) = |成交价-决策价| × 数量"""
     reviewer = ExecutionReviewer()
-    fills = [_fill(fill_price=4.05, decision_price=4.00, quantity=2000,
-                   arrival_price=4.02, vwap_price=4.03)]
+    fills = [
+        _fill(
+            fill_price=4.05,
+            decision_price=4.00,
+            quantity=2000,
+            arrival_price=4.02,
+            vwap_price=4.03,
+        )
+    ]
     report = reviewer.review(fills)
     s = report.order_summaries[0]
     # IS = (4.05-4.00)*2000 = 100
@@ -88,6 +116,7 @@ def test_review_save_report(tmp_path):
     report = reviewer.review(fills)
     path = reviewer.save_report(report, str(tmp_path))
     import json
+
     data = json.loads(__import__("pathlib").Path(path).read_text(encoding="utf-8"))
     assert data["total_orders"] == 1
     assert "overall_score" in data
@@ -107,8 +136,15 @@ def test_review_markdown_report():
 def test_review_recommendations_when_high_slippage():
     """高滑点 (>20bp) → 生成改进建议"""
     reviewer = ExecutionReviewer()
-    fills = [_fill(order_id="O1", fill_price=4.06, decision_price=4.00,
-                   arrival_price=4.03, vwap_price=4.04)]
+    fills = [
+        _fill(
+            order_id="O1",
+            fill_price=4.06,
+            decision_price=4.00,
+            arrival_price=4.03,
+            vwap_price=4.04,
+        )
+    ]
     report = reviewer.review(fills)
     assert len(report.recommendations) > 0
 
@@ -116,12 +152,23 @@ def test_review_recommendations_when_high_slippage():
 def test_order_execution_summary_dataclass():
     """OrderExecutionSummary 字段完整性 (to_dict 结构)"""
     s = OrderExecutionSummary(
-        symbol="X", side="BUY", total_quantity=100, filled_quantity=100,
-        fill_rate=1.0, avg_fill_price=4.0, decision_price=4.0,
-        arrival_price=4.0, vwap_price=4.0,
-        decision_slippage=1.0, arrival_slippage=1.0, vwap_deviation=1.0,
-        implementation_shortfall=0.0, market_impact=0.0, timing_cost=0.0,
-        fee_total=0.0, grade=ExecutionGrade.A,
+        symbol="X",
+        side="BUY",
+        total_quantity=100,
+        filled_quantity=100,
+        fill_rate=1.0,
+        avg_fill_price=4.0,
+        decision_price=4.0,
+        arrival_price=4.0,
+        vwap_price=4.0,
+        decision_slippage=1.0,
+        arrival_slippage=1.0,
+        vwap_deviation=1.0,
+        implementation_shortfall=0.0,
+        market_impact=0.0,
+        timing_cost=0.0,
+        fee_total=0.0,
+        grade=ExecutionGrade.A,
     )
     assert s.fill_rate == 1.0
     assert s.grade == ExecutionGrade.A

@@ -2,6 +2,7 @@
 
 被测模块: utils/social_security_etf.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,15 +24,26 @@ from utils.social_security_etf import (  # noqa: E402
 
 class TestStyleConfig:
     def test_four_styles(self):
-        assert set(SOCIAL_SECURITY_STYLES.keys()) == {"顺周期", "高端制造", "资源", "防御"}
+        assert set(SOCIAL_SECURITY_STYLES.keys()) == {
+            "顺周期",
+            "高端制造",
+            "资源",
+            "防御",
+        }
 
     def test_weights_sum_to_one(self):
         total = sum(s["weight"] for s in SOCIAL_SECURITY_STYLES.values())
         assert total == pytest.approx(1.0)
 
     def test_each_style_has_required_keys(self):
-        required = {"weight", "description", "representative_stocks",
-                    "matching_etfs", "cycle_signal", "recommended_action"}
+        required = {
+            "weight",
+            "description",
+            "representative_stocks",
+            "matching_etfs",
+            "cycle_signal",
+            "recommended_action",
+        }
         for name, cfg in SOCIAL_SECURITY_STYLES.items():
             assert required.issubset(cfg.keys()), name
             assert cfg["matching_etfs"]
@@ -39,7 +51,11 @@ class TestStyleConfig:
                 assert {"code", "name", "category", "match_score"}.issubset(etf.keys())
 
     def test_no_duplicate_etf_codes_across_styles(self):
-        codes = [e["code"] for s in SOCIAL_SECURITY_STYLES.values() for e in s["matching_etfs"]]
+        codes = [
+            e["code"]
+            for s in SOCIAL_SECURITY_STYLES.values()
+            for e in s["matching_etfs"]
+        ]
         assert len(codes) == len(set(codes))
 
 
@@ -85,8 +101,12 @@ class TestStyleClassifier:
         summary = c.get_style_summary()
         assert set(summary.keys()) == set(SOCIAL_SECURITY_STYLES.keys())
         for name, info in summary.items():
-            assert info["etf_count"] == len(SOCIAL_SECURITY_STYLES[name]["matching_etfs"])
-            assert info["stock_count"] == len(SOCIAL_SECURITY_STYLES[name]["representative_stocks"])
+            assert info["etf_count"] == len(
+                SOCIAL_SECURITY_STYLES[name]["matching_etfs"]
+            )
+            assert info["stock_count"] == len(
+                SOCIAL_SECURITY_STYLES[name]["representative_stocks"]
+            )
             assert len(info["top_etfs"]) <= 3
             assert len(info["top_stocks"]) <= 3
 
@@ -94,7 +114,9 @@ class TestStyleClassifier:
 class TestSignalDetector:
     def test_high_buy_signal(self):
         d = NationalTeamSignalDetector()
-        signals = d.detect_signals({"588000": {"net_flow_yi": 60, "trend": "上升", "name": "科创50"}})
+        signals = d.detect_signals(
+            {"588000": {"net_flow_yi": 60, "trend": "上升", "name": "科创50"}}
+        )
         assert len(signals) == 1
         assert signals[0]["confidence"] == "高"
         assert signals[0]["signal_type"] == "国家队强加仓信号"
@@ -150,10 +172,12 @@ class TestSignalDetector:
 
     def test_sorting_by_confidence_then_flow(self):
         d = NationalTeamSignalDetector()
-        signals = d.detect_signals({
-            "588000": {"net_flow_yi": 20, "name": "a"},
-            "512880": {"net_flow_yi": 60, "name": "b"},
-        })
+        signals = d.detect_signals(
+            {
+                "588000": {"net_flow_yi": 20, "name": "a"},
+                "512880": {"net_flow_yi": 60, "name": "b"},
+            }
+        )
         assert signals[0]["confidence"] == "高"
         assert signals[0]["code"] == "512880"
 
@@ -201,10 +225,12 @@ class TestStyleFlowSummary:
 
     def test_same_style_accumulates_across_signals(self):
         d = NationalTeamSignalDetector()
-        signals = d.detect_signals({
-            "588000": {"net_flow_yi": 5, "name": "a"},
-            "512760": {"net_flow_yi": 5, "name": "b"},
-        })
+        signals = d.detect_signals(
+            {
+                "588000": {"net_flow_yi": 5, "name": "a"},
+                "512760": {"net_flow_yi": 5, "name": "b"},
+            }
+        )
         summary = d.get_style_flow_summary(signals)
         assert summary["高端制造"]["signal_count"] == 2
         assert summary["高端制造"]["total_flow_yi"] == pytest.approx(10)
@@ -230,7 +256,13 @@ class TestTrackerAnalyze:
         t = SocialSecurityETFTracker()
         r = t.analyze()
         for rec in r["recommendations"]:
-            assert {"style", "target_weight", "action", "rationale", "matching_etfs"}.issubset(rec.keys())
+            assert {
+                "style",
+                "target_weight",
+                "action",
+                "rationale",
+                "matching_etfs",
+            }.issubset(rec.keys())
             assert len(rec["matching_etfs"]) <= 2
 
 
@@ -249,7 +281,9 @@ class TestGenerateReport:
 
     def test_report_saved_to_file(self, tmp_path):
         t = SocialSecurityETFTracker()
-        t.generate_report({"588000": {"net_flow_yi": 60, "name": "a"}}, save_dir=str(tmp_path))
+        t.generate_report(
+            {"588000": {"net_flow_yi": 60, "name": "a"}}, save_dir=str(tmp_path)
+        )
         files = list(Path(str(tmp_path)).glob("*.md"))
         assert len(files) == 1
         assert "社保基金ETF追踪" in files[0].name

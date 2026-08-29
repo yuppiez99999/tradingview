@@ -11,6 +11,7 @@ CodeGraphRAG 单元测试
 
 使用真实 graph.db (只读, 不破坏数据). graph.db 不存在时 skip.
 """
+
 from __future__ import annotations
 
 import sys
@@ -40,6 +41,7 @@ pytestmark = pytest.mark.skipif(not _HAS_DB, reason=f"graph.db 不存在: {_DB_P
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def rag():
     """CodeGraphRAG 实例"""
@@ -51,6 +53,7 @@ def rag():
 # ============================================================
 # 测试组 1: 连接与统计
 # ============================================================
+
 
 class TestConnection:
     def test_stats(self, rag):
@@ -74,6 +77,7 @@ class TestConnection:
 # ============================================================
 # 测试组 2: 符号检索
 # ============================================================
+
 
 class TestSearchSymbol:
     def test_search_by_name(self, rag):
@@ -119,6 +123,7 @@ class TestSearchSymbol:
 # 测试组 3: 调用关系
 # ============================================================
 
+
 class TestCallRelations:
     def test_find_callers(self, rag):
         callers = rag.find_callers("AlphaHedgeEngine")
@@ -157,6 +162,7 @@ class TestCallRelations:
 # 测试组 4: 影响半径分析
 # ============================================================
 
+
 class TestImpactAnalysis:
     def test_impact_signal_fusion(self, rag):
         result = rag.impact_analysis("utils/signal_fusion.py")
@@ -191,19 +197,27 @@ class TestImpactAnalysis:
 # 测试组 5: 数据类
 # ============================================================
 
+
 class TestDataclasses:
     def test_symbol_location_fields(self):
         s = SymbolLocation(
-            kind="Function", name="foo", qualified_name="path::foo",
-            file_path="path.py", line_start=10, line_end=20,
+            kind="Function",
+            name="foo",
+            qualified_name="path::foo",
+            file_path="path.py",
+            line_start=10,
+            line_end=20,
         )
         assert s.kind == "Function"
         assert s.is_test is False
 
     def test_edge_info_fields(self):
         e = EdgeInfo(
-            kind="CALLS", source_qualified="a::foo",
-            target_qualified="b::bar", file_path="a.py", line=5,
+            kind="CALLS",
+            source_qualified="a::foo",
+            target_qualified="b::bar",
+            file_path="a.py",
+            line=5,
         )
         assert e.confidence == 1.0
 

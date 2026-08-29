@@ -73,7 +73,12 @@ from utils.execution.fills_store import FillsStore  # noqa: E402
 from utils.trade_calendar import is_trading_day  # noqa: E402
 
 POSITIONS_FILE = PROJECT_ROOT / "config" / "positions.json"
-TRADE_PLAN_FILE = PROJECT_ROOT / "v8.3_institutional" / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
+TRADE_PLAN_FILE = (
+    PROJECT_ROOT
+    / "v8.3_institutional"
+    / "trade_plans"
+    / "auto_trade_plan_500w_2026-2030.json"
+)
 INSTRUCTIONS_DIR = PROJECT_ROOT / "trade_instructions"
 PROGRESS_FILE = PROJECT_ROOT / "trade_instructions" / "build_progress.json"
 
@@ -97,17 +102,29 @@ def _parse_date_from_cfg(s: str | None, default: date) -> date:
 # 风控参数
 DAILY_AMOUNT_LIMIT = _trade_cfg.get("daily_amount_limit", 200000)  # 单日金额上限 20万
 PRICE_PROTECTION_PCT = _trade_cfg.get("price_protection_pct", 0.03)  # 价格保护带 ±3%
-DAILY_LOSS_STOP_PCT = _trade_cfg.get("daily_loss_stop_pct", 0.03)  # 单日累计亏损 -3% 熔断
-PORTFOLIO_DRAWDOWN_STOP_PCT = _trade_cfg.get("portfolio_drawdown_stop_pct", 0.05)  # 组合回撤 -5% 熔断
+DAILY_LOSS_STOP_PCT = _trade_cfg.get(
+    "daily_loss_stop_pct", 0.03
+)  # 单日累计亏损 -3% 熔断
+PORTFOLIO_DRAWDOWN_STOP_PCT = _trade_cfg.get(
+    "portfolio_drawdown_stop_pct", 0.05
+)  # 组合回撤 -5% 熔断
 
 # 建仓期参数 (phase_1_accumulation)
-ACCUMULATION_START = _parse_date_from_cfg(_trade_cfg.get("accumulation_start"), date(2026, 7, 10))
-ACCUMULATION_END = _parse_date_from_cfg(_trade_cfg.get("accumulation_end"), date(2026, 12, 31))
+ACCUMULATION_START = _parse_date_from_cfg(
+    _trade_cfg.get("accumulation_start"), date(2026, 7, 10)
+)
+ACCUMULATION_END = _parse_date_from_cfg(
+    _trade_cfg.get("accumulation_end"), date(2026, 12, 31)
+)
 STOCK_ETF_TARGET = _trade_cfg.get("stock_etf_target", 3_000_000)  # 300万
 
 # 固定日预算起始日 (2026-07-13起改为动态信号加权预算)
-FIXED_BUDGET_START = _parse_date_from_cfg(_trade_cfg.get("fixed_budget_start"), date(2026, 7, 13))
-DAILY_FIXED_BUDGET = _trade_cfg.get("daily_fixed_budget", 200_000)  # 单日金额上限/参考值
+FIXED_BUDGET_START = _parse_date_from_cfg(
+    _trade_cfg.get("fixed_budget_start"), date(2026, 7, 13)
+)
+DAILY_FIXED_BUDGET = _trade_cfg.get(
+    "daily_fixed_budget", 200_000
+)  # 单日金额上限/参考值
 
 # 智能分批金额 (仅用于2026-07-10~07-12, ETF信号强度 → 当日建仓金额)
 _signal_cfg = _trade_cfg.get("signal_amounts", {})
@@ -133,11 +150,11 @@ def _infer_suffix(code: str) -> str:
     - 1xxxxx (其他) → .SH (上海)
     """
     code = str(code).split(".")[0].zfill(6)
-    if code.startswith(('6', '5', '9')):
+    if code.startswith(("6", "5", "9")):
         return f"{code}.SH"
-    elif code.startswith(('0', '2', '3')) or code.startswith(('159', '16')):
+    if code.startswith(("0", "2", "3")) or code.startswith(("159", "16")):
         return f"{code}.SZ"
-    elif code.startswith('8'):
+    if code.startswith("8"):
         return f"{code}.BJ"
     return f"{code}.SH"  # 默认上海
 
@@ -155,9 +172,21 @@ def init_wt_modules() -> dict[str, Any]:
     wt_modules = {}
     try:
         from utils.wt_contracts_manager import get_contracts_manager
-        from utils.wt_execution_algo import MinImpactExecutor, TWAPExecutor, VWAPExecutor
-        from utils.wt_hedge_strategy import BetaHedgeStrategy, HedgeContext, TailRiskHedgeStrategy
-        from utils.wt_risk_control import PortfolioRiskAnalyzer, RiskControl, StopLossManager
+        from utils.wt_execution_algo import (
+            MinImpactExecutor,
+            TWAPExecutor,
+            VWAPExecutor,
+        )
+        from utils.wt_hedge_strategy import (
+            BetaHedgeStrategy,
+            HedgeContext,
+            TailRiskHedgeStrategy,
+        )
+        from utils.wt_risk_control import (
+            PortfolioRiskAnalyzer,
+            RiskControl,
+            StopLossManager,
+        )
 
         wt_modules["risk_control"] = RiskControl(
             {
@@ -204,8 +233,12 @@ def init_wt_modules() -> dict[str, Any]:
         wt_modules["tail_hedge"] = tail_hedge
 
         logger.info("[INFO] WonderTrader 模块初始化完成")
-        logger.info("[INFO]   - 风控模块: RiskControl, StopLossManager, PortfolioRiskAnalyzer")
-        logger.info("[INFO]   - 执行算法: MinImpactExecutor, TWAPExecutor, VWAPExecutor")
+        logger.info(
+            "[INFO]   - 风控模块: RiskControl, StopLossManager, PortfolioRiskAnalyzer"
+        )
+        logger.info(
+            "[INFO]   - 执行算法: MinImpactExecutor, TWAPExecutor, VWAPExecutor"
+        )
         logger.info("[INFO]   - 对冲策略: BetaHedgeStrategy, TailRiskHedgeStrategy")
         logger.info("[INFO]   - 合约管理: ContractsManager")
 
@@ -219,6 +252,7 @@ def init_wt_modules() -> dict[str, Any]:
 def load_positions() -> dict:
     """加载持仓配置 (B1.7: 委托给 utils.positions_loader 统一入口)"""
     from utils.positions_loader import load_positions as _load_positions_shared
+
     return _load_positions_shared(POSITIONS_FILE)
 
 
@@ -272,12 +306,14 @@ def assess_etf_signal(code: str, positions_data: dict) -> str:
     signal = pos.get("etf_flow_signal", "")
     if "强" in signal:
         return "strong"
-    elif "加仓" in signal or "中" in signal:
+    if "加仓" in signal or "中" in signal:
         return "medium"
     return "none"
 
 
-def calculate_daily_budget(target_date: date, progress: dict, positions_data: dict) -> dict:
+def calculate_daily_budget(
+    target_date: date, progress: dict, positions_data: dict
+) -> dict:
     """计算当日建仓预算
 
     策略:
@@ -453,7 +489,9 @@ def fetch_prediction_signals(symbols: list[str], horizon: int = 5) -> dict[str, 
                     continue
                 pred = predictor.predict(symbol, prices, horizon=horizon)
                 # signal_strength: 正数看多, 负数看空
-                strength = pred.signal_strength if hasattr(pred, "signal_strength") else 0.0
+                strength = (
+                    pred.signal_strength if hasattr(pred, "signal_strength") else 0.0
+                )
                 results[symbol] = {
                     "direction": pred.direction,
                     "confidence": pred.confidence,
@@ -584,7 +622,9 @@ def _reset_prediction_prices_index() -> None:
         _PREDICTION_PRICES_INDEX = None
 
 
-def adjust_allocation_by_signal(base_allocated: float, signal: dict, daily_budget: float) -> tuple:
+def adjust_allocation_by_signal(
+    base_allocated: float, signal: dict, daily_budget: float
+) -> tuple:
     """根据预测信号调整分配金额
 
     Args:
@@ -622,7 +662,9 @@ def adjust_allocation_by_signal(base_allocated: float, signal: dict, daily_budge
     return base_allocated, "neutral"
 
 
-def _precheck_instructions_preconditions(target_date_str: str, target_date: date) -> Optional[dict]:
+def _precheck_instructions_preconditions(
+    target_date_str: str, target_date: date
+) -> Optional[dict]:
     """前置检查: 交易日和建仓期。
 
     Args:
@@ -635,7 +677,10 @@ def _precheck_instructions_preconditions(target_date_str: str, target_date: date
     if not is_trading_day(target_date):
         return {"status": "skipped", "reason": f"{target_date_str} 非交易日(周末)"}
     if not is_accumulation_period(target_date):
-        return {"status": "skipped", "reason": f"{target_date_str} 不在建仓期({ACCUMULATION_START} ~ {ACCUMULATION_END})"}
+        return {
+            "status": "skipped",
+            "reason": f"{target_date_str} 不在建仓期({ACCUMULATION_START} ~ {ACCUMULATION_END})",
+        }
     return None
 
 
@@ -657,7 +702,9 @@ def _refresh_etf_flow(positions_file: Path) -> dict:
                 f"[INFO] ETF资金流信号刷新成功: 更新 {etf_result['updated_count']} 个标的, 检测到 {etf_result.get('signal_count', 0)} 条信号"
             )
             return load_positions()
-        logger.error(f"[WARN] ETF资金流信号刷新失败: {etf_result.get('message', 'unknown')}")
+        logger.error(
+            f"[WARN] ETF资金流信号刷新失败: {etf_result.get('message', 'unknown')}"
+        )
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.error(f"[WARN] ETF资金流信号刷新模块加载失败: {e}")
     return load_positions()
@@ -682,16 +729,22 @@ def _run_stop_loss_check(wt_modules: dict, positions: dict) -> list:
         # DTE-3: 止损管理器不可用时, 返回特殊标记项让调用方 L1686 告警可见,
         # 而非静默返回 [] (否则止损风控完全失效且无人察觉)。
         logger.error("[StopLoss] stop_loss_manager 不可用, 止损检查被跳过 (风控降级)")
-        return [{
-            "code": "__manager_unavailable",
-            "action": "HOLD",
-            "order_info": "stop_loss_manager 不可用, 止损风控降级",
-        }]
+        return [
+            {
+                "code": "__manager_unavailable",
+                "action": "HOLD",
+                "order_info": "stop_loss_manager 不可用, 止损风控降级",
+            }
+        ]
 
     triggered = []
     for code, item in positions.items():
         avg_cost = item.get("avg_cost", 0)
-        qty = item.get("phase1_shares") or item.get("total_shares") or item.get("shares", 0)
+        qty = (
+            item.get("phase1_shares")
+            or item.get("total_shares")
+            or item.get("shares", 0)
+        )
         current_price = item.get("est_price", 0)
         if avg_cost <= 0 or qty == 0 or current_price <= 0:
             continue
@@ -702,18 +755,23 @@ def _run_stop_loss_check(wt_modules: dict, positions: dict) -> list:
 
         action, order_info = sl_manager.check_stop_loss(pure_code, current_price)
         if action != "none" and order_info:
-            triggered.append({
-                "code": code,
-                "name": item.get("name", code),
-                "action": action,
-                "current_price": current_price,
-                "stop_price": order_info.get("stop_price", 0),
-                "take_profit_price": order_info.get("take_profit_price", 0),
-                "pnl_pct": round((current_price - avg_cost) / avg_cost, 4),
-            })
+            triggered.append(
+                {
+                    "code": code,
+                    "name": item.get("name", code),
+                    "action": action,
+                    "current_price": current_price,
+                    "stop_price": order_info.get("stop_price", 0),
+                    "take_profit_price": order_info.get("take_profit_price", 0),
+                    "pnl_pct": round((current_price - avg_cost) / avg_cost, 4),
+                }
+            )
             logger.warning(
                 "[StopLoss] %s (%s) 触发 %s @ ¥%.3f (P&L %+.1%%)",
-                item.get("name", code), code, action, current_price,
+                item.get("name", code),
+                code,
+                action,
+                current_price,
                 ((current_price - avg_cost) / avg_cost) * 100,
             )
 
@@ -724,7 +782,9 @@ def _run_stop_loss_check(wt_modules: dict, positions: dict) -> list:
     return triggered
 
 
-def _run_wt_risk_precheck(wt_modules: dict, positions_data: dict, progress: dict) -> Optional[dict]:
+def _run_wt_risk_precheck(
+    wt_modules: dict, positions_data: dict, progress: dict
+) -> Optional[dict]:
     """WT 风控预检查 (盘前阻断级)。
 
     P1-5 修复: 此前仅打印 risk_score 不阻断, 高风险组合仍生成指令。
@@ -742,9 +802,12 @@ def _run_wt_risk_precheck(wt_modules: dict, positions_data: dict, progress: dict
     analyzer = wt_modules.get("portfolio_risk_analyzer")
     if not analyzer:
         # P1-5: wt_modules 初始化失败时显式告警, 不静默放行
-        logger.warning("[WARN] WT风控分析器不可用 (wt_modules 未初始化), 盘前风控降级为无检查")
+        logger.warning(
+            "[WARN] WT风控分析器不可用 (wt_modules 未初始化), 盘前风控降级为无检查"
+        )
         try:
             from utils.notify import send_alert
+
             send_alert(
                 "[WARN] WT风控分析器不可用",
                 "portfolio_risk_analyzer 未初始化, 盘前风控降级。请检查 wt_modules 初始化。",
@@ -763,7 +826,9 @@ def _run_wt_risk_precheck(wt_modules: dict, positions_data: dict, progress: dict
         concentration = risk_summary.get("concentration_risk", 0)
         logger.info(f"[INFO] WT风控分析: 组合风险评分 {risk_score}")
         logger.info(f"[INFO]   - 集中度风险: {concentration}")
-        logger.info(f"[INFO]   - 行业分布: {risk_summary.get('sector_distribution', 'N/A')}")
+        logger.info(
+            f"[INFO]   - 行业分布: {risk_summary.get('sector_distribution', 'N/A')}"
+        )
 
         # P1-5: 盘前阻断级校验 (阈值与 _run_wt_risk_block_check 的集中度逻辑对齐)
         # risk_score >= 80 或集中度 >= 0.3 (30%) 时阻断
@@ -821,7 +886,9 @@ def _compute_progress_ratio(target_date: date) -> float:
     return min(elapsed_days / max(total_accumulation_days, 1), 1.0)
 
 
-def _collect_pending_positions(plan_positions: list, progress: dict, progress_ratio: float) -> list:
+def _collect_pending_positions(
+    plan_positions: list, progress: dict, progress_ratio: float
+) -> list:
     """收集所有未完成建仓的标的, 并计算缺口 (缺口大者优先)。
 
     Args:
@@ -909,10 +976,13 @@ def _allocate_position(
         if ref_price > 0:
             logger.warning(
                 "[STALE] %s 无实时行情, 使用 DEFAULT_PRICES 历史价 %.2f (资金分配基于陈旧价)",
-                code_clean, ref_price,
+                code_clean,
+                ref_price,
             )
         else:
-            logger.warning("[STALE] %s 无实时行情且无兜底价, 跳过该标的 (不按假价分配)", code_clean)
+            logger.warning(
+                "[STALE] %s 无实时行情且无兜底价, 跳过该标的 (不按假价分配)", code_clean
+            )
             return None, 0.0
 
     max_buy_price, min_buy_price = _compute_price_band(ref_price)
@@ -920,7 +990,9 @@ def _allocate_position(
 
     # 按权重分配预算 (权重10% → 分配剩余预算的10%)
     # 注: 旧公式 `* weight / 0.05 * 0.15` 等价于 weight*3, 会过度分配, 已修正为纯权重比例
-    allocated = min(remaining_budget * pos["weight"], remaining_budget, pos["remaining"])
+    allocated = min(
+        remaining_budget * pos["weight"], remaining_budget, pos["remaining"]
+    )
     # 单标的上限: 当日预算的30% (20万预算下单标最多6万)
     allocated = min(allocated, daily_budget * 0.30)
 
@@ -1112,7 +1184,9 @@ def generate_instructions(target_date_str: str) -> dict:
     # P1-5: 盘前风控超阈值时阻断, 不再仅打印
     precheck_result = _run_wt_risk_precheck(wt_modules, positions_data, progress)
     if precheck_result and precheck_result.get("status") == "blocked":
-        logger.warning("[BLOCK] 盘前风控阻断, 停止生成指令: %s", precheck_result.get("reason"))
+        logger.warning(
+            "[BLOCK] 盘前风控阻断, 停止生成指令: %s", precheck_result.get("reason")
+        )
         return {
             "status": "blocked",
             "reason": precheck_result.get("reason", "WT盘前风控阻断"),
@@ -1122,23 +1196,36 @@ def generate_instructions(target_date_str: str) -> dict:
 
     # 获取预测信号 (v7.5+ 集成 tf_price_predictor, 失败时静默降级)
     pending_codes = [
-        p.get("code", "").split(".")[0] for p in trade_plan.get("stock_etf_account", {}).get("positions", [])
+        p.get("code", "").split(".")[0]
+        for p in trade_plan.get("stock_etf_account", {}).get("positions", [])
     ]
     prediction_signals = fetch_prediction_signals(pending_codes, horizon=5)
     if prediction_signals:
-        up_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "UP")
-        down_count = sum(1 for s in prediction_signals.values() if s.get("direction") == "DOWN")
-        logger.info(f"[INFO] 预测信号: {len(prediction_signals)} 个标的, 看多 {up_count}, 看空 {down_count}")
+        up_count = sum(
+            1 for s in prediction_signals.values() if s.get("direction") == "UP"
+        )
+        down_count = sum(
+            1 for s in prediction_signals.values() if s.get("direction") == "DOWN"
+        )
+        logger.info(
+            f"[INFO] 预测信号: {len(prediction_signals)} 个标的, 看多 {up_count}, 看空 {down_count}"
+        )
 
     # 计算当日预算
     budget_info = calculate_daily_budget(target_date, progress, positions_data)
     if budget_info["daily_budget"] <= 0:
-        return {"status": "completed", "reason": "已完成建仓目标", "budget_info": budget_info}
+        return {
+            "status": "completed",
+            "reason": "已完成建仓目标",
+            "budget_info": budget_info,
+        }
 
     # 收集所有未完成建仓的标的 (按缺口降序, 缺口大的优先买入)
     progress_ratio = _compute_progress_ratio(target_date)
     plan_positions = trade_plan.get("stock_etf_account", {}).get("positions", [])
-    pending_positions = _collect_pending_positions(plan_positions, progress, progress_ratio)
+    pending_positions = _collect_pending_positions(
+        plan_positions, progress, progress_ratio
+    )
 
     if not pending_positions:
         return {"status": "completed", "reason": "所有标的已建仓完成"}
@@ -1171,7 +1258,12 @@ def generate_instructions(target_date_str: str) -> dict:
     # 风控检查 + 构建指令文件 (manual_confirm 不阻塞生成, 只标记需要确认)
     risk_checks = _build_risk_checks(total_allocated)
     instruction_file = _build_instruction_file(
-        target_date_str, progress, budget_info, risk_checks, instructions, total_allocated,
+        target_date_str,
+        progress,
+        budget_info,
+        risk_checks,
+        instructions,
+        total_allocated,
     )
     output_file, md_file = _save_instruction_file(target_date_str, instruction_file)
 
@@ -1267,10 +1359,14 @@ def render_instructions_md(data: dict) -> str:
             "",
             "## 确认步骤",
             "",
-            "1. 打开 JSON 文件: `" + data["meta"]["instruction_date"].replace("-", "") + "_instructions.json`",
+            "1. 打开 JSON 文件: `"
+            + data["meta"]["instruction_date"].replace("-", "")
+            + "_instructions.json`",
             "2. 检查每条指令的 `qty`, `max_buy_price` 等参数",
             "3. 将需要执行的指令的 `confirm` 字段改为 `true`",
-            "4. 运行: `python daily_trade_executor.py post-market --date " + data["meta"]["instruction_date"] + "`",
+            "4. 运行: `python daily_trade_executor.py post-market --date "
+            + data["meta"]["instruction_date"]
+            + "`",
             "",
             "## 风控规则",
             "",
@@ -1347,7 +1443,9 @@ def _check_execution_preconditions(instructions_data: dict) -> tuple:
     if not risk_checks.get("daily_limit", {}).get("passed", True):
         return [], {"status": "blocked", "reason": "单日金额上限未通过"}
 
-    confirmed = [i for i in instructions_data.get("instructions", []) if i.get("confirm", False)]
+    confirmed = [
+        i for i in instructions_data.get("instructions", []) if i.get("confirm", False)
+    ]
     if not confirmed:
         return [], {
             "status": "no_confirmed",
@@ -1406,7 +1504,9 @@ def _run_wt_risk_block_check(wt_modules: dict, confirmed: list) -> Optional[dict
     return None
 
 
-def _sync_positions_idempotent(target_date_str: str, confirmed: list, positions: dict) -> dict:
+def _sync_positions_idempotent(
+    target_date_str: str, confirmed: list, positions: dict
+) -> dict:
     """幂等模式: 当日已执行过, 跳过重复累加, 仅补同步 positions.json。
 
     从已执行的 execution.json 读取成交结果, 仅对 shares=0 的标的补同步。
@@ -1491,12 +1591,16 @@ def _record_build_fill(inst: dict, result: dict, target_date_str: str) -> None:
                 "stamp_duty": result.get("stamp_duty", 0.0),
             },
         )
-        logger.info(f"[DTE-1] 建仓成交已落盘 FillsStore: {symbol} {side} {qty:.0f}@{fill_price:.4f}")
+        logger.info(
+            f"[DTE-1] 建仓成交已落盘 FillsStore: {symbol} {side} {qty:.0f}@{fill_price:.4f}"
+        )
     except Exception as e:  # noqa: BLE001  # 观测路径 fail-open, 不阻断建仓执行
         logger.warning(f"[DTE-1] 建仓成交落盘失败 (不影响执行): {e}")
 
 
-def _execute_single_instruction(inst: dict, wt_modules: dict, progress: dict, positions: dict) -> dict:
+def _execute_single_instruction(
+    inst: dict, wt_modules: dict, progress: dict, positions: dict
+) -> dict:
     """执行单条已确认指令 (WT 拆分 + 更新建仓进度 + 同步 positions)。
 
     根据 inst["action"] (默认 BUY) 区分买卖:
@@ -1524,10 +1628,10 @@ def _execute_single_instruction(inst: dict, wt_modules: dict, progress: dict, po
     #   - 买入: 佣金(双边 0.03%) + 过户费(双边 0.001%), 无印花税
     #   - 卖出: 佣金 + 过户费 + 印花税(单边 0.05%, 2023起)
     #   - 滑点: 按 ref_price 上浮 (买入) / 下调 (卖出), 默认 10bp
-    slippage_rate = 0.001         # 滑点 10bp (可配置)
-    commission_rate = 0.0003      # 佣金 0.03%
-    transfer_fee_rate = 0.00001   # 过户费 0.001%
-    stamp_duty_rate = 0.0005      # 印花税 0.05% (仅卖出单边)
+    slippage_rate = 0.001  # 滑点 10bp (可配置)
+    commission_rate = 0.0003  # 佣金 0.03%
+    transfer_fee_rate = 0.00001  # 过户费 0.001%
+    stamp_duty_rate = 0.0005  # 印花税 0.05% (仅卖出单边)
     # 实际成交价 (含滑点): 买入向上, 卖出向下 (B2/S1 修复 — 卖单原错误地恒为加仓+滑点上浮)
     slippage_sign = -1.0 if is_sell else 1.0
     exec_price = round(ref_price * (1.0 + slippage_sign * slippage_rate), 4)
@@ -1545,7 +1649,9 @@ def _execute_single_instruction(inst: dict, wt_modules: dict, progress: dict, po
                 avg_daily_volume=1000000,
             )
             fill_amount = round(sum(s["amount"] for s in splits), 2)
-            logger.info(f"[INFO] WT执行算法: {inst['code']} 拆分为 {len(splits)} 笔, 总金额 {fill_amount:,.0f}")
+            logger.info(
+                f"[INFO] WT执行算法: {inst['code']} 拆分为 {len(splits)} 笔, 总金额 {fill_amount:,.0f}"
+            )
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.error(f"[WARN] WT执行算法执行失败: {e}, 使用默认执行")
             fill_amount = round(qty * ref_price, 2)
@@ -1610,7 +1716,9 @@ def _execute_single_instruction(inst: dict, wt_modules: dict, progress: dict, po
     built_before = progress["built_amounts"].get(code, 0)
     if is_sell:
         progress["built_amounts"][code] = max(0.0, built_before - actual_amount)
-        progress["total_built"] = max(0.0, progress.get("total_built", 0) - actual_amount)
+        progress["total_built"] = max(
+            0.0, progress.get("total_built", 0) - actual_amount
+        )
     else:
         progress["built_amounts"][code] = built_before + actual_amount
         progress["total_built"] = progress.get("total_built", 0) + actual_amount
@@ -1627,7 +1735,9 @@ def _execute_single_instruction(inst: dict, wt_modules: dict, progress: dict, po
         else:
             new_shares = old_shares + actual_qty
             if new_shares > 0:
-                new_avg_cost = round((old_shares * old_cost + actual_qty * cost_avg) / new_shares, 4)
+                new_avg_cost = round(
+                    (old_shares * old_cost + actual_qty * cost_avg) / new_shares, 4
+                )
             else:
                 new_avg_cost = cost_avg
         pos["shares"] = new_shares
@@ -1693,7 +1803,9 @@ def _build_and_save_execution_report(
             "total_executed_amount": sum(r["fill_amount"] for r in execution_results),
             "total_built": progress["total_built"],
             "remaining": STOCK_ETF_TARGET - progress["total_built"],
-            "completion_rate": round(progress["total_built"] / STOCK_ETF_TARGET * 100, 2),
+            "completion_rate": round(
+                progress["total_built"] / STOCK_ETF_TARGET * 100, 2
+            ),
         },
         "execution_results": execution_results,
     }
@@ -1772,13 +1884,17 @@ def execute_instructions(target_date_str: str) -> dict:
     executed_keys = set(progress.get("executed_instruction_keys", []))
     execution_results = []
     for inst in confirmed:
-        ide_key = f"{inst['full_code']}:{inst.get('action', 'BUY')}:{inst.get('qty', 0)}"
+        ide_key = (
+            f"{inst['full_code']}:{inst.get('action', 'BUY')}:{inst.get('qty', 0)}"
+        )
         if ide_key in executed_keys:
             logger.warning(f"[C1幂等] 指令 {ide_key} 已执行过, 跳过 (防双重建仓)")
             continue
         result = _execute_single_instruction(inst, wt_modules, progress, positions)
         if result.get("status") == "SKIPPED":
-            logger.warning("[SKIP] 指令 %s 被跳过，不计入执行结果，允许后续重试", ide_key)
+            logger.warning(
+                "[SKIP] 指令 %s 被跳过，不计入执行结果，允许后续重试", ide_key
+            )
         else:
             execution_results.append(result)
             executed_keys.add(ide_key)
@@ -1808,7 +1924,9 @@ def execute_instructions(target_date_str: str) -> dict:
     try:
         save_build_progress(progress)
     except Exception as e:  # noqa: BLE001
-        logger.error(f"[CRITICAL][C1] save_build_progress 失败: {e}, 中止写入 positions 以防双重建仓")
+        logger.error(
+            f"[CRITICAL][C1] save_build_progress 失败: {e}, 中止写入 positions 以防双重建仓"
+        )
         return {
             "status": "error",
             "reason": f"build_progress 持久化失败: {e}",
@@ -1820,7 +1938,12 @@ def execute_instructions(target_date_str: str) -> dict:
 
     # 生成并保存执行报告
     result, _ = _build_and_save_execution_report(
-        target_date_str, instructions_data, confirmed, execution_results, progress, instruction_file,
+        target_date_str,
+        instructions_data,
+        confirmed,
+        execution_results,
+        progress,
+        instruction_file,
     )
 
     # 收盘后自动生成下一交易日计划
@@ -1842,7 +1965,9 @@ def show_progress() -> dict:
     progress = load_build_progress()
     total_built = progress.get("total_built", 0)
     remaining = STOCK_ETF_TARGET - total_built
-    completion_rate = total_built / STOCK_ETF_TARGET * 100 if STOCK_ETF_TARGET > 0 else 0
+    completion_rate = (
+        total_built / STOCK_ETF_TARGET * 100 if STOCK_ETF_TARGET > 0 else 0
+    )
 
     # 计算剩余交易日
     today = date.today()
@@ -1862,7 +1987,9 @@ def show_progress() -> dict:
         "remaining": remaining,
         "completion_rate": round(completion_rate, 2),
         "remaining_days": remaining_days,
-        "avg_daily_needed": round(avg_daily, 2) if isinstance(avg_daily, float) else avg_daily,
+        "avg_daily_needed": (
+            round(avg_daily, 2) if isinstance(avg_daily, float) else avg_daily
+        ),
         "accumulation_period": f"{ACCUMULATION_START} ~ {ACCUMULATION_END}",
         "eta": str(eta_date),
         "built_amounts": progress.get("built_amounts", {}),
@@ -1925,10 +2052,24 @@ def generate_accumulation_schedule() -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description="每日自动执行交易计划")
     parser.add_argument(
-        "mode", choices=["pre-market", "post-market", "post-market-auto", "progress", "schedule"], help="执行模式"
+        "mode",
+        choices=[
+            "pre-market",
+            "post-market",
+            "post-market-auto",
+            "progress",
+            "schedule",
+        ],
+        help="执行模式",
     )
-    parser.add_argument("--date", type=str, default=None, help="指定日期 (YYYY-MM-DD), 默认今天")
-    parser.add_argument("--auto-confirm", action="store_true", help="自动确认所有指令 (跳过人工确认环节)")
+    parser.add_argument(
+        "--date", type=str, default=None, help="指定日期 (YYYY-MM-DD), 默认今天"
+    )
+    parser.add_argument(
+        "--auto-confirm",
+        action="store_true",
+        help="自动确认所有指令 (跳过人工确认环节)",
+    )
 
     args = parser.parse_args()
 
@@ -1944,7 +2085,9 @@ def main() -> None:
 
         with process_lock("daily_trade_executor", timeout=5.0) as acquired:
             if not acquired:
-                logger.warning("[WARN] 另一个 daily_trade_executor 实例正在运行, 本次退出")
+                logger.warning(
+                    "[WARN] 另一个 daily_trade_executor 实例正在运行, 本次退出"
+                )
                 sys.exit(1)
             _run_mode(args, target_date)
         return
@@ -1968,7 +2111,10 @@ def _run_mode(args: argparse.Namespace, target_date: str) -> None:
             )
             args.auto_confirm = False
         else:
-            logger.info("Auto-confirm mode enabled (TRADING_ENV=%s): all instructions will be confirmed", _env)
+            logger.info(
+                "Auto-confirm mode enabled (TRADING_ENV=%s): all instructions will be confirmed",
+                _env,
+            )
     logger.info("=" * 70)
 
     if args.mode == "pre-market":
@@ -1989,7 +2135,9 @@ def _run_mode(args: argparse.Namespace, target_date: str) -> None:
 
     elif args.mode == "post-market-auto":
         execute_result = execute_instructions(target_date)
-        logger.info(json.dumps(execute_result, ensure_ascii=False, indent=2, default=str))
+        logger.info(
+            json.dumps(execute_result, ensure_ascii=False, indent=2, default=str)
+        )
 
         # 自动生成下一交易日计划
         if execute_result.get("status") == "executed":
@@ -2005,9 +2153,13 @@ def _run_mode(args: argparse.Namespace, target_date: str) -> None:
                     confirm_count = confirm_all_instructions(next_date)
                     next_plan["auto_confirmed"] = True
                     next_plan["auto_confirm_count"] = confirm_count
-                    logger.info(f"[INFO] Auto-confirmed {confirm_count} instructions for next day {next_date}")
+                    logger.info(
+                        f"[INFO] Auto-confirmed {confirm_count} instructions for next day {next_date}"
+                    )
 
-            logger.info(json.dumps(next_plan, ensure_ascii=False, indent=2, default=str))
+            logger.info(
+                json.dumps(next_plan, ensure_ascii=False, indent=2, default=str)
+            )
 
     elif args.mode == "progress":
         result = show_progress()

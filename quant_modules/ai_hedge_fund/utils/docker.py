@@ -57,7 +57,9 @@ def download_model(model_name: str, ollama_url: str) -> bool:
 
     # Step 1: Initiate the download
     try:
-        response = requests.post(f"{ollama_url}/api/pull", json={"name": model_name}, timeout=10)
+        response = requests.post(
+            f"{ollama_url}/api/pull", json={"name": model_name}, timeout=10
+        )
         if response.status_code != 200:
             if response.text:
                 pass
@@ -93,12 +95,13 @@ def delete_model(model_name: str, ollama_url: str) -> bool:
     """Delete a model in Docker environment."""
 
     try:
-        response = requests.delete(f"{ollama_url}/api/delete", json={"name": model_name}, timeout=10)
+        response = requests.delete(
+            f"{ollama_url}/api/delete", json={"name": model_name}, timeout=10
+        )
         if response.status_code == 200:
             return True
-        else:
-            if response.text:
-                pass
-            return False
+        if response.text:
+            pass
+        return False
     except requests.RequestException:
         return False

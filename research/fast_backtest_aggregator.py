@@ -1,6 +1,7 @@
 """
 快速回测聚合：基于已有 pipeline_backtest.json 计算收益
 """
+
 import json
 import sys
 from pathlib import Path
@@ -11,7 +12,9 @@ from utils.data_provider import MarketDataProvider
 
 # B1.3: 从 config/risk_params.yaml 统一读取回撤上限
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
+from utils.risk_params import (
+    get_max_drawdown_limit as _get_max_drawdown_limit,
+)  # noqa: E402
 
 _MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 
@@ -29,13 +32,31 @@ def _load_pipeline_results() -> list:
             continue
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             continue
         date_str = data.get("report_date") or folder.name
         try:
             date = pd.Timestamp(date_str)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             continue
         weights = (
@@ -49,13 +70,25 @@ def _load_pipeline_results() -> list:
     return records
 
 
-def _monthly_returns(symbol: str, start: pd.Timestamp, end: pd.Timestamp, provider: MarketDataProvider) -> float:
+def _monthly_returns(
+    symbol: str, start: pd.Timestamp, end: pd.Timestamp, provider: MarketDataProvider
+) -> float:
     # 阶段 1: free-stockdb 本地优先 (研究/回测专用), 自动回退
     df = None
     try:
         from utils.free_stockdb_adapter import get_historical_data_fs
+
         df = get_historical_data_fs(symbol, period="5y", use_fallback=False)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         df = None
     if df is None or df.empty:
@@ -66,7 +99,16 @@ def _monthly_returns(symbol: str, start: pd.Timestamp, end: pd.Timestamp, provid
     try:
         if hasattr(df.index, "tz") and df.index.tz is not None:
             df.index = df.index.tz_localize(None)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         pass
     compare_start = pd.Timestamp(start).normalize()
@@ -97,19 +139,29 @@ def run_fast_backtest(start: str = "2024-01-01", end: str = "2024-12-31") -> dic
     for i, rec in enumerate(records):
         date = rec["date"]
         weights = rec["weights"]
-        next_date = records[i + 1]["date"] if i + 1 < len(records) else date + pd.DateOffset(months=1)
+        next_date = (
+            records[i + 1]["date"]
+            if i + 1 < len(records)
+            else date + pd.DateOffset(months=1)
+        )
         rets = {}
         for symbol in SYMBOLS:
             rets[symbol] = _monthly_returns(symbol, date, next_date, provider)
-        port_return = float(sum(weights.get(s, 0.0) * rets.get(s, 0.0) for s in SYMBOLS))
-        results.append({
-            "date": date.strftime("%Y-%m-%d"),
-            "next_date": next_date.strftime("%Y-%m-%d"),
-            "weights": weights,
-            "returns": rets,
-            "portfolio_return": port_return,
-        })
-        print(f"回测 {date.strftime('%Y-%m-%d')} ~ {next_date.strftime('%Y-%m-%d')}: return={port_return*100:.2f}% weights={weights}")
+        port_return = float(
+            sum(weights.get(s, 0.0) * rets.get(s, 0.0) for s in SYMBOLS)
+        )
+        results.append(
+            {
+                "date": date.strftime("%Y-%m-%d"),
+                "next_date": next_date.strftime("%Y-%m-%d"),
+                "weights": weights,
+                "returns": rets,
+                "portfolio_return": port_return,
+            }
+        )
+        print(
+            f"回测 {date.strftime('%Y-%m-%d')} ~ {next_date.strftime('%Y-%m-%d')}: return={port_return*100:.2f}% weights={weights}"
+        )
 
     if not results:
         return {"error": "no_backtest_results"}
@@ -125,10 +177,18 @@ def run_fast_backtest(start: str = "2024-01-01", end: str = "2024-12-31") -> dic
 
     # 回测模型验收：年化收益率 >= 8% 且 最大回撤 <= _MAX_DRAWDOWN_LIMIT (B1.3: 配置化)
     checks = [
-        {"metric": "annual_return", "value": round(annual_return, 4),
-         "required": ">= 8%", "ok": annual_return >= 0.08},
-        {"metric": "max_drawdown", "value": round(max_dd, 4),
-         "required": f"<= {_MAX_DRAWDOWN_LIMIT:.0%}", "ok": max_dd <= _MAX_DRAWDOWN_LIMIT},
+        {
+            "metric": "annual_return",
+            "value": round(annual_return, 4),
+            "required": ">= 8%",
+            "ok": annual_return >= 0.08,
+        },
+        {
+            "metric": "max_drawdown",
+            "value": round(max_dd, 4),
+            "required": f"<= {_MAX_DRAWDOWN_LIMIT:.0%}",
+            "ok": max_dd <= _MAX_DRAWDOWN_LIMIT,
+        },
     ]
     passed = all(c["ok"] for c in checks)
     acceptance = {
@@ -150,7 +210,9 @@ def run_fast_backtest(start: str = "2024-01-01", end: str = "2024-12-31") -> dic
     }
     out_path = Path("output") / "fast_backtest_result.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_path.write_text(
+        json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return result
 
 

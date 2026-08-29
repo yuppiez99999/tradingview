@@ -7,6 +7,7 @@ AI 记忆包 — 团队级共享记忆中枢
 可用工具:
 - team_memory_hub: 团队级共享记忆中枢 (TencentDB-Agent-Memory 接入)
 """
+
 from __future__ import annotations
 
 try:

@@ -7,12 +7,33 @@ import sys
 # 项目根目录 (用于 import utils.* / ms_strategy.*)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-sys.path.insert(0, os.path.join(ROOT, 'ms_strategy', 'src', 'execution'))
-sys.path.insert(0, os.path.join(ROOT, 'ms_strategy', 'src', 'data'))
-sys.path.insert(0, os.path.join(ROOT, 'ms_strategy', 'scripts'))
+sys.path.insert(0, os.path.join(ROOT, "ms_strategy", "src", "execution"))
+sys.path.insert(0, os.path.join(ROOT, "ms_strategy", "src", "data"))
+sys.path.insert(0, os.path.join(ROOT, "ms_strategy", "scripts"))
 
 passed = 0
 failed = 0
+
+
+def _future_option_code(
+    underlying: str, option_type: str, months_ahead: int = 3
+) -> str:
+    """生成相对当前日期未来 N 个月的期权合约代码 (YYYYMM 动态).
+
+    避免硬编码 '2608' 之类固定未来月份导致测试随时间失效:
+    今天是 2026-08-27 时, 原硬编码 2608 (2026年8月) 已到期,
+    assess_risk() 返回 EXPIRED 使断言失败、整模块收集崩溃。
+    改为始终取 (今天 + months_ahead 月) 的合约月份, 保证始终为未来到期。
+    """
+    from datetime import date
+
+    y, m = date.today().year, date.today().month + months_ahead
+    while m > 12:
+        m -= 12
+        y += 1
+    yymm = f"{y % 100:02d}{m:02d}"
+    return f"{underlying}{option_type}{yymm}M03000.SH"
+
 
 # ================================================================
 # P0-10: T+0/T+1 交易制度
@@ -140,11 +161,18 @@ passed += 2
 
 # 监控器
 monitor = OptionMarginMonitor()
-monitor.add_position(OptionPosition(
-    symbol="510050P2507M03000.SH", underlying="510050.SH",
-    option_type="PUT", side="SELL", strike=3.000,
-    quantity=10, premium=0.0500, expiry_date="2025-07-25",
-))
+monitor.add_position(
+    OptionPosition(
+        symbol="510050P2507M03000.SH",
+        underlying="510050.SH",
+        option_type="PUT",
+        side="SELL",
+        strike=3.000,
+        quantity=10,
+        premium=0.0500,
+        expiry_date="2025-07-25",
+    )
+)
 results = monitor.check_all({"510050.SH": 3.200}, available_funds=500000)
 assert len(results) == 1, f"Expected 1 result, got {len(results)}"
 assert results[0].required_margin > 0, "Margin should be > 0"
@@ -229,20 +257,34 @@ passed += 2
 
 # 风险管理器
 mgr3 = OptionExerciseRiskManager()
-# 卖方实值期权风险 (2608 = 2026年8月, 未来到期)
+# 卖方实值期权风险 (动态未来 3 个月到期, 避免硬编码月份随时间失效)
+_future_call = _future_option_code("510050", "C")
+_future_put = _future_option_code("510050", "P")
 result = mgr3.assess_risk(
-    "510050C2608M03000.SH", "SELL", 10, 3.500, 0.05,
+    _future_call,
+    "SELL",
+    10,
+    3.500,
+    0.05,
 )
 assert result is not None, "评估失败"
 assert result.side == "SELL"
 assert result.is_itm, "实值期权应 is_itm=True"
-assert result.assignment_probability in ("CERTAIN", "HIGH", "MEDIUM", "LOW"), \
-    f"意外状态: {result.assignment_probability}"
+assert result.assignment_probability in (
+    "CERTAIN",
+    "HIGH",
+    "MEDIUM",
+    "LOW",
+), f"意外状态: {result.assignment_probability}"
 passed += 3
 
 # 买方虚值期权风险
 result = mgr3.assess_risk(
-    "510050C2608M03000.SH", "BUY", 10, 2.800, 0.05,
+    _future_call,
+    "BUY",
+    10,
+    2.800,
+    0.05,
 )
 assert result is not None
 assert not result.is_itm, "虚值期权应 is_itm=False"
@@ -252,8 +294,8 @@ passed += 2
 # 批量检测
 results = mgr3.check_all(
     [
-        {"symbol": "510050C2608M03000.SH", "side": "SELL", "quantity": 10, "premium": 0.05},
-        {"symbol": "510050P2608M03000.SH", "side": "BUY", "quantity": 5, "premium": 0.03},
+        {"symbol": _future_call, "side": "SELL", "quantity": 10, "premium": 0.05},
+        {"symbol": _future_put, "side": "BUY", "quantity": 5, "premium": 0.03},
     ],
     {"510050.SH": 3.200},
 )

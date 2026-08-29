@@ -7,6 +7,7 @@
     - Mock ProtectivePutEngine (避免真实期权链数据依赖)
     - 验证 _deduplicate_put_orders 在 plan 字段层级正确去重
 """
+
 import json
 
 import pytest
@@ -18,12 +19,8 @@ from utils.risk_guard_integrator import RiskGuardIntegrator
 @pytest.fixture
 def integrator_isolated(tmp_path, monkeypatch):
     """隔离的 RiskGuardIntegrator"""
-    monkeypatch.setattr(
-        "utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs"
-    )
-    monkeypatch.setattr(
-        "utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports"
-    )
+    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports")
     monkeypatch.setattr(
         "utils.risk_guard_integrator.TRADE_PLANS_DIR", tmp_path / "trade_plans"
     )
@@ -101,12 +98,14 @@ class TestPutOrderDeduplication:
         options = plan["hedge_execution"]["options_orders"]
 
         # 510050 Put 应被剔除
-        assert all("510050" not in o.get("instrument", "") for o in options), \
-            "510050 Put 应被去重剔除"
+        assert all(
+            "510050" not in o.get("instrument", "") for o in options
+        ), "510050 Put 应被去重剔除"
 
         # 159915 Put 应保留 (不重复)
-        assert any("159915" in o.get("instrument", "") for o in options), \
-            "159915 Put 应保留 (不重复)"
+        assert any(
+            "159915" in o.get("instrument", "") for o in options
+        ), "159915 Put 应保留 (不重复)"
 
         # 应只剩 1 个 options 订单
         assert len(options) == 1
@@ -122,8 +121,7 @@ class TestPutOrderDeduplication:
         dedup_info = plan["risk_guard"].get("put_hedge_dedup")
         assert dedup_info is not None, "去重信息应记录在 risk_guard.put_hedge_dedup"
         assert dedup_info["removed_count"] == 1
-        assert "510050" in dedup_info["removed"], \
-            "removed 列表应包含被剔除的底层代码"
+        assert "510050" in dedup_info["removed"], "removed 列表应包含被剔除的底层代码"
         # reason 是固定文案, 不含具体代码
         assert "ProtectivePutEngine" in dedup_info["reason"]
         assert "避免超额对冲" in dedup_info["reason"]
@@ -203,6 +201,7 @@ class TestHedgeEngineWithDedup:
 
         # Mock IF 期货价格 (避免网络调用)
         import unittest.mock as um
+
         with um.patch.object(engine, "_get_if_price", return_value=4650.0):
             hedge_result = engine.generate_hedge_orders(drawdown_level=0)
 

@@ -91,7 +91,14 @@ class DailyBuildHedgeSystem:
                         self.plan_data = json.load(f)
                     logger.info(f"已加载交易计划: {path.name}")
                     return
-                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+                except (
+                    ValueError,
+                    KeyError,
+                    TypeError,
+                    AttributeError,
+                    OSError,
+                    RuntimeError,
+                ) as e:
                     logger.error(f"加载计划失败 {path}: {e}")
 
         logger.error("未找到交易计划文件")
@@ -124,6 +131,7 @@ class DailyBuildHedgeSystem:
         """评估市场状态 (含ETF资金流 + LLM辅助决策)"""
         try:
             from utils.etf_flow_monitor import ETFMonitor  # type: ignore
+
             etf_monitor = ETFMonitor()
             etf_data = etf_monitor.get_summary()
         except (ImportError, AttributeError):
@@ -155,7 +163,9 @@ class DailyBuildHedgeSystem:
                 llm_decision = decision_engine.post_market_review()
             else:
                 # 非交易时段: 默认使用盘前决策模式 (基于最新收盘数据)
-                logger.info(f"当前非交易时段 ({current_time_str})，使用盘前决策模式生成最新资金流分析...")
+                logger.info(
+                    f"当前非交易时段 ({current_time_str})，使用盘前决策模式生成最新资金流分析..."
+                )
                 llm_decision = decision_engine.pre_market_decision()
         except (ImportError, AttributeError) as e:
             logger.warning(f"ETF资金流决策引擎不可用: {e}，继续使用规则引擎")
@@ -169,17 +179,23 @@ class DailyBuildHedgeSystem:
         _vix_source = "default_placeholder"
         try:
             from utils.alpha.vix_data_source import fetch_vix
+
             _vix_fetched = fetch_vix(use_cache=True)
             if _vix_fetched is not None and 5.0 <= _vix_fetched <= 150.0:
                 _vix_proxy = float(_vix_fetched)
                 _vix_source = "live"
             else:
-                logger.warning("[RISK] VIX 取值越界或为空, 使用占位默认值 18.5 (RiskBudget 降级)")
+                logger.warning(
+                    "[RISK] VIX 取值越界或为空, 使用占位默认值 18.5 (RiskBudget 降级)"
+                )
                 _vix_source = "degraded_default"
                 _data_degraded = True
                 _vix_degraded = True
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
-            logger.warning("[RISK] VIX 获取失败, 标记 data_degraded (占位值 18.5 仅用于中性判断)", exc_info=True)
+            logger.warning(
+                "[RISK] VIX 获取失败, 标记 data_degraded (占位值 18.5 仅用于中性判断)",
+                exc_info=True,
+            )
             _vix_source = "degraded_default"
             _data_degraded = True
             _vix_degraded = True
@@ -257,13 +273,29 @@ class DailyBuildHedgeSystem:
                 if len(closes) < 21:
                     return None
                 closes = closes.reset_index(drop=True)
-                ret_5d = float(closes.iloc[-1] / closes.iloc[-6] - 1.0) if len(closes) >= 6 else None
-                ret_20d = float(closes.iloc[-1] / closes.iloc[-21] - 1.0) if len(closes) >= 21 else None
+                ret_5d = (
+                    float(closes.iloc[-1] / closes.iloc[-6] - 1.0)
+                    if len(closes) >= 6
+                    else None
+                )
+                ret_20d = (
+                    float(closes.iloc[-1] / closes.iloc[-21] - 1.0)
+                    if len(closes) >= 21
+                    else None
+                )
                 if ret_5d is not None and ret_20d is not None:
                     return {5: ret_5d, 20: ret_20d}
         # P2 模块 fail-safe, 待后续精确化 (异常类型宽泛, 但不吞掉以保留可追溯性)
-        except (ValueError, TypeError, KeyError, AttributeError,
-                RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             pass
 
         # 回退: 新浪仅最新价, 无法计算区间收益 -> 诚实返回 None (不编造)
@@ -326,7 +358,9 @@ class DailyBuildHedgeSystem:
         from build_plan_executor import BuildPlanExecutor
         from utils.data_types import normalize_stock_code
 
-        executor = BuildPlanExecutor(plan_path=str(BASE_DIR / "500万建仓计划_20260706.json"))
+        executor = BuildPlanExecutor(
+            plan_path=str(BASE_DIR / "500万建仓计划_20260706.json")
+        )
 
         market_state = self.market_state
         protocol = executor.get_emergency_protocol(market_state)
@@ -361,16 +395,29 @@ class DailyBuildHedgeSystem:
             try:
                 import copy as _copy
 
-                from utils.broad_based_etf_policy import adjust_plan_with_national_team_flow
+                from utils.broad_based_etf_policy import (
+                    adjust_plan_with_national_team_flow,
+                )
 
                 adj_plan = _copy.deepcopy(plan_500w)
                 adj_result = adjust_plan_with_national_team_flow(adj_plan)
                 if adj_result.get("applied"):
                     executor.plan_data = adj_plan
-                    logger.info(f"宽基ETF国家队加减仓已应用: {adj_result.get('summary')}")
+                    logger.info(
+                        f"宽基ETF国家队加减仓已应用: {adj_result.get('summary')}"
+                    )
                 else:
-                    logger.info(f"宽基ETF国家队加减仓未应用: {adj_result.get('reason')}")
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+                    logger.info(
+                        f"宽基ETF国家队加减仓未应用: {adj_result.get('reason')}"
+                    )
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.warning(f"宽基ETF加减仓集成失败, 维持基准权重: {e}")
 
         sheet = executor.generate_daily_orders(
@@ -433,7 +480,9 @@ class DailyBuildHedgeSystem:
         prices = {}
         style_map = {}
 
-        for order in self.build_plan.get("morning_orders", []) + self.build_plan.get("afternoon_orders", []):
+        for order in self.build_plan.get("morning_orders", []) + self.build_plan.get(
+            "afternoon_orders", []
+        ):
             code = order.get("code", "")
             shares = order.get("shares", 0)
             price = order.get("est_price", 0.0)
@@ -470,10 +519,14 @@ class DailyBuildHedgeSystem:
             amt = shares * prices.get(code, 0)
             style = style_map.get(code, "default")
             beta = style_beta_map.get(style, 1.0)
-            portfolio_beta += (amt / portfolio_value) * beta if portfolio_value > 0 else 0
+            portfolio_beta += (
+                (amt / portfolio_value) * beta if portfolio_value > 0 else 0
+            )
 
         market_regime = self.market_state.get("market_regime", "neutral")
-        hedge_policy = self.plan_data.get("dynamic_rebalance", {}).get("delta_control", {})
+        hedge_policy = self.plan_data.get("dynamic_rebalance", {}).get(
+            "delta_control", {}
+        )
         target_delta = hedge_policy.get("target_range", {}).get(market_regime, 0.6)
 
         ghm = GreekHedgeManager(
@@ -496,7 +549,9 @@ class DailyBuildHedgeSystem:
             ),
         ]
 
-        futures_targets = ghm.target_futures_delta_hedge(portfolio_exposure, hedge_instruments, {"IF_futures": 4500.0})
+        futures_targets = ghm.target_futures_delta_hedge(
+            portfolio_exposure, hedge_instruments, {"IF_futures": 4500.0}
+        )
 
         hedge_account = self.plan_data.get("hedge_account", {})
         modules = hedge_account.get("modules", [])
@@ -544,7 +599,9 @@ class DailyBuildHedgeSystem:
                 "direction": "SELL",
                 "contracts": round(futures_targets.get("IF_futures", 0), 2),
                 "multiplier": 300,
-                "estimated_notional": round(futures_targets.get("IF_futures", 0) * 4500 * 300, 2),
+                "estimated_notional": round(
+                    futures_targets.get("IF_futures", 0) * 4500 * 300, 2
+                ),
                 "description": f"对冲组合 Beta {portfolio_beta:.2f}，目标 Delta {target_delta}",
             },
             "option_hedge": option_hedge_plan,
@@ -562,9 +619,18 @@ class DailyBuildHedgeSystem:
         """
         if getattr(self, "_target_plan_cache", None) is None:
             try:
-                with open(BASE_DIR / "500万建仓计划_20260706.json", encoding="utf-8") as f:
+                with open(
+                    BASE_DIR / "500万建仓计划_20260706.json", encoding="utf-8"
+                ) as f:
                     self._target_plan_cache = cast(dict[str, Any], json.load(f))
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.warning(f"加载目标建仓计划失败: {e}")
                 self._target_plan_cache = {}
         return self._target_plan_cache
@@ -590,7 +656,14 @@ class DailyBuildHedgeSystem:
             self.realtime_quotes = quotes
             logger.info(f"实时行情已获取: {len(quotes)} 只标的 (源: 东财/腾讯)")
             return quotes
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"实时行情获取失败: {e}")
             self.realtime_quotes = {}
             return {}
@@ -628,7 +701,9 @@ class DailyBuildHedgeSystem:
     def _render_header(self) -> list[str]:
         """报告头: 标题/时间/模式"""
         lines: list[str] = []
-        lines.append(f"# 每日建仓计划 + 对冲联动报告 — {self.target_date.strftime('%Y-%m-%d')}")
+        lines.append(
+            f"# 每日建仓计划 + 对冲联动报告 — {self.target_date.strftime('%Y-%m-%d')}"
+        )
         lines.append("")
         lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append(f"**模式**: {'干跑模式' if self.dry_run else '实盘模式'}")
@@ -644,9 +719,13 @@ class DailyBuildHedgeSystem:
         lines.append(f"- **VIX代理**: {self.market_state.get('vix_proxy', 'N/A')}")
         _ir20 = self.market_state.get("index_return_20d", "N/A")
         lines.append(
-            f"- **20日收益率**: {_ir20:.2%}" if isinstance(_ir20, (int, float)) else f"- **20日收益率**: {_ir20}"
+            f"- **20日收益率**: {_ir20:.2%}"
+            if isinstance(_ir20, (int, float))
+            else f"- **20日收益率**: {_ir20}"
         )
-        lines.append(f"- **宏观热度**: {self.market_state.get('macro_heat_score', 'N/A')}")
+        lines.append(
+            f"- **宏观热度**: {self.market_state.get('macro_heat_score', 'N/A')}"
+        )
         lines.append("")
         return lines
 
@@ -656,38 +735,56 @@ class DailyBuildHedgeSystem:
         lines.append("## 二、建仓计划")
         lines.append("")
         lines.append(f"- **阶段**: {self.build_plan.get('phase', 'N/A')}")
-        lines.append(f"- **当日建仓金额**: {self.build_plan.get('day_capital', 0):,.0f} 元")
-        lines.append(f"- **资金倍率**: {self.build_plan.get('capital_multiplier', 1.0):.0%}")
-        lines.append(f"- **应急级别**: {self.build_plan.get('emergency_level', 'NORMAL')}")
+        lines.append(
+            f"- **当日建仓金额**: {self.build_plan.get('day_capital', 0):,.0f} 元"
+        )
+        lines.append(
+            f"- **资金倍率**: {self.build_plan.get('capital_multiplier', 1.0):.0%}"
+        )
+        lines.append(
+            f"- **应急级别**: {self.build_plan.get('emergency_level', 'NORMAL')}"
+        )
         lines.append("")
 
         if self.build_plan.get("morning_orders"):
             lines.append("### 上午批次 (09:30 — 10:30)")
             lines.append("")
-            lines.append("| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 |")
-            lines.append("|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|")
+            lines.append(
+                "| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 |"
+            )
+            lines.append(
+                "|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|"
+            )
             for o in self.build_plan["morning_orders"]:
                 lines.append(
                     f"| {o['priority']} | {o['code']} | {o['name']} | "
                     f"{o['shares']:,} | {o['est_price']:.3f} | {o['limit_price']:.3f} | "
                     f"{o['est_amount']:,.0f} | {o['style']} |"
                 )
-            morning_total = sum(o["est_amount"] for o in self.build_plan["morning_orders"])
+            morning_total = sum(
+                o["est_amount"] for o in self.build_plan["morning_orders"]
+            )
             lines.append(f"| | | **上午合计** | | | | **{morning_total:,.0f}** | |")
             lines.append("")
 
         if self.build_plan.get("afternoon_orders"):
             lines.append("### 下午批次 (14:00 — 14:30)")
             lines.append("")
-            lines.append("| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 |")
-            lines.append("|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|")
+            lines.append(
+                "| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 |"
+            )
+            lines.append(
+                "|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|"
+            )
             for o in self.build_plan["afternoon_orders"]:
                 lines.append(
                     f"| {o['priority']} | {o['code']} | {o['name']} | "
                     f"{o['shares']:,} | {o['est_price']:.3f} | {o['limit_price']:.3f} | "
                     f"{o['est_amount']:,.0f} | {o['style']} |"
                 )
-            afternoon_total = sum(o["est_amount"] for o in self.build_plan["afternoon_orders"])
+            afternoon_total = sum(
+                o["est_amount"] for o in self.build_plan["afternoon_orders"]
+            )
             lines.append(f"| | | **下午合计** | | | | **{afternoon_total:,.0f}** | |")
             lines.append("")
 
@@ -711,7 +808,9 @@ class DailyBuildHedgeSystem:
         lines: list[str] = []
         lines.append("## 三、对冲计划")
         lines.append("")
-        lines.append(f"- **组合价值**: {self.hedge_plan.get('portfolio_value', 0):,.0f} 元")
+        lines.append(
+            f"- **组合价值**: {self.hedge_plan.get('portfolio_value', 0):,.0f} 元"
+        )
         lines.append(f"- **组合Beta**: {self.hedge_plan.get('portfolio_beta', 0):.2f}")
         lines.append(f"- **目标Delta**: {self.hedge_plan.get('target_delta', 0):.2f}")
         lines.append(f"- **当前Delta**: {self.hedge_plan.get('current_delta', 0):,.0f}")
@@ -758,11 +857,15 @@ class DailyBuildHedgeSystem:
         futures = self.hedge_plan.get("futures_hedge", {})  # 重新获取(原主函数局部变量)
         lines.append("## 四、执行摘要")
         lines.append("")
-        total_orders = len(self.build_plan.get("morning_orders", [])) + len(self.build_plan.get("afternoon_orders", []))
+        total_orders = len(self.build_plan.get("morning_orders", [])) + len(
+            self.build_plan.get("afternoon_orders", [])
+        )
         lines.append(f"- 股票订单数: {total_orders} 笔")
         lines.append(f"- 当日建仓金额: {self.build_plan.get('day_capital', 0):,.0f} 元")
         lines.append(f"- 期货对冲合约: {futures.get('contracts', 0):.2f} 手")
-        lines.append(f"- 期权对冲项目: {len(self.hedge_plan.get('option_hedge', []))} 项")
+        lines.append(
+            f"- 期权对冲项目: {len(self.hedge_plan.get('option_hedge', []))} 项"
+        )
         lines.append(f"- 应急级别: {self.build_plan.get('emergency_level', 'NORMAL')}")
         lines.append("")
         return lines
@@ -792,7 +895,6 @@ class DailyBuildHedgeSystem:
         lines.append(f"*报告生成: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
         return lines
 
-
     def _render_compliance_section(self) -> list[str]:
         """第六节: 十五五规划 + 康波周期 合规校验 (fail-safe)"""
         lines: list[str] = []
@@ -800,7 +902,9 @@ class DailyBuildHedgeSystem:
             from utils.broad_based_etf_policy import validate_portfolio_compliance
 
             target_plan = self._load_target_portfolio_plan()
-            compliance = validate_portfolio_compliance(target_plan.get("target_portfolio", {}))
+            compliance = validate_portfolio_compliance(
+                target_plan.get("target_portfolio", {})
+            )
             cs = compliance.get("summary", {})
             lines.append("## 六、十五五规划 + 康波周期 合规校验")
             lines.append("")
@@ -812,8 +916,12 @@ class DailyBuildHedgeSystem:
             if weak_codes:
                 lines.append(f"- **需关注(建议减配)**: {', '.join(weak_codes)}")
             lines.append("")
-            lines.append("| 代码 | 名称 | 风格 | 十五五分 | 康波分 | 综合 | 判定 | 建议动作 |")
-            lines.append("|:-------|:-----|:-----|--------:|--------:|------:|:-----|:---------|")
+            lines.append(
+                "| 代码 | 名称 | 风格 | 十五五分 | 康波分 | 综合 | 判定 | 建议动作 |"
+            )
+            lines.append(
+                "|:-------|:-----|:-----|--------:|--------:|------:|:-----|:---------|"
+            )
             for h in compliance.get("holdings", []):
                 lines.append(
                     f"| {h['code']} | {h['name']} | {h['style']} | "
@@ -821,7 +929,14 @@ class DailyBuildHedgeSystem:
                     f"{h['level']} | {h['action']} |"
                 )
             lines.append("")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"合规校验展示失败: {e}")
             lines.append("## 六、十五五规划 + 康波周期 合规校验")
             lines.append("")
@@ -846,14 +961,22 @@ class DailyBuildHedgeSystem:
             lines.append("## 七、宽基ETF 社保国家队资金流加减仓")
             lines.append("")
             if not flow:
-                lines.append("- 社保国家队资金流数据暂不可用, 宽基ETF维持基准权重 (无信号则不调整)。")
+                lines.append(
+                    "- 社保国家队资金流数据暂不可用, 宽基ETF维持基准权重 (无信号则不调整)。"
+                )
                 lines.append("")
             else:
-                lines.append("| 代码 | 名称 | 净流(亿) | 信号 | 动作 | 基准权重 | 目标权重 | 缩放 |")
-                lines.append("|:-------|:-----|--------:|:-----|:-----|---------:|---------:|-----:|")
+                lines.append(
+                    "| 代码 | 名称 | 净流(亿) | 信号 | 动作 | 基准权重 | 目标权重 | 缩放 |"
+                )
+                lines.append(
+                    "|:-------|:-----|--------:|:-----|:-----|---------:|---------:|-----:|"
+                )
                 for code in bb_codes:
                     info = tp.get(code, {})
-                    base = float(info.get("base_weight", info.get("weight", 0.0)) or 0.0)
+                    base = float(
+                        info.get("base_weight", info.get("weight", 0.0)) or 0.0
+                    )
                     sig = flow.get(code, {})
                     net = float(sig.get("net_flow_yi", 0.0) or 0.0)
                     adj = flow_to_adjustment(net)
@@ -865,7 +988,14 @@ class DailyBuildHedgeSystem:
                         f"{target_w:.2%} | {scale:.2f}x |"
                     )
                 lines.append("")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"宽基ETF加减仓展示失败: {e}")
             lines.append("## 七、宽基ETF 社保国家队资金流加减仓")
             lines.append("")
@@ -881,7 +1011,9 @@ class DailyBuildHedgeSystem:
             lines.append("## 八、实时行情快照")
             lines.append("")
             if not quotes:
-                lines.append("- 实时行情暂不可用 (东财/腾讯接口无响应), 下单沿用计划估值价。")
+                lines.append(
+                    "- 实时行情暂不可用 (东财/腾讯接口无响应), 下单沿用计划估值价。"
+                )
                 lines.append("")
             else:
                 src_set = {q.get("source", "?") for q in quotes.values()}
@@ -891,7 +1023,9 @@ class DailyBuildHedgeSystem:
                 )
                 lines.append("")
                 lines.append("| 代码 | 名称 | 现价 | 涨跌% | PE | PB | 市值(亿) | 源 |")
-                lines.append("|:-------|:-----|-----:|------:|-----:|-----:|---------:|:---|")
+                lines.append(
+                    "|:-------|:-----|-----:|------:|-----:|-----:|---------:|:---|"
+                )
                 for code in sorted(quotes.keys()):
                     q = quotes[code]
                     pe = q.get("pe")
@@ -905,7 +1039,14 @@ class DailyBuildHedgeSystem:
                         f"{mc:.1f} | {q.get('source', '?')} |"
                     )
                 lines.append("")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"实时行情快照展示失败: {e}")
             lines.append("## 八、实时行情快照")
             lines.append("")
@@ -964,8 +1105,12 @@ class DailyBuildHedgeSystem:
                 if recommendations:
                     lines.append("### 交易建议 Top 10")
                     lines.append("")
-                    lines.append("| 优先级 | 代码 | 名称 | 动作 | 强度 | 置信度 | 净流入(亿) | 价格变动% | 原因 |")
-                    lines.append("|:-------|:-----|:-----|:-----|-----:|-------:|----------:|---------:|:-----|")
+                    lines.append(
+                        "| 优先级 | 代码 | 名称 | 动作 | 强度 | 置信度 | 净流入(亿) | 价格变动% | 原因 |"
+                    )
+                    lines.append(
+                        "|:-------|:-----|:-----|:-----|-----:|-------:|----------:|---------:|:-----|"
+                    )
 
                     for i, rec in enumerate(recommendations[:10], 1):
                         action = rec.get("action", "观望")
@@ -987,7 +1132,9 @@ class DailyBuildHedgeSystem:
                 if llm_analysis:
                     lines.append("### LLM辅助分析")
                     lines.append("")
-                    lines.append("> " + "\n> ".join(llm_analysis.split("\n")[:10]))  # 限制长度
+                    lines.append(
+                        "> " + "\n> ".join(llm_analysis.split("\n")[:10])
+                    )  # 限制长度
                     lines.append("")
 
                 # 信号融合结果
@@ -995,8 +1142,12 @@ class DailyBuildHedgeSystem:
                 if fused_signals:
                     lines.append("### 信号融合 Top 5")
                     lines.append("")
-                    lines.append("| 代码 | 名称 | 融合强度 | 置信度 | 资金流 | LLM | 价格动量 |")
-                    lines.append("|:-----|:-----|--------:|-------:|------:|-----:|--------:|")
+                    lines.append(
+                        "| 代码 | 名称 | 融合强度 | 置信度 | 资金流 | LLM | 价格动量 |"
+                    )
+                    lines.append(
+                        "|:-----|:-----|--------:|-------:|------:|-----:|--------:|"
+                    )
 
                     for sig in fused_signals[:5]:
                         lines.append(
@@ -1013,7 +1164,14 @@ class DailyBuildHedgeSystem:
                 lines.append("- ETF资金流决策引擎暂不可用 (数据获取失败或LLM未配置)")
                 lines.append("- 继续使用规则引擎进行宽基ETF加减仓 (第七节)")
                 lines.append("")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"ETF资金流决策展示失败: {e}")
             lines.append("## 九、ETF资金流向盘前/盘中决策")
             lines.append("")
@@ -1021,10 +1179,13 @@ class DailyBuildHedgeSystem:
             lines.append("")
         return lines
 
-
     def save_report(self, output_dir: str | None = None) -> str:
         """保存报告到文件"""
-        out_dir = Path(output_dir) if output_dir else BASE_DIR / "每日报告归档" / self.target_date.strftime("%Y-%m-%d")
+        out_dir = (
+            Path(output_dir)
+            if output_dir
+            else BASE_DIR / "每日报告归档" / self.target_date.strftime("%Y-%m-%d")
+        )
         out_dir.mkdir(parents=True, exist_ok=True)
 
         report_content = self.generate_report()
@@ -1047,7 +1208,9 @@ class DailyBuildHedgeSystem:
             )
 
             target_plan = self._load_target_portfolio_plan()
-            compliance_data = validate_portfolio_compliance(target_plan.get("target_portfolio", {}))
+            compliance_data = validate_portfolio_compliance(
+                target_plan.get("target_portfolio", {})
+            )
             flow = fetch_national_team_flow_signals()
             tp = target_plan.get("target_portfolio", {})
             broad_based_data = {
@@ -1056,13 +1219,24 @@ class DailyBuildHedgeSystem:
                     {
                         "code": c,
                         "name": tp.get(c, {}).get("name", c),
-                        "net_flow_yi": float(flow.get(c, {}).get("net_flow_yi", 0.0) or 0.0),
-                        **flow_to_adjustment(float(flow.get(c, {}).get("net_flow_yi", 0.0) or 0.0)),
+                        "net_flow_yi": float(
+                            flow.get(c, {}).get("net_flow_yi", 0.0) or 0.0
+                        ),
+                        **flow_to_adjustment(
+                            float(flow.get(c, {}).get("net_flow_yi", 0.0) or 0.0)
+                        ),
                     }
                     for c in get_broad_based_codes(target_plan)
                 ],
             }
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"报告JSON合规/加减仓数据收集失败: {e}")
 
         with open(json_path, "w", encoding="utf-8") as f:
@@ -1109,7 +1283,9 @@ class DailyBuildHedgeSystem:
         self.calculate_hedge_plan()
         futures_contracts = self.hedge_plan.get("futures_hedge", {}).get("contracts", 0)
         option_count = len(self.hedge_plan.get("option_hedge", []))
-        logger.info(f"对冲计划生成: 期货{futures_contracts:.2f}手, 期权{option_count}项")
+        logger.info(
+            f"对冲计划生成: 期货{futures_contracts:.2f}手, 期权{option_count}项"
+        )
 
         return {
             "status": "success",
@@ -1134,7 +1310,9 @@ if __name__ == "__main__":
   python daily_build_and_hedge.py --save                     # 保存报告到文件
         """,
     )
-    parser.add_argument("--date", "-d", type=str, default=None, help="目标日期 YYYY-MM-DD (默认: 今日)")
+    parser.add_argument(
+        "--date", "-d", type=str, default=None, help="目标日期 YYYY-MM-DD (默认: 今日)"
+    )
     parser.add_argument("--dry-run", action="store_true", help="干跑模式，不实际执行")
     parser.add_argument("--hedge-only", action="store_true", help="仅生成对冲计划")
     parser.add_argument("--save", action="store_true", help="保存报告到文件")
@@ -1147,8 +1325,13 @@ if __name__ == "__main__":
     else:
         target_date = date.today()
 
-    logger.info("daily_build_and_hedge 启动: date=%s dry_run=%s hedge_only=%s save=%s",
-                target_date, args.dry_run, args.hedge_only, args.save)
+    logger.info(
+        "daily_build_and_hedge 启动: date=%s dry_run=%s hedge_only=%s save=%s",
+        target_date,
+        args.dry_run,
+        args.hedge_only,
+        args.save,
+    )
 
     system = DailyBuildHedgeSystem(
         target_date=target_date,

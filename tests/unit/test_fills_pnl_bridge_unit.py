@@ -1,4 +1,5 @@
 """fills_pnl_bridge 单元测试 — 成交回报 PnL 桥接层全分支覆盖"""
+
 from __future__ import annotations
 
 import sys
@@ -140,7 +141,9 @@ class TestAugmentMarketPricesFailOpen:
         assert result == {"600519": {"close": 1700.0}}
 
     def test_constructor_exception_returns_copy(self):
-        with patch.object(fills_pnl_bridge, "FillsStore", side_effect=OSError("init fail")):
+        with patch.object(
+            fills_pnl_bridge, "FillsStore", side_effect=OSError("init fail")
+        ):
             mp = {"600519": {"close": 1700.0}}
             result = fills_pnl_bridge.augment_market_prices(mp)
             assert result == {"600519": {"close": 1700.0}}
@@ -151,12 +154,16 @@ class TestAugmentMarketPricesDateParam:
     def test_date_forwarded_to_store(self, patched_bridge):
         patched_bridge.latest_avg_price_by_symbol.return_value = {}
         fills_pnl_bridge.augment_market_prices({}, date="2026-08-14")
-        patched_bridge.latest_avg_price_by_symbol.assert_called_once_with("2026-08-14", strategies=None)
+        patched_bridge.latest_avg_price_by_symbol.assert_called_once_with(
+            "2026-08-14", strategies=None
+        )
 
     def test_date_none_forwarded(self, patched_bridge):
         patched_bridge.latest_avg_price_by_symbol.return_value = {}
         fills_pnl_bridge.augment_market_prices({})
-        patched_bridge.latest_avg_price_by_symbol.assert_called_once_with(None, strategies=None)
+        patched_bridge.latest_avg_price_by_symbol.assert_called_once_with(
+            None, strategies=None
+        )
 
 
 class TestRealizedPnl:
@@ -164,7 +171,9 @@ class TestRealizedPnl:
         patched_bridge.realized_pnl.return_value = {"600519": 1234.5, "000001": -50.0}
         result = fills_pnl_bridge.realized_pnl("2026-08-14")
         assert result == {"600519": 1234.5, "000001": -50.0}
-        patched_bridge.realized_pnl.assert_called_once_with("2026-08-14", strategies=None)
+        patched_bridge.realized_pnl.assert_called_once_with(
+            "2026-08-14", strategies=None
+        )
 
     def test_success_no_date(self, patched_bridge):
         patched_bridge.realized_pnl.return_value = {"600519": 100.0}

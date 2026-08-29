@@ -12,6 +12,7 @@
     cd v8.3_institutional
     python tests/e2e/test_eod_dry_run.py
 """
+
 from __future__ import annotations
 
 import json
@@ -23,7 +24,7 @@ from pathlib import Path
 
 # 路径初始化 (与 daily_workflow.py 一致)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # 28-终极量化交易系统8.4/
-V83_DIR = PROJECT_ROOT / "v8.3_institutional"                  # daily_workflow.py 所在目录
+V83_DIR = PROJECT_ROOT / "v8.3_institutional"  # daily_workflow.py 所在目录
 SRC_DIR = V83_DIR / "src"
 sys.path.insert(0, str(SRC_DIR))
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -62,6 +63,7 @@ def main():
     separator("Step 1: 构造 DailyWorkflow 实例")
     try:
         from daily_workflow import V75_READY, DailyWorkflow
+
         wf = DailyWorkflow(
             trade_date=TRADE_DATE,
             capital=5_000_000,
@@ -71,13 +73,17 @@ def main():
         # 重定向报告目录到项目内 (避免沙箱权限问题)
         wf.config.REPORT_DIR = EOD_REPORT_DIR
         print("  [OK] DailyWorkflow 实例化成功")
-        print(f"  V75_READY: {V75_READY} (核心模块 {'已加载' if V75_READY else '未加载 — check/market/risk 将降级'})")
+        print(
+            f"  V75_READY: {V75_READY} (核心模块 {'已加载' if V75_READY else '未加载 — check/market/risk 将降级'})"
+        )
         print(f"  交易计划加载: {'是' if wf.trade_plan else '否 (空计划降级)'}")
         if wf.trade_plan:
             exec_plan = wf.trade_plan.get("execution_plan", {})
-            print(f"  订单数: {exec_plan.get('total_orders', 0)} "
-                  f"(上午 {len(exec_plan.get('morning_orders', []))} + "
-                  f"下午 {len(exec_plan.get('afternoon_orders', []))})")
+            print(
+                f"  订单数: {exec_plan.get('total_orders', 0)} "
+                f"(上午 {len(exec_plan.get('morning_orders', []))} + "
+                f"下午 {len(exec_plan.get('afternoon_orders', []))})"
+            )
             print(f"  总金额: {exec_plan.get('grand_total', 0):,.0f}")
     except Exception as exc:
         print(f"  [FAIL] DailyWorkflow 实例化失败: {exc}")
@@ -88,19 +94,22 @@ def main():
     separator("Step 2: 逐 phase 执行 14 阶段链路")
 
     phases_to_run = [
-        ("check",             lambda: wf.phase_check()),
-        ("calibrate",         lambda: wf.phase_calibrate()),
-        ("market",            lambda: wf.phase_market()),
-        ("risk",              lambda: wf.phase_risk()),
-        ("hedge",             lambda: wf.phase_hedge()),
-        ("hedge_fund",        lambda: wf.phase_hedge_fund()),
-        ("v10_risk",          lambda: wf.phase_v10_risk()),
-        ("quant_neutral",     lambda: wf.phase_quant_neutral()),
-        ("cash_management",   lambda: wf.phase_cash_management()),
+        ("check", lambda: wf.phase_check()),
+        ("calibrate", lambda: wf.phase_calibrate()),
+        ("market", lambda: wf.phase_market()),
+        ("risk", lambda: wf.phase_risk()),
+        ("hedge", lambda: wf.phase_hedge()),
+        ("hedge_fund", lambda: wf.phase_hedge_fund()),
+        ("v10_risk", lambda: wf.phase_v10_risk()),
+        ("quant_neutral", lambda: wf.phase_quant_neutral()),
+        ("cash_management", lambda: wf.phase_cash_management()),
         ("directional_futures", lambda: wf.phase_directional_futures()),
-        ("signal",            lambda: wf.phase_signal()),
-        ("execute",           lambda: wf.phase_execute(wf.state.get("phases", {}).get("signal", {}))),
-        ("report",            lambda: wf.phase_report()),
+        ("signal", lambda: wf.phase_signal()),
+        (
+            "execute",
+            lambda: wf.phase_execute(wf.state.get("phases", {}).get("signal", {})),
+        ),
+        ("report", lambda: wf.phase_report()),
         # autolearn 跳过: 需 stockdb 服务 + GPU 训练, 耗时 150s+, 不适合干跑
         # ("autolearn",         lambda: wf.phase_autolearn()),
     ]
@@ -114,12 +123,12 @@ def main():
 
     # 环境依赖错误特征 (非拆分问题)
     env_error_patterns = [
-        "NoneType",          # V75_READY=False: NTPSync/RiskManager/CircuitBreaker 为 None
-        "PermissionError",   # 沙箱文件权限
-        "WinError 5",        # Windows 权限拒绝
-        "stockdb",           # stockdb 服务不可用
+        "NoneType",  # V75_READY=False: NTPSync/RiskManager/CircuitBreaker 为 None
+        "PermissionError",  # 沙箱文件权限
+        "WinError 5",  # Windows 权限拒绝
+        "stockdb",  # stockdb 服务不可用
         "ModuleNotFoundError",  # 模块缺失
-        "ImportError",       # 导入失败
+        "ImportError",  # 导入失败
     ]
 
     for phase_name, phase_func in phases_to_run:
@@ -159,8 +168,10 @@ def main():
                 pass_count += 1
                 marker = "[PASS]"
 
-            print(f"  {marker} {phase_name} ({elapsed:.2f}s) status={status} "
-                  f"result_type={type(result).__name__}")
+            print(
+                f"  {marker} {phase_name} ({elapsed:.2f}s) status={status} "
+                f"result_type={type(result).__name__}"
+            )
 
         except Exception as exc:
             elapsed = time.time() - t0
@@ -174,7 +185,9 @@ def main():
                     "elapsed": round(elapsed, 2),
                     "error": str(exc)[:100],
                 }
-                print(f"  [ENV_SKIP] {phase_name} ({elapsed:.2f}s) 环境依赖: {str(exc)[:80]}")
+                print(
+                    f"  [ENV_SKIP] {phase_name} ({elapsed:.2f}s) 环境依赖: {str(exc)[:80]}"
+                )
             else:
                 error_count += 1
                 phase_results[phase_name] = {
@@ -207,8 +220,9 @@ def main():
     report_dir = EOD_REPORT_DIR
     if report_dir.exists():
         # 搜索所有报告文件 (txt/md/json/html)
-        reports = list(report_dir.rglob(f"*{TRADE_DATE.replace('-', '')}*")) + \
-                  list(report_dir.rglob(f"*{TRADE_DATE}*"))
+        reports = list(report_dir.rglob(f"*{TRADE_DATE.replace('-', '')}*")) + list(
+            report_dir.rglob(f"*{TRADE_DATE}*")
+        )
         if reports:
             print(f"  [OK] 找到 {len(reports)} 个报告文件:")
             for r in sorted(reports)[-5:]:  # 显示最近 5 个
@@ -239,20 +253,20 @@ def main():
     # === 6. 验证拆分后门面转发正确性 ===
     separator("Step 6: 验证拆分后门面转发正确性")
     facade_checks = [
-        ("phase_check",         hasattr(wf, "phase_check")),
-        ("phase_calibrate",     hasattr(wf, "phase_calibrate")),
-        ("phase_market",        hasattr(wf, "phase_market")),
-        ("phase_risk",          hasattr(wf, "phase_risk")),
-        ("phase_hedge",         hasattr(wf, "phase_hedge")),
-        ("phase_hedge_fund",    hasattr(wf, "phase_hedge_fund")),
-        ("phase_v10_risk",      hasattr(wf, "phase_v10_risk")),
+        ("phase_check", hasattr(wf, "phase_check")),
+        ("phase_calibrate", hasattr(wf, "phase_calibrate")),
+        ("phase_market", hasattr(wf, "phase_market")),
+        ("phase_risk", hasattr(wf, "phase_risk")),
+        ("phase_hedge", hasattr(wf, "phase_hedge")),
+        ("phase_hedge_fund", hasattr(wf, "phase_hedge_fund")),
+        ("phase_v10_risk", hasattr(wf, "phase_v10_risk")),
         ("phase_quant_neutral", hasattr(wf, "phase_quant_neutral")),
         ("phase_cash_management", hasattr(wf, "phase_cash_management")),
         ("phase_directional_futures", hasattr(wf, "phase_directional_futures")),
-        ("phase_signal",        hasattr(wf, "phase_signal")),
-        ("phase_execute",       hasattr(wf, "phase_execute")),
-        ("phase_report",        hasattr(wf, "phase_report")),
-        ("phase_autolearn",     hasattr(wf, "phase_autolearn")),
+        ("phase_signal", hasattr(wf, "phase_signal")),
+        ("phase_execute", hasattr(wf, "phase_execute")),
+        ("phase_report", hasattr(wf, "phase_report")),
+        ("phase_autolearn", hasattr(wf, "phase_autolearn")),
         # 私有方法门面
         ("_qlib_signal_to_factor", hasattr(wf, "_qlib_signal_to_factor")),
         ("_execute_sim_hedge_orders", hasattr(wf, "_execute_sim_hedge_orders")),
@@ -283,8 +297,10 @@ def main():
             "split_fail": split_fail,
             "split_failure_rate": split_failure_rate,
         }
-        print(f"  拆单断言: 成功 {split_total - split_fail}/{split_total}, "
-              f"失败 {split_fail} ({split_failure_rate * 100:.1f}%)")
+        print(
+            f"  拆单断言: 成功 {split_total - split_fail}/{split_total}, "
+            f"失败 {split_fail} ({split_failure_rate * 100:.1f}%)"
+        )
         if split_fail > 0:
             print(f"  [WARN] 拆单失败 {split_fail} 笔 (期望 0)")
         if split_failure_rate > 0.5:
@@ -326,7 +342,9 @@ def main():
         },
         "split_check": split_check,
     }
-    summary_path = PROJECT_ROOT / f"eod_dry_run_summary_{TRADE_DATE.replace('-', '')}.json"
+    summary_path = (
+        PROJECT_ROOT / f"eod_dry_run_summary_{TRADE_DATE.replace('-', '')}.json"
+    )
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2, default=str)
     print(f"\n  结果摘要已保存: {summary_path.name}")

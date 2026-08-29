@@ -43,6 +43,7 @@ class WeatherAgent(BaseAgent):
         if self._engine is None:
             try:
                 from utils.weather_factor_engine import get_engine
+
                 self._engine = get_engine()
             except ImportError:
                 self._engine = None
@@ -57,7 +58,16 @@ class WeatherAgent(BaseAgent):
         try:
             engine = self.engine
             return engine is not None
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return True  # 容错: 假设可用, analyze 内部会降级
 
@@ -110,7 +120,16 @@ class WeatherAgent(BaseAgent):
                 )
 
             return self._decision_from_result(symbol, result)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return AgentDecision(
                 agent_name=self.name,
@@ -122,9 +141,7 @@ class WeatherAgent(BaseAgent):
                 key_metrics={"error": str(e)[:100]},
             )
 
-    def _decision_from_result(
-        self, symbol: str, result: Any
-    ) -> AgentDecision:
+    def _decision_from_result(self, symbol: str, result: Any) -> AgentDecision:
         """从 WeatherFactorResult 或 Dict 构建 AgentDecision."""
         # 支持两种输入: dict 或 WeatherFactorResult dataclass
         if isinstance(result, dict):
@@ -147,8 +164,11 @@ class WeatherAgent(BaseAgent):
             category = getattr(result, "category", "")
             weather_sensitivity = getattr(result, "weather_sensitivity", 0.0)
             factors = getattr(result, "factors", [])
-            drivers = [getattr(f, "description", "") or f.name
-                       for f in factors[:3]] if factors else []
+            drivers = (
+                [getattr(f, "description", "") or f.name for f in factors[:3]]
+                if factors
+                else []
+            )
             alerts = getattr(result, "alerts", []) or []
 
         # 信号 → strength: composite [-2, 2] → strength [-1, 1]
@@ -188,7 +208,11 @@ class WeatherAgent(BaseAgent):
             action=action,
             strength=round(strength, 4),
             confidence=round(confidence, 4),
-            reasoning=reasoning[:200] if reasoning else f"气象综合得分 {composite:.2f} ({signal})",
+            reasoning=(
+                reasoning[:200]
+                if reasoning
+                else f"气象综合得分 {composite:.2f} ({signal})"
+            ),
             key_metrics=key_metrics,
         )
 

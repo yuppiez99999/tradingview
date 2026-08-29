@@ -8,6 +8,7 @@
     - _save_report (落盘 json)
     - 仓位映射 (strategy/style 识别)
 """
+
 from __future__ import annotations
 
 import json
@@ -59,8 +60,11 @@ class TestRunScenarioAssetClass:
     def test_stock_strategy(self, runner):
         positions = [{"code": "001", "amount": 1_000_000, "strategy": "stock_long"}]
         result = runner._run_scenario(
-            "crash_2015", STRESS_SCENARIOS["crash_2015"],
-            positions, 1_000_000, with_intervention=False,
+            "crash_2015",
+            STRESS_SCENARIOS["crash_2015"],
+            positions,
+            1_000_000,
+            with_intervention=False,
         )
         # stock impact = -0.40, pnl = 1_000_000 * -0.40 = -400_000
         assert result["total_pnl_no_intervention"] == pytest.approx(-400_000)
@@ -69,8 +73,11 @@ class TestRunScenarioAssetClass:
     def test_etf_strategy(self, runner):
         positions = [{"code": "etf", "amount": 1_000_000, "strategy": "etf"}]
         result = runner._run_scenario(
-            "crash_2015", STRESS_SCENARIOS["crash_2015"],
-            positions, 1_000_000, with_intervention=False,
+            "crash_2015",
+            STRESS_SCENARIOS["crash_2015"],
+            positions,
+            1_000_000,
+            with_intervention=False,
         )
         # etf impact = -0.35
         assert result["total_pnl_no_intervention"] == pytest.approx(-350_000)
@@ -79,8 +86,11 @@ class TestRunScenarioAssetClass:
     def test_quant_neutral_strategy(self, runner):
         positions = [{"code": "q", "amount": 1_000_000, "strategy": "quant_neutral"}]
         result = runner._run_scenario(
-            "crash_2015", STRESS_SCENARIOS["crash_2015"],
-            positions, 1_000_000, with_intervention=False,
+            "crash_2015",
+            STRESS_SCENARIOS["crash_2015"],
+            positions,
+            1_000_000,
+            with_intervention=False,
         )
         assert result["total_pnl_no_intervention"] == pytest.approx(-150_000)
 
@@ -88,8 +98,11 @@ class TestRunScenarioAssetClass:
     def test_options_strategy(self, runner):
         positions = [{"code": "o", "amount": 200_000, "strategy": "options_tail"}]
         result = runner._run_scenario(
-            "crash_2015", STRESS_SCENARIOS["crash_2015"],
-            positions, 1_000_000, with_intervention=False,
+            "crash_2015",
+            STRESS_SCENARIOS["crash_2015"],
+            positions,
+            1_000_000,
+            with_intervention=False,
         )
         # options_tail impact = 0.75 (put payoff)
         assert result["total_pnl_no_intervention"] == pytest.approx(150_000)
@@ -98,8 +111,11 @@ class TestRunScenarioAssetClass:
     def test_futures_strategy(self, runner):
         positions = [{"code": "f", "amount": 500_000, "strategy": "futures_hedge"}]
         result = runner._run_scenario(
-            "crash_2015", STRESS_SCENARIOS["crash_2015"],
-            positions, 1_000_000, with_intervention=False,
+            "crash_2015",
+            STRESS_SCENARIOS["crash_2015"],
+            positions,
+            1_000_000,
+            with_intervention=False,
         )
         assert result["total_pnl_no_intervention"] == pytest.approx(150_000)
 
@@ -107,18 +123,26 @@ class TestRunScenarioAssetClass:
     def test_cash_strategy(self, runner):
         positions = [{"code": "c", "amount": 1_000_000, "strategy": "cash"}]
         result = runner._run_scenario(
-            "crash_2015", STRESS_SCENARIOS["crash_2015"],
-            positions, 1_000_000, with_intervention=False,
+            "crash_2015",
+            STRESS_SCENARIOS["crash_2015"],
+            positions,
+            1_000_000,
+            with_intervention=False,
         )
         assert result["total_pnl_no_intervention"] == pytest.approx(0)
 
     @pytest.mark.unit
     def test_style_based_identification(self, runner):
         """style 字段识别 (科技/制造等)"""
-        positions = [{"code": "001", "amount": 1_000_000, "strategy": "", "style": "科技"}]
+        positions = [
+            {"code": "001", "amount": 1_000_000, "strategy": "", "style": "科技"}
+        ]
         result = runner._run_scenario(
-            "crash_2015", STRESS_SCENARIOS["crash_2015"],
-            positions, 1_000_000, with_intervention=False,
+            "crash_2015",
+            STRESS_SCENARIOS["crash_2015"],
+            positions,
+            1_000_000,
+            with_intervention=False,
         )
         assert result["total_pnl_no_intervention"] == pytest.approx(-400_000)
 
@@ -137,8 +161,11 @@ class TestIntervention:
     def test_slow_bear_intervention_benefit(self, runner):
         positions = [{"code": "s", "amount": 5_000_000, "strategy": "stock_long"}]
         result = runner._run_scenario(
-            "slow_bear_2018", STRESS_SCENARIOS["slow_bear_2018"],
-            positions, 5_000_000, with_intervention=True,
+            "slow_bear_2018",
+            STRESS_SCENARIOS["slow_bear_2018"],
+            positions,
+            5_000_000,
+            with_intervention=True,
         )
         assert result["intervention_benefit"] > 0
         assert result["actual_pnl"] > result["total_pnl_no_intervention"]
@@ -147,8 +174,11 @@ class TestIntervention:
     def test_slow_bear_no_intervention(self, runner):
         positions = [{"code": "s", "amount": 5_000_000, "strategy": "stock_long"}]
         result = runner._run_scenario(
-            "slow_bear_2018", STRESS_SCENARIOS["slow_bear_2018"],
-            positions, 5_000_000, with_intervention=False,
+            "slow_bear_2018",
+            STRESS_SCENARIOS["slow_bear_2018"],
+            positions,
+            5_000_000,
+            with_intervention=False,
         )
         assert result["intervention_benefit"] == 0
 
@@ -156,8 +186,11 @@ class TestIntervention:
     def test_liquidity_crisis_intervention(self, runner):
         positions = [{"code": "s", "amount": 5_000_000, "strategy": "stock_long"}]
         result = runner._run_scenario(
-            "liquidity_crisis", STRESS_SCENARIOS["liquidity_crisis"],
-            positions, 5_000_000, with_intervention=True,
+            "liquidity_crisis",
+            STRESS_SCENARIOS["liquidity_crisis"],
+            positions,
+            5_000_000,
+            with_intervention=True,
         )
         assert result["intervention_benefit"] > 0
 
@@ -166,8 +199,11 @@ class TestIntervention:
         """crash_2015 无干预收益"""
         positions = [{"code": "s", "amount": 5_000_000, "strategy": "stock_long"}]
         result = runner._run_scenario(
-            "crash_2015", STRESS_SCENARIOS["crash_2015"],
-            positions, 5_000_000, with_intervention=True,
+            "crash_2015",
+            STRESS_SCENARIOS["crash_2015"],
+            positions,
+            5_000_000,
+            with_intervention=True,
         )
         assert result["intervention_benefit"] == 0
 
@@ -223,7 +259,9 @@ class TestRunAllScenarios:
 
     @pytest.mark.unit
     def test_with_intervention_flag(self, runner, sim_positions):
-        result = runner.run_all_scenarios(sim_positions, 5_000_000, with_intervention=False)
+        result = runner.run_all_scenarios(
+            sim_positions, 5_000_000, with_intervention=False
+        )
         assert result["with_intervention"] is False
         for s in result["scenarios"].values():
             assert s["with_intervention"] is False

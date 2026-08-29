@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # ===========================================================
 class SourceHealthEntry(TypedDict):
     """单数据源健康状态条目"""
+
     ok: bool
     last_error: Optional[str]
     last_success: Optional[str]
@@ -66,7 +67,9 @@ class AKShareDataSource:
         self._spot_cache = {}
         self._spot_cache_time = 0
         self._spot_cache_ttl = 60
-        self.source_health = {"akshare": SourceHealthEntry(ok=False, last_error=None, last_success=None)}
+        self.source_health = {
+            "akshare": SourceHealthEntry(ok=False, last_error=None, last_success=None)
+        }
         self._init_connection()
 
     def _init_connection(self) -> None:
@@ -82,7 +85,16 @@ class AKShareDataSource:
         except ImportError as e:
             self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"
             logger.warning(f"AKShare 数据源模块导入失败: {e}")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             self.source_health["akshare"]["last_error"] = str(e)
             logger.warning(f"AKShare 数据源初始化失败: {e}")
 
@@ -108,11 +120,23 @@ class AKShareDataSource:
     def _get_market(self, symbol: str) -> str:
         """获取市场代码"""
         s = str(symbol).strip()
-        if s.startswith(("sh", "SH")) or s.endswith((".SH", ".sh")) or s.startswith("6"):
+        if (
+            s.startswith(("sh", "SH"))
+            or s.endswith((".SH", ".sh"))
+            or s.startswith("6")
+        ):
             return "sh"
-        if s.startswith(("sz", "SZ")) or s.endswith((".SZ", ".sz")) or s.startswith(("0", "3")):
+        if (
+            s.startswith(("sz", "SZ"))
+            or s.endswith((".SZ", ".sz"))
+            or s.startswith(("0", "3"))
+        ):
             return "sz"
-        if s.startswith(("bj", "BJ")) or s.endswith((".BJ", ".bj")) or s.startswith(("4", "8")):
+        if (
+            s.startswith(("bj", "BJ"))
+            or s.endswith((".BJ", ".bj"))
+            or s.startswith(("4", "8"))
+        ):
             return "bj"
         return "sh"
 
@@ -148,7 +172,16 @@ class AKShareDataSource:
                         self._spot_cache[code] = row.to_dict()
                 self._spot_cache_time = now
                 logger.debug(f"AKShare 缓存全市场数据: {len(self._spot_cache)} 只股票")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.debug(f"AKShare 缓存全市场数据失败: {e}")
 
     def get_realtime_quote(self, symbol: str) -> Optional[dict]:
@@ -197,13 +230,24 @@ class AKShareDataSource:
                 "source": "akshare",
             }
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             self.source_health["akshare"]["ok"] = False
             self.source_health["akshare"]["last_error"] = str(e)
             logger.error(f"AKShare 获取实时行情失败: {e}")
             return None
 
-    def get_historical_klines(self, symbol: str, period: str = "1d", count: int = 252) -> Optional[pd.DataFrame]:
+    def get_historical_klines(
+        self, symbol: str, period: str = "1d", count: int = 252
+    ) -> Optional[pd.DataFrame]:
         """获取历史K线数据
 
         Args:
@@ -243,12 +287,14 @@ class AKShareDataSource:
             # 实时未复权成交价对齐。实时行情 (data_provider) 统一用未复权。
             if period in ("1d", "1w", "1m"):
                 df = ak.stock_zh_a_hist(
-                symbol=code, period=ak_period, start_date="", end_date="", adjust="hfq"
+                    symbol=code,
+                    period=ak_period,
+                    start_date="",
+                    end_date="",
+                    adjust="hfq",
                 )
             else:
-                df = ak.stock_zh_a_minute(
-                symbol=code, period=ak_period, adjust="hfq"
-                )
+                df = ak.stock_zh_a_minute(symbol=code, period=ak_period, adjust="hfq")
 
             if df is None or df.empty:
                 logger.warning(f"AKShare 返回空 K 线数据: {symbol}")
@@ -317,7 +363,16 @@ class AKShareDataSource:
             self.source_health["akshare"]["last_success"] = datetime.now().isoformat()
             return result_df
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             self.source_health["akshare"]["ok"] = False
             self.source_health["akshare"]["last_error"] = str(e)
             logger.error(f"AKShare 获取历史K线失败: {e}")
@@ -361,7 +416,16 @@ class AKShareDataSource:
 
             return result
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"AKShare 获取财务数据失败: {e}")
             return None
 
@@ -421,7 +485,16 @@ class AKShareDataSource:
             logger.info("[AKShare] 快照筛选停牌 %d 只", len(result))
             return result
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             logger.error(f"AKShare 获取停牌列表失败: {e}")
             return {}
 

@@ -5,6 +5,7 @@
     - 24 个申万一级行业信号
     - 动量/资金流/估值三维度融合
 """
+
 from __future__ import annotations
 
 import sys
@@ -47,30 +48,54 @@ def main() -> None:
 
     # 24 个申万一级行业
     sectors = [
-        "农林牧渔", "采掘", "化工", "钢铁", "有色金属", "电子",
-        "家用电器", "食品饮料", "纺织服装", "轻工制造", "医药生物", "公用事业",
-        "交通运输", "房地产", "商业贸易", "休闲服务", "银行", "非银金融",
-        "综合", "建筑材料", "建筑装饰", "电气设备", "机械设备", "国防军工",
+        "农林牧渔",
+        "采掘",
+        "化工",
+        "钢铁",
+        "有色金属",
+        "电子",
+        "家用电器",
+        "食品饮料",
+        "纺织服装",
+        "轻工制造",
+        "医药生物",
+        "公用事业",
+        "交通运输",
+        "房地产",
+        "商业贸易",
+        "休闲服务",
+        "银行",
+        "非银金融",
+        "综合",
+        "建筑材料",
+        "建筑装饰",
+        "电气设备",
+        "机械设备",
+        "国防军工",
     ]
 
     # 示例数据 (实际由 sector_rotation 模块生成)
     import random
+
     random.seed(42)
     data = []
     for s in sectors:
         signal = random.choice(["超配", "标配", "低配"])
         score = round(random.uniform(-1, 1), 3)
-        data.append({
-            "行业": s,
-            "信号": signal,
-            "综合得分": score,
-            "动量得分": round(random.uniform(-1, 1), 3),
-            "资金流得分": round(random.uniform(-1, 1), 3),
-            "估值得分": round(random.uniform(-1, 1), 3),
-        })
+        data.append(
+            {
+                "行业": s,
+                "信号": signal,
+                "综合得分": score,
+                "动量得分": round(random.uniform(-1, 1), 3),
+                "资金流得分": round(random.uniform(-1, 1), 3),
+                "估值得分": round(random.uniform(-1, 1), 3),
+            }
+        )
 
     try:
         import pandas as pd
+
         df = pd.DataFrame(data)
         st.dataframe(df, use_container_width=True, hide_index=True)
 

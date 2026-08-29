@@ -410,7 +410,11 @@ class OptionExerciseRiskManager:
                         "reason": f"行权风险管理: {r.assignment_probability}",
                         "days_to_expiry": r.days_to_expiry,
                         "potential_loss": r.potential_loss,
-                        "urgency": "high" if r.assignment_probability == "CERTAIN" else "medium",
+                        "urgency": (
+                            "high"
+                            if r.assignment_probability == "CERTAIN"
+                            else "medium"
+                        ),
                     }
                 )
             # 买方: 卖出平仓 (虚值期权止损)

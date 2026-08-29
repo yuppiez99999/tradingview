@@ -10,6 +10,7 @@
     - _detect_gaming (无盘口/不平衡/价差异常)
     - summarize_decision
 """
+
 from __future__ import annotations
 
 import pytest
@@ -127,7 +128,9 @@ class TestRoute:
     @pytest.mark.unit
     def test_liquidity_first(self):
         r = SmartOrderRouter()
-        decision = r.route(symbol="600519", side="BUY", total_shares=10000, strategy="LIQUIDITY_FIRST")
+        decision = r.route(
+            symbol="600519", side="BUY", total_shares=10000, strategy="LIQUIDITY_FIRST"
+        )
         assert decision.strategy == "LIQUIDITY_FIRST"
         # SSE_MAIN 流动性最高
         assert decision.primary_venue == "SSE_MAIN"
@@ -135,7 +138,9 @@ class TestRoute:
     @pytest.mark.unit
     def test_iceberg(self):
         r = SmartOrderRouter()
-        decision = r.route(symbol="600519", side="BUY", total_shares=10000, strategy="ICEBERG")
+        decision = r.route(
+            symbol="600519", side="BUY", total_shares=10000, strategy="ICEBERG"
+        )
         assert decision.strategy == "ICEBERG"
         # 主场所可见部分应小于总量
         if decision.allocations:
@@ -144,7 +149,9 @@ class TestRoute:
     @pytest.mark.unit
     def test_dark_first(self):
         r = SmartOrderRouter()
-        decision = r.route(symbol="600519", side="BUY", total_shares=10000, strategy="DARK_FIRST")
+        decision = r.route(
+            symbol="600519", side="BUY", total_shares=10000, strategy="DARK_FIRST"
+        )
         # DARK_FIRST 只用暗池/大宗
         assert len(decision.allocations) > 0
         for a in decision.allocations:
@@ -153,20 +160,27 @@ class TestRoute:
     @pytest.mark.unit
     def test_max_venues_limit(self):
         r = SmartOrderRouter()
-        decision = r.route(symbol="600519", side="BUY", total_shares=10000, max_venues=2)
+        decision = r.route(
+            symbol="600519", side="BUY", total_shares=10000, max_venues=2
+        )
         assert len(decision.allocations) <= 2
 
     @pytest.mark.unit
     def test_with_order_books(self):
         r = SmartOrderRouter()
         book = OrderBookSnapshot(
-            venue_name="SSE_MAIN", timestamp="2026-08-18",
-            bid_prices=[10.0, 9.99, 9.98], bid_sizes=[5000, 3000, 2000],
-            ask_prices=[10.01, 10.02, 10.03], ask_sizes=[4000, 2000, 1000],
+            venue_name="SSE_MAIN",
+            timestamp="2026-08-18",
+            bid_prices=[10.0, 9.99, 9.98],
+            bid_sizes=[5000, 3000, 2000],
+            ask_prices=[10.01, 10.02, 10.03],
+            ask_sizes=[4000, 2000, 1000],
             last_price=10.005,
         )
         decision = r.route(
-            symbol="600519", side="BUY", total_shares=1000,
+            symbol="600519",
+            side="BUY",
+            total_shares=1000,
             order_books={"SSE_MAIN": book},
         )
         assert len(decision.allocations) > 0
@@ -182,7 +196,9 @@ class TestRoute:
     @pytest.mark.unit
     def test_total_shares_conserved(self):
         r = SmartOrderRouter()
-        decision = r.route(symbol="600519", side="BUY", total_shares=10000, max_venues=2)
+        decision = r.route(
+            symbol="600519", side="BUY", total_shares=10000, max_venues=2
+        )
         total = sum(a.recommended_shares for a in decision.allocations)
         assert abs(total - 10000) < len(decision.allocations)
 
@@ -202,9 +218,12 @@ class TestDetectGaming:
     def test_balanced_book(self):
         r = SmartOrderRouter()
         book = OrderBookSnapshot(
-            venue_name="SSE", timestamp="t",
-            bid_prices=[10.0], bid_sizes=[5000],
-            ask_prices=[10.01], ask_sizes=[5000],
+            venue_name="SSE",
+            timestamp="t",
+            bid_prices=[10.0],
+            bid_sizes=[5000],
+            ask_prices=[10.01],
+            ask_sizes=[5000],
             last_price=10.005,
         )
         detected, risk = r._detect_gaming({"SSE": book}, "BUY")
@@ -215,9 +234,12 @@ class TestDetectGaming:
     def test_imbalanced_book(self):
         r = SmartOrderRouter(gaming_threshold=0.3)
         book = OrderBookSnapshot(
-            venue_name="SSE", timestamp="t",
-            bid_prices=[10.0], bid_sizes=[10000],
-            ask_prices=[10.001], ask_sizes=[100],
+            venue_name="SSE",
+            timestamp="t",
+            bid_prices=[10.0],
+            bid_sizes=[10000],
+            ask_prices=[10.001],
+            ask_sizes=[100],
             last_price=10.0,
         )
         detected, risk = r._detect_gaming({"SSE": book}, "BUY")
@@ -234,7 +256,9 @@ class TestSummarize:
     @pytest.mark.unit
     def test_summary(self):
         r = SmartOrderRouter()
-        decision = r.route(symbol="600519", side="BUY", total_shares=10000, max_venues=2)
+        decision = r.route(
+            symbol="600519", side="BUY", total_shares=10000, max_venues=2
+        )
         s = r.summarize_decision(decision)
         assert s["symbol"] == "600519"
         assert s["num_venues"] == len(decision.allocations)

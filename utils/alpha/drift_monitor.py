@@ -73,7 +73,9 @@ except ImportError:
         _DRIFT_DETECTOR_AVAILABLE = True
     except ImportError:
         _DRIFT_DETECTOR_AVAILABLE = False
-        logger.warning("drift_detector 模块不可用 (ms_strategy/src/ml/drift_detector.py), DriftMonitor 将降级为 no-op")
+        logger.warning(
+            "drift_detector 模块不可用 (ms_strategy/src/ml/drift_detector.py), DriftMonitor 将降级为 no-op"
+        )
         # 降级占位符
         ADWINDetector = None
         ModelDriftDetector = None
@@ -174,7 +176,14 @@ class DriftMonitor:
             if alert is not None:
                 self._record_alert(alert)
             return alert
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.exception("IC 更新失败: %s", e)
             return None
 
@@ -187,7 +196,14 @@ class DriftMonitor:
             if alert is not None:
                 self._record_alert(alert)
             return alert
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.exception("ADWIN 更新失败: %s", e)
             return None
 
@@ -200,7 +216,14 @@ class DriftMonitor:
             for a in alerts:
                 self._record_alert(a)
             return alerts  # type: ignore[return-value]  # 上游返回类型可能为 Any, 此处已是 list
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.exception("特征漂移检查失败: %s", e)
             return []
 
@@ -215,7 +238,14 @@ class DriftMonitor:
             # 检查是否需要触发重训练
             self._check_retrain_trigger(alerts)
             return alerts  # type: ignore[return-value]
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.exception("全量检查失败: %s", e)
             return []
 
@@ -240,10 +270,20 @@ class DriftMonitor:
             with self._lock:
                 self._alerts_history.append(alert_dict)
             # 写 JSONL
-            alert_file = self.alerts_dir / f"{self.model_name}_{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl"
+            alert_file = (
+                self.alerts_dir
+                / f"{self.model_name}_{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl"
+            )
             with open(alert_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(alert_dict, ensure_ascii=False, default=str) + "\n")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("告警持久化失败: %s", e, exc_info=True)
 
     # ============================================================
@@ -263,7 +303,9 @@ class DriftMonitor:
         for alert in alerts:
             severity = getattr(alert, "severity", None)
             severity_val = (
-                cast(Any, severity).value if hasattr(severity, "value") else str(severity)
+                cast(Any, severity).value
+                if hasattr(severity, "value")
+                else str(severity)
             )
             if severity_val == self.retrain_threshold_severity:
                 severity_met = True
@@ -293,10 +335,24 @@ class DriftMonitor:
                             len(alerts),
                             self.retrain_threshold_severity,
                         )
-                except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    OSError,
+                    RuntimeError,
+                ) as e:
                     logger.exception("再平衡回调异常: %s", e)
             return triggered
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.exception("重训练回调异常: %s", e)
             return False
 
@@ -307,7 +363,14 @@ class DriftMonitor:
         try:
             should, reason = self.detector.should_retrain()
             return bool(should), str(reason)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             return False, f"判断异常: {e}"
 
     # ============================================================
@@ -363,7 +426,10 @@ class DriftMonitor:
                 "alerts_count": len(self._alerts_history),
                 "retrain_triggered": self._retrain_triggered,
                 "last_retrain_time": self._last_retrain_time,
-                "is_monitoring": (self._monitoring_thread is not None and self._monitoring_thread.is_alive()),
+                "is_monitoring": (
+                    self._monitoring_thread is not None
+                    and self._monitoring_thread.is_alive()
+                ),
                 "monitoring_interval": self._monitoring_interval,
                 "timestamp": datetime.utcnow().isoformat() + "Z",
             }
@@ -384,7 +450,14 @@ class DriftMonitor:
             report["retrain_triggered"] = self._retrain_triggered
             report["last_retrain_time"] = self._last_retrain_time
             return report  # type: ignore[return-value]
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             return {"model_name": self.model_name, "error": str(e)}
 
     def reset_retrain_state(self) -> None:
@@ -445,7 +518,9 @@ try:
 
     _USE_DRIFT_DETECTOR_FLAG = _is_drift_flag_enabled("USE_DRIFT_DETECTOR")
 except (ImportError, Exception):
-    _USE_DRIFT_DETECTOR_FLAG = os.environ.get("USE_DRIFT_DETECTOR", "false").lower() in (
+    _USE_DRIFT_DETECTOR_FLAG = os.environ.get(
+        "USE_DRIFT_DETECTOR", "false"
+    ).lower() in (
         "1",
         "true",
         "yes",
@@ -551,7 +626,11 @@ def _classify_severity(ks_score: float, psi: float) -> DriftSeverity:
         DriftSeverity.HIGH: 2,
         DriftSeverity.CRITICAL: 3,
     }
-    return ks_severity if severity_order[ks_severity] >= severity_order[psi_severity] else psi_severity
+    return (
+        ks_severity
+        if severity_order[ks_severity] >= severity_order[psi_severity]
+        else psi_severity
+    )
 
 
 def compute_psi(baseline: pd.Series, current: pd.Series, n_bins: int = 10) -> float:
@@ -599,7 +678,9 @@ def compute_psi(baseline: pd.Series, current: pd.Series, n_bins: int = 10) -> fl
     current_pct = current_counts / len(current_clean) + eps
 
     # PSI = Σ (actual - expected) * ln(actual / expected)
-    psi = float(np.sum((current_pct - baseline_pct) * np.log(current_pct / baseline_pct)))
+    psi = float(
+        np.sum((current_pct - baseline_pct) * np.log(current_pct / baseline_pct))
+    )
     # 处理 nan/inf (极端情况)
     if not np.isfinite(psi):
         return 0.0
@@ -647,15 +728,21 @@ def compute_feature_drift(
     # KS 检验 (scipy 可用时) 或降级为均值差
     if _SCIPY_AVAILABLE and len(baseline_clean) >= 2 and len(current_clean) >= 2:
         try:
-            ks_stat, _ = _scipy_stats.ks_2samp(baseline_clean.values, current_clean.values)
+            ks_stat, _ = _scipy_stats.ks_2samp(
+                baseline_clean.values, current_clean.values
+            )
             ks_score = float(ks_stat)
         except (ValueError, TypeError, KeyError, AttributeError, OSError):
             # 降级: 用均值差 / (std + eps)
             std_pool = float(np.std(list(baseline_clean) + list(current_clean))) + 1e-8
-            ks_score = float(abs(np.mean(current_clean) - np.mean(baseline_clean)) / std_pool)
+            ks_score = float(
+                abs(np.mean(current_clean) - np.mean(baseline_clean)) / std_pool
+            )
     else:
         std_pool = float(np.std(list(baseline_clean) + list(current_clean))) + 1e-8
-        ks_score = float(abs(np.mean(current_clean) - np.mean(baseline_clean)) / std_pool)
+        ks_score = float(
+            abs(np.mean(current_clean) - np.mean(baseline_clean)) / std_pool
+        )
 
     # PSI
     psi = compute_psi(baseline_clean, current_clean)
@@ -723,12 +810,21 @@ def _load_alert_owners(config_path: str | None = None) -> dict[str, dict[str, st
         # 支持 {models: [...]} 或直接 {model_name: {...}} 两种格式
         if "models" in data:
             models_list = data["models"]
-            return {m["name"]: m for m in models_list if isinstance(m, dict) and "name" in m}
+            return {
+                m["name"]: m for m in models_list if isinstance(m, dict) and "name" in m
+            }
         return {k: v for k, v in data.items() if isinstance(v, dict)}
     except FileNotFoundError:
         logger.warning(f"alert_owners.yaml 不存在: {config_path}")
         return {}
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+    except (
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+    ) as e:
         logger.warning(f"加载 alert_owners.yaml 失败: {e}")
         return {}
 
@@ -793,7 +889,11 @@ class SimModeDriftMonitor:
         if feature_columns is not None:
             self._feature_columns: list[str] = list(feature_columns)
         elif baseline_panel is not None:
-            self._feature_columns = [c for c in baseline_panel.columns if c not in ("code", "date", "y", "symbol")]
+            self._feature_columns = [
+                c
+                for c in baseline_panel.columns
+                if c not in ("code", "date", "y", "symbol")
+            ]
         else:
             self._feature_columns = []
         # 报告目录
@@ -822,7 +922,9 @@ class SimModeDriftMonitor:
         """设置基线 panel (训练后调用)."""
         self._baseline_panel = panel
         if not self._feature_columns:
-            self._feature_columns = [c for c in panel.columns if c not in ("code", "date", "y", "symbol")]
+            self._feature_columns = [
+                c for c in panel.columns if c not in ("code", "date", "y", "symbol")
+            ]
 
     def run_daily_check(self, current_panel: pd.DataFrame) -> list[DriftReport]:
         """每日漂移检查 (批量检查所有特征).
@@ -874,7 +976,9 @@ class SimModeDriftMonitor:
                 baseline_size=report.baseline_size,
                 current_size=report.current_size,
                 owner=owner_info.get("owner", ""),
-                runbook_url=owner_info.get("runbook_url", "docs/runbooks/MODEL_DRIFT_RUNBOOK.md"),
+                runbook_url=owner_info.get(
+                    "runbook_url", "docs/runbooks/MODEL_DRIFT_RUNBOOK.md"
+                ),
             )
             reports.append(report)
 
@@ -928,7 +1032,11 @@ class SimModeDriftMonitor:
                 psi=0.0,
                 severity=DriftSeverity.LOW,
                 baseline_mean=0.0,
-                current_mean=float(np.mean(current_predictions)) if len(current_predictions) else 0.0,
+                current_mean=(
+                    float(np.mean(current_predictions))
+                    if len(current_predictions)
+                    else 0.0
+                ),
             )
         return compute_prediction_drift(
             baseline=baseline_pred,
@@ -969,7 +1077,14 @@ class SimModeDriftMonitor:
                 report_file,
                 len(reports),
             )
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("漂移报告持久化失败: %s", e)
 
     def get_history(self, limit: int = 100) -> list[DriftReport]:
@@ -980,7 +1095,9 @@ class SimModeDriftMonitor:
         """获取漂移检查汇总."""
         severity_counts: dict[str, int] = {s.value: 0 for s in DriftSeverity}
         for r in self._history:
-            severity_counts[r.severity.value] = severity_counts.get(r.severity.value, 0) + 1
+            severity_counts[r.severity.value] = (
+                severity_counts.get(r.severity.value, 0) + 1
+            )
         return {
             "model_name": self.model_name,
             "model_version": self.model_version,

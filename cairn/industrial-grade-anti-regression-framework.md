@@ -282,3 +282,14 @@ Feature Flag 启用检查
 | `utils/notify.py` | 告警发送模块(机制#5调用) |
 | `docs/GAP_ASSESSMENT_v9.1_工业级达标计划_20260806.md` | 工业级差距评估与达标计划 |
 | `docs/COMPLETION_REPORT_v9.0_工程地基修复_20260806.md` | v9.0工程地基修复完成报告 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [CI 修复与门禁落地经验（R1/R2/R4 · 2026-08-12）](ci-repair-and-gate-lessons-20260812.md) (相似度 13%)
+- [代码审查质量门禁经验沉淀：为什么多次审查仍有 bug](code-review-quality-gate-lessons-20260811.md) (相似度 11%)
+- [代码质量工业级差距审计 — 2026-08-19](code-quality-industrial-gap-20260819.md) (相似度 9%)
+- [代码审查复审（二次 · 2026-08-12）落地与治理](code-review-reaudit-20260812.md) (相似度 9%)
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

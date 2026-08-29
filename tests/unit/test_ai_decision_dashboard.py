@@ -15,7 +15,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from ai_decision.dashboard import (
     BudgetConfig,
@@ -66,8 +68,13 @@ def _write_exec_audit(date_str: str, records):
 
 
 def _make_exec_record(
-    symbol="600519", action="buy", mode="paper", executed=True,
-    veto=False, escalation=False, escalation_reason="",
+    symbol="600519",
+    action="buy",
+    mode="paper",
+    executed=True,
+    veto=False,
+    escalation=False,
+    escalation_reason="",
     tca_post_report=None,
 ):
     """构造单条执行审计记录"""
@@ -94,6 +101,7 @@ def _make_exec_record(
 # 验收 1: generate_daily_dashboard 返回完整 dict, 无 KeyError
 # ============================================================
 
+
 def test_generate_dashboard_returns_complete_dict():
     """验收 1: 返回完整 dict, 5 个章节 + 元数据, 无 KeyError"""
     _cleanup_reports()
@@ -102,8 +110,13 @@ def test_generate_dashboard_returns_complete_dict():
 
     # 5 个章节 + 元数据
     expected_keys = {
-        "date", "model_health", "tca_summary",
-        "decision_summary", "execution_summary", "alerts", "generated_at",
+        "date",
+        "model_health",
+        "tca_summary",
+        "decision_summary",
+        "execution_summary",
+        "alerts",
+        "generated_at",
     }
     assert set(report.keys()) == expected_keys
     assert report["date"] == "2026-07-28"
@@ -134,6 +147,7 @@ def test_generate_dashboard_no_crash_on_empty_data():
 # ============================================================
 # 验收 2: Markdown 报告含 5 章节
 # ============================================================
+
 
 def test_markdown_contains_5_sections():
     """验收 2: Markdown 报告含 5 章节 (模型/TCA/决策/执行/告警)"""
@@ -170,6 +184,7 @@ def test_markdown_model_health_table():
 # 验收 3: 预算超限时 maybe_degrade_on_budget 返回降级标记
 # ============================================================
 
+
 def test_maybe_degrade_on_circuit_open():
     """验收 3: 模型熔断时 maybe_degrade_on_budget 返回 role → mock"""
     # 构造熔断状态的 monitor
@@ -205,8 +220,7 @@ def test_check_budget_alert_latency_warning():
 
     # 应有 latency 告警
     latency_alerts = [
-        a for a in report["alerts"]
-        if a.get("dimension") == "model_latency"
+        a for a in report["alerts"] if a.get("dimension") == "model_latency"
     ]
     # 如果有角色被探测过, 应触发延迟告警
     roles = report["model_health"].get("roles", {})
@@ -218,6 +232,7 @@ def test_check_budget_alert_latency_warning():
 # ============================================================
 # 验收 4: 落盘 Markdown + JSON
 # ============================================================
+
 
 def test_save_creates_md_and_json():
     """验收 4: save() 后 dashboard_{date}.md + .json 存在且非空"""
@@ -254,16 +269,35 @@ def test_save_default_date():
 # 补充: TCA 成本数据收集
 # ============================================================
 
+
 def test_tca_summary_from_estimates():
     """补充: 从 estimate_{date}.jsonl 收集 TCA 成本数据"""
     _cleanup_reports()
     date_str = "2026-07-28"
-    _write_tca_estimates(date_str, [
-        {"symbol": "600519", "approved": True, "estimated_cost_bps": 10.5, "tier": "large"},
-        {"symbol": "000001", "approved": True, "estimated_cost_bps": 15.2, "tier": "large"},
-        {"symbol": "300750", "approved": False, "estimated_cost_bps": 45.0, "tier": "mid",
-         "rejection_reason": "cost_bps=45.0 > threshold=30.0"},
-    ])
+    _write_tca_estimates(
+        date_str,
+        [
+            {
+                "symbol": "600519",
+                "approved": True,
+                "estimated_cost_bps": 10.5,
+                "tier": "large",
+            },
+            {
+                "symbol": "000001",
+                "approved": True,
+                "estimated_cost_bps": 15.2,
+                "tier": "large",
+            },
+            {
+                "symbol": "300750",
+                "approved": False,
+                "estimated_cost_bps": 45.0,
+                "tier": "mid",
+                "rejection_reason": "cost_bps=45.0 > threshold=30.0",
+            },
+        ],
+    )
 
     gen = DashboardGenerator()
     tca = gen._collect_tca_summary(date_str)
@@ -280,17 +314,22 @@ def test_tca_alert_on_high_cost():
     """补充: TCA 最高成本 > 50bps 触发 WARNING"""
     _cleanup_reports()
     date_str = "2026-07-28"
-    _write_tca_estimates(date_str, [
-        {"symbol": "600519", "approved": False, "estimated_cost_bps": 65.0, "tier": "mid"},
-    ])
+    _write_tca_estimates(
+        date_str,
+        [
+            {
+                "symbol": "600519",
+                "approved": False,
+                "estimated_cost_bps": 65.0,
+                "tier": "mid",
+            },
+        ],
+    )
 
     gen = DashboardGenerator()
     report = gen.generate_daily_dashboard(date_str)
 
-    tca_alerts = [
-        a for a in report["alerts"]
-        if a.get("dimension") == "tca_cost"
-    ]
+    tca_alerts = [a for a in report["alerts"] if a.get("dimension") == "tca_cost"]
     assert len(tca_alerts) > 0
     assert tca_alerts[0]["severity"] == "WARNING"
     assert tca_alerts[0]["value"] == 65.0
@@ -300,17 +339,19 @@ def test_tca_alert_on_high_reject_rate():
     """补充: TCA 否决率 > 30% 触发 WARNING"""
     _cleanup_reports()
     date_str = "2026-07-28"
-    _write_tca_estimates(date_str, [
-        {"symbol": f"00000{i}", "approved": i < 2, "estimated_cost_bps": 10.0}
-        for i in range(5)
-    ])  # 5 笔, 3 笔否决, 否决率 60%
+    _write_tca_estimates(
+        date_str,
+        [
+            {"symbol": f"00000{i}", "approved": i < 2, "estimated_cost_bps": 10.0}
+            for i in range(5)
+        ],
+    )  # 5 笔, 3 笔否决, 否决率 60%
 
     gen = DashboardGenerator()
     report = gen.generate_daily_dashboard(date_str)
 
     reject_alerts = [
-        a for a in report["alerts"]
-        if a.get("dimension") == "tca_reject_rate"
+        a for a in report["alerts"] if a.get("dimension") == "tca_reject_rate"
     ]
     assert len(reject_alerts) > 0
     assert reject_alerts[0]["severity"] == "WARNING"
@@ -320,19 +361,40 @@ def test_tca_alert_on_high_reject_rate():
 # 补充: 执行审计数据收集
 # ============================================================
 
+
 def test_execution_summary_from_audit():
     """补充: 从 exec_{date}.jsonl 收集执行质量数据"""
     _cleanup_reports()
     date_str = "2026-07-28"
-    _write_exec_audit(date_str, [
-        _make_exec_record(symbol="600519", action="buy", mode="paper", executed=True),
-        _make_exec_record(symbol="000001", action="sell", mode="auto", executed=True),
-        _make_exec_record(symbol="300750", action="buy", mode="auto", executed=False,
-                          veto=True, escalation=True, escalation_reason="L2 风控否决: 黑名单"),
-        _make_exec_record(symbol="688981", action="buy", mode="paper", executed=True,
-                          escalation=True, escalation_reason="TCA 预筛否决: cost_bps=45.0",
-                          tca_post_report={"quality_grade": "A", "is_cost_bps": 3.2}),
-    ])
+    _write_exec_audit(
+        date_str,
+        [
+            _make_exec_record(
+                symbol="600519", action="buy", mode="paper", executed=True
+            ),
+            _make_exec_record(
+                symbol="000001", action="sell", mode="auto", executed=True
+            ),
+            _make_exec_record(
+                symbol="300750",
+                action="buy",
+                mode="auto",
+                executed=False,
+                veto=True,
+                escalation=True,
+                escalation_reason="L2 风控否决: 黑名单",
+            ),
+            _make_exec_record(
+                symbol="688981",
+                action="buy",
+                mode="paper",
+                executed=True,
+                escalation=True,
+                escalation_reason="TCA 预筛否决: cost_bps=45.0",
+                tca_post_report={"quality_grade": "A", "is_cost_bps": 3.2},
+            ),
+        ],
+    )
 
     gen = DashboardGenerator()
     exe = gen._collect_execution_summary(date_str)
@@ -351,18 +413,23 @@ def test_execution_alert_on_high_escalation_rate():
     """补充: escalation 率 > 50% 触发 WARNING"""
     _cleanup_reports()
     date_str = "2026-07-28"
-    _write_exec_audit(date_str, [
-        _make_exec_record(symbol=f"00000{i}", escalation=(i >= 2),
-                          escalation_reason=f"原因{i}" if i >= 2 else "")
-        for i in range(4)
-    ])  # 4 笔, 2 笔 escalation, 率 50% (边界值, 不触发; 改为 3/4=75%)
+    _write_exec_audit(
+        date_str,
+        [
+            _make_exec_record(
+                symbol=f"00000{i}",
+                escalation=(i >= 2),
+                escalation_reason=f"原因{i}" if i >= 2 else "",
+            )
+            for i in range(4)
+        ],
+    )  # 4 笔, 2 笔 escalation, 率 50% (边界值, 不触发; 改为 3/4=75%)
 
     gen = DashboardGenerator()
     report = gen.generate_daily_dashboard(date_str)
 
     esc_alerts = [
-        a for a in report["alerts"]
-        if a.get("dimension") == "escalation_rate"
+        a for a in report["alerts"] if a.get("dimension") == "escalation_rate"
     ]
     # 2/4 = 50%, 刚好等于阈值 0.5, 不触发 (条件是 > 0.5)
     assert len(esc_alerts) == 0
@@ -372,20 +439,20 @@ def test_execution_alert_on_tca_grade_df():
     """补充: TCA 评级 D/F 占比 > 20% 触发 WARNING"""
     _cleanup_reports()
     date_str = "2026-07-28"
-    _write_exec_audit(date_str, [
-        _make_exec_record(symbol="600519", tca_post_report={"quality_grade": "A"}),
-        _make_exec_record(symbol="000001", tca_post_report={"quality_grade": "D"}),
-        _make_exec_record(symbol="300750", tca_post_report={"quality_grade": "F"}),
-        _make_exec_record(symbol="688981", tca_post_report={"quality_grade": "B"}),
-    ])  # D/F = 2/4 = 50% > 20%
+    _write_exec_audit(
+        date_str,
+        [
+            _make_exec_record(symbol="600519", tca_post_report={"quality_grade": "A"}),
+            _make_exec_record(symbol="000001", tca_post_report={"quality_grade": "D"}),
+            _make_exec_record(symbol="300750", tca_post_report={"quality_grade": "F"}),
+            _make_exec_record(symbol="688981", tca_post_report={"quality_grade": "B"}),
+        ],
+    )  # D/F = 2/4 = 50% > 20%
 
     gen = DashboardGenerator()
     report = gen.generate_daily_dashboard(date_str)
 
-    grade_alerts = [
-        a for a in report["alerts"]
-        if a.get("dimension") == "tca_grade_df"
-    ]
+    grade_alerts = [a for a in report["alerts"] if a.get("dimension") == "tca_grade_df"]
     assert len(grade_alerts) > 0
     assert grade_alerts[0]["severity"] == "WARNING"
 
@@ -393,6 +460,7 @@ def test_execution_alert_on_tca_grade_df():
 # ============================================================
 # 补充: 向后兼容 (字段缺失)
 # ============================================================
+
 
 def test_backward_compat_missing_tca_fields():
     """补充: 步骤 1 之前的审计记录 (无 escalation/tca 字段) 不崩溃"""
@@ -405,14 +473,19 @@ def test_backward_compat_missing_tca_fields():
     path = exec_dir / f"exec_{date_compact}.jsonl"
     # 老格式审计记录 (无 escalation / tca_post_report)
     with open(path, "w", encoding="utf-8") as fh:
-        fh.write(json.dumps({
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "symbol": "600519",
-            "action": "buy",
-            "mode": "shadow",
-            "executed": False,
-            # 缺少 veto / escalation / tca_post_report 字段
-        }) + "\n")
+        fh.write(
+            json.dumps(
+                {
+                    "timestamp": datetime.now().isoformat(timespec="seconds"),
+                    "symbol": "600519",
+                    "action": "buy",
+                    "mode": "shadow",
+                    "executed": False,
+                    # 缺少 veto / escalation / tca_post_report 字段
+                }
+            )
+            + "\n"
+        )
 
     gen = DashboardGenerator()
     exe = gen._collect_execution_summary(date_str)
@@ -436,6 +509,7 @@ def test_backward_compat_missing_tca_estimate_file():
 # 补充: BudgetConfig
 # ============================================================
 
+
 def test_budget_config_defaults():
     """补充: BudgetConfig 默认值"""
     bc = BudgetConfig()
@@ -457,6 +531,7 @@ def test_budget_config_from_config():
 # 补充: DashboardReport dataclass
 # ============================================================
 
+
 def test_dashboard_report_to_dict():
     """补充: DashboardReport.to_dict() 序列化"""
     report = DashboardReport(date="2026-07-28")
@@ -471,6 +546,7 @@ def test_dashboard_report_to_dict():
 # 清理
 # ============================================================
 
+
 def teardown_module():
     """模块结束时清理测试文件"""
     _cleanup_reports()
@@ -484,4 +560,5 @@ def teardown_module():
 
 if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-v"])

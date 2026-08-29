@@ -141,14 +141,16 @@ def _aggregate(values: list[tuple[str, float]]) -> dict[str, float]:
 def _to_pct_map(value_map: dict[str, float], total: float) -> dict[str, float]:
     """将金额 map 转为百分比 map"""
     if total <= 0:
-        return {k: 0.0 for k in value_map}
+        return dict.fromkeys(value_map, 0.0)
     return {k: round(v / total, 4) for k, v in value_map.items()}
 
 
 # ============================================================
 # 对冲工具剩余风险
 # ============================================================
-def _calc_hedge_residual(positions: list[dict[str, Any]], hedge_positions: dict[str, Any]) -> dict[str, Any]:
+def _calc_hedge_residual(
+    positions: list[dict[str, Any]], hedge_positions: dict[str, Any]
+) -> dict[str, Any]:
     """计算对冲后的剩余风险
 
     Returns:
@@ -179,7 +181,9 @@ def _calc_hedge_residual(positions: list[dict[str, Any]], hedge_positions: dict[
         if not isinstance(hp, dict):
             continue
         instrument = (hp.get("instrument") or "").upper()
-        is_option = bool(hp.get("is_option")) or "PUT" in instrument or "CALL" in instrument
+        is_option = (
+            bool(hp.get("is_option")) or "PUT" in instrument or "CALL" in instrument
+        )
         contracts = int(hp.get("target_contracts", 0) or 0)
 
         if is_option:
@@ -208,7 +212,9 @@ def _calc_hedge_residual(positions: list[dict[str, Any]], hedge_positions: dict[
 # ============================================================
 # 主归因函数
 # ============================================================
-def compute_attribution(positions_path: str | Path = DEFAULT_POSITIONS_PATH) -> RiskAttribution:
+def compute_attribution(
+    positions_path: str | Path = DEFAULT_POSITIONS_PATH,
+) -> RiskAttribution:
     """计算风险归因面板
 
     Args:
@@ -249,11 +255,17 @@ def compute_attribution(positions_path: str | Path = DEFAULT_POSITIONS_PATH) -> 
 
     # 警告
     if result.concentration.get("top1", 0) > 0.20:
-        result.warnings.append(f"单标的集中度过高: Top1 = {result.concentration['top1']:.2%} > 20%")
+        result.warnings.append(
+            f"单标的集中度过高: Top1 = {result.concentration['top1']:.2%} > 20%"
+        )
     if result.concentration.get("hhi", 0) > 0.15:
-        result.warnings.append(f"组合 HHI = {result.concentration['hhi']:.3f} > 0.15, 分散度不足")
+        result.warnings.append(
+            f"组合 HHI = {result.concentration['hhi']:.3f} > 0.15, 分散度不足"
+        )
     if result.hedge_residual.get("residual_beta", 0) > 0.5:
-        result.warnings.append(f"对冲后剩余 Beta = {result.hedge_residual['residual_beta']:.2f} > 0.5, 对冲不足")
+        result.warnings.append(
+            f"对冲后剩余 Beta = {result.hedge_residual['residual_beta']:.2f} > 0.5, 对冲不足"
+        )
     if result.hedge_residual.get("tail_risk_coverage_pct", 0) < 0.10:
         result.warnings.append(
             f"尾部风险覆盖率 = {result.hedge_residual['tail_risk_coverage_pct']:.2%} < 10%, 期权保护不足"

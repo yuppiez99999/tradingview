@@ -161,3 +161,14 @@ CI steps:               S (原 s + 新增 2)
 ---
 
 *本 SOP 由 2026-08-08 审查修复批次提炼, 后续批次直接复用 §1-§3 流程。*
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [2026-08-08 代码审查修复批次经验沉淀](code-review-fix-batch-20260808.md) (相似度 47%)
+- [观察期配置脱节修复 — 2026-08-09](observation-period-config-drift-20260809.md) (相似度 15%)
+- [独立代码审查 + 二次核验纠偏（2026-08-08）](code-review-independent-audit-20260808.md) (相似度 14%)
+- [Agent 直接审查兜底方法论（外部 LLM 额度耗尽时）](code-review-agent-fallback-20260810.md) (相似度 13%)
+- [代码审查质量门禁经验沉淀：为什么多次审查仍有 bug](code-review-quality-gate-lessons-20260811.md) (相似度 12%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

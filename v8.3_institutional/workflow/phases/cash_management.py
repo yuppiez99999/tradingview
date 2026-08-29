@@ -11,6 +11,7 @@
 模块级依赖:
 - V10_STRATEGY_READY / CashManager 通过 get_dw_module() 从 daily_workflow 获取
 """
+
 from __future__ import annotations
 
 import json
@@ -25,7 +26,11 @@ logger = logging.getLogger("v75.daily_workflow")
 
 # === 从 daily_workflow 模块获取模块级符号 (兼容条件导入) ===
 _dw = get_dw_module()
-BASE_DIR: Path = getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent) if _dw else Path(__file__).resolve().parent.parent
+BASE_DIR: Path = (
+    getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent)
+    if _dw
+    else Path(__file__).resolve().parent.parent
+)
 V10_STRATEGY_READY = getattr(_dw, "V10_STRATEGY_READY", False) if _dw else False
 
 # 类 — 仅当 daily_workflow 模块中已导入时才引入
@@ -75,7 +80,9 @@ def phase_cash_management(ctx: WorkflowContext) -> dict[str, Any]:
 
     try:
         # 1. 加载当前现金状态
-        total_cash, futures_margin_used, options_collateral_used, emergency_used = _load_cash_state()
+        total_cash, futures_margin_used, options_collateral_used, emergency_used = (
+            _load_cash_state()
+        )
 
         # 2. 获取当前逆回购利率
         repo_rate = _get_current_repo_rate()
@@ -103,27 +110,33 @@ def phase_cash_management(ctx: WorkflowContext) -> dict[str, Any]:
                 logger.warning(f"[CashManager] {replenish['reason']}")
 
         # 6. 检查期货保证金追加
-        futures_account_value, futures_margin_used_actual = _load_futures_account_state()
+        futures_account_value, futures_margin_used_actual = (
+            _load_futures_account_state()
+        )
         if futures_account_value > 0:
-            margin_check = cm.check_margin_call(futures_account_value, futures_margin_used_actual)
+            margin_check = cm.check_margin_call(
+                futures_account_value, futures_margin_used_actual
+            )
             result["margin_call"] = margin_check
             if margin_check.get("action") != "no_action":
                 logger.warning(f"[CashManager] {margin_check['reason']}")
 
         # 7. 更新结果
-        result.update({
-            "status": "PASS",
-            "action": cm_result.action,
-            "total_cash": cm_result.total_cash,
-            "reverse_repo_amount": cm_result.reverse_repo,
-            "estimated_daily_income": cm_result.estimated_daily_income,
-            "estimated_annual_yield": cm_result.estimated_annual_yield,
-            "repo_order": cm_result.repo_order,
-            "is_month_end": cm_result.is_month_end,
-            "is_quarter_end": cm_result.is_quarter_end,
-            "futures_margin_ratio": cm_result.futures_margin_ratio,
-            "emergency_replenish_needed": cm_result.emergency_replenish_needed,
-        })
+        result.update(
+            {
+                "status": "PASS",
+                "action": cm_result.action,
+                "total_cash": cm_result.total_cash,
+                "reverse_repo_amount": cm_result.reverse_repo,
+                "estimated_daily_income": cm_result.estimated_daily_income,
+                "estimated_annual_yield": cm_result.estimated_annual_yield,
+                "repo_order": cm_result.repo_order,
+                "is_month_end": cm_result.is_month_end,
+                "is_quarter_end": cm_result.is_quarter_end,
+                "futures_margin_ratio": cm_result.futures_margin_ratio,
+                "emergency_replenish_needed": cm_result.emergency_replenish_needed,
+            }
+        )
 
     except Exception as e:  # fail-safe: 现金管理失败不阻断主流程
         logger.error(f"[CashManager] 现金管理失败: {e}", exc_info=True)
@@ -133,10 +146,12 @@ def phase_cash_management(ctx: WorkflowContext) -> dict[str, Any]:
     # === 写入 state ===
     ctx.state["phases"]["cash_management"] = result
     logger.info("-" * 60)
-    logger.info("Phase 4.8 完成: 动作=%s, 逆回购=¥%.0f, 日收益=¥%.2f",
-                result.get("action", ""),
-                result.get("reverse_repo_amount", 0),
-                result.get("estimated_daily_income", 0))
+    logger.info(
+        "Phase 4.8 完成: 动作=%s, 逆回购=¥%.0f, 日收益=¥%.2f",
+        result.get("action", ""),
+        result.get("reverse_repo_amount", 0),
+        result.get("estimated_daily_income", 0),
+    )
     logger.info("=" * 60)
     return result
 

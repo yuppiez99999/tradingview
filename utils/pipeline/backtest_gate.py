@@ -59,6 +59,7 @@ class BacktestGate:
 
         try:
             from utils.alpha.purged_kfold import PurgedKFold
+
             self._PurgedKFold = PurgedKFold
             self._has_purged_kfold = True
         except ImportError:
@@ -66,6 +67,7 @@ class BacktestGate:
 
         try:
             from utils.stress_test_runner import StressTestRunner
+
             self._StressTestRunner = StressTestRunner
             self._has_stress_test = True
         except ImportError:
@@ -74,6 +76,7 @@ class BacktestGate:
         try:
             # DSR 计算 — 系统已有 Deflated Sharpe Ratio 机制
             from utils.alpha.strategy_evaluator import StrategyEvaluator
+
             self._StrategyEvaluator = StrategyEvaluator
             self._has_dsr = True
         except ImportError:
@@ -152,11 +155,26 @@ class BacktestGate:
                 reports=[report_path] if report_path else [],
             )
 
-            status = "通过" if gate_result.passed else f"拒绝: {gate_result.rejection_reason}"
-            logger.info(f"[回测网关] {status} (IC={gate_result.ic:.4f}, DSR={gate_result.dsr:.4f})")
+            status = (
+                "通过"
+                if gate_result.passed
+                else f"拒绝: {gate_result.rejection_reason}"
+            )
+            logger.info(
+                f"[回测网关] {status} (IC={gate_result.ic:.4f}, DSR={gate_result.dsr:.4f})"
+            )
             return gate_result, result
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"[回测网关] 执行失败: {e}", exc_info=True)
@@ -170,7 +188,9 @@ class BacktestGate:
     # 四道验证
     # ============================================================
 
-    def _run_walk_forward(self, signal: AlphaSignalResult, gate: BacktestGateResult) -> BacktestGateResult:
+    def _run_walk_forward(
+        self, signal: AlphaSignalResult, gate: BacktestGateResult
+    ) -> BacktestGateResult:
         """Walk-Forward 回测验证"""
         logger.info("[回测网关] 执行 Walk-Forward 验证")
         try:
@@ -179,13 +199,24 @@ class BacktestGate:
             gate.sharpe = self._estimate_sharpe(signal)
             gate.max_drawdown = self._estimate_max_drawdown(signal)
             gate.walk_forward_passed = gate.ic >= self.config.min_ic
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"Walk-Forward 失败: {e}")
             gate.walk_forward_passed = True  # 降级通过
         return gate
 
-    def _run_dsr_check(self, signal: AlphaSignalResult, gate: BacktestGateResult) -> BacktestGateResult:
+    def _run_dsr_check(
+        self, signal: AlphaSignalResult, gate: BacktestGateResult
+    ) -> BacktestGateResult:
         """Deflated Sharpe Ratio 检验"""
         logger.info("[回测网关] 执行 DSR 检验")
         try:
@@ -194,15 +225,28 @@ class BacktestGate:
             # DSR 计算
             sharpe = gate.sharpe if gate.sharpe > 0 else self._estimate_sharpe(signal)
             # 简化的 DSR: SR * sqrt(1 - gamma) - E[max(SR)]
-            dsr = sharpe * np.sqrt(1 - 0.5) - np.sqrt(2 * np.log(n_trials)) / np.sqrt(252)
+            dsr = sharpe * np.sqrt(1 - 0.5) - np.sqrt(2 * np.log(n_trials)) / np.sqrt(
+                252
+            )
             gate.dsr = round(float(dsr), 4)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"DSR 计算失败: {e}")
             gate.dsr = 1.5  # 降级通过
         return gate
 
-    def _run_stress_test(self, signal: AlphaSignalResult, gate: BacktestGateResult) -> BacktestGateResult:
+    def _run_stress_test(
+        self, signal: AlphaSignalResult, gate: BacktestGateResult
+    ) -> BacktestGateResult:
         """压力场景测试"""
         logger.info("[回测网关] 执行压力测试")
         try:
@@ -210,7 +254,16 @@ class BacktestGate:
             result = runner.run_all_scenarios({}, portfolio_value=5_000_000)
             max_dd = abs(result.get("max_drawdown", 0))
             gate.stress_test_passed = max_dd < self.config.max_drawdown
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"压力测试失败: {e}")
             gate.stress_test_passed = True  # 降级通过
@@ -248,7 +301,16 @@ class BacktestGate:
                 from utils.data_provider import MarketDataProvider
 
                 self._data_provider = MarketDataProvider()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"[回测网关] 数据提供器初始化失败: {e}")
                 self._data_provider = None
@@ -267,7 +329,11 @@ class BacktestGate:
             if close_col is None:
                 return None
             date_col = next(
-                (c for c in ("date", "日期", "trade_date", "datetime", "time") if c in df.columns),
+                (
+                    c
+                    for c in ("date", "日期", "trade_date", "datetime", "time")
+                    if c in df.columns
+                ),
                 None,
             )
             if date_col is not None:
@@ -277,7 +343,16 @@ class BacktestGate:
             series = pd.Series(df[close_col].to_numpy(dtype=float), index=idx)
             series = series[series.index.notna()].sort_index()
             return series if len(series) >= 2 else None
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"[回测网关] 提取 {symbol} 收盘价失败: {e}")
             return None
@@ -294,13 +369,24 @@ class BacktestGate:
                 series = self._extract_close_series(df, symbol)
                 if series is not None:
                     prices[symbol] = series
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.debug(f"[回测网关] 获取 {symbol} 历史行情失败: {e}")
         return prices
 
     @staticmethod
-    def _signal_date(signal: AlphaSignalResult, prices: dict[str, "pd.Series"]) -> pd.Timestamp | None:
+    def _signal_date(
+        signal: AlphaSignalResult, prices: dict[str, "pd.Series"]
+    ) -> pd.Timestamp | None:
         """确定信号基准日：优先 training_date，否则取价格序列的最后共同交易日"""
         raw = getattr(signal, "training_date", "") or ""
         if raw:
@@ -415,7 +501,9 @@ class BacktestGate:
     # 报告
     # ============================================================
 
-    def _make_result(self, started_at: datetime, gate: BacktestGateResult) -> PipelineResult:
+    def _make_result(
+        self, started_at: datetime, gate: BacktestGateResult
+    ) -> PipelineResult:
         return PipelineResult(
             stage=PipelineStage.BACKTEST_GATE,
             success=gate.passed,
@@ -429,26 +517,42 @@ class BacktestGate:
             },
         )
 
-    def _save_report(self, gate: BacktestGateResult, signal: AlphaSignalResult) -> str | None:
+    def _save_report(
+        self, gate: BacktestGateResult, signal: AlphaSignalResult
+    ) -> str | None:
         """保存验证报告"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = self._report_dir / f"backtest_gate_{timestamp}.json"
         try:
             with open(path, "w", encoding="utf-8") as f:
-                json.dump({
-                    "timestamp": timestamp,
-                    "passed": gate.passed,
-                    "ic": gate.ic,
-                    "dsr": gate.dsr,
-                    "sharpe": gate.sharpe,
-                    "max_drawdown": gate.max_drawdown,
-                    "walk_forward_passed": gate.walk_forward_passed,
-                    "stress_test_passed": gate.stress_test_passed,
-                    "rejection_reason": gate.rejection_reason,
-                    "n_stocks": signal.n_stocks if signal else 0,
-                    "model": signal.model_name if signal else "",
-                }, f, ensure_ascii=False, indent=2)
+                json.dump(
+                    {
+                        "timestamp": timestamp,
+                        "passed": gate.passed,
+                        "ic": gate.ic,
+                        "dsr": gate.dsr,
+                        "sharpe": gate.sharpe,
+                        "max_drawdown": gate.max_drawdown,
+                        "walk_forward_passed": gate.walk_forward_passed,
+                        "stress_test_passed": gate.stress_test_passed,
+                        "rejection_reason": gate.rejection_reason,
+                        "n_stocks": signal.n_stocks if signal else 0,
+                        "model": signal.model_name if signal else "",
+                    },
+                    f,
+                    ensure_ascii=False,
+                    indent=2,
+                )
             return str(path)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return None

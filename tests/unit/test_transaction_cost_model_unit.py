@@ -13,6 +13,7 @@
     - estimate_capacity / estimate_strategy_capacity / capacity_usage_pct
     - estimate_total_cost / cost_penalty
 """
+
 from __future__ import annotations
 
 import pytest
@@ -144,7 +145,9 @@ class TestEstimateSlippage:
     def test_volatility_adjustment(self):
         m = TransactionCostModel()
         base = m.estimate_slippage(1_000_000, volatility=0.02, tier=MarketCapTier.LARGE)
-        high_vol = m.estimate_slippage(1_000_000, volatility=0.04, tier=MarketCapTier.LARGE)
+        high_vol = m.estimate_slippage(
+            1_000_000, volatility=0.04, tier=MarketCapTier.LARGE
+        )
         assert high_vol > base
 
     @pytest.mark.unit
@@ -284,7 +287,9 @@ class TestTotalCost:
     @pytest.mark.unit
     def test_buy(self):
         m = TransactionCostModel()
-        result = m.estimate_total_cost(1_000_000, adv=10_000_000, tier=MarketCapTier.LARGE, side="BUY")
+        result = m.estimate_total_cost(
+            1_000_000, adv=10_000_000, tier=MarketCapTier.LARGE, side="BUY"
+        )
         assert result["notional"] == 1_000_000
         assert result["tier"] == "large"
         assert result["total"] > 0
@@ -294,7 +299,9 @@ class TestTotalCost:
     @pytest.mark.unit
     def test_sell(self):
         m = TransactionCostModel()
-        result = m.estimate_total_cost(1_000_000, adv=10_000_000, tier=MarketCapTier.LARGE, side="SELL")
+        result = m.estimate_total_cost(
+            1_000_000, adv=10_000_000, tier=MarketCapTier.LARGE, side="SELL"
+        )
         assert result["stamp_tax_included"] is True
 
     @pytest.mark.unit

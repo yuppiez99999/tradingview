@@ -155,8 +155,12 @@ class MLOpsPipeline:
             self._drift_monitor = DriftMonitor(
                 model_name=self.config.get("default_model_name", "v9_lgb"),
                 retrain_callback=self._on_drift_trigger,
-                retrain_threshold_count=int(retrain_cfg.get("drift_threshold_count", 3)),
-                retrain_threshold_severity=retrain_cfg.get("drift_threshold_severity", "critical"),
+                retrain_threshold_count=int(
+                    retrain_cfg.get("drift_threshold_count", 3)
+                ),
+                retrain_threshold_severity=retrain_cfg.get(
+                    "drift_threshold_severity", "critical"
+                ),
             )
         return self._drift_monitor
 
@@ -179,7 +183,9 @@ class MLOpsPipeline:
     def start(self) -> None:
         """启动 MLops 流水线 (drift 监控 + 定时调度)."""
         if not self._enabled:
-            logger.warning("MLops pipeline 未启用 (flag=%s=False)", self.feature_flag_name)
+            logger.warning(
+                "MLops pipeline 未启用 (flag=%s=False)", self.feature_flag_name
+            )
             return
         if self._started:
             logger.warning("MLops pipeline 已在运行")
@@ -193,7 +199,14 @@ class MLOpsPipeline:
             self._started = True
             self._log_event("pipeline_started", {})
             logger.info("MLops pipeline 已启动")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.exception("MLops pipeline 启动失败: %s", e)
             raise MLOpsPipelineError(f"启动失败: {e}") from e
 
@@ -208,7 +221,14 @@ class MLOpsPipeline:
                 self._retrain_scheduler.stop()
             self._log_event("pipeline_stopped", {})
             logger.info("MLops pipeline 已停止")
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.exception("MLops pipeline 停止异常: %s", e)
         finally:
             # 无论是否异常, 都标记为已停止
@@ -260,7 +280,14 @@ class MLOpsPipeline:
                     "metrics": metrics,
                 },
             )
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.exception("模型注册失败: %s", e)
             result["register_error"] = str(e)
             return result
@@ -343,7 +370,9 @@ class MLOpsPipeline:
             pass
         try:
             if self._retrain_scheduler is not None:
-                status["components"]["retrain_scheduler"] = self._retrain_scheduler.get_status()
+                status["components"][
+                    "retrain_scheduler"
+                ] = self._retrain_scheduler.get_status()
         except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError):
             pass
         try:
@@ -371,7 +400,9 @@ class MLOpsPipeline:
         }
         self._pipeline_log.append(record)
         # 持久化
-        log_file = self._log_dir / f"pipeline_{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl"
+        log_file = (
+            self._log_dir / f"pipeline_{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl"
+        )
         try:
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")

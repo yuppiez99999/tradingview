@@ -1,4 +1,5 @@
 """康波周期分析 — 周期阶段判定 + 行业轮动 + 大宗商品信号"""
+
 import os
 import sys
 
@@ -23,8 +24,13 @@ inject_global_style()
 mod = get_system_module()
 
 if not mod.KONDRATIEV_AVAILABLE:
-    render_alert_card("模块不可用", "❌ 康波周期分析模块不可用，请检查 `utils/kondratiev_cycle.py`", level="error")
+    render_alert_card(
+        "模块不可用",
+        "❌ 康波周期分析模块不可用，请检查 `utils/kondratiev_cycle.py`",
+        level="error",
+    )
     st.stop()
+
 
 @st.cache_data(ttl=300)
 def _run_kondratiev_analysis():
@@ -37,6 +43,7 @@ def _run_kondratiev_analysis():
     report = analyzer.generate_report()
     return phase, sectors, commodities, overlay, report
 
+
 if st.button("🚀 运行康波周期分析", type="primary"):
     with st.spinner("运行康波周期 + 十五五交叠分析..."):
         phase, sectors, commodities, overlay, report = _run_kondratiev_analysis()
@@ -45,23 +52,31 @@ if st.button("🚀 运行康波周期分析", type="primary"):
     st.subheader("📍 康波周期阶段")
     cols = st.columns(4)
     with cols[0]:
-        st.metric("当前阶段", phase.get('phase_name_cn', '未知'))
+        st.metric("当前阶段", phase.get("phase_name_cn", "未知"))
     with cols[1]:
         st.metric("进度", f"{phase.get('progress_pct', 0)}%")
     with cols[2]:
-        st.metric("置信度", phase.get('confidence', '未知'))
+        st.metric("置信度", phase.get("confidence", "未知"))
     with cols[3]:
-        st.metric("风险等级", phase.get('risk_level', '未知'))
+        st.metric("风险等级", phase.get("risk_level", "未知"))
 
-    render_alert_card("推荐风格", f"**推荐风格**: {phase.get('recommended_style', '')}", level="info")
-    if phase.get('estimated_transition'):
+    render_alert_card(
+        "推荐风格", f"**推荐风格**: {phase.get('recommended_style', '')}", level="info"
+    )
+    if phase.get("estimated_transition"):
         st.caption(f"预计转入下一阶段: {phase.get('estimated_transition')}")
 
     # === 行业配置 ===
     st.subheader("📈 行业配置建议")
     if sectors:
-        sector_data = [{"行业": s.get('sector', ''), "综合得分": s.get('combined_score', 0),
-                        "建议": s.get('recommendation', '')} for s in sectors]
+        sector_data = [
+            {
+                "行业": s.get("sector", ""),
+                "综合得分": s.get("combined_score", 0),
+                "建议": s.get("recommendation", ""),
+            }
+            for s in sectors
+        ]
         sector_df = pd.DataFrame(sector_data)
         st.dataframe(sector_df, use_container_width=True, hide_index=True)
         st.bar_chart(sector_df.set_index("行业")["综合得分"], use_container_width=True)
@@ -69,8 +84,14 @@ if st.button("🚀 运行康波周期分析", type="primary"):
     # === 大宗商品信号 ===
     st.subheader("🛢️ 大宗商品周期信号")
     if commodities:
-        comm_data = [{"品种": c.get('name', ''), "当前信号": c.get('current_signal', ''),
-                      "康波建议": c.get('kondratiev_recommendation', '')} for c in commodities]
+        comm_data = [
+            {
+                "品种": c.get("name", ""),
+                "当前信号": c.get("current_signal", ""),
+                "康波建议": c.get("kondratiev_recommendation", ""),
+            }
+            for c in commodities
+        ]
         st.dataframe(pd.DataFrame(comm_data), use_container_width=True, hide_index=True)
 
     # === 十五五交叠 ===
@@ -80,13 +101,16 @@ if st.button("🚀 运行康波周期分析", type="primary"):
 
     # === 下载报告 ===
     st.download_button(
-        "📥 下载康波周期报告", report,
+        "📥 下载康波周期报告",
+        report,
         file_name=f"康波周期分析_{datetime.now().strftime('%Y%m%d')}.md",
         mime="text/markdown",
     )
 
 else:
-    render_alert_card("待运行分析", "👆 点击上方按钮开始康波周期 + 十五五交叠分析", level="info")
+    render_alert_card(
+        "待运行分析", "👆 点击上方按钮开始康波周期 + 十五五交叠分析", level="info"
+    )
     st.markdown("""
     ### 分析内容
     - **周期阶段判定**: 衰退/复苏/繁荣/滞胀 — 当前属于第六轮康波（AI/算力驱动）哪个阶段

@@ -31,6 +31,7 @@
     print(report.to_markdown())
 =================================================================
 """
+
 from __future__ import annotations
 
 import json
@@ -272,9 +273,7 @@ class Shadow30DayEvaluator:
                 pass
 
         report.overall_pass = (
-            report.mvsk.pass_
-            and report.qlib.pass_
-            and not report.fail_fast_triggered
+            report.mvsk.pass_ and report.qlib.pass_ and not report.fail_fast_triggered
         )
 
         if report.overall_pass:
@@ -348,9 +347,7 @@ class Shadow30DayEvaluator:
             ev.date_range = f"{dates[0]} ~ {dates[-1]}"
 
         diffs = [
-            float(r.get("signal_diff", 0.0))
-            for r in records
-            if "signal_diff" in r
+            float(r.get("signal_diff", 0.0)) for r in records if "signal_diff" in r
         ]
         if not diffs:
             ev.fail_reasons.append("无 signal_diff 字段")
@@ -391,9 +388,7 @@ class Shadow30DayEvaluator:
             return 0.0
         return _mean(diffs) * 0.5
 
-    def _estimate_mvsk_delta_sharpe(
-        self, mean_diff: float, std_diff: float
-    ) -> float:
+    def _estimate_mvsk_delta_sharpe(self, mean_diff: float, std_diff: float) -> float:
         """估算 MVSK Δ夏普 (代理指标).
 
         代理逻辑:

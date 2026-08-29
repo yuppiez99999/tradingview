@@ -292,7 +292,9 @@ class PhaseManager:
 
     def __init__(self):
         self.phases = ANNUAL_PHASES.copy()
-        logger.info(f"[PhaseManager] 初始化: 计划周期 {self.PLAN_START_DATE} ~ {self.PLAN_END_DATE}, 5 个年度阶段")
+        logger.info(
+            f"[PhaseManager] 初始化: 计划周期 {self.PLAN_START_DATE} ~ {self.PLAN_END_DATE}, 5 个年度阶段"
+        )
 
     # --------------------------------------------------------
     # 当前阶段判断
@@ -442,12 +444,16 @@ class PhaseManager:
         # 1. 触发压力测试
         if result.is_quarter_end:
             result.stress_test_triggered = True
-            actions.append("触发季度压力测试 (4 场景: 2015股灾/2018慢熊/2020冲击/流动性危机)")
+            actions.append(
+                "触发季度压力测试 (4 场景: 2015股灾/2018慢熊/2020冲击/流动性危机)"
+            )
             try:
                 from utils.stress_test_runner import StressTestRunner
 
                 runner = StressTestRunner()
-                stress_result = runner.run_all_scenarios(positions or [], portfolio_value)
+                stress_result = runner.run_all_scenarios(
+                    positions or [], portfolio_value
+                )
                 scenarios = stress_result.get("scenarios", {})
                 result.stress_test_result = {
                     "scenarios_run": len(scenarios),
@@ -458,8 +464,17 @@ class PhaseManager:
                     ),
                     "worst_scenario": stress_result.get("worst_scenario", ""),
                 }
-                actions.append(f"压力测试完成: {result.stress_test_result['scenarios_run']} 场景")
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+                actions.append(
+                    f"压力测试完成: {result.stress_test_result['scenarios_run']} 场景"
+                )
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.warning(f"[PhaseManager] 压力测试失败 (降级): {e}")
                 actions.append(f"压力测试降级: {e}")
 
@@ -490,7 +505,9 @@ class PhaseManager:
 
         # 4. 2030 清仓年: 返回清仓动作
         if phase.is_liquidation_year and phase.liquidation_actions:
-            actions.append(f"2030 清仓 {phase.current_quarter}: {phase.liquidation_actions.get('name', '')}")
+            actions.append(
+                f"2030 清仓 {phase.current_quarter}: {phase.liquidation_actions.get('name', '')}"
+            )
             for action in phase.liquidation_actions.get("actions", []):
                 actions.append(f"  - {action}")
 
@@ -614,7 +631,9 @@ class PhaseManager:
     # --------------------------------------------------------
     # 持久化
     # --------------------------------------------------------
-    def _save_quarterly_review(self, result: QuarterlyReviewResult, today: date) -> None:
+    def _save_quarterly_review(
+        self, result: QuarterlyReviewResult, today: date
+    ) -> None:
         """保存季度评估报告"""
         try:
             REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -625,7 +644,14 @@ class PhaseManager:
                 json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
             logger.info(f"[PhaseManager] 季度评估报告已保存: {file_path}")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"[PhaseManager] 保存季度评估报告失败: {e}")
 
     # --------------------------------------------------------

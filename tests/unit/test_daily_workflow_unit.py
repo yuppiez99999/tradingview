@@ -23,6 +23,7 @@ R1 联动验证:
     phase_check 的 C9 兜底价格新鲜度检查 (2026-08-01 R1 新增) 在本文件中通过
     mock SystemChecker 验证 ERROR/WARN/PASS 三分支与 fail-closed 阻断逻辑.
 """
+
 from __future__ import annotations
 
 import sys
@@ -47,6 +48,7 @@ except Exception as e:  # pragma: no cover
 # C9 检查结果所需符号 (R1 联动)
 try:
     from utils.system_check import CheckLevel, CheckStatus
+
     _HAS_SYSTEM_CHECK = True
 except Exception:  # pragma: no cover
     _HAS_SYSTEM_CHECK = False
@@ -72,7 +74,7 @@ class _FakeCheckResult:
         self.detail = detail
         self.remediation = remediation
         self.elapsed_ms = 0.0
-        self.is_blocking = (level == CheckLevel.ERROR and status == CheckStatus.FAIL)
+        self.is_blocking = level == CheckLevel.ERROR and status == CheckStatus.FAIL
 
 
 def _make_check_result(code, level, status, detail="", remediation=""):
@@ -157,8 +159,14 @@ def _patch_module_constants(monkeypatch, **overrides):
         monkeypatch.setattr(dw_module, key, val, raising=False)
 
 
-def _patch_external_classes(monkeypatch, ntp_offset=0.0, rm_mode="NORMAL",
-                            rm_factor=1.0, cb_level_name="NORMAL", cb_level_value=0):
+def _patch_external_classes(
+    monkeypatch,
+    ntp_offset=0.0,
+    rm_mode="NORMAL",
+    rm_factor=1.0,
+    cb_level_name="NORMAL",
+    cb_level_value=0,
+):
     """patch phase_check 直接实例化的外部类 (NTPSync/RiskManager/CircuitBreaker)
 
     Args:
@@ -182,8 +190,14 @@ def _patch_external_classes(monkeypatch, ntp_offset=0.0, rm_mode="NORMAL",
     rm_inst = MagicMock(name="RiskManager_instance")
     rm_inst.mode = rm_mode
     rm_inst.position_size_factor = rm_factor
-    rm_inst.update_drawdown.return_value = {"drawdown": 0.0, "breach": False, "reduce_pct": 0.0}
-    monkeypatch.setattr(dw_module, "RiskManager", lambda *a, **kw: rm_inst, raising=False)
+    rm_inst.update_drawdown.return_value = {
+        "drawdown": 0.0,
+        "breach": False,
+        "reduce_pct": 0.0,
+    }
+    monkeypatch.setattr(
+        dw_module, "RiskManager", lambda *a, **kw: rm_inst, raising=False
+    )
 
     # CircuitBreaker: phase_check L1322 self.cb = CircuitBreaker(name=...)
     cb_inst = MagicMock(name="CircuitBreaker_instance")
@@ -192,7 +206,9 @@ def _patch_external_classes(monkeypatch, ntp_offset=0.0, rm_mode="NORMAL",
     level_mock.value = cb_level_value
     cb_inst.check.return_value = level_mock
     cb_inst.allowed_actions.return_value = {"open_new": True, "force_reduce_pct": 0.0}
-    monkeypatch.setattr(dw_module, "CircuitBreaker", lambda *a, **kw: cb_inst, raising=False)
+    monkeypatch.setattr(
+        dw_module, "CircuitBreaker", lambda *a, **kw: cb_inst, raising=False
+    )
     return ntp_inst, rm_inst, cb_inst
 
 
@@ -216,6 +232,7 @@ def _patch_c9(monkeypatch, results):
 
     # phase_check 内部通过 `from utils.system_check import SystemChecker` 导入
     import utils.system_check as sc_module
+
     monkeypatch.setattr(sc_module, "SystemChecker", _FakeSystemChecker)
 
 
@@ -289,12 +306,22 @@ class TestPhaseCheck:
         ntp_inst = MagicMock(name="NTPSync_instance")
         ntp_inst.get_offset.side_effect = RuntimeError("ntp server unreachable")
         ntp_inst.sync_failed_count = 0
-        monkeypatch.setattr(dw_module, "NTPSync", lambda *a, **kw: ntp_inst, raising=False)
-        monkeypatch.setattr(dw_module, "RiskManager",
-                            lambda *a, **kw: MagicMock(mode="NORMAL", position_size_factor=1.0,
-                                                       update_drawdown=lambda e: {"drawdown": 0.0}),
-                            raising=False)
-        monkeypatch.setattr(dw_module, "CircuitBreaker", lambda *a, **kw: MagicMock(), raising=False)
+        monkeypatch.setattr(
+            dw_module, "NTPSync", lambda *a, **kw: ntp_inst, raising=False
+        )
+        monkeypatch.setattr(
+            dw_module,
+            "RiskManager",
+            lambda *a, **kw: MagicMock(
+                mode="NORMAL",
+                position_size_factor=1.0,
+                update_drawdown=lambda e: {"drawdown": 0.0},
+            ),
+            raising=False,
+        )
+        monkeypatch.setattr(
+            dw_module, "CircuitBreaker", lambda *a, **kw: MagicMock(), raising=False
+        )
         _patch_c9(monkeypatch, results=[])
         wf = _make_workflow()
 
@@ -314,10 +341,21 @@ class TestPhaseCheck:
         """
         _patch_module_constants(monkeypatch)
         # RiskManager 构造抛异常
-        monkeypatch.setattr(dw_module, "NTPSync", lambda *a, **kw: MagicMock(get_offset=lambda: 0.0), raising=False)
-        monkeypatch.setattr(dw_module, "RiskManager",
-                            MagicMock(side_effect=RuntimeError("risk init broken")), raising=False)
-        monkeypatch.setattr(dw_module, "CircuitBreaker", lambda *a, **kw: MagicMock(), raising=False)
+        monkeypatch.setattr(
+            dw_module,
+            "NTPSync",
+            lambda *a, **kw: MagicMock(get_offset=lambda: 0.0),
+            raising=False,
+        )
+        monkeypatch.setattr(
+            dw_module,
+            "RiskManager",
+            MagicMock(side_effect=RuntimeError("risk init broken")),
+            raising=False,
+        )
+        monkeypatch.setattr(
+            dw_module, "CircuitBreaker", lambda *a, **kw: MagicMock(), raising=False
+        )
         _patch_c9(monkeypatch, results=[])
         wf = _make_workflow()
 
@@ -342,7 +380,9 @@ class TestPhaseCheck:
         _patch_module_constants(monkeypatch)
         _patch_external_classes(monkeypatch, ntp_offset=0.0)
         c9_err = _make_check_result(
-            "C9.2", CheckLevel.ERROR, CheckStatus.FAIL,
+            "C9.2",
+            CheckLevel.ERROR,
+            CheckStatus.FAIL,
             detail="最后更新 2026-06-29, 已过期 33 天 (超 30 天阈值)",
             remediation="立即更新 DEFAULT_FUTURES_PRICES",
         )
@@ -369,7 +409,9 @@ class TestPhaseCheck:
         _patch_module_constants(monkeypatch)
         _patch_external_classes(monkeypatch, ntp_offset=0.0)
         c9_warn = _make_check_result(
-            "C9.2", CheckLevel.WARN, CheckStatus.FAIL,
+            "C9.2",
+            CheckLevel.WARN,
+            CheckStatus.FAIL,
             detail="最后更新 2026-07-20, 已 12 天 (超 7 天告警阈值)",
             remediation="建议尽快更新 DEFAULT_FUTURES_PRICES",
         )
@@ -390,7 +432,9 @@ class TestPhaseCheck:
         不会出现在 checks 中. 此测试为期望行为规约, 待 C9 集成修复后激活.
         """
         _patch_module_constants(monkeypatch)
-        _patch_external_classes(monkeypatch, ntp_offset=0.0, rm_mode="NORMAL", rm_factor=1.0)
+        _patch_external_classes(
+            monkeypatch, ntp_offset=0.0, rm_mode="NORMAL", rm_factor=1.0
+        )
         _patch_c9(monkeypatch, results=[])  # C9 无告警
         wf = _make_workflow()
 
@@ -434,8 +478,11 @@ class TestPhaseCalibrate:
     def test_fail_when_calibration_status_fail(self, monkeypatch):
         """_run_calibration 返回 status=FAIL → FAIL 状态, 不阻断"""
         _patch_module_constants(monkeypatch, CALIBRATE_READY=True)
-        monkeypatch.setattr(dw_module, "_run_calibration",
-                            lambda: {"status": "FAIL", "error": "wind_fetch_error"})
+        monkeypatch.setattr(
+            dw_module,
+            "_run_calibration",
+            lambda: {"status": "FAIL", "error": "wind_fetch_error"},
+        )
         wf = _make_workflow()
 
         result = wf.phase_calibrate()
@@ -448,20 +495,36 @@ class TestPhaseCalibrate:
     def test_pass_when_calibration_ok(self, monkeypatch):
         """_run_calibration 返回 status=OK → PASS, 含三步明细"""
         _patch_module_constants(monkeypatch, CALIBRATE_READY=True)
-        monkeypatch.setattr(dw_module, "_run_calibration", lambda: {
-            "status": "OK",
-            "step1_update": {"success": 23, "fail": 0, "total_days": 30,
-                             "total_symbols": 23, "degraded_reason": None},
-            "step2_realized": {"start_date": "2026-01-01", "end_date": "2026-07-31",
-                               "years": 0.58, "portfolio_weighted_annualized": 0.092,
-                               "market_annualized": 0.045, "market_sharpe": 1.2,
-                               "portfolio_weight_total": 1.0},
-            "step3_calibration": {"original_weights": {"bull": 0.4, "base": 0.4, "bear": 0.2},
-                                  "calibrated_weights": {"bull": 0.5, "base": 0.35, "bear": 0.15},
-                                  "calibration_reason": "realized > expected",
-                                  "calibrated_expected_annualized": 0.085,
-                                  "calibrated_expected_final": 5_850_000},
-        })
+        monkeypatch.setattr(
+            dw_module,
+            "_run_calibration",
+            lambda: {
+                "status": "OK",
+                "step1_update": {
+                    "success": 23,
+                    "fail": 0,
+                    "total_days": 30,
+                    "total_symbols": 23,
+                    "degraded_reason": None,
+                },
+                "step2_realized": {
+                    "start_date": "2026-01-01",
+                    "end_date": "2026-07-31",
+                    "years": 0.58,
+                    "portfolio_weighted_annualized": 0.092,
+                    "market_annualized": 0.045,
+                    "market_sharpe": 1.2,
+                    "portfolio_weight_total": 1.0,
+                },
+                "step3_calibration": {
+                    "original_weights": {"bull": 0.4, "base": 0.4, "bear": 0.2},
+                    "calibrated_weights": {"bull": 0.5, "base": 0.35, "bear": 0.15},
+                    "calibration_reason": "realized > expected",
+                    "calibrated_expected_annualized": 0.085,
+                    "calibrated_expected_final": 5_850_000,
+                },
+            },
+        )
         wf = _make_workflow()
 
         result = wf.phase_calibrate()
@@ -476,13 +539,22 @@ class TestPhaseCalibrate:
     def test_degraded_when_calibration_degraded(self, monkeypatch):
         """_run_calibration 返回 status=DEGRADED → DEGRADED (Wind 拉取失败, 用历史数据)"""
         _patch_module_constants(monkeypatch, CALIBRATE_READY=True)
-        monkeypatch.setattr(dw_module, "_run_calibration", lambda: {
-            "status": "DEGRADED",
-            "step1_update": {"success": 0, "fail": 23, "total_days": 0,
-                             "total_symbols": 23, "degraded_reason": "wind_mcp_timeout"},
-            "step2_realized": {"portfolio_weighted_annualized": 0.088},
-            "step3_calibration": {"calibrated_expected_annualized": 0.082},
-        })
+        monkeypatch.setattr(
+            dw_module,
+            "_run_calibration",
+            lambda: {
+                "status": "DEGRADED",
+                "step1_update": {
+                    "success": 0,
+                    "fail": 23,
+                    "total_days": 0,
+                    "total_symbols": 23,
+                    "degraded_reason": "wind_mcp_timeout",
+                },
+                "step2_realized": {"portfolio_weighted_annualized": 0.088},
+                "step3_calibration": {"calibrated_expected_annualized": 0.082},
+            },
+        )
         wf = _make_workflow()
 
         result = wf.phase_calibrate()
@@ -495,8 +567,11 @@ class TestPhaseCalibrate:
     def test_exception_non_blocking(self, monkeypatch):
         """_run_calibration 抛异常 → FAIL 但不阻断 (return True)"""
         _patch_module_constants(monkeypatch, CALIBRATE_READY=True)
-        monkeypatch.setattr(dw_module, "_run_calibration",
-                            MagicMock(side_effect=RuntimeError("unexpected crash")))
+        monkeypatch.setattr(
+            dw_module,
+            "_run_calibration",
+            MagicMock(side_effect=RuntimeError("unexpected crash")),
+        )
         wf = _make_workflow()
 
         result = wf.phase_calibrate()
@@ -630,7 +705,11 @@ class TestPhaseRisk:
         rm = MagicMock(name="RiskManager")
         rm.mode = "NORMAL"
         rm.position_size_factor = 1.0
-        rm.update_drawdown.return_value = {"drawdown": 0.0, "breach": False, "reduce_pct": 0.0}
+        rm.update_drawdown.return_value = {
+            "drawdown": 0.0,
+            "breach": False,
+            "reduce_pct": 0.0,
+        }
         wf.rm = rm
 
         risk_status = wf.phase_risk()

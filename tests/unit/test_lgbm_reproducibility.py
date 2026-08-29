@@ -14,6 +14,7 @@
 注意: 本测试不依赖 lightgbm, 只测试可复现性基础设施.
     lightgbm 训练的可复现性由 lightgbm 自身的 seed 机制保证.
 """
+
 import json
 import sys
 from dataclasses import FrozenInstanceError
@@ -52,17 +53,19 @@ def sample_panel() -> pd.DataFrame:
     rows = []
     for code in codes:
         for date in dates:
-            rows.append({
-                "code": code,
-                "date": date.strftime("%Y-%m-%d"),
-                "y": float(np.random.randn() * 0.02),
-                "MOM_5D": float(np.random.randn() * 0.05),
-                "MOM_20D": float(np.random.randn() * 0.1),
-                "VOL_5D": float(abs(np.random.randn()) * 0.15),
-                "VOL_20D": float(abs(np.random.randn()) * 0.2),
-                "RSI_14D": float(np.random.uniform(20, 80)),
-                "MACD": float(np.random.randn() * 0.01),
-            })
+            rows.append(
+                {
+                    "code": code,
+                    "date": date.strftime("%Y-%m-%d"),
+                    "y": float(np.random.randn() * 0.02),
+                    "MOM_5D": float(np.random.randn() * 0.05),
+                    "MOM_20D": float(np.random.randn() * 0.1),
+                    "VOL_5D": float(abs(np.random.randn()) * 0.15),
+                    "VOL_20D": float(abs(np.random.randn()) * 0.2),
+                    "RSI_14D": float(np.random.uniform(20, 80)),
+                    "MACD": float(np.random.randn() * 0.01),
+                }
+            )
     return pd.DataFrame(rows)
 
 
@@ -92,7 +95,11 @@ def sample_config(sample_panel: pd.DataFrame) -> TrainingConfig:
         label_horizon=5,
     )
     # 链式填充
-    source_files = [Path(__file__).resolve().parent.parent.parent / "research" / "lgbm_factor_mining.py"]
+    source_files = [
+        Path(__file__).resolve().parent.parent.parent
+        / "research"
+        / "lgbm_factor_mining.py"
+    ]
     config = config.with_dataset(sample_panel)
     config = config.with_code_sha(source_files)
     config = config.with_environment(env="test")
@@ -119,17 +126,23 @@ def sample_importance() -> dict:
 class TestTrainingConfigImmutability:
     """ECC coding-standards: 不可变优先 (frozen=True)."""
 
-    def test_frozen_dataclass_blocks_attribute_assignment(self, sample_config: TrainingConfig):
+    def test_frozen_dataclass_blocks_attribute_assignment(
+        self, sample_config: TrainingConfig
+    ):
         """frozen=True 时直接赋值应抛 FrozenInstanceError."""
         with pytest.raises(FrozenInstanceError):
             sample_config.seed = 99  # type: ignore[misc]
 
-    def test_frozen_dataclass_blocks_lgb_params_mutation(self, sample_config: TrainingConfig):
+    def test_frozen_dataclass_blocks_lgb_params_mutation(
+        self, sample_config: TrainingConfig
+    ):
         """frozen=True 时修改 lgb_params dict 也应抛 (实际 dict 内部仍可变, 但赋值新 dict 不行)."""
         with pytest.raises(FrozenInstanceError):
             sample_config.lgb_params = {"new": "value"}  # type: ignore[misc]
 
-    def test_with_methods_return_new_instance(self, sample_config: TrainingConfig, sample_panel: pd.DataFrame):
+    def test_with_methods_return_new_instance(
+        self, sample_config: TrainingConfig, sample_panel: pd.DataFrame
+    ):
         """with_* 方法应返回新实例, 不修改原实例."""
         original_hash = sample_config.config_hash
         new_config = sample_config.with_dataset(sample_panel)
@@ -185,6 +198,7 @@ class TestTrainingConfigChainMethods:
         """with_config_hash 应是确定性的 (同输入 → 同输出)."""
         # 重新构造相同 config (created_at 不同会导致 hash 不同, 需固定 created_at)
         from dataclasses import replace
+
         fixed_config = replace(sample_config, created_at="2026-07-29T00:00:00")
         hash1 = fixed_config.with_config_hash().config_hash
 
@@ -198,6 +212,7 @@ class TestTrainingConfigChainMethods:
         """config_hash 字段不应参与自身 hash 计算 (避免递归)."""
         # 同 config (除 config_hash 外其他字段相同), hash 应一致
         from dataclasses import replace
+
         c1 = replace(sample_config, config_hash="")
         c2 = replace(sample_config, config_hash="dummy_value")
         # with_config_hash 排除 config_hash 字段
@@ -293,14 +308,17 @@ class TestArtifactName:
         model_name 可能含下划线 (如 test_lgbm), 用正则匹配更稳健.
         """
         import re
+
         name = artifact_name(sample_config)
         # 格式: <model_name>_v<8hex>_d<yyyymmdd>
-        pattern = r'^.+_v[0-9a-f]{8}_d\d{8}$'
+        pattern = r"^.+_v[0-9a-f]{8}_d\d{8}$"
         assert re.match(pattern, name), f"artifact_name 格式错误: {name}"
         # 验证 model_name 前缀
         assert name.startswith(sample_config.model_name)
 
-    def test_different_code_sha_yields_different_name(self, sample_config: TrainingConfig):
+    def test_different_code_sha_yields_different_name(
+        self, sample_config: TrainingConfig
+    ):
         """不同 code_sha → 不同 config_hash → 不同 artifact_name.
 
         注意: artifact_name 优先用 config_hash (而非 code_sha), 因为 code_sha 仅标识代码版本,
@@ -308,12 +326,16 @@ class TestArtifactName:
         修改 config_hash, 验证最终 artifact_name 不同.
         """
         from dataclasses import replace
+
         other = replace(sample_config, code_sha="a" * 64).with_config_hash()
         assert artifact_name(sample_config) != artifact_name(other)
 
-    def test_empty_code_sha_falls_back_to_config_hash(self, sample_config: TrainingConfig):
+    def test_empty_code_sha_falls_back_to_config_hash(
+        self, sample_config: TrainingConfig
+    ):
         """code_sha 为空时, 用 config_hash 兜底."""
         from dataclasses import replace
+
         no_code = replace(sample_config, code_sha="")
         name = artifact_name(no_code)
         short_hash = sample_config.config_hash[:8]
@@ -326,51 +348,75 @@ class TestArtifactName:
 class TestWriteManifest:
     """ECC GAP-7: manifest.json 落盘."""
 
-    def test_manifest_file_created(self, tmp_path: Path, sample_config: TrainingConfig, sample_importance: dict):
+    def test_manifest_file_created(
+        self, tmp_path: Path, sample_config: TrainingConfig, sample_importance: dict
+    ):
         """write_manifest 应创建 manifest.json 文件."""
         artifact_dir = tmp_path / "test_artifact"
-        manifest_path = write_manifest(artifact_dir, sample_config, metrics=sample_importance)
+        manifest_path = write_manifest(
+            artifact_dir, sample_config, metrics=sample_importance
+        )
         assert manifest_path.exists()
         assert manifest_path.name == "manifest.json"
 
-    def test_manifest_contains_all_required_fields(self, tmp_path: Path, sample_config: TrainingConfig, sample_importance: dict):
+    def test_manifest_contains_all_required_fields(
+        self, tmp_path: Path, sample_config: TrainingConfig, sample_importance: dict
+    ):
         """manifest.json 必须包含所有 MANIFEST_REQUIRED_FIELDS 字段."""
         artifact_dir = tmp_path / "test_artifact"
-        manifest_path = write_manifest(artifact_dir, sample_config, metrics=sample_importance)
+        manifest_path = write_manifest(
+            artifact_dir, sample_config, metrics=sample_importance
+        )
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
         for field_name in MANIFEST_REQUIRED_FIELDS:
             assert field_name in data, f"缺失必填字段: {field_name}"
 
-    def test_manifest_metrics_recorded(self, tmp_path: Path, sample_config: TrainingConfig, sample_importance: dict):
+    def test_manifest_metrics_recorded(
+        self, tmp_path: Path, sample_config: TrainingConfig, sample_importance: dict
+    ):
         """manifest.json 的 metrics 字段应记录特征重要性."""
         artifact_dir = tmp_path / "test_artifact"
-        manifest_path = write_manifest(artifact_dir, sample_config, metrics=sample_importance)
+        manifest_path = write_manifest(
+            artifact_dir, sample_config, metrics=sample_importance
+        )
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert "metrics" in data
         assert data["metrics"] == sample_importance
 
-    def test_manifest_contract_validation_optional(self, tmp_path: Path, sample_config: TrainingConfig):
+    def test_manifest_contract_validation_optional(
+        self, tmp_path: Path, sample_config: TrainingConfig
+    ):
         """contract_validation 字段可选 (None 时不写入)."""
         artifact_dir = tmp_path / "test_artifact"
-        manifest_path = write_manifest(artifact_dir, sample_config, metrics={}, contract_validation=None)
+        manifest_path = write_manifest(
+            artifact_dir, sample_config, metrics={}, contract_validation=None
+        )
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert "contract_validation" not in data
 
-    def test_manifest_with_contract_validation(self, tmp_path: Path, sample_config: TrainingConfig):
+    def test_manifest_with_contract_validation(
+        self, tmp_path: Path, sample_config: TrainingConfig
+    ):
         """contract_validation 不为 None 时应写入."""
         artifact_dir = tmp_path / "test_artifact"
         cv = {"passed": True, "violations": []}
-        manifest_path = write_manifest(artifact_dir, sample_config, metrics={}, contract_validation=cv)
+        manifest_path = write_manifest(
+            artifact_dir, sample_config, metrics={}, contract_validation=cv
+        )
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert data["contract_validation"] == cv
 
-    def test_manifest_creates_parent_dirs(self, tmp_path: Path, sample_config: TrainingConfig):
+    def test_manifest_creates_parent_dirs(
+        self, tmp_path: Path, sample_config: TrainingConfig
+    ):
         """artifact_dir 不存在时, write_manifest 应自动创建父目录."""
         artifact_dir = tmp_path / "deep" / "nested" / "path"
         manifest_path = write_manifest(artifact_dir, sample_config, metrics={})
         assert manifest_path.exists()
 
-    def test_manifest_dataset_uri_matches_compute(self, tmp_path: Path, sample_config: TrainingConfig, sample_panel: pd.DataFrame):
+    def test_manifest_dataset_uri_matches_compute(
+        self, tmp_path: Path, sample_config: TrainingConfig, sample_panel: pd.DataFrame
+    ):
         """manifest 的 dataset_uri 应与 compute_dataset_uri(panel) 一致."""
         artifact_dir = tmp_path / "test_artifact"
         manifest_path = write_manifest(artifact_dir, sample_config, metrics={})
@@ -407,6 +453,7 @@ class TestVerifyReproducibility:
         注意: replace 不会自动重算 config_hash, 需手动调用 with_config_hash().
         """
         from dataclasses import replace
+
         # seed=99 → config_hash 不同
         other_config = replace(sample_config, seed=99).with_config_hash()
         result = verify_reproducibility(
@@ -427,11 +474,15 @@ class TestVerifyReproducibility:
         """
         # 构造不同 importance (交换 MOM_5D 和 RSI_14D 的值)
         different_importance = dict(sample_importance)
-        different_importance["MOM_5D"] = 95.0   # 原值 150.5, 降低
+        different_importance["MOM_5D"] = 95.0  # 原值 150.5, 降低
         different_importance["RSI_14D"] = 150.0  # 原值 95.8, 提升
 
         result = verify_reproducibility(
-            sample_config, sample_config, sample_importance, different_importance, top_k=3
+            sample_config,
+            sample_config,
+            sample_importance,
+            different_importance,
+            top_k=3,
         )
         # config 完全匹配
         assert result["config_match"] is True
@@ -462,7 +513,9 @@ class TestConstructDefaultConfig:
         assert config.early_stopping_rounds == 20
         assert config.n_splits == 5
 
-    def test_default_config_lgb_params_preserves_v9_baseline(self, sample_panel: pd.DataFrame):
+    def test_default_config_lgb_params_preserves_v9_baseline(
+        self, sample_panel: pd.DataFrame
+    ):
         """HC-1: 默认 lgb_params 必须保留原 V9 基线参数 (num_leaves=31, lr=0.05, seed=42)."""
         config = construct_default_config(sample_panel)
         assert config.lgb_params["num_leaves"] == 31
@@ -475,7 +528,9 @@ class TestConstructDefaultConfig:
     def test_default_config_feature_list_from_panel(self, sample_panel: pd.DataFrame):
         """feature_list 应从 panel 列提取 (排除 code/date/y)."""
         config = construct_default_config(sample_panel)
-        expected = tuple(c for c in sample_panel.columns if c not in ("code", "date", "y"))
+        expected = tuple(
+            c for c in sample_panel.columns if c not in ("code", "date", "y")
+        )
         assert config.feature_list == expected
 
 
@@ -505,9 +560,9 @@ class TestReproducibilityScenario:
         )
 
         # 验收: reproducible == True
-        assert result["reproducible"] is True, (
-            f"同 config+seed+dataset 应可复现, 但 reproducible=False: {result}"
-        )
+        assert (
+            result["reproducible"] is True
+        ), f"同 config+seed+dataset 应可复现, 但 reproducible=False: {result}"
         assert result["top_k_overlap"] == 1.0
         assert result["top_k_consistency"] == 1.0
 
@@ -516,6 +571,7 @@ class TestReproducibilityScenario:
     ):
         """seed=42 vs seed=43 → artifact_name 不同 (区分两次实验)."""
         from dataclasses import replace
+
         config_42 = sample_config
         config_43 = replace(sample_config, seed=43)
         # config_hash 也应不同 (seed 是字段之一)
@@ -529,7 +585,9 @@ class TestReproducibilityScenario:
     ):
         """可复现训练应能落盘 manifest, 包含足够信息复现."""
         artifact_dir = tmp_path / artifact_name(sample_config)
-        manifest_path = write_manifest(artifact_dir, sample_config, metrics=sample_importance)
+        manifest_path = write_manifest(
+            artifact_dir, sample_config, metrics=sample_importance
+        )
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
 
         # 验收: manifest 含复现所需的全部信息

@@ -8,6 +8,7 @@
     - 重点验证 fail-closed 行为: 数据不可用时只触发 L2 (禁止开仓), 不触发 L3 (强制平仓)
     - 每个 bug 至少一个用例, 函数名包含 bug 编号
 """
+
 import pytest
 
 from utils.overnight_gap_monitor import OvernightGapMonitor
@@ -48,7 +49,9 @@ class TestBUG1FailClosedNoFalseL3:
     @pytest.mark.unit
     @pytest.mark.p0
     @pytest.mark.bug("BUG#1")
-    def test_bug1_fail_closed_does_not_trigger_l3(self, mock_all_external_sources_unavailable):
+    def test_bug1_fail_closed_does_not_trigger_l3(
+        self, mock_all_external_sources_unavailable
+    ):
         """BUG#1 核心: 数据源全部不可用时不能触发 L3 全局平仓
 
         应触发 L2 (禁止开仓, 保守保护)
@@ -56,9 +59,9 @@ class TestBUG1FailClosedNoFalseL3:
         ogm = OvernightGapMonitor()
         risk = ogm.evaluate_overnight_risk()
 
-        assert risk["level"] != 3, (
-            "fail-closed 不能触发 L3 全局平仓 (数据源不可用 ≠ 极端行情)"
-        )
+        assert (
+            risk["level"] != 3
+        ), "fail-closed 不能触发 L3 全局平仓 (数据源不可用 ≠ 极端行情)"
         assert risk["level"] == 2, "fail-closed 应触发 L2 (禁止开仓)"
         assert risk["can_open"] is False, "L2 时不可开新仓"
         assert risk["can_trade"] is True, "L2 时仍可交易 (允许平仓)"
@@ -86,9 +89,9 @@ class TestBUG1FailClosedNoFalseL3:
         afternoon = plan["execution_plan"]["afternoon_orders"]
 
         # L2 应保留 SELL 订单, 过滤 BUY 订单
-        assert len(morning) > 0 or len(afternoon) > 0, (
-            "L2 fail-closed 不能清空所有订单 (BUG#1: 原本误触发 L3 会清空)"
-        )
+        assert (
+            len(morning) > 0 or len(afternoon) > 0
+        ), "L2 fail-closed 不能清空所有订单 (BUG#1: 原本误触发 L3 会清空)"
 
         # 验证: BUY 被过滤, SELL 保留
         for order in morning + afternoon:
@@ -269,7 +272,9 @@ class TestApplyToPlan:
         }
 
         original_morning = list(sample_trade_plan["execution_plan"]["morning_orders"])
-        original_afternoon = list(sample_trade_plan["execution_plan"]["afternoon_orders"])
+        original_afternoon = list(
+            sample_trade_plan["execution_plan"]["afternoon_orders"]
+        )
 
         plan = ogm.apply_to_plan(sample_trade_plan, risk)
 
@@ -348,6 +353,7 @@ def mock_all_external_sources_unavailable(monkeypatch):
     2. _fetch_via_tdx_proxy → 返回不可用 (v8.6.8 新增层, 必须一并 mock)
     3. cache/external_data/overnight_gap_latest.json → 不存在
     """
+
     # Layer 1: ExternalDataManager 不可用
     def _raise_or_none(*args, **kwargs):
         raise ConnectionError("ExternalDataSource unavailable (mocked)")

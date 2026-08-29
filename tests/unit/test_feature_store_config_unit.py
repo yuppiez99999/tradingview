@@ -2,6 +2,7 @@
 
 被测模块: utils/feature_store/config.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -156,13 +157,15 @@ class TestFromDictInvalidFallbacks:
         assert c.query_timeout_seconds == 5.0
 
     def test_all_invalid_simultaneously(self):
-        c = FeatureStoreConfig.from_dict({
-            "online_backend": "xxx",
-            "offline_backend": "yyy",
-            "online_ttl_days": -1,
-            "batch_size": 0,
-            "query_timeout_seconds": "bad",
-        })
+        c = FeatureStoreConfig.from_dict(
+            {
+                "online_backend": "xxx",
+                "offline_backend": "yyy",
+                "online_ttl_days": -1,
+                "batch_size": 0,
+                "query_timeout_seconds": "bad",
+            }
+        )
         assert c == FeatureStoreConfig()
 
 
@@ -176,12 +179,14 @@ class TestFromDictTypeCoercion:
         assert c.reject_nan is False
 
     def test_string_fields_coerced(self):
-        c = FeatureStoreConfig.from_dict({
-            "online_redis_url": 12345,
-            "offline_duckdb_path": 67890,
-            "offline_parquet_dir": None,
-            "feature_flag_name": 42,
-        })
+        c = FeatureStoreConfig.from_dict(
+            {
+                "online_redis_url": 12345,
+                "offline_duckdb_path": 67890,
+                "offline_parquet_dir": None,
+                "feature_flag_name": 42,
+            }
+        )
         assert c.online_redis_url == "12345"
         assert c.offline_duckdb_path == "67890"
         assert c.offline_parquet_dir == "None"

@@ -7,6 +7,7 @@
     - factors_to_matrix (dict 输入/FactorValue 输入/stocks 指定/None 过滤)
     - encode_factor_frame (端到端/空输入/维度不匹配重建)
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -28,7 +29,9 @@ from utils.alpha_factor.transformer_encoder import (
 class TestFactorEncodingResult:
     @pytest.mark.unit
     def test_defaults(self):
-        result = FactorEncodingResult(embeddings=np.zeros((3, 4)), stocks=["A", "B", "C"])
+        result = FactorEncodingResult(
+            embeddings=np.zeros((3, 4)), stocks=["A", "B", "C"]
+        )
         assert result.attn_weights is None
         assert result.backend == "numpy"
         assert result.meta == {}
@@ -38,8 +41,10 @@ class TestFactorEncodingResult:
         emb = np.random.randn(3, 4)
         attn = np.random.randn(3, 3)
         result = FactorEncodingResult(
-            embeddings=emb, stocks=["A", "B", "C"],
-            attn_weights=attn, backend="torch",
+            embeddings=emb,
+            stocks=["A", "B", "C"],
+            attn_weights=attn,
+            backend="torch",
         )
         assert result.backend == "torch"
         assert result.attn_weights is not None
@@ -121,15 +126,20 @@ class TestBuildFactorEncoder:
     def test_auto_fallback_numpy(self):
         """torch 不可用时自动降级 numpy; torch 可用时返回 torch 后端"""
         from utils.alpha_factor.transformer_encoder import _TORCH_AVAILABLE
+
         enc = build_factor_encoder(n_factors=10, d_model=8)
         if _TORCH_AVAILABLE:
-            assert getattr(enc, "backend", None) == "torch" or enc.__class__.__name__ == "_TorchFactorEncoder"
+            assert (
+                getattr(enc, "backend", None) == "torch"
+                or enc.__class__.__name__ == "_TorchFactorEncoder"
+            )
         else:
             assert isinstance(enc, NumpyFactorEncoder)
 
     @pytest.mark.unit
     def test_force_torch_raises(self):
         from utils.alpha_factor.transformer_encoder import _TORCH_AVAILABLE
+
         if _TORCH_AVAILABLE:
             enc = build_factor_encoder(n_factors=10, force_backend="torch")
             assert enc.__class__.__name__ == "_TorchFactorEncoder"

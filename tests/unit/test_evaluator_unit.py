@@ -3,6 +3,7 @@
 被测模块: utils/alpha_factor/evaluator.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,6 +31,7 @@ from utils.alpha_factor.evaluator import (  # noqa: E402
 # ============================================================
 # _rank_corr
 # ============================================================
+
 
 class TestRankCorr:
     def test_perfect_positive(self):
@@ -60,6 +62,7 @@ class TestRankCorr:
 # ============================================================
 # _split_into_quantiles
 # ============================================================
+
 
 class TestSplitQuantiles:
     def test_basic_5_groups(self):
@@ -97,6 +100,7 @@ class TestSplitQuantiles:
 # compute_quantile_returns
 # ============================================================
 
+
 class TestQuantileReturns:
     def test_monotonic_factor(self):
         fv = {f"S{i}": i for i in range(1, 21)}
@@ -124,15 +128,18 @@ class TestQuantileReturns:
         assert isinstance(result, QuantileReturn)
 
     def test_forward_window_metadata(self):
-        result = compute_quantile_returns({"A": 1, "B": 2, "C": 3, "D": 4, "E": 5},
-                                          {"A": 0.01, "B": 0.02, "C": 0.03, "D": 0.04, "E": 0.05},
-                                          forward_window=10)
+        result = compute_quantile_returns(
+            {"A": 1, "B": 2, "C": 3, "D": 4, "E": 5},
+            {"A": 0.01, "B": 0.02, "C": 0.03, "D": 0.04, "E": 0.05},
+            forward_window=10,
+        )
         assert result.forward_window == 10
 
 
 # ============================================================
 # compute_turnover
 # ============================================================
+
 
 class TestTurnover:
     def test_stable_portfolio(self):
@@ -173,6 +180,7 @@ class TestTurnover:
 # compute_factor_decay
 # ============================================================
 
+
 class TestFactorDecay:
     def test_basic_decay(self):
         hist = [{f"S{i}": float(i + t) for i in range(1, 21)} for t in range(30)]
@@ -181,7 +189,9 @@ class TestFactorDecay:
             5: [{f"S{i}": 0.002 * i for i in range(1, 21)}] * 30,
             10: [{f"S{i}": 0.001 * i for i in range(1, 21)}] * 30,
         }
-        result = compute_factor_decay(hist, fr_by_window, windows=[1, 5, 10], factor_name="test")
+        result = compute_factor_decay(
+            hist, fr_by_window, windows=[1, 5, 10], factor_name="test"
+        )
         assert isinstance(result, DecayResult)
         assert 1 in result.ic_by_window
         assert 5 in result.ic_by_window
@@ -194,7 +204,10 @@ class TestFactorDecay:
 
     def test_default_windows(self):
         hist = [{f"S{i}": float(i + t) for i in range(1, 21)} for t in range(30)]
-        fr_by_window = {w: [{f"S{i}": 0.001 * i for i in range(1, 21)}] * 30 for w in [1, 2, 3, 5, 10, 15, 20]}
+        fr_by_window = {
+            w: [{f"S{i}": 0.001 * i for i in range(1, 21)}] * 30
+            for w in [1, 2, 3, 5, 10, 15, 20]
+        }
         result = compute_factor_decay(hist, fr_by_window)
         assert len(result.ic_by_window) == 7
 
@@ -214,6 +227,7 @@ class TestFactorDecay:
 # ============================================================
 # build_factor_tear_sheet
 # ============================================================
+
 
 class TestTearSheet:
     def test_name_only(self):
@@ -284,13 +298,16 @@ class TestTearSheet:
 # evaluate_all_factors_tear_sheets
 # ============================================================
 
+
 class TestEvaluateAll:
     def test_batch(self):
         hist = [{f"S{i}": float(i + t) for i in range(1, 21)} for t in range(30)]
         fr = [{f"S{i}": 0.001 * i for i in range(1, 21)}] * 30
         factor_history_by_name = {"alpha1": hist, "alpha2": hist}
-        latest_fv = {"alpha1": {f"S{i}": float(i) for i in range(1, 21)},
-                     "alpha2": {f"S{i}": float(i) for i in range(1, 21)}}
+        latest_fv = {
+            "alpha1": {f"S{i}": float(i) for i in range(1, 21)},
+            "alpha2": {f"S{i}": float(i) for i in range(1, 21)},
+        }
         latest_fr = {f"S{i}": 0.001 * i for i in range(1, 21)}
         sheets = evaluate_all_factors_tear_sheets(
             factor_history_by_name=factor_history_by_name,
@@ -314,6 +331,7 @@ class TestEvaluateAll:
 # ============================================================
 # tear_sheet_to_dict
 # ============================================================
+
 
 class TestTearSheetToDict:
     def test_minimal(self):

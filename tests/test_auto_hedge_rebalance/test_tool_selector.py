@@ -27,31 +27,51 @@ from utils.auto_hedge_rebalance.tool_selector import (
 def selector() -> HedgeToolSelector:
     mock_engine = MagicMock()
     mock_engine.generate_futures_hedge.return_value = {"IF": 2, "IC": 1}
-    mock_engine.generate_options_hedge.return_value = [{"code": "510300", "strategy": "protective_put"}]
-    return HedgeToolSelector(hedge_engine=mock_engine, data_fetcher=MagicMock(), config={})
+    mock_engine.generate_options_hedge.return_value = [
+        {"code": "510300", "strategy": "protective_put"}
+    ]
+    return HedgeToolSelector(
+        hedge_engine=mock_engine, data_fetcher=MagicMock(), config={}
+    )
 
 
 @pytest.fixture
 def large_cap_risk() -> PortfolioRisk:
-    return PortfolioRisk(volatility=0.18, max_drawdown_60d=0.10, equity_exposure=0.80, nav=1000.0, beta=1.2)
+    return PortfolioRisk(
+        volatility=0.18,
+        max_drawdown_60d=0.10,
+        equity_exposure=0.80,
+        nav=1000.0,
+        beta=1.2,
+    )
 
 
 @pytest.fixture
 def small_cap_risk() -> PortfolioRisk:
-    return PortfolioRisk(volatility=0.25, max_drawdown_60d=0.15, equity_exposure=0.80, nav=1000.0, beta=0.5)
+    return PortfolioRisk(
+        volatility=0.25,
+        max_drawdown_60d=0.15,
+        equity_exposure=0.80,
+        nav=1000.0,
+        beta=0.5,
+    )
 
 
 class TestCalmState:
     """CALM 状态测试。"""
 
-    def test_calm_returns_none(self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk) -> None:
+    def test_calm_returns_none(
+        self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk
+    ) -> None:
         # Arrange & Act
         result = selector.select_tools(MarketRegime.CALM, large_cap_risk, 0.0)
         # Assert
         assert result.tool_type == HedgeToolType.NONE
         assert result.hedge_ratio == 0.0
 
-    def test_zero_ratio_returns_none(self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk) -> None:
+    def test_zero_ratio_returns_none(
+        self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk
+    ) -> None:
         # Arrange & Act
         result = selector.select_tools(MarketRegime.MILD, large_cap_risk, 0.0)
         # Assert
@@ -61,7 +81,9 @@ class TestCalmState:
 class TestMildState:
     """MILD 状态测试。"""
 
-    def test_mild_large_cap_selects_if_ih(self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk) -> None:
+    def test_mild_large_cap_selects_if_ih(
+        self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk
+    ) -> None:
         # Arrange & Act
         result = selector.select_tools(MarketRegime.MILD, large_cap_risk, 0.15)
         # Assert
@@ -69,7 +91,9 @@ class TestMildState:
         assert "IF" in result.instruments
         assert "IH" in result.instruments
 
-    def test_mild_small_cap_selects_ic_im(self, selector: HedgeToolSelector, small_cap_risk: PortfolioRisk) -> None:
+    def test_mild_small_cap_selects_ic_im(
+        self, selector: HedgeToolSelector, small_cap_risk: PortfolioRisk
+    ) -> None:
         # Arrange & Act
         result = selector.select_tools(MarketRegime.MILD, small_cap_risk, 0.15)
         # Assert
@@ -81,14 +105,18 @@ class TestMildState:
 class TestHighState:
     """HIGH 状态测试。"""
 
-    def test_high_large_cap(self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk) -> None:
+    def test_high_large_cap(
+        self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk
+    ) -> None:
         # Arrange & Act
         result = selector.select_tools(MarketRegime.HIGH, large_cap_risk, 0.25)
         # Assert
         assert result.tool_type == HedgeToolType.INDEX_FUTURES
         assert result.hedge_ratio == 0.25
 
-    def test_high_small_cap(self, selector: HedgeToolSelector, small_cap_risk: PortfolioRisk) -> None:
+    def test_high_small_cap(
+        self, selector: HedgeToolSelector, small_cap_risk: PortfolioRisk
+    ) -> None:
         # Arrange & Act
         result = selector.select_tools(MarketRegime.HIGH, small_cap_risk, 0.25)
         # Assert
@@ -99,7 +127,9 @@ class TestHighState:
 class TestTailEventState:
     """TAIL_EVENT 状态测试。"""
 
-    def test_tail_event_large_cap_selects_etf_options(self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk) -> None:
+    def test_tail_event_large_cap_selects_etf_options(
+        self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk
+    ) -> None:
         # Arrange & Act
         result = selector.select_tools(MarketRegime.TAIL_EVENT, large_cap_risk, 0.40)
         # Assert
@@ -108,7 +138,9 @@ class TestTailEventState:
         assert "510050" in result.instruments
         assert result.options_strategy == OptionsStrategy.PROTECTIVE_PUT
 
-    def test_tail_event_small_cap_selects_mixed(self, selector: HedgeToolSelector, small_cap_risk: PortfolioRisk) -> None:
+    def test_tail_event_small_cap_selects_mixed(
+        self, selector: HedgeToolSelector, small_cap_risk: PortfolioRisk
+    ) -> None:
         # Arrange & Act
         result = selector.select_tools(MarketRegime.TAIL_EVENT, small_cap_risk, 0.40)
         # Assert
@@ -131,7 +163,9 @@ class TestFallback:
         assert result.tool_type == HedgeToolType.INDEX_FUTURES
         assert any("降级至期货" in f for f in result.fallback_flags)
 
-    def test_no_engine_returns_empty_contracts(self, small_cap_risk: PortfolioRisk) -> None:
+    def test_no_engine_returns_empty_contracts(
+        self, small_cap_risk: PortfolioRisk
+    ) -> None:
         # Arrange — 无对冲引擎
         selector = HedgeToolSelector(hedge_engine=None, config={})
         # Act
@@ -144,7 +178,9 @@ class TestFallback:
 class TestReasoning:
     """决策推理测试。"""
 
-    def test_reasoning_contains_regime_and_beta(self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk) -> None:
+    def test_reasoning_contains_regime_and_beta(
+        self, selector: HedgeToolSelector, large_cap_risk: PortfolioRisk
+    ) -> None:
         # Arrange & Act
         result = selector.select_tools(MarketRegime.HIGH, large_cap_risk, 0.25)
         # Assert

@@ -60,3 +60,14 @@ R4 落地的 PR 门禁，独立于主 CI，专注「增量」：
 - 新建脚本：`scripts/_verify_phase3b_static_analysis.py`、`scripts/_smoke_runner.py`、`scripts/_select_tests_by_diff.py`、`scripts/_check_coverage_trend.py`、`scripts/_verify_reexport_compat.py`、`scripts/_run_v9_regression.py`、`scripts/ci_integrity_check.py`
 - 新增门禁：`.github/workflows/quality-gate.yml`
 - 门禁判据增强：`utils/.../industrial_grade_check.py::check_c6_ci_runnable`（已能检测缺失脚本，C6 现 PASS）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [工业级防复发机制 (Industrial Grade Anti-Regression Framework)](industrial-grade-anti-regression-framework.md) (相似度 13%)
+- [代码审查质量门禁经验沉淀：为什么多次审查仍有 bug](code-review-quality-gate-lessons-20260811.md) (相似度 12%)
+- [代码审查复审（二次 · 2026-08-12）落地与治理](code-review-reaudit-20260812.md) (相似度 11%)
+- [2026-08-08 代码审查修复批次经验沉淀](code-review-fix-batch-20260808.md) (相似度 10%)
+- [代码质量提升外部资源评估](code-quality-external-resources-20260821.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

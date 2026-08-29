@@ -3,6 +3,7 @@
 被测模块: utils/mvsk_regime_detector.py
 覆盖: 正态/肥尾 regime 判定, 数据不足回退, 1D/2D 输入, 时间线, 参数校验
 """
+
 from __future__ import annotations
 
 import sys
@@ -15,7 +16,11 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.mvsk_regime_detector import Regime, RegimeDetector, RegimeResult  # noqa: E402
+from utils.mvsk_regime_detector import (
+    Regime,
+    RegimeDetector,
+    RegimeResult,
+)  # noqa: E402
 
 
 def _normal_returns(n_days: int = 200, n_assets: int = 5, seed: int = 0) -> np.ndarray:
@@ -23,7 +28,9 @@ def _normal_returns(n_days: int = 200, n_assets: int = 5, seed: int = 0) -> np.n
     return rng.randn(n_days, n_assets) * 0.01
 
 
-def _fat_tail_returns(n_days: int = 200, n_assets: int = 5, seed: int = 1) -> np.ndarray:
+def _fat_tail_returns(
+    n_days: int = 200, n_assets: int = 5, seed: int = 1
+) -> np.ndarray:
     rng = np.random.RandomState(seed)
     R = rng.randn(n_days, n_assets) * 0.01
     # 注入大跌冲击 → 负偏度 + 高峰度

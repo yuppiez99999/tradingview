@@ -44,8 +44,10 @@ logger = logging.getLogger("regime_aware_allocator")
 # 制度枚举
 # ============================================================
 
+
 class Regime(str, Enum):
     """市场制度。"""
+
     LOW_VOL = "low_vol"
     NORMAL = "normal"
     HIGH_VOL = "high_vol"
@@ -56,6 +58,7 @@ class Regime(str, Enum):
 # VIX 制度分类器
 # ============================================================
 
+
 @dataclass
 class RegimeThresholds:
     """制度阈值。
@@ -65,6 +68,7 @@ class RegimeThresholds:
         normal: 正常上限
         high_vol: 高波动上限
     """
+
     low_vol: float = 15.0
     normal: float = 20.0
     high_vol: float = 30.0
@@ -99,15 +103,13 @@ class RegimeClassifier:
         if not self.history:
             return {}
         total = len(self.history)
-        return {
-            r.value: self.history.count(r) / total
-            for r in Regime
-        }
+        return {r.value: self.history.count(r) / total for r in Regime}
 
 
 # ============================================================
 # Ledoit-Wolf 收缩协方差
 # ============================================================
+
 
 class CovarianceShrinkage:
     """Ledoit-Wolf 收缩协方差估计.
@@ -164,6 +166,7 @@ class CovarianceShrinkage:
 # 制度感知配置
 # ============================================================
 
+
 @dataclass
 class RegimeConfig:
     """制度感知配置。
@@ -174,35 +177,45 @@ class RegimeConfig:
         defense_boost: 防御资产加成
         offense_boost: 进攻资产加成
     """
-    risk_aversion: dict[Regime, float] = field(default_factory=lambda: {
-        Regime.LOW_VOL: 0.5,
-        Regime.NORMAL: 1.0,
-        Regime.HIGH_VOL: 2.0,
-        Regime.CRISIS: 5.0,
-    })
-    max_weight: dict[Regime, float] = field(default_factory=lambda: {
-        Regime.LOW_VOL: 0.40,
-        Regime.NORMAL: 0.30,
-        Regime.HIGH_VOL: 0.25,
-        Regime.CRISIS: 0.15,
-    })
-    defense_boost: dict[Regime, float] = field(default_factory=lambda: {
-        Regime.LOW_VOL: 0.8,
-        Regime.NORMAL: 1.0,
-        Regime.HIGH_VOL: 1.5,
-        Regime.CRISIS: 2.0,
-    })
-    offense_boost: dict[Regime, float] = field(default_factory=lambda: {
-        Regime.LOW_VOL: 1.3,
-        Regime.NORMAL: 1.0,
-        Regime.HIGH_VOL: 0.7,
-        Regime.CRISIS: 0.3,
-    })
+
+    risk_aversion: dict[Regime, float] = field(
+        default_factory=lambda: {
+            Regime.LOW_VOL: 0.5,
+            Regime.NORMAL: 1.0,
+            Regime.HIGH_VOL: 2.0,
+            Regime.CRISIS: 5.0,
+        }
+    )
+    max_weight: dict[Regime, float] = field(
+        default_factory=lambda: {
+            Regime.LOW_VOL: 0.40,
+            Regime.NORMAL: 0.30,
+            Regime.HIGH_VOL: 0.25,
+            Regime.CRISIS: 0.15,
+        }
+    )
+    defense_boost: dict[Regime, float] = field(
+        default_factory=lambda: {
+            Regime.LOW_VOL: 0.8,
+            Regime.NORMAL: 1.0,
+            Regime.HIGH_VOL: 1.5,
+            Regime.CRISIS: 2.0,
+        }
+    )
+    offense_boost: dict[Regime, float] = field(
+        default_factory=lambda: {
+            Regime.LOW_VOL: 1.3,
+            Regime.NORMAL: 1.0,
+            Regime.HIGH_VOL: 0.7,
+            Regime.CRISIS: 0.3,
+        }
+    )
 
 
 # ============================================================
 # 制度感知分配器
 # ============================================================
+
 
 @dataclass
 class AllocationResult:
@@ -217,6 +230,7 @@ class AllocationResult:
         expected_return: 期望收益
         expected_risk: 期望风险
     """
+
     weights: np.ndarray
     regime: Regime
     base_weights: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -391,15 +405,13 @@ class RegimeAwareAllocator:
                 "high_vol": 25.0,
                 "crisis": 35.0,
             }
-        return {
-            name: self.allocate(returns, vix)
-            for name, vix in vix_values.items()
-        }
+        return {name: self.allocate(returns, vix) for name, vix in vix_values.items()}
 
 
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示 RegimeFolio 制度感知组合优化。"""

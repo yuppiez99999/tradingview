@@ -197,12 +197,15 @@ class StrategyStateMachine:
         self,
         current: StrategyLevel,
         action: CorrectionAction,
+        emergency: bool = False,
     ) -> TransitionResult:
         """执行状态转移。
 
         Args:
             current: 当前策略等级 (应与内部状态一致)。
             action: 纠偏动作。
+            emergency: v8.7 紧急模式 — 极端事件(单日跌幅>5%/VIX>40)时允许跨级降级,
+                       快速进入防御状态而非逐级降级. 默认 False 保持向后兼容.
 
         Returns:
             状态转移结果 TransitionResult。
@@ -221,7 +224,10 @@ class StrategyStateMachine:
             )
 
         # 熔断状态锁定: CIRCUIT_BREAKER 只能由管理员解除
-        if current == StrategyLevel.CIRCUIT_BREAKER and target_level != StrategyLevel.CIRCUIT_BREAKER:
+        if (
+            current == StrategyLevel.CIRCUIT_BREAKER
+            and target_level != StrategyLevel.CIRCUIT_BREAKER
+        ):
             return TransitionResult(
                 new_level=current,
                 new_params={},
@@ -231,13 +237,19 @@ class StrategyStateMachine:
 
         # 降级 (目标等级更高 = 更保守)
         if target_order > current_order:
-            # 禁止跨级降级
-            if target_order > current_order + 1:
+            # v8.7: 紧急模式允许跨级降级 (极端事件快速响应)
+            if target_order > current_order + 1 and not emergency:
                 return TransitionResult(
                     new_level=current,
                     new_params={},
                     cooldown_active=False,
                     blocked_reason=f"禁止跨级降级: {current.value} → {target_level.value}",
+                )
+            if target_order > current_order + 1 and emergency:
+                logger.warning(
+                    "[v8.7紧急跨级降级] %s → %s (紧急模式, 跳过逐级降级)",
+                    current.value,
+                    target_level.value,
                 )
             return self._execute_transition(current, target_level, action)
 
@@ -272,7 +284,9 @@ class StrategyStateMachine:
     ) -> TransitionResult:
         """执行实际的状态转移。"""
         now = self._now_iso()
-        cooldown_until = (datetime.now() + timedelta(days=self.cooldown_days)).isoformat(timespec="seconds")
+        cooldown_until = (
+            datetime.now() + timedelta(days=self.cooldown_days)
+        ).isoformat(timespec="seconds")
         min_hold = _LEVEL_MIN_HOLD_DAYS.get(to_level, 0)
 
         switch_event = StrategySwitchEvent(
@@ -332,7 +346,11 @@ class StrategyStateMachine:
             是否成功处理。
         """
         if self._state.pending_switch_event_id != switch_event_id:
-            logger.warning("切换事件ID不匹配: %s != %s", switch_event_id, self._state.pending_switch_event_id)
+            logger.warning(
+                "切换事件ID不匹配: %s != %s",
+                switch_event_id,
+                self._state.pending_switch_event_id,
+            )
             return False
 
         if not approved:
@@ -353,7 +371,9 @@ class StrategyStateMachine:
             new_state = StrategyState(
                 current_level=StrategyLevel.NORMAL,
                 last_transition_time=now,
-                cooldown_until=(datetime.now() + timedelta(days=self.cooldown_days)).isoformat(timespec="seconds"),
+                cooldown_until=(
+                    datetime.now() + timedelta(days=self.cooldown_days)
+                ).isoformat(timespec="seconds"),
                 pending_switch_event_id=None,
                 level_min_hold_days=0,
             )

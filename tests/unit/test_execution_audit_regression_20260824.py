@@ -7,11 +7,15 @@
     EX-2  SimulatedBroker 未设 volume 时全额成交 (此前静默只成交 1/10)
     EX-8  post_execution_review IS 带方向 (买入有利=负, 不利=正)
 """
+
 from __future__ import annotations
 
 from ms_strategy.src.execution.algo_engine import AlgoEngine
 from ms_strategy.src.execution.broker_api import Order, SimulatedBroker
-from ms_strategy.src.execution.post_execution_review import ExecutionReviewer, FillRecord
+from ms_strategy.src.execution.post_execution_review import (
+    ExecutionReviewer,
+    FillRecord,
+)
 from ms_strategy.src.execution.smart_order_router import MockBroker, SmartOrderRouter
 
 
@@ -20,10 +24,12 @@ class _MockNTP:
 
     def server_ts(self):
         from datetime import datetime
+
         return datetime.utcnow()
 
     def local_ts(self):
         from datetime import datetime
+
         return datetime.utcnow()
 
     def get_offset(self):
@@ -86,8 +92,14 @@ class TestSimulatedBrokerVolume:
         """EX-2: 只设价格未设 volume 时应全额成交 (修复前静默 1/10)."""
         broker = SimulatedBroker()
         broker.set_price("600519", 1680.0)
-        order = Order(order_id="o1", symbol="600519", qty=1000, side="BUY",
-                      order_type="LIMIT", price=1680.0)
+        order = Order(
+            order_id="o1",
+            symbol="600519",
+            qty=1000,
+            side="BUY",
+            order_type="LIMIT",
+            price=1680.0,
+        )
         fill = broker.wait_fill(order)
         assert fill is not None
         assert fill["qty"] == 1000
@@ -96,8 +108,14 @@ class TestSimulatedBrokerVolume:
         """EX-2: 设置 volume 后按流动性约束部分成交."""
         broker = SimulatedBroker()
         broker.set_price("600519", 1680.0, volume=5000)
-        order = Order(order_id="o2", symbol="600519", qty=1000, side="BUY",
-                      order_type="LIMIT", price=1680.0)
+        order = Order(
+            order_id="o2",
+            symbol="600519",
+            qty=1000,
+            side="BUY",
+            order_type="LIMIT",
+            price=1680.0,
+        )
         fill = broker.wait_fill(order)
         assert fill is not None
         # 参与上限 = volume // 10 = 500
@@ -108,11 +126,17 @@ class TestSimulatedBrokerVolume:
 class TestImplementationShortfallDirection:
     def _review_buy(self, fill_price: float) -> float:
         r = ExecutionReviewer()
-        fills = [FillRecord(
-            symbol="600519", side="BUY", quantity=100,
-            fill_price=fill_price, decision_price=10.0,
-            arrival_price=10.0, order_id="o1",
-        )]
+        fills = [
+            FillRecord(
+                symbol="600519",
+                side="BUY",
+                quantity=100,
+                fill_price=fill_price,
+                decision_price=10.0,
+                arrival_price=10.0,
+                order_id="o1",
+            )
+        ]
         report = r.review(fills)
         return report.order_summaries[0].implementation_shortfall
 

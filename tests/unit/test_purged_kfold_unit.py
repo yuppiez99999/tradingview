@@ -2,6 +2,7 @@
 单元测试: utils/purged_kfold.py
 覆盖 purged_timeseries_split / purged_kfold_generator / validate_embargo / overfitting_diagnosis
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -51,7 +52,11 @@ class TestPurgedTimeseriesSplit:
             assert gap > 0
 
     def test_custom_params(self):
-        folds = list(purged_timeseries_split(300, n_splits=3, embargo_pct=0.02, min_train_pct=0.4))
+        folds = list(
+            purged_timeseries_split(
+                300, n_splits=3, embargo_pct=0.02, min_train_pct=0.4
+            )
+        )
         assert len(folds) > 0
 
     def test_indices_are_numpy_arrays(self):

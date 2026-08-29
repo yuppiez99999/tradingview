@@ -189,3 +189,14 @@ if self.enable_info:
 - Gatev, E., Goetzmann, W. & Rouwenhorst, K. (2006). "Pairs Trading: Performance check". Rev. Fin. Studies.
 - Tsang, E. & Zhao, Y. (2012). "Directional Change and Event-Based Time". SSRN.
 - Mandelbrot, B. & Ness, J. (1968). "Fractional Brownian motions". SIAM Review.
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [经典理论覆盖度审计 — 2026-08-19](classic-theory-coverage-20260819.md) (相似度 26%)
+- [量化系统高价值代码资产地图（E:\各种PY程序）](high-value-code-assets.md) (相似度 11%)
+- [推荐书目：对系统有工程指导意义的中外书籍](recommended-reading-20260819.md) (相似度 9%)
+- [Wave 6 启动前置研究笔记（2026-08-11）](wave6-prep-study-notes.md) (相似度 9%)
+- [Alpha 因子体系](alpha-factor-system.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

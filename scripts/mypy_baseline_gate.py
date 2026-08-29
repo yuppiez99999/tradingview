@@ -13,6 +13,7 @@
     python scripts/mypy_baseline_gate.py            # 比对模式, 超限则 exit 1
     python scripts/mypy_baseline_gate.py --update   # 重新冻结当前 error 数为基线
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -27,8 +28,11 @@ MYPY_INI = PROJECT_ROOT / "mypy.ini"
 def _count_current_errors() -> tuple[int, str]:
     """运行 mypy (utils/), 返回 (error 数, 原始输出)."""
     cmd = [
-        sys.executable, "-m", "mypy",
-        "--config-file", str(MYPY_INI),
+        sys.executable,
+        "-m",
+        "mypy",
+        "--config-file",
+        str(MYPY_INI),
         "utils",
     ]
     proc = subprocess.run(
@@ -47,8 +51,11 @@ def _count_current_errors() -> tuple[int, str]:
 def _read_baseline() -> int:
     if not BASELINE_FILE.exists():
         return 0
-    lines = [ln for ln in BASELINE_FILE.read_text(encoding="utf-8").splitlines()
-             if "error:" in ln]
+    lines = [
+        ln
+        for ln in BASELINE_FILE.read_text(encoding="utf-8").splitlines()
+        if "error:" in ln
+    ]
     return len(lines)
 
 
@@ -70,7 +77,9 @@ def main() -> int:
     baseline = _read_baseline()
     delta = current - baseline
 
-    print(f"[mypy-baseline] 当前 error 数: {current} | 基线: {baseline} | 增量: {delta:+d}")
+    print(
+        f"[mypy-baseline] 当前 error 数: {current} | 基线: {baseline} | 增量: {delta:+d}"
+    )
 
     if delta > 0:
         print(

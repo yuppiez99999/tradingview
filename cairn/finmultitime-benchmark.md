@@ -68,3 +68,14 @@ HS300: 分钟60480行, 日252行, 季5行, 新闻252行, 财报5行
 - LIT-5.4 RAG+RL 情感分析 (无依赖, 可并行)
 - LIT-5.5 排序损失评估 (依赖 LIT-5.1)
 - LIT-5.6 全量集成验收 (依赖全部)
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 26%)
+- [RAG + RL 自适应情感分析 — LIT-5.4](rag-rl-sentiment.md) (相似度 23%)
+- [分数阶差分 (Fractional Differencing) — LIT-5.2](fractional-differencing.md) (相似度 19%)
+- [排序损失函数系统评估 — LIT-5.5](ranking-loss-eval.md) (相似度 19%)
+- [篮子清算最小 shortfall](basket-liquidation.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

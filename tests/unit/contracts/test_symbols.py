@@ -11,6 +11,7 @@
     - NewType 运行时向后兼容 (isinstance str)
     - SymbolInfo 不可变性 (frozen=True)
 """
+
 from __future__ import annotations
 
 import pytest
@@ -381,16 +382,18 @@ class TestBackwardCompat:
         test_cases = [
             ("IF2507.CFFEX", True),
             ("CU2508.SHFE", True),
-            ("CU2508.SHF", True),   # 旧写法
+            ("CU2508.SHF", True),  # 旧写法
             ("SC2509.INE", True),
             ("M2509.DCE", True),
             ("CF2509.CZCE", True),
-            ("CF2509.ZCE", True),   # 旧写法
+            ("CF2509.ZCE", True),  # 旧写法
             ("SI2509.GFEX", True),
-            ("600519.SH", False),    # 非期货
-            ("IF2507", False),       # 无交易所
+            ("600519.SH", False),  # 非期货
+            ("IF2507", False),  # 无交易所
         ]
         for code, expected in test_cases:
-            assert FUTURES_CODE_PATTERN.match(code) is not None if expected \
-                else FUTURES_CODE_PATTERN.match(code) is None, \
-                f"FUTURES_CODE_PATTERN.match({code!r}) 应为 {'匹配' if expected else '不匹配'}"
+            assert (
+                FUTURES_CODE_PATTERN.match(code) is not None
+                if expected
+                else FUTURES_CODE_PATTERN.match(code) is None
+            ), f"FUTURES_CODE_PATTERN.match({code!r}) 应为 {'匹配' if expected else '不匹配'}"

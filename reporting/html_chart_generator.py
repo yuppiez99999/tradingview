@@ -13,6 +13,7 @@
 上游: docs/1 (diagram-design / archify 接入建议) + docs/ 33 个 md 报告
 下游: generate_daily_report.py --with-html-charts (后续接入) + docs/ 报告嵌入
 """
+
 from __future__ import annotations
 
 import html
@@ -24,9 +25,13 @@ from typing import Optional
 
 try:
     from ..logging_manager import get_logger
-    logger = get_logger("html_chart_generator")
-except ImportError:
-    logger = logging.getLogger("html_chart_generator")
+except (ImportError, ValueError):
+
+    def get_logger(name: str):
+        return logging.getLogger(name)
+
+
+logger = get_logger("html_chart_generator")
 
 
 # ============================================================
@@ -41,9 +46,11 @@ ECHARTS_CDN = "https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"
 # 数据类
 # ============================================================
 
+
 @dataclass
 class ChartStep:
     """流程图步骤"""
+
     id: str
     label: str
     shape: str = "rect"  # rect / round / diamond / stadium
@@ -53,6 +60,7 @@ class ChartStep:
 @dataclass
 class ChartComponent:
     """架构图组件"""
+
     id: str
     name: str
     category: str = "default"
@@ -63,6 +71,7 @@ class ChartComponent:
 @dataclass
 class ChartLink:
     """架构图连接"""
+
     source: str
     target: str
     label: str = ""
@@ -71,9 +80,10 @@ class ChartLink:
 @dataclass
 class GanttTask:
     """甘特图任务"""
+
     name: str
     start: str  # YYYY-MM-DD
-    end: str    # YYYY-MM-DD
+    end: str  # YYYY-MM-DD
     section: str = "default"
     status: str = "active"  # active / done / critical
 
@@ -81,6 +91,7 @@ class GanttTask:
 # ============================================================
 # HTML 图表生成器
 # ============================================================
+
 
 class HTMLChartGenerator:
     """自包含 HTML 图表生成器
@@ -93,7 +104,7 @@ class HTMLChartGenerator:
     """
 
     SHAPE_MAP: dict[str, str] = {
-        "rect": "[" ,
+        "rect": "[",
         "round": "(",
         "diamond": "{",
         "stadium": "(",
@@ -173,12 +184,16 @@ class HTMLChartGenerator:
             open_b = self.SHAPE_MAP.get(step.shape, "[")
             close_b = self.SHAPE_CLOSE.get(step.shape, "]")
             label = html.escape(step.label)
-            lines.append(f"    {step.id}{open_b}\"{label}\"{close_b}")
+            lines.append(f'    {step.id}{open_b}"{label}"{close_b}')
         for step in steps:
             for nxt in step.next:
                 lines.append(f"    {step.id} --> {nxt}")
         lines.append("```")
-        body = f'<div class="chart-container"><h2>{html.escape(title)}</h2>\n<div class="mermaid">\n' + "\n".join(lines[1:-1]) + "\n</div></div>"
+        body = (
+            f'<div class="chart-container"><h2>{html.escape(title)}</h2>\n<div class="mermaid">\n'
+            + "\n".join(lines[1:-1])
+            + "\n</div></div>"
+        )
         return body
 
     def generate_flowchart_standalone(
@@ -209,7 +224,12 @@ class HTMLChartGenerator:
         categories = list({c.category for c in components})
         cat_data = [{"name": c} for c in categories]
         nodes_data = [
-            {"name": c.name, "category": categories.index(c.category), "x": c.x, "y": c.y}
+            {
+                "name": c.name,
+                "category": categories.index(c.category),
+                "x": c.x,
+                "y": c.y,
+            }
             for c in components
         ]
         links_data = [
@@ -248,7 +268,9 @@ class HTMLChartGenerator:
         }});
       }}
     </script>"""
-        return f'<div class="chart-container"><h2>{html.escape(title)}</h2>{script}</div>'
+        return (
+            f'<div class="chart-container"><h2>{html.escape(title)}</h2>{script}</div>'
+        )
 
     def generate_architecture_standalone(
         self,
@@ -271,17 +293,32 @@ class HTMLChartGenerator:
         date_format: str = "YYYY-MM-DD",
     ) -> str:
         """生成 mermaid 甘特图 HTML 片段"""
-        lines = ["```mermaid", "gantt", f"    title {html.escape(title)}", f"    dateFormat {date_format}"]
+        lines = [
+            "```mermaid",
+            "gantt",
+            f"    title {html.escape(title)}",
+            f"    dateFormat {date_format}",
+        ]
         sections: dict[str, list[GanttTask]] = {}
         for t in tasks:
             sections.setdefault(t.section, []).append(t)
         for section, section_tasks in sections.items():
             lines.append(f"    section {html.escape(section)}")
             for t in section_tasks:
-                status_prefix = {"done": "done ", "active": "active ", "critical": "crit "}.get(t.status, "")
-                lines.append(f"    {status_prefix}{html.escape(t.name)} : {t.start}, {t.end}")
+                status_prefix = {
+                    "done": "done ",
+                    "active": "active ",
+                    "critical": "crit ",
+                }.get(t.status, "")
+                lines.append(
+                    f"    {status_prefix}{html.escape(t.name)} : {t.start}, {t.end}"
+                )
         lines.append("```")
-        body = f'<div class="chart-container"><h2>{html.escape(title)}</h2>\n<div class="mermaid">\n' + "\n".join(lines[1:-1]) + "\n</div></div>"
+        body = (
+            f'<div class="chart-container"><h2>{html.escape(title)}</h2>\n<div class="mermaid">\n'
+            + "\n".join(lines[1:-1])
+            + "\n</div></div>"
+        )
         return body
 
     def generate_gantt_standalone(
@@ -317,7 +354,9 @@ class HTMLChartGenerator:
             ChartStep("ds3", "sina", "round", ["ds4"]),
             ChartStep("ds4", "yfinance", "round"),
         ]
-        return self.generate_flowchart_standalone(steps, title="数据源降级链路", direction="LR")
+        return self.generate_flowchart_standalone(
+            steps, title="数据源降级链路", direction="LR"
+        )
 
     def generate_ai_decision_routing_chart(self) -> str:
         """AI 决策路由图 (项目特定)"""
@@ -338,7 +377,9 @@ class HTMLChartGenerator:
             ChartLink("router", "sf", "P3"),
             ChartLink("router", "ollama", "fallback"),
         ]
-        return self.generate_architecture_standalone(components, links, title="AI 决策路由图")
+        return self.generate_architecture_standalone(
+            components, links, title="AI 决策路由图"
+        )
 
     def generate_signal_fusion_chart(self) -> str:
         """信号源融合架构图 (项目特定)"""
@@ -361,4 +402,6 @@ class HTMLChartGenerator:
             ChartLink("sent", "fusion", "W.A.1 新增"),
             ChartLink("fusion", "output"),
         ]
-        return self.generate_architecture_standalone(components, links, title="信号源融合架构")
+        return self.generate_architecture_standalone(
+            components, links, title="信号源融合架构"
+        )

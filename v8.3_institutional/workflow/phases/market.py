@@ -2,6 +2,7 @@
 
 原位置: daily_workflow.py L1182-L1284 (phase_market) + L1286-L1309 (_scan_anysearch_news)
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,6 +23,7 @@ class _SafeLevel:
 
     name=NORMAL, value=0 → level < LEVEL_3 → build_allowed=True
     """
+
     name = "NORMAL"
     value = 0
 
@@ -46,6 +48,7 @@ def phase_market(ctx: WorkflowContext):
     if not hasattr(ctx, "cb"):
         try:
             from risk.circuit_breaker import CircuitBreaker
+
             ctx.cb = CircuitBreaker()
         except Exception as e:  # fail-safe
             logger.warning(f"CircuitBreaker 初始化失败，使用模拟模式: {e}")
@@ -55,6 +58,7 @@ def phase_market(ctx: WorkflowContext):
     _vix_value = 18.5  # 默认值 (正常偏低), 实盘应从数据源获取
     try:
         from utils.alpha.vix_data_source import fetch_vix
+
         _vix_fetched = fetch_vix(use_cache=True)
         if _vix_fetched is not None and 5.0 <= _vix_fetched <= 150.0:
             _vix_value = float(_vix_fetched)
@@ -64,9 +68,9 @@ def phase_market(ctx: WorkflowContext):
     # 模拟市场数据 (实盘应从 Wind 获取)
     market_data = {
         "vix": _vix_value,
-        "portfolio_drop": 0.0,          # 当日无跌
-        "index_return_20d": 0.02,       # 20日 +2%
-        "index_return_60d": 0.05,       # 60日 +5%
+        "portfolio_drop": 0.0,  # 当日无跌
+        "index_return_20d": 0.02,  # 20日 +2%
+        "index_return_60d": 0.05,  # 60日 +5%
     }
 
     # 熔断级别判定 (cb.check 抛异常时降级到 _SafeLevel, 不崩溃)
@@ -83,8 +87,10 @@ def phase_market(ctx: WorkflowContext):
 
     logger.info(f"VIX: {market_data['vix']}, 跌幅: {market_data['portfolio_drop']:.2%}")
     logger.info(f"熔断级别: {level.name}")
-    logger.info(f"允许操作: open_new={actions['open_new']}, "
-                f"force_reduce={actions['force_reduce_pct']}")
+    logger.info(
+        f"允许操作: open_new={actions['open_new']}, "
+        f"force_reduce={actions['force_reduce_pct']}"
+    )
 
     ctx.state["phases"]["market"] = {
         "status": "PASS",
@@ -117,7 +123,11 @@ def phase_market(ctx: WorkflowContext):
     if ctx.data_quality_monitor is not None:
         try:
             # 检查持仓数据质量
-            positions = ctx._get_portfolio_positions_for_stress_test() if hasattr(ctx, "_get_portfolio_positions_for_stress_test") else []
+            positions = (
+                ctx._get_portfolio_positions_for_stress_test()
+                if hasattr(ctx, "_get_portfolio_positions_for_stress_test")
+                else []
+            )
             data_for_check = {}
             for pos in positions:
                 code = pos.get("code", "")
@@ -164,6 +174,7 @@ def _scan_anysearch_news(ctx: WorkflowContext):
     """使用 AnySearch 扫描实时财经新闻，作为 iFinD 的补充数据源"""
     try:
         from utils.anysearch_connector import AnySearchConnector
+
         conn = AnySearchConnector()
         if conn.available:
             conn.connect()
@@ -171,8 +182,8 @@ def _scan_anysearch_news(ctx: WorkflowContext):
             if news:
                 logger.info(f"[AnySearch] 获取到 {len(news)} 条财经新闻")
                 for i, item in enumerate(news[:3], 1):
-                    title = item.get('title', '')[:40]
-                    url = item.get('url', '')
+                    title = item.get("title", "")[:40]
+                    url = item.get("url", "")
                     logger.info(f"  [{i}] {title} -> {url}")
                 ctx.state["phases"]["market"]["anysearch_news_count"] = len(news)
                 ctx.state["phases"]["market"]["anysearch_news"] = news[:3]

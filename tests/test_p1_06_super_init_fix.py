@@ -17,6 +17,7 @@ P1-6 回归测试: IntegratedExecutionSystem 父类回退到 object 时 super().
     - 用 _AUTO_SYSTEM_AVAILABLE 标志条件性调用 super().__init__()
     - 用 _AUTO_SYSTEM_AVAILABLE 标志条件性调用 super()._execute_daily_trading()
 """
+
 from __future__ import annotations
 
 import sys
@@ -75,22 +76,27 @@ class P1_06_SuperInitFixTest(unittest.TestCase):
                 # 验证: __init__ 不应抛 TypeError
                 # 注意: 我们只验证 __init__ 的 super() 调用部分,
                 # 不验证整个初始化流程 (会涉及大量外部依赖)
-                with patch.object(
-                    si.IntegratedExecutionSystem,
-                    "_normalize_local_positions_file",
-                    return_value=None,
-                ), patch.object(
-                    si.IntegratedExecutionSystem,
-                    "_init_signal_fusion",
-                    return_value=None,
-                ), patch.object(
-                    si.IntegratedExecutionSystem,
-                    "_init_drift_detector",
-                    return_value=None,
-                ), patch.object(
-                    si.IntegratedExecutionSystem,
-                    "_init_stop_loss_monitor",
-                    return_value=None,
+                with (
+                    patch.object(
+                        si.IntegratedExecutionSystem,
+                        "_normalize_local_positions_file",
+                        return_value=None,
+                    ),
+                    patch.object(
+                        si.IntegratedExecutionSystem,
+                        "_init_signal_fusion",
+                        return_value=None,
+                    ),
+                    patch.object(
+                        si.IntegratedExecutionSystem,
+                        "_init_drift_detector",
+                        return_value=None,
+                    ),
+                    patch.object(
+                        si.IntegratedExecutionSystem,
+                        "_init_stop_loss_monitor",
+                        return_value=None,
+                    ),
                 ):
                     try:
                         system = si.IntegratedExecutionSystem(total_capital=5_000_000)
@@ -129,7 +135,9 @@ class P1_06_SuperInitFixTest(unittest.TestCase):
             # 创建 mock 实例,避免触发完整 __init__
             system = MagicMock(spec=si.IntegratedExecutionSystem)
             # 用真实方法替换 mock 的 _execute_daily_trading
-            system._execute_daily_trading = si.IntegratedExecutionSystem._execute_daily_trading.__get__(system)
+            system._execute_daily_trading = (
+                si.IntegratedExecutionSystem._execute_daily_trading.__get__(system)
+            )
             # 设置 mock 属性
             system._hook_update_signal_fusion = MagicMock()
             system._hook_drift_and_retrain = MagicMock()
@@ -169,31 +177,37 @@ class P1_06_SuperInitFixTest(unittest.TestCase):
             # 父类可用场景
             si._AUTO_SYSTEM_AVAILABLE = True
 
-            with patch.object(
-                si.IntegratedExecutionSystem,
-                "_normalize_local_positions_file",
-                return_value=None,
-            ), patch.object(
-                si.IntegratedExecutionSystem,
-                "_init_signal_fusion",
-                return_value=None,
-            ), patch.object(
-                si.IntegratedExecutionSystem,
-                "_init_drift_detector",
-                return_value=None,
-            ), patch.object(
-                si.IntegratedExecutionSystem,
-                "_init_stop_loss_monitor",
-                return_value=None,
+            with (
+                patch.object(
+                    si.IntegratedExecutionSystem,
+                    "_normalize_local_positions_file",
+                    return_value=None,
+                ),
+                patch.object(
+                    si.IntegratedExecutionSystem,
+                    "_init_signal_fusion",
+                    return_value=None,
+                ),
+                patch.object(
+                    si.IntegratedExecutionSystem,
+                    "_init_drift_detector",
+                    return_value=None,
+                ),
+                patch.object(
+                    si.IntegratedExecutionSystem,
+                    "_init_stop_loss_monitor",
+                    return_value=None,
+                ),
             ):
                 system = si.IntegratedExecutionSystem(total_capital=5_000_000)
                 # 验证父类 AutomatedExecutionSystem 被初始化:
                 # 父类 __init__ 会设置 total_capital 属性
                 # (日志中会输出 "自动化执行系统初始化完成，总资本: 5,000,000元")
                 self.assertTrue(
-                    hasattr(system, "total_capital") or hasattr(system, "_total_capital"),
+                    hasattr(system, "total_capital")
+                    or hasattr(system, "_total_capital"),
                     "父类 AutomatedExecutionSystem 未被初始化 "
-                    "(未找到 total_capital 属性, 说明 super().__init__() 未被调用)"
+                    "(未找到 total_capital 属性, 说明 super().__init__() 未被调用)",
                 )
         finally:
             si._AUTO_SYSTEM_AVAILABLE = orig_flag

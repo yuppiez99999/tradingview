@@ -175,3 +175,14 @@ related:
 | `tests/unit/test_ms_strategy_coverage.py` | LightGBM 未安装 skip |
 | `tests/unit/test_tdx_data_source_unit.py` | mock _connect 抛 OSError |
 | `tests/unit/test_overnight_gap_monitor_unit.py` | 补 mock tdx 代理层 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [技术债清偿确认记录 — 2026-08-21](tech-debt-cleanup.md) (相似度 15%)
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 13%)
+- [测试债清零经验沉淀 (2026-08-16)](test-debt-clearance-20260816.md) (相似度 12%)
+- [代码质量工业级差距审计 — 2026-08-19](code-quality-industrial-gap-20260819.md) (相似度 10%)
+- [代码质量修复批次 2026-08-18：ruff 高危规则清零](code-review-ruff-fix-batch-20260818.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

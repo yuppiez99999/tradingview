@@ -9,6 +9,7 @@ CLI 模型切换器 单元测试
 - IDE 配置同步 (best-effort)
 - CLI 入口 (main)
 """
+
 from __future__ import annotations
 
 import json
@@ -39,9 +40,12 @@ from scripts.cli_model_switcher import (  # noqa: E402
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def tmp_env():
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".env", delete=False, encoding="utf-8") as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".env", delete=False, encoding="utf-8"
+    ) as f:
         f.write("# test .env\n")
         f.write("DEEPSEEK_API_KEY=secret_key\n")
         f.write("DEEPSEEK_MODEL=deepseek-chat\n")
@@ -85,6 +89,7 @@ def tmp_project(tmp_path):
 # 1. Profile 加载
 # ============================================================
 
+
 class TestProfileLoading:
     def test_list_profiles(self):
         profiles = list_profiles()
@@ -114,6 +119,7 @@ class TestProfileLoading:
 # ============================================================
 # 2. .env 读写
 # ============================================================
+
 
 class TestEnvReadWrite:
     def test_read_env(self, tmp_env):
@@ -153,6 +159,7 @@ class TestEnvReadWrite:
 # ============================================================
 # 3. current / switch
 # ============================================================
+
 
 class TestCurrentAndSwitch:
     def test_current_matches(self):
@@ -197,6 +204,7 @@ class TestCurrentAndSwitch:
 # 4. IDE 配置同步
 # ============================================================
 
+
 class TestIDESync:
     def test_sync_ide_json(self, tmp_path):
         ide_dir = tmp_path / ".codebuddy"
@@ -204,11 +212,15 @@ class TestIDESync:
         settings = ide_dir / "settings.local.json"
         settings.write_text(json.dumps({"existing": True}), encoding="utf-8")
 
-        ok = _sync_ide_config(".codebuddy", {
-            "type": "json",
-            "model_field": "model",
-            "model_value": "glm-5.2",
-        }, project_root=tmp_path)
+        ok = _sync_ide_config(
+            ".codebuddy",
+            {
+                "type": "json",
+                "model_field": "model",
+                "model_value": "glm-5.2",
+            },
+            project_root=tmp_path,
+        )
         assert ok is True
         data = json.loads(settings.read_text(encoding="utf-8"))
         assert data["model"] == "glm-5.2"
@@ -220,17 +232,22 @@ class TestIDESync:
 
     def test_sync_ide_no_settings_file(self, tmp_path):
         (tmp_path / ".codebuddy").mkdir()
-        ok = _sync_ide_config(".codebuddy", {
-            "type": "json",
-            "model_field": "model",
-            "model_value": "glm-5.2",
-        }, project_root=tmp_path)
+        ok = _sync_ide_config(
+            ".codebuddy",
+            {
+                "type": "json",
+                "model_field": "model",
+                "model_value": "glm-5.2",
+            },
+            project_root=tmp_path,
+        )
         assert ok is False
 
 
 # ============================================================
 # 5. CLI 入口
 # ============================================================
+
 
 class TestCLIEntry:
     def test_main_list(self, capsys):

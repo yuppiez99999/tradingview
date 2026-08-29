@@ -24,6 +24,7 @@
     - 单一职责: 只撮合,不管订单生命周期(由 OrderQueue 管)
     - 复用数据类: 使用 utils.wt_structs.TickData/BarData/OrderData
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -39,6 +40,7 @@ MarketEvent = Union[TickData, BarData]
 
 class MatchingMode(StrEnum):
     """撮合模式。"""
+
     TICK = "TICK"
     BAR = "BAR"
     HYBRID = "HYBRID"
@@ -46,6 +48,7 @@ class MatchingMode(StrEnum):
 
 class OrderType:
     """订单类型常量(与 OrderData.order_type 字符串对齐)。"""
+
     LIMIT = "LIMIT"
     MARKET = "MARKET"
     FAK = "FAK"  # Fill And Kill
@@ -54,6 +57,7 @@ class OrderType:
 
 class RejectReason:
     """撮合拒绝原因常量。"""
+
     SUSPENDED = "REJECTED_SUSPENDED"
     LIMIT_UP = "REJECTED_LIMIT_UP"
     LIMIT_DOWN = "REJECTED_LIMIT_DOWN"
@@ -64,6 +68,7 @@ class RejectReason:
 
 class FillReason:
     """成交原因常量。"""
+
     FULL_MATCH = "FULL_MATCH"
     PARTIAL_MATCH = "PARTIAL_MATCH"
 
@@ -74,6 +79,7 @@ class FillEvent:
 
     无论成交/部分成交/拒绝,都产出 FillEvent 供日志和审计。
     """
+
     order_id: str
     fill_price: float
     fill_volume: float
@@ -141,9 +147,14 @@ class MatchingEngine:
         events: list[FillEvent] = []
         for order in orders:
             event = self._match_single(
-                order, market_event, contracts,
-                on_fill, on_partial_fill, on_reject,
-                limit_up_prices, limit_down_prices,
+                order,
+                market_event,
+                contracts,
+                on_fill,
+                on_partial_fill,
+                on_reject,
+                limit_up_prices,
+                limit_down_prices,
             )
             if event is not None:
                 events.append(event)
@@ -164,8 +175,11 @@ class MatchingEngine:
         # 1. 涨跌停/停牌约束检查
         if self.enforce_price_limit:
             tradable, reason = check_tradable(
-                market_event, order.code, order.direction,
-                limit_up_prices, limit_down_prices,
+                market_event,
+                order.code,
+                order.direction,
+                limit_up_prices,
+                limit_down_prices,
             )
             if not tradable:
                 reject_reason = self._reason_to_reject(reason)
@@ -177,19 +191,26 @@ class MatchingEngine:
         if self.mode == MatchingMode.HYBRID:
             # HYBRID: 自动按 event 类型选择
             if isinstance(market_event, TickData) and market_event.ask_prices:
-                return self._match_tick(order, market_event, on_fill, on_partial_fill, on_reject)
-            elif isinstance(market_event, BarData):
-                return self._match_bar(order, market_event, on_fill, on_partial_fill, on_reject)
-            else:
-                return self._reject_unknown(order, on_reject)
-        elif self.mode == MatchingMode.TICK:
+                return self._match_tick(
+                    order, market_event, on_fill, on_partial_fill, on_reject
+                )
+            if isinstance(market_event, BarData):
+                return self._match_bar(
+                    order, market_event, on_fill, on_partial_fill, on_reject
+                )
+            return self._reject_unknown(order, on_reject)
+        if self.mode == MatchingMode.TICK:
             if not isinstance(market_event, TickData):
                 return self._reject_unknown(order, on_reject)
-            return self._match_tick(order, market_event, on_fill, on_partial_fill, on_reject)
-        elif self.mode == MatchingMode.BAR:
+            return self._match_tick(
+                order, market_event, on_fill, on_partial_fill, on_reject
+            )
+        if self.mode == MatchingMode.BAR:
             if not isinstance(market_event, BarData):
                 return self._reject_unknown(order, on_reject)
-            return self._match_bar(order, market_event, on_fill, on_partial_fill, on_reject)
+            return self._match_bar(
+                order, market_event, on_fill, on_partial_fill, on_reject
+            )
         return self._reject_unknown(order, on_reject)
 
     # ============================================================
@@ -206,13 +227,19 @@ class MatchingEngine:
     ) -> Optional[FillEvent]:
         """TICK 模式撮合: 消费五档 bid/ask。"""
         if order.direction == "BUY":
-            return self._match_tick_buy(order, tick, on_fill, on_partial_fill, on_reject)
-        elif order.direction == "SELL":
-            return self._match_tick_sell(order, tick, on_fill, on_partial_fill, on_reject)
+            return self._match_tick_buy(
+                order, tick, on_fill, on_partial_fill, on_reject
+            )
+        if order.direction == "SELL":
+            return self._match_tick_sell(
+                order, tick, on_fill, on_partial_fill, on_reject
+            )
         return self._reject_unknown(order, on_reject)
 
     def _match_tick_buy(
-        self, order: OrderData, tick: TickData,
+        self,
+        order: OrderData,
+        tick: TickData,
         on_fill: Optional[Callable[[OrderData, float, float], None]],
         on_partial_fill: Optional[Callable[[OrderData, float, float], None]],
         on_reject: Optional[Callable[[OrderData, str], None]],
@@ -245,11 +272,18 @@ class MatchingEngine:
 
         avg_price = fill_value / fill_volume
         return self._finalize_fill(
-            order, avg_price, fill_volume, on_fill, on_partial_fill, on_reject,
+            order,
+            avg_price,
+            fill_volume,
+            on_fill,
+            on_partial_fill,
+            on_reject,
         )
 
     def _match_tick_sell(
-        self, order: OrderData, tick: TickData,
+        self,
+        order: OrderData,
+        tick: TickData,
         on_fill: Optional[Callable[[OrderData, float, float], None]],
         on_partial_fill: Optional[Callable[[OrderData, float, float], None]],
         on_reject: Optional[Callable[[OrderData, str], None]],
@@ -280,7 +314,12 @@ class MatchingEngine:
 
         avg_price = fill_value / fill_volume
         return self._finalize_fill(
-            order, avg_price, fill_volume, on_fill, on_partial_fill, on_reject,
+            order,
+            avg_price,
+            fill_volume,
+            on_fill,
+            on_partial_fill,
+            on_reject,
         )
 
     # ============================================================
@@ -298,12 +337,14 @@ class MatchingEngine:
         """BAR 模式撮合: 基于 [low, high] 区间。"""
         if order.direction == "BUY":
             return self._match_bar_buy(order, bar, on_fill, on_partial_fill, on_reject)
-        elif order.direction == "SELL":
+        if order.direction == "SELL":
             return self._match_bar_sell(order, bar, on_fill, on_partial_fill, on_reject)
         return self._reject_unknown(order, on_reject)
 
     def _match_bar_buy(
-        self, order: OrderData, bar: BarData,
+        self,
+        order: OrderData,
+        bar: BarData,
         on_fill: Optional[Callable[[OrderData, float, float], None]],
         on_partial_fill: Optional[Callable[[OrderData, float, float], None]],
         on_reject: Optional[Callable[[OrderData, str], None]],
@@ -327,11 +368,18 @@ class MatchingEngine:
             return self._reject(order, on_reject, RejectReason.NO_LIQUIDITY)
 
         return self._finalize_fill(
-            order, fill_price, fill_volume, on_fill, on_partial_fill, on_reject,
+            order,
+            fill_price,
+            fill_volume,
+            on_fill,
+            on_partial_fill,
+            on_reject,
         )
 
     def _match_bar_sell(
-        self, order: OrderData, bar: BarData,
+        self,
+        order: OrderData,
+        bar: BarData,
         on_fill: Optional[Callable[[OrderData, float, float], None]],
         on_partial_fill: Optional[Callable[[OrderData, float, float], None]],
         on_reject: Optional[Callable[[OrderData, str], None]],
@@ -353,7 +401,12 @@ class MatchingEngine:
             return self._reject(order, on_reject, RejectReason.NO_LIQUIDITY)
 
         return self._finalize_fill(
-            order, fill_price, fill_volume, on_fill, on_partial_fill, on_reject,
+            order,
+            fill_price,
+            fill_volume,
+            on_fill,
+            on_partial_fill,
+            on_reject,
         )
 
     # ============================================================
@@ -384,11 +437,14 @@ class MatchingEngine:
         if is_partial:
             if on_partial_fill is not None:
                 on_partial_fill(order, fill_price, fill_volume)
-            return FillEvent(order.order_id, fill_price, fill_volume, True, FillReason.PARTIAL_MATCH)
-        else:
-            if on_fill is not None:
-                on_fill(order, fill_price, fill_volume)
-            return FillEvent(order.order_id, fill_price, fill_volume, False, FillReason.FULL_MATCH)
+            return FillEvent(
+                order.order_id, fill_price, fill_volume, True, FillReason.PARTIAL_MATCH
+            )
+        if on_fill is not None:
+            on_fill(order, fill_price, fill_volume)
+        return FillEvent(
+            order.order_id, fill_price, fill_volume, False, FillReason.FULL_MATCH
+        )
 
     # ============================================================
     # 工具方法

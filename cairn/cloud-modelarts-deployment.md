@@ -189,3 +189,14 @@ esdk-obs-python          # OBS SDK
 - `auto-train` — auto_train.py 自动训练流程
 - `sdk-integration` — SDK 请求体差异、参数名差异
 - `log-retrieval` — 日志获取方案（log_export_path + OBS）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [生产上云部署 Runbook (云 Linux + Win 实盘机 混合架构)](cloud-production-deployment.md) (相似度 27%)
+- [GitHub 周热门项目集成 Wave10 (2026-08-21)](github-integration-wave10-20260821.md) (相似度 11%)
+- [Shadow 30 天验证 (W7.2.8 + W7.2.9)](shadow-30day-validation.md) (相似度 7%)
+- [MVSK 高阶矩组合优化（YAND 启发）](mvsk-higher-moment-optimization.md) (相似度 6%)
+- [qlib 选股模型回测验证与 V9 对比](qlib-backtest-validation.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

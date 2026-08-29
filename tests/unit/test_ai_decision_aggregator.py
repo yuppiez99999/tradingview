@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from ai_decision.consensus_aggregator import (
     _diversity_bonus,
@@ -59,7 +61,9 @@ def test_aggregate_with_debate_blend():
         ModelView(role="bull", action="buy", strength=0.4, confidence=0.7),
         ModelView(role="bear", action="sell", strength=-0.3, confidence=0.6),
     ]
-    debate = DebateDecision(action="buy", strength=0.5, confidence=0.9, verdict_type="AUTO")
+    debate = DebateDecision(
+        action="buy", strength=0.5, confidence=0.9, verdict_type="AUTO"
+    )
     action, _strength, conf = aggregate(views, debate=debate)
     assert action == "buy"
     assert conf >= 0.7  # 辩论 AUTO 提升置信度

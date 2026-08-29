@@ -8,6 +8,7 @@
     - get_weight_adjustments (超配/低配/维持)
     - generate_report (无保存/保存到目录)
 """
+
 from __future__ import annotations
 
 import pytest

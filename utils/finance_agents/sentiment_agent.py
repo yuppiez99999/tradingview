@@ -65,7 +65,16 @@ class SentimentAgent(BaseAgent):
             self._report_agent = AIReportAgent()
             logger.info("SentimentAgent: 已复用 AIReportAgent")
             return self._report_agent
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("SentimentAgent: AIReportAgent 初始化失败: %s", e)
             return None
 
@@ -82,7 +91,10 @@ class SentimentAgent(BaseAgent):
             n
             for n in news_items
             if isinstance(n, dict)
-            and (n.get("symbol") == symbol or symbol.split(".")[0] in (n.get("title", "") + n.get("content", "")))
+            and (
+                n.get("symbol") == symbol
+                or symbol.split(".")[0] in (n.get("title", "") + n.get("content", ""))
+            )
         ]
         # 若无相关新闻, 用全部新闻做市场情绪
         analyzed_news = related_news if related_news else news_items
@@ -108,8 +120,19 @@ class SentimentAgent(BaseAgent):
 
         try:
             sentiments = agent.analyze_news_sentiment(analyzed_news, use_llm=True)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
-            logger.warning("SentimentAgent: AIReportAgent.analyze_news_sentiment 异常: %s", e)
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
+            logger.warning(
+                "SentimentAgent: AIReportAgent.analyze_news_sentiment 异常: %s", e
+            )
             return self._fallback_keyword_sentiment(symbol, analyzed_news)
 
         if not sentiments:
@@ -179,7 +202,9 @@ class SentimentAgent(BaseAgent):
     # 降级: 关键词匹配
     # ----------------------------------------------------------
 
-    def _fallback_keyword_sentiment(self, symbol: str, news_items: list[dict]) -> AgentDecision:
+    def _fallback_keyword_sentiment(
+        self, symbol: str, news_items: list[dict]
+    ) -> AgentDecision:
         """规则引擎兜底 (LLM 不可用时)"""
         # 复用 AIReportAgent 的关键词词典
         try:
@@ -188,7 +213,16 @@ class SentimentAgent(BaseAgent):
             pos_words = AIReportAgent.POSITIVE_WORDS
             neg_words = AIReportAgent.NEGATIVE_WORDS
             crit_words = AIReportAgent.CRITICAL_NEGATIVE_WORDS
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pos_words = ["利好", "增长", "上涨", "突破"]
             neg_words = ["利空", "下降", "下跌", "风险"]
             crit_words = ["立案调查", "退市", "财务造假"]
@@ -217,7 +251,11 @@ class SentimentAgent(BaseAgent):
                 strength=-1.0,
                 confidence=0.9,
                 reasoning=f"[降级] 重大负面: {critical_hits}",
-                key_metrics={"pos_count": pos_count, "neg_count": neg_count, "critical_hits": critical_hits},
+                key_metrics={
+                    "pos_count": pos_count,
+                    "neg_count": neg_count,
+                    "critical_hits": critical_hits,
+                },
                 veto_reason=f"重大负面关键词: {critical_hits}",
             )
 

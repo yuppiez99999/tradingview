@@ -144,3 +144,14 @@ related:
 - EVT/GARCH/Kalman 从只读对照升级为生产接入
 - 风控参数的贝叶斯自适应调整替代静态阈值
 - **MVSK 高阶矩组合优化**（YAND 启发）：P1 已在 `risk_budget_optimizer.py` 落地（偏度/峰度进优化目标，不建张量），P2/P3 待启动 → `cairn/mvsk-higher-moment-optimization.md`
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [A股ETF + 期权对冲 + 自我再平衡子模型](etf-option-hedge-model.md) (相似度 18%)
+- [隐含波动率曲面深度对冲](iv-surface-deep-hedge.md) (相似度 12%)
+- [MVSK 高阶矩组合优化（YAND 启发）](mvsk-higher-moment-optimization.md) (相似度 11%)
+- [对冲方案 v8.7 优化 — RegimeFolio 动态阈值 + 紧急跨级 + IV 感知 + Deep Hedging + 多智能体](hedge-v87-regime-adaptive-20260827.md) (相似度 10%)
+- [DeltaHedge 多智能体期权优化](delta-hedge-multi-agent.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

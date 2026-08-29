@@ -7,6 +7,7 @@ C1 (#16): daily_trade_executor.execute_instructions 双重建仓风险
 C2 (#22): institutional_pipeline_runner KillSwitch L1 被 _regenerate_trades_from_weights 绕过
   - 修复: _apply_killswitch_l1_filter 在 trades 重建后重新过滤 BUY
 """
+
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -16,6 +17,7 @@ from utils.killswitch_guard import apply_killswitch_l1_filter
 # ============================================================
 # C1 (#16) 双重建仓风险
 # ============================================================
+
 
 class TestC1DoubleExecution:
     """验证 execute_instructions 不会因崩溃重跑导致双重建仓."""
@@ -39,21 +41,34 @@ class TestC1DoubleExecution:
         monkeypatch.setattr(dte, "init_wt_modules", lambda: {})
         monkeypatch.setattr(dte, "_run_wt_risk_block_check", lambda wm, c: None)
         monkeypatch.setattr(dte, "load_positions", lambda: {"positions": {}})
-        monkeypatch.setattr(dte, "_build_and_save_execution_report", lambda *a, **k: ({}, None))
+        monkeypatch.setattr(
+            dte, "_build_and_save_execution_report", lambda *a, **k: ({}, None)
+        )
         monkeypatch.setattr(dte, "generate_next_trading_day_plan", lambda *a, **k: {})
-        monkeypatch.setattr(dte, "_check_execution_preconditions",
-                            lambda data: (confirmed, None))
+        monkeypatch.setattr(
+            dte, "_check_execution_preconditions", lambda data: (confirmed, None)
+        )
         # 内存持久化 progress, 模拟 save_build_progress 落盘
-        monkeypatch.setattr(dte, "save_build_progress",
-                            lambda p: store.__setitem__("progress", dict(p)))
+        monkeypatch.setattr(
+            dte, "save_build_progress", lambda p: store.__setitem__("progress", dict(p))
+        )
         monkeypatch.setattr(dte, "atomic_write_json", lambda *a, **k: None)
         # 第一次返回空, 之后返回已持久化 progress (含 executed_instruction_keys)
         call = {"n": 0}
+
         def _load():
             call["n"] += 1
-            return dict(store.get("progress", {
-                "total_built": 0, "daily_records": [], "built_amounts": {},
-            }))
+            return dict(
+                store.get(
+                    "progress",
+                    {
+                        "total_built": 0,
+                        "daily_records": [],
+                        "built_amounts": {},
+                    },
+                )
+            )
+
         monkeypatch.setattr(dte, "load_build_progress", _load)
         # 指令文件存在 + 内容有效 (mock INSTRUCTIONS_DIR / "..." 返回可 exists 的对象)
         instr_file = MagicMock()
@@ -63,11 +78,13 @@ class TestC1DoubleExecution:
         monkeypatch.setattr(dte, "INSTRUCTIONS_DIR", fake_dir)
         # mock builtins.open: 读指令文件返回 "{}", 写操作忽略 (atomic_write_json 不验证)
         import io as _io
+
         def _fake_open(path, *a, **k):
             mode = a[0] if a else k.get("mode", "r")
             if "w" in str(mode):
                 return MagicMock()
             return _io.StringIO("{}")
+
         monkeypatch.setattr("builtins.open", _fake_open)
 
     def test_c1_fail_closed_on_progress_save_failure(self, monkeypatch):
@@ -76,15 +93,20 @@ class TestC1DoubleExecution:
         store = {}
         self._patch_execute(monkeypatch, confirmed, store)
 
-        exec_mock = MagicMock(return_value={
-            "fill_amount": 10000.0, "fill_price": 10.0,
-            "built_before": 0, "built_after": 10000,
-        })
+        exec_mock = MagicMock(
+            return_value={
+                "fill_amount": 10000.0,
+                "fill_price": 10.0,
+                "built_before": 0,
+                "built_after": 10000,
+            }
+        )
         monkeypatch.setattr(dte, "_execute_single_instruction", exec_mock)
 
         # save_build_progress 抛异常 → fail-closed
         def _boom(p):
             raise OSError("disk full")
+
         monkeypatch.setattr(dte, "save_build_progress", _boom)
 
         result = dte.execute_instructions("2026-08-10")
@@ -102,10 +124,14 @@ class TestC1DoubleExecution:
         store = {}
         self._patch_execute(monkeypatch, confirmed, store)
 
-        exec_mock = MagicMock(return_value={
-            "fill_amount": 10000.0, "fill_price": 10.0,
-            "built_before": 0, "built_after": 10000,
-        })
+        exec_mock = MagicMock(
+            return_value={
+                "fill_amount": 10000.0,
+                "fill_price": 10.0,
+                "built_before": 0,
+                "built_after": 10000,
+            }
+        )
         monkeypatch.setattr(dte, "_execute_single_instruction", exec_mock)
 
         dte.execute_instructions("2026-08-10")
@@ -141,6 +167,7 @@ class TestC1DoubleExecution:
 # ============================================================
 # C2 (#22) KillSwitch L1 被绕过
 # ============================================================
+
 
 class TestC2KillSwitchL1Bypass:
     """验证 trades 重建后 KillSwitch L1 (can_open=False) 仍过滤 BUY."""

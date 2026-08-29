@@ -12,6 +12,7 @@
     9. 集成场景: 与 ShadowAccount/FailFastMonitor 协作
     10. 边界条件: 空输入 / 单一资产 / 极端波动率
 """
+
 from __future__ import annotations
 
 import sys
@@ -56,10 +57,12 @@ from utils.alpha.shadow_account_adapter import (  # noqa: E402
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def good_returns() -> list[float]:
     """正夏普的模拟收益率序列 (30 天, SR > 1)."""
     import random
+
     random.seed(42)
     return [random.gauss(0.001, 0.015) for _ in range(30)]
 
@@ -68,6 +71,7 @@ def good_returns() -> list[float]:
 def noise_returns() -> list[float]:
     """零夏普噪音收益率序列 (30 天, SR ≈ 0)."""
     import random
+
     random.seed(123)
     return [random.gauss(0.0, 0.02) for _ in range(30)]
 
@@ -93,6 +97,7 @@ def cumulative_drawdown_returns() -> list[float]:
 def long_returns_252() -> list[float]:
     """252 天的收益率序列 (用于测试 Sharpe CV 滚动窗口, 低波动率避免 fail-fast)."""
     import random
+
     random.seed(456)
     # 使用低波动率 0.008 避免触发 fail-fast (单日回撤 > 3%)
     return [random.gauss(0.0005, 0.008) for _ in range(252)]
@@ -107,6 +112,7 @@ def adapter() -> ShadowAccountAdapter:
 # ============================================================
 # 异常体系测试
 # ============================================================
+
 
 class TestExceptions:
     """异常体系测试."""
@@ -148,6 +154,7 @@ class TestExceptions:
 # ============================================================
 # 数据类测试
 # ============================================================
+
 
 class TestDataClasses:
     """数据类测试."""
@@ -194,10 +201,20 @@ class TestDataClasses:
     def test_shadow_metrics_default_fail_fast(self):
         """ShadowMetrics 默认 fail_fast_triggered=False."""
         metrics = ShadowMetrics(
-            dsr=0.0, annual_return=0.0, max_drawdown=0.0, sharpe_cv=0.0,
-            sharpe_ratio=0.0, total_return=0.0, days_tracked=0, total_trades=0,
-            final_nav=1.0, fail_fast_triggered=False, fail_fast_reason=None,
-            samples_for_dsr=0, samples_for_sharpe_cv=0, is_real_data=False,
+            dsr=0.0,
+            annual_return=0.0,
+            max_drawdown=0.0,
+            sharpe_cv=0.0,
+            sharpe_ratio=0.0,
+            total_return=0.0,
+            days_tracked=0,
+            total_trades=0,
+            final_nav=1.0,
+            fail_fast_triggered=False,
+            fail_fast_reason=None,
+            samples_for_dsr=0,
+            samples_for_sharpe_cv=0,
+            is_real_data=False,
         )
         assert metrics.fail_fast_triggered is False
         assert metrics.fail_fast_reason is None
@@ -206,6 +223,7 @@ class TestDataClasses:
 # ============================================================
 # 适配器初始化测试
 # ============================================================
+
 
 class TestAdapterInit:
     """适配器初始化测试."""
@@ -281,6 +299,7 @@ class TestAdapterInit:
 # run_shadow() 接口测试
 # ============================================================
 
+
 class TestRunShadow:
     """run_shadow() 接口测试."""
 
@@ -334,13 +353,17 @@ class TestRunShadow:
         expected_nav = 1.0 * 1.01 * 1.02 * 0.995
         assert abs(result.final_nav - expected_nav) < 1e-10
 
-    def test_run_shadow_fail_fast_daily_drawdown(self, adapter, high_volatility_returns):
+    def test_run_shadow_fail_fast_daily_drawdown(
+        self, adapter, high_volatility_returns
+    ):
         """单日回撤 > 3% 应触发 fail-fast."""
         result = adapter.run_shadow(daily_returns=high_volatility_returns)
         assert result.fail_fast_triggered is True
         assert "单日回撤" in (result.fail_fast_reason or "")
 
-    def test_run_shadow_fail_fast_cumulative(self, adapter, cumulative_drawdown_returns):
+    def test_run_shadow_fail_fast_cumulative(
+        self, adapter, cumulative_drawdown_returns
+    ):
         """3 日累计回撤 > 5% 应触发 fail-fast."""
         result = adapter.run_shadow(daily_returns=cumulative_drawdown_returns)
         assert result.fail_fast_triggered is True
@@ -356,6 +379,7 @@ class TestRunShadow:
 # ============================================================
 # compute_dsr() 接口测试
 # ============================================================
+
 
 class TestComputeDSR:
     """compute_dsr() 接口测试."""
@@ -376,7 +400,9 @@ class TestComputeDSR:
         assert hasattr(result, "sharpe_ratio")
         assert 0 <= result.deflated_sharpe_ratio <= 1
 
-    def test_dsr_good_returns_higher_than_noise(self, adapter, good_returns, noise_returns):
+    def test_dsr_good_returns_higher_than_noise(
+        self, adapter, good_returns, noise_returns
+    ):
         """正夏普策略的 DSR 应高于噪音策略."""
         adapter.run_shadow(daily_returns=good_returns)
         good_dsr = adapter.compute_dsr().deflated_sharpe_ratio
@@ -392,6 +418,7 @@ class TestComputeDSR:
 # ============================================================
 # compute_sharpe_cv() 接口测试
 # ============================================================
+
 
 class TestComputeSharpeCV:
     """compute_sharpe_cv() 接口测试."""
@@ -434,6 +461,7 @@ class TestComputeSharpeCV:
 # ============================================================
 # get_metrics() 接口测试
 # ============================================================
+
 
 class TestGetMetrics:
     """get_metrics() 接口测试."""
@@ -483,6 +511,7 @@ class TestGetMetrics:
 # ============================================================
 # 内部计算方法测试
 # ============================================================
+
 
 class TestInternalMethods:
     """内部计算方法测试."""
@@ -539,6 +568,7 @@ class TestInternalMethods:
 # 便捷函数测试
 # ============================================================
 
+
 class TestConvenienceFunctions:
     """便捷函数测试."""
 
@@ -569,6 +599,7 @@ class TestConvenienceFunctions:
 # ============================================================
 # 集成场景测试
 # ============================================================
+
 
 class TestIntegration:
     """集成场景测试."""
@@ -617,6 +648,7 @@ class TestIntegration:
 # ============================================================
 # 边界条件测试
 # ============================================================
+
 
 class TestEdgeCases:
     """边界条件测试."""
@@ -682,6 +714,7 @@ class TestEdgeCases:
         若仍触发 fail-fast (3 日累计回撤 > 5%), 验证 fail-fast 机制而非 Sharpe CV.
         """
         import random
+
         random.seed(789)
         # 低波动率 0.005 进一步降低 fail-fast 触发概率
         returns = [random.gauss(0.001, 0.005) for _ in range(500)]
@@ -707,6 +740,7 @@ class TestEdgeCases:
 # ============================================================
 # 模块级常量测试
 # ============================================================
+
 
 class TestModuleConstants:
     """模块级常量测试."""

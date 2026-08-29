@@ -64,3 +64,14 @@ compute_dynamic_weights()
 | `utils/alpha_factor/alpha_forge_combiner.py` | 336 | 核心实现 |
 | `utils/alpha_factor/rd_agent_quant.py` | (复用) | 上游因子产出 |
 | `utils/alpha_factor/evaluator.py` | (复用) | 真实 IC 来源（待接） |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [R&D-Agent-Quant 多智能体因子挖掘引擎 (LIT-1.1)](rd-agent-quant.md) (相似度 29%)
+- [AlphaCFG 语法引导因子发现 (LIT-1.5)](alpha-cfg-discovery.md) (相似度 24%)
+- [FinRL-X 权重中心接口架构](finrl-x-interface.md) (相似度 23%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 19%)
+- [RAG + RL 自适应情感分析 — LIT-5.4](rag-rl-sentiment.md) (相似度 11%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

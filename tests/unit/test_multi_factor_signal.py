@@ -15,6 +15,7 @@
     12. 异常处理 (InsufficientSamplesError)
     13. 边界条件 (空输入/单标的/样本不足)
 """
+
 from __future__ import annotations
 
 import math
@@ -44,6 +45,7 @@ from utils.infra.feature_flags import FeatureFlags  # noqa: E402
 # 测试 fixture
 # ============================================================
 
+
 @pytest.fixture
 def mfs():
     """默认 MultiFactorSignal 实例."""
@@ -65,6 +67,7 @@ def synthetic_factor_history():
         forward_returns = [day_0_returns, ...]
     """
     import random
+
     rng = random.Random(42)  # 固定种子, 确保测试可重现
 
     symbols = ["S001", "S002", "S003", "S004", "S005", "S006", "S007", "S008"]
@@ -86,8 +89,7 @@ def synthetic_factor_history():
 
         # F_A: 与质量正相关 (含噪声, 整体 IC > 0)
         f_a = {
-            s: float(quality_rank[s]) + 0.05 * t + rng.gauss(0, 0.5)
-            for s in symbols
+            s: float(quality_rank[s]) + 0.05 * t + rng.gauss(0, 0.5) for s in symbols
         }
         factor_history["F_A"].append(f_a)
 
@@ -104,6 +106,7 @@ def synthetic_factor_history():
 # ============================================================
 # 1. 数据类测试
 # ============================================================
+
 
 class TestFactorICMetrics:
     """FactorICMetrics 数据类测试."""
@@ -196,6 +199,7 @@ class TestCombinationResult:
 # 2. MultiFactorSignal 初始化测试
 # ============================================================
 
+
 class TestMultiFactorSignalInit:
     """MultiFactorSignal 初始化测试."""
 
@@ -226,6 +230,7 @@ class TestMultiFactorSignalInit:
 # ============================================================
 # 3. cross_sectional_rank 测试
 # ============================================================
+
 
 class TestCrossSectionalRank:
     """cross_sectional_rank 标准化测试."""
@@ -269,6 +274,7 @@ class TestCrossSectionalRank:
 # 4. compute_rolling_ic_series 测试
 # ============================================================
 
+
 class TestComputeRollingICSeries:
     """compute_rolling_ic_series 测试."""
 
@@ -277,7 +283,8 @@ class TestComputeRollingICSeries:
         factor_history, forward_returns = synthetic_factor_history
         mfs = MultiFactorSignal()
         ic_series = mfs.compute_rolling_ic_series(
-            factor_history["F_A"], forward_returns,
+            factor_history["F_A"],
+            forward_returns,
         )
         assert len(ic_series) == 25
         # F_A 与 forward_returns 正相关, IC 应 > 0
@@ -291,7 +298,8 @@ class TestComputeRollingICSeries:
         factor_history, forward_returns = synthetic_factor_history
         mfs = MultiFactorSignal()
         ic_series = mfs.compute_rolling_ic_series(
-            factor_history["F_B"], forward_returns,
+            factor_history["F_B"],
+            forward_returns,
         )
         valid_ic = [v for v in ic_series if math.isfinite(v)]
         assert len(valid_ic) > 0
@@ -316,6 +324,7 @@ class TestComputeRollingICSeries:
 # 5. compute_rolling_ic_ir_at_t 测试
 # ============================================================
 
+
 class TestComputeRollingICIrAtT:
     """compute_rolling_ic_ir_at_t 测试."""
 
@@ -335,8 +344,17 @@ class TestComputeRollingICIrAtT:
         mfs = MultiFactorSignal(lookback=10)
         # 构造 10 个 IC, 其中 7 个是 nan (样本不足), 3 个有效 (< 5)
         ic_series = [
-            float("nan"), float("nan"), float("nan"), float("nan"), float("nan"),
-            float("nan"), float("nan"), 0.1, 0.2, 0.3, 0.0,
+            float("nan"),
+            float("nan"),
+            float("nan"),
+            float("nan"),
+            float("nan"),
+            float("nan"),
+            float("nan"),
+            0.1,
+            0.2,
+            0.3,
+            0.0,
         ]
         # t=10, window=ic_series[0:10] = [nan*7, 0.1, 0.2, 0.3]
         # isfinite 过滤后有效值 = [0.1, 0.2, 0.3] 仅 3 个 < 5
@@ -371,6 +389,7 @@ class TestComputeRollingICIrAtT:
 # 6. compute_factor_ic_metrics 测试 (HC-6 反向信号检测)
 # ============================================================
 
+
 class TestComputeFactorICMetrics:
     """compute_factor_ic_metrics 测试."""
 
@@ -379,7 +398,9 @@ class TestComputeFactorICMetrics:
         factor_history, forward_returns = synthetic_factor_history
         mfs = MultiFactorSignal()
         metrics = mfs.compute_factor_ic_metrics(
-            factor_history, forward_returns, "F_A",
+            factor_history,
+            forward_returns,
+            "F_A",
         )
         assert metrics.factor_name == "F_A"
         assert metrics.ic_ir > 0.0, f"Expected positive IC_IR, got {metrics.ic_ir}"
@@ -395,7 +416,9 @@ class TestComputeFactorICMetrics:
         factor_history, forward_returns = synthetic_factor_history
         mfs = MultiFactorSignal(inverted_threshold=0.3)
         metrics = mfs.compute_factor_ic_metrics(
-            factor_history, forward_returns, "F_B",
+            factor_history,
+            forward_returns,
+            "F_B",
         )
         assert metrics.ic_ir < 0.0, f"Expected negative IC_IR, got {metrics.ic_ir}"
         # IC_IR 负且 |IC_IR| >= 0.3 → 反向
@@ -411,7 +434,9 @@ class TestComputeFactorICMetrics:
         factor_history, forward_returns = synthetic_factor_history
         mfs = MultiFactorSignal()
         metrics = mfs.compute_factor_ic_metrics(
-            factor_history, forward_returns, "F_A",
+            factor_history,
+            forward_returns,
+            "F_A",
         )
         d = metrics.to_dict()
         assert d["factor_name"] == "F_A"
@@ -425,7 +450,9 @@ class TestComputeFactorICMetrics:
         mfs = MultiFactorSignal()
         with pytest.raises(InsufficientSamplesError):
             mfs.compute_factor_ic_metrics(
-                factor_history, forward_returns, "F_NOT_EXIST",
+                factor_history,
+                forward_returns,
+                "F_NOT_EXIST",
             )
 
     def test_insufficient_samples_raises(self):
@@ -436,7 +463,9 @@ class TestComputeFactorICMetrics:
         forward_returns = [{"S001": 0.01}, {"S001": 0.02}, {"S001": 0.03}]
         with pytest.raises(InsufficientSamplesError):
             mfs.compute_factor_ic_metrics(
-                factor_history, forward_returns, "F_A",
+                factor_history,
+                forward_returns,
+                "F_A",
             )
 
     def test_threshold_boundary(self):
@@ -475,6 +504,7 @@ class TestComputeFactorICMetrics:
 # 7. detect_inverted_factors 批量检测测试
 # ============================================================
 
+
 class TestDetectInvertedFactors:
     """detect_inverted_factors 批量检测测试."""
 
@@ -483,7 +513,9 @@ class TestDetectInvertedFactors:
         factor_history, forward_returns = synthetic_factor_history
         mfs = MultiFactorSignal(inverted_threshold=0.3)
         results = mfs.detect_inverted_factors(
-            factor_history, forward_returns, ["F_A", "F_B"],
+            factor_history,
+            forward_returns,
+            ["F_A", "F_B"],
         )
         assert "F_A" in results
         assert "F_B" in results
@@ -498,7 +530,9 @@ class TestDetectInvertedFactors:
         factor_history, forward_returns = synthetic_factor_history
         mfs = MultiFactorSignal()
         results = mfs.detect_inverted_factors(
-            factor_history, forward_returns, ["F_A", "F_NOT_EXIST"],
+            factor_history,
+            forward_returns,
+            ["F_A", "F_NOT_EXIST"],
         )
         assert "F_A" in results
         assert "F_NOT_EXIST" not in results
@@ -510,6 +544,7 @@ class TestDetectInvertedFactors:
         - F_SHORT: 仅 2 天数据, 样本不足, 应被跳过
         """
         import random
+
         rng = random.Random(99)
         mfs = MultiFactorSignal()
         # 5 个标的, 整体正相关, 加入噪声让 IC 序列有方差
@@ -526,7 +561,9 @@ class TestDetectInvertedFactors:
             for _ in range(20)
         ]
         results = mfs.detect_inverted_factors(
-            factor_history, forward_returns, ["F_GOOD", "F_SHORT"],
+            factor_history,
+            forward_returns,
+            ["F_GOOD", "F_SHORT"],
         )
         assert "F_GOOD" in results
         assert "F_SHORT" not in results
@@ -535,6 +572,7 @@ class TestDetectInvertedFactors:
 # ============================================================
 # 8. combine_factors_ic_weighted 测试 (HC-7 + Feature Flag)
 # ============================================================
+
 
 class TestCombineFactorsICWeighted:
     """combine_factors_ic_weighted 测试."""
@@ -547,7 +585,9 @@ class TestCombineFactorsICWeighted:
         FeatureFlags.reset_instance()
         mfs = MultiFactorSignal()
         combined, weights = mfs.combine_factors_ic_weighted(
-            factor_history, forward_returns, ["F_A", "F_B"],
+            factor_history,
+            forward_returns,
+            ["F_A", "F_B"],
         )
         assert len(combined) == 25
         assert len(weights) == 25
@@ -566,7 +606,9 @@ class TestCombineFactorsICWeighted:
         with patch("utils.alpha.multi_factor_signal.is_enabled", return_value=True):
             mfs = MultiFactorSignal(lookback=5)  # 较小 lookback 适配测试数据
             combined, weights = mfs.combine_factors_ic_weighted(
-                factor_history, forward_returns, ["F_A", "F_B"],
+                factor_history,
+                forward_returns,
+                ["F_A", "F_B"],
             )
         assert len(combined) == 25
         assert len(weights) == 25
@@ -583,7 +625,9 @@ class TestCombineFactorsICWeighted:
         """空因子列表返回空结果."""
         mfs = MultiFactorSignal()
         combined, weights = mfs.combine_factors_ic_weighted(
-            {}, [], [],
+            {},
+            [],
+            [],
         )
         assert combined == []
         assert weights == []
@@ -606,7 +650,9 @@ class TestCombineFactorsICWeighted:
         fwd_short = forward_returns[:12]
         mfs = MultiFactorSignal()
         combined, _weights = mfs.combine_factors_ic_weighted(
-            factor_history, fwd_short, ["F_A", "F_B"],
+            factor_history,
+            fwd_short,
+            ["F_A", "F_B"],
         )
         assert len(combined) == 12
 
@@ -615,7 +661,9 @@ class TestCombineFactorsICWeighted:
         factor_history, forward_returns = synthetic_factor_history
         mfs = MultiFactorSignal()
         combined, _ = mfs.combine_factors_ic_weighted(
-            factor_history, forward_returns, ["F_A", "F_B"],
+            factor_history,
+            forward_returns,
+            ["F_A", "F_B"],
         )
         for day_values in combined:
             for v in day_values.values():
@@ -628,7 +676,9 @@ class TestCombineFactorsICWeighted:
         with patch("utils.alpha.multi_factor_signal.is_enabled", return_value=True):
             mfs = MultiFactorSignal(lookback=10)
             combined, _weights = mfs.combine_factors_ic_weighted(
-                factor_history, forward_returns, ["F_A", "F_B"],
+                factor_history,
+                forward_returns,
+                ["F_A", "F_B"],
                 lookback=3,  # 显式覆盖
             )
         assert len(combined) == 25
@@ -637,6 +687,7 @@ class TestCombineFactorsICWeighted:
 # ============================================================
 # 9. generate_signal 单日快照测试
 # ============================================================
+
 
 class TestGenerateSignal:
     """generate_signal 单日快照测试."""
@@ -688,6 +739,7 @@ class TestGenerateSignal:
 # 10. 便捷函数测试
 # ============================================================
 
+
 class TestConvenienceFunctions:
     """模块级便捷函数测试."""
 
@@ -696,7 +748,10 @@ class TestConvenienceFunctions:
         factor_history, forward_returns = synthetic_factor_history
         FeatureFlags.reset_instance()
         combined, weights = combine_factors(
-            factor_history, forward_returns, ["F_A", "F_B"], lookback=10,
+            factor_history,
+            forward_returns,
+            ["F_A", "F_B"],
+            lookback=10,
         )
         assert len(combined) == 25
         assert len(weights) == 25
@@ -705,7 +760,10 @@ class TestConvenienceFunctions:
         """detect_inverted_factors 便捷函数 (HC-6)."""
         factor_history, forward_returns = synthetic_factor_history
         results = detect_inverted_factors(
-            factor_history, forward_returns, ["F_A", "F_B"], threshold=0.3,
+            factor_history,
+            forward_returns,
+            ["F_A", "F_B"],
+            threshold=0.3,
         )
         assert "F_A" in results
         assert "F_B" in results
@@ -714,6 +772,7 @@ class TestConvenienceFunctions:
 # ============================================================
 # 11. 异常处理测试
 # ============================================================
+
 
 class TestExceptionHandling:
     """异常处理测试."""
@@ -728,7 +787,9 @@ class TestExceptionHandling:
         mfs = MultiFactorSignal()
         with pytest.raises(InsufficientSamplesError) as exc_info:
             mfs.compute_factor_ic_metrics(
-                factor_history, forward_returns, "F_NOT_EXIST",
+                factor_history,
+                forward_returns,
+                "F_NOT_EXIST",
             )
         assert "F_NOT_EXIST" in str(exc_info.value)
 
@@ -748,6 +809,7 @@ class TestExceptionHandling:
 # ============================================================
 # 12. 边界条件测试
 # ============================================================
+
 
 class TestEdgeCases:
     """边界条件测试."""
@@ -779,6 +841,7 @@ class TestEdgeCases:
     def test_minimal_valid_samples(self):
         """最小有效样本数 (5 个标的, 8 天, 含噪声让 IC 有方差)."""
         import random
+
         rng = random.Random(123)
         mfs = MultiFactorSignal(lookback=3)
         symbols = ["S001", "S002", "S003", "S004", "S005", "S006", "S007", "S008"]
@@ -794,7 +857,9 @@ class TestEdgeCases:
             for _ in range(8)
         ]
         metrics = mfs.compute_factor_ic_metrics(
-            factor_history, forward_returns, "F_A",
+            factor_history,
+            forward_returns,
+            "F_A",
         )
         assert metrics.n_samples >= 5
         # 整体正相关 → IC_IR > 0 (但加入噪声后可能不严格, 仅验证可计算)

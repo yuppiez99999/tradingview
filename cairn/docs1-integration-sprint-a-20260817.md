@@ -139,3 +139,14 @@ reporting/html_chart_generator.py (mermaid + echarts CDN)
 - **Wave 7 Phase 0-3**（uv/dotenv/Prefect/DuckDB/LiteLLM）：Sprint A 全是新增文件/文档，不冲突；Sprint B W.B.1 需与 LiteLLM 协调；Sprint C W.C.3 需在 Phase 0-3 完成后
 - **08-09 落地指南**：OpenBiliClaw 采集层与 08-09 §3.5 finbert/snownlp 打分层互补
 - **08-11 排期计划**：本批次属第三层（AI 工具链），与前两批互补不重复
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [GitHub 高价值项目集成策略（Wave 6）](github-integration-wave6.md) (相似度 16%)
+- [GitHub 周热门项目集成 Wave10 (2026-08-21)](github-integration-wave10-20260821.md) (相似度 15%)
+- [Wave 9：GitHub 热榜项目集成决策沉淀](github-trending-wave9-20260819.md) (相似度 14%)
+- [第三方项目批量集成专题 — 2026-08-22](third-party-integration-batch-20260822.md) (相似度 10%)
+- [Code-Review-Graph MCP 工具使用指南](code-review-graph-guide.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

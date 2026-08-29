@@ -5,6 +5,7 @@
     py -3.8 scripts/setup_ollama_qwen.py
     OLLAMA_MODEL=qwen2.5:7b py -3.8 scripts/setup_ollama_qwen.py
 """
+
 import os
 import shutil
 import subprocess
@@ -73,7 +74,16 @@ def _run(cmd, cwd=None, env=None):
             encoding="utf-8",
             errors="replace",
         )
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print("run_exception=", repr(e))
         return None

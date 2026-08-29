@@ -5,6 +5,7 @@
 运行:
     python scripts/test_etf_rotation_3tier.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -68,8 +69,10 @@ def main() -> int:
     )
 
     print("\n[2] 三层验证配置:")
-    print(f"    WFO: lookback_grid={validator.lookback_grid}, "
-          f"holdings_grid={validator.holdings_grid}")
+    print(
+        f"    WFO: lookback_grid={validator.lookback_grid}, "
+        f"holdings_grid={validator.holdings_grid}"
+    )
     print(f"    train={validator.train_window}d, test={validator.test_window}d")
 
     print("\n[3] 运行 WFO→VEC→BT...")
@@ -81,35 +84,47 @@ def main() -> int:
 
     if report.wfo_results:
         print("\n  WFO 各窗口详情:")
-        print(f"  {'ID':>3} {'Train':>12} → {'Test':>12} "
-              f"{'LB':>4} {'Hold':>5} {'TrnSR':>7} {'OosSR':>7} {'OosRet':>8}")
+        print(
+            f"  {'ID':>3} {'Train':>12} → {'Test':>12} "
+            f"{'LB':>4} {'Hold':>5} {'TrnSR':>7} {'OosSR':>7} {'OosRet':>8}"
+        )
         for w in report.wfo_results:
-            print(f"  {w.window_id:>3} {w.train_start}→{w.train_end} "
-                  f"{w.test_start}→{w.test_end} "
-                  f"{w.best_lookback:>4} {w.best_holdings:>5} "
-                  f"{w.train_sharpe:>7.3f} {w.oos_sharpe:>7.3f} "
-                  f"{w.oos_return:>8.4%}")
+            print(
+                f"  {w.window_id:>3} {w.train_start}→{w.train_end} "
+                f"{w.test_start}→{w.test_end} "
+                f"{w.best_lookback:>4} {w.best_holdings:>5} "
+                f"{w.train_sharpe:>7.3f} {w.oos_sharpe:>7.3f} "
+                f"{w.oos_return:>8.4%}"
+            )
 
     if report.vec_result:
-        print(f"\n  VEC 结果: {report.vec_result.n_folds} 折, "
-              f"平均 OOS Sharpe={report.vec_result.avg_sharpe:.4f} "
-              f"(std={report.vec_result.sharpe_std:.4f})")
-        print(f"  稳健参数: lookback={report.vec_result.robust_lookback}d, "
-              f"holdings={report.vec_result.robust_holdings}")
+        print(
+            f"\n  VEC 结果: {report.vec_result.n_folds} 折, "
+            f"平均 OOS Sharpe={report.vec_result.avg_sharpe:.4f} "
+            f"(std={report.vec_result.sharpe_std:.4f})"
+        )
+        print(
+            f"  稳健参数: lookback={report.vec_result.robust_lookback}d, "
+            f"holdings={report.vec_result.robust_holdings}"
+        )
 
     if report.bt_result:
-        print(f"\n  BT 结果: Sharpe={report.bt_result.sharpe_ratio:.4f}, "
-              f"收益={report.bt_result.total_return:.4%}, "
-              f"回撤={report.bt_result.max_drawdown:.4%}, "
-              f"换仓={report.bt_result.n_rebalances} 次")
+        print(
+            f"\n  BT 结果: Sharpe={report.bt_result.sharpe_ratio:.4f}, "
+            f"收益={report.bt_result.total_return:.4%}, "
+            f"回撤={report.bt_result.max_drawdown:.4%}, "
+            f"换仓={report.bt_result.n_rebalances} 次"
+        )
 
     # 4. 验收
     print(f"\n[5] 验收 (BT Sharpe ≥{report.target_sharpe}):")
     if report.passed:
         print("  ✅ PASS — 三层验证通过")
     else:
-        print(f"  ⚠️ 未达 Sharpe≥{report.target_sharpe} (BT Sharpe="
-              f"{report.bt_result.sharpe_ratio:.4f})")
+        print(
+            f"  ⚠️ 未达 Sharpe≥{report.target_sharpe} (BT Sharpe="
+            f"{report.bt_result.sharpe_ratio:.4f})"
+        )
         print("  注意: 合成数据轮动信号有限; 实盘需真实 ETF 数据")
 
     return 0  # 验证流程跑通即算成功

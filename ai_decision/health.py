@@ -41,6 +41,7 @@ ai_decision.health — 模型健康检查 + 熔断器
     prov = mon.get_provider_with_fallback("judge")
     result = prov.generate(prompt)
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -62,7 +63,9 @@ logger = logging.getLogger("ai_decision.health")
 # 动态加载: v8.3_institutional 目录名含点号, 非合法 Python 包名, 用 importlib 加载
 # 降级: 加载失败时内联完全兼容的实现 (接口与 model_router.CircuitBreaker 一致)
 
-_V83_AI_DIR = Path(__file__).resolve().parent.parent / "v8.3_institutional" / "src" / "ai"
+_V83_AI_DIR = (
+    Path(__file__).resolve().parent.parent / "v8.3_institutional" / "src" / "ai"
+)
 _MR_PATH = _V83_AI_DIR / "model_router.py"
 
 
@@ -78,16 +81,26 @@ def _load_circuit_breaker():
                 if cb_cls is not None:
                     logger.debug("[Health] 复用 v8.3 model_router.CircuitBreaker")
                     return cb_cls
-    except (ImportError, OSError, AttributeError, TypeError, ValueError,
-            SyntaxError, RuntimeError) as exc:
+    except (
+        ImportError,
+        OSError,
+        AttributeError,
+        TypeError,
+        ValueError,
+        SyntaxError,
+        RuntimeError,
+    ) as exc:
         # importlib 动态加载可能抛: 模块导入失败/文件读取错误/属性缺失/
         # 类型不匹配/spec 解析错误/目标文件语法错误/运行时错误
-        logger.debug("[Health] 加载 model_router.CircuitBreaker 失败, 降级内联版本: %s", exc)
+        logger.debug(
+            "[Health] 加载 model_router.CircuitBreaker 失败, 降级内联版本: %s", exc
+        )
 
     # 降级: 内联兼容版本 (与 model_router.CircuitBreaker 接口完全一致)
     @dataclass
     class CircuitBreaker:
         """熔断器 (内联兼容版本, 接口与 v8.3 model_router.CircuitBreaker 一致)"""
+
         provider: str = ""
         max_failures: int = 3
         cooldown_seconds: int = 300
@@ -129,6 +142,7 @@ CircuitBreaker = _load_circuit_breaker()
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class HealthStatus:
     """单次 liveness probe 结果
@@ -142,6 +156,7 @@ class HealthStatus:
         provider_name: 实际探测的 provider 名称
         circuit_open: 探测时熔断器是否已开启
     """
+
     role: str
     healthy: bool
     latency_ms: float
@@ -165,6 +180,7 @@ class HealthStatus:
 # ============================================================
 # 健康监控器
 # ============================================================
+
 
 class ModelHealthMonitor:
     """模型健康监控 + 熔断降级
@@ -265,7 +281,9 @@ class ModelHealthMonitor:
         if cb.is_open and cb.consecutive_failures == self._max_failures:
             logger.warning(
                 "[HealthMonitor] %s 熔断触发 (连续失败 %d 次, 冷却 %ds)",
-                role, cb.consecutive_failures, self._cooldown_seconds,
+                role,
+                cb.consecutive_failures,
+                self._cooldown_seconds,
             )
 
     def record_success(self, role: str) -> None:
@@ -320,29 +338,49 @@ class ModelHealthMonitor:
                 # provider 返回 None 视为不健康
                 self.record_failure(role)
                 status = HealthStatus(
-                    role=role, healthy=False, latency_ms=latency_ms,
-                    error="provider returned None", last_check=time.time(),
-                    provider_name=provider_name, circuit_open=self.is_circuit_open(role),
+                    role=role,
+                    healthy=False,
+                    latency_ms=latency_ms,
+                    error="provider returned None",
+                    last_check=time.time(),
+                    provider_name=provider_name,
+                    circuit_open=self.is_circuit_open(role),
                 )
             else:
                 # 探测成功
                 self.record_success(role)
                 status = HealthStatus(
-                    role=role, healthy=True, latency_ms=latency_ms,
-                    error="", last_check=time.time(),
-                    provider_name=provider_name, circuit_open=False,
+                    role=role,
+                    healthy=True,
+                    latency_ms=latency_ms,
+                    error="",
+                    last_check=time.time(),
+                    provider_name=provider_name,
+                    circuit_open=False,
                 )
-        except (RuntimeError, OSError, ConnectionError, TimeoutError,
-                ValueError, TypeError, KeyError, AttributeError) as exc:
+        except (
+            RuntimeError,
+            OSError,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+        ) as exc:
             # provider.generate 可能抛: 网络/超时/JSON 解析/响应格式错误/
             # 字段缺失/类型不匹配/属性缺失/运行时错误 (各 Provider 内部已做降级,
             # 此处仅作兜底防御)
             latency_ms = (time.perf_counter() - start) * 1000.0
             self.record_failure(role)
             status = HealthStatus(
-                role=role, healthy=False, latency_ms=latency_ms,
-                error=f"probe exception: {exc}", last_check=time.time(),
-                provider_name=provider_name, circuit_open=self.is_circuit_open(role),
+                role=role,
+                healthy=False,
+                latency_ms=latency_ms,
+                error=f"probe exception: {exc}",
+                last_check=time.time(),
+                provider_name=provider_name,
+                circuit_open=self.is_circuit_open(role),
             )
             logger.debug("[HealthMonitor] %s 探测异常: %s", role, exc)
 
@@ -384,7 +422,8 @@ class ModelHealthMonitor:
         if self.is_circuit_open(role):
             logger.warning(
                 "[HealthMonitor] %s 熔断中, 降级 MockProvider (连续失败 %d 次)",
-                role, self._breakers[role].consecutive_failures,
+                role,
+                self._breakers[role].consecutive_failures,
             )
             return MockProvider(role=role)
         return get_active_provider(role)
@@ -430,9 +469,14 @@ class ModelHealthMonitor:
                 "max_failures": cb.max_failures,
                 "cooldown_seconds": cb.cooldown_seconds,
                 "last_failure_time": cb.last_failure_time,
-                "last_status": self._last_status.get(role, HealthStatus(
-                    role=role, healthy=not is_open, latency_ms=0.0,
-                )).to_dict(),
+                "last_status": self._last_status.get(
+                    role,
+                    HealthStatus(
+                        role=role,
+                        healthy=not is_open,
+                        latency_ms=0.0,
+                    ),
+                ).to_dict(),
             }
         return {
             "roles": roles,

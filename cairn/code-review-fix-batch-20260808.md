@@ -100,3 +100,14 @@ CI incremental-static steps: 5 (原 3 + 新增 py_compile + F821)
 5. **最廉价防线收益最大** — py_compile 1s/文件, 阻断所有 SyntaxError 入库, 性价比最高
 6. **验证脚本不能假设修复方式** — 用权威工具 (bandit/ruff) 验证实际安全状态, 而非字面匹配
 7. **OFFLINE 脚本必须有显式护栏** — logger.warning + 文档锚点 + lint 规则, 三重防护防止误用为实盘
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 47%)
+- [独立代码审查 + 二次核验纠偏（2026-08-08）](code-review-independent-audit-20260808.md) (相似度 14%)
+- [代码质量修复批次 2026-08-18：ruff 高危规则清零](code-review-ruff-fix-batch-20260818.md) (相似度 12%)
+- [代码审查质量门禁经验沉淀：为什么多次审查仍有 bug](code-review-quality-gate-lessons-20260811.md) (相似度 12%)
+- [工程 CI/质量 (Wave 7-QC 衔接) (2026-08-24)](engineering-qc-20260824.md) (相似度 11%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

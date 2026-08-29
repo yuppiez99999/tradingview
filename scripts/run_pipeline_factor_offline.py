@@ -103,6 +103,7 @@ def main() -> int:
             return 1
 
         import json
+
         with open(output_path, encoding="utf-8") as f:
             data = json.load(f)
 
@@ -111,13 +112,17 @@ def main() -> int:
         logger.info("\n[3/3] ✅ 成功: 因子信号已生成")
         logger.info(f"  文件: {output_path}")
         logger.info(f"  生成时间: {data.get('generated_at', 'N/A')}")
-        logger.info(f"  因子组合: {combo.get('factor_a', '?')} + {combo.get('factor_b', '?')}")
+        logger.info(
+            f"  因子组合: {combo.get('factor_a', '?')} + {combo.get('factor_b', '?')}"
+        )
         logger.info(f"  组合方法: {combo.get('method', 'N/A')}")
         logger.info(f"  lookback: {combo.get('lookback', 'N/A')}")
         logger.info(f"  combined_ic_ir: {combo.get('combined_ic_ir', 0):+.4f}")
         logger.info(f"  live_dsr: {combo.get('live_dsr', 0):+.4f}")
         logger.info(f"  max_drawdown: {combo.get('max_drawdown', 0):.4f}")
-        logger.info(f"  权重: w_a={combo.get('w_a', 0):+.4f}, w_b={combo.get('w_b', 0):+.4f}")
+        logger.info(
+            f"  权重: w_a={combo.get('w_a', 0):+.4f}, w_b={combo.get('w_b', 0):+.4f}"
+        )
         logger.info("\n  信号统计:")
         logger.info(f"    标的数: {stats.get('n_symbols', 0)}")
         logger.info(f"    正信号: {stats.get('n_positive', 0)}")
@@ -129,7 +134,16 @@ def main() -> int:
         logger.info("Pipeline 因子信号生成成功: %s", output_path.name)
         return 0
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.info(f"\n[3/3] ❌ 异常: {e}")

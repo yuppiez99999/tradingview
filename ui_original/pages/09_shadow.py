@@ -6,6 +6,7 @@
     - 每日 DSR 报告
     - Fail-Fast 监控
 """
+
 from __future__ import annotations
 
 import sys
@@ -55,27 +56,39 @@ def main() -> None:
     stage2_blocked = state.get("stage2_blocked", True)
 
     # 顶部 KPI
-    render_kpi_row([
-        {"label": "观察期进度", "value": f"{progress_days}/{target_days} 天", "icon": "📅"},
-        {"label": "Fail-Fast",
-         "value": "已触发" if fail_fast_triggered else "未触发",
-         "delta": "异常" if fail_fast_triggered else "正常",
-         "delta_positive": not fail_fast_triggered,
-         "icon": "🚨"},
-        {"label": "Stage 2 推进",
-         "value": "阻塞" if stage2_blocked else "可推进",
-         "delta": "Stage 1" if stage2_blocked else "Stage 2",
-         "delta_positive": not stage2_blocked,
-         "icon": "🚦"},
-        {"label": "启动时间", "value": state.get("start_date", "-"), "icon": "🚀"},
-    ])
+    render_kpi_row(
+        [
+            {
+                "label": "观察期进度",
+                "value": f"{progress_days}/{target_days} 天",
+                "icon": "📅",
+            },
+            {
+                "label": "Fail-Fast",
+                "value": "已触发" if fail_fast_triggered else "未触发",
+                "delta": "异常" if fail_fast_triggered else "正常",
+                "delta_positive": not fail_fast_triggered,
+                "icon": "🚨",
+            },
+            {
+                "label": "Stage 2 推进",
+                "value": "阻塞" if stage2_blocked else "可推进",
+                "delta": "Stage 1" if stage2_blocked else "Stage 2",
+                "delta_positive": not stage2_blocked,
+                "icon": "🚦",
+            },
+            {"label": "启动时间", "value": state.get("start_date", "-"), "icon": "🚀"},
+        ]
+    )
 
     st.divider()
 
     # ===== 进度条 =====
     st.subheader("📊 观察期进度")
     progress_pct = progress_days / target_days if target_days > 0 else 0
-    st.progress(progress_pct, text=f"{progress_days}/{target_days} 天 ({progress_pct*100:.1f}%)")
+    st.progress(
+        progress_pct, text=f"{progress_days}/{target_days} 天 ({progress_pct*100:.1f}%)"
+    )
 
     # 准入条件检查
     st.subheader("✅ Stage 2 推进条件")
@@ -124,7 +137,9 @@ def main() -> None:
         render_status_metric(
             label="今日回撤",
             value=f"{state.get('today_drawdown', 0)*100:.2f}%",
-            status="CRITICAL" if abs(state.get('today_drawdown', 0)) > 0.03 else "NORMAL",
+            status=(
+                "CRITICAL" if abs(state.get("today_drawdown", 0)) > 0.03 else "NORMAL"
+            ),
         )
     with col2:
         render_status_metric(
@@ -135,7 +150,11 @@ def main() -> None:
         render_status_metric(
             label="3日累计回撤",
             value=f"{state.get('three_day_drawdown', 0)*100:.2f}%",
-            status="CRITICAL" if abs(state.get('three_day_drawdown', 0)) > 0.05 else "NORMAL",
+            status=(
+                "CRITICAL"
+                if abs(state.get("three_day_drawdown", 0)) > 0.05
+                else "NORMAL"
+            ),
         )
 
     st.divider()
@@ -147,7 +166,11 @@ def main() -> None:
     if dsr:
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("DSR", f"{dsr.get('dsr', 0):.2f}", delta="达标" if dsr.get('dsr', 0) >= 5 else "未达标")
+            st.metric(
+                "DSR",
+                f"{dsr.get('dsr', 0):.2f}",
+                delta="达标" if dsr.get("dsr", 0) >= 5 else "未达标",
+            )
         with col2:
             st.metric("年化收益", f"{dsr.get('annual_return', 0)*100:.2f}%")
         with col3:
@@ -158,7 +181,9 @@ def main() -> None:
         with st.expander("查看完整 DSR 报告"):
             st.json(dsr)
     else:
-        render_empty_state(f"{selected_date.strftime('%Y-%m-%d')} 无 DSR 报告", icon="📋")
+        render_empty_state(
+            f"{selected_date.strftime('%Y-%m-%d')} 无 DSR 报告", icon="📋"
+        )
 
     st.divider()
 
@@ -168,12 +193,15 @@ def main() -> None:
     if modules:
         try:
             import pandas as pd
+
             df = pd.DataFrame(modules)
             st.dataframe(df, use_container_width=True, hide_index=True)
         except Exception:
             st.json(modules)
     else:
-        st.caption("默认准入模块: T2.1 LLM Router / T2.2 Decision Theories / T2.3 Multi Factor Signal")
+        st.caption(
+            "默认准入模块: T2.1 LLM Router / T2.2 Decision Theories / T2.3 Multi Factor Signal"
+        )
 
 
 if __name__ == "__main__" or "streamlit" in __file__:

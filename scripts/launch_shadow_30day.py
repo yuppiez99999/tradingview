@@ -31,6 +31,7 @@
 对齐 ROADMAP W7.2.8/W7.2.9 + cairn/qlib-backtest-validation.md.
 =================================================================
 """
+
 from __future__ import annotations
 
 import argparse
@@ -119,9 +120,7 @@ def _load_mid_layer_portfolio(trade_date: str):
         try:
             with open(positions_file, encoding="utf-8") as f:
                 positions = json.load(f)
-            mid_positions = [
-                p for p in positions if p.get("layer", "mid") == "mid"
-            ]
+            mid_positions = [p for p in positions if p.get("layer", "mid") == "mid"]
             if mid_positions:
                 n = len(mid_positions)
                 for p in mid_positions:
@@ -266,7 +265,10 @@ def _check_fail_fast(daily_result: ShadowDailyResult) -> tuple[bool, str]:
 
         max_diff = max(mvsk_diff_pct, qlib_diff_pct)
         if max_diff > monitor.daily_drawdown_threshold:
-            return True, f"单日差异 {max_diff:.4f} > 阈值 {monitor.daily_drawdown_threshold}"
+            return (
+                True,
+                f"单日差异 {max_diff:.4f} > 阈值 {monitor.daily_drawdown_threshold}",
+            )
 
         return False, ""
     except Exception as e:
@@ -317,7 +319,9 @@ def _count_jsonl_records(filepath: Path) -> int:
         return 0
 
 
-def _update_status(status: Shadow30DayStatus, daily: ShadowDailyResult) -> Shadow30DayStatus:
+def _update_status(
+    status: Shadow30DayStatus, daily: ShadowDailyResult
+) -> Shadow30DayStatus:
     """更新窗口状态."""
     if not status.start_date:
         status.start_date = daily.date
@@ -345,7 +349,7 @@ def _update_status(status: Shadow30DayStatus, daily: ShadowDailyResult) -> Shado
 
     status.daily_results.append(asdict(daily))
     if len(status.daily_results) > VALIDATION_WINDOW_DAYS + 5:
-        status.daily_results = status.daily_results[-(VALIDATION_WINDOW_DAYS + 5):]
+        status.daily_results = status.daily_results[-(VALIDATION_WINDOW_DAYS + 5) :]
 
     return status
 
@@ -369,13 +373,17 @@ def run_daily_shadow(args_date: str = "") -> ShadowDailyResult:
     mvsk_ok, mvsk_diff, mvsk_err = _run_mvsk_shadow(trade_date)
     logger.info(
         "MVSK P5-2: success=%s, weight_diff_l2=%.6f, err=%s",
-        mvsk_ok, mvsk_diff, mvsk_err or "(none)",
+        mvsk_ok,
+        mvsk_diff,
+        mvsk_err or "(none)",
     )
 
     qlib_ok, qlib_diff, qlib_err = _run_qlib_shadow(trade_date)
     logger.info(
         "qlib_lgb_v2: success=%s, signal_diff=%.6f, err=%s",
-        qlib_ok, qlib_diff, qlib_err or "(none)",
+        qlib_ok,
+        qlib_diff,
+        qlib_err or "(none)",
     )
 
     daily = ShadowDailyResult(
@@ -402,7 +410,10 @@ def run_daily_shadow(args_date: str = "") -> ShadowDailyResult:
 
     logger.info(
         "窗口进度: %d/%d 天 (剩余 %d), fail_fast=%s",
-        status.days_elapsed, VALIDATION_WINDOW_DAYS, status.days_remaining, triggered,
+        status.days_elapsed,
+        VALIDATION_WINDOW_DAYS,
+        status.days_remaining,
+        triggered,
     )
 
     if triggered:

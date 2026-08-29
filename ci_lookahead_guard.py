@@ -183,11 +183,12 @@ def main() -> int:
         for scan_dir in SCAN_DIRS:
             dir_path = ROOT / scan_dir
             if dir_path.is_dir():
-                files_to_scan.extend(f for f in dir_path.rglob("*.py") if not should_exclude(f))
+                files_to_scan.extend(
+                    f for f in dir_path.rglob("*.py") if not should_exclude(f)
+                )
 
     # 去重
     files_to_scan = list(set(files_to_scan))
-
 
     all_violations = []
     for filepath in sorted(files_to_scan):

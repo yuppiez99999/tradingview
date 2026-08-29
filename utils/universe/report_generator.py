@@ -34,7 +34,16 @@ try:
             matplotlib.rcParams["font.sans-serif"] = [font]
             matplotlib.rcParams["axes.unicode_minus"] = False
             break
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             continue
     _MPL_OK = True
@@ -60,7 +69,9 @@ def _save_industry_pie(portfolio_df: pd.DataFrame, output_path: Path) -> str:
     """行业分布饼图"""
     if not _MPL_OK:
         return ""
-    industry_exp = portfolio_df.groupby("industry")["weight"].sum().sort_values(ascending=False)
+    industry_exp = (
+        portfolio_df.groupby("industry")["weight"].sum().sort_values(ascending=False)
+    )
     # 只显示 Top 8，其余合并
     if len(industry_exp) > 8:
         top = industry_exp.head(8)
@@ -101,7 +112,11 @@ def _save_factor_contrib_bar(portfolio_df: pd.DataFrame, output_path: Path) -> s
     avg_scores.index = [c.replace("_score", "") for c in avg_scores.index]
 
     _fig, ax = plt.subplots(figsize=(10, 6))
-    bars = ax.bar(avg_scores.index, avg_scores.values, color=plt.cm.viridis(np.linspace(0, 0.8, len(avg_scores))))
+    bars = ax.bar(
+        avg_scores.index,
+        avg_scores.values,
+        color=plt.cm.viridis(np.linspace(0, 0.8, len(avg_scores))),
+    )
     ax.axhline(y=0, color="black", linewidth=0.5)
     ax.set_xlabel("因子主题", fontsize=12)
     ax.set_ylabel("平均得分 (z-score)", fontsize=12)
@@ -160,17 +175,33 @@ def _save_risk_radar(portfolio_df: pd.DataFrame, output_path: Path) -> str:
     return str(output_path)
 
 
-def _save_score_dist(scores_df: pd.DataFrame, output_path: Path, top_n: int = 100) -> str:
+def _save_score_dist(
+    scores_df: pd.DataFrame, output_path: Path, top_n: int = 100
+) -> str:
     """打分分布直方图"""
     if not _MPL_OK or "composite_score" not in scores_df.columns:
         return ""
     _fig, ax = plt.subplots(figsize=(11, 6))
     all_scores = scores_df["composite_score"].dropna()
-    ax.hist(all_scores, bins=50, color="#5DADE2", alpha=0.7, edgecolor="white", label="全市场")
+    ax.hist(
+        all_scores,
+        bins=50,
+        color="#5DADE2",
+        alpha=0.7,
+        edgecolor="white",
+        label="全市场",
+    )
 
     # 标记 Top N
     top_scores = all_scores.nlargest(top_n)
-    ax.hist(top_scores, bins=20, color="#E74C3C", alpha=0.7, edgecolor="white", label=f"Top {top_n}")
+    ax.hist(
+        top_scores,
+        bins=20,
+        color="#E74C3C",
+        alpha=0.7,
+        edgecolor="white",
+        label=f"Top {top_n}",
+    )
     ax.axvline(
         x=top_scores.min(),
         color="#C0392B",
@@ -341,18 +372,25 @@ def generate_full_report(
     }
     import json
 
-    json_path.write_text(json.dumps(portfolio_json, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    json_path.write_text(
+        json.dumps(portfolio_json, ensure_ascii=False, indent=2, default=str),
+        encoding="utf-8",
+    )
     paths.portfolio_json = str(json_path)
     logger.info(f"  ✅ 组合 JSON: {json_path}")
 
     # 3. 行业分布饼图
-    industry_chart = _save_industry_pie(portfolio_df, charts_dir / "industry_distribution.png")
+    industry_chart = _save_industry_pie(
+        portfolio_df, charts_dir / "industry_distribution.png"
+    )
     if industry_chart:
         paths.chart_industry = industry_chart
         logger.info(f"  ✅ 行业分布图: {industry_chart}")
 
     # 4. 因子贡献柱状图
-    factor_chart = _save_factor_contrib_bar(portfolio_df, charts_dir / "factor_contribution.png")
+    factor_chart = _save_factor_contrib_bar(
+        portfolio_df, charts_dir / "factor_contribution.png"
+    )
     if factor_chart:
         paths.chart_factor_contrib = factor_chart
         logger.info(f"  ✅ 因子贡献图: {factor_chart}")

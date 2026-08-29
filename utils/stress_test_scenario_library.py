@@ -530,21 +530,33 @@ class StressTestEngine:
             if asset_type == "ETF" and shocks.etf_limit_down_pct > 0:
                 # 该 ETF 是否在被跌停的范围内 (用 code 哈希模拟随机性, 确定性可复现)
                 # 简化: 如果场景设定 60% ETF 跌停, 则按比例影响
-                limit_down_loss = amount * shocks.etf_limit_down_pct * (-0.10)  # 跌停 -10%
-                by_factor["liquidity"] = by_factor.get("liquidity", 0.0) + limit_down_loss
+                limit_down_loss = (
+                    amount * shocks.etf_limit_down_pct * (-0.10)
+                )  # 跌停 -10%
+                by_factor["liquidity"] = (
+                    by_factor.get("liquidity", 0.0) + limit_down_loss
+                )
                 asset_pnl += limit_down_loss
 
             # 期货流动性枯竭: 无法平仓对冲 → 加额外滑点损失
             if asset_type == "FUTURES" and shocks.futures_liquidity_dry_up > 0:
-                slippage_loss = amount * (shocks.futures_liquidity_dry_up * shocks.hedge_slippage_bps / 10000.0)
-                by_factor["liquidity"] = by_factor.get("liquidity", 0.0) - abs(slippage_loss)
+                slippage_loss = amount * (
+                    shocks.futures_liquidity_dry_up
+                    * shocks.hedge_slippage_bps
+                    / 10000.0
+                )
+                by_factor["liquidity"] = by_factor.get("liquidity", 0.0) - abs(
+                    slippage_loss
+                )
                 asset_pnl -= abs(slippage_loss)
 
             by_asset[code] = asset_pnl
             by_sector[sector] = by_sector.get(sector, 0.0) + asset_pnl
             total_pnl += asset_pnl
 
-        portfolio_return = total_pnl / total_portfolio_value if total_portfolio_value > 0 else 0.0
+        portfolio_return = (
+            total_pnl / total_portfolio_value if total_portfolio_value > 0 else 0.0
+        )
 
         # VaR 估算 (简化: 假设正态分布, σ × z)
         z = 1.645 if self.var_confidence == 0.95 else 2.326
@@ -555,19 +567,23 @@ class StressTestEngine:
         if shocks.futures_liquidity_dry_up > 0:
             # 假设流动性枯竭导致持有期从 1 天延长到 3-5 天 (sqrt-T 法则)
             holding_days = 1.0 + shocks.futures_liquidity_dry_up * 4.0  # 1-5 天
-            stressed_vol *= holding_days ** 0.5
+            stressed_vol *= holding_days**0.5
         var_before = total_portfolio_value * base_vol * z
         var_after = total_portfolio_value * stressed_vol * z
 
         breach = portfolio_return < self.risk_threshold
         breach_reason = ""
         if breach:
-            breach_reason = f"组合收益 {portfolio_return:.2%} 低于阈值 {self.risk_threshold:.2%}"
+            breach_reason = (
+                f"组合收益 {portfolio_return:.2%} 低于阈值 {self.risk_threshold:.2%}"
+            )
             # P2-增强: 流动性场景的额外 breach 原因
             if shocks.etf_limit_down_pct > 0:
                 breach_reason += f"; ETF 跌停比例 {shocks.etf_limit_down_pct:.0%}"
             if shocks.futures_liquidity_dry_up > 0:
-                breach_reason += f"; 期货流动性枯竭 {shocks.futures_liquidity_dry_up:.0%}"
+                breach_reason += (
+                    f"; 期货流动性枯竭 {shocks.futures_liquidity_dry_up:.0%}"
+                )
 
         return StressTestResult(
             scenario_name=scenario.name,
@@ -589,7 +605,10 @@ class StressTestEngine:
         total_portfolio_value: float,
     ) -> list[StressTestResult]:
         """对所有预定义场景运行压力测试"""
-        return [self.run_scenario(s, positions, total_portfolio_value) for s in self.scenarios]
+        return [
+            self.run_scenario(s, positions, total_portfolio_value)
+            for s in self.scenarios
+        ]
 
     # ------------------------------------------------------------
     # 自定义场景

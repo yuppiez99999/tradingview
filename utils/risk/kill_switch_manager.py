@@ -38,9 +38,9 @@ logger = logging.getLogger("kill_switch_mgr")
 
 class KillLevel(IntEnum):
     NORMAL = 0
-    CAUTION = 1      # L1 保证金 ≥ 50%
-    REDUCTION = 2    # L2 保证金 ≥ 75%
-    LIQUIDATE = 3    # L3 保证金 ≥ 95%
+    CAUTION = 1  # L1 保证金 ≥ 50%
+    REDUCTION = 2  # L2 保证金 ≥ 75%
+    LIQUIDATE = 3  # L3 保证金 ≥ 95%
 
 
 @dataclass
@@ -78,11 +78,19 @@ class KillSwitchManager:
         thresholds: dict[KillLevel, float] | None = None,
         enable_audit_logging: bool = True,
     ) -> None:
-        self.thresholds: dict[KillLevel, float] = dict(thresholds or self.DEFAULT_THRESHOLDS)
+        self.thresholds: dict[KillLevel, float] = dict(
+            thresholds or self.DEFAULT_THRESHOLDS
+        )
         # 阈值合法性校验 (显式 raise 而非 assert, 防止 -O 优化移除风控校验)
-        if not self.thresholds[KillLevel.CAUTION] < self.thresholds[KillLevel.REDUCTION]:
+        if (
+            not self.thresholds[KillLevel.CAUTION]
+            < self.thresholds[KillLevel.REDUCTION]
+        ):
             raise ValueError("CAUTION 阈值必须 < REDUCTION 阈值")
-        if not self.thresholds[KillLevel.REDUCTION] < self.thresholds[KillLevel.LIQUIDATE]:
+        if (
+            not self.thresholds[KillLevel.REDUCTION]
+            < self.thresholds[KillLevel.LIQUIDATE]
+        ):
             raise ValueError("REDUCTION 阈值必须 < LIQUIDATE 阈值")
         if not 0 < self.thresholds[KillLevel.CAUTION] < 1.0:
             raise ValueError("CAUTION 阈值必须在 (0, 1) 区间")
@@ -155,7 +163,8 @@ class KillSwitchManager:
             # L1: 停止开新仓, 允许平仓/减仓
             if is_reducing:
                 return KillDecision(
-                    allowed=True, level=lvl,
+                    allowed=True,
+                    level=lvl,
                     reason="L1 CAUTION: 仅允许减仓类指令, 本次放行",
                 )
             return self._block(lvl, symbol, side, notional, "L1 保证金≥50%, 禁止开新仓")
@@ -164,22 +173,30 @@ class KillSwitchManager:
             # L2: 只允许减仓/卖出, 禁止一切新暴露
             if is_reducing:
                 return KillDecision(
-                    allowed=True, level=lvl,
+                    allowed=True,
+                    level=lvl,
                     reason="L2 REDUCTION: 允许减仓类指令, 本次放行",
                 )
             return self._block(
-                lvl, symbol, side, notional,
+                lvl,
+                symbol,
+                side,
+                notional,
                 "L2 保证金≥75%, 禁止一切新暴露, 等待强平执行链",
             )
 
         # L3 LIQUIDATE: 只允许卖出类动作 (变现)
         if side_l == "sell" or "close" in side_l or "cover" in side_l:
             return KillDecision(
-                allowed=True, level=lvl,
+                allowed=True,
+                level=lvl,
                 reason="L3 LIQUIDATE: 仅允许变现类 (sell/close/cover) 指令",
             )
         return self._block(
-            lvl, symbol, side, notional,
+            lvl,
+            symbol,
+            side,
+            notional,
             "L3 全仓变现阶段, 仅允许卖出/平仓, 其他任何指令拦截",
         )
 
@@ -216,6 +233,8 @@ class KillSwitchManager:
                 f"[T12] 🔴 熔断拦截 {lvl.name} — {symbol} {side} 名义=¥{notional:,.0f} — {reason}"
             )
         return KillDecision(
-            allowed=False, level=lvl, reason=reason,
+            allowed=False,
+            level=lvl,
+            reason=reason,
             details={"symbol": symbol, "side": side, "notional": notional},
         )

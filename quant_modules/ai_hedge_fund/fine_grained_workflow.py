@@ -50,8 +50,10 @@ logger = logging.getLogger("ai_hedge_fund.fine_grained")
 # 任务类型枚举
 # ============================================================
 
+
 class TaskType(str, Enum):
     """细粒度任务类型。"""
+
     DATA_COLLECTION = "data_collection"
     FEATURE_EXTRACTION = "feature_extraction"
     SIGNAL_GENERATION = "signal_generation"
@@ -64,6 +66,7 @@ class TaskType(str, Enum):
 # ============================================================
 # 任务节点
 # ============================================================
+
 
 @dataclass
 class TaskNode:
@@ -78,6 +81,7 @@ class TaskNode:
         result: 任务执行结果 (执行后填充)
         status: 任务状态 (pending/running/completed/failed)
     """
+
     task_id: str
     task_type: TaskType
     analyst: str
@@ -99,6 +103,7 @@ class TaskNode:
 # ============================================================
 # 任务图 (DAG)
 # ============================================================
+
 
 class TaskGraph:
     """任务图 — 有向无环图 (DAG)。
@@ -125,7 +130,7 @@ class TaskGraph:
         Raises:
             ValueError: 如果存在循环依赖
         """
-        in_degree: dict[str, int] = {tid: 0 for tid in self.nodes}
+        in_degree: dict[str, int] = dict.fromkeys(self.nodes, 0)
         adj: dict[str, list[str]] = defaultdict(list)
 
         for task in self.nodes.values():
@@ -155,7 +160,11 @@ class TaskGraph:
         for task in self.nodes.values():
             if task.status != "pending":
                 continue
-            if all(self.nodes[dep].status == "completed" for dep in task.dependencies if dep in self.nodes):
+            if all(
+                self.nodes[dep].status == "completed"
+                for dep in task.dependencies
+                if dep in self.nodes
+            ):
                 ready.append(task.task_id)
         return ready
 
@@ -188,6 +197,7 @@ class TaskGraph:
 # ============================================================
 # 任务执行器 (默认实现)
 # ============================================================
+
 
 def _default_data_collection(context: dict[str, Any]) -> dict[str, Any]:
     """默认数据收集任务 (mock)。"""
@@ -241,11 +251,26 @@ _DEFAULT_EXECUTORS = {
 
 # 20 位分析师列表 (与 utils/analysts.py 对齐)
 ANALYST_NAMES = [
-    "aswath_damodaran", "ben_graham", "bill_ackman", "cathie_wood",
-    "charlie_munger", "michael_burry", "mohnish_pabrai", "nassim_taleb",
-    "peter_lynch", "phil_fisher", "rakesh_jhunjhunwala", "stanley_druckenmiller",
-    "warren_buffett", "fundamentals", "growth", "hedge",
-    "sentiment", "news_sentiment", "technicals", "valuation",
+    "aswath_damodaran",
+    "ben_graham",
+    "bill_ackman",
+    "cathie_wood",
+    "charlie_munger",
+    "michael_burry",
+    "mohnish_pabrai",
+    "nassim_taleb",
+    "peter_lynch",
+    "phil_fisher",
+    "rakesh_jhunjhunwala",
+    "stanley_druckenmiller",
+    "warren_buffett",
+    "fundamentals",
+    "growth",
+    "hedge",
+    "sentiment",
+    "news_sentiment",
+    "technicals",
+    "valuation",
 ]
 
 
@@ -261,8 +286,9 @@ class FineGrainedWorkflow:
         results = workflow.execute(task_graph, {"symbols": ["000001.SZ"]})
     """
 
-    def __init__(self, enable_reflection: bool = True,
-                 enable_debate: bool = False) -> None:
+    def __init__(
+        self, enable_reflection: bool = True, enable_debate: bool = False
+    ) -> None:
         self.enable_reflection = enable_reflection
         self.enable_debate = enable_debate
 
@@ -279,49 +305,59 @@ class FineGrainedWorkflow:
         graph = TaskGraph()
 
         # 1. 数据收集
-        graph.add_task(TaskNode(
-            task_id=f"{analyst}_data",
-            task_type=TaskType.DATA_COLLECTION,
-            analyst=analyst,
-            executor=_DEFAULT_EXECUTORS[TaskType.DATA_COLLECTION],
-        ))
+        graph.add_task(
+            TaskNode(
+                task_id=f"{analyst}_data",
+                task_type=TaskType.DATA_COLLECTION,
+                analyst=analyst,
+                executor=_DEFAULT_EXECUTORS[TaskType.DATA_COLLECTION],
+            )
+        )
 
         # 2. 特征提取 (依赖数据收集)
-        graph.add_task(TaskNode(
-            task_id=f"{analyst}_features",
-            task_type=TaskType.FEATURE_EXTRACTION,
-            analyst=analyst,
-            dependencies=[f"{analyst}_data"],
-            executor=_DEFAULT_EXECUTORS[TaskType.FEATURE_EXTRACTION],
-        ))
+        graph.add_task(
+            TaskNode(
+                task_id=f"{analyst}_features",
+                task_type=TaskType.FEATURE_EXTRACTION,
+                analyst=analyst,
+                dependencies=[f"{analyst}_data"],
+                executor=_DEFAULT_EXECUTORS[TaskType.FEATURE_EXTRACTION],
+            )
+        )
 
         # 3. 信号生成 (依赖特征提取)
-        graph.add_task(TaskNode(
-            task_id=f"{analyst}_signal",
-            task_type=TaskType.SIGNAL_GENERATION,
-            analyst=analyst,
-            dependencies=[f"{analyst}_features"],
-            executor=_DEFAULT_EXECUTORS[TaskType.SIGNAL_GENERATION],
-        ))
+        graph.add_task(
+            TaskNode(
+                task_id=f"{analyst}_signal",
+                task_type=TaskType.SIGNAL_GENERATION,
+                analyst=analyst,
+                dependencies=[f"{analyst}_features"],
+                executor=_DEFAULT_EXECUTORS[TaskType.SIGNAL_GENERATION],
+            )
+        )
 
         # 4. 风险评估 (依赖信号生成)
-        graph.add_task(TaskNode(
-            task_id=f"{analyst}_risk",
-            task_type=TaskType.RISK_ASSESSMENT,
-            analyst=analyst,
-            dependencies=[f"{analyst}_signal"],
-            executor=_DEFAULT_EXECUTORS[TaskType.RISK_ASSESSMENT],
-        ))
+        graph.add_task(
+            TaskNode(
+                task_id=f"{analyst}_risk",
+                task_type=TaskType.RISK_ASSESSMENT,
+                analyst=analyst,
+                dependencies=[f"{analyst}_signal"],
+                executor=_DEFAULT_EXECUTORS[TaskType.RISK_ASSESSMENT],
+            )
+        )
 
         # 5. 自反思 (可选, 依赖风险评估)
         if self.enable_reflection:
-            graph.add_task(TaskNode(
-                task_id=f"{analyst}_reflection",
-                task_type=TaskType.REFLECTION,
-                analyst=analyst,
-                dependencies=[f"{analyst}_risk"],
-                executor=_DEFAULT_EXECUTORS[TaskType.REFLECTION],
-            ))
+            graph.add_task(
+                TaskNode(
+                    task_id=f"{analyst}_reflection",
+                    task_type=TaskType.REFLECTION,
+                    analyst=analyst,
+                    dependencies=[f"{analyst}_risk"],
+                    executor=_DEFAULT_EXECUTORS[TaskType.REFLECTION],
+                )
+            )
 
         return graph
 
@@ -337,57 +373,68 @@ class FineGrainedWorkflow:
         graph = TaskGraph()
 
         # 0. 共享数据收集
-        graph.add_task(TaskNode(
-            task_id="shared_data",
-            task_type=TaskType.DATA_COLLECTION,
-            analyst="shared",
-            executor=_DEFAULT_EXECUTORS[TaskType.DATA_COLLECTION],
-        ))
+        graph.add_task(
+            TaskNode(
+                task_id="shared_data",
+                task_type=TaskType.DATA_COLLECTION,
+                analyst="shared",
+                executor=_DEFAULT_EXECUTORS[TaskType.DATA_COLLECTION],
+            )
+        )
 
         # 1. 各分析师并行任务
         for analyst in analysts:
-            graph.add_task(TaskNode(
-                task_id=f"{analyst}_features",
-                task_type=TaskType.FEATURE_EXTRACTION,
-                analyst=analyst,
-                dependencies=["shared_data"],
-                executor=_DEFAULT_EXECUTORS[TaskType.FEATURE_EXTRACTION],
-            ))
-            graph.add_task(TaskNode(
-                task_id=f"{analyst}_signal",
-                task_type=TaskType.SIGNAL_GENERATION,
-                analyst=analyst,
-                dependencies=[f"{analyst}_features"],
-                executor=_DEFAULT_EXECUTORS[TaskType.SIGNAL_GENERATION],
-            ))
+            graph.add_task(
+                TaskNode(
+                    task_id=f"{analyst}_features",
+                    task_type=TaskType.FEATURE_EXTRACTION,
+                    analyst=analyst,
+                    dependencies=["shared_data"],
+                    executor=_DEFAULT_EXECUTORS[TaskType.FEATURE_EXTRACTION],
+                )
+            )
+            graph.add_task(
+                TaskNode(
+                    task_id=f"{analyst}_signal",
+                    task_type=TaskType.SIGNAL_GENERATION,
+                    analyst=analyst,
+                    dependencies=[f"{analyst}_features"],
+                    executor=_DEFAULT_EXECUTORS[TaskType.SIGNAL_GENERATION],
+                )
+            )
 
         # 2. 多空辩论 (可选, 依赖所有信号)
         signal_deps = [f"{a}_signal" for a in analysts]
         if self.enable_debate and len(analysts) >= 2:
-            graph.add_task(TaskNode(
-                task_id="team_debate",
-                task_type=TaskType.DEBATE,
-                analyst="team",
-                dependencies=signal_deps,
-                executor=_DEFAULT_EXECUTORS[TaskType.DEBATE],
-            ))
+            graph.add_task(
+                TaskNode(
+                    task_id="team_debate",
+                    task_type=TaskType.DEBATE,
+                    analyst="team",
+                    dependencies=signal_deps,
+                    executor=_DEFAULT_EXECUTORS[TaskType.DEBATE],
+                )
+            )
             portfolio_deps = ["team_debate"]
         else:
             portfolio_deps = signal_deps
 
         # 3. 组合构建 (依赖所有信号或辩论结果)
-        graph.add_task(TaskNode(
-            task_id="portfolio_construction",
-            task_type=TaskType.PORTFOLIO_CONSTRUCTION,
-            analyst="team",
-            dependencies=portfolio_deps,
-            executor=_DEFAULT_EXECUTORS[TaskType.PORTFOLIO_CONSTRUCTION],
-        ))
+        graph.add_task(
+            TaskNode(
+                task_id="portfolio_construction",
+                task_type=TaskType.PORTFOLIO_CONSTRUCTION,
+                analyst="team",
+                dependencies=portfolio_deps,
+                executor=_DEFAULT_EXECUTORS[TaskType.PORTFOLIO_CONSTRUCTION],
+            )
+        )
 
         return graph
 
-    def execute(self, graph: TaskGraph,
-                context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    def execute(
+        self, graph: TaskGraph, context: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """执行任务图 (按拓扑顺序)。
 
         Args:
@@ -419,8 +466,14 @@ class FineGrainedWorkflow:
                     task.result = task.executor(task_context)
                     task.status = "completed"
                     results[task_id] = task.result
-                except (ValueError, KeyError, TypeError, AttributeError,
-                        OSError, RuntimeError) as e:
+                except (
+                    ValueError,
+                    KeyError,
+                    TypeError,
+                    AttributeError,
+                    OSError,
+                    RuntimeError,
+                ) as e:
                     task.status = "failed"
                     task.result = {"error": str(e)}
                     results[task_id] = task.result
@@ -431,8 +484,9 @@ class FineGrainedWorkflow:
 
         return results
 
-    def execute_parallel_groups(self, graph: TaskGraph,
-                                context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    def execute_parallel_groups(
+        self, graph: TaskGraph, context: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """按并行分组执行任务图。
 
         返回各任务的执行结果, 同组任务可并行执行。
@@ -458,8 +512,14 @@ class FineGrainedWorkflow:
                         task.result = task.executor(task_context)
                         task.status = "completed"
                         results[task_id] = task.result
-                    except (ValueError, KeyError, TypeError, AttributeError,
-                            OSError, RuntimeError) as e:
+                    except (
+                        ValueError,
+                        KeyError,
+                        TypeError,
+                        AttributeError,
+                        OSError,
+                        RuntimeError,
+                    ) as e:
                         task.status = "failed"
                         task.result = {"error": str(e)}
                         results[task_id] = task.result
@@ -486,6 +546,7 @@ class FineGrainedWorkflow:
 # ============================================================
 # 旧接口兼容层
 # ============================================================
+
 
 def create_fine_grained_agent(analyst_name: str) -> Any:
     """创建细粒度分析师 agent (兼容旧 agent_func 接口)。
@@ -522,6 +583,7 @@ def create_fine_grained_agent(analyst_name: str) -> Any:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示细粒度任务分解工作流。"""

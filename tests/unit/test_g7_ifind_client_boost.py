@@ -21,6 +21,7 @@
 运行:
     python -m pytest tests/unit/test_g7_ifind_client_boost.py -v
 """
+
 from __future__ import annotations
 
 import json
@@ -33,7 +34,9 @@ import pytest
 # ============================================================
 # 路径设置 + 环境变量 (必须在导入 ifind_client 前完成)
 # ============================================================
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -199,58 +202,62 @@ class TestParseIfindResponse:
 
     def test_non_text_type_skipped(self):
         """非 text type 的 content 项被跳过."""
-        result = _parse_ifind_response({
-            "data": {"result": {"content": [{"type": "image", "text": "x"}]}}
-        })
+        result = _parse_ifind_response(
+            {"data": {"result": {"content": [{"type": "image", "text": "x"}]}}}
+        )
         assert result["text"] == ""
         assert result["tables"] == []
 
     def test_json_decode_fail_skipped(self):
         """text 非 JSON 时跳过 (但不崩溃)."""
-        result = _parse_ifind_response({
-            "data": {"result": {"content": [{"type": "text", "text": "not json"}]}}
-        })
+        result = _parse_ifind_response(
+            {"data": {"result": {"content": [{"type": "text", "text": "not json"}]}}}
+        )
         assert "not json" in result["text"]
         assert result["tables"] == []
 
     def test_code_not_one_skipped(self):
         """inner code != 1 时跳过."""
         inner = json.dumps({"code": 0, "data": {"answer": "| x |\n|---|\n| 1 |"}})
-        result = _parse_ifind_response({
-            "data": {"result": {"content": [{"type": "text", "text": inner}]}}
-        })
+        result = _parse_ifind_response(
+            {"data": {"result": {"content": [{"type": "text", "text": inner}]}}}
+        )
         assert result["tables"] == []
 
     def test_datas_success_extracted(self):
         """datas 中 success=True 的 data 被提取."""
-        inner = json.dumps({
-            "code": 1,
-            "data": {"datas": [{"success": True, "data": {"key": "val"}}]},
-        })
-        result = _parse_ifind_response({
-            "data": {"result": {"content": [{"type": "text", "text": inner}]}}
-        })
+        inner = json.dumps(
+            {
+                "code": 1,
+                "data": {"datas": [{"success": True, "data": {"key": "val"}}]},
+            }
+        )
+        result = _parse_ifind_response(
+            {"data": {"result": {"content": [{"type": "text", "text": inner}]}}}
+        )
         assert len(result["datas"]) == 1
         assert result["datas"][0] == {"key": "val"}
 
     def test_datas_success_false_skipped(self):
         """datas 中 success=False 的项被跳过."""
-        inner = json.dumps({
-            "code": 1,
-            "data": {"datas": [{"success": False, "data": {"key": "val"}}]},
-        })
-        result = _parse_ifind_response({
-            "data": {"result": {"content": [{"type": "text", "text": inner}]}}
-        })
+        inner = json.dumps(
+            {
+                "code": 1,
+                "data": {"datas": [{"success": False, "data": {"key": "val"}}]},
+            }
+        )
+        result = _parse_ifind_response(
+            {"data": {"result": {"content": [{"type": "text", "text": inner}]}}}
+        )
         assert len(result["datas"]) == 0
 
     def test_answer_table_string_parsed(self):
         """answer1 含 markdown 表格字符串时被解析为 tables."""
         table_str = "| 日期 | 收盘价 |\n|---|---|\n| 20260101 | 10.5 |"
         inner = json.dumps({"code": 1, "data": {"answer1": table_str}})
-        result = _parse_ifind_response({
-            "data": {"result": {"content": [{"type": "text", "text": inner}]}}
-        })
+        result = _parse_ifind_response(
+            {"data": {"result": {"content": [{"type": "text", "text": inner}]}}}
+        )
         assert len(result["tables"]) == 1
         assert result["tables"][0]["日期"] == "20260101"
 
@@ -258,28 +265,34 @@ class TestParseIfindResponse:
         """answer 为 JSON 数组字符串时被解析为 tables."""
         arr_str = json.dumps([{"日期": "20260101", "收盘价": "10.5"}])
         inner = json.dumps({"code": 1, "data": {"answer": arr_str}})
-        result = _parse_ifind_response({
-            "data": {"result": {"content": [{"type": "text", "text": inner}]}}
-        })
+        result = _parse_ifind_response(
+            {"data": {"result": {"content": [{"type": "text", "text": inner}]}}}
+        )
         assert len(result["tables"]) == 1
         assert result["tables"][0]["日期"] == "20260101"
 
     def test_text_list_value_parsed(self):
         """text 字段为 list 时被解析为 tables."""
         inner = json.dumps({"code": 1, "data": {"text": [{"a": "1"}, {"b": "2"}]}})
-        result = _parse_ifind_response({
-            "data": {"result": {"content": [{"type": "text", "text": inner}]}}
-        })
+        result = _parse_ifind_response(
+            {"data": {"result": {"content": [{"type": "text", "text": inner}]}}}
+        )
         assert len(result["tables"]) == 2
 
     def test_text_accumulated(self):
         """多个 text 项的文本被累积到 text 字段."""
-        result = _parse_ifind_response({
-            "data": {"result": {"content": [
-                {"type": "text", "text": "hello"},
-                {"type": "text", "text": "world"},
-            ]}}
-        })
+        result = _parse_ifind_response(
+            {
+                "data": {
+                    "result": {
+                        "content": [
+                            {"type": "text", "text": "hello"},
+                            {"type": "text", "text": "world"},
+                        ]
+                    }
+                }
+            }
+        )
         assert "hello" in result["text"]
         assert "world" in result["text"]
 
@@ -380,11 +393,13 @@ class TestExtractIndicatorsFromRow:
 
     def test_nan_and_inf_skipped(self):
         """NaN 和 Inf 被跳过."""
-        out = _extract_indicators_from_row({
-            "nan_val": float("nan"),
-            "inf_val": float("inf"),
-            "ok": 1.0,
-        })
+        out = _extract_indicators_from_row(
+            {
+                "nan_val": float("nan"),
+                "inf_val": float("inf"),
+                "ok": 1.0,
+            }
+        )
         assert "nan_val" not in out
         assert "inf_val" not in out
         assert out["ok"] == 1.0
@@ -466,8 +481,10 @@ class TestIFindClientInit:
         """间隔 < 0.5s 时 sleep (0.5 - gap)."""
         client = IFindClient()
         client._last_request_time["stock"] = 100.0
-        with patch("utils.ifind_client.time.time", return_value=100.2), \
-             patch("utils.ifind_client.time.sleep") as mock_sleep:
+        with (
+            patch("utils.ifind_client.time.time", return_value=100.2),
+            patch("utils.ifind_client.time.sleep") as mock_sleep,
+        ):
             client._rate_limit("stock")
         mock_sleep.assert_called_once_with(pytest.approx(0.3, abs=0.01))
 
@@ -475,8 +492,10 @@ class TestIFindClientInit:
         """间隔 >= 0.5s 时不 sleep."""
         client = IFindClient()
         client._last_request_time["stock"] = 100.0
-        with patch("utils.ifind_client.time.time", return_value=100.6), \
-             patch("utils.ifind_client.time.sleep") as mock_sleep:
+        with (
+            patch("utils.ifind_client.time.time", return_value=100.6),
+            patch("utils.ifind_client.time.sleep") as mock_sleep,
+        ):
             client._rate_limit("stock")
         mock_sleep.assert_not_called()
 
@@ -517,8 +536,10 @@ class TestIFindClientCall:
         mock_resp.json.return_value = {"result": {"content": []}}
         mock_resp.status_code = 200
         mock_resp.raise_for_status.return_value = None
-        with patch("utils.ifind_client.time.time", return_value=5000.0), \
-             patch.object(ifind_client, "_IFIND_SESSION") as mock_session:
+        with (
+            patch("utils.ifind_client.time.time", return_value=5000.0),
+            patch.object(ifind_client, "_IFIND_SESSION") as mock_session,
+        ):
             mock_session.post.return_value = mock_resp
             result = client.call("stock", "tool", {})
         assert "stock" not in client._quota_exceeded
@@ -528,6 +549,7 @@ class TestIFindClientCall:
     def test_call_network_error(self, mock_session):
         """网络异常 (RequestException) 时返回 error, error_count++."""
         import requests
+
         client = IFindClient()
         client._sessions["stock"] = "sess"
         mock_session.post.side_effect = requests.RequestException("conn refused")
@@ -556,6 +578,7 @@ class TestIFindClientCall:
     def test_call_http_error(self, mock_session):
         """HTTP 错误状态码时返回 error + status_code."""
         import requests
+
         client = IFindClient()
         client._sessions["stock"] = "sess"
         mock_resp = MagicMock()
@@ -576,8 +599,12 @@ class TestIFindClientCall:
         client._sessions["stock"] = "sess"
         json.dumps({"code": 1, "data": {"answer": "用户使用工具已超限"}})
         mock_resp = MagicMock()
-        mock_resp.text = json.dumps({"result": {"content": [{"type": "text", "text": "超限提示"}]}})
-        mock_resp.json.return_value = {"result": {"content": [{"type": "text", "text": "超限提示"}]}}
+        mock_resp.text = json.dumps(
+            {"result": {"content": [{"type": "text", "text": "超限提示"}]}}
+        )
+        mock_resp.json.return_value = {
+            "result": {"content": [{"type": "text", "text": "超限提示"}]}
+        }
         mock_resp.status_code = 200
         mock_resp.raise_for_status.return_value = None
         mock_session.post.return_value = mock_resp
@@ -593,7 +620,9 @@ class TestIFindClientCall:
         client._sessions["stock"] = "sess"
         mock_resp = MagicMock()
         mock_resp.text = '{"result": {"content": [{"text": "quota exceeded"}]}}'
-        mock_resp.json.return_value = {"result": {"content": [{"text": "quota exceeded"}]}}
+        mock_resp.json.return_value = {
+            "result": {"content": [{"text": "quota exceeded"}]}
+        }
         mock_resp.status_code = 200
         mock_resp.raise_for_status.return_value = None
         mock_session.post.return_value = mock_resp
@@ -659,8 +688,12 @@ class TestGetHistoricalKlines:
     def test_routes_to_fund_when_code_starts_with_5(self):
         """5 开头代码路由到 _get_fund_historical."""
         client = IFindClient()
-        with patch.object(client, "_get_fund_historical", return_value=[]) as mock_fund, \
-             patch.object(client, "_get_stock_historical", return_value=[]) as mock_stock:
+        with (
+            patch.object(client, "_get_fund_historical", return_value=[]) as mock_fund,
+            patch.object(
+                client, "_get_stock_historical", return_value=[]
+            ) as mock_stock,
+        ):
             client.get_historical_klines("510300", days=60)
         mock_fund.assert_called_once_with("510300", 60)
         mock_stock.assert_not_called()
@@ -668,8 +701,12 @@ class TestGetHistoricalKlines:
     def test_routes_to_stock_when_code_not_starts_with_5(self):
         """非 5 开头代码路由到 _get_stock_historical."""
         client = IFindClient()
-        with patch.object(client, "_get_fund_historical", return_value=[]) as mock_fund, \
-             patch.object(client, "_get_stock_historical", return_value=[]) as mock_stock:
+        with (
+            patch.object(client, "_get_fund_historical", return_value=[]) as mock_fund,
+            patch.object(
+                client, "_get_stock_historical", return_value=[]
+            ) as mock_stock,
+        ):
             client.get_historical_klines("000001", days=60)
         mock_stock.assert_called_once_with("000001", 60)
         mock_fund.assert_not_called()
@@ -690,9 +727,18 @@ class TestGetStockHistorical:
         table_str = "| 日期 | 开盘价 | 收盘价 | 最高价 | 最低价 | 成交量 |\n|---|---|---|---|---|---|\n| 20260102 | 10.5 | 10.3 | 10.6 | 10.1 | 80000 |\n| 20260101 | 10.0 | 10.5 | 10.8 | 9.8 | 100000 |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             rows = client._get_stock_historical("000001", days=60)
@@ -717,12 +763,23 @@ class TestGetStockHistorical:
     def test_invalid_numeric_values_skipped(self, mock_sleep):
         """无效数值行被跳过 (ValueError 被捕获)."""
         client = IFindClient()
-        table_str = "| 日期 | 开盘价 | 收盘价 |\n|---|---|---|\n| 20260101 | abc | 10.5 |"
+        table_str = (
+            "| 日期 | 开盘价 | 收盘价 |\n|---|---|---|\n| 20260101 | abc | 10.5 |"
+        )
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             rows = client._get_stock_historical("000001", days=60)
@@ -743,7 +800,12 @@ class TestGetFundHistorical:
         client = IFindClient()
         etf_data = [
             {"date": "20260101", "nav": 1.5, "change_pct": 0.5, "cumulative_nav": 1.6},
-            {"date": "20260102", "nav": 1.52, "change_pct": 1.33, "cumulative_nav": 1.62},
+            {
+                "date": "20260102",
+                "nav": 1.52,
+                "change_pct": 1.33,
+                "cumulative_nav": 1.62,
+            },
         ]
         with patch.object(client, "get_etf_historical", return_value=etf_data):
             rows = client._get_fund_historical("510300", days=60)
@@ -778,9 +840,18 @@ class TestGetEtfQuotes:
         table_str = "| 证券代码 | 单位净值 | 涨跌幅 | 日期 |\n|---|---|---|---|\n| 510300.SH | 1.5 | 0.5 | 20260101 |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             quotes = client.get_etf_quotes(["510300"])
@@ -792,19 +863,34 @@ class TestGetEtfQuotes:
     def test_empty_response_returns_empty_dict(self):
         """空响应返回空 dict."""
         client = IFindClient()
-        with patch.object(client, "call", return_value={"ok": True, "data": {"result": {"content": []}}}):
+        with patch.object(
+            client,
+            "call",
+            return_value={"ok": True, "data": {"result": {"content": []}}},
+        ):
             quotes = client.get_etf_quotes(["510300"])
         assert quotes == {}
 
     def test_invalid_numeric_skipped(self):
         """数值解析失败的行被跳过."""
         client = IFindClient()
-        table_str = "| 证券代码 | 单位净值 | 涨跌幅 |\n|---|---|---|\n| 510300.SH | abc | 0.5 |"
+        table_str = (
+            "| 证券代码 | 单位净值 | 涨跌幅 |\n|---|---|---|\n| 510300.SH | abc | 0.5 |"
+        )
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             quotes = client.get_etf_quotes(["510300"])
@@ -825,9 +911,18 @@ class TestGetEtfHistorical:
         table_str = "| 日期 | 单位净值 | 涨跌幅 | 累计单位净值 |\n|---|---|---|---|\n| 20260101 | 1.5 | 0.5 | 1.6 |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             rows = client.get_etf_historical("510300", days=60)
@@ -841,7 +936,11 @@ class TestGetEtfHistorical:
     def test_empty_response_returns_none(self):
         """空响应返回 None."""
         client = IFindClient()
-        with patch.object(client, "call", return_value={"ok": True, "data": {"result": {"content": []}}}):
+        with patch.object(
+            client,
+            "call",
+            return_value={"ok": True, "data": {"result": {"content": []}}},
+        ):
             rows = client.get_etf_historical("510300", days=60)
         assert rows is None
 
@@ -851,9 +950,18 @@ class TestGetEtfHistorical:
         table_str = "| 日期 | 单位净值 |\n|---|---|\n| 日期 | 1.5 |\n| 20260101 | 1.5 |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             rows = client.get_etf_historical("510300", days=60)
@@ -877,9 +985,18 @@ class TestGetIndexHistorical:
         table_str = "| 日期 | 收盘价 | 成交额 |\n|---|---|---|\n| 20260102 | 3000 | 5亿 |\n| 20260101 | 2990 | 4.5亿 |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             rows = client.get_index_historical("沪深300", days=60)
@@ -895,7 +1012,11 @@ class TestGetIndexHistorical:
     def test_empty_response_returns_none(self, mock_sleep):
         """空响应返回 None."""
         client = IFindClient()
-        with patch.object(client, "call", return_value={"ok": True, "data": {"result": {"content": []}}}):
+        with patch.object(
+            client,
+            "call",
+            return_value={"ok": True, "data": {"result": {"content": []}}},
+        ):
             rows = client.get_index_historical("沪深300", days=60)
         assert rows is None
 
@@ -914,9 +1035,18 @@ class TestGetIndexLatest:
         table_str = "| 收盘价 | 涨跌幅 |\n|---|---|\n| 3000 | 0.5 |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             result = client.get_index_latest("沪深300")
@@ -928,7 +1058,11 @@ class TestGetIndexLatest:
     def test_empty_response_returns_none(self):
         """空响应返回 None."""
         client = IFindClient()
-        with patch.object(client, "call", return_value={"ok": True, "data": {"result": {"content": []}}}):
+        with patch.object(
+            client,
+            "call",
+            return_value={"ok": True, "data": {"result": {"content": []}}},
+        ):
             result = client.get_index_latest("沪深300")
         assert result is None
 
@@ -938,9 +1072,18 @@ class TestGetIndexLatest:
         table_str = "| 收盘价 |\n|---|---|\n| abc |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             result = client.get_index_latest("沪深300")
@@ -961,9 +1104,18 @@ class TestEdbAndBondMethods:
         table_str = "| GDP |\n|---|\n| 100.5 |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             val = client.get_edb_value("GDP")
@@ -972,7 +1124,11 @@ class TestEdbAndBondMethods:
     def test_get_edb_value_empty_returns_none(self):
         """空响应返回 None."""
         client = IFindClient()
-        with patch.object(client, "call", return_value={"ok": True, "data": {"result": {"content": []}}}):
+        with patch.object(
+            client,
+            "call",
+            return_value={"ok": True, "data": {"result": {"content": []}}},
+        ):
             val = client.get_edb_value("GDP")
         assert val is None
 
@@ -982,9 +1138,18 @@ class TestEdbAndBondMethods:
         table_str = "| GDP |\n|---|\n| abc |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             val = client.get_edb_value("GDP")
@@ -1006,7 +1171,9 @@ class TestEdbAndBondMethods:
         with patch.object(client, "call", return_value=expected) as mock_call:
             result = client.get_bond_market("国债收益率")
         assert result == expected
-        mock_call.assert_called_once_with("bond", "bond_market_data", {"query": "国债收益率"})
+        mock_call.assert_called_once_with(
+            "bond", "bond_market_data", {"query": "国债收益率"}
+        )
 
 
 # ============================================================
@@ -1028,9 +1195,18 @@ class TestGetFuturesRealtime:
         table_str = "| tradeDate | open | high | low | latest | volume |\n|---|---|---|---|---|---|\n| 20260101 | 3500 | 3550 | 3480 | 3520 | 100000 |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             rows = client.get_futures_realtime(["IF2401"])
@@ -1045,17 +1221,30 @@ class TestGetFuturesRealtime:
     def test_empty_response_returns_none(self):
         """空响应返回 None."""
         client = IFindClient()
-        with patch.object(client, "call", return_value={"ok": True, "data": {"result": {"content": []}}}):
+        with patch.object(
+            client,
+            "call",
+            return_value={"ok": True, "data": {"result": {"content": []}}},
+        ):
             rows = client.get_futures_realtime(["IF2401"])
         assert rows is None
 
     def test_datas_fallback_when_no_tables(self):
         """tables 为空但 datas 有内容时使用 datas 兜底."""
         client = IFindClient()
-        inner = json.dumps({
-            "code": 1,
-            "data": {"datas": [{"success": True, "data": {"tradeDate": "20260101", "open": "3500"}}]},
-        })
+        inner = json.dumps(
+            {
+                "code": 1,
+                "data": {
+                    "datas": [
+                        {
+                            "success": True,
+                            "data": {"tradeDate": "20260101", "open": "3500"},
+                        }
+                    ]
+                },
+            }
+        )
         call_result = {
             "ok": True,
             "data": {"result": {"content": [{"type": "text", "text": inner}]}},
@@ -1081,11 +1270,20 @@ class TestSearchNews:
         client = IFindClient()
         expected = {"ok": True}
         with patch.object(client, "call", return_value=expected) as mock_call:
-            result = client.search_news("科技", time_start="20260101", time_end="20260131", size=10)
+            result = client.search_news(
+                "科技", time_start="20260101", time_end="20260131", size=10
+            )
         assert result == expected
-        mock_call.assert_called_once_with("news", "search_news", {
-            "query": "科技", "size": 10, "time_start": "20260101", "time_end": "20260131",
-        })
+        mock_call.assert_called_once_with(
+            "news",
+            "search_news",
+            {
+                "query": "科技",
+                "size": 10,
+                "time_start": "20260101",
+                "time_end": "20260131",
+            },
+        )
 
     def test_without_time_range(self):
         """不带时间范围的查询."""
@@ -1094,9 +1292,14 @@ class TestSearchNews:
         with patch.object(client, "call", return_value=expected) as mock_call:
             result = client.search_news("科技")
         assert result == expected
-        mock_call.assert_called_once_with("news", "search_news", {
-            "query": "科技", "size": 5,
-        })
+        mock_call.assert_called_once_with(
+            "news",
+            "search_news",
+            {
+                "query": "科技",
+                "size": 5,
+            },
+        )
 
 
 # ============================================================
@@ -1118,9 +1321,18 @@ class TestGetFundamentalsBatch:
         table_str = "| 市盈率PE | 市净率PB |\n|---|---|\n| 15.5 | 2.3 |"
         call_result = {
             "ok": True,
-            "data": {"result": {"content": [{"type": "text", "text": json.dumps({
-                "code": 1, "data": {"answer": table_str}
-            })}]}},
+            "data": {
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"code": 1, "data": {"answer": table_str}}
+                            ),
+                        }
+                    ]
+                }
+            },
         }
         with patch.object(client, "call", return_value=call_result):
             result = client.get_fundamentals_batch(["600519.SH"], max_workers=1)
@@ -1141,7 +1353,9 @@ class TestGetFundamentalsBatch:
         client = IFindClient()
         call_result = {"ok": False, "error": "quota", "quota_exceeded": True}
         with patch.object(client, "call", return_value=call_result):
-            result = client.get_fundamentals_batch(["600519.SH", "000333.SZ"], max_workers=1)
+            result = client.get_fundamentals_batch(
+                ["600519.SH", "000333.SZ"], max_workers=1
+            )
         assert result == {}
 
 
@@ -1162,7 +1376,12 @@ class TestParseFinancialsContent:
         """JSON (code=1) 含 answer markdown 表格时被解析 (每列为一个指标)."""
         client = IFindClient()
         table_str = "| 市盈率PE | 市净率PB |\n|---|---|\n| 15.5 | 2.3 |"
-        content = [{"type": "text", "text": json.dumps({"code": 1, "data": {"answer": table_str}})}]
+        content = [
+            {
+                "type": "text",
+                "text": json.dumps({"code": 1, "data": {"answer": table_str}}),
+            }
+        ]
         result = client._parse_financials_content(content, "600519.SH")
         assert result["pe"] == 15.5
         assert result["pb"] == 2.3
@@ -1183,7 +1402,12 @@ class TestParseFinancialsContent:
             "|---|---|---|---|---|---|---|\n"
             "| 15.5 | 2.3 | 18.0 | 2000亿 | 1500亿 | 500亿 | 100亿 |"
         )
-        content = [{"type": "text", "text": json.dumps({"code": 1, "data": {"answer": table_str}})}]
+        content = [
+            {
+                "type": "text",
+                "text": json.dumps({"code": 1, "data": {"answer": table_str}}),
+            }
+        ]
         result = client._parse_financials_content(content, "600519.SH")
         assert result["pe"] == 15.5
         assert result["pb"] == 2.3
@@ -1196,9 +1420,14 @@ class TestParseFinancialsContent:
     def test_data_payload_extracted(self):
         """JSON (code=1) 的 data 字段本身也提取指标."""
         client = IFindClient()
-        content = [{"type": "text", "text": json.dumps({
-            "code": 1, "data": {"市盈率PE": 12.0, "answer": ""}
-        })}]
+        content = [
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {"code": 1, "data": {"市盈率PE": 12.0, "answer": ""}}
+                ),
+            }
+        ]
         result = client._parse_financials_content(content, "600519.SH")
         assert result["pe"] == 12.0
 
@@ -1213,7 +1442,12 @@ class TestParseFinancialsContent:
         """特殊值 (--, N/A) 被跳过."""
         client = IFindClient()
         table_str = "| 市盈率PE | 市净率PB |\n|---|---|\n| -- | 2.3 |"
-        content = [{"type": "text", "text": json.dumps({"code": 1, "data": {"answer": table_str}})}]
+        content = [
+            {
+                "type": "text",
+                "text": json.dumps({"code": 1, "data": {"answer": table_str}}),
+            }
+        ]
         result = client._parse_financials_content(content, "600519.SH")
         assert "pe" not in result
         assert result["pb"] == 2.3

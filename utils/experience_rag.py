@@ -29,6 +29,7 @@ grounded generation 模式, 适配到本系统 cairn/ 知识库与 experiences/ 
 
 集成日期: 2026-08-25 (借鉴 google-skills rag-engine-management 模式)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -66,7 +67,9 @@ class RagDocument:
     title: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     embedding: list[float] = field(default_factory=list)
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    created_at: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -89,7 +92,9 @@ class Corpus:
     description: str = ""
     dimension: int = 0
     doc_count: int = 0
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    created_at: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
 
 
 # ============================================================
@@ -142,15 +147,22 @@ class GLM5Embedder(Embedder):
     def _init_client(self) -> None:
         try:
             import litellm
+
             self._client = ("litellm", litellm)
             return
         except ImportError:
             pass
         try:
             from openai import OpenAI
+
             api_key = os.environ.get("ZHIPUAI_API_KEY", "")
             if api_key:
-                self._client = ("openai", OpenAI(api_key=api_key, base_url="https://open.bigmodel.cn/api/paas/v4"))
+                self._client = (
+                    "openai",
+                    OpenAI(
+                        api_key=api_key, base_url="https://open.bigmodel.cn/api/paas/v4"
+                    ),
+                )
         except ImportError:
             pass
 
@@ -226,12 +238,18 @@ class ExperienceRAG:
     def _save(self) -> None:
         try:
             (self.store_dir / "corpora.json").write_text(
-                json.dumps({n: asdict(c) for n, c in self._corpora.items()}, ensure_ascii=False, indent=2),
+                json.dumps(
+                    {n: asdict(c) for n, c in self._corpora.items()},
+                    ensure_ascii=False,
+                    indent=2,
+                ),
                 encoding="utf-8",
             )
             for name, docs in self._docs.items():
                 (self.store_dir / f"{name}_docs.json").write_text(
-                    json.dumps([d.to_dict() for d in docs], ensure_ascii=False, indent=2),
+                    json.dumps(
+                        [d.to_dict() for d in docs], ensure_ascii=False, indent=2
+                    ),
                     encoding="utf-8",
                 )
         except Exception as exc:
@@ -246,7 +264,9 @@ class ExperienceRAG:
         """创建语料库 (Tier M)."""
         if name in self._corpora:
             return self._corpora[name]
-        c = Corpus(name=name, description=description, dimension=self.embedder.dimension)
+        c = Corpus(
+            name=name, description=description, dimension=self.embedder.dimension
+        )
         self._corpora[name] = c
         self._docs[name] = []
         self._save()
@@ -275,7 +295,13 @@ class ExperienceRAG:
     # 文档摄入与检索
     # ------------------------------------------------------------
 
-    @tier_m("添加文档", params_extractor=lambda self, corpus, content, **kw: {"corpus": corpus, "content_len": len(content)})
+    @tier_m(
+        "添加文档",
+        params_extractor=lambda self, corpus, content, **kw: {
+            "corpus": corpus,
+            "content_len": len(content),
+        },
+    )
     def add_document(
         self,
         corpus: str,
@@ -288,7 +314,9 @@ class ExperienceRAG:
         """添加文档 (自动嵌入, Tier M)."""
         if corpus not in self._corpora:
             self.create_corpus(corpus)
-        doc_id = hashlib.md5(f"{corpus}:{content[:200]}".encode()).hexdigest()[:16]
+        doc_id = hashlib.md5(
+            f"{corpus}:{content[:200]}".encode(), usedforsecurity=False
+        ).hexdigest()[:16]
         existing = {d.doc_id for d in self._docs[corpus]}
         if doc_id in existing:
             return next(d for d in self._docs[corpus] if d.doc_id == doc_id)
@@ -307,7 +335,9 @@ class ExperienceRAG:
         return doc
 
     @tier_r("检索", params_extractor=lambda self, query, **kw: {"query": query[:80]})
-    def retrieve(self, query: str, corpus: str = "cairn", *, top_k: int = 3) -> list[RetrievalResult]:
+    def retrieve(
+        self, query: str, corpus: str = "cairn", *, top_k: int = 3
+    ) -> list[RetrievalResult]:
         """语义检索 top-k (Tier R)."""
         if corpus not in self._docs or not self._docs[corpus]:
             return []
@@ -320,9 +350,15 @@ class ExperienceRAG:
             score = self._cosine(q_vec, d_vec)
             results.append((score, doc))
         results.sort(key=lambda x: x[0], reverse=True)
-        return [RetrievalResult(doc=d, score=float(s), rank=i + 1) for i, (s, d) in enumerate(results[:top_k])]
+        return [
+            RetrievalResult(doc=d, score=float(s), rank=i + 1)
+            for i, (s, d) in enumerate(results[:top_k])
+        ]
 
-    @tier_r("grounded 生成", params_extractor=lambda self, query, **kw: {"query": query[:80]})
+    @tier_r(
+        "grounded 生成",
+        params_extractor=lambda self, query, **kw: {"query": query[:80]},
+    )
     def grounded_generate(
         self,
         query: str,
@@ -335,10 +371,14 @@ class ExperienceRAG:
         results = self.retrieve(query, corpus, top_k=top_k)
         if not results:
             return f"[无检索结果] {query}"
-        context = "\n\n---\n\n".join(f"[{r.rank}] (score={r.score:.3f}, source={r.doc.source})\n{r.doc.content[:500]}" for r in results)
+        context = "\n\n---\n\n".join(
+            f"[{r.rank}] (score={r.score:.3f}, source={r.doc.source})\n{r.doc.content[:500]}"
+            for r in results
+        )
         prompt = f"经验上下文:\n{context}\n\n问题: {query}\n\n请基于上述经验上下文回答:"
         try:
             from .glm5_client import quick_chat
+
             return quick_chat(prompt, system_prompt=system_prompt)
         except Exception as exc:
             logger.warning("GLM-5 生成失败, 返回检索结果拼接: %s", exc)
@@ -368,10 +408,14 @@ class ExperienceRAG:
                     content,
                     source=str(md_file.relative_to(_BASE_DIR)),
                     title=md_file.stem,
-                    metadata={"ingested_at": datetime.now().isoformat(timespec="seconds")},
+                    metadata={
+                        "ingested_at": datetime.now().isoformat(timespec="seconds")
+                    },
                 )
                 if doc is None:
-                    logger.warning("Tier M 拒绝添加文档, 停止摄入 (提示: 设 AUTO_CONFIRM_TIER_M=1 可批量放行)")
+                    logger.warning(
+                        "Tier M 拒绝添加文档, 停止摄入 (提示: 设 AUTO_CONFIRM_TIER_M=1 可批量放行)"
+                    )
                     break
                 count += 1
             except Exception as exc:

@@ -9,7 +9,9 @@ def sort_agent_signals(signals):
     """Sort agent signals in a consistent order."""
     # Create order mapping from ANALYST_ORDER
     analyst_order = {display: idx for idx, (display, _) in enumerate(ANALYST_ORDER)}
-    analyst_order["Risk Management"] = len(ANALYST_ORDER)  # Add Risk Management at the end
+    analyst_order["Risk Management"] = len(
+        ANALYST_ORDER
+    )  # Add Risk Management at the end
 
     return sorted(signals, key=lambda x: analyst_order.get(x[0], 999))
 
@@ -95,7 +97,6 @@ def print_trading_output(result: dict) -> None:
         # Sort the signals according to the predefined order
         table_data = sort_agent_signals(table_data)
 
-
         # Print Trading Decision Table
         action = decision.get("action", "").upper()
         action_color = {
@@ -135,7 +136,6 @@ def print_trading_output(result: dict) -> None:
             ],
             ["Reasoning", f"{Fore.WHITE}{wrapped_reasoning}{Style.RESET_ALL}"],
         ]
-
 
     # Print Portfolio Summary
     portfolio_data = []
@@ -185,7 +185,6 @@ def print_trading_output(result: dict) -> None:
             ]
         )
 
-
     # Print the portfolio summary table
 
     # Print Portfolio Manager's reasoning if available
@@ -217,7 +216,6 @@ def print_trading_output(result: dict) -> None:
                     current_line = word
         if current_line:
             wrapped_reasoning += current_line
-
 
 
 def print_backtest_results(table_rows: list) -> None:
@@ -297,7 +295,9 @@ def format_backtest_row(
         benchmark_str = ""
         if benchmark_return_pct is not None:
             bench_color = Fore.GREEN if benchmark_return_pct >= 0 else Fore.RED
-            benchmark_str = f"{bench_color}{benchmark_return_pct:+.2f}%{Style.RESET_ALL}"
+            benchmark_str = (
+                f"{bench_color}{benchmark_return_pct:+.2f}%{Style.RESET_ALL}"
+            )
         return [
             date,
             f"{Fore.WHITE}{Style.BRIGHT}PORTFOLIO SUMMARY{Style.RESET_ALL}",
@@ -310,19 +310,30 @@ def format_backtest_row(
             f"{Fore.CYAN}${cash_balance:,.2f}{Style.RESET_ALL}",  # Cash Balance
             f"{Fore.WHITE}${total_value:,.2f}{Style.RESET_ALL}",  # Total Value
             f"{return_color}{return_pct:+.2f}%{Style.RESET_ALL}",  # Return
-            f"{Fore.YELLOW}{sharpe_ratio:.2f}{Style.RESET_ALL}" if sharpe_ratio is not None else "",  # Sharpe Ratio
-            f"{Fore.YELLOW}{sortino_ratio:.2f}{Style.RESET_ALL}" if sortino_ratio is not None else "",  # Sortino Ratio
-            f"{Fore.RED}{max_drawdown:.2f}%{Style.RESET_ALL}" if max_drawdown is not None else "",  # Max Drawdown (signed)
+            (
+                f"{Fore.YELLOW}{sharpe_ratio:.2f}{Style.RESET_ALL}"
+                if sharpe_ratio is not None
+                else ""
+            ),  # Sharpe Ratio
+            (
+                f"{Fore.YELLOW}{sortino_ratio:.2f}{Style.RESET_ALL}"
+                if sortino_ratio is not None
+                else ""
+            ),  # Sortino Ratio
+            (
+                f"{Fore.RED}{max_drawdown:.2f}%{Style.RESET_ALL}"
+                if max_drawdown is not None
+                else ""
+            ),  # Max Drawdown (signed)
             benchmark_str,  # Benchmark (S&P 500)
         ]
-    else:
-        return [
-            date,
-            f"{Fore.CYAN}{ticker}{Style.RESET_ALL}",
-            f"{action_color}{action.upper()}{Style.RESET_ALL}",
-            f"{action_color}{quantity:,.0f}{Style.RESET_ALL}",
-            f"{Fore.WHITE}{price:,.2f}{Style.RESET_ALL}",
-            f"{Fore.GREEN}{long_shares:,.0f}{Style.RESET_ALL}",   # Long Shares
-            f"{Fore.RED}{short_shares:,.0f}{Style.RESET_ALL}",    # Short Shares
-            f"{Fore.YELLOW}{position_value:,.2f}{Style.RESET_ALL}",
-        ]
+    return [
+        date,
+        f"{Fore.CYAN}{ticker}{Style.RESET_ALL}",
+        f"{action_color}{action.upper()}{Style.RESET_ALL}",
+        f"{action_color}{quantity:,.0f}{Style.RESET_ALL}",
+        f"{Fore.WHITE}{price:,.2f}{Style.RESET_ALL}",
+        f"{Fore.GREEN}{long_shares:,.0f}{Style.RESET_ALL}",  # Long Shares
+        f"{Fore.RED}{short_shares:,.0f}{Style.RESET_ALL}",  # Short Shares
+        f"{Fore.YELLOW}{position_value:,.2f}{Style.RESET_ALL}",
+    ]

@@ -171,15 +171,25 @@ class SorosReflexivityEngine:
                 sent_score = min((abs(sentiment) * 0.7 + narrative * 0.3), 1.0)
 
             # 综合反身性得分
-            reflexivity = momentum_score * 0.30 + vol_score * 0.25 + val_score * 0.25 + sent_score * 0.20
+            reflexivity = (
+                momentum_score * 0.30
+                + vol_score * 0.25
+                + val_score * 0.25
+                + sent_score * 0.20
+            )
             reflexivity = round(reflexivity, 4)
 
             # 判断盛衰周期阶段
             z_score = pd.get("z_score", 0)
-            phase = self._classify_cycle_phase(reflexivity, momentum_score, z_score, pd.get("change_20d", 0))
+            phase = self._classify_cycle_phase(
+                reflexivity, momentum_score, z_score, pd.get("change_20d", 0)
+            )
 
             # 远离均衡判断
-            far_from_eq = abs(z_score) > self.zscore_extreme or reflexivity > self.reflexivity_threshold
+            far_from_eq = (
+                abs(z_score) > self.zscore_extreme
+                or reflexivity > self.reflexivity_threshold
+            )
 
             # 风险评估
             if reflexivity > 0.8:
@@ -201,11 +211,11 @@ class SorosReflexivityEngine:
                 "valuation_contrib": round(val_score, 3),
                 "sentiment_contrib": round(sent_score, 3),
                 "risk_assessment": risk,
-                "signal": "SELL"
-                if (reflexivity > 0.7 and z_score > 0)
-                else "BUY"
-                if (reflexivity > 0.5 and z_score < -1.5)
-                else "HOLD",
+                "signal": (
+                    "SELL"
+                    if (reflexivity > 0.7 and z_score > 0)
+                    else "BUY" if (reflexivity > 0.5 and z_score < -1.5) else "HOLD"
+                ),
             }
 
         return results
@@ -228,7 +238,7 @@ class SorosReflexivityEngine:
             # 动量方向
             if change_20d > 0.05:
                 return "ACCELERATING"
-            elif change_20d < -0.05:
+            if change_20d < -0.05:
                 return "REVERSAL"
             return "GERMINAL"
         return "GERMINAL"
@@ -246,17 +256,21 @@ class SorosReflexivityEngine:
 
         scores = [r["score"] for r in stock_results.values()]
         avg_score = sum(scores) / len(scores) if scores else 0
-        far_from_eq_count = sum(1 for r in stock_results.values() if r.get("far_from_equilibrium"))
+        far_from_eq_count = sum(
+            1 for r in stock_results.values() if r.get("far_from_equilibrium")
+        )
 
         # 整体观点
-        accelerating_count = sum(1 for r in stock_results.values() if r["phase"] == "ACCELERATING")
-        reversal_count = sum(1 for r in stock_results.values() if r["phase"] == "REVERSAL")
+        accelerating_count = sum(
+            1 for r in stock_results.values() if r["phase"] == "ACCELERATING"
+        )
+        reversal_count = sum(
+            1 for r in stock_results.values() if r["phase"] == "REVERSAL"
+        )
 
         if accelerating_count > len(scores) * 0.4:
             signal = "HOLD"  # 趋势中，持有但警惕
-            summary = (
-                f"反身性平均得分{avg_score:.2f}，{accelerating_count}只标的正处于自我强化期，趋势可能持续但需警惕逆转"
-            )
+            summary = f"反身性平均得分{avg_score:.2f}，{accelerating_count}只标的正处于自我强化期，趋势可能持续但需警惕逆转"
             conviction = "MEDIUM"
         elif reversal_count > len(scores) * 0.3:
             signal = "SELL"
@@ -268,7 +282,9 @@ class SorosReflexivityEngine:
             conviction = "MEDIUM"
         else:
             signal = "BUY" if avg_score < 0.4 else "HOLD"
-            summary = f"反身性平均得分{avg_score:.2f}，市场处于较均衡状态，可寻找被低估机会"
+            summary = (
+                f"反身性平均得分{avg_score:.2f}，市场处于较均衡状态，可寻找被低估机会"
+            )
             conviction = "LOW"
 
         return TheoryDecision(
@@ -378,10 +394,34 @@ class DalioEconomicMachine:
 
         # 各象限配置建议
         allocations = {
-            "PROSPERITY": {"stocks": 0.35, "bonds": 0.30, "gold": 0.15, "commodities": 0.10, "cash": 0.10},
-            "OVERHEAT": {"stocks": 0.20, "bonds": 0.25, "gold": 0.20, "commodities": 0.20, "cash": 0.15},
-            "RECESSION": {"stocks": 0.20, "bonds": 0.50, "gold": 0.10, "commodities": 0.05, "cash": 0.15},
-            "REFLEXIVITY": {"stocks": 0.40, "bonds": 0.30, "gold": 0.10, "commodities": 0.10, "cash": 0.10},
+            "PROSPERITY": {
+                "stocks": 0.35,
+                "bonds": 0.30,
+                "gold": 0.15,
+                "commodities": 0.10,
+                "cash": 0.10,
+            },
+            "OVERHEAT": {
+                "stocks": 0.20,
+                "bonds": 0.25,
+                "gold": 0.20,
+                "commodities": 0.20,
+                "cash": 0.15,
+            },
+            "RECESSION": {
+                "stocks": 0.20,
+                "bonds": 0.50,
+                "gold": 0.10,
+                "commodities": 0.05,
+                "cash": 0.15,
+            },
+            "REFLEXIVITY": {
+                "stocks": 0.40,
+                "bonds": 0.30,
+                "gold": 0.10,
+                "commodities": 0.10,
+                "cash": 0.10,
+            },
         }
 
         return {
@@ -500,7 +540,7 @@ class DalioEconomicMachine:
         total_inv = sum(inv_vols.values())
 
         if total_inv == 0:
-            return {k: 0 for k in asset_volatilities}
+            return dict.fromkeys(asset_volatilities, 0)
 
         weights = {k: round(v / total_inv, 4) for k, v in inv_vols.items()}
         return weights
@@ -525,9 +565,7 @@ class DalioEconomicMachine:
         elif debt_score > 0.5 and regime == "RECESSION":
             signal = "HOLD"
             conviction = "MEDIUM"
-            summary = (
-                f"达利奥框架: 经济处于{regime_result.get('regime_name', '')}，债务评分{debt_score:.2f}，保持防御姿态"
-            )
+            summary = f"达利奥框架: 经济处于{regime_result.get('regime_name', '')}，债务评分{debt_score:.2f}，保持防御姿态"
         elif regime == "REFLEXIVITY" and debt_score < 0.5:
             signal = "BUY"
             conviction = "HIGH"
@@ -546,7 +584,9 @@ class DalioEconomicMachine:
             details={
                 "regime": regime_result,
                 "debt_cycle": debt_result,
-                "recommended_allocation": regime_result.get("recommended_allocation", {}),
+                "recommended_allocation": regime_result.get(
+                    "recommended_allocation", {}
+                ),
             },
         )
 
@@ -747,17 +787,23 @@ class FirstPrinciplesAnalyzer:
         # 规则1: 高PE必须对应高ROE
         if pe > 30 and roe < 0.15:
             narrative_flaws.append(f"PE={pe}偏高但ROE={roe:.1%}不足，成长性可能被高估")
-            counter_points.append("市场可能过度定价了未来增长，而当前盈利能力不足以支撑估值")
+            counter_points.append(
+                "市场可能过度定价了未来增长，而当前盈利能力不足以支撑估值"
+            )
 
         # 规则2: 高增长叙事必须对应实际增长
         if revenue_growth < 0.05 and "高增长" in market_consensus:
-            narrative_flaws.append(f"营收增速仅{revenue_growth:.1%}，'高增长'叙事缺乏支撑")
+            narrative_flaws.append(
+                f"营收增速仅{revenue_growth:.1%}，'高增长'叙事缺乏支撑"
+            )
             counter_points.append("需重新审视增长假设，当前营收增速不支持高增长叙事")
 
         # 规则3: 检验"这次不一样"叙事
         if "这次不一样" in market_consensus or "新范式" in market_consensus:
             narrative_flaws.append("检测到'这次不一样'叙事 — 历史上此类叙事通常不可靠")
-            counter_points.append("回归第一性原理: 企业价值=未来现金流折现，不会因叙事改变")
+            counter_points.append(
+                "回归第一性原理: 企业价值=未来现金流折现，不会因叙事改变"
+            )
 
         return {
             "code": stock_code,
@@ -787,7 +833,9 @@ class FirstPrinciplesAnalyzer:
             )
 
         buy_count = sum(1 for r in driver_results.values() if r.get("signal") == "BUY")
-        sell_count = sum(1 for r in driver_results.values() if r.get("signal") == "SELL")
+        sell_count = sum(
+            1 for r in driver_results.values() if r.get("signal") == "SELL"
+        )
         total = len(driver_results)
 
         if sell_count > buy_count:
@@ -807,7 +855,9 @@ class FirstPrinciplesAnalyzer:
             theory="第一性原理",
             signal=signal,
             score=round(score, 4),
-            conviction="HIGH" if abs(sell_count - buy_count) > total * 0.3 else "MEDIUM",
+            conviction=(
+                "HIGH" if abs(sell_count - buy_count) > total * 0.3 else "MEDIUM"
+            ),
             summary=summary,
             details={
                 "stock_analyses": driver_results,
@@ -911,7 +961,13 @@ class BuffettMungerFramework:
             quality_score = min((roic / 0.15) * 10 + (revenue_cagr / 0.10) * 10, 20)
 
             # 综合护城河评分
-            total_moat = intangible_score + switching_score + network_score + scale_score + quality_score
+            total_moat = (
+                intangible_score
+                + switching_score
+                + network_score
+                + scale_score
+                + quality_score
+            )
             total_moat = max(0, min(100, total_moat))
 
             # 分类
@@ -939,7 +995,11 @@ class BuffettMungerFramework:
                     "规模经济": round(scale_score, 1),
                     "ROIC持续性": round(quality_score, 1),
                 },
-                "signal": "BUY" if total_moat >= 60 else "HOLD" if total_moat >= 40 else "SELL",
+                "signal": (
+                    "BUY"
+                    if total_moat >= 60
+                    else "HOLD" if total_moat >= 40 else "SELL"
+                ),
             }
 
         return results
@@ -1125,17 +1185,29 @@ class BuffettMungerFramework:
             )
 
         # 统计各维度信号
-        wide_moat = sum(1 for r in moat_results.values() if r.get("moat_level") == "wide")
-        narrow_moat = sum(1 for r in moat_results.values() if r.get("moat_level") == "narrow")
+        wide_moat = sum(
+            1 for r in moat_results.values() if r.get("moat_level") == "wide"
+        )
+        narrow_moat = sum(
+            1 for r in moat_results.values() if r.get("moat_level") == "narrow"
+        )
         total = len(moat_results)
 
         deep_value_count = 0
         if margin_results:
-            deep_value_count = sum(1 for r in margin_results.values() if r.get("level") in ("deep_value", "value"))
+            deep_value_count = sum(
+                1
+                for r in margin_results.values()
+                if r.get("level") in ("deep_value", "value")
+            )
 
         quality_a_count = 0
         if quality_results:
-            quality_a_count = sum(1 for r in quality_results.values() if r.get("grade", "").startswith("A"))
+            quality_a_count = sum(
+                1
+                for r in quality_results.values()
+                if r.get("grade", "").startswith("A")
+            )
 
         # 综合判断: 宽阔护城河 + 安全边际 + 高质量 = 最佳投资
         if wide_moat + narrow_moat > total * 0.5 and deep_value_count > 0:
@@ -1161,7 +1233,9 @@ class BuffettMungerFramework:
         return TheoryDecision(
             theory="巴菲特芒格模型",
             signal=signal,
-            score=round((wide_moat + deep_value_count + quality_a_count) / max(total * 3, 1), 4),
+            score=round(
+                (wide_moat + deep_value_count + quality_a_count) / max(total * 3, 1), 4
+            ),
             conviction=conviction,
             summary=summary,
             details={
@@ -1234,7 +1308,9 @@ class TheoryFusionEngine:
             s = self.SIGNAL_SCORES.get(d.signal, 0.5)
             weighted_score += w * s
             total_weight += w
-            signals.append({"theory": theory, "signal": d.signal, "score": d.score, "weight": w})
+            signals.append(
+                {"theory": theory, "signal": d.signal, "score": d.score, "weight": w}
+            )
 
         if total_weight > 0:
             weighted_score /= total_weight
@@ -1250,7 +1326,11 @@ class TheoryFusionEngine:
         # 一致性分析
         signals_list = [d.signal for d in decisions if d.signal != "NEUTRAL"]
         unique_signals = set(signals_list)
-        agreement = 1.0 - (len(unique_signals) - 1) / max(len(signals_list) - 1, 1) if len(signals_list) > 1 else 1.0
+        agreement = (
+            1.0 - (len(unique_signals) - 1) / max(len(signals_list) - 1, 1)
+            if len(signals_list) > 1
+            else 1.0
+        )
 
         # 冲突检测
         conflicts = []
@@ -1320,7 +1400,9 @@ class TheoryFusionEngine:
             w = self.weights.get(t, 0.25)
             sm = d["summary"][:60] + "..." if len(d["summary"]) > 60 else d["summary"]
             signal_icon = "🟢" if s == "BUY" else "🔴" if s == "SELL" else "🟡"
-            lines.append(f"| {t} | {signal_icon} {s} | {sc:.2f} | {cv} | {w:.0%} | {sm} |")
+            lines.append(
+                f"| {t} | {signal_icon} {s} | {sc:.2f} | {cv} | {w:.0%} | {sm} |"
+            )
         lines.append("")
 
         # 冲突警告
@@ -1331,7 +1413,9 @@ class TheoryFusionEngine:
                 lines.append(f"- {c}")
             lines.append("")
 
-        lines.append(f"*融合引擎由四大理论加权投票生成 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+        lines.append(
+            f"*融合引擎由四大理论加权投票生成 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"
+        )
         return "\n".join(lines)
 
 
@@ -1375,7 +1459,16 @@ def run_full_theory_analysis(
         reflex_results = reflexivity.compute_reflexivity_score(price_data)
         reflex_decision = reflexivity.generate_decision(reflex_results)
         decisions.append(reflex_decision)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         logger.warning(f"索罗斯反身性分析失败: {e}")
 
     # 2. 达利奥经济机器
@@ -1399,7 +1492,16 @@ def run_full_theory_analysis(
         debt = dalio.assess_debt_cycle(debt_data)
         dalio_decision = dalio.generate_decision(regime, debt)
         decisions.append(dalio_decision)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         logger.warning(f"达利奥经济机器分析失败: {e}")
 
     # 3. 第一性原理
@@ -1408,7 +1510,16 @@ def run_full_theory_analysis(
         driver_results = fpa.decompose_value_drivers(financial_data)
         fpa_decision = fpa.generate_decision(driver_results)
         decisions.append(fpa_decision)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         logger.warning(f"第一性原理分析失败: {e}")
 
     # 4. 巴菲特芒格框架
@@ -1417,7 +1528,16 @@ def run_full_theory_analysis(
         moat_results = bm.evaluate_moat(financial_data)
         bm_decision = bm.generate_decision(moat_results)
         decisions.append(bm_decision)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         logger.warning(f"巴菲特芒格分析失败: {e}")
 
     # 5. 融合
@@ -1441,9 +1561,24 @@ if __name__ == "__main__":
 
     # 模拟数据
     test_price_data = {
-        "601088": {"price": 41.26, "change_20d": -0.05, "z_score": -1.2, "volatility": 0.22},
-        "600276": {"price": 50.47, "change_20d": 0.12, "z_score": 1.8, "volatility": 0.26},
-        "300308": {"price": 120.0, "change_20d": 0.25, "z_score": 2.5, "volatility": 0.35},
+        "601088": {
+            "price": 41.26,
+            "change_20d": -0.05,
+            "z_score": -1.2,
+            "volatility": 0.22,
+        },
+        "600276": {
+            "price": 50.47,
+            "change_20d": 0.12,
+            "z_score": 1.8,
+            "volatility": 0.26,
+        },
+        "300308": {
+            "price": 120.0,
+            "change_20d": 0.25,
+            "z_score": 2.5,
+            "volatility": 0.35,
+        },
     }
 
     test_financial_data = {

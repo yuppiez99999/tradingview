@@ -114,7 +114,8 @@ def _parse_role_json(text: str) -> dict | None:
         return None
     # 尝试 JSON 解析
     import json as _json
-    json_match = re.search(r'\{[^{}]*\}', text, re.DOTALL)
+
+    json_match = re.search(r"\{[^{}]*\}", text, re.DOTALL)
     if json_match:
         try:
             return _json.loads(json_match.group())
@@ -180,9 +181,11 @@ def _should_debate(bull_prior: ModelView, bear_prior: ModelView) -> bool:
     """
     cfg = get_config("debate", {})
     min_conf = float(cfg.get("skip_debate_min_confidence", 0.7))
-    if (bull_prior.action == bear_prior.action and
-        bull_prior.confidence >= min_conf and
-        bear_prior.confidence >= min_conf):
+    if (
+        bull_prior.action == bear_prior.action
+        and bull_prior.confidence >= min_conf
+        and bear_prior.confidence >= min_conf
+    ):
         return False
     return True
 
@@ -192,9 +195,13 @@ def _call_role(role: str, prompt: str, system: str, timeout: int) -> str | None:
     return prov.generate(prompt, system=system, timeout=timeout)
 
 
-def run_debate(symbol: str, context_prompt: str,
-               bull_prior: ModelView, bear_prior: ModelView,
-               timeout: int | None = None) -> tuple[DebateRecord, DebateDecision]:
+def run_debate(
+    symbol: str,
+    context_prompt: str,
+    bull_prior: ModelView,
+    bear_prior: ModelView,
+    timeout: int | None = None,
+) -> tuple[DebateRecord, DebateDecision]:
     """运行 Bull/Bear/Judge 辩论
 
     Args:
@@ -212,10 +219,7 @@ def run_debate(symbol: str, context_prompt: str,
 
     record = DebateRecord(symbol=symbol, triggered=True)
 
-    base_prompt = (
-        f"{context_prompt}\n\n"
-        "请基于以上事实底座, 给出你的结构化论证。"
-    )
+    base_prompt = f"{context_prompt}\n\n" "请基于以上事实底座, 给出你的结构化论证。"
 
     # 首轮: Bull 与 Bear 并行
     with ThreadPoolExecutor(max_workers=2) as ex:
@@ -252,7 +256,9 @@ def run_debate(symbol: str, context_prompt: str,
         )
         with ThreadPoolExecutor(max_workers=2) as ex:
             f_bull2 = ex.submit(_call_role, "bull", rebut_prompt, _SYSTEM_BULL, timeout)
-            f_bear2 = ex.submit(_call_role, "bear", rebut_prompt_bear, _SYSTEM_BEAR, timeout)
+            f_bear2 = ex.submit(
+                _call_role, "bear", rebut_prompt_bear, _SYSTEM_BEAR, timeout
+            )
             bull_txt2 = f_bull2.result(timeout=timeout) or ""
             bear_txt2 = f_bear2.result(timeout=timeout) or ""
         if bull_txt2:

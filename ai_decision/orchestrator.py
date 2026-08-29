@@ -65,13 +65,21 @@ def _run_five_agents(symbol: str, ctx) -> dict[str, Any]:
     """集成现有五 Agent (FinanceAgentOrchestrator), 失败则回退规则兜底"""
     try:
         from utils.finance_agent_orchestrator import FinanceAgentOrchestrator
+
         orch = FinanceAgentOrchestrator()
         result = orch.orchestrate(symbol=symbol, context={})
         if hasattr(result, "to_dict"):
             return result.to_dict()
         if isinstance(result, dict):
             return result
-    except (ImportError, AttributeError, TypeError, ValueError, RuntimeError, OSError) as exc:
+    except (
+        ImportError,
+        AttributeError,
+        TypeError,
+        ValueError,
+        RuntimeError,
+        OSError,
+    ) as exc:
         # FinanceAgentOrchestrator 可能抛: 导入失败/构造错误/属性缺失/运行时错误
         logger.warning("五 Agent 协调器不可用, 使用规则兜底: %s", exc)
     # 规则兜底: 基于行情变化生成中性信号
@@ -92,15 +100,17 @@ def _run_five_agents(symbol: str, ctx) -> dict[str, Any]:
     }
 
 
-def run_decision(symbol: str,
-                 market_data: dict[str, Any] | None = None,
-                 fundamentals: dict[str, Any] | None = None,
-                 news: list[dict[str, Any]] | None = None,
-                 macro: dict[str, Any] | None = None,
-                 mode: str | None = None,
-                 risk_context: RiskContext | None = None,
-                 health_monitor: ModelHealthMonitor | None = None,
-                 timeout: int | None = None) -> TradingDecision:
+def run_decision(
+    symbol: str,
+    market_data: dict[str, Any] | None = None,
+    fundamentals: dict[str, Any] | None = None,
+    news: list[dict[str, Any]] | None = None,
+    macro: dict[str, Any] | None = None,
+    mode: str | None = None,
+    risk_context: RiskContext | None = None,
+    health_monitor: ModelHealthMonitor | None = None,
+    timeout: int | None = None,
+) -> TradingDecision:
     """运行一次完整决策
 
     Args:
@@ -136,12 +146,18 @@ def run_decision(symbol: str,
     agent_conf = ctx.agent_consensus.get("confidence", 0.0)
 
     # 取 bull/bear 两个视角: bull 用正向强度, bear 用负向强度
-    bull_prior = ModelView(role="bull", action="buy",
-                           strength=max(0.0, agent_strength),
-                           confidence=agent_conf)
-    bear_prior = ModelView(role="bear", action="sell",
-                           strength=min(0.0, agent_strength),
-                           confidence=agent_conf)
+    bull_prior = ModelView(
+        role="bull",
+        action="buy",
+        strength=max(0.0, agent_strength),
+        confidence=agent_conf,
+    )
+    bear_prior = ModelView(
+        role="bear",
+        action="sell",
+        strength=min(0.0, agent_strength),
+        confidence=agent_conf,
+    )
 
     trigger = DebateTrigger(
         bull_strength=bull_prior.strength,
@@ -161,16 +177,30 @@ def run_decision(symbol: str,
         # 4a. 触发完整辩论
         # 步骤 3 修复: 辩论路径必须先检查 judge 熔断状态, 熔断时降级到快速聚合
         # 否则熔断状态下仍调用真实 provider (浪费 API + 无法降级)
-        #辩论失败也需反馈到熔断器 (与快速聚合路径一致)
+        # 辩论失败也需反馈到熔断器 (与快速聚合路径一致)
         try:
             debate_record, debate = run_debate(
-                symbol, ctx_prompt, bull_prior, bear_prior, timeout=timeout)
+                symbol, ctx_prompt, bull_prior, bear_prior, timeout=timeout
+            )
             _mon.record_success("judge")  # 辩论成功反馈
-            views.append(ModelView(role="judge", action=debate.action,
-                                   strength=debate.strength,
-                                   confidence=debate.confidence,
-                                   reasoning=debate.summary))
-        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError, TimeoutError) as exc:
+            views.append(
+                ModelView(
+                    role="judge",
+                    action=debate.action,
+                    strength=debate.strength,
+                    confidence=debate.confidence,
+                    reasoning=debate.summary,
+                )
+            )
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+        ) as exc:
             # 辩论失败反馈到熔断器 (累计触发熔断)
             _mon.record_failure("judge")
             logger.warning(
@@ -179,24 +209,34 @@ def run_decision(symbol: str,
             debate = None
             # 降级到快速聚合路径 (复用 4b 逻辑)
             prov = _mon.get_provider_with_fallback("judge")
-            j_txt = prov.generate(ctx_prompt, system="简要给出方向性判断与置信度。",
-                                  timeout=timeout or 30)
+            j_txt = prov.generate(
+                ctx_prompt, system="简要给出方向性判断与置信度。", timeout=timeout or 30
+            )
             if j_txt is None:
                 _mon.record_failure("judge")
             else:
                 _mon.record_success("judge")
             if j_txt:
                 from ai_decision.debate_engine import _parse_strength_conf
+
                 js, jc = _parse_strength_conf(j_txt)
                 j_action = "buy" if js > 0.05 else ("sell" if js < -0.05 else "hold")
-                views.append(ModelView(role="judge", action=j_action,
-                                       strength=js, confidence=jc, reasoning=j_txt[:300]))
+                views.append(
+                    ModelView(
+                        role="judge",
+                        action=j_action,
+                        strength=js,
+                        confidence=jc,
+                        reasoning=j_txt[:300],
+                    )
+                )
     else:
         # 4b. 快速聚合 (不辩论), 用默认 judge=合规视角 Mock 补充一致性
         # 步骤 3: 通过 health_monitor 获取 provider (熔断自动降级 Mock)
         prov = _mon.get_provider_with_fallback("judge")
-        j_txt = prov.generate(ctx_prompt, system="简要给出方向性判断与置信度。",
-                              timeout=timeout or 30)
+        j_txt = prov.generate(
+            ctx_prompt, system="简要给出方向性判断与置信度。", timeout=timeout or 30
+        )
         # 业务反馈: 成功/失败累计影响熔断器 (连续失败 3 次触发熔断)
         if j_txt is None:
             _mon.record_failure("judge")
@@ -205,14 +245,23 @@ def run_decision(symbol: str,
         # 即使不辩论, 也用 judge 视角丰富聚合
         if j_txt:
             from ai_decision.debate_engine import _parse_strength_conf
+
             js, jc = _parse_strength_conf(j_txt)
             j_action = "buy" if js > 0.05 else ("sell" if js < -0.05 else "hold")
-            views.append(ModelView(role="judge", action=j_action,
-                                   strength=js, confidence=jc, reasoning=j_txt[:300]))
+            views.append(
+                ModelView(
+                    role="judge",
+                    action=j_action,
+                    strength=js,
+                    confidence=jc,
+                    reasoning=j_txt[:300],
+                )
+            )
 
     # 5. 非线性聚合 (融合辩论 + 五 Agent 共识)
     action, strength, confidence = aggregate(
-        views, debate=debate, agent_consensus=ctx.agent_consensus)
+        views, debate=debate, agent_consensus=ctx.agent_consensus
+    )
 
     verdict_type = debate.verdict_type if debate else "FAST"
 
@@ -226,7 +275,7 @@ def run_decision(symbol: str,
         model_views=[v.to_dict() for v in views],
         agent_consensus=ctx.agent_consensus,
         summary=f"多AI共识: action={action}, strength={strength:.3f}, conf={confidence:.3f}, "
-                f"verdict={verdict_type}",
+        f"verdict={verdict_type}",
     )
 
     # 6. 决策门 (硬风控 + 模式)
@@ -241,8 +290,9 @@ def run_decision(symbol: str,
     return decision
 
 
-def run_batch(symbols: list[str], mode: str | None = None,
-              data_provider=None) -> list[TradingDecision]:
+def run_batch(
+    symbols: list[str], mode: str | None = None, data_provider=None
+) -> list[TradingDecision]:
     """批量决策; data_provider(symbol)->dict 可选, 提供每只标的上游数据"""
     out: list[TradingDecision] = []
     for sym in symbols:
@@ -250,10 +300,23 @@ def run_batch(symbols: list[str], mode: str | None = None,
         if data_provider:
             try:
                 d = data_provider(sym) or {}
-                kwargs.update({k: d.get(k) for k in
-                               ("market_data", "fundamentals", "news", "macro")
-                               if k in d})
-            except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError, ConnectionError, TimeoutError) as exc:  # pragma: no cover
+                kwargs.update(
+                    {
+                        k: d.get(k)
+                        for k in ("market_data", "fundamentals", "news", "macro")
+                        if k in d
+                    }
+                )
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                ConnectionError,
+                TimeoutError,
+            ) as exc:  # pragma: no cover
                 # data_provider 可能抛: 网络错误/数据格式错误/字段缺失
                 logger.warning("批量数据获取失败 %s: %s", sym, exc)
         out.append(run_decision(sym, **kwargs))

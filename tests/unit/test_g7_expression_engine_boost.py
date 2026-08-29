@@ -15,6 +15,7 @@
 运行:
     python -m pytest tests/unit/test_g7_expression_engine_boost.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -42,7 +43,9 @@ def _numpy_sum_safe():
         import numpy.core._methods as _m  # type: ignore[no-redef]
     _orig = _m._sum
 
-    def _safe_sum(a, axis=None, dtype=None, out=None, keepdims=False, initial=None, where=True):
+    def _safe_sum(
+        a, axis=None, dtype=None, out=None, keepdims=False, initial=None, where=True
+    ):
         if not isinstance(initial, (int, float, complex, type(None))):
             initial = None
         return _orig(a, axis, dtype, out, keepdims, initial, where)
@@ -52,6 +55,7 @@ def _numpy_sum_safe():
         yield
     finally:
         _m._sum = _orig
+
 
 # ============================================================
 # PROJECT_ROOT sys.path 注入 (使测试文件可独立运行)
@@ -701,14 +705,19 @@ class TestExpressionEvaluator:
     def test_resolve_field_series_close(self, sample_price_data) -> None:
         ev = ExpressionEvaluator(sample_price_data)
         s = ev._resolve_field_series("close")
-        assert s == {"A": [10.0, 11.0, 12.0, 13.0, 14.0], "B": [20.0, 19.0, 18.0, 17.0, 16.0]}
+        assert s == {
+            "A": [10.0, 11.0, 12.0, 13.0, 14.0],
+            "B": [20.0, 19.0, 18.0, 17.0, 16.0],
+        }
 
     def test_resolve_field_series_volume(self, sample_price_data) -> None:
         ev = ExpressionEvaluator(sample_price_data)
         s = ev._resolve_field_series("volume")
         assert s["A"] == [100.0, 200.0, 150.0, 300.0, 250.0]
 
-    def test_resolve_field_series_unknown_returns_empty(self, sample_price_data) -> None:
+    def test_resolve_field_series_unknown_returns_empty(
+        self, sample_price_data
+    ) -> None:
         ev = ExpressionEvaluator(sample_price_data)
         s = ev._resolve_field_series("nonexistent")
         assert s == {}
@@ -728,7 +737,9 @@ class TestExpressionEvaluator:
     def test_resolve_field_value_existing_factor(
         self, sample_price_data, sample_existing_factors
     ) -> None:
-        ev = ExpressionEvaluator(sample_price_data, existing_factors=sample_existing_factors)
+        ev = ExpressionEvaluator(
+            sample_price_data, existing_factors=sample_existing_factors
+        )
         v = ev._resolve_field_value("MOM_20D")
         assert v == {"A": 0.1, "B": -0.05}
 
@@ -1061,14 +1072,20 @@ class TestMockedExternalDeps:
             mock_win.assert_called_once_with({"a": 1.0, "b": 2.0}, 3.0)
             assert r == {"a": 99.0}
 
-    def test_evaluator_evaluate_with_mocked_field_value(self, sample_price_data) -> None:
+    def test_evaluator_evaluate_with_mocked_field_value(
+        self, sample_price_data
+    ) -> None:
         """mock _resolve_field_value 验证 evaluate 路由"""
         ev = ExpressionEvaluator(sample_price_data)
-        with patch.object(ev, "_resolve_field_value", return_value={"A": 1.0, "B": 2.0}):
+        with patch.object(
+            ev, "_resolve_field_value", return_value={"A": 1.0, "B": 2.0}
+        ):
             r = ev.evaluate(FieldNode("close"))
             assert r == {"A": 1.0, "B": 2.0}
 
-    def test_compute_expression_factors_with_mocked_evaluator(self, sample_price_data) -> None:
+    def test_compute_expression_factors_with_mocked_evaluator(
+        self, sample_price_data
+    ) -> None:
         """mock ExpressionEvaluator.evaluate 验证集成入口"""
         with patch.object(
             ExpressionEvaluator, "evaluate", return_value={"A": 0.5, "B": 0.7}
@@ -1085,9 +1102,12 @@ class TestMockedExternalDeps:
         """mock parse_expression 抛异常, 验证 try/except 路径"""
         import logging
 
-        with caplog.at_level(logging.ERROR), patch(
-            "utils.alpha_factor.expression_engine.parse_expression",
-            side_effect=RuntimeError("mock parse error"),
+        with (
+            caplog.at_level(logging.ERROR),
+            patch(
+                "utils.alpha_factor.expression_engine.parse_expression",
+                side_effect=RuntimeError("mock parse error"),
+            ),
         ):
             r = compute_expression_factors(
                 sample_price_data,

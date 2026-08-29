@@ -41,7 +41,9 @@ def mirror_test(
     )
     try:
         raw = llm_caller(prompt)
-        text = raw.strip() if isinstance(raw, str) else getattr(raw, "content", "").strip()
+        text = (
+            raw.strip() if isinstance(raw, str) else getattr(raw, "content", "").strip()
+        )
         start = text.find("{")
         end = text.rfind("}")
         if start == -1 or end == -1:

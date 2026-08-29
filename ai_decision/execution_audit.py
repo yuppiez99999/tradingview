@@ -32,11 +32,13 @@ _EXEC_AUDIT_DIR = os.path.join("reports", "ai_decision", "execution")
 # 执行审计
 # ============================================================
 
+
 def _write_execution_audit(record: dict[str, Any]) -> str:
     """写入执行审计日志"""
     os.makedirs(_EXEC_AUDIT_DIR, exist_ok=True)
-    path = os.path.join(_EXEC_AUDIT_DIR,
-                        f"exec_{datetime.now().strftime('%Y%m%d')}.jsonl")
+    path = os.path.join(
+        _EXEC_AUDIT_DIR, f"exec_{datetime.now().strftime('%Y%m%d')}.jsonl"
+    )
     try:
         with open(path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -49,6 +51,7 @@ def _write_execution_audit(record: dict[str, Any]) -> str:
 # ============================================================
 # 成功执行审计记录与返回构造
 # ============================================================
+
 
 def _build_success_audit_record(
     decision: "TradingDecision",
@@ -71,7 +74,8 @@ def _build_success_audit_record(
         "symbol": decision.symbol,
         "action": decision.action,
         "mode": mode,
-        "executed": execution_result is not None and execution_result.get("success", False),
+        "executed": execution_result is not None
+        and execution_result.get("success", False),
         "execution_plan": execution_plan,
         "execution_result": execution_result,
         "risk_checks": risk_result.checks,
@@ -107,7 +111,8 @@ def _build_success_return(
 ) -> dict[str, Any]:
     """构建成功执行后的返回字典"""
     return {
-        "executed": execution_result is not None and execution_result.get("success", False),
+        "executed": execution_result is not None
+        and execution_result.get("success", False),
         "mode": mode,
         "execution_plan": execution_plan,
         "execution_result": execution_result,

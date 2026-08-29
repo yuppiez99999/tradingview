@@ -101,7 +101,9 @@ class SupplyChainResult:
     hubs: list[str] = field(default_factory=list)
     bottlenecks: list[str] = field(default_factory=list)
     # 风险传染评估
-    risk_contagion: dict[str, float] = field(default_factory=dict)  # {symbol: risk_score}
+    risk_contagion: dict[str, float] = field(
+        default_factory=dict
+    )  # {symbol: risk_score}
     # 网络统计
     network_density: float = 0.0
     avg_path_length: float = 0.0
@@ -267,7 +269,15 @@ class SupplyChainGraph:
                         edge_types=new_edge_types,
                     )
                 )
-                queue.append((next_node, new_path, new_strength, new_edge_types, [*edge_strengths, edge.strength]))
+                queue.append(
+                    (
+                        next_node,
+                        new_path,
+                        new_strength,
+                        new_edge_types,
+                        [*edge_strengths, edge.strength],
+                    )
+                )
 
         return paths
 
@@ -306,9 +316,17 @@ class SupplyChainGraph:
         def _edge_elasticity(edge: SupplyChainEdge) -> float:
             """取指定方向的传导弹性 (非对称)."""
             if direction == "up":
-                e = edge.up_elasticity if edge.up_elasticity is not None else edge.strength
+                e = (
+                    edge.up_elasticity
+                    if edge.up_elasticity is not None
+                    else edge.strength
+                )
             else:
-                e = edge.down_elasticity if edge.down_elasticity is not None else edge.strength
+                e = (
+                    edge.down_elasticity
+                    if edge.down_elasticity is not None
+                    else edge.strength
+                )
             return max(0.0, float(e))
 
         paths: list[PropagationPath] = []
@@ -357,8 +375,12 @@ class SupplyChainGraph:
         Returns:
             {asymmetry_ratio, up_total, down_total, affected_up, affected_down}
         """
-        up_paths = self.propagate_asymmetric_impact(source, impact_strength, "up", max_hops)
-        down_paths = self.propagate_asymmetric_impact(source, impact_strength, "down", max_hops)
+        up_paths = self.propagate_asymmetric_impact(
+            source, impact_strength, "up", max_hops
+        )
+        down_paths = self.propagate_asymmetric_impact(
+            source, impact_strength, "down", max_hops
+        )
         up_total = sum(p.total_strength for p in up_paths)
         down_total = sum(p.total_strength for p in down_paths)
         ratio = (up_total / down_total) if down_total > 0 else float("inf")
@@ -440,7 +462,9 @@ class SupplyChainGraph:
 
         # 归一化
         for node, m in metrics.items():
-            m.betweenness_centrality = between_count[node] / total_paths if total_paths > 0 else 0.0
+            m.betweenness_centrality = (
+                between_count[node] / total_paths if total_paths > 0 else 0.0
+            )
 
     def _compute_pagerank(self, metrics: dict[str, NodeMetrics]) -> None:
         """PageRank 计算"""
@@ -450,14 +474,18 @@ class SupplyChainGraph:
             return
 
         # 出度
-        out_degrees = {node: max(len(self.adjacency.get(node, [])), 1) for node in nodes}
+        out_degrees = {
+            node: max(len(self.adjacency.get(node, [])), 1) for node in nodes
+        }
         # 初始化
-        pr = {node: 1.0 / n for node in nodes}
+        pr = dict.fromkeys(nodes, 1.0 / n)
 
         # 迭代
         for _ in range(self.pr_iterations):
             new_pr: dict[str, float] = {}
-            dangling_sum = sum(pr[node] for node in nodes if not self.adjacency.get(node))
+            dangling_sum = sum(
+                pr[node] for node in nodes if not self.adjacency.get(node)
+            )
             for node in nodes:
                 rank = (1 - self.pr_damping) / n
                 rank += self.pr_damping * dangling_sum / n
@@ -523,7 +551,7 @@ class SupplyChainGraph:
             result.network_density = len(result.edges) / max_edges
 
         # 风险传染 (假设每个节点有 0.1 的基础风险)
-        base_risk = {node: 0.1 for node in self.all_nodes}
+        base_risk = dict.fromkeys(self.all_nodes, 0.1)
         result.risk_contagion = self.assess_risk_contagion(base_risk)
 
         # 连通分量数 (简化: DFS)
@@ -601,5 +629,7 @@ class SupplyChainGraph:
                 [(s, m.betweenness_centrality) for s, m in result.metrics.items()],
                 key=lambda x: -x[1],
             )[:5],
-            "high_risk_symbols": sorted(result.risk_contagion.items(), key=lambda x: -x[1])[:5],
+            "high_risk_symbols": sorted(
+                result.risk_contagion.items(), key=lambda x: -x[1]
+            )[:5],
         }

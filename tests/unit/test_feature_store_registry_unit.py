@@ -2,6 +2,7 @@
 
 被测模块: utils/feature_store/registry.py
 """
+
 from __future__ import annotations
 
 import json
@@ -30,8 +31,13 @@ def _meta(name="alpha", version="1.0", **kw) -> FactorMeta:
 
 class TestFactorMetaToFromDict:
     def test_round_trip(self):
-        m = _meta(category="momentum", dependencies=("a", "b"), calc_frequency="weekly",
-                  storage_tier="online", description="d")
+        m = _meta(
+            category="momentum",
+            dependencies=("a", "b"),
+            calc_frequency="weekly",
+            storage_tier="online",
+            description="d",
+        )
         d = m.to_dict()
         assert d["dependencies"] == ["a", "b"]
         m2 = FactorMeta.from_dict(d)
@@ -39,7 +45,9 @@ class TestFactorMetaToFromDict:
         assert isinstance(m2.dependencies, tuple)
 
     def test_from_dict_dependencies_list(self):
-        m = FactorMeta.from_dict({"name": "x", "version": "1", "dependencies": ["p", "q"]})
+        m = FactorMeta.from_dict(
+            {"name": "x", "version": "1", "dependencies": ["p", "q"]}
+        )
         assert m.dependencies == ("p", "q")
 
     def test_from_dict_dependencies_tuple(self):
@@ -47,7 +55,9 @@ class TestFactorMetaToFromDict:
         assert m.dependencies == ("p",)
 
     def test_from_dict_dependencies_invalid_becomes_empty(self):
-        m = FactorMeta.from_dict({"name": "x", "version": "1", "dependencies": "not a list"})
+        m = FactorMeta.from_dict(
+            {"name": "x", "version": "1", "dependencies": "not a list"}
+        )
         assert m.dependencies == ()
 
     def test_from_dict_dependencies_missing(self):
@@ -324,7 +334,9 @@ class TestJsonPersistence:
     def test_save_replace_failure_returns_false_and_cleans_tmp(self, tmp_path):
         cfg = _config(tmp_path)
         reg = Registry(cfg)
-        with patch("utils.feature_store.registry.os.replace", side_effect=OSError("boom")):
+        with patch(
+            "utils.feature_store.registry.os.replace", side_effect=OSError("boom")
+        ):
             ok, msg = reg.register(_meta())
         assert not ok and msg == "registry backend unavailable"
         assert not os.path.exists(reg._json_path + ".tmp")
@@ -332,15 +344,23 @@ class TestJsonPersistence:
     def test_save_replace_failure_unlink_exception_swallowed(self, tmp_path):
         cfg = _config(tmp_path)
         reg = Registry(cfg)
-        with patch("utils.feature_store.registry.os.replace", side_effect=OSError("boom")), \
-             patch("utils.feature_store.registry.os.unlink", side_effect=OSError("boom2")):
+        with (
+            patch(
+                "utils.feature_store.registry.os.replace", side_effect=OSError("boom")
+            ),
+            patch(
+                "utils.feature_store.registry.os.unlink", side_effect=OSError("boom2")
+            ),
+        ):
             ok, _ = reg.register(_meta())
         assert not ok
 
     def test_save_makedirs_failure_no_tmp_to_clean(self, tmp_path):
         cfg = _config(tmp_path)
         reg = Registry(cfg)
-        with patch("utils.feature_store.registry.os.makedirs", side_effect=OSError("boom")):
+        with patch(
+            "utils.feature_store.registry.os.makedirs", side_effect=OSError("boom")
+        ):
             ok, msg = reg.register(_meta())
         assert not ok and msg == "registry backend unavailable"
         assert not os.path.exists(reg._json_path + ".tmp")

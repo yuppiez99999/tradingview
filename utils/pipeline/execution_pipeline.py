@@ -59,9 +59,19 @@ class ExecutionPipeline:
         # 订单生成器
         try:
             from ..order_generator import OrderGenerator
+
             self._order_generator = OrderGenerator()
             logger.info("OrderGenerator 已加载")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._order_generator = None
             logger.warning(f"OrderGenerator 导入失败: {e}")
@@ -69,9 +79,19 @@ class ExecutionPipeline:
         # 执行路由
         try:
             from ..execution_router import ExecutionRouter
+
             self._execution_router = ExecutionRouter()
             logger.info("ExecutionRouter 已加载")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._execution_router = None
             logger.warning(f"ExecutionRouter 导入失败: {e}")
@@ -79,9 +99,19 @@ class ExecutionPipeline:
         # TCA 引擎
         try:
             from ..tca_engine import TCAManager as TCAEngine
+
             self._tca_engine = TCAEngine()
             logger.info("TCAEngine 已加载")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._tca_engine = None
             logger.warning(f"TCAEngine 导入失败: {e}")
@@ -144,13 +174,17 @@ class ExecutionPipeline:
 
             # 3. 执行订单
             logger.info(f"步骤 3/4: 执行订单 (dry_run={dry_run})...")
-            execution_result = self._execute_orders(orders, dry_run, confirmation_token, batch_id)
+            execution_result = self._execute_orders(
+                orders, dry_run, confirmation_token, batch_id
+            )
 
             # 4. TCA 分析
             logger.info("步骤 4/4: 交易后成本分析...")
             self._run_tca(execution_result)
 
-            execution_result.duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+            execution_result.duration_ms = (
+                datetime.now() - start_time
+            ).total_seconds() * 1000
             execution_result.completed_at = datetime.now()
 
             # 生成结果
@@ -169,12 +203,23 @@ class ExecutionPipeline:
                 reports=[],
             )
 
-            logger.info(f"执行完成: {execution_result.filled_orders}/{execution_result.total_orders} "
-                       f"({execution_result.fill_rate:.1%})")
+            logger.info(
+                f"执行完成: {execution_result.filled_orders}/{execution_result.total_orders} "
+                f"({execution_result.fill_rate:.1%})"
+            )
 
             return execution_result, result
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"执行流水线异常: {e}", exc_info=True)
@@ -239,7 +284,11 @@ class ExecutionPipeline:
             import json
             from pathlib import Path
 
-            positions_path = Path(__file__).resolve().parent.parent.parent / "config" / "positions.json"
+            positions_path = (
+                Path(__file__).resolve().parent.parent.parent
+                / "config"
+                / "positions.json"
+            )
             if positions_path.exists():
                 with open(positions_path, encoding="utf-8") as f:
                     data = json.load(f)
@@ -274,18 +323,22 @@ class ExecutionPipeline:
 
             # 二次校验
             if amount > self.config.execution_max_order_value:
-                logger.warning(f"订单金额超限: {symbol} {amount:,.0f} > {self.config.execution_max_order_value:,.0f}")
+                logger.warning(
+                    f"订单金额超限: {symbol} {amount:,.0f} > {self.config.execution_max_order_value:,.0f}"
+                )
                 continue
 
-            orders.append({
-                "symbol": symbol,
-                "direction": "BUY" if diff > 0 else "SELL",
-                "target_weight": target_weight,
-                "current_weight": current_weight,
-                "weight_diff": diff,
-                "amount": amount,
-                "algo": self.config.execution_default_algo,
-            })
+            orders.append(
+                {
+                    "symbol": symbol,
+                    "direction": "BUY" if diff > 0 else "SELL",
+                    "target_weight": target_weight,
+                    "current_weight": current_weight,
+                    "weight_diff": diff,
+                    "amount": amount,
+                    "algo": self.config.execution_default_algo,
+                }
+            )
 
         return orders
 
@@ -336,8 +389,10 @@ class ExecutionPipeline:
                     result.filled_orders += 1
                     result.filled_amount += order["amount"]
                     fill_prices.append(fill_price)
-                    logger.info(f"  [DRY] {order['symbol']} {order['direction']} "
-                               f"{order['amount']:,.0f} @ {fill_price:.2f}")
+                    logger.info(
+                        f"  [DRY] {order['symbol']} {order['direction']} "
+                        f"{order['amount']:,.0f} @ {fill_price:.2f}"
+                    )
                 else:
                     # 实盘执行
                     exec_result = self._execute_single_order(order)
@@ -347,9 +402,20 @@ class ExecutionPipeline:
                         fill_prices.append(exec_result.get("fill_price", 0))
                     else:
                         result.failed_orders += 1
-                        result.errors.append(f"{order['symbol']}: {exec_result.get('error', '未知错误')}")
+                        result.errors.append(
+                            f"{order['symbol']}: {exec_result.get('error', '未知错误')}"
+                        )
 
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
 
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 result.failed_orders += 1
@@ -357,8 +423,12 @@ class ExecutionPipeline:
                 logger.error(f"订单执行异常: {order['symbol']} - {e}")
 
         # 计算汇总
-        result.fill_rate = result.filled_orders / result.total_orders if result.total_orders > 0 else 0
-        result.avg_fill_price = sum(fill_prices) / len(fill_prices) if fill_prices else 0
+        result.fill_rate = (
+            result.filled_orders / result.total_orders if result.total_orders > 0 else 0
+        )
+        result.avg_fill_price = (
+            sum(fill_prices) / len(fill_prices) if fill_prices else 0
+        )
 
         return result
 
@@ -388,7 +458,16 @@ class ExecutionPipeline:
                     "error": result.get("error"),
                 }
 
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
 
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.error(f"ExecutionRouter 执行失败: {e}")
@@ -403,16 +482,29 @@ class ExecutionPipeline:
             return
 
         try:
-            tca_result = self._tca_engine.analyze({
-                "batch_id": result.batch_id,
-                "total_amount": result.filled_amount,
-                "avg_price": result.avg_fill_price,
-            })
+            tca_result = self._tca_engine.analyze(
+                {
+                    "batch_id": result.batch_id,
+                    "total_amount": result.filled_amount,
+                    "avg_price": result.avg_fill_price,
+                }
+            )
 
-            logger.info(f"TCA 分析: 冲击成本 {tca_result.get('impact_cost', 0):.2%}, "
-                       f"机会成本 {tca_result.get('opportunity_cost', 0):.2%}")
+            logger.info(
+                f"TCA 分析: 冲击成本 {tca_result.get('impact_cost', 0):.2%}, "
+                f"机会成本 {tca_result.get('opportunity_cost', 0):.2%}"
+            )
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"TCA 分析失败: {e}")

@@ -8,6 +8,7 @@
     - 5 笔无 event_index 的旧格式成交 (向后兼容, 归入 Day 0)
     - 验证: 每笔手续费 = price * volume * commission_rate, 按 event_index 精确分配
 """
+
 from __future__ import annotations
 
 import sys
@@ -43,7 +44,10 @@ ENGINE_RETURN = (FINAL_EQUITY - INITIAL_CAPITAL) / INITIAL_CAPITAL
 trade_records: list[dict] = []
 EXPECTED_COSTS: dict[int, float] = {}  # event_index -> expected commission
 
-def add_trade(order_id, code, direction, offset, price, volume, event_index, status="ALL_TRADED"):
+
+def add_trade(
+    order_id, code, direction, offset, price, volume, event_index, status="ALL_TRADED"
+):
     trade = {
         "order_id": order_id,
         "code": code,
@@ -62,53 +66,83 @@ def add_trade(order_id, code, direction, offset, price, volume, event_index, sta
         trade["event_index"] = event_index
     trade_records.append(trade)
 
-STOCKS = ["600519.SH", "000001.SZ", "300750.SZ", "688981.SH", "601899.SH", "600900.SH",
-          "601318.SH", "600036.SH", "000858.SZ"]
+
+STOCKS = [
+    "600519.SH",
+    "000001.SZ",
+    "300750.SZ",
+    "688981.SH",
+    "601899.SH",
+    "600900.SH",
+    "601318.SH",
+    "600036.SH",
+    "000858.SZ",
+]
 
 # ── 跨不同日期成交 (22 笔) ──
 # Day 1-10: 密集交易
-add_trade("T01", "600519.SH", "BUY", "OPEN",  1800.00, 50,  event_index=1)
-add_trade("T02", "000001.SZ", "SELL", "CLOSE",  10.50, 2000, event_index=1)  # 同日第 2 笔
-add_trade("T03", "300750.SZ", "BUY", "OPEN",  220.00, 300,  event_index=2)
-add_trade("T04", "688981.SH", "SELL", "OPEN",  15.80, 500,  event_index=5)
-add_trade("T05", "601899.SH", "BUY", "CLOSE",   8.20, 1000, event_index=5)  # 同日第 2 笔
-add_trade("T06", "600900.SH", "BUY", "OPEN",  14.50, 800,  event_index=7)
-add_trade("T07", "601318.SH", "SELL", "OPEN",  48.00, 150,  event_index=10)
+add_trade("T01", "600519.SH", "BUY", "OPEN", 1800.00, 50, event_index=1)
+add_trade(
+    "T02", "000001.SZ", "SELL", "CLOSE", 10.50, 2000, event_index=1
+)  # 同日第 2 笔
+add_trade("T03", "300750.SZ", "BUY", "OPEN", 220.00, 300, event_index=2)
+add_trade("T04", "688981.SH", "SELL", "OPEN", 15.80, 500, event_index=5)
+add_trade("T05", "601899.SH", "BUY", "CLOSE", 8.20, 1000, event_index=5)  # 同日第 2 笔
+add_trade("T06", "600900.SH", "BUY", "OPEN", 14.50, 800, event_index=7)
+add_trade("T07", "601318.SH", "SELL", "OPEN", 48.00, 150, event_index=10)
 
 # Day 15-30: 中期交易
-add_trade("T08", "000858.SZ", "BUY", "OPEN",   75.00, 200,  event_index=15)
-add_trade("T09", "600036.SH", "SELL", "CLOSE",  42.00, 400,  event_index=22)
-add_trade("T10", "300750.SZ", "BUY", "OPEN",  250.00, 100,  event_index=30)
+add_trade("T08", "000858.SZ", "BUY", "OPEN", 75.00, 200, event_index=15)
+add_trade("T09", "600036.SH", "SELL", "CLOSE", 42.00, 400, event_index=22)
+add_trade("T10", "300750.SZ", "BUY", "OPEN", 250.00, 100, event_index=30)
 
 # Day 45-80: 稀疏交易
-add_trade("T11", "600519.SH", "SELL", "CLOSE", 1850.00, 20,  event_index=45)
-add_trade("T12", "601899.SH", "BUY", "OPEN",    9.10, 1500, event_index=60)
-add_trade("T13", "000001.SZ", "BUY", "OPEN",   11.20, 800,  event_index=60)  # 同日第 2 笔
-add_trade("T14", "600900.SH", "SELL", "OPEN",  15.80, 600,  event_index=80)
+add_trade("T11", "600519.SH", "SELL", "CLOSE", 1850.00, 20, event_index=45)
+add_trade("T12", "601899.SH", "BUY", "OPEN", 9.10, 1500, event_index=60)
+add_trade("T13", "000001.SZ", "BUY", "OPEN", 11.20, 800, event_index=60)  # 同日第 2 笔
+add_trade("T14", "600900.SH", "SELL", "OPEN", 15.80, 600, event_index=80)
 
 # Day 100-250: 后半段交易
-add_trade("T15", "688981.SH", "BUY", "OPEN",  18.00, 300,  event_index=100)
-add_trade("T16", "601318.SH", "BUY", "CLOSE",  52.50, 100,  event_index=120)
-add_trade("T17", "000858.SZ", "SELL", "CLOSE",  85.00, 250,  event_index=150)
-add_trade("T18", "300750.SZ", "SELL", "OPEN", 280.00, 150,  event_index=180)
-add_trade("T19", "600036.SH", "BUY", "OPEN",  45.00, 500,  event_index=200)
-add_trade("T20", "600519.SH", "SELL", "OPEN",1920.00, 15,   event_index=220)
-add_trade("T21", "601899.SH", "BUY", "CLOSE",  10.00, 2000, event_index=240)
-add_trade("T22", "000001.SZ", "BUY", "OPEN",  12.50, 1200, event_index=250)
+add_trade("T15", "688981.SH", "BUY", "OPEN", 18.00, 300, event_index=100)
+add_trade("T16", "601318.SH", "BUY", "CLOSE", 52.50, 100, event_index=120)
+add_trade("T17", "000858.SZ", "SELL", "CLOSE", 85.00, 250, event_index=150)
+add_trade("T18", "300750.SZ", "SELL", "OPEN", 280.00, 150, event_index=180)
+add_trade("T19", "600036.SH", "BUY", "OPEN", 45.00, 500, event_index=200)
+add_trade("T20", "600519.SH", "SELL", "OPEN", 1920.00, 15, event_index=220)
+add_trade("T21", "601899.SH", "BUY", "CLOSE", 10.00, 2000, event_index=240)
+add_trade("T22", "000001.SZ", "BUY", "OPEN", 12.50, 1200, event_index=250)
 
 # ── 8 笔拒单 (不产生手续费) ──
-add_trade("R01", "600519.SH", "BUY",  "OPEN", 1800.00, 100, event_index=3,  status="REJECTED")
-add_trade("R02", "000001.SZ", "SELL", "OPEN",   10.50, 500, event_index=8,  status="REJECTED")
-add_trade("R03", "300750.SZ", "BUY",  "OPEN",  220.00, 200, event_index=18, status="REJECTED")
-add_trade("R04", "688981.SH", "SELL", "OPEN",   15.80, 800, event_index=35, status="REJECTED")
-add_trade("R05", "601899.SH", "BUY",  "OPEN",    8.20, 3000,event_index=55, status="REJECTED")
-add_trade("R06", "600900.SH", "SELL", "OPEN",   14.50, 1500,event_index=90, status="REJECTED")
-add_trade("R07", "601318.SH", "BUY",  "CLOSE",  48.00, 400, event_index=130,status="REJECTED")
-add_trade("R08", "000858.SZ", "SELL", "CLOSE",  75.00, 600, event_index=210,status="REJECTED")
+add_trade(
+    "R01", "600519.SH", "BUY", "OPEN", 1800.00, 100, event_index=3, status="REJECTED"
+)
+add_trade(
+    "R02", "000001.SZ", "SELL", "OPEN", 10.50, 500, event_index=8, status="REJECTED"
+)
+add_trade(
+    "R03", "300750.SZ", "BUY", "OPEN", 220.00, 200, event_index=18, status="REJECTED"
+)
+add_trade(
+    "R04", "688981.SH", "SELL", "OPEN", 15.80, 800, event_index=35, status="REJECTED"
+)
+add_trade(
+    "R05", "601899.SH", "BUY", "OPEN", 8.20, 3000, event_index=55, status="REJECTED"
+)
+add_trade(
+    "R06", "600900.SH", "SELL", "OPEN", 14.50, 1500, event_index=90, status="REJECTED"
+)
+add_trade(
+    "R07", "601318.SH", "BUY", "CLOSE", 48.00, 400, event_index=130, status="REJECTED"
+)
+add_trade(
+    "R08", "000858.SZ", "SELL", "CLOSE", 75.00, 600, event_index=210, status="REJECTED"
+)
 
 # ── 5 笔旧格式成交 (无 event_index, 归入 Day 0) ──
 old_format_commission = 0.0
-for i, (price, vol) in enumerate([(50.0, 200), (30.0, 500), (15.0, 1000), (8.0, 2000), (3.0, 5000)]):
+for i, (price, vol) in enumerate(
+    [(50.0, 200), (30.0, 500), (15.0, 1000), (8.0, 2000), (3.0, 5000)]
+):
     trade = {
         "order_id": f"OLD{i:02d}",
         "code": STOCKS[i % len(STOCKS)],
@@ -130,8 +164,12 @@ print("-" * 76)
 print(f"  权益曲线点数:      {N_POINTS} (含初始点, 252 交易日)")
 print(f"  区间:              {equity_curve[0]:,.0f} → {equity_curve[-1]:,.0f}")
 print(f"  总收益率:          {ENGINE_RETURN:.6%}")
-print(f"  ALL_TRADED 笔数:   {sum(1 for t in trade_records if t['status'] == 'ALL_TRADED')} (含 5 笔旧格式)")
-print(f"  REJECTED 笔数:     {sum(1 for t in trade_records if t['status'] == 'REJECTED')}")
+print(
+    f"  ALL_TRADED 笔数:   {sum(1 for t in trade_records if t['status'] == 'ALL_TRADED')} (含 5 笔旧格式)"
+)
+print(
+    f"  REJECTED 笔数:     {sum(1 for t in trade_records if t['status'] == 'REJECTED')}"
+)
 print(f"  总交易记录数:       {len(trade_records)}")
 print("\n  按日分配手续费预期 (event_index → commission):")
 for idx in sorted(EXPECTED_COSTS.keys()):
@@ -162,8 +200,12 @@ result = converter.convert(summary, name="complex_commission_test")
 print("\n" + "=" * 76)
 print("【手续费分配验证 — 逐日对比】")
 print("-" * 76)
-print(f"  {'Day':>4s}  {'预期手续费':>14s}  {'实际手续费':>14s}  {'状态':>6s}  {'说明'}")
-print(f"  {'----':>4s}  {'--------------':>14s}  {'--------------':>14s}  {'------':>6s}  {'----'}")
+print(
+    f"  {'Day':>4s}  {'预期手续费':>14s}  {'实际手续费':>14s}  {'状态':>6s}  {'说明'}"
+)
+print(
+    f"  {'----':>4s}  {'--------------':>14s}  {'--------------':>14s}  {'------':>6s}  {'----'}"
+)
 
 all_ok = True
 for day in sorted(set(list(EXPECTED_COSTS.keys()) + [i for i in range(N_POINTS)])):
@@ -179,7 +221,11 @@ for day in sorted(set(list(EXPECTED_COSTS.keys()) + [i for i in range(N_POINTS)]
         print(f"  {day:>4d}  ¥{expected:>14.6f}  ¥{actual:>14.6f}  {match:>6s}  {note}")
 
 print("\n  未在列表中的日期 (手续费为 0): ", end="")
-zero_days = [i for i in range(N_POINTS) if EXPECTED_COSTS.get(i, 0.0) == 0.0 and result.transaction_costs[i] != 0.0]
+zero_days = [
+    i
+    for i in range(N_POINTS)
+    if EXPECTED_COSTS.get(i, 0.0) == 0.0 and result.transaction_costs[i] != 0.0
+]
 if zero_days:
     print(f"⚠️  异常: Day {zero_days}")
     all_ok = False
@@ -220,18 +266,22 @@ for _oid, ei in rejected_costs:
         for t in trade_records
         if t["status"] == "ALL_TRADED" and t.get("event_index", 0) == ei
     )
-    assert abs(result.transaction_costs[ei] - manual_at_day) < 1e-9, \
-        f"Day {ei} 手续费不符 (含拒单): {result.transaction_costs[ei]} vs {manual_at_day}"
+    assert (
+        abs(result.transaction_costs[ei] - manual_at_day) < 1e-9
+    ), f"Day {ei} 手续费不符 (含拒单): {result.transaction_costs[ei]} vs {manual_at_day}"
 print("  拒单排除验证:  ✅ PASS (8 笔 REJECTED 未计入手续费)")
 
 # 旧格式兼容性
-assert abs(result.transaction_costs[0] - (EXPECTED_COSTS.get(0, 0.0))) < 1e-9, \
-    "Day 0 手续费不符 (旧格式归入失败)"
+assert (
+    abs(result.transaction_costs[0] - (EXPECTED_COSTS.get(0, 0.0))) < 1e-9
+), "Day 0 手续费不符 (旧格式归入失败)"
 print("  旧格式兼容:   ✅ PASS (5 笔无 event_index 归入 Day 0)")
 
 # trade_count 验证
 n_filled = sum(1 for t in trade_records if t["status"] == "ALL_TRADED")
-assert result.trade_count == n_filled, f"trade_count: {result.trade_count} vs {n_filled}"
+assert (
+    result.trade_count == n_filled
+), f"trade_count: {result.trade_count} vs {n_filled}"
 print(f"  成交数验证:   ✅ PASS ({result.trade_count} 笔 ALL_TRADED)")
 
 # ============================================================
@@ -263,9 +313,11 @@ print("【Yearly Stats】")
 print("-" * 76)
 print(f"  yearly_stats 条数:  {len(result.yearly_stats)}")
 for ys in result.yearly_stats:
-    print(f"  Year {ys['year']}: ret={ys['return']:.4%}  vol={ys['volatility']:.4%}  "
-          f"maxdd={ys['max_drawdown']:.4%}  csi300={ys['csi300_return']:.4%}  "
-          f"type={ys['market_type']}")
+    print(
+        f"  Year {ys['year']}: ret={ys['return']:.4%}  vol={ys['volatility']:.4%}  "
+        f"maxdd={ys['max_drawdown']:.4%}  csi300={ys['csi300_return']:.4%}  "
+        f"type={ys['market_type']}"
+    )
 
 assert len(result.yearly_stats) >= 1
 

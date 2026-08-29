@@ -1,4 +1,5 @@
 """从新浪财经获取 ETF 历史日线并写入本地兜底目录"""
+
 import json
 import os
 import time
@@ -94,7 +95,16 @@ def fetch_sina_etf(symbol: str, name: str) -> pd.DataFrame:
                 df["日期"] = pd.to_datetime(df["日期"])
                 df = df.sort_values("日期").drop_duplicates("日期")
                 return df
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as exc:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             print(f"  {name} {symbol} 请求失败: {exc}")
         time.sleep(0.3)
@@ -116,14 +126,19 @@ def main():
             "source": "sina_finance",
             "note": "由新浪财经接口直接获取",
             "prices": [
-                {"日期": row["日期"].strftime("%Y-%m-%d"), "收盘": round(float(row["收盘"]), 6)}
+                {
+                    "日期": row["日期"].strftime("%Y-%m-%d"),
+                    "收盘": round(float(row["收盘"]), 6),
+                }
                 for _, row in df.iterrows()
             ],
         }
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
         saved += 1
-        print(f"saved {symbol[2:]} {name}: {len(df)} days, {df['日期'].iloc[0].date()} ~ {df['日期'].iloc[-1].date()}, end={df['收盘'].iloc[-1]}")
+        print(
+            f"saved {symbol[2:]} {name}: {len(df)} days, {df['日期'].iloc[0].date()} ~ {df['日期'].iloc[-1].date()}, end={df['收盘'].iloc[-1]}"
+        )
 
     print(f"\n已保存 {saved} 个标的")
     if skipped:

@@ -58,26 +58,30 @@ logger = logging.getLogger("fingpt_integration")
 # 模型类型枚举
 # ============================================================
 
+
 class ModelType(str, Enum):
     """模型类型。"""
-    GLM5 = "glm5"           # GLM-5 (智谱)
-    FINGPT = "fingpt"       # FinGPT (AI4Finance)
-    DEEPSEEK = "deepseek"   # DeepSeek
-    DOUBAO = "doubao"       # 豆包 Speed
+
+    GLM5 = "glm5"  # GLM-5 (智谱)
+    FINGPT = "fingpt"  # FinGPT (AI4Finance)
+    DEEPSEEK = "deepseek"  # DeepSeek
+    DOUBAO = "doubao"  # 豆包 Speed
 
 
 class TaskCategory(str, Enum):
     """任务类别。"""
-    INTRADAY = "intraday"           # 盘中决策
-    DAILY_REPORT = "daily_report"   # 日报告
-    RESEARCH = "research"           # 深度研究
-    SENTIMENT = "sentiment"         # 情绪分析
-    TRADING = "trading"             # 交易执行
+
+    INTRADAY = "intraday"  # 盘中决策
+    DAILY_REPORT = "daily_report"  # 日报告
+    RESEARCH = "research"  # 深度研究
+    SENTIMENT = "sentiment"  # 情绪分析
+    TRADING = "trading"  # 交易执行
 
 
 # ============================================================
 # LoRA 微调配置
 # ============================================================
+
 
 @dataclass
 class LoRAConfig:
@@ -90,6 +94,7 @@ class LoRAConfig:
         target_modules: 目标模块 (q_proj/v_proj/k_proj/o_proj)
         bias: bias 训练模式 (none/all/only)
     """
+
     rank: int = 16
     alpha: int = 32
     dropout: float = 0.05
@@ -116,6 +121,7 @@ class LoRAConfig:
 # FinGPT 配置
 # ============================================================
 
+
 @dataclass
 class FinGPTConfig:
     """FinGPT 模型配置。
@@ -129,6 +135,7 @@ class FinGPTConfig:
         api_key: API 密钥 (环境变量)
         device: 推理设备 (cpu/cuda/auto)
     """
+
     model_name: str = "FinGPT-v7"
     base_model: str = "mistralai/Mistral-7B-Instruct"
     lora_config: LoRAConfig = field(default_factory=LoRAConfig)
@@ -177,9 +184,7 @@ class FinGPTClient:
         """检查 FinGPT 是否可用。"""
         return bool(self.config.api_key) or self.config.device != "auto"
 
-    def chat(self, message: str,
-             template: Optional[str] = None,
-             **kwargs: Any) -> str:
+    def chat(self, message: str, template: Optional[str] = None, **kwargs: Any) -> str:
         """发送聊天请求。
 
         Args:
@@ -230,6 +235,7 @@ class FinGPTClient:
 # RLSP 训练管线
 # ============================================================
 
+
 @dataclass
 class RLSPConfig:
     """RLSP (Reinforcement Learning with Stock Price) 训练配置。
@@ -242,6 +248,7 @@ class RLSPConfig:
         risk_penalty: 风险惩罚系数
         reward_window: 奖励计算窗口 (天)
     """
+
     learning_rate: float = 1e-5
     batch_size: int = 32
     n_epochs: int = 10
@@ -263,6 +270,7 @@ class RLSPConfig:
 @dataclass
 class TrainingRecord:
     """训练记录。"""
+
     epoch: int
     step: int
     loss: float
@@ -290,8 +298,7 @@ class RLSPTrainer:
         self._history: list[TrainingRecord] = []
         self._is_ready = False
 
-    def setup(self, model_path: str = "",
-              data_path: str = "") -> bool:
+    def setup(self, model_path: str = "", data_path: str = "") -> bool:
         """设置训练环境。
 
         Args:
@@ -305,9 +312,9 @@ class RLSPTrainer:
         logger.info(f"RLSP 训练环境就绪: model={model_path}, data={data_path}")
         return self._is_ready
 
-    def compute_reward(self, portfolio_return: float,
-                       market_return: float,
-                       volatility: float) -> float:
+    def compute_reward(
+        self, portfolio_return: float, market_return: float, volatility: float
+    ) -> float:
         """计算 RLSP 奖励。
 
         Args:
@@ -323,9 +330,15 @@ class RLSPTrainer:
         reward = excess - risk_adjustment
         return round(reward, 6)
 
-    def train_step(self, epoch: int, step: int,
-                   loss: float, portfolio_return: float,
-                   market_return: float, volatility: float) -> TrainingRecord:
+    def train_step(
+        self,
+        epoch: int,
+        step: int,
+        loss: float,
+        portfolio_return: float,
+        market_return: float,
+        volatility: float,
+    ) -> TrainingRecord:
         """执行一步训练。
 
         Args:
@@ -343,7 +356,8 @@ class RLSPTrainer:
         excess = round(portfolio_return - market_return, 6)
 
         record = TrainingRecord(
-            epoch=epoch, step=step,
+            epoch=epoch,
+            step=step,
             loss=round(loss, 6),
             reward=reward,
             excess_return=excess,
@@ -382,6 +396,7 @@ class RLSPTrainer:
 # 模型路由器
 # ============================================================
 
+
 class ModelRouter:
     """模型路由器 — GLM-5 ↔ FinGPT 自动切换。
 
@@ -393,17 +408,23 @@ class ModelRouter:
 
     ROUTING_TABLE: dict[TaskCategory, list[ModelType]] = {
         TaskCategory.INTRADAY: [ModelType.FINGPT, ModelType.GLM5, ModelType.DEEPSEEK],
-        TaskCategory.DAILY_REPORT: [ModelType.GLM5, ModelType.FINGPT, ModelType.DEEPSEEK],
+        TaskCategory.DAILY_REPORT: [
+            ModelType.GLM5,
+            ModelType.FINGPT,
+            ModelType.DEEPSEEK,
+        ],
         TaskCategory.RESEARCH: [ModelType.GLM5, ModelType.DEEPSEEK, ModelType.FINGPT],
         TaskCategory.SENTIMENT: [ModelType.FINGPT, ModelType.GLM5, ModelType.DOUBAO],
         TaskCategory.TRADING: [ModelType.FINGPT, ModelType.GLM5],
     }
 
-    def __init__(self,
-                 glm5_available: bool = True,
-                 fingpt_available: bool = False,
-                 deepseek_available: bool = False,
-                 doubao_available: bool = False) -> None:
+    def __init__(
+        self,
+        glm5_available: bool = True,
+        fingpt_available: bool = False,
+        deepseek_available: bool = False,
+        doubao_available: bool = False,
+    ) -> None:
         self._availability: dict[ModelType, bool] = {
             ModelType.GLM5: glm5_available,
             ModelType.FINGPT: fingpt_available,
@@ -437,14 +458,13 @@ class ModelRouter:
 
     def get_status(self) -> dict[str, Any]:
         """获取路由器状态。"""
-        return {
-            m.value: available for m, available in self._availability.items()
-        }
+        return {m.value: available for m, available in self._availability.items()}
 
 
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示 FinGPT 集成。"""
@@ -468,7 +488,8 @@ def main() -> None:
     trainer.setup()
     for epoch in range(3):
         record = trainer.train_step(
-            epoch=epoch, step=epoch * 10,
+            epoch=epoch,
+            step=epoch * 10,
             loss=0.5 - epoch * 0.1,
             portfolio_return=0.02 + epoch * 0.005,
             market_return=0.01,

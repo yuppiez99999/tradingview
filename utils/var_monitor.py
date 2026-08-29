@@ -115,7 +115,9 @@ class VaRMonitor:
                     actions.append("99% VaR 超限: 减仓 20% + 加对冲")
 
         result["actions"] = actions
-        result["any_breach"] = any(result.get(f"var_{int(cl * 100)}_breach", False) for cl in confidence_levels)
+        result["any_breach"] = any(
+            result.get(f"var_{int(cl * 100)}_breach", False) for cl in confidence_levels
+        )
 
         if result["any_breach"]:
             self._log_event(result)
@@ -123,7 +125,10 @@ class VaRMonitor:
         return result
 
     def calculate_var_from_positions(
-        self, positions: list[dict[str, Any]], returns_matrix: dict[str, list[float]], portfolio_value: float
+        self,
+        positions: list[dict[str, Any]],
+        returns_matrix: dict[str, list[float]],
+        portfolio_value: float,
     ) -> dict[str, Any]:
         """从持仓明细和各标的收益率序列计算组合 VaR
 
@@ -228,7 +233,14 @@ class VaRMonitor:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"写入 VaR 日志失败: {e}")
 
     def get_event_history(self, days: int = 30) -> list[dict]:
@@ -249,7 +261,14 @@ class VaRMonitor:
                             dt = datetime.fromisoformat(ts)
                             if dt.timestamp() >= cutoff:
                                 records.append(record)
-                    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+                    except (
+                        ValueError,
+                        KeyError,
+                        TypeError,
+                        AttributeError,
+                        OSError,
+                        RuntimeError,
+                    ):
                         continue
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             pass
@@ -287,5 +306,9 @@ if __name__ == "__main__":
             logger.info("\n✅ VaR 在限额内")
 
     logger.info(f"\n历史模拟法窗口: {vm.lookback_days} 日")
-    logger.info(f"95% VaR 限额: {vm.VAR_95_LIMIT_PCT:.0%} ({vm.VAR_95_LIMIT_PCT * args.portfolio:.0f} 元)")
-    logger.info(f"99% VaR 限额: {vm.VAR_99_LIMIT_PCT:.0%} ({vm.VAR_99_LIMIT_PCT * args.portfolio:.0f} 元)")
+    logger.info(
+        f"95% VaR 限额: {vm.VAR_95_LIMIT_PCT:.0%} ({vm.VAR_95_LIMIT_PCT * args.portfolio:.0f} 元)"
+    )
+    logger.info(
+        f"99% VaR 限额: {vm.VAR_99_LIMIT_PCT:.0%} ({vm.VAR_99_LIMIT_PCT * args.portfolio:.0f} 元)"
+    )

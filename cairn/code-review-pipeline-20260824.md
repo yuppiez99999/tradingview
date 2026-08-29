@@ -53,3 +53,14 @@
 - PI-3: alpha_signals 路径统一到 REPORT_DIR。
 - PI-5: 执行路由 volatility 从真实历史数据估算, 而非硬编码 0.02。
 - PI-4: factor 乘法加 np.isfinite 守卫, 防 NaN 传播。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查明细 — 轻量子模块 (alpha/governance/macro/ml/monitoring) (2026-08-24)](code-review-lightweight-20260824.md) (相似度 21%)
+- [代码审查明细 — risk 模块 (2026-08-24)](code-review-risk-20260824.md) (相似度 20%)
+- [代码审查明细 — 量化策略系统_统一入口 (2026-08-24)](code-review-unified-entry-20260824.md) (相似度 18%)
+- [代码审查明细 — hedging 模块 (2026-08-24)](code-review-hedging-20260824.md) (相似度 17%)
+- [代码审查明细 — backtest 模块 (2026-08-24)](code-review-backtest-20260824.md) (相似度 17%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

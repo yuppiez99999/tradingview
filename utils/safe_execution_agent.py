@@ -48,8 +48,10 @@ logger = logging.getLogger("safe_execution")
 # 枚举
 # ============================================================
 
+
 class ViolationType(str, Enum):
     """违规类型."""
+
     POSITION_LIMIT = "position_limit"  # 持仓超限
     ORDER_SIZE_LIMIT = "order_size_limit"  # 单笔超限
     PARTICIPATION_LIMIT = "participation_limit"  # 市场占比超限
@@ -60,6 +62,7 @@ class ViolationType(str, Enum):
 
 class AuditStatus(str, Enum):
     """审计状态."""
+
     VERIFIED = "verified"  # 验证通过
     FAILED = "failed"  # 验证失败
     PENDING = "pending"  # 待验证
@@ -68,6 +71,7 @@ class AuditStatus(str, Enum):
 # ============================================================
 # 约束定义
 # ============================================================
+
 
 @dataclass
 class ExecutionConstraints:
@@ -80,6 +84,7 @@ class ExecutionConstraints:
         max_cvar: CVaR 上限 (bps)
         price_limit_pct: 涨跌停限制 (如 0.1 = ±10%)
     """
+
     max_position: float = 100_000.0  # 最大持仓 10 万股
     max_order_size: float = 50_000.0  # 单笔最大 5 万股
     max_participation: float = 0.10  # 最大市场占比 10%
@@ -90,6 +95,7 @@ class ExecutionConstraints:
 @dataclass
 class ConstraintViolation:
     """约束违规记录."""
+
     type: ViolationType
     value: float
     limit: float
@@ -99,6 +105,7 @@ class ConstraintViolation:
 # ============================================================
 # 约束 MDP (Constrained Markov Decision Process)
 # ============================================================
+
 
 class ConstrainedMDP:
     """约束马尔可夫决策过程.
@@ -136,43 +143,51 @@ class ConstrainedMDP:
         # 1. 持仓限制
         new_position = current_position + order_shares
         if abs(new_position) > c.max_position:
-            violations.append(ConstraintViolation(
-                type=ViolationType.POSITION_LIMIT,
-                value=abs(new_position),
-                limit=c.max_position,
-                message=f"持仓 {new_position:.0f} 超限 {c.max_position:.0f}",
-            ))
+            violations.append(
+                ConstraintViolation(
+                    type=ViolationType.POSITION_LIMIT,
+                    value=abs(new_position),
+                    limit=c.max_position,
+                    message=f"持仓 {new_position:.0f} 超限 {c.max_position:.0f}",
+                )
+            )
 
         # 2. 单笔限额
         if abs(order_shares) > c.max_order_size:
-            violations.append(ConstraintViolation(
-                type=ViolationType.ORDER_SIZE_LIMIT,
-                value=abs(order_shares),
-                limit=c.max_order_size,
-                message=f"单笔 {abs(order_shares):.0f} 超限 {c.max_order_size:.0f}",
-            ))
+            violations.append(
+                ConstraintViolation(
+                    type=ViolationType.ORDER_SIZE_LIMIT,
+                    value=abs(order_shares),
+                    limit=c.max_order_size,
+                    message=f"单笔 {abs(order_shares):.0f} 超限 {c.max_order_size:.0f}",
+                )
+            )
 
         # 3. 市场占比
         if adv > 0:
             participation = abs(order_shares) / adv
             if participation > c.max_participation:
-                violations.append(ConstraintViolation(
-                    type=ViolationType.PARTICIPATION_LIMIT,
-                    value=participation,
-                    limit=c.max_participation,
-                    message=f"参与度 {participation:.2%} 超限 {c.max_participation:.2%}",
-                ))
+                violations.append(
+                    ConstraintViolation(
+                        type=ViolationType.PARTICIPATION_LIMIT,
+                        value=participation,
+                        limit=c.max_participation,
+                        message=f"参与度 {participation:.2%} 超限 {c.max_participation:.2%}",
+                    )
+                )
 
         # 4. 涨跌停
         if reference_price > 0 and price > 0:
             price_change = abs(price - reference_price) / reference_price
             if price_change > c.price_limit_pct:
-                violations.append(ConstraintViolation(
-                    type=ViolationType.PRICE_LIMIT,
-                    value=price_change,
-                    limit=c.price_limit_pct,
-                    message=f"价格变动 {price_change:.2%} 超限 {c.price_limit_pct:.2%}",
-                ))
+                violations.append(
+                    ConstraintViolation(
+                        type=ViolationType.PRICE_LIMIT,
+                        value=price_change,
+                        limit=c.price_limit_pct,
+                        message=f"价格变动 {price_change:.2%} 超限 {c.price_limit_pct:.2%}",
+                    )
+                )
 
         return violations
 
@@ -185,9 +200,18 @@ class ConstrainedMDP:
         reference_price: float = 0.0,
     ) -> bool:
         """是否合规 (无违规)."""
-        return len(self.check_constraints(
-            order_shares, current_position, adv, price, reference_price,
-        )) == 0
+        return (
+            len(
+                self.check_constraints(
+                    order_shares,
+                    current_position,
+                    adv,
+                    price,
+                    reference_price,
+                )
+            )
+            == 0
+        )
 
     def project_to_feasible(
         self,
@@ -208,13 +232,16 @@ class ConstrainedMDP:
         # 市场占比
         if adv > 0:
             max_by_participation = c.max_participation * adv
-            order_shares = max(-max_by_participation, min(max_by_participation, order_shares))
+            order_shares = max(
+                -max_by_participation, min(max_by_participation, order_shares)
+            )
         return order_shares
 
 
 # ============================================================
 # CVaR 尾部控制
 # ============================================================
+
 
 class CVaRController:
     """CVaR (Conditional Value at Risk) 尾部控制.
@@ -277,9 +304,11 @@ class CVaRController:
 # 零知识审计
 # ============================================================
 
+
 @dataclass
 class AuditRecord:
     """审计记录."""
+
     order_hash: str  # 订单哈希承诺
     constraint_hash: str  # 约束哈希
     compliant: bool  # 是否合规
@@ -354,9 +383,11 @@ class ZeroKnowledgeAudit:
 # 安全执行代理
 # ============================================================
 
+
 @dataclass
 class SafeExecutionResult:
     """安全执行结果."""
+
     symbol: str
     original_order: float
     adjusted_order: float  # 调整后订单
@@ -391,7 +422,8 @@ class SafeExecutionAgent:
     ) -> None:
         self.mdp = ConstrainedMDP(constraints)
         self.cvar_controller = CVaRController(
-            alpha=cvar_alpha, max_cvar=self.mdp.constraints.max_cvar,
+            alpha=cvar_alpha,
+            max_cvar=self.mdp.constraints.max_cvar,
         )
         self.audit = ZeroKnowledgeAudit()
         self._rng = np.random.default_rng(seed)
@@ -424,13 +456,19 @@ class SafeExecutionAgent:
         """
         # 1. 约束检查
         violations = self.mdp.check_constraints(
-            order_shares, current_position, adv, price, reference_price,
+            order_shares,
+            current_position,
+            adv,
+            price,
+            reference_price,
         )
 
         # 2. 投影到可行域 (如果有违规)
         if violations:
             adjusted_order = self.mdp.project_to_feasible(
-                order_shares, current_position, adv,
+                order_shares,
+                current_position,
+                adv,
             )
         else:
             adjusted_order = order_shares
@@ -448,18 +486,25 @@ class SafeExecutionAgent:
         cvar_passed, cvar_value = self.cvar_controller.check_cvar(losses)
         if not cvar_passed:
             adjusted_order = self.cvar_controller.adjust_order_for_cvar(
-                adjusted_order, losses,
+                adjusted_order,
+                losses,
             )
-            violations.append(ConstraintViolation(
-                type=ViolationType.CVAR_BREACH,
-                value=cvar_value,
-                limit=self.cvar_controller.max_cvar,
-                message=f"CVaR {cvar_value:.2f} 超限 {self.cvar_controller.max_cvar:.2f}",
-            ))
+            violations.append(
+                ConstraintViolation(
+                    type=ViolationType.CVAR_BREACH,
+                    value=cvar_value,
+                    limit=self.cvar_controller.max_cvar,
+                    message=f"CVaR {cvar_value:.2f} 超限 {self.cvar_controller.max_cvar:.2f}",
+                )
+            )
 
         # 4. 重新检查调整后的订单
         final_violations = self.mdp.check_constraints(
-            adjusted_order, current_position, adv, price, reference_price,
+            adjusted_order,
+            current_position,
+            adv,
+            price,
+            reference_price,
         )
         compliant = len(final_violations) == 0
 
@@ -527,6 +572,7 @@ class SafeExecutionAgent:
 # CLI 入口
 # ============================================================
 
+
 def main() -> None:
     """CLI 入口: 演示安全合规跨市场执行."""
     print("=" * 60)
@@ -539,8 +585,12 @@ def main() -> None:
     # === 1. 合规执行 ===
     print("\n--- 1. 合规执行 ---")
     result = agent.execute_safely(
-        symbol="600519", order_shares=5000, adv=500000,
-        current_position=10000, price=1800.0, reference_price=1800.0,
+        symbol="600519",
+        order_shares=5000,
+        adv=500000,
+        current_position=10000,
+        price=1800.0,
+        reference_price=1800.0,
         timestamp="2026-08-23",
     )
     print(f"  标的: {result.symbol}")
@@ -552,8 +602,11 @@ def main() -> None:
     # === 2. 违规执行 (持仓超限) ===
     print("\n--- 2. 违规执行 (持仓超限) ---")
     result2 = agent.execute_safely(
-        symbol="600519", order_shares=200000, adv=500000,
-        current_position=50000, price=1800.0,
+        symbol="600519",
+        order_shares=200000,
+        adv=500000,
+        current_position=50000,
+        price=1800.0,
     )
     print(f"  原始订单: {result2.original_order}")
     print(f"  调整订单: {result2.adjusted_order:.0f} (投影到可行域)")
@@ -564,8 +617,11 @@ def main() -> None:
     # === 3. 违规执行 (市场占比超限) ===
     print("\n--- 3. 违规执行 (市场占比超限) ---")
     result3 = agent.execute_safely(
-        symbol="000001", order_shares=50000, adv=100000,
-        current_position=0, price=15.0,
+        symbol="000001",
+        order_shares=50000,
+        adv=100000,
+        current_position=0,
+        price=15.0,
     )
     print(f"  原始订单: {result3.original_order}")
     print(f"  调整订单: {result3.adjusted_order:.0f}")
@@ -574,9 +630,24 @@ def main() -> None:
     # === 4. 批量执行 ===
     print("\n--- 4. 批量执行 ---")
     orders = [
-        {"symbol": "600519", "order_shares": 5000, "adv": 500000, "current_position": 10000},
-        {"symbol": "000001", "order_shares": 2000, "adv": 1000000, "current_position": 5000},
-        {"symbol": "601318", "order_shares": 8000, "adv": 300000, "current_position": 20000},
+        {
+            "symbol": "600519",
+            "order_shares": 5000,
+            "adv": 500000,
+            "current_position": 10000,
+        },
+        {
+            "symbol": "000001",
+            "order_shares": 2000,
+            "adv": 1000000,
+            "current_position": 5000,
+        },
+        {
+            "symbol": "601318",
+            "order_shares": 8000,
+            "adv": 300000,
+            "current_position": 20000,
+        },
     ]
     results = agent.batch_execute_safely(orders)
     all_compliant = all(r.compliant for r in results)

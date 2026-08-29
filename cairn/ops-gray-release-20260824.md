@@ -46,3 +46,14 @@
 - [ ] 灰度 stage_2(50%) 运行 ≥ 1 周, 无 fail-fast
 - [ ] 灰度 stage_3(100%) 运行 ≥ 2 周, 偏离回测 ≤ 30%
 - [ ] TRADING_ENV=production 双签完成
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [影子观察期真实性核查 (2026-08-24)](shadow-realness-audit-20260824.md) (相似度 36%)
+- [DTE-1 建仓接入 FillsStore 事实源 (2026-08-24)](dte1-build-fills-store-20260824.md) (相似度 26%)
+- [P3.0 影子账户闭环门禁 (2026-08-26)](p3-0-gate.md) (相似度 24%)
+- [实盘准入框架：12-31 上实盘的 7 项硬性门槛与 6 个决策门](live-trading-admission-criteria-20260811.md) (相似度 18%)
+- [风控 fail-close 完整化 (2026-08-24)](risk-failclose-complete-20260824.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

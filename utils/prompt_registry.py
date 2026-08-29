@@ -36,6 +36,7 @@ Tier M/D 确认门禁模式, 为本系统 GLM-5/豆包/DeepSeek 的 prompt 提�
 
 集成日期: 2026-08-25 (借鉴 google-skills prompt-management 模式)
 """
+
 from __future__ import annotations
 
 import logging
@@ -70,7 +71,9 @@ class PromptVersion:
     """prompt 单版本."""
 
     template: str
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    created_at: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
     notes: str = ""
 
 
@@ -111,7 +114,9 @@ class PromptRegistry:
         auto_confirm: True 时跳过 Tier M/D 交互确认 (CI/测试用).
     """
 
-    def __init__(self, store_path: Optional[Path] = None, *, auto_confirm: bool = False):
+    def __init__(
+        self, store_path: Optional[Path] = None, *, auto_confirm: bool = False
+    ):
         self.store_path = Path(store_path) if store_path else _DEFAULT_STORE
         self.auto_confirm = auto_confirm
         self._records: dict[str, PromptRecord] = {}
@@ -156,13 +161,17 @@ class PromptRegistry:
             return
         self.store_path.parent.mkdir(parents=True, exist_ok=True)
         data = {"prompts": {n: r.to_dict() for n, r in self._records.items()}}
-        self.store_path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        self.store_path.write_text(
+            yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8"
+        )
 
     # ------------------------------------------------------------
     # CRUD (带 Tier 分级)
     # ------------------------------------------------------------
 
-    @tier_m("注册 prompt", params_extractor=lambda self, name, **kw: {"name": name, **kw})
+    @tier_m(
+        "注册 prompt", params_extractor=lambda self, name, **kw: {"name": name, **kw}
+    )
     def register(
         self,
         name: str,
@@ -191,10 +200,14 @@ class PromptRegistry:
                     cur.notes = notes
                 else:
                     rec.latest += 1
-                    rec.versions[str(rec.latest)] = PromptVersion(template=template, notes=notes)
+                    rec.versions[str(rec.latest)] = PromptVersion(
+                        template=template, notes=notes
+                    )
             else:
                 rec.latest += 1
-                rec.versions[str(rec.latest)] = PromptVersion(template=template, notes=notes)
+                rec.versions[str(rec.latest)] = PromptVersion(
+                    template=template, notes=notes
+                )
             rec.variables = variables or rec.variables
             rec.target_model = target_model or rec.target_model
             rec.description = description or rec.description
@@ -250,8 +263,13 @@ class PromptRegistry:
     # 模板组装
     # ------------------------------------------------------------
 
-    @tier_r("组装 prompt", params_extractor=lambda self, name, **kw: {"name": name, "vars": kw})
-    def assemble(self, name: str, version: Optional[int] = None, **variables: Any) -> str:
+    @tier_r(
+        "组装 prompt",
+        params_extractor=lambda self, name, **kw: {"name": name, "vars": kw},
+    )
+    def assemble(
+        self, name: str, version: Optional[int] = None, **variables: Any
+    ) -> str:
         """组装 prompt: 拉取模板 + 替换变量 (Tier R).
 
         缺失变量保留原 {{var}} 占位并告警, 不抛异常.
@@ -289,11 +307,18 @@ class PromptRegistry:
         """查看 prompt 版本历史 (Tier R)."""
         rec = self.get(name)
         return [
-            {"version": int(v), "created_at": vd.created_at, "notes": vd.notes, "template_preview": vd.template[:80]}
+            {
+                "version": int(v),
+                "created_at": vd.created_at,
+                "notes": vd.notes,
+                "template_preview": vd.template[:80],
+            }
             for v, vd in sorted(rec.versions.items(), key=lambda x: int(x[0]))
         ]
 
-    def migrate_from_string(self, name: str, template: str, *, target_model: str = "") -> int:
+    def migrate_from_string(
+        self, name: str, template: str, *, target_model: str = ""
+    ) -> int:
         """从硬编码字符串迁移到注册中心 (幂等, 同内容不新增版本)."""
         if name in self._records:
             rec = self._records[name]
@@ -303,7 +328,9 @@ class PromptRegistry:
                     return rec.latest
             except KeyError:
                 pass
-        return self.register(name, template, target_model=target_model, description="从硬编码迁移")
+        return self.register(
+            name, template, target_model=target_model, description="从硬编码迁移"
+        )
 
 
 __all__ = ["PromptRegistry", "PromptRecord", "PromptVersion"]

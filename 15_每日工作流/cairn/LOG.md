@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录本模块的实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-27 · EOD 收盘审核阶段 (phase6) 集成
+
+- **任务**: 每天收盘自动审核数据质量+盘中决策情况，生成审核报告
+- **新增**: `run_eod_audit.py` — 审核 PnL 数据质量 (HEALTHY/FALLBACK_HEAVY/NOSIGNAL_*) + 盘中决策成功/失败统计 + 数据源告警检查 + 交易计划可信度判定
+- **集成**: `run_daily_eod_workflow.py` 添加 phase6 审核阶段 (归档后调用) + `--skip-audit` 参数
+- **输出**: `每日报告归档/YYYY-MM-DD/eod_audit_report.md`，退出码 0=通过/1=不通过
+- **验证**: 2026-08-27 审核结果"不通过"（数据92%兜底+12次盘中决策全失败），正确识别交易计划不可信
+- **指针**: `run_eod_audit.py` · `run_daily_eod_workflow.py:run_phase6_audit`
+
 ## 2026-08-26 · morning_info_runner 两阶段并行化
 
 - **改动**: `morning_info_runner.py` run_all() 从串行改为两阶段并行 — 任务1-6用`ThreadPoolExecutor(max_workers=4)`并行, 任务7(大宗商品扫描, 依赖任务1的json+任务4的舆情)在阶段2串行

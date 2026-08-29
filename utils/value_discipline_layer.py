@@ -36,8 +36,8 @@ class MasterView:
 
 @dataclass
 class DisciplinedSignal:
-    signal: Any                       # 增强后的 TradingSignal
-    verdict: str = "grey"             # pass / fail / grey
+    signal: Any  # 增强后的 TradingSignal
+    verdict: str = "grey"  # pass / fail / grey
     price_band: Optional[tuple[float, float]] = None
     tier_advice: dict[str, str] = field(default_factory=dict)
     masters: dict[str, MasterView] = field(default_factory=dict)
@@ -107,7 +107,9 @@ class ValueDisciplineLayer:
             return [DisciplinedSignal(signal=s) for s in signals]
 
         max_workers = min(8, max(1, len(signals)))
-        results: list[DisciplinedSignal] = [DisciplinedSignal(signal=s) for s in signals]
+        results: list[DisciplinedSignal] = [
+            DisciplinedSignal(signal=s) for s in signals
+        ]
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             future_to_idx = {}
             for idx, sig in enumerate(signals):
@@ -135,7 +137,11 @@ class ValueDisciplineLayer:
         qs_cfg = self.config.get("quality_screen", {})
         thresholds = qs_cfg.get("indicators", {})
         is_bank = meta.get("is_bank_insurance", False)
-        screen = screen_quality(fin, thresholds, is_bank) if qs_cfg.get("enabled", True) else None
+        screen = (
+            screen_quality(fin, thresholds, is_bank)
+            if qs_cfg.get("enabled", True)
+            else None
+        )
 
         # ③ 四大师对抗
         masters = self._run_four_masters(signal, fin, grade)
@@ -196,7 +202,11 @@ class ValueDisciplineLayer:
             prompt = builder(stock_name, fin, signal, grade)
             try:
                 raw = self._llm_caller(prompt)
-                text = raw.strip() if isinstance(raw, str) else getattr(raw, "content", "").strip()
+                text = (
+                    raw.strip()
+                    if isinstance(raw, str)
+                    else getattr(raw, "content", "").strip()
+                )
                 start, end = text.find("{"), text.rfind("}")
                 if start == -1 or end == -1:
                     return MasterView(master=master, available=False)
@@ -273,7 +283,9 @@ class ValueDisciplineLayer:
         avg = avg_score / cnt if cnt else 0.0
         tier = {
             "激进": f"当前价位可建仓, 大师均分 {avg:.1f}/5" if avg >= 3.5 else "观望",
-            "稳健": f"等回调至 {band[0] if band else 'N/A'} 附近建仓" if band else "观望",
+            "稳健": (
+                f"等回调至 {band[0] if band else 'N/A'} 附近建仓" if band else "观望"
+            ),
             "保守": "不符合 10 年确定性标准, 观望" if avg < 4.0 else "可小仓位建仓",
         }
         return band, tier
@@ -305,10 +317,18 @@ class ValueDisciplineLayer:
         urgency = getattr(signal, "urgency", "MEDIUM")
 
         if screen is not None and screen.hard_fail:
-            action = self.config.get("quality_screen", {}).get("hard_fail_action", "REDUCE")
+            action = self.config.get("quality_screen", {}).get(
+                "hard_fail_action", "REDUCE"
+            )
             urgency = "HIGH"
-            extra_alerts.append(self._make_alert(signal, "QUALITY_FAIL", "HIGH",
-                f"去劣硬否决: {screen.detail.get('hard_fail', '')}"))
+            extra_alerts.append(
+                self._make_alert(
+                    signal,
+                    "QUALITY_FAIL",
+                    "HIGH",
+                    f"去劣硬否决: {screen.detail.get('hard_fail', '')}",
+                )
+            )
         if not mirror_ok and action not in ("HOLD", "REDUCE", "SELL"):
             action = "HOLD"
             urgency = "MEDIUM"
@@ -341,8 +361,12 @@ class ValueDisciplineLayer:
                 action_required="复核财务数据, 考虑减仓或剔除",
             )
         except Exception:
-            return {"alert_type": alert_type, "severity": severity,
-                    "code": getattr(signal, "code", ""), "message": message}
+            return {
+                "alert_type": alert_type,
+                "severity": severity,
+                "code": getattr(signal, "code", ""),
+                "message": message,
+            }
 
     def render_summary(self, disciplined: list[DisciplinedSignal]) -> str:
         """生成纪律层摘要, 追加到 DecisionResult.raw_analysis。"""

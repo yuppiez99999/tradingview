@@ -24,6 +24,7 @@
 Usage:
     .venv\\Scripts\\python.exe research\\mvsk_ab_test.py
 """
+
 from __future__ import annotations
 
 import json
@@ -43,6 +44,7 @@ from utils.risk_budget_optimizer import RiskBudgetOptimizer  # noqa: E402
 # ============================================================
 # 合成收益数据生成
 # ============================================================
+
 
 def generate_a_share_returns(
     n_assets: int = 30,
@@ -86,6 +88,7 @@ def generate_a_share_returns(
 # ============================================================
 # 风险指标计算
 # ============================================================
+
 
 def compute_risk_metrics(returns: np.ndarray, weights: np.ndarray) -> dict[str, float]:
     """计算组合风险指标 (基于历史收益)."""
@@ -135,6 +138,7 @@ def turnover_cost(
 # ============================================================
 # A/B 实验主流程
 # ============================================================
+
 
 @dataclass
 class ExperimentResult:
@@ -197,7 +201,15 @@ def print_comparison(results: list[ExperimentResult]) -> None:
     print("MVSK vs MV A/B 对比 (P1: YAND 启发高阶矩优化)")
     print("=" * 88)
 
-    cols = ["年化收益", "年化波动", "年化夏普", "组合偏度", "超额峰度", "日VaR95", "日CVaR95"]
+    cols = [
+        "年化收益",
+        "年化波动",
+        "年化夏普",
+        "组合偏度",
+        "超额峰度",
+        "日VaR95",
+        "日CVaR95",
+    ]
     header = f"{'指标':<14}" + "".join(f"{r.label:>16}" for r in results)
     print(header)
     print("-" * 88)
@@ -213,7 +225,9 @@ def print_comparison(results: list[ExperimentResult]) -> None:
     print("-" * 88)
     row = f"{'换手率':<14}" + "".join(f"{r.turnover:>16.4f}" for r in results)
     print(row)
-    row = f"{'交易成本(年化)':<14}" + "".join(f"{r.trade_cost * 252:>16.4f}" for r in results)
+    row = f"{'交易成本(年化)':<14}" + "".join(
+        f"{r.trade_cost * 252:>16.4f}" for r in results
+    )
     print(row)
     row = f"{'成本后净收益':<14}" + "".join(f"{r.net_return:>16.4f}" for r in results)
     print(row)
@@ -238,7 +252,9 @@ def print_comparison(results: list[ExperimentResult]) -> None:
 
 def main() -> int:
     print("生成合成 A 股收益数据 (30 资产 × 504 日)...")
-    R, mu, cov = generate_a_share_returns(n_assets=30, n_days=504, seed=42)  # noqa: N806
+    R, mu, cov = generate_a_share_returns(
+        n_assets=30, n_days=504, seed=42
+    )  # noqa: N806
 
     # 基准权重: 等权
     n = len(mu)
@@ -247,8 +263,12 @@ def main() -> int:
     # 数据诊断
     rp_bench = R @ w_bench
     bench_skew = float(((rp_bench - rp_bench.mean()) ** 3).mean() / rp_bench.std() ** 3)
-    bench_kurt = float(((rp_bench - rp_bench.mean()) ** 4).mean() / rp_bench.std() ** 4 - 3.0)
-    print(f"基准组合偏度={bench_skew:.4f}  超额峰度={bench_kurt:.4f}  (期望: 负偏度+肥尾)")
+    bench_kurt = float(
+        ((rp_bench - rp_bench.mean()) ** 4).mean() / rp_bench.std() ** 4 - 3.0
+    )
+    print(
+        f"基准组合偏度={bench_skew:.4f}  超额峰度={bench_kurt:.4f}  (期望: 负偏度+肥尾)"
+    )
 
     # 三组实验
     results = [

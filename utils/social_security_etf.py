@@ -28,8 +28,18 @@ SOCIAL_SECURITY_STYLES: dict[str, dict[str, Any]] = {
         "description": "金融、有色、钢铁等顺周期板块，受益于经济复苏",
         "representative_stocks": ["南山铝业", "南钢股份", "中稀有色", "藏格矿业"],
         "matching_etfs": [
-            {"code": "512880", "name": "证券ETF国泰", "category": "金融主题", "match_score": 85},
-            {"code": "512800", "name": "银行ETF华宝", "category": "金融主题", "match_score": 82},
+            {
+                "code": "512880",
+                "name": "证券ETF国泰",
+                "category": "金融主题",
+                "match_score": 85,
+            },
+            {
+                "code": "512800",
+                "name": "银行ETF华宝",
+                "category": "金融主题",
+                "match_score": 82,
+            },
         ],
         "cycle_signal": "当前康波复苏期，顺周期标配",
         "recommended_action": "标配",
@@ -39,11 +49,36 @@ SOCIAL_SECURITY_STYLES: dict[str, dict[str, Any]] = {
         "description": "电气设备、机械、软件服务等先进制造业，十五五核心方向",
         "representative_stocks": ["山推股份", "璞泰来", "天华新能", "中航光电"],
         "matching_etfs": [
-            {"code": "588000", "name": "科创50ETF华夏", "category": "成长科技", "match_score": 95},
-            {"code": "512760", "name": "半导体ETF国泰", "category": "科技主题", "match_score": 92},
-            {"code": "515030", "name": "新能源车ETF华夏", "category": "新能源主题", "match_score": 88},
-            {"code": "512100", "name": "中证1000ETF南方", "category": "小盘风格", "match_score": 85},
-            {"code": "159915", "name": "创业板ETF易方达", "category": "成长科技", "match_score": 82},
+            {
+                "code": "588000",
+                "name": "科创50ETF华夏",
+                "category": "成长科技",
+                "match_score": 95,
+            },
+            {
+                "code": "512760",
+                "name": "半导体ETF国泰",
+                "category": "科技主题",
+                "match_score": 92,
+            },
+            {
+                "code": "515030",
+                "name": "新能源车ETF华夏",
+                "category": "新能源主题",
+                "match_score": 88,
+            },
+            {
+                "code": "512100",
+                "name": "中证1000ETF南方",
+                "category": "小盘风格",
+                "match_score": 85,
+            },
+            {
+                "code": "159915",
+                "name": "创业板ETF易方达",
+                "category": "成长科技",
+                "match_score": 82,
+            },
         ],
         "cycle_signal": "康波复苏期+十五五双重驱动，超配",
         "recommended_action": "超配",
@@ -53,7 +88,12 @@ SOCIAL_SECURITY_STYLES: dict[str, dict[str, Any]] = {
         "description": "黄金、有色、稀土等资源类，受益于全球通胀与资源重估",
         "representative_stocks": ["山金国际", "藏格矿业", "中稀有色", "高能环境"],
         "matching_etfs": [
-            {"code": "518880", "name": "黄金ETF华安", "category": "避险资产", "match_score": 90},
+            {
+                "code": "518880",
+                "name": "黄金ETF华安",
+                "category": "避险资产",
+                "match_score": 90,
+            },
         ],
         "cycle_signal": "康波复苏期资源需求上升，标配",
         "recommended_action": "标配",
@@ -63,9 +103,24 @@ SOCIAL_SECURITY_STYLES: dict[str, dict[str, Any]] = {
         "description": "医药、消费等确定性增长板块，作为组合压舱石",
         "representative_stocks": ["国药股份", "科伦药业", "同仁堂", "伊利股份"],
         "matching_etfs": [
-            {"code": "512170", "name": "医疗ETF华宝", "category": "医药主题", "match_score": 88},
-            {"code": "512010", "name": "医药ETF易方达", "category": "医药主题", "match_score": 86},
-            {"code": "510300", "name": "沪深300ETF华泰柏瑞", "category": "宽基核心", "match_score": 75},
+            {
+                "code": "512170",
+                "name": "医疗ETF华宝",
+                "category": "医药主题",
+                "match_score": 88,
+            },
+            {
+                "code": "512010",
+                "name": "医药ETF易方达",
+                "category": "医药主题",
+                "match_score": 86,
+            },
+            {
+                "code": "510300",
+                "name": "沪深300ETF华泰柏瑞",
+                "category": "宽基核心",
+                "match_score": 75,
+            },
         ],
         "cycle_signal": "防御配置，提供下行保护",
         "recommended_action": "标配",
@@ -75,11 +130,11 @@ SOCIAL_SECURITY_STYLES: dict[str, dict[str, Any]] = {
 
 # 国家队资金流向信号阈值（借鉴 etf_tracker.py 的 Wind MCP 数据）
 NATIONAL_TEAM_SIGNAL_CONFIG: dict[str, Any] = {
-    "high_threshold_yi": 50,     # 50亿以上 → 强信号
-    "medium_threshold_yi": 10,   # 10亿以上 → 中等信号
-    "low_threshold_yi": 2,       # 2亿以上 → 关注信号
-    "trend_days": 5,             # 5日趋势检测
-    "consecutive_days": 3,       # 连续3日同向 → 确认信号
+    "high_threshold_yi": 50,  # 50亿以上 → 强信号
+    "medium_threshold_yi": 10,  # 10亿以上 → 中等信号
+    "low_threshold_yi": 2,  # 2亿以上 → 关注信号
+    "trend_days": 5,  # 5日趋势检测
+    "consecutive_days": 3,  # 连续3日同向 → 确认信号
     "state_keywords": ["中央汇金", "证金", "社保", "国家队", "中投", "国新"],
 }
 
@@ -87,6 +142,7 @@ NATIONAL_TEAM_SIGNAL_CONFIG: dict[str, Any] = {
 # ============================================================
 # 风格分类器
 # ============================================================
+
 
 class SocialSecurityStyleClassifier:
     """
@@ -123,15 +179,17 @@ class SocialSecurityStyleClassifier:
                 code = etf["code"]
                 if code not in seen:
                     seen.add(code)
-                    results.append({
-                        "code": code,
-                        "name": etf["name"],
-                        "social_style": style_name,
-                        "match_score": etf["match_score"],
-                        "style_weight": style_config["weight"],
-                        "recommended_action": style_config["recommended_action"],
-                        "cycle_signal": style_config["cycle_signal"],
-                    })
+                    results.append(
+                        {
+                            "code": code,
+                            "name": etf["name"],
+                            "social_style": style_name,
+                            "match_score": etf["match_score"],
+                            "style_weight": style_config["weight"],
+                            "recommended_action": style_config["recommended_action"],
+                            "cycle_signal": style_config["cycle_signal"],
+                        }
+                    )
 
         results.sort(key=lambda x: x["match_score"], reverse=True)
         return results
@@ -156,6 +214,7 @@ class SocialSecurityStyleClassifier:
 # ============================================================
 # 国家队信号检测器
 # ============================================================
+
 
 class NationalTeamSignalDetector:
     """
@@ -208,23 +267,31 @@ class NationalTeamSignalDetector:
             # 获取社保基金风格分类
             style_info = self.classifier.classify_etf(code)
 
-            signals.append({
-                "code": code,
-                "name": data.get("name", code),
-                "category": data.get("category", "未知"),
-                "net_flow_yi": net_flow,
-                "trend": trend,
-                "signal_type": signal_type,
-                "confidence": confidence,
-                "social_style": style_info["social_style"] if style_info else "未匹配",
-                "style_recommendation": style_info["recommended_action"] if style_info else "-",
-            })
+            signals.append(
+                {
+                    "code": code,
+                    "name": data.get("name", code),
+                    "category": data.get("category", "未知"),
+                    "net_flow_yi": net_flow,
+                    "trend": trend,
+                    "signal_type": signal_type,
+                    "confidence": confidence,
+                    "social_style": (
+                        style_info["social_style"] if style_info else "未匹配"
+                    ),
+                    "style_recommendation": (
+                        style_info["recommended_action"] if style_info else "-"
+                    ),
+                }
+            )
 
         # 排序：置信度 > 净流入金额
-        signals.sort(key=lambda x: (
-            0 if x["confidence"] == "高" else 1 if x["confidence"] == "中" else 2,
-            -abs(x["net_flow_yi"])
-        ))
+        signals.sort(
+            key=lambda x: (
+                0 if x["confidence"] == "高" else 1 if x["confidence"] == "中" else 2,
+                -abs(x["net_flow_yi"]),
+            )
+        )
 
         return signals
 
@@ -271,6 +338,7 @@ class NationalTeamSignalDetector:
 # 社保基金ETF追踪器（主类）
 # ============================================================
 
+
 class SocialSecurityETFTracker:
     """
     社保基金ETF风格追踪器 v2.0
@@ -302,21 +370,28 @@ class SocialSecurityETFTracker:
         if flow_data:
             result["signals"] = self.detector.detect_signals(flow_data)
             result["style_flows"] = self.detector.get_style_flow_summary(
-                result["signals"])
+                result["signals"]
+            )
 
         # 生成静态配置建议（基于风格权重）
         for style_name, style_config in SOCIAL_SECURITY_STYLES.items():
-            result["recommendations"].append({
-                "style": style_name,
-                "target_weight": style_config["weight"],
-                "action": style_config["recommended_action"],
-                "rationale": style_config["cycle_signal"],
-                "matching_etfs": [e["name"] for e in style_config["matching_etfs"][:2]],
-            })
+            result["recommendations"].append(
+                {
+                    "style": style_name,
+                    "target_weight": style_config["weight"],
+                    "action": style_config["recommended_action"],
+                    "rationale": style_config["cycle_signal"],
+                    "matching_etfs": [
+                        e["name"] for e in style_config["matching_etfs"][:2]
+                    ],
+                }
+            )
 
         return result
 
-    def generate_report(self, flow_data: dict | None = None, save_dir: str | None = None) -> str:
+    def generate_report(
+        self, flow_data: dict | None = None, save_dir: str | None = None
+    ) -> str:
         """生成社保基金ETF风格追踪报告"""
         analysis = self.analyze(flow_data)
 
@@ -337,7 +412,9 @@ class SocialSecurityETFTracker:
         lines.append("|------|---------|---------|---------|---------|")
         for r in analysis["recommendations"]:
             etfs = "、".join(r["matching_etfs"])
-            lines.append(f"| **{r['style']}** | {r['target_weight']:.0%} | **{r['action']}** | {r['rationale']} | {etfs} |")
+            lines.append(
+                f"| **{r['style']}** | {r['target_weight']:.0%} | **{r['action']}** | {r['rationale']} | {etfs} |"
+            )
         lines.append("")
 
         # 二、ETF风格分类
@@ -347,7 +424,9 @@ class SocialSecurityETFTracker:
         lines.append("| ETF名称 | 代码 | 社保风格 | 匹配度 | 风格权重 |")
         lines.append("|---------|------|---------|--------|---------|")
         for etf in analysis["etf_classifications"][:15]:
-            lines.append(f"| {etf['name']} | {etf['code']} | {etf['social_style']} | {etf['match_score']} | {etf['style_weight']:.0%} |")
+            lines.append(
+                f"| {etf['name']} | {etf['code']} | {etf['social_style']} | {etf['match_score']} | {etf['style_weight']:.0%} |"
+            )
         lines.append("")
 
         # 三、国家队资金信号（如有数据）
@@ -355,10 +434,14 @@ class SocialSecurityETFTracker:
             lines.append("---")
             lines.append("## 三、国家队资金流向信号")
             lines.append("")
-            lines.append("| ETF名称 | 代码 | 净流入(亿) | 信号类型 | 置信度 | 社保风格 |")
+            lines.append(
+                "| ETF名称 | 代码 | 净流入(亿) | 信号类型 | 置信度 | 社保风格 |"
+            )
             lines.append("|---------|------|-----------|---------|--------|---------|")
             for s in analysis["signals"][:10]:
-                lines.append(f"| {s['name']} | {s['code']} | {s['net_flow_yi']:+.1f} | {s['signal_type']} | {s['confidence']} | {s['social_style']} |")
+                lines.append(
+                    f"| {s['name']} | {s['code']} | {s['net_flow_yi']:+.1f} | {s['signal_type']} | {s['confidence']} | {s['social_style']} |"
+                )
             lines.append("")
 
         # 四、投资建议
@@ -367,8 +450,14 @@ class SocialSecurityETFTracker:
         lines.append("")
 
         for r in analysis["recommendations"]:
-            icon = "📈" if r["action"] == "超配" else "📊" if r["action"] == "标配" else "📉"
-            lines.append(f"{icon} **{r['style']}**（{r['target_weight']:.0%}）：{r['action']}")
+            icon = (
+                "📈"
+                if r["action"] == "超配"
+                else "📊" if r["action"] == "标配" else "📉"
+            )
+            lines.append(
+                f"{icon} **{r['style']}**（{r['target_weight']:.0%}）：{r['action']}"
+            )
             lines.append(f"  - {r['rationale']}")
             lines.append(f"  - 推荐ETF：{', '.join(r['matching_etfs'])}")
             lines.append("")
@@ -381,9 +470,10 @@ class SocialSecurityETFTracker:
 
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
-            filepath = os.path.join(save_dir,
-                f"社保基金ETF追踪_{datetime.now().strftime('%Y%m%d')}.md")
-            with open(filepath, 'w', encoding='utf-8') as f:
+            filepath = os.path.join(
+                save_dir, f"社保基金ETF追踪_{datetime.now().strftime('%Y%m%d')}.md"
+            )
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report)
             logger.info(f"[SocialSecurityETF] 报告已保存: {filepath}")
 
@@ -399,12 +489,16 @@ if __name__ == "__main__":
 
     logger.info("\n=== 社保基金风格分类 ===")
     for etf in tracker.classifier.get_all_etf_classifications():
-        logger.info(f"  {etf['name']} → {etf['social_style']} (匹配度={etf['match_score']})")
+        logger.info(
+            f"  {etf['name']} → {etf['social_style']} (匹配度={etf['match_score']})"
+        )
 
     logger.info("\n=== 风格配置摘要 ===")
     summary = tracker.classifier.get_style_summary()
     for style, info in summary.items():
-        logger.info(f"  {style}: 权重={info['weight']:.0%}, 建议={info['recommended_action']}")
+        logger.info(
+            f"  {style}: 权重={info['weight']:.0%}, 建议={info['recommended_action']}"
+        )
         logger.info(f"    ETF: {info['top_etfs']}")
         logger.info(f"    个股: {info['top_stocks']}")
 

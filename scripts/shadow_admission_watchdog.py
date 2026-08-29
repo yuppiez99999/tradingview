@@ -29,6 +29,7 @@
     # 定时任务 (17:00 自动触发)
     # 已注册为 v84_ShadowAdmissionWatchdog (见 register_all_tasks_unified.ps1)
 """
+
 from __future__ import annotations
 
 import json
@@ -55,8 +56,7 @@ MAIN_TASK_NAME = "v84_ShadowAdmissionDaily"
 
 # NO_PROXY (项目硬约束: akshare/requests 前必须设置, 否则系统代理拒绝国内金融 API)
 NO_PROXY_VALUE = (
-    "push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com,"
-    "sinajs.cn,sina.com.cn"
+    "push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com," "sinajs.cn,sina.com.cn"
 )
 
 # 退避时间 (秒) — 避免与主任务竞态
@@ -168,7 +168,16 @@ def query_task_status(task_name: str) -> dict[str, str]:
             elif line.startswith("Next Run Time:"):
                 info["next_run"] = line.split(":", 1)[1].strip()
         return info
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {"last_run": "?", "last_result": f"error: {e}", "next_run": "?"}
 
@@ -185,7 +194,9 @@ def translate_task_result(result_str: str) -> str:
     return TASK_RESULT_CODES.get(result_str, f"未知状态码 {result_str}")
 
 
-def is_main_task_running(state_file: Path, threshold_seconds: int = MAIN_TASK_RUNNING_THRESHOLD) -> bool:
+def is_main_task_running(
+    state_file: Path, threshold_seconds: int = MAIN_TASK_RUNNING_THRESHOLD
+) -> bool:
     """检测主任务是否正在跑 (基于 admission_state.json mtime).
 
     主任务 cmd_daily 末尾会 _save_state() 写 admission_state.json.
@@ -247,7 +258,16 @@ def run_retry(python_exe: str, launcher_script: Path, cwd: Path) -> dict[str, An
             "stderr": (e.stderr or "") if isinstance(e.stderr, str) else "",
             "timed_out": True,
         }
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {
             "returncode": -2,
@@ -310,16 +330,28 @@ def write_alert(
         "alert_level": level,
         "detected_at": now_iso(),
         "reason": reason,
-        "task_status": {
-            **(task_info or {}),
-            "translated_result": translate_task_result(task_info["last_result"]) if task_info else None,
-        } if task_info else None,
-        "retry_result": {
-            "returncode": retry_result["returncode"],
-            "timed_out": retry_result["timed_out"],
-            "stdout_last_500_chars": (retry_result["stdout"] or "")[-500:],
-            "stderr_last_500_chars": (retry_result["stderr"] or "")[-500:],
-        } if retry_result else None,
+        "task_status": (
+            {
+                **(task_info or {}),
+                "translated_result": (
+                    translate_task_result(task_info["last_result"])
+                    if task_info
+                    else None
+                ),
+            }
+            if task_info
+            else None
+        ),
+        "retry_result": (
+            {
+                "returncode": retry_result["returncode"],
+                "timed_out": retry_result["timed_out"],
+                "stdout_last_500_chars": (retry_result["stdout"] or "")[-500:],
+                "stderr_last_500_chars": (retry_result["stderr"] or "")[-500:],
+            }
+            if retry_result
+            else None
+        ),
         "action_required": (
             "人工运行: python scripts/shadow_admission_launcher.py daily; "
             "检查 admission_state.json 与 logs/; "
@@ -375,9 +407,11 @@ def main() -> int:
         logger.info("[SKIP] admission_state.json 不存在, 观察期未启动")
         write_heartbeat(HEARTBEAT_FILE, "skipped_not_started", 0)
         write_alert(
-            SHADOW_DIR, today,
+            SHADOW_DIR,
+            today,
             reason="observation_not_started",
-            task_info=None, retry_result=None,
+            task_info=None,
+            retry_result=None,
             level="WARN",
         )
         return 0
@@ -398,21 +432,29 @@ def main() -> int:
 
     # 5. 主任务正在跑? (基于 admission_state.json mtime)
     if is_main_task_running(STATE_FILE):
-        logger.info("[SKIP] 主任务 v84_ShadowAdmissionDaily 正在跑 (admission_state.json mtime < %ds), 跳过本次检查",
-                    MAIN_TASK_RUNNING_THRESHOLD)
+        logger.info(
+            "[SKIP] 主任务 v84_ShadowAdmissionDaily 正在跑 (admission_state.json mtime < %ds), 跳过本次检查",
+            MAIN_TASK_RUNNING_THRESHOLD,
+        )
         write_heartbeat(HEARTBEAT_FILE, "skipped_running", 0)
         return 0
 
     # 6. 触发补跑
     logger.info("[WARN] 今日 DSR 缺失 (%s), 触发补跑...", outcome)
     task_info = query_task_status(MAIN_TASK_NAME)
-    logger.info("[INFO] 主任务状态: last_run=%s, last_result=%s (%s)",
-                task_info["last_run"], task_info["last_result"],
-                translate_task_result(task_info["last_result"]))
+    logger.info(
+        "[INFO] 主任务状态: last_run=%s, last_result=%s (%s)",
+        task_info["last_run"],
+        task_info["last_result"],
+        translate_task_result(task_info["last_result"]),
+    )
 
     retry_result = run_retry(sys.executable, LAUNCHER_SCRIPT, PROJECT_ROOT)
-    logger.info("[RETRY] 补跑结果: returncode=%d, timed_out=%s",
-                retry_result["returncode"], retry_result["timed_out"])
+    logger.info(
+        "[RETRY] 补跑结果: returncode=%d, timed_out=%s",
+        retry_result["returncode"],
+        retry_result["timed_out"],
+    )
 
     # 7. 复检 outcome
     outcome2 = check_dsr_outcome(SHADOW_DIR, today)
@@ -424,14 +466,17 @@ def main() -> int:
     # 8. 告警
     logger.info("[CRITICAL] 补跑后 DSR 仍缺失 (outcome=%s), 写告警", outcome2)
     alert_path = write_alert(
-        SHADOW_DIR, today,
+        SHADOW_DIR,
+        today,
         reason=f"dsr_missing_after_retry (outcome_before={outcome}, outcome_after={outcome2})",
         task_info=task_info,
         retry_result=retry_result,
         level="CRITICAL",
     )
     logger.info("[CRITICAL] 告警文件: %s", alert_path)
-    logger.info("[CRITICAL] 需人工介入: python scripts/shadow_admission_launcher.py daily")
+    logger.info(
+        "[CRITICAL] 需人工介入: python scripts/shadow_admission_launcher.py daily"
+    )
     write_heartbeat(HEARTBEAT_FILE, "alerted", 1)
     return 1
 

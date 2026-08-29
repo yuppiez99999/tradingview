@@ -25,10 +25,17 @@ _TIMEOUT = 15
 def _curl(url):
     """用 curl --noproxy 直连，绕过系统代理。"""
     result = subprocess.run(
-        ["/usr/bin/curl", "-s", "--noproxy", "*",
-         "-H", "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-         url],
-        capture_output=True, timeout=_TIMEOUT,
+        [
+            "/usr/bin/curl",
+            "-s",
+            "--noproxy",
+            "*",
+            "-H",
+            "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+            url,
+        ],
+        capture_output=True,
+        timeout=_TIMEOUT,
     )
     if result.returncode != 0 or not result.stdout.strip():
         raise ConnectionError(f"请求失败: {url}")
@@ -43,6 +50,7 @@ def _curl_json(url, params=None):
     """curl 获取 JSON。"""
     if params:
         from urllib.parse import urlencode
+
         url = f"{url}?{urlencode(params)}"
     return json.loads(_curl(url))
 
@@ -51,25 +59,26 @@ def _curl_json(url, params=None):
 # 腾讯行情 API（稳定可靠，无需鉴权）
 # ---------------------------------------------------------------------------
 
+
 def _qq_code(code: str) -> str:
     """将股票代码转为腾讯行情格式。"""
     code = code.strip().replace(".SH", "").replace(".SZ", "").replace(".BJ", "")
     if code.startswith(("6", "9", "5")):
         return f"sh{code}"
-    elif code.startswith(("0", "3", "2", "1")):
+    if code.startswith(("0", "3", "2", "1")):
         return f"sz{code}"
-    elif code.startswith(("4", "8")):
+    if code.startswith(("4", "8")):
         return f"bj{code}"
     return f"sh{code}"
 
 
 def _parse_qq_quote(raw: str) -> dict:
-    """解析腾讯行情数据。格式：v_shXXXXXX="字段1~字段2~..."; """
+    """解析腾讯行情数据。格式：v_shXXXXXX="字段1~字段2~...";"""
     start = raw.find('"')
     end = raw.rfind('"')
     if start < 0 or end <= start:
         return {}
-    fields = raw[start + 1:end].split("~")
+    fields = raw[start + 1 : end].split("~")
     if len(fields) < 50:
         return {}
     return {
@@ -78,7 +87,7 @@ def _parse_qq_quote(raw: str) -> dict:
         "price": fields[3],
         "prev_close": fields[4],
         "open": fields[5],
-        "volume": fields[6],         # 手
+        "volume": fields[6],  # 手
         "buy_vol": fields[7],
         "sell_vol": fields[8],
         "high": fields[33] if len(fields) > 33 else fields[3],
@@ -88,8 +97,8 @@ def _parse_qq_quote(raw: str) -> dict:
         "turnover_amt": fields[37] if len(fields) > 37 else "-",
         "turnover_rate": fields[38] if len(fields) > 38 else "-",
         "pe": fields[39] if len(fields) > 39 else "-",
-        "market_cap": fields[45] if len(fields) > 45 else "-",    # 总市值（亿）
-        "float_cap": fields[44] if len(fields) > 44 else "-",     # 流通市值（亿）
+        "market_cap": fields[45] if len(fields) > 45 else "-",  # 总市值（亿）
+        "float_cap": fields[44] if len(fields) > 44 else "-",  # 流通市值（亿）
         "pb": fields[46] if len(fields) > 46 else "-",
         "high_52w": fields[47] if len(fields) > 47 else "-",
         "low_52w": fields[48] if len(fields) > 48 else "-",
@@ -124,6 +133,7 @@ def _fmt_pct(value) -> str:
 # 命令实现
 # ---------------------------------------------------------------------------
 
+
 def cmd_quote(code: str):
     """实时行情快照。"""
     qq_code = _qq_code(code)
@@ -131,7 +141,6 @@ def cmd_quote(code: str):
     d = _parse_qq_quote(raw)
     if not d:
         return
-
 
 
 def cmd_valuation(code: str):
@@ -144,7 +153,6 @@ def cmd_valuation(code: str):
 
     price = d["price"]
     market_cap_yi = d["market_cap"]
-
 
     # 市值验算
     try:
@@ -196,7 +204,6 @@ def cmd_financials(code: str):
             reports = data.get("result", {}).get("data", [])
         except Exception:
             pass
-
 
     if not reports:
         return
@@ -253,6 +260,7 @@ def cmd_search(keyword: str):
 # ---------------------------------------------------------------------------
 # CLI 入口
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(

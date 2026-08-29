@@ -36,7 +36,9 @@ logger = logging.getLogger("free_stockdb_adapter")
 # ============================================================
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # 路径可通过环境变量 FREE_STOCKDB_ROOT 配置, 默认回退到本地安装路径
-_FREE_STOCKDB_ROOT = Path(os.environ.get("FREE_STOCKDB_ROOT", r"D:\free-stockdb\stockdb"))
+_FREE_STOCKDB_ROOT = Path(
+    os.environ.get("FREE_STOCKDB_ROOT", r"D:\free-stockdb\stockdb")
+)
 _FREE_STOCKDB_PYBAO = _FREE_STOCKDB_ROOT / "pybao"
 
 # HTTP API 配置
@@ -108,10 +110,21 @@ def _auto_start_stockdb() -> bool:
                 logger.info(f"✅ stockdb 服务已启动 (等待 {i + 1}s)")
                 return True
 
-        logger.warning(f"⚠️ stockdb 启动超时 ({_FS_AUTO_START_MAX_WAIT}s), 将使用回退数据源")
+        logger.warning(
+            f"⚠️ stockdb 启动超时 ({_FS_AUTO_START_MAX_WAIT}s), 将使用回退数据源"
+        )
         return False
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"⚠️ 自动启动 stockdb 失败: {e}, 将使用回退数据源")
@@ -131,7 +144,16 @@ def _check_http_available() -> bool:
     try:
         r = requests.get(_FS_HTTP_BASE, timeout=2)
         return r.status_code in (200, 400)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return False
 
@@ -145,12 +167,16 @@ def _init_free_stockdb() -> bool:
     global _fs_http_available, _fs_sdk_available, _fs_last_check
 
     now = datetime.now().timestamp()
-    if (_fs_http_available or _fs_sdk_available) and (now - _fs_last_check) < _FS_CHECK_CACHE_SECONDS:
+    if (_fs_http_available or _fs_sdk_available) and (
+        now - _fs_last_check
+    ) < _FS_CHECK_CACHE_SECONDS:
         return _fs_http_available or _fs_sdk_available
 
     with _fs_lock:
         now = datetime.now().timestamp()
-        if (_fs_http_available or _fs_sdk_available) and (now - _fs_last_check) < _FS_CHECK_CACHE_SECONDS:
+        if (_fs_http_available or _fs_sdk_available) and (
+            now - _fs_last_check
+        ) < _FS_CHECK_CACHE_SECONDS:
             return _fs_http_available or _fs_sdk_available
 
         # 通道 A: HTTP API (优先, 更稳定)
@@ -172,13 +198,23 @@ def _init_free_stockdb() -> bool:
             if pybao_path not in sys.path:
                 sys.path.insert(0, pybao_path)
             from stock_sdk import bk, rd, zb  # type: ignore
+
             global _fs_client
             _fs_client = {"rd": rd, "zb": zb, "bk": bk}
             _fs_sdk_available = True
             _fs_last_check = now
             logger.info("✅ free-stockdb Python SDK 已就绪")
             return True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             _fs_sdk_available = False
             logger.debug(f"free-stockdb Python SDK 不可用: {e}")
@@ -249,7 +285,16 @@ def _normalize_fs_dataframe(df_raw: Any, symbol: str) -> pd.DataFrame:
         # 支持 YYYYMMDD 和 YYYY-MM-DD 两种格式
         try:
             df.index = pd.to_datetime(df[date_col], format="%Y%m%d", errors="coerce")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             df.index = pd.to_datetime(df[date_col], errors="coerce")
         df = df.drop(columns=[date_col])
@@ -257,9 +302,20 @@ def _normalize_fs_dataframe(df_raw: Any, symbol: str) -> pd.DataFrame:
         if not isinstance(df.index, pd.DatetimeIndex):
             try:
                 df.index = pd.to_datetime(df.index, errors="coerce")
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-                logger.warning("Unexpected error in free_stockdb_adapter.py", exc_info=True)
+                logger.warning(
+                    "Unexpected error in free_stockdb_adapter.py", exc_info=True
+                )
 
     if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:
         df.index = df.index.tz_localize(None)
@@ -347,7 +403,16 @@ def _http_get_ohlcv(
                 if data and isinstance(data, list):
                     return data
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.debug(f"HTTP 获取 {code} 异常: {e}")
@@ -394,10 +459,14 @@ def get_historical_data_fs(
                     df = _normalize_fs_dataframe(data_list, raw_symbol)
                     if not df.empty and len(df) >= 30:
                         # 过滤日期范围
-                        mask = (df.index >= pd.Timestamp(start_date)) & (df.index <= pd.Timestamp(end_date))
+                        mask = (df.index >= pd.Timestamp(start_date)) & (
+                            df.index <= pd.Timestamp(end_date)
+                        )
                         df = df.loc[mask]
                         if len(df) >= 30:
-                            logger.debug(f"  {raw_symbol}: free-stockdb(HTTP) 返回 {len(df)} 行")
+                            logger.debug(
+                                f"  {raw_symbol}: free-stockdb(HTTP) 返回 {len(df)} 行"
+                            )
                             return df
 
             # 通道 B: Python SDK
@@ -419,7 +488,16 @@ def get_historical_data_fs(
 
             logger.debug(f"  {raw_symbol}: free-stockdb 数据不足, 尝试回退...")
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"  {raw_symbol}: free-stockdb 查询异常: {e}")
@@ -431,7 +509,16 @@ def get_historical_data_fs(
 
             logger.debug(f"  {raw_symbol}: 回退到 MarketDataProvider")
             return get_historical_data(code, period)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"  {raw_symbol}: 回退也失败: {e}")
 
@@ -450,7 +537,9 @@ def get_batch_ohlcv_fs(
     total = len(symbols)
 
     for code, suffix, _server_type, _name, _style in symbols:
-        df = get_historical_data_fs(f"{code}{suffix}", period, frequency, fq, use_fallback)
+        df = get_historical_data_fs(
+            f"{code}{suffix}", period, frequency, fq, use_fallback
+        )
         if df is not None and not df.empty:
             result[code] = df
 
@@ -469,7 +558,6 @@ def get_historical_data(symbol: str, period: str = "2y") -> pd.DataFrame | None:
     """与 utils.data_provider.get_historical_data 签名完全一致的封装"""
     if FORCE_FREE_STOCKDB:
         return get_historical_data_fs(symbol, period, use_fallback=True)
-    else:
-        from utils.data_provider import get_historical_data as _orig
+    from utils.data_provider import get_historical_data as _orig
 
-        return _orig(symbol, period)
+    return _orig(symbol, period)

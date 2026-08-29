@@ -41,6 +41,7 @@
     builder = CausalChainBuilder()
     chains = builder.build(causes)
 """
+
 from __future__ import annotations
 
 import logging
@@ -117,14 +118,24 @@ class CausalChainBuilder:
                 chain = rule_fn(causes, now)
                 if chain is not None and len(chain.nodes) >= 2:
                     chains.append(chain)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("因果链规则 %s 执行失败 (跳过): %s", rule_fn.__name__, e)
                 continue
 
         logger.info(
             "因果链构建完成: %d 条规则触发, %d 条因果链",
-            len(self._rules), len(chains),
+            len(self._rules),
+            len(chains),
         )
         return chains
 
@@ -139,17 +150,20 @@ class CausalChainBuilder:
         场景: Wind MCP 失败 → 代码层 C3 检查失败 → 策略层 IC 衰减/漂移
         """
         ops_nodes = [
-            c for c in causes
+            c
+            for c in causes
             if c.layer == LAYER_OPS and c.category == "datasource_fail"
         ]
         code_nodes = [
-            c for c in causes
+            c
+            for c in causes
             if c.layer == LAYER_CODE
             and c.category == "system_check_fail"
             and str(c.evidence.get("check_code", "")).startswith("C3")
         ]
         strategy_nodes = [
-            c for c in causes
+            c
+            for c in causes
             if c.layer == LAYER_STRATEGY and c.category == "drift_alert"
         ]
 
@@ -184,17 +198,20 @@ class CausalChainBuilder:
         场景: 代码层未来函数违规 → 策略层反作弊风险高
         """
         code_nodes = [
-            c for c in causes
-            if c.layer == LAYER_CODE and c.category == "pit_violation"
+            c for c in causes if c.layer == LAYER_CODE and c.category == "pit_violation"
         ]
         # code_diagnoser 可能不直接诊断 pit_violation, 但 strategy_diagnoser 会
         # 因此也检查 strategy 层的 pit_violation
-        code_nodes.extend([
-            c for c in causes
-            if c.layer == LAYER_STRATEGY and c.category == "pit_violation"
-        ])
+        code_nodes.extend(
+            [
+                c
+                for c in causes
+                if c.layer == LAYER_STRATEGY and c.category == "pit_violation"
+            ]
+        )
         strategy_nodes = [
-            c for c in causes
+            c
+            for c in causes
             if c.layer == LAYER_STRATEGY
             and c.category in ("anti_cheat_low", "reward_hacking_risk_high")
         ]
@@ -225,12 +242,14 @@ class CausalChainBuilder:
         场景: Flag 频繁变更 → 代码层 C2 配置检查失败
         """
         ops_nodes = [
-            c for c in causes
+            c
+            for c in causes
             if c.layer == LAYER_OPS
             and c.category in ("flag_instability", "flag_stability_low")
         ]
         code_nodes = [
-            c for c in causes
+            c
+            for c in causes
             if c.layer == LAYER_CODE
             and c.category == "system_check_fail"
             and str(c.evidence.get("check_code", "")).startswith("C2")
@@ -262,15 +281,19 @@ class CausalChainBuilder:
         场景: 数据质量低 → 策略层漂移健康度低
         """
         ops_nodes = [
-            c for c in causes
+            c
+            for c in causes
             if c.layer == LAYER_OPS
-            and c.category in (
-                "data_quality_low", "data_quality_stale",
+            and c.category
+            in (
+                "data_quality_low",
+                "data_quality_stale",
                 "data_quality_no_monitoring",
             )
         ]
         strategy_nodes = [
-            c for c in causes
+            c
+            for c in causes
             if c.layer == LAYER_STRATEGY
             and c.category in ("drift_health_low", "drift_alert")
         ]
@@ -301,15 +324,19 @@ class CausalChainBuilder:
         场景: 风控事件爆发 → 策略层 Private Score 低/建议回滚
         """
         ops_nodes = [
-            c for c in causes
+            c
+            for c in causes
             if c.layer == LAYER_OPS
             and c.category in ("risk_event_burst", "risk_event_rate_high")
         ]
         strategy_nodes = [
-            c for c in causes
+            c
+            for c in causes
             if c.layer == LAYER_STRATEGY
-            and c.category in (
-                "private_score_low", "strategy_rollback_recommended",
+            and c.category
+            in (
+                "private_score_low",
+                "strategy_rollback_recommended",
             )
         ]
 
@@ -339,14 +366,14 @@ class CausalChainBuilder:
         场景: 数据源冗余度低 → 策略层观察期数据不足
         """
         ops_nodes = [
-            c for c in causes
-            if c.layer == LAYER_OPS
-            and c.category == "datasource_redundancy_low"
+            c
+            for c in causes
+            if c.layer == LAYER_OPS and c.category == "datasource_redundancy_low"
         ]
         strategy_nodes = [
-            c for c in causes
-            if c.layer == LAYER_STRATEGY
-            and c.category == "observation_insufficient"
+            c
+            for c in causes
+            if c.layer == LAYER_STRATEGY and c.category == "observation_insufficient"
         ]
 
         if not ops_nodes or not strategy_nodes:

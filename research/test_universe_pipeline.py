@@ -10,6 +10,7 @@
     py -3.8 research/test_universe_pipeline.py
     py -3.8 -m pytest research/test_universe_pipeline.py -v
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,7 +27,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -45,10 +48,17 @@ def _make_mock_kline(n: int = 300, seed: int = 42) -> pd.DataFrame:
     open_p = close * (1 + np.random.randn(n) * 0.008)
     volume = np.abs(np.random.randn(n)) * 1e7 + 1e6
     amount = close * volume * 0.001
-    df = pd.DataFrame({
-        "open": open_p, "high": high, "low": low,
-        "close": close, "volume": volume, "amount": amount,
-    }, index=dates)
+    df = pd.DataFrame(
+        {
+            "open": open_p,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+            "amount": amount,
+        },
+        index=dates,
+    )
     return df
 
 
@@ -56,17 +66,19 @@ def _make_mock_spot(symbols: list) -> pd.DataFrame:
     """生成模拟全市场快照"""
     np.random.seed(0)
     n = len(symbols)
-    return pd.DataFrame({
-        "代码": symbols,
-        "名称": [f"股票{i:03d}" for i in range(n)],
-        "最新价": np.random.uniform(5, 100, n),
-        "涨跌幅": np.random.uniform(-5, 5, n),
-        "成交额": np.random.uniform(1e7, 5e8, n),
-        "成交量": np.random.uniform(1e5, 5e7, n),
-        "换手率": np.random.uniform(0.5, 10, n),
-        "总市值": np.random.uniform(1e9, 5e11, n),
-        "流通市值": np.random.uniform(5e8, 3e11, n),
-    })
+    return pd.DataFrame(
+        {
+            "代码": symbols,
+            "名称": [f"股票{i:03d}" for i in range(n)],
+            "最新价": np.random.uniform(5, 100, n),
+            "涨跌幅": np.random.uniform(-5, 5, n),
+            "成交额": np.random.uniform(1e7, 5e8, n),
+            "成交量": np.random.uniform(1e5, 5e7, n),
+            "换手率": np.random.uniform(0.5, 10, n),
+            "总市值": np.random.uniform(1e9, 5e11, n),
+            "流通市值": np.random.uniform(5e8, 3e11, n),
+        }
+    )
 
 
 # ============================================================
@@ -77,6 +89,7 @@ class TestRiskFilter(unittest.TestCase):
 
     def test_filter_st_stocks(self):
         from utils.universe.risk_filter import _is_st_stock
+
         self.assertTrue(_is_st_stock("ST天宝"))
         self.assertTrue(_is_st_stock("*ST海航"))
         self.assertTrue(_is_st_stock("退市美都"))
@@ -85,22 +98,29 @@ class TestRiskFilter(unittest.TestCase):
 
     def test_filter_universe_basic(self):
         from utils.universe.risk_filter import RiskFilterConfig, filter_universe
+
         # 构造测试数据
-        universe_df = pd.DataFrame({
-            "code": ["600519", "000001", "600001", "000002"],
-            "name": ["贵州茅台", "平安银行", "ST测试", "万科A"],
-            "index": ["HS300"] * 4,
-        })
-        spot_df = pd.DataFrame({
-            "代码": ["600519", "000001", "600001", "000002"],
-            "名称": ["贵州茅台", "平安银行", "ST测试", "万科A"],
-            "最新价": [200.0, 12.5, 1.5, 8.0],
-            "涨跌幅": [1.2, -0.5, -2.0, 0.3],
-            "成交额": [5e9, 1e9, 1e7, 5e8],
-            "成交量": [3e6, 8e7, 5e6, 6e7],
-            "换手率": [0.5, 0.8, 1.2, 0.6],
-        })
-        result = filter_universe(universe_df, spot_df, RiskFilterConfig(max_price=2000.0))
+        universe_df = pd.DataFrame(
+            {
+                "code": ["600519", "000001", "600001", "000002"],
+                "name": ["贵州茅台", "平安银行", "ST测试", "万科A"],
+                "index": ["HS300"] * 4,
+            }
+        )
+        spot_df = pd.DataFrame(
+            {
+                "代码": ["600519", "000001", "600001", "000002"],
+                "名称": ["贵州茅台", "平安银行", "ST测试", "万科A"],
+                "最新价": [200.0, 12.5, 1.5, 8.0],
+                "涨跌幅": [1.2, -0.5, -2.0, 0.3],
+                "成交额": [5e9, 1e9, 1e7, 5e8],
+                "成交量": [3e6, 8e7, 5e6, 6e7],
+                "换手率": [0.5, 0.8, 1.2, 0.6],
+            }
+        )
+        result = filter_universe(
+            universe_df, spot_df, RiskFilterConfig(max_price=2000.0)
+        )
         # ST 测试 + 价格过低应该被剔除
         self.assertNotIn("600001", result["code"].tolist())
         # 茅台、平安、万科应保留
@@ -113,6 +133,7 @@ class TestFactorScorer(unittest.TestCase):
 
     def test_cross_sectional_score(self):
         from utils.universe.factor_scorer import cross_sectional_score
+
         # 构造模拟因子数据
         np.random.seed(42)
         n_stocks = 50
@@ -141,11 +162,17 @@ class TestFactorScorer(unittest.TestCase):
 
     def test_industry_neutralize(self):
         from utils.universe.factor_scorer import industry_neutralize
-        scores = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-                            index=["A", "B", "C", "D", "E", "F"])
+
+        scores = pd.Series(
+            [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], index=["A", "B", "C", "D", "E", "F"]
+        )
         industry_map = {
-            "A": "银行", "B": "银行", "C": "地产",
-            "D": "地产", "E": "消费", "F": "消费",
+            "A": "银行",
+            "B": "银行",
+            "C": "地产",
+            "D": "地产",
+            "E": "消费",
+            "F": "消费",
         }
         result = industry_neutralize(scores, industry_map)
         # 每个行业内的均值应接近 0
@@ -158,21 +185,33 @@ class TestPortfolioBuilder(unittest.TestCase):
     """组合构建器测试"""
 
     def test_build_layered_portfolio(self):
-        from utils.universe.portfolio_builder import PortfolioConfig, build_layered_portfolio
+        from utils.universe.portfolio_builder import (
+            PortfolioConfig,
+            build_layered_portfolio,
+        )
+
         np.random.seed(42)
         n = 100
         symbols = [f"stock_{i:03d}" for i in range(n)]
-        scores_df = pd.DataFrame({
-            "momentum_score": np.random.randn(n),
-            "reversal_score": np.random.randn(n),
-            "volume_score": np.random.randn(n),
-            "volatility_score": np.random.randn(n),
-            "liquidity_score": np.random.randn(n),
-            "composite_score": np.random.uniform(0, 1, n),
-        }, index=symbols)
-        scores_df["rank"] = scores_df["composite_score"].rank(ascending=False, method="min").astype(int)
+        scores_df = pd.DataFrame(
+            {
+                "momentum_score": np.random.randn(n),
+                "reversal_score": np.random.randn(n),
+                "volume_score": np.random.randn(n),
+                "volatility_score": np.random.randn(n),
+                "liquidity_score": np.random.randn(n),
+                "composite_score": np.random.uniform(0, 1, n),
+            },
+            index=symbols,
+        )
+        scores_df["rank"] = (
+            scores_df["composite_score"].rank(ascending=False, method="min").astype(int)
+        )
 
-        industry_map = {s: np.random.choice(["银行", "地产", "消费", "科技", "能源"]) for s in symbols}
+        industry_map = {
+            s: np.random.choice(["银行", "地产", "消费", "科技", "能源"])
+            for s in symbols
+        }
         name_map = {s: s for s in symbols}
 
         config = PortfolioConfig(short_count=5, mid_count=5, long_count=10)
@@ -228,8 +267,15 @@ class TestEndToEnd(unittest.TestCase):
         """使用模拟数据跑完整 pipeline"""
         import tempfile
 
-        from utils.universe.factor_scorer import ScoringConfig, batch_compute_factors, cross_sectional_score
-        from utils.universe.portfolio_builder import PortfolioConfig, build_layered_portfolio
+        from utils.universe.factor_scorer import (
+            ScoringConfig,
+            batch_compute_factors,
+            cross_sectional_score,
+        )
+        from utils.universe.portfolio_builder import (
+            PortfolioConfig,
+            build_layered_portfolio,
+        )
         from utils.universe.report_generator import generate_full_report
 
         # 1. 生成 20 只模拟股票
@@ -266,7 +312,12 @@ class TestEndToEnd(unittest.TestCase):
 
         # 5. 生成报告
         with tempfile.TemporaryDirectory() as tmpdir:
-            filter_stats = {"initial": 20, "final": 20, "pass_rate": "100%", "total_removed": 0}
+            filter_stats = {
+                "initial": 20,
+                "final": 20,
+                "pass_rate": "100%",
+                "total_removed": 0,
+            }
             paths = generate_full_report(
                 portfolio=portfolio,
                 scores_df=scores_df,

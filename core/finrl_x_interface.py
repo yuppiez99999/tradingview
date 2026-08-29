@@ -45,8 +45,10 @@ logger = logging.getLogger("finrl_x_interface")
 # 枚举
 # ============================================================
 
+
 class WeightSource(str, Enum):
     """权重来源。"""
+
     BACKTEST = "backtest"
     LIVE = "live"
     PAPER = "paper"
@@ -54,6 +56,7 @@ class WeightSource(str, Enum):
 
 class PipelineStage(str, Enum):
     """管线阶段。"""
+
     DATA = "data"
     FEATURE = "feature"
     SIGNAL = "signal"
@@ -65,6 +68,7 @@ class PipelineStage(str, Enum):
 # 权重中心
 # ============================================================
 
+
 @dataclass
 class WeightRecord:
     """权重记录。
@@ -75,6 +79,7 @@ class WeightRecord:
         timestamp: 时间戳
         metadata: 元数据
     """
+
     weights: np.ndarray
     source: WeightSource
     timestamp: str = ""
@@ -164,6 +169,7 @@ class WeightCenter:
 # 策略管线
 # ============================================================
 
+
 @dataclass
 class StrategyNode:
     """策略管线节点.
@@ -174,6 +180,7 @@ class StrategyNode:
         func: 处理函数
         enabled: 是否启用
     """
+
     name: str
     stage: PipelineStage = PipelineStage.SIGNAL
     func: Callable[..., Any] | None = None
@@ -244,6 +251,7 @@ class StrategyPipeline:
 # 回测=实盘一致性验证
 # ============================================================
 
+
 class BacktestLiveConsistency:
     """回测=实盘一致性验证器。"""
 
@@ -284,9 +292,7 @@ class BacktestLiveConsistency:
 
         mismatches = 0
         for bt, live in zip(backtest_orders, live_orders, strict=True):
-            if bt.get("symbol") != live.get("symbol"):
-                mismatches += 1
-            elif abs(bt.get("quantity", 0) - live.get("quantity", 0)) > 1e-6:
+            if bt.get("symbol") != live.get("symbol") or abs(bt.get("quantity", 0) - live.get("quantity", 0)) > 1e-6:
                 mismatches += 1
 
         return {
@@ -302,6 +308,7 @@ class BacktestLiveConsistency:
 # ============================================================
 # FinRL-X 集成接口
 # ============================================================
+
 
 class FinRLXInterface:
     """FinRL-X 集成接口 — 旧管道兼容.
@@ -319,7 +326,10 @@ class FinRLXInterface:
         self.pipeline = StrategyPipeline()
 
     def submit_backtest_weights(
-        self, weights: np.ndarray, timestamp: str = "", **meta: Any,
+        self,
+        weights: np.ndarray,
+        timestamp: str = "",
+        **meta: Any,
     ) -> WeightRecord:
         """提交回测权重。"""
         return self.weight_center.submit(
@@ -327,12 +337,13 @@ class FinRLXInterface:
         )
 
     def submit_live_weights(
-        self, weights: np.ndarray, timestamp: str = "", **meta: Any,
+        self,
+        weights: np.ndarray,
+        timestamp: str = "",
+        **meta: Any,
     ) -> WeightRecord:
         """提交实盘权重。"""
-        return self.weight_center.submit(
-            weights, WeightSource.LIVE, timestamp, **meta
-        )
+        return self.weight_center.submit(weights, WeightSource.LIVE, timestamp, **meta)
 
     def verify_consistency(self, threshold: float = 0.01) -> dict[str, Any]:
         """验证一致性。"""
@@ -362,6 +373,7 @@ class FinRLXInterface:
 # 旧管道兼容适配器
 # ============================================================
 
+
 class LegacyAdapter:
     """旧管道兼容适配器.
 
@@ -373,7 +385,11 @@ class LegacyAdapter:
 
     def get_weights(self, source: str = "backtest") -> np.ndarray | None:
         """旧接口: get_weights。"""
-        src = WeightSource(source) if source in [s.value for s in WeightSource] else WeightSource.BACKTEST
+        src = (
+            WeightSource(source)
+            if source in [s.value for s in WeightSource]
+            else WeightSource.BACKTEST
+        )
         record = self.interface.weight_center.get_latest(src)
         return record.weights if record is not None else None
 
@@ -388,6 +404,7 @@ class LegacyAdapter:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示 FinRL-X 权重中心接口。"""
@@ -417,6 +434,7 @@ def main() -> None:
     print(f"  平均差异: {report['mean_diff']:.6f}")
 
     print("\n--- 策略管线 ---")
+
     def data_fn(data: Any, ctx: dict) -> Any:
         return {"data": data}
 
@@ -429,12 +447,14 @@ def main() -> None:
     def weight_fn(data: Any, ctx: dict) -> Any:
         return np.array([0.4, 0.3, 0.2, 0.1])
 
-    pipeline = interface.build_pipeline([
-        StrategyNode("data", PipelineStage.DATA, data_fn),
-        StrategyNode("feature", PipelineStage.FEATURE, feature_fn),
-        StrategyNode("signal", PipelineStage.SIGNAL, signal_fn),
-        StrategyNode("weight", PipelineStage.WEIGHT, weight_fn),
-    ])
+    pipeline = interface.build_pipeline(
+        [
+            StrategyNode("data", PipelineStage.DATA, data_fn),
+            StrategyNode("feature", PipelineStage.FEATURE, feature_fn),
+            StrategyNode("signal", PipelineStage.SIGNAL, signal_fn),
+            StrategyNode("weight", PipelineStage.WEIGHT, weight_fn),
+        ]
+    )
 
     result = interface.run_pipeline(np.random.randn(100, 4))
     validation = pipeline.validate()

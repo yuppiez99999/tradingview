@@ -47,7 +47,9 @@ logger = logging.getLogger("ic_hedge")
 IC_MULTIPLIER = 200.0  # 合约乘数: 200 元/点
 IC_MARGIN_RATE = 0.12  # 保证金比例: 12%
 IC_MIN_TICK = 0.2  # 最小变动价位
-IC_MAX_CONTRACTS = 3  # v10.0 限制: 最多 3 张 (quant_neutral_account.short_contracts_max)
+IC_MAX_CONTRACTS = (
+    3  # v10.0 限制: 最多 3 张 (quant_neutral_account.short_contracts_max)
+)
 IC_BASIS_THRESHOLD = 0.015  # 贴水 1.5% 触发减仓
 IC_BASIS_REDUCE_PCT = 0.30  # 贴水超限时减少 30% 对冲量
 DEFAULT_TARGET_BETA = 0.05  # 目标 beta
@@ -157,7 +159,9 @@ class ICHedgeCalculator:
         contract_value = self.multiplier * ic_price  # 1 张 IC 合约名义价值
         if contract_value <= 0:
             result.target_contracts = 0
-            result.reason = f"合约价值无效 (multiplier={self.multiplier}, ic_price={ic_price})"
+            result.reason = (
+                f"合约价值无效 (multiplier={self.multiplier}, ic_price={ic_price})"
+            )
             return result
         raw_contracts = hedge_notional / contract_value
         target_contracts = max(1, math.ceil(raw_contracts))  # 至少 1 张, 向上取整
@@ -183,7 +187,9 @@ class ICHedgeCalculator:
                     f"减少 {self.basis_reduce_pct * 100:.0f}% 对冲量, "
                     "建议转向 ETF + 个股直接组合"
                 )
-            logger.warning(f"[IC对冲] 基差警告: 贴水 {basis * 100:.2f}%, 对冲量 {target_contracts} → {adjusted} 张")
+            logger.warning(
+                f"[IC对冲] 基差警告: 贴水 {basis * 100:.2f}%, 对冲量 {target_contracts} → {adjusted} 张"
+            )
 
         result.adjusted_contracts = adjusted
 
@@ -197,9 +203,14 @@ class ICHedgeCalculator:
             result.margin_usage_ratio = required_margin / available_margin
             if result.margin_usage_ratio > MARGIN_MAINTENANCE_MIN:
                 # 超过维持保证金最低线, 减少合约
-                while actual_contracts > 0 and required_margin / available_margin > MARGIN_MAINTENANCE_MIN:
+                while (
+                    actual_contracts > 0
+                    and required_margin / available_margin > MARGIN_MAINTENANCE_MIN
+                ):
                     actual_contracts -= 1
-                    required_margin = actual_contracts * contract_value * self.margin_rate
+                    required_margin = (
+                        actual_contracts * contract_value * self.margin_rate
+                    )
                 result.adjusted_contracts = actual_contracts
                 result.required_margin = required_margin
                 result.margin_usage_ratio = required_margin / available_margin
@@ -214,7 +225,9 @@ class ICHedgeCalculator:
         if actual_contracts > 0:
             actual_hedge_notional = actual_contracts * contract_value
             # 净 beta = portfolio_beta - 实际对冲名义 / 多头市值
-            result.net_beta = max(0, portfolio_beta - actual_hedge_notional / long_market_value)
+            result.net_beta = max(
+                0, portfolio_beta - actual_hedge_notional / long_market_value
+            )
             result.net_exposure = result.net_beta
         else:
             result.net_beta = portfolio_beta
@@ -310,7 +323,7 @@ class ICHedgeCalculator:
                 "target": target,
                 "trade_date": trade_date.isoformat(),
             }
-        elif delta > 0:
+        if delta > 0:
             # 增加空头
             return {
                 "action": "add_short",
@@ -323,19 +336,18 @@ class ICHedgeCalculator:
                 "price": target_result.ic_price,
                 "trade_date": trade_date.isoformat(),
             }
-        else:
-            # 减少空头 (买入平仓)
-            return {
-                "action": "reduce_short",
-                "symbol": "IC",
-                "exchange": "CFFEX",
-                "direction": "close_short",
-                "delta_contracts": abs(delta),
-                "current": current_contracts,
-                "target": target,
-                "price": target_result.ic_price,
-                "trade_date": trade_date.isoformat(),
-            }
+        # 减少空头 (买入平仓)
+        return {
+            "action": "reduce_short",
+            "symbol": "IC",
+            "exchange": "CFFEX",
+            "direction": "close_short",
+            "delta_contracts": abs(delta),
+            "current": current_contracts,
+            "target": target,
+            "price": target_result.ic_price,
+            "trade_date": trade_date.isoformat(),
+        }
 
     # ------------------------------------------------------------
     # 摘要输出
@@ -385,12 +397,20 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     parser = argparse.ArgumentParser(description="IC 期货对冲量计算器")
-    parser.add_argument("--long-value", type=float, default=1_400_000, help="多头组合市值")
+    parser.add_argument(
+        "--long-value", type=float, default=1_400_000, help="多头组合市值"
+    )
     parser.add_argument("--portfolio-beta", type=float, default=0.85, help="组合 beta")
-    parser.add_argument("--target-beta", type=float, default=DEFAULT_TARGET_BETA, help="目标 beta")
+    parser.add_argument(
+        "--target-beta", type=float, default=DEFAULT_TARGET_BETA, help="目标 beta"
+    )
     parser.add_argument("--ic-price", type=float, default=5500.0, help="IC 期货价格")
-    parser.add_argument("--available-margin", type=float, default=None, help="可用保证金")
-    parser.add_argument("--basis", type=float, default=None, help="基差 (正=贴水, 负=升水)")
+    parser.add_argument(
+        "--available-margin", type=float, default=None, help="可用保证金"
+    )
+    parser.add_argument(
+        "--basis", type=float, default=None, help="基差 (正=贴水, 负=升水)"
+    )
     args = parser.parse_args()
 
     calc = ICHedgeCalculator()

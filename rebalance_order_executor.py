@@ -152,13 +152,15 @@ def _filter_rebalance_fills(fills: list[dict[str, Any]]) -> list[dict[str, Any]]
     positions.json, 污染真实持仓口径。
     """
     rebalance_fills = [
-        rec for rec in fills
+        rec
+        for rec in fills
         if str(rec.get("strategy", "") or "").strip().lower() == "rebalance"
     ]
     if len(rebalance_fills) != len(fills):
         logger.warning(
             "过滤掉 %d 笔非再平衡成交 (strategy!=rebalance), 仅回写 %d 笔再平衡成交",
-            len(fills) - len(rebalance_fills), len(rebalance_fills),
+            len(fills) - len(rebalance_fills),
+            len(rebalance_fills),
         )
     return rebalance_fills
 
@@ -221,7 +223,9 @@ def apply_fills_to_positions(fills: list[dict[str, Any]], date: str) -> int:
                     target_key = k
                     break
         if target_key is None:
-            logger.debug("apply_fills_to_positions: 标的 %s 不在 positions, 跳过", symbol)
+            logger.debug(
+                "apply_fills_to_positions: 标的 %s 不在 positions, 跳过", symbol
+            )
             continue
         target = positions[target_key]
 
@@ -243,7 +247,12 @@ def apply_fills_to_positions(fills: list[dict[str, Any]], date: str) -> int:
         updated += 1
         logger.info(
             "持仓回写 %s: %s %.0f 股 @ %.4f -> shares %.0f -> %.0f",
-            target_key, side, qty, price, old_shares, new_shares,
+            target_key,
+            side,
+            qty,
+            price,
+            old_shares,
+            new_shares,
         )
 
     if updated:
@@ -276,7 +285,9 @@ def _run_tca_on_fills(fills: list[dict[str, Any]], date: str) -> dict[str, Any]:
         return {"ingested": 0, "error": str(e)}
 
 
-def execute_rebalance_orders(date: Optional[str] = None, dry_run: bool = False) -> dict[str, Any]:
+def execute_rebalance_orders(
+    date: Optional[str] = None, dry_run: bool = False
+) -> dict[str, Any]:
     """执行再平衡撮合闭环。返回汇总 dict。
 
     Args:
@@ -320,7 +331,9 @@ def execute_rebalance_orders(date: Optional[str] = None, dry_run: bool = False) 
         # 读回当日成交回报 (单一事实源) — 观测路径, fail-open
         fills = _read_fills(trade_date)
         result["fills"] = fills
-        result["filled"] = sum(1 for f in fills if float(f.get("filled_qty", 0) or 0) > 0)
+        result["filled"] = sum(
+            1 for f in fills if float(f.get("filled_qty", 0) or 0) > 0
+        )
 
         # G4: 用成交回报驱动 TCA 归因
         result["tca"] = _run_tca_on_fills(fills, trade_date)
@@ -329,8 +342,11 @@ def execute_rebalance_orders(date: Optional[str] = None, dry_run: bool = False) 
             # G2 补齐: 非 dry-run 模式, 将成交回报回写 positions.json 真实持仓
             updated = apply_fills_to_positions(fills, trade_date)
             result["positions_updated"] = updated
-            logger.info("再平衡撮合闭环完成, 成交 %d 笔已落盘 FillsStore, 持仓回写 %d 个标的",
-                        result["filled"], updated)
+            logger.info(
+                "再平衡撮合闭环完成, 成交 %d 笔已落盘 FillsStore, 持仓回写 %d 个标的",
+                result["filled"],
+                updated,
+            )
         else:
             logger.info("DRY-RUN: 已完成生成+撮合评估, 未更新持仓")
     except Exception as e:  # noqa: BLE001  # fail-close, 记录但不下断言崩溃
@@ -346,12 +362,18 @@ def print_result(result: dict[str, Any]) -> None:
     logger.info("再平衡撮合执行器结果")
     logger.info("=" * 70)
     logger.info(f"日期: {result.get('date')} | dry_run={result.get('dry_run', False)}")
-    logger.info(f"生成订单: {result.get('generated', 0)} | 有效: {result.get('valid', 0)}")
-    logger.info(f"路由进入队列: {result.get('routed', 0)} | 成交落盘: {result.get('filled', 0)}")
+    logger.info(
+        f"生成订单: {result.get('generated', 0)} | 有效: {result.get('valid', 0)}"
+    )
+    logger.info(
+        f"路由进入队列: {result.get('routed', 0)} | 成交落盘: {result.get('filled', 0)}"
+    )
 
     fills = result.get("fills", [])
     if fills:
-        total_amount = sum(float(f.get("filled_qty", 0)) * float(f.get("avg_price", 0)) for f in fills)
+        total_amount = sum(
+            float(f.get("filled_qty", 0)) * float(f.get("avg_price", 0)) for f in fills
+        )
         logger.info(f"成交明细 ({len(fills)} 笔):")
         for f in fills:
             logger.info(
@@ -382,7 +404,9 @@ def print_result(result: dict[str, Any]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="再平衡订单撮合执行器 (G2 执行闭环)")
-    parser.add_argument("--date", type=str, default=None, help="目标交易日 YYYY-MM-DD (默认今日)")
+    parser.add_argument(
+        "--date", type=str, default=None, help="目标交易日 YYYY-MM-DD (默认今日)"
+    )
     parser.add_argument("--dry-run", action="store_true", help="干跑模式 (不更新持仓)")
     args = parser.parse_args()
 

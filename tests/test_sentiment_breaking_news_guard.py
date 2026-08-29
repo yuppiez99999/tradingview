@@ -17,6 +17,7 @@
     - 不依赖磁盘文件, 使用内存中的 plan/pnl_report
     - AAA 模式: Arrange → Act → Assert
 """
+
 import os
 import sys
 from dataclasses import dataclass
@@ -35,6 +36,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 @dataclass
 class MockStockInsight:
     """模拟 StockInsight (与 utils.ifind_news_analyzer.StockInsight 字段一致)"""
+
     symbol: str
     name: str
     direction: str
@@ -57,11 +59,26 @@ def _make_base_plan():
         "phase": {"daily_capital": 150000, "day_capital": 150000},
         "execution_plan": {
             "morning_orders": [
-                {"code": "600519.SH", "action": "BUY", "shares": 100, "est_amount": 50000},
-                {"code": "000858.SZ", "action": "SELL", "shares": 50, "est_amount": 25000},
+                {
+                    "code": "600519.SH",
+                    "action": "BUY",
+                    "shares": 100,
+                    "est_amount": 50000,
+                },
+                {
+                    "code": "000858.SZ",
+                    "action": "SELL",
+                    "shares": 50,
+                    "est_amount": 25000,
+                },
             ],
             "afternoon_orders": [
-                {"code": "002371.SZ", "action": "BUY", "shares": 200, "est_amount": 100000},
+                {
+                    "code": "002371.SZ",
+                    "action": "BUY",
+                    "shares": 200,
+                    "est_amount": 100000,
+                },
             ],
         },
         "market_state": {
@@ -78,7 +95,11 @@ def _make_pnl_report_with_holdings():
     """构造带持仓的 pnl_report (使用 portfolio_pnl.details 格式)"""
     return {
         "portfolio_pnl": {
-            "summary": {"total_cost": 1000000, "total_market_value": 1100000, "total_pnl": 100000},
+            "summary": {
+                "total_cost": 1000000,
+                "total_market_value": 1100000,
+                "total_pnl": 100000,
+            },
             "details": [
                 {"code": "600519.SH", "name": "贵州茅台"},
                 {"code": "000858.SZ", "name": "五粮液"},
@@ -90,6 +111,7 @@ def _make_pnl_report_with_holdings():
 # ============================================================
 # 测试用例
 # ============================================================
+
 
 class TestSentimentBreakingNewsGuard:
     """重大负面新闻 Guard 测试套件"""
@@ -132,12 +154,16 @@ class TestSentimentBreakingNewsGuard:
         mock_analyzer.batch_analyze.return_value = mock_insights
 
         # Act
-        with patch("utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer):
+        with patch(
+            "utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer
+        ):
             result_plan = rgi.guard_sentiment_breaking_news(pnl_report, plan)
 
         # Assert
         rg = result_plan["risk_guard"]["sentiment_breaking_news"]
-        assert rg["status"] == "TRIGGERED", f"status 应为 TRIGGERED, 实际={rg['status']}"
+        assert (
+            rg["status"] == "TRIGGERED"
+        ), f"status 应为 TRIGGERED, 实际={rg['status']}"
         assert rg["triggered"] is True
         assert "600519" in rg["triggered_symbols"]
         assert len(rg["details"]) == 1
@@ -146,7 +172,9 @@ class TestSentimentBreakingNewsGuard:
         ms = result_plan["market_state"]
         assert ms["build_allowed"] is False, "build_allowed 必须为 False"
         assert ms["spot_build_allowed"] is False, "spot_build_allowed 必须为 False"
-        assert ms["circuit_level"] == "WARNING", f"circuit_level 应升级为 WARNING, 实际={ms['circuit_level']}"
+        assert (
+            ms["circuit_level"] == "WARNING"
+        ), f"circuit_level 应升级为 WARNING, 实际={ms['circuit_level']}"
 
         # 验证: 建仓订单被拦截, 平仓订单保留
         morning = result_plan["execution_plan"]["morning_orders"]
@@ -186,7 +214,9 @@ class TestSentimentBreakingNewsGuard:
         mock_analyzer.batch_analyze.return_value = mock_insights
 
         # Act
-        with patch("utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer):
+        with patch(
+            "utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer
+        ):
             result_plan = rgi.guard_sentiment_breaking_news(pnl_report, plan)
 
         # Assert
@@ -221,7 +251,9 @@ class TestSentimentBreakingNewsGuard:
         mock_analyzer.batch_analyze.return_value = mock_insights
 
         # Act
-        with patch("utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer):
+        with patch(
+            "utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer
+        ):
             result_plan = rgi.guard_sentiment_breaking_news(pnl_report, plan)
 
         # Assert
@@ -242,7 +274,9 @@ class TestSentimentBreakingNewsGuard:
         mock_analyzer.available.return_value = False  # iFinD 不可用
 
         # Act
-        with patch("utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer):
+        with patch(
+            "utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer
+        ):
             result_plan = rgi.guard_sentiment_breaking_news(pnl_report, plan)
 
         # Assert
@@ -331,7 +365,9 @@ class TestSentimentBreakingNewsGuard:
         mock_analyzer.batch_analyze.return_value = mock_insights
 
         # Act
-        with patch("utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer):
+        with patch(
+            "utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer
+        ):
             result_plan = rgi.guard_sentiment_breaking_news(pnl_report, plan)
 
         # Assert: circuit_level 保持 CRITICAL (不降级)
@@ -376,7 +412,9 @@ class TestSentimentBreakingNewsGuard:
         mock_analyzer.batch_analyze.return_value = mock_insights
 
         # Act
-        with patch("utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer):
+        with patch(
+            "utils.ifind_news_analyzer.IFinDNewsAnalyzer", return_value=mock_analyzer
+        ):
             result_plan = rgi.guard_sentiment_breaking_news(pnl_report, plan)
 
         # Assert: morning_orders 应仅剩 SELL 和 REDUCE

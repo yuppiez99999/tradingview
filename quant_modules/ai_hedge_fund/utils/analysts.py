@@ -14,9 +14,13 @@ from quant_modules.ai_hedge_fund.agents.nassim_taleb import nassim_taleb_agent
 from quant_modules.ai_hedge_fund.agents.news_sentiment import news_sentiment_agent
 from quant_modules.ai_hedge_fund.agents.peter_lynch import peter_lynch_agent
 from quant_modules.ai_hedge_fund.agents.phil_fisher import phil_fisher_agent
-from quant_modules.ai_hedge_fund.agents.rakesh_jhunjhunwala import rakesh_jhunjhunwala_agent
+from quant_modules.ai_hedge_fund.agents.rakesh_jhunjhunwala import (
+    rakesh_jhunjhunwala_agent,
+)
 from quant_modules.ai_hedge_fund.agents.sentiment import sentiment_analyst_agent
-from quant_modules.ai_hedge_fund.agents.stanley_druckenmiller import stanley_druckenmiller_agent
+from quant_modules.ai_hedge_fund.agents.stanley_druckenmiller import (
+    stanley_druckenmiller_agent,
+)
 from quant_modules.ai_hedge_fund.agents.technicals import technical_analyst_agent
 from quant_modules.ai_hedge_fund.agents.valuation import valuation_analyst_agent
 from quant_modules.ai_hedge_fund.agents.warren_buffett import warren_buffett_agent
@@ -186,12 +190,18 @@ ANALYST_CONFIG = {
 }
 
 # Derive ANALYST_ORDER from ANALYST_CONFIG for backwards compatibility
-ANALYST_ORDER = [(config["display_name"], key) for key, config in sorted(ANALYST_CONFIG.items(), key=lambda x: x[1]["order"])]
+ANALYST_ORDER = [
+    (config["display_name"], key)
+    for key, config in sorted(ANALYST_CONFIG.items(), key=lambda x: x[1]["order"])
+]
 
 
 def get_analyst_nodes():
     """Get the mapping of analyst keys to their (node_name, agent_func) tuples."""
-    return {key: (f"{key}_agent", config["agent_func"]) for key, config in ANALYST_CONFIG.items()}
+    return {
+        key: (f"{key}_agent", config["agent_func"])
+        for key, config in ANALYST_CONFIG.items()
+    }
 
 
 def get_agents_list():
@@ -202,7 +212,7 @@ def get_agents_list():
             "display_name": config["display_name"],
             "description": config["description"],
             "investing_style": config["investing_style"],
-            "order": config["order"]
+            "order": config["order"],
         }
         for key, config in sorted(ANALYST_CONFIG.items(), key=lambda x: x[1]["order"])
     ]

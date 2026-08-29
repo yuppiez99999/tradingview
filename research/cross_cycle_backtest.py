@@ -8,6 +8,7 @@
 Usage:
     .venv\\Scripts\\python.exe research\\cross_cycle_backtest.py
 """
+
 from __future__ import annotations
 
 import json
@@ -42,8 +43,8 @@ def backtest_scheme(R, codes, scheme):  # noqa: N806
 
     t = TRAIN_WINDOW
     while t + HOLD_PERIOD <= T:
-        R_train = R[t - TRAIN_WINDOW:t]  # noqa: N806
-        R_hold = R[t:t + HOLD_PERIOD]  # noqa: N806
+        R_train = R[t - TRAIN_WINDOW : t]  # noqa: N806
+        R_hold = R[t : t + HOLD_PERIOD]  # noqa: N806
         cov = np.cov(R_train, rowvar=False) * 252
         mu_bl = bl_posterior_mu(codes, R_train, cov, w_bench)
 
@@ -77,9 +78,13 @@ def metrics_block(daily_rets):
     peak = np.maximum.accumulate(cum_nav)
     max_dd = float((cum_nav / peak - 1.0).min())
     return {
-        "夏普": m["年化夏普"], "收益": m["年化收益"], "波动": m["年化波动"],
-        "末净值": float(cum_nav[-1]), "回撤": max_dd,
-        "偏度": m["组合偏度"], "峰度": m["超额峰度"],
+        "夏普": m["年化夏普"],
+        "收益": m["年化收益"],
+        "波动": m["年化波动"],
+        "末净值": float(cum_nav[-1]),
+        "回撤": max_dd,
+        "偏度": m["组合偏度"],
+        "峰度": m["超额峰度"],
     }
 
 
@@ -90,7 +95,9 @@ def main() -> int:
     dates = [str(d) for d in cache["dates"]]
     T, N = R.shape  # noqa: N806
     print(f"加载缓存: {T} 日 × {N} 股 ({dates[0]} ~ {dates[-1]})")
-    print(f"滚动回测: train={TRAIN_WINDOW} / hold={HOLD_PERIOD} / 样本外={T-TRAIN_WINDOW} 日\n")
+    print(
+        f"滚动回测: train={TRAIN_WINDOW} / hold={HOLD_PERIOD} / 样本外={T-TRAIN_WINDOW} 日\n"
+    )
 
     schemes = [("等权", "equal"), ("BL+MV(378)", "bl_mv"), ("BL+MVSK(378)", "bl_mvsk")]
     results = {}
@@ -99,17 +106,23 @@ def main() -> int:
         results[label] = {"daily_rets": dr, "cum_nav": cn, "rebal_dates": rd}
 
     # 全样本外对比
-    print(f"{'方案':<16}{'夏普':<10}{'收益':<10}{'波动':<10}{'净值':<10}{'回撤':<10}{'偏度':<8}{'峰度':<8}")
+    print(
+        f"{'方案':<16}{'夏普':<10}{'收益':<10}{'波动':<10}{'净值':<10}{'回撤':<10}{'偏度':<8}{'峰度':<8}"
+    )
     print("-" * 80)
     for label, _ in schemes:
         m = metrics_block(results[label]["daily_rets"])
-        print(f"{label:<16}{m['夏普']:<10.4f}{m['收益']:<10.4f}{m['波动']:<10.4f}"
-              f"{m['末净值']:<10.4f}{m['回撤']:<10.4f}{m['偏度']:<8.3f}{m['峰度']:<8.3f}")
+        print(
+            f"{label:<16}{m['夏普']:<10.4f}{m['收益']:<10.4f}{m['波动']:<10.4f}"
+            f"{m['末净值']:<10.4f}{m['回撤']:<10.4f}{m['偏度']:<8.3f}{m['峰度']:<8.3f}"
+        )
 
     mv_m = metrics_block(results["BL+MV(378)"]["daily_rets"])
     mvsk_m = metrics_block(results["BL+MVSK(378)"]["daily_rets"])
-    print(f"\n全样本外 MVSK vs MV: Δ夏普={mvsk_m['夏普']-mv_m['夏普']:+.4f}  "
-          f"Δ净值={mvsk_m['末净值']-mv_m['末净值']:+.4f}  Δ回撤={mvsk_m['回撤']-mv_m['回撤']:+.4f}")
+    print(
+        f"\n全样本外 MVSK vs MV: Δ夏普={mvsk_m['夏普']-mv_m['夏普']:+.4f}  "
+        f"Δ净值={mvsk_m['末净值']-mv_m['末净值']:+.4f}  Δ回撤={mvsk_m['回撤']-mv_m['回撤']:+.4f}"
+    )
 
     # 分段分析
     print(f"\n{'='*90}")
@@ -128,26 +141,44 @@ def main() -> int:
         tag = "✅" if d_sharpe > 0 else "❌"
         date_start = dates[TRAIN_WINDOW + start]
         date_end = dates[TRAIN_WINDOW + end - 1]
-        print(f"段{seg_i+1} {date_start}~{date_end}: MV夏普={seg_mv['夏普']:+.3f} "
-              f"MVSK夏普={seg_mvsk['夏普']:+.3f} Δ={d_sharpe:+.3f} {tag}  "
-              f"(MV净值={seg_mv['末净值']:.3f} MVSK净值={seg_mvsk['末净值']:.3f})")
-        seg_results.append({
-            "段": seg_i + 1, "日期": f"{date_start}~{date_end}",
-            "MV": seg_mv, "MVSK": seg_mvsk, "等权": seg_eq,
-            "Δ夏普": d_sharpe, "Δ净值": d_nav,
-        })
+        print(
+            f"段{seg_i+1} {date_start}~{date_end}: MV夏普={seg_mv['夏普']:+.3f} "
+            f"MVSK夏普={seg_mvsk['夏普']:+.3f} Δ={d_sharpe:+.3f} {tag}  "
+            f"(MV净值={seg_mv['末净值']:.3f} MVSK净值={seg_mvsk['末净值']:.3f})"
+        )
+        seg_results.append(
+            {
+                "段": seg_i + 1,
+                "日期": f"{date_start}~{date_end}",
+                "MV": seg_mv,
+                "MVSK": seg_mvsk,
+                "等权": seg_eq,
+                "Δ夏普": d_sharpe,
+                "Δ净值": d_nav,
+            }
+        )
 
     n_mvsk_win = sum(1 for s in seg_results if s["Δ夏普"] > 0)
     print(f"\nMVSK 跑赢 MV 的段数: {n_mvsk_win}/{n_segs}")
 
     # 保存
     out = {
-        "参数": {"train": TRAIN_WINDOW, "hold": HOLD_PERIOD, "turnover_bps": TURNOVER_BPS,
-                  "gamma_s": GAMMA_S, "gamma_k": GAMMA_K},
+        "参数": {
+            "train": TRAIN_WINDOW,
+            "hold": HOLD_PERIOD,
+            "turnover_bps": TURNOVER_BPS,
+            "gamma_s": GAMMA_S,
+            "gamma_k": GAMMA_K,
+        },
         "数据": {"天数": T, "股票数": N, "日期范围": f"{dates[0]}~{dates[-1]}"},
-        "全样本外": {scheme: metrics_block(results[scheme]["daily_rets"]) for scheme, _ in schemes},
+        "全样本外": {
+            scheme: metrics_block(results[scheme]["daily_rets"])
+            for scheme, _ in schemes
+        },
         "分段": seg_results,
-        "cum_nav": {scheme: results[scheme]["cum_nav"].tolist() for scheme, _ in schemes},
+        "cum_nav": {
+            scheme: results[scheme]["cum_nav"].tolist() for scheme, _ in schemes
+        },
     }
     out_path = _PROJECT_ROOT / "research" / "cross_cycle_backtest_result.json"
     with open(out_path, "w", encoding="utf-8") as f:

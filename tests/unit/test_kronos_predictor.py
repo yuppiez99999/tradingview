@@ -247,7 +247,11 @@ def test_inference_exception_returns_empty() -> None:
             mock_wrapper = type(
                 "MockWrapper",
                 (),
-                {"predict": lambda self, **kwargs: (_ for _ in ()).throw(RuntimeError("GPU OOM"))},
+                {
+                    "predict": lambda self, **kwargs: (_ for _ in ()).throw(
+                        RuntimeError("GPU OOM")
+                    )
+                },
             )()
             predictor._model_wrapper = mock_wrapper
             predictor._available = True

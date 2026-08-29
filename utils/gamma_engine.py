@@ -58,8 +58,21 @@ class GammaEngine:
             try:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
-                return cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(cfg, dict) else {}
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+                return (
+                    cfg.get("hedge", {}).get("gamma_vega_engine", {})
+                    if isinstance(cfg, dict)
+                    else {}
+                )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
                 return {}
 
@@ -74,14 +87,40 @@ class GammaEngine:
                 # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
-            return fallback_cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(fallback_cfg, dict) else {}
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            return (
+                fallback_cfg.get("hedge", {}).get("gamma_vega_engine", {})
+                if isinstance(fallback_cfg, dict)
+                else {}
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
             try:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
-                return cfg.get("hedge", {}).get("gamma_vega_engine", {}) if isinstance(cfg, dict) else {}
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e2: # P2 模块 fail-safe, 待后续精确化
+                return (
+                    cfg.get("hedge", {}).get("gamma_vega_engine", {})
+                    if isinstance(cfg, dict)
+                    else {}
+                )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e2:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
@@ -97,7 +136,16 @@ class GammaEngine:
             df = wind_get_index_data("000300.SH", days=70)
             if df is not None and len(df) >= 60:
                 return float(df["close"].tail(60).mean())
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 回退: 新浪 HTTP
@@ -111,7 +159,16 @@ class GammaEngine:
                 parts = r.text.split(",")
                 if len(parts) > 3:
                     return float(parts[3])
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
         return None
@@ -127,7 +184,16 @@ class GammaEngine:
             iv_data = wind_get_option_iv("510050.SH")
             if iv_data and "iv_percentile" in iv_data:
                 return float(iv_data["iv_percentile"])
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 回退: 用 VIX 代理 (中国波指 iVIX 已停用, 用 510050 Put/Call 估算)
@@ -164,7 +230,16 @@ class GammaEngine:
                 ma60_value = float(df["close"].tail(60).mean())
                 current_price = float(df["close"].iloc[-1])
                 ma60_broken = current_price < ma60_value
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 触发条件2: IV < 10% 历史分位
@@ -216,7 +291,16 @@ class GammaEngine:
         try:
             with open(TRIGGER_LOG, "a", encoding="utf-8") as f:
                 f.write(json.dumps(trigger_info, ensure_ascii=False) + "\n")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"写入触发日志失败: {e}")
 
     def execute_tail_hedge(self, trigger_type: str, budget: int) -> dict:
@@ -274,7 +358,9 @@ class GammaEngine:
             "note": "实际执行需对接 QMT/券商 API",
         }
 
-        logger.info(f"尾部对冲执行: 触发={trigger_type}, 预算={budget}, 订单数={len(orders)}")
+        logger.info(
+            f"尾部对冲执行: 触发={trigger_type}, 预算={budget}, 订单数={len(orders)}"
+        )
 
         return result
 
@@ -303,9 +389,27 @@ class GammaEngine:
                             dt = datetime.fromisoformat(ts)
                             if dt.timestamp() >= cutoff:
                                 records.append(record)
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        AttributeError,
+                        RuntimeError,
+                        OSError,
+                        TimeoutError,
+                        ConnectionError,
+                    ):  # P2 模块 fail-safe, 待后续精确化
                         continue
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
         return records
@@ -344,4 +448,6 @@ if __name__ == "__main__":
         history = engine.get_trigger_history(args.history)
         logger.info(f"\n最近 {args.history} 天触发历史: {len(history)} 次")
         for r in history:
-            logger.info(f"  {r.get('timestamp', 'N/A')} - {r.get('trigger_type', 'N/A')} (预算 {r.get('budget', 0)})")
+            logger.info(
+                f"  {r.get('timestamp', 'N/A')} - {r.get('trigger_type', 'N/A')} (预算 {r.get('budget', 0)})"
+            )

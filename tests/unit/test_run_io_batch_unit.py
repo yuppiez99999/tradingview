@@ -9,6 +9,7 @@
 6. fail_default 自定义值
 7. timeout=None 不限制
 """
+
 from __future__ import annotations
 
 import sys
@@ -89,7 +90,9 @@ class TestRunIoBatchTimeout:
             time.sleep(2.0)
             return x
 
-        results = run_io_batch(items, fn, max_workers=1, timeout=0.2, fail_default="TIMEOUT")
+        results = run_io_batch(
+            items, fn, max_workers=1, timeout=0.2, fail_default="TIMEOUT"
+        )
         assert results == ["TIMEOUT"]
 
     def test_no_timeout(self):

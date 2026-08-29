@@ -18,7 +18,9 @@ from typing import Any
 
 _CONFIG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "v8.3_institutional", "config", "ai_decision.yaml"
+    "v8.3_institutional",
+    "config",
+    "ai_decision.yaml",
 )
 
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -38,25 +40,25 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     # 辩论引擎参数
     "debate": {
-        "confidence_threshold": 0.6,   # 双方置信度 > 此值且方向相反才辩论
-        "max_rounds": 2,                # 最多辩论轮数
-        "intraday_timeout": 60,         # 盘中总超时 (秒)
-        "postclose_timeout": 300,       # 盘后总超时 (秒)
-        "fallback_to_fast": True,       # 超时降级为快速聚合
+        "confidence_threshold": 0.6,  # 双方置信度 > 此值且方向相反才辩论
+        "max_rounds": 2,  # 最多辩论轮数
+        "intraday_timeout": 60,  # 盘中总超时 (秒)
+        "postclose_timeout": 300,  # 盘后总超时 (秒)
+        "fallback_to_fast": True,  # 超时降级为快速聚合
     },
     # 非线性聚合器参数
     "aggregator": {
-        "brier_window_days": 30,        # Brier 动态权重滚动窗口
-        "diversity_bonus": 0.1,         # 多样性奖励上限
+        "brier_window_days": 30,  # Brier 动态权重滚动窗口
+        "diversity_bonus": 0.1,  # 多样性奖励上限
         "semantic_dup_threshold": 0.6,  # 词重叠相似度去重阈值
-        "min_confidence": 0.3,          # 低于此置信度观点降权
+        "min_confidence": 0.3,  # 低于此置信度观点降权
     },
     # 决策门参数 (auto 模式放行条件)
     "gate": {
-        "max_single_pct": 0.02,         # 单笔 <= 净值 2%
-        "max_daily_pct": 0.10,          # 日内累计 <= 净值 10%
-        "min_confidence": 0.7,          # 自动放行最低置信度
-        "require_judge_auto": True,     # 必须 Judge 裁决类型为 AUTO
+        "max_single_pct": 0.02,  # 单笔 <= 净值 2%
+        "max_daily_pct": 0.10,  # 日内累计 <= 净值 10%
+        "min_confidence": 0.7,  # 自动放行最低置信度
+        "require_judge_auto": True,  # 必须 Judge 裁决类型为 AUTO
     },
     # 五 Agent 融合权重 (沿用 finance_agent_orchestrator.DEFAULT_WEIGHTS)
     "agent_weights": {
@@ -89,17 +91,26 @@ def _load() -> dict[str, Any]:
     if os.path.exists(_CONFIG_PATH):
         try:
             import yaml
+
             with open(_CONFIG_PATH, encoding="utf-8") as fh:
                 user = yaml.safe_load(fh) or {}
             cfg = _deep_merge(cfg, user)
-        except (ImportError, OSError, ValueError, TypeError,
-                AttributeError, RuntimeError) as exc:
+        except (
+            ImportError,
+            OSError,
+            ValueError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+        ) as exc:
             # ImportError: yaml 未安装; OSError: 文件读取失败 (权限/编码/磁盘);
             # ValueError/TypeError/AttributeError: 解析失败/格式错误/字段类型不符;
             # RuntimeError: _deep_merge 合并过程抛出
             import logging
+
             logging.getLogger("ai_decision.config").warning(
-                "加载 ai_decision.yaml 失败, 用内置默认: %s", exc)
+                "加载 ai_decision.yaml 失败, 用内置默认: %s", exc
+            )
     # 环境变量可覆盖运行模式 (便于部署切换)
     env_mode = os.environ.get("AI_DECISION_MODE")
     if env_mode:

@@ -27,7 +27,10 @@ from typing import Any, Optional
 
 from utils.auto_hedge_rebalance.audit_logger import AuditLogger
 from utils.auto_hedge_rebalance.circuit_breaker import CircuitBreaker, EmergencyAction
-from utils.auto_hedge_rebalance.cost_benefit_filter import CostBenefitFilter, PortfolioRisk
+from utils.auto_hedge_rebalance.cost_benefit_filter import (
+    CostBenefitFilter,
+    PortfolioRisk,
+)
 from utils.auto_hedge_rebalance.data_fetcher import HedgeToolDataFetcher
 from utils.auto_hedge_rebalance.models import (
     AutoHedgePlan,
@@ -96,9 +99,18 @@ class AutoHedgeRebalanceEngine:
         self.target_max_drawdown = target_max_drawdown
 
         # 初始化子组件
-        state_file = str(self.base_dir / self.config.get("state_file", "config/auto_hedge_rebalance_state.json"))
-        nav_history_file = str(self.base_dir / self.config.get("nav_history_file", "config/portfolio_nav_history.json"))
-        audit_db = str(self.base_dir / self.config.get("audit_db", "data/auto_hedge_rebalance_audit.db"))
+        state_file = str(
+            self.base_dir
+            / self.config.get("state_file", "config/auto_hedge_rebalance_state.json")
+        )
+        nav_history_file = str(
+            self.base_dir
+            / self.config.get("nav_history_file", "config/portfolio_nav_history.json")
+        )
+        audit_db = str(
+            self.base_dir
+            / self.config.get("audit_db", "data/auto_hedge_rebalance_audit.db")
+        )
 
         self.audit_logger = AuditLogger(db_path=audit_db)
         self.data_fetcher = HedgeToolDataFetcher(config=self.config)
@@ -226,7 +238,9 @@ class AutoHedgeRebalanceEngine:
             degradation_flags.append(f"风险评估降级: {exc}")
 
         # 阶段2: 市场状态判定
-        regime = self._determine_market_regime(portfolio_volatility, portfolio_drawdown_60d)
+        regime = self._determine_market_regime(
+            portfolio_volatility, portfolio_drawdown_60d
+        )
 
         # 阶段3: 熔断检查
         breaker_status = self.circuit_breaker.get_status()
@@ -246,7 +260,9 @@ class AutoHedgeRebalanceEngine:
         hedge_ratio = self._determine_hedge_ratio(regime)
         try:
             prices = self.data_fetcher.fetch_futures()
-            tool_selection = self.tool_selector.select_tools(regime, risk, hedge_ratio, prices)
+            tool_selection = self.tool_selector.select_tools(
+                regime, risk, hedge_ratio, prices
+            )
             degradation_flags.extend(tool_selection.fallback_flags)
         except Exception as exc:
             logger.error("工具选择失败: %s", exc)
@@ -254,7 +270,9 @@ class AutoHedgeRebalanceEngine:
             degradation_flags.append(f"工具选择降级: {exc}")
 
         # 阶段5: 成本过滤
-        filter_result = self.cost_filter.filter(tool_selection, risk, prices if "prices" in dir() else {})
+        filter_result = self.cost_filter.filter(
+            tool_selection, risk, prices if "prices" in dir() else {}
+        )
         if not filter_result.passed:
             degradation_flags.append(f"成本效益不足: {filter_result.reject_reason}")
 
@@ -277,7 +295,15 @@ class AutoHedgeRebalanceEngine:
         # 阶段8: 策略纠偏
         if monitor_result.correction_action != CorrectionAction.NONE:
             current_level = self.state_machine.get_current_state().current_level
-            transition = self.state_machine.transition(current_level, monitor_result.correction_action)
+            # v8.7: 严重纠偏时允许紧急跨级降级 (极端事件快速响应)
+            is_emergency = monitor_result.correction_action in (
+                CorrectionAction.SEVERE_REVIEW,
+                CorrectionAction.DEFENSE_BOOST,
+                CorrectionAction.EMERGENCY_LIQUIDATE,
+            )
+            transition = self.state_machine.transition(
+                current_level, monitor_result.correction_action, emergency=is_emergency
+            )
             if transition.blocked_reason:
                 degradation_flags.append(f"策略纠偏阻断: {transition.blocked_reason}")
             if transition.switch_event is not None:
@@ -319,7 +345,9 @@ class AutoHedgeRebalanceEngine:
         if previous_portfolio_value <= 0:
             return EmergencyAction(action_type="none", description="前值无效")
 
-        daily_drop = (previous_portfolio_value - current_portfolio_value) / previous_portfolio_value
+        daily_drop = (
+            previous_portfolio_value - current_portfolio_value
+        ) / previous_portfolio_value
         if daily_drop < 0:
             daily_drop = 0  # 上涨不触发
 

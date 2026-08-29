@@ -18,6 +18,7 @@
 上游: docs/1 (TencentDB-Agent-Memory 接入建议) + memory_reflection.py
 下游: orchestrator.py run_ai_hedge_fund (state 注入) + memory_reflection.py (share_lesson)
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,6 +30,7 @@ from typing import Any, Optional
 
 try:
     from ..logging_manager import get_logger
+
     logger = get_logger("team_memory_hub")
 except ImportError:
     logger = logging.getLogger("team_memory_hub")
@@ -36,6 +38,7 @@ except ImportError:
 try:
     from ..infra.feature_flags import is_enabled
 except ImportError:
+
     def is_enabled(name: str) -> bool:
         return False
 
@@ -47,9 +50,11 @@ FLAG_NAME = "USE_TEAM_MEMORY_HUB"
 # 数据类
 # ============================================================
 
+
 @dataclass
 class Lesson:
     """一条团队教训"""
+
     lesson_id: str
     agent_name: str
     ticker: str
@@ -82,6 +87,7 @@ class Lesson:
 @dataclass
 class AgentProfile:
     """分析师画像 (历史聚合)"""
+
     agent_name: str
     total_lessons: int = 0
     correct_count: int = 0
@@ -109,6 +115,7 @@ class AgentProfile:
 # ============================================================
 # TeamMemoryHub 主类
 # ============================================================
+
 
 class TeamMemoryHub:
     """团队级共享记忆中枢
@@ -157,9 +164,15 @@ class TeamMemoryHub:
                     created_at TEXT NOT NULL
                 )
             """)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_lessons_ticker ON team_lessons(ticker)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_lessons_agent ON team_lessons(agent_name)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_lessons_created ON team_lessons(created_at)")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_lessons_ticker ON team_lessons(ticker)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_lessons_agent ON team_lessons(agent_name)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_lessons_created ON team_lessons(created_at)"
+            )
             conn.commit()
         except (ValueError, TypeError, sqlite3.Error, OSError) as e:
             logger.warning("team_lessons 表初始化失败: %s", e)
@@ -206,8 +219,17 @@ class TeamMemoryHub:
                 """INSERT INTO team_lessons
                    (lesson_id, agent_name, ticker, lesson_text, context, decision, outcome, confidence, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (lesson_id, agent_name, ticker, lesson_text[:2000], context[:500],
-                 decision[:50], outcome, float(confidence), created_at),
+                (
+                    lesson_id,
+                    agent_name,
+                    ticker,
+                    lesson_text[:2000],
+                    context[:500],
+                    decision[:50],
+                    outcome,
+                    float(confidence),
+                    created_at,
+                ),
             )
             conn.commit()
             logger.debug("share_lesson: %s @ %s by %s", ticker, lesson_id, agent_name)
@@ -246,7 +268,9 @@ class TeamMemoryHub:
         try:
             conn = self._get_conn()
             sql = "SELECT lesson_id, agent_name, ticker, lesson_text, context, decision, outcome, confidence, created_at FROM team_lessons WHERE created_at >= ?"
-            params: list[Any] = [(datetime.now() - timedelta(days=days_back)).isoformat()]
+            params: list[Any] = [
+                (datetime.now() - timedelta(days=days_back)).isoformat()
+            ]
 
             if ticker:
                 sql += " AND ticker = ?"
@@ -371,11 +395,15 @@ class TeamMemoryHub:
             total = conn.execute("SELECT COUNT(*) FROM team_lessons").fetchone()[0]
             by_agent = {
                 r[0]: r[1]
-                for r in conn.execute("SELECT agent_name, COUNT(*) FROM team_lessons GROUP BY agent_name")
+                for r in conn.execute(
+                    "SELECT agent_name, COUNT(*) FROM team_lessons GROUP BY agent_name"
+                )
             }
             by_outcome = {
                 r[0] or "unknown": r[1]
-                for r in conn.execute("SELECT outcome, COUNT(*) FROM team_lessons GROUP BY outcome")
+                for r in conn.execute(
+                    "SELECT outcome, COUNT(*) FROM team_lessons GROUP BY outcome"
+                )
             }
             return {
                 "db_path": self.db_path,

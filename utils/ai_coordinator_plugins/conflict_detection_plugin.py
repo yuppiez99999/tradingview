@@ -11,6 +11,7 @@
 
 抽成 MajorityVotePlugin, 返回结构与旧 resolve_conflicts 完全一致 (向后兼容).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -112,9 +113,15 @@ class WeightedVotePlugin(ConflictDetectionPlugin):
                 if ticker in decisions:
                     actions[source] = decisions[ticker]
 
-            buy_weight = sum(weights.get(s, 1.0) for s, a in actions.items() if a == "BUY")
-            sell_weight = sum(weights.get(s, 1.0) for s, a in actions.items() if a == "SELL")
-            hold_weight = sum(weights.get(s, 1.0) for s, a in actions.items() if a == "HOLD")
+            buy_weight = sum(
+                weights.get(s, 1.0) for s, a in actions.items() if a == "BUY"
+            )
+            sell_weight = sum(
+                weights.get(s, 1.0) for s, a in actions.items() if a == "SELL"
+            )
+            hold_weight = sum(
+                weights.get(s, 1.0) for s, a in actions.items() if a == "HOLD"
+            )
             total_weight = buy_weight + sell_weight + hold_weight
 
             buy_count = sum(1 for a in actions.values() if a == "BUY")

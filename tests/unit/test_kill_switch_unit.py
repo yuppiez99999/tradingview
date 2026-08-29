@@ -9,6 +9,7 @@
     - 隔离 TRADING_ENV / KILL_SWITCH_SIM_MODE 等环境变量
     - 每个 bug 至少一个用例, 函数名包含 bug 编号
 """
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -179,9 +180,7 @@ class TestP1GBrokerCallbackRegistration:
         result = ks.execute_kill_switch(level=2)
 
         assert result["executed"] is False, "callback 失败时必须返回 executed=False"
-        assert "broker_callback_failed" in str(
-            result.get("actions_taken", [])
-        ) or any(
+        assert "broker_callback_failed" in str(result.get("actions_taken", [])) or any(
             "failed" in str(a).lower() for a in result.get("actions_taken", [])
         ), "actions_taken 必须记录失败"
 
@@ -249,9 +248,7 @@ class TestKillSwitchLevelBoundaries:
         assert result["can_trade"] is False
 
     @pytest.mark.unit
-    def test_margin_usage_clamped_to_valid_range(
-        self, clean_env, tmp_kill_switch_log
-    ):
+    def test_margin_usage_clamped_to_valid_range(self, clean_env, tmp_kill_switch_log):
         """margin_usage 越界 (>1.0 或 <0) 必须被 clamp 到 [0, 1]"""
         ks = KillSwitch()
 
@@ -402,7 +399,10 @@ class TestEstimateMargin:
     @pytest.mark.unit
     def test_budget_summary_options_only(self, clean_env, monkeypatch):
         ks = KillSwitch()
-        data = {"meta": {"hedge_mode": "OPTIONS_ONLY"}, "hedge_positions": {"budget_summary": {"usage_pct": 82.5}}}
+        data = {
+            "meta": {"hedge_mode": "OPTIONS_ONLY"},
+            "hedge_positions": {"budget_summary": {"usage_pct": 82.5}},
+        }
         monkeypatch.setattr(ks, "_load_positions_data", lambda: data)
         monkeypatch.setattr(ks, "_estimate_from_real_positions", lambda d: 0.30)
         ratio = ks._estimate_margin_from_positions()
@@ -503,13 +503,17 @@ class TestCheckConcentration:
     @pytest.mark.unit
     def test_normal(self, clean_env):
         ks = KillSwitch()
-        result = ks.check_concentration({"A": 20_000, "B": 20_000, "C": 20_000, "D": 20_000, "E": 20_000})
+        result = ks.check_concentration(
+            {"A": 20_000, "B": 20_000, "C": 20_000, "D": 20_000, "E": 20_000}
+        )
         assert result["level"] == "OK"
 
     @pytest.mark.unit
     def test_l1(self, clean_env):
         ks = KillSwitch()
-        result = ks.check_concentration({"A": 30_000, "B": 30_000, "C": 30_000, "D": 10_000})
+        result = ks.check_concentration(
+            {"A": 30_000, "B": 30_000, "C": 30_000, "D": 10_000}
+        )
         assert result["level"] == "L1"
 
     @pytest.mark.unit
@@ -533,13 +537,24 @@ class TestCheckConcentration:
     @pytest.mark.unit
     def test_dict_positions(self, clean_env):
         ks = KillSwitch()
-        result = ks.check_concentration({"A": {"market_value": 80_000}, "B": {"market_value": 20_000}})
+        result = ks.check_concentration(
+            {"A": {"market_value": 80_000}, "B": {"market_value": 20_000}}
+        )
         assert result["level"] == "L3"
 
     @pytest.mark.unit
     def test_none_market_value(self, clean_env):
         ks = KillSwitch()
-        result = ks.check_concentration({"A": {"market_value": None}, "B": {"market_value": 10_000}, "C": {"market_value": 10_000}, "D": {"market_value": 10_000}, "E": {"market_value": 10_000}, "F": {"market_value": 10_000}})
+        result = ks.check_concentration(
+            {
+                "A": {"market_value": None},
+                "B": {"market_value": 10_000},
+                "C": {"market_value": 10_000},
+                "D": {"market_value": 10_000},
+                "E": {"market_value": 10_000},
+                "F": {"market_value": 10_000},
+            }
+        )
         assert result["level"] == "OK"
 
 
@@ -549,6 +564,7 @@ class TestEventHistory:
     @pytest.mark.unit
     def test_no_log_file(self, clean_env):
         from utils.kill_switch import KILL_SWITCH_LOG
+
         if KILL_SWITCH_LOG.exists():
             KILL_SWITCH_LOG.unlink()
         ks = KillSwitch()
@@ -558,6 +574,8 @@ class TestEventHistory:
     @pytest.mark.unit
     def test_with_events(self, clean_env, tmp_kill_switch_log):
         ks = KillSwitch()
-        ks._log_event({"timestamp": "2026-08-17T12:00:00", "level": 1, "level_name": "test"})
+        ks._log_event(
+            {"timestamp": "2026-08-17T12:00:00", "level": 1, "level_name": "test"}
+        )
         history = ks.get_event_history(30)
         assert len(history) >= 1

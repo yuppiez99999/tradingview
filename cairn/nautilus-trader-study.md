@@ -308,3 +308,14 @@ equity_curve:     每个点带真实时间戳
 **更新时间**：2026-08-11
 **版本**：v1.0（架构研究完成，Sprint 3 W6.3.2~W6.3.4 路线图已定）
 **关联文件**：`docs/高价值项目集成排期计划_20260811.md` §4 Sprint 3 / `cairn/backtest-standards.md` §二 前视偏差防范清单 / `utils/backtest/` 7 模块源码
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [GitHub 高价值项目集成策略（Wave 6）](github-integration-wave6.md) (相似度 20%)
+- [Wave 6 启动前置研究笔记（2026-08-11）](wave6-prep-study-notes.md) (相似度 20%)
+- [W6.3.3 预研 · QS-Trader 风格 secid 合约解析难点清单](w633_secid_contract_parsing_challenges.md) (相似度 12%)
+- [经验上下文层（ECL, Experience Context Layer）设计方案](experience-context-layer.md) (相似度 7%)
+- [自我进化框架](self-evolution-framework.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

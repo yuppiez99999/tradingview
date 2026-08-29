@@ -30,6 +30,7 @@
     1 = 异常 (应记录到任务计划程序的 Last Result)
 =================================================================
 """
+
 from __future__ import annotations
 
 import argparse
@@ -58,7 +59,9 @@ def _load_observation_days() -> int:
         with open(_SHADOW_ADMISSION_YAML, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
         settings = cfg.get("settings", {})
-        return int(settings.get("observation_days", settings.get("min_observation_days", 14)))
+        return int(
+            settings.get("observation_days", settings.get("min_observation_days", 14))
+        )
     except (OSError, Exception):
         return 14
 
@@ -173,6 +176,7 @@ def collect_progress_snapshot() -> dict:
     # 3. Feature Flag 状态
     try:
         from utils.infra.feature_flags import is_enabled
+
         snapshot["feature_flags"] = {
             "USE_STRATEGY_EVALUATOR": is_enabled("USE_STRATEGY_EVALUATOR"),
             "USE_EVOLUTION_ORCHESTRATOR": is_enabled("USE_EVOLUTION_ORCHESTRATOR"),
@@ -180,24 +184,51 @@ def collect_progress_snapshot() -> dict:
             "USE_DRIFT_DETECTOR": is_enabled("USE_DRIFT_DETECTOR"),
             "USE_AUTO_RETRAIN": is_enabled("USE_AUTO_RETRAIN"),
         }
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         snapshot["feature_flags"] = {"error": str(e)}
 
     # 3.5 闭环健康度指标 (阶段4)
     try:
         from utils.evolution.orchestrator import EvolutionOrchestratorV2
+
         _orch = EvolutionOrchestratorV2()
         snapshot["loop_health"] = _orch.get_loop_health_metrics()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ImportError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        ImportError,
+    ) as e:
         snapshot["loop_health"] = {"error": str(e)}
 
     # 3.6 灰度发布状态 (阶段5)
     try:
         from scripts.gradual_rollout_manager import load_status as _load_rollout
+
         _rollout = _load_rollout()
         snapshot["rollout"] = _rollout.to_dict()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ImportError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        ImportError,
+    ) as e:
         snapshot["rollout"] = {"error": str(e)}
 
     # 4. 自动推断下一步动作
@@ -229,7 +260,9 @@ def collect_progress_snapshot() -> dict:
             "启动完整外层循环"
         )
     else:
-        snapshot["next_action"] = "进化框架已启用, 监控 decisions.jsonl 的 recommendation 字段"
+        snapshot["next_action"] = (
+            "进化框架已启用, 监控 decisions.jsonl 的 recommendation 字段"
+        )
 
     return snapshot
 
@@ -271,10 +304,14 @@ def ensure_today_shadow_data(logger: logging.Logger) -> None:
                     except _json.JSONDecodeError:
                         continue
         except OSError as e:
-            logging.getLogger("run_evolution_eval").warning("[兜底] 读取 daily_returns.jsonl 失败: %s", e)
+            logging.getLogger("run_evolution_eval").warning(
+                "[兜底] 读取 daily_returns.jsonl 失败: %s", e
+            )
 
     # 2. 当日数据缺失, 兜底调用 ShadowRealDataFeeder 注入
-    logging.getLogger("run_evolution_eval").info("[兜底] 当日 Shadow 数据缺失 (date=%s), 尝试注入", today)
+    logging.getLogger("run_evolution_eval").info(
+        "[兜底] 当日 Shadow 数据缺失 (date=%s), 尝试注入", today
+    )
     try:
         from utils.alpha.shadow_real_data_feeder import ShadowRealDataFeeder
         from utils.data_provider import MarketDataProvider
@@ -302,7 +339,14 @@ def ensure_today_shadow_data(logger: logging.Logger) -> None:
                 result.total_count,
                 result.error,
             )
-    except (ImportError, RuntimeError, ValueError, OSError, ConnectionError, TimeoutError) as e:
+    except (
+        ImportError,
+        RuntimeError,
+        ValueError,
+        OSError,
+        ConnectionError,
+        TimeoutError,
+    ) as e:
         # fail-safe: 兜底失败不影响 EvolutionEval 主流程, 评估将在空数据上降级
         logger.warning("[兜底] ShadowRealDataFeeder 兜底调用失败 (fail-safe): %s", e)
 
@@ -369,7 +413,11 @@ def print_progress_summary(snapshot: dict, logger: logging.Logger) -> None:
         obs_progress = sd.get("observation_progress", "?")
         logger.info(
             "[Shadow 数据] %s/%s 天 (观察期) | %s/20 条 (最小评估样本) | %s ~ %s",
-            days, OBSERVATION_DAYS, days, sd.get("first_date", ""), sd.get("last_date", ""),
+            days,
+            OBSERVATION_DAYS,
+            days,
+            sd.get("first_date", ""),
+            sd.get("last_date", ""),
         )
         # 进度条
         bar_len = 20
@@ -499,6 +547,7 @@ def main() -> int:
         status_file = _PROJECT_ROOT / "reports" / "evolution" / "status.json"
         status_file.parent.mkdir(parents=True, exist_ok=True)
         import json as _json
+
         with status_file.open("w", encoding="utf-8") as f:
             _json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
@@ -544,7 +593,9 @@ def main() -> int:
 
         # dry-run 模式提示
         if args.dry_run:
-            logger.info("[dry-run] 试运行模式, 决策日志可能已写入 (HC-4 强制 evaluate_only)")
+            logger.info(
+                "[dry-run] 试运行模式, 决策日志可能已写入 (HC-4 强制 evaluate_only)"
+            )
 
         # 检查决策日志是否已生成
         decisions_log = _PROJECT_ROOT / "reports" / "evolution" / "decisions.jsonl"
@@ -569,9 +620,15 @@ def main() -> int:
             today_str = result.get("observation_day", "")
             if not today_str:
                 from datetime import date as _date
+
                 today_str = _date.today().isoformat()
 
-            metrics_dir = _PROJECT_ROOT / "reports" / "evolution" / f"theoretical_metrics_{today_str}"
+            metrics_dir = (
+                _PROJECT_ROOT
+                / "reports"
+                / "evolution"
+                / f"theoretical_metrics_{today_str}"
+            )
             metrics_dir.mkdir(parents=True, exist_ok=True)
 
             public_score = result.get("public_score", 0.0)
@@ -580,6 +637,7 @@ def main() -> int:
             returns_path = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
             if returns_path.exists():
                 import json as _json
+
                 lines = returns_path.read_text(encoding="utf-8").strip().split("\n")
                 if lines:
                     last = _json.loads(lines[-1])
@@ -632,7 +690,16 @@ def main() -> int:
         logger.error(traceback.format_exc())
         return 1
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.error("[FAIL] v84_EvolutionEval 异常: %s", e)

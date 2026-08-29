@@ -34,8 +34,24 @@ logger = logging.getLogger("risk_audit")
 
 _AUDIT_DIR_DEFAULT = "reports/risk_audit"
 _SEVERITIES = {"DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"}
-_ACTIONS = {"ALLOW", "BLOCK", "TRIP", "RESET", "LEVEL_CHANGE", "RECONCILE_ISSUE", "OTHER"}
-_MODULES = {"T09_PRETRADE", "T10_POSITION", "T11_CB", "T12_KILL", "T13_RECONCILE", "T14_AUDIT", "OTHER"}
+_ACTIONS = {
+    "ALLOW",
+    "BLOCK",
+    "TRIP",
+    "RESET",
+    "LEVEL_CHANGE",
+    "RECONCILE_ISSUE",
+    "OTHER",
+}
+_MODULES = {
+    "T09_PRETRADE",
+    "T10_POSITION",
+    "T11_CB",
+    "T12_KILL",
+    "T13_RECONCILE",
+    "T14_AUDIT",
+    "OTHER",
+}
 
 
 @dataclass
@@ -75,14 +91,20 @@ class RiskAuditLogger:
         if project_root is None:
             project_root = Path(__file__).resolve().parents[2]
         audit_path = Path(audit_dir)
-        self.audit_dir: Path = audit_path if audit_path.is_absolute() else project_root / audit_path
+        self.audit_dir: Path = (
+            audit_path if audit_path.is_absolute() else project_root / audit_path
+        )
         self.audit_dir.mkdir(parents=True, exist_ok=True)
 
         self._buffer: list[AuditRecord] = []
         self._buffer_capacity = max(10, int(buffer_capacity))
         self._lock = threading.Lock()
-        self._index_by_symbol: dict[str, list[str]] = defaultdict(list)  # symbol → [audit_id]
-        self._index_by_date: dict[str, list[str]] = defaultdict(list)    # date → [audit_id]
+        self._index_by_symbol: dict[str, list[str]] = defaultdict(
+            list
+        )  # symbol → [audit_id]
+        self._index_by_date: dict[str, list[str]] = defaultdict(
+            list
+        )  # date → [audit_id]
         # 内存二级索引: audit_id → (date_str, jsonl_path, line_offset)
         # 简单起见, 回放时扫 JSONL 全量 (风控审计日量级 <1MB, 可接受)
 
@@ -142,7 +164,9 @@ class RiskAuditLogger:
     def query_by_date(self, date: str) -> list[AuditRecord]:
         return list(self.replay_stream(date))
 
-    def query_by_symbol(self, symbol: str, date_from: str | None = None) -> list[AuditRecord]:
+    def query_by_symbol(
+        self, symbol: str, date_from: str | None = None
+    ) -> list[AuditRecord]:
         results: list[AuditRecord] = []
         for f in sorted(self.audit_dir.glob("risk_audit_*.jsonl")):
             d_str = f.stem.replace("risk_audit_", "")
@@ -154,7 +178,11 @@ class RiskAuditLogger:
         return results
 
     def query_rejections(self, date: str) -> list[AuditRecord]:
-        return [r for r in self.replay_stream(date) if r.action == "BLOCK" or r.action == "TRIP"]
+        return [
+            r
+            for r in self.replay_stream(date)
+            if r.action == "BLOCK" or r.action == "TRIP"
+        ]
 
     def replay_stream(self, date: str) -> Iterator[AuditRecord]:
         """按时间顺序 yield 当日记录."""
@@ -165,7 +193,8 @@ class RiskAuditLogger:
             file_records = [r for r in self._iter_jsonl(fpath) if r is not None]
         with self._lock:
             buffered = [
-                r for r in self._buffer
+                r
+                for r in self._buffer
                 if r.timestamp.startswith(date.replace("-", "-"))  # ISO 前缀匹配
             ]
         all_recs = file_records + buffered

@@ -56,7 +56,9 @@ class MockFactorAttributionResult:
     """模拟 FactorAttributionResult."""
 
     style_factor_attributions: list[MockFactorAttribution] = field(default_factory=list)
-    sector_factor_attributions: list[MockFactorAttribution] = field(default_factory=list)
+    sector_factor_attributions: list[MockFactorAttribution] = field(
+        default_factory=list
+    )
     total_pnl: float = 0.0
     attribution_date: str = ""
     portfolio_value: float = 1_000_000.0
@@ -506,7 +508,9 @@ class TestFromAttributionResult:
 class TestPnLAttributionAdapter:
     """适配器类行为测试."""
 
-    def test_load_from_report_found(self, tmp_report_dir: Path, adapter: PnLAttributionAdapter):
+    def test_load_from_report_found(
+        self, tmp_report_dir: Path, adapter: PnLAttributionAdapter
+    ):
         """load_from_report 找到文件."""
         data = {
             "factor_contributions": {"style_momentum": 0.001},
@@ -570,7 +574,9 @@ class TestPnLAttributionAdapter:
     def test_history_max_size(self, adapter: PnLAttributionAdapter):
         """历史记录受 max_history 限制."""
         for i in range(40):
-            adapter.load_dict({f"f{i}": 0.001}, attribution_date=f"2026-08-{(i % 30) + 1:02d}")
+            adapter.load_dict(
+                {f"f{i}": 0.001}, attribution_date=f"2026-08-{(i % 30) + 1:02d}"
+            )
         # max_history=30, 所以历史记录数 ≤ 30
         assert len(adapter.history) <= 30
 
@@ -585,7 +591,9 @@ class TestPnLAttributionAdapter:
         adapter = PnLAttributionAdapter(report_dir=tmp_report_dir)
         assert adapter.report_dir == tmp_report_dir
 
-    def test_try_multiple_paths(self, tmp_report_dir: Path, adapter: PnLAttributionAdapter):
+    def test_try_multiple_paths(
+        self, tmp_report_dir: Path, adapter: PnLAttributionAdapter
+    ):
         """尝试多个路径, 找到第一个."""
         # 只创建第三个候选路径的文件
         data = {"factor_contributions": {"m": 0.001}, "total_pnl": 500.0}
@@ -705,7 +713,9 @@ class TestImmutability:
 class TestIntegration:
     """集成场景测试."""
 
-    def test_full_flow_factor_attribution_to_feedback_loop(self, adapter: PnLAttributionAdapter):
+    def test_full_flow_factor_attribution_to_feedback_loop(
+        self, adapter: PnLAttributionAdapter
+    ):
         """完整流程: FactorAttributionResult → FeedbackLoop 输入."""
         # 模拟归因结果
         result = make_factor_result(
@@ -731,7 +741,9 @@ class TestIntegration:
         assert fc["style_momentum"] > 0  # 正贡献 → 增配
         assert fc["style_value"] < 0  # 负贡献 → 减配
 
-    def test_full_flow_report_file_to_feedback_loop(self, tmp_report_dir: Path, adapter: PnLAttributionAdapter):
+    def test_full_flow_report_file_to_feedback_loop(
+        self, tmp_report_dir: Path, adapter: PnLAttributionAdapter
+    ):
         """完整流程: 报告文件 → FeedbackLoop 输入."""
         # 1. 写入归因报告
         data = {
@@ -863,7 +875,11 @@ class TestEdgeCases:
     def test_factor_name_with_special_chars(self):
         """因子名含特殊字符."""
         result = convert_to_feedback_loop_format(
-            style_contributions={"factor-1": 0.001, "factor_2": 0.002, "factor.3": 0.003},
+            style_contributions={
+                "factor-1": 0.001,
+                "factor_2": 0.002,
+                "factor.3": 0.003,
+            },
         )
         assert result.status == STATUS_OK
         assert result.factor_contributions["style_factor-1"] == pytest.approx(0.001)

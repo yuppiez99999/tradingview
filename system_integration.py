@@ -61,9 +61,7 @@ if os.path.exists(_ENV_PATH):
     except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
         # logger 在第 73 行才定义, 此处 except 块若在模块加载早期触发会抛 NameError
         # 改用 logging.getLogger 直接获取, 避免模块加载顺序依赖 (同 BUG-08 修复模式)
-        logging.getLogger("system_integration").exception(
-            "加载 .env 配置失败"
-        )
+        logging.getLogger("system_integration").exception("加载 .env 配置失败")
 
 # IC1 修复: v7.5_institutional/src 目录为空, P0 模块实际位于 v8.3_institutional/src
 # 原路径导致 SignalFusion/ModelDriftDetector/CostAwareBacktest 全部静默加载失败
@@ -159,12 +157,16 @@ except Exception as _e1:  # noqa: BLE001  # fail-safe, 待后续精确化
 
         _bt_path = os.path.join(_V75_SRC, "backtest", "cost_aware_backtest.py")
         if os.path.exists(_bt_path):
-            _spec = importlib.util.spec_from_file_location("cost_aware_backtest", _bt_path)
+            _spec = importlib.util.spec_from_file_location(
+                "cost_aware_backtest", _bt_path
+            )
             _mod = importlib.util.module_from_spec(_spec)
             # 确保 cost_model 也可加载
             _cm_path = os.path.join(_V75_SRC, "backtest", "cost_model.py")
             if os.path.exists(_cm_path):
-                _spec2 = importlib.util.spec_from_file_location("backtest.cost_model", _cm_path)
+                _spec2 = importlib.util.spec_from_file_location(
+                    "backtest.cost_model", _cm_path
+                )
                 _mod2 = importlib.util.module_from_spec(_spec2)
                 sys.modules["backtest.cost_model"] = _mod2
                 _spec2.loader.exec_module(_mod2)
@@ -185,6 +187,7 @@ try:
         from utils.execution.automated_execution_system import AutomatedExecutionSystem
     except ImportError:
         from automated_execution_system import AutomatedExecutionSystem  # type: ignore[misc]
+
         _AUTO_SYSTEM_AVAILABLE = True
 except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
     logger.error(f"AutomatedExecutionSystem 不可用: {e}")
@@ -231,7 +234,9 @@ def load_qlib_bin(field: str, qlib_code: str) -> Optional[pd.Series]:
     QLib bin 格式: 头部 9 个 float (start_date, end_date, float_count, etc.)
     之后是 float32 数据, 长度对齐 calendars/day.txt
     """
-    bin_path = os.path.join(_BASE, "qlib_data", "cn_data", "features", qlib_code, f"{field}.day.bin")
+    bin_path = os.path.join(
+        _BASE, "qlib_data", "cn_data", "features", qlib_code, f"{field}.day.bin"
+    )
     if not os.path.exists(bin_path):
         return None
 
@@ -392,7 +397,9 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             return
 
         # 加载 11_量化策略 的 positions.json 作为数据源 (dict 格式, 含详细信息)
-        src_pos_path = os.path.join(_BASE, "..", "11_量化策略", "config", "positions.json")
+        src_pos_path = os.path.join(
+            _BASE, "..", "11_量化策略", "config", "positions.json"
+        )
         src_data = {}
         if os.path.exists(src_pos_path):
             try:
@@ -464,7 +471,12 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 json.dump(data, f, ensure_ascii=False, indent=2)
             logger.info(
                 f"本地 positions.json 已规范化: list→dict, "
-                f"{len(normalized)} 个持仓" + (f", 未在 11_量化策略 找到: {missing_in_src}" if missing_in_src else "")
+                f"{len(normalized)} 个持仓"
+                + (
+                    f", 未在 11_量化策略 找到: {missing_in_src}"
+                    if missing_in_src
+                    else ""
+                )
             )
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"写回 positions.json 失败: {e}")
@@ -569,7 +581,9 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                         for i in range(5):
                             d = seed_date + timedelta(days=i)
                             detector.update_ic(d, initial_ic)
-                        logger.info(f"漂移检测器预热: IC={initial_ic:.4f} (5 次注入, 源: QLib 报告)")
+                        logger.info(
+                            f"漂移检测器预热: IC={initial_ic:.4f} (5 次注入, 源: QLib 报告)"
+                        )
                         _preheated = True
                 except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                     logger.warning(f"漂移检测器预热失败: {e}")
@@ -583,7 +597,9 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                     for sym_tuple in POSITION_SYMBOLS[:5]:
                         meta = load_model_meta(sym_tuple[0])
                         if meta and meta.get("cv_after_selection"):
-                            hist_ic_values.append(float(meta["cv_after_selection"].get("mean_ic", 0) or 0))
+                            hist_ic_values.append(
+                                float(meta["cv_after_selection"].get("mean_ic", 0) or 0)
+                            )
                     if hist_ic_values:
                         avg_hist_ic = float(np.mean(hist_ic_values))
                         seed_date = datetime.now() - timedelta(days=5)
@@ -616,7 +632,9 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
 
     # ---------- 主执行钩子 ----------
 
-    def _execute_daily_trading(self, execution_name: str = "daily_execution", force_step5c: bool = False) -> None:
+    def _execute_daily_trading(
+        self, execution_name: str = "daily_execution", force_step5c: bool = False
+    ) -> None:
         """覆盖父类方法, 注入 P0 钩子
 
         执行顺序:
@@ -684,7 +702,9 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             # ---------- 1. 获取当日 IC (多源回退, 修复 Bug-B) ----------
             daily_ic = self._fetch_daily_ic()
             if daily_ic is None:
-                logger.info("跳过漂移检测: 无可用 IC 数据 (ic_recorder 与 QLib 报告均无)")
+                logger.info(
+                    "跳过漂移检测: 无可用 IC 数据 (ic_recorder 与 QLib 报告均无)"
+                )
                 self.last_drift_check = today.isoformat()
                 return
 
@@ -707,13 +727,18 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             # ---------- 4. 触发重训 (修复 Bug-C, 带冷却期) ----------
             # 修复 Bug-D: DriftAlert 是 dataclass, 用属性访问而非 .get()
             critical_count = sum(
-                1 for a in alerts if str(getattr(getattr(a, "severity", None), "value", "")).lower() == "critical"
+                1
+                for a in alerts
+                if str(getattr(getattr(a, "severity", None), "value", "")).lower()
+                == "critical"
             )
             alert_summaries = [
                 f"[{getattr(getattr(a, 'severity', None), 'value', '?')}] {getattr(a, 'message', str(a))}"
                 for a in alerts[:3]
             ]
-            logger.warning(f"漂移检测发现 {len(alerts)} 个告警 (critical={critical_count}): {alert_summaries}")
+            logger.warning(
+                f"漂移检测发现 {len(alerts)} 个告警 (critical={critical_count}): {alert_summaries}"
+            )
 
             need_retrain, reason = self.drift_detector.should_retrain()
             if not need_retrain:
@@ -732,9 +757,15 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 "date": today.isoformat(),
                 "alert_count": len(alerts),
                 "critical_count": critical_count,
-                "action": "retrain_triggered"
-                if retrained
-                else ("shadow_recorded" if EVOLUTION_CONFIG["shadow_mode"] else "cooldown_skip"),
+                "action": (
+                    "retrain_triggered"
+                    if retrained
+                    else (
+                        "shadow_recorded"
+                        if EVOLUTION_CONFIG["shadow_mode"]
+                        else "cooldown_skip"
+                    )
+                ),
                 "reason": reason,
             }
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
@@ -874,7 +905,9 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                     logger.warning(f"成本回测 evaluate 失败: {e}")
 
-            report_path = os.path.join(self.report_dir, f"cost_backtest_{today.isoformat()}.json")
+            report_path = os.path.join(
+                self.report_dir, f"cost_backtest_{today.isoformat()}.json"
+            )
             try:
                 with open(report_path, "w", encoding="utf-8") as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
@@ -894,7 +927,9 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             triggers = self.stop_loss_monitor.check_and_execute()
             if triggers:
                 executed = [t for t in triggers if getattr(t, "executed", False)]
-                logger.warning(f"止损监控触发 {len(triggers)} 条规则, 已执行 {len(executed)} 笔卖出")
+                logger.warning(
+                    f"止损监控触发 {len(triggers)} 条规则, 已执行 {len(executed)} 笔卖出"
+                )
             else:
                 logger.info("止损监控完成: 未触发任何止损/止盈")
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化

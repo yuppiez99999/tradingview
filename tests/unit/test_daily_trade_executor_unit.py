@@ -86,7 +86,9 @@ class TestParseDateFromCfg:
     """_parse_date_from_cfg: yaml 日期字符串解析"""
 
     def test_valid_date_string(self):
-        assert dte._parse_date_from_cfg("2026-07-10", date(2026, 1, 1)) == date(2026, 7, 10)
+        assert dte._parse_date_from_cfg("2026-07-10", date(2026, 1, 1)) == date(
+            2026, 7, 10
+        )
 
     def test_empty_string_returns_default(self):
         assert dte._parse_date_from_cfg("", date(2026, 1, 1)) == date(2026, 1, 1)
@@ -95,13 +97,17 @@ class TestParseDateFromCfg:
         assert dte._parse_date_from_cfg(None, date(2026, 1, 1)) == date(2026, 1, 1)
 
     def test_invalid_format_returns_default(self):
-        assert dte._parse_date_from_cfg("2026/07/10", date(2026, 1, 1)) == date(2026, 1, 1)
+        assert dte._parse_date_from_cfg("2026/07/10", date(2026, 1, 1)) == date(
+            2026, 1, 1
+        )
 
     def test_non_date_string_returns_default(self):
         assert dte._parse_date_from_cfg("invalid", date(2026, 1, 1)) == date(2026, 1, 1)
 
     def test_numeric_string_returns_default(self):
-        assert dte._parse_date_from_cfg("20260710", date(2026, 1, 1)) == date(2026, 1, 1)
+        assert dte._parse_date_from_cfg("20260710", date(2026, 1, 1)) == date(
+            2026, 1, 1
+        )
 
 
 class TestIsAccumulationPeriod:
@@ -435,7 +441,9 @@ class TestLoadTradePlan:
         plan_file = tmp_path / "trade_plan.json"
         plan_data = {
             "stock_etf_account": {
-                "positions": [{"code": "600519.SH", "name": "贵州茅台", "amount": 300000}]
+                "positions": [
+                    {"code": "600519.SH", "name": "贵州茅台", "amount": 300000}
+                ]
             }
         }
         plan_file.write_text(json.dumps(plan_data), encoding="utf-8")
@@ -551,7 +559,9 @@ class TestCollectPendingPositions:
         assert result[2]["code"] == "A.SH"
 
     def test_code_clean_strips_suffix(self):
-        plan = [{"code": "600519.SH", "name": "贵州茅台", "amount": 100000, "weight": 0.1}]
+        plan = [
+            {"code": "600519.SH", "name": "贵州茅台", "amount": 100000, "weight": 0.1}
+        ]
         progress = {"built_amounts": {}}
         result = dte._collect_pending_positions(plan, progress, 0.0)
         assert result[0]["code_clean"] == "600519"
@@ -600,7 +610,12 @@ class TestBuildInstructionFile:
         risk_checks = {"daily_limit": {"passed": True}}
         instructions = [{"code": "600519", "action": "BUY"}]
         result = dte._build_instruction_file(
-            "2026-08-01", progress, budget_info, risk_checks, instructions, 100000,
+            "2026-08-01",
+            progress,
+            budget_info,
+            risk_checks,
+            instructions,
+            100000,
         )
         assert result["meta"]["instruction_date"] == "2026-08-01"
         assert result["meta"]["phase"] == "phase_1_accumulation"
@@ -615,7 +630,12 @@ class TestBuildInstructionFile:
 
     def test_generated_at_is_isoformat(self):
         result = dte._build_instruction_file(
-            "2026-08-01", {}, {}, {}, [], 0,
+            "2026-08-01",
+            {},
+            {},
+            {},
+            [],
+            0,
         )
         # 验证 ISO 格式可解析
         datetime.fromisoformat(result["meta"]["generated_at"])
@@ -797,7 +817,9 @@ class TestExecuteSingleInstruction:
         }
         wt_modules = {}
         progress = {"built_amounts": {}, "total_built": 0}
-        positions = {"600519.SH": {"shares": 100, "avg_cost": 1700.0, "est_price": 1700.0}}
+        positions = {
+            "600519.SH": {"shares": 100, "avg_cost": 1700.0, "est_price": 1700.0}
+        }
 
         dte._execute_single_instruction(inst, wt_modules, progress, positions)
 
@@ -891,7 +913,9 @@ class TestExecuteSingleInstruction:
         }
         wt_modules = {}
         progress = {"built_amounts": {}, "total_built": 0}
-        positions = {"600519.SH": {"shares": 200, "avg_cost": 1700.0, "est_price": 1700.0}}
+        positions = {
+            "600519.SH": {"shares": 200, "avg_cost": 1700.0, "est_price": 1700.0}
+        }
 
         dte._execute_single_instruction(inst, wt_modules, progress, positions)
 
@@ -980,7 +1004,9 @@ class TestRunWtRiskBlockCheck:
         mock_rc.check_single_trade.return_value = (True, "OK")
         mock_rc.check_daily_trade_count.return_value = (True, "OK")
         wt_modules = {"risk_control": mock_rc}
-        confirmed = [{"estimated_amount": 123456, "amount": 0}]  # amount 字段为 0 (旧 bug)
+        confirmed = [
+            {"estimated_amount": 123456, "amount": 0}
+        ]  # amount 字段为 0 (旧 bug)
         dte._run_wt_risk_block_check(wt_modules, confirmed)
         # 验证 check_single_trade 收到的是 estimated_amount 的值
         mock_rc.check_single_trade.assert_called_with(123456, dte.STOCK_ETF_TARGET)
@@ -1073,7 +1099,9 @@ class TestShowProgress:
         assert result["total_target"] == dte.STOCK_ETF_TARGET
         assert result["total_built"] == 1500000
         assert result["remaining"] == dte.STOCK_ETF_TARGET - 1500000
-        assert result["completion_rate"] == round(1500000 / dte.STOCK_ETF_TARGET * 100, 2)
+        assert result["completion_rate"] == round(
+            1500000 / dte.STOCK_ETF_TARGET * 100, 2
+        )
         assert result["daily_records_count"] == 2
         assert "600519" in result["built_amounts"]
 
@@ -1134,7 +1162,9 @@ class TestSyncPositionsIdempotent:
         execution_file.write_text(json.dumps(execution_data), encoding="utf-8")
         monkeypatch.setattr(dte, "INSTRUCTIONS_DIR", tmp_path)
         confirmed = [{"code": "600519", "full_code": "600519.SH"}]
-        positions = {"600519.SH": {"shares": 200, "avg_cost": 1700.0, "est_price": 1700.0}}
+        positions = {
+            "600519.SH": {"shares": 200, "avg_cost": 1700.0, "est_price": 1700.0}
+        }
         result = dte._sync_positions_idempotent("2026-08-01", confirmed, positions)
         assert result["synced_count"] == 0
         # 持仓未被修改
@@ -1149,7 +1179,9 @@ class TestGenerateNextTradingDayPlan:
         monkeypatch.setattr(dte, "is_trading_day", lambda d: d.weekday() < 5)
         # mock generate_instructions 避免实际执行
         monkeypatch.setattr(
-            dte, "generate_instructions", lambda s: {"status": "generated", "test_date": s}
+            dte,
+            "generate_instructions",
+            lambda s: {"status": "generated", "test_date": s},
         )
         result = dte.generate_next_trading_day_plan("2026-08-01")
         assert result["status"] == "generated"
@@ -1241,9 +1273,7 @@ class TestGenerateInstructionsSmoke:
         monkeypatch.setattr(dte, "PROGRESS_FILE", tmp_path / "build_progress.json")
 
         # mock 持仓加载
-        monkeypatch.setattr(
-            dte, "load_positions", lambda: {"positions": {}}
-        )
+        monkeypatch.setattr(dte, "load_positions", lambda: {"positions": {}})
         monkeypatch.setattr(dte, "init_wt_modules", lambda: {})
         monkeypatch.setattr(
             dte, "load_trade_plan", lambda: {"stock_etf_account": {"positions": []}}
@@ -1430,7 +1460,13 @@ class TestAllocatePosition:
         pos = self._make_pos()
         # ref_price=10000, 100 股成本=1000000 > 200000*0.5
         result = dte._allocate_position(
-            pos, "2026-08-01", 200000, 200000, {"600519": 10000.0}, {}, {"positions": {}}
+            pos,
+            "2026-08-01",
+            200000,
+            200000,
+            {"600519": 10000.0},
+            {},
+            {"positions": {}},
         )
         assert result is None
 
@@ -1468,7 +1504,13 @@ class TestAllocatePosition:
         pos = self._make_pos()
         signal = {"direction": "UP", "confidence": 0.8, "signal_strength": 0.6}
         result = dte._allocate_position(
-            pos, "2026-08-01", 200000, 200000, {"600519": 100.0}, {"600519": signal}, {"positions": {}}
+            pos,
+            "2026-08-01",
+            200000,
+            200000,
+            {"600519": 100.0},
+            {"600519": signal},
+            {"positions": {}},
         )
         instruction, _ = result
         assert instruction["prediction_signal"]["direction"] == "UP"
@@ -1522,7 +1564,9 @@ class TestSaveInstructionFile:
             "instructions": [],
             "total_allocated": 0,
         }
-        output_file, md_file = dte._save_instruction_file("2026-08-01", instruction_file)
+        output_file, md_file = dte._save_instruction_file(
+            "2026-08-01", instruction_file
+        )
         assert output_file.exists()
         assert md_file.exists()
         assert output_file.name == "2026-08-01_instructions.json"
@@ -1588,7 +1632,12 @@ class TestBuildAndSaveExecutionReport:
         instruction_file = tmp_path / "2026-08-01_instructions.json"
 
         result, report_file = dte._build_and_save_execution_report(
-            "2026-08-01", instructions_data, confirmed, execution_results, progress, instruction_file,
+            "2026-08-01",
+            instructions_data,
+            confirmed,
+            execution_results,
+            progress,
+            instruction_file,
         )
 
         assert result["status"] == "executed"
@@ -1610,7 +1659,12 @@ class TestBuildAndSaveExecutionReport:
         instruction_file = tmp_path / "instr.json"
 
         result, _ = dte._build_and_save_execution_report(
-            "2026-08-01", instructions_data, confirmed, execution_results, progress, instruction_file,
+            "2026-08-01",
+            instructions_data,
+            confirmed,
+            execution_results,
+            progress,
+            instruction_file,
         )
         expected_rate = round(1500000 / dte.STOCK_ETF_TARGET * 100, 2)
         assert result["summary"]["completion_rate"] == expected_rate

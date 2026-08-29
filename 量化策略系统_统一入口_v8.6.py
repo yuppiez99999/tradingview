@@ -101,28 +101,34 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-if '--gemma' in sys.argv or any(arg.startswith('--gemma-') for arg in sys.argv):
+if "--gemma" in sys.argv or any(arg.startswith("--gemma-") for arg in sys.argv):
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('--gemma', action='store_true')
-    parser.add_argument('--gemma-model', type=str, default=None)
-    parser.add_argument('--gemma-news', type=str, default=None)
-    parser.add_argument('--gemma-stock', type=str, default=None)
-    parser.add_argument('--gemma-prompt', type=str, default=None)
-    parser.add_argument('--gemma-output', type=str, default=None)
+    parser.add_argument("--gemma", action="store_true")
+    parser.add_argument("--gemma-model", type=str, default=None)
+    parser.add_argument("--gemma-news", type=str, default=None)
+    parser.add_argument("--gemma-stock", type=str, default=None)
+    parser.add_argument("--gemma-prompt", type=str, default=None)
+    parser.add_argument("--gemma-output", type=str, default=None)
     args, _ = parser.parse_known_args()
     if args.gemma or args.gemma_news or args.gemma_stock or args.gemma_prompt:
         import subprocess
-        gemma_args = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'run_llm_analyze.py')]
+
+        gemma_args = [
+            sys.executable,
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "run_llm_analyze.py"
+            ),
+        ]
         if args.gemma_model:
-            gemma_args.extend(['--model', args.gemma_model])
+            gemma_args.extend(["--model", args.gemma_model])
         if args.gemma_news:
-            gemma_args.extend(['--news', args.gemma_news])
+            gemma_args.extend(["--news", args.gemma_news])
         if args.gemma_stock:
-            gemma_args.extend(['--stock', args.gemma_stock])
+            gemma_args.extend(["--stock", args.gemma_stock])
         if args.gemma_prompt:
-            gemma_args.extend(['--prompt', args.gemma_prompt])
+            gemma_args.extend(["--prompt", args.gemma_prompt])
         if args.gemma_output:
-            gemma_args.extend(['--output', args.gemma_output])
+            gemma_args.extend(["--output", args.gemma_output])
         # UE-2: 捕获子进程失败, 不无条件 exit(0) (否则 run_llm_analyze.py 失败也假成功)。
         proc = subprocess.run(gemma_args)
         sys.exit(proc.returncode)
@@ -131,7 +137,11 @@ import pandas as pd
 
 from utils.console_encoding import setup_utf8_console
 from utils.env_loader import load_dotenv
-from utils.stress_test import HARD_STOP_MAX_DRAWDOWN, TAIL_HEDGE_THRESHOLD, generate_stress_report
+from utils.stress_test import (
+    HARD_STOP_MAX_DRAWDOWN,
+    TAIL_HEDGE_THRESHOLD,
+    generate_stress_report,
+)
 
 setup_utf8_console()
 load_dotenv()  # 加载 .env 环境变量配置（含引号去除与已存在变量保护）
@@ -150,9 +160,9 @@ from utils.logging_manager import get_logger, setup_logging
 from utils.report_archiver import archive_report as do_archive_report
 
 setup_logging()
-logger = get_logger('quant')
+logger = get_logger("quant")
 
-LOG_DIR = os.path.join(BASE_DIR, 'logs')
+LOG_DIR = os.path.join(BASE_DIR, "logs")
 
 # ============================================================
 # 事件追踪 — 引入统一的事件追踪器（借鉴 TradingAgents-CN 结构化事件模式）
@@ -206,33 +216,39 @@ config_manager = ConfigManager()
 loader = ModuleLoader()
 
 # 数据提供层
-data_provider = loader.load('wind_data_provider', {
-    'get_quotes_batch': 'get_quotes_batch',
-    'get_quote': 'get_quote',
-    'get_stats': 'get_wind_stats',
-    'reset_stats': 'reset_stats'
-})
+data_provider = loader.load(
+    "wind_data_provider",
+    {
+        "get_quotes_batch": "get_quotes_batch",
+        "get_quote": "get_quote",
+        "get_stats": "get_wind_stats",
+        "reset_stats": "reset_stats",
+    },
+)
 
 # 自动交易系统
-auto_trading = loader.load('auto_trading_system', {
-    'AutoTradingSystem': 'AutoTradingSystem'
-})
+auto_trading = loader.load(
+    "auto_trading_system", {"AutoTradingSystem": "AutoTradingSystem"}
+)
 
 # 再平衡引擎
-rebalance_engine = loader.load('rebalancing_engine', {
-    'RebalancingEngine': 'RebalancingEngine'
-})
+rebalance_engine = loader.load(
+    "rebalancing_engine", {"RebalancingEngine": "RebalancingEngine"}
+)
 
 # 每日报告
-daily_report = loader.load('daily_report', {
-    'generate_daily_report': 'generate_daily_report'
-})
+daily_report = loader.load(
+    "daily_report", {"generate_daily_report": "generate_daily_report"}
+)
 
 # 止损止盈监控
-stop_loss = loader.load('stop_loss_monitor', {
-    'StopLossMonitor': 'StopLossMonitor',
-    'generate_risk_alert_report': 'generate_risk_alert_report'
-})
+stop_loss = loader.load(
+    "stop_loss_monitor",
+    {
+        "StopLossMonitor": "StopLossMonitor",
+        "generate_risk_alert_report": "generate_risk_alert_report",
+    },
+)
 
 # 策略注册表实例
 strategy_registry = StrategyRegistry()
@@ -242,8 +258,11 @@ connector_manager = DataConnectorManager()
 config_hub = None
 try:
     from utils.config_hub import ConfigHub
-    config_hub = ConfigHub(config_dir=os.path.join(BASE_DIR, 'config'))
-    logger.info(f"[ConfigHub] 已加载 {len(config_hub.get_all_asset_codes())} 个标的的配置")
+
+    config_hub = ConfigHub(config_dir=os.path.join(BASE_DIR, "config"))
+    logger.info(
+        f"[ConfigHub] 已加载 {len(config_hub.get_all_asset_codes())} 个标的的配置"
+    )
 except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
     logger.warning(f"[ConfigHub] 初始化失败: {e}，回退到传统配置加载")
 
@@ -252,11 +271,14 @@ except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
 # ============================================================
 try:
     from quant_modules.connectors import register_all_connectors
+
     n_registered = register_all_connectors(connector_manager)
     if n_registered > 0:
         # 显式激活主连接器 (Wind MCP, 优先级200)
         primary = connector_manager.get_active_connector()
-        logger.info(f"✅ 数据源连接器注册完成: {n_registered} 个可用, 主连接器: {primary.name if primary else 'None'}")
+        logger.info(
+            f"✅ 数据源连接器注册完成: {n_registered} 个可用, 主连接器: {primary.name if primary else 'None'}"
+        )
     else:
         logger.warning("⚠️ 无可用数据源连接器，系统将以离线模式运行")
 except ImportError as e:
@@ -269,6 +291,7 @@ except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
 # ============================================================
 try:
     from utils.kondratiev_cycle import KondratievCycleAnalyzer
+
     KONDRATIEV_AVAILABLE = True
     logger.info("✅ 康波周期分析模块已加载")
 except ImportError as e:
@@ -278,6 +301,7 @@ except ImportError as e:
 
 try:
     from utils.five_year_plan import FifteenFivePlanAnalyzer
+
     FIFTEEN_FIVE_AVAILABLE = True
     logger.info("✅ 十五五规划分析模块已加载")
 except ImportError as e:
@@ -287,6 +311,7 @@ except ImportError as e:
 
 try:
     from utils.social_security_etf import SocialSecurityETFTracker
+
     SOCIAL_SECURITY_ETF_AVAILABLE = True
     logger.info("✅ 社保基金ETF追踪模块已加载")
 except ImportError as e:
@@ -298,7 +323,12 @@ except ImportError as e:
 # ML 模型预测模块 (v5.6 新增) - GradientBoosting + 特征选择
 # ============================================================
 try:
-    from utils.ml_predictor import EnhancedPredictor, MLModelPredictor, run_ml_signal_scan
+    from utils.ml_predictor import (
+        EnhancedPredictor,
+        MLModelPredictor,
+        run_ml_signal_scan,
+    )
+
     ML_PREDICTOR_AVAILABLE = True
     ML_ENHANCED_PREDICTOR_AVAILABLE = EnhancedPredictor is not None
     logger.info("✅ ML模型预测模块已加载")
@@ -312,7 +342,12 @@ except ImportError as e:
 
 # v2.0 增强训练引擎
 try:
-    from utils.ml_enhanced_trainer import EnhancedFeatureEngineer, EnhancedMLTrainer, run_enhanced_training
+    from utils.ml_enhanced_trainer import (
+        EnhancedFeatureEngineer,
+        EnhancedMLTrainer,
+        run_enhanced_training,
+    )
+
     ML_ENHANCED_TRAINER_AVAILABLE = True
     logger.info("✅ ML增强训练引擎 v2.0 已加载")
 except ImportError as e:
@@ -330,6 +365,7 @@ _AI_HEDGE_MODULE = {}
 
 try:
     from utils.ai_coordinator import get_ai_coordinator
+
     AI_COORDINATOR_AVAILABLE = True
 except ImportError:
     get_ai_coordinator = None
@@ -349,6 +385,7 @@ except ImportError:
 # except Exception as e:
 #     logger.warning(f"⚠️  LSEG 连接器注册失败: {e}")
 
+
 # ============================================================
 # v5.10 P0-9 回退 (方案A·2026-08-04): cli/modes 模块化重构已废弃
 # ============================================================
@@ -364,7 +401,9 @@ except ImportError:
 # run_hypothesis_test / run_ai_hedge_mode / run_stress_test_mode /
 # run_stop_loss_config_mode / run_ml_signal_mode) 保持可用.
 # cli/modes 目录保留以备后续重建, 但不再被主入口 import.
-def _deprecated_mode_stub(mode_name: str, flag: str, alt_entry: str = '') -> Callable[..., dict]:
+def _deprecated_mode_stub(
+    mode_name: str, flag: str, alt_entry: str = ""
+) -> Callable[..., dict]:
     """生成已废弃模式的占位 handler (方案A: cli/modes 废弃回退)。
 
     Args:
@@ -372,41 +411,57 @@ def _deprecated_mode_stub(mode_name: str, flag: str, alt_entry: str = '') -> Cal
         flag: 对应的命令行 flag (如 '--daily')
         alt_entry: 替代入口命令 (无则提示参考 v8.3_institutional/)
     """
+
     def _stub(args: argparse.Namespace) -> dict:
-        logger.warning(f"⚠️ {flag} {mode_name} 模式已废弃 (cli/modes 模块化重构回退, 方案A)。")
+        logger.warning(
+            f"⚠️ {flag} {mode_name} 模式已废弃 (cli/modes 模块化重构回退, 方案A)。"
+        )
         if alt_entry:
             logger.info(f"💡 替代入口: {alt_entry}")
         else:
-            logger.info("💡 该模式暂未迁移到独立入口, 请参考 v8.3_institutional/ 目录相关脚本。")
-        logger.info("   生产入口: py -3.8 v8.3_institutional/daily_workflow.py --phase all")
-        return {'deprecated': True, 'mode': mode_name, 'flag': flag}
+            logger.info(
+                "💡 该模式暂未迁移到独立入口, 请参考 v8.3_institutional/ 目录相关脚本。"
+            )
+        logger.info(
+            "   生产入口: py -3.8 v8.3_institutional/daily_workflow.py --phase all"
+        )
+        return {"deprecated": True, "mode": mode_name, "flag": flag}
+
     _stub.__name__ = f'run_deprecated_{flag.strip("-")}'
-    _stub.__doc__ = f'[已废弃·方案A] {mode_name} — cli/modes 已废弃, 见 v8.3_institutional/'
+    _stub.__doc__ = (
+        f"[已废弃·方案A] {mode_name} — cli/modes 已废弃, 见 v8.3_institutional/"
+    )
     return _stub
 
 
 # 21 个废弃模式占位 (原 cli.modes 导入, 现回退为占位 handler)
-run_daily_workflow           = _deprecated_mode_stub('每日工作流',       '--daily',           'py -3.8 v8.3_institutional/daily_workflow.py --phase all')
-run_risk_monitor             = _deprecated_mode_stub('风险监控',         '--risk')
-run_etf_flow_monitor         = _deprecated_mode_stub('ETF资金流向',      '--etf-flow')
-run_portfolio_optimization   = _deprecated_mode_stub('投资组合优化',     '--portfolio-opt')
-run_kommo_monitor            = _deprecated_mode_stub('康波周期监控',     '--kommo-monitor')
-run_commodity_fundamentals   = _deprecated_mode_stub('大宗商品基本面',   '--commodity-fund')
-run_kondratiev_analysis      = _deprecated_mode_stub('康波+十五五交叠',  '--kondratiev')
-run_fifteen_five_analysis    = _deprecated_mode_stub('十五五规划适配',   '--fifteen-five')
-run_social_security_analysis = _deprecated_mode_stub('社保基金ETF追踪', '--social-security')
-run_macro_analysis           = _deprecated_mode_stub('宏观综合分析',     '--macro-analysis')
-run_ai_decision              = _deprecated_mode_stub('AI盘中决策',       '--ai-decision')
-run_futures_options_scan     = _deprecated_mode_stub('期货期权扫描',     '--futures-options')
-run_unified_monitor          = _deprecated_mode_stub('统一监控',         '--unified-monitor')
-run_hedge_mode               = _deprecated_mode_stub('对冲分析',         '--hedge')
-run_hedge_rebalance_joint    = _deprecated_mode_stub('对冲+再平衡联动', '--hedge-rebalance')
-run_hedge_detail_mode        = _deprecated_mode_stub('期货对冲明细',     '--hedge-detail')
-run_ml_significance_mode     = _deprecated_mode_stub('ML显著性验证',    '--ml-significance')
-run_kronos_predict_mode      = _deprecated_mode_stub('Kronos K线预测',   '--kronos')
-run_gemma_analyze_mode       = _deprecated_mode_stub('Gemma分析增强',   '--gemma')
-run_dcf_mode                 = _deprecated_mode_stub('DCF估值模型',     '--dcf')
-run_comps_mode               = _deprecated_mode_stub('可比公司分析',     '--comps')
+run_daily_workflow = _deprecated_mode_stub(
+    "每日工作流", "--daily", "py -3.8 v8.3_institutional/daily_workflow.py --phase all"
+)
+run_risk_monitor = _deprecated_mode_stub("风险监控", "--risk")
+run_etf_flow_monitor = _deprecated_mode_stub("ETF资金流向", "--etf-flow")
+run_portfolio_optimization = _deprecated_mode_stub("投资组合优化", "--portfolio-opt")
+run_kommo_monitor = _deprecated_mode_stub("康波周期监控", "--kommo-monitor")
+run_commodity_fundamentals = _deprecated_mode_stub("大宗商品基本面", "--commodity-fund")
+run_kondratiev_analysis = _deprecated_mode_stub("康波+十五五交叠", "--kondratiev")
+run_fifteen_five_analysis = _deprecated_mode_stub("十五五规划适配", "--fifteen-five")
+run_social_security_analysis = _deprecated_mode_stub(
+    "社保基金ETF追踪", "--social-security"
+)
+run_macro_analysis = _deprecated_mode_stub("宏观综合分析", "--macro-analysis")
+run_ai_decision = _deprecated_mode_stub("AI盘中决策", "--ai-decision")
+run_futures_options_scan = _deprecated_mode_stub("期货期权扫描", "--futures-options")
+run_unified_monitor = _deprecated_mode_stub("统一监控", "--unified-monitor")
+run_hedge_mode = _deprecated_mode_stub("对冲分析", "--hedge")
+run_hedge_rebalance_joint = _deprecated_mode_stub(
+    "对冲+再平衡联动", "--hedge-rebalance"
+)
+run_hedge_detail_mode = _deprecated_mode_stub("期货对冲明细", "--hedge-detail")
+run_ml_significance_mode = _deprecated_mode_stub("ML显著性验证", "--ml-significance")
+run_kronos_predict_mode = _deprecated_mode_stub("Kronos K线预测", "--kronos")
+run_gemma_analyze_mode = _deprecated_mode_stub("Gemma分析增强", "--gemma")
+run_dcf_mode = _deprecated_mode_stub("DCF估值模型", "--dcf")
+run_comps_mode = _deprecated_mode_stub("可比公司分析", "--comps")
 
 
 # ============================================================
@@ -416,15 +471,15 @@ def write_report_file(report: str, filename: Optional[str]) -> None:
     """可选：将报告写入 BASE_DIR/reports/<filename>（filename 为空则跳过）。"""
     if not filename:
         return
-    report_dir = os.path.join(BASE_DIR, 'reports')
+    report_dir = os.path.join(BASE_DIR, "reports")
     os.makedirs(report_dir, exist_ok=True)
     report_path = os.path.join(report_dir, filename)
-    with open(report_path, 'w', encoding='utf-8') as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write(report)
     logger.info(f"\n✅ 报告已保存: {report_path}")
 
 
-def archive_report(report: str, name: str, ext: str = '.md') -> str:
+def archive_report(report: str, name: str, ext: str = ".md") -> str:
     """归档报告到「每日报告归档」目录，返回归档路径。"""
     archive_name = f'{name}_{datetime.now().strftime("%Y%m%d")}{ext}'
     archive_path = do_archive_report(BASE_DIR, archive_name, report)
@@ -436,15 +491,17 @@ def get_stock_name(code: str) -> str:
     """解析标的名称，优先从 names.py 查找，备用纯代码。"""
     try:
         from ui.components.names import STOCK_NAME_MAP
+
         # 去掉后缀 .SZ/.SH
-        pure = code.split('.')[0] if '.' in code else code
+        pure = code.split(".")[0] if "." in code else code
         return STOCK_NAME_MAP.get(pure, code)
     except ImportError:
         return code
 
 
-def get_ml_signal_section(external_signals: dict = None, return_raw: bool = False,
-                           use_enhanced: bool = True) -> Optional[str]:
+def get_ml_signal_section(
+    external_signals: dict = None, return_raw: bool = False, use_enhanced: bool = True
+) -> Optional[str]:
     """
     运行 ML 模型信号扫描，返回 Markdown 格式的信号报告段落。
     若 ML 模块不可用或扫描失败，返回 None。
@@ -458,18 +515,26 @@ def get_ml_signal_section(external_signals: dict = None, return_raw: bool = Fals
 
     result = {}
     try:
-        model_dir = os.path.join(BASE_DIR, 'models')
-        data_dir = os.path.join(BASE_DIR, 'data', 'cache')
+        model_dir = os.path.join(BASE_DIR, "models")
+        data_dir = os.path.join(BASE_DIR, "data", "cache")
 
         # v5.9: 优先使用增强预测器
         enhanced_info = {}
-        if use_enhanced and ML_ENHANCED_PREDICTOR_AVAILABLE and EnhancedPredictor is not None:
+        if (
+            use_enhanced
+            and ML_ENHANCED_PREDICTOR_AVAILABLE
+            and EnhancedPredictor is not None
+        ):
             try:
-                ep = EnhancedPredictor(model_dir=model_dir, weight_method='f1_weighted')
+                ep = EnhancedPredictor(model_dir=model_dir, weight_method="f1_weighted")
                 if ep.auto_discover_and_load(prefer_enhanced=True):
                     kline_dict = {}
-                    for f in glob.glob(os.path.join(data_dir, 'kline_*.parquet')):
-                        code = os.path.basename(f).replace('kline_', '').replace('_daily.parquet', '')
+                    for f in glob.glob(os.path.join(data_dir, "kline_*.parquet")):
+                        code = (
+                            os.path.basename(f)
+                            .replace("kline_", "")
+                            .replace("_daily.parquet", "")
+                        )
                         try:
                             kline_dict[code] = pd.read_parquet(f)
                         except Exception:
@@ -478,16 +543,16 @@ def get_ml_signal_section(external_signals: dict = None, return_raw: bool = Fals
                         signals = ep.generate_trading_signals(kline_dict)
                         info = ep.get_model_info()
                         enhanced_info = {
-                            'horizon': info.get('horizon', 1),
-                            'filter_oscillation': info.get('filter_oscillation', True),
-                            'model_count': info.get('model_count', 0),
-                            'feature_count': info.get('feature_count', 0),
+                            "horizon": info.get("horizon", 1),
+                            "filter_oscillation": info.get("filter_oscillation", True),
+                            "model_count": info.get("model_count", 0),
+                            "feature_count": info.get("feature_count", 0),
                         }
                         result = {
-                            'model_info': info,
-                            'signals': signals,
-                            'scanned_count': len(kline_dict),
-                            'enhanced': True,
+                            "model_info": info,
+                            "signals": signals,
+                            "scanned_count": len(kline_dict),
+                            "enhanced": True,
                         }
                         logger.info(f"增强预测器就绪: T+{enhanced_info['horizon']}")
                     else:
@@ -497,42 +562,56 @@ def get_ml_signal_section(external_signals: dict = None, return_raw: bool = Fals
                 enhanced_info = {}
 
         if not enhanced_info and run_ml_signal_scan is not None:
-            result = run_ml_signal_scan(data_dir=data_dir, model_dir=model_dir, threshold=0.55)
+            result = run_ml_signal_scan(
+                data_dir=data_dir, model_dir=model_dir, threshold=0.55
+            )
 
-        if not result or 'error' in result:
+        if not result or "error" in result:
             logger.warning(f"ML信号扫描失败: {result.get('error', '无数据')}")
             return None
 
-        model_info = result.get('model_info', {})
-        signals = result.get('signals', {})
-        is_enhanced = result.get('enhanced', False)
+        model_info = result.get("model_info", {})
+        signals = result.get("signals", {})
+        is_enhanced = result.get("enhanced", False)
 
         lines = []
         lines.append("")
         lines.append("---")
         lines.append("")
         if is_enhanced:
-            lines.append(f"## ML增强预测信号 v2.0 (四维优化, T+{enhanced_info.get('horizon', 1)})")
+            lines.append(
+                f"## ML增强预测信号 v2.0 (四维优化, T+{enhanced_info.get('horizon', 1)})"
+            )
         else:
             lines.append("## ML模型预测信号 (LightGBM)")
         lines.append("")
         lines.append(f"- **模型**: {model_info.get('best_model', 'N/A')}")
-        lines.append(f"- **准确率**: {model_info.get('accuracy', 0):.2%} "
-                     f"| F1: {model_info.get('f1', 0):.4f} "
-                     f"| AUC: {model_info.get('auc', 0):.4f}")
+        lines.append(
+            f"- **准确率**: {model_info.get('accuracy', 0):.2%} "
+            f"| F1: {model_info.get('f1', 0):.4f} "
+            f"| AUC: {model_info.get('auc', 0):.4f}"
+        )
         if is_enhanced:
-            lines.append(f"- **预测窗口**: T+{enhanced_info.get('horizon', 1)} "
-                         f"| 过滤震荡: {enhanced_info.get('filter_oscillation', True)} "
-                         f"| 模型数: {enhanced_info.get('model_count', 0)}")
-        lines.append(f"- **信号阈值**: 55% | 扫描标的: {result.get('scanned_count', 0)} 只")
-        ds_label = getattr(connector_manager, 'get_data_source_label', lambda: 'Unknown')()
+            lines.append(
+                f"- **预测窗口**: T+{enhanced_info.get('horizon', 1)} "
+                f"| 过滤震荡: {enhanced_info.get('filter_oscillation', True)} "
+                f"| 模型数: {enhanced_info.get('model_count', 0)}"
+            )
+        lines.append(
+            f"- **信号阈值**: 55% | 扫描标的: {result.get('scanned_count', 0)} 只"
+        )
+        ds_label = getattr(
+            connector_manager, "get_data_source_label", lambda: "Unknown"
+        )()
         lines.append(f"- **数据源**: {ds_label}")
         lines.append("")
 
-        buy_signals = signals.get('buy', [])
-        sell_signals = signals.get('sell', [])
-        hold_signals = signals.get('hold', [])
-        lines.append(f"买入: {len(buy_signals)} | 卖出: {len(sell_signals)} | 持有/震荡: {len(hold_signals)}")
+        buy_signals = signals.get("buy", [])
+        sell_signals = signals.get("sell", [])
+        hold_signals = signals.get("hold", [])
+        lines.append(
+            f"买入: {len(buy_signals)} | 卖出: {len(sell_signals)} | 持有/震荡: {len(hold_signals)}"
+        )
         lines.append("")
 
         if buy_signals:
@@ -541,17 +620,29 @@ def get_ml_signal_section(external_signals: dict = None, return_raw: bool = Fals
             if external_signals:
                 lines.append("| 代码 | 名称 | 上涨概率 | 置信度 | 外部信号 |")
                 lines.append("|------|------|----------|--------|----------|")
-                for s in sorted(buy_signals, key=lambda x: x['probability'], reverse=True):
-                    name = get_stock_name(s['code'])
-                    ext = external_signals.get(s['code'], {})
-                    ext_label = f"{ext.get('source', '?')}: {ext.get('action', '?')}" if ext else ""
-                    lines.append(f"| {s['code']} | {name} | {s['probability']:.2%} | {s['confidence']:.2%} | {ext_label} |")
+                for s in sorted(
+                    buy_signals, key=lambda x: x["probability"], reverse=True
+                ):
+                    name = get_stock_name(s["code"])
+                    ext = external_signals.get(s["code"], {})
+                    ext_label = (
+                        f"{ext.get('source', '?')}: {ext.get('action', '?')}"
+                        if ext
+                        else ""
+                    )
+                    lines.append(
+                        f"| {s['code']} | {name} | {s['probability']:.2%} | {s['confidence']:.2%} | {ext_label} |"
+                    )
             else:
                 lines.append("| 代码 | 名称 | 上涨概率 | 置信度 |")
                 lines.append("|------|------|----------|--------|")
-                for s in sorted(buy_signals, key=lambda x: x['probability'], reverse=True):
-                    name = get_stock_name(s['code'])
-                    lines.append(f"| {s['code']} | {name} | {s['probability']:.2%} | {s['confidence']:.2%} |")
+                for s in sorted(
+                    buy_signals, key=lambda x: x["probability"], reverse=True
+                ):
+                    name = get_stock_name(s["code"])
+                    lines.append(
+                        f"| {s['code']} | {name} | {s['probability']:.2%} | {s['confidence']:.2%} |"
+                    )
             lines.append("")
 
         if sell_signals:
@@ -560,27 +651,39 @@ def get_ml_signal_section(external_signals: dict = None, return_raw: bool = Fals
             if external_signals:
                 lines.append("| 代码 | 名称 | 下跌概率 | 置信度 | 外部信号 |")
                 lines.append("|------|------|----------|--------|----------|")
-                for s in sorted(sell_signals, key=lambda x: x['probability']):
-                    name = get_stock_name(s['code'])
-                    ext = external_signals.get(s['code'], {})
-                    ext_label = f"{ext.get('source', '?')}: {ext.get('action', '?')}" if ext else ""
-                    lines.append(f"| {s['code']} | {name} | {1 - s['probability']:.2%} | {s['confidence']:.2%} | {ext_label} |")
+                for s in sorted(sell_signals, key=lambda x: x["probability"]):
+                    name = get_stock_name(s["code"])
+                    ext = external_signals.get(s["code"], {})
+                    ext_label = (
+                        f"{ext.get('source', '?')}: {ext.get('action', '?')}"
+                        if ext
+                        else ""
+                    )
+                    lines.append(
+                        f"| {s['code']} | {name} | {1 - s['probability']:.2%} | {s['confidence']:.2%} | {ext_label} |"
+                    )
             else:
                 lines.append("| 代码 | 名称 | 下跌概率 | 置信度 |")
                 lines.append("|------|------|----------|--------|")
-                for s in sorted(sell_signals, key=lambda x: x['probability']):
-                    name = get_stock_name(s['code'])
-                    lines.append(f"| {s['code']} | {name} | {1 - s['probability']:.2%} | {s['confidence']:.2%} |")
+                for s in sorted(sell_signals, key=lambda x: x["probability"]):
+                    name = get_stock_name(s["code"])
+                    lines.append(
+                        f"| {s['code']} | {name} | {1 - s['probability']:.2%} | {s['confidence']:.2%} |"
+                    )
             lines.append("")
 
         # v5.7 Phase 3 增强：多信号一致性分析（含AI Hedge Fund + GLM-5 + ML对比）
         if external_signals and (buy_signals or sell_signals):
             lines.append("### 多信号一致性分析")
             lines.append("")
-            lines.append("*三信号源融合决策：ML模型 + AI Hedge Fund + GLM-5。一致性越高，置信度越高。*")
+            lines.append(
+                "*三信号源融合决策：ML模型 + AI Hedge Fund + GLM-5。一致性越高，置信度越高。*"
+            )
             lines.append("")
 
-            all_ml_codes = {s['code']: s for s in (buy_signals + sell_signals + hold_signals)}
+            all_ml_codes = {
+                s["code"]: s for s in (buy_signals + sell_signals + hold_signals)
+            }
 
             agree_count = 0
             conflict_count = 0
@@ -593,58 +696,68 @@ def get_ml_signal_section(external_signals: dict = None, return_raw: bool = Fals
                     undefined_count += 1
                     continue
 
-                ml_prob = ml_sig.get('probability', 0.5)
-                ml_action = 'BUY' if ml_prob >= 0.55 else 'SELL' if ml_prob <= 0.45 else 'HOLD'
-                ext_action = ext.get('action', 'HOLD')
-                ext_source = ext.get('source', '?')
+                ml_prob = ml_sig.get("probability", 0.5)
+                ml_action = (
+                    "BUY" if ml_prob >= 0.55 else "SELL" if ml_prob <= 0.45 else "HOLD"
+                )
+                ext_action = ext.get("action", "HOLD")
+                ext_source = ext.get("source", "?")
 
                 # 判断一致性
                 all_actions = [ml_action, ext_action]
-                glm5_action = ext.get('glm5_action', '')
+                glm5_action = ext.get("glm5_action", "")
                 if glm5_action:
                     all_actions.append(glm5_action)
 
-                if all(a == 'BUY' for a in all_actions if a):
-                    status = '✅ 强烈一致买入'
+                if all(a == "BUY" for a in all_actions if a):
+                    status = "✅ 强烈一致买入"
                     agree_count += 1
-                elif all(a == 'SELL' for a in all_actions if a):
-                    status = '🔴 强烈一致卖出'
+                elif all(a == "SELL" for a in all_actions if a):
+                    status = "🔴 强烈一致卖出"
                     agree_count += 1
-                elif any(a == 'BUY' and 'SELL' in all_actions for a in all_actions):
-                    status = '⚠️ 分歧'
+                elif any(a == "BUY" and "SELL" in all_actions for a in all_actions):
+                    status = "⚠️ 分歧"
                     conflict_count += 1
                 else:
-                    status = '🟡 中性/混合'
+                    status = "🟡 中性/混合"
 
                 # 综合投票
-                buy_votes = sum(1 for a in all_actions if a == 'BUY')
-                sell_votes = sum(1 for a in all_actions if a == 'SELL')
-                hold_votes = sum(1 for a in all_actions if a == 'HOLD')
+                buy_votes = sum(1 for a in all_actions if a == "BUY")
+                sell_votes = sum(1 for a in all_actions if a == "SELL")
+                hold_votes = sum(1 for a in all_actions if a == "HOLD")
                 if buy_votes > sell_votes and buy_votes > hold_votes:
-                    combined = '买入'
+                    combined = "买入"
                 elif sell_votes > buy_votes and sell_votes > hold_votes:
-                    combined = '卖出'
+                    combined = "卖出"
                 else:
-                    combined = '观望'
+                    combined = "观望"
 
-                consistency_rows.append({
-                    'code': code,
-                    'name': get_stock_name(code),
-                    'ml_prob': ml_prob,
-                    'ml_action': ml_action,
-                    'ext_source': ext_source,
-                    'ext_action': ext_action,
-                    'glm5': glm5_action,
-                    'status': status,
-                    'combined': combined,
-                    'confidence': ml_sig.get('confidence', 0),
-                })
+                consistency_rows.append(
+                    {
+                        "code": code,
+                        "name": get_stock_name(code),
+                        "ml_prob": ml_prob,
+                        "ml_action": ml_action,
+                        "ext_source": ext_source,
+                        "ext_action": ext_action,
+                        "glm5": glm5_action,
+                        "status": status,
+                        "combined": combined,
+                        "confidence": ml_sig.get("confidence", 0),
+                    }
+                )
 
             # 按一致性优先级排序：一致买入 > 一致卖出 > 其余
-            consistency_rows.sort(key=lambda r: (
-                0 if '一致买入' in r['status'] else 1 if '一致卖出' in r['status'] else 2,
-                -r['confidence'],
-            ))
+            consistency_rows.sort(
+                key=lambda r: (
+                    (
+                        0
+                        if "一致买入" in r["status"]
+                        else 1 if "一致卖出" in r["status"] else 2
+                    ),
+                    -r["confidence"],
+                )
+            )
 
             # 汇总统计
             lines.append("| 指标 | 数值 |")
@@ -653,18 +766,39 @@ def get_ml_signal_section(external_signals: dict = None, return_raw: bool = Fals
             lines.append(f"| 多信号对照标的 | {len(consistency_rows)} |")
             lines.append(f"| 信号一致 | {agree_count} |")
             lines.append(f"| 信号冲突 | {conflict_count} |")
-            lines.append(f"| 一致率 | {agree_count / max(agree_count + conflict_count, 1):.1%} |")
+            lines.append(
+                f"| 一致率 | {agree_count / max(agree_count + conflict_count, 1):.1%} |"
+            )
             lines.append("")
 
             # 详细一致性表格
             if consistency_rows:
-                lines.append("| 代码 | 名称 | ML概率 | ML | 外部信号 | 外部 | GLM-5 | 状态 | 综合 |")
-                lines.append("|------|------|--------|----|----------|------|-------|------|------|")
+                lines.append(
+                    "| 代码 | 名称 | ML概率 | ML | 外部信号 | 外部 | GLM-5 | 状态 | 综合 |"
+                )
+                lines.append(
+                    "|------|------|--------|----|----------|------|-------|------|------|"
+                )
                 for r in consistency_rows:
-                    ml_label = "🟢" if r['ml_action'] == 'BUY' else "🔴" if r['ml_action'] == 'SELL' else "🟡"
-                    ext_label = "🟢" if r['ext_action'] == 'BUY' else "🔴" if r['ext_action'] == 'SELL' else "🟡"
-                    glm5_label = "🟢" if r['glm5'] == 'BUY' else "🔴" if r['glm5'] == 'SELL' else \
-                                  "🟡" if r['glm5'] == 'HOLD' else "-"
+                    ml_label = (
+                        "🟢"
+                        if r["ml_action"] == "BUY"
+                        else "🔴" if r["ml_action"] == "SELL" else "🟡"
+                    )
+                    ext_label = (
+                        "🟢"
+                        if r["ext_action"] == "BUY"
+                        else "🔴" if r["ext_action"] == "SELL" else "🟡"
+                    )
+                    glm5_label = (
+                        "🟢"
+                        if r["glm5"] == "BUY"
+                        else (
+                            "🔴"
+                            if r["glm5"] == "SELL"
+                            else "🟡" if r["glm5"] == "HOLD" else "-"
+                        )
+                    )
                     lines.append(
                         f"| {r['code']} | {r['name']} | {r['ml_prob']:.2%} | "
                         f"{ml_label} | {r['ext_source']} | {ext_label} | "
@@ -673,26 +807,36 @@ def get_ml_signal_section(external_signals: dict = None, return_raw: bool = Fals
                 lines.append("")
 
                 # 置信度最高的一致信号
-                consensus_buys = [r for r in consistency_rows if '一致买入' in r['status']]
-                consensus_sells = [r for r in consistency_rows if '一致卖出' in r['status']]
-                conflicts = [r for r in consistency_rows if '分歧' in r['status']]
+                consensus_buys = [
+                    r for r in consistency_rows if "一致买入" in r["status"]
+                ]
+                consensus_sells = [
+                    r for r in consistency_rows if "一致卖出" in r["status"]
+                ]
+                conflicts = [r for r in consistency_rows if "分歧" in r["status"]]
 
                 if consensus_buys:
-                    top_buys = sorted(consensus_buys, key=lambda r: r['confidence'], reverse=True)[:3]
+                    top_buys = sorted(
+                        consensus_buys, key=lambda r: r["confidence"], reverse=True
+                    )[:3]
                     items = [f"{r['name']}({r['confidence']:.1%})" for r in top_buys]
                     lines.append(f"**高置信一致买入**: {', '.join(items)}")
                 if consensus_sells:
-                    top_sells = sorted(consensus_sells, key=lambda r: r['confidence'], reverse=True)[:3]
+                    top_sells = sorted(
+                        consensus_sells, key=lambda r: r["confidence"], reverse=True
+                    )[:3]
                     items = [f"{r['name']}({r['confidence']:.1%})" for r in top_sells]
                     lines.append(f"**高置信一致卖出**: {', '.join(items)}")
                 if conflicts:
-                    lines.append(f"**信号冲突需关注**: {', '.join(r['name'] for r in conflicts)}")
+                    lines.append(
+                        f"**信号冲突需关注**: {', '.join(r['name'] for r in conflicts)}"
+                    )
                     lines.append("")
 
             lines.append("")
 
         lines.append("> 信号仅供参考，不构成投资建议。请结合基本面与技术面综合判断。")
-        report = '\n'.join(lines)
+        report = "\n".join(lines)
         return (report, result) if return_raw else report
 
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
@@ -702,25 +846,27 @@ def get_ml_signal_section(external_signals: dict = None, return_raw: bool = Fals
 
 def _get_portfolio_quotes() -> dict[str, dict[str, float]]:
     """加载持仓配置并批量获取行情，返回 {code: {'price': p}}（行情不可用时返回空字典）。"""
-    get_quotes_batch = data_provider.get('get_quotes_batch')
+    get_quotes_batch = data_provider.get("get_quotes_batch")
     config = load_portfolio_config()
     if not get_quotes_batch or not config:
         return {}
 
-    assets = config.get('assets', [])
-    stocks = [a['code'] for a in assets if a.get('asset_type') != 'etf']
-    funds = [a['code'] for a in assets if a.get('asset_type') == 'etf']
+    assets = config.get("assets", [])
+    stocks = [a["code"] for a in assets if a.get("asset_type") != "etf"]
+    funds = [a["code"] for a in assets if a.get("asset_type") == "etf"]
     prices = get_quotes_batch(stocks, funds)
-    result = {k: {'price': v['price']} for k, v in prices.items() if v['price'] > 0}
+    result = {k: {"price": v["price"]} for k, v in prices.items() if v["price"] > 0}
 
-    fallback_prices = config.get('fallback_prices', {})
+    fallback_prices = config.get("fallback_prices", {})
     if fallback_prices:
-        last_updated = fallback_prices.get('last_updated', '')
-        fallback_map = fallback_prices.get('prices', {})
-        for code in [a['code'] for a in assets]:
+        last_updated = fallback_prices.get("last_updated", "")
+        fallback_map = fallback_prices.get("prices", {})
+        for code in [a["code"] for a in assets]:
             if code not in result and code in fallback_map:
-                result[code] = {'price': fallback_map[code]}
-                logger.warning(f"使用兜底价格 {code}: {fallback_map[code]} (最后更新: {last_updated})")
+                result[code] = {"price": fallback_map[code]}
+                logger.warning(
+                    f"使用兜底价格 {code}: {fallback_map[code]} (最后更新: {last_updated})"
+                )
 
     return result
 
@@ -743,7 +889,7 @@ def _build_etf_flow_data(flow_monitor: object) -> Optional[dict]:
 def get_etf_flow_data(connector_manager: object = None) -> Optional[dict]:
     """获取ETF资金流数据（带错误处理和降级）。"""
     if connector_manager is None:
-        connector_manager = globals().get('connector_manager')
+        connector_manager = globals().get("connector_manager")
     try:
         flow_monitor = ETFFundFlowMonitor(data_connector_manager=connector_manager)
         flow_monitor.analyze_fund_flow()
@@ -763,6 +909,7 @@ def run_ml_signal_mode(args: argparse.Namespace) -> None:
         "--ml-enhanced (ML增强预测) 或 v8.3_institutional/ 独立入口"
     )
 
+
 def run_live_monitoring(args: argparse.Namespace) -> None:
     """实时监控模式 - 盘中实时行情监控 + 自动再平衡 + ML信号"""
     logger.info("\n🚀 启动实时监控模式")
@@ -774,23 +921,27 @@ def run_live_monitoring(args: argparse.Namespace) -> None:
     ml_result = get_ml_signal_section(return_raw=True)
     if ml_result:
         ml_section, result = ml_result
-        if 'signals' in result:
-            sig = result['signals']
-            buy_n = len(sig.get('buy', []))
-            sell_n = len(sig.get('sell', []))
-            hold_n = len(sig.get('hold', []))
-            model_name = result.get('model_info', {}).get('best_model', '?')
-            model_acc = result.get('model_info', {}).get('accuracy', 0)
-            logger.info(f"\n  [ML信号] {model_name} (Acc={model_acc:.1%}) "
-                  f"买入:{buy_n} 卖出:{sell_n} 持有:{hold_n}")
-            for s in sig.get('buy', [])[:5]:
-                name = get_stock_name(s['code'])
-                logger.info(f"    买入 {s['code']} {name:8s} 概率:{s['probability']:.1%}")
+        if "signals" in result:
+            sig = result["signals"]
+            buy_n = len(sig.get("buy", []))
+            sell_n = len(sig.get("sell", []))
+            hold_n = len(sig.get("hold", []))
+            model_name = result.get("model_info", {}).get("best_model", "?")
+            model_acc = result.get("model_info", {}).get("accuracy", 0)
+            logger.info(
+                f"\n  [ML信号] {model_name} (Acc={model_acc:.1%}) "
+                f"买入:{buy_n} 卖出:{sell_n} 持有:{hold_n}"
+            )
+            for s in sig.get("buy", [])[:5]:
+                name = get_stock_name(s["code"])
+                logger.info(
+                    f"    买入 {s['code']} {name:8s} 概率:{s['probability']:.1%}"
+                )
     else:
         logger.warning("  ⚠️ ML信号不可用")
 
     progress.update(2, "加载交易系统...")
-    AutoTradingSystem = auto_trading.get('AutoTradingSystem')
+    AutoTradingSystem = auto_trading.get("AutoTradingSystem")
 
     if AutoTradingSystem:
         progress.update(3, "创建交易实例...")
@@ -804,6 +955,7 @@ def run_live_monitoring(args: argparse.Namespace) -> None:
     else:
         progress.complete("❌ 自动交易系统模块不可用")
 
+
 def run_report_generation(args: argparse.Namespace) -> None:
     """报告生成模式 - 生成每日持仓报告 + ML信号 (v5.7 Phase 3: ConfigHub集成)"""
     logger.info("\n📝 生成每日报告")
@@ -812,16 +964,18 @@ def run_report_generation(args: argparse.Namespace) -> None:
     progress = ProgressIndicator("生成报告", 7)
 
     progress.update(1, "加载报告模块...")
-    generate_daily_report = daily_report.get('generate_daily_report')
+    generate_daily_report = daily_report.get("generate_daily_report")
 
     # v5.7 Phase 3: 使用 ConfigHub 获取统一配置
-    portfolio_file = os.path.join(BASE_DIR, 'config', 'portfolio.yaml')
+    portfolio_file = os.path.join(BASE_DIR, "config", "portfolio.yaml")
     if config_hub and not config_hub.check_and_reload():
         # 配置无变更，显示摘要
         summary = config_hub.get_summary()
-        logger.info(f"  📋 配置摘要: {summary['asset_count']}个标的, "
-              f"总资金 {summary['total_capital']:,.0f}, "
-              f"数据源: {summary['primary_source']}")
+        logger.info(
+            f"  📋 配置摘要: {summary['asset_count']}个标的, "
+            f"总资金 {summary['total_capital']:,.0f}, "
+            f"数据源: {summary['primary_source']}"
+        )
 
     if generate_daily_report:
         try:
@@ -829,14 +983,13 @@ def run_report_generation(args: argparse.Namespace) -> None:
 
             progress.update(3, "生成报告内容...")
             report_content = generate_daily_report(
-                portfolio_file=portfolio_file,
-                enable_ai_analysis=not args.no_ai
+                portfolio_file=portfolio_file, enable_ai_analysis=not args.no_ai
             )
 
             # ML信号追加到报告（若LLM已内置ML分析则跳过）
-            if not getattr(args, 'no_ml', False):
+            if not getattr(args, "no_ml", False):
                 progress.update(4, "检查ML预测信号...")
-                if '本地ML量化模型分析' in report_content:
+                if "本地ML量化模型分析" in report_content:
                     logger.info("  ✅ ML分析已由日报引擎自动内置，跳过追加")
                 else:
                     ml_section = get_ml_signal_section()
@@ -849,7 +1002,9 @@ def run_report_generation(args: argparse.Namespace) -> None:
                 progress.update(4, "跳过ML信号...")
 
             progress.update(5, "保存报告...")
-            archive_report(report_content, '综合日报', ext='.txt')  # 归档路径由 archive_report 内部 logger 输出
+            archive_report(
+                report_content, "综合日报", ext=".txt"
+            )  # 归档路径由 archive_report 内部 logger 输出
 
             progress.complete("✅ 报告归档完成")
 
@@ -858,6 +1013,7 @@ def run_report_generation(args: argparse.Namespace) -> None:
             logger.error(f"报告生成失败: {e}")
     else:
         progress.complete("❌ 每日报告模块不可用")
+
 
 def run_rebalance(args: argparse.Namespace) -> None:
     """再平衡模式 - 执行再平衡计划 (支持Excel和portfolio.yaml两种方式)"""
@@ -879,21 +1035,33 @@ def run_rebalance(args: argparse.Namespace) -> None:
         logger.warning("\n⚠️ Excel文件不存在,尝试从portfolio.yaml加载...")
         try:
             import yaml
-            yaml_path = os.path.join(BASE_DIR, 'config', 'portfolio.yaml')
+
+            yaml_path = os.path.join(BASE_DIR, "config", "portfolio.yaml")
             if os.path.exists(yaml_path):
-                with open(yaml_path, encoding='utf-8') as f:
+                with open(yaml_path, encoding="utf-8") as f:
                     config = yaml.safe_load(f)
-                assets = config.get('assets', [])
+                assets = config.get("assets", [])
                 if assets:
                     engine.complete_plan = [
                         {
-                            '证券代码': a['code'], '证券名称': a['name'],
-                            '目标权重': a.get('target_weight', 0.1),
-                            '风险权重': 0.25, '当前仓位': 0, '调整幅度': 0,
-                            '当前股数': 0, '最新价': 0, '当前市值': 0,
-                            '目标市值': 0, '目标股数': 0, '需调整股数': 0,
-                            '交易方向': '待定', '预计交易金额': 0, '操作类型': '待定',
-                            '执行批次': '待定', '止损位': 0, '止盈位': 0,
+                            "证券代码": a["code"],
+                            "证券名称": a["name"],
+                            "目标权重": a.get("target_weight", 0.1),
+                            "风险权重": 0.25,
+                            "当前仓位": 0,
+                            "调整幅度": 0,
+                            "当前股数": 0,
+                            "最新价": 0,
+                            "当前市值": 0,
+                            "目标市值": 0,
+                            "目标股数": 0,
+                            "需调整股数": 0,
+                            "交易方向": "待定",
+                            "预计交易金额": 0,
+                            "操作类型": "待定",
+                            "执行批次": "待定",
+                            "止损位": 0,
+                            "止盈位": 0,
                         }
                         for a in assets
                     ]
@@ -914,12 +1082,15 @@ def run_rebalance(args: argparse.Namespace) -> None:
 
         # 注册研究假设
         if strategy_registry:
-            strategy_registry.register_hypothesis('rebalance_2026', {
-                'title': '2026年组合再平衡',
-                'description': '基于当前持仓的再平衡计划',
-                'hypothesis': '核心-卫星策略配置能带来超额收益',
-                'status': 'active'
-            })
+            strategy_registry.register_hypothesis(
+                "rebalance_2026",
+                {
+                    "title": "2026年组合再平衡",
+                    "description": "基于当前持仓的再平衡计划",
+                    "hypothesis": "核心-卫星策略配置能带来超额收益",
+                    "status": "active",
+                },
+            )
             logger.info("已注册研究假设: rebalance_2026")
 
         if args.sync_sl:
@@ -936,6 +1107,7 @@ def run_rebalance(args: argparse.Namespace) -> None:
         logger.info("  1. config/portfolio.yaml (必需)")
         logger.info("  2. data_extraction_*.xlsx (可选,用于详细再平衡计划)")
 
+
 def run_backtest(args: argparse.Namespace) -> None:
     """回测模式 - 历史数据回测验证"""
     logger.info("\n📊 运行回测")
@@ -946,6 +1118,7 @@ def run_backtest(args: argparse.Namespace) -> None:
     progress.update(1, "加载回测模块...")
     try:
         from fast_backtest import run_fast_backtest
+
         progress.update(2, "执行快速回测...")
         run_fast_backtest()
         progress.update(3, "生成报告...")
@@ -962,14 +1135,18 @@ def run_backtest(args: argparse.Namespace) -> None:
             if config:
                 portfolio = PortfolioConfig()
                 settings = {
-                    'capital': {'total': 1000000},
-                    'rebalance': {'threshold': 0.06, 'min_interval_days': 5},
-                    'targets': {'annual_return': 0.08, 'max_drawdown': 0.15}
+                    "capital": {"total": 1000000},
+                    "rebalance": {"threshold": 0.06, "min_interval_days": 5},
+                    "targets": {"annual_return": 0.08, "max_drawdown": 0.15},
                 }
                 engine = BacktestEngine(portfolio, settings)
 
                 progress.update(3, "查找历史数据...")
-                excel_files = [f for f in os.listdir(BASE_DIR) if f.startswith('data_extraction') and f.endswith('.xlsx')]
+                excel_files = [
+                    f
+                    for f in os.listdir(BASE_DIR)
+                    if f.startswith("data_extraction") and f.endswith(".xlsx")
+                ]
                 if excel_files:
                     result = engine.run_backtest(os.path.join(BASE_DIR, excel_files[0]))
                     logger.info("\n✅ 回测完成")
@@ -980,11 +1157,13 @@ def run_backtest(args: argparse.Namespace) -> None:
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             progress.complete(f"❌ 回测模块不可用: {e}")
 
+
 def _check_commodity_module() -> bool:
     """检查大宗商品基本面模块是否可用"""
     try:
-        sys.path.insert(0, os.path.join(BASE_DIR, '..', '03_投研与策略生成'))
+        sys.path.insert(0, os.path.join(BASE_DIR, "..", "03_投研与策略生成"))
         from 大宗商品基本面综合 import get_copper_fundamentals
+
         return callable(get_copper_fundamentals)
     except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
         return False
@@ -999,26 +1178,31 @@ def run_quick_check(args: argparse.Namespace) -> None:
     def _package_available(pkg_name: str) -> bool:
         try:
             import importlib.util
+
             return importlib.util.find_spec(pkg_name) is not None
         except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
             return False
 
     modules = {
-        '数据提供层': data_provider.get('get_quotes_batch') is not None,
-        '自动交易系统': auto_trading.get('AutoTradingSystem') is not None,
-        '再平衡引擎': rebalance_engine.get('RebalancingEngine') is not None,
-        '每日报告': daily_report.get('generate_daily_report') is not None,
-        '止损止盈监控': stop_loss.get('StopLossMonitor') is not None,
-        '策略注册表': strategy_registry is not None,
-        '连接器管理器': connector_manager is not None,
-        'ETF资金流向监控': True,  # 内置模块，始终可用
-        '投资组合优化': _package_available('pandas') or _package_available('numpy'),
-        '康波周期监控': _package_available('yfinance') or _package_available('tushare'),
-        '大宗商品基本面': _check_commodity_module(),  # 动态检查
-        '时序预测模型': all(_package_available(pkg) for pkg in ['torch', 'sklearn', 'pandas', 'numpy']),  # 新增
+        "数据提供层": data_provider.get("get_quotes_batch") is not None,
+        "自动交易系统": auto_trading.get("AutoTradingSystem") is not None,
+        "再平衡引擎": rebalance_engine.get("RebalancingEngine") is not None,
+        "每日报告": daily_report.get("generate_daily_report") is not None,
+        "止损止盈监控": stop_loss.get("StopLossMonitor") is not None,
+        "策略注册表": strategy_registry is not None,
+        "连接器管理器": connector_manager is not None,
+        "ETF资金流向监控": True,  # 内置模块，始终可用
+        "投资组合优化": _package_available("pandas") or _package_available("numpy"),
+        "康波周期监控": _package_available("yfinance") or _package_available("tushare"),
+        "大宗商品基本面": _check_commodity_module(),  # 动态检查
+        "时序预测模型": all(
+            _package_available(pkg) for pkg in ["torch", "sklearn", "pandas", "numpy"]
+        ),  # 新增
         # v5.9 新增模块
-        '多模型路由器': _package_available('yaml'),  # 需要 yaml
-        'Wind数据供应器': os.path.exists(os.path.join(BASE_DIR, 'utils', 'wind_data_provider.py')),
+        "多模型路由器": _package_available("yaml"),  # 需要 yaml
+        "Wind数据供应器": os.path.exists(
+            os.path.join(BASE_DIR, "utils", "wind_data_provider.py")
+        ),
     }
 
     logger.info("\n📦 模块状态:")
@@ -1052,11 +1236,15 @@ def run_quick_check(args: argparse.Namespace) -> None:
     if ETFFundFlowMonitor is not None:
         logger.info(f"  ✅ 监控标的: {len(ETFFundFlowMonitor.ETF_LIST)} 只ETF")
     else:
-        logger.warning("  ⚠️ ETFFundFlowMonitor 未加载 (engine/managers 缺失), 跳过ETF监控检查")
-    etf_config = config_manager.get('etf_monitor', 'signal_high_threshold')
+        logger.warning(
+            "  ⚠️ ETFFundFlowMonitor 未加载 (engine/managers 缺失), 跳过ETF监控检查"
+        )
+    etf_config = config_manager.get("etf_monitor", "signal_high_threshold")
     if etf_config:
         try:
-            logger.info(f"  ✅ 信号阈值: 高{etf_config/1e8:.0f}亿/中{config_manager.get('etf_monitor', 'signal_medium_threshold')/1e8:.0f}亿/低{config_manager.get('etf_monitor', 'signal_low_threshold')/1e8:.0f}亿")
+            logger.info(
+                f"  ✅ 信号阈值: 高{etf_config/1e8:.0f}亿/中{config_manager.get('etf_monitor', 'signal_medium_threshold')/1e8:.0f}亿/低{config_manager.get('etf_monitor', 'signal_low_threshold')/1e8:.0f}亿"
+            )
         except (TypeError, ValueError) as e:
             logger.warning(f"  ⚠️ ETF信号阈值配置格式异常, 跳过: {e}")
 
@@ -1064,41 +1252,57 @@ def run_quick_check(args: argparse.Namespace) -> None:
     logger.info("\n🔗 数据源连接器:")
     try:
         connector_status = connector_manager.get_status()
-        logger.info(f"  当前活跃连接器: {connector_status.get('active_connector', 'None')}")
-        logger.error(f"  是否降级模式: {'✅ 是' if connector_status.get('fallback_mode') else '❌ 否'}")
+        logger.info(
+            f"  当前活跃连接器: {connector_status.get('active_connector', 'None')}"
+        )
+        logger.error(
+            f"  是否降级模式: {'✅ 是' if connector_status.get('fallback_mode') else '❌ 否'}"
+        )
         logger.info(f"  注册连接器数: {connector_status.get('total_connectors', 0)}")
-        logger.info(f"  可用连接器数: {connector_status.get('available_connectors', 0)}")
+        logger.info(
+            f"  可用连接器数: {connector_status.get('available_connectors', 0)}"
+        )
     except (AttributeError, TypeError):
         active = connector_manager.get_active_connector()
         n = len(connector_manager.list_connectors())
-        logger.warning(f"  ⚠️ 连接器状态 API 不完整 (get_status 缺失), 简化展示: 活跃={'有' if active else '无'}, 已注册 {n} 个")
+        logger.warning(
+            f"  ⚠️ 连接器状态 API 不完整 (get_status 缺失), 简化展示: 活跃={'有' if active else '无'}, 已注册 {n} 个"
+        )
 
     # v5.9: 检查多模型路由器和 Wind 数据供应器
     logger.info("\n🤖 v5.10 AI 决策模块:")
     try:
         from utils.multi_model_router import ModelRouter
+
         router = ModelRouter()
-        logger.info(f"  ✅ 多模型路由器: 已注册 {len(router.config.get('providers', {}))} 个模型提供商")
-        scenes = router.config.get('scenes', {})
+        logger.info(
+            f"  ✅ 多模型路由器: 已注册 {len(router.config.get('providers', {}))} 个模型提供商"
+        )
+        scenes = router.config.get("scenes", {})
         for scene_name, scene_cfg in scenes.items():
-            primary = scene_cfg.get('primary', {})
-            hedged = scene_cfg.get('parallel_hedge', {}).get('enabled', False)
-            cv = scene_cfg.get('cross_validation', {}).get('enabled', False)
+            primary = scene_cfg.get("primary", {})
+            hedged = scene_cfg.get("parallel_hedge", {}).get("enabled", False)
+            cv = scene_cfg.get("cross_validation", {}).get("enabled", False)
             extra = ""
             if hedged:
                 extra = " (并行对冲)"
             elif cv:
                 extra = " (交叉验证)"
-            logger.info(f"    {scene_name}: {primary.get('provider')}/{primary.get('model')}{extra}")
+            logger.info(
+                f"    {scene_name}: {primary.get('provider')}/{primary.get('model')}{extra}"
+            )
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.error(f"  ❌ 多模型路由器: {e}")
 
     try:
         from utils.wind_data_provider import WindDataProvider
+
         wp = WindDataProvider()
         status = wp.health_check()
-        wind_ok = "可用" if status.get('wind_mcp_available') else "不可用(降级)"
-        logger.warning(f"  {'✅' if status.get('wind_mcp_available') else '⚠️'} Wind MCP: {wind_ok}")
+        wind_ok = "可用" if status.get("wind_mcp_available") else "不可用(降级)"
+        logger.warning(
+            f"  {'✅' if status.get('wind_mcp_available') else '⚠️'} Wind MCP: {wind_ok}"
+        )
         logger.info(f"    指数缓存: {status.get('index_cache_size', 0)} 项")
         logger.info(f"    基本面缓存: {status.get('fundamental_cache_size', 0)} 项")
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
@@ -1116,20 +1320,18 @@ def run_quick_check(args: argparse.Namespace) -> None:
             for i, rec in enumerate(llmfit_status["recommendations"][:3], 1):
                 logger.info(f"    {i}. {rec}")
         else:
-            logger.warning(
-                f"  ⚠️ llmfit 不可用: {llmfit_status['reason']}"
-            )
+            logger.warning(f"  ⚠️ llmfit 不可用: {llmfit_status['reason']}")
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.warning(f"  ⚠️ 本地 LLM 选型检查跳过: {e}")
 
     # 检查配置文件
     logger.info("\n📋 配置文件:")
     config_files = [
-        'config/portfolio.yaml',
-        'config/settings.yaml',
-        'config/positions.json',
-        'config/rebalance.yaml',
-        'config/risk.yaml',
+        "config/portfolio.yaml",
+        "config/settings.yaml",
+        "config/positions.json",
+        "config/rebalance.yaml",
+        "config/risk.yaml",
     ]
     for config_file in config_files:
         path = os.path.join(BASE_DIR, config_file)
@@ -1139,16 +1341,16 @@ def run_quick_check(args: argparse.Namespace) -> None:
 
     # 检查数据缓存
     logger.info("\n💾 数据缓存:")
-    cache_dir = os.path.join(BASE_DIR, 'data', 'cache')
+    cache_dir = os.path.join(BASE_DIR, "data", "cache")
     if os.path.exists(cache_dir):
-        cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.parquet')]
+        cache_files = [f for f in os.listdir(cache_dir) if f.endswith(".parquet")]
         logger.info(f"  ✅ 缓存目录存在，{len(cache_files)}个文件")
     else:
         logger.error("  ❌ 缓存目录不存在")
 
     # 检查报告目录
     logger.info("\n📄 报告目录:")
-    reports_dir = os.path.join(BASE_DIR, 'reports')
+    reports_dir = os.path.join(BASE_DIR, "reports")
     if os.path.exists(reports_dir):
         report_days = len(os.listdir(reports_dir))
         logger.info(f"  ✅ 报告目录存在，{report_days}天报告")
@@ -1158,7 +1360,7 @@ def run_quick_check(args: argparse.Namespace) -> None:
     # 检查日志目录
     logger.info("\n📝 日志目录:")
     if os.path.exists(LOG_DIR):
-        log_files = [f for f in os.listdir(LOG_DIR) if f.startswith('system_')]
+        log_files = [f for f in os.listdir(LOG_DIR) if f.startswith("system_")]
         logger.info(f"  ✅ 日志目录存在，{len(log_files)}个日志文件")
     else:
         logger.error("  ❌ 日志目录不存在")
@@ -1172,6 +1374,7 @@ def run_quick_check(args: argparse.Namespace) -> None:
         logger.warning(f"  ⚠️ 降级状态 API 不完整 (is_fallback_mode 缺失), 跳过: {e}")
 
     logger.info("\n" + "=" * 70)
+
 
 def run_model_training(args: argparse.Namespace) -> None:
     """统一模型训练入口 (v5.7 Phase 2 增强)
@@ -1189,46 +1392,54 @@ def run_model_training(args: argparse.Namespace) -> None:
         "--train-enhanced (ML增强训练) 或 v8.3_institutional/ 独立入口"
     )
 
+
 def run_enhanced_training_mode(args: argparse.Namespace) -> Optional[dict]:
     """ML增强训练 v2.0 — 四维优化管线"""
     if not ML_ENHANCED_TRAINER_AVAILABLE:
         logger.error("\n❌ 增强训练引擎未安装")
         return None
 
-    horizon = getattr(args, 'horizon', 1)
-    filter_osc = getattr(args, 'filter_oscillation', True)
-    use_optuna = getattr(args, 'optuna', False)
-    n_trials = getattr(args, 'trials', 50)
-    n_features = getattr(args, 'features', 30)
-    northbound_path = getattr(args, 'northbound', None) or None
+    horizon = getattr(args, "horizon", 1)
+    filter_osc = getattr(args, "filter_oscillation", True)
+    use_optuna = getattr(args, "optuna", False)
+    n_trials = getattr(args, "trials", 50)
+    n_features = getattr(args, "features", 30)
+    northbound_path = getattr(args, "northbound", None) or None
 
     logger.info("\n" + "=" * 70)
     logger.info("  🧠 ML 增强训练引擎 v2.0 — 四维优化管线")
     logger.info("=" * 70)
-    logger.info(f"  预测窗口: T+{horizon} | 过滤震荡: {filter_osc} | Optuna: {use_optuna}")
+    logger.info(
+        f"  预测窗口: T+{horizon} | 过滤震荡: {filter_osc} | Optuna: {use_optuna}"
+    )
     logger.info(f"  特征数: {n_features} | 样本加权: 时间衰减+波动率")
     logger.info("  增强特征: 行业RS+市场宽度+北向+PE/PB/ROE")
     logger.info("-" * 70)
 
     progress = ProgressIndicator("增强训练", 5)
     progress.update(1, "加载与特征工程...")
-    data_dir = os.path.join(BASE_DIR, 'data', 'cache')
-    model_dir = os.path.join(BASE_DIR, 'models')
+    data_dir = os.path.join(BASE_DIR, "data", "cache")
+    model_dir = os.path.join(BASE_DIR, "models")
 
     try:
         result = run_enhanced_training(
-            data_dir=data_dir, model_dir=model_dir,
-            prediction_horizon=horizon, filter_oscillation=filter_osc,
-            use_optuna=use_optuna, n_trials=n_trials,
-            n_features=n_features, northbound_path=northbound_path,
+            data_dir=data_dir,
+            model_dir=model_dir,
+            prediction_horizon=horizon,
+            filter_oscillation=filter_osc,
+            use_optuna=use_optuna,
+            n_trials=n_trials,
+            n_features=n_features,
+            northbound_path=northbound_path,
         )
     except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
         import traceback
+
         logger.error("\n❌ train_enhanced 执行异常:")
         traceback.print_exc()
         return None
 
-    if 'error' in result:
+    if "error" in result:
         logger.error(f"\n❌ 训练失败: {result['error']}")
         return None
 
@@ -1237,9 +1448,11 @@ def run_enhanced_training_mode(args: argparse.Namespace) -> Optional[dict]:
     progress.update(5, "完成")
     progress.complete("✅ 增强训练完成")
 
-    logger.info(f"\n📊 最佳: {result['best_model']} | F1={result['best_f1']:.4f} "
-          f"| AUC={result['best_auc']:.4f} | 样本={result['n_samples']}")
-    for name, m in result['results'].items():
+    logger.info(
+        f"\n📊 最佳: {result['best_model']} | F1={result['best_f1']:.4f} "
+        f"| AUC={result['best_auc']:.4f} | 样本={result['n_samples']}"
+    )
+    for name, m in result["results"].items():
         logger.info(f"  {name:<25} F1={m['f1']:.4f}  AUC={m['auc']:.4f}")
     logger.info("\n💡 python v5.10.py --ml-enhanced  # 使用新模型预测")
     logger.info("=" * 70)
@@ -1249,6 +1462,7 @@ def run_enhanced_training_mode(args: argparse.Namespace) -> Optional[dict]:
 # ============================================================
 # ML 增强预测模式 — 四维优化模型预测
 # ============================================================
+
 
 def run_enhanced_prediction_mode(args: argparse.Namespace) -> Optional[dict]:
     """ML增强预测 v2.0"""
@@ -1260,26 +1474,28 @@ def run_enhanced_prediction_mode(args: argparse.Namespace) -> Optional[dict]:
     logger.info("  📈 ML 增强预测 v2.0")
     logger.info("=" * 70)
 
-    model_dir = os.path.join(BASE_DIR, 'models')
-    data_dir = os.path.join(BASE_DIR, 'data', 'cache')
-    threshold = getattr(args, 'threshold', 0.55)
+    model_dir = os.path.join(BASE_DIR, "models")
+    data_dir = os.path.join(BASE_DIR, "data", "cache")
+    threshold = getattr(args, "threshold", 0.55)
 
     progress = ProgressIndicator("增强预测", 4)
     progress.update(1, "加载模型...")
-    predictor = EnhancedPredictor(model_dir=model_dir, weight_method='f1_weighted')
+    predictor = EnhancedPredictor(model_dir=model_dir, weight_method="f1_weighted")
 
     if not predictor.auto_discover_and_load(prefer_enhanced=True):
         logger.warning("  ⚠️ 未找到增强模型，回退标准预测")
         return run_ml_signal_mode(args)
 
     info = predictor.get_model_info()
-    logger.info(f"\n  T+{info.get('horizon',1)} | 过滤震荡={info.get('filter_oscillation',True)} "
-          f"| 模型数={info.get('model_count',0)} | F1={info.get('f1',0):.4f}")
+    logger.info(
+        f"\n  T+{info.get('horizon',1)} | 过滤震荡={info.get('filter_oscillation',True)} "
+        f"| 模型数={info.get('model_count',0)} | F1={info.get('f1',0):.4f}"
+    )
 
     progress.update(2, "加载K线...")
     kline_dict = {}
-    for f in glob.glob(os.path.join(data_dir, 'kline_*.parquet')):
-        code = os.path.basename(f).replace('kline_', '').replace('_daily.parquet', '')
+    for f in glob.glob(os.path.join(data_dir, "kline_*.parquet")):
+        code = os.path.basename(f).replace("kline_", "").replace("_daily.parquet", "")
         try:
             kline_dict[code] = pd.read_parquet(f)
         except Exception:
@@ -1294,25 +1510,33 @@ def run_enhanced_prediction_mode(args: argparse.Namespace) -> Optional[dict]:
     progress.complete("✅ 增强预测完成")
 
     logger.info(f"\n📊 信号分布 (T+{predictor.prediction_horizon}):")
-    logger.info(f"  🟢 买入: {len(signals['buy'])} | 🔴 卖出: {len(signals['sell'])} | 🟡 震荡/持有: {len(signals['hold'])}")
+    logger.info(
+        f"  🟢 买入: {len(signals['buy'])} | 🔴 卖出: {len(signals['sell'])} | 🟡 震荡/持有: {len(signals['hold'])}"
+    )
 
-    for label, data in [("买入", signals['buy']), ("卖出", signals['sell'])]:
+    for label, data in [("买入", signals["buy"]), ("卖出", signals["sell"])]:
         if data:
-            emoji = '🟢' if label == '买入' else '🔴'
+            emoji = "🟢" if label == "买入" else "🔴"
             logger.info(f"\n{emoji} {label}信号:")
-            sort_rev = label == '买入'
-            for s in sorted(data, key=lambda x: x['probability'], reverse=sort_rev):
-                name = get_stock_name(s['code'])
-                logger.info(f"  {s['code']} {name:<8} 概率={s['probability']:.2%} "
-                      f"置信={s['confidence']:.2%} 强度={s['strength']}")
+            sort_rev = label == "买入"
+            for s in sorted(data, key=lambda x: x["probability"], reverse=sort_rev):
+                name = get_stock_name(s["code"])
+                logger.info(
+                    f"  {s['code']} {name:<8} 概率={s['probability']:.2%} "
+                    f"置信={s['confidence']:.2%} 强度={s['strength']}"
+                )
 
-    if signals['hold']:
+    if signals["hold"]:
         logger.info("\n🟡 震荡/持有 (建议观望):")
-        for s in sorted(signals['hold'], key=lambda x: x['probability'], reverse=True)[:5]:
-            name = get_stock_name(s['code'])
+        for s in sorted(signals["hold"], key=lambda x: x["probability"], reverse=True)[
+            :5
+        ]:
+            name = get_stock_name(s["code"])
             logger.info(f"  {s['code']} {name:<8} 概率={s['probability']:.2%}")
 
-    logger.info(f"\n💡 四维优化: 三分类标签 | T+{predictor.prediction_horizon}窗口 | 增强特征(行业+北向+基本面) | 样本加权")
+    logger.info(
+        f"\n💡 四维优化: 三分类标签 | T+{predictor.prediction_horizon}窗口 | 增强特征(行业+北向+基本面) | 样本加权"
+    )
     logger.info("=" * 70)
     return signals
 
@@ -1320,6 +1544,7 @@ def run_enhanced_prediction_mode(args: argparse.Namespace) -> Optional[dict]:
 # ============================================================
 # v5.1 新增：康波周期 + 十五五规划 + 社保基金ETF 综合分析
 # ============================================================
+
 
 def run_hypothesis_test(args: argparse.Namespace) -> None:
     """假设验证模式 - 验证交易假设"""
@@ -1334,26 +1559,31 @@ def run_hypothesis_test(args: argparse.Namespace) -> None:
         else:
             for i, hyp in enumerate(hypotheses, 1):
                 logger.info(f"\n  {i}. {hyp.get('name', '未命名假设')}")
-                logger.info(f"     ID: {list(strategy_registry.hypotheses.keys())[i-1]}")
+                logger.info(
+                    f"     ID: {list(strategy_registry.hypotheses.keys())[i-1]}"
+                )
                 logger.info(f"     状态: {hyp.get('status', '未知')}")
                 logger.info(f"     创建时间: {hyp.get('created_at', '未知')}")
-                if 'description' in hyp:
+                if "description" in hyp:
                     logger.info(f"     描述: {hyp['description']}")
         return
 
     if args.register:
-        parts = args.register.split('|')
+        parts = args.register.split("|")
         if len(parts) >= 2:
             hyp_id = parts[0].strip()
             hyp_name = parts[1].strip()
             hyp_desc = parts[2].strip() if len(parts) > 2 else ""
 
-            strategy_registry.register_hypothesis(hyp_id, {
-                'name': hyp_name,
-                'description': hyp_desc,
-                'methodology': '统计检验',
-                'evidence': []
-            })
+            strategy_registry.register_hypothesis(
+                hyp_id,
+                {
+                    "name": hyp_name,
+                    "description": hyp_desc,
+                    "methodology": "统计检验",
+                    "evidence": [],
+                },
+            )
             logger.info(f"\n✅ 假设已注册: {hyp_name}")
         else:
             logger.error("\n❌ 注册格式错误，使用: --register id|名称|描述")
@@ -1369,7 +1599,10 @@ def run_hypothesis_test(args: argparse.Namespace) -> None:
 # 统一执行日志 (v5.7 Phase 1 新增)
 # ============================================================
 
-def _log_execution_summary(mode_name: str, duration_sec: float, success: bool, result: Optional[dict] = None) -> None:
+
+def _log_execution_summary(
+    mode_name: str, duration_sec: float, success: bool, result: Optional[dict] = None
+) -> None:
     """记录每个CLI模式执行的统一结构化日志。
 
     v5.7 Phase 1: 为所有22个CLI模式提供一致的可观测性。
@@ -1377,8 +1610,16 @@ def _log_execution_summary(mode_name: str, duration_sec: float, success: bool, r
     metrics = {}
     if isinstance(result, dict):
         # 从结果中提取关键指标
-        for key in ('accuracy', 'signals_count', 'scanned_count', 'alerts_count',
-                     'buy_count', 'sell_count', 'hold_count', 'total_assets'):
+        for key in (
+            "accuracy",
+            "signals_count",
+            "scanned_count",
+            "alerts_count",
+            "buy_count",
+            "sell_count",
+            "hold_count",
+            "total_assets",
+        ):
             if key in result:
                 metrics[key] = result[key]
 
@@ -1389,17 +1630,23 @@ def _log_execution_summary(mode_name: str, duration_sec: float, success: bool, r
 
     # 写入统一日志文件
     try:
-        exec_log_dir = os.path.join(BASE_DIR, 'logs', 'executions')
+        exec_log_dir = os.path.join(BASE_DIR, "logs", "executions")
         os.makedirs(exec_log_dir, exist_ok=True)
-        exec_log_file = os.path.join(exec_log_dir, f'exec_{datetime.now():%Y%m}.jsonl')
-        with open(exec_log_file, 'a', encoding='utf-8') as f:
-            f.write(json.dumps({
-                'mode': mode_name,
-                'duration_sec': round(duration_sec, 2),
-                'success': success,
-                'timestamp': datetime.now().isoformat(),
-                'metrics': metrics,
-            }, ensure_ascii=False) + '\n')
+        exec_log_file = os.path.join(exec_log_dir, f"exec_{datetime.now():%Y%m}.jsonl")
+        with open(exec_log_file, "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "mode": mode_name,
+                        "duration_sec": round(duration_sec, 2),
+                        "success": success,
+                        "timestamp": datetime.now().isoformat(),
+                        "metrics": metrics,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
     except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
         pass
 
@@ -1407,16 +1654,20 @@ def _log_execution_summary(mode_name: str, duration_sec: float, success: bool, r
 
     # 如果失败且有时长异常(>60s)，发送告警
     if not success and duration_sec > 60:
-        event_tracker.track('execution_timeout', {
-            'mode': mode_name,
-            'duration_sec': duration_sec,
-            'timestamp': datetime.now().isoformat(),
-        })
+        event_tracker.track(
+            "execution_timeout",
+            {
+                "mode": mode_name,
+                "duration_sec": duration_sec,
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
 
 
 # ============================================================
 # AI Hedge Fund — 19位大师级AI分析师联合决策模式
 # ============================================================
+
 
 def run_ai_hedge_mode(args: argparse.Namespace) -> None:
     """AI Hedge Fund — 19位大师级AI分析师联合决策模式
@@ -1427,6 +1678,7 @@ def run_ai_hedge_mode(args: argparse.Namespace) -> None:
         "[P2-4] run_ai_hedge_mode 未实现: AI Hedge Fund 功能已迁移, "
         "请使用 v8.3_institutional/ 或独立 ai_hedge 入口"
     )
+
 
 def run_stress_test_mode(args: argparse.Namespace) -> None:
     """极端压力测试模式 v5.10 — 6历史情景+蒙特卡洛+硬止损检查"""
@@ -1439,31 +1691,31 @@ def run_stress_test_mode(args: argparse.Namespace) -> None:
     logger.info(f"硬止损阈值: {HARD_STOP_MAX_DRAWDOWN:.1%}")
 
     # 1. 加载组合配置
-    portfolio_path = os.path.join(BASE_DIR, 'config', 'portfolio.yaml')
+    portfolio_path = os.path.join(BASE_DIR, "config", "portfolio.yaml")
     if not os.path.exists(portfolio_path):
         logger.error("❌ 未找到 portfolio.yaml，使用默认配置")
         # 默认配置（14标的）
         default_positions = {
-            '300750.SZ': {'shares': 1000, 'sector': '高端制造'},
-            '688041.SH': {'shares': 800, 'sector': '高端制造'},
-            '002371.SZ': {'shares': 600, 'sector': '高端制造'},
-            '300308.SZ': {'shares': 500, 'sector': '高端制造'},
-            '688981.SH': {'shares': 400, 'sector': '高端制造'},
-            '000425.SZ': {'shares': 700, 'sector': '高端制造'},
-            '601088.SH': {'shares': 1000, 'sector': '顺周期'},
-            '600219.SH': {'shares': 600, 'sector': '顺周期'},
-            '600019.SH': {'shares': 500, 'sector': '顺周期'},
-            '518880.SH': {'shares': 2000, 'sector': '资源'},
-            '000792.SZ': {'shares': 400, 'sector': '资源'},
-            '600276.SH': {'shares': 600, 'sector': '防御'},
-            '603259.SH': {'shares': 500, 'sector': '防御'},
-            '002422.SZ': {'shares': 400, 'sector': '防御'},
+            "300750.SZ": {"shares": 1000, "sector": "高端制造"},
+            "688041.SH": {"shares": 800, "sector": "高端制造"},
+            "002371.SZ": {"shares": 600, "sector": "高端制造"},
+            "300308.SZ": {"shares": 500, "sector": "高端制造"},
+            "688981.SH": {"shares": 400, "sector": "高端制造"},
+            "000425.SZ": {"shares": 700, "sector": "高端制造"},
+            "601088.SH": {"shares": 1000, "sector": "顺周期"},
+            "600219.SH": {"shares": 600, "sector": "顺周期"},
+            "600019.SH": {"shares": 500, "sector": "顺周期"},
+            "518880.SH": {"shares": 2000, "sector": "资源"},
+            "000792.SZ": {"shares": 400, "sector": "资源"},
+            "600276.SH": {"shares": 600, "sector": "防御"},
+            "603259.SH": {"shares": 500, "sector": "防御"},
+            "002422.SZ": {"shares": 400, "sector": "防御"},
         }
         positions = default_positions
     else:
-        with open(portfolio_path, encoding='utf-8') as f:
+        with open(portfolio_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
-        positions = config.get('positions', {})
+        positions = config.get("positions", {})
 
     logger.info(f"✅ 加载持仓: {len(positions)} 个标的")
 
@@ -1472,13 +1724,15 @@ def run_stress_test_mode(args: argparse.Namespace) -> None:
     total_value = 0.0
     for code in positions.keys():
         # 尝试从缓存获取价格
-        cache_file = os.path.join(BASE_DIR, 'data', 'cache', f'kline_{code}_daily.parquet')
+        cache_file = os.path.join(
+            BASE_DIR, "data", "cache", f"kline_{code}_daily.parquet"
+        )
         if os.path.exists(cache_file):
             try:
                 df = pd.read_parquet(cache_file)
-                if len(df) > 0 and 'close' in df.columns:
-                    prices[code] = float(df['close'].iloc[-1])
-                    total_value += positions[code]['shares'] * prices[code]
+                if len(df) > 0 and "close" in df.columns:
+                    prices[code] = float(df["close"].iloc[-1])
+                    total_value += positions[code]["shares"] * prices[code]
             except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
                 pass
 
@@ -1490,14 +1744,18 @@ def run_stress_test_mode(args: argparse.Namespace) -> None:
     # 缺价标的值跳过并告警, 避免污染风控压力测试结果。
     missing = [code for code in positions if prices.get(code, 0) <= 0]
     if missing:
-        logger.warning(f"[STALE] {len(missing)} 个标的无有效价格, 已从压力测试权重中跳过: {missing}")
+        logger.warning(
+            f"[STALE] {len(missing)} 个标的无有效价格, 已从压力测试权重中跳过: {missing}"
+        )
     valid_codes = [code for code in positions if prices.get(code, 0) > 0]
     if not valid_codes:
         logger.error("❌ 无任何标的有有效价格, 无法计算压力测试权重")
         return
-    weights = np.array([positions[code]['shares'] * prices[code] / total_value for code in valid_codes])
+    weights = np.array(
+        [positions[code]["shares"] * prices[code] / total_value for code in valid_codes]
+    )
     names = list(valid_codes)
-    sectors = {code: positions[code].get('sector', '未分类') for code in valid_codes}
+    sectors = {code: positions[code].get("sector", "未分类") for code in valid_codes}
 
     logger.info(f"✅ 组合总市值: ¥{total_value:.2f}")
 
@@ -1505,13 +1763,17 @@ def run_stress_test_mode(args: argparse.Namespace) -> None:
     returns_data = []
     valid_codes = []
     for code in names:
-        cache_file = os.path.join(BASE_DIR, 'data', 'cache', f'kline_{code}_daily.parquet')
+        cache_file = os.path.join(
+            BASE_DIR, "data", "cache", f"kline_{code}_daily.parquet"
+        )
         if os.path.exists(cache_file):
             try:
                 df = pd.read_parquet(cache_file)
-                if 'close' in df.columns and len(df) > 60:
-                    rets = df['close'].pct_change().dropna().values
-                    returns_data.append(rets[-252:] if len(rets) >= 252 else rets)  # 最近一年
+                if "close" in df.columns and len(df) > 60:
+                    rets = df["close"].pct_change().dropna().values
+                    returns_data.append(
+                        rets[-252:] if len(rets) >= 252 else rets
+                    )  # 最近一年
                     valid_codes.append(code)
             except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
                 pass
@@ -1540,12 +1802,12 @@ def run_stress_test_mode(args: argparse.Namespace) -> None:
     logger.info(report)
 
     # 5. 保存报告
-    output_dir = os.path.join(BASE_DIR, 'reports')
+    output_dir = os.path.join(BASE_DIR, "reports")
     os.makedirs(output_dir, exist_ok=True)
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    report_file = os.path.join(output_dir, f'stress_test_{timestamp}.md')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_file = os.path.join(output_dir, f"stress_test_{timestamp}.md")
 
-    with open(report_file, 'w', encoding='utf-8') as f:
+    with open(report_file, "w", encoding="utf-8") as f:
         f.write(report)
 
     logger.info(f"\n✅ 报告已保存: {report_file}")
@@ -1556,7 +1818,7 @@ def run_stop_loss_config_mode(args: argparse.Namespace) -> None:
     """止损配置模式 v5.10 — 查看/更新止损止盈规则"""
     import yaml
 
-    config_path = os.path.join(BASE_DIR, 'config', 'stop_loss_rules_auto.yaml')
+    config_path = os.path.join(BASE_DIR, "config", "stop_loss_rules_auto.yaml")
     logger.info("\n🛡️ 止损止盈配置 v5.10")
     logger.info("=" * 70)
 
@@ -1565,11 +1827,11 @@ def run_stop_loss_config_mode(args: argparse.Namespace) -> None:
         logger.info("  python scripts/generate_stop_loss_rules.py --regenerate")
         return
 
-    with open(config_path, encoding='utf-8') as f:
+    with open(config_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     # 显示全局设置
-    gs = data.get('global_settings', {})
+    gs = data.get("global_settings", {})
     logger.info(f"版本: {data.get('version', 'N/A')}")
     logger.info(f"更新时间: {data.get('updated', 'N/A')}")
     logger.info("\n全局设置:")
@@ -1580,33 +1842,40 @@ def run_stop_loss_config_mode(args: argparse.Namespace) -> None:
     logger.info(f"  启用追踪止损: {gs.get('enable_trailing_stop_pct', 10.0):.0f}%")
 
     # 显示标的规则
-    assets = data.get('assets', [])
+    assets = data.get("assets", [])
     logger.info(f"\n标的配置 ({len(assets)} 只):")
     logger.info("-" * 70)
-    logger.info(f"{'代码':<12} {'名称':<10} {'板块':<8} {'基准价':>8} {'ATR止损':>8} {'固定止损':>8} {'风险'}")
+    logger.info(
+        f"{'代码':<12} {'名称':<10} {'板块':<8} {'基准价':>8} {'ATR止损':>8} {'固定止损':>8} {'风险'}"
+    )
     logger.info("-" * 70)
 
-    risk_summary = {'high': 0, 'medium': 0, 'low': 0}
+    risk_summary = {"high": 0, "medium": 0, "low": 0}
     for a in assets:
-        code = a.get('code', '')
-        name = a.get('name', '')[:8]
-        sector = a.get('sector', '')[:6]
-        base = a.get('base_price', 0)
-        atr_sl = a.get('atr_stop_loss_price', 0)
-        fixed_sl = a.get('stop_loss_price', 0)
-        risk = a.get('risk_level', 'N/A')
+        code = a.get("code", "")
+        name = a.get("name", "")[:8]
+        sector = a.get("sector", "")[:6]
+        base = a.get("base_price", 0)
+        atr_sl = a.get("atr_stop_loss_price", 0)
+        fixed_sl = a.get("stop_loss_price", 0)
+        risk = a.get("risk_level", "N/A")
         risk_summary[risk] = risk_summary.get(risk, 0) + 1
-        logger.info(f"{code:<12} {name:<10} {sector:<8} {base:>8.2f} {atr_sl:>8.2f} {fixed_sl:>8.2f} {risk}")
+        logger.info(
+            f"{code:<12} {name:<10} {sector:<8} {base:>8.2f} {atr_sl:>8.2f} {fixed_sl:>8.2f} {risk}"
+        )
 
     logger.info("-" * 70)
-    logger.info(f"\n风险分布: 高风险 {risk_summary.get('high', 0)} | 中风险 {risk_summary.get('medium', 0)} | 低风险 {risk_summary.get('low', 0)}")
+    logger.info(
+        f"\n风险分布: 高风险 {risk_summary.get('high', 0)} | 中风险 {risk_summary.get('medium', 0)} | 低风险 {risk_summary.get('low', 0)}"
+    )
     logger.info(f"\n配置位置: {config_path}")
     logger.info("\n更新命令: python scripts/generate_stop_loss_rules.py --regenerate")
     logger.info("=" * 70)
 
 
-def _enforce_live_gate(dry_run: bool, confirm_only: bool, action: str,
-                       confirm: bool = False) -> bool:
+def _enforce_live_gate(
+    dry_run: bool, confirm_only: bool, action: str, confirm: bool = False
+) -> bool:
     """UE-1 统一实盘门控 (2026-08-24).
 
     当系统 broker 配置为"真实下单就绪" (broker.enabled=true 且 TRADING_ENV=production)
@@ -1625,6 +1894,7 @@ def _enforce_live_gate(dry_run: bool, confirm_only: bool, action: str,
     # 读取 broker 配置
     try:
         from utils.execution.broker_factory import _load_broker_config
+
         broker_cfg = _load_broker_config()
         broker_enabled = broker_cfg.get("enabled", False)
     except Exception:  # noqa: BLE001  # 配置读取失败按未启用处理 (安全默认)
@@ -1641,14 +1911,17 @@ def _enforce_live_gate(dry_run: bool, confirm_only: bool, action: str,
         logger.error(f"[BLOCK] {msg}")
         try:
             from utils.notify import send_alert
+
             send_alert(title=f"[UE-1][BLOCK] {action}", content=msg, level="critical")
         except (ImportError, AttributeError):
             pass
         return False
 
     if not confirm:
-        msg = (f"UE-1 阻断: {action} 将真实下单 (TRADING_ENV=production + broker.enabled=true), "
-               f"必须加 --yes 显式确认")
+        msg = (
+            f"UE-1 阻断: {action} 将真实下单 (TRADING_ENV=production + broker.enabled=true), "
+            f"必须加 --yes 显式确认"
+        )
         logger.error(f"[BLOCK] {msg}")
         return False
 
@@ -1666,17 +1939,20 @@ def run_hedge_execute_mode(args: argparse.Namespace) -> None:
 
     from hedge_order_executor import execute_hedge_orders, print_result
 
-    trade_date = getattr(args, 'date', None) or datetime.now().strftime('%Y-%m-%d')
-    dry_run = bool(getattr(args, 'dry_run', False))
-    confirm_only = bool(getattr(args, 'confirm_only', False))
+    trade_date = getattr(args, "date", None) or datetime.now().strftime("%Y-%m-%d")
+    dry_run = bool(getattr(args, "dry_run", False))
+    confirm_only = bool(getattr(args, "confirm_only", False))
 
     # UE-1: 统一实盘门控 — 真实 broker 就绪时非 dry_run 撮合需 --yes 确认
-    if not _enforce_live_gate(dry_run, confirm_only, "期权对冲撮合",
-                              confirm=bool(getattr(args, 'yes', False))):
+    if not _enforce_live_gate(
+        dry_run, confirm_only, "期权对冲撮合", confirm=bool(getattr(args, "yes", False))
+    ):
         logger.error("期权对冲撮合被实盘门控阻断, 中止")
         return
 
-    logger.info(f"目标日期: {trade_date} | dry_run={dry_run} | confirm_only={confirm_only}")
+    logger.info(
+        f"目标日期: {trade_date} | dry_run={dry_run} | confirm_only={confirm_only}"
+    )
     result = execute_hedge_orders(
         trade_date=trade_date,
         dry_run=dry_run,
@@ -1684,9 +1960,9 @@ def run_hedge_execute_mode(args: argparse.Namespace) -> None:
     )
     print_result(result)
 
-    filled = result.get('filled_count', 0)
-    beta_before = result.get('portfolio_beta', 0)
-    beta_after = result.get('beta_after_hedge', 0)
+    filled = result.get("filled_count", 0)
+    beta_before = result.get("portfolio_beta", 0)
+    beta_after = result.get("beta_after_hedge", 0)
     if not dry_run and not confirm_only:
         logger.info(
             f"✅ 期权对冲执行完成: {filled} 笔成交, "
@@ -1708,12 +1984,13 @@ def run_rebalance_execute_mode(args: argparse.Namespace) -> dict:
 
     from rebalance_order_executor import execute_rebalance_orders, print_result
 
-    trade_date = getattr(args, 'date', None) or datetime.now().strftime('%Y-%m-%d')
-    dry_run = bool(getattr(args, 'dry_run', False))
+    trade_date = getattr(args, "date", None) or datetime.now().strftime("%Y-%m-%d")
+    dry_run = bool(getattr(args, "dry_run", False))
 
     # UE-1: 统一实盘门控 — 真实 broker 就绪时非 dry_run 撮合需 --yes 确认
-    if not _enforce_live_gate(dry_run, False, "再平衡撮合",
-                              confirm=bool(getattr(args, 'yes', False))):
+    if not _enforce_live_gate(
+        dry_run, False, "再平衡撮合", confirm=bool(getattr(args, "yes", False))
+    ):
         logger.error("再平衡撮合被实盘门控阻断, 中止")
         return {}
 
@@ -1724,62 +2001,185 @@ def run_rebalance_execute_mode(args: argparse.Namespace) -> dict:
     )
     print_result(result)
 
-    filled = result.get('filled', 0)
-    if not dry_run and result.get('error') is None:
-        logger.info(
-            f"✅ 再平衡撮合执行完成: {filled} 笔成交已落盘 FillsStore"
-        )
+    filled = result.get("filled", 0)
+    if not dry_run and result.get("error") is None:
+        logger.info(f"✅ 再平衡撮合执行完成: {filled} 笔成交已落盘 FillsStore")
     return result
 
 
 def main() -> None:
     # ── 模式注册表：flag / dest / 帮助文本 / handler ──
     MODES = [
-        ('--daily',           'daily',           '三阶段交易工作流 (盘前计划/盘中策略/盘后报告)', run_daily_workflow),
-        ('--live',            'live',            '实时监控模式',                                    run_live_monitoring),
-        ('--report',          'report',          '报告生成模式',                                    run_report_generation),
-        ('--rebalance',       'rebalance',       '再平衡模式',                                      run_rebalance),
-        ('--backtest',        'backtest',        '回测模式',                                        run_backtest),
-        ('--risk',            'risk',            '风险监控模式',                                    run_risk_monitor),
-        ('--check',           'check',           '快速检查模式',                                    run_quick_check),
-        ('--hypothesis',      'hypothesis',      '假设验证模式',                                    run_hypothesis_test),
-        ('--etf-flow',        'etf_flow',        'ETF资金流向监控',                                 run_etf_flow_monitor),
-        ('--portfolio-opt',   'portfolio_opt',   '投资组合优化',                                    run_portfolio_optimization),
-        ('--kommo-monitor',   'kommo_monitor',   '康波周期监控',                                    run_kommo_monitor),
-        ('--commodity-fund',  'commodity_fund',  '大宗商品基本面',                                  run_commodity_fundamentals),
-        ('--train-model',     'train_model',     '时序预测训练',                                    run_model_training),
-        ('--train-enhanced',  'train_enhanced',  'ML增强训练 v2.0 - 四维优化(标签+窗口+特征+权重)',    run_enhanced_training_mode),
-        ('--kondratiev',      'kondratiev',      '康波周期+十五五交叠分析',                         run_kondratiev_analysis),
-        ('--fifteen-five',    'fifteen_five',    '十五五规划适配分析',                              run_fifteen_five_analysis),
-        ('--social-security', 'social_security', '社保基金ETF风格追踪',                             run_social_security_analysis),
-        ('--macro-analysis',  'macro_analysis',  '宏观综合分析（康波+十五五+社保ETF一键运行）',       run_macro_analysis),
-        ('--ai-decision',     'ai_decision',     'AI盘中决策 v5.10 - 场景路由+并行对冲+Wind MCP动态数据', run_ai_decision),
-        ('--futures-options', 'futures_options', '期货期权扫描',                                    run_futures_options_scan),
-        ('--unified-monitor', 'unified_monitor', '统一监控模式 - 一键启动所有模块',                  run_unified_monitor),
-        ('--ai-hedge',        'ai_hedge',        'AI Hedge Fund - 20位大师级AI分析师联合决策(含对冲分析师)',run_ai_hedge_mode),
-        ('--ml-signal',       'ml_signal',       'ML模型预测信号',                                  run_ml_signal_mode),
-        ('--ml-enhanced',     'ml_enhanced',     'ML增强预测 v2.0 - 四维优化模型信号',               run_enhanced_prediction_mode),
-        ('--hedge',           'hedge',           '对冲分析 v5.10 — Taleb+Burry+Druck 多指数期货/期权风险对冲',run_hedge_mode),
-        ('--hedge-rebalance', 'hedge_rebalance', '对冲+再平衡联动分析 v5.10 — 组合自触发+多指数Beta加权',           run_hedge_rebalance_joint),
-        ('--hedge-detail',    'hedge_detail',    '期货对冲明细 v5.10 — 完整对冲规格+Beta表+触发机制+回测', run_hedge_detail_mode),
-        ('--stress-test',     'stress_test',     '极端压力测试 v5.10 — 6历史情景+蒙特卡洛+硬止损',    run_stress_test_mode),
-        ('--stop-loss',       'stop_loss',       '止损配置 v5.10 — 查看/更新止损止盈规则(含ATR动态止损)', run_stop_loss_config_mode),
-        ('--ml-significance',  'ml_significance', 'ML显著性验证 v5.10 — Bootstrap+置换检验+Rank IC',      run_ml_significance_mode),
-        ('--kronos',           'kronos',          'Kronos 金融K线预测 — 时序基础模型信号',                 run_kronos_predict_mode),
-        ('--gemma',            'gemma',           'Gemma 4 分析增强 — 新闻情绪/异动解读/报告生成',          run_gemma_analyze_mode),
-        ('--dcf',              'dcf',             'DCF 估值模型 — WACC + 收入预测 + 敏感性分析 (Excel)',   run_dcf_mode),
-        ('--comps',            'comps',           '可比公司分析 — 运营指标 + 估值倍数 + 统计分位 (Excel)', run_comps_mode),
-        ('--hedge-execute',    'hedge_execute',   '期权对冲订单执行器 — 撮合执行 PENDING 期权订单 (P0修复)', run_hedge_execute_mode),
-        ('--rebalance-execute', 'rebalance_execute', '再平衡撮合执行器 — 撮合再平衡订单并落盘成交回报 (G2/G4修复)', run_rebalance_execute_mode),
+        (
+            "--daily",
+            "daily",
+            "三阶段交易工作流 (盘前计划/盘中策略/盘后报告)",
+            run_daily_workflow,
+        ),
+        ("--live", "live", "实时监控模式", run_live_monitoring),
+        ("--report", "report", "报告生成模式", run_report_generation),
+        ("--rebalance", "rebalance", "再平衡模式", run_rebalance),
+        ("--backtest", "backtest", "回测模式", run_backtest),
+        ("--risk", "risk", "风险监控模式", run_risk_monitor),
+        ("--check", "check", "快速检查模式", run_quick_check),
+        ("--hypothesis", "hypothesis", "假设验证模式", run_hypothesis_test),
+        ("--etf-flow", "etf_flow", "ETF资金流向监控", run_etf_flow_monitor),
+        (
+            "--portfolio-opt",
+            "portfolio_opt",
+            "投资组合优化",
+            run_portfolio_optimization,
+        ),
+        ("--kommo-monitor", "kommo_monitor", "康波周期监控", run_kommo_monitor),
+        (
+            "--commodity-fund",
+            "commodity_fund",
+            "大宗商品基本面",
+            run_commodity_fundamentals,
+        ),
+        ("--train-model", "train_model", "时序预测训练", run_model_training),
+        (
+            "--train-enhanced",
+            "train_enhanced",
+            "ML增强训练 v2.0 - 四维优化(标签+窗口+特征+权重)",
+            run_enhanced_training_mode,
+        ),
+        (
+            "--kondratiev",
+            "kondratiev",
+            "康波周期+十五五交叠分析",
+            run_kondratiev_analysis,
+        ),
+        (
+            "--fifteen-five",
+            "fifteen_five",
+            "十五五规划适配分析",
+            run_fifteen_five_analysis,
+        ),
+        (
+            "--social-security",
+            "social_security",
+            "社保基金ETF风格追踪",
+            run_social_security_analysis,
+        ),
+        (
+            "--macro-analysis",
+            "macro_analysis",
+            "宏观综合分析（康波+十五五+社保ETF一键运行）",
+            run_macro_analysis,
+        ),
+        (
+            "--ai-decision",
+            "ai_decision",
+            "AI盘中决策 v5.10 - 场景路由+并行对冲+Wind MCP动态数据",
+            run_ai_decision,
+        ),
+        (
+            "--futures-options",
+            "futures_options",
+            "期货期权扫描",
+            run_futures_options_scan,
+        ),
+        (
+            "--unified-monitor",
+            "unified_monitor",
+            "统一监控模式 - 一键启动所有模块",
+            run_unified_monitor,
+        ),
+        (
+            "--ai-hedge",
+            "ai_hedge",
+            "AI Hedge Fund - 20位大师级AI分析师联合决策(含对冲分析师)",
+            run_ai_hedge_mode,
+        ),
+        ("--ml-signal", "ml_signal", "ML模型预测信号", run_ml_signal_mode),
+        (
+            "--ml-enhanced",
+            "ml_enhanced",
+            "ML增强预测 v2.0 - 四维优化模型信号",
+            run_enhanced_prediction_mode,
+        ),
+        (
+            "--hedge",
+            "hedge",
+            "对冲分析 v5.10 — Taleb+Burry+Druck 多指数期货/期权风险对冲",
+            run_hedge_mode,
+        ),
+        (
+            "--hedge-rebalance",
+            "hedge_rebalance",
+            "对冲+再平衡联动分析 v5.10 — 组合自触发+多指数Beta加权",
+            run_hedge_rebalance_joint,
+        ),
+        (
+            "--hedge-detail",
+            "hedge_detail",
+            "期货对冲明细 v5.10 — 完整对冲规格+Beta表+触发机制+回测",
+            run_hedge_detail_mode,
+        ),
+        (
+            "--stress-test",
+            "stress_test",
+            "极端压力测试 v5.10 — 6历史情景+蒙特卡洛+硬止损",
+            run_stress_test_mode,
+        ),
+        (
+            "--stop-loss",
+            "stop_loss",
+            "止损配置 v5.10 — 查看/更新止损止盈规则(含ATR动态止损)",
+            run_stop_loss_config_mode,
+        ),
+        (
+            "--ml-significance",
+            "ml_significance",
+            "ML显著性验证 v5.10 — Bootstrap+置换检验+Rank IC",
+            run_ml_significance_mode,
+        ),
+        (
+            "--kronos",
+            "kronos",
+            "Kronos 金融K线预测 — 时序基础模型信号",
+            run_kronos_predict_mode,
+        ),
+        (
+            "--gemma",
+            "gemma",
+            "Gemma 4 分析增强 — 新闻情绪/异动解读/报告生成",
+            run_gemma_analyze_mode,
+        ),
+        (
+            "--dcf",
+            "dcf",
+            "DCF 估值模型 — WACC + 收入预测 + 敏感性分析 (Excel)",
+            run_dcf_mode,
+        ),
+        (
+            "--comps",
+            "comps",
+            "可比公司分析 — 运营指标 + 估值倍数 + 统计分位 (Excel)",
+            run_comps_mode,
+        ),
+        (
+            "--hedge-execute",
+            "hedge_execute",
+            "期权对冲订单执行器 — 撮合执行 PENDING 期权订单 (P0修复)",
+            run_hedge_execute_mode,
+        ),
+        (
+            "--rebalance-execute",
+            "rebalance_execute",
+            "再平衡撮合执行器 — 撮合再平衡订单并落盘成交回报 (G2/G4修复)",
+            run_rebalance_execute_mode,
+        ),
     ]
 
     # 由 MODES 动态生成 epilog 中的运行模式清单
-    mode_lines = '\n'.join(
+    mode_lines = "\n".join(
         f"  {flag:<20s} {help_text}" for flag, _, help_text, _ in MODES
     )
 
     parser = argparse.ArgumentParser(
-        description='量化策略系统 v5.10 — AI决策驱动 + 对冲再平衡联动v5.10',
+        description="量化策略系统 v5.10 — AI决策驱动 + 对冲再平衡联动v5.10",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 运行模式:
@@ -1835,87 +2235,216 @@ def main() -> None:
   • 投资组合优化: 等权重/风险平价/风险配比/因子配比/自定义配置
   • 康波周期监控: 商品价格+宏观指标+产业库存三维度
   • 时序预测: Transformer模型骨架集成
-        """
+        """,
     )
 
     # ── 注册运行模式（数据驱动，声明一次即可） ──
     mode_group = parser.add_mutually_exclusive_group(required=True)
     for flag, dest, help_text, _ in MODES:
-        mode_group.add_argument(flag, dest=dest, action='store_true', help=help_text)
+        mode_group.add_argument(flag, dest=dest, action="store_true", help=help_text)
 
     # ── 子阶段 / 通用选项 / 模式专属选项 ──
     # --daily 子阶段
-    parser.add_argument('--phase', choices=['premarket', 'intraday', 'postmarket', 'all'],
-                        default='all', help='三阶段工作流子阶段 (配合 --daily 使用)')
+    parser.add_argument(
+        "--phase",
+        choices=["premarket", "intraday", "postmarket", "all"],
+        default="all",
+        help="三阶段工作流子阶段 (配合 --daily 使用)",
+    )
 
     # 通用选项
-    parser.add_argument('--no-ai', action='store_true', help='禁用AI分析模块')
-    parser.add_argument('--output', '-o', default=None, help='输出报告文件名')
-    parser.add_argument('--sync-sl', action='store_true', help='同步止损止盈规则')
-    parser.add_argument('--include-valuation', action='store_true', help='报告生成时追加 DCF + Comps 估值摘要')
+    parser.add_argument("--no-ai", action="store_true", help="禁用AI分析模块")
+    parser.add_argument("--output", "-o", default=None, help="输出报告文件名")
+    parser.add_argument("--sync-sl", action="store_true", help="同步止损止盈规则")
+    parser.add_argument(
+        "--include-valuation",
+        action="store_true",
+        help="报告生成时追加 DCF + Comps 估值摘要",
+    )
 
     # v5.9: AI 决策场景路由选项
-    parser.add_argument('--scene', type=str, default='intraday_decision',
-                       choices=['intraday_decision', 'rebalancing_analysis', 'macro_analysis', 'report_generation'],
-                       help='AI决策场景 (默认: intraday_decision=盘中并行对冲)')
-    parser.add_argument('--no-wind', action='store_true', help='禁用 Wind MCP 数据 (使用降级数据源)')
-    parser.add_argument('--interval', type=int, default=300, help='AI决策检查间隔(秒, 默认 300)')
+    parser.add_argument(
+        "--scene",
+        type=str,
+        default="intraday_decision",
+        choices=[
+            "intraday_decision",
+            "rebalancing_analysis",
+            "macro_analysis",
+            "report_generation",
+        ],
+        help="AI决策场景 (默认: intraday_decision=盘中并行对冲)",
+    )
+    parser.add_argument(
+        "--no-wind", action="store_true", help="禁用 Wind MCP 数据 (使用降级数据源)"
+    )
+    parser.add_argument(
+        "--interval", type=int, default=300, help="AI决策检查间隔(秒, 默认 300)"
+    )
 
     # AI Hedge Fund 选项
-    parser.add_argument('--ticker', '-t', nargs='+', default=None, help='AI Hedge Fund: 股票代码列表')
-    parser.add_argument('--analysts', '-a', nargs='*', default=None, help='AI Hedge Fund: 选择分析师 (默认全部)')
-    parser.add_argument('--show-reasoning', action='store_true', help='AI Hedge Fund: 显示分析详情')
-    parser.add_argument('--model', type=str, default=None, help='AI Hedge Fund: LLM 模型名')
-    parser.add_argument('--provider', type=str, default=None, help='AI Hedge Fund: LLM 提供商')
-    parser.add_argument('--start-date', type=str, default=None, help='AI Hedge Fund/回测: 开始日期 YYYY-MM-DD')
-    parser.add_argument('--end-date', type=str, default=None, help='AI Hedge Fund/回测: 结束日期 YYYY-MM-DD')
+    parser.add_argument(
+        "--ticker", "-t", nargs="+", default=None, help="AI Hedge Fund: 股票代码列表"
+    )
+    parser.add_argument(
+        "--analysts",
+        "-a",
+        nargs="*",
+        default=None,
+        help="AI Hedge Fund: 选择分析师 (默认全部)",
+    )
+    parser.add_argument(
+        "--show-reasoning", action="store_true", help="AI Hedge Fund: 显示分析详情"
+    )
+    parser.add_argument(
+        "--model", type=str, default=None, help="AI Hedge Fund: LLM 模型名"
+    )
+    parser.add_argument(
+        "--provider", type=str, default=None, help="AI Hedge Fund: LLM 提供商"
+    )
+    parser.add_argument(
+        "--start-date",
+        type=str,
+        default=None,
+        help="AI Hedge Fund/回测: 开始日期 YYYY-MM-DD",
+    )
+    parser.add_argument(
+        "--end-date",
+        type=str,
+        default=None,
+        help="AI Hedge Fund/回测: 结束日期 YYYY-MM-DD",
+    )
 
     # v5.10: 对冲明细选项
-    parser.add_argument('--json', action='store_true', help='期货对冲明细: 输出 JSON 格式')
+    parser.add_argument(
+        "--json", action="store_true", help="期货对冲明细: 输出 JSON 格式"
+    )
 
     # v5.9: 对冲-再平衡联动选项
-    parser.add_argument('--auto-execute', action='store_true', help='对冲-再平衡联动: 自动化执行 (需二次确认)')
-    parser.add_argument('--mode', dest='hedge_mode', type=str, default='tail_only',
-                       choices=['tail_only', 'dynamic', 'fixed', 'none'],
-                       help='对冲-再平衡联动: 对冲模式 (默认 tail_only=仅尾部保护)')
+    parser.add_argument(
+        "--auto-execute",
+        action="store_true",
+        help="对冲-再平衡联动: 自动化执行 (需二次确认)",
+    )
+    parser.add_argument(
+        "--mode",
+        dest="hedge_mode",
+        type=str,
+        default="tail_only",
+        choices=["tail_only", "dynamic", "fixed", "none"],
+        help="对冲-再平衡联动: 对冲模式 (默认 tail_only=仅尾部保护)",
+    )
 
     # v8.6 P0 (2026-08-06): 期权对冲订单执行器选项
-    parser.add_argument('--date', type=str, default=None, help='期权对冲执行器: 目标交易日 YYYY-MM-DD')
-    parser.add_argument('--dry-run', action='store_true', help='期权对冲执行器: 干跑模式 (不落盘不更新持仓)')
-    parser.add_argument('--confirm-only', action='store_true', help='期权对冲执行器: 仅输出待确认订单, 不撮合')
-    parser.add_argument('--yes', action='store_true', help='UE-1 实盘门控: 真实 broker 就绪时确认真实下单 (防裸实盘双签)')
+    parser.add_argument(
+        "--date", type=str, default=None, help="期权对冲执行器: 目标交易日 YYYY-MM-DD"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="期权对冲执行器: 干跑模式 (不落盘不更新持仓)",
+    )
+    parser.add_argument(
+        "--confirm-only",
+        action="store_true",
+        help="期权对冲执行器: 仅输出待确认订单, 不撮合",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="UE-1 实盘门控: 真实 broker 就绪时确认真实下单 (防裸实盘双签)",
+    )
 
     # 假设验证选项
-    parser.add_argument('--list', action='store_true', help='列出研究假设')
-    parser.add_argument('--register', type=str, help='注册新假设: id|名称|描述')
-    parser.add_argument('--validate', type=str, help='验证指定假设')
+    parser.add_argument("--list", action="store_true", help="列出研究假设")
+    parser.add_argument("--register", type=str, help="注册新假设: id|名称|描述")
+    parser.add_argument("--validate", type=str, help="验证指定假设")
 
     # ML信号选项
-    parser.add_argument('--threshold', type=float, default=0.55, help='ML信号: 买入信号阈值 (默认 0.55)')
-    parser.add_argument('--no-ml', action='store_true', help='跳过ML模型信号扫描')
+    parser.add_argument(
+        "--threshold", type=float, default=0.55, help="ML信号: 买入信号阈值 (默认 0.55)"
+    )
+    parser.add_argument("--no-ml", action="store_true", help="跳过ML模型信号扫描")
 
     # Kronos 预测选项
-    parser.add_argument('--kronos-code', type=str, default=None, help='Kronos: 单股代码 (如 000001)')
-    parser.add_argument('--kronos-name', type=str, default=None, help='Kronos: 股票名称 (可选)')
-    parser.add_argument('--kronos-pred-len', type=int, default=24, help='Kronos: 预测窗口 (默认 24)')
-    parser.add_argument('--kronos-device', type=str, default='cpu', help='Kronos: 运行设备 (cpu 或 cuda:0)')
-    parser.add_argument('--kronos-batch', type=str, default=None, help='Kronos: 批量预测 JSON 数组')
-    parser.add_argument('--kronos-output', type=str, default=None, help='Kronos: 输出文件名 (保存到 reports/)')
+    parser.add_argument(
+        "--kronos-code", type=str, default=None, help="Kronos: 单股代码 (如 000001)"
+    )
+    parser.add_argument(
+        "--kronos-name", type=str, default=None, help="Kronos: 股票名称 (可选)"
+    )
+    parser.add_argument(
+        "--kronos-pred-len", type=int, default=24, help="Kronos: 预测窗口 (默认 24)"
+    )
+    parser.add_argument(
+        "--kronos-device",
+        type=str,
+        default="cpu",
+        help="Kronos: 运行设备 (cpu 或 cuda:0)",
+    )
+    parser.add_argument(
+        "--kronos-batch", type=str, default=None, help="Kronos: 批量预测 JSON 数组"
+    )
+    parser.add_argument(
+        "--kronos-output",
+        type=str,
+        default=None,
+        help="Kronos: 输出文件名 (保存到 reports/)",
+    )
     # Gemma 分析选项
-    parser.add_argument('--gemma-model', type=str, default=None, help='Gemma: Ollama 模型名 (默认 qwen2.5:7b)')
-    parser.add_argument('--gemma-news', type=str, default=None, help='Gemma: 新闻内容 (用于情绪分析)')
-    parser.add_argument('--gemma-stock', type=str, default=None, help='Gemma: 股票代码 (用于基本面分析)')
-    parser.add_argument('--gemma-prompt', type=str, default=None, help='Gemma: 自定义提示')
-    parser.add_argument('--gemma-output', type=str, default=None, help='Gemma: 输出文件名 (保存到 reports/)')
+    parser.add_argument(
+        "--gemma-model",
+        type=str,
+        default=None,
+        help="Gemma: Ollama 模型名 (默认 qwen2.5:7b)",
+    )
+    parser.add_argument(
+        "--gemma-news", type=str, default=None, help="Gemma: 新闻内容 (用于情绪分析)"
+    )
+    parser.add_argument(
+        "--gemma-stock", type=str, default=None, help="Gemma: 股票代码 (用于基本面分析)"
+    )
+    parser.add_argument(
+        "--gemma-prompt", type=str, default=None, help="Gemma: 自定义提示"
+    )
+    parser.add_argument(
+        "--gemma-output",
+        type=str,
+        default=None,
+        help="Gemma: 输出文件名 (保存到 reports/)",
+    )
     # ── v5.7 Phase 2: 高级训练选项 ──
-    parser.add_argument('--optuna', action='store_true', help='训练: 启用 Optuna 贝叶斯超参数优化')
-    parser.add_argument('--triple-barrier', action='store_true', help='训练: 启用 Triple Barrier 标签 (替代简单涨跌标签)')
-    parser.add_argument('--stacking', action='store_true', help='训练/预测: 启用 Stacking 多模型集成')
-    parser.add_argument('--optuna-trials', type=int, default=100, help='训练: Optuna 试验次数 (默认 100)')
-    parser.add_argument('--horizon', type=int, default=1, help='训练: 预测窗口 T+N (1/5/10, 默认 1)')
-    parser.add_argument('--trials', type=int, default=50, help='训练: Optuna 试验次数 (默认 50)')
-    parser.add_argument('--skip-ml-filter', action='store_true', help='AI Hedge Fund: 跳过ML预筛选')
-    parser.add_argument('--mlflow', action='store_true', help='训练: 启用 MLflow 实验追踪 (需 pip install mlflow)')
+    parser.add_argument(
+        "--optuna", action="store_true", help="训练: 启用 Optuna 贝叶斯超参数优化"
+    )
+    parser.add_argument(
+        "--triple-barrier",
+        action="store_true",
+        help="训练: 启用 Triple Barrier 标签 (替代简单涨跌标签)",
+    )
+    parser.add_argument(
+        "--stacking", action="store_true", help="训练/预测: 启用 Stacking 多模型集成"
+    )
+    parser.add_argument(
+        "--optuna-trials",
+        type=int,
+        default=100,
+        help="训练: Optuna 试验次数 (默认 100)",
+    )
+    parser.add_argument(
+        "--horizon", type=int, default=1, help="训练: 预测窗口 T+N (1/5/10, 默认 1)"
+    )
+    parser.add_argument(
+        "--trials", type=int, default=50, help="训练: Optuna 试验次数 (默认 50)"
+    )
+    parser.add_argument(
+        "--skip-ml-filter", action="store_true", help="AI Hedge Fund: 跳过ML预筛选"
+    )
+    parser.add_argument(
+        "--mlflow",
+        action="store_true",
+        help="训练: 启用 MLflow 实验追踪 (需 pip install mlflow)",
+    )
 
     args = parser.parse_args()
 
@@ -1939,18 +2468,19 @@ def main() -> None:
             except KeyboardInterrupt:
                 duration = time.time() - start_time
                 logger.info(f"\n⏹️  用户中断 ({dest})")
-                _log_execution_summary(dest, duration, False, {'interrupted': True})
+                _log_execution_summary(dest, duration, False, {"interrupted": True})
                 sys.exit(130)
             except SystemExit:
                 raise
             except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
                 duration = time.time() - start_time
                 logger.error(f"\n❌ {dest} 执行异常: {e}")
-                _log_execution_summary(dest, duration, False, {'error': str(e)})
+                _log_execution_summary(dest, duration, False, {"error": str(e)})
                 sys.exit(1)
             break
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # 打印启动信息
     logger.info("=" * 70)
     logger.info("          量化策略系统 v5.10 - 对冲再平衡联动版")

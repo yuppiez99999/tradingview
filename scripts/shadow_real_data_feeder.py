@@ -35,6 +35,7 @@ HC 合规:
     - HC-4: 只写 daily_returns.jsonl, 不修改 V9 基线 / positions.json
 =================================================================
 """
+
 from __future__ import annotations
 
 import sys

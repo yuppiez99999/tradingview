@@ -22,6 +22,7 @@ R1 修复项。CI "V9 Regression" 阶段引用本脚本, 缺失导致 CI 必然�
     python scripts/_run_v9_regression.py [--pytest-root tests] \
         [--output reports/ci/v9_regression.json] [--skip-pytest]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -36,7 +37,8 @@ ROOT = Path(__file__).resolve().parent.parent
 REPORTS = ROOT / "reports" / "ci"
 PYTHON = os.environ.get("PYTHON_EXECUTABLE") or (
     str(ROOT / ".venv" / "Scripts" / "python.exe")
-    if (ROOT / ".venv" / "Scripts" / "python.exe").exists() else "python"
+    if (ROOT / ".venv" / "Scripts" / "python.exe").exists()
+    else "python"
 )
 
 # V9 关键回归测试 (执行闭环 + 数据契约 + TCA 归因)
@@ -64,8 +66,14 @@ def run_script(rel: str, *extra) -> Stage:
     env = dict(os.environ)
     env.setdefault("PYTHONUTF8", "1")
     proc = subprocess.run(
-        [PYTHON, str(p), *extra], cwd=str(ROOT), capture_output=True, text=True,
-        encoding="utf-8", errors="replace", env=env, timeout=900,
+        [PYTHON, str(p), *extra],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        timeout=900,
     )
     tail = (proc.stdout + proc.stderr)[-400:]
     return Stage(rel, proc.returncode == 0, tail, proc.returncode)
@@ -80,8 +88,13 @@ def run_pytest(targets: list[str]) -> Stage:
     # 仅收集已存在的测试, --co 验证可运行
     proc = subprocess.run(
         [PYTHON, "-m", "pytest", *existing, "-q", "--no-header"],
-        cwd=str(ROOT), capture_output=True, text=True,
-        encoding="utf-8", errors="replace", env=env, timeout=1200,
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        timeout=1200,
     )
     tail = (proc.stdout + proc.stderr)[-400:]
     return Stage("pytest-regression", proc.returncode == 0, tail, proc.returncode)
@@ -109,8 +122,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         "stages": [s._asdict() for s in stages],
     }
     out_path = Path(args.output)
-    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2),
-                        encoding="utf-8")
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"[V9-REGRESSION] stages={len(stages)} fail={n_fail} report={out_path}")
     for s in stages:
         if not s.passed:

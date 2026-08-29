@@ -57,19 +57,24 @@ logger = logging.getLogger("live_order_executor")
 # 协议定义 (鸭子类型, 避免硬依赖 broker_api / broker_adapter)
 # ============================================================
 
+
 class BrokerProtocol(Protocol):
     """T15 需要的 broker 最小接口."""
 
     is_live: bool
 
     def place_order(
-        self, symbol: str, side: str, qty: int, price: float, order_type: str = "limit",
+        self,
+        symbol: str,
+        side: str,
+        qty: int,
+        price: float,
+        order_type: str = "limit",
     ) -> str:
         """提交订单, 返回 broker_order_id."""
         ...
 
-    def cancel_order(self, broker_order_id: str) -> bool:
-        ...
+    def cancel_order(self, broker_order_id: str) -> bool: ...
 
     def get_order_status(self, broker_order_id: str) -> dict[str, Any]:
         """返回 {state, filled_qty, avg_price, rejection_reason}."""
@@ -80,16 +85,23 @@ class FillsStoreProtocol(Protocol):
     """T15 需要的 FillsStore 最小接口."""
 
     def record_fill(
-        self, symbol: str, side: str, filled_qty: float, avg_price: float,
-        broker: str = "", is_live: bool = False, strategy: str = "",
-        source: str = "", meta: dict | None = None,
-    ) -> None:
-        ...
+        self,
+        symbol: str,
+        side: str,
+        filled_qty: float,
+        avg_price: float,
+        broker: str = "",
+        is_live: bool = False,
+        strategy: str = "",
+        source: str = "",
+        meta: dict | None = None,
+    ) -> None: ...
 
 
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 @dataclass
 class SliceExecutionResult:
@@ -131,12 +143,16 @@ class LiveExecutionResult:
     @property
     def fully_filled(self) -> bool:
         """全部 slice 都成功提交且有成交."""
-        return self.submitted_count == self.total_slices and self.filled_count == self.total_slices
+        return (
+            self.submitted_count == self.total_slices
+            and self.filled_count == self.total_slices
+        )
 
 
 # ============================================================
 # 主类
 # ============================================================
+
 
 class LiveOrderExecutor:
     """实盘下单编排器 — 整合 T09-T12 风控门 + broker 下单 + T14 审计.
@@ -177,7 +193,11 @@ class LiveOrderExecutor:
             import json
             from pathlib import Path
 
-            positions_path = Path(__file__).resolve().parent.parent.parent / "config" / "positions.json"
+            positions_path = (
+                Path(__file__).resolve().parent.parent.parent
+                / "config"
+                / "positions.json"
+            )
             if positions_path.exists():
                 with open(positions_path, encoding="utf-8") as f:
                     data = json.load(f)
@@ -219,7 +239,9 @@ class LiveOrderExecutor:
             if sl_result.filled_qty > 0:
                 result.filled_count += 1
                 result.total_filled_shares += sl_result.filled_qty
-                result.total_filled_notional += sl_result.filled_qty * sl_result.avg_fill_price
+                result.total_filled_notional += (
+                    sl_result.filled_qty * sl_result.avg_fill_price
+                )
             if sl_result.rejected:
                 result.rejected_count += 1
 
@@ -324,7 +346,9 @@ class LiveOrderExecutor:
         # ---- 风控门 3: T12 KillSwitchManager ----
         notional = target_shares * limit_price
         kill_dec = self.ksm.evaluate_trade(
-            symbol=symbol, side=side, notional=notional,
+            symbol=symbol,
+            side=side,
+            notional=notional,
             is_open_new=(side.lower() == "buy"),
         )
         if not kill_dec.allowed:
@@ -376,7 +400,9 @@ class LiveOrderExecutor:
             )
         except Exception as exc:
             result.rejected = True
-            result.rejection_reason = f"broker.place_order 异常: {type(exc).__name__}: {exc}"
+            result.rejection_reason = (
+                f"broker.place_order 异常: {type(exc).__name__}: {exc}"
+            )
             result.audit_events.append("BROKER_ERROR")
             self.audit.log(
                 module="T15_LIVE_EXECUTOR",

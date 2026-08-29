@@ -3,6 +3,7 @@
 被测模块: utils/safe_execution_agent.py
 文献: #53 Safe Cross-Market Execution (2025.10)
 """
+
 from __future__ import annotations
 
 import sys
@@ -32,6 +33,7 @@ from utils.safe_execution_agent import (  # noqa: E402
 # 枚举测试
 # ============================================================
 
+
 class TestEnums:
     def test_violation_types(self):
         assert ViolationType.NONE == "none"
@@ -45,6 +47,7 @@ class TestEnums:
 # ============================================================
 # 约束测试
 # ============================================================
+
 
 class TestExecutionConstraints:
     def test_defaults(self):
@@ -65,7 +68,8 @@ class TestConstraintViolation:
     def test_construction(self):
         v = ConstraintViolation(
             type=ViolationType.POSITION_LIMIT,
-            value=150000, limit=100000,
+            value=150000,
+            limit=100000,
             message="持仓超限",
         )
         assert v.type == ViolationType.POSITION_LIMIT
@@ -76,40 +80,52 @@ class TestConstraintViolation:
 # 约束 MDP 测试
 # ============================================================
 
+
 class TestConstrainedMDP:
     def test_compliant_order(self):
         mdp = ConstrainedMDP()
         violations = mdp.check_constraints(
-            order_shares=5000, current_position=10000, adv=500000,
+            order_shares=5000,
+            current_position=10000,
+            adv=500000,
         )
         assert len(violations) == 0
 
     def test_position_limit_violation(self):
         mdp = ConstrainedMDP()
         violations = mdp.check_constraints(
-            order_shares=200000, current_position=50000, adv=1000000,
+            order_shares=200000,
+            current_position=50000,
+            adv=1000000,
         )
         assert any(v.type == ViolationType.POSITION_LIMIT for v in violations)
 
     def test_order_size_limit_violation(self):
         mdp = ConstrainedMDP()
         violations = mdp.check_constraints(
-            order_shares=60000, current_position=0, adv=1000000,
+            order_shares=60000,
+            current_position=0,
+            adv=1000000,
         )
         assert any(v.type == ViolationType.ORDER_SIZE_LIMIT for v in violations)
 
     def test_participation_limit_violation(self):
         mdp = ConstrainedMDP()
         violations = mdp.check_constraints(
-            order_shares=50000, current_position=0, adv=100000,
+            order_shares=50000,
+            current_position=0,
+            adv=100000,
         )
         assert any(v.type == ViolationType.PARTICIPATION_LIMIT for v in violations)
 
     def test_price_limit_violation(self):
         mdp = ConstrainedMDP()
         violations = mdp.check_constraints(
-            order_shares=1000, current_position=0, adv=100000,
-            price=12.0, reference_price=10.0,
+            order_shares=1000,
+            current_position=0,
+            adv=100000,
+            price=12.0,
+            reference_price=10.0,
         )
         assert any(v.type == ViolationType.PRICE_LIMIT for v in violations)
 
@@ -119,19 +135,25 @@ class TestConstrainedMDP:
 
     def test_is_compliant_false(self):
         mdp = ConstrainedMDP()
-        assert not mdp.is_compliant(order_shares=200000, current_position=50000, adv=1000000)
+        assert not mdp.is_compliant(
+            order_shares=200000, current_position=50000, adv=1000000
+        )
 
     def test_project_to_feasible_order_size(self):
         mdp = ConstrainedMDP()
         projected = mdp.project_to_feasible(
-            order_shares=60000, current_position=0, adv=1000000,
+            order_shares=60000,
+            current_position=0,
+            adv=1000000,
         )
         assert abs(projected) <= 50000  # 裁剪到 max_order_size
 
     def test_project_to_feasible_position(self):
         mdp = ConstrainedMDP()
         projected = mdp.project_to_feasible(
-            order_shares=200000, current_position=50000, adv=1000000,
+            order_shares=200000,
+            current_position=50000,
+            adv=1000000,
         )
         new_pos = 50000 + projected
         assert abs(new_pos) <= 100000  # 持仓不超限
@@ -139,14 +161,18 @@ class TestConstrainedMDP:
     def test_project_to_feasible_participation(self):
         mdp = ConstrainedMDP()
         projected = mdp.project_to_feasible(
-            order_shares=50000, current_position=0, adv=100000,
+            order_shares=50000,
+            current_position=0,
+            adv=100000,
         )
         assert abs(projected) <= 10000  # 10% × 100000
 
     def test_project_to_feasible_no_change(self):
         mdp = ConstrainedMDP()
         projected = mdp.project_to_feasible(
-            order_shares=5000, current_position=10000, adv=500000,
+            order_shares=5000,
+            current_position=10000,
+            adv=500000,
         )
         assert projected == pytest.approx(5000)
 
@@ -154,6 +180,7 @@ class TestConstrainedMDP:
 # ============================================================
 # CVaR 控制器测试
 # ============================================================
+
 
 class TestCVaRController:
     def test_compute_var(self):
@@ -203,11 +230,15 @@ class TestCVaRController:
 # 零知识审计测试
 # ============================================================
 
+
 class TestZeroKnowledgeAudit:
     def test_create_audit_compliant(self):
         audit = ZeroKnowledgeAudit()
         record = audit.create_audit(
-            order_shares=5000, violations=[], cvar_value=100, cvar_limit=500,
+            order_shares=5000,
+            violations=[],
+            cvar_value=100,
+            cvar_limit=500,
         )
         assert record.compliant
         assert record.status == AuditStatus.VERIFIED
@@ -215,11 +246,16 @@ class TestZeroKnowledgeAudit:
     def test_create_audit_violation(self):
         audit = ZeroKnowledgeAudit()
         violation = ConstraintViolation(
-            type=ViolationType.POSITION_LIMIT, value=150000, limit=100000,
+            type=ViolationType.POSITION_LIMIT,
+            value=150000,
+            limit=100000,
             message="持仓超限",
         )
         record = audit.create_audit(
-            order_shares=150000, violations=[violation], cvar_value=100, cvar_limit=500,
+            order_shares=150000,
+            violations=[violation],
+            cvar_value=100,
+            cvar_limit=500,
         )
         assert not record.compliant
         assert "持仓超限" in record.violations
@@ -227,7 +263,10 @@ class TestZeroKnowledgeAudit:
     def test_verify_audit(self):
         audit = ZeroKnowledgeAudit()
         record = audit.create_audit(
-            order_shares=5000, violations=[], cvar_value=100, cvar_limit=500,
+            order_shares=5000,
+            violations=[],
+            cvar_value=100,
+            cvar_limit=500,
         )
         assert audit.verify_audit(record)
 
@@ -235,7 +274,10 @@ class TestZeroKnowledgeAudit:
         """审计记录不暴露策略细节 (只有哈希)."""
         audit = ZeroKnowledgeAudit()
         record = audit.create_audit(
-            order_shares=12345.67, violations=[], cvar_value=100, cvar_limit=500,
+            order_shares=12345.67,
+            violations=[],
+            cvar_value=100,
+            cvar_limit=500,
         )
         # order_hash 是哈希, 不是原始订单
         assert record.order_hash != "12345.67"
@@ -243,8 +285,12 @@ class TestZeroKnowledgeAudit:
 
     def test_summary(self):
         audit = ZeroKnowledgeAudit()
-        audit.create_audit(order_shares=5000, violations=[], cvar_value=100, cvar_limit=500)
-        audit.create_audit(order_shares=5000, violations=[], cvar_value=200, cvar_limit=500)
+        audit.create_audit(
+            order_shares=5000, violations=[], cvar_value=100, cvar_limit=500
+        )
+        audit.create_audit(
+            order_shares=5000, violations=[], cvar_value=200, cvar_limit=500
+        )
         summary = audit.summary()
         assert summary["total_audits"] == 2
         assert summary["compliant_count"] == 2
@@ -255,12 +301,16 @@ class TestZeroKnowledgeAudit:
 # 安全执行代理测试
 # ============================================================
 
+
 class TestSafeExecutionAgent:
     def test_compliant_execution(self):
         agent = SafeExecutionAgent()
         result = agent.execute_safely(
-            symbol="600519", order_shares=5000, adv=500000,
-            current_position=10000, price=1800.0,
+            symbol="600519",
+            order_shares=5000,
+            adv=500000,
+            current_position=10000,
+            price=1800.0,
         )
         assert result.symbol == "600519"
         assert result.compliant
@@ -269,7 +319,9 @@ class TestSafeExecutionAgent:
     def test_violation_adjusted(self):
         agent = SafeExecutionAgent()
         result = agent.execute_safely(
-            symbol="X", order_shares=200000, adv=1000000,
+            symbol="X",
+            order_shares=200000,
+            adv=1000000,
             current_position=50000,
         )
         # 应该被调整到可行域
@@ -278,7 +330,9 @@ class TestSafeExecutionAgent:
     def test_cvar_control(self):
         agent = SafeExecutionAgent()
         result = agent.execute_safely(
-            symbol="X", order_shares=50000, adv=100000,
+            symbol="X",
+            order_shares=50000,
+            adv=100000,
         )
         assert result.cvar_value >= 0
         assert result.cvar_limit > 0
@@ -286,7 +340,9 @@ class TestSafeExecutionAgent:
     def test_audit_record_created(self):
         agent = SafeExecutionAgent()
         result = agent.execute_safely(
-            symbol="X", order_shares=5000, adv=500000,
+            symbol="X",
+            order_shares=5000,
+            adv=500000,
         )
         assert result.audit is not None
         assert result.audit.status == AuditStatus.VERIFIED
@@ -312,7 +368,9 @@ class TestSafeExecutionAgent:
         constraints = ExecutionConstraints(max_position=50000, max_order_size=10000)
         agent = SafeExecutionAgent(constraints=constraints)
         result = agent.execute_safely(
-            symbol="X", order_shares=20000, adv=1000000,
+            symbol="X",
+            order_shares=20000,
+            adv=1000000,
             current_position=0,
         )
         assert abs(result.adjusted_order) <= 10000
@@ -320,7 +378,9 @@ class TestSafeExecutionAgent:
     def test_no_violation_no_adjustment(self):
         agent = SafeExecutionAgent()
         result = agent.execute_safely(
-            symbol="X", order_shares=1000, adv=1000000,
+            symbol="X",
+            order_shares=1000,
+            adv=1000000,
             current_position=0,
         )
         assert result.adjusted_order == pytest.approx(1000)
@@ -330,13 +390,22 @@ class TestSafeExecutionAgent:
 class TestSafeExecutionResult:
     def test_construction(self):
         audit = AuditRecord(
-            order_hash="abc", constraint_hash="def",
-            compliant=True, cvar_value=100, cvar_limit=500,
-            timestamp="2026", status=AuditStatus.VERIFIED,
+            order_hash="abc",
+            constraint_hash="def",
+            compliant=True,
+            cvar_value=100,
+            cvar_limit=500,
+            timestamp="2026",
+            status=AuditStatus.VERIFIED,
         )
         result = SafeExecutionResult(
-            symbol="X", original_order=1000, adjusted_order=1000,
-            compliant=True, violations=[], cvar_value=100, cvar_limit=500,
+            symbol="X",
+            original_order=1000,
+            adjusted_order=1000,
+            compliant=True,
+            violations=[],
+            cvar_value=100,
+            cvar_limit=500,
             audit=audit,
         )
         assert result.symbol == "X"
@@ -347,6 +416,7 @@ class TestSafeExecutionResult:
 # 验收标准测试
 # ============================================================
 
+
 class TestAcceptanceCriteria:
     """LIT-4.4 验收标准: 无违规 + CVaR 尾部控制 + 零知识审计."""
 
@@ -354,7 +424,9 @@ class TestAcceptanceCriteria:
         """验收: 调整后订单无违规."""
         agent = SafeExecutionAgent()
         result = agent.execute_safely(
-            symbol="600519", order_shares=200000, adv=500000,
+            symbol="600519",
+            order_shares=200000,
+            adv=500000,
             current_position=50000,
         )
         # 即使原始订单违规, 调整后应该合规
@@ -365,7 +437,9 @@ class TestAcceptanceCriteria:
         constraints = ExecutionConstraints(max_cvar=10000)
         agent = SafeExecutionAgent(constraints=constraints)
         result = agent.execute_safely(
-            symbol="X", order_shares=5000, adv=500000,
+            symbol="X",
+            order_shares=5000,
+            adv=500000,
         )
         assert result.cvar_value <= result.cvar_limit or not result.compliant
 
@@ -373,7 +447,9 @@ class TestAcceptanceCriteria:
         """验收: 审计记录不暴露策略细节."""
         agent = SafeExecutionAgent()
         result = agent.execute_safely(
-            symbol="X", order_shares=12345.67, adv=500000,
+            symbol="X",
+            order_shares=12345.67,
+            adv=500000,
         )
         # 审计哈希不等于原始订单
         assert result.audit.order_hash != str(12345.67)
@@ -382,9 +458,24 @@ class TestAcceptanceCriteria:
         """验收: 批量执行全部合规."""
         agent = SafeExecutionAgent()
         orders = [
-            {"symbol": "600519", "order_shares": 5000, "adv": 500000, "current_position": 10000},
-            {"symbol": "000001", "order_shares": 2000, "adv": 1000000, "current_position": 5000},
-            {"symbol": "601318", "order_shares": 3000, "adv": 300000, "current_position": 8000},
+            {
+                "symbol": "600519",
+                "order_shares": 5000,
+                "adv": 500000,
+                "current_position": 10000,
+            },
+            {
+                "symbol": "000001",
+                "order_shares": 2000,
+                "adv": 1000000,
+                "current_position": 5000,
+            },
+            {
+                "symbol": "601318",
+                "order_shares": 3000,
+                "adv": 300000,
+                "current_position": 8000,
+            },
         ]
         results = agent.batch_execute_safely(orders)
         assert all(r.compliant for r in results)

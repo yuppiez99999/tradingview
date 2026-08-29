@@ -1,4 +1,5 @@
 """T12 单元测试 — KillSwitchManager 三级熔断门面."""
+
 from __future__ import annotations
 
 import pytest
@@ -19,11 +20,13 @@ class TestThresholdAndLevelClassification:
 
     def test_invalid_threshold_raises(self):
         with pytest.raises(ValueError):
-            KillSwitchManager(thresholds={
-                KillLevel.CAUTION: 0.80,    # CAUTION 比 REDUCTION 还高 → 违反约束
-                KillLevel.REDUCTION: 0.50,
-                KillLevel.LIQUIDATE: 0.95,
-            })
+            KillSwitchManager(
+                thresholds={
+                    KillLevel.CAUTION: 0.80,  # CAUTION 比 REDUCTION 还高 → 违反约束
+                    KillLevel.REDUCTION: 0.50,
+                    KillLevel.LIQUIDATE: 0.95,
+                }
+            )
 
     def test_level_classification(self):
         ks = KillSwitchManager()

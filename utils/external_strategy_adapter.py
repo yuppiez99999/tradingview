@@ -62,10 +62,20 @@ if _LLM_CLIENT_PATH.exists():
         sys.path.insert(0, str(_LLM_CLIENT_PATH))
     try:
         import llm_client
+
         _chat_fn = llm_client.chat
         _LLM_AVAILABLE = True
         logger.info("ExternalStrategyAdapter: llm_client.py 已加载")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"ExternalStrategyAdapter: llm_client 加载失败 ({e})")
 
@@ -110,7 +120,16 @@ class ExternalStrategyAdapter:
                     name = data["name"]
                     self._strategies[name] = data
                     logger.debug(f"加载策略: {name} ({data.get('display_name', '')})")
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"加载策略失败 {yaml_file.name}: {e}")
 
@@ -130,8 +149,12 @@ class ExternalStrategyAdapter:
         """LLM 客户端是否可用."""
         return _LLM_AVAILABLE
 
-    def analyze(self, symbol: str, strategy: str = "chan_theory",
-                market_data: dict | None = None) -> dict[str, Any]:
+    def analyze(
+        self,
+        symbol: str,
+        strategy: str = "chan_theory",
+        market_data: dict | None = None,
+    ) -> dict[str, Any]:
         """执行单个策略分析.
 
         Args:
@@ -153,7 +176,9 @@ class ExternalStrategyAdapter:
             }
         """
         if strategy not in self._strategies:
-            logger.warning(f"策略不存在: {strategy} (可用: {self.available_strategies})")
+            logger.warning(
+                f"策略不存在: {strategy} (可用: {self.available_strategies})"
+            )
             return self._neutral_signal(symbol, strategy, "策略不存在")
 
         strat_def = self._strategies[strategy]
@@ -167,14 +192,27 @@ class ExternalStrategyAdapter:
 
         # 调用 LLM
         try:
-            llm_response = _chat_fn(user_prompt, temperature=0.3, max_tokens=1500, system=system_prompt)
+            llm_response = _chat_fn(
+                user_prompt, temperature=0.3, max_tokens=1500, system=system_prompt
+            )
             return self._parse_llm_response(symbol, strategy, llm_response)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"LLM 调用失败 ({strategy}/{symbol}): {e}")
             return self._neutral_signal(symbol, strategy, f"LLM异常: {e}")
 
-    def analyze_all(self, symbol: str, market_data: dict | None = None) -> list[dict[str, Any]]:
+    def analyze_all(
+        self, symbol: str, market_data: dict | None = None
+    ) -> list[dict[str, Any]]:
         """执行所有策略分析.
 
         Args:
@@ -191,7 +229,9 @@ class ExternalStrategyAdapter:
         logger.info(f"全策略分析完成: {symbol} → {len(signals)} 个信号")
         return signals
 
-    def get_consensus(self, symbol: str, market_data: dict | None = None) -> dict[str, Any]:
+    def get_consensus(
+        self, symbol: str, market_data: dict | None = None
+    ) -> dict[str, Any]:
         """获取所有策略的共识信号.
 
         Args:
@@ -239,8 +279,9 @@ class ExternalStrategyAdapter:
     # 内部方法
     # ============================================================
 
-    def _build_prompt(self, symbol: str, strat_def: dict,
-                      market_data: dict | None) -> tuple[str, str]:
+    def _build_prompt(
+        self, symbol: str, strat_def: dict, market_data: dict | None
+    ) -> tuple[str, str]:
         """构造 LLM system_prompt 和 user_prompt (v2.0: 分离 system/user)
 
         Returns:
@@ -286,14 +327,15 @@ class ExternalStrategyAdapter:
 ```"""
         return system_prompt, user_prompt
 
-    def _parse_llm_response(self, symbol: str, strategy: str,
-                            response: str) -> dict[str, Any]:
+    def _parse_llm_response(
+        self, symbol: str, strategy: str, response: str
+    ) -> dict[str, Any]:
         """解析 LLM 响应为标准化信号."""
         import json
         import re
 
         # 尝试提取 JSON
-        json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
+        json_match = re.search(r"\{[^{}]*\}", response, re.DOTALL)
         if json_match:
             try:
                 data = json.loads(json_match.group())
@@ -313,8 +355,9 @@ class ExternalStrategyAdapter:
         # 解析失败,返回中性信号
         return self._neutral_signal(symbol, strategy, "LLM响应解析失败")
 
-    def _neutral_signal(self, symbol: str, strategy: str,
-                        reason: str = "") -> dict[str, Any]:
+    def _neutral_signal(
+        self, symbol: str, strategy: str, reason: str = ""
+    ) -> dict[str, Any]:
         """生成中性信号."""
         return {
             "symbol": symbol,
@@ -369,9 +412,13 @@ def analyze_all(symbol: str) -> list[dict[str, Any]]:
 if __name__ == "__main__":
     import argparse
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
 
-    parser = argparse.ArgumentParser(description="外部策略适配器 (daily_stock_analysis 集成)")
+    parser = argparse.ArgumentParser(
+        description="外部策略适配器 (daily_stock_analysis 集成)"
+    )
     parser.add_argument("--stock", default="600519.SH", help="股票代码")
     parser.add_argument("--strategy", default="chan_theory", help="策略名称")
     parser.add_argument("--all", action="store_true", help="执行所有策略")
@@ -391,16 +438,22 @@ if __name__ == "__main__":
         logger.info(f"可用策略 ({len(adapter.available_strategies)} 个):")
         for name in adapter.available_strategies:
             strat = adapter._strategies.get(name, {})
-            logger.info(f"  - {name}: {strat.get('display_name', '')} - {strat.get('description', '')[:50]}")
+            logger.info(
+                f"  - {name}: {strat.get('display_name', '')} - {strat.get('description', '')[:50]}"
+            )
         sys.exit(0)
 
     if args.all:
         signals = adapter.analyze_all(args.stock)
         logger.info(f"\n{args.stock} 全策略分析 ({len(signals)} 个):")
         for s in signals:
-            logger.info(f"  [{s['strategy']}] {s['direction']} (conf={s['confidence']:.2f}, score={s['score']}) - {s['reasoning'][:60]}")
+            logger.info(
+                f"  [{s['strategy']}] {s['direction']} (conf={s['confidence']:.2f}, score={s['score']}) - {s['reasoning'][:60]}"
+            )
         consensus = adapter.get_consensus(args.stock)
-        logger.info(f"\n共识: {consensus['direction']} (conf={consensus['confidence']:.2f}) - {consensus['reasoning']}")
+        logger.info(
+            f"\n共识: {consensus['direction']} (conf={consensus['confidence']:.2f}) - {consensus['reasoning']}"
+        )
     else:
         signal = adapter.analyze(args.stock, args.strategy)
         logger.info(f"\n{args.stock} - {args.strategy}:")
@@ -408,7 +461,7 @@ if __name__ == "__main__":
         logger.info(f"  置信度: {signal['confidence']}")
         logger.info(f"  评分: {signal['score']}")
         logger.info(f"  理由: {signal['reasoning']}")
-        if signal['stop_loss']:
+        if signal["stop_loss"]:
             logger.info(f"  止损: {signal['stop_loss']}")
-        if signal['target']:
+        if signal["target"]:
             logger.info(f"  目标: {signal['target']}")

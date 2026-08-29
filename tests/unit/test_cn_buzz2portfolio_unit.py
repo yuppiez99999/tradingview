@@ -38,6 +38,7 @@ from tests.eval.cn_buzz2portfolio import (
 # 枚举测试
 # ============================================================
 
+
 class TestNewsCategory:
     """新闻类别枚举测试。"""
 
@@ -52,6 +53,7 @@ class TestNewsCategory:
 # ============================================================
 # 数据结构测试
 # ============================================================
+
 
 class TestNewsItem:
     """新闻条目测试。"""
@@ -95,6 +97,7 @@ class TestPortfolioConfig:
 # 关键词映射测试
 # ============================================================
 
+
 class TestKeywordMaps:
     """行业/宏观关键词映射测试。"""
 
@@ -114,6 +117,7 @@ class TestKeywordMaps:
 # ============================================================
 # Stage 1: NewsClassifier 测试
 # ============================================================
+
 
 class TestNewsClassifier:
     """新闻分类器测试。"""
@@ -168,6 +172,7 @@ class TestNewsClassifier:
 # ============================================================
 # Stage 2: BuzzAnalyzer 测试
 # ============================================================
+
 
 class TestBuzzAnalyzer:
     """舆情分析器测试。"""
@@ -252,6 +257,7 @@ class TestBuzzAnalyzer:
 # Stage 3: PortfolioConstructor 测试
 # ============================================================
 
+
 class TestPortfolioConstructor:
     """组合构建器测试。"""
 
@@ -263,8 +269,15 @@ class TestPortfolioConstructor:
     def test_construct_basic(self):
         """基本组合构建。"""
         constructor = PortfolioConstructor()
-        news = [NewsItem(title="半导体利好", category=NewsCategory.INDUSTRY_DYNAMICS,
-                         industry="高端制造", sentiment=0.5, heat=0.8)]
+        news = [
+            NewsItem(
+                title="半导体利好",
+                category=NewsCategory.INDUSTRY_DYNAMICS,
+                industry="高端制造",
+                sentiment=0.5,
+                heat=0.8,
+            )
+        ]
         buzz = {"高端制造": {"avg_sentiment": 0.5, "total_heat": 0.8, "count": 1}}
         config = constructor.construct(news, buzz)
         assert len(config.target_weights) > 0
@@ -273,24 +286,42 @@ class TestPortfolioConstructor:
     def test_construct_bullish_macro(self):
         """利好宏观信号。"""
         constructor = PortfolioConstructor()
-        news = [NewsItem(title="央行降准利好", category=NewsCategory.MACRO_POLICY,
-                         sentiment=0.8, heat=0.9)]
+        news = [
+            NewsItem(
+                title="央行降准利好",
+                category=NewsCategory.MACRO_POLICY,
+                sentiment=0.8,
+                heat=0.9,
+            )
+        ]
         config = constructor.construct(news, {})
         assert config.macro_signal == "bullish"
 
     def test_construct_bearish_macro(self):
         """利空宏观信号。"""
         constructor = PortfolioConstructor()
-        news = [NewsItem(title="央行加息利空", category=NewsCategory.MACRO_POLICY,
-                         sentiment=-0.8, heat=0.9)]
+        news = [
+            NewsItem(
+                title="央行加息利空",
+                category=NewsCategory.MACRO_POLICY,
+                sentiment=-0.8,
+                heat=0.9,
+            )
+        ]
         config = constructor.construct(news, {})
         assert config.macro_signal == "bearish"
 
     def test_construct_neutral_macro(self):
         """中性宏观信号。"""
         constructor = PortfolioConstructor()
-        news = [NewsItem(title="央行发言", category=NewsCategory.MACRO_POLICY,
-                         sentiment=0.0, heat=0.5)]
+        news = [
+            NewsItem(
+                title="央行发言",
+                category=NewsCategory.MACRO_POLICY,
+                sentiment=0.0,
+                heat=0.5,
+            )
+        ]
         config = constructor.construct(news, {})
         assert config.macro_signal == "neutral"
 
@@ -319,7 +350,9 @@ class TestPortfolioConstructor:
     def test_positive_sentiment_increases_weight(self):
         """正面舆情增加权重。"""
         constructor = PortfolioConstructor()
-        news = [NewsItem(title="半导体利好", industry="高端制造", sentiment=1.0, heat=1.0)]
+        news = [
+            NewsItem(title="半导体利好", industry="高端制造", sentiment=1.0, heat=1.0)
+        ]
         buzz = {"高端制造": {"avg_sentiment": 1.0, "total_heat": 5.0, "count": 5}}
         config = constructor.construct(news, buzz)
         default = PortfolioConstructor.DEFAULT_WEIGHTS["高端制造"]
@@ -331,6 +364,7 @@ class TestPortfolioConstructor:
 # ============================================================
 # TriStageCPAAgent 测试
 # ============================================================
+
 
 class TestTriStageCPAAgent:
     """三阶段 CPA 代理测试。"""
@@ -380,6 +414,7 @@ class TestTriStageCPAAgent:
 # CNBuzz2PortfolioBenchmark 测试
 # ============================================================
 
+
 class TestCNBuzz2PortfolioBenchmark:
     """基准框架测试。"""
 
@@ -428,6 +463,7 @@ class TestCNBuzz2PortfolioBenchmark:
 # ============================================================
 # 端到端集成测试
 # ============================================================
+
 
 class TestEndToEnd:
     """端到端集成测试。"""

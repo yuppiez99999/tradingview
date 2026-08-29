@@ -59,6 +59,7 @@ def fmt_number(d: Decimal, unit: str = "") -> str:
 # 1. Market Cap Verification (股价×总股本 vs 报告市值)
 # ---------------------------------------------------------------------------
 
+
 def verify_market_cap(price, shares, reported_cap, currency=""):
     """Verify market cap = price × shares, compare with reported value."""
     p = exact(price)
@@ -68,24 +69,28 @@ def verify_market_cap(price, shares, reported_cap, currency=""):
     calculated = _CTX.multiply(p, s)
     deviation = abs(float(calculated - r) / float(r)) * 100 if r != 0 else 0
 
-
     if deviation > 5:
         return False
-    elif deviation > 1:
+    if deviation > 1:
         return True
-    else:
-        return True
+    return True
 
 
 # ---------------------------------------------------------------------------
 # 2. Valuation Metrics Verification (估值指标验算)
 # ---------------------------------------------------------------------------
 
-def verify_valuation(price, eps=None, bvps=None, fcf_per_share=None,
-                     dividend=None, revenue_per_share=None):
+
+def verify_valuation(
+    price,
+    eps=None,
+    bvps=None,
+    fcf_per_share=None,
+    dividend=None,
+    revenue_per_share=None,
+):
     """Calculate and verify key valuation ratios from raw inputs."""
     p = exact(price)
-
 
     results = {}
 
@@ -135,6 +140,7 @@ def verify_valuation(price, eps=None, bvps=None, fcf_per_share=None,
 # 3. Cross-Source Data Validation (多源交叉验证)
 # ---------------------------------------------------------------------------
 
+
 def cross_validate(field_name, source_values: dict, unit="", tolerance_pct=2.0):
     """Compare a data point across multiple sources, flag discrepancies."""
 
@@ -145,8 +151,11 @@ def cross_validate(field_name, source_values: dict, unit="", tolerance_pct=2.0):
     # Find median as reference
     sorted_vals = sorted(float(v) for v in nums)
     n = len(sorted_vals)
-    median = sorted_vals[n // 2] if n % 2 == 1 else (sorted_vals[n//2-1] + sorted_vals[n//2]) / 2
-
+    median = (
+        sorted_vals[n // 2]
+        if n % 2 == 1
+        else (sorted_vals[n // 2 - 1] + sorted_vals[n // 2]) / 2
+    )
 
     all_ok = True
     for src, val in values.items():
@@ -168,7 +177,7 @@ def cross_validate(field_name, source_values: dict, unit="", tolerance_pct=2.0):
 # 4. Benford's Law Quick Check (财务数据造假检测)
 # ---------------------------------------------------------------------------
 
-_BENFORD = {d: math.log10(1 + 1/d) for d in range(1, 10)}
+_BENFORD = {d: math.log10(1 + 1 / d) for d in range(1, 10)}
 
 
 def benford_check(values: list):
@@ -198,7 +207,10 @@ def benford_check(values: list):
     mad = sum(abs(observed.get(d, 0) - _BENFORD[d]) for d in range(1, 10)) / 9
 
     # Chi-square
-    chi2 = sum((counts.get(d, 0) - _BENFORD[d] * n) ** 2 / (_BENFORD[d] * n) for d in range(1, 10))
+    chi2 = sum(
+        (counts.get(d, 0) - _BENFORD[d] * n) ** 2 / (_BENFORD[d] * n)
+        for d in range(1, 10)
+    )
 
     # Conformity
     if mad < 0.006:
@@ -209,7 +221,6 @@ def benford_check(values: list):
         conformity = "Marginally Acceptable (边缘)"
     else:
         conformity = "Nonconforming (不符合 ⚠️)"
-
 
     # Digit distribution table
     for d in range(1, 10):
@@ -294,10 +305,20 @@ def exact_calc(expr: str):
 # 6. Three-Scenario Valuation (三情景估值)
 # ---------------------------------------------------------------------------
 
-def three_scenario_valuation(current_price, current_eps, shares_billion,
-                             growth_optimistic, growth_neutral, growth_pessimistic,
-                             pe_optimistic, pe_neutral, pe_pessimistic,
-                             years=3, currency=""):
+
+def three_scenario_valuation(
+    current_price,
+    current_eps,
+    shares_billion,
+    growth_optimistic,
+    growth_neutral,
+    growth_pessimistic,
+    pe_optimistic,
+    pe_neutral,
+    pe_pessimistic,
+    years=3,
+    currency="",
+):
     """Calculate three-scenario target prices with exact arithmetic."""
 
     p = exact(current_price)
@@ -310,7 +331,6 @@ def three_scenario_valuation(current_price, current_eps, shares_billion,
         ("悲观 (Bear)", growth_pessimistic, pe_pessimistic),
     ]
 
-
     for name, growth, pe in scenarios:
         g = exact(growth)
         target_pe = exact(pe)
@@ -322,11 +342,10 @@ def three_scenario_valuation(current_price, current_eps, shares_billion,
         float(target_price - p) / float(p) * 100
 
 
-
-
 # ---------------------------------------------------------------------------
 # CLI Entry Point
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -339,7 +358,8 @@ Examples:
   %(prog)s cross-validate --field revenue --values '{"年报": 7518, "Yahoo": 7500}' --unit 亿
   %(prog)s benford --values '[1234, 2345, 3456, ...]'
   %(prog)s calc --expr '510 * 9.11e9'
-        """)
+        """,
+    )
 
     sub = parser.add_subparsers(dest="command")
 
@@ -379,10 +399,16 @@ Examples:
     ts.add_argument("--price", type=float, required=True)
     ts.add_argument("--eps", type=float, required=True)
     ts.add_argument("--shares", type=float, required=True, help="总股本(亿)")
-    ts.add_argument("--growth", nargs=3, type=float, required=True,
-                    help="三情景年增速 (乐观 中性 悲观), 如 0.15 0.08 0.0")
-    ts.add_argument("--pe", nargs=3, type=float, required=True,
-                    help="三情景目标PE, 如 25 20 15")
+    ts.add_argument(
+        "--growth",
+        nargs=3,
+        type=float,
+        required=True,
+        help="三情景年增速 (乐观 中性 悲观), 如 0.15 0.08 0.0",
+    )
+    ts.add_argument(
+        "--pe", nargs=3, type=float, required=True, help="三情景目标PE, 如 25 20 15"
+    )
     ts.add_argument("--years", type=int, default=3)
     ts.add_argument("--currency", default="")
 
@@ -391,8 +417,14 @@ Examples:
     if args.command == "verify-market-cap":
         verify_market_cap(args.price, args.shares, args.reported, args.currency)
     elif args.command == "verify-valuation":
-        verify_valuation(args.price, args.eps, args.bvps, args.fcf_per_share,
-                        args.dividend, args.revenue_per_share)
+        verify_valuation(
+            args.price,
+            args.eps,
+            args.bvps,
+            args.fcf_per_share,
+            args.dividend,
+            args.revenue_per_share,
+        )
     elif args.command == "cross-validate":
         values = json.loads(args.values)
         cross_validate(args.field, values, args.unit, args.tolerance)
@@ -403,10 +435,18 @@ Examples:
         exact_calc(args.expr)
     elif args.command == "three-scenario":
         three_scenario_valuation(
-            args.price, args.eps, args.shares,
-            args.growth[0], args.growth[1], args.growth[2],
-            args.pe[0], args.pe[1], args.pe[2],
-            args.years, args.currency)
+            args.price,
+            args.eps,
+            args.shares,
+            args.growth[0],
+            args.growth[1],
+            args.growth[2],
+            args.pe[0],
+            args.pe[1],
+            args.pe[2],
+            args.years,
+            args.currency,
+        )
     else:
         parser.print_help()
 

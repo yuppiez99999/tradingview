@@ -35,21 +35,20 @@ def growth_analyst_agent(state: AgentState, agent_id: str = "growth_analyst_agen
             ticker=ticker,
             end_date=end_date,
             period="ttm",
-            limit=12, # 3 years of ttm data
+            limit=12,  # 3 years of ttm data
             api_key=api_key,
         )
         if not financial_metrics or len(financial_metrics) < 4:
-            progress.update_status(agent_id, ticker, "Failed: Not enough financial metrics")
+            progress.update_status(
+                agent_id, ticker, "Failed: Not enough financial metrics"
+            )
             continue
 
         most_recent_metrics = financial_metrics[0]
 
         # --- Insider Trades ---
         insider_trades = get_insider_trades(
-            ticker=ticker,
-            end_date=end_date,
-            limit=1000,
-            api_key=api_key
+            ticker=ticker, end_date=end_date, limit=1000, api_key=api_key
         )
 
         # ------------------------------------------------------------------
@@ -75,11 +74,11 @@ def growth_analyst_agent(state: AgentState, agent_id: str = "growth_analyst_agen
         # Aggregate & signal
         # ------------------------------------------------------------------
         scores = {
-            "growth": growth_trends['score'],
-            "valuation": valuation_metrics['score'],
-            "margins": margin_trends['score'],
-            "insider": insider_conviction['score'],
-            "health": financial_health['score']
+            "growth": growth_trends["score"],
+            "valuation": valuation_metrics["score"],
+            "margins": margin_trends["score"],
+            "insider": insider_conviction["score"],
+            "health": financial_health["score"],
         }
 
         weights = {
@@ -87,7 +86,7 @@ def growth_analyst_agent(state: AgentState, agent_id: str = "growth_analyst_agen
             "valuation": 0.25,
             "margins": 0.15,
             "insider": 0.10,
-            "health": 0.10
+            "health": 0.10,
         }
 
         weighted_score = sum(scores[key] * weights[key] for key in scores)
@@ -110,8 +109,8 @@ def growth_analyst_agent(state: AgentState, agent_id: str = "growth_analyst_agen
             "final_analysis": {
                 "signal": signal,
                 "confidence": confidence,
-                "weighted_score": round(weighted_score, 2)
-            }
+                "weighted_score": round(weighted_score, 2),
+            },
         }
 
         growth_analysis[ticker] = {
@@ -119,7 +118,9 @@ def growth_analyst_agent(state: AgentState, agent_id: str = "growth_analyst_agen
             "confidence": confidence,
             "reasoning": reasoning,
         }
-        progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))
+        progress.update_status(
+            agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4)
+        )
 
     # ---- Emit message (for LLM tool chain) ----
     msg = HumanMessage(content=json.dumps(growth_analysis), name=agent_id)
@@ -133,9 +134,11 @@ def growth_analyst_agent(state: AgentState, agent_id: str = "growth_analyst_agen
 
     return {"messages": [msg], "data": data}
 
+
 #############################
 # Helper Functions
 #############################
+
 
 def _calculate_trend(data: list[float | None]) -> float:
     """Calculates the slope of the trend line for the given data."""
@@ -159,6 +162,7 @@ def _calculate_trend(data: list[float | None]) -> float:
     except ZeroDivisionError:
         return 0.0
 
+
 def analyze_growth_trends(metrics: list) -> dict:
     """Analyzes historical growth trends."""
 
@@ -180,7 +184,7 @@ def analyze_growth_trends(metrics: list) -> dict:
         elif rev_growth[0] > 0.10:
             score += 0.2
         if rev_trend > 0:
-            score += 0.1 # Accelerating
+            score += 0.1  # Accelerating
 
     # EPS
     if eps_growth[0] is not None:
@@ -205,8 +209,9 @@ def analyze_growth_trends(metrics: list) -> dict:
         "eps_growth": eps_growth[0],
         "eps_trend": eps_trend,
         "fcf_growth": fcf_growth[0],
-        "fcf_trend": fcf_trend
+        "fcf_trend": fcf_trend,
     }
+
 
 def analyze_valuation(metrics) -> dict:
     """Analyzes valuation from a growth perspective."""
@@ -232,11 +237,8 @@ def analyze_valuation(metrics) -> dict:
 
     score = min(score, 1.0)
 
-    return {
-        "score": score,
-        "peg_ratio": peg_ratio,
-        "price_to_sales_ratio": ps_ratio
-    }
+    return {"score": score, "peg_ratio": peg_ratio, "price_to_sales_ratio": ps_ratio}
+
 
 def analyze_margin_trends(metrics: list) -> dict:
     """Analyzes historical margin trends."""
@@ -253,16 +255,16 @@ def analyze_margin_trends(metrics: list) -> dict:
 
     # Gross Margin
     if gross_margins[0] is not None:
-        if gross_margins[0] > 0.5: # Healthy margin
+        if gross_margins[0] > 0.5:  # Healthy margin
             score += 0.2
-        if gm_trend > 0: # Expanding
+        if gm_trend > 0:  # Expanding
             score += 0.2
 
     # Operating Margin
     if operating_margins[0] is not None:
-        if operating_margins[0] > 0.15: # Healthy margin
+        if operating_margins[0] > 0.15:  # Healthy margin
             score += 0.2
-        if om_trend > 0: # Expanding
+        if om_trend > 0:  # Expanding
             score += 0.2
 
     # Net Margin Trend
@@ -278,14 +280,23 @@ def analyze_margin_trends(metrics: list) -> dict:
         "operating_margin": operating_margins[0],
         "operating_margin_trend": om_trend,
         "net_margin": net_margins[0],
-        "net_margin_trend": nm_trend
+        "net_margin_trend": nm_trend,
     }
+
 
 def analyze_insider_conviction(trades: list) -> dict:
     """Analyzes insider trading activity."""
 
-    buys = sum(t.transaction_value for t in trades if t.transaction_value and t.transaction_shares > 0)
-    sells = sum(abs(t.transaction_value) for t in trades if t.transaction_value and t.transaction_shares < 0)
+    buys = sum(
+        t.transaction_value
+        for t in trades
+        if t.transaction_value and t.transaction_shares > 0
+    )
+    sells = sum(
+        abs(t.transaction_value)
+        for t in trades
+        if t.transaction_value and t.transaction_shares < 0
+    )
 
     if (buys + sells) == 0:
         net_flow_ratio = 0
@@ -298,7 +309,7 @@ def analyze_insider_conviction(trades: list) -> dict:
     elif net_flow_ratio > 0.1:
         score = 0.7
     elif net_flow_ratio > -0.1:
-        score = 0.5 # Neutral
+        score = 0.5  # Neutral
     else:
         score = 0.2
 
@@ -306,8 +317,9 @@ def analyze_insider_conviction(trades: list) -> dict:
         "score": score,
         "net_flow_ratio": net_flow_ratio,
         "buys": buys,
-        "sells": sells
+        "sells": sells,
     }
+
 
 def check_financial_health(metrics) -> dict:
     """Checks the company's financial health."""
@@ -336,5 +348,5 @@ def check_financial_health(metrics) -> dict:
     return {
         "score": score,
         "debt_to_equity": debt_to_equity,
-        "current_ratio": current_ratio
+        "current_ratio": current_ratio,
     }

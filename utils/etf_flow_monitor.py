@@ -54,11 +54,26 @@ NATIONAL_TEAM_ETFS = [
 ]
 
 ETF_TO_STOCKS = {
-    "510050": {"板块": "上证50大盘蓝筹", "个股票池": ["600036", "601318", "600519", "600276", "601166"]},
-    "510300": {"板块": "沪深300核心资产", "个股票池": ["600036", "600276", "601088", "002648", "600346"]},
-    "510500": {"板块": "中盘成长", "个股票池": ["002493", "000301", "601233", "603225", "000059"]},
-    "588000": {"板块": "科创板科技", "个股票池": ["688041", "300308", "688017", "002371"]},
-    "588080": {"板块": "科创板科技", "个股票池": ["688041", "300308", "688017", "002371"]},
+    "510050": {
+        "板块": "上证50大盘蓝筹",
+        "个股票池": ["600036", "601318", "600519", "600276", "601166"],
+    },
+    "510300": {
+        "板块": "沪深300核心资产",
+        "个股票池": ["600036", "600276", "601088", "002648", "600346"],
+    },
+    "510500": {
+        "板块": "中盘成长",
+        "个股票池": ["002493", "000301", "601233", "603225", "000059"],
+    },
+    "588000": {
+        "板块": "科创板科技",
+        "个股票池": ["688041", "300308", "688017", "002371"],
+    },
+    "588080": {
+        "板块": "科创板科技",
+        "个股票池": ["688041", "300308", "688017", "002371"],
+    },
     "512760": {"板块": "半导体", "个股票池": ["688041", "002371", "300308"]},
     "512880": {"板块": "券商", "个股票池": ["600030", "601211", "600837"]},
     "512800": {"板块": "银行", "个股票池": ["600036", "601166", "000001"]},
@@ -80,14 +95,20 @@ class ETFRealTimeTracker:
 
     def _init_data_sources(self):
         try:
-            wind_path = os.path.join(os.path.dirname(__file__), "..", "wind_mcp_fetcher.py")
+            wind_path = os.path.join(
+                os.path.dirname(__file__), "..", "wind_mcp_fetcher.py"
+            )
             wind_path = os.path.normpath(wind_path)
             if os.path.isfile(wind_path):
                 import importlib.util
 
-                spec = importlib.util.spec_from_file_location("wind_mcp_fetcher", wind_path)
+                spec = importlib.util.spec_from_file_location(
+                    "wind_mcp_fetcher", wind_path
+                )
                 if spec is None or spec.loader is None:
-                    raise ImportError(f"无法加载 wind_mcp_fetcher 模块规格: {wind_path}")
+                    raise ImportError(
+                        f"无法加载 wind_mcp_fetcher 模块规格: {wind_path}"
+                    )
                 mod = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
                 self._wind_mcp_client = {
@@ -96,7 +117,14 @@ class ETFRealTimeTracker:
                 }
                 self.wind_mcp_available = True
                 logger.info("Wind MCP 客户端已加载 (ETF资金流数据源 P0)")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"Wind MCP 客户端加载失败: {e}")
 
     def _to_wind_code(self, etf_code: str) -> str:
@@ -127,7 +155,11 @@ class ETFRealTimeTracker:
                 "change_pct": change,
                 "volume": volume if volume else 0,
                 "amount_yi": round(amount * 1e-8, 2) if amount else 0.0,
-                "trend": "流入" if (amount or 0) > 0 else "流出" if (amount or 0) < 0 else "中性",
+                "trend": (
+                    "流入"
+                    if (amount or 0) > 0
+                    else "流出" if (amount or 0) < 0 else "中性"
+                ),
                 "source": "wind_mcp",
             }
 
@@ -138,10 +170,16 @@ class ETFRealTimeTracker:
                     break
 
             return result
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"Wind MCP 获取ETF资金流失败 ({etf_code}): {e}")
             return None
-
 
     def _fetch_eastmoney_fund_flow(self, etf_code: str) -> Optional[dict]:
         """东财 push2 真实主力净流入 (元 -> 亿), 零 key 不封 IP。
@@ -153,7 +191,9 @@ class ETFRealTimeTracker:
         to_eastmoney_secid()，避免与 astock_realtime 的前缀判定分裂。
         """
         try:
-            secid = to_eastmoney_secid(etf_code)  # '1.510300' / '0.159915' (自动识别后缀/裸码前缀)
+            secid = to_eastmoney_secid(
+                etf_code
+            )  # '1.510300' / '0.159915' (自动识别后缀/裸码前缀)
             url = (
                 "https://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=1&klt=101"
                 f"&secid={secid}&fields1=f1,f2,f3,f7"
@@ -186,7 +226,14 @@ class ETFRealTimeTracker:
                 "trend": "流入" if net_flow > 0 else "流出" if net_flow < 0 else "中性",
                 "source": "eastmoney_push2",
             }
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"东财 push2 获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
@@ -221,7 +268,14 @@ class ETFRealTimeTracker:
                 "trend": "流入" if chg > 0 else "流出" if chg < 0 else "中性",
                 "source": "price_momentum",
             }
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"价格动量代理资金流失败 ({etf_code}): {e}")
             return None
 
@@ -296,7 +350,14 @@ class ETFRealTimeTracker:
                     break
 
             return result
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"新浪财经获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
@@ -305,17 +366,15 @@ class ETFRealTimeTracker:
         if flow_data:
             return flow_data
 
-
         # 东财封禁状态追踪: 避免重复尝试导致90秒延迟
         global _eastmoney_blocked
         if not _eastmoney_blocked:
             flow_data = self._fetch_eastmoney_fund_flow(etf_code)
             if flow_data:
                 return flow_data
-            else:
-                # 首次失败后标记封禁，后续 ETF 直接跳过
-                _eastmoney_blocked = True
-                logger.warning("东财 push2 资金流被封禁/不可用，本次运行内跳过后续尝试")
+            # 首次失败后标记封禁，后续 ETF 直接跳过
+            _eastmoney_blocked = True
+            logger.warning("东财 push2 资金流被封禁/不可用，本次运行内跳过后续尝试")
 
         flow_data = self._fetch_sina_fund_flow(etf_code)
         if flow_data:
@@ -406,7 +465,9 @@ class ETFRealTimeTracker:
     def get_signal_summary(self, flow_data: dict) -> dict:
         signals = self.detect_signals(flow_data)
         total_flow = sum(d.get("net_flow_yi", 0) for d in flow_data.values())
-        overall_trend = "净流入" if total_flow > 0 else "净流出" if total_flow < 0 else "平衡"
+        overall_trend = (
+            "净流入" if total_flow > 0 else "净流出" if total_flow < 0 else "平衡"
+        )
 
         return {
             "total_flow_yi": round(total_flow, 2),
@@ -423,7 +484,14 @@ class ETFRealTimeTracker:
         try:
             with open(positions_file, encoding="utf-8") as f:
                 positions_data = json.load(f)
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"加载 positions.json 失败: {e}")
             return {"status": "error", "message": str(e)}
 
@@ -449,9 +517,13 @@ class ETFRealTimeTracker:
                 if code_num in signal_map:
                     sig = signal_map[code_num]
                     if sig["confidence"] == "高":
-                        pos["etf_flow_signal"] = "强加仓" if "加仓" in sig["signal_type"] else "强减仓"
+                        pos["etf_flow_signal"] = (
+                            "强加仓" if "加仓" in sig["signal_type"] else "强减仓"
+                        )
                     elif sig["confidence"] == "中":
-                        pos["etf_flow_signal"] = "加仓" if "加仓" in sig["signal_type"] else "减仓"
+                        pos["etf_flow_signal"] = (
+                            "加仓" if "加仓" in sig["signal_type"] else "减仓"
+                        )
                     elif sig["confidence"] == "低":
                         pos["etf_flow_signal"] = "关注"
                     updated_count += 1
@@ -478,7 +550,9 @@ class ETFRealTimeTracker:
                     pos["etf_flow_signal"] = ""
                     pos["etf_inflow"] = 0
 
-        positions_data["meta"]["last_etf_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        positions_data["meta"]["last_etf_update"] = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
 
         try:
             with open(positions_file, "w", encoding="utf-8") as f:
@@ -487,17 +561,28 @@ class ETFRealTimeTracker:
             return {
                 "status": "success",
                 "updated_count": updated_count,
-                "total_flow_yi": sum(d.get("net_flow_yi", 0) for d in flow_data.values()),
+                "total_flow_yi": sum(
+                    d.get("net_flow_yi", 0) for d in flow_data.values()
+                ),
                 "signal_count": len(signals),
             }
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"保存 positions.json 失败: {e}")
             return {"status": "error", "message": str(e)}
 
 
 def refresh_etf_flow_signals(positions_file: Optional[str] = None) -> dict[str, Any]:
     if positions_file is None:
-        positions_file = os.path.join(os.path.dirname(__file__), "..", "config", "positions.json")
+        positions_file = os.path.join(
+            os.path.dirname(__file__), "..", "config", "positions.json"
+        )
         positions_file = os.path.normpath(positions_file)
 
     tracker = ETFRealTimeTracker()
@@ -532,4 +617,6 @@ if __name__ == "__main__":
             logger.info("检测到的信号:")
             for s in summary["signals"][:5]:
                 arrow = "+" if "加仓" in s["signal_type"] else "-"
-                logger.info(f"  {arrow} {s['name']}: {s['signal_type']} (净流入{s['net_flow_yi']:+.2f}亿)")
+                logger.info(
+                    f"  {arrow} {s['name']}: {s['signal_type']} (净流入{s['net_flow_yi']:+.2f}亿)"
+                )

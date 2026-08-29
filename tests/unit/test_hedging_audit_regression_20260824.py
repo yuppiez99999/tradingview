@@ -4,6 +4,7 @@
     HG-1  beta_hedger 硬编码期货价回退须带 OFFLINE_ONLY 标记
     HG-4  hedge_coordinator 过度对冲缩放时 estimated_cost 随 notional 同步缩放
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -28,21 +29,32 @@ class TestHedgeCoordinatorScale:
         rets = pd.DataFrame({"600519": [0.02] * 60, "000300": [0.01] * 60})
         mkt = rets["000300"]
         plan = hc.coordinate(
-            positions=positions, prices=prices,
-            returns=rets, market_returns=mkt,
-            vix=45.0, portfolio_value=1_680_000.0,
+            positions=positions,
+            prices=prices,
+            returns=rets,
+            market_returns=mkt,
+            vix=45.0,
+            portfolio_value=1_680_000.0,
         )
         # 若触发缩放, 所有带 estimated_cost 的订单应 notional 与 cost 同比例
         for order in plan.get("orders", []):
             if "estimated_cost" in order and "notional" in order:
                 # 缩放后 cost 应与 notional 保持原始比例 (cost/notional 不变)
-                assert order["estimated_cost"] <= order["notional"] or order["estimated_cost"] >= 0
+                assert (
+                    order["estimated_cost"] <= order["notional"]
+                    or order["estimated_cost"] >= 0
+                )
         # 至少有一个订单 (BETA 或 VOL), 证明协调器有产出
         assert isinstance(plan.get("orders"), list)
 
     def test_scale_orders_direct(self):
         """HG-4: _scale_orders 直接验证 estimated_cost 被缩放."""
-        order = {"notional": 100.0, "contracts": 10, "estimated_cost": 5.0, "budget": 5.0}
+        order = {
+            "notional": 100.0,
+            "contracts": 10,
+            "estimated_cost": 5.0,
+            "budget": 5.0,
+        }
         HedgeCoordinator._scale_orders([order], scale=0.5)
         assert order["notional"] == 50.0
         assert order["contracts"] == 5

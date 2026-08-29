@@ -48,8 +48,14 @@ logger = logging.getLogger(__name__)
 
 # 8 类风格大类 (与 configs/portfolio.yaml 的 style 字段对齐)
 STYLE_CATEGORIES: list[str] = [
-    "科技", "新能源", "医药", "金融",
-    "宽基", "资源", "防御", "现金",
+    "科技",
+    "新能源",
+    "医药",
+    "金融",
+    "宽基",
+    "资源",
+    "防御",
+    "现金",
 ]
 
 # 4×8 默认权重调整矩阵 (倍数 = suggested / current)
@@ -61,20 +67,44 @@ STYLE_CATEGORIES: list[str] = [
 #   - 现金: 所有档位的最终吸收者, 调整后差额归现金
 DEFAULT_WEIGHT_MATRIX: dict[str, dict[str, float]] = {
     "bull": {
-        "科技": 1.20, "新能源": 1.15, "医药": 1.10, "金融": 1.05,
-        "宽基": 1.05, "资源": 1.00, "防御": 0.90, "现金": 0.50,
+        "科技": 1.20,
+        "新能源": 1.15,
+        "医药": 1.10,
+        "金融": 1.05,
+        "宽基": 1.05,
+        "资源": 1.00,
+        "防御": 0.90,
+        "现金": 0.50,
     },
     "neutral": {
-        "科技": 1.00, "新能源": 1.00, "医药": 1.00, "金融": 1.00,
-        "宽基": 1.00, "资源": 1.00, "防御": 1.00, "现金": 1.00,
+        "科技": 1.00,
+        "新能源": 1.00,
+        "医药": 1.00,
+        "金融": 1.00,
+        "宽基": 1.00,
+        "资源": 1.00,
+        "防御": 1.00,
+        "现金": 1.00,
     },
     "bear": {
-        "科技": 0.60, "新能源": 0.65, "医药": 0.80, "金融": 0.90,
-        "宽基": 0.95, "资源": 1.10, "防御": 1.30, "现金": 2.00,
+        "科技": 0.60,
+        "新能源": 0.65,
+        "医药": 0.80,
+        "金融": 0.90,
+        "宽基": 0.95,
+        "资源": 1.10,
+        "防御": 1.30,
+        "现金": 2.00,
     },
     "crisis": {
-        "科技": 0.30, "新能源": 0.35, "医药": 0.60, "金融": 0.70,
-        "宽基": 0.85, "资源": 1.20, "防御": 1.50, "现金": 3.00,
+        "科技": 0.30,
+        "新能源": 0.35,
+        "医药": 0.60,
+        "金融": 0.70,
+        "宽基": 0.85,
+        "资源": 1.20,
+        "防御": 1.50,
+        "现金": 3.00,
     },
 }
 
@@ -114,6 +144,7 @@ DEFAULT_CONFIG_PATH = Path("configs/vol_regime_weighter.yaml")
 # 数据类
 # ============================================================
 
+
 @dataclass
 class VolRegime:
     """波动率 Regime 识别结果.
@@ -127,6 +158,7 @@ class VolRegime:
         hedge_policy_key: 对应 portfolio.yaml 的 hedge policy key (bull_market 等)
         consistency_check: VIX 与 RV 一致性检查结果
     """
+
     label: str
     confidence: float
     source: str
@@ -140,8 +172,10 @@ class VolRegime:
             "label": self.label,
             "confidence": round(self.confidence, 4),
             "source": self.source,
-            "indicators": {k: round(v, 4) if isinstance(v, float) else v
-                           for k, v in self.indicators.items()},
+            "indicators": {
+                k: round(v, 4) if isinstance(v, float) else v
+                for k, v in self.indicators.items()
+            },
             "aligned_hedge_ratio": self.aligned_hedge_ratio,
             "hedge_policy_key": self.hedge_policy_key,
             "consistency_check": self.consistency_check,
@@ -166,6 +200,7 @@ class WeightSuggestion:
         degraded: 是否降级
         degraded_reason: 降级原因
     """
+
     timestamp: str
     regime: VolRegime
     current_weights: dict[str, float] = field(default_factory=dict)
@@ -187,8 +222,12 @@ class WeightSuggestion:
             "degraded": self.degraded,
             "degraded_reason": self.degraded_reason,
             "regime": self.regime.to_dict(),
-            "current_weights": {k: round(v, 4) for k, v in self.current_weights.items()},
-            "suggested_weights": {k: round(v, 4) for k, v in self.suggested_weights.items()},
+            "current_weights": {
+                k: round(v, 4) for k, v in self.current_weights.items()
+            },
+            "suggested_weights": {
+                k: round(v, 4) for k, v in self.suggested_weights.items()
+            },
             "multipliers": {k: round(v, 4) for k, v in self.multipliers.items()},
             "deltas": {k: round(v, 4) for k, v in self.deltas.items()},
             "constraints_applied": self.constraints_applied,
@@ -225,6 +264,7 @@ class WeightSuggestion:
 # ============================================================
 # 核心类
 # ============================================================
+
 
 class VolRegimeWeighter:
     """波动率 Regime 权重建议器 (Phase 0: 只读建议模式).
@@ -274,7 +314,9 @@ class VolRegimeWeighter:
 
         logger.info(
             "VolRegimeWeighter 初始化: enabled=%s (flag=%s), reports_dir=%s",
-            self._enabled, feature_flag_name, self.reports_dir,
+            self._enabled,
+            feature_flag_name,
+            self.reports_dir,
         )
 
     # ============================================================
@@ -285,6 +327,7 @@ class VolRegimeWeighter:
         """检查 Feature Flag (HC-1)."""
         try:
             from utils.infra.feature_flags import is_enabled
+
             return bool(is_enabled(name))
         except (ImportError, AttributeError) as e:
             logger.warning("Feature Flag 检查失败, 默认禁用: %s (%s)", name, e)
@@ -294,6 +337,7 @@ class VolRegimeWeighter:
         """初始化 VolTargetController (复用, 不重写)."""
         try:
             from utils.vol_target_controller import VolTargetController
+
             return VolTargetController()
         except (ImportError, AttributeError) as e:
             logger.warning("VolTargetController 初始化失败, 将降级: %s", e)
@@ -307,13 +351,22 @@ class VolRegimeWeighter:
                     cfg = yaml.safe_load(f) or {}
                 logger.debug("配置加载成功: %s", self.config_path)
                 return cfg
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("配置加载失败, 使用默认值: %s (%s)", self.config_path, e)
         return {}
 
     def _merge_matrix(self) -> dict[str, dict[str, float]]:
         """合并默认矩阵与配置覆写."""
-        merged = {regime: dict(styles) for regime, styles in DEFAULT_WEIGHT_MATRIX.items()}
+        merged = {
+            regime: dict(styles) for regime, styles in DEFAULT_WEIGHT_MATRIX.items()
+        }
         override = self._config.get("weight_matrix", {}) or {}
         for regime, styles in override.items():
             if regime in merged:
@@ -368,7 +421,9 @@ class VolRegimeWeighter:
         if daily_returns is not None and len(daily_returns) > 0:
             if self._vol_controller is not None:
                 try:
-                    realized_vol = float(self._vol_controller.calc_realized_vol(daily_returns))
+                    realized_vol = float(
+                        self._vol_controller.calc_realized_vol(daily_returns)
+                    )
                     indicators["realized_vol"] = realized_vol
                     rv_classification = self._classify_by_rv(realized_vol)
                     if source == "fallback":
@@ -444,23 +499,21 @@ class VolRegimeWeighter:
         """VIX 分类."""
         if vix < VIX_THRESHOLDS["bull"]:
             return REGIME_BULL
-        elif vix < VIX_THRESHOLDS["neutral"]:
+        if vix < VIX_THRESHOLDS["neutral"]:
             return REGIME_NEUTRAL
-        elif vix < VIX_THRESHOLDS["bear"]:
+        if vix < VIX_THRESHOLDS["bear"]:
             return REGIME_BEAR
-        else:
-            return REGIME_CRISIS
+        return REGIME_CRISIS
 
     def _classify_by_rv(self, rv: float) -> str:
         """realized_vol 分类."""
         if rv < RV_THRESHOLDS["bull"]:
             return REGIME_BULL
-        elif rv < RV_THRESHOLDS["neutral"]:
+        if rv < RV_THRESHOLDS["neutral"]:
             return REGIME_NEUTRAL
-        elif rv < RV_THRESHOLDS["bear"]:
+        if rv < RV_THRESHOLDS["bear"]:
             return REGIME_BEAR
-        else:
-            return REGIME_CRISIS
+        return REGIME_CRISIS
 
     @staticmethod
     def _more_conservative(a: str, b: str) -> str:
@@ -509,7 +562,9 @@ class VolRegimeWeighter:
 
         # Flag 检查 (HC-1)
         if not self._enabled:
-            return WeightSuggestion.noop(reason=f"feature_flag_disabled ({self.feature_flag_name}=False)")
+            return WeightSuggestion.noop(
+                reason=f"feature_flag_disabled ({self.feature_flag_name}=False)"
+            )
 
         # Regime 识别
         if regime is None:
@@ -521,7 +576,9 @@ class VolRegimeWeighter:
             )
 
         # 应用 4×8 矩阵
-        multipliers = self.weight_matrix.get(regime.label, self.weight_matrix[REGIME_NEUTRAL])
+        multipliers = self.weight_matrix.get(
+            regime.label, self.weight_matrix[REGIME_NEUTRAL]
+        )
         raw_suggested: dict[str, float] = {}
         applied_multipliers: dict[str, float] = {}
 
@@ -536,8 +593,12 @@ class VolRegimeWeighter:
 
         # 约束执行
         constraints_cfg = self._config.get("constraints", {}) or {}
-        max_single = float(constraints_cfg.get("max_single_position", DEFAULT_MAX_SINGLE_POSITION))
-        max_sector = float(constraints_cfg.get("max_sector_exposure", DEFAULT_MAX_SECTOR_EXPOSURE))
+        max_single = float(
+            constraints_cfg.get("max_single_position", DEFAULT_MAX_SINGLE_POSITION)
+        )
+        max_sector = float(
+            constraints_cfg.get("max_sector_exposure", DEFAULT_MAX_SECTOR_EXPOSURE)
+        )
         cash_floor = float(constraints_cfg.get("cash_floor", DEFAULT_CASH_FLOOR))
 
         final_suggested, constraints_applied = self.enforce_constraints(
@@ -548,8 +609,10 @@ class VolRegimeWeighter:
         )
 
         # 计算 deltas
-        deltas = {style: final_suggested.get(style, 0.0) - current_weights.get(style, 0.0)
-                  for style in current_weights}
+        deltas = {
+            style: final_suggested.get(style, 0.0) - current_weights.get(style, 0.0)
+            for style in current_weights
+        }
 
         # 触发理由
         trigger = self._build_trigger_reason(regime, applied_multipliers)
@@ -567,18 +630,24 @@ class VolRegimeWeighter:
             observation_phase=True,
         )
 
-    def _build_trigger_reason(self, regime: VolRegime, multipliers: dict[str, float]) -> str:
+    def _build_trigger_reason(
+        self, regime: VolRegime, multipliers: dict[str, float]
+    ) -> str:
         """构建人类可读的触发理由."""
         ind = regime.indicators
         ind_str = ", ".join(f"{k}={v}" for k, v in ind.items()) if ind else "无指标"
 
         # 找出调整最大的三类
-        sorted_styles = sorted(multipliers.items(), key=lambda x: abs(x[1] - 1.0), reverse=True)
+        sorted_styles = sorted(
+            multipliers.items(), key=lambda x: abs(x[1] - 1.0), reverse=True
+        )
         top3 = sorted_styles[:3]
         top3_str = ", ".join(f"{s}×{m:.2f}" for s, m in top3)
 
-        return (f"{regime.source}={ind_str} → {regime.label} regime "
-                f"(confidence={regime.confidence:.2f}), 主要调整: {top3_str}")
+        return (
+            f"{regime.source}={ind_str} → {regime.label} regime "
+            f"(confidence={regime.confidence:.2f}), 主要调整: {top3_str}"
+        )
 
     # ============================================================
     # 约束层 (硬执行)
@@ -609,7 +678,9 @@ class VolRegimeWeighter:
         # 注意: 这里 style 级别的权重, 单标的约束在标的级才生效
         # 但由于本模块按风格大类输出, max_single_position 作为风格级冗余保护
         for style, w in list(weights.items()):
-            cap = min(max_single_position * 4, max_sector_exposure)  # 风格级: 单标的的 4 倍或 sector 上限
+            cap = min(
+                max_single_position * 4, max_sector_exposure
+            )  # 风格级: 单标的的 4 倍或 sector 上限
             if w > max_sector_exposure:
                 constraints_applied.append(
                     f"constraint.max_sector_exposure: {style} {w:.4f} > {max_sector_exposure} → 裁剪"
@@ -682,11 +753,17 @@ class VolRegimeWeighter:
         report_path = out_dir / filename
 
         report_data = suggestion.to_dict()
-        report_data["audit"].update({
-            "feature_flag": f"{self.feature_flag_name}={self._enabled}",
-            "config_source": str(self.config_path),
-            "vol_controller": type(self._vol_controller).__name__ if self._vol_controller else "None",
-        })
+        report_data["audit"].update(
+            {
+                "feature_flag": f"{self.feature_flag_name}={self._enabled}",
+                "config_source": str(self.config_path),
+                "vol_controller": (
+                    type(self._vol_controller).__name__
+                    if self._vol_controller
+                    else "None"
+                ),
+            }
+        )
 
         with report_path.open("w", encoding="utf-8") as f:
             json.dump(report_data, f, ensure_ascii=False, indent=2)
@@ -753,7 +830,7 @@ class VolRegimeWeighter:
                     report=None,
                     action="evaluate_only",
                     reason=f"vol_regime_suggestion: regime={suggestion.regime.label}, "
-                           f"confidence={suggestion.confidence:.2f}",
+                    f"confidence={suggestion.confidence:.2f}",
                     metrics=None,
                     extra_payload={
                         "vol_regime_suggestion": suggestion.to_dict(),
@@ -798,7 +875,7 @@ class VolRegimeWeighter:
             return {}
 
         # 按 style 聚合
-        style_weights: dict[str, float] = {s: 0.0 for s in STYLE_CATEGORIES}
+        style_weights: dict[str, float] = dict.fromkeys(STYLE_CATEGORIES, 0.0)
         for asset in assets:
             if not isinstance(asset, dict):
                 continue
@@ -856,14 +933,13 @@ class VolRegimeWeighter:
         Raises:
             NotImplementedError: Phase 0/1 内调用此方法
         """
-        raise NotImplementedError(
-            "backtest 是 Phase 2 扩展点, 当前不可用."
-        )
+        raise NotImplementedError("backtest 是 Phase 2 扩展点, 当前不可用.")
 
 
 # ============================================================
 # 便捷函数
 # ============================================================
+
 
 def classify_regime_by_vol(
     vix: Optional[float] = None,
@@ -895,6 +971,7 @@ def classify_regime_by_vol(
         # 反推一个等价日波动率 (仅用于触发分类, 不影响结果)
         # realized_vol (年化) / sqrt(252) = 日波动率
         import math
+
         daily_vol = realized_vol / math.sqrt(252)
         # 构造 20 个等价日收益 (均值为 0, 标准差为 daily_vol)
         # 注意: 这里只是为了让 vol_controller 计算出接近的 realized_vol
@@ -913,9 +990,11 @@ def classify_regime_by_vol(
 # CLI 入口
 # ============================================================
 
+
 def _cli_main() -> int:
     """CLI 入口: python -m utils.alpha.vol_regime_weighter [--vix 32.5]"""
     import argparse
+
     parser = argparse.ArgumentParser(description="波动率 Regime 权重建议器")
     parser.add_argument("--vix", type=float, default=None, help="VIX 值")
     parser.add_argument("--reports-dir", type=str, default=None, help="报告输出目录")
@@ -926,11 +1005,15 @@ def _cli_main() -> int:
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    weighter = VolRegimeWeighter(reports_dir=Path(args.reports_dir) if args.reports_dir else None)
+    weighter = VolRegimeWeighter(
+        reports_dir=Path(args.reports_dir) if args.reports_dir else None
+    )
 
     if not weighter.enabled:
         print(f"❌ Feature Flag {weighter.feature_flag_name}=False, 模块禁用")
-        print("   启用方法: 在 reports/flag_overrides/USE_VOL_REGIME_WEIGHTER.json 写入")
+        print(
+            "   启用方法: 在 reports/flag_overrides/USE_VOL_REGIME_WEIGHTER.json 写入"
+        )
         print('            {"enabled": true, "signer": "your_name"}')
         return 1
 
@@ -968,6 +1051,7 @@ def _cli_main() -> int:
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(_cli_main())
 
 

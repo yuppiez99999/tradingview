@@ -39,6 +39,7 @@ from utils.deep_hedging_rl import (
 # 配置测试
 # ============================================================
 
+
 class TestDeepHedgingConfig:
     """配置测试。"""
 
@@ -67,6 +68,7 @@ class TestDeepHedgingConfig:
 # 隐含波动率面测试
 # ============================================================
 
+
 class TestVolatilitySurface:
     """隐含波动率面测试。"""
 
@@ -85,7 +87,9 @@ class TestVolatilitySurface:
 
     def test_floor(self):
         """波动率下限保护。"""
-        vs = VolatilitySurface({"sigma_atm": 0.01, "skew": -1, "kurt": 0, "term_slope": 0})
+        vs = VolatilitySurface(
+            {"sigma_atm": 0.01, "skew": -1, "kurt": 0, "term_slope": 0}
+        )
         iv = vs.implied_vol(1.0, 1.0)
         assert iv >= 0.01
 
@@ -107,6 +111,7 @@ class TestVolatilitySurface:
 # ============================================================
 # 市场模拟器测试
 # ============================================================
+
 
 class TestMarketSimulator:
     """市场模拟器测试。"""
@@ -153,6 +158,7 @@ class TestMarketSimulator:
 # ============================================================
 # Actor 网络测试
 # ============================================================
+
 
 class TestHedgingActor:
     """策略网络测试。"""
@@ -202,6 +208,7 @@ class TestHedgingActor:
 # ============================================================
 # 风险指标测试
 # ============================================================
+
 
 class TestRiskMeasure:
     """风险指标测试。"""
@@ -265,6 +272,7 @@ class TestRiskMeasure:
 # 训练器测试
 # ============================================================
 
+
 class TestDeepHedgingTrainer:
     """训练器测试。"""
 
@@ -316,6 +324,7 @@ class TestDeepHedgingTrainer:
 # 引擎测试
 # ============================================================
 
+
 class TestDeepHedgingEngine:
     """集成引擎测试。"""
 
@@ -359,13 +368,16 @@ class TestDeepHedgingEngine:
 # 端到端集成测试
 # ============================================================
 
+
 class TestEndToEnd:
     """端到端集成测试。"""
 
     def test_training_improves_risk(self):
         """训练改善风险指标 (或至少不恶化太多)。"""
         config = DeepHedgingConfig(
-            n_steps=10, n_episodes=10, risk_measure="cvar",
+            n_steps=10,
+            n_episodes=10,
+            risk_measure="cvar",
             transaction_cost=0.001,
         )
         engine = DeepHedgingEngine(config)

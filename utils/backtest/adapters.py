@@ -12,6 +12,7 @@
     - 延迟接受: calc_target_hedge_volume 读取的 short_positions 可能滞后
       于在途订单,此为已知行为
 """
+
 from __future__ import annotations
 
 import uuid

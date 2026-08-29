@@ -26,21 +26,21 @@ from datetime import datetime
 from pathlib import Path
 
 # UTF-8 编码修复
-if sys.platform == 'win32':
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # ═══════════════════════════════════════════════════════════════
 # 路径常量
 # ═══════════════════════════════════════════════════════════════
-SCRIPT_DIR = Path(__file__).resolve().parent                    # 28/15_每日工作流
-PROJECT_ROOT = SCRIPT_DIR.parent                                # 28-终极量化交易系统8.4
-BASE_ROOT = PROJECT_ROOT.parent                                 # e:\各种PY程序
-ARCHIVE_DIR = PROJECT_ROOT / "每日报告归档"                         # 项目内归档根
+SCRIPT_DIR = Path(__file__).resolve().parent  # 28/15_每日工作流
+PROJECT_ROOT = SCRIPT_DIR.parent  # 28-终极量化交易系统8.4
+BASE_ROOT = PROJECT_ROOT.parent  # e:\各种PY程序
+ARCHIVE_DIR = PROJECT_ROOT / "每日报告归档"  # 项目内归档根
 
 # 跨目录复用的模块路径
-WORKFLOW_15 = BASE_ROOT / "15_每日工作流"                       # 晨间行情/CNEMC/DeepSeek 摘要
-STRATEGY_11 = BASE_ROOT / "11_量化策略"                          # ETF 资金流向
+WORKFLOW_15 = BASE_ROOT / "15_每日工作流"  # 晨间行情/CNEMC/DeepSeek 摘要
+STRATEGY_11 = BASE_ROOT / "11_量化策略"  # ETF 资金流向
 
 # 28 项目内模块
 V83_SRC = PROJECT_ROOT / "v8.3_institutional" / "src"
@@ -68,12 +68,13 @@ def _exists_nonempty(path: Path, min_size: int = 500) -> bool:
 # ═══════════════════════════════════════════════════════════════
 def task_morning_market(archive: Path, target_date: str, force: bool) -> bool:
     """调用 morning_market_fetcher.main() 生成晨间行情摘要"""
-    date_short = target_date.replace('-', '')
+    date_short = target_date.replace("-", "")
     out_file = archive / f"晨间行情摘要_{date_short}.md"
     if _exists_nonempty(out_file) and not force:
         return True
     try:
         from morning_market_fetcher import main as market_main
+
         result = market_main(output_dir=str(archive))
         ok = bool(result and result.get("path"))
         if ok:
@@ -90,17 +91,18 @@ def task_morning_market(archive: Path, target_date: str, force: bool) -> bool:
 # ═══════════════════════════════════════════════════════════════
 def task_kondratiev(archive: Path, target_date: str, force: bool) -> bool:
     """调用 28 项目内 KondratievCycleAnalyzer.generate_report()"""
-    date_short = target_date.replace('-', '')
+    date_short = target_date.replace("-", "")
     out_file = archive / f"康波周期分析_{date_short}.md"
     if _exists_nonempty(out_file) and not force:
         return True
     try:
         from utils.kondratiev_cycle import KondratievCycleAnalyzer
+
         analyzer = KondratievCycleAnalyzer()
         report = analyzer.generate_report(save_dir=None)
         if not report or len(report) < 100:
             return False
-        out_file.write_text(report, encoding='utf-8')
+        out_file.write_text(report, encoding="utf-8")
         return True
     except Exception:
         return False
@@ -111,39 +113,50 @@ def task_kondratiev(archive: Path, target_date: str, force: bool) -> bool:
 # ═══════════════════════════════════════════════════════════════
 def task_etf_flow(archive: Path, target_date: str, force: bool) -> bool:
     """调用 utils.etf_flow_monitor.ETFRealTimeTracker 生成 ETF 资金流向报告"""
-    date_short = target_date.replace('-', '')
+    date_short = target_date.replace("-", "")
     pattern = str(archive / f"实时ETF资金流向_{date_short}_*.md")
     existing = _glob.glob(pattern)
     if existing and not force:
         return True
     try:
         from utils.etf_flow_monitor import ETFRealTimeTracker
+
         tracker = ETFRealTimeTracker()
         flow_data = tracker.get_all_etf_fund_flows()
         signals = tracker.detect_signals(flow_data)
         ts = datetime.now().strftime("%H%M%S")
         out_file = archive / f"实时ETF资金流向_{date_short}_{ts}.md"
-        lines = [f"# 实时ETF资金流向报告 {target_date}\n",
-                 f"\n生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}\n\n",
-                 "## 一、ETF 资金流向明细\n\n",
-                 "| 代码 | 名称 | 类别 | 净流入(亿) | 涨跌% | 趋势 | 数据源 |\n",
-                 "|------|------|------|-----------|-------|------|--------|\n"]
+        lines = [
+            f"# 实时ETF资金流向报告 {target_date}\n",
+            f"\n生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}\n\n",
+            "## 一、ETF 资金流向明细\n\n",
+            "| 代码 | 名称 | 类别 | 净流入(亿) | 涨跌% | 趋势 | 数据源 |\n",
+            "|------|------|------|-----------|-------|------|--------|\n",
+        ]
         for code, d in flow_data.items():
-            lines.append(f"| {code} | {d.get('name','')} | {d.get('category','')} | "
-                         f"{d.get('net_flow_yi',0):+.2f} | {d.get('change_pct',0):+.2f} | "
-                         f"{d.get('trend','')} | {d.get('source','')} |\n")
+            lines.append(
+                f"| {code} | {d.get('name','')} | {d.get('category','')} | "
+                f"{d.get('net_flow_yi',0):+.2f} | {d.get('change_pct',0):+.2f} | "
+                f"{d.get('trend','')} | {d.get('source','')} |\n"
+            )
         lines.append(f"\n## 二、信号检测 (共 {len(signals)} 条)\n\n")
         if signals:
-            lines.append("| 代码 | 信号 | 强度 | 说明 |\n|------|------|------|------|\n")
+            lines.append(
+                "| 代码 | 信号 | 强度 | 说明 |\n|------|------|------|------|\n"
+            )
             for s in signals:
-                desc = (f"净流入{s.get('net_flow_yi',0):+.2f}亿, "
-                        f"涨跌{s.get('change_pct',0):+.2f}%, "
-                        f"{s.get('trend','')}")
-                lines.append(f"| {s.get('code','')} | {s.get('signal_type','')} | "
-                             f"{s.get('confidence','')} | {desc} |\n")
+                desc = (
+                    f"净流入{s.get('net_flow_yi',0):+.2f}亿, "
+                    f"涨跌{s.get('change_pct',0):+.2f}%, "
+                    f"{s.get('trend','')}"
+                )
+                lines.append(
+                    f"| {s.get('code','')} | {s.get('signal_type','')} | "
+                    f"{s.get('confidence','')} | {desc} |\n"
+                )
         else:
             lines.append("无显著信号\n")
-        out_file.write_text("".join(lines), encoding='utf-8')
+        out_file.write_text("".join(lines), encoding="utf-8")
         return True
     except Exception:
         return False
@@ -154,13 +167,14 @@ def task_etf_flow(archive: Path, target_date: str, force: bool) -> bool:
 # ═══════════════════════════════════════════════════════════════
 def task_sentiment(archive: Path, target_date: str, force: bool) -> bool:
     """调用 28 项目内 sentiment_hub.run_all()"""
-    date_short = target_date.replace('-', '')
+    date_short = target_date.replace("-", "")
     sentiment_md = archive / f"舆情综合日报_{date_short}.md"
     coal_md = archive / f"动力煤舆情日报_{date_short}.md"
     if _exists_nonempty(sentiment_md) and _exists_nonempty(coal_md) and not force:
         return True
     try:
         from nlp.sentiment_hub import run_all
+
         result = run_all(
             target_date=target_date,
             output_dir=str(archive),
@@ -171,8 +185,11 @@ def task_sentiment(archive: Path, target_date: str, force: bool) -> bool:
         return bool(result.get("ok"))
     except ImportError:
         placeholder = f"# 舆情综合日报 {target_date}\n\n> ⚠️ 舆情模块 `nlp.sentiment_hub` 导入失败，本报告为占位。\n> 该模块已实现 (规则引擎 + Wind MCP 新闻扫描, 受 SENTIMENT_HUB_USE_WIND_NEWS 环境变量控制)。\n> 排查方向: 确认 nlp/ 目录在 sys.path 且 sentiment_hub.py 无语法错误。\n\n生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}\n"
-        sentiment_md.write_text(placeholder, encoding='utf-8')
-        coal_md.write_text(f"# 动力煤舆情日报 {target_date}\n\n> ⚠️ 占位（同舆情综合日报，sentiment_hub 导入失败）\n", encoding='utf-8')
+        sentiment_md.write_text(placeholder, encoding="utf-8")
+        coal_md.write_text(
+            f"# 动力煤舆情日报 {target_date}\n\n> ⚠️ 占位（同舆情综合日报，sentiment_hub 导入失败）\n",
+            encoding="utf-8",
+        )
         return True
     except Exception:
         return False
@@ -183,12 +200,13 @@ def task_sentiment(archive: Path, target_date: str, force: bool) -> bool:
 # ═══════════════════════════════════════════════════════════════
 def task_cnemc(archive: Path, target_date: str, force: bool) -> bool:
     """调用 cnemc_air_quality_runner.generate_cnemc_report()"""
-    date_short = target_date.replace('-', '')
+    date_short = target_date.replace("-", "")
     out_file = archive / f"空气质量CNEMC日报_{date_short}.md"
     if _exists_nonempty(out_file) and not force:
         return True
     try:
         from cnemc_air_quality_runner import generate_cnemc_report
+
         result = generate_cnemc_report(output_dir=str(archive), target_date=target_date)
         return bool(result.get("ok"))
     except Exception:
@@ -214,6 +232,7 @@ def _load_portfolio_for_research() -> list:
         return []
     try:
         import yaml as _yaml
+
         for enc in ("utf-8", "gbk", "utf-8-sig"):
             try:
                 data = _yaml.safe_load(portfolio_path.read_text(encoding=enc))
@@ -228,12 +247,14 @@ def _load_portfolio_for_research() -> list:
             code = str(a.get("code", "")).strip()
             if not code or code.upper() == "CASH":
                 continue
-            result.append({
-                "code": code,
-                "name": a.get("name", code),
-                "category": a.get("category", ""),
-                "weight": a.get("weight", 0),
-            })
+            result.append(
+                {
+                    "code": code,
+                    "name": a.get("name", code),
+                    "category": a.get("category", ""),
+                    "weight": a.get("weight", 0),
+                }
+            )
         return result
     except Exception:
         return []
@@ -247,7 +268,7 @@ def task_ifind_analysis(archive: Path, target_date: str, force: bool) -> bool:
       2. 对每个标的调用 wind_get_quote() + wind_search_news() 抓取行情与新闻
       3. 汇总后用 LLM (DeepSeek → GLM → Ollama) 生成研判报告
     """
-    date_short = target_date.replace('-', '')
+    date_short = target_date.replace("-", "")
     dst = archive / f"iFinD自动标的研判报告_{date_short}.md"
 
     if _exists_nonempty(dst) and not force:
@@ -265,6 +286,7 @@ def task_ifind_analysis(archive: Path, target_date: str, force: bool) -> bool:
     # 2. Wind MCP 抓取行情 + 新闻
     try:
         import sys as _sys
+
         _tools_path = str(PROJECT_ROOT)
         if _tools_path not in _sys.path:
             _sys.path.insert(0, _tools_path)
@@ -277,6 +299,7 @@ def task_ifind_analysis(archive: Path, target_date: str, force: bool) -> bool:
         return True
 
     import time as _time
+
     holdings_data = []
     news_count = 0
     quote_count = 0
@@ -285,8 +308,14 @@ def task_ifind_analysis(archive: Path, target_date: str, force: bool) -> bool:
         name = a["name"]
         wind_code = _wind_code_with_suffix(code)
         is_fund = code.startswith(("51", "58", "50", "52"))
-        entry = {"code": code, "name": name, "category": a["category"],
-                 "weight": a["weight"], "quote": None, "news": []}
+        entry = {
+            "code": code,
+            "name": name,
+            "category": a["category"],
+            "weight": a["weight"],
+            "quote": None,
+            "news": [],
+        }
         # 行情
         try:
             q = wind_get_quote(wind_code, is_fund=is_fund)
@@ -308,7 +337,6 @@ def task_ifind_analysis(archive: Path, target_date: str, force: bool) -> bool:
         if i > 0 and i % 5 == 0:
             _time.sleep(0.3)
         holdings_data.append(entry)
-
 
     # 3. 构造 LLM prompt
     holdings_block_lines = []
@@ -389,9 +417,12 @@ def task_ifind_analysis(archive: Path, target_date: str, force: bool) -> bool:
     report_content = None
     try:
         from llm_client import chat
+
         report_content = chat(
-            user_prompt, system=system_prompt,
-            temperature=0.4, max_tokens=3500,
+            user_prompt,
+            system=system_prompt,
+            temperature=0.4,
+            max_tokens=3500,
         )
     except Exception as e:
         pass
@@ -402,6 +433,7 @@ def task_ifind_analysis(archive: Path, target_date: str, force: bool) -> bool:
         )
     else:
         import re as _re
+
         report_content = _re.sub(r"^\[[^\]]+\]\s*", "", report_content.strip())
 
     dst.write_text(report_content, encoding="utf-8")
@@ -409,29 +441,36 @@ def task_ifind_analysis(archive: Path, target_date: str, force: bool) -> bool:
     return True
 
 
-def _fallback_ifind_report(target_date: str, holdings_data: list,
-                           quote_count: int, news_count: int) -> str:
+def _fallback_ifind_report(
+    target_date: str, holdings_data: list, quote_count: int, news_count: int
+) -> str:
     """LLM 不可用时的标的研判降级模板"""
-    lines = ["# 标的研判报告",
-             "",
-             f"**日期**: {target_date}",
-             "**状态**: LLM 不可用, 规则引擎降级模板",
-             "**数据源**: Wind MCP (行情 + 财经新闻)",
-             "",
-             "## 一、持仓行情快照",
-             "",
-             "| 标的 | 代码 | 类别 | 权重 | 现价 | 涨跌幅 |",
-             "|------|------|------|------|------|--------|"]
+    lines = [
+        "# 标的研判报告",
+        "",
+        f"**日期**: {target_date}",
+        "**状态**: LLM 不可用, 规则引擎降级模板",
+        "**数据源**: Wind MCP (行情 + 财经新闻)",
+        "",
+        "## 一、持仓行情快照",
+        "",
+        "| 标的 | 代码 | 类别 | 权重 | 现价 | 涨跌幅 |",
+        "|------|------|------|------|------|--------|",
+    ]
     for e in holdings_data:
         q = e.get("quote") or {}
         price = q.get("price", "N/A")
         chg_pct = q.get("change_pct", "N/A")
-        lines.append(f"| {e['name']} | {e['code']} | {e['category']} | {e['weight']} | {price} | {chg_pct}% |")
-    lines.extend([
-        "",
-        f"## 二、新闻摘要 (共 {news_count} 条)",
-        "",
-    ])
+        lines.append(
+            f"| {e['name']} | {e['code']} | {e['category']} | {e['weight']} | {price} | {chg_pct}% |"
+        )
+    lines.extend(
+        [
+            "",
+            f"## 二、新闻摘要 (共 {news_count} 条)",
+            "",
+        ]
+    )
     for e in holdings_data:
         if not e.get("news"):
             continue
@@ -440,16 +479,18 @@ def _fallback_ifind_report(target_date: str, holdings_data: list,
             title = n.get("title") or n.get("text", "")[:80]
             lines.append(f"- {title}")
         lines.append("")
-    lines.extend([
-        "## 三、风险提示",
-        "",
-        "1. 本报告为规则引擎降级模板 (LLM 不可用)",
-        "2. 行情数据来自 Wind MCP, 新闻为近期财经报道",
-        "3. 不构成投资建议",
-        "",
-        "---",
-        f"*生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}*",
-    ])
+    lines.extend(
+        [
+            "## 三、风险提示",
+            "",
+            "1. 本报告为规则引擎降级模板 (LLM 不可用)",
+            "2. 行情数据来自 Wind MCP, 新闻为近期财经报道",
+            "3. 不构成投资建议",
+            "",
+            "---",
+            f"*生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}*",
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -550,13 +591,21 @@ def _load_sentiment_brief(archive: Path, date_short: str) -> str:
     return "\n\n".join(briefs)
 
 
-def _build_commodity_prompt(target_date: str, market_signals: dict,
-                            kondratiev_signals: list, sentiment_brief: str) -> tuple[str, str]:
+def _build_commodity_prompt(
+    target_date: str,
+    market_signals: dict,
+    kondratiev_signals: list,
+    sentiment_brief: str,
+) -> tuple[str, str]:
     """构造 LLM prompt (system, user)"""
     mk_lines = []
     for name, info in market_signals.items():
         mk_lines.append(f"- {name}: {info['price']} (类别: {info['category']})")
-    market_block = "\n".join(mk_lines[:40]) if mk_lines else "(无实时行情数据, 请基于一般基本面知识生成)"
+    market_block = (
+        "\n".join(mk_lines[:40])
+        if mk_lines
+        else "(无实时行情数据, 请基于一般基本面知识生成)"
+    )
 
     kond_lines = []
     for s in kondratiev_signals:
@@ -669,17 +718,24 @@ def _build_commodity_prompt(target_date: str, market_signals: dict,
     return system, user
 
 
-def _fallback_commodity_report(target_date: str, market_signals: dict,
-                               kondratiev_signals: list) -> str:
+def _fallback_commodity_report(
+    target_date: str, market_signals: dict, kondratiev_signals: list
+) -> str:
     """LLM 不可用时的规则引擎降级模板"""
-    mk_lines = [f"| {name} | {info['price']} | {info['category']} |"
-                for name, info in market_signals.items()]
+    mk_lines = [
+        f"| {name} | {info['price']} | {info['category']} |"
+        for name, info in market_signals.items()
+    ]
     market_table = "\n".join(mk_lines[:30]) if mk_lines else "| (无数据) | - | - |"
 
-    kond_lines = [f"| {s.get('name','')} | {s.get('driver','')} | "
-                  f"{s.get('kondratiev_recommendation','')} | {s.get('current_signal','')} |"
-                  for s in kondratiev_signals]
-    kond_table = "\n".join(kond_lines) if kond_lines else "| (康波信号不可用) | - | - | - |"
+    kond_lines = [
+        f"| {s.get('name','')} | {s.get('driver','')} | "
+        f"{s.get('kondratiev_recommendation','')} | {s.get('current_signal','')} |"
+        for s in kondratiev_signals
+    ]
+    kond_table = (
+        "\n".join(kond_lines) if kond_lines else "| (康波信号不可用) | - | - | - |"
+    )
 
     return f"""# 大宗商品交易机会扫描 - 基本面研报
 
@@ -723,7 +779,9 @@ def _fallback_commodity_report(target_date: str, market_signals: dict,
 """
 
 
-def task_commodity_fundamental_scan(archive: Path, target_date: str, force: bool) -> bool:
+def task_commodity_fundamental_scan(
+    archive: Path, target_date: str, force: bool
+) -> bool:
     """大宗商品交易机会扫描 - 从基本面出发的研报 (LLM 驱动)
 
     替代原棉花加仓方案任务 (2026-08-18 起):
@@ -732,7 +790,7 @@ def task_commodity_fundamental_scan(archive: Path, target_date: str, force: bool
       - 覆盖: 工业金属/贵金属/黑色系/能源化工/农产品/化工建材/碳市场
       - 输出: 大宗商品交易机会扫描_{date}.md
     """
-    date_short = target_date.replace('-', '')
+    date_short = target_date.replace("-", "")
     out_file = archive / f"大宗商品交易机会扫描_{date_short}.md"
     if _exists_nonempty(out_file) and not force:
         return True
@@ -742,6 +800,7 @@ def task_commodity_fundamental_scan(archive: Path, target_date: str, force: bool
     kondratiev_signals = []
     try:
         from utils.kondratiev_cycle import KondratievCycleAnalyzer
+
         kondratiev_signals = KondratievCycleAnalyzer().get_commodity_signals()
     except Exception:
         pass
@@ -757,9 +816,12 @@ def task_commodity_fundamental_scan(archive: Path, target_date: str, force: bool
     report_content = None
     try:
         from llm_client import chat
+
         report_content = chat(
-            user_prompt, system=system_prompt,
-            temperature=0.4, max_tokens=4000,
+            user_prompt,
+            system=system_prompt,
+            temperature=0.4,
+            max_tokens=4000,
         )
     except Exception:
         pass
@@ -771,6 +833,7 @@ def task_commodity_fundamental_scan(archive: Path, target_date: str, force: bool
     else:
         # 清理 LLM 前缀标记 (如 "[Ollama qwen2.5:3b] ...")
         import re as _re
+
         report_content = _re.sub(r"^\[[^\]]+\]\s*", "", report_content.strip())
 
     out_file.write_text(report_content, encoding="utf-8")
@@ -801,8 +864,7 @@ def _run_task(name_fn_tuple, archive, target_date, force):
         return name, False
 
 
-def run_all(target_date: str = None, force: bool = False,
-            max_workers: int = 4) -> dict:
+def run_all(target_date: str = None, force: bool = False, max_workers: int = 4) -> dict:
     """运行全部信息采集任务 (两阶段并行)
 
     阶段1: 并行执行任务 1-6 (彼此独立)
@@ -817,7 +879,7 @@ def run_all(target_date: str = None, force: bool = False,
         {"ok": bool, "success": int, "total": int, "archive_dir": str, "date": str}
     """
     if target_date is None:
-        target_date = datetime.now().strftime('%Y-%m-%d')
+        target_date = datetime.now().strftime("%Y-%m-%d")
     archive = _archive_today(target_date)
 
     success, total = 0, 0
@@ -854,12 +916,12 @@ def run_all(target_date: str = None, force: bool = False,
 
 def main():
     parser = argparse.ArgumentParser(description="晨间信息采集工作流")
-    parser.add_argument('--force', action='store_true', help='强制重新生成')
-    parser.add_argument('--date', type=str, default=None, help='目标日期 YYYY-MM-DD')
+    parser.add_argument("--force", action="store_true", help="强制重新生成")
+    parser.add_argument("--date", type=str, default=None, help="目标日期 YYYY-MM-DD")
     args = parser.parse_args()
     result = run_all(target_date=args.date, force=args.force)
     sys.exit(0 if result["ok"] else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

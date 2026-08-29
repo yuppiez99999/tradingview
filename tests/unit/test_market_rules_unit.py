@@ -9,6 +9,7 @@
     - register_20cm_etf 运行时注册
     - is_20cm_etf_explicit 白名单审计
 """
+
 from __future__ import annotations
 
 import pytest

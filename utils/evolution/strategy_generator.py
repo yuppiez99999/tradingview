@@ -101,9 +101,14 @@ STYLE_BALANCED = "balanced"
 STYLE_LOW_RISK = "low_risk"
 
 VALID_STYLES = [
-    STYLE_MOMENTUM, STYLE_REVERSAL, STYLE_VOLATILITY,
-    STYLE_VALUE, STYLE_GROWTH, STYLE_QUALITY,
-    STYLE_BALANCED, STYLE_LOW_RISK,
+    STYLE_MOMENTUM,
+    STYLE_REVERSAL,
+    STYLE_VOLATILITY,
+    STYLE_VALUE,
+    STYLE_GROWTH,
+    STYLE_QUALITY,
+    STYLE_BALANCED,
+    STYLE_LOW_RISK,
 ]
 
 # 权重方法枚举
@@ -115,8 +120,12 @@ WEIGHT_VOL_MIN = "vol_min"
 WEIGHT_FACTOR_BASED = "factor_based"
 
 VALID_WEIGHT_METHODS = [
-    WEIGHT_EQUAL, WEIGHT_RISK_PARITY, WEIGHT_MOMENTUM_SKEWED,
-    WEIGHT_VALUE_SKEWED, WEIGHT_VOL_MIN, WEIGHT_FACTOR_BASED,
+    WEIGHT_EQUAL,
+    WEIGHT_RISK_PARITY,
+    WEIGHT_MOMENTUM_SKEWED,
+    WEIGHT_VALUE_SKEWED,
+    WEIGHT_VOL_MIN,
+    WEIGHT_FACTOR_BASED,
 ]
 
 # 再平衡频率枚举
@@ -126,8 +135,10 @@ REBALANCE_MONTHLY = "monthly"
 REBALANCE_QUARTERLY = "quarterly"
 
 VALID_REBALANCE = [
-    REBALANCE_DAILY, REBALANCE_WEEKLY,
-    REBALANCE_MONTHLY, REBALANCE_QUARTERLY,
+    REBALANCE_DAILY,
+    REBALANCE_WEEKLY,
+    REBALANCE_MONTHLY,
+    REBALANCE_QUARTERLY,
 ]
 
 # 股票池枚举
@@ -137,7 +148,10 @@ UNIVERSE_CSI800 = "csi800"
 UNIVERSE_ALL = "all"
 
 VALID_UNIVERSES = [
-    UNIVERSE_CSI300, UNIVERSE_CSI500, UNIVERSE_CSI800, UNIVERSE_ALL,
+    UNIVERSE_CSI300,
+    UNIVERSE_CSI500,
+    UNIVERSE_CSI800,
+    UNIVERSE_ALL,
 ]
 
 # ============================================================
@@ -180,21 +194,30 @@ class StrategyTemplate:
         base_weights: 基础权重分配 (可选, 覆盖默认)
         tags: 标签列表 (用于检索)
     """
+
     id: str
     name: str
     description: str
     style: str = STYLE_BALANCED
-    factor_categories: list[str] = field(default_factory=lambda: [
-        "Momentum", "Volatility", "Liquidity", "Size",
-        "Technical", "Fundamental_Proxy",
-    ])
+    factor_categories: list[str] = field(
+        default_factory=lambda: [
+            "Momentum",
+            "Volatility",
+            "Liquidity",
+            "Size",
+            "Technical",
+            "Fundamental_Proxy",
+        ]
+    )
     weighting_method: str = WEIGHT_EQUAL
     rebalance_frequency: str = REBALANCE_MONTHLY
-    risk_control: dict[str, float] = field(default_factory=lambda: {
-        "stop_loss": 0.15,
-        "max_drawdown": 0.20,
-        "vol_target": 0.25,
-    })
+    risk_control: dict[str, float] = field(
+        default_factory=lambda: {
+            "stop_loss": 0.15,
+            "max_drawdown": 0.20,
+            "vol_target": 0.25,
+        }
+    )
     universe: str = UNIVERSE_CSI500
     version: str = "1.0.0"
     base_weights: dict[str, float] | None = None
@@ -218,6 +241,7 @@ class StrategyInstance:
         performance_metrics: 验证指标 (可选)
         status: 状态 (pending/validated/deployed/retired)
     """
+
     template_id: str
     strategy_id: str = ""
     name: str = ""
@@ -234,6 +258,7 @@ class StrategyInstance:
 @dataclass
 class GenerationReport:
     """生成报告 — 一次策略生成的全部产出."""
+
     run_id: str
     timestamp: str
     n_templates_used: int
@@ -339,8 +364,12 @@ def _build_default_templates() -> list[StrategyTemplate]:
             description="全因子等权, 适用于不确定市场",
             style=STYLE_BALANCED,
             factor_categories=[
-                "Momentum", "Volatility", "Liquidity", "Size",
-                "Technical", "Fundamental_Proxy",
+                "Momentum",
+                "Volatility",
+                "Liquidity",
+                "Size",
+                "Technical",
+                "Fundamental_Proxy",
             ],
             weighting_method=WEIGHT_EQUAL,
             rebalance_frequency=REBALANCE_MONTHLY,
@@ -411,7 +440,10 @@ class StrategyGenerator:
         logger.info(
             "StrategyGenerator 初始化: templates=%d, learning_rate=%.2f, "
             "mutation_rate=%.2f, max_active=%d",
-            len(self._templates), learning_rate, mutation_rate, max_active,
+            len(self._templates),
+            learning_rate,
+            mutation_rate,
+            max_active,
         )
 
     def _load_default_templates(self) -> None:
@@ -492,10 +524,20 @@ class StrategyGenerator:
             if success_params:
                 logger.info(
                     "记忆回放: style=%s, 找到 %d 条成功记录",
-                    style, len(success_params),
+                    style,
+                    len(success_params),
                 )
             return success_params
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("记忆回放失败 (降级通过): %s", e)
             return []
@@ -564,12 +606,16 @@ class StrategyGenerator:
             if memory_params:
                 # 从成功记忆提取参数倾向
                 avg_rebalance = self._average_memory_param(
-                    memory_params, "rebalance_frequency", REBALANCE_MONTHLY,
+                    memory_params,
+                    "rebalance_frequency",
+                    REBALANCE_MONTHLY,
                 )
                 params["rebalance_frequency"] = avg_rebalance
 
                 avg_universe = self._average_memory_param(
-                    memory_params, "universe", UNIVERSE_CSI500,
+                    memory_params,
+                    "universe",
+                    UNIVERSE_CSI500,
                 )
                 params["universe"] = avg_universe
 
@@ -597,7 +643,9 @@ class StrategyGenerator:
 
         logger.info(
             "策略生成完成: n=%d, style=%s, template=%s",
-            len(instances), style, template_id,
+            len(instances),
+            style,
+            template_id,
         )
         return instances
 
@@ -649,8 +697,12 @@ class StrategyGenerator:
         if template.weighting_method == WEIGHT_RISK_PARITY:
             # 风险平价: 近似的等风险贡献 (假设波动率: 动量>技术>流动性>波动率>规模>基本面)
             vol_map = {
-                "Momentum": 2.0, "Technical": 1.8, "Liquidity": 1.5,
-                "Volatility": 1.2, "Size": 1.0, "Fundamental_Proxy": 0.8,
+                "Momentum": 2.0,
+                "Technical": 1.8,
+                "Liquidity": 1.5,
+                "Volatility": 1.2,
+                "Size": 1.0,
+                "Fundamental_Proxy": 0.8,
             }
             total = 0.0
             weights = {}
@@ -663,8 +715,12 @@ class StrategyGenerator:
         if template.weighting_method == WEIGHT_VOL_MIN:
             # 最小波动: 低波动类别权重最高
             vol_map = {
-                "Momentum": 2.0, "Technical": 1.8, "Liquidity": 1.5,
-                "Volatility": 1.2, "Size": 1.0, "Fundamental_Proxy": 0.8,
+                "Momentum": 2.0,
+                "Technical": 1.8,
+                "Liquidity": 1.5,
+                "Volatility": 1.2,
+                "Size": 1.0,
+                "Fundamental_Proxy": 0.8,
             }
             total = 0.0
             weights = {}
@@ -722,7 +778,9 @@ class StrategyGenerator:
         default: str,
     ) -> str:
         """从记忆参数中提取最频繁的字符串参数."""
-        values = [p.get(key, default) for p in memory_params if isinstance(p.get(key), str)]
+        values = [
+            p.get(key, default) for p in memory_params if isinstance(p.get(key), str)
+        ]
         if not values:
             return default
         return max(set(values), key=values.count)
@@ -764,7 +822,16 @@ class StrategyGenerator:
                         f"(ic={metrics.get('ic', 0):.4f}, "
                         f"sharpe={metrics.get('sharpe', 0):.2f})"
                     )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 errors.append(f"{inst.strategy_id}: 验证异常: {e}")
                 inst.status = "failed"
@@ -775,7 +842,8 @@ class StrategyGenerator:
 
         logger.info(
             "策略验证: %d/%d 通过",
-            len(validated), len(instances),
+            len(validated),
+            len(instances),
         )
         return validated
 
@@ -799,7 +867,9 @@ class StrategyGenerator:
 
         # 按权重分布生成模拟因子收益
         # 权重越集中, 信号越强, 但波动也越大
-        concentration = max(weights.values()) / (1.0 / n_factors) if n_factors > 0 else 1.0
+        concentration = (
+            max(weights.values()) / (1.0 / n_factors) if n_factors > 0 else 1.0
+        )
 
         # 信号强度: 等权时 ic≈0.03, 高度集中时 ic≈0.05
         signal_strength = 0.03 + 0.02 * min(concentration, 3.0) / 3.0
@@ -888,7 +958,9 @@ class StrategyGenerator:
 
         logger.info(
             "策略已部署: %s → %s (%d 个因子权重)",
-            instance.strategy_id, path, len(weights),
+            instance.strategy_id,
+            path,
+            len(weights),
         )
         return instance
 
@@ -897,22 +969,33 @@ class StrategyGenerator:
         if self._memory is None:
             return
         try:
-            self._memory.record({
-                "level": "L3",
-                "action_type": "strategy_generate",
-                "trigger_reason": f"模板策略生成: {instance.template_id}",
-                "target_module": "strategy_generator",
-                "rollback_plan": "回退至前一个 factor_weights.json",
-                "result": {
-                    "strategy_id": instance.strategy_id,
-                    "template_id": instance.template_id,
-                    "style": instance.style,
-                    "params": instance.params,
-                    "factor_weights": instance.factor_weights,
-                    "performance_metrics": instance.performance_metrics,
-                },
-            })
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            self._memory.record(
+                {
+                    "level": "L3",
+                    "action_type": "strategy_generate",
+                    "trigger_reason": f"模板策略生成: {instance.template_id}",
+                    "target_module": "strategy_generator",
+                    "rollback_plan": "回退至前一个 factor_weights.json",
+                    "result": {
+                        "strategy_id": instance.strategy_id,
+                        "template_id": instance.template_id,
+                        "style": instance.style,
+                        "params": instance.params,
+                        "factor_weights": instance.factor_weights,
+                        "performance_metrics": instance.performance_metrics,
+                    },
+                }
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("记录到 memory 失败 (降级通过): %s", e)
 
@@ -950,7 +1033,16 @@ class StrategyGenerator:
                 style=style,
                 template_id=template_id,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             errors.append(f"生成失败: {e}")
             return GenerationReport(
@@ -980,7 +1072,16 @@ class StrategyGenerator:
         # Step 2: 验证
         try:
             validated = self.validate(instances, data=data)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             errors.append(f"验证失败: {e}")
             validated = []
@@ -992,7 +1093,16 @@ class StrategyGenerator:
                 best = validated[0]  # 默认按验证顺序取最佳
                 self.deploy_to_weights(best)
                 deployed.append(best)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 errors.append(f"部署失败: {e}")
 

@@ -3,6 +3,7 @@
 覆盖 NTPSync 同步/降级/健康检查/快照全部公开接口,
 包括 ntplib 不可用、主备切换、全失败、连续失败降级等异常分支.
 """
+
 from __future__ import annotations
 
 import sys
@@ -92,9 +93,14 @@ class TestDoSyncExceptions:
     def test_various_exceptions_caught(self, ntp_client):
         """request 抛各种异常都应被捕获并切换备用."""
         ntp_client.request.side_effect = [
-            ValueError("bad"), TypeError("bad"), KeyError("bad"),
-            AttributeError("bad"), RuntimeError("bad"), OSError("bad"),
-            TimeoutError("bad"), ConnectionError("bad"),
+            ValueError("bad"),
+            TypeError("bad"),
+            KeyError("bad"),
+            AttributeError("bad"),
+            RuntimeError("bad"),
+            OSError("bad"),
+            TimeoutError("bad"),
+            ConnectionError("bad"),
         ]
         ntp = NTPSync(
             server="s0",
@@ -194,8 +200,12 @@ class TestAccessors:
         ntp = NTPSync(server="ntp.tencent.com")
         snap = ntp.snapshot()
         assert set(snap.keys()) == {
-            "server", "offset_seconds", "drift_ms",
-            "last_sync", "failed_count", "healthy",
+            "server",
+            "offset_seconds",
+            "drift_ms",
+            "last_sync",
+            "failed_count",
+            "healthy",
         }
         assert snap["server"] == "ntp.tencent.com"
         assert snap["failed_count"] == 0

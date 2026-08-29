@@ -128,7 +128,9 @@ class TestInit:
         assert sorted(t.symbols) == ["AU", "CU", "T"]
 
     def test_custom_params(self):
-        t = DirectionalFuturesTrader(capital=1_000_000, per_symbol_budget=200_000, max_margin_pct=0.5)
+        t = DirectionalFuturesTrader(
+            capital=1_000_000, per_symbol_budget=200_000, max_margin_pct=0.5
+        )
         assert t.capital == 1_000_000
         assert t.per_symbol_budget == 200_000
         assert t.max_margin_pct == 0.5
@@ -152,8 +154,28 @@ class TestCalcRsi:
         assert rsi == 0.0
 
     def test_mixed(self, trader):
-        closes = [100, 102, 99, 105, 100, 108, 103, 110, 105, 112,
-                  107, 114, 109, 116, 111, 118, 113, 120, 115, 122]
+        closes = [
+            100,
+            102,
+            99,
+            105,
+            100,
+            108,
+            103,
+            110,
+            105,
+            112,
+            107,
+            114,
+            109,
+            116,
+            111,
+            118,
+            113,
+            120,
+            115,
+            122,
+        ]
         rsi = trader._calc_rsi(closes, 14)
         assert 0 < rsi < 100
 
@@ -190,10 +212,15 @@ class TestCalcEma:
 # ============================================================
 class TestCalcMacdHist:
     def test_insufficient_data(self, trader):
-        assert trader._calc_macd_hist([100, 101, 102], ) == 0.0
+        assert (
+            trader._calc_macd_hist(
+                [100, 101, 102],
+            )
+            == 0.0
+        )
 
     def test_uptrend_positive(self, trader):
-        closes = [100 * (1.02 ** i) for i in range(60)]
+        closes = [100 * (1.02**i) for i in range(60)]
         hist = trader._calc_macd_hist(closes)
         assert hist > 0
 
@@ -212,7 +239,11 @@ class TestCalcMacdHist:
 # ============================================================
 class TestGenerateSignals:
     def test_insufficient_data(self, trader):
-        md = {"CU": {"closes": [100, 101]}, "AU": {"closes": []}, "T": {"closes": [100]}}
+        md = {
+            "CU": {"closes": [100, 101]},
+            "AU": {"closes": []},
+            "T": {"closes": [100]},
+        }
         signals = trader.generate_signals(md)
         assert len(signals) == 3
         for s in signals:
@@ -274,17 +305,23 @@ class TestGenerateSignals:
 # ============================================================
 class TestCalculatePosition:
     def test_flat_direction(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="flat", strength=0.8)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="flat", strength=0.8
+        )
         c, n, m = trader.calculate_position("CU", sig, 75000)
         assert (c, n, m) == (0, 0.0, 0.0)
 
     def test_low_strength(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=0.2)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="long", strength=0.2
+        )
         c, n, m = trader.calculate_position("CU", sig, 75000)
         assert (c, n, m) == (0, 0.0, 0.0)
 
     def test_long_position(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=1.0)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="long", strength=1.0
+        )
         c, n, m = trader.calculate_position("CU", sig, 75000)
         assert c >= 1
         assert n > 0
@@ -294,24 +331,32 @@ class TestCalculatePosition:
         assert m == pytest.approx(n * spec.margin_rate)
 
     def test_short_position(self, trader):
-        sig = FuturesSignal(symbol="AU", name="黄金期货", direction="short", strength=0.8)
+        sig = FuturesSignal(
+            symbol="AU", name="黄金期货", direction="short", strength=0.8
+        )
         c, n, m = trader.calculate_position("AU", sig, 550)
         assert c >= 1
         assert n > 0
         assert m > 0
 
     def test_zero_price(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=1.0)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="long", strength=1.0
+        )
         c, n, m = trader.calculate_position("CU", sig, 0)
         assert (c, n, m) == (0, 0.0, 0.0)
 
     def test_negative_price(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=1.0)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="long", strength=1.0
+        )
         c, n, m = trader.calculate_position("CU", sig, -100)
         assert (c, n, m) == (0, 0.0, 0.0)
 
     def test_t_futures(self, trader):
-        sig = FuturesSignal(symbol="T", name="10年国债期货", direction="short", strength=0.9)
+        sig = FuturesSignal(
+            symbol="T", name="10年国债期货", direction="short", strength=0.9
+        )
         c, n, m = trader.calculate_position("T", sig, 100)
         assert c >= 1
         assert n > 0
@@ -395,7 +440,9 @@ class TestCalcStops:
 class TestBuildCloseOrder:
     def test_close_long(self, trader):
         pos = {"direction": "long", "contracts": 5, "entry_price": 74000}
-        order = trader._build_close_order("CU", pos, 75000, date(2026, 8, 14), "测试平仓")
+        order = trader._build_close_order(
+            "CU", pos, 75000, date(2026, 8, 14), "测试平仓"
+        )
         assert order.action == "close_long"
         assert order.direction == "flat"
         assert order.contracts == 5
@@ -423,14 +470,21 @@ class TestGenerateOrders:
             "T": {"direction": "flat", "contracts": 0, "entry_price": 0},
         }
         prices = {"CU": 75000, "AU": 550, "T": 100}
-        signals = [FuturesSignal(symbol=s, name=s, direction="long", strength=0.8) for s in ("CU", "AU", "T")]
-        orders = trader.generate_orders(signals, positions, prices, date(2026, 8, 14), risk_status="paused")
+        signals = [
+            FuturesSignal(symbol=s, name=s, direction="long", strength=0.8)
+            for s in ("CU", "AU", "T")
+        ]
+        orders = trader.generate_orders(
+            signals, positions, prices, date(2026, 8, 14), risk_status="paused"
+        )
         assert len(orders) == 2  # T has 0 contracts, no close order
         actions = {o.action for o in orders}
         assert actions == {"close_long", "close_short"}
 
     def test_open_new_long(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=0.8)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="long", strength=0.8
+        )
         prices = {"CU": 75000, "AU": 550, "T": 100}
         orders = trader.generate_orders([sig], {}, prices, date(2026, 8, 14))
         assert len(orders) == 1
@@ -438,14 +492,18 @@ class TestGenerateOrders:
         assert orders[0].contracts >= 1
 
     def test_open_new_short(self, trader):
-        sig = FuturesSignal(symbol="AU", name="黄金期货", direction="short", strength=0.8)
+        sig = FuturesSignal(
+            symbol="AU", name="黄金期货", direction="short", strength=0.8
+        )
         prices = {"CU": 75000, "AU": 550, "T": 100}
         orders = trader.generate_orders([sig], {}, prices, date(2026, 8, 14))
         assert len(orders) == 1
         assert orders[0].action == "open_short"
 
     def test_hold_same_position(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=0.8)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="long", strength=0.8
+        )
         positions = {"CU": {"direction": "long", "contracts": 5, "entry_price": 74000}}
         prices = {"CU": 75000, "AU": 550, "T": 100}
         orders = trader.generate_orders([sig], positions, prices, date(2026, 8, 14))
@@ -453,7 +511,9 @@ class TestGenerateOrders:
         assert orders[0].action in ("hold", "add", "reduce")
 
     def test_close_to_flat(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="flat", strength=0.0)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="flat", strength=0.0
+        )
         positions = {"CU": {"direction": "long", "contracts": 5, "entry_price": 74000}}
         prices = {"CU": 75000, "AU": 550, "T": 100}
         orders = trader.generate_orders([sig], positions, prices, date(2026, 8, 14))
@@ -461,7 +521,9 @@ class TestGenerateOrders:
         assert orders[0].action == "close_long"
 
     def test_reverse_direction(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="short", strength=0.8)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="short", strength=0.8
+        )
         positions = {"CU": {"direction": "long", "contracts": 3, "entry_price": 74000}}
         prices = {"CU": 75000, "AU": 550, "T": 100}
         orders = trader.generate_orders([sig], positions, prices, date(2026, 8, 14))
@@ -469,20 +531,26 @@ class TestGenerateOrders:
         assert orders[0].action == "reverse"
 
     def test_zero_price_skipped(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=0.8)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="long", strength=0.8
+        )
         prices = {"CU": 0, "AU": 550, "T": 100}
         orders = trader.generate_orders([sig], {}, prices, date(2026, 8, 14))
         assert len(orders) == 0
 
     def test_order_has_stop_and_take_profit(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=0.8)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="long", strength=0.8
+        )
         prices = {"CU": 75000, "AU": 550, "T": 100}
         orders = trader.generate_orders([sig], {}, prices, date(2026, 8, 14))
         assert orders[0].stop_loss > 0
         assert orders[0].take_profit > 0
 
     def test_trade_date_in_isoformat(self, trader):
-        sig = FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=0.8)
+        sig = FuturesSignal(
+            symbol="CU", name="沪铜期货", direction="long", strength=0.8
+        )
         prices = {"CU": 75000, "AU": 550, "T": 100}
         orders = trader.generate_orders([sig], {}, prices, date(2026, 8, 14))
         assert orders[0].trade_date == "2026-08-14"
@@ -569,8 +637,20 @@ class TestSummary:
         result = DirectionalFuturesResult(
             trade_date="2026-08-14",
             risk_status="normal",
-            signals=[FuturesSignal(symbol="CU", name="沪铜期货", direction="long", strength=0.8)],
-            orders=[FuturesOrder(symbol="CU", name="沪铜期货", exchange="SHFE", action="open_long", contracts=3)],
+            signals=[
+                FuturesSignal(
+                    symbol="CU", name="沪铜期货", direction="long", strength=0.8
+                )
+            ],
+            orders=[
+                FuturesOrder(
+                    symbol="CU",
+                    name="沪铜期货",
+                    exchange="SHFE",
+                    action="open_long",
+                    contracts=3,
+                )
+            ],
             total_margin_used=50000,
             total_notional=500000,
             margin_usage_ratio=0.1,
@@ -616,7 +696,14 @@ class TestSaveReport:
                 trade_date="2026-08-14",
                 risk_status="normal",
                 signals=[FuturesSignal(symbol="CU", name="沪铜期货", direction="long")],
-                orders=[FuturesOrder(symbol="CU", name="沪铜期货", exchange="SHFE", action="open_long")],
+                orders=[
+                    FuturesOrder(
+                        symbol="CU",
+                        name="沪铜期货",
+                        exchange="SHFE",
+                        action="open_long",
+                    )
+                ],
                 total_margin_used=50000,
                 total_notional=500000,
                 margin_usage_ratio=0.1,
@@ -644,6 +731,7 @@ class TestConstants:
 
     def test_risk_thresholds(self):
         from utils.directional_futures_trader import MAX_SINGLE_TRADE_LOSS_PCT
+
         assert MAX_SINGLE_TRADE_LOSS_PCT == 0.20
         assert DAILY_MAX_LOSS_PCT == 0.15
         assert WEEKLY_CONSECUTIVE_LOSS_MAX_PCT == 0.25

@@ -16,6 +16,7 @@
     - 单一职责: 只计算延迟,不管理订单生命周期
     - 可复现: RandomLatency 使用 per-instance Random(seed),不污染全局状态
 """
+
 from __future__ import annotations
 
 import random

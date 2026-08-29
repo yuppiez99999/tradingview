@@ -10,6 +10,7 @@ v8.6 补齐模块: 核对 AI 建议与收盘盈亏, 生成复盘报告
     from execution_reviewer import run_execution_review
     run_execution_review(trade_date="2026-08-19", auto_closed_loop=True)
 """
+
 from __future__ import annotations
 
 import json
@@ -62,7 +63,9 @@ def _load_ai_gate(trade_date: str) -> dict[str, Any]:
     return {}
 
 
-def run_execution_review(trade_date: str, auto_closed_loop: bool = False) -> dict[str, Any]:
+def run_execution_review(
+    trade_date: str, auto_closed_loop: bool = False
+) -> dict[str, Any]:
     """执行复盘: 核对 AI 建议与收盘盈亏
 
     Args:
@@ -73,7 +76,9 @@ def run_execution_review(trade_date: str, auto_closed_loop: bool = False) -> dic
         复盘报告字典
     """
     logger.info("=" * 60)
-    logger.info(f"执行复盘启动 | trade_date={trade_date} | auto_closed_loop={auto_closed_loop}")
+    logger.info(
+        f"执行复盘启动 | trade_date={trade_date} | auto_closed_loop={auto_closed_loop}"
+    )
     logger.info("=" * 60)
 
     pnl_report = _load_pnl_report(trade_date)
@@ -117,7 +122,12 @@ def run_execution_review(trade_date: str, auto_closed_loop: bool = False) -> dic
             if detail:
                 inst_pnl = float(detail.get("pnl", 0))
                 inst_action = inst.get("action", "")
-                if inst_action == "BUY" and inst_pnl > 0 or inst_action == "SELL" and inst_pnl < 0:
+                if (
+                    inst_action == "BUY"
+                    and inst_pnl > 0
+                    or inst_action == "SELL"
+                    and inst_pnl < 0
+                ):
                     ai_hit_count += 1
     ai_hit_rate = ai_hit_count / ai_total_count if ai_total_count > 0 else 0.0
 
@@ -131,19 +141,27 @@ def run_execution_review(trade_date: str, auto_closed_loop: bool = False) -> dic
     risk_events = []
     max_dd = float(risk_metrics.get("max_drawdown_pct", 0))
     if max_dd < -0.15:
-        risk_events.append({"level": "HIGH", "event": f"最大回撤 {max_dd:.1%} 超过 -15%"})
+        risk_events.append(
+            {"level": "HIGH", "event": f"最大回撤 {max_dd:.1%} 超过 -15%"}
+        )
     beta_exp = float(risk_metrics.get("beta_exposure", 0))
     if beta_exp > 1.0:
-        risk_events.append({"level": "MEDIUM", "event": f"Beta 暴露 {beta_exp:.2f} > 1.0"})
+        risk_events.append(
+            {"level": "MEDIUM", "event": f"Beta 暴露 {beta_exp:.2f} > 1.0"}
+        )
     if not hedge_enabled and portfolio_beta > 0.7:
-        risk_events.append({"level": "HIGH", "event": f"对冲未启用但 Beta={portfolio_beta:.2f} 高敞口"})
+        risk_events.append(
+            {"level": "HIGH", "event": f"对冲未启用但 Beta={portfolio_beta:.2f} 高敞口"}
+        )
 
     # 综合评分 (0=低风险, 1=高风险)
     pnl_score = min(1.0, max(0.0, -total_pnl_pct / 0.03))  # 亏损 3% 满分
     dd_score = min(1.0, max(0.0, -max_dd / 0.25))  # 回撤 25% 满分
     gap_score = min(1.0, execution_gaps / 5.0)  # 5 个缺口满分
     ai_miss_score = 1.0 - ai_hit_rate if ai_total_count > 0 else 0.0
-    risk_score = pnl_score * 0.35 + dd_score * 0.30 + gap_score * 0.20 + ai_miss_score * 0.15
+    risk_score = (
+        pnl_score * 0.35 + dd_score * 0.30 + gap_score * 0.20 + ai_miss_score * 0.15
+    )
 
     if risk_score > 0.6:
         risk_level = "HIGH"
@@ -199,13 +217,16 @@ def run_execution_review(trade_date: str, auto_closed_loop: bool = False) -> dic
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(review_report, f, ensure_ascii=False, indent=2)
     logger.info(f"复盘报告已保存: {out_path}")
-    logger.info(f"风险等级={risk_level} 综合评分={risk_score:.4f} "
-                f"AI命中率={ai_hit_rate:.2%} 执行缺口={execution_gaps}")
+    logger.info(
+        f"风险等级={risk_level} 综合评分={risk_score:.4f} "
+        f"AI命中率={ai_hit_rate:.2%} 执行缺口={execution_gaps}"
+    )
 
     # 双模型自我判断 (DeepSeek + GLM 交叉验证)
     if auto_closed_loop:
         try:
             from dual_model_judge import run_dual_model_judgment
+
             dual_verdict = run_dual_model_judgment(review_report, trade_date=trade_date)
             review_report["dual_model_judgment"] = {
                 "mode": dual_verdict.get("mode"),
@@ -214,9 +235,11 @@ def run_execution_review(trade_date: str, auto_closed_loop: bool = False) -> dic
             }
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(review_report, f, ensure_ascii=False, indent=2)
-            logger.info("双模型判断已集成: mode=%s action=%s",
-                        dual_verdict.get("mode"),
-                        dual_verdict.get("final_decision", {}).get("action"))
+            logger.info(
+                "双模型判断已集成: mode=%s action=%s",
+                dual_verdict.get("mode"),
+                dual_verdict.get("final_decision", {}).get("action"),
+            )
         except (ImportError, RuntimeError, ValueError, TypeError) as exc:
             logger.warning("双模型判断失败, 跳过: %s", exc)
 
@@ -225,6 +248,9 @@ def run_execution_review(trade_date: str, auto_closed_loop: bool = False) -> dic
 
 if __name__ == "__main__":
     import sys
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    )
     d = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
     run_execution_review(trade_date=d, auto_closed_loop="--auto" in sys.argv)

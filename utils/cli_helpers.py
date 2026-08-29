@@ -10,6 +10,7 @@
     3. 实用优先: write_report_file/archive_report 实际写入文件,
        其他函数返回合理默认值
 """
+
 from __future__ import annotations
 
 import logging

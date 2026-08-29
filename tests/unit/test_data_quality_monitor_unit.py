@@ -13,6 +13,7 @@
     7. 一致性检查 / 延迟检查 / 时间戳解析
     8. 评分计算 / 摘要生成 / 保存报告
 """
+
 from __future__ import annotations
 
 import json
@@ -64,18 +65,22 @@ class TestQualityReport:
         assert r.passed is False
 
     def test_critical_count(self):
-        r = QualityReport(issues=[
-            QualityIssue("critical", "c", "f"),
-            QualityIssue("error", "c", "f"),
-            QualityIssue("critical", "c", "f"),
-        ])
+        r = QualityReport(
+            issues=[
+                QualityIssue("critical", "c", "f"),
+                QualityIssue("error", "c", "f"),
+                QualityIssue("critical", "c", "f"),
+            ]
+        )
         assert r.critical_count == 2
 
     def test_error_count(self):
-        r = QualityReport(issues=[
-            QualityIssue("error", "c", "f"),
-            QualityIssue("warning", "c", "f"),
-        ])
+        r = QualityReport(
+            issues=[
+                QualityIssue("error", "c", "f"),
+                QualityIssue("warning", "c", "f"),
+            ]
+        )
         assert r.error_count == 1
 
     def test_warning_count(self):
@@ -225,7 +230,9 @@ class TestCheckCompleteness:
     def test_all_present(self):
         m = DataQualityMonitor()
         report = QualityReport()
-        m._check_completeness({"A": {"close": 1}, "B": {"close": 2}}, ["A", "B"], report)
+        m._check_completeness(
+            {"A": {"close": 1}, "B": {"close": 2}}, ["A", "B"], report
+        )
         assert report.critical_count == 0
         assert report.checked_fields == 1
 
@@ -265,7 +272,9 @@ class TestCheckOutliers:
         m = DataQualityMonitor()
         report = QualityReport()
         m._check_outliers({"A": {"high": 10.0, "low": 20.0, "close": 15.0}}, report)
-        assert any(i.category == "outlier" and "high" in i.description for i in report.issues)
+        assert any(
+            i.category == "outlier" and "high" in i.description for i in report.issues
+        )
 
     def test_negative_close(self):
         m = DataQualityMonitor()
@@ -276,13 +285,17 @@ class TestCheckOutliers:
     def test_negative_volume(self):
         m = DataQualityMonitor()
         report = QualityReport()
-        m._check_outliers({"A": {"close": 10.0, "high": 12.0, "low": 8.0, "volume": -100}}, report)
+        m._check_outliers(
+            {"A": {"close": 10.0, "high": 12.0, "low": 8.0, "volume": -100}}, report
+        )
         assert any(i.category == "outlier" for i in report.issues)
 
     def test_normal_data(self):
         m = DataQualityMonitor()
         report = QualityReport()
-        m._check_outliers({"A": {"close": 10.0, "high": 10.5, "low": 9.5, "volume": 1000}}, report)
+        m._check_outliers(
+            {"A": {"close": 10.0, "high": 10.5, "low": 9.5, "volume": 1000}}, report
+        )
         assert len(report.issues) == 0
 
 
@@ -388,19 +401,23 @@ class TestCalculateScores:
 
     def test_with_critical_completeness(self):
         m = DataQualityMonitor()
-        report = QualityReport(issues=[
-            QualityIssue("critical", "completeness", "f"),
-            QualityIssue("critical", "completeness", "f"),
-        ])
+        report = QualityReport(
+            issues=[
+                QualityIssue("critical", "completeness", "f"),
+                QualityIssue("critical", "completeness", "f"),
+            ]
+        )
         m._calculate_scores(report)
         assert report.completeness_score == 60
 
     def test_with_consistency_issues(self):
         m = DataQualityMonitor()
-        report = QualityReport(issues=[
-            QualityIssue("error", "consistency", "f"),
-            QualityIssue("error", "outlier", "f"),
-        ])
+        report = QualityReport(
+            issues=[
+                QualityIssue("error", "consistency", "f"),
+                QualityIssue("error", "outlier", "f"),
+            ]
+        )
         m._calculate_scores(report)
         assert report.consistency_score == 80
 
@@ -423,7 +440,9 @@ class TestBuildSummary:
 
     def test_with_issues(self):
         m = DataQualityMonitor()
-        report = QualityReport(issues=[QualityIssue("critical", "completeness", "symbol", symbol="A")])
+        report = QualityReport(
+            issues=[QualityIssue("critical", "completeness", "symbol", symbol="A")]
+        )
         summary = m._build_summary(report)
         assert "问题明细" in summary
 
@@ -461,8 +480,22 @@ class TestCheckMarketData:
         m = DataQualityMonitor()
         ts = datetime.now().isoformat()
         data = {
-            "A": {"open": 10, "high": 12, "low": 9, "close": 11, "volume": 1000, "timestamp": ts},
-            "B": {"open": 20, "high": 22, "low": 19, "close": 21, "volume": 2000, "timestamp": ts},
+            "A": {
+                "open": 10,
+                "high": 12,
+                "low": 9,
+                "close": 11,
+                "volume": 1000,
+                "timestamp": ts,
+            },
+            "B": {
+                "open": 20,
+                "high": 22,
+                "low": 19,
+                "close": 21,
+                "volume": 2000,
+                "timestamp": ts,
+            },
         }
         report = m.check_market_data(data)
         assert report.total_symbols == 2
@@ -478,10 +511,38 @@ class TestCheckMarketData:
         m = DataQualityMonitor()
         ts = datetime.now().isoformat()
         data = {
-            "A": {"open": 10, "high": 12, "low": 9, "close": 11, "volume": 1000, "timestamp": ts},
-            "B": {"open": 20, "high": 22, "low": 19, "close": 21, "volume": 2000, "timestamp": ts},
-            "C": {"open": 30, "high": 32, "low": 29, "close": 31, "volume": 3000, "timestamp": ts},
-            "D": {"open": 40, "high": 42, "low": 39, "close": 41, "volume": 4000, "timestamp": ts},
+            "A": {
+                "open": 10,
+                "high": 12,
+                "low": 9,
+                "close": 11,
+                "volume": 1000,
+                "timestamp": ts,
+            },
+            "B": {
+                "open": 20,
+                "high": 22,
+                "low": 19,
+                "close": 21,
+                "volume": 2000,
+                "timestamp": ts,
+            },
+            "C": {
+                "open": 30,
+                "high": 32,
+                "low": 29,
+                "close": 31,
+                "volume": 3000,
+                "timestamp": ts,
+            },
+            "D": {
+                "open": 40,
+                "high": 42,
+                "low": 39,
+                "close": 41,
+                "volume": 4000,
+                "timestamp": ts,
+            },
         }
         report = m.check_market_data(data)
         assert isinstance(report.passed, bool)

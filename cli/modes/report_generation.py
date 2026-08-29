@@ -25,16 +25,18 @@ def run_report_generation(args):
     progress = ProgressIndicator("生成报告", 8)
 
     progress.update(1, "加载报告模块...")
-    generate_daily_report = daily_report.get('generate_daily_report')
+    generate_daily_report = daily_report.get("generate_daily_report")
 
     # v5.7 Phase 3: 使用 ConfigHub 获取统一配置
-    portfolio_file = os.path.join(BASE_DIR, 'config', 'portfolio.yaml')
+    portfolio_file = os.path.join(BASE_DIR, "config", "portfolio.yaml")
     if config_hub and not config_hub.check_and_reload():
         # 配置无变更，显示摘要
         summary = config_hub.get_summary()
-        print(f"  📋 配置摘要: {summary['asset_count']}个标的, "
-              f"总资金 {summary['total_capital']:,.0f}, "
-              f"数据源: {summary['primary_source']}")
+        print(
+            f"  📋 配置摘要: {summary['asset_count']}个标的, "
+            f"总资金 {summary['total_capital']:,.0f}, "
+            f"数据源: {summary['primary_source']}"
+        )
 
     if generate_daily_report:
         try:
@@ -42,14 +44,13 @@ def run_report_generation(args):
 
             progress.update(3, "生成报告内容...")
             report_content = generate_daily_report(
-                portfolio_file=portfolio_file,
-                enable_ai_analysis=not args.no_ai
+                portfolio_file=portfolio_file, enable_ai_analysis=not args.no_ai
             )
 
             # ML信号追加到报告（若LLM已内置ML分析则跳过）
-            if not getattr(args, 'no_ml', False):
+            if not getattr(args, "no_ml", False):
                 progress.update(4, "检查ML预测信号...")
-                if '本地ML量化模型分析' in report_content:
+                if "本地ML量化模型分析" in report_content:
                     print("  ✅ ML分析已由日报引擎自动内置，跳过追加")
                 else:
                     ml_section = get_ml_signal_section()
@@ -62,37 +63,44 @@ def run_report_generation(args):
                 progress.update(4, "跳过ML信号...")
 
             # v5.10: 估值分析接入（DCF + Comps）
-            if getattr(args, 'include_valuation', False):
+            if getattr(args, "include_valuation", False):
                 progress.update(5, "生成估值分析...")
                 try:
                     from utils.comps_analyzer import summarize_comps
                     from utils.dcf_model import summarize_dcf
-                    dcf_summary = summarize_dcf({
-                        "ticker": "EXAMPLE",
-                        "wacc": 0.09,
-                        "terminal_growth": 0.025,
-                        "enterprise_value": 1000,
-                        "equity_value": 800,
-                        "implied_price": 80,
-                        "stock_price": 75,
-                        "upside": 0.0667,
-                    })
-                    comps_summary = summarize_comps({
-                        "sector": "Technology",
-                        "companies": [],
-                        "statistics": {
-                            "ev_revenue": {"median": 5.5},
-                            "ev_ebitda": {"median": 12.0},
-                            "pe_ratio": {"median": 22.0},
-                        },
-                    })
-                    report_content += "\n\n---\n\n" + dcf_summary + "\n\n" + comps_summary
+
+                    dcf_summary = summarize_dcf(
+                        {
+                            "ticker": "EXAMPLE",
+                            "wacc": 0.09,
+                            "terminal_growth": 0.025,
+                            "enterprise_value": 1000,
+                            "equity_value": 800,
+                            "implied_price": 80,
+                            "stock_price": 75,
+                            "upside": 0.0667,
+                        }
+                    )
+                    comps_summary = summarize_comps(
+                        {
+                            "sector": "Technology",
+                            "companies": [],
+                            "statistics": {
+                                "ev_revenue": {"median": 5.5},
+                                "ev_ebitda": {"median": 12.0},
+                                "pe_ratio": {"median": 22.0},
+                            },
+                        }
+                    )
+                    report_content += (
+                        "\n\n---\n\n" + dcf_summary + "\n\n" + comps_summary
+                    )
                     print("  ✅ 估值分析已追加")
                 except Exception as e:
                     print(f"  ⚠️ 估值分析追加失败: {e}")
 
             progress.update(6, "保存报告...")
-            archive_report(report_content, '综合日报', ext='.txt')
+            archive_report(report_content, "综合日报", ext=".txt")
 
             progress.complete("✅ 报告归档完成")
 

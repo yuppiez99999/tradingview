@@ -196,6 +196,7 @@ class TestFactoryInitialization:
     def test_import_from_package(self):
         """从包导入应正常工作."""
         from utils.evolution import StrategyGenerator
+
         gen = StrategyGenerator()
         assert gen.get_template_count() == 8
 
@@ -208,14 +209,18 @@ class TestFactoryInitialization:
 class TestTemplateManagement:
     """模板管理测试."""
 
-    def test_register_template(self, generator: StrategyGenerator, sample_template: StrategyTemplate):
+    def test_register_template(
+        self, generator: StrategyGenerator, sample_template: StrategyTemplate
+    ):
         """注册新模板."""
         generator.register_template(sample_template)
         assert generator.get_template_count() == 9
         tpl = generator.get_template("test_momentum")
         assert tpl.name == "测试动量策略"
 
-    def test_register_duplicate(self, generator: StrategyGenerator, sample_template: StrategyTemplate):
+    def test_register_duplicate(
+        self, generator: StrategyGenerator, sample_template: StrategyTemplate
+    ):
         """重复注册应覆盖."""
         generator.register_template(sample_template)
         modified = StrategyTemplate(
@@ -227,7 +232,9 @@ class TestTemplateManagement:
         assert generator.get_template_count() == 9
         assert generator.get_template("test_momentum").name == "覆盖版"
 
-    def test_unregister_template(self, generator: StrategyGenerator, sample_template: StrategyTemplate):
+    def test_unregister_template(
+        self, generator: StrategyGenerator, sample_template: StrategyTemplate
+    ):
         """注销模板."""
         generator.register_template(sample_template)
         generator.unregister_template("test_momentum")
@@ -339,7 +346,10 @@ class TestWeightGeneration:
         assert StrategyGenerator._cat_to_weight_key("Liquidity") == "style_liquidity"
         assert StrategyGenerator._cat_to_weight_key("Size") == "style_size"
         assert StrategyGenerator._cat_to_weight_key("Technical") == "style_technical"
-        assert StrategyGenerator._cat_to_weight_key("Fundamental_Proxy") == "style_fundamental"
+        assert (
+            StrategyGenerator._cat_to_weight_key("Fundamental_Proxy")
+            == "style_fundamental"
+        )
         # 未知类别
         assert StrategyGenerator._cat_to_weight_key("Unknown") == "style_unknown"
 
@@ -490,7 +500,9 @@ class TestValidation:
             base_weights={"style_momentum": 0.9, "style_volatility": 0.1},
         )
         generator.register_template(tpl)
-        instances = generator.generate(n_strategies=1, template_id="concentrated", mutate=False)
+        instances = generator.generate(
+            n_strategies=1, template_id="concentrated", mutate=False
+        )
         validated = generator.validate(instances)
         metrics = validated[0].performance_metrics
         assert metrics is not None
@@ -683,12 +695,16 @@ class TestMemoryReplay:
             {"rebalance_frequency": "weekly"},
             {"rebalance_frequency": "monthly"},
         ]
-        result = StrategyGenerator._average_memory_param(params, "rebalance_frequency", "monthly")
+        result = StrategyGenerator._average_memory_param(
+            params, "rebalance_frequency", "monthly"
+        )
         assert result == "weekly"
 
     def test_average_memory_param_empty(self):
         """空参数列表返回默认值."""
-        result = StrategyGenerator._average_memory_param([], "universe", UNIVERSE_CSI500)
+        result = StrategyGenerator._average_memory_param(
+            [], "universe", UNIVERSE_CSI500
+        )
         assert result == UNIVERSE_CSI500
 
 
@@ -715,7 +731,9 @@ class TestEdgeCases:
         instances = generator.generate(n_strategies=-1)
         assert len(instances) == 0
 
-    def test_register_template_twice(self, generator: StrategyGenerator, sample_template: StrategyTemplate):
+    def test_register_template_twice(
+        self, generator: StrategyGenerator, sample_template: StrategyTemplate
+    ):
         """重复注册不应报错."""
         generator.register_template(sample_template)
         generator.register_template(sample_template)  # 第二次, 应覆盖
@@ -751,7 +769,9 @@ class TestEdgeCases:
 class TestLifecycle:
     """完整生命周期测试."""
 
-    def test_generate_validate_deploy_lifecycle(self, generator: StrategyGenerator, temp_dir: Path):
+    def test_generate_validate_deploy_lifecycle(
+        self, generator: StrategyGenerator, temp_dir: Path
+    ):
         """生成→验证→部署 完整生命周期."""
         # Step 1: 生成
         instances = generator.generate(n_strategies=2, style=STYLE_MOMENTUM)

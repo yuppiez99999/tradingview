@@ -9,7 +9,6 @@
 运行: pytest tests/perf/test_phase_b_benchmark.py --benchmark-only
 """
 
-
 import pytest
 
 from utils.observability import OrderEvent, RiskEvent
@@ -51,6 +50,7 @@ class TestPhaseBBenchmark:
 
     def test_order_event_serialization(self, benchmark):
         """OrderEvent Schema 序列化基准."""
+
         def create_order():
             return OrderEvent(
                 order_id="123",
@@ -64,6 +64,7 @@ class TestPhaseBBenchmark:
 
     def test_risk_event_serialization(self, benchmark):
         """RiskEvent Schema 序列化基准."""
+
         def create_risk():
             return RiskEvent(
                 risk_level="caution",
@@ -86,6 +87,7 @@ class TestPhaseBBenchmark:
 
     def test_structured_logger_info(self, benchmark, structured_logger):
         """结构化日志 info 输出基准."""
+
         def log_event():
             structured_logger.info(
                 "benchmark_test",

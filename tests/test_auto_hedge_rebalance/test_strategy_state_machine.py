@@ -35,7 +35,9 @@ class TestTransitionDegration:
 
     def test_normal_to_mild(self, state_machine: StrategyStateMachine) -> None:
         # Arrange & Act
-        result = state_machine.transition(StrategyLevel.NORMAL, CorrectionAction.MILD_TUNE)
+        result = state_machine.transition(
+            StrategyLevel.NORMAL, CorrectionAction.MILD_TUNE
+        )
         # Assert
         assert result.new_level == StrategyLevel.MILD_CORRECTION
         assert result.blocked_reason == ""
@@ -44,23 +46,37 @@ class TestTransitionDegration:
         # Arrange
         state_machine.transition(StrategyLevel.NORMAL, CorrectionAction.MILD_TUNE)
         # Act
-        result = state_machine.transition(StrategyLevel.MILD_CORRECTION, CorrectionAction.MODERATE_ROTATE)
+        result = state_machine.transition(
+            StrategyLevel.MILD_CORRECTION, CorrectionAction.MODERATE_ROTATE
+        )
         # Assert
         assert result.new_level == StrategyLevel.MODERATE_CORRECTION
 
-    def test_cross_level_degradation_blocked(self, state_machine: StrategyStateMachine) -> None:
+    def test_cross_level_degradation_blocked(
+        self, state_machine: StrategyStateMachine
+    ) -> None:
         # Arrange & Act — 尝试跨级降级 NORMAL → MODERATE
-        result = state_machine.transition(StrategyLevel.NORMAL, CorrectionAction.MODERATE_ROTATE)
+        result = state_machine.transition(
+            StrategyLevel.NORMAL, CorrectionAction.MODERATE_ROTATE
+        )
         # Assert
         assert result.new_level == StrategyLevel.NORMAL
         assert "禁止跨级降级" in result.blocked_reason
 
-    def test_degrade_to_circuit_breaker(self, state_machine: StrategyStateMachine) -> None:
+    def test_degrade_to_circuit_breaker(
+        self, state_machine: StrategyStateMachine
+    ) -> None:
         # Arrange — 逐级降级到 CONSERVATIVE_DEFENSE
         state_machine.transition(StrategyLevel.NORMAL, CorrectionAction.MILD_TUNE)
-        state_machine.transition(StrategyLevel.MILD_CORRECTION, CorrectionAction.MODERATE_ROTATE)
-        state_machine.transition(StrategyLevel.MODERATE_CORRECTION, CorrectionAction.SEVERE_REVIEW)
-        state_machine.transition(StrategyLevel.SEVERE_CORRECTION, CorrectionAction.DEFENSE_BOOST)
+        state_machine.transition(
+            StrategyLevel.MILD_CORRECTION, CorrectionAction.MODERATE_ROTATE
+        )
+        state_machine.transition(
+            StrategyLevel.MODERATE_CORRECTION, CorrectionAction.SEVERE_REVIEW
+        )
+        state_machine.transition(
+            StrategyLevel.SEVERE_CORRECTION, CorrectionAction.DEFENSE_BOOST
+        )
         # Act
         result = state_machine.transition(
             StrategyLevel.CONSERVATIVE_DEFENSE, CorrectionAction.EMERGENCY_LIQUIDATE
@@ -72,11 +88,15 @@ class TestTransitionDegration:
 class TestTransitionUpgrade:
     """升级转移测试。"""
 
-    def test_upgrade_blocked_by_cooldown(self, state_machine: StrategyStateMachine) -> None:
+    def test_upgrade_blocked_by_cooldown(
+        self, state_machine: StrategyStateMachine
+    ) -> None:
         # Arrange — 先降级到 MILD
         state_machine.transition(StrategyLevel.NORMAL, CorrectionAction.MILD_TUNE)
         # Act — 冷却期内尝试升级
-        result = state_machine.transition(StrategyLevel.MILD_CORRECTION, CorrectionAction.NONE)
+        result = state_machine.transition(
+            StrategyLevel.MILD_CORRECTION, CorrectionAction.NONE
+        )
         # Assert
         assert result.new_level == StrategyLevel.MILD_CORRECTION
         assert result.cooldown_active is True
@@ -105,12 +125,16 @@ class TestCircuitBreakerLock:
             current = state_machine.get_current_state().current_level
             state_machine.transition(current, action)
         # Act — 尝试自动升级
-        result = state_machine.transition(StrategyLevel.CIRCUIT_BREAKER, CorrectionAction.NONE)
+        result = state_machine.transition(
+            StrategyLevel.CIRCUIT_BREAKER, CorrectionAction.NONE
+        )
         # Assert
         assert result.new_level == StrategyLevel.CIRCUIT_BREAKER
         assert "熔断状态锁定" in result.blocked_reason
 
-    def test_circuit_breaker_release_by_admin(self, state_machine: StrategyStateMachine) -> None:
+    def test_circuit_breaker_release_by_admin(
+        self, state_machine: StrategyStateMachine
+    ) -> None:
         # Arrange — 逐级降级到 CIRCUIT_BREAKER
         for action in [
             CorrectionAction.MILD_TUNE,
@@ -132,7 +156,9 @@ class TestCircuitBreakerLock:
 class TestStatePersistence:
     """状态持久化测试。"""
 
-    def test_state_persisted_to_file(self, state_path: str, state_machine: StrategyStateMachine) -> None:
+    def test_state_persisted_to_file(
+        self, state_path: str, state_machine: StrategyStateMachine
+    ) -> None:
         # Arrange & Act
         state_machine.transition(StrategyLevel.NORMAL, CorrectionAction.MILD_TUNE)
         # Assert

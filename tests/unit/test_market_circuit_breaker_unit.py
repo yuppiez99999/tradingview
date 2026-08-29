@@ -8,6 +8,7 @@
     - 重点验证 fail-closed 行为: 数据不可用时只触发 L2 (禁止开仓), 不触发 L3 (强制平仓)
     - 每个 bug 至少一个用例, 函数名包含 bug 编号
 """
+
 import pytest
 
 from utils.market_circuit_breaker import MarketCircuitBreaker
@@ -58,9 +59,9 @@ class TestBUG1bFailClosedNoFalseL3:
         mcb = MarketCircuitBreaker()
         status = mcb.check_market_status()
 
-        assert status["level"] != 3, (
-            "fail-closed 不能触发 L3 全局平仓 (数据源不可用 ≠ 极端行情)"
-        )
+        assert (
+            status["level"] != 3
+        ), "fail-closed 不能触发 L3 全局平仓 (数据源不可用 ≠ 极端行情)"
         assert status["level"] == 2, "fail-closed 应触发 L2 (禁止开仓)"
         assert status["can_open"] is False, "L2 时不可开新仓"
         assert status["can_trade"] is True, "L2 时仍可交易 (允许平仓)"
@@ -86,9 +87,9 @@ class TestBUG1bFailClosedNoFalseL3:
         afternoon = plan["execution_plan"]["afternoon_orders"]
 
         # L2 应保留 SELL 订单, 过滤 BUY 订单
-        assert len(morning) > 0 or len(afternoon) > 0, (
-            "L2 fail-closed 不能清空所有订单 (BUG#1b: 原本误触发 L3 会清空)"
-        )
+        assert (
+            len(morning) > 0 or len(afternoon) > 0
+        ), "L2 fail-closed 不能清空所有订单 (BUG#1b: 原本误触发 L3 会清空)"
 
         for order in morning + afternoon:
             assert order["direction"] != "BUY", "L2 应过滤所有 BUY 订单"
@@ -130,6 +131,7 @@ class TestHS300LevelBoundaries:
     def test_hs300_change_minus_3pct_returns_l0(self, monkeypatch):
         """跌幅 -3% → L0 (未到 L2 阈值 -5%)"""
         mcb = MarketCircuitBreaker()
+
         # Mock astock_realtime 返回 -3%
         def _fake_astock(codes):
             return {"510300": {"price": 3.94, "pre_close": 4.06, "change_pct": -3.0}}
@@ -149,6 +151,7 @@ class TestHS300LevelBoundaries:
     def test_hs300_change_minus_5pct_returns_l2(self, monkeypatch):
         """跌幅 -5% → L2 (边界包含)"""
         mcb = MarketCircuitBreaker()
+
         def _fake_astock(codes):
             return {"510300": {"price": 3.85, "pre_close": 4.06, "change_pct": -5.0}}
 
@@ -168,6 +171,7 @@ class TestHS300LevelBoundaries:
     def test_hs300_change_minus_7pct_returns_l3(self, monkeypatch):
         """跌幅 -7% → L3 全局平仓 (边界包含)"""
         mcb = MarketCircuitBreaker()
+
         def _fake_astock(codes):
             return {"510300": {"price": 3.78, "pre_close": 4.06, "change_pct": -7.0}}
 
@@ -187,6 +191,7 @@ class TestHS300LevelBoundaries:
     def test_hs300_change_minus_10pct_returns_l3(self, monkeypatch):
         """跌幅 -10% → L3 (远超阈值)"""
         mcb = MarketCircuitBreaker()
+
         def _fake_astock(codes):
             return {"510300": {"price": 3.65, "pre_close": 4.06, "change_pct": -10.0}}
 
@@ -226,7 +231,9 @@ class TestApplyToPlan:
         assert plan["market_state"]["halt_all_trading"] is True
         assert plan["market_state"]["circuit_level"] == "CRITICAL"
         assert plan["risk_guard"]["market_circuit_breaker"]["level"] == 3
-        assert plan["risk_guard"]["market_circuit_breaker"]["action"] == "HALT_ALL_TRADING"
+        assert (
+            plan["risk_guard"]["market_circuit_breaker"]["action"] == "HALT_ALL_TRADING"
+        )
 
     @pytest.mark.unit
     def test_l2_filters_buy_keeps_sell(self, sample_trade_plan):
@@ -316,14 +323,13 @@ def mock_all_data_sources_unavailable(monkeypatch):
     2. akshare.stock_zh_a_spot_em → 抛 ImportError
     3. akshare.stock_zh_index_spot_em → 抛 ImportError
     """
+
     # astock_realtime 返回空
     def _empty_quotes(codes):
         return {}
 
     try:
-        monkeypatch.setattr(
-            "utils.astock_realtime.get_realtime_quotes", _empty_quotes
-        )
+        monkeypatch.setattr("utils.astock_realtime.get_realtime_quotes", _empty_quotes)
     except (AttributeError, ImportError):
         pass
 

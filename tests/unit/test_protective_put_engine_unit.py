@@ -10,6 +10,7 @@
     - record_execution (更新 active_puts + ytd_spent)
     - get_protection_status (覆盖率/预算使用率/needs_action)
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -263,6 +264,7 @@ class TestGeneratePutOrders:
 
         def mock_spot(code):
             return 3.0 if code != "510050" else 0
+
         monkeypatch.setattr(ppe, "_get_etf_spot_price", mock_spot)
         ppe.state = {"active_puts": [], "ytd_premium_spent": 0}
 
@@ -312,7 +314,9 @@ class TestCheckAndRoll:
         monkeypatch.setattr(ppe, "_get_etf_spot_price", lambda code: 3.0)
         soon = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
         ppe.state = {
-            "active_puts": [{"expiry_date": soon, "underlying": "510050", "contracts": 60}],
+            "active_puts": [
+                {"expiry_date": soon, "underlying": "510050", "contracts": 60}
+            ],
             "ytd_premium_spent": 0,
         }
 
@@ -342,14 +346,16 @@ class TestRecordExecution:
         ppe = ProtectivePutEngine()
         ppe.state = {"active_puts": [], "ytd_premium_spent": 0}
 
-        orders = [{
-            "status": "FILLED",
-            "underlying": "510050",
-            "strike": 2.85,
-            "contracts": 60,
-            "expiry_date": "2026-09-24",
-            "premium_total": 50000,
-        }]
+        orders = [
+            {
+                "status": "FILLED",
+                "underlying": "510050",
+                "strike": 2.85,
+                "contracts": 60,
+                "expiry_date": "2026-09-24",
+                "premium_total": 50000,
+            }
+        ]
         ppe.record_execution(orders, actual_premium=50000)
 
         assert len(ppe.state["active_puts"]) == 1

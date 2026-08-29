@@ -183,6 +183,7 @@ def retry_with_backoff(
         def my_llm_call(prompt):
             return call_llm(prompt, ...)
     """
+
     def decorator(fn: Callable) -> Callable:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             last_exc: Optional[Exception] = None
@@ -192,16 +193,23 @@ def retry_with_backoff(
                 except exceptions as exc:
                     last_exc = exc
                     if attempt < max_retries - 1:
-                        delay = min(base_delay * (2 ** attempt), max_delay)
+                        delay = min(base_delay * (2**attempt), max_delay)
                         logger.warning(
                             "调用失败 (attempt %d/%d): %r, %.1fs 后重试",
-                            attempt + 1, max_retries, exc, delay,
+                            attempt + 1,
+                            max_retries,
+                            exc,
+                            delay,
                         )
                         time.sleep(delay)
                     else:
-                        logger.error("调用失败, 已达最大重试 %d 次: %r", max_retries, exc)
+                        logger.error(
+                            "调用失败, 已达最大重试 %d 次: %r", max_retries, exc
+                        )
             raise last_exc  # type: ignore[misc]
+
         return wrapper
+
     return decorator
 
 
@@ -213,6 +221,7 @@ def retry_with_backoff(
 @dataclass
 class CallStats:
     """LLM 调用统计 (按 agent / model 维度)"""
+
     total_calls: int = 0
     successful: int = 0
     failed: int = 0
@@ -281,7 +290,8 @@ class LLMCallTracker:
             if agent_name:
                 key_prefix = agent_name
                 return {
-                    k: v.to_dict() for k, v in self._stats.items()
+                    k: v.to_dict()
+                    for k, v in self._stats.items()
                     if k.startswith(key_prefix)
                 }
             return {k: v.to_dict() for k, v in self._stats.items()}
@@ -326,7 +336,8 @@ class RateLimitedLLMCaller:
         retry_base_delay: float = 2.0,
     ):
         self.rate_limiter = TokenBucketRateLimiter(
-            max_tokens=max_concurrent, refill_rate=refill_rate,
+            max_tokens=max_concurrent,
+            refill_rate=refill_rate,
         )
         self.cache = TTLCache(max_size=cache_max_size, ttl_seconds=cache_ttl)
         self.tracker = LLMCallTracker()
@@ -381,19 +392,34 @@ class RateLimitedLLMCaller:
                 result = fn(*args, **kwargs)
                 latency = (time.monotonic() - start) * 1000
                 self.tracker.record(
-                    agent_name, model_name, success=True, latency_ms=latency,
+                    agent_name,
+                    model_name,
+                    success=True,
+                    latency_ms=latency,
                 )
                 # 写入缓存
                 if cache_key is not None:
                     self.cache.set(cache_key, result)
                 return result
-            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as exc:
+            except (
+                RuntimeError,
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                OSError,
+                TimeoutError,
+            ) as exc:
                 last_exc = exc
                 if attempt < self.max_retries - 1:
-                    delay = min(self.retry_base_delay * (2 ** attempt), 30.0)
+                    delay = min(self.retry_base_delay * (2**attempt), 30.0)
                     logger.warning(
                         "LLM 调用失败 %s (attempt %d/%d): %r, %.1fs 后重试",
-                        agent_name, attempt + 1, self.max_retries, exc, delay,
+                        agent_name,
+                        attempt + 1,
+                        self.max_retries,
+                        exc,
+                        delay,
                     )
                     time.sleep(delay)
                 else:

@@ -57,7 +57,9 @@ def get_path_lock(path: PathLike) -> threading.Lock:
         return lock
 
 
-def _replace_with_retry(src: str, dst: PathLike, retries: int = 50, delay: float = 0.02) -> None:
+def _replace_with_retry(
+    src: str, dst: PathLike, retries: int = 50, delay: float = 0.02
+) -> None:
     """Windows 下 os.replace 在目标文件被其它进程打开时抛 PermissionError
     (共享违规)。短暂重试直到读方释放句柄, 保持替换原子性。"""
     last_err: BaseException | None = None
@@ -98,7 +100,12 @@ def atomic_write_text(path: PathLike, text: str, encoding: str = "utf-8") -> Non
 
 
 def atomic_write_json(
-    path: PathLike, obj: Any, *, ensure_ascii: bool = False, indent: int = 2, default: Any = str
+    path: PathLike,
+    obj: Any,
+    *,
+    ensure_ascii: bool = False,
+    indent: int = 2,
+    default: Any = str,
 ) -> None:
     """原子写 JSON (positions.json / 状态缓存等关键文件专用)。"""
     payload = json.dumps(obj, ensure_ascii=ensure_ascii, indent=indent, default=default)
@@ -122,7 +129,10 @@ def read_json_locked(path: PathLike, default: Any = None) -> Any:
 
 @contextmanager
 def process_lock(
-    name: str, timeout: float = 0.0, stale_seconds: float = 3600.0, lock_dir: PathLike | None = None
+    name: str,
+    timeout: float = 0.0,
+    stale_seconds: float = 3600.0,
+    lock_dir: PathLike | None = None,
 ) -> Iterator[bool]:
     """跨进程互斥锁 (Windows 计划任务重入防护)。
 
@@ -156,7 +166,9 @@ def process_lock(
                 try:
                     age = time.time() - lock_file.stat().st_mtime
                     if age > stale_seconds:
-                        logger.warning(f"清理过期进程锁 {lock_file.name} (age={age:.0f}s)")
+                        logger.warning(
+                            f"清理过期进程锁 {lock_file.name} (age={age:.0f}s)"
+                        )
                         lock_file.unlink()
                         continue
                 except OSError:
@@ -234,7 +246,9 @@ def run_io_batch(
 
     # 按提交顺序遍历, per-future timeout 控制
     # (as_completed 只返回已完成 future, future.result(timeout) 不生效)
-    with ThreadPoolExecutor(max_workers=actual_workers, thread_name_prefix="io_batch") as pool:
+    with ThreadPoolExecutor(
+        max_workers=actual_workers, thread_name_prefix="io_batch"
+    ) as pool:
         futures = [pool.submit(fn, item) for item in items]
 
         for idx, future in enumerate(futures):
@@ -244,20 +258,40 @@ def run_io_batch(
                 else:
                     results[idx] = future.result()
             except TimeoutError:
-                logger.warning(f"{tag} 第 {idx + 1}/{total} 项超时 (>{timeout}s), 使用降级值")
+                logger.warning(
+                    f"{tag} 第 {idx + 1}/{total} 项超时 (>{timeout}s), 使用降级值"
+                )
                 results[idx] = fallback
                 future.cancel()  # best-effort 取消
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-                logger.warning(f"{tag} 第 {idx + 1}/{total} 项失败: {e}", exc_info=False)
+                logger.warning(
+                    f"{tag} 第 {idx + 1}/{total} 项失败: {e}", exc_info=False
+                )
                 results[idx] = fallback
             finally:
                 completed += 1
                 if progress_cb is not None:
                     try:
                         progress_cb(completed, total)
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # 降级语义: 进度回调异常不阻断任务执行, 仅丢失进度显示, 主流程结果不受影响
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        AttributeError,
+                        RuntimeError,
+                        OSError,
+                        TimeoutError,
+                        ConnectionError,
+                    ):  # 降级语义: 进度回调异常不阻断任务执行, 仅丢失进度显示, 主流程结果不受影响
                         pass
 
     return results
-

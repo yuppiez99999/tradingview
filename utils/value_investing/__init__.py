@@ -16,6 +16,7 @@ Usage:
     from utils.value_investing import scan_ticker, verify_valuation
     from utils.value_investing import financial_rigor as fr
 """
+
 from __future__ import annotations
 
 import importlib

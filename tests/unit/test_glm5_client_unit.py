@@ -8,6 +8,7 @@
     - get_glm5_client 单例
     - quick_chat
 """
+
 from __future__ import annotations
 
 import sys
@@ -198,6 +199,7 @@ class TestSingleton:
     def test_get_glm5_client_singleton(self, monkeypatch):
         """重置单例后, 两次调用返回同一实例"""
         import utils.glm5_client as mod
+
         monkeypatch.setattr(mod, "_glm5_instance", None)
         c1 = get_glm5_client()
         c2 = get_glm5_client()
@@ -207,6 +209,7 @@ class TestSingleton:
     def test_quick_chat_returns_string(self, monkeypatch):
         """quick_chat 返回 content 字符串"""
         import utils.glm5_client as mod
+
         monkeypatch.setattr(mod, "_glm5_instance", None)
         client = get_glm5_client()
         monkeypatch.setattr(client, "_get_router", lambda: None)

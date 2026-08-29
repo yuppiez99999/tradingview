@@ -7,8 +7,11 @@ from pathlib import Path
 
 
 def _get_ollama_path() -> str:
-    return os.environ.get("OLLAMA_PATH",
-        str(Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe"))
+    return os.environ.get(
+        "OLLAMA_PATH",
+        str(Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe"),
+    )
+
 
 subprocess.run(["taskkill", "/F", "/IM", "ollama.exe"], capture_output=True)
 subprocess.run(["taskkill", "/F", "/IM", "llama-server.exe"], capture_output=True)
@@ -36,17 +39,19 @@ except Exception as e:
 
 time.sleep(30)
 
-body = json.dumps({
-    "model": "qwen2.5:7b",
-    "messages": [{"role": "user", "content": "ping"}],
-    "stream": False
-}).encode("utf-8")
+body = json.dumps(
+    {
+        "model": "qwen2.5:7b",
+        "messages": [{"role": "user", "content": "ping"}],
+        "stream": False,
+    }
+).encode("utf-8")
 
 req = urllib.request.Request(
     "http://localhost:11434/v1/chat/completions",
     data=body,
     headers={"Content-Type": "application/json"},
-    method="POST"
+    method="POST",
 )
 
 print("\nTesting chat completion...")

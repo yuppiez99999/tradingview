@@ -183,7 +183,10 @@ class PnLAttributionEngine:
             AttributionResult
         """
         attribution_date = attribution_date or datetime.now().strftime("%Y-%m-%d")
-        portfolio_value = sum(p.get("market_value", p.get("amount", 0)) for p in positions) or 1_000_000
+        portfolio_value = (
+            sum(p.get("market_value", p.get("amount", 0)) for p in positions)
+            or 1_000_000
+        )
 
         # 计算总 P&L
         if not portfolio_returns:
@@ -205,10 +208,14 @@ class PnLAttributionEngine:
         )
 
         # === 1. Beta 分解 ===
-        result.beta_pnl = self._calc_beta_pnl(positions, portfolio_returns, market_returns, portfolio_value)
+        result.beta_pnl = self._calc_beta_pnl(
+            positions, portfolio_returns, market_returns, portfolio_value
+        )
 
         # === 2. Alpha 分解 (相对于基准的超额) ===
-        result.alpha_pnl = self._calc_alpha_pnl(positions, portfolio_returns, benchmark_returns, portfolio_value)
+        result.alpha_pnl = self._calc_alpha_pnl(
+            positions, portfolio_returns, benchmark_returns, portfolio_value
+        )
 
         # === 3. 风格因子归因 ===
         result.style_pnl, result.style_factors = self._calc_style_attribution(
@@ -233,8 +240,12 @@ class PnLAttributionEngine:
         result.timing_pnl = total_pnl - explained
 
         # === 6. 风险指标 ===
-        result.tracking_error = self._calc_tracking_error(portfolio_returns, benchmark_returns)
-        result.information_ratio = self._calc_information_ratio(portfolio_returns, benchmark_returns)
+        result.tracking_error = self._calc_tracking_error(
+            portfolio_returns, benchmark_returns
+        )
+        result.information_ratio = self._calc_information_ratio(
+            portfolio_returns, benchmark_returns
+        )
         result.sharpe_ratio = self._calc_sharpe_ratio(portfolio_returns)
 
         # === 7. 异常检测 ===
@@ -272,10 +283,14 @@ class PnLAttributionEngine:
             return 0.0
 
         beta = self._calc_beta(portfolio_returns, market_returns)
-        market_excess_return = sum(market_returns) - self.risk_free_rate / 252 * len(market_returns)
+        market_excess_return = sum(market_returns) - self.risk_free_rate / 252 * len(
+            market_returns
+        )
         return beta * market_excess_return * portfolio_value
 
-    def _calc_beta(self, asset_returns: list[float], market_returns: list[float]) -> float:
+    def _calc_beta(
+        self, asset_returns: list[float], market_returns: list[float]
+    ) -> float:
         """计算 Beta"""
         n = min(len(asset_returns), len(market_returns))
         if n < 2:
@@ -284,7 +299,9 @@ class PnLAttributionEngine:
         mean_a = sum(asset_returns[:n]) / n
         mean_m = sum(market_returns[:n]) / n
 
-        cov = sum((asset_returns[i] - mean_a) * (market_returns[i] - mean_m) for i in range(n)) / (n - 1)
+        cov = sum(
+            (asset_returns[i] - mean_a) * (market_returns[i] - mean_m) for i in range(n)
+        ) / (n - 1)
         var_m = sum((m - mean_m) ** 2 for m in market_returns[:n]) / (n - 1)
 
         return cov / var_m if var_m > 0 else 1.0
@@ -330,7 +347,7 @@ class PnLAttributionEngine:
 
         # 计算组合在每只股票上的因子暴露加权平均
         total_weight = 0.0
-        exposures: dict[str, float] = {f: 0.0 for f in self.STYLE_FACTORS}
+        exposures: dict[str, float] = dict.fromkeys(self.STYLE_FACTORS, 0.0)
 
         for pos in positions:
             weight = float(pos.get("weight", 0))
@@ -392,7 +409,7 @@ class PnLAttributionEngine:
             return 0.0, []
 
         # 计算每个行业的组合权重
-        sector_weights: dict[str, float] = {s: 0.0 for s in self.SECTORS}
+        sector_weights: dict[str, float] = dict.fromkeys(self.SECTORS, 0.0)
         total_weight = 0.0
         for pos in positions:
             sector = pos.get("sector", "other")
@@ -487,7 +504,9 @@ class PnLAttributionEngine:
         if len(portfolio_returns) < 2:
             return 0.0
         mean_r = sum(portfolio_returns) / len(portfolio_returns)
-        variance = sum((r - mean_r) ** 2 for r in portfolio_returns) / (len(portfolio_returns) - 1)
+        variance = sum((r - mean_r) ** 2 for r in portfolio_returns) / (
+            len(portfolio_returns) - 1
+        )
         std = math.sqrt(variance)
         if std == 0:
             return 0.0
@@ -516,16 +535,22 @@ class PnLAttributionEngine:
             # 3. 单一风格因子贡献过大 (>30%)
             for fc in result.style_factors:
                 if abs(fc.contribution / total) > 0.30:
-                    anomalies.append(f"风格因子 {fc.factor_name} 贡献过大 ({fc.contribution / total:.2%})")
+                    anomalies.append(
+                        f"风格因子 {fc.factor_name} 贡献过大 ({fc.contribution / total:.2%})"
+                    )
 
             # 4. 单一行业贡献过大 (>40%)
             for sc in result.sector_factors:
                 if abs(sc.contribution / total) > 0.40:
-                    anomalies.append(f"行业 {sc.factor_name} 贡献过大 ({sc.contribution / total:.2%})")
+                    anomalies.append(
+                        f"行业 {sc.factor_name} 贡献过大 ({sc.contribution / total:.2%})"
+                    )
 
             # 5. 交易成本过高 (>总收益的 20%)
             if abs(result.trading_cost) > 0.20 * abs(total) and abs(total) > 0:
-                anomalies.append(f"交易成本占比过高 ({abs(result.trading_cost / total):.2%})")
+                anomalies.append(
+                    f"交易成本占比过高 ({abs(result.trading_cost / total):.2%})"
+                )
 
             # 6. 择时异常 (|timing| > 30%)
             timing_pct = result.timing_pnl / total
@@ -534,7 +559,9 @@ class PnLAttributionEngine:
 
         # 7. IR 异常
         if result.information_ratio < -0.5:
-            anomalies.append(f"信息比率为负 ({result.information_ratio:.2f}), 长期跑输基准")
+            anomalies.append(
+                f"信息比率为负 ({result.information_ratio:.2f}), 长期跑输基准"
+            )
 
         # 8. 跟踪误差过高
         if result.tracking_error > 0.15:
@@ -605,9 +632,20 @@ class PnLAttributionEngine:
         path = REPORT_DIR / f"pnl_attribution_{result.attribution_date}.json"
         try:
             with open(path, "w", encoding="utf-8") as f:
-                json.dump(result.to_dict(), f, ensure_ascii=False, indent=2, default=str)
+                json.dump(
+                    result.to_dict(), f, ensure_ascii=False, indent=2, default=str
+                )
             logger.info(f"归因报告已保存: {path}")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存归因报告失败: {e}")
         return path
 
@@ -649,14 +687,22 @@ if __name__ == "__main__":
                 "name": "贵州茅台",
                 "weight": 0.10,
                 "sector": "consumer",
-                "style_exposures": {"earnings_quality": 0.9, "valuation": 0.5, "momentum": 0.3},
+                "style_exposures": {
+                    "earnings_quality": 0.9,
+                    "valuation": 0.5,
+                    "momentum": 0.3,
+                },
             },
             {
                 "code": "601088",
                 "name": "中国神华",
                 "weight": 0.12,
                 "sector": "cyclical",
-                "style_exposures": {"valuation": 0.8, "earnings_quality": 0.7, "momentum": 0.2},
+                "style_exposures": {
+                    "valuation": 0.8,
+                    "earnings_quality": 0.7,
+                    "momentum": 0.2,
+                },
             },
             {
                 "code": "ETF",

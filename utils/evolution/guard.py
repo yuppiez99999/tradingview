@@ -83,10 +83,10 @@ DEFENSE_NAMES = {
 }
 
 # 默认阈值 (ARCHITECTURE §6.6 + §8.2)
-DEFAULT_DAILY_EVOLUTION_LIMIT = 1        # 同模块 24h 进化上限
-DEFAULT_MAX_WEIGHT_CHANGE = 0.10         # 单次权重调整上限 (10%)
-DEFAULT_SHADOW_DAYS_REQUIRED = 5         # 影子账户最短运行天数
-DEFAULT_KILL_SWITCH_FREEZE_HOURS = 24    # 熔断冻结时长
+DEFAULT_DAILY_EVOLUTION_LIMIT = 1  # 同模块 24h 进化上限
+DEFAULT_MAX_WEIGHT_CHANGE = 0.10  # 单次权重调整上限 (10%)
+DEFAULT_SHADOW_DAYS_REQUIRED = 5  # 影子账户最短运行天数
+DEFAULT_KILL_SWITCH_FREEZE_HOURS = 24  # 熔断冻结时长
 
 # Kill Switch 冻结级别 (ARCHITECTURE §8.4)
 # L2 触发 → 冻结 L2/L3 进化
@@ -160,7 +160,9 @@ class GuardDecision:
     reason: str  # 原因说明
     violated_defense: int = 0  # 违反的防线编号 (0=通过)
     violated_defense_name: str = ""  # 违反的防线名称
-    truncated_weight_change: float | None = None  # 截断后的权重 (防线2截断时, 否则 None)
+    truncated_weight_change: float | None = (
+        None  # 截断后的权重 (防线2截断时, 否则 None)
+    )
     original_weight_change: float = 0.0  # 原始权重 (审计用)
 
     def to_dict(self) -> dict[str, Any]:
@@ -349,7 +351,16 @@ class EvolutionGuard:
             )
             # 排除被拒绝的提案 (被拒不算占用频率配额)
             active_count = sum(1 for r in recent if r.status != "rejected")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             # Memory 查询失败不应阻塞进化 (容错), 但记录 warning
             logger.warning("防线1 频率检查异常 (容错放行): %s", e)
@@ -427,7 +438,9 @@ class EvolutionGuard:
 
         return True, f"影子验证通过 ({proposal.shadow_days} 日)"
 
-    def _check_kill_switch_frozen(self, proposal: EvolutionProposal) -> tuple[bool, str]:
+    def _check_kill_switch_frozen(
+        self, proposal: EvolutionProposal
+    ) -> tuple[bool, str]:
         """防线 5: 熔断冻结 — Kill Switch L2/L3 触发时冻结.
 
         熔断规则 (ARCHITECTURE §8.4):
@@ -448,7 +461,16 @@ class EvolutionGuard:
             events = self.kill_switch.get_event_history(
                 days=max(1, self.kill_switch_freeze_hours // 24 + 1)
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("防线5 熔断检查异常 (容错放行): %s", e)
             return True, f"跳过 (KillSwitch 查询异常: {e})"

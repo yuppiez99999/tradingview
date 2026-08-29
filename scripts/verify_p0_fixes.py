@@ -4,6 +4,7 @@ P0-D: EOD Guard KillSwitch 检查失效 (risk_guard_integrator.py margin_used=nu
 P0-E: hedge_execution_engine.py 'str' object has no attribute 'get'
 P0-F: Windows 任务从未运行 (改为 SYSTEM + HIGHEST)
 """
+
 import sys
 from pathlib import Path
 
@@ -22,9 +23,9 @@ def verify_p0_d():
     broken_pnl_report = {
         "portfolio_pnl": {
             "summary": {
-                "margin_used": None,     # 字段存在但值为 None (原始 bug 触发条件)
+                "margin_used": None,  # 字段存在但值为 None (原始 bug 触发条件)
                 "total_equity": None,
-                "positions": {}
+                "positions": {},
             }
         }
     }
@@ -35,7 +36,9 @@ def verify_p0_d():
     # 1. 验证 KillSwitch._estimate_margin_from_positions() 真实工作
     ks = KillSwitch()
     real_ratio = ks._estimate_margin_from_positions()
-    print(f"[验证] KillSwitch._estimate_margin_from_positions() = {real_ratio:.4f} ({real_ratio:.1%})")
+    print(
+        f"[验证] KillSwitch._estimate_margin_from_positions() = {real_ratio:.4f} ({real_ratio:.1%})"
+    )
 
     # 2. 调用 guard_kill_switch (传入有问题的 pnl_report)
     rgi = RiskGuardIntegrator(total_capital=5_000_000)
@@ -44,7 +47,7 @@ def verify_p0_d():
         "execution_plan": {
             "morning_orders": [{"direction": "BUY", "code": "588080"}],
             "afternoon_orders": [{"direction": "BUY", "code": "159915"}],
-        }
+        },
     }
     result = rgi.guard_kill_switch(broken_pnl_report, plan)
 
@@ -63,11 +66,12 @@ def verify_p0_d():
 
     # 4. 判定
     if margin_usage >= 0.70:
-        print(f"[PASS] ✅ P0-D 修复生效: margin_usage={margin_usage} >= 0.70 (基于真实持仓)")
+        print(
+            f"[PASS] ✅ P0-D 修复生效: margin_usage={margin_usage} >= 0.70 (基于真实持仓)"
+        )
         return True
-    else:
-        print(f"[FAIL] ❌ P0-D 修复未生效: margin_usage={margin_usage} < 0.70")
-        return False
+    print(f"[FAIL] ❌ P0-D 修复未生效: margin_usage={margin_usage} < 0.70")
+    return False
 
 
 def verify_p0_e():
@@ -93,7 +97,9 @@ def verify_p0_e():
         print(f"  options_orders:  {len(options_orders)} 个")
         print(f"  portfolio_value: ¥{portfolio_status.get('market_value', 0):,.0f}")
         print(f"  portfolio_beta:  {portfolio_status.get('portfolio_beta_before', 0)}")
-        print(f"  total_margin:    ¥{cost_summary.get('total_margin_required', 0):,.0f}")
+        print(
+            f"  total_margin:    ¥{cost_summary.get('total_margin_required', 0):,.0f}"
+        )
         print(f"  total_premium:   ¥{cost_summary.get('total_premium_budget', 0):,.0f}")
 
         # 列出 options_orders (应该有 ETF Put 等)
@@ -105,10 +111,20 @@ def verify_p0_e():
 
         return True
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         import traceback
+
         print(f"[FAIL] ❌ P0-E 修复未生效: {type(e).__name__}: {e}")
         traceback.print_exc()
         return False
@@ -134,7 +150,10 @@ def verify_p0_f():
         try:
             result = subprocess.run(
                 ["schtasks", "/query", "/tn", task_name, "/fo", "list", "/v"],
-                capture_output=True, text=True, encoding="gbk", errors="replace"
+                capture_output=True,
+                text=True,
+                encoding="gbk",
+                errors="replace",
             )
             output = result.stdout
 
@@ -156,7 +175,9 @@ def verify_p0_f():
 
             # 判定
             is_system = run_as_user.upper() == "SYSTEM"
-            is_background = "Background" in logon_mode or "Interactive/Background" in logon_mode
+            is_background = (
+                "Background" in logon_mode or "Interactive/Background" in logon_mode
+            )
             is_ready = status == "Ready"
 
             mark = "✅" if (is_system and is_background and is_ready) else "❌"
@@ -169,7 +190,16 @@ def verify_p0_f():
             if not (is_system and is_background and is_ready):
                 all_pass = False
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             print(f"❌ {task_name}: 查询失败 - {e}")
@@ -203,9 +233,8 @@ def main():
     if all_pass:
         print("\n[全部通过] 3 个 P0 级 bug 修复全部生效, 符合项目硬约束")
         return 0
-    else:
-        print("\n[部分失败] 需要进一步排查")
-        return 1
+    print("\n[部分失败] 需要进一步排查")
+    return 1
 
 
 if __name__ == "__main__":

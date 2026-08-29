@@ -137,13 +137,26 @@ def _read_env_file() -> str | None:
                     key = key.strip()
                     value = value.strip().strip("\"'")
                     if key == "TRADING_ENV":
-                        logger.info("从 .env 读取 TRADING_ENV=%s (encoding=%s)", value, enc)
+                        logger.info(
+                            "从 .env 读取 TRADING_ENV=%s (encoding=%s)", value, enc
+                        )
                         return value.lower()
                 break  # 读取成功, 不再尝试其他编码
             except UnicodeDecodeError:
                 continue  # 尝试下一个编码
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
-                logger.warning("读取 .env 文件失败 %s (encoding=%s): %s", env_file, enc, e)
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
+                logger.warning(
+                    "读取 .env 文件失败 %s (encoding=%s): %s", env_file, enc, e
+                )
                 break
 
     return None
@@ -170,7 +183,7 @@ def get_trading_env_config() -> TradingEnvConfig:
             shadow_capital_pct=1.0,
             description="生产环境: fail-closed 激活, 允许真实下单, 全量资金",
         )
-    elif env == TradingEnv.SHADOW:
+    if env == TradingEnv.SHADOW:
         return TradingEnvConfig(
             env=env,
             is_prod=False,
@@ -181,17 +194,16 @@ def get_trading_env_config() -> TradingEnvConfig:
             shadow_capital_pct=0.1,  # 10% 资金
             description="影子账户环境: fail-closed 激活, 不执行真实订单, 10% 资金跟踪",
         )
-    else:
-        return TradingEnvConfig(
-            env=TradingEnv.DEVELOPMENT,
-            is_prod=False,
-            is_shadow=False,
-            is_dev=True,
-            fail_closed=False,  # 开发环境宽松
-            allow_real_orders=False,
-            shadow_capital_pct=0.0,
-            description="开发环境: fail-open (降级放行), 不执行真实订单, 仅研究",
-        )
+    return TradingEnvConfig(
+        env=TradingEnv.DEVELOPMENT,
+        is_prod=False,
+        is_shadow=False,
+        is_dev=True,
+        fail_closed=False,  # 开发环境宽松
+        allow_real_orders=False,
+        shadow_capital_pct=0.0,
+        description="开发环境: fail-open (降级放行), 不执行真实订单, 仅研究",
+    )
 
 
 def assert_production_fail_closed(error: Exception, context: str = "") -> None:
@@ -221,15 +233,14 @@ def assert_production_fail_closed(error: Exception, context: str = "") -> None:
         raise RuntimeError(
             f"FAIL-CLOSED: {config.env} 环境风控异常, 交易被阻止 (context={context}, error={error})"
         ) from error
-    else:
-        # fail-open: 降级放行 (仅开发环境)
-        logger.warning(
-            "[FAIL-OPEN] %s 环境风控异常, 降级放行 (仅开发环境): context=%s, error=%s",
-            config.env.upper(),
-            context,
-            error,
-            exc_info=True,
-        )
+    # fail-open: 降级放行 (仅开发环境)
+    logger.warning(
+        "[FAIL-OPEN] %s 环境风控异常, 降级放行 (仅开发环境): context=%s, error=%s",
+        config.env.upper(),
+        context,
+        error,
+        exc_info=True,
+    )
 
 
 def print_env_status() -> None:
@@ -248,5 +259,7 @@ def print_env_status() -> None:
 
 if __name__ == "__main__":
     # 直接运行时打印当前环境状态
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
     print_env_status()

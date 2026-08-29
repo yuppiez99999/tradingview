@@ -88,3 +88,14 @@ IC 分层(eval slices):
 | Eval slices | IC 分层(行业/市值/周期/风格) | 量化须分层评估因子 |
 | Rollback or fallback | 策略下线条件/回退 | 量化须先定下线再上线 |
 | (无) | 前视偏差检查 / 实盘准入 | 量化系统已有门禁，显式引用 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码质量提升外部资源评估](code-quality-external-resources-20260821.md) (相似度 11%)
+- [实盘准入框架：12-31 上实盘的 7 项硬性门槛与 6 个决策门](live-trading-admission-criteria-20260811.md) (相似度 8%)
+- [影子观察期真实性核查 (2026-08-24)](shadow-realness-audit-20260824.md) (相似度 8%)
+- [回测标准](backtest-standards.md) (相似度 7%)
+- [运维部署 + 灰度发布 (2026-08-24)](ops-gray-release-20260824.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

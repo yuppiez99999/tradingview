@@ -141,7 +141,9 @@ def write_alert(target_date: str, latest_date: str | None, retries: int) -> None
             "status": "EOD_FAILED",
             "action_required": "手动检查 v84_PostMarket 计划任务 + 数据源连通性",
         }
-        ALERT_FILE.write_text(json.dumps(alert, ensure_ascii=False, indent=2), encoding="utf-8")
+        ALERT_FILE.write_text(
+            json.dumps(alert, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         log(f"告警已写入: {ALERT_FILE}")
     except Exception as exc:
         log(f"写告警失败: {exc}")
@@ -151,9 +153,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="EOD 健康检查 + 自动重跑")
     parser.add_argument("--date", help="目标日期 YYYY-MM-DD (默认今日)")
     parser.add_argument("--dry-run", action="store_true", help="只检查不重跑")
-    parser.add_argument("--max-retries", type=int, default=2, help="最大重试次数 (默认 2)")
-    parser.add_argument("--retry-interval", type=int, default=60, help="重试间隔秒 (默认 60)")
-    parser.add_argument("--no-skip-system-check", action="store_true", help="不跳过系统检查")
+    parser.add_argument(
+        "--max-retries", type=int, default=2, help="最大重试次数 (默认 2)"
+    )
+    parser.add_argument(
+        "--retry-interval", type=int, default=60, help="重试间隔秒 (默认 60)"
+    )
+    parser.add_argument(
+        "--no-skip-system-check", action="store_true", help="不跳过系统检查"
+    )
     args = parser.parse_args()
 
     target = args.date or datetime.now().strftime("%Y-%m-%d")
@@ -161,7 +169,9 @@ def main() -> int:
 
     log("=" * 60)
     log(f"EOD 健康检查启动 | 目标日期={target} | dry_run={args.dry_run}")
-    log(f"max_retries={args.max_retries} | retry_interval={args.retry_interval}s | skip_system_check={skip_sc}")
+    log(
+        f"max_retries={args.max_retries} | retry_interval={args.retry_interval}s | skip_system_check={skip_sc}"
+    )
     log("=" * 60)
 
     latest = get_latest_shadow_date()

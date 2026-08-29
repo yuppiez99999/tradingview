@@ -99,7 +99,7 @@ def _where(condition: list[bool], x: Any, y: Any) -> list[Any]:
 
     注: x/y 既支持标量也支持列表, 保持无类型注解以兼容现有调用模式
     """
-    if hasattr(x, '__iter__') and not isinstance(x, (str, bytes)):
+    if hasattr(x, "__iter__") and not isinstance(x, (str, bytes)):
         return [x_i if c else y for c, x_i in zip(condition, x, strict=True)]
     return [x if c else y for c in condition]
 
@@ -121,7 +121,9 @@ class MarketDataProvider:
         self._backtest_date: Optional[str] = None
         self.data_cache: dict[str, dict[str, Any]] = {}
         self.cache_lock = threading.Lock()
-        self.persistent_cache_dir = pathlib.Path(__file__).resolve().parents[1] / "data_cache"
+        self.persistent_cache_dir = (
+            pathlib.Path(__file__).resolve().parents[1] / "data_cache"
+        )
         self.persistent_cache_dir.mkdir(exist_ok=True)
         self.source_health: SourceHealth = {
             "wind_mcp": {"ok": False, "last_error": None},
@@ -132,8 +134,16 @@ class MarketDataProvider:
 
         self.data_sources: dict[str, Any] = {
             "real_time": {"enabled": True, "refresh_interval": 60, "last_update": None},
-            "historical": {"enabled": True, "cache_days": 365, "update_frequency": "daily"},
-            "sentiment": {"enabled": True, "refresh_interval": 300, "last_update": None},
+            "historical": {
+                "enabled": True,
+                "cache_days": 365,
+                "update_frequency": "daily",
+            },
+            "sentiment": {
+                "enabled": True,
+                "refresh_interval": 300,
+                "last_update": None,
+            },
         }
 
         self._wind_mcp_client: Optional[dict[str, Any]] = None
@@ -167,10 +177,14 @@ class MarketDataProvider:
         # 候选路径列表 (按优先级排序)
         _project_root = pathlib.Path(__file__).resolve().parents[1]
         candidate_paths = [
-            _project_root / "wind_mcp_fetcher.py",                      # 项目根目录
-            _project_root / "tools" / "wind_mcp_fetcher.py",            # ★ 实际位置
-            _project_root / "utils" / "wind_mcp_fetcher.py",            # utils 目录
-            _project_root / "v8.3_institutional" / "src" / "bridges" / "wind_mcp.py",  # 备选
+            _project_root / "wind_mcp_fetcher.py",  # 项目根目录
+            _project_root / "tools" / "wind_mcp_fetcher.py",  # ★ 实际位置
+            _project_root / "utils" / "wind_mcp_fetcher.py",  # utils 目录
+            _project_root
+            / "v8.3_institutional"
+            / "src"
+            / "bridges"
+            / "wind_mcp.py",  # 备选
         ]
 
         wind_path = None
@@ -181,16 +195,22 @@ class MarketDataProvider:
 
         if wind_path is None:
             self.source_health["wind_mcp"]["last_error"] = (
-                f"文件不存在, 已尝试 {len(candidate_paths)} 个候选路径: " +
-                ", ".join(str(p) for p in candidate_paths)
+                f"文件不存在, 已尝试 {len(candidate_paths)} 个候选路径: "
+                + ", ".join(str(p) for p in candidate_paths)
             )
-            logger.warning(f"Wind MCP 文件不存在, 已尝试 {len(candidate_paths)} 个候选路径")
+            logger.warning(
+                f"Wind MCP 文件不存在, 已尝试 {len(candidate_paths)} 个候选路径"
+            )
             return
 
         try:
-            spec = importlib.util.spec_from_file_location("wind_mcp_fetcher", str(wind_path))
+            spec = importlib.util.spec_from_file_location(
+                "wind_mcp_fetcher", str(wind_path)
+            )
             if spec is None or spec.loader is None:
-                self.source_health["wind_mcp"]["last_error"] = f"无法创建 importlib spec: {wind_path}"
+                self.source_health["wind_mcp"][
+                    "last_error"
+                ] = f"无法创建 importlib spec: {wind_path}"
                 logger.warning(f"Wind MCP importlib spec 创建失败: {wind_path}")
                 return
             mod = importlib.util.module_from_spec(spec)
@@ -198,9 +218,9 @@ class MarketDataProvider:
 
             # 校验必要函数是否存在
             if not (hasattr(mod, "wind_get_quote") and hasattr(mod, "wind_get_kline")):
-                self.source_health["wind_mcp"]["last_error"] = (
-                    f"模块缺少 wind_get_quote 或 wind_get_kline 函数: {wind_path}"
-                )
+                self.source_health["wind_mcp"][
+                    "last_error"
+                ] = f"模块缺少 wind_get_quote 或 wind_get_kline 函数: {wind_path}"
                 logger.warning(f"Wind MCP 模块缺少必要函数: {wind_path}")
                 return
 
@@ -210,7 +230,14 @@ class MarketDataProvider:
             }
             self.source_health["wind_mcp"]["ok"] = True
             logger.info(f"Wind MCP 客户端已加载 (P1, path={wind_path})")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self.source_health["wind_mcp"]["last_error"] = str(e)
             logger.warning(f"Wind MCP 客户端加载失败 ({wind_path}): {e}")
 
@@ -220,7 +247,9 @@ class MarketDataProvider:
             from utils.tdx_data_source import get_tdx_source
 
             self._tdx_source = get_tdx_source()
-            if self._tdx_source and self._tdx_source.source_health.get("tdx", {}).get("ok"):
+            if self._tdx_source and self._tdx_source.source_health.get("tdx", {}).get(
+                "ok"
+            ):
                 self.source_health["tdx"]["ok"] = True
                 logger.info("通达信数据源已加载 (P3)")
             else:
@@ -229,7 +258,14 @@ class MarketDataProvider:
         except ImportError as e:
             self.source_health["tdx"]["last_error"] = f"模块导入失败: {e}"
             logger.warning(f"通达信数据源模块导入失败: {e}")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self.source_health["tdx"]["last_error"] = str(e)
             logger.warning(f"通达信数据源初始化失败: {e}")
 
@@ -239,7 +275,9 @@ class MarketDataProvider:
             from utils.akshare_data_source import get_akshare_source
 
             self._akshare_source = get_akshare_source()
-            if self._akshare_source and self._akshare_source.source_health.get("akshare", {}).get("ok"):
+            if self._akshare_source and self._akshare_source.source_health.get(
+                "akshare", {}
+            ).get("ok"):
                 self.source_health["akshare"]["ok"] = True
                 logger.info("AKShare 数据源已加载 (P4)")
             else:
@@ -248,7 +286,14 @@ class MarketDataProvider:
         except ImportError as e:
             self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"
             logger.warning(f"AKShare 数据源模块导入失败: {e}")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self.source_health["akshare"]["last_error"] = str(e)
             logger.warning(f"AKShare 数据源初始化失败: {e}")
 
@@ -311,7 +356,9 @@ class MarketDataProvider:
             return None
         try:
             windcode = self._to_wind_code(symbol)
-            quote = self._wind_mcp_client["quote"](windcode, is_fund=self._is_fund(symbol))
+            quote = self._wind_mcp_client["quote"](
+                windcode, is_fund=self._is_fund(symbol)
+            )
             if not quote:
                 self.source_health["wind_mcp"]["last_error"] = "empty_quote"
                 logger.warning(f"Wind MCP 返回空数据: {symbol}")
@@ -329,13 +376,22 @@ class MarketDataProvider:
                 "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "wind_mcp",
             }
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self.source_health["wind_mcp"]["ok"] = False
             self.source_health["wind_mcp"]["last_error"] = str(e)
             logger.error(f"Wind MCP 获取实时数据失败: {e}")
             return None
 
-    def _try_wind_mcp_historical(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+    def _try_wind_mcp_historical(
+        self, symbol: str, period: str
+    ) -> Optional[pd.DataFrame]:
         if not self._wind_mcp_client:
             return None
         try:
@@ -352,7 +408,9 @@ class MarketDataProvider:
             }
             data_points = period_mapping.get(period, 252)
             windcode = self._to_wind_code(symbol)
-            klines = self._wind_mcp_client["kline"](windcode, days=data_points, is_fund=self._is_fund(symbol))
+            klines = self._wind_mcp_client["kline"](
+                windcode, days=data_points, is_fund=self._is_fund(symbol)
+            )
             if not klines:
                 return None
 
@@ -364,13 +422,19 @@ class MarketDataProvider:
                 records.append(
                     {
                         "date": pd.to_datetime(
-                            k.get("date") or k.get("trade_date") or k.get("time") or k.get("TIME") or k.get("_DATE")
+                            k.get("date")
+                            or k.get("trade_date")
+                            or k.get("time")
+                            or k.get("TIME")
+                            or k.get("_DATE")
                         ),
                         "open": safe_float(k.get("open") or k.get("OPEN")) or close,
                         "high": safe_float(k.get("high") or k.get("HIGH")) or close,
                         "low": safe_float(k.get("low") or k.get("LOW")) or close,
                         "close": close,
-                        "volume": safe_float(k.get("volume") or k.get("VOLUME"), default=0),
+                        "volume": safe_float(
+                            k.get("volume") or k.get("VOLUME"), default=0
+                        ),
                     }
                 )
             df = pd.DataFrame(records)
@@ -380,7 +444,14 @@ class MarketDataProvider:
             df.set_index("date", inplace=True)
             df.attrs["adjust"] = "qfq"  # v8.6.14: Wind MCP 默认前复权 (显式标注口径)
             return df
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"Wind MCP 获取历史数据失败: {e}")
             return None
 
@@ -407,7 +478,14 @@ class MarketDataProvider:
                 "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "tdx",
             }
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取实时数据失败: {e}")
@@ -443,7 +521,9 @@ class MarketDataProvider:
             }
             count = count_map.get(period, 252)
 
-            df = self._tdx_source.get_historical_klines(symbol, period=tdx_period, count=count)
+            df = self._tdx_source.get_historical_klines(
+                symbol, period=tdx_period, count=count
+            )
             if df is None or df.empty:
                 logger.warning("通达信返回历史数据为空，尝试下一数据源")
                 return None
@@ -451,7 +531,14 @@ class MarketDataProvider:
             self.source_health["tdx"]["ok"] = True
             df.attrs["adjust"] = "none"  # v8.6.14: 通达信历史K线为未复权 (显式标注口径)
             return df
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"通达信获取历史数据失败: {e}")
             return None
 
@@ -478,13 +565,22 @@ class MarketDataProvider:
                 "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "akshare",
             }
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self.source_health["akshare"]["ok"] = False
             self.source_health["akshare"]["last_error"] = str(e)
             logger.error(f"AKShare 获取实时数据失败: {e}")
             return None
 
-    def _try_akshare_historical(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+    def _try_akshare_historical(
+        self, symbol: str, period: str
+    ) -> Optional[pd.DataFrame]:
         """AKShare 历史K线数据 (P4)"""
         if not self._akshare_source:
             return None
@@ -514,19 +610,32 @@ class MarketDataProvider:
             }
             count = count_map.get(period, 252)
 
-            df = self._akshare_source.get_historical_klines(symbol, period=ak_period, count=count)
+            df = self._akshare_source.get_historical_klines(
+                symbol, period=ak_period, count=count
+            )
             if df is None or df.empty:
                 logger.warning("AKShare 返回历史数据为空，尝试下一数据源")
                 return None
 
             self.source_health["akshare"]["ok"] = True
-            df.attrs["adjust"] = "hfq"  # v8.6.14: AKShare 历史K线统一后复权 (akshare_data_source.py P2-1 口径)
+            df.attrs["adjust"] = (
+                "hfq"  # v8.6.14: AKShare 历史K线统一后复权 (akshare_data_source.py P2-1 口径)
+            )
             return df
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"AKShare 获取历史数据失败: {e}")
             return None
 
-    def _try_sina_http_historical(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+    def _try_sina_http_historical(
+        self, symbol: str, period: str
+    ) -> Optional[pd.DataFrame]:
         """新浪 HTTP 历史 KLine 数据（P3，绕过系统代理）"""
         try:
             period_mapping = {
@@ -576,10 +685,19 @@ class MarketDataProvider:
                 return None
             df = pd.DataFrame(records)
             df.set_index("date", inplace=True)
-            df.attrs["adjust"] = "none"  # v8.6.14: 新浪 HTTP 历史K线为未复权 (显式标注口径)
+            df.attrs["adjust"] = (
+                "none"  # v8.6.14: 新浪 HTTP 历史K线为未复权 (显式标注口径)
+            )
             self.source_health["sina_http"]["ok"] = True
             return df
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"新浪 HTTP 获取历史数据失败: {e}")
             return None
 
@@ -646,7 +764,14 @@ class MarketDataProvider:
                 "adjust": "none",  # P2-1: 实时行情统一未复权(实盘成交基准)
                 "source": "sina_http",
             }
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self.source_health["sina_http"]["ok"] = False
             self.source_health["sina_http"]["last_error"] = str(e)
             logger.error(f"新浪 HTTP 获取实时行情失败: {e}")
@@ -668,7 +793,10 @@ class MarketDataProvider:
             market_data = self._fetch_real_time_data(symbol or "SPY")
 
             with self.cache_lock:
-                self.data_cache[cache_key] = {"data": market_data, "timestamp": datetime.now()}
+                self.data_cache[cache_key] = {
+                    "data": market_data,
+                    "timestamp": datetime.now(),
+                }
 
                 if len(self.data_cache) > self.cache_size:
                     oldest_key = next(iter(self.data_cache))
@@ -725,14 +853,20 @@ class MarketDataProvider:
         persistent = self._load_persistent_cache(cache_key)
         if persistent is not None and not persistent.empty:
             with self.cache_lock:
-                self.data_cache[cache_key] = {"data": persistent, "timestamp": datetime.now()}
+                self.data_cache[cache_key] = {
+                    "data": persistent,
+                    "timestamp": datetime.now(),
+                }
             return persistent
 
         try:
             historical_data = self._fetch_historical_data(symbol, period)
 
             with self.cache_lock:
-                self.data_cache[cache_key] = {"data": historical_data, "timestamp": datetime.now()}
+                self.data_cache[cache_key] = {
+                    "data": historical_data,
+                    "timestamp": datetime.now(),
+                }
 
             logger.info(f"获取历史数据: {cache_key}")
             try:
@@ -745,7 +879,9 @@ class MarketDataProvider:
             raise
         except (ValueError, KeyError, TypeError, AttributeError, OSError) as e:
             logger.error(f"获取历史数据失败: {e}")
-            raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
+            raise RuntimeError(
+                f"获取历史数据失败 ({symbol}, period={period}): {e}"
+            ) from e
 
     def get_sentiment_data(self, symbol: Optional[str] = None) -> Optional[dict]:
         cache_key = f"sentiment_{symbol or 'SPY'}{self._cache_suffix()}"
@@ -764,14 +900,24 @@ class MarketDataProvider:
 
             if sentiment_data is not None:
                 with self.cache_lock:
-                    self.data_cache[cache_key] = {"data": sentiment_data, "timestamp": datetime.now()}
+                    self.data_cache[cache_key] = {
+                        "data": sentiment_data,
+                        "timestamp": datetime.now(),
+                    }
                 logger.info(f"获取情绪数据: {cache_key}")
             else:
                 logger.warning(f"情绪数据不可用 ({symbol or 'SPY'})")
 
             return sentiment_data
 
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"获取情绪数据失败: {e}")
             return None
 
@@ -868,7 +1014,9 @@ class MarketDataProvider:
             raise
         except (ValueError, KeyError, TypeError, AttributeError, OSError) as e:
             logger.error(f"获取历史数据失败: {e}")
-            raise RuntimeError(f"获取历史数据失败 ({symbol}, period={period}): {e}") from e
+            raise RuntimeError(
+                f"获取历史数据失败 ({symbol}, period={period}): {e}"
+            ) from e
 
     def _fetch_sentiment_data(self, symbol: str) -> Optional[dict]:
         """获取情绪数据 — FinnewsHunter 事件驱动 alpha 信号 (受 feature-flag 控制)
@@ -879,15 +1027,21 @@ class MarketDataProvider:
         """
         try:
             from utils.infra.feature_flags import is_enabled
+
             if not is_enabled("USE_FINNEWS_HUNTER_SIGNAL"):
-                logger.debug(f"USE_FINNEWS_HUNTER_SIGNAL=False, 情绪数据 fail-closed ({symbol or 'SPY'})")
+                logger.debug(
+                    f"USE_FINNEWS_HUNTER_SIGNAL=False, 情绪数据 fail-closed ({symbol or 'SPY'})"
+                )
                 return None
         except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
             logger.debug(f"finnhunter flag 检查失败, fail-closed: {e}")
             return None
 
         try:
-            from .signal_sources.finnhunter_signal_source import FinnewsHunterSignalSource
+            from .signal_sources.finnhunter_signal_source import (
+                FinnewsHunterSignalSource,
+            )
+
             source = FinnewsHunterSignalSource()
             signal = source.get_signal(symbol or "SPY")
             if signal is None:
@@ -901,7 +1055,15 @@ class MarketDataProvider:
                 "reason": str(getattr(signal, "reason", "")),
                 "timestamp": str(getattr(signal, "timestamp", "")),
             }
-        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.warning(f"FinnewsHunter 情绪数据获取失败 ({symbol or 'SPY'}): {e}")
             return None
 
@@ -949,7 +1111,11 @@ class MarketDataProvider:
                 "bb_upper": bb_upper,
                 "bb_lower": bb_lower,
                 "bb_width": (bb_upper - bb_lower) / sma20 if sma20 else 0.0,
-                "price_position": (prices[-1] - bb_lower) / (bb_upper - bb_lower) if (bb_upper - bb_lower) else 0.0,
+                "price_position": (
+                    (prices[-1] - bb_lower) / (bb_upper - bb_lower)
+                    if (bb_upper - bb_lower)
+                    else 0.0
+                ),
                 "volume_sma": _mean(volumes[-20:]),
                 "trend": "upward" if prices[-1] > prices[-5] else "downward",
             }
@@ -1029,7 +1195,9 @@ class MarketDataProvider:
             logger.warning(f"价格预测失败 ({symbol}): {e}")
             return {}
 
-    def _get_recent_prices_for_prediction(self, symbol: str, days: int = 120) -> Optional[Any]:
+    def _get_recent_prices_for_prediction(
+        self, symbol: str, days: int = 120
+    ) -> Optional[Any]:
         """获取近期收盘价序列 (供预测用)"""
         try:
             import numpy as np
@@ -1051,7 +1219,14 @@ class MarketDataProvider:
 
             mgr = ExternalDataManager()
             return mgr.get_macro_snapshot()
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"外部宏观数据获取失败: {e}")
             return {}
 
@@ -1062,7 +1237,14 @@ class MarketDataProvider:
 
             mgr = ExternalDataManager()
             return mgr.get_risk_sentiment()
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"风险情绪指标获取失败: {e}")
             return {}
 
@@ -1085,7 +1267,14 @@ class MarketDataProvider:
             if not sentiments:
                 return []
             return [s.__dict__ for s in sentiments]
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"新闻情感分析失败 ({symbol}): {e}")
             return []
 
@@ -1113,7 +1302,12 @@ class MarketDataProvider:
             "cache": self.get_cache_info(),
         }
         # 新模块可用性
-        for module_name in ["tf_price_predictor", "external_data_source", "web_scraper", "ai_report_agent"]:
+        for module_name in [
+            "tf_price_predictor",
+            "external_data_source",
+            "web_scraper",
+            "ai_report_agent",
+        ]:
             try:
                 __import__(f"utils.{module_name}")
                 status[f"{module_name}_available"] = True

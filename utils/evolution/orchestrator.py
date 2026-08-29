@@ -113,7 +113,9 @@ class CycleResult:
     evaluator_report: dict[str, Any] = field(default_factory=dict)
     guard_decision: dict[str, Any] = field(default_factory=dict)
     executed: bool = False  # 是否真正执行了进化动作
-    weight_adjustments: dict[str, float] = field(default_factory=dict)  # {code: multiplier} 进化→再平衡权重乘子
+    weight_adjustments: dict[str, float] = field(
+        default_factory=dict
+    )  # {code: multiplier} 进化→再平衡权重乘子
     timestamp: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -225,7 +227,16 @@ class EvolutionOrchestratorV2:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("Feature Flag 检查失败, 默认禁用: %s (%s)", name, e)
             return False
@@ -248,7 +259,15 @@ class EvolutionOrchestratorV2:
             from scripts.gradual_rollout_manager import should_run_today
 
             return should_run_today()
-        except (ImportError, AttributeError, RuntimeError, OSError, ValueError, TypeError, KeyError) as e:
+        except (
+            ImportError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            ValueError,
+            TypeError,
+            KeyError,
+        ) as e:
             logger.debug("灰度比例检查跳过 (容错, 不阻塞): %s", e)
             return True
 
@@ -271,7 +290,16 @@ class EvolutionOrchestratorV2:
                 from utils.kill_switch import KillSwitch
 
                 self._kill_switch = KillSwitch()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 logger.warning("KillSwitch 加载失败, Guard 熔断检查将跳过: %s", e)
                 self._kill_switch = None
@@ -311,7 +339,16 @@ class EvolutionOrchestratorV2:
                 from utils.alpha.evolution_orchestrator import EvolutionOrchestrator
 
                 self._v1 = EvolutionOrchestrator()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 logger.warning("v1 原型加载失败, collect/evaluate 将不可用: %s", e)
                 self._v1 = None
@@ -324,8 +361,20 @@ class EvolutionOrchestratorV2:
                 from utils.alpha.shadow_account_adapter import ShadowAccountAdapter
 
                 self._shadow_adapter = ShadowAccountAdapter()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError, ImportError) as e:
-                logger.warning("ShadowAccountAdapter 加载失败, L2 影子验证将跳过: %s", e)
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+                ImportError,
+            ) as e:
+                logger.warning(
+                    "ShadowAccountAdapter 加载失败, L2 影子验证将跳过: %s", e
+                )
                 self._shadow_adapter = None
         return self._shadow_adapter
 
@@ -360,7 +409,14 @@ class EvolutionOrchestratorV2:
                         returns.append(float(ret))
                         dates.append(str(date_str))
             return returns, dates
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.warning("加载 daily_returns.jsonl 失败: %s", e)
             return [], []
 
@@ -406,11 +462,14 @@ class EvolutionOrchestratorV2:
         ks = self._get_kill_switch()
         if ks is not None:
             try:
-                events = ks.get_event_history(days=1) if hasattr(ks, "get_event_history") else []
+                events = (
+                    ks.get_event_history(days=1)
+                    if hasattr(ks, "get_event_history")
+                    else []
+                )
                 # L3 熔断冻结所有层级; L2 冻结 L2/L3
                 frozen = any(
-                    e.get("level", 0) >= 2 and e.get("executed", False)
-                    for e in events
+                    e.get("level", 0) >= 2 and e.get("executed", False) for e in events
                 )
                 if frozen:
                     logger.warning("Kill Switch 触发, 冻结所有进化 (HC-5)")
@@ -419,7 +478,16 @@ class EvolutionOrchestratorV2:
                         reason="kill_switch_triggered",
                         timestamp=timestamp,
                     )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 logger.warning("Kill Switch 检查异常 (容错继续): %s", e)
 
@@ -457,7 +525,16 @@ class EvolutionOrchestratorV2:
         # 4. v1 记录决策到 decisions.jsonl (保持向后兼容)
         try:
             v1.log_decision(report=report, action=result.action, metrics=metrics)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("v1 log_decision 失败 (容错, Memory 已记录): %s", e)
 
@@ -485,7 +562,11 @@ class EvolutionOrchestratorV2:
         self._loop_health["total_latency_ms"] += latency_ms
         self._loop_health["last_cycle_latency_ms"] = round(latency_ms, 2)
 
-        if result.status not in (CYCLE_STATUS_NO_ACTION, CYCLE_STATUS_DISABLED, CYCLE_STATUS_FROZEN):
+        if result.status not in (
+            CYCLE_STATUS_NO_ACTION,
+            CYCLE_STATUS_DISABLED,
+            CYCLE_STATUS_FROZEN,
+        ):
             self._loop_health["evolution_trigger_count"] += 1
 
         if result.level == "L1":
@@ -527,15 +608,21 @@ class EvolutionOrchestratorV2:
         return {
             "total_cycles": total,
             "evolution_trigger_count": h["evolution_trigger_count"],
-            "evolution_trigger_rate": (h["evolution_trigger_count"] / total) if total > 0 else 0.0,
+            "evolution_trigger_rate": (
+                (h["evolution_trigger_count"] / total) if total > 0 else 0.0
+            ),
             "l1_count": h["l1_count"],
             "l2_promote_count": promote,
             "l2_rollback_count": rollback,
             "l2_promote_rate": (promote / l2_total) if l2_total > 0 else 0.0,
             "l3_pending_count": h["l3_pending_count"],
-            "avg_latency_ms": round(h["total_latency_ms"] / total, 2) if total > 0 else 0.0,
+            "avg_latency_ms": (
+                round(h["total_latency_ms"] / total, 2) if total > 0 else 0.0
+            ),
             "last_latency_ms": h["last_cycle_latency_ms"],
-            "avg_weight_adjustment_magnitude": round(sum(mags) / len(mags), 6) if mags else 0.0,
+            "avg_weight_adjustment_magnitude": (
+                round(sum(mags) / len(mags), 6) if mags else 0.0
+            ),
         }
 
     # ============================================================
@@ -596,7 +683,16 @@ class EvolutionOrchestratorV2:
         try:
             existing = ab.get_test(test_name)
             logger.info("ABTest %s 已存在 (status=%s)", test_name, existing.status)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             # 测试不存在, 创建
             config = ABTestConfig(
@@ -605,7 +701,8 @@ class EvolutionOrchestratorV2:
                 challenger_model=challenger_model,
                 traffic_split=traffic_split,
                 min_samples=min_samples,
-                description=description or f"进化编排器 ABTest: {champion_model} vs {challenger_model}",
+                description=description
+                or f"进化编排器 ABTest: {champion_model} vs {challenger_model}",
             )
             ab.create_test(config)
             logger.info("ABTest %s 已创建", test_name)
@@ -616,7 +713,16 @@ class EvolutionOrchestratorV2:
             if running.status != "running":
                 ab.start_test(test_name)
                 logger.info("ABTest %s 已启动", test_name)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("ABTest %s 启动失败 (容错继续): %s", test_name, e)
 
@@ -631,7 +737,16 @@ class EvolutionOrchestratorV2:
                     daily_challenger_metrics,
                 )
                 logger.info("ABTest %s 已记录指标: %s", test_name, record_date)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 logger.warning("ABTest %s 指标记录失败 (容错继续): %s", test_name, e)
 
@@ -650,7 +765,16 @@ class EvolutionOrchestratorV2:
 
         try:
             result = ab.evaluate_test(test_name)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("ABTest %s 评估失败 (容错): %s", test_name, e)
             return CycleResult(
@@ -668,8 +792,11 @@ class EvolutionOrchestratorV2:
         if result.recommendation == "promote":
             # challenger 更优 → 生成 L2 promote 提案
             proposal = self._build_ab_test_proposal(
-                test_name, champion_model, challenger_model,
-                "promote", result,
+                test_name,
+                champion_model,
+                challenger_model,
+                "promote",
+                result,
             )
             route_result = self.route_proposal(proposal)
             route_result.evaluator_report = result.to_dict()
@@ -679,8 +806,11 @@ class EvolutionOrchestratorV2:
         if result.recommendation == "rollback":
             # champion 更优 → 生成 L2 rollback 提案
             proposal = self._build_ab_test_proposal(
-                test_name, champion_model, challenger_model,
-                "rollback", result,
+                test_name,
+                champion_model,
+                challenger_model,
+                "rollback",
+                result,
             )
             route_result = self.route_proposal(proposal)
             route_result.evaluator_report = result.to_dict()
@@ -745,9 +875,20 @@ class EvolutionOrchestratorV2:
 
         try:
             pid = memory.record(proposal_data)
-            logger.info("ABTest 结果已写入 EvolutionMemory: pid=%s, test=%s", pid, test_name)
+            logger.info(
+                "ABTest 结果已写入 EvolutionMemory: pid=%s, test=%s", pid, test_name
+            )
             return {"proposal_id": pid, "status": "recorded"}
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("ABTest 结果写入 EvolutionMemory 失败 (容错): %s", e)
             return {"proposal_id": "", "status": f"failed: {e}"}
@@ -823,7 +964,9 @@ class EvolutionOrchestratorV2:
 
         logger.info(
             "路由提案: level=%s action=%s module=%s",
-            level, action_type, target_module,
+            level,
+            action_type,
+            target_module,
         )
 
         # L1: AutoFixEngine 自动执行 (不经 Guard, L1 是修复不是进化)
@@ -834,7 +977,16 @@ class EvolutionOrchestratorV2:
         guard = self._get_guard()
         try:
             decision = guard.check_proposal(proposal)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.exception("Guard 检查异常: %s", e)
             return CycleResult(
@@ -874,14 +1026,25 @@ class EvolutionOrchestratorV2:
 
         # 记录到 Memory (pending)
         try:
-            pid = memory.record({
-                "level": "L1",
-                "action_type": getattr(proposal, "action_type", "fix"),
-                "trigger_reason": getattr(proposal, "trigger_reason", ""),
-                "target_module": getattr(proposal, "target_module", ""),
-                "status": "pending",
-            })
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            pid = memory.record(
+                {
+                    "level": "L1",
+                    "action_type": getattr(proposal, "action_type", "fix"),
+                    "trigger_reason": getattr(proposal, "trigger_reason", ""),
+                    "target_module": getattr(proposal, "target_module", ""),
+                    "status": "pending",
+                }
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.exception("L1 Memory 记录失败: %s", e)
             return CycleResult(
@@ -896,10 +1059,23 @@ class EvolutionOrchestratorV2:
         # 所以 L1 路由主要做审计记录, 实际修复由 AutoFixEngine.try_fix(check_result) 触发.
         # 这里记录提案, 标记为 executed (假设修复已由 AutoFixEngine 完成)
         try:
-            memory.update_status(pid, "executed", result={
-                "note": "L1 修复提案已记录, 实际修复由 AutoFixEngine.try_fix 触发",
-            })
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            memory.update_status(
+                pid,
+                "executed",
+                result={
+                    "note": "L1 修复提案已记录, 实际修复由 AutoFixEngine.try_fix 触发",
+                },
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("L1 状态更新失败 (容错): %s", e)
 
@@ -924,16 +1100,29 @@ class EvolutionOrchestratorV2:
         memory = self._get_memory()
 
         try:
-            pid = memory.record({
-                "level": "L2",
-                "action_type": getattr(proposal, "action_type", ""),
-                "trigger_reason": getattr(proposal, "trigger_reason", ""),
-                "target_module": getattr(proposal, "target_module", ""),
-                "rollback_plan": getattr(proposal, "rollback_plan", ""),
-                "status": "pending",
-                "result": decision.to_dict() if hasattr(decision, "to_dict") else {},
-            })
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            pid = memory.record(
+                {
+                    "level": "L2",
+                    "action_type": getattr(proposal, "action_type", ""),
+                    "trigger_reason": getattr(proposal, "trigger_reason", ""),
+                    "target_module": getattr(proposal, "target_module", ""),
+                    "rollback_plan": getattr(proposal, "rollback_plan", ""),
+                    "status": "pending",
+                    "result": (
+                        decision.to_dict() if hasattr(decision, "to_dict") else {}
+                    ),
+                }
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.exception("L2 Memory 记录失败: %s", e)
             return CycleResult(
@@ -952,12 +1141,25 @@ class EvolutionOrchestratorV2:
             logger.warning("L2 影子验证: ShadowAccountAdapter 不可用, 降级假设通过")
             self._loop_health["l2_promote_count"] += 1
             try:
-                memory.update_status(pid, "executed", result={
-                    "guard_passed": True,
-                    "shadow_verified": False,
-                    "note": "shadow_adapter_unavailable, degraded_assume_pass",
-                })
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                memory.update_status(
+                    pid,
+                    "executed",
+                    result={
+                        "guard_passed": True,
+                        "shadow_verified": False,
+                        "note": "shadow_adapter_unavailable, degraded_assume_pass",
+                    },
+                )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 logger.warning("L2 状态更新失败 (容错): %s", e)
             return CycleResult(
                 status=CYCLE_STATUS_DEGRADED,
@@ -975,6 +1177,7 @@ class EvolutionOrchestratorV2:
 
         try:
             from utils.alpha import shadow_account_adapter as _sa_mod
+
             _min_samples = _sa_mod.MIN_SAMPLES_FOR_DSR
         except (ImportError, AttributeError, RuntimeError) as e:
             logger.warning("MIN_SAMPLES_FOR_DSR 导入失败, 使用默认 20: %s", e)
@@ -989,12 +1192,25 @@ class EvolutionOrchestratorV2:
             )
             self._loop_health["l2_promote_count"] += 1
             try:
-                memory.update_status(pid, "executed", result={
-                    "guard_passed": True,
-                    "shadow_verified": False,
-                    "note": f"insufficient_samples ({len(daily_returns)} < {_min_samples})",
-                })
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                memory.update_status(
+                    pid,
+                    "executed",
+                    result={
+                        "guard_passed": True,
+                        "shadow_verified": False,
+                        "note": f"insufficient_samples ({len(daily_returns)} < {_min_samples})",
+                    },
+                )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 logger.warning("L2 状态更新失败 (容错): %s", e)
             return CycleResult(
                 status=CYCLE_STATUS_DEGRADED,
@@ -1009,7 +1225,9 @@ class EvolutionOrchestratorV2:
 
         # 实际调用 ShadowAccountAdapter
         try:
-            run_result = adapter.run_shadow(daily_returns=daily_returns, dates=dates, is_real_data=True)
+            run_result = adapter.run_shadow(
+                daily_returns=daily_returns, dates=dates, is_real_data=True
+            )
 
             if not run_result.success or run_result.fail_fast_triggered:
                 # Fail-Fast 触发 → rollback
@@ -1019,14 +1237,27 @@ class EvolutionOrchestratorV2:
                 )
                 self._loop_health["l2_rollback_count"] += 1
                 try:
-                    memory.update_status(pid, "rolled_back", result={
-                        "guard_passed": True,
-                        "shadow_verified": True,
-                        "shadow_success": False,
-                        "fail_fast_reason": run_result.fail_fast_reason,
-                        "note": "L2 影子验证 fail-fast, 自动回滚",
-                    })
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    memory.update_status(
+                        pid,
+                        "rolled_back",
+                        result={
+                            "guard_passed": True,
+                            "shadow_verified": True,
+                            "shadow_success": False,
+                            "fail_fast_reason": run_result.fail_fast_reason,
+                            "note": "L2 影子验证 fail-fast, 自动回滚",
+                        },
+                    )
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:
                     logger.warning("L2 状态更新失败 (容错): %s", e)
                 return CycleResult(
                     status=CYCLE_STATUS_ROLLED_BACK,
@@ -1045,20 +1276,37 @@ class EvolutionOrchestratorV2:
 
             if dsr >= self._l2_dsr_threshold:
                 # DSR 达标 → promote
-                logger.info("L2 影子验证通过: DSR=%.4f ≥ %.2f, 自动 promote", dsr, self._l2_dsr_threshold)
+                logger.info(
+                    "L2 影子验证通过: DSR=%.4f ≥ %.2f, 自动 promote",
+                    dsr,
+                    self._l2_dsr_threshold,
+                )
                 self._loop_health["l2_promote_count"] += 1
                 try:
-                    memory.update_status(pid, "executed", result={
-                        "guard_passed": True,
-                        "shadow_verified": True,
-                        "shadow_success": True,
-                        "dsr": dsr,
-                        "annual_return": metrics.annual_return,
-                        "max_drawdown": metrics.max_drawdown,
-                        "sharpe_cv": metrics.sharpe_cv,
-                        "note": f"L2 影子验证通过 (DSR={dsr:.4f}), 自动 promote",
-                    })
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    memory.update_status(
+                        pid,
+                        "executed",
+                        result={
+                            "guard_passed": True,
+                            "shadow_verified": True,
+                            "shadow_success": True,
+                            "dsr": dsr,
+                            "annual_return": metrics.annual_return,
+                            "max_drawdown": metrics.max_drawdown,
+                            "sharpe_cv": metrics.sharpe_cv,
+                            "note": f"L2 影子验证通过 (DSR={dsr:.4f}), 自动 promote",
+                        },
+                    )
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:
                     logger.warning("L2 状态更新失败 (容错): %s", e)
                 return CycleResult(
                     status=CYCLE_STATUS_SUCCESS,
@@ -1070,46 +1318,80 @@ class EvolutionOrchestratorV2:
                     executed=True,
                     timestamp=timestamp,
                 )
-            else:
-                # DSR 不达标 → rollback
-                logger.warning(
-                    "L2 影子验证未通过: DSR=%.4f < %.2f, 自动 rollback",
-                    dsr,
-                    self._l2_dsr_threshold,
-                )
-                self._loop_health["l2_rollback_count"] += 1
-                try:
-                    memory.update_status(pid, "rolled_back", result={
+            # DSR 不达标 → rollback
+            logger.warning(
+                "L2 影子验证未通过: DSR=%.4f < %.2f, 自动 rollback",
+                dsr,
+                self._l2_dsr_threshold,
+            )
+            self._loop_health["l2_rollback_count"] += 1
+            try:
+                memory.update_status(
+                    pid,
+                    "rolled_back",
+                    result={
                         "guard_passed": True,
                         "shadow_verified": True,
                         "shadow_success": False,
                         "dsr": dsr,
                         "note": f"L2 影子验证未通过 (DSR={dsr:.4f} < {self._l2_dsr_threshold}), 自动 rollback",
-                    })
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
-                    logger.warning("L2 状态更新失败 (容错): %s", e)
-                return CycleResult(
-                    status=CYCLE_STATUS_ROLLED_BACK,
-                    level="L2",
-                    action=getattr(proposal, "action_type", ""),
-                    proposal_id=pid,
-                    reason=f"L2 影子验证未通过 (DSR={dsr:.4f} < {self._l2_dsr_threshold}), 已 rollback",
-                    guard_decision=guard_dict,
-                    executed=False,
-                    timestamp=timestamp,
+                    },
                 )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
+                logger.warning("L2 状态更新失败 (容错): %s", e)
+            return CycleResult(
+                status=CYCLE_STATUS_ROLLED_BACK,
+                level="L2",
+                action=getattr(proposal, "action_type", ""),
+                proposal_id=pid,
+                reason=f"L2 影子验证未通过 (DSR={dsr:.4f} < {self._l2_dsr_threshold}), 已 rollback",
+                guard_decision=guard_dict,
+                executed=False,
+                timestamp=timestamp,
+            )
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # fail-safe: 影子验证异常, 降级假设通过 (不阻塞进化)
             logger.warning("L2 影子验证异常 (容错降级): %s", e)
             self._loop_health["l2_promote_count"] += 1
             try:
-                memory.update_status(pid, "executed", result={
-                    "guard_passed": True,
-                    "shadow_verified": False,
-                    "note": f"shadow_validation_error: {e}",
-                })
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e2:
+                memory.update_status(
+                    pid,
+                    "executed",
+                    result={
+                        "guard_passed": True,
+                        "shadow_verified": False,
+                        "note": f"shadow_validation_error: {e}",
+                    },
+                )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e2:
                 logger.warning("L2 状态更新失败 (容错): %s", e2)
             return CycleResult(
                 status=CYCLE_STATUS_DEGRADED,
@@ -1131,16 +1413,29 @@ class EvolutionOrchestratorV2:
         memory = self._get_memory()
 
         try:
-            pid = memory.record({
-                "level": "L3",
-                "action_type": getattr(proposal, "action_type", ""),
-                "trigger_reason": getattr(proposal, "trigger_reason", ""),
-                "target_module": getattr(proposal, "target_module", ""),
-                "rollback_plan": getattr(proposal, "rollback_plan", ""),
-                "status": "pending",  # 等待人工审批
-                "result": decision.to_dict() if hasattr(decision, "to_dict") else {},
-            })
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            pid = memory.record(
+                {
+                    "level": "L3",
+                    "action_type": getattr(proposal, "action_type", ""),
+                    "trigger_reason": getattr(proposal, "trigger_reason", ""),
+                    "target_module": getattr(proposal, "target_module", ""),
+                    "rollback_plan": getattr(proposal, "rollback_plan", ""),
+                    "status": "pending",  # 等待人工审批
+                    "result": (
+                        decision.to_dict() if hasattr(decision, "to_dict") else {}
+                    ),
+                }
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.exception("L3 Memory 记录失败: %s", e)
             return CycleResult(
@@ -1174,16 +1469,29 @@ class EvolutionOrchestratorV2:
         level = getattr(proposal, "level", "")
 
         try:
-            memory.record({
-                "level": level,
-                "action_type": getattr(proposal, "action_type", ""),
-                "trigger_reason": getattr(proposal, "trigger_reason", ""),
-                "target_module": getattr(proposal, "target_module", ""),
-                "rollback_plan": getattr(proposal, "rollback_plan", ""),
-                "status": "rejected",
-                "result": decision.to_dict() if hasattr(decision, "to_dict") else {},
-            })
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            memory.record(
+                {
+                    "level": level,
+                    "action_type": getattr(proposal, "action_type", ""),
+                    "trigger_reason": getattr(proposal, "trigger_reason", ""),
+                    "target_module": getattr(proposal, "target_module", ""),
+                    "rollback_plan": getattr(proposal, "rollback_plan", ""),
+                    "status": "rejected",
+                    "result": (
+                        decision.to_dict() if hasattr(decision, "to_dict") else {}
+                    ),
+                }
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.exception("拒绝提案 Memory 记录失败: %s", e)
 
@@ -1240,16 +1548,27 @@ class EvolutionOrchestratorV2:
         if recommendation == "continue":
             memory = self._get_memory()
             try:
-                memory.record({
-                    "level": "L2",
-                    "action_type": "evaluate",
-                    "trigger_reason": f"recommendation=continue (private={private_score:.3f})",
-                    "target_module": "v9_baseline",
-                    "rollback_plan": "评估只读, 无需回滚",
-                    "score_report": evaluator_report,
-                    "status": "executed",
-                })
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                memory.record(
+                    {
+                        "level": "L2",
+                        "action_type": "evaluate",
+                        "trigger_reason": f"recommendation=continue (private={private_score:.3f})",
+                        "target_module": "v9_baseline",
+                        "rollback_plan": "评估只读, 无需回滚",
+                        "score_report": evaluator_report,
+                        "status": "executed",
+                    }
+                )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 logger.warning("评估记录 Memory 失败 (容错): %s", e)
 
@@ -1274,7 +1593,8 @@ class EvolutionOrchestratorV2:
             target_module="v9_baseline",
             weight_change=0.0,  # 评估驱动的提案不调整权重, 由下游模块处理
             rollback_plan=(
-                "回滚至 v8.6.14 基线模型" if action_type == "promote"
+                "回滚至 v8.6.14 基线模型"
+                if action_type == "promote"
                 else "已回滚, 保持当前状态"
             ),
             trigger_reason=(
@@ -1296,7 +1616,9 @@ class EvolutionOrchestratorV2:
     # ============================================================
 
     @staticmethod
-    def _derive_weight_adjustments(evaluator_report: dict[str, Any]) -> dict[str, float]:
+    def _derive_weight_adjustments(
+        evaluator_report: dict[str, Any],
+    ) -> dict[str, float]:
         """从评估报告推导再平衡权重乘子.
 
         进化→再平衡闭环的关键转换:

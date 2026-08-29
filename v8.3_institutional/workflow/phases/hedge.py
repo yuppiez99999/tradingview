@@ -15,6 +15,7 @@ _get_futures_scanner_summary) + L1077-L1145 (_compute_beta_hedge_order)
 - daily_workflow.py 保留 _get_edb_futures_data / _get_futures_scanner_summary / _compute_beta_hedge_order
   的转发方法 (其他 phase 若调用保持透明)
 """
+
 from __future__ import annotations
 
 import json
@@ -31,7 +32,11 @@ logger = logging.getLogger("v75.daily_workflow")
 
 # === 从 daily_workflow 模块获取模块级符号 ===
 _dw = get_dw_module()
-BASE_DIR: Path = getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent) if _dw else Path(__file__).resolve().parent.parent
+BASE_DIR: Path = (
+    getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent)
+    if _dw
+    else Path(__file__).resolve().parent.parent
+)
 
 
 # ============================================================
@@ -39,7 +44,9 @@ BASE_DIR: Path = getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent
 # ============================================================
 
 
-def _get_edb_futures_data(ctx: WorkflowContext, names: Optional[list[str]] = None) -> dict[str, dict[str, Any]]:
+def _get_edb_futures_data(
+    ctx: WorkflowContext, names: Optional[list[str]] = None
+) -> dict[str, dict[str, Any]]:
     """获取 EDB 期货/商品数据 (带当日缓存)
 
     同一天内多次调用只请求一次 API，后续从缓存读取。
@@ -68,7 +75,9 @@ def _get_edb_futures_data(ctx: WorkflowContext, names: Optional[list[str]] = Non
         if EDBFuturesData is None:
             return {}
         results = EDBFuturesData.fetch_all()
-        wf._edb_cache = {name: results.get(name, {}) for name in names if name in results}
+        wf._edb_cache = {
+            name: results.get(name, {}) for name in names if name in results
+        }
         wf._edb_cache_date = today
         logger.info("EDB 期货数据获取完成 (已缓存): %d 个品种", len(wf._edb_cache))
         return wf._edb_cache
@@ -87,7 +96,9 @@ def _get_futures_scanner_summary() -> dict[str, dict[str, Any]]:
     if not SCANNER_READY:
         return {}
     try:
-        FuturesOptionsScanner = getattr(_dw, "FuturesOptionsScanner", None) if _dw else None
+        FuturesOptionsScanner = (
+            getattr(_dw, "FuturesOptionsScanner", None) if _dw else None
+        )
         if FuturesOptionsScanner is None:
             return {}
         scanner = FuturesOptionsScanner()
@@ -112,7 +123,9 @@ def _get_futures_scanner_summary() -> dict[str, dict[str, Any]]:
         return {}
 
 
-def _compute_beta_hedge_order(portfolio_beta: float, portfolio_value: float, degraded: bool = False) -> dict[str, object]:
+def _compute_beta_hedge_order(
+    portfolio_beta: float, portfolio_value: float, degraded: bool = False
+) -> dict[str, object]:
     """基于 BetaHedger 计算对冲指令（降级路径）
 
     Args:
@@ -125,6 +138,7 @@ def _compute_beta_hedge_order(portfolio_beta: float, portfolio_value: float, deg
 
         # 复用 risk.py 的 _get_if_realtime (跨 phase 调用)
         from workflow.phases.risk import _get_if_realtime
+
         futures_config = {
             "IF": {"multiplier": 300, "beta": 1.0, "price": 3800.0},
             "IC": {"multiplier": 200, "beta": 1.2, "price": 5500.0},
@@ -133,12 +147,18 @@ def _compute_beta_hedge_order(portfolio_beta: float, portfolio_value: float, deg
         if_realtime = _get_if_realtime()
         if if_realtime and if_realtime.get("price"):
             futures_config["IF"]["price"] = float(if_realtime["price"])
-            logger.info(f"注入 IF 实时价: {if_realtime['price']} (来源: {if_realtime.get('source', 'unknown')})")
+            logger.info(
+                f"注入 IF 实时价: {if_realtime['price']} (来源: {if_realtime.get('source', 'unknown')})"
+            )
 
         beta_trigger = 0.35 if degraded else 0.7
         # 2026-07-09 方案C: beta_target 0.3→0.25, 提升对冲比率至 75% (目标: 回撤<15%)
         beta_target = 0.25
-        beta_hedger = BetaHedger(futures_config=futures_config, beta_trigger=beta_trigger, beta_target=beta_target)
+        beta_hedger = BetaHedger(
+            futures_config=futures_config,
+            beta_trigger=beta_trigger,
+            beta_target=beta_target,
+        )
         order = beta_hedger.compute_hedge(portfolio_beta, portfolio_value)
 
         # 降级兜底：如果 BetaHedger 仍返回 NO_HEDGE，强制生成最小对冲指令
@@ -146,13 +166,24 @@ def _compute_beta_hedge_order(portfolio_beta: float, portfolio_value: float, deg
             fut = futures_config.get("IF", futures_config["IF"])
             live_price = float(fut.get("price", 3800.0))
             notional_per_contract = float(fut.get("multiplier", 300)) * live_price
-            n_contracts = max(1, int(round((portfolio_beta - beta_target) * portfolio_value / notional_per_contract)))
+            n_contracts = max(
+                1,
+                int(
+                    round(
+                        (portfolio_beta - beta_target)
+                        * portfolio_value
+                        / notional_per_contract
+                    )
+                ),
+            )
             if n_contracts <= 0:
                 n_contracts = 1
             commission_rate = 0.000023
             slippage_rate = 0.0001
             margin_rate = 0.12
-            estimated_cost = n_contracts * notional_per_contract * (commission_rate + slippage_rate)
+            estimated_cost = (
+                n_contracts * notional_per_contract * (commission_rate + slippage_rate)
+            )
             estimated_margin = n_contracts * notional_per_contract * margin_rate
             order = {
                 "action": "SHORT_FUTURES",
@@ -164,7 +195,11 @@ def _compute_beta_hedge_order(portfolio_beta: float, portfolio_value: float, deg
                 "futures_beta": float(fut.get("beta", 1.0)),
                 "notional": float(n_contracts * notional_per_contract),
                 "estimated_cost": float(estimated_cost),
-                "cost_ratio": float(estimated_cost / portfolio_value) if portfolio_value > 0 else 0.0,
+                "cost_ratio": (
+                    float(estimated_cost / portfolio_value)
+                    if portfolio_value > 0
+                    else 0.0
+                ),
                 "current_beta": float(portfolio_beta),
                 "target_beta": float(beta_target),
                 "beta_reduced": float(portfolio_beta - beta_target),
@@ -173,13 +208,19 @@ def _compute_beta_hedge_order(portfolio_beta: float, portfolio_value: float, deg
                     "commission_rate": commission_rate,
                     "slippage_rate": slippage_rate,
                     "margin_rate": margin_rate,
-                    "estimated_commission": float(n_contracts * notional_per_contract * commission_rate),
-                    "estimated_slippage": float(n_contracts * notional_per_contract * slippage_rate),
+                    "estimated_commission": float(
+                        n_contracts * notional_per_contract * commission_rate
+                    ),
+                    "estimated_slippage": float(
+                        n_contracts * notional_per_contract * slippage_rate
+                    ),
                     "estimated_margin": float(estimated_margin),
                     "cost_note": "仅含佣金+滑点估算，不含保证金利息/冲击成本",
                 },
             }
-            logger.warning(f"降级兜底: Beta {portfolio_beta:.3f} 仍触发 NO_HEDGE，强制 {n_contracts} 手 IF 空头")
+            logger.warning(
+                f"降级兜底: Beta {portfolio_beta:.3f} 仍触发 NO_HEDGE，强制 {n_contracts} 手 IF 空头"
+            )
         return order
     except Exception as exc:  # fail-safe
         logger.error("风格 Beta 代理计算对冲指令失败: %s", exc)
@@ -191,7 +232,9 @@ def _compute_beta_hedge_order(portfolio_beta: float, portfolio_value: float, deg
 # ============================================================
 
 
-def _execute_sim_hedge_orders(sim_engine: Any, mock_prices: dict[str, float], orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _execute_sim_hedge_orders(
+    sim_engine: Any, mock_prices: dict[str, float], orders: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """模拟盘模式: 将对冲订单按 action 路由到 sim_engine 的对应 broker 接口。
 
     路由规则 (与 test_phase_hedge_sim_branch.py 规约对齐):
@@ -222,22 +265,32 @@ def _execute_sim_hedge_orders(sim_engine: Any, mock_prices: dict[str, float], or
 
         # --- 降级: 仅记录跳过 ---
         if action == "DOWNGRADE_TO_PUT_SPREAD":
-            executed.append({
-                "type": hedge_type,
-                "action": action,
-                "reason": order.get("reason", "成本超限降级"),
-                "status": "DOWNGRADED",
-            })
+            executed.append(
+                {
+                    "type": hedge_type,
+                    "action": action,
+                    "reason": order.get("reason", "成本超限降级"),
+                    "status": "DOWNGRADED",
+                }
+            )
             continue
 
         # --- 未知 action: 跳过 ---
-        if action not in ("SHORT_FUTURES", "PUT_SPREAD", "BUY_PUT_SPREAD",
-                          "BUY_BARE_PUT", "BUY_EMERGENCY_PUT", "SAFE_HAVEN_ALLOC"):
-            executed.append({
-                "type": hedge_type,
-                "action": action,
-                "status": "SKIP_UNKNOWN_ACTION",
-            })
+        if action not in (
+            "SHORT_FUTURES",
+            "PUT_SPREAD",
+            "BUY_PUT_SPREAD",
+            "BUY_BARE_PUT",
+            "BUY_EMERGENCY_PUT",
+            "SAFE_HAVEN_ALLOC",
+        ):
+            executed.append(
+                {
+                    "type": hedge_type,
+                    "action": action,
+                    "status": "SKIP_UNKNOWN_ACTION",
+                }
+            )
             continue
 
         # --- SHORT_FUTURES: 路由到期货 broker ---
@@ -246,12 +299,14 @@ def _execute_sim_hedge_orders(sim_engine: Any, mock_prices: dict[str, float], or
             contracts = int(order.get("contracts", 0) or 0)
             fut_price = float(order.get("futures_price", 0) or 0)
             if contracts <= 0 or fut_price <= 0:
-                executed.append({
-                    "type": hedge_type,
-                    "action": action,
-                    "instrument": fut_code,
-                    "status": "SKIP_NO_PRICE_OR_QTY",
-                })
+                executed.append(
+                    {
+                        "type": hedge_type,
+                        "action": action,
+                        "instrument": fut_code,
+                        "status": "SKIP_NO_PRICE_OR_QTY",
+                    }
+                )
                 continue
             sim_order = {
                 "symbol": fut_code,
@@ -263,84 +318,103 @@ def _execute_sim_hedge_orders(sim_engine: Any, mock_prices: dict[str, float], or
             try:
                 fills = sim_engine.execute_futures_orders([sim_order])
                 fill = fills[0] if fills else {}
-                executed.append({
-                    "type": hedge_type,
-                    "action": action,
-                    "instrument": fut_code,
-                    "side": "SELL_SHORT",
-                    "contracts": contracts,
-                    "price": float(fill.get("price", fut_price)),
-                    "notional": order.get("notional", 0),
-                    "cost": order.get("estimated_cost", 0),
-                    "status": "FILLED",
-                    "fill_record": fill,
-                })
+                executed.append(
+                    {
+                        "type": hedge_type,
+                        "action": action,
+                        "instrument": fut_code,
+                        "side": "SELL_SHORT",
+                        "contracts": contracts,
+                        "price": float(fill.get("price", fut_price)),
+                        "notional": order.get("notional", 0),
+                        "cost": order.get("estimated_cost", 0),
+                        "status": "FILLED",
+                        "fill_record": fill,
+                    }
+                )
             except Exception as exc:  # fail-safe
                 logger.error("SHORT_FUTURES 模拟执行失败: %s", exc)
-                executed.append({
-                    "type": hedge_type,
-                    "action": action,
-                    "instrument": fut_code,
-                    "side": "SELL_SHORT",
-                    "contracts": contracts,
-                    "price": fut_price,
-                    "status": "FAILED",
-                    "error": str(exc),
-                })
+                executed.append(
+                    {
+                        "type": hedge_type,
+                        "action": action,
+                        "instrument": fut_code,
+                        "side": "SELL_SHORT",
+                        "contracts": contracts,
+                        "price": fut_price,
+                        "status": "FAILED",
+                        "error": str(exc),
+                    }
+                )
             continue
 
         # --- PUT_SPREAD / BUY_PUT*: 路由到期权 broker (按 budget_allocation 拆分) ---
-        if action in ("PUT_SPREAD", "BUY_PUT_SPREAD", "BUY_BARE_PUT", "BUY_EMERGENCY_PUT"):
+        if action in (
+            "PUT_SPREAD",
+            "BUY_PUT_SPREAD",
+            "BUY_BARE_PUT",
+            "BUY_EMERGENCY_PUT",
+        ):
             budget_allocation = order.get("budget_allocation") or {}
             # 若无 budget_allocation, 用单笔订单兜底
             if not budget_allocation:
                 budget = float(order.get("budget", 0) or 0)
                 opt_symbol = order.get("instrument", "50ETF_OPTIONS")
                 opt_price = budget / 10000.0 if budget > 0 else 0.0
-                sim_orders = [{
-                    "symbol": opt_symbol,
-                    "qty": 1,
-                    "side": "BUY",
-                    "price": opt_price,
-                    "order_type": "LIMIT",
-                    "option_type": "PUT",
-                }]
+                sim_orders = [
+                    {
+                        "symbol": opt_symbol,
+                        "qty": 1,
+                        "side": "BUY",
+                        "price": opt_price,
+                        "order_type": "LIMIT",
+                        "option_type": "PUT",
+                    }
+                ]
             else:
                 sim_orders = []
                 for symbol, amount in budget_allocation.items():
                     amt = float(amount or 0)
-                    sim_orders.append({
-                        "symbol": symbol,
-                        "qty": 1,
-                        "side": "BUY",
-                        "price": amt / 10000.0 if amt > 0 else 0.0,
-                        "order_type": "LIMIT",
-                        "option_type": "PUT",
-                    })
+                    sim_orders.append(
+                        {
+                            "symbol": symbol,
+                            "qty": 1,
+                            "side": "BUY",
+                            "price": amt / 10000.0 if amt > 0 else 0.0,
+                            "order_type": "LIMIT",
+                            "option_type": "PUT",
+                        }
+                    )
             try:
                 fills = sim_engine.execute_options_orders(sim_orders)
                 for fill in fills:
-                    executed.append({
-                        "type": hedge_type,
-                        "action": action,
-                        "instrument": fill.get("symbol", order.get("instrument", "OPTIONS")),
-                        "side": "BUY",
-                        "option_type": "PUT",
-                        "budget": order.get("budget", 0),
-                        "price": float(fill.get("price", 0)),
-                        "status": "FILLED",
-                        "fill_record": fill,
-                    })
+                    executed.append(
+                        {
+                            "type": hedge_type,
+                            "action": action,
+                            "instrument": fill.get(
+                                "symbol", order.get("instrument", "OPTIONS")
+                            ),
+                            "side": "BUY",
+                            "option_type": "PUT",
+                            "budget": order.get("budget", 0),
+                            "price": float(fill.get("price", 0)),
+                            "status": "FILLED",
+                            "fill_record": fill,
+                        }
+                    )
             except Exception as exc:  # fail-safe
                 logger.error("%s 模拟执行失败: %s", action, exc)
-                executed.append({
-                    "type": hedge_type,
-                    "action": action,
-                    "instrument": order.get("instrument", "OPTIONS"),
-                    "side": "BUY",
-                    "status": "FAILED",
-                    "error": str(exc),
-                })
+                executed.append(
+                    {
+                        "type": hedge_type,
+                        "action": action,
+                        "instrument": order.get("instrument", "OPTIONS"),
+                        "side": "BUY",
+                        "status": "FAILED",
+                        "error": str(exc),
+                    }
+                )
             continue
 
         # --- SAFE_HAVEN_ALLOC: 路由到股票 broker ---
@@ -350,12 +424,14 @@ def _execute_sim_hedge_orders(sim_engine: Any, mock_prices: dict[str, float], or
             est_price = float(mock_prices.get(gold_etf, 5.85))
             gold_qty = int(gold_value / est_price / 100) * 100 if est_price > 0 else 0
             if gold_qty <= 0:
-                executed.append({
-                    "type": hedge_type,
-                    "action": action,
-                    "instrument": gold_etf,
-                    "status": "SKIP_NO_PRICE_OR_QTY",
-                })
+                executed.append(
+                    {
+                        "type": hedge_type,
+                        "action": action,
+                        "instrument": gold_etf,
+                        "status": "SKIP_NO_PRICE_OR_QTY",
+                    }
+                )
                 continue
             sim_order = {
                 "symbol": gold_etf,
@@ -367,27 +443,31 @@ def _execute_sim_hedge_orders(sim_engine: Any, mock_prices: dict[str, float], or
             try:
                 fills = sim_engine.execute_stock_orders([sim_order])
                 fill = fills[0] if fills else {}
-                executed.append({
-                    "type": hedge_type,
-                    "action": action,
-                    "instrument": gold_etf,
-                    "side": "BUY",
-                    "contracts": gold_qty,
-                    "price": float(fill.get("price", est_price)),
-                    "gold_value": gold_value,
-                    "status": "FILLED",
-                    "fill_record": fill,
-                })
+                executed.append(
+                    {
+                        "type": hedge_type,
+                        "action": action,
+                        "instrument": gold_etf,
+                        "side": "BUY",
+                        "contracts": gold_qty,
+                        "price": float(fill.get("price", est_price)),
+                        "gold_value": gold_value,
+                        "status": "FILLED",
+                        "fill_record": fill,
+                    }
+                )
             except Exception as exc:  # fail-safe
                 logger.error("SAFE_HAVEN_ALLOC 模拟执行失败: %s", exc)
-                executed.append({
-                    "type": hedge_type,
-                    "action": action,
-                    "instrument": gold_etf,
-                    "side": "BUY",
-                    "status": "FAILED",
-                    "error": str(exc),
-                })
+                executed.append(
+                    {
+                        "type": hedge_type,
+                        "action": action,
+                        "instrument": gold_etf,
+                        "side": "BUY",
+                        "status": "FAILED",
+                        "error": str(exc),
+                    }
+                )
             continue
 
     return executed
@@ -436,7 +516,10 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                 "ret20": ret20,
                 "query": data.get("query"),
             }
-            logger.info("EDB 期货摘要: %s", json.dumps(edb_summary, ensure_ascii=False, default=str))
+            logger.info(
+                "EDB 期货摘要: %s",
+                json.dumps(edb_summary, ensure_ascii=False, default=str),
+            )
 
     # === 期货期权扫描器补充 (EDB + AKShare 回退) ===
     scanner_summary = _get_futures_scanner_summary()
@@ -457,14 +540,18 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
     if market_data_provider is not None:
         _fetched = 0
         _skipped = 0
+
         def _fetch_one(code):
             try:
                 return code, market_data_provider.get_market_data(code)
             except Exception:  # fail-safe
                 return code, None
+
         try:
             with ThreadPoolExecutor(max_workers=4) as pool:
-                futures = {pool.submit(_fetch_one, code): code for code in list(prices.keys())}
+                futures = {
+                    pool.submit(_fetch_one, code): code for code in list(prices.keys())
+                }
                 for fut in as_completed(futures, timeout=30):
                     try:
                         code, quote = fut.result(timeout=5)
@@ -486,18 +573,25 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
         try:
             with open(_positions_json, encoding="utf-8") as _f:
                 _pos_data = json.load(_f)
+
             # positions.json key 格式 "588080.SH" → MOCK_PRICES key 格式 "sh588080"
             def _to_mock_key(code: str) -> str:
                 if "." in code:
                     sym, suffix = code.split(".", 1)
                     return f"{suffix.lower()}{sym}"
                 return code
-            _codes = [_to_mock_key(c) for c in _pos_data.get("positions", [])
-                      if _to_mock_key(c) in ctx.config.MOCK_PRICES]
+
+            _codes = [
+                _to_mock_key(c)
+                for c in _pos_data.get("positions", [])
+                if _to_mock_key(c) in ctx.config.MOCK_PRICES
+            ]
             if _codes:
                 logger.info("phase_hedge 加载真实持仓代码: %d 只", len(_codes))
         except Exception as _exc:  # fail-safe
-            logger.warning("读取 config/positions.json 失败，回退 MOCK_PRICES: %s", _exc)
+            logger.warning(
+                "读取 config/positions.json 失败，回退 MOCK_PRICES: %s", _exc
+            )
 
     _n = len(_codes)
     if _n > 0:
@@ -509,12 +603,23 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
             if _price and _price > 0:
                 _shares = int(_value_per_asset / _price / 100) * 100
                 # 2026-07-09 新增: 对 18 标的全覆盖日志 (含 6 个新标的)
-                if _code in ("sz300274", "sh603019", "sh600089", "sh688017", "sh600219", "sh600019"):
-                    logger.info(f"[18标的覆盖] {_code} 价格={_price} 股数={_shares} 金额={_shares*_price:.0f}")
+                if _code in (
+                    "sz300274",
+                    "sh603019",
+                    "sh600089",
+                    "sh688017",
+                    "sh600219",
+                    "sh600019",
+                ):
+                    logger.info(
+                        f"[18标的覆盖] {_code} 价格={_price} 股数={_shares} 金额={_shares*_price:.0f}"
+                    )
                 positions[_code] = max(_shares, 100)
             else:
                 positions[_code] = 100
-        logger.info("phase_hedge 等权假设持仓: %d 只, 单只约 %.0f 元", _n, _value_per_asset)
+        logger.info(
+            "phase_hedge 等权假设持仓: %d 只, 单只约 %.0f 元", _n, _value_per_asset
+        )
     else:
         positions = {code: 0 for code in ctx.config.MOCK_PRICES}
 
@@ -523,14 +628,19 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
     try:
         import numpy as np
         import pandas as pd
+
         price_frames = []
+
         def _fetch_hist(code):
             try:
                 if market_data_provider is not None:
-                    return code, market_data_provider.get_historical_data(code, period="3m")
+                    return code, market_data_provider.get_historical_data(
+                        code, period="3m"
+                    )
             except Exception:
                 pass
             return code, None
+
         with ThreadPoolExecutor(max_workers=4) as pool:
             hist_futures = {pool.submit(_fetch_hist, code): code for code in prices}
             for fut in as_completed(hist_futures, timeout=60):
@@ -557,7 +667,9 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
             mkt = None
             if market_data_provider is not None:
                 try:
-                    mkt = market_data_provider.get_historical_data(idx_code, period="3m")
+                    mkt = market_data_provider.get_historical_data(
+                        idx_code, period="3m"
+                    )
                 except Exception:  # fail-safe
                     mkt = None
             if mkt is not None and "close" in mkt.columns and not mkt.empty:
@@ -573,15 +685,16 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
         logger.warning("真实收益率获取失败，回退模拟数据: %s", exc)
         import numpy as np
         import pandas as pd
+
         np.random.seed(42)
         # 用更稳的默认序列：轻微正漂移 + 低波动，减少极端模拟收益
         drift = 0.0003
         vol = 0.012
         market_drift = 0.0002
         market_vol = 0.010
-        returns = pd.DataFrame({
-            code: np.random.normal(drift, vol, n_days) for code in prices
-        })
+        returns = pd.DataFrame(
+            {code: np.random.normal(drift, vol, n_days) for code in prices}
+        )
         market_returns = pd.Series(np.random.normal(market_drift, market_vol, n_days))
 
     # === 三联对冲协调器 (正确签名调用) ===
@@ -597,15 +710,23 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
             vix=vix_level,
             portfolio_value=ctx.capital,
         )
-        logger.info(f"对冲协调: action={coordinated.get('action')}, "
-                    f"总对冲比例={coordinated.get('total_hedge_pct', 0):.2%}, "
-                    f"组合Beta={coordinated.get('portfolio_beta', 0):.3f}")
+        logger.info(
+            f"对冲协调: action={coordinated.get('action')}, "
+            f"总对冲比例={coordinated.get('total_hedge_pct', 0):.2%}, "
+            f"组合Beta={coordinated.get('portfolio_beta', 0):.3f}"
+        )
     except Exception as e:  # fail-safe
         logger.error(f"对冲协调器执行失败: {e}")
         coordinated = {
-            "action": "ERROR", "reason": str(e),
-            "orders": [], "total_hedge_pct": 0,
-            "summary": {"beta_hedger": "ERROR", "vol_hedger": "ERROR", "corr_hedger": "ERROR"},
+            "action": "ERROR",
+            "reason": str(e),
+            "orders": [],
+            "total_hedge_pct": 0,
+            "summary": {
+                "beta_hedger": "ERROR",
+                "vol_hedger": "ERROR",
+                "corr_hedger": "ERROR",
+            },
         }
 
     # === 降级：风格 Beta 代理 (真实数据失效时，或主协调器判定 NO_HEDGE 但需验证价格链路) ===
@@ -619,7 +740,11 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
     elif not isinstance(portfolio_beta, (int, float)):
         beta_invalid = True
 
-    if beta_invalid or portfolio_beta <= 0.0 or coordinated_action in ("NO_HEDGE", "SKIP", "ERROR"):
+    if (
+        beta_invalid
+        or portfolio_beta <= 0.0
+        or coordinated_action in ("NO_HEDGE", "SKIP", "ERROR")
+    ):
         if beta_invalid:
             logger.warning("组合 Beta 异常 (%s)，回退到风格 Beta 代理", portfolio_beta)
         elif portfolio_beta <= 0.0:
@@ -631,6 +756,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
 
         # 复用 risk.py 的 _style_beta_proxy (跨 phase 调用)
         from workflow.phases.risk import _style_beta_proxy
+
         style_beta = _style_beta_proxy(positions, prices)
         coordinated["portfolio_beta"] = style_beta
         beta_order = _compute_beta_hedge_order(style_beta, ctx.capital, degraded=True)
@@ -638,7 +764,9 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
         if beta_order.get("action") not in ("NO_HEDGE", "SKIP", "ERROR"):
             coordinated.setdefault("orders", [])
             coordinated["orders"].append({**beta_order, "hedge_type": "BETA"})
-        logger.info(f"风格 Beta 代理: {style_beta:.3f}, action={beta_order.get('action')}, reason={beta_order.get('reason', '')}")
+        logger.info(
+            f"风格 Beta 代理: {style_beta:.3f}, action={beta_order.get('action')}, reason={beta_order.get('reason', '')}"
+        )
 
         # 回退后重算汇总指标，避免总对冲比例/成本仍为 0
         try:
@@ -648,8 +776,12 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
             _total_cost = 0.0
             for _o in _orders:
                 _total_hedge_value += float(_o.get("notional", 0.0) or 0.0)
-                _total_cost += float(_o.get("estimated_cost", 0.0) or _o.get("cost", 0.0) or 0.0)
-            coordinated["total_hedge_pct"] = _total_hedge_value / _pv if _pv > 0 else 0.0
+                _total_cost += float(
+                    _o.get("estimated_cost", 0.0) or _o.get("cost", 0.0) or 0.0
+                )
+            coordinated["total_hedge_pct"] = (
+                _total_hedge_value / _pv if _pv > 0 else 0.0
+            )
             coordinated["total_cost"] = _total_cost
         except Exception as _exc:  # fail-safe
             logger.warning("回退后重算对冲汇总失败: %s", _exc)
@@ -662,9 +794,9 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
         try:
             if MockBroker is None:
                 raise ImportError("MockBroker 模块未加载")
-            broker = MockBroker(price_dict={
-                str(k): v for k, v in ctx.config.MOCK_PRICES.items()
-            })
+            broker = MockBroker(
+                price_dict={str(k): v for k, v in ctx.config.MOCK_PRICES.items()}
+            )
 
             for order in hedge_orders:
                 hedge_type = order.get("hedge_type", "UNKNOWN")
@@ -676,7 +808,9 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                     contracts = int(order.get("contracts", 0))
                     fut_price = float(order.get("futures_price", 0))
                     if contracts > 0 and fut_price > 0:
-                        logger.info(f"[对冲执行] {hedge_type}: {fut_code} 空头 {contracts} 手 @ {fut_price}")
+                        logger.info(
+                            f"[对冲执行] {hedge_type}: {fut_code} 空头 {contracts} 手 @ {fut_price}"
+                        )
                         try:
                             oid = broker.place(
                                 symbol=fut_code,
@@ -686,39 +820,49 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                                 price=fut_price,
                             )
                             fill = broker.wait_fill(oid)
-                            executed_orders.append({
-                                "type": hedge_type,
-                                "action": action,
-                                "instrument": fut_code,
-                                "side": "SELL_SHORT",
-                                "contracts": contracts,
-                                "price": fill["price"] if fill else fut_price,
-                                "notional": order.get("notional", 0),
-                                "cost": order.get("estimated_cost", 0),
-                                "status": fill["order_type"] if fill else "FILLED",
-                                "reason": "Beta 对冲自动执行",
-                                "order_id": oid,
-                                "cost_breakdown": order.get("cost_breakdown"),
-                            })
+                            executed_orders.append(
+                                {
+                                    "type": hedge_type,
+                                    "action": action,
+                                    "instrument": fut_code,
+                                    "side": "SELL_SHORT",
+                                    "contracts": contracts,
+                                    "price": fill["price"] if fill else fut_price,
+                                    "notional": order.get("notional", 0),
+                                    "cost": order.get("estimated_cost", 0),
+                                    "status": fill["order_type"] if fill else "FILLED",
+                                    "reason": "Beta 对冲自动执行",
+                                    "order_id": oid,
+                                    "cost_breakdown": order.get("cost_breakdown"),
+                                }
+                            )
                         except Exception as exc:  # fail-safe
                             logger.error(f"Beta 对冲执行失败: {exc}")
-                            executed_orders.append({
-                                "type": hedge_type,
-                                "action": action,
-                                "instrument": fut_code,
-                                "side": "SELL_SHORT",
-                                "contracts": contracts,
-                                "price": fut_price,
-                                "notional": order.get("notional", 0),
-                                "cost": order.get("estimated_cost", 0),
-                                "status": "FAILED",
-                                "reason": f"Beta 对冲执行失败: {exc}",
-                                "cost_breakdown": order.get("cost_breakdown"),
-                            })
+                            executed_orders.append(
+                                {
+                                    "type": hedge_type,
+                                    "action": action,
+                                    "instrument": fut_code,
+                                    "side": "SELL_SHORT",
+                                    "contracts": contracts,
+                                    "price": fut_price,
+                                    "notional": order.get("notional", 0),
+                                    "cost": order.get("estimated_cost", 0),
+                                    "status": "FAILED",
+                                    "reason": f"Beta 对冲执行失败: {exc}",
+                                    "cost_breakdown": order.get("cost_breakdown"),
+                                }
+                            )
 
                 # 期权买入 (Vol 对冲 + Tail 对冲)
-                elif action in ("BUY_PUT_SPREAD", "BUY_BARE_PUT", "BUY_EMERGENCY_PUT",
-                                "PUT_SPREAD", "BARE_PUT", "EMERGENCY_PUT"):
+                elif action in (
+                    "BUY_PUT_SPREAD",
+                    "BUY_BARE_PUT",
+                    "BUY_EMERGENCY_PUT",
+                    "PUT_SPREAD",
+                    "BARE_PUT",
+                    "EMERGENCY_PUT",
+                ):
                     budget = float(order.get("budget", 0))
                     budget_allocation = order.get("budget_allocation") or {}
                     otm_ladder = order.get("otm_ladder") or []
@@ -726,13 +870,19 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                     # --- Tail 对冲: 按 budget_allocation 多标的分配 ---
                     if budget_allocation:
                         regime_lbl = order.get("regime", "normal")
-                        logger.info(f"[对冲执行] {hedge_type}: {action} 预算 {budget:.0f} "
-                                    f"regime={regime_lbl} 标的={list(budget_allocation.keys())}")
+                        logger.info(
+                            f"[对冲执行] {hedge_type}: {action} 预算 {budget:.0f} "
+                            f"regime={regime_lbl} 标的={list(budget_allocation.keys())}"
+                        )
                         for symbol, amount in budget_allocation.items():
                             amt = float(amount or 0)
                             if amt <= 0:
                                 continue
-                            otm_pct = float(otm_ladder[0].get("otm_pct", 0.10)) if otm_ladder else 0.10
+                            otm_pct = (
+                                float(otm_ladder[0].get("otm_pct", 0.10))
+                                if otm_ladder
+                                else 0.10
+                            )
                             # 按各标的现货价计算 strike (修复: 原逻辑用首个 spot 统一计算所有标的 strike)
                             spot_sym = 0.0
                             for pk, pv in prices.items():
@@ -740,7 +890,12 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                                     spot_sym = float(pv)
                                     break
                             if spot_sym <= 0:
-                                spot_sym = float(otm_ladder[0].get("strike", 0.0)) / (1 - otm_pct) if otm_ladder else 0.0
+                                spot_sym = (
+                                    float(otm_ladder[0].get("strike", 0.0))
+                                    / (1 - otm_pct)
+                                    if otm_ladder
+                                    else 0.0
+                                )
                             strike = round(spot_sym * (1 - otm_pct), 4)
                             opt_price = amt / 10000.0
                             try:
@@ -754,38 +909,46 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                                     strike=strike,
                                 )
                                 fill = broker.wait_fill(oid)
-                                executed_orders.append({
-                                    "type": hedge_type,
-                                    "action": action,
-                                    "instrument": f"{symbol} Put",
-                                    "side": "BUY",
-                                    "option_type": "PUT",
-                                    "strike": strike,
-                                    "otm_pct": otm_pct,
-                                    "budget": amt,
-                                    "protection_ratio": order.get("protection_ratio", 0),
-                                    "price": fill["price"] if fill else opt_price,
-                                    "status": "FILLED",
-                                    "reason": f"Tail 对冲自动执行 (regime={regime_lbl}, OTM={otm_pct:.0%})",
-                                    "order_id": oid,
-                                })
+                                executed_orders.append(
+                                    {
+                                        "type": hedge_type,
+                                        "action": action,
+                                        "instrument": f"{symbol} Put",
+                                        "side": "BUY",
+                                        "option_type": "PUT",
+                                        "strike": strike,
+                                        "otm_pct": otm_pct,
+                                        "budget": amt,
+                                        "protection_ratio": order.get(
+                                            "protection_ratio", 0
+                                        ),
+                                        "price": fill["price"] if fill else opt_price,
+                                        "status": "FILLED",
+                                        "reason": f"Tail 对冲自动执行 (regime={regime_lbl}, OTM={otm_pct:.0%})",
+                                        "order_id": oid,
+                                    }
+                                )
                             except Exception as exc:  # fail-safe
                                 logger.error(f"Tail 对冲执行失败 {symbol}: {exc}")
-                                executed_orders.append({
-                                    "type": hedge_type,
-                                    "action": action,
-                                    "instrument": f"{symbol} Put",
-                                    "side": "BUY",
-                                    "option_type": "PUT",
-                                    "strike": strike,
-                                    "budget": amt,
-                                    "status": "FAILED",
-                                    "reason": f"Tail 对冲执行失败: {exc}",
-                                })
+                                executed_orders.append(
+                                    {
+                                        "type": hedge_type,
+                                        "action": action,
+                                        "instrument": f"{symbol} Put",
+                                        "side": "BUY",
+                                        "option_type": "PUT",
+                                        "strike": strike,
+                                        "budget": amt,
+                                        "status": "FAILED",
+                                        "reason": f"Tail 对冲执行失败: {exc}",
+                                    }
+                                )
 
                     # --- Vol 对冲: 单标的 ---
                     elif budget > 0:
-                        logger.info(f"[对冲执行] {hedge_type}: {action} 预算 {budget:.0f}")
+                        logger.info(
+                            f"[对冲执行] {hedge_type}: {action} 预算 {budget:.0f}"
+                        )
                         try:
                             opt_symbol = order.get("instrument", "50ETF_OPTIONS")
                             opt_price = budget / 10000.0 if budget > 0 else 0.0
@@ -799,42 +962,50 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                                 strike=0.0,
                             )
                             fill = broker.wait_fill(oid)
-                            executed_orders.append({
-                                "type": hedge_type,
-                                "action": action,
-                                "instrument": opt_symbol,
-                                "side": "BUY",
-                                "option_type": "PUT",
-                                "strike": 0.0,
-                                "budget": budget,
-                                "delta_target": order.get("delta_target", -0.2),
-                                "coverage": order.get("actual_coverage", 0),
-                                "price": fill["price"] if fill else opt_price,
-                                "status": "FILLED",
-                                "reason": f"Vol 对冲自动执行 (VIX={vix_level})",
-                                "order_id": oid,
-                            })
+                            executed_orders.append(
+                                {
+                                    "type": hedge_type,
+                                    "action": action,
+                                    "instrument": opt_symbol,
+                                    "side": "BUY",
+                                    "option_type": "PUT",
+                                    "strike": 0.0,
+                                    "budget": budget,
+                                    "delta_target": order.get("delta_target", -0.2),
+                                    "coverage": order.get("actual_coverage", 0),
+                                    "price": fill["price"] if fill else opt_price,
+                                    "status": "FILLED",
+                                    "reason": f"Vol 对冲自动执行 (VIX={vix_level})",
+                                    "order_id": oid,
+                                }
+                            )
                         except Exception as exc:  # fail-safe
                             logger.error(f"Vol 对冲执行失败: {exc}")
-                            executed_orders.append({
-                                "type": hedge_type,
-                                "action": action,
-                                "instrument": order.get("instrument", "50ETF_OPTIONS"),
-                                "side": "BUY",
-                                "option_type": "PUT",
-                                "strike": 0.0,
-                                "budget": budget,
-                                "delta_target": order.get("delta_target", -0.2),
-                                "coverage": order.get("actual_coverage", 0),
-                                "status": "FAILED",
-                                "reason": f"Vol 对冲执行失败: {exc}",
-                            })
+                            executed_orders.append(
+                                {
+                                    "type": hedge_type,
+                                    "action": action,
+                                    "instrument": order.get(
+                                        "instrument", "50ETF_OPTIONS"
+                                    ),
+                                    "side": "BUY",
+                                    "option_type": "PUT",
+                                    "strike": 0.0,
+                                    "budget": budget,
+                                    "delta_target": order.get("delta_target", -0.2),
+                                    "coverage": order.get("actual_coverage", 0),
+                                    "status": "FAILED",
+                                    "reason": f"Vol 对冲执行失败: {exc}",
+                                }
+                            )
 
                 # 避险资产配置 (Correlation 对冲)
                 elif action == "SAFE_HAVEN_ALLOC":
                     gold_value = float(order.get("gold_value", 0))
                     repo_value = float(order.get("repo_value", 0))
-                    logger.info(f"[对冲执行] {hedge_type}: 黄金ETF {gold_value:.0f} + 逆回购 {repo_value:.0f}")
+                    logger.info(
+                        f"[对冲执行] {hedge_type}: 黄金ETF {gold_value:.0f} + 逆回购 {repo_value:.0f}"
+                    )
                     try:
                         gold_symbol = order.get("gold_etf", "518880")
                         est_gold_price = ctx.config.MOCK_PRICES.get(gold_symbol, 5.85)
@@ -848,51 +1019,63 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
                                 price=est_gold_price,
                             )
                             fill = broker.wait_fill(oid)
-                            executed_orders.append({
-                                "type": hedge_type,
-                                "action": action,
-                                "gold_etf": gold_symbol,
-                                "gold_qty": gold_qty,
-                                "gold_value": gold_value,
-                                "gold_price": fill["price"] if fill else est_gold_price,
-                                "repo_symbol": order.get("repo_symbol", "GC001"),
-                                "repo_value": repo_value,
-                                "status": "FILLED",
-                                "reason": f"Correlation 对冲自动执行 (ρ̄={order.get('avg_corr', 0):.3f})",
-                                "order_id": oid,
-                            })
+                            executed_orders.append(
+                                {
+                                    "type": hedge_type,
+                                    "action": action,
+                                    "gold_etf": gold_symbol,
+                                    "gold_qty": gold_qty,
+                                    "gold_value": gold_value,
+                                    "gold_price": (
+                                        fill["price"] if fill else est_gold_price
+                                    ),
+                                    "repo_symbol": order.get("repo_symbol", "GC001"),
+                                    "repo_value": repo_value,
+                                    "status": "FILLED",
+                                    "reason": f"Correlation 对冲自动执行 (ρ̄={order.get('avg_corr', 0):.3f})",
+                                    "order_id": oid,
+                                }
+                            )
                     except Exception as exc:  # fail-safe
                         logger.error(f"Correlation 对冲执行失败: {exc}")
-                        executed_orders.append({
-                            "type": hedge_type,
-                            "action": action,
-                            "gold_etf": order.get("gold_etf", "518880"),
-                            "gold_value": gold_value,
-                            "repo_symbol": order.get("repo_symbol", "GC001"),
-                            "repo_value": repo_value,
-                            "status": "FAILED",
-                            "reason": f"Correlation 对冲执行失败: {exc}",
-                        })
+                        executed_orders.append(
+                            {
+                                "type": hedge_type,
+                                "action": action,
+                                "gold_etf": order.get("gold_etf", "518880"),
+                                "gold_value": gold_value,
+                                "repo_symbol": order.get("repo_symbol", "GC001"),
+                                "repo_value": repo_value,
+                                "status": "FAILED",
+                                "reason": f"Correlation 对冲执行失败: {exc}",
+                            }
+                        )
 
                 # 降级为 Put Spread
                 elif action == "DOWNGRADE_TO_PUT_SPREAD":
-                    logger.info(f"[对冲执行] {hedge_type}: 降级至 Put Spread (成本超限)")
-                    executed_orders.append({
-                        "type": hedge_type,
-                        "action": action,
-                        "reason": order.get("reason", "成本超限降级"),
-                        "status": "DOWNGRADED",
-                    })
+                    logger.info(
+                        f"[对冲执行] {hedge_type}: 降级至 Put Spread (成本超限)"
+                    )
+                    executed_orders.append(
+                        {
+                            "type": hedge_type,
+                            "action": action,
+                            "reason": order.get("reason", "成本超限降级"),
+                            "status": "DOWNGRADED",
+                        }
+                    )
 
             logger.info(f"对冲执行完成: {len(executed_orders)} 笔指令已成交")
 
         except Exception as e:  # fail-safe
             logger.error(f"对冲执行通道异常: {e}")
-            executed_orders.append({
-                "type": "EXECUTION_ERROR",
-                "status": "FAILED",
-                "error": str(e),
-            })
+            executed_orders.append(
+                {
+                    "type": "EXECUTION_ERROR",
+                    "status": "FAILED",
+                    "error": str(e),
+                }
+            )
     elif hedge_orders and ctx.dry_run:
         logger.info(f"DRY-RUN 模式: {len(hedge_orders)} 笔对冲指令未执行")
         for order in hedge_orders:
@@ -924,16 +1107,20 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
         "edb_futures": edb_summary,
     }
 
-    logger.info(f"对冲汇总: 启用={hedge_status['hedge_enabled']}, "
-                f"指令数={len(executed_orders)}, "
-                f"总对冲比例={hedge_status['total_hedge_pct']:.2%}")
+    logger.info(
+        f"对冲汇总: 启用={hedge_status['hedge_enabled']}, "
+        f"指令数={len(executed_orders)}, "
+        f"总对冲比例={hedge_status['total_hedge_pct']:.2%}"
+    )
 
     ctx.state["phases"]["hedge"] = {"status": "PASS", **hedge_status}
     ctx.state["hedge_status"] = hedge_status
 
     # === 持久化对冲执行记录 ===
     try:
-        trade_date = getattr(ctx, "trade_date", None) or datetime.now().strftime("%Y-%m-%d")
+        trade_date = getattr(ctx, "trade_date", None) or datetime.now().strftime(
+            "%Y-%m-%d"
+        )
         reports_dir = BASE_DIR / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
         hedge_fill_path = reports_dir / f"hedge_execution_fill_{trade_date}.json"

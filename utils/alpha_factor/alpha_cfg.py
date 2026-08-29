@@ -87,9 +87,11 @@ DEFAULT_N_FACTORS = 10
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class FactorExpression:
     """因子表达式 (含字符串表示 + IC 评估)。"""
+
     expression: str
     ic: float = 0.0
     ir: float = 0.0  # Information Ratio
@@ -110,6 +112,7 @@ class FactorExpression:
 # CFG 文法
 # ============================================================
 
+
 class CFGGrammar:
     """因子表达式的上下文无关文法。
 
@@ -126,17 +129,18 @@ class CFGGrammar:
             return self._generate_terminal()
 
         if symbol == "alpha" or symbol == "expr":
-            choice = self.rng.choice(["binary", "unary", "ts_expr", "cs_expr", "terminal"])
+            choice = self.rng.choice(
+                ["binary", "unary", "ts_expr", "cs_expr", "terminal"]
+            )
             if choice == "binary" and max_depth >= 2:
                 return self._generate_binary(max_depth)
-            elif choice == "unary":
+            if choice == "unary":
                 return self._generate_unary(max_depth)
-            elif choice == "ts_expr":
+            if choice == "ts_expr":
                 return self._generate_ts(max_depth)
-            elif choice == "cs_expr":
+            if choice == "cs_expr":
                 return self._generate_cs(max_depth)
-            else:
-                return self._generate_terminal()
+            return self._generate_terminal()
         return self._generate_terminal()
 
     def _generate_binary(self, max_depth: int) -> str:
@@ -186,6 +190,7 @@ class CFGGrammar:
 # ============================================================
 # 因子评估器
 # ============================================================
+
 
 class FactorEvaluator:
     """因子评估器 — 计算 IC/IR (合成数据模拟)。
@@ -247,12 +252,14 @@ class FactorEvaluator:
 # MCTS 节点
 # ============================================================
 
+
 @dataclass
 class MCTSNode:
     """蒙特卡洛树搜索节点。
 
     每个节点对应一个部分表达式 (可能含非终端符号)。
     """
+
     expression: str
     depth: int
     parent: Optional["MCTSNode"] = None
@@ -291,6 +298,7 @@ class MCTSNode:
 # MCTS 搜索器
 # ============================================================
 
+
 class MCTSSearcher:
     """蒙特卡洛树搜索器 — 在 CFG 语法空间中搜索高 IC 因子。
 
@@ -301,10 +309,14 @@ class MCTSSearcher:
     4. 回传 (Backpropagation): IC 作为奖励回传到根节点
     """
 
-    def __init__(self, grammar: CFGGrammar, evaluator: FactorEvaluator,
-                 max_depth: int = DEFAULT_MAX_DEPTH,
-                 ucb_c: float = DEFAULT_UCB_C,
-                 seed: int = 42) -> None:
+    def __init__(
+        self,
+        grammar: CFGGrammar,
+        evaluator: FactorEvaluator,
+        max_depth: int = DEFAULT_MAX_DEPTH,
+        ucb_c: float = DEFAULT_UCB_C,
+        seed: int = 42,
+    ) -> None:
         self.grammar = grammar
         self.evaluator = evaluator
         self.max_depth = max_depth
@@ -312,7 +324,9 @@ class MCTSSearcher:
         self.rng = random.Random(seed)
         self.root = MCTSNode(expression="alpha", depth=0)
 
-    def search(self, n_iterations: int = DEFAULT_N_ITERATIONS) -> list[FactorExpression]:
+    def search(
+        self, n_iterations: int = DEFAULT_N_ITERATIONS
+    ) -> list[FactorExpression]:
         """执行 MCTS 搜索, 返回发现的因子列表。"""
         discovered: dict[str, FactorExpression] = {}
 
@@ -330,7 +344,9 @@ class MCTSSearcher:
             # 记录发现的因子
             if expression not in discovered:
                 discovered[expression] = FactorExpression(
-                    expression=expression, ic=ic, ir=ir,
+                    expression=expression,
+                    ic=ic,
+                    ir=ir,
                     depth=self._estimate_depth(expression),
                     visits=1,
                 )
@@ -342,8 +358,10 @@ class MCTSSearcher:
                     discovered[expression].ir = ir
 
             if (i + 1) % 50 == 0:
-                logger.debug(f"AlphaCFG MCTS: 迭代 {i + 1}/{n_iterations}, "
-                           f"已发现 {len(discovered)} 个因子")
+                logger.debug(
+                    f"AlphaCFG MCTS: 迭代 {i + 1}/{n_iterations}, "
+                    f"已发现 {len(discovered)} 个因子"
+                )
 
         # 按 |IC| 排序
         results = sorted(discovered.values(), key=lambda f: abs(f.ic), reverse=True)
@@ -405,6 +423,7 @@ class MCTSSearcher:
 # AlphaCFG 主发现器
 # ============================================================
 
+
 class AlphaCFGDiscoverer:
     """AlphaCFG 语法引导因子发现主发现器。
 
@@ -413,10 +432,13 @@ class AlphaCFGDiscoverer:
         factors = discoverer.discover(n_factors=10)
     """
 
-    def __init__(self, max_depth: int = DEFAULT_MAX_DEPTH,
-                 n_iterations: int = DEFAULT_N_ITERATIONS,
-                 ucb_c: float = DEFAULT_UCB_C,
-                 seed: int = 42) -> None:
+    def __init__(
+        self,
+        max_depth: int = DEFAULT_MAX_DEPTH,
+        n_iterations: int = DEFAULT_N_ITERATIONS,
+        ucb_c: float = DEFAULT_UCB_C,
+        seed: int = 42,
+    ) -> None:
         self.max_depth = max_depth
         self.n_iterations = n_iterations
         self.ucb_c = ucb_c
@@ -424,27 +446,38 @@ class AlphaCFGDiscoverer:
         self.grammar = CFGGrammar(seed=seed)
         self.evaluator = FactorEvaluator(seed=seed + 1)
         self.searcher = MCTSSearcher(
-            grammar=self.grammar, evaluator=self.evaluator,
-            max_depth=max_depth, ucb_c=ucb_c, seed=seed + 2,
+            grammar=self.grammar,
+            evaluator=self.evaluator,
+            max_depth=max_depth,
+            ucb_c=ucb_c,
+            seed=seed + 2,
         )
 
     def discover(self, n_factors: int = DEFAULT_N_FACTORS) -> list[FactorExpression]:
         """发现 top-N 高 IC 因子。"""
-        logger.info(f"AlphaCFG: 开始搜索 (depth={self.max_depth}, "
-                    f"iters={self.n_iterations}, n_factors={n_factors})")
+        logger.info(
+            f"AlphaCFG: 开始搜索 (depth={self.max_depth}, "
+            f"iters={self.n_iterations}, n_factors={n_factors})"
+        )
 
         all_factors = self.searcher.search(self.n_iterations)
         top_factors = all_factors[:n_factors]
 
-        logger.info(f"AlphaCFG: 搜索完成, 发现 {len(all_factors)} 个因子, "
-                    f"返回 top-{len(top_factors)}")
+        logger.info(
+            f"AlphaCFG: 搜索完成, 发现 {len(all_factors)} 个因子, "
+            f"返回 top-{len(top_factors)}"
+        )
         if top_factors:
             best = top_factors[0]
-            logger.info(f"AlphaCFG: 最佳因子 IC={best.ic:.4f} IR={best.ir:.4f} "
-                       f"'{best.expression}'")
+            logger.info(
+                f"AlphaCFG: 最佳因子 IC={best.ic:.4f} IR={best.ir:.4f} "
+                f"'{best.expression}'"
+            )
         return top_factors
 
-    def discover_and_report(self, n_factors: int = DEFAULT_N_FACTORS) -> dict[str, object]:
+    def discover_and_report(
+        self, n_factors: int = DEFAULT_N_FACTORS
+    ) -> dict[str, object]:
         """发现因子并生成报告 dict。"""
         factors = self.discover(n_factors)
         return {
@@ -460,6 +493,7 @@ class AlphaCFGDiscoverer:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 运行 AlphaCFG 因子发现。
@@ -479,8 +513,10 @@ def main() -> None:
     print(f"\n发现 top-{len(factors)} 因子:")
     print("-" * 60)
     for i, f in enumerate(factors, 1):
-        print(f"{i:2d}. IC={f.ic:+.4f}  IR={f.ir:+.4f}  depth={f.depth}  "
-              f"visits={f.visits}")
+        print(
+            f"{i:2d}. IC={f.ic:+.4f}  IR={f.ir:+.4f}  depth={f.depth}  "
+            f"visits={f.visits}"
+        )
         print(f"    {f.expression}")
 
     print("-" * 60)

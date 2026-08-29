@@ -26,59 +26,147 @@ FIFTEEN_FIVE_POLICIES = {
     "新质生产力": {
         "weight": 0.22,  # 25→22，让渡给绿色低碳/健康中国/安全发展（十五五权重复核 2026-08-21）
         "description": "以科技创新为核心驱动力，培育新产业、新模式、新动能",
-        "keywords": ["AI", "人工智能", "大模型", "算力", "机器人", "量子计算",
-                      "低空经济", "商业航天", "6G", "脑机接口",
-                      "银发经济", "数字消费", "首发经济", "体验式消费",
-                      "AI促进就业", "新就业形态", "灵活就业"],
+        "keywords": [
+            "AI",
+            "人工智能",
+            "大模型",
+            "算力",
+            "机器人",
+            "量子计算",
+            "低空经济",
+            "商业航天",
+            "6G",
+            "脑机接口",
+            "银发经济",
+            "数字消费",
+            "首发经济",
+            "体验式消费",
+            "AI促进就业",
+            "新就业形态",
+            "灵活就业",
+        ],
         "target_sectors": ["半导体", "AI算力", "软件服务", "通信设备", "航空航天"],
         "relevance_score": 95,  # 政策优先级 0-100
     },
     "制造强国": {
         "weight": 0.18,  # 20→18，让渡给绿色低碳/健康中国/安全发展（十五五权重复核 2026-08-21）
         "description": "推动制造业高端化、智能化、绿色化发展",
-        "keywords": ["高端装备", "智能制造", "数控机床", "工业母机", "新材料",
-                      "新能源汽车", "轨道交通", "船舶制造", "航空航天"],
+        "keywords": [
+            "高端装备",
+            "智能制造",
+            "数控机床",
+            "工业母机",
+            "新材料",
+            "新能源汽车",
+            "轨道交通",
+            "船舶制造",
+            "航空航天",
+        ],
         "target_sectors": ["高端制造", "机械设备", "汽车", "新材料", "军工"],
         "relevance_score": 90,
     },
     "数字中国": {
         "weight": 0.15,
         "description": "加快数字化发展，建设数字中国",
-        "keywords": ["数据要素", "大数据", "云计算", "物联网", "区块链",
-                      "工业互联网", "智慧城市", "数字政府", "数字人民币"],
+        "keywords": [
+            "数据要素",
+            "大数据",
+            "云计算",
+            "物联网",
+            "区块链",
+            "工业互联网",
+            "智慧城市",
+            "数字政府",
+            "数字人民币",
+        ],
         "target_sectors": ["软件服务", "云计算", "数据要素", "金融科技", "通信"],
         "relevance_score": 88,
     },
     "绿色低碳": {
         "weight": 0.18,  # 15→18，政策密度最高（6个专项规划）（十五五权重复核 2026-08-21）
         "description": "推动能源革命，实现碳达峰碳中和目标",
-        "keywords": ["光伏", "风电", "储能", "氢能", "核能", "碳交易",
-                      "新型电力系统", "特高压", "节能环保", "新能源车",
-                      "35亿千瓦", "绿氢200万吨", "海上风电", "抽水蓄能", "构网型",
-                      "置信出力", "非化石能源50%", "虚拟电厂5000万千瓦", "西电东送4.2亿",
-                      "电力+算力", "主配微协同", "碳达峰17%", "非化石25%",
-                      "零碳园区", "零碳工厂", "碳汇", "零碳运输走廊",
-                      "资源产出率16%", "新三样固废", "城市矿产", "动力电池回收"],
+        "keywords": [
+            "光伏",
+            "风电",
+            "储能",
+            "氢能",
+            "核能",
+            "碳交易",
+            "新型电力系统",
+            "特高压",
+            "节能环保",
+            "新能源车",
+            "35亿千瓦",
+            "绿氢200万吨",
+            "海上风电",
+            "抽水蓄能",
+            "构网型",
+            "置信出力",
+            "非化石能源50%",
+            "虚拟电厂5000万千瓦",
+            "西电东送4.2亿",
+            "电力+算力",
+            "主配微协同",
+            "碳达峰17%",
+            "非化石25%",
+            "零碳园区",
+            "零碳工厂",
+            "碳汇",
+            "零碳运输走廊",
+            "资源产出率16%",
+            "新三样固废",
+            "城市矿产",
+            "动力电池回收",
+        ],
         "target_sectors": ["新能源", "储能", "电力", "环保", "新能源汽车"],
         "relevance_score": 85,
     },
     "健康中国": {
         "weight": 0.11,  # 10→11，中医药+全民医保2个专项规划（十五五权重复核 2026-08-21）
         "description": "全面推进健康中国建设，发展生物医药产业",
-        "keywords": ["创新药", "生物制药", "医疗器械", "精准医疗", "基因治疗",
-                      "中医药", "智慧医疗", "养老产业", "健康管理",
-                      "数智化赋能", "人人享有中医药", "15分钟医疗服务", "中药制造",
-                      "长期护理保险", "省级统筹", "异地直接结算", "数智医保"],
+        "keywords": [
+            "创新药",
+            "生物制药",
+            "医疗器械",
+            "精准医疗",
+            "基因治疗",
+            "中医药",
+            "智慧医疗",
+            "养老产业",
+            "健康管理",
+            "数智化赋能",
+            "人人享有中医药",
+            "15分钟医疗服务",
+            "中药制造",
+            "长期护理保险",
+            "省级统筹",
+            "异地直接结算",
+            "数智医保",
+        ],
         "target_sectors": ["医药", "医疗器械", "生物科技", "医疗服务"],
         "relevance_score": 80,
     },
     "安全发展": {
         "weight": 0.11,  # 10→11，煤炭兜底+油气+煤层气+电力韧性4个涉及（十五五权重复核 2026-08-21）
         "description": "统筹发展和安全，保障粮食/能源/产业链安全",
-        "keywords": ["粮食安全", "能源安全", "种业", "关键矿产", "稀土",
-                      "信创", "国产替代", "网络安全", "军工",
-                      "智能化75%", "煤层气260亿", "油气供应量目标2030", "煤炭兜底保障",
-                      "千万吨级输油管道", "油气全国一张网", "国家管网集团"],
+        "keywords": [
+            "粮食安全",
+            "能源安全",
+            "种业",
+            "关键矿产",
+            "稀土",
+            "信创",
+            "国产替代",
+            "网络安全",
+            "军工",
+            "智能化75%",
+            "煤层气260亿",
+            "油气供应量目标2030",
+            "煤炭兜底保障",
+            "千万吨级输油管道",
+            "油气全国一张网",
+            "国家管网集团",
+        ],
         "target_sectors": ["农业", "能源", "矿产", "信息安全", "军工"],
         "relevance_score": 82,
     },
@@ -103,8 +191,8 @@ STOCK_POLICY_ALIGNMENT = {
     "601088": {  # 中国神华
         "name": "中国神华",
         "alignments": {
-            "绿色低碳": 80,    # 煤炭清洁利用+智能化75%+煤层气260亿（十五五权重复核 2026-08-21）
-            "安全发展": 85,    # 能源安全核心标的
+            "绿色低碳": 80,  # 煤炭清洁利用+智能化75%+煤层气260亿（十五五权重复核 2026-08-21）
+            "安全发展": 85,  # 能源安全核心标的
         },
         "overall_score": 82,
         "rationale": "煤炭龙头+能源安全核心标的，十五五受益于能源保供+智能化75%+煤层气260亿m³",
@@ -112,7 +200,7 @@ STOCK_POLICY_ALIGNMENT = {
     "600276": {  # 恒瑞医药
         "name": "恒瑞医药",
         "alignments": {
-            "健康中国": 92,    # 创新药龙头，健康中国核心受益
+            "健康中国": 92,  # 创新药龙头，健康中国核心受益
             "新质生产力": 80,  # 生物科技创新
         },
         "overall_score": 88,
@@ -122,7 +210,7 @@ STOCK_POLICY_ALIGNMENT = {
         "name": "海光信息",
         "alignments": {
             "新质生产力": 90,  # 国产GPU，AI算力核心
-            "安全发展": 85,    # 信创/国产替代
+            "安全发展": 85,  # 信创/国产替代
             "数字中国": 85,
         },
         "overall_score": 90,
@@ -133,7 +221,7 @@ STOCK_POLICY_ALIGNMENT = {
         "alignments": {
             "新质生产力": 92,  # 光模块全球龙头，AI算力出口核心
             "数字中国": 88,
-            "绿色低碳": 75,    # 数据中心节能与绿色算力
+            "绿色低碳": 75,  # 数据中心节能与绿色算力
         },
         "overall_score": 90,
         "rationale": "光模块全球龙头，AI算力基础设施核心出口商，十五五新质生产力旗舰",
@@ -141,7 +229,7 @@ STOCK_POLICY_ALIGNMENT = {
     "300274": {  # 阳光电源
         "name": "阳光电源",
         "alignments": {
-            "绿色低碳": 90,    # 光伏逆变器+储能全球龙头
+            "绿色低碳": 90,  # 光伏逆变器+储能全球龙头
             "新质生产力": 80,
         },
         "overall_score": 85,
@@ -151,8 +239,8 @@ STOCK_POLICY_ALIGNMENT = {
         "name": "北方华创",
         "alignments": {
             "新质生产力": 90,
-            "制造强国": 88,    # 半导体设备龙头
-            "安全发展": 80,    # 国产替代
+            "制造强国": 88,  # 半导体设备龙头
+            "安全发展": 80,  # 国产替代
         },
         "overall_score": 88,
         "rationale": "半导体设备平台型龙头，国产替代核心，十五五制造强国+新质生产力",
@@ -169,9 +257,9 @@ STOCK_POLICY_ALIGNMENT = {
     "600089": {  # 特变电工
         "name": "特变电工",
         "alignments": {
-            "绿色低碳": 85,    # 新能源设备+特高压
+            "绿色低碳": 85,  # 新能源设备+特高压
             "制造强国": 80,
-            "安全发展": 75,    # 能源安全/特高压外送
+            "安全发展": 75,  # 能源安全/特高压外送
         },
         "overall_score": 80,
         "rationale": "新能源设备+输变电龙头，特高压与新能源双驱动",
@@ -179,7 +267,7 @@ STOCK_POLICY_ALIGNMENT = {
     "600875": {  # 东方电气
         "name": "东方电气",
         "alignments": {
-            "绿色低碳": 88,    # 风电/水电/氢能设备
+            "绿色低碳": 88,  # 风电/水电/氢能设备
             "制造强国": 80,
         },
         "overall_score": 82,
@@ -188,8 +276,8 @@ STOCK_POLICY_ALIGNMENT = {
     "000425": {  # 徐工机械
         "name": "徐工机械",
         "alignments": {
-            "制造强国": 85,    # 高端装备/智能制造
-            "安全发展": 70,    # 应急装备
+            "制造强国": 85,  # 高端装备/智能制造
+            "安全发展": 70,  # 应急装备
         },
         "overall_score": 75,
         "rationale": "工程机械龙头，高端制造+智能化转型，十五五制造强国受益",
@@ -197,8 +285,8 @@ STOCK_POLICY_ALIGNMENT = {
     "600406": {  # 国电南瑞
         "name": "国电南瑞",
         "alignments": {
-            "数字中国": 80,    # 电网自动化/数字化
-            "绿色低碳": 82,    # 新能源并网/新型电力系统
+            "数字中国": 80,  # 电网自动化/数字化
+            "绿色低碳": 82,  # 新能源并网/新型电力系统
             "新质生产力": 75,
         },
         "overall_score": 78,
@@ -207,8 +295,8 @@ STOCK_POLICY_ALIGNMENT = {
     "600989": {  # 宝丰能源
         "name": "宝丰能源",
         "alignments": {
-            "绿色低碳": 78,    # 煤制烯烃+绿氢布局
-            "安全发展": 72,    # 煤化工供应链安全
+            "绿色低碳": 78,  # 煤制烯烃+绿氢布局
+            "安全发展": 72,  # 煤化工供应链安全
         },
         "overall_score": 72,
         "rationale": "煤制烯烃龙头，积极布局绿氢，十五五绿色低碳转型受益",
@@ -216,8 +304,8 @@ STOCK_POLICY_ALIGNMENT = {
     "600036": {  # 招商银行
         "name": "招商银行",
         "alignments": {
-            "数字中国": 65,    # 金融科技
-            "安全发展": 60,    # 金融安全
+            "数字中国": 65,  # 金融科技
+            "安全发展": 60,  # 金融安全
         },
         "overall_score": 55,
         "rationale": "零售银行龙头，金融科技有布局，但与十五五产业方向关联度一般",
@@ -225,8 +313,8 @@ STOCK_POLICY_ALIGNMENT = {
     "600900": {  # 长江电力
         "name": "长江电力",
         "alignments": {
-            "绿色低碳": 85,    # 水电清洁能源+常规水电4.1亿千瓦+抽水蓄能1.6亿千瓦（十五五权重复核 2026-08-21）
-            "安全发展": 75,    # 能源安全/水电基荷
+            "绿色低碳": 85,  # 水电清洁能源+常规水电4.1亿千瓦+抽水蓄能1.6亿千瓦（十五五权重复核 2026-08-21）
+            "安全发展": 75,  # 能源安全/水电基荷
         },
         "overall_score": 72,
         "rationale": "水电龙头，清洁能源+能源安全，常规水电4.1亿千瓦+抽水蓄能1.6亿千瓦，十五五绿色低碳核心",
@@ -234,8 +322,8 @@ STOCK_POLICY_ALIGNMENT = {
     "600219": {  # 南山铝业
         "name": "南山铝业",
         "alignments": {
-            "绿色低碳": 78,    # 铝轻量化/再生铝
-            "制造强国": 72,    # 汽车轻量化材料
+            "绿色低碳": 78,  # 铝轻量化/再生铝
+            "制造强国": 72,  # 汽车轻量化材料
         },
         "overall_score": 70,
         "rationale": "铝产业链龙头，汽车轻量化+航空铝材，十五五绿色低碳与制造强国受益",
@@ -243,8 +331,8 @@ STOCK_POLICY_ALIGNMENT = {
     "600019": {  # 宝钢股份
         "name": "宝钢股份",
         "alignments": {
-            "制造强国": 72,    # 高端钢材/汽车板
-            "绿色低碳": 68,    # 低碳冶金
+            "制造强国": 72,  # 高端钢材/汽车板
+            "绿色低碳": 68,  # 低碳冶金
         },
         "overall_score": 65,
         "rationale": "钢铁龙头，高端制造材料供应商，但传统周期属性较强",
@@ -252,8 +340,8 @@ STOCK_POLICY_ALIGNMENT = {
     "000792": {  # 盐湖股份
         "name": "盐湖股份",
         "alignments": {
-            "绿色低碳": 80,    # 锂资源/新能源汽车供应链
-            "安全发展": 72,    # 关键矿产安全
+            "绿色低碳": 80,  # 锂资源/新能源汽车供应链
+            "安全发展": 72,  # 关键矿产安全
         },
         "overall_score": 72,
         "rationale": "钾肥+锂盐龙头，锂资源自主可控，十五五安全发展与绿色低碳受益",
@@ -261,8 +349,8 @@ STOCK_POLICY_ALIGNMENT = {
     "000858": {  # 五粮液
         "name": "五粮液",
         "alignments": {
-            "健康中国": 55,    # 适度饮酒与健康关联较弱
-            "区域协调": 50,    # 四川区域龙头
+            "健康中国": 55,  # 适度饮酒与健康关联较弱
+            "区域协调": 50,  # 四川区域龙头
         },
         "overall_score": 45,
         "rationale": "白酒龙头，消费属性强，但与十五五核心产业方向关联度低",
@@ -270,8 +358,8 @@ STOCK_POLICY_ALIGNMENT = {
     "601318": {  # 中国平安
         "name": "中国平安",
         "alignments": {
-            "数字中国": 60,    # 金融科技/科技赋能金融
-            "安全发展": 58,    # 金融安全
+            "数字中国": 60,  # 金融科技/科技赋能金融
+            "安全发展": 58,  # 金融安全
         },
         "overall_score": 50,
         "rationale": "综合金融龙头，金融科技有布局，但与十五五产业政策主线匹配度一般",
@@ -280,7 +368,7 @@ STOCK_POLICY_ALIGNMENT = {
         "name": "中芯国际",
         "alignments": {
             "新质生产力": 88,  # 晶圆代工
-            "安全发展": 90,    # 芯片制造国产替代核心
+            "安全发展": 90,  # 芯片制造国产替代核心
             "制造强国": 82,
         },
         "overall_score": 88,
@@ -290,8 +378,8 @@ STOCK_POLICY_ALIGNMENT = {
         "name": "中科曙光",
         "alignments": {
             "新质生产力": 90,  # 智算中心/服务器
-            "数字中国": 92,    # 数字基础设施
-            "安全发展": 78,    # 信创
+            "数字中国": 92,  # 数字基础设施
+            "安全发展": 78,  # 信创
         },
         "overall_score": 90,
         "rationale": "智算中心与服务器龙头，数字中国核心基础设施，十五五新质生产力旗舰",
@@ -299,14 +387,13 @@ STOCK_POLICY_ALIGNMENT = {
     "300750": {  # 宁德时代
         "name": "宁德时代",
         "alignments": {
-            "绿色低碳": 90,    # 28亿千瓦新能源消纳+新型储能+1.1亿辆充电网络+绿氢200万吨
-            "安全发展": 75,    # "新三样"固废回收+动力电池回收+关键矿产安全
-            "制造强国": 82,    # 高端制造+新能源汽车产业链
+            "绿色低碳": 90,  # 28亿千瓦新能源消纳+新型储能+1.1亿辆充电网络+绿氢200万吨
+            "安全发展": 75,  # "新三样"固废回收+动力电池回收+关键矿产安全
+            "制造强国": 82,  # 高端制造+新能源汽车产业链
         },
         "overall_score": 85,
         "rationale": "动力电池全球龙头，28亿千瓦新能源消纳+新型储能+绿氢200万吨+新三样回收，十五五绿色低碳旗舰",
     },
-
     # ETF
     "510300": {  # 沪深300ETF
         "name": "沪深300ETF",
@@ -364,7 +451,7 @@ STOCK_POLICY_ALIGNMENT = {
     "515180": {  # 中证红利ETF
         "name": "中证红利ETF",
         "alignments": {
-            "安全发展": 65,    # 高股息防御
+            "安全发展": 65,  # 高股息防御
             "区域协调": 55,
         },
         "overall_score": 55,
@@ -373,7 +460,7 @@ STOCK_POLICY_ALIGNMENT = {
     "518880": {  # 华安黄金ETF
         "name": "华安黄金ETF",
         "alignments": {
-            "安全发展": 70,    # 避险资产，安全底线
+            "安全发展": 70,  # 避险资产，安全底线
         },
         "overall_score": 45,
         "rationale": "黄金ETF与十五五产业政策关联度低，主要作为避险配置和康波周期对冲",
@@ -384,6 +471,7 @@ STOCK_POLICY_ALIGNMENT = {
 # ============================================================
 # 十五五适配分析器
 # ============================================================
+
 
 class FifteenFivePlanAnalyzer:
     """
@@ -401,14 +489,16 @@ class FifteenFivePlanAnalyzer:
         """获取十五五政策方向概览"""
         overview = []
         for name, detail in self.policies.items():
-            overview.append({
-                "direction": name,
-                "weight": detail["weight"],
-                "description": detail["description"],
-                "relevance_score": detail["relevance_score"],
-                "target_sectors": detail["target_sectors"],
-                "keywords": detail["keywords"][:5],  # 前5个关键词
-            })
+            overview.append(
+                {
+                    "direction": name,
+                    "weight": detail["weight"],
+                    "description": detail["description"],
+                    "relevance_score": detail["relevance_score"],
+                    "target_sectors": detail["target_sectors"],
+                    "keywords": detail["keywords"][:5],  # 前5个关键词
+                }
+            )
         # 按权重排序
         overview.sort(key=lambda x: x["weight"], reverse=True)
         return overview
@@ -439,8 +529,7 @@ class FifteenFivePlanAnalyzer:
                 "rationale": alignment["rationale"],
                 "alignments": alignment["alignments"],
                 "top_policies": sorted(
-                    alignment["alignments"].items(),
-                    key=lambda x: x[1], reverse=True
+                    alignment["alignments"].items(), key=lambda x: x[1], reverse=True
                 )[:3],
             }
 
@@ -492,15 +581,17 @@ class FifteenFivePlanAnalyzer:
                 suggestion = "建议低配"
                 adjust_pct = max(-5.0, round(deviation / 10, 1))
 
-            adjustments.append({
-                "code": a["code"],
-                "name": a["name"],
-                "grade": a["grade"],
-                "fifteen_score": a["overall_score"],
-                "deviation_from_avg": round(deviation, 1),
-                "suggestion": suggestion,
-                "weight_adjust_pct": adjust_pct,
-            })
+            adjustments.append(
+                {
+                    "code": a["code"],
+                    "name": a["name"],
+                    "grade": a["grade"],
+                    "fifteen_score": a["overall_score"],
+                    "deviation_from_avg": round(deviation, 1),
+                    "suggestion": suggestion,
+                    "weight_adjust_pct": adjust_pct,
+                }
+            )
 
         return adjustments
 
@@ -529,7 +620,9 @@ class FifteenFivePlanAnalyzer:
         lines.append("|---------|------|-----------|---------|")
         for o in overview:
             keywords_str = "、".join(o["keywords"][:3])
-            lines.append(f"| **{o['direction']}** | {o['weight']:.0%} | {o['relevance_score']} | {keywords_str} |")
+            lines.append(
+                f"| **{o['direction']}** | {o['weight']:.0%} | {o['relevance_score']} | {keywords_str} |"
+            )
         lines.append("")
 
         # 二、持仓适配评级
@@ -541,7 +634,9 @@ class FifteenFivePlanAnalyzer:
         for a in analysis:
             top = a["top_policies"]
             top_str = " / ".join(f"{p[0]}({p[1]})" for p in top)
-            lines.append(f"| **{a['name']}** | {a['code']} | {a['overall_score']} | {a['grade']} | {top_str} | {a['rationale']} |")
+            lines.append(
+                f"| **{a['name']}** | {a['code']} | {a['overall_score']} | {a['grade']} | {top_str} | {a['rationale']} |"
+            )
         lines.append("")
 
         # 三、权重调整建议
@@ -552,7 +647,9 @@ class FifteenFivePlanAnalyzer:
         lines.append("|------|-----------|---------|------|---------|")
         for adj in adjustments:
             direction = "+" if adj["weight_adjust_pct"] > 0 else ""
-            lines.append(f"| {adj['name']} | {adj['fifteen_score']} | {adj['deviation_from_avg']:+.1f} | **{adj['suggestion']}** | {direction}{adj['weight_adjust_pct']:.1f}% |")
+            lines.append(
+                f"| {adj['name']} | {adj['fifteen_score']} | {adj['deviation_from_avg']:+.1f} | **{adj['suggestion']}** | {direction}{adj['weight_adjust_pct']:.1f}% |"
+            )
         lines.append("")
 
         # 四、综合建议
@@ -566,13 +663,17 @@ class FifteenFivePlanAnalyzer:
 
         lines.append("### 核心配置（十五五高适配）")
         for t in top3:
-            lines.append(f"- **{t['name']}**：十五五适配评分 {t['overall_score']}，{t['rationale']}")
+            lines.append(
+                f"- **{t['name']}**：十五五适配评分 {t['overall_score']}，{t['rationale']}"
+            )
         lines.append("")
 
         if bottom3:
             lines.append("### 关注标的（十五五低适配）")
             for b in bottom3:
-                lines.append(f"- **{b['name']}**：十五五适配评分 {b['overall_score']}，{b['rationale']}")
+                lines.append(
+                    f"- **{b['name']}**：十五五适配评分 {b['overall_score']}，{b['rationale']}"
+                )
             lines.append("")
 
         lines.append("---")
@@ -583,9 +684,10 @@ class FifteenFivePlanAnalyzer:
 
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
-            filepath = os.path.join(save_dir,
-                f"十五五规划适配_{datetime.now().strftime('%Y%m%d')}.md")
-            with open(filepath, 'w', encoding='utf-8') as f:
+            filepath = os.path.join(
+                save_dir, f"十五五规划适配_{datetime.now().strftime('%Y%m%d')}.md"
+            )
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report)
             logger.info(f"[FifteenFive] 报告已保存: {filepath}")
 
@@ -601,7 +703,9 @@ if __name__ == "__main__":
 
     logger.info("\n=== 十五五政策概览 ===")
     for o in analyzer.get_policy_overview():
-        logger.info(f"  {o['direction']}: 权重={o['weight']:.0%}, 优先级={o['relevance_score']}")
+        logger.info(
+            f"  {o['direction']}: 权重={o['weight']:.0%}, 优先级={o['relevance_score']}"
+        )
 
     logger.info("\n=== 持仓适配分析 ===")
     for a in analyzer.analyze_holdings():
@@ -609,4 +713,6 @@ if __name__ == "__main__":
 
     logger.info("\n=== 权重调整建议 ===")
     for adj in analyzer.get_weight_adjustments():
-        logger.info(f"  {adj['name']}: {adj['suggestion']} ({adj['weight_adjust_pct']:+.1f}%)")
+        logger.info(
+            f"  {adj['name']}: {adj['suggestion']} ({adj['weight_adjust_pct']:+.1f}%)"
+        )

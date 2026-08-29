@@ -164,3 +164,14 @@ LiveScheduler（`live_scheduler.py`）每日收盘后的 N2-N6 策略评估驱�
 - A/B 测试增强——当前 14 天验证期是否可基于统计显著性动态缩短
 - 特征工程自动化——AutoFactorFactory（Phase 3）替代手工特征选择
 - 模型解释性——引入 SHAP 值分析辅助退役决策的人机协同
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码架构与模块导航](architecture-map.md) (相似度 12%)
+- [情绪因子演化：v4.0 → v4.3](sentiment-factor-evolution.md) (相似度 12%)
+- [自我进化框架](self-evolution-framework.md) (相似度 11%)
+- [对冲方案 v8.7 优化 — RegimeFolio 动态阈值 + 紧急跨级 + IV 感知 + Deep Hedging + 多智能体](hedge-v87-regime-adaptive-20260827.md) (相似度 10%)
+- [A股ETF + 期权对冲 + 自我再平衡子模型](etf-option-hedge-model.md) (相似度 10%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

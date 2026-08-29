@@ -9,6 +9,7 @@
 Feature Flag: USE_UNIFIED_HEALTH_METRICS (默认 False, HC-1)
 配置: evolution.yaml (走 ConfigManager, HC-5)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,16 +36,17 @@ def format_layer_score(layer_name: str, score) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="三层面统一健康度报告 (Stage 1)"
-    )
+    parser = argparse.ArgumentParser(description="三层面统一健康度报告 (Stage 1)")
     parser.add_argument("--json", action="store_true", help="JSON 格式输出")
-    parser.add_argument("--history", type=int, default=0,
-                        help="显示最近 N 天历史 (默认 0=不显示)")
-    parser.add_argument("--compare", type=str, default="",
-                        help="与指定日期对比 (YYYY-MM-DD)")
-    parser.add_argument("--skip-system-check", action="store_true",
-                        help="跳过 P0 自检 (仅紧急情况)")
+    parser.add_argument(
+        "--history", type=int, default=0, help="显示最近 N 天历史 (默认 0=不显示)"
+    )
+    parser.add_argument(
+        "--compare", type=str, default="", help="与指定日期对比 (YYYY-MM-DD)"
+    )
+    parser.add_argument(
+        "--skip-system-check", action="store_true", help="跳过 P0 自检 (仅紧急情况)"
+    )
     args = parser.parse_args()
 
     from utils.alpha.health_metrics import UnifiedHealthMetrics
@@ -66,7 +68,9 @@ def main() -> int:
         for h in history:
             trend = h.trend_vs_yesterday
             trend_str = f"趋势: {'+' if trend >= 0 else ''}{trend:.4f}"
-            print(f"  {h.generated_at[:19]} | 总分: {h.overall_score:.4f} | {trend_str}")
+            print(
+                f"  {h.generated_at[:19]} | 总分: {h.overall_score:.4f} | {trend_str}"
+            )
         return 0
 
     # 默认: 采集并打印报告
@@ -84,10 +88,16 @@ def main() -> int:
 
     print(f"\n报告时间: {report.generated_at}")
     print(f"\n{'─'*70}")
-    print(f"综合健康度: {report.overall_score:.4f} {'⚠️ 降级' if report.is_degraded else '✅'}")
+    print(
+        f"综合健康度: {report.overall_score:.4f} {'⚠️ 降级' if report.is_degraded else '✅'}"
+    )
     print(f"样本数: {report.sample_count}")
-    print(f"趋势(vs昨天): {'+' if report.trend_vs_yesterday >= 0 else ''}{report.trend_vs_yesterday:.4f}")
-    print(f"趋势(vs上周): {'+' if report.trend_vs_last_week >= 0 else ''}{report.trend_vs_last_week:.4f}")
+    print(
+        f"趋势(vs昨天): {'+' if report.trend_vs_yesterday >= 0 else ''}{report.trend_vs_yesterday:.4f}"
+    )
+    print(
+        f"趋势(vs上周): {'+' if report.trend_vs_last_week >= 0 else ''}{report.trend_vs_last_week:.4f}"
+    )
 
     if report.degraded_layers:
         print(f"降级层面: {', '.join(report.degraded_layers)}")
@@ -114,9 +124,11 @@ def main() -> int:
                 print(f"  {k:20s}: {sign}{v:.4f}")
 
     print(f"\n{'='*70}")
-    if report.is_degraded and not status['enabled']:
+    if report.is_degraded and not status["enabled"]:
         print("提示: Feature Flag 未启用, 报告为降级模式.")
-        print("      启用方式: 在 feature_flags.yaml 设置 USE_UNIFIED_HEALTH_METRICS=true (需双签)")
+        print(
+            "      启用方式: 在 feature_flags.yaml 设置 USE_UNIFIED_HEALTH_METRICS=true (需双签)"
+        )
     print(f"{'='*70}")
 
     return 0

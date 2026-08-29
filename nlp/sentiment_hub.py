@@ -22,12 +22,35 @@ from pathlib import Path
 from typing import Any
 
 CRITICAL_NEGATIVE_KEYWORDS = [
-    "暴跌", "闪崩", "退市", "立案", "处罚", "违约", "爆雷", "造假",
-    "下调", "减持", "质押", "诉讼", "亏损", "停牌", "风险",
+    "暴跌",
+    "闪崩",
+    "退市",
+    "立案",
+    "处罚",
+    "违约",
+    "爆雷",
+    "造假",
+    "下调",
+    "减持",
+    "质押",
+    "诉讼",
+    "亏损",
+    "停牌",
+    "风险",
 ]
 CRITICAL_POSITIVE_KEYWORDS = [
-    "利好", "增持", "回购", "突破", "涨停", "业绩超预期", "中标",
-    "补贴", "政策支持", "战略合作", "收购", "合并",
+    "利好",
+    "增持",
+    "回购",
+    "突破",
+    "涨停",
+    "业绩超预期",
+    "中标",
+    "补贴",
+    "政策支持",
+    "战略合作",
+    "收购",
+    "合并",
 ]
 COAL_KEYWORDS = ["动力煤", "焦煤", "焦炭", "煤炭", "电厂", "日耗", "港口库存", "螺纹钢"]
 
@@ -80,7 +103,13 @@ def _fetch_wind_news_alerts(
         }
     """
     if os.environ.get("SENTIMENT_HUB_USE_WIND_NEWS", "1") == "0":
-        return {"status": "disabled", "negative": [], "positive": [], "scanned": 0, "skipped": 0}
+        return {
+            "status": "disabled",
+            "negative": [],
+            "positive": [],
+            "scanned": 0,
+            "skipped": 0,
+        }
 
     try:
         here = Path(__file__).resolve().parent
@@ -89,7 +118,13 @@ def _fetch_wind_news_alerts(
             sys.path.insert(0, str(proj_root))
         from tools.wind_mcp_fetcher import wind_search_news
     except Exception:
-        return {"status": "unavailable", "negative": [], "positive": [], "scanned": 0, "skipped": 0}
+        return {
+            "status": "unavailable",
+            "negative": [],
+            "positive": [],
+            "scanned": 0,
+            "skipped": 0,
+        }
 
     negative_hits: list[dict[str, Any]] = []
     positive_hits: list[dict[str, Any]] = []
@@ -113,21 +148,29 @@ def _fetch_wind_news_alerts(
             text = title + snippet
             for kw in CRITICAL_NEGATIVE_KEYWORDS:
                 if kw in text:
-                    negative_hits.append({
-                        "code": code, "name": name, "title": title[:80],
-                        "source": item.get("source", ""),
-                        "publish_time": item.get("publish_time", ""),
-                        "keyword": kw,
-                    })
+                    negative_hits.append(
+                        {
+                            "code": code,
+                            "name": name,
+                            "title": title[:80],
+                            "source": item.get("source", ""),
+                            "publish_time": item.get("publish_time", ""),
+                            "keyword": kw,
+                        }
+                    )
                     break
             for kw in CRITICAL_POSITIVE_KEYWORDS:
                 if kw in text:
-                    positive_hits.append({
-                        "code": code, "name": name, "title": title[:80],
-                        "source": item.get("source", ""),
-                        "publish_time": item.get("publish_time", ""),
-                        "keyword": kw,
-                    })
+                    positive_hits.append(
+                        {
+                            "code": code,
+                            "name": name,
+                            "title": title[:80],
+                            "source": item.get("source", ""),
+                            "publish_time": item.get("publish_time", ""),
+                            "keyword": kw,
+                        }
+                    )
                     break
 
     status = "ok" if (negative_hits or positive_hits) else "no_hits"
@@ -154,8 +197,12 @@ def _render_news_alerts_section(alerts: dict[str, Any]) -> str:
         lines.append("> 已通过 SENTIMENT_HUB_USE_WIND_NEWS=0 关闭 Wind MCP 新闻扫描\n")
         return "".join(lines)
     if status == "unavailable":
-        lines.append("> Wind MCP 不可用 (导入失败或未配置 WIND_API_KEY), 跳过新闻扫描\n")
-        lines.append("> 启用方式: 配置 WIND_API_KEY 环境变量并确保 tools/wind_mcp_fetcher.py 可导入\n")
+        lines.append(
+            "> Wind MCP 不可用 (导入失败或未配置 WIND_API_KEY), 跳过新闻扫描\n"
+        )
+        lines.append(
+            "> 启用方式: 配置 WIND_API_KEY 环境变量并确保 tools/wind_mcp_fetcher.py 可导入\n"
+        )
         return "".join(lines)
 
     header = f"> 扫描 {scanned} 只标的新闻"
@@ -209,39 +256,67 @@ def _generate_trend_report(target_date: str, positions: dict[str, Any]) -> str:
         name = p.get("name", "")
         sector = p.get("sector", p.get("style", ""))
         level = _assess_sentiment_level(name, sector)
-        kws = ",".join([kw for kw in CRITICAL_NEGATIVE_KEYWORDS if kw in name][:3]) or "-"
+        kws = (
+            ",".join([kw for kw in CRITICAL_NEGATIVE_KEYWORDS if kw in name][:3]) or "-"
+        )
         lines.append(f"| {code} | {name} | {sector} | {level} | {kws} |\n")
     lines.append("\n## 二、负面关键词监控\n\n")
     lines.append(f"监控关键词: {', '.join(CRITICAL_NEGATIVE_KEYWORDS)}\n\n")
-    lines.append("> 若新闻标题命中上述关键词, 触发舆情预警 (见第五章 Wind MCP 新闻扫描结果)\n")
+    lines.append(
+        "> 若新闻标题命中上述关键词, 触发舆情预警 (见第五章 Wind MCP 新闻扫描结果)\n"
+    )
     lines.append("\n## 三、正面关键词监控\n\n")
     lines.append(f"监控关键词: {', '.join(CRITICAL_POSITIVE_KEYWORDS)}\n\n")
     lines.append("\n## 四、市场情绪判断\n\n")
     hedge = positions.get("hedge_positions", {})
     ao = hedge.get("active_orders", {})
-    put_count = sum(pp.get("contracts", 0) for pp in (ao.get("put_protection", []) or []))
-    call_count = sum(cc.get("contracts", 0) for cc in (ao.get("covered_call", []) or []))
-    lines.append(f"- 对冲头寸: Covered Call {call_count} 张 + Put 保护 {put_count} 张\n")
+    put_count = sum(
+        pp.get("contracts", 0) for pp in (ao.get("put_protection", []) or [])
+    )
+    call_count = sum(
+        cc.get("contracts", 0) for cc in (ao.get("covered_call", []) or [])
+    )
+    lines.append(
+        f"- 对冲头寸: Covered Call {call_count} 张 + Put 保护 {put_count} 张\n"
+    )
     lines.append(f"- 持仓数: {len(pos_map)} 只\n")
-    lines.append(f"- 情绪判断: {'谨慎乐观 (有尾部保护)' if put_count > 0 else '中性'}\n")
+    lines.append(
+        f"- 情绪判断: {'谨慎乐观 (有尾部保护)' if put_count > 0 else '中性'}\n"
+    )
 
     alerts = _fetch_wind_news_alerts(pos_map)
     lines.append(_render_news_alerts_section(alerts))
 
     lines.append("\n## 六、数据源说明\n\n")
-    lines.append("- 当前: 规则引擎 (基于持仓+板块+关键词) + Wind MCP 新闻扫描 (可选, 失败降级)\n")
-    lines.append("- 新闻数据: `tools.wind_mcp_fetcher.wind_search_news` (Wind MCP financial_docs.get_financial_news)\n")
-    lines.append("- 可选增强: 接入 `utils.signal_sources.sentiment_signal_source.SentimentSignalSource` (需 MediaCrawlerAdapter, 自媒体 7 平台)\n")
-    lines.append("- 可选增强: 接入 `utils.finance_agents.sentiment_agent.SentimentAgent` (需 news_items context, 可由 wind_search_news 喂入)\n")
-    lines.append("- 环境变量: SENTIMENT_HUB_USE_WIND_NEWS=1 开启 (默认) / =0 关闭 Wind MCP 新闻扫描\n")
+    lines.append(
+        "- 当前: 规则引擎 (基于持仓+板块+关键词) + Wind MCP 新闻扫描 (可选, 失败降级)\n"
+    )
+    lines.append(
+        "- 新闻数据: `tools.wind_mcp_fetcher.wind_search_news` (Wind MCP financial_docs.get_financial_news)\n"
+    )
+    lines.append(
+        "- 可选增强: 接入 `utils.signal_sources.sentiment_signal_source.SentimentSignalSource` (需 MediaCrawlerAdapter, 自媒体 7 平台)\n"
+    )
+    lines.append(
+        "- 可选增强: 接入 `utils.finance_agents.sentiment_agent.SentimentAgent` (需 news_items context, 可由 wind_search_news 喂入)\n"
+    )
+    lines.append(
+        "- 环境变量: SENTIMENT_HUB_USE_WIND_NEWS=1 开启 (默认) / =0 关闭 Wind MCP 新闻扫描\n"
+    )
     return "".join(lines)
 
 
 def _generate_coal_report(target_date: str, positions: dict[str, Any]) -> str:
     """生成动力煤舆情日报 markdown"""
     pos_map = positions.get("positions", {})
-    coal_positions = {c: p for c, p in pos_map.items()
-                      if any(kw in (p.get("name", "") + p.get("sector", "")) for kw in ["煤炭", "煤", "电力"])}
+    coal_positions = {
+        c: p
+        for c, p in pos_map.items()
+        if any(
+            kw in (p.get("name", "") + p.get("sector", ""))
+            for kw in ["煤炭", "煤", "电力"]
+        )
+    }
     lines = [
         f"# 动力煤舆情日报 {target_date}\n",
         f"\n生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}\n",
@@ -253,8 +328,10 @@ def _generate_coal_report(target_date: str, positions: dict[str, Any]) -> str:
         lines.append("| 代码 | 名称 | 板块 | 持仓股数 | 估算价 |\n")
         lines.append("|------|------|------|---------|--------|\n")
         for code, p in coal_positions.items():
-            lines.append(f"| {code} | {p.get('name','')} | {p.get('sector','')} | "
-                         f"{p.get('shares',0)} | {p.get('est_price',0):.2f} |\n")
+            lines.append(
+                f"| {code} | {p.get('name','')} | {p.get('sector','')} | "
+                f"{p.get('shares',0)} | {p.get('est_price',0):.2f} |\n"
+            )
     else:
         lines.append("无煤炭/电力相关持仓\n")
     lines.append("\n## 三、动力煤基本面监控项\n\n")
@@ -269,7 +346,9 @@ def _generate_coal_report(target_date: str, positions: dict[str, Any]) -> str:
     lines.append("\n## 五、数据源说明\n\n")
     lines.append("- 当前: 监控框架 (基于持仓+关键词)\n")
     lines.append("- 可选增强: 接入 Wind 动力煤现货价格、港口库存数据 (Wind MCP)\n")
-    lines.append("- 可选增强: 接入 `tools.wind_mcp_fetcher.wind_search_news` 搜索动力煤/煤炭板块新闻 (query='动力煤'/'焦煤'/'煤炭')\n")
+    lines.append(
+        "- 可选增强: 接入 `tools.wind_mcp_fetcher.wind_search_news` 搜索动力煤/煤炭板块新闻 (query='动力煤'/'焦煤'/'煤炭')\n"
+    )
     return "".join(lines)
 
 
@@ -301,13 +380,17 @@ def run_all(
     if run_trend:
         trend_path = out / f"舆情综合日报_{date_short}.md"
         if force or not trend_path.exists():
-            trend_path.write_text(_generate_trend_report(target_date, positions), encoding="utf-8")
+            trend_path.write_text(
+                _generate_trend_report(target_date, positions), encoding="utf-8"
+            )
         result["trend_report"] = str(trend_path)
 
     if run_coal:
         coal_path = out / f"动力煤舆情日报_{date_short}.md"
         if force or not coal_path.exists():
-            coal_path.write_text(_generate_coal_report(target_date, positions), encoding="utf-8")
+            coal_path.write_text(
+                _generate_coal_report(target_date, positions), encoding="utf-8"
+            )
         result["coal_report"] = str(coal_path)
 
     return result
@@ -315,6 +398,7 @@ def run_all(
 
 if __name__ == "__main__":
     import sys
+
     td = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
     od = sys.argv[2] if len(sys.argv) > 2 else "每日报告归档/" + td
     r = run_all(target_date=td, output_dir=od, force=True)

@@ -2,6 +2,272 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-08-29 · GH+-1 karpathy 4 原则收尾 (adapter §0 补全检验标准 + 第 4 条口径校正)
+
+- **实证起点**: GH+-1 主体 08-28 已写入 `skills/AGENT_SKILLS_ADAPTER.md` §0，但只是 **4 行摘要**；排期文档 (08-29 Stage 0) 仍列其为待办 → 属"已完成项未闭环"第 4 例（前 3 例在 ROADMAP 总验收清单，见 2-5）。
+- **核对权威原文** `e:\各种PY程序\andrej-karpathy-skills\CLAUDE.md`，发现摘要版第 4 条**口径偏差**：原写"验证结果—跑门禁三件套"，原文实为 **"目标驱动执行"（定义成功标准 + 把指令式任务转可验证目标 + 多步骤给"步骤→验证"计划）**。已校正。
+- **交付**: adapter §0 的 4 原则扩为完整版 —— 每条 = 原文要点 + **量化系统落地**（动手前先跑代码验证勿信过时诊断 memory ID 24715792；新 flag 须确有开关需求；删 dead code 先跑 check_dangling_refs；门禁三件套为成功标准 memory ID 87513358）+ **检验标准**（自检问句）；补原文自带的"偏谨慎而非速度、琐碎任务自行判断"权衡提示；末尾加与 §3 DoD / §4 反理性化表的关系说明。
+- **边界**: 借思想不引代码 —— karpathy skill 本体**不安装**进 `~/.codebuddy/skills/`（实测该目录仅 agent-skills/archify/codebase-memory/weread-skills/wind-*），仅取原则文本；现有 FinClaw 1031 + ECC 64 Skill 零破坏。
+- **验收**: 4 原则写入 adapter ✅；现有 Skill 零破坏 ✅；`scripts/pre_commit_check.py` **exit 0 全门通过** ✅。
+- **同步回写**: ROADMAP GH+-1 行标 ✅(08-29) + 门禁清单由"模板全 ✅"改为真实 checkbox（GH+-1 [x] / GH+-2 [ ]，原模板把未开始的 GH+-2 也标 ✅ 属验收清单失真）；排期文档 Stage 0 表与 §1.2 状态行同步，并注明**本周支线 1 人天额度已用满，GH+-2 不提前**。
+- **指针**: `skills/AGENT_SKILLS_ADAPTER.md` §0，`cairn/ROADMAP.md` Wave 9-GH+ 段
+- **附带风险提示（非本次引入）**: `pre_commit_check` 报磁盘剩余 **4.04 GB / 使用率 97.8%**，建议清理，否则可能重现 OpenBLAS 类资源失败（memory ID 87658369）。
+
+## 2026-08-29 · Wave10-CTX Phase A 代码门禁闭环 (ruff 21→0 + black 10 文件 + 94 用例复跑)
+
+- **问题**: Phase A 核心实现当日只跑了 pytest(94 全绿), 未过代码门禁 — `ruff check` 21 项 (12×W292 缺尾换行 / 5×F401 未用导入 / 2×I001 导入排序 / 1×F841 / 1 hidden), `black --check` 6 模块全需重排, `scripts/backfill_ecl_events.py` 1×W292。EOD 接线文件 (`15_每日工作流/run_daily_eod_workflow.py`) 干净不受影响。
+- **修复**: `ruff --fix` 20 项自动 + F841 人工补强 (`test_ecl_event_store.py::test_append_ts_defaults_to_now` 原 `before=time.time()` 计算后未断言, 仅弱断言 `"T" in ev.ts` → 补 `after` + ISO 解析后区间断言 `before-1 <= ts_epoch <= after+1`, 防硬编码 ts/时区错位); `black` 10 文件重排; 复验 ruff All passed / black 7 files unchanged。
+- **验证**: ECL 94 用例复跑 **94 passed**; 门禁三件套无回归 — `engineering_debt_gate` D1-D10 OK / D11 仍 BLOCK(6/7 天, 09-02 复验, 符合排期); `assert_data_validity` 12 PASS 0 FAIL; `industrial_grade_check` 11 PASS 1 WARN(C1 QMT dry_run) 0 FAIL。
+- **工作区清理**: 删除根目录 20 个可重生成扫描临时产物 (bandit_*/mypy_*/ruff_*/pytest_*/code_*.txt/123*.txt, ~3.4MB, 8/24-8/28 生成)。
+- **教训 (复现 08-10 已记 DoD)**: 「94 用例全绿」≠ 完成 — pytest 只证明语义正确, ruff/black 是 CI 第一道闸; 新落地模块必须在同一轮内跑完 `ruff --fix` + `black` + pytest 三连。W292 集中出现说明写文件工具未追加尾换行, 新文件生成后应统一 `black` 兜底。
+- **指针**: `utils/infra/ecl/`, `tests/unit/test_ecl_*.py`, `tests/e2e/test_ecl_bypass_diff0.py`, `scripts/backfill_ecl_events.py`
+
+## 2026-08-29 · 升级路线优化与合理排期 (8 项修正 + 12-10 冻结窗)
+
+- **产出**: `docs/升级路线优化与排期_20260829.md` — Stage 0-4 分阶段排期 + 支线预算制(每周支线≤2人天) + 每周执行节奏(周一门禁/周三支线/周五同步) + 风险应急表
+- **核心判断**: 距 12-31 v8.7 发布 17 周, 发布门禁 D1-D10 全绿仅剩 D11 (Phase B shadow 6/7天, 09-02 复验); 问题不是任务缺失而是多线过载+3处口径/前置矛盾+已完成项未闭环
+- **8 项修正**: ①"v8.8 对冲调优"口径归入 v8.7 发布内容 ②ETF P5.1 前置修正(时序倒挂→"门禁全绿+Sprint 3收尾", 顺延 11-13) ③P3.1 提前 09-04 ④总验收清单补打勾 3 项(daily_workflow 2159/R10 裸债/覆盖率 0.833) ⑤支线预算制 ⑥新增 12-10 功能冻结窗(门禁三件套 21 天 0 FAIL 观察窗起点) ⑦Wave10-CTX Phase A 提前完成重排(A4 并入 10 月中) ⑧R10/T6 fail-safe 222 处每周 30 处渐进清理
+- **同步回写**: ROADMAP.md (08-29 状态块 + 版本口径注记 + ETF P5 前置 + 验收清单打勾) + docs/排期计划总览 (更新为 08-29 口径)
+- **下一步**: 09-02 D11 复验 → 09-03 P3.0 端到端复验 → 09-12 Sprint 1 收尾判定
+- **指针**: `docs/升级路线优化与排期_20260829.md` · `cairn/ROADMAP.md` 顶部状态块
+
+## 2026-08-29 · Wave10-CTX Phase A 核心实现完成 (94 用例全绿, flag 默认 False 零行为变更)
+
+- **CTX-A1 EventStore**: `utils/infra/ecl/event_store.py` (append-only, WAL, compensation 视图级覆盖) + `sinks.py` (EclEventSink + log_decision 挂点) + `scripts/backfill_ecl_events.py` (116 条回填 + 幂等验证通过)
+- **CTX-A2 ExperienceStore**: `embeddings.py` (三档降级链 st→FTS5→hash256, 当前环境落 FTS5) + `experience_store.py` (场景指纹分桶 VIX20/30·RV0.15/0.30·DD0.05/0.10 + outcome 双 horizon T+5/T+20 + query_similar <500ms)
+- **CTX-A3 EOD 旁路**: `bypass.py` (三步编排: 对账兜底+经验提炼+检索记录, 每步 fail-open) + EOD 阶段 4.95 接线 (`run_daily_eod_workflow.py` 插入 4.9→4.95→5) + CLI `--skip-ecl` + 三 flag 注册 (`config/feature_flags.yaml`)
+- **测试**: 94 用例全绿 (event_store 25 + sinks 12 + embeddings 14 + experience_store 32 + flags 6 + diff0 E2E 5)
+- **门禁**: flag 全 off 时 EOD 行为与现状完全一致 (diff=0); sink 失败静默降级; 旁路异常不增加 fail_count
+- **剩余**: A2-T4 全历史回填联跑 + A4 增益验证 (需 daily_returns.jsonl 数据积累, B4 完成前仅离线开发)
+- **指针**: `utils/infra/ecl/`, `tests/unit/test_ecl_*.py`, `tests/e2e/test_ecl_bypass_diff0.py`, `scripts/backfill_ecl_events.py`
+
+## 2026-08-29 · Wave10-CTX Phase A 设计 100% 就绪 + 评审点全部确认 (A2/A3 spec + A1 两处实证修正)
+
+- **spec_CTX-A2.md**: ExperienceStore（场景指纹分桶 VIX20/30·RV0.15/0.30·DD0.05/0.10 + 双 horizon outcome T+5/T+20 + 嵌入降级链 st→FTS5→hash256）+ `embeddings.py`/`experience_store.py` 两模块拆分 + 4 人天 T1-T4 分解
+- **spec_CTX-A3.md**: 三 flag 注册（实证落点=`config/feature_flags.yaml`，configs 复数教训在案）+ EOD 阶段 4.95 旁路（复刻 4.9 模式，`bypass.py` 编排+EOD 本体仅增两处）+ 对账兜底（防 sink 静默丢事件）+ diff=0 E2E 双层断言 + 2 人天 T1-T3
+- **A1 spec 两处实证修正（评审点③）**: ①`observation_alert_*.json` 5/5 份实测均为数据断档告警（非漂移）→ 映射改 `data_gap_alert`，真漂移源=`reports/drift/integration_*.json`；②flag 注册源明确为项目根 `config/feature_flags.yaml`
+- **评审点全部确认**: A1 compensation 视图级；A2 分桶标准/outcome 双列；A3 阶段插位 4.95/检索报告不归档
+- **指针**: `docs/集成记录/Wave10/CTX-A/spec_CTX-A2.md`, `spec_CTX-A3.md`, `spec_CTX-A1.md` §6 评审点③
+
+## 2026-08-28 · #10 D10 超大文件拆分完成 (v8.7门禁仅剩D11)
+
+- **institutional_pipeline_runner.py**: 2203→1930行, 提取 PipelineReportMixin (报告生成+KillSwitch检查 272行) → `utils/pipeline_report_mixin.py`
+- **automated_execution_system.py**: 2230→1560行, 提取 OrderRouter类 (669行) → `utils/execution/order_router.py`
+- **门禁结果**: D7 ✓ D10 ✓, v8.7发布仅剩 D11 (shadow 6/7天, 等09-02)
+- **指针**: `utils/pipeline_report_mixin.py`, `utils/execution/order_router.py`
+
+## 2026-08-28 · #3 daily_workflow.py 拆分完成 (D7门禁通过)
+
+- **拆分**: phase_execute (785行) → `workflow/phases/execute.py` (801行) + phase_report (659行) → `workflow/phases/report.py` (671行)
+- **结果**: daily_workflow.py 3589→2159行 (≤3000 D7门禁 ✓), 委托方法保持原接口, self→ctx 替换由 WorkflowContext.__getattr__ 代理
+- **验证**: 37测试全通过 (daily_workflow/phase_execute/phase_report), ruff+black通过, 新phase文件15个except Exception全标记#fail-safe (0裸债)
+- **门禁**: D7 ✓ (2159行), T6 ✓ (19处), T7 ✓ (241处≤250), D10 ✗ (institutional_pipeline_runner 2203行>2000), D11 ✗ (shadow 6/7天)
+- **指针**: `v8.3_institutional/workflow/phases/execute.py`, `v8.3_institutional/workflow/phases/report.py`, `v8.3_institutional/daily_workflow.py:1468` (委托)
+
+## 2026-08-28 · 阶段3-4: daily_workflow/R10状态检查 + QMT smoke测试套件
+
+- **阶段3 状态检查**: daily_workflow.py 3272行 > D7门禁3000行 (需拆分272+行); R10 fail-safe宽捕获222处 > 阈值30 (需清理); 两项为较大重构, 已记录待后续排期
+- **阶段4 QMT smoke测试**: 新增 `tests/integration/test_qmt_smoke.py` — 17测试覆盖 paper模式全链路 (生命周期/下单/撤单/查询/健康检查/异常), black+ruff通过
+- **指针**: `tests/integration/test_qmt_smoke.py`, `scripts/engineering_debt_gate.py` D7/T6
+
+## 2026-08-28 · 修复预先存在的测试失败 (torch DLL + fail-closed mock遗漏)
+
+- **torch DLL优雅降级**: `qlib_signal_adapter.py:55-59` `except ImportError` → `except (ImportError, OSError)` — torch c10.dll 加载失败抛 OSError 而非 ImportError, 导致 `test_ms_strategy_coverage.py` 无法收集; 修复后 TestVolHedger 2 passed
+- **fail-closed mock遗漏**: `test_fail_closed_integration.py` `all_data_sources_down` fixture 未 mock `_fetch_via_tdx_proxy` (Layer 1.5), 导致通达信代理返回真实数据(沪深300 897.44%), fail-closed 未触发; 修复后 6 passed
+- **black**: `qlib_signal_adapter.py` 格式化; ruff ANN003/ANN202 为预先存在(非本次引入)
+- **指针**: `ms_strategy/src/alpha/qlib_signal_adapter.py:55`, `tests/integration/test_fail_closed_integration.py:48`
+
+## 2026-08-28 · black格式化 + ruff check + pytest验证 (v8.8对冲调优收尾)
+
+- **black**: 安装 black-26.5.1, 格式化 `ms_strategy/src/hedging/vol_hedger.py` (HG-7 vix_mid_threshold配置化引入的格式偏差), 其余6个修改文件已符合规范
+- **ruff**: 7个修改文件全部 All checks passed
+- **pytest**: 对冲核心测试 257 passed / 1 failed → 修复 `test_run_all` 期望策略数 5→6 (S6 v8.7 RegimeFolio 为预期新增), 修复后 1 passed
+- **预先存在的失败** (非本次引入): `test_overnight_gap_fail_closed_returns_l2_not_l3` (torch DLL + 通达信代理环境问题), `test_ms_strategy_coverage.py` (torch c10.dll 加载失败)
+- **指针**: `cairn/hedge-v87-regime-adaptive-20260827.md` §八v8.8调优结果
+
+## 2026-08-28 · CTX-A1 spec 评审点①验证: dry-run 全量 decisions.jsonl 通过
+
+- **dry-run 结果**: total=106 parseFail=0 (08-21~08-27, 7天); 映射 strategy_eval=65 + regime_shift_suggestion=41, **noop=0 无遗漏形态**; evaluator_report 顶层键全景无未知 extra_payload; regime indicators 三键 41/41 全覆盖
+- **发现1**: action=evaluate 24条(≠evaluate_only, 与 memory.jsonl EVO proposal 同源), 全部被形态规则正确分类 → 验证"按 evaluator_report 形态映射优于按 action 映射"
+- **发现2**: 同秒多条内容相同重复写入(实证 EVO-20260821-001/002/003) → spec §4 对账公式修正为"去重后唯一(ts,event_type,subject)数+alert数", 同秒去重是期望行为
+- **附加观察**: 回填窗口仅7天且 regime 全 bull → 实证 A4 增益验证样本不足风险, 启动时按预案延后或回测日志模拟回填
+- **状态**: 评审点①✅通过; 评审点②(compensation 视图级)待确认; 临时脚本已清理
+- **指针**: `docs/集成记录/Wave10/CTX-A/spec_CTX-A1.md` §6
+
+## 2026-08-28 · CTX-A1 spec 提前完成: EventStore 设计评审文档 (下一步第1项, 零代码)
+
+- **实测盘点**: decisions.jsonl 两类记录混存(完整策略评估 + vol_regime_suggestion 含 vix/realized_vol/drawdown/regime 上下文=场景指纹现成原料); memory.jsonl 为进化提案记忆(EVO-*, 边界不合并); vol_regime_weights_*.json 与 decisions.jsonl 重复(回填去重规则确立); feature_flags.yaml 不存在, flag 实际走 flag_overrides+flag_audit(参照 B1 落盘先例)
+- **spec 产出**: `docs/集成记录/Wave10/CTX-A/spec_CTX-A1.md` — EventStore API(append/replay/compensation)+sink 挂点(log_decision L518 后零签名变更)+事件映射规则+回填幂等设计; T4 回填脚本前置到 A1(映射规则同一实现者一次做对)
+- **待评审两点**: ①映射规则覆盖度(建议 dry-run 全量 decisions.jsonl) ②compensation 视图级 vs 物理级(设计取视图级, 物理行永不删)
+- **指针**: `docs/集成记录/Wave10/CTX-A/spec_CTX-A1.md` · `cairn/experience-context-layer.md`
+
+## 2026-08-28 · Wave 10-CTX 排期生成: 经验上下文层(ECL)+GitHub热门增补
+
+- **背景**: 08-28 GitHub 周热门筛出 5 个量化相关项目(OpenViking/maka/claude-plugins/WeMM-Embedding/openhuman), 定位到自我进化框架的结构性缺口——无跨交易日经验记忆层
+- **设计**: `cairn/experience-context-layer.md` — ECL 三层架构(EventStore append-only 事件日志[maka范式] + ExperienceStore 经验库[OpenViking范式] + RetrievalService); 复用 `log_decision`(utils/alpha/evolution_orchestrator.py:452) sink 模式, 不新建平行账本
+- **排期**: `docs/Wave10_经验上下文层集成计划_20260828.md` — Phase A(09-07~10-09 低强度穿插, ~11人天) ECL MVP 三flag只读旁路; Phase B(2027-05-03~06-28, ~15人天) 插件契约/多模态原型/Agent评估, 接 Wave 9-GH 04-30 之后零冲突
+- **关键决策**: 5 项目全部"借思想不引代码"(本地sqlite+降级嵌入链); A4 回填验证设 YAGNI 门禁(相似场景方向一致率≥55%, 不达标则注入类任务取消)
+- **指针**: `cairn/experience-context-layer.md` · `docs/Wave10_经验上下文层集成计划_20260828.md`
+
+## 2026-08-28 · 第二轮: 发布门禁+HG-7+RL持久化+补测 (5步全部完成)
+
+- **步骤1**: engineering_debt_gate — T1-T18/D1-D10全✅, D11 PhaseB shadow 4/7天❌(需至09-02), v8.7发布BLOCK(D11)
+- **步骤2**: daily_trade_executor post-market-auto运行 — P3.0数据仍2/5天(需交易日积累)
+- **步骤3**: HG-7 vol_hedger VIX分段配置化 — `vix_mid_threshold`参数替代硬编码40.0, 4回归测试通过
+- **步骤4**: Deep Hedging RL持久化 — `save_model()`/`load_model()` + `HedgeEngine.__init__`自动加载`models/deep_hedging_pretrained.pkl`, 119测试通过
+- **步骤5**: 0%覆盖文件补测占位 — `tests/placeholders/test_zero_coverage_modules.py` 9测试通过(6文件存在+3模块可导入)
+- **指针**: `cairn/code-review-hedging-20260824.md` HG-7 ✅ · `utils/deep_hedging_rl.py:498` · `tests/placeholders/`
+
+## 2026-08-28 · v8.8生产同步+发布门禁验证 (5步全部完成)
+
+- **步骤1**: v8.8调优同步到生产代码 — `hedge_engine.py` 新增 `compute_vix_trend()`; `hedge_rebalance_integrator.py` 添加 hysteresis 状态(`_hedge_cooldown`/`_last_active_ratio`) + VIX趋势过滤 + `effective_vix`; 206测试通过
+- **步骤2**: B2预热验证 — `b2_shadow_status.json` warmup_days=3/3全Go, diff_rate≈0.0088<0.05; `phase_b_progressive_enabler.py --check` 确认B2→B3门禁通过; B3观察期0/3天(正常)
+- **步骤3**: P3.0影子账户验证 — `verify_p3_0_gate.py`: ①shadow消费fills✅ ②daily_pnl过滤✅ ③数据积累2/5天不足(需继续运行daily_trade_executor)
+- **步骤4**: P3对冲成本预算 — S6添加 `cumulative_hedge_cost` + 年化2%预算检查; 回测: 成本0.30%<<2%未触发(防御性机制就绪)
+- **步骤5**: 覆盖率检查 — 总体83.05%已超80%目标, 需补覆盖-1766行(已超标); 6个0%覆盖文件可后续补测
+- **指针**: `cairn/hedge-v87-regime-adaptive-20260827.md` §八 · `reports/v87_backtest_comparison_2026-08-28.md`
+
+## 2026-08-28 · v8.8 对冲调优: 高波阈值+hysteresis+VIX趋势 (P0+P1+P2)
+
+- **P0**: 高波regime阈值 0.22→0.25, dd_trigger 0.10→0.11 — 减少非危机高波动期过度敏感
+- **P1**: 对冲持续性(hysteresis) — 触发后5天内渐减衰减, 避免频繁开关; `hedge_cooldown` 状态机
+- **P2**: VIX趋势触发 — `compute_vix_trend()` 计算5日变化率, 高VIX但稳定(vix_trend<0.10)时回退normal阈值
+- **回测结果(逐步改善)**:
+  - 原始v8.7: 夏普Δ=-0.0493, 回撤Δ=+2.73%, 对冲盈亏=-36,197
+  - +P0: 夏普Δ=-0.0472, 回撤Δ=+2.34%, 对冲盈亏=-85,715
+  - +P1: 夏普Δ=-0.0262, 回撤Δ=+2.34%, 对冲盈亏=-68,746
+  - +P2: 夏普Δ=**-0.0152**, 回撤Δ=+1.14%, 对冲盈亏=**+14,356** (质变! 对冲从成本转为正贡献)
+- **关键突破**: P2 VIX趋势过滤使对冲总盈亏从 -36,197 转为 +14,356, 日胜率+1.06%, 2025夏普+0.210
+- **残留**: 2024波动牛市夏普Δ=-0.167 (结构性: 波动牛市对冲必然错失部分收益)
+- **指针**: `cairn/hedge-v87-regime-adaptive-20260827.md` §八 · `reports/v87_backtest_comparison_2026-08-28.md`
+
+## 2026-08-28 · v8.7回测对比: RegimeFolio动态阈值 vs v5.9固定阈值 (2021-2026)
+
+- **任务**: 用 hedge_rebalance_backtest.py 跑 2021-2026 回测, 对比 S5(v5.9固定阈值) vs S6(v8.7 RegimeFolio动态阈值)
+- **实现**: 新增 `compute_vix_from_csi300()` + `get_tail_hedge_ratio_v87()` + `_run_s6_v87()` + `scripts/run_v87_backtest_comparison.py`
+- **结果**: v8.7 夏普 1.2305 vs v5.9 1.2798 (Δ=-0.0493), 回撤 17.47% vs 14.74% (Δ=+2.73%), 收益持平
+- **根因**: 高波regime(15.3%时间)阈值0.22过于敏感 → 对冲激活180天 vs 144天 → 对冲成本+68% → 在非危机高波动期(如2024)过度对冲错失反弹
+- **逐年**: 2022熊市v8.7夏普改善(+0.097), 2024波动牛市v8.7夏普下降(-0.168) — 危机保护有效但高波过度敏感
+- **改进方向**: (1)高波regime阈值0.22→0.25 (2)增加对冲持续性(触发后不轻易撤回) (3)用VIX趋势而非绝对值
+- **指针**: `cairn/hedge-v87-regime-adaptive-20260827.md` §七 · `reports/v87_backtest_comparison_2026-08-28.md` · `scripts/run_v87_backtest_comparison.py`
+
+## 2026-08-27 · VIX 数据源接入 hedge_rebalance_integrator: 动态阈值端到端生效
+
+- **任务**: 将 `fetch_vix()` 接入生产对冲流程 `hedge_rebalance_integrator.py`, 使 RegimeFolio 动态阈值端到端生效
+- **实现**: `hedge_engine.py` 新增 `fetch_vix()` — Wind MCP 获取 CSI300 近30日已实现波动率*100, 回退用 portfolio_volatility*100; `hedge_rebalance_integrator.py` 的 `decide_hedge(vix=)` 自动获取 VIX, `_compute_tail_hedge_ratio(vix=)` 用 `_get_regime_triggers(vix)` 动态阈值替代固定 `TAIL_VOL_TRIGGER`/`TAIL_DD_TRIGGER`
+- **验证**: ruff全通过, 230对冲测试通过, 端到端: 低波(VIX=18,vol=0.18,dd=0.05)→ratio=0.0正确不触发; 高波(VIX=35,vol=0.35,dd=0.15)→危机regime阈值(vol_trigger=0.15)→ratio=0.7正确触发
+- **指针**: `cairn/hedge-v87-regime-adaptive-20260827.md` · `utils/hedge_engine.py:336` · `utils/hedge_rebalance_integrator.py:565,615`
+
+## 2026-08-27 · 对冲方案 v8.7 优化: RegimeFolio动态阈值+紧急跨级+IV感知+Deep Hedging+多智能体
+
+- **问题**: 对冲决策陈旧死板 — 固定阈值(vol>28%/DD>12%)不随市场制度自适应, 状态机禁止跨级降级响应太慢, HIGH和MILD工具选择无区分, 仅delta对冲无gamma/vega, 先进模块已实现但未集成
+- **P0**: `hedge_engine.py` 集成 RegimeFolio VIX 4级动态阈值 (低波0.35/正常0.28/高波0.22/危机0.15) + 五因子权重随regime调整
+- **P1**: `strategy_state_machine.py` 添加 `emergency` 参数 — 严重纠偏(SEVERE_REVIEW+)时允许跨级降级, 极端事件快速响应
+- **P2**: `tool_selector.py` IV感知 — HIGH+IV<25选期权保护, HIGH+IV>35选期货; TAIL_EVENT根据IV选protective_put/collar/期货
+- **P3**: `hedge_engine.py` 集成 Deep Hedging RL — TAIL_EVENT(STRONG/FULL)时用CVaR优化替代解析delta
+- **P4**: `hedge_engine.py` 集成多智能体对冲 — delta+gamma+vega同时对冲, 超越纯Beta加权
+- **向后兼容**: vix=None/iv_level=None/emergency=False 时回退到v5.9原有行为
+- **验证**: ruff全通过, 216+119+224=559测试通过, 端到端验证5项功能正确
+- **指针**: `cairn/hedge-v87-regime-adaptive-20260827.md` · `utils/hedge_engine.py` · `utils/auto_hedge_rebalance/`
+
+## 2026-08-27 · EOD 收盘审核阶段集成: 数据质量+盘中决策自动审核
+
+- **任务**: 每天收盘自动生成持仓报告并审核数据情况、盘中决策情况
+- **新增**: `15_每日工作流/run_eod_audit.py` — 审核 PnL 数据质量 + 盘中决策成功/失败 + 数据源告警 + 交易计划可信度
+- **集成**: `run_daily_eod_workflow.py` 添加 phase6 审核阶段 (归档后) + `--skip-audit` 参数
+- **输出**: `每日报告归档/YYYY-MM-DD/eod_audit_report.md` (退出码 0=通过/1=不通过)
+- **验证**: 2026-08-27 审核正确识别"不通过"（92%兜底+12次全失败），交易计划标记"需人工确认"
+- **指针**: `15_每日工作流/run_eod_audit.py` · `15_每日工作流/cairn/LOG.md`
+
+## 2026-08-27 · 数据源静默降级修复: 盘中决策门禁+熔断+EOD数据质量门禁
+
+- **问题**: 盘中 12 次 LLM 决策全部失败 (NoneType.get), 数据源 P0-P4 全挂, 系统静默降级到兜底价格继续运行, EOD 基于 92% 假数据生成报告和交易计划
+- **根因**: (1) 盘中决策引擎收到空数据不校验直接传 LLM (2) assess_data_source_health 逻辑 bug: no_data_ratio>0 先匹配, 92% 兜底价格误标为 NOSIGNAL_PARTIAL (3) 无连续失败熔断/告警
+- **修复**:
+  - `llm_intraday_decision_engine.py`: _fetch_market_snapshot 增加 AKShare 降级+数据质量标记; run_intraday_decision 增加门禁(全挂跳过LLM)+连续失败熔断(3次写告警)
+  - `price_fetcher.py`: assess_data_source_health 优先级修复, fallback+no_data>50% → FALLBACK_HEAVY
+  - `generate_daily_report.py`: FALLBACK_HEAVY 警告升级为"严重降级警告"
+- **验证**: ruff passed | smoke 26 passed | 92% fallback → FALLBACK_HEAVY ✅
+- **指针**: `cairn/data-source-silent-degradation-20260827.md`
+
+## 2026-08-27 · 代码质量全量审查+修复: ruff 75→0, bandit 6→0, mypy 编码恢复
+
+- **任务**: 全量代码质量审查 (ruff/mypy/bandit/pytest) + 修复所有发现问题
+- **发现**: ruff 75 问题 + bandit 2 HIGH + 4 MEDIUM + mypy.ini 编码 bug (GBK 无法解码中文注释) + pytest 1 DLL 收集错误
+- **修复**: mypy.ini 中文注释翻译英文+ASCII编码(P0) | 2处MD5→usedforsecurity=False(P1) | 3处SQL白名单+nosec(P2) | 1处pickle nosec(P2) | ruff --fix 73个+手动15个
+- **验证**: ruff All checks passed | bandit 0 | mypy 恢复可用 | pytest 170 passed
+- **指针**: `代码质量审查报告_20260827.md`
+
+## 2026-08-27 · W7.4.5 覆盖率冲刺: utils/risk 三模块补测 (64 测试)
+
+- **任务**: 推进 W7.4.5 覆盖率 ≥80% 达标冲刺 — 补齐 `utils/risk/` 低覆盖模块
+- **基线诊断**: 包含全部 T 系列测试后 `utils/risk/` 整体 63.26% (202 测试); 仍有 5 模块 0% + 3 模块低覆盖
+- **补测**:
+  - `style_beta.py` 0%→**100%** (13 测试): STYLE_BETA_PROXY 字典完整性 + get_style_beta 已知/未知/空字符串 + DEFAULT_STYLE_BETA 常量 + __all__ 导出
+  - `risk_audit_logger.py` 47%→**93.15%** (20 测试): AuditRecord 序列化/反序列化/非法 JSON + log 写入 (无效 module/action/severity 降级) + flush 刷盘 + query_by_date/symbol/rejections 回放 + replay_stream + _iter_jsonl OSError 降级
+  - `risk_event.py` 70%→**98.28%** (31 测试): RiskEvent __post_init__ (TypeError/ValueError) + to_dict/from_dict (无效枚举降级) + RiskDecision (confidence/reduce_pct clamp + TypeError/ValueError) + make_margin_breach_event (level 推断 severity) + make_drawdown_breach_event (回撤幅度推断 severity)
+- **验证**: 64/64 测试全绿 + ruff All checks passed; 累计新增 64 测试
+- **影响**: `utils/risk/` 低覆盖模块清零三模块; 距 80% 目标仍需补测 cvar(0%)/risk_module_adapters(0%)/risk_bus(54%) 等模块
+- **指针**: `tests/unit/test_style_beta_coverage.py` · `tests/unit/test_risk_audit_logger_coverage.py` · `tests/unit/test_risk_event_coverage.py` · `cairn/ROADMAP.md` W7.4.5
+
+## 2026-08-27 · Wave 7-ERL Sprint 2: ER-2.1/2.2/2.3 代码就绪 + 端到端测试
+
+- **任务**: 推进实盘前可立即开始的纯代码工作 — Wave 7-ERL Sprint 2 的 institutional pipeline evolution/rebalance phase 集成 (ER-2.x), 不依赖时间积累/实盘环境
+- **调研发现**: `institutional_pipeline_runner.py` 的 `_run_evolution_phase` (Step 4.6) + `_run_rebalance_phase` (Step 6.6) 代码骨架**已挂进 `run()` 主流程** (flag 控制 + V2→V1 降级 + smoke 跳过 + fail-safe), 但**零测试覆盖**; ER-2.3 管道编排确认缺端到端验证
+- **补全**: `tests/unit/test_er23_pipeline_orchestration.py` 12 测试覆盖
+  - `_run_evolution_phase`: flag 关闭→disabled / flag 启用→调用 EvolutionOrchestratorV2 / 异常→fail-safe 降级
+  - `_run_rebalance_phase`: smoke 跳过 / flag 关闭→disabled / 异常→fail-safe 降级
+  - 管道编排顺序: evolution (Step 4.6) 在 risk_budget (Step 5) 前; rebalance (Step 6.6) 在 execution (Step 6) 后
+  - 端到端集成: 双 flag 关闭管道正常运行 / 结果写入 steps / smoke run() 完整不报错
+- **验证**: 12/12 测试全绿 + ruff check All checks passed
+- **状态**: ER-2.1/2.2/2.3 代码+测试就绪, 标记 ✅; 生产启用待 Sprint 2 时段 (09-27+) + Flag 双签 (USE_EVOLUTION_ORCHESTRATOR / USE_EOD_REBALANCE)
+- **实盘推进方案**: 设计了 5 阶段逐步方案 — ①可立即开始的代码工作 (ER-2.x ✅ / 覆盖率冲刺 / 灰度编排) ②时间积累依赖 (B2 预热/P3.0 数据) ③Sprint 2 实盘验证四件套 ④Sprint 3-4 ⑤环境配置 (用户操作)
+- **影响**: Wave 7-ERL Sprint 2 的 G3 缺口 (institutional pipeline 集成) 代码侧全部就绪; Sprint 2 实际启动时只需 Flag 双签 + 端到端 dry-run 验证
+- **指针**: `tests/unit/test_er23_pipeline_orchestration.py` · `institutional_pipeline_runner.py:_run_evolution_phase/_run_rebalance_phase` · `cairn/evolution-rebalance-loop.md` §十三 · `cairn/ROADMAP.md` Wave 7-ERL Sprint 2
+
+## 2026-08-27 · Wave 7-ERL Sprint 1: ER-1.2 训练→进化→再平衡串联落地
+
+- **任务**: ER-1.2 训练→进化→再平衡串联 — 基于 ER-1.1 `post_train_callback` 钩子, 把训练完成事件连到进化编排器 + 再平衡
+- **实现**: `utils/evolution/train_rebalance_bridge.py` 串联回调桥接模块
+  - `make_train_evolution_rebalance_callback()` 工厂函数 — 返回可作为训练器 `post_train_callback` 的回调
+  - 回调串联: 训练完成 → `EvolutionOrchestratorV2.run_cycle()` (受 `USE_EVOLUTION_ORCHESTRATOR` 控制) → `ETFOptionHedgeRebalancer.run_daily_rebalance()` (受 `USE_EOD_REBALANCE` 控制)
+  - `positions_provider`/`prices_provider` 可选 callable — 再平衡上下文获取; None 时再平衡降级跳过 (仅运行进化循环)
+  - `_clamp_weight_adjustments()` 乘子约束 [0.5, 2.0] (与 `hedge_rebalance_integrator` 一致, 防极端调整)
+  - `_append_audit()` JSONL 审计日志写入 `reports/evolution/train_rebalance_bridge.jsonl`
+  - fail-safe: 进化/再平衡异常均 `logger.warning` 降级, 不阻断训练主流程 (与 `invoke_post_train_callback` 二级防护叠加)
+- **测试**: `tests/unit/test_train_rebalance_bridge_er12.py` 18/18 全绿 (回调工厂 + Feature Flag 双控 + fail-safe 降级 + 乘子约束 + 审计日志 + 与 invoke_post_train_callback 端到端集成); ruff check All checks passed; 运行时 import 验证通过
+- **B3 依赖注记**: 自动重训触发源与 B3 `USE_AUTO_RETRAIN` (冻结中) 强相关; B3 未启用前由显式训练事件触发 (post_train_callback), 不因 B3 冻结而阻塞
+- **影响**: Wave 7-ERL Sprint 1 的 G1 缺口 (模型训练→再平衡联动) 现已全链路打通 — ER-1.1 钩子 + ER-1.2 串联 + ER-1.3 漂移回调, 三项均提前落地; Sprint 1 剩余 ER-1.1/1.2/1.3 全部 DONE
+- **指针**: `utils/evolution/train_rebalance_bridge.py` · `tests/unit/test_train_rebalance_bridge_er12.py` · `cairn/evolution-rebalance-loop.md` §十三 · `cairn/ROADMAP.md` Wave 7-ERL Sprint 1
+
+## 2026-08-27 · P0-1 影子账户真实撮合桥接落地 (cairn/shadow-realness-audit)
+
+- **根因** (cairn/shadow-realness-audit-20260824.md): 影子账户长期处于 NAV 回算模式, `trade_log` 恒空, 从不执行真实撮合, 绩效 (DSR/年化) 未经验证真实滑点/成交率
+- **方案**: 桥接而非改造 — 消费已就绪的 DTE-1 建仓撮合链 FillsStore (`reports/fills/fills_YYYY-MM-DD.jsonl`), 写入 `shadow_state.json` 的 `trade_log`, 双轨并行 (成交 NAV vs 回算 NAV)
+- **新增**: `utils/alpha/shadow_fills_integrator.py` (ShadowFillsIntegrator 核心类 + DeviationReport) · `scripts/run_shadow_fills_integrator.py` (CLI 入口) · `scripts/gate_check_daily.py` (门禁三件套聚合+21天连续计数) · `tests/unit/test_shadow_fills_integrator.py` (9测) + `tests/unit/test_advance_stage_guard.py` (4测) 全绿
+- **接线**: ① `run_daily_eod_workflow.py` 在 Phase 4.5b 后插入 Phase 4.5b+1 桥接步骤 (fail-open) ② `launch_shadow_account.py:advance_stage` 增加 `trade_log` 非空 + 绩效达标守卫 (配置开关 `ENABLE_ADVANCE_TRADE_LOG_GUARD`, 默认开) ③ `shadow_admission_launcher.py:evaluate` 增加 `trade_log` 非空 blocker + `data_source_real` promoter + 年化阈值对齐 8%/回撤 15% ④ `register_all_tasks_unified.ps1` 新增 `v84_ShadowFillsIntegrator`(18:00) + `v84_GateCheckDaily`(18:10) 两个定时任务
+- **关键决策**: 桥接器只消费 `strategy="build"` 真实撮合成交 (排除 `assertion_test` 噪音); NAV 计算用成交净收益率口径 (非现金流水法, 避免建仓期 -100% 失真); 双轨偏差对比累计净值 (非单日收益率, 避免建仓期高频误报); 同步 `trade_log` 到 `admission_state.json` (两 state 文件并存, evaluate 读后者)
+- **实测**: 8/22-8/23 无文件 (建仓前) · 8/24-8/27 已桥接, `trade_log` 非空 + `data_source_real=true` 均通过 evaluate; 8/25 无成交 (no_fills); 门禁三件套 2/3 PASS (engineering_debt_gate 因 T4 环境隔离 6处 import research.* 真实 FAIL, 符合预期)
+- **暴露真问题**: 8/24 建仓首日纯买入 → `fills_daily_return≈-1.0`, 双轨偏差触发告警 — 真实撮合特征, 非 bug; 当前准入被 `dsr=0.00` + `annual_return=-6.58%` 真实阻塞 (即审计揭示的"绩效本就未达标")
+- **指针**: `utils/alpha/shadow_fills_integrator.py` · `scripts/run_shadow_fills_integrator.py` · `scripts/gate_check_daily.py` · `tests/unit/test_shadow_fills_integrator.py` · `tests/unit/test_advance_stage_guard.py` · `reports/gate/gate_daily_*.json` · `reports/gate/gate_streak.json` · `cairn/shadow-realness-audit-20260824.md`
+
+## 2026-08-27 · Wave 7-ERL Sprint 1: ER-1.1 + ER-1.3 落地 + W7.2.6 确认
+
+- **任务**: 按 ROADMAP 计划推进 Wave 7-ERL Sprint 1 可提前执行的编码任务
+- **ER-1.1 (训练器 post_train_callback 钩子)**: `autolearn_trainer.py` 新增 `invoke_post_train_callback` 公共辅助函数 (fail-safe 降级 + 向后兼容); `lgb_trainer/trainer.py:run_enhanced_training` + `lgb_tscv_trainer.py:run_lgb_tscv_training` 新增 `post_train_callback` 参数, 训练完成后调用回调; 14/14 测试全绿 (`tests/unit/test_post_train_callback_er11.py`)
+- **ER-1.3 (漂移→再平衡回调生产启用)**: `etf_option_hedge_rebalancer.py:_init_drift_monitor` 传入 `rebalance_callback` (B1 USE_DRIFT_DETECTOR 已就绪); 新增 `_make_drift_rebalance_callback` 工厂方法 (设置 `_drift_rebalance_pending` 标志位 + 审计日志 + history 截断); 10/10 测试全绿 (`tests/unit/test_drift_rebalance_callback_er13.py`)
+- **W7.2.6 (工程基础层 Phase 0-1)**: 确认基础设施已就位 — uv.lock 存在 + pyproject.toml 已配置 + python-dotenv 在依赖中且 env_loader.py 已使用 + .env 在 .gitignore + ruff T201/BLE001 已收紧 (新增代码 ruff check All checks passed)
+- **W7.4.5 (覆盖率冲刺)**: 新增 24 测试 (ER-1.1 14 + ER-1.3 10) 全绿, 为覆盖率提升贡献; 长期任务持续迭代
+- **影响**: Wave 7-ERL Sprint 1 的 G1/G2 缺口补齐关键代码已落地, ER-1.2 (训练→进化→再平衡串联) 可基于 post_train_callback 钩子实现
+- **指针**: `autolearn_trainer.py:invoke_post_train_callback` · `lgb_trainer/trainer.py:run_enhanced_training` · `lgb_tscv_trainer.py:run_lgb_tscv_training` · `etf_option_hedge_rebalancer.py:_make_drift_rebalance_callback` · `tests/unit/test_post_train_callback_er11.py` · `tests/unit/test_drift_rebalance_callback_er13.py` · `cairn/evolution-rebalance-loop.md` §十三
+
+## 2026-08-26 · ROADMAP 状态同步 + Wave 7 门禁修正
+
+- **任务**: 对齐 `cairn/ROADMAP.md` 与最新实测状态，修正因 `LOG` 已落地的 B2/P3.0/qlib 模型事实造成的文档漂移
+- **修正**: ① `W7.1.8` 真实模型已落盘，`signal_fusion.py` 实际读取真实评分，不再视为缺口 ② `P3.0` 代码链路已就绪，需 5 个交易日真实成交后才允许 `P3.1` ③ `B2/B3` 顺序门禁已修正，B2 预热 1/3 天并需 08-26~08-28 三天完成后评估 ④ `Sprint 1 收尾判定` 改为 `B1+B2 稳定 ≥7 天 + daily_workflow ≤4500 + R10 清零`
+- **影响**: ROADMAP 对齐当前真实状态，避免在未达门禁时误判进入 Sprint 2；v8.7 发布窗口仍为最高优先级
+- **指针**: `cairn/ROADMAP.md` · `cairn/LOG.md` · `reports/qlib_model_20260824_201837.pkl` · `scripts/verify_p3_0_gate.py`
+
 ## 2026-08-26 · EOD 三项失败修复 (盘中LLM + shadow feeder + drift)
 
 - **背景**: 08-26 EOD `overall_success=false` (11成功/3失败), 三项失败阻断 B2 预热数据积累

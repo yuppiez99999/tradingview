@@ -52,7 +52,9 @@ class TestComputeRollingAnnualReturn:
 
     def test_insufficient_sample(self, nav_path: str, monitor: TargetMonitor) -> None:
         # Arrange — 仅10日数据
-        _write_nav_history(nav_path, [1.0, 1.01, 1.02, 1.01, 1.03, 1.02, 1.04, 1.03, 1.05, 1.04])
+        _write_nav_history(
+            nav_path, [1.0, 1.01, 1.02, 1.01, 1.03, 1.02, 1.04, 1.03, 1.05, 1.04]
+        )
         # Act
         annual_return, insufficient = monitor.compute_rolling_annual_return()
         # Assert
@@ -150,7 +152,9 @@ class TestMonitor:
         assert result.rolling_annual_return > 0
         assert result.correction_action == CorrectionAction.NONE
 
-    def test_monitor_with_deviation(self, nav_path: str, monitor: TargetMonitor) -> None:
+    def test_monitor_with_deviation(
+        self, nav_path: str, monitor: TargetMonitor
+    ) -> None:
         # Arrange — 低收益
         _write_nav_history(nav_path, [1.0, 1.001, 1.002, 1.003, 1.004] * 12)
         # Act
@@ -172,7 +176,10 @@ class TestPrecheck:
     def test_precheck_pass(self, nav_path: str) -> None:
         # Arrange
         mock_engine = MagicMock()
-        mock_engine.run_backtest.return_value = {"annual_return": 0.10, "max_drawdown": 0.15}
+        mock_engine.run_backtest.return_value = {
+            "annual_return": 0.10,
+            "max_drawdown": 0.15,
+        }
         monitor = TargetMonitor(nav_history_path=nav_path, backtest_engine=mock_engine)
         # Act
         result = monitor.precheck_strategy_feasibility({"strategy": "test"})
@@ -183,7 +190,10 @@ class TestPrecheck:
     def test_precheck_fail(self, nav_path: str) -> None:
         # Arrange — 回测不满足目标
         mock_engine = MagicMock()
-        mock_engine.run_backtest.return_value = {"annual_return": 0.05, "max_drawdown": 0.25}
+        mock_engine.run_backtest.return_value = {
+            "annual_return": 0.05,
+            "max_drawdown": 0.25,
+        }
         monitor = TargetMonitor(nav_history_path=nav_path, backtest_engine=mock_engine)
         # Act
         result = monitor.precheck_strategy_feasibility({"strategy": "test"})

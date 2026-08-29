@@ -20,6 +20,7 @@ ai_decision.backtest_replay_types — 历史回放类型与协议定义
 
 向后兼容: backtest_replay.py 通过 re-export 暴露所有符号.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -50,16 +51,19 @@ TRADING_DAYS_PER_YEAR = 252
 # 枚举
 # ============================================================
 
+
 class BaselineType(StrEnum):
     """三基线类型"""
-    AI_DEBATE = "ai_debate"        # 完整 run_decision (辩论+聚合+风控)
-    FIVE_AGENTS = "five_agents"    # 仅五 Agent 共识 (跳过辩论/judge)
-    RULE_ONLY = "rule_only"        # 纯规则兜底 (跳过 AI)
+
+    AI_DEBATE = "ai_debate"  # 完整 run_decision (辩论+聚合+风控)
+    FIVE_AGENTS = "five_agents"  # 仅五 Agent 共识 (跳过辩论/judge)
+    RULE_ONLY = "rule_only"  # 纯规则兜底 (跳过 AI)
 
 
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 @dataclass
 class ReplayConfig:
@@ -74,6 +78,7 @@ class ReplayConfig:
         use_mock_providers: 是否强制使用 MockProvider (避免真实 API 调用)
         initial_capital: 初始资金 (用于仓位计算)
     """
+
     start_date: str = ""
     end_date: str = ""
     symbols: list[str] | None = None
@@ -97,6 +102,7 @@ class BaselineResult:
         n_decisions: 决策总数
         n_buy / n_sell / n_hold: action 分布
     """
+
     baseline: str = ""
     decisions: list[dict[str, Any]] = field(default_factory=list)
     returns: list[float] = field(default_factory=list)
@@ -136,6 +142,7 @@ class ComparisonReport:
         bias_checks: 前视偏差校验结果
         generated_at: 生成时间
     """
+
     config: dict[str, Any] = field(default_factory=dict)
     baselines: dict[str, dict[str, Any]] = field(default_factory=dict)
     marginal_sharpe_debate_vs_agents: float = 0.0
@@ -159,6 +166,7 @@ class ComparisonReport:
 # ============================================================
 # 历史数据加载协议
 # ============================================================
+
 
 class HistoryDataLoader(Protocol):
     """历史数据加载协议 (Protocol)

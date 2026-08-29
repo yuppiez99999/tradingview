@@ -16,6 +16,7 @@ from .logging_manager import get_logger
 
 class DataSourceStatus(Enum):
     """数据源状态 — 借鉴 TradingAgents-CN 的 available/unavailable 检查"""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNAVAILABLE = "unavailable"
@@ -25,6 +26,7 @@ class DataSourceStatus(Enum):
 @dataclass
 class CacheStats:
     """缓存统计 — 借鉴 TradingAgents-CN cache_manager 模式"""
+
     hits: int = 0
     misses: int = 0
     size_bytes: int = 0
@@ -37,17 +39,18 @@ class CacheStats:
 
     def to_dict(self) -> dict:
         return {
-            'hits': self.hits,
-            'misses': self.misses,
-            'hit_rate': f"{self.hit_rate:.1%}",
-            'size_kb': round(self.size_bytes / 1024, 1),
-            'items': self.item_count,
+            "hits": self.hits,
+            "misses": self.misses,
+            "hit_rate": f"{self.hit_rate:.1%}",
+            "size_kb": round(self.size_bytes / 1024, 1),
+            "items": self.item_count,
         }
 
 
 @dataclass
 class DataSourceInfo:
     """数据源信息"""
+
     name: str
     priority: int
     status: DataSourceStatus = DataSourceStatus.UNKNOWN
@@ -62,7 +65,7 @@ class DataSourceRegistry:
 
     def __init__(self):
         self._sources: dict[str, DataSourceInfo] = {}
-        self._logger = get_logger('data_source')
+        self._logger = get_logger("data_source")
 
     def register(self, name: str, priority: int) -> None:
         """注册数据源"""
@@ -79,18 +82,23 @@ class DataSourceRegistry:
         if name in self._sources:
             self._sources[name].status = DataSourceStatus.DEGRADED
             self._sources[name].error_count += 1
-            self._logger.warning(f"⚠️ 数据源降级: {name}" + (f" ({reason})" if reason else ""))
+            self._logger.warning(
+                f"⚠️ 数据源降级: {name}" + (f" ({reason})" if reason else "")
+            )
 
     def mark_unavailable(self, name: str, reason: str = "") -> None:
         if name in self._sources:
             self._sources[name].status = DataSourceStatus.UNAVAILABLE
             self._sources[name].error_count += 1
-            self._logger.error(f"❌ 数据源不可用: {name}" + (f" ({reason})" if reason else ""))
+            self._logger.error(
+                f"❌ 数据源不可用: {name}" + (f" ({reason})" if reason else "")
+            )
 
     def get_available_sources(self) -> list[str]:
         """获取当前可用的数据源列表（按优先级排序）"""
         available = [
-            name for name, info in self._sources.items()
+            name
+            for name, info in self._sources.items()
             if info.status != DataSourceStatus.UNAVAILABLE
         ]
         available.sort(key=lambda n: self._sources[n].priority, reverse=True)
@@ -99,18 +107,20 @@ class DataSourceRegistry:
     def get_status_report(self) -> str:
         """生成数据源状态报告"""
         lines = ["📊 数据源状态:"]
-        for name, info in sorted(self._sources.items(),
-                                 key=lambda x: x[1].priority, reverse=True):
+        for name, info in sorted(
+            self._sources.items(), key=lambda x: x[1].priority, reverse=True
+        ):
             status_icon = {
-                DataSourceStatus.HEALTHY: '✅',
-                DataSourceStatus.DEGRADED: '⚠️',
-                DataSourceStatus.UNAVAILABLE: '❌',
-                DataSourceStatus.UNKNOWN: '⚪',
+                DataSourceStatus.HEALTHY: "✅",
+                DataSourceStatus.DEGRADED: "⚠️",
+                DataSourceStatus.UNAVAILABLE: "❌",
+                DataSourceStatus.UNKNOWN: "⚪",
             }[info.status]
             lines.append(
                 f"  {status_icon} {name} | 优先级:{info.priority} | "
                 f"成功:{info.success_count} | 失败:{info.error_count} | "
-                f"缓存命中率:{info.cache.hit_rate:.0%}")
+                f"缓存命中率:{info.cache.hit_rate:.0%}"
+            )
         return "\n".join(lines)
 
 
@@ -135,16 +145,19 @@ class PriorityDataSourceManager:
         self._priorities: dict[str, int] = {}
         self._registry = registry or DataSourceRegistry()
         self._last_successful_source: Optional[str] = None
-        self._logger = get_logger('data_source')
+        self._logger = get_logger("data_source")
 
-    def register_source(self, name: str, fetch_func: Callable, priority: int = 0) -> None:
+    def register_source(
+        self, name: str, fetch_func: Callable, priority: int = 0
+    ) -> None:
         """注册数据源及其获取函数"""
         self._sources[name] = fetch_func
         self._priorities[name] = priority
         self._registry.register(name, priority)
 
-    def fetch_with_fallback(self, *args: Any, default: Any = None, log_target: str = None,
-                            **kwargs: Any) -> Any:
+    def fetch_with_fallback(
+        self, *args: Any, default: Any = None, log_target: str = None, **kwargs: Any
+    ) -> Any:
         """按优先级尝试所有数据源，失败自动回退 — 借鉴 TradingAgents-CN 模式
 
         Args:
@@ -170,15 +183,25 @@ class PriorityDataSourceManager:
             try:
                 result = fetch_func(*args, **kwargs)
                 # 验证结果有效性
-                if result is not None and not (isinstance(result, str) and result.startswith('❌')):
+                if result is not None and not (
+                    isinstance(result, str) and result.startswith("❌")
+                ):
                     self._registry.mark_healthy(name)
                     self._last_successful_source = name
                     self._logger.debug(f"✅ 数据源 {name} 返回成功{target_str}")
                     return result
-                else:
-                    self._registry.mark_degraded(name, "返回无效数据")
-                    self._logger.warning(f"⚠️ 数据源 {name} 返回无效数据{target_str}，尝试下一个")
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+                self._registry.mark_degraded(name, "返回无效数据")
+                self._logger.warning(
+                    f"⚠️ 数据源 {name} 返回无效数据{target_str}，尝试下一个"
+                )
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 self._registry.mark_unavailable(name, str(e))
                 self._logger.warning(f"⚠️ 数据源 {name} 异常{target_str}: {e}")
                 continue

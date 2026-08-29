@@ -12,6 +12,7 @@ Modules:
   - etf_flow_monitor (3: spec None guard + Dict[str, Any])
   - alpha/model_registry (3: mlflow_client None guard + result dict)
 """
+
 from __future__ import annotations
 
 import importlib
@@ -97,7 +98,9 @@ try:
         volatility=0.25,
     )
     assert plan_ac.slice_count > 0, f"AC slice_count={plan_ac.slice_count}"
-    _ok(f"TWAP/VWAP/AC slices = {plan.slice_count}/{plan_vwap.slice_count}/{plan_ac.slice_count}")
+    _ok(
+        f"TWAP/VWAP/AC slices = {plan.slice_count}/{plan_vwap.slice_count}/{plan_ac.slice_count}"
+    )
 except Exception as e:  # noqa: BLE001
     _fail("ExecutionAlgoEngine", e)
 
@@ -157,7 +160,9 @@ try:
     assert hasattr(tfe_mod, "nn"), "nn attr missing"
     assert hasattr(tfe_mod, "_TORCH_AVAILABLE"), "_TORCH_AVAILABLE missing"
     torch_state = "available" if tfe_mod._TORCH_AVAILABLE else "numpy-shadow"
-    _ok(f"torch={tfe_mod.torch}, _TORCH_AVAILABLE={tfe_mod._TORCH_AVAILABLE} ({torch_state})")
+    _ok(
+        f"torch={tfe_mod.torch}, _TORCH_AVAILABLE={tfe_mod._TORCH_AVAILABLE} ({torch_state})"
+    )
 except Exception as e:  # noqa: BLE001
     _fail("TransformerEncoder", e)
 
@@ -185,7 +190,9 @@ try:
 
     phase = pm.get_current_phase(date(2026, 8, 12))
     assert hasattr(phase, "phase_name"), f"phase missing phase_name: {phase}"
-    assert isinstance(phase.phase_name, str), f"phase_name type={type(phase.phase_name)}"
+    assert isinstance(
+        phase.phase_name, str
+    ), f"phase_name type={type(phase.phase_name)}"
     # liquidation actions returns dict | None
     actions = pm.get_liquidation_actions(date(2026, 8, 12))
     assert actions is None or isinstance(actions, dict), f"actions type={type(actions)}"
@@ -225,7 +232,9 @@ try:
     # ETFRealTimeTracker importable
     tracker_cls = efm.ETFRealTimeTracker
     tracker = tracker_cls()
-    _ok(f"ETFRealTimeTracker instantiated, wind_mcp_available={tracker.wind_mcp_available}")
+    _ok(
+        f"ETFRealTimeTracker instantiated, wind_mcp_available={tracker.wind_mcp_available}"
+    )
 except Exception as e:  # noqa: BLE001
     _fail("ETF flow monitor", e)
 

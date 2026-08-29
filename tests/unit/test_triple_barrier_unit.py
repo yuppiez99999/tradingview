@@ -24,6 +24,7 @@ from utils.backtest.triple_barrier import (
 # 固定障碍标注测试
 # ============================================================
 
+
 class TestFixedBarrierLabeling:
     """固定障碍标注测试."""
 
@@ -116,14 +117,18 @@ class TestFixedBarrierLabeling:
     def test_multiple_events(self):
         """多个事件应全部标注."""
         dates = pd.date_range("2026-08-01", periods=20, freq="B")
-        prices = pd.Series(np.random.RandomState(42).normal(100, 2, 20).cumsum() + 100, index=dates)
+        prices = pd.Series(
+            np.random.RandomState(42).normal(100, 2, 20).cumsum() + 100, index=dates
+        )
 
         event_dates = dates[:10]
         events = pd.DataFrame(index=event_dates)
         events["side"] = 1
 
         labeler = TripleBarrierLabeler(
-            TripleBarrierConfig(num_bars=5, profit_taking_width=0.03, stop_loss_width=0.02)
+            TripleBarrierConfig(
+                num_bars=5, profit_taking_width=0.03, stop_loss_width=0.02
+            )
         )
         result = labeler.label(prices, events)
 
@@ -140,7 +145,9 @@ class TestFixedBarrierLabeling:
         events["side"] = 1
 
         labeler = TripleBarrierLabeler(
-            TripleBarrierConfig(num_bars=3, profit_taking_width=0.02, stop_loss_width=0.02)
+            TripleBarrierConfig(
+                num_bars=3, profit_taking_width=0.02, stop_loss_width=0.02
+            )
         )
         result = labeler.label(prices, events)
 
@@ -152,6 +159,7 @@ class TestFixedBarrierLabeling:
 # ============================================================
 # 波动率自适应障碍测试
 # ============================================================
+
 
 class TestVolatilityAdjustedBarrier:
     """波动率自适应障碍测试."""
@@ -200,6 +208,7 @@ class TestVolatilityAdjustedBarrier:
 # ============================================================
 # 做空方向测试
 # ============================================================
+
 
 class TestShortSideLabeling:
     """做空方向标注测试."""
@@ -251,6 +260,7 @@ class TestShortSideLabeling:
 # Meta-Labeling 测试
 # ============================================================
 
+
 class TestMetaLabeling:
     """Meta-Labeling (二级分类器) 测试."""
 
@@ -258,8 +268,28 @@ class TestMetaLabeling:
         """Meta-Labeling 基本功能."""
         dates = pd.date_range("2026-08-01", periods=20, freq="B")
         prices = pd.Series(
-            [100, 102, 101, 103, 105, 104, 106, 108, 107, 109,
-             111, 110, 112, 114, 113, 115, 117, 116, 118, 120],
+            [
+                100,
+                102,
+                101,
+                103,
+                105,
+                104,
+                106,
+                108,
+                107,
+                109,
+                111,
+                110,
+                112,
+                114,
+                113,
+                115,
+                117,
+                116,
+                118,
+                120,
+            ],
             index=dates,
         )
 
@@ -281,8 +311,11 @@ class TestMetaLabeling:
         primary = pd.Series([1, 1, 1, 1, 1], index=dates[:5])
 
         meta = meta_labeling(
-            primary, prices,
-            TripleBarrierConfig(profit_taking_width=0.02, stop_loss_width=0.05, num_bars=4)
+            primary,
+            prices,
+            TripleBarrierConfig(
+                profit_taking_width=0.02, stop_loss_width=0.05, num_bars=4
+            ),
         )
 
         valid = meta.dropna()
@@ -294,12 +327,15 @@ class TestMetaLabeling:
 # 边界条件测试
 # ============================================================
 
+
 class TestEdgeCases:
     """边界条件测试."""
 
     def test_empty_events(self):
         """空事件应返回空标签."""
-        prices = pd.Series([100, 101, 102], index=pd.date_range("2026-08-01", periods=3))
+        prices = pd.Series(
+            [100, 101, 102], index=pd.date_range("2026-08-01", periods=3)
+        )
         events = pd.DataFrame(index=pd.DatetimeIndex([]))
         events["side"] = []
 
@@ -310,7 +346,9 @@ class TestEdgeCases:
 
     def test_event_not_in_prices(self):
         """事件日期不在价格序列中应跳过."""
-        prices = pd.Series([100, 101, 102], index=pd.date_range("2026-08-01", periods=3))
+        prices = pd.Series(
+            [100, 101, 102], index=pd.date_range("2026-08-01", periods=3)
+        )
         events = pd.DataFrame(index=pd.DatetimeIndex(["2026-09-01"]))
         events["side"] = 1
 
@@ -321,7 +359,9 @@ class TestEdgeCases:
 
     def test_event_at_last_price(self):
         """事件在最后一个价格点应跳过 (无后续价格)."""
-        prices = pd.Series([100, 101, 102], index=pd.date_range("2026-08-01", periods=3))
+        prices = pd.Series(
+            [100, 101, 102], index=pd.date_range("2026-08-01", periods=3)
+        )
         events = pd.DataFrame(index=[prices.index[-1]])
         events["side"] = 1
 
@@ -336,7 +376,9 @@ class TestEdgeCases:
         prices = pd.Series(100 + np.arange(20), index=dates)
 
         labeler = TripleBarrierLabeler(
-            TripleBarrierConfig(num_bars=3, profit_taking_width=0.02, stop_loss_width=0.02)
+            TripleBarrierConfig(
+                num_bars=3, profit_taking_width=0.02, stop_loss_width=0.02
+            )
         )
         result = labeler.label_simple(prices)
 
@@ -353,7 +395,9 @@ class TestEdgeCases:
         events["side"] = 1
 
         labeler = TripleBarrierLabeler(
-            TripleBarrierConfig(num_bars=3, profit_taking_width=0.02, stop_loss_width=0.02)
+            TripleBarrierConfig(
+                num_bars=3, profit_taking_width=0.02, stop_loss_width=0.02
+            )
         )
         result = labeler.label(prices, events)
 
@@ -371,7 +415,9 @@ class TestEdgeCases:
         events["side"] = 1
 
         labeler = TripleBarrierLabeler(
-            TripleBarrierConfig(profit_taking_width=0.02, stop_loss_width=0.05, num_bars=2)
+            TripleBarrierConfig(
+                profit_taking_width=0.02, stop_loss_width=0.05, num_bars=2
+            )
         )
         result = labeler.label(prices, events)
 
@@ -380,4 +426,8 @@ class TestEdgeCases:
         assert event.upper_barrier > 100.0
         assert event.lower_barrier < 100.0
         assert event.hit_time > 0
-        assert event.hit_barrier in (BarrierType.UPPER, BarrierType.LOWER, BarrierType.VERTICAL)
+        assert event.hit_barrier in (
+            BarrierType.UPPER,
+            BarrierType.LOWER,
+            BarrierType.VERTICAL,
+        )

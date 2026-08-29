@@ -15,6 +15,7 @@
     12. TCAManager.estimate() facade 接口
     13. ExecutionRouter.route_with_tca() 兼容模式
 """
+
 from __future__ import annotations
 
 import json
@@ -103,7 +104,13 @@ class TestPreTradeEstimateDataclass:
             tier="large",
             estimated_cost_bps=7.5,
             estimated_cost_amount=375.0,
-            cost_breakdown={"slippage": 100, "commission": 200, "impact": 50, "opportunity_cost": 25, "delay_cost": 0},
+            cost_breakdown={
+                "slippage": 100,
+                "commission": 200,
+                "impact": 50,
+                "opportunity_cost": 25,
+                "delay_cost": 0,
+            },
             approved=True,
             rejection_reason="",
             threshold_bps=30.0,
@@ -136,7 +143,13 @@ class TestPreTradeEstimateDataclass:
             tier="mid",
             estimated_cost_bps=15.0,
             estimated_cost_amount=15.0,
-            cost_breakdown={"slippage": 5, "commission": 5, "impact": 5, "opportunity_cost": 0, "delay_cost": 0},
+            cost_breakdown={
+                "slippage": 5,
+                "commission": 5,
+                "impact": 5,
+                "opportunity_cost": 0,
+                "delay_cost": 0,
+            },
             approved=True,
             rejection_reason="",
             threshold_bps=30.0,
@@ -150,10 +163,19 @@ class TestPreTradeEstimateDataclass:
     def test_timestamp_auto_filled(self):
         """测试 timestamp 自动填充"""
         est = PreTradeEstimate(
-            symbol="X", side="BUY", shares=1, notional=1, price=1,
-            tier="micro", estimated_cost_bps=0, estimated_cost_amount=0,
-            cost_breakdown={}, approved=True, rejection_reason="",
-            threshold_bps=30, latency_ms=0,
+            symbol="X",
+            side="BUY",
+            shares=1,
+            notional=1,
+            price=1,
+            tier="micro",
+            estimated_cost_bps=0,
+            estimated_cost_amount=0,
+            cost_breakdown={},
+            approved=True,
+            rejection_reason="",
+            threshold_bps=30,
+            latency_ms=0,
         )
         assert est.timestamp != ""
         # ISO 格式应包含 T
@@ -288,12 +310,15 @@ class TestThresholdRejection:
 class TestMarketCapTier:
     """测试市值分层对成本的影响"""
 
-    @pytest.mark.parametrize("market_cap,expected_tier", [
-        (2000e8, "large"),   # 2000亿 → large
-        (200e8, "mid"),      # 200亿 → mid
-        (50e8, "small"),     # 50亿 → small
-        (5e8, "micro"),      # 5亿 → micro
-    ])
+    @pytest.mark.parametrize(
+        "market_cap,expected_tier",
+        [
+            (2000e8, "large"),  # 2000亿 → large
+            (200e8, "mid"),  # 200亿 → mid
+            (50e8, "small"),  # 50亿 → small
+            (5e8, "micro"),  # 5亿 → micro
+        ],
+    )
     def test_tier_classification(self, estimator_no_save, market_cap, expected_tier):
         """测试市值分层"""
         order = make_order(market_cap=market_cap)
@@ -308,7 +333,10 @@ class TestMarketCapTier:
         large_result = estimator_no_save.estimate(large_order, market)
         micro_result = estimator_no_save.estimate(micro_order, market)
         # 大盘股滑点应该更低
-        assert large_result.cost_breakdown["slippage"] < micro_result.cost_breakdown["slippage"]
+        assert (
+            large_result.cost_breakdown["slippage"]
+            < micro_result.cost_breakdown["slippage"]
+        )
         # 大盘股总成本应该更低
         assert large_result.estimated_cost_bps < micro_result.estimated_cost_bps
 
@@ -327,7 +355,10 @@ class TestSideStampTax:
         buy_result = estimator_no_save.estimate(buy_order, market)
         sell_result = estimator_no_save.estimate(sell_order, market)
         # 卖出应包含印花税, 佣金更高
-        assert sell_result.cost_breakdown["commission"] > buy_result.cost_breakdown["commission"]
+        assert (
+            sell_result.cost_breakdown["commission"]
+            > buy_result.cost_breakdown["commission"]
+        )
 
     def test_buy_no_stamp_tax(self, estimator_no_save):
         """测试买入无印花税"""
@@ -382,6 +413,7 @@ class TestJsonlPersistence:
         estimator_tmp_dir.estimate(make_order(), make_market_data())
         # 检查文件存在
         from datetime import datetime
+
         date_str = datetime.now().strftime("%Y-%m-%d")
         file_path = tmp_path / f"estimate_{date_str}.jsonl"
         assert file_path.exists()
@@ -401,6 +433,7 @@ class TestJsonlPersistence:
                 make_market_data(),
             )
         from datetime import datetime
+
         date_str = datetime.now().strftime("%Y-%m-%d")
         file_path = tmp_path / f"estimate_{date_str}.jsonl"
         with open(file_path, encoding="utf-8") as f:
@@ -466,7 +499,9 @@ class TestBatchEstimate:
         }
         results = estimator_no_save.estimate_batch(orders, market_data)
         # 600276 流动性更好, 成本应更低
-        assert results["600276"].estimated_cost_bps < results["000001"].estimated_cost_bps
+        assert (
+            results["600276"].estimated_cost_bps < results["000001"].estimated_cost_bps
+        )
 
     def test_estimate_batch_skips_invalid(self, estimator_no_save):
         """测试批量预估跳过无效订单"""
@@ -486,7 +521,7 @@ class TestBatchEstimate:
         )
         orders = {
             "large_cap": make_order(symbol="510050", market_cap=2000e8),  # 低成本
-            "micro_cap": make_order(symbol="002999", market_cap=5e8),       # 高成本
+            "micro_cap": make_order(symbol="002999", market_cap=5e8),  # 高成本
         }
         market_data = {
             "large_cap": make_market_data(adv=1e9),
@@ -525,8 +560,11 @@ class TestParameterValidation:
     def test_zero_notional_raises(self, estimator_no_save):
         """测试 notional<=0 抛异常"""
         order = {
-            "symbol": "600276", "side": "BUY",
-            "shares": 0, "price": 0, "notional": 0,
+            "symbol": "600276",
+            "side": "BUY",
+            "shares": 0,
+            "price": 0,
+            "notional": 0,
         }
         with pytest.raises(PreTradeEstimateError):
             estimator_no_save.estimate(order, make_market_data())
@@ -542,7 +580,8 @@ class TestCalibrateThreshold:
         """测试校准返回新阈值"""
         actual_costs = [5.0, 8.0, 12.0, 15.0, 20.0, 25.0, 30.0]
         new_threshold = estimator_no_save.calibrate_threshold(
-            actual_costs, percentile=0.95,
+            actual_costs,
+            percentile=0.95,
         )
         # 95% 分位 ≈ 第 7 个 (30.0)
         assert new_threshold == 30.0
@@ -563,7 +602,8 @@ class TestCalibrateThreshold:
         # 实际成本都很低, 但下限 10
         actual_costs = [1.0, 2.0, 3.0]
         new_threshold = estimator.calibrate_threshold(
-            actual_costs, percentile=0.95,
+            actual_costs,
+            percentile=0.95,
             min_threshold=10.0,
         )
         assert new_threshold >= 10.0
@@ -577,7 +617,8 @@ class TestCalibrateThreshold:
         # 实际成本都很高, 但上限 100
         actual_costs = [200.0, 300.0, 400.0]
         new_threshold = estimator.calibrate_threshold(
-            actual_costs, percentile=0.95,
+            actual_costs,
+            percentile=0.95,
             max_threshold=100.0,
         )
         assert new_threshold <= 100.0
@@ -616,7 +657,9 @@ class TestFactoryFunctions:
 class TestTCAManagerFacade:
     """测试 TCAManager.estimate() facade"""
 
-    def test_tca_manager_estimate_returns_pre_trade_estimate(self, tmp_path, monkeypatch):
+    def test_tca_manager_estimate_returns_pre_trade_estimate(
+        self, tmp_path, monkeypatch
+    ):
         """测试 TCAManager.estimate() 返回 PreTradeEstimate"""
         # 使用临时目录避免污染生产环境
         monkeypatch.setattr(
@@ -624,6 +667,7 @@ class TestTCAManagerFacade:
             tmp_path,
         )
         from utils.tca_engine import TCAManager
+
         tca = TCAManager()
         order = make_order()
         market_data = make_market_data()
@@ -639,6 +683,7 @@ class TestTCAManagerFacade:
             tmp_path,
         )
         from utils.tca_engine import TCAManager
+
         tca = TCAManager()
         # 用很严格的阈值, 应该被否决
         result = tca.estimate(
@@ -659,10 +704,13 @@ class TestExecutionRouterRouteWithTCA:
     def test_route_with_tca_flag_disabled_returns_none_estimate(self):
         """测试 flag 关闭时返回 (plan, None)"""
         from utils.execution_router import ExecutionRouter
+
         router = ExecutionRouter()
         order = {
-            "symbol": "600276", "quantity": 10000,
-            "side": "BUY", "notional": 500000,
+            "symbol": "600276",
+            "quantity": 10000,
+            "side": "BUY",
+            "notional": 500000,
         }
         signal = {"confidence": 0.6, "strength": 0.3}
         market_state = {"volatility": 0.025, "adv": 1e8}
@@ -684,6 +732,7 @@ class TestExecutionRouterRouteWithTCA:
 
         # 注入 estimator 避免重复创建
         from utils.tca_pre_trade_estimator import PreTradeEstimator
+
         estimator = PreTradeEstimator(
             cost_threshold_bps=30.0,
             estimate_dir=tmp_path,
@@ -691,9 +740,13 @@ class TestExecutionRouterRouteWithTCA:
         )
         router = ExecutionRouter(tca_estimator=estimator)
         order = {
-            "symbol": "600276", "quantity": 10000,
-            "side": "BUY", "notional": 500000, "price": 50.0,
-            "shares": 10000, "market_cap": 800e8,
+            "symbol": "600276",
+            "quantity": 10000,
+            "side": "BUY",
+            "notional": 500000,
+            "price": 50.0,
+            "shares": 10000,
+            "market_cap": 800e8,
         }
         signal = {"confidence": 0.6, "strength": 0.3}
         market_state = {"volatility": 0.025, "adv": 1e8}
@@ -716,6 +769,7 @@ class TestExecutionRouterRouteWithTCA:
         )
         from utils.execution_router import ExecutionRouter
         from utils.tca_pre_trade_estimator import PreTradeEstimator
+
         estimator = PreTradeEstimator(
             cost_threshold_bps=5.0,  # 严格阈值
             estimate_dir=tmp_path,
@@ -724,9 +778,13 @@ class TestExecutionRouterRouteWithTCA:
         router = ExecutionRouter(tca_estimator=estimator)
         # 微盘股 + 大金额 → 高成本
         order = {
-            "symbol": "002999", "quantity": 50000,
-            "side": "BUY", "notional": 500000, "price": 10.0,
-            "shares": 50000, "market_cap": 5e8,
+            "symbol": "002999",
+            "quantity": 50000,
+            "side": "BUY",
+            "notional": 500000,
+            "price": 10.0,
+            "shares": 50000,
+            "market_cap": 5e8,
         }
         market_state = {"volatility": 0.05, "adv": 1e7}
 
@@ -760,10 +818,13 @@ class TestExecutionRouterRouteWithTCA:
     def test_route_with_tca_preserves_original_route_logic(self):
         """测试 route_with_tca 保留原始 route 逻辑 (HC-2)"""
         from utils.execution_router import ExecutionRouter
+
         router = ExecutionRouter()
         order = {
-            "symbol": "600276", "quantity": 10000,
-            "side": "BUY", "notional": 500000,
+            "symbol": "600276",
+            "quantity": 10000,
+            "side": "BUY",
+            "notional": 500000,
         }
         signal = {"confidence": 0.8, "strength": 0.6}
 
@@ -775,7 +836,10 @@ class TestExecutionRouterRouteWithTCA:
         # 两个 plan 的核心字段应一致 (算法/urgency/滑点)
         assert plan_with_tca.algorithm == plan_without_tca.algorithm
         assert plan_with_tca.urgency == plan_without_tca.urgency
-        assert plan_with_tca.estimated_slippage_bps == plan_without_tca.estimated_slippage_bps
+        assert (
+            plan_with_tca.estimated_slippage_bps
+            == plan_without_tca.estimated_slippage_bps
+        )
 
 
 # ============================================================

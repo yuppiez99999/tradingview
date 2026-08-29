@@ -15,6 +15,7 @@
 
 运行: python scripts/run_p22_backtest.py
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -30,7 +31,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [P2.2] %(message)s")
 logger = logging.getLogger("p22_backtest")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-REF_SCRIPT = PROJECT_ROOT / "data" / "etf_option_backtest" / "run_etf_option_backtest.py"
+REF_SCRIPT = (
+    PROJECT_ROOT / "data" / "etf_option_backtest" / "run_etf_option_backtest.py"
+)
 SINA_PANEL = PROJECT_ROOT / "data_cache" / "etf_phase2" / "all_etf_daily.parquet"
 OUTPUT_DIR = PROJECT_ROOT / "data" / "etf_option_backtest"
 
@@ -63,13 +66,23 @@ def cross_validate(wind: pd.DataFrame, sina: pd.DataFrame) -> dict:
     report = {}
     for code in wind.columns:
         if code not in sina.columns:
-            report[code] = {"n_common": 0, "n_diff": -1, "div_dates": [], "missing": True}
+            report[code] = {
+                "n_common": 0,
+                "n_diff": -1,
+                "div_dates": [],
+                "missing": True,
+            }
             continue
         w_ret = wind[code].pct_change().dropna()
         s_ret = sina[code].pct_change().dropna()
         common = w_ret.index.intersection(s_ret.index)
         if len(common) < 100:
-            report[code] = {"n_common": len(common), "n_diff": -1, "div_dates": [], "missing": True}
+            report[code] = {
+                "n_common": len(common),
+                "n_diff": -1,
+                "div_dates": [],
+                "missing": True,
+            }
             continue
         gap = (w_ret[common] - s_ret[common]).abs()
         big = gap[gap > DIV_THRESHOLD]
@@ -87,13 +100,19 @@ def cross_validate(wind: pd.DataFrame, sina: pd.DataFrame) -> dict:
             "n_diff_gt_10bp": int((gap > 0.001).sum()),
             "n_div_dates": len(div_dates),
             "div_dates": div_dates,
-            "total_ret_wind": round(float(wind[code].iloc[-1] / wind[code].iloc[0] - 1), 6),
-            "total_ret_sina": round(float(sina[code].iloc[-1] / sina[code].iloc[0] - 1), 6),
+            "total_ret_wind": round(
+                float(wind[code].iloc[-1] / wind[code].iloc[0] - 1), 6
+            ),
+            "total_ret_sina": round(
+                float(sina[code].iloc[-1] / sina[code].iloc[0] - 1), 6
+            ),
         }
     return report
 
 
-def adjust_sina_to_qfq(wind: pd.DataFrame, sina: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+def adjust_sina_to_qfq(
+    wind: pd.DataFrame, sina: pd.DataFrame
+) -> tuple[pd.DataFrame, int]:
     """除权修正法: 用 Wind 复权收益率修正 sina 未复权序列 → sina 复权序列。
 
     修正规则: 逐日收益率以 sina 为准; 当日收益率差异 > DIV_THRESHOLD (除权日) 时
@@ -158,7 +177,9 @@ def check_acceptance(results: dict, cfg: dict | None = None) -> list[str]:
     if cfg is None:
         cfg = {}
     sub = cfg.get("subportfolio", {})
-    target_annual = 5.0  # 务实验收线: 设计目标 9.5% 在此区间不可达, 以 S1 静态可达值校准
+    target_annual = (
+        5.0  # 务实验收线: 设计目标 9.5% 在此区间不可达, 以 S1 静态可达值校准
+    )
     target_dd = (sub.get("target_max_drawdown", 0.20)) * 100
     target_sharpe = sub.get("target_sharpe", 0.38)
     design_annual = (sub.get("target_annual_return", 0.095)) * 100
@@ -184,7 +205,9 @@ def check_acceptance(results: dict, cfg: dict | None = None) -> list[str]:
 
 def fmt_results_block(title: str, results: dict) -> list[str]:
     lines = [f"  --- {title} ---"]
-    lines.append(f"  {'策略':<26} {'年化%':>8} {'回撤%':>8} {'Sharpe':>8} {'超额%':>8} {'期末':>12}")
+    lines.append(
+        f"  {'策略':<26} {'年化%':>8} {'回撤%':>8} {'Sharpe':>8} {'超额%':>8} {'期末':>12}"
+    )
     lines.append("  " + "-" * 76)
     for name, m in results.items():
         lines.append(
@@ -200,8 +223,13 @@ def main() -> int:
 
     logger.info("加载 Wind MCP 前复权数据 (主数据源)...")
     wind = mod.load_etf_prices()
-    logger.info("  %d 交易日 x %d ETF: %s ~ %s", len(wind), len(wind.columns),
-                wind.index[0].date(), wind.index[-1].date())
+    logger.info(
+        "  %d 交易日 x %d ETF: %s ~ %s",
+        len(wind),
+        len(wind.columns),
+        wind.index[0].date(),
+        wind.index[-1].date(),
+    )
 
     logger.info("加载 sina 未复权数据 (交叉验证源)...")
     sina = load_sina_pivot()
@@ -228,11 +256,17 @@ def main() -> int:
     divergence = {}
     for name, m in res_wind.items():
         if name in res_sina:
-            divergence[name] = round(abs(m["annual_return"] - res_sina[name]["annual_return"]) * 100, 3)
+            divergence[name] = round(
+                abs(m["annual_return"] - res_sina[name]["annual_return"]) * 100, 3
+            )
 
     # 复权口径路径依赖: 静态策略 (S1/S3) vs 再平衡策略 (S2/S4/S5)
     static_keys = ["S1 基线(静态无对冲)", "S3 期权对冲(静态+认沽)"]
-    rebal_keys = ["S2 再平衡(动态阈值)", "S4 完整(再平衡+对冲)", "S5 尾部对冲(回撤加码)"]
+    rebal_keys = [
+        "S2 再平衡(动态阈值)",
+        "S4 完整(再平衡+对冲)",
+        "S5 尾部对冲(回撤加码)",
+    ]
 
     def _avg_div(keys: list[str]) -> float:
         vals = [divergence[k] for k in keys if k in divergence]
@@ -245,11 +279,17 @@ def main() -> int:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     lines = []
     lines.append("=" * 84)
-    lines.append("  ETF期权对冲 Phase 2 — P2.2 S1-S5 五策略正式对比回测 (2026-08-25 提前启动)")
+    lines.append(
+        "  ETF期权对冲 Phase 2 — P2.2 S1-S5 五策略正式对比回测 (2026-08-25 提前启动)"
+    )
     lines.append("=" * 84)
-    lines.append(f"  回测区间: {wind.index[0].date()} ~ {wind.index[-1].date()} | 初始资金: 2,000,000元")
+    lines.append(
+        f"  回测区间: {wind.index[0].date()} ~ {wind.index[-1].date()} | 初始资金: 2,000,000元"
+    )
     lines.append("  主数据源: Wind MCP 前复权 | 交叉验证: sina(P2.1) 除权修正复权")
-    lines.append("  口径: 交易成本0.03%+滑点0.1%; 期权对冲 = Black-Scholes 月度滚仓真实定价 (v8.6.15, 替代年化2.5%衰减伪对冲)")
+    lines.append(
+        "  口径: 交易成本0.03%+滑点0.1%; 期权对冲 = Black-Scholes 月度滚仓真实定价 (v8.6.15, 替代年化2.5%衰减伪对冲)"
+    )
     lines.append("")
     lines.extend(fmt_results_block("Wind MCP 前复权 (主数据源)", res_wind))
     lines.append("")
@@ -261,13 +301,21 @@ def main() -> int:
         lines.append(f"    {name:<28} |Δ年化| = {d:.3f}pp [{flag}]")
     lines.append("")
     lines.append("  === 复权口径路径依赖 (静态 vs 再平衡) ===")
-    lines.append(f"    静态策略 (S1/S3):   平均 |Δ年化| = {static_div:.3f}pp (口径敏感度低)")
-    lines.append(f"    再平衡策略 (S2/S4/S5): 平均 |Δ年化| = {rebal_div:.3f}pp (阈值离散触发, 路径依赖)")
+    lines.append(
+        f"    静态策略 (S1/S3):   平均 |Δ年化| = {static_div:.3f}pp (口径敏感度低)"
+    )
+    lines.append(
+        f"    再平衡策略 (S2/S4/S5): 平均 |Δ年化| = {rebal_div:.3f}pp (阈值离散触发, 路径依赖)"
+    )
     lines.append(f"    口径敏感性差: 再平衡 − 静态 = {rebal_div - static_div:+.3f}pp")
-    lines.append("    结论: 回测必须使用 Wind MCP 复权主源, sina 仅作除权修正冗余源交叉验证")
+    lines.append(
+        "    结论: 回测必须使用 Wind MCP 复权主源, sina 仅作除权修正冗余源交叉验证"
+    )
     lines.append("")
     lines.append("  === 双源交叉验证明细 ===")
-    lines.append(f"    除权日总数: {n_div_total} 处 (sina未复权 vs Wind前复权的分红除息跳变)")
+    lines.append(
+        f"    除权日总数: {n_div_total} 处 (sina未复权 vs Wind前复权的分红除息跳变)"
+    )
     lines.append(f"    涉及 ETF: {len(n_all_div)} 只")
     for c, v in sorted(n_all_div.items(), key=lambda kv: -kv[1]["n_div_dates"]):
         lines.append(
@@ -277,7 +325,9 @@ def main() -> int:
     lines.append("  === ROADMAP P2.2 验收标准核验 (v8.6.15 校准) ===")
     lines.extend(check_acceptance(res_wind, cfg))
     lines.append("")
-    lines.append("  结论: 上述指标为诚实验证基线, DSR/Noise 检验在 P2.3 (08-31~09-05) 执行。")
+    lines.append(
+        "  结论: 上述指标为诚实验证基线, DSR/Noise 检验在 P2.3 (08-31~09-05) 执行。"
+    )
     lines.append("=" * 84)
     report = "\n".join(lines)
     print(report)  # allow-print
@@ -307,9 +357,17 @@ def main() -> int:
                 "divergence_annual_pp": divergence,
                 "acceptance_calibrated_v8615": {
                     "target_annual_return_pct": 5.0,
-                    "target_max_drawdown_pct": (cfg.get("subportfolio", {}).get("target_max_drawdown", 0.20)) * 100,
-                    "target_sharpe": cfg.get("subportfolio", {}).get("target_sharpe", 0.38),
-                    "design_annual_return_pct": (cfg.get("subportfolio", {}).get("target_annual_return", 0.095)) * 100,
+                    "target_max_drawdown_pct": (
+                        cfg.get("subportfolio", {}).get("target_max_drawdown", 0.20)
+                    )
+                    * 100,
+                    "target_sharpe": cfg.get("subportfolio", {}).get(
+                        "target_sharpe", 0.38
+                    ),
+                    "design_annual_return_pct": (
+                        cfg.get("subportfolio", {}).get("target_annual_return", 0.095)
+                    )
+                    * 100,
                 },
             },
             indent=2,

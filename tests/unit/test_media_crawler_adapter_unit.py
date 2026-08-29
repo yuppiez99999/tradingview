@@ -81,7 +81,9 @@ class TestMediaCrawlerResult:
 
     def test_to_dict(self):
         item = MediaCrawlerNewsItem(title="x")
-        r = MediaCrawlerResult(success=True, items=[item], source="MediaCrawler", total_count=1)
+        r = MediaCrawlerResult(
+            success=True, items=[item], source="MediaCrawler", total_count=1
+        )
         d = r.to_dict()
         assert d["success"] is True
         assert d["items_count"] == 1
@@ -226,8 +228,11 @@ class TestMediaCrawlerAdapter:
 
     def test_check_health_exception(self):
         import requests
+
         a = MediaCrawlerAdapter()
-        with patch.object(a._session, "get", side_effect=requests.RequestException("fail")):
+        with patch.object(
+            a._session, "get", side_effect=requests.RequestException("fail")
+        ):
             result = a.check_health()
         assert result["available"] is False
 
@@ -252,7 +257,9 @@ class TestMediaCrawlerAdapter:
     def test_search_cache_hit(self):
         """缓存命中 → 直接返回"""
         a = MediaCrawlerAdapter()
-        cached_result = MediaCrawlerResult(success=True, items=[MediaCrawlerNewsItem(title="cached")])
+        cached_result = MediaCrawlerResult(
+            success=True, items=[MediaCrawlerNewsItem(title="cached")]
+        )
         with patch.object(a._cache, "get", return_value=cached_result):
             result = a.search("test", use_cache=True)
         assert result.success is True
@@ -260,9 +267,12 @@ class TestMediaCrawlerAdapter:
 
     def test_search_request_exception(self):
         import requests
+
         a = MediaCrawlerAdapter()
         with patch.object(a._cache, "get", return_value=None):
-            with patch.object(a._session, "post", side_effect=requests.RequestException("fail")):
+            with patch.object(
+                a._session, "post", side_effect=requests.RequestException("fail")
+            ):
                 result = a.search("test")
         assert result.success is False
 
@@ -350,7 +360,9 @@ class TestMediaCrawlerAdapter:
 
         content_resp = MagicMock()
         content_resp.status_code = 200
-        content_resp.json.return_value = {"content": [{"title": "item1"}, {"title": "item2"}]}
+        content_resp.json.return_value = {
+            "content": [{"title": "item1"}, {"title": "item2"}]
+        }
 
         with patch.object(a._session, "get", side_effect=[files_resp, content_resp]):
             items = a._fetch_latest_data("xhs", 10)

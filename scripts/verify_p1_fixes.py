@@ -16,6 +16,7 @@ P1 风控缺口修复验证脚本 (v8.6.6)
 用法:
     py -3 scripts/verify_p1_fixes.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -119,7 +120,16 @@ def verify_p1_g() -> bool:
 
         return p1g_marker_found and getattr_found and not bug_found
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-G: 验证执行", False, f"异常: {e}")
@@ -140,6 +150,7 @@ def verify_p1_l() -> bool:
 
     try:
         from utils.portfolio_optimizer import PortfolioOptimizer
+
         opt = PortfolioOptimizer()
 
         target_weights = {"588080": 0.10, "512880": 0.08, "510050": 0.06}
@@ -147,7 +158,7 @@ def verify_p1_l() -> bool:
         # 场景 1: 低波动 (日 PnL 标准差很小)
         low_vol_pnl = [0.001, -0.001, 0.002, -0.0005, 0.0015] * 4  # ~16 天
         scaled, stats = opt.apply_risk_management(target_weights, low_vol_pnl)
-        vol_scaler = stats['vol_scaler']
+        vol_scaler = stats["vol_scaler"]
         # 低波动时 vol_scaler 应接近 cap (2.0) 或 > 1
         s1_pass = vol_scaler > 1.0
         record(
@@ -159,7 +170,7 @@ def verify_p1_l() -> bool:
         # 场景 2: 高波动 (日 PnL 波动大)
         high_vol_pnl = [0.05, -0.04, 0.06, -0.05, 0.04] * 4  # ~16 天, 年化~80%
         scaled, stats = opt.apply_risk_management(target_weights, high_vol_pnl)
-        vol_scaler = stats['vol_scaler']
+        vol_scaler = stats["vol_scaler"]
         # 高波动时 vol_scaler 应 < 1
         s2_pass = vol_scaler < 1.0
         record(
@@ -172,8 +183,8 @@ def verify_p1_l() -> bool:
         # 构建先涨后跌的序列: 涨 10% 然后跌 8% (回撤 ~8%)
         drawdown_pnl = [0.02] * 5 + [-0.02] * 5  # 涨 10.4% 后跌 9.8%, 回撤约 8%
         scaled, stats = opt.apply_risk_management(target_weights, drawdown_pnl)
-        dd_scaler = stats['dd_scaler']
-        derisk = stats['derisk_triggered']
+        dd_scaler = stats["dd_scaler"]
+        derisk = stats["derisk_triggered"]
         s3_pass = derisk and dd_scaler == 0.5
         record(
             "P1-L 场景3: 回撤 > 5% → dd_scaler = 0.5",
@@ -183,7 +194,10 @@ def verify_p1_l() -> bool:
 
         # 场景 4: 数据不足 (len < 2)
         _scaled, stats = opt.apply_risk_management(target_weights, [0.01])
-        s4_pass = stats.get('note') == 'insufficient_pnl_history' and stats['combined_scaler'] == 1.0
+        s4_pass = (
+            stats.get("note") == "insufficient_pnl_history"
+            and stats["combined_scaler"] == 1.0
+        )
         record(
             "P1-L 场景4: 数据不足 → 返回原始权重",
             s4_pass,
@@ -192,11 +206,21 @@ def verify_p1_l() -> bool:
 
         return s1_pass and s2_pass and s3_pass and s4_pass
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-L: 验证执行", False, f"异常: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -209,41 +233,44 @@ def verify_p1_h() -> bool:
 
     try:
         from utils.market_circuit_breaker import MarketCircuitBreaker
+
         mcb = MarketCircuitBreaker()
 
         # 测试 apply_to_plan 的 L2/L3 逻辑 (不依赖实时数据源)
         test_plan = {
-            'execution_plan': {
-                'morning_orders': [
-                    {'symbol': '588080', 'direction': 'BUY', 'shares': 1000},
-                    {'symbol': '512880', 'direction': 'SELL', 'shares': 500},
+            "execution_plan": {
+                "morning_orders": [
+                    {"symbol": "588080", "direction": "BUY", "shares": 1000},
+                    {"symbol": "512880", "direction": "SELL", "shares": 500},
                 ],
-                'afternoon_orders': [
-                    {'symbol': '510050', 'direction': 'BUY', 'shares': 2000},
+                "afternoon_orders": [
+                    {"symbol": "510050", "direction": "BUY", "shares": 2000},
                 ],
             },
-            'market_state': {},
-            'risk_guard': {},
+            "market_state": {},
+            "risk_guard": {},
         }
 
         # 场景 1: 跌 5% → L2 (过滤 BUY, 保留 SELL)
         l2_status = {
-            'level': 2,
-            'level_name': 'L2预警',
-            'hs300_change_pct': -0.05,
-            'actions': ['禁止开盘新开仓'],
-            'data_source': 'test',
-            'can_trade': True,
-            'can_open': False,
+            "level": 2,
+            "level_name": "L2预警",
+            "hs300_change_pct": -0.05,
+            "actions": ["禁止开盘新开仓"],
+            "data_source": "test",
+            "can_trade": True,
+            "can_open": False,
         }
         # 深拷贝 test_plan 避免修改原始对象 (浅拷贝会共享嵌套 execution_plan)
         import copy
+
         plan_l2 = mcb.apply_to_plan(copy.deepcopy(test_plan), l2_status)
-        morning = plan_l2['execution_plan']['morning_orders']
-        afternoon = plan_l2['execution_plan']['afternoon_orders']
+        morning = plan_l2["execution_plan"]["morning_orders"]
+        afternoon = plan_l2["execution_plan"]["afternoon_orders"]
         # L2 应过滤 BUY, 保留 SELL
         s1_pass = (
-            len(morning) == 1 and morning[0]['direction'] == 'SELL'
+            len(morning) == 1
+            and morning[0]["direction"] == "SELL"
             and len(afternoon) == 0
         )
         record(
@@ -254,19 +281,19 @@ def verify_p1_h() -> bool:
 
         # 场景 2: 跌 7% → L3 (清空所有订单)
         l3_status = {
-            'level': 3,
-            'level_name': 'L3全局平仓',
-            'hs300_change_pct': -0.07,
-            'actions': ['全局平仓'],
-            'data_source': 'test',
-            'can_trade': False,
-            'can_open': False,
+            "level": 3,
+            "level_name": "L3全局平仓",
+            "hs300_change_pct": -0.07,
+            "actions": ["全局平仓"],
+            "data_source": "test",
+            "can_trade": False,
+            "can_open": False,
         }
         plan_l3 = mcb.apply_to_plan(copy.deepcopy(test_plan), l3_status)
         s2_pass = (
-            len(plan_l3['execution_plan']['morning_orders']) == 0
-            and len(plan_l3['execution_plan']['afternoon_orders']) == 0
-            and plan_l3['market_state'].get('halt_all_trading')
+            len(plan_l3["execution_plan"]["morning_orders"]) == 0
+            and len(plan_l3["execution_plan"]["afternoon_orders"]) == 0
+            and plan_l3["market_state"].get("halt_all_trading")
         )
         record(
             "P1-H 场景2: 跌 7% → L3 清空所有订单 + halt_all_trading",
@@ -277,18 +304,18 @@ def verify_p1_h() -> bool:
 
         # 场景 3: 正常 (跌 1%) → L0 (不修改)
         l0_status = {
-            'level': 0,
-            'level_name': '正常',
-            'hs300_change_pct': -0.01,
-            'actions': [],
-            'data_source': 'test',
-            'can_trade': True,
-            'can_open': True,
+            "level": 0,
+            "level_name": "正常",
+            "hs300_change_pct": -0.01,
+            "actions": [],
+            "data_source": "test",
+            "can_trade": True,
+            "can_open": True,
         }
         plan_l0 = mcb.apply_to_plan(copy.deepcopy(test_plan), l0_status)
         s3_pass = (
-            len(plan_l0['execution_plan']['morning_orders']) == 2
-            and plan_l0['risk_guard']['market_circuit_breaker']['level'] == 0
+            len(plan_l0["execution_plan"]["morning_orders"]) == 2
+            and plan_l0["risk_guard"]["market_circuit_breaker"]["level"] == 0
         )
         record(
             "P1-H 场景3: 跌 1% → L0 不修改订单",
@@ -298,11 +325,21 @@ def verify_p1_h() -> bool:
 
         return s1_pass and s2_pass and s3_pass
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-H: 验证执行", False, f"异常: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -315,6 +352,7 @@ def verify_p1_j() -> bool:
 
     try:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         rgi = RiskGuardIntegrator()
 
         # 测试场景: 涨跌停 > 2000 → 触发全局撤单
@@ -325,19 +363,19 @@ def verify_p1_j() -> bool:
         # 场景 1: 涨跌停 2500 > 2000 → 触发撤单
         rgi._fetch_limit_counts = lambda pnl_report=None: (1500, 1000, "test_mock")
         plan = {
-            'execution_plan': {
-                'morning_orders': [{'symbol': '588080', 'direction': 'BUY'}],
-                'afternoon_orders': [{'symbol': '512880', 'direction': 'SELL'}],
+            "execution_plan": {
+                "morning_orders": [{"symbol": "588080", "direction": "BUY"}],
+                "afternoon_orders": [{"symbol": "512880", "direction": "SELL"}],
             },
-            'market_state': {},
-            'risk_guard': {},
+            "market_state": {},
+            "risk_guard": {},
         }
         plan = rgi.guard_liquidity_crisis({}, plan)
         s1_pass = (
-            len(plan['execution_plan']['morning_orders']) == 0
-            and len(plan['execution_plan']['afternoon_orders']) == 0
-            and plan['market_state'].get('liquidity_crisis')
-            and plan['risk_guard']['liquidity_crisis']['triggered']
+            len(plan["execution_plan"]["morning_orders"]) == 0
+            and len(plan["execution_plan"]["afternoon_orders"]) == 0
+            and plan["market_state"].get("liquidity_crisis")
+            and plan["risk_guard"]["liquidity_crisis"]["triggered"]
         )
         record(
             "P1-J 场景1: 涨跌停 2500 > 2000 → 全局撤单",
@@ -349,17 +387,17 @@ def verify_p1_j() -> bool:
         # 场景 2: 涨跌停 500 < 2000 → 正常
         rgi._fetch_limit_counts = lambda pnl_report=None: (300, 200, "test_mock")
         plan = {
-            'execution_plan': {
-                'morning_orders': [{'symbol': '588080', 'direction': 'BUY'}],
-                'afternoon_orders': [],
+            "execution_plan": {
+                "morning_orders": [{"symbol": "588080", "direction": "BUY"}],
+                "afternoon_orders": [],
             },
-            'market_state': {},
-            'risk_guard': {},
+            "market_state": {},
+            "risk_guard": {},
         }
         plan = rgi.guard_liquidity_crisis({}, plan)
         s2_pass = (
-            len(plan['execution_plan']['morning_orders']) == 1
-            and not plan['risk_guard']['liquidity_crisis']['triggered']
+            len(plan["execution_plan"]["morning_orders"]) == 1
+            and not plan["risk_guard"]["liquidity_crisis"]["triggered"]
         )
         record(
             "P1-J 场景2: 涨跌停 500 < 2000 → 正常",
@@ -373,11 +411,21 @@ def verify_p1_j() -> bool:
 
         return s1_pass and s2_pass
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-J: 验证执行", False, f"异常: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -396,34 +444,35 @@ def verify_p1_i() -> bool:
         ogm = OvernightGapMonitor()
 
         test_plan = {
-            'execution_plan': {
-                'morning_orders': [
-                    {'symbol': '588080', 'direction': 'BUY', 'shares': 1000},
-                    {'symbol': '512880', 'direction': 'SELL', 'shares': 500},
+            "execution_plan": {
+                "morning_orders": [
+                    {"symbol": "588080", "direction": "BUY", "shares": 1000},
+                    {"symbol": "512880", "direction": "SELL", "shares": 500},
                 ],
-                'afternoon_orders': [],
+                "afternoon_orders": [],
             },
-            'market_state': {},
-            'risk_guard': {},
+            "market_state": {},
+            "risk_guard": {},
         }
 
         # 场景 1: S&P500 跌 2.5% → L2 (过滤 BUY)
         l2_risk = {
-            'level': 2,
-            'level_name': 'L2熔断',
-            'sp500_change_pct': -0.025,
-            'adr_deviation_pct': 0.01,
-            'actions': ['禁止开仓'],
-            'data_source': 'test',
-            'can_trade': True,
-            'can_open': False,
-            'trigger': 'sp500_drop_-2.50%',
+            "level": 2,
+            "level_name": "L2熔断",
+            "sp500_change_pct": -0.025,
+            "adr_deviation_pct": 0.01,
+            "actions": ["禁止开仓"],
+            "data_source": "test",
+            "can_trade": True,
+            "can_open": False,
+            "trigger": "sp500_drop_-2.50%",
         }
         plan_l2 = ogm.apply_to_plan(copy.deepcopy(test_plan), l2_risk)
-        morning = plan_l2['execution_plan']['morning_orders']
+        morning = plan_l2["execution_plan"]["morning_orders"]
         s1_pass = (
-            len(morning) == 1 and morning[0]['direction'] == 'SELL'
-            and plan_l2['risk_guard']['overnight_gap']['level'] == 2
+            len(morning) == 1
+            and morning[0]["direction"] == "SELL"
+            and plan_l2["risk_guard"]["overnight_gap"]["level"] == 2
         )
         record(
             "P1-I 场景1: S&P500 跌 2.5% → L2 过滤 BUY",
@@ -433,21 +482,20 @@ def verify_p1_i() -> bool:
 
         # 场景 2: S&P500 跌 3.5% → L3 (清空所有)
         l3_risk = {
-            'level': 3,
-            'level_name': 'L3全局平仓',
-            'sp500_change_pct': -0.035,
-            'adr_deviation_pct': 0.01,
-            'actions': ['全局平仓'],
-            'data_source': 'test',
-            'can_trade': False,
-            'can_open': False,
-            'trigger': 'sp500_drop_-3.50%',
+            "level": 3,
+            "level_name": "L3全局平仓",
+            "sp500_change_pct": -0.035,
+            "adr_deviation_pct": 0.01,
+            "actions": ["全局平仓"],
+            "data_source": "test",
+            "can_trade": False,
+            "can_open": False,
+            "trigger": "sp500_drop_-3.50%",
         }
         plan_l3 = ogm.apply_to_plan(copy.deepcopy(test_plan), l3_risk)
-        s2_pass = (
-            len(plan_l3['execution_plan']['morning_orders']) == 0
-            and plan_l3['market_state'].get('halt_all_trading')
-        )
+        s2_pass = len(plan_l3["execution_plan"]["morning_orders"]) == 0 and plan_l3[
+            "market_state"
+        ].get("halt_all_trading")
         record(
             "P1-I 场景2: S&P500 跌 3.5% → L3 全局平仓",
             s2_pass,
@@ -457,18 +505,18 @@ def verify_p1_i() -> bool:
 
         # 场景 3: ADR 偏离 5% → L2
         adr_risk = {
-            'level': 2,
-            'level_name': 'L2熔断',
-            'sp500_change_pct': -0.005,
-            'adr_deviation_pct': 0.05,
-            'actions': ['禁止开仓'],
-            'data_source': 'test',
-            'can_trade': True,
-            'can_open': False,
-            'trigger': 'adr_deviation_5.00%',
+            "level": 2,
+            "level_name": "L2熔断",
+            "sp500_change_pct": -0.005,
+            "adr_deviation_pct": 0.05,
+            "actions": ["禁止开仓"],
+            "data_source": "test",
+            "can_trade": True,
+            "can_open": False,
+            "trigger": "adr_deviation_5.00%",
         }
         plan_adr = ogm.apply_to_plan(copy.deepcopy(test_plan), adr_risk)
-        s3_pass = plan_adr['risk_guard']['overnight_gap']['level'] == 2
+        s3_pass = plan_adr["risk_guard"]["overnight_gap"]["level"] == 2
         record(
             "P1-I 场景3: ADR 偏离 5% → L2 触发",
             s3_pass,
@@ -477,20 +525,20 @@ def verify_p1_i() -> bool:
 
         # 场景 4: 正常 → L0
         l0_risk = {
-            'level': 0,
-            'level_name': '正常',
-            'sp500_change_pct': -0.005,
-            'adr_deviation_pct': 0.005,
-            'actions': [],
-            'data_source': 'test',
-            'can_trade': True,
-            'can_open': True,
-            'trigger': 'none',
+            "level": 0,
+            "level_name": "正常",
+            "sp500_change_pct": -0.005,
+            "adr_deviation_pct": 0.005,
+            "actions": [],
+            "data_source": "test",
+            "can_trade": True,
+            "can_open": True,
+            "trigger": "none",
         }
         plan_l0 = ogm.apply_to_plan(copy.deepcopy(test_plan), l0_risk)
         s4_pass = (
-            len(plan_l0['execution_plan']['morning_orders']) == 2
-            and plan_l0['risk_guard']['overnight_gap']['level'] == 0
+            len(plan_l0["execution_plan"]["morning_orders"]) == 2
+            and plan_l0["risk_guard"]["overnight_gap"]["level"] == 0
         )
         record(
             "P1-I 场景4: 正常 → L0 不修改",
@@ -500,11 +548,21 @@ def verify_p1_i() -> bool:
 
         return s1_pass and s2_pass and s3_pass and s4_pass
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-I: 验证执行", False, f"异常: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -518,6 +576,7 @@ def verify_p1_k() -> bool:
     try:
         # 直接测试 CorrelationHedger (不依赖 EOD 集成)
         import sys as _sys
+
         _v83_src = PROJECT_ROOT / "v8.3_institutional" / "src"
         if str(_v83_src) not in _sys.path:
             _sys.path.insert(0, str(_v83_src))
@@ -533,18 +592,22 @@ def verify_p1_k() -> bool:
         n_days = 60
         base = np.random.randn(n_days) * 0.01
         # 5 个标的与 base 高度相关
-        returns_high_corr = pd.DataFrame({
-            '588080': base + np.random.randn(n_days) * 0.001,
-            '512880': base + np.random.randn(n_days) * 0.001,
-            '510050': base + np.random.randn(n_days) * 0.001,
-            '512800': base + np.random.randn(n_days) * 0.001,
-            '600276': base + np.random.randn(n_days) * 0.001,
-        })
+        returns_high_corr = pd.DataFrame(
+            {
+                "588080": base + np.random.randn(n_days) * 0.001,
+                "512880": base + np.random.randn(n_days) * 0.001,
+                "510050": base + np.random.randn(n_days) * 0.001,
+                "512800": base + np.random.randn(n_days) * 0.001,
+                "600276": base + np.random.randn(n_days) * 0.001,
+            }
+        )
         # 最近 30 天相关性更高 (模拟危机趋同)
         returns_high_corr.iloc[-30:] += base[-30:].reshape(-1, 1) * 0.5
 
-        hedge_result = hedger.compute_hedge(returns_high_corr, portfolio_value=5_000_000)
-        s1_pass = hedge_result.get('action') == 'SAFE_HAVEN_ALLOC'
+        hedge_result = hedger.compute_hedge(
+            returns_high_corr, portfolio_value=5_000_000
+        )
+        s1_pass = hedge_result.get("action") == "SAFE_HAVEN_ALLOC"
         record(
             "P1-K 场景1: 高相关性 → SAFE_HAVEN_ALLOC",
             s1_pass,
@@ -553,8 +616,8 @@ def verify_p1_k() -> bool:
         )
 
         if s1_pass:
-            gold_weight = hedge_result.get('gold_weight', 0)
-            repo_weight = hedge_result.get('repo_weight', 0)
+            gold_weight = hedge_result.get("gold_weight", 0)
+            repo_weight = hedge_result.get("repo_weight", 0)
             s1b_pass = gold_weight > 0 or repo_weight > 0
             record(
                 "P1-K 场景1b: 避险权重 > 0",
@@ -565,15 +628,19 @@ def verify_p1_k() -> bool:
             s1b_pass = False
 
         # 场景 2: 低相关性 → NO_HEDGE
-        returns_low_corr = pd.DataFrame({
-            '588080': np.random.randn(n_days) * 0.01,
-            '512880': np.random.randn(n_days) * 0.01,
-            '510050': np.random.randn(n_days) * 0.01,
-            '512800': np.random.randn(n_days) * 0.01,
-            '600276': np.random.randn(n_days) * 0.01,
-        })
-        hedge_result_low = hedger.compute_hedge(returns_low_corr, portfolio_value=5_000_000)
-        s2_pass = hedge_result_low.get('action') == 'NO_HEDGE'
+        returns_low_corr = pd.DataFrame(
+            {
+                "588080": np.random.randn(n_days) * 0.01,
+                "512880": np.random.randn(n_days) * 0.01,
+                "510050": np.random.randn(n_days) * 0.01,
+                "512800": np.random.randn(n_days) * 0.01,
+                "600276": np.random.randn(n_days) * 0.01,
+            }
+        )
+        hedge_result_low = hedger.compute_hedge(
+            returns_low_corr, portfolio_value=5_000_000
+        )
+        s2_pass = hedge_result_low.get("action") == "NO_HEDGE"
         record(
             "P1-K 场景2: 低相关性 → NO_HEDGE",
             s2_pass,
@@ -582,11 +649,21 @@ def verify_p1_k() -> bool:
 
         return s1_pass and s1b_pass and s2_pass
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("P1-K: 验证执行", False, f"异常: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -607,13 +684,13 @@ def verify_eod_guard_integration() -> bool:
 
         # 检查 run_all_guards 中调用了所有 7 个 Guard
         expected_guards = [
-            ('guard_kill_switch', '保证金熔断', '[1/7]'),
-            ('guard_market_circuit_breaker', '大盘熔断', '[2/7]'),
-            ('guard_liquidity_crisis', '流动性危机', '[3/7]'),
-            ('guard_overnight_gap', '隔夜跳空', '[4/7]'),
-            ('guard_drawdown', '回撤检查', '[5/7]'),
-            ('guard_vol_target', '波动率控制', '[6/7]'),
-            ('guard_correlation_hedge', '相关性对冲', '[7/7]'),
+            ("guard_kill_switch", "保证金熔断", "[1/7]"),
+            ("guard_market_circuit_breaker", "大盘熔断", "[2/7]"),
+            ("guard_liquidity_crisis", "流动性危机", "[3/7]"),
+            ("guard_overnight_gap", "隔夜跳空", "[4/7]"),
+            ("guard_drawdown", "回撤检查", "[5/7]"),
+            ("guard_vol_target", "波动率控制", "[6/7]"),
+            ("guard_correlation_hedge", "相关性对冲", "[7/7]"),
         ]
 
         all_found = True
@@ -635,8 +712,8 @@ def verify_eod_guard_integration() -> bool:
                 all_found = False
 
         # 额外检查: 对冲执行和认沽保护仍在 [7/7]
-        hedge_found = 'guard_hedge_execution' in content and '[7/7] 对冲执行' in content
-        put_found = 'guard_protective_put' in content and '[7/7] 认沽保护' in content
+        hedge_found = "guard_hedge_execution" in content and "[7/7] 对冲执行" in content
+        put_found = "guard_protective_put" in content and "[7/7] 认沽保护" in content
         record(
             "EOD [7/7] 对冲执行 + 认沽保护 (原有)",
             hedge_found and put_found,
@@ -648,7 +725,16 @@ def verify_eod_guard_integration() -> bool:
 
         return all_found
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("EOD 集成: 验证执行", False, f"异常: {e}")
@@ -658,6 +744,7 @@ def verify_eod_guard_integration() -> bool:
 # ============================================================
 # 主入口
 # ============================================================
+
 
 def main():
     """主验证入口"""
@@ -697,9 +784,8 @@ def main():
         print("   CRO 评分目标: 7.5 → 9.0+")
         print("   下一步: 2026-07-27 真实交易日验证")
         return 0
-    else:
-        print(f"\n⚠ {failed} 项验证失败, 请检查上述详情")
-        return 1
+    print(f"\n⚠ {failed} 项验证失败, 请检查上述详情")
+    return 1
 
 
 if __name__ == "__main__":

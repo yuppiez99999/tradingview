@@ -29,47 +29,112 @@ print("login_ret=", ret)
 print("\n=== THS_HistoryQuotes ===")
 for code in ["600276.SH", "000408.SZ", "512170.SH"]:
     try:
-        raw = iFinDPy.THS_HistoryQuotes(code, "最新价,涨跌幅,成交额,成交量", "", "2026-07-14", "2026-07-16")
-        print(code, "type=", type(raw), "errorcode=", getattr(raw, 'errorcode', ''), "errmsg=", getattr(raw, 'errmsg', ''))
-        if hasattr(raw, 'data') and raw.data is not None:
+        raw = iFinDPy.THS_HistoryQuotes(
+            code, "最新价,涨跌幅,成交额,成交量", "", "2026-07-14", "2026-07-16"
+        )
+        print(
+            code,
+            "type=",
+            type(raw),
+            "errorcode=",
+            getattr(raw, "errorcode", ""),
+            "errmsg=",
+            getattr(raw, "errmsg", ""),
+        )
+        if hasattr(raw, "data") and raw.data is not None:
             print(" data=", str(raw.data)[:300])
         else:
             print(" raw=", str(raw)[:300])
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(code, "EXC", repr(e))
 
 print("\n=== THS_HQ ===")
 for code in ["600276.SH", "000408.SZ", "512170.SH"]:
     try:
-        raw = iFinDPy.THS_HQ(code, "最新价,涨跌幅,成交额,成交量", "", "2026-07-14", "2026-07-16")
-        print(code, "type=", type(raw), "errorcode=", getattr(raw, 'errorcode', ''), "errmsg=", getattr(raw, 'errmsg', ''))
-        if hasattr(raw, 'data') and raw.data is not None:
+        raw = iFinDPy.THS_HQ(
+            code, "最新价,涨跌幅,成交额,成交量", "", "2026-07-14", "2026-07-16"
+        )
+        print(
+            code,
+            "type=",
+            type(raw),
+            "errorcode=",
+            getattr(raw, "errorcode", ""),
+            "errmsg=",
+            getattr(raw, "errmsg", ""),
+        )
+        if hasattr(raw, "data") and raw.data is not None:
             print(" data=", str(raw.data)[:300])
         else:
             print(" raw=", str(raw)[:300])
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(code, "EXC", repr(e))
 
 print("\n=== THS_SS ===")
 for code in ["600276.SH", "000408.SZ", "512170.SH"]:
     try:
-        raw = iFinDPy.THS_SS(code, "最新价,涨跌幅,成交额,成交量", "", "2026-07-14", "2026-07-16")
-        print(code, "type=", type(raw), "errorcode=", getattr(raw, 'errorcode', ''), "errmsg=", getattr(raw, 'errmsg', ''))
-        if hasattr(raw, 'data') and raw.data is not None:
+        raw = iFinDPy.THS_SS(
+            code, "最新价,涨跌幅,成交额,成交量", "", "2026-07-14", "2026-07-16"
+        )
+        print(
+            code,
+            "type=",
+            type(raw),
+            "errorcode=",
+            getattr(raw, "errorcode", ""),
+            "errmsg=",
+            getattr(raw, "errmsg", ""),
+        )
+        if hasattr(raw, "data") and raw.data is not None:
             print(" data=", str(raw.data)[:300])
         else:
             print(" raw=", str(raw)[:300])
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(code, "EXC", repr(e))
 
 print("\n=== THS_RQ ===")
 for code in ["600276.SH", "000408.SZ", "512170.SH"]:
     raw = iFinDPy.THS_RQ(code, "最新价,涨跌幅,成交额,成交量")
-    print(code, "type=", type(raw), "errorcode=", getattr(raw, 'errorcode', ''), "errmsg=", getattr(raw, 'errmsg', ''))
-    if hasattr(raw, 'data') and raw.data is not None:
+    print(
+        code,
+        "type=",
+        type(raw),
+        "errorcode=",
+        getattr(raw, "errorcode", ""),
+        "errmsg=",
+        getattr(raw, "errmsg", ""),
+    )
+    if hasattr(raw, "data") and raw.data is not None:
         print(" data=", str(raw.data)[:300])
     else:
         print(" raw=", str(raw)[:300])

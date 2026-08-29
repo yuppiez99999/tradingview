@@ -1,4 +1,5 @@
 """ms_strategy.src.execution.qmt_broker 单元测试 — xtquant 未安装时 QmtBrokerAPI 降级抛 RuntimeError"""
+
 from __future__ import annotations
 
 import pytest
@@ -19,9 +20,9 @@ def test_qmt_broker_construction_raises_when_no_xtquant():
 
 def test_qmt_broker_constants_present():
     """QMT 订单状态常量映射存在且含已成/已撤状态"""
-    assert 55 in qmt_broker.QMT_ORDER_STATUS     # ALL_TRADED
-    assert 54 in qmt_broker.QMT_ORDER_STATUS     # CANCELLED
-    assert 48 in qmt_broker.QMT_ORDER_STATUS     # NOT_REPORTED
+    assert 55 in qmt_broker.QMT_ORDER_STATUS  # ALL_TRADED
+    assert 54 in qmt_broker.QMT_ORDER_STATUS  # CANCELLED
+    assert 48 in qmt_broker.QMT_ORDER_STATUS  # NOT_REPORTED
 
 
 def test_qmt_broker_account_type_constants():

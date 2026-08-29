@@ -84,12 +84,12 @@ if str(_PROJECT_ROOT) not in sys.path:
 DEFAULT_MEMORY_PATH = _PROJECT_ROOT / "reports" / "evolution" / "memory.jsonl"
 
 # 状态枚举
-STATUS_PENDING = "pending"          # 已记录, 待执行
-STATUS_EXECUTED = "executed"        # 已执行成功
-STATUS_FAILED = "failed"            # 执行失败
+STATUS_PENDING = "pending"  # 已记录, 待执行
+STATUS_EXECUTED = "executed"  # 已执行成功
+STATUS_FAILED = "failed"  # 执行失败
 STATUS_ROLLED_BACK = "rolled_back"  # 已回滚
-STATUS_REJECTED = "rejected"        # 被 Guard 拒绝
-STATUS_LEARNED = "learned"          # 已追加学习总结 (终态)
+STATUS_REJECTED = "rejected"  # 被 Guard 拒绝
+STATUS_LEARNED = "learned"  # 已追加学习总结 (终态)
 
 # 进化层级枚举 (ARCHITECTURE §4.2)
 LEVEL_L1 = "L1"  # 防御层: AutoFixEngine 自动修复
@@ -97,14 +97,14 @@ LEVEL_L2 = "L2"  # 优化层: DriftMonitor + AutoRetrain + A/B Test
 LEVEL_L3 = "L3"  # 进化层: AutoFactorFactory + FeedbackLoop
 
 # 动作类型枚举 (常见值, 不穷举)
-ACTION_RETRAIN = "retrain"                  # 模型重训
-ACTION_WEIGHT_ADJUST = "weight_adjust"      # 因子权重调整
-ACTION_FACTOR_DEPLOY = "factor_deploy"      # 新因子部署
-ACTION_FACTOR_RETIRE = "factor_retire"      # 因子下线
-ACTION_FIX = "fix"                          # 自动修复
-ACTION_ROLLBACK = "rollback"                # 回滚
-ACTION_PROMOTE = "promote"                  # 模型/因子晋升
-ACTION_EVALUATE = "evaluate"                # 仅评估 (观察期)
+ACTION_RETRAIN = "retrain"  # 模型重训
+ACTION_WEIGHT_ADJUST = "weight_adjust"  # 因子权重调整
+ACTION_FACTOR_DEPLOY = "factor_deploy"  # 新因子部署
+ACTION_FACTOR_RETIRE = "factor_retire"  # 因子下线
+ACTION_FIX = "fix"  # 自动修复
+ACTION_ROLLBACK = "rollback"  # 回滚
+ACTION_PROMOTE = "promote"  # 模型/因子晋升
+ACTION_EVALUATE = "evaluate"  # 仅评估 (观察期)
 
 
 # ============================================================
@@ -250,7 +250,9 @@ class EvolutionMemory:
             try:
                 self.memory_path.parent.mkdir(parents=True, exist_ok=True)
             except OSError as e:
-                logger.warning("创建记忆目录失败 (容错): %s (%s)", self.memory_path.parent, e)
+                logger.warning(
+                    "创建记忆目录失败 (容错): %s (%s)", self.memory_path.parent, e
+                )
 
         logger.debug("EvolutionMemory 初始化: path=%s", self.memory_path)
 
@@ -354,7 +356,16 @@ class EvolutionMemory:
         """
         try:
             all_records = self._read_all()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("查询读取失败 (容错返回空列表): %s", e)
             return []
@@ -505,7 +516,16 @@ class EvolutionMemory:
         """返回总记录数 (容错, 失败返回 0)."""
         try:
             return len(self._read_all())
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             return 0
 
@@ -513,7 +533,16 @@ class EvolutionMemory:
         """获取最新的 proposal_id (None=无记录)."""
         try:
             all_records = self._read_all()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             return None
 
@@ -539,7 +568,16 @@ class EvolutionMemory:
 
         try:
             all_records = self._read_all()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             # 读取失败时, 用秒数作为序号 (容错, 避免阻塞记录)
             seq = int(datetime.now(self._tz()).strftime("%H%M%S"))
@@ -635,7 +673,16 @@ class EvolutionMemory:
                         pass
                 # 原子 rename
                 os.replace(tmp_path, str(self.memory_path))
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 # 清理临时文件
                 try:

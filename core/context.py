@@ -13,6 +13,7 @@
     2. 不自动实例化重量级组件 (auto_trading/daily_report/stop_loss 仅导出类或 None)
     3. 优先从 quant_modules.core 导入, 降级到 utils/ 各模块
 """
+
 from __future__ import annotations
 
 import logging
@@ -53,6 +54,7 @@ except (ImportError, ModuleNotFoundError):
 # ============================================================
 try:
     from quant_modules.core import StrategyRegistry
+
     strategy_registry = StrategyRegistry()
 except (ImportError, ModuleNotFoundError):
     # 降级: 从 utils.infra.core 导入
@@ -95,6 +97,7 @@ except (ImportError, ModuleNotFoundError):
 try:
     from utils.report_archiver import get_archive_dir
 except (ImportError, ModuleNotFoundError):
+
     def get_archive_dir() -> Path:
         """降级: 返回默认归档目录"""
         return BASE_DIR / "reports" / "archive"
@@ -106,6 +109,7 @@ except (ImportError, ModuleNotFoundError):
 try:
     from utils.ai_coordinator import get_ai_coordinator
 except (ImportError, ModuleNotFoundError):
+
     def get_ai_coordinator() -> Any:
         """降级: AI 协调器不可用"""
         return None
@@ -117,6 +121,7 @@ except (ImportError, ModuleNotFoundError):
 data_provider: Any = None
 try:
     from quant_modules.core import ModuleLoader
+
     _loader = ModuleLoader()
     data_provider = _loader.load("wind_data_provider", {})
 except (ImportError, ModuleNotFoundError, Exception):
@@ -129,6 +134,7 @@ except (ImportError, ModuleNotFoundError, Exception):
 config_manager: Any = None
 try:
     from quant_modules.core import ConfigManager
+
     config_manager = ConfigManager()
 except (ImportError, ModuleNotFoundError):
     pass

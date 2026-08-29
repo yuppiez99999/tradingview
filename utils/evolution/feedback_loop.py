@@ -128,11 +128,15 @@ class WeightUpdate:
         return {
             "timestamp": self.timestamp,
             "daily_pnl": round(self.daily_pnl, 6),
-            "factor_contributions": {k: round(v, 6) for k, v in self.factor_contributions.items()},
+            "factor_contributions": {
+                k: round(v, 6) for k, v in self.factor_contributions.items()
+            },
             "old_weights": {k: round(v, 6) for k, v in self.old_weights.items()},
             "new_weights": {k: round(v, 6) for k, v in self.new_weights.items()},
             "raw_changes": {k: round(v, 6) for k, v in self.raw_changes.items()},
-            "clamped_changes": {k: round(v, 6) for k, v in self.clamped_changes.items()},
+            "clamped_changes": {
+                k: round(v, 6) for k, v in self.clamped_changes.items()
+            },
             "total_change_pct": round(self.total_change_pct, 6),
             "alarm_triggered": self.alarm_triggered,
             "alarm_reason": self.alarm_reason,
@@ -210,7 +214,9 @@ class FeedbackLoop:
         self._guard = guard
 
         # 当前权重 (深拷贝避免外部修改)
-        self._weights: dict[str, float] = dict(initial_weights) if initial_weights else {}
+        self._weights: dict[str, float] = (
+            dict(initial_weights) if initial_weights else {}
+        )
 
         # 历史记录 (用于权重去噪和累计偏移检查)
         self._history: deque[WeightUpdate] = deque(maxlen=max(smoothing_window, 7))
@@ -225,7 +231,10 @@ class FeedbackLoop:
 
         logger.info(
             "FeedbackLoop 初始化: enabled=%s, lr=%.2f, max_daily=%.2f, max_weight=%.2f",
-            self._enabled, learning_rate, max_daily_change, max_weight,
+            self._enabled,
+            learning_rate,
+            max_daily_change,
+            max_weight,
         )
 
     # ============================================================
@@ -238,7 +247,16 @@ class FeedbackLoop:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("Feature Flag 检查失败, 默认禁用: %s (%s)", name, e)
             return False
@@ -289,7 +307,7 @@ class FeedbackLoop:
         # 首次调用: 按贡献初始化权重
         if not old_weights:
             new_weights = self._initialize_weights(factor_contributions)
-            raw_changes = {k: 0.0 for k in new_weights}
+            raw_changes = dict.fromkeys(new_weights, 0.0)
             clamped_changes = dict(raw_changes)
         else:
             # 1. 将当日贡献加入累积缓冲
@@ -299,7 +317,9 @@ class FeedbackLoop:
             smoothed_contributions = self._get_smoothed_contributions()
 
             # 3. 归一化贡献度 (权重阻尼, 避免小权重噪声放大)
-            norm_contrib = self._normalize_contributions(smoothed_contributions, old_weights)
+            norm_contrib = self._normalize_contributions(
+                smoothed_contributions, old_weights
+            )
 
             # 4. 贝叶斯更新 (原始变化)
             raw_changes = self._compute_raw_changes(old_weights, norm_contrib)
@@ -345,7 +365,9 @@ class FeedbackLoop:
 
         logger.info(
             "权重更新: total_change=%.4f, alarm=%s, factors=%d",
-            total_change_pct, alarm_triggered, len(new_weights),
+            total_change_pct,
+            alarm_triggered,
+            len(new_weights),
         )
 
         return update
@@ -384,13 +406,15 @@ class FeedbackLoop:
             if not math.isfinite(v):
                 raise FeedbackLoopValidationError(f"因子 {k} 贡献值非有限: {v}")
 
-    def _initialize_weights(self, factor_contributions: dict[str, float]) -> dict[str, float]:
+    def _initialize_weights(
+        self, factor_contributions: dict[str, float]
+    ) -> dict[str, float]:
         """首次调用: 等权初始化."""
         n = len(factor_contributions)
         weight = 1.0 / n
         # 确保不超过 max_weight
         weight = min(weight, self.max_weight)
-        return {k: weight for k in factor_contributions}
+        return dict.fromkeys(factor_contributions, weight)
 
     def _get_smoothed_contributions(self) -> dict[str, float]:
         """计算累积平均贡献 (降低日频噪声, 提升信噪比).
@@ -455,12 +479,12 @@ class FeedbackLoop:
         sorted_factors = sorted(contributions.items(), key=lambda x: x[1])
         n = len(sorted_factors)
         if n <= 1:
-            return {k: 0.0 for k in contributions}
+            return dict.fromkeys(contributions, 0.0)
 
         # 检测等值情况: 所有值相等时, 排名无意义, 返回中性 (0.0)
         values = list(contributions.values())
         if len(set(values)) == 1:
-            return {k: 0.0 for k in contributions}
+            return dict.fromkeys(contributions, 0.0)
 
         # 线性映射到 [-1, 1]
         result: dict[str, float] = {}
@@ -483,10 +507,7 @@ class FeedbackLoop:
         raw_change = learning_rate * norm_contrib
         new_w = old_w * (1 + raw_change)
         """
-        return {
-            k: self.learning_rate * norm_contrib.get(k, 0.0)
-            for k in old_weights
-        }
+        return {k: self.learning_rate * norm_contrib.get(k, 0.0) for k in old_weights}
 
     def _clamp_changes(
         self, old_weights: dict[str, float], raw_changes: dict[str, float]
@@ -504,7 +525,9 @@ class FeedbackLoop:
                 clamped[k] = min(raw, self.max_daily_change * 0.01) if raw > 0 else 0.0
             else:
                 # |change| ≤ max_daily_change
-                clamped[k] = max(-self.max_daily_change, min(self.max_daily_change, raw))
+                clamped[k] = max(
+                    -self.max_daily_change, min(self.max_daily_change, raw)
+                )
         return clamped
 
     def _apply_changes(
@@ -570,7 +593,7 @@ class FeedbackLoop:
             if n == 0:
                 return {}
             w = min(1.0 / n, self.max_weight)
-            return {k: w for k in weights}
+            return dict.fromkeys(weights, w)
 
         # 迭代截断: 截断到 max_weight → 归一化 → 截断 → 归一化
         # 使用内部 epsilon 缓冲 (1e-8) 避免浮点精度导致略超 max_weight
@@ -588,7 +611,7 @@ class FeedbackLoop:
             if total_clamped < 1e-10:
                 n = len(clamped)
                 w = min(1.0 / n, self.max_weight)
-                return {k: w for k in clamped}
+                return dict.fromkeys(clamped, w)
             result = {k: v / total_clamped for k, v in clamped.items()}
 
         return result
@@ -603,8 +626,7 @@ class FeedbackLoop:
         """
         all_keys = set(old_weights) | set(new_weights)
         diff_sum = sum(
-            abs(new_weights.get(k, 0.0) - old_weights.get(k, 0.0))
-            for k in all_keys
+            abs(new_weights.get(k, 0.0) - old_weights.get(k, 0.0)) for k in all_keys
         )
         return diff_sum / 2.0
 
@@ -623,13 +645,15 @@ class FeedbackLoop:
             return False, ""
 
         all_keys = set(old) | set(new_weights)
-        total_shift = sum(
-            abs(new_weights.get(k, 0.0) - old.get(k, 0.0))
-            for k in all_keys
-        ) / 2.0
+        total_shift = (
+            sum(abs(new_weights.get(k, 0.0) - old.get(k, 0.0)) for k in all_keys) / 2.0
+        )
 
         if total_shift > self.alarm_threshold_7d:
-            return True, f"7日累计偏移 {total_shift:.4f} > 阈值 {self.alarm_threshold_7d}"
+            return (
+                True,
+                f"7日累计偏移 {total_shift:.4f} > 阈值 {self.alarm_threshold_7d}",
+            )
 
         return False, ""
 
@@ -649,21 +673,32 @@ class FeedbackLoop:
         try:
             from utils.evolution.memory import LEVEL_L3, STATUS_EXECUTED
 
-            pid = self._memory.record({
-                "level": LEVEL_L3,
-                "action_type": ACTION_WEIGHT_ADJUST,
-                "trigger_reason": f"daily_pnl={update.daily_pnl:.4f}, total_change={update.total_change_pct:.4f}",
-                "target_module": "factor_weights",
-                "rollback_plan": "恢复旧权重 (update.old_weights)",
-                "score_report": update.to_dict(),
-                "status": STATUS_EXECUTED,
-                "result": {
-                    "alarm_triggered": update.alarm_triggered,
-                    "alarm_reason": update.alarm_reason,
-                },
-            })
+            pid = self._memory.record(
+                {
+                    "level": LEVEL_L3,
+                    "action_type": ACTION_WEIGHT_ADJUST,
+                    "trigger_reason": f"daily_pnl={update.daily_pnl:.4f}, total_change={update.total_change_pct:.4f}",
+                    "target_module": "factor_weights",
+                    "rollback_plan": "恢复旧权重 (update.old_weights)",
+                    "score_report": update.to_dict(),
+                    "status": STATUS_EXECUTED,
+                    "result": {
+                        "alarm_triggered": update.alarm_triggered,
+                        "alarm_reason": update.alarm_reason,
+                    },
+                }
+            )
             update.proposal_id = pid
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("Memory 审计写入失败 (容错): %s", e)
 

@@ -54,6 +54,7 @@ PUT_STATE_FILE = BASE_DIR / "cache" / "protective_put_state.json"
 
 class ProtectionTarget(TypedDict):
     """认沽保护目标结构 — 根除 PROTECTION_TARGETS [index] 索引"""
+
     code: str
     name: str
     exchange: str
@@ -137,7 +138,14 @@ class ProtectivePutEngine:
             try:
                 with open(PUT_STATE_FILE, encoding="utf-8") as f:
                     self.state = json.load(f)
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ):
                 self.state = {}
 
     def _save_state(self):
@@ -145,7 +153,14 @@ class ProtectivePutEngine:
         try:
             with open(PUT_STATE_FILE, "w", encoding="utf-8") as f:
                 json.dump(self.state, f, ensure_ascii=False, indent=2)
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"保存Put状态失败: {e}")
 
     def _get_portfolio_value(self) -> float:
@@ -179,7 +194,9 @@ class ProtectivePutEngine:
                 return float(price_val) if isinstance(price_val, (int, float)) else 0.0
         return 0
 
-    def _estimate_put_premium(self, spot: float, strike: float, dte: int, iv: float = 0.25) -> float:
+    def _estimate_put_premium(
+        self, spot: float, strike: float, dte: int, iv: float = 0.25
+    ) -> float:
         """估算认沽期权权利金 (Black-Scholes近似)
 
         对于OTM 5%的认沽期权, 使用简化公式:
@@ -194,7 +211,9 @@ class ProtectivePutEngine:
         sigma = iv
 
         # Black-Scholes d1, d2
-        d1 = (math.log(spot / strike) + (r + 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
+        d1 = (math.log(spot / strike) + (r + 0.5 * sigma**2) * T) / (
+            sigma * math.sqrt(T)
+        )
         d2 = d1 - sigma * math.sqrt(T)
 
         # 标准正态CDF
@@ -215,7 +234,10 @@ class ProtectivePutEngine:
         portfolio_value = self._get_portfolio_value()
 
         if portfolio_value < self.MIN_PORTFOLIO_VALUE:
-            return False, f"组合市值 CNY{portfolio_value:,.0f} < 启动阈值 CNY{self.MIN_PORTFOLIO_VALUE:,.0f}"
+            return (
+                False,
+                f"组合市值 CNY{portfolio_value:,.0f} < 启动阈值 CNY{self.MIN_PORTFOLIO_VALUE:,.0f}",
+            )
 
         # 检查现有Put持仓
         existing_puts = self.state.get("active_puts", [])
@@ -225,7 +247,9 @@ class ProtectivePutEngine:
             if expiry_str:
                 try:
                     expiry = datetime.strptime(expiry_str, "%Y-%m-%d")
-                    if expiry > datetime.now() + timedelta(days=self.ROLL_DTE_THRESHOLD):
+                    if expiry > datetime.now() + timedelta(
+                        days=self.ROLL_DTE_THRESHOLD
+                    ):
                         has_valid_put = True
                         break
                 except (ValueError, TypeError, KeyError, AttributeError, OSError):
@@ -238,7 +262,10 @@ class ProtectivePutEngine:
         annual_budget = self.TOTAL_CAPITAL * self.MAX_ANNUAL_COST_PCT
         ytd_spent = self.state.get("ytd_premium_spent", 0)
         if ytd_spent >= annual_budget:
-            return False, f"年度期权预算已用完 (CNY{ytd_spent:,.0f} / CNY{annual_budget:,.0f})"
+            return (
+                False,
+                f"年度期权预算已用完 (CNY{ytd_spent:,.0f} / CNY{annual_budget:,.0f})",
+            )
 
         return True, f"组合市值 CNY{portfolio_value:,.0f}, 无有效Put保护, 应立即建仓"
 
@@ -354,7 +381,9 @@ class ProtectivePutEngine:
         result["orders"] = orders
         result["total_premium_est"] = round(total_premium, 2)
         result["annual_budget_remaining"] = round(remaining_budget - total_premium, 2)
-        result["annual_cost_pct"] = round((ytd_spent + total_premium) * 4 / self.TOTAL_CAPITAL, 4)
+        result["annual_cost_pct"] = round(
+            (ytd_spent + total_premium) * 4 / self.TOTAL_CAPITAL, 4
+        )
 
         return result
 
@@ -436,10 +465,13 @@ class ProtectivePutEngine:
             "active_puts": active_puts,
             "ytd_premium_spent": ytd_spent,
             "annual_budget": self.TOTAL_CAPITAL * self.MAX_ANNUAL_COST_PCT,
-            "budget_usage_pct": ytd_spent / (self.TOTAL_CAPITAL * self.MAX_ANNUAL_COST_PCT),
+            "budget_usage_pct": ytd_spent
+            / (self.TOTAL_CAPITAL * self.MAX_ANNUAL_COST_PCT),
         }
         self._save_state()
-        logger.info(f"Put保护执行记录已更新: 活跃{len(active_puts)}组, 年度已花费CNY{ytd_spent:,.0f}")
+        logger.info(
+            f"Put保护执行记录已更新: 活跃{len(active_puts)}组, 年度已花费CNY{ytd_spent:,.0f}"
+        )
 
     def _calc_next_expiry(self, months_ahead: int = 1) -> datetime:
         """计算下一个期权到期日 (每月第4个周三)"""
@@ -479,7 +511,9 @@ class ProtectivePutEngine:
             contracts = put.get("contracts", 0)
             total_notional_protected += strike * contracts * 10000
 
-        coverage = total_notional_protected / portfolio_value if portfolio_value > 0 else 0
+        coverage = (
+            total_notional_protected / portfolio_value if portfolio_value > 0 else 0
+        )
 
         return {
             "portfolio_value": portfolio_value,
@@ -489,8 +523,11 @@ class ProtectivePutEngine:
             "coverage_pct": round(coverage, 4),
             "ytd_premium_spent": ytd_spent,
             "annual_budget": annual_budget,
-            "budget_usage_pct": round(ytd_spent / annual_budget, 4) if annual_budget > 0 else 0,
-            "needs_action": portfolio_value >= self.MIN_PORTFOLIO_VALUE and len(active_puts) == 0,
+            "budget_usage_pct": (
+                round(ytd_spent / annual_budget, 4) if annual_budget > 0 else 0
+            ),
+            "needs_action": portfolio_value >= self.MIN_PORTFOLIO_VALUE
+            and len(active_puts) == 0,
         }
 
 
@@ -500,10 +537,17 @@ class ProtectivePutEngine:
 if __name__ == "__main__":
     import argparse
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
 
     parser = argparse.ArgumentParser(description="认沽期权保护引擎")
-    parser.add_argument("--action", choices=["check", "generate", "roll", "status"], default="status", help="执行动作")
+    parser.add_argument(
+        "--action",
+        choices=["check", "generate", "roll", "status"],
+        default="status",
+        help="执行动作",
+    )
     parser.add_argument("--drawdown-level", type=int, default=0, help="回撤级别")
     args = parser.parse_args()
 

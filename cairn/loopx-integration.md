@@ -153,3 +153,14 @@ while True:
 
 *调研完成时间: 2026-08-21*
 *下一步: W34 POC (pip install loopx + loopx connect)*
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [ds4 集成指南 (DwarfStar 推理引擎)](ds4-integration.md) (相似度 13%)
+- [ai_decision 全链路集成计划 — C 轨](ai-decision-integration.md) (相似度 6%)
+- [v86 集成升级方案同步记录 — 2026-08-21](v86-plan-sync-20260821.md) (相似度 6%)
+- [Wave 9：GitHub 热榜项目集成决策沉淀](github-trending-wave9-20260819.md) (相似度 5%)
+- [docs/1 八项目集成 — Sprint A 知识专题](docs1-integration-sprint-a-20260817.md) (相似度 4%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

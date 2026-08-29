@@ -52,7 +52,10 @@ def get_changed_skill_files(repo_root: Path) -> list[Path]:
     try:
         out = subprocess.run(
             ["git", "diff", "--cached", "--name-only", "--diff-filter=AM"],
-            cwd=str(repo_root), capture_output=True, text=True, check=False,
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
             timeout=10,
         )
         if out.returncode != 0:
@@ -73,7 +76,10 @@ def _check_available() -> bool:
     try:
         r = subprocess.run(
             ["skillspector", "--version"],
-            capture_output=True, text=True, check=False, timeout=5,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
         )
         return r.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -125,7 +131,9 @@ def scan_skills(
         return ScanResult(available=True)
 
     if not _check_available():
-        logger.warning("skillspector 未安装, 跳过 skill 安全扫描 (pip install skillspector)")
+        logger.warning(
+            "skillspector 未安装, 跳过 skill 安全扫描 (pip install skillspector)"
+        )
         return ScanResult(available=False, error="skillspector not installed")
 
     if output_dir is None:
@@ -140,16 +148,24 @@ def scan_skills(
 
     try:
         proc = subprocess.run(
-            args, capture_output=True, text=True, check=False, timeout=300,
+            args,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=300,
         )
         if proc.returncode != 0 and not sarif_path.exists():
             return ScanResult(
-                available=True, error=f"skillspector exit {proc.returncode}: {proc.stderr[:200]}",
+                available=True,
+                error=f"skillspector exit {proc.returncode}: {proc.stderr[:200]}",
             )
         critical, high, medium, low = _parse_sarif(sarif_path)
         return ScanResult(
             scanned=len(targets),
-            critical=critical, high=high, medium=medium, low=low,
+            critical=critical,
+            high=high,
+            medium=medium,
+            low=low,
             blocked=(critical + high) > 0,
             sarif_path=sarif_path,
             available=True,

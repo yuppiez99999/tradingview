@@ -1,4 +1,5 @@
 """risk_budget_engine 单元测试 — 事前风险预算引擎全分支覆盖"""
+
 from __future__ import annotations
 
 import sys

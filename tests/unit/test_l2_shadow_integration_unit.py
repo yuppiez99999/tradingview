@@ -7,6 +7,7 @@
   - get_loop_health_metrics() 指标快照
   - _update_loop_health() L1/L2/L3 计数
 """
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 # ============================================================
 # 辅助: 构造 orchestrator + mock 组件
 # ============================================================
+
 
 def _make_orchestrator(
     shadow_adapter=None,
@@ -49,7 +51,9 @@ def _make_orchestrator(
     return orch
 
 
-def _make_mock_adapter(dsr=0.8, run_success=True, fail_fast=False, fail_fast_reason=None):
+def _make_mock_adapter(
+    dsr=0.8, run_success=True, fail_fast=False, fail_fast_reason=None
+):
     """构造 mock ShadowAccountAdapter."""
     adapter = MagicMock()
 
@@ -106,6 +110,7 @@ def _write_shadow_returns(tmp_path, returns, dates=None):
 # _get_shadow_adapter 懒加载
 # ============================================================
 
+
 class TestGetShadowAdapter:
     """_get_shadow_adapter() 懒加载."""
 
@@ -118,7 +123,10 @@ class TestGetShadowAdapter:
     @pytest.mark.unit
     def test_lazy_load_returns_none_on_import_error(self):
         orch = _make_orchestrator(shadow_adapter=None)
-        with patch("utils.alpha.shadow_account_adapter.ShadowAccountAdapter", side_effect=ImportError("no module")):
+        with patch(
+            "utils.alpha.shadow_account_adapter.ShadowAccountAdapter",
+            side_effect=ImportError("no module"),
+        ):
             result = orch._get_shadow_adapter()
         assert result is None
 
@@ -140,13 +148,17 @@ class TestGetShadowAdapter:
 # _load_shadow_daily_returns
 # ============================================================
 
+
 class TestLoadShadowDailyReturns:
     """_load_shadow_daily_returns() 文件读取."""
 
     @pytest.mark.unit
     def test_file_not_exist_returns_empty(self, tmp_path):
         orch = _make_orchestrator()
-        with patch("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", tmp_path / "nonexistent.jsonl"):
+        with patch(
+            "utils.evolution.orchestrator._SHADOW_RETURNS_PATH",
+            tmp_path / "nonexistent.jsonl",
+        ):
             returns, dates = orch._load_shadow_daily_returns()
         assert returns == []
         assert dates == []
@@ -178,9 +190,10 @@ class TestLoadShadowDailyReturns:
         shadow_dir.mkdir(parents=True)
         path = shadow_dir / "daily_returns.jsonl"
         path.write_text(
-            json.dumps({"date": "2026-01-01", "daily_return": 0.01}) + "\n" +
-            "not json\n" +
-            json.dumps({"date": "2026-01-02", "daily_return": -0.005}),
+            json.dumps({"date": "2026-01-01", "daily_return": 0.01})
+            + "\n"
+            + "not json\n"
+            + json.dumps({"date": "2026-01-02", "daily_return": -0.005}),
             encoding="utf-8",
         )
         orch = _make_orchestrator()
@@ -194,6 +207,7 @@ class TestLoadShadowDailyReturns:
 # _route_l2 DSR promote/rollback/fail-fast/降级
 # ============================================================
 
+
 class TestRouteL2ShadowIntegration:
     """_route_l2() 直接调用 ShadowAccountAdapter."""
 
@@ -204,8 +218,11 @@ class TestRouteL2ShadowIntegration:
         # 强制 _get_shadow_adapter 返回 None
         orch._shadow_adapter = None
         with patch.object(orch, "_get_shadow_adapter", return_value=None):
-            result = orch._route_l2(_make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00")
+            result = orch._route_l2(
+                _make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00"
+            )
         from utils.evolution.orchestrator import CYCLE_STATUS_DEGRADED
+
         assert result.status == CYCLE_STATUS_DEGRADED
         assert result.executed is True
         assert "降级" in result.reason
@@ -218,8 +235,11 @@ class TestRouteL2ShadowIntegration:
         path = _write_shadow_returns(tmp_path, [0.01, 0.02])  # 仅2条
         with patch("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path):
             with patch("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20):
-                result = orch._route_l2(_make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00")
+                result = orch._route_l2(
+                    _make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00"
+                )
         from utils.evolution.orchestrator import CYCLE_STATUS_DEGRADED
+
         assert result.status == CYCLE_STATUS_DEGRADED
         assert result.executed is True
         # adapter.run_shadow 不应被调用 (样本不足提前返回)
@@ -234,8 +254,11 @@ class TestRouteL2ShadowIntegration:
         path = _write_shadow_returns(tmp_path, returns)
         with patch("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path):
             with patch("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20):
-                result = orch._route_l2(_make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00")
+                result = orch._route_l2(
+                    _make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00"
+                )
         from utils.evolution.orchestrator import CYCLE_STATUS_SUCCESS
+
         assert result.status == CYCLE_STATUS_SUCCESS
         assert result.executed is True
         assert "promote" in result.reason
@@ -251,8 +274,11 @@ class TestRouteL2ShadowIntegration:
         path = _write_shadow_returns(tmp_path, returns)
         with patch("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path):
             with patch("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20):
-                result = orch._route_l2(_make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00")
+                result = orch._route_l2(
+                    _make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00"
+                )
         from utils.evolution.orchestrator import CYCLE_STATUS_ROLLED_BACK
+
         assert result.status == CYCLE_STATUS_ROLLED_BACK
         assert result.executed is False
         assert "rollback" in result.reason
@@ -261,15 +287,21 @@ class TestRouteL2ShadowIntegration:
     def test_fail_fast_triggered_rollback(self, tmp_path):
         """run_shadow fail-fast → rollback."""
         adapter = _make_mock_adapter(
-            dsr=0.9, run_success=False, fail_fast=True, fail_fast_reason="max_drawdown_exceeded"
+            dsr=0.9,
+            run_success=False,
+            fail_fast=True,
+            fail_fast_reason="max_drawdown_exceeded",
         )
         orch = _make_orchestrator(shadow_adapter=adapter, l2_dsr_threshold=0.5)
         returns = [0.01] * 30
         path = _write_shadow_returns(tmp_path, returns)
         with patch("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path):
             with patch("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20):
-                result = orch._route_l2(_make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00")
+                result = orch._route_l2(
+                    _make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00"
+                )
         from utils.evolution.orchestrator import CYCLE_STATUS_ROLLED_BACK
+
         assert result.status == CYCLE_STATUS_ROLLED_BACK
         assert result.executed is False
         assert "fail-fast" in result.reason
@@ -284,8 +316,11 @@ class TestRouteL2ShadowIntegration:
         path = _write_shadow_returns(tmp_path, returns)
         with patch("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path):
             with patch("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20):
-                result = orch._route_l2(_make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00")
+                result = orch._route_l2(
+                    _make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00"
+                )
         from utils.evolution.orchestrator import CYCLE_STATUS_DEGRADED
+
         assert result.status == CYCLE_STATUS_DEGRADED
         assert result.executed is True
 
@@ -304,8 +339,11 @@ class TestRouteL2ShadowIntegration:
         path = _write_shadow_returns(tmp_path, returns)
         with patch("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path):
             with patch("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20):
-                result = orch._route_l2(_make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00")
+                result = orch._route_l2(
+                    _make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00"
+                )
         from utils.evolution.orchestrator import CYCLE_STATUS_DEGRADED
+
         assert result.status == CYCLE_STATUS_DEGRADED
         assert result.executed is True
 
@@ -318,7 +356,9 @@ class TestRouteL2ShadowIntegration:
         path = _write_shadow_returns(tmp_path, returns)
         with patch("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path):
             with patch("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20):
-                orch._route_l2(_make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00")
+                orch._route_l2(
+                    _make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00"
+                )
         assert orch._loop_health["l2_promote_count"] == 1
         assert orch._loop_health["l2_rollback_count"] == 0
 
@@ -331,7 +371,9 @@ class TestRouteL2ShadowIntegration:
         path = _write_shadow_returns(tmp_path, returns)
         with patch("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path):
             with patch("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20):
-                orch._route_l2(_make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00")
+                orch._route_l2(
+                    _make_proposal(), _make_guard_decision(), "2026-01-01T00:00:00"
+                )
         assert orch._loop_health["l2_rollback_count"] == 1
         assert orch._loop_health["l2_promote_count"] == 0
 
@@ -339,6 +381,7 @@ class TestRouteL2ShadowIntegration:
 # ============================================================
 # get_loop_health_metrics
 # ============================================================
+
 
 class TestLoopHealthMetrics:
     """get_loop_health_metrics() 指标快照."""
@@ -423,7 +466,9 @@ class TestLoopHealthMetrics:
         orch = _make_orchestrator()
         from utils.evolution.orchestrator import CYCLE_STATUS_NO_ACTION, CycleResult
 
-        result = CycleResult(status=CYCLE_STATUS_NO_ACTION, level="L3", action="pending")
+        result = CycleResult(
+            status=CYCLE_STATUS_NO_ACTION, level="L3", action="pending"
+        )
         orch._update_loop_health(result, time.perf_counter())
         metrics = orch.get_loop_health_metrics()
         assert metrics["l3_pending_count"] == 1
@@ -456,10 +501,12 @@ class TestLoopHealthMetrics:
         # 3次 promote + 1次 rollback + 1次 no_action = 5 total, 4 triggered
         for _ in range(3):
             orch._update_loop_health(
-                CycleResult(status=CYCLE_STATUS_SUCCESS, level="L2"), time.perf_counter()
+                CycleResult(status=CYCLE_STATUS_SUCCESS, level="L2"),
+                time.perf_counter(),
             )
         orch._update_loop_health(
-            CycleResult(status=CYCLE_STATUS_ROLLED_BACK, level="L2"), time.perf_counter()
+            CycleResult(status=CYCLE_STATUS_ROLLED_BACK, level="L2"),
+            time.perf_counter(),
         )
         orch._update_loop_health(
             CycleResult(status=CYCLE_STATUS_NO_ACTION, level="L2"), time.perf_counter()
@@ -504,12 +551,14 @@ class TestLoopHealthMetrics:
 # CYCLE_STATUS_ROLLED_BACK 常量
 # ============================================================
 
+
 class TestRolledBackConstant:
     """CYCLE_STATUS_ROLLED_BACK 常量存在."""
 
     @pytest.mark.unit
     def test_constant_value(self):
         from utils.evolution.orchestrator import CYCLE_STATUS_ROLLED_BACK
+
         assert CYCLE_STATUS_ROLLED_BACK == "rolled_back"
 
     @pytest.mark.unit

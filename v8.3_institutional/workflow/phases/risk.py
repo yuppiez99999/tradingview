@@ -11,6 +11,7 @@
 跨 phase 调用处理:
 daily_workflow.py 保留转发方法, 其他 phase 通过 self._xxx 调用时透明转发到本模块。
 """
+
 from __future__ import annotations
 
 import json
@@ -23,6 +24,7 @@ import requests
 
 try:
     import certifi
+
     _SSL_VERIFY = certifi.where()
 except ImportError:
     _SSL_VERIFY = True
@@ -33,7 +35,11 @@ logger = logging.getLogger("v75.daily_workflow")
 
 # === 从 daily_workflow 模块获取模块级符号 ===
 _dw = get_dw_module()
-BASE_DIR: Path = getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent) if _dw else Path(__file__).resolve().parent.parent
+BASE_DIR: Path = (
+    getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent)
+    if _dw
+    else Path(__file__).resolve().parent.parent
+)
 
 
 def phase_risk(ctx: WorkflowContext) -> dict[str, Any]:
@@ -49,6 +55,7 @@ def phase_risk(ctx: WorkflowContext) -> dict[str, Any]:
     if not hasattr(ctx, "rm"):
         try:
             from risk.risk_manager import RiskManager
+
             ctx.rm = RiskManager(total_capital=ctx.capital)
         except Exception as e:  # fail-safe: 风控初始化降级
             logger.warning(f"RiskManager 初始化失败，使用模拟模式: {e}")
@@ -92,7 +99,9 @@ def phase_risk(ctx: WorkflowContext) -> dict[str, Any]:
     logger.info(f"  上午批次: {morning_total:,.0f}")
     logger.info(f"  下午批次: {afternoon_total:,.0f}")
     logger.info(f"  合计: {grand_total:,.0f}")
-    logger.info(f"组合止损: {portfolio_stop:.2%}, VaR95<{var_95_limit:.0%}, VaR99<{var_99_limit:.0%}")
+    logger.info(
+        f"组合止损: {portfolio_stop:.2%}, VaR95<{var_95_limit:.0%}, VaR99<{var_99_limit:.0%}"
+    )
 
     risk_status = {
         "equity": current_equity,
@@ -120,8 +129,11 @@ def phase_risk(ctx: WorkflowContext) -> dict[str, Any]:
     # === 顶级风险管理: 压力测试情景库 ===
     if ctx.stress_test_engine is not None:
         try:
-            positions_list = (ctx._get_portfolio_positions_for_stress_test()
-                              if hasattr(ctx, "_get_portfolio_positions_for_stress_test") else [])
+            positions_list = (
+                ctx._get_portfolio_positions_for_stress_test()
+                if hasattr(ctx, "_get_portfolio_positions_for_stress_test")
+                else []
+            )
             if positions_list:
                 portfolio_value = sum(float(p.get("amount", 0)) for p in positions_list)
                 if portfolio_value > 0:
@@ -172,7 +184,9 @@ def phase_risk(ctx: WorkflowContext) -> dict[str, Any]:
                 )
                 ctx.state["phases"]["risk_budget_rebalance_needed"] = True
                 ctx.state["phases"]["risk_budget_target_te"] = 0.05
-                ctx.state["phases"]["risk_budget_current_te"] = barra_state["active_risk"]
+                ctx.state["phases"]["risk_budget_current_te"] = barra_state[
+                    "active_risk"
+                ]
         except Exception as exc:  # fail-safe: 风险预算建议失败不阻断主流程
             logger.error("[RiskBudget] 再平衡建议生成失败: %s", exc, exc_info=True)
 
@@ -181,9 +195,10 @@ def phase_risk(ctx: WorkflowContext) -> dict[str, Any]:
 
 # === 私有子方法 (被 phase_hedge 跨 phase 调用, daily_workflow.py 保留转发) ===
 
+
 def _infer_style_from_code(code: str) -> str:
     """基于代码前缀粗略推断持仓风格（建仓计划缺失时的回退）"""
-    c = re.sub(r'^(?:sh|sz|bj|SH|SZ|BJ)', '', str(code)).lower()
+    c = re.sub(r"^(?:sh|sz|bj|SH|SZ|BJ)", "", str(code)).lower()
     if c.startswith("588"):
         return "高端制造"
     if c.startswith("515"):
@@ -220,8 +235,7 @@ def _infer_style_from_code(code: str) -> str:
     return "科技"
 
 
-def _style_beta_proxy(positions: dict[str, float],
-                      prices: dict[str, float]) -> float:
+def _style_beta_proxy(positions: dict[str, float], prices: dict[str, float]) -> float:
     """风格 Beta 代理：当真实历史收益率失效时，基于持仓风格权重估算组合 Beta
 
     Args:
@@ -238,7 +252,7 @@ def _style_beta_proxy(positions: dict[str, float],
         "高端制造": 1.15,
         "科技": 1.20,
         "制造": 1.05,
-        "新能源": 1.15,   # 阳光电源: 光伏储能, Beta 略高于制造
+        "新能源": 1.15,  # 阳光电源: 光伏储能, Beta 略高于制造
         "医药": 0.85,
         "银行": 0.75,
         "防御": 0.60,
@@ -246,7 +260,7 @@ def _style_beta_proxy(positions: dict[str, float],
         "避险": -0.10,
         "红利": 0.70,
         "成长": 1.25,
-        "资源": 1.10,    # 南山铝业/宝钢股份: 周期性大宗, Beta 与顺周期相当
+        "资源": 1.10,  # 南山铝业/宝钢股份: 周期性大宗, Beta 与顺周期相当
     }
 
     # 优先从 500万建仓计划读取 style 和 weight，回退到 v7.6 主计划
@@ -256,7 +270,10 @@ def _style_beta_proxy(positions: dict[str, float],
         try:
             with open(build_plan_path, encoding="utf-8") as _f:
                 _plan = json.load(_f)
-            _target = _plan.get("target_portfolio", _plan.get("stock_etf_account", {}).get("positions", {}))
+            _target = _plan.get(
+                "target_portfolio",
+                _plan.get("stock_etf_account", {}).get("positions", {}),
+            )
             for _code, _info in _target.items():
                 if _code in positions and _code in prices:
                     _style = _info.get("style")
@@ -268,7 +285,9 @@ def _style_beta_proxy(positions: dict[str, float],
 
     # 若仍未获取到风格权重，尝试 v7.6 主计划
     if not style_weights:
-        master_plan_path = BASE_DIR / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
+        master_plan_path = (
+            BASE_DIR / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
+        )
         if master_plan_path.exists():
             try:
                 with open(master_plan_path, encoding="utf-8") as _f:
@@ -280,7 +299,9 @@ def _style_beta_proxy(positions: dict[str, float],
                         _style = _info.get("style")
                         _weight = float(_info.get("target_weight", 0.0))
                         if _style and _weight > 0:
-                            style_weights[_style] = style_weights.get(_style, 0.0) + _weight
+                            style_weights[_style] = (
+                                style_weights.get(_style, 0.0) + _weight
+                            )
             except Exception as _exc:  # fail-safe: 主计划读取失败回退
                 logger.warning("读取 v7.6 主计划失败，回退代码前缀推断: %s", _exc)
 
@@ -332,7 +353,7 @@ def _get_if_realtime() -> dict:
             url = f"https://hq.sinajs.cn/list=nf_{sym}"
             resp = session.get(url, headers=headers, timeout=10, verify=_SSL_VERIFY)
             text = resp.text
-            m = re.search(r'var hq_str_nf_' + re.escape(sym) + r'="(.+)"', text)
+            m = re.search(r"var hq_str_nf_" + re.escape(sym) + r'="(.+)"', text)
             if not m:
                 continue
             parts = m.group(1).split(",")

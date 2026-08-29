@@ -36,6 +36,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # 测试工具
 # ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class TestResult:
     name: str
@@ -67,15 +68,19 @@ class TestCollection:
         return len(self._items)
 
     def failures(self) -> list[dict]:
-        return [{"name": r.name, "message": r.message, "details": r.details}
-                for r in self._items if not r.passed]
+        return [
+            {"name": r.name, "message": r.message, "details": r.details}
+            for r in self._items
+            if not r.passed
+        ]
 
     def all_items(self) -> list[TestResult]:
         return list(self._items)
 
     def summary(self) -> dict:
         return {
-            "total": self.total, "passed": self.pass_count,
+            "total": self.total,
+            "passed": self.pass_count,
             "failed": self.fail_count,
             "pass_rate": self.pass_count / max(self.total, 1),
             "failures": self.failures(),
@@ -87,14 +92,17 @@ class TestCollection:
 # 本地年化收益率实现 (标准公式, 用于基准对比)
 # ────────────────────────────────────────────────────────────
 
-def _annualized_return_local(daily_returns: list[float], trading_days: int = 252) -> float:
+
+def _annualized_return_local(
+    daily_returns: list[float], trading_days: int = 252
+) -> float:
     """从日收益率序列计算年化收益率 (几何复合 + 年化)"""
     if not daily_returns or len(daily_returns) < 2:
         return float("nan")
     try:
         total = 1.0
         for r in daily_returns:
-            total *= (1.0 + r)
+            total *= 1.0 + r
         if total <= 0:
             return -1.0
         days = len(daily_returns)
@@ -107,7 +115,7 @@ def _cumulative_return_local(daily_returns: list[float]) -> float:
     """累计收益率"""
     total = 1.0
     for r in daily_returns:
-        total *= (1.0 + r)
+        total *= 1.0 + r
     return total - 1.0
 
 
@@ -119,7 +127,7 @@ def _max_drawdown_local(returns: list[float]) -> float:
     peak = cumulative
     max_dd = 0.0
     for r in returns:
-        cumulative *= (1.0 + r)
+        cumulative *= 1.0 + r
         if cumulative > peak:
             peak = cumulative
         dd = (peak - cumulative) / peak
@@ -137,10 +145,13 @@ def test_annualized_return(tc: TestCollection) -> None:
     # 1.1 从 risk_metrics 获取年化收益率
     try:
         from utils.risk_metrics import calculate_performance_metrics
+
         returns = np.array([0.001] * 252)
         result = calculate_performance_metrics(returns, risk_free_rate=0.02)
         if "annual_return" in result and result["annual_return"] > 0:
-            tc.ok("1.1 年化收益率模块导入", f"annual_return={result['annual_return']:.4f}")
+            tc.ok(
+                "1.1 年化收益率模块导入", f"annual_return={result['annual_return']:.4f}"
+            )
         else:
             tc.bad("1.1 年化收益率模块导入", f"结果异常: {result}")
     except ImportError:
@@ -151,7 +162,7 @@ def test_annualized_return(tc: TestCollection) -> None:
     # 1.2 公式正确性: 每日+0.1% x 252 天
     daily = [0.001] * 252
     result = _annualized_return_local(daily)
-    expected = 1.001 ** 252 - 1.0
+    expected = 1.001**252 - 1.0
     if abs(result - expected) < 0.001:
         tc.ok("1.2 公式正确性: +0.1%x252", f"计算={result:.4f} 预期={expected:.4f}")
     else:
@@ -206,15 +217,27 @@ def test_annualized_return(tc: TestCollection) -> None:
     # 1.9 risk_metrics 的 calculate_performance_metrics 全链路
     try:
         from utils.risk_metrics import calculate_performance_metrics
+
         # 构造有涨有跌的 125 天序列
         rng = np.random.default_rng(42)
         rets = rng.normal(0.0005, 0.015, 125)
         metrics = calculate_performance_metrics(rets, risk_free_rate=0.02)
-        required = ["annual_return", "volatility", "sharpe_ratio", "max_drawdown",
-                     "sortino_ratio", "win_rate", "var_95", "var_99"]
+        required = [
+            "annual_return",
+            "volatility",
+            "sharpe_ratio",
+            "max_drawdown",
+            "sortino_ratio",
+            "win_rate",
+            "var_95",
+            "var_99",
+        ]
         missing = [k for k in required if k not in metrics]
         if not missing:
-            tc.ok("1.9 risk_metrics 全指标", f"annual={metrics['annual_return']:.4f} sharpe={metrics['sharpe_ratio']:.2f}")
+            tc.ok(
+                "1.9 risk_metrics 全指标",
+                f"annual={metrics['annual_return']:.4f} sharpe={metrics['sharpe_ratio']:.2f}",
+            )
         else:
             tc.bad("1.9 risk_metrics 全指标", f"缺少: {missing}")
     except Exception as e:
@@ -270,8 +293,24 @@ def test_max_drawdown(tc: TestCollection) -> None:
         tc.bad("2.4 双重回撤(第2次更深)", f"预期≈0.40 实际={dd:.4f}")
 
     # 2.5 2015 股灾模拟
-    crash = [-0.05, -0.08, -0.03, 0.02, -0.06, -0.10, -0.08, 0.05,
-             -0.04, -0.07, -0.09, -0.02, 0.03, -0.05, -0.08, 0.01]
+    crash = [
+        -0.05,
+        -0.08,
+        -0.03,
+        0.02,
+        -0.06,
+        -0.10,
+        -0.08,
+        0.05,
+        -0.04,
+        -0.07,
+        -0.09,
+        -0.02,
+        0.03,
+        -0.05,
+        -0.08,
+        0.01,
+    ]
     dd = _max_drawdown_local(crash)
     if 0.30 < dd < 0.55:
         tc.ok("2.5 2015股灾模拟", f"MDD={dd:.4f} (30%-55%)")
@@ -288,18 +327,28 @@ def test_max_drawdown(tc: TestCollection) -> None:
     # 2.7 risk_metrics.calculate_max_drawdown (基于 prices)
     try:
         from utils.risk_metrics import calculate_max_drawdown
+
         prices = np.array([100 + i * 2 - (i // 20) * 5 for i in range(126)])
         mdd, start, end = calculate_max_drawdown(prices)
         if 0 <= mdd <= 1.0 and 0 <= start <= end <= len(prices):
-            tc.ok("2.7 risk_metrics.calculate_max_drawdown", f"MDD={mdd:.4f} [{start}-{end}]")
+            tc.ok(
+                "2.7 risk_metrics.calculate_max_drawdown",
+                f"MDD={mdd:.4f} [{start}-{end}]",
+            )
         else:
-            tc.bad("2.7 risk_metrics.calculate_max_drawdown", f"MDD={mdd} range=[{start},{end}]")
+            tc.bad(
+                "2.7 risk_metrics.calculate_max_drawdown",
+                f"MDD={mdd} range=[{start},{end}]",
+            )
     except Exception as e:
-        tc.bad("2.7 risk_metrics.calculate_max_drawdown", str(e), traceback.format_exc())
+        tc.bad(
+            "2.7 risk_metrics.calculate_max_drawdown", str(e), traceback.format_exc()
+        )
 
     # 2.8 DrawdownController 四级回撤响应
     try:
         from utils.drawdown_controller import DrawdownController
+
         dc = DrawdownController()
         # L0: 正常
         r0 = dc.check_drawdown(5_000_000, 4_900_000)
@@ -318,23 +367,34 @@ def test_max_drawdown(tc: TestCollection) -> None:
         if r2["level"] == 2 and not r2["build_allowed"]:
             tc.ok("2.8c DrawdownController L2:禁开仓", f"DD={r2['drawdown_pct']:.2%}")
         else:
-            tc.bad("2.8c DrawdownController L2", f"level={r2['level']} build={r2.get('build_allowed')}")
+            tc.bad(
+                "2.8c DrawdownController L2",
+                f"level={r2['level']} build={r2.get('build_allowed')}",
+            )
         # L3: 二级防御 (13%)
         r3 = dc.check_drawdown(5_000_000, 4_350_000)
         if r3["level"] == 3:
-            tc.ok("2.8d DrawdownController L3:量化中性减半", f"DD={r3['drawdown_pct']:.2%}")
+            tc.ok(
+                "2.8d DrawdownController L3:量化中性减半",
+                f"DD={r3['drawdown_pct']:.2%}",
+            )
         else:
             tc.bad("2.8d DrawdownController L3", f"预期3, 实际={r3['level']}")
         # L4: 极限防御 (16%)
         r4 = dc.check_drawdown(5_000_000, 4_200_000)
         if r4["level"] == 4:
-            tc.ok("2.8e DrawdownController L4:极限防御", f"DD={r4['drawdown_pct']:.2%} 现金={r4['cash_target_pct']:.0%}")
+            tc.ok(
+                "2.8e DrawdownController L4:极限防御",
+                f"DD={r4['drawdown_pct']:.2%} 现金={r4['cash_target_pct']:.0%}",
+            )
         else:
             tc.bad("2.8e DrawdownController L4", f"预期4, 实际={r4['level']}")
         # fail-closed: peak=0
         r_fc = dc.check_drawdown(0, 1_000_000)
         if r_fc["level"] == 4:
-            tc.ok("2.8f v8.6.13 P0修复: peak=0→L4 fail-closed", f"level={r_fc['level']}")
+            tc.ok(
+                "2.8f v8.6.13 P0修复: peak=0→L4 fail-closed", f"level={r_fc['level']}"
+            )
         else:
             tc.bad("2.8f v8.6.13 P0修复", f"应为L4, 实际={r_fc['level']}")
     except Exception as e:
@@ -343,6 +403,7 @@ def test_max_drawdown(tc: TestCollection) -> None:
     # 2.9 DrawdownCircuitBreaker
     try:
         from utils.drawdown_breaker import DrawdownCircuitBreaker, DrawdownLevel
+
         breaker = DrawdownCircuitBreaker()
         d0 = breaker.evaluate(-0.02)
         if d0.level == DrawdownLevel.NORMAL:
@@ -363,7 +424,9 @@ def test_max_drawdown(tc: TestCollection) -> None:
         if d4.level == DrawdownLevel.HALT and d4.breach_hard_limit:
             tc.ok("2.9d DrawdownBreaker HALT(突破硬限)", "-16%")
         else:
-            tc.bad("2.9d DrawdownBreaker HALT", f"{d4.level} breach={d4.breach_hard_limit}")
+            tc.bad(
+                "2.9d DrawdownBreaker HALT", f"{d4.level} breach={d4.breach_hard_limit}"
+            )
     except Exception as e:
         tc.bad("2.9 DrawdownBreaker", str(e), traceback.format_exc())
 
@@ -376,7 +439,11 @@ def test_max_drawdown(tc: TestCollection) -> None:
 def test_extreme_market(tc: TestCollection) -> None:
     # ── 3.1 CircuitBreaker 四级熔断 + 四维熔断 ──
     try:
-        from ms_strategy.src.risk.circuit_breaker import CircuitBreaker, CircuitLevel, SlippageCircuitBreaker
+        from ms_strategy.src.risk.circuit_breaker import (
+            CircuitBreaker,
+            CircuitLevel,
+            SlippageCircuitBreaker,
+        )
 
         cb = CircuitBreaker()
 
@@ -416,7 +483,9 @@ def test_extreme_market(tc: TestCollection) -> None:
             tc.bad("3.1e L4", f"实际={lvl.name}")
 
         # 四维熔断: HWM+weekly+VIX+daily
-        lvl = cb.check_advanced(daily_drop=0.06, hwm_drawdown=0.12, weekly_drop=0.11, vix=30)
+        lvl = cb.check_advanced(
+            daily_drop=0.06, hwm_drawdown=0.12, weekly_drop=0.11, vix=30
+        )
         if lvl == CircuitLevel.LEVEL_2:
             tc.ok("3.1f 四维熔断: HWM=12%+周跌11%→L2", lvl.name)
         else:
@@ -431,7 +500,9 @@ def test_extreme_market(tc: TestCollection) -> None:
         cb.check(portfolio_drop=0.08, vix=45)  # → L3
         actions = cb.allowed_actions()
         if not actions.get("open_new", True) and actions.get("force_reduce_pct", 0) > 0:
-            tc.ok("3.1h L3 allowed_actions", f"禁开仓+减{actions['force_reduce_pct']:.0%}")
+            tc.ok(
+                "3.1h L3 allowed_actions", f"禁开仓+减{actions['force_reduce_pct']:.0%}"
+            )
         else:
             tc.bad("3.1h L3 allowed_actions", str(actions))
 
@@ -445,7 +516,10 @@ def test_extreme_market(tc: TestCollection) -> None:
         r_break = slip_cb.check_single("600519", 11.00, 10.45)
         # SlippageCircuitBreaker 使用两种触发动作: BREAK(单笔) 或 DAILY_BREAK(日累计)
         if r_break["action"] in ("BREAK", "DAILY_BREAK"):
-            tc.ok("3.1j 滑点熔断: 触发", f"滑点={r_break['slip']:.4%} action={r_break['action']}")
+            tc.ok(
+                "3.1j 滑点熔断: 触发",
+                f"滑点={r_break['slip']:.4%} action={r_break['action']}",
+            )
         else:
             tc.bad("3.1j 滑点熔断", f"应BREAK/DAILY_BREAK, 实际={r_break['action']}")
     except ImportError:
@@ -456,6 +530,7 @@ def test_extreme_market(tc: TestCollection) -> None:
     # ── 3.2 MarketCircuitBreaker: 大盘指数熔断 ──
     try:
         from utils.market_circuit_breaker import MarketCircuitBreaker
+
         mcb = MarketCircuitBreaker()
 
         # fail-closed
@@ -465,22 +540,41 @@ def test_extreme_market(tc: TestCollection) -> None:
             tc.bad("3.2a fail-closed", str(mcb.FAIL_CLOSED_PCT))
 
         # L3 全平
-        plan_l3 = {"execution_plan": {"morning_orders": [
-            {"symbol": "588080", "side": "BUY", "shares": 1000},
-            {"symbol": "512880", "side": "SELL", "shares": 500},
-        ]}, "market_state": {}, "risk_guard": {}}
-        result = mcb.apply_to_plan(plan_l3, {"level": 3, "hs300_change_pct": -0.08, "data_source": "test"})
+        plan_l3 = {
+            "execution_plan": {
+                "morning_orders": [
+                    {"symbol": "588080", "side": "BUY", "shares": 1000},
+                    {"symbol": "512880", "side": "SELL", "shares": 500},
+                ]
+            },
+            "market_state": {},
+            "risk_guard": {},
+        }
+        result = mcb.apply_to_plan(
+            plan_l3, {"level": 3, "hs300_change_pct": -0.08, "data_source": "test"}
+        )
         if len(result["execution_plan"]["morning_orders"]) == 0:
             tc.ok("3.2b L3全局平仓", "订单清空")
         else:
-            tc.bad("3.2b L3全局平仓", f"剩余{len(result['execution_plan']['morning_orders'])}")
+            tc.bad(
+                "3.2b L3全局平仓",
+                f"剩余{len(result['execution_plan']['morning_orders'])}",
+            )
 
         # L2 禁BUY
-        plan_l2 = {"execution_plan": {"morning_orders": [
-            {"symbol": "588080", "side": "BUY", "shares": 1000},
-            {"symbol": "512880", "side": "SELL", "shares": 500},
-        ]}, "market_state": {}, "risk_guard": {}}
-        result = mcb.apply_to_plan(plan_l2, {"level": 2, "hs300_change_pct": -0.06, "data_source": "test"})
+        plan_l2 = {
+            "execution_plan": {
+                "morning_orders": [
+                    {"symbol": "588080", "side": "BUY", "shares": 1000},
+                    {"symbol": "512880", "side": "SELL", "shares": 500},
+                ]
+            },
+            "market_state": {},
+            "risk_guard": {},
+        }
+        result = mcb.apply_to_plan(
+            plan_l2, {"level": 2, "hs300_change_pct": -0.06, "data_source": "test"}
+        )
         remaining = result["execution_plan"]["morning_orders"]
         if len(remaining) == 1 and remaining[0].get("side") == "SELL":
             tc.ok("3.2c L2过滤BUY", f"保留{len(remaining)}个SELL")
@@ -488,18 +582,30 @@ def test_extreme_market(tc: TestCollection) -> None:
             tc.bad("3.2c L2过滤BUY", f"剩余{len(remaining)}个")
 
         # v8.6.13 P0: direction='BUY_OPEN'
-        plan_p0 = {"execution_plan": {"morning_orders": [
-            {"direction": "BUY_OPEN", "code": "IF2406"},
-        ]}, "market_state": {}, "risk_guard": {}}
+        plan_p0 = {
+            "execution_plan": {
+                "morning_orders": [
+                    {"direction": "BUY_OPEN", "code": "IF2406"},
+                ]
+            },
+            "market_state": {},
+            "risk_guard": {},
+        }
         result = mcb.apply_to_plan(plan_p0, {"level": 2, "hs300_change_pct": -0.05})
         if len(result["execution_plan"]["morning_orders"]) == 0:
             tc.ok("3.2d v8.6.13 P0: direction=BUY_OPEN过滤", "正确过滤")
         else:
-            tc.bad("3.2d v8.6.13 P0", f"未过滤{len(result['execution_plan']['morning_orders'])}")
+            tc.bad(
+                "3.2d v8.6.13 P0",
+                f"未过滤{len(result['execution_plan']['morning_orders'])}",
+            )
 
         # L2不覆盖L3的CRITICAL
-        plan_crit = {"execution_plan": {"morning_orders": []},
-                     "market_state": {"circuit_level": "CRITICAL"}, "risk_guard": {}}
+        plan_crit = {
+            "execution_plan": {"morning_orders": []},
+            "market_state": {"circuit_level": "CRITICAL"},
+            "risk_guard": {},
+        }
         result = mcb.apply_to_plan(plan_crit, {"level": 2, "hs300_change_pct": -0.05})
         if result["market_state"]["circuit_level"] == "CRITICAL":
             tc.ok("3.2e L2不覆盖L3的CRITICAL", "正确")
@@ -527,27 +633,68 @@ def test_extreme_market(tc: TestCollection) -> None:
             tc.bad("3.3a 场景数量", f"仅 {len(scenarios)}, 预期≥10")
 
         positions = [
-            {"code": "600519", "amount": 1_000_000, "sector": "食品饮料", "style": "价值", "type": "STOCK"},
-            {"code": "300750", "amount": 500_000, "sector": "电力设备", "style": "成长", "type": "STOCK"},
-            {"code": "510300", "amount": 1_500_000, "sector": "金融", "style": "大盘", "type": "ETF"},
-            {"code": "588000", "amount": 800_000, "sector": "科技", "style": "小盘", "type": "ETF"},
-            {"code": "AU9999", "amount": 200_000, "sector": "贵金属", "style": "", "type": "GOLD"},
+            {
+                "code": "600519",
+                "amount": 1_000_000,
+                "sector": "食品饮料",
+                "style": "价值",
+                "type": "STOCK",
+            },
+            {
+                "code": "300750",
+                "amount": 500_000,
+                "sector": "电力设备",
+                "style": "成长",
+                "type": "STOCK",
+            },
+            {
+                "code": "510300",
+                "amount": 1_500_000,
+                "sector": "金融",
+                "style": "大盘",
+                "type": "ETF",
+            },
+            {
+                "code": "588000",
+                "amount": 800_000,
+                "sector": "科技",
+                "style": "小盘",
+                "type": "ETF",
+            },
+            {
+                "code": "AU9999",
+                "amount": 200_000,
+                "sector": "贵金属",
+                "style": "",
+                "type": "GOLD",
+            },
         ]
         results = engine.run_all_scenarios(positions, total_portfolio_value=5_000_000)
         tc.ok("3.3b 全部场景运行", f"{len(results)}个结果")
 
         worst = engine.get_worst_scenario(results)
         breaches = engine.get_breached_scenarios(results)
-        tc.ok("3.3c 最差+突破",
-             f"最差={worst.scenario_name}({worst.portfolio_return:.2%}), 突破={len(breaches)}")
+        tc.ok(
+            "3.3c 最差+突破",
+            f"最差={worst.scenario_name}({worst.portfolio_return:.2%}), 突破={len(breaches)}",
+        )
 
         # 自定义场景
-        engine.add_custom_scenario(StressScenario(
-            name="自定义黑天鹅", description="测试",
-            start_date="", end_date="", severity="extreme",
-            shocks=ShockFactors(equity_market=-0.35, volatility_equity=4.0,
-                                etf_limit_down_pct=0.50, futures_liquidity_dry_up=0.90),
-        ))
+        engine.add_custom_scenario(
+            StressScenario(
+                name="自定义黑天鹅",
+                description="测试",
+                start_date="",
+                end_date="",
+                severity="extreme",
+                shocks=ShockFactors(
+                    equity_market=-0.35,
+                    volatility_equity=4.0,
+                    etf_limit_down_pct=0.50,
+                    futures_liquidity_dry_up=0.90,
+                ),
+            )
+        )
         tc.ok("3.3d 自定义场景", "add_custom_scenario 成功")
     except ImportError:
         tc.bad("3.3 StressTestEngine 导入", "无法导入")
@@ -565,13 +712,25 @@ def test_extreme_market(tc: TestCollection) -> None:
         hedger = TailRiskHedger(TailRiskConfig())
 
         # 状态机
-        r = hedger.analyze_market_regime(vix=15, hwm_drawdown=0.02, portfolio_volatility=0.10, var_95=0.02, cvar_95=0.03)
+        r = hedger.analyze_market_regime(
+            vix=15,
+            hwm_drawdown=0.02,
+            portfolio_volatility=0.10,
+            var_95=0.02,
+            cvar_95=0.03,
+        )
         if r == MarketRegime.NORMAL:
             tc.ok("3.4a 状态机: NORMAL", f"{r}")
         else:
             tc.bad("3.4a 状态机", f"实际={r}")
 
-        r = hedger.analyze_market_regime(vix=65, hwm_drawdown=0.25, portfolio_volatility=0.30, var_95=0.12, cvar_95=0.15)
+        r = hedger.analyze_market_regime(
+            vix=65,
+            hwm_drawdown=0.25,
+            portfolio_volatility=0.30,
+            var_95=0.12,
+            cvar_95=0.15,
+        )
         if r == MarketRegime.CRISIS:
             tc.ok("3.4b 状态机: CRISIS", f"{r}")
         else:
@@ -579,14 +738,18 @@ def test_extreme_market(tc: TestCollection) -> None:
 
         # 保护比例
         hedger.current_regime = MarketRegime.CRISIS
-        ratio = hedger.calculate_protection_ratio(vix=65, hwm_drawdown=0.25, bs_loss=0.45)
+        ratio = hedger.calculate_protection_ratio(
+            vix=65, hwm_drawdown=0.25, bs_loss=0.45
+        )
         if ratio >= 0.20:
             tc.ok("3.4c 危机期保护", f"{ratio:.2%}")
         else:
             tc.bad("3.4c 危机期保护", f"太低:{ratio:.2%}")
 
         hedger.current_regime = MarketRegime.NORMAL
-        ratio = hedger.calculate_protection_ratio(vix=15, hwm_drawdown=0.02, bs_loss=0.0)
+        ratio = hedger.calculate_protection_ratio(
+            vix=15, hwm_drawdown=0.02, bs_loss=0.0
+        )
         if ratio < 0.10:
             tc.ok("3.4d 正常期低保护", f"{ratio:.2%}")
         else:
@@ -595,7 +758,10 @@ def test_extreme_market(tc: TestCollection) -> None:
         # OTM阶梯
         ladder = hedger.build_otm_ladder(bs_loss=0.55, vix=40, spot_price=1.0)
         if len(ladder) == 3:
-            tc.ok("3.4e OTM阶梯: bs>50%三层", f"层={len(ladder)} strikes={[layer['strike'] for layer in ladder]}")
+            tc.ok(
+                "3.4e OTM阶梯: bs>50%三层",
+                f"层={len(ladder)} strikes={[layer['strike'] for layer in ladder]}",
+            )
         else:
             tc.bad("3.4e OTM阶梯", f"层数={len(ladder)}")
 
@@ -607,16 +773,23 @@ def test_extreme_market(tc: TestCollection) -> None:
 
         # 完整对冲决策
         decision = hedger.compute_hedge(
-            vix=55, hwm_drawdown=0.20, portfolio_value=5_000_000,
-            spot_price=1.0, bs_loss=0.40, portfolio_volatility=0.25,
-            var_95=0.08, days_to_expiry=90,
+            vix=55,
+            hwm_drawdown=0.20,
+            portfolio_value=5_000_000,
+            spot_price=1.0,
+            bs_loss=0.40,
+            portfolio_volatility=0.25,
+            var_95=0.08,
+            days_to_expiry=90,
         )
         required = ["action", "regime", "protection_ratio", "budget_total"]
         missing = [k for k in required if k not in decision]
         if not missing:
-            tc.ok("3.4g 完整对冲决策",
-                 f"action={decision['action']} ratio={decision['protection_ratio']:.2%} "
-                 f"budget={decision['budget_total']:,.0f}")
+            tc.ok(
+                "3.4g 完整对冲决策",
+                f"action={decision['action']} ratio={decision['protection_ratio']:.2%} "
+                f"budget={decision['budget_total']:,.0f}",
+            )
         else:
             tc.bad("3.4g 完整对冲决策", f"缺少: {missing}")
     except ImportError:
@@ -636,9 +809,14 @@ def test_extreme_market(tc: TestCollection) -> None:
 
         result = fit_evt(returns, threshold_percentile=0.95)
         if result.converged:
-            tc.ok("3.5a EVT拟合收敛", f"xi={result.xi:.3f} sigma={result.sigma:.4f} ES99={result.es_99:.4f}")
+            tc.ok(
+                "3.5a EVT拟合收敛",
+                f"xi={result.xi:.3f} sigma={result.sigma:.4f} ES99={result.es_99:.4f}",
+            )
         else:
-            tc.ok("3.5a EVT拟合 (未收敛)", f"n={result.n_total} excess={result.n_excess}")
+            tc.ok(
+                "3.5a EVT拟合 (未收敛)", f"n={result.n_total} excess={result.n_excess}"
+            )
 
         if result.converged and abs(result.xi) < 1.0:
             tc.ok("3.5b EVT xi合理", f"xi={result.xi:.3f}")
@@ -647,10 +825,15 @@ def test_extreme_market(tc: TestCollection) -> None:
 
         quick = evt_var_es(returns, confidence=0.99)
         if "var" in quick:
-            tc.ok("3.5c evt_var_es", f"VaR99={quick['var']:.4f} ES99={quick.get('es', 0):.4f}")
+            tc.ok(
+                "3.5c evt_var_es",
+                f"VaR99={quick['var']:.4f} ES99={quick.get('es', 0):.4f}",
+            )
 
         # 小样本拒绝
-        tiny = fit_evt([rng.gauss(0, 0.01) for _ in range(30)], threshold_percentile=0.95)
+        tiny = fit_evt(
+            [rng.gauss(0, 0.01) for _ in range(30)], threshold_percentile=0.95
+        )
         if not tiny.converged:
             tc.ok("3.5d 小样本拒绝", f"n={tiny.n_total}")
         else:
@@ -671,9 +854,11 @@ def test_extreme_market(tc: TestCollection) -> None:
         er = cb.target_equity_ratio()
 
         if lvl == CircuitLevel.LEVEL_3:
-            tc.ok("3.6 风控链集成: L3→强制减+权益对冲",
-                 f"reduce={actions.get('force_reduce_pct',0):.0%} "
-                 f"equity={er:.0%} hedge={hr:.0%}")
+            tc.ok(
+                "3.6 风控链集成: L3→强制减+权益对冲",
+                f"reduce={actions.get('force_reduce_pct',0):.0%} "
+                f"equity={er:.0%} hedge={hr:.0%}",
+            )
         else:
             tc.bad("3.6 风控链集成", f"L3预期, 实际={lvl.name}")
     except Exception as e:
@@ -682,6 +867,7 @@ def test_extreme_market(tc: TestCollection) -> None:
     # ── 3.7 极端输入边界 ──
     try:
         from ms_strategy.src.risk.circuit_breaker import CircuitBreaker
+
         cb = CircuitBreaker()
         lvl = cb.check(portfolio_drop=2.0, vix=200)
         tc.ok("3.7a 极端输入: drop=200%+VIX=200", f"不崩溃, {lvl.name}")
@@ -690,6 +876,7 @@ def test_extreme_market(tc: TestCollection) -> None:
 
     try:
         from utils.drawdown_controller import DrawdownController
+
         dc = DrawdownController()
         r = dc.check_drawdown(-1_000_000, 1_000_000)
         if r["level"] == 4:
@@ -725,16 +912,24 @@ def _build_markdown(sections: dict[str, TestCollection]) -> str:
     total_all = 0
     for label, tc in sections.items():
         rate = tc.pass_count / max(tc.total, 1) * 100
-        lines.append(f"| {label} | {tc.pass_count} | {tc.fail_count} | {tc.total} | {rate:.0f}% |")
+        lines.append(
+            f"| {label} | {tc.pass_count} | {tc.fail_count} | {tc.total} | {rate:.0f}% |"
+        )
         total_pass += tc.pass_count
         total_all += tc.total
 
-    lines.append(f"| **合计** | **{total_pass}** | **{total_all - total_pass}** | **{total_all}** | **{total_pass/max(total_all,1)*100:.0f}%** |")
+    lines.append(
+        f"| **合计** | **{total_pass}** | **{total_all - total_pass}** | **{total_all}** | **{total_pass/max(total_all,1)*100:.0f}%** |"
+    )
     lines.append("")
 
     # 失败详情
-    all_fails = [(label, r) for label, tc in sections.items()
-                 for r in tc.all_items() if not r.passed]
+    all_fails = [
+        (label, r)
+        for label, tc in sections.items()
+        for r in tc.all_items()
+        if not r.passed
+    ]
     if all_fails:
         lines.append("## 失败项详情")
         lines.append("")
@@ -801,8 +996,12 @@ def _build_markdown(sections: dict[str, TestCollection]) -> str:
     lines.append("")
     lines.append("**核心结论**:")
     lines.append("1. 年化收益率计算逻辑正确，边界处理完备")
-    lines.append("2. 最大回撤计算符合行业标准，四级 DrawdownController 分级响应机制有效")
-    lines.append("3. 极端市场防御体系覆盖全面：熔断(四级+四维+滑点) / 压力测试10场景 / EVT肥尾 / 流动性枯竭建模")
+    lines.append(
+        "2. 最大回撤计算符合行业标准，四级 DrawdownController 分级响应机制有效"
+    )
+    lines.append(
+        "3. 极端市场防御体系覆盖全面：熔断(四级+四维+滑点) / 压力测试10场景 / EVT肥尾 / 流动性枯竭建模"
+    )
     lines.append("4. 风控链从信号→熔断→对冲→尾部保护的决策链路完整可验证")
     lines.append("")
 
@@ -811,6 +1010,7 @@ def _build_markdown(sections: dict[str, TestCollection]) -> str:
 
 def main() -> int:
     import argparse
+
     ap = argparse.ArgumentParser(description="代码质量测试套件")
     ap.add_argument("--report", "-r", action="store_true", help="生成Markdown报告")
     ap.add_argument("--json", action="store_true", help="输出JSON")
@@ -824,9 +1024,11 @@ def main() -> int:
 
     sections: dict[str, TestCollection] = {}
 
-    for label, func in [("年化收益率", test_annualized_return),
-                          ("最大回撤", test_max_drawdown),
-                          ("极端市场应对", test_extreme_market)]:
+    for label, func in [
+        ("年化收益率", test_annualized_return),
+        ("最大回撤", test_max_drawdown),
+        ("极端市场应对", test_extreme_market),
+    ]:
         print(f"[{label}]")
         tc = TestCollection()
         func(tc)
@@ -865,8 +1067,14 @@ def main() -> int:
     if args.json:
         jp = PROJECT_ROOT / "reports" / "code_quality_test_report.json"
         jp.parent.mkdir(parents=True, exist_ok=True)
-        jp.write_text(json.dumps({k: v.summary() for k, v in sections.items()},
-                                 ensure_ascii=False, indent=2), encoding="utf-8")
+        jp.write_text(
+            json.dumps(
+                {k: v.summary() for k, v in sections.items()},
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
         print(f"JSON已生成: {jp}")
 
     return 1 if tf > 0 else 0

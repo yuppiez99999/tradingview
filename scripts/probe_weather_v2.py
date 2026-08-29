@@ -16,6 +16,7 @@ import requests
 
 try:
     import certifi
+
     _SSL_VERIFY = certifi.where()
 except ImportError:
     _SSL_VERIFY = True
@@ -24,7 +25,9 @@ warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
 API_KEY = os.environ.get("APIZERO_API_KEY", "")
 if not API_KEY:
-    print("[WARN] 未设置 APIZERO_API_KEY 环境变量, 探测将失败. 请先 export/set APIZERO_API_KEY=<key>")
+    print(
+        "[WARN] 未设置 APIZERO_API_KEY 环境变量, 探测将失败. 请先 export/set APIZERO_API_KEY=<key>"
+    )
 
 TEST_LOCATION = "121.47,31.23"  # 上海
 
@@ -59,8 +62,11 @@ def test_url(name, url, params=None, headers=None, verify=True):
         session.proxies = {"http": None, "https": None}
 
         resp = session.get(
-            url, params=params, headers=headers,
-            timeout=15, verify=verify,
+            url,
+            params=params,
+            headers=headers,
+            timeout=15,
+            verify=verify,
         )
         elapsed = (time.time() - t0) * 1000
         print(f"    状态: {resp.status_code}, 耗时: {elapsed:.0f}ms")
@@ -79,10 +85,18 @@ def test_url(name, url, params=None, headers=None, verify=True):
                     else:
                         print(f"      {k}: {str(v)[:100]}")
             return {"ok": True, "data": data}
-        else:
-            print(f"    ❌ HTTP {resp.status_code}: {resp.text[:150]}")
-            return {"ok": False, "status": resp.status_code}
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        print(f"    ❌ HTTP {resp.status_code}: {resp.text[:150]}")
+        return {"ok": False, "status": resp.status_code}
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         elapsed = (time.time() - t0) * 1000
         err_type = type(e).__name__
@@ -101,7 +115,12 @@ def main():
 
     # ---------- 组1: 彩云天气标准端点 ----------
     print("\n--- 组1: 彩云天气 v2.6 标准端点 ---")
-    for ep_name in ["caiyun_v2.6_rt", "caiyun_v2.6_hr", "caiyun_v2.6_dy", "caiyun_v2.6_wt"]:
+    for ep_name in [
+        "caiyun_v2.6_rt",
+        "caiyun_v2.6_hr",
+        "caiyun_v2.6_dy",
+        "caiyun_v2.6_wt",
+    ]:
         url = URL_TEMPLATES[ep_name].format(key=API_KEY, loc=TEST_LOCATION)
         results[ep_name] = test_url(ep_name, url, verify=_SSL_VERIFY)
         time.sleep(0.8)
@@ -116,7 +135,8 @@ def main():
     print("\n--- 组3: apizero 代理 ---")
     url = URL_TEMPLATES["apizero"]
     results["apizero"] = test_url(
-        "apizero", url,
+        "apizero",
+        url,
         params={"type": "weather", "location": TEST_LOCATION, "key": API_KEY},
         verify=_SSL_VERIFY,
     )
@@ -126,7 +146,8 @@ def main():
     print("\n--- 组4: 和风天气 ---")
     url = URL_TEMPLATES["qweather_rt"]
     results["qweather_rt"] = test_url(
-        "qweather_rt", url,
+        "qweather_rt",
+        url,
         params={"location": "10102001", "key": API_KEY},
         verify=_SSL_VERIFY,
     )
@@ -136,9 +157,11 @@ def main():
     print("\n--- 组5: Open-Meteo (免费, 验证网络连通性) ---")
     url = URL_TEMPLATES["openmeteo"]
     results["openmeteo"] = test_url(
-        "openmeteo", url,
+        "openmeteo",
+        url,
         params={
-            "latitude": 31.23, "longitude": 121.47,
+            "latitude": 31.23,
+            "longitude": 121.47,
             "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation",
             "hourly": "temperature_2m,wind_speed_10m,precipitation",
             "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",

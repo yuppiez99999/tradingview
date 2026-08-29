@@ -10,7 +10,9 @@
 from __future__ import annotations
 
 
-def _estimate_depth_ratio(target_amount: float, ref_price: float, avg_daily_volume: float) -> float:
+def _estimate_depth_ratio(
+    target_amount: float, ref_price: float, avg_daily_volume: float
+) -> float:
     """估算订单占日均成交额比例"""
     if avg_daily_volume <= 0 or ref_price <= 0:
         return 0.0
@@ -119,7 +121,17 @@ def choose_execution_algorithm(
         from utils.wt_execution_algo import compare_execution
 
         comparison = compare_execution(target_amount, ref_price, avg_daily_volume)
-    except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ImportError,
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         return _make_result("immediate", f"执行算法比较失败，回退 immediate: {e}")
 
     if not comparison:
@@ -149,7 +161,9 @@ def choose_execution_algorithm(
     best = candidates[0]
     return _make_result(
         algorithm=best[1],
-        reason=(f"[自适应] {adaptive_reason} | 综合成本+时间最优: cost_bps={best[4]:.2f}, time={best[5]:.1f}min"),
+        reason=(
+            f"[自适应] {adaptive_reason} | 综合成本+时间最优: cost_bps={best[4]:.2f}, time={best[5]:.1f}min"
+        ),
         comparison=comparison,
         orders=best[2].get("orders", []),
         estimated_cost=best[3],

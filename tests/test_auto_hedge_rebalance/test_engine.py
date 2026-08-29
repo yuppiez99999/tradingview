@@ -84,7 +84,9 @@ class TestRunEodDecision:
         # Assert
         assert plan.tool_selection.tool_type == HedgeToolType.NONE
 
-    def test_high_volatility_triggers_hedge(self, engine: AutoHedgeRebalanceEngine) -> None:
+    def test_high_volatility_triggers_hedge(
+        self, engine: AutoHedgeRebalanceEngine
+    ) -> None:
         # Arrange & Act — 高波动 → HIGH
         plan = engine.run_eod_decision(
             portfolio_volatility=0.25,
@@ -93,7 +95,9 @@ class TestRunEodDecision:
         # Assert
         assert plan.tool_selection.hedge_ratio > 0
 
-    def test_circuit_breaker_active_returns_breaker_plan(self, engine: AutoHedgeRebalanceEngine) -> None:
+    def test_circuit_breaker_active_returns_breaker_plan(
+        self, engine: AutoHedgeRebalanceEngine
+    ) -> None:
         # Arrange — 先触发熔断
         engine.circuit_breaker.trigger_emergency("circuit_break")
         # Act
@@ -102,7 +106,9 @@ class TestRunEodDecision:
         assert plan.breaker_status.active is True
         assert any("熔断活跃" in f for f in plan.degradation_flags)
 
-    def test_degradation_flags_collected(self, engine: AutoHedgeRebalanceEngine) -> None:
+    def test_degradation_flags_collected(
+        self, engine: AutoHedgeRebalanceEngine
+    ) -> None:
         # Arrange & Act
         plan = engine.run_eod_decision(portfolio_volatility=0.18)
         # Assert — degradation_flags 是列表 (可能为空)
@@ -124,7 +130,9 @@ class TestRunIntradayCheck:
         # Assert
         assert action.action_type == "none"
 
-    def test_large_drop_triggers_emergency(self, engine: AutoHedgeRebalanceEngine) -> None:
+    def test_large_drop_triggers_emergency(
+        self, engine: AutoHedgeRebalanceEngine
+    ) -> None:
         # Arrange & Act — 6%跌幅触发紧急再评估
         action = engine.run_intraday_check(940.0, 1000.0)
         # Assert
@@ -161,13 +169,17 @@ class TestGetStrategyState:
 class TestReleaseCircuitBreaker:
     """熔断解除测试。"""
 
-    def test_release_inactive_returns_false(self, engine: AutoHedgeRebalanceEngine) -> None:
+    def test_release_inactive_returns_false(
+        self, engine: AutoHedgeRebalanceEngine
+    ) -> None:
         # Arrange & Act
         success = engine.release_circuit_breaker("admin", "测试")
         # Assert
         assert success is False
 
-    def test_release_active_returns_true(self, engine: AutoHedgeRebalanceEngine) -> None:
+    def test_release_active_returns_true(
+        self, engine: AutoHedgeRebalanceEngine
+    ) -> None:
         # Arrange — 先触发熔断
         engine.circuit_breaker.trigger_emergency("circuit_break")
         # Act

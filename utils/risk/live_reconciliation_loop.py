@@ -49,6 +49,7 @@ logger = logging.getLogger("live_reconciliation")
 # 协议定义
 # ============================================================
 
+
 class BrokerPositionProtocol(Protocol):
     """T17 需要的 broker 持仓查询接口."""
 
@@ -60,6 +61,7 @@ class BrokerPositionProtocol(Protocol):
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 @dataclass
 class PositionDrift:
@@ -116,6 +118,7 @@ class LiveReconciliationReport:
 # 主类
 # ============================================================
 
+
 class LiveReconciliationLoop:
     """实盘对账循环 — 盘中定时 + 盘后全量 + 持仓 drift."""
 
@@ -130,7 +133,9 @@ class LiveReconciliationLoop:
         drift_halt_pct: float = 0.10,
     ) -> None:
         if intraday_interval_sec < 10:
-            raise ValueError(f"intraday_interval_sec 应 ≥10, 实际 {intraday_interval_sec}")
+            raise ValueError(
+                f"intraday_interval_sec 应 ≥10, 实际 {intraday_interval_sec}"
+            )
         if not (0 < drift_alert_pct < drift_halt_pct < 1):
             raise ValueError(
                 f"需 0 < drift_alert_pct({drift_alert_pct}) "
@@ -170,7 +175,9 @@ class LiveReconciliationLoop:
         # 1. T13 基础对账 (如果提供了数据)
         if planned_orders is not None and fills is not None:
             date_str = now.strftime("%Y-%m-%d")
-            report.base_reconciliation = self.reconciler.reconcile(date_str, planned_orders, fills)
+            report.base_reconciliation = self.reconciler.reconcile(
+                date_str, planned_orders, fills
+            )
             report.issues_count = len(report.base_reconciliation.issues_summary)
 
         # 2. 持仓 drift 检测
@@ -193,7 +200,11 @@ class LiveReconciliationLoop:
         self.audit.log(
             module="T17_RECONCILE",
             action="RECONCILE_ISSUE" if report.verdict != "pass" else "ALLOW",
-            severity="CRITICAL" if report.verdict == "halt" else ("WARN" if report.verdict == "warn" else "INFO"),
+            severity=(
+                "CRITICAL"
+                if report.verdict == "halt"
+                else ("WARN" if report.verdict == "warn" else "INFO")
+            ),
             reason=f"盘中对账 verdict={report.verdict} issues={report.issues_count} drifts={report.drift_count} halts={report.halt_count}",
         )
 
@@ -220,7 +231,9 @@ class LiveReconciliationLoop:
         )
 
         # 1. T13 全量对账
-        report.base_reconciliation = self.reconciler.reconcile(date_str, planned_orders, fills)
+        report.base_reconciliation = self.reconciler.reconcile(
+            date_str, planned_orders, fills
+        )
         report.issues_count = len(report.base_reconciliation.issues_summary)
 
         # 2. 持仓 drift
@@ -232,7 +245,11 @@ class LiveReconciliationLoop:
         # 3. 综合判定
         if report.halt_count > 0:
             report.verdict = "halt"
-        elif report.drift_count > 0 or report.issues_count > 0 or not report.base_reconciliation.all_pass:
+        elif (
+            report.drift_count > 0
+            or report.issues_count > 0
+            or not report.base_reconciliation.all_pass
+        ):
             report.verdict = "warn"
         else:
             report.verdict = "pass"
@@ -241,7 +258,11 @@ class LiveReconciliationLoop:
         self.audit.log(
             module="T17_RECONCILE",
             action="RECONCILE_ISSUE" if report.verdict != "pass" else "ALLOW",
-            severity="CRITICAL" if report.verdict == "halt" else ("WARN" if report.verdict == "warn" else "INFO"),
+            severity=(
+                "CRITICAL"
+                if report.verdict == "halt"
+                else ("WARN" if report.verdict == "warn" else "INFO")
+            ),
             reason=(
                 f"EOD全量对账 verdict={report.verdict} "
                 f"issues={report.issues_count} drifts={report.drift_count} "
@@ -249,7 +270,9 @@ class LiveReconciliationLoop:
             ),
         )
 
-        logger.info(f"[T17] EOD 对账 verdict={report.verdict} | {report.summary_text()}")
+        logger.info(
+            f"[T17] EOD 对账 verdict={report.verdict} | {report.summary_text()}"
+        )
         return report
 
     # ------------------------------------------------------------
@@ -291,14 +314,16 @@ class LiveReconciliationLoop:
             else:
                 action = "ignore"
 
-            drifts.append(PositionDrift(
-                symbol=symbol,
-                local_qty=local_qty,
-                broker_qty=broker_qty,
-                drift_qty=drift_qty,
-                drift_pct=drift_pct,
-                suggested_action=action,
-            ))
+            drifts.append(
+                PositionDrift(
+                    symbol=symbol,
+                    local_qty=local_qty,
+                    broker_qty=broker_qty,
+                    drift_qty=drift_qty,
+                    drift_pct=drift_pct,
+                    suggested_action=action,
+                )
+            )
 
         return drifts
 

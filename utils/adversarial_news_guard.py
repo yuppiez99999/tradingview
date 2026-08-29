@@ -56,17 +56,20 @@ logger = logging.getLogger("adversarial_news_guard")
 # 威胁类型枚举
 # ============================================================
 
+
 class ThreatType(str, Enum):
     """威胁类型。"""
-    HOMOGLYPH = "homoglyph"             # Unicode 同形字
-    HIDDEN_TEXT = "hidden_text"         # 隐藏文本
+
+    HOMOGLYPH = "homoglyph"  # Unicode 同形字
+    HIDDEN_TEXT = "hidden_text"  # 隐藏文本
     PROMPT_INJECTION = "prompt_injection"  # 提示注入
     EMOTION_MANIPULATION = "emotion_manipulation"  # 情绪操纵
-    NONE = "none"                       # 无威胁
+    NONE = "none"  # 无威胁
 
 
 class ThreatSeverity(str, Enum):
     """威胁严重程度。"""
+
     SAFE = "safe"
     LOW = "low"
     MEDIUM = "medium"
@@ -78,6 +81,7 @@ class ThreatSeverity(str, Enum):
 # 威胁报告
 # ============================================================
 
+
 @dataclass
 class ThreatReport:
     """威胁检测报告。
@@ -88,20 +92,25 @@ class ThreatReport:
         details: 各威胁的详细信息
         is_safe: 是否安全 (无威胁)
     """
+
     threat_types: list[ThreatType] = field(default_factory=list)
     severity: ThreatSeverity = ThreatSeverity.SAFE
     details: list[str] = field(default_factory=list)
     is_safe: bool = True
 
-    def add_threat(self, threat: ThreatType, detail: str,
-                   severity: ThreatSeverity) -> None:
+    def add_threat(
+        self, threat: ThreatType, detail: str, severity: ThreatSeverity
+    ) -> None:
         """添加检测到的威胁。"""
         self.threat_types.append(threat)
         self.details.append(detail)
         if self.severity == ThreatSeverity.SAFE or severity != ThreatSeverity.SAFE:
             severity_order = [
-                ThreatSeverity.SAFE, ThreatSeverity.LOW,
-                ThreatSeverity.MEDIUM, ThreatSeverity.HIGH, ThreatSeverity.CRITICAL,
+                ThreatSeverity.SAFE,
+                ThreatSeverity.LOW,
+                ThreatSeverity.MEDIUM,
+                ThreatSeverity.HIGH,
+                ThreatSeverity.CRITICAL,
             ]
             if severity_order.index(severity) > severity_order.index(self.severity):
                 self.severity = severity
@@ -120,6 +129,7 @@ class ThreatReport:
 # 净化结果
 # ============================================================
 
+
 @dataclass
 class SanitizationResult:
     """输入净化结果。
@@ -130,6 +140,7 @@ class SanitizationResult:
         report: 威胁报告
         modifications: 修改记录列表
     """
+
     original_text: str
     clean_text: str
     report: ThreatReport = field(default_factory=ThreatReport)
@@ -156,13 +167,34 @@ class SanitizationResult:
 # 常见同形字映射 (西里尔/希腊 → 拉丁)
 HOMOGLYPH_MAP: dict[str, str] = {
     # 西里尔字母 → 拉丁字母
-    'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x',
-    'А': 'A', 'Е': 'E', 'О': 'O', 'Р': 'P', 'С': 'C', 'У': 'Y', 'Х': 'X',
+    "а": "a",
+    "е": "e",
+    "о": "o",
+    "р": "p",
+    "с": "c",
+    "у": "y",
+    "х": "x",
+    "А": "A",
+    "Е": "E",
+    "О": "O",
+    "Р": "P",
+    "С": "C",
+    "У": "Y",
+    "Х": "X",
     # 希腊字母 → 拉丁字母
-    'ο': 'o', 'Ο': 'O',
+    "ο": "o",
+    "Ο": "O",
     # 全角字符 → 半角
-    '０': '0', '１': '1', '２': '2', '３': '3', '４': '4',
-    '５': '5', '６': '6', '７': '7', '８': '8', '９': '9',
+    "０": "0",
+    "１": "1",
+    "２": "2",
+    "３": "3",
+    "４": "4",
+    "５": "5",
+    "６": "6",
+    "７": "7",
+    "８": "8",
+    "９": "9",
 }
 
 
@@ -189,7 +221,9 @@ class HomoglyphDetector:
             unique = list(set(detected))
             detail = f"检测到 {len(detected)} 个同形字: {unique[:5]}"
             report.add_threat(
-                ThreatType.HOMOGLYPH, detail, ThreatSeverity.MEDIUM,
+                ThreatType.HOMOGLYPH,
+                detail,
+                ThreatSeverity.MEDIUM,
             )
 
         return detected, report
@@ -218,23 +252,23 @@ class HomoglyphDetector:
 
 # 零宽字符 + 控制字符 + 方向覆盖符
 HIDDEN_CHARS: set[str] = {
-    '\u200b',  # Zero Width Space
-    '\u200c',  # Zero Width Non-Joiner
-    '\u200d',  # Zero Width Joiner
-    '\u200e',  # Left-To-Right Mark
-    '\u200f',  # Right-To-Left Mark
-    '\u202a',  # Left-To-Right Embedding
-    '\u202b',  # Right-To-Left Embedding
-    '\u202c',  # Pop Directional Formatting
-    '\u202d',  # Left-To-Right Override
-    '\u202e',  # Right-To-Left Override
-    '\u2060',  # Word Joiner
-    '\u2061',  # Function Application
-    '\ufeff',  # Zero Width No-Break Space (BOM)
+    "\u200b",  # Zero Width Space
+    "\u200c",  # Zero Width Non-Joiner
+    "\u200d",  # Zero Width Joiner
+    "\u200e",  # Left-To-Right Mark
+    "\u200f",  # Right-To-Left Mark
+    "\u202a",  # Left-To-Right Embedding
+    "\u202b",  # Right-To-Left Embedding
+    "\u202c",  # Pop Directional Formatting
+    "\u202d",  # Left-To-Right Override
+    "\u202e",  # Right-To-Left Override
+    "\u2060",  # Word Joiner
+    "\u2061",  # Function Application
+    "\ufeff",  # Zero Width No-Break Space (BOM)
 }
 
 # 控制字符 (U+0000-001F, 排除 \t \n \r)
-CONTROL_CHARS = {chr(i) for i in range(0x20) if chr(i) not in '\t\n\r'}
+CONTROL_CHARS = {chr(i) for i in range(0x20) if chr(i) not in "\t\n\r"}
 
 
 class HiddenTextFilter:
@@ -255,7 +289,9 @@ class HiddenTextFilter:
         if detected:
             unique = list(set(detected))
             detail = f"检测到 {len(detected)} 个隐藏字符: {[hex(ord(c)) for c in unique[:5]]}"
-            severity = ThreatSeverity.HIGH if len(detected) > 5 else ThreatSeverity.MEDIUM
+            severity = (
+                ThreatSeverity.HIGH if len(detected) > 5 else ThreatSeverity.MEDIUM
+            )
             report.add_threat(ThreatType.HIDDEN_TEXT, detail, severity)
 
         return detected, report
@@ -285,7 +321,10 @@ class HiddenTextFilter:
 
 # 提示注入模式 (正则)
 INJECTION_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"ignore\s+(previous|above|prior|all)\s+(instructions?|rules?|prompts?)", re.IGNORECASE),
+    re.compile(
+        r"ignore\s+(previous|above|prior|all)\s+(instructions?|rules?|prompts?)",
+        re.IGNORECASE,
+    ),
     re.compile(r"disregard\s+(above|previous|prior|all)", re.IGNORECASE),
     re.compile(r"forget\s+(everything|all|previous|above)", re.IGNORECASE),
     re.compile(r"you\s+are\s+(now|actually)\s+(a|an)\s+", re.IGNORECASE),
@@ -303,14 +342,28 @@ INJECTION_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"新(指令|规则|要求)\s*[：:]"),
     re.compile(r"系统\s*[：:]"),
     re.compile(r"覆盖(之前|原来|原有|默认)(指令|规则|设置)"),
-    re.compile(r"对\s*\d{6}\s*(输出|返回|给出)\s*(positive|negative|买入|卖出)", re.IGNORECASE),
+    re.compile(
+        r"对\s*\d{6}\s*(输出|返回|给出)\s*(positive|negative|买入|卖出)", re.IGNORECASE
+    ),
 ]
 
 # 极端情绪词汇 (情绪操纵检测)
 EXTREME_EMOTION_WORDS: list[str] = [
-    "暴涨", "暴跌", "崩盘", "血洗", "恐慌", "疯狂",
-    "史诗级", "历史性", "前所未有", "不可思议",
-    "必涨", "必跌", "稳赚", "包赚", "零风险",
+    "暴涨",
+    "暴跌",
+    "崩盘",
+    "血洗",
+    "恐慌",
+    "疯狂",
+    "史诗级",
+    "历史性",
+    "前所未有",
+    "不可思议",
+    "必涨",
+    "必跌",
+    "稳赚",
+    "包赚",
+    "零风险",
 ]
 
 
@@ -330,7 +383,9 @@ class PromptInjectionDetector:
             if matches:
                 detail = f"提示注入模式: {pattern.pattern} → {matches[:3]}"
                 report.add_threat(
-                    ThreatType.PROMPT_INJECTION, detail, ThreatSeverity.HIGH,
+                    ThreatType.PROMPT_INJECTION,
+                    detail,
+                    ThreatSeverity.HIGH,
                 )
 
         return report
@@ -348,7 +403,9 @@ class PromptInjectionDetector:
             detail = f"极端情绪词汇: {detected[:5]}"
             severity = ThreatSeverity.HIGH if len(detected) >= 3 else ThreatSeverity.LOW
             report.add_threat(
-                ThreatType.EMOTION_MANIPULATION, detail, severity,
+                ThreatType.EMOTION_MANIPULATION,
+                detail,
+                severity,
             )
 
         return report
@@ -361,10 +418,14 @@ class PromptInjectionDetector:
 
         for threat in injection_report.threat_types:
             idx = injection_report.threat_types.index(threat)
-            report.add_threat(threat, injection_report.details[idx], injection_report.severity)
+            report.add_threat(
+                threat, injection_report.details[idx], injection_report.severity
+            )
         for threat in emotion_report.threat_types:
             idx = emotion_report.threat_types.index(threat)
-            report.add_threat(threat, emotion_report.details[idx], emotion_report.severity)
+            report.add_threat(
+                threat, emotion_report.details[idx], emotion_report.severity
+            )
 
         return report
 
@@ -383,6 +444,7 @@ class PromptInjectionDetector:
 # AdversarialNewsGuard (综合净化管道)
 # ============================================================
 
+
 class AdversarialNewsGuard:
     """对抗新闻攻击防护 — 综合净化管道。
 
@@ -393,15 +455,21 @@ class AdversarialNewsGuard:
             process(result.clean_text)
     """
 
-    def __init__(self,
-                 enable_homoglyph: bool = True,
-                 enable_hidden: bool = True,
-                 enable_injection: bool = True) -> None:
+    def __init__(
+        self,
+        enable_homoglyph: bool = True,
+        enable_hidden: bool = True,
+        enable_injection: bool = True,
+    ) -> None:
         self.homoglyph_detector = HomoglyphDetector() if enable_homoglyph else None
         self.hidden_filter = HiddenTextFilter() if enable_hidden else None
-        self.injection_detector = PromptInjectionDetector() if enable_injection else None
+        self.injection_detector = (
+            PromptInjectionDetector() if enable_injection else None
+        )
         self._stats: dict[str, int] = {
-            "total": 0, "safe": 0, "blocked": 0,
+            "total": 0,
+            "safe": 0,
+            "blocked": 0,
         }
 
     def sanitize(self, text: str) -> SanitizationResult:
@@ -434,7 +502,9 @@ class AdversarialNewsGuard:
             if not hidden_report.is_safe:
                 for t in hidden_report.threat_types:
                     idx = hidden_report.threat_types.index(t)
-                    report.add_threat(t, hidden_report.details[idx], hidden_report.severity)
+                    report.add_threat(
+                        t, hidden_report.details[idx], hidden_report.severity
+                    )
             clean, hidden_mods = self.hidden_filter.remove(clean)
             modifications.extend(hidden_mods)
 
@@ -444,7 +514,9 @@ class AdversarialNewsGuard:
             if not inject_report.is_safe:
                 for t in inject_report.threat_types:
                     idx = inject_report.threat_types.index(t)
-                    report.add_threat(t, inject_report.details[idx], inject_report.severity)
+                    report.add_threat(
+                        t, inject_report.details[idx], inject_report.severity
+                    )
                 clean, inject_mods = self.injection_detector.neutralize(clean)
                 modifications.extend(inject_mods)
 
@@ -453,7 +525,9 @@ class AdversarialNewsGuard:
         else:
             self._stats["blocked"] += 1
 
-        logger.debug(f"净化完成: safe={report.is_safe}, severity={report.severity.value}")
+        logger.debug(
+            f"净化完成: safe={report.is_safe}, severity={report.severity.value}"
+        )
 
         return SanitizationResult(
             original_text=text,
@@ -485,6 +559,7 @@ class AdversarialNewsGuard:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示对抗新闻攻击防护。"""

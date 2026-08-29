@@ -98,7 +98,10 @@ class TestGetMarket:
 class TestInitConnection:
     def test_graceful_failure(self):
         # 模拟连接失败, 验证 _init_connection 优雅降级 (环境可能真实连通, 故 mock _connect 抛异常)
-        with patch("utils.tdx_data_source.TDXDataSource._connect", side_effect=OSError("connection refused")):
+        with patch(
+            "utils.tdx_data_source.TDXDataSource._connect",
+            side_effect=OSError("connection refused"),
+        ):
             ds = TDXDataSource()
         assert ds._connected is False
         assert ds.source_health["tdx"]["ok"] is False

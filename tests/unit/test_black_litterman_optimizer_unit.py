@@ -3,6 +3,7 @@
 被测模块: utils/black_litterman_optimizer.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import json
@@ -26,6 +27,7 @@ from utils.black_litterman_optimizer import (  # noqa: E402
 # 辅助: 合成协方差矩阵
 # ============================================================
 
+
 def _make_cov(n: int = 3, seed: int = 42) -> np.ndarray:
     rng = np.random.default_rng(seed)
     A = rng.normal(0, 0.01, (n, n))
@@ -35,6 +37,7 @@ def _make_cov(n: int = 3, seed: int = 42) -> np.ndarray:
 # ============================================================
 # __init__
 # ============================================================
+
 
 class TestInit:
     def test_default(self):
@@ -70,6 +73,7 @@ class TestInit:
 # optimize — 无观点
 # ============================================================
 
+
 class TestOptimizeNoViews:
     def test_no_views_returns_market_weights(self):
         opt = BlackLittermanOptimizer()
@@ -98,11 +102,20 @@ class TestOptimizeNoViews:
 # optimize — 有观点
 # ============================================================
 
+
 class TestOptimizeWithViews:
     def test_absolute_view(self):
         opt = BlackLittermanOptimizer()
         cov = _make_cov(3)
-        views = [View(type="absolute", assets=["A"], weights=[1.0], expected_return=0.15, confidence=0.7)]
+        views = [
+            View(
+                type="absolute",
+                assets=["A"],
+                weights=[1.0],
+                expected_return=0.15,
+                confidence=0.7,
+            )
+        ]
         result = opt.optimize(
             assets=["A", "B", "C"],
             market_weights=[0.33, 0.33, 0.34],
@@ -115,7 +128,15 @@ class TestOptimizeWithViews:
     def test_relative_view(self):
         opt = BlackLittermanOptimizer()
         cov = _make_cov(3)
-        views = [View(type="relative", assets=["A", "B"], weights=[1.0, -1.0], expected_return=0.05, confidence=0.6)]
+        views = [
+            View(
+                type="relative",
+                assets=["A", "B"],
+                weights=[1.0, -1.0],
+                expected_return=0.05,
+                confidence=0.6,
+            )
+        ]
         result = opt.optimize(
             assets=["A", "B", "C"],
             market_weights=[0.33, 0.33, 0.34],
@@ -128,8 +149,20 @@ class TestOptimizeWithViews:
         opt = BlackLittermanOptimizer()
         cov = _make_cov(3)
         views = [
-            View(type="absolute", assets=["A"], weights=[1.0], expected_return=0.12, confidence=0.6),
-            View(type="relative", assets=["B", "C"], weights=[1.0, -1.0], expected_return=0.03, confidence=0.5),
+            View(
+                type="absolute",
+                assets=["A"],
+                weights=[1.0],
+                expected_return=0.12,
+                confidence=0.6,
+            ),
+            View(
+                type="relative",
+                assets=["B", "C"],
+                weights=[1.0, -1.0],
+                expected_return=0.03,
+                confidence=0.5,
+            ),
         ]
         result = opt.optimize(
             assets=["A", "B", "C"],
@@ -155,6 +188,7 @@ class TestOptimizeWithViews:
 # ============================================================
 # optimize — 约束
 # ============================================================
+
 
 class TestOptimizeConstraints:
     def test_max_weight(self):
@@ -183,6 +217,7 @@ class TestOptimizeConstraints:
 # ============================================================
 # optimize — 异常输入
 # ============================================================
+
 
 class TestOptimizeInvalid:
     def test_empty_assets(self):
@@ -219,7 +254,9 @@ class TestOptimizeInvalid:
 
     def test_invalid_view_asset(self):
         opt = BlackLittermanOptimizer()
-        views = [View(type="absolute", assets=["X"], weights=[1.0], expected_return=0.1)]
+        views = [
+            View(type="absolute", assets=["X"], weights=[1.0], expected_return=0.1)
+        ]
         with pytest.raises(ValueError):
             opt.optimize(
                 assets=["A", "B"],
@@ -232,6 +269,7 @@ class TestOptimizeInvalid:
 # ============================================================
 # run_shadow
 # ============================================================
+
 
 class TestRunShadow:
     def test_dict_returns(self):
@@ -276,6 +314,7 @@ class TestRunShadow:
 # ============================================================
 # save_result
 # ============================================================
+
 
 class TestSaveResult:
     def test_save_and_read(self, tmp_path):

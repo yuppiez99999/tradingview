@@ -1,4 +1,5 @@
 """T09 单元测试 — PreTradeGuard 预交易风控门."""
+
 from __future__ import annotations
 
 import pytest
@@ -63,15 +64,21 @@ class TestPriceBandRule:
 
     def test_at_limit_pass(self):
         # 正好 10.00 → 下边界 9.00 上边界 11.00
-        assert self.g.check(GuardOrderRequest("s1", "buy", 100, 11.0, prev_close=10.0)).is_pass
-        assert self.g.check(GuardOrderRequest("s1", "sell", 100, 9.0, prev_close=10.0)).is_pass
+        assert self.g.check(
+            GuardOrderRequest("s1", "buy", 100, 11.0, prev_close=10.0)
+        ).is_pass
+        assert self.g.check(
+            GuardOrderRequest("s1", "sell", 100, 9.0, prev_close=10.0)
+        ).is_pass
 
     def test_no_prev_close_skipped(self):
         # 没有昨收, PRICE_BAND 规则跳过 (不拦截); 同时确保 NOTIONAL 不超上限 (100 * 10 = 1000 << 50 万)
         r = self.g.check(GuardOrderRequest("s1", "buy", 100, 10.0))
         assert r.is_pass
         # 证明 PRICE_BAND 确实被标记 SKIPPED (非缺失)
-        assert any("PRICE_BAND" in rule and "SKIPPED" in rule for rule in r.checked_rules)
+        assert any(
+            "PRICE_BAND" in rule and "SKIPPED" in rule for rule in r.checked_rules
+        )
 
 
 class TestNotionalCapRule:
@@ -98,16 +105,22 @@ class TestSTFilterRule:
         self.g = PreTradeGuard()
 
     def test_st_buy_reject(self):
-        r = self.g.check(GuardOrderRequest("s1", "buy", 100, 5.0, symbol_name="ST 康美"))
+        r = self.g.check(
+            GuardOrderRequest("s1", "buy", 100, 5.0, symbol_name="ST 康美")
+        )
         assert r.rejected
         assert any("ST_FILTER" in s for s in r.reasons)
 
     def test_st_sell_pass(self):
-        r = self.g.check(GuardOrderRequest("s1", "sell", 100, 5.0, symbol_name="*ST 康美"))
+        r = self.g.check(
+            GuardOrderRequest("s1", "sell", 100, 5.0, symbol_name="*ST 康美")
+        )
         assert r.is_pass
 
     def test_non_st_pass(self):
-        r = self.g.check(GuardOrderRequest("s1", "buy", 100, 5.0, symbol_name="贵州茅台"))
+        r = self.g.check(
+            GuardOrderRequest("s1", "buy", 100, 5.0, symbol_name="贵州茅台")
+        )
         assert r.is_pass
 
     def test_disabled_st_filter_pass(self):
@@ -145,7 +158,9 @@ class TestSuspendFilterRule:
 
     def test_disabled_filter_pass(self):
         g = PreTradeGuard(enable_suspend_filter=False)
-        assert g.check(GuardOrderRequest("s1", "buy", 100, 10.0, is_suspended=True)).is_pass
+        assert g.check(
+            GuardOrderRequest("s1", "buy", 100, 10.0, is_suspended=True)
+        ).is_pass
 
 
 class TestBlockVsWarnMode:

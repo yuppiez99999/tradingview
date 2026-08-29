@@ -63,11 +63,24 @@ class ThetaEngine:
             try:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
-                theta_cfg = cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
+                theta_cfg = (
+                    cfg.get("hedge", {}).get("theta_engine", {})
+                    if isinstance(cfg, dict)
+                    else {}
+                )
                 if not theta_cfg.get("enabled", False):
                     logger.warning("Theta 引擎未启用 (显式路径)")
                 return theta_cfg
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
                 return {}
 
@@ -84,17 +97,43 @@ class ThetaEngine:
                 # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
-            theta_cfg = cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
+            theta_cfg = (
+                cfg.get("hedge", {}).get("theta_engine", {})
+                if isinstance(cfg, dict)
+                else {}
+            )
             if not theta_cfg.get("enabled", False):
                 logger.warning("Theta 引擎未启用 (回退路径)")
             return theta_cfg
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}")
             try:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
-                return cfg.get("hedge", {}).get("theta_engine", {}) if isinstance(cfg, dict) else {}
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e2: # P2 模块 fail-safe, 待后续精确化
+                return (
+                    cfg.get("hedge", {}).get("theta_engine", {})
+                    if isinstance(cfg, dict)
+                    else {}
+                )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e2:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"加载配置彻底失败: {e2}")
                 return {}
 
@@ -112,9 +151,27 @@ class ThetaEngine:
                     price = wind_get_etf_quote(code)
                     if price and price > 0:
                         spots[code] = float(price)
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):  # P2 模块 fail-safe, 待后续精确化
                     pass
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
         # 回退: 新浪 HTTP
@@ -135,7 +192,16 @@ class ThetaEngine:
                             price = float(parts[3])
                             if price > 0:
                                 spots[code] = price
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"新浪行情获取失败: {e}")
 
         return spots
@@ -243,7 +309,9 @@ class ThetaEngine:
                 }
             )
 
-        portfolio_yield = total_premium / total_collateral if total_collateral > 0 else 0
+        portfolio_yield = (
+            total_premium / total_collateral if total_collateral > 0 else 0
+        )
 
         plan = {
             "generate_date": datetime.now().strftime("%Y-%m-%d"),
@@ -339,13 +407,24 @@ class ThetaEngine:
                     plan = json.load(f)
                 total_premium += plan.get("total_est_premium", 0)
                 monthly_yields.append(plan.get("portfolio_yield_monthly", 0))
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 continue
 
         avg_monthly = sum(monthly_yields) / len(monthly_yields) if monthly_yields else 0
         avg_annual = avg_monthly * 12
 
-        target_range = self.config.get("expected_enhancement", {}).get("annual_cashflow_boost", [0.06, 0.09])
+        target_range = self.config.get("expected_enhancement", {}).get(
+            "annual_cashflow_boost", [0.06, 0.09]
+        )
         target_met = target_range[0] <= avg_annual <= target_range[1]
 
         return {

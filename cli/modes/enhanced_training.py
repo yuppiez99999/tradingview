@@ -18,12 +18,12 @@ def run_enhanced_training_mode(args):
         print("\n❌ 增强训练引擎未安装")
         return None
 
-    horizon = getattr(args, 'horizon', 1)
-    filter_osc = getattr(args, 'filter_oscillation', True)
-    use_optuna = getattr(args, 'optuna', False)
-    n_trials = getattr(args, 'trials', 50)
-    n_features = getattr(args, 'features', 30)
-    northbound_path = getattr(args, 'northbound', None) or None
+    horizon = getattr(args, "horizon", 1)
+    filter_osc = getattr(args, "filter_oscillation", True)
+    use_optuna = getattr(args, "optuna", False)
+    n_trials = getattr(args, "trials", 50)
+    n_features = getattr(args, "features", 30)
+    northbound_path = getattr(args, "northbound", None) or None
 
     print("\n" + "=" * 70)
     print("  🧠 ML 增强训练引擎 v2.0 — 四维优化管线")
@@ -35,17 +35,21 @@ def run_enhanced_training_mode(args):
 
     progress = ProgressIndicator("增强训练", 5)
     progress.update(1, "加载与特征工程...")
-    data_dir = os.path.join(BASE_DIR, 'data', 'cache')
-    model_dir = os.path.join(BASE_DIR, 'models')
+    data_dir = os.path.join(BASE_DIR, "data", "cache")
+    model_dir = os.path.join(BASE_DIR, "models")
 
     result = run_enhanced_training(
-        data_dir=data_dir, model_dir=model_dir,
-        prediction_horizon=horizon, filter_oscillation=filter_osc,
-        use_optuna=use_optuna, n_trials=n_trials,
-        n_features=n_features, northbound_path=northbound_path,
+        data_dir=data_dir,
+        model_dir=model_dir,
+        prediction_horizon=horizon,
+        filter_oscillation=filter_osc,
+        use_optuna=use_optuna,
+        n_trials=n_trials,
+        n_features=n_features,
+        northbound_path=northbound_path,
     )
 
-    if 'error' in result:
+    if "error" in result:
         print(f"\n❌ 训练失败: {result['error']}")
         return None
 
@@ -54,9 +58,11 @@ def run_enhanced_training_mode(args):
     progress.update(5, "完成")
     progress.complete("✅ 增强训练完成")
 
-    print(f"\n📊 最佳: {result['best_model']} | F1={result['best_f1']:.4f} "
-          f"| AUC={result['best_auc']:.4f} | 样本={result['n_samples']}")
-    for name, m in result['results'].items():
+    print(
+        f"\n📊 最佳: {result['best_model']} | F1={result['best_f1']:.4f} "
+        f"| AUC={result['best_auc']:.4f} | 样本={result['n_samples']}"
+    )
+    for name, m in result["results"].items():
         print(f"  {name:<25} F1={m['f1']:.4f}  AUC={m['auc']:.4f}")
     print("\n💡 python v5.9.py --ml-enhanced  # 使用新模型预测")
     print("=" * 70)

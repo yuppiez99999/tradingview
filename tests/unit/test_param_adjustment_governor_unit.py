@@ -3,6 +3,7 @@
 被测模块: utils/param_adjustment_governor.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,21 +27,29 @@ from utils.param_adjustment_governor import (  # noqa: E402
 # AdjustmentRequest
 # ============================================================
 
+
 class TestAdjustmentRequest:
     def test_basic(self):
-        req = AdjustmentRequest(param="max_weight", old_value=0.10, new_value=0.08,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="max_weight",
+            old_value=0.10,
+            new_value=0.08,
+            reason="ic_decay",
+            operator="rm",
+        )
         assert req.param == "max_weight"
         assert req.value_changed is True
 
     def test_no_change(self):
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.1,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.1, reason="ic_decay", operator="rm"
+        )
         assert req.value_changed is False
 
     def test_auto_timestamp(self):
-        req = AdjustmentRequest(param="x", old_value=0, new_value=1,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0, new_value=1, reason="ic_decay", operator="rm"
+        )
         assert req.requested_at is not None
 
 
@@ -48,73 +57,109 @@ class TestAdjustmentRequest:
 # ParameterAdjustmentGovernor.request (审批逻辑)
 # ============================================================
 
+
 class TestRequest:
     def test_approve(self):
         gov = ParameterAdjustmentGovernor(require_evidence=False)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
+        )
         result = gov.request(req)
         assert result.approved is True
 
     def test_reject_duplicate(self):
         gov = ParameterAdjustmentGovernor(require_evidence=False)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.1,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.1, reason="ic_decay", operator="rm"
+        )
         result = gov.request(req)
         assert result.approved is False
         assert result.rejection_code == RejectionCode.DUPLICATE_REQUEST
 
     def test_reject_invalid_reason(self):
         gov = ParameterAdjustmentGovernor(require_evidence=False)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="invalid_reason", operator="rm")
+        req = AdjustmentRequest(
+            param="x",
+            old_value=0.1,
+            new_value=0.08,
+            reason="invalid_reason",
+            operator="rm",
+        )
         result = gov.request(req)
         assert result.approved is False
         assert result.rejection_code == RejectionCode.INVALID_REASON
 
     def test_reject_missing_evidence(self):
         gov = ParameterAdjustmentGovernor(require_evidence=True)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="ic_decay", operator="rm", evidence={})
+        req = AdjustmentRequest(
+            param="x",
+            old_value=0.1,
+            new_value=0.08,
+            reason="ic_decay",
+            operator="rm",
+            evidence={},
+        )
         result = gov.request(req)
         assert result.approved is False
         assert result.rejection_code == RejectionCode.MISSING_EVIDENCE
 
     def test_approve_with_evidence(self):
         gov = ParameterAdjustmentGovernor(require_evidence=True)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="ic_decay", operator="rm", evidence={"ic": 0.02})
+        req = AdjustmentRequest(
+            param="x",
+            old_value=0.1,
+            new_value=0.08,
+            reason="ic_decay",
+            operator="rm",
+            evidence={"ic": 0.02},
+        )
         result = gov.request(req)
         assert result.approved is True
 
     def test_manual_override_no_evidence_needed(self):
         gov = ParameterAdjustmentGovernor(require_evidence=True)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="manual_override", operator="rm")
+        req = AdjustmentRequest(
+            param="x",
+            old_value=0.1,
+            new_value=0.08,
+            reason="manual_override",
+            operator="rm",
+        )
         result = gov.request(req)
         assert result.approved is True
 
     def test_reject_cooldown(self):
         gov = ParameterAdjustmentGovernor(min_interval_days=30, require_evidence=False)
-        req1 = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                 reason="ic_decay", operator="rm")
+        req1 = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
+        )
         result1 = gov.request(req1)
         gov.commit(result1)
 
-        req2 = AdjustmentRequest(param="x", old_value=0.08, new_value=0.06,
-                                 reason="ic_decay", operator="rm")
+        req2 = AdjustmentRequest(
+            param="x", old_value=0.08, new_value=0.06, reason="ic_decay", operator="rm"
+        )
         result2 = gov.request(req2)
         assert result2.approved is False
         assert result2.rejection_code == RejectionCode.COOLDOWN_ACTIVE
 
     def test_reject_monthly_limit(self):
-        gov = ParameterAdjustmentGovernor(min_interval_days=0, max_per_month=1, require_evidence=False)
-        req1 = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                 reason="ic_decay", operator="rm")
+        gov = ParameterAdjustmentGovernor(
+            min_interval_days=0, max_per_month=1, require_evidence=False
+        )
+        req1 = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
+        )
         gov.commit(gov.request(req1))
 
-        req2 = AdjustmentRequest(param="x", old_value=0.08, new_value=0.06,
-                                 reason="oos_gap_critical", operator="rm", evidence={"gap": 0.1})
+        req2 = AdjustmentRequest(
+            param="x",
+            old_value=0.08,
+            new_value=0.06,
+            reason="oos_gap_critical",
+            operator="rm",
+            evidence={"gap": 0.1},
+        )
         result2 = gov.request(req2)
         assert result2.approved is False
         assert result2.rejection_code == RejectionCode.MONTHLY_LIMIT_EXCEEDED
@@ -124,11 +169,13 @@ class TestRequest:
 # commit
 # ============================================================
 
+
 class TestCommit:
     def test_commit_approved(self):
         gov = ParameterAdjustmentGovernor(require_evidence=False)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
+        )
         result = gov.request(req)
         record = gov.commit(result)
         assert record.param == "x"
@@ -136,8 +183,9 @@ class TestCommit:
 
     def test_commit_rejected_raises(self):
         gov = ParameterAdjustmentGovernor(require_evidence=False)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.1,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.1, reason="ic_decay", operator="rm"
+        )
         result = gov.request(req)
         with pytest.raises(ValueError):
             gov.commit(result)
@@ -147,11 +195,13 @@ class TestCommit:
 # rollback
 # ============================================================
 
+
 class TestRollback:
     def test_rollback(self):
         gov = ParameterAdjustmentGovernor(require_evidence=False)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
+        )
         gov.commit(gov.request(req))
 
         record = gov.rollback("x", operator="rm", reason="bad result")
@@ -168,19 +218,22 @@ class TestRollback:
 # get_history / get_cooldown_status
 # ============================================================
 
+
 class TestQuery:
     def test_get_history_all(self):
         gov = ParameterAdjustmentGovernor(require_evidence=False)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
+        )
         gov.commit(gov.request(req))
         history = gov.get_history()
         assert len(history) == 1
 
     def test_get_history_by_param(self):
         gov = ParameterAdjustmentGovernor(require_evidence=False)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
+        )
         gov.commit(gov.request(req))
         history = gov.get_history("x")
         assert len(history) == 1
@@ -194,8 +247,9 @@ class TestQuery:
 
     def test_cooldown_active(self):
         gov = ParameterAdjustmentGovernor(min_interval_days=30, require_evidence=False)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
+        )
         gov.commit(gov.request(req))
         status = gov.get_cooldown_status("x")
         assert status["in_cooldown"] is True
@@ -203,8 +257,9 @@ class TestQuery:
 
     def test_cooldown_expired(self):
         gov = ParameterAdjustmentGovernor(min_interval_days=1, require_evidence=False)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="ic_decay", operator="rm")
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
+        )
         gov.commit(gov.request(req))
         future = datetime.now() + timedelta(days=10)
         status = gov.get_cooldown_status("x", now=future)
@@ -215,12 +270,16 @@ class TestQuery:
 # 持久化
 # ============================================================
 
+
 class TestPersistence:
     def test_save_and_load(self, tmp_path):
         history_file = tmp_path / "history.json"
-        gov1 = ParameterAdjustmentGovernor(require_evidence=False, history_file=history_file)
-        req = AdjustmentRequest(param="x", old_value=0.1, new_value=0.08,
-                                reason="ic_decay", operator="rm")
+        gov1 = ParameterAdjustmentGovernor(
+            require_evidence=False, history_file=history_file
+        )
+        req = AdjustmentRequest(
+            param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
+        )
         gov1.commit(gov1.request(req))
 
         gov2 = ParameterAdjustmentGovernor(history_file=history_file)
@@ -236,6 +295,7 @@ class TestPersistence:
 # ============================================================
 # AdjustmentReason / RejectionCode enums
 # ============================================================
+
 
 class TestEnums:
     def test_adjustment_reasons(self):

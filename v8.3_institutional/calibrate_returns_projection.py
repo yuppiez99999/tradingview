@@ -31,6 +31,7 @@ v7.5 收益预测动态校准模块
     portfolio_return_projection.json       # 更新 (expected_annualized + calibrated_weights)
     logs/calibration_history.jsonl        # 历史校准日志
 """
+
 from __future__ import annotations
 
 import argparse
@@ -68,9 +69,18 @@ os.environ["WIND_API_KEY"] = WIND_API_KEY
 
 # 持仓权重 (来自 portfolio_return_projection.json asset_detail.weight)
 POSITION_WEIGHTS = {
-    "588000": 0.1375, "512480": 0.1317, "516160": 0.1317, "515030": 0.126,
-    "159915": 0.115, "159992": 0.0947, "512400": 0.0929, "512010": 0.0664,
-    "601088": 0.0638, "518880": 0.0307, "511260": 0.005, "511520": 0.0037,
+    "588000": 0.1375,
+    "512480": 0.1317,
+    "516160": 0.1317,
+    "515030": 0.126,
+    "159915": 0.115,
+    "159992": 0.0947,
+    "512400": 0.0929,
+    "512010": 0.0664,
+    "601088": 0.0638,
+    "518880": 0.0307,
+    "511260": 0.005,
+    "511520": 0.0037,
     "511360": 0.001,
 }
 
@@ -86,7 +96,7 @@ TARGET_SYMBOLS = [
     ("159992", ".SZ", "fund_data"),  # 创新药ETF
     ("512400", ".SH", "fund_data"),  # 有色金属ETF
     ("512010", ".SH", "fund_data"),  # 医药ETF
-    ("601088", ".SH", "stock_data"), # 中国神华
+    ("601088", ".SH", "stock_data"),  # 中国神华
     ("518880", ".SH", "fund_data"),  # 黄金ETF
     ("511260", ".SH", "fund_data"),  # 十年国债ETF
     ("511520", ".SH", "fund_data"),  # 政金债ETF
@@ -127,8 +137,9 @@ logger = logging.getLogger("v75.calibrate_returns")
 # ============================================================
 # Step 1: 更新历史数据 (Wind MCP)
 # ============================================================
-def call_wind_kline(windcode: str, server_type: str,
-                    begin_date: str, end_date: str) -> dict | None:
+def call_wind_kline(
+    windcode: str, server_type: str, begin_date: str, end_date: str
+) -> dict | None:
     """调用 Wind MCP CLI 拉取日 K 线
 
     Args:
@@ -265,8 +276,9 @@ def parse_kline_to_returns(resp: dict) -> tuple[list[str], list[float]]:
     return dates[1:], returns[1:]
 
 
-def update_returns_history(begin_date: str, end_date: str,
-                           benchmark_code: str = "510300") -> dict[str, Any]:
+def update_returns_history(
+    begin_date: str, end_date: str, benchmark_code: str = "510300"
+) -> dict[str, Any]:
     """更新 config/returns_history.json + market_returns.json
 
     Args:
@@ -419,10 +431,17 @@ def calc_realized_returns() -> dict[str, Any]:
 
     start_date = dates[0][:10]
     end_date = dates[-1][:10]
-    days = (datetime.strptime(end_date, "%Y-%m-%d") -
-            datetime.strptime(start_date, "%Y-%m-%d")).days
+    days = (
+        datetime.strptime(end_date, "%Y-%m-%d")
+        - datetime.strptime(start_date, "%Y-%m-%d")
+    ).days
     if days <= 0:
-        logger.error("日期区间异常: start_date=%s, end_date=%s, days=%s", start_date, end_date, days)
+        logger.error(
+            "日期区间异常: start_date=%s, end_date=%s, days=%s",
+            start_date,
+            end_date,
+            days,
+        )
         return {
             "status": "FAIL",
             "error": f"日期区间异常: {start_date} → {end_date} (days={days})",
@@ -434,21 +453,27 @@ def calc_realized_returns() -> dict[str, Any]:
     # 每标的分析
     per_asset = []
     MIN_VALID_POINTS = 5
-    MAX_ANNUALIZED = 2.0    # 年化上限 +200% (原 5000% 过于宽松, 300308 等短期暴涨股会失真)
+    MAX_ANNUALIZED = (
+        2.0  # 年化上限 +200% (原 5000% 过于宽松, 300308 等短期暴涨股会失真)
+    )
     MIN_ANNUALIZED = -0.99  # 年化下限 -99%
-    BAYESIAN_PRIOR = 0.15   # 贝叶斯收缩先验: 15% 年化 (A股长期权益收益率中枢)
+    BAYESIAN_PRIOR = 0.15  # 贝叶斯收缩先验: 15% 年化 (A股长期权益收益率中枢)
     for i, code in enumerate(codes):
         returns = data[:, i]
         valid = returns[~np.isnan(returns)]
         if len(valid) < MIN_VALID_POINTS:
-            logger.warning(f"  [SKIP] {code}: 有效数据点不足 ({len(valid)} < {MIN_VALID_POINTS})")
+            logger.warning(
+                f"  [SKIP] {code}: 有效数据点不足 ({len(valid)} < {MIN_VALID_POINTS})"
+            )
             continue
 
         cum = float(np.prod(1 + valid) - 1)
 
         # 异常值保护：累计收益率接近 -1 时拒绝开方
         if (1 + cum) <= 1e-6:
-            logger.warning(f"  [SKIP] {code}: 累计收益率异常 (cum={cum:.6f})，可能数据缺失/倒挂")
+            logger.warning(
+                f"  [SKIP] {code}: 累计收益率异常 (cum={cum:.6f})，可能数据缺失/倒挂"
+            )
             continue
 
         annualized = float((1 + cum) ** (1 / years) - 1)
@@ -458,14 +483,18 @@ def calc_realized_returns() -> dict[str, Any]:
         if years < 2.0 and abs(annualized) > 0.5:
             shrink_weight = max(0.0, min(0.7, 1.0 - years / 2.0))
             original_ann = annualized
-            annualized = annualized * (1 - shrink_weight) + BAYESIAN_PRIOR * shrink_weight
+            annualized = (
+                annualized * (1 - shrink_weight) + BAYESIAN_PRIOR * shrink_weight
+            )
             logger.info(
                 f"  [{code}] 短周期贝叶斯收缩: {original_ann*100:+.1f}% → "
                 f"{annualized*100:+.1f}% (收缩强度 {shrink_weight*100:.0f}%)"
             )
 
         if not (MIN_ANNUALIZED <= annualized <= MAX_ANNUALIZED):
-            logger.warning(f"  [SKIP] {code}: 年化收益率异常 ({annualized*100:+.2f}%)，超出阈值 [{MIN_ANNUALIZED*100:.0f}%, {MAX_ANNUALIZED*100:.0f}%]")
+            logger.warning(
+                f"  [SKIP] {code}: 年化收益率异常 ({annualized*100:+.2f}%)，超出阈值 [{MIN_ANNUALIZED*100:.0f}%, {MAX_ANNUALIZED*100:.0f}%]"
+            )
             continue
 
         daily_vol = float(np.std(valid))
@@ -473,26 +502,30 @@ def calc_realized_returns() -> dict[str, Any]:
         sharpe = annualized / annual_vol if annual_vol > 1e-6 else 0.0
         weight = POSITION_WEIGHTS.get(code, 0.0)
 
-        per_asset.append({
-            "code": code,
-            "cum_return": cum,
-            "annualized_return": annualized,
-            "annual_volatility": annual_vol,
-            "sharpe": sharpe,
-            "weight": weight,
-        })
-        logger.info(f"  {code}: 年化 {annualized*100:+.2f}%, "
-                    f"波动 {annual_vol*100:.2f}%, 夏普 {sharpe:.2f}, 权重 {weight*100:.2f}%")
+        per_asset.append(
+            {
+                "code": code,
+                "cum_return": cum,
+                "annualized_return": annualized,
+                "annual_volatility": annual_vol,
+                "sharpe": sharpe,
+                "weight": weight,
+            }
+        )
+        logger.info(
+            f"  {code}: 年化 {annualized*100:+.2f}%, "
+            f"波动 {annual_vol*100:.2f}%, 夏普 {sharpe:.2f}, 权重 {weight*100:.2f}%"
+        )
 
     # 持仓组合加权年化
     total_weight = sum(r["weight"] for r in per_asset)
     if total_weight > 0:
-        weighted_annualized = sum(
-            r["annualized_return"] * r["weight"] for r in per_asset
-        ) / total_weight
-        weighted_cum = sum(
-            r["cum_return"] * r["weight"] for r in per_asset
-        ) / total_weight
+        weighted_annualized = (
+            sum(r["annualized_return"] * r["weight"] for r in per_asset) / total_weight
+        )
+        weighted_cum = (
+            sum(r["cum_return"] * r["weight"] for r in per_asset) / total_weight
+        )
     else:
         weighted_annualized = 0.0
         weighted_cum = 0.0
@@ -500,8 +533,12 @@ def calc_realized_returns() -> dict[str, Any]:
     # 基准
     market_data = np.array([x for x in mr["data"] if x is not None and not np.isnan(x)])
     market_cum = float(np.prod(1 + market_data) - 1) if len(market_data) > 0 else 0.0
-    market_annualized = float((1 + market_cum) ** (1 / years) - 1) if (1 + market_cum) > 0 else -0.99
-    market_vol = float(np.std(market_data) * np.sqrt(252)) if len(market_data) > 0 else 0.0
+    market_annualized = (
+        float((1 + market_cum) ** (1 / years) - 1) if (1 + market_cum) > 0 else -0.99
+    )
+    market_vol = (
+        float(np.std(market_data) * np.sqrt(252)) if len(market_data) > 0 else 0.0
+    )
     market_sharpe = market_annualized / market_vol if market_vol > 0 else 0.0
 
     result = {
@@ -520,10 +557,14 @@ def calc_realized_returns() -> dict[str, Any]:
         "market_sharpe": market_sharpe,
     }
 
-    logger.info(f"持仓组合加权年化: {weighted_annualized*100:+.2f}% "
-                f"(覆盖权重 {total_weight*100:.2f}%)")
-    logger.info(f"基准 {mr.get('name','510300')} 年化: {market_annualized*100:+.2f}%, "
-                f"夏普 {market_sharpe:.2f}")
+    logger.info(
+        f"持仓组合加权年化: {weighted_annualized*100:+.2f}% "
+        f"(覆盖权重 {total_weight*100:.2f}%)"
+    )
+    logger.info(
+        f"基准 {mr.get('name','510300')} 年化: {market_annualized*100:+.2f}%, "
+        f"夏普 {market_sharpe:.2f}"
+    )
     return result
 
 
@@ -617,8 +658,10 @@ def evaluate_candidate_pool() -> dict[str, Any]:
     logger.info(f"候选标的评估报告: {CANDIDATE_REPORT}")
     logger.info(f"  ADD 推荐: {len(add_recs)} 个")
     for r in add_recs:
-        logger.info(f"    - {r['code']} {r['name']}  综合分={r['combined_score']:.4f}  "
-                    f"建议权重={r['suggested_weight']*100:.1f}%  ({r['reason']})")
+        logger.info(
+            f"    - {r['code']} {r['name']}  综合分={r['combined_score']:.4f}  "
+            f"建议权重={r['suggested_weight']*100:.1f}%  ({r['reason']})"
+        )
     logger.info(f"  WATCH 推荐: {len(watch_recs)} 个")
     for r in watch_recs:
         logger.info(f"    - {r['code']} {r['name']}  综合分={r['combined_score']:.4f}")
@@ -654,9 +697,10 @@ def update_projection(realized: dict[str, Any]) -> dict[str, Any]:
         projection = json.load(f)
 
     # 原权重
-    original_weights = projection.get("probability_weights", {
-        "bull": 0.2, "base": 0.4, "bear": 0.3, "black_swan": 0.1
-    })
+    original_weights = projection.get(
+        "probability_weights",
+        {"bull": 0.2, "base": 0.4, "bear": 0.3, "black_swan": 0.1},
+    )
 
     # 场景年化
     bull_annualized = projection["scenarios"]["bull"]["weighted_annualized"] / 100
@@ -682,10 +726,10 @@ def update_projection(realized: dict[str, Any]) -> dict[str, Any]:
 
     # 计算新期望
     calibrated_expected = (
-        bull_annualized * calibrated["bull"] +
-        base_annualized * calibrated["base"] +
-        bear_annualized * calibrated["bear"] +
-        swan_annualized * calibrated["black_swan"]
+        bull_annualized * calibrated["bull"]
+        + base_annualized * calibrated["base"]
+        + bear_annualized * calibrated["bear"]
+        + swan_annualized * calibrated["black_swan"]
     )
 
     horizon_years = projection.get("horizon_years", 1.5)
@@ -695,9 +739,7 @@ def update_projection(realized: dict[str, Any]) -> dict[str, Any]:
     calibrated_profit = calibrated_final - initial_capital
 
     # 备份并写入
-    bak = proj_path.with_suffix(
-        f".json.bak_{datetime.now():%Y%m%d_%H%M%S}"
-    )
+    bak = proj_path.with_suffix(f".json.bak_{datetime.now():%Y%m%d_%H%M%S}")
     with open(bak, "w", encoding="utf-8") as f:
         json.dump(projection, f, ensure_ascii=False, indent=2)
     logger.info(f"备份原 projection → {bak.name}")
@@ -725,7 +767,9 @@ def update_projection(realized: dict[str, Any]) -> dict[str, Any]:
     logger.info(f"已更新 {proj_path}")
 
     logger.info(f"校准原因: {calibration_reason}")
-    logger.info(f"原期望年化: {projection.get('expected',{}).get('expected_annualized',0):.2f}%")
+    logger.info(
+        f"原期望年化: {projection.get('expected',{}).get('expected_annualized',0):.2f}%"
+    )
     logger.info(f"新期望年化: {calibrated_expected*100:.2f}%")
     logger.info(f"新期望期末金额: ¥{calibrated_final:,.0f}")
 
@@ -808,8 +852,13 @@ def run_calibration(
 
     # Step 1
     if skip_fetch:
-        step1 = {"status": "SKIP", "success": 0, "fail": 0,
-                 "total_days": 0, "total_symbols": 0}
+        step1 = {
+            "status": "SKIP",
+            "success": 0,
+            "fail": 0,
+            "total_days": 0,
+            "total_symbols": 0,
+        }
         logger.info("Step 1 跳过 (使用现有 returns_history.json)")
     else:
         step1 = update_returns_history(begin_date, end_date)
@@ -819,7 +868,9 @@ def run_calibration(
             logger.warning("可能原因: Wind MCP QUOTA_ERROR (每日配额耗尽)")
             logger.warning("建议: 检查 WIND_API_KEY 或等待次日配额重置")
             step1["status"] = "DEGRADED"
-            step1["degraded_reason"] = "Wind MCP 拉取失败, 使用现有 returns_history.json"
+            step1["degraded_reason"] = (
+                "Wind MCP 拉取失败, 使用现有 returns_history.json"
+            )
 
     # Step 2
     step2 = calc_realized_returns()
@@ -861,12 +912,13 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--begin-date", default=None,
-                        help="起始日期 YYYYMMDD (默认 400 天前)")
-    parser.add_argument("--end-date", default=None,
-                        help="结束日期 YYYYMMDD (默认今日)")
-    parser.add_argument("--skip-fetch", action="store_true",
-                        help="跳过 Wind 拉取, 仅用现有数据校准")
+    parser.add_argument(
+        "--begin-date", default=None, help="起始日期 YYYYMMDD (默认 400 天前)"
+    )
+    parser.add_argument("--end-date", default=None, help="结束日期 YYYYMMDD (默认今日)")
+    parser.add_argument(
+        "--skip-fetch", action="store_true", help="跳过 Wind 拉取, 仅用现有数据校准"
+    )
     args = parser.parse_args()
 
     # 配置根日志

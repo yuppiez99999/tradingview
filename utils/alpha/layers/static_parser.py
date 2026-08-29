@@ -26,6 +26,7 @@
     # 转 RootCause
     causes = parser.to_root_causes(errors)
 """
+
 from __future__ import annotations
 
 import logging
@@ -79,12 +80,12 @@ _PYLINT_PATTERN = re.compile(
 
 # pylint 错误类型前缀 → severity 映射
 _PYLINT_SEVERITY_MAP: dict[str, str] = {
-    "E": SEVERITY_HIGH,    # Error
-    "F": SEVERITY_HIGH,    # Fatal
+    "E": SEVERITY_HIGH,  # Error
+    "F": SEVERITY_HIGH,  # Fatal
     "W": SEVERITY_MEDIUM,  # Warning
-    "C": SEVERITY_LOW,     # Convention
-    "R": SEVERITY_LOW,     # Refactor
-    "I": SEVERITY_LOW,     # Info
+    "C": SEVERITY_LOW,  # Convention
+    "R": SEVERITY_LOW,  # Refactor
+    "I": SEVERITY_LOW,  # Info
 }
 
 # mypy severity 映射
@@ -114,6 +115,7 @@ class StaticError:
         message: 错误消息
         symbol: pylint 符号名 (如 "no-member"), mypy 为空
     """
+
     tool: str
     file: str
     line: int
@@ -182,7 +184,16 @@ class StaticParser:
                 err = self._parse_mypy_line(line)
                 if err is not None:
                     errors.append(err)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("mypy 输出解析失败 (降级为空): %s", e)
         return errors
@@ -230,7 +241,16 @@ class StaticParser:
                 err = self._parse_pylint_line(line)
                 if err is not None:
                     errors.append(err)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("pylint 输出解析失败 (降级为空): %s", e)
         return errors
@@ -243,7 +263,11 @@ class StaticParser:
             return None
         code = m.group("code")
         # pylint 代码首字母决定 severity (E/F/W/C/R/I)
-        severity = _PYLINT_SEVERITY_MAP.get(code[0], SEVERITY_MEDIUM) if code else SEVERITY_MEDIUM
+        severity = (
+            _PYLINT_SEVERITY_MAP.get(code[0], SEVERITY_MEDIUM)
+            if code
+            else SEVERITY_MEDIUM
+        )
         col_str = m.group("col")
         return StaticError(
             tool="pylint",
@@ -311,7 +335,16 @@ class StaticParser:
                     detected_at=now,
                 )
                 causes.append(cause)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("StaticError 转 RootCause 失败 (跳过): %s", e)
         return causes
@@ -342,7 +375,16 @@ class StaticParser:
                     text = f.read_text(encoding="utf-8", errors="ignore")
                     errors = self.parse_mypy(text)
                     causes.extend(self.to_root_causes(errors))
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.warning("解析 mypy 报告失败 %s: %s", f.name, e)
             # pylint 报告
@@ -351,10 +393,28 @@ class StaticParser:
                     text = f.read_text(encoding="utf-8", errors="ignore")
                     errors = self.parse_pylint(text)
                     causes.extend(self.to_root_causes(errors))
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.warning("解析 pylint 报告失败 %s: %s", f.name, e)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("解析报告目录失败 (降级为空): %s", e)
         return causes

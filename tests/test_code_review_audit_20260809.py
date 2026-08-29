@@ -9,6 +9,7 @@
 运行:
     pytest tests/test_code_review_audit_20260809.py -v
 """
+
 from __future__ import annotations
 
 import importlib
@@ -122,7 +123,9 @@ def test_n1_index_fetch_failure_forces_zero_capital():
 
     ex = BuildPlanExecutor()  # plan_data=None，get_emergency_protocol 不依赖 plan
     protocol = ex.get_emergency_protocol({"data_degraded": True})
-    assert protocol["level"] == 2, f"data_degraded 须触发 HIGH_DEGRADED, 实得 {protocol['level']}"
+    assert (
+        protocol["level"] == 2
+    ), f"data_degraded 须触发 HIGH_DEGRADED, 实得 {protocol['level']}"
     assert protocol["day_capital_multiplier"] == 0.0, "数据不可信时禁止建仓 (0.0)"
     assert protocol["etf_signal"] == "unknown"
 
@@ -138,7 +141,9 @@ def test_n2_no_global_seed_pollution():
     before_key = np.random.get_state()[1].tobytes()
     adi.AltDataIndicators().load_demo_data(["600519.SH", "000001.SZ"])
     after_key = np.random.get_state()[1].tobytes()
-    assert before_key == after_key, "load_demo_data 不应修改进程级全局 RNG 状态 (N-2 回归)"
+    assert (
+        before_key == after_key
+    ), "load_demo_data 不应修改进程级全局 RNG 状态 (N-2 回归)"
 
 
 def test_n3_order_ids_unique_across_batch():

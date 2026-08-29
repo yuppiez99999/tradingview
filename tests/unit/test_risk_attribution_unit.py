@@ -3,6 +3,7 @@
 被测模块: utils/risk_attribution.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import json
@@ -30,6 +31,7 @@ from utils.risk_attribution import (  # noqa: E402
 # _calc_concentration
 # ============================================================
 
+
 class TestConcentration:
     def test_empty(self):
         r = _calc_concentration([])
@@ -37,8 +39,8 @@ class TestConcentration:
 
     def test_equal_weights(self):
         r = _calc_concentration([100, 100, 100])
-        assert r["hhi"] == pytest.approx(1/3, abs=0.01)
-        assert r["top1"] == pytest.approx(1/3, abs=0.01)
+        assert r["hhi"] == pytest.approx(1 / 3, abs=0.01)
+        assert r["top1"] == pytest.approx(1 / 3, abs=0.01)
 
     def test_concentrated(self):
         r = _calc_concentration([90, 5, 5])
@@ -58,6 +60,7 @@ class TestConcentration:
 # _aggregate
 # ============================================================
 
+
 class TestAggregate:
     def test_basic(self):
         r = _aggregate([("科技", 100), ("金融", 200), ("科技", 50)])
@@ -76,6 +79,7 @@ class TestAggregate:
 # _to_pct_map
 # ============================================================
 
+
 class TestToPctMap:
     def test_basic(self):
         r = _to_pct_map({"A": 100, "B": 300}, 400)
@@ -90,6 +94,7 @@ class TestToPctMap:
 # ============================================================
 # _calc_hedge_residual
 # ============================================================
+
 
 class TestHedgeResidual:
     def test_no_hedge(self):
@@ -107,7 +112,14 @@ class TestHedgeResidual:
 
     def test_with_options(self):
         positions = [{"amount": 1000, "beta": 1.0}]
-        hedge = {"PUT": {"is_option": True, "target_contracts": 1, "premium_budget": 5000, "estimated_notional": 100000}}
+        hedge = {
+            "PUT": {
+                "is_option": True,
+                "target_contracts": 1,
+                "premium_budget": 5000,
+                "estimated_notional": 100000,
+            }
+        }
         r = _calc_hedge_residual(positions, hedge)
         assert r["options_contracts"] == 1
         assert r["tail_risk_coverage_pct"] > 0
@@ -117,12 +129,17 @@ class TestHedgeResidual:
 # load_positions / load_hedge_positions
 # ============================================================
 
+
 class TestLoadPositions:
     def test_missing_file(self, tmp_path):
         assert load_positions(tmp_path / "nonexistent.json") == []
 
     def test_valid_file(self, tmp_path):
-        data = {"positions": {"A": {"code": "A", "amount": 100, "est_price": 10, "beta": 1.2}}}
+        data = {
+            "positions": {
+                "A": {"code": "A", "amount": 100, "est_price": 10, "beta": 1.2}
+            }
+        }
         f = tmp_path / "positions.json"
         f.write_text(json.dumps(data), encoding="utf-8")
         positions = load_positions(f)
@@ -144,15 +161,39 @@ class TestLoadPositions:
 # compute_attribution
 # ============================================================
 
+
 class TestComputeAttribution:
     def _make_positions_file(self, tmp_path):
         data = {
             "positions": {
-                "A": {"code": "A", "amount": 500, "est_price": 10, "sector": "科技", "style": "成长", "beta": 1.2},
-                "B": {"code": "B", "amount": 300, "est_price": 20, "sector": "金融", "style": "价值", "beta": 0.8},
-                "C": {"code": "C", "amount": 200, "est_price": 30, "sector": "科技", "style": "成长", "beta": 1.0},
+                "A": {
+                    "code": "A",
+                    "amount": 500,
+                    "est_price": 10,
+                    "sector": "科技",
+                    "style": "成长",
+                    "beta": 1.2,
+                },
+                "B": {
+                    "code": "B",
+                    "amount": 300,
+                    "est_price": 20,
+                    "sector": "金融",
+                    "style": "价值",
+                    "beta": 0.8,
+                },
+                "C": {
+                    "code": "C",
+                    "amount": 200,
+                    "est_price": 30,
+                    "sector": "科技",
+                    "style": "成长",
+                    "beta": 1.0,
+                },
             },
-            "hedge_positions": {"IC": {"target_contracts": 1, "target_beta_reduction": 0.3}},
+            "hedge_positions": {
+                "IC": {"target_contracts": 1, "target_beta_reduction": 0.3}
+            },
         }
         f = tmp_path / "positions.json"
         f.write_text(json.dumps(data), encoding="utf-8")
@@ -191,6 +232,7 @@ class TestComputeAttribution:
 # ============================================================
 # attribution_to_dict
 # ============================================================
+
 
 class TestAttributionToDict:
     def test_basic(self, tmp_path):

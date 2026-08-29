@@ -52,7 +52,9 @@ IMPACT_COEFF_BY_TIER: dict[MarketCapTier, float] = {
 }
 
 
-def classify_market_cap_tier(market_cap: float | None = None, symbol: str | None = None) -> MarketCapTier:
+def classify_market_cap_tier(
+    market_cap: float | None = None, symbol: str | None = None
+) -> MarketCapTier:
     """根据市值或股票代码分组。
 
     简化规则:
@@ -68,12 +70,11 @@ def classify_market_cap_tier(market_cap: float | None = None, symbol: str | None
     cap_yi = market_cap / 1e8  # 转为亿
     if cap_yi >= 500:
         return MarketCapTier.LARGE
-    elif cap_yi >= 100:
+    if cap_yi >= 100:
         return MarketCapTier.MID
-    elif cap_yi >= 20:
+    if cap_yi >= 20:
         return MarketCapTier.SMALL
-    else:
-        return MarketCapTier.MICRO
+    return MarketCapTier.MICRO
 
 
 @dataclass
@@ -82,8 +83,12 @@ class CostParameters:
 
     # --- 分层滑点 (按 MarketCapTier 覆盖默认值) ---
     default_slippage_bps: float = 10.0
-    slippage_by_tier: dict[MarketCapTier, float] = field(default_factory=lambda: dict(SLIPPAGE_BY_TIER))
-    impact_coeff_by_tier: dict[MarketCapTier, float] = field(default_factory=lambda: dict(IMPACT_COEFF_BY_TIER))
+    slippage_by_tier: dict[MarketCapTier, float] = field(
+        default_factory=lambda: dict(SLIPPAGE_BY_TIER)
+    )
+    impact_coeff_by_tier: dict[MarketCapTier, float] = field(
+        default_factory=lambda: dict(IMPACT_COEFF_BY_TIER)
+    )
 
     slippage_nonlinear_exp: float = 1.2  # 滑点非线性指数 (>1 表示大单滑点加速)
     commission_rate: float = 0.00025  # 佣金率，万2.5 (v8.3.2: 下调至机构实际水平)
@@ -140,7 +145,9 @@ class TransactionCostModel:
             tier = classify_market_cap_tier(market_cap)
         tier_bps = self.get_slippage_bps(tier)
         base_slippage = notional * tier_bps / 10000.0
-        volatility_adj = 1.0 + self.params.impact_volatility_adj * max(volatility - 0.02, 0.0) / 0.02
+        volatility_adj = (
+            1.0 + self.params.impact_volatility_adj * max(volatility - 0.02, 0.0) / 0.02
+        )
         return base_slippage * volatility_adj
 
     def estimate_commission(self, notional: float, side: str = "BUY") -> float:
@@ -152,7 +159,11 @@ class TransactionCostModel:
         - 过户费: 双边万0.1
         """
         commission = notional * self.params.commission_rate
-        stamp_tax = notional * self.params.stamp_tax_rate if side.upper() in ("SELL", "SHORT") else 0.0
+        stamp_tax = (
+            notional * self.params.stamp_tax_rate
+            if side.upper() in ("SELL", "SHORT")
+            else 0.0
+        )
         transfer = notional * self.params.transfer_fee
         return max(commission, self.params.min_commission) + stamp_tax + transfer
 
@@ -181,13 +192,20 @@ class TransactionCostModel:
         coeff = self.get_impact_coeff(tier)
         participation = min(notional / avg_daily_volume, self.params.participation_rate)
         base_impact = notional * coeff * (participation**self.params.impact_exponent)
-        volatility_adj = 1.0 + self.params.impact_volatility_adj * max(volatility - 0.02, 0.0) / 0.02
+        volatility_adj = (
+            1.0 + self.params.impact_volatility_adj * max(volatility - 0.02, 0.0) / 0.02
+        )
         return base_impact * volatility_adj  # type: ignore
-    def estimate_opportunity_cost(self, notional: float, days_delayed: float = 1.0) -> float:
+
+    def estimate_opportunity_cost(
+        self, notional: float, days_delayed: float = 1.0
+    ) -> float:
         """机会成本 (v8.1: 建仓延迟导致的预期收益损失)"""
         return notional * self.params.opportunity_cost_rate * days_delayed
 
-    def estimate_delay_cost(self, notional: float = 0.0, hours_delayed: float = 0.0) -> float:
+    def estimate_delay_cost(
+        self, notional: float = 0.0, hours_delayed: float = 0.0
+    ) -> float:
         """延迟成本 (v8.1: 执行延迟产生的额外成本)"""
         if hours_delayed <= 0:
             return 0.0
@@ -212,7 +230,10 @@ class TransactionCostModel:
         return adv * pct
 
     def estimate_strategy_capacity(
-        self, adv_list: dict[str, float], position_weights: dict[str, float], total_aum: float
+        self,
+        adv_list: dict[str, float],
+        position_weights: dict[str, float],
+        total_aum: float,
     ) -> float:
         """估算策略总容量 (v8.3.2 NEW)
 

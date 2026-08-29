@@ -9,6 +9,7 @@
     6. daily_build_and_hedge 路径修正 (BASE_DIR 回退两级)
     7. 关键接口 (类/函数/常量) 可访问且行为正确
 """
+
 from __future__ import annotations
 
 import importlib
@@ -30,6 +31,7 @@ class TestNewPathImport:
     def test_import_rebalance_execution_orders_new_path(self):
         """从新路径导入 rebalance_execution_orders."""
         from utils.execution import rebalance_execution_orders as mod
+
         assert mod is not None
         assert hasattr(mod, "TARGET_ALLOCATION")
         assert hasattr(mod, "load_positions")
@@ -38,6 +40,7 @@ class TestNewPathImport:
     def test_import_daily_build_and_hedge_new_path(self):
         """从新路径导入 daily_build_and_hedge."""
         from utils.execution import daily_build_and_hedge as mod
+
         assert mod is not None
         assert hasattr(mod, "DailyBuildHedgeSystem")
         assert hasattr(mod, "BASE_DIR")
@@ -46,6 +49,7 @@ class TestNewPathImport:
     def test_import_automated_execution_system_new_path(self):
         """从新路径导入 automated_execution_system."""
         from utils.execution import automated_execution_system as mod
+
         assert mod is not None
         assert hasattr(mod, "AutomatedExecutionSystem")
         assert hasattr(mod, "TradingCalendar")
@@ -58,6 +62,7 @@ class TestNewPathImport:
             daily_build_and_hedge,
             rebalance_execution_orders,
         )
+
         assert automated_execution_system is not None
         assert daily_build_and_hedge is not None
         assert rebalance_execution_orders is not None
@@ -96,7 +101,10 @@ class TestPathEquivalence:
     def test_rebalance_target_allocation_equivalent(self):
         """新旧路径的 TARGET_ALLOCATION 等价."""
         import rebalance_execution_orders as old_mod
-        from utils.execution.rebalance_execution_orders import TARGET_ALLOCATION as new_tgt
+        from utils.execution.rebalance_execution_orders import (
+            TARGET_ALLOCATION as new_tgt,
+        )
+
         assert new_tgt == old_mod.TARGET_ALLOCATION
         # 验证关键内容
         # 宽基/科技配比已调整 (TODO: 待产品确认)
@@ -112,6 +120,7 @@ class TestPathEquivalence:
             MIN_TRADE_AMOUNT,
             TARGET_TOTAL,
         )
+
         assert MIN_TRADE_AMOUNT == old_mod.MIN_TRADE_AMOUNT == 10000
         assert MAX_SINGLE_ORDER_AMOUNT == old_mod.MAX_SINGLE_ORDER_AMOUNT == 200000
         assert MIN_LOT_SIZE == old_mod.MIN_LOT_SIZE == 100
@@ -123,6 +132,7 @@ class TestPathEquivalence:
         from utils.execution.rebalance_execution_orders import (
             load_positions as new_func,
         )
+
         # re-export 应该是同一对象引用
         assert new_func is old_mod.load_positions
 
@@ -132,6 +142,7 @@ class TestPathEquivalence:
         from utils.execution.automated_execution_system import (
             AutomatedExecutionSystem as new_cls,
         )
+
         assert new_cls is old_mod.AutomatedExecutionSystem
 
     def test_daily_build_class_equivalent(self):
@@ -140,6 +151,7 @@ class TestPathEquivalence:
         from utils.execution.daily_build_and_hedge import (
             DailyBuildHedgeSystem as new_cls,
         )
+
         assert new_cls is old_mod.DailyBuildHedgeSystem
 
 
@@ -152,6 +164,7 @@ class TestPathFix:
     def test_rebalance_project_root_resolved(self):
         """rebalance_execution_orders._PROJECT_ROOT 指向 8.4 项目根目录."""
         from utils.execution.rebalance_execution_orders import _PROJECT_ROOT
+
         root = Path(_PROJECT_ROOT)
         # 验证路径包含项目根目录的标志 (config/positions.json 存在)
         assert (root / "config" / "positions.json").exists()
@@ -161,7 +174,9 @@ class TestPathFix:
 
     def test_rebalance_no_hardcoded_v71_path(self):
         """rebalance_execution_orders 源码中不再包含硬编码 v7.1 路径."""
-        src_path = _PROJECT_ROOT / "utils" / "execution" / "rebalance_execution_orders.py"
+        src_path = (
+            _PROJECT_ROOT / "utils" / "execution" / "rebalance_execution_orders.py"
+        )
         content = src_path.read_text(encoding="utf-8")
         # 旧 bug 路径不应出现 (除了注释说明)
         assert "e:\\\\各种PY程序\\\\28-终极量化交易系统7.1" not in content
@@ -170,6 +185,7 @@ class TestPathFix:
     def test_automated_execution_project_root_resolved(self):
         """automated_execution_system._PROJECT_ROOT 指向 8.4 项目根目录."""
         from utils.execution.automated_execution_system import _PROJECT_ROOT
+
         root = Path(_PROJECT_ROOT)
         assert (root / "v8.3_institutional" / "src").exists()
         assert "28-终极量化交易系统8.4" in str(root)
@@ -177,6 +193,7 @@ class TestPathFix:
     def test_daily_build_base_dir_resolved(self):
         """daily_build_and_hedge.BASE_DIR 指向 8.4 项目根目录."""
         from utils.execution.daily_build_and_hedge import BASE_DIR
+
         root = Path(BASE_DIR)
         assert (root / "v8.3_institutional").exists()
         assert "28-终极量化交易系统8.4" in str(root)
@@ -193,6 +210,7 @@ class TestKeyInterfaces:
     def test_rebalance_classify_style(self):
         """classify_style 函数行为正确."""
         from utils.execution.rebalance_execution_orders import classify_style
+
         style_map = {"600276": "医药", "000001": "银行", "510050": "宽基"}
         result = classify_style(style_map)
         assert "医药" in result
@@ -203,6 +221,7 @@ class TestKeyInterfaces:
     def test_rebalance_validate_order_buy(self):
         """validate_order BUY 订单验证 (金额需 >= MIN_TRADE_AMOUNT=10000)."""
         from utils.execution.rebalance_execution_orders import validate_order
+
         positions = {"600276": 0}
         # 200股 * 50元 = 10000元 = MIN_TRADE_AMOUNT, 满足要求
         result = validate_order("600276", "BUY", 200, 50.0, positions)
@@ -213,6 +232,7 @@ class TestKeyInterfaces:
     def test_rebalance_validate_order_sell_exceeds_position(self):
         """validate_order SELL 超持仓验证."""
         from utils.execution.rebalance_execution_orders import validate_order
+
         positions = {"600276": 50}
         result = validate_order("600276", "SELL", 100, 50.0, positions)
         assert result["valid"] is False
@@ -221,6 +241,7 @@ class TestKeyInterfaces:
     def test_rebalance_calc_current_allocation(self):
         """calc_current_allocation 计算风格配置."""
         from utils.execution.rebalance_execution_orders import calc_current_allocation
+
         positions = {"600276": 1000, "000001": 500}
         prices = {"600276": 50.0, "000001": 15.0}
         styles = {"600276": "医药", "000001": "银行"}
@@ -233,6 +254,7 @@ class TestKeyInterfaces:
     def test_automated_execution_to_wind_code(self):
         """_to_wind_code 函数行为正确 (返回 (code, is_etf) 元组)."""
         from utils.execution.automated_execution_system import _to_wind_code
+
         # 测试前缀剥离 + 自动添加后缀 (返回元组: code, is_etf)
         # sh600276 → 600276 (剥前缀) → 6开头 → "600276.SH", is_etf=False
         result = _to_wind_code("sh600276")
@@ -253,6 +275,7 @@ class TestKeyInterfaces:
     def test_automated_execution_trading_calendar_class(self):
         """TradingCalendar 类可实例化."""
         from utils.execution.automated_execution_system import TradingCalendar
+
         cal = TradingCalendar()
         assert cal is not None
         # 验证关键方法存在
@@ -274,7 +297,9 @@ class TestSystemIntegrationRef:
         # 验证新路径优先
         assert "from utils.execution.automated_execution_system import" in content
         # 验证旧路径作为回退
-        assert "from automated_execution_system import AutomatedExecutionSystem" in content
+        assert (
+            "from automated_execution_system import AutomatedExecutionSystem" in content
+        )
 
 
 # ============================================================
@@ -316,7 +341,9 @@ class TestMigrationIntegrity:
         for f, max_size in files:
             path = _PROJECT_ROOT / f
             size = path.stat().st_size
-            assert size < max_size, f"re-export 文件 {f} 过大: {size} bytes (应 < {max_size})"
+            assert (
+                size < max_size
+            ), f"re-export 文件 {f} 过大: {size} bytes (应 < {max_size})"
 
     def test_migrated_files_are_large(self):
         """迁移后的文件应保留完整代码."""
@@ -358,6 +385,7 @@ class TestModuleAttributes:
     def test_rebalance_module_file_attribute(self):
         """rebalance_execution_orders.__file__ 指向 utils/execution/."""
         from utils.execution import rebalance_execution_orders as mod
+
         file_path = Path(mod.__file__).resolve()
         assert "utils" in file_path.parts
         assert "execution" in file_path.parts
@@ -366,6 +394,7 @@ class TestModuleAttributes:
     def test_daily_build_module_file_attribute(self):
         """daily_build_and_hedge.__file__ 指向 utils/execution/."""
         from utils.execution import daily_build_and_hedge as mod
+
         file_path = Path(mod.__file__).resolve()
         assert "utils" in file_path.parts
         assert "execution" in file_path.parts
@@ -374,6 +403,7 @@ class TestModuleAttributes:
     def test_automated_execution_module_file_attribute(self):
         """automated_execution_system.__file__ 指向 utils/execution/."""
         from utils.execution import automated_execution_system as mod
+
         file_path = Path(mod.__file__).resolve()
         assert "utils" in file_path.parts
         assert "execution" in file_path.parts
@@ -389,26 +419,40 @@ class TestAllExport:
     def test_reexport_rebalance_all(self):
         """rebalance_execution_orders re-export __all__ 完整."""
         import rebalance_execution_orders as mod
+
         expected = {
-            "TARGET_ALLOCATION", "MIN_TRADE_AMOUNT", "MAX_SINGLE_ORDER_AMOUNT",
-            "MIN_LOT_SIZE", "TARGET_TOTAL", "load_positions", "classify_style",
-            "calc_current_allocation", "validate_order", "generate_rebalance_orders",
-            "build_report", "main",
+            "TARGET_ALLOCATION",
+            "MIN_TRADE_AMOUNT",
+            "MAX_SINGLE_ORDER_AMOUNT",
+            "MIN_LOT_SIZE",
+            "TARGET_TOTAL",
+            "load_positions",
+            "classify_style",
+            "calc_current_allocation",
+            "validate_order",
+            "generate_rebalance_orders",
+            "build_report",
+            "main",
         }
         assert expected.issubset(set(mod.__all__))
 
     def test_reexport_daily_build_all(self):
         """daily_build_and_hedge re-export __all__ 完整."""
         import daily_build_and_hedge as mod
+
         expected = {"DailyBuildHedgeSystem", "BASE_DIR", "LOG_DIR", "logger"}
         assert expected.issubset(set(mod.__all__))
 
     def test_reexport_automated_execution_all(self):
         """automated_execution_system re-export __all__ 完整."""
         import automated_execution_system as mod
+
         expected = {
-            "AutomatedExecutionSystem", "ExecutionStrategy",
-            "MarketStateEvaluator", "OrderRouter", "TradingCalendar",
+            "AutomatedExecutionSystem",
+            "ExecutionStrategy",
+            "MarketStateEvaluator",
+            "OrderRouter",
+            "TradingCalendar",
         }
         assert expected.issubset(set(mod.__all__))
 

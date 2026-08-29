@@ -16,6 +16,7 @@
     # 仅列出待扫文件, 不实际调用 LLM (dry-run)
     python scripts/mmr_code_scan.py --priority p0 --dry-run
 """
+
 from __future__ import annotations
 
 import argparse
@@ -44,8 +45,15 @@ RISK_PRIORITY: dict[str, list[str]] = {
 }
 
 SKIP_DIRS = {
-    "__pycache__", ".git", "external", "temp", "qlib_env",
-    "tests", "research/references", "node_modules", ".venv",
+    "__pycache__",
+    ".git",
+    "external",
+    "temp",
+    "qlib_env",
+    "tests",
+    "research/references",
+    "node_modules",
+    ".venv",
 }
 
 MAX_CHARS_PER_FILE = 8000
@@ -90,20 +98,25 @@ def scan_file(
             judge_mode="vote",
             output_path=out_file,
         )
-        results.append({
-            "lens": lens,
-            "confirmed": len(r.confirmed_findings),
-            "mode": r.mode,
-            "success": r.success,
-            "findings": [
-                {
-                    "id": f.id, "severity": f.severity,
-                    "title": f.title, "description": f.description,
-                    "location": f.location, "model": f.model,
-                }
-                for f in r.confirmed_findings
-            ],
-        })
+        results.append(
+            {
+                "lens": lens,
+                "confirmed": len(r.confirmed_findings),
+                "mode": r.mode,
+                "success": r.success,
+                "findings": [
+                    {
+                        "id": f.id,
+                        "severity": f.severity,
+                        "title": f.title,
+                        "description": f.description,
+                        "location": f.location,
+                        "model": f.model,
+                    }
+                    for f in r.confirmed_findings
+                ],
+            }
+        )
 
     total_confirmed = sum(r["confirmed"] for r in results)
     return {
@@ -116,16 +129,23 @@ def scan_file(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="MMR 代码质量+安全扫描")
-    parser.add_argument("--priority", choices=["p0", "p1", "p2", "all"],
-                        help="风险优先级 (p0=核心 p1=关键 p2=支撑 all=全部)")
+    parser.add_argument(
+        "--priority",
+        choices=["p0", "p1", "p2", "all"],
+        help="风险优先级 (p0=核心 p1=关键 p2=支撑 all=全部)",
+    )
     parser.add_argument("--target", help="指定目录或文件路径 (覆盖 --priority)")
     parser.add_argument("--file", help="扫描单个文件")
-    parser.add_argument("--lens", default="correctness",
-                        help="lens (correctness/testing/adversarial/all, 逗号分隔)")
+    parser.add_argument(
+        "--lens",
+        default="correctness",
+        help="lens (correctness/testing/adversarial/all, 逗号分隔)",
+    )
     parser.add_argument("--limit", type=int, help="限制扫描文件数")
     parser.add_argument("--dry-run", action="store_true", help="仅列出待扫文件")
-    parser.add_argument("--output", default="reports/mmr_reviews/code_scan",
-                        help="输出目录")
+    parser.add_argument(
+        "--output", default="reports/mmr_reviews/code_scan", help="输出目录"
+    )
     args = parser.parse_args()
 
     if args.file:
@@ -157,7 +177,9 @@ def main() -> int:
             rel = f.relative_to(PROJECT_ROOT)
             size = f.stat().st_size
             print(f"  {rel} ({size:,} bytes)")
-        print(f"\n[DRY-RUN] {len(files)} files, estimated cost: ~${len(files) * len(lenses) * 0.02:.2f}")
+        print(
+            f"\n[DRY-RUN] {len(files)} files, estimated cost: ~${len(files) * len(lenses) * 0.02:.2f}"
+        )
         return 0
 
     output_dir = PROJECT_ROOT / args.output
@@ -186,7 +208,9 @@ def main() -> int:
         "total_confirmed": total_confirmed,
         "results": all_results,
     }
-    summary_path = output_dir / f"summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    summary_path = (
+        output_dir / f"summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
 

@@ -8,6 +8,7 @@
   - 诊断 (get_status/__repr__)
 mock xtquant.xtdata, 覆盖核心路径与异常分支.
 """
+
 from __future__ import annotations
 
 import sys
@@ -200,20 +201,38 @@ class TestDisconnect:
 class TestOnTick:
     def test_on_tick_updates_prices(self, mock_xtdata):
         feed = QmtDataFeed(symbols=["A"])
-        feed._on_tick([{
-            "code": "A", "lastPrice": 4.5, "open": 4.4, "high": 4.6,
-            "low": 4.3, "volume": 1000, "amount": 4500.0, "time": 123,
-        }])
+        feed._on_tick(
+            [
+                {
+                    "code": "A",
+                    "lastPrice": 4.5,
+                    "open": 4.4,
+                    "high": 4.6,
+                    "low": 4.3,
+                    "volume": 1000,
+                    "amount": 4500.0,
+                    "time": 123,
+                }
+            ]
+        )
         assert feed.get_price("A") == pytest.approx(4.5)
         assert feed.get_volume("A") == 1000
         assert feed.total_ticks_received == 1
 
     def test_on_tick_ohlc(self, mock_xtdata):
         feed = QmtDataFeed(symbols=["A"])
-        feed._on_tick([{
-            "code": "A", "lastPrice": 4.5, "open": 4.4, "high": 4.6,
-            "low": 4.3, "volume": 1000,
-        }])
+        feed._on_tick(
+            [
+                {
+                    "code": "A",
+                    "lastPrice": 4.5,
+                    "open": 4.4,
+                    "high": 4.6,
+                    "low": 4.3,
+                    "volume": 1000,
+                }
+            ]
+        )
         ohlc = feed.get_ohlc("A")
         assert ohlc["open"] == pytest.approx(4.4)
         assert ohlc["high"] == pytest.approx(4.6)
@@ -305,7 +324,9 @@ class TestCheckConnection:
         feed.connect()
         assert feed.check_connection() is True
 
-    def test_heartbeat_timeout_triggers_disconnect_callbacks(self, mock_xtdata, no_sleep):
+    def test_heartbeat_timeout_triggers_disconnect_callbacks(
+        self, mock_xtdata, no_sleep
+    ):
         feed = QmtDataFeed(symbols=["A"])
         feed.connect()
         # 模拟心跳超时
@@ -353,10 +374,12 @@ class TestTryReconnect:
         feed = QmtDataFeed(symbols=["A"])
         # 第一次订阅失败, 第二次成功
         call_count = [0]
+
         def side_effect(*args, **kwargs):
             call_count[0] += 1
             if call_count[0] == 1:
                 raise RuntimeError("sub err")
+
         mock_xtdata.subscribe_whole_quote.side_effect = side_effect
         result = feed._try_reconnect()
         assert result is True

@@ -190,7 +190,9 @@ class SmartOrderRouter:
         min_allocation_ratio: float = 0.05,
         seed: int = 42,
     ):
-        self.venues: dict[str, Venue] = {v.name: v for v in (venues or self.DEFAULT_VENUES)}
+        self.venues: dict[str, Venue] = {
+            v.name: v for v in (venues or self.DEFAULT_VENUES)
+        }
         self.w_liq = float(w_liquidity)
         self.w_cost = float(w_cost)
         self.w_speed = float(w_speed)
@@ -221,7 +223,9 @@ class SmartOrderRouter:
         """更新场所可用性"""
         if name in self.venues:
             self.venues[name].available = available
-            logger.info("[Router] 场所 %s 状态: %s", name, "可用" if available else "不可用")
+            logger.info(
+                "[Router] 场所 %s 状态: %s", name, "可用" if available else "不可用"
+            )
 
     # ------------------------------------------------------------
     # 主路由入口
@@ -273,9 +277,13 @@ class SmartOrderRouter:
 
         # 4) 分配股数
         if strategy == "ICEBERG":
-            allocations = self._allocate_iceberg(top_scores, total_shares, min_shares_per_venue)
+            allocations = self._allocate_iceberg(
+                top_scores, total_shares, min_shares_per_venue
+            )
         else:
-            allocations = self._allocate_proportional(top_scores, total_shares, min_shares_per_venue)
+            allocations = self._allocate_proportional(
+                top_scores, total_shares, min_shares_per_venue
+            )
 
         # 5) 反贪吃检测
         gaming = self._detect_gaming(order_books, side)
@@ -335,7 +343,11 @@ class SmartOrderRouter:
             if book and book.bid_prices and book.ask_prices:
                 spread_bps = (
                     (book.ask_prices[0] - book.bid_prices[0])
-                    / max(book.last_price or (book.ask_prices[0] + book.bid_prices[0]) / 2, 1e-6)
+                    / max(
+                        book.last_price
+                        or (book.ask_prices[0] + book.bid_prices[0]) / 2,
+                        1e-6,
+                    )
                     * 10000
                 )
                 # 价差越大, 成本越高, cost_score 越低
@@ -349,9 +361,11 @@ class SmartOrderRouter:
             expected_price = (
                 book.ask_prices[0]
                 if (book and book.ask_prices) and side.upper() == "BUY"
-                else book.bid_prices[0]
-                if (book and book.bid_prices) and side.upper() == "SELL"
-                else (book.last_price if book else 0.0)
+                else (
+                    book.bid_prices[0]
+                    if (book and book.bid_prices) and side.upper() == "SELL"
+                    else (book.last_price if book else 0.0)
+                )
             )
 
             # 综合评分
@@ -485,7 +499,9 @@ class SmartOrderRouter:
             # 价差异常
             spread_bps = 0.0
             if book.bid_prices and book.ask_prices and book.last_price > 0:
-                spread_bps = (book.ask_prices[0] - book.bid_prices[0]) / book.last_price * 10000
+                spread_bps = (
+                    (book.ask_prices[0] - book.bid_prices[0]) / book.last_price * 10000
+                )
             spread_anomaly = 1.0 if spread_bps < 1.0 else 0.0
 
             # 综合风险

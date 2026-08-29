@@ -72,7 +72,9 @@ class TestScraplingAdapter:
 
     def test_is_available_caches(self):
         a = scrapling_adapter.ScraplingAdapter()
-        with patch.object(scrapling_adapter, "_check_scrapling", return_value=False) as m:
+        with patch.object(
+            scrapling_adapter, "_check_scrapling", return_value=False
+        ) as m:
             _ = a.is_available
             _ = a.is_available
         assert m.call_count == 1
@@ -180,7 +182,9 @@ class TestScraplingAdapter:
         """Scrapling 不可用 → 降级 requests"""
         a = scrapling_adapter.ScraplingAdapter()
         a._available = False
-        with patch.object(a, "_fallback_fetch_url", return_value={"success": True, "text": "ok"}):
+        with patch.object(
+            a, "_fallback_fetch_url", return_value={"success": True, "text": "ok"}
+        ):
             result = a.fetch_url("http://example.com")
         assert result["success"] is True
 

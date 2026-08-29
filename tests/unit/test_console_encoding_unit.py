@@ -13,6 +13,7 @@
   - PYTHONIOENCODING 已存在 → 不覆盖
   - PYTHONIOENCODING 不存在 → 设置为 utf-8
 """
+
 from __future__ import annotations
 
 import io

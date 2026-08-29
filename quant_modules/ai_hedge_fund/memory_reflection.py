@@ -32,8 +32,12 @@ logger = logging.getLogger("ai_hedge_fund.memory")
 
 # 存储目录
 _MEMORY_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
-    "reports", "ai_hedge_fund", "memory",
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ),
+    "reports",
+    "ai_hedge_fund",
+    "memory",
 )
 _MEMORY_FILE = "reflections.jsonl"
 
@@ -46,24 +50,25 @@ _MEMORY_FILE = "reflections.jsonl"
 @dataclass
 class DecisionRecord:
     """单次决策记录 (写入 JSONL 的一行)"""
-    record_id: str               # 唯一 ID (session_id + ticker)
-    session_id: str              # 辩论会话 ID
-    timestamp: str               # 决策时间 ISO
-    date: str                    # 决策日期 YYYY-MM-DD
+
+    record_id: str  # 唯一 ID (session_id + ticker)
+    session_id: str  # 辩论会话 ID
+    timestamp: str  # 决策时间 ISO
+    date: str  # 决策日期 YYYY-MM-DD
     ticker: str
     # 决策内容
-    final_signal: str            # bullish / bearish / neutral
-    final_confidence: int        # 0-100
-    winner: str                  # bull / bear / tie
-    net_confidence: int          # bull_conf - bear_conf
-    reasoning: str = ""          # 裁决理由
+    final_signal: str  # bullish / bearish / neutral
+    final_confidence: int  # 0-100
+    winner: str  # bull / bear / tie
+    net_confidence: int  # bull_conf - bear_conf
+    reasoning: str = ""  # 裁决理由
     # 分析师信号快照 (聚合统计)
     analyst_bull_count: int = 0
     analyst_bear_count: int = 0
     analyst_neutral_count: int = 0
     # 评估字段 (T+N 日后填充)
     evaluated: bool = False
-    eval_date: str = ""          # 评估日期
+    eval_date: str = ""  # 评估日期
     forward_return_1d: Optional[float] = None
     forward_return_5d: Optional[float] = None
     forward_return_10d: Optional[float] = None
@@ -122,7 +127,9 @@ class MemoryReflection:
             logger.warning("record_decisions: 无法识别的 session 类型")
             return 0
 
-        session_id = session_dict.get("session_id", datetime.now().strftime("%Y%m%d_%H%M%S"))
+        session_id = session_dict.get(
+            "session_id", datetime.now().strftime("%Y%m%d_%H%M%S")
+        )
         timestamp = session_dict.get("timestamp", datetime.now().isoformat())
         date_str = timestamp[:10] if timestamp else datetime.now().strftime("%Y-%m-%d")
         debate_results = session_dict.get("debate_results", {})
@@ -201,7 +208,9 @@ class MemoryReflection:
             return 0
 
         eval_date_str = eval_date or datetime.now().strftime("%Y-%m-%d")
-        cutoff_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+        cutoff_date = (datetime.now() - timedelta(days=lookback_days)).strftime(
+            "%Y-%m-%d"
+        )
 
         # 读取所有记录
         records: list[dict[str, Any]] = []
@@ -228,15 +237,20 @@ class MemoryReflection:
             # 计算各窗口 forward return
             if price_data_provider is not None:
                 try:
-                    base_price = self._get_close_price(price_data_provider, ticker, decision_date)
+                    base_price = self._get_close_price(
+                        price_data_provider, ticker, decision_date
+                    )
                     if base_price and base_price > 0:
                         for window in (1, 5, 10):
                             ret_field = f"forward_return_{window}d"
                             corr_field = f"correct_{window}d"
                             target_date = (
-                                datetime.strptime(decision_date, "%Y-%m-%d") + timedelta(days=window)
+                                datetime.strptime(decision_date, "%Y-%m-%d")
+                                + timedelta(days=window)
                             ).strftime("%Y-%m-%d")
-                            future_price = self._get_close_price(price_data_provider, ticker, target_date)
+                            future_price = self._get_close_price(
+                                price_data_provider, ticker, target_date
+                            )
                             if future_price and future_price > 0:
                                 ret = (future_price - base_price) / base_price
                                 rec[ret_field] = round(ret, 6)
@@ -282,6 +296,7 @@ class MemoryReflection:
         """
         try:
             from utils.ai_memory.team_memory_hub import get_team_memory_hub
+
             hub = get_team_memory_hub()
             ticker = rec.get("ticker", "")
             reflection = rec.get("reflection", "")
@@ -311,8 +326,15 @@ class MemoryReflection:
                 outcome=outcome,
                 confidence=confidence,
             )
-        except (ImportError, ValueError, TypeError, KeyError,
-                AttributeError, RuntimeError, OSError) as e:
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.debug("share_lesson_to_hub 失败: %s", e)
 
     # ------------------------------------------------------------
@@ -339,7 +361,12 @@ class MemoryReflection:
             }
         """
         if not os.path.exists(self.memory_file):
-            return {"summary": "", "by_ticker": {}, "overall_win_rate": 0.0, "total_evaluated": 0}
+            return {
+                "summary": "",
+                "by_ticker": {},
+                "overall_win_rate": 0.0,
+                "total_evaluated": 0,
+            }
 
         cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
         records: list[dict[str, Any]] = []
@@ -357,7 +384,12 @@ class MemoryReflection:
                     continue
 
         if not records:
-            return {"summary": "", "by_ticker": {}, "overall_win_rate": 0.0, "total_evaluated": 0}
+            return {
+                "summary": "",
+                "by_ticker": {},
+                "overall_win_rate": 0.0,
+                "total_evaluated": 0,
+            }
 
         # 按 ticker 聚合
         by_ticker: dict[str, dict[str, Any]] = {}
@@ -455,9 +487,13 @@ class MemoryReflection:
         # 反思建议
         if correct_5d is False:
             if signal == "bullish":
-                parts.append("反思: 看多判断失误, 可能低估了空头证据, 下次应提高 Bear 论点权重")
+                parts.append(
+                    "反思: 看多判断失误, 可能低估了空头证据, 下次应提高 Bear 论点权重"
+                )
             elif signal == "bearish":
-                parts.append("反思: 看空判断失误, 可能忽略了多头信号, 下次应提高 Bull 论点权重")
+                parts.append(
+                    "反思: 看空判断失误, 可能忽略了多头信号, 下次应提高 Bull 论点权重"
+                )
             else:
                 parts.append("反思: 中性判断方向偏差, 建议增强信号强度区分")
         elif correct_5d is True:
@@ -498,11 +534,14 @@ def make_market_price_provider(
     if provider is None:
         try:
             from utils.data_provider import MarketDataProvider
+
             provider = MarketDataProvider()
         except (ImportError, OSError, TypeError, ValueError, AttributeError) as exc:
             logger.warning("无法初始化 MarketDataProvider: %r", exc)
+
             def _empty_provider(ticker: str, date_str: str) -> None:
                 return None
+
             return _empty_provider
 
     # 内部缓存: {symbol: {date_str: close_price}} 避免重复拉取
@@ -559,7 +598,14 @@ def make_market_price_provider(
             if best_date is not None:
                 return {"close": _price_cache[ticker][best_date]}
 
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as exc:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            TimeoutError,
+        ) as exc:
             logger.debug("获取 %s/%s 价格失败: %r", ticker, date_str, exc)
 
         return None
@@ -584,8 +630,9 @@ def make_shadow_returns_provider(
     """
     if jsonl_path is None:
         # memory_reflection.py 在 quant_modules/ai_hedge_fund/ 下, 上溯 3 层到项目根
-        base = os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__))))
+        base = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
         jsonl_path = os.path.join(base, "reports", "shadow", "daily_returns.jsonl")
 
     # 加载并构建累计净值序列
@@ -606,8 +653,10 @@ def make_shadow_returns_provider(
                     continue
     except FileNotFoundError:
         logger.warning("shadow returns 文件不存在: %s", jsonl_path)
+
         def _empty(ticker: str, date_str: str) -> None:
             return None
+
         return _empty
 
     # 构建累计净值 (从最早日期开始, 初始净值=1.0)
@@ -615,7 +664,7 @@ def make_shadow_returns_provider(
     nav_by_date: dict[str, float] = {}
     nav = 1.0
     for d in sorted_dates:
-        nav *= (1.0 + daily_returns[d])
+        nav *= 1.0 + daily_returns[d]
         nav_by_date[d] = nav
 
     def _provider_fn(ticker: str, date_str: str) -> Optional[dict[str, float]]:

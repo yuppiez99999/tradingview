@@ -248,13 +248,21 @@ class FactorAttribution:
             "factor_name": self.factor_name,
             "factor_category": self.factor_category,
             "factor_display_name": self.factor_display_name,
-            "portfolio_exposure": round(self.portfolio_exposure, DEFAULT_DECIMAL_PRECISION),
-            "benchmark_exposure": round(self.benchmark_exposure, DEFAULT_DECIMAL_PRECISION),
+            "portfolio_exposure": round(
+                self.portfolio_exposure, DEFAULT_DECIMAL_PRECISION
+            ),
+            "benchmark_exposure": round(
+                self.benchmark_exposure, DEFAULT_DECIMAL_PRECISION
+            ),
             "active_exposure": round(self.active_exposure, DEFAULT_DECIMAL_PRECISION),
             "factor_return": round(self.factor_return, DEFAULT_RETURN_PRECISION),
-            "contribution_to_pnl": round(self.contribution_to_pnl, DEFAULT_DECIMAL_PRECISION),
+            "contribution_to_pnl": round(
+                self.contribution_to_pnl, DEFAULT_DECIMAL_PRECISION
+            ),
             "contribution_pct": round(self.contribution_pct, 4),
-            "contribution_to_active_risk": round(self.contribution_to_active_risk, DEFAULT_DECIMAL_PRECISION),
+            "contribution_to_active_risk": round(
+                self.contribution_to_active_risk, DEFAULT_DECIMAL_PRECISION
+            ),
             "is_significant": self.is_significant,
             "is_concentrated": self.is_concentrated,
             "is_missing": self.is_missing,
@@ -358,8 +366,12 @@ class FactorAttributionResult:
             "benchmark_code": self.benchmark_code,
             "status": self.status,
             "reason": self.reason,
-            "style_factor_attributions": [f.to_dict() for f in self.style_factor_attributions],
-            "sector_factor_attributions": [f.to_dict() for f in self.sector_factor_attributions],
+            "style_factor_attributions": [
+                f.to_dict() for f in self.style_factor_attributions
+            ],
+            "sector_factor_attributions": [
+                f.to_dict() for f in self.sector_factor_attributions
+            ],
         }
 
     def to_markdown(self) -> str:
@@ -369,8 +381,12 @@ class FactorAttributionResult:
         lines.append("")
         lines.append(f"- 基准标的: `{self.benchmark_code or 'N/A'}`")
         lines.append(f"- 组合价值: **{self.portfolio_value:,.2f}**")
-        lines.append(f"- 总 PnL: **{self.total_pnl:,.2f}** ({self.total_return_pct:.4%})")
-        lines.append(f"- 主动收益: **{self.active_return:,.2f}** ({self.active_return_pct:.4%})")
+        lines.append(
+            f"- 总 PnL: **{self.total_pnl:,.2f}** ({self.total_return_pct:.4%})"
+        )
+        lines.append(
+            f"- 主动收益: **{self.active_return:,.2f}** ({self.active_return_pct:.4%})"
+        )
         lines.append(f"- 状态: `{self.status}`")
         if self.reason:
             lines.append(f"- 说明: {self.reason}")
@@ -386,7 +402,11 @@ class FactorAttributionResult:
         ]
         total = self.factor_pnl + self.specific_pnl
         for name, value in items:
-            pct = f"{value / total * 100:.2f}%" if abs(total) > ZERO_RETURN_EPSILON else "N/A"
+            pct = (
+                f"{value / total * 100:.2f}%"
+                if abs(total) > ZERO_RETURN_EPSILON
+                else "N/A"
+            )
             lines.append(f"| {name} | {value:,.2f} | {pct} |")
         lines.append(f"| 残差 (应为 0) | {self.residual:.6f} | - |")
         lines.append("")
@@ -404,8 +424,12 @@ class FactorAttributionResult:
         if self.style_factor_attributions:
             lines.append("## 风格因子明细 (Barra 10 因子)")
             lines.append("")
-            lines.append("| 因子 | 组合暴露 | 基准暴露 | 主动暴露 | 因子收益 | PnL 贡献 | 占比 | 显著 |")
-            lines.append("|------|---------|---------|---------|---------|---------|------|------|")
+            lines.append(
+                "| 因子 | 组合暴露 | 基准暴露 | 主动暴露 | 因子收益 | PnL 贡献 | 占比 | 显著 |"
+            )
+            lines.append(
+                "|------|---------|---------|---------|---------|---------|------|------|"
+            )
             for f in self.style_factor_attributions:
                 sig = "✓" if f.is_significant else ""
                 lines.append(
@@ -418,8 +442,12 @@ class FactorAttributionResult:
         if self.sector_factor_attributions:
             lines.append("## 行业因子明细")
             lines.append("")
-            lines.append("| 行业 | 组合暴露 | 基准暴露 | 主动暴露 | 因子收益 | PnL 贡献 | 占比 |")
-            lines.append("|------|---------|---------|---------|---------|---------|------|")
+            lines.append(
+                "| 行业 | 组合暴露 | 基准暴露 | 主动暴露 | 因子收益 | PnL 贡献 | 占比 |"
+            )
+            lines.append(
+                "|------|---------|---------|---------|---------|---------|------|"
+            )
             for f in self.sector_factor_attributions:
                 lines.append(
                     f"| {f.factor_display_name or f.factor_name} | {f.portfolio_exposure:.4f} | "
@@ -720,7 +748,9 @@ def attribute_factors(
         category = categorize_factor(factor)
         ic_data = None
         if ic_metrics and factor in ic_metrics:
-            ic_data = ic_metrics[factor] if isinstance(ic_metrics[factor], dict) else None
+            ic_data = (
+                ic_metrics[factor] if isinstance(ic_metrics[factor], dict) else None
+            )
 
         fa = FactorAttribution(
             factor_name=factor,
@@ -874,16 +904,28 @@ class FactorAttributionManager:
         self._report_cfg = self._config.get("report", {}) or {}
 
         # 从配置加载参数
-        self._benchmark_code = str(self._settings.get("primary_benchmark", DEFAULT_PRIMARY_BENCHMARK))
-        self._risk_budget = float(self._settings.get("risk_budget", DEFAULT_RISK_BUDGET))
+        self._benchmark_code = str(
+            self._settings.get("primary_benchmark", DEFAULT_PRIMARY_BENCHMARK)
+        )
+        self._risk_budget = float(
+            self._settings.get("risk_budget", DEFAULT_RISK_BUDGET)
+        )
         self._min_factors = int(self._settings.get("min_factors", DEFAULT_MIN_FACTORS))
         self._significance_threshold = float(
             self._settings.get("significance_threshold", DEFAULT_SIGNIFICANCE_THRESHOLD)
         )
-        self._annualization_factor = float(self._settings.get("annualization_factor", DEFAULT_ANNUALIZATION_FACTOR))
-        self._zero_exposure_epsilon = float(self._thresholds.get("zero_exposure_epsilon", ZERO_EXPOSURE_EPSILON))
-        self._concentration_threshold = float(self._thresholds.get("concentration_threshold", CONCENTRATION_THRESHOLD))
-        self._missing_threshold = float(self._thresholds.get("missing_threshold", MISSING_THRESHOLD))
+        self._annualization_factor = float(
+            self._settings.get("annualization_factor", DEFAULT_ANNUALIZATION_FACTOR)
+        )
+        self._zero_exposure_epsilon = float(
+            self._thresholds.get("zero_exposure_epsilon", ZERO_EXPOSURE_EPSILON)
+        )
+        self._concentration_threshold = float(
+            self._thresholds.get("concentration_threshold", CONCENTRATION_THRESHOLD)
+        )
+        self._missing_threshold = float(
+            self._thresholds.get("missing_threshold", MISSING_THRESHOLD)
+        )
 
         # 因子名称映射 (从配置加载, 不存在则用默认)
         self._factor_names: dict[str, str] = dict(FACTOR_NAMES)
@@ -902,7 +944,10 @@ class FactorAttributionManager:
 
         # 默认基准因子暴露
         self._default_benchmark_exposures: dict[str, float] = {
-            k: float(v) for k, v in (self._config.get("benchmark_factor_exposures", {}) or {}).items()
+            k: float(v)
+            for k, v in (
+                self._config.get("benchmark_factor_exposures", {}) or {}
+            ).items()
         }
 
     def _load_config(self, config_name: str) -> dict[str, Any]:
@@ -1075,7 +1120,9 @@ class FactorAttributionManager:
                 reason="持仓列表为空",
             )
 
-        p_exposures, p_active_weights = self._aggregate_positions_to_factors(portfolio_positions)
+        p_exposures, p_active_weights = self._aggregate_positions_to_factors(
+            portfolio_positions
+        )
         b_exposures, _ = self._aggregate_positions_to_factors(benchmark_positions)
 
         return self.attribute(
@@ -1112,7 +1159,9 @@ class FactorAttributionManager:
             active_weights[code] = weight  # 简化: 用绝对权重作为主动权重
 
             for factor, exp in exposures.items():
-                factor_exposures[factor] = factor_exposures.get(factor, 0.0) + weight * float(exp)
+                factor_exposures[factor] = factor_exposures.get(
+                    factor, 0.0
+                ) + weight * float(exp)
                 weight_sum[factor] = weight_sum.get(factor, 0.0) + weight
 
         # 因子暴露 = 加权平均

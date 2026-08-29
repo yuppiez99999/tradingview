@@ -1,12 +1,17 @@
 """
 G7 Coverage Boost: utils/strategy/arbitrage/pairs_trading.py (369 lines, 0% -> target ~80%)
 """
+
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
-from utils.strategy.arbitrage.pairs_trading import WalkForwardPairsValidator, WFValidationReport, WFWindowResult
+from utils.strategy.arbitrage.pairs_trading import (
+    WalkForwardPairsValidator,
+    WFValidationReport,
+    WFWindowResult,
+)
 
 
 class TestWFWindowResult:
@@ -186,7 +191,9 @@ class TestValidate:
         assert report.avg_oos_sharpe >= -10.0
 
     def test_passed_threshold(self):
-        validator = WalkForwardPairsValidator(train_window=40, test_window=20, step=20, target_sharpe=0.0)
+        validator = WalkForwardPairsValidator(
+            train_window=40, test_window=20, step=20, target_sharpe=0.0
+        )
         n = 100
         index = pd.date_range("20260101", periods=n)
         closes = pd.DataFrame(

@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 class PipelineStage(Enum):
     """流水线阶段"""
+
     IDLE = "idle"
     DATA_CLEANING = "data_cleaning"
     ALPHA_GENERATION = "alpha_generation"
@@ -27,7 +28,8 @@ class PipelineStage(Enum):
 @dataclass
 class PipelineConfig:
     """流水线配置（从 YAML 反序列化）"""
-    mode: str = "auto"                     # auto / manual / dry_run
+
+    mode: str = "auto"  # auto / manual / dry_run
     interval_minutes: int = 15
 
     # 数据清洗
@@ -39,7 +41,7 @@ class PipelineConfig:
 
     # Alpha 信号
     alpha_enabled: bool = False
-    alpha_model: str = "auto"              # auto / lightgbm / transformer / lstm
+    alpha_model: str = "auto"  # auto / lightgbm / transformer / lstm
     train_interval_days: int = 20
     retrain_on_drift: bool = True
     horizon: int = 5
@@ -79,6 +81,7 @@ class PipelineConfig:
 @dataclass
 class PipelineResult:
     """单次流水线执行结果"""
+
     stage: PipelineStage
     success: bool
     started_at: datetime
@@ -93,7 +96,9 @@ class PipelineResult:
             "stage": self.stage.value,
             "success": self.success,
             "started_at": self.started_at.isoformat(),
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": (
+                self.completed_at.isoformat() if self.completed_at else None
+            ),
             "duration_ms": round(self.duration_ms, 2),
             "error": self.error,
             "metrics": self.metrics,
@@ -104,8 +109,9 @@ class PipelineResult:
 @dataclass
 class DataQualityReport:
     """数据清洗阶段输出"""
+
     symbol: str
-    quality_score: float          # 0-100
+    quality_score: float  # 0-100
     outlier_flags: list[str] = field(default_factory=list)
     missing_fields: list[str] = field(default_factory=list)
     gap_days: int = 0
@@ -117,8 +123,9 @@ class DataQualityReport:
 @dataclass
 class AlphaSignalResult:
     """Alpha 信号生成阶段输出"""
-    signals: dict[str, float] = field(default_factory=dict)      # {symbol: signal_strength}
-    confidence: dict[str, float] = field(default_factory=dict)    # {symbol: confidence}
+
+    signals: dict[str, float] = field(default_factory=dict)  # {symbol: signal_strength}
+    confidence: dict[str, float] = field(default_factory=dict)  # {symbol: confidence}
     model_name: str = ""
     model_metrics: dict[str, float] = field(default_factory=dict)
     training_date: str = ""
@@ -128,6 +135,7 @@ class AlphaSignalResult:
 @dataclass
 class BacktestGateResult:
     """回测验证阶段输出"""
+
     passed: bool = False
     ic: float = 0.0
     dsr: float = 0.0
@@ -142,6 +150,7 @@ class BacktestGateResult:
 @dataclass
 class ExecutionResult:
     """执行阶段输出"""
+
     batch_id: str = ""
     total_orders: int = 0
     filled_orders: int = 0
@@ -160,7 +169,8 @@ class ExecutionResult:
 @dataclass
 class RiskAlert:
     """风控告警"""
-    level: int = 0                     # 0=OK / 1=警戒 / 2=熔断 / 3=互盲
+
+    level: int = 0  # 0=OK / 1=警戒 / 2=熔断 / 3=互盲
     source: str = ""
     message: str = ""
     triggered_at: datetime = field(default_factory=datetime.now)

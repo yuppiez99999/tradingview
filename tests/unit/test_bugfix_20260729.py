@@ -30,6 +30,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "v8.3_institutional"))
 class TestRiskMetricsNaNAndAlignment:
     def _mod(self):
         from utils import risk_metrics
+
         return risk_metrics
 
     def test_information_ratio_mismatched_length_not_silently_zero(self):
@@ -81,17 +82,21 @@ class TestRiskMetricsNaNAndAlignment:
 class TestExternalDataSourceParsing:
     def _mod(self):
         from utils import external_data_source
+
         return external_data_source
 
-    @pytest.mark.parametrize("raw,expected", [
-        ("1.23", 1.23),
-        (4, 4.0),
-        (".", None),        # FRED 缺失值哨兵
-        ("N/A", None),
-        ("", None),
-        (None, None),
-        (float("nan"), None),
-    ])
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("1.23", 1.23),
+            (4, 4.0),
+            (".", None),  # FRED 缺失值哨兵
+            ("N/A", None),
+            ("", None),
+            (None, None),
+            (float("nan"), None),
+        ],
+    )
     def test_parse_api_float(self, raw, expected):
         eds = self._mod()
         assert eds._parse_api_float(raw) == expected
@@ -101,8 +106,10 @@ class TestExternalDataSourceParsing:
         mgr = eds.ExternalDataManager()
         # 重定向缓存路径到临时目录
         monkeypatch.setattr(
-            mgr, "_cache_path",
-            lambda category, key: tmp_path / f"{category}_{key}.json")
+            mgr,
+            "_cache_path",
+            lambda category, key: tmp_path / f"{category}_{key}.json",
+        )
         mgr._save_cache("macro", "unit_test_key", {"v": 1})
         cache_file = tmp_path / "macro_unit_test_key.json"
         assert cache_file.exists()
@@ -118,8 +125,10 @@ class TestExternalDataSourceParsing:
 class TestDataPipelineCleaning:
     def _pipeline(self):
         import importlib.util
-        mod_path = (PROJECT_ROOT / "v8.3_institutional" / "src" / "data"
-                    / "data_pipeline.py")
+
+        mod_path = (
+            PROJECT_ROOT / "v8.3_institutional" / "src" / "data" / "data_pipeline.py"
+        )
         spec = importlib.util.spec_from_file_location("dp_under_test", mod_path)
         mod = importlib.util.module_from_spec(spec)
         try:
@@ -131,7 +140,8 @@ class TestDataPipelineCleaning:
     def test_forward_fill_heterogeneous_records_no_keyerror(self):
         mod = self._pipeline()
         cls = getattr(mod, "DataCleaningLayer", None) or getattr(
-            mod, "CleaningLayer", None)
+            mod, "CleaningLayer", None
+        )
         if cls is None:
             # 找含 _apply_cleaning_rules 的类
             for name in dir(mod):
@@ -164,6 +174,7 @@ class TestDataPipelineCleaning:
 class TestConcurrencyAtomicWrite:
     def test_atomic_write_json_roundtrip(self, tmp_path):
         from utils.concurrency import atomic_write_json, read_json_locked
+
         target = tmp_path / "positions.json"
         atomic_write_json(target, {"a": 1, "b": [1, 2]})
         assert read_json_locked(target) == {"a": 1, "b": [1, 2]}
@@ -172,6 +183,7 @@ class TestConcurrencyAtomicWrite:
     def test_concurrent_writes_never_corrupt(self, tmp_path):
         """20 线程并发写同一文件, 任意时刻读到的都是完整 JSON。"""
         from utils.concurrency import atomic_write_json
+
         target = tmp_path / "state.json"
         errors = []
 
@@ -191,8 +203,9 @@ class TestConcurrencyAtomicWrite:
                     except json.JSONDecodeError as e:
                         errors.append(e)
 
-        threads = ([threading.Thread(target=writer, args=(i,)) for i in range(10)]
-                   + [threading.Thread(target=reader) for _ in range(10)])
+        threads = [threading.Thread(target=writer, args=(i,)) for i in range(10)] + [
+            threading.Thread(target=reader) for _ in range(10)
+        ]
         for t in threads:
             t.start()
         for t in threads:
@@ -202,16 +215,19 @@ class TestConcurrencyAtomicWrite:
 
     def test_read_json_locked_missing_returns_default(self, tmp_path):
         from utils.concurrency import read_json_locked
+
         assert read_json_locked(tmp_path / "nope.json", default={"d": 1}) == {"d": 1}
 
     def test_read_json_locked_corrupt_returns_default(self, tmp_path):
         from utils.concurrency import read_json_locked
+
         bad = tmp_path / "bad.json"
         bad.write_text("{half json", encoding="utf-8")
         assert read_json_locked(bad, default=None) is None
 
     def test_path_lock_identity(self, tmp_path):
         from utils.concurrency import get_path_lock
+
         p = tmp_path / "f.json"
         # 同一路径不同写法返回同一把锁
         assert get_path_lock(p) is get_path_lock(str(p))
@@ -220,6 +236,7 @@ class TestConcurrencyAtomicWrite:
 class TestProcessLock:
     def test_exclusive(self, tmp_path):
         from utils.concurrency import process_lock
+
         with process_lock("ut_lock", lock_dir=tmp_path) as a1:
             assert a1 is True
             with process_lock("ut_lock", timeout=0.0, lock_dir=tmp_path) as a2:
@@ -230,6 +247,7 @@ class TestProcessLock:
 
     def test_stale_lock_cleanup(self, tmp_path):
         from utils.concurrency import process_lock
+
         stale = tmp_path / "quant84_ut_stale.lock"
         stale.write_text("999999\n0\n", encoding="utf-8")
         old = 1_000_000.0  # 1970 年代 -> 必然过期
@@ -239,6 +257,7 @@ class TestProcessLock:
 
     def test_lock_file_removed_after_exit(self, tmp_path):
         from utils.concurrency import process_lock
+
         with process_lock("ut_clean", lock_dir=tmp_path):
             assert (tmp_path / "quant84_ut_clean.lock").exists()
         assert not (tmp_path / "quant84_ut_clean.lock").exists()

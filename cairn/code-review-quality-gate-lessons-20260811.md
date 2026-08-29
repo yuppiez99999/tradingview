@@ -191,3 +191,14 @@ related:
 - 执行闭环修复教训：`cairn/fills-driven-pnl-lessons-20260808.md`
 - 代码审查修复批次：`cairn/code-review-fix-batch-20260808.md`
 - EOD 操作教训：`cairn/eod-operations-lessons-20260807.md`
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [实盘准入框架：12-31 上实盘的 7 项硬性门槛与 6 个决策门](live-trading-admission-criteria-20260811.md) (相似度 17%)
+- [Agent-Skills 集成与适配（2026-08-24）](agent-skills-integration.md) (相似度 15%)
+- [成交回报驱动 PnL：G2/G4 执行闭环补齐经验沉淀（2026-08-08）](fills-driven-pnl-lessons-20260808.md) (相似度 14%)
+- [CI 修复与门禁落地经验（R1/R2/R4 · 2026-08-12）](ci-repair-and-gate-lessons-20260812.md) (相似度 12%)
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 12%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

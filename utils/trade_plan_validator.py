@@ -168,7 +168,16 @@ class TradePlanValidator:
         try:
             with open(plan_path, encoding="utf-8") as f:
                 plan = json.load(f)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             return {
                 "valid": False,
                 "errors": [f"JSON 解析失败: {e}"],
@@ -222,7 +231,9 @@ class TradePlanValidator:
         plan.setdefault("market_state", {})
         if "spot_build_allowed" not in plan["market_state"]:
             plan["market_state"]["spot_build_allowed"] = True
-            fixes_applied.append("market_state.spot_build_allowed 补全为 True (默认允许)")
+            fixes_applied.append(
+                "market_state.spot_build_allowed 补全为 True (默认允许)"
+            )
         if "build_allowed" not in plan["market_state"]:
             plan["market_state"]["build_allowed"] = True
             fixes_applied.append("market_state.build_allowed 补全为 True (默认允许)")
@@ -245,7 +256,9 @@ class TradePlanValidator:
     # 私有: 各字段校验
     # ============================================================
 
-    def _check_top_level(self, plan: dict, errors: list[str], warnings: list[str], fixes: list[str]) -> None:
+    def _check_top_level(
+        self, plan: dict, errors: list[str], warnings: list[str], fixes: list[str]
+    ) -> None:
         """校验顶层字段"""
         for field, expected_type in self.REQUIRED_TOP_LEVEL_FIELDS.items():
             if field not in plan:
@@ -257,10 +270,14 @@ class TradePlanValidator:
                 fixes.append(f"建议: plan['{field}'] = {expected_type.__name__}()")
             elif not isinstance(plan[field], expected_type):
                 actual = type(plan[field]).__name__
-                errors.append(f"字段 {field} 类型错误: 期望 {expected_type.__name__}, 实际 {actual}")
+                errors.append(
+                    f"字段 {field} 类型错误: 期望 {expected_type.__name__}, 实际 {actual}"
+                )
                 fixes.append(f"建议: plan['{field}'] 应为 {expected_type.__name__}")
 
-    def _check_phase(self, phase: dict, errors: list[str], warnings: list[str], fixes: list[str]) -> None:
+    def _check_phase(
+        self, phase: dict, errors: list[str], warnings: list[str], fixes: list[str]
+    ) -> None:
         """校验 phase 字段"""
         for field, expected_types in self.REQUIRED_PHASE_FIELDS.items():
             if field not in phase:
@@ -298,7 +315,9 @@ class TradePlanValidator:
                 fixes.append(f"建议: execution_plan['{field}'] = []")
             elif not isinstance(exec_plan[field], expected_type):
                 actual = type(exec_plan[field]).__name__
-                errors.append(f"execution_plan.{field} 类型错误: 期望 {expected_type.__name__}, 实际 {actual}")
+                errors.append(
+                    f"execution_plan.{field} 类型错误: 期望 {expected_type.__name__}, 实际 {actual}"
+                )
 
         # 校验订单详情
         for session in ["morning_orders", "afternoon_orders"]:
@@ -307,7 +326,9 @@ class TradePlanValidator:
                 continue
             for i, order in enumerate(orders):
                 if not isinstance(order, dict):
-                    errors.append(f"{session}[{i}] 必须是 dict, 实际 {type(order).__name__}")
+                    errors.append(
+                        f"{session}[{i}] 必须是 dict, 实际 {type(order).__name__}"
+                    )
                     continue
                 for req_field in self.REQUIRED_ORDER_FIELDS:
                     if req_field not in order:
@@ -315,7 +336,9 @@ class TradePlanValidator:
                 # 数值合理性
                 shares = order.get("shares", 0)
                 if isinstance(shares, (int, float)) and shares <= 0:
-                    warnings.append(f"{session}[{i}] {order.get('symbol', '?')} shares={shares} ≤ 0")
+                    warnings.append(
+                        f"{session}[{i}] {order.get('symbol', '?')} shares={shares} ≤ 0"
+                    )
 
     def _check_market_state(
         self,
@@ -335,13 +358,17 @@ class TradePlanValidator:
                 fixes.append(f"建议: market_state['{field}'] = True (默认允许)")
             elif not isinstance(market_state[field], expected_type):
                 actual = type(market_state[field]).__name__
-                errors.append(f"market_state.{field} 类型错误: 期望 {expected_type.__name__}, 实际 {actual}")
+                errors.append(
+                    f"market_state.{field} 类型错误: 期望 {expected_type.__name__}, 实际 {actual}"
+                )
 
         # circuit_level 合法性
         circuit = market_state.get("circuit_level", "NORMAL")
         valid_circuits = ["NORMAL", "WATCH", "WARNING", "CRITICAL"]
         if circuit not in valid_circuits:
-            errors.append(f"market_state.circuit_level 值非法: {circuit}, 应为 {valid_circuits}")
+            errors.append(
+                f"market_state.circuit_level 值非法: {circuit}, 应为 {valid_circuits}"
+            )
 
     def _check_risk_guard(
         self,
@@ -354,14 +381,20 @@ class TradePlanValidator:
         if "drawdown_level" in risk_guard:
             dd_level = risk_guard["drawdown_level"]
             if not isinstance(dd_level, int) or dd_level < 0 or dd_level > 4:
-                errors.append(f"risk_guard.drawdown_level 值非法: {dd_level}, 应为 0-4 整数")
+                errors.append(
+                    f"risk_guard.drawdown_level 值非法: {dd_level}, 应为 0-4 整数"
+                )
 
         if "kill_switch" in risk_guard:
             ks = risk_guard["kill_switch"]
             if not isinstance(ks, dict):
-                errors.append(f"risk_guard.kill_switch 必须是 dict, 实际 {type(ks).__name__}")
+                errors.append(
+                    f"risk_guard.kill_switch 必须是 dict, 实际 {type(ks).__name__}"
+                )
 
-    def _check_consistency(self, plan: dict, errors: list[str], warnings: list[str], fixes: list[str]) -> None:
+    def _check_consistency(
+        self, plan: dict, errors: list[str], warnings: list[str], fixes: list[str]
+    ) -> None:
         """校验字段间一致性"""
         market_state = plan.get("market_state", {})
         risk_guard = plan.get("risk_guard", {})
@@ -382,13 +415,17 @@ class TradePlanValidator:
         # spot_build_allowed 与 circuit_level 一致性
         spot_allowed = market_state.get("spot_build_allowed", True)
         if circuit == "CRITICAL" and spot_allowed:
-            errors.append("字段冲突: circuit_level=CRITICAL 但 spot_build_allowed=True, CRITICAL 时必须禁止开仓")
+            errors.append(
+                "字段冲突: circuit_level=CRITICAL 但 spot_build_allowed=True, CRITICAL 时必须禁止开仓"
+            )
             fixes.append("建议: market_state['spot_build_allowed'] = False")
 
         # build_allowed 与 circuit_level 一致性
         build_allowed = market_state.get("build_allowed", True)
         if circuit in ("CRITICAL", "WARNING") and build_allowed:
-            warnings.append(f"字段冲突: circuit_level={circuit} 但 build_allowed=True, {circuit} 时建议禁止建仓")
+            warnings.append(
+                f"字段冲突: circuit_level={circuit} 但 build_allowed=True, {circuit} 时建议禁止建仓"
+            )
 
 
 # ============================================================

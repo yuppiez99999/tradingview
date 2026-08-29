@@ -3,6 +3,7 @@ LightGBM 因子挖掘 - 训练模型识别有效因子
 从本地缓存数据计算 50+ 因子，训练 LightGBM 预测未来收益，
 提取特征重要性排序，发现新的有效因子。
 """
+
 import logging
 import sys
 from datetime import datetime
@@ -14,7 +15,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 logger = logging.getLogger("lgbm_factor_mining")
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
@@ -64,7 +67,9 @@ def compute_all_factors(df_group: pd.DataFrame) -> pd.Series:
     for w in [20, 60]:
         if n > w:
             ret_w = ret.iloc[-w:]
-            factors[f"UP_DOWN_RATIO_{w}D"] = (ret_w > 0).sum() / max((ret_w < 0).sum(), 1)
+            factors[f"UP_DOWN_RATIO_{w}D"] = (ret_w > 0).sum() / max(
+                (ret_w < 0).sum(), 1
+            )
 
     # === 波动率类 ===
     for w in [5, 20, 60, 120, 252]:
@@ -94,11 +99,15 @@ def compute_all_factors(df_group: pd.DataFrame) -> pd.Series:
             factors[f"AMIHUD_{w}D"] = amihud if np.isfinite(amihud) else 0.0
     for w in [5, 20]:
         if n > w * 2:
-            factors[f"VOLUME_CHG_{w}D"] = volume.iloc[-w:].mean() / volume.iloc[-2*w:-w].mean() - 1.0
+            factors[f"VOLUME_CHG_{w}D"] = (
+                volume.iloc[-w:].mean() / volume.iloc[-2 * w : -w].mean() - 1.0
+            )
     for w in [20, 60]:
         if n > w:
             vol_w = volume.iloc[-w:]
-            factors[f"VOLUME_Z_{w}D"] = (volume.iloc[-1] - vol_w.mean()) / max(vol_w.std(), 1e-12)
+            factors[f"VOLUME_Z_{w}D"] = (volume.iloc[-1] - vol_w.mean()) / max(
+                vol_w.std(), 1e-12
+            )
 
     # === 技术指标类 ===
     for w in [10, 20, 60, 120]:
@@ -125,11 +134,14 @@ def compute_all_factors(df_group: pd.DataFrame) -> pd.Series:
             factors[f"BB_WIDTH_{w}D"] = (std_w.iloc[-1] * 2) / max(ma_w.iloc[-1], 1e-12)
     for w in [14, 28]:
         if n > w:
-            tr = pd.concat([
-                high - low,
-                (high - close.shift(1)).abs(),
-                (low - close.shift(1)).abs(),
-            ], axis=1).max(axis=1)
+            tr = pd.concat(
+                [
+                    high - low,
+                    (high - close.shift(1)).abs(),
+                    (low - close.shift(1)).abs(),
+                ],
+                axis=1,
+            ).max(axis=1)
             factors[f"ATR_{w}D"] = tr.iloc[-w:].mean() / max(close.iloc[-1], 1e-12)
 
     # === 价量关系类 ===
@@ -140,7 +152,9 @@ def compute_all_factors(df_group: pd.DataFrame) -> pd.Series:
         if n > w:
             price_new_high = close.iloc[-1] >= close.iloc[-w:].max()
             vol_new_high = volume.iloc[-1] >= volume.iloc[-w:].max()
-            factors[f"PRICE_VOL_DIVERG_{w}D"] = 1.0 if (price_new_high and not vol_new_high) else 0.0
+            factors[f"PRICE_VOL_DIVERG_{w}D"] = (
+                1.0 if (price_new_high and not vol_new_high) else 0.0
+            )
 
     # === 基本面代理因子 (从量价衍生) ===
     factors["SIZE_PROXY"] = close.iloc[-1]
@@ -198,7 +212,16 @@ def build_factor_panel(start_date: str = "2023-01-01", step: int = 10):
                     row = {"code": code, "date": date, "y": fut_ret}
                     row.update(fv.to_dict())
                     rows.append(row)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
 
@@ -269,7 +292,6 @@ def train_and_analyze(
     X = panel_clean[factor_cols].values  # noqa: N806
     y = panel_clean["y"].values
 
-
     logger.info(f"训练数据: {len(X)} 样本, {len(factor_cols)} 因子")
     logger.info(f"ECC GAP-7: artifact_name={artifact_name(config)}")
 
@@ -295,7 +317,10 @@ def train_and_analyze(
             train_data,
             num_boost_round=num_boost_round,
             valid_sets=[test_data],
-            callbacks=[lgb.early_stopping(early_stopping_rounds), lgb.log_evaluation(0)],
+            callbacks=[
+                lgb.early_stopping(early_stopping_rounds),
+                lgb.log_evaluation(0),
+            ],
         )
 
         # 预测
@@ -311,10 +336,16 @@ def train_and_analyze(
     avg_importance = all_importance / tscv.get_n_splits()
 
     # 特征重要性排序
-    imp_df = pd.DataFrame({
-        "factor": factor_cols,
-        "importance": avg_importance,
-    }).sort_values("importance", ascending=False).reset_index(drop=True)
+    imp_df = (
+        pd.DataFrame(
+            {
+                "factor": factor_cols,
+                "importance": avg_importance,
+            }
+        )
+        .sort_values("importance", ascending=False)
+        .reset_index(drop=True)
+    )
 
     imp_df["importance_pct"] = imp_df["importance"] / imp_df["importance"].sum() * 100
     imp_df["cum_pct"] = imp_df["importance_pct"].cumsum()
@@ -323,13 +354,16 @@ def train_and_analyze(
     try:
         manifest_metrics: dict[str, Any] = {
             "feature_importance": {
-                row["factor"]: float(row["importance"])
-                for _, row in imp_df.iterrows()
+                row["factor"]: float(row["importance"]) for _, row in imp_df.iterrows()
             },
             "fold_scores": fold_scores,
             "top_10_factors": imp_df.head(10)["factor"].tolist(),
-            "avg_mse": float(np.mean([s["mse"] for s in fold_scores])) if fold_scores else 0.0,
-            "avg_r2": float(np.mean([s["r2"] for s in fold_scores])) if fold_scores else 0.0,
+            "avg_mse": (
+                float(np.mean([s["mse"] for s in fold_scores])) if fold_scores else 0.0
+            ),
+            "avg_r2": (
+                float(np.mean([s["r2"] for s in fold_scores])) if fold_scores else 0.0
+            ),
         }
         artifact_dir = OUTPUT_DIR / artifact_name(config)
         write_manifest(artifact_dir, config, metrics=manifest_metrics)
@@ -367,9 +401,13 @@ def main():
         report_lines = []
         report_lines.append("# LightGBM 因子挖掘报告")
         report_lines.append("")
-        report_lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        report_lines.append(
+            f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         report_lines.append(f"**样本数**: {len(panel)}")
-        report_lines.append(f"**因子数**: {len([c for c in panel.columns if c not in ('code','date','y')])}")
+        report_lines.append(
+            f"**因子数**: {len([c for c in panel.columns if c not in ('code','date','y')])}"
+        )
         report_lines.append("")
 
         report_lines.append("## 交叉验证结果")
@@ -385,7 +423,9 @@ def main():
         report_lines.append("| 排名 | 因子名 | 重要性 | 占比% | 累计% |")
         report_lines.append("|------|--------|--------|-------|-------|")
         for i, row in imp_df.head(20).iterrows():
-            report_lines.append(f"| {i+1} | {row['factor']} | {row['importance']:.2f} | {row['importance_pct']:.2f} | {row['cum_pct']:.2f} |")
+            report_lines.append(
+                f"| {i+1} | {row['factor']} | {row['importance']:.2f} | {row['importance_pct']:.2f} | {row['cum_pct']:.2f} |"
+            )
         report_lines.append("")
 
         report_lines.append("## 新因子候选 (未在 alpha_factor_library 中定义)")
@@ -393,18 +433,32 @@ def main():
         existing_factors = set()
         # 从 alpha_factor_library 读取已有因子
         try:
-            alpha_lib_path = Path(__file__).resolve().parent.parent / "utils" / "alpha_factor_library.py"
+            alpha_lib_path = (
+                Path(__file__).resolve().parent.parent
+                / "utils"
+                / "alpha_factor_library.py"
+            )
             import re
+
             content = alpha_lib_path.read_text(encoding="utf-8")
             for m in re.finditer(r'"([A-Z_0-9]+)"', content):
                 existing_factors.add(m.group(1))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
 
         new_candidates = []
         for _i, row in imp_df.head(30).iterrows():
-            if row['factor'] not in existing_factors:
+            if row["factor"] not in existing_factors:
                 new_candidates.append(row)
 
         if new_candidates:
@@ -440,7 +494,9 @@ def main():
                     desc = "涨跌日数比 - 趋势持续性"
                 elif "PROXY" in row["factor"] or "STABILITY" in row["factor"]:
                     desc = "基本面代理因子 - 从量价衍生"
-                report_lines.append(f"| {imp_df[imp_df['factor']==row['factor']].index[0]+1} | {row['factor']} | {row['importance']:.2f} | {row['importance_pct']:.2f} | {desc} |")
+                report_lines.append(
+                    f"| {imp_df[imp_df['factor']==row['factor']].index[0]+1} | {row['factor']} | {row['importance']:.2f} | {row['importance_pct']:.2f} | {desc} |"
+                )
         else:
             report_lines.append("暂无新因子候选")
         report_lines.append("")
@@ -454,7 +510,9 @@ def main():
         logger.info("TOP 15 因子 (LightGBM 特征重要性)")
         logger.info("=" * 60)
         for i, row in imp_df.head(15).iterrows():
-            logger.info(f"  {i+1:2d}. {row['factor']:25s}  {row['importance']:10.2f}  ({row['importance_pct']:5.2f}%)")
+            logger.info(
+                f"  {i+1:2d}. {row['factor']:25s}  {row['importance']:10.2f}  ({row['importance_pct']:5.2f}%)"
+            )
         logger.info("=" * 60)
 
 

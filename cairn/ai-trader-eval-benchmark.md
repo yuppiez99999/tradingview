@@ -96,3 +96,14 @@ tests/eval/ai_trader_harness.py
 | `tests/unit/test_ai_trader_harness_unit.py` | 440 | 单元测试 (37) |
 | `reports/eval/ai_trader/README.md` | 40 | 归档目录说明 |
 | `reports/eval/ai_trader/ai_trader_eval_*.json` | ~3KB | 评估报告 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [DeepFund 防泄漏评估基准 (LIT-1.3)](deepfund-eval-benchmark.md) (相似度 24%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 17%)
+- [KTD-Fin 记忆控制评估基准](ktd-fin-eval.md) (相似度 15%)
+- [R&D-Agent-Quant 多智能体因子挖掘引擎 (LIT-1.1)](rd-agent-quant.md) (相似度 11%)
+- [AlphaCFG 语法引导因子发现 (LIT-1.5)](alpha-cfg-discovery.md) (相似度 11%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

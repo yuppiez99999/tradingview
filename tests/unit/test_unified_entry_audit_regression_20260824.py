@@ -4,6 +4,7 @@
     UE-2  gemma 子进程失败时退出码透传 (而非无条件 exit(0) 假成功)
     UE-3  压力测试权重跳过缺行情标的 (不按硬编码占位价 1 失真)
 """
+
 from __future__ import annotations
 
 
@@ -15,7 +16,9 @@ class TestStressWeightNoPlaceholder:
         valid_codes = [c for c in positions if prices.get(c, 0) > 0]
         if not valid_codes:
             return None, []
-        weights = [positions[c]['shares'] * prices[c] / total_value for c in valid_codes]
+        weights = [
+            positions[c]["shares"] * prices[c] / total_value for c in valid_codes
+        ]
         return weights, valid_codes
 
     def test_missing_price_skipped(self):
@@ -41,6 +44,7 @@ class TestGemmaExitCode:
     @staticmethod
     def _run_gemma(returncode):
         import sys
+
         # 模拟 subprocess.run 返回 returncode
         sys.exit(returncode)
 

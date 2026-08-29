@@ -43,6 +43,7 @@ logger = get_logger("ai_report_agent")
 # MarkItDown 适配器 (可选, 用于导入外部研报)
 try:
     from utils.markitdown_adapter import MarkItDownAdapter
+
     _MARKITDOWN_AVAILABLE = True
 except ImportError:
     _MARKITDOWN_AVAILABLE = False
@@ -60,6 +61,7 @@ _test_connection_fn = None
 try:
     from utils.llm_client import chat as _chat_fn
     from utils.llm_client import test_connection as _test_connection_fn
+
     _LLM_CLIENT_AVAILABLE = True
     logger.info("AIReportAgent: 统一 LLM 客户端已加载 (GLM5→三级降级链)")
 except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
@@ -201,7 +203,11 @@ class AIReportAgent:
     # ----------------------------------------------------------
 
     def _call_llm(
-        self, prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
+        self,
+        prompt: str,
+        system: str = "",
+        temperature: float = 0.3,
+        max_tokens: int = 2000,
     ) -> Optional[str]:
         """调用 LLM (失败返回 None, 触发降级)"""
         if not self.llm_available or _chat_fn is None:
@@ -257,7 +263,9 @@ class AIReportAgent:
     # 情感分析
     # ----------------------------------------------------------
 
-    def analyze_news_sentiment(self, news_items: list[dict], use_llm: bool = True) -> list[SentimentResult]:
+    def analyze_news_sentiment(
+        self, news_items: list[dict], use_llm: bool = True
+    ) -> list[SentimentResult]:
         """批量分析新闻情感
 
         Args:
@@ -285,7 +293,9 @@ class AIReportAgent:
 
         return results
 
-    def _llm_batch_sentiment(self, news_items: list[dict]) -> Optional[list[SentimentResult]]:
+    def _llm_batch_sentiment(
+        self, news_items: list[dict]
+    ) -> Optional[list[SentimentResult]]:
         """LLM 批量情感分析 (单次调用处理多条新闻)"""
         # 构造批量 prompt
         items_text = []
@@ -371,7 +381,9 @@ class AIReportAgent:
             confidence = 0.5
 
         # 提取关键词 (匹配到的词典词)
-        keywords = [w for w in self.POSITIVE_WORDS + self.NEGATIVE_WORDS if w in text][:5]
+        keywords = [w for w in self.POSITIVE_WORDS + self.NEGATIVE_WORDS if w in text][
+            :5
+        ]
 
         return SentimentResult(
             title=title,
@@ -433,7 +445,9 @@ class AIReportAgent:
             text = item.get("title", "") + " " + item.get("content", "")
             for word in self.CRITICAL_NEGATIVE_WORDS:
                 if word in text:
-                    report.risk_warnings.append(f"⚠️ 重大负面: 检测到 '{word}' (标的: {item.get('symbol', '未知')})")
+                    report.risk_warnings.append(
+                        f"⚠️ 重大负面: 检测到 '{word}' (标的: {item.get('symbol', '未知')})"
+                    )
                     break
 
         # 交易信号整理
@@ -474,13 +488,19 @@ class AIReportAgent:
                         report.recommendations.append(line)
             else:
                 # LLM 不可用, 规则引擎兜底
-                report.market_overview = self._rule_market_overview(symbols, predictions, report.risk_warnings)
+                report.market_overview = self._rule_market_overview(
+                    symbols, predictions, report.risk_warnings
+                )
                 report.model_used = "rule_engine"
         else:
-            report.market_overview = self._rule_market_overview(symbols, predictions, report.risk_warnings)
+            report.market_overview = self._rule_market_overview(
+                symbols, predictions, report.risk_warnings
+            )
             report.model_used = "rule_engine"
 
-        report.portfolio_analysis = self._rule_portfolio_analysis(symbols, positions_data, predictions)
+        report.portfolio_analysis = self._rule_portfolio_analysis(
+            symbols, positions_data, predictions
+        )
 
         return report
 
@@ -523,18 +543,26 @@ class AIReportAgent:
         news_summary = (
             "无重要新闻"
             if not news_highlights
-            else "\n".join(f"  - [{n['sentiment']}] {n['title']} (score={n['score']:.2f})" for n in news_highlights[:5])
+            else "\n".join(
+                f"  - [{n['sentiment']}] {n['title']} (score={n['score']:.2f})"
+                for n in news_highlights[:5]
+            )
         )
 
         # 风险
-        risk_summary = "无风险预警" if not risk_warnings else "\n".join(f"  - {w}" for w in risk_warnings)
+        risk_summary = (
+            "无风险预警"
+            if not risk_warnings
+            else "\n".join(f"  - {w}" for w in risk_warnings)
+        )
 
         # 信号
         signal_summary = (
             "无交易信号"
             if not trade_signals
             else "\n".join(
-                f"  - {s['symbol']}: {s['direction']} 置信度{s['confidence']:.0%}" for s in trade_signals[:5]
+                f"  - {s['symbol']}: {s['direction']} 置信度{s['confidence']:.0%}"
+                for s in trade_signals[:5]
             )
         )
 
@@ -563,7 +591,10 @@ class AIReportAgent:
 """
 
     def _rule_market_overview(
-        self, symbols: list[str], predictions: Optional[list[dict]], risk_warnings: list[str]
+        self,
+        symbols: list[str],
+        predictions: Optional[list[dict]],
+        risk_warnings: list[str],
     ) -> str:
         """规则引擎市场总览 (LLM 不可用时兜底)"""
         if risk_warnings:
@@ -573,13 +604,16 @@ class AIReportAgent:
             down_count = sum(1 for p in predictions if p.get("direction") == "DOWN")
             if up_count > down_count:
                 return f"今日 {up_count}/{len(predictions)} 个标的价格预测上涨, 市场情绪偏多。"
-            elif down_count > up_count:
+            if down_count > up_count:
                 return f"今日 {down_count}/{len(predictions)} 个标的价格预测下跌, 市场情绪偏空。"
             return "多空均衡, 市场震荡。"
         return "暂无足够数据生成市场总览。"
 
     def _rule_portfolio_analysis(
-        self, symbols: list[str], positions_data: Optional[dict], predictions: Optional[list[dict]]
+        self,
+        symbols: list[str],
+        positions_data: Optional[dict],
+        predictions: Optional[list[dict]],
     ) -> str:
         """规则引擎组合分析"""
         if not positions_data or "positions" not in positions_data:
@@ -587,7 +621,11 @@ class AIReportAgent:
 
         total_symbols = len(symbols)
         built_count = (
-            sum(1 for s in symbols if positions_data["positions"].get(s, {}).get("shares", 0) > 0)
+            sum(
+                1
+                for s in symbols
+                if positions_data["positions"].get(s, {}).get("shares", 0) > 0
+            )
             if positions_data
             else 0
         )
@@ -607,15 +645,15 @@ class AIReportAgent:
         neg = sum(1 for s in sentiments if s.sentiment == "negative")
         neu = sum(1 for s in sentiments if s.sentiment == "neutral")
         avg_score = sum(s.score for s in sentiments) / len(sentiments)
-        return (
-            f"共分析 {len(sentiments)} 条新闻: 利好 {pos} 条, 利空 {neg} 条, 中性 {neu} 条, 平均情感分 {avg_score:+.2f}"
-        )
+        return f"共分析 {len(sentiments)} 条新闻: 利好 {pos} 条, 利空 {neg} 条, 中性 {neu} 条, 平均情感分 {avg_score:+.2f}"
 
     # ----------------------------------------------------------
     # 交易信号解读
     # ----------------------------------------------------------
 
-    def explain_trade_signals(self, predictions: list[dict], news_sentiments: Optional[list[dict]] = None) -> str:
+    def explain_trade_signals(
+        self, predictions: list[dict], news_sentiments: Optional[list[dict]] = None
+    ) -> str:
         """将交易信号转化为可读建议
 
         Args:
@@ -643,7 +681,9 @@ class AIReportAgent:
         if news_sentiments:
             sent_lines = []
             for s in news_sentiments[:5]:
-                sent_lines.append(f"- {s.get('title', '')}: {s.get('sentiment', '')} score={s.get('score', 0):.2f}")
+                sent_lines.append(
+                    f"- {s.get('title', '')}: {s.get('sentiment', '')} score={s.get('score', 0):.2f}"
+                )
             sentiment_block = "\n".join(sent_lines)
 
         prompt = f"""请解读以下交易信号, 给出操作建议 (不要 markdown 代码块):
@@ -686,7 +726,9 @@ class AIReportAgent:
     # 持久化
     # ----------------------------------------------------------
 
-    def save_report(self, report: DailyReport, output_dir: Optional[Path] = None) -> Path:
+    def save_report(
+        self, report: DailyReport, output_dir: Optional[Path] = None
+    ) -> Path:
         """保存报告到文件 (JSON + Markdown)"""
         output_dir = output_dir or Path("data/ai_reports")
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -711,12 +753,16 @@ class AIReportAgent:
             if report.news_highlights:
                 f.write("## 四、重要新闻\n\n")
                 for n in report.news_highlights:
-                    f.write(f"- [{n['sentiment']}] {n['title']} (score={n['score']:.2f})\n")
+                    f.write(
+                        f"- [{n['sentiment']}] {n['title']} (score={n['score']:.2f})\n"
+                    )
                 f.write("\n")
             if report.trade_signals:
                 f.write("## 五、交易信号\n\n")
                 for s in report.trade_signals:
-                    f.write(f"- {s['symbol']}: {s['direction']} 置信度{s['confidence']:.0%}\n")
+                    f.write(
+                        f"- {s['symbol']}: {s['direction']} 置信度{s['confidence']:.0%}\n"
+                    )
                 f.write("\n")
             if report.risk_warnings:
                 f.write("## 六、风险预警\n\n")
@@ -744,8 +790,18 @@ class AIReportAgent:
             Markdown 文本, 不可用时返回占位提示
         """
         # P3: 输入校验 - 路径遍历 + 扩展名白名单
-        _ALLOWED_EXT = {".pdf", ".docx", ".doc", ".xlsx", ".xls",
-                        ".pptx", ".ppt", ".md", ".txt", ".csv"}
+        _ALLOWED_EXT = {
+            ".pdf",
+            ".docx",
+            ".doc",
+            ".xlsx",
+            ".xls",
+            ".pptx",
+            ".ppt",
+            ".md",
+            ".txt",
+            ".csv",
+        }
         _ALLOWED_ROOTS = [Path(__file__).resolve().parent.parent]
         try:
             p = Path(file_path).resolve()
@@ -765,7 +821,9 @@ class AIReportAgent:
             adapter = MarkItDownAdapter.get_instance()
             md_text = adapter.convert_to_markdown(file_path)
             if md_text:
-                logger.info(f"外部文档导入成功: {Path(file_path).name} → {len(md_text)} 字符")
+                logger.info(
+                    f"外部文档导入成功: {Path(file_path).name} → {len(md_text)} 字符"
+                )
                 return md_text
             logger.warning(f"外部文档转换失败: {file_path}")
             return f"[文档转换失败: {Path(file_path).name}]"
@@ -775,7 +833,9 @@ class AIReportAgent:
 
     def save_audit_logs(self) -> Path:
         """保存审计日志"""
-        log_path = self.audit_log_dir / f"audit_{datetime.now().strftime('%Y%m%d')}.json"
+        log_path = (
+            self.audit_log_dir / f"audit_{datetime.now().strftime('%Y%m%d')}.json"
+        )
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(
                 [r.__dict__ for r in self.audit_records],
@@ -800,7 +860,14 @@ class AIReportAgent:
         if self.llm_available and _test_connection_fn is not None:
             try:
                 status["llm_status"] = _test_connection_fn()
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 status["llm_status"] = {"error": str(e)}
         return status
 
@@ -874,7 +941,11 @@ class AIReportAgent:
         # 重大负面 veto 检查
         critical_hits = []
         for item in news_items:
-            text = (item.get("title", "") + " " + item.get("content", "")) if isinstance(item, dict) else ""
+            text = (
+                (item.get("title", "") + " " + item.get("content", ""))
+                if isinstance(item, dict)
+                else ""
+            )
             for word in self.CRITICAL_NEGATIVE_WORDS:
                 if word in text:
                     critical_hits.append(word)
@@ -961,7 +1032,11 @@ def self_test() -> bool:
 
         # 测试规则引擎情感分析
         fake_news = [
-            {"title": "某公司获重大订单 利好业绩", "content": "签订10亿合同", "symbol": "002371"},
+            {
+                "title": "某公司获重大订单 利好业绩",
+                "content": "签订10亿合同",
+                "symbol": "002371",
+            },
             {"title": "某公司被立案调查", "content": "财务造假", "symbol": "688041"},
             {"title": "普通公告", "content": "董事会决议", "symbol": "600900"},
         ]
@@ -976,7 +1051,11 @@ def self_test() -> bool:
         # 测试每日报告生成 (规则引擎)
         report = agent.generate_daily_report(
             symbols=["002371", "688041"],
-            positions_data={"positions": {"002371": {"name": "北方华创", "shares": 100, "weight": 0.04}}},
+            positions_data={
+                "positions": {
+                    "002371": {"name": "北方华创", "shares": 100, "weight": 0.04}
+                }
+            },
             predictions=[
                 {
                     "symbol": "002371",
@@ -985,7 +1064,13 @@ def self_test() -> bool:
                     "confidence": 0.8,
                     "method": "tensorflow",
                 },
-                {"symbol": "688041", "direction": "DOWN", "target_price": 340.0, "confidence": 0.6, "method": "arima"},
+                {
+                    "symbol": "688041",
+                    "direction": "DOWN",
+                    "target_price": 340.0,
+                    "confidence": 0.6,
+                    "method": "arima",
+                },
             ],
             news_items=fake_news,
         )
@@ -999,7 +1084,13 @@ def self_test() -> bool:
         # 测试信号解读 (规则引擎兜底)
         explain = agent.explain_trade_signals(
             [
-                {"symbol": "002371", "direction": "UP", "target_price": 825.0, "confidence": 0.8, "method": "tf"},
+                {
+                    "symbol": "002371",
+                    "direction": "UP",
+                    "target_price": 825.0,
+                    "confidence": 0.8,
+                    "method": "tf",
+                },
             ]
         )
         assert "信号汇总" in explain

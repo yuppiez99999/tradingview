@@ -62,3 +62,14 @@
 - DTE-1: 建仓执行接入 broker_factory/OrderRouter 撮合链 + FillsStore 落盘 (P1 架构)。
 - DTE-6: --auto-confirm 加显式确认护栏。
 - DTE-8: 建仓结果写回 trade_plan 消除双轨。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [风控 fail-close 完整化 (2026-08-24)](risk-failclose-complete-20260824.md) (相似度 35%)
+- [DTE-1 建仓接入 FillsStore 事实源 (2026-08-24)](dte1-build-fills-store-20260824.md) (相似度 23%)
+- [Agent-Skills 集成与适配（2026-08-24）](agent-skills-integration.md) (相似度 19%)
+- [代码审查明细 — 主链路 institutional_pipeline_runner (2026-08-24)](code-review-pipeline-20260824.md) (相似度 17%)
+- [P3.0 影子账户闭环门禁 (2026-08-26)](p3-0-gate.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

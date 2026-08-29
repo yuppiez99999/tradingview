@@ -45,3 +45,14 @@ updated: 2026-08-07
 - 盘后增量导入：观察期内每日增量、观察期后每周全量（对齐 TDAM_cairn_对接方案）
 - embeddingService 未启用（health=false），当前仅 BM25；如需语义检索需配置 embedding
 - 早期误用 `team=default` 导入的残留数据可清理
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [EOD 运维经验沉淀：OpenBLAS 内存修复 + U9 端到端验证 + D7 断言增强（2026-08-07）](eod-operations-lessons-20260807.md) (相似度 10%)
+- [第三方项目集成专题 — 2026-08-21](third-party-integration-20260821.md) (相似度 8%)
+- [代码质量提升外部资源评估](code-quality-external-resources-20260821.md) (相似度 8%)
+- [Agent-Skills 集成与适配（2026-08-24）](agent-skills-integration.md) (相似度 7%)
+- [代码质量修复批次 2026-08-18：ruff 高危规则清零](code-review-ruff-fix-batch-20260818.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

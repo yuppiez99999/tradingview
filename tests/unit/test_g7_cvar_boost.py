@@ -13,6 +13,7 @@ test_g7_cvar_boost.py — CVaR 风险计量模块覆盖率补强测试
     - fallback chain 降级链
     - 边界情况
 """
+
 from __future__ import annotations
 
 import math
@@ -81,12 +82,14 @@ class TestCVaRConfigFromDict:
         assert cfg.method == "historical"
 
     def test_valid_config(self) -> None:
-        cfg = CVaRConfig.from_dict({
-            "method": "parametric",
-            "distribution": "student_t",
-            "dof": 10,
-            "confidence_level": 0.99,
-        })
+        cfg = CVaRConfig.from_dict(
+            {
+                "method": "parametric",
+                "distribution": "student_t",
+                "dof": 10,
+                "confidence_level": 0.99,
+            }
+        )
         assert cfg.method == "parametric"
         assert cfg.distribution == "student_t"
         assert cfg.dof == 10
@@ -238,7 +241,9 @@ class TestCVaRCalculatorScalar:
 
     def test_returns_amount(self) -> None:
         returns = [-0.01 * i for i in range(20)]
-        amt = self.calc.calculate_scalar(returns, portfolio_value=500_000, return_amount=True)
+        amt = self.calc.calculate_scalar(
+            returns, portfolio_value=500_000, return_amount=True
+        )
         assert isinstance(amt, float)
 
     def test_nan_on_invalid(self) -> None:
@@ -281,20 +286,26 @@ class TestCVaRCalculatorBreach:
     """CVaRCalculator 超限检测测试."""
 
     def test_95_breach(self) -> None:
-        calc = CVaRCalculator(CVaRConfig(
-            method="historical", min_history=10,
-            var_95_limit_pct=-0.001,
-        ))
+        calc = CVaRCalculator(
+            CVaRConfig(
+                method="historical",
+                min_history=10,
+                var_95_limit_pct=-0.001,
+            )
+        )
         returns = [-0.05 * (i + 1) for i in range(20)]
         result = calc.calculate(returns, confidence=0.95)
         assert isinstance(result.breach, bool)
         assert isinstance(result.breach_level, (str, type(None)))
 
     def test_99_breach(self) -> None:
-        calc = CVaRCalculator(CVaRConfig(
-            method="historical", min_history=10,
-            var_99_limit_pct=-0.001,
-        ))
+        calc = CVaRCalculator(
+            CVaRConfig(
+                method="historical",
+                min_history=10,
+                var_99_limit_pct=-0.001,
+            )
+        )
         returns = [-0.05 * (i + 1) for i in range(20)]
         result = calc.calculate(returns, confidence=0.99)
         assert isinstance(result.breach, bool)
@@ -320,10 +331,13 @@ class TestCVaRCalculatorEdgeCases:
         assert math.isnan(result.cvar_pct)
 
     def test_skip_breach(self) -> None:
-        calc = CVaRCalculator(CVaRConfig(
-            method="historical", min_history=10,
-            var_95_limit_pct=-0.001,
-        ))
+        calc = CVaRCalculator(
+            CVaRConfig(
+                method="historical",
+                min_history=10,
+                var_95_limit_pct=-0.001,
+            )
+        )
         returns = [-0.05 * (i + 1) for i in range(20)]
         result = calc.calculate(returns, confidence=0.95, _skip_breach=True)
         assert result.breach is False

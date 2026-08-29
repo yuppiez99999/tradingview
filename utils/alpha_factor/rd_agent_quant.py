@@ -19,6 +19,7 @@
 文献依据: #2 (NeurIPS 2025 R&D-Agent)
 集成日期: 2026-08-24
 """
+
 from __future__ import annotations
 
 import logging
@@ -153,13 +154,14 @@ class RDAgentQuant:
             accepted_factors=accepted,
             rejected_factors=rejected,
             total_factors_before=len(existing_factors or []),
-            total_factors_after=len(existing_factors or []) + len(accepted) - len(rejected),
+            total_factors_after=len(existing_factors or [])
+            + len(accepted)
+            - len(rejected),
         )
         if result.total_factors_before > 0:
             result.improvement_pct = (
-                (result.total_factors_after - result.total_factors_before)
-                / result.total_factors_before
-            )
+                result.total_factors_after - result.total_factors_before
+            ) / result.total_factors_before
 
         logger.info(
             f"循环 #{cycle_id} 完成: "
@@ -238,11 +240,15 @@ class RDAgentQuant:
             if not eval_result.passed:
                 reasons = []
                 if eval_result.ic_mean < self.ic_threshold:
-                    reasons.append(f"IC {eval_result.ic_mean:.3f} < {self.ic_threshold}")
+                    reasons.append(
+                        f"IC {eval_result.ic_mean:.3f} < {self.ic_threshold}"
+                    )
                 if eval_result.ir < self.ir_threshold:
                     reasons.append(f"IR {eval_result.ir:.3f} < {self.ir_threshold}")
                 if eval_result.turnover > self.max_turnover:
-                    reasons.append(f"换手率 {eval_result.turnover:.2f} > {self.max_turnover}")
+                    reasons.append(
+                        f"换手率 {eval_result.turnover:.2f} > {self.max_turnover}"
+                    )
                 eval_result.rejection_reason = "; ".join(reasons)
             evaluations.append(eval_result)
         return evaluations

@@ -33,19 +33,22 @@ from utils.backtest.honest_validation import (
 # 合成数据
 # ============================================================
 
+
 def make_good_strategy_returns(n_days: int = 252, seed: int = 20260812) -> np.ndarray:
     """好策略: 正均值 + 低噪声 → 高 Sharpe, 噪音下稳定"""
     rng = np.random.default_rng(seed)
     daily_mean = 0.0008  # 年化 ~20%
-    daily_std = 0.008    # 年化 ~12.7%
+    daily_std = 0.008  # 年化 ~12.7%
     return rng.normal(daily_mean, daily_std, size=n_days)
 
 
-def make_overfit_strategy_returns(n_days: int = 252, seed: int = 20260812) -> np.ndarray:
+def make_overfit_strategy_returns(
+    n_days: int = 252, seed: int = 20260812
+) -> np.ndarray:
     """过拟合策略: 均值接近 0 + 噪声大 → 低 Sharpe, 噪音下不稳定"""
     rng = np.random.default_rng(seed + 1)
     daily_mean = 0.0001  # 接近零
-    daily_std = 0.015    # 大波动
+    daily_std = 0.015  # 大波动
     # 人为注入一段高收益期 (模拟数据窥探)
     rets = rng.normal(daily_mean, daily_std, size=n_days)
     rets[100:130] += 0.003  # 30 天人为拉升
@@ -62,22 +65,26 @@ def make_random_returns(n_days: int = 252, seed: int = 42) -> np.ndarray:
 # 测试
 # ============================================================
 
+
 def test_dsr_module_fix():
     """测试 1: DSR 顶层模块修复"""
     print("\n[测试 1] DSR 顶层模块修复")
     # 根目录 import
     import deflated_sharpe as ds_mod
+
     assert hasattr(ds_mod, "deflated_sharpe_ratio")
     print("  import deflated_sharpe ✓")
 
     # importlib 路径 (strategy_evaluator 用法)
     import importlib
+
     mod = importlib.import_module("deflated_sharpe")
     assert hasattr(mod, "deflated_sharpe_ratio")
     print("  importlib.import_module('deflated_sharpe') ✓")
 
     # from import 路径 (shadow_account_adapter 用法)
     from deflated_sharpe import deflated_sharpe_ratio as dsr_func
+
     assert callable(dsr_func)
     print("  from deflated_sharpe import deflated_sharpe_ratio ✓")
 
@@ -92,16 +99,23 @@ def test_dsr_semantics():
     assert isinstance(r1, DSRResult)
     assert r1.sharpe_ratio > 0, f"好策略 Sharpe 应>0: {r1.sharpe_ratio}"
     assert r1.n_observations == 252
-    print(f"  n_trials=1: Sharpe={r1.sharpe_ratio:.3f}, DSR={r1.deflated_sharpe_ratio:.4f}")
+    print(
+        f"  n_trials=1: Sharpe={r1.sharpe_ratio:.3f}, DSR={r1.deflated_sharpe_ratio:.4f}"
+    )
 
     # n_trials=100: 多重检验修正 → DSR 应降低
     r100 = deflated_sharpe_ratio(rets.tolist(), n_trials=100, required_dsr=0.95)
-    assert r100.deflated_sharpe_ratio <= r1.deflated_sharpe_ratio, \
-        f"n_trials=100 DSR 应 ≤ n_trials=1: {r100.deflated_sharpe_ratio} vs {r1.deflated_sharpe_ratio}"
-    print(f"  n_trials=100: DSR={r100.deflated_sharpe_ratio:.4f} (≤ n_trials=1 的 {r1.deflated_sharpe_ratio:.4f}) ✓")
+    assert (
+        r100.deflated_sharpe_ratio <= r1.deflated_sharpe_ratio
+    ), f"n_trials=100 DSR 应 ≤ n_trials=1: {r100.deflated_sharpe_ratio} vs {r1.deflated_sharpe_ratio}"
+    print(
+        f"  n_trials=100: DSR={r100.deflated_sharpe_ratio:.4f} (≤ n_trials=1 的 {r1.deflated_sharpe_ratio:.4f}) ✓"
+    )
 
     # float(result) 兼容 cast(float, ...)
-    assert abs(float(r1) - r1.deflated_sharpe_ratio) < 1e-12, "float(result) 不等于 DSR 值"
+    assert (
+        abs(float(r1) - r1.deflated_sharpe_ratio) < 1e-12
+    ), "float(result) 不等于 DSR 值"
     print(f"  float(result) = {float(r1):.4f} (兼容 cast(float, ...)) ✓")
 
     # as_dict 兼容
@@ -134,17 +148,23 @@ def test_honest_validation_good_strategy():
 
     # CPCV
     assert result.cpcv.n_paths > 0, "CPCV 应有路径"
-    print(f"  CPCV: {result.cpcv.n_paths} 路径, mean={result.cpcv.sharpe_mean:.3f}, "
-          f"CV={result.cpcv.sharpe_cv:.3f}, pct_pos={result.cpcv.pct_positive:.2%}")
+    print(
+        f"  CPCV: {result.cpcv.n_paths} 路径, mean={result.cpcv.sharpe_mean:.3f}, "
+        f"CV={result.cpcv.sharpe_cv:.3f}, pct_pos={result.cpcv.pct_positive:.2%}"
+    )
 
     # DSR
     assert result.dsr is not None
-    print(f"  DSR: {result.dsr.deflated_sharpe_ratio:.4f} (verdict: {result.dsr.verdict[:40]}...)")
+    print(
+        f"  DSR: {result.dsr.deflated_sharpe_ratio:.4f} (verdict: {result.dsr.verdict[:40]}...)"
+    )
 
     # Noise
     if result.noise:
-        print(f"  Noise: pct_positive={getattr(result.noise, 'pct_positive', 0):.2%}, "
-              f"is_stable={getattr(result.noise, 'is_stable', False)}")
+        print(
+            f"  Noise: pct_positive={getattr(result.noise, 'pct_positive', 0):.2%}, "
+            f"is_stable={getattr(result.noise, 'is_stable', False)}"
+        )
 
     print(f"  综合判定: is_honest={result.is_honest}")
     print(f"  verdict: {result.verdict}")
@@ -163,7 +183,9 @@ def test_honest_validation_overfit():
 
     print(f"  原始 Sharpe = {result.original_sharpe:.3f}")
     print(f"  CPCV: {result.cpcv.n_paths} 路径, CV={result.cpcv.sharpe_cv:.3f}")
-    print(f"  DSR: {result.dsr.deflated_sharpe_ratio:.4f} (is_pass={result.dsr.is_pass})")
+    print(
+        f"  DSR: {result.dsr.deflated_sharpe_ratio:.4f} (is_pass={result.dsr.is_pass})"
+    )
     if result.noise:
         print(f"  Noise: is_stable={getattr(result.noise, 'is_stable', False)}")
     print(f"  verdict: {result.verdict}")
@@ -196,6 +218,7 @@ def test_determinism():
 # ============================================================
 # 主流程
 # ============================================================
+
 
 def main() -> int:
     print("=" * 72)

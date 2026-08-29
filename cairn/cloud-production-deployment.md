@@ -179,3 +179,14 @@ kubectl rollout restart deployment/live-scheduler -n quant
 - `runbook` — 迁移步骤 + 验证清单
 - `rollback` — 回滚预案 (fail-open + 环境变量切回)
 - `migration` — 分阶段零停机迁移
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [华为云 ModelArts 云端训练部署](cloud-modelarts-deployment.md) (相似度 27%)
+- [GitHub 周热门项目集成 Wave10 (2026-08-21)](github-integration-wave10-20260821.md) (相似度 6%)
+- [G1 QMT 真实下单接线 (2026-08-24)](g1-qmt-wiring-20260824.md) (相似度 5%)
+- [实盘准入框架：12-31 上实盘的 7 项硬性门槛与 6 个决策门](live-trading-admission-criteria-20260811.md) (相似度 5%)
+- [运维部署 + 灰度发布 (2026-08-24)](ops-gray-release-20260824.md) (相似度 5%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

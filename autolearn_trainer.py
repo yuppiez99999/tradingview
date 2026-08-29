@@ -19,12 +19,49 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("autolearn")
+
+
+# ============================================================
+# post_train_callback 钩子 (ER-1.1, Wave 7-ERL Sprint 1)
+# ============================================================
+def invoke_post_train_callback(
+    callback: Callable[[dict[str, Any]], None] | None,
+    result: dict[str, Any],
+    *,
+    logger_name: str = "autolearn",
+) -> None:
+    """fail-safe 调用 post_train_callback 钩子。
+
+    训练完成后调用，回调异常不阻断训练主流程（优雅降级）。
+    用于 ER-1.1 训练→再平衡联动：训练完成 → 回调 → EvolutionOrchestratorV2.run_cycle() → run_daily_rebalance()。
+
+    Args:
+        callback: 训练后回调函数，接收训练结果字典；None 时直接返回（向后兼容）
+        result: 训练结果字典 (含 status/total/trained/skipped/failed/results/signals)
+        logger_name: 日志器名称
+
+    设计原则:
+        - 向后兼容: callback=None 时训练行为不变
+        - fail-safe: 回调异常仅 logger.warning，不阻断训练主流程
+        - 乘子约束: 回调产出的 weight_adjustments 仍限 [0.5, 2.0] (由调用方保证)
+    """
+    if callback is None:
+        return
+    cb_logger = logging.getLogger(logger_name)
+    try:
+        callback(result)
+        cb_logger.info("post_train_callback 执行成功")
+    except Exception as e:  # noqa: BLE001  # fail-safe: 回调异常不阻断训练
+        cb_logger.warning(f"post_train_callback 失败 (fail-safe 降级): {e}")
+
 
 # ============================================================
 # 路径
@@ -60,13 +97,15 @@ def _load_position_symbols() -> list[tuple]:
         )
         style = info.get("style", "") or info.get("type", "") or "其他"
         sector = info.get("sector", "") or style or "其他"
-        symbols.append((
-            code,
-            info.get("name", ""),
-            shares,
-            style,
-            sector,
-        ))
+        symbols.append(
+            (
+                code,
+                info.get("name", ""),
+                shares,
+                style,
+                sector,
+            )
+        )
 
     logger.info(f"POSITION_SYMBOLS: 加载 {len(symbols)} 个持仓标的")
     return symbols
@@ -90,14 +129,16 @@ def _rsi(series: pd.Series, period: int) -> pd.Series:
     """RSI (Relative Strength Index) — 无前视偏差."""
     delta = series.diff()
     gain = delta.clip(lower=0)
-    loss = (-delta.clip(upper=0))
+    loss = -delta.clip(upper=0)
     avg_gain = gain.ewm(span=period, adjust=False).mean()
     avg_loss = loss.ewm(span=period, adjust=False).mean()
     rs = avg_gain / avg_loss.replace(0, 1e-10)
     return 100.0 - (100.0 / (1.0 + rs))
 
 
-def _williams_r(high: pd.Series, low: pd.Series, close: pd.Series, period: int) -> pd.Series:
+def _williams_r(
+    high: pd.Series, low: pd.Series, close: pd.Series, period: int
+) -> pd.Series:
     """Williams %R — 无前视偏差."""
     highest = high.rolling(period).max()
     lowest = low.rolling(period).min()
@@ -191,7 +232,9 @@ def add_technical_features(df: pd.DataFrame) -> pd.DataFrame:
     df["bb_upper"] = df["bb_mid"] + 2 * bb_std
     df["bb_lower"] = df["bb_mid"] - 2 * bb_std
     df["bb_width"] = (df["bb_upper"] - df["bb_lower"]) / df["bb_mid"].replace(0, np.nan)
-    df["bb_position"] = (close - df["bb_lower"]) / (df["bb_upper"] - df["bb_lower"]).replace(0, np.nan)
+    df["bb_position"] = (close - df["bb_lower"]) / (
+        df["bb_upper"] - df["bb_lower"]
+    ).replace(0, np.nan)
 
     # ---- 成交量 (Volume) ----
     df["volume_ma_5"] = volume.rolling(5).mean()
@@ -204,8 +247,9 @@ def add_technical_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # ---- 价格-成交量关系 ----
     # VWAP (5日量价均)
-    df["vwap_5"] = ((close * volume).rolling(5).sum()
-                     / volume.rolling(5).sum().replace(0, np.nan))
+    df["vwap_5"] = (close * volume).rolling(5).sum() / volume.rolling(5).sum().replace(
+        0, np.nan
+    )
 
     # ---- 日内波动 ----
     df["hl_ratio"] = (high - low) / close.replace(0, np.nan)
@@ -252,7 +296,9 @@ def add_technical_features(df: pd.DataFrame) -> pd.DataFrame:
 # ============================================================
 # add_cross_sectional_features — 截面相对强弱因子
 # ============================================================
-def add_cross_sectional_features(featured_dict: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+def add_cross_sectional_features(
+    featured_dict: dict[str, pd.DataFrame],
+) -> dict[str, pd.DataFrame]:
     """添加截面相对强弱因子。
 
     对每个特征, 计算:
@@ -308,17 +354,20 @@ def add_cross_sectional_features(featured_dict: dict[str, pd.DataFrame]) -> dict
             peer_vals = [ret_metrics.get(p, {}).get(col, np.nan) for p in peers]
             peer_vals = [v for v in peer_vals if not pd.isna(v)]
             if len(peer_vals) >= 2:
-                df[f"{col}_sector_rank"] = (sum(1 for v in peer_vals if v < my_val)
-                                            / max(len(peer_vals), 1))
+                df[f"{col}_sector_rank"] = sum(
+                    1 for v in peer_vals if v < my_val
+                ) / max(len(peer_vals), 1)
                 df[f"{col}_sector_excess"] = my_val - np.median(peer_vals)
 
             # 全市场截面排名
-            all_vals = [ret_metrics.get(s, {}).get(col, np.nan)
-                        for s in all_symbols if s != sym]
+            all_vals = [
+                ret_metrics.get(s, {}).get(col, np.nan) for s in all_symbols if s != sym
+            ]
             all_vals = [v for v in all_vals if not pd.isna(v)]
             if len(all_vals) >= 5:
-                df[f"{col}_market_rank"] = (sum(1 for v in all_vals if v < my_val)
-                                            / max(len(all_vals), 1))
+                df[f"{col}_market_rank"] = sum(1 for v in all_vals if v < my_val) / max(
+                    len(all_vals), 1
+                )
 
     return featured_dict
 

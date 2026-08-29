@@ -85,9 +85,13 @@ class TestScanSkills:
     def test_scan_success_no_block(self, tmp_path):
         skill = tmp_path / "SKILL.md"
         skill.write_text("test")
-        with patch("scripts.skill_security_scan._check_available", return_value=True), \
-             patch("scripts.skill_security_scan._parse_sarif", return_value=(0, 0, 1, 0)), \
-             patch("subprocess.run") as mock_run:
+        with (
+            patch("scripts.skill_security_scan._check_available", return_value=True),
+            patch(
+                "scripts.skill_security_scan._parse_sarif", return_value=(0, 0, 1, 0)
+            ),
+            patch("subprocess.run") as mock_run,
+        ):
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
             result = scan_skills([skill], output_dir=tmp_path)
             assert result.available is True
@@ -97,9 +101,13 @@ class TestScanSkills:
     def test_scan_blocked(self, tmp_path):
         skill = tmp_path / "SKILL.md"
         skill.write_text("test")
-        with patch("scripts.skill_security_scan._check_available", return_value=True), \
-             patch("scripts.skill_security_scan._parse_sarif", return_value=(1, 1, 0, 0)), \
-             patch("subprocess.run") as mock_run:
+        with (
+            patch("scripts.skill_security_scan._check_available", return_value=True),
+            patch(
+                "scripts.skill_security_scan._parse_sarif", return_value=(1, 1, 0, 0)
+            ),
+            patch("subprocess.run") as mock_run,
+        ):
             mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
             result = scan_skills([skill], output_dir=tmp_path)
             assert result.blocked is True
@@ -111,8 +119,10 @@ class TestScanSkills:
 
         skill = tmp_path / "SKILL.md"
         skill.write_text("test")
-        with patch("scripts.skill_security_scan._check_available", return_value=True), \
-             patch("subprocess.run", side_effect=sp.TimeoutExpired(cmd="x", timeout=1)):
+        with (
+            patch("scripts.skill_security_scan._check_available", return_value=True),
+            patch("subprocess.run", side_effect=sp.TimeoutExpired(cmd="x", timeout=1)),
+        ):
             result = scan_skills([skill], output_dir=tmp_path)
             assert "超时" in result.error
 
@@ -125,36 +135,61 @@ class TestPrecommitCheck:
             assert "SKIP" in msg
 
     def test_no_changes(self, tmp_path):
-        with patch.dict("os.environ", {"SKIP_SKILL_SCAN": ""}), \
-             patch("scripts.skill_security_scan.get_changed_skill_files", return_value=[]):
+        with (
+            patch.dict("os.environ", {"SKIP_SKILL_SCAN": ""}),
+            patch(
+                "scripts.skill_security_scan.get_changed_skill_files", return_value=[]
+            ),
+        ):
             passed, msg = run_precommit_check(tmp_path)
             assert passed is True
             assert "无 skill" in msg
 
     def test_blocked(self, tmp_path):
         blocked_result = ScanResult(
-            scanned=1, critical=1, high=0, blocked=True, available=True,
+            scanned=1,
+            critical=1,
+            high=0,
+            blocked=True,
+            available=True,
             sarif_path=Path("/tmp/x.sarif"),
         )
-        with patch.dict("os.environ", {"SKIP_SKILL_SCAN": ""}), \
-             patch("scripts.skill_security_scan.get_changed_skill_files", return_value=[Path("x")]), \
-             patch("scripts.skill_security_scan.scan_skills", return_value=blocked_result):
+        with (
+            patch.dict("os.environ", {"SKIP_SKILL_SCAN": ""}),
+            patch(
+                "scripts.skill_security_scan.get_changed_skill_files",
+                return_value=[Path("x")],
+            ),
+            patch(
+                "scripts.skill_security_scan.scan_skills", return_value=blocked_result
+            ),
+        ):
             passed, msg = run_precommit_check(tmp_path)
             assert passed is False
             assert "阻断" in msg
 
     def test_not_available_pass(self, tmp_path):
         unavail = ScanResult(available=False, error="not installed")
-        with patch.dict("os.environ", {"SKIP_SKILL_SCAN": ""}), \
-             patch("scripts.skill_security_scan.get_changed_skill_files", return_value=[Path("x")]), \
-             patch("scripts.skill_security_scan.scan_skills", return_value=unavail):
+        with (
+            patch.dict("os.environ", {"SKIP_SKILL_SCAN": ""}),
+            patch(
+                "scripts.skill_security_scan.get_changed_skill_files",
+                return_value=[Path("x")],
+            ),
+            patch("scripts.skill_security_scan.scan_skills", return_value=unavail),
+        ):
             passed, msg = run_precommit_check(tmp_path)
             assert passed is True
             assert "容错" in msg
 
     def test_exception_pass(self, tmp_path):
-        with patch.dict("os.environ", {"SKIP_SKILL_SCAN": ""}), \
-             patch("scripts.skill_security_scan.get_changed_skill_files", side_effect=RuntimeError("boom")):
+        with (
+            patch.dict("os.environ", {"SKIP_SKILL_SCAN": ""}),
+            patch(
+                "scripts.skill_security_scan.get_changed_skill_files",
+                side_effect=RuntimeError("boom"),
+            ),
+        ):
             passed, msg = run_precommit_check(tmp_path)
             assert passed is True
             assert "容错" in msg

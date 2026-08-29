@@ -86,3 +86,14 @@ Actor: 状态 [log_moneyness, time_to_mat, prev_hedge] → 对冲头寸 [-1, 1]
 | `utils/deep_hedging_rl.py` | ~551 | 核心实现 |
 | `tests/unit/test_deep_hedging_rl_unit.py` | ~398 | 单元测试 |
 | `ruff.toml` | (+4行) | T201/N806 豁免 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [DeltaHedge 多智能体期权优化](delta-hedge-multi-agent.md) (相似度 27%)
+- [隐含波动率曲面深度对冲](iv-surface-deep-hedge.md) (相似度 27%)
+- [skfolio 统一优化后端](portfolio-optimizer-skfolio.md) (相似度 15%)
+- [对冲方案 v8.7 优化 — RegimeFolio 动态阈值 + 紧急跨级 + IV 感知 + Deep Hedging + 多智能体](hedge-v87-regime-adaptive-20260827.md) (相似度 13%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 13%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

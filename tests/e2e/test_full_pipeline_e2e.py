@@ -36,6 +36,7 @@ pytestmark = [pytest.mark.e2e]
 # 场景 1: 默认配置完整周期 ✅
 # ============================================================
 
+
 class TestFullPipelineDefaultCycle:
     """默认配置完整周期 E2E."""
 
@@ -53,7 +54,9 @@ class TestFullPipelineDefaultCycle:
 
         # 核心断言: 状态机正确迁移到 COMPLETED
         assert result.success is True, f"流水线应成功完成, error={result.error}"
-        assert result.stage == PipelineStage.COMPLETED, f"stage 应为 COMPLETED, 实际 {result.stage}"
+        assert (
+            result.stage == PipelineStage.COMPLETED
+        ), f"stage 应为 COMPLETED, 实际 {result.stage}"
         # 时间断言
         assert result.duration_ms >= 0
         assert result.started_at is not None
@@ -77,10 +80,13 @@ class TestFullPipelineDefaultCycle:
 # 场景 2: 数据清洗失败降级 ⚠️
 # ============================================================
 
+
 class TestDataCleaningFailure:
     """数据清洗失败时的降级行为."""
 
-    def test_data_cleaning_failure_returns_failed_stage(self, pipeline_config_overrides, monkeypatch):
+    def test_data_cleaning_failure_returns_failed_stage(
+        self, pipeline_config_overrides, monkeypatch
+    ):
         """数据清洗失败: stage=DATA_CLEANING, success=False, 不抛异常.
 
         通过 monkeypatch _data_cleaning.run 返回失败结果模拟数据清洗失败.
@@ -111,6 +117,7 @@ class TestDataCleaningFailure:
 # 场景 3: 执行模块禁用跳过 ⏭
 # ============================================================
 
+
 class TestExecutionDisabled:
     """execution_enabled=False 时跳过阶段 4."""
 
@@ -133,10 +140,13 @@ class TestExecutionDisabled:
 # 场景 4: 风控模块禁用跳过 ⏭
 # ============================================================
 
+
 class TestRiskMonitorDisabled:
     """risk_monitor_enabled=False 时跳过阶段 5."""
 
-    def test_risk_monitor_disabled_completes_successfully(self, pipeline_config_overrides):
+    def test_risk_monitor_disabled_completes_successfully(
+        self, pipeline_config_overrides
+    ):
         """risk_monitor_enabled=False: 跳过风控阶段, 仍到达 COMPLETED."""
         config = pipeline_config_overrides
         config.risk_monitor_enabled = False
@@ -151,6 +161,7 @@ class TestRiskMonitorDisabled:
 # ============================================================
 # 场景 5: Alpha 阶段异常捕获与状态机回退 🛡️
 # ============================================================
+
 
 class TestExceptionRecovery:
     """Alpha 阶段抛异常时的状态机回退."""
@@ -189,6 +200,7 @@ class TestExceptionRecovery:
 # ============================================================
 # 场景 6: 状态机快照持久化 📸
 # ============================================================
+
 
 class TestStatusSnapshot:
     """状态机快照 to_dict() 完整性."""

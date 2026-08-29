@@ -35,6 +35,7 @@
     result = hub.analyze("半导体板块利好", context_news=["芯片涨价", "国产替代"])
     hub.update_with_feedback(result, actual_return=0.02)  # 市场反馈
 """
+
 from __future__ import annotations
 
 import logging
@@ -51,9 +52,11 @@ logger = logging.getLogger("rag_rl_sentiment")
 # RAG 检索增强
 # ============================================================
 
+
 @dataclass
 class NewsItem:
     """新闻条目."""
+
     title: str
     content: str
     source: str = ""
@@ -63,6 +66,7 @@ class NewsItem:
 @dataclass
 class RetrievalResult:
     """检索结果."""
+
     query: str
     retrieved: list[NewsItem]
     scores: list[float]  # 相关性分数
@@ -141,9 +145,10 @@ class RAGRetriever:
             news_vec = self._tfidf_vector(news.title + news.content)
             # 余弦相似度
             if np.linalg.norm(query_vec) > 0 and np.linalg.norm(news_vec) > 0:
-                sim = float(np.dot(query_vec, news_vec) / (
-                    np.linalg.norm(query_vec) * np.linalg.norm(news_vec)
-                ))
+                sim = float(
+                    np.dot(query_vec, news_vec)
+                    / (np.linalg.norm(query_vec) * np.linalg.norm(news_vec))
+                )
             else:
                 sim = 0.0
             # 关键词命中加成
@@ -162,9 +167,11 @@ class RAGRetriever:
 # PPO 强化学习调优
 # ============================================================
 
+
 @dataclass
 class SentimentPrediction:
     """情感预测结果."""
+
     text: str
     sentiment: float  # [-1, 1]
     confidence: float  # [0, 1]
@@ -176,6 +183,7 @@ class SentimentPrediction:
 @dataclass
 class FeedbackResult:
     """反馈结果."""
+
     prediction: SentimentPrediction
     actual_return: float  # 实际涨跌
     reward: float  # 奖励
@@ -246,7 +254,9 @@ class PPOSentimentTuner:
         奖励 = 预测方向与实际方向一致 → 正; 不一致 → 负.
         """
         # 实际方向 (涨为正, 跌为负)
-        actual_direction = 1.0 if actual_return > 0 else (-1.0 if actual_return < 0 else 0.0)
+        actual_direction = (
+            1.0 if actual_return > 0 else (-1.0 if actual_return < 0 else 0.0)
+        )
         # 预测方向
         pred_direction = 1.0 if predicted > 0 else (-1.0 if predicted < 0 else 0.0)
         # 方向一致奖励
@@ -278,7 +288,9 @@ class PPOSentimentTuner:
             old_weights = self.weights.copy()
 
         # 优势估计 (减去历史均值)
-        mean_reward = float(np.mean(self.reward_history[-100:])) if self.reward_history else 0.0
+        mean_reward = (
+            float(np.mean(self.reward_history[-100:])) if self.reward_history else 0.0
+        )
         advantage = reward - mean_reward
 
         # 梯度: advantage × scores (各路分数差异化)
@@ -327,14 +339,19 @@ class PPOSentimentTuner:
             "n_weights": self.n_weights,
             "current_weights": self.weights.tolist(),
             "n_updates": len(self.reward_history),
-            "mean_reward": float(np.mean(self.reward_history)) if self.reward_history else 0.0,
-            "recent_accuracy": self.accuracy_history[-1] if self.accuracy_history else 0.0,
+            "mean_reward": (
+                float(np.mean(self.reward_history)) if self.reward_history else 0.0
+            ),
+            "recent_accuracy": (
+                self.accuracy_history[-1] if self.accuracy_history else 0.0
+            ),
         }
 
 
 # ============================================================
 # 自适应情感分析 Hub
 # ============================================================
+
 
 class AdaptiveSentimentHub:
     """RAG + RL 自适应情感分析 Hub.
@@ -352,12 +369,35 @@ class AdaptiveSentimentHub:
 
     # 规则引擎关键词 (复用 sentiment_hub)
     POSITIVE_KEYWORDS = [
-        "利好", "增持", "回购", "突破", "涨停", "业绩超预期", "中标",
-        "补贴", "政策支持", "战略合作", "收购", "合并",
+        "利好",
+        "增持",
+        "回购",
+        "突破",
+        "涨停",
+        "业绩超预期",
+        "中标",
+        "补贴",
+        "政策支持",
+        "战略合作",
+        "收购",
+        "合并",
     ]
     NEGATIVE_KEYWORDS = [
-        "暴跌", "闪崩", "退市", "立案", "处罚", "违约", "爆雷", "造假",
-        "下调", "减持", "质押", "诉讼", "亏损", "停牌", "风险",
+        "暴跌",
+        "闪崩",
+        "退市",
+        "立案",
+        "处罚",
+        "违约",
+        "爆雷",
+        "造假",
+        "下调",
+        "减持",
+        "质押",
+        "诉讼",
+        "亏损",
+        "停牌",
+        "风险",
     ]
 
     def __init__(self) -> None:
@@ -469,7 +509,9 @@ class AdaptiveSentimentHub:
         # 准确率
         recent_preds = [p.sentiment for p in self.prediction_history[-20:]]
         recent_actuals = self.actual_history[-20:]
-        acc_before = self.tuner.accuracy_history[-1] if self.tuner.accuracy_history else 0.0
+        acc_before = (
+            self.tuner.accuracy_history[-1] if self.tuner.accuracy_history else 0.0
+        )
         acc_after = self.tuner.compute_accuracy(recent_preds, recent_actuals)
         self.tuner.accuracy_history.append(acc_after)
 
@@ -496,6 +538,7 @@ class AdaptiveSentimentHub:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示 RAG + RL 自适应情感分析."""

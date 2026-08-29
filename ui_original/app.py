@@ -23,6 +23,7 @@
     - 运营组: Shadow / Backtest / Macro / Sector
     - 系统组: Logs / Config
 """
+
 from __future__ import annotations
 
 import logging
@@ -65,23 +66,23 @@ logger = logging.getLogger("ui.app")
 # 页面定义格式: (page_key, page_path, page_title, icon, group)
 PAGES = [
     # 概览组
-    ("dashboard",  "ui/pages/01_dashboard.py",  "概览",       "📊", "概览"),
-    ("trade_plan", "ui/pages/02_trade_plan.py", "交易计划",   "📋", "概览"),
-    ("positions",  "ui/pages/03_positions.py",  "持仓",       "💼", "概览"),
-    ("risk",       "ui/pages/04_risk.py",       "风险",       "🛡️", "概览"),
+    ("dashboard", "ui/pages/01_dashboard.py", "概览", "📊", "概览"),
+    ("trade_plan", "ui/pages/02_trade_plan.py", "交易计划", "📋", "概览"),
+    ("positions", "ui/pages/03_positions.py", "持仓", "💼", "概览"),
+    ("risk", "ui/pages/04_risk.py", "风险", "🛡️", "概览"),
     # 归因组
     ("attribution", "ui/pages/05_attribution.py", "归因面板", "🎯", "归因"),
-    ("brinson",     "ui/pages/06_brinson.py",     "Brinson",  "⚖️", "归因"),
-    ("barra",       "ui/pages/07_barra.py",       "Barra 因子", "📈", "归因"),
-    ("tca",         "ui/pages/08_tca.py",         "TCA 执行",  "💰", "归因"),
+    ("brinson", "ui/pages/06_brinson.py", "Brinson", "⚖️", "归因"),
+    ("barra", "ui/pages/07_barra.py", "Barra 因子", "📈", "归因"),
+    ("tca", "ui/pages/08_tca.py", "TCA 执行", "💰", "归因"),
     # 运营组
-    ("shadow",    "ui/pages/09_shadow.py",    "Shadow 账户", "👁️", "运营"),
-    ("backtest",  "ui/pages/10_backtest.py",  "回测",        "🔬", "运营"),
-    ("macro",     "ui/pages/11_macro.py",     "宏观数据",    "🌍", "运营"),
-    ("sector",    "ui/pages/12_sector.py",    "行业轮动",    "🔄", "运营"),
+    ("shadow", "ui/pages/09_shadow.py", "Shadow 账户", "👁️", "运营"),
+    ("backtest", "ui/pages/10_backtest.py", "回测", "🔬", "运营"),
+    ("macro", "ui/pages/11_macro.py", "宏观数据", "🌍", "运营"),
+    ("sector", "ui/pages/12_sector.py", "行业轮动", "🔄", "运营"),
     # 系统组
-    ("logs",      "ui/pages/13_logs.py",      "系统日志",    "📝", "系统"),
-    ("config",    "ui/pages/14_config.py",    "配置",        "⚙️", "系统"),
+    ("logs", "ui/pages/13_logs.py", "系统日志", "📝", "系统"),
+    ("config", "ui/pages/14_config.py", "配置", "⚙️", "系统"),
 ]
 
 

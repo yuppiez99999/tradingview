@@ -77,8 +77,8 @@ def _check_x01_cross_source_price(
     df: pd.DataFrame,
     cross_df: pd.DataFrame,
     checkpoint: DQCCheckpoint,
-    threshold_warn: float = 0.001,   # 0.1%
-    threshold_error: float = 0.01,   # 1%
+    threshold_warn: float = 0.001,  # 0.1%
+    threshold_error: float = 0.01,  # 1%
 ) -> list[DQCEvent]:
     """X-01: 跨源价格偏差 = |price_A - price_B| / price_B.
 
@@ -92,25 +92,47 @@ def _check_x01_cross_source_price(
     events: list[DQCEvent] = []
 
     # 识别主键
-    symbol_col = "symbol" if "symbol" in df.columns else ("code" if "code" in df.columns else None)
-    date_col = "date" if "date" in df.columns else ("datetime" if "datetime" in df.columns else None)
+    symbol_col = (
+        "symbol"
+        if "symbol" in df.columns
+        else ("code" if "code" in df.columns else None)
+    )
+    date_col = (
+        "date"
+        if "date" in df.columns
+        else ("datetime" if "datetime" in df.columns else None)
+    )
     if symbol_col is None or date_col is None:
         return events
 
     # 跨源 df 也需要相同主键
-    cross_symbol_col = "symbol" if "symbol" in cross_df.columns else ("code" if "code" in cross_df.columns else None)
-    cross_date_col = "date" if "date" in cross_df.columns else ("datetime" if "datetime" in cross_df.columns else None)
+    cross_symbol_col = (
+        "symbol"
+        if "symbol" in cross_df.columns
+        else ("code" if "code" in cross_df.columns else None)
+    )
+    cross_date_col = (
+        "date"
+        if "date" in cross_df.columns
+        else ("datetime" if "datetime" in cross_df.columns else None)
+    )
     if cross_symbol_col is None or cross_date_col is None:
         return events
 
     # 找共同的 price 字段
-    price_fields = [f for f in DEFAULT_PRICE_FIELDS if f in df.columns and f in cross_df.columns]
+    price_fields = [
+        f for f in DEFAULT_PRICE_FIELDS if f in df.columns and f in cross_df.columns
+    ]
     if not price_fields:
         return events
 
     # 重命名跨源列以避免冲突
     cross_renamed = cross_df[[cross_symbol_col, cross_date_col] + price_fields].rename(
-        columns={cross_symbol_col: "_symbol", cross_date_col: "_date", **{f: f"_cross_{f}" for f in price_fields}}
+        columns={
+            cross_symbol_col: "_symbol",
+            cross_date_col: "_date",
+            **{f: f"_cross_{f}" for f in price_fields},
+        }
     )
     main_renamed = df[[symbol_col, date_col] + price_fields].rename(
         columns={symbol_col: "_symbol", date_col: "_date"}
@@ -143,21 +165,23 @@ def _check_x01_cross_source_price(
         worst_symbol = str(merged.loc[worst_idx, "_symbol"])
         worst_date = str(merged.loc[worst_idx, "_date"])
 
-        events.append(make_event(
-            metric_id="X-01",
-            level=level,
-            checkpoint=checkpoint,
-            value=max_diff,
-            threshold=threshold_warn,
-            message=f"跨源价格偏差 {field} max={max_diff:.4%} ({level.name}), 最严重: {worst_symbol}@{worst_date}",
-            symbol=worst_symbol,
-            field=field,
-            max_diff=max_diff,
-            violation_count=violation_count,
-            total_count=int(len(valid)),
-            worst_symbol=worst_symbol,
-            worst_date=worst_date,
-        ))
+        events.append(
+            make_event(
+                metric_id="X-01",
+                level=level,
+                checkpoint=checkpoint,
+                value=max_diff,
+                threshold=threshold_warn,
+                message=f"跨源价格偏差 {field} max={max_diff:.4%} ({level.name}), 最严重: {worst_symbol}@{worst_date}",
+                symbol=worst_symbol,
+                field=field,
+                max_diff=max_diff,
+                violation_count=violation_count,
+                total_count=int(len(valid)),
+                worst_symbol=worst_symbol,
+                worst_date=worst_date,
+            )
+        )
 
     return events
 
@@ -169,7 +193,7 @@ def _check_x02_cross_source_volume(
     df: pd.DataFrame,
     cross_df: pd.DataFrame,
     checkpoint: DQCCheckpoint,
-    threshold_warn: float = 0.01,   # 1%
+    threshold_warn: float = 0.01,  # 1%
     threshold_error: float = 0.05,  # 5%
 ) -> list[DQCEvent]:
     """X-02: 跨源成交量偏差 = |vol_A - vol_B| / vol_B.
@@ -181,22 +205,47 @@ def _check_x02_cross_source_volume(
     """
     events: list[DQCEvent] = []
 
-    symbol_col = "symbol" if "symbol" in df.columns else ("code" if "code" in df.columns else None)
-    date_col = "date" if "date" in df.columns else ("datetime" if "datetime" in df.columns else None)
+    symbol_col = (
+        "symbol"
+        if "symbol" in df.columns
+        else ("code" if "code" in df.columns else None)
+    )
+    date_col = (
+        "date"
+        if "date" in df.columns
+        else ("datetime" if "datetime" in df.columns else None)
+    )
     if symbol_col is None or date_col is None:
         return events
 
-    if DEFAULT_VOLUME_FIELD not in df.columns or DEFAULT_VOLUME_FIELD not in cross_df.columns:
+    if (
+        DEFAULT_VOLUME_FIELD not in df.columns
+        or DEFAULT_VOLUME_FIELD not in cross_df.columns
+    ):
         return events
 
-    cross_symbol_col = "symbol" if "symbol" in cross_df.columns else ("code" if "code" in cross_df.columns else None)
-    cross_date_col = "date" if "date" in cross_df.columns else ("datetime" if "datetime" in cross_df.columns else None)
+    cross_symbol_col = (
+        "symbol"
+        if "symbol" in cross_df.columns
+        else ("code" if "code" in cross_df.columns else None)
+    )
+    cross_date_col = (
+        "date"
+        if "date" in cross_df.columns
+        else ("datetime" if "datetime" in cross_df.columns else None)
+    )
     if cross_symbol_col is None or cross_date_col is None:
         return events
 
     # 重命名
-    cross_renamed = cross_df[[cross_symbol_col, cross_date_col, DEFAULT_VOLUME_FIELD]].rename(
-        columns={cross_symbol_col: "_symbol", cross_date_col: "_date", DEFAULT_VOLUME_FIELD: "_cross_vol"}
+    cross_renamed = cross_df[
+        [cross_symbol_col, cross_date_col, DEFAULT_VOLUME_FIELD]
+    ].rename(
+        columns={
+            cross_symbol_col: "_symbol",
+            cross_date_col: "_date",
+            DEFAULT_VOLUME_FIELD: "_cross_vol",
+        }
     )
     main_renamed = df[[symbol_col, date_col, DEFAULT_VOLUME_FIELD]].rename(
         columns={symbol_col: "_symbol", date_col: "_date", DEFAULT_VOLUME_FIELD: "vol"}
@@ -226,20 +275,22 @@ def _check_x02_cross_source_volume(
     worst_symbol = str(merged.loc[worst_idx, "_symbol"])
     worst_date = str(merged.loc[worst_idx, "_date"])
 
-    events.append(make_event(
-        metric_id="X-02",
-        level=level,
-        checkpoint=checkpoint,
-        value=max_diff,
-        threshold=threshold_warn,
-        message=f"跨源成交量偏差 max={max_diff:.4%} ({level.name}), 最严重: {worst_symbol}@{worst_date}",
-        symbol=worst_symbol,
-        max_diff=max_diff,
-        violation_count=violation_count,
-        total_count=int(len(valid)),
-        worst_symbol=worst_symbol,
-        worst_date=worst_date,
-    ))
+    events.append(
+        make_event(
+            metric_id="X-02",
+            level=level,
+            checkpoint=checkpoint,
+            value=max_diff,
+            threshold=threshold_warn,
+            message=f"跨源成交量偏差 max={max_diff:.4%} ({level.name}), 最严重: {worst_symbol}@{worst_date}",
+            symbol=worst_symbol,
+            max_diff=max_diff,
+            violation_count=violation_count,
+            total_count=int(len(valid)),
+            worst_symbol=worst_symbol,
+            worst_date=worst_date,
+        )
+    )
 
     return events
 
@@ -261,20 +312,39 @@ def _check_x03_history_invariance(
     """
     events: list[DQCEvent] = []
 
-    symbol_col = "symbol" if "symbol" in df.columns else ("code" if "code" in df.columns else None)
-    date_col = "date" if "date" in df.columns else ("datetime" if "datetime" in df.columns else None)
+    symbol_col = (
+        "symbol"
+        if "symbol" in df.columns
+        else ("code" if "code" in df.columns else None)
+    )
+    date_col = (
+        "date"
+        if "date" in df.columns
+        else ("datetime" if "datetime" in df.columns else None)
+    )
     if symbol_col is None or date_col is None:
         return events
 
     # 获取 history_cache 的主键列名
-    h_symbol_col = "symbol" if "symbol" in history_cache.columns else ("code" if "code" in history_cache.columns else None)
-    h_date_col = "date" if "date" in history_cache.columns else ("datetime" if "datetime" in history_cache.columns else None)
+    h_symbol_col = (
+        "symbol"
+        if "symbol" in history_cache.columns
+        else ("code" if "code" in history_cache.columns else None)
+    )
+    h_date_col = (
+        "date"
+        if "date" in history_cache.columns
+        else ("datetime" if "datetime" in history_cache.columns else None)
+    )
     if h_symbol_col is None or h_date_col is None:
         return events
 
     # 共同的可比字段 (排除主键, 聚焦 OHLCV + adj_factor)
-    comparable_fields = [f for f in ("open", "high", "low", "close", "volume", "adj_factor")
-                         if f in df.columns and f in history_cache.columns]
+    comparable_fields = [
+        f
+        for f in ("open", "high", "low", "close", "volume", "adj_factor")
+        if f in df.columns and f in history_cache.columns
+    ]
     if not comparable_fields:
         return events
 
@@ -289,7 +359,9 @@ def _check_x03_history_invariance(
 
     # inner join (只比对共同的历史日期)
     merged = df_norm[["_key"] + comparable_fields].merge(
-        h_norm[["_key"] + comparable_fields].rename(columns={f: f"_h_{f}" for f in comparable_fields}),
+        h_norm[["_key"] + comparable_fields].rename(
+            columns={f: f"_h_{f}" for f in comparable_fields}
+        ),
         on="_key",
         how="inner",
     )
@@ -303,7 +375,12 @@ def _check_x03_history_invariance(
         h_field = f"_h_{field}"
         # 数值字段用 np.isclose 容忍浮点误差
         try:
-            diff_mask = ~np.isclose(merged[field].astype(float), merged[h_field].astype(float), rtol=1e-6, atol=1e-8)
+            diff_mask = ~np.isclose(
+                merged[field].astype(float),
+                merged[h_field].astype(float),
+                rtol=1e-6,
+                atol=1e-8,
+            )
         except (ValueError, TypeError):
             # 非数值字段用严格相等
             diff_mask = merged[field] != merged[h_field]
@@ -319,25 +396,32 @@ def _check_x03_history_invariance(
         for field in comparable_fields:
             h_field = f"_h_{field}"
             try:
-                diff_mask = ~np.isclose(merged[field].astype(float), merged[h_field].astype(float), rtol=1e-6, atol=1e-8)
+                diff_mask = ~np.isclose(
+                    merged[field].astype(float),
+                    merged[h_field].astype(float),
+                    rtol=1e-6,
+                    atol=1e-8,
+                )
             except (ValueError, TypeError):
                 diff_mask = merged[field] != merged[h_field]
             if diff_mask.any():
                 for idx in merged[diff_mask]["_key"].head(3):
                     sample_keys.append(f"{idx} ({field})")
 
-        events.append(make_event(
-            metric_id="X-03",
-            level=DQCLevel.ERROR,
-            checkpoint=checkpoint,
-            value=float(total_violations),
-            threshold=0.0,
-            message=f"历史值不变性违反 (HC-DQC3): {total_violations} 处历史数据被修改, 字段违规数={field_violations}",
-            violation_count=total_violations,
-            field_violations=field_violations,
-            sample_keys=sample_keys[:5],
-            compared_rows=int(len(merged)),
-        ))
+        events.append(
+            make_event(
+                metric_id="X-03",
+                level=DQCLevel.ERROR,
+                checkpoint=checkpoint,
+                value=float(total_violations),
+                threshold=0.0,
+                message=f"历史值不变性违反 (HC-DQC3): {total_violations} 处历史数据被修改, 字段违规数={field_violations}",
+                violation_count=total_violations,
+                field_violations=field_violations,
+                sample_keys=sample_keys[:5],
+                compared_rows=int(len(merged)),
+            )
+        )
 
     return events
 
@@ -361,7 +445,11 @@ def _check_x05_index_consistency(
     if not expected_symbols:
         return events
 
-    symbol_col = "symbol" if "symbol" in df.columns else ("code" if "code" in df.columns else None)
+    symbol_col = (
+        "symbol"
+        if "symbol" in df.columns
+        else ("code" if "code" in df.columns else None)
+    )
     if symbol_col is None:
         return events
 
@@ -381,17 +469,19 @@ def _check_x05_index_consistency(
     else:
         level = DQCLevel.WARN
 
-    events.append(make_event(
-        metric_id="X-05",
-        level=level,
-        checkpoint=checkpoint,
-        value=float(total_diff),
-        threshold=2.0,
-        message=f"标的池不一致: 缺失 {len(missing)} 个, 新增 {len(extra)} 个",
-        missing_count=len(missing),
-        extra_count=len(extra),
-        missing_symbols=sorted(missing)[:10],
-        extra_symbols=sorted(extra)[:10],
-    ))
+    events.append(
+        make_event(
+            metric_id="X-05",
+            level=level,
+            checkpoint=checkpoint,
+            value=float(total_diff),
+            threshold=2.0,
+            message=f"标的池不一致: 缺失 {len(missing)} 个, 新增 {len(extra)} 个",
+            missing_count=len(missing),
+            extra_count=len(extra),
+            missing_symbols=sorted(missing)[:10],
+            extra_symbols=sorted(extra)[:10],
+        )
+    )
 
     return events

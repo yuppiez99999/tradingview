@@ -12,6 +12,7 @@ v10.0 第二优先级模块单元测试
     cd e:\\各种PY程序\\28-终极量化交易系统7.1
     python tests/test_v10_strategy_modules.py
 """
+
 import json
 import logging
 import os
@@ -50,10 +51,14 @@ def test_ic_hedge_calculator():
     print(calc.summary(result))
 
     # 断言: 应该需要 1-3 张合约
-    assert 1 <= result.target_contracts <= 3, f"合约数应在 1-3 张, 实际 {result.target_contracts}"
+    assert (
+        1 <= result.target_contracts <= 3
+    ), f"合约数应在 1-3 张, 实际 {result.target_contracts}"
     assert result.net_beta < 0.85, "对冲后净 beta 应小于原 beta"
     assert result.feasible, "应该可行"
-    print(f"✓ 场景 A 通过: 合约 {result.target_contracts} 张, 净 beta {result.net_beta:.3f}")
+    print(
+        f"✓ 场景 A 通过: 合约 {result.target_contracts} 张, 净 beta {result.net_beta:.3f}"
+    )
 
     # 场景 B: 高 beta, 需要更多对冲
     result_b = calc.calculate(
@@ -64,7 +69,9 @@ def test_ic_hedge_calculator():
     )
     print("\n场景 B: 高 beta 对冲")
     print(calc.summary(result_b))
-    assert result_b.target_contracts >= result.target_contracts, "高 beta 应该需要更多合约"
+    assert (
+        result_b.target_contracts >= result.target_contracts
+    ), "高 beta 应该需要更多合约"
     print(f"✓ 场景 B 通过: 合约 {result_b.target_contracts} 张")
 
     # 场景 C: 基差贴水警告
@@ -78,8 +85,12 @@ def test_ic_hedge_calculator():
     print("\n场景 C: 基差贴水警告")
     print(calc.summary(result_c))
     assert result_c.basis_warning, "应该触发基差警告"
-    assert result_c.adjusted_contracts <= result_c.target_contracts, "调整后合约数应 <= 目标合约数"
-    print(f"✓ 场景 C 通过: 基差警告触发, 合约 {result_c.target_contracts} → {result_c.adjusted_contracts}")
+    assert (
+        result_c.adjusted_contracts <= result_c.target_contracts
+    ), "调整后合约数应 <= 目标合约数"
+    print(
+        f"✓ 场景 C 通过: 基差警告触发, 合约 {result_c.target_contracts} → {result_c.adjusted_contracts}"
+    )
 
     # 场景 D: 已达标, 无需对冲
     result_d = calc.calculate(
@@ -114,53 +125,81 @@ def test_quant_neutral_runner():
     import random
 
     from utils.quant_neutral_runner import QuantNeutralRunner
+
     random.seed(42)
 
     # 生成 50 只候选股票 (50 只不同 A 股代码, 避免重复)
     universe = []
     stock_names = [
-        ("600000.SH", "浦发银行"), ("600036.SH", "招商银行"),
-        ("601318.SH", "中国平安"), ("601398.SH", "工商银行"),
-        ("600276.SH", "恒瑞医药"), ("600900.SH", "长江电力"),
-        ("601088.SH", "中国神华"), ("600030.SH", "中信证券"),
-        ("600519.SH", "贵州茅台"), ("000858.SZ", "五粮液"),
-        ("600887.SH", "伊利股份"), ("601166.SH", "兴业银行"),
-        ("601328.SH", "交通银行"), ("601628.SH", "中国人寿"),
-        ("601857.SH", "中国石油"), ("601988.SH", "中国银行"),
-        ("603259.SH", "药明康德"), ("600016.SH", "民生银行"),
-        ("600028.SH", "中国石化"), ("600048.SH", "保利发展"),
-        ("600104.SH", "上汽集团"), ("600196.SH", "复星医药"),
-        ("600340.SH", "华夏幸福"), ("600406.SH", "国电南瑞"),
-        ("600585.SH", "海螺水泥"), ("600690.SH", "海尔智家"),
-        ("600745.SH", "闻泰科技"), ("600837.SH", "海通证券"),
-        ("600999.SH", "招商证券"), ("601006.SH", "大秦铁路"),
-        ("601111.SH", "中国国航"), ("601138.SH", "工业富联"),
-        ("601169.SH", "北京银行"), ("601236.SH", "红塔证券"),
-        ("601601.SH", "中国太保"), ("601688.SH", "华泰证券"),
-        ("601728.SH", "中国电信"), ("601800.SH", "中国交建"),
-        ("601818.SH", "光大银行"), ("601888.SH", "中国中免"),
-        ("601919.SH", "中远海控"), ("603160.SH", "汇顶科技"),
-        ("603501.SH", "韦尔股份"), ("603986.SH", "兆易创新"),
-        ("688008.SH", "澜起科技"), ("688012.SH", "中微公司"),
-        ("688036.SH", "传音控股"), ("688981.SH", "中芯国际"),
-        ("300750.SZ", "宁德时代"), ("002594.SZ", "比亚迪"),
+        ("600000.SH", "浦发银行"),
+        ("600036.SH", "招商银行"),
+        ("601318.SH", "中国平安"),
+        ("601398.SH", "工商银行"),
+        ("600276.SH", "恒瑞医药"),
+        ("600900.SH", "长江电力"),
+        ("601088.SH", "中国神华"),
+        ("600030.SH", "中信证券"),
+        ("600519.SH", "贵州茅台"),
+        ("000858.SZ", "五粮液"),
+        ("600887.SH", "伊利股份"),
+        ("601166.SH", "兴业银行"),
+        ("601328.SH", "交通银行"),
+        ("601628.SH", "中国人寿"),
+        ("601857.SH", "中国石油"),
+        ("601988.SH", "中国银行"),
+        ("603259.SH", "药明康德"),
+        ("600016.SH", "民生银行"),
+        ("600028.SH", "中国石化"),
+        ("600048.SH", "保利发展"),
+        ("600104.SH", "上汽集团"),
+        ("600196.SH", "复星医药"),
+        ("600340.SH", "华夏幸福"),
+        ("600406.SH", "国电南瑞"),
+        ("600585.SH", "海螺水泥"),
+        ("600690.SH", "海尔智家"),
+        ("600745.SH", "闻泰科技"),
+        ("600837.SH", "海通证券"),
+        ("600999.SH", "招商证券"),
+        ("601006.SH", "大秦铁路"),
+        ("601111.SH", "中国国航"),
+        ("601138.SH", "工业富联"),
+        ("601169.SH", "北京银行"),
+        ("601236.SH", "红塔证券"),
+        ("601601.SH", "中国太保"),
+        ("601688.SH", "华泰证券"),
+        ("601728.SH", "中国电信"),
+        ("601800.SH", "中国交建"),
+        ("601818.SH", "光大银行"),
+        ("601888.SH", "中国中免"),
+        ("601919.SH", "中远海控"),
+        ("603160.SH", "汇顶科技"),
+        ("603501.SH", "韦尔股份"),
+        ("603986.SH", "兆易创新"),
+        ("688008.SH", "澜起科技"),
+        ("688012.SH", "中微公司"),
+        ("688036.SH", "传音控股"),
+        ("688981.SH", "中芯国际"),
+        ("300750.SZ", "宁德时代"),
+        ("002594.SZ", "比亚迪"),
     ]
     for code, name in stock_names:
-        universe.append({
-            "code": code,
-            "name": name,
-            "returns_20d": random.uniform(-0.1, 0.15),
-            "returns_5d": random.uniform(-0.05, 0.05),
-            "volatility_60d": random.uniform(0.15, 0.45),
-            "avg_turnover_amount": random.uniform(10_000_000, 200_000_000),
-            "roe": random.uniform(0.05, 0.25),
-            "cashflow_ratio": random.uniform(0.5, 1.2),
-            "revenue_growth": random.uniform(-0.1, 0.4),
-            "profit_growth": random.uniform(-0.15, 0.5),
-            "pe_percentile": random.uniform(0.1, 0.9),
-            "pb_percentile": random.uniform(0.1, 0.9),
-            "beta": random.uniform(0.6, 1.3),
-        })
+        universe.append(
+            {
+                "code": code,
+                "name": name,
+                "returns_20d": random.uniform(-0.1, 0.15),
+                "returns_5d": random.uniform(-0.05, 0.05),
+                "volatility_60d": random.uniform(0.15, 0.45),
+                "avg_turnover_amount": random.uniform(10_000_000, 200_000_000),
+                "roe": random.uniform(0.05, 0.25),
+                "cashflow_ratio": random.uniform(0.5, 1.2),
+                "revenue_growth": random.uniform(-0.1, 0.4),
+                "profit_growth": random.uniform(-0.15, 0.5),
+                "pe_percentile": random.uniform(0.1, 0.9),
+                "pb_percentile": random.uniform(0.1, 0.9),
+                "beta": random.uniform(0.6, 1.3),
+            }
+        )
 
     runner = QuantNeutralRunner()
     print("\n场景 A: 月度调仓 (正常)")
@@ -183,8 +222,12 @@ def test_quant_neutral_runner():
     assert result.long_count > 0, "做多数量应 > 0"
     assert result.long_count <= 25, f"做多数量应 ≤ 25, 实际 {result.long_count}"
     assert result.long_market_value > 0, "多头市值应 > 0"
-    assert result.net_exposure <= 0.10 + 0.01, f"净敞口应 ≤ 0.10, 实际 {result.net_exposure:.3f}"
-    print(f"✓ 场景 A 通过: 做多 {result.long_count} 只, 净敞口 {result.net_exposure:.3f}")
+    assert (
+        result.net_exposure <= 0.10 + 0.01
+    ), f"净敞口应 ≤ 0.10, 实际 {result.net_exposure:.3f}"
+    print(
+        f"✓ 场景 A 通过: 做多 {result.long_count} 只, 净敞口 {result.net_exposure:.3f}"
+    )
 
     # 场景 B: 风控触发 — 策略回撤 > 8% (最大回撤) → 暂停
     print("\n场景 B: 策略回撤 10% > 最大回撤 8%, 应触发暂停")
@@ -275,7 +318,9 @@ def test_cash_manager():
     assert result.reverse_repo > 0, "逆回购应 > 0"
     assert result.repo_order.get("action") == "place_repo_order", "应下单逆回购"
     assert result.estimated_daily_income > 0, "预期日收益应 > 0"
-    print(f"✓ 场景 A 通过: 逆回购 ¥{result.reverse_repo:,.0f}, 日收益 ¥{result.estimated_daily_income:.2f}")
+    print(
+        f"✓ 场景 A 通过: 逆回购 ¥{result.reverse_repo:,.0f}, 日收益 ¥{result.estimated_daily_income:.2f}"
+    )
 
     # 场景 B: 季末高利率
     print("\n场景 B: 季末高利率 (6.5%)")
@@ -309,7 +354,10 @@ def test_cash_manager():
 
     # 检查补足建议
     replenish = cm.check_emergency_replenish(50_000, date(2026, 7, 13))
-    assert replenish["action"] in ("replenish_now", "schedule_replenish"), "应有补足动作"
+    assert replenish["action"] in (
+        "replenish_now",
+        "schedule_replenish",
+    ), "应有补足动作"
     print(f"✓ 场景 C 通过: 应急金补足 {replenish['action']}")
 
     # 场景 D: 期货保证金追加
@@ -346,9 +394,9 @@ def test_daily_workflow_integration():
     try:
         # 直接验证 daily_workflow 模块导入
         import importlib.util
+
         spec = importlib.util.spec_from_file_location(
-            "daily_workflow",
-            PROJECT_ROOT / "v7.5_institutional" / "daily_workflow.py"
+            "daily_workflow", PROJECT_ROOT / "v7.5_institutional" / "daily_workflow.py"
         )
         # 不完整加载, 仅检查语法
         print(f"模块路径: {spec.origin}")
@@ -361,6 +409,7 @@ def test_daily_workflow_integration():
         from utils.cash_manager import CashManager  # noqa: F401
         from utils.ic_hedge_calculator import ICHedgeCalculator  # noqa: F401
         from utils.quant_neutral_runner import QuantNeutralRunner  # noqa: F401
+
         print("✓ v10.0 策略模块全部导入成功")
         print("  - QuantNeutralRunner: 资金 ¥700,000, 目标多头 ¥1,400,000")
         print("  - ICHedgeCalculator: IC 合约乘数 200, 保证金率 12%")
@@ -415,7 +464,9 @@ def test_v10_config_compatibility():
     assert qn_cfg.get("target_beta") == 0.05, "目标 beta 应为 0.05"
     assert qn_cfg.get("long_count") == 25, "做多股票数应为 25"
     assert qn_cfg.get("short_contracts_max") == 3, "IC 合约上限应为 3"
-    print(f"✓ 量化中性配置验证通过: ¥{qn_cfg['capital']:,}, beta {qn_cfg['target_beta']}")
+    print(
+        f"✓ 量化中性配置验证通过: ¥{qn_cfg['capital']:,}, beta {qn_cfg['target_beta']}"
+    )
 
     # 验证现金管理配置
     cash_cfg = loader.get_cash_config()
@@ -447,6 +498,7 @@ def main():
     except Exception as e:
         print(f"✗ 测试 1 失败: {e}")
         import traceback
+
         traceback.print_exc()
         results.append(("IC对冲计算器", False))
 
@@ -455,6 +507,7 @@ def main():
     except Exception as e:
         print(f"✗ 测试 2 失败: {e}")
         import traceback
+
         traceback.print_exc()
         results.append(("量化中性策略", False))
 
@@ -463,6 +516,7 @@ def main():
     except Exception as e:
         print(f"✗ 测试 3 失败: {e}")
         import traceback
+
         traceback.print_exc()
         results.append(("现金管理器", False))
 
@@ -477,6 +531,7 @@ def main():
     except Exception as e:
         print(f"✗ 测试 5 失败: {e}")
         import traceback
+
         traceback.print_exc()
         results.append(("v10.0配置兼容性", False))
 

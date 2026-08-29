@@ -1,4 +1,5 @@
 """ifind_news_analyzer 单元测试 — iFinD 资讯读取 + 标的研判"""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,8 +22,14 @@ class TestNewsItem:
 
     def test_custom(self):
         item = NewsItem(
-            title="t", snippet="s", source="src", publish_time="2026-01-01",
-            url="http://x", sentiment="positive", relevance=0.9, entities=["A", "B"],
+            title="t",
+            snippet="s",
+            source="src",
+            publish_time="2026-01-01",
+            url="http://x",
+            sentiment="positive",
+            relevance=0.9,
+            entities=["A", "B"],
         )
         assert item.url == "http://x"
         assert item.sentiment == "positive"
@@ -32,15 +39,21 @@ class TestNewsItem:
 
 class TestStockInsight:
     def test_defaults(self):
-        si = StockInsight(symbol="600519", name="茅台", direction="positive", confidence=0.8)
+        si = StockInsight(
+            symbol="600519", name="茅台", direction="positive", confidence=0.8
+        )
         assert si.reasons == []
         assert si.news_count == 0
         assert si.updated_at != ""
 
     def test_custom(self):
         si = StockInsight(
-            symbol="A", name="X", direction="negative", confidence=0.6,
-            reasons=["r1", "r2"], news_count=5,
+            symbol="A",
+            name="X",
+            direction="negative",
+            confidence=0.6,
+            reasons=["r1", "r2"],
+            news_count=5,
         )
         assert si.reasons == ["r1", "r2"]
         assert si.news_count == 5
@@ -117,9 +130,15 @@ class TestAnalyzeSymbol:
 
     def test_with_news(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
-        mock_items = [NewsItem(title="预增", snippet="利好", source="s", publish_time="2026-01-01")]
-        with patch.object(analyzer, "search_news", return_value=mock_items), \
-             patch.object(analyzer, "search_notice", return_value=[]):
+        mock_items = [
+            NewsItem(
+                title="预增", snippet="利好", source="s", publish_time="2026-01-01"
+            )
+        ]
+        with (
+            patch.object(analyzer, "search_news", return_value=mock_items),
+            patch.object(analyzer, "search_notice", return_value=[]),
+        ):
             insight = analyzer.analyze_symbol("600519", name="茅台")
         assert insight.symbol == "600519"
         assert insight.name == "茅台"
@@ -127,8 +146,10 @@ class TestAnalyzeSymbol:
 
     def test_no_name(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
-        with patch.object(analyzer, "search_news", return_value=[]), \
-             patch.object(analyzer, "search_notice", return_value=[]):
+        with (
+            patch.object(analyzer, "search_news", return_value=[]),
+            patch.object(analyzer, "search_notice", return_value=[]),
+        ):
             insight = analyzer.analyze_symbol("600519")
         assert insight.name == "600519"
 
@@ -141,15 +162,21 @@ class TestBatchAnalyze:
 
     def test_multiple(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
-        mock_insight = StockInsight(symbol="A", name="X", direction="neutral", confidence=0.5)
+        mock_insight = StockInsight(
+            symbol="A", name="X", direction="neutral", confidence=0.5
+        )
         with patch.object(analyzer, "analyze_symbol", return_value=mock_insight):
             result = analyzer.batch_analyze(["A", "B", "C"])
         assert len(result) == 3
 
     def test_with_name_map(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
-        mock_insight = StockInsight(symbol="A", name="X", direction="neutral", confidence=0.5)
-        with patch.object(analyzer, "analyze_symbol", return_value=mock_insight) as mock_fn:
+        mock_insight = StockInsight(
+            symbol="A", name="X", direction="neutral", confidence=0.5
+        )
+        with patch.object(
+            analyzer, "analyze_symbol", return_value=mock_insight
+        ) as mock_fn:
             analyzer.batch_analyze(["A"], name_map={"A": "茅台"})
         mock_fn.assert_called_with("A", name="茅台", size=4, days=3)
 
@@ -165,14 +192,32 @@ class TestParseNewsResult:
 
     def test_list_of_dicts(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
-        data = {"data": [{"title": "测试新闻", "snippet": "内容", "source": "源", "publish_time": "2026-01-01"}]}
+        data = {
+            "data": [
+                {
+                    "title": "测试新闻",
+                    "snippet": "内容",
+                    "source": "源",
+                    "publish_time": "2026-01-01",
+                }
+            ]
+        }
         result = analyzer._parse_news_result(data)
         assert len(result) == 1
         assert result[0].title == "测试新闻"
 
     def test_chinese_keys(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
-        data = {"data": [{"资讯标题": "标题", "资讯内容": "内容", "来源": "源", "日期": "2026-01-01"}]}
+        data = {
+            "data": [
+                {
+                    "资讯标题": "标题",
+                    "资讯内容": "内容",
+                    "来源": "源",
+                    "日期": "2026-01-01",
+                }
+            ]
+        }
         result = analyzer._parse_news_result(data)
         assert len(result) == 1
         assert result[0].title == "标题"
@@ -180,7 +225,15 @@ class TestParseNewsResult:
     def test_mcp_wrapped(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
         import json
-        inner = [{"title": "MCP", "snippet": "x", "source": "s", "publish_time": "2026-01-01"}]
+
+        inner = [
+            {
+                "title": "MCP",
+                "snippet": "x",
+                "source": "s",
+                "publish_time": "2026-01-01",
+            }
+        ]
         data = {"result": {"content": [{"text": json.dumps(inner)}]}}
         result = analyzer._parse_news_result(data)
         assert len(result) == 1
@@ -227,8 +280,18 @@ class TestDeriveInsight:
     def test_positive_keywords(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
         items = [
-            NewsItem(title="公司预增", snippet="业绩增长", source="s", publish_time="2026-01-01"),
-            NewsItem(title="中标大单", snippet="订单增长", source="s", publish_time="2026-01-01"),
+            NewsItem(
+                title="公司预增",
+                snippet="业绩增长",
+                source="s",
+                publish_time="2026-01-01",
+            ),
+            NewsItem(
+                title="中标大单",
+                snippet="订单增长",
+                source="s",
+                publish_time="2026-01-01",
+            ),
         ]
         direction, conf, reasons = analyzer._derive_insight(items, "A")
         assert direction == "positive"
@@ -237,8 +300,12 @@ class TestDeriveInsight:
     def test_negative_keywords(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
         items = [
-            NewsItem(title="业绩下滑", snippet="亏损", source="s", publish_time="2026-01-01"),
-            NewsItem(title="减持", snippet="预减", source="s", publish_time="2026-01-01"),
+            NewsItem(
+                title="业绩下滑", snippet="亏损", source="s", publish_time="2026-01-01"
+            ),
+            NewsItem(
+                title="减持", snippet="预减", source="s", publish_time="2026-01-01"
+            ),
         ]
         direction, conf, reasons = analyzer._derive_insight(items, "A")
         assert direction == "negative"
@@ -247,15 +314,26 @@ class TestDeriveInsight:
     def test_neutral_mixed(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
         items = [
-            NewsItem(title="增长", snippet="利好", source="s", publish_time="2026-01-01"),
-            NewsItem(title="下滑", snippet="利空", source="s", publish_time="2026-01-01"),
+            NewsItem(
+                title="增长", snippet="利好", source="s", publish_time="2026-01-01"
+            ),
+            NewsItem(
+                title="下滑", snippet="利空", source="s", publish_time="2026-01-01"
+            ),
         ]
         direction, conf, reasons = analyzer._derive_insight(items, "A")
         assert direction == "neutral"
 
     def test_no_signal(self):
         analyzer = IFinDNewsAnalyzer(skill_dir="/nonexistent")
-        items = [NewsItem(title="普通新闻", snippet="无特殊信号", source="s", publish_time="2026-01-01")]
+        items = [
+            NewsItem(
+                title="普通新闻",
+                snippet="无特殊信号",
+                source="s",
+                publish_time="2026-01-01",
+            )
+        ]
         direction, conf, reasons = analyzer._derive_insight(items, "A")
         assert direction == "neutral"
         assert conf == 0.4

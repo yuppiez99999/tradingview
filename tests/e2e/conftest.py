@@ -9,6 +9,7 @@ pytest 自动加载规则: 仅识别名为 conftest.py 的文件
     - e2e_pnl_reports: 加载所有真实 pnl 报告
     - e2e_trade_plans: 加载所有真实交易计划
 """
+
 import json
 import sys
 import types
@@ -124,6 +125,7 @@ def e2e_trade_plans(e2e_trade_plans_dir):
 # U5 GAP-2 E2E fixture (full_pipeline + shadow_account_lifecycle)
 # ============================================================
 
+
 @pytest.fixture
 def pipeline_config_overrides():
     """PipelineOrchestrator 测试配置覆盖.
@@ -143,9 +145,9 @@ def pipeline_config_overrides():
     return PipelineConfig(
         mode="dry_run",
         data_cleaning_enabled=True,
-        alpha_enabled=False,        # E2E 默认不触发模型训练
+        alpha_enabled=False,  # E2E 默认不触发模型训练
         backtest_gate_enabled=False,
-        execution_enabled=False,    # E2E 不执行真实交易
+        execution_enabled=False,  # E2E 不执行真实交易
         risk_monitor_enabled=True,
     )
 
@@ -158,10 +160,28 @@ def sample_daily_returns_14d():
     注: 命名保留 14d (历史术语), 实际 20 天以满足 MIN_SAMPLES_FOR_DSR=20 (yaml 单事实源).
     历史: PM 决策 20→15, yaml 后续推翻为 20 "保留更严格" (cairn/observation-period-config-drift-20260809.md).
     """
-    return [0.005, -0.003, 0.008, -0.002, 0.004,
-            -0.006, 0.003, 0.001, -0.004, 0.007,
-            -0.005, 0.002, 0.006, -0.003, 0.004,
-            0.002, -0.001, 0.005, 0.003, -0.002]
+    return [
+        0.005,
+        -0.003,
+        0.008,
+        -0.002,
+        0.004,
+        -0.006,
+        0.003,
+        0.001,
+        -0.004,
+        0.007,
+        -0.005,
+        0.002,
+        0.006,
+        -0.003,
+        0.004,
+        0.002,
+        -0.001,
+        0.005,
+        0.003,
+        -0.002,
+    ]
 
 
 @pytest.fixture

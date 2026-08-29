@@ -21,6 +21,7 @@ SimTradeLab 核心设计借鉴:
     - 单一职责: 只做 T+1 + 涨跌停规则, 不做撮合
     - 多小文件 (§5.3): 本模块 < 350 行
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -51,6 +52,7 @@ class PositionLot:
         acquisition_date: 买入日期 (交易日)
         avg_price: 买入均价
     """
+
     code: str
     volume: float
     acquisition_date: date
@@ -90,7 +92,12 @@ class T1PositionTracker:
         """买入成交后追加 lot。"""
         if volume <= 0:
             return
-        lot = PositionLot(code=code, volume=volume, acquisition_date=acquisition_date, avg_price=avg_price)
+        lot = PositionLot(
+            code=code,
+            volume=volume,
+            acquisition_date=acquisition_date,
+            avg_price=avg_price,
+        )
         self._lots.setdefault(code, []).append(lot)
 
     def consume(
@@ -141,12 +148,14 @@ class T1PositionTracker:
 
             if lot.volume - consume > 0.0001:
                 # 剩余部分保留 (创建新 lot, 不可变)
-                new_lots.append(PositionLot(
-                    code=lot.code,
-                    volume=lot.volume - consume,
-                    acquisition_date=lot.acquisition_date,
-                    avg_price=lot.avg_price,
-                ))
+                new_lots.append(
+                    PositionLot(
+                        code=lot.code,
+                        volume=lot.volume - consume,
+                        acquisition_date=lot.acquisition_date,
+                        avg_price=lot.avg_price,
+                    )
+                )
 
         self._lots[code] = new_lots
         return consumed_vol, consumed_val
@@ -189,6 +198,7 @@ class AShareTradingRules:
         enable_price_limit: 是否启用涨跌停检查 (默认 True)
         t1_tracker: T+1 持仓追踪器 (若 enable_t1=True)
     """
+
     enable_t1: bool = True
     enable_price_limit: bool = True
     t1_tracker: T1PositionTracker = field(default_factory=T1PositionTracker)
@@ -259,9 +269,15 @@ class AShareTradingRules:
         lower = pre_close * (1 - limit_pct)
 
         if order_price > upper:
-            return False, f"涨停限制: {code} 委托价 {order_price:.2f} > 涨停价 {upper:.2f}"
+            return (
+                False,
+                f"涨停限制: {code} 委托价 {order_price:.2f} > 涨停价 {upper:.2f}",
+            )
         if order_price < lower:
-            return False, f"跌停限制: {code} 委托价 {order_price:.2f} < 跌停价 {lower:.2f}"
+            return (
+                False,
+                f"跌停限制: {code} 委托价 {order_price:.2f} < 跌停价 {lower:.2f}",
+            )
         return True, ""
 
     def on_buy_fill(
@@ -326,6 +342,7 @@ class T1FilterResult:
         reason: 拒绝原因 (passed=True 时为空)
         adjusted_volume: 通过后的可成交量 (≤ order.volume)
     """
+
     passed: bool
     reason: str = ""
     adjusted_volume: float = 0.0

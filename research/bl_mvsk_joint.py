@@ -14,6 +14,7 @@
 Usage:
     .venv\\Scripts\\python.exe research\\bl_mvsk_joint.py
 """
+
 from __future__ import annotations
 
 import json
@@ -60,13 +61,15 @@ def build_bl_views(
 
     views = []
     for i, code in enumerate(codes):
-        views.append(View(
-            type="absolute",
-            assets=[code],
-            weights=[1.0],
-            expected_return=float(ann_momentum[i]),
-            confidence=VIEW_CONFIDENCE,
-        ))
+        views.append(
+            View(
+                type="absolute",
+                assets=[code],
+                weights=[1.0],
+                expected_return=float(ann_momentum[i]),
+                confidence=VIEW_CONFIDENCE,
+            )
+        )
     return views
 
 
@@ -102,10 +105,16 @@ def optimize_weights(
     n = len(mu)
     symbols = [f"a{i}" for i in range(n)]
     res = opt.optimize(
-        symbols=symbols, expected_returns=mu, cov_matrix=cov,
-        benchmark_weights=w_bench, max_tracking_error=MAX_TE,
-        max_weight=MAX_WEIGHT, min_weight=0.0,
-        return_matrix=R, skew_aversion=gs, kurtosis_aversion=gk,
+        symbols=symbols,
+        expected_returns=mu,
+        cov_matrix=cov,
+        benchmark_weights=w_bench,
+        max_tracking_error=MAX_TE,
+        max_weight=MAX_WEIGHT,
+        min_weight=0.0,
+        return_matrix=R,
+        skew_aversion=gs,
+        kurtosis_aversion=gk,
     )
     return res.optimal_weights
 
@@ -140,7 +149,9 @@ def main() -> int:
     print("\nμ 诊断 (前 5 股):")
     print(f"  历史 μ: {mu_hist[:5]}")
     print(f"  BL 后验: {mu_bl[:5]}")
-    print(f"  历史 μ std={mu_hist.std():.4f}  BL 后验 std={mu_bl.std():.4f}  (BL 应更收缩)")
+    print(
+        f"  历史 μ std={mu_hist.std():.4f}  BL 后验 std={mu_bl.std():.4f}  (BL 应更收缩)"
+    )
 
     # 5 方案训练期选权
     print("\n训练期优化 5 方案...")
@@ -162,16 +173,20 @@ def main() -> int:
     print("\n" + "=" * 92)
     print("BL+MVSK 联合优化 样本外对比 (train 376 / test 126)")
     print("=" * 92)
-    print(f"{'方案':<20}{'夏普':<10}{'收益':<10}{'波动':<10}{'偏度':<10}{'峰度':<10}{'CVaR95':<10}")
+    print(
+        f"{'方案':<20}{'夏普':<10}{'收益':<10}{'波动':<10}{'偏度':<10}{'峰度':<10}{'CVaR95':<10}"
+    )
     print("-" * 92)
 
     results = []
     for label, w in schemes:
         m = compute_risk_metrics(R_test, w)
         results.append({"方案": label, **m})
-        print(f"{label:<20}{m['年化夏普']:<10.4f}{m['年化收益']:<10.4f}"
-              f"{m['年化波动']:<10.4f}{m['组合偏度']:<10.4f}"
-              f"{m['超额峰度']:<10.4f}{m['日CVaR95']:<10.4f}")
+        print(
+            f"{label:<20}{m['年化夏普']:<10.4f}{m['年化收益']:<10.4f}"
+            f"{m['年化波动']:<10.4f}{m['组合偏度']:<10.4f}"
+            f"{m['超额峰度']:<10.4f}{m['日CVaR95']:<10.4f}"
+        )
 
     print("=" * 92)
 
@@ -179,23 +194,33 @@ def main() -> int:
     mv_r = next(r for r in results if r["方案"] == "MV(历史μ)")
     blmvsk_r = next(r for r in results if r["方案"] == "BL+MVSK(后验μ)")
     print("\n增量分析 (BL+MVSK vs MV):")
-    print(f"  Δ夏普={blmvsk_r['年化夏普']-mv_r['年化夏普']:+.4f}  "
-          f"Δ收益={blmvsk_r['年化收益']-mv_r['年化收益']:+.4f}  "
-          f"Δ偏度={blmvsk_r['组合偏度']-mv_r['组合偏度']:+.4f}  "
-          f"Δ峰度={blmvsk_r['超额峰度']-mv_r['超额峰度']:+.4f}")
+    print(
+        f"  Δ夏普={blmvsk_r['年化夏普']-mv_r['年化夏普']:+.4f}  "
+        f"Δ收益={blmvsk_r['年化收益']-mv_r['年化收益']:+.4f}  "
+        f"Δ偏度={blmvsk_r['组合偏度']-mv_r['组合偏度']:+.4f}  "
+        f"Δ峰度={blmvsk_r['超额峰度']-mv_r['超额峰度']:+.4f}"
+    )
 
     blmv_r = next(r for r in results if r["方案"] == "BL+MV(后验μ)")
     print("\n增量分析 (BL+MVSK vs BL+MV, 验证 MVSK 增量):")
-    print(f"  Δ夏普={blmvsk_r['年化夏普']-blmv_r['年化夏普']:+.4f}  "
-          f"Δ峰度={blmvsk_r['超额峰度']-blmv_r['超额峰度']:+.4f}  "
-          f"Δ偏度={blmvsk_r['组合偏度']-blmv_r['组合偏度']:+.4f}")
+    print(
+        f"  Δ夏普={blmvsk_r['年化夏普']-blmv_r['年化夏普']:+.4f}  "
+        f"Δ峰度={blmvsk_r['超额峰度']-blmv_r['超额峰度']:+.4f}  "
+        f"Δ偏度={blmvsk_r['组合偏度']-blmv_r['组合偏度']:+.4f}"
+    )
 
     # 保存
     out = {
-        "参数": {"gamma_s": GAMMA_S, "gamma_k": GAMMA_K, "delta": DELTA,
-                 "momentum_window": MOMENTUM_WINDOW, "view_confidence": VIEW_CONFIDENCE,
-                 "tau": TAU},
-        "训练期": train_end, "测试期": T - train_end,
+        "参数": {
+            "gamma_s": GAMMA_S,
+            "gamma_k": GAMMA_K,
+            "delta": DELTA,
+            "momentum_window": MOMENTUM_WINDOW,
+            "view_confidence": VIEW_CONFIDENCE,
+            "tau": TAU,
+        },
+        "训练期": train_end,
+        "测试期": T - train_end,
         "μ诊断": {"历史_std": float(mu_hist.std()), "BL后验_std": float(mu_bl.std())},
         "样本外结果": results,
     }

@@ -31,7 +31,10 @@ def _make_uncorrelated_factors(n: int = 3, length: int = 60) -> dict[str, pd.Ser
     """生成 n 个互不相关的因子序列."""
     np.random.seed(42)
     dates = pd.date_range("2026-01-01", periods=length, freq="D")
-    return {f"alpha_{i:03d}": pd.Series(np.random.randn(length), index=dates) for i in range(n)}
+    return {
+        f"alpha_{i:03d}": pd.Series(np.random.randn(length), index=dates)
+        for i in range(n)
+    }
 
 
 def _make_correlated_pair(corr: float = 0.9, length: int = 60) -> dict[str, pd.Series]:
@@ -80,9 +83,10 @@ class TestFlagGate:
     def test_flag_disabled_no_correlation_computation(self) -> None:
         """flag 关闭时不应计算相关系数矩阵."""
         factors = _make_uncorrelated_factors(3)
-        with patch("utils.alpha.factor_orthogonalizer.is_enabled", return_value=False), patch(
-            "pandas.DataFrame.corr"
-        ) as mock_corr:
+        with (
+            patch("utils.alpha.factor_orthogonalizer.is_enabled", return_value=False),
+            patch("pandas.DataFrame.corr") as mock_corr,
+        ):
             orthogonalize_factors(factors)
             mock_corr.assert_not_called()
 
@@ -130,9 +134,9 @@ class TestOrthogonalizationLogic:
         # alpha_a 和 alpha_d_redundant 高相关, 应恰好保留一个
         correlated_pair = {"alpha_a", "alpha_d_redundant"}
         kept_from_pair = correlated_pair & set(selected)
-        assert len(kept_from_pair) == 1, (
-            f"高相关对应恰好保留 1 个, 实际保留: {kept_from_pair}, selected: {selected}"
-        )
+        assert (
+            len(kept_from_pair) == 1
+        ), f"高相关对应恰好保留 1 个, 实际保留: {kept_from_pair}, selected: {selected}"
         # 另一个应在 dropped_factors 中
         dropped_from_pair = correlated_pair - kept_from_pair
         assert dropped_from_pair.pop() in report.dropped_factors
@@ -266,9 +270,9 @@ class TestFilterOrthogonal:
         # 按方差排序: alpha_d_redundant (0.9241) > alpha_a (0.8254), 故保留 alpha_d_redundant
         correlated_pair = {"alpha_a", "alpha_d_redundant"}
         kept_from_pair = correlated_pair & set(filtered.keys())
-        assert len(kept_from_pair) == 1, (
-            f"高相关对应恰好保留 1 个, 实际保留: {kept_from_pair}, keys: {list(filtered.keys())}"
-        )
+        assert (
+            len(kept_from_pair) == 1
+        ), f"高相关对应恰好保留 1 个, 实际保留: {kept_from_pair}, keys: {list(filtered.keys())}"
         # alpha_b, alpha_c 与其他因子不相关, 应保留
         assert "alpha_b" in filtered
         assert "alpha_c" in filtered

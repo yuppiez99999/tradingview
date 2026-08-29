@@ -3,6 +3,7 @@
 实现 CoverageInventory.scan(coverage_xml_path, coveragerc_path, p0_module_spec) 接口，
 按 spec §5.1.1 规则2 筛选 P0 模块（主路径 ∧ 未omit ∧ <80%）。
 """
+
 from __future__ import annotations
 
 import json
@@ -41,7 +42,6 @@ P0_CHAIN_SPEC: dict[str, list[str]] = {
     ],
     "risk_control": [
         "utils/risk_constraints.py",
-
         "utils/risk_metrics.py",
     ],
     "order_placement": [
@@ -166,7 +166,9 @@ def _parse_coverage_xml(xml_path: Path) -> dict[str, dict[str, object]]:
     return file_map
 
 
-def _match_module(module_path: str, file_map: dict[str, dict[str, object]]) -> Optional[dict[str, object]]:
+def _match_module(
+    module_path: str, file_map: dict[str, dict[str, object]]
+) -> Optional[dict[str, object]]:
     if module_path in file_map:
         return file_map[module_path]
     basename = os.path.basename(module_path)
@@ -183,8 +185,14 @@ class CoverageInventory:
         coveragerc_path: Optional[str] = None,
         p0_module_spec: Optional[dict[str, list[str]]] = None,
     ) -> list[ModuleCoverageRecord]:
-        xml_path = Path(coverage_xml_path) if coverage_xml_path else PROJECT_ROOT / "reports" / "coverage.xml"
-        rc_path = Path(coveragerc_path) if coveragerc_path else PROJECT_ROOT / ".coveragerc"
+        xml_path = (
+            Path(coverage_xml_path)
+            if coverage_xml_path
+            else PROJECT_ROOT / "reports" / "coverage.xml"
+        )
+        rc_path = (
+            Path(coveragerc_path) if coveragerc_path else PROJECT_ROOT / ".coveragerc"
+        )
         spec = p0_module_spec or P0_CHAIN_SPEC
         omit_patterns = _load_omit_patterns(rc_path)
         file_map = _parse_coverage_xml(xml_path)
@@ -237,12 +245,18 @@ class CoverageInventory:
             "by_bucket": _count_by_bucket(records),
             "records": [asdict(r) for r in records],
         }
-        out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        out_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         return str(out_path)
 
 
 def _root_line_rate(coverage_xml_path: Optional[str]) -> Optional[float]:
-    xml_path = Path(coverage_xml_path) if coverage_xml_path else PROJECT_ROOT / "reports" / "coverage.xml"
+    xml_path = (
+        Path(coverage_xml_path)
+        if coverage_xml_path
+        else PROJECT_ROOT / "reports" / "coverage.xml"
+    )
     if not xml_path.exists():
         return None
     root = ET.parse(str(xml_path)).getroot()

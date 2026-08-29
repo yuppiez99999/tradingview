@@ -12,6 +12,7 @@ AutoTradingSystem._check_vol_regime 单元测试
     - test_snapshot_includes_vol_regime: snapshot 包含 vol_regime 字段
     - test_snapshot_vol_regime_disabled: Flag=False 时 snapshot 返回 enabled=False
 """
+
 from __future__ import annotations
 
 import logging
@@ -33,15 +34,26 @@ if str(_PROJECT_ROOT) not in sys.path:
 def auto_trading_system():
     """创建 AutoTradingSystem 实例 (Mock 父类)."""
     # Mock 父类 AutomatedExecutionSystem 避免 Real 初始化
-    with patch("utils.auto_trading_system._AUTOMATED_AVAILABLE", True), \
-         patch("utils.execution.automated_execution_system.AutomatedExecutionSystem.__init__", return_value=None):
+    with (
+        patch("utils.auto_trading_system._AUTOMATED_AVAILABLE", True),
+        patch(
+            "utils.execution.automated_execution_system.AutomatedExecutionSystem.__init__",
+            return_value=None,
+        ),
+    ):
         from utils.auto_trading_system import AutoTradingSystem
+
         system = AutoTradingSystem.__new__(AutoTradingSystem)
         # 手动初始化必要属性
         system.monitor_interval = 30
         system.is_running = False
         system._monitor_thread = None
-        system.stats = {"start_time": None, "cycles_completed": 0, "errors": 0, "last_update": None}
+        system.stats = {
+            "start_time": None,
+            "cycles_completed": 0,
+            "errors": 0,
+            "last_update": None,
+        }
         return system
 
 
@@ -53,7 +65,10 @@ class TestFeatureFlagControl:
 
     def test_check_vol_regime_disabled(self, auto_trading_system, caplog):
         """Feature Flag=False 时直接跳过, 不调用 VolRegimeWeighter."""
-        with patch("utils.infra.feature_flags.is_enabled", return_value=False), caplog.at_level(logging.INFO):
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=False),
+            caplog.at_level(logging.INFO),
+        ):
             auto_trading_system._check_vol_regime()
 
         # 验证日志包含"未启用"
@@ -61,7 +76,10 @@ class TestFeatureFlagControl:
 
     def test_check_vol_regime_flag_check_exception(self, auto_trading_system, caplog):
         """Feature Flag 检查异常时不阻塞."""
-        with patch("utils.infra.feature_flags.is_enabled", side_effect=RuntimeError("Flag 系统异常")):
+        with patch(
+            "utils.infra.feature_flags.is_enabled",
+            side_effect=RuntimeError("Flag 系统异常"),
+        ):
             with caplog.at_level(logging.WARNING):
                 auto_trading_system._check_vol_regime()
 
@@ -86,13 +104,15 @@ class TestRegimeIdentification:
             "suggested_weights": {},
         }
 
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter, \
-             patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS, \
-             patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader, \
-             patch("pathlib.Path.exists", return_value=True), \
-             patch("pathlib.Path.open", MagicMock()), \
-             patch("yaml.safe_load", return_value={"assets": []}):
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter,
+            patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS,
+            patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader,
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.open", MagicMock()),
+            patch("yaml.safe_load", return_value={"assets": []}),
+        ):
 
             MockWeighter.return_value.run_cycle.return_value = mock_result
             MockVixDS.return_value.fetch_vix.return_value = 15.0  # VIX=15 → bull
@@ -117,13 +137,15 @@ class TestRegimeIdentification:
             "suggested_weights": {},
         }
 
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter, \
-             patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS, \
-             patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader, \
-             patch("pathlib.Path.exists", return_value=True), \
-             patch("pathlib.Path.open", MagicMock()), \
-             patch("yaml.safe_load", return_value={"assets": []}):
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter,
+            patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS,
+            patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader,
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.open", MagicMock()),
+            patch("yaml.safe_load", return_value={"assets": []}),
+        ):
 
             MockWeighter.return_value.run_cycle.return_value = mock_result
             MockVixDS.return_value.fetch_vix.return_value = 35.0  # VIX=35 → bear
@@ -133,8 +155,10 @@ class TestRegimeIdentification:
                 auto_trading_system._check_vol_regime()
 
         # 验证 WARNING 日志包含告警
-        assert any("波动率告警" in record.message and record.levelno == logging.WARNING
-                    for record in caplog.records)
+        assert any(
+            "波动率告警" in record.message and record.levelno == logging.WARNING
+            for record in caplog.records
+        )
 
     def test_check_vol_regime_crisis_alert(self, auto_trading_system, caplog):
         """crisis 档触发告警."""
@@ -147,13 +171,15 @@ class TestRegimeIdentification:
             "suggested_weights": {},
         }
 
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter, \
-             patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS, \
-             patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader, \
-             patch("pathlib.Path.exists", return_value=True), \
-             patch("pathlib.Path.open", MagicMock()), \
-             patch("yaml.safe_load", return_value={"assets": []}):
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter,
+            patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS,
+            patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader,
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.open", MagicMock()),
+            patch("yaml.safe_load", return_value={"assets": []}),
+        ):
 
             MockWeighter.return_value.run_cycle.return_value = mock_result
             MockVixDS.return_value.fetch_vix.return_value = 45.0  # VIX=45 → crisis
@@ -163,8 +189,10 @@ class TestRegimeIdentification:
                 auto_trading_system._check_vol_regime()
 
         # 验证 WARNING 日志包含告警
-        assert any("波动率告警" in record.message and record.levelno == logging.WARNING
-                    for record in caplog.records)
+        assert any(
+            "波动率告警" in record.message and record.levelno == logging.WARNING
+            for record in caplog.records
+        )
 
     def test_check_vol_regime_disabled_by_weighter(self, auto_trading_system, caplog):
         """VolRegimeWeighter 返回 disabled 状态时正常处理."""
@@ -175,13 +203,15 @@ class TestRegimeIdentification:
             "reason": "feature_flag_disabled",
         }
 
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter, \
-             patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS, \
-             patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader, \
-             patch("pathlib.Path.exists", return_value=True), \
-             patch("pathlib.Path.open", MagicMock()), \
-             patch("yaml.safe_load", return_value={"assets": []}):
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter,
+            patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS,
+            patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader,
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.open", MagicMock()),
+            patch("yaml.safe_load", return_value={"assets": []}),
+        ):
 
             MockWeighter.return_value.run_cycle.return_value = mock_result
             MockVixDS.return_value.fetch_vix.return_value = 25.0
@@ -202,9 +232,14 @@ class TestExceptionHandling:
 
     def test_check_vol_regime_no_exception(self, auto_trading_system, caplog):
         """任何异常都不阻塞主监控循环."""
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter",
-                   side_effect=RuntimeError("模拟异常")), caplog.at_level(logging.WARNING):
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch(
+                "utils.alpha.vol_regime_weighter.VolRegimeWeighter",
+                side_effect=RuntimeError("模拟异常"),
+            ),
+            caplog.at_level(logging.WARNING),
+        ):
             # 不应该抛出异常
             auto_trading_system._check_vol_regime()
 
@@ -213,8 +248,11 @@ class TestExceptionHandling:
 
     def test_check_vol_regime_portfolio_missing(self, auto_trading_system, caplog):
         """portfolio.yaml 不存在时正常跳过."""
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("pathlib.Path.exists", return_value=False), caplog.at_level(logging.WARNING):
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch("pathlib.Path.exists", return_value=False),
+            caplog.at_level(logging.WARNING),
+        ):
             auto_trading_system._check_vol_regime()
 
         # 验证日志包含"不存在"
@@ -222,13 +260,20 @@ class TestExceptionHandling:
 
     def test_check_vol_regime_import_error(self, auto_trading_system, caplog):
         """模块导入失败时正常跳过."""
-        with patch("utils.infra.feature_flags.is_enabled",
-                   side_effect=ImportError("模块未安装")), caplog.at_level(logging.INFO):
+        with (
+            patch(
+                "utils.infra.feature_flags.is_enabled",
+                side_effect=ImportError("模块未安装"),
+            ),
+            caplog.at_level(logging.INFO),
+        ):
             auto_trading_system._check_vol_regime()
 
         # ImportError 被 catch, 输出 info 日志
-        assert any("未加载" in record.message or "异常" in record.message
-                    for record in caplog.records)
+        assert any(
+            "未加载" in record.message or "异常" in record.message
+            for record in caplog.records
+        )
 
 
 # ============================================================
@@ -251,9 +296,11 @@ class TestSnapshotVolRegime:
 
     def test_snapshot_vol_regime_enabled(self, auto_trading_system):
         """Flag=True 时 snapshot 返回 VIX 和 drawdown."""
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS, \
-             patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader:
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS,
+            patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader,
+        ):
 
             MockVixDS.return_value.fetch_vix.return_value = 22.5
             MockDDReader.return_value.get_current_drawdown.return_value = 0.03
@@ -266,9 +313,13 @@ class TestSnapshotVolRegime:
 
     def test_snapshot_vol_regime_error(self, auto_trading_system):
         """VixDataSource 异常时 snapshot 返回 error."""
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("utils.alpha.vix_data_source.VixDataSource",
-                   side_effect=RuntimeError("VIX 系统异常")):
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch(
+                "utils.alpha.vix_data_source.VixDataSource",
+                side_effect=RuntimeError("VIX 系统异常"),
+            ),
+        ):
             snapshot = auto_trading_system.snapshot()
 
         assert "error" in snapshot["vol_regime"]

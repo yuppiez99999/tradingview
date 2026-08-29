@@ -6,6 +6,7 @@
 测试供应链图构建器: build / _to_edges / analyze / summarize / propagate /
 load_positions_symbols / main。graph_data_source (HTTP) 全程 mock。
 """
+
 from __future__ import annotations
 
 import json
@@ -96,8 +97,18 @@ class SupplyChainBuilderTest:
 
     def test_build_with_real_edges(self, mock_data_source):
         mock_data_source.build_graph_edges.return_value = [
-            {"source": "A", "target": "B", "relation_type": "SUPPLIER", "strength": 0.8},
-            {"source": "B", "target": "C", "relation_type": "CUSTOMER", "strength": 0.5},
+            {
+                "source": "A",
+                "target": "B",
+                "relation_type": "SUPPLIER",
+                "strength": 0.8,
+            },
+            {
+                "source": "B",
+                "target": "C",
+                "relation_type": "CUSTOMER",
+                "strength": 0.5,
+            },
         ]
         b = SupplyChainBuilder(["A", "B", "C"], include_default_chains=False)
         info = b.build()
@@ -109,7 +120,12 @@ class SupplyChainBuilderTest:
         # 真实边覆盖了某默认边 (688981→300308), 默认链应跳过该边
         # DEFAULT_CHAINS 共 9 边 (compute 3 + nev 3 + semi 3), 跳过 1 → default_added=8
         mock_data_source.build_graph_edges.return_value = [
-            {"source": "688981", "target": "300308", "relation_type": "SUPPLIER", "strength": 0.9},
+            {
+                "source": "688981",
+                "target": "300308",
+                "relation_type": "SUPPLIER",
+                "strength": 0.9,
+            },
         ]
         b = SupplyChainBuilder(["688981", "300308"], include_default_chains=True)
         info = b.build()
@@ -117,7 +133,9 @@ class SupplyChainBuilderTest:
         assert info["default_added"] == 8
 
     def test_build_include_themes_passed_through(self, mock_data_source):
-        b = SupplyChainBuilder(["A"], include_default_chains=False, include_themes=False)
+        b = SupplyChainBuilder(
+            ["A"], include_default_chains=False, include_themes=False
+        )
         b.build()
         mock_data_source.build_graph_edges.assert_called_once()
         _, kwargs = mock_data_source.build_graph_edges.call_args
@@ -127,7 +145,12 @@ class SupplyChainBuilderTest:
     def test_to_edges_normal(self, mock_data_source):
         b = SupplyChainBuilder(["A"])
         raw = [
-            {"source": "A", "target": "B", "relation_type": "SUPPLIER", "strength": 0.7},
+            {
+                "source": "A",
+                "target": "B",
+                "relation_type": "SUPPLIER",
+                "strength": 0.7,
+            },
             {"source": "B", "target": "C", "relation_type": "PARTNER"},
         ]
         edges = b._to_edges(raw)
@@ -269,7 +292,9 @@ class LoadPositionsSymbolsTest:
         config_dir = tmp_path / "config"
         config_dir.mkdir()
         (config_dir / "positions.json").write_text(
-            json.dumps({"positions": [{"code": "600519"}, {"symbol": "000001"}, "300750"]}),
+            json.dumps(
+                {"positions": [{"code": "600519"}, {"symbol": "000001"}, "300750"]}
+            ),
             encoding="utf-8",
         )
         monkeypatch.setattr(scb, "_DIR", tmp_path / "utils")
@@ -355,7 +380,9 @@ class MainTest:
         ds = MagicMock()
         ds.build_graph_edges.return_value = []
         monkeypatch.setattr(scb, "get_graph_data_source", lambda: ds)
-        monkeypatch.setattr(sys, "argv", ["prog", "--symbols", "600519", "--no-default", "--no-themes"])
+        monkeypatch.setattr(
+            sys, "argv", ["prog", "--symbols", "600519", "--no-default", "--no-themes"]
+        )
         assert main() == 0
 
     def test_main_verbose(self, monkeypatch):
@@ -369,12 +396,16 @@ class MainTest:
         ds = MagicMock()
         ds.build_graph_edges.return_value = []
         monkeypatch.setattr(scb, "get_graph_data_source", lambda: ds)
-        monkeypatch.setattr(sys, "argv", ["prog", "--symbols", "600519", "--propagate", "600519"])
+        monkeypatch.setattr(
+            sys, "argv", ["prog", "--symbols", "600519", "--propagate", "600519"]
+        )
         assert main() == 0
 
     def test_main_max_hops(self, monkeypatch):
         ds = MagicMock()
         ds.build_graph_edges.return_value = []
         monkeypatch.setattr(scb, "get_graph_data_source", lambda: ds)
-        monkeypatch.setattr(sys, "argv", ["prog", "--symbols", "600519", "--max-hops", "3"])
+        monkeypatch.setattr(
+            sys, "argv", ["prog", "--symbols", "600519", "--max-hops", "3"]
+        )
         assert main() == 0

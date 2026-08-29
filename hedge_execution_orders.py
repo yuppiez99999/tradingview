@@ -133,6 +133,7 @@ def _extract_contract_yyyymm(instrument: str, as_of_yyyymm: int = 0) -> tuple[st
             return "", 0
         if as_of_yyyymm <= 0:
             import datetime
+
             _now = datetime.date.today()
             as_of_yyyymm = _now.year * 100 + _now.month
         as_of_year = as_of_yyyymm // 100
@@ -145,7 +146,9 @@ def _extract_contract_yyyymm(instrument: str, as_of_yyyymm: int = 0) -> tuple[st
     return "", 0
 
 
-def _validate_contract_expiry(instrument: str, as_of: Optional[tuple] = None) -> tuple[bool, str]:
+def _validate_contract_expiry(
+    instrument: str, as_of: Optional[tuple] = None
+) -> tuple[bool, str]:
     """校验期货/期权合约是否已到期 (下单前拒绝过期合约)。
 
     P1-2 新增: 防止提交已到期合约 (如当前 2026-08 却用 2025-07 的 2507 合约)。
@@ -161,6 +164,7 @@ def _validate_contract_expiry(instrument: str, as_of: Optional[tuple] = None) ->
     """
     try:
         import datetime
+
         if as_of is None:
             now = datetime.date.today()
             as_of = (now.year, now.month, now.day)
@@ -175,13 +179,20 @@ def _validate_contract_expiry(instrument: str, as_of: Optional[tuple] = None) ->
         return True, ""
     # 合约月份 >= 当前月份才有效 (期货合约当月仍可交易, 到到期日止)
     if yyyymm < as_of_yyyymm:
-        reason = (f"合约 {instrument} 已到期: 合约月 {yyyymm} < 当前 {as_of_yyyymm} "
-                  f"(如 2507 在 2026-08 已过期, 应使用 2608/2609 等活跃合约)")
+        reason = (
+            f"合约 {instrument} 已到期: 合约月 {yyyymm} < 当前 {as_of_yyyymm} "
+            f"(如 2507 在 2026-08 已过期, 应使用 2608/2609 等活跃合约)"
+        )
         return False, reason
     return True, ""
 
 
-def _get_futures_price(instrument: str, prices: dict, cfg: Optional[dict] = None, plan: Optional[dict] = None) -> float:
+def _get_futures_price(
+    instrument: str,
+    prices: dict,
+    cfg: Optional[dict] = None,
+    plan: Optional[dict] = None,
+) -> float:
     """C5 修复: 从多个来源获取期货价格, 不再使用单一硬编码值
 
     优先级:
@@ -222,7 +233,9 @@ def _get_futures_price(instrument: str, prices: dict, cfg: Optional[dict] = None
 
     # 4. Fallback (最后兜底, 打印警告)
     fallback = FUTURES_FALLBACK_PRICES.get(code, 5000.0)
-    logger.warning(f"[WARN] 期货 {instrument} (品种={code}) 未找到实时价格, 使用 fallback: {fallback}")
+    logger.warning(
+        f"[WARN] 期货 {instrument} (品种={code}) 未找到实时价格, 使用 fallback: {fallback}"
+    )
     return fallback
 
 
@@ -236,7 +249,11 @@ def load_positions():
     hedge_positions = data.get("hedge_positions", {})
     for item in data.get("positions", {}).values():
         code = item.get("code")
-        qty = item.get("phase1_shares") or item.get("total_shares") or item.get("shares", 0)
+        qty = (
+            item.get("phase1_shares")
+            or item.get("total_shares")
+            or item.get("shares", 0)
+        )
         price = item.get("est_price", 0.0)
         if code and qty:
             positions[code] = float(qty)
@@ -265,9 +282,15 @@ def merge_orders(orders: list) -> list:
         if key not in merged:
             merged[key] = o.copy()
         else:
-            merged[key]["contracts"] = merged[key].get("contracts", 0) + o.get("contracts", 0)
-            merged[key]["premium_budget"] = merged[key].get("premium_budget", 0) + o.get("premium_budget", 0)
-            merged[key]["budget_pct"] = max(merged[key].get("budget_pct", 0), o.get("budget_pct", 0))
+            merged[key]["contracts"] = merged[key].get("contracts", 0) + o.get(
+                "contracts", 0
+            )
+            merged[key]["premium_budget"] = merged[key].get(
+                "premium_budget", 0
+            ) + o.get("premium_budget", 0)
+            merged[key]["budget_pct"] = max(
+                merged[key].get("budget_pct", 0), o.get("budget_pct", 0)
+            )
             if o.get("priority", "secondary") == "primary":
                 merged[key]["priority"] = "primary"
     return list(merged.values())
@@ -340,15 +363,20 @@ def _build_beta_option_orders(
             (
                 c
                 for _key, c in hedge_positions.items()
-                if isinstance(c, dict) and instrument.split()[0] in c.get("instrument", "")
+                if isinstance(c, dict)
+                and instrument.split()[0] in c.get("instrument", "")
             ),
             None,
         )
         # M18 修复: cfg.get 返回 None 时用 or 兜底
-        premium_budget = (item_cfg.get("premium_budget") if item_cfg else None) or alloc_notional * 0.15
+        premium_budget = (
+            item_cfg.get("premium_budget") if item_cfg else None
+        ) or alloc_notional * 0.15
         one_contract_notional = est_price * _OPTION_MULTIPLIER
         # S4 修复: 名义金额不足以覆盖最小阈值时跳过该期权, 避免极小 alloc 被 max(1,..) 强制开 1 张导致过度对冲
-        min_notional = (item_cfg.get("min_notional") if item_cfg else None) or one_contract_notional
+        min_notional = (
+            item_cfg.get("min_notional") if item_cfg else None
+        ) or one_contract_notional
         if alloc_notional < min_notional:
             logger.info(
                 "[SKIP] %s 期权分配名义 %.2f < 最小阈值 %.2f, 跳过 (避免过度对冲)",
@@ -373,7 +401,9 @@ def _build_beta_option_orders(
                 "budget_pct": round(premium_budget / target, 4) if target > 0 else 0.0,
                 "reason": f"Beta对冲({beta:.2f})优先期权保护",
                 "framework": ["优先期权", "Beta对冲", "尾部保护"],
-                "beta_hedge_pct": round(alloc_notional / hedge_value, 2) if hedge_value > 0 else 0.0,
+                "beta_hedge_pct": (
+                    round(alloc_notional / hedge_value, 2) if hedge_value > 0 else 0.0
+                ),
                 "priority": "primary",
             }
         )
@@ -448,8 +478,22 @@ def _classify_hedge_configs(hedge_positions: dict) -> tuple:
     """
     # C4 修复: 商品期货品种集合 (仅品种代码, 用于精确匹配)
     commodity_futures = {
-        "CU", "AL", "LC", "AU", "RB", "I", "J", "JM",
-        "焦煤", "焦炭", "铁矿石", "螺纹", "铜", "铝", "碳酸锂", "黄金",
+        "CU",
+        "AL",
+        "LC",
+        "AU",
+        "RB",
+        "I",
+        "J",
+        "JM",
+        "焦煤",
+        "焦炭",
+        "铁矿石",
+        "螺纹",
+        "铜",
+        "铝",
+        "碳酸锂",
+        "黄金",
     }
 
     option_cfgs: dict = {}
@@ -522,7 +566,13 @@ def _build_option_order_from_cfg(item_cfg: dict, key: str, target: float) -> dic
 
 
 def _build_futures_order_from_cfg(
-    item_cfg: dict, key: str, prices: dict, plan: dict, target: float, commodity_futures: set, existing_orders: list
+    item_cfg: dict,
+    key: str,
+    prices: dict,
+    plan: dict,
+    target: float,
+    commodity_futures: set,
+    existing_orders: list,
 ) -> Optional[dict]:
     """从配置项构建期货订单。
 
@@ -543,7 +593,10 @@ def _build_futures_order_from_cfg(
     # 对无法解析的代码 (纯品种名/ETF) fail-closed 放行; 对可解析且已过期的拒绝。
     # Bug-2 修复: 动态计算当前活跃合约月份 (当月 + 下月), 替代硬编码 "2608"/"2609"
     _now = datetime.now()
-    _active_months = {_now.strftime("%y%m"), (_now.replace(day=28) + timedelta(days=4)).replace(day=1).strftime("%y%m")}
+    _active_months = {
+        _now.strftime("%y%m"),
+        (_now.replace(day=28) + timedelta(days=4)).replace(day=1).strftime("%y%m"),
+    }
     if any(m in instrument for m in _active_months):
         # 当前活跃合约月份, 直接放行 (避免多余解析开销)
         pass
@@ -552,7 +605,9 @@ def _build_futures_order_from_cfg(
         if not _valid:
             logger.warning("[合约到期校验] %s", _reason)
             return None
-    if "IF" in instrument and any(o["instrument"] == "IF" for o in existing_orders if o["type"] == "FUTURES"):
+    if "IF" in instrument and any(
+        o["instrument"] == "IF" for o in existing_orders if o["type"] == "FUTURES"
+    ):
         return None
     direction = item_cfg.get("direction") or ""
     target_contracts = item_cfg.get("target_contracts") or 0
@@ -619,7 +674,13 @@ def _build_defense_order(deployed: float, target: float) -> list:
     ]
 
 
-def build_orders(plan: dict, positions: dict, prices: dict, hedge_positions: dict, positions_data: dict) -> dict:
+def build_orders(
+    plan: dict,
+    positions: dict,
+    prices: dict,
+    hedge_positions: dict,
+    positions_data: dict,
+) -> dict:
     """构建对冲订单组合。
 
     Args:
@@ -641,7 +702,9 @@ def build_orders(plan: dict, positions: dict, prices: dict, hedge_positions: dic
     # 旧逻辑 target=5_000_000 与真实组合市值无关, 导致对冲金额与实际敞口脱节。
     # 现 target = 组合市值 (deployed), 对冲金额 hedge_pct*target 与敞口成正比;
     # 组合市值异常(0/负)时回退到 500 万兜底, 避免除零与错误对冲。
-    deployed = sum(float(pos) * prices.get(code, 0.0) for code, pos in positions.items())
+    deployed = sum(
+        float(pos) * prices.get(code, 0.0) for code, pos in positions.items()
+    )
     target = deployed if deployed > 0 else 5_000_000.0
 
     # 1. 计算 Beta 和对冲比例
@@ -655,16 +718,24 @@ def build_orders(plan: dict, positions: dict, prices: dict, hedge_positions: dic
 
     # 2. Beta 触发: 期权保护 + 期货对冲
     if hedge_pct > 0.05 and beta > 0.3:
-        option_notional, futures_notional = _compute_beta_hedge_allocation(beta, hedge_value)
-        orders.extend(
-            _build_beta_option_orders(beta, hedge_value, option_notional, prices, hedge_positions, target)
+        option_notional, futures_notional = _compute_beta_hedge_allocation(
+            beta, hedge_value
         )
         orders.extend(
-            _build_beta_futures_order(futures_notional, prices, hedge_positions, plan, target, beta)
+            _build_beta_option_orders(
+                beta, hedge_value, option_notional, prices, hedge_positions, target
+            )
+        )
+        orders.extend(
+            _build_beta_futures_order(
+                futures_notional, prices, hedge_positions, plan, target, beta
+            )
         )
 
     # 3. 分类对冲配置
-    option_cfgs, futures_cfgs, commodity_futures = _classify_hedge_configs(hedge_positions)
+    option_cfgs, futures_cfgs, commodity_futures = _classify_hedge_configs(
+        hedge_positions
+    )
 
     # 4. 追加期权订单
     for key, item_cfg in option_cfgs.items():
@@ -779,7 +850,9 @@ def _ensure_beta_and_hedge_pct(plan: dict, beta_from_positions: float) -> None:
         plan: 对冲决策 dict (原地修改)
         beta_from_positions: 从持仓计算的组合 Beta
     """
-    logger.info(f"[Beta计算] 旧决策Beta: {plan.get('portfolio_beta', 0.0):.4f}, 当前组合Beta: {beta_from_positions:.4f}")
+    logger.info(
+        f"[Beta计算] 旧决策Beta: {plan.get('portfolio_beta', 0.0):.4f}, 当前组合Beta: {beta_from_positions:.4f}"
+    )
     if not plan.get("portfolio_beta") or float(plan.get("portfolio_beta") or 0) < 0.1:
         plan["portfolio_beta"] = beta_from_positions
     if not plan.get("total_hedge_pct") or float(plan.get("total_hedge_pct") or 0) <= 0:
@@ -865,7 +938,9 @@ def main():
     _ensure_beta_and_hedge_pct(plan, beta_from_positions)
     orders = build_orders(plan, positions, prices, hedge_positions, positions_data)
     out_path = os.path.join(reports_dir, f"hedge_execution_orders_{today_str}.json")
-    archive_path = PROJECT_ROOT / "每日报告归档" / today_dash / f"对冲执行单_{today_str}.json"
+    archive_path = (
+        PROJECT_ROOT / "每日报告归档" / today_dash / f"对冲执行单_{today_str}.json"
+    )
     _save_orders(orders, out_path, archive_path)
     _print_orders_summary(orders)
     logger.info("=" * 70)

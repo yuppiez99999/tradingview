@@ -211,14 +211,17 @@ class AlertAggregator:
         with self._rlock:
             now = datetime.now()
             stale_keys = [
-                key for key, state in self._states.items()
+                key
+                for key, state in self._states.items()
                 if now - state.last_seen > max_age
             ]
             for key in stale_keys:
                 del self._states[key]
             return len(stale_keys)
 
-    def get_state(self, metric_id: str, symbol: Optional[str] = None) -> Optional[AlertState]:
+    def get_state(
+        self, metric_id: str, symbol: Optional[str] = None
+    ) -> Optional[AlertState]:
         """获取某指标的当前状态."""
         with self._rlock:
             return self._states.get((metric_id, symbol))

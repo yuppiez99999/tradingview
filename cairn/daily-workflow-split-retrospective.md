@@ -221,3 +221,14 @@ daily_workflow.py (门面+run+config): 2785 行
 | 4 | EOD 干跑产物一致 | ⏳ | 待实盘验证 |
 | 5 | _scan_func_quality.py Strong=0 | N/A | 脚本不存在 |
 | 6 | 质量门禁全过 | ✅ | GREEN + 11 PASS+1 WARN+0 FAIL |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [daily_workflow.py 拆分计划（门禁 ≤3000 行 · 长期架构重构）](daily-workflow-split-plan.md) (相似度 51%)
+- [P0 大文件拆分方法论 (2026-08-23)](large-file-split-20260823.md) (相似度 13%)
+- [phase_execute 拆单字段误用修复验证报告（2026-08-12）](phase-execute-field-access-fix-20260812.md) (相似度 12%)
+- [ai_decision 全链路集成计划 — C 轨](ai-decision-integration.md) (相似度 8%)
+- [重构规约 (Refactoring Standards)](refactoring-standards.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

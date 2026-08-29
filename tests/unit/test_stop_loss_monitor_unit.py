@@ -5,6 +5,7 @@
   - 空头止损/止盈 (S2 新增)
   - flat → None, 无规则 → None
 """
+
 from __future__ import annotations
 
 import sys
@@ -49,39 +50,69 @@ class TestLongPosition:
     """多头持仓: 价格下跌止损, 价格上涨止盈"""
 
     def test_long_stop_loss(self, monitor):
-        r = monitor.check_position("600519", {
-            "shares": 100, "avg_cost": 100.0, "name": "MT", "current_price": 88.0,
-        })
+        r = monitor.check_position(
+            "600519",
+            {
+                "shares": 100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 88.0,
+            },
+        )
         assert r is not None
         assert r.trigger_type == TriggerType.STOP_LOSS
         assert r.action == "SELL"
         assert r.shares == 100
 
     def test_long_take_profit(self, monitor):
-        r = monitor.check_position("600519", {
-            "shares": 100, "avg_cost": 100.0, "name": "MT", "current_price": 126.0,
-        })
+        r = monitor.check_position(
+            "600519",
+            {
+                "shares": 100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 126.0,
+            },
+        )
         assert r is not None
         assert r.trigger_type == TriggerType.TAKE_PROFIT
         assert r.action == "SELL"
 
     def test_long_no_trigger(self, monitor):
-        r = monitor.check_position("600519", {
-            "shares": 100, "avg_cost": 100.0, "name": "MT", "current_price": 105.0,
-        })
+        r = monitor.check_position(
+            "600519",
+            {
+                "shares": 100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 105.0,
+            },
+        )
         assert r is None
 
     def test_long_trailing_stop(self, monitor):
         monitor.rules["600519"]["trailing_stop"] = True
         # 涨到 110 (低于止盈线 125) → HWM=110, trailing stop = 110*0.88 = 96.8
-        r1 = monitor.check_position("600519", {
-            "shares": 100, "avg_cost": 100.0, "name": "MT", "current_price": 110.0,
-        })
+        r1 = monitor.check_position(
+            "600519",
+            {
+                "shares": 100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 110.0,
+            },
+        )
         assert r1 is None
         # 回落到 95 → 低于 trailing stop 96.8; 因 95 < entry (100), 标记为 STOP_LOSS
-        r2 = monitor.check_position("600519", {
-            "shares": 100, "avg_cost": 100.0, "name": "MT", "current_price": 95.0,
-        })
+        r2 = monitor.check_position(
+            "600519",
+            {
+                "shares": 100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 95.0,
+            },
+        )
         assert r2 is not None
         assert r2.trigger_type == TriggerType.STOP_LOSS
         assert r2.action == "SELL"
@@ -96,9 +127,15 @@ class TestShortPosition:
     def test_short_stop_loss_on_rise(self, monitor):
         """空头: stop_loss_pct=-12% → 止损线=100*(1-(-0.12))=112.
         价格涨到 113 → 触发止损, action=BUY (买回)"""
-        r = monitor.check_position("600519", {
-            "shares": -100, "avg_cost": 100.0, "name": "MT", "current_price": 113.0,
-        })
+        r = monitor.check_position(
+            "600519",
+            {
+                "shares": -100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 113.0,
+            },
+        )
         assert r is not None
         assert r.trigger_type == TriggerType.STOP_LOSS
         assert r.action == "BUY"
@@ -107,32 +144,56 @@ class TestShortPosition:
     def test_short_take_profit_on_fall(self, monitor):
         """空头: take_profit_pct=25% → 止盈线=100*(1-0.25)=75.
         价格跌到 74 → 触发止盈, action=BUY"""
-        r = monitor.check_position("600519", {
-            "shares": -100, "avg_cost": 100.0, "name": "MT", "current_price": 74.0,
-        })
+        r = monitor.check_position(
+            "600519",
+            {
+                "shares": -100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 74.0,
+            },
+        )
         assert r is not None
         assert r.trigger_type == TriggerType.TAKE_PROFIT
         assert r.action == "BUY"
 
     def test_short_no_trigger(self, monitor):
         """空头: 100~112 之间, 不触发"""
-        r = monitor.check_position("600519", {
-            "shares": -100, "avg_cost": 100.0, "name": "MT", "current_price": 105.0,
-        })
+        r = monitor.check_position(
+            "600519",
+            {
+                "shares": -100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 105.0,
+            },
+        )
         assert r is None
 
     def test_short_trailing_stop(self, monitor):
         """空头移动止损: 先跌 (设 LWM) → 价格反弹到 trailing stop"""
         monitor.rules["600519"]["trailing_stop"] = True
         # Drop to 80 → LWM=80, trailing stop = 80 * 1.12 = 89.6
-        r1 = monitor.check_position("600519", {
-            "shares": -100, "avg_cost": 100.0, "name": "MT", "current_price": 80.0,
-        })
+        r1 = monitor.check_position(
+            "600519",
+            {
+                "shares": -100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 80.0,
+            },
+        )
         assert r1 is None  # 80 > 75, no TP
         # Rise to 90 → above trailing stop 89.6
-        r2 = monitor.check_position("600519", {
-            "shares": -100, "avg_cost": 100.0, "name": "MT", "current_price": 90.0,
-        })
+        r2 = monitor.check_position(
+            "600519",
+            {
+                "shares": -100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 90.0,
+            },
+        )
         assert r2 is not None
         assert r2.trigger_type == TriggerType.TRAILING_STOP
         assert r2.action == "BUY"
@@ -145,28 +206,52 @@ class TestEdgeCases:
     """flat 持仓、无规则 → None"""
 
     def test_flat_returns_none(self, monitor):
-        r = monitor.check_position("600519", {
-            "shares": 0, "avg_cost": 100.0, "name": "MT", "current_price": 88.0,
-        })
+        r = monitor.check_position(
+            "600519",
+            {
+                "shares": 0,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 88.0,
+            },
+        )
         assert r is None
 
     def test_no_rule_returns_none(self, monitor):
-        r = monitor.check_position("000001", {
-            "shares": 100, "avg_cost": 10.0, "name": "平安银行", "current_price": 5.0,
-        })
+        r = monitor.check_position(
+            "000001",
+            {
+                "shares": 100,
+                "avg_cost": 10.0,
+                "name": "平安银行",
+                "current_price": 5.0,
+            },
+        )
         assert r is None
 
     def test_short_then_flat_clears_marks(self, monitor):
         """空头后清仓: 高低水位线均清除"""
         monitor.rules["600519"]["trailing_stop"] = True
         # Short position triggers a trailing mark
-        monitor.check_position("600519", {
-            "shares": -100, "avg_cost": 100.0, "name": "MT", "current_price": 80.0,
-        })
+        monitor.check_position(
+            "600519",
+            {
+                "shares": -100,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 80.0,
+            },
+        )
         assert "600519" in monitor._low_water_mark
         # Flat: clears both marks
-        monitor.check_position("600519", {
-            "shares": 0, "avg_cost": 100.0, "name": "MT", "current_price": 100.0,
-        })
+        monitor.check_position(
+            "600519",
+            {
+                "shares": 0,
+                "avg_cost": 100.0,
+                "name": "MT",
+                "current_price": 100.0,
+            },
+        )
         assert "600519" not in monitor._low_water_mark
         assert "600519" not in monitor._high_water_mark

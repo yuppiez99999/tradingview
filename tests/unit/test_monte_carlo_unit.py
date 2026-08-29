@@ -3,9 +3,8 @@
 目标模块: utils/fineng/pricing/monte_carlo.py (branch-rate 0.4355 → 高覆盖)
 覆盖: MCPricingResult / MonteCarloEngine (price_european/asian/barrier 全分支)
 """
-from __future__ import annotations
 
-import math
+from __future__ import annotations
 
 import pytest
 
@@ -14,38 +13,50 @@ from utils.fineng.pricing.monte_carlo import (
     MonteCarloEngine,
 )
 
-
 # ============================================================
 # MCPricingResultTest — 定价结果数据结构
 # ============================================================
+
 
 class MCPricingResultTest:
 
     def test_relative_error_positive_price(self):
         r = MCPricingResult(
-            price=10.0, standard_error=0.5,
-            confidence_95=(9.0, 11.0), n_paths=1000, n_steps=252,
+            price=10.0,
+            standard_error=0.5,
+            confidence_95=(9.0, 11.0),
+            n_paths=1000,
+            n_steps=252,
         )
         assert r.relative_error == pytest.approx(0.05)
 
     def test_relative_error_zero_price(self):
         r = MCPricingResult(
-            price=0.0, standard_error=0.5,
-            confidence_95=(0.0, 1.0), n_paths=1000, n_steps=252,
+            price=0.0,
+            standard_error=0.5,
+            confidence_95=(0.0, 1.0),
+            n_paths=1000,
+            n_steps=252,
         )
         assert r.relative_error == float("inf")
 
     def test_relative_error_negative_price(self):
         r = MCPricingResult(
-            price=-1.0, standard_error=0.5,
-            confidence_95=(-2.0, 0.0), n_paths=1000, n_steps=252,
+            price=-1.0,
+            standard_error=0.5,
+            confidence_95=(-2.0, 0.0),
+            n_paths=1000,
+            n_steps=252,
         )
         assert r.relative_error == float("inf")
 
     def test_default_elapsed(self):
         r = MCPricingResult(
-            price=1.0, standard_error=0.0,
-            confidence_95=(1.0, 1.0), n_paths=100, n_steps=10,
+            price=1.0,
+            standard_error=0.0,
+            confidence_95=(1.0, 1.0),
+            n_paths=100,
+            n_steps=10,
         )
         assert r.elapsed_seconds == 0.0
 
@@ -54,18 +65,23 @@ class MCPricingResultTest:
 # MonteCarloEuropeanTest — 欧式期权定价
 # ============================================================
 
+
 class MonteCarloEuropeanTest:
 
     def test_call_option_basic(self):
         eng = MonteCarloEngine(n_paths=10000, n_steps=50, seed=42)
-        result = eng.price_european(S=100, K=100, T=1.0, r=0.05, sigma=0.20, is_call=True)
+        result = eng.price_european(
+            S=100, K=100, T=1.0, r=0.05, sigma=0.20, is_call=True
+        )
         assert result.price > 0
         assert result.n_paths > 0
         assert result.standard_error >= 0
 
     def test_put_option_basic(self):
         eng = MonteCarloEngine(n_paths=10000, n_steps=50, seed=42)
-        result = eng.price_european(S=100, K=100, T=1.0, r=0.05, sigma=0.20, is_call=False)
+        result = eng.price_european(
+            S=100, K=100, T=1.0, r=0.05, sigma=0.20, is_call=False
+        )
         assert result.price > 0
 
     def test_boundary_S_zero(self):
@@ -101,7 +117,9 @@ class MonteCarloEuropeanTest:
         assert result.n_paths == 10000
 
     def test_no_control_variate(self):
-        eng = MonteCarloEngine(n_paths=10000, n_steps=50, seed=42, use_control_variate=False)
+        eng = MonteCarloEngine(
+            n_paths=10000, n_steps=50, seed=42, use_control_variate=False
+        )
         result = eng.price_european(S=100, K=100, T=1.0)
         assert result.price > 0
 
@@ -123,6 +141,7 @@ class MonteCarloEuropeanTest:
 # ============================================================
 # MonteCarloAsianTest — 亚式期权定价
 # ============================================================
+
 
 class MonteCarloAsianTest:
 
@@ -167,6 +186,7 @@ class MonteCarloAsianTest:
 # ============================================================
 # MonteCarloBarrierTest — 障碍期权定价
 # ============================================================
+
 
 class MonteCarloBarrierTest:
 
@@ -216,6 +236,7 @@ class MonteCarloBarrierTest:
 # ============================================================
 # MonteCarloInternalTest — 内部模拟方法
 # ============================================================
+
 
 class MonteCarloInternalTest:
 

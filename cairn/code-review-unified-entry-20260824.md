@@ -56,3 +56,14 @@
 - UE-1: 统一实盘门控层 (live/simulate/TRADING_ENV 双签), 所有下单 handler 强制确认或默认 dry_run。
 - UE-5: --ml-enhanced 回退不触发 NotImplementedError。
 - UE-4/UE-6/UE-7: gemma 去重、回测资金对齐、deprecated stub 清理。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查明细 — 主链路 institutional_pipeline_runner (2026-08-24)](code-review-pipeline-20260824.md) (相似度 18%)
+- [UE-1 统一实盘门控 (2026-08-24)](ue1-live-gate-20260824.md) (相似度 17%)
+- [代码审查明细 — 轻量子模块 (alpha/governance/macro/ml/monitoring) (2026-08-24)](code-review-lightweight-20260824.md) (相似度 15%)
+- [代码审查明细 — risk 模块 (2026-08-24)](code-review-risk-20260824.md) (相似度 13%)
+- [代码审查明细 — hedging 模块 (2026-08-24)](code-review-hedging-20260824.md) (相似度 13%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

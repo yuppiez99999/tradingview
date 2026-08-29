@@ -166,7 +166,10 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                 self.stats["last_update"] = datetime.now()
 
                 # 时长控制
-                if duration_seconds and (time.perf_counter() - start_time) >= duration_seconds:
+                if (
+                    duration_seconds
+                    and (time.perf_counter() - start_time) >= duration_seconds
+                ):
                     logger.info("达到指定运行时长，自动停止")
                     break
 
@@ -213,9 +216,11 @@ class AutoTradingSystem(AutomatedExecutionSystem):
     def _run_monitor_cycle(self) -> None:
         """执行一个完整的监控周期。"""
         logger.info("-" * 50)
-        logger.info("📊 监控周期 #%d 开始 @ %s",
-                    self.stats["cycles_completed"] + 1,
-                    datetime.now().strftime("%H:%M:%S"))
+        logger.info(
+            "📊 监控周期 #%d 开始 @ %s",
+            self.stats["cycles_completed"] + 1,
+            datetime.now().strftime("%H:%M:%S"),
+        )
 
         # 1. 实时行情监控
         self._monitor_realtime_quotes()
@@ -255,14 +260,32 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                         valid_count += 1
                         chg = q.get("change_pct", 0)
                         src = q.get("source", "?")
-                        arrow = "🔴" if chg and chg < 0 else ("🟢" if chg and chg > 0 else "⚪")
-                        logger.info("  %s %s %-8s: %7.4f  (%+6.2f%%) [%s]",
-                                    arrow, code, q.get("name", "?"), price, chg or 0, src)
+                        arrow = (
+                            "🔴"
+                            if chg and chg < 0
+                            else ("🟢" if chg and chg > 0 else "⚪")
+                        )
+                        logger.info(
+                            "  %s %s %-8s: %7.4f  (%+6.2f%%) [%s]",
+                            arrow,
+                            code,
+                            q.get("name", "?"),
+                            price,
+                            chg or 0,
+                            src,
+                        )
 
             logger.info("  有效行情: %d/%d", valid_count, len(self.DEFAULT_ETF_CODES))
         except ImportError:
             logger.warning("  ⚠️ 实时行情模块不可用")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("  ⚠️ 行情监控异常: %s", e)
 
     # --------------------------------------------------------
@@ -280,17 +303,32 @@ class AutoTradingSystem(AutomatedExecutionSystem):
             for code in monitor_codes:
                 flow = tracker._fetch_price_based_flow(code)
                 if flow:
-                    direction = "📈" if flow.get("trend") == "流入" else ("📉" if flow.get("trend") == "流出" else "➖")
-                    logger.info("  %s %s %-8s: 净流 %+7.2f亿  涨跌 %+5.2f%%  [%s]",
-                                direction, code, flow.get("name", "?"),
-                                flow.get("net_flow_yi", 0),
-                                flow.get("change_pct", 0),
-                                flow.get("source", "?"))
+                    direction = (
+                        "📈"
+                        if flow.get("trend") == "流入"
+                        else ("📉" if flow.get("trend") == "流出" else "➖")
+                    )
+                    logger.info(
+                        "  %s %s %-8s: 净流 %+7.2f亿  涨跌 %+5.2f%%  [%s]",
+                        direction,
+                        code,
+                        flow.get("name", "?"),
+                        flow.get("net_flow_yi", 0),
+                        flow.get("change_pct", 0),
+                        flow.get("source", "?"),
+                    )
                 else:
                     logger.info("  ⚠️ %s: 暂无资金流数据", code)
         except ImportError:
             logger.warning("  ⚠️ 资金流监控模块不可用")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("  ⚠️ 资金流监控异常: %s", e)
 
     # --------------------------------------------------------
@@ -312,11 +350,23 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                     sell_n = len(sig.get("sell", []))
                     hold_n = len(sig.get("hold", []))
                     model_name = result.get("model_info", {}).get("best_model", "?")
-                    logger.info("  🤖 %s: 买入=%d  卖出=%d  持有=%d",
-                                model_name, buy_n, sell_n, hold_n)
+                    logger.info(
+                        "  🤖 %s: 买入=%d  卖出=%d  持有=%d",
+                        model_name,
+                        buy_n,
+                        sell_n,
+                        hold_n,
+                    )
                     return
             logger.info("  ℹ️  暂无 ML 信号")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.info("  ℹ️  ML信号检查跳过: %s", e)
 
     # --------------------------------------------------------
@@ -340,6 +390,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         """检查影子账户状态（简化版）。"""
         try:
             from utils.shadow_account import ShadowAccount  # noqa: F401
+
             # 简单检查模块可导入即可
             return True
         except ImportError:
@@ -350,6 +401,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         """检查 KillSwitch 状态（简化版）。"""
         try:
             from utils.kill_switch import KillSwitch  # noqa: F401
+
             return True
         except ImportError:
             logger.info("  ℹ️  KillSwitch 模块未加载 (可选)")
@@ -374,8 +426,11 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         logger.info("--- 波动率Regime ---")
         try:
             from utils.infra.feature_flags import is_enabled
+
             if not is_enabled("USE_VOL_REGIME_WEIGHTER"):
-                logger.info("  ℹ️  VolRegimeWeighter 未启用 (USE_VOL_REGIME_WEIGHTER=False)")
+                logger.info(
+                    "  ℹ️  VolRegimeWeighter 未启用 (USE_VOL_REGIME_WEIGHTER=False)"
+                )
                 return
 
             from pathlib import Path
@@ -418,13 +473,22 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                 return
 
             vix_str = f"{vix_value:.2f}" if vix_value is not None else "N/A"
-            dd_str = f"{current_drawdown:.2%}" if current_drawdown is not None else "N/A"
-            logger.info("  📊 Regime=%s  置信度=%.2f  VIX=%s  回撤=%s",
-                        regime, confidence, vix_str, dd_str)
+            dd_str = (
+                f"{current_drawdown:.2%}" if current_drawdown is not None else "N/A"
+            )
+            logger.info(
+                "  📊 Regime=%s  置信度=%.2f  VIX=%s  回撤=%s",
+                regime,
+                confidence,
+                vix_str,
+                dd_str,
+            )
 
             # 危机档告警 (bear/crisis 触发告警)
             if regime in ("bear", "crisis"):
-                logger.warning("  ⚠️  波动率告警: %s 档, 建议减仓进攻类, 加仓防御类", regime)
+                logger.warning(
+                    "  ⚠️  波动率告警: %s 档, 建议减仓进攻类, 加仓防御类", regime
+                )
             elif regime == "neutral":
                 logger.info("  ℹ️  中性档, 维持当前权重")
             elif regime == "bull":
@@ -432,7 +496,14 @@ class AutoTradingSystem(AutomatedExecutionSystem):
 
         except ImportError as e:
             logger.info("  ℹ️  VolRegimeWeighter 模块未加载: %s", e)
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("  ⚠️  波动率Regime检查异常: %s", e)
 
     # --------------------------------------------------------
@@ -476,13 +547,17 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         # 行情
         try:
             from utils.astock_realtime import get_realtime_quotes
-            result["quotes"] = get_realtime_quotes(self.DEFAULT_ETF_CODES, use_cache=False)
+
+            result["quotes"] = get_realtime_quotes(
+                self.DEFAULT_ETF_CODES, use_cache=False
+            )
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             pass
 
         # 资金流
         try:
             from utils.etf_flow_monitor import ETFRealTimeTracker
+
             tracker = ETFRealTimeTracker()
             for code in ["512170", "515030"]:
                 flow = tracker._fetch_price_based_flow(code)
@@ -494,9 +569,11 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         # 波动率 Regime 快照 (v8.6.14 新增)
         try:
             from utils.infra.feature_flags import is_enabled
+
             if is_enabled("USE_VOL_REGIME_WEIGHTER"):
                 from utils.alpha.drawdown_reader import DrawdownReader
                 from utils.alpha.vix_data_source import VixDataSource
+
                 vix = VixDataSource().fetch_vix(use_cache=True)
                 dd = DrawdownReader().get_current_drawdown()
                 result["vol_regime"] = {
@@ -506,7 +583,14 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                 }
             else:
                 result["vol_regime"] = {"enabled": False}
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             result["vol_regime"] = {"error": str(e)}
 
         return result

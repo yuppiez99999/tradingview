@@ -36,7 +36,9 @@ class TestReturnsCalibrationBayesianShrinkage:
         """应用短周期贝叶斯收缩 (与 calibrate_returns_projection.py L442-L451 一致)"""
         if years < 2.0 and abs(annualized) > 0.5:
             shrink_weight = self._calc_shrink_weight(years)
-            return annualized * (1 - shrink_weight) + self.BAYESIAN_PRIOR * shrink_weight
+            return (
+                annualized * (1 - shrink_weight) + self.BAYESIAN_PRIOR * shrink_weight
+            )
         return annualized
 
     # --- 贝叶斯收缩公式验证 ---
@@ -182,8 +184,11 @@ IF空头2手 对冲组合Beta敞口
         # 前几条应该都是操作建议
         first_4 = result[:4]
         action_count = sum(
-            1 for r in first_4
-            if any(kw in r for kw in ["IF空头", "建仓顺序", "减持", "Put", "止损", "加仓"])
+            1
+            for r in first_4
+            if any(
+                kw in r for kw in ["IF空头", "建仓顺序", "减持", "Put", "止损", "加仓"]
+            )
         )
         assert action_count >= 3  # 至少 3 条操作建议在前面
 
@@ -236,7 +241,9 @@ class TestPy38TypeAnnotationCompatibility:
                 hints = get_type_hints(func)
             except TypeError as e:
                 if "not subscriptable" in str(e):
-                    pytest.fail(f"{func.__name__} 使用了 PEP 585 类型注解, Py38 不兼容: {e}")
+                    pytest.fail(
+                        f"{func.__name__} 使用了 PEP 585 类型注解, Py38 不兼容: {e}"
+                    )
                 raise
 
             # 参数注解中 if_codes 应能正确解析
@@ -259,4 +266,6 @@ class TestPy38TypeAnnotationCompatibility:
                         has_typing_import = True
                         break
 
-        assert has_typing_import, "recommendation_generator.py 应从 typing 导入 List/Dict"
+        assert (
+            has_typing_import
+        ), "recommendation_generator.py 应从 typing 导入 List/Dict"

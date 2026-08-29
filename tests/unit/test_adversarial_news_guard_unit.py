@@ -35,6 +35,7 @@ from utils.adversarial_news_guard import (
 # 枚举测试
 # ============================================================
 
+
 class TestEnums:
     """枚举测试。"""
 
@@ -52,6 +53,7 @@ class TestEnums:
 # ============================================================
 # 数据结构测试
 # ============================================================
+
 
 class TestThreatReport:
     """威胁报告测试。"""
@@ -101,6 +103,7 @@ class TestSanitizationResult:
 # HomoglyphDetector 测试
 # ============================================================
 
+
 class TestHomoglyphDetector:
     """Unicode 同形字检测器测试。"""
 
@@ -143,6 +146,7 @@ class TestHomoglyphDetector:
 # ============================================================
 # HiddenTextFilter 测试
 # ============================================================
+
 
 class TestHiddenTextFilter:
     """隐藏文本过滤器测试。"""
@@ -195,6 +199,7 @@ class TestHiddenTextFilter:
 # ============================================================
 # PromptInjectionDetector 测试
 # ============================================================
+
 
 class TestPromptInjectionDetector:
     """提示注入检测器测试。"""
@@ -255,6 +260,7 @@ class TestPromptInjectionDetector:
 # ============================================================
 # AdversarialNewsGuard 测试
 # ============================================================
+
 
 class TestAdversarialNewsGuard:
     """综合净化管道测试。"""
@@ -333,6 +339,7 @@ class TestAdversarialNewsGuard:
 # ============================================================
 # 端到端集成测试
 # ============================================================
+
 
 class TestEndToEnd:
     """端到端集成测试。"""

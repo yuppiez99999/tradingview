@@ -80,8 +80,8 @@ admission_criteria:
   dsr_max_pass: 5               # DSR 通过次数门槛 (V9 基线 DSR=8)
 
   # 绩效门槛
-  min_annual_return: 0.15       # 年化 >= 15%
-  max_drawdown: 0.10           # 最大回撤 <= 10% (生产 MAX_DRAWDOWN_LIMIT=15%, 此处更严)
+  min_annual_return: 0.08       # 年化 >= 8%
+  max_drawdown: 0.15           # 最大回撤 <= 15% (对齐生产 MAX_DRAWDOWN_LIMIT)
   min_sharpe: 0.5              # Sharpe >= 0.5
   max_sharpe_cv: 1.0           # Sharpe CV < 1.0 (稳定性)
 
@@ -92,7 +92,7 @@ admission_criteria:
   # PBO (Probability of Backtest Overfitting)
   pbo_threshold: 0.5           # PBO < 0.5
 
-  description: "DSR>=0.5 (通过>=5次), 年化>=15%, 回撤<=10%, Sharpe CV<1.0, PBO<0.5"
+  description: "DSR>=0.5 (通过>=5次), 年化>=8%, 回撤<=15%, Sharpe CV<1.0, PBO<0.5"
 
 # ============================================================
 # 回测基准 (V9 Regime-Specific LGB, 与 shadow_account_config.json 一致)

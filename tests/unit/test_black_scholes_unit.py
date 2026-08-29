@@ -3,6 +3,7 @@
 目标: black_scholes.py (branch 0.48→高) + implied_vol.py (branch 0.58→高)
 专注边界分支: T<=0 / sigma<=0 / S<=0 / K<=0 / is_call True/False
 """
+
 from __future__ import annotations
 
 import math
@@ -32,10 +33,10 @@ from utils.fineng.pricing.implied_vol import (
     implied_vol_bisection,
 )
 
-
 # ============================================================
 # NormFunctionsTest — 正态分布辅助函数
 # ============================================================
+
 
 class NormFunctionsTest:
 
@@ -64,6 +65,7 @@ class NormFunctionsTest:
 # ============================================================
 # BsD1D2Test — d1/d2 计算
 # ============================================================
+
 
 class BsD1D2Test:
 
@@ -94,6 +96,7 @@ class BsD1D2Test:
 # ============================================================
 # BsCallPriceTest — 看涨期权定价边界
 # ============================================================
+
 
 class BsCallPriceTest:
 
@@ -126,6 +129,7 @@ class BsCallPriceTest:
 # BsPutPriceTest — 看跌期权定价边界
 # ============================================================
 
+
 class BsPutPriceTest:
 
     def test_atm(self):
@@ -157,18 +161,24 @@ class BsPutPriceTest:
 # BsPriceDispatchTest — 调度函数
 # ============================================================
 
+
 class BsPriceDispatchTest:
 
     def test_call_dispatch(self):
-        assert bs_price(100, 100, 1.0, 0.05, 0.20, is_call=True) == bs_call_price(100, 100, 1.0, 0.05, 0.20)
+        assert bs_price(100, 100, 1.0, 0.05, 0.20, is_call=True) == bs_call_price(
+            100, 100, 1.0, 0.05, 0.20
+        )
 
     def test_put_dispatch(self):
-        assert bs_price(100, 100, 1.0, 0.05, 0.20, is_call=False) == bs_put_price(100, 100, 1.0, 0.05, 0.20)
+        assert bs_price(100, 100, 1.0, 0.05, 0.20, is_call=False) == bs_put_price(
+            100, 100, 1.0, 0.05, 0.20
+        )
 
 
 # ============================================================
 # BsDeltaTest — Delta 边界
 # ============================================================
+
 
 class BsDeltaTest:
 
@@ -212,6 +222,7 @@ class BsDeltaTest:
 # BsGammaTest — Gamma 边界
 # ============================================================
 
+
 class BsGammaTest:
 
     def test_normal(self):
@@ -231,6 +242,7 @@ class BsGammaTest:
 # ============================================================
 # BsThetaTest — Theta 边界
 # ============================================================
+
 
 class BsThetaTest:
 
@@ -253,6 +265,7 @@ class BsThetaTest:
 # BsVegaTest — Vega 边界
 # ============================================================
 
+
 class BsVegaTest:
 
     def test_normal(self):
@@ -269,6 +282,7 @@ class BsVegaTest:
 # ============================================================
 # BsRhoTest — Rho 边界
 # ============================================================
+
 
 class BsRhoTest:
 
@@ -287,6 +301,7 @@ class BsRhoTest:
 # ============================================================
 # BsAllGreeksTest — 批量 Greeks
 # ============================================================
+
 
 class BsAllGreeksTest:
 
@@ -321,6 +336,7 @@ class BsAllGreeksTest:
 # PutCallParityTest — 平价验证
 # ============================================================
 
+
 class PutCallParityTest:
 
     def test_parity_holds(self):
@@ -333,6 +349,7 @@ class PutCallParityTest:
 # ============================================================
 # ImpliedVolTest — 隐含波动率求解
 # ============================================================
+
 
 class ImpliedVolTest:
 

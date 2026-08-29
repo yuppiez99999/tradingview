@@ -6,6 +6,7 @@
     3. fail-fast 监控集成
     4. Markdown 报告生成
 """
+
 from __future__ import annotations
 
 import json
@@ -22,6 +23,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 # ============================================================
 # 辅助函数
 # ============================================================
+
 
 def _write_jsonl(filepath: Path, records: list[dict]) -> None:
     """写入 jsonl 测试文件."""
@@ -52,8 +54,10 @@ def _make_mvsk_record(
 
 
 def _make_qlib_record(
-    date: str, symbol: str = "510300",
-    qlib_signal: float = 0.3, v9_signal: float = 0.2,
+    date: str,
+    symbol: str = "510300",
+    qlib_signal: float = 0.3,
+    v9_signal: float = 0.2,
 ) -> dict:
     """构造 qlib shadow 记录."""
     return {
@@ -71,6 +75,7 @@ def _make_qlib_record(
 # ============================================================
 # Shadow30DayEvaluator 测试
 # ============================================================
+
 
 class TestShadow30DayEvaluator:
     """评估器测试."""
@@ -174,11 +179,13 @@ class TestShadow30DayEvaluator:
         for d in range(13, 43):
             qlib_sig = 0.3 if d % 2 == 0 else -0.3
             v9_sig = 0.2 if d % 2 == 0 else 0.2
-            records.append(_make_qlib_record(
-                f"2026-09-{d:02d}",
-                qlib_signal=qlib_sig,
-                v9_signal=v9_sig,
-            ))
+            records.append(
+                _make_qlib_record(
+                    f"2026-09-{d:02d}",
+                    qlib_signal=qlib_sig,
+                    v9_signal=v9_sig,
+                )
+            )
         mvsk_path = tmp_path / "mvsk.jsonl"
         qlib_path = tmp_path / "qlib.jsonl"
         _write_jsonl(mvsk_path, [])
@@ -224,10 +231,15 @@ class TestShadow30DayEvaluator:
         status_path = tmp_path / "status.json"
         _write_jsonl(mvsk_path, [_make_mvsk_record("2026-09-13")])
         _write_jsonl(qlib_path, [_make_qlib_record("2026-09-13")])
-        status_path.write_text(json.dumps({
-            "fail_fast_triggered": True,
-            "fail_fast_reason": "单日差异 0.05 > 阈值 0.03",
-        }), encoding="utf-8")
+        status_path.write_text(
+            json.dumps(
+                {
+                    "fail_fast_triggered": True,
+                    "fail_fast_reason": "单日差异 0.05 > 阈值 0.03",
+                }
+            ),
+            encoding="utf-8",
+        )
 
         evaluator = Shadow30DayEvaluator()
         report = evaluator.evaluate(mvsk_path, qlib_path, status_path)
@@ -289,6 +301,7 @@ class TestShadow30DayEvaluator:
 # ============================================================
 # launch_shadow_30day 测试
 # ============================================================
+
 
 class TestLaunchShadow30Day:
     """每日运行器测试."""

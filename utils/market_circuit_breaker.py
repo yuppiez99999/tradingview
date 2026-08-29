@@ -68,7 +68,7 @@ class MarketCircuitBreaker:
         l2_threshold: float | None = None,
         l3_threshold: float | None = None,
         fail_closed_pct: float | None = None,
-        ):
+    ):
         """初始化大盘熔断监控器
 
         Args:
@@ -76,9 +76,17 @@ class MarketCircuitBreaker:
             l3_threshold: L3 触发阈值 (跌幅, 负值), 默认 -0.07
             fail_closed_pct: fail-closed 返回值, 默认 -0.08
         """
-        self.l2_threshold = float(l2_threshold) if l2_threshold is not None else self.L2_THRESHOLD
-        self.l3_threshold = float(l3_threshold) if l3_threshold is not None else self.L3_THRESHOLD
-        self.fail_closed_pct = float(fail_closed_pct) if fail_closed_pct is not None else self.FAIL_CLOSED_PCT
+        self.l2_threshold = (
+            float(l2_threshold) if l2_threshold is not None else self.L2_THRESHOLD
+        )
+        self.l3_threshold = (
+            float(l3_threshold) if l3_threshold is not None else self.L3_THRESHOLD
+        )
+        self.fail_closed_pct = (
+            float(fail_closed_pct)
+            if fail_closed_pct is not None
+            else self.FAIL_CLOSED_PCT
+        )
 
     # ------------------------------------------------------------
     # 公开 API
@@ -176,7 +184,9 @@ class MarketCircuitBreaker:
                 "action": "HALT_ALL_TRADING",
                 "data_source": status.get("data_source", "unknown"),
             }
-            logger.critical("[MarketCircuitBreaker] L3 全局平仓: 已清空所有订单, halt_all_trading=True")
+            logger.critical(
+                "[MarketCircuitBreaker] L3 全局平仓: 已清空所有订单, halt_all_trading=True"
+            )
 
         elif level == 2:
             # L2: 禁止开仓 — 过滤 BUY 订单, 保留 SELL
@@ -189,12 +199,20 @@ class MarketCircuitBreaker:
                 """判断订单是否为建仓方向 (BUY 系列)"""
                 side_val = str(o.get("side", "")).upper()
                 direction_val = str(o.get("direction", "")).upper()
-                return side_val == "BUY" or direction_val in ("BUY", "BUY_OPEN", "BUY_PUT")
+                return side_val == "BUY" or direction_val in (
+                    "BUY",
+                    "BUY_OPEN",
+                    "BUY_PUT",
+                )
 
             morning_orders = plan["execution_plan"].get("morning_orders", [])
-            plan["execution_plan"]["morning_orders"] = [o for o in morning_orders if not _is_buy_order(o)]
+            plan["execution_plan"]["morning_orders"] = [
+                o for o in morning_orders if not _is_buy_order(o)
+            ]
             afternoon_orders = plan["execution_plan"].get("afternoon_orders", [])
-            plan["execution_plan"]["afternoon_orders"] = [o for o in afternoon_orders if not _is_buy_order(o)]
+            plan["execution_plan"]["afternoon_orders"] = [
+                o for o in afternoon_orders if not _is_buy_order(o)
+            ]
             plan["market_state"]["spot_build_allowed"] = False
             # v8.6.13 P0 FIX: 同步 build_allowed=False, 与 v8.6.8 P0-02/P0-05 一致性原则对齐
             # 原代码只设 spot_build_allowed=False, 下游执行器读 build_allowed 会绕过 L2 限制
@@ -209,7 +227,9 @@ class MarketCircuitBreaker:
                 "action": "NO_NEW_POSITIONS",
                 "data_source": status.get("data_source", "unknown"),
             }
-            logger.warning("[MarketCircuitBreaker] L2 预警: 已过滤 BUY 订单, 仅允许平仓")
+            logger.warning(
+                "[MarketCircuitBreaker] L2 预警: 已过滤 BUY 订单, 仅允许平仓"
+            )
 
         else:
             # L0: 正常
@@ -271,7 +291,16 @@ class MarketCircuitBreaker:
                 return (float(price) - float(pre_close)) / float(pre_close), True
 
             return None, False
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.debug("[MarketCircuitBreaker] astock_realtime 获取失败: %s", e)
             return None, False
 
@@ -305,7 +334,16 @@ class MarketCircuitBreaker:
         except ImportError:
             logger.debug("[MarketCircuitBreaker] akshare 未安装, 跳过 Layer 2")
             return None, False
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.debug("[MarketCircuitBreaker] akshare 获取失败: %s", e)
             return None, False
 
@@ -345,6 +383,8 @@ if __name__ == "__main__":
     result = mcb.apply_to_plan(test_plan, status)
     logger.info("\napply_to_plan 结果:")
     logger.info(f"  morning_orders: {result['execution_plan']['morning_orders']}")
-    logger.info(f"  risk_guard: {result['risk_guard'].get('market_circuit_breaker', {})}")
+    logger.info(
+        f"  risk_guard: {result['risk_guard'].get('market_circuit_breaker', {})}"
+    )
 
     logger.info("\n[OK] MarketCircuitBreaker 自检通过")

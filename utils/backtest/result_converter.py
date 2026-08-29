@@ -21,6 +21,7 @@
     - DRY: 复用向量化回测的常量 (RISK_FREE_RATE, 252 交易日)
     - 不可变性: convert() 返回新 BacktestResult,不修改 EngineSummary
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -296,15 +297,17 @@ class ResultConverter:
                 year_td = np.array([result.turnover_daily[j] for j in idxs])
                 year_turnover = float(np.mean(year_td))
 
-            result.yearly_stats.append({
-                "year": year,
-                "return": yr,
-                "volatility": yv,
-                "max_drawdown": ydd,
-                "csi300_return": csi_yr,
-                "market_type": mt,
-                "turnover": year_turnover,
-            })
+            result.yearly_stats.append(
+                {
+                    "year": year,
+                    "return": yr,
+                    "volatility": yv,
+                    "max_drawdown": ydd,
+                    "csi300_return": csi_yr,
+                    "market_type": mt,
+                    "turnover": year_turnover,
+                }
+            )
 
     # ============================================================
     # 内部: 辅助方法
@@ -325,11 +328,7 @@ class ResultConverter:
 
     def _count_fills(self, summary: EngineSummary) -> int:
         """统计成交订单数 (ALL_TRADED 状态)。"""
-        return sum(
-            1
-            for r in summary.trade_records
-            if r.get("status") == "ALL_TRADED"
-        )
+        return sum(1 for r in summary.trade_records if r.get("status") == "ALL_TRADED")
 
     def _extract_transaction_costs(
         self, summary: EngineSummary, n_points: int

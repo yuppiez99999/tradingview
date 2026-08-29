@@ -143,7 +143,16 @@ class PortfolioOptimizer:
             )
             return result
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("[PortfolioOptimizer] 加载因子信号失败: %s", e)
             return {}
 
@@ -273,23 +282,22 @@ class PortfolioOptimizer:
             }
         """
         # 默认参数 (与 shadow_account.RISK_MANAGED_* 常量对齐)
-        TARGET_VOL = 0.15  # 目标年化波动率 15%  # noqa: N806
-        VOL_LOOKBACK = 20  # 波动率回看窗口 20 日  # noqa: N806
-        DD_DERISK_THRESHOLD = 0.05  # 回撤 > 5% 触发去杠杆  # noqa: N806
-        DD_DERISK_FACTOR = 0.5  # 去杠杆至 50% 敞口  # noqa: N806
-        SCALER_CAP = 2.0  # 缩放因子上限  # noqa: N806
-        TRADING_DAYS_PER_YEAR = 252  # noqa: N806
-        # P0-Q3 新增: 总敞口硬上限 (默认 1.5x, 可被 config 覆盖)
-        MAX_EXPOSURE = self.MAX_TOTAL_EXPOSURE  # noqa: N806
+        target_vol = 0.15
+        vol_lookback = 20
+        dd_derisk_threshold = 0.05
+        dd_derisk_factor = 0.5
+        scaler_cap = 2.0
+        trading_days_per_year = 252
+        max_exposure = self.MAX_TOTAL_EXPOSURE
 
         # 应用配置覆盖
         if config:
-            TARGET_VOL = float(config.get("target_vol", TARGET_VOL))  # noqa: N806
-            VOL_LOOKBACK = int(config.get("vol_lookback", VOL_LOOKBACK))  # noqa: N806
-            DD_DERISK_THRESHOLD = float(config.get("dd_derisk_threshold", DD_DERISK_THRESHOLD))  # noqa: N806
-            DD_DERISK_FACTOR = float(config.get("dd_derisk_factor", DD_DERISK_FACTOR))  # noqa: N806
-            SCALER_CAP = float(config.get("scaler_cap", SCALER_CAP))  # noqa: N806
-            MAX_EXPOSURE = float(config.get("max_total_exposure", MAX_EXPOSURE))  # noqa: N806
+            target_vol = float(config.get("target_vol", target_vol))
+            vol_lookback = int(config.get("vol_lookback", vol_lookback))
+            dd_derisk_threshold = float(config.get("dd_derisk_threshold", dd_derisk_threshold))
+            dd_derisk_factor = float(config.get("dd_derisk_factor", dd_derisk_factor))
+            scaler_cap = float(config.get("scaler_cap", scaler_cap))
+            max_exposure = float(config.get("max_total_exposure", max_exposure))
 
         # 边界检查
         if not target_weights:
@@ -316,12 +324,12 @@ class PortfolioOptimizer:
         # === 1. 波动率缩放 ===
         # 使用最近 vol_lookback 日 PnL 计算实现波动率
         # 注意: 波动率计算可使用完整历史 (含当日), 因为波动率是统计量, 非决策量
-        vol_lookback = min(VOL_LOOKBACK, len(daily_pnl_history))
+        vol_lookback = min(vol_lookback, len(daily_pnl_history))
         recent_pnl = daily_pnl_history[-vol_lookback:]
-        realized_vol_annual = float(np.std(recent_pnl, ddof=1) * math.sqrt(TRADING_DAYS_PER_YEAR))
+        realized_vol_annual = float(np.std(recent_pnl, ddof=1) * math.sqrt(trading_days_per_year))
 
         if realized_vol_annual > 1e-9:
-            vol_scaler = min(TARGET_VOL / realized_vol_annual, SCALER_CAP)
+            vol_scaler = min(target_vol / realized_vol_annual, scaler_cap)
         else:
             vol_scaler = 1.0  # 波动率为 0 时不缩放
 
@@ -339,7 +347,7 @@ class PortfolioOptimizer:
         current_value = cumulative[-1] if cumulative else 1.0
         current_dd = (peak - current_value) / peak if peak > 0 else 0.0
 
-        dd_scaler = DD_DERISK_FACTOR if current_dd > DD_DERISK_THRESHOLD else 1.0
+        dd_scaler = dd_derisk_factor if current_dd > dd_derisk_threshold else 1.0
 
         # === 3. 合并并应用 ===
         combined_scaler = vol_scaler * dd_scaler
@@ -348,23 +356,23 @@ class PortfolioOptimizer:
         # === 4. P0-Q3 新增: 总敞口上限保护 ===
         # 问题: combined_scaler 可达 2.0x (低波动期 vol_scaler=2.0)
         #   导致总敞口从 100% 跃升至 200%, 与券商保证金冲突, 可能直接触发 KillSwitch L2
-        # 修复: 超过 MAX_EXPOSURE 时按比例缩减, 保留相对权重结构
+        # 修复: 超过 max_exposure 时按比例缩减, 保留相对权重结构
         raw_total_exposure = sum(abs(w) for w in target_weights.values())
         scaled_total_exposure = sum(abs(w) for w in scaled_weights.values())
         exposure_cap_applied = False
 
-        if scaled_total_exposure > MAX_EXPOSURE and scaled_total_exposure > 1e-9:
-            cap_scaler = MAX_EXPOSURE / scaled_total_exposure
+        if scaled_total_exposure > max_exposure and scaled_total_exposure > 1e-9:
+            cap_scaler = max_exposure / scaled_total_exposure
             scaled_weights = {k: v * cap_scaler for k, v in scaled_weights.items()}
             exposure_cap_applied = True
             logger.warning(
                 "[PortfolioOptimizer] [P0-Q3] 总敞口 %.4fx 超 %.2fx 上限, 已按比例 cap 至 %.2fx (cap_scaler=%.4f)",
                 scaled_total_exposure,
-                MAX_EXPOSURE,
-                MAX_EXPOSURE,
+                max_exposure,
+                max_exposure,
                 cap_scaler,
             )
-            scaled_total_exposure = MAX_EXPOSURE
+            scaled_total_exposure = max_exposure
 
         # === 5. 统计信息 ===
         stats = {
@@ -374,14 +382,14 @@ class PortfolioOptimizer:
             "dd_scaler": float(dd_scaler),
             "combined_scaler": float(combined_scaler),
             "exposure_cap_applied": exposure_cap_applied,
-            "max_total_exposure": MAX_EXPOSURE,
-            "derisk_triggered": current_dd > DD_DERISK_THRESHOLD,
+            "max_total_exposure": max_exposure,
+            "derisk_triggered": current_dd > dd_derisk_threshold,
             "raw_total_exposure": float(raw_total_exposure),
             "scaled_total_exposure": float(scaled_total_exposure),
-            "target_vol": TARGET_VOL,
+            "target_vol": target_vol,
             "vol_lookback": vol_lookback,
-            "dd_derisk_threshold": DD_DERISK_THRESHOLD,
-            "dd_derisk_factor": DD_DERISK_FACTOR,
+            "dd_derisk_threshold": dd_derisk_threshold,
+            "dd_derisk_factor": dd_derisk_factor,
             # P0-Q1 审计字段: 标记前视偏差修复已生效
             "lookahead_bias_fixed": True,
             "dd_pnl_used": "yesterday_only",
@@ -392,7 +400,7 @@ class PortfolioOptimizer:
             "vol_scaler=%.3f | dd=%.2f%% dd_scaler=%.2f | combined=%.3f | "
             "exposure %.4f→%.4f derisk=%s cap=%s",
             realized_vol_annual * 100,
-            TARGET_VOL * 100,
+            target_vol * 100,
             vol_scaler,
             current_dd * 100,
             dd_scaler,
@@ -407,8 +415,8 @@ class PortfolioOptimizer:
             logger.warning(
                 "[PortfolioOptimizer] [P1-L] 回撤去杠杆触发: current_dd=%.2f%% > %.2f%%, 敞口降至 %.0f%%",
                 current_dd * 100,
-                DD_DERISK_THRESHOLD * 100,
-                DD_DERISK_FACTOR * 100,
+                dd_derisk_threshold * 100,
+                dd_derisk_factor * 100,
             )
 
         return scaled_weights, stats
@@ -443,9 +451,13 @@ class PortfolioOptimizer:
         try:
             # Step 1: 加载真实数据（复用 research 脚本）
             logger.info("[PortfolioOptimizer] Step 1: 加载真实数据...")
-            price_data, fundamentals, benchmark_returns, fundamentals_history, used_symbols = self._load_real_data(
-                symbols
-            )
+            (
+                price_data,
+                fundamentals,
+                benchmark_returns,
+                fundamentals_history,
+                used_symbols,
+            ) = self._load_real_data(symbols)
             if not price_data:
                 logger.error("[PortfolioOptimizer] price_data 加载失败, 中断")
                 return False
@@ -475,9 +487,7 @@ class PortfolioOptimizer:
 
             # Step 3: 选取强因子 (|IC|>0.05) 前两名做 IC 加权
             candidate_factors = (
-                alpha_result.strong_factors
-                if alpha_result.strong_factors
-                else alpha_result.effective_factors
+                alpha_result.strong_factors if alpha_result.strong_factors else alpha_result.effective_factors
             )
             if len(candidate_factors) < 2:
                 logger.error(
@@ -497,7 +507,9 @@ class PortfolioOptimizer:
             if total_abs < 1e-6:
                 # ICIR 缺失时退化为等权
                 logger.warning(
-                    "[PortfolioOptimizer] IC_IR 为空, 退化为等权 (A=%s B=%s)", factor_a, factor_b
+                    "[PortfolioOptimizer] IC_IR 为空, 退化为等权 (A=%s B=%s)",
+                    factor_a,
+                    factor_b,
                 )
                 w_a, w_b = 0.5, 0.5
             else:
@@ -534,7 +546,16 @@ class PortfolioOptimizer:
                     float(getattr(fv_a, "ic_ir", 0) or 0),
                     float(getattr(fv_b, "ic_ir", 0) or 0),
                 )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # U1 评估失败不阻断主流程 (Step 5+ 仍正常执行)
                 logger.warning("[PortfolioOptimizer] U1 因子有效性记录失败 (非阻断): %s", e)
 
@@ -582,8 +603,8 @@ class PortfolioOptimizer:
                 },
                 "audit_trail": {
                     "source": "utils.alpha_factor.library.AlphaFactorLibrary (vibe 分支已隔离下线, 2026-08-08 重构)",
-                    "factor_a_source": fv_a.category if hasattr(fv_a, "category") else "unknown",
-                    "factor_b_source": fv_b.category if hasattr(fv_b, "category") else "unknown",
+                    "factor_a_source": (fv_a.category if hasattr(fv_a, "category") else "unknown"),
+                    "factor_b_source": (fv_b.category if hasattr(fv_b, "category") else "unknown"),
                     "n_strong_factors": len(alpha_result.strong_factors),
                     "n_effective_factors": len(alpha_result.effective_factors),
                     "fix_reference": "docs/EXEC_PLAN_v9_2_真实状态落地_20260808.md (G5 环境隔离修复)",
@@ -603,7 +624,16 @@ class PortfolioOptimizer:
             )
             return True
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error("[PortfolioOptimizer] run_offline_pipeline 失败: %s", e, exc_info=True)
             return False
 
@@ -639,7 +669,13 @@ class PortfolioOptimizer:
         # 加载 fundamentals_history（QualityTrend 因子所需）
         fundamentals_history = self._load_fundamentals_history(used_symbols)
 
-        return price_data, fundamentals, benchmark_returns, fundamentals_history, used_symbols
+        return (
+            price_data,
+            fundamentals,
+            benchmark_returns,
+            fundamentals_history,
+            used_symbols,
+        )
 
     def _load_fundamentals_history(self, symbols: list) -> dict[str, dict[str, Any]]:
         """加载历史季度财务数据（QualityTrend 因子必需）
@@ -665,7 +701,16 @@ class PortfolioOptimizer:
                     with open(path, encoding="utf-8") as f:
                         result[symbol] = json.load(f)
                     n_loaded += 1
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:  # P2 模块 fail-safe, 待后续精确化
                     logger.debug(
                         "[PortfolioOptimizer] 加载 %s 历史失败: %s",
                         symbol,

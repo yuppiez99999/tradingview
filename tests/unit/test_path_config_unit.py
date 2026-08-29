@@ -8,6 +8,7 @@
     - get_historical_base_file
     - describe_paths
 """
+
 from __future__ import annotations
 
 import sys

@@ -15,6 +15,7 @@
     phase_hedge 主流程仍使用 MockBroker (零行为变更), _execute_sim_hedge_orders
     供 sim_mode 模式调用 (未来 phase_hedge 集成 sim_engine 时启用).
 """
+
 from __future__ import annotations
 
 import sys
@@ -39,18 +40,39 @@ class MockSimEngine:
 
     def execute_futures_orders(self, orders, session="day"):
         self.calls.append(("futures", orders, session))
-        return [{"status": "FILLED", "symbol": o["symbol"], "qty": o["qty"],
-                 "price": o["price"]} for o in orders]
+        return [
+            {
+                "status": "FILLED",
+                "symbol": o["symbol"],
+                "qty": o["qty"],
+                "price": o["price"],
+            }
+            for o in orders
+        ]
 
     def execute_options_orders(self, orders, session="day"):
         self.calls.append(("options", orders, session))
-        return [{"status": "FILLED", "symbol": o["symbol"], "qty": o["qty"],
-                 "price": o["price"]} for o in orders]
+        return [
+            {
+                "status": "FILLED",
+                "symbol": o["symbol"],
+                "qty": o["qty"],
+                "price": o["price"],
+            }
+            for o in orders
+        ]
 
     def execute_stock_orders(self, orders, session="day"):
         self.calls.append(("stock", orders, session))
-        return [{"status": "FILLED", "symbol": o["symbol"], "qty": o["qty"],
-                 "price": o["price"]} for o in orders]
+        return [
+            {
+                "status": "FILLED",
+                "symbol": o["symbol"],
+                "qty": o["qty"],
+                "price": o["price"],
+            }
+            for o in orders
+        ]
 
     def get_greek_exposure(self):
         return self._greek
@@ -76,8 +98,14 @@ class TestExecuteSimHedgeOrders:
         """SHORT_FUTURES → sim_engine.execute_futures_orders"""
         wf = _make_workflow()
         orders = [
-            {"action": "SHORT_FUTURES", "instrument": "IF", "contracts": 3,
-             "futures_price": 4200, "hedge_type": "BETA", "notional": 3780000},
+            {
+                "action": "SHORT_FUTURES",
+                "instrument": "IF",
+                "contracts": 3,
+                "futures_price": 4200,
+                "hedge_type": "BETA",
+                "notional": 3780000,
+            },
         ]
         result = wf._execute_sim_hedge_orders(orders)
         # 验证 sim_engine.execute_futures_orders 被调用
@@ -94,9 +122,14 @@ class TestExecuteSimHedgeOrders:
         """PUT_SPREAD → sim_engine.execute_options_orders"""
         wf = _make_workflow()
         orders = [
-            {"action": "PUT_SPREAD", "hedge_type": "TAIL",
-             "budget": 50000, "budget_allocation": {"510300": 30000, "588000": 20000},
-             "contracts": 0, "vix": 25},
+            {
+                "action": "PUT_SPREAD",
+                "hedge_type": "TAIL",
+                "budget": 50000,
+                "budget_allocation": {"510300": 30000, "588000": 20000},
+                "contracts": 0,
+                "vix": 25,
+            },
         ]
         result = wf._execute_sim_hedge_orders(orders)
         call_types = [c[0] for c in wf.sim_engine.calls]
@@ -113,8 +146,12 @@ class TestExecuteSimHedgeOrders:
         """SAFE_HAVEN_ALLOC → sim_engine.execute_stock_orders"""
         wf = _make_workflow(mock_prices={"518880": 5.85})
         orders = [
-            {"action": "SAFE_HAVEN_ALLOC", "hedge_type": "CORR",
-             "gold_value": 100000, "gold_etf": "518880"},
+            {
+                "action": "SAFE_HAVEN_ALLOC",
+                "hedge_type": "CORR",
+                "gold_value": 100000,
+                "gold_etf": "518880",
+            },
         ]
         result = wf._execute_sim_hedge_orders(orders)
         call_types = [c[0] for c in wf.sim_engine.calls]
@@ -127,8 +164,11 @@ class TestExecuteSimHedgeOrders:
         """DOWNGRADE_TO_PUT_SPREAD → 仅记录跳过"""
         wf = _make_workflow()
         orders = [
-            {"action": "DOWNGRADE_TO_PUT_SPREAD", "hedge_type": "TAIL",
-             "reason": "成本超限"},
+            {
+                "action": "DOWNGRADE_TO_PUT_SPREAD",
+                "hedge_type": "TAIL",
+                "reason": "成本超限",
+            },
         ]
         result = wf._execute_sim_hedge_orders(orders)
         assert len(result) == 1
@@ -157,13 +197,27 @@ class TestExecuteSimHedgeOrders:
         """混合订单正确路由到三类 broker"""
         wf = _make_workflow(mock_prices={"518880": 5.85})
         orders = [
-            {"action": "SHORT_FUTURES", "instrument": "IF", "contracts": 2,
-             "futures_price": 4200, "hedge_type": "BETA"},
-            {"action": "PUT_SPREAD", "hedge_type": "TAIL",
-             "budget": 30000, "budget_allocation": {"510300": 30000},
-             "contracts": 0, "vix": 22},
-            {"action": "SAFE_HAVEN_ALLOC", "hedge_type": "CORR",
-             "gold_value": 50000, "gold_etf": "518880"},
+            {
+                "action": "SHORT_FUTURES",
+                "instrument": "IF",
+                "contracts": 2,
+                "futures_price": 4200,
+                "hedge_type": "BETA",
+            },
+            {
+                "action": "PUT_SPREAD",
+                "hedge_type": "TAIL",
+                "budget": 30000,
+                "budget_allocation": {"510300": 30000},
+                "contracts": 0,
+                "vix": 22,
+            },
+            {
+                "action": "SAFE_HAVEN_ALLOC",
+                "hedge_type": "CORR",
+                "gold_value": 50000,
+                "gold_etf": "518880",
+            },
             {"action": "DOWNGRADE_TO_PUT_SPREAD", "reason": "test"},
         ]
         result = wf._execute_sim_hedge_orders(orders)
@@ -182,8 +236,12 @@ class TestExecuteSimHedgeOrders:
         """SHORT_FUTURES contracts=0 → SKIP"""
         wf = _make_workflow()
         orders = [
-            {"action": "SHORT_FUTURES", "instrument": "IF", "contracts": 0,
-             "futures_price": 4200},
+            {
+                "action": "SHORT_FUTURES",
+                "instrument": "IF",
+                "contracts": 0,
+                "futures_price": 4200,
+            },
         ]
         result = wf._execute_sim_hedge_orders(orders)
         assert len(result) == 1
@@ -192,11 +250,17 @@ class TestExecuteSimHedgeOrders:
     def test_futures_execution_exception_handled(self):
         """期货执行异常不崩溃, 返回 FAILED"""
         broken_sim = MockSimEngine()
-        broken_sim.execute_futures_orders = MagicMock(side_effect=RuntimeError("broken"))
+        broken_sim.execute_futures_orders = MagicMock(
+            side_effect=RuntimeError("broken")
+        )
         wf = _make_workflow(sim_engine=broken_sim)
         orders = [
-            {"action": "SHORT_FUTURES", "instrument": "IF", "contracts": 3,
-             "futures_price": 4200},
+            {
+                "action": "SHORT_FUTURES",
+                "instrument": "IF",
+                "contracts": 3,
+                "futures_price": 4200,
+            },
         ]
         result = wf._execute_sim_hedge_orders(orders)
         assert len(result) == 1
@@ -207,8 +271,14 @@ class TestExecuteSimHedgeOrders:
         """返回的成交记录包含必需字段"""
         wf = _make_workflow()
         orders = [
-            {"action": "SHORT_FUTURES", "instrument": "IF", "contracts": 3,
-             "futures_price": 4200, "hedge_type": "BETA", "notional": 3780000},
+            {
+                "action": "SHORT_FUTURES",
+                "instrument": "IF",
+                "contracts": 3,
+                "futures_price": 4200,
+                "hedge_type": "BETA",
+                "notional": 3780000,
+            },
         ]
         result = wf._execute_sim_hedge_orders(orders)
         r = result[0]

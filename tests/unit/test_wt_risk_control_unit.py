@@ -10,6 +10,7 @@
     - RiskReportGenerator.generate_risk_report
     - create_risk_control / create_stop_loss_manager
 """
+
 from __future__ import annotations
 
 import pytest
@@ -59,11 +60,19 @@ class TestRiskControl:
 
     @pytest.mark.unit
     def test_custom_config(self):
-        rc = RiskControl(config={"max_daily_loss_pct": 0.05, "max_portfolio_drawdown_pct": 0.10,
-                                  "max_position_concentration_pct": 0.2, "max_single_trade_pct": 0.05,
-                                  "max_daily_trades": 50, "max_daily_volume": 500000000,
-                                  "circuit_breaker_enabled": True, "stop_loss_enabled": True,
-                                  "position_limit_enabled": True})
+        rc = RiskControl(
+            config={
+                "max_daily_loss_pct": 0.05,
+                "max_portfolio_drawdown_pct": 0.10,
+                "max_position_concentration_pct": 0.2,
+                "max_single_trade_pct": 0.05,
+                "max_daily_trades": 50,
+                "max_daily_volume": 500000000,
+                "circuit_breaker_enabled": True,
+                "stop_loss_enabled": True,
+                "position_limit_enabled": True,
+            }
+        )
         assert rc.config["max_daily_loss_pct"] == 0.05
 
     @pytest.mark.unit
@@ -240,7 +249,10 @@ class TestStopLossManager:
 class TestPortfolioRiskAnalyzer:
     @pytest.mark.unit
     def test_normalize_positions(self):
-        positions = {"000001": {"qty": 100, "avg_cost": 10.0}, "000002": {"shares": 200, "avg_cost": 20.0}}
+        positions = {
+            "000001": {"qty": 100, "avg_cost": 10.0},
+            "000002": {"shares": 200, "avg_cost": 20.0},
+        }
         normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
         assert normalized["000001"]["qty"] == 100
         assert normalized["000002"]["qty"] == 200
@@ -248,14 +260,18 @@ class TestPortfolioRiskAnalyzer:
     @pytest.mark.unit
     def test_calculate_var(self):
         positions = {"000001": {"qty": 100, "avg_cost": 10.0}}
-        var = PortfolioRiskAnalyzer.calculate_var(positions, volatility=0.02, confidence_level=0.95)
+        var = PortfolioRiskAnalyzer.calculate_var(
+            positions, volatility=0.02, confidence_level=0.95
+        )
         # 100*10 * 0.02 * 1.645 = 32.9
         assert var == pytest.approx(32.9, abs=0.1)
 
     @pytest.mark.unit
     def test_calculate_var_99(self):
         positions = {"000001": {"qty": 100, "avg_cost": 10.0}}
-        var = PortfolioRiskAnalyzer.calculate_var(positions, volatility=0.02, confidence_level=0.99)
+        var = PortfolioRiskAnalyzer.calculate_var(
+            positions, volatility=0.02, confidence_level=0.99
+        )
         assert var > 0
 
     @pytest.mark.unit
@@ -282,7 +298,10 @@ class TestPortfolioRiskAnalyzer:
 
     @pytest.mark.unit
     def test_position_concentration(self):
-        positions = {"000001": {"qty": 100, "avg_cost": 10.0}, "000002": {"qty": 50, "avg_cost": 20.0}}
+        positions = {
+            "000001": {"qty": 100, "avg_cost": 10.0},
+            "000002": {"qty": 50, "avg_cost": 20.0},
+        }
         conc = PortfolioRiskAnalyzer.calculate_position_concentration(positions)
         assert "000001" in conc
         assert conc["000001"]["percentage"] == pytest.approx(0.5)
@@ -294,15 +313,23 @@ class TestPortfolioRiskAnalyzer:
 
     @pytest.mark.unit
     def test_analyze_sector_distribution(self):
-        positions = {"000001": {"qty": 100, "avg_cost": 10.0}, "000002": {"qty": 50, "avg_cost": 20.0}}
+        positions = {
+            "000001": {"qty": 100, "avg_cost": 10.0},
+            "000002": {"qty": 50, "avg_cost": 20.0},
+        }
         sector_map = {"000001": "银行", "000002": "地产"}
-        sectors = PortfolioRiskAnalyzer.analyze_sector_distribution(positions, sector_map)
+        sectors = PortfolioRiskAnalyzer.analyze_sector_distribution(
+            positions, sector_map
+        )
         assert "银行" in sectors
         assert "地产" in sectors
 
     @pytest.mark.unit
     def test_analyze_portfolio(self):
-        positions = {"000001": {"qty": 100, "avg_cost": 10.0}, "000002": {"qty": 50, "avg_cost": 20.0}}
+        positions = {
+            "000001": {"qty": 100, "avg_cost": 10.0},
+            "000002": {"qty": 50, "avg_cost": 20.0},
+        }
         analyzer = PortfolioRiskAnalyzer()
         result = analyzer.analyze_portfolio(positions, total_built=1500, target=2000)
         assert "risk_score" in result

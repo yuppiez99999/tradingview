@@ -9,6 +9,7 @@
 confirmed -> 在 "2. 存量问题清单" 表格追加条目
 dismissed -> 在 "4. 豁免登记" 表格追加条目 (标记 false_positive)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -57,7 +58,9 @@ def update_backlog(
         fid = v.get("finding_id", "")
         vinfo = v
         matching = [f for f in all_discoveries if f.get("id") == fid]
-        finding = matching[0] if matching else {"id": fid, "location": "?", "severity": "?"}
+        finding = (
+            matching[0] if matching else {"id": fid, "location": "?", "severity": "?"}
+        )
         if v.get("verdict") == "confirmed":
             confirmed_rows.append(_format_backlog_row(finding, pr_number, vinfo))
         else:
@@ -84,17 +87,29 @@ def update_backlog(
         elif stripped.startswith("## 4."):
             in_section_4 = True
             in_section_2 = False
-        elif stripped.startswith("## 5.") or (stripped.startswith("## ") and in_section_4):
+        elif stripped.startswith("## 5.") or (
+            stripped.startswith("## ") and in_section_4
+        ):
             in_section_4 = False
 
         out_lines.append(line)
 
-        if in_section_2 and stripped.startswith("|") and "状态" in stripped and not section_2_inserted:
+        if (
+            in_section_2
+            and stripped.startswith("|")
+            and "状态" in stripped
+            and not section_2_inserted
+        ):
             for row in confirmed_rows:
                 out_lines.append(row)
             section_2_inserted = True
 
-        if in_section_4 and stripped.startswith("|") and "日期" in stripped and not section_4_inserted:
+        if (
+            in_section_4
+            and stripped.startswith("|")
+            and "日期" in stripped
+            and not section_4_inserted
+        ):
             for row in dismissed_rows:
                 out_lines.append(row)
             section_4_inserted = True
@@ -132,7 +147,9 @@ def main() -> int:
         mmr_result = json.load(f)
 
     confirmed, dismissed = update_backlog(mmr_result, backlog_path, args.pr_number)
-    print(f"[OK] 看板更新: {confirmed} confirmed + {dismissed} dismissed -> {backlog_path}")
+    print(
+        f"[OK] 看板更新: {confirmed} confirmed + {dismissed} dismissed -> {backlog_path}"
+    )
     return 0
 
 

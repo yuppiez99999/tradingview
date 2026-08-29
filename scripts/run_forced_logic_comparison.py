@@ -5,6 +5,7 @@
 与"新逻辑"(20cm 30%, 10cm 20%) 分别对同一数据进行校验,
 收集异常判定结果并生成对比报告.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,13 +25,16 @@ import utils.market_rules as mr
 _original_is_20cm = mr.is_20cm_symbol
 _original_get_threshold = mr.get_abnormal_threshold
 
+
 def _force_old_threshold(symbol: str) -> float:
     """强制返回 20% 阈值 (模拟旧逻辑)."""
     return 0.20
 
+
 def _no_20cm(symbol: str) -> bool:
     """强制所有标的不是 20cm (模拟旧逻辑)."""
     return False
+
 
 # 测试模式: 覆盖
 def run_with_logic(use_new_logic: bool) -> list[dict[str, Any]]:
@@ -81,7 +85,12 @@ def run_with_logic(use_new_logic: bool) -> list[dict[str, Any]]:
             except Exception:
                 continue
 
-            if prev_close is None or target_close is None or prev_close <= 0 or target_close <= 0:
+            if (
+                prev_close is None
+                or target_close is None
+                or prev_close <= 0
+                or target_close <= 0
+            ):
                 continue
 
             ret = target_close / prev_close - 1.0
@@ -89,21 +98,26 @@ def run_with_logic(use_new_logic: bool) -> list[dict[str, Any]]:
             threshold = mr.get_abnormal_threshold(symbol)
             is_abnormal = abs(ret) > threshold
 
-            day_details.append({
-                "symbol": symbol,
-                "ret_pct": round(ret_pct, 2),
-                "threshold": threshold,
-                "is_abnormal": is_abnormal,
-                "is_20cm": _original_is_20cm(symbol),
-            })
+            day_details.append(
+                {
+                    "symbol": symbol,
+                    "ret_pct": round(ret_pct, 2),
+                    "threshold": threshold,
+                    "is_abnormal": is_abnormal,
+                    "is_20cm": _original_is_20cm(symbol),
+                }
+            )
 
-        all_details.append({
-            "date": date,
-            "details": day_details,
-            "abnormal_count": sum(1 for d in day_details if d["is_abnormal"])
-        })
+        all_details.append(
+            {
+                "date": date,
+                "details": day_details,
+                "abnormal_count": sum(1 for d in day_details if d["is_abnormal"]),
+            }
+        )
 
     return all_details
+
 
 def main():
     print("=" * 70)
@@ -148,30 +162,36 @@ def main():
                 # 找出被豁免的: 旧逻辑异常, 新逻辑正常
                 if o["is_abnormal"] and not n["is_abnormal"]:
                     reclassified_count += 1
-                    day_comparison.append({
-                        "symbol": symbol,
-                        "ret_pct": o["ret_pct"],
-                        "is_20cm": n["is_20cm"],
-                        "old_flagged": True,
-                        "new_flagged": False,
-                        "exempted": True,
-                    })
+                    day_comparison.append(
+                        {
+                            "symbol": symbol,
+                            "ret_pct": o["ret_pct"],
+                            "is_20cm": n["is_20cm"],
+                            "old_flagged": True,
+                            "new_flagged": False,
+                            "exempted": True,
+                        }
+                    )
                 # 找出新增的: 旧逻辑正常, 新逻辑异常 (理论上 0)
                 elif not o["is_abnormal"] and n["is_abnormal"]:
-                    day_comparison.append({
-                        "symbol": symbol,
-                        "ret_pct": n["ret_pct"],
-                        "is_20cm": n["is_20cm"],
-                        "old_flagged": False,
-                        "new_flagged": True,
-                        "exempted": False,
-                    })
+                    day_comparison.append(
+                        {
+                            "symbol": symbol,
+                            "ret_pct": n["ret_pct"],
+                            "is_20cm": n["is_20cm"],
+                            "old_flagged": False,
+                            "new_flagged": True,
+                            "exempted": False,
+                        }
+                    )
 
         if day_comparison:
-            comparison_data.append({
-                "date": date,
-                "comparisons": day_comparison,
-            })
+            comparison_data.append(
+                {
+                    "date": date,
+                    "comparisons": day_comparison,
+                }
+            )
 
     print()
     print("=" * 70)
@@ -196,7 +216,9 @@ def main():
 
     out_json = _PROJECT_ROOT / "reports" / "evolution" / "logic_comparison_report.json"
     out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_json.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # 生成 MD
     md_lines = []
@@ -205,9 +227,15 @@ def main():
     md_lines.append("## 效果对比\n")
     md_lines.append("| 指标 | 值 |")
     md_lines.append("|------|------|")
-    md_lines.append(f"| 旧逻辑 (±20%) 异常数 | {report['summary']['old_logic_total']} |")
-    md_lines.append(f"| 新逻辑 (差异化) 异常数 | {report['summary']['new_logic_total']} |")
-    md_lines.append(f"| 20cm 合理涨停豁免数 | **{report['summary']['reclassified']}** |")
+    md_lines.append(
+        f"| 旧逻辑 (±20%) 异常数 | {report['summary']['old_logic_total']} |"
+    )
+    md_lines.append(
+        f"| 新逻辑 (差异化) 异常数 | {report['summary']['new_logic_total']} |"
+    )
+    md_lines.append(
+        f"| 20cm 合理涨停豁免数 | **{report['summary']['reclassified']}** |"
+    )
     md_lines.append(f"| 净改善 | {report['summary']['net_improvement']} |")
     md_lines.append("")
 
@@ -245,6 +273,7 @@ def main():
     print(f"  MD:   {out_md}")
 
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

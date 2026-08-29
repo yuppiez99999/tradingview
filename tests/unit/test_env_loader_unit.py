@@ -14,6 +14,7 @@
   - 多键加载
   - OSError 返回 False
 """
+
 from __future__ import annotations
 
 import os

@@ -10,6 +10,7 @@
 运行:
     python -m pytest tests/unit/test_d5_auto_research_skill.py -v
 """
+
 from __future__ import annotations
 
 import pytest
@@ -173,63 +174,85 @@ class TestGates:
 
     def test_s1_pass(self) -> None:
         gate = S1EffectiveICGate()
-        passed, _ = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(ic=0.05))
+        passed, _ = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(ic=0.05)
+        )
         assert passed is True
 
     def test_s1_fail(self) -> None:
         gate = S1EffectiveICGate()
-        passed, reason = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(ic=0.01))
+        passed, reason = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(ic=0.01)
+        )
         assert passed is False
         assert "0.0100" in reason
 
     def test_s2_pass(self) -> None:
         gate = S2EffectiveICIRGate()
-        passed, _ = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(icir=0.5))
+        passed, _ = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(icir=0.5)
+        )
         assert passed is True
 
     def test_s2_fail(self) -> None:
         gate = S2EffectiveICIRGate()
-        passed, reason = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(icir=0.1))
+        passed, reason = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(icir=0.1)
+        )
         assert passed is False
         assert "0.1000" in reason
 
     def test_s3_pass(self) -> None:
         gate = S3LongShortSharpeGate()
-        passed, _ = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(sharpe=1.5))
+        passed, _ = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(sharpe=1.5)
+        )
         assert passed is True
 
     def test_s3_fail(self) -> None:
         gate = S3LongShortSharpeGate()
-        passed, reason = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(sharpe=0.5))
+        passed, reason = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(sharpe=0.5)
+        )
         assert passed is False
         assert "0.5000" in reason
 
     def test_s4_pass(self) -> None:
         gate = S4OrthogonalGate()
-        passed, _ = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(corr=0.3))
+        passed, _ = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(corr=0.3)
+        )
         assert passed is True
 
     def test_s4_fail(self) -> None:
         gate = S4OrthogonalGate()
-        passed, reason = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(corr=0.8))
+        passed, reason = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(corr=0.8)
+        )
         assert passed is False
         assert "0.8000" in reason
 
     def test_s5_pass(self) -> None:
         gate = S5BacktestIncrementGate()
-        passed, _ = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(increment=0.1))
+        passed, _ = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(increment=0.1)
+        )
         assert passed is True
 
     def test_s5_fail(self) -> None:
         gate = S5BacktestIncrementGate()
-        passed, reason = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(increment=0.01))
+        passed, reason = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(increment=0.01)
+        )
         assert passed is False
         assert "0.0100" in reason
 
     def test_s5_no_baseline_pass(self) -> None:
         """无基准曲线 (increment=0) 默认通过."""
         gate = S5BacktestIncrementGate()
-        passed, _ = gate.check(FactorCandidate("x", "M", "t"), self._make_eval_result(increment=0.0))
+        passed, _ = gate.check(
+            FactorCandidate("x", "M", "t"), self._make_eval_result(increment=0.0)
+        )
         assert passed is True
 
     def test_gate_stage_property(self) -> None:
@@ -246,7 +269,9 @@ class TestGates:
 
 
 class TestAutoResearchSkill:
-    def test_full_iteration(self, skill: AutoResearchSkill, context: ResearchContext) -> None:
+    def test_full_iteration(
+        self, skill: AutoResearchSkill, context: ResearchContext
+    ) -> None:
         """完整迭代: 生成 → 评估 → 门禁 → 注册."""
         iteration = skill.run_iteration(context)
         assert iteration.iteration_id.startswith("iter_")
@@ -263,7 +288,9 @@ class TestAutoResearchSkill:
         # promoted_factors 可能为空 (模拟数据不一定通过门禁), 但流程应正常
         assert isinstance(iteration.promoted_factors, list)
 
-    def test_max_candidates_limit(self, skill: AutoResearchSkill, context: ResearchContext) -> None:
+    def test_max_candidates_limit(
+        self, skill: AutoResearchSkill, context: ResearchContext
+    ) -> None:
         iteration = skill.run_iteration(context, max_candidates=3)
         assert len(iteration.candidates_generated) == 3
 
@@ -295,7 +322,9 @@ class TestAutoResearchSkill:
         )
         assert retired == []
 
-    def test_get_history(self, skill: AutoResearchSkill, context: ResearchContext) -> None:
+    def test_get_history(
+        self, skill: AutoResearchSkill, context: ResearchContext
+    ) -> None:
         skill.run_iteration(context)
         history = skill.get_history()
         assert len(history) == 1
@@ -389,5 +418,7 @@ class TestFactorEvaluationResult:
         cand = FactorCandidate(name="F1", category="M", source="t")
         gs = GateStatus()
         gs.passed_stages = list(GateStage.ALL_STAGES[:5])
-        result = FactorEvaluationResult(candidate=cand, gate_status=gs, error_message="err")
+        result = FactorEvaluationResult(
+            candidate=cand, gate_status=gs, error_message="err"
+        )
         assert result.passed is False

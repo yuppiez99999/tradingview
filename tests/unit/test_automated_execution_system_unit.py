@@ -401,7 +401,9 @@ class TestMarketStateEvaluator:
             "liquidity": 0.1,
             "var_95": 0.10,
             "sentiment_score": 0.9,
-            "correlation_matrix": np.array([[1.0, 0.95, 0.9], [0.95, 1.0, 0.95], [0.9, 0.95, 1.0]]),
+            "correlation_matrix": np.array(
+                [[1.0, 0.95, 0.9], [0.95, 1.0, 0.95], [0.9, 0.95, 1.0]]
+            ),
         }
         result = evaluator.evaluate_market_state(market_data)
         assert result["market_state"] in ("crisis", "stress")
@@ -468,7 +470,11 @@ class TestExecutionStrategy:
     def test_select_strategy_large_trade_reduces_slice(self):
         # 大额交易 → slice_size 减半
         strategy = ExecutionStrategy()
-        trade_info = {"trade_size": 2000000, "urgency": "normal", "asset_type": "equity"}
+        trade_info = {
+            "trade_size": 2000000,
+            "urgency": "normal",
+            "asset_type": "equity",
+        }
         result = strategy.select_execution_strategy("normal", trade_info)
         # aggressive 默认 slice_size=1.0, 大额交易 → max(0.1, 1.0*0.5)=0.5
         assert result["strategy_config"]["slice_size"] == 0.5
@@ -540,7 +546,12 @@ class TestExecutionStrategy:
     def test_record_execution_result(self):
         strategy = ExecutionStrategy()
         plan = {"strategy": "aggressive"}
-        result = {"success": True, "execution_time": 1.5, "slippage": 0.001, "retry_attempts": 0}
+        result = {
+            "success": True,
+            "execution_time": 1.5,
+            "slippage": 0.001,
+            "retry_attempts": 0,
+        }
         strategy.record_execution_result(plan, result)
         assert len(strategy.execution_history) == 1
         record = strategy.execution_history[0]
@@ -555,8 +566,12 @@ class TestExecutionStrategy:
     def test_get_execution_summary_with_history(self):
         strategy = ExecutionStrategy()
         plan = {"strategy": "aggressive"}
-        strategy.record_execution_result(plan, {"success": True, "execution_time": 1.0, "slippage": 0.001})
-        strategy.record_execution_result(plan, {"success": False, "execution_time": 2.0, "slippage": 0.0})
+        strategy.record_execution_result(
+            plan, {"success": True, "execution_time": 1.0, "slippage": 0.001}
+        )
+        strategy.record_execution_result(
+            plan, {"success": False, "execution_time": 2.0, "slippage": 0.0}
+        )
         summary = strategy.get_execution_summary()
         assert summary["total_executions"] == 2
         assert summary["success_rate"] == 0.5
@@ -613,7 +628,12 @@ class TestOrderRouter:
             "instrument": "600519.SH",
             "total_direction": "buy",
             "slices": [
-                {"slice_id": 1, "size": 100, "direction": "buy", "instrument": "600519.SH"},
+                {
+                    "slice_id": 1,
+                    "size": 100,
+                    "direction": "buy",
+                    "instrument": "600519.SH",
+                },
             ],
         }
         result = router.route_order(plan, "normal")
@@ -630,7 +650,14 @@ class TestOrderRouter:
         plan = {
             "instrument": "600519.SH",
             "total_direction": "sell",
-            "slices": [{"slice_id": 1, "size": 100, "direction": "sell", "instrument": "600519.SH"}],
+            "slices": [
+                {
+                    "slice_id": 1,
+                    "size": 100,
+                    "direction": "sell",
+                    "instrument": "600519.SH",
+                }
+            ],
         }
         result = router.route_order(plan, "crisis")
         assert result["success"] is True
@@ -641,7 +668,14 @@ class TestOrderRouter:
         plan = {
             "instrument": "600519.SH",
             "total_direction": "buy",
-            "slices": [{"slice_id": 1, "size": 100, "direction": "buy", "instrument": "600519.SH"}],
+            "slices": [
+                {
+                    "slice_id": 1,
+                    "size": 100,
+                    "direction": "buy",
+                    "instrument": "600519.SH",
+                }
+            ],
         }
         result = router.route_order(plan, "stress")
         assert result["target_pool"] == "emergency"
@@ -651,7 +685,14 @@ class TestOrderRouter:
         plan = {
             "instrument": "600519.SH",
             "total_direction": "buy",
-            "slices": [{"slice_id": 1, "size": 100, "direction": "buy", "instrument": "600519.SH"}],
+            "slices": [
+                {
+                    "slice_id": 1,
+                    "size": 100,
+                    "direction": "buy",
+                    "instrument": "600519.SH",
+                }
+            ],
         }
         result = router.route_order(plan, "illiquid")
         assert result["target_pool"] == "priority"
@@ -663,8 +704,18 @@ class TestOrderRouter:
             "instrument": "",
             "total_direction": "buy",
             "slices": [
-                {"slice_id": 1, "size": 100, "direction": "buy", "instrument": ""},  # 空 symbol
-                {"slice_id": 2, "size": 100, "direction": "buy", "instrument": "600519.SH"},
+                {
+                    "slice_id": 1,
+                    "size": 100,
+                    "direction": "buy",
+                    "instrument": "",
+                },  # 空 symbol
+                {
+                    "slice_id": 2,
+                    "size": 100,
+                    "direction": "buy",
+                    "instrument": "600519.SH",
+                },
             ],
         }
         result = router.route_order(plan, "normal")
@@ -680,7 +731,12 @@ class TestOrderRouter:
             "instrument": "600519.SH",
             "total_direction": "sell",  # 计划级方向
             "slices": [
-                {"slice_id": 1, "size": 100, "direction": "", "instrument": "600519.SH"},  # 切片方向为空
+                {
+                    "slice_id": 1,
+                    "size": 100,
+                    "direction": "",
+                    "instrument": "600519.SH",
+                },  # 切片方向为空
             ],
         }
         result = router.route_order(plan, "normal")
@@ -696,7 +752,12 @@ class TestOrderRouter:
             "instrument": "600519.SH",
             "total_direction": "",  # 计划级方向也为空
             "slices": [
-                {"slice_id": 1, "size": 100, "direction": "", "instrument": "600519.SH"},
+                {
+                    "slice_id": 1,
+                    "size": 100,
+                    "direction": "",
+                    "instrument": "600519.SH",
+                },
             ],
         }
         result = router.route_order(plan, "normal")
@@ -730,7 +791,10 @@ class TestOrderRouter:
         router = OrderRouter()
         # normal 池 max_concurrent=10
         for i in range(10):
-            router.active_orders[f"order_{i}"] = {"target_pool": "normal", "status": "pending"}
+            router.active_orders[f"order_{i}"] = {
+                "target_pool": "normal",
+                "status": "pending",
+            }
         pool = router.execution_pools["normal"]
         assert router._check_pool_availability(pool) is False
 
@@ -806,7 +870,10 @@ class TestOrderRouter:
         # G2 修复: active_count 只统计 status=="executing" 的在途单 (不再统计 pending),
         # 故测试需用 "executing" 状态才能正确验证并发上限拦截。
         for i in range(3):
-            router.active_orders[f"e_{i}"] = {"target_pool": "emergency", "status": "executing"}
+            router.active_orders[f"e_{i}"] = {
+                "target_pool": "emergency",
+                "status": "executing",
+            }
         order = {"target_pool": "emergency"}
         assert router._can_execute_order(order) is False
 
@@ -895,7 +962,9 @@ class TestOrderRouter:
         assert result["success"] is False
         assert "qty" in result["error"]
 
-    def test_execute_order_market_order_uses_reference_price(self, monkeypatch, tmp_path):
+    def test_execute_order_market_order_uses_reference_price(
+        self, monkeypatch, tmp_path
+    ):
         """BUG-E4 回归: 限价为 None 时从持仓文件获取参考价"""
         router = OrderRouter()
         # mock _get_reference_price 返回 50.0
@@ -945,7 +1014,9 @@ class TestOrderRouter:
         mock_ks.check_margin_status.return_value = {"level": 2}  # L2 熔断
         mock_sr = MagicMock()
         mock_broker = MagicMock()
-        router = OrderRouter(smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks)
+        router = OrderRouter(
+            smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks
+        )
         order = {
             "symbol": "600519.SH",
             "side": "BUY",
@@ -963,7 +1034,9 @@ class TestOrderRouter:
         mock_ks.check_margin_status.side_effect = RuntimeError("KS error")
         mock_sr = MagicMock()
         mock_broker = MagicMock()
-        router = OrderRouter(smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks)
+        router = OrderRouter(
+            smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks
+        )
         order = {
             "symbol": "600519.SH",
             "side": "BUY",
@@ -993,7 +1066,9 @@ class TestOrderRouter:
             "ask1": 100.2,
             "bid1": 99.8,
         }
-        router = OrderRouter(smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks)
+        router = OrderRouter(
+            smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks
+        )
         order = {
             "symbol": "600519.SH",
             "side": "BUY",
@@ -1051,8 +1126,14 @@ class TestOrderRouter:
         mock_sr.route.return_value = MagicMock(latency_ms=50)
         mock_sr.execute_route.return_value = []  # fills 为空
         mock_broker = MagicMock()
-        mock_broker.get_order_book.return_value = {"mid": 100.0, "ask1": 100.2, "bid1": 99.8}
-        router = OrderRouter(smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks)
+        mock_broker.get_order_book.return_value = {
+            "mid": 100.0,
+            "ask1": 100.2,
+            "bid1": 99.8,
+        }
+        router = OrderRouter(
+            smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks
+        )
         order = {
             "symbol": "600519.SH",
             "side": "BUY",
@@ -1074,8 +1155,14 @@ class TestOrderRouter:
         mock_fill.avg_price = 100.0
         mock_sr.execute_route.return_value = [mock_fill]
         mock_broker = MagicMock()
-        mock_broker.get_order_book.return_value = {"mid": 100.0, "ask1": 100.2, "bid1": 99.8}
-        router = OrderRouter(smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks)
+        mock_broker.get_order_book.return_value = {
+            "mid": 100.0,
+            "ask1": 100.2,
+            "bid1": 99.8,
+        }
+        router = OrderRouter(
+            smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks
+        )
         order = {
             "symbol": "600519.SH",
             "side": "BUY",
@@ -1099,7 +1186,9 @@ class TestOrderRouter:
         mock_broker = MagicMock()
         # mid/ask1/bid1 全为 0 → arrival_price=0
         mock_broker.get_order_book.return_value = {"mid": 0, "ask1": 0, "bid1": 0}
-        router = OrderRouter(smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks)
+        router = OrderRouter(
+            smart_router=mock_sr, broker=mock_broker, kill_switch=mock_ks
+        )
         order = {
             "symbol": "600519.SH",
             "side": "BUY",
@@ -1164,7 +1253,10 @@ class TestOrderRouter:
     def test_get_router_summary_with_orders(self):
         router = OrderRouter()
         router.active_orders["ord1"] = {"target_pool": "normal", "status": "pending"}
-        router.active_orders["ord2"] = {"target_pool": "emergency", "status": "completed"}
+        router.active_orders["ord2"] = {
+            "target_pool": "emergency",
+            "status": "completed",
+        }
         summary = router.get_router_summary()
         assert summary["total_active_orders"] == 2
         assert summary["status_distribution"]["pending"] == 1
@@ -1181,7 +1273,10 @@ class TestOrderRouter:
                 with router._orders_lock:
                     router.active_orders[f"order_{i}"] = {"target_pool": "normal"}
 
-        threads = [threading.Thread(target=add_orders, args=(i * 100, (i + 1) * 100)) for i in range(5)]
+        threads = [
+            threading.Thread(target=add_orders, args=(i * 100, (i + 1) * 100))
+            for i in range(5)
+        ]
         for t in threads:
             t.start()
         for t in threads:

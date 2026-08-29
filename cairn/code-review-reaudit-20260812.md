@@ -77,3 +77,14 @@ assert limiter.acquire(timeout=0.1) is False  # 枯竭, 0.1s 内 refill_rate=1.0
 - 新增：`tests/unit/test_llm_rate_limiter.py`、`scripts/engineering_debt_gate.py::T6`
 - 修改：`.gitignore`（R12 锁文件/转储补充）、`scripts/engineering_debt_gate.py`（T6 + 清理预存 F 类）
 - 关联：`cairn/exception-handling-standards.md`（R10 精确化参照）、`docs/代码审查复审报告_20260812_二次.md`（源报告）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [CI 修复与门禁落地经验（R1/R2/R4 · 2026-08-12）](ci-repair-and-gate-lessons-20260812.md) (相似度 11%)
+- [工业级防复发机制 (Industrial Grade Anti-Regression Framework)](industrial-grade-anti-regression-framework.md) (相似度 9%)
+- [测试债清零经验沉淀 (2026-08-16)](test-debt-clearance-20260816.md) (相似度 8%)
+- [独立代码审查 + 二次核验纠偏（2026-08-08）](code-review-independent-audit-20260808.md) (相似度 6%)
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

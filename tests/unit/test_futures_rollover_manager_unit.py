@@ -12,6 +12,7 @@
 - get_active_contract / detect_rollover_need 依赖 date.today(),
   使用 FakeDate 子类替换模块级 date 以稳定测试。
 """
+
 from __future__ import annotations
 
 import re as _re
@@ -89,7 +90,7 @@ class FuturesRolloverManagerTest:
         assert _get_third_friday(2025, 2) == date(2025, 2, 21)
 
     def test_third_friday_is_weekday_friday(self):
-        for (y, m) in [(2024, 3), (2024, 8), (2026, 10), (2027, 7)]:
+        for y, m in [(2024, 3), (2024, 8), (2026, 10), (2027, 7)]:
             d = _get_third_friday(y, m)
             assert d.weekday() == 4  # 周五
 

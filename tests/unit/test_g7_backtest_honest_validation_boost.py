@@ -11,6 +11,7 @@
 运行:
     python -m pytest tests/unit/test_g7_backtest_honest_validation_boost.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -85,12 +86,21 @@ class TestRunHonestValidation:
     def test_is_honest_true_branch(self) -> None:
         # mock DSR/Noise/CPCV 全通过 → is_honest=True
         returns = np.random.default_rng(42).normal(0.001, 0.02, 100).tolist()
-        with patch("utils.backtest.honest_validation._compute_cpcv_sharpe_paths") as mock_cpcv, \
-             patch("utils.backtest.honest_validation._run_noise_test") as mock_noise, \
-             patch("utils.backtest.honest_validation.deflated_sharpe_ratio") as mock_dsr:
+        with (
+            patch(
+                "utils.backtest.honest_validation._compute_cpcv_sharpe_paths"
+            ) as mock_cpcv,
+            patch("utils.backtest.honest_validation._run_noise_test") as mock_noise,
+            patch("utils.backtest.honest_validation.deflated_sharpe_ratio") as mock_dsr,
+        ):
             mock_cpcv.return_value = CPCVSummary(
-                n_paths=6, sharpe_mean=1.5, sharpe_std=0.3, sharpe_cv=0.2,
-                pct_positive=0.9, is_stable=True, path_sharpes=[1.5] * 6,
+                n_paths=6,
+                sharpe_mean=1.5,
+                sharpe_std=0.3,
+                sharpe_cv=0.2,
+                pct_positive=0.9,
+                is_stable=True,
+                path_sharpes=[1.5] * 6,
             )
             mock_dsr_result = MagicMock()
             mock_dsr_result.is_pass = True
@@ -106,10 +116,16 @@ class TestRunHonestValidation:
 
     def test_is_honest_false_dsr_fail(self) -> None:
         returns = np.random.default_rng(42).normal(0.001, 0.02, 100).tolist()
-        with patch("utils.backtest.honest_validation._compute_cpcv_sharpe_paths") as mock_cpcv, \
-             patch("utils.backtest.honest_validation._run_noise_test") as mock_noise, \
-             patch("utils.backtest.honest_validation.deflated_sharpe_ratio") as mock_dsr:
-            mock_cpcv.return_value = CPCVSummary(is_stable=True, n_paths=6, sharpe_cv=0.2)
+        with (
+            patch(
+                "utils.backtest.honest_validation._compute_cpcv_sharpe_paths"
+            ) as mock_cpcv,
+            patch("utils.backtest.honest_validation._run_noise_test") as mock_noise,
+            patch("utils.backtest.honest_validation.deflated_sharpe_ratio") as mock_dsr,
+        ):
+            mock_cpcv.return_value = CPCVSummary(
+                is_stable=True, n_paths=6, sharpe_cv=0.2
+            )
             mock_dsr_result = MagicMock()
             mock_dsr_result.is_pass = False  # DSR 失败
             mock_dsr_result.deflated_sharpe_ratio = 0.5
@@ -124,10 +140,16 @@ class TestRunHonestValidation:
 
     def test_is_honest_false_noise_unstable(self) -> None:
         returns = np.random.default_rng(42).normal(0.001, 0.02, 100).tolist()
-        with patch("utils.backtest.honest_validation._compute_cpcv_sharpe_paths") as mock_cpcv, \
-             patch("utils.backtest.honest_validation._run_noise_test") as mock_noise, \
-             patch("utils.backtest.honest_validation.deflated_sharpe_ratio") as mock_dsr:
-            mock_cpcv.return_value = CPCVSummary(is_stable=True, n_paths=6, sharpe_cv=0.2)
+        with (
+            patch(
+                "utils.backtest.honest_validation._compute_cpcv_sharpe_paths"
+            ) as mock_cpcv,
+            patch("utils.backtest.honest_validation._run_noise_test") as mock_noise,
+            patch("utils.backtest.honest_validation.deflated_sharpe_ratio") as mock_dsr,
+        ):
+            mock_cpcv.return_value = CPCVSummary(
+                is_stable=True, n_paths=6, sharpe_cv=0.2
+            )
             mock_dsr_result = MagicMock()
             mock_dsr_result.is_pass = True
             mock_dsr_result.deflated_sharpe_ratio = 0.96
@@ -142,10 +164,16 @@ class TestRunHonestValidation:
 
     def test_is_honest_false_cpcv_unstable(self) -> None:
         returns = np.random.default_rng(42).normal(0.001, 0.02, 100).tolist()
-        with patch("utils.backtest.honest_validation._compute_cpcv_sharpe_paths") as mock_cpcv, \
-             patch("utils.backtest.honest_validation._run_noise_test") as mock_noise, \
-             patch("utils.backtest.honest_validation.deflated_sharpe_ratio") as mock_dsr:
-            mock_cpcv.return_value = CPCVSummary(is_stable=False, n_paths=6, sharpe_cv=0.8)
+        with (
+            patch(
+                "utils.backtest.honest_validation._compute_cpcv_sharpe_paths"
+            ) as mock_cpcv,
+            patch("utils.backtest.honest_validation._run_noise_test") as mock_noise,
+            patch("utils.backtest.honest_validation.deflated_sharpe_ratio") as mock_dsr,
+        ):
+            mock_cpcv.return_value = CPCVSummary(
+                is_stable=False, n_paths=6, sharpe_cv=0.8
+            )
             mock_dsr_result = MagicMock()
             mock_dsr_result.is_pass = True
             mock_dsr_result.deflated_sharpe_ratio = 0.96
@@ -175,7 +203,9 @@ class TestComputeCpcvSharpePaths:
         # ms_strategy 不可用 → ImportError → 空 CPCVSummary
         returns = np.random.default_rng(42).normal(0.001, 0.02, 100)
         # 强制 ImportError
-        with patch.dict(sys.modules, {"ms_strategy.src.backtest.combinatorial_purged_cv": None}):
+        with patch.dict(
+            sys.modules, {"ms_strategy.src.backtest.combinatorial_purged_cv": None}
+        ):
             result = _compute_cpcv_sharpe_paths(returns)
             assert result.n_paths == 0
 
@@ -200,9 +230,12 @@ class TestComputeCpcvSharpePaths:
         mock_module.CPCVConfig.return_value = mock_config
         mock_module.CombinatorialPurgedCV.return_value = mock_cv_instance
 
-        with patch.dict(sys.modules, {
-            "ms_strategy.src.backtest.combinatorial_purged_cv": mock_module,
-        }):
+        with patch.dict(
+            sys.modules,
+            {
+                "ms_strategy.src.backtest.combinatorial_purged_cv": mock_module,
+            },
+        ):
             result = _compute_cpcv_sharpe_paths(returns, n_groups=6, n_test_groups=2)
             assert result.n_paths == 6
             assert len(result.path_sharpes) == 6
@@ -216,7 +249,9 @@ class TestComputeCpcvSharpePaths:
 class TestRunNoiseTest:
     def test_import_error_returns_none(self) -> None:
         returns = np.random.default_rng(42).normal(0.001, 0.02, 100)
-        with patch.dict(sys.modules, {"ms_strategy.src.backtest.noise_injection_test": None}):
+        with patch.dict(
+            sys.modules, {"ms_strategy.src.backtest.noise_injection_test": None}
+        ):
             result = _run_noise_test(returns)
             assert result is None
 
@@ -227,9 +262,12 @@ class TestRunNoiseTest:
         mock_result.is_stable = True
         mock_module.run_noise_injection_test.return_value = mock_result
 
-        with patch.dict(sys.modules, {
-            "ms_strategy.src.backtest.noise_injection_test": mock_module,
-        }):
+        with patch.dict(
+            sys.modules,
+            {
+                "ms_strategy.src.backtest.noise_injection_test": mock_module,
+            },
+        ):
             result = _run_noise_test(returns, noise_ratio=0.1, n_trials=100)
             assert result is mock_result
             mock_module.run_noise_injection_test.assert_called_once()

@@ -5,7 +5,11 @@ from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
 
-from quant_modules.ai_hedge_fund.data_adapter import get_financial_metrics, get_market_cap, search_line_items
+from quant_modules.ai_hedge_fund.data_adapter import (
+    get_financial_metrics,
+    get_market_cap,
+    search_line_items,
+)
 from quant_modules.ai_hedge_fund.graph.state import AgentState, show_agent_reasoning
 from quant_modules.ai_hedge_fund.utils.api_key import get_api_key_from_state
 from quant_modules.ai_hedge_fund.utils.llm import call_llm
@@ -17,7 +21,10 @@ class RakeshJhunjhunwalaSignal(BaseModel):
     confidence: float
     reasoning: str
 
-def rakesh_jhunjhunwala_agent(state: AgentState, agent_id: str = "rakesh_jhunjhunwala_agent"):
+
+def rakesh_jhunjhunwala_agent(
+    state: AgentState, agent_id: str = "rakesh_jhunjhunwala_agent"
+):
     """Analyzes stocks using Rakesh Jhunjhunwala's principles and LLM reasoning."""
     data = state["data"]
     end_date = data["end_date"]
@@ -49,7 +56,7 @@ def rakesh_jhunjhunwala_agent(state: AgentState, agent_id: str = "rakesh_jhunjhu
                 "current_liabilities",
                 "free_cash_flow",
                 "dividends_and_other_cash_distributions",
-                "issuance_or_purchase_of_equity_shares"
+                "issuance_or_purchase_of_equity_shares",
             ],
             end_date,
             api_key=api_key,
@@ -91,7 +98,9 @@ def rakesh_jhunjhunwala_agent(state: AgentState, agent_id: str = "rakesh_jhunjhu
 
         # Calculate margin of safety
         margin_of_safety = (
-            (intrinsic_value - market_cap) / market_cap if intrinsic_value and market_cap else None
+            (intrinsic_value - market_cap) / market_cap
+            if intrinsic_value and market_cap
+            else None
         )
 
         # Jhunjhunwala's decision rules (30% minimum margin of safety for conviction)
@@ -119,7 +128,7 @@ def rakesh_jhunjhunwala_agent(state: AgentState, agent_id: str = "rakesh_jhunjhu
         intrinsic_value_analysis = analyze_rakesh_jhunjhunwala_style(
             financial_line_items,
             intrinsic_value=intrinsic_value,
-            current_price=market_cap
+            current_price=market_cap,
         )
 
         analysis_data[ticker] = {
@@ -148,7 +157,9 @@ def rakesh_jhunjhunwala_agent(state: AgentState, agent_id: str = "rakesh_jhunjhu
 
         jhunjhunwala_analysis[ticker] = jhunjhunwala_output.model_dump()
 
-        progress.update_status(agent_id, ticker, "Done", analysis=jhunjhunwala_output.reasoning)
+        progress.update_status(
+            agent_id, ticker, "Done", analysis=jhunjhunwala_output.reasoning
+        )
 
     # ─── Push message back to graph state ──────────────────────────────────────
     message = HumanMessage(content=json.dumps(jhunjhunwala_analysis), name=agent_id)
@@ -175,9 +186,14 @@ def analyze_profitability(financial_line_items: list) -> dict[str, any]:
     reasoning = []
 
     # Calculate ROE (Return on Equity) - Jhunjhunwala's key metric
-    if (getattr(latest, 'net_income', None) and latest.net_income > 0 and
-        getattr(latest, 'total_assets', None) and getattr(latest, 'total_liabilities', None) and
-        latest.total_assets and latest.total_liabilities):
+    if (
+        getattr(latest, "net_income", None)
+        and latest.net_income > 0
+        and getattr(latest, "total_assets", None)
+        and getattr(latest, "total_liabilities", None)
+        and latest.total_assets
+        and latest.total_liabilities
+    ):
 
         shareholders_equity = latest.total_assets - latest.total_liabilities
         if shareholders_equity > 0:
@@ -199,8 +215,13 @@ def analyze_profitability(financial_line_items: list) -> dict[str, any]:
         reasoning.append("Unable to calculate ROE - missing data")
 
     # Operating Margin Analysis
-    if (getattr(latest, "operating_income", None) and latest.operating_income and
-        getattr(latest, "revenue", None) and latest.revenue and latest.revenue > 0):
+    if (
+        getattr(latest, "operating_income", None)
+        and latest.operating_income
+        and getattr(latest, "revenue", None)
+        and latest.revenue
+        and latest.revenue > 0
+    ):
         operating_margin = (latest.operating_income / latest.revenue) * 100
         if operating_margin > 20:  # Excellent margin
             score += 2
@@ -216,17 +237,21 @@ def analyze_profitability(financial_line_items: list) -> dict[str, any]:
         reasoning.append("Unable to calculate operating margin")
 
     # EPS Growth Consistency (3-year trend)
-    eps_values = [getattr(item, "earnings_per_share", None) for item in financial_line_items
-                  if getattr(item, "earnings_per_share", None) is not None and getattr(item, "earnings_per_share", None) > 0]
+    eps_values = [
+        getattr(item, "earnings_per_share", None)
+        for item in financial_line_items
+        if getattr(item, "earnings_per_share", None) is not None
+        and getattr(item, "earnings_per_share", None) > 0
+    ]
 
     if len(eps_values) >= 3:
         # Calculate CAGR for EPS
         initial_eps = eps_values[-1]  # Oldest value
-        final_eps = eps_values[0]     # Latest value
+        final_eps = eps_values[0]  # Latest value
         years = len(eps_values) - 1
 
         if initial_eps > 0:
-            eps_cagr = ((final_eps / initial_eps) ** (1/years) - 1) * 100
+            eps_cagr = ((final_eps / initial_eps) ** (1 / years) - 1) * 100
             if eps_cagr > 20:  # High growth
                 score += 3
                 reasoning.append(f"High EPS CAGR: {eps_cagr:.1f}%")
@@ -258,16 +283,20 @@ def analyze_growth(financial_line_items: list) -> dict[str, any]:
     reasoning = []
 
     # Revenue CAGR Analysis
-    revenues = [getattr(item, "revenue", None) for item in financial_line_items
-                if getattr(item, "revenue", None) is not None and getattr(item, "revenue", None) > 0]
+    revenues = [
+        getattr(item, "revenue", None)
+        for item in financial_line_items
+        if getattr(item, "revenue", None) is not None
+        and getattr(item, "revenue", None) > 0
+    ]
 
     if len(revenues) >= 3:
         initial_revenue = revenues[-1]  # Oldest
-        final_revenue = revenues[0]     # Latest
+        final_revenue = revenues[0]  # Latest
         years = len(revenues) - 1
 
         if initial_revenue > 0:  # Fixed: Add zero check
-            revenue_cagr = ((final_revenue / initial_revenue) ** (1/years) - 1) * 100
+            revenue_cagr = ((final_revenue / initial_revenue) ** (1 / years) - 1) * 100
 
             if revenue_cagr > 20:  # High growth
                 score += 3
@@ -286,16 +315,20 @@ def analyze_growth(financial_line_items: list) -> dict[str, any]:
         reasoning.append("Insufficient revenue data for CAGR calculation")
 
     # Net Income CAGR Analysis
-    net_incomes = [getattr(item, "net_income", None) for item in financial_line_items
-                   if getattr(item, "net_income", None) is not None and getattr(item, "net_income", None) > 0]
+    net_incomes = [
+        getattr(item, "net_income", None)
+        for item in financial_line_items
+        if getattr(item, "net_income", None) is not None
+        and getattr(item, "net_income", None) > 0
+    ]
 
     if len(net_incomes) >= 3:
         initial_income = net_incomes[-1]  # Oldest
-        final_income = net_incomes[0]     # Latest
+        final_income = net_incomes[0]  # Latest
         years = len(net_incomes) - 1
 
         if initial_income > 0:  # Fixed: Add zero check
-            income_cagr = ((final_income / initial_income) ** (1/years) - 1) * 100
+            income_cagr = ((final_income / initial_income) ** (1 / years) - 1) * 100
 
             if income_cagr > 25:  # Very high growth
                 score += 3
@@ -315,14 +348,20 @@ def analyze_growth(financial_line_items: list) -> dict[str, any]:
 
     # Revenue Consistency Check (year-over-year)
     if len(revenues) >= 3:
-        declining_years = sum(1 for i in range(1, len(revenues)) if revenues[i-1] > revenues[i])
+        declining_years = sum(
+            1 for i in range(1, len(revenues)) if revenues[i - 1] > revenues[i]
+        )
         consistency_ratio = 1 - (declining_years / (len(revenues) - 1))
 
         if consistency_ratio >= 0.8:  # 80% or more years with growth
             score += 1
-            reasoning.append(f"Consistent growth pattern ({consistency_ratio*100:.0f}% of years)")
+            reasoning.append(
+                f"Consistent growth pattern ({consistency_ratio*100:.0f}% of years)"
+            )
         else:
-            reasoning.append(f"Inconsistent growth pattern ({consistency_ratio*100:.0f}% of years)")
+            reasoning.append(
+                f"Inconsistent growth pattern ({consistency_ratio*100:.0f}% of years)"
+            )
 
     return {"score": score, "details": "; ".join(reasoning)}
 
@@ -340,9 +379,13 @@ def analyze_balance_sheet(financial_line_items: list) -> dict[str, any]:
     reasoning = []
 
     # Debt to asset ratio
-    if (getattr(latest, "total_assets", None) and getattr(latest, "total_liabilities", None)
-        and latest.total_assets and latest.total_liabilities
-        and latest.total_assets > 0):
+    if (
+        getattr(latest, "total_assets", None)
+        and getattr(latest, "total_liabilities", None)
+        and latest.total_assets
+        and latest.total_liabilities
+        and latest.total_assets > 0
+    ):
         debt_ratio = latest.total_liabilities / latest.total_assets
         if debt_ratio < 0.5:
             score += 2
@@ -356,13 +399,19 @@ def analyze_balance_sheet(financial_line_items: list) -> dict[str, any]:
         reasoning.append("Insufficient data to calculate debt ratio")
 
     # Current ratio (liquidity)
-    if (getattr(latest, "current_assets", None) and getattr(latest, "current_liabilities", None)
-        and latest.current_assets and latest.current_liabilities
-        and latest.current_liabilities > 0):
+    if (
+        getattr(latest, "current_assets", None)
+        and getattr(latest, "current_liabilities", None)
+        and latest.current_assets
+        and latest.current_liabilities
+        and latest.current_liabilities > 0
+    ):
         current_ratio = latest.current_assets / latest.current_liabilities
         if current_ratio > 2.0:
             score += 2
-            reasoning.append(f"Excellent liquidity with current ratio: {current_ratio:.2f}")
+            reasoning.append(
+                f"Excellent liquidity with current ratio: {current_ratio:.2f}"
+            )
         elif current_ratio > 1.5:
             score += 1
             reasoning.append(f"Good liquidity with current ratio: {current_ratio:.2f}")
@@ -397,8 +446,13 @@ def analyze_cash_flow(financial_line_items: list) -> dict[str, any]:
         reasoning.append("Free cash flow data not available")
 
     # Dividend analysis
-    if getattr(latest, "dividends_and_other_cash_distributions", None) and latest.dividends_and_other_cash_distributions:
-        if latest.dividends_and_other_cash_distributions < 0:  # Negative indicates cash outflow for dividends
+    if (
+        getattr(latest, "dividends_and_other_cash_distributions", None)
+        and latest.dividends_and_other_cash_distributions
+    ):
+        if (
+            latest.dividends_and_other_cash_distributions < 0
+        ):  # Negative indicates cash outflow for dividends
             score += 1
             reasoning.append("Company pays dividends to shareholders")
         else:
@@ -427,7 +481,9 @@ def analyze_management_actions(financial_line_items: list) -> dict[str, any]:
             score += 2
             reasoning.append(f"Company buying back shares: {abs(issuance)}")
         elif issuance > 0:
-            reasoning.append(f"Share issuance detected (potential dilution): {issuance}")
+            reasoning.append(
+                f"Share issuance detected (potential dilution): {issuance}"
+            )
         else:
             score += 1
             reasoning.append("No recent share issuance or buyback")
@@ -449,8 +505,13 @@ def assess_quality_metrics(financial_line_items: list) -> float:
     quality_factors = []
 
     # ROE consistency and level
-    if (getattr(latest, 'net_income', None) and getattr(latest, 'total_assets', None) and
-        getattr(latest, 'total_liabilities', None) and latest.total_assets and latest.total_liabilities):
+    if (
+        getattr(latest, "net_income", None)
+        and getattr(latest, "total_assets", None)
+        and getattr(latest, "total_liabilities", None)
+        and latest.total_assets
+        and latest.total_liabilities
+    ):
 
         shareholders_equity = latest.total_assets - latest.total_liabilities
         if shareholders_equity > 0 and latest.net_income:
@@ -469,8 +530,12 @@ def assess_quality_metrics(financial_line_items: list) -> float:
         quality_factors.append(0.5)
 
     # Debt levels (lower is better)
-    if (getattr(latest, 'total_assets', None) and getattr(latest, 'total_liabilities', None) and
-        latest.total_assets and latest.total_liabilities):
+    if (
+        getattr(latest, "total_assets", None)
+        and getattr(latest, "total_liabilities", None)
+        and latest.total_assets
+        and latest.total_liabilities
+    ):
         debt_ratio = latest.total_liabilities / latest.total_assets
         if debt_ratio < 0.3:  # Low debt
             quality_factors.append(1.0)
@@ -484,11 +549,17 @@ def assess_quality_metrics(financial_line_items: list) -> float:
         quality_factors.append(0.5)
 
     # Growth consistency
-    net_incomes = [getattr(item, "net_income", None) for item in financial_line_items[:4]
-                   if getattr(item, "net_income", None) is not None and getattr(item, "net_income", None) > 0]
+    net_incomes = [
+        getattr(item, "net_income", None)
+        for item in financial_line_items[:4]
+        if getattr(item, "net_income", None) is not None
+        and getattr(item, "net_income", None) > 0
+    ]
 
     if len(net_incomes) >= 3:
-        declining_years = sum(1 for i in range(1, len(net_incomes)) if net_incomes[i-1] > net_incomes[i])
+        declining_years = sum(
+            1 for i in range(1, len(net_incomes)) if net_incomes[i - 1] > net_incomes[i]
+        )
         consistency = 1 - (declining_years / (len(net_incomes) - 1))
         quality_factors.append(consistency)
     else:
@@ -512,12 +583,16 @@ def calculate_intrinsic_value(financial_line_items: list, market_cap: float) -> 
         latest = financial_line_items[0]
 
         # Need positive earnings as base
-        if not getattr(latest, 'net_income', None) or latest.net_income <= 0:
+        if not getattr(latest, "net_income", None) or latest.net_income <= 0:
             return None
 
         # Get historical earnings for growth calculation
-        net_incomes = [getattr(item, "net_income", None) for item in financial_line_items[:5]
-                       if getattr(item, "net_income", None) is not None and getattr(item, "net_income", None) > 0]
+        net_incomes = [
+            getattr(item, "net_income", None)
+            for item in financial_line_items[:5]
+            if getattr(item, "net_income", None) is not None
+            and getattr(item, "net_income", None) > 0
+        ]
 
         if len(net_incomes) < 2:
             # Use current earnings with conservative multiple for stable companies
@@ -525,12 +600,12 @@ def calculate_intrinsic_value(financial_line_items: list, market_cap: float) -> 
 
         # Calculate sustainable growth rate using historical data
         initial_income = net_incomes[-1]  # Oldest
-        final_income = net_incomes[0]     # Latest
+        final_income = net_incomes[0]  # Latest
         years = len(net_incomes) - 1
 
         # Calculate historical CAGR
         if initial_income > 0:  # Fixed: Add zero check
-            historical_growth = ((final_income / initial_income) ** (1/years) - 1)
+            historical_growth = (final_income / initial_income) ** (1 / years) - 1
         else:
             historical_growth = 0.05  # Default to 5%
 
@@ -571,7 +646,9 @@ def calculate_intrinsic_value(financial_line_items: list, market_cap: float) -> 
 
         # Terminal value (year 5 earnings * terminal multiple)
         year_5_earnings = current_earnings * ((1 + sustainable_growth) ** 5)
-        terminal_value = (year_5_earnings * terminal_multiple) / ((1 + discount_rate) ** 5)
+        terminal_value = (year_5_earnings * terminal_multiple) / (
+            (1 + discount_rate) ** 5
+        )
 
         total_intrinsic_value = dcf_value + terminal_value
 
@@ -579,7 +656,7 @@ def calculate_intrinsic_value(financial_line_items: list, market_cap: float) -> 
 
     except (TypeError, ValueError, AttributeError, ZeroDivisionError):
         # Fallback to simple earnings multiple
-        if getattr(latest, 'net_income', None) and latest.net_income > 0:
+        if getattr(latest, "net_income", None) and latest.net_income > 0:
             return latest.net_income * 15
         return None
 
@@ -696,11 +773,17 @@ def generate_jhunjhunwala_output(
         ]
     )
 
-    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
+    prompt = template.invoke(
+        {"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker}
+    )
 
     # Default fallback signal in case parsing fails
     def create_default_rakesh_jhunjhunwala_signal():
-        return RakeshJhunjhunwalaSignal(signal="neutral", confidence=0.0, reasoning="Error in analysis, defaulting to neutral")
+        return RakeshJhunjhunwalaSignal(
+            signal="neutral",
+            confidence=0.0,
+            reasoning="Error in analysis, defaulting to neutral",
+        )
 
     return call_llm(
         prompt=prompt,

@@ -57,21 +57,21 @@ INITIAL_WEIGHTS: dict[str, float] = {
 # 因子期望收益 (年化, 模拟真实因子收益特征)
 # 动量/质量/成长为正, 反转/波动率为负 (部分对冲)
 FACTOR_EXPECTED_ANNUAL_RETURNS: dict[str, float] = {
-    "style_momentum": 0.12,       # 动量因子 ~12%
-    "style_reversal": -0.03,      # 反转因子 ~-3% (短期反转)
-    "style_volatility": -0.05,    # 低波因子 ~-5% (低波溢价)
-    "style_liquidity": 0.04,      # 流动性因子 ~4%
+    "style_momentum": 0.12,  # 动量因子 ~12%
+    "style_reversal": -0.03,  # 反转因子 ~-3% (短期反转)
+    "style_volatility": -0.05,  # 低波因子 ~-5% (低波溢价)
+    "style_liquidity": 0.04,  # 流动性因子 ~4%
     "style_earnings_quality": 0.10,  # 质量因子 ~10%
-    "style_growth": 0.08,         # 成长因子 ~8%
-    "style_valuation": 0.06,      # 估值因子 ~6%
-    "sector_tech": 0.15,          # 科技 ~15%
-    "sector_manufacturing": 0.08, # 制造 ~8%
-    "sector_cyclical": 0.05,      # 周期 ~5%
-    "sector_resources": 0.06,     # 资源 ~6%
-    "sector_defensive": 0.04,     # 防御 ~4%
-    "sector_finance": 0.03,       # 金融 ~3%
-    "sector_consumer": 0.05,      # 消费 ~5%
-    "sector_healthcare": 0.07,    # 医药 ~7%
+    "style_growth": 0.08,  # 成长因子 ~8%
+    "style_valuation": 0.06,  # 估值因子 ~6%
+    "sector_tech": 0.15,  # 科技 ~15%
+    "sector_manufacturing": 0.08,  # 制造 ~8%
+    "sector_cyclical": 0.05,  # 周期 ~5%
+    "sector_resources": 0.06,  # 资源 ~6%
+    "sector_defensive": 0.04,  # 防御 ~4%
+    "sector_finance": 0.03,  # 金融 ~3%
+    "sector_consumer": 0.05,  # 消费 ~5%
+    "sector_healthcare": 0.07,  # 医药 ~7%
 }
 
 # 因子波动率 (年化, 用于生成噪声)
@@ -142,38 +142,50 @@ FACTOR_REGIME_SCHEDULE: list[tuple[float, float, dict[str, float]]] = [
     # 强势因子日收益偏移 +0.35%~+0.50%, 弱势因子 -0.10%~-0.30%
     # 信号增强版: bias 翻倍至 0.3-0.5%/日, 确保 SNR > 2.0
     # 测试: 更强的风格轮动信号下, FeedbackLoop 能否有效学习
-    (0.0, 0.33, {
-        "style_momentum": 0.0050,        # 0.50% → SNR ≈ 2.0
-        "style_earnings_quality": 0.0040,  # 0.40%
-        "style_growth": 0.0035,          # 0.35%
-        "sector_tech": 0.0050,           # 0.50%
-        "style_reversal": -0.0030,       # -0.30%
-        "style_valuation": -0.0020,      # -0.20%
-        "sector_cyclical": -0.0015,      # -0.15%
-        "sector_defensive": -0.0010,     # -0.10%
-    }),
+    (
+        0.0,
+        0.33,
+        {
+            "style_momentum": 0.0050,  # 0.50% → SNR ≈ 2.0
+            "style_earnings_quality": 0.0040,  # 0.40%
+            "style_growth": 0.0035,  # 0.35%
+            "sector_tech": 0.0050,  # 0.50%
+            "style_reversal": -0.0030,  # -0.30%
+            "style_valuation": -0.0020,  # -0.20%
+            "sector_cyclical": -0.0015,  # -0.15%
+            "sector_defensive": -0.0010,  # -0.10%
+        },
+    ),
     # 第二阶段 (33-66%): 成长+低波主导, 动量退潮
-    (0.33, 0.66, {
-        "style_growth": 0.0050,          # 0.50%
-        "style_volatility": 0.0040,      # 0.40%
-        "style_liquidity": 0.0035,       # 0.35%
-        "sector_healthcare": 0.0045,     # 0.45%
-        "sector_manufacturing": 0.0035,  # 0.35%
-        "style_momentum": -0.0020,       # -0.20%
-        "sector_tech": -0.0015,          # -0.15%
-        "sector_resources": -0.0020,     # -0.20%
-    }),
+    (
+        0.33,
+        0.66,
+        {
+            "style_growth": 0.0050,  # 0.50%
+            "style_volatility": 0.0040,  # 0.40%
+            "style_liquidity": 0.0035,  # 0.35%
+            "sector_healthcare": 0.0045,  # 0.45%
+            "sector_manufacturing": 0.0035,  # 0.35%
+            "style_momentum": -0.0020,  # -0.20%
+            "sector_tech": -0.0015,  # -0.15%
+            "sector_resources": -0.0020,  # -0.20%
+        },
+    ),
     # 第三阶段 (66-100%): 价值+资源+防御回归, 成长退潮
-    (0.66, 1.0, {
-        "style_valuation": 0.0060,       # 0.60%
-        "style_liquidity": 0.0045,       # 0.45%
-        "sector_resources": 0.0055,      # 0.55%
-        "sector_defensive": 0.0050,      # 0.50%
-        "sector_cyclical": 0.0045,       # 0.45%
-        "style_growth": -0.0030,         # -0.30%
-        "sector_tech": -0.0025,          # -0.25%
-        "sector_manufacturing": -0.0015, # -0.15%
-    }),
+    (
+        0.66,
+        1.0,
+        {
+            "style_valuation": 0.0060,  # 0.60%
+            "style_liquidity": 0.0045,  # 0.45%
+            "sector_resources": 0.0055,  # 0.55%
+            "sector_defensive": 0.0050,  # 0.50%
+            "sector_cyclical": 0.0045,  # 0.45%
+            "style_growth": -0.0030,  # -0.30%
+            "sector_tech": -0.0025,  # -0.25%
+            "sector_manufacturing": -0.0015,  # -0.15%
+        },
+    ),
 ]
 
 
@@ -327,7 +339,9 @@ def detect_oscillation(
         for factor in INITIAL_WEIGHTS:
             signs: list[int] = []
             for d in window_days:
-                change = d.weights_after.get(factor, 0) - d.weights_before.get(factor, 0)
+                change = d.weights_after.get(factor, 0) - d.weights_before.get(
+                    factor, 0
+                )
                 # 仅考虑超过阈值的调整 (忽略微调噪声)
                 if abs(change) > min_change_threshold:
                     signs.append(1 if change > 0 else -1)
@@ -388,11 +402,11 @@ def run_backtest(
     # 预期: +0.5-1.5% 年化收益提升, 震荡可控
     loop = FeedbackLoop(
         initial_weights=dict(INITIAL_WEIGHTS),
-        learning_rate=0.50,            # 稳健学习
-        max_daily_change=0.03,         # 单日最大 3%, 稳健调整
+        learning_rate=0.50,  # 稳健学习
+        max_daily_change=0.03,  # 单日最大 3%, 稳健调整
         max_weight=0.30,
-        smoothing_window=5,            # 5日平滑 (充足去噪)
-        contribution_window=7,         # 7日累积平均, SNR ≈ 2.65
+        smoothing_window=5,  # 5日平滑 (充足去噪)
+        contribution_window=7,  # 7日累积平均, SNR ≈ 2.65
     )
     # 强制启用 (回测模式, 忽略 Feature Flag)
     loop._enabled = True
@@ -499,19 +513,16 @@ def run_backtest(
 def generate_report(result: BacktestResult) -> str:
     """生成回测报告 Markdown."""
     report_path = (
-        _PROJECT_ROOT
-        / "docs"
-        / "自我进化框架"
-        / "FEEDBACK_BACKTEST_REPORT.md"
+        _PROJECT_ROOT / "docs" / "自我进化框架" / "FEEDBACK_BACKTEST_REPORT.md"
     )
 
     lines: list[str] = []
     lines.append("# FeedbackLoop 回测验证报告")
     lines.append("")
+    lines.append(f"> **生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(
-        f"> **生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        f"> **回测天数**: {result.n_days} 个交易日 (~{result.n_days / 252:.1f} 年)"
     )
-    lines.append(f"> **回测天数**: {result.n_days} 个交易日 (~{result.n_days / 252:.1f} 年)")
     lines.append("> **任务编号**: T2.4 (Phase 2 反馈闭环)")
     lines.append("")
     lines.append("---")
@@ -536,10 +547,16 @@ def generate_report(result: BacktestResult) -> str:
     lines.append("|------|----------|----------|----------|-------------------|")
     lines.append("| Phase 1 | 0-33% | 动量+质量+科技 | 反转+估值+周期 | 0.35%-0.50% |")
     lines.append("| Phase 2 | 33-66% | 成长+低波+医药 | 动量+科技+资源 | 0.35%-0.50% |")
-    lines.append("| Phase 3 | 66-100% | 估值+资源+防御 | 成长+科技+制造 | 0.45%-0.60% |")
+    lines.append(
+        "| Phase 3 | 66-100% | 估值+资源+防御 | 成长+科技+制造 | 0.45%-0.60% |"
+    )
     lines.append("")
-    lines.append("> **信号强度说明**: 本测试使用增强信号 (bias 0.3-0.5%/日), 对应 SNR ≈ 2.0 (7日累积平均).")
-    lines.append("> 原始信号 (bias 0.1-0.25%/日) 下 SNR ≈ 1.0, 因子收益被噪声淹没, 等权基线难以被超越.")
+    lines.append(
+        "> **信号强度说明**: 本测试使用增强信号 (bias 0.3-0.5%/日), 对应 SNR ≈ 2.0 (7日累积平均)."
+    )
+    lines.append(
+        "> 原始信号 (bias 0.1-0.25%/日) 下 SNR ≈ 1.0, 因子收益被噪声淹没, 等权基线难以被超越."
+    )
     lines.append("")
     lines.append("### 1.3 参数设置")
     lines.append("")
@@ -611,18 +628,10 @@ def generate_report(result: BacktestResult) -> str:
     lines.append("")
     lines.append("### 2.3 震荡分析")
     lines.append("")
-    lines.append(
-        "震荡定义为连续 3 个交易日内, 同一因子权重调整方向变化 ≥ 2 次."
-    )
-    lines.append(
-        "仅考虑超过 0.1% 的权重调整 (忽略微调噪声)."
-    )
-    lines.append(
-        f"回测期间共检测到 **{result.oscillation_count}** 次震荡."
-    )
-    lines.append(
-        "5 日移动平均去噪机制确保权重调整平滑, 避免过度反应."
-    )
+    lines.append("震荡定义为连续 3 个交易日内, 同一因子权重调整方向变化 ≥ 2 次.")
+    lines.append("仅考虑超过 0.1% 的权重调整 (忽略微调噪声).")
+    lines.append(f"回测期间共检测到 **{result.oscillation_count}** 次震荡.")
+    lines.append("5 日移动平均去噪机制确保权重调整平滑, 避免过度反应.")
     if result.oscillation_count == 0:
         lines.append("")
         lines.append("**✅ 权重调整无震荡 (14 日去噪 + 阈值过滤生效)**")
@@ -670,11 +679,17 @@ def generate_report(result: BacktestResult) -> str:
         lines.append("**✅ FeedbackLoop 在增强信号下达到验收标准, 算法验证通过.**")
         lines.append("")
         lines.append("关键发现:")
-        lines.append(f"- 年化收益提升 {result.improvement_annual_return:+.2%}, 满足 0.5-1.5% 目标")
+        lines.append(
+            f"- 年化收益提升 {result.improvement_annual_return:+.2%}, 满足 0.5-1.5% 目标"
+        )
         lines.append(f"- 最大回撤 {result.feedback_max_drawdown:.2%}, 远低于 15% 上限")
         lines.append("- 排名归一化 (v5, tanh(2x)) 在信号足够强时能正确识别因子方向")
-        lines.append(f"- 震荡 {result.oscillation_count} 次, 5日平滑 + 阈值过滤基本可控")
-        lines.append("- 信号强度是决定 FeedbackLoop 有效性的关键因素: SNR > 1.5 时显著, SNR < 1.0 时与等权基线持平")
+        lines.append(
+            f"- 震荡 {result.oscillation_count} 次, 5日平滑 + 阈值过滤基本可控"
+        )
+        lines.append(
+            "- 信号强度是决定 FeedbackLoop 有效性的关键因素: SNR > 1.5 时显著, SNR < 1.0 时与等权基线持平"
+        )
     else:
         lines.append("**⚠️ FeedbackLoop 回测部分达标, 建议进一步优化.**")
         lines.append("")
@@ -697,9 +712,7 @@ def generate_report(result: BacktestResult) -> str:
     lines.append("")
     lines.append("---")
     lines.append("")
-    lines.append(
-        "*报告生成时间: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "*"
-    )
+    lines.append("*报告生成时间: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "*")
 
     report_text = "\n".join(lines)
 
@@ -722,19 +735,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="FeedbackLoop 回测验证",
     )
     parser.add_argument(
-        "--days", type=int, default=252,
+        "--days",
+        type=int,
+        default=252,
         help="回测天数 (默认 252 = 1 年)",
     )
     parser.add_argument(
-        "--seed", type=int, default=42,
+        "--seed",
+        type=int,
+        default=42,
         help="随机种子 (默认 42)",
     )
     parser.add_argument(
-        "--noisy", action="store_true",
+        "--noisy",
+        action="store_true",
         help="启用额外噪声, 测试鲁棒性",
     )
     parser.add_argument(
-        "--verbose", "-v", action="store_true",
+        "--verbose",
+        "-v",
+        action="store_true",
         help="详细输出",
     )
     return parser.parse_args(argv)
@@ -752,7 +772,9 @@ def main(argv: list[str] | None = None) -> int:
 
     logger.info(
         "=== FeedbackLoop 回测开始: days=%d, seed=%d, noisy=%s ===",
-        args.days, args.seed, args.noisy,
+        args.days,
+        args.seed,
+        args.noisy,
     )
 
     result = run_backtest(

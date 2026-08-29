@@ -91,3 +91,14 @@ stops = coordinator.compute_dynamic_stops(entry, atr, trend, days, action)
 - **LIT-2.3**: CN-Buzz2Portfolio 中国市场基准
 - **实际集成**: 将 reflector 接入每日交易执行流程 (daily_trade_executor.py)
 - **回测验证**: 5 数据集回测验证自反思+动态止盈止损效果
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [细粒度任务分解工作流 (Fine-Grained Task Decomposition)](fine-grained-workflow.md) (相似度 15%)
+- [CN-Buzz2Portfolio 中国市场基准](cn-buzz2portfolio.md) (相似度 13%)
+- [KTD-Fin 记忆控制评估基准](ktd-fin-eval.md) (相似度 11%)
+- [代码质量修复批次 — 2026-08-13（审查报告 B1/B2/S1/S2/S3/S4/S5/N1）](code-quality-fix-batch-20260813.md) (相似度 11%)
+- [FinGPT 系列集成 (轻量 LoRA + RLSP 训练管线)](fingpt-integration.md) (相似度 10%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

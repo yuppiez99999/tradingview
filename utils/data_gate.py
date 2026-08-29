@@ -99,7 +99,16 @@ class DataGate:
             try:
                 score = float(raw_score)
                 result.quality_score = score
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 result.quality_score = score
 
         # 新鲜度 (仅当提供了 timestamp 时才检查; 缺失元数据不应误判为过期)
@@ -133,7 +142,9 @@ class DataGate:
         result.quality_score = score
         result.allowed = score >= self.min_quality_score and not result.reasons
         if not result.allowed:
-            logger.warning("[DataGate] %s 被阻断: %s | score=%.1f", symbol, result.reasons, score)
+            logger.warning(
+                "[DataGate] %s 被阻断: %s | score=%.1f", symbol, result.reasons, score
+            )
         return result
 
     # ------------------------------------------------------------
@@ -151,16 +162,36 @@ class DataGate:
             else:
                 return 1e9
             return max((datetime.now() - ts).total_seconds() / 60.0, 0.0)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             return 1e9
 
-    def _price_deviation(self, snapshot: dict[str, Any], peers: dict[str, dict[str, Any]]) -> float:
+    def _price_deviation(
+        self, snapshot: dict[str, Any], peers: dict[str, dict[str, Any]]
+    ) -> float:
         base_price = snapshot.get("price")
         if base_price is None or not peers:
             return 0.0
         try:
             base_price = float(base_price)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             return 0.0
         if base_price <= 0:
             return 0.0
@@ -172,7 +203,16 @@ class DataGate:
                 continue
             try:
                 peer_price = float(peer_price)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 continue
             if peer_price <= 0:
                 continue
@@ -186,5 +226,14 @@ class DataGate:
         try:
             v = float(price)
             return math.isfinite(v) and v > 0
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             return False

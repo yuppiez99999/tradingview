@@ -82,7 +82,12 @@ def _load_brier_weights(roles: list[str], window_days: int) -> dict[str, float]:
         exps = [math.exp(v - mx) for v in vals]
         s = sum(exps)
         return {r: e / s for r, e in zip(roles, exps, strict=True)}
-    except (sqlite3.Error, ValueError, TypeError, ZeroDivisionError) as exc:  # 表不存在/不可用时均匀
+    except (
+        sqlite3.Error,
+        ValueError,
+        TypeError,
+        ZeroDivisionError,
+    ) as exc:  # 表不存在/不可用时均匀
         logger.debug("Brier 权重加载失败, 用均匀权重: %s", exc)
         return uniform
 
@@ -106,9 +111,11 @@ def _diversity_bonus(views: list[ModelView]) -> dict[int, float]:
     return bonus
 
 
-def aggregate(views: list[ModelView],
-              debate: DebateDecision | None = None,
-              agent_consensus: dict[str, float] | None = None) -> tuple[str, float, float]:
+def aggregate(
+    views: list[ModelView],
+    debate: DebateDecision | None = None,
+    agent_consensus: dict[str, float] | None = None,
+) -> tuple[str, float, float]:
     """非线性聚合, 返回 (action, strength, confidence)。
 
     Args:
@@ -125,7 +132,9 @@ def aggregate(views: list[ModelView],
         return "hold", 0.0, 0.3
 
     roles = [v.role for v in views]
-    base_weights = _load_brier_weights(roles, int(get_config("aggregator.brier_window_days", 30)))
+    base_weights = _load_brier_weights(
+        roles, int(get_config("aggregator.brier_window_days", 30))
+    )
 
     # 语义去重: 标记高重叠冗余观点并降权
     dup_thr = float(get_config("aggregator.semantic_dup_threshold", 0.6))
@@ -134,8 +143,13 @@ def aggregate(views: list[ModelView],
         w = base_weights.get(v.role, 1.0 / max(1, len(views)))
         # 与已保留观点高重叠 -> 降权
         for j in range(i):
-            if _word_overlap(" ".join(v.key_points) or v.reasoning,
-                             " ".join(views[j].key_points) or views[j].reasoning) > dup_thr:
+            if (
+                _word_overlap(
+                    " ".join(v.key_points) or v.reasoning,
+                    " ".join(views[j].key_points) or views[j].reasoning,
+                )
+                > dup_thr
+            ):
                 w *= 0.3
                 break
         # 低置信度降权
@@ -163,7 +177,11 @@ def aggregate(views: list[ModelView],
 
     # 融合辩论裁决 (若触发): 辩论结论权重 0.4, 视图 0.6
     if debate is not None:
-        d_sign = 1.0 if debate.action == "buy" else (-1.0 if debate.action == "sell" else 0.0)
+        d_sign = (
+            1.0
+            if debate.action == "buy"
+            else (-1.0 if debate.action == "sell" else 0.0)
+        )
         strength = 0.6 * strength + 0.4 * (d_sign * debate.strength)
         confidence = 0.6 * confidence + 0.4 * debate.confidence
         if debate.verdict_type == "AUTO":
@@ -171,8 +189,11 @@ def aggregate(views: list[ModelView],
 
     # 融合五 Agent 加权共识 (若提供): 视为独立强信号, 权重 0.3
     if agent_consensus:
-        a_sign = 1.0 if agent_consensus.get("action") == "buy" else (
-            -1.0 if agent_consensus.get("action") == "sell" else 0.0)
+        a_sign = (
+            1.0
+            if agent_consensus.get("action") == "buy"
+            else (-1.0 if agent_consensus.get("action") == "sell" else 0.0)
+        )
         a_strength = float(agent_consensus.get("strength", 0.0))
         a_conf = float(agent_consensus.get("confidence", 0.0))
         strength = 0.7 * strength + 0.3 * (a_sign * a_strength)

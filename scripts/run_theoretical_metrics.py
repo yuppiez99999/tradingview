@@ -46,7 +46,7 @@ def run_psi_calibration() -> dict:
     for day in range(40, n_days):
         shift = (day - 40) * 0.001
         features["MOM_20D"][day] += shift
-        features["VOL_20D"][day] *= (1 + shift * 0.5)
+        features["VOL_20D"][day] *= 1 + shift * 0.5
 
     panel = pd.DataFrame(features)
     panel["date"] = pd.date_range("2026-06-20", periods=n_days, freq="B")
@@ -108,7 +108,9 @@ def run_lyapunov_stability() -> dict:
     print("2. Lyapunov 稳定性度量")
     print("=" * 60)
 
-    progress_path = _PROJECT_ROOT / "reports" / "evolution" / "observation_progress.json"
+    progress_path = (
+        _PROJECT_ROOT / "reports" / "evolution" / "observation_progress.json"
+    )
     if not progress_path.exists():
         print("观察期进度文件不存在，用合成数据")
         returns_data = [
@@ -172,7 +174,9 @@ def run_lyapunov_stability() -> dict:
     print(f"系统稳定: {'✅ 是' if summary.is_system_stable else '❌ 否'}")
     print(f"评估: {summary.assessment}")
 
-    report_path = _PROJECT_ROOT / "reports" / "evolution" / "theoretical_metrics_2026-08-19"
+    report_path = (
+        _PROJECT_ROOT / "reports" / "evolution" / "theoretical_metrics_2026-08-19"
+    )
     meter.save_report(report_path / "lyapunov_report.json")
 
     return summary.to_dict()
@@ -218,7 +222,9 @@ def run_feedback_phase_analysis() -> dict:
     print(f"振荡安全: {'✅ 是' if summary.is_oscillation_safe else '❌ 否'}")
     print(f"评估: {summary.assessment}")
 
-    report_path = _PROJECT_ROOT / "reports" / "evolution" / "theoretical_metrics_2026-08-19"
+    report_path = (
+        _PROJECT_ROOT / "reports" / "evolution" / "theoretical_metrics_2026-08-19"
+    )
     analyzer.save_report(report_path / "phase_analysis_report.json")
 
     return summary.to_dict()
@@ -265,7 +271,9 @@ def run_variation_selection_balance() -> dict:
     print(f"平衡: {'✅ 是' if summary.is_balanced else '❌ 否'}")
     print(f"评估: {summary.assessment}")
 
-    report_path = _PROJECT_ROOT / "reports" / "evolution" / "theoretical_metrics_2026-08-19"
+    report_path = (
+        _PROJECT_ROOT / "reports" / "evolution" / "theoretical_metrics_2026-08-19"
+    )
     balancer.save_report(report_path / "variation_selection_report.json")
 
     return summary.to_dict()
@@ -289,9 +297,17 @@ def main() -> None:
         "variation_selection": balance_result,
     }
 
-    output_path = _PROJECT_ROOT / "reports" / "evolution" / "theoretical_metrics_2026-08-19" / "combined_report.json"
+    output_path = (
+        _PROJECT_ROOT
+        / "reports"
+        / "evolution"
+        / "theoretical_metrics_2026-08-19"
+        / "combined_report.json"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(combined, indent=2, ensure_ascii=False), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(combined, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     print(f"\n综合报告已保存: {output_path}")
 
 

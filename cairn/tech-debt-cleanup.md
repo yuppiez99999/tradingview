@@ -57,3 +57,14 @@
 - 本文件为 A 轨完成确认记录，一次性沉淀
 - iFinD 相关测试虽 skip 但仍占位，若未来彻底清理可删除（当前保留作历史）
 - 失败测试清单应建立"定期重跑 + 过时归档"机制，避免基于过时数据制定计划
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [测试健康度治理经验（2026-08-19）](test-health-20260819.md) (相似度 15%)
+- [v86 集成升级方案同步记录 — 2026-08-21](v86-plan-sync-20260821.md) (相似度 9%)
+- [代码质量工业级差距审计 — 2026-08-19](code-quality-industrial-gap-20260819.md) (相似度 8%)
+- [测试债清零经验沉淀 (2026-08-16)](test-debt-clearance-20260816.md) (相似度 8%)
+- [工业级防复发机制 (Industrial Grade Anti-Regression Framework)](industrial-grade-anti-regression-framework.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

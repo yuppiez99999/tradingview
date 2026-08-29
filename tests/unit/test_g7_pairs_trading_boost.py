@@ -1,6 +1,7 @@
 """
 G7 Coverage Boost: utils/strategy_lib/pairs_trading.py (186 lines, 0% -> target ~80%)
 """
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -61,7 +62,14 @@ class TestPairsTradingInit:
         assert pt.max_half_life == 60
 
     def test_custom_params(self):
-        pt = PairsTrading(significance=0.01, zscore_window=10, entry_z=2.5, exit_z=0.8, min_half_life=2, max_half_life=30)
+        pt = PairsTrading(
+            significance=0.01,
+            zscore_window=10,
+            entry_z=2.5,
+            exit_z=0.8,
+            min_half_life=2,
+            max_half_life=30,
+        )
         assert pt.significance == 0.01
         assert pt.zscore_window == 10
         assert pt.entry_z == 2.5
@@ -142,7 +150,10 @@ class TestFindCointegratedPairs:
         pt = PairsTrading(significance=0.001, min_half_life=1000)
         np.random.seed(3)
         symbols = [f"{i:06d}.SZ" for i in range(4)]
-        price_data = {sym: pd.DataFrame({"close": np.cumsum(np.random.randn(200)) + 100}) for sym in symbols}
+        price_data = {
+            sym: pd.DataFrame({"close": np.cumsum(np.random.randn(200)) + 100})
+            for sym in symbols
+        }
         assert pt.find_cointegrated_pairs(price_data) == []
 
     def test_finds_cointegrated_pair(self):
@@ -188,7 +199,9 @@ class TestGenerateSignals:
         np.random.seed(seed)
         base = pd.Series(np.cumsum(np.random.randn(n)) + 100)
         return {
-            "000001.SZ": pd.DataFrame({"close": base * 1.2 + 5 + np.random.randn(n) * 0.3}),
+            "000001.SZ": pd.DataFrame(
+                {"close": base * 1.2 + 5 + np.random.randn(n) * 0.3}
+            ),
             "000002.SZ": pd.DataFrame({"close": base}),
         }
 
@@ -199,7 +212,9 @@ class TestGenerateSignals:
         assert signals == []
 
     def test_generates_signals(self):
-        pt = PairsTrading(significance=0.05, min_half_life=1, max_half_life=200, zscore_window=10)
+        pt = PairsTrading(
+            significance=0.05, min_half_life=1, max_half_life=200, zscore_window=10
+        )
         price_data = self._make_price_data()
         pairs = pt.find_cointegrated_pairs(price_data)
         if not pairs:
@@ -216,7 +231,15 @@ class TestGenerateSignals:
             "000001.SZ": pd.DataFrame({"open": np.random.randn(100) + 100}),
             "000002.SZ": pd.DataFrame({"open": np.random.randn(100) + 100}),
         }
-        pairs = [{"code_a": "000001.SZ", "code_b": "000002.SZ", "beta": 1.0, "intercept": 0.0, "pvalue": 0.01}]
+        pairs = [
+            {
+                "code_a": "000001.SZ",
+                "code_b": "000002.SZ",
+                "beta": 1.0,
+                "intercept": 0.0,
+                "pvalue": 0.01,
+            }
+        ]
         signals = pt.generate_signals(price_data, pairs=pairs)
         assert isinstance(signals, list)
         assert len(signals) == 1

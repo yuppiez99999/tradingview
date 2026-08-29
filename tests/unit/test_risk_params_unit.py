@@ -6,6 +6,7 @@
     - get_daily_amount_limit / get_price_protection_pct / get_daily_loss_stop_pct / get_portfolio_drawdown_stop_pct
     - ConfigManager 不可用时回退到兜底常量
 """
+
 from __future__ import annotations
 
 import sys
@@ -38,14 +39,18 @@ class TestFallback:
     def test_cm_connection_error_returns_fallback(self, monkeypatch):
         """ConfigManager 抛 ConnectionError → 返回兜底常量"""
         mock_cm = MagicMock()
-        mock_cm.get_risk_params_config = MagicMock(side_effect=ConnectionError("net down"))
+        mock_cm.get_risk_params_config = MagicMock(
+            side_effect=ConnectionError("net down")
+        )
         monkeypatch.setitem(sys.modules, "utils.config_manager", mock_cm)
         assert get_max_drawdown_limit() == _FALLBACK_MAX_DRAWDOWN_LIMIT
         assert get_quant_neutral_max_drawdown() == _FALLBACK_QUANT_NEUTRAL_MAX_DRAWDOWN
         assert get_daily_amount_limit() == _FALLBACK_DAILY_AMOUNT_LIMIT
         assert get_price_protection_pct() == _FALLBACK_PRICE_PROTECTION_PCT
         assert get_daily_loss_stop_pct() == _FALLBACK_DAILY_LOSS_STOP_PCT
-        assert get_portfolio_drawdown_stop_pct() == _FALLBACK_PORTFOLIO_DRAWDOWN_STOP_PCT
+        assert (
+            get_portfolio_drawdown_stop_pct() == _FALLBACK_PORTFOLIO_DRAWDOWN_STOP_PCT
+        )
 
     @pytest.mark.unit
     def test_cm_exception_returns_fallback(self, monkeypatch):

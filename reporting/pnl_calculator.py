@@ -45,10 +45,12 @@ def calculate_pnl(
     if align_hfq:
         try:
             from utils.adjust_factor_provider import get_adjust_factor_provider
+
             _hfq_provider = get_adjust_factor_provider()
         except (ImportError, RuntimeError) as e:
             # 降级: 关闭对齐, 主流程继续
             import logging
+
             logging.getLogger("pnl_calculator").warning(
                 "U3 复权因子提供器不可用, 关闭对齐: %s", e
             )
@@ -94,7 +96,8 @@ def calculate_pnl(
         data_source_real = (
             close_price is not None
             and close_price > 0
-            and price_data.get("source", "live") not in ("fallback", "fallback_corrected")
+            and price_data.get("source", "live")
+            not in ("fallback", "fallback_corrected")
         )
 
         if data_source_real:
@@ -114,7 +117,9 @@ def calculate_pnl(
             market_value = shares * close_price
             pnl = market_value - cost_amount
             pnl_pct = (close_price - cost_price) / cost_price if cost_price > 0 else 0
-            daily_pnl = shares * (close_price - prev_close) if close_price and prev_close else 0
+            daily_pnl = (
+                shares * (close_price - prev_close) if close_price and prev_close else 0
+            )
             daily_pnl_pct = change_pct if (shares > 0 and change_pct is not None) else 0
         elif fallback_has_price:
             # fallback价格可用：可计算持仓盈亏(基于成本)，但日内涨跌不可用
@@ -162,7 +167,9 @@ def calculate_pnl(
             "pnl": round(pnl, 2),
             "pnl_pct": round(pnl_pct * 100, 2),
             "daily_pnl": round(daily_pnl, 2) if daily_pnl is not None else None,
-            "daily_pnl_pct": round(daily_pnl_pct, 2) if daily_pnl_pct is not None else None,
+            "daily_pnl_pct": (
+                round(daily_pnl_pct, 2) if daily_pnl_pct is not None else None
+            ),
             "stop_loss": effective_stop_loss,
             "calc_mode": calc_mode,
             "status": get_position_status(pnl_pct, effective_stop_loss),
@@ -195,9 +202,11 @@ def calculate_pnl(
                     detail["aligned_prev_close"] = round(aligned_prev, 2)
                     aligned_daily = shares * (close_price - aligned_prev)
                     detail["aligned_daily_pnl"] = round(aligned_daily, 2)
-                    detail["aligned_daily_pnl_pct"] = round(
-                        (close_price - aligned_prev) / aligned_prev * 100, 2
-                    ) if aligned_prev > 0 else None
+                    detail["aligned_daily_pnl_pct"] = (
+                        round((close_price - aligned_prev) / aligned_prev * 100, 2)
+                        if aligned_prev > 0
+                        else None
+                    )
 
                     # 累积对齐后日内盈亏总计 (供 summary 使用)
                     total_aligned_daily_pnl += aligned_daily
@@ -206,12 +215,7 @@ def calculate_pnl(
                 # 除权日 + 有建仓日期: 计算 aligned_cost_price / aligned_pnl_pct
                 # cost_price 是建仓当日未复权成本, 跨除权日需要按因子比调整
                 buy_date = pos.get("buy_date") or pos.get("建仓日期")
-                if (
-                    is_ex_div
-                    and buy_date
-                    and cost_price
-                    and cost_price > 0
-                ):
+                if is_ex_div and buy_date and cost_price and cost_price > 0:
                     try:
                         buy_factor = _hfq_provider.get_hfq_factor(code, date=buy_date)
                         today_factor = _hfq_provider.get_hfq_factor(code, date=hfq_date)
@@ -219,15 +223,20 @@ def calculate_pnl(
                             # 把 cost_price 从建仓当日口径调整到今日口径
                             aligned_cost = cost_price * (buy_factor / today_factor)
                             detail["aligned_cost_price"] = round(aligned_cost, 2)
-                            detail["aligned_pnl_pct"] = round(
-                                (close_price - aligned_cost) / aligned_cost * 100, 2
-                            ) if aligned_cost > 0 else None
+                            detail["aligned_pnl_pct"] = (
+                                round(
+                                    (close_price - aligned_cost) / aligned_cost * 100, 2
+                                )
+                                if aligned_cost > 0
+                                else None
+                            )
                     except (ValueError, TypeError, KeyError):
                         # 建仓因子查询失败: 跳过 cost 对齐, 不阻断
                         pass
             except (ImportError, RuntimeError, ValueError, TypeError, OSError) as e:
                 # U3 降级: 不注入 hfq 字段, 主流程继续
                 import logging
+
                 logging.getLogger("pnl_calculator").debug(
                     "U3 对齐失败 (%s): %s", code, e
                 )
@@ -235,7 +244,10 @@ def calculate_pnl(
         pnl_details.append(detail)
 
     # 按盈亏排序（无数据的排在最后）
-    pnl_details.sort(key=lambda x: x["daily_pnl_pct"] if x["daily_pnl_pct"] is not None else -9999, reverse=True)
+    pnl_details.sort(
+        key=lambda x: x["daily_pnl_pct"] if x["daily_pnl_pct"] is not None else -9999,
+        reverse=True,
+    )
 
     result = {
         "details": pnl_details,
@@ -243,7 +255,9 @@ def calculate_pnl(
             "total_cost": round(total_cost, 2),
             "total_market_value": round(total_market_value, 2),
             "total_pnl": round(total_pnl, 2),
-            "total_pnl_pct": round((total_pnl / total_cost) * 100 if total_cost > 0 else 0, 2),
+            "total_pnl_pct": round(
+                (total_pnl / total_cost) * 100 if total_cost > 0 else 0, 2
+            ),
             "position_count": len(pnl_details),
         },
     }
@@ -263,12 +277,11 @@ def get_position_status(pnl_pct: float, stop_loss: float) -> str:
         stop_loss = -0.15
     if pnl_pct <= stop_loss:
         return "STOP_LOSS_TRIGGERED"
-    elif pnl_pct <= stop_loss * 0.7:
+    if pnl_pct <= stop_loss * 0.7:
         return "WARNING"
-    elif pnl_pct >= 0.05:
+    if pnl_pct >= 0.05:
         return "PROFIT"
-    else:
-        return "NORMAL"
+    return "NORMAL"
 
 
 def calculate_volatility(returns: list[float]) -> float:
@@ -293,8 +306,9 @@ def _extract_return_from_report(r: dict, f_name: str) -> Optional[float]:
     return None
 
 
-def _collect_pnl_from_reports_dir(reports_dir: _Path, pnl_history: list,
-                                   max_daily_return: float) -> None:
+def _collect_pnl_from_reports_dir(
+    reports_dir: _Path, pnl_history: list, max_daily_return: float
+) -> None:
     """从指定目录收集 daily_pnl_report_*.json 中的净收益率"""
     if not reports_dir.exists():
         return
@@ -319,8 +333,9 @@ def _collect_pnl_from_reports_dir(reports_dir: _Path, pnl_history: list,
             continue
 
 
-def _collect_pnl_from_archive(archive_dir: _Path, pnl_history: list,
-                               max_daily_return: float) -> None:
+def _collect_pnl_from_archive(
+    archive_dir: _Path, pnl_history: list, max_daily_return: float
+) -> None:
     """从每日报告归档目录补充 PnL 历史"""
     if not archive_dir.exists():
         return
@@ -394,7 +409,9 @@ def calculate_max_drawdown(details: list) -> float:
 
     # 1) 从 v8.3_institutional/reports/ 收集历史PnL
     for candidate_dir in ["v8.3_institutional", "v7.5_institutional"]:
-        reports_dir = _Path(__file__).resolve().parent.parent / candidate_dir / "reports"
+        reports_dir = (
+            _Path(__file__).resolve().parent.parent / candidate_dir / "reports"
+        )
         _collect_pnl_from_reports_dir(reports_dir, pnl_history, MAX_DAILY_RETURN)
 
     # 2) 从每日报告归档/ 补充

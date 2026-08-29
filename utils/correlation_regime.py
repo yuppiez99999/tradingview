@@ -48,8 +48,10 @@ def compute_edge_density(
 
     density = pd.Series(np.nan, index=returns.index)
     for i in range(corr_window, len(returns) + 1):
-        corr = returns.iloc[i - corr_window:i].corr().abs().to_numpy()
-        density.iloc[i - 1] = float((corr[upper_mask] >= edge_threshold).sum()) / n_pairs
+        corr = returns.iloc[i - corr_window : i].corr().abs().to_numpy()
+        density.iloc[i - 1] = (
+            float((corr[upper_mask] >= edge_threshold).sum()) / n_pairs
+        )
     return density
 
 
@@ -122,7 +124,9 @@ def _aligned_returns(price_series: dict[str, pd.DataFrame]) -> pd.DataFrame:
     return aligned
 
 
-def _fused_episodes(dates: list[str], fused: list[int]) -> list[dict[str, Optional[str]]]:
+def _fused_episodes(
+    dates: list[str], fused: list[int]
+) -> list[dict[str, Optional[str]]]:
     """Contiguous FUSED intervals within the returned window.
 
     ``end`` is the last date observed FUSED, or None while the final bar is
@@ -181,9 +185,9 @@ def compute_regime_timeline(
     # calendar-day fetch buffer by the correlation window (and a margin for
     # non-trading days).
     end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (
-        datetime.now() - timedelta(days=days + corr_window + 90)
-    ).strftime("%Y-%m-%d")
+    start_date = (datetime.now() - timedelta(days=days + corr_window + 90)).strftime(
+        "%Y-%m-%d"
+    )
 
     price_series = _fetch_price_series(codes, start_date, end_date)
 

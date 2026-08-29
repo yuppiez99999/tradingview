@@ -54,14 +54,14 @@ _LOCAL_CACHE_DIR = _PROJECT_ROOT / "data_cache" / "vibe_trading"
 # 特殊映射: ETF/指数代码别名
 
 _CODE_ALIAS_MAP: dict[str, str] = {
-    "510050.SH": "510050.SH",   # 上证50ETF
-    "510300.SH": "510300.SH",   # 沪深300ETF
-    "510500.SH": "510500.SH",   # 中证500ETF
-    "512100.SH": "512100.SH",   # 中证1000ETF
-    "588000.SH": "588000.SH",   # 科创50ETF
-    "588080.SH": "588080.SH",   # 科创50ETF易方达
-    "159915.SZ": "159915.SZ",   # 创业板ETF
-    "159992.SZ": "159992.SZ",   # 创新药ETF
+    "510050.SH": "510050.SH",  # 上证50ETF
+    "510300.SH": "510300.SH",  # 沪深300ETF
+    "510500.SH": "510500.SH",  # 中证500ETF
+    "512100.SH": "512100.SH",  # 中证1000ETF
+    "588000.SH": "588000.SH",  # 科创50ETF
+    "588080.SH": "588080.SH",  # 科创50ETF易方达
+    "159915.SZ": "159915.SZ",  # 创业板ETF
+    "159992.SZ": "159992.SZ",  # 创新药ETF
 }
 
 # ============================================================
@@ -87,7 +87,9 @@ def _infer_market(symbol: str) -> str:
         return "hk_equity"
     if upper.endswith(".KS") or upper.endswith(".KQ"):
         return "kr_equity"
-    if upper.endswith(".US") or (len(upper.split(".")[0]) <= 5 and "." not in upper.split(".")[0]):
+    if upper.endswith(".US") or (
+        len(upper.split(".")[0]) <= 5 and "." not in upper.split(".")[0]
+    ):
         return "us_equity"
     # 期货/期权
     if len(upper.split(".")[0]) <= 6 and any(c.isalpha() for c in upper.split(".")[0]):
@@ -165,7 +167,11 @@ class _VibeTradingCore:
 
         try:
             # 延迟导入 Vibe-Trading 核心模块
-            from backtest.loaders.registry import LOADER_REGISTRY, _ensure_registered, resolve_loader
+            from backtest.loaders.registry import (
+                LOADER_REGISTRY,
+                _ensure_registered,
+                resolve_loader,
+            )
 
             # 强制注册所有 loader
             _ensure_registered()
@@ -187,7 +193,16 @@ class _VibeTradingCore:
             self._init_error = f"Vibe-Trading 导入失败: {e}"
             logger.warning(self._init_error)
             return False
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._init_error = f"Vibe-Trading 初始化异常: {e}"
             logger.warning(self._init_error)
@@ -207,13 +222,28 @@ class _VibeTradingCore:
                 instance = cls()
                 if instance.is_available():
                     available.append(name)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
         return available
 
-    def fetch(self, symbol: str, start_date: str, end_date: str,
-              market: str | None = None, interval: str = "1D") -> pd.DataFrame | None:
+    def fetch(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        market: str | None = None,
+        interval: str = "1D",
+    ) -> pd.DataFrame | None:
         """从 Vibe-Trading 拉取单只标的的 OHLCV 数据.
 
         Args:
@@ -243,7 +273,16 @@ class _VibeTradingCore:
                 if isinstance(df, pd.DataFrame) and not df.empty:
                     return df
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"Vibe-Trading fetch ({market}/{symbol}) 失败: {e}")
@@ -252,26 +291,39 @@ class _VibeTradingCore:
         for source_name in self._available_sources:
             try:
                 from backtest.loaders.registry import LOADER_REGISTRY
+
                 loader_cls = LOADER_REGISTRY.get(source_name)
                 if loader_cls is None:
                     continue
                 loader = loader_cls()
                 if not loader.is_available():
                     continue
-                raw_result = loader.fetch([symbol], start_date, end_date, interval=interval)
+                raw_result = loader.fetch(
+                    [symbol], start_date, end_date, interval=interval
+                )
                 if symbol in raw_result:
                     df = raw_result[symbol]
                     if isinstance(df, pd.DataFrame) and not df.empty:
                         logger.debug(f"Vibe-Trading 备用源 {source_name} 命中 {symbol}")
                         return df
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
 
         return None
 
-    def batch_fetch(self, symbols: list[str], start_date: str, end_date: str,
-                    interval: str = "1D") -> dict[str, pd.DataFrame]:
+    def batch_fetch(
+        self, symbols: list[str], start_date: str, end_date: str, interval: str = "1D"
+    ) -> dict[str, pd.DataFrame]:
         """批量拉取多只标的 OHLCV 数据.
 
         Args:
@@ -318,8 +370,9 @@ _PROXY_MAP: dict[str, str] = {
 }
 
 
-def _proxy_fallback_fetch(symbols: list[str], start_date: str,
-                          end_date: str) -> dict[str, pd.DataFrame]:
+def _proxy_fallback_fetch(
+    symbols: list[str], start_date: str, end_date: str
+) -> dict[str, pd.DataFrame]:
     """代理映射回退 (无网络环境).
 
     使用本地缓存 + 代理映射补全数据.
@@ -354,7 +407,16 @@ def _proxy_fallback_fetch(symbols: list[str], start_date: str,
                         df["low"] = df["close"].cummin()
                         df["volume"] = 0
                     results[code] = df
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
 
@@ -394,8 +456,9 @@ class VibeTradingAdapter:
         >>> batch = adapter.get_batch_ohlcv(["510300.SH", "588000.SH"], "2021-01-01", "2026-07-30")
     """
 
-    def __init__(self, *, force_init: bool = False,
-                 fallback_to_proxy: bool = True) -> None:
+    def __init__(
+        self, *, force_init: bool = False, fallback_to_proxy: bool = True
+    ) -> None:
         """初始化适配器.
 
         Args:
@@ -421,8 +484,14 @@ class VibeTradingAdapter:
             self._core.initialize()
         return self._core._available_sources
 
-    def get_ohlcv(self, symbol: str, start_date: str, end_date: str,
-                  interval: str = "1D", use_vibe: bool = True) -> pd.DataFrame:
+    def get_ohlcv(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        interval: str = "1D",
+        use_vibe: bool = True,
+    ) -> pd.DataFrame:
         """获取单只标的 OHLCV 数据.
 
         Args:
@@ -452,17 +521,23 @@ class VibeTradingAdapter:
             proxy_code = _PROXY_MAP.get(normalized)
             if proxy_code and proxy_code != normalized:
                 logger.info(f"Vibe-Trading 回退代理: {normalized} → {proxy_code}")
-                proxy_df = self.get_ohlcv(proxy_code, start_date, end_date,
-                                           interval, use_vibe=use_vibe)
+                proxy_df = self.get_ohlcv(
+                    proxy_code, start_date, end_date, interval, use_vibe=use_vibe
+                )
                 if not proxy_df.empty:
                     return proxy_df
 
         logger.warning(f"无法获取 {symbol} 的 OHLCV 数据 (所有源均失败)")
         return pd.DataFrame()
 
-    def get_batch_ohlcv(self, symbols: list[str], start_date: str,
-                        end_date: str, interval: str = "1D",
-                        use_vibe: bool = True) -> dict[str, pd.DataFrame]:
+    def get_batch_ohlcv(
+        self,
+        symbols: list[str],
+        start_date: str,
+        end_date: str,
+        interval: str = "1D",
+        use_vibe: bool = True,
+    ) -> dict[str, pd.DataFrame]:
         """批量获取多只标的 OHLCV 数据.
 
         Args:
@@ -485,7 +560,16 @@ class VibeTradingAdapter:
                     results[symbol] = df
                 else:
                     failed.append(symbol)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"获取 {symbol} 失败: {e}")
                 failed.append(symbol)
@@ -499,9 +583,14 @@ class VibeTradingAdapter:
         )
         return results
 
-    def get_price_dataframe(self, symbols: list[str], start_date: str,
-                             end_date: str, interval: str = "1D",
-                             price_col: str = "close") -> pd.DataFrame:
+    def get_price_dataframe(
+        self,
+        symbols: list[str],
+        start_date: str,
+        end_date: str,
+        interval: str = "1D",
+        price_col: str = "close",
+    ) -> pd.DataFrame:
         """获取多只标的的收盘价矩阵 (供回测使用).
 
         Args:
@@ -535,7 +624,7 @@ class VibeTradingAdapter:
 
         result = pd.DataFrame(price_dict)
         result = result.sort_index()
-        result = result.ffill().dropna(how='all')
+        result = result.ffill().dropna(how="all")
 
         logger.info(
             f"价格矩阵构建完成: {len(result)} 行 (交易日), "
@@ -569,38 +658,58 @@ class VibeTradingAdapter:
                     try:
                         df[first_col] = pd.to_datetime(df[first_col])
                         df = df.set_index(first_col)
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        AttributeError,
+                        RuntimeError,
+                        OSError,
+                        TimeoutError,
+                        ConnectionError,
+                    ):
                         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                         pass
 
         # 确保列名统一 (open/high/low/close/volume)
         col_map = {
-            "open": "open", "high": "high", "low": "low", "close": "close",
-            "volume": "volume", "vol": "volume", "adj_close": "close",
+            "open": "open",
+            "high": "high",
+            "low": "low",
+            "close": "close",
+            "volume": "volume",
+            "vol": "volume",
+            "adj_close": "close",
             "adjusted_close": "close",
         }
         rename_map = {}
         for old_name, new_name in col_map.items():
             if old_name.lower() in [c.lower() for c in df.columns]:
                 for actual_col in df.columns:
-                    if actual_col.lower() == old_name.lower() and actual_col != new_name:
+                    if (
+                        actual_col.lower() == old_name.lower()
+                        and actual_col != new_name
+                    ):
                         rename_map[actual_col] = new_name
         if rename_map:
             df = df.rename(columns=rename_map)
 
         # 只保留 OHLCV 列
-        keep_cols = [c for c in ["open", "high", "low", "close", "volume"] if c in df.columns]
+        keep_cols = [
+            c for c in ["open", "high", "low", "close", "volume"] if c in df.columns
+        ]
         if keep_cols:
             df = df[keep_cols]
 
         # 去重和排序
-        df = df[~df.index.duplicated(keep='first')]
+        df = df[~df.index.duplicated(keep="first")]
         df = df.sort_index()
 
         return df
 
-    def _try_local_cache(self, symbol: str, start_date: str,
-                         end_date: str) -> pd.DataFrame | None:
+    def _try_local_cache(
+        self, symbol: str, start_date: str, end_date: str
+    ) -> pd.DataFrame | None:
         """尝试从本地缓存加载.
 
         Args:
@@ -638,7 +747,16 @@ class VibeTradingAdapter:
                     if df is not None and not df.empty:
                         logger.debug(f"本地缓存命中: {path.name}")
                         return self._normalize_dataframe(df, symbol)
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.debug(f"本地缓存读取失败 {path.name}: {e}")
 
@@ -667,8 +785,9 @@ def get_adapter(force_init: bool = False) -> VibeTradingAdapter:
     return _default_adapter
 
 
-def get_ohlcv(symbol: str, start_date: str, end_date: str,
-              interval: str = "1D") -> pd.DataFrame:
+def get_ohlcv(
+    symbol: str, start_date: str, end_date: str, interval: str = "1D"
+) -> pd.DataFrame:
     """便捷函数: 获取单只标的 OHLCV.
 
     Args:
@@ -683,8 +802,9 @@ def get_ohlcv(symbol: str, start_date: str, end_date: str,
     return get_adapter().get_ohlcv(symbol, start_date, end_date, interval)
 
 
-def get_price_matrix(symbols: list[str], start_date: str,
-                     end_date: str) -> pd.DataFrame:
+def get_price_matrix(
+    symbols: list[str], start_date: str, end_date: str
+) -> pd.DataFrame:
     """便捷函数: 获取收盘价矩阵.
 
     Args:

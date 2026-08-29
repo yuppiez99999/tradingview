@@ -2,6 +2,7 @@
 全量因子库集成测试
 测试 Vibe-Trading 462 个因子 + GTJA191 189 个因子 + Alpha101 + QLib158
 """
+
 import sys
 import time
 from pathlib import Path
@@ -109,7 +110,11 @@ def test_gtja191_full(df: pd.DataFrame):
     all_values = calc.compute(df)
     t1 = time.time()
 
-    valid_count = sum(1 for v in all_values.values() if v is not None and not (isinstance(v, float) and np.isnan(v)))
+    valid_count = sum(
+        1
+        for v in all_values.values()
+        if v is not None and not (isinstance(v, float) and np.isnan(v))
+    )
     print(f"  成功: {valid_count}/{len(all_values)} 个")
     print(f"  耗时: {t1 - t0:.2f} 秒")
     print(f"  平均: {(t1 - t0) / len(all_values) * 1000:.2f} 毫秒/因子")
@@ -142,7 +147,9 @@ def test_all_zoos(df: pd.DataFrame, adapter):
         total_ok += n_ok
         total_fail += n_fail
 
-        print(f"  成功: {n_ok}/{len(ids)} | 耗时: {elapsed:.2f}s | 平均: {elapsed/len(ids)*1000:.1f}ms/个")
+        print(
+            f"  成功: {n_ok}/{len(ids)} | 耗时: {elapsed:.2f}s | 平均: {elapsed/len(ids)*1000:.1f}ms/个"
+        )
 
     print(f"\n{'=' * 70}")
     print(f"汇总: 成功 {total_ok} 个, 失败 {total_fail} 个, 总耗时 {total_time:.2f} 秒")
@@ -165,7 +172,9 @@ def test_formula_queries():
         print(f"  主题: {info.get('themes', [])}")
         print(f"  所需数据: {info.get('columns_required', [])}")
         print(f"  预热K线: {info.get('min_warmup_bars', 0)} 根")
-        print(f"  公式: {formula[:80]}..." if len(formula) > 80 else f"  公式: {formula}")
+        print(
+            f"  公式: {formula[:80]}..." if len(formula) > 80 else f"  公式: {formula}"
+        )
 
 
 if __name__ == "__main__":

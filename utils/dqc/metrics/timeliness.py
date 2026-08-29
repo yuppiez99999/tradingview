@@ -43,7 +43,9 @@ def check_timeliness(
     events: list[DQCEvent] = []
 
     # T-01: 数据延迟
-    events.extend(_check_t01_data_latency(df, target_date, checkpoint, data_arrival_time))
+    events.extend(
+        _check_t01_data_latency(df, target_date, checkpoint, data_arrival_time)
+    )
 
     # T-02: 最新数据日期
     events.extend(_check_t02_latest_date(df, target_date, checkpoint))
@@ -75,23 +77,27 @@ def _check_t01_data_latency(
         arrival_time = datetime.now()
 
     # 期望到位时间: 收盘后 30 分钟
-    expected_arrival = datetime.combine(target_date, datetime.min.time()) + timedelta(
-        hours=15, minutes=30
-    ) + timedelta(minutes=DAILY_LATENCY_THRESHOLD_MIN)
+    expected_arrival = (
+        datetime.combine(target_date, datetime.min.time())
+        + timedelta(hours=15, minutes=30)
+        + timedelta(minutes=DAILY_LATENCY_THRESHOLD_MIN)
+    )
 
     if arrival_time > expected_arrival:
         delay_min = (arrival_time - expected_arrival).total_seconds() / 60
         level = DQCLevel.ERROR if delay_min > 30 else DQCLevel.WARN
-        events.append(make_event(
-            metric_id="T-01",
-            level=level,
-            checkpoint=checkpoint,
-            value=float(delay_min),
-            threshold=float(DAILY_LATENCY_THRESHOLD_MIN),
-            message=f"数据延迟 {delay_min:.0f} 分钟 (期望 {expected_arrival:%H:%M} 到位)",
-            arrival_time=arrival_time.isoformat(),
-            expected_time=expected_arrival.isoformat(),
-        ))
+        events.append(
+            make_event(
+                metric_id="T-01",
+                level=level,
+                checkpoint=checkpoint,
+                value=float(delay_min),
+                threshold=float(DAILY_LATENCY_THRESHOLD_MIN),
+                message=f"数据延迟 {delay_min:.0f} 分钟 (期望 {expected_arrival:%H:%M} 到位)",
+                arrival_time=arrival_time.isoformat(),
+                expected_time=expected_arrival.isoformat(),
+            )
+        )
 
     return events
 
@@ -118,16 +124,18 @@ def _check_t02_latest_date(
         target = target_date
         if latest < target:
             gap_days = (target - latest).days
-            events.append(make_event(
-                metric_id="T-02",
-                level=DQCLevel.ERROR,
-                checkpoint=checkpoint,
-                value=float(gap_days),
-                threshold=0.0,
-                message=f"最新数据日期 {latest} 落后目标日 {target} {gap_days} 天",
-                latest_date=str(latest),
-                target_date=str(target),
-            ))
+            events.append(
+                make_event(
+                    metric_id="T-02",
+                    level=DQCLevel.ERROR,
+                    checkpoint=checkpoint,
+                    value=float(gap_days),
+                    threshold=0.0,
+                    message=f"最新数据日期 {latest} 落后目标日 {target} {gap_days} 天",
+                    latest_date=str(latest),
+                    target_date=str(target),
+                )
+            )
     except (ValueError, TypeError) as e:
         logger.warning("T-02 日期解析失败: %s", e)
 
@@ -147,21 +155,25 @@ def _check_t03_eod_arrival(
     if arrival_time is None:
         return events  # 无实际到达时间时不告警
 
-    expected_deadline = datetime.combine(target_date, datetime.min.time()) + timedelta(
-        hours=15, minutes=30
-    ) + timedelta(minutes=EOD_ARRIVAL_THRESHOLD_MIN)
+    expected_deadline = (
+        datetime.combine(target_date, datetime.min.time())
+        + timedelta(hours=15, minutes=30)
+        + timedelta(minutes=EOD_ARRIVAL_THRESHOLD_MIN)
+    )
 
     if arrival_time > expected_deadline:
         delay_min = (arrival_time - expected_deadline).total_seconds() / 60
-        events.append(make_event(
-            metric_id="T-03",
-            level=DQCLevel.WARN,
-            checkpoint=checkpoint,
-            value=float(delay_min),
-            threshold=float(EOD_ARRIVAL_THRESHOLD_MIN),
-            message=f"EOD 到位超时 {delay_min:.0f} 分钟 (期望 {expected_deadline:%H:%M} 完成)",
-            arrival_time=arrival_time.isoformat(),
-            deadline=expected_deadline.isoformat(),
-        ))
+        events.append(
+            make_event(
+                metric_id="T-03",
+                level=DQCLevel.WARN,
+                checkpoint=checkpoint,
+                value=float(delay_min),
+                threshold=float(EOD_ARRIVAL_THRESHOLD_MIN),
+                message=f"EOD 到位超时 {delay_min:.0f} 分钟 (期望 {expected_deadline:%H:%M} 完成)",
+                arrival_time=arrival_time.isoformat(),
+                deadline=expected_deadline.isoformat(),
+            )
+        )
 
     return events

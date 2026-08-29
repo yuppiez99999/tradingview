@@ -10,6 +10,7 @@
 运行:
   python add_broad_based_etf.py
 """
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -19,14 +20,34 @@ import utils.broad_based_etf_policy as policy
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PLAN_FILE = PROJECT_ROOT / "500万建仓计划_20260706.json"
 
-SCALE_FACTOR = 0.84          # 现有标的缩放系数 (1 - 0.16)
+SCALE_FACTOR = 0.84  # 现有标的缩放系数 (1 - 0.16)
 BROAD_BASED = policy.BROAD_BASED_ETFS
 
 PHASE_TEMPLATES = [
-    {"phase": 1, "name": "第一阶段-底仓建立", "start": "2026-07-06", "capital_ratio": 0.35},
-    {"phase": 2, "name": "第二阶段-配置完善", "start": "2026-07-20", "capital_ratio": 0.30},
-    {"phase": 3, "name": "第三阶段-防御补充", "start": "2026-08-10", "capital_ratio": 0.20},
-    {"phase": 4, "name": "第四阶段-最终调整", "start": "2026-09-01", "capital_ratio": 0.15},
+    {
+        "phase": 1,
+        "name": "第一阶段-底仓建立",
+        "start": "2026-07-06",
+        "capital_ratio": 0.35,
+    },
+    {
+        "phase": 2,
+        "name": "第二阶段-配置完善",
+        "start": "2026-07-20",
+        "capital_ratio": 0.30,
+    },
+    {
+        "phase": 3,
+        "name": "第三阶段-防御补充",
+        "start": "2026-08-10",
+        "capital_ratio": 0.20,
+    },
+    {
+        "phase": 4,
+        "name": "第四阶段-最终调整",
+        "start": "2026-09-01",
+        "capital_ratio": 0.15,
+    },
 ]
 
 
@@ -52,7 +73,7 @@ def main():
     for etf in BROAD_BASED:
         raw_w[etf["code"]] = etf["base_weight"]
     s = sum(raw_w.values())
-    norm_w = {c: w / s for c, w in raw_w.items()}   # 归一化到 1.0
+    norm_w = {c: w / s for c, w in raw_w.items()}  # 归一化到 1.0
 
     # 2. 写回 target_portfolio
     print("=== 更新 target_portfolio (现有13标的缩放 + 新增宽基) ===")
@@ -76,12 +97,19 @@ def main():
         lots = etf["lots"]
         shares = _shares(amt, ep, lots)
         tp[code] = {
-            "code": code, "name": etf["name"], "type": "ETF",
-            "risk": "中", "style": "宽基",
-            "weight": round(w, 6), "base_weight": round(w, 6),
-            "adjustable": True, "broad_based": True,
-            "est_price": ep, "lots": lots,
-            "target_amount": amt, "total_shares": shares,
+            "code": code,
+            "name": etf["name"],
+            "type": "ETF",
+            "risk": "中",
+            "style": "宽基",
+            "weight": round(w, 6),
+            "base_weight": round(w, 6),
+            "adjustable": True,
+            "broad_based": True,
+            "est_price": ep,
+            "lots": lots,
+            "target_amount": amt,
+            "total_shares": shares,
             "actual_amount": round(shares * ep, 2),
             "reason": etf["reason"],
         }
@@ -118,22 +146,41 @@ def main():
         for tmpl in PHASE_TEMPLATES:
             ph_amt = round(amt * tmpl["capital_ratio"], 2)
             ph_shares = int(total_shares * tmpl["capital_ratio"] // lots) * lots
-            phases.append({
-                "phase": tmpl["phase"], "name": tmpl["name"], "start": tmpl["start"],
-                "capital_ratio": tmpl["capital_ratio"],
-                "target_amount": ph_amt, "base_amount": ph_amt,
-                "shares": ph_shares, "actual_amount": round(ph_shares * ep, 2),
-                "cumulative_ratio": round(sum(p["capital_ratio"] for p in PHASE_TEMPLATES[:tmpl["phase"]]), 2),
-                "code": code,
-            })
+            phases.append(
+                {
+                    "phase": tmpl["phase"],
+                    "name": tmpl["name"],
+                    "start": tmpl["start"],
+                    "capital_ratio": tmpl["capital_ratio"],
+                    "target_amount": ph_amt,
+                    "base_amount": ph_amt,
+                    "shares": ph_shares,
+                    "actual_amount": round(ph_shares * ep, 2),
+                    "cumulative_ratio": round(
+                        sum(
+                            p["capital_ratio"] for p in PHASE_TEMPLATES[: tmpl["phase"]]
+                        ),
+                        2,
+                    ),
+                    "code": code,
+                }
+            )
         pp[code] = {
-            "code": code, "name": etf["name"], "type": "ETF",
-            "risk": "中", "style": "宽基",
-            "target_weight": round(w, 6), "base_weight": round(w, 6),
-            "adjustable": True, "broad_based": True,
-            "target_amount": amt, "est_price": ep, "total_shares": total_shares,
+            "code": code,
+            "name": etf["name"],
+            "type": "ETF",
+            "risk": "中",
+            "style": "宽基",
+            "target_weight": round(w, 6),
+            "base_weight": round(w, 6),
+            "adjustable": True,
+            "broad_based": True,
+            "target_amount": amt,
+            "est_price": ep,
+            "total_shares": total_shares,
             "actual_amount": round(total_shares * ep, 2),
-            "reason": etf["reason"], "stop_loss": -0.12,
+            "reason": etf["reason"],
+            "stop_loss": -0.12,
             "phases": phases,
         }
         print(f"  {code} {etf['name']} [宽基]: {w:.4%} | 4阶段已生成")
@@ -145,7 +192,11 @@ def main():
         # 现有资产按 0.84 缩放并取整到 lots
         for asset in phase.get("assets", []):
             code = asset.get("code")
-            ep = tp.get(code, {}).get("est_price") or pp.get(code, {}).get("est_price") or 0.0
+            ep = (
+                tp.get(code, {}).get("est_price")
+                or pp.get(code, {}).get("est_price")
+                or 0.0
+            )
             lots = tp.get(code, {}).get("lots", 100)
             old_shares = int(asset.get("shares", 0))
             new_shares = int(round(old_shares * SCALE_FACTOR / lots) * lots)
@@ -161,11 +212,16 @@ def main():
             ph = pos["phases"][phase["phase"] - 1]
             shares = ph["shares"]
             amount = round(shares * ep, 2)
-            phase["assets"].append({
-                "code": code, "name": etf["name"],
-                "shares": shares, "base_shares": shares,
-                "amount": amount, "base_amount": amount,
-            })
+            phase["assets"].append(
+                {
+                    "code": code,
+                    "name": etf["name"],
+                    "shares": shares,
+                    "base_shares": shares,
+                    "amount": amount,
+                    "base_amount": amount,
+                }
+            )
         phase["asset_count"] = len(phase["assets"])
         print(f"  阶段{phase['phase']} asset_count={phase['asset_count']}")
 

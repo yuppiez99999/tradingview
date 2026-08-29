@@ -35,13 +35,17 @@ from utils.backtest_integrity import (
 from utils.data_gate import DataGate
 from utils.drawdown_breaker import DrawdownCircuitBreaker
 from utils.execution_router import ExecutionPlan, ExecutionRouter
-from utils.institutional_optimizer import InstitutionalPortfolioOptimizer, PortfolioDecision
+from utils.institutional_optimizer import (
+    InstitutionalPortfolioOptimizer,
+    PortfolioDecision,
+)
 from utils.killswitch_guard import apply_killswitch_l1_filter  # GLM-5.2 C2(#22) 修复
 from utils.path_config import get_institutional_pipeline_report_dir
 
 # === Mixin: 从本文件抽取的数据加载/LGB训练/信号计算方法 ===
 from utils.pipeline_data_mixin import DataMixin
 from utils.pipeline_lgb_mixin import LGBMixin
+from utils.pipeline_report_mixin import PipelineReportMixin
 from utils.pipeline_signal_mixin import SignalMixin
 from utils.risk_budget_engine import RiskBudgetEngine, RiskCheckResult
 
@@ -58,7 +62,7 @@ from utils.signal_fusion import FusionSignal, SignalFusionEngine
 # === P0-13: KillSwitch 集成 (2026-07-25 顶级对冲基金审计) ===
 # 审计问题: 生产 pipeline 未集成 KillSwitch, L1/L2/L3 熔断对 pipeline 无效
 try:
-    from utils.kill_switch import KillSwitch
+    from utils.kill_switch import KillSwitch  # noqa: F401
 
     _HAS_KILL_SWITCH = True
 except ImportError:
@@ -145,14 +149,19 @@ _LGB_TRAIN_RETRY_DELAY = 1.0  # 重试间隔（秒）
 # 方案: 每个标的训练两个独立模型 (bull + non-bull), 预测时按当前 regime 选择
 # 验证: 2024-06-03 (bull regime) V9 bull 模型给出 -0.9858 强烈看跌信号 (IC=0.79)
 #       而 V6.2 在该月给 688017/300308 高权重 (10%/8%) 导致 -5.11% 月度亏损
-_V9_REGIME_SPECIFIC_ENABLED = True  # 总开关: True=启用 V9 双模型, False=回退 V6.2 单模型
-_V9_MIN_SAMPLES_PER_REGIME = 100  # 每个 regime 子集最少样本数 (低于此值降级为全样本模型)
+_V9_REGIME_SPECIFIC_ENABLED = (
+    True  # 总开关: True=启用 V9 双模型, False=回退 V6.2 单模型
+)
+_V9_MIN_SAMPLES_PER_REGIME = (
+    100  # 每个 regime 子集最少样本数 (低于此值降级为全样本模型)
+)
 _V9_REGIME_PROXY_SYMBOL = "510300"  # 大盘代理 (与 _REGIME_PROXY_SYMBOL 一致)
 _V9_REGIME_MA_PERIOD = 60  # MA60 中期趋势
 _V9_REGIME_SLOPE_WINDOW = 5  # MA60 斜率窗口
 
 # 跨市场代理标的（特征工程依赖）
 _CROSS_MARKET_PROXY_SYMBOLS = ["518880", "600036", "588000", "515180"]
+
 
 # ============================================================================
 # 日志
@@ -190,7 +199,9 @@ class PipelineContext:
     mode: str = "smoke"
     symbols: list[str] = field(default_factory=list)
     total_capital: float = 3_000_000
-    report_date: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d"))
+    report_date: str = field(
+        default_factory=lambda: datetime.now().strftime("%Y-%m-%d")
+    )
     output_path: Path | None = None
 
     def __post_init__(self) -> None:
@@ -203,7 +214,9 @@ class PipelineContext:
 # ============================================================================
 
 
-class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
+class InstitutionalPipelineRunner(
+    DataMixin, LGBMixin, SignalMixin, PipelineReportMixin
+):
     """机构级闭环运行器
 
     继承 Mixin:
@@ -238,7 +251,11 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         self.sector_map = self._build_sector_map()
         self.execution_router = ExecutionRouter()
         self.data_gate = DataGate()
-        self.data_provider = MarketDataProvider(backtest_mode=(ctx.mode == "backtest")) if _HAS_DATA_PROVIDER else None
+        self.data_provider = (
+            MarketDataProvider(backtest_mode=(ctx.mode == "backtest"))
+            if _HAS_DATA_PROVIDER
+            else None
+        )
         if self.data_provider is not None and ctx.mode == "backtest":
             self.data_provider.set_backtest_date(ctx.report_date)
         self._historical_cache: dict[str, pd.DataFrame] = {}
@@ -259,7 +276,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
 
     def run(self) -> dict[str, Any]:
         """运行完整闭环"""
-        logger.info("[Pipeline] 启动模式=%s symbols=%s", self.ctx.mode, self.ctx.symbols)
+        logger.info(
+            "[Pipeline] 启动模式=%s symbols=%s", self.ctx.mode, self.ctx.symbols
+        )
         result = {
             "report_date": self.ctx.report_date,
             "mode": self.ctx.mode,
@@ -294,18 +313,24 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         # Step 4: 组合优化
         portfolio_decision = self._step_portfolio_optimization(fusion_signals)
         result["steps"]["portfolio_decision"] = (
-            portfolio_decision.to_dict() if hasattr(portfolio_decision, "to_dict") else portfolio_decision
+            portfolio_decision.to_dict()
+            if hasattr(portfolio_decision, "to_dict")
+            else portfolio_decision
         )
 
         # Step 4.5: 市场状态调节 (大盘趋势过滤, 控制熊市回撤)
-        portfolio_decision, regime_info = self._step_market_regime_scaling(portfolio_decision)
+        portfolio_decision, regime_info = self._step_market_regime_scaling(
+            portfolio_decision
+        )
         result["steps"]["market_regime"] = regime_info
 
         # === P0-8: V7.2 bull regime 5% 上限 + V7.1 高波动惩罚 (2026-07-25 顶级对冲基金审计) ===
         # 审计问题: 生产路径未复制回测验证的 V7.2 最优解, bull regime 满仓高波动股
         # 修复: 在 regime scaling 后立即应用 V7.2 cap (回测验证: DSR≥5, 峰度 6.86→3.96)
         try:
-            v72_cap_info = self._apply_v72_bull_regime_cap(portfolio_decision, regime_info)
+            v72_cap_info = self._apply_v72_bull_regime_cap(
+                portfolio_decision, regime_info
+            )
             result["steps"]["v72_bull_regime_cap"] = v72_cap_info
         except Exception as e:
             logger.error("[V7.2] bull regime cap 异常: %s", e, exc_info=True)
@@ -320,13 +345,17 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         #   - 若 current_drawdown=+0.10 (符号错误), `> 0` 进入但 evaluate(+0.10) 不触发任何级别
         #   修复: 使用 abs() 判断并规范化符号为负值
         try:
-            current_drawdown_raw = float(portfolio_decision.meta.get("current_drawdown", 0.0))
+            current_drawdown_raw = float(
+                portfolio_decision.meta.get("current_drawdown", 0.0)
+            )
             if abs(current_drawdown_raw) > 1e-9:
                 # 统一为负值约定 (DrawdownCircuitBreaker 期望负数表示回撤)
                 current_drawdown = -abs(current_drawdown_raw)
                 dd_decision = self.drawdown_breaker.evaluate(current_drawdown)
                 result["steps"]["drawdown_breaker"] = (
-                    dd_decision.to_dict() if hasattr(dd_decision, "to_dict") else {"level": str(dd_decision)}
+                    dd_decision.to_dict()
+                    if hasattr(dd_decision, "to_dict")
+                    else {"level": str(dd_decision)}
                 )
                 scale = dd_decision.target_scale(current_drawdown)
                 if scale < 1.0:
@@ -334,10 +363,15 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                         "[DrawdownBreaker] 回撤 %.2f%% 触发减仓 ×%.2f (level=%s)",
                         abs(current_drawdown) * 100,
                         scale,
-                        dd_decision.level.value if hasattr(dd_decision.level, "value") else dd_decision.level,
+                        (
+                            dd_decision.level.value
+                            if hasattr(dd_decision.level, "value")
+                            else dd_decision.level
+                        ),
                     )
                     portfolio_decision.target_weights = {
-                        s: w * scale for s, w in portfolio_decision.target_weights.items()
+                        s: w * scale
+                        for s, w in portfolio_decision.target_weights.items()
                     }
                     portfolio_decision.meta["drawdown_scale"] = scale
         except Exception as e:
@@ -348,7 +382,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
 
         # Step 5: 风险预算检查
         risk_result = self._step_risk_budget(portfolio_decision)
-        result["steps"]["risk_budget"] = risk_result.to_dict() if hasattr(risk_result, "to_dict") else risk_result
+        result["steps"]["risk_budget"] = (
+            risk_result.to_dict() if hasattr(risk_result, "to_dict") else risk_result
+        )
         if not risk_result.allowed and self.ctx.mode not in ("smoke", "backtest"):
             logger.warning("[Pipeline] 风险预算未通过，交易计划被拦截")
             result["status"] = "blocked_by_risk_budget"
@@ -362,11 +398,16 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             ks_result = self._step_kill_switch_check(portfolio_decision)
             result["steps"]["kill_switch"] = ks_result
             # L1+ 或 fail_closed: 阻止执行路由
-            if (ks_result.get("level", 0) >= 1 or ks_result.get("fail_closed", False)) and self.ctx.mode not in (
+            if (
+                ks_result.get("level", 0) >= 1 or ks_result.get("fail_closed", False)
+            ) and self.ctx.mode not in (
                 "smoke",
                 "backtest",
             ):
-                logger.warning("[Pipeline] KillSwitch L%d, 交易计划被拦截", ks_result.get("level", 0))
+                logger.warning(
+                    "[Pipeline] KillSwitch L%d, 交易计划被拦截",
+                    ks_result.get("level", 0),
+                )
                 result["status"] = "blocked_by_kill_switch"
                 self._save(result)
                 return result
@@ -398,7 +439,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         result = apply_killswitch_l1_filter(portfolio_decision, ks_result, result)
 
         # Step 6: 执行路由
-        execution_plans = self._step_execution_routing(portfolio_decision, fusion_signals)
+        execution_plans = self._step_execution_routing(
+            portfolio_decision, fusion_signals
+        )
         result["steps"]["execution_plans"] = [p.to_dict() for p in execution_plans]
 
         # Step 6.6: ETF期权对冲再平衡 (phase_rebalance) — G3 ER-2.2, feature flag 控制
@@ -457,7 +500,8 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                 mock_used += 1
                 logger.warning(
                     "[DATA_DEGRADED] %s 无真实快照 (mock price=%.1f), 数据门控基于降级数据",
-                    symbol, snapshot.get("price", 0.0),
+                    symbol,
+                    snapshot.get("price", 0.0),
                 )
             gate = self.data_gate.check_and_gate(symbol, snapshot)
             gate_dict = gate.to_dict()
@@ -562,9 +606,13 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         real_eval = self._real_alpha_evaluation()
         provenance = real_eval.get("category", "mock")
         active = real_eval.get("active_factors", 0)
-        logger.info("[Pipeline] Alpha provenance=%s active_factors=%d", provenance, active)
+        logger.info(
+            "[Pipeline] Alpha provenance=%s active_factors=%d", provenance, active
+        )
         if provenance == "mock":
-            logger.warning("[Pipeline] 真实 alpha 不可用，回退 mock；该结果不得作为有效回测/收益证据")
+            logger.warning(
+                "[Pipeline] 真实 alpha 不可用，回退 mock；该结果不得作为有效回测/收益证据"
+            )
         return real_eval
 
     def _real_alpha_evaluation(self) -> dict[str, Any]:
@@ -617,7 +665,12 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                     df = self._historical_cache.get(symbol)
                     if df is None:
                         df = self.data_provider.get_historical_data(symbol, period="5y")
-                    if df is None or df.empty or "close" not in df.columns or len(df) < 120:
+                    if (
+                        df is None
+                        or df.empty
+                        or "close" not in df.columns
+                        or len(df) < 120
+                    ):
                         continue
                     s = df["close"].dropna()
                     if hasattr(s.index, "tz") and s.index.tz is not None:
@@ -626,7 +679,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                     if len(s) < 120:
                         continue
                     factor = s.pct_change(60).shift(1)  # 60日动量因子 (t-1时刻)
-                    fwd = s.pct_change(20).shift(-20)  # 20日未来收益标签: (close[t+20]-close[t])/close[t]
+                    fwd = s.pct_change(20).shift(
+                        -20
+                    )  # 20日未来收益标签: (close[t+20]-close[t])/close[t]
                     joined = pd.concat([factor, fwd], axis=1).dropna()
                     joined.columns = ["factor", "fwd"]
                     if len(joined) < 30:
@@ -647,12 +702,26 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                     active += 1
                     mom_count += 1
                 except Exception as e:
-                    logger.warning("[Pipeline] 真实alpha评估失败 %s: %s (type=%s)", symbol, e, type(e).__name__)
+                    logger.warning(
+                        "[Pipeline] 真实alpha评估失败 %s: %s (type=%s)",
+                        symbol,
+                        e,
+                        type(e).__name__,
+                    )
 
         category = "real" if active > 0 else "mock"
         if lgb_count > 0 or mom_count > 0:
-            logger.info("[Pipeline] Alpha 评估: LGB=%d, 动量=%d, 总计=%d", lgb_count, mom_count, active)
-        return {"evaluations": evaluations, "category": category, "active_factors": active}
+            logger.info(
+                "[Pipeline] Alpha 评估: LGB=%d, 动量=%d, 总计=%d",
+                lgb_count,
+                mom_count,
+                active,
+            )
+        return {
+            "evaluations": evaluations,
+            "category": category,
+            "active_factors": active,
+        }
 
     # ------------------------------------------------------------
     # Step 3: 信号融合
@@ -675,7 +744,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                     # 加权融合：真实价格动量 70% + Alpha 评估 30%
                     alpha_signals[symbol] = {
                         "strength": 0.7 * old_s + 0.3 * float(sig.get("strength", 0.0)),
-                        "confidence": min(1.0, 0.7 * old_c + 0.3 * float(sig.get("confidence", 0.2))),
+                        "confidence": min(
+                            1.0, 0.7 * old_c + 0.3 * float(sig.get("confidence", 0.2))
+                        ),
                     }
 
         # 保存 alpha 信号报告到 reports/pipeline/ (供 DriftShadowIntegrator 读取)
@@ -693,7 +764,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             FusionSignal(
                 symbol=s.symbol,
                 strength=s.strength,
-                confidence=float(s.meta.get("confidence", 0.5)) if hasattr(s, "meta") else 0.5,
+                confidence=(
+                    float(s.meta.get("confidence", 0.5)) if hasattr(s, "meta") else 0.5
+                ),
                 source="post_mix_v2",
             )
             for s in fused
@@ -703,17 +776,24 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
     # Step 4: 组合优化
     # ------------------------------------------------------------
 
-    def _step_portfolio_optimization(self, signals: list[FusionSignal]) -> PortfolioDecision:
+    def _step_portfolio_optimization(
+        self, signals: list[FusionSignal]
+    ) -> PortfolioDecision:
         logger.info("[Pipeline] Step 4: 组合优化")
         tradable = [s for s in signals if s.strength != 0.0 and s.confidence > 0]
         if not tradable:
-            tradable = [FusionSignal(symbol=symbol, strength=0.0, confidence=0.0) for symbol in self.ctx.symbols]
+            tradable = [
+                FusionSignal(symbol=symbol, strength=0.0, confidence=0.0)
+                for symbol in self.ctx.symbols
+            ]
 
         # 让信号强度更灵敏地传导到预期收益，并加入置信度放大
         expected_returns = {}
         signal_map = {s.symbol: s for s in tradable}
         for symbol in self.ctx.symbols:
-            s = signal_map.get(symbol, FusionSignal(symbol=symbol, strength=0.0, confidence=0.0))
+            s = signal_map.get(
+                symbol, FusionSignal(symbol=symbol, strength=0.0, confidence=0.0)
+            )
             conf = float(getattr(s, "confidence", 0.5) or 0.5)
             confidence_boost = 0.6 + 0.4 * min(conf, 1.0)
             expected_returns[symbol] = float(s.strength) * 0.50 * confidence_boost
@@ -761,7 +841,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         ``USE_LW_COV`` 关闭或不可用时 fail-open 回退到硬编码对角矩阵（与历史行为一致）。
         """
         n = len(symbols)
-        diag_cov = pd.DataFrame(np.diag(np.full(n, 0.04 / 252)), index=symbols, columns=symbols)
+        diag_cov = pd.DataFrame(
+            np.diag(np.full(n, 0.04 / 252)), index=symbols, columns=symbols
+        )
         if not _HAS_LW or os.environ.get("USE_LW_COV", "1") == "0":
             return diag_cov
         try:
@@ -778,7 +860,11 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                     return pd.DataFrame(cov, index=symbols, columns=symbols)
                 logger.debug("[LW] 协方差对角含非正元素, 回退对角协方差")
             else:
-                logger.debug("[LW] 协方差维度不匹配 (%s vs %s), 回退对角协方差", cov.shape, (n, n))
+                logger.debug(
+                    "[LW] 协方差维度不匹配 (%s vs %s), 回退对角协方差",
+                    cov.shape,
+                    (n, n),
+                )
             return diag_cov
         except Exception as e:  # noqa: BLE001
             logger.warning("[LW] 收缩协方差估计失败, fail-open 回退对角矩阵: %s", e)
@@ -820,7 +906,11 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                 if not prices or len(prices) < 3:
                     # 缺失标的: 填极小噪声收益率 (避免方差=0 导致 LW 对角线非正)
                     # 噪声标准差 1e-4 << 正常标的 ~1e-2, 保证缺失标的权重被自然压低
-                    series.append(np.random.default_rng(hash(s) & 0xFFFFFFFF).normal(0.0, 1e-4, 30))
+                    series.append(
+                        np.random.default_rng(hash(s) & 0xFFFFFFFF).normal(
+                            0.0, 1e-4, 30
+                        )
+                    )
                 else:
                     arr = np.asarray(prices, dtype=float)
                     rets = arr[1:] / arr[:-1] - 1.0
@@ -861,7 +951,14 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             self._write_shadow_report(symbols, base_weights, bl_w, result)
             logger.info(
                 "[BL-Shadow] 影子对比完成, 平均权重偏差=%.4f",
-                float(np.mean([abs(bl_w.get(s, 0.0) - base_weights.get(s, 0.0)) for s in symbols])),
+                float(
+                    np.mean(
+                        [
+                            abs(bl_w.get(s, 0.0) - base_weights.get(s, 0.0))
+                            for s in symbols
+                        ]
+                    )
+                ),
             )
         except Exception as e:  # noqa: BLE001
             logger.warning("[BL-Shadow] 影子模式计算失败, fail-open 跳过: %s", e)
@@ -881,7 +978,13 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         out_dir = self.ctx.output_path
         out_dir.mkdir(parents=True, exist_ok=True)
         report_path = out_dir / "shadow_bl_report.md"
-        lines = ["# Black-Litterman 影子对比报告", "", f"- 日期: {self.ctx.report_date}", f"- 标的数: {len(symbols)}", ""]
+        lines = [
+            "# Black-Litterman 影子对比报告",
+            "",
+            f"- 日期: {self.ctx.report_date}",
+            f"- 标的数: {len(symbols)}",
+            "",
+        ]
         lines.append("| 标的 | 现有权重 | BL权重 | 偏差 |")
         lines.append("|------|---------|--------|------|")
         for s in symbols:
@@ -890,14 +993,18 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             lines.append(f"| {s} | {bw:.4f} | {blw:.4f} | {blw - bw:+.4f} |")
         lines.append("")
         try:
-            lines.append(f"- BL 预期组合收益: {bl_result.expected_portfolio_return:.4f}")
+            lines.append(
+                f"- BL 预期组合收益: {bl_result.expected_portfolio_return:.4f}"
+            )
             lines.append(f"- BL 预期组合波动: {bl_result.expected_portfolio_vol:.4f}")
             lines.append(f"- BL 夏普比率: {bl_result.sharpe_ratio:.4f}")
             lines.append(f"- BL 有效持仓数: {bl_result.effective_n:.2f}")
         except Exception:  # noqa: BLE001
             pass
         lines.append("")
-        lines.append("> 本报告仅为 BL 影子观测, 不下达任何生产决策。切换需经观察期 (建议 20 交易日) 达标后由 USE_BL_SHADOW 常开。")
+        lines.append(
+            "> 本报告仅为 BL 影子观测, 不下达任何生产决策。切换需经观察期 (建议 20 交易日) 达标后由 USE_BL_SHADOW 常开。"
+        )
         try:
             with open(report_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
@@ -939,7 +1046,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             # 回退到 data_provider (截断到回测日)
             if self.data_provider is not None:
                 try:
-                    df = self.data_provider.get_historical_data(self._MARKET_PROXY_SYMBOL, period="3y")
+                    df = self.data_provider.get_historical_data(
+                        self._MARKET_PROXY_SYMBOL, period="3y"
+                    )
                 except Exception as e:  # noqa: BLE001
                     logger.exception(f"获取市场代理历史数据失败, 已降级 df=None: {e}")
                     df = None
@@ -951,11 +1060,17 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             df.index = df.index.tz_localize(None)
         df = df.sort_index()
         df = df[df.index <= cutoff]
-        min_required = max(self._MA_PERIOD + self._MA_SLOPE_WINDOW, self._VOL_LOOKBACK, self._MOM_LOOKBACK)
+        min_required = max(
+            self._MA_PERIOD + self._MA_SLOPE_WINDOW,
+            self._VOL_LOOKBACK,
+            self._MOM_LOOKBACK,
+        )
         return df, min_required
 
     @staticmethod
-    def _classify_trend_regime(latest_close: float, latest_ma: float, ma_rising: bool) -> tuple:
+    def _classify_trend_regime(
+        latest_close: float, latest_ma: float, ma_rising: bool
+    ) -> tuple:
         """第一层: MA60 中期趋势分类。
 
         Args:
@@ -1035,7 +1150,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                 try:
                     close_sym = df_sym["close"].sort_index()
                     if len(close_sym) > 20:
-                        ret_20d = float(close_sym.iloc[-1] / close_sym.iloc[-1 - 20] - 1)
+                        ret_20d = float(
+                            close_sym.iloc[-1] / close_sym.iloc[-1 - 20] - 1
+                        )
                         symbol_rets[symbol] = ret_20d
                 except Exception:
                     logger.exception("[Pipeline] 计算 20日收益率失败 symbol=%s", symbol)
@@ -1070,7 +1187,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             }
         logger.info(
             "[Reversal] regime=%s: 超跌加仓%d只, 超涨减仓%d只",
-            regime, n_oversold, n_overbought,
+            regime,
+            n_oversold,
+            n_overbought,
         )
         return {
             "n_oversold_increased": n_oversold,
@@ -1108,12 +1227,19 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                 cutoff = cutoff.tz_localize(None)
         except Exception as e:  # noqa: BLE001
             logger.exception(f"cutoff 时区清理失败, 已降级处理: {e}")
-            cutoff = pd.Timestamp(cutoff).tz_localize(None) if pd.Timestamp(cutoff).tzinfo else pd.Timestamp(cutoff)
+            cutoff = (
+                pd.Timestamp(cutoff).tz_localize(None)
+                if pd.Timestamp(cutoff).tzinfo
+                else pd.Timestamp(cutoff)
+            )
 
         # 2. 加载大盘代理数据
         df, min_required = self._load_market_proxy_data(cutoff)
         if df is None or df.empty:
-            logger.warning("[MarketRegime] %s 数据不可用, 跳过趋势过滤 (factor=1.0)", self._MARKET_PROXY_SYMBOL)
+            logger.warning(
+                "[MarketRegime] %s 数据不可用, 跳过趋势过滤 (factor=1.0)",
+                self._MARKET_PROXY_SYMBOL,
+            )
             return decision, {
                 "symbol": self._MARKET_PROXY_SYMBOL,
                 "factor": 1.0,
@@ -1123,7 +1249,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         if len(df) < min_required:
             logger.warning(
                 "[MarketRegime] %s 数据不足 (%d 行 < %d), 跳过",
-                self._MARKET_PROXY_SYMBOL, len(df), min_required,
+                self._MARKET_PROXY_SYMBOL,
+                len(df),
+                min_required,
             )
             return decision, {
                 "symbol": self._MARKET_PROXY_SYMBOL,
@@ -1138,7 +1266,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         latest_close = float(close.iloc[-1])
         latest_ma_raw = ma.iloc[-1]
         if not np.isfinite(latest_ma_raw):
-            logger.warning("[MarketRegime] MA值 = NaN/Inf, 数据不足, 回归 insufficient_data")
+            logger.warning(
+                "[MarketRegime] MA值 = NaN/Inf, 数据不足, 回归 insufficient_data"
+            )
             return decision, {
                 "symbol": self._MARKET_PROXY_SYMBOL,
                 "factor": 1.0,
@@ -1146,11 +1276,17 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                 "reason": "ma_nan",
             }
         latest_ma = float(latest_ma_raw)
-        ma_slope = float(ma.iloc[-1] - ma.iloc[-1 - self._MA_SLOPE_WINDOW]) if len(ma) > self._MA_SLOPE_WINDOW else 0.0
+        ma_slope = (
+            float(ma.iloc[-1] - ma.iloc[-1 - self._MA_SLOPE_WINDOW])
+            if len(ma) > self._MA_SLOPE_WINDOW
+            else 0.0
+        )
         ma_rising = ma_slope > 0
 
         # 4. 三层过滤
-        regime, base_factor = self._classify_trend_regime(latest_close, latest_ma, ma_rising)
+        regime, base_factor = self._classify_trend_regime(
+            latest_close, latest_ma, ma_rising
+        )
         vol_override, recent_vol, vol_flag = self._compute_vol_override(close)
         mom_override, mom_20d, mom_flag = self._compute_mom_override(close)
 
@@ -1168,24 +1304,34 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         defensive_info = self._apply_momentum_reversal(decision, regime)
 
         # 8. 记录元数据
-        decision.meta.update({
-            "regime_factor": factor,
-            "market_proxy_close": latest_close,
-            "market_proxy_ma60": latest_ma,
-            "exposure_before": original_exposure,
-            "exposure_after": scaled_exposure,
-            "vol_override": vol_override,
-            "mom_override": mom_override,
-            "realized_vol_20d": recent_vol,
-            "mom_20d": mom_20d,
-        })
+        decision.meta.update(
+            {
+                "regime_factor": factor,
+                "market_proxy_close": latest_close,
+                "market_proxy_ma60": latest_ma,
+                "exposure_before": original_exposure,
+                "exposure_after": scaled_exposure,
+                "vol_override": vol_override,
+                "mom_override": mom_override,
+                "realized_vol_20d": recent_vol,
+                "mom_20d": mom_20d,
+            }
+        )
 
         logger.info(
             "[MarketRegime] %s regime=%s base=%.2f vol=%s(%.4f→%.2f) mom=%s(%+.4f→%.2f) final=%.2f exposure %.1f%%→%.1f%%",
-            self._MARKET_PROXY_SYMBOL, regime, base_factor,
-            vol_flag, recent_vol, vol_override,
-            mom_flag, mom_20d, mom_override,
-            factor, original_exposure * 100, scaled_exposure * 100,
+            self._MARKET_PROXY_SYMBOL,
+            regime,
+            base_factor,
+            vol_flag,
+            recent_vol,
+            vol_override,
+            mom_flag,
+            mom_20d,
+            mom_override,
+            factor,
+            original_exposure * 100,
+            scaled_exposure * 100,
         )
 
         regime_info = {
@@ -1227,14 +1373,18 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                     try:
                         price_data[symbol] = df["close"].copy()
                     except Exception:
-                        logger.exception("[Pipeline] 提取 close 序列失败 symbol=%s", symbol)
+                        logger.exception(
+                            "[Pipeline] 提取 close 序列失败 symbol=%s", symbol
+                        )
         return self.risk_budget_engine.check_pre_trade(
             target_portfolio=decision.target_weights,
             current_positions={},  # 生产环境无存量持仓 (实盘接入后填充)
             price_data=price_data,  # P0-10: 真实价格数据, 启用 VaR 1.5% 检查
         )
 
-    def _apply_v72_bull_regime_cap(self, decision: dict, regime_info: dict[str, Any]) -> dict[str, Any]:
+    def _apply_v72_bull_regime_cap(
+        self, decision: dict, regime_info: dict[str, Any]
+    ) -> dict[str, Any]:
         """P0-8: V7.2 bull regime 5% 上限 + V7.1 高波动惩罚 (生产路径复制)
 
         回测验证结论 (V7.1/V7.2/V8 三轮优化):
@@ -1265,10 +1415,13 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         penalized = self._detect_high_vol_symbols(original_weights, cutoff)
         if penalized:
             for symbol in penalized:
-                original_weights[symbol] = original_weights[symbol] * _V71_BULL_VOL_PENALTY
+                original_weights[symbol] = (
+                    original_weights[symbol] * _V71_BULL_VOL_PENALTY
+                )
             cap_info["v71_penalty_applied"] = True
             cap_info["penalized_symbols"] = [
-                {"symbol": s, "vol20": round(v, 4), "penalty": _V71_BULL_VOL_PENALTY} for s, v in penalized.items()
+                {"symbol": s, "vol20": round(v, 4), "penalty": _V71_BULL_VOL_PENALTY}
+                for s, v in penalized.items()
             ]
             logger.info(
                 "[V7.1] bull regime 高波动惩罚: %d 只股票 vol20>%.1f%% → 权重×%.1f",
@@ -1278,9 +1431,13 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             )
 
         # === V7.2: bull regime 单票上限 5% (10% → 5%) ===
-        capped_symbols, capped_weights, excess_weight = self._apply_max_weight_cap(original_weights)
+        capped_symbols, capped_weights, excess_weight = self._apply_max_weight_cap(
+            original_weights
+        )
         if capped_symbols:
-            self._redistribute_excess_weight(capped_weights, capped_symbols, excess_weight)
+            self._redistribute_excess_weight(
+                capped_weights, capped_symbols, excess_weight
+            )
             decision.target_weights = capped_weights
             cap_info["v72_cap_applied"] = True
             cap_info["capped_symbols"] = capped_symbols
@@ -1317,7 +1474,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         for symbol, w in weights.items():
             if w <= 0:
                 continue
-            df_sym = self._historical_cache.get(symbol) if self._historical_cache else None
+            df_sym = (
+                self._historical_cache.get(symbol) if self._historical_cache else None
+            )
             if df_sym is None or df_sym.empty or "close" not in df_sym.columns:
                 continue
             vol20 = self._compute_vol20(df_sym, cutoff)
@@ -1325,7 +1484,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                 penalized[symbol] = vol20
         return penalized
 
-    def _compute_vol20(self, df_sym: pd.DataFrame, cutoff: pd.Timestamp) -> float | None:
+    def _compute_vol20(
+        self, df_sym: pd.DataFrame, cutoff: pd.Timestamp
+    ) -> float | None:
         """计算 20 日波动率 (截止 cutoff 时间), 不足返回 None。"""
         try:
             df_sym = df_sym.sort_index()
@@ -1358,7 +1519,13 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         for symbol, w in weights.items():
             if w > _V72_BULL_REGIME_MAX_WEIGHT:
                 excess_weight += w - _V72_BULL_REGIME_MAX_WEIGHT
-                capped_symbols.append({"symbol": symbol, "before": round(w, 4), "after": _V72_BULL_REGIME_MAX_WEIGHT})
+                capped_symbols.append(
+                    {
+                        "symbol": symbol,
+                        "before": round(w, 4),
+                        "after": _V72_BULL_REGIME_MAX_WEIGHT,
+                    }
+                )
                 capped_weights[symbol] = _V72_BULL_REGIME_MAX_WEIGHT
             else:
                 capped_weights[symbol] = w
@@ -1372,151 +1539,24 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
     ) -> None:
         """将截断释放的权重按比例重分配给未超限的股票 (原地修改 capped_weights)。"""
         capped_symbol_set = {c["symbol"] for c in capped_symbols}
-        non_capped_total = sum(w for s, w in capped_weights.items() if s not in capped_symbol_set)
+        non_capped_total = sum(
+            w for s, w in capped_weights.items() if s not in capped_symbol_set
+        )
         if non_capped_total <= 0:
             return
         for symbol in capped_weights:
             if symbol not in capped_symbol_set:
-                capped_weights[symbol] += excess_weight * (capped_weights[symbol] / non_capped_total)
-
-    def _step_kill_switch_check(self, decision: dict) -> dict[str, Any]:
-        """P0-13: KillSwitch 熔断检查 (生产 pipeline 集成)
-
-        审计问题: 生产 pipeline 未集成 KillSwitch, L1/L2/L3 熔断对 pipeline 无效。
-        修复: 在风险预算检查后、执行路由前, 检查 KillSwitch 级别:
-          - L1: 过滤 BUY trades (停止新开仓, 仅保留 SELL)
-          - L2+: 阻止全部 trades (返回空 trades 列表)
-          - 异常: fail-closed (按 L3 处理, 阻止全部)
-
-        Returns:
-            {
-                "level": int,
-                "can_trade": bool,
-                "can_open": bool,
-                "filtered_trades": list,
-                "blocked_trades_count": int,
-                "fail_closed": bool,
-            }
-        """
-        result = {
-            "level": 0,
-            "can_trade": True,
-            "can_open": True,
-            "filtered_trades_count": len(decision.trades) if hasattr(decision, "trades") else 0,
-            "blocked_trades_count": 0,
-            "fail_closed": False,
-        }
-
-        if not _HAS_KILL_SWITCH:
-            # BUG-06 修复 (2026-07-31): 模块加载失败时 fail-closed, 而非 fail-open
-            # 原代码: level=-1, can_trade=True, can_open=True → 调用方 `level >= 2` 不触发,
-            #         风控核心模块缺失却允许所有交易通过 (fail-open, 极端市场灾难性风险).
-            # 修复: 视为 L3 (最高风险), fail_closed=True, 阻止全部交易.
-            #       smoke/backtest 模式保留 trades (保持可测试性, 由调用方判定不阻塞).
-            is_test_mode = self.ctx.mode in ("smoke", "backtest")
-            if is_test_mode:
-                logger.warning(
-                    "[KillSwitch] 模块未加载 (测试模式, 保留 trades 不阻塞). "
-                    "生产模式将 fail-closed. 请检查 utils/kill_switch.py 依赖."
+                capped_weights[symbol] += excess_weight * (
+                    capped_weights[symbol] / non_capped_total
                 )
-                result["level"] = 0
-                result["note"] = "module_not_loaded_test_mode"
-                return result
-            logger.critical(
-                "[KillSwitch] 模块未加载! fail-closed 视为 L3 (阻止全部交易). "
-                "请检查 utils/kill_switch.py 依赖."
-            )
-            result["level"] = 3
-            result["can_trade"] = False
-            result["can_open"] = False
-            result["fail_closed"] = True
-            result["note"] = "module_not_loaded_fail_closed"
-            if hasattr(decision, "trades"):
-                result["blocked_trades_count"] = len(decision.trades)
-                decision.trades = []
-                result["filtered_trades_count"] = 0
-            return result
-
-        try:
-            ks = KillSwitch()
-            ks_status = ks.check_margin_status()
-            ks_level = int(ks_status.get("level", 0)) if isinstance(ks_status, dict) else 0
-            result["level"] = ks_level
-            result["can_trade"] = bool(ks_status.get("can_trade", ks_level < 2))
-            result["can_open"] = bool(ks_status.get("can_open", ks_level == 0))
-            result["margin_usage_ratio"] = float(ks_status.get("margin_usage_ratio", 0))
-
-            logger.info(
-                "[KillSwitch] 生产 pipeline 熔断检查: L%d, can_trade=%s, can_open=%s, margin=%.1f%%",
-                ks_level,
-                result["can_trade"],
-                result["can_open"],
-                result["margin_usage_ratio"] * 100,
-            )
-
-            if ks_level == 0 or not hasattr(decision, "trades"):
-                return result
-
-            # L1: 过滤 BUY trades (停止新开仓)
-            if ks_level == 1:
-                original_count = len(decision.trades)
-                decision.trades = [
-                    t for t in decision.trades if str(t.get("side", "BUY")).upper() != "BUY" or t.get("change", 0) < 0
-                ]
-                result["blocked_trades_count"] = original_count - len(decision.trades)
-                result["filtered_trades_count"] = len(decision.trades)
-                logger.warning(
-                    "[KillSwitch L1] 停止新开仓! 过滤 %d 笔 BUY trades (保留 %d 笔 SELL)",
-                    result["blocked_trades_count"],
-                    len(decision.trades),
-                )
-
-            # L2+: 阻止全部 trades
-            elif ks_level >= 2:
-                result["blocked_trades_count"] = len(decision.trades)
-                decision.trades = []
-                result["filtered_trades_count"] = 0
-                logger.error(
-                    "[KillSwitch L%d] 阻止全部 %d 笔 trades!",
-                    ks_level,
-                    result["blocked_trades_count"],
-                )
-                # 触发熔断执行 (L2 强平 / L3 变现)
-                try:
-                    if ks_level >= 3:
-                        logger.critical("[KillSwitch L3] 触发紧急变现协议!")
-                        ks.execute_kill_switch(3)
-                    else:
-                        logger.error("[KillSwitch L2] 触发强平协议!")
-                        ks.execute_kill_switch(2)
-                except RuntimeError as e:
-                    logger.error(f"[KillSwitch] 熔断执行失败 (无 broker_callback): {e}")
-                    result["execute_error"] = str(e)
-
-        except Exception as e:
-            # P0-11: fail-closed — 异常时阻止全部交易
-            logger.critical(
-                "[KillSwitch] 检查异常! fail-closed 阻止全部 trades: %s",
-                e,
-                exc_info=True,
-            )
-            result["fail_closed"] = True
-            result["level"] = 3
-            result["can_trade"] = False
-            result["can_open"] = False
-            if hasattr(decision, "trades"):
-                result["blocked_trades_count"] = len(decision.trades)
-                decision.trades = []
-                result["filtered_trades_count"] = 0
-
-        return result
-
 
     # ------------------------------------------------------------
     # Step 6: 执行路由
     # ------------------------------------------------------------
 
-    def _regenerate_trades_from_weights(self, decision: PortfolioDecision) -> dict[str, Any]:
+    def _regenerate_trades_from_weights(
+        self, decision: PortfolioDecision
+    ) -> dict[str, Any]:
         """BUG-05 修复: 根据最新 target_weights 重建 trades 列表.
 
         背景: portfolio_decision.trades 在 optimizer.optimize() 内基于原始权重生成,
@@ -1540,11 +1580,17 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         old_count = len(old_trades)
 
         # 提取原始 trades 中的 estimated_cost (保留冲击成本估算)
-        old_cost_map = {t.get("symbol", ""): t.get("estimated_cost", 0.0) for t in old_trades if isinstance(t, dict)}
+        old_cost_map = {
+            t.get("symbol", ""): t.get("estimated_cost", 0.0)
+            for t in old_trades
+            if isinstance(t, dict)
+        }
 
         # 重建 trades: 当前生产路径 current_weights = 0 (无存量持仓)
         # 未来接入实盘后, 应从 decision.meta 或外部持仓源获取 current_weights
-        current_weights: dict[str, float] = decision.meta.get("current_weights", {}) or {}
+        current_weights: dict[str, float] = (
+            decision.meta.get("current_weights", {}) or {}
+        )
 
         new_trades: list[dict[str, Any]] = []
         max_diff = 0.0
@@ -1566,7 +1612,11 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                 max_diff = max(max_diff, abs(change))
 
         # 检测是否实际发生变化
-        old_signature = {(t.get("symbol"), t.get("change")) for t in old_trades if isinstance(t, dict)}
+        old_signature = {
+            (t.get("symbol"), t.get("change"))
+            for t in old_trades
+            if isinstance(t, dict)
+        }
         new_signature = {(t.get("symbol"), t.get("change")) for t in new_trades}
         regenerated = old_signature != new_signature
 
@@ -1588,13 +1638,16 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
     ) -> list[ExecutionPlan]:
         logger.info("[Pipeline] Step 6: 执行路由")
         signal_map = {
-            s.symbol: (s.to_dict() if hasattr(s, "to_dict") else asdict(s)) for s in signals
+            s.symbol: (s.to_dict() if hasattr(s, "to_dict") else asdict(s))
+            for s in signals
         }
         plans = []
         for trade in decision.trades:
             symbol = trade.get("symbol", "")
             # BUG-05: 优先使用重建后的 side 字段, 回退兼容旧格式
-            side = trade.get("side") or ("BUY" if trade.get("change", 0) > 0 else "SELL")
+            side = trade.get("side") or (
+                "BUY" if trade.get("change", 0) > 0 else "SELL"
+            )
             plan = self.execution_router.route(
                 order={
                     "symbol": symbol,
@@ -1631,7 +1684,10 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             from utils.infra.feature_flags import is_enabled
 
             if not is_enabled("USE_EVOLUTION_ORCHESTRATOR"):
-                return {"status": "disabled", "reason": "USE_EVOLUTION_ORCHESTRATOR=false"}
+                return {
+                    "status": "disabled",
+                    "reason": "USE_EVOLUTION_ORCHESTRATOR=false",
+                }
 
             # 优先 V2, 降级 V1
             try:
@@ -1641,10 +1697,18 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                 if orchestrator_v2.enabled:
                     cycle_result = orchestrator_v2.run_cycle()
                     logger.info("[Pipeline] Step 4.6: 自我进化 (V2) 完成")
-                    return cycle_result.to_dict() if hasattr(cycle_result, "to_dict") else {"status": "ok", "version": "v2"}
-                logger.info("[Pipeline] Step 4.6: EvolutionOrchestratorV2 flag 关闭, 降级 V1")
+                    return (
+                        cycle_result.to_dict()
+                        if hasattr(cycle_result, "to_dict")
+                        else {"status": "ok", "version": "v2"}
+                    )
+                logger.info(
+                    "[Pipeline] Step 4.6: EvolutionOrchestratorV2 flag 关闭, 降级 V1"
+                )
             except (ImportError, ValueError, TypeError, OSError, AttributeError) as e:
-                logger.warning("[Pipeline] EvolutionOrchestratorV2 不可用, 降级 V1: %s", e)
+                logger.warning(
+                    "[Pipeline] EvolutionOrchestratorV2 不可用, 降级 V1: %s", e
+                )
 
             from utils.alpha.evolution_orchestrator import EvolutionOrchestrator
 
@@ -1668,7 +1732,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
         if rebalance_result is not None:
             result["steps"]["eod_rebalance"] = rebalance_result
 
-    def _step_rebalance(self, portfolio_decision: PortfolioDecision) -> dict[str, Any] | None:
+    def _step_rebalance(
+        self, portfolio_decision: PortfolioDecision
+    ) -> dict[str, Any] | None:
         """ETF期权对冲再平衡 (phase_rebalance) — G3 ER-2.2.
 
         调用 ETFOptionHedgeRebalancer.run_daily_rebalance()
@@ -1688,7 +1754,9 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             rebalancer = ETFOptionHedgeRebalancer()
             positions = self._extract_positions_for_rebalance()
             prices = self._extract_prices_for_rebalance(portfolio_decision)
-            current_drawdown = float(portfolio_decision.meta.get("current_drawdown", 0.0))
+            current_drawdown = float(
+                portfolio_decision.meta.get("current_drawdown", 0.0)
+            )
 
             plan = rebalancer.run_daily_rebalance(
                 positions=positions,
@@ -1696,7 +1764,10 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
                 trade_date=self.ctx.report_date,
                 current_drawdown=current_drawdown,
             )
-            logger.info("[Pipeline] Step 6.6: ETF期权对冲再平衡完成 (date=%s)", self.ctx.report_date)
+            logger.info(
+                "[Pipeline] Step 6.6: ETF期权对冲再平衡完成 (date=%s)",
+                self.ctx.report_date,
+            )
             return plan.to_dict() if hasattr(plan, "to_dict") else {"status": "ok"}
         except Exception as e:
             logger.warning("[Pipeline] Step 6.6: 再平衡失败，降级跳过: %s", e)
@@ -1714,11 +1785,15 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
             logger.warning("[Pipeline] 加载 positions.json 失败, 用空持仓: %s", e)
         return {}
 
-    def _extract_prices_for_rebalance(self, portfolio_decision: PortfolioDecision) -> dict[str, float]:
+    def _extract_prices_for_rebalance(
+        self, portfolio_decision: PortfolioDecision
+    ) -> dict[str, float]:
         """从 portfolio_decision.meta 提取价格 (fail-safe, 缺失返回空)."""
         prices = portfolio_decision.meta.get("prices", {})
         if isinstance(prices, dict):
-            return {k: float(v) for k, v in prices.items() if isinstance(v, (int, float))}
+            return {
+                k: float(v) for k, v in prices.items() if isinstance(v, (int, float))
+            }
         return {}
 
     # ------------------------------------------------------------
@@ -1775,143 +1850,6 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
     # Step 7: 盘后报告生成 (phase_report) — v86 集成 W35
     # ------------------------------------------------------------
 
-    def _step_report_generation(self, result: dict[str, Any]) -> Path:
-        """盘后报告生成 (phase_report)。
-
-        生成 Markdown 格式的 pipeline 运行报告, 含各步骤状态/权重/风险/执行计划。
-        v86 集成: AI_DECISION_INTEGRATED=1 时追加 AI 复盘 + dashboard 章节。
-        """
-        date = self.ctx.report_date
-        mode = self.ctx.mode
-        report_path = self.ctx.output_path / f"pipeline_report_{mode}_{date}.md"
-
-        lines: list[str] = []
-        lines.append(f"# 机构级量化闭环报告 — {date}")
-        lines.append("")
-        lines.append(
-            f"> 模式: `{mode}` | 标的: {', '.join(self.ctx.symbols)} "
-            f"| 资金: {self.ctx.total_capital:,.0f}"
-        )
-        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append("")
-
-        steps = result.get("steps", {})
-
-        lines.append("## 步骤状态摘要")
-        lines.append("")
-        lines.append("| 步骤 | 状态 |")
-        lines.append("|------|------|")
-        step_names = [
-            ("data_gate", "1. 数据门控"),
-            ("alpha_evaluation", "2. Alpha 评估"),
-            ("signal_fusion", "3. 信号融合"),
-            ("portfolio_decision", "4. 组合优化"),
-            ("market_regime", "4.5 市场状态"),
-            ("v72_bull_regime_cap", "V7.2 Bull Cap"),
-            ("drawdown_breaker", "回撤熔断"),
-            ("risk_budget", "5. 风险预算"),
-            ("kill_switch", "KillSwitch"),
-            ("trades_sync", "trades 同步"),
-            ("execution_plans", "6. 执行路由"),
-            ("ai_eod_review", "6.5 AI 复盘"),
-        ]
-        for key, name in step_names:
-            if key in steps:
-                step_data = steps[key]
-                if isinstance(step_data, dict):
-                    status = step_data.get("status", "OK")
-                elif isinstance(step_data, list):
-                    status = f"{len(step_data)} 项"
-                else:
-                    status = "OK"
-                lines.append(f"| {name} | {status} |")
-        lines.append("")
-
-        portfolio = steps.get("portfolio_decision", {})
-        if isinstance(portfolio, dict) and portfolio.get("target_weights"):
-            lines.append("## 目标权重")
-            lines.append("")
-            lines.append("| 标的 | 权重 |")
-            lines.append("|------|------|")
-            for sym, w in portfolio["target_weights"].items():
-                lines.append(f"| {sym} | {w:.2%} |")
-            lines.append("")
-
-        risk = steps.get("risk_budget", {})
-        if isinstance(risk, dict):
-            lines.append("## 风险预算")
-            lines.append("")
-            lines.append(f"- 允许: {risk.get('allowed', 'N/A')}")
-            if risk.get("portfolio_var95") is not None:
-                lines.append(f"- 组合 VaR95: {risk['portfolio_var95']:.4f}")
-            if risk.get("max_weight_used") is not None:
-                lines.append(f"- 最大权重: {risk['max_weight_used']:.2%}")
-            lines.append("")
-
-        exec_plans = steps.get("execution_plans", [])
-        if exec_plans:
-            lines.append("## 执行计划")
-            lines.append("")
-            lines.append(f"共 {len(exec_plans)} 笔执行计划")
-            lines.append("")
-
-        self._report_ai_review_section(lines, steps.get("ai_eod_review", {}), date)
-        self._report_dashboard_section(result, lines, date)
-
-        lines.append("---")
-        lines.append("*由 institutional_pipeline_runner.py 自动生成 | v8.6 EOD 闭环*")
-
-        report_path.write_text("\n".join(lines), encoding="utf-8")
-        logger.info("[Pipeline] 盘后报告已生成: %s", report_path)
-        return report_path
-
-    def _report_ai_review_section(
-        self, lines: list[str], review: Any, date: str
-    ) -> None:
-        """报告 AI 复盘章节 (降级/正常两分支)."""
-        if isinstance(review, dict) and review.get("error"):
-            lines.append("## AI EOD 复盘 (降级)")
-            lines.append("")
-            lines.append(f"降级原因: {review.get('error', 'N/A')}")
-            lines.append("")
-        elif isinstance(review, dict) and review:
-            lines.append("## AI EOD 复盘")
-            lines.append("")
-            lines.append(f"- 日期: {review.get('date', date)}")
-            alerts = review.get("alerts")
-            if alerts is not None:
-                if isinstance(alerts, list):
-                    lines.append(f"- 告警数: {len(alerts)}")
-                elif isinstance(alerts, dict):
-                    lines.append(f"- 告警: {alerts}")
-            lines.append("")
-
-    def _report_dashboard_section(
-        self, result: dict[str, Any], lines: list[str], date: str
-    ) -> None:
-        """报告 dashboard 章节 (v86 集成, feature flag 控制, 失败降级)."""
-        if os.environ.get("AI_DECISION_INTEGRATED") != "1" or self.ctx.mode == "smoke":
-            return
-        try:
-            from ai_decision.dashboard import DashboardGenerator
-
-            dash_gen = DashboardGenerator()
-            dash_report = dash_gen.generate_daily_dashboard(date)
-            lines.append("## AI 决策看板")
-            lines.append("")
-            lines.append(f"- 看板已生成 (date={date})")
-            dash_alerts = dash_report.get("alerts")
-            if dash_alerts is not None:
-                lines.append(f"- 看板告警: {dash_alerts}")
-            lines.append("")
-            result["steps"]["ai_dashboard"] = dash_report
-        except Exception as e:
-            logger.warning("[Pipeline] AI 看板生成失败，降级: %s", e)
-            lines.append("## AI 决策看板 (降级)")
-            lines.append("")
-            lines.append(f"降级原因: {e}")
-            lines.append("")
-
     # ------------------------------------------------------------
     # 持久化
     # ------------------------------------------------------------
@@ -1936,11 +1874,28 @@ class InstitutionalPipelineRunner(DataMixin, LGBMixin, SignalMixin):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Institutional Pipeline Runner")
-    parser.add_argument("--institutional-pipeline", action="store_true", help="运行机构级量化闭环")
-    parser.add_argument("--pipeline", action="store_true", help="运行金融工程闭环流水线")
-    parser.add_argument("--mode", default="smoke", choices=["smoke", "backtest", "live", "dry_run"])
     parser.add_argument(
-        "--symbols", nargs="*", default=["600519", "000858", "601318", "000001", "600036", "601398", "600276", "000063"]
+        "--institutional-pipeline", action="store_true", help="运行机构级量化闭环"
+    )
+    parser.add_argument(
+        "--pipeline", action="store_true", help="运行金融工程闭环流水线"
+    )
+    parser.add_argument(
+        "--mode", default="smoke", choices=["smoke", "backtest", "live", "dry_run"]
+    )
+    parser.add_argument(
+        "--symbols",
+        nargs="*",
+        default=[
+            "600519",
+            "000858",
+            "601318",
+            "000001",
+            "600036",
+            "601398",
+            "600276",
+            "000063",
+        ],
     )
     parser.add_argument("--capital", type=float, default=3_000_000.0)
     return parser.parse_args()
@@ -1951,6 +1906,7 @@ def main() -> None:
     args = parse_args()
     if args.pipeline:
         from utils.pipeline import PipelineOrchestrator
+
         orchestrator = PipelineOrchestrator()
         result = orchestrator.run_full_cycle(
             mode=args.mode,

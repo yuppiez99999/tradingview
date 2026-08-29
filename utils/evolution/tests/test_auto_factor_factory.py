@@ -140,7 +140,9 @@ class TestDataClasses:
 
     def test_candidate_factor_defaults(self):
         """CandidateFactor 默认值"""
-        cf = CandidateFactor(name="TEST", category="Momentum", formula="ret", source="qlib")
+        cf = CandidateFactor(
+            name="TEST", category="Momentum", formula="ret", source="qlib"
+        )
         assert cf.n_stocks == 0
         assert cf.first_date == ""
         assert cf.last_date == ""
@@ -154,7 +156,9 @@ class TestDataClasses:
 
     def test_validated_factor_defaults(self):
         """ValidatedFactor 默认值"""
-        vf = ValidatedFactor(name="TEST", category="Momentum", formula="ret", source="qlib")
+        vf = ValidatedFactor(
+            name="TEST", category="Momentum", formula="ret", source="qlib"
+        )
         assert vf.ic_mean_1d == 0.0
         assert vf.ic_ir_1d == 0.0
         assert vf.effective is False
@@ -239,6 +243,7 @@ class TestFactoryInitialization:
     def test_import_from_package(self):
         """从 evolution 包导入"""
         from utils.evolution import AutoFactorFactory
+
         assert AutoFactorFactory is not None
 
 
@@ -250,34 +255,37 @@ class TestFactoryInitialization:
 class TestInferCategory:
     """类别推断测试"""
 
-    @pytest.mark.parametrize("name,expected", [
-        ("MOM_60D", "Momentum"),
-        ("REVERSAL_20D", "Momentum"),
-        ("MACD", "Momentum"),
-        ("RSI_14D", "Momentum"),
-        ("OBV_CHG", "Momentum"),
-        ("VOL_20D", "Volatility"),
-        ("DOWNSIDE_VOL_60D", "Volatility"),
-        ("SKEW_60D", "Volatility"),
-        ("KURT_120D", "Volatility"),
-        ("ATR_14D", "Volatility"),
-        ("BB_WIDTH_20D", "Volatility"),
-        ("TURNOVER_20D", "Liquidity"),
-        ("AMIHUD_20D", "Liquidity"),
-        ("VOLUME_CHG_5D", "Liquidity"),
-        ("VOLUME_Z_20D", "Liquidity"),
-        ("LIQ_TURNOVER", "Liquidity"),
-        ("SIZE_LOG_MCAP", "Size"),
-        ("MCAP", "Size"),
-        ("MA_DEV_20D", "Technical"),
-        ("PRICE_VOL_DIVERG_20D", "Technical"),
-        ("GTJA191_004", "Technical"),
-        ("ALPHA004", "Technical"),
-        ("SIZE_PROXY", "Fundamental_Proxy"),
-        ("EARNING_STABILITY", "Fundamental_Proxy"),
-        ("QUALITY_PROXY", "Fundamental_Proxy"),
-        ("UNKNOWN_FACTOR", "Other"),
-    ])
+    @pytest.mark.parametrize(
+        "name,expected",
+        [
+            ("MOM_60D", "Momentum"),
+            ("REVERSAL_20D", "Momentum"),
+            ("MACD", "Momentum"),
+            ("RSI_14D", "Momentum"),
+            ("OBV_CHG", "Momentum"),
+            ("VOL_20D", "Volatility"),
+            ("DOWNSIDE_VOL_60D", "Volatility"),
+            ("SKEW_60D", "Volatility"),
+            ("KURT_120D", "Volatility"),
+            ("ATR_14D", "Volatility"),
+            ("BB_WIDTH_20D", "Volatility"),
+            ("TURNOVER_20D", "Liquidity"),
+            ("AMIHUD_20D", "Liquidity"),
+            ("VOLUME_CHG_5D", "Liquidity"),
+            ("VOLUME_Z_20D", "Liquidity"),
+            ("LIQ_TURNOVER", "Liquidity"),
+            ("SIZE_LOG_MCAP", "Size"),
+            ("MCAP", "Size"),
+            ("MA_DEV_20D", "Technical"),
+            ("PRICE_VOL_DIVERG_20D", "Technical"),
+            ("GTJA191_004", "Technical"),
+            ("ALPHA004", "Technical"),
+            ("SIZE_PROXY", "Fundamental_Proxy"),
+            ("EARNING_STABILITY", "Fundamental_Proxy"),
+            ("QUALITY_PROXY", "Fundamental_Proxy"),
+            ("UNKNOWN_FACTOR", "Other"),
+        ],
+    )
     def test_infer_category(self, factory, name, expected):
         """验证各类别推断"""
         result = factory._infer_category(name)
@@ -292,26 +300,29 @@ class TestInferCategory:
 class TestInferFormula:
     """公式推断测试"""
 
-    @pytest.mark.parametrize("name,expected", [
-        ("MOM_60D", "close / close.shift(60) - 1"),
-        ("MOM_20D", "close / close.shift(20) - 1"),
-        ("REVERSAL_20D", "-(close / close.shift(20) - 1)"),
-        ("VOL_20D", "ret.rolling(20).std()"),
-        ("TURNOVER_20D", "volume.rolling(20).mean()"),
-        ("RSI_14D", "RSI(14)"),
-        ("MA_DEV_20D", "close / close.rolling(20).mean() - 1"),
-        ("SKEW_60D", "ret.rolling(60).skew()"),
-        ("KURT_120D", "ret.rolling(120).kurt()"),
-        ("AMIHUD_20D", "mean(|ret| / volume, 20)"),
-        ("GTJA191_004", "GTJA191 factor: GTJA191_004"),
-        ("ALPHA004", "GTJA191 factor: ALPHA004"),
-        ("OBV_CHG", "OBV / OBV.shift(20) - 1"),
-        ("PRICE_VOL_DIVERG_20D", "price新高 && volume未新高"),
-        ("SIZE_PROXY", "close (市值代理)"),
-        ("LONG_TERM_RET", "close / close.shift(252) - 1"),
-        ("EARNING_STABILITY", "-ret.rolling(252).std()"),
-        ("QUALITY_PROXY", "ret.mean() / ret.std() (120日)"),
-    ])
+    @pytest.mark.parametrize(
+        "name,expected",
+        [
+            ("MOM_60D", "close / close.shift(60) - 1"),
+            ("MOM_20D", "close / close.shift(20) - 1"),
+            ("REVERSAL_20D", "-(close / close.shift(20) - 1)"),
+            ("VOL_20D", "ret.rolling(20).std()"),
+            ("TURNOVER_20D", "volume.rolling(20).mean()"),
+            ("RSI_14D", "RSI(14)"),
+            ("MA_DEV_20D", "close / close.rolling(20).mean() - 1"),
+            ("SKEW_60D", "ret.rolling(60).skew()"),
+            ("KURT_120D", "ret.rolling(120).kurt()"),
+            ("AMIHUD_20D", "mean(|ret| / volume, 20)"),
+            ("GTJA191_004", "GTJA191 factor: GTJA191_004"),
+            ("ALPHA004", "GTJA191 factor: ALPHA004"),
+            ("OBV_CHG", "OBV / OBV.shift(20) - 1"),
+            ("PRICE_VOL_DIVERG_20D", "price新高 && volume未新高"),
+            ("SIZE_PROXY", "close (市值代理)"),
+            ("LONG_TERM_RET", "close / close.shift(252) - 1"),
+            ("EARNING_STABILITY", "-ret.rolling(252).std()"),
+            ("QUALITY_PROXY", "ret.mean() / ret.std() (120日)"),
+        ],
+    )
     def test_infer_formula(self, factory, name, expected):
         """验证公式推断"""
         result = factory._infer_formula(name)
@@ -329,9 +340,15 @@ class TestValidationScore:
     def test_high_quality_factor(self, factory):
         """高质量因子评分"""
         vf = ValidatedFactor(
-            name="MOM_60D", category="Momentum", formula="ret", source="qlib",
-            ic_mean_1d=0.05, ic_ir_1d=1.0, ic_positive_ratio=0.70,
-            monotonicity=0.95, long_short_return=0.005,
+            name="MOM_60D",
+            category="Momentum",
+            formula="ret",
+            source="qlib",
+            ic_mean_1d=0.05,
+            ic_ir_1d=1.0,
+            ic_positive_ratio=0.70,
+            monotonicity=0.95,
+            long_short_return=0.005,
         )
         score = factory._compute_validation_score(vf)
         # IC: min(0.05*100, 5) * 0.30 = 1.5
@@ -345,9 +362,15 @@ class TestValidationScore:
     def test_low_quality_factor(self, factory):
         """低质量因子评分"""
         vf = ValidatedFactor(
-            name="WEAK", category="Other", formula="?", source="qlib",
-            ic_mean_1d=0.01, ic_ir_1d=0.1, ic_positive_ratio=0.51,
-            monotonicity=0.2, long_short_return=0.0001,
+            name="WEAK",
+            category="Other",
+            formula="?",
+            source="qlib",
+            ic_mean_1d=0.01,
+            ic_ir_1d=0.1,
+            ic_positive_ratio=0.51,
+            monotonicity=0.2,
+            long_short_return=0.0001,
         )
         score = factory._compute_validation_score(vf)
         # IC: min(1, 5) * 0.30 = 0.3
@@ -361,10 +384,17 @@ class TestValidationScore:
     def test_score_with_walk_forward(self, factory):
         """含 Walk-Forward 评分的因子"""
         vf = ValidatedFactor(
-            name="MOM_60D", category="Momentum", formula="ret", source="qlib",
-            ic_mean_1d=0.03, ic_ir_1d=0.6, ic_positive_ratio=0.60,
-            monotonicity=0.8, long_short_return=0.002,
-            wf_n_windows=10, wf_consistency=0.80,
+            name="MOM_60D",
+            category="Momentum",
+            formula="ret",
+            source="qlib",
+            ic_mean_1d=0.03,
+            ic_ir_1d=0.6,
+            ic_positive_ratio=0.60,
+            monotonicity=0.8,
+            long_short_return=0.002,
+            wf_n_windows=10,
+            wf_consistency=0.80,
         )
         score = factory._compute_validation_score(vf)
         # 基础: 3*0.30 + 0.6*0.25 + 0.60*0.15 + 0.8*0.15 + 0.2*0.10
@@ -377,18 +407,28 @@ class TestValidationScore:
         """有效性阈值判定"""
         # 有效因子
         vf_ok = ValidatedFactor(
-            name="OK", category="Momentum", formula="ret", source="qlib",
-            ic_mean_1d=0.03, ic_ir_1d=0.40,
+            name="OK",
+            category="Momentum",
+            formula="ret",
+            source="qlib",
+            ic_mean_1d=0.03,
+            ic_ir_1d=0.40,
         )
-        vf_ok.effective = (abs(vf_ok.ic_mean_1d) >= 0.02 and abs(vf_ok.ic_ir_1d) >= 0.30)
+        vf_ok.effective = abs(vf_ok.ic_mean_1d) >= 0.02 and abs(vf_ok.ic_ir_1d) >= 0.30
         assert vf_ok.effective is True
 
         # 无效因子
         vf_bad = ValidatedFactor(
-            name="BAD", category="Momentum", formula="ret", source="qlib",
-            ic_mean_1d=0.01, ic_ir_1d=0.10,
+            name="BAD",
+            category="Momentum",
+            formula="ret",
+            source="qlib",
+            ic_mean_1d=0.01,
+            ic_ir_1d=0.10,
         )
-        vf_bad.effective = (abs(vf_bad.ic_mean_1d) >= 0.02 and abs(vf_bad.ic_ir_1d) >= 0.30)
+        vf_bad.effective = (
+            abs(vf_bad.ic_mean_1d) >= 0.02 and abs(vf_bad.ic_ir_1d) >= 0.30
+        )
         assert vf_bad.effective is False
 
 
@@ -407,7 +447,9 @@ class TestDeployment:
 
     def test_deploy_with_validated(self, factory, sample_validated):
         """部署已验证因子"""
-        deployed = factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        deployed = factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         assert len(deployed) == 2
         assert deployed[0].name == "MOM_60D"
         assert deployed[0].active is True
@@ -415,22 +457,30 @@ class TestDeployment:
 
     def test_deploy_idempotent(self, factory, sample_validated):
         """重复部署幂等"""
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         # 再次部署, 应跳过已部署的
-        deployed2 = factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        deployed2 = factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         assert len(deployed2) == 0
 
     def test_deploy_max_active_limit(self, factory, sample_validated):
         """活跃因子数上限"""
         # 设置很小的上限
         factory.max_active_factors = 1
-        deployed = factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        deployed = factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         # 只部署评分最高的 1 个
         assert len(deployed) == 1
 
     def test_deploy_generate_code(self, factory, sample_validated):
         """生成因子代码"""
-        deployed = factory.deploy(validated=sample_validated, generate_code=True, register_to_library=False)
+        deployed = factory.deploy(
+            validated=sample_validated, generate_code=True, register_to_library=False
+        )
         assert len(deployed) == 2
         # 代码文件应存在
         for d in deployed:
@@ -442,13 +492,16 @@ class TestDeployment:
 
     def test_register_to_library(self, factory, sample_validated):
         """注册到因子登记簿"""
-        deployed = factory.deploy(validated=sample_validated, generate_code=False, register_to_library=True)
+        deployed = factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=True
+        )
         assert len(deployed) == 2
 
         # 验证登记簿
         registry_path = factory.data_dir / "factor_registry.json"
         assert registry_path.exists()
         import json
+
         registry = json.loads(registry_path.read_text(encoding="utf-8"))
         assert "MOM_60D" in registry
         assert registry["MOM_60D"]["active"] is True
@@ -470,13 +523,14 @@ class TestMonitoring:
     def test_monitor_with_deployed(self, factory, sample_validated):
         """有已部署因子时的监控"""
         # 先部署
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
 
         # 添加 IC 历史 (低于阈值)
         for name in ["MOM_60D", "VOL_20D"]:
             factory._ic_history[name] = [
-                {"date": f"2026-01-{d:02d}", "ic": 0.01}
-                for d in range(1, 8)
+                {"date": f"2026-01-{d:02d}", "ic": 0.01} for d in range(1, 8)
             ]
 
         # 监控
@@ -488,13 +542,14 @@ class TestMonitoring:
 
     def test_monitor_high_ic_no_retire(self, factory, sample_validated):
         """高 IC 因子不应被淘汰"""
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
 
         # 添加高 IC 历史
         for name in ["MOM_60D", "VOL_20D"]:
             factory._ic_history[name] = [
-                {"date": f"2026-01-{d:02d}", "ic": 0.05}
-                for d in range(1, 8)
+                {"date": f"2026-01-{d:02d}", "ic": 0.05} for d in range(1, 8)
             ]
 
         suggestions = factory.monitor()
@@ -504,7 +559,9 @@ class TestMonitoring:
 
     def test_retire_factor(self, factory, sample_validated):
         """淘汰因子"""
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         factory._retire_factor("MOM_60D")
         assert factory._deployed["MOM_60D"].active is False
 
@@ -567,7 +624,9 @@ class TestQueryAPI:
 
     def test_get_active_factors(self, factory, sample_validated):
         """获取活跃因子"""
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         active = factory.get_active_factors()
         assert len(active) == 2
 
@@ -577,14 +636,18 @@ class TestQueryAPI:
 
     def test_get_retired_factors(self, factory, sample_validated):
         """获取已淘汰因子"""
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         factory._retire_factor("MOM_60D")
         retired = factory.get_retired_factors()
         assert "MOM_60D" in retired
 
     def test_get_factor_summary(self, factory, sample_validated):
         """获取因子摘要"""
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         summary = factory.get_factor_summary()
         assert summary["n_deployed"] == 2
         assert summary["n_active"] == 2
@@ -601,14 +664,18 @@ class TestReset:
 
     def test_reset_without_confirm(self, factory, sample_validated):
         """未确认时重置失败"""
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         result = factory.reset(confirm=False)
         assert result is False
         assert len(factory._deployed) == 2
 
     def test_reset_with_confirm(self, factory, sample_validated):
         """确认后重置成功"""
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         result = factory.reset(confirm=True)
         assert result is True
         assert len(factory._deployed) == 0
@@ -616,7 +683,9 @@ class TestReset:
 
     def test_reset_clears_state_file(self, factory, sample_validated):
         """重置清除状态文件"""
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         factory.reset(confirm=True)
         state_file = factory._state_path("factory_state")
         assert not state_file.exists()
@@ -647,7 +716,9 @@ class TestEdgeCases:
 
     def test_monitor_no_history(self, factory, sample_validated):
         """无 IC 历史时监控跳过"""
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         # 不添加 IC 历史
         suggestions = factory.monitor()
         assert len(suggestions) == 0
@@ -686,7 +757,9 @@ class TestEdgeCases:
 class TestLifecycle:
     """完整生命周期测试"""
 
-    def test_discover_to_retire_lifecycle(self, factory, sample_candidates, sample_validated):
+    def test_discover_to_retire_lifecycle(
+        self, factory, sample_candidates, sample_validated
+    ):
         """发现→验证→部署→监控→淘汰 完整生命周期"""
         # Step 1: 模拟发现
         for c in sample_candidates:
@@ -709,8 +782,7 @@ class TestLifecycle:
         # Step 4: 模拟低 IC 历史 → 触发淘汰
         for name in ["MOM_60D", "VOL_20D"]:
             factory._ic_history[name] = [
-                {"date": f"2026-01-{d:02d}", "ic": 0.01}
-                for d in range(1, 8)
+                {"date": f"2026-01-{d:02d}", "ic": 0.01} for d in range(1, 8)
             ]
 
         suggestions = factory.monitor()
@@ -725,14 +797,18 @@ class TestLifecycle:
     def test_factor_reenable(self, factory, sample_validated):
         """淘汰后重新部署"""
         # 部署
-        factory.deploy(validated=sample_validated, generate_code=False, register_to_library=False)
+        factory.deploy(
+            validated=sample_validated, generate_code=False, register_to_library=False
+        )
         # 淘汰
         factory._retire_factor("MOM_60D")
         assert factory._deployed["MOM_60D"].active is False
 
         # 重新部署 (版本升级)
         vf_new = sample_validated[0]
-        deployed = factory.deploy(validated=[vf_new], generate_code=False, register_to_library=False)
+        deployed = factory.deploy(
+            validated=[vf_new], generate_code=False, register_to_library=False
+        )
         assert len(deployed) == 1
         assert deployed[0].version == 2
         assert deployed[0].active is True

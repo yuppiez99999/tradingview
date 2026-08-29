@@ -29,20 +29,24 @@ _GRAYSCALE_STATE_FILE = os.path.join("reports", "ai_decision", "grayscale_state.
 # 灰度状态管理
 # ============================================================
 
+
 @dataclass
 class GrayscaleState:
     """灰度发布状态机"""
-    stage: str = "shadow"                     # shadow / paper / auto_10 / auto_50 / auto_100
-    started_at: str = ""                      # 当前阶段开始时间 ISO
-    cumulative_pnl: float = 0.0               # 累计 PnL
+
+    stage: str = "shadow"  # shadow / paper / auto_10 / auto_50 / auto_100
+    started_at: str = ""  # 当前阶段开始时间 ISO
+    cumulative_pnl: float = 0.0  # 累计 PnL
     daily_pnl_series: list[float] = field(default_factory=list)  # 最近 30 日 PnL
-    consecutive_losses: int = 0               # 连续亏损天数
-    rollback_count: int = 0                   # 回滚次数
-    last_evaluation: str = ""                 # 上次评估时间
+    consecutive_losses: int = 0  # 连续亏损天数
+    rollback_count: int = 0  # 回滚次数
+    last_evaluation: str = ""  # 上次评估时间
     # Step 5 新增: 推进条件评估所需指标
-    daily_decision_count: list[int] = field(default_factory=list)  # 每日决策数 (shadow→paper 条件)
-    paper_fill_rate: float = 0.0              # paper 阶段模拟成交率 (paper→auto_10 条件)
-    escalation_count: int = 0                 # 当前阶段 escalation 计数 (paper→auto_10 条件)
+    daily_decision_count: list[int] = field(
+        default_factory=list
+    )  # 每日决策数 (shadow→paper 条件)
+    paper_fill_rate: float = 0.0  # paper 阶段模拟成交率 (paper→auto_10 条件)
+    escalation_count: int = 0  # 当前阶段 escalation 计数 (paper→auto_10 条件)
 
     @classmethod
     def load(cls) -> GrayscaleState:
@@ -82,8 +86,12 @@ class GrayscaleState:
         """
         os.makedirs(os.path.dirname(_GRAYSCALE_STATE_FILE), exist_ok=True)
         with open(_GRAYSCALE_STATE_FILE, "w", encoding="utf-8") as fh:
-            json.dump({k: getattr(self, k) for k in self.__dict__},
-                      fh, ensure_ascii=False, indent=2)
+            json.dump(
+                {k: getattr(self, k) for k in self.__dict__},
+                fh,
+                ensure_ascii=False,
+                indent=2,
+            )
 
     def should_rollback(self) -> tuple[bool, str]:
         """检查是否应触发回滚 (在 auto 模式下每笔交易前调用)"""
@@ -99,11 +107,15 @@ class GrayscaleState:
         # 2. PnL 偏离 > 2σ (基于近 30 日序列)
         if len(self.daily_pnl_series) >= 5:
             mu = sum(self.daily_pnl_series) / len(self.daily_pnl_series)
-            var = sum((x - mu) ** 2 for x in self.daily_pnl_series) / len(self.daily_pnl_series)
+            var = sum((x - mu) ** 2 for x in self.daily_pnl_series) / len(
+                self.daily_pnl_series
+            )
             sigma = math.sqrt(var) if var > 0 else 0.001
             latest = self.daily_pnl_series[-1]
             if latest < mu - 2 * sigma and sigma > 0:
-                reasons.append(f"PnL {latest:.4f} 偏离均值 {mu:.4f} 超过 2σ ({sigma:.4f})")
+                reasons.append(
+                    f"PnL {latest:.4f} 偏离均值 {mu:.4f} 超过 2σ ({sigma:.4f})"
+                )
 
         if reasons:
             return True, "; ".join(reasons)
@@ -160,9 +172,9 @@ class GrayscaleState:
     # ClassVar 标记为类变量, 不被 dataclass 当作字段
     _ADVANCE_MAP: ClassVar[dict[str, tuple[str, int]]] = {
         # 当前阶段 → (下一阶段, 最小停留天数)
-        "shadow":  ("paper",   14),  # shadow → paper: 跑满 14 天
-        "paper":   ("auto_10", 3),   # paper → auto_10: 跑满 3 天
-        "auto_10": ("auto_50", 3),   # auto_10 → auto_50: 跑满 3 天
+        "shadow": ("paper", 14),  # shadow → paper: 跑满 14 天
+        "paper": ("auto_10", 3),  # paper → auto_10: 跑满 3 天
+        "auto_10": ("auto_50", 3),  # auto_10 → auto_50: 跑满 3 天
         "auto_50": ("auto_100", 7),  # auto_50 → auto_100: 跑满 7 天
     }
 
@@ -329,7 +341,10 @@ class GrayscaleState:
             next_stage = self._ADVANCE_MAP[self.stage][0]
             logger.info(
                 "GRAYSCALE ADVANCE: %s -> %s (已运行 %d 天, PnL=%.2f)",
-                self.stage, next_stage, self._calc_days_in_stage(), self.cumulative_pnl,
+                self.stage,
+                next_stage,
+                self._calc_days_in_stage(),
+                self.cumulative_pnl,
             )
             self.stage = next_stage
             self.started_at = datetime.now().isoformat()
@@ -364,6 +379,7 @@ class GrayscaleState:
 # ============================================================
 # 灰度管理工具函数
 # ============================================================
+
 
 def get_grayscale_summary() -> dict[str, Any]:
     """获取当前灰度状态摘要 (用于仪表盘)"""

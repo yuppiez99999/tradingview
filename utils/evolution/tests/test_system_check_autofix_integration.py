@@ -31,7 +31,14 @@ from utils.system_check import (
 class FakeCheckResult:
     """模拟 CheckResult."""
 
-    def __init__(self, code="C6.1", name="测试项", status=CheckStatus.FAIL, detail="", remediation=""):
+    def __init__(
+        self,
+        code="C6.1",
+        name="测试项",
+        status=CheckStatus.FAIL,
+        detail="",
+        remediation="",
+    ):
         self.code = code
         self.name = name
         self.status = status
@@ -60,6 +67,7 @@ class TestBackwardCompat:
     def test_auto_fix_false_default(self):
         """auto_fix 默认 False (向后兼容)."""
         import inspect
+
         sig = inspect.signature(assert_system_ready)
         assert sig.parameters["auto_fix"].default is False
 
@@ -178,7 +186,9 @@ class TestRunAutoFixAndRecheck:
         """修复结果应写入 reports/system_check/auto_fix_log.jsonl."""
         fail_report = FakeReport(
             exit_code=1,
-            results=[FakeCheckResult(code="C6.1", status=CheckStatus.FAIL, name="磁盘")],
+            results=[
+                FakeCheckResult(code="C6.1", status=CheckStatus.FAIL, name="磁盘")
+            ],
         )
 
         # 切换到临时目录, 让 _log_auto_fix_result 写到临时位置
@@ -212,6 +222,7 @@ class TestRunAutoFixAndRecheck:
 
         # Mock import 抛 ImportError
         import builtins
+
         original_import = builtins.__import__
 
         def failing_import(name, *args, **kwargs):
@@ -253,7 +264,8 @@ class TestCLIIntegration:
         # 用 --skip-datasource 加速 + --auto-fix
         result = subprocess.run(
             [
-                sys.executable, str(script),
+                sys.executable,
+                str(script),
                 "--skip-datasource",
                 "--auto-fix",
                 "--quiet",

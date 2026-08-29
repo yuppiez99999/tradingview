@@ -42,6 +42,7 @@ from quant_modules.ai_hedge_fund.fine_grained_workflow import (
 # TaskType 枚举测试
 # ============================================================
 
+
 class TestTaskType:
     """任务类型枚举测试。"""
 
@@ -67,6 +68,7 @@ class TestTaskType:
 # ============================================================
 # TaskNode 测试
 # ============================================================
+
 
 class TestTaskNode:
     """任务节点测试。"""
@@ -119,6 +121,7 @@ class TestTaskNode:
 # TaskGraph 测试
 # ============================================================
 
+
 class TestTaskGraph:
     """任务图 (DAG) 测试。"""
 
@@ -133,9 +136,13 @@ class TestTaskGraph:
     def test_topological_sort_linear(self):
         """线性依赖拓扑排序。"""
         graph = TaskGraph()
-        graph.add_task(TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"]))
+        graph.add_task(
+            TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"])
+        )
         graph.add_task(TaskNode("t1", TaskType.DATA_COLLECTION, "a"))
-        graph.add_task(TaskNode("t3", TaskType.SIGNAL_GENERATION, "a", dependencies=["t2"]))
+        graph.add_task(
+            TaskNode("t3", TaskType.SIGNAL_GENERATION, "a", dependencies=["t2"])
+        )
         order = graph.topological_sort()
         assert order.index("t1") < order.index("t2") < order.index("t3")
 
@@ -150,8 +157,12 @@ class TestTaskGraph:
     def test_topological_sort_cycle_raises(self):
         """循环依赖抛出 ValueError。"""
         graph = TaskGraph()
-        graph.add_task(TaskNode("t1", TaskType.DATA_COLLECTION, "a", dependencies=["t2"]))
-        graph.add_task(TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"]))
+        graph.add_task(
+            TaskNode("t1", TaskType.DATA_COLLECTION, "a", dependencies=["t2"])
+        )
+        graph.add_task(
+            TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"])
+        )
         try:
             graph.topological_sort()
             raise AssertionError("应抛出 ValueError")
@@ -161,7 +172,9 @@ class TestTaskGraph:
     def test_topological_sort_missing_dep_ignored(self):
         """缺失依赖被忽略 (不报错)。"""
         graph = TaskGraph()
-        graph.add_task(TaskNode("t1", TaskType.DATA_COLLECTION, "a", dependencies=["missing"]))
+        graph.add_task(
+            TaskNode("t1", TaskType.DATA_COLLECTION, "a", dependencies=["missing"])
+        )
         order = graph.topological_sort()
         assert order == ["t1"]
 
@@ -169,7 +182,9 @@ class TestTaskGraph:
         """初始时无依赖任务可执行。"""
         graph = TaskGraph()
         graph.add_task(TaskNode("t1", TaskType.DATA_COLLECTION, "a"))
-        graph.add_task(TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"]))
+        graph.add_task(
+            TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"])
+        )
         ready = graph.get_ready_tasks()
         assert ready == ["t1"]
 
@@ -188,7 +203,9 @@ class TestTaskGraph:
         """线性依赖每层一个任务。"""
         graph = TaskGraph()
         graph.add_task(TaskNode("t1", TaskType.DATA_COLLECTION, "a"))
-        graph.add_task(TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"]))
+        graph.add_task(
+            TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"])
+        )
         groups = graph.get_parallel_groups()
         assert groups == [["t1"], ["t2"]]
 
@@ -205,9 +222,15 @@ class TestTaskGraph:
         """菱形依赖: t1 → {t2, t3} → t4。"""
         graph = TaskGraph()
         graph.add_task(TaskNode("t1", TaskType.DATA_COLLECTION, "a"))
-        graph.add_task(TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"]))
-        graph.add_task(TaskNode("t3", TaskType.FEATURE_EXTRACTION, "b", dependencies=["t1"]))
-        graph.add_task(TaskNode("t4", TaskType.SIGNAL_GENERATION, "a", dependencies=["t2", "t3"]))
+        graph.add_task(
+            TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"])
+        )
+        graph.add_task(
+            TaskNode("t3", TaskType.FEATURE_EXTRACTION, "b", dependencies=["t1"])
+        )
+        graph.add_task(
+            TaskNode("t4", TaskType.SIGNAL_GENERATION, "a", dependencies=["t2", "t3"])
+        )
         groups = graph.get_parallel_groups()
         assert groups[0] == ["t1"]
         assert set(groups[1]) == {"t2", "t3"}
@@ -216,8 +239,12 @@ class TestTaskGraph:
     def test_get_parallel_groups_cycle_raises(self):
         """循环依赖抛出 ValueError。"""
         graph = TaskGraph()
-        graph.add_task(TaskNode("t1", TaskType.DATA_COLLECTION, "a", dependencies=["t2"]))
-        graph.add_task(TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"]))
+        graph.add_task(
+            TaskNode("t1", TaskType.DATA_COLLECTION, "a", dependencies=["t2"])
+        )
+        graph.add_task(
+            TaskNode("t2", TaskType.FEATURE_EXTRACTION, "a", dependencies=["t1"])
+        )
         try:
             graph.get_parallel_groups()
             raise AssertionError("应抛出 ValueError")
@@ -236,6 +263,7 @@ class TestTaskGraph:
 # ============================================================
 # 默认执行器测试
 # ============================================================
+
 
 class TestDefaultExecutors:
     """默认任务执行器测试。"""
@@ -288,6 +316,7 @@ class TestDefaultExecutors:
 # FineGrainedWorkflow — 单分析师测试
 # ============================================================
 
+
 class TestBuildAnalystTasks:
     """build_analyst_tasks 测试。"""
 
@@ -333,6 +362,7 @@ class TestBuildAnalystTasks:
 # ============================================================
 # FineGrainedWorkflow — 团队任务测试
 # ============================================================
+
 
 class TestBuildTeamTasks:
     """build_team_tasks 测试。"""
@@ -393,6 +423,7 @@ class TestBuildTeamTasks:
 # FineGrainedWorkflow — 执行测试
 # ============================================================
 
+
 class TestExecute:
     """execute 测试。"""
 
@@ -404,7 +435,6 @@ class TestExecute:
         assert "warren_buffett_data" in results
         assert "warren_buffett_signal" in results
         assert results["warren_buffett_signal"]["signal"] == "buy"
-
 
     def test_execute_all_completed(self):
         """执行后所有任务完成。"""
@@ -436,9 +466,14 @@ class TestExecute:
             raise ValueError("模拟失败")
 
         graph = TaskGraph()
-        graph.add_task(TaskNode(
-            "t1", TaskType.DATA_COLLECTION, "a", executor=failing_executor,
-        ))
+        graph.add_task(
+            TaskNode(
+                "t1",
+                TaskType.DATA_COLLECTION,
+                "a",
+                executor=failing_executor,
+            )
+        )
         wf = FineGrainedWorkflow()
         results = wf.execute(graph, {})
         assert graph.nodes["t1"].status == "failed"
@@ -466,6 +501,7 @@ class TestExecute:
 # FineGrainedWorkflow — 摘要测试
 # ============================================================
 
+
 class TestGetTaskSummary:
     """get_task_summary 测试。"""
 
@@ -483,13 +519,16 @@ class TestGetTaskSummary:
         wf = FineGrainedWorkflow(enable_debate=True)
         graph = wf.build_team_tasks(["warren_buffett", "ben_graham"])
         summary = wf.get_task_summary(graph)
-        assert summary["n_tasks"] == 7  # shared(1) + 2*(feat+sig)(4) + debate(1) + portfolio(1)
+        assert (
+            summary["n_tasks"] == 7
+        )  # shared(1) + 2*(feat+sig)(4) + debate(1) + portfolio(1)
         assert summary["type_counts"]["feature_extraction"] == 2
 
 
 # ============================================================
 # 旧接口兼容层测试
 # ============================================================
+
 
 class TestCreateFineGrainedAgent:
     """create_fine_grained_agent 兼容层测试。"""
@@ -536,6 +575,7 @@ class TestCreateFineGrainedAgent:
 # ANALYST_NAMES 完整性测试
 # ============================================================
 
+
 class TestAnalystNames:
     """20 位分析师列表测试。"""
 
@@ -564,13 +604,20 @@ class TestAnalystNames:
 # 端到端集成测试
 # ============================================================
 
+
 class TestEndToEnd:
     """端到端集成测试。"""
 
     def test_full_team_workflow(self):
         """完整团队工作流: 5 分析师 + 辩论 + 组合。"""
         wf = FineGrainedWorkflow(enable_reflection=True, enable_debate=True)
-        team = ["warren_buffett", "ben_graham", "cathie_wood", "peter_lynch", "phil_fisher"]
+        team = [
+            "warren_buffett",
+            "ben_graham",
+            "cathie_wood",
+            "peter_lynch",
+            "phil_fisher",
+        ]
         graph = wf.build_team_tasks(team)
         results = wf.execute(graph, {"symbols": ["000001.SZ", "600519.SH"]})
 

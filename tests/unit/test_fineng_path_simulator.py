@@ -1,4 +1,5 @@
 """utils.fineng.path_simulator 单元测试 — PathSimulator / simulate_portfolio / compare_history / report"""
+
 from __future__ import annotations
 
 import random
@@ -13,7 +14,9 @@ from utils.fineng.path_simulator import (
 
 
 def _simulator(n_paths: int = 200, seed: int = 123) -> PathSimulator:
-    return PathSimulator(n_paths=n_paths, n_days=21, seed=seed, residual_method="normal")
+    return PathSimulator(
+        n_paths=n_paths, n_days=21, seed=seed, residual_method="normal"
+    )
 
 
 def _cov() -> list[list[float]]:
@@ -23,11 +26,19 @@ def _cov() -> list[list[float]]:
 def _empty_result() -> PathSimResult:
     """构造空 PathSimResult (供边界测试, NaN 占位)"""
     return PathSimResult(
-        dd_p50=float("nan"), dd_p75=float("nan"), dd_p90=float("nan"),
-        dd_p95=float("nan"), dd_p99=float("nan"), dd_max=float("nan"),
-        nav_terminal_p50=float("nan"), nav_terminal_p10=float("nan"),
-        nav_terminal_p05=float("nan"), nav_terminal_p01=float("nan"),
-        n_paths=1, n_days=1, n_assets=2,
+        dd_p50=float("nan"),
+        dd_p75=float("nan"),
+        dd_p90=float("nan"),
+        dd_p95=float("nan"),
+        dd_p99=float("nan"),
+        dd_max=float("nan"),
+        nav_terminal_p50=float("nan"),
+        nav_terminal_p10=float("nan"),
+        nav_terminal_p05=float("nan"),
+        nav_terminal_p01=float("nan"),
+        n_paths=1,
+        n_days=1,
+        n_assets=2,
     )
 
 
@@ -84,13 +95,17 @@ def test_generate_stress_report():
     sim = _simulator()
     result = sim.simulate_portfolio([0.6, 0.4], _cov(), daily_mean=[0.0003, 0.0002])
     sim.compare_history(result, dd_2015=-0.45, dd_2020=-0.15)
-    report = generate_stress_report(result, portfolio_name="test", date_str="2026-08-10")
+    report = generate_stress_report(
+        result, portfolio_name="test", date_str="2026-08-10"
+    )
     assert report.portfolio_name == "test"
     assert report.n_paths == 200
     assert "P50" in report.dd_distribution_summary
     assert "P99" in report.dd_distribution_summary
     assert "2015_Crash" in report.historical_dd_comparison
-    assert report.historical_dd_comparison["2015_Crash"]["Historical_DD"] == pytest.approx(-0.45)
+    assert report.historical_dd_comparison["2015_Crash"][
+        "Historical_DD"
+    ] == pytest.approx(-0.45)
     assert isinstance(report.p90_adequate, bool)
 
 

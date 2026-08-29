@@ -47,14 +47,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # 强制 UTF-8 输出
-if sys.stdout.encoding != 'utf-8':
+if sys.stdout.encoding != "utf-8":
     try:
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
-if sys.stderr.encoding != 'utf-8':
+if sys.stderr.encoding != "utf-8":
     try:
-        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
 
@@ -73,11 +73,11 @@ VENV_PYTHON = os.environ.get("QUANT_PYTHON") or sys.executable
 # 重训配置
 # ═══════════════════════════════════════════════════════════════
 RETRAIN_CONFIG = {
-    "max_age_days": 30,              # 模型最大年龄 (超过则重训)
-    "min_ic_threshold": 0.0,         # IC 低于此值则重训 (性能退化)
-    "min_sharpe_threshold": 0.0,     # Sharpe 低于此值则重训
-    "training_timeout_min": 60,      # 单次训练超时 (分钟)
-    "backup_old_models": True,       # 重训前备份旧模型
+    "max_age_days": 30,  # 模型最大年龄 (超过则重训)
+    "min_ic_threshold": 0.0,  # IC 低于此值则重训 (性能退化)
+    "min_sharpe_threshold": 0.0,  # Sharpe 低于此值则重训
+    "training_timeout_min": 60,  # 单次训练超时 (分钟)
+    "backup_old_models": True,  # 重训前备份旧模型
     "archive_retrain_report": True,  # 归档重训报告
 }
 
@@ -276,10 +276,10 @@ def retrain_model(
 
     try:
         env = os.environ.copy()
-        env.pop('PYTHONHOME', None)
-        env.pop('PYTHONPATH', None)
-        env['PYTHONIOENCODING'] = 'utf-8'
-        env['PYTHONUTF8'] = '1'
+        env.pop("PYTHONHOME", None)
+        env.pop("PYTHONPATH", None)
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
 
         result = subprocess.run(
             cmd,
@@ -408,13 +408,15 @@ def generate_retrain_report(
             f"{m['ic']:.3f} | {m['sharpe']:.2f} | {reasons} | {status} |"
         )
 
-    lines.extend([
-        "",
-        "## 三、重训前后性能对比",
-        "",
-        "| 代码 | 旧IC | 新IC | IC改进 | 旧Sharpe | 新Sharpe | Sharpe改进 | 验证 |",
-        "|------|------|------|--------|---------|---------|-----------|------|",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 三、重训前后性能对比",
+            "",
+            "| 代码 | 旧IC | 新IC | IC改进 | 旧Sharpe | 新Sharpe | Sharpe改进 | 验证 |",
+            "|------|------|------|--------|---------|---------|-----------|------|",
+        ]
+    )
 
     for v in verifications:
         if v.get("verified"):
@@ -428,26 +430,32 @@ def generate_retrain_report(
                 f"{sh_emoji} {sh_imp:+.2f} | ✅ |"
             )
         else:
-            lines.append(f"| {v.get('symbol', '?')} | - | - | - | - | - | - | ❌ {v.get('reason', '')} |")
+            lines.append(
+                f"| {v.get('symbol', '?')} | - | - | - | - | - | - | ❌ {v.get('reason', '')} |"
+            )
 
-    lines.extend([
-        "",
-        "## 四、跳过的模型 (无需重训)",
-        "",
-        "| 代码 | 训练时间 | 年龄 | IC | Sharpe |",
-        "|------|---------|------|-----|--------|",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 四、跳过的模型 (无需重训)",
+            "",
+            "| 代码 | 训练时间 | 年龄 | IC | Sharpe |",
+            "|------|---------|------|-----|--------|",
+        ]
+    )
     for m in to_skip:
         lines.append(
             f"| {m['symbol']} | {m['trained_at'][:19]} | {m['age_days']}天 | "
             f"{m['ic']:.3f} | {m['sharpe']:.2f} |"
         )
 
-    lines.extend([
-        "",
-        "---",
-        f"*本报告由 run_auto_retrain.py 自动生成 — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            f"*本报告由 run_auto_retrain.py 自动生成 — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*",
+        ]
+    )
 
     # 归档到每日报告归档目录
     archive_date_dir = ARCHIVE_DIR / report_date
@@ -492,19 +500,28 @@ def generate_retrain_report(
 # 主流程
 # ═══════════════════════════════════════════════════════════════
 
+
 def parse_retrain_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(description="ML 模型自动重训工作流")
-    parser.add_argument("--force", action="store_true",
-                        help="强制全量重训 (忽略年龄)")
-    parser.add_argument("--symbols", type=str, default=None,
-                        help="仅重训指定标的 (逗号分隔, 如 688041,000333)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="试运行 (仅显示需要重训的模型, 不实际执行)")
-    parser.add_argument("--no-news", action="store_true",
-                        help="跳过新闻因子 (加速训练)")
-    parser.add_argument("--date", type=str, default=None,
-                        help="报告日期 YYYY-MM-DD (默认今天)")
+    parser.add_argument("--force", action="store_true", help="强制全量重训 (忽略年龄)")
+    parser.add_argument(
+        "--symbols",
+        type=str,
+        default=None,
+        help="仅重训指定标的 (逗号分隔, 如 688041,000333)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="试运行 (仅显示需要重训的模型, 不实际执行)",
+    )
+    parser.add_argument(
+        "--no-news", action="store_true", help="跳过新闻因子 (加速训练)"
+    )
+    parser.add_argument(
+        "--date", type=str, default=None, help="报告日期 YYYY-MM-DD (默认今天)"
+    )
     return parser.parse_args()
 
 
@@ -514,8 +531,10 @@ def print_retrain_banner(args, report_date):
     log("║  ML 模型自动重训工作流启动                            ║")
     log(f"║  报告日期: {report_date}                              ║")
     log(f"║  执行时间: {datetime.now().strftime('%H:%M:%S')}                 ║")
-    log(f"║  模式: {'强制全量' if args.force else '增量'} "
-        f"{'试运行' if args.dry_run else '生产'}                        ║")
+    log(
+        f"║  模式: {'强制全量' if args.force else '增量'} "
+        f"{'试运行' if args.dry_run else '生产'}                        ║"
+    )
     log("╚" + "═" * 60 + "╝")
 
 
@@ -529,11 +548,15 @@ def run_phase1_scan_models():
         sys.exit(1)
 
     # 打印模型摘要
-    log(f"\n  {'代码':<8} {'训练时间':<22} {'年龄':<6} {'IC':<8} {'Sharpe':<8} {'信号':<8}")
+    log(
+        f"\n  {'代码':<8} {'训练时间':<22} {'年龄':<6} {'IC':<8} {'Sharpe':<8} {'信号':<8}"
+    )
     log(f"  {'-'*70}")
     for m in models:
-        log(f"  {m['symbol']:<8} {m['trained_at'][:19]:<22} {m['age_days']:<5}天 "
-            f"{m['ic']:<+8.3f} {m['sharpe']:<+8.2f} {m['signal']:<+8.3f}")
+        log(
+            f"  {m['symbol']:<8} {m['trained_at'][:19]:<22} {m['age_days']:<5}天 "
+            f"{m['ic']:<+8.3f} {m['sharpe']:<+8.2f} {m['signal']:<+8.3f}"
+        )
     return models
 
 
@@ -541,7 +564,9 @@ def run_phase2_identify_candidates(models, args):
     """阶段二: 识别需要重训的模型"""
     log("\n>>> 阶段二: 识别重训候选 <<<")
     symbols = [s.strip() for s in args.symbols.split(",")] if args.symbols else None
-    to_retrain, to_skip = identify_retrain_candidates(models, force=args.force, symbols=symbols)
+    to_retrain, to_skip = identify_retrain_candidates(
+        models, force=args.force, symbols=symbols
+    )
 
     log(f"  需重训: {len(to_retrain)} 个")
     for m in to_retrain:
@@ -554,7 +579,9 @@ def run_phase2_identify_candidates(models, args):
         log("\n  ✅ 所有模型均无需重训, 退出")
         # 仍生成空报告
         if not args.dry_run:
-            report_path = generate_retrain_report(args.date or datetime.now().strftime("%Y-%m-%d"), [], models, [], [])
+            report_path = generate_retrain_report(
+                args.date or datetime.now().strftime("%Y-%m-%d"), [], models, [], []
+            )
             log(f"\n📋 重训报告: {report_path}")
         sys.exit(0)
 
@@ -586,23 +613,33 @@ def run_phase3_retrain_models(to_retrain, args):
                 log(f"    📦 已备份旧模型: {backup_path.name}")
             elif RETRAIN_CONFIG["backup_old_models"]:
                 log(f"    ⚠️ {symbol}: 模型备份失败, 跳过重训以防覆盖原始模型", "ERROR")
-                retrain_results.append({
+                retrain_results.append(
+                    {
+                        "symbol": symbol,
+                        "success": False,
+                        "started_at": datetime.now().isoformat(),
+                        "error": "backup failed, abort to protect original model",
+                    }
+                )
+                verifications.append(
+                    {"verified": False, "symbol": symbol, "reason": "backup failed"}
+                )
+                continue
+        except Exception as e:
+            log(
+                f"    ⚠️ {symbol}: 模型备份异常, 跳过重训以防覆盖原始模型: {e}", "ERROR"
+            )
+            retrain_results.append(
+                {
                     "symbol": symbol,
                     "success": False,
                     "started_at": datetime.now().isoformat(),
-                    "error": "backup failed, abort to protect original model",
-                })
-                verifications.append({"verified": False, "symbol": symbol, "reason": "backup failed"})
-                continue
-        except Exception as e:
-            log(f"    ⚠️ {symbol}: 模型备份异常, 跳过重训以防覆盖原始模型: {e}", "ERROR")
-            retrain_results.append({
-                "symbol": symbol,
-                "success": False,
-                "started_at": datetime.now().isoformat(),
-                "error": f"backup exception: {e}",
-            })
-            verifications.append({"verified": False, "symbol": symbol, "reason": "backup exception"})
+                    "error": f"backup exception: {e}",
+                }
+            )
+            verifications.append(
+                {"verified": False, "symbol": symbol, "reason": "backup exception"}
+            )
             continue
 
         # 执行重训
@@ -630,11 +667,20 @@ def run_phase3_retrain_models(to_retrain, args):
             if verification.get("verified"):
                 ic_imp = verification.get("ic_improvement", 0)
                 sh_imp = verification.get("sharpe_improvement", 0)
-                log(f"    📊 IC: {verification['old_ic']:+.3f} → {verification['new_ic']:+.3f} ({ic_imp:+.3f})")
-                log(f"    📊 Sharpe: {verification['old_sharpe']:+.2f} → {verification['new_sharpe']:+.2f} ({sh_imp:+.2f})")
+                log(
+                    f"    📊 IC: {verification['old_ic']:+.3f} → {verification['new_ic']:+.3f} ({ic_imp:+.3f})"
+                )
+                log(
+                    f"    📊 Sharpe: {verification['old_sharpe']:+.2f} → {verification['new_sharpe']:+.2f} ({sh_imp:+.2f})"
+                )
         else:
-            log(f"    ❌ {symbol} 重训失败: {info.get('error', info.get('stderr_tail', '')[:200])}", "ERROR")
-            verifications.append({"verified": False, "symbol": symbol, "reason": "training failed"})
+            log(
+                f"    ❌ {symbol} 重训失败: {info.get('error', info.get('stderr_tail', '')[:200])}",
+                "ERROR",
+            )
+            verifications.append(
+                {"verified": False, "symbol": symbol, "reason": "training failed"}
+            )
 
     return retrain_results, verifications
 
@@ -642,7 +688,9 @@ def run_phase3_retrain_models(to_retrain, args):
 def run_phase4_report(report_date, to_retrain, to_skip, retrain_results, verifications):
     """阶段四: 生成重训报告"""
     log("\n>>> 阶段四: 生成重训报告并归档 <<<")
-    return generate_retrain_report(report_date, to_retrain, to_skip, retrain_results, verifications)
+    return generate_retrain_report(
+        report_date, to_retrain, to_skip, retrain_results, verifications
+    )
 
 
 def print_retrain_summary(to_retrain, retrain_results, report_path):
@@ -651,7 +699,9 @@ def print_retrain_summary(to_retrain, retrain_results, report_path):
     fail_count = sum(1 for r in retrain_results if not r["success"])
     log("\n" + "=" * 60)
     log("║  ML 模型自动重训完成                                  ║")
-    log(f"║  重训: {len(to_retrain)} | 成功: {success_count} | 失败: {fail_count}     ║")
+    log(
+        f"║  重训: {len(to_retrain)} | 成功: {success_count} | 失败: {fail_count}     ║"
+    )
     log(f"║  报告: {report_path.name}  ║")
     log("=" * 60)
     return success_count, fail_count
@@ -662,7 +712,11 @@ def main():
     report_date = args.date or datetime.now().strftime("%Y-%m-%d")
     print_retrain_banner(args, report_date)
 
-    symbols = [s.strip() for s in args.symbols.split(",") if s.strip()] if args.symbols else None
+    symbols = (
+        [s.strip() for s in args.symbols.split(",") if s.strip()]
+        if args.symbols
+        else None
+    )
     if symbols:
         log(f"  指定标的: {symbols}")
 
@@ -673,9 +727,13 @@ def main():
         return
 
     retrain_results, verifications = run_phase3_retrain_models(to_retrain, args)
-    report_path = run_phase4_report(report_date, to_retrain, to_skip, retrain_results, verifications)
+    report_path = run_phase4_report(
+        report_date, to_retrain, to_skip, retrain_results, verifications
+    )
 
-    success_count, fail_count = print_retrain_summary(to_retrain, retrain_results, report_path)
+    success_count, fail_count = print_retrain_summary(
+        to_retrain, retrain_results, report_path
+    )
 
     if fail_count == 0:
         sys.exit(0)

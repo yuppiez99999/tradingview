@@ -14,6 +14,7 @@
   2. 单一配置入口 — ConfigManager re-export utils.config_manager 的 4 级优先级实现
   3. 轻量 — ProgressIndicator/StrategyRegistry 等为独立实现, 不依赖重型框架
 """
+
 from __future__ import annotations
 
 import importlib
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # 异常类
 # ============================================================
+
 
 class ConfigError(Exception):
     """配置错误 — 配置文件缺失/格式错误/加载失败时抛出。"""
@@ -52,17 +54,18 @@ try:
     from utils.config_manager import get_portfolio_config as _get_portfolio_config
 except ImportError:
     # 兜底: utils.config_manager 不可用时提供占位实现
-    logger.warning('utils.config_manager 加载失败, 使用占位 ConfigManager')
+    logger.warning("utils.config_manager 加载失败, 使用占位 ConfigManager")
 
     class ConfigManager:  # type: ignore[no-redef]
         """占位 ConfigManager — utils.config_manager 不可用时的兜底。"""
 
         def get(self, name: str, default: Any = None) -> Any:
             try:
-                path = os.path.join('configs', f'{name}.yaml')
+                path = os.path.join("configs", f"{name}.yaml")
                 if os.path.isfile(path):
                     import yaml
-                    with open(path, encoding='utf-8') as f:
+
+                    with open(path, encoding="utf-8") as f:
                         return yaml.safe_load(f)
             except OSError:
                 pass
@@ -82,13 +85,14 @@ def load_portfolio_config() -> dict:
         if cfg:
             return cfg
     except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
-        logger.warning('load_portfolio_config 失败: %s', e)
+        logger.warning("load_portfolio_config 失败: %s", e)
     return {}
 
 
 # ============================================================
 # GracefulFallback — 降级管理器
 # ============================================================
+
 
 class GracefulFallback:
     """优雅降级管理器 — 注册异常类型对应的降级处理函数。
@@ -103,16 +107,20 @@ class GracefulFallback:
     def __init__(self) -> None:
         self._fallbacks: dict[type, Callable[[Exception], Any]] = {}
 
-    def register_fallback(self, exc_type: type, handler: Callable[[Exception], Any]) -> None:
+    def register_fallback(
+        self, exc_type: type, handler: Callable[[Exception], Any]
+    ) -> None:
         """注册异常类型对应的降级处理函数。"""
         self._fallbacks[exc_type] = handler
-        logger.debug('注册降级: %s -> %s', exc_type.__name__, handler.__name__ or 'lambda')
+        logger.debug(
+            "注册降级: %s -> %s", exc_type.__name__, handler.__name__ or "lambda"
+        )
 
     def handle(self, exc: Exception) -> Any:
         """根据异常类型调用对应的降级处理函数, 无匹配则重新抛出。"""
         for exc_type, handler in self._fallbacks.items():
             if isinstance(exc, exc_type):
-                logger.warning('降级处理: %s -> %s', exc_type.__name__, str(exc)[:100])
+                logger.warning("降级处理: %s -> %s", exc_type.__name__, str(exc)[:100])
                 return handler(exc)
         raise exc
 
@@ -120,6 +128,7 @@ class GracefulFallback:
 # ============================================================
 # ModuleLoader — 懒加载器 (优雅降级)
 # ============================================================
+
 
 class ModuleLoader:
     """模块懒加载器 — 按需加载模块并提取指定方法, 失败返回空 dict。
@@ -146,22 +155,28 @@ class ModuleLoader:
         result: dict[str, Any] = {}
         try:
             # 尝试从 utils 包加载
-            module = importlib.import_module(f'utils.{module_name}')
+            module = importlib.import_module(f"utils.{module_name}")
             for alias, attr_name in method_map.items():
                 attr = getattr(module, attr_name, None)
                 if attr is not None:
                     result[alias] = attr
-            logger.debug('ModuleLoader 加载 %s: %d/%d 方法', module_name, len(result), len(method_map))
+            logger.debug(
+                "ModuleLoader 加载 %s: %d/%d 方法",
+                module_name,
+                len(result),
+                len(method_map),
+            )
         except ImportError as e:
-            logger.debug('ModuleLoader 模块 %s 不可用: %s', module_name, e)
+            logger.debug("ModuleLoader 模块 %s 不可用: %s", module_name, e)
         except AttributeError as e:
-            logger.warning('ModuleLoader 加载 %s 异常: %s', module_name, e)
+            logger.warning("ModuleLoader 加载 %s 异常: %s", module_name, e)
         return result
 
 
 # ============================================================
 # ProgressIndicator — 进度指示器
 # ============================================================
+
 
 class ProgressIndicator:
     """进度指示器 — 在控制台显示多步骤任务进度。
@@ -178,23 +193,24 @@ class ProgressIndicator:
         self.total_steps = total_steps
         self.current_step = 0
         self._start_time = time.perf_counter()
-        logger.info(f'\n▶ {title} (共 {total_steps} 步)')
+        logger.info(f"\n▶ {title} (共 {total_steps} 步)")
 
     def update(self, step: int, message: str) -> None:
         """更新进度到指定步骤。"""
         self.current_step = step
         pct = step / self.total_steps * 100 if self.total_steps > 0 else 0
-        logger.info(f'  [{step}/{self.total_steps}] ({pct:.0f}%) {message}')
+        logger.info(f"  [{step}/{self.total_steps}] ({pct:.0f}%) {message}")
 
-    def complete(self, message: str = '完成') -> None:
+    def complete(self, message: str = "完成") -> None:
         """标记任务完成。"""
         elapsed = time.perf_counter() - self._start_time
-        logger.info(f'  ✅ {message} (耗时 {elapsed:.1f}s)')
+        logger.info(f"  ✅ {message} (耗时 {elapsed:.1f}s)")
 
 
 # ============================================================
 # StrategyRegistry — 策略注册表
 # ============================================================
+
 
 class StrategyRegistry:
     """策略注册表 — 管理交易策略和研究假设。
@@ -217,7 +233,7 @@ class StrategyRegistry:
     def register_hypothesis(self, hyp_id: str, data: dict[str, Any]) -> None:
         """注册或更新研究假设。"""
         self._hypotheses[hyp_id] = data
-        logger.info('已注册研究假设: %s', hyp_id)
+        logger.info("已注册研究假设: %s", hyp_id)
 
     def get_hypothesis(self, hyp_id: str) -> Optional[dict[str, Any]]:
         """获取假设数据, 不存在返回 None。"""
@@ -230,7 +246,7 @@ class StrategyRegistry:
     def register_strategy(self, name: str, strategy: Any) -> None:
         """注册策略实例。"""
         self._strategies[name] = strategy
-        logger.info('已注册策略: %s', name)
+        logger.info("已注册策略: %s", name)
 
     def get_strategy(self, name: str) -> Optional[Any]:
         """获取策略实例, 不存在返回 None。"""
@@ -238,12 +254,12 @@ class StrategyRegistry:
 
 
 __all__ = [
-    'ConfigError',
-    'ConfigManager',
-    'DataSourceError',
-    'GracefulFallback',
-    'ModuleLoader',
-    'ProgressIndicator',
-    'StrategyRegistry',
-    'load_portfolio_config',
+    "ConfigError",
+    "ConfigManager",
+    "DataSourceError",
+    "GracefulFallback",
+    "ModuleLoader",
+    "ProgressIndicator",
+    "StrategyRegistry",
+    "load_portfolio_config",
 ]

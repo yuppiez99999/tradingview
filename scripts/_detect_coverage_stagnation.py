@@ -9,6 +9,7 @@ _detect_coverage_stagnation.py — 覆盖率提升停滞检测器
 用法:
     python scripts/_detect_coverage_stagnation.py [--series 0.68,0.69,0.70] [--threshold 0.01]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -21,7 +22,9 @@ _ROOT = Path(__file__).resolve().parent.parent
 _STAGNATION_LOG = _ROOT / "reports" / "ci" / "coverage_stagnation_log.jsonl"
 
 
-def detect_stagnation(line_rate_series: list[float], threshold: float = 0.01, window: int = 3) -> bool:
+def detect_stagnation(
+    line_rate_series: list[float], threshold: float = 0.01, window: int = 3
+) -> bool:
     """检测覆盖率提升是否停滞.
 
     连续 window 次补测提升 < threshold 则判定停滞。
@@ -55,9 +58,9 @@ def log_stagnation(series: list[float], threshold: float, window: int) -> Path:
         "series": series,
         "threshold": threshold,
         "window": window,
-        "recent_deltas": [
-            series[i] - series[i - 1] for i in range(1, len(series))
-        ][-window:],
+        "recent_deltas": [series[i] - series[i - 1] for i in range(1, len(series))][
+            -window:
+        ],
     }
     with _STAGNATION_LOG.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -66,7 +69,12 @@ def log_stagnation(series: list[float], threshold: float, window: int) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="覆盖率提升停滞检测器")
-    parser.add_argument("--series", type=str, default="", help="覆盖率序列, 逗号分隔 (如 0.68,0.69,0.70)")
+    parser.add_argument(
+        "--series",
+        type=str,
+        default="",
+        help="覆盖率序列, 逗号分隔 (如 0.68,0.69,0.70)",
+    )
     parser.add_argument("--threshold", type=float, default=0.01)
     parser.add_argument("--window", type=int, default=3)
     args = parser.parse_args()
@@ -84,7 +92,9 @@ def main() -> int:
     is_stagnant = detect_stagnation(series, args.threshold, args.window)
     if is_stagnant:
         log_path = log_stagnation(series, args.threshold, args.window)
-        print(f"[STAGNATION] 覆盖率提升停滞: 最近 {args.window} 次提升 < {args.threshold}")
+        print(
+            f"[STAGNATION] 覆盖率提升停滞: 最近 {args.window} 次提升 < {args.threshold}"
+        )
         print(f"  序列: {series}")
         print(f"  日志: {log_path.name}")
         print("  建议: 评估难测分支 (LLM/网络IO), 不强行堆砌")

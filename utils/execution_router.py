@@ -37,7 +37,16 @@ def _tca_pre_trade_enabled() -> bool:
         from utils.infra.feature_flags import is_enabled
 
         return bool(is_enabled("USE_TCA_PRE_TRADE_ESTIMATE"))
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # P2 模块 fail-safe, 待后续精确化
         # Feature Flag 框架不可用时, fail-safe 返回 False
         return False
 
@@ -106,7 +115,10 @@ class ExecutionRouter:
     # ------------------------------------------------------------
 
     def route(
-        self, order: dict[str, Any], signal: dict[str, Any] | None, market_state: dict[str, Any] | None = None
+        self,
+        order: dict[str, Any],
+        signal: dict[str, Any] | None,
+        market_state: dict[str, Any] | None = None,
     ) -> ExecutionPlan:
         """根据订单、信号、市场状态选择执行算法
 
@@ -204,7 +216,16 @@ class ExecutionRouter:
                     estimate.rejection_reason,
                 )
             return plan, estimate
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             # TCA 异常 fail-safe: 不阻断主路径, 仅记录
             logger.error("[ExecutionRouter] TCA 预估异常 (降级为不预估): %s", e)
             plan.meta["tca_error"] = str(e)
@@ -225,7 +246,9 @@ class ExecutionRouter:
     # 复盘
     # ------------------------------------------------------------
 
-    def review(self, planned: dict[str, Any], executed: dict[str, Any]) -> ExecutionReview:
+    def review(
+        self, planned: dict[str, Any], executed: dict[str, Any]
+    ) -> ExecutionReview:
         """实现短差复盘
 
         Args:
@@ -258,7 +281,11 @@ class ExecutionRouter:
         )
         self._save_review(review)
         if not within:
-            logger.warning("[ExecutionRouter] 实现短差超限: %s bps > %.1f", shortfall_bps, self.shortfall_tolerance_bps)
+            logger.warning(
+                "[ExecutionRouter] 实现短差超限: %s bps > %.1f",
+                shortfall_bps,
+                self.shortfall_tolerance_bps,
+            )
         return review
 
     # ------------------------------------------------------------
@@ -315,5 +342,14 @@ class ExecutionRouter:
         try:
             with open(path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(review.__dict__, ensure_ascii=False) + "\n")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error("[ExecutionRouter] 保存执行复盘失败: %s", e)

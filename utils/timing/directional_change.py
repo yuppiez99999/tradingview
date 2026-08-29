@@ -84,11 +84,15 @@ def extract_dc_events(
                 last_high = pi
             # 检查是否触发下行 DC (从高点下跌 θ)
             if pi <= last_high * (1 - threshold):
-                events.append(DCEvent(
-                    timestamp=i, price=pi,
-                    event_type=DCEventType.DOWNWARD_DC,
-                    extreme_price=last_high, threshold=threshold,
-                ))
+                events.append(
+                    DCEvent(
+                        timestamp=i,
+                        price=pi,
+                        event_type=DCEventType.DOWNWARD_DC,
+                        extreme_price=last_high,
+                        threshold=threshold,
+                    )
+                )
                 last_low = pi
                 mode = False
         else:
@@ -97,11 +101,15 @@ def extract_dc_events(
                 last_low = pi
             # 检查是否触发上行 DC (从低点上涨 θ)
             if pi >= last_low * (1 + threshold):
-                events.append(DCEvent(
-                    timestamp=i, price=pi,
-                    event_type=DCEventType.UPWARD_DC,
-                    extreme_price=last_low, threshold=threshold,
-                ))
+                events.append(
+                    DCEvent(
+                        timestamp=i,
+                        price=pi,
+                        event_type=DCEventType.UPWARD_DC,
+                        extreme_price=last_low,
+                        threshold=threshold,
+                    )
+                )
                 last_high = pi
                 mode = True
 
@@ -182,9 +190,11 @@ class DirectionalChangeExtractor:
                 self.last_high = price
             if price <= self.last_high * (1 - self.threshold):
                 ev = DCEvent(
-                    timestamp=i, price=price,
+                    timestamp=i,
+                    price=price,
                     event_type=DCEventType.DOWNWARD_DC,
-                    extreme_price=self.last_high, threshold=self.threshold,
+                    extreme_price=self.last_high,
+                    threshold=self.threshold,
                 )
                 new_events.append(ev)
                 self.events.append(ev)
@@ -195,9 +205,11 @@ class DirectionalChangeExtractor:
                 self.last_low = price
             if price >= self.last_low * (1 + self.threshold):
                 ev = DCEvent(
-                    timestamp=i, price=price,
+                    timestamp=i,
+                    price=price,
                     event_type=DCEventType.UPWARD_DC,
-                    extreme_price=self.last_low, threshold=self.threshold,
+                    extreme_price=self.last_low,
+                    threshold=self.threshold,
                 )
                 new_events.append(ev)
                 self.events.append(ev)

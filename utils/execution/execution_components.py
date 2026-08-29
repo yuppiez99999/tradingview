@@ -157,7 +157,8 @@ class TradingCalendar:
         if window.get("allow_early") and now < window["start"]:
             early_minutes = window.get("early_minutes", 15)
             time_diff = (
-                datetime.combine(datetime.min, window["start"]) - datetime.combine(datetime.min, now)
+                datetime.combine(datetime.min, window["start"])
+                - datetime.combine(datetime.min, now)
             ).total_seconds()
             if time_diff <= early_minutes * 60:
                 return True, "允许提前执行"
@@ -165,7 +166,8 @@ class TradingCalendar:
         if window.get("allow_late") and now > window["end"]:
             late_minutes = window.get("late_minutes", 15)
             time_diff = (
-                datetime.combine(datetime.min, now) - datetime.combine(datetime.min, window["end"])
+                datetime.combine(datetime.min, now)
+                - datetime.combine(datetime.min, window["end"])
             ).total_seconds()
             if time_diff <= late_minutes * 60:
                 return True, "允许延后执行"
@@ -181,7 +183,8 @@ class TradingCalendar:
             while not self.is_trading_day(next_day):
                 next_day += timedelta(days=1)
             return next_day.replace(
-                hour=self.trading_schedule["morning_open"].hour, minute=self.trading_schedule["morning_open"].minute
+                hour=self.trading_schedule["morning_open"].hour,
+                minute=self.trading_schedule["morning_open"].minute,
             )
 
         today = now.date()
@@ -194,7 +197,9 @@ class TradingCalendar:
         tomorrow = now + timedelta(days=1)
         while not self.is_trading_day(tomorrow):
             tomorrow += timedelta(days=1)
-        return datetime.combine(tomorrow, self.trading_schedule["executions"][0]["time"])
+        return datetime.combine(
+            tomorrow, self.trading_schedule["executions"][0]["time"]
+        )
 
     def get_execution_schedule(self, days_ahead: int = 7) -> list[dict]:
         """获取未来几天的执行计划"""
@@ -225,7 +230,12 @@ class TradingCalendar:
         return schedule
 
     def record_execution(
-        self, execution_name: str, start_time: datetime, end_time: datetime, success: bool, details: dict
+        self,
+        execution_name: str,
+        start_time: datetime,
+        end_time: datetime,
+        success: bool,
+        details: dict,
     ) -> None:
         """记录执行历史"""
         record = {
@@ -250,7 +260,9 @@ class TradingCalendar:
 
         total_executions = len(self.execution_history)
         successful_executions = sum(1 for r in self.execution_history if r["success"])
-        success_rate = successful_executions / total_executions if total_executions > 0 else 0.0
+        success_rate = (
+            successful_executions / total_executions if total_executions > 0 else 0.0
+        )
 
         avg_duration = np.mean([r["duration_seconds"] for r in self.execution_history])
 
@@ -258,7 +270,11 @@ class TradingCalendar:
         for record in self.execution_history:
             exec_name = record["execution_name"]
             if exec_name not in execution_stats:
-                execution_stats[exec_name] = {"count": 0, "success": 0, "avg_duration": 0.0}
+                execution_stats[exec_name] = {
+                    "count": 0,
+                    "success": 0,
+                    "avg_duration": 0.0,
+                }
 
             execution_stats[exec_name]["count"] += 1
             if record["success"]:
@@ -267,7 +283,8 @@ class TradingCalendar:
             stats = execution_stats[exec_name]
             if stats["count"] > 0:
                 stats["avg_duration"] = (
-                    stats["avg_duration"] * (stats["count"] - 1) + record["duration_seconds"]
+                    stats["avg_duration"] * (stats["count"] - 1)
+                    + record["duration_seconds"]
                 ) / stats["count"]
 
         next_exec = self.get_next_execution_time()
@@ -278,7 +295,9 @@ class TradingCalendar:
             "success_rate": success_rate,
             "average_duration_seconds": avg_duration,
             "execution_stats": execution_stats,
-            "next_execution_time": next_exec.isoformat() if next_exec is not None else None,
+            "next_execution_time": (
+                next_exec.isoformat() if next_exec is not None else None
+            ),
         }
 
 
@@ -344,8 +363,14 @@ class MarketStateEvaluator:
             sentiment = market_data.get("sentiment_score", 0.0)
 
             _corr_raw = market_data.get("correlation_matrix", np.eye(3))
-            correlation_matrix = np.array(_corr_raw) if not isinstance(_corr_raw, np.ndarray) else _corr_raw
-            correlation_breakdown = self._calculate_correlation_breakdown(correlation_matrix)
+            correlation_matrix = (
+                np.array(_corr_raw)
+                if not isinstance(_corr_raw, np.ndarray)
+                else _corr_raw
+            )
+            correlation_breakdown = self._calculate_correlation_breakdown(
+                correlation_matrix
+            )
 
             volatility_score = self._evaluate_volatility(volatility)
             liquidity_score = self._evaluate_liquidity(liquidity)
@@ -353,11 +378,19 @@ class MarketStateEvaluator:
             sentiment_score = self._evaluate_sentiment(sentiment)
 
             market_state = self._determine_market_state(
-                volatility_score, liquidity_score, var_score, sentiment_score, correlation_breakdown
+                volatility_score,
+                liquidity_score,
+                var_score,
+                sentiment_score,
+                correlation_breakdown,
             )
 
             confidence = self._calculate_state_confidence(
-                volatility_score, liquidity_score, var_score, sentiment_score, correlation_breakdown
+                volatility_score,
+                liquidity_score,
+                var_score,
+                sentiment_score,
+                correlation_breakdown,
             )
 
             evaluation_report = {
@@ -387,58 +420,61 @@ class MarketStateEvaluator:
 
             return evaluation_report
 
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"市场状态评估失败: {e}")
             return {"market_state": "normal", "confidence": 0.0, "error": str(e)}
 
     def _evaluate_volatility(self, volatility: float) -> float:
         if volatility < 0.10:
             return 0.0
-        elif volatility < 0.20:
+        if volatility < 0.20:
             return 0.3
-        elif volatility < 0.30:
+        if volatility < 0.30:
             return 0.6
-        elif volatility < 0.40:
+        if volatility < 0.40:
             return 0.8
-        else:
-            return 1.0
+        return 1.0
 
     def _evaluate_liquidity(self, liquidity: float) -> float:
         if liquidity > 0.8:
             return 0.0
-        elif liquidity > 0.6:
+        if liquidity > 0.6:
             return 0.3
-        elif liquidity > 0.4:
+        if liquidity > 0.4:
             return 0.6
-        elif liquidity > 0.2:
+        if liquidity > 0.2:
             return 0.8
-        else:
-            return 1.0
+        return 1.0
 
     def _evaluate_var(self, var: float) -> float:
         if var < 0.02:
             return 0.0
-        elif var < 0.03:
+        if var < 0.03:
             return 0.3
-        elif var < 0.05:
+        if var < 0.05:
             return 0.6
-        elif var < 0.08:
+        if var < 0.08:
             return 0.8
-        else:
-            return 1.0
+        return 1.0
 
     def _evaluate_sentiment(self, sentiment: float) -> float:
         abs_sentiment = abs(sentiment)
         if abs_sentiment < 0.2:
             return 0.0
-        elif abs_sentiment < 0.4:
+        if abs_sentiment < 0.4:
             return 0.3
-        elif abs_sentiment < 0.6:
+        if abs_sentiment < 0.6:
             return 0.6
-        elif abs_sentiment < 0.8:
+        if abs_sentiment < 0.8:
             return 0.8
-        else:
-            return 1.0
+        return 1.0
 
     def _calculate_correlation_breakdown(self, correlation_matrix: np.ndarray) -> float:
         upper_tri = np.triu(correlation_matrix, k=1)
@@ -467,14 +503,13 @@ class MarketStateEvaluator:
 
         if risk_score >= 0.8:
             return "crisis"
-        elif risk_score >= 0.6:
+        if risk_score >= 0.6:
             return "stress"
-        elif risk_score >= 0.4:
+        if risk_score >= 0.4:
             return "illiquid"
-        elif risk_score >= 0.2:
+        if risk_score >= 0.2:
             return "volatile"
-        else:
-            return "normal"
+        return "normal"
 
     def _calculate_state_confidence(
         self,
@@ -522,7 +557,11 @@ class MarketStateEvaluator:
 
         if len(self.state_history) > 5:
             recent_states = [s["market_state"] for s in list(self.state_history)[-10:]]
-            state_changes = sum(1 for i in range(1, len(recent_states)) if recent_states[i] != recent_states[i - 1])
+            state_changes = sum(
+                1
+                for i in range(1, len(recent_states))
+                if recent_states[i] != recent_states[i - 1]
+            )
             stability = 1.0 - (state_changes / len(recent_states))
         else:
             stability = 1.0
@@ -617,18 +656,30 @@ class ExecutionStrategy:
 
             trade_size = trade_info.get("trade_size", 0)
             if trade_size > 1000000:
-                strategy_config["slice_size"] = max(0.1, strategy_config["slice_size"] * 0.5)
-                strategy_config["timeout_seconds"] = min(600, strategy_config["timeout_seconds"] * 1.5)
+                strategy_config["slice_size"] = max(
+                    0.1, strategy_config["slice_size"] * 0.5
+                )
+                strategy_config["timeout_seconds"] = min(
+                    600, strategy_config["timeout_seconds"] * 1.5
+                )
 
             urgency = trade_info.get("urgency", "normal")
             if urgency == "high":
-                strategy_config["slice_size"] = min(1.0, strategy_config["slice_size"] * 2)
-                strategy_config["timeout_seconds"] = max(10, strategy_config["timeout_seconds"] * 0.5)
+                strategy_config["slice_size"] = min(
+                    1.0, strategy_config["slice_size"] * 2
+                )
+                strategy_config["timeout_seconds"] = max(
+                    10, strategy_config["timeout_seconds"] * 0.5
+                )
 
             asset_type = trade_info.get("asset_type", "equity")
             if asset_type == "bond":
-                strategy_config["slice_size"] = min(0.5, strategy_config["slice_size"] * 1.5)
-                strategy_config["slippage_tolerance"] = min(0.01, strategy_config["slippage_tolerance"] * 2)
+                strategy_config["slice_size"] = min(
+                    0.5, strategy_config["slice_size"] * 1.5
+                )
+                strategy_config["slippage_tolerance"] = min(
+                    0.01, strategy_config["slippage_tolerance"] * 2
+                )
 
             logger.info(f"选择执行策略: {strategy_name}")
 
@@ -638,7 +689,14 @@ class ExecutionStrategy:
                 "reasoning": f"基于市场状态{market_state}和交易特性选择",
             }
 
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"执行策略选择失败: {e}")
             return {
                 "strategy_name": "conservative",
@@ -672,7 +730,11 @@ class ExecutionStrategy:
                         "size": slice_size,
                         "direction": direction,
                         "instrument": instrument,
-                        "price_type": "limit" if strategy_config["order_type"] == "limit" else "market",
+                        "price_type": (
+                            "limit"
+                            if strategy_config["order_type"] == "limit"
+                            else "market"
+                        ),
                         "priority": "high" if i == 0 else "normal",
                         "created_at": datetime.now().isoformat(),
                     }
@@ -700,11 +762,20 @@ class ExecutionStrategy:
 
             return execution_plan
 
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"执行计划生成失败: {e}")
             return {"error": str(e)}
 
-    def record_execution_result(self, execution_plan: dict, execution_result: dict) -> None:
+    def record_execution_result(
+        self, execution_plan: dict, execution_result: dict
+    ) -> None:
         """记录执行结果"""
         record = {
             "timestamp": datetime.now().isoformat(),
@@ -728,28 +799,48 @@ class ExecutionStrategy:
 
         total_executions = len(self.execution_history)
         successful_executions = sum(1 for r in self.execution_history if r["success"])
-        success_rate = successful_executions / total_executions if total_executions > 0 else 0.0
+        success_rate = (
+            successful_executions / total_executions if total_executions > 0 else 0.0
+        )
 
-        avg_execution_time = np.mean([r["execution_time"] for r in self.execution_history if r["execution_time"] > 0])
+        avg_execution_time = np.mean(
+            [
+                r["execution_time"]
+                for r in self.execution_history
+                if r["execution_time"] > 0
+            ]
+        )
 
         avg_slippage = np.mean(
-            [r["actual_slippage"] for r in self.execution_history if r["actual_slippage"] is not None]
+            [
+                r["actual_slippage"]
+                for r in self.execution_history
+                if r["actual_slippage"] is not None
+            ]
         )
 
         strategy_stats = {}
         for record in self.execution_history:
             strategy = record["plan"]["strategy"]
             if strategy not in strategy_stats:
-                strategy_stats[strategy] = {"count": 0, "success": 0, "avg_time": 0.0, "avg_slippage": 0.0}
+                strategy_stats[strategy] = {
+                    "count": 0,
+                    "success": 0,
+                    "avg_time": 0.0,
+                    "avg_slippage": 0.0,
+                }
 
             stats = strategy_stats[strategy]
             stats["count"] += 1
             if record["success"]:
                 stats["success"] += 1
-            stats["avg_time"] = (stats["avg_time"] * (stats["count"] - 1) + record["execution_time"]) / stats["count"]
+            stats["avg_time"] = (
+                stats["avg_time"] * (stats["count"] - 1) + record["execution_time"]
+            ) / stats["count"]
             if record["actual_slippage"] is not None:
                 stats["avg_slippage"] = (
-                    stats["avg_slippage"] * (stats["count"] - 1) + record["actual_slippage"]
+                    stats["avg_slippage"] * (stats["count"] - 1)
+                    + record["actual_slippage"]
                 ) / stats["count"]
 
         return {

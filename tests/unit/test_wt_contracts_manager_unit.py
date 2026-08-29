@@ -1,4 +1,5 @@
 """wt_contracts_manager 单元测试 — WonderTrader 合约管理器"""
+
 import json
 
 import pytest
@@ -116,10 +117,16 @@ class TestRegisterContract:
     def test_register_new(self):
         cm = ContractsManager()
         c = ContractData(
-            code="999999", exchange="SSE", name="测试",
-            product_class="STOCK", contract_multiplier=1.0,
-            price_tick=0.01, margin_rate=1.0,
-            commission_rate=0.0003, stamp_duty=0.0, min_commission=5.0,
+            code="999999",
+            exchange="SSE",
+            name="测试",
+            product_class="STOCK",
+            contract_multiplier=1.0,
+            price_tick=0.01,
+            margin_rate=1.0,
+            commission_rate=0.0003,
+            stamp_duty=0.0,
+            min_commission=5.0,
         )
         cm.register_contract(c)
         assert cm.get_contract("999999.SSE").name == "测试"
@@ -127,10 +134,16 @@ class TestRegisterContract:
     def test_register_with_dot_code(self):
         cm = ContractsManager()
         c = ContractData(
-            code="ABC.DE", exchange="UNKNOWN", name="带点",
-            product_class="STOCK", contract_multiplier=1.0,
-            price_tick=0.01, margin_rate=1.0,
-            commission_rate=0.0003, stamp_duty=0.0, min_commission=5.0,
+            code="ABC.DE",
+            exchange="UNKNOWN",
+            name="带点",
+            product_class="STOCK",
+            contract_multiplier=1.0,
+            price_tick=0.01,
+            margin_rate=1.0,
+            commission_rate=0.0003,
+            stamp_duty=0.0,
+            min_commission=5.0,
         )
         cm.register_contract(c)
         assert cm.get_contract("ABC.DE").name == "带点"
@@ -177,7 +190,9 @@ class TestCalcCommission:
         cm = ContractsManager()
         comm = cm.calc_commission("600519.SH", 10000.0, "SELL")
         c = cm.get_contract("600519.SH")
-        expected = max(10000.0 * c.commission_rate, c.min_commission) + 10000.0 * c.stamp_duty
+        expected = (
+            max(10000.0 * c.commission_rate, c.min_commission) + 10000.0 * c.stamp_duty
+        )
         assert comm == pytest.approx(expected)
 
     def test_min_commission(self):

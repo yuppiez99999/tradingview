@@ -6,6 +6,7 @@
     - utils/observability/tracing.py (0% → 高覆盖)
     - utils/observability/__init__.py (0% → 高覆盖)
 """
+
 from __future__ import annotations
 
 import json
@@ -35,10 +36,10 @@ from utils.observability.tracing import (
     trace_span,
 )
 
-
 # ============================================================
 # ObservabilityEventTest — 事件 Schema 基类与子类
 # ============================================================
+
 
 class ObservabilityEventTest:
     """ObservabilityEvent 及子类构造/默认值/字段约束."""
@@ -92,14 +93,18 @@ class ObservabilityEventTest:
 
     def test_order_event_full(self):
         ev = OrderEvent(
-            order_id="O2", symbol="000001", side="sell", qty=200,
-            price=10.5, filled_qty=50,
+            order_id="O2",
+            symbol="000001",
+            side="sell",
+            qty=200,
+            price=10.5,
+            filled_qty=50,
         )
         assert ev.price == 10.5
         assert ev.filled_qty == 50
 
     def test_order_event_missing_required_raises(self):
-        with pytest.raises(Exception):
+        with pytest.raises((TypeError, ValueError)):
             OrderEvent(symbol="510300", side="buy", qty=100)  # 缺 order_id
 
     def test_risk_event(self):
@@ -141,6 +146,7 @@ class ObservabilityEventTest:
 # ============================================================
 # StructuredLoggerTest — 结构化日志包装器
 # ============================================================
+
 
 class StructuredLoggerTest:
     """StructuredLogger structlog 路径 + fallback 路径."""
@@ -244,6 +250,7 @@ class StructuredLoggerTest:
 # TracingTest — OpenTelemetry 追踪
 # ============================================================
 
+
 class TracingTest:
     """tracing.py setup + span 上下文管理器."""
 
@@ -284,6 +291,7 @@ class TracingTest:
     def test_trace_span_yields_active_span(self):
         """span 在 with 块内是当前 active span."""
         from opentelemetry import trace as otel_trace
-        with trace_span("test.active") as span:
+
+        with trace_span("test.active"):
             current = otel_trace.get_current_span()
             assert current is not None

@@ -10,6 +10,7 @@ ai_decision.backtest_replay_mocks — 历史回放测试 Mock
 
 向后兼容: backtest_replay.py 通过 re-export 暴露 MockHistoryDataLoader.
 """
+
 from __future__ import annotations
 
 import random
@@ -69,8 +70,14 @@ class MockHistoryDataLoader:
 
     def get_market_data(self, symbol: str, date: str) -> dict[str, Any]:
         if symbol not in self._prices or date not in self._dates:
-            return {"close": 0.0, "change_pct": 0.0, "volume": 0.0,
-                    "is_halted": True, "is_limit_up": False, "is_limit_down": False}
+            return {
+                "close": 0.0,
+                "change_pct": 0.0,
+                "volume": 0.0,
+                "is_halted": True,
+                "is_limit_up": False,
+                "is_limit_down": False,
+            }
         idx = self._dates.index(date)
         close = self._prices[symbol][idx]
         prev_close = self._prices[symbol][idx - 1] if idx > 0 else close

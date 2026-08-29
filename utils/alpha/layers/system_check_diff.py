@@ -38,6 +38,7 @@
     # 转 RootCause (仅回归项)
     causes = differ.to_root_causes(diff)
 """
+
 from __future__ import annotations
 
 import json
@@ -109,6 +110,7 @@ class CheckItem:
         detail: 详情
         remediation: 修复建议
     """
+
     code: str
     name: str = ""
     level: str = ""
@@ -141,6 +143,7 @@ class CheckDiff:
         stable_fail: 持续 FAIL 项 (未变化, 但仍失败)
         summary: 一句话摘要
     """
+
     old_check_time: str = ""
     new_check_time: str = ""
     regressions: list[CheckItem] = field(default_factory=list)
@@ -210,7 +213,16 @@ class SystemCheckDiff:
                 logger.warning("自检归档非 dict: %s", path)
                 return None
             return data
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("解析自检归档失败 %s: %s", path, e)
             return None
@@ -245,10 +257,28 @@ class SystemCheckDiff:
                         detail=str(r.get("detail", "")),
                         remediation=str(r.get("remediation", "")),
                     )
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("提取检查项失败 (降级为空): %s", e)
         return items
@@ -321,9 +351,7 @@ class SystemCheckDiff:
             summary=summary,
         )
 
-    def diff_archives(
-        self, old_path: Path, new_path: Path
-    ) -> CheckDiff:
+    def diff_archives(self, old_path: Path, new_path: Path) -> CheckDiff:
         """对比两个归档文件.
 
         Args:
@@ -338,11 +366,16 @@ class SystemCheckDiff:
         if old_report is None or new_report is None:
             logger.warning(
                 "归档对比失败 (old=%s, new=%s), 返回空 diff",
-                old_report is not None, new_report is not None,
+                old_report is not None,
+                new_report is not None,
             )
             return CheckDiff(
-                old_check_time=str(old_report.get("check_time", "")) if old_report else "",
-                new_check_time=str(new_report.get("check_time", "")) if new_report else "",
+                old_check_time=(
+                    str(old_report.get("check_time", "")) if old_report else ""
+                ),
+                new_check_time=(
+                    str(new_report.get("check_time", "")) if new_report else ""
+                ),
                 summary="DIFF_FAILED: 归档解析失败",
             )
         return self.diff(old_report, new_report)
@@ -373,9 +406,20 @@ class SystemCheckDiff:
                 )
             new_path = archives[-1]  # 最新
             # 尝试找 N 天前的归档; 若不足则取最早一份
-            old_path = archives[-1 - days_ago] if len(archives) > days_ago else archives[0]
+            old_path = (
+                archives[-1 - days_ago] if len(archives) > days_ago else archives[0]
+            )
             return self.diff_archives(old_path, new_path)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("diff_recent 失败 (降级为空): %s", e)
             return CheckDiff(summary=f"DIFF_FAILED: {e}")
@@ -454,8 +498,7 @@ class SystemCheckDiff:
                 category = "datasource_fail"
 
             cause_id = (
-                f"{'regression' if is_regression else 'newfail'}-"
-                f"{item.code}-{now}"
+                f"{'regression' if is_regression else 'newfail'}-" f"{item.code}-{now}"
             )
             return RootCause(
                 cause_id=cause_id,
@@ -477,8 +520,7 @@ class SystemCheckDiff:
                     action_type=ACTION_MANUAL,
                     target_file="",
                     description=(
-                        f"自检回归 {item.code} ({item.name}): "
-                        f"{item.detail}"
+                        f"自检回归 {item.code} ({item.name}): " f"{item.detail}"
                     ),
                     estimated_risk=0.6,
                     requires_human_approval=True,
@@ -489,7 +531,16 @@ class SystemCheckDiff:
                 confidence=confidence,
                 detected_at=now,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("CheckItem 转 RootCause 失败 (跳过 %s): %s", item.code, e)
             return None

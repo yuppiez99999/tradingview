@@ -18,6 +18,7 @@ graph.db schema (2026-08-17 探查):
 上游: docs/1 (code-graph-rag 接入建议) + .code-review-graph/graph.db (MCP 已生成)
 下游: utils/ai_coordinator.py record_decision (影响半径记录) + AutoResearch Skill
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,14 +30,19 @@ from typing import Any, Optional
 
 try:
     from ..logging_manager import get_logger
-    logger = get_logger("code_graph_rag")
-except ImportError:
-    logger = logging.getLogger("code_graph_rag")
+except (ImportError, ValueError):
+
+    def get_logger(name: str) -> logging.Logger:
+        return logging.getLogger(name)
+
+
+logger = get_logger("code_graph_rag")
 
 
 # ============================================================
 # 默认路径
 # ============================================================
+
 
 def _default_db_path() -> str:
     base = Path(__file__).resolve().parent.parent.parent
@@ -47,9 +53,11 @@ def _default_db_path() -> str:
 # 返回类型
 # ============================================================
 
+
 @dataclass
 class SymbolLocation:
     """符号位置"""
+
     kind: str
     name: str
     qualified_name: str
@@ -79,6 +87,7 @@ class SymbolLocation:
 @dataclass
 class EdgeInfo:
     """边信息 (调用/引用/继承等)"""
+
     kind: str
     source_qualified: str
     target_qualified: str
@@ -100,6 +109,7 @@ class EdgeInfo:
 @dataclass
 class ImpactResult:
     """影响半径分析结果"""
+
     changed_files: list[str] = field(default_factory=list)
     changed_symbols: list[SymbolLocation] = field(default_factory=list)
     impacted_callers: list[EdgeInfo] = field(default_factory=list)
@@ -124,6 +134,7 @@ class ImpactResult:
 # ============================================================
 # CodeGraphRAG 主类
 # ============================================================
+
 
 class CodeGraphRAG:
     """代码库知识图谱 RAG 检索器
@@ -224,19 +235,27 @@ class CodeGraphRAG:
         Args:
             func_name: 函数/类名 (模糊匹配 qualified_name)
         """
-        return self._find_edges(func_name, edge_kind="CALLS", direction="target", limit=limit)
+        return self._find_edges(
+            func_name, edge_kind="CALLS", direction="target", limit=limit
+        )
 
     def find_callees(self, func_name: str, limit: int = 50) -> list[EdgeInfo]:
         """查找某函数/类调用了谁 (CALLS 边, source 是调用方)"""
-        return self._find_edges(func_name, edge_kind="CALLS", direction="source", limit=limit)
+        return self._find_edges(
+            func_name, edge_kind="CALLS", direction="source", limit=limit
+        )
 
     def find_importers(self, module_name: str, limit: int = 50) -> list[EdgeInfo]:
         """查找谁 import 了某模块 (IMPORTS_FROM 边)"""
-        return self._find_edges(module_name, edge_kind="IMPORTS_FROM", direction="target", limit=limit)
+        return self._find_edges(
+            module_name, edge_kind="IMPORTS_FROM", direction="target", limit=limit
+        )
 
     def find_inheritors(self, class_name: str, limit: int = 50) -> list[EdgeInfo]:
         """查找谁继承了某类 (INHERITS 边)"""
-        return self._find_edges(class_name, edge_kind="INHERITS", direction="target", limit=limit)
+        return self._find_edges(
+            class_name, edge_kind="INHERITS", direction="target", limit=limit
+        )
 
     def _find_edges(
         self,
@@ -250,7 +269,9 @@ class CodeGraphRAG:
         try:
             conn = self._get_conn()
             col = "target_qualified" if direction == "target" else "source_qualified"
-            sql = f"SELECT kind, source_qualified, target_qualified, file_path, line, confidence FROM edges WHERE kind = ? AND {col} LIKE ? LIMIT ?"
+            if col not in ("target_qualified", "source_qualified"):
+                raise ValueError(f"Invalid column: {col}")
+            sql = f"SELECT kind, source_qualified, target_qualified, file_path, line, confidence FROM edges WHERE kind = ? AND {col} LIKE ? LIMIT ?"  # noqa: S608 — col 已通过白名单校验, 值均参数化
             rows = conn.execute(sql, (edge_kind, f"%{name}%", limit)).fetchall()
             return [self._row_to_edge(r) for r in rows]
         except (ValueError, TypeError, KeyError, sqlite3.Error, OSError) as e:
@@ -293,7 +314,7 @@ class CodeGraphRAG:
                 next_qnames: set[str] = set()
                 placeholders = ",".join("?" for _ in caller_qnames)
                 rows = conn.execute(
-                    f"SELECT kind, source_qualified, target_qualified, file_path, line, confidence FROM edges WHERE kind IN ('CALLS','IMPORTS_FROM','REFERENCES','INHERITS') AND target_qualified IN ({placeholders})",
+                    f"SELECT kind, source_qualified, target_qualified, file_path, line, confidence FROM edges WHERE kind IN ('CALLS','IMPORTS_FROM','REFERENCES','INHERITS') AND target_qualified IN ({placeholders})",  # noqa: S608 — placeholders 为 ? 占位符, 值通过参数传入
                     list(caller_qnames),
                 ).fetchall()
                 for r in rows:
@@ -326,11 +347,15 @@ class CodeGraphRAG:
             edge_count = conn.execute("SELECT COUNT(*) FROM edges").fetchone()[0]
             kind_dist = {
                 row[0]: row[1]
-                for row in conn.execute("SELECT kind, COUNT(*) FROM nodes GROUP BY kind")
+                for row in conn.execute(
+                    "SELECT kind, COUNT(*) FROM nodes GROUP BY kind"
+                )
             }
             edge_kind_dist = {
                 row[0]: row[1]
-                for row in conn.execute("SELECT kind, COUNT(*) FROM edges GROUP BY kind")
+                for row in conn.execute(
+                    "SELECT kind, COUNT(*) FROM edges GROUP BY kind"
+                )
             }
             return {
                 "db_path": self.db_path,

@@ -4,10 +4,10 @@
 覆盖: Finding/Verdict/ConsensusResult / _parse_json_response /
       MultiModelConsensus (discover/judge/run/to_dict) / run_consensus / findings_from_ocr
 """
+
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -22,10 +22,10 @@ from utils.alpha.llm.consensus import (
     run_consensus,
 )
 
-
 # ============================================================
 # FindingDataclassTest — Finding 数据结构
 # ============================================================
+
 
 class FindingDataclassTest:
 
@@ -41,7 +41,9 @@ class FindingDataclassTest:
         assert f.model == ""
 
     def test_finding_with_fields(self):
-        f = Finding(id="F1", lens="correctness", severity="high", title="t", model="glm")
+        f = Finding(
+            id="F1", lens="correctness", severity="high", title="t", model="glm"
+        )
         assert f.id == "F1"
         assert f.severity == "high"
         assert f.model == "glm"
@@ -50,6 +52,7 @@ class FindingDataclassTest:
 # ============================================================
 # VerdictDataclassTest — Verdict 数据结构
 # ============================================================
+
 
 class VerdictDataclassTest:
 
@@ -66,6 +69,7 @@ class VerdictDataclassTest:
 # ============================================================
 # ConsensusResultDataclassTest — ConsensusResult 数据结构
 # ============================================================
+
 
 class ConsensusResultDataclassTest:
 
@@ -84,6 +88,7 @@ class ConsensusResultDataclassTest:
 # ============================================================
 # ParseJsonResponseTest — JSON 解析辅助函数
 # ============================================================
+
 
 class ParseJsonResponseTest:
 
@@ -129,6 +134,7 @@ class ParseJsonResponseTest:
 # FindingsFromOcrTest — OCR 结果转 Finding
 # ============================================================
 
+
 class FindingsFromOcrTest:
 
     def test_empty_comments(self):
@@ -136,30 +142,42 @@ class FindingsFromOcrTest:
         assert result == []
 
     def test_filters_by_severity(self):
-        ocr = {"comments": [
-            {"id": "C1", "severity": "low", "message": "low issue"},
-            {"id": "C2", "severity": "high", "message": "high issue"},
-            {"id": "C3", "severity": "critical", "message": "crit issue"},
-        ]}
+        ocr = {
+            "comments": [
+                {"id": "C1", "severity": "low", "message": "low issue"},
+                {"id": "C2", "severity": "high", "message": "high issue"},
+                {"id": "C3", "severity": "critical", "message": "crit issue"},
+            ]
+        }
         result = findings_from_ocr(ocr)
         assert len(result) == 2
         assert result[0].id == "C2"
         assert result[1].id == "C3"
 
     def test_custom_severity_filter(self):
-        ocr = {"comments": [
-            {"id": "C1", "severity": "low", "message": "low"},
-            {"id": "C2", "severity": "medium", "message": "med"},
-        ]}
+        ocr = {
+            "comments": [
+                {"id": "C1", "severity": "low", "message": "low"},
+                {"id": "C2", "severity": "medium", "message": "med"},
+            ]
+        }
         result = findings_from_ocr(ocr, severity_filter=["low"])
         assert len(result) == 1
         assert result[0].id == "C1"
 
     def test_finding_fields_mapping(self):
-        ocr = {"comments": [{
-            "id": "C1", "severity": "high", "title": "Bug Here",
-            "message": "desc", "evidence": "ev", "file": "f.py",
-        }]}
+        ocr = {
+            "comments": [
+                {
+                    "id": "C1",
+                    "severity": "high",
+                    "title": "Bug Here",
+                    "message": "desc",
+                    "evidence": "ev",
+                    "file": "f.py",
+                }
+            ]
+        }
         result = findings_from_ocr(ocr)
         f = result[0]
         assert f.id == "C1"
@@ -192,6 +210,7 @@ class FindingsFromOcrTest:
 # MultiModelConsensusTest — 共识层核心
 # ============================================================
 
+
 class MultiModelConsensusTest:
 
     def test_init_defaults(self):
@@ -203,7 +222,9 @@ class MultiModelConsensusTest:
         assert c.timeout == 20
 
     def test_init_custom(self):
-        c = MultiModelConsensus(models=["a", "b", "c"], judge_mode="cross_validate", timeout=10)
+        c = MultiModelConsensus(
+            models=["a", "b", "c"], judge_mode="cross_validate", timeout=10
+        )
         assert c.models == ["a", "b", "c"]
         assert c.judge_mode == "cross_validate"
         assert c.timeout == 10
@@ -224,10 +245,20 @@ class MultiModelConsensusTest:
 
     def test_discover_parses_findings(self):
         c = MultiModelConsensus(models=["deepseek"])
-        response = json.dumps({"findings": [
-            {"id": "F1", "severity": "high", "title": "Bug", "description": "d",
-             "evidence": "e", "location": "loc"},
-        ]})
+        response = json.dumps(
+            {
+                "findings": [
+                    {
+                        "id": "F1",
+                        "severity": "high",
+                        "title": "Bug",
+                        "description": "d",
+                        "evidence": "e",
+                        "location": "loc",
+                    },
+                ]
+            }
+        )
         with patch.object(c, "_call_model", return_value=response):
             findings, raws = c.discover("artifact", lens="testing")
         assert len(findings) == 1
@@ -335,16 +366,27 @@ class MultiModelConsensusTest:
 
     def test_run_with_findings_confirmed(self):
         c = MultiModelConsensus(models=["m1", "m2", "m3"], judge_mode="vote")
-        discover_resp = json.dumps({"findings": [
-            {"id": "F1", "severity": "high", "title": "Bug", "description": "d"},
-        ]})
+        discover_resp = json.dumps(
+            {
+                "findings": [
+                    {
+                        "id": "F1",
+                        "severity": "high",
+                        "title": "Bug",
+                        "description": "d",
+                    },
+                ]
+            }
+        )
         judge_resps = [
             json.dumps({"verdict": "confirmed", "confidence": 0.9}),
             json.dumps({"verdict": "confirmed", "confidence": 0.8}),
             json.dumps({"verdict": "confirmed", "confidence": 0.7}),
         ]
         # discover: m1→findings, m2→None, m3→None; judge: 3 models × 1 finding
-        with patch.object(c, "_call_model", side_effect=[discover_resp, None, None] + judge_resps):
+        with patch.object(
+            c, "_call_model", side_effect=[discover_resp, None, None] + judge_resps
+        ):
             result = c.run("artifact", lens="correctness")
         assert result.success is True
         assert result.mode == "vote"
@@ -367,9 +409,13 @@ class MultiModelConsensusTest:
 
     def test_run_single_model_mode(self):
         c = MultiModelConsensus(models=["m1"])
-        discover_resp = json.dumps({"findings": [
-            {"id": "F1", "severity": "high", "title": "Bug"},
-        ]})
+        discover_resp = json.dumps(
+            {
+                "findings": [
+                    {"id": "F1", "severity": "high", "title": "Bug"},
+                ]
+            }
+        )
         judge_resp = json.dumps({"verdict": "confirmed", "confidence": 0.9})
         with patch.object(c, "_call_model", side_effect=[discover_resp, judge_resp]):
             result = c.run("artifact")
@@ -379,10 +425,14 @@ class MultiModelConsensusTest:
     def test_run_divergence_detected(self):
         """部分 confirmed 部分 dismissed → agreement=False."""
         c = MultiModelConsensus(models=["m1", "m2", "m3"], judge_mode="vote")
-        discover_resp = json.dumps({"findings": [
-            {"id": "F1", "severity": "high", "title": "A"},
-            {"id": "F2", "severity": "high", "title": "B"},
-        ]})
+        discover_resp = json.dumps(
+            {
+                "findings": [
+                    {"id": "F1", "severity": "high", "title": "A"},
+                    {"id": "F2", "severity": "high", "title": "B"},
+                ]
+            }
+        )
         # F1: 2 confirmed → confirmed; F2: 0 confirmed → dismissed
         judge_resps = [
             json.dumps({"verdict": "confirmed", "confidence": 0.9}),
@@ -393,7 +443,9 @@ class MultiModelConsensusTest:
             json.dumps({"verdict": "dismissed", "confidence": 0.7}),
         ]
         # discover: m1→findings, m2→None, m3→None; judge: 3 models × 2 findings = 6
-        with patch.object(c, "_call_model", side_effect=[discover_resp, None, None] + judge_resps):
+        with patch.object(
+            c, "_call_model", side_effect=[discover_resp, None, None] + judge_resps
+        ):
             result = c.run("artifact")
         assert result.success is True
         assert result.agreement is False
@@ -401,12 +453,23 @@ class MultiModelConsensusTest:
 
     def test_to_dict_structure(self):
         c = MultiModelConsensus(models=["m1", "m2", "m3"], judge_mode="vote")
-        discover_resp = json.dumps({"findings": [
-            {"id": "F1", "severity": "high", "title": "Bug", "description": "d"},
-        ]})
+        discover_resp = json.dumps(
+            {
+                "findings": [
+                    {
+                        "id": "F1",
+                        "severity": "high",
+                        "title": "Bug",
+                        "description": "d",
+                    },
+                ]
+            }
+        )
         judge_resps = [json.dumps({"verdict": "confirmed", "confidence": 0.9})] * 3
         # discover: m1→findings, m2→None, m3→None; judge: 3 models × 1 finding
-        with patch.object(c, "_call_model", side_effect=[discover_resp, None, None] + judge_resps):
+        with patch.object(
+            c, "_call_model", side_effect=[discover_resp, None, None] + judge_resps
+        ):
             result = c.run("artifact", lens="testing")
         d = MultiModelConsensus.to_dict(result)
         assert d["lens"] == "testing"
@@ -423,24 +486,36 @@ class MultiModelConsensusTest:
 # RunConsensusTest — 便捷函数
 # ============================================================
 
+
 class RunConsensusTest:
 
     def test_run_consensus_no_findings(self):
-        with patch("utils.alpha.llm.consensus.MultiModelConsensus._call_model", return_value=None):
+        with patch(
+            "utils.alpha.llm.consensus.MultiModelConsensus._call_model",
+            return_value=None,
+        ):
             result = run_consensus("artifact", lens="correctness")
         assert result.success is True
         assert result.mode == "no_findings"
 
     def test_run_consensus_with_output_path(self, tmp_path):
         out = tmp_path / "consensus_out.json"
-        with patch("utils.alpha.llm.consensus.MultiModelConsensus._call_model", return_value=None):
-            result = run_consensus("artifact", output_path=str(out))
+        with patch(
+            "utils.alpha.llm.consensus.MultiModelConsensus._call_model",
+            return_value=None,
+        ):
+            run_consensus("artifact", output_path=str(out))
         assert out.exists()
         data = json.loads(out.read_text(encoding="utf-8"))
         assert data["success"] is True
         assert data["mode"] == "no_findings"
 
     def test_run_consensus_custom_models(self):
-        with patch("utils.alpha.llm.consensus.MultiModelConsensus._call_model", return_value=None):
-            result = run_consensus("artifact", models=["a", "b"], judge_mode="cross_validate")
+        with patch(
+            "utils.alpha.llm.consensus.MultiModelConsensus._call_model",
+            return_value=None,
+        ):
+            result = run_consensus(
+                "artifact", models=["a", "b"], judge_mode="cross_validate"
+            )
         assert result.success is True

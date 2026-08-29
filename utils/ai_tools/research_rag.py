@@ -24,6 +24,7 @@ OpenViking 是字节跳动出品的自进化 AI Agent 上下文数据库, 统一
   - docs/高价值项目集成排期计划_20260811.md §8.3 (W9-B Sprint)
   - cairn/github-trending-wave9-20260819.md (待创建)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -37,6 +38,7 @@ from typing import Any, Optional
 
 try:
     from utils.logging_manager import get_logger
+
     logger = get_logger("research_rag")
 except ImportError:
     logger = logging.getLogger("research_rag")
@@ -45,6 +47,7 @@ except ImportError:
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 @dataclass
 class Document:
@@ -59,6 +62,7 @@ class Document:
         embedding: 向量 (None 时按需计算)
         created_at: 创建时间戳
     """
+
     doc_id: str
     source: str
     title: str
@@ -71,6 +75,7 @@ class Document:
 @dataclass
 class RetrievalResult:
     """检索结果"""
+
     doc: Document
     score: float  # 相似度 0~1
     rank: int
@@ -79,6 +84,7 @@ class RetrievalResult:
 # ============================================================
 # Embedding 接口 (可插拔)
 # ============================================================
+
 
 class Embedder:
     """Embedding 基类
@@ -107,12 +113,13 @@ class HashEmbedder(Embedder):
         while len(vec) < self.dim:
             h = hashlib.sha256(h).digest()
             vec.extend((b - 128) / 128.0 for b in h)
-        return vec[:self.dim]
+        return vec[: self.dim]
 
 
 # ============================================================
 # 向量库后端 (可插拔)
 # ============================================================
+
 
 class VectorStore:
     """向量库基类
@@ -212,6 +219,7 @@ def _cosine(a: list[float], b: list[float]) -> float:
 # 研报 RAG 主接口
 # ============================================================
 
+
 class ResearchRAG:
     """研报 RAG 主接口 (OpenViking 风格)
 
@@ -239,7 +247,9 @@ class ResearchRAG:
         metadata: Optional[dict[str, Any]] = None,
     ) -> Document:
         """摄入文档 (自动计算 Embedding)"""
-        doc_id = hashlib.md5(f"{source}:{title}".encode()).hexdigest()[:16]
+        doc_id = hashlib.md5(
+            f"{source}:{title}".encode(), usedforsecurity=False
+        ).hexdigest()[:16]
         doc = Document(
             doc_id=doc_id,
             source=source,

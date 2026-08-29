@@ -116,7 +116,11 @@ def _build_code_to_cost_map(positions: dict[str, Any]) -> dict[str, float]:
         code = pos.get("code", "")
         if code:
             # 成本价 = 第一次交易开盘价 (est_price, 已被 _apply_positions_snapshot 覆盖)
-            cost = pos.get("est_price") or pos.get("actual_avg_cost") or pos.get("avg_cost", 0)
+            cost = (
+                pos.get("est_price")
+                or pos.get("actual_avg_cost")
+                or pos.get("avg_cost", 0)
+            )
             code_to_cost[code] = float(cost) if cost else 0
     return code_to_cost
 
@@ -142,7 +146,9 @@ def _validate_price_range(code: str, close: Any, cost_price: float) -> bool:
     return True
 
 
-def _fetch_price_from_provider(code: str, cost_price: float, data_provider: Any) -> Optional[dict]:
+def _fetch_price_from_provider(
+    code: str, cost_price: float, data_provider: Any
+) -> Optional[dict]:
     """从 data_provider 获取单个标的的价格数据, 验证后返回价格字典或 None"""
     if not data_provider:
         return None
@@ -151,7 +157,9 @@ def _fetch_price_from_provider(code: str, cost_price: float, data_provider: Any)
         return None
 
     # 优先级: close > last > price > (不用 index_price, 它是指数点位)
-    close = market_data.get("close") or market_data.get("last") or market_data.get("price")
+    close = (
+        market_data.get("close") or market_data.get("last") or market_data.get("price")
+    )
     prev_close = market_data.get("prev_close")
 
     if not _validate_price_range(code, close, cost_price):
@@ -162,7 +170,12 @@ def _fetch_price_from_provider(code: str, cost_price: float, data_provider: Any)
         change_pct = (close - prev_close) / prev_close * 100
 
     p_source = market_data.get("source", "unknown")
-    return {"close": close, "prev_close": prev_close, "change_pct": change_pct, "source": p_source}
+    return {
+        "close": close,
+        "prev_close": prev_close,
+        "change_pct": change_pct,
+        "source": p_source,
+    }
 
 
 def _get_fallback_prices() -> dict[str, dict]:
@@ -174,49 +187,254 @@ def _get_fallback_prices() -> dict[str, dict]:
        价格基于 2026-07-09 持仓快照实际成交均价; 5个新标的(000680等)使用计划价
     """
     return {
-        "510300": {"close": 4.89, "prev_close": 4.887, "change_pct": 0.06, "source": "fallback"},
-        "510500": {"close": 8.92, "prev_close": 8.897, "change_pct": 0.26, "source": "fallback"},
-        "512100": {"close": 3.51, "prev_close": 3.494, "change_pct": 0.46, "source": "fallback"},
-        "588000": {"close": 1.0505, "prev_close": 1.0505, "change_pct": 0.0, "source": "fallback"},
-        "159915": {"close": 4.05, "prev_close": 4.029, "change_pct": 0.52, "source": "fallback"},
-        "515180": {"close": 5.0025, "prev_close": 5.0025, "change_pct": 0.0, "source": "fallback"},
-        "688041": {"close": 85.0425, "prev_close": 85.0425, "change_pct": 0.0, "source": "fallback"},
-        "300308": {"close": 120.06, "prev_close": 120.06, "change_pct": 0.0, "source": "fallback"},
-        "300274": {"close": 45.0225, "prev_close": 45.0225, "change_pct": 0.0, "source": "fallback"},
-        "002371": {"close": 350.175, "prev_close": 350.175, "change_pct": 0.0, "source": "fallback"},
-        "688017": {"close": 180.09, "prev_close": 180.09, "change_pct": 0.0, "source": "fallback"},
-        "600276": {"close": 50.025, "prev_close": 50.025, "change_pct": 0.0, "source": "fallback"},
-        "600089": {"close": 25.0125, "prev_close": 25.0125, "change_pct": 0.0, "source": "fallback"},
-        "600875": {"close": 29.5, "prev_close": 29.29, "change_pct": 0.71, "source": "fallback"},
-        "000425": {"close": 8.5042, "prev_close": 8.5042, "change_pct": 0.0, "source": "fallback"},
-        "600406": {"close": 23.0, "prev_close": 22.88, "change_pct": 0.52, "source": "fallback"},
-        "600989": {"close": 20.5, "prev_close": 20.39, "change_pct": 0.54, "source": "fallback"},
-        "600036": {"close": 38.019, "prev_close": 38.019, "change_pct": 0.0, "source": "fallback"},
-        "600900": {"close": 27.0635, "prev_close": 27.0635, "change_pct": 0.0, "source": "fallback"},
-        "601088": {"close": 40.7204, "prev_close": 40.7204, "change_pct": 0.0, "source": "fallback"},
-        "518880": {"close": 5.8529, "prev_close": 5.8529, "change_pct": 0.0, "source": "fallback"},
-        "688981": {"close": 95.0475, "prev_close": 95.0475, "change_pct": 0.0, "source": "fallback"},
-        "603019": {"close": 94.4672, "prev_close": 94.4672, "change_pct": 0.0, "source": "fallback"},
-        "600219": {"close": 4.1921, "prev_close": 4.1921, "change_pct": 0.0, "source": "fallback"},
-        "600019": {"close": 5.6128, "prev_close": 5.6128, "change_pct": 0.0, "source": "fallback"},
+        "510300": {
+            "close": 4.89,
+            "prev_close": 4.887,
+            "change_pct": 0.06,
+            "source": "fallback",
+        },
+        "510500": {
+            "close": 8.92,
+            "prev_close": 8.897,
+            "change_pct": 0.26,
+            "source": "fallback",
+        },
+        "512100": {
+            "close": 3.51,
+            "prev_close": 3.494,
+            "change_pct": 0.46,
+            "source": "fallback",
+        },
+        "588000": {
+            "close": 1.0505,
+            "prev_close": 1.0505,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "159915": {
+            "close": 4.05,
+            "prev_close": 4.029,
+            "change_pct": 0.52,
+            "source": "fallback",
+        },
+        "515180": {
+            "close": 5.0025,
+            "prev_close": 5.0025,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "688041": {
+            "close": 85.0425,
+            "prev_close": 85.0425,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "300308": {
+            "close": 120.06,
+            "prev_close": 120.06,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "300274": {
+            "close": 45.0225,
+            "prev_close": 45.0225,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "002371": {
+            "close": 350.175,
+            "prev_close": 350.175,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "688017": {
+            "close": 180.09,
+            "prev_close": 180.09,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "600276": {
+            "close": 50.025,
+            "prev_close": 50.025,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "600089": {
+            "close": 25.0125,
+            "prev_close": 25.0125,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "600875": {
+            "close": 29.5,
+            "prev_close": 29.29,
+            "change_pct": 0.71,
+            "source": "fallback",
+        },
+        "000425": {
+            "close": 8.5042,
+            "prev_close": 8.5042,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "600406": {
+            "close": 23.0,
+            "prev_close": 22.88,
+            "change_pct": 0.52,
+            "source": "fallback",
+        },
+        "600989": {
+            "close": 20.5,
+            "prev_close": 20.39,
+            "change_pct": 0.54,
+            "source": "fallback",
+        },
+        "600036": {
+            "close": 38.019,
+            "prev_close": 38.019,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "600900": {
+            "close": 27.0635,
+            "prev_close": 27.0635,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "601088": {
+            "close": 40.7204,
+            "prev_close": 40.7204,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "518880": {
+            "close": 5.8529,
+            "prev_close": 5.8529,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "688981": {
+            "close": 95.0475,
+            "prev_close": 95.0475,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "603019": {
+            "close": 94.4672,
+            "prev_close": 94.4672,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "600219": {
+            "close": 4.1921,
+            "prev_close": 4.1921,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "600019": {
+            "close": 5.6128,
+            "prev_close": 5.6128,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
         # 2026-07-09 新增 5 标的 (持仓为0, 仅用于价格查询)
-        "000680": {"close": 7.50, "prev_close": 7.50, "change_pct": 0.0, "source": "fallback"},
-        "000333": {"close": 75.00, "prev_close": 75.00, "change_pct": 0.0, "source": "fallback"},
-        "000408": {"close": 35.00, "prev_close": 35.00, "change_pct": 0.0, "source": "fallback"},
-        "000975": {"close": 15.00, "prev_close": 15.00, "change_pct": 0.0, "source": "fallback"},
-        "002422": {"close": 28.00, "prev_close": 28.00, "change_pct": 0.0, "source": "fallback"},
+        "000680": {
+            "close": 7.50,
+            "prev_close": 7.50,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "000333": {
+            "close": 75.00,
+            "prev_close": 75.00,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "000408": {
+            "close": 35.00,
+            "prev_close": 35.00,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "000975": {
+            "close": 15.00,
+            "prev_close": 15.00,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
+        "002422": {
+            "close": 28.00,
+            "prev_close": 28.00,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },
         # 2026-07-10 新计划 500万 20 标的补充 (auto_trade_plan_500w_2026-2030.json)
-        "588080": {"close": 1.05, "prev_close": 1.05, "change_pct": 0.0, "source": "fallback"},  # 科创50ETF易方达
-        "512880": {"close": 1.10, "prev_close": 1.10, "change_pct": 0.0, "source": "fallback"},  # 证券ETF国泰
-        "510050": {"close": 3.00, "prev_close": 3.00, "change_pct": 0.0, "source": "fallback"},  # 上证50ETF华夏
-        "512800": {"close": 1.40, "prev_close": 1.40, "change_pct": 0.0, "source": "fallback"},  # 银行ETF华宝
-        "515030": {"close": 1.50, "prev_close": 1.50, "change_pct": 0.0, "source": "fallback"},  # 新能源车ETF华夏
-        "512760": {"close": 1.30, "prev_close": 1.30, "change_pct": 0.0, "source": "fallback"},  # 半导体ETF国泰
-        "512170": {"close": 0.50, "prev_close": 0.50, "change_pct": 0.0, "source": "fallback"},  # 医疗ETF华宝
-        "300033": {"close": 150.00, "prev_close": 150.00, "change_pct": 0.0, "source": "fallback"},  # 同花顺
-        "601899": {"close": 18.00, "prev_close": 18.00, "change_pct": 0.0, "source": "fallback"},  # 紫金矿业
-        "002281": {"close": 35.00, "prev_close": 35.00, "change_pct": 0.0, "source": "fallback"},  # 光迅科技
-        "000901": {"close": 45.00, "prev_close": 45.00, "change_pct": 0.0, "source": "fallback"},  # 国盾量子
+        "588080": {
+            "close": 1.05,
+            "prev_close": 1.05,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 科创50ETF易方达
+        "512880": {
+            "close": 1.10,
+            "prev_close": 1.10,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 证券ETF国泰
+        "510050": {
+            "close": 3.00,
+            "prev_close": 3.00,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 上证50ETF华夏
+        "512800": {
+            "close": 1.40,
+            "prev_close": 1.40,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 银行ETF华宝
+        "515030": {
+            "close": 1.50,
+            "prev_close": 1.50,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 新能源车ETF华夏
+        "512760": {
+            "close": 1.30,
+            "prev_close": 1.30,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 半导体ETF国泰
+        "512170": {
+            "close": 0.50,
+            "prev_close": 0.50,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 医疗ETF华宝
+        "300033": {
+            "close": 150.00,
+            "prev_close": 150.00,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 同花顺
+        "601899": {
+            "close": 18.00,
+            "prev_close": 18.00,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 紫金矿业
+        "002281": {
+            "close": 35.00,
+            "prev_close": 35.00,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 光迅科技
+        "000901": {
+            "close": 45.00,
+            "prev_close": 45.00,
+            "change_pct": 0.0,
+            "source": "fallback",
+        },  # 国盾量子
     }
 
 
@@ -278,7 +496,6 @@ def fetch_market_prices(
     # 构建代码 -> 成本价 (est_price) 映射, 用于比例验证
     code_to_cost = _build_code_to_cost_map(positions)
 
-
     # 使用 data_provider 获取实时价格
     for code, cost_price in code_to_cost.items():
         try:
@@ -316,8 +533,12 @@ def assess_data_source_health(pnl_data: dict) -> dict[str, Any]:
     """评估当前报告使用的数据源健康状态"""
     details = pnl_data.get("details", [])
     snapshot_count = sum(1 for d in details if d.get("calc_mode") == "snapshot")
-    fallback_count = sum(1 for d in details if d.get("data_integrity") == "FALLBACK_PRICE")
-    no_data_count = sum(1 for d in details if d.get("data_integrity") == "NO_MARKET_DATA")
+    fallback_count = sum(
+        1 for d in details if d.get("data_integrity") == "FALLBACK_PRICE"
+    )
+    no_data_count = sum(
+        1 for d in details if d.get("data_integrity") == "NO_MARKET_DATA"
+    )
     real_count = sum(1 for d in details if d.get("data_integrity") == "REAL")
 
     total = len(details) if details else 1
@@ -328,10 +549,10 @@ def assess_data_source_health(pnl_data: dict) -> dict[str, Any]:
 
     if no_data_ratio > 0.5:
         status = "NOSIGNAL_MAJORITY"  # 多数标的数据不可用 — 报告不可信
+    elif fallback_ratio + no_data_ratio > 0.5:
+        status = "FALLBACK_HEAVY"  # 多数使用兜底/无数据 — 报告不可信
     elif no_data_ratio > 0:
         status = "NOSIGNAL_PARTIAL"  # 部分标的数据缺失
-    elif fallback_ratio > 0.5:
-        status = "FALLBACK_HEAVY"  # 多数使用fallback价格 — 日内涨跌不可信
     elif real_ratio == 1.0:
         status = "HEALTHY"  # 全部真实数据（含plan模式但数据源为实时行情）
     elif real_ratio >= 0.8:

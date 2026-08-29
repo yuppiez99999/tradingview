@@ -16,6 +16,7 @@
 - ctx.trade_plan / ctx.signal_fusion (通过 WorkflowContext 代理)
 - alpha.qlib_signal_adapter (运行时 import, 失败降级)
 """
+
 from __future__ import annotations
 
 import logging
@@ -86,16 +87,30 @@ def qlib_signals_to_adjustments(
             float(order.get("est_amount", 0))
             new_shares = max(100, int(original_shares * factor / 100) * 100)
             new_order["shares"] = new_shares
-            new_order["est_amount"] = round(new_shares * float(order.get("est_price", 0)), 2)
+            new_order["est_amount"] = round(
+                new_shares * float(order.get("est_price", 0)), 2
+            )
             new_order["original_shares"] = original_shares
             new_order["qlib_signal"] = round(float(signal_value), 4)
             new_order["qlib_factor"] = round(factor, 2)
             adjusted.append(new_order)
 
             if factor >= 1.3:
-                logger.info("Qlib 加仓 [%s] signal=%+.4f -> factor=%.2f, %d 股", code, signal_value, factor, new_shares)
+                logger.info(
+                    "Qlib 加仓 [%s] signal=%+.4f -> factor=%.2f, %d 股",
+                    code,
+                    signal_value,
+                    factor,
+                    new_shares,
+                )
             elif factor <= 0.5:
-                logger.info("Qlib 减仓 [%s] signal=%+.4f -> factor=%.2f, %d 股", code, signal_value, factor, new_shares)
+                logger.info(
+                    "Qlib 减仓 [%s] signal=%+.4f -> factor=%.2f, %d 股",
+                    code,
+                    signal_value,
+                    factor,
+                    new_shares,
+                )
         return adjusted
 
     new_morning = _apply(morning_orders)
@@ -107,7 +122,8 @@ def qlib_signals_to_adjustments(
     return {
         "morning_orders": new_morning,
         "afternoon_orders": new_afternoon,
-        "skip_count": (len(morning_orders) - len(new_morning)) + (len(afternoon_orders) - len(new_afternoon)),
+        "skip_count": (len(morning_orders) - len(new_morning))
+        + (len(afternoon_orders) - len(new_afternoon)),
         "boost_count": _count(new_morning, 1.3) + _count(new_afternoon, 1.3),
         "cut_count": _count(new_morning, 0.5) + _count(new_afternoon, 0.5),
     }
@@ -125,7 +141,14 @@ def generate_qlib_signals(ctx: WorkflowContext) -> dict[str, float]:
     try:
         import importlib.util as _ilu
         from pathlib import Path as _Path
-        _adapter_path = _Path(__file__).resolve().parents[3] / "ms_strategy" / "src" / "alpha" / "qlib_signal_adapter.py"
+
+        _adapter_path = (
+            _Path(__file__).resolve().parents[3]
+            / "ms_strategy"
+            / "src"
+            / "alpha"
+            / "qlib_signal_adapter.py"
+        )
         _spec = _ilu.spec_from_file_location("qlib_signal_adapter", _adapter_path)
         _mod = _ilu.module_from_spec(_spec)
         _spec.loader.exec_module(_mod)
@@ -142,10 +165,14 @@ def generate_qlib_signals(ctx: WorkflowContext) -> dict[str, float]:
     signals = {}
     # 从交易计划中提取标的
     plan_exec = ctx.trade_plan.get("execution_plan", {}) if ctx.trade_plan else {}
-    all_orders = plan_exec.get("morning_orders", []) + plan_exec.get("afternoon_orders", [])
+    all_orders = plan_exec.get("morning_orders", []) + plan_exec.get(
+        "afternoon_orders", []
+    )
 
     # 去重标的
-    symbols = list(dict.fromkeys(o.get("code", "") for o in all_orders if o.get("code")))
+    symbols = list(
+        dict.fromkeys(o.get("code", "") for o in all_orders if o.get("code"))
+    )
 
     for symbol in symbols:  # 处理全部标的
         try:
@@ -168,11 +195,14 @@ def generate_qlib_signals(ctx: WorkflowContext) -> dict[str, float]:
             logger.warning(f"Qlib 信号生成失败 [{symbol}]: {e}")
 
     # === 将 Qlib 信号注入 SignalFusion ===
-    if signals and hasattr(ctx, 'signal_fusion'):
+    if signals and hasattr(ctx, "signal_fusion"):
         try:
             from alpha.qlib_signal_adapter import pd as qlib_pd
+
             # 构造等权信号序列（用于融合）
-            signal_series = qlib_pd.Series(list(signals.values()), index=list(signals.keys()))
+            signal_series = qlib_pd.Series(
+                list(signals.values()), index=list(signals.keys())
+            )
             ctx.signal_fusion.inject_qlib_signal(signal_series)
             logger.info(f"Qlib 信号已注入 SignalFusion: {len(signals)} 个标的")
         except Exception as e:  # fail-safe
@@ -194,6 +224,7 @@ def generate_mock_ohlcv(symbol: str, days: int = 120) -> Optional[Any]:
     try:
         import numpy as np
         import pandas as pd
+
         np.random.seed(hash(symbol) % (2**32))
 
         dates = pd.date_range(end=datetime.now(), periods=days, freq="B")
@@ -203,13 +234,16 @@ def generate_mock_ohlcv(symbol: str, days: int = 120) -> Optional[Any]:
         returns = np.random.normal(0.0005, 0.02, days)
         prices = base_price * np.exp(np.cumsum(returns))
 
-        df = pd.DataFrame({
-            "open": prices * (1 + np.random.normal(0, 0.005, days)),
-            "high": prices * (1 + np.abs(np.random.normal(0, 0.01, days))),
-            "low": prices * (1 - np.abs(np.random.normal(0, 0.01, days))),
-            "close": prices,
-            "volume": np.random.randint(1000000, 10000000, days),
-        }, index=dates)
+        df = pd.DataFrame(
+            {
+                "open": prices * (1 + np.random.normal(0, 0.005, days)),
+                "high": prices * (1 + np.abs(np.random.normal(0, 0.01, days))),
+                "low": prices * (1 - np.abs(np.random.normal(0, 0.01, days))),
+                "close": prices,
+                "volume": np.random.randint(1000000, 10000000, days),
+            },
+            index=dates,
+        )
 
         return df
     except Exception as e:  # fail-safe

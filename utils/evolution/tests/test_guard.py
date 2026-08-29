@@ -131,38 +131,59 @@ class TestFrequencyLimit:
         assert decision.passed
         assert decision.violated_defense == 0
 
-    def test_second_proposal_same_module_rejected(self, guard: EvolutionGuard, tmp_memory: EvolutionMemory):
+    def test_second_proposal_same_module_rejected(
+        self, guard: EvolutionGuard, tmp_memory: EvolutionMemory
+    ):
         """同模块 24h 内第二次提案应被拒 (超频)."""
         # 先记录一条 (模拟已执行的进化)
-        tmp_memory.record({
-            "level": LEVEL_L2, "action_type": "retrain",
-            "target_module": "lgb_trainer", "trigger_reason": "r",
-            "rollback_plan": "rollback", "status": "executed",
-        })
+        tmp_memory.record(
+            {
+                "level": LEVEL_L2,
+                "action_type": "retrain",
+                "target_module": "lgb_trainer",
+                "trigger_reason": "r",
+                "rollback_plan": "rollback",
+                "status": "executed",
+            }
+        )
 
         decision = guard.check_proposal(make_proposal())
         assert not decision.passed
         assert decision.violated_defense == DEFENSE_FREQUENCY
         assert "超频" in decision.reason
 
-    def test_different_module_passes(self, guard: EvolutionGuard, tmp_memory: EvolutionMemory):
+    def test_different_module_passes(
+        self, guard: EvolutionGuard, tmp_memory: EvolutionMemory
+    ):
         """不同模块的提案不冲突."""
-        tmp_memory.record({
-            "level": LEVEL_L2, "action_type": "retrain",
-            "target_module": "lgb_trainer", "trigger_reason": "r",
-            "rollback_plan": "rollback", "status": "executed",
-        })
+        tmp_memory.record(
+            {
+                "level": LEVEL_L2,
+                "action_type": "retrain",
+                "target_module": "lgb_trainer",
+                "trigger_reason": "r",
+                "rollback_plan": "rollback",
+                "status": "executed",
+            }
+        )
 
         decision = guard.check_proposal(make_proposal(target_module="other_module"))
         assert decision.passed
 
-    def test_rejected_proposal_not_counted(self, guard: EvolutionGuard, tmp_memory: EvolutionMemory):
+    def test_rejected_proposal_not_counted(
+        self, guard: EvolutionGuard, tmp_memory: EvolutionMemory
+    ):
         """被 Guard 拒绝的提案不占频率配额."""
-        tmp_memory.record({
-            "level": LEVEL_L2, "action_type": "retrain",
-            "target_module": "lgb_trainer", "trigger_reason": "r",
-            "rollback_plan": "rollback", "status": STATUS_REJECTED,  # 被拒
-        })
+        tmp_memory.record(
+            {
+                "level": LEVEL_L2,
+                "action_type": "retrain",
+                "target_module": "lgb_trainer",
+                "trigger_reason": "r",
+                "rollback_plan": "rollback",
+                "status": STATUS_REJECTED,  # 被拒
+            }
+        )
 
         # 仍可通过 (被拒不占配额)
         decision = guard.check_proposal(make_proposal())
@@ -197,7 +218,9 @@ class TestMagnitudeLimit:
 
     def test_at_limit_passes(self, guard: EvolutionGuard):
         """等于上限应通过 (边界)."""
-        decision = guard.check_proposal(make_proposal(weight_change=DEFAULT_MAX_WEIGHT_CHANGE))
+        decision = guard.check_proposal(
+            make_proposal(weight_change=DEFAULT_MAX_WEIGHT_CHANGE)
+        )
         assert decision.passed
         assert decision.truncated_weight_change is None
 
@@ -205,7 +228,9 @@ class TestMagnitudeLimit:
         """超幅应截断 (不拒绝)."""
         decision = guard.check_proposal(make_proposal(weight_change=0.25))
         assert decision.passed  # 截断后通过
-        assert decision.truncated_weight_change == pytest.approx(DEFAULT_MAX_WEIGHT_CHANGE)
+        assert decision.truncated_weight_change == pytest.approx(
+            DEFAULT_MAX_WEIGHT_CHANGE
+        )
         assert decision.original_weight_change == 0.25
         assert "截断" in decision.reason
 
@@ -213,7 +238,9 @@ class TestMagnitudeLimit:
         """负权重超幅应保留符号截断."""
         decision = guard.check_proposal(make_proposal(weight_change=-0.30))
         assert decision.passed
-        assert decision.truncated_weight_change == pytest.approx(-DEFAULT_MAX_WEIGHT_CHANGE)
+        assert decision.truncated_weight_change == pytest.approx(
+            -DEFAULT_MAX_WEIGHT_CHANGE
+        )
         assert decision.original_weight_change == -0.30
 
     def test_zero_weight_passes(self, guard: EvolutionGuard):
@@ -231,16 +258,12 @@ class TestMagnitudeLimit:
 class TestRollbackReady:
     def test_l1_without_rollback_passes(self, guard: EvolutionGuard):
         """L1 无需回滚方案."""
-        decision = guard.check_proposal(
-            make_proposal(level=LEVEL_L1, rollback_plan="")
-        )
+        decision = guard.check_proposal(make_proposal(level=LEVEL_L1, rollback_plan=""))
         assert decision.passed
 
     def test_l2_without_rollback_rejected(self, guard: EvolutionGuard):
         """L2 缺回滚方案应被拒."""
-        decision = guard.check_proposal(
-            make_proposal(level=LEVEL_L2, rollback_plan="")
-        )
+        decision = guard.check_proposal(make_proposal(level=LEVEL_L2, rollback_plan=""))
         assert not decision.passed
         assert decision.violated_defense == DEFENSE_ROLLBACK
         assert "rollback_plan" in decision.reason
@@ -277,9 +300,7 @@ class TestRollbackReady:
 class TestShadowIsolation:
     def test_l1_without_shadow_passes(self, guard: EvolutionGuard):
         """L1 无需影子验证."""
-        decision = guard.check_proposal(
-            make_proposal(level=LEVEL_L1, rollback_plan="")
-        )
+        decision = guard.check_proposal(make_proposal(level=LEVEL_L1, rollback_plan=""))
         assert decision.passed
 
     def test_l2_without_shadow_passes(self, guard: EvolutionGuard):
@@ -365,9 +386,7 @@ class TestKillSwitchFreeze:
         """L2 熔断不应冻结 L1 进化 (L1 是修复)."""
         ks = MockKillSwitch(events=[self._make_event(level=2, hours_ago=1)])
         guard = EvolutionGuard(memory=tmp_memory, kill_switch=ks)
-        decision = guard.check_proposal(
-            make_proposal(level=LEVEL_L1, rollback_plan="")
-        )
+        decision = guard.check_proposal(make_proposal(level=LEVEL_L1, rollback_plan=""))
         assert decision.passed
 
     def test_l3_freezes_all_levels(self, tmp_memory: EvolutionMemory):
@@ -448,7 +467,10 @@ class TestCombinedDefenses:
         """L3 提案五道全过 (含影子)."""
         decision = guard.check_proposal(
             make_proposal(
-                level=LEVEL_L3, weight_change=0.08, rollback_plan="rollback", shadow_days=7
+                level=LEVEL_L3,
+                weight_change=0.08,
+                rollback_plan="rollback",
+                shadow_days=7,
             )
         )
         assert decision.passed
@@ -459,20 +481,27 @@ class TestCombinedDefenses:
             make_proposal(level=LEVEL_L2, weight_change=0.25, rollback_plan="rollback")
         )
         assert decision.passed  # 截断后通过
-        assert decision.truncated_weight_change == pytest.approx(DEFAULT_MAX_WEIGHT_CHANGE)
+        assert decision.truncated_weight_change == pytest.approx(
+            DEFAULT_MAX_WEIGHT_CHANGE
+        )
         assert decision.original_weight_change == 0.25
 
-    def test_frequency_rejected_before_magnitude(self, guard: EvolutionGuard, tmp_memory: EvolutionMemory):
+    def test_frequency_rejected_before_magnitude(
+        self, guard: EvolutionGuard, tmp_memory: EvolutionMemory
+    ):
         """超频应在幅度检查前被拒 (短路)."""
-        tmp_memory.record({
-            "level": LEVEL_L2, "action_type": "retrain",
-            "target_module": "lgb_trainer", "trigger_reason": "r",
-            "rollback_plan": "rollback", "status": "executed",
-        })
-        # 即使超幅, 也应因超频被拒 (而非截断)
-        decision = guard.check_proposal(
-            make_proposal(weight_change=0.25)  # 超幅
+        tmp_memory.record(
+            {
+                "level": LEVEL_L2,
+                "action_type": "retrain",
+                "target_module": "lgb_trainer",
+                "trigger_reason": "r",
+                "rollback_plan": "rollback",
+                "status": "executed",
+            }
         )
+        # 即使超幅, 也应因超频被拒 (而非截断)
+        decision = guard.check_proposal(make_proposal(weight_change=0.25))  # 超幅
         assert not decision.passed
         assert decision.violated_defense == DEFENSE_FREQUENCY
         assert decision.truncated_weight_change is None
@@ -487,10 +516,14 @@ class TestCombinedDefenses:
 
     def test_kill_switch_overrides_others(self, tmp_memory: EvolutionMemory):
         """熔断冻结应优先于其他防线 (即使其他防线也失败)."""
-        ks = MockKillSwitch(events=[{
-            "level": 3,
-            "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-        }])
+        ks = MockKillSwitch(
+            events=[
+                {
+                    "level": 3,
+                    "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                }
+            ]
+        )
         guard = EvolutionGuard(memory=tmp_memory, kill_switch=ks)
         # 注意: 熔断检查在防线5, 前面防线需先通过才会到防线5
         # 这里构造一个前4道都过、但防线5冻结的提案
@@ -530,6 +563,7 @@ class TestGuardDecision:
     def test_to_dict_serializable(self):
         """to_dict 结果应可 JSON 序列化."""
         import json
+
         d = GuardDecision(passed=False, reason="rejected", violated_defense=2)
         json.dumps(d.to_dict())  # 不抛异常即可
 
@@ -544,11 +578,16 @@ class TestCustomThresholds:
         """自定义 daily_evolution_limit=2 应允许 2 次."""
         guard = EvolutionGuard(memory=tmp_memory, daily_evolution_limit=2)
         # 记录 1 次
-        tmp_memory.record({
-            "level": LEVEL_L2, "action_type": "retrain",
-            "target_module": "m", "trigger_reason": "r",
-            "rollback_plan": "r", "status": "executed",
-        })
+        tmp_memory.record(
+            {
+                "level": LEVEL_L2,
+                "action_type": "retrain",
+                "target_module": "m",
+                "trigger_reason": "r",
+                "rollback_plan": "r",
+                "status": "executed",
+            }
+        )
         # 第 2 次应通过 (limit=2)
         decision = guard.check_proposal(make_proposal(target_module="m"))
         assert decision.passed

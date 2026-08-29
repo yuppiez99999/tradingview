@@ -22,6 +22,7 @@
     score = layer.collect()
     # score.score → 代码层健康度 (0.0-1.0)
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -80,7 +81,8 @@ class CodeHealthLayer:
 
         logger.info(
             "CodeHealthLayer 初始化: enabled=%s (flag=%s)",
-            self._enabled, feature_flag_name,
+            self._enabled,
+            feature_flag_name,
         )
 
     # ============================================================
@@ -90,8 +92,18 @@ class CodeHealthLayer:
     def _check_feature_flag(flag_name: str) -> bool:
         try:
             from utils.infra.feature_flags import is_enabled
+
             return bool(is_enabled(flag_name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Feature Flag 检查失败 (降级 False): %s — %s", flag_name, e)
             return False
@@ -102,11 +114,24 @@ class CodeHealthLayer:
     def _load_weights(self) -> dict[str, float]:
         try:
             from utils.config_manager import get_config
+
             cfg = get_config("evolution") or {}
             w = (cfg.get("code_health", {}) or {}).get("weights", {})
             if w:
-                return {k: float(w.get(k, DEFAULT_WEIGHTS.get(k, 0.0))) for k in DEFAULT_WEIGHTS}
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                return {
+                    k: float(w.get(k, DEFAULT_WEIGHTS.get(k, 0.0)))
+                    for k in DEFAULT_WEIGHTS
+                }
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("CodeHealth 权重加载失败, 用默认值: %s", e)
         return dict(DEFAULT_WEIGHTS)
@@ -120,8 +145,11 @@ class CodeHealthLayer:
 
         if not self._enabled:
             return LayerScore(
-                layer="code", score=0.0, is_degraded=True,
-                degraded_reason="FEATURE_FLAG_DISABLED", collected_at=now,
+                layer="code",
+                score=0.0,
+                is_degraded=True,
+                degraded_reason="FEATURE_FLAG_DISABLED",
+                collected_at=now,
             )
 
         # 采集子指标 (各自容错)
@@ -148,8 +176,11 @@ class CodeHealthLayer:
         score = max(0.0, min(1.0, score))
 
         return LayerScore(
-            layer="code", score=score, sub_metrics=sub_metrics,
-            is_degraded=False, collected_at=now,
+            layer="code",
+            score=score,
+            sub_metrics=sub_metrics,
+            is_degraded=False,
+            collected_at=now,
         )
 
     # ============================================================
@@ -159,12 +190,22 @@ class CodeHealthLayer:
         """运行 SystemChecker (skip_datasource=True, 捕获 stdout)."""
         try:
             from utils.system_check import SystemChecker
+
             checker = SystemChecker(strict=False, skip_datasource=True)
             # 捕获 print 输出 (SystemChecker 有 print 语句)
             with contextlib.redirect_stdout(io.StringIO()):
                 report = checker.run_all()
             return report
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("SystemChecker 运行失败 (代码层降级): %s", e)
             return None
@@ -176,14 +217,31 @@ class CodeHealthLayer:
             return 0.0
         try:
             results = getattr(report, "results", [])
-            error_items = [r for r in results if getattr(r, "level", "").value == "ERROR"
-                           or str(getattr(r, "level", "")) == "CheckLevel.ERROR"]
+            error_items = [
+                r
+                for r in results
+                if getattr(r, "level", "").value == "ERROR"
+                or str(getattr(r, "level", "")) == "CheckLevel.ERROR"
+            ]
             if not error_items:
                 return 1.0  # 无 ERROR 项视为全过
-            passed = sum(1 for r in error_items if getattr(r, "status", "").value == "PASS"
-                         or str(getattr(r, "status", "")) == "CheckStatus.PASS")
+            passed = sum(
+                1
+                for r in error_items
+                if getattr(r, "status", "").value == "PASS"
+                or str(getattr(r, "status", "")) == "CheckStatus.PASS"
+            )
             return passed / len(error_items)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # 兜底: 用 all_passed
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # 兜底: 用 all_passed
             return 1.0 if getattr(report, "all_passed", False) else 0.5
 
     @staticmethod
@@ -194,7 +252,16 @@ class CodeHealthLayer:
         try:
             bf = getattr(report, "blocking_failures", 0)
             return max(0.0, 1.0 - bf / MAX_BLOCKING_FAILURES)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.5
 
@@ -209,7 +276,16 @@ class CodeHealthLayer:
             if pylintrc.exists():
                 score += 0.5
             return score
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.0
 
@@ -221,6 +297,15 @@ class CodeHealthLayer:
                 return 0.0
             verify_count = len(list(scripts_dir.glob("_verify_*.py")))
             return min(1.0, verify_count / EXPECTED_VERIFY_SCRIPTS)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.0

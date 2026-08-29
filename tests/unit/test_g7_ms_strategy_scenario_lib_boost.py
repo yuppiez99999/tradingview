@@ -3,6 +3,7 @@
 覆盖 StressScenario / STRESS_SCENARIOS / ScenarioLibrary 的全部公开接口,
 包括场景加载/查询/What-If/蒙特卡洛/合规压力测试的核心路径与边界分支.
 """
+
 from __future__ import annotations
 
 import sys
@@ -29,8 +30,9 @@ from ms_strategy.src.backtest.scenario_lib import (  # noqa: E402
 
 class TestStressScenario:
     def test_construct(self):
-        s = StressScenario(name="X", start="2020-01-01", end="2020-02-01",
-                           description="test")
+        s = StressScenario(
+            name="X", start="2020-01-01", end="2020-02-01", description="test"
+        )
         assert s.name == "X"
         assert s.key_metrics == {}
         assert s.asset_shocks == {}
@@ -39,7 +41,11 @@ class TestStressScenario:
         assert len(STRESS_SCENARIOS) == 3
 
     def test_stress_scenarios_dict_keys(self):
-        assert set(STRESS_SCENARIOS_DICT.keys()) == {"COVID_CRASH", "LUNA_CRASH", "YEN_CARRY"}
+        assert set(STRESS_SCENARIOS_DICT.keys()) == {
+            "COVID_CRASH",
+            "LUNA_CRASH",
+            "YEN_CARRY",
+        }
 
     def test_covid_crash_shocks(self):
         s = STRESS_SCENARIOS_DICT["COVID_CRASH"]
@@ -83,16 +89,18 @@ class TestScenarioLibraryInit:
 
     def test_add_custom_scenario(self):
         lib = ScenarioLibrary()
-        custom = StressScenario(name="CUSTOM", start="2021-01-01", end="2021-02-01",
-                                description="custom")
+        custom = StressScenario(
+            name="CUSTOM", start="2021-01-01", end="2021-02-01", description="custom"
+        )
         lib.add_scenario(custom)
         assert lib.get_scenario("CUSTOM") is not None
         assert "CUSTOM" in lib.list_scenarios()
 
     def test_get_custom_scenario(self):
         lib = ScenarioLibrary()
-        custom = StressScenario(name="C", start="2021-01-01", end="2021-02-01",
-                                description="c")
+        custom = StressScenario(
+            name="C", start="2021-01-01", end="2021-02-01", description="c"
+        )
         lib.add_scenario(custom)
         assert lib.get_scenario("C").name == "C"
 
@@ -182,8 +190,9 @@ class TestMonteCarloTail:
         lib = ScenarioLibrary()
         positions = {"AAPL": 100, "MSFT": 50}
         prices = {"AAPL": 100.0, "MSFT": 200.0}
-        result = lib.monte_carlo_tail(positions, prices, n_simulations=500,
-                                      use_t_dist=True, df=5)
+        result = lib.monte_carlo_tail(
+            positions, prices, n_simulations=500, use_t_dist=True, df=5
+        )
         assert "var_95" in result
         assert "var_99" in result
         assert "expected_shortfall_95" in result
@@ -197,8 +206,9 @@ class TestMonteCarloTail:
         lib = ScenarioLibrary()
         positions = {"AAPL": 100}
         prices = {"AAPL": 100.0}
-        result = lib.monte_carlo_tail(positions, prices, n_simulations=500,
-                                      use_t_dist=False)
+        result = lib.monte_carlo_tail(
+            positions, prices, n_simulations=500, use_t_dist=False
+        )
         assert "var_95" in result
         assert result["n_simulations"] == 500
 

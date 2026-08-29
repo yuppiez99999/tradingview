@@ -225,13 +225,19 @@ class TestGreeks(unittest.TestCase):
         self.assertAlmostEqual(r.gamma, bs_gamma(100, 100, 1.0, 0.05, 0.20), places=8)
         self.assertAlmostEqual(r.theta, bs_theta(100, 100, 1.0, 0.05, 0.20), places=8)
         self.assertAlmostEqual(r.vega, bs_vega(100, 100, 1.0, 0.05, 0.20), places=8)
-        self.assertAlmostEqual(r.price, bs_call_price(100, 100, 1.0, 0.05, 0.20), places=8)
+        self.assertAlmostEqual(
+            r.price, bs_call_price(100, 100, 1.0, 0.05, 0.20), places=8
+        )
 
     def test_all_greeks_put(self):
         """bs_all_greeks put 与单独调用一致"""
         r = bs_all_greeks(100, 100, 1.0, 0.05, 0.20, is_call=False)
-        self.assertAlmostEqual(r.delta, bs_delta(100, 100, 1.0, 0.05, 0.20, is_call=False), places=8)
-        self.assertAlmostEqual(r.price, bs_put_price(100, 100, 1.0, 0.05, 0.20), places=8)
+        self.assertAlmostEqual(
+            r.delta, bs_delta(100, 100, 1.0, 0.05, 0.20, is_call=False), places=8
+        )
+        self.assertAlmostEqual(
+            r.price, bs_put_price(100, 100, 1.0, 0.05, 0.20), places=8
+        )
 
 
 class TestEdgeCases(unittest.TestCase):

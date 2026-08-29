@@ -4,6 +4,7 @@
     DTE-6  --auto-confirm 风控护栏: 仅 TRADING_ENV ∈ {shadow, production} 允许自动确认,
            否则降级为"不自动确认" (人工确认保护)
 """
+
 from __future__ import annotations
 
 import os
@@ -42,7 +43,10 @@ class TestAutoConfirmGate:
         """DTE-6: 未设置 TRADING_ENV 时阻断自动确认 (安全默认)."""
         allow, _ = _auto_confirm_gate(os.environ.get("TRADING_ENV", "sim"))
         # CI 默认非 shadow/production
-        assert allow is False or os.environ.get("TRADING_ENV", "sim").lower() in ("shadow", "production")
+        assert allow is False or os.environ.get("TRADING_ENV", "sim").lower() in (
+            "shadow",
+            "production",
+        )
 
     def test_ci_blocked(self):
         """DTE-6: ci 环境阻断自动确认."""

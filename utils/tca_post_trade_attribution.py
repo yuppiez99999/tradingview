@@ -202,11 +202,15 @@ class PostTradeAttribution:
             save_to_file: 是否写入 JSONL 文件
         """
         self.tolerance_bps = float(tolerance_bps)
-        self.attribution_dir = Path(attribution_dir) if attribution_dir else _DEFAULT_ATTRIBUTION_DIR
+        self.attribution_dir = (
+            Path(attribution_dir) if attribution_dir else _DEFAULT_ATTRIBUTION_DIR
+        )
         self.save_to_file = bool(save_to_file)
 
         # 内存缓存: {symbol: [(fill, estimate), ...]}
-        self._records: dict[str, list[tuple[FillRecord, Any | None]]] = defaultdict(list)
+        self._records: dict[str, list[tuple[FillRecord, Any | None]]] = defaultdict(
+            list
+        )
         # PnL 归因历史: {symbol: [PnLAttribution, ...]}
         self._pnl_history: dict[str, list[PnLAttribution]] = defaultdict(list)
         # 对比历史: {symbol: [EstimateVsActual, ...]}
@@ -230,14 +234,25 @@ class PostTradeAttribution:
             estimate: T3.4 的 PreTradeEstimate (可选, 用于预估 vs 实际对比)
         """
         if not isinstance(fill, FillRecord):
-            raise PostTradeAttributionError(f"fill 必须是 FillRecord 类型, 实际={type(fill).__name__}")
+            raise PostTradeAttributionError(
+                f"fill 必须是 FillRecord 类型, 实际={type(fill).__name__}"
+            )
         self._records[fill.symbol].append((fill, estimate))
 
         # 持久化
         if self.save_to_file:
             try:
                 self._save_fill_record(fill, estimate)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.error("[TCA-PostTrade] 保存成交记录失败: %s", e)
 
         logger.info(
@@ -277,7 +292,11 @@ class PostTradeAttribution:
             return None
 
         # 实际成本计算: 基于 decision_price 与 fill.price 的偏差
-        ref_price = decision_price if decision_price is not None and decision_price > 0 else fill.price
+        ref_price = (
+            decision_price
+            if decision_price is not None and decision_price > 0
+            else fill.price
+        )
         if ref_price <= 0:
             return None
 
@@ -317,7 +336,16 @@ class PostTradeAttribution:
         if self.save_to_file:
             try:
                 self._save_comparison(comparison)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.error("[TCA-PostTrade] 保存对比记录失败: %s", e)
 
         # 偏差超容忍度时告警
@@ -370,9 +398,13 @@ class PostTradeAttribution:
             PnLAttribution 归因结果
         """
         if decision_price <= 0:
-            raise PostTradeAttributionError(f"decision_price 必须 > 0, 实际={decision_price}")
+            raise PostTradeAttributionError(
+                f"decision_price 必须 > 0, 实际={decision_price}"
+            )
         if avg_exec_price <= 0:
-            raise PostTradeAttributionError(f"avg_exec_price 必须 > 0, 实际={avg_exec_price}")
+            raise PostTradeAttributionError(
+                f"avg_exec_price 必须 > 0, 实际={avg_exec_price}"
+            )
         if shares <= 0:
             raise PostTradeAttributionError(f"shares 必须 > 0, 实际={shares}")
 
@@ -384,7 +416,11 @@ class PostTradeAttribution:
         direction = 1 if side == "BUY" else -1
 
         # 入市价: 优先用预估入市价, 否则用决策价
-        entry_price = estimated_entry_price if estimated_entry_price and estimated_entry_price > 0 else decision_price
+        entry_price = (
+            estimated_entry_price
+            if estimated_entry_price and estimated_entry_price > 0
+            else decision_price
+        )
 
         # Alpha PnL = (decision_price - entry_price) * shares * direction
         # 当 entry_price = decision_price 时, Alpha PnL = 0 (无预估延迟)
@@ -429,7 +465,16 @@ class PostTradeAttribution:
         if self.save_to_file:
             try:
                 self._save_pnl_attribution(attribution)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.error("[TCA-PostTrade] 保存 PnL 归因失败: %s", e)
 
         logger.info(
@@ -497,7 +542,9 @@ class PostTradeAttribution:
 
         # 调用 T3.4 PreTradeEstimator.calibrate_threshold()
         if not hasattr(pre_trade_estimator, "calibrate_threshold"):
-            raise PostTradeAttributionError("pre_trade_estimator 缺少 calibrate_threshold 方法")
+            raise PostTradeAttributionError(
+                "pre_trade_estimator 缺少 calibrate_threshold 方法"
+            )
 
         old_threshold = float(getattr(pre_trade_estimator, "cost_threshold_bps", 0.0))
         new_threshold = pre_trade_estimator.calibrate_threshold(
@@ -516,7 +563,16 @@ class PostTradeAttribution:
                     new_threshold=new_threshold,
                     percentile=percentile,
                 )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.error("[TCA-PostTrade] 保存校准日志失败: %s", e)
 
         logger.info(
@@ -527,22 +583,37 @@ class PostTradeAttribution:
             percentile * 100,
         )
         return new_threshold  # type: ignore
+
     # ------------------------------------------------------------
     # 5. 汇总报告
     # ------------------------------------------------------------
     def summarize(self) -> dict[str, Any]:
         """生成全组合归因汇总"""
         # PnL 归因汇总
-        total_alpha = sum(a.alpha_pnl for attr_list in self._pnl_history.values() for a in attr_list)
-        total_execution = sum(a.execution_pnl for attr_list in self._pnl_history.values() for a in attr_list)
-        total_risk = sum(a.risk_pnl for attr_list in self._pnl_history.values() for a in attr_list)
+        total_alpha = sum(
+            a.alpha_pnl for attr_list in self._pnl_history.values() for a in attr_list
+        )
+        total_execution = sum(
+            a.execution_pnl
+            for attr_list in self._pnl_history.values()
+            for a in attr_list
+        )
+        total_risk = sum(
+            a.risk_pnl for attr_list in self._pnl_history.values() for a in attr_list
+        )
         total_pnl = total_alpha + total_execution + total_risk
 
         # 预估 vs 实际汇总
-        all_comparisons = [c for cmp_list in self._comparison_history.values() for c in cmp_list]
+        all_comparisons = [
+            c for cmp_list in self._comparison_history.values() for c in cmp_list
+        ]
         n_within = sum(1 for c in all_comparisons if c.within_tolerance)
         n_total = len(all_comparisons)
-        avg_deviation = sum(c.deviation_bps for c in all_comparisons) / n_total if n_total > 0 else 0.0
+        avg_deviation = (
+            sum(c.deviation_bps for c in all_comparisons) / n_total
+            if n_total > 0
+            else 0.0
+        )
 
         # 按标的汇总
         per_symbol: dict[str, dict[str, float]] = {}
@@ -562,8 +633,12 @@ class PostTradeAttribution:
             "alpha_pnl": float(total_alpha),
             "execution_pnl": float(total_execution),
             "risk_pnl": float(total_risk),
-            "alpha_pct": float(total_alpha / total_pnl * 100) if total_pnl != 0 else 0.0,
-            "execution_pct": float(total_execution / total_pnl * 100) if total_pnl != 0 else 0.0,
+            "alpha_pct": (
+                float(total_alpha / total_pnl * 100) if total_pnl != 0 else 0.0
+            ),
+            "execution_pct": (
+                float(total_execution / total_pnl * 100) if total_pnl != 0 else 0.0
+            ),
             "risk_pct": float(total_risk / total_pnl * 100) if total_pnl != 0 else 0.0,
             "n_fills": sum(len(v) for v in self._records.values()),
             "n_comparisons": n_total,
@@ -642,13 +717,17 @@ class PostTradeAttribution:
             return list(self._pnl_history.get(symbol, []))
         return [a for attr_list in self._pnl_history.values() for a in attr_list]
 
-    def get_comparison_history(self, symbol: str | None = None) -> list[EstimateVsActual]:
+    def get_comparison_history(
+        self, symbol: str | None = None
+    ) -> list[EstimateVsActual]:
         """获取预估 vs 实际对比历史"""
         if symbol:
             return list(self._comparison_history.get(symbol, []))
         return [c for cmp_list in self._comparison_history.values() for c in cmp_list]
 
-    def get_fills(self, symbol: str | None = None) -> list[tuple[FillRecord, Any | None]]:
+    def get_fills(
+        self, symbol: str | None = None
+    ) -> list[tuple[FillRecord, Any | None]]:
         """获取成交记录历史"""
         if symbol:
             return list(self._records.get(symbol, []))
@@ -664,7 +743,11 @@ class PostTradeAttribution:
         record = {
             "type": "fill",
             "fill": asdict(fill),
-            "estimate": estimate.to_dict() if estimate and hasattr(estimate, "to_dict") else None,
+            "estimate": (
+                estimate.to_dict()
+                if estimate and hasattr(estimate, "to_dict")
+                else None
+            ),
         }
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -702,7 +785,9 @@ class PostTradeAttribution:
             "type": "calibration",
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "n_samples": len(actual_costs),
-            "avg_actual_cost_bps": float(sum(actual_costs) / len(actual_costs)) if actual_costs else 0.0,
+            "avg_actual_cost_bps": (
+                float(sum(actual_costs) / len(actual_costs)) if actual_costs else 0.0
+            ),
             "max_actual_cost_bps": float(max(actual_costs)) if actual_costs else 0.0,
             "min_actual_cost_bps": float(min(actual_costs)) if actual_costs else 0.0,
             "percentile": float(percentile),

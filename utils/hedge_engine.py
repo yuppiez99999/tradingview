@@ -17,7 +17,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-logger = logging.getLogger('hedge_engine')
+logger = logging.getLogger("hedge_engine")
 
 # G11: 统一 CVaR 双代码路径口径 — 无历史数据分支复用主风险流程的蒙特卡洛 CVaR
 try:
@@ -25,43 +25,108 @@ try:
 except (ImportError, AttributeError):
     _WTPortfolioRiskAnalyzer = None  # 降级: 保留原 var*2.0 近似
 
+# v8.7: 集成 RegimeFolio 制度感知 — VIX 4级动态阈值 (替代固定 vol>28%/DD>12%)
+try:
+    from utils.regime_aware_allocator import Regime as _Regime
+    from utils.regime_aware_allocator import RegimeClassifier
+
+    _REGIME_CLASSIFIER = RegimeClassifier()
+except ImportError:
+    _REGIME_CLASSIFIER = None
+    _Regime = None
+
+# v8.7: 集成 Deep Hedging RL — TAIL_EVENT 用 CVaR 优化替代解析 delta (cairn/deep-hedging-rl.md)
+try:
+    from utils.deep_hedging_rl import DeepHedgingConfig, DeepHedgingEngine
+
+    _DEEP_HEDGE_AVAILABLE = True
+except ImportError:
+    _DEEP_HEDGE_AVAILABLE = False
+
+# v8.7: 集成多智能体对冲 — delta+gamma+vega 同时对冲 (cairn/delta-hedge-multi-agent.md)
+try:
+    from utils.delta_hedge_multi_agent import (
+        DeltaHedgeEngine,
+        OptionInstrument,
+        OptionType,
+        PortfolioGreeks,
+    )
+
+    _MULTI_AGENT_AVAILABLE = True
+except ImportError:
+    _MULTI_AGENT_AVAILABLE = False
+
 # ── 指数成分股权重(简化版) ──
 INDEX_WEIGHTS_CSI300 = {
-    "300750": 0.042, "600519": 0.055, "000858": 0.038, "601318": 0.032,
-    "600036": 0.028, "000333": 0.025, "002415": 0.022, "300059": 0.020,
-    "600276": 0.018, "601166": 0.016, "600900": 0.015, "000651": 0.014,
-    "002475": 0.013, "601899": 0.013, "603259": 0.012,
+    "300750": 0.042,
+    "600519": 0.055,
+    "000858": 0.038,
+    "601318": 0.032,
+    "600036": 0.028,
+    "000333": 0.025,
+    "002415": 0.022,
+    "300059": 0.020,
+    "600276": 0.018,
+    "601166": 0.016,
+    "600900": 0.015,
+    "000651": 0.014,
+    "002475": 0.013,
+    "601899": 0.013,
+    "603259": 0.012,
 }
 INDEX_WEIGHTS_CSI500 = {
-    "688981": 0.008, "688041": 0.007, "002371": 0.006, "300308": 0.005,
-    "000792": 0.004, "600219": 0.004, "002422": 0.004, "000425": 0.003,
-    "600019": 0.003, "601088": 0.005,
+    "688981": 0.008,
+    "688041": 0.007,
+    "002371": 0.006,
+    "300308": 0.005,
+    "000792": 0.004,
+    "600219": 0.004,
+    "002422": 0.004,
+    "000425": 0.003,
+    "600019": 0.003,
+    "601088": 0.005,
 }
 
 # ── 股指期货合约规格 ──
 INDEX_FUTURES_SPECS = {
     "IF": {
-        "name": "沪深300股指期货", "underlying": "CSI300",
-        "multiplier": 300, "margin_pct": 0.12, "tick_size": 0.2,
-        "contracts_per_month": 4, "dominant_contract_months": [3, 6, 9, 12],
+        "name": "沪深300股指期货",
+        "underlying": "CSI300",
+        "multiplier": 300,
+        "margin_pct": 0.12,
+        "tick_size": 0.2,
+        "contracts_per_month": 4,
+        "dominant_contract_months": [3, 6, 9, 12],
         "sina_code": "nf_IF0",
     },
     "IC": {
-        "name": "中证500股指期货", "underlying": "CSI500",
-        "multiplier": 200, "margin_pct": 0.14, "tick_size": 0.2,
-        "contracts_per_month": 4, "dominant_contract_months": [3, 6, 9, 12],
+        "name": "中证500股指期货",
+        "underlying": "CSI500",
+        "multiplier": 200,
+        "margin_pct": 0.14,
+        "tick_size": 0.2,
+        "contracts_per_month": 4,
+        "dominant_contract_months": [3, 6, 9, 12],
         "sina_code": "nf_IC0",
     },
     "IM": {
-        "name": "中证1000股指期货", "underlying": "CSI1000",
-        "multiplier": 200, "margin_pct": 0.15, "tick_size": 0.2,
-        "contracts_per_month": 4, "dominant_contract_months": [3, 6, 9, 12],
+        "name": "中证1000股指期货",
+        "underlying": "CSI1000",
+        "multiplier": 200,
+        "margin_pct": 0.15,
+        "tick_size": 0.2,
+        "contracts_per_month": 4,
+        "dominant_contract_months": [3, 6, 9, 12],
         "sina_code": "nf_IM0",
     },
     "IH": {
-        "name": "上证50股指期货", "underlying": "SSE50",
-        "multiplier": 300, "margin_pct": 0.12, "tick_size": 0.2,
-        "contracts_per_month": 4, "dominant_contract_months": [3, 6, 9, 12],
+        "name": "上证50股指期货",
+        "underlying": "SSE50",
+        "multiplier": 300,
+        "margin_pct": 0.12,
+        "tick_size": 0.2,
+        "contracts_per_month": 4,
+        "dominant_contract_months": [3, 6, 9, 12],
         "sina_code": "nf_IH0",
     },
 }
@@ -69,16 +134,25 @@ INDEX_FUTURES_SPECS = {
 # ── 期权合约规格 ──
 ETF_OPTIONS_SPECS = {
     "510300": {
-        "name": "沪深300ETF期权", "underlying": "510300.SH",
-        "multiplier": 10000, "strike_step": 0.1, "exchange": "SSE",
+        "name": "沪深300ETF期权",
+        "underlying": "510300.SH",
+        "multiplier": 10000,
+        "strike_step": 0.1,
+        "exchange": "SSE",
     },
     "510050": {
-        "name": "上证50ETF期权", "underlying": "510050.SH",
-        "multiplier": 10000, "strike_step": 0.05, "exchange": "SSE",
+        "name": "上证50ETF期权",
+        "underlying": "510050.SH",
+        "multiplier": 10000,
+        "strike_step": 0.05,
+        "exchange": "SSE",
     },
     "000300": {
-        "name": "沪深300指数期权", "underlying": "000300.SH",
-        "multiplier": 100, "strike_step": 50, "exchange": "CFFEX",
+        "name": "沪深300指数期权",
+        "underlying": "000300.SH",
+        "multiplier": 100,
+        "strike_step": 50,
+        "exchange": "CFFEX",
     },
 }
 
@@ -94,15 +168,16 @@ class HedgeType(Enum):
 
 class HedgeSignalStrength(Enum):
     NO_HEDGE = 0
-    LIGHT = 1       # 25%
-    MODERATE = 2    # 50%
-    STRONG = 3      # 75%
-    FULL = 4        # 100%
+    LIGHT = 1  # 25%
+    MODERATE = 2  # 50%
+    STRONG = 3  # 75%
+    FULL = 4  # 100%
 
 
 @dataclass
 class PortfolioRisk:
     """组合风险评估"""
+
     total_value: float = 0.0
     stock_exposure: float = 0.0
     cash: float = 0.0
@@ -129,6 +204,7 @@ class PortfolioRisk:
 @dataclass
 class HedgeRecommendation:
     """对冲建议"""
+
     hedge_type: HedgeType = HedgeType.NONE
     strength: HedgeSignalStrength = HedgeSignalStrength.NO_HEDGE
     urgency_score: float = 0.0
@@ -157,22 +233,32 @@ class HedgeRecommendation:
     correlation_warning: str = ""  # v5.10 P0-7
     mrc_warnings: list[str] = field(default_factory=list)  # v5.10 P0-6
 
+    # v8.7: Deep Hedging RL + 多智能体对冲结果
+    deep_hedge: dict[str, Any] = field(default_factory=dict)
+    multi_agent_hedge: dict[str, Any] = field(default_factory=dict)
+
 
 # ── 默认期货价格回退表 ──
 DEFAULT_FUTURES_PRICES = {
-    "IF": 3950.0, "IC": 6200.0, "IM": 6800.0, "IH": 2700.0,
+    "IF": 3950.0,
+    "IC": 6200.0,
+    "IM": 6800.0,
+    "IH": 2700.0,
 }
 FALLBACK_PRICES_UPDATED = "2026-06-29"
 
 DEFAULT_INDEX_PRICES = {
-    "CSI300": 3950.0, "CSI500": 6200.0, "CSI1000": 6800.0, "SSE50": 2700.0,
+    "CSI300": 3950.0,
+    "CSI500": 6200.0,
+    "CSI1000": 6800.0,
+    "SSE50": 2700.0,
 }
 
 VOLATILITY_TARGET_ANNUAL = 0.18
 
 # ── 对冲成本参数 ──
-HEDGE_ROLL_COST_ANNUAL = 0.025    # 年化展期成本(基差+交易费)
-HEDGE_MARGIN_OPP_COST = 0.020     # 保证金机会成本(按无风险利率)
+HEDGE_ROLL_COST_ANNUAL = 0.025  # 年化展期成本(基差+交易费)
+HEDGE_MARGIN_OPP_COST = 0.020  # 保证金机会成本(按无风险利率)
 
 
 # ── v5.9 新增：多指数Beta分配权重 ──
@@ -181,25 +267,207 @@ INDEX_ALLOCATION_ORDER = ["IC", "IM", "IF"]  # 中证500优先(匹配中小盘�
 
 # ── v5.9 新增：组合自触发阈值 ──
 PORTFOLIO_TAIL_HEDGE_TRIGGERS = {
-    "vol_trigger": 0.28,       # 年化波动率>28%触发
-    "dd_trigger": 0.12,        # 60日最大回撤>12%触发
-    "min_hedge_ratio": 0.25,   # 触发后最小对冲比率
-    "max_hedge_ratio": 0.50,   # 触发后最大对冲比率
+    "vol_trigger": 0.28,  # 年化波动率>28%触发
+    "dd_trigger": 0.12,  # 60日最大回撤>12%触发
+    "min_hedge_ratio": 0.25,  # 触发后最小对冲比率
+    "max_hedge_ratio": 0.50,  # 触发后最大对冲比率
 }
 
 # ── v5.9 新增：成本效益阈值 ──
-COST_BENEFIT_THRESHOLD = 1.5   # 预期对冲收益必须 > 对冲成本 * 1.5 才激活
+COST_BENEFIT_THRESHOLD = 1.5  # 预期对冲收益必须 > 对冲成本 * 1.5 才激活
+
+# ── v8.7: RegimeFolio 制度感知动态阈值 (替代固定阈值) ──
+# 知识沉淀: cairn/regime-aware-allocator.md — VIX 4级分类
+# 低波: 提高门槛减少不必要对冲 | 危机: 大幅降低门槛积极对冲
+REGIME_ADAPTIVE_TRIGGERS: dict[str, dict[str, float]] = {
+    "low_vol": {
+        "vol_trigger": 0.35,
+        "dd_trigger": 0.15,
+        "min_hedge_ratio": 0.20,
+        "max_hedge_ratio": 0.40,
+    },
+    "normal": {
+        "vol_trigger": 0.28,
+        "dd_trigger": 0.12,
+        "min_hedge_ratio": 0.25,
+        "max_hedge_ratio": 0.50,
+    },
+    "high_vol": {
+        "vol_trigger": 0.25,
+        "dd_trigger": 0.11,
+        "min_hedge_ratio": 0.30,
+        "max_hedge_ratio": 0.60,
+    },
+    "crisis": {
+        "vol_trigger": 0.15,
+        "dd_trigger": 0.08,
+        "min_hedge_ratio": 0.35,
+        "max_hedge_ratio": 0.70,
+    },
+}
+
+# ── v8.7: Regime 感知五因子权重 (替代硬编码 25/25/20/15/10/5) ──
+# 牛市增权Beta/集中度 | 熊市增权波动率/回撤
+REGIME_FACTOR_WEIGHTS: dict[str, dict[str, float]] = {
+    "low_vol": {
+        "beta": 0.30,
+        "vol": 0.15,
+        "dd": 0.10,
+        "concentration": 0.20,
+        "var": 0.15,
+        "external": 0.10,
+    },
+    "normal": {
+        "beta": 0.25,
+        "vol": 0.25,
+        "dd": 0.20,
+        "concentration": 0.15,
+        "var": 0.10,
+        "external": 0.05,
+    },
+    "high_vol": {
+        "beta": 0.15,
+        "vol": 0.30,
+        "dd": 0.30,
+        "concentration": 0.10,
+        "var": 0.10,
+        "external": 0.05,
+    },
+    "crisis": {
+        "beta": 0.10,
+        "vol": 0.35,
+        "dd": 0.35,
+        "concentration": 0.05,
+        "var": 0.10,
+        "external": 0.05,
+    },
+}
+
+
+def _classify_regime(vix: float | None) -> str:
+    """v8.7: 用 RegimeClassifier 分类 VIX → regime 字符串。
+
+    Args:
+        vix: VIX 指数值 (None 时用组合波动率推断或默认 normal).
+
+    Returns:
+        regime 字符串: "low_vol" / "normal" / "high_vol" / "crisis"
+    """
+    if vix is None or _REGIME_CLASSIFIER is None:
+        return "normal"
+    try:
+        regime = _REGIME_CLASSIFIER.classify(float(vix))
+        return regime.value
+    except (ValueError, TypeError, AttributeError):
+        return "normal"
+
+
+def _get_regime_triggers(vix: float | None = None) -> dict[str, float]:
+    """v8.7: 根据 VIX regime 返回动态触发阈值。
+
+    无 VIX 时回退到固定阈值 (向后兼容).
+    """
+    regime_key = _classify_regime(vix)
+    adaptive = REGIME_ADAPTIVE_TRIGGERS.get(regime_key)
+    if adaptive is None:
+        return PORTFOLIO_TAIL_HEDGE_TRIGGERS
+    return {**PORTFOLIO_TAIL_HEDGE_TRIGGERS, **adaptive}
+
+
+def _get_regime_weights(vix: float | None = None) -> dict[str, float]:
+    """v8.7: 根据 VIX regime 返回动态五因子权重。
+
+    无 VIX 时回退到 v5.9 固定权重 (向后兼容).
+    """
+    regime_key = _classify_regime(vix)
+    weights = REGIME_FACTOR_WEIGHTS.get(regime_key)
+    if weights is None:
+        return REGIME_FACTOR_WEIGHTS["normal"]
+    return weights
+
+
+def fetch_vix(portfolio_volatility: float | None = None) -> float | None:
+    """v8.7: 获取 VIX 替代值 — A股无官方VIX, 用 CSI300 已实现波动率 * 100.
+
+    优先级:
+    1. Wind MCP: 获取 CSI300 近 30 日收盘价 → 计算年化已实现波动率 * 100
+    2. 回退: portfolio_volatility * 100 (如果传入)
+    3. None: 无法获取
+
+    Returns:
+        VIX 替代值 (如 20.0 表示 20% 年化波动率), 或 None
+    """
+    # 方案1: Wind MCP 获取 CSI300 历史数据
+    try:
+        from tools.wind_mcp_fetcher import wind_get_kline
+
+        klines = wind_get_kline("000300.SH", days=30)
+        if klines and len(klines) >= 10:
+            closes = [float(k.get("close", 0)) for k in klines if k.get("close", 0) > 0]
+            if len(closes) >= 10:
+                import numpy as np
+
+                returns = np.diff(closes) / closes[:-1]
+                rv = float(np.std(returns) * np.sqrt(252) * 100)
+                if 5.0 < rv < 100.0:
+                    return rv
+    except (ImportError, ValueError, TypeError, RuntimeError, OSError):
+        pass
+
+    # 方案2: 用组合波动率回退
+    if portfolio_volatility is not None and portfolio_volatility > 0:
+        return float(portfolio_volatility * 100)
+
+    return None
+
+
+def compute_vix_trend(lookback: int = 5) -> float:
+    """v8.8: 计算 VIX 5日变化率 — VIX 趋势触发
+
+    用 Wind MCP 获取 CSI300 近 35 日和近 30 日收盘价,
+    分别计算两个时点的已实现波动率, 返回变化率.
+
+    Returns:
+        VIX 变化率 (正值=恐慌加剧, 负值=恐慌缓解), 0.0 表示无法获取
+    """
+    try:
+        import numpy as np
+
+        from tools.wind_mcp_fetcher import wind_get_kline
+
+        klines = wind_get_kline("000300.SH", days=35)
+        if klines and len(klines) >= 35:
+            closes = [float(k.get("close", 0)) for k in klines if k.get("close", 0) > 0]
+            if len(closes) >= 35:
+                # 当前 VIX (近30日)
+                rets_now = np.diff(closes[-31:]) / closes[-31:-1]
+                vix_now = float(np.std(rets_now) * np.sqrt(252) * 100)
+                # 5日前 VIX (第lookback天往前30日)
+                past_end = len(closes) - lookback
+                rets_past = (
+                    np.diff(closes[past_end - 30 : past_end])
+                    / closes[past_end - 30 : past_end - 1]
+                )
+                vix_past = float(np.std(rets_past) * np.sqrt(252) * 100)
+                if vix_past > 0:
+                    return (vix_now - vix_past) / vix_past
+    except (ImportError, ValueError, TypeError, RuntimeError, OSError):
+        pass
+
+    return 0.0
 
 
 # ============================================================
 # 期货价格获取（多源回退）
 # ============================================================
 
+
 def fetch_futures_prices_from_wind() -> dict[str, float]:
     """P0: Wind MCP → 股指期货价格 (analytics_data NL查询 + index_data 回退)"""
     results = {}
     try:
         from quant_modules.wind_mcp import _wind_mcp_call
+
         # 指数→期货映射
         index_map = {
             "IF": "000300.SH",  # 沪深300
@@ -209,22 +477,38 @@ def fetch_futures_prices_from_wind() -> dict[str, float]:
         }
         for name, windcode in index_map.items():
             try:
-                data = _wind_mcp_call('index_data', 'get_index_price_indicators', {
-                    "windcode": windcode,
-                    "indexes": "最新成交价"
-                }, timeout=10)
+                data = _wind_mcp_call(
+                    "index_data",
+                    "get_index_price_indicators",
+                    {"windcode": windcode, "indexes": "最新成交价"},
+                    timeout=10,
+                )
                 if data:
-                    rows = data.get('rows', [])
+                    rows = data.get("rows", [])
                     if rows and rows[0]:
-                        price = float(rows[0][0]) if data.get('columns') else 0
+                        price = float(rows[0][0]) if data.get("columns") else 0
                         if price > 0:
                             # 期货约等于指数+基差(简化为指数价)
                             results[name] = price
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.warning("[wind] 单条期货行情解析失败 (%s): %s", name, e)
     except ImportError:
         logger.debug("[wind] quant_modules.wind_mcp 导入失败")
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+    except (
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+    ) as e:
         logger.warning("[wind] 期货价格获取失败: %s", e)
     return results
 
@@ -232,13 +516,18 @@ def fetch_futures_prices_from_wind() -> dict[str, float]:
 def fetch_futures_prices_from_sina() -> dict[str, float]:
     import re
     import urllib.request
+
     sina_codes = {"IF": "nf_IF0", "IC": "nf_IC0", "IM": "nf_IM0", "IH": "nf_IH0"}
     results = {}
     for name, code in sina_codes.items():
         try:
             url = f"https://hq.sinajs.cn/list={code}"
-            req = urllib.request.Request(url, headers={"Referer": "https://finance.sina.com.cn"})
-            with urllib.request.urlopen(req, timeout=8) as resp:  # nosec B310  # 新浪行情 API 合法请求
+            req = urllib.request.Request(
+                url, headers={"Referer": "https://finance.sina.com.cn"}
+            )
+            with urllib.request.urlopen(
+                req, timeout=8
+            ) as resp:  # nosec B310  # 新浪行情 API 合法请求
                 text = resp.read().decode("gbk", errors="ignore")
             match = re.search(r'="([^"]+)"', text)
             if match:
@@ -247,7 +536,14 @@ def fetch_futures_prices_from_sina() -> dict[str, float]:
                     price = float(parts[3]) if parts[3] and parts[3] != "0.000" else 0.0
                     if price > 0:
                         results[name] = price
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.debug(f"[sina] {name} 失败: {e}")
     return results
 
@@ -256,11 +552,16 @@ def fetch_futures_prices_from_akshare() -> dict[str, float]:
     results = {}
     try:
         import akshare as ak
+
         for name in ["IF", "IC", "IM", "IH"]:
             try:
                 df = ak.futures_main_sina(symbol=f"{name}0")
                 if df is not None and not df.empty:
-                    price = float(df.iloc[-1]['close']) if 'close' in df.columns else float(df.iloc[-1].iloc[-2])
+                    price = (
+                        float(df.iloc[-1]["close"])
+                        if "close" in df.columns
+                        else float(df.iloc[-1].iloc[-2])
+                    )
                     if price > 0:
                         results[name] = price
             except (ValueError, TypeError, KeyError, AttributeError, OSError):
@@ -276,17 +577,29 @@ def fetch_futures_prices_from_efinance() -> dict[str, float]:
     results = {}
     try:
         import efinance as ef
+
         efinance_codes = {"IF": "IF0", "IC": "IC0", "IM": "IM0", "IH": "IH0"}
         for name, code in efinance_codes.items():
             try:
                 quote = ef.futures.get_realtime_quotes(code)
                 if quote is not None:
-                    price = float(quote.price) if hasattr(quote, 'price') and quote.price else 0
+                    price = (
+                        float(quote.price)
+                        if hasattr(quote, "price") and quote.price
+                        else 0
+                    )
                     if not price and isinstance(quote, dict):
-                        price = float(quote.get('price', 0) or quote.get('最新价', 0))
+                        price = float(quote.get("price", 0) or quote.get("最新价", 0))
                     if price > 0:
                         results[name] = price
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ):
                 pass
     except ImportError:
         logger.debug("[efinance] 未安装")
@@ -345,7 +658,9 @@ def get_live_futures_prices(force_refresh: bool = False) -> dict[str, float]:
         logger.warning(f"[!] 期货品种使用回退价格: {', '.join(fallback_used)}")
 
     if source_used != "none":
-        logger.info(f"[OK] 期货价格 ({source_used}), 完整度: {4 - len(fallback_used)}/4")
+        logger.info(
+            f"[OK] 期货价格 ({source_used}), 完整度: {4 - len(fallback_used)}/4"
+        )
 
     return prices
 
@@ -353,6 +668,7 @@ def get_live_futures_prices(force_refresh: bool = False) -> dict[str, float]:
 # ============================================================
 # HedgeEngine v5.9
 # ============================================================
+
 
 class HedgeEngine:
     """对冲引擎核心类 v5.9
@@ -367,6 +683,41 @@ class HedgeEngine:
         self.portfolio_value = portfolio_value
         self._price_cache: dict[str, float] = {}
         self._beta_cache: dict[str, float] = {}
+
+        # v8.7: 初始化 Deep Hedging RL 引擎 (TAIL_EVENT 时用 CVaR 优化)
+        self._deep_hedge_engine: Any = None
+        if _DEEP_HEDGE_AVAILABLE:
+            try:
+                config = DeepHedgingConfig(
+                    spot=portfolio_value,
+                    strike=portfolio_value * 0.95,
+                    maturity=30 / 365,
+                    volatility=0.20,
+                    n_steps=15,
+                    n_episodes=20,
+                    risk_measure="cvar",
+                )
+                self._deep_hedge_engine = DeepHedgingEngine(config)
+                # v8.8: 尝试加载预训练模型
+                import os
+
+                model_path = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "models",
+                    "deep_hedging_pretrained.pkl",
+                )
+                if not self._deep_hedge_engine.load_model(model_path):
+                    logger.info("Deep Hedging 无预训练模型, 将在首次使用时训练")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Deep Hedging RL 初始化失败, 降级到解析 delta: %s", exc)
+
+        # v8.7: 初始化多智能体对冲引擎 (delta+gamma+vega)
+        self._multi_agent_engine: Any = None
+        if _MULTI_AGENT_AVAILABLE:
+            try:
+                self._multi_agent_engine = DeltaHedgeEngine(use_rl_weights=True)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("多智能体对冲初始化失败, 降级到 Beta 加权: %s", exc)
 
     # ── 风险评估 ──
 
@@ -391,11 +742,11 @@ class HedgeEngine:
         codes_in_portfolio = []
 
         for code, pos in positions.items():
-            shares = pos.get('shares', 0)
+            shares = pos.get("shares", 0)
             # 后缀兼容: 尝试纯数字码 → .SH/.SZ 后缀码
             price = prices.get(code, 0)
             if price <= 0:
-                for suffix in ['.SH', '.SZ']:
+                for suffix in [".SH", ".SZ"]:
                     price = prices.get(code + suffix, 0)
                     if price > 0:
                         break
@@ -436,7 +787,11 @@ class HedgeEngine:
             risk.var_95_daily = risk.total_value * risk.volatility_30d * z_95
             # ES_95%: 历史模拟法
             risk.cvar_95_daily = self._compute_expected_shortfall(
-                stock_weights, historical_returns, codes_in_portfolio, risk.total_value, 0.95
+                stock_weights,
+                historical_returns,
+                codes_in_portfolio,
+                risk.total_value,
+                0.95,
             )
         else:
             # 无历史数据: 回退到独立假设但标注风险低估
@@ -452,10 +807,22 @@ class HedgeEngine:
             if _WTPortfolioRiskAnalyzer is not None:
                 try:
                     risk.cvar_95_daily = _WTPortfolioRiskAnalyzer._cvar_monte_carlo(
-                        risk.total_value, risk.volatility_30d, 0.95, 50000, 1, 42,
-                        dist="student_t", dof=5,
+                        risk.total_value,
+                        risk.volatility_30d,
+                        0.95,
+                        50000,
+                        1,
+                        42,
+                        dist="student_t",
+                        dof=5,
                     )
-                except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    OSError,
+                ) as exc:
                     logger.warning("[VaR] 蒙特卡洛 CVaR 失败, 降级 var*2.0: %s", exc)
                     risk.cvar_95_daily = risk.var_95_daily * 2.0
             else:
@@ -474,7 +841,7 @@ class HedgeEngine:
         sector_values: dict[str, float] = {}
         stock_only_weight = 0.0
         for code, w in stock_weights.items():
-            pure = code.split('.')[0] if '.' in code else code
+            pure = code.split(".")[0] if "." in code else code
             sector = self.SECTOR_MAP.get(pure, "其他")
             if sector in self.FIXED_INCOME_TYPES:
                 continue  # 国债ETF不计入股票集中度
@@ -488,20 +855,23 @@ class HedgeEngine:
         risk.max_sector_weight = max(sector_values.values()) if sector_values else 0
 
         if risk.max_sector_weight > self.SECTOR_LIMIT:
-            top_sector = max(sector_values, key=sector_values.get) if sector_values else ""
-            risk.sector_concentration_warning = (
-                f"{top_sector}板块权重{risk.max_sector_weight*100:.0f}% > {self.SECTOR_LIMIT*100:.0f}%上限 (纯股票口径)"
+            top_sector = (
+                max(sector_values, key=sector_values.get) if sector_values else ""
             )
+            risk.sector_concentration_warning = f"{top_sector}板块权重{risk.max_sector_weight * 100:.0f}% > {self.SECTOR_LIMIT * 100:.0f}%上限 (纯股票口径)"
 
         # P0-6: MRC (Marginal Risk Contribution) — 基于协方差矩阵
         if historical_returns:
             mrc_map = self._compute_mrc(
-                stock_weights, historical_returns, codes_in_portfolio, risk.volatility_30d
+                stock_weights,
+                historical_returns,
+                codes_in_portfolio,
+                risk.volatility_30d,
             )
             for code, mrc in mrc_map.items():
                 if mrc > self.MRC_LIMIT:
                     risk.mrc_warnings.append(
-                        f"{code} MRC={mrc*100:.1f}% > {self.MRC_LIMIT*100:.0f}%上限"
+                        f"{code} MRC={mrc * 100:.1f}% > {self.MRC_LIMIT * 100:.0f}%上限"
                     )
             risk.max_single_mrc = max(mrc_map.values()) if mrc_map else 0
 
@@ -546,12 +916,21 @@ class HedgeEngine:
 
     # v5.10 P0-6: 板块映射 — 集中度监控
     SECTOR_MAP = {
-        "300308": "高端制造", "688041": "高端制造", "002371": "高端制造",
-        "688981": "高端制造", "300750": "高端制造", "000425": "高端制造",
-        "601088": "顺周期", "600219": "顺周期", "600019": "顺周期",
-        "518880": "黄金ETF", "000792": "资源",
-        "600276": "防御", "603259": "防御", "002422": "防御",
-        "600900": "防御",   # 长江电力
+        "300308": "高端制造",
+        "688041": "高端制造",
+        "002371": "高端制造",
+        "688981": "高端制造",
+        "300750": "高端制造",
+        "000425": "高端制造",
+        "601088": "顺周期",
+        "600219": "顺周期",
+        "600019": "顺周期",
+        "518880": "黄金ETF",
+        "000792": "资源",
+        "600276": "防御",
+        "603259": "防御",
+        "002422": "防御",
+        "600900": "防御",  # 长江电力
         "511010": "国债ETF",  # 固收敞口
     }
 
@@ -559,7 +938,7 @@ class HedgeEngine:
     FIXED_INCOME_TYPES = {"国债ETF"}
 
     SECTOR_LIMIT = 0.35  # 单一板块上限35% (P0-6)
-    MRC_LIMIT = 0.25     # 单标的边际风险贡献上限25%
+    MRC_LIMIT = 0.25  # 单标的边际风险贡献上限25%
     CORRELATION_WARN = 0.70  # 平均相关性 > 0.7 触发预警 (P0-7)
 
     def _compute_weighted_beta(self, weights: dict[str, float], index: str) -> float:
@@ -569,7 +948,7 @@ class HedgeEngine:
         total_beta = 0.0
         total_w = 0.0
         for code, w in weights.items():
-            pure_code = code.split('.')[0] if '.' in code else code
+            pure_code = code.split(".")[0] if "." in code else code
             if pure_code in self.DEFAULT_BETAS:
                 total_beta += w * self.DEFAULT_BETAS[pure_code][idx]
             else:
@@ -582,28 +961,52 @@ class HedgeEngine:
 
     HISTORICAL_STRESS_SCENARIOS = {
         "2015股灾 (沪深300 -45%)": {
-            "csi300": -0.45, "csi500": -0.50, "csi1000": -0.50, "sse50": -0.40,
-            "gold": 0.02, "sector": "全面崩盘, 流动性枯竭, 千股停牌",
+            "csi300": -0.45,
+            "csi500": -0.50,
+            "csi1000": -0.50,
+            "sse50": -0.40,
+            "gold": 0.02,
+            "sector": "全面崩盘, 流动性枯竭, 千股停牌",
         },
         "2016熔断 (沪深300 -25%)": {
-            "csi300": -0.25, "csi500": -0.30, "csi1000": -0.28, "sse50": -0.22,
-            "gold": 0.01, "sector": "指数熔断, 恐慌抛售, 两日触发2次熔断",
+            "csi300": -0.25,
+            "csi500": -0.30,
+            "csi1000": -0.28,
+            "sse50": -0.22,
+            "gold": 0.01,
+            "sector": "指数熔断, 恐慌抛售, 两日触发2次熔断",
         },
         "2018贸易战 (沪深300 -32%)": {
-            "csi300": -0.32, "csi500": -0.35, "csi1000": -0.38, "sse50": -0.28,
-            "gold": 0.04, "sector": "中美贸易摩擦升级, 科技股重挫, 人民币贬值",
+            "csi300": -0.32,
+            "csi500": -0.35,
+            "csi1000": -0.38,
+            "sse50": -0.28,
+            "gold": 0.04,
+            "sector": "中美贸易摩擦升级, 科技股重挫, 人民币贬值",
         },
         "2020疫情闪崩 (沪深300 -16%)": {
-            "csi300": -0.16, "csi500": -0.15, "csi1000": -0.14, "sse50": -0.14,
-            "gold": 0.06, "sector": "新冠疫情全球爆发, 节后首日3000股跌停",
+            "csi300": -0.16,
+            "csi500": -0.15,
+            "csi1000": -0.14,
+            "sse50": -0.14,
+            "gold": 0.06,
+            "sector": "新冠疫情全球爆发, 节后首日3000股跌停",
         },
         "2024国庆后暴跌 (沪深300 -20%)": {
-            "csi300": -0.20, "csi500": -0.22, "csi1000": -0.25, "sse50": -0.18,
-            "gold": 0.01, "sector": "政策宽松预期逆转, 前期过热回调",
+            "csi300": -0.20,
+            "csi500": -0.22,
+            "csi1000": -0.25,
+            "sse50": -0.18,
+            "gold": 0.01,
+            "sector": "政策宽松预期逆转, 前期过热回调",
         },
         "极端尾部事件 (1% VaR, -40%)": {
-            "csi300": -0.40, "csi500": -0.45, "csi1000": -0.50, "sse50": -0.35,
-            "gold": 0.08, "sector": "复合危机: 流动性枯竭+信用违约+汇率贬值叠加",
+            "csi300": -0.40,
+            "csi500": -0.45,
+            "csi1000": -0.50,
+            "sse50": -0.35,
+            "gold": 0.08,
+            "sector": "复合危机: 流动性枯竭+信用违约+汇率贬值叠加",
         },
     }
 
@@ -625,7 +1028,7 @@ class HedgeEngine:
         # 计算各标的对每个指数的加权beta暴露
         stock_codes = list(positions.keys())
         total_mv = sum(
-            positions[c]['shares'] * prices.get(c, self._estimate_default_price(c))
+            positions[c]["shares"] * prices.get(c, self._estimate_default_price(c))
             for c in stock_codes
         )
         if total_mv <= 0:
@@ -638,7 +1041,7 @@ class HedgeEngine:
 
             for code in stock_codes:
                 pos = positions[code]
-                shares = pos['shares']
+                shares = pos["shares"]
                 if shares <= 0:
                     continue
 
@@ -646,15 +1049,15 @@ class HedgeEngine:
                 current_mv = shares * current_price
 
                 # 判断标的对4个指数的Beta暴露
-                pure = code.split('.')[0] if '.' in code else code
+                pure = code.split(".")[0] if "." in code else code
                 betas = self.DEFAULT_BETAS.get(pure, [1.0, 1.0, 1.0, 1.0])
 
                 # 加权指数冲击 (历史情景为多日累计，不用日跌停板限制)
                 weighted_shock = (
-                    betas[0] * shocks["csi300"] +
-                    betas[1] * shocks["csi500"] +
-                    betas[2] * shocks["csi1000"] +
-                    betas[3] * shocks["sse50"]
+                    betas[0] * shocks["csi300"]
+                    + betas[1] * shocks["csi500"]
+                    + betas[2] * shocks["csi1000"]
+                    + betas[3] * shocks["sse50"]
                 ) / 4.0
 
                 # 黄金ETF特殊处理: 危机中黄金通常上涨
@@ -687,14 +1090,38 @@ class HedgeEngine:
     def _estimate_default_price(self, code: str) -> float:
         """兜底价格 — 用于无实时行情时"""
         fallback_map = {
-            "300308": 105.0, "300308.SZ": 105.0, "688041": 62.0, "688041.SH": 62.0,
-            "002371": 320.0, "002371.SZ": 320.0, "688981": 55.0, "688981.SH": 55.0,
-            "300750": 230.0, "300750.SZ": 230.0, "000425": 8.5, "000425.SZ": 8.5,
-            "601088": 38.0, "601088.SH": 38.0, "600219": 5.0, "600219.SH": 5.0,
-            "600019": 7.5, "600019.SH": 7.5, "518880": 5.2, "518880.SH": 5.2,
-            "000792": 28.0, "000792.SZ": 28.0, "600900": 22.0, "600900.SH": 22.0,
-            "600276": 48.0, "600276.SH": 48.0, "603259": 65.0, "603259.SH": 65.0,
-            "002422": 32.0, "002422.SZ": 32.0, "511010": 108.5, "511010.SH": 108.5,
+            "300308": 105.0,
+            "300308.SZ": 105.0,
+            "688041": 62.0,
+            "688041.SH": 62.0,
+            "002371": 320.0,
+            "002371.SZ": 320.0,
+            "688981": 55.0,
+            "688981.SH": 55.0,
+            "300750": 230.0,
+            "300750.SZ": 230.0,
+            "000425": 8.5,
+            "000425.SZ": 8.5,
+            "601088": 38.0,
+            "601088.SH": 38.0,
+            "600219": 5.0,
+            "600219.SH": 5.0,
+            "600019": 7.5,
+            "600019.SH": 7.5,
+            "518880": 5.2,
+            "518880.SH": 5.2,
+            "000792": 28.0,
+            "000792.SZ": 28.0,
+            "600900": 22.0,
+            "600900.SH": 22.0,
+            "600276": 48.0,
+            "600276.SH": 48.0,
+            "603259": 65.0,
+            "603259.SH": 65.0,
+            "002422": 32.0,
+            "002422.SZ": 32.0,
+            "511010": 108.5,
+            "511010.SH": 108.5,
         }
         return fallback_map.get(code, 50.0)
 
@@ -717,7 +1144,7 @@ class HedgeEngine:
 
         # 获取每个标的的历史日收益率序列
         code_returns = {}
-        min_len = float('inf')
+        min_len = float("inf")
         for code in available_codes:
             rets = historical_returns[code]
             if len(rets) < 30:
@@ -750,8 +1177,7 @@ class HedgeEngine:
                 mean_j = sum(rets_j) / len(rets_j)
                 # 样本协方差
                 cov_ij = sum(
-                    (rets_i[k] - mean_i) * (rets_j[k] - mean_j)
-                    for k in range(min_len)
+                    (rets_i[k] - mean_i) * (rets_j[k] - mean_j) for k in range(min_len)
                 ) / (min_len - 1)
                 cov[i][j] = cov_ij
 
@@ -802,7 +1228,7 @@ class HedgeEngine:
             cutoff_idx = min_len - 1
 
         # ES = 超过VaR的尾部平均
-        tail = sorted_returns[:cutoff_idx + 1]
+        tail = sorted_returns[: cutoff_idx + 1]
         if not tail:
             return total_value * abs(sorted_returns[0]) * 2.0
 
@@ -827,9 +1253,7 @@ class HedgeEngine:
             return {}
 
         n = len(available_codes)
-        min_len = min(
-            len(historical_returns[c][-252:]) for c in available_codes
-        )
+        min_len = min(len(historical_returns[c][-252:]) for c in available_codes)
 
         # 构建协方差矩阵 (简化: 只用可用标的)
         cov = [[0.0] * n for _ in range(n)]
@@ -842,8 +1266,7 @@ class HedgeEngine:
                 rets_j = historical_returns[available_codes[j]][-min_len:]
                 mean_j = sum(rets_j) / len(rets_j)
                 cov_ij = sum(
-                    (rets_i[k] - mean_i) * (rets_j[k] - mean_j)
-                    for k in range(min_len)
+                    (rets_i[k] - mean_i) * (rets_j[k] - mean_j) for k in range(min_len)
                 ) / (min_len - 1)
                 cov[i][j] = cov_ij
                 cov[j][i] = cov_ij
@@ -873,79 +1296,100 @@ class HedgeEngine:
         market_signals: dict[str, Any] = None,
         portfolio_volatility: float = None,
         portfolio_drawdown_60d: float = None,
+        vix: float | None = None,
     ) -> tuple[HedgeSignalStrength, float]:
-        """v5.9 五因子模型 — 组合自触发权重提升
+        """v8.7 RegimeFolio 制度感知五因子模型 — 动态阈值+动态权重
 
-        因子权重:
-        1. 组合Beta因子 (25%, 从40%降低) — 降权,回测证明CSI300Beta不准确
-        2. 组合自波动率因子 (25%, v5.9新增) — 组合自身波动率超过阈值
-        3. 组合自回撤因子 (20%, v5.9新增) — 60日最大回撤触发
-        4. 集中度因子 (15%, 从20%降低)
-        5. VaR尾部风险 (10%)
-        6. 外部市场信号 (5%, 从10%降低)
+        v8.7 改进 (基于 cairn/regime-aware-allocator.md):
+        - 触发阈值随 VIX regime 自适应 (低波提高门槛, 危机大幅降低)
+        - 五因子权重随 regime 调整 (牛市增权Beta, 熊市增权波动率/回撤)
+
+        v5.9 原始因子:
+        1. 组合Beta因子 — 降权,回测证明CSI300Beta不准确
+        2. 组合自波动率因子 — 组合自身波动率超过阈值
+        3. 组合自回撤因子 — 60日最大回撤触发
+        4. 集中度因子
+        5. VaR尾部风险
+        6. 外部市场信号
         """
         score = 0.0
         reasons = []
 
-        # 1. Beta因子 (权重25%, v5.9从40%降低)
+        # v8.7: 获取 regime 感知动态阈值和权重
+        fw = _get_regime_weights(vix)
+        triggers = _get_regime_triggers(vix)
+
+        # 1. Beta因子 (权重随 regime 调整)
         beta = max(risk.beta_csi300, risk.beta_csi500, risk.beta_csi1000)
         if beta > 1.5:
-            score += 0.25
+            score += fw["beta"]
             reasons.append(f"组合Beta={beta:.2f}(取最大)较高")
         elif beta > 1.2:
-            score += 0.15
+            score += fw["beta"] * 0.6
             reasons.append(f"组合Beta={beta:.2f}偏高")
         elif beta > 0.8:
-            score += 0.08
+            score += fw["beta"] * 0.32
 
-        # 2. 组合自波动率因子 (权重25%, v5.9新增)
+        # 2. 组合自波动率因子 (权重随 regime 调整, 阈值随 regime 自适应)
         if portfolio_volatility is not None and portfolio_volatility > 0:
             current_vol = portfolio_volatility
         else:
-            current_vol = risk.volatility_30d * math.sqrt(252) if risk.volatility_30d > 0 else 0.18
+            current_vol = (
+                risk.volatility_30d * math.sqrt(252)
+                if risk.volatility_30d > 0
+                else 0.18
+            )
 
-        vol_trigger = PORTFOLIO_TAIL_HEDGE_TRIGGERS["vol_trigger"]
+        vol_trigger = triggers["vol_trigger"]
         if current_vol > vol_trigger * 1.2:
-            score += 0.25
-            reasons.append(f"组合波动率{current_vol*100:.1f}%严重超标(>{vol_trigger*120:.0f}%)")
+            score += fw["vol"]
+            reasons.append(
+                f"组合波动率{current_vol * 100:.1f}%严重超标(>{vol_trigger * 120:.0f}%)"
+            )
         elif current_vol > vol_trigger:
-            score += 0.18
-            reasons.append(f"组合波动率{current_vol*100:.1f}%超标(>{vol_trigger*100:.0f}%)")
+            score += fw["vol"] * 0.72
+            reasons.append(
+                f"组合波动率{current_vol * 100:.1f}%超标(>{vol_trigger * 100:.0f}%)"
+            )
         elif current_vol > vol_trigger * 0.8:
-            score += 0.08
+            score += fw["vol"] * 0.32
 
-        # 3. 组合自回撤因子 (权重20%, v5.9新增)
-        dd_trigger = PORTFOLIO_TAIL_HEDGE_TRIGGERS["dd_trigger"]
+        # 3. 组合自回撤因子 (权重随 regime 调整, 阈值随 regime 自适应)
+        dd_trigger = triggers["dd_trigger"]
         if portfolio_drawdown_60d is not None and portfolio_drawdown_60d > 0:
             if portfolio_drawdown_60d > dd_trigger * 1.5:
-                score += 0.20
-                reasons.append(f"组合60日回撤{portfolio_drawdown_60d*100:.1f}%严重(>{dd_trigger*150:.0f}%)")
+                score += fw["dd"]
+                reasons.append(
+                    f"组合60日回撤{portfolio_drawdown_60d * 100:.1f}%严重(>{dd_trigger * 150:.0f}%)"
+                )
             elif portfolio_drawdown_60d > dd_trigger:
-                score += 0.14
-                reasons.append(f"组合60日回撤{portfolio_drawdown_60d*100:.1f}%超标(>{dd_trigger*100:.0f}%)")
+                score += fw["dd"] * 0.70
+                reasons.append(
+                    f"组合60日回撤{portfolio_drawdown_60d * 100:.1f}%超标(>{dd_trigger * 100:.0f}%)"
+                )
             elif portfolio_drawdown_60d > dd_trigger * 0.7:
-                score += 0.06
+                score += fw["dd"] * 0.30
 
-        # 4. 集中度因子 (权重15%)
+        # 4. 集中度因子 (权重随 regime 调整)
         if risk.concentration_risk > 0.25:
-            score += 0.15
+            score += fw["concentration"]
             reasons.append(f"集中度HHI={risk.concentration_risk:.3f}过高")
         elif risk.concentration_risk > 0.15:
-            score += 0.08
+            score += fw["concentration"] * 0.53
 
-        # 5. VaR因子 (权重10%)
+        # 5. VaR因子 (权重随 regime 调整)
         var_pct = risk.var_95_daily / risk.total_value if risk.total_value > 0 else 0
         if var_pct > 0.03:
-            score += 0.10
-            reasons.append(f"日VaR(95%)={var_pct*100:.1f}%")
+            score += fw["var"]
+            reasons.append(f"日VaR(95%)={var_pct * 100:.1f}%")
         elif var_pct > 0.02:
-            score += 0.05
+            score += fw["var"] * 0.50
 
-        # 6. 外部市场信号 (权重5%, v5.9大幅降低)
+        # 6. 外部市场信号 (权重随 regime 调整)
         if market_signals:
-            panic = market_signals.get('panic_index', 0)
+            panic = market_signals.get("panic_index", 0)
             if panic > 0.75:
-                score += 0.05
+                score += fw["external"]
                 reasons.append("外部恐慌指数极高")
 
         # 信号强度判定
@@ -967,11 +1411,13 @@ class HedgeEngine:
         method: str = "min_variance",
         portfolio_volatility: float = None,
         portfolio_drawdown_60d: float = None,
+        vix: float | None = None,
     ) -> float:
-        """v5.9 最优对冲比率 — 组合自触发为上限
+        """v8.7 RegimeFolio 制度感知最优对冲比率 — 动态阈值
 
         核心逻辑: 对冲比率 = min(Beta中性比率, 尾部保护比率)
-        尾部保护仅在组合自身波动率>28%或回撤>12%时显著激活。
+        v8.7: 触发阈值和 min/max 对冲比率随 VIX regime 自适应.
+        尾部保护仅在组合自身波动率超过 regime 阈值或回撤超过 regime 阈值时显著激活.
         """
         strength_ratio = {
             HedgeSignalStrength.NO_HEDGE: 0.0,
@@ -989,14 +1435,19 @@ class HedgeEngine:
         beta_neutral_ratio = max_beta * base_ratio * 0.70  # 70%因子考虑基差
         beta_neutral_ratio = min(beta_neutral_ratio, 1.0)
 
-        # ── v5.9 核心: 组合自触发尾部保护比率 ──
+        # ── v8.7: regime 感知动态阈值尾部保护比率 ──
         if portfolio_volatility is None:
-            portfolio_volatility = risk.volatility_30d * math.sqrt(252) if risk.volatility_30d > 0 else 0.18
+            portfolio_volatility = (
+                risk.volatility_30d * math.sqrt(252)
+                if risk.volatility_30d > 0
+                else 0.18
+            )
 
-        vol_trigger = PORTFOLIO_TAIL_HEDGE_TRIGGERS["vol_trigger"]
-        dd_trigger = PORTFOLIO_TAIL_HEDGE_TRIGGERS["dd_trigger"]
-        max_ratio = PORTFOLIO_TAIL_HEDGE_TRIGGERS["max_hedge_ratio"]
-        min_ratio = PORTFOLIO_TAIL_HEDGE_TRIGGERS["min_hedge_ratio"]
+        triggers = _get_regime_triggers(vix)
+        vol_trigger = triggers["vol_trigger"]
+        dd_trigger = triggers["dd_trigger"]
+        max_ratio = triggers["max_hedge_ratio"]
+        min_ratio = triggers["min_hedge_ratio"]
 
         tail_ratio = 0.0
 
@@ -1015,20 +1466,29 @@ class HedgeEngine:
 
         # 融合: 取Beta中性(上限)和尾部保护的最小值
         # 尾保模式: 仅在极端行情激活, 日常不打扰
-        final_ratio = min(beta_neutral_ratio + tail_ratio * 0.5, max(beta_neutral_ratio, tail_ratio))
+        final_ratio = min(
+            beta_neutral_ratio + tail_ratio * 0.5, max(beta_neutral_ratio, tail_ratio)
+        )
 
         # 成本效益过滤
         if hedge_strength == HedgeSignalStrength.NO_HEDGE:
             return 0.0
 
         # 对冲成本估算(年化)
-        hedge_cost_annual = final_ratio * (HEDGE_ROLL_COST_ANNUAL + HEDGE_MARGIN_OPP_COST)
+        hedge_cost_annual = final_ratio * (
+            HEDGE_ROLL_COST_ANNUAL + HEDGE_MARGIN_OPP_COST
+        )
         # 预期收益(仅尾保部分做减法)
         expected_benefit = tail_ratio * 0.08  # 尾保预期降低8%*ratio的回撤
 
-        if expected_benefit < hedge_cost_annual * COST_BENEFIT_THRESHOLD and tail_ratio < 0.10:
-            logger.info(f"[成本效益] 对冲预期收益{expected_benefit*100:.1f}% < "
-                       f"成本{hedge_cost_annual*100:.1f}% * {COST_BENEFIT_THRESHOLD}, 降为0")
+        if (
+            expected_benefit < hedge_cost_annual * COST_BENEFIT_THRESHOLD
+            and tail_ratio < 0.10
+        ):
+            logger.info(
+                f"[成本效益] 对冲预期收益{expected_benefit * 100:.1f}% < "
+                f"成本{hedge_cost_annual * 100:.1f}% * {COST_BENEFIT_THRESHOLD}, 降为0"
+            )
             return 0.0
 
         return min(final_ratio, 1.0)
@@ -1046,8 +1506,14 @@ class HedgeEngine:
         IC/IM/IF按组合Beta比例分配, 不再单一依赖IF。
         """
         if hedge_ratio <= 0:
-            return {"contracts": {}, "total_notional": 0, "total_margin": 0,
-                    "reason": "对冲比率=0, 无需求", "price_source": "N/A", "fallback_used": []}
+            return {
+                "contracts": {},
+                "total_notional": 0,
+                "total_margin": 0,
+                "reason": "对冲比率=0, 无需求",
+                "price_source": "N/A",
+                "fallback_used": [],
+            }
 
         price_source = "user_provided"
         if not futures_prices:
@@ -1056,7 +1522,11 @@ class HedgeEngine:
 
         fallback_used = []
         for code in ["IF", "IC", "IM", "IH"]:
-            if code in futures_prices and abs(futures_prices[code] - DEFAULT_FUTURES_PRICES.get(code, 0)) < 0.1:
+            if (
+                code in futures_prices
+                and abs(futures_prices[code] - DEFAULT_FUTURES_PRICES.get(code, 0))
+                < 0.1
+            ):
                 fallback_used.append(code)
 
         if fallback_used:
@@ -1072,8 +1542,14 @@ class HedgeEngine:
         # 计算每个指数的对冲分配权重
         total_beta = sum(max(b, 0) for b in beta_map.values())
         if total_beta <= 0:
-            return {"contracts": {}, "total_notional": 0, "total_margin": 0,
-                    "reason": "组合Beta<=0, 无需对冲", "price_source": price_source, "fallback_used": fallback_used}
+            return {
+                "contracts": {},
+                "total_notional": 0,
+                "total_margin": 0,
+                "reason": "组合Beta<=0, 无需对冲",
+                "price_source": price_source,
+                "fallback_used": fallback_used,
+            }
 
         hedge_notional_total = risk.stock_exposure * hedge_ratio
 
@@ -1133,7 +1609,9 @@ class HedgeEngine:
             n = detail["contracts"]
             parts.append(f"做空{n}手{name}")
 
-        reason = "; ".join(parts) if parts else f"多指数对冲{hedge_ratio*100:.0f}%敞口"
+        reason = (
+            "; ".join(parts) if parts else f"多指数对冲{hedge_ratio * 100:.0f}%敞口"
+        )
         if fallback_used:
             reason += f" [!]{','.join(fallback_used)}为回退价格"
 
@@ -1150,8 +1628,11 @@ class HedgeEngine:
     # ── 期权对冲（保留原实现） ──
 
     def generate_options_hedge(
-        self, risk: PortfolioRisk, hedge_ratio: float,
-        options_data: dict[str, Any] = None, strategy: str = "protective_put",
+        self,
+        risk: PortfolioRisk,
+        hedge_ratio: float,
+        options_data: dict[str, Any] = None,
+        strategy: str = "protective_put",
     ) -> dict[str, Any]:
         if hedge_ratio <= 0:
             return {"contracts": [], "total_cost": 0, "reason": "对冲比率=0"}
@@ -1162,7 +1643,7 @@ class HedgeEngine:
         hedge_notional = risk.stock_exposure * hedge_ratio
 
         if strategy == "protective_put":
-            T = 1/12
+            T = 1 / 12
             atm_put_premium_pct = 0.4 * default_iv * math.sqrt(T)
             atm_put_premium = index_price * atm_put_premium_pct
             multiplier = ETF_OPTIONS_SPECS[underlying]["multiplier"]
@@ -1171,18 +1652,24 @@ class HedgeEngine:
             total_premium = contracts * atm_put_premium * multiplier
 
             return {
-                "strategy": "protective_put", "underlying": underlying,
-                "contracts": contracts, "strike_type": "ATM",
+                "strategy": "protective_put",
+                "underlying": underlying,
+                "contracts": contracts,
+                "strike_type": "ATM",
                 "estimated_premium_pct": round(atm_put_premium_pct * 100, 2),
                 "total_premium": round(total_premium, 0),
-                "total_premium_pct": round(total_premium / risk.total_value * 100, 2) if risk.total_value > 0 else 0,
+                "total_premium_pct": (
+                    round(total_premium / risk.total_value * 100, 2)
+                    if risk.total_value > 0
+                    else 0
+                ),
                 "max_protection": round(hedge_notional, 0),
                 "reason": f"保护性看跌: {contracts}手{underlying} ATM Put, 权利金{total_premium:,.0f}元",
                 "risk": "最大损失=权利金",
             }
 
-        elif strategy == "collar":
-            T = 1/12
+        if strategy == "collar":
+            T = 1 / 12
             atm_put_pct = 0.4 * default_iv * math.sqrt(T)
             otm_put_pct = atm_put_pct * 0.7
             otm_call_pct = atm_put_pct * 0.8
@@ -1193,17 +1680,23 @@ class HedgeEngine:
             net_cost = contracts * net_cost_pct * index_price * multiplier
 
             return {
-                "strategy": "collar", "underlying": underlying,
-                "contracts": contracts, "net_cost": round(net_cost, 0),
-                "put_strike": f"{index_price*0.95:.0f} (OTM 95%)",
-                "call_strike": f"{index_price*1.05:.0f} (OTM 105%)",
-                "net_cost_pct": round(net_cost / risk.total_value * 100, 2) if risk.total_value > 0 else 0,
+                "strategy": "collar",
+                "underlying": underlying,
+                "contracts": contracts,
+                "net_cost": round(net_cost, 0),
+                "put_strike": f"{index_price * 0.95:.0f} (OTM 95%)",
+                "call_strike": f"{index_price * 1.05:.0f} (OTM 105%)",
+                "net_cost_pct": (
+                    round(net_cost / risk.total_value * 100, 2)
+                    if risk.total_value > 0
+                    else 0
+                ),
                 "reason": f"领口: {contracts}手, 净成本{net_cost:,.0f}元",
                 "risk": "上行收益封顶+5%",
             }
 
-        elif strategy == "put_spread":
-            T = 1/12
+        if strategy == "put_spread":
+            T = 1 / 12
             atm_put_pct = 0.4 * default_iv * math.sqrt(T)
             sell_otm_put_pct = atm_put_pct * 0.45
             spread_cost_pct = atm_put_pct - sell_otm_put_pct
@@ -1213,10 +1706,12 @@ class HedgeEngine:
             spread_cost = contracts * spread_cost_pct * index_price * multiplier
 
             return {
-                "strategy": "put_spread", "underlying": underlying,
-                "contracts": contracts, "spread_cost": round(spread_cost, 0),
+                "strategy": "put_spread",
+                "underlying": underlying,
+                "contracts": contracts,
+                "spread_cost": round(spread_cost, 0),
                 "buy_put_strike": f"{index_price:.0f} (ATM)",
-                "sell_put_strike": f"{index_price*0.90:.0f} (OTM 90%)",
+                "sell_put_strike": f"{index_price * 0.90:.0f} (OTM 90%)",
                 "max_profit": round(hedge_notional * 0.10, 0),
                 "reason": f"看跌价差: {contracts}手, 成本{spread_cost:,.0f}元",
                 "risk": "保护10%跌幅",
@@ -1224,21 +1719,144 @@ class HedgeEngine:
 
         return {"contracts": [], "total_cost": 0, "reason": "未知策略"}
 
+    # ── v8.7: Deep Hedging RL + 多智能体对冲 ──
+
+    def generate_deep_hedge(
+        self,
+        risk: PortfolioRisk,
+        hedge_ratio: float,
+        portfolio_volatility: float | None = None,
+    ) -> dict[str, Any]:
+        """v8.7: Deep Hedging RL — TAIL_EVENT 时用 CVaR 优化对冲.
+
+        知识沉淀: cairn/deep-hedging-rl.md
+        用 RL 直接优化对冲策略的风险指标 (CVaR), 无需 BS 假设.
+        处理交易成本/跳空/流动性约束, CVaR 改善 20%+.
+        """
+        if hedge_ratio <= 0 or self._deep_hedge_engine is None:
+            return {"available": False, "reason": "Deep Hedging 不可用或对冲比率=0"}
+
+        try:
+            spot = risk.total_value if risk.total_value > 0 else self.portfolio_value
+            strike = spot * (1 - hedge_ratio * 0.05)
+            maturity = 30 / 365
+            vol = portfolio_volatility or (
+                risk.volatility_30d * math.sqrt(252)
+                if risk.volatility_30d > 0
+                else 0.20
+            )
+
+            result = self._deep_hedge_engine.hedge(
+                spot=spot, strike=strike, maturity=maturity, n_paths=500
+            )
+
+            return {
+                "available": True,
+                "method": "deep_hedging_rl",
+                "spot": round(spot, 2),
+                "strike": round(strike, 2),
+                "maturity_days": 30,
+                "volatility": round(vol, 4),
+                "pnl": round(result.pnl, 4),
+                "hedging_error": round(result.hedging_error, 4),
+                "transaction_costs": round(result.transaction_costs, 4),
+                "risk_measure": "CVaR",
+                "reason": f"Deep Hedging RL: CVaR优化, 对冲误差={result.hedging_error:.4f}",
+            }
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Deep Hedging RL 执行失败, 降级到解析 delta: %s", exc)
+            return {"available": False, "reason": f"Deep Hedging 执行失败: {exc}"}
+
+    def generate_multi_agent_hedge(
+        self,
+        risk: PortfolioRisk,
+        hedge_ratio: float,
+        option_chain: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """v8.7: 多智能体对冲 — delta+gamma+vega 同时对冲.
+
+        知识沉淀: cairn/delta-hedge-multi-agent.md
+        多个智能体分别对冲不同希腊字母, 期权作为对冲工具, RL 优化权重分配.
+        超越纯 Beta 加权 (仅 delta), 同时覆盖 gamma/vega 暴露.
+        """
+        if hedge_ratio <= 0 or self._multi_agent_engine is None:
+            return {"available": False, "reason": "多智能体对冲不可用或对冲比率=0"}
+
+        if not _MULTI_AGENT_AVAILABLE:
+            return {"available": False, "reason": "多智能体模块未安装"}
+
+        try:
+            max_beta = max(risk.beta_csi300, risk.beta_csi500, risk.beta_csi1000, 0.0)
+            spot = risk.total_value if risk.total_value > 0 else self.portfolio_value
+            portfolio_delta = max_beta * spot * hedge_ratio
+            portfolio_greeks = PortfolioGreeks(
+                delta=portfolio_delta, gamma=0.0, vega=0.0, theta=0.0
+            )
+
+            hedge_instruments: list[Any] = []
+            if option_chain:
+                for opt in option_chain[:10]:
+                    try:
+                        hedge_instruments.append(
+                            OptionInstrument(
+                                option_type=(
+                                    OptionType.PUT
+                                    if opt.get("type", "put") == "put"
+                                    else OptionType.CALL
+                                ),
+                                strike=float(opt["strike"]),
+                                maturity=float(opt.get("maturity", 30 / 365)),
+                                iv=float(opt.get("iv", 0.22)),
+                                price=float(opt.get("price", 0)),
+                                underlying=float(opt.get("underlying_price", spot)),
+                            )
+                        )
+                    except (KeyError, ValueError):
+                        continue
+
+            if not hedge_instruments:
+                return {
+                    "available": False,
+                    "reason": "无可用期权链数据, 降级到 Beta 加权",
+                }
+
+            result = self._multi_agent_engine.hedge(portfolio_greeks, hedge_instruments)
+
+            return {
+                "available": True,
+                "method": "multi_agent_delta_hedge",
+                "portfolio_greeks": portfolio_greeks.to_dict(),
+                "total_reduction": round(result.total_reduction, 4),
+                "residual_exposure": round(result.residual_greeks.total_exposure(), 4),
+                "n_instruments": len(hedge_instruments),
+                "reason": f"多智能体对冲: delta+gamma+vega, 减少暴露={result.total_reduction:.4f}",
+            }
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("多智能体对冲执行失败, 降级到 Beta 加权: %s", exc)
+            return {"available": False, "reason": f"多智能体对冲失败: {exc}"}
+
     def generate_hedge_plan(
-        self, risk: PortfolioRisk, market_signals: dict[str, Any] = None,
-        futures_prices: dict[str, float] = None, prefer_options: bool = False,
-        portfolio_volatility: float = None, portfolio_drawdown_60d: float = None,
+        self,
+        risk: PortfolioRisk,
+        market_signals: dict[str, Any] = None,
+        futures_prices: dict[str, float] = None,
+        prefer_options: bool = False,
+        portfolio_volatility: float = None,
+        portfolio_drawdown_60d: float = None,
         positions: dict[str, dict[str, Any]] = None,
         prices: dict[str, float] = None,
+        vix: float | None = None,
     ) -> HedgeRecommendation:
-        """v5.10 完整对冲方案 — 组合自触发增强 + P0-8压力测试"""
+        """v8.7 完整对冲方案 — RegimeFolio动态阈值 + Deep Hedging RL + 多智能体对冲"""
         recommendation = HedgeRecommendation()
         recommendation.timestamp = datetime.now().isoformat()
         recommendation.risk_signals = market_signals or {}
 
         # v5.10 P0-8: 历史极端压力测试 (始终运行)
         if positions and prices:
-            recommendation.stress_tests = self.run_historical_stress_tests(positions, prices)
+            recommendation.stress_tests = self.run_historical_stress_tests(
+                positions, prices
+            )
 
         # v5.10 P0-6: 板块集中度 + MRC 预警
         if risk.sector_concentration_warning:
@@ -1248,33 +1866,66 @@ class HedgeEngine:
         # v5.10 P0-7: 相关性预警
         recommendation.correlation_warning = risk.correlation_warning
 
+        # v8.7: 传入 vix 使用 RegimeFolio 动态阈值和权重
         strength, score = self.determine_hedge_signal_strength(
-            risk, market_signals, portfolio_volatility, portfolio_drawdown_60d
+            risk, market_signals, portfolio_volatility, portfolio_drawdown_60d, vix=vix
         )
         recommendation.strength = strength
         recommendation.urgency_score = score
 
         if strength == HedgeSignalStrength.NO_HEDGE:
             recommendation.hedge_type = HedgeType.NONE
-            recommendation.reasoning = "组合风险可控(自波动率+回撤均在安全范围), 无需对冲"
+            recommendation.reasoning = (
+                "组合风险可控(自波动率+回撤均在安全范围), 无需对冲"
+            )
             return recommendation
 
-        recommendation.hedge_type = HedgeType.PUT_PROTECTIVE if prefer_options else HedgeType.FUTURES_SHORT
+        recommendation.hedge_type = (
+            HedgeType.PUT_PROTECTIVE if prefer_options else HedgeType.FUTURES_SHORT
+        )
         hedge_ratio = self.compute_optimal_hedge_ratio(
-            risk, strength, method="min_variance",
+            risk,
+            strength,
+            method="min_variance",
             portfolio_volatility=portfolio_volatility,
             portfolio_drawdown_60d=portfolio_drawdown_60d,
+            vix=vix,
         )
         recommendation.hedge_ratio = hedge_ratio
 
         if hedge_ratio <= 0:
             recommendation.hedge_type = HedgeType.NONE
-            recommendation.reasoning = "对冲经成本效益分析后判定不划算(预期收益<1.5倍成本)"
+            recommendation.reasoning = (
+                "对冲经成本效益分析后判定不划算(预期收益<1.5倍成本)"
+            )
             return recommendation
 
+        # v8.7: TAIL_EVENT (STRONG/FULL) 时增强 — Deep Hedging RL + 多智能体对冲
+        is_tail_event = strength in (
+            HedgeSignalStrength.STRONG,
+            HedgeSignalStrength.FULL,
+        )
+        if is_tail_event:
+            deep_result = self.generate_deep_hedge(
+                risk, hedge_ratio, portfolio_volatility
+            )
+            if deep_result.get("available"):
+                recommendation.deep_hedge = deep_result
+                logger.info(
+                    "[v8.7] Deep Hedging RL 激活: %s", deep_result.get("reason")
+                )
+            multi_result = self.generate_multi_agent_hedge(risk, hedge_ratio)
+            if multi_result.get("available"):
+                recommendation.multi_agent_hedge = multi_result
+                logger.info("[v8.7] 多智能体对冲激活: %s", multi_result.get("reason"))
+
         if not prefer_options:
-            futures_result = self.generate_futures_hedge(risk, hedge_ratio, futures_prices)
-            recommendation.futures_instruments = list(futures_result.get("contracts", {}).keys())
+            futures_result = self.generate_futures_hedge(
+                risk, hedge_ratio, futures_prices
+            )
+            recommendation.futures_instruments = list(
+                futures_result.get("contracts", {}).keys()
+            )
 
             contracts = {}
             notionals = {}
@@ -1289,22 +1940,33 @@ class HedgeEngine:
             recommendation.futures_margin = margins
             recommendation.effective_hedge_pct = (
                 futures_result.get("total_notional", 0) / risk.stock_exposure
-                if risk.stock_exposure > 0 else 0
+                if risk.stock_exposure > 0
+                else 0
             )
             hedge_reason = futures_result.get("reason", "")
         else:
             options_result = self.generate_options_hedge(
-                risk, hedge_ratio, strategy="protective_put" if score < 0.5 else "put_spread"
+                risk,
+                hedge_ratio,
+                strategy="protective_put" if score < 0.5 else "put_spread",
             )
-            recommendation.options_instruments = [options_result.get("underlying", "510300")]
+            recommendation.options_instruments = [
+                options_result.get("underlying", "510300")
+            ]
             recommendation.options_strategy = options_result.get("strategy", "")
-            recommendation.options_contracts = [{
-                "underlying": options_result.get("underlying"),
-                "contracts": options_result.get("contracts", 0),
-                "strategy": options_result.get("strategy"),
-                "cost": options_result.get("total_premium", options_result.get("spread_cost", 0)),
-            }]
-            recommendation.options_cost = options_result.get("total_premium", options_result.get("spread_cost", 0))
+            recommendation.options_contracts = [
+                {
+                    "underlying": options_result.get("underlying"),
+                    "contracts": options_result.get("contracts", 0),
+                    "strategy": options_result.get("strategy"),
+                    "cost": options_result.get(
+                        "total_premium", options_result.get("spread_cost", 0)
+                    ),
+                }
+            ]
+            recommendation.options_cost = options_result.get(
+                "total_premium", options_result.get("spread_cost", 0)
+            )
             recommendation.effective_hedge_pct = hedge_ratio
             hedge_reason = options_result.get("reason", "")
 
@@ -1321,28 +1983,30 @@ class HedgeEngine:
 
         vol_info = ""
         if portfolio_volatility and portfolio_volatility > 0:
-            vol_info = f"组合波动率={portfolio_volatility*100:.1f}%, "
+            vol_info = f"组合波动率={portfolio_volatility * 100:.1f}%, "
         dd_info = ""
         if portfolio_drawdown_60d and portfolio_drawdown_60d > 0:
-            dd_info = f"60日回撤={portfolio_drawdown_60d*100:.1f}%, "
+            dd_info = f"60日回撤={portfolio_drawdown_60d * 100:.1f}%, "
 
         recommendation.reasoning = (
             f"{strength_names.get(strength, '')}对冲 (评分={score:.2f})。"
             f"最大Beta={max_beta:.2f}, {vol_info}{dd_info}"
-            f"对冲比率={hedge_ratio*100:.0f}%。"
+            f"对冲比率={hedge_ratio * 100:.0f}%。"
             f"{hedge_reason}"
         )
 
         return recommendation
 
-    def _generate_hedge_reason(self, risk: float, hedge_ratio: float, contracts: dict[str, Any]) -> str:
+    def _generate_hedge_reason(
+        self, risk: float, hedge_ratio: float, contracts: dict[str, Any]
+    ) -> str:
         parts = []
         for code, detail in contracts.items():
             spec = detail.get("spec", {})
             name = spec.get("name", code)
             n = detail["contracts"]
             parts.append(f"做空{n}手{name}")
-        return "; ".join(parts) if parts else f"对冲{hedge_ratio*100:.0f}%股票敞口"
+        return "; ".join(parts) if parts else f"对冲{hedge_ratio * 100:.0f}%股票敞口"
 
     def format_report(self, recommendation: HedgeRecommendation) -> str:
         lines = []
@@ -1351,10 +2015,14 @@ class HedgeEngine:
         lines.append("=" * 70)
         lines.append(f"  生成时间: {recommendation.timestamp[:19]}")
         lines.append(f"  对冲类型: {recommendation.hedge_type.value}")
-        lines.append(f"  信号强度: {recommendation.strength.name} (紧急度={recommendation.urgency_score:.2f})")
-        lines.append(f"  对冲比率: {recommendation.hedge_ratio*100:.0f}%")
+        lines.append(
+            f"  信号强度: {recommendation.strength.name} (紧急度={recommendation.urgency_score:.2f})"
+        )
+        lines.append(f"  对冲比率: {recommendation.hedge_ratio * 100:.0f}%")
         lines.append(f"  预期对冲后Beta: {recommendation.expected_beta_after:.2f}")
-        lines.append(f"  预期回撤减少: {recommendation.expected_drawdown_reduce*100:.0f}%")
+        lines.append(
+            f"  预期回撤减少: {recommendation.expected_drawdown_reduce * 100:.0f}%"
+        )
         lines.append("-" * 70)
 
         if recommendation.futures_contracts:
@@ -1410,7 +2078,9 @@ class HedgeEngine:
             lines.append("  " + "-" * 50)
             breach_count = 0
             for scenario, result in recommendation.stress_tests.items():
-                breach = "❌ 突破15%回撤上限" if result["breaches_limit"] else "✅ 未触发"
+                breach = (
+                    "❌ 突破15%回撤上限" if result["breaches_limit"] else "✅ 未触发"
+                )
                 if result["breaches_limit"]:
                     breach_count += 1
                 dd = result["drawdown_pct"]
@@ -1419,7 +2089,9 @@ class HedgeEngine:
                 lines.append(f"    预估回撤: {dd:.1f}% | 损失: {loss:,.0f} | {breach}")
                 lines.append(f"    情景: {result['sector_impact']}")
             if breach_count > 0:
-                lines.append(f"\n  ⚠️  {breach_count}/6 个历史情景突破15%回撤上限，强烈建议启用尾部保护")
+                lines.append(
+                    f"\n  ⚠️  {breach_count}/6 个历史情景突破15%回撤上限，强烈建议启用尾部保护"
+                )
             else:
                 lines.append("\n  全部历史情景均未突破15%回撤上限，尾部保护可选")
 
@@ -1429,10 +2101,15 @@ class HedgeEngine:
 
         return "\n".join(lines)
 
-    def get_hedge_signal_for_fusion(self, portfolio_code: str = "portfolio") -> dict[str, Any]:
+    def get_hedge_signal_for_fusion(
+        self, portfolio_code: str = "portfolio"
+    ) -> dict[str, Any]:
         return {
-            "code": portfolio_code, "source": "hedge_engine_v59",
-            "action": "HOLD", "score": 0.5, "confidence": 0.3,
+            "code": portfolio_code,
+            "source": "hedge_engine_v59",
+            "action": "HOLD",
+            "score": 0.5,
+            "confidence": 0.3,
             "reason": "对冲引擎v5.9已初始化，等待风险评估",
             "timestamp": datetime.now().isoformat(),
         }
@@ -1462,7 +2139,7 @@ class HedgeEngine:
             return {}
 
         code_returns = {}
-        min_len = float('inf')
+        min_len = float("inf")
         for code in available_codes:
             rets = historical_returns[code]
             if len(rets) < lookback_days:
@@ -1490,8 +2167,7 @@ class HedgeEngine:
                 rets_j = code_returns[cj][-min_len:]
                 mean_j = sum(rets_j) / len(rets_j)
                 cov_ij = sum(
-                    (rets_i[k] - mean_i) * (rets_j[k] - mean_j)
-                    for k in range(min_len)
+                    (rets_i[k] - mean_i) * (rets_j[k] - mean_j) for k in range(min_len)
                 ) / (min_len - 1)
                 cov_matrix[i][j] = cov_ij
 
@@ -1529,7 +2205,9 @@ class HedgeEngine:
             monitoring_result: 包含相关性矩阵、预警状态、风险评分
         """
         codes = list(positions.keys())
-        corr_matrix = self.compute_correlation_matrix(historical_returns, codes, lookback_days)
+        corr_matrix = self.compute_correlation_matrix(
+            historical_returns, codes, lookback_days
+        )
 
         if not corr_matrix:
             return {
@@ -1604,7 +2282,7 @@ class HedgeEngine:
         """
         sectors = {}
         for code, pos in positions.items():
-            sector = pos.get('category', 'unknown')
+            sector = pos.get("category", "unknown")
             if sector not in sectors:
                 sectors[sector] = []
             sectors[sector].append(code)
@@ -1634,7 +2312,9 @@ class HedgeEngine:
 
             if corr_result["alert"]:
                 alert_sectors.append(sector)
-                overall_risk += corr_result["risk_score"] * (len(codes) / len(positions))
+                overall_risk += corr_result["risk_score"] * (
+                    len(codes) / len(positions)
+                )
 
         return {
             "sector_concentration": sector_risks,
@@ -1646,17 +2326,22 @@ class HedgeEngine:
 
 # ── 便捷函数 ──
 
+
 def get_hedge_engine(portfolio_value: float = None) -> HedgeEngine:
     return HedgeEngine(portfolio_value=portfolio_value or 1_000_000)
 
 
 def calculate_portfolio_beta(
-    positions: dict[str, dict[str, Any]], prices: dict[str, float],
+    positions: dict[str, dict[str, Any]],
+    prices: dict[str, float],
 ) -> dict[str, float]:
     engine = HedgeEngine()
     risk = engine.assess_portfolio_risk(positions, prices)
     return {
-        "beta_csi300": risk.beta_csi300, "beta_csi500": risk.beta_csi500,
-        "beta_csi1000": risk.beta_csi1000, "beta_sse50": risk.beta_sse50,
-        "concentration_hhi": risk.concentration_risk, "var_95_daily": risk.var_95_daily,
+        "beta_csi300": risk.beta_csi300,
+        "beta_csi500": risk.beta_csi500,
+        "beta_csi1000": risk.beta_csi1000,
+        "beta_sse50": risk.beta_sse50,
+        "concentration_hhi": risk.concentration_risk,
+        "var_95_daily": risk.var_95_daily,
     }

@@ -6,6 +6,7 @@
     - 数据质量报告
     - 风险总线事件
 """
+
 from __future__ import annotations
 
 import sys
@@ -52,51 +53,69 @@ def main() -> None:
     strategy_events = load_strategy_registry_events()
     data_quality_reports = load_recent_data_quality(n=5)
 
-    render_kpi_row([
-        {"label": "LLM 调用数", "value": str(len(llm_calls)), "icon": "🤖"},
-        {"label": "风险事件数", "value": str(len(risk_events)), "icon": "📡"},
-        {"label": "策略注册事件", "value": str(len(strategy_events)), "icon": "📦"},
-        {"label": "数据质量报告", "value": str(len(data_quality_reports)), "icon": "✨"},
-    ])
+    render_kpi_row(
+        [
+            {"label": "LLM 调用数", "value": str(len(llm_calls)), "icon": "🤖"},
+            {"label": "风险事件数", "value": str(len(risk_events)), "icon": "📡"},
+            {"label": "策略注册事件", "value": str(len(strategy_events)), "icon": "📦"},
+            {
+                "label": "数据质量报告",
+                "value": str(len(data_quality_reports)),
+                "icon": "✨",
+            },
+        ]
+    )
 
     st.divider()
 
     # ===== Tab 分类展示 =====
-    tab_llm, tab_risk, tab_strategy, tab_dq = st.tabs([
-        f"🤖 LLM 路由 ({len(llm_calls)})",
-        f"📡 风险事件 ({len(risk_events)})",
-        f"📦 策略注册 ({len(strategy_events)})",
-        f"✨ 数据质量 ({len(data_quality_reports)})",
-    ])
+    tab_llm, tab_risk, tab_strategy, tab_dq = st.tabs(
+        [
+            f"🤖 LLM 路由 ({len(llm_calls)})",
+            f"📡 风险事件 ({len(risk_events)})",
+            f"📦 策略注册 ({len(strategy_events)})",
+            f"✨ 数据质量 ({len(data_quality_reports)})",
+        ]
+    )
 
     # LLM 路由审计
     with tab_llm:
         if llm_calls:
             try:
                 import pandas as pd
+
                 df = pd.DataFrame(llm_calls)
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
                 # 按 provider 分组统计
                 if "provider" in df.columns:
                     st.subheader("按 Provider 分组")
-                    provider_stats = df.groupby("provider").agg(
-                        总调用数=("provider", "count"),
-                        成功数=("success", lambda x: sum(1 for v in x if v)),
-                        平均延迟_ms=("latency_ms", "mean"),
-                    ).reset_index()
-                    st.dataframe(provider_stats, use_container_width=True, hide_index=True)
+                    provider_stats = (
+                        df.groupby("provider")
+                        .agg(
+                            总调用数=("provider", "count"),
+                            成功数=("success", lambda x: sum(1 for v in x if v)),
+                            平均延迟_ms=("latency_ms", "mean"),
+                        )
+                        .reset_index()
+                    )
+                    st.dataframe(
+                        provider_stats, use_container_width=True, hide_index=True
+                    )
             except Exception as e:
                 st.warning(f"LLM 调用日志渲染失败: {e}")
                 st.json(llm_calls[:20])
         else:
-            render_empty_state(f"{selected_date.strftime('%Y-%m-%d')} 无 LLM 调用记录", icon="🤖")
+            render_empty_state(
+                f"{selected_date.strftime('%Y-%m-%d')} 无 LLM 调用记录", icon="🤖"
+            )
 
     # 风险事件
     with tab_risk:
         if risk_events:
             try:
                 import pandas as pd
+
                 df = pd.DataFrame(risk_events)
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -107,13 +126,16 @@ def main() -> None:
                 st.warning(f"风险事件渲染失败: {e}")
                 st.json(risk_events[:20])
         else:
-            render_empty_state(f"{selected_date.strftime('%Y-%m-%d')} 无风险事件", icon="📡")
+            render_empty_state(
+                f"{selected_date.strftime('%Y-%m-%d')} 无风险事件", icon="📡"
+            )
 
     # 策略注册事件
     with tab_strategy:
         if strategy_events:
             try:
                 import pandas as pd
+
                 df = pd.DataFrame(strategy_events)
                 st.dataframe(df, use_container_width=True, hide_index=True)
 

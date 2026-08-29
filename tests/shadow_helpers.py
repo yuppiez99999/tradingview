@@ -7,6 +7,7 @@
 关联文档: cairn/shadow-data-quality-loop.md
 关联测试: tests/unit/test_shadow_threshold_gates.py / tests/integration/test_shadow_two_layer_integration.py
 """
+
 from __future__ import annotations
 
 import json
@@ -36,12 +37,14 @@ def make_real_records(n: int, start_date: str = "2026-07-23") -> list[dict[str, 
         d = base + timedelta(days=i)
         # 生成不同收益率, 避免全零导致 PSI=0
         ret = 0.001 * ((i % 7) - 3)  # -0.003 ~ +0.003 循环
-        records.append({
-            "date": d.isoformat(),
-            "daily_return": ret,
-            "quality": "real",
-            "source": "w13a_real_market_feed",
-        })
+        records.append(
+            {
+                "date": d.isoformat(),
+                "daily_return": ret,
+                "quality": "real",
+                "source": "w13a_real_market_feed",
+            }
+        )
     return records
 
 
@@ -64,12 +67,14 @@ def make_mixed_records(
     base = date.fromisoformat(start_date) + timedelta(days=real_n)
     for i in range(backtest_n):
         d = base + timedelta(days=i)
-        records.append({
-            "date": d.isoformat(),
-            "daily_return": 0.002 * i,
-            "quality": "backtest",
-            "source": "backtest_backfill",
-        })
+        records.append(
+            {
+                "date": d.isoformat(),
+                "daily_return": 0.002 * i,
+                "quality": "backtest",
+                "source": "backtest_backfill",
+            }
+        )
     return records
 
 

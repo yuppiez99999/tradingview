@@ -25,6 +25,7 @@ metric 分类 (量化 + 通用):
 
 集成日期: 2026-08-25 (借鉴 google-skills eval-flywheel 模式)
 """
+
 from __future__ import annotations
 
 import logging
@@ -72,7 +73,11 @@ class EvalDataset:
         self.cases.append(case)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"source": self.source, "count": len(self.cases), "cases": [c.to_dict() for c in self.cases]}
+        return {
+            "source": self.source,
+            "count": len(self.cases),
+            "cases": [c.to_dict() for c in self.cases],
+        }
 
 
 class EvalMetric(Enum):
@@ -106,7 +111,9 @@ class EvalResult:
     """飞轮一轮评估结果."""
 
     stage: str = "grade"
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    timestamp: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
     summary_metrics: dict[str, float] = field(default_factory=dict)
     case_results: list[CaseResult] = field(default_factory=list)
     failures: list[CaseResult] = field(default_factory=list)
@@ -119,7 +126,12 @@ class EvalResult:
             "timestamp": self.timestamp,
             "summary_metrics": self.summary_metrics,
             "case_results": [
-                {"case": cr.case.to_dict(), "scores": cr.scores, "passed": cr.passed, "failure_reasons": cr.failure_reasons}
+                {
+                    "case": cr.case.to_dict(),
+                    "scores": cr.scores,
+                    "passed": cr.passed,
+                    "failure_reasons": cr.failure_reasons,
+                }
                 for cr in self.case_results
             ],
             "failures_count": len(self.failures),
@@ -191,7 +203,11 @@ class EvalFlywheel:
                         prompt=str(row.get("prompt", "")),
                         reference=str(row.get("reference", "")),
                         response=str(row.get("response", "")),
-                        metadata={k: v for k, v in row.items() if k not in {"prompt", "reference", "response"}},
+                        metadata={
+                            k: v
+                            for k, v in row.items()
+                            if k not in {"prompt", "reference", "response"}
+                        },
                     )
                 )
         logger.info("Stage 1 完成: %d 条评估样本 (source=%s)", len(ds.cases), source)
@@ -237,7 +253,11 @@ class EvalFlywheel:
 
         result.summary_metrics = self._aggregate(result.case_results)
         self._persist(result)
-        logger.info("Stage 3 完成: %d 通过 / %d 失败", len(result.case_results) - len(result.failures), len(result.failures))
+        logger.info(
+            "Stage 3 完成: %d 通过 / %d 失败",
+            len(result.case_results) - len(result.failures),
+            len(result.failures),
+        )
         return result
 
     # ------------------------------------------------------------
@@ -299,7 +319,11 @@ class EvalFlywheel:
                 break
             result = self.analyze_failures(result)
             result = self.suggest_improvements(result)
-            logger.info("迭代 %d: %d 条改进建议待应用", i + 1, len(result.improvement_suggestions))
+            logger.info(
+                "迭代 %d: %d 条改进建议待应用",
+                i + 1,
+                len(result.improvement_suggestions),
+            )
             break
         return result
 
@@ -310,22 +334,39 @@ class EvalFlywheel:
     def _score(self, case: EvalCase, metric: EvalMetric) -> float:
         """对单 case 按单 metric 打分 (0~1)."""
         try:
-            if metric in (EvalMetric.IC_1D, EvalMetric.IC_IR, EvalMetric.SHARPE, EvalMetric.WIN_RATE):
+            if metric in (
+                EvalMetric.IC_1D,
+                EvalMetric.IC_IR,
+                EvalMetric.SHARPE,
+                EvalMetric.WIN_RATE,
+            ):
                 val = float(case.response) if case.response else 0.0
                 ref = float(case.reference) if case.reference else 0.0
                 if metric == EvalMetric.WIN_RATE:
                     return 1.0 if val > 0 else 0.0
-                return max(0.0, min(1.0, 0.5 + (val - ref) / 2.0)) if ref else max(0.0, min(1.0, 0.5 + val / 2.0))
+                return (
+                    max(0.0, min(1.0, 0.5 + (val - ref) / 2.0))
+                    if ref
+                    else max(0.0, min(1.0, 0.5 + val / 2.0))
+                )
             if metric == EvalMetric.MAX_DRAWDOWN:
                 val = abs(float(case.response)) if case.response else 1.0
                 return max(0.0, 1.0 - val)
             if metric == EvalMetric.TURNOVER:
                 val = float(case.response) if case.response else 1.0
                 return max(0.0, 1.0 - val / 2.0)
-            if metric in (EvalMetric.GENERAL_QUALITY, EvalMetric.INSTRUCTION_FOLLOWING, EvalMetric.GROUNDING):
+            if metric in (
+                EvalMetric.GENERAL_QUALITY,
+                EvalMetric.INSTRUCTION_FOLLOWING,
+                EvalMetric.GROUNDING,
+            ):
                 return 1.0 if case.response and case.response == case.reference else 0.5
             if metric == EvalMetric.HALLUCINATION:
-                return 1.0 if case.reference in case.response or not case.reference else 0.0
+                return (
+                    1.0
+                    if case.reference in case.response or not case.reference
+                    else 0.0
+                )
             if metric == EvalMetric.SAFETY:
                 return 1.0
         except (ValueError, TypeError):
@@ -344,16 +385,22 @@ class EvalFlywheel:
             vals = [cr.scores[m] for cr in case_results if m in cr.scores]
             if vals:
                 summary[m] = float(np.mean(vals))
-        summary["pass_rate"] = sum(1 for cr in case_results if cr.passed) / len(case_results)
+        summary["pass_rate"] = sum(1 for cr in case_results if cr.passed) / len(
+            case_results
+        )
         return summary
 
     def _persist(self, result: EvalResult) -> None:
         """落盘评估结果 (JSON)."""
         import json
+
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = self.artifact_dir / f"eval_{ts}.json"
         try:
-            path.write_text(json.dumps(result.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+            path.write_text(
+                json.dumps(result.to_dict(), ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
         except Exception as exc:
             logger.warning("评估结果落盘失败: %s", exc)
 

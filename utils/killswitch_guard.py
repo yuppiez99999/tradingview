@@ -6,13 +6,16 @@ KillSwitch L1 约束 (can_open=False → 过滤 BUY, 仅保留 SELL), 防止 L1 
 
 独立模块: 避免被 institutional_pipeline_runner 的重依赖 import 链拖入, 便于单元测试.
 """
+
 import logging
 from typing import Any
 
 logger = logging.getLogger("killswitch_guard")
 
 
-def apply_killswitch_l1_filter(decision, ks_result: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+def apply_killswitch_l1_filter(
+    decision, ks_result: dict[str, Any], result: dict[str, Any]
+) -> dict[str, Any]:
     """重建 trades 后重新应用 KillSwitch L1 约束.
 
     问题: _regenerate_trades_from_weights 基于 target_weights 重建完整 BUY+SELL trades,
@@ -37,11 +40,23 @@ def apply_killswitch_l1_filter(decision, ks_result: dict[str, Any], result: dict
             if before != after:
                 logger.warning(
                     "[KillSwitchGuard] L1 生效: 过滤 %d 笔 BUY trades (剩余 %d)",
-                    before - after, after,
+                    before - after,
+                    after,
                 )
-                result.setdefault("steps", {}).setdefault("killswitch_l1_filter", {
-                    "filtered_buy": before - after, "remaining": after,
-                })
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+                result.setdefault("steps", {}).setdefault(
+                    "killswitch_l1_filter",
+                    {
+                        "filtered_buy": before - after,
+                        "remaining": after,
+                    },
+                )
+    except (
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+    ) as e:
         logger.error("[KillSwitchGuard] L1 过滤异常: %s", e, exc_info=True)
     return result

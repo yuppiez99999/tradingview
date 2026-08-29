@@ -38,6 +38,7 @@ from utils.alpha_factor.library import AlphaFactorLibrary
 # 合成数据
 # ============================================================
 
+
 def make_synthetic_data(n_stocks: int = 10, n_days: int = 60, seed: int = 20260812):
     """构造 n 只股票 × n_days 天 OHLCV + 基本面数据"""
     rng = np.random.default_rng(seed)
@@ -72,6 +73,7 @@ def make_synthetic_data(n_stocks: int = 10, n_days: int = 60, seed: int = 202608
 # 测试
 # ============================================================
 
+
 def test_tokenizer_parser():
     """测试 1: Tokenizer + Parser"""
     print("\n[测试 1] Tokenizer + Parser")
@@ -89,8 +91,9 @@ def test_tokenizer_parser():
     ]
     for expr_str, expected_type in cases:
         ast = parse_expression(expr_str)
-        assert isinstance(ast, expected_type), \
-            f"AST 类型错误: '{expr_str}' → {type(ast).__name__}, 期望 {expected_type.__name__}"
+        assert isinstance(
+            ast, expected_type
+        ), f"AST 类型错误: '{expr_str}' → {type(ast).__name__}, 期望 {expected_type.__name__}"
     print(f"  {len(cases)} 个表达式解析全部正确 ✓")
 
     # 错误处理: 非法字符
@@ -111,9 +114,13 @@ def test_cross_section_ops():
     # rank: 10 只股票排名 [0, 1]
     result = evaluator.evaluate(parse_expression("rank(close)"))
     vals = list(result.values())
-    assert min(vals) >= 0 and max(vals) <= 1.0, f"rank 超出 [0,1]: {min(vals)}~{max(vals)}"
+    assert (
+        min(vals) >= 0 and max(vals) <= 1.0
+    ), f"rank 超出 [0,1]: {min(vals)}~{max(vals)}"
     assert len(set(vals)) > 5, f"rank 值不够分散: {len(set(vals))} 个唯一值"
-    print(f"  rank(close): 范围 [{min(vals):.3f}, {max(vals):.3f}], {len(set(vals))} 唯一值 ✓")
+    print(
+        f"  rank(close): 范围 [{min(vals):.3f}, {max(vals):.3f}], {len(set(vals))} 唯一值 ✓"
+    )
 
     # zscore: 均值≈0, std≈1
     result = evaluator.evaluate(parse_expression("zscore(close)"))
@@ -170,12 +177,14 @@ def test_timeseries_ops():
     # slope: 20 日回归斜率
     # 合成数据: drift = 0.001 * (i - 5), i<5 为负漂移 (跌), i>=5 为正漂移 (涨)
     result = evaluator.evaluate(parse_expression("slope(close, 20)"))
-    down_syms = [s for s in result if int(s[3:]) < 5]   # drift<0 → slope 应<0
-    up_syms = [s for s in result if int(s[3:]) >= 5]    # drift>0 → slope 应>0
+    down_syms = [s for s in result if int(s[3:]) < 5]  # drift<0 → slope 应<0
+    up_syms = [s for s in result if int(s[3:]) >= 5]  # drift>0 → slope 应>0
     down_mean = np.mean([result[s] for s in down_syms])
     up_mean = np.mean([result[s] for s in up_syms])
     print(f"  slope(close, 20): 下跌组={down_mean:+.6f}, 上涨组={up_mean:+.6f}")
-    assert up_mean > down_mean, f"slope 方向错误: 上涨组={up_mean} <= 下跌组={down_mean}"
+    assert (
+        up_mean > down_mean
+    ), f"slope 方向错误: 上涨组={up_mean} <= 下跌组={down_mean}"
     assert up_mean > 0, f"上涨组 slope 应>0: {up_mean}"
     assert down_mean < 0, f"下跌组 slope 应<0: {down_mean}"
     print("  slope 方向符合 (上涨组>0, 下跌组<0) ✓")
@@ -183,7 +192,9 @@ def test_timeseries_ops():
     # correlation: close × volume 20 日相关
     result = evaluator.evaluate(parse_expression("correlation(close, volume, 20)"))
     assert all(-1 <= v <= 1 for v in result.values()), "correlation 超出 [-1,1]"
-    print(f"  correlation(close, volume, 20): 范围 [{min(result.values()):.3f}, {max(result.values()):.3f}] ✓")
+    print(
+        f"  correlation(close, volume, 20): 范围 [{min(result.values()):.3f}, {max(result.values()):.3f}] ✓"
+    )
 
 
 def test_compound_expressions():
@@ -209,7 +220,9 @@ def test_compound_expressions():
         vals = list(result.values())
         assert all(not np.isnan(v) for v in vals), f"{name}: 含 NaN"
         assert all(np.isfinite(v) for v in vals), f"{name}: 含 inf"
-        print(f"  {name}: {len(result)} 标的, 范围 [{min(vals):.4f}, {max(vals):.4f}] ✓")
+        print(
+            f"  {name}: {len(result)} 标的, 范围 [{min(vals):.4f}, {max(vals):.4f}] ✓"
+        )
 
 
 def test_library_integration():
@@ -238,17 +251,23 @@ def test_library_integration():
     for name in expr_names:
         assert name in result.factors, f"表达式因子 {name} 不在结果中"
         fval = result.factors[name]
-        assert fval.category == "Expression", f"{name} 类别={fval.category} != Expression"
+        assert (
+            fval.category == "Expression"
+        ), f"{name} 类别={fval.category} != Expression"
         assert len(fval.values) == 10, f"{name} 标的数={len(fval.values)} != 10"
     print("  4 个表达式因子全部产出, category=Expression ✓")
 
     # debug_info 中记录了表达式因子清单
     assert "expression_factors" in result.debug_info
     assert len(result.debug_info["expression_factors"]) == 4
-    print(f"  debug_info.expression_factors = {result.debug_info['expression_factors']} ✓")
+    print(
+        f"  debug_info.expression_factors = {result.debug_info['expression_factors']} ✓"
+    )
 
     # enable_expression=False 时不产出表达式因子
-    lib_off = AlphaFactorLibrary(enable_chip=False, enable_expression=False, expressions=expressions)
+    lib_off = AlphaFactorLibrary(
+        enable_chip=False, enable_expression=False, expressions=expressions
+    )
     result_off = lib_off.compute_all(price_data, fundamentals=fundamentals)
     for name in expr_names:
         assert name not in result_off.factors, f"enable_expression=False 仍有 {name}"
@@ -281,8 +300,9 @@ def test_reference_existing_factors():
     # rank(MOM_20D) 应该与 MOM_20D 值的排序一致
     sorted_mom = sorted(mom_20d.items(), key=lambda x: x[1])
     sorted_expr = sorted(expr_mom.items(), key=lambda x: x[1])
-    assert [s for s, _ in sorted_mom] == [s for s, _ in sorted_expr], \
-        "rank(MOM_20D) 排序应与 MOM_20D 一致"
+    assert [s for s, _ in sorted_mom] == [
+        s for s, _ in sorted_expr
+    ], "rank(MOM_20D) 排序应与 MOM_20D 一致"
     print("  rank(MOM_20D): 排序与 MOM_20D 一致 ✓")
 
 
@@ -293,22 +313,22 @@ def test_error_handling():
 
     # 非法表达式 → 降级跳过, 不崩
     bad_expressions = [
-        ("BAD_SYNTAX", "close +"),              # 不完整表达式 (缺右操作数)
-        ("BAD_FUNC", "unknown_func(close)"),    # 未知函数
-        ("BAD_FIELD", "nonexistent_field"),     # 未知字段引用
+        ("BAD_SYNTAX", "close +"),  # 不完整表达式 (缺右操作数)
+        ("BAD_FUNC", "unknown_func(close)"),  # 未知函数
+        ("BAD_FIELD", "nonexistent_field"),  # 未知字段引用
     ]
-    result = compute_expression_factors(
-        price_data, fundamentals, bad_expressions
-    )
+    result = compute_expression_factors(price_data, fundamentals, bad_expressions)
     # 非法表达式被跳过, 产出空
     assert len(result) == 0, f"非法表达式应被跳过, 实际产出 {len(result)}"
     print(f"  {len(bad_expressions)} 个非法表达式安全跳过 (0 产出) ✓")
 
     # 窗口不足 → 时序算子返回部分标的
-    short_pd = {s: {"closes": [10.0, 11.0, 12.0], "volumes": [1e6, 2e6, 1.5e6]} for s in ["A", "B"]}
+    short_pd = {
+        s: {"closes": [10.0, 11.0, 12.0], "volumes": [1e6, 2e6, 1.5e6]}
+        for s in ["A", "B"]
+    }
     result = compute_expression_factors(
-        short_pd, None,
-        [("SHORT_MEAN", "mean(close, 20)")]
+        short_pd, None, [("SHORT_MEAN", "mean(close, 20)")]
     )
     # 3 天 < 20 天窗口 → 空输出, 不崩
     assert "SHORT_MEAN" in result
@@ -336,6 +356,7 @@ def test_determinism():
 # ============================================================
 # 主流程
 # ============================================================
+
 
 def main() -> int:
     print("=" * 72)

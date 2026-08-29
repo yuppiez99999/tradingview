@@ -1,4 +1,5 @@
 """8/24 进化循环干跑验证脚本"""
+
 import sys
 from pathlib import Path
 
@@ -95,7 +96,9 @@ try:
     for etf in core_etfs:
         w = etf.get("weight", 0)
         alloc = first_amount * w / sum(e.get("weight", 0) for e in core_etfs)
-        print(f"    {etf['code']} ({etf['name']}): 权重{w:.1%} → {alloc / 10000:.2f}万元")
+        print(
+            f"    {etf['code']} ({etf['name']}): 权重{w:.1%} → {alloc / 10000:.2f}万元"
+        )
         total_weight += w
     print(f"    核心仓总权重: {total_weight:.1%}")
 

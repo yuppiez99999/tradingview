@@ -73,14 +73,24 @@ class TestMacroIndicator:
     """MacroIndicator dataclass 测试"""
 
     def test_init(self):
-        m = MacroIndicator(name="CPI", value=3.2, unit="%", date="2026-08", source="FRED")
+        m = MacroIndicator(
+            name="CPI", value=3.2, unit="%", date="2026-08", source="FRED"
+        )
         assert m.name == "CPI"
         assert m.value == 3.2
         assert m.previous is None
         assert m.change is None
 
     def test_to_dict(self):
-        m = MacroIndicator(name="CPI", value=3.2, unit="%", date="2026-08", source="FRED", previous=3.0, change=0.2)
+        m = MacroIndicator(
+            name="CPI",
+            value=3.2,
+            unit="%",
+            date="2026-08",
+            source="FRED",
+            previous=3.0,
+            change=0.2,
+        )
         d = m.to_dict()
         assert d["name"] == "CPI"
         assert d["value"] == 3.2
@@ -131,7 +141,9 @@ class TestFREDApi:
         api = FREDApi(api_key="test_key")
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {"observations": [{"value": ".", "date": "2026-08-01"}]}
+        mock_resp.json.return_value = {
+            "observations": [{"value": ".", "date": "2026-08-01"}]
+        }
         with patch("utils.external_data_source._SESSION.get", return_value=mock_resp):
             assert api.get_indicator("CPIAUCSL") is None
 
@@ -203,8 +215,16 @@ class TestFedTreasuryApi:
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
             "data": [
-                {"security_desc": "10-Year Bond", "avg_interest_rate_amount": "3.2", "record_date": "2026-08-01"},
-                {"security_desc": "2-Year Note", "avg_interest_rate_amount": "3.8", "record_date": "2026-08-01"},
+                {
+                    "security_desc": "10-Year Bond",
+                    "avg_interest_rate_amount": "3.2",
+                    "record_date": "2026-08-01",
+                },
+                {
+                    "security_desc": "2-Year Note",
+                    "avg_interest_rate_amount": "3.8",
+                    "record_date": "2026-08-01",
+                },
             ]
         }
         with patch("utils.external_data_source._SESSION.get", return_value=mock_resp):
@@ -285,7 +305,13 @@ class TestFinnhubApi:
         api = FinnhubApi(api_key="test")
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {"c": 150, "o": 148, "h": 152, "l": 147, "pc": 145}
+        mock_resp.json.return_value = {
+            "c": 150,
+            "o": 148,
+            "h": 152,
+            "l": 147,
+            "pc": 145,
+        }
         with patch("utils.external_data_source._SESSION.get", return_value=mock_resp):
             result = api.get_quote("AAPL")
         assert result is not None
@@ -300,7 +326,13 @@ class TestFinnhubApi:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = [
-            {"headline": "News 1", "summary": "Sum", "source": "src", "url": "http://x", "datetime": 1700000000}
+            {
+                "headline": "News 1",
+                "summary": "Sum",
+                "source": "src",
+                "url": "http://x",
+                "datetime": 1700000000,
+            }
         ]
         with patch("utils.external_data_source._SESSION.get", return_value=mock_resp):
             news = api.get_market_news()
@@ -325,7 +357,11 @@ class TestCoinGeckoApi:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "bitcoin": {"usd": 50000, "usd_24h_change": 2.5, "usd_market_cap": 1000000000}
+            "bitcoin": {
+                "usd": 50000,
+                "usd_24h_change": 2.5,
+                "usd_market_cap": 1000000000,
+            }
         }
         with patch("utils.external_data_source._SESSION.get", return_value=mock_resp):
             result = api.get_price("bitcoin")
@@ -396,7 +432,10 @@ class TestExternalDataManager:
 
     def test_get_global_stock_no_api(self):
         m = ExternalDataManager()
-        with patch.object(m.finnhub, "available", False), patch.object(m.alpha_vantage, "available", False):
+        with (
+            patch.object(m.finnhub, "available", False),
+            patch.object(m.alpha_vantage, "available", False),
+        ):
             with patch.object(m, "_load_cache", return_value=None):
                 assert m.get_global_stock("AAPL") is None
 
@@ -408,7 +447,10 @@ class TestExternalDataManager:
 
     def test_get_market_news_no_api(self):
         m = ExternalDataManager()
-        with patch.object(m.finnhub, "available", False), patch.object(m, "_load_cache", return_value=None):
+        with (
+            patch.object(m.finnhub, "available", False),
+            patch.object(m, "_load_cache", return_value=None),
+        ):
             assert m.get_market_news() == []
 
     def test_get_risk_sentiment(self):

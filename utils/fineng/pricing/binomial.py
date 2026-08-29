@@ -29,11 +29,11 @@ class ExerciseStyle(Enum):
 class BinomialResult:
     """二叉树定价结果"""
 
-    price: float              # 期权理论价格
-    delta: float              # Delta (有限差分近似)
-    gamma: float              # Gamma (有限差分近似)
-    theta: float              # Theta (年化, 有限差分近似)
-    n_steps: int              # 使用的步数
+    price: float  # 期权理论价格
+    delta: float  # Delta (有限差分近似)
+    gamma: float  # Gamma (有限差分近似)
+    theta: float  # Theta (年化, 有限差分近似)
+    n_steps: int  # 使用的步数
 
 
 class BinomialTree:
@@ -89,7 +89,9 @@ class BinomialTree:
         if S <= 0.0 or K <= 0.0 or T <= 0.0 or sigma <= 0.0:
             # 边界: 返回行权收益
             payoff = max(S - K, 0.0) if is_call else max(K - S, 0.0)
-            return BinomialResult(price=payoff, delta=0.0, gamma=0.0, theta=0.0, n_steps=self.n_steps)
+            return BinomialResult(
+                price=payoff, delta=0.0, gamma=0.0, theta=0.0, n_steps=self.n_steps
+            )
 
         option_price = self._tree_price(S, K, T, r, sigma, is_call, exercise)
 
@@ -101,9 +103,15 @@ class BinomialTree:
         price_down = self._tree_price(S - ds, K, T, r, sigma, is_call, exercise)
         delta = (price_up - price_down) / (2.0 * ds) if ds > 0 else 0.0
 
-        gamma = (price_up - 2.0 * option_price + price_down) / (ds * ds) if ds > 0 else 0.0
+        gamma = (
+            (price_up - 2.0 * option_price + price_down) / (ds * ds) if ds > 0 else 0.0
+        )
 
-        price_later = self._tree_price(S, K, max(T - dt_shift, 0), r, sigma, is_call, exercise) if dt_shift < T else option_price
+        price_later = (
+            self._tree_price(S, K, max(T - dt_shift, 0), r, sigma, is_call, exercise)
+            if dt_shift < T
+            else option_price
+        )
         theta = (price_later - option_price) / dt_shift if dt_shift > 0 else 0.0
 
         return BinomialResult(
@@ -115,8 +123,14 @@ class BinomialTree:
         )
 
     def _tree_price(
-        self, S: float, K: float, T: float, r: float, sigma: float,
-        is_call: bool, exercise: ExerciseStyle,
+        self,
+        S: float,
+        K: float,
+        T: float,
+        r: float,
+        sigma: float,
+        is_call: bool,
+        exercise: ExerciseStyle,
     ) -> float:
         """二叉树核心定价 (无 Greeks, 用于自重入和 Greeks 有限差分)"""
         if T <= 0:
@@ -126,8 +140,7 @@ class BinomialTree:
             fwd = S - K * discount
             if is_call:
                 return max(fwd, 0.0)
-            else:
-                return max(-fwd, 0.0)
+            return max(-fwd, 0.0)
 
         n = self.n_steps
         dt = T / n
@@ -139,7 +152,7 @@ class BinomialTree:
         # 构建到期收益树 (第 n 层)
         values = [0.0] * (n + 1)
         for j in range(n + 1):
-            spot_j = S * (u ** (n - j)) * (d ** j)
+            spot_j = S * (u ** (n - j)) * (d**j)
             values[j] = max(spot_j - K, 0.0) if is_call else max(K - spot_j, 0.0)
 
         # 向后递推
@@ -147,7 +160,7 @@ class BinomialTree:
             for j in range(i + 1):
                 hold = discount * (p * values[j] + (1.0 - p) * values[j + 1])
                 if exercise == ExerciseStyle.AMERICAN:
-                    spot_j = S * (u ** (i - j)) * (d ** j)
+                    spot_j = S * (u ** (i - j)) * (d**j)
                     early = max(spot_j - K, 0.0) if is_call else max(K - spot_j, 0.0)
                     values[j] = max(hold, early)
                 else:

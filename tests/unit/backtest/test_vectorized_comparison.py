@@ -12,6 +12,7 @@
 本测试不运行完整向量化回测 (需要真实数据),只验证指标计算公式等价性。
 完整端到端偏差验证在 Day 6+ 接入真实数据后补充。
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -25,6 +26,7 @@ from utils.hedge_rebalance_backtest import BacktestResult, HedgeRebalanceBacktes
 # ============================================================
 # 辅助: 构造轻量向量化回测实例
 # ============================================================
+
 
 def _make_vectorized_backtest(n_days: int) -> HedgeRebalanceBacktest:
     """构造轻量 HedgeRebalanceBacktest 实例 (合成数据,不加载真实行情)。
@@ -57,6 +59,7 @@ def _make_test_equity_curve() -> list:
 # ============================================================
 # 公式等价性验证 (核心)
 # ============================================================
+
 
 class TestMetricsEquivalence:
     """验证 ResultConverter 与 HedgeRebalanceBacktest._metrics 公式完全等价。"""
@@ -138,27 +141,21 @@ class TestMetricsEquivalence:
         self, converter_result: BacktestResult, vectorized_result: BacktestResult
     ) -> None:
         """sharpe_ratio 偏差 < 0.01。"""
-        deviation = abs(
-            converter_result.sharpe_ratio - vectorized_result.sharpe_ratio
-        )
+        deviation = abs(converter_result.sharpe_ratio - vectorized_result.sharpe_ratio)
         assert deviation < 1e-4, f"sharpe_ratio 偏差 {deviation}"
 
     def test_max_drawdown_matches(
         self, converter_result: BacktestResult, vectorized_result: BacktestResult
     ) -> None:
         """max_drawdown 偏差 < 0.01%。"""
-        deviation = abs(
-            converter_result.max_drawdown - vectorized_result.max_drawdown
-        )
+        deviation = abs(converter_result.max_drawdown - vectorized_result.max_drawdown)
         assert deviation < 1e-6, f"max_drawdown 偏差 {deviation}"
 
     def test_calmar_ratio_matches(
         self, converter_result: BacktestResult, vectorized_result: BacktestResult
     ) -> None:
         """calmar_ratio 偏差 < 0.01。"""
-        deviation = abs(
-            converter_result.calmar_ratio - vectorized_result.calmar_ratio
-        )
+        deviation = abs(converter_result.calmar_ratio - vectorized_result.calmar_ratio)
         assert deviation < 1e-4, f"calmar_ratio 偏差 {deviation}"
 
     def test_win_rate_matches(
@@ -172,6 +169,7 @@ class TestMetricsEquivalence:
 # ============================================================
 # 验收标准验证 (偏差 < 5%)
 # ============================================================
+
 
 class TestAcceptanceCriteria:
     """验证满足 OPTIMAL_PLAN 验收标准: 偏差 < 5%。"""
@@ -221,7 +219,11 @@ class TestAcceptanceCriteria:
         metrics_pairs = [
             ("total_return", result_a.total_return, result_b.total_return),
             ("annual_return", result_a.annual_return, result_b.annual_return),
-            ("annual_volatility", result_a.annual_volatility, result_b.annual_volatility),
+            (
+                "annual_volatility",
+                result_a.annual_volatility,
+                result_b.annual_volatility,
+            ),
             ("sharpe_ratio", result_a.sharpe_ratio, result_b.sharpe_ratio),
             ("max_drawdown", result_a.max_drawdown, result_b.max_drawdown),
             ("calmar_ratio", result_a.calmar_ratio, result_b.calmar_ratio),
@@ -271,12 +273,11 @@ class TestAcceptanceCriteria:
 # 不同 equity_curve 场景的对比
 # ============================================================
 
+
 class TestVariousScenarios:
     """多种 equity_curve 场景下的公式等价性。"""
 
-    def _compare_both(
-        self, equity_curve: list, scenario_name: str
-    ) -> tuple:
+    def _compare_both(self, equity_curve: list, scenario_name: str) -> tuple:
         """用两条路径分别计算指标,返回 (converter_result, vectorized_result)。"""
         # Converter 路径
         summary = EngineSummary(
@@ -316,7 +317,7 @@ class TestVariousScenarios:
 
     def test_bull_market_scenario(self) -> None:
         """牛市场景: 持续上涨。"""
-        eq = [1_000_000.0 * (1.01 ** i) for i in range(100)]
+        eq = [1_000_000.0 * (1.01**i) for i in range(100)]
         result_a, result_b = self._compare_both(eq, "bull")
 
         assert result_a.total_return == pytest.approx(result_b.total_return, rel=1e-6)
@@ -325,7 +326,7 @@ class TestVariousScenarios:
 
     def test_bear_market_scenario(self) -> None:
         """熊市场景: 持续下跌。"""
-        eq = [1_000_000.0 * (0.99 ** i) for i in range(100)]
+        eq = [1_000_000.0 * (0.99**i) for i in range(100)]
         result_a, result_b = self._compare_both(eq, "bear")
 
         assert result_a.total_return == pytest.approx(result_b.total_return, rel=1e-6)

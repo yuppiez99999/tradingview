@@ -14,6 +14,7 @@
 
 对齐 spec §6 + design §2.2 + tasks T1.7/T4.2.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,8 +23,14 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
+
+try:
+    from datetime import UTC, datetime
+except ImportError:  # Python 3.8 compatibility
+    from datetime import datetime
+
+    UTC = UTC
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -32,9 +39,15 @@ if str(_PROJECT_ROOT) not in sys.path:
 logger = logging.getLogger("v87ReleaseGate")
 
 WAVE7_REPORT_DIR = Path(_PROJECT_ROOT) / "reports" / "wave7"
-PHASE_B_STATUS_FILE = Path(_PROJECT_ROOT) / "reports" / "evolution" / "phase_b_status.json"
-DAILY_WORKFLOW_PATH = Path(_PROJECT_ROOT) / "15_每日工作流" / "run_daily_eod_workflow.py"
-COVERAGE_BASELINE_PATH = Path(_PROJECT_ROOT) / "reports" / "ci" / "coverage_baseline.json"
+PHASE_B_STATUS_FILE = (
+    Path(_PROJECT_ROOT) / "reports" / "evolution" / "phase_b_status.json"
+)
+DAILY_WORKFLOW_PATH = (
+    Path(_PROJECT_ROOT) / "15_每日工作流" / "run_daily_eod_workflow.py"
+)
+COVERAGE_BASELINE_PATH = (
+    Path(_PROJECT_ROOT) / "reports" / "ci" / "coverage_baseline.json"
+)
 
 DAILY_WORKFLOW_MAX_LINES = 3000
 SPRINT1_COVERAGE_TARGET = 0.55
@@ -49,9 +62,11 @@ def _utc_now_iso() -> str:
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class GateCheckItem:
     """单项门禁检查结果."""
+
     name: str
     passed: bool
     current_value: str = ""
@@ -62,6 +77,7 @@ class GateCheckItem:
 @dataclass
 class SprintGateVerdict:
     """Sprint 收尾门禁裁决."""
+
     sprint: int
     check_time: str = ""
     items: list[GateCheckItem] = field(default_factory=list)
@@ -92,6 +108,7 @@ class SprintGateVerdict:
 # ============================================================
 # Sprint 1 门禁检查项
 # ============================================================
+
 
 def _check_phase_b_stable_days() -> GateCheckItem:
     """检查 Phase B 4 flag 稳定运行 ≥7 天."""
@@ -233,7 +250,10 @@ def _check_daily_workflow_lines() -> GateCheckItem:
 # Sprint 收尾门禁主入口
 # ============================================================
 
-def check_sprint_gate(sprint: int, coverage_target: float | None = None) -> SprintGateVerdict:
+
+def check_sprint_gate(
+    sprint: int, coverage_target: float | None = None
+) -> SprintGateVerdict:
     """Sprint 收尾门禁校验.
 
     Args:
@@ -257,20 +277,38 @@ def check_sprint_gate(sprint: int, coverage_target: float | None = None) -> Spri
         ]
     elif sprint == 2:
         verdict.items = [
-            GateCheckItem(name="t15_t18_pass", passed=False, suggestion="Sprint 2 待启动"),
-            GateCheckItem(name="qmt_grayscale_7d", passed=False, suggestion="Sprint 2 待启动"),
-            GateCheckItem(name="shadow_account_2w", passed=False, suggestion="Sprint 2 待启动"),
+            GateCheckItem(
+                name="t15_t18_pass", passed=False, suggestion="Sprint 2 待启动"
+            ),
+            GateCheckItem(
+                name="qmt_grayscale_7d", passed=False, suggestion="Sprint 2 待启动"
+            ),
+            GateCheckItem(
+                name="shadow_account_2w", passed=False, suggestion="Sprint 2 待启动"
+            ),
         ]
     elif sprint == 3:
         verdict.items = [
-            GateCheckItem(name="s7_onboarding", passed=False, suggestion="Sprint 3 待启动"),
-            GateCheckItem(name="feature_store_physical", passed=False, suggestion="Sprint 3 待启动"),
-            GateCheckItem(name="cvar_acceptance", passed=True, current_value="106 tests / 97.24%"),
-            GateCheckItem(name="prefect_duckdb", passed=False, suggestion="Sprint 3 待启动"),
+            GateCheckItem(
+                name="s7_onboarding", passed=False, suggestion="Sprint 3 待启动"
+            ),
+            GateCheckItem(
+                name="feature_store_physical",
+                passed=False,
+                suggestion="Sprint 3 待启动",
+            ),
+            GateCheckItem(
+                name="cvar_acceptance", passed=True, current_value="106 tests / 97.24%"
+            ),
+            GateCheckItem(
+                name="prefect_duckdb", passed=False, suggestion="Sprint 3 待启动"
+            ),
         ]
     else:
         verdict.items = [
-            GateCheckItem(name="sprint_4_placeholder", passed=False, suggestion="Sprint 4 待启动"),
+            GateCheckItem(
+                name="sprint_4_placeholder", passed=False, suggestion="Sprint 4 待启动"
+            ),
         ]
 
     verdict.all_passed = all(item.passed for item in verdict.items)
@@ -300,9 +338,11 @@ def _save_verdict(verdict: SprintGateVerdict) -> str:
 # v8.7 发布总验收 (Sprint 4 补全)
 # ============================================================
 
+
 @dataclass
 class ReleaseVerdict:
     """v8.7 发布总验收裁决."""
+
     check_time: str = ""
     items: list[GateCheckItem] = field(default_factory=list)
     is_ready: bool = False
@@ -322,7 +362,11 @@ def check_all(
     """
     verdict = ReleaseVerdict(check_time=_utc_now_iso())
     verdict.items = [
-        GateCheckItem(name="release_gate_skeleton", passed=False, suggestion="Sprint 4 补全 12 项验收清单"),
+        GateCheckItem(
+            name="release_gate_skeleton",
+            passed=False,
+            suggestion="Sprint 4 补全 12 项验收清单",
+        ),
     ]
     verdict.is_ready = False
     verdict.remaining_risks = ["v8.7 发布总验收尚未实现 (Sprint 4 补全)"]
@@ -333,14 +377,21 @@ def check_all(
 # main
 # ============================================================
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="v8.7 发布总验收门禁")
-    parser.add_argument("--sprint", type=int, choices=[1, 2, 3, 4], help="Sprint 收尾门禁")
+    parser.add_argument(
+        "--sprint", type=int, choices=[1, 2, 3, 4], help="Sprint 收尾门禁"
+    )
     parser.add_argument("--all", action="store_true", help="v8.7 发布总验收")
-    parser.add_argument("--coverage-target", type=float, default=None, help="覆盖率目标")
+    parser.add_argument(
+        "--coverage-target", type=float, default=None, help="覆盖率目标"
+    )
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s"
+    )
 
     if args.all:
         logger.info("v8.7 发布总验收 (12 项清单)...")
@@ -358,14 +409,20 @@ def main() -> int:
     if args.sprint:
         logger.info("Sprint %d 收尾门禁校验...", args.sprint)
         verdict = check_sprint_gate(args.sprint, coverage_target=args.coverage_target)
-        print(f"\n[Sprint {verdict.sprint} 门禁] {'✅ 全绿' if verdict.all_passed else '❌ 未达'}")
+        print(
+            f"\n[Sprint {verdict.sprint} 门禁] {'✅ 全绿' if verdict.all_passed else '❌ 未达'}"
+        )
         for item in verdict.items:
             status = "✅" if item.passed else "❌"
-            print(f"  {status} {item.name}: {item.current_value} (目标: {item.target_value})")
+            print(
+                f"  {status} {item.name}: {item.current_value} (目标: {item.target_value})"
+            )
             if not item.passed and item.suggestion:
                 print(f"      建议: {item.suggestion}")
         if verdict.blocked:
-            print(f"\n[状态] BLOCKED — 需补齐 {len(verdict.suggestions)} 项后方可进入 Sprint {verdict.sprint + 1}")
+            print(
+                f"\n[状态] BLOCKED — 需补齐 {len(verdict.suggestions)} 项后方可进入 Sprint {verdict.sprint + 1}"
+            )
         else:
             print(f"\n[状态] GREEN — 可进入 Sprint {verdict.sprint + 1}")
         return 0 if verdict.all_passed else 1

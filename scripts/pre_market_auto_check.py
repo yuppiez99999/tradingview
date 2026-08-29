@@ -21,6 +21,7 @@
     0 = 全部通过, 可进入实盘
     1 = 存在失败项, 需人工干预
 """
+
 from __future__ import annotations
 
 import json
@@ -75,8 +76,7 @@ def check_ntp_sync() -> None:
     # 1.1 w32time 服务状态 (使用 sc query 避免编码问题)
     try:
         result = subprocess.run(
-            ["sc", "query", "w32time"],
-            capture_output=True, text=True, timeout=10
+            ["sc", "query", "w32time"], capture_output=True, text=True, timeout=10
         )
         output = result.stdout
         # sc query 输出格式: STATE: 4 RUNNING (中文系统可能是 "STATE              : 4  RUNNING")
@@ -84,17 +84,25 @@ def check_ntp_sync() -> None:
         check(
             is_running,
             "NTP-1a w32time 服务运行中",
-            "找到 RUNNING" if is_running else "未找到 RUNNING"
+            "找到 RUNNING" if is_running else "未找到 RUNNING",
         )
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "NTP-1a w32time 服务查询异常", str(e)[:100])
 
     # 1.2 w32time 启动类型 (使用 sc qc)
     try:
         result = subprocess.run(
-            ["sc", "qc", "w32time"],
-            capture_output=True, text=True, timeout=10
+            ["sc", "qc", "w32time"], capture_output=True, text=True, timeout=10
         )
         output = result.stdout
         # sc qc 输出: START_TYPE         : 2  AUTO_START
@@ -102,17 +110,25 @@ def check_ntp_sync() -> None:
         check(
             is_auto,
             "NTP-1b w32time 启动类型=AUTO_START",
-            "找到 AUTO_START" if is_auto else "未找到 AUTO_START"
+            "找到 AUTO_START" if is_auto else "未找到 AUTO_START",
         )
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "NTP-1b w32time 启动类型查询异常", str(e)[:100])
 
     # 1.3 NTP 同步状态 (使用 w32tm, 尝试多种编码)
     try:
         result = subprocess.run(
-            ["w32tm", "/query", "/status"],
-            capture_output=True, timeout=10
+            ["w32tm", "/query", "/status"], capture_output=True, timeout=10
         )
         # 尝试多种编码 (中文系统可能是 GBK)
         output = ""
@@ -126,11 +142,7 @@ def check_ntp_sync() -> None:
 
         # 检查是否找到同步源
         has_source = any(kw in output for kw in ["Source:", "源:", "Source "])
-        check(
-            has_source,
-            "NTP-2a NTP 同步源已建立",
-            f"输出长度={len(output)}"
-        )
+        check(has_source, "NTP-2a NTP 同步源已建立", f"输出长度={len(output)}")
 
         # 提取同步源
         if has_source:
@@ -141,13 +153,24 @@ def check_ntp_sync() -> None:
                     break
 
         # 检查根延迟/根分散 (同步指标)
-        has_metrics = any(kw in output for kw in ["RootDelay", "RootDispersion", "根延迟", "根分散"])
+        has_metrics = any(
+            kw in output for kw in ["RootDelay", "RootDispersion", "根延迟", "根分散"]
+        )
         check(
             has_metrics,
             "NTP-2c 同步指标存在 (RootDelay/RootDispersion)",
-            "找到指标" if has_metrics else "未找到指标"
+            "找到指标" if has_metrics else "未找到指标",
         )
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "NTP-2 NTP 同步状态查询异常", str(e)[:100])
 
@@ -166,33 +189,64 @@ def check_datasources() -> None:
     # 2.1 iFinD MCP
     try:
         from ifind_client import IFindClient
+
         conn = IFindClient()
         check(True, "DS-1 iFinD MCP 连接器初始化", f"type={type(conn).__name__}")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "DS-1 iFinD MCP 连接器", str(e)[:80])
 
     # 2.2 通达信
     try:
         from tdx_data_source import TDXDataSource
+
         ds = TDXDataSource()
         check(True, "DS-2 通达信数据源初始化", f"type={type(ds).__name__}")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "DS-2 通达信数据源", str(e)[:80])
 
     # 2.3 AKShare
     try:
         from akshare_data_source import AKShareDataSource
+
         ak = AKShareDataSource()
         check(True, "DS-3 AKShare 数据源初始化", f"type={type(ak).__name__}")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "DS-3 AKShare 数据源", str(e)[:80])
 
     # 2.4 MarketDataProvider 路由
     try:
         from data_provider import MarketDataProvider
+
         dp = MarketDataProvider()
         if hasattr(dp, "source_health"):
             health = dp.source_health
@@ -200,11 +254,20 @@ def check_datasources() -> None:
             check(
                 ok_count >= 2,
                 "DS-4 MarketDataProvider 多数据源路由",
-                f"健康数据源数={ok_count}/{len(health)}"
+                f"健康数据源数={ok_count}/{len(health)}",
             )
         else:
             check(True, "DS-4 MarketDataProvider 初始化", "无 source_health 字段")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "DS-4 MarketDataProvider 路由", str(e)[:80])
 
@@ -217,7 +280,9 @@ def check_scheduled_task(task_name: str, expected_time: str, section: str) -> No
     try:
         result = subprocess.run(
             ["schtasks", "/query", "/tn", task_name, "/v", "/fo", "LIST"],
-            capture_output=True, text=True, timeout=10
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         output = result.stdout
 
@@ -236,19 +301,35 @@ def check_scheduled_task(task_name: str, expected_time: str, section: str) -> No
         check(
             "Ready" in status or "就绪" in status or "已就绪" in status,
             f"{section}-a {task_name} 状态=Ready",
-            f"status={status}"
+            f"status={status}",
         )
         check(
             expected_time in next_run,
             f"{section}-b {task_name} 下次运行时间正确",
-            f"expected={expected_time}, actual={next_run}"
+            f"expected={expected_time}, actual={next_run}",
         )
         # Last Result=0 表示成功, 1 表示失败, 267011 表示从未运行
         if last_result in ("0", "267011"):
-            check(True, f"{section}-c {task_name} 上次执行结果", f"last_result={last_result}")
+            check(
+                True,
+                f"{section}-c {task_name} 上次执行结果",
+                f"last_result={last_result}",
+            )
         else:
-            warn(f"{section}-c {task_name} 上次执行结果", f"last_result={last_result} (0=成功, 267011=未运行过)")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            warn(
+                f"{section}-c {task_name} 上次执行结果",
+                f"last_result={last_result} (0=成功, 267011=未运行过)",
+            )
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, f"{section} {task_name} 查询异常", str(e)[:80])
 
@@ -274,11 +355,7 @@ def check_trade_plan(trade_date: str) -> None:
     print("=" * 72)
 
     plan_path = TRADE_PLANS_DIR / f"trade_plan_{trade_date.replace('-', '')}.json"
-    check(
-        plan_path.exists(),
-        "TP-1 trade_plan 文件存在",
-        f"path={plan_path.name}"
-    )
+    check(plan_path.exists(), "TP-1 trade_plan 文件存在", f"path={plan_path.name}")
 
     if not plan_path.exists():
         return
@@ -289,12 +366,18 @@ def check_trade_plan(trade_date: str) -> None:
 
         # 5.1 metadata.version
         version = plan.get("metadata", {}).get("version", "")
-        check("v8.6.8" in version, "TP-2 metadata.version 包含 v8.6.8", f"version={version}")
+        check(
+            "v8.6.8" in version,
+            "TP-2 metadata.version 包含 v8.6.8",
+            f"version={version}",
+        )
 
         # 5.2 资金配置
         stock_cap = plan.get("stock_etf_capital", 0)
         hedge_cap = plan.get("hedge_capital", 0)
-        check(stock_cap == 4_000_000, "TP-3a stock_etf_capital=4M", f"actual={stock_cap}")
+        check(
+            stock_cap == 4_000_000, "TP-3a stock_etf_capital=4M", f"actual={stock_cap}"
+        )
         check(hedge_cap == 1_000_000, "TP-3b hedge_capital=1M", f"actual={hedge_cap}")
 
         # 5.3 market_state 一致性
@@ -307,13 +390,13 @@ def check_trade_plan(trade_date: str) -> None:
             check(
                 build_allowed is False and spot_build is False,
                 "TP-4 CRITICAL 时 build/spot_build_allowed=False",
-                f"build={build_allowed}, spot_build={spot_build}"
+                f"build={build_allowed}, spot_build={spot_build}",
             )
         elif circuit == "WARNING":
             check(
                 spot_build is False,
                 "TP-4 WARNING 时 spot_build_allowed=False",
-                f"spot_build={spot_build}"
+                f"spot_build={spot_build}",
             )
         else:
             check(True, "TP-4 circuit_level=NORMAL", f"circuit={circuit}")
@@ -326,13 +409,13 @@ def check_trade_plan(trade_date: str) -> None:
             check(
                 orig_dc is not None,
                 "TP-5a phase.original_daily_capital 已保存 (审计追溯)",
-                f"original={orig_dc}"
+                f"original={orig_dc}",
             )
             vol_summary = rg.get("vol_scale_executed_summary", {})
             check(
                 bool(vol_summary),
                 "TP-5b vol_scale_executed_summary 字段存在",
-                f"note={vol_summary.get('note', '')[:60]}"
+                f"note={vol_summary.get('note', '')[:60]}",
             )
 
         # 5.5 hedge_execution
@@ -342,12 +425,12 @@ def check_trade_plan(trade_date: str) -> None:
         check(
             exec_status in ("PENDING", "CANCELLED", "EXECUTED"),
             "TP-6a hedge_execution.execution_status 有效",
-            f"status={exec_status}"
+            f"status={exec_status}",
         )
         check(
             options_count >= 0,
             "TP-6b hedge_execution.options_orders 数量",
-            f"count={options_count}"
+            f"count={options_count}",
         )
 
         # 5.6 futures_options_hedge
@@ -355,16 +438,25 @@ def check_trade_plan(trade_date: str) -> None:
         check(
             foh.get("loaded") is True,
             "TP-7a futures_options_hedge.loaded=True",
-            f"loaded={foh.get('loaded')}"
+            f"loaded={foh.get('loaded')}",
         )
         foh_count = foh.get("orders_count", 0)
         check(
             foh_count == options_count,
             "TP-7b futures_options_hedge.orders_count 与 hedge_execution 一致",
-            f"foh={foh_count} vs he={options_count}"
+            f"foh={foh_count} vs he={options_count}",
         )
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         check(False, "TP 读取 trade_plan 异常", str(e)[:80])
@@ -391,14 +483,19 @@ def check_7guard_and_validation(trade_date: str) -> None:
 
         # 临时替换日期
         date_compact = trade_date.replace("-", "")
-        modified_content = original_content.replace("trade_plan_20260727.json", f"trade_plan_{date_compact}.json")
+        modified_content = original_content.replace(
+            "trade_plan_20260727.json", f"trade_plan_{date_compact}.json"
+        )
         with open(verify_script, "w", encoding="utf-8") as f:
             f.write(modified_content)
 
         # 运行验证脚本
         result = subprocess.run(
             ["py", "-3", str(verify_script)],
-            capture_output=True, text=True, timeout=60, cwd=str(BASE)
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=str(BASE),
         )
 
         # 恢复原内容
@@ -410,20 +507,34 @@ def check_7guard_and_validation(trade_date: str) -> None:
         if "验证结果:" in output:
             for line in output.split("\n"):
                 if "验证结果:" in line:
-                    check(
-                        "27/27" in line,
-                        "VG-2 27/27 验证项全部通过",
-                        line.strip()
-                    )
+                    check("27/27" in line, "VG-2 27/27 验证项全部通过", line.strip())
                     break
         else:
             check(False, "VG-2 验证脚本未输出结果", output[-200:])
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # 恢复原内容
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # 恢复原内容
         try:
             with open(verify_script, "w", encoding="utf-8") as f:
                 f.write(original_content)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         check(False, "VG 验证脚本执行异常", str(e)[:80])
@@ -459,9 +570,8 @@ def main() -> int:
             print(f"  ❌ {e}")
         print("\n❌ 实盘就绪度: 不通过 — 需人工干预")
         return 1
-    else:
-        print("\n✅ 实盘就绪度: 通过 — 可进入实盘对接")
-        return 0
+    print("\n✅ 实盘就绪度: 通过 — 可进入实盘对接")
+    return 0
 
 
 if __name__ == "__main__":

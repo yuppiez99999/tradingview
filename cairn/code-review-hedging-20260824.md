@@ -55,3 +55,14 @@
 - HG-1 印证 memory 52548113 B1 (硬编码期货行情须 OFFLINE 护栏)。
 - HG-4 呼应 memory 91312400 (组合再平衡/对冲缩放须字段守恒)。
 - 缩放类逻辑"金额/数量/成本"字段必须同步缩放，否则单订单与聚合对不上——与 memory 契约字段对齐原则一致。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查明细 — 轻量子模块 (alpha/governance/macro/ml/monitoring) (2026-08-24)](code-review-lightweight-20260824.md) (相似度 21%)
+- [代码审查明细 — risk 模块 (2026-08-24)](code-review-risk-20260824.md) (相似度 19%)
+- [代码审查明细 — data 模块 (2026-08-24)](code-review-data-20260824.md) (相似度 18%)
+- [代码审查明细 — 主链路 institutional_pipeline_runner (2026-08-24)](code-review-pipeline-20260824.md) (相似度 17%)
+- [代码审查明细 — execution 模块 (2026-08-24)](code-review-execution-20260824.md) (相似度 17%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

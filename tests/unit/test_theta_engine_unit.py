@@ -3,6 +3,7 @@
 被测模块: utils/theta_engine.py
 覆盖目标: >=85%
 """
+
 from __future__ import annotations
 
 import json
@@ -131,7 +132,9 @@ class TestGenerateMonthlyPlan:
         cfg_path = tmp_path / "portfolio.yaml"
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = ThetaEngine(config_path=cfg_path)
-        with patch.object(engine, "_get_etf_spots", return_value={"588080": 1.05, "510300": 4.20}):
+        with patch.object(
+            engine, "_get_etf_spots", return_value={"588080": 1.05, "510300": 4.20}
+        ):
             with patch("utils.theta_engine.PLAN_DIR", tmp_path):
                 result = engine.generate_monthly_plan()
         assert "positions" in result
@@ -167,7 +170,9 @@ class TestCheckRollover:
             "expiry_date": (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d"),
             "positions": [{"code": "588080", "strike": 1.08}],
         }
-        (tmp_path / "theta_plan_20260814.json").write_text(json.dumps(plan), encoding="utf-8")
+        (tmp_path / "theta_plan_20260814.json").write_text(
+            json.dumps(plan), encoding="utf-8"
+        )
         engine = ThetaEngine(config_path=cfg_path)
         with patch("utils.theta_engine.PLAN_DIR", tmp_path):
             result = engine.check_rollover()
@@ -184,7 +189,9 @@ class TestCheckRollover:
                 {"code": "510300", "strike": 4.50},
             ],
         }
-        (tmp_path / "theta_plan_20260814.json").write_text(json.dumps(plan), encoding="utf-8")
+        (tmp_path / "theta_plan_20260814.json").write_text(
+            json.dumps(plan), encoding="utf-8"
+        )
         engine = ThetaEngine(config_path=cfg_path)
         with patch("utils.theta_engine.PLAN_DIR", tmp_path):
             result = engine.check_rollover()
@@ -209,8 +216,12 @@ class TestGetThetaStatistics:
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         plan1 = {"total_est_premium": 50000, "portfolio_yield_monthly": 0.007}
         plan2 = {"total_est_premium": 60000, "portfolio_yield_monthly": 0.008}
-        (tmp_path / "theta_plan_20260801.json").write_text(json.dumps(plan1), encoding="utf-8")
-        (tmp_path / "theta_plan_20260814.json").write_text(json.dumps(plan2), encoding="utf-8")
+        (tmp_path / "theta_plan_20260801.json").write_text(
+            json.dumps(plan1), encoding="utf-8"
+        )
+        (tmp_path / "theta_plan_20260814.json").write_text(
+            json.dumps(plan2), encoding="utf-8"
+        )
         engine = ThetaEngine(config_path=cfg_path)
         with patch("utils.theta_engine.PLAN_DIR", tmp_path):
             stats = engine.get_theta_statistics()
@@ -221,7 +232,9 @@ class TestGetThetaStatistics:
         cfg = _make_config()
         cfg_path = tmp_path / "portfolio.yaml"
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
-        (tmp_path / "theta_plan_20260801.json").write_text("invalid json", encoding="utf-8")
+        (tmp_path / "theta_plan_20260801.json").write_text(
+            "invalid json", encoding="utf-8"
+        )
         (tmp_path / "theta_plan_20260814.json").write_text(
             json.dumps({"total_est_premium": 50000, "portfolio_yield_monthly": 0.007}),
             encoding="utf-8",
@@ -236,7 +249,9 @@ class TestGetThetaStatistics:
         cfg_path = tmp_path / "portfolio.yaml"
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         plan = {"total_est_premium": 100000, "portfolio_yield_monthly": 0.0075}
-        (tmp_path / "theta_plan_20260814.json").write_text(json.dumps(plan), encoding="utf-8")
+        (tmp_path / "theta_plan_20260814.json").write_text(
+            json.dumps(plan), encoding="utf-8"
+        )
         engine = ThetaEngine(config_path=cfg_path)
         with patch("utils.theta_engine.PLAN_DIR", tmp_path):
             stats = engine.get_theta_statistics()

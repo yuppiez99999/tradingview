@@ -68,7 +68,9 @@ class TestPureFunctions:
         """除权日对齐: 真实收益率=0 (未复权跳空被因子抵消)."""
         # 昨日 hfq 收盘 10.0, 今日未复权 9.0 (分红 1.0), 因子=10/9
         factor = 10.0 / 9.0
-        ret = compute_adjusted_return(hfq_prev_close=10.0, unadjusted_realtime=9.0, hfq_factor=factor)
+        ret = compute_adjusted_return(
+            hfq_prev_close=10.0, unadjusted_realtime=9.0, hfq_factor=factor
+        )
         # 9.0 × (10/9) = 10.0, return = 0
         assert ret == pytest.approx(0.0, abs=1e-9)
 
@@ -119,7 +121,9 @@ class TestToDailySymbol:
 # ============================================================
 # 3. AdjustFactorProvider (mock akshare)
 # ============================================================
-def _make_factor_series(factors: list[float], start: str = "2024-01-01") -> pd.DataFrame:
+def _make_factor_series(
+    factors: list[float], start: str = "2024-01-01"
+) -> pd.DataFrame:
     """构造因子序列 DataFrame."""
     dates = pd.date_range(start, periods=len(factors), freq="D")
     return pd.DataFrame({"date": dates, "hfq_factor": factors})
@@ -137,14 +141,18 @@ class TestAdjustFactorProvider:
     def test_get_factor_with_mock(self, fresh_provider):
         """mock akshare 返回因子序列, 验证 get_hfq_factor 取最新值."""
         series = _make_factor_series([1.0, 1.0, 1.1111])  # 第3日除权
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             factor = fresh_provider.get_hfq_factor("600519.SH")
         assert factor == pytest.approx(1.1111, abs=1e-4)
 
     def test_get_factor_by_date(self, fresh_provider):
         """按日期查询: 返回 <= date 的最新因子 (point-in-time)."""
         series = _make_factor_series([1.0, 1.0, 1.1111])
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             # 第 2 日 (2024-01-02): 因子仍为 1.0 (除权前)
             f2 = fresh_provider.get_hfq_factor("600519.SH", date="2024-01-02")
             # 第 3 日 (2024-01-03): 因子变为 1.1111 (除权后)
@@ -155,7 +163,9 @@ class TestAdjustFactorProvider:
     def test_get_factor_date_before_records(self, fresh_provider):
         """查询日期早于所有记录: 返回最早因子."""
         series = _make_factor_series([1.5, 1.6, 1.7], start="2024-06-01")
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             f = fresh_provider.get_hfq_factor("600519.SH", date="2024-01-01")
         assert f == pytest.approx(1.5)
 
@@ -179,12 +189,16 @@ class TestAdjustFactorProvider:
 
     def test_degradation_returns_one(self, fresh_provider):
         """akshare 不可用 → 返回 1.0 (安全降级)."""
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=None):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=None
+        ):
             factor = fresh_provider.get_hfq_factor("600519.SH")
         assert factor == 1.0
 
     def test_empty_series_returns_one(self, fresh_provider):
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=pd.DataFrame()):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=pd.DataFrame()
+        ):
             factor = fresh_provider.get_hfq_factor("600519.SH")
         assert factor == 1.0
 
@@ -195,7 +209,9 @@ class TestAdjustFactorProvider:
         def fake_fetch(symbol):
             return series_a if "600519" in symbol else series_b
 
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", side_effect=fake_fetch):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", side_effect=fake_fetch
+        ):
             batch = fresh_provider.get_factors_batch(["600519.SH", "000001.SZ"])
         assert batch["600519.SH"] == pytest.approx(1.5)
         assert batch["000001.SZ"] == pytest.approx(1.2)
@@ -217,7 +233,9 @@ class TestExDividendDetection:
     def test_ex_dividend_detected(self, fresh_provider):
         """因子变化 > 0.1% → 检测为除权日."""
         series = _make_factor_series([1.0, 1.0, 1.1111])  # 第3日除权
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             # 第3日 (2024-01-03) 是除权日
             is_ex = fresh_provider.is_ex_dividend_date("600519.SH", date="2024-01-03")
         assert is_ex is True
@@ -225,20 +243,26 @@ class TestExDividendDetection:
     def test_non_ex_dividend(self, fresh_provider):
         """因子不变 → 非除权日."""
         series = _make_factor_series([1.0, 1.0, 1.0])
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             is_ex = fresh_provider.is_ex_dividend_date("600519.SH", date="2024-01-03")
         assert is_ex is False
 
     def test_insufficient_data(self, fresh_provider):
         """数据不足 → 保守返回 False."""
         series = _make_factor_series([1.0])
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             is_ex = fresh_provider.is_ex_dividend_date("600519.SH")
         assert is_ex is False
 
     def test_degradation_returns_false(self, fresh_provider):
         """akshare 不可用 → 保守返回 False."""
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=None):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=None
+        ):
             is_ex = fresh_provider.is_ex_dividend_date("600519.SH")
         assert is_ex is False
 
@@ -264,11 +288,17 @@ class TestExDividendAlignment:
         hfq_prev_close = 10.0  # 昨日 hfq 收盘
         unadjusted_realtime_ex_date = 9.0  # 除权日未复权实时价
 
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             # 不对齐 (直接比较未复权): 虚假回撤 -10%
-            naive_return = (unadjusted_realtime_ex_date - hfq_prev_close) / hfq_prev_close
+            naive_return = (
+                unadjusted_realtime_ex_date - hfq_prev_close
+            ) / hfq_prev_close
             # 对齐后: 真实收益 = 0
-            aligned_return = fresh_provider.get_hfq_factor("600519.SH", date="2024-01-03")
+            aligned_return = fresh_provider.get_hfq_factor(
+                "600519.SH", date="2024-01-03"
+            )
             aligned = compute_adjusted_return(
                 hfq_prev_close, unadjusted_realtime_ex_date, aligned_return
             )
@@ -281,8 +311,15 @@ class TestExDividendAlignment:
         factor = 10.0 / 9.0
         series = _make_factor_series([1.0, 1.0, factor])
 
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
+        with (
+            patch.object(
+                fresh_provider, "_fetch_hfq_factor_series", return_value=series
+            ),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
             aligned = align_realtime_to_hfq(9.0, "600519.SH", date="2024-01-03")
         # 9.0 × (10/9) = 10.0
         assert aligned == pytest.approx(10.0, abs=1e-6)
@@ -292,8 +329,15 @@ class TestExDividendAlignment:
         factor = 10.0 / 9.0
         series = _make_factor_series([1.0, 1.0, factor])
 
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
+        with (
+            patch.object(
+                fresh_provider, "_fetch_hfq_factor_series", return_value=series
+            ),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
             ret = compute_aligned_return(
                 hfq_prev_close=10.0,
                 unadjusted_realtime=9.0,
@@ -311,15 +355,21 @@ class TestExDividendAlignment:
         """
         factor = 10.0 / 9.0
         series = _make_factor_series([1.0, 1.0, factor])
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             f = fresh_provider.get_hfq_factor("600519.SH", date="2024-01-03")
             ret = compute_adjusted_return(10.0, 9.5, f)
         assert ret == pytest.approx(0.0556, abs=1e-3)  # 真实 +5.56%
 
     def test_degradation_no_alignment(self, fresh_provider):
         """akshare 不可用 → factor=1.0, 退化为未对齐 (与原行为一致)."""
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=None):
-            ret = compute_adjusted_return(10.0, 9.0, fresh_provider.get_hfq_factor("600519.SH"))
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=None
+        ):
+            ret = compute_adjusted_return(
+                10.0, 9.0, fresh_provider.get_hfq_factor("600519.SH")
+            )
         # factor=1.0 → 等同未对齐: -10%
         assert ret == pytest.approx(-0.10)
 
@@ -330,10 +380,12 @@ class TestExDividendAlignment:
 class TestNormalizeFactorDf:
     def test_chinese_columns(self):
         """akshare 中文列名归一化."""
-        df = pd.DataFrame({
-            "日期": ["2024-01-01", "2024-01-02"],
-            "hfq_factor": [1.0, 1.1111],
-        })
+        df = pd.DataFrame(
+            {
+                "日期": ["2024-01-01", "2024-01-02"],
+                "hfq_factor": [1.0, 1.1111],
+            }
+        )
         out = AdjustFactorProvider._normalize_factor_df(df, "600519.SH")
         assert out is not None
         assert "date" in out.columns
@@ -341,20 +393,24 @@ class TestNormalizeFactorDf:
         assert len(out) == 2
 
     def test_english_columns(self):
-        df = pd.DataFrame({
-            "date": ["2024-01-01", "2024-01-02"],
-            "hfq_factor": [1.0, 1.2],
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["2024-01-01", "2024-01-02"],
+                "hfq_factor": [1.0, 1.2],
+            }
+        )
         out = AdjustFactorProvider._normalize_factor_df(df, "600519.SH")
         assert out is not None
         assert float(out["hfq_factor"].iloc[-1]) == pytest.approx(1.2)
 
     def test_zero_factor_replaced_with_one(self):
         """因子<=0 替换为 1.0 (安全)."""
-        df = pd.DataFrame({
-            "date": ["2024-01-01", "2024-01-02"],
-            "hfq_factor": [0.0, -1.0],
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["2024-01-01", "2024-01-02"],
+                "hfq_factor": [0.0, -1.0],
+            }
+        )
         out = AdjustFactorProvider._normalize_factor_df(df, "600519.SH")
         assert out is not None
         assert (out["hfq_factor"] == 1.0).all()
@@ -377,8 +433,15 @@ class TestDataProviderIntegration:
         series = _make_factor_series([1.0, 1.0, 1.5])
         quote = {"index_price": 10.0, "prev_close": 9.0, "source": "sina_http"}
 
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
+        with (
+            patch.object(
+                fresh_provider, "_fetch_hfq_factor_series", return_value=series
+            ),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
             provider = MarketDataProvider.__new__(MarketDataProvider)
             enriched = provider.enrich_realtime_with_hfq(quote, "600519.SH")
 
@@ -393,8 +456,13 @@ class TestDataProviderIntegration:
         from utils.data_provider import MarketDataProvider
 
         quote = {"index_price": 10.0}
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=None), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
+        with (
+            patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=None),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
             provider = MarketDataProvider.__new__(MarketDataProvider)
             enriched = provider.enrich_realtime_with_hfq(quote, "600519.SH")
 
@@ -407,8 +475,15 @@ class TestDataProviderIntegration:
         from utils.data_provider import MarketDataProvider
 
         series = _make_factor_series([1.0, 1.3])
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
+        with (
+            patch.object(
+                fresh_provider, "_fetch_hfq_factor_series", return_value=series
+            ),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
             provider = MarketDataProvider.__new__(MarketDataProvider)
             factor = provider.get_hfq_factor("600519.SH")
         assert factor == pytest.approx(1.3)
@@ -440,7 +515,9 @@ class TestGetAlignedPrevClose:
         """非除权日: today_factor == yesterday_factor, 返回原 prev_close."""
         # 因子恒定 1.0, 无除权
         series = _make_factor_series([1.0, 1.0, 1.0])
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             aligned = fresh_provider.get_aligned_prev_close(
                 "600519.SH", prev_close=10.0, date="2024-01-03"
             )
@@ -453,7 +530,9 @@ class TestGetAlignedPrevClose:
         # Day3: factor=1.1 (除权日, 因子上升)
         # 对齐: aligned_prev = 11.0 * (1.0 / 1.1) = 10.0
         series = _make_factor_series([1.0, 1.0, 1.1])
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             aligned = fresh_provider.get_aligned_prev_close(
                 "600519.SH", prev_close=11.0, date="2024-01-03"
             )
@@ -462,7 +541,9 @@ class TestGetAlignedPrevClose:
     def test_zero_prev_close_returns_original(self, fresh_provider):
         """prev_close=0 时返回原值 (不计算)."""
         series = _make_factor_series([1.0, 1.1])
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             aligned = fresh_provider.get_aligned_prev_close(
                 "600519.SH", prev_close=0.0, date="2024-01-02"
             )
@@ -471,7 +552,9 @@ class TestGetAlignedPrevClose:
     def test_negative_prev_close_returns_original(self, fresh_provider):
         """prev_close 负数 (异常输入) 返回原值."""
         series = _make_factor_series([1.0, 1.1])
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=series
+        ):
             aligned = fresh_provider.get_aligned_prev_close(
                 "600519.SH", prev_close=-5.0, date="2024-01-02"
             )
@@ -479,7 +562,9 @@ class TestGetAlignedPrevClose:
 
     def test_degradation_returns_original(self, fresh_provider):
         """akshare 不可用 → 返回原 prev_close (安全降级)."""
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=None):
+        with patch.object(
+            fresh_provider, "_fetch_hfq_factor_series", return_value=None
+        ):
             aligned = fresh_provider.get_aligned_prev_close(
                 "600519.SH", prev_close=10.0, date="2024-01-03"
             )
@@ -490,8 +575,15 @@ class TestGetAlignedPrevClose:
         from utils.adjust_factor_provider import align_prev_close_to_today
 
         series = _make_factor_series([1.0, 1.0, 1.1])
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
+        with (
+            patch.object(
+                fresh_provider, "_fetch_hfq_factor_series", return_value=series
+            ),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
             aligned = align_prev_close_to_today(11.0, "600519.SH", date="2024-01-03")
         assert aligned == pytest.approx(10.0, abs=1e-6)
 
@@ -502,7 +594,9 @@ class TestGetAlignedPrevClose:
 class TestPnlCalculatorHfqAlign:
     """U3: 验证 calculate_pnl 接入复权因子对齐."""
 
-    def _make_positions(self, code="600519.SH", shares=100, cost_price=10.0, buy_date=None):
+    def _make_positions(
+        self, code="600519.SH", shares=100, cost_price=10.0, buy_date=None
+    ):
         """构造 positions.json 测试数据."""
         pos = {
             "code": code,
@@ -536,7 +630,10 @@ class TestPnlCalculatorHfqAlign:
         positions = self._make_positions()
         prices = self._make_market_prices()
 
-        with patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
+        with patch(
+            "utils.adjust_factor_provider.get_adjust_factor_provider",
+            return_value=fresh_provider,
+        ):
             result = calculate_pnl(positions, prices, align_hfq=False)
 
         detail = result["details"][0]
@@ -561,9 +658,18 @@ class TestPnlCalculatorHfqAlign:
         positions = self._make_positions()
         prices = self._make_market_prices(close=10.5, prev_close=10.0)
 
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
-            result = calculate_pnl(positions, prices, align_hfq=True, hfq_date="2024-01-03")
+        with (
+            patch.object(
+                fresh_provider, "_fetch_hfq_factor_series", return_value=series
+            ),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
+            result = calculate_pnl(
+                positions, prices, align_hfq=True, hfq_date="2024-01-03"
+            )
 
         detail = result["details"][0]
         assert "hfq_factor" in detail
@@ -585,9 +691,18 @@ class TestPnlCalculatorHfqAlign:
         positions = self._make_positions(cost_price=10.0, buy_date="2024-01-01")
         prices = self._make_market_prices(close=10.0, prev_close=11.0)
 
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
-            result = calculate_pnl(positions, prices, align_hfq=True, hfq_date="2024-01-03")
+        with (
+            patch.object(
+                fresh_provider, "_fetch_hfq_factor_series", return_value=series
+            ),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
+            result = calculate_pnl(
+                positions, prices, align_hfq=True, hfq_date="2024-01-03"
+            )
 
         detail = result["details"][0]
         assert detail["is_ex_dividend"] is True
@@ -613,9 +728,18 @@ class TestPnlCalculatorHfqAlign:
         positions = self._make_positions(cost_price=10.0, buy_date="2024-01-01")
         prices = self._make_market_prices(close=10.0, prev_close=11.0)
 
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
-            result = calculate_pnl(positions, prices, align_hfq=True, hfq_date="2024-01-03")
+        with (
+            patch.object(
+                fresh_provider, "_fetch_hfq_factor_series", return_value=series
+            ),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
+            result = calculate_pnl(
+                positions, prices, align_hfq=True, hfq_date="2024-01-03"
+            )
 
         detail = result["details"][0]
         # aligned_cost_price = 10.0 * (1.0/1.1) ≈ 9.09
@@ -631,15 +755,26 @@ class TestPnlCalculatorHfqAlign:
         positions = self._make_positions(shares=200, cost_price=10.0)
         prices = self._make_market_prices(close=10.0, prev_close=11.0)
 
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", return_value=series), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
-            result = calculate_pnl(positions, prices, align_hfq=True, hfq_date="2024-01-03")
+        with (
+            patch.object(
+                fresh_provider, "_fetch_hfq_factor_series", return_value=series
+            ),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
+            result = calculate_pnl(
+                positions, prices, align_hfq=True, hfq_date="2024-01-03"
+            )
 
         # summary 应含对齐总计
         assert "total_aligned_daily_pnl" in result["summary"]
         assert result["summary"]["aligned_position_count"] == 1
         # 200 shares * (10.0 - 10.0) = 0
-        assert result["summary"]["total_aligned_daily_pnl"] == pytest.approx(0.0, abs=1e-6)
+        assert result["summary"]["total_aligned_daily_pnl"] == pytest.approx(
+            0.0, abs=1e-6
+        )
 
     def test_degradation_when_provider_unavailable(self, fresh_provider, monkeypatch):
         """hfq_provider 不可用时 align_hfq=True 安全降级, 行为同 align_hfq=False."""
@@ -698,13 +833,32 @@ class TestPnlCalculatorHfqAlign:
             }
         }
         prices = {
-            "600519.SH": {"close": 10.0, "prev_close": 11.0, "change_pct": -9.09, "source": "live"},
-            "000001.SZ": {"close": 15.5, "prev_close": 15.0, "change_pct": 3.33, "source": "live"},
+            "600519.SH": {
+                "close": 10.0,
+                "prev_close": 11.0,
+                "change_pct": -9.09,
+                "source": "live",
+            },
+            "000001.SZ": {
+                "close": 15.5,
+                "prev_close": 15.0,
+                "change_pct": 3.33,
+                "source": "live",
+            },
         }
 
-        with patch.object(fresh_provider, "_fetch_hfq_factor_series", side_effect=fake_fetch), \
-             patch("utils.adjust_factor_provider.get_adjust_factor_provider", return_value=fresh_provider):
-            result = calculate_pnl(positions, prices, align_hfq=True, hfq_date="2024-01-03")
+        with (
+            patch.object(
+                fresh_provider, "_fetch_hfq_factor_series", side_effect=fake_fetch
+            ),
+            patch(
+                "utils.adjust_factor_provider.get_adjust_factor_provider",
+                return_value=fresh_provider,
+            ),
+        ):
+            result = calculate_pnl(
+                positions, prices, align_hfq=True, hfq_date="2024-01-03"
+            )
 
         # 两个标的都应正常输出 (不抛异常)
         assert len(result["details"]) == 2

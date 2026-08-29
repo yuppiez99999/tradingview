@@ -19,6 +19,7 @@
 - LLM 返回的 composite_sentiment ∈ [-1, 1] → score = (sentiment + 1) / 2
 - 采集失败/LLM 不可用时返回中性报告 (score=0.5, confidence=0)
 """
+
 from __future__ import annotations
 
 import json
@@ -30,6 +31,7 @@ from typing import Any, Optional
 
 try:
     from .logging_manager import get_logger
+
     logger = get_logger("news_intelligence")
 except ImportError:
     logger = logging.getLogger("news_intelligence")
@@ -152,6 +154,7 @@ class NewsIntelligenceEngine:
             return self._web_scraper
         try:
             from .web_scraper import WebScraper
+
             self._web_scraper = WebScraper()
         except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
             logger.debug("WebScraper 初始化失败: %s", e)
@@ -163,6 +166,7 @@ class NewsIntelligenceEngine:
             return self._llm_client
         try:
             from .glm5_client import get_glm5_client
+
             self._llm_client = get_glm5_client()
         except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
             logger.debug("GLM5Client 初始化失败: %s", e)
@@ -174,6 +178,7 @@ class NewsIntelligenceEngine:
             return self._sentiment_engine
         try:
             from .news_sentiment_engine import NewsSentimentEngine
+
             self._sentiment_engine = NewsSentimentEngine()
         except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
             logger.debug("NewsSentimentEngine 初始化失败: %s", e)
@@ -213,7 +218,14 @@ class NewsIntelligenceEngine:
             logger.info("LLM 分析失败, 降级到词典打分 code=%s", code)
             return self._fallback_to_sentiment(code, articles)
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.debug("新闻智能分析异常 code=%s: %s", code, e)
             return self._neutral_report(code, f"分析异常: {e}")
 
@@ -226,7 +238,14 @@ class NewsIntelligenceEngine:
         try:
             scraper = self._get_web_scraper()
             raw_items = scraper.fetch_news(keyword, limit=self.article_limit)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.debug("新闻采集失败 keyword=%s: %s", keyword, e)
             return []
 
@@ -283,7 +302,14 @@ class NewsIntelligenceEngine:
             if not content:
                 return None
             return self._parse_llm_response(code, content, len(articles))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.debug("LLM 调用失败 code=%s: %s", code, e)
             return None
 
@@ -442,7 +468,15 @@ class NewsIntelligenceEngine:
                 timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 fallback_used=True,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ImportError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            ImportError,
+        ) as e:
             logger.debug("词典打分降级失败 code=%s: %s", code, e)
             return self._neutral_report(code, f"降级失败: {e}")
 

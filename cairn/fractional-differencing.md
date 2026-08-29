@@ -87,3 +87,14 @@ d=0.4: 记忆=60.0%, 平稳=True, 方差=0.096839
 - LIT-5.4 RAG+RL 情感分析 (无依赖, 可并行)
 - LIT-5.5 排序损失评估 (依赖 LIT-5.1)
 - LIT-5.6 全量集成验收 (依赖全部)
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 24%)
+- [RAG + RL 自适应情感分析 — LIT-5.4](rag-rl-sentiment.md) (相似度 19%)
+- [FinMultiTime 多模态基准数据 — LIT-5.3](finmultitime-benchmark.md) (相似度 19%)
+- [排序损失函数系统评估 — LIT-5.5](ranking-loss-eval.md) (相似度 14%)
+- [AlphaForge 动态权重组合机制 (LIT-1.2)](alpha-forge-combiner.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

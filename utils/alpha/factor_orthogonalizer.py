@@ -160,7 +160,9 @@ def orthogonalize_factors(
                 if pd.isna(corr_val):
                     continue
                 if abs(float(corr_val)) >= threshold:
-                    report.drop_reasons[factor] = f"与 {sel} 相关性 {float(corr_val):.3f} >= {threshold}"
+                    report.drop_reasons[factor] = (
+                        f"与 {sel} 相关性 {float(corr_val):.3f} >= {threshold}"
+                    )
                     keep = False
                     break
             if keep:
@@ -180,7 +182,16 @@ def orthogonalize_factors(
 
         return selected, report
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         report.status = "error"
@@ -244,7 +255,12 @@ def get_correlation_summary(
     """
     factor_df = _build_factor_dataframe(factor_series)
     if factor_df is None:
-        return {"n_factors": 0, "high_correlation_pairs": [], "max_correlation": 0.0, "mean_abs_correlation": 0.0}
+        return {
+            "n_factors": 0,
+            "high_correlation_pairs": [],
+            "max_correlation": 0.0,
+            "mean_abs_correlation": 0.0,
+        }
 
     corr = factor_df.corr()
     n = len(corr)

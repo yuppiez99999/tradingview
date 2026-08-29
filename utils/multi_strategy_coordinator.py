@@ -88,7 +88,9 @@ class StrategyState:
 class StrategyConflict:
     """策略冲突"""
 
-    conflict_type: str  # opposite_signal / over_position / cash_conflict / risk_budget_exceeded
+    conflict_type: (
+        str  # opposite_signal / over_position / cash_conflict / risk_budget_exceeded
+    )
     strategies: list[str]
     symbol: str = ""
     description: str = ""
@@ -205,7 +207,9 @@ class MultiStrategyCoordinator:
             min_weight=min_weight,
             current_weight=capital / self.total_capital,
         )
-        logger.info(f"[StrategyCoord] 注册策略 {name}: 资金 {capital:,.0f}, 权重 {capital / self.total_capital:.1%}")
+        logger.info(
+            f"[StrategyCoord] 注册策略 {name}: 资金 {capital:,.0f}, 权重 {capital / self.total_capital:.1%}"
+        )
 
     # ------------------------------------------------------------
     # 主入口: 协调策略
@@ -315,15 +319,21 @@ class MultiStrategyCoordinator:
 
             # 连续亏损
             if s.cumulative_pnl < -s.capital * self.PER_STRATEGY_RISK:
-                reasons.append(f"累计亏损 {s.cumulative_pnl:,.0f} 超过 {self.PER_STRATEGY_RISK:.0%} 资金")
+                reasons.append(
+                    f"累计亏损 {s.cumulative_pnl:,.0f} 超过 {self.PER_STRATEGY_RISK:.0%} 资金"
+                )
 
             # 最大回撤
             if s.max_drawdown > self.PER_STRATEGY_RISK:
-                reasons.append(f"最大回撤 {s.max_drawdown:.1%} 超过 {self.PER_STRATEGY_RISK:.0%}")
+                reasons.append(
+                    f"最大回撤 {s.max_drawdown:.1%} 超过 {self.PER_STRATEGY_RISK:.0%}"
+                )
 
             # 相关性过高
             if s.correlation_to_portfolio > self.CORRELATION_THRESHOLD:
-                reasons.append(f"与组合相关性 {s.correlation_to_portfolio:.2f} > {self.CORRELATION_THRESHOLD}")
+                reasons.append(
+                    f"与组合相关性 {s.correlation_to_portfolio:.2f} > {self.CORRELATION_THRESHOLD}"
+                )
 
             # Sharpe 过低
             if s.sharpe_ratio < -0.5:
@@ -382,7 +392,9 @@ class MultiStrategyCoordinator:
 
             # 限制权重变化幅度 (避免突变)
             max_change = 0.20
-            weight_change = (target_weight - s.current_weight) / max(s.current_weight, 0.01)
+            weight_change = (target_weight - s.current_weight) / max(
+                s.current_weight, 0.01
+            )
             if abs(weight_change) > max_change:
                 if weight_change > 0:
                     target_weight = s.current_weight * (1 + max_change)
@@ -390,18 +402,26 @@ class MultiStrategyCoordinator:
                     target_weight = s.current_weight * (1 - max_change)
 
             decision.strategy_weights[name] = round(target_weight, 4)
-            decision.strategy_capital[name] = round(target_weight * self.total_capital, 0)
+            decision.strategy_capital[name] = round(
+                target_weight * self.total_capital, 0
+            )
             total_target_weight += target_weight
 
         # 归一化 (确保总权重 = 1.0)
         if total_target_weight > 0:
             scale = 1.0 / total_target_weight
             for name in decision.strategy_weights:
-                decision.strategy_weights[name] = round(decision.strategy_weights[name] * scale, 4)
-                decision.strategy_capital[name] = round(decision.strategy_capital[name] * scale, 0)
+                decision.strategy_weights[name] = round(
+                    decision.strategy_weights[name] * scale, 4
+                )
+                decision.strategy_capital[name] = round(
+                    decision.strategy_capital[name] * scale, 0
+                )
 
         decision.total_allocated = sum(
-            cap for name, cap in decision.strategy_capital.items() if name != "cash_management"
+            cap
+            for name, cap in decision.strategy_capital.items()
+            if name != "cash_management"
         )
         # 现金缓冲 = cash_management 策略资金 + 未分配资金
         decision.cash_buffer = decision.strategy_capital.get("cash_management", 0) + (
@@ -498,7 +518,9 @@ class MultiStrategyCoordinator:
             weight = decision.strategy_weights.get(name, s.current_weight)
             # 简化: 假设 VaR_95 = 3% × weight × capital
             strategy_risk = (
-                abs(s.var_95) * weight * self.total_capital if s.var_95 else 0.03 * weight * self.total_capital
+                abs(s.var_95) * weight * self.total_capital
+                if s.var_95
+                else 0.03 * weight * self.total_capital
             )
             total_risk += strategy_risk
 
@@ -551,7 +573,11 @@ class MultiStrategyCoordinator:
         for name, weight in decision.strategy_weights.items():
             s = self.strategies.get(name)
             if s:
-                status = "❌ 失效" if s.is_degraded else ("✅ 正常" if s.is_active else "⏸ 暂停")
+                status = (
+                    "❌ 失效"
+                    if s.is_degraded
+                    else ("✅ 正常" if s.is_active else "⏸ 暂停")
+                )
                 lines.append(
                     f"  {name:<20} 权重 {weight:.1%} (¥{decision.strategy_capital[name]:>10,.0f}) "
                     f"Sharpe {s.sharpe_ratio:>5.2f} 相关性 {s.correlation_to_portfolio:>5.2f} {status}"
@@ -593,7 +619,14 @@ class MultiStrategyCoordinator:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(state, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"策略协调器状态已保存: {path}")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"保存策略协调器状态失败: {e}")
         return path
 

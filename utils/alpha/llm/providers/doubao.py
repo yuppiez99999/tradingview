@@ -45,7 +45,9 @@ def call_doubao(
     """
     base_url = os.environ.get(
         provider_cfg.get("base_url_env", "DOUBAO_SPEED_BASE_URL"),
-        provider_cfg.get("base_url_default", "https://ark.cn-beijing.volces.com/api/v3"),
+        provider_cfg.get(
+            "base_url_default", "https://ark.cn-beijing.volces.com/api/v3"
+        ),
     )
     api_key = os.environ.get(provider_cfg.get("api_key_env", "VOLCENGINE_API_KEY"), "")
     if not api_key:

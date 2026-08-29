@@ -226,7 +226,9 @@ class AutoFixEngine:
         detail = getattr(check_result, "detail", "")
         remediation = getattr(check_result, "remediation", "")
 
-        like = CheckResultLike(code=code, name=name, detail=detail, remediation=remediation)
+        like = CheckResultLike(
+            code=code, name=name, detail=detail, remediation=remediation
+        )
 
         # 查找匹配策略
         risk_level, fix_fn = self._find_strategy(code)
@@ -248,7 +250,16 @@ class AutoFixEngine:
         try:
             result = fix_fn(like, self._default_context)
             result.check_code = code
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.exception("修复策略异常: %s (%s)", code, e)
             result = FixResult(
@@ -281,15 +292,12 @@ class AutoFixEngine:
             ("C6.*", RISK_L0, _fix_temp_files),
             ("C3.*", RISK_L0, _fix_datasource_fallback),
             ("C4.*", RISK_L0, _fix_config_schema),
-
             # L1 低风险 (自动执行 + 记录)
             ("C7.*", RISK_L1, _fix_sys_path),
             ("C8.*", RISK_L1, _fix_heartbeat_field),
             ("C1.*", RISK_L1, _fix_missing_file),
-
             # L2 中风险 (仅建议)
             ("C5.*", RISK_L2, _suggest_dependency_install),
-
             # 高风险 (仅告警) — 默认兜底, 不在此注册
         ]
 
@@ -330,21 +338,32 @@ class AutoFixEngine:
             return
 
         try:
-            self.memory.record({
-                "level": "L1",  # AutoFixEngine 属于 L1 防御层
-                "action_type": "fix",
-                "trigger_reason": f"P0 自检失败: {check.code} ({check.name})",
-                "target_module": f"system_check.{check.code}",
-                "rollback_plan": "修复动作可通过 git 回滚 (L0/L1 仅修改缓存/配置)",
-                "status": "executed" if result.fixed else "rejected",
-                "result": result.to_dict(),
-                "metadata": {
-                    "check_code": check.code,
-                    "check_detail": check.detail[:200],
-                    "risk_level": result.risk_level,
-                },
-            })
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            self.memory.record(
+                {
+                    "level": "L1",  # AutoFixEngine 属于 L1 防御层
+                    "action_type": "fix",
+                    "trigger_reason": f"P0 自检失败: {check.code} ({check.name})",
+                    "target_module": f"system_check.{check.code}",
+                    "rollback_plan": "修复动作可通过 git 回滚 (L0/L1 仅修改缓存/配置)",
+                    "status": "executed" if result.fixed else "rejected",
+                    "result": result.to_dict(),
+                    "metadata": {
+                        "check_code": check.code,
+                        "check_detail": check.detail[:200],
+                        "risk_level": result.risk_level,
+                    },
+                }
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning("修复审计写入 Memory 失败 (容错): %s", e)
 

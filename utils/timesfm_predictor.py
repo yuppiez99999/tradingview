@@ -50,7 +50,9 @@ class TimesFMPredictor:
             self._device = str(self.config.get("device", "auto"))
             if self.enabled:
                 self._init_model()
-            logger.info("TimesFM 预测器 enabled=%s available=%s", self.enabled, self.available)
+            logger.info(
+                "TimesFM 预测器 enabled=%s available=%s", self.enabled, self.available
+            )
         except FileNotFoundError:
             logger.warning("TimesFM 配置不存在 %s, 旁路", config_path)
         except Exception as exc:
@@ -84,9 +86,13 @@ class TimesFMPredictor:
                 )
                 self._tfm.load_from_checkpoint()
             self.available = True
-            logger.info("TimesFM 模型加载成功 device=%s version=%s", self._device, version)
+            logger.info(
+                "TimesFM 模型加载成功 device=%s version=%s", self._device, version
+            )
         except ImportError:
-            logger.warning("timesfm 包未安装, available=False (pip install timesfm[torch])")
+            logger.warning(
+                "timesfm 包未安装, available=False (pip install timesfm[torch])"
+            )
         except Exception as exc:
             logger.warning("TimesFM 模型加载失败, available=False: %s", exc)
 
@@ -137,11 +143,15 @@ class TimesFMPredictor:
         if horizon <= 0:
             horizon = int(self.config.get("horizon_default", 5))
         if not self.enabled or not self.available or self._tfm is None:
-            return ForecastResult(point=np.zeros(horizon), available=False, horizon=horizon)
+            return ForecastResult(
+                point=np.zeros(horizon), available=False, horizon=horizon
+            )
 
         arr = np.asarray(series, dtype=np.float64)
         if arr.ndim != 1 or len(arr) < 2:
-            return ForecastResult(point=np.zeros(horizon), available=False, horizon=horizon)
+            return ForecastResult(
+                point=np.zeros(horizon), available=False, horizon=horizon
+            )
 
         ctx_len = int(self.config.get("context_length", 16384))
         ctx = arr[-ctx_len:].copy()
@@ -151,16 +161,22 @@ class TimesFMPredictor:
 
             if isinstance(self._tfm, getattr(timesfm, "TimesFM_2p5_200M_torch", type)):
                 point_forecast, quantile_forecast = self._tfm.forecast(horizon, [ctx])
-                point = np.asarray(point_forecast[0], dtype=np.float64) if point_forecast.ndim > 1 else np.asarray(point_forecast, dtype=np.float64)
+                point = (
+                    np.asarray(point_forecast[0], dtype=np.float64)
+                    if point_forecast.ndim > 1
+                    else np.asarray(point_forecast, dtype=np.float64)
+                )
                 p10 = p50 = p90 = None
                 if quantile_forecast is not None and quantile_forecast.size > 0:
-                    q = np.asarray(quantile_forecast[0], dtype=np.float64) if quantile_forecast.ndim > 2 else np.asarray(quantile_forecast, dtype=np.float64)
+                    q = (
+                        np.asarray(quantile_forecast[0], dtype=np.float64)
+                        if quantile_forecast.ndim > 2
+                        else np.asarray(quantile_forecast, dtype=np.float64)
+                    )
                     if q.ndim == 2 and q.shape[0] >= 3:
                         p10, p50, p90 = q[0], q[1], q[2]
             else:
-                (point_forecast, quantile_forecast) = self._tfm.forecast(
-                    [ctx], [horizon]
-                )
+                point_forecast, quantile_forecast = self._tfm.forecast([ctx], [horizon])
                 point = np.asarray(point_forecast[0], dtype=np.float64)
                 p10 = p50 = p90 = None
                 if quantile_forecast is not None and len(quantile_forecast) > 0:
@@ -168,12 +184,18 @@ class TimesFMPredictor:
                     if q.ndim == 2 and q.shape[0] >= 3:
                         p10, p50, p90 = q[0], q[1], q[2]
             return ForecastResult(
-                point=point, p10=p10, p50=p50, p90=p90,
-                available=True, horizon=horizon,
+                point=point,
+                p10=p10,
+                p50=p50,
+                p90=p90,
+                available=True,
+                horizon=horizon,
             )
         except Exception as exc:
             logger.warning("TimesFM forecast 异常, 降级: %s", exc)
-            return ForecastResult(point=np.zeros(horizon), available=False, horizon=horizon)
+            return ForecastResult(
+                point=np.zeros(horizon), available=False, horizon=horizon
+            )
 
     def forecast_with_covariates(
         self,
@@ -188,29 +210,48 @@ class TimesFMPredictor:
         if xreg_dynamic is None and xreg_static is None:
             return self.forecast(series, horizon)
         if not self.available or self._tfm is None:
-            return ForecastResult(point=np.zeros(horizon), available=False, horizon=horizon)
+            return ForecastResult(
+                point=np.zeros(horizon), available=False, horizon=horizon
+            )
         try:
             import timesfm  # noqa: F401
 
             if isinstance(self._tfm, getattr(timesfm, "TimesFM_2p5_200M_torch", type)):
                 point, _quantiles = self._tfm.forecast_with_covariates(
-                    horizon, [np.asarray(series, dtype=np.float64)],
-                    dynamic_covariates=[np.asarray(xreg_dynamic, dtype=np.float64)] if xreg_dynamic is not None else None,
-                    static_covariates=[xreg_static] if xreg_static is not None else None,
+                    horizon,
+                    [np.asarray(series, dtype=np.float64)],
+                    dynamic_covariates=(
+                        [np.asarray(xreg_dynamic, dtype=np.float64)]
+                        if xreg_dynamic is not None
+                        else None
+                    ),
+                    static_covariates=(
+                        [xreg_static] if xreg_static is not None else None
+                    ),
                 )
             else:
                 xreg = timesfm.TimesFmxreg()
                 if xreg_dynamic is not None:
-                    xreg.add_dynamic_covariate(np.asarray(xreg_dynamic, dtype=np.float64))
+                    xreg.add_dynamic_covariate(
+                        np.asarray(xreg_dynamic, dtype=np.float64)
+                    )
                 if xreg_static is not None:
                     for k, v in xreg_static.items():
                         xreg.add_static_covariate(k, float(v))
-                (point, _quantiles) = self._tfm.forecast_with_xreg(
+                point, _quantiles = self._tfm.forecast_with_xreg(
                     [np.asarray(series, dtype=np.float64)], [horizon], xreg
                 )
             return ForecastResult(
-                point=np.asarray(point[0] if hasattr(point, '__getitem__') and point.ndim > 1 else point, dtype=np.float64),
-                available=True, horizon=horizon,
+                point=np.asarray(
+                    (
+                        point[0]
+                        if hasattr(point, "__getitem__") and point.ndim > 1
+                        else point
+                    ),
+                    dtype=np.float64,
+                ),
+                available=True,
+                horizon=horizon,
             )
         except Exception as exc:
             logger.warning("TimesFM XReg 异常, 降级到普通 forecast: %s", exc)

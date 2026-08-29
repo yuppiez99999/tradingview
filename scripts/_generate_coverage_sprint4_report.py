@@ -8,6 +8,7 @@ _generate_coverage_sprint4_report.py — 覆盖率 Sprint4 0.80 达标报告生�
 用法:
     python scripts/_generate_coverage_sprint4_report.py
 """
+
 from __future__ import annotations
 
 import argparse
@@ -62,7 +63,9 @@ def generate_coverage_report(
     # 读取基线
     if baseline.exists():
         try:
-            base_data = json.loads(baseline.read_text(encoding="utf-8", errors="replace"))
+            base_data = json.loads(
+                baseline.read_text(encoding="utf-8", errors="replace")
+            )
             report["baseline_value"] = base_data.get("line_rate")
         except (json.JSONDecodeError, ValueError):
             pass
@@ -70,6 +73,7 @@ def generate_coverage_report(
     # 检测前视偏差 (复用检出器)
     try:
         from scripts._detect_lookahead_tests import detect_lookahead_tests
+
         lookahead = detect_lookahead_tests(_ROOT / "tests")
         report["lookahead_bias_detected"] = len(lookahead) > 0
     except Exception:
@@ -78,6 +82,7 @@ def generate_coverage_report(
     # 检测 mock 虚增
     try:
         from scripts._detect_mock_inflation import detect_mock_inflation
+
         mock_violations = detect_mock_inflation(_ROOT / "tests")
         report["mock_inflation_detected"] = len(mock_violations) > 0
     except Exception:
@@ -103,9 +108,17 @@ def generate_coverage_report(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="覆盖率 Sprint4 0.80 达标报告生成器")
-    parser.add_argument("--coverage-xml", type=Path, default=_ROOT / "reports" / "coverage.xml")
-    parser.add_argument("--baseline", type=Path, default=_ROOT / "reports" / "ci" / "coverage_baseline.json")
-    parser.add_argument("--supplemented", type=str, default="", help="补测模块, 逗号分隔")
+    parser.add_argument(
+        "--coverage-xml", type=Path, default=_ROOT / "reports" / "coverage.xml"
+    )
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        default=_ROOT / "reports" / "ci" / "coverage_baseline.json",
+    )
+    parser.add_argument(
+        "--supplemented", type=str, default="", help="补测模块, 逗号分隔"
+    )
     args = parser.parse_args()
 
     supplemented = [m.strip() for m in args.supplemented.split(",") if m.strip()]

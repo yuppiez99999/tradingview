@@ -30,6 +30,7 @@
   - 主类通过 mock FeatureFlag 控制
   - 文件写入使用 tmp_path fixture
 """
+
 from __future__ import annotations
 
 import json
@@ -87,6 +88,7 @@ from utils.reporting.report_sections import (  # noqa: E402
 # 1. 常量定义测试
 # ============================================================
 
+
 class TestConstants:
     """常量定义完整性测试."""
 
@@ -112,7 +114,13 @@ class TestConstants:
 
     def test_status_codes_distinct(self):
         """状态码互不相同."""
-        codes = {STATUS_OK, STATUS_FEATURE_FLAG_DISABLED, STATUS_EMPTY_INPUT, STATUS_ERROR, STATUS_PARTIAL}
+        codes = {
+            STATUS_OK,
+            STATUS_FEATURE_FLAG_DISABLED,
+            STATUS_EMPTY_INPUT,
+            STATUS_ERROR,
+            STATUS_PARTIAL,
+        }
         assert len(codes) == 5
 
     def test_phase_names_contains_key_phases(self):
@@ -135,6 +143,7 @@ class TestConstants:
 # ============================================================
 # 2. 异常体系测试
 # ============================================================
+
 
 class TestExceptions:
     """异常体系测试."""
@@ -165,6 +174,7 @@ class TestExceptions:
 # ============================================================
 # 3. 数据类测试
 # ============================================================
+
 
 class TestDataClasses:
     """数据类字段与序列化测试."""
@@ -229,6 +239,7 @@ class TestDataClasses:
 # 4. 纯函数测试: build_report_header
 # ============================================================
 
+
 class TestBuildReportHeader:
     """报告头部构建测试."""
 
@@ -269,6 +280,7 @@ class TestBuildReportHeader:
 # 5. 纯函数测试: build_phase_execution_summary
 # ============================================================
 
+
 class TestBuildPhaseExecutionSummary:
     """阶段执行摘要测试."""
 
@@ -287,7 +299,9 @@ class TestBuildPhaseExecutionSummary:
 
     def test_with_failed_status(self):
         """失败状态."""
-        phases = {"check": {"status": "error", "duration_ms": 100.0, "reason": "NTP 失败"}}
+        phases = {
+            "check": {"status": "error", "duration_ms": 100.0, "reason": "NTP 失败"}
+        }
         lines = build_phase_execution_summary(phases)
         assert any("❌" in line for line in lines)
 
@@ -296,7 +310,9 @@ class TestBuildPhaseExecutionSummary:
         phases = {"calibrate": {"status": "skipped", "duration_ms": 0.0}}
         lines = build_phase_execution_summary(phases)
         # calibrate 是允许降级的
-        assert any("calibrate" not in line or "⚠️" in line or "SKIP" in line for line in lines)
+        assert any(
+            "calibrate" not in line or "⚠️" in line or "SKIP" in line for line in lines
+        )
 
     def test_table_header(self):
         """表格头."""
@@ -308,6 +324,7 @@ class TestBuildPhaseExecutionSummary:
 # 6. 纯函数测试: render_phase_summary
 # ============================================================
 
+
 class TestRenderPhaseSummary:
     """各阶段详情渲染测试."""
 
@@ -318,7 +335,9 @@ class TestRenderPhaseSummary:
 
     def test_with_check_phase(self):
         """系统自检阶段."""
-        phases = {"check": {"ntp_sync": "ok", "connector": "ready", "risk_manager": "ok"}}
+        phases = {
+            "check": {"ntp_sync": "ok", "connector": "ready", "risk_manager": "ok"}
+        }
         lines = render_phase_summary(phases)
         assert any("Phase 1: 系统自检" in line for line in lines)
         assert any("NTP" in line for line in lines)
@@ -375,6 +394,7 @@ class TestRenderPhaseSummary:
 # 7. 纯函数测试: render_pnl_attribution
 # ============================================================
 
+
 class TestRenderPnLAttribution:
     """P&L 归因渲染测试."""
 
@@ -426,6 +446,7 @@ class TestRenderPnLAttribution:
 # 8. 纯函数测试: render_barra_decomposition
 # ============================================================
 
+
 class TestRenderBarraDecomposition:
     """Barra 风险分解渲染测试."""
 
@@ -474,6 +495,7 @@ class TestRenderBarraDecomposition:
 # 9. 纯函数测试: render_eod_guard_chain
 # ============================================================
 
+
 class TestRenderEodGuardChain:
     """EOD 七 Guard 风控链渲染测试."""
 
@@ -517,6 +539,7 @@ class TestRenderEodGuardChain:
 # 10. 纯函数测试: build_report_summary
 # ============================================================
 
+
 class TestBuildReportSummary:
     """报告总结段落测试."""
 
@@ -552,6 +575,7 @@ class TestBuildReportSummary:
 # ============================================================
 # 11. 纯函数测试: write_report_with_retry
 # ============================================================
+
 
 class TestWriteReportWithRetry:
     """报告写入测试."""
@@ -609,6 +633,7 @@ class TestWriteReportWithRetry:
 # 12. 纯函数测试: save_state_json
 # ============================================================
 
+
 class TestSaveStateJson:
     """状态 JSON 保存测试."""
 
@@ -656,14 +681,13 @@ class TestSaveStateJson:
 # 13. 主类测试: DailyReportGenerator
 # ============================================================
 
+
 class TestDailyReportGenerator:
     """DailyReportGenerator 主类测试."""
 
     def test_init_with_explicit_config(self):
         """显式配置初始化."""
-        gen = DailyReportGenerator(
-            config={"settings": {"report_dir": "test_reports"}}
-        )
+        gen = DailyReportGenerator(config={"settings": {"report_dir": "test_reports"}})
         assert gen._config_source == "explicit_dict"
         assert "test_reports" in str(gen._report_dir)
 
@@ -779,8 +803,17 @@ class TestDailyReportGenerator:
                     "market": {"vix": 18.5, "circuit_level": 1},
                     "execute": {"fills": [{"notional": 10000.0}]},
                 },
-                pnl_attribution_result={"total_pnl": 1000.0, "alpha_pnl": 800.0, "execution_pnl": 200.0, "risk_pnl": 0.0},
-                barra_result={"factor_exposures": {"Size": 0.5}, "specific_risk": 0.0, "total_risk": 0.05},
+                pnl_attribution_result={
+                    "total_pnl": 1000.0,
+                    "alpha_pnl": 800.0,
+                    "execution_pnl": 200.0,
+                    "risk_pnl": 0.0,
+                },
+                barra_result={
+                    "factor_exposures": {"Size": 0.5},
+                    "specific_risk": 0.0,
+                    "total_risk": 0.05,
+                },
                 guard_results={"overall_status": "PASS", "guards": []},
                 save=False,
             )
@@ -823,8 +856,11 @@ class TestDailyReportGenerator:
         """异常处理."""
         gen = DailyReportGenerator(config={})
         # mock 内部方法抛异常
-        with patch.object(gen, "_is_feature_flag_enabled", return_value=True), patch.object(
-            gen, "_generate_internal", side_effect=RuntimeError("mock error")
+        with (
+            patch.object(gen, "_is_feature_flag_enabled", return_value=True),
+            patch.object(
+                gen, "_generate_internal", side_effect=RuntimeError("mock error")
+            ),
         ):
             result = gen.generate(
                 trade_date="2026-07-27",
@@ -842,6 +878,7 @@ class TestDailyReportGenerator:
 # ============================================================
 # 14. 便捷函数测试
 # ============================================================
+
 
 class TestConvenienceFunctions:
     """便捷函数测试."""
@@ -874,6 +911,7 @@ class TestConvenienceFunctions:
 # ============================================================
 # 15. 边界条件测试
 # ============================================================
+
 
 class TestEdgeCases:
     """边界条件测试."""
@@ -948,7 +986,11 @@ class TestEdgeCases:
             result = gen.generate(
                 trade_date="2026-07-27",
                 phases_state={"check": {"status": "ok"}},
-                barra_result={"total_risk": 0.0, "specific_risk": 0.0, "factor_exposures": {}},
+                barra_result={
+                    "total_risk": 0.0,
+                    "specific_risk": 0.0,
+                    "factor_exposures": {},
+                },
                 save=False,
             )
         assert result.status == STATUS_OK
@@ -957,6 +999,7 @@ class TestEdgeCases:
 # ============================================================
 # 16. HC 合规测试
 # ============================================================
+
 
 class TestHCCompliance:
     """HC 合规测试."""
@@ -978,6 +1021,7 @@ class TestHCCompliance:
         """HC-5: 配置走 ConfigManager 4 级优先级."""
         # 通过 _NAMED_CONFIGS 注册验证
         from utils.config_manager import _NAMED_CONFIGS
+
         assert "daily_report_generator" in _NAMED_CONFIGS
         assert _NAMED_CONFIGS["daily_report_generator"] == "daily_report_generator.yaml"
 
@@ -1002,6 +1046,7 @@ class TestHCCompliance:
 # ============================================================
 # 17. 性能测试
 # ============================================================
+
 
 class TestPerformance:
     """性能测试."""
@@ -1053,6 +1098,7 @@ class TestPerformance:
 # 18. 综合场景测试
 # ============================================================
 
+
 class TestIntegrationScenarios:
     """综合场景测试."""
 
@@ -1068,21 +1114,40 @@ class TestIntegrationScenarios:
                 capital=5000000.0,
                 sim_mode=True,
                 phases_state={
-                    "check": {"status": "ok", "duration_ms": 50.0, "ntp_sync": "ok", "connector": "ready"},
+                    "check": {
+                        "status": "ok",
+                        "duration_ms": 50.0,
+                        "ntp_sync": "ok",
+                        "connector": "ready",
+                    },
                     "market": {"status": "ok", "vix": 18.5, "circuit_level": 1},
-                    "risk": {"status": "ok", "total_risk_budget": 0.05, "kelly_fraction": 0.3},
-                    "hedge": {"status": "ok", "beta_hedge": "done", "vol_hedge": "done"},
-                    "signal": {"status": "ok", "signals": [{"symbol": "000001.SZ", "direction": "BUY"}]},
+                    "risk": {
+                        "status": "ok",
+                        "total_risk_budget": 0.05,
+                        "kelly_fraction": 0.3,
+                    },
+                    "hedge": {
+                        "status": "ok",
+                        "beta_hedge": "done",
+                        "vol_hedge": "done",
+                    },
+                    "signal": {
+                        "status": "ok",
+                        "signals": [{"symbol": "000001.SZ", "direction": "BUY"}],
+                    },
                     "execute": {"status": "ok", "fills": [{"notional": 10000.0}]},
                 },
                 pnl_attribution_result={
-                    "alpha_pnl": 500.0, "execution_pnl": -100.0,
-                    "risk_pnl": 200.0, "total_pnl": 600.0,
+                    "alpha_pnl": 500.0,
+                    "execution_pnl": -100.0,
+                    "risk_pnl": 200.0,
+                    "total_pnl": 600.0,
                     "details": {"momentum": 300.0, "value": 200.0},
                 },
                 barra_result={
                     "factor_exposures": {"Size": 0.5, "Beta": 1.2},
-                    "specific_risk": 0.03, "total_risk": 0.05,
+                    "specific_risk": 0.03,
+                    "total_risk": 0.05,
                 },
                 guard_results={
                     "overall_status": "PASS",
@@ -1109,7 +1174,11 @@ class TestIntegrationScenarios:
                 trade_date="2026-07-27",
                 phases_state={"check": {"status": "ok"}},
                 pnl_attribution_result=None,  # 缺失
-                barra_result={"factor_exposures": {"Size": 0.5}, "total_risk": 0.05, "specific_risk": 0.0},
+                barra_result={
+                    "factor_exposures": {"Size": 0.5},
+                    "total_risk": 0.05,
+                    "specific_risk": 0.0,
+                },
                 guard_results=None,  # 缺失
                 save=False,
             )

@@ -85,8 +85,12 @@ def test_fills_store_no_duplicate(clean_store, test_date):
 def test_augment_prices_fill_overrides_close(clean_store, test_date):
     """有成交的标的, close 被成交均价覆盖, 且标记 close_source='fill'."""
     clean_store.record_fill(
-        symbol="600519", side="BUY", filled_qty=100, avg_price=1650.0,
-        date=test_date, strategy="test",
+        symbol="600519",
+        side="BUY",
+        filled_qty=100,
+        avg_price=1650.0,
+        date=test_date,
+        strategy="test",
     )
     mp = {"600519": {"close": 1700.0, "prev_close": 1680.0}}
     augmented = augment_market_prices(mp, date=test_date)
@@ -110,8 +114,12 @@ def test_augment_prices_no_fill_falls_back(clean_store, test_date):
 def test_tca_ingest_from_store(clean_store, test_date):
     """ingest_fills_from_store 应读回当日成交并归因, 返回笔数 > 0."""
     clean_store.record_fill(
-        symbol="600519", side="BUY", filled_qty=100, avg_price=1680.0,
-        date=test_date, strategy="test",
+        symbol="600519",
+        side="BUY",
+        filled_qty=100,
+        avg_price=1680.0,
+        date=test_date,
+        strategy="test",
         meta={"order_id": "test-001"},
     )
     attr = PostTradeAttribution(save_to_file=False)
@@ -139,7 +147,12 @@ def test_rebalance_batch_no_deadlock():
     router = OrderRouter.__new__(OrderRouter)  # 绕过 __init__ 双签保护
     router.active_orders = {}
     router.execution_pools = {
-        "normal": {"broker": "b", "priority": "normal", "max_concurrent": 10, "min_balance": 0},
+        "normal": {
+            "broker": "b",
+            "priority": "normal",
+            "max_concurrent": 10,
+            "min_balance": 0,
+        },
     }
     router._orders_lock = __import__("threading").Lock()
 
@@ -182,7 +195,9 @@ def test_rebalance_slice_missing_size_rejected():
     }
     result = router._execute_order(order)
     assert result.get("success") is False
-    assert "size" in result.get("error", "").lower() or "数量" in result.get("error", "")
+    assert "size" in result.get("error", "").lower() or "数量" in result.get(
+        "error", ""
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -203,18 +218,20 @@ def test_apply_fills_to_positions(positions_backup, clean_store, test_date):
     sym_num = first_sym.split(".")[0]
 
     # 构造一笔该标的的 BUY 成交
-    fills = [{
-        "symbol": sym_num,
-        "side": "BUY",
-        "filled_qty": 100,
-        "avg_price": 10.0,
-        "ts": datetime.now().isoformat(),
-        "broker": "test",
-        "is_live": False,
-        "strategy": "rebalance",
-        "source": "sim_route",
-        "meta": {},
-    }]
+    fills = [
+        {
+            "symbol": sym_num,
+            "side": "BUY",
+            "filled_qty": 100,
+            "avg_price": 10.0,
+            "ts": datetime.now().isoformat(),
+            "broker": "test",
+            "is_live": False,
+            "strategy": "rebalance",
+            "source": "sim_route",
+            "meta": {},
+        }
+    ]
 
     old_shares = float(positions[first_sym].get("shares", 0))
     updated = rbe.apply_fills_to_positions(fills, test_date)
@@ -225,4 +242,6 @@ def test_apply_fills_to_positions(positions_backup, clean_store, test_date):
     new_positions = new_data.get("positions", {})
     assert first_sym in new_positions
     new_shares = float(new_positions[first_sym].get("shares", 0))
-    assert new_shares == old_shares + 100, f"期望 {old_shares}+100={old_shares+100}, 实际 {new_shares}"
+    assert (
+        new_shares == old_shares + 100
+    ), f"期望 {old_shares}+100={old_shares+100}, 实际 {new_shares}"

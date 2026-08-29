@@ -20,15 +20,18 @@ FinnewsHunter 信号源 — 金融新闻事件驱动 alpha 信号
 - confidence < min_confidence 时自动降权 (返回 confidence=0, action=HOLD)
 - 采集失败/LLM 不可用时返回中性 SignalResult (score=0.5, confidence=0)
 """
+
 from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 try:
     from ..logging_manager import get_logger
+
     logger = get_logger("finnhunter_signal_source")
 except ImportError:
     logger = logging.getLogger("finnhunter_signal_source")
@@ -81,6 +84,7 @@ EVENT_KEYWORDS: dict[str, list[str]] = {
 # ============================================================
 # FinnewsHunter 信号源
 # ============================================================
+
 
 class FinnewsHunterSignalSource:
     """FinnewsHunter 事件驱动 alpha 信号源 — 适配 SignalFusionEngine.register_source
@@ -169,7 +173,14 @@ class FinnewsHunterSignalSource:
                 reason=reason,
                 timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.debug("finnhunter 信号获取异常 code=%s: %s", code, e)
             return self._neutral_signal(code, f"获取异常: {e}")
 
@@ -183,6 +194,7 @@ class FinnewsHunterSignalSource:
 
         try:
             from tools.wind_mcp_fetcher import wind_search_news
+
             raw = wind_search_news(keyword=code, top_k=limit)
             return self._normalize_news(raw)
         except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
@@ -195,11 +207,17 @@ class FinnewsHunterSignalSource:
         if isinstance(raw, list):
             for it in raw:
                 if isinstance(it, dict):
-                    items.append({
-                        "title": str(it.get("title") or it.get("Title") or ""),
-                        "date": str(it.get("date") or it.get("Date") or it.get("time") or ""),
-                        "content": str(it.get("content") or it.get("summary") or ""),
-                    })
+                    items.append(
+                        {
+                            "title": str(it.get("title") or it.get("Title") or ""),
+                            "date": str(
+                                it.get("date") or it.get("Date") or it.get("time") or ""
+                            ),
+                            "content": str(
+                                it.get("content") or it.get("summary") or ""
+                            ),
+                        }
+                    )
         return [x for x in items if x["title"]]
 
     # ------------------------------------------------------------
@@ -220,22 +238,25 @@ class FinnewsHunterSignalSource:
         prompt = (
             "你是金融事件分类器。对以下每条新闻标题, 输出最匹配的事件类型与情绪方向。\n"
             "事件类型候选: " + "、".join(EVENT_ALPHA.keys()) + "、中性\n"
-            "输出 JSON 数组, 每项 {\"idx\": 0, \"event\": \"事件类型\"}, 仅输出 JSON:\n"
+            '输出 JSON 数组, 每项 {"idx": 0, "event": "事件类型"}, 仅输出 JSON:\n'
             + "\n".join(f"{i}. {t}" for i, t in enumerate(titles))
         )
         text = self._llm_callable(prompt) or ""
         import json
+
         start, end = text.find("["), text.rfind("]")
         if start < 0 or end <= start:
             raise ValueError("LLM 输出无 JSON 数组")
-        arr = json.loads(text[start:end + 1])
+        arr = json.loads(text[start : end + 1])
         result: list[tuple[str, float]] = []
         for item in arr:
             ev = str(item.get("event", "中性"))
             if ev not in EVENT_ALPHA:
                 ev = "中性"
             idx = int(item.get("idx", -1))
-            weight = self._recency_weight(news[idx]["date"]) if 0 <= idx < len(news) else 0.5
+            weight = (
+                self._recency_weight(news[idx]["date"]) if 0 <= idx < len(news) else 0.5
+            )
             result.append((ev, weight))
         return result or self._classify_events_keywords(news)
 
@@ -255,7 +276,9 @@ class FinnewsHunterSignalSource:
     # alpha 聚合 + 时间衰减
     # ------------------------------------------------------------
 
-    def _aggregate_alpha(self, events: list[tuple[str, float]], news: list[dict]) -> tuple[float, int]:
+    def _aggregate_alpha(
+        self, events: list[tuple[str, float]], news: list[dict]
+    ) -> tuple[float, int]:
         total = 0.0
         used = 0
         for event_type, weight in events:
@@ -274,7 +297,10 @@ class FinnewsHunterSignalSource:
         try:
             for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d"):
                 try:
-                    d = datetime.strptime(date_str[:len(fmt) + 3] if " " in date_str else date_str[:10], fmt)
+                    d = datetime.strptime(
+                        date_str[: len(fmt) + 3] if " " in date_str else date_str[:10],
+                        fmt,
+                    )
                     age_days = max(0, (datetime.now() - d).days)
                     return max(0.1, math.exp(-age_days / self.recency_days))
                 except ValueError:

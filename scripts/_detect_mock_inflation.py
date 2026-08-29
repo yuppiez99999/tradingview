@@ -13,6 +13,7 @@ mock 替代 risk / execution / pipeline 核心链路的测试标记为违规 (�
 用法:
     python scripts/_detect_mock_inflation.py [--test-dir tests/]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,9 +34,15 @@ _CORE_LINK_MODULES = [
 
 # 边缘 IO mock (不计入违规)
 _IO_MOCK_PATTERNS = [
-    re.compile(r"(?:mock\.)?patch\s*\(\s*['\"](?:requests|urllib|httpx|aiohttp)", re.IGNORECASE),
-    re.compile(r"(?:mock\.)?patch\s*\(\s*['\"](?:open|pathlib|shutil|os\.path)", re.IGNORECASE),
-    re.compile(r"(?:mock\.)?patch\s*\(\s*['\"].*\.(?:read|write|load|save|dump)", re.IGNORECASE),
+    re.compile(
+        r"(?:mock\.)?patch\s*\(\s*['\"](?:requests|urllib|httpx|aiohttp)", re.IGNORECASE
+    ),
+    re.compile(
+        r"(?:mock\.)?patch\s*\(\s*['\"](?:open|pathlib|shutil|os\.path)", re.IGNORECASE
+    ),
+    re.compile(
+        r"(?:mock\.)?patch\s*\(\s*['\"].*\.(?:read|write|load|save|dump)", re.IGNORECASE
+    ),
 ]
 
 # 核心 mock 模式 (匹配 mock.patch 或直接 patch after import)
@@ -68,7 +75,9 @@ def detect_mock_inflation(test_dir: Path) -> list[str]:
 
         for target in mock_targets:
             # 排除边缘 IO mock
-            is_io_mock = any(p.search(f"mock.patch('{target}')") for p in _IO_MOCK_PATTERNS)
+            is_io_mock = any(
+                p.search(f"mock.patch('{target}')") for p in _IO_MOCK_PATTERNS
+            )
             if is_io_mock:
                 continue
 
@@ -79,7 +88,9 @@ def detect_mock_inflation(test_dir: Path) -> list[str]:
                         rel_path = str(py_file.relative_to(_ROOT))
                     except ValueError:
                         rel_path = str(py_file)
-                    violation = f"{rel_path}: mock.patch('{target}') 替代核心链路 {core_mod}"
+                    violation = (
+                        f"{rel_path}: mock.patch('{target}') 替代核心链路 {core_mod}"
+                    )
                     if violation not in violations:
                         violations.append(violation)
                     break
@@ -89,13 +100,19 @@ def detect_mock_inflation(test_dir: Path) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="mock 虚增覆盖率检出器")
     parser.add_argument("--test-dir", type=Path, default=_ROOT / "tests")
-    parser.add_argument("--output", type=Path, default=_ROOT / "reports" / "ci" / "mock_inflation.json")
+    parser.add_argument(
+        "--output", type=Path, default=_ROOT / "reports" / "ci" / "mock_inflation.json"
+    )
     args = parser.parse_args()
 
     violations = detect_mock_inflation(args.test_dir)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
-        json.dumps({"violations": violations, "count": len(violations)}, ensure_ascii=False, indent=2),
+        json.dumps(
+            {"violations": violations, "count": len(violations)},
+            ensure_ascii=False,
+            indent=2,
+        ),
         encoding="utf-8",
     )
 

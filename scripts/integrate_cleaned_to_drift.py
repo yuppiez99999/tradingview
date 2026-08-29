@@ -42,6 +42,7 @@
     - reports/evolution/observation_progress.json   (刷新快照)
     - reports/evolution/integration_log.jsonl       (集成运行日志)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -67,7 +68,11 @@ for _name in ("stdout", "stderr"):
         _buffer = getattr(_stream, "buffer", None)
         if _buffer is not None:
             try:
-                setattr(sys, _name, io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"))
+                setattr(
+                    sys,
+                    _name,
+                    io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"),
+                )
             except (OSError, ValueError):
                 pass
 
@@ -130,7 +135,9 @@ def load_cleaned_records(file_path: Path) -> list[dict[str, Any]]:
     return records
 
 
-def filter_real_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
+def filter_real_records(
+    records: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """过滤出 quality=="real" 的记录, 并统计质量分布.
 
     Args:
@@ -142,7 +149,11 @@ def filter_real_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, A
         - quality_stats: {real, backtest, fixed, missing, unknown: 计数}
     """
     quality_stats: dict[str, int] = {
-        "real": 0, "backtest": 0, "fixed": 0, "missing": 0, "unknown": 0,
+        "real": 0,
+        "backtest": 0,
+        "fixed": 0,
+        "missing": 0,
+        "unknown": 0,
     }
     real_records: list[dict[str, Any]] = []
 
@@ -220,8 +231,12 @@ def run_drift_detection(real_records: list[dict[str, Any]]) -> dict[str, Any]:
 
     if n < MIN_REAL_SAMPLES_FOR_DRIFT:
         base_entry["status"] = "skipped"
-        base_entry["reason"] = f"insufficient_real_data ({n} < {MIN_REAL_SAMPLES_FOR_DRIFT})"
-        logger.warning("真实数据不足 (%d < %d), 跳过漂移检测", n, MIN_REAL_SAMPLES_FOR_DRIFT)
+        base_entry["reason"] = (
+            f"insufficient_real_data ({n} < {MIN_REAL_SAMPLES_FOR_DRIFT})"
+        )
+        logger.warning(
+            "真实数据不足 (%d < %d), 跳过漂移检测", n, MIN_REAL_SAMPLES_FOR_DRIFT
+        )
         return base_entry
 
     try:
@@ -294,7 +309,14 @@ def run_drift_detection(real_records: list[dict[str, Any]]) -> dict[str, Any]:
         )
         return alert_entry
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as exc:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+    ) as exc:
         base_entry["status"] = "error"
         base_entry["reason"] = str(exc)
         logger.exception("漂移检测异常: %s", exc)
@@ -356,7 +378,10 @@ def upsert_alert(alert_entry: dict[str, Any], output_file: Path, force: bool) ->
         action = "replaced" if replaced_count > 0 else "appended"
         logger.info(
             "告警已 %s -> %s (替换 %d 条当日旧告警, 当前共 %d 条)",
-            action, output_file.name, replaced_count, len(all_lines),
+            action,
+            output_file.name,
+            replaced_count,
+            len(all_lines),
         )
         return True
     except OSError as exc:
@@ -395,6 +420,7 @@ def refresh_observation_progress() -> dict[str, Any]:
     """
     try:
         from scripts.observation_tracker import generate_snapshot
+
         snapshot = generate_snapshot()
 
         with open(OBSERVATION_PROGRESS_FILE, "w", encoding="utf-8") as f:
@@ -412,7 +438,15 @@ def refresh_observation_progress() -> dict[str, Any]:
         )
         return snapshot
 
-    except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as exc:
+    except (
+        ImportError,
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+    ) as exc:
         logger.exception("观察期进度刷新失败: %s", exc)
         return {"error": str(exc)}
 
@@ -437,6 +471,7 @@ def ensure_cleaned_file(cleaned_path: Path) -> bool:
     logger.info("清洗文件不存在, 自动触发清洗: %s", cleaned_path)
     try:
         from scripts.clean_shadow_returns import run_cleaning
+
         run_cleaning(
             input_file=RAW_SHADOW_INPUT,
             output_dir=cleaned_path.parent,
@@ -484,7 +519,11 @@ def print_summary(
     for label in ["real", "backtest", "fixed", "missing", "unknown"]:
         cnt = quality_stats.get(label, 0)
         pct = (cnt / total * 100) if total else 0
-        marker = "✓" if label == "real" else ("✗" if label in ("backtest", "missing") else "·")
+        marker = (
+            "✓"
+            if label == "real"
+            else ("✗" if label in ("backtest", "missing") else "·")
+        )
         print(f"  {marker} {label:<10} {cnt:>4} ({pct:5.1f}%)")
     print(f"  {'合计':<12} {total:>4}")
     print()
@@ -502,14 +541,21 @@ def print_summary(
     else:
         severity = alert.get("severity", "unknown")
         severity_emoji = {
-            "low": "🟢", "medium": "🟡", "high": "🟠", "critical": "🔴",
+            "low": "🟢",
+            "medium": "🟡",
+            "high": "🟠",
+            "critical": "🔴",
         }.get(severity, "❓")
         print("  状态: COMPLETED")
         print(f"  {severity_emoji} 严重等级: {severity}")
         print(f"  KS Score: {alert.get('drift_score', 0):.4f}")
         print(f"  PSI:      {alert.get('psi', 0):.4f}")
-        print(f"  基线均值: {alert.get('baseline_mean', 0):+.6f} (n={alert.get('n_baseline', 0)})")
-        print(f"  当前均值: {alert.get('current_mean', 0):+.6f} (n={alert.get('n_current', 0)})")
+        print(
+            f"  基线均值: {alert.get('baseline_mean', 0):+.6f} (n={alert.get('n_baseline', 0)})"
+        )
+        print(
+            f"  当前均值: {alert.get('current_mean', 0):+.6f} (n={alert.get('n_current', 0)})"
+        )
         baseline_dates = alert.get("baseline_dates", [])
         current_dates = alert.get("current_dates", [])
         if baseline_dates:
@@ -613,6 +659,7 @@ def run_integration(
         # 试运行时也调用 (但不写盘)
         try:
             from scripts.observation_tracker import generate_snapshot
+
             obs_snapshot = generate_snapshot()
         except (ImportError, RuntimeError, OSError, ValueError) as exc:
             obs_snapshot = {"error": str(exc)}
@@ -629,8 +676,12 @@ def run_integration(
         "alert_ks": alert.get("drift_score", 0),
         "quality_stats": quality_stats,
         "cleaned_file_hash": cleaned_hash,
-        "obs_ready_for_phase_b": obs_snapshot.get("observation", {}).get("ready_for_phase_b", False),
-        "obs_days_completed": obs_snapshot.get("observation", {}).get("days_completed", 0),
+        "obs_ready_for_phase_b": obs_snapshot.get("observation", {}).get(
+            "ready_for_phase_b", False
+        ),
+        "obs_days_completed": obs_snapshot.get("observation", {}).get(
+            "days_completed", 0
+        ),
     }
     if not dry_run:
         write_integration_log(log_entry)
@@ -664,7 +715,8 @@ def parse_args() -> argparse.Namespace:
         help="强制覆盖当日告警 (默认即为覆盖, 显式参数便于脚本调用)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="启用 DEBUG 级别日志",
     )

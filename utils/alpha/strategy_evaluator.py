@@ -99,10 +99,15 @@ def _load_min_samples_for_dsr(default: int = 20) -> int:
     """
     try:
         import yaml  # noqa: PLC0415
-        yaml_path = _PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
+
+        yaml_path = (
+            _PROJECT_ROOT / "v8.3_institutional" / "config" / "shadow_admission.yaml"
+        )
         with open(yaml_path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
-        return int(cfg.get("admission_criteria", {}).get("min_samples_for_dsr", default))
+        return int(
+            cfg.get("admission_criteria", {}).get("min_samples_for_dsr", default)
+        )
     except (OSError, ValueError, TypeError, ImportError):
         return default
 
@@ -160,7 +165,9 @@ class ScoreReport:
             "public_score": round(self.public_score, 4),
             "public_metrics": {k: round(v, 4) for k, v in self.public_metrics.items()},
             "private_score": round(self.private_score, 4),
-            "private_metrics": {k: round(v, 4) for k, v in self.private_metrics.items()},
+            "private_metrics": {
+                k: round(v, 4) for k, v in self.private_metrics.items()
+            },
             "reward_hacking_risk": round(self.reward_hacking_risk, 4),
             "pit_violations": self.pit_violations,
             "overfit_score": round(self.overfit_score, 4),
@@ -287,10 +294,14 @@ class StrategyEvaluator:
         signal_history = signal_history or {}
 
         # 1. 计算 Public Score (样本内)
-        public_score, public_metrics = self._compute_public_score(daily_returns, signal_history)
+        public_score, public_metrics = self._compute_public_score(
+            daily_returns, signal_history
+        )
 
         # 2. 计算 Private Score (样本外)
-        private_score, private_metrics = self._compute_private_score(daily_returns, signal_history, dates, trials)
+        private_score, private_metrics = self._compute_private_score(
+            daily_returns, signal_history, dates, trials
+        )
 
         # 3. 计算 Reward Hacking Risk
         rh_risk, pit_violations, overfit_score = self._compute_reward_hacking_risk(
@@ -298,7 +309,9 @@ class StrategyEvaluator:
         )
 
         # 4. 决策建议
-        recommendation, reason = self._make_recommendation(private_score, rh_risk, public_score)
+        recommendation, reason = self._make_recommendation(
+            private_score, rh_risk, public_score
+        )
 
         return ScoreReport(
             public_score=public_score,
@@ -350,7 +363,10 @@ class StrategyEvaluator:
         score_absolute = self._score_absolute_return(annual_return)
         score_risk_adjusted = self._score_risk_adjusted(sharpe)
 
-        public_score = score_absolute * WEIGHT_ABSOLUTE_RETURN + score_risk_adjusted * WEIGHT_RISK_ADJUSTED
+        public_score = (
+            score_absolute * WEIGHT_ABSOLUTE_RETURN
+            + score_risk_adjusted * WEIGHT_RISK_ADJUSTED
+        )
 
         return public_score, metrics
 
@@ -592,7 +608,14 @@ class StrategyEvaluator:
                 if timestamps[i] < timestamps[i - 1]:
                     violations += 1
             return violations
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("PIT 检查异常: %s", e)
             return 0
 
@@ -615,13 +638,18 @@ class StrategyEvaluator:
         if rh_risk > 0.7:
             return "rollback", f"reward_hacking_risk={rh_risk:.2f} > 0.7"
         if private_score < ROLLBACK_PRIVATE_SCORE:
-            return "rollback", f"private_score={private_score:.2f} < {ROLLBACK_PRIVATE_SCORE}"
+            return (
+                "rollback",
+                f"private_score={private_score:.2f} < {ROLLBACK_PRIVATE_SCORE}",
+            )
         if private_score > PROMOTE_PRIVATE_SCORE and rh_risk < PROMOTE_RH_RISK_MAX:
             return "promote", (
                 f"private_score={private_score:.2f} > {PROMOTE_PRIVATE_SCORE}, "
                 f"rh_risk={rh_risk:.2f} < {PROMOTE_RH_RISK_MAX}"
             )
-        return "continue", (f"private_score={private_score:.2f}, rh_risk={rh_risk:.2f}, 等待更多数据")
+        return "continue", (
+            f"private_score={private_score:.2f}, rh_risk={rh_risk:.2f}, 等待更多数据"
+        )
 
     # ============================================================
     # 底层计算工具 (复用现有模块)
@@ -694,7 +722,9 @@ class StrategyEvaluator:
         mean_sharpe = sum(rolling_sharpes) / len(rolling_sharpes)
         if abs(mean_sharpe) < 1e-10:
             return 0.0
-        var = sum((s - mean_sharpe) ** 2 for s in rolling_sharpes) / (len(rolling_sharpes) - 1)
+        var = sum((s - mean_sharpe) ** 2 for s in rolling_sharpes) / (
+            len(rolling_sharpes) - 1
+        )
         std_sharpe = math.sqrt(var) if var > 0 else 0.0
         return std_sharpe / abs(mean_sharpe)
 
@@ -783,7 +813,9 @@ class StrategyEvaluator:
         decay = (sharpe_first - sharpe_second) / abs(sharpe_first)
         return max(-1.0, min(1.0, decay))
 
-    def _compute_dsr(self, daily_returns: Sequence[float], n_trials: int) -> dict[str, Any] | None:
+    def _compute_dsr(
+        self, daily_returns: Sequence[float], n_trials: int
+    ) -> dict[str, Any] | None:
         """计算 DSR (复用 deflated_sharpe.py).
 
         Returns:
@@ -805,7 +837,9 @@ class StrategyEvaluator:
             if hasattr(result, "__dict__"):
                 return {
                     "sharpe_ratio": getattr(result, "sharpe_ratio", 0.0),
-                    "deflated_sharpe_ratio": getattr(result, "deflated_sharpe_ratio", 0.0),
+                    "deflated_sharpe_ratio": getattr(
+                        result, "deflated_sharpe_ratio", 0.0
+                    ),
                     "p_value": getattr(result, "p_value", 1.0),
                     "is_pass": getattr(result, "is_pass", False),
                     "verdict": getattr(result, "verdict", ""),
@@ -867,11 +901,15 @@ class StrategyEvaluator:
             ScoreReport 评分报告
         """
         if jsonl_path is None:
-            jsonl_path = str(_PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl")
+            jsonl_path = str(
+                _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+            )
 
         path = Path(jsonl_path)
         if not path.exists():
-            return self._build_degraded_report([], reason=f"file_not_found: {jsonl_path}")
+            return self._build_degraded_report(
+                [], reason=f"file_not_found: {jsonl_path}"
+            )
 
         daily_returns: list[float] = []
         try:
@@ -883,7 +921,14 @@ class StrategyEvaluator:
                     record = json.loads(line)
                     if "daily_return" in record:
                         daily_returns.append(float(record["daily_return"]))
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.exception("读取 daily_returns.jsonl 失败: %s", e)
             return self._build_degraded_report([], reason=f"read_error: {e}")
 

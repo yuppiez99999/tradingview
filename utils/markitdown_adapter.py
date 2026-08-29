@@ -36,9 +36,21 @@ logger = logging.getLogger("markitdown_adapter")
 
 # 支持的文件扩展名
 SUPPORTED_EXTENSIONS = {
-    ".pdf", ".docx", ".doc", ".pptx", ".ppt",
-    ".xlsx", ".xls", ".csv", ".html", ".htm",
-    ".txt", ".xml", ".json", ".md", ".rst",
+    ".pdf",
+    ".docx",
+    ".doc",
+    ".pptx",
+    ".ppt",
+    ".xlsx",
+    ".xls",
+    ".csv",
+    ".html",
+    ".htm",
+    ".txt",
+    ".xml",
+    ".json",
+    ".md",
+    ".rst",
 }
 
 # Python 3.10+ 候选版本 (按优先级)
@@ -91,7 +103,9 @@ class MarkItDownAdapter:
             try:
                 result = subprocess.run(
                     ["py", f"-{version}", "--version"],
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 if result.returncode == 0:
                     logger.debug(f"找到 Python {version}: {result.stdout.strip()}")
@@ -120,11 +134,15 @@ class MarkItDownAdapter:
         try:
             result = subprocess.run(
                 ["py", f"-{self._py_version}", "-m", "markitdown", "--version"],
-                capture_output=True, text=True, timeout=15,
+                capture_output=True,
+                text=True,
+                timeout=15,
             )
             if result.returncode == 0:
                 self._installed = True
-                logger.info(f"markitdown 已安装 (Python {self._py_version}): {result.stdout.strip()}")
+                logger.info(
+                    f"markitdown 已安装 (Python {self._py_version}): {result.stdout.strip()}"
+                )
                 return True
         except (subprocess.SubprocessError, FileNotFoundError):
             pass
@@ -148,7 +166,9 @@ class MarkItDownAdapter:
         try:
             result = subprocess.run(
                 ["py", f"-{self._py_version}", "-m", "pip", "install", "markitdown"],
-                capture_output=True, text=True, timeout=_INSTALL_TIMEOUT,
+                capture_output=True,
+                text=True,
+                timeout=_INSTALL_TIMEOUT,
             )
             if result.returncode == 0:
                 self._installed = True
@@ -184,7 +204,9 @@ class MarkItDownAdapter:
             return ""
 
         if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-            logger.warning(f"不支持的文件格式: {path.suffix} (支持: {SUPPORTED_EXTENSIONS})")
+            logger.warning(
+                f"不支持的文件格式: {path.suffix} (支持: {SUPPORTED_EXTENSIONS})"
+            )
             return ""
 
         if not self._ensure_installed():
@@ -194,8 +216,11 @@ class MarkItDownAdapter:
         try:
             result = subprocess.run(
                 ["py", f"-{self._py_version}", "-m", "markitdown", str(path)],
-                capture_output=True, text=True, timeout=_CONVERT_TIMEOUT,
-                encoding="utf-8", errors="replace",
+                capture_output=True,
+                text=True,
+                timeout=_CONVERT_TIMEOUT,
+                encoding="utf-8",
+                errors="replace",
             )
             if result.returncode == 0:
                 md_text = result.stdout
@@ -224,8 +249,11 @@ class MarkItDownAdapter:
         try:
             result = subprocess.run(
                 ["py", f"-{self._py_version}", "-m", "markitdown", url],
-                capture_output=True, text=True, timeout=_CONVERT_TIMEOUT,
-                encoding="utf-8", errors="replace",
+                capture_output=True,
+                text=True,
+                timeout=_CONVERT_TIMEOUT,
+                encoding="utf-8",
+                errors="replace",
             )
             if result.returncode == 0:
                 md_text = result.stdout
@@ -302,7 +330,9 @@ def convert_url(url: str) -> str:
 if __name__ == "__main__":
     import argparse
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
 
     parser = argparse.ArgumentParser(description="MarkItDown 文档转换适配器")
     parser.add_argument("file", nargs="?", help="要转换的文件路径")

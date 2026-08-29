@@ -16,6 +16,7 @@
 运行:
     python -m pytest tests/integration/test_data_layer_chaos.py -v --tb=short
 """
+
 from __future__ import annotations
 
 import json
@@ -49,6 +50,7 @@ def make_sample_df(symbol: str = "510300.SH", n: int = 30) -> pd.DataFrame:
     """生成样本 OHLCV DataFrame."""
     dates = pd.date_range("2026-01-01", periods=n, freq="B")
     import numpy as np
+
     np.random.seed(hash(symbol) % 2**32)
     close = 4.0 + np.cumsum(np.random.randn(n) * 0.02)
     return pd.DataFrame(
@@ -204,7 +206,9 @@ class TestScenario1P0FailP1Takeover:
         """P0 故障触发 fallback 日志记录."""
         _fb_dir, _ = tmp_dirs
         sample_df = make_sample_df()
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))
         chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df))
 
@@ -212,7 +216,11 @@ class TestScenario1P0FailP1Takeover:
 
         log_file = chaos_layer.get_fallback_log_path()
         assert log_file.exists()
-        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
+        lines = [
+            line
+            for line in log_file.read_text(encoding="utf-8").strip().split("\n")
+            if line
+        ]
         assert len(lines) >= 1
         record = json.loads(lines[0])
         assert record["failed_level"] == "P0"
@@ -237,9 +245,15 @@ class TestScenario2MultiFailP6Cache:
         sample_df = make_sample_df()
         chaos_layer._p6_cache_store("510300.SH", "get_ohlcv", sample_df)
 
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p1", FaultyProvider("p1", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p2", FaultyProvider("p2", sample_df, fail_forever=True)
+        )
 
         df = chaos_layer.get_ohlcv("510300.SH")
         assert isinstance(df, pd.DataFrame)
@@ -253,9 +267,15 @@ class TestScenario2MultiFailP6Cache:
         sample_df = make_sample_df()
         chaos_layer._p6_cache_store("510300.SH", "get_ohlcv", sample_df)
 
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p1", FaultyProvider("p1", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p2", FaultyProvider("p2", sample_df, fail_forever=True)
+        )
 
         result = chaos_layer._query_with_fallback(
             operation="get_ohlcv",
@@ -273,14 +293,24 @@ class TestScenario2MultiFailP6Cache:
         sample_df = make_sample_df()
         chaos_layer._p6_cache_store("510300.SH", "get_ohlcv", sample_df)
 
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p1", FaultyProvider("p1", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p2", FaultyProvider("p2", sample_df, fail_forever=True)
+        )
 
         chaos_layer.get_ohlcv("510300.SH")
 
         log_file = chaos_layer.get_fallback_log_path()
-        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
+        lines = [
+            line
+            for line in log_file.read_text(encoding="utf-8").strip().split("\n")
+            if line
+        ]
         # 至少 3 条 fallback (P0→P1, P1→P2, P2→P6)
         assert len(lines) >= 3
         failed_levels = [json.loads(line)["failed_level"] for line in lines]
@@ -303,9 +333,15 @@ class TestScenario3AllFailFast:
     ) -> None:
         """全部失败抛 AllSourcesFailedError."""
         sample_df = make_sample_df()
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p1", FaultyProvider("p1", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p2", FaultyProvider("p2", sample_df, fail_forever=True)
+        )
         # P6 缓存未写入, 也会失败
 
         with pytest.raises(AllSourcesFailedError) as exc_info:
@@ -320,9 +356,15 @@ class TestScenario3AllFailFast:
     ) -> None:
         """失败时 fallback_chain_used 包含所有级别."""
         sample_df = make_sample_df()
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p1", FaultyProvider("p1", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p2", FaultyProvider("p2", sample_df, fail_forever=True)
+        )
 
         with pytest.raises(AllSourcesFailedError):
             chaos_layer.get_ohlcv("510300.SH")
@@ -378,8 +420,12 @@ class TestScenario4IntermittentFailure:
 
         p0 = FaultyProvider("p0", sample_df, fail_count=1)
         chaos_layer.register_provider("p0", p0)
-        chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p1", FaultyProvider("p1", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p2", FaultyProvider("p2", sample_df, fail_forever=True)
+        )
 
         # 第 1 次: P0 失败, P1/P2 失败, P6 接管
         df1 = chaos_layer.get_ohlcv("510300.SH")
@@ -405,7 +451,9 @@ class TestScenario5ConcurrentAccess:
     ) -> None:
         """10 个线程并发, P0 失败, P1 接管, 所有线程拿到数据."""
         sample_df = make_sample_df()
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))
         chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df))
 
@@ -440,7 +488,9 @@ class TestScenario5ConcurrentAccess:
     ) -> None:
         """并发 fallback 日志无丢失无串行."""
         sample_df = make_sample_df()
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))
         chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df))
 
@@ -454,7 +504,11 @@ class TestScenario5ConcurrentAccess:
             t.join()
 
         log_file = chaos_layer.get_fallback_log_path()
-        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
+        lines = [
+            line
+            for line in log_file.read_text(encoding="utf-8").strip().split("\n")
+            if line
+        ]
         # 20 个线程, 每个至少 1 条 fallback (P0→P1)
         assert len(lines) >= 20
         # 所有行都是有效 JSON
@@ -483,9 +537,15 @@ class TestScenario6P6CacheExpiry:
         chaos_layer.cache_ttl_seconds = 0
         time.sleep(0.01)
 
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p1", FaultyProvider("p1", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p2", FaultyProvider("p2", sample_df, fail_forever=True)
+        )
 
         with pytest.raises(AllSourcesFailedError):
             chaos_layer.get_ohlcv("510300.SH")
@@ -498,9 +558,15 @@ class TestScenario6P6CacheExpiry:
         sample_df = make_sample_df()
         chaos_layer._p6_cache_store("510300.SH", "get_ohlcv", sample_df)
 
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df, fail_forever=True))
-        chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p1", FaultyProvider("p1", sample_df, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p2", FaultyProvider("p2", sample_df, fail_forever=True)
+        )
 
         df = chaos_layer.get_ohlcv("510300.SH")
         assert len(df) == 30
@@ -554,20 +620,33 @@ class TestScenario8AuditLogIntegrity:
     ) -> None:
         """每条 fallback 日志包含所有必需字段."""
         sample_df = make_sample_df()
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))
         chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df))
 
         chaos_layer.get_ohlcv("510300.SH")
 
         log_file = chaos_layer.get_fallback_log_path()
-        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
+        lines = [
+            line
+            for line in log_file.read_text(encoding="utf-8").strip().split("\n")
+            if line
+        ]
         assert len(lines) >= 1
 
         required_fields = {
-            "timestamp", "symbol", "operation", "failed_level",
-            "failed_provider", "next_level", "next_provider",
-            "error_type", "error_message", "latency_ms",
+            "timestamp",
+            "symbol",
+            "operation",
+            "failed_level",
+            "failed_provider",
+            "next_level",
+            "next_provider",
+            "error_type",
+            "error_message",
+            "latency_ms",
         }
         for line in lines:
             record = json.loads(line)
@@ -580,7 +659,9 @@ class TestScenario8AuditLogIntegrity:
     ) -> None:
         """日志为 JSONL 格式, 每行一个 JSON."""
         sample_df = make_sample_df()
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))
         chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df))
 
@@ -603,14 +684,20 @@ class TestScenario8AuditLogIntegrity:
     ) -> None:
         """fallback 日志记录 latency_ms."""
         sample_df = make_sample_df()
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True, latency_ms=50))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True, latency_ms=50)
+        )
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))
         chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df))
 
         chaos_layer.get_ohlcv("510300.SH")
 
         log_file = chaos_layer.get_fallback_log_path()
-        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
+        lines = [
+            line
+            for line in log_file.read_text(encoding="utf-8").strip().split("\n")
+            if line
+        ]
         record = json.loads(lines[0])
         assert record["latency_ms"] >= 50.0  # 至少 P0 的 50ms
 
@@ -623,7 +710,9 @@ class TestScenario8AuditLogIntegrity:
         long_msg = "x" * 1000
         chaos_layer.register_provider(
             "p0",
-            FaultyProvider("p0", sample_df, fail_forever=True, fail_with=RuntimeError(long_msg))
+            FaultyProvider(
+                "p0", sample_df, fail_forever=True, fail_with=RuntimeError(long_msg)
+            ),
         )
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))
         chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df))
@@ -631,7 +720,11 @@ class TestScenario8AuditLogIntegrity:
         chaos_layer.get_ohlcv("510300.SH")
 
         log_file = chaos_layer.get_fallback_log_path()
-        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
+        lines = [
+            line
+            for line in log_file.read_text(encoding="utf-8").strip().split("\n")
+            if line
+        ]
         record = json.loads(lines[0])
         # error_message 被截断到 500 字符 (在 _write_fallback_log 中 str(e)[:500])
         # RuntimeError 的 str 包含 long_msg
@@ -655,7 +748,9 @@ class TestScenario9MixedOperations:
         make_snapshot()
         make_macro()
 
-        chaos_layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
         chaos_layer.register_provider("p1", FaultyProvider("p1", sample_df))
         chaos_layer.register_provider("p2", FaultyProvider("p2", sample_df))
 
@@ -683,9 +778,15 @@ class TestScenario9MixedOperations:
         chaos_layer._p6_cache_store("510300.SH", "get_ohlcv", df1)
         chaos_layer._p6_cache_store("510050.SH", "get_ohlcv", df2)
 
-        chaos_layer.register_provider("p0", FaultyProvider("p0", df1, fail_forever=True))
-        chaos_layer.register_provider("p1", FaultyProvider("p1", df1, fail_forever=True))
-        chaos_layer.register_provider("p2", FaultyProvider("p2", df1, fail_forever=True))
+        chaos_layer.register_provider(
+            "p0", FaultyProvider("p0", df1, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p1", FaultyProvider("p1", df1, fail_forever=True)
+        )
+        chaos_layer.register_provider(
+            "p2", FaultyProvider("p2", df1, fail_forever=True)
+        )
 
         # 510300.SH 走 P6 缓存
         out1 = chaos_layer.get_ohlcv("510300.SH")
@@ -757,7 +858,9 @@ class TestScenario10FeatureFlagToggle:
 
         sample_df = make_sample_df()
         layer._p6_cache_store("510300.SH", "get_ohlcv", sample_df)
-        layer.register_provider("p0", FaultyProvider("p0", sample_df, fail_forever=True))
+        layer.register_provider(
+            "p0", FaultyProvider("p0", sample_df, fail_forever=True)
+        )
 
         df = layer.get_ohlcv("510300.SH")
         assert len(df) == 30

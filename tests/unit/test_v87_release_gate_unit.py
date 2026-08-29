@@ -8,6 +8,7 @@
 
 对齐 tasks T1.7.
 """
+
 from __future__ import annotations
 
 import sys
@@ -34,6 +35,7 @@ from scripts.v87_release_gate import (
 # ============================================================
 # 场景 1: Sprint 1 门禁全 PASS
 # ============================================================
+
 
 class TestSprint1AllPass:
     """Sprint 1 门禁全 PASS."""
@@ -72,6 +74,7 @@ class TestSprint1AllPass:
 # ============================================================
 # 场景 2: Sprint 1 门禁部分 FAIL
 # ============================================================
+
 
 class TestSprint1PartialFail:
     """Sprint 1 门禁部分 FAIL."""
@@ -116,6 +119,7 @@ class TestSprint1PartialFail:
 # 场景 3: 文件缺失 fail-closed
 # ============================================================
 
+
 class TestFileMissingFailClosed:
     """文件缺失时 fail-closed."""
 
@@ -151,6 +155,7 @@ class TestFileMissingFailClosed:
 # 场景 4: JSON 解析失败
 # ============================================================
 
+
 class TestJSONParseFailure:
     """JSON 解析失败时 fail-closed."""
 
@@ -180,6 +185,7 @@ class TestJSONParseFailure:
 # 辅助测试: Sprint 2/3 门禁 + 总验收骨架
 # ============================================================
 
+
 class TestSprint23Gate:
     """Sprint 2/3 门禁骨架."""
 
@@ -195,7 +201,9 @@ class TestSprint23Gate:
 
     def test_sprint_3_cvar_passed(self):
         verdict = check_sprint_gate(3)
-        cvar_item = next((i for i in verdict.items if i.name == "cvar_acceptance"), None)
+        cvar_item = next(
+            (i for i in verdict.items if i.name == "cvar_acceptance"), None
+        )
         assert cvar_item is not None
         assert cvar_item.passed is True
 
@@ -220,6 +228,7 @@ class TestReleaseAllSkeleton:
 # ============================================================
 # 辅助测试: 常量
 # ============================================================
+
 
 class TestConstants:
     """常量值校验."""

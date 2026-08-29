@@ -15,6 +15,7 @@ Usage:
     if is_unsloth_available():
         finetune_glm5("THUDM/glm-4-9b-chat", train_data, output_dir="models/glm5-ft")
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,7 +25,12 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_UNSLOTH_DISABLED = os.environ.get("LLM_FINETUNE_DISABLED", "").strip() not in ("", "0", "false", "False")
+_UNSLOTH_DISABLED = os.environ.get("LLM_FINETUNE_DISABLED", "").strip() not in (
+    "",
+    "0",
+    "false",
+    "False",
+)
 
 
 def is_unsloth_available() -> bool:
@@ -33,6 +39,7 @@ def is_unsloth_available() -> bool:
         return False
     try:
         import unsloth  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -41,6 +48,7 @@ def is_unsloth_available() -> bool:
 def _import_fast_model():
     """懒导入 unsloth FastModel。"""
     from unsloth import FastModel
+
     return FastModel
 
 
@@ -50,8 +58,13 @@ class FastModelWrapper:
     unsloth 不可用时构造抛出 RuntimeError，调用方应先 is_unsloth_available()。
     """
 
-    def __init__(self, model_name: str, max_seq_length: int = 2048,
-                 load_in_4bit: bool = True, dtype: Any = None) -> None:
+    def __init__(
+        self,
+        model_name: str,
+        max_seq_length: int = 2048,
+        load_in_4bit: bool = True,
+        dtype: Any = None,
+    ) -> None:
         if not is_unsloth_available():
             raise RuntimeError("unsloth not available — pip install -e .[llm-finetune]")
         FastModel = _import_fast_model()
@@ -64,24 +77,47 @@ class FastModelWrapper:
         self.model_name = model_name
         self.max_seq_length = max_seq_length
 
-    def add_lora(self, r: int = 16, target_modules: list[str] | None = None,
-                 lora_alpha: int = 16, lora_dropout: float = 0.05) -> Any:
+    def add_lora(
+        self,
+        r: int = 16,
+        target_modules: list[str] | None = None,
+        lora_alpha: int = 16,
+        lora_dropout: float = 0.05,
+    ) -> Any:
         """添加 LoRA 适配器。target_modules 默认全部线性层。"""
         if target_modules is None:
-            target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
-                              "gate_proj", "up_proj", "down_proj"]
+            target_modules = [
+                "q_proj",
+                "k_proj",
+                "v_proj",
+                "o_proj",
+                "gate_proj",
+                "up_proj",
+                "down_proj",
+            ]
         FastModel = _import_fast_model()
         self.model, self.tokenizer = FastModel.get_peft_model(
-            self.model, self.tokenizer,
-            r=r, target_modules=target_modules,
-            lora_alpha=lora_alpha, lora_dropout=lora_dropout,
+            self.model,
+            self.tokenizer,
+            r=r,
+            target_modules=target_modules,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
         )
         return self.model
 
-    def train(self, dataset: Any, epochs: int = 3, batch_size: int = 2,
-              grad_accum: int = 4, lr: float = 2e-4, **kwargs: Any) -> Any:
+    def train(
+        self,
+        dataset: Any,
+        epochs: int = 3,
+        batch_size: int = 2,
+        grad_accum: int = 4,
+        lr: float = 2e-4,
+        **kwargs: Any,
+    ) -> Any:
         """SFT 训练。dataset 为 HuggingFace datasets.Dataset。"""
         from trl import SFTConfig, SFTTrainer
+
         cfg = SFTConfig(
             output_dir=kwargs.pop("output_dir", "./_unsloth_tmp"),
             per_device_train_batch_size=batch_size,
@@ -92,8 +128,10 @@ class FastModelWrapper:
             **kwargs,
         )
         trainer = SFTTrainer(
-            model=self.model, tokenizer=self.tokenizer,
-            train_dataset=dataset, args=cfg,
+            model=self.model,
+            tokenizer=self.tokenizer,
+            train_dataset=dataset,
+            args=cfg,
         )
         trainer_stats = trainer.train()
         return trainer_stats
@@ -109,7 +147,9 @@ class FastModelWrapper:
         logger.info("model saved to %s (method=%s)", output_dir, save_method)
 
 
-def prepare_trading_sft_dataset(decisions: list[dict], system_prompt: str = "") -> list[dict]:
+def prepare_trading_sft_dataset(
+    decisions: list[dict], system_prompt: str = ""
+) -> list[dict]:
     """将交易决策记录转为 SFT 对话格式。
 
     decisions: [{"market_context": "...", "analysis": "...", "decision": "..."}]
@@ -128,17 +168,21 @@ def prepare_trading_sft_dataset(decisions: list[dict], system_prompt: str = "") 
     return samples
 
 
-def finetune_glm5(model_name: str = "THUDM/glm-4-9b-chat",
-                  train_data: list[dict] | Any = None,
-                  output_dir: str = "models/glm5-ft",
-                  data_path: str | None = None,
-                  epochs: int = 3, lr: float = 2e-4) -> dict:
+def finetune_glm5(
+    model_name: str = "THUDM/glm-4-9b-chat",
+    train_data: list[dict] | Any = None,
+    output_dir: str = "models/glm5-ft",
+    data_path: str | None = None,
+    epochs: int = 3,
+    lr: float = 2e-4,
+) -> dict:
     """一键微调 GLM-5。train_data 为 prepare_trading_sft_dataset 输出或 HF Dataset。"""
     if not is_unsloth_available():
         logger.warning("unsloth not available — skipping GLM-5 fine-tune")
         return {"status": "skipped", "reason": "unsloth_unavailable"}
 
     from datasets import Dataset
+
     if isinstance(train_data, list):
         train_data = Dataset.from_list(train_data)
     elif data_path:
@@ -151,10 +195,18 @@ def finetune_glm5(model_name: str = "THUDM/glm-4-9b-chat",
     return {"status": "ok", "output_dir": output_dir, "model": model_name}
 
 
-def finetune_doubao(model_name: str = "Qwen/Qwen2.5-7B-Instruct",
-                    train_data: list[dict] | Any = None,
-                    output_dir: str = "models/doubao-ft",
-                    epochs: int = 3, lr: float = 2e-4) -> dict:
+def finetune_doubao(
+    model_name: str = "Qwen/Qwen2.5-7B-Instruct",
+    train_data: list[dict] | Any = None,
+    output_dir: str = "models/doubao-ft",
+    epochs: int = 3,
+    lr: float = 2e-4,
+) -> dict:
     """一键微调豆包（Ark 平台模型，底层多用 Qwen 架构）。"""
-    return finetune_glm5(model_name=model_name, train_data=train_data,
-                         output_dir=output_dir, epochs=epochs, lr=lr)
+    return finetune_glm5(
+        model_name=model_name,
+        train_data=train_data,
+        output_dir=output_dir,
+        epochs=epochs,
+        lr=lr,
+    )

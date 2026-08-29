@@ -100,7 +100,9 @@ class RiskEvent:
             # frozen=True 时用 object.__setattr__ 绕过不可变限制
             object.__setattr__(self, "timestamp", self._utcnow_iso())
         if not isinstance(self.event_type, RiskEventType):
-            raise TypeError(f"event_type must be RiskEventType, got {type(self.event_type)}")
+            raise TypeError(
+                f"event_type must be RiskEventType, got {type(self.event_type)}"
+            )
         if not isinstance(self.severity, RiskSeverity):
             raise TypeError(f"severity must be RiskSeverity, got {type(self.severity)}")
         if not self.source or not isinstance(self.source, str):
@@ -132,9 +134,15 @@ class RiskEvent:
         # 直接抛 ValueError, 会把整条事件链崩断. 改为 try/except 回退到 KILL_SWITCH_TRIGGERED.
         raw_event = data.get("event_type", "")
         try:
-            event_type = RiskEventType(raw_event) if raw_event else RiskEventType.KILL_SWITCH_TRIGGERED
+            event_type = (
+                RiskEventType(raw_event)
+                if raw_event
+                else RiskEventType.KILL_SWITCH_TRIGGERED
+            )
         except ValueError:
-            logger.warning("from_dict: 未知 event_type=%r, 回退到 KILL_SWITCH_TRIGGERED", raw_event)
+            logger.warning(
+                "from_dict: 未知 event_type=%r, 回退到 KILL_SWITCH_TRIGGERED", raw_event
+            )
             event_type = RiskEventType.KILL_SWITCH_TRIGGERED
         raw_severity = data.get("severity", "info")
         try:
@@ -219,7 +227,11 @@ def make_margin_breach_event(
         **extra: 附加 payload
     """
     if severity is None:
-        severity = RiskSeverity.CRITICAL if level >= 2 else RiskSeverity.WARN if level == 1 else RiskSeverity.INFO
+        severity = (
+            RiskSeverity.CRITICAL
+            if level >= 2
+            else RiskSeverity.WARN if level == 1 else RiskSeverity.INFO
+        )
     payload = {"margin_usage": float(margin_usage), "level": int(level), **extra}
     return RiskEvent(
         event_type=RiskEventType.MARGIN_BREACH,
@@ -249,9 +261,7 @@ def make_drawdown_breach_event(
         severity = (
             RiskSeverity.CRITICAL
             if drawdown_pct >= 0.05
-            else RiskSeverity.WARN
-            if drawdown_pct >= 0.03
-            else RiskSeverity.INFO
+            else RiskSeverity.WARN if drawdown_pct >= 0.03 else RiskSeverity.INFO
         )
     payload = {"drawdown_pct": float(drawdown_pct), "window": window, **extra}
     return RiskEvent(

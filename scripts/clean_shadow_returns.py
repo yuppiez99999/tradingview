@@ -47,7 +47,11 @@ for _name in ("stdout", "stderr"):
         _buffer = getattr(_stream, "buffer", None)
         if _buffer is not None:
             try:
-                setattr(sys, _name, io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"))
+                setattr(
+                    sys,
+                    _name,
+                    io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"),
+                )
             except Exception:
                 pass
 
@@ -65,6 +69,7 @@ HOLIDAYS_2026: set[str] = set()
 # ---------------------------------------------------------------------------
 # 数据加载
 # ---------------------------------------------------------------------------
+
 
 def load_records(file_path: Path) -> list[dict[str, Any]]:
     """加载 jsonl 文件, 每行一个 JSON 记录.
@@ -99,6 +104,7 @@ def load_records(file_path: Path) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # 数据质量分类
 # ---------------------------------------------------------------------------
+
 
 def classify_quality(record: dict[str, Any]) -> tuple[str, list[str]]:
     """分类单条记录的数据质量.
@@ -139,6 +145,7 @@ def classify_quality(record: dict[str, Any]) -> tuple[str, list[str]]:
 # ---------------------------------------------------------------------------
 # 缺失日期检测
 # ---------------------------------------------------------------------------
+
 
 def is_trading_day(d: date) -> bool:
     """判断是否为 A 股交易日 (排除周末和已知节假日).
@@ -230,6 +237,7 @@ def _parse_date(value: Any) -> Optional[date]:
 # 构建清洗后记录
 # ---------------------------------------------------------------------------
 
+
 def build_cleaned_records(
     records: list[dict[str, Any]],
     missing_dates: list[date],
@@ -272,6 +280,7 @@ def build_cleaned_records(
 # ---------------------------------------------------------------------------
 # 输出
 # ---------------------------------------------------------------------------
+
 
 def write_cleaned_jsonl(records: list[dict[str, Any]], output_path: Path) -> None:
     """写清洗后的 jsonl 文件.
@@ -360,7 +369,9 @@ def write_report(
     lines.append("| 标记 | 含义 | 记录数 |")
     lines.append("|------|------|--------|")
     lines.append(f"| `zero_return` | 日收益为 0 (可能占位或数据问题) | {zero_count} |")
-    lines.append(f"| `fixed_value` | 带 updated_at (非原始写入, 经过修正) | {fixed_count} |")
+    lines.append(
+        f"| `fixed_value` | 带 updated_at (非原始写入, 经过修正) | {fixed_count} |"
+    )
     lines.append("")
 
     # 逐日明细
@@ -382,10 +393,14 @@ def write_report(
         lines.append("## 五、缺失交易日 (需补录)\n")
         lines.append("以下交易日应有数据但缺失, 建议排查原因并补录:\n")
         for d in missing_dates:
-            lines.append(f"- **{d.isoformat()}** ({['周一','周二','周三','周四','周五','周六','周日'][d.weekday()]})")
+            lines.append(
+                f"- **{d.isoformat()}** ({['周一','周二','周三','周四','周五','周六','周日'][d.weekday()]})"
+            )
         lines.append("")
         lines.append("**补录方法**:")
-        lines.append("1. 排查当日权重文件 (trade_plan / strategy_plan / positions.json) 是否存在")
+        lines.append(
+            "1. 排查当日权重文件 (trade_plan / strategy_plan / positions.json) 是否存在"
+        )
         lines.append("2. 检查数据源 (TDX) 当日是否可用")
         lines.append("3. 重跑 `ShadowRealDataFeeder.feed_single_date(date)`")
         lines.append("4. 验证 `daily_returns.jsonl` 实际包含该日期")
@@ -397,14 +412,22 @@ def write_report(
     # 风险提示
     lines.append("## 六、风险提示与清洗建议\n")
     if stats.get("real", 0) < 5:
-        lines.append(f"- ⚠️ 真实市场数据仅 {stats.get('real', 0)} 天, **不足以计算有意义的年化收益**")
+        lines.append(
+            f"- ⚠️ 真实市场数据仅 {stats.get('real', 0)} 天, **不足以计算有意义的年化收益**"
+        )
         lines.append("  - 至少需要 20-30 个交易日才能算可信的年化夏普")
     if stats.get("backtest", 0) > 0:
-        lines.append(f"- ⚠️ 有 {stats.get('backtest', 0)} 天回测回填数据, **非真实交易**, 计算实盘收益时应剔除")
+        lines.append(
+            f"- ⚠️ 有 {stats.get('backtest', 0)} 天回测回填数据, **非真实交易**, 计算实盘收益时应剔除"
+        )
     if zero_count > 0:
-        lines.append(f"- ⚠️ 有 {zero_count} 天零收益, 可能是占位值或数据问题, **需核实是否真实零收益**")
+        lines.append(
+            f"- ⚠️ 有 {zero_count} 天零收益, 可能是占位值或数据问题, **需核实是否真实零收益**"
+        )
     if missing_dates:
-        lines.append(f"- ⚠️ 有 {len(missing_dates)} 天断档, **观察期数据不连续**, 影响 PSI/漂移检测可信度")
+        lines.append(
+            f"- ⚠️ 有 {len(missing_dates)} 天断档, **观察期数据不连续**, 影响 PSI/漂移检测可信度"
+        )
     lines.append("- ℹ️ 节假日列表可能不全, 法定假日可能被误标为 missing, 需人工核实")
     lines.append("")
 
@@ -419,7 +442,9 @@ def write_report(
     else:
         verdict = "✅ 可信 — 真实数据 ≥ 20 天, 可用于初步分析"
     lines.append(f"**当前可信度**: {verdict}\n")
-    lines.append(f"基于真实市场数据的天数: **{credible_days} / {total - len(missing_dates)}** 天")
+    lines.append(
+        f"基于真实市场数据的天数: **{credible_days} / {total - len(missing_dates)}** 天"
+    )
     lines.append("")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -430,6 +455,7 @@ def write_report(
 # ---------------------------------------------------------------------------
 # 主入口
 # ---------------------------------------------------------------------------
+
 
 def run_cleaning(
     input_file: Path,
@@ -501,7 +527,8 @@ def main() -> None:
         help="观察期结束日期 YYYY-MM-DD (默认: 到今天)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="启用 DEBUG 级别日志",
     )

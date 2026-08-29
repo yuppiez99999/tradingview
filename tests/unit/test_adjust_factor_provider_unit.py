@@ -2,6 +2,7 @@
 单元测试: utils/adjust_factor_provider.py
 覆盖纯函数 + AdjustFactorProvider 静态方法 + 缓存/单例逻辑
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -128,10 +129,12 @@ class TestToDailySymbol:
 
 class TestNormalizeFactorDf:
     def test_with_hfq_factor_column(self):
-        df = pd.DataFrame({
-            "date": ["2026-01-01", "2026-01-02"],
-            "hfq_factor": [1.0, 1.05],
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["2026-01-01", "2026-01-02"],
+                "hfq_factor": [1.0, 1.05],
+            }
+        )
         result = AdjustFactorProvider._normalize_factor_df(df, "600519.SH")
         assert result is not None
         assert len(result) == 2
@@ -139,10 +142,12 @@ class TestNormalizeFactorDf:
         assert "hfq_factor" in result.columns
 
     def test_with_qfq_factor_column(self):
-        df = pd.DataFrame({
-            "date": ["2026-01-01"],
-            "qfq_factor": [1.0],
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["2026-01-01"],
+                "qfq_factor": [1.0],
+            }
+        )
         result = AdjustFactorProvider._normalize_factor_df(df, "000001.SZ")
         assert result is not None
 
@@ -157,19 +162,23 @@ class TestNormalizeFactorDf:
         assert result is None
 
     def test_negative_factor_replaced(self):
-        df = pd.DataFrame({
-            "date": ["2026-01-01", "2026-01-02"],
-            "hfq_factor": [1.0, -0.5],
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["2026-01-01", "2026-01-02"],
+                "hfq_factor": [1.0, -0.5],
+            }
+        )
         result = AdjustFactorProvider._normalize_factor_df(df, "600519.SH")
         assert result is not None
         assert result["hfq_factor"].iloc[1] == 1.0
 
     def test_sorted_by_date(self):
-        df = pd.DataFrame({
-            "date": ["2026-01-03", "2026-01-01", "2026-01-02"],
-            "hfq_factor": [1.1, 1.0, 1.05],
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["2026-01-03", "2026-01-01", "2026-01-02"],
+                "hfq_factor": [1.1, 1.0, 1.05],
+            }
+        )
         result = AdjustFactorProvider._normalize_factor_df(df, "600519.SH")
         assert result is not None
         assert result["date"].iloc[0] < result["date"].iloc[1] < result["date"].iloc[2]
@@ -198,39 +207,47 @@ class TestGetHfqFactor:
 
     def test_returns_latest_factor(self):
         p = AdjustFactorProvider()
-        series = pd.DataFrame({
-            "date": pd.to_datetime(["2026-01-01", "2026-01-02"]),
-            "hfq_factor": [1.0, 1.05],
-        })
+        series = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-01-01", "2026-01-02"]),
+                "hfq_factor": [1.0, 1.05],
+            }
+        )
         with patch.object(p, "get_hfq_factor_series", return_value=series):
             assert p.get_hfq_factor("600519.SH") == pytest.approx(1.05)
 
     def test_historical_date(self):
         p = AdjustFactorProvider()
-        series = pd.DataFrame({
-            "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
-            "hfq_factor": [1.0, 1.05, 1.10],
-        })
+        series = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
+                "hfq_factor": [1.0, 1.05, 1.10],
+            }
+        )
         with patch.object(p, "get_hfq_factor_series", return_value=series):
             factor = p.get_hfq_factor("600519.SH", date="2026-01-02")
             assert factor == pytest.approx(1.05)
 
     def test_date_before_all_records(self):
         p = AdjustFactorProvider()
-        series = pd.DataFrame({
-            "date": pd.to_datetime(["2026-01-02", "2026-01-03"]),
-            "hfq_factor": [1.05, 1.10],
-        })
+        series = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-01-02", "2026-01-03"]),
+                "hfq_factor": [1.05, 1.10],
+            }
+        )
         with patch.object(p, "get_hfq_factor_series", return_value=series):
             factor = p.get_hfq_factor("600519.SH", date="2025-12-31")
             assert factor == pytest.approx(1.05)
 
     def test_invalid_date_returns_default(self):
         p = AdjustFactorProvider()
-        series = pd.DataFrame({
-            "date": pd.to_datetime(["2026-01-01"]),
-            "hfq_factor": [1.0],
-        })
+        series = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-01-01"]),
+                "hfq_factor": [1.0],
+            }
+        )
         with patch.object(p, "get_hfq_factor_series", return_value=series):
             factor = p.get_hfq_factor("600519.SH", date="invalid")
             assert factor == 1.0
@@ -239,28 +256,34 @@ class TestGetHfqFactor:
 class TestIsExDividendDate:
     def test_factor_change_detected(self):
         p = AdjustFactorProvider()
-        series = pd.DataFrame({
-            "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
-            "hfq_factor": [1.0, 1.0, 1.10],
-        })
+        series = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
+                "hfq_factor": [1.0, 1.0, 1.10],
+            }
+        )
         with patch.object(p, "get_hfq_factor_series", return_value=series):
             assert p.is_ex_dividend_date("600519.SH", date="2026-01-03") is True
 
     def test_no_factor_change(self):
         p = AdjustFactorProvider()
-        series = pd.DataFrame({
-            "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
-            "hfq_factor": [1.0, 1.0, 1.0],
-        })
+        series = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
+                "hfq_factor": [1.0, 1.0, 1.0],
+            }
+        )
         with patch.object(p, "get_hfq_factor_series", return_value=series):
             assert p.is_ex_dividend_date("600519.SH", date="2026-01-03") is False
 
     def test_insufficient_data(self):
         p = AdjustFactorProvider()
-        series = pd.DataFrame({
-            "date": pd.to_datetime(["2026-01-01"]),
-            "hfq_factor": [1.0],
-        })
+        series = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-01-01"]),
+                "hfq_factor": [1.0],
+            }
+        )
         with patch.object(p, "get_hfq_factor_series", return_value=series):
             assert p.is_ex_dividend_date("600519.SH") is False
 
@@ -273,20 +296,24 @@ class TestIsExDividendDate:
 class TestGetAlignedPrevClose:
     def test_non_ex_dividend_returns_original(self):
         p = AdjustFactorProvider()
-        series = pd.DataFrame({
-            "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
-            "hfq_factor": [1.0, 1.0, 1.0],
-        })
+        series = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
+                "hfq_factor": [1.0, 1.0, 1.0],
+            }
+        )
         with patch.object(p, "get_hfq_factor_series", return_value=series):
             result = p.get_aligned_prev_close("600519.SH", 10.0, date="2026-01-03")
             assert result == pytest.approx(10.0)
 
     def test_ex_dividend_adjusts(self):
         p = AdjustFactorProvider()
-        series = pd.DataFrame({
-            "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
-            "hfq_factor": [1.0, 1.0, 1.10],
-        })
+        series = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2026-01-01", "2026-01-02", "2026-01-03"]),
+                "hfq_factor": [1.0, 1.0, 1.10],
+            }
+        )
         with patch.object(p, "get_hfq_factor_series", return_value=series):
             result = p.get_aligned_prev_close("600519.SH", 10.0, date="2026-01-03")
             assert result != pytest.approx(10.0)
@@ -328,7 +355,9 @@ class TestModuleFunctions:
         assert p1 is p2
 
     def test_align_realtime_to_hfq(self):
-        with patch("utils.adjust_factor_provider.get_adjust_factor_provider") as mock_get:
+        with patch(
+            "utils.adjust_factor_provider.get_adjust_factor_provider"
+        ) as mock_get:
             mock_provider = MagicMock()
             mock_provider.get_hfq_factor.return_value = 2.0
             mock_get.return_value = mock_provider
@@ -336,7 +365,9 @@ class TestModuleFunctions:
             assert result == 20.0
 
     def test_compute_aligned_return(self):
-        with patch("utils.adjust_factor_provider.get_adjust_factor_provider") as mock_get:
+        with patch(
+            "utils.adjust_factor_provider.get_adjust_factor_provider"
+        ) as mock_get:
             mock_provider = MagicMock()
             mock_provider.get_hfq_factor.return_value = 1.0
             mock_get.return_value = mock_provider
@@ -344,7 +375,9 @@ class TestModuleFunctions:
             assert result == pytest.approx(0.1)
 
     def test_align_prev_close_to_today(self):
-        with patch("utils.adjust_factor_provider.get_adjust_factor_provider") as mock_get:
+        with patch(
+            "utils.adjust_factor_provider.get_adjust_factor_provider"
+        ) as mock_get:
             mock_provider = MagicMock()
             mock_provider.get_aligned_prev_close.return_value = 9.5
             mock_get.return_value = mock_provider

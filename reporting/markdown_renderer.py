@@ -74,7 +74,11 @@ def generate_report(
     net_pnl = portfolio_pnl + hedge_pnl - hedge_cost
 
     # 风险指标计算（过滤掉无数据的标的）
-    daily_returns = [d["daily_pnl_pct"] for d in pnl_data["details"] if d["daily_pnl_pct"] is not None]
+    daily_returns = [
+        d["daily_pnl_pct"]
+        for d in pnl_data["details"]
+        if d["daily_pnl_pct"] is not None
+    ]
     avg_return = sum(daily_returns) / len(daily_returns) if daily_returns else 0
     volatility = calculate_volatility(daily_returns)
 
@@ -106,7 +110,11 @@ def generate_report(
             "hedge_cost": round(hedge_cost, 2),
             "net_pnl": round(net_pnl, 2),
             "net_pnl_pct": round(
-                (net_pnl / pnl_data["summary"]["total_cost"]) * 100 if pnl_data["summary"]["total_cost"] > 0 else 0,
+                (
+                    (net_pnl / pnl_data["summary"]["total_cost"]) * 100
+                    if pnl_data["summary"]["total_cost"] > 0
+                    else 0
+                ),
                 2,
             ),
         },

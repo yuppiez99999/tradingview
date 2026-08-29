@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -42,7 +43,12 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 try:
-    from utils.drawdown_breaker import DrawdownCircuitBreaker, DrawdownDecision, DrawdownLevel
+    from utils.drawdown_breaker import (
+        DrawdownCircuitBreaker,
+        DrawdownDecision,
+        DrawdownLevel,
+    )
+
     _DD_OK = True
 except ImportError as e:
     logger.warning("DrawdownCircuitBreaker 加载失败, 降级防护: %s", e)
@@ -50,6 +56,7 @@ except ImportError as e:
 
 try:
     from utils.kill_switch import KillSwitch
+
     _KS_OK = True
 except ImportError as e:
     logger.warning("KillSwitch 加载失败, 降级防护: %s", e)
@@ -57,6 +64,7 @@ except ImportError as e:
 
 try:
     from utils.protective_put_engine import ProtectivePutEngine
+
     _PP_OK = True
 except ImportError as e:
     logger.warning("ProtectivePutEngine 加载失败, 期权对冲不可用: %s", e)
@@ -64,6 +72,7 @@ except ImportError as e:
 
 try:
     from utils.portfolio_optimizer import PortfolioOptimizer
+
     _PO_OK = True
 except ImportError as e:
     logger.warning("PortfolioOptimizer 加载失败, Alpha增强降级: %s", e)
@@ -71,6 +80,7 @@ except ImportError as e:
 
 try:
     from utils.broad_based_etf_policy import adjust_plan_with_national_team_flow
+
     _ETF_FLOW_OK = True
 except ImportError as e:
     logger.warning("broad_based_etf_policy 加载失败, ETF资金流加减仓降级: %s", e)
@@ -78,6 +88,7 @@ except ImportError as e:
 
 try:
     from utils.signal_fusion import SignalFusionEngine
+
     _SF_OK = True
 except ImportError as e:
     logger.warning("SignalFusionEngine 加载失败, 动态权重降级: %s", e)
@@ -85,6 +96,7 @@ except ImportError as e:
 
 try:
     from utils.alpha.vol_regime_weighter import VolRegimeWeighter
+
     _VRW_OK = True
 except ImportError as e:
     logger.warning("VolRegimeWeighter 加载失败, Regime适应降级: %s", e)
@@ -92,6 +104,7 @@ except ImportError as e:
 
 try:
     from utils.alpha.drift_monitor import DriftMonitor
+
     _DM_OK = True
 except ImportError as e:
     logger.warning("DriftMonitor 加载失败, 漂移检测降级: %s", e)
@@ -99,6 +112,7 @@ except ImportError as e:
 
 try:
     from quant_modules.ai_hedge_fund.memory_reflection import MemoryReflection
+
     _MR_OK = True
 except ImportError as e:
     logger.warning("MemoryReflection 加载失败, 决策记忆降级: %s", e)
@@ -106,6 +120,7 @@ except ImportError as e:
 
 try:
     from utils.alpha.evolution_orchestrator import EvolutionOrchestrator
+
     _EO_OK = True
 except ImportError as e:
     logger.warning("EvolutionOrchestrator 加载失败, 进化编排降级: %s", e)
@@ -113,6 +128,7 @@ except ImportError as e:
 
 try:
     from utils.evolution.orchestrator import EvolutionOrchestratorV2
+
     _EO_V2_OK = True
 except ImportError as e:
     logger.warning("EvolutionOrchestratorV2 加载失败, v2 进化编排降级: %s", e)
@@ -154,7 +170,9 @@ class DailyPlan:
         return {
             "trade_date": self.trade_date,
             "risk_state": self.risk_state.__dict__ if self.risk_state else None,
-            "drawdown_decision": self.drawdown_decision.to_dict() if self.drawdown_decision else None,
+            "drawdown_decision": (
+                self.drawdown_decision.to_dict() if self.drawdown_decision else None
+            ),
             "option_hedge": self.option_hedge,
             "etf_flow_adjustment": self.etf_flow_adjustment,
             "alpha_enhancement": self.alpha_enhancement,
@@ -197,7 +215,9 @@ class ETFOptionHedgeRebalancer:
         )
         self.config = self._load_config()
         sub_cfg = self.config.get("subportfolio", {})
-        self.portfolio_value = portfolio_value or float(sub_cfg.get("total_capital", 2_000_000))
+        self.portfolio_value = portfolio_value or float(
+            sub_cfg.get("total_capital", 2_000_000)
+        )
         self.target_annual_return = float(sub_cfg.get("target_annual_return", 0.08))
         self.target_max_drawdown = float(sub_cfg.get("target_max_drawdown", 0.15))
 
@@ -210,6 +230,9 @@ class ETFOptionHedgeRebalancer:
         self._init_drift_monitor()
         self._init_memory_reflection()
         self._init_evolution_orchestrator()
+
+        self._drift_rebalance_pending: bool = False
+        self._drift_rebalance_history: list[dict] = []
 
         logger.info(
             "ETF期权对冲再平衡子模型初始化完成 | 总资本=%.0f | 目标年化=%.0f%% | 目标回撤<%.0f%%",
@@ -246,7 +269,9 @@ class ETFOptionHedgeRebalancer:
         self.put_engine = ProtectivePutEngine()
         cap = float(oh.get("total_capital", self.portfolio_value))
         self.put_engine.TOTAL_CAPITAL = cap
-        self.put_engine.MAX_ANNUAL_COST_PCT = float(oh.get("max_annual_cost_pct", 0.025))
+        self.put_engine.MAX_ANNUAL_COST_PCT = float(
+            oh.get("max_annual_cost_pct", 0.025)
+        )
         self.put_engine.OTM_PCT = float(oh.get("otm_pct", 0.05))
         targets = oh.get("protection_targets")
         if targets:
@@ -293,18 +318,65 @@ class ETFOptionHedgeRebalancer:
             self.drift_monitor = None
             return
         try:
-            self.drift_monitor = DriftMonitor(model_name="etf_option_subportfolio")
-            logger.info("DriftMonitor 已接入 (漂移检测)")
+            rebalance_cb = self._make_drift_rebalance_callback()
+            self.drift_monitor = DriftMonitor(
+                model_name="etf_option_subportfolio",
+                rebalance_callback=rebalance_cb,
+            )
+            logger.info("DriftMonitor 已接入 (漂移检测 + 再平衡回调 ER-1.3)")
         except (ValueError, TypeError, OSError) as e:
             logger.warning("DriftMonitor 初始化失败: %s", e)
             self.drift_monitor = None
+
+    def _make_drift_rebalance_callback(self) -> Callable[[list[Any]], bool]:
+        """创建漂移→再平衡回调函数 (ER-1.3, Wave 7-ERL Sprint 1).
+
+        漂移触发时设置 _drift_rebalance_pending 标志位，
+        EOD 工作流下一轮检查标志位并触发 run_daily_rebalance。
+        避免在漂移检测线程中直接执行再平衡（需要 positions/prices 实时数据）。
+
+        Returns:
+            rebalance_callback: Callable[[list[Any]], bool]
+            接收 alerts 列表，返回 True 表示已标记待再平衡
+        """
+
+        def _drift_rebalance_callback(alerts: list) -> bool:
+            if not alerts:
+                return False
+            self._drift_rebalance_pending = True
+            severity_counts = {}
+            for a in alerts:
+                sev = (
+                    getattr(a, "severity", "unknown")
+                    if hasattr(a, "severity")
+                    else "unknown"
+                )
+                severity_counts[sev] = severity_counts.get(sev, 0) + 1
+            record = {
+                "triggered_at": datetime.utcnow().isoformat() + "Z",
+                "alert_count": len(alerts),
+                "severity_counts": severity_counts,
+            }
+            self._drift_rebalance_history.append(record)
+            if len(self._drift_rebalance_history) > 100:
+                self._drift_rebalance_history = self._drift_rebalance_history[-100:]
+            logger.warning(
+                "漂移触发再平衡标记 (alerts=%d, severity=%s) — EOD 下一轮将执行再平衡",
+                len(alerts),
+                severity_counts,
+            )
+            return True
+
+        return _drift_rebalance_callback
 
     def _init_memory_reflection(self) -> None:
         if not _MR_OK:
             self.memory_reflection = None
             return
         try:
-            _mem_dir = str(Path(__file__).parent / "reports" / "ai_hedge_fund" / "memory")
+            _mem_dir = str(
+                Path(__file__).parent / "reports" / "ai_hedge_fund" / "memory"
+            )
             self.memory_reflection = MemoryReflection(memory_dir=_mem_dir)
             logger.info("MemoryReflection 已接入 (决策记忆)")
         except (ValueError, TypeError, OSError) as e:
@@ -379,10 +451,22 @@ class ETFOptionHedgeRebalancer:
                 code = order.get("code", "")
                 action = order.get("action", "HOLD")
                 debate_results[code] = {
-                    "final_signal": "bullish" if action == "BUY" else ("bearish" if action == "SELL" else "neutral"),
-                    "final_confidence": min(100, int(abs(order.get("adjust_value", 0)) / 10000)),
-                    "winner": "bull" if action == "BUY" else ("bear" if action == "SELL" else "tie"),
-                    "net_confidence": min(100, int(abs(order.get("adjust_value", 0)) / 10000)),
+                    "final_signal": (
+                        "bullish"
+                        if action == "BUY"
+                        else ("bearish" if action == "SELL" else "neutral")
+                    ),
+                    "final_confidence": min(
+                        100, int(abs(order.get("adjust_value", 0)) / 10000)
+                    ),
+                    "winner": (
+                        "bull"
+                        if action == "BUY"
+                        else ("bear" if action == "SELL" else "tie")
+                    ),
+                    "net_confidence": min(
+                        100, int(abs(order.get("adjust_value", 0)) / 10000)
+                    ),
                     "reasoning": f"{action} {order.get('adjust_value', 0):.0f}",
                 }
             session = {
@@ -403,9 +487,13 @@ class ETFOptionHedgeRebalancer:
         if not self.evolution_orchestrator or not self.evolution_orchestrator.enabled:
             return {}
         try:
-            if _EO_V2_OK and isinstance(self.evolution_orchestrator, EvolutionOrchestratorV2):
+            if _EO_V2_OK and isinstance(
+                self.evolution_orchestrator, EvolutionOrchestratorV2
+            ):
                 cycle_result = self.evolution_orchestrator.run_cycle()
-                return cycle_result.to_dict() if hasattr(cycle_result, "to_dict") else {}
+                return (
+                    cycle_result.to_dict() if hasattr(cycle_result, "to_dict") else {}
+                )
             return self.evolution_orchestrator.run_observation_cycle()
         except (ValueError, TypeError, OSError) as e:
             logger.warning("进化编排失败: %s", e)
@@ -445,16 +533,22 @@ class ETFOptionHedgeRebalancer:
             if w > max_w:
                 max_w = w
 
-        max_cat_w = max(v / total_value for v in cat_values.values()) if total_value > 0 and cat_values else 0.0
+        max_cat_w = (
+            max(v / total_value for v in cat_values.values())
+            if total_value > 0 and cat_values
+            else 0.0
+        )
 
-        returns_arr = np.array([
-            float(pos.get("daily_return", 0.0)) for pos in positions.values()
-        ])
+        returns_arr = np.array(
+            [float(pos.get("daily_return", 0.0)) for pos in positions.values()]
+        )
         port_ret = sum(
             weights.get(code, 0.0) * float(pos.get("daily_return", 0.0))
             for code, pos in positions.items()
         )
-        port_vol = float(np.std(returns_arr) * np.sqrt(252)) if len(returns_arr) > 1 else 0.0
+        port_vol = (
+            float(np.std(returns_arr) * np.sqrt(252)) if len(returns_arr) > 1 else 0.0
+        )
         var_95 = abs(port_ret) + 1.65 * port_vol / np.sqrt(252) if port_vol > 0 else 0.0
 
         return RiskState(
@@ -468,15 +562,27 @@ class ETFOptionHedgeRebalancer:
             max_category_weight=float(max_cat_w),
         )
 
-    def check_drawdown_circuit(self, current_drawdown: float) -> Optional[DrawdownDecision]:
+    def check_drawdown_circuit(
+        self, current_drawdown: float
+    ) -> Optional[DrawdownDecision]:
         if self.drawdown_breaker is None:
             return None
         dd = -abs(float(current_drawdown))
         decision = self.drawdown_breaker.evaluate(dd)
         if decision.level in (DrawdownLevel.FORCE_HEDGE, DrawdownLevel.HALT):
-            logger.error("【回撤熔断】回撤%.2f%% 级别%s: %s", dd * 100, decision.level.value, decision.action)
+            logger.error(
+                "【回撤熔断】回撤%.2f%% 级别%s: %s",
+                dd * 100,
+                decision.level.value,
+                decision.action,
+            )
         elif decision.level == DrawdownLevel.REDUCE:
-            logger.warning("【回撤减仓】回撤%.2f%% 级别%s: %s", dd * 100, decision.level.value, decision.action)
+            logger.warning(
+                "【回撤减仓】回撤%.2f%% 级别%s: %s",
+                dd * 100,
+                decision.level.value,
+                decision.action,
+            )
         return decision
 
     def decide_option_hedge(self, drawdown_level: int = 0) -> dict[str, Any]:
@@ -493,12 +599,21 @@ class ETFOptionHedgeRebalancer:
         }
         if orders.get("should_execute"):
             n = len(orders.get("orders", []))
-            logger.info("【期权对冲】生成认沽保护订单 %d 张, 估算权利金 %.0f", n, result["total_premium_est"])
+            logger.info(
+                "【期权对冲】生成认沽保护订单 %d 张, 估算权利金 %.0f",
+                n,
+                result["total_premium_est"],
+            )
         if roll.get("needs_roll"):
-            logger.info("【期权滚仓】%d 张认沽临近到期需滚仓", len(roll.get("expiring_puts", [])))
+            logger.info(
+                "【期权滚仓】%d 张认沽临近到期需滚仓",
+                len(roll.get("expiring_puts", [])),
+            )
         return result
 
-    def apply_etf_flow_adjustment(self, target_weights: dict[str, float]) -> dict[str, Any]:
+    def apply_etf_flow_adjustment(
+        self, target_weights: dict[str, float]
+    ) -> dict[str, Any]:
         if not _ETF_FLOW_OK:
             return {"enabled": False, "reason": "broad_based_etf_policy 不可用"}
         cfg = self.config.get("etf_flow_adjustment", {})
@@ -531,9 +646,17 @@ class ETFOptionHedgeRebalancer:
         try:
             signals = self.portfolio_optimizer.load_factor_signals(trade_date)
             if not signals:
-                return {"enabled": True, "signals_loaded": False, "adjusted_weights": target_weights}
-            adjusted = self.portfolio_optimizer.adjust_target_weights(target_weights, signals, alpha=alpha)
-            logger.info("【Alpha增强】加载%d个因子信号, 混合权重alpha=%.2f", len(signals), alpha)
+                return {
+                    "enabled": True,
+                    "signals_loaded": False,
+                    "adjusted_weights": target_weights,
+                }
+            adjusted = self.portfolio_optimizer.adjust_target_weights(
+                target_weights, signals, alpha=alpha
+            )
+            logger.info(
+                "【Alpha增强】加载%d个因子信号, 混合权重alpha=%.2f", len(signals), alpha
+            )
             return {
                 "enabled": True,
                 "signals_loaded": True,
@@ -542,7 +665,11 @@ class ETFOptionHedgeRebalancer:
             }
         except (ValueError, KeyError, TypeError, AttributeError, OSError) as e:
             logger.warning("Alpha增强失败, 保持原权重: %s", e)
-            return {"enabled": True, "error": str(e), "adjusted_weights": target_weights}
+            return {
+                "enabled": True,
+                "error": str(e),
+                "adjusted_weights": target_weights,
+            }
 
     def check_rebalance(
         self,
@@ -587,19 +714,23 @@ class ETFOptionHedgeRebalancer:
                 adj_shares = cap_shares - int(shares)
                 if adj_shares == 0:
                     continue
-            orders.append({
-                "code": code,
-                "name": pos.get("name", code),
-                "action": action,
-                "current_weight": round(current_w, 4),
-                "target_weight": round(target_w, 4),
-                "deviation": round(deviation, 4),
-                "adjust_shares": adj_shares,
-                "adjust_value": round(adj_shares * px, 2),
-                "price": px,
-            })
+            orders.append(
+                {
+                    "code": code,
+                    "name": pos.get("name", code),
+                    "action": action,
+                    "current_weight": round(current_w, 4),
+                    "target_weight": round(target_w, 4),
+                    "deviation": round(deviation, 4),
+                    "adjust_shares": adj_shares,
+                    "adjust_value": round(adj_shares * px, 2),
+                    "price": px,
+                }
+            )
         if orders:
-            logger.info("【阈值再平衡】触发%d笔调整 (阈值%.0f%%)", len(orders), threshold * 100)
+            logger.info(
+                "【阈值再平衡】触发%d笔调整 (阈值%.0f%%)", len(orders), threshold * 100
+            )
         return orders
 
     def run_daily_rebalance(
@@ -642,7 +773,9 @@ class ETFOptionHedgeRebalancer:
             }
             drawdown_level = level_map.get(dd_decision.level, 0)
             if not dd_decision.allow_new_buy:
-                plan.warning_flags.append(f"回撤熔断{dd_decision.level.value}: 禁止新建多头")
+                plan.warning_flags.append(
+                    f"回撤熔断{dd_decision.level.value}: 禁止新建多头"
+                )
 
         target_weights = self.get_target_weights()
 
@@ -684,7 +817,11 @@ class ETFOptionHedgeRebalancer:
         if weight_adjustments:
             adjusted_count = 0
             for code, multiplier in weight_adjustments.items():
-                if code in target_weights and isinstance(multiplier, (int, float)) and 0.5 <= multiplier <= 2.0:
+                if (
+                    code in target_weights
+                    and isinstance(multiplier, (int, float))
+                    and 0.5 <= multiplier <= 2.0
+                ):
                     target_weights[code] = target_weights[code] * float(multiplier)
                     adjusted_count += 1
             if adjusted_count:
@@ -693,13 +830,21 @@ class ETFOptionHedgeRebalancer:
         logger.info("[Phase 6/6] 阈值再平衡 + 生成执行计划...")
         if dd_decision and not dd_decision.allow_new_buy:
             plan.rebalance_orders = []
-            plan.execution_summary = f"回撤熔断{dd_decision.level.value}触发, 跳过再平衡"
+            plan.execution_summary = (
+                f"回撤熔断{dd_decision.level.value}触发, 跳过再平衡"
+            )
             logger.warning("【再平衡跳过】回撤熔断触发, 仅保留对冲操作")
         else:
             rebalance_orders = self.check_rebalance(positions, target_weights, prices)
             plan.rebalance_orders = rebalance_orders
-            buy_amt = sum(o["adjust_value"] for o in rebalance_orders if o["action"] == "BUY")
-            sell_amt = sum(abs(o["adjust_value"]) for o in rebalance_orders if o["action"] == "SELL")
+            buy_amt = sum(
+                o["adjust_value"] for o in rebalance_orders if o["action"] == "BUY"
+            )
+            sell_amt = sum(
+                abs(o["adjust_value"])
+                for o in rebalance_orders
+                if o["action"] == "SELL"
+            )
             plan.execution_summary = (
                 f"再平衡{len(rebalance_orders)}笔 | 买入{buy_amt:.0f} | 卖出{sell_amt:.0f} | "
                 f"期权对冲{'启用' if option_hedge.get('enabled') else '禁用'} | "
@@ -709,7 +854,9 @@ class ETFOptionHedgeRebalancer:
         self._record_decision(plan)
         if self.memory_reflection:
             try:
-                plan.reflection_context = self.memory_reflection.get_reflection_context(days=30)
+                plan.reflection_context = self.memory_reflection.get_reflection_context(
+                    days=30
+                )
             except (ValueError, TypeError, OSError) as e:
                 logger.warning("反思上下文获取失败: %s", e)
 
@@ -774,7 +921,9 @@ class ETFOptionHedgeRebalancer:
                 "source_consistency": "medium",
                 "rebalance_executed": True,
                 "rebalance_orders_count": len(plan.rebalance_orders),
-                "evolution_applied": bool(plan.evolution_action.get("weight_adjustments")),
+                "evolution_applied": bool(
+                    plan.evolution_action.get("weight_adjustments")
+                ),
             }
 
             records: dict[str, dict] = {}
@@ -805,7 +954,9 @@ class ETFOptionHedgeRebalancer:
                 rebalanced_return * 100,
             )
         except (ValueError, TypeError, OSError, KeyError) as e:
-            logger.warning("[反馈链] 回写 daily_returns.jsonl 失败 (容错, 不影响再平衡): %s", e)
+            logger.warning(
+                "[反馈链] 回写 daily_returns.jsonl 失败 (容错, 不影响再平衡): %s", e
+            )
 
     def run_stress_tests(
         self,
@@ -828,10 +979,17 @@ class ETFOptionHedgeRebalancer:
         oh = self.config.get("options_hedge", {})
         otm_pct = float(oh.get("otm_pct", 0.05))
         targets = oh.get("protection_targets", [])
-        hedge_coverage = sum(
-            float(t.get("contracts", 0)) * 10000 * prices.get(t["code"] + ".SH", prices.get(t["code"] + ".SZ", 4.0))
-            for t in targets
-        ) / total_value if total_value > 0 and targets else 0.0
+        hedge_coverage = (
+            sum(
+                float(t.get("contracts", 0))
+                * 10000
+                * prices.get(t["code"] + ".SH", prices.get(t["code"] + ".SZ", 4.0))
+                for t in targets
+            )
+            / total_value
+            if total_value > 0 and targets
+            else 0.0
+        )
         hedge_coverage = min(hedge_coverage, 0.6)
         annual_cost = float(oh.get("max_annual_cost_pct", 0.025))
 
@@ -863,7 +1021,9 @@ class ETFOptionHedgeRebalancer:
             }
         logger.info(
             "【压力测试】%d场景完成 | 裸敞口%d场景突破15%% | 对冲后%d场景突破15%%",
-            len(scenarios), breach_count, breach_count_hedged,
+            len(scenarios),
+            breach_count,
+            breach_count_hedged,
         )
         return {
             "scenarios": results,
@@ -893,7 +1053,7 @@ def run_etf_option_hedge_rebalance(
             "name": code,
             "category": "宽基",
         }
-    prices = {code: 4.0 for code in target_weights}
+    prices = dict.fromkeys(target_weights, 4.0)
     td = trade_date or datetime.now().strftime("%Y-%m-%d")
     plan = rebalancer.run_daily_rebalance(positions, prices, td)
     return plan, rebalancer

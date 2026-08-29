@@ -1,4 +1,5 @@
 """T18: ParameterAdjustmentGovernor 单元测试 — 防 chasing 机制."""
+
 from datetime import datetime, timedelta
 
 import pytest
@@ -13,6 +14,7 @@ from utils.param_adjustment_governor import (
 # ============================================================
 # Fixtures
 # ============================================================
+
 
 @pytest.fixture
 def governor():
@@ -31,13 +33,22 @@ def governor_no_persist(tmp_path):
     )
 
 
-def make_request(param="max_weight", old=0.10, new=0.08,
-                 reason=AdjustmentReason.OOS_GAP_CRITICAL.value,
-                 operator="risk_mgr", evidence=None, at=None):
+def make_request(
+    param="max_weight",
+    old=0.10,
+    new=0.08,
+    reason=AdjustmentReason.OOS_GAP_CRITICAL.value,
+    operator="risk_mgr",
+    evidence=None,
+    at=None,
+):
     """构造调整请求的快捷函数"""
     return AdjustmentRequest(
-        param=param, old_value=old, new_value=new,
-        reason=reason, operator=operator,
+        param=param,
+        old_value=old,
+        new_value=new,
+        reason=reason,
+        operator=operator,
         evidence=evidence or {"oos_gap": 0.06},
         requested_at=at or datetime.now(),
     )
@@ -46,6 +57,7 @@ def make_request(param="max_weight", old=0.10, new=0.08,
 # ============================================================
 # 审批: 通过路径
 # ============================================================
+
 
 class TestT18Approval:
     @pytest.mark.unit
@@ -87,6 +99,7 @@ class TestT18Approval:
 # ============================================================
 # 审批: 拒绝路径
 # ============================================================
+
 
 class TestT18Rejection:
     @pytest.mark.unit
@@ -139,13 +152,19 @@ class TestT18Rejection:
         last_month = now.replace(day=1) - timedelta(days=1)  # 上月最后一天
         # 提交上月调整 (绕过冷却检查, 直接构造 history)
         from utils.param_adjustment_governor import AdjustmentRecord
-        governor._history.append(AdjustmentRecord(
-            param="max_weight", old_value=0.12, new_value=0.10,
-            reason=AdjustmentReason.OOS_GAP_CRITICAL.value,
-            operator="risk_mgr", evidence={"oos_gap": 0.06},
-            committed_at=last_month,
-            record_id="test_001",
-        ))
+
+        governor._history.append(
+            AdjustmentRecord(
+                param="max_weight",
+                old_value=0.12,
+                new_value=0.10,
+                reason=AdjustmentReason.OOS_GAP_CRITICAL.value,
+                operator="risk_mgr",
+                evidence={"oos_gap": 0.06},
+                committed_at=last_month,
+                record_id="test_001",
+            )
+        )
         # 本月 1 号申请 (冷却已过 30 天假设, 但本月可能有调整)
         # 实际: 如果今天是上月最后一天 + 1 天 = 本月 1 号, 冷却 1 天 < 30 天 → 冷却拒绝
         # 改用更明确的场景: 35 天后 (冷却过) 但同一个月内的第二次
@@ -171,6 +190,7 @@ class TestT18Rejection:
 # ============================================================
 # Commit & History
 # ============================================================
+
 
 class TestT18Commit:
     @pytest.mark.unit
@@ -214,6 +234,7 @@ class TestT18Commit:
 # 回滚
 # ============================================================
 
+
 class TestT18Rollback:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -246,6 +267,7 @@ class TestT18Rollback:
 # 冷却状态查询
 # ============================================================
 
+
 class TestT18CooldownStatus:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -271,13 +293,20 @@ class TestT18CooldownStatus:
     def test_t18_status_after_cooldown_expires(self, governor):
         # 模拟 35 天前调整
         from utils.param_adjustment_governor import AdjustmentRecord
+
         past = datetime.now() - timedelta(days=35)
-        governor._history.append(AdjustmentRecord(
-            param="max_weight", old_value=0.12, new_value=0.10,
-            reason=AdjustmentReason.OOS_GAP_CRITICAL.value,
-            operator="risk_mgr", evidence={},
-            committed_at=past, record_id="old_001",
-        ))
+        governor._history.append(
+            AdjustmentRecord(
+                param="max_weight",
+                old_value=0.12,
+                new_value=0.10,
+                reason=AdjustmentReason.OOS_GAP_CRITICAL.value,
+                operator="risk_mgr",
+                evidence={},
+                committed_at=past,
+                record_id="old_001",
+            )
+        )
         status = governor.get_cooldown_status("max_weight")
         assert status["in_cooldown"] is False
         assert status["days_until_available"] == 0
@@ -286,6 +315,7 @@ class TestT18CooldownStatus:
 # ============================================================
 # 持久化
 # ============================================================
+
 
 class TestT18Persistence:
     @pytest.mark.unit
@@ -337,14 +367,20 @@ class TestT18Persistence:
 # 理由白名单
 # ============================================================
 
+
 class TestT18Reasons:
     @pytest.mark.unit
     @pytest.mark.p0
     def test_t18_all_whitelisted_reasons_approved(self, governor):
         # 除 MANUAL_OVERRIDE 外, 都需 evidence
-        for reason in [AdjustmentReason.IC_DECAY, AdjustmentReason.OOS_GAP_CRITICAL,
-                        AdjustmentReason.MARKET_REGIME_CHANGE, AdjustmentReason.RISK_BREACH,
-                        AdjustmentReason.POSTMORTEM, AdjustmentReason.ANNUAL_REVIEW]:
+        for reason in [
+            AdjustmentReason.IC_DECAY,
+            AdjustmentReason.OOS_GAP_CRITICAL,
+            AdjustmentReason.MARKET_REGIME_CHANGE,
+            AdjustmentReason.RISK_BREACH,
+            AdjustmentReason.POSTMORTEM,
+            AdjustmentReason.ANNUAL_REVIEW,
+        ]:
             req = make_request(
                 param=f"param_{reason.value}",
                 reason=reason.value,
@@ -380,6 +416,7 @@ class TestT18Reasons:
 # 集成: 防 chasing 场景
 # ============================================================
 
+
 class TestT18AntiChasing:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -390,7 +427,8 @@ class TestT18AntiChasing:
 
         # 3 天后: 0.08 → 0.06 (chasing 行为)
         chasing_req = make_request(
-            old=0.08, new=0.06,
+            old=0.08,
+            new=0.06,
             at=datetime.now() + timedelta(days=3),
         )
         result = governor.request(chasing_req)
@@ -407,7 +445,8 @@ class TestT18AntiChasing:
         gov.commit(gov.request(make_request(old=0.10, new=0.08)))
         # 2 天后 (冷却 1 天已过)
         req2 = make_request(
-            old=0.08, new=0.06,
+            old=0.08,
+            new=0.06,
             at=datetime.now() + timedelta(days=2),
         )
         result = gov.request(req2)
@@ -422,7 +461,8 @@ class TestT18AntiChasing:
         governor.commit(governor.request(make_request(old=0.10, new=0.08)))
         # 35 天后 (冷却 30 天 + 5 天)
         future_req = make_request(
-            old=0.08, new=0.06,
+            old=0.08,
+            new=0.06,
             at=datetime.now() + timedelta(days=35),
         )
         # 如果 35 天跨月, 月度限制也通过

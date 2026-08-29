@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 # ===========================================================
 class SourceHealthEntry(TypedDict):
     """单数据源健康状态条目"""
+
     ok: bool
     last_error: Optional[str]
     last_success: Optional[str]
@@ -45,7 +46,9 @@ class TDXDataSource:
         self._connected = False
         self._last_connect_time = None
         self._reconnect_interval = 300
-        self.source_health = {"tdx": SourceHealthEntry(ok=False, last_error=None, last_success=None)}
+        self.source_health = {
+            "tdx": SourceHealthEntry(ok=False, last_error=None, last_success=None)
+        }
         self._init_connection()
 
     def _init_connection(self) -> None:
@@ -68,12 +71,24 @@ class TDXDataSource:
                     self._ex_api_cls = TdxExHq_API
                     logger.info("使用 pytdx2 兼容库")
                 except ImportError:
-                    raise ImportError("未找到 pytdx 或 pytdx2 库，请安装: pip install pytdx2") from None
+                    raise ImportError(
+                        "未找到 pytdx 或 pytdx2 库，请安装: pip install pytdx2"
+                    ) from None
 
             # 建立连接
             self._connect()
 
-        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             self.source_health["tdx"]["last_error"] = str(e)
             logger.warning(f"通达信数据源初始化失败: {e}")
 
@@ -87,7 +102,16 @@ class TDXDataSource:
             if self._api is not None:
                 try:
                     self._api.disconnect()
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:  # P2 模块 fail-safe, 待后续精确化
                     logger.debug(f"[tdx] disconnect 失败: {e}")
 
             self._api = self._api_cls()
@@ -107,17 +131,37 @@ class TDXDataSource:
                         self._connected = True
                         self._last_connect_time = time.time()
                         self.source_health["tdx"]["ok"] = True
-                        self.source_health["tdx"]["last_success"] = datetime.now().isoformat()
+                        self.source_health["tdx"][
+                            "last_success"
+                        ] = datetime.now().isoformat()
                         self.source_health["tdx"]["last_error"] = None
                         logger.info(f"通达信连接成功: {ip}:{port}")
                         return
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:  # P2 模块 fail-safe, 待后续精确化
                     last_error = e
                     continue
 
             raise last_error or Exception("所有通达信服务器连接失败")
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             self._connected = False
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
@@ -131,7 +175,10 @@ class TDXDataSource:
             self._connect()
             return self._connected
 
-        if self._last_connect_time and (time.time() - self._last_connect_time) > self._reconnect_interval:
+        if (
+            self._last_connect_time
+            and (time.time() - self._last_connect_time) > self._reconnect_interval
+        ):
             self._connect()
 
         return self._connected
@@ -174,9 +221,9 @@ class TDXDataSource:
         # 根据代码判断
         if s.startswith(("6", "5", "9")):
             return 1  # 上海
-        elif s.startswith(("0", "1", "3")):
+        if s.startswith(("0", "1", "3")):
             return 0  # 深圳
-        elif s.startswith(("4", "8")):
+        if s.startswith(("4", "8")):
             return 2  # 北京
         return 0
 
@@ -208,7 +255,16 @@ class TDXDataSource:
             try:
                 stock_info = api.get_security_info(market, code)
                 prev_close = stock_info.get("last_close", 0) if stock_info else 0
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 prev_close = 0
 
             result = {
@@ -228,13 +284,24 @@ class TDXDataSource:
             self.source_health["tdx"]["last_success"] = datetime.now().isoformat()
             return result
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取实时行情失败: {e}")
             return None
 
-    def get_historical_klines(self, symbol: str, period: str = "1d", count: int = 252) -> Optional[pd.DataFrame]:
+    def get_historical_klines(
+        self, symbol: str, period: str = "1d", count: int = 252
+    ) -> Optional[pd.DataFrame]:
         """获取历史K线数据
 
         Args:
@@ -299,7 +366,16 @@ class TDXDataSource:
             self.source_health["tdx"]["last_success"] = datetime.now().isoformat()
             return df
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取历史K线失败: {e}")
@@ -337,7 +413,16 @@ class TDXDataSource:
             self.source_health["tdx"]["ok"] = True
             return result
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取财务数据失败: {e}")
@@ -352,7 +437,16 @@ class TDXDataSource:
             # 板块查询逻辑
             # 这里需要根据通达信API具体实现
             return []
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"通达信获取板块数据失败: {e}")
             return []
 
@@ -361,7 +455,16 @@ class TDXDataSource:
         try:
             if self._api:
                 self._api.disconnect()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
         finally:
             self._connected = False

@@ -14,7 +14,8 @@
 """
 
 import logging
-from typing import Collection, Optional
+from collections.abc import Collection
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

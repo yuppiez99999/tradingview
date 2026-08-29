@@ -17,6 +17,7 @@
 - confidence < min_confidence 时自动降权 (返回 confidence=0, action=HOLD)
 - 采集失败/无数据时返回中性 SignalResult (score=0.5, confidence=0)
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,24 +28,28 @@ from typing import Any, Optional
 
 try:
     from ..logging_manager import get_logger
-    logger = get_logger("sentiment_signal_source")
-except ImportError:
-    logger = logging.getLogger("sentiment_signal_source")
+except (ImportError, ValueError):
+
+    def get_logger(name: str):
+        return logging.getLogger(name)
+
+
+logger = get_logger("sentiment_signal_source")
 
 try:
     from ..signal_fusion import SignalResult
-except ImportError:
+except (ImportError, ValueError):
     SignalResult = None  # type: ignore[assignment,misc]
 
 try:
     from ..media_crawler_adapter import MediaCrawlerAdapter, MediaCrawlerNewsItem
-except ImportError:
+except (ImportError, ValueError):
     MediaCrawlerAdapter = None  # type: ignore[assignment,misc]
     MediaCrawlerNewsItem = None  # type: ignore[assignment,misc]
 
 try:
     from ..news_sentiment_engine import NewsItem, NewsSentimentEngine
-except ImportError:
+except (ImportError, ValueError):
     NewsItem = None  # type: ignore[assignment,misc]
     NewsSentimentEngine = None  # type: ignore[assignment,misc]
 
@@ -62,6 +67,7 @@ DEFAULT_NEWS_LOOKBACK_DAYS: int = 7
 @dataclass
 class SentimentSourceConfig:
     """舆情信号源配置"""
+
     platforms: list[str] = field(default_factory=lambda: list(DEFAULT_PLATFORMS))
     max_items_per_platform: int = DEFAULT_MAX_ITEMS_PER_PLATFORM
     min_confidence: float = DEFAULT_MIN_CONFIDENCE
@@ -73,6 +79,7 @@ class SentimentSourceConfig:
 # ============================================================
 # 股票代码 → 搜索关键词 的默认映射
 # ============================================================
+
 
 def _default_keyword_resolver(code: str) -> str:
     """默认关键词解析: 去掉 .SH/.SZ 后缀, 用纯数字代码搜索
@@ -88,6 +95,7 @@ def _default_keyword_resolver(code: str) -> str:
 # ============================================================
 # 舆情情感信号源
 # ============================================================
+
 
 class SentimentSignalSource:
     """舆情情感信号源 — 适配 SignalFusionEngine.register_source 的 getter 签名
@@ -114,7 +122,9 @@ class SentimentSignalSource:
         config: Optional[SentimentSourceConfig] = None,
     ) -> None:
         self.config = config or SentimentSourceConfig()
-        self._keyword_resolver = self.config.keyword_resolver or _default_keyword_resolver
+        self._keyword_resolver = (
+            self.config.keyword_resolver or _default_keyword_resolver
+        )
 
         self._media_crawler = media_crawler
         self._sentiment_engine = sentiment_engine
@@ -129,7 +139,9 @@ class SentimentSignalSource:
         if self._media_crawler is not None:
             return self._media_crawler
         if MediaCrawlerAdapter is None:
-            raise RuntimeError("MediaCrawlerAdapter 未导入, 检查 utils.media_crawler_adapter")
+            raise RuntimeError(
+                "MediaCrawlerAdapter 未导入, 检查 utils.media_crawler_adapter"
+            )
         try:
             self._media_crawler = MediaCrawlerAdapter()
         except (ValueError, TypeError, RuntimeError, OSError) as e:
@@ -141,7 +153,9 @@ class SentimentSignalSource:
         if self._sentiment_engine is not None:
             return self._sentiment_engine
         if NewsSentimentEngine is None:
-            raise RuntimeError("NewsSentimentEngine 未导入, 检查 utils.news_sentiment_engine")
+            raise RuntimeError(
+                "NewsSentimentEngine 未导入, 检查 utils.news_sentiment_engine"
+            )
         try:
             self._sentiment_engine = NewsSentimentEngine()
         except (ValueError, TypeError, RuntimeError, OSError) as e:
@@ -185,7 +199,14 @@ class SentimentSignalSource:
 
             return self._to_signal_result(code, sentiment_signal, items)
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.debug("sentiment 信号采集异常 code=%s: %s", code, e)
             return self._neutral_signal(code, f"采集异常: {e}")
 
@@ -203,7 +224,14 @@ class SentimentSignalSource:
                 max_items_per_platform=self.config.max_items_per_platform,
                 enable_comments=self.config.enable_comments,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.debug("MediaCrawler 采集失败 keyword=%s: %s", keyword, e)
             return []
 
@@ -233,7 +261,14 @@ class SentimentSignalSource:
             result = engine.analyze([code])
             signals = getattr(result, "signals", {})
             return signals.get(code)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.debug("NewsSentimentEngine 分析失败 code=%s: %s", code, e)
             return None
 
@@ -242,7 +277,9 @@ class SentimentSignalSource:
         if NewsItem is None:
             return None
         try:
-            news_id = f"{getattr(item, 'platform', 'unknown')}_{getattr(item, 'item_id', '')}"
+            news_id = (
+                f"{getattr(item, 'platform', 'unknown')}_{getattr(item, 'item_id', '')}"
+            )
             if not news_id or news_id == "_":
                 news_id = f"sent_{id(item)}"
 
@@ -279,7 +316,9 @@ class SentimentSignalSource:
     # SentimentSignal → SignalResult
     # ------------------------------------------------------------
 
-    def _to_signal_result(self, code: str, sentiment_signal: Any, items: list[Any]) -> Any:
+    def _to_signal_result(
+        self, code: str, sentiment_signal: Any, items: list[Any]
+    ) -> Any:
         """把 SentimentSignal 转为 SignalResult"""
         composite = float(getattr(sentiment_signal, "composite_sentiment", 0.0))
         composite = max(-1.0, min(1.0, composite))

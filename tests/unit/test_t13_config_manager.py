@@ -10,6 +10,7 @@
 - 审计方法 (list_available, get_config_source)
 - 模块级快捷函数
 """
+
 import os
 import time
 
@@ -34,6 +35,7 @@ from utils.config_manager import (
 # ============================================================
 # Fixtures
 # ============================================================
+
 
 @pytest.fixture
 def tmp_config_dir(tmp_path):
@@ -81,6 +83,7 @@ def clean_singleton():
 # 单例模式
 # ============================================================
 
+
 class TestT13Singleton:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -115,6 +118,7 @@ class TestT13Singleton:
 # 搜索路径构建
 # ============================================================
 
+
 class TestT13SearchPaths:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -128,7 +132,9 @@ class TestT13SearchPaths:
     def test_t13_env_var_search_path(self, tmp_config_dir, monkeypatch):
         monkeypatch.setenv("QUANT_CONFIG_DIR", str(tmp_config_dir))
         mgr = ConfigManager()
-        env_paths = [p for p in mgr._search_paths if str(p) == str(tmp_config_dir.resolve())]
+        env_paths = [
+            p for p in mgr._search_paths if str(p) == str(tmp_config_dir.resolve())
+        ]
         assert len(env_paths) == 1
 
     @pytest.mark.unit
@@ -157,6 +163,7 @@ class TestT13SearchPaths:
 # ============================================================
 # 路径解析
 # ============================================================
+
 
 class TestT13ResolvePath:
     @pytest.mark.unit
@@ -191,7 +198,9 @@ class TestT13ResolvePath:
 
     @pytest.mark.unit
     @pytest.mark.p1
-    def test_t13_resolve_unnamed_falls_back_to_name_yaml(self, isolated_manager, tmp_config_dir):
+    def test_t13_resolve_unnamed_falls_back_to_name_yaml(
+        self, isolated_manager, tmp_config_dir
+    ):
         # name 不在 _NAMED_CONFIGS, 但文件存在 → 自动加 .yaml 后缀
         (tmp_config_dir / "custom.yaml").write_text("key: value\n", encoding="utf-8")
         path = isolated_manager._resolve_config_path("custom")
@@ -218,6 +227,7 @@ class TestT13ResolvePath:
 # YAML 加载
 # ============================================================
 
+
 class TestT13LoadYaml:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -229,21 +239,27 @@ class TestT13LoadYaml:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t13_load_empty_yaml_returns_empty_dict(self, isolated_manager, tmp_config_dir):
+    def test_t13_load_empty_yaml_returns_empty_dict(
+        self, isolated_manager, tmp_config_dir
+    ):
         path = tmp_config_dir / "empty.yaml"
         data = isolated_manager._load_yaml(path)
         assert data == {}
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t13_load_non_dict_returns_empty_dict(self, isolated_manager, tmp_config_dir):
+    def test_t13_load_non_dict_returns_empty_dict(
+        self, isolated_manager, tmp_config_dir
+    ):
         path = tmp_config_dir / "bad_list.yaml"
         data = isolated_manager._load_yaml(path)
         assert data == {}
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t13_load_broken_yaml_returns_empty_dict(self, isolated_manager, tmp_config_dir):
+    def test_t13_load_broken_yaml_returns_empty_dict(
+        self, isolated_manager, tmp_config_dir
+    ):
         path = tmp_config_dir / "broken.yaml"
         data = isolated_manager._load_yaml(path)
         assert data == {}
@@ -259,6 +275,7 @@ class TestT13LoadYaml:
 # ============================================================
 # 缓存与 mtime 失效
 # ============================================================
+
 
 class TestT13Cache:
     @pytest.mark.unit
@@ -321,6 +338,7 @@ class TestT13Cache:
 # get() 主入口
 # ============================================================
 
+
 class TestT13Get:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -353,6 +371,7 @@ class TestT13Get:
 # ============================================================
 # 类型化访问器
 # ============================================================
+
 
 class TestT13TypedAccessors:
     @pytest.mark.unit
@@ -408,6 +427,7 @@ class TestT13TypedAccessors:
 # 审计方法
 # ============================================================
 
+
 class TestT13AuditMethods:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -448,10 +468,13 @@ class TestT13AuditMethods:
 # 模块级快捷函数
 # ============================================================
 
+
 class TestT13ModuleFunctions:
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t13_get_config_uses_singleton(self, clean_singleton, tmp_config_dir, monkeypatch):
+    def test_t13_get_config_uses_singleton(
+        self, clean_singleton, tmp_config_dir, monkeypatch
+    ):
         # 通过 env var 注入临时路径
         monkeypatch.setenv("QUANT_CONFIG_DIR", str(tmp_config_dir))
         cfg = get_config("portfolio")
@@ -459,14 +482,18 @@ class TestT13ModuleFunctions:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t13_get_kill_switch_config_module_func(self, clean_singleton, tmp_config_dir, monkeypatch):
+    def test_t13_get_kill_switch_config_module_func(
+        self, clean_singleton, tmp_config_dir, monkeypatch
+    ):
         monkeypatch.setenv("QUANT_CONFIG_DIR", str(tmp_config_dir))
         ks = get_kill_switch_config()
         assert ks.get("L1_threshold") == 0.05
 
     @pytest.mark.unit
     @pytest.mark.p1
-    def test_t13_all_module_funcs_return_dict(self, clean_singleton, tmp_config_dir, monkeypatch):
+    def test_t13_all_module_funcs_return_dict(
+        self, clean_singleton, tmp_config_dir, monkeypatch
+    ):
         monkeypatch.setenv("QUANT_CONFIG_DIR", str(tmp_config_dir))
         assert isinstance(get_portfolio_config(), dict)
         assert isinstance(get_settings_config(), dict)
@@ -477,14 +504,18 @@ class TestT13ModuleFunctions:
 
     @pytest.mark.unit
     @pytest.mark.p1
-    def test_t13_list_available_configs_module_func(self, clean_singleton, tmp_config_dir, monkeypatch):
+    def test_t13_list_available_configs_module_func(
+        self, clean_singleton, tmp_config_dir, monkeypatch
+    ):
         monkeypatch.setenv("QUANT_CONFIG_DIR", str(tmp_config_dir))
         result = list_available_configs()
         assert isinstance(result, list)
 
     @pytest.mark.unit
     @pytest.mark.p1
-    def test_t13_clear_config_cache_module_func(self, clean_singleton, tmp_config_dir, monkeypatch):
+    def test_t13_clear_config_cache_module_func(
+        self, clean_singleton, tmp_config_dir, monkeypatch
+    ):
         monkeypatch.setenv("QUANT_CONFIG_DIR", str(tmp_config_dir))
         get_config("portfolio")
         clear_config_cache()
@@ -492,7 +523,9 @@ class TestT13ModuleFunctions:
 
     @pytest.mark.unit
     @pytest.mark.p1
-    def test_t13_get_config_source_module_func(self, clean_singleton, tmp_config_dir, monkeypatch):
+    def test_t13_get_config_source_module_func(
+        self, clean_singleton, tmp_config_dir, monkeypatch
+    ):
         monkeypatch.setenv("QUANT_CONFIG_DIR", str(tmp_config_dir))
         src = get_config_source("portfolio")
         assert src is not None
@@ -502,12 +535,20 @@ class TestT13ModuleFunctions:
 # _NAMED_CONFIGS 注册表
 # ============================================================
 
+
 class TestT13NamedConfigs:
     @pytest.mark.unit
     @pytest.mark.p0
     def test_t13_named_configs_contains_required_keys(self):
-        required = ["portfolio", "settings", "execution", "backtest",
-                    "risk_budget", "stop_loss", "institutional"]
+        required = [
+            "portfolio",
+            "settings",
+            "execution",
+            "backtest",
+            "risk_budget",
+            "stop_loss",
+            "institutional",
+        ]
         for key in required:
             assert key in _NAMED_CONFIGS, f"missing key: {key}"
 
@@ -529,11 +570,13 @@ class TestT13NamedConfigs:
 # 线程安全
 # ============================================================
 
+
 class TestT13ThreadSafety:
     @pytest.mark.unit
     @pytest.mark.p1
     def test_t13_concurrent_get_no_crash(self, isolated_manager):
         import threading
+
         results = []
         errors = []
 

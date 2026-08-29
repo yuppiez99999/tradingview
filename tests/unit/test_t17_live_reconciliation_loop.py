@@ -1,4 +1,5 @@
 """T17 单元测试 — LiveReconciliationLoop 实盘对账循环."""
+
 from __future__ import annotations
 
 import pytest
@@ -17,6 +18,7 @@ from utils.risk.trade_order_reconciler import (
 # ============================================================
 # 测试夹具
 # ============================================================
+
 
 class MockBroker:
     """模拟 broker 持仓查询."""
@@ -44,8 +46,11 @@ def _make_loop(
 ) -> LiveReconciliationLoop:
     import tempfile
     from pathlib import Path
+
     if audit is None:
-        audit = RiskAuditLogger(project_root=Path(tempfile.mkdtemp()), audit_dir="audit")
+        audit = RiskAuditLogger(
+            project_root=Path(tempfile.mkdtemp()), audit_dir="audit"
+        )
     return LiveReconciliationLoop(
         reconciler=reconciler or TradeOrderReconciler(),
         broker=broker or MockBroker({}),
@@ -58,6 +63,7 @@ def _make_loop(
 # ============================================================
 # 配置校验
 # ============================================================
+
 
 class TestConfigValidation:
     def test_invalid_interval_raises(self):
@@ -76,6 +82,7 @@ class TestConfigValidation:
 # ============================================================
 # 持仓 drift 检测
 # ============================================================
+
 
 class TestPositionDrift:
     def test_no_drift_when_matching(self):
@@ -96,8 +103,12 @@ class TestPositionDrift:
     def test_small_drift_ignored(self):
         """2% 以下 drift → ignore."""
         broker = MockBroker({"sh600000": 1001})
-        loop = _make_loop(broker=broker, local_book={"sh600000": 1000},
-                          drift_alert_pct=0.02, drift_halt_pct=0.10)
+        loop = _make_loop(
+            broker=broker,
+            local_book={"sh600000": 1000},
+            drift_alert_pct=0.02,
+            drift_halt_pct=0.10,
+        )
         drifts = loop.detect_position_drift()
         assert len(drifts) == 1
         assert drifts[0].suggested_action == "ignore"
@@ -105,16 +116,24 @@ class TestPositionDrift:
     def test_medium_drift_alert(self):
         """2-10% drift → alert."""
         broker = MockBroker({"sh600000": 1050})
-        loop = _make_loop(broker=broker, local_book={"sh600000": 1000},
-                          drift_alert_pct=0.02, drift_halt_pct=0.10)
+        loop = _make_loop(
+            broker=broker,
+            local_book={"sh600000": 1000},
+            drift_alert_pct=0.02,
+            drift_halt_pct=0.10,
+        )
         drifts = loop.detect_position_drift()
         assert drifts[0].suggested_action == "alert"
 
     def test_large_drift_halt(self):
         """≥10% drift → halt."""
         broker = MockBroker({"sh600000": 1200})
-        loop = _make_loop(broker=broker, local_book={"sh600000": 1000},
-                          drift_alert_pct=0.02, drift_halt_pct=0.10)
+        loop = _make_loop(
+            broker=broker,
+            local_book={"sh600000": 1000},
+            drift_alert_pct=0.02,
+            drift_halt_pct=0.10,
+        )
         drifts = loop.detect_position_drift()
         assert drifts[0].suggested_action == "halt"
 
@@ -145,6 +164,7 @@ class TestPositionDrift:
 # ============================================================
 # 盘中对账
 # ============================================================
+
 
 class TestIntradayTick:
     def test_pass_when_no_drift_no_issues(self):
@@ -183,6 +203,7 @@ class TestIntradayTick:
 # 盘后全量对账
 # ============================================================
 
+
 class TestEodFinal:
     def test_eod_pass(self):
         broker = MockBroker({"sh600000": 1000})
@@ -215,6 +236,7 @@ class TestEodFinal:
 # 工具方法
 # ============================================================
 
+
 class TestUtilities:
     def test_update_local_book(self):
         loop = _make_loop(local_book={"sh": 100})
@@ -242,6 +264,7 @@ class TestUtilities:
 # ============================================================
 # PositionDrift 属性
 # ============================================================
+
 
 class TestPositionDriftProperties:
     def test_has_drift_true(self):

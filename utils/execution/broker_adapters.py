@@ -52,7 +52,9 @@ OrderType = None
 # 定位 v8.3_institutional/src/bridges/broker_adapter.py 的绝对路径
 # 使用 __file__ 绝对路径解析, 不依赖 sys.path 或 cwd, 避免测试间污染
 _project_root = Path(__file__).resolve().parent.parent.parent
-_broker_adapter_path = _project_root / "v8.3_institutional" / "src" / "bridges" / "broker_adapter.py"
+_broker_adapter_path = (
+    _project_root / "v8.3_institutional" / "src" / "bridges" / "broker_adapter.py"
+)
 
 
 def _load_base_adapter_classes() -> bool:
@@ -77,7 +79,9 @@ def _load_base_adapter_classes() -> bool:
 
     try:
         # 用唯一模块名加载, 避免与 sys.modules 中已有的 "src" / "src.bridges.*" 冲突
-        _spec = importlib.util.spec_from_file_location("_v83_broker_adapter", str(_broker_adapter_path))
+        _spec = importlib.util.spec_from_file_location(
+            "_v83_broker_adapter", str(_broker_adapter_path)
+        )
         if _spec is None or _spec.loader is None:
             _BASE_LOAD_ERROR = f"importlib.util.spec_from_file_location 返回 None: path={_broker_adapter_path}"
             return False
@@ -93,7 +97,14 @@ def _load_base_adapter_classes() -> bool:
         _BASE_AVAILABLE = True
         _BASE_LOAD_ERROR = None
         return True
-    except (ImportError, ModuleNotFoundError, OSError, AttributeError, SyntaxError, TypeError) as _exc:
+    except (
+        ImportError,
+        ModuleNotFoundError,
+        OSError,
+        AttributeError,
+        SyntaxError,
+        TypeError,
+    ) as _exc:
         # 加载失败保持 _BASE_AVAILABLE = False, 后续初始化时抛 BrokerAdapterError
         # ImportError/ModuleNotFoundError: 模块未安装/路径错误
         # OSError: .py 文件读取失败; AttributeError: 缺少预期符号
@@ -135,20 +146,26 @@ class _BaseLiveAdapter(BrokerAdapter):
             _load_base_adapter_classes()
         if not _BASE_AVAILABLE:
             _detail = _BASE_LOAD_ERROR or "未知原因"
-            raise BrokerAdapterError(f"BrokerAdapter 基类不可用 (v8.3_institutional 路径未找到): 原因={_detail}")
+            raise BrokerAdapterError(
+                f"BrokerAdapter 基类不可用 (v8.3_institutional 路径未找到): 原因={_detail}"
+            )
         super().__init__(config)
         self.broker_name = broker_name
         self.is_live = bool(config.get("live", False))
         self._connected = False
         # 安全特性
         self.daily_trade_limit = float(config.get("daily_trade_limit", 10_000_000))
-        self.circuit_breaker_threshold = float(config.get("circuit_breaker_threshold", 0.03))
+        self.circuit_breaker_threshold = float(
+            config.get("circuit_breaker_threshold", 0.03)
+        )
         self._daily_trade_amount: float = 0.0
         self._daily_trade_date: Optional[str] = None
         # 审计日志 (JSONL)
         self._audit_log_dir = Path(config.get("audit_log_dir", "reports/broker_audit"))
         if not self._audit_log_dir.is_absolute():
-            self._audit_log_dir = Path(__file__).resolve().parent.parent.parent / self._audit_log_dir
+            self._audit_log_dir = (
+                Path(__file__).resolve().parent.parent.parent / self._audit_log_dir
+            )
         self._audit_log_dir.mkdir(parents=True, exist_ok=True)
 
     # ============================================================
@@ -157,7 +174,9 @@ class _BaseLiveAdapter(BrokerAdapter):
     def connect(self) -> bool:
         """建立连接 (含 dry-run 模式)."""
         if not self.is_live:
-            logger.info("[%s] dry-run 模式 (live=False), 不实际连接券商 API", self.broker_name)
+            logger.info(
+                "[%s] dry-run 模式 (live=False), 不实际连接券商 API", self.broker_name
+            )
             self._connected = True
             return True
         try:
@@ -165,8 +184,16 @@ class _BaseLiveAdapter(BrokerAdapter):
             self._connected = bool(ok)
             self._audit("connect", {"success": ok})
             return bool(ok)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             self._audit("connect_error", {"error": str(e)})
             logger.exception("[%s] 连接失败: %s", self.broker_name, e)
@@ -177,9 +204,17 @@ class _BaseLiveAdapter(BrokerAdapter):
         if self._connected:
             try:
                 self._do_disconnect()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
-            # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+                # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
                 logger.warning("[%s] 断开连接异常: %s", self.broker_name, e)
             finally:
                 self._connected = False
@@ -188,7 +223,9 @@ class _BaseLiveAdapter(BrokerAdapter):
     def submit_order(self, order: BrokerOrder) -> bool:
         """提交订单 (含风控前置检查)."""
         if not self._connected:
-            raise BrokerNotConnectedError(f"{self.broker_name} 未连接, 请先调用 connect()")
+            raise BrokerNotConnectedError(
+                f"{self.broker_name} 未连接, 请先调用 connect()"
+            )
         # 风控前置
         if not self._pre_trade_check(order):
             return False
@@ -231,8 +268,16 @@ class _BaseLiveAdapter(BrokerAdapter):
                         f"超出日交易限额 {self.daily_trade_limit:,.2f}，当前已累计 {self._daily_trade_amount:,.2f}"
                     )
             return bool(ok)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             order.status = OrderStatus.ERROR
             order.rejection_reason = str(e)
@@ -262,8 +307,16 @@ class _BaseLiveAdapter(BrokerAdapter):
                 },
             )
             return bool(ok)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             self._audit(
                 "cancel_error",
@@ -282,8 +335,16 @@ class _BaseLiveAdapter(BrokerAdapter):
             return []
         try:
             return self._do_get_positions()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             logger.exception("[%s] 查询持仓异常: %s", self.broker_name, e)
             return []
@@ -302,19 +363,37 @@ class _BaseLiveAdapter(BrokerAdapter):
             info["broker"] = self.broker_name
             info["daily_trade_amount"] = self._daily_trade_amount
             return info
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             logger.exception("[%s] 查询账户异常: %s", self.broker_name, e)
             return {"broker": self.broker_name, "error": str(e)}
 
-    def get_market_data(self, symbol: str, period: str = "1d", count: int = 100) -> dict:
+    def get_market_data(
+        self, symbol: str, period: str = "1d", count: int = 100
+    ) -> dict:
         if not self._connected:
             raise BrokerNotConnectedError(f"{self.broker_name} 未连接")
         try:
             return self._do_get_market_data(symbol, period, count)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             logger.exception("[%s] 获取行情异常: %s", self.broker_name, e)
             return {"symbol": symbol, "data": [], "error": str(e)}
@@ -353,9 +432,7 @@ class _BaseLiveAdapter(BrokerAdapter):
         amount = float(order.quantity) * order_price
         if self._daily_trade_amount + amount > self.daily_trade_limit:
             order.status = OrderStatus.REJECTED
-            order.rejection_reason = (
-                f"超出单日交易限额 {self.daily_trade_limit} (已交易 {self._daily_trade_amount:.2f}, 本次 {amount:.2f})"
-            )
+            order.rejection_reason = f"超出单日交易限额 {self.daily_trade_limit} (已交易 {self._daily_trade_amount:.2f}, 本次 {amount:.2f})"
             self._audit(
                 "risk_reject_limit",
                 {
@@ -424,7 +501,10 @@ class _BaseLiveAdapter(BrokerAdapter):
             "live_mode": self.is_live,
             **data,
         }
-        audit_file = self._audit_log_dir / f"{self.broker_name}_{datetime.now(UTC).strftime('%Y-%m-%d')}.jsonl"
+        audit_file = (
+            self._audit_log_dir
+            / f"{self.broker_name}_{datetime.now(UTC).strftime('%Y-%m-%d')}.jsonl"
+        )
         try:
             with open(audit_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
@@ -464,11 +544,10 @@ class ThsBrokerAdapter(_BaseLiveAdapter):
         """连接同花顺 API."""
         if self.mode == "ifind":
             return self._connect_ifind()
-        elif self.mode == "gui":
+        if self.mode == "gui":
             return self._connect_gui()
-        else:
-            logger.error("[%s] 不支持的接入模式: %s", self.broker_name, self.mode)
-            return False
+        logger.error("[%s] 不支持的接入模式: %s", self.broker_name, self.mode)
+        return False
 
     def _connect_ifind(self) -> bool:
         """通过 iFinD SDK 连接 (延迟导入)."""
@@ -487,14 +566,24 @@ class ThsBrokerAdapter(_BaseLiveAdapter):
             # if ret.errorcode != 0:
             #     logger.error("iFinD 登录失败: %s", ret.errormsg)
             #     return False
-            logger.info("[%s] iFinD 登录成功 (account=%s)", self.broker_name, self.account)
+            logger.info(
+                "[%s] iFinD 登录成功 (account=%s)", self.broker_name, self.account
+            )
             self._api_client = {"account": self.account, "mode": "ifind"}
             return True
         except ImportError as e:
             logger.error("[%s] iFinDPy 未安装: %s", self.broker_name, e)
             return False
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             logger.exception("[%s] iFinD 连接异常: %s", self.broker_name, e)
             return False
@@ -517,8 +606,16 @@ class ThsBrokerAdapter(_BaseLiveAdapter):
             )
             self._gui_client = {"client_path": self.client_path, "mode": "gui"}
             return True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             logger.exception("[%s] GUI 连接异常: %s", self.broker_name, e)
             return False
@@ -549,7 +646,7 @@ class ThsBrokerAdapter(_BaseLiveAdapter):
             )
             order.status = OrderStatus.SUBMITTED
             return True
-        elif self.mode == "gui" and self._gui_client:
+        if self.mode == "gui" and self._gui_client:
             # TODO: 实际接入时通过 GUI 自动化下单
             logger.info(
                 "[%s] GUI 下单 (TODO: 实际接入): %s %s %d@%s",
@@ -571,7 +668,7 @@ class ThsBrokerAdapter(_BaseLiveAdapter):
             # TODO: 调用 iFinD 撤单接口
             logger.info("[%s] iFinD 撤单 (TODO): %s", self.broker_name, order_id)
             return True
-        elif self.mode == "gui" and self._gui_client:
+        if self.mode == "gui" and self._gui_client:
             logger.info("[%s] GUI 撤单 (TODO): %s", self.broker_name, order_id)
             return True
         return False
@@ -655,8 +752,16 @@ class XueqiuBrokerAdapter(_BaseLiveAdapter):
                 "portfolio_code": self.portfolio_code,
             }
             return True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             logger.exception("[%s] 雪球连接异常: %s", self.broker_name, e)
             return False
@@ -686,7 +791,7 @@ class XueqiuBrokerAdapter(_BaseLiveAdapter):
             )
             order.status = OrderStatus.SUBMITTED
             return True
-        elif self.mode == "broker":
+        if self.mode == "broker":
             # 真实券商下单 (需通过雪球合作的券商)
             if not self.broker:
                 order.status = OrderStatus.REJECTED
@@ -761,13 +866,20 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
     """
 
     # CTP 开平标志映射
-    _OFFSET_MAP = {"open": "0", "close": "3", "close_today": "1", "close_yesterday": "4"}
+    _OFFSET_MAP = {
+        "open": "0",
+        "close": "3",
+        "close_today": "1",
+        "close_yesterday": "4",
+    }
 
     def __init__(self, config: dict[str, Any]) -> None:
         super().__init__("ctp", config)
         self.broker_id = str(config.get("broker_id", ""))
         self.user_id = str(config.get("user_id", ""))
-        self.password = str(config.get("password", os.environ.get("CTP_TRADE_PASSWORD", "")))
+        self.password = str(
+            config.get("password", os.environ.get("CTP_TRADE_PASSWORD", ""))
+        )
         self.app_id = str(config.get("app_id", ""))
         self.auth_code = str(config.get("auth_code", ""))
         self.td_address = str(config.get("td_address", ""))
@@ -820,8 +932,16 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
                 self.td_address,
             )
             return True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             logger.exception("[%s] CTP 连接异常: %s", self.broker_name, e)
             self._td_api = None
@@ -831,8 +951,16 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
         if self._td_api is not None:
             try:
                 self._td_api.Release()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                    OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001
                 # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
                 logger.warning("[%s] CTP Release 异常: %s", self.broker_name, e)
             finally:
@@ -886,8 +1014,16 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
             order.status = OrderStatus.REJECTED
             order.rejection_reason = "openctp-ctp 未安装"
             return False
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # broker API 边界, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # broker API 边界, fail-safe
             # Broker API 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             order.status = OrderStatus.ERROR
             order.rejection_reason = f"CTP 下单异常: {e}"
@@ -913,8 +1049,16 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
             return rc == 0
         except ImportError:
             return False
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001
             # CTP API 调用异常: 数据/类型/字段/属性/运行时/IO/超时/网络异常
             logger.exception("[%s] CTP 撤单异常: %s", self.broker_name, e)
             return False
@@ -956,7 +1100,9 @@ _ADAPTER_REGISTRY: dict[str, type] = {
 }
 
 
-def create_broker_adapter(broker_type: str, config: dict[str, Any] | None = None) -> Any:
+def create_broker_adapter(
+    broker_type: str, config: dict[str, Any] | None = None
+) -> Any:
     """创建 broker adapter (工厂函数).
 
     Args:
@@ -974,7 +1120,9 @@ def create_broker_adapter(broker_type: str, config: dict[str, Any] | None = None
     broker_type = broker_type.lower()
     adapter_class = _ADAPTER_REGISTRY.get(broker_type)
     if adapter_class is None:
-        raise ValueError(f"不支持的 broker 类型: {broker_type}, 已注册: {list(_ADAPTER_REGISTRY.keys())}")
+        raise ValueError(
+            f"不支持的 broker 类型: {broker_type}, 已注册: {list(_ADAPTER_REGISTRY.keys())}"
+        )
     return adapter_class(config)
 
 
@@ -993,7 +1141,9 @@ def register_broker_adapter(broker_type: str, adapter_class: type) -> None:
     Raises:
         TypeError: adapter_class 不是 _BaseLiveAdapter 子类
     """
-    if not (isinstance(adapter_class, type) and issubclass(adapter_class, _BaseLiveAdapter)):
+    if not (
+        isinstance(adapter_class, type) and issubclass(adapter_class, _BaseLiveAdapter)
+    ):
         raise TypeError(f"adapter_class 必须继承 _BaseLiveAdapter, got {adapter_class}")
     _ADAPTER_REGISTRY[broker_type.lower()] = adapter_class
     logger.info("已注册 broker adapter: %s -> %s", broker_type, adapter_class.__name__)

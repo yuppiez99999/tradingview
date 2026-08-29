@@ -43,15 +43,22 @@ class OnlineStore:
     def _init_redis(self) -> None:
         try:
             import redis
+
             self._redis = redis.Redis.from_url(
                 self._config.online_redis_url,
                 decode_responses=True,
                 socket_timeout=self._config.query_timeout_seconds,
             )
             self._redis.ping()
-            logger.info("[FeatureStore] OnlineStore redis connected: %s", self._config.online_redis_url)
+            logger.info(
+                "[FeatureStore] OnlineStore redis connected: %s",
+                self._config.online_redis_url,
+            )
         except Exception as e:
-            logger.warning("[FeatureStore] OnlineStore redis init failed (%s), falling back to memory", e)
+            logger.warning(
+                "[FeatureStore] OnlineStore redis init failed (%s), falling back to memory",
+                e,
+            )
             self._redis = None
 
     def _make_key(self, feature_name: str, date_key: str) -> str:
@@ -63,13 +70,19 @@ class OnlineStore:
             return False
         if self._config.reject_nan:
             if not self._validate_no_nan(value):
-                logger.warning("[FeatureStore] OnlineStore put rejected (NaN/inf): %s/%s", feature_name, date_key)
+                logger.warning(
+                    "[FeatureStore] OnlineStore put rejected (NaN/inf): %s/%s",
+                    feature_name,
+                    date_key,
+                )
                 return False
         if self._redis is not None:
             return self._put_redis(feature_name, date_key, value)
         return self._put_memory(feature_name, date_key, value)
 
-    def _put_memory(self, feature_name: str, date_key: str, value: dict[str, Any]) -> bool:
+    def _put_memory(
+        self, feature_name: str, date_key: str, value: dict[str, Any]
+    ) -> bool:
         expiry = time.monotonic() + self._ttl_seconds
         with self._lock:
             if feature_name not in self._memory:
@@ -77,14 +90,22 @@ class OnlineStore:
             self._memory[feature_name][date_key] = (value, expiry)
         return True
 
-    def _put_redis(self, feature_name: str, date_key: str, value: dict[str, Any]) -> bool:
+    def _put_redis(
+        self, feature_name: str, date_key: str, value: dict[str, Any]
+    ) -> bool:
         import json
+
         try:
             key = self._make_key(feature_name, date_key)
-            self._redis.setex(key, int(self._ttl_seconds), json.dumps(value, default=str))
+            self._redis.setex(
+                key, int(self._ttl_seconds), json.dumps(value, default=str)
+            )
             return True
         except Exception as e:
-            logger.warning("[FeatureStore] OnlineStore redis put failed (%s), falling back to memory", e)
+            logger.warning(
+                "[FeatureStore] OnlineStore redis put failed (%s), falling back to memory",
+                e,
+            )
             return self._put_memory(feature_name, date_key, value)
 
     def get(self, feature_name: str, date_key: str) -> dict[str, Any] | None:
@@ -115,6 +136,7 @@ class OnlineStore:
 
     def _get_redis(self, feature_name: str, date_key: str) -> dict[str, Any] | None:
         import json
+
         try:
             key = self._make_key(feature_name, date_key)
             raw = self._redis.get(key)
@@ -122,7 +144,10 @@ class OnlineStore:
                 return None
             return json.loads(raw)
         except Exception as e:
-            logger.warning("[FeatureStore] OnlineStore redis get failed (%s), falling back to memory", e)
+            logger.warning(
+                "[FeatureStore] OnlineStore redis get failed (%s), falling back to memory",
+                e,
+            )
             return None
 
     def delete(self, feature_name: str, date_key: str) -> bool:
@@ -187,6 +212,7 @@ class OnlineStore:
     @staticmethod
     def _validate_no_nan(value: dict[str, Any]) -> bool:
         import math
+
         for v in value.values():
             if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
                 return False

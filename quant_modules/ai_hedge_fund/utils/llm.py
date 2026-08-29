@@ -44,7 +44,7 @@ def call_llm(
     api_keys = None
     if state:
         request = state.get("metadata", {}).get("request")
-        if request and hasattr(request, 'api_keys'):
+        if request and hasattr(request, "api_keys"):
             api_keys = request.api_keys
 
     model_info = get_model_info(model_name, model_provider)
@@ -71,9 +71,19 @@ def call_llm(
             else:
                 return result
 
-        except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError):
+        except (
+            RuntimeError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            TimeoutError,
+        ):
             if agent_name:
-                progress.update_status(agent_name, None, f"Error - retry {attempt + 1}/{max_retries}")
+                progress.update_status(
+                    agent_name, None, f"Error - retry {attempt + 1}/{max_retries}"
+                )
 
             if attempt == max_retries - 1:
                 # Use default_factory if provided, otherwise create a basic default
@@ -95,7 +105,10 @@ def create_default_response(model_class: type[BaseModel]) -> BaseModel:
             default_values[field_name] = 0.0
         elif field.annotation is int:
             default_values[field_name] = 0
-        elif hasattr(field.annotation, "__origin__") and field.annotation.__origin__ is dict:
+        elif (
+            hasattr(field.annotation, "__origin__")
+            and field.annotation.__origin__ is dict
+        ):
             default_values[field_name] = {}
         else:
             # For other types (like Literal), try to use the first allowed value
@@ -113,7 +126,7 @@ def extract_json_from_response(content: str) -> dict | None:
         # 1. Try markdown code block with ```json
         json_start = content.find("```json")
         if json_start != -1:
-            json_text = content[json_start + 7:]  # Skip past ```json
+            json_text = content[json_start + 7 :]  # Skip past ```json
             json_end = json_text.find("```")
             if json_end != -1:
                 json_text = json_text[:json_end].strip()
@@ -125,7 +138,7 @@ def extract_json_from_response(content: str) -> dict | None:
         # 2. Try markdown code block without json specifier
         json_start = content.find("```")
         if json_start != -1:
-            json_text = content[json_start + 3:]
+            json_text = content[json_start + 3 :]
             json_end = json_text.find("```")
             if json_end != -1:
                 json_text = json_text[:json_end].strip()
@@ -151,7 +164,7 @@ def extract_json_from_response(content: str) -> dict | None:
                     depth -= 1
                     if depth == 0:
                         try:
-                            return json.loads(content[brace_start:i + 1])
+                            return json.loads(content[brace_start : i + 1])
                         except json.JSONDecodeError:
                             break
 
@@ -168,19 +181,23 @@ def get_agent_model_config(state, agent_name):
     """
     request = state.get("metadata", {}).get("request")
 
-    if request and hasattr(request, 'get_agent_model_config'):
+    if request and hasattr(request, "get_agent_model_config"):
         # Get agent-specific model configuration
         model_name, model_provider = request.get_agent_model_config(agent_name)
         # Ensure we have valid values
         if model_name and model_provider:
-            return model_name, model_provider.value if hasattr(model_provider, 'value') else str(model_provider)
+            return model_name, (
+                model_provider.value
+                if hasattr(model_provider, "value")
+                else str(model_provider)
+            )
 
     # Fall back to global configuration (system defaults)
     model_name = state.get("metadata", {}).get("model_name") or "gpt-4.1"
     model_provider = state.get("metadata", {}).get("model_provider") or "OPENAI"
 
     # Convert enum to string if necessary
-    if hasattr(model_provider, 'value'):
+    if hasattr(model_provider, "value"):
         model_provider = model_provider.value
 
     return model_name, model_provider

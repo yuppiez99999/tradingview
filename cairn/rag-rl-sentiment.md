@@ -88,3 +88,14 @@ PPO 更新后权重: [0.340, 0.330, 0.330] (规则路权重增大)
 
 - LIT-5.5 排序损失评估 (依赖 LIT-5.1)
 - LIT-5.6 全量集成验收 (依赖全部)
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 24%)
+- [FinMultiTime 多模态基准数据 — LIT-5.3](finmultitime-benchmark.md) (相似度 23%)
+- [分数阶差分 (Fractional Differencing) — LIT-5.2](fractional-differencing.md) (相似度 19%)
+- [排序损失函数系统评估 — LIT-5.5](ranking-loss-eval.md) (相似度 19%)
+- [FinRL-X 权重中心接口架构](finrl-x-interface.md) (相似度 11%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

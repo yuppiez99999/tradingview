@@ -5,6 +5,7 @@
     - 支持查看历史计划
     - 订单明细表
 """
+
 from __future__ import annotations
 
 import sys
@@ -47,7 +48,9 @@ def main() -> None:
     # 加载计划
     plan = load_theta_plan(selected_date)
     if not plan:
-        render_empty_state(f"{selected_date.strftime('%Y-%m-%d')} 无交易计划", icon="📋")
+        render_empty_state(
+            f"{selected_date.strftime('%Y-%m-%d')} 无交易计划", icon="📋"
+        )
         return
 
     # 计划元信息
@@ -57,7 +60,10 @@ def main() -> None:
     with col1:
         st.metric("生成时间", meta.get("generated_at", "-"))
     with col2:
-        st.metric("订单数", len(plan.get("orders", [])) if isinstance(plan.get("orders"), list) else 0)
+        st.metric(
+            "订单数",
+            len(plan.get("orders", [])) if isinstance(plan.get("orders"), list) else 0,
+        )
     with col3:
         st.metric("预估总成本", f"¥{meta.get('estimated_total_cost', 0):.2f}")
     with col4:

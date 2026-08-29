@@ -43,7 +43,9 @@ SCORE_REPORTS_DIR = EVOLUTION_DIR / "score_reports"
 SCORE_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 DRIFT_ALERTS_FILE = EVOLUTION_DIR / "drift_alerts.jsonl"
 SCORE_TREND_FILE = EVOLUTION_DIR / "score_trend.json"
-DAILY_BRIEFING_FILE = EVOLUTION_DIR / f"daily_briefing_{datetime.now().strftime('%Y%m%d')}.md"
+DAILY_BRIEFING_FILE = (
+    EVOLUTION_DIR / f"daily_briefing_{datetime.now().strftime('%Y%m%d')}.md"
+)
 
 
 def load_shadow_returns() -> tuple[list[float], list[str]]:
@@ -65,7 +67,16 @@ def load_shadow_returns() -> tuple[list[float], list[str]]:
                 if "daily_return" in record:
                     returns.append(float(record["daily_return"]))
                     dates.append(record.get("date", ""))
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("读取 Shadow 数据失败: %s", e)
 
@@ -120,7 +131,9 @@ def run_drift_monitor_check() -> dict[str, Any]:
         # 暂无完整特征 panel, 用预测漂移替代
         daily_returns, dates = load_shadow_returns()
         if len(daily_returns) < 5:
-            result["reason"] = f"insufficient_data ({len(daily_returns)} samples, need >=5)"
+            result["reason"] = (
+                f"insufficient_data ({len(daily_returns)} samples, need >=5)"
+            )
             logger.warning("DriftMonitor: 数据不足 (n=%d)", len(daily_returns))
             return result
 
@@ -149,7 +162,16 @@ def run_drift_monitor_check() -> dict[str, Any]:
             with open(DRIFT_ALERTS_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(alert_entry, ensure_ascii=False, default=str) + "\n")
             logger.info("DriftMonitor: 告警已持久化 -> %s", DRIFT_ALERTS_FILE)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("告警持久化失败: %s", e)
 
@@ -162,7 +184,16 @@ def run_drift_monitor_check() -> dict[str, Any]:
             drift_report.psi,
         )
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("DriftMonitor 检查异常: %s", e)
@@ -200,6 +231,7 @@ def run_strategy_evaluation() -> dict[str, Any]:
     try:
         # Feature Flag OVERRIDE: 强制评估 (即使 Flag 为 False)
         import os
+
         os.environ["USE_STRATEGY_EVALUATOR"] = "true"
 
         evaluator = StrategyEvaluator()
@@ -217,7 +249,9 @@ def run_strategy_evaluation() -> dict[str, Any]:
                     record = json.loads(line)
                     if "daily_return" in record:
                         daily_returns_list.append(float(record["daily_return"]))
-        score_report, separation = evaluator.evaluate_with_separation_check(daily_returns_list)
+        score_report, separation = evaluator.evaluate_with_separation_check(
+            daily_returns_list
+        )
 
         report_dict = score_report.to_dict()
         report_dict["separation_check"] = separation
@@ -250,8 +284,19 @@ def run_strategy_evaluation() -> dict[str, Any]:
         decisions_file = EVOLUTION_DIR / "decisions.jsonl"
         try:
             with open(decisions_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(decision_entry, ensure_ascii=False, default=str) + "\n")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                f.write(
+                    json.dumps(decision_entry, ensure_ascii=False, default=str) + "\n"
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("决策日志写入失败: %s", e)
 
@@ -259,7 +304,16 @@ def run_strategy_evaluation() -> dict[str, Any]:
         result["report"] = report_dict
         logger.info("StrategyEvaluator: 报告已持久化 -> %s", report_file)
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("StrategyEvaluator 评估异常: %s", e)
@@ -290,7 +344,16 @@ def update_observation_progress() -> dict[str, Any]:
         )
         logger.info("就绪状态: %s", "YES" if obs["ready_for_phase_b"] else "NO")
         return snapshot
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("观察期进度更新失败: %s", e)
         return {"error": str(e)}
@@ -348,7 +411,16 @@ def generate_score_trend() -> dict[str, Any]:
         result["trend"] = trend
         result["separation_strength"] = separation
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("评分趋势生成失败: %s", e)
@@ -377,24 +449,32 @@ def generate_daily_briefing(drift: dict, eval_result: dict, obs: dict) -> str:
         lines.append(f"- **Severity**: `{alert.get('severity', 'N/A')}`")
         lines.append(f"- **KS Score**: {alert.get('drift_score', 0):.4f}")
         lines.append(f"- **PSI**: {alert.get('psi', 0):.4f}")
-        lines.append(f"- **基线均值**: {alert.get('baseline_mean', 0):.4f} (n={alert.get('n_baseline', 0)})")
-        lines.append(f"- **当前均值**: {alert.get('current_mean', 0):.4f} (n={alert.get('n_current', 0)})")
+        lines.append(
+            f"- **基线均值**: {alert.get('baseline_mean', 0):.4f} (n={alert.get('n_baseline', 0)})"
+        )
+        lines.append(
+            f"- **当前均值**: {alert.get('current_mean', 0):.4f} (n={alert.get('n_current', 0)})"
+        )
     else:
         lines.append(f"- 状态: `{drift.get('status', 'unknown')}`")
         if drift.get("reason"):
             lines.append(f"- 原因: {drift['reason']}")
 
-    lines.extend([
-        "",
-        "## 2. 策略评估 (T-NEXT-1.2)",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 2. 策略评估 (T-NEXT-1.2)",
+            "",
+        ]
+    )
 
     if eval_result.get("report"):
         r = eval_result["report"]
         lines.append(f"- **Public Score**: {r.get('public_score', 0):.4f}")
         lines.append(f"- **Private Score**: {r.get('private_score', 0):.4f}")
-        lines.append(f"- **Reward Hacking Risk**: {r.get('reward_hacking_risk', 0):.4f}")
+        lines.append(
+            f"- **Reward Hacking Risk**: {r.get('reward_hacking_risk', 0):.4f}"
+        )
         lines.append(f"- **Recommendation**: `{r.get('recommendation', 'N/A')}`")
         lines.append(f"- **Samples**: {r.get('sample_count', 0)}")
         if r.get("is_degraded"):
@@ -406,22 +486,26 @@ def generate_daily_briefing(drift: dict, eval_result: dict, obs: dict) -> str:
 
     if obs and "observation" in obs:
         o = obs["observation"]
-        lines.extend([
-            "",
-            "## 3. 观察期进度 (T-NEXT-1.3)",
-            "",
-            f"- **进度**: {o.get('days_completed', 0)}/{o.get('required_days', 14)} 天 ({o.get('progress_pct', 0):.1f}%)",
-            f"- **样本**: {o.get('samples_collected', 0)}/{o.get('min_samples', 20)} 条",
-            f"- **预计完成**: {o.get('estimated_completion', 'N/A')}",
-            f"- **就绪**: {'YES' if o.get('ready_for_phase_b') else 'NO'}",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 3. 观察期进度 (T-NEXT-1.3)",
+                "",
+                f"- **进度**: {o.get('days_completed', 0)}/{o.get('required_days', 14)} 天 ({o.get('progress_pct', 0):.1f}%)",
+                f"- **样本**: {o.get('samples_collected', 0)}/{o.get('min_samples', 20)} 条",
+                f"- **预计完成**: {o.get('estimated_completion', 'N/A')}",
+                f"- **就绪**: {'YES' if o.get('ready_for_phase_b') else 'NO'}",
+            ]
+        )
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "*自动生成, 观察期内所有评估均为只读, 不触发进化动作.*",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "*自动生成, 观察期内所有评估均为只读, 不触发进化动作.*",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -431,10 +515,16 @@ def main() -> int:
 
     parser = argparse.ArgumentParser(description="每日演化检查器 (观察期)")
     parser.add_argument("--json", action="store_true", help="JSON 输出")
-    parser.add_argument("--skip-drift", action="store_true", help="跳过 DriftMonitor 检查")
-    parser.add_argument("--skip-eval", action="store_true", help="跳过 StrategyEvaluator 评估")
+    parser.add_argument(
+        "--skip-drift", action="store_true", help="跳过 DriftMonitor 检查"
+    )
+    parser.add_argument(
+        "--skip-eval", action="store_true", help="跳过 StrategyEvaluator 评估"
+    )
     parser.add_argument("--skip-obs", action="store_true", help="跳过观察期进度更新")
-    parser.add_argument("--skip-trend", action="store_true", help="跳过评分趋势数据生成")
+    parser.add_argument(
+        "--skip-trend", action="store_true", help="跳过评分趋势数据生成"
+    )
     args = parser.parse_args()
 
     results: dict[str, Any] = {
@@ -481,7 +571,16 @@ def main() -> int:
             with open(latest_link, "w", encoding="utf-8") as f:
                 f.write(briefing)
         logger.info("每日简报已保存: %s", DAILY_BRIEFING_FILE)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("简报生成失败: %s", e)
 

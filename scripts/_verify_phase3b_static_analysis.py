@@ -34,6 +34,7 @@ _verify_phase3b_static_analysis.py — Phase 3-B 严格静态分析断言校验�
 用法:
     python scripts/_verify_phase3b_static_analysis.py [--report-dir reports/ci]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -58,19 +59,26 @@ PYTHON = os.environ.get("PYTHON_EXECUTABLE") or (
 
 
 class Assertion(NamedTuple):
-    cid: str           # 断言 ID, 如 A001
-    cluster: str       # 簇名 A/B/C
-    desc: str          # 描述
-    level: str         # FAIL / WARN
+    cid: str  # 断言 ID, 如 A001
+    cluster: str  # 簇名 A/B/C
+    desc: str  # 描述
+    level: str  # FAIL / WARN
     passed: bool
-    detail: str        # 失败详情或观测值
+    detail: str  # 失败详情或观测值
 
 
 def discover_py_files(root: Path) -> list[Path]:
     excluded = {
-        ".git", ".venv", "node_modules", "__pycache__", "mlruns",
-        "external", "_archive", "ifind-finance-data-1.3.0",
-        "research", "qlib",  # 研究/外部代码不纳入 Phase 3-B 生产严格模式
+        ".git",
+        ".venv",
+        "node_modules",
+        "__pycache__",
+        "mlruns",
+        "external",
+        "_archive",
+        "ifind-finance-data-1.3.0",
+        "research",
+        "qlib",  # 研究/外部代码不纳入 Phase 3-B 生产严格模式
         ".tmp_pip",  # pytest 临时文件
     }
     out: list[Path] = []
@@ -87,8 +95,14 @@ def run_subprocess(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
     env.setdefault("PYTHONUTF8", "1")
     try:
         return subprocess.run(
-            args, cwd=str(cwd), capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=600, env=env,
+            args,
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=600,
+            env=env,
         )
     except subprocess.TimeoutExpired as exc:  # pragma: no cover
         raise RuntimeError(f"subprocess timeout: {args[:2]}") from exc
@@ -99,10 +113,16 @@ def cluster_a_compile(py_files: list[Path]) -> list[Assertion]:
     results: list[Assertion] = []
     n = len(py_files)
     # A000: 文件发现非空
-    results.append(Assertion(
-        "A000", "A", f"discover .py files (found={n})", "FAIL",
-        n > 0, f"found {n} python files",
-    ))
+    results.append(
+        Assertion(
+            "A000",
+            "A",
+            f"discover .py files (found={n})",
+            "FAIL",
+            n > 0,
+            f"found {n} python files",
+        )
+    )
     failed: list[str] = []
     for i, f in enumerate(py_files):
         ok = True
@@ -116,19 +136,32 @@ def cluster_a_compile(py_files: list[Path]) -> list[Assertion]:
         # 每 100 个文件归一条断言, 避免断言数爆炸但保留粒度
         if (i + 1) % 100 == 0 or i == n - 1:
             chunk_start = (i // 100) * 100
-            chunk_files = py_files[chunk_start:i + 1]
-            results.append(Assertion(
-                f"A{1 + i // 100:03d}", "A",
-                f"py_compile chunk [{chunk_start}-{i}] ({len(chunk_files)} files)",
-                "FAIL", ok and not failed,
-                "OK" if not failed else "; ".join(failed[:5]),
-            ))
+            chunk_files = py_files[chunk_start : i + 1]
+            results.append(
+                Assertion(
+                    f"A{1 + i // 100:03d}",
+                    "A",
+                    f"py_compile chunk [{chunk_start}-{i}] ({len(chunk_files)} files)",
+                    "FAIL",
+                    ok and not failed,
+                    "OK" if not failed else "; ".join(failed[:5]),
+                )
+            )
     # A-final: 整体 0 语法错误
-    results.append(Assertion(
-        "A999", "A", f"zero syntax errors across {n} files", "FAIL",
-        len(failed) == 0,
-        "OK" if not failed else f"{len(failed)} files failed: " + "; ".join(failed[:5]),
-    ))
+    results.append(
+        Assertion(
+            "A999",
+            "A",
+            f"zero syntax errors across {n} files",
+            "FAIL",
+            len(failed) == 0,
+            (
+                "OK"
+                if not failed
+                else f"{len(failed)} files failed: " + "; ".join(failed[:5])
+            ),
+        )
+    )
     return results
 
 
@@ -152,12 +185,23 @@ def cluster_b_ruff(py_files: list[Path]) -> list[Assertion]:
     baseline = load_ruff_baseline()
     has_baseline = isinstance(baseline, dict) and "per_file_blocking" in baseline
     per_file = baseline.get("per_file_blocking", {}) if has_baseline else {}
-    baseline_blocking_total = int(baseline.get("total_blocking", 0)) if has_baseline else 0
+    baseline_blocking_total = (
+        int(baseline.get("total_blocking", 0)) if has_baseline else 0
+    )
 
     # 当前 ruff --select F (阻断式错误: F821/F822/F823/F831/F401 等未使用/未定义)
     cur = run_subprocess(
-        [str(PYTHON), "-m", "ruff", "check", "--select", "F",
-         "--output-format", "concise", "."],
+        [
+            str(PYTHON),
+            "-m",
+            "ruff",
+            "check",
+            "--select",
+            "F",
+            "--output-format",
+            "concise",
+            ".",
+        ],
         cwd=ROOT,
     )
     cur_errors: list[str] = [ln for ln in cur.stdout.splitlines() if ln.strip()]
@@ -175,49 +219,77 @@ def cluster_b_ruff(py_files: list[Path]) -> list[Assertion]:
             "total_blocking": len(cur_errors),
             "per_file_blocking": dict(cur_by_file),
         }
-        RUFF_BASELINE.write_text(json.dumps(frozen, ensure_ascii=False, indent=2),
-                                 encoding="utf-8")
+        RUFF_BASELINE.write_text(
+            json.dumps(frozen, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         per_file = dict(cur_by_file)
         baseline_blocking_total = len(cur_errors)
-        results.append(Assertion(
-            "B000", "B", "ruff baseline auto-frozen", "WARN",
-            True, f"frozen {len(cur_errors)} errors -> {RUFF_BASELINE}",
-        ))
+        results.append(
+            Assertion(
+                "B000",
+                "B",
+                "ruff baseline auto-frozen",
+                "WARN",
+                True,
+                f"frozen {len(cur_errors)} errors -> {RUFF_BASELINE}",
+            )
+        )
     else:
-        results.append(Assertion(
-            "B000", "B", "ruff baseline file present", "WARN",
-            has_baseline, "baseline loaded" if has_baseline else "no errors, empty baseline",
-        ))
+        results.append(
+            Assertion(
+                "B000",
+                "B",
+                "ruff baseline file present",
+                "WARN",
+                has_baseline,
+                "baseline loaded" if has_baseline else "no errors, empty baseline",
+            )
+        )
 
     # B-final: 总阻断错误数不高于基线
     level = "FAIL" if has_baseline else "WARN"
-    results.append(Assertion(
-        "B900", "B",
-        f"total F-errors ({len(cur_errors)}) <= baseline ({baseline_blocking_total})",
-        level, len(cur_errors) <= baseline_blocking_total,
-        f"current={len(cur_errors)} baseline={baseline_blocking_total}",
-    ))
+    results.append(
+        Assertion(
+            "B900",
+            "B",
+            f"total F-errors ({len(cur_errors)}) <= baseline ({baseline_blocking_total})",
+            level,
+            len(cur_errors) <= baseline_blocking_total,
+            f"current={len(cur_errors)} baseline={baseline_blocking_total}",
+        )
+    )
 
     # B-perfile: 每个基线文件当前错误数不高于基线 (不退化)
     for fname, base_cnt in per_file.items():
         base_cnt = int(base_cnt)
         key = _norm(fname)
         cur_cnt = cur_by_file.get(key, 0)
-        results.append(Assertion(
-            f"B-{key}", "B",
-            f"ruff F-errors {key} ({cur_cnt}) <= baseline ({base_cnt})",
-            level, cur_cnt <= base_cnt,
-            f"current={cur_cnt} baseline={base_cnt}",
-        ))
+        results.append(
+            Assertion(
+                f"B-{key}",
+                "B",
+                f"ruff F-errors {key} ({cur_cnt}) <= baseline ({base_cnt})",
+                level,
+                cur_cnt <= base_cnt,
+                f"current={cur_cnt} baseline={base_cnt}",
+            )
+        )
     # B-newfiles: 不在基线的文件不应出现 F 错误 (新文件必须零阻断错误)
-    new_file_errors = {k: v for k, v in cur_by_file.items() if k not in
-                       {_norm(x) for x in per_file.keys()}}
-    results.append(Assertion(
-        "B950", "B",
-        f"new files with F-errors = {len(new_file_errors)} (must be 0)",
-        level, len(new_file_errors) == 0,
-        "OK" if not new_file_errors else "; ".join(list(new_file_errors)[:5]),
-    ))
+    new_file_errors = {
+        k: v
+        for k, v in cur_by_file.items()
+        if k not in {_norm(x) for x in per_file.keys()}
+    }
+    results.append(
+        Assertion(
+            "B950",
+            "B",
+            f"new files with F-errors = {len(new_file_errors)} (must be 0)",
+            level,
+            len(new_file_errors) == 0,
+            "OK" if not new_file_errors else "; ".join(list(new_file_errors)[:5]),
+        )
+    )
     return results
 
 
@@ -243,9 +315,23 @@ def cluster_c_mypy() -> list[Assertion]:
             baseline_err = 0
 
     cur = run_subprocess(
-        [str(PYTHON), "-m", "mypy", "--config-file", "mypy.ini", "--no-error-summary",
-         "scripts", "utils", "ai_decision", "cli", "core", "quant_modules",
-         "lgb_trainer", "v8.3_institutional", "15_每日工作流"],
+        [
+            str(PYTHON),
+            "-m",
+            "mypy",
+            "--config-file",
+            "mypy.ini",
+            "--no-error-summary",
+            "scripts",
+            "utils",
+            "ai_decision",
+            "cli",
+            "core",
+            "quant_modules",
+            "lgb_trainer",
+            "v8.3_institutional",
+            "15_每日工作流",
+        ],
         cwd=ROOT,
     )
     cur_err = count_mypy_errors(cur.stdout + cur.stderr)
@@ -253,27 +339,41 @@ def cluster_c_mypy() -> list[Assertion]:
     if not has_baseline and cur_err:
         # 自动以当前误差为基线, 不阻断, 下次检测退化
         header = f"# Auto-frozen mypy baseline at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        MYPY_BASELINE.write_text(
-            header + cur.stdout + cur.stderr, encoding="utf-8")
+        MYPY_BASELINE.write_text(header + cur.stdout + cur.stderr, encoding="utf-8")
         baseline_err = cur_err
         has_baseline = True
-        results.append(Assertion(
-            "C000", "C", "mypy baseline auto-frozen", "WARN", True,
-            f"frozen {cur_err} errors -> {MYPY_BASELINE}",
-        ))
+        results.append(
+            Assertion(
+                "C000",
+                "C",
+                "mypy baseline auto-frozen",
+                "WARN",
+                True,
+                f"frozen {cur_err} errors -> {MYPY_BASELINE}",
+            )
+        )
     else:
-        results.append(Assertion(
-            "C000", "C", "mypy baseline present", "WARN",
-            has_baseline,
-            f"baseline errors={baseline_err}" if has_baseline else "no baseline",
-        ))
+        results.append(
+            Assertion(
+                "C000",
+                "C",
+                "mypy baseline present",
+                "WARN",
+                has_baseline,
+                f"baseline errors={baseline_err}" if has_baseline else "no baseline",
+            )
+        )
 
-    results.append(Assertion(
-        "C900", "C",
-        f"mypy errors ({cur_err}) <= baseline ({baseline_err})",
-        "WARN", cur_err <= baseline_err,
-        f"current={cur_err} baseline={baseline_err}",
-    ))
+    results.append(
+        Assertion(
+            "C900",
+            "C",
+            f"mypy errors ({cur_err}) <= baseline ({baseline_err})",
+            "WARN",
+            cur_err <= baseline_err,
+            f"current={cur_err} baseline={baseline_err}",
+        )
+    )
     return results
 
 
@@ -323,10 +423,14 @@ def main(argv: Optional[list[str]] = None) -> int:
         json.dump(report, fh, ensure_ascii=False, indent=2)
 
     # 控制台摘要 (避免 GBK emoji, 用文本标记)
-    print(f"[STATIC-ANALYSIS] total={n_total} fail={n_fail} warn={n_warn} "
-          f"audit_ge_72={audit_ok}")
-    print(f"[STATIC-ANALYSIS] clusters A={report['clusters']['A_compile']} "
-          f"B={report['clusters']['B_ruff']} C={report['clusters']['C_mypy']}")
+    print(
+        f"[STATIC-ANALYSIS] total={n_total} fail={n_fail} warn={n_warn} "
+        f"audit_ge_72={audit_ok}"
+    )
+    print(
+        f"[STATIC-ANALYSIS] clusters A={report['clusters']['A_compile']} "
+        f"B={report['clusters']['B_ruff']} C={report['clusters']['C_mypy']}"
+    )
     print(f"[STATIC-ANALYSIS] report -> {out_path}")
     if not audit_ok:
         print("[STATIC-ANALYSIS][FAIL] assertion count < 72, Phase 3-B contract broken")

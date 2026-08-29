@@ -14,6 +14,7 @@
 
 兼容 Python 3.8 (仅用标准库)。
 """
+
 import argparse
 import json
 import sys
@@ -63,9 +64,17 @@ def _zone_rows(data: dict):
         files = z.get("files", 0)
         pr = z.get("print", 0)
         density = (pr / files) if files else 0.0
-        rows.append((name, files, pr, density,
-                     z.get("exception", 0), z.get("error", 0),
-                     z.get("silent_except", 0)))
+        rows.append(
+            (
+                name,
+                files,
+                pr,
+                density,
+                z.get("exception", 0),
+                z.get("error", 0),
+                z.get("silent_except", 0),
+            )
+        )
     rows.sort(key=lambda r: -r[1])
     return rows
 
@@ -84,15 +93,15 @@ def render(data: dict) -> str:
     if dirty > 100:
         hygiene = (
             '<div class="alert alert-red">'
-            f'⚠️ <b>工作区与版本控制脱节：{dirty} 个变更未提交</b><br>'
-            'PR 无法反映真实改动，审查已失效。请按 docs/CODE_REVIEW_PROCESS.md §0 收敛。'
-            '</div>'
+            f"⚠️ <b>工作区与版本控制脱节：{dirty} 个变更未提交</b><br>"
+            "PR 无法反映真实改动，审查已失效。请按 docs/CODE_REVIEW_PROCESS.md §0 收敛。"
+            "</div>"
         )
     else:
         hygiene = (
             '<div class="alert alert-green">'
-            f'✅ 工作区已收敛（未提交变更 {dirty} ≤ 100），审查前提成立。'
-            '</div>'
+            f"✅ 工作区已收敛（未提交变更 {dirty} ≤ 100），审查前提成立。"
+            "</div>"
         )
 
     # 门禁 chips
@@ -107,11 +116,11 @@ def render(data: dict) -> str:
         )
     gate_html = "".join(gate_html)
     gate_summary = (
-        '<div class="gate-summary {c}">阶段1 门禁达成 {p}/{t}'
-        '{extra}</div>'
+        '<div class="gate-summary {c}">阶段1 门禁达成 {p}/{t}' "{extra}</div>"
     ).format(
         c="pass" if passed == total else "fail",
-        p=passed, t=total,
+        p=passed,
+        t=total,
         extra="" if passed == total else " — 未达成项即下一阶段治理重点",
     )
 
@@ -212,11 +221,18 @@ def render(data: dict) -> str:
   <div class="foot">依据 docs/CODE_REVIEW_STANDARD.md §5 ｜ 由 <code>scripts/weekly_board.py</code> 渲染 ｜ 每周一 10:30 (北京时间) 自动刷新</div>
 </div></body></html>
 """.format(
-        ts=escape(ts), disk=disk, hygiene=hygiene, gate_html=gate_html,
-        gate_summary=gate_summary, zone_html=zone_html,
-        p0f=p0_files, p0p=p0.get("print", 0), p0s=p0.get("silent_except", 0),
+        ts=escape(ts),
+        disk=disk,
+        hygiene=hygiene,
+        gate_html=gate_html,
+        gate_summary=gate_summary,
+        zone_html=zone_html,
+        p0f=p0_files,
+        p0p=p0.get("print", 0),
+        p0s=p0.get("silent_except", 0),
         p0e=p0.get("exception", 0),
-        bf=escape(biggest.get("path", "")), bl=biggest.get("lines", 0),
+        bf=escape(biggest.get("path", "")),
+        bl=biggest.get("lines", 0),
     )
 
 
@@ -235,8 +251,11 @@ def main() -> int:
     else:
         # 缺省: 直接调用 quality_snapshot 的 collect()
         try:
-            sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+            sys.path.insert(
+                0, str(__import__("pathlib").Path(__file__).resolve().parent)
+            )
             import quality_snapshot as qs  # type: ignore
+
             raw = json.dumps(qs.collect(), ensure_ascii=False)
         except Exception as exc:  # pragma: no cover
             print(f"[error] 无法获取快照数据: {exc}", file=sys.stderr)

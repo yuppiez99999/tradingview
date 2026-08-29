@@ -5,6 +5,7 @@
     - Regime 分类结果
     - 经济环境四象限
 """
+
 from __future__ import annotations
 
 import sys
@@ -46,12 +47,38 @@ def main() -> None:
 
     # ===== 宏观指标 KPI =====
     st.subheader("📊 核心宏观指标")
-    render_kpi_row([
-        {"label": "CPI", "value": "2.3%", "delta": "+0.2%", "delta_positive": False, "icon": "💰"},
-        {"label": "PMI", "value": "50.8", "delta": "+0.5", "delta_positive": True, "icon": "🏭"},
-        {"label": "M2 同比", "value": "10.5%", "delta": "+0.3%", "delta_positive": True, "icon": "💵"},
-        {"label": "10Y 国债收益率", "value": "2.65%", "delta": "-0.05%", "delta_positive": True, "icon": "📈"},
-    ])
+    render_kpi_row(
+        [
+            {
+                "label": "CPI",
+                "value": "2.3%",
+                "delta": "+0.2%",
+                "delta_positive": False,
+                "icon": "💰",
+            },
+            {
+                "label": "PMI",
+                "value": "50.8",
+                "delta": "+0.5",
+                "delta_positive": True,
+                "icon": "🏭",
+            },
+            {
+                "label": "M2 同比",
+                "value": "10.5%",
+                "delta": "+0.3%",
+                "delta_positive": True,
+                "icon": "💵",
+            },
+            {
+                "label": "10Y 国债收益率",
+                "value": "2.65%",
+                "delta": "-0.05%",
+                "delta_positive": True,
+                "icon": "📈",
+            },
+        ]
+    )
 
     st.divider()
 
@@ -64,10 +91,16 @@ def main() -> None:
         st.markdown("#### 经济环境四象限")
         render_status_badge("WARNING", label="过热期 (滞胀风险)")
 
-        render_status_metric(label="增长趋势", value="↑ 上升 (PMI>=50)", status="NORMAL")
-        render_status_metric(label="通胀趋势", value="↑ 上升 (CPI>2%)", status="WARNING")
+        render_status_metric(
+            label="增长趋势", value="↑ 上升 (PMI>=50)", status="NORMAL"
+        )
+        render_status_metric(
+            label="通胀趋势", value="↑ 上升 (CPI>2%)", status="WARNING"
+        )
         render_status_metric(label="综合评分", value="0.62", status="WARNING")
-        render_status_metric(label="推荐配置", value="商品/黄金/通胀挂钩债券", status="INFO")
+        render_status_metric(
+            label="推荐配置", value="商品/黄金/通胀挂钩债券", status="INFO"
+        )
 
     with col2:
         st.markdown("#### Dalio 全天候配置基准")
@@ -108,14 +141,43 @@ def main() -> None:
         from datetime import datetime, timedelta
 
         import pandas as pd
+
         dates = [datetime.now() - timedelta(days=30 * i) for i in range(12)]
         dates.reverse()
-        sample_data = pd.DataFrame({
-            "日期": [d.strftime("%Y-%m") for d in dates],
-            "CPI": [2.1, 2.2, 2.0, 1.9, 1.8, 2.0, 2.1, 2.3, 2.4, 2.2, 2.3, 2.3],
-            "PMI": [50.2, 50.5, 50.3, 49.8, 49.5, 50.0, 50.5, 50.8, 51.0, 50.6, 50.8, 50.8],
-            "M2": [10.2, 10.3, 10.5, 10.6, 10.7, 10.5, 10.4, 10.5, 10.6, 10.4, 10.5, 10.5],
-        })
+        sample_data = pd.DataFrame(
+            {
+                "日期": [d.strftime("%Y-%m") for d in dates],
+                "CPI": [2.1, 2.2, 2.0, 1.9, 1.8, 2.0, 2.1, 2.3, 2.4, 2.2, 2.3, 2.3],
+                "PMI": [
+                    50.2,
+                    50.5,
+                    50.3,
+                    49.8,
+                    49.5,
+                    50.0,
+                    50.5,
+                    50.8,
+                    51.0,
+                    50.6,
+                    50.8,
+                    50.8,
+                ],
+                "M2": [
+                    10.2,
+                    10.3,
+                    10.5,
+                    10.6,
+                    10.7,
+                    10.5,
+                    10.4,
+                    10.5,
+                    10.6,
+                    10.4,
+                    10.5,
+                    10.5,
+                ],
+            }
+        )
         st.dataframe(sample_data, use_container_width=True, hide_index=True)
         st.line_chart(sample_data.set_index("日期"))
     except Exception as e:

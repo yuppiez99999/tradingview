@@ -166,7 +166,9 @@ class PortfolioManager:
             try:
                 from utils.black_litterman_optimizer import BlackLittermanOptimizer
             except ImportError as e:
-                raise PortfolioOptimizationError(f"无法导入 BlackLittermanOptimizer: {e}") from e
+                raise PortfolioOptimizationError(
+                    f"无法导入 BlackLittermanOptimizer: {e}"
+                ) from e
             self._optimizer = BlackLittermanOptimizer(
                 risk_aversion=self.risk_aversion,
                 tau=self.tau,
@@ -269,7 +271,9 @@ class CommodityManager:
         self.lookback_days = int(lookback_days)
         self.volatility_threshold = float(volatility_threshold)
         self.trend_threshold = float(trend_threshold)
-        self._supported_codes: dict[str, dict[str, str]] = {c["code"]: c for c in SUPPORTED_COMMODITIES}
+        self._supported_codes: dict[str, dict[str, str]] = {
+            c["code"]: c for c in SUPPORTED_COMMODITIES
+        }
 
     def list_supported(self) -> list[dict[str, str]]:
         """列出支持的大宗商品.
@@ -311,7 +315,9 @@ class CommodityManager:
         """
         code = code.upper()
         if not self.is_supported(code):
-            raise CommodityMonitorError(f"不支持的商品代码: {code}, 支持: {list(self._supported_codes.keys())}")
+            raise CommodityMonitorError(
+                f"不支持的商品代码: {code}, 支持: {list(self._supported_codes.keys())}"
+            )
 
         info = self._supported_codes[code]
 
@@ -398,7 +404,10 @@ class CommodityManager:
 
         for snap in snapshots:
             signals_count[snap.signal] = signals_count.get(snap.signal, 0) + 1
-            if snap.signal == "HIGH_VOLATILITY" or snap.volatility > self.volatility_threshold:
+            if (
+                snap.signal == "HIGH_VOLATILITY"
+                or snap.volatility > self.volatility_threshold
+            ):
                 high_volatility.append(snap.code)
             if snap.signal == "TREND_UP":
                 trending_up.append(snap.code)
@@ -695,18 +704,33 @@ class AttributionManagersFacade:
                         else list(getattr(result, "optimal_weights", []))
                     ),
                     "sharpe_ratio": float(getattr(result, "sharpe_ratio", 0.0)),
-                    "expected_portfolio_return": float(getattr(result, "expected_portfolio_return", 0.0)),
-                    "expected_portfolio_vol": float(getattr(result, "expected_portfolio_vol", 0.0)),
+                    "expected_portfolio_return": float(
+                        getattr(result, "expected_portfolio_return", 0.0)
+                    ),
+                    "expected_portfolio_vol": float(
+                        getattr(result, "expected_portfolio_vol", 0.0)
+                    ),
                     "effective_n": float(getattr(result, "effective_n", 0.0)),
-                    "diversification_ratio": float(getattr(result, "diversification_ratio", 0.0)),
+                    "diversification_ratio": float(
+                        getattr(result, "diversification_ratio", 0.0)
+                    ),
                 }
-            except (PortfolioOptimizationError, ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+            except (
+                PortfolioOptimizationError,
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                OSError,
+            ) as e:
                 errors.append(f"portfolio_optimization: {e}")
 
         # 2. 大宗商品
         if self._commodity is not None:
             try:
-                report.commodity_summary = self.commodity.get_summary(commodity_snapshots)
+                report.commodity_summary = self.commodity.get_summary(
+                    commodity_snapshots
+                )
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 errors.append(f"commodity_summary: {e}")
 

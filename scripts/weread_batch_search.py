@@ -1,4 +1,5 @@
 """批量搜索微信读书书籍并获取详情."""
+
 import json
 import os
 import time
@@ -30,24 +31,34 @@ BOOKS = [
     ("行为金融学", "饶育蕾"),
 ]
 
+
 def call_api(payload):
     payload["skill_version"] = SKILL_VER
     body = json.dumps(payload).encode()
-    req = urllib.request.Request(API, data=body, headers={
-        "Authorization": f"Bearer {KEY}",
-        "Content-Type": "application/json",
-    })
+    req = urllib.request.Request(
+        API,
+        data=body,
+        headers={
+            "Authorization": f"Bearer {KEY}",
+            "Content-Type": "application/json",
+        },
+    )
     try:
         resp = urllib.request.urlopen(req, timeout=15)
         return json.loads(resp.read())
     except Exception as e:
         return {"error": str(e)}
 
+
 def search_book(keyword):
-    return call_api({"api_name": "/store/search", "keyword": keyword, "scope": 10, "count": 5})
+    return call_api(
+        {"api_name": "/store/search", "keyword": keyword, "scope": 10, "count": 5}
+    )
+
 
 def get_book_info(book_id):
     return call_api({"api_name": "/book/info", "bookId": book_id})
+
 
 results = []
 for keyword, author in BOOKS:
@@ -57,16 +68,18 @@ for keyword, author in BOOKS:
         for group in data["results"]:
             for b in group.get("books", []):
                 info = b.get("bookInfo", {})
-                books.append({
-                    "bookId": info.get("bookId"),
-                    "title": info.get("title"),
-                    "author": info.get("author"),
-                    "intro": info.get("intro", "")[:200],
-                    "category": info.get("category"),
-                    "newRating": b.get("newRating"),
-                    "readingCount": b.get("readingCount"),
-                    "deepLink": info.get("deepLink"),
-                })
+                books.append(
+                    {
+                        "bookId": info.get("bookId"),
+                        "title": info.get("title"),
+                        "author": info.get("author"),
+                        "intro": info.get("intro", "")[:200],
+                        "category": info.get("category"),
+                        "newRating": b.get("newRating"),
+                        "readingCount": b.get("readingCount"),
+                        "deepLink": info.get("deepLink"),
+                    }
+                )
     results.append({"keyword": keyword, "target_author": author, "matches": books[:3]})
     time.sleep(0.5)
 

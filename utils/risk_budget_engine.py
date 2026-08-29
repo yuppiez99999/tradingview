@@ -114,21 +114,27 @@ class RiskBudgetEngine:
         result.portfolio_var_99 = float(port_var_99)
 
         if port_var_95 > self.max_daily_var_95:
-            result.violations.append(f"组合VaR 95%={port_var_95:.2%} 超过上限 {self.max_daily_var_95:.2%}")
+            result.violations.append(
+                f"组合VaR 95%={port_var_95:.2%} 超过上限 {self.max_daily_var_95:.2%}"
+            )
 
         # 2. 单标的 VaR
         single_vars = self._single_var(target_portfolio, price_data)
         result.single_var = single_vars
         for symbol, var in single_vars.items():
             if var > self.max_single_var_95:
-                result.violations.append(f"单标的 {symbol} VaR 95%={var:.2%} 超过上限 {self.max_single_var_95:.2%}")
+                result.violations.append(
+                    f"单标的 {symbol} VaR 95%={var:.2%} 超过上限 {self.max_single_var_95:.2%}"
+                )
 
         # 3. 集中度检查
         concentration_violations = self._check_concentration(target_portfolio)
         result.violations.extend(concentration_violations)
 
         # 4. 预算使用率
-        result.budget_usage = self._compute_budget_usage(target_portfolio, current_positions)
+        result.budget_usage = self._compute_budget_usage(
+            target_portfolio, current_positions
+        )
 
         # 5. 回撤预算检查（如有当前组合数据）
         dd_violations = self._check_drawdown_budget(current_positions, price_data)
@@ -187,7 +193,9 @@ class RiskBudgetEngine:
         w = w / (w.sum() if w.sum() > 0 else 1.0)
 
         port_ret = returns_matrix @ w
-        var95 = calculate_var(port_ret, confidence_level=self.confidence_level, method="historical")
+        var95 = calculate_var(
+            port_ret, confidence_level=self.confidence_level, method="historical"
+        )
         var99 = calculate_var(port_ret, confidence_level=0.99, method="historical")
         return float(var95), float(var99)
 
@@ -209,7 +217,9 @@ class RiskBudgetEngine:
             if len(ret) == 0:
                 result[symbol] = 0.0
                 continue
-            symbol_var = calculate_var(ret, confidence_level=self.confidence_level, method="historical")
+            symbol_var = calculate_var(
+                ret, confidence_level=self.confidence_level, method="historical"
+            )
             # BUG-03 修复 (2026-07-31): calculate_var 已统一返回正数, 无需再 abs()
             result[symbol] = float(symbol_var * abs(weight))
         return result
@@ -223,7 +233,9 @@ class RiskBudgetEngine:
         violations = []
         for symbol, weight in target_portfolio.items():
             if weight > self.max_weight:
-                violations.append(f"单标的 {symbol} 权重 {weight:.2%} 超过 {self.max_weight:.2%}")
+                violations.append(
+                    f"单标的 {symbol} 权重 {weight:.2%} 超过 {self.max_weight:.2%}"
+                )
         return violations
 
     def _check_drawdown_budget(
@@ -246,7 +258,9 @@ class RiskBudgetEngine:
             series = price_data.get(symbol)
             price = (
                 float(series.iloc[-1])
-                if series is not None and isinstance(series, pd.Series) and len(series) > 0
+                if series is not None
+                and isinstance(series, pd.Series)
+                and len(series) > 0
                 else cost
             )
             value = shares * price
@@ -258,12 +272,15 @@ class RiskBudgetEngine:
 
         # 简易回撤估算：当前市值 vs 成本
         current_value = sum(
-            float(pos.get("shares", 0)) * float(pos.get("cost_price", 0)) for pos in current_positions.values()
+            float(pos.get("shares", 0)) * float(pos.get("cost_price", 0))
+            for pos in current_positions.values()
         )
         if current_value > 0:
             drawdown = (total_value - current_value) / current_value
             if drawdown < -self.max_drawdown:
-                violations.append(f"当前回撤 {drawdown:.2%} 超过预算 {self.max_drawdown:.2%}")
+                violations.append(
+                    f"当前回撤 {drawdown:.2%} 超过预算 {self.max_drawdown:.2%}"
+                )
         return violations
 
     # ------------------------------------------------------------

@@ -9,6 +9,7 @@
 
 验收标准: 单测覆盖率 >= 70%
 """
+
 from __future__ import annotations
 
 import shutil
@@ -30,6 +31,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 # ============================================================
 class _DummyModel:
     """简单测试模型 (支持 joblib 序列化)."""
+
     def __init__(self, factor: float = 1.0):
         self.factor = factor
 
@@ -45,6 +47,7 @@ class TestModelRegistryImport(unittest.TestCase):
         from utils.alpha.model_registry import (
             ModelRegistry,
         )
+
         self.assertTrue(hasattr(ModelRegistry, "register_model"))
         self.assertTrue(hasattr(ModelRegistry, "load_model"))
 
@@ -52,11 +55,13 @@ class TestModelRegistryImport(unittest.TestCase):
 class TestModelStage(unittest.TestCase):
     def test_from_string(self) -> None:
         from utils.alpha.model_registry import ModelStage
+
         self.assertEqual(ModelStage.from_string("production"), ModelStage.PRODUCTION)
         self.assertEqual(ModelStage.from_string("STAGING"), ModelStage.STAGING)
 
     def test_invalid_string_raises(self) -> None:
         from utils.alpha.model_registry import ModelRegistryError, ModelStage
+
         with self.assertRaises(ModelRegistryError):
             ModelStage.from_string("invalid")
 
@@ -67,6 +72,7 @@ class TestModelRegistry(unittest.TestCase):
     def setUp(self) -> None:
         self.tmpdir = tempfile.mkdtemp()
         from utils.alpha.model_registry import ModelRegistry
+
         self.registry = ModelRegistry(
             registry_dir=self.tmpdir,
             use_mlflow=False,  # 强制本地模式
@@ -97,7 +103,8 @@ class TestModelRegistry(unittest.TestCase):
         """注册多个版本应递增版本号."""
         for i in range(3):
             self.registry.register_model(
-                name="multi_ver", model=_DummyModel(),
+                name="multi_ver",
+                model=_DummyModel(),
                 metrics={"dsr": float(i)},
             )
         versions = self.registry.get_model_versions("multi_ver")
@@ -108,7 +115,9 @@ class TestModelRegistry(unittest.TestCase):
         """测试加载模型."""
         model = _DummyModel(2.0)
         version = self.registry.register_model(
-            name="loadable", model=model, metrics={"dsr": 5.0},
+            name="loadable",
+            model=model,
+            metrics={"dsr": 5.0},
         )
         loaded = self.registry.load_model("loadable", version=version.version)
         self.assertIsInstance(loaded, _DummyModel)
@@ -144,13 +153,12 @@ class TestModelRegistry(unittest.TestCase):
             ModelStage,
             StageTransitionError,
         )
+
         v1 = self.registry.register_model("invalid", _DummyModel(), {"dsr": 5.0})
         # REGISTERED → ARCHIVED 是合法的, 但 ARCHIVED → PRODUCTION 是非法的
         self.registry.archive_model("invalid", v1.version)
         with self.assertRaises(StageTransitionError):
-            self.registry.transition_stage(
-                "invalid", v1.version, ModelStage.PRODUCTION
-            )
+            self.registry.transition_stage("invalid", v1.version, ModelStage.PRODUCTION)
 
     def test_get_production_version(self) -> None:
         v1 = self.registry.register_model("prod", _DummyModel(), {"dsr": 5.0})
@@ -180,9 +188,7 @@ class TestModelRegistry(unittest.TestCase):
         self.registry.register_model(
             "bad", _DummyModel(), {"dsr": 2.0, "annual_return": 0.05}
         )
-        results = self.registry.search_models(
-            metric_filter={"dsr": (">=", 5.0)}
-        )
+        results = self.registry.search_models(metric_filter={"dsr": (">=", 5.0)})
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].name, "good")
 
@@ -198,6 +204,7 @@ class TestModelRegistry(unittest.TestCase):
         ok = self.registry.delete_model_version("del", v1.version, force=True)
         self.assertTrue(ok)
         from utils.alpha.model_registry import ModelVersionNotFoundError
+
         with self.assertRaises(ModelVersionNotFoundError):
             self.registry.get_model_info("del", v1.version)
 
@@ -209,6 +216,7 @@ class TestModelRegistry(unittest.TestCase):
 
     def test_model_not_found_raises(self) -> None:
         from utils.alpha.model_registry import ModelNotFoundError
+
         with self.assertRaises(ModelNotFoundError):
             self.registry.get_model_info("nonexistent", 1)
 
@@ -221,12 +229,14 @@ class TestABTestingImport(unittest.TestCase):
         from utils.alpha.ab_testing import (
             ABTestFramework,
         )
+
         self.assertTrue(hasattr(ABTestFramework, "create_test"))
 
 
 class TestABTestConfig(unittest.TestCase):
     def test_default_config(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig, SplitStrategy
+
         cfg = ABTestConfig(name="test", champion_model="a", challenger_model="b")
         self.assertEqual(cfg.traffic_split, 0.2)
         self.assertEqual(cfg.split_strategy, SplitStrategy.HASH_SYMBOL.value)
@@ -234,6 +244,7 @@ class TestABTestConfig(unittest.TestCase):
 
     def test_to_dict_from_dict(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig
+
         cfg = ABTestConfig(name="t", champion_model="a", challenger_model="b")
         d = cfg.to_dict()
         cfg2 = ABTestConfig.from_dict(d)
@@ -247,6 +258,7 @@ class TestABTestFramework(unittest.TestCase):
     def setUp(self) -> None:
         self.tmpdir = tempfile.mkdtemp()
         from utils.alpha.ab_testing import ABTestFramework
+
         # mock model_registry
         self.mock_registry = MagicMock()
         self.framework = ABTestFramework(
@@ -259,6 +271,7 @@ class TestABTestFramework(unittest.TestCase):
 
     def test_create_test(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig
+
         cfg = ABTestConfig(name="t1", champion_model="c", challenger_model="d")
         test = self.framework.create_test(cfg)
         self.assertEqual(test.config.name, "t1")
@@ -266,6 +279,7 @@ class TestABTestFramework(unittest.TestCase):
 
     def test_create_duplicate_raises(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig, TestAlreadyExistsError
+
         cfg = ABTestConfig(name="dup", champion_model="c", challenger_model="d")
         self.framework.create_test(cfg)
         with self.assertRaises(TestAlreadyExistsError):
@@ -273,8 +287,11 @@ class TestABTestFramework(unittest.TestCase):
 
     def test_invalid_traffic_split_raises(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig, ABTestError
+
         cfg = ABTestConfig(
-            name="bad", champion_model="c", challenger_model="d",
+            name="bad",
+            champion_model="c",
+            challenger_model="d",
             traffic_split=1.5,
         )
         with self.assertRaises(ABTestError):
@@ -282,6 +299,7 @@ class TestABTestFramework(unittest.TestCase):
 
     def test_start_test(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig, ABTestStatus
+
         cfg = ABTestConfig(name="start", champion_model="c", challenger_model="d")
         self.framework.create_test(cfg)
         test = self.framework.start_test("start")
@@ -291,8 +309,11 @@ class TestABTestFramework(unittest.TestCase):
     def test_assign_group_hash_symbol(self) -> None:
         """测试 hash_symbol 分组 (可重现)."""
         from utils.alpha.ab_testing import ABTestConfig, SplitStrategy
+
         cfg = ABTestConfig(
-            name="assign", champion_model="c", challenger_model="d",
+            name="assign",
+            champion_model="c",
+            challenger_model="d",
             traffic_split=0.2,
             split_strategy=SplitStrategy.HASH_SYMBOL.value,
         )
@@ -306,6 +327,7 @@ class TestABTestFramework(unittest.TestCase):
 
     def test_assign_group_not_running_raises(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig, TestNotRunningError
+
         cfg = ABTestConfig(name="notrun", champion_model="c", challenger_model="d")
         self.framework.create_test(cfg)
         with self.assertRaises(TestNotRunningError):
@@ -313,12 +335,17 @@ class TestABTestFramework(unittest.TestCase):
 
     def test_record_daily_metrics(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig
-        cfg = ABTestConfig(name="record", champion_model="c", challenger_model="d", min_samples=2)
+
+        cfg = ABTestConfig(
+            name="record", champion_model="c", challenger_model="d", min_samples=2
+        )
         self.framework.create_test(cfg)
         self.framework.start_test("record")
         self.framework.record_daily_metrics(
-            "record", "2026-07-27",
-            {"ic": 0.05}, {"ic": 0.06},
+            "record",
+            "2026-07-27",
+            {"ic": 0.05},
+            {"ic": 0.06},
         )
         test = self.framework.get_test("record")
         self.assertEqual(len(test.daily_records), 1)
@@ -328,31 +355,43 @@ class TestABTestFramework(unittest.TestCase):
             ABTestConfig,
             InsufficientDataError,
         )
+
         cfg = ABTestConfig(
-            name="eval", champion_model="c", challenger_model="d",
+            name="eval",
+            champion_model="c",
+            challenger_model="d",
             min_samples=10,
         )
         self.framework.create_test(cfg)
         self.framework.start_test("eval")
         self.framework.record_daily_metrics(
-            "eval", "2026-07-27", {"ic": 0.05}, {"ic": 0.06},
+            "eval",
+            "2026-07-27",
+            {"ic": 0.05},
+            {"ic": 0.06},
         )
         with self.assertRaises(InsufficientDataError):
             self.framework.evaluate_test("eval")
 
     def test_evaluate_test_success(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig
+
         cfg = ABTestConfig(
-            name="eval2", champion_model="c", challenger_model="d",
-            min_samples=3, significance_level=0.1,
+            name="eval2",
+            champion_model="c",
+            challenger_model="d",
+            min_samples=3,
+            significance_level=0.1,
         )
         self.framework.create_test(cfg)
         self.framework.start_test("eval2")
         # challenger 明显更好
         for i in range(5):
             self.framework.record_daily_metrics(
-                "eval2", f"2026-07-{i+1:02d}",
-                {"ic": 0.02}, {"ic": 0.08},
+                "eval2",
+                f"2026-07-{i+1:02d}",
+                {"ic": 0.02},
+                {"ic": 0.08},
             )
         result = self.framework.evaluate_test("eval2")
         self.assertTrue(result.challenger_better)
@@ -362,6 +401,7 @@ class TestABTestFramework(unittest.TestCase):
 
     def test_list_tests(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig, ABTestStatus
+
         for name in ("a", "b", "c"):
             cfg = ABTestConfig(name=name, champion_model="c", challenger_model="d")
             self.framework.create_test(cfg)
@@ -372,6 +412,7 @@ class TestABTestFramework(unittest.TestCase):
 
     def test_stop_test(self) -> None:
         from utils.alpha.ab_testing import ABTestConfig, ABTestStatus
+
         cfg = ABTestConfig(name="stop", champion_model="c", challenger_model="d")
         self.framework.create_test(cfg)
         self.framework.start_test("stop")
@@ -385,6 +426,7 @@ class TestABTestFramework(unittest.TestCase):
 class TestDriftMonitorImport(unittest.TestCase):
     def test_import(self) -> None:
         from utils.alpha.drift_monitor import DriftMonitor
+
         self.assertTrue(hasattr(DriftMonitor, "start_monitoring"))
 
 
@@ -397,6 +439,7 @@ class TestDriftMonitor(unittest.TestCase):
 
     def test_init(self) -> None:
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(
             model_name="test",
             alerts_dir=self.tmpdir,
@@ -406,10 +449,12 @@ class TestDriftMonitor(unittest.TestCase):
     def test_record_alert_persisted(self) -> None:
         """测试告警持久化."""
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(
             model_name="persist",
             alerts_dir=self.tmpdir,
         )
+
         # 模拟告警对象
         class FakeAlert:
             def __init__(self):
@@ -423,6 +468,7 @@ class TestDriftMonitor(unittest.TestCase):
                 self.current_value = 0.01
                 self.threshold = 0.02
                 self.recommendation = "retrain"
+
         monitor._record_alert(FakeAlert())
         # 检查告警文件
         alert_files = list(Path(self.tmpdir).glob("persist_*.jsonl"))
@@ -431,10 +477,13 @@ class TestDriftMonitor(unittest.TestCase):
     def test_retrain_callback_triggered(self) -> None:
         """测试重训练回调被触发."""
         from utils.alpha.drift_monitor import DriftMonitor
+
         triggered = []
+
         def callback(alerts):
             triggered.append(len(alerts))
             return True
+
         monitor = DriftMonitor(
             model_name="cb",
             alerts_dir=self.tmpdir,
@@ -442,6 +491,7 @@ class TestDriftMonitor(unittest.TestCase):
             retrain_threshold_count=2,
             retrain_threshold_severity="critical",
         )
+
         # 构造 critical 告警
         class CriticalAlert:
             def __init__(self):
@@ -455,6 +505,7 @@ class TestDriftMonitor(unittest.TestCase):
                 self.current_value = 0.0
                 self.threshold = 0.05
                 self.recommendation = ""
+
         alerts = [CriticalAlert(), CriticalAlert(), CriticalAlert()]
         monitor._check_retrain_trigger(alerts)
         self.assertEqual(len(triggered), 1)
@@ -462,6 +513,7 @@ class TestDriftMonitor(unittest.TestCase):
 
     def test_get_status(self) -> None:
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(model_name="status", alerts_dir=self.tmpdir)
         status = monitor.get_status()
         self.assertEqual(status["model_name"], "status")
@@ -470,12 +522,14 @@ class TestDriftMonitor(unittest.TestCase):
 
     def test_start_stop_monitoring(self) -> None:
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(
             model_name="mon",
             alerts_dir=self.tmpdir,
         )
         monitor.start_monitoring(interval_sec=0.1)
         import time
+
         time.sleep(0.3)
         monitor.stop_monitoring()
 
@@ -488,6 +542,7 @@ class TestAutoRetrainImport(unittest.TestCase):
         from utils.alpha.auto_retrain_scheduler import (
             AutoRetrainScheduler,
         )
+
         self.assertTrue(hasattr(AutoRetrainScheduler, "trigger_retrain"))
 
 
@@ -501,6 +556,7 @@ class TestAutoRetrainScheduler(unittest.TestCase):
     def test_init_disabled_by_default(self) -> None:
         """默认禁用 (HC-1)."""
         from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
+
         scheduler = AutoRetrainScheduler(config={"enabled": False})
         self.assertFalse(scheduler.enabled)
 
@@ -508,6 +564,7 @@ class TestAutoRetrainScheduler(unittest.TestCase):
         from utils.alpha.auto_retrain_scheduler import (
             AutoRetrainScheduler,
         )
+
         scheduler = AutoRetrainScheduler(config={"enabled": False})
         # _on_drift_alerts 在 disabled 时返回 False
         result = scheduler._on_drift_alerts([])
@@ -521,11 +578,14 @@ class TestAutoRetrainScheduler(unittest.TestCase):
             AutoRetrainScheduler,
             RetrainTrigger,
         )
-        scheduler = AutoRetrainScheduler(config={
-            "enabled": True,
-            "min_interval_hours": 24,
-            "training_script": "nonexistent.py",
-        })
+
+        scheduler = AutoRetrainScheduler(
+            config={
+                "enabled": True,
+                "min_interval_hours": 24,
+                "training_script": "nonexistent.py",
+            }
+        )
         # 模拟上次重训练时间 (1 小时前)
         scheduler._last_retrain_time = datetime.utcnow() - timedelta(hours=1)
         ok = scheduler.trigger_retrain(RetrainTrigger.MANUAL, "test")
@@ -536,24 +596,29 @@ class TestAutoRetrainScheduler(unittest.TestCase):
             AutoRetrainScheduler,
             RetrainTrigger,
         )
-        scheduler = AutoRetrainScheduler(config={
-            "enabled": True,
-            "min_interval_hours": 0,
-            "training_script": "nonexistent.py",
-            "training_timeout_sec": 5,
-            "auto_register": False,  # 禁用注册避免依赖
-            "auto_start_ab_test": False,
-        })
+
+        scheduler = AutoRetrainScheduler(
+            config={
+                "enabled": True,
+                "min_interval_hours": 0,
+                "training_script": "nonexistent.py",
+                "training_timeout_sec": 5,
+                "auto_register": False,  # 禁用注册避免依赖
+                "auto_start_ab_test": False,
+            }
+        )
         ok = scheduler.trigger_retrain(RetrainTrigger.MANUAL, "unit_test")
         self.assertTrue(ok)
         # 等待训练完成 (会失败因脚本不存在)
         import time
+
         time.sleep(2.0)
         tasks = scheduler.list_tasks()
         self.assertTrue(len(tasks) > 0)
 
     def test_get_status(self) -> None:
         from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
+
         scheduler = AutoRetrainScheduler(config={"enabled": False})
         status = scheduler.get_status()
         self.assertFalse(status["enabled"])
@@ -562,6 +627,7 @@ class TestAutoRetrainScheduler(unittest.TestCase):
     def test_start_disabled_does_nothing(self) -> None:
         """启用=False 时 start() 不应启动调度."""
         from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
+
         scheduler = AutoRetrainScheduler(config={"enabled": False})
         scheduler.start()
         self.assertIsNone(scheduler._scheduler_thread)
@@ -574,6 +640,7 @@ class TestAutoRetrainScheduler(unittest.TestCase):
 class TestMLOpsPipelineImport(unittest.TestCase):
     def test_import(self) -> None:
         from utils.alpha.mlops_pipeline import MLOpsPipeline
+
         self.assertTrue(hasattr(MLOpsPipeline, "start"))
 
 
@@ -587,11 +654,13 @@ class TestMLOpsPipeline(unittest.TestCase):
     def test_init_disabled_by_default(self) -> None:
         """默认禁用 (HC-1)."""
         from utils.alpha.mlops_pipeline import MLOpsPipeline
+
         pipeline = MLOpsPipeline(config={})
         self.assertFalse(pipeline.enabled)
 
     def test_start_disabled_does_nothing(self) -> None:
         from utils.alpha.mlops_pipeline import MLOpsPipeline
+
         pipeline = MLOpsPipeline(config={})
         pipeline.start()
         self.assertFalse(pipeline._started)
@@ -599,6 +668,7 @@ class TestMLOpsPipeline(unittest.TestCase):
 
     def test_get_status(self) -> None:
         from utils.alpha.mlops_pipeline import MLOpsPipeline
+
         pipeline = MLOpsPipeline(config={})
         status = pipeline.get_status()
         self.assertFalse(status["enabled"])
@@ -607,6 +677,7 @@ class TestMLOpsPipeline(unittest.TestCase):
     def test_register_and_test_disabled(self) -> None:
         """未启用时 register_and_test 应跳过."""
         from utils.alpha.mlops_pipeline import MLOpsPipeline
+
         pipeline = MLOpsPipeline(config={})
         result = pipeline.register_and_test(
             model=_DummyModel(),
@@ -632,17 +703,20 @@ class TestMLOpsPipelineEnabled(unittest.TestCase):
     def _make_enabled_pipeline(self) -> Any:
         """创建启用模式的 pipeline (绕过 Feature Flag)."""
         from utils.alpha.mlops_pipeline import MLOpsPipeline
-        pipeline = MLOpsPipeline(config={
-            "registry_dir": self.tmpdir + "/registry",
-            "ab_tests_dir": self.tmpdir + "/ab_tests",
-            "drift_check_interval_sec": 1,
-            "default_model_name": "test_model",
-            "auto_retrain": {
-                "enabled": True,
-                "drift_threshold_count": 1,
-                "drift_threshold_severity": "critical",
-            },
-        })
+
+        pipeline = MLOpsPipeline(
+            config={
+                "registry_dir": self.tmpdir + "/registry",
+                "ab_tests_dir": self.tmpdir + "/ab_tests",
+                "drift_check_interval_sec": 1,
+                "default_model_name": "test_model",
+                "auto_retrain": {
+                    "enabled": True,
+                    "drift_threshold_count": 1,
+                    "drift_threshold_severity": "critical",
+                },
+            }
+        )
         pipeline._enabled = True  # 强制启用
         return pipeline
 
@@ -661,6 +735,7 @@ class TestMLOpsPipelineEnabled(unittest.TestCase):
     def test_start_with_exception(self) -> None:
         """start 时 drift_monitor 抛异常应抛出 MLOpsPipelineError."""
         from utils.alpha.mlops_pipeline import MLOpsPipelineError
+
         pipeline = self._make_enabled_pipeline()
         # mock drift_monitor.start_monitoring 抛异常
         drift_monitor = MagicMock()
@@ -719,7 +794,8 @@ class TestMLOpsPipelineEnabled(unittest.TestCase):
         registry.register_model.side_effect = RuntimeError("register failed")
         pipeline._model_registry = registry
         result = pipeline.register_and_test(
-            model=_DummyModel(), metrics={"dsr": 5.0},
+            model=_DummyModel(),
+            metrics={"dsr": 5.0},
         )
         self.assertNotIn("version", result)
         self.assertIn("register_error", result)
@@ -736,7 +812,8 @@ class TestMLOpsPipelineEnabled(unittest.TestCase):
         ab.create_test.side_effect = RuntimeError("ab failed")
         pipeline._ab_framework = ab
         result = pipeline.register_and_test(
-            model=_DummyModel(), metrics={"dsr": 5.0},
+            model=_DummyModel(),
+            metrics={"dsr": 5.0},
         )
         self.assertIn("version", result)
         self.assertIn("ab_test_error", result)
@@ -813,6 +890,7 @@ class TestMLOpsPipelineEnabled(unittest.TestCase):
             get_pipeline,
             initialize_pipeline,
         )
+
         pipeline1 = initialize_pipeline(config={"test_key": "test_value"})
         pipeline2 = get_pipeline()
         self.assertIs(pipeline1, pipeline2)
@@ -830,6 +908,7 @@ class TestDriftMonitorExtended(unittest.TestCase):
     def _make_monitor(self, with_detector: bool = True) -> Any:
         """创建 DriftMonitor (可注入 mock detector)."""
         from utils.alpha.drift_monitor import DriftMonitor
+
         detector = MagicMock() if with_detector else None
         monitor = DriftMonitor(
             model_name="test_model",
@@ -974,6 +1053,7 @@ class TestDriftMonitorExtended(unittest.TestCase):
             return True
 
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(
             model_name="test_model",
             detector=MagicMock(),
@@ -997,6 +1077,7 @@ class TestDriftMonitorExtended(unittest.TestCase):
     def test_retrain_already_triggered(self) -> None:
         """已触发重训练后不再触发."""
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(
             model_name="test_model",
             detector=MagicMock(),
@@ -1015,6 +1096,7 @@ class TestDriftMonitorExtended(unittest.TestCase):
     def test_retrain_insufficient_alerts(self) -> None:
         """告警数不足不应触发重训练."""
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(
             model_name="test_model",
             detector=MagicMock(),
@@ -1031,6 +1113,7 @@ class TestDriftMonitorExtended(unittest.TestCase):
     def test_retrain_severity_not_met(self) -> None:
         """告警严重级别不匹配不应触发."""
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(
             model_name="test_model",
             detector=MagicMock(),
@@ -1067,6 +1150,7 @@ class TestDriftMonitorExtended(unittest.TestCase):
     def test_retrain_no_callback(self) -> None:
         """无 callback 时返回 False."""
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(
             model_name="test_model",
             detector=MagicMock(),
@@ -1078,6 +1162,7 @@ class TestDriftMonitorExtended(unittest.TestCase):
     def test_should_retrain_no_detector(self) -> None:
         """无 detector 时返回 (False, reason)."""
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(
             model_name="test_model",
             detector=None,
@@ -1125,6 +1210,7 @@ class TestDriftMonitorExtended(unittest.TestCase):
     def test_generate_report_no_detector(self) -> None:
         """无 detector 时 generate_report 返回 error."""
         from utils.alpha.drift_monitor import DriftMonitor
+
         monitor = DriftMonitor(
             model_name="test_model",
             detector=None,
@@ -1160,6 +1246,7 @@ class TestDriftMonitorExtended(unittest.TestCase):
     def test_create_drift_monitor_helper(self) -> None:
         """测试便捷函数."""
         from utils.alpha.drift_monitor import create_drift_monitor
+
         monitor = create_drift_monitor("test_model")
         self.assertEqual(monitor.model_name, "test_model")
 
@@ -1176,6 +1263,7 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
     def _make_scheduler(self, enabled: bool = True) -> Any:
         """创建 scheduler (注入 mock 依赖)."""
         from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
+
         registry = MagicMock()
         ab = MagicMock()
         drift = MagicMock()
@@ -1202,6 +1290,7 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
     def test_on_drift_alerts_disabled(self) -> None:
         """未启用时 drift 告警回调返回 False."""
         from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
+
         scheduler = AutoRetrainScheduler(
             config={"enabled": False},
             model_registry=MagicMock(),
@@ -1226,10 +1315,13 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
             RetrainTask,
             TrainingInProgressError,
         )
+
         scheduler = self._make_scheduler(enabled=True)
         # 注入正在跑的任务
         running_task = RetrainTask(
-            task_id="running", trigger="manual", reason="test",
+            task_id="running",
+            trigger="manual",
+            reason="test",
             status=RetrainStatus.RUNNING.value,
         )
         scheduler._current_task = running_task
@@ -1241,6 +1333,7 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
         from datetime import datetime, timedelta
 
         from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
+
         scheduler = AutoRetrainScheduler(
             config={
                 "enabled": True,
@@ -1259,6 +1352,7 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
         from utils.alpha.auto_retrain_scheduler import (
             RetrainTask,
         )
+
         scheduler = self._make_scheduler(enabled=True)
         task = RetrainTask(task_id="t1", trigger="manual", reason="test")
         scheduler._run_training(task)
@@ -1271,6 +1365,7 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
         from utils.alpha.auto_retrain_scheduler import (
             RetrainTask,
         )
+
         # 创建一个会导致超时的脚本 (用 ping 等待)
         scheduler = self._make_scheduler(enabled=True)
         scheduler.training_script = "nonexistent.py"  # 不存在
@@ -1289,11 +1384,14 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
     def test_register_model_success(self) -> None:
         """_register_model 注册成功."""
         from utils.alpha.auto_retrain_scheduler import RetrainTask
+
         scheduler = self._make_scheduler(enabled=True)
         fake_version = MagicMock()
         fake_version.version = 1
         scheduler._model_registry.register_model.return_value = fake_version
-        task = RetrainTask(task_id="t1", trigger="manual", reason="test", model_name="m1")
+        task = RetrainTask(
+            task_id="t1", trigger="manual", reason="test", model_name="m1"
+        )
         version = scheduler._register_model(task, None, {"dsr": 5.0}, {})
         self.assertIsNotNone(version)
         self.assertEqual(version.version, 1)
@@ -1301,21 +1399,27 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
     def test_register_model_exception(self) -> None:
         """_register_model 异常返回 None."""
         from utils.alpha.auto_retrain_scheduler import RetrainTask
+
         scheduler = self._make_scheduler(enabled=True)
         scheduler._model_registry.register_model.side_effect = RuntimeError("boom")
-        task = RetrainTask(task_id="t1", trigger="manual", reason="test", model_name="m1")
+        task = RetrainTask(
+            task_id="t1", trigger="manual", reason="test", model_name="m1"
+        )
         version = scheduler._register_model(task, None, {}, {})
         self.assertIsNone(version)
 
     def test_start_ab_test_success(self) -> None:
         """_start_ab_test 启动 A/B 测试成功."""
         from utils.alpha.auto_retrain_scheduler import RetrainTask
+
         scheduler = self._make_scheduler(enabled=True)
         # mock champion
         champion = MagicMock()
         champion.version = 1
         scheduler._model_registry.get_production_version.return_value = champion
-        task = RetrainTask(task_id="t1", trigger="manual", reason="test", model_name="m1")
+        task = RetrainTask(
+            task_id="t1", trigger="manual", reason="test", model_name="m1"
+        )
         new_version = MagicMock()
         new_version.version = 2
         test_name = scheduler._start_ab_test(task, new_version)
@@ -1325,9 +1429,14 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
     def test_start_ab_test_exception(self) -> None:
         """_start_ab_test 异常返回 None."""
         from utils.alpha.auto_retrain_scheduler import RetrainTask
+
         scheduler = self._make_scheduler(enabled=True)
-        scheduler._model_registry.get_production_version.side_effect = RuntimeError("boom")
-        task = RetrainTask(task_id="t1", trigger="manual", reason="test", model_name="m1")
+        scheduler._model_registry.get_production_version.side_effect = RuntimeError(
+            "boom"
+        )
+        task = RetrainTask(
+            task_id="t1", trigger="manual", reason="test", model_name="m1"
+        )
         new_version = MagicMock()
         new_version.version = 2
         test_name = scheduler._start_ab_test(task, new_version)
@@ -1336,6 +1445,7 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
     def test_start_disabled(self) -> None:
         """未启用时 start 应 warning."""
         from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
+
         scheduler = AutoRetrainScheduler(
             config={"enabled": False},
             model_registry=MagicMock(),
@@ -1350,6 +1460,7 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
         scheduler = self._make_scheduler(enabled=True)
         # mock 一个活的线程
         import threading
+
         scheduler._scheduler_thread = threading.Thread(target=lambda: None)
         scheduler._scheduler_thread.start()
         scheduler.start()  # 不应抛异常
@@ -1384,8 +1495,11 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
     def test_list_tasks(self) -> None:
         """list_tasks 返回任务列表."""
         from utils.alpha.auto_retrain_scheduler import RetrainTask
+
         scheduler = self._make_scheduler(enabled=True)
-        scheduler._tasks.append(RetrainTask(task_id="t1", trigger="manual", reason="test"))
+        scheduler._tasks.append(
+            RetrainTask(task_id="t1", trigger="manual", reason="test")
+        )
         tasks = scheduler.list_tasks()
         self.assertEqual(len(tasks), 1)
         self.assertEqual(tasks[0]["task_id"], "t1")
@@ -1393,6 +1507,7 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
     def test_get_task_found(self) -> None:
         """get_task 找到任务."""
         from utils.alpha.auto_retrain_scheduler import RetrainTask
+
         scheduler = self._make_scheduler(enabled=True)
         task = RetrainTask(task_id="t1", trigger="manual", reason="test")
         scheduler._tasks.append(task)
@@ -1418,6 +1533,7 @@ class TestABTestingExtended(unittest.TestCase):
     def _make_framework(self) -> Any:
         """创建 ABTestFramework (mock registry)."""
         from utils.alpha.ab_testing import ABTestFramework
+
         registry = MagicMock()
         return ABTestFramework(
             results_dir=self.tmpdir + "/ab_tests",
@@ -1427,6 +1543,7 @@ class TestABTestingExtended(unittest.TestCase):
     def test_compute_group_zero_split(self) -> None:
         """traffic_split=0 时全部返回 champion."""
         from utils.alpha.ab_testing import ABTestFramework
+
         fw = ABTestFramework(results_dir=self.tmpdir)
         group = fw._compute_group("000001", 0.0)
         self.assertEqual(group, "champion")
@@ -1434,6 +1551,7 @@ class TestABTestingExtended(unittest.TestCase):
     def test_compute_group_full_split(self) -> None:
         """traffic_split=1.0 时全部返回 challenger."""
         from utils.alpha.ab_testing import ABTestFramework
+
         fw = ABTestFramework(results_dir=self.tmpdir)
         group = fw._compute_group("000001", 1.0)
         self.assertEqual(group, "challenger")
@@ -1441,6 +1559,7 @@ class TestABTestingExtended(unittest.TestCase):
     def test_compute_group_random_strategy(self) -> None:
         """RANDOM 策略."""
         from utils.alpha.ab_testing import ABTestFramework, SplitStrategy
+
         fw = ABTestFramework(results_dir=self.tmpdir)
         # 调用多次应不抛异常
         for _ in range(10):
@@ -1452,6 +1571,7 @@ class TestABTestingExtended(unittest.TestCase):
     def test_compute_group_round_robin_strategy(self) -> None:
         """ROUND_ROBIN 策略."""
         from utils.alpha.ab_testing import ABTestFramework, SplitStrategy
+
         fw = ABTestFramework(results_dir=self.tmpdir)
         group = fw._compute_group(
             "000001", 0.5, strategy=SplitStrategy.ROUND_ROBIN.value
@@ -1461,6 +1581,7 @@ class TestABTestingExtended(unittest.TestCase):
     def test_compute_group_unknown_strategy(self) -> None:
         """未知策略默认返回 champion."""
         from utils.alpha.ab_testing import ABTestFramework
+
         fw = ABTestFramework(results_dir=self.tmpdir)
         group = fw._compute_group("000001", 0.5, strategy="unknown")
         self.assertEqual(group, "champion")
@@ -1468,6 +1589,7 @@ class TestABTestingExtended(unittest.TestCase):
     def test_get_test_not_found(self) -> None:
         """get_test 未找到抛 TestNotFoundError."""
         from utils.alpha.ab_testing import ABTestFramework, TestNotFoundError
+
         fw = ABTestFramework(results_dir=self.tmpdir)
         with self.assertRaises(TestNotFoundError):
             fw.get_test("nonexistent")
@@ -1478,6 +1600,7 @@ class TestABTestingExtended(unittest.TestCase):
             ABTestConfig,
             ABTestStatus,
         )
+
         fw = self._make_framework()
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
         fw.create_test(config)
@@ -1494,6 +1617,7 @@ class TestABTestingExtended(unittest.TestCase):
         from utils.alpha.ab_testing import (
             ABTestConfig,
         )
+
         fw = self._make_framework()
         config = ABTestConfig(
             name="t1", champion_model="model_a", challenger_model="model_b"
@@ -1512,6 +1636,7 @@ class TestABTestingExtended(unittest.TestCase):
     def test_promote_challenger_not_found(self) -> None:
         """promote_challenger 测试未找到抛 TestNotFoundError."""
         from utils.alpha.ab_testing import TestNotFoundError
+
         fw = self._make_framework()
         with self.assertRaises(TestNotFoundError):
             fw.promote_challenger("nonexistent")
@@ -1522,6 +1647,7 @@ class TestABTestingExtended(unittest.TestCase):
             ABTestConfig,
             ABTestError,
         )
+
         fw = self._make_framework()
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
         fw.create_test(config)
@@ -1534,15 +1660,14 @@ class TestABTestingExtended(unittest.TestCase):
         from utils.alpha.ab_testing import (
             ABTestConfig,
         )
+
         fw = self._make_framework()
         # mock champion 版本
         champion_v = MagicMock()
         champion_v.stage = "production"
         champion_v.version = 1
         fw._model_registry.get_model_versions.return_value = [champion_v]
-        config = ABTestConfig(
-            name="t1", champion_model="c", challenger_model="ch"
-        )
+        config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
         fw.create_test(config)
         fw.start_test("t1")
         result = fw.rollback_to_champion("t1")
@@ -1551,6 +1676,7 @@ class TestABTestingExtended(unittest.TestCase):
     def test_rollback_to_champion_not_found(self) -> None:
         """rollback_to_champion 测试未找到."""
         from utils.alpha.ab_testing import TestNotFoundError
+
         fw = self._make_framework()
         with self.assertRaises(TestNotFoundError):
             fw.rollback_to_champion("nonexistent")
@@ -1561,6 +1687,7 @@ class TestABTestingExtended(unittest.TestCase):
             ABTestConfig,
             ABTestError,
         )
+
         fw = self._make_framework()
         fw._model_registry.get_model_versions.return_value = []
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
@@ -1596,9 +1723,12 @@ class TestABTestingExtended(unittest.TestCase):
     def test_make_recommendation_rollback(self) -> None:
         """_make_recommendation 回滚条件触发."""
         from utils.alpha.ab_testing import ABTest, ABTestConfig
+
         fw = self._make_framework()
         config = ABTestConfig(
-            name="t1", champion_model="c", challenger_model="ch",
+            name="t1",
+            champion_model="c",
+            challenger_model="ch",
             rollback_criteria={"dsr_challenger_lt_champion_by": 1.0},
         )
         test = ABTest(config=config)
@@ -1618,9 +1748,12 @@ class TestABTestingExtended(unittest.TestCase):
             ABTest,
             ABTestConfig,
         )
+
         fw = self._make_framework()
         config = ABTestConfig(
-            name="t1", champion_model="c", challenger_model="ch",
+            name="t1",
+            champion_model="c",
+            challenger_model="ch",
             promotion_criteria={"dsr_min": 4.0},
         )
         test = ABTest(config=config)
@@ -1639,6 +1772,7 @@ class TestABTestingExtended(unittest.TestCase):
             ABTest,
             ABTestConfig,
         )
+
         fw = self._make_framework()
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
         test = ABTest(config=config)
@@ -1654,6 +1788,7 @@ class TestABTestingExtended(unittest.TestCase):
     def test_detect_primary_metric_default(self) -> None:
         """_detect_primary_metric 默认 ic."""
         from utils.alpha.ab_testing import ABTest, ABTestConfig
+
         fw = self._make_framework()
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
         test = ABTest(config=config)
@@ -1662,10 +1797,13 @@ class TestABTestingExtended(unittest.TestCase):
     def test_detect_primary_metric_dsr(self) -> None:
         """_detect_primary_metric 优先 dsr."""
         from utils.alpha.ab_testing import ABTest, ABTestConfig
+
         fw = self._make_framework()
         config = ABTestConfig(name="t1", champion_model="c", challenger_model="ch")
         test = ABTest(config=config)
-        test.daily_records.append({"champion": {"dsr": 5.0}, "challenger": {"dsr": 4.0}})
+        test.daily_records.append(
+            {"champion": {"dsr": 5.0}, "challenger": {"dsr": 4.0}}
+        )
         self.assertEqual(fw._detect_primary_metric(test), "dsr")
 
     def test_summarize_metrics_empty(self) -> None:

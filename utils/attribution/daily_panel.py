@@ -194,7 +194,11 @@ class TCAInput:
 
     def is_empty(self) -> bool:
         """判断输入是否为空."""
-        return not self.summary_dict and not self.pnl_attributions and not self.fill_records
+        return (
+            not self.summary_dict
+            and not self.pnl_attributions
+            and not self.fill_records
+        )
 
 
 @dataclass
@@ -305,7 +309,9 @@ class DailyAttributionReport:
                 "total_pnl": round(self.total_pnl, 2),
                 "active_return": round(self.active_return, DEFAULT_DECIMAL_PRECISION),
                 "active_risk": round(self.active_risk, DEFAULT_DECIMAL_PRECISION),
-                "information_ratio": round(self.information_ratio, DEFAULT_DECIMAL_PRECISION),
+                "information_ratio": round(
+                    self.information_ratio, DEFAULT_DECIMAL_PRECISION
+                ),
             },
             "metadata": {
                 "generation_time_ms": round(self.generation_time_ms, 2),
@@ -328,7 +334,9 @@ class DailyAttributionReport:
         lines.append(f"- **报告状态**: {self.status}")
         if self.reason:
             lines.append(f"- **状态说明**: {self.reason}")
-        lines.append(f"- **生成时间**: {self.generated_at} ({self.generation_time_ms:.0f} ms)")
+        lines.append(
+            f"- **生成时间**: {self.generated_at} ({self.generation_time_ms:.0f} ms)"
+        )
         lines.append("")
 
         # 汇总摘要
@@ -339,7 +347,11 @@ class DailyAttributionReport:
         lines.append(f"| 组合总 PnL | ¥{self.total_pnl:.2f} |")
         lines.append(f"| 主动收益 | {self.active_return:.4%} |")
         lines.append(f"| 主动风险 (年化) | {self.active_risk:.4%} |")
-        ir_display = f"{self.information_ratio:.4f}" if math.isfinite(self.information_ratio) else "N/A"
+        ir_display = (
+            f"{self.information_ratio:.4f}"
+            if math.isfinite(self.information_ratio)
+            else "N/A"
+        )
         lines.append(f"| 信息比率 (IR) | {ir_display} |")
         lines.append("")
 
@@ -350,7 +362,9 @@ class DailyAttributionReport:
         lines.append("|------|------|--------------|----------|------|")
         for s in self.module_statuses:
             flag_str = "ON" if s.feature_flag_enabled else "OFF"
-            lines.append(f"| {s.module_name} | {s.status} | {flag_str} | {s.generation_time_ms:.0f} | {s.reason} |")
+            lines.append(
+                f"| {s.module_name} | {s.status} | {flag_str} | {s.generation_time_ms:.0f} | {s.reason} |"
+            )
         lines.append("")
 
         # Brinson 章节
@@ -435,16 +449,32 @@ class DailyAttributionPanel:
         self._persistence_cfg = self._config.get("persistence", {}) or {}
 
         # 提取常用配置
-        self._primary_benchmark = self._settings.get("primary_benchmark", DEFAULT_PRIMARY_BENCHMARK)
+        self._primary_benchmark = self._settings.get(
+            "primary_benchmark", DEFAULT_PRIMARY_BENCHMARK
+        )
         self._report_dir_name = self._settings.get("report_dir", DEFAULT_REPORT_DIR)
-        self._json_template = self._settings.get("json_filename_template", DEFAULT_JSON_TEMPLATE)
-        self._md_template = self._settings.get("markdown_filename_template", DEFAULT_MARKDOWN_TEMPLATE)
-        self._generation_timeout = self._settings.get("generation_timeout_seconds", DEFAULT_GENERATION_TIMEOUT)
-        self._decimal_precision = self._settings.get("decimal_precision", DEFAULT_DECIMAL_PRECISION)
-        self._return_precision = self._settings.get("return_precision", DEFAULT_RETURN_PRECISION)
+        self._json_template = self._settings.get(
+            "json_filename_template", DEFAULT_JSON_TEMPLATE
+        )
+        self._md_template = self._settings.get(
+            "markdown_filename_template", DEFAULT_MARKDOWN_TEMPLATE
+        )
+        self._generation_timeout = self._settings.get(
+            "generation_timeout_seconds", DEFAULT_GENERATION_TIMEOUT
+        )
+        self._decimal_precision = self._settings.get(
+            "decimal_precision", DEFAULT_DECIMAL_PRECISION
+        )
+        self._return_precision = self._settings.get(
+            "return_precision", DEFAULT_RETURN_PRECISION
+        )
         self._bps_precision = self._settings.get("bps_precision", DEFAULT_BPS_PRECISION)
-        self._residual_tolerance = self._aggregation.get("residual_tolerance", DEFAULT_RESIDUAL_TOLERANCE)
-        self._degraded_handling = self._aggregation.get("degraded_handling", "placeholder")
+        self._residual_tolerance = self._aggregation.get(
+            "residual_tolerance", DEFAULT_RESIDUAL_TOLERANCE
+        )
+        self._degraded_handling = self._aggregation.get(
+            "degraded_handling", "placeholder"
+        )
 
         # 子模块启用开关 (双层控制: 配置 + Feature Flag)
         self._enable_brinson_cfg = self._settings.get("enable_brinson", True)
@@ -514,7 +544,9 @@ class DailyAttributionPanel:
             and (tca_input is None or tca_input.is_empty())
         )
         if all_empty:
-            return self._build_empty_report(attribution_date, start_time, use_perf_counter=True)
+            return self._build_empty_report(
+                attribution_date, start_time, use_perf_counter=True
+            )
 
         # 初始化报告容器
         report = DailyAttributionReport(
@@ -528,13 +560,17 @@ class DailyAttributionPanel:
         module_statuses: list[ModuleStatus] = []
 
         # 1. Brinson 归因
-        brinson_result_dict, brinson_md, brinson_status = self._run_brinson(attribution_date, brinson_input)
+        brinson_result_dict, brinson_md, brinson_status = self._run_brinson(
+            attribution_date, brinson_input
+        )
         report.brinson_dict = brinson_result_dict
         report.brinson_markdown = brinson_md
         module_statuses.append(brinson_status)
 
         # 2. Factor 归因
-        factor_result_dict, factor_md, factor_status = self._run_factor(attribution_date, factor_input)
+        factor_result_dict, factor_md, factor_status = self._run_factor(
+            attribution_date, factor_input
+        )
         report.factor_dict = factor_result_dict
         report.factor_markdown = factor_md
         module_statuses.append(factor_status)
@@ -591,15 +627,25 @@ class DailyAttributionPanel:
             PersistenceError: 持久化失败
         """
         target_dir = report_dir or self._report_dir
-        do_json = save_json if save_json is not None else self._persistence_cfg.get("save_json", True)
-        do_md = save_markdown if save_markdown is not None else self._persistence_cfg.get("save_markdown", True)
+        do_json = (
+            save_json
+            if save_json is not None
+            else self._persistence_cfg.get("save_json", True)
+        )
+        do_md = (
+            save_markdown
+            if save_markdown is not None
+            else self._persistence_cfg.get("save_markdown", True)
+        )
 
         saved_paths: dict[str, Path] = {}
 
         try:
             target_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            raise PersistenceError(f"创建报告目录失败: {target_dir}, 原因: {exc}") from exc
+            raise PersistenceError(
+                f"创建报告目录失败: {target_dir}, 原因: {exc}"
+            ) from exc
 
         date_str = report.attribution_date or datetime.now().strftime("%Y-%m-%d")
 
@@ -608,11 +654,15 @@ class DailyAttributionPanel:
             json_path = target_dir / json_filename
             try:
                 with open(json_path, "w", encoding="utf-8") as f:
-                    json.dump(report.to_dict(), f, ensure_ascii=False, indent=2, default=str)
+                    json.dump(
+                        report.to_dict(), f, ensure_ascii=False, indent=2, default=str
+                    )
                 saved_paths["json"] = json_path
                 logger.debug(f"[DailyAttributionPanel] JSON 报告已保存: {json_path}")
             except OSError as exc:
-                raise PersistenceError(f"保存 JSON 报告失败: {json_path}, 原因: {exc}") from exc
+                raise PersistenceError(
+                    f"保存 JSON 报告失败: {json_path}, 原因: {exc}"
+                ) from exc
 
         if do_md:
             md_filename = self._md_template.format(date=date_str)
@@ -623,7 +673,9 @@ class DailyAttributionPanel:
                 saved_paths["markdown"] = md_path
                 logger.debug(f"[DailyAttributionPanel] Markdown 报告已保存: {md_path}")
             except OSError as exc:
-                raise PersistenceError(f"保存 Markdown 报告失败: {md_path}, 原因: {exc}") from exc
+                raise PersistenceError(
+                    f"保存 Markdown 报告失败: {md_path}, 原因: {exc}"
+                ) from exc
 
         return saved_paths
 
@@ -712,7 +764,7 @@ class DailyAttributionPanel:
                 status.status = MODULE_STATUS_DEGRADED
                 status.reason = "Brinson Feature Flag 关闭"
                 return result.to_dict(), "", status
-            elif result_status != "ok":
+            if result_status != "ok":
                 status.status = MODULE_STATUS_DEGRADED
                 status.reason = f"Brinson 状态: {result_status}"
             else:
@@ -779,7 +831,7 @@ class DailyAttributionPanel:
                 status.status = MODULE_STATUS_DEGRADED
                 status.reason = "Factor Feature Flag 关闭"
                 return result.to_dict(), "", status
-            elif result_status != "ok":
+            if result_status != "ok":
                 status.status = MODULE_STATUS_DEGRADED
                 status.reason = f"Factor 状态: {result_status}"
             else:
@@ -881,7 +933,9 @@ class DailyAttributionPanel:
             - normalized_dict["risk_pnl"]
         )
         if abs(residual) > self._residual_tolerance:
-            logger.warning(f"[DailyAttributionPanel] TCA 残差 {residual:.6f} 超过容差 {self._residual_tolerance}")
+            logger.warning(
+                f"[DailyAttributionPanel] TCA 残差 {residual:.6f} 超过容差 {self._residual_tolerance}"
+            )
         normalized["residual"] = round(residual, self._decimal_precision)
         return normalized
 
@@ -904,12 +958,16 @@ class DailyAttributionPanel:
                 if item.get("symbol"):
                     symbols.add(item["symbol"])
             except (TypeError, ValueError) as exc:
-                logger.warning(f"[DailyAttributionPanel] PnL 项解析失败: {exc}, item={item}")
+                logger.warning(
+                    f"[DailyAttributionPanel] PnL 项解析失败: {exc}, item={item}"
+                )
                 continue
 
         # 计算 bps (避免除零)
         alpha_bps = (alpha_pnl / total_notional * 10000) if total_notional > 0 else 0.0
-        execution_bps = (execution_pnl / total_notional * 10000) if total_notional > 0 else 0.0
+        execution_bps = (
+            (execution_pnl / total_notional * 10000) if total_notional > 0 else 0.0
+        )
         risk_bps = (risk_pnl / total_notional * 10000) if total_notional > 0 else 0.0
 
         residual = total_pnl - alpha_pnl - execution_pnl - risk_pnl
@@ -955,7 +1013,9 @@ class DailyAttributionPanel:
             "residual": 0.0,
         }
 
-    def _build_tca_markdown(self, tca_summary: dict[str, Any], attribution_date: str) -> str:
+    def _build_tca_markdown(
+        self, tca_summary: dict[str, Any], attribution_date: str
+    ) -> str:
         """生成 TCA 章节 Markdown."""
         if not tca_summary:
             return ""
@@ -982,10 +1042,18 @@ class DailyAttributionPanel:
                 return "N/A"
             return f"{part / total:.2%}"
 
-        lines.append(f"| Alpha (决策) | {alpha_pnl:.2f} | {alpha_bps:.2f} | {pct(alpha_pnl, total)} |")
-        lines.append(f"| Execution (执行) | {execution_pnl:.2f} | {execution_bps:.2f} | {pct(execution_pnl, total)} |")
-        lines.append(f"| Risk (风险) | {risk_pnl:.2f} | {risk_bps:.2f} | {pct(risk_pnl, total)} |")
-        lines.append(f"| **合计** | **{total:.2f}** | **{alpha_bps + execution_bps + risk_bps:.2f}** | **100.00%** |")
+        lines.append(
+            f"| Alpha (决策) | {alpha_pnl:.2f} | {alpha_bps:.2f} | {pct(alpha_pnl, total)} |"
+        )
+        lines.append(
+            f"| Execution (执行) | {execution_pnl:.2f} | {execution_bps:.2f} | {pct(execution_pnl, total)} |"
+        )
+        lines.append(
+            f"| Risk (风险) | {risk_pnl:.2f} | {risk_bps:.2f} | {pct(risk_pnl, total)} |"
+        )
+        lines.append(
+            f"| **合计** | **{total:.2f}** | **{alpha_bps + execution_bps + risk_bps:.2f}** | **100.00%** |"
+        )
 
         residual = tca_summary.get("residual", 0.0)
         if abs(residual) > self._residual_tolerance:
@@ -1027,7 +1095,9 @@ class DailyAttributionPanel:
         if _FeatureFlags is None:
             return False
         try:
-            return bool(_FeatureFlags.get_instance().is_enabled(self._feature_flag_name))
+            return bool(
+                _FeatureFlags.get_instance().is_enabled(self._feature_flag_name)
+            )
         except (ValueError, TypeError, KeyError, AttributeError, OSError):
             return False
 
@@ -1058,7 +1128,11 @@ class DailyAttributionPanel:
         if _FeatureFlags is None:
             return False
         try:
-            return bool(_FeatureFlags.get_instance().is_enabled("USE_TCA_POST_TRADE_ATTRIBUTION"))
+            return bool(
+                _FeatureFlags.get_instance().is_enabled(
+                    "USE_TCA_POST_TRADE_ATTRIBUTION"
+                )
+            )
         except (ValueError, TypeError, KeyError, AttributeError, OSError):
             return False
 
@@ -1072,14 +1146,20 @@ class DailyAttributionPanel:
             return
         try:
             report.total_pnl = float(report.factor_dict.get("total_pnl", 0.0) or 0.0)
-            report.active_return = float(report.factor_dict.get("active_return", 0.0) or 0.0)
-            report.active_risk = float(report.factor_dict.get("active_risk", 0.0) or 0.0)
+            report.active_return = float(
+                report.factor_dict.get("active_return", 0.0) or 0.0
+            )
+            report.active_risk = float(
+                report.factor_dict.get("active_risk", 0.0) or 0.0
+            )
             ir = report.factor_dict.get("information_ratio", 0.0)
             report.information_ratio = float(ir) if ir is not None else 0.0
         except (TypeError, ValueError) as exc:
             logger.warning(f"[DailyAttributionPanel] 提取汇总指标失败: {exc}")
 
-    def _evaluate_overall_status(self, module_statuses: list[ModuleStatus]) -> tuple[str, str]:
+    def _evaluate_overall_status(
+        self, module_statuses: list[ModuleStatus]
+    ) -> tuple[str, str]:
         """评估报告整体状态."""
         if not module_statuses:
             return STATUS_EMPTY_INPUT, "无子模块状态"
@@ -1088,7 +1168,12 @@ class DailyAttributionPanel:
         degraded_count = sum(
             1
             for s in module_statuses
-            if s.status in (MODULE_STATUS_DEGRADED, MODULE_STATUS_EMPTY_INPUT, MODULE_STATUS_SKIPPED)
+            if s.status
+            in (
+                MODULE_STATUS_DEGRADED,
+                MODULE_STATUS_EMPTY_INPUT,
+                MODULE_STATUS_SKIPPED,
+            )
         )
         error_count = sum(1 for s in module_statuses if s.status == MODULE_STATUS_ERROR)
         total = len(module_statuses)
@@ -1100,10 +1185,18 @@ class DailyAttributionPanel:
         if degraded_count == total:
             return STATUS_ALL_DEGRADED, "全部模块降级或无数据"
         if ok_count == 0:
-            return STATUS_PARTIAL, f"无正常模块, {degraded_count} 降级, {error_count} 异常"
-        return STATUS_PARTIAL, f"{ok_count} 正常, {degraded_count} 降级, {error_count} 异常"
+            return (
+                STATUS_PARTIAL,
+                f"无正常模块, {degraded_count} 降级, {error_count} 异常",
+            )
+        return (
+            STATUS_PARTIAL,
+            f"{ok_count} 正常, {degraded_count} 降级, {error_count} 异常",
+        )
 
-    def _build_disabled_report(self, attribution_date: str, start_time: float = 0.0) -> DailyAttributionReport:
+    def _build_disabled_report(
+        self, attribution_date: str, start_time: float = 0.0
+    ) -> DailyAttributionReport:
         """构建 Feature Flag 关闭时的降级报告."""
         elapsed_ms = (time.perf_counter() - start_time) * 1000 if start_time else 0.0
         return DailyAttributionReport(
@@ -1118,7 +1211,10 @@ class DailyAttributionPanel:
         )
 
     def _build_empty_report(
-        self, attribution_date: str, start_time: float = 0.0, use_perf_counter: bool = False
+        self,
+        attribution_date: str,
+        start_time: float = 0.0,
+        use_perf_counter: bool = False,
     ) -> DailyAttributionReport:
         """构建全部输入为空时的报告."""
         if start_time:
@@ -1146,7 +1242,9 @@ class DailyAttributionPanel:
             if cfg:
                 return cfg
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
-            logger.warning(f"[DailyAttributionPanel] 加载配置失败 (name={config_name}): {exc}")
+            logger.warning(
+                f"[DailyAttributionPanel] 加载配置失败 (name={config_name}): {exc}"
+            )
         return {}
 
     def _resolve_config_source(self, config_name: str) -> str:

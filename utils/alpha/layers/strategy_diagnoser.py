@@ -33,6 +33,7 @@
     diagnoser = StrategyDiagnoser()
     causes = diagnoser.diagnose(health_report)
 """
+
 from __future__ import annotations
 
 import json
@@ -153,8 +154,7 @@ class StrategyDiagnoser:
             "severity_fixed": SEVERITY_LOW,
             "action_type": ACTION_MANUAL,
             "description_tpl": (
-                "观察期进度不足 ({val:.1%} < {threshold:.0%}), "
-                "继续观察, 暂不晋升"
+                "观察期进度不足 ({val:.1%} < {threshold:.0%}), " "继续观察, 暂不晋升"
             ),
             "estimated_risk": 0.2,
             "remediation_commands": [
@@ -194,13 +194,21 @@ class StrategyDiagnoser:
         }
         try:
             from utils.config_manager import get_config
+
             cfg = get_config("evolution") or {}
             diag = (cfg.get("diagnostics", {}) or {}).get("strategy", {}) or {}
             if diag:
-                return {
-                    k: float(diag.get(k, defaults[k])) for k in defaults
-                }
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                return {k: float(diag.get(k, defaults[k])) for k in defaults}
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Strategy 诊断阈值加载失败, 用默认值: %s", e)
         return defaults
@@ -248,7 +256,8 @@ class StrategyDiagnoser:
             # 扫描最近 24h 内修改的告警文件
             cutoff_ts = datetime.now(UTC).timestamp() - self.alert_recency_window
             alert_files = [
-                f for f in self.drift_alerts_dir.glob("*.jsonl")
+                f
+                for f in self.drift_alerts_dir.glob("*.jsonl")
                 if f.stat().st_mtime >= cutoff_ts
             ]
             if not alert_files:
@@ -269,7 +278,16 @@ class StrategyDiagnoser:
                         key = self._alert_dedup_key(alert)
                         if key not in seen_keys:
                             seen_keys[key] = alert
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.warning("解析漂移告警文件失败 %s: %s", f.name, e)
                     continue
@@ -279,7 +297,16 @@ class StrategyDiagnoser:
                 cause = self._build_drift_cause(alert, now)
                 if cause is not None:
                     causes.append(cause)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("漂移告警诊断失败 (降级为空): %s", e)
         return causes
@@ -330,7 +357,16 @@ class StrategyDiagnoser:
                 confidence=0.85,
                 detected_at=now,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("构建漂移根因失败 (跳过): %s", e)
             return None
@@ -367,136 +403,157 @@ class StrategyDiagnoser:
             if not isinstance(evaluator_report, dict):
                 evaluator_report = {}
             pit_violations = int(
-                evaluator_report.get("pit_violations", decision.get("pit_violations", 0))
+                evaluator_report.get(
+                    "pit_violations", decision.get("pit_violations", 0)
+                )
             )
             overfit_score = float(
-                evaluator_report.get("overfit_score", decision.get("overfit_score", 0.0))
+                evaluator_report.get(
+                    "overfit_score", decision.get("overfit_score", 0.0)
+                )
             )
 
             # 2a. private_score 低 → 根因
             if private_score < self.thresholds["private_score_low"]:
                 severity = SEVERITY_CRITICAL if private_score < 0.15 else SEVERITY_HIGH
-                causes.append(RootCause(
-                    cause_id=f"strategy-private_low-{timestamp}",
-                    layer=LAYER_STRATEGY,
-                    category="private_score_low",
-                    severity=severity,
-                    evidence={
-                        "private_score": private_score,
-                        "public_score": public_score,
-                        "threshold": self.thresholds["private_score_low"],
-                        "sample_count": sample_count,
-                        "timestamp": timestamp,
-                        "source": "decisions.jsonl",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_CONFIG_ROLLBACK,
-                        description=(
-                            f"Private Score 过低 ({private_score:.3f} < "
-                            f"{self.thresholds['private_score_low']}), 建议回滚到上一个稳定版本"
+                causes.append(
+                    RootCause(
+                        cause_id=f"strategy-private_low-{timestamp}",
+                        layer=LAYER_STRATEGY,
+                        category="private_score_low",
+                        severity=severity,
+                        evidence={
+                            "private_score": private_score,
+                            "public_score": public_score,
+                            "threshold": self.thresholds["private_score_low"],
+                            "sample_count": sample_count,
+                            "timestamp": timestamp,
+                            "source": "decisions.jsonl",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_CONFIG_ROLLBACK,
+                            description=(
+                                f"Private Score 过低 ({private_score:.3f} < "
+                                f"{self.thresholds['private_score_low']}), 建议回滚到上一个稳定版本"
+                            ),
+                            estimated_risk=0.7,
+                            requires_human_approval=True,
+                            remediation_commands=[
+                                "# 回滚策略到上一个稳定版本 (人工审批后执行)",
+                                f"python scripts/run_strategy_rollback.py --reason private_score_low --score {private_score}",
+                            ],
                         ),
-                        estimated_risk=0.7,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "# 回滚策略到上一个稳定版本 (人工审批后执行)",
-                            f"python scripts/run_strategy_rollback.py --reason private_score_low --score {private_score}",
-                        ],
-                    ),
-                    confidence=0.8,
-                    detected_at=now,
-                ))
+                        confidence=0.8,
+                        detected_at=now,
+                    )
+                )
 
             # 2b. reward_hacking_risk 高 → 根因
             if rh_risk > self.thresholds["rh_risk_high"]:
-                causes.append(RootCause(
-                    cause_id=f"strategy-rh_risk_high-{timestamp}",
-                    layer=LAYER_STRATEGY,
-                    category="reward_hacking_risk_high",
-                    severity=SEVERITY_HIGH,
-                    evidence={
-                        "reward_hacking_risk": rh_risk,
-                        "threshold": self.thresholds["rh_risk_high"],
-                        "overfit_score": overfit_score,
-                        "pit_violations": pit_violations,
-                        "timestamp": timestamp,
-                        "source": "decisions.jsonl",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"Reward Hacking 风险偏高 ({rh_risk:.3f} > "
-                            f"{self.thresholds['rh_risk_high']}), 需审查过拟合/PIT"
+                causes.append(
+                    RootCause(
+                        cause_id=f"strategy-rh_risk_high-{timestamp}",
+                        layer=LAYER_STRATEGY,
+                        category="reward_hacking_risk_high",
+                        severity=SEVERITY_HIGH,
+                        evidence={
+                            "reward_hacking_risk": rh_risk,
+                            "threshold": self.thresholds["rh_risk_high"],
+                            "overfit_score": overfit_score,
+                            "pit_violations": pit_violations,
+                            "timestamp": timestamp,
+                            "source": "decisions.jsonl",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_MANUAL,
+                            description=(
+                                f"Reward Hacking 风险偏高 ({rh_risk:.3f} > "
+                                f"{self.thresholds['rh_risk_high']}), 需审查过拟合/PIT"
+                            ),
+                            estimated_risk=0.6,
+                            requires_human_approval=True,
+                            remediation_commands=[
+                                "# 审查策略过拟合与未来函数",
+                                "python scripts/run_pit_check.py --strict",
+                                "python scripts/run_dsr_check.py",
+                            ],
                         ),
-                        estimated_risk=0.6,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "# 审查策略过拟合与未来函数",
-                            "python scripts/run_pit_check.py --strict",
-                            "python scripts/run_dsr_check.py",
-                        ],
-                    ),
-                    confidence=0.75,
-                    detected_at=now,
-                ))
+                        confidence=0.75,
+                        detected_at=now,
+                    )
+                )
 
             # 2c. pit_violations > 0 → 根因 (未来函数违规是阻断性问题)
             if pit_violations > 0:
-                causes.append(RootCause(
-                    cause_id=f"strategy-pit_violation-{timestamp}",
-                    layer=LAYER_STRATEGY,
-                    category="pit_violation",
-                    severity=SEVERITY_CRITICAL,
-                    evidence={
-                        "pit_violations": pit_violations,
-                        "timestamp": timestamp,
-                        "source": "decisions.jsonl.evaluator_report",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"检测到 {pit_violations} 处 PIT 违规 (未来函数), "
-                            "必须立即修复后重新评估"
+                causes.append(
+                    RootCause(
+                        cause_id=f"strategy-pit_violation-{timestamp}",
+                        layer=LAYER_STRATEGY,
+                        category="pit_violation",
+                        severity=SEVERITY_CRITICAL,
+                        evidence={
+                            "pit_violations": pit_violations,
+                            "timestamp": timestamp,
+                            "source": "decisions.jsonl.evaluator_report",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_MANUAL,
+                            description=(
+                                f"检测到 {pit_violations} 处 PIT 违规 (未来函数), "
+                                "必须立即修复后重新评估"
+                            ),
+                            estimated_risk=0.9,
+                            requires_human_approval=True,
+                            remediation_commands=[
+                                "# 定位并修复未来函数 (人工审核)",
+                                'python -c "from v8.3_institutional.src.validation.pit_checker import PITChecker; PITChecker().generate_report()"',
+                            ],
                         ),
-                        estimated_risk=0.9,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "# 定位并修复未来函数 (人工审核)",
-                            "python -c \"from v8.3_institutional.src.validation.pit_checker import PITChecker; PITChecker().generate_report()\"",
-                        ],
-                    ),
-                    confidence=0.95,
-                    detected_at=now,
-                ))
+                        confidence=0.95,
+                        detected_at=now,
+                    )
+                )
 
             # 2d. recommendation == "rollback" → 根因
             if recommendation == "rollback":
-                causes.append(RootCause(
-                    cause_id=f"strategy-rollback_recommended-{timestamp}",
-                    layer=LAYER_STRATEGY,
-                    category="strategy_rollback_recommended",
-                    severity=SEVERITY_CRITICAL,
-                    evidence={
-                        "recommendation": recommendation,
-                        "private_score": private_score,
-                        "public_score": public_score,
-                        "rh_risk": rh_risk,
-                        "timestamp": timestamp,
-                        "source": "decisions.jsonl",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_CONFIG_ROLLBACK,
-                        description="策略评估器建议回滚, 需立即审查并回滚到稳定版本",
-                        estimated_risk=0.8,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "# 立即回滚策略 (人工审批后执行)",
-                            "python scripts/run_strategy_rollback.py --reason evaluator_recommended",
-                        ],
-                    ),
-                    confidence=0.9,
-                    detected_at=now,
-                ))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                causes.append(
+                    RootCause(
+                        cause_id=f"strategy-rollback_recommended-{timestamp}",
+                        layer=LAYER_STRATEGY,
+                        category="strategy_rollback_recommended",
+                        severity=SEVERITY_CRITICAL,
+                        evidence={
+                            "recommendation": recommendation,
+                            "private_score": private_score,
+                            "public_score": public_score,
+                            "rh_risk": rh_risk,
+                            "timestamp": timestamp,
+                            "source": "decisions.jsonl",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_CONFIG_ROLLBACK,
+                            description="策略评估器建议回滚, 需立即审查并回滚到稳定版本",
+                            estimated_risk=0.8,
+                            requires_human_approval=True,
+                            remediation_commands=[
+                                "# 立即回滚策略 (人工审批后执行)",
+                                "python scripts/run_strategy_rollback.py --reason evaluator_recommended",
+                            ],
+                        ),
+                        confidence=0.9,
+                        detected_at=now,
+                    )
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("决策记录诊断失败 (降级为空): %s", e)
         return causes
@@ -515,11 +572,29 @@ class StrategyDiagnoser:
                     d = json.loads(line)
                     if isinstance(d, dict):
                         return d
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
             return None
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("读取 decisions.jsonl 失败: %s", e)
             return None
@@ -557,27 +632,38 @@ class StrategyDiagnoser:
 
                 desc = rule["description_tpl"].format(val=val, threshold=threshold)
 
-                causes.append(RootCause(
-                    cause_id=f"{rule['cause_id_prefix']}-{now}",
-                    layer=LAYER_STRATEGY,
-                    category=rule["category"],
-                    severity=severity,
-                    evidence={
-                        rule["evidence_keys"]["metric"]: val,
-                        "threshold": threshold,
-                        "source": "HealthReport.strategy_health",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=rule["action_type"],
-                        description=desc,
-                        estimated_risk=rule["estimated_risk"],
-                        requires_human_approval=True,
-                        remediation_commands=list(rule["remediation_commands"]),
-                    ),
-                    confidence=rule["confidence"],
-                    detected_at=now,
-                ))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                causes.append(
+                    RootCause(
+                        cause_id=f"{rule['cause_id_prefix']}-{now}",
+                        layer=LAYER_STRATEGY,
+                        category=rule["category"],
+                        severity=severity,
+                        evidence={
+                            rule["evidence_keys"]["metric"]: val,
+                            "threshold": threshold,
+                            "source": "HealthReport.strategy_health",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=rule["action_type"],
+                            description=desc,
+                            estimated_risk=rule["estimated_risk"],
+                            requires_human_approval=True,
+                            remediation_commands=list(rule["remediation_commands"]),
+                        ),
+                        confidence=rule["confidence"],
+                        detected_at=now,
+                    )
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("从 HealthReport 诊断策略层失败: %s", e)
         return causes
@@ -594,11 +680,22 @@ class StrategyDiagnoser:
             if isinstance(health_report, dict):
                 ls = health_report.get("layer_scores", {}).get("strategy")
                 if ls is not None:
+
                     class _Wrap:
                         def __init__(self, d: dict[str, Any]) -> None:
                             self.sub_metrics = d.get("sub_metrics", {})
+
                     return _Wrap(ls)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return None

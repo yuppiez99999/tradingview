@@ -75,9 +75,12 @@ class CodeExchangeMismatchError(ValueError):
 #   默认 False (仅 warning, 向后兼容)
 #   环境变量 WT_STRUCTS_STRICT_SYMBOL=1/true/yes/on 启用 (生产 hot path 临时收紧)
 #   strict_symbol_validation() 上下文管理器用于测试与临时收紧/放宽
-_STRICT_VALIDATION: bool = os.environ.get(
-    "WT_STRUCTS_STRICT_SYMBOL", ""
-).lower() in ("1", "true", "yes", "on")
+_STRICT_VALIDATION: bool = os.environ.get("WT_STRUCTS_STRICT_SYMBOL", "").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 
 @contextmanager
@@ -164,7 +167,7 @@ class TickData:
     #   ts_init:  系统接收时间, 纳秒级 UNIX 时间戳 int64, 用于延迟监控 (可选, 默认 0)
     # 向后兼容: 未设置时, EventDrivenEngine 默认用 MONOTONIC_INDEX 模式
     ts_event: int = 0  # int, 纳秒级 UNIX 时间戳 (uint64 范围, 用 Python int 不会溢出)
-    ts_init: int = 0   # int, 纳秒级 UNIX 时间戳
+    ts_init: int = 0  # int, 纳秒级 UNIX 时间戳
 
     def __post_init__(self) -> None:
         _validate_code_exchange(self.code, self.exchange, "TickData")
@@ -191,7 +194,7 @@ class BarData:
     #   含义同 TickData.ts_event/ts_init, Bar 用 period 结束时刻作为 ts_event
     #   向后兼容: 默认 0, EventDrivenEngine 自动退化到 MONOTONIC_INDEX
     ts_event: int = 0  # int, 纳秒级 UNIX 时间戳
-    ts_init: int = 0   # int, 纳秒级 UNIX 时间戳
+    ts_init: int = 0  # int, 纳秒级 UNIX 时间戳
 
     def __post_init__(self) -> None:
         _validate_code_exchange(self.code, self.exchange, "BarData")
@@ -210,7 +213,9 @@ class OrderData:
     price: float = 0.0
     volume: float = 0.0
     traded_volume: float = 0.0
-    status: str = "NOT_REPORTED"  # "NOT_REPORTED"/"REPORTED"/"PART_TRADED"/"ALL_TRADED"/"CANCELLED"/"REJECTED"
+    status: str = (
+        "NOT_REPORTED"  # "NOT_REPORTED"/"REPORTED"/"PART_TRADED"/"ALL_TRADED"/"CANCELLED"/"REJECTED"
+    )
     timestamp: float = 0.0
     datetime_str: str = ""
 

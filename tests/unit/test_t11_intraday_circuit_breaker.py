@@ -1,4 +1,5 @@
 """T11 单元测试 — IntradayCircuitBreaker 盘中断路器."""
+
 from __future__ import annotations
 
 import time
@@ -53,7 +54,7 @@ class TestConsecutiveFailTrip:
 class TestIntradayDrawdownTrip:
     def test_drawdown_breach_trips(self):
         cb = IntradayCircuitBreaker(intraday_dd_pct=0.03)
-        cb.update_intraday_pnl(0.05)   # 峰值 5%
+        cb.update_intraday_pnl(0.05)  # 峰值 5%
         cb.update_intraday_pnl(0.019)  # 回撤 3.1% > 3%
         assert cb.state == CBState.OPEN
         assert any("DRAWDOWN" in r for r in cb.metrics.last_trip_reasons)
@@ -136,8 +137,13 @@ class TestSnapshot:
         cb = IntradayCircuitBreaker(consecutive_fail_threshold=3)
         s = cb.snapshot()
         for k in (
-            "state", "consecutive_failures", "consecutive_fail_threshold",
-            "total_failures", "total_successes", "trip_count",
-            "drawdown_threshold_pct", "vol_threshold_annualized",
+            "state",
+            "consecutive_failures",
+            "consecutive_fail_threshold",
+            "total_failures",
+            "total_successes",
+            "trip_count",
+            "drawdown_threshold_pct",
+            "vol_threshold_annualized",
         ):
             assert k in s, f"缺少 {k}"

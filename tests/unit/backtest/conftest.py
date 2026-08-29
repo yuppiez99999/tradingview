@@ -3,6 +3,7 @@
 提供合成的 OrderData/TickData/BarData 等测试数据,避免每个测试文件重复构造。
 遵循 AAA 模式(Arrange-Act-Assert),fixture 仅负责 Arrange 部分。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -12,6 +13,7 @@ from utils.wt_structs import BarData, ContractData, OrderData, TickData
 # ============================================================
 # OrderData fixtures
 # ============================================================
+
 
 @pytest.fixture
 def sample_buy_order() -> OrderData:
@@ -74,6 +76,7 @@ def large_buy_order() -> OrderData:
 # BarData fixtures
 # ============================================================
 
+
 @pytest.fixture
 def sample_bar() -> BarData:
     """合成日 K Bar: 600519 贵州茅台 2023-11-14"""
@@ -114,6 +117,7 @@ def low_volume_bar() -> BarData:
 # TickData fixtures
 # ============================================================
 
+
 @pytest.fixture
 def sample_tick() -> TickData:
     """合成 Tick: 600519 五档行情"""
@@ -141,6 +145,7 @@ def sample_tick() -> TickData:
 # ============================================================
 # ContractData fixtures
 # ============================================================
+
 
 @pytest.fixture
 def stock_contract() -> ContractData:

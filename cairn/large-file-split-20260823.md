@@ -132,3 +132,14 @@ A, B, C, object] — D 优先，方法查找从左到右
 
 **现象**: 添加 import 行后，后续行号全部偏移，导致按行号删除出错
 **修复**: 每次编辑后重新 grep 确认行号，或使用 Python 脚本按内容匹配删除
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [daily_workflow.py 拆分复盘报告 (5 轮 · 2026-08-12)](daily-workflow-split-retrospective.md) (相似度 13%)
+- [daily_workflow.py 拆分计划（门禁 ≤3000 行 · 长期架构重构）](daily-workflow-split-plan.md) (相似度 9%)
+- [测试健康度治理经验（2026-08-19）](test-health-20260819.md) (相似度 9%)
+- [代码质量工业级差距审计 — 2026-08-19](code-quality-industrial-gap-20260819.md) (相似度 7%)
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

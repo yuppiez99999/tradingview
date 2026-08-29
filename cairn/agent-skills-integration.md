@@ -78,3 +78,14 @@
 - **风控 fail-open 是红线**：WT 风控异常、止损管理器不可用 → 必须 fail-close 保守阻断或返回标记项告警可见，禁止静默放行/跳过。
 
 已修复 20 缺陷（含 DTE-2/3/4/7、PI-2、UE-2/3、LW-1 等），13 项 P1/P2 结构待办见 docs/CODE_REVIEW_COMPREHENSIVE_20260824.md。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [DTE-1 建仓接入 FillsStore 事实源 (2026-08-24)](dte1-build-fills-store-20260824.md) (相似度 20%)
+- [成交回报驱动 PnL：G2/G4 执行闭环补齐经验沉淀（2026-08-08）](fills-driven-pnl-lessons-20260808.md) (相似度 20%)
+- [代码审查明细 — daily_trade_executor (2026-08-24)](code-review-daily-executor-20260824.md) (相似度 19%)
+- [代码审查质量门禁经验沉淀：为什么多次审查仍有 bug](code-review-quality-gate-lessons-20260811.md) (相似度 15%)
+- [数据修复经验沉淀：EOD 管道数据断链诊断与修复（2026-08-06）](data-integrity-fix-lessons-20260806.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

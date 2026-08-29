@@ -12,6 +12,7 @@
 
 设计依据: docs/1设计计划集成到系统内并能完整运行_20260817.md W.A.1
 """
+
 from __future__ import annotations
 
 import sys
@@ -35,6 +36,7 @@ from utils.signal_sources.sentiment_signal_source import (  # noqa: E402
 # ============================================================
 # Mock 数据结构
 # ============================================================
+
 
 @dataclass
 class MockNewsItem:
@@ -115,15 +117,40 @@ class MockMediaCrawlerResult:
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def mock_media_crawler():
     """模拟 MediaCrawlerAdapter, 返回 3 平台 4 条舆情"""
     crawler = MagicMock()
     items = [
-        MockMediaCrawlerNewsItem(title="茅台业绩大增", content="超预期", platform="xhs", item_id="1", sentiment_score=0.8),
-        MockMediaCrawlerNewsItem(title="茅台突破新高", content="大涨", platform="bili", item_id="2", sentiment_score=0.6),
-        MockMediaCrawlerNewsItem(title="茅台风险提示", content="估值偏高", platform="wb", item_id="3", sentiment_score=-0.3),
-        MockMediaCrawlerNewsItem(title="茅台讨论", content="", platform="zhihu", item_id="4", sentiment_score=0.1),
+        MockMediaCrawlerNewsItem(
+            title="茅台业绩大增",
+            content="超预期",
+            platform="xhs",
+            item_id="1",
+            sentiment_score=0.8,
+        ),
+        MockMediaCrawlerNewsItem(
+            title="茅台突破新高",
+            content="大涨",
+            platform="bili",
+            item_id="2",
+            sentiment_score=0.6,
+        ),
+        MockMediaCrawlerNewsItem(
+            title="茅台风险提示",
+            content="估值偏高",
+            platform="wb",
+            item_id="3",
+            sentiment_score=-0.3,
+        ),
+        MockMediaCrawlerNewsItem(
+            title="茅台讨论",
+            content="",
+            platform="zhihu",
+            item_id="4",
+            sentiment_score=0.1,
+        ),
     ]
     crawler.search_multi_platform.return_value = {
         "小红书": MockMediaCrawlerResult(success=True, items=[items[0]], total_count=1),
@@ -171,6 +198,7 @@ def source(mock_media_crawler, mock_sentiment_engine):
 # 测试组 1: 中性降级
 # ============================================================
 
+
 class TestNeutralDegradation:
     """采集失败/无数据时返回中性信号"""
 
@@ -185,7 +213,9 @@ class TestNeutralDegradation:
     def test_no_data(self, mock_media_crawler, mock_sentiment_engine):
         crawler = MagicMock()
         crawler.search_multi_platform.return_value = {}
-        src = SentimentSignalSource(media_crawler=crawler, sentiment_engine=mock_sentiment_engine)
+        src = SentimentSignalSource(
+            media_crawler=crawler, sentiment_engine=mock_sentiment_engine
+        )
         result = src.get_signal("600519.SH")
         assert result.score == 0.5
         assert result.confidence == 0.0
@@ -197,7 +227,9 @@ class TestNeutralDegradation:
             "小红书": MockMediaCrawlerResult(success=False, error="timeout"),
             "B站": MockMediaCrawlerResult(success=False, error="503"),
         }
-        src = SentimentSignalSource(media_crawler=crawler, sentiment_engine=mock_sentiment_engine)
+        src = SentimentSignalSource(
+            media_crawler=crawler, sentiment_engine=mock_sentiment_engine
+        )
         result = src.get_signal("600519.SH")
         assert result.score == 0.5
         assert result.confidence == 0.0
@@ -205,7 +237,9 @@ class TestNeutralDegradation:
     def test_crawler_exception(self, mock_sentiment_engine):
         crawler = MagicMock()
         crawler.search_multi_platform.side_effect = RuntimeError("connection refused")
-        src = SentimentSignalSource(media_crawler=crawler, sentiment_engine=mock_sentiment_engine)
+        src = SentimentSignalSource(
+            media_crawler=crawler, sentiment_engine=mock_sentiment_engine
+        )
         result = src.get_signal("600519.SH")
         assert result.score == 0.5
         assert result.confidence == 0.0
@@ -214,6 +248,7 @@ class TestNeutralDegradation:
 # ============================================================
 # 测试组 2: 采集 + 打分 → SignalResult 转换
 # ============================================================
+
 
 class TestSignalConversion:
     """SentimentSignal → SignalResult 转换正确性"""
@@ -232,31 +267,49 @@ class TestSignalConversion:
         mock_sentiment_engine.analyze.return_value = MockSentimentResult(
             signals={
                 "600519.SH": MockSentimentSignal(
-                    symbol="600519.SH", composite_sentiment=0.5, news_count_24h=5,
-                    news_count_7d=5, weighted_sentiment=0.5, breaking_news=False,
-                    event_distribution={}, propagated_sentiment=0.0,
-                    signal_strength=0.5, confidence=0.9,
+                    symbol="600519.SH",
+                    composite_sentiment=0.5,
+                    news_count_24h=5,
+                    news_count_7d=5,
+                    weighted_sentiment=0.5,
+                    breaking_news=False,
+                    event_distribution={},
+                    propagated_sentiment=0.0,
+                    signal_strength=0.5,
+                    confidence=0.9,
                 )
             }
         )
-        src = SentimentSignalSource(media_crawler=mock_media_crawler, sentiment_engine=mock_sentiment_engine)
+        src = SentimentSignalSource(
+            media_crawler=mock_media_crawler, sentiment_engine=mock_sentiment_engine
+        )
         result = src.get_signal("600519.SH")
         assert result.score == pytest.approx(0.75, abs=0.01)
         assert result.action == "BUY"
         assert result.confidence == pytest.approx(0.9, abs=0.01)
 
-    def test_negative_sentiment_to_sell(self, mock_media_crawler, mock_sentiment_engine):
+    def test_negative_sentiment_to_sell(
+        self, mock_media_crawler, mock_sentiment_engine
+    ):
         mock_sentiment_engine.analyze.return_value = MockSentimentResult(
             signals={
                 "600519.SH": MockSentimentSignal(
-                    symbol="600519.SH", composite_sentiment=-0.5, news_count_24h=5,
-                    news_count_7d=5, weighted_sentiment=-0.5, breaking_news=False,
-                    event_distribution={}, propagated_sentiment=0.0,
-                    signal_strength=-0.5, confidence=0.9,
+                    symbol="600519.SH",
+                    composite_sentiment=-0.5,
+                    news_count_24h=5,
+                    news_count_7d=5,
+                    weighted_sentiment=-0.5,
+                    breaking_news=False,
+                    event_distribution={},
+                    propagated_sentiment=0.0,
+                    signal_strength=-0.5,
+                    confidence=0.9,
                 )
             }
         )
-        src = SentimentSignalSource(media_crawler=mock_media_crawler, sentiment_engine=mock_sentiment_engine)
+        src = SentimentSignalSource(
+            media_crawler=mock_media_crawler, sentiment_engine=mock_sentiment_engine
+        )
         result = src.get_signal("600519.SH")
         assert result.score == pytest.approx(0.25, abs=0.01)
         assert result.action == "SELL"
@@ -265,30 +318,48 @@ class TestSignalConversion:
         mock_sentiment_engine.analyze.return_value = MockSentimentResult(
             signals={
                 "600519.SH": MockSentimentSignal(
-                    symbol="600519.SH", composite_sentiment=0.0, news_count_24h=5,
-                    news_count_7d=5, weighted_sentiment=0.0, breaking_news=False,
-                    event_distribution={}, propagated_sentiment=0.0,
-                    signal_strength=0.0, confidence=0.9,
+                    symbol="600519.SH",
+                    composite_sentiment=0.0,
+                    news_count_24h=5,
+                    news_count_7d=5,
+                    weighted_sentiment=0.0,
+                    breaking_news=False,
+                    event_distribution={},
+                    propagated_sentiment=0.0,
+                    signal_strength=0.0,
+                    confidence=0.9,
                 )
             }
         )
-        src = SentimentSignalSource(media_crawler=mock_media_crawler, sentiment_engine=mock_sentiment_engine)
+        src = SentimentSignalSource(
+            media_crawler=mock_media_crawler, sentiment_engine=mock_sentiment_engine
+        )
         result = src.get_signal("600519.SH")
         assert result.score == pytest.approx(0.5, abs=0.01)
         assert result.action == "HOLD"
 
-    def test_composite_clamped_to_range(self, mock_media_crawler, mock_sentiment_engine):
+    def test_composite_clamped_to_range(
+        self, mock_media_crawler, mock_sentiment_engine
+    ):
         mock_sentiment_engine.analyze.return_value = MockSentimentResult(
             signals={
                 "600519.SH": MockSentimentSignal(
-                    symbol="600519.SH", composite_sentiment=2.0, news_count_24h=5,
-                    news_count_7d=5, weighted_sentiment=2.0, breaking_news=False,
-                    event_distribution={}, propagated_sentiment=0.0,
-                    signal_strength=2.0, confidence=0.9,
+                    symbol="600519.SH",
+                    composite_sentiment=2.0,
+                    news_count_24h=5,
+                    news_count_7d=5,
+                    weighted_sentiment=2.0,
+                    breaking_news=False,
+                    event_distribution={},
+                    propagated_sentiment=0.0,
+                    signal_strength=2.0,
+                    confidence=0.9,
                 )
             }
         )
-        src = SentimentSignalSource(media_crawler=mock_media_crawler, sentiment_engine=mock_sentiment_engine)
+        src = SentimentSignalSource(
+            media_crawler=mock_media_crawler, sentiment_engine=mock_sentiment_engine
+        )
         result = src.get_signal("600519.SH")
         assert result.score == pytest.approx(1.0, abs=0.01)
 
@@ -297,6 +368,7 @@ class TestSignalConversion:
 # 测试组 3: confidence 降权
 # ============================================================
 
+
 class TestConfidenceGating:
     """confidence < min_confidence 时自动降权"""
 
@@ -304,10 +376,16 @@ class TestConfidenceGating:
         mock_sentiment_engine.analyze.return_value = MockSentimentResult(
             signals={
                 "600519.SH": MockSentimentSignal(
-                    symbol="600519.SH", composite_sentiment=0.8, news_count_24h=1,
-                    news_count_7d=1, weighted_sentiment=0.8, breaking_news=False,
-                    event_distribution={}, propagated_sentiment=0.0,
-                    signal_strength=0.8, confidence=0.2,
+                    symbol="600519.SH",
+                    composite_sentiment=0.8,
+                    news_count_24h=1,
+                    news_count_7d=1,
+                    weighted_sentiment=0.8,
+                    breaking_news=False,
+                    event_distribution={},
+                    propagated_sentiment=0.0,
+                    signal_strength=0.8,
+                    confidence=0.2,
                 )
             }
         )
@@ -324,10 +402,16 @@ class TestConfidenceGating:
         mock_sentiment_engine.analyze.return_value = MockSentimentResult(
             signals={
                 "600519.SH": MockSentimentSignal(
-                    symbol="600519.SH", composite_sentiment=0.8, news_count_24h=5,
-                    news_count_7d=5, weighted_sentiment=0.8, breaking_news=False,
-                    event_distribution={}, propagated_sentiment=0.0,
-                    signal_strength=0.8, confidence=0.9,
+                    symbol="600519.SH",
+                    composite_sentiment=0.8,
+                    news_count_24h=5,
+                    news_count_7d=5,
+                    weighted_sentiment=0.8,
+                    breaking_news=False,
+                    event_distribution={},
+                    propagated_sentiment=0.0,
+                    signal_strength=0.8,
+                    confidence=0.9,
                 )
             }
         )
@@ -345,13 +429,18 @@ class TestConfidenceGating:
 # 测试组 4: 多平台聚合
 # ============================================================
 
+
 class TestMultiPlatformAggregation:
     """多平台采集聚合"""
 
     def test_platforms_in_reason(self, source):
         result = source.get_signal("600519.SH")
         assert "platforms" in result.reason
-        assert "xhs" in result.reason or "小红书" in result.reason or "bili" in result.reason
+        assert (
+            "xhs" in result.reason
+            or "小红书" in result.reason
+            or "bili" in result.reason
+        )
 
     def test_custom_platforms(self, mock_media_crawler, mock_sentiment_engine):
         src = SentimentSignalSource(
@@ -367,6 +456,7 @@ class TestMultiPlatformAggregation:
 # ============================================================
 # 测试组 5: 关键词解析
 # ============================================================
+
 
 class TestKeywordResolver:
     """股票代码 → 搜索关键词"""
@@ -392,11 +482,13 @@ class TestKeywordResolver:
 # 测试组 6: SignalFusionEngine 注册集成
 # ============================================================
 
+
 class TestFusionEngineRegistration:
     """注册到 SignalFusionEngine"""
 
     def test_register_sentiment_source(self, source):
         from utils.signal_fusion import SignalFusionEngine
+
         engine = SignalFusionEngine()
         engine.register_source("sentiment", source.get_signal, initial_weight=0.05)
         assert "sentiment" in engine._sources
@@ -404,6 +496,7 @@ class TestFusionEngineRegistration:
 
     def test_register_then_get_signal(self, source):
         from utils.signal_fusion import SignalFusionEngine
+
         engine = SignalFusionEngine()
         engine.register_source("sentiment", source.get_signal, initial_weight=0.05)
         getter = engine._sources["sentiment"]

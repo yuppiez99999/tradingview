@@ -3,6 +3,7 @@
 
 运行: python scripts/verify_evolution_v2.py
 """
+
 import os
 import sys
 from datetime import date
@@ -23,6 +24,7 @@ def test_n1_drift_detector_interface():
     四要素齐全: IC衰减 + ADWIN + KS + PSI.
     """
     from ml.drift_detector import ModelDriftDetector
+
     detector = ModelDriftDetector()
     today = date.today()
     for _i in range(25):
@@ -40,12 +42,12 @@ def test_n1_drift_detector_interface():
 def test_n1_positions_and_capital():
     """N1: 验证 positions.json 与总资金可读取 (N2 依赖)"""
     import json
+
     pos_path = os.path.join(BASE, "config", "positions.json")
     assert os.path.exists(pos_path), "config/positions.json 不存在"
     with open(pos_path, encoding="utf-8") as f:
         data = json.load(f)
-    assert "positions" in data and isinstance(data["positions"], dict), \
-        "positions 字段应为 dict"
+    assert "positions" in data and isinstance(data["positions"], dict), "positions 字段应为 dict"
     total_capital = float(data.get("meta", {}).get("total_capital", 0))
     assert total_capital > 0, f"total_capital 应 > 0, 实际 {total_capital}"
     n_pos = len(data["positions"])
@@ -89,10 +91,10 @@ def test_n2_strategy_evaluator():
     report = evaluator.evaluate()
 
     # 验证 ScoreReport dataclass 关键字段
-    assert hasattr(report, 'overall_score'), "report 应包含 overall_score"
-    assert hasattr(report, 'is_degraded'), "report 应包含 is_degraded"
-    assert hasattr(report, 'return_metrics'), "report 应包含 return_metrics"
-    assert hasattr(report, 'divers_metrics'), "report 应包含 divers_metrics"
+    assert hasattr(report, "overall_score"), "report 应包含 overall_score"
+    assert hasattr(report, "is_degraded"), "report 应包含 is_degraded"
+    assert hasattr(report, "return_metrics"), "report 应包含 return_metrics"
+    assert hasattr(report, "divers_metrics"), "report 应包含 divers_metrics"
 
     score = float(report.overall_score or 0)
     assert 0.0 <= score <= 1.0, f"overall_score [{score}] 超出 [0,1] 范围"
@@ -106,18 +108,23 @@ def test_n2_strategy_evaluator():
 def test_n3_ic_recorder():
     """N3: 测试 IC 记录器 (scripts/ic_recorder.py)"""
     try:
-        from scripts.ic_recorder import compute_ic_from_signals, load_ic_store, record_daily_ic
+        from scripts.ic_recorder import (
+            compute_ic_from_signals,
+            load_ic_store,
+            record_daily_ic,
+        )
     except ImportError:
         try:
-            from ic_recorder import compute_ic_from_signals, load_ic_store, record_daily_ic
+            from ic_recorder import (
+                compute_ic_from_signals,
+                load_ic_store,
+                record_daily_ic,
+            )
         except ImportError:
             print("⚠ N3 ICRecorder 未导入 (尚未实施), 跳过")
             return
 
-    signals = [
-        {'predicted_return': 0.01 * i, 'actual_return': 0.012 * i}
-        for i in range(15)
-    ]
+    signals = [{"predicted_return": 0.01 * i, "actual_return": 0.012 * i} for i in range(15)]
     ic = compute_ic_from_signals(signals, min_samples=10)
     assert ic is not None and 0.0 <= abs(ic) <= 1.0
     record_daily_ic(ic, trade_date=date(2026, 7, 29), source="verify_v2")
@@ -133,10 +140,14 @@ def test_n3_ic_recorder():
 def test_n4_adaptive_optimize():
     """N4: 验证 adaptive_optimize (scripts/adaptive_optimize.py)"""
     try:
-        from scripts.adaptive_optimize import ADAPTIVE_OPTIMIZE_CONFIG, adaptive_optimize
+        from scripts.adaptive_optimize import (
+            adaptive_optimize,
+        )
     except ImportError:
         try:
-            from adaptive_optimize import ADAPTIVE_OPTIMIZE_CONFIG, adaptive_optimize  # noqa: F401
+            from adaptive_optimize import (
+                adaptive_optimize,
+            )  # noqa: F401
         except ImportError:
             print("⚠ N4 adaptive_optimize 未导入 (尚未实施), 跳过")
             return
@@ -150,9 +161,11 @@ def test_n4_adaptive_optimize():
     assert base_config["lgb_params"]["max_depth"] == 8, "原配置不应被修改"
 
     meta = result["_adaptive_meta"]
-    print(f"✓ N4 adaptive_optimize 通过: severity={meta.get('severity')}, "
-          f"level={meta.get('level')}, "
-          f"lr={result['lgb_params'].get('learning_rate')}")
+    print(
+        f"✓ N4 adaptive_optimize 通过: severity={meta.get('severity')}, "
+        f"level={meta.get('level')}, "
+        f"lr={result['lgb_params'].get('learning_rate')}"
+    )
 
 
 # ============================================================
@@ -173,20 +186,31 @@ def test_n5_skill_manager():
     os.environ["USE_SKILL_MANAGER"] = "True"
 
     sm = SkillManager()
-    sm.save_experience("588080.SH", {
-        'type': 'retrain_success',
-        'description': 'verify_v2 测试经验记录',
-        'impact': 'positive',
-        'action_taken': 'adaptive_retrain',
-        'verified': True,
-    }, enabled=True)
+    sm.save_experience(
+        "588080.SH",
+        {
+            "type": "retrain_success",
+            "description": "verify_v2 测试经验记录",
+            "impact": "positive",
+            "action_taken": "adaptive_retrain",
+            "verified": True,
+        },
+        enabled=True,
+    )
     recent = sm.get_recent_lessons(symbol="588080.SH", days=1)
-    assert any(lesson.get('description') == 'verify_v2 测试经验记录' for lesson in recent), \
-        f"未找到测试记录, 实际: {[lesson.get('description') for lesson in recent]}"
+    assert any(
+        lesson.get("description") == "verify_v2 测试经验记录" for lesson in recent
+    ), f"未找到测试记录, 实际: {[lesson.get('description') for lesson in recent]}"
 
     # 验证便捷函数 record_lesson
-    ok = record_lesson("PORTFOLIO", "strategy_degradation", "verify_v2 便捷函数测试",
-                        impact="negative", action_taken="alert_only", verified=False)
+    ok = record_lesson(
+        "PORTFOLIO",
+        "strategy_degradation",
+        "verify_v2 便捷函数测试",
+        impact="negative",
+        action_taken="alert_only",
+        verified=False,
+    )
     assert ok is True
 
     print(f"✓ N5 SkillManager 通过: 最近记录数={len(recent)}")

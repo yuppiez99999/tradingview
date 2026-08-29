@@ -139,3 +139,14 @@ Markdown 表头 `f"| 指标 | 值 |"` 无占位符, ruff F541 报错。修复: �
 
 ### 8.3 `py` 命令在 PowerShell 不可用
 Windows PowerShell 中 `py` launcher 可能创建进程失败, 用 `python` 替代。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [MVSK 高阶矩组合优化（YAND 启发）](mvsk-higher-moment-optimization.md) (相似度 27%)
+- [qlib 选股模型回测验证与 V9 对比](qlib-backtest-validation.md) (相似度 24%)
+- [对冲方案 v8.7 优化 — RegimeFolio 动态阈值 + 紧急跨级 + IV 感知 + Deep Hedging + 多智能体](hedge-v87-regime-adaptive-20260827.md) (相似度 10%)
+- [GitHub 高价值项目集成策略（Wave 6）](github-integration-wave6.md) (相似度 8%)
+- [A股ETF + 期权对冲 + 自我再平衡子模型](etf-option-hedge-model.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

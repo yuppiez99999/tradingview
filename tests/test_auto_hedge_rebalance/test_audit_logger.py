@@ -174,7 +174,9 @@ class TestAuditLoggerQuery:
         # Arrange
         audit_logger.log_degradation_flag({"flag_name": "降级1", "reason": "测试1"})
         audit_logger.log_degradation_flag({"flag_name": "降级2", "reason": "测试2"})
-        audit_logger.log_circuit_breaker({"action": "trigger", "trigger_reason": "测试"})
+        audit_logger.log_circuit_breaker(
+            {"action": "trigger", "trigger_reason": "测试"}
+        )
         # Act
         records = audit_logger.query(event_type="degradation_flag")
         # Assert
@@ -212,10 +214,14 @@ class TestAuditLoggerQuery:
         # Assert
         assert len(records) == 0
 
-    def test_query_returns_records_in_desc_order(self, audit_logger: AuditLogger) -> None:
+    def test_query_returns_records_in_desc_order(
+        self, audit_logger: AuditLogger
+    ) -> None:
         # Arrange
         for i in range(5):
-            audit_logger.log_degradation_flag({"flag_name": f"降级{i}", "reason": "测试"})
+            audit_logger.log_degradation_flag(
+                {"flag_name": f"降级{i}", "reason": "测试"}
+            )
         # Act
         records = audit_logger.query()
         # Assert
@@ -225,7 +231,9 @@ class TestAuditLoggerQuery:
     def test_query_limit(self, audit_logger: AuditLogger) -> None:
         # Arrange
         for i in range(10):
-            audit_logger.log_degradation_flag({"flag_name": f"降级{i}", "reason": "测试"})
+            audit_logger.log_degradation_flag(
+                {"flag_name": f"降级{i}", "reason": "测试"}
+            )
         # Act
         records = audit_logger.query(limit=3)
         # Assert

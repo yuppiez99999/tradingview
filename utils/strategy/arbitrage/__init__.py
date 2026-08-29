@@ -6,6 +6,7 @@
 子模块:
     - pairs_trading: Walk-Forward 配对交易验证器
 """
+
 from utils.strategy.arbitrage.pairs_trading import (
     WalkForwardPairsValidator,
     WFValidationReport,

@@ -76,36 +76,50 @@ def openai_compatible_chat(
     last_error: Exception | None = None
     for attempt in range(1 + max_retries):
         try:
-            req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+            req = urllib.request.Request(
+                url, data=payload, headers=headers, method="POST"
+            )
             with _safe_urlopen(req, timeout=timeout) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
 
             content = body.get("choices", [{}])[0].get("message", {}).get("content")
             if not content:
-                content = body.get("choices", [{}])[0].get("message", {}).get("reasoning_content")
+                content = (
+                    body.get("choices", [{}])[0]
+                    .get("message", {})
+                    .get("reasoning_content")
+                )
             return content if isinstance(content, str) else None
         except urllib.error.HTTPError as e:
             last_error = e
             if e.code in (401, 403):
                 logger.warning("认证失败 (%d), 不重试: %s", e.code, url)
                 return None
-            elif e.code == 429:
+            if e.code == 429:
                 logger.warning("限流 (429), %ds 后重试", retry_delay)
                 if attempt < max_retries:
                     time.sleep(retry_delay)
                 continue
-            elif e.code >= 500:
+            if e.code >= 500:
                 if attempt < max_retries:
                     time.sleep(retry_delay)
                 continue
-            else:
-                return None
+            return None
         except urllib.error.URLError as e:
             last_error = e
             if attempt < max_retries:
                 time.sleep(retry_delay)
             continue
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             last_error = e
             return None
 

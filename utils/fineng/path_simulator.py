@@ -53,22 +53,24 @@ class PathSimResult:
     """路径模拟结果"""
 
     # 回撤分布
-    dd_p50: float                     # 中位数最大回撤
+    dd_p50: float  # 中位数最大回撤
     dd_p75: float
     dd_p90: float
     dd_p95: float
-    dd_p99: float                     # 99% 分位数 (重点监控)
-    dd_max: float                     # 最极端回撤
+    dd_p99: float  # 99% 分位数 (重点监控)
+    dd_max: float  # 最极端回撤
 
     # NAV 终端分布
-    nav_terminal_p50: float           # NAV 中位数 (相对于 1.0)
-    nav_terminal_p10: float           # 下行
+    nav_terminal_p50: float  # NAV 中位数 (相对于 1.0)
+    nav_terminal_p10: float  # 下行
     nav_terminal_p05: float
     nav_terminal_p01: float
 
     # 完整分布 (供绘图与回测对照)
-    dd_distribution: list[float] = field(default_factory=list)    # 所有路径的最大回撤
-    nav_terminal_distribution: list[float] = field(default_factory=list)  # 所有路径的终端 NAV
+    dd_distribution: list[float] = field(default_factory=list)  # 所有路径的最大回撤
+    nav_terminal_distribution: list[float] = field(
+        default_factory=list
+    )  # 所有路径的终端 NAV
 
     # 模拟参数
     n_paths: int = 0
@@ -79,7 +81,7 @@ class PathSimResult:
     historical_dd_2015: float = float("nan")
     historical_dd_2020: float = float("nan")
     historical_dd_2024: float = float("nan")
-    p90_covers_2015: bool = False    # P90 是否覆盖 2015 实际回撤
+    p90_covers_2015: bool = False  # P90 是否覆盖 2015 实际回撤
     p90_covers_2020: bool = False
 
 
@@ -99,7 +101,7 @@ class StressTestReport:
     historical_dd_comparison: dict[str, dict[str, float]]
 
     # 判定
-    p90_adequate: bool               # P90 是否覆盖历史最大回撤
+    p90_adequate: bool  # P90 是否覆盖历史最大回撤
     warning: str = ""
 
 
@@ -156,7 +158,7 @@ class PathSimulator:
                 u1 = rng.random()
             return math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
 
-        elif self.residual_method == "t":
+        if self.residual_method == "t":
             # t 分布抽样: t = N(0,1) / sqrt(χ²/ν)
             u1 = rng.random()
             u2 = rng.random()
@@ -172,14 +174,13 @@ class PathSimulator:
             chi2 = self._sample_chi2(self.df)
             return z / math.sqrt(chi2 / self.df)
 
-        elif self.residual_method == "bootstrap":
+        if self.residual_method == "bootstrap":
             # 这里标记需要预先缓存的历史残差, 将在 simulate_portfolio 中使用
             raise ValueError(
                 "bootstrap 模式需调用 simulate_portfolio() 传入 historical_residuals"
             )
 
-        else:
-            raise ValueError(f"不支持的 residual_method: {self.residual_method}")
+        raise ValueError(f"不支持的 residual_method: {self.residual_method}")
 
     def _generate_residuals(self, n: int) -> list[float]:
         """生成 n 个独立残差 (normal 或 t 模式)"""
@@ -215,9 +216,8 @@ class PathSimulator:
             v = (1.0 + c * x) ** 3
             if v > 0:
                 u = rng.random()
-                if (
-                    u < 1.0 - 0.0331 * (x ** 4)
-                    or math.log(u) < 0.5 * x * x + d * (1.0 - v + math.log(v))
+                if u < 1.0 - 0.0331 * (x**4) or math.log(u) < 0.5 * x * x + d * (
+                    1.0 - v + math.log(v)
                 ):
                     return d * v
 
@@ -287,7 +287,11 @@ class PathSimulator:
         for _day in range(self.n_days):
             # 生成相关随机数 Z = L·ε (ε 为独立随机向量)
             eps = [0.0] * n_assets
-            if historical_residuals and n_hist > 0 and self.residual_method == "bootstrap":
+            if (
+                historical_residuals
+                and n_hist > 0
+                and self.residual_method == "bootstrap"
+            ):
                 # Bootstrap: 随机选一个历史日期, 取当天所有资产残差
                 idx = rng.randint(0, n_hist - 1)
                 for i in range(n_assets):
@@ -315,7 +319,7 @@ class PathSimulator:
             for i in range(n_assets):
                 daily_return += weights[i] * z[i]
 
-            nav *= (1.0 + daily_return)
+            nav *= 1.0 + daily_return
             if nav > peak:
                 peak = nav
             dd = (peak - nav) / peak
@@ -343,7 +347,11 @@ class PathSimulator:
         for _ in range(self.n_days):
             # 生成独立残差
             eps = [0.0] * n_assets
-            if historical_residuals and n_hist > 0 and self.residual_method == "bootstrap":
+            if (
+                historical_residuals
+                and n_hist > 0
+                and self.residual_method == "bootstrap"
+            ):
                 idx = rng.randint(0, n_hist - 1)
                 for i in range(n_assets):
                     eps[i] = historical_residuals[i][idx]
@@ -354,7 +362,9 @@ class PathSimulator:
                     u2 = rng.random()
                     while u1 <= 1e-15:
                         u1 = rng.random()
-                    eps[i] = math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
+                    eps[i] = math.sqrt(-2.0 * math.log(u1)) * math.cos(
+                        2.0 * math.pi * u2
+                    )
 
             # 相关化: Z = L·ε
             z = [0.0] * n_assets
@@ -366,7 +376,7 @@ class PathSimulator:
                 weights[i] * (daily_mean[i] + z[i]) for i in range(n_assets)
             )
 
-            nav *= (1.0 + daily_return)
+            nav *= 1.0 + daily_return
             if nav > peak:
                 peak = nav
             dd = (peak - nav) / peak
@@ -411,12 +421,19 @@ class PathSimulator:
                 L = self._cholesky(perturbed)
             except ValueError:
                 return PathSimResult(
-                    dd_p50=float("nan"), dd_p75=float("nan"),
-                    dd_p90=float("nan"), dd_p95=float("nan"),
-                    dd_p99=float("nan"), dd_max=float("nan"),
-                    nav_terminal_p50=float("nan"), nav_terminal_p10=float("nan"),
-                    nav_terminal_p05=float("nan"), nav_terminal_p01=float("nan"),
-                    n_paths=self.n_paths, n_days=self.n_days, n_assets=n_assets,
+                    dd_p50=float("nan"),
+                    dd_p75=float("nan"),
+                    dd_p90=float("nan"),
+                    dd_p95=float("nan"),
+                    dd_p99=float("nan"),
+                    dd_max=float("nan"),
+                    nav_terminal_p50=float("nan"),
+                    nav_terminal_p10=float("nan"),
+                    nav_terminal_p05=float("nan"),
+                    nav_terminal_p01=float("nan"),
+                    n_paths=self.n_paths,
+                    n_days=self.n_days,
+                    n_assets=n_assets,
                 )
 
         # ---- 模拟 ----
@@ -553,9 +570,11 @@ def generate_stress_report(
         "P95": result.dd_p95,
         "P99": result.dd_p99,
         "Max": result.dd_max,
-        "MaxEvent": result.historical_dd_2020
-        if not math.isnan(result.historical_dd_2020)
-        else float("nan"),
+        "MaxEvent": (
+            result.historical_dd_2020
+            if not math.isnan(result.historical_dd_2020)
+            else float("nan")
+        ),
     }
 
     hist_comparison: dict[str, dict[str, float]] = {}

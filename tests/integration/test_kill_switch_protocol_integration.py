@@ -7,13 +7,16 @@
     - Mock broker_callback (避免真实交易接口)
     - 验证 L1/L2/L3 → 动作映射 → broker 调用参数
 """
+
 import pytest
 
 from utils.kill_switch import KillSwitch
 
 
 @pytest.fixture
-def real_kill_switch_with_callback(clean_env, tmp_kill_switch_log, broker_callback_mock):
+def real_kill_switch_with_callback(
+    clean_env, tmp_kill_switch_log, broker_callback_mock
+):
     """真实 KillSwitch 实例 + mock broker_callback
 
     与 daily_workflow.py 集成模式一致:
@@ -107,15 +110,14 @@ class TestKillSwitchProtocolEndToEnd:
         lines = content.strip().split("\n")
         assert len(lines) >= 1
         import json
+
         for line in lines:
             event = json.loads(line)  # 不抛异常
             assert "level" in event
             assert "timestamp" in event
 
     @pytest.mark.integration
-    def test_protocol_full_chain_margin_to_broker(
-        self, real_kill_switch_with_callback
-    ):
+    def test_protocol_full_chain_margin_to_broker(self, real_kill_switch_with_callback):
         """完整链路: margin_usage → check → execute → broker_callback
 
         验证 daily_workflow.py 集成模式的端到端正确性

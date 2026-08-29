@@ -142,10 +142,21 @@ def call_ollama_deep(
         reasoning = message.get("reasoning_content", "")
         if content:
             if reasoning and len(reasoning) > 50:
-                return f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
+                return (
+                    f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
+                )
             return cast(str, content.strip())
         return None
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.warning("Ollama deep 调用失败: %s", e)
         return None
 

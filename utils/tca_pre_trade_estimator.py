@@ -176,7 +176,9 @@ class PreTradeEstimator:
         self.cost_threshold_bps = float(cost_threshold_bps)
         self.latency_limit_ms = float(latency_limit_ms)
         self.cost_model = cost_model or TransactionCostModel(cost_params)
-        self.estimate_dir = Path(estimate_dir) if estimate_dir else _DEFAULT_ESTIMATE_DIR
+        self.estimate_dir = (
+            Path(estimate_dir) if estimate_dir else _DEFAULT_ESTIMATE_DIR
+        )
         self.save_to_file = bool(save_to_file)
 
         # 确保目录存在
@@ -301,7 +303,16 @@ class PreTradeEstimator:
         if self.save_to_file:
             try:
                 self._save_estimate(estimate)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.error("[TCA-PreTrade] 保存预估记录失败: %s", e)
 
         # 否决日志
@@ -348,7 +359,16 @@ class PreTradeEstimator:
                 results[symbol] = self.estimate(order, market_data)
             except PreTradeEstimateError as e:
                 logger.error("[TCA-PreTrade] 批量预估失败 %s: %s", symbol, e)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 # 单标的失败不影响其他
                 logger.error("[TCA-PreTrade] 批量预估异常 %s: %s", symbol, e)
         return results
@@ -423,7 +443,16 @@ class PreTradeEstimator:
                             records.append(record)
                     except json.JSONDecodeError:
                         continue
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.error("[TCA-PreTrade] 读取历史失败: %s", e)
         return records
 

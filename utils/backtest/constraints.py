@@ -16,6 +16,7 @@
     涨停: 当前价 >= 涨停价 → 不可买入(可卖出)
     跌停: 当前价 <= 跌停价 → 不可卖出(可买入)
 """
+
 from __future__ import annotations
 
 from typing import Optional, Union
@@ -93,7 +94,7 @@ def is_at_limit(
             return False
         price = _get_current_price(market_event)
         return price >= float(lu)
-    elif direction == "SELL":
+    if direction == "SELL":
         if not limit_down_prices:
             return False
         ld = limit_down_prices.get(code)
@@ -123,8 +124,12 @@ def check_tradable(
     """
     if is_suspended(market_event, code):
         return False, "SUSPENDED"
-    if direction == "BUY" and is_at_limit(market_event, code, "BUY", limit_up_prices, limit_down_prices):
+    if direction == "BUY" and is_at_limit(
+        market_event, code, "BUY", limit_up_prices, limit_down_prices
+    ):
         return False, "PRICE_LIMIT_UP"
-    if direction == "SELL" and is_at_limit(market_event, code, "SELL", limit_up_prices, limit_down_prices):
+    if direction == "SELL" and is_at_limit(
+        market_event, code, "SELL", limit_up_prices, limit_down_prices
+    ):
         return False, "PRICE_LIMIT_DOWN"
     return True, "OK"

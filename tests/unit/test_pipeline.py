@@ -15,6 +15,7 @@
   5. 各模块独立 run 方法正常
   6. 异常处理 fail-closed 正确
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -43,6 +44,7 @@ from utils.pipeline.types import (
 # 1. Types 测试
 # ============================================================
 
+
 class TestPipelineConfig:
     """PipelineConfig 默认值与字段"""
 
@@ -62,7 +64,9 @@ class TestPipelineConfig:
         assert config.execution_default_algo == "twap"
 
     def test_config_fields_overridable(self):
-        config = PipelineConfig(mode="dry_run", alpha_enabled=True, execution_dry_run=False)
+        config = PipelineConfig(
+            mode="dry_run", alpha_enabled=True, execution_dry_run=False
+        )
         assert config.mode == "dry_run"
         assert config.alpha_enabled is True
         assert config.execution_dry_run is False
@@ -73,7 +77,9 @@ class TestPipelineResult:
 
     def test_default_creation(self):
         now = datetime.now()
-        result = PipelineResult(stage=PipelineStage.COMPLETED, success=True, started_at=now)
+        result = PipelineResult(
+            stage=PipelineStage.COMPLETED, success=True, started_at=now
+        )
         assert result.stage == PipelineStage.COMPLETED
         assert result.success is True
         assert result.duration_ms == 0.0
@@ -136,9 +142,13 @@ class TestExecutionResult:
 
     def test_with_orders(self):
         r = ExecutionResult(
-            total_orders=10, filled_orders=8, failed_orders=2,
-            total_amount=1_000_000, filled_amount=800_000,
-            fill_rate=0.8, dry_run=True,
+            total_orders=10,
+            filled_orders=8,
+            failed_orders=2,
+            total_amount=1_000_000,
+            filled_amount=800_000,
+            fill_rate=0.8,
+            dry_run=True,
         )
         assert r.fill_rate == 0.8
         assert r.filled_orders == 8
@@ -155,13 +165,15 @@ class TestRiskAlert:
 # 2. Config 加载测试
 # ============================================================
 
+
 class TestConfigLoading:
     """配置加载器测试"""
 
     def test_load_from_yaml(self, tmp_path: Path):
         """验证嵌套 YAML 格式正确加载"""
         yaml_path = tmp_path / "test_pipeline.yaml"
-        yaml_path.write_text("""
+        yaml_path.write_text(
+            """
 mode: dry_run
 interval_minutes: 30
 data_cleaning:
@@ -181,7 +193,9 @@ execution:
   default_algo: vwap
 risk_monitor:
   enabled: true
-""", encoding="utf-8")
+""",
+            encoding="utf-8",
+        )
         config = load_pipeline_config(yaml_path)
         assert config.mode == "dry_run"
         assert config.interval_minutes == 30
@@ -206,6 +220,7 @@ risk_monitor:
         """懒加载正常"""
         # 重置全局状态
         from utils.pipeline import config as cfg_module
+
         cfg_module._config_loaded = False
         cfg_module._pipeline_config = None
         c = get_pipeline_config()
@@ -222,6 +237,7 @@ risk_monitor:
 # ============================================================
 # 3. np_mean 工具函数测试
 # ============================================================
+
 
 class TestNpMean:
     def test_empty_list(self):
@@ -240,6 +256,7 @@ class TestNpMean:
 # ============================================================
 # 4. PipelineOrchestrator 测试
 # ============================================================
+
 
 class TestPipelineOrchestrator:
     """编排器核心测试"""
@@ -293,6 +310,7 @@ class TestPipelineOrchestrator:
 # ============================================================
 # 5. dry_run 完整闭环测试
 # ============================================================
+
 
 class TestPipelineDryRun:
     """dry_run 模式完整闭环"""
@@ -354,6 +372,7 @@ class TestPipelineDryRun:
 # 6. 异常处理测试
 # ============================================================
 
+
 class TestPipelineErrorHandling:
     """异常处理与 fail-closed"""
 
@@ -370,7 +389,9 @@ class TestPipelineErrorHandling:
         # 模拟数据清洗阶段抛异常
         original_method = orchestrator._data_cleaning.run
         try:
-            orchestrator._data_cleaning.run = MagicMock(side_effect=RuntimeError("模拟异常"))
+            orchestrator._data_cleaning.run = MagicMock(
+                side_effect=RuntimeError("模拟异常")
+            )
             result = orchestrator.run_full_cycle(mode="dry_run")
             assert result.success is False
             assert result.stage == PipelineStage.FAILED
@@ -381,9 +402,16 @@ class TestPipelineErrorHandling:
         """空数据不应崩溃"""
         orchestrator = PipelineOrchestrator()
         # 注入空数据
-        orchestrator._data_cleaning.run = MagicMock(return_value=([], PipelineResult(
-            stage=PipelineStage.DATA_CLEANING, success=True, started_at=datetime.now(),
-        )))
+        orchestrator._data_cleaning.run = MagicMock(
+            return_value=(
+                [],
+                PipelineResult(
+                    stage=PipelineStage.DATA_CLEANING,
+                    success=True,
+                    started_at=datetime.now(),
+                ),
+            )
+        )
         result = orchestrator.run_full_cycle(mode="dry_run")
         assert isinstance(result, PipelineResult)
 
@@ -391,6 +419,7 @@ class TestPipelineErrorHandling:
 # ============================================================
 # 7. PipelineStage 枚举测试
 # ============================================================
+
 
 class TestPipelineStage:
     def test_all_stages(self):
@@ -411,6 +440,7 @@ class TestPipelineStage:
 # ============================================================
 # 8. 模块导入测试
 # ============================================================
+
 
 class TestPipelineImports:
     """__init__.py 导出测试"""
@@ -433,6 +463,7 @@ class TestPipelineImports:
             RiskAlert,
             RiskMonitor,
         )
+
         # 验证所有导出类可调用
         assert PipelineOrchestrator is not None
         assert PipelineStatus is not None
@@ -455,6 +486,7 @@ class TestPipelineImports:
         import importlib
 
         import utils.pipeline
+
         importlib.reload(utils.pipeline)
         assert hasattr(utils.pipeline, "PipelineOrchestrator")
 
@@ -462,6 +494,7 @@ class TestPipelineImports:
 # ============================================================
 # 9. DataCleaningPipeline 深度测试
 # ============================================================
+
 
 class TestDataCleaningPipeline:
     """数据清洗流水线深度测试"""
@@ -510,9 +543,7 @@ class TestDataCleaningPipeline:
     def test_calc_quality_score_perfect(self):
         """质量评分 - 完美数据应得 100 分"""
         pipeline = DataCleaningPipeline()
-        score_info = pipeline._calc_quality_score(
-            "000001", {}, {}, {}, {}
-        )
+        score_info = pipeline._calc_quality_score("000001", {}, {}, {}, {})
         assert score_info["score"] == 100.0
 
     def test_calc_quality_score_with_outliers(self):
@@ -569,24 +600,28 @@ class TestDataCleaningPipeline:
     def test_detect_gaps_no_gaps(self):
         pipeline = DataCleaningPipeline()
         import numpy as np
+
         prices = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
         assert pipeline._detect_gaps(prices) == 0
 
     def test_detect_gaps_with_gaps(self):
         pipeline = DataCleaningPipeline()
         import numpy as np
+
         prices = np.array([1.0, np.nan, np.nan, 4.0, 5.0])
         assert pipeline._detect_gaps(prices) == 2
 
     def test_detect_gaps_empty(self):
         pipeline = DataCleaningPipeline()
         import numpy as np
+
         assert pipeline._detect_gaps(np.array([])) == 0
 
 
 # ============================================================
 # 10. AlphaPipeline 深度测试
 # ============================================================
+
 
 class TestAlphaPipeline:
     """Alpha 信号流水线深度测试"""
@@ -657,6 +692,7 @@ class TestAlphaPipeline:
 # 11. BacktestGate 深度测试
 # ============================================================
 
+
 class TestBacktestGate:
     """回测验证网关深度测试"""
 
@@ -723,8 +759,11 @@ class TestBacktestGate:
     def test_final_judgment_all_pass(self):
         gate = BacktestGate()
         gate_result = BacktestGateResult(
-            ic=0.05, dsr=1.5, sharpe=1.2,
-            walk_forward_passed=True, stress_test_passed=True,
+            ic=0.05,
+            dsr=1.5,
+            sharpe=1.2,
+            walk_forward_passed=True,
+            stress_test_passed=True,
         )
         result = gate._final_judgment(gate_result)
         assert result.passed is True
@@ -732,8 +771,11 @@ class TestBacktestGate:
     def test_final_judgment_ic_fail(self):
         gate = BacktestGate()
         gate_result = BacktestGateResult(
-            ic=0.01, dsr=1.5, sharpe=1.2,
-            walk_forward_passed=True, stress_test_passed=True,
+            ic=0.01,
+            dsr=1.5,
+            sharpe=1.2,
+            walk_forward_passed=True,
+            stress_test_passed=True,
         )
         result = gate._final_judgment(gate_result)
         assert result.passed is False
@@ -742,8 +784,11 @@ class TestBacktestGate:
     def test_final_judgment_dsr_fail(self):
         gate = BacktestGate()
         gate_result = BacktestGateResult(
-            ic=0.05, dsr=0.5, sharpe=0.3,
-            walk_forward_passed=True, stress_test_passed=True,
+            ic=0.05,
+            dsr=0.5,
+            sharpe=0.3,
+            walk_forward_passed=True,
+            stress_test_passed=True,
         )
         result = gate._final_judgment(gate_result)
         assert result.passed is False
@@ -758,6 +803,7 @@ class TestBacktestGate:
 # ============================================================
 # 12. ExecutionPipeline 深度测试
 # ============================================================
+
 
 class TestExecutionPipeline:
     """执行流水线深度测试"""
@@ -790,7 +836,9 @@ class TestExecutionPipeline:
     def test_run_with_signals_dry_run(self):
         """有信号时 dry_run 应生成订单"""
         pipeline = ExecutionPipeline()
-        pipeline.config.execution_max_order_value = 10_000_000  # 确保订单不被金额限制过滤
+        pipeline.config.execution_max_order_value = (
+            10_000_000  # 确保订单不被金额限制过滤
+        )
         signal = AlphaSignalResult(
             signals={"000001": 0.8, "000002": 0.5, "000003": 0.3},
             model_name="test",
@@ -819,7 +867,9 @@ class TestExecutionPipeline:
 
     def test_generate_orders_basic(self):
         pipeline = ExecutionPipeline()
-        pipeline.config.execution_max_order_value = 10_000_000  # 确保订单不被金额限制过滤
+        pipeline.config.execution_max_order_value = (
+            10_000_000  # 确保订单不被金额限制过滤
+        )
         target = {"A": 0.5, "B": 0.3}
         current = {"A": 0.2, "B": 0.1}
         orders = pipeline._generate_orders(target, current)
@@ -847,14 +897,18 @@ class TestExecutionPipeline:
 
     def test_execute_orders_empty(self):
         pipeline = ExecutionPipeline()
-        result = pipeline._execute_orders([], dry_run=True, confirmation_token=None, batch_id="test")
+        result = pipeline._execute_orders(
+            [], dry_run=True, confirmation_token=None, batch_id="test"
+        )
         assert result.total_orders == 0
         assert result.filled_orders == 0
 
     def test_execute_orders_dry_run(self):
         pipeline = ExecutionPipeline()
         orders = [{"symbol": "A", "direction": "BUY", "amount": 10000, "algo": "twap"}]
-        result = pipeline._execute_orders(orders, dry_run=True, confirmation_token=None, batch_id="test")
+        result = pipeline._execute_orders(
+            orders, dry_run=True, confirmation_token=None, batch_id="test"
+        )
         assert result.total_orders == 1
         assert result.filled_orders == 1
         assert result.fill_rate == 1.0
@@ -863,7 +917,9 @@ class TestExecutionPipeline:
         """实盘无 token 应拒绝"""
         pipeline = ExecutionPipeline()
         orders = [{"symbol": "A", "direction": "BUY", "amount": 10000, "algo": "twap"}]
-        result = pipeline._execute_orders(orders, dry_run=False, confirmation_token=None, batch_id="test")
+        result = pipeline._execute_orders(
+            orders, dry_run=False, confirmation_token=None, batch_id="test"
+        )
         assert result.total_orders == 1
         assert result.filled_orders == 0
         assert result.failed_orders == 1
@@ -873,6 +929,7 @@ class TestExecutionPipeline:
 # ============================================================
 # 13. RiskMonitor 深度测试
 # ============================================================
+
 
 class TestRiskMonitor:
     """风控监控深度测试"""
@@ -921,12 +978,14 @@ class TestRiskMonitor:
 # 14. Config 环境变量覆盖测试
 # ============================================================
 
+
 class TestConfigEnvOverrides:
     """配置环境变量覆盖"""
 
     def test_env_override_mode(self, monkeypatch):
         monkeypatch.setenv("PIPELINE_MODE", "dry_run")
         from utils.pipeline import config as cfg_module
+
         cfg_module._config_loaded = False
         cfg_module._pipeline_config = None
         loaded = cfg_module.load_pipeline_config()
@@ -935,6 +994,7 @@ class TestConfigEnvOverrides:
     def test_env_override_alpha_enabled(self, monkeypatch):
         monkeypatch.setenv("PIPELINE_ALPHA_ENABLED", "true")
         from utils.pipeline import config as cfg_module
+
         cfg_module._config_loaded = False
         cfg_module._pipeline_config = None
         loaded = cfg_module.load_pipeline_config()
@@ -943,6 +1003,7 @@ class TestConfigEnvOverrides:
     def test_env_override_execution_enabled(self, monkeypatch):
         monkeypatch.setenv("PIPELINE_EXECUTION_ENABLED", "true")
         from utils.pipeline import config as cfg_module
+
         cfg_module._config_loaded = False
         cfg_module._pipeline_config = None
         loaded = cfg_module.load_pipeline_config()

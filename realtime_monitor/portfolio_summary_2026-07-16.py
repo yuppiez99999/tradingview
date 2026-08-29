@@ -3,6 +3,7 @@
 输入：config/positions.json + realtime_monitor/realtime_positions_YYYY-MM-DD.json
 输出：每日报告归档/YYYY-MM-DD/组合总盈亏报告_YYYYMMDD.md
 """
+
 import json
 import os
 import sys
@@ -104,22 +105,24 @@ def build_position_report():
         sector_map[sector]["market"] += market_value
         sector_map[sector]["pnl"] += pnl
 
-        rows.append({
-            "code": code,
-            "name": name,
-            "type": ptype,
-            "style": style,
-            "sector": sector,
-            "shares": shares,
-            "avg_cost": avg_cost,
-            "latest": latest,
-            "cost_value": cost_value,
-            "market_value": market_value,
-            "pnl": pnl,
-            "weight": weight,
-            "change_ratio": change_ratio,
-            "source": source,
-        })
+        rows.append(
+            {
+                "code": code,
+                "name": name,
+                "type": ptype,
+                "style": style,
+                "sector": sector,
+                "shares": shares,
+                "avg_cost": avg_cost,
+                "latest": latest,
+                "cost_value": cost_value,
+                "market_value": market_value,
+                "pnl": pnl,
+                "weight": weight,
+                "change_ratio": change_ratio,
+                "source": source,
+            }
+        )
 
     # 对冲明细
     hedge_rows = []
@@ -130,17 +133,21 @@ def build_position_report():
         multiplier = int(if_futures.get("multiplier", 300))
         direction = if_futures.get("direction", "SELL")
         beta_reduction = float(if_futures.get("target_beta_reduction", 0.5))
-        portfolio_return = (total_market - total_cost) / total_cost if total_cost else 0.0
+        portfolio_return = (
+            (total_market - total_cost) / total_cost if total_cost else 0.0
+        )
         futures_pnl = -portfolio_return * total_market * beta_reduction
-        hedge_rows.append({
-            "instrument": if_futures.get("instrument", "IF期货"),
-            "direction": direction,
-            "contracts": contracts,
-            "multiplier": multiplier,
-            "notional": contracts * multiplier * (total_market / 1000000.0),
-            "pnl": futures_pnl,
-            "note": f"Beta对冲约{beta_reduction*100:.0f}%组合风险",
-        })
+        hedge_rows.append(
+            {
+                "instrument": if_futures.get("instrument", "IF期货"),
+                "direction": direction,
+                "contracts": contracts,
+                "multiplier": multiplier,
+                "notional": contracts * multiplier * (total_market / 1000000.0),
+                "pnl": futures_pnl,
+                "note": f"Beta对冲约{beta_reduction*100:.0f}%组合风险",
+            }
+        )
 
     # ETF/个股 Put 期权
     code_map = {
@@ -161,15 +168,17 @@ def build_position_report():
         strike = underlying_price * 0.95 if underlying_price else 0.0
         intrinsic = max(0.0, strike - underlying_price) * 10000 * contracts
         pnl = intrinsic - premium_budget
-        hedge_rows.append({
-            "instrument": opt.get("instrument", underlying_code),
-            "direction": opt.get("direction", "BUY"),
-            "contracts": contracts,
-            "multiplier": 10000,
-            "notional": strike * 10000 * contracts if strike else 0.0,
-            "pnl": pnl,
-            "note": f"行权价约{strike:.3f}，已付权利金约{premium_budget/10000:.1f}万",
-        })
+        hedge_rows.append(
+            {
+                "instrument": opt.get("instrument", underlying_code),
+                "direction": opt.get("direction", "BUY"),
+                "contracts": contracts,
+                "multiplier": 10000,
+                "notional": strike * 10000 * contracts if strike else 0.0,
+                "pnl": pnl,
+                "note": f"行权价约{strike:.3f}，已付权利金约{premium_budget/10000:.1f}万",
+            }
+        )
 
     # 组合总览
     total_return_pct = (total_pnl / total_cost * 100.0) if total_cost else 0.0
@@ -200,7 +209,9 @@ def build_position_report():
         json.dump(out, f, ensure_ascii=False, indent=2)
 
     # 生成 Markdown
-    md_path = os.path.join(REPORT_DIR, date_str, f"组合总盈亏报告_{date_str.replace('-', '')}.md")
+    md_path = os.path.join(
+        REPORT_DIR, date_str, f"组合总盈亏报告_{date_str.replace('-', '')}.md"
+    )
     os.makedirs(os.path.dirname(md_path), exist_ok=True)
     lines = []
     lines.append("# 📊 组合总盈亏报告")
@@ -228,8 +239,12 @@ def build_position_report():
     lines.append("")
     lines.append("## 二、持仓明细（按风格）")
     lines.append("")
-    lines.append("| 标的 | 类型 | 风格 | 持仓 | 成本价 | 最新价 | 盈亏 | 权重 | 涨跌幅 | 数据源 |")
-    lines.append("|------|------|------|------|--------|--------|------|------|--------|--------|")
+    lines.append(
+        "| 标的 | 类型 | 风格 | 持仓 | 成本价 | 最新价 | 盈亏 | 权重 | 涨跌幅 | 数据源 |"
+    )
+    lines.append(
+        "|------|------|------|------|--------|--------|------|------|--------|--------|"
+    )
     for item in rows:
         lines.append(
             f"| {item['name']} | {item['type']} | {item['style']} | {item['shares']} | {item['avg_cost']:.2f} | {item['latest']:.3f} | {item['pnl']:,.2f} | {item['weight']:.2f}% | {item['change_ratio']} | {item['source']} |"
@@ -241,7 +256,9 @@ def build_position_report():
     lines.append("")
     lines.append("| 风格 | 市值 | 盈亏 | 收益率 |")
     lines.append("|------|------|------|--------|")
-    for style, v in sorted(style_map.items(), key=lambda x: x[1]["market"], reverse=True):
+    for style, v in sorted(
+        style_map.items(), key=lambda x: x[1]["market"], reverse=True
+    ):
         ret = (v["pnl"] / v["cost"] * 100.0) if v["cost"] else 0.0
         lines.append(f"| {style} | {v['market']:,.2f} | {v['pnl']:,.2f} | {ret:.2f}% |")
     lines.append("")
@@ -251,9 +268,13 @@ def build_position_report():
     lines.append("")
     lines.append("| 行业 | 市值 | 盈亏 | 收益率 |")
     lines.append("|------|------|------|--------|")
-    for sector, v in sorted(sector_map.items(), key=lambda x: x[1]["market"], reverse=True):
+    for sector, v in sorted(
+        sector_map.items(), key=lambda x: x[1]["market"], reverse=True
+    ):
         ret = (v["pnl"] / v["cost"] * 100.0) if v["cost"] else 0.0
-        lines.append(f"| {sector} | {v['market']:,.2f} | {v['pnl']:,.2f} | {ret:.2f}% |")
+        lines.append(
+            f"| {sector} | {v['market']:,.2f} | {v['pnl']:,.2f} | {ret:.2f}% |"
+        )
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -279,8 +300,12 @@ def build_position_report():
     lines.append("")
     lines.append("---")
     lines.append("")
-    lines.append("*本报告由组合总盈亏报告系统自动生成  |  数据来源: config/positions.json + 新浪财经实时行情*")
-    lines.append(f"*生成时间: {datetime.now().isoformat()}  |  仅供参考，不构成投资建议*")
+    lines.append(
+        "*本报告由组合总盈亏报告系统自动生成  |  数据来源: config/positions.json + 新浪财经实时行情*"
+    )
+    lines.append(
+        f"*生成时间: {datetime.now().isoformat()}  |  仅供参考，不构成投资建议*"
+    )
 
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))

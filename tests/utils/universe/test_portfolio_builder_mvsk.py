@@ -8,6 +8,7 @@
 
 对齐 tasks T1.5.
 """
+
 from __future__ import annotations
 
 import json
@@ -41,19 +42,23 @@ def _build_test_portfolio() -> LayeredPortfolio:
     portfolio = LayeredPortfolio(trade_date="2026-08-18")
     mid_symbols = ["600519", "000858", "601318", "600036", "000333"]
     for i, sym in enumerate(mid_symbols):
-        portfolio.holdings.append(Holding(
-            symbol=sym,
-            layer="mid",
-            weight=0.06,
-            score_composite=0.8 - i * 0.05,
-        ))
+        portfolio.holdings.append(
+            Holding(
+                symbol=sym,
+                layer="mid",
+                weight=0.06,
+                score_composite=0.8 - i * 0.05,
+            )
+        )
     short_symbols = ["600000", "000001"]
     for sym in short_symbols:
-        portfolio.holdings.append(Holding(
-            symbol=sym,
-            layer="short",
-            weight=0.10,
-        ))
+        portfolio.holdings.append(
+            Holding(
+                symbol=sym,
+                layer="short",
+                weight=0.10,
+            )
+        )
     return portfolio
 
 
@@ -61,22 +66,27 @@ def _build_test_portfolio() -> LayeredPortfolio:
 # 场景 1: MVSK 分支
 # ============================================================
 
+
 class TestMVSKBranch:
     """MVSK 分支: use_mvsk=True + mvsk_mode=shadow 时触发 MVSK 优化."""
 
     def test_mvsk_shadow_returns_result(self):
         portfolio = _build_test_portfolio()
         _, result = apply_mvsk_shadow_to_mid_layer(
-            portfolio, trade_date="2026-08-18",
-            use_mvsk=True, mvsk_mode="shadow",
+            portfolio,
+            trade_date="2026-08-18",
+            use_mvsk=True,
+            mvsk_mode="shadow",
         )
         assert isinstance(result, MVSKShadowResult)
 
     def test_mvsk_shadow_success(self):
         portfolio = _build_test_portfolio()
         _, result = apply_mvsk_shadow_to_mid_layer(
-            portfolio, trade_date="2026-08-18",
-            use_mvsk=True, mvsk_mode="shadow",
+            portfolio,
+            trade_date="2026-08-18",
+            use_mvsk=True,
+            mvsk_mode="shadow",
         )
         assert result.success is True
         assert len(result.mvsk_weights) > 0
@@ -84,7 +94,9 @@ class TestMVSKBranch:
     def test_mvsk_disabled_returns_skip(self):
         portfolio = _build_test_portfolio()
         _, result = apply_mvsk_shadow_to_mid_layer(
-            portfolio, use_mvsk=False, mvsk_mode="shadow",
+            portfolio,
+            use_mvsk=False,
+            mvsk_mode="shadow",
         )
         assert result.success is False
         assert "跳过" in result.error_message
@@ -92,7 +104,9 @@ class TestMVSKBranch:
     def test_mvsk_shadow_mode_flag(self):
         portfolio = _build_test_portfolio()
         _, result = apply_mvsk_shadow_to_mid_layer(
-            portfolio, use_mvsk=True, mvsk_mode="shadow",
+            portfolio,
+            use_mvsk=True,
+            mvsk_mode="shadow",
         )
         assert result.shadow_mode is True
 
@@ -100,7 +114,9 @@ class TestMVSKBranch:
         portfolio = _build_test_portfolio()
         {h.symbol: h.weight for h in portfolio.holdings if h.layer == "mid"}
         modified_portfolio, result = apply_mvsk_shadow_to_mid_layer(
-            portfolio, use_mvsk=True, mvsk_mode="active",
+            portfolio,
+            use_mvsk=True,
+            mvsk_mode="active",
         )
         assert result.success is True
         assert result.shadow_mode is False
@@ -109,7 +125,9 @@ class TestMVSKBranch:
         portfolio = LayeredPortfolio(trade_date="2026-08-18")
         portfolio.holdings.append(Holding(symbol="600000", layer="short", weight=0.1))
         _, result = apply_mvsk_shadow_to_mid_layer(
-            portfolio, use_mvsk=True, mvsk_mode="shadow",
+            portfolio,
+            use_mvsk=True,
+            mvsk_mode="shadow",
         )
         assert result.success is False
         assert "无持仓" in result.error_message
@@ -119,14 +137,17 @@ class TestMVSKBranch:
 # 场景 2: shadow 差异记录
 # ============================================================
 
+
 class TestShadowDiffRecording:
     """shadow 差异记录: mvsk_p5_daily_diff.jsonl 追加权重差异记录."""
 
     def test_shadow_diff_l2_computed(self):
         portfolio = _build_test_portfolio()
         _, result = apply_mvsk_shadow_to_mid_layer(
-            portfolio, trade_date="2026-08-18",
-            use_mvsk=True, mvsk_mode="shadow",
+            portfolio,
+            trade_date="2026-08-18",
+            use_mvsk=True,
+            mvsk_mode="shadow",
         )
         if result.success:
             assert result.weight_diff_l2 >= 0.0
@@ -134,8 +155,10 @@ class TestShadowDiffRecording:
     def test_shadow_weights_present(self):
         portfolio = _build_test_portfolio()
         _, result = apply_mvsk_shadow_to_mid_layer(
-            portfolio, trade_date="2026-08-18",
-            use_mvsk=True, mvsk_mode="shadow",
+            portfolio,
+            trade_date="2026-08-18",
+            use_mvsk=True,
+            mvsk_mode="shadow",
         )
         if result.success:
             assert len(result.mvsk_weights) > 0
@@ -183,6 +206,7 @@ class TestShadowDiffRecording:
 # 场景 3: 冷启动数据不足
 # ============================================================
 
+
 class TestColdStartInsufficientData:
     """冷启动数据不足: 历史数据 < 378 天时 fail-closed + 告警."""
 
@@ -207,9 +231,14 @@ class TestColdStartInsufficientData:
         short_path = tmp_path / "short_returns.csv"
         pd.DataFrame(np.random.randn(100, 5)).to_csv(short_path, index=False)
         portfolio = _build_test_portfolio()
-        with patch("utils.universe.portfolio_builder._load_historical_returns", return_value=None):
+        with patch(
+            "utils.universe.portfolio_builder._load_historical_returns",
+            return_value=None,
+        ):
             _, result = apply_mvsk_shadow_to_mid_layer(
-                portfolio, use_mvsk=True, mvsk_mode="shadow",
+                portfolio,
+                use_mvsk=True,
+                mvsk_mode="shadow",
                 feature_store_path=short_path,
             )
         assert result.success is False
@@ -224,13 +253,16 @@ class TestColdStartInsufficientData:
 # 场景 4: kill_switch 降级
 # ============================================================
 
+
 class TestKillSwitchDegradation:
     """kill_switch 降级: kill_switch_triggered=True 时降级至 BL+MV."""
 
     def test_kill_switch_returns_degradation(self):
         portfolio = _build_test_portfolio()
         _, result = apply_mvsk_shadow_to_mid_layer(
-            portfolio, use_mvsk=True, mvsk_mode="shadow",
+            portfolio,
+            use_mvsk=True,
+            mvsk_mode="shadow",
             kill_switch_triggered=True,
         )
         assert result.success is False
@@ -241,7 +273,9 @@ class TestKillSwitchDegradation:
         portfolio = _build_test_portfolio()
         original_weights = {h.symbol: h.weight for h in portfolio.holdings}
         returned_portfolio, _ = apply_mvsk_shadow_to_mid_layer(
-            portfolio, use_mvsk=True, mvsk_mode="shadow",
+            portfolio,
+            use_mvsk=True,
+            mvsk_mode="shadow",
             kill_switch_triggered=True,
         )
         for h in returned_portfolio.holdings:
@@ -250,7 +284,9 @@ class TestKillSwitchDegradation:
     def test_kill_switch_takes_precedence_over_use_mvsk(self):
         portfolio = _build_test_portfolio()
         _, result = apply_mvsk_shadow_to_mid_layer(
-            portfolio, use_mvsk=False, mvsk_mode="shadow",
+            portfolio,
+            use_mvsk=False,
+            mvsk_mode="shadow",
             kill_switch_triggered=True,
         )
         assert "kill_switch" in result.error_message
@@ -259,6 +295,7 @@ class TestKillSwitchDegradation:
 # ============================================================
 # 辅助测试: 基线权重计算
 # ============================================================
+
 
 class TestBaselineWeights:
     """BL+MV(252) 基线权重计算."""

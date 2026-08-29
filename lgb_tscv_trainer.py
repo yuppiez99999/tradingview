@@ -27,6 +27,7 @@ import json
 import logging
 import pickle
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -146,7 +147,10 @@ def time_series_cv_evaluate(
 
         folds = list(purged_timeseries_split(n_samples, n_splits=n_splits, embargo_pct=embargo_pct))
         logger.info(
-            "使用 Purged KFold (n_splits=%d, embargo_pct=%.2f%%), 共 %d 折", n_splits, embargo_pct * 100, len(folds)
+            "使用 Purged KFold (n_splits=%d, embargo_pct=%.2f%%), 共 %d 折",
+            n_splits,
+            embargo_pct * 100,
+            len(folds),
         )
     else:
         from sklearn.model_selection import TimeSeriesSplit
@@ -172,7 +176,10 @@ def time_series_cv_evaluate(
 
         if len(X_train_fold) < 50 or len(X_test_fold) < 10:
             logger.warning(
-                "Fold %d 样本量不足 (train=%d, test=%d), 跳过", fold_idx + 1, len(X_train_fold), len(X_test_fold)
+                "Fold %d 样本量不足 (train=%d, test=%d), 跳过",
+                fold_idx + 1,
+                len(X_train_fold),
+                len(X_test_fold),
             )
             continue
 
@@ -201,13 +208,15 @@ def time_series_cv_evaluate(
                 "fold": fold_idx + 1,
                 "train_size": len(train_idx),
                 "test_size": len(test_idx),
-                "gap_samples": int(test_idx[0] - train_idx[-1]) if len(train_idx) and len(test_idx) else 0,
+                "gap_samples": (int(test_idx[0] - train_idx[-1]) if len(train_idx) and len(test_idx) else 0),
                 "r2": round(r2, 4),
                 "ic": round(ic, 4),
                 "sharpe": round(sharpe, 4),
-                "best_iteration": int(model.best_iteration_)
-                if hasattr(model, "best_iteration_")
-                else config["lgb_params"]["n_estimators"],
+                "best_iteration": (
+                    int(model.best_iteration_)
+                    if hasattr(model, "best_iteration_")
+                    else config["lgb_params"]["n_estimators"]
+                ),
             }
         )
 
@@ -243,7 +252,9 @@ def time_series_cv_evaluate(
         of_diag = overfitting_diagnosis(fold_metrics)
         if not of_diag.get("overall_pass", True):
             logger.warning(
-                "[OverfitDiagnosis] %s — %d 项指标异常", of_diag.get("summary", ""), of_diag.get("total_issues", 0)
+                "[OverfitDiagnosis] %s — %d 项指标异常",
+                of_diag.get("summary", ""),
+                of_diag.get("total_issues", 0),
             )
         else:
             logger.info("[OverfitDiagnosis] PASS — 无过拟合迹象")
@@ -376,8 +387,8 @@ def train_symbol_with_cv(
     )
 
     # === Step 3: 用筛选后的特征重新 CV (对比) ===
-    X_selected = np.asarray(df[selected_features].values, dtype=np.float64)  # noqa: N806
-    cv_after_selection = time_series_cv_evaluate(X_selected, y_all, config, n_splits=config["n_splits"])
+    x_selected = np.asarray(df[selected_features].values, dtype=np.float64)
+    cv_after_selection = time_series_cv_evaluate(x_selected, y_all, config, n_splits=config["n_splits"])
 
     # === Step 4: 最终模型 (用筛选特征 + 全部数据) ===
     # holdout: 最后 20% 作为最终测试
@@ -386,16 +397,16 @@ def train_symbol_with_cv(
     train_df = df.iloc[:n_train]
     test_df = df.iloc[n_train:]
 
-    X_train = np.asarray(train_df[selected_features].values, dtype=np.float64)  # noqa: N806
+    x_train = np.asarray(train_df[selected_features].values, dtype=np.float64)
     y_train = np.asarray(train_df["target"].values, dtype=np.float64)
-    X_test = np.asarray(test_df[selected_features].values, dtype=np.float64)  # noqa: N806
+    x_test = np.asarray(test_df[selected_features].values, dtype=np.float64)
     y_test = np.asarray(test_df["target"].values, dtype=np.float64)
 
     final_model = LGBMRegressor(**config["lgb_params"])
     final_model.fit(
-        X_train,
+        x_train,
         y_train,
-        eval_set=[(X_test, y_test)],
+        eval_set=[(x_test, y_test)],
         callbacks=[
             lgb.early_stopping(
                 stopping_rounds=config["early_stopping_rounds"],
@@ -404,7 +415,7 @@ def train_symbol_with_cv(
         ],
     )
 
-    y_pred = final_model.predict(X_test)
+    y_pred = final_model.predict(x_test)
     final_r2 = _r2_score(y_test, y_pred)
     final_ic = _ic_score(y_test, y_pred)
     final_sharpe = _signal_sharpe(y_test, y_pred)
@@ -540,6 +551,7 @@ def run_lgb_tscv_training(
     force_retrain: bool = False,
     config: dict | None = None,
     predictor: str = "lightgbm",
+    post_train_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """执行 LightGBM + TSCV 训练
 
@@ -548,10 +560,14 @@ def run_lgb_tscv_training(
         force_retrain: 强制重训
         config: 训练配置
         predictor: 预测器 (lightgbm/timesfm/hybrid, S2 集成)
+        post_train_callback: 训练后回调钩子 (ER-1.1)，接收训练结果字典；
+            None 时训练行为不变（向后兼容）；回调异常 fail-safe 降级不阻断训练
 
     Returns:
         训练结果汇总
     """
+    from autolearn_trainer import invoke_post_train_callback
+
     # S2: timesfm 预测器可用性检查 (向后兼容, 默认 lightgbm 不受影响)
     timesfm_predictor = None
     if predictor in ("timesfm", "hybrid"):
@@ -706,7 +722,7 @@ def run_lgb_tscv_training(
         json.dump(signals_data, f, ensure_ascii=False, indent=2)
     logger.info(f"  信号文件: {signals_path}")
 
-    return {
+    result = {
         "status": "OK",
         "total": len(symbols),
         "trained": saved,
@@ -715,6 +731,12 @@ def run_lgb_tscv_training(
         "results": results,
         "signals": signals_data,
     }
+
+    # Step 6: post_train_callback 钩子 (ER-1.1, Wave 7-ERL Sprint 1)
+    # 训练完成后调用回调，用于训练→进化→再平衡联动；fail-safe 降级
+    invoke_post_train_callback(post_train_callback, result, logger_name="lgb_tscv")
+
+    return result
 
 
 # ============================================================

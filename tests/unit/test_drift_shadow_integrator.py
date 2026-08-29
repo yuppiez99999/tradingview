@@ -15,6 +15,7 @@
     - 使用 tmp_path 隔离 daily_returns.jsonl 和报告文件
     - 不依赖真实 V9 模型 / 真实数据源
 """
+
 from __future__ import annotations
 
 import json
@@ -148,7 +149,7 @@ class MockDelayedLabelTracker:
     ) -> None:
         # 用 append 而非覆盖 (同一日期可有多个 symbol 的 record)
         self._records: dict[str, list[MockPredictionRecord]] = {}
-        for r in (records or []):
+        for r in records or []:
             self._records.setdefault(r.date, []).append(r)
         self._metrics = metrics or MockDelayedMetrics()
         self._raise_on_record = raise_on_record
@@ -169,9 +170,7 @@ class MockDelayedLabelTracker:
         self._records.setdefault(date, []).extend(records)
         return records
 
-    def update_actual_labels_batch(
-        self, labels: dict[str, dict[str, float]]
-    ) -> int:
+    def update_actual_labels_batch(self, labels: dict[str, dict[str, float]]) -> int:
         count = 0
         for date, symbol_labels in labels.items():
             for symbol, actual in symbol_labels.items():
@@ -284,6 +283,7 @@ class TestInit:
 
     def test_init_with_invalid_monitor_raises(self, mock_tracker, tmp_path):
         """drift_monitor 无 run_daily_check 方法应抛 ValueError."""
+
         class NoMethodMonitor:
             pass
 
@@ -295,6 +295,7 @@ class TestInit:
 
     def test_init_with_invalid_tracker_raises(self, mock_monitor, tmp_path):
         """label_tracker 无 update_actual_labels_batch 方法应抛 ValueError."""
+
         class NoMethodTracker:
             pass
 
@@ -365,9 +366,14 @@ class TestRunDailyIntegration:
         )
         result = integrator.run_daily_integration("2026-08-07")
         assert result.skipped is True
-        assert "daily_returns_read_failed" in result.error or result.error == "no_shadow_data_for_date"
+        assert (
+            "daily_returns_read_failed" in result.error
+            or result.error == "no_shadow_data_for_date"
+        )
 
-    def test_drift_monitor_called_with_panel(self, mock_tracker, daily_returns_file, tmp_path):
+    def test_drift_monitor_called_with_panel(
+        self, mock_tracker, daily_returns_file, tmp_path
+    ):
         """传入 current_panel 时应调用 drift_monitor.run_daily_check."""
         monitor = MockDriftMonitor(reports=[MockDriftReport(psi=0.12)])
         integrator = DriftShadowIntegrator(
@@ -477,9 +483,7 @@ class TestLabelUpdateAndIC:
         assert result.delayed_metrics.ic == pytest.approx(0.08)
         assert result.delayed_metrics.ic_ir == pytest.approx(0.85)
 
-    def test_compute_metrics_failure_fail_safe(
-        self, mock_monitor, daily_returns_file
-    ):
+    def test_compute_metrics_failure_fail_safe(self, mock_monitor, daily_returns_file):
         """compute_delayed_metrics 失败应 fail-safe."""
         tracker = MockDelayedLabelTracker(raise_on_metrics=True)
         integrator = DriftShadowIntegrator(
@@ -629,7 +633,8 @@ class TestBackfillHistory:
             "2026-08-05": {"600276": 0.04, "588000": 0.02},
         }
         integrator.backfill_history(
-            "2026-08-04", "2026-08-05",
+            "2026-08-04",
+            "2026-08-05",
             prediction_history=prediction_history,
             model_version="v9_test",
         )
@@ -668,6 +673,7 @@ class TestCalibratePSI:
         self, mock_monitor, mock_tracker, daily_returns_file
     ):
         """Day 1 骨架应返回工业标准阈值."""
+
         class MockBaseline:
             columns = ["rsi_14d", "momentum_5d", "code", "date"]
 
@@ -766,8 +772,12 @@ class TestGranularityHandling:
         """symbol_returns_provider 模式应使用 symbol 级收益."""
         tracker = MockDelayedLabelTracker(
             records=[
-                MockPredictionRecord(date="2026-08-07", symbol="600276", predicted_score=0.05),
-                MockPredictionRecord(date="2026-08-07", symbol="588000", predicted_score=0.03),
+                MockPredictionRecord(
+                    date="2026-08-07", symbol="600276", predicted_score=0.05
+                ),
+                MockPredictionRecord(
+                    date="2026-08-07", symbol="588000", predicted_score=0.03
+                ),
             ]
         )
 
@@ -789,7 +799,9 @@ class TestGranularityHandling:
         """symbol_returns_provider 失败应降级为组合级."""
         tracker = MockDelayedLabelTracker(
             records=[
-                MockPredictionRecord(date="2026-08-07", symbol="600276", predicted_score=0.05),
+                MockPredictionRecord(
+                    date="2026-08-07", symbol="600276", predicted_score=0.05
+                ),
             ]
         )
 
@@ -810,8 +822,12 @@ class TestGranularityHandling:
         """无 symbol_returns_provider 时用组合级降级."""
         tracker = MockDelayedLabelTracker(
             records=[
-                MockPredictionRecord(date="2026-08-07", symbol="600276", predicted_score=0.05),
-                MockPredictionRecord(date="2026-08-07", symbol="588000", predicted_score=0.03),
+                MockPredictionRecord(
+                    date="2026-08-07", symbol="600276", predicted_score=0.05
+                ),
+                MockPredictionRecord(
+                    date="2026-08-07", symbol="588000", predicted_score=0.03
+                ),
             ]
         )
         integrator = DriftShadowIntegrator(

@@ -51,3 +51,14 @@
 
 - DT-3: connect 下载分批 + 单标的容错。
 - DT-4: 装 xtquant 后核对 subscribe API。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查明细 — 轻量子模块 (alpha/governance/macro/ml/monitoring) (2026-08-24)](code-review-lightweight-20260824.md) (相似度 21%)
+- [代码审查明细 — risk 模块 (2026-08-24)](code-review-risk-20260824.md) (相似度 19%)
+- [代码审查明细 — hedging 模块 (2026-08-24)](code-review-hedging-20260824.md) (相似度 18%)
+- [代码审查明细 — 主链路 institutional_pipeline_runner (2026-08-24)](code-review-pipeline-20260824.md) (相似度 17%)
+- [代码审查明细 — execution 模块 (2026-08-24)](code-review-execution-20260824.md) (相似度 16%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

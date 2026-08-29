@@ -6,6 +6,7 @@
 - _approx_var: 历史收益率 VaR 近似
 - 默认常量合理性
 """
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -23,6 +24,7 @@ from utils.risk_constraints import (
 # ============================================================
 # 默认常量
 # ============================================================
+
 
 class TestT13Defaults:
     @pytest.mark.unit
@@ -48,6 +50,7 @@ class TestT13Defaults:
 # ============================================================
 # enforce_hard_constraints — 单票上限
 # ============================================================
+
 
 class TestT13EnforceSingleWeight:
     @pytest.mark.unit
@@ -110,6 +113,7 @@ class TestT13EnforceSingleWeight:
 # enforce_hard_constraints — 板块集中度
 # ============================================================
 
+
 class TestT13EnforceSector:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -166,6 +170,7 @@ class TestT13EnforceSector:
 # enforce_hard_constraints — 归一化
 # ============================================================
 
+
 class TestT13EnforceNormalization:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -200,6 +205,7 @@ class TestT13EnforceNormalization:
 # ============================================================
 # validate_risk_budget
 # ============================================================
+
 
 class TestT13ValidateRiskBudget:
     @pytest.mark.unit
@@ -236,10 +242,13 @@ class TestT13ValidateRiskBudget:
         # 构造低波动率价格序列, VaR 应低于上限
         # 使用 mock 避免 numpy w.sum() 在 coverage 模式下的兼容性问题
         from unittest.mock import patch
+
         np.random.seed(42)
         weights = {"A": 0.05, "B": 0.05}
-        with patch("utils.risk_constraints._approx_var",
-                    return_value=(0.005, {"A": 0.003, "B": 0.003})):
+        with patch(
+            "utils.risk_constraints._approx_var",
+            return_value=(0.005, {"A": 0.003, "B": 0.003}),
+        ):
             ok, violations = validate_risk_budget(weights, price_data={"A": 1})
         assert ok is True
         assert violations == []
@@ -249,11 +258,15 @@ class TestT13ValidateRiskBudget:
     def test_t13_high_var_triggers_violation(self):
         # 使用 mock 触发 VaR 违例
         from unittest.mock import patch
+
         weights = {"A": 0.10, "B": 0.10}
-        with patch("utils.risk_constraints._approx_var",
-                    return_value=(0.05, {"A": 0.02, "B": 0.02})):
+        with patch(
+            "utils.risk_constraints._approx_var",
+            return_value=(0.05, {"A": 0.02, "B": 0.02}),
+        ):
             ok, violations = validate_risk_budget(
-                weights, price_data={"A": 1},
+                weights,
+                price_data={"A": 1},
                 max_daily_var=0.005,
             )
         assert ok is False
@@ -280,6 +293,7 @@ class TestT13ValidateRiskBudget:
 # _approx_var
 # ============================================================
 
+
 class TestT13ApproxVar:
     @pytest.mark.unit
     @pytest.mark.p0
@@ -292,11 +306,13 @@ class TestT13ApproxVar:
     @pytest.mark.p0
     def test_t13_insufficient_history_uses_default_vol(self):
         # 少于 5 个数据点, 应使用默认波动率
-        prices = pd.Series([100, 101, 102], index=pd.date_range("2026-01-01", periods=3))
+        prices = pd.Series(
+            [100, 101, 102], index=pd.date_range("2026-01-01", periods=3)
+        )
         weights = {"A": 0.10}
         _port_var, single = _approx_var(weights, {"A": prices}, 1_000_000)
         # 默认日波动率 0.25/sqrt(252), VaR = vol * 1.65 * |w|
-        expected = 0.25 / (252 ** 0.5) * 1.65 * 0.10
+        expected = 0.25 / (252**0.5) * 1.65 * 0.10
         assert single["A"] == pytest.approx(expected, abs=1e-6)
 
     @pytest.mark.unit
@@ -316,10 +332,11 @@ class TestT13ApproxVar:
         # 传入无 pct_change 方法的对象, 应 fallback 到默认波动率
         class FakeSeries:
             pass
+
         weights = {"A": 0.10}
         _port_var, single = _approx_var(weights, {"A": FakeSeries()}, 1_000_000)
         # fallback 到默认波动率
-        expected = 0.25 / (252 ** 0.5) * 1.65 * 0.10
+        expected = 0.25 / (252**0.5) * 1.65 * 0.10
         assert single["A"] == pytest.approx(expected, abs=1e-6)
 
     @pytest.mark.unit
@@ -335,6 +352,7 @@ class TestT13ApproxVar:
 # ============================================================
 # 集成: enforce + validate
 # ============================================================
+
 
 class TestT13Integration:
     @pytest.mark.unit

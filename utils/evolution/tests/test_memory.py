@@ -74,13 +74,17 @@ def sample_proposal() -> dict:
 
 
 class TestRecord:
-    def test_record_basic_returns_proposal_id(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_basic_returns_proposal_id(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """record 应返回 proposal_id (非空, EVO- 前缀)."""
         pid = memory.record(sample_proposal)
         assert pid.startswith("EVO-")
         assert len(pid) > 10
 
-    def test_record_with_dict_input(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_with_dict_input(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """字典输入应正确写入."""
         pid = memory.record(sample_proposal)
         results = memory.query(proposal_id=pid)
@@ -107,13 +111,17 @@ class TestRecord:
         assert len(results) == 1
         assert results[0].level == LEVEL_L1
 
-    def test_record_auto_generate_proposal_id(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_auto_generate_proposal_id(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """未提供 proposal_id 时应自动生成."""
         sample_proposal.pop("proposal_id", None)
         pid = memory.record(sample_proposal)
         assert pid.startswith("EVO-") and len(pid) > 10
 
-    def test_record_auto_generate_timestamp(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_auto_generate_timestamp(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """未提供 timestamp 时应自动生成 UTC ISO8601."""
         sample_proposal.pop("timestamp", None)
         pid = memory.record(sample_proposal)
@@ -128,44 +136,58 @@ class TestRecord:
         with pytest.raises(MemoryValidationError):
             memory.record(12345)  # type: ignore[arg-type]
 
-    def test_record_missing_required_field_level(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_missing_required_field_level(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """缺 level 应抛 MemoryValidationError."""
         sample_proposal.pop("level")
         with pytest.raises(MemoryValidationError):
             memory.record(sample_proposal)
 
-    def test_record_missing_required_field_action_type(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_missing_required_field_action_type(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """缺 action_type 应抛 MemoryValidationError."""
         sample_proposal.pop("action_type")
         with pytest.raises(MemoryValidationError):
             memory.record(sample_proposal)
 
-    def test_record_missing_required_field_target_module(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_missing_required_field_target_module(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """缺 target_module 应抛 MemoryValidationError."""
         sample_proposal.pop("target_module")
         with pytest.raises(MemoryValidationError):
             memory.record(sample_proposal)
 
-    def test_record_invalid_level_raises(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_invalid_level_raises(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """无效 level 应抛 MemoryValidationError."""
         sample_proposal["level"] = "L4"
         with pytest.raises(MemoryValidationError):
             memory.record(sample_proposal)
 
-    def test_record_l2_without_rollback_plan_raises(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_l2_without_rollback_plan_raises(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """L2 缺 rollback_plan 应抛 MemoryValidationError (HC-3)."""
         sample_proposal.pop("rollback_plan")
         with pytest.raises(MemoryValidationError, match="rollback_plan"):
             memory.record(sample_proposal)
 
-    def test_record_l3_without_rollback_plan_raises(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_l3_without_rollback_plan_raises(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """L3 缺 rollback_plan 应抛 MemoryValidationError (HC-3)."""
         sample_proposal["level"] = LEVEL_L3
         sample_proposal.pop("rollback_plan")
         with pytest.raises(MemoryValidationError, match="rollback_plan"):
             memory.record(sample_proposal)
 
-    def test_record_l1_without_rollback_plan_ok(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_l1_without_rollback_plan_ok(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """L1 缺 rollback_plan 应允许 (L1 是自动修复, 无需回滚)."""
         sample_proposal["level"] = LEVEL_L1
         sample_proposal.pop("rollback_plan")
@@ -201,8 +223,12 @@ class TestRecord:
         Note: 字典输入时空 ID 会被自动生成 (合理行为), 故用 MemoryRecord 测试.
         """
         rec = MemoryRecord(
-            proposal_id="", timestamp="t", level=LEVEL_L1,
-            action_type="fix", trigger_reason="r", target_module="m",
+            proposal_id="",
+            timestamp="t",
+            level=LEVEL_L1,
+            action_type="fix",
+            trigger_reason="r",
+            target_module="m",
         )
         with pytest.raises(MemoryValidationError):
             memory.record(rec)
@@ -216,7 +242,9 @@ class TestRecord:
         with pytest.raises(MemoryWriteError):
             mem.record(sample_proposal)
 
-    def test_record_persists_to_disk(self, memory: EvolutionMemory, sample_proposal: dict, tmp_memory_path: Path):
+    def test_record_persists_to_disk(
+        self, memory: EvolutionMemory, sample_proposal: dict, tmp_memory_path: Path
+    ):
         """record 后文件应非空且为合法 JSONL."""
         memory.record(sample_proposal)
         assert tmp_memory_path.exists()
@@ -228,13 +256,17 @@ class TestRecord:
             assert "proposal_id" in data
             assert "level" in data
 
-    def test_record_metadata_preserved(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_metadata_preserved(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """metadata 字段应原样保留."""
         memory.record(sample_proposal)
         rec = memory.query(level=LEVEL_L2)[0]
         assert rec.metadata == {"source": "drift_monitor"}
 
-    def test_record_score_report_preserved(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_record_score_report_preserved(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """score_report 字段应原样保留."""
         memory.record(sample_proposal)
         rec = memory.query(level=LEVEL_L2)[0]
@@ -250,41 +282,64 @@ class TestQuery:
     @pytest.fixture
     def populated_memory(self, memory: EvolutionMemory) -> EvolutionMemory:
         """预填充 5 条记录 (覆盖 L1/L2/L3 + 多种 action/status)."""
-        memory.record({
-            "proposal_id": "EVO-A-001",
-            "timestamp": "2026-08-01T10:00:00Z",
-            "level": LEVEL_L1, "action_type": "fix",
-            "trigger_reason": "r1", "target_module": "mod_a",
-            "status": STATUS_EXECUTED,
-        })
-        memory.record({
-            "proposal_id": "EVO-A-002",
-            "timestamp": "2026-08-01T11:00:00Z",
-            "level": LEVEL_L2, "action_type": ACTION_RETRAIN,
-            "trigger_reason": "r2", "target_module": "mod_b",
-            "rollback_plan": "rollback", "status": STATUS_PENDING,
-        })
-        memory.record({
-            "proposal_id": "EVO-A-003",
-            "timestamp": "2026-08-02T09:00:00Z",
-            "level": LEVEL_L2, "action_type": "weight_adjust",
-            "trigger_reason": "r3", "target_module": "mod_b",
-            "rollback_plan": "rollback", "status": STATUS_EXECUTED,
-        })
-        memory.record({
-            "proposal_id": "EVO-A-004",
-            "timestamp": "2026-08-02T14:00:00Z",
-            "level": LEVEL_L3, "action_type": "factor_deploy",
-            "trigger_reason": "r4", "target_module": "mod_c",
-            "rollback_plan": "rollback", "status": STATUS_FAILED,
-        })
-        memory.record({
-            "proposal_id": "EVO-A-005",
-            "timestamp": "2026-08-03T10:00:00Z",
-            "level": LEVEL_L1, "action_type": "fix",
-            "trigger_reason": "r5", "target_module": "mod_a",
-            "status": STATUS_LEARNED,
-        })
+        memory.record(
+            {
+                "proposal_id": "EVO-A-001",
+                "timestamp": "2026-08-01T10:00:00Z",
+                "level": LEVEL_L1,
+                "action_type": "fix",
+                "trigger_reason": "r1",
+                "target_module": "mod_a",
+                "status": STATUS_EXECUTED,
+            }
+        )
+        memory.record(
+            {
+                "proposal_id": "EVO-A-002",
+                "timestamp": "2026-08-01T11:00:00Z",
+                "level": LEVEL_L2,
+                "action_type": ACTION_RETRAIN,
+                "trigger_reason": "r2",
+                "target_module": "mod_b",
+                "rollback_plan": "rollback",
+                "status": STATUS_PENDING,
+            }
+        )
+        memory.record(
+            {
+                "proposal_id": "EVO-A-003",
+                "timestamp": "2026-08-02T09:00:00Z",
+                "level": LEVEL_L2,
+                "action_type": "weight_adjust",
+                "trigger_reason": "r3",
+                "target_module": "mod_b",
+                "rollback_plan": "rollback",
+                "status": STATUS_EXECUTED,
+            }
+        )
+        memory.record(
+            {
+                "proposal_id": "EVO-A-004",
+                "timestamp": "2026-08-02T14:00:00Z",
+                "level": LEVEL_L3,
+                "action_type": "factor_deploy",
+                "trigger_reason": "r4",
+                "target_module": "mod_c",
+                "rollback_plan": "rollback",
+                "status": STATUS_FAILED,
+            }
+        )
+        memory.record(
+            {
+                "proposal_id": "EVO-A-005",
+                "timestamp": "2026-08-03T10:00:00Z",
+                "level": LEVEL_L1,
+                "action_type": "fix",
+                "trigger_reason": "r5",
+                "target_module": "mod_a",
+                "status": STATUS_LEARNED,
+            }
+        )
         return memory
 
     def test_query_all(self, populated_memory: EvolutionMemory):
@@ -384,9 +439,7 @@ class TestQuery:
 
     def test_query_skips_blank_lines(self, tmp_memory_path: Path):
         """空行应被跳过."""
-        tmp_memory_path.write_text(
-            "\n  \n", encoding="utf-8"
-        )
+        tmp_memory_path.write_text("\n  \n", encoding="utf-8")
         mem = EvolutionMemory(memory_path=tmp_memory_path)
         assert mem.query() == []
 
@@ -416,14 +469,18 @@ class TestLearn:
         rec = memory.query(proposal_id=pid)[0]
         assert rec.learned == "夏季 IC 衰减是季节性现象"
 
-    def test_learn_updates_status_to_learned(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_learn_updates_status_to_learned(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """learn 后 status 应变为 learned."""
         pid = memory.record(sample_proposal)
         memory.learn(pid, "lesson")
         rec = memory.query(proposal_id=pid)[0]
         assert rec.status == STATUS_LEARNED
 
-    def test_learn_preserves_other_fields(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_learn_preserves_other_fields(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """learn 不应修改其他字段 (不可变性)."""
         pid = memory.record(sample_proposal)
         original = memory.query(proposal_id=pid)[0]
@@ -440,7 +497,9 @@ class TestLearn:
         assert updated.rollback_plan == original.rollback_plan
         assert updated.metadata == original.metadata
 
-    def test_learn_empty_lesson_raises(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_learn_empty_lesson_raises(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """空 lesson 应抛 MemoryValidationError."""
         pid = memory.record(sample_proposal)
         with pytest.raises(MemoryValidationError):
@@ -487,7 +546,9 @@ class TestUpdateStatus:
         rec = memory.query(proposal_id=pid)[0]
         assert rec.status == STATUS_EXECUTED
 
-    def test_update_status_with_result(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_update_status_with_result(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """带 result 更新."""
         pid = memory.record(sample_proposal)
         memory.update_status(pid, STATUS_EXECUTED, result={"new_ic": 0.075})
@@ -495,14 +556,18 @@ class TestUpdateStatus:
         assert rec.result == {"new_ic": 0.075}
         assert rec.executed_at  # 自动填充
 
-    def test_update_status_with_explicit_executed_at(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_update_status_with_explicit_executed_at(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """显式 executed_at."""
         pid = memory.record(sample_proposal)
         memory.update_status(pid, STATUS_FAILED, executed_at="2026-08-02T15:00:00Z")
         rec = memory.query(proposal_id=pid)[0]
         assert rec.executed_at == "2026-08-02T15:00:00Z"
 
-    def test_update_status_to_rolled_back(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_update_status_to_rolled_back(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """更新为 rolled_back."""
         pid = memory.record(sample_proposal)
         memory.update_status(pid, STATUS_ROLLED_BACK)
@@ -514,13 +579,17 @@ class TestUpdateStatus:
         with pytest.raises(MemoryNotFoundError):
             memory.update_status("EVO-NOPE-999", STATUS_EXECUTED)
 
-    def test_update_status_empty_status_raises(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_update_status_empty_status_raises(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """空 status 应抛 MemoryValidationError."""
         pid = memory.record(sample_proposal)
         with pytest.raises(MemoryValidationError):
             memory.update_status(pid, "")
 
-    def test_update_status_preserves_learned(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_update_status_preserves_learned(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """update_status 不应清除已 learned 的内容."""
         pid = memory.record(sample_proposal)
         memory.learn(pid, "first lesson")
@@ -557,14 +626,24 @@ class TestAuxiliary:
 
     def test_get_latest_proposal_id_returns_newest(self, memory: EvolutionMemory):
         """get_latest 应返回 timestamp 最新的记录."""
-        memory.record({
-            "proposal_id": "EVO-OLD-001", "timestamp": "2026-08-01T10:00:00Z",
-            "level": LEVEL_L1, "action_type": "fix", "target_module": "m",
-        })
-        memory.record({
-            "proposal_id": "EVO-NEW-001", "timestamp": "2026-08-03T10:00:00Z",
-            "level": LEVEL_L1, "action_type": "fix", "target_module": "m",
-        })
+        memory.record(
+            {
+                "proposal_id": "EVO-OLD-001",
+                "timestamp": "2026-08-01T10:00:00Z",
+                "level": LEVEL_L1,
+                "action_type": "fix",
+                "target_module": "m",
+            }
+        )
+        memory.record(
+            {
+                "proposal_id": "EVO-NEW-001",
+                "timestamp": "2026-08-03T10:00:00Z",
+                "level": LEVEL_L1,
+                "action_type": "fix",
+                "target_module": "m",
+            }
+        )
         assert memory.get_latest_proposal_id() == "EVO-NEW-001"
 
     def test_get_latest_read_failure_returns_none(self, tmp_path: Path):
@@ -572,7 +651,9 @@ class TestAuxiliary:
         mem = EvolutionMemory(memory_path=tmp_path)
         assert mem.get_latest_proposal_id() is None
 
-    def test_proposal_id_sequence_increments(self, memory: EvolutionMemory, sample_proposal: dict):
+    def test_proposal_id_sequence_increments(
+        self, memory: EvolutionMemory, sample_proposal: dict
+    ):
         """同日 proposal_id 序号应递增."""
         pid1 = memory.record(sample_proposal)
         pid2 = memory.record({**sample_proposal, "target_module": "mod2"})
@@ -585,7 +666,9 @@ class TestAuxiliary:
         assert seq2 == seq1 + 1
         assert seq3 == seq2 + 1
 
-    def test_persistence_across_instances(self, tmp_memory_path: Path, sample_proposal: dict):
+    def test_persistence_across_instances(
+        self, tmp_memory_path: Path, sample_proposal: dict
+    ):
         """跨实例持久化: 新实例应能读到旧实例写入的数据."""
         mem1 = EvolutionMemory(memory_path=tmp_memory_path)
         pid = mem1.record(sample_proposal)
@@ -604,11 +687,13 @@ class TestAuxiliary:
 class TestMemoryRecord:
     def test_from_dict_required_fields(self):
         """from_dict 应能解析含必填字段的字典."""
-        rec = MemoryRecord.from_dict({
-            "proposal_id": "EVO-X-001",
-            "level": LEVEL_L1,
-            "action_type": "fix",
-        })
+        rec = MemoryRecord.from_dict(
+            {
+                "proposal_id": "EVO-X-001",
+                "level": LEVEL_L1,
+                "action_type": "fix",
+            }
+        )
         assert rec.proposal_id == "EVO-X-001"
         assert rec.target_module == ""  # 缺省值
         assert rec.status == STATUS_PENDING
@@ -620,14 +705,16 @@ class TestMemoryRecord:
 
     def test_from_dict_tolerates_none_optional(self):
         """from_dict 应容忍 None 值的可选字段."""
-        rec = MemoryRecord.from_dict({
-            "proposal_id": "EVO-X-001",
-            "level": LEVEL_L1,
-            "action_type": "fix",
-            "score_report": None,
-            "result": None,
-            "metadata": None,
-        })
+        rec = MemoryRecord.from_dict(
+            {
+                "proposal_id": "EVO-X-001",
+                "level": LEVEL_L1,
+                "action_type": "fix",
+                "score_report": None,
+                "result": None,
+                "metadata": None,
+            }
+        )
         assert rec.score_report == {}
         assert rec.result == {}
         assert rec.metadata == {}
@@ -655,8 +742,12 @@ class TestMemoryRecord:
     def test_validate_empty_proposal_id(self):
         """validate 应拒绝空 proposal_id."""
         rec = MemoryRecord(
-            proposal_id="", timestamp="t", level=LEVEL_L1,
-            action_type="fix", trigger_reason="r", target_module="m",
+            proposal_id="",
+            timestamp="t",
+            level=LEVEL_L1,
+            action_type="fix",
+            trigger_reason="r",
+            target_module="m",
         )
         with pytest.raises(MemoryValidationError):
             rec.validate()
@@ -664,8 +755,12 @@ class TestMemoryRecord:
     def test_validate_empty_action_type(self):
         """validate 应拒绝空 action_type."""
         rec = MemoryRecord(
-            proposal_id="X", timestamp="t", level=LEVEL_L1,
-            action_type="", trigger_reason="r", target_module="m",
+            proposal_id="X",
+            timestamp="t",
+            level=LEVEL_L1,
+            action_type="",
+            trigger_reason="r",
+            target_module="m",
         )
         with pytest.raises(MemoryValidationError):
             rec.validate()
@@ -673,8 +768,12 @@ class TestMemoryRecord:
     def test_validate_empty_target_module(self):
         """validate 应拒绝空 target_module."""
         rec = MemoryRecord(
-            proposal_id="X", timestamp="t", level=LEVEL_L1,
-            action_type="fix", trigger_reason="r", target_module="",
+            proposal_id="X",
+            timestamp="t",
+            level=LEVEL_L1,
+            action_type="fix",
+            trigger_reason="r",
+            target_module="",
         )
         with pytest.raises(MemoryValidationError):
             rec.validate()
@@ -682,8 +781,12 @@ class TestMemoryRecord:
     def test_validate_invalid_level(self):
         """validate 应拒绝无效 level."""
         rec = MemoryRecord(
-            proposal_id="X", timestamp="t", level="L9",
-            action_type="fix", trigger_reason="r", target_module="m",
+            proposal_id="X",
+            timestamp="t",
+            level="L9",
+            action_type="fix",
+            trigger_reason="r",
+            target_module="m",
         )
         with pytest.raises(MemoryValidationError):
             rec.validate()

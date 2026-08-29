@@ -101,3 +101,14 @@ related:
 ### 累计结论
 
 两轮审查共确认 **11 个真实缺陷，10 个已修复**（含 2 个高严重度正确性缺陷），1 个架构问题 + 1 个模块副作用待评估。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码质量审查 Wave6（2026-08-06）— 对冲/执行/管道/数据模块 + 待复核项复核](code-quality-review-wave6-20260806.md) (相似度 17%)
+- [Agent 直接审查兜底方法论（外部 LLM 额度耗尽时）](code-review-agent-fallback-20260810.md) (相似度 15%)
+- [GLM 4.5-air LLM 驱动代码审查方法论（open-code-review + GLM 4.5-air）](code-review-glm45-llm-scan.md) (相似度 13%)
+- [OCR 扫描代码评论落地（2026-08-11）](ocr-scan-comments-20260811.md) (相似度 12%)
+- [代码审查经验沉淀：量化系统 8.4 资金安全与回测可信度](code-review-lessons-v8.4.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

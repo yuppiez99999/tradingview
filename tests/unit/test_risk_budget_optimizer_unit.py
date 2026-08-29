@@ -11,6 +11,7 @@
 - save_result 序列化
 - rebalance_to_te_target 自动调权
 """
+
 from __future__ import annotations
 
 import json
@@ -35,6 +36,7 @@ from utils.risk_budget_optimizer import (  # noqa: E402
 # 辅助构造
 # ============================================================
 
+
 def _make_cov(n, seed=0):
     """构造正定协方差矩阵 (年化)."""
     rng = np.random.RandomState(seed)
@@ -45,6 +47,7 @@ def _make_cov(n, seed=0):
 # ============================================================
 # 数据结构测试
 # ============================================================
+
 
 class RiskBudgetResultTest:
     def test_construct(self):
@@ -77,6 +80,7 @@ class RiskBudgetResultTest:
 # RiskBudgetOptimizer 构造
 # ============================================================
 
+
 class RiskBudgetOptimizerInitTest:
     def test_defaults(self):
         opt = RiskBudgetOptimizer()
@@ -85,7 +89,9 @@ class RiskBudgetOptimizerInitTest:
         assert opt.annual_factor == pytest.approx(252**0.5)
 
     def test_custom(self):
-        opt = RiskBudgetOptimizer(risk_aversion=1.0, risk_free_rate=0.02, annualization_factor=10.0)
+        opt = RiskBudgetOptimizer(
+            risk_aversion=1.0, risk_free_rate=0.02, annualization_factor=10.0
+        )
         assert opt.delta == 1.0
         assert opt.risk_free_rate == 0.02
         assert opt.annual_factor == 10.0
@@ -94,6 +100,7 @@ class RiskBudgetOptimizerInitTest:
 # ============================================================
 # optimize 主入口
 # ============================================================
+
 
 class OptimizeTest:
     def setup_method(self):
@@ -148,7 +155,9 @@ class OptimizeTest:
         assert res.solver_status in ("SLSQP-OK", "ProjectedGradient", "Scaling")
         assert res.iterations >= 1
         # 主动权重
-        assert np.allclose(res.active_weights, res.optimal_weights - res.benchmark_weights)
+        assert np.allclose(
+            res.active_weights, res.optimal_weights - res.benchmark_weights
+        )
         # TE 约束松弛度
         assert res.te_constraint_slack == pytest.approx(0.05 - res.tracking_error)
         # 权重上下限未违反
@@ -356,12 +365,15 @@ class OptimizeTest:
             assert np.allclose(res.var_contribution, expected_var)
         # IR = active_return / te
         if res.tracking_error > 0:
-            assert res.information_ratio == pytest.approx(res.active_return / res.tracking_error)
+            assert res.information_ratio == pytest.approx(
+                res.active_return / res.tracking_error
+            )
 
 
 # ============================================================
 # _solve_constrained 回退链
 # ============================================================
+
 
 class SolveConstrainedFallbackTest:
     def setup_method(self):
@@ -410,7 +422,9 @@ class SolveConstrainedFallbackTest:
         mu = np.array([0.15, 0.10, 0.08])
         cov = _make_cov(n, seed=13)
         bench = np.array([0.4, 0.35, 0.25])
-        w = self.opt._projected_gradient(mu, cov, bench, max_te=0.05, max_weight=0.5, min_weight=0.0)
+        w = self.opt._projected_gradient(
+            mu, cov, bench, max_te=0.05, max_weight=0.5, min_weight=0.0
+        )
         assert len(w) == n
         # 投影梯度法保证满仓
         assert w.sum() == pytest.approx(1.0, abs=1e-6)
@@ -421,7 +435,9 @@ class SolveConstrainedFallbackTest:
         mu = np.array([0.5, -0.5])  # 强信号
         cov = np.eye(n) * 0.04
         bench = np.array([0.5, 0.5])
-        w = self.opt._projected_gradient(mu, cov, bench, max_te=0.01, max_weight=1.0, min_weight=0.0)
+        w = self.opt._projected_gradient(
+            mu, cov, bench, max_te=0.01, max_weight=1.0, min_weight=0.0
+        )
         assert w.sum() == pytest.approx(1.0, abs=1e-6)
 
     def test_projected_gradient_failure_falls_to_scaling(self):
@@ -440,8 +456,13 @@ class SolveConstrainedFallbackTest:
                 raise ImportError("mocked scipy unavailable")
             return real_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=fake_import), patch.object(
-            self.opt, "_projected_gradient", side_effect=RuntimeError("mocked PG failure")
+        with (
+            patch("builtins.__import__", side_effect=fake_import),
+            patch.object(
+                self.opt,
+                "_projected_gradient",
+                side_effect=RuntimeError("mocked PG failure"),
+            ),
         ):
             res = self.opt.optimize(
                 symbols=["a", "b"],
@@ -457,6 +478,7 @@ class SolveConstrainedFallbackTest:
 # ============================================================
 # _to_numpy 辅助
 # ============================================================
+
 
 class ToNumpyTest:
     def setup_method(self):
@@ -483,6 +505,7 @@ class ToNumpyTest:
 # ============================================================
 # save_result 序列化
 # ============================================================
+
 
 class SaveResultTest:
     def setup_method(self):
@@ -512,6 +535,7 @@ class SaveResultTest:
 # ============================================================
 # rebalance_to_te_target 自动调权
 # ============================================================
+
 
 class RebalanceToTeTargetTest:
     def setup_method(self):

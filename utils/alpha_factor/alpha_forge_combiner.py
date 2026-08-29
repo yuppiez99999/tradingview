@@ -21,6 +21,7 @@
 文献依据: #3 (AAAI 2025 AlphaForge)
 集成日期: 2026-08-24
 """
+
 from __future__ import annotations
 
 import logging

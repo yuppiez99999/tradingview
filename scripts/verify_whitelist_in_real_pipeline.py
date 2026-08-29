@@ -28,7 +28,7 @@ _MOCK_PRICES: dict[str, tuple[float, float]] = {
     "159952.SZ": (1.0000, 1.2800),  # +28%
     # === 20cm 创业板股票 (代码段) - 涨 22%, 应被豁免 ===
     "300750.SZ": (100.00, 122.00),  # 宁德时代 +22%
-    "688981.SH": (50.00, 62.50),    # 中芯国际 +25%
+    "688981.SH": (50.00, 62.50),  # 中芯国际 +25%
     # === 20cm 科创板 ETF (代码段) - 涨 22%, 应被豁免 ===
     "588000.SH": (1.0000, 1.2200),  # 科创50ETF +22%
     # === 10cm ETF (159 段非白名单) - 涨 22%, 应异常 ===
@@ -36,12 +36,12 @@ _MOCK_PRICES: dict[str, tuple[float, float]] = {
     # === 10cm 股票 - 涨 22%, 应异常 ===
     "600519.SH": (1000.00, 1220.00),  # 贵州茅台 +22%
     # === 10cm 股票 - 跌 22%, 应异常 ===
-    "601318.SH": (50.00, 39.00),    # 中国平安 -22%
+    "601318.SH": (50.00, 39.00),  # 中国平安 -22%
     # === 正常波动 - 不应被标记 ===
     "600519.SH_dup": (100.00, 105.00),  # +5%
-    "000001.SZ": (10.00, 10.50),     # 平安银行 +5%
+    "000001.SZ": (10.00, 10.50),  # 平安银行 +5%
     # === 20cm 真异常 - 涨 35%, 应异常 ===
-    "300059.SZ": (10.00, 13.50),    # 东方财富 +35%
+    "300059.SZ": (10.00, 13.50),  # 东方财富 +35%
     # === 20cm 创业板 ETF (白名单) 真异常 - 跌 32%, 应异常 ===
     "159915_dup": (1.0000, 0.6800),  # -32%
 }
@@ -67,7 +67,9 @@ def main() -> int:
     # 构造 ShadowRealDataFeeder 实例 (绕过 __init__ 的数据源初始化)
     feeder = srdf.ShadowRealDataFeeder.__new__(srdf.ShadowRealDataFeeder)
     # 补 _cross_validate_internal 用到的最小属性集
-    feeder._provider = type("MockProvider", (), {"name": "mock", "source_tag": "mock"})()
+    feeder._provider = type(
+        "MockProvider", (), {"name": "mock", "source_tag": "mock"}
+    )()
     feeder._collect_sources_used = lambda providers: ["mock"]  # type: ignore
 
     target_weights = {sym: 1.0 / len(_MOCK_PRICES) for sym in _MOCK_PRICES}
@@ -93,11 +95,14 @@ def main() -> int:
 
     # 解析 abnormal 标的清单
     import re as re_mod
+
     abnormal_syms: list[tuple[str, str, str]] = []
     if "abnormal:" in notes:
         tail = notes.split("abnormal:", 1)[1].strip()
         # 字符类含大小写字母+数字+下划线+点, 以匹配 159915_dup 这种带后缀的测试 key
-        for m in re_mod.finditer(r"([A-Za-z0-9._]+)\(ret=([+\-\d.]+%),thr=(\d+)%\)", tail):
+        for m in re_mod.finditer(
+            r"([A-Za-z0-9._]+)\(ret=([+\-\d.]+%),thr=(\d+)%\)", tail
+        ):
             abnormal_syms.append((m.group(1), m.group(2), m.group(3)))
 
     # 验证断言
@@ -108,35 +113,43 @@ def main() -> int:
     abnormal_set = {s[0] for s in abnormal_syms}
     assertions = [
         # 期望被豁免 (20cm 板 + 涨跌 20%-30%)
-        ("159915.SZ 易方达创业板ETF +22% 应被豁免 (白名单生效)",
-         "159915.SZ" not in abnormal_set),
-        ("159977.SZ 国泰创业板ETF +25% 应被豁免 (白名单生效)",
-         "159977.SZ" not in abnormal_set),
-        ("159952.SZ 广发创业板ETF +28% 应被豁免 (白名单生效)",
-         "159952.SZ" not in abnormal_set),
-        ("300750.SZ 宁德时代 +22% 应被豁免 (代码段)",
-         "300750.SZ" not in abnormal_set),
-        ("688981.SH 中芯国际 +25% 应被豁免 (代码段)",
-         "688981.SH" not in abnormal_set),
-        ("588000.SH 科创50ETF +22% 应被豁免 (代码段)",
-         "588000.SH" not in abnormal_set),
+        (
+            "159915.SZ 易方达创业板ETF +22% 应被豁免 (白名单生效)",
+            "159915.SZ" not in abnormal_set,
+        ),
+        (
+            "159977.SZ 国泰创业板ETF +25% 应被豁免 (白名单生效)",
+            "159977.SZ" not in abnormal_set,
+        ),
+        (
+            "159952.SZ 广发创业板ETF +28% 应被豁免 (白名单生效)",
+            "159952.SZ" not in abnormal_set,
+        ),
+        ("300750.SZ 宁德时代 +22% 应被豁免 (代码段)", "300750.SZ" not in abnormal_set),
+        ("688981.SH 中芯国际 +25% 应被豁免 (代码段)", "688981.SH" not in abnormal_set),
+        ("588000.SH 科创50ETF +22% 应被豁免 (代码段)", "588000.SH" not in abnormal_set),
         # 期望仍异常 (10cm 板 + 涨跌 ≥ 20%)
-        ("159919.SZ 嘉实沪深300ETF +22% 应异常 (非白名单 159 段)",
-         "159919.SZ" in abnormal_set),
-        ("600519.SH 贵州茅台 +22% 应异常 (10cm 板)",
-         "600519.SH" in abnormal_set),
-        ("601318.SH 中国平安 -22% 应异常 (10cm 板)",
-         "601318.SH" in abnormal_set),
+        (
+            "159919.SZ 嘉实沪深300ETF +22% 应异常 (非白名单 159 段)",
+            "159919.SZ" in abnormal_set,
+        ),
+        ("600519.SH 贵州茅台 +22% 应异常 (10cm 板)", "600519.SH" in abnormal_set),
+        ("601318.SH 中国平安 -22% 应异常 (10cm 板)", "601318.SH" in abnormal_set),
         # 期望仍异常 (20cm 板 + 涨跌 ≥ 30%)
-        ("300059.SZ 东方财富 +35% 应异常 (20cm 超阈值)",
-         "300059.SZ" in abnormal_set),
-        ("159915_dup 创业板ETF -32% 应异常 (20cm 真异常)",
-         "159915_dup" in abnormal_set),
+        ("300059.SZ 东方财富 +35% 应异常 (20cm 超阈值)", "300059.SZ" in abnormal_set),
+        (
+            "159915_dup 创业板ETF -32% 应异常 (20cm 真异常)",
+            "159915_dup" in abnormal_set,
+        ),
         # 期望未被误判 (10cm 板 + 涨跌 < 20%)
-        ("600519.SH_dup +5% 不应被标记 (正常波动)",
-         "600519.SH_dup" not in abnormal_set),
-        ("000001.SZ 平安银行 +5% 不应被标记 (正常波动)",
-         "000001.SZ" not in abnormal_set),
+        (
+            "600519.SH_dup +5% 不应被标记 (正常波动)",
+            "600519.SH_dup" not in abnormal_set,
+        ),
+        (
+            "000001.SZ 平安银行 +5% 不应被标记 (正常波动)",
+            "000001.SZ" not in abnormal_set,
+        ),
     ]
 
     all_pass = True

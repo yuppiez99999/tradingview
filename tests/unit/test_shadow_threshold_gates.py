@@ -16,6 +16,7 @@
 
 关联文档: cairn/shadow-data-quality-loop.md §4.3 门槛设计: 两层防护
 """
+
 from __future__ import annotations
 
 import os
@@ -264,7 +265,11 @@ class TestWatchdogTriggerDecision:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_no_trigger_when_both_gates_fail(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """6/14 天未达标 → 不触发 (正常流程)"""
         mock_progress.return_value = make_progress_dict(6)
@@ -279,7 +284,11 @@ class TestWatchdogTriggerDecision:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_trigger_when_both_gates_pass(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """14/14 天达标 → 触发漂移判定"""
         mock_progress.return_value = make_progress_dict(14)
@@ -295,7 +304,11 @@ class TestWatchdogTriggerDecision:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_force_trigger_skips_gate_check(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """6/14 天 + force_trigger → 跳过门槛, 触发漂移判定"""
         mock_progress.return_value = make_progress_dict(6)
@@ -312,7 +325,11 @@ class TestWatchdogTriggerDecision:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_dry_run_never_triggers(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """14/14 天达标 + dry_run → 不触发 (试运行)"""
         mock_progress.return_value = make_progress_dict(14)
@@ -327,7 +344,11 @@ class TestWatchdogTriggerDecision:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_dry_run_with_force_still_no_trigger(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """6/14 天 + force_trigger + dry_run → 不触发 (dry_run 优先级最高)"""
         mock_progress.return_value = make_progress_dict(6)
@@ -341,7 +362,11 @@ class TestWatchdogTriggerDecision:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_only_gate_a_passes_no_trigger(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """14天/3条 (仅 GATE-A 通过) → 不触发 (GATE-B 拦截回测污染)"""
         mock_progress.return_value = make_progress_dict(14)
@@ -373,7 +398,11 @@ class TestTwoLayerInteraction:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_normal_flow_below_14_days_no_trigger(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """正常流程 6 天: 看门狗 14 天门槛拦截, 集成器 5 天门槛不触发"""
         mock_progress.return_value = make_progress_dict(6)
@@ -387,7 +416,11 @@ class TestTwoLayerInteraction:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_normal_flow_at_14_days_triggers(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """正常流程 14 天: 看门狗放行, 集成器执行"""
         mock_progress.return_value = make_progress_dict(14)
@@ -402,7 +435,11 @@ class TestTwoLayerInteraction:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_force_trigger_with_3_samples_skipped_by_integrator(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """强制触发 + 3 条样本: 看门狗放行, 集成器兜底返回 skipped (3 < 5)"""
         mock_progress.return_value = make_progress_dict(3)
@@ -422,7 +459,11 @@ class TestTwoLayerInteraction:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_force_trigger_with_4_samples_skipped_by_integrator(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """强制触发 + 4 条样本: 集成器兜底返回 skipped (4 < 5, 边界值)"""
         mock_progress.return_value = make_progress_dict(4)
@@ -442,7 +483,11 @@ class TestTwoLayerInteraction:
     @patch("scripts.observation_watchdog.load_cleaned_real_records")
     @patch("scripts.observation_watchdog.load_observation_progress")
     def test_force_trigger_with_5_samples_executes(
-        self, mock_progress, mock_records, mock_trigger, mock_log,
+        self,
+        mock_progress,
+        mock_records,
+        mock_trigger,
+        mock_log,
     ):
         """强制触发 + 5 条样本: 集成器执行 (5 >= 5, 刚好过兜底门槛)"""
         mock_progress.return_value = make_progress_dict(5)
@@ -457,6 +502,7 @@ class TestTwoLayerInteraction:
         """验证两层门槛常量: 集成器 5 天 + 看门狗 21 天 (2026-08-09 由 14 上调)"""
         assert MIN_REAL_SAMPLES_FOR_DRIFT == 5  # 集成器层
         from scripts.observation_watchdog import DEFAULT_REQUIRED_DAYS
+
         assert DEFAULT_REQUIRED_DAYS == 21  # 看门狗层
 
 

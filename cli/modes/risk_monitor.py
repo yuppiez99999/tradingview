@@ -32,8 +32,8 @@ def run_risk_monitor(args):
     alert_notifier = AlertNotifier()
 
     progress.update(1, "加载监控模块...")
-    StopLossMonitor = stop_loss.get('StopLossMonitor')
-    generate_risk_alert_report = stop_loss.get('generate_risk_alert_report')
+    StopLossMonitor = stop_loss.get("StopLossMonitor")
+    generate_risk_alert_report = stop_loss.get("generate_risk_alert_report")
 
     if StopLossMonitor and generate_risk_alert_report:
         progress.update(2, "创建监控实例...")
@@ -45,11 +45,11 @@ def run_risk_monitor(args):
         if not quotes:
             print("\n⚠️ 使用模拟数据进行风险监控")
             quotes = {
-                '600989': {'price': 23.50},
-                '600276': {'price': 45.00},
-                '300274': {'price': 165.00},
-                '601088': {'price': 47.80},
-                '002371': {'price': 520.00},
+                "600989": {"price": 23.50},
+                "600276": {"price": 45.00},
+                "300274": {"price": 165.00},
+                "601088": {"price": 47.80},
+                "002371": {"price": 520.00},
             }
 
         progress.update(4, "检查风险状态...")
@@ -73,13 +73,16 @@ def run_risk_monitor(args):
 
         try:
             # 加载持仓数据
-            positions_path = os.path.join(BASE_DIR, 'config', 'positions.json')
+            positions_path = os.path.join(BASE_DIR, "config", "positions.json")
             positions = {}
             if os.path.exists(positions_path):
-                with open(positions_path, encoding='utf-8') as f:
+                with open(positions_path, encoding="utf-8") as f:
                     pos_data = json.load(f)
-                    for code, p in pos_data.get('positions', {}).items():
-                        positions[code] = {'shares': p.get('shares', 0), 'cost': p.get('cost', 0)}
+                    for code, p in pos_data.get("positions", {}).items():
+                        positions[code] = {
+                            "shares": p.get("shares", 0),
+                            "cost": p.get("cost", 0),
+                        }
 
             if len(positions) < 2:
                 print("  ⚠️ 持仓标的不足2个，无法计算相关性矩阵")
@@ -92,8 +95,10 @@ def run_risk_monitor(args):
                 )
 
                 if not historical_returns:
-                    print("  ⚠️ 数据缓存中无足够K线数据（需至少20个交易日），"
-                          "请先运行数据下载")
+                    print(
+                        "  ⚠️ 数据缓存中无足够K线数据（需至少20个交易日），"
+                        "请先运行数据下载"
+                    )
                     print("     python v5.10.py --check  # 确认缓存状态")
 
                 if historical_returns and len(historical_returns) >= 2:
@@ -105,23 +110,33 @@ def run_risk_monitor(args):
                         lookback_days=60,
                     )
 
-                    print(f"\n  滚动60日平均相关系数: {corr_result.get('average_correlation', 0):.4f}")
-                    print(f"  最高相关系数:         {corr_result.get('max_correlation', 0):.4f}")
+                    print(
+                        f"\n  滚动60日平均相关系数: {corr_result.get('average_correlation', 0):.4f}"
+                    )
+                    print(
+                        f"  最高相关系数:         {corr_result.get('max_correlation', 0):.4f}"
+                    )
 
-                    high_pairs = corr_result.get('high_correlation_pairs', [])
+                    high_pairs = corr_result.get("high_correlation_pairs", [])
                     if high_pairs:
                         print("\n  ⚠️  高相关标的对 (相关系数 > 0.7):")
                         for ci, cj, corr in high_pairs:
                             name_i = get_stock_name(ci)
                             name_j = get_stock_name(cj)
-                            print(f"    {ci} ({name_i}) <-> {cj} ({name_j}): {corr:.4f}")
+                            print(
+                                f"    {ci} ({name_i}) <-> {cj} ({name_j}): {corr:.4f}"
+                            )
 
-                    if corr_result.get('alert'):
-                        print(f"\n  🚨 相关性预警: {corr_result.get('alert_reason', '')}")
-                        print(f"    风险评分: {corr_result.get('risk_score', 0):.2f}/1.0")
+                    if corr_result.get("alert"):
+                        print(
+                            f"\n  🚨 相关性预警: {corr_result.get('alert_reason', '')}"
+                        )
+                        print(
+                            f"    风险评分: {corr_result.get('risk_score', 0):.2f}/1.0"
+                        )
                         alert_notifier.quick_alert(
                             title="组合内相关性预警",
-                            content=corr_result.get('alert_reason', ''),
+                            content=corr_result.get("alert_reason", ""),
                             level=AlertLevel.WARNING,
                             source="risk_monitor",
                         )

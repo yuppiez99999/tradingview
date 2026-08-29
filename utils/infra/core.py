@@ -230,7 +230,9 @@ class StrategyRegistry:
         """
         with self._lock:
             if name in self._metadata and not overwrite:
-                raise StrategyAlreadyRegisteredError(f"策略 '{name}' 已注册, overwrite=False 阻止覆盖")
+                raise StrategyAlreadyRegisteredError(
+                    f"策略 '{name}' 已注册, overwrite=False 阻止覆盖"
+                )
 
             meta_dict = metadata or {}
             self._metadata[name] = StrategyMetadata(
@@ -296,8 +298,15 @@ class StrategyRegistry:
                 meta = self._metadata[name]
                 try:
                     self._instances[name] = meta.strategy_class()
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                        OSError, ImportError) as e:  # P2 模块 fail-safe, 待后续精确化
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    ImportError,
+                ) as e:  # P2 模块 fail-safe, 待后续精确化
                     # 策略实例化可能抛: 构造函数参数错误/类型不匹配/字段缺失/
                     # 属性不存在/运行时错误/IO 异常/依赖未安装
                     logger.error(f"策略实例化失败: {name}, error={e}")
@@ -471,8 +480,13 @@ class StrategyRegistry:
                 len(forward_returns),
                 e,
             )
-        except (KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OSError) as e:
+        except (
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OSError,
+        ) as e:
             # scipy.stats 计算或记录过程可能抛: 数据格式/类型错误/
             # 字段缺失/属性不存在/运行时错误/除零/IO 异常
             logger.error(
@@ -509,7 +523,9 @@ class StrategyRegistry:
         """
 
         def decorator(strategy_class: type[Any]) -> type[Any]:
-            cls.get_instance().register(name, strategy_class, metadata=metadata, overwrite=overwrite)
+            cls.get_instance().register(
+                name, strategy_class, metadata=metadata, overwrite=overwrite
+            )
             return strategy_class
 
         return decorator
@@ -521,7 +537,10 @@ class StrategyRegistry:
         """写入审计日志 (失败不阻塞)."""
         try:
             _AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)
-            log_file = _AUDIT_LOG_DIR / f"{action}_{name}_{datetime.now().strftime('%Y%m%d')}.jsonl"
+            log_file = (
+                _AUDIT_LOG_DIR
+                / f"{action}_{name}_{datetime.now().strftime('%Y%m%d')}.jsonl"
+            )
             record = {
                 "ts": datetime.now().isoformat(),
                 "action": action,
@@ -530,8 +549,16 @@ class StrategyRegistry:
             }
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-        OSError, ZeroDivisionError, ImportError) as e:  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            ZeroDivisionError,
+            ImportError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失
             # RuntimeError — 运行时错误
@@ -582,12 +609,19 @@ def track_performance(
         from utils.infra.feature_flags import FeatureFlags as _FF
 
         _FeatureFlags = _FF  # noqa: N806
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-        OSError, ImportError):  # P2 模块 fail-safe, 待后续精确化
-            # ValueError/TypeError — 数据格式/类型错误
-            # KeyError/AttributeError — 字段/属性缺失
-            # RuntimeError — 运行时错误
-            # OSError — IO 异常; ImportError — 依赖未安装
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        ImportError,
+    ):  # P2 模块 fail-safe, 待后续精确化
+        # ValueError/TypeError — 数据格式/类型错误
+        # KeyError/AttributeError — 字段/属性缺失
+        # RuntimeError — 运行时错误
+        # OSError — IO 异常; ImportError — 依赖未安装
         pass
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -597,14 +631,23 @@ def track_performance(
             if _FeatureFlags is None:
                 return func(*args, **kwargs)
             try:
-                if not _FeatureFlags.get_instance().is_enabled("USE_INTEGRATED_CORE_REGISTRY"):
+                if not _FeatureFlags.get_instance().is_enabled(
+                    "USE_INTEGRATED_CORE_REGISTRY"
+                ):
                     return func(*args, **kwargs)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-        OSError, ImportError):  # P2 模块 fail-safe, 待后续精确化
-            # ValueError/TypeError — 数据格式/类型错误
-            # KeyError/AttributeError — 字段/属性缺失
-            # RuntimeError — 运行时错误
-            # OSError — IO 异常; ImportError — 依赖未安装
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                ImportError,
+            ):  # P2 模块 fail-safe, 待后续精确化
+                # ValueError/TypeError — 数据格式/类型错误
+                # KeyError/AttributeError — 字段/属性缺失
+                # RuntimeError — 运行时错误
+                # OSError — IO 异常; ImportError — 依赖未安装
                 return func(*args, **kwargs)
 
             # flag 开启: 记录性能
@@ -614,14 +657,22 @@ def track_performance(
             try:
                 result = func(*args, **kwargs)
                 return result
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-        OSError, ZeroDivisionError, ImportError) as e:  # P2 模块 fail-safe, 待后续精确化
-            # ValueError/TypeError — 数据格式/类型错误
-            # KeyError/AttributeError — 字段/属性缺失
-            # RuntimeError — 运行时错误
-            # OSError — 文件/网络 IO 异常
-            # ZeroDivisionError — 除零
-            # ImportError — 依赖未安装
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                ZeroDivisionError,
+                ImportError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
+                # ValueError/TypeError — 数据格式/类型错误
+                # KeyError/AttributeError — 字段/属性缺失
+                # RuntimeError — 运行时错误
+                # OSError — 文件/网络 IO 异常
+                # ZeroDivisionError — 除零
+                # ImportError — 依赖未安装
                 success = False
                 error_msg = f"{type(e).__name__}: {e}"
                 raise
@@ -634,10 +685,18 @@ def track_performance(
                         success=success,
                         error_msg=error_msg,
                     )
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                        OSError) as record_err:  # P2 模块 fail-safe, 待后续精确化
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                ) as record_err:  # P2 模块 fail-safe, 待后续精确化
                     # 性能记录失败不影响业务: 数据/类型/字段/属性/运行时/IO 异常
-                    logger.warning(f"性能记录失败 (不影响业务): strategy={strategy_name}, error={record_err}")
+                    logger.warning(
+                        f"性能记录失败 (不影响业务): strategy={strategy_name}, error={record_err}"
+                    )
 
         return wrapper
 

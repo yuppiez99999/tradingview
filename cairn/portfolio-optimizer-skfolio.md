@@ -60,3 +60,14 @@ cov_reg = cov + I * 1e-8 (确保正定)
 | `utils/portfolio_optimizer_skfolio.py` | ~490 | 核心实现 |
 | `tests/unit/test_portfolio_optimizer_skfolio_unit.py` | ~295 | 单元测试 |
 | `ruff.toml` | (+5行) | T201/UP042/BLE001 豁免 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [Deep Hedging RL 范式集成](deep-hedging-rl.md) (相似度 15%)
+- [FinRL-X 权重中心接口架构](finrl-x-interface.md) (相似度 13%)
+- [DeltaHedge 多智能体期权优化](delta-hedge-multi-agent.md) (相似度 13%)
+- [隐含波动率曲面深度对冲](iv-surface-deep-hedge.md) (相似度 12%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 11%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -1,6 +1,7 @@
 """
 G7 Coverage Boost: utils/strategy/etf_rotation/engine.py (372 lines, 0% -> target ~80%)
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -124,9 +125,17 @@ class TestThreeTierReport:
             oos_sharpe=1.0,
             oos_return=0.05,
         )
-        vec = VECResult(n_folds=1, avg_sharpe=1.0, sharpe_std=0.1, robust_lookback=20, robust_holdings=3)
+        vec = VECResult(
+            n_folds=1,
+            avg_sharpe=1.0,
+            sharpe_std=0.1,
+            robust_lookback=20,
+            robust_holdings=3,
+        )
         bt = BTResult(1_050_000.0, 0.05, 1.0, 0.02, 5, [1_000_000.0, 1_050_000.0])
-        report = ThreeTierReport(wfo_results=[wfo], vec_result=vec, bt_result=bt, passed=True)
+        report = ThreeTierReport(
+            wfo_results=[wfo], vec_result=vec, bt_result=bt, passed=True
+        )
         text = report.summary()
         assert "✅ PASS" in text
         assert "VEC: 1 折" in text

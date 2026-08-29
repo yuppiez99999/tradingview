@@ -5,6 +5,7 @@
 
 避免 import daily_trade_executor (模块级副作用), 直接用 FillsStore + 等价 helper 验证契约。
 """
+
 from __future__ import annotations
 
 import os
@@ -24,9 +25,15 @@ def _record_build_fill_contract(store, inst, result, target_date_str):
     symbol = str(inst.get("full_code") or inst.get("code", ""))
     side = str(result.get("action", "BUY"))
     store.record_fill(
-        symbol=symbol, side=side, filled_qty=qty, avg_price=fill_price,
-        broker="SimulatedBroker", is_live=False, strategy="build",
-        source="sim_route", date=target_date_str,
+        symbol=symbol,
+        side=side,
+        filled_qty=qty,
+        avg_price=fill_price,
+        broker="SimulatedBroker",
+        is_live=False,
+        strategy="build",
+        source="sim_route",
+        date=target_date_str,
         meta={"slippage_rate": inst.get("slippage", 0.0)},
     )
     return True

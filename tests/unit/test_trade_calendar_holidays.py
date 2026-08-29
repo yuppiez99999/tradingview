@@ -5,6 +5,7 @@
     2. 周末判定 (不依赖 akshare, 回退模式也通过)
     3. 法定节假日判定 (国庆/春节/元旦等)
 """
+
 import datetime
 
 from utils.trade_calendar import is_trading_day

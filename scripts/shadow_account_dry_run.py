@@ -46,7 +46,9 @@ def setup_logging(level: str = "INFO") -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     # 降低第三方库日志级别
-    logging.getLogger("pipeline").setLevel(getattr(logging, level.upper(), logging.INFO))
+    logging.getLogger("pipeline").setLevel(
+        getattr(logging, level.upper(), logging.INFO)
+    )
 
 
 def run_single_day(
@@ -96,10 +98,18 @@ def run_single_day(
     # 输出摘要
     status_icon = "✅" if result.success else "❌"
     print(f"  {status_icon} 状态: {result.stage.value} | 耗时: {elapsed:.2f}s")
-    print(f"  📊 数据清洗: {result.metrics.get('data_cleaning', {}).get('reports_count', 0)} 只标的")
-    print(f"  📊 Alpha 信号: {result.metrics.get('alpha', {}).get('signals_count', 0)} 只标的")
-    print(f"  📊 回测验证: {'通过' if result.metrics.get('backtest', {}).get('passed') else '跳过/未通过'}")
-    print(f"  📊 执行: {result.metrics.get('execution', {}).get('total_orders', 0)} 订单")
+    print(
+        f"  📊 数据清洗: {result.metrics.get('data_cleaning', {}).get('reports_count', 0)} 只标的"
+    )
+    print(
+        f"  📊 Alpha 信号: {result.metrics.get('alpha', {}).get('signals_count', 0)} 只标的"
+    )
+    print(
+        f"  📊 回测验证: {'通过' if result.metrics.get('backtest', {}).get('passed') else '跳过/未通过'}"
+    )
+    print(
+        f"  📊 执行: {result.metrics.get('execution', {}).get('total_orders', 0)} 订单"
+    )
 
     if verbose and result.metrics:
         print("\n  📋 详细指标:")
@@ -128,7 +138,9 @@ def generate_summary_report(
     total = len(all_days)
     passed = sum(1 for d in all_days if d["status"] == "PASS")
     failed = total - passed
-    avg_duration = sum(d["duration_seconds"] for d in all_days) / total if total > 0 else 0
+    avg_duration = (
+        sum(d["duration_seconds"] for d in all_days) / total if total > 0 else 0
+    )
     total_duration = sum(d["duration_seconds"] for d in all_days)
 
     # 阶段通过率
@@ -155,8 +167,12 @@ def generate_summary_report(
         "avg_duration_seconds": round(avg_duration, 3),
         "total_duration_seconds": round(total_duration, 3),
         "stage_distribution": stage_counts,
-        "avg_signals_per_day": round(sum(avg_signals) / len(avg_signals), 1) if avg_signals else 0,
-        "avg_orders_per_day": round(sum(avg_orders) / len(avg_orders), 1) if avg_orders else 0,
+        "avg_signals_per_day": (
+            round(sum(avg_signals) / len(avg_signals), 1) if avg_signals else 0
+        ),
+        "avg_orders_per_day": (
+            round(sum(avg_orders) / len(avg_orders), 1) if avg_orders else 0
+        ),
         "daily_results": all_days,
         "verdict": "✅ 通过" if failed == 0 else f"⚠️ {failed}/{total} 天失败",
     }

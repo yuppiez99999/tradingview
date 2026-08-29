@@ -11,6 +11,7 @@
     - build_backtest_data_from_ohlcv 从 DataFrame 构建
     - fetch_st_codes akshare 失败容错
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -299,7 +300,9 @@ class TestLimitCheck:
 class TestDetectSuspended:
     @pytest.mark.unit
     def test_normal_trading(self):
-        assert detect_suspended_from_row(close=10.0, volume=1000, open_price=10.0) is False
+        assert (
+            detect_suspended_from_row(close=10.0, volume=1000, open_price=10.0) is False
+        )
 
     @pytest.mark.unit
     def test_zero_close(self):

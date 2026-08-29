@@ -72,6 +72,7 @@ class RiskMonitor:
         # KillSwitch
         try:
             from utils.kill_switch import KillSwitch
+
             self._kill_switch = KillSwitch()
             logger.info("KillSwitch 已加载")
         except ImportError as e:
@@ -80,6 +81,7 @@ class RiskMonitor:
         # RiskGuardIntegrator
         try:
             from utils.risk_guard_integrator import RiskGuardIntegrator
+
             self._risk_guard = RiskGuardIntegrator()
             logger.info("RiskGuardIntegrator 已加载")
         except ImportError as e:
@@ -111,7 +113,16 @@ class RiskMonitor:
         while self._running:
             try:
                 self._run_checks()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.error(f"风控检查异常: {e}", exc_info=True)
 
@@ -150,7 +161,7 @@ class RiskMonitor:
                         metrics={"margin_ratio": margin_ratio},
                         actions_taken=["停止开仓", "启动强平", "通知交易员"],
                     )
-                elif margin_ratio >= self.config.kill_switch_l2_margin:
+                if margin_ratio >= self.config.kill_switch_l2_margin:
                     return RiskAlert(
                         level=2,
                         source="kill_switch",
@@ -158,7 +169,7 @@ class RiskMonitor:
                         metrics={"margin_ratio": margin_ratio},
                         actions_taken=["停止开仓", "准备减仓", "通知交易员"],
                     )
-                elif margin_ratio >= self.config.kill_switch_l1_margin:
+                if margin_ratio >= self.config.kill_switch_l1_margin:
                     return RiskAlert(
                         level=1,
                         source="kill_switch",
@@ -170,7 +181,16 @@ class RiskMonitor:
             # 降级: 从 positions.json 估算
             return self._estimate_margin_from_positions()
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"保证金检查失败: {e}")
@@ -182,7 +202,11 @@ class RiskMonitor:
             import json
             from pathlib import Path
 
-            positions_path = Path(__file__).resolve().parent.parent.parent / "config" / "positions.json"
+            positions_path = (
+                Path(__file__).resolve().parent.parent.parent
+                / "config"
+                / "positions.json"
+            )
             if not positions_path.exists():
                 return None
 
@@ -196,7 +220,9 @@ class RiskMonitor:
             )
 
             # 从 positions.json meta.total_capital 读取真实总资金 (与 kill_switch.py 等一致)
-            total_capital = float(positions.get("meta", {}).get("total_capital", 5_000_000))
+            total_capital = float(
+                positions.get("meta", {}).get("total_capital", 5_000_000)
+            )
             margin_ratio = total_value / total_capital if total_capital > 0 else 0
 
             if margin_ratio >= self.config.kill_switch_l3_margin:
@@ -208,7 +234,16 @@ class RiskMonitor:
                     actions_taken=["停止开仓"],
                 )
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"保证金估算失败: {e}")
@@ -229,21 +264,36 @@ class RiskMonitor:
                         level=3,
                         source="risk_guard",
                         message=f"总回撤熔断: {total_dd:.2%} >= {self.config.max_total_drawdown:.2%}",
-                        metrics={"daily_drawdown": daily_dd, "total_drawdown": total_dd},
+                        metrics={
+                            "daily_drawdown": daily_dd,
+                            "total_drawdown": total_dd,
+                        },
                         actions_taken=["停止交易", "启动应急减仓"],
                     )
-                elif daily_dd >= self.config.max_daily_drawdown:
+                if daily_dd >= self.config.max_daily_drawdown:
                     return RiskAlert(
                         level=2,
                         source="risk_guard",
                         message=f"日回撤强平: {daily_dd:.2%} >= {self.config.max_daily_drawdown:.2%}",
-                        metrics={"daily_drawdown": daily_dd, "total_drawdown": total_dd},
+                        metrics={
+                            "daily_drawdown": daily_dd,
+                            "total_drawdown": total_dd,
+                        },
                         actions_taken=["停止开仓", "减仓至安全线"],
                     )
 
             return None
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"回撤检查失败: {e}")
@@ -280,6 +330,7 @@ class RiskMonitor:
         """写入 EvolutionMemory (优雅降级)"""
         try:
             from utils.evolution_memory import EvolutionMemory
+
             memory = EvolutionMemory()
             memory.log_event(
                 event_type="risk_alert",
@@ -335,7 +386,16 @@ class RiskMonitor:
                 reports=[],
             )
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"风控检查失败: {e}")

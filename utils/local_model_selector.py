@@ -19,6 +19,7 @@ llmfit 1.x 输出格式:
 
 集成日期: 2026-08-23
 """
+
 from __future__ import annotations
 
 import json
@@ -75,17 +76,17 @@ class ModelRecommendation:
 
     name: str = ""
     provider: str = ""
-    score: float = 0.0           # 总分 (item.score)
-    fit_score: float = 0.0       # 适配分 (score_components.fit)
-    speed_score: float = 0.0     # 速度分 (score_components.speed)
-    quality_score: float = 0.0   # 质量分 (score_components.quality)
-    context_length: int = 0      # 有效上下文长度 (effective_context_length)
-    size_gb: float = 0.0         # 运行所需内存 (total_memory_gb)
-    quantization: str = ""       # 量化方式 (best_quant)
-    estimated_tps: float = 0.0   # 估计速度 tok/s (estimated_tps)
-    fit_label: str = ""          # 适配标签 Good/Fair/Poor (fit_label)
-    run_mode: str = ""           # 运行模式 GPU/CPU (run_mode)
-    runtime: str = ""            # 推理后端 vLLM/Ollama (runtime)
+    score: float = 0.0  # 总分 (item.score)
+    fit_score: float = 0.0  # 适配分 (score_components.fit)
+    speed_score: float = 0.0  # 速度分 (score_components.speed)
+    quality_score: float = 0.0  # 质量分 (score_components.quality)
+    context_length: int = 0  # 有效上下文长度 (effective_context_length)
+    size_gb: float = 0.0  # 运行所需内存 (total_memory_gb)
+    quantization: str = ""  # 量化方式 (best_quant)
+    estimated_tps: float = 0.0  # 估计速度 tok/s (estimated_tps)
+    fit_label: str = ""  # 适配标签 Good/Fair/Poor (fit_label)
+    run_mode: str = ""  # 运行模式 GPU/CPU (run_mode)
+    runtime: str = ""  # 推理后端 vLLM/Ollama (runtime)
 
     def summary(self) -> str:
         parts = [self.name]
@@ -154,9 +155,7 @@ def _run_llmfit_raw(args: list[str]) -> Optional[str]:
         logger.warning(f"llmfit 调用失败 ({cmd}): {e}")
         return None
     if proc.returncode != 0:
-        logger.warning(
-            f"llmfit 返回非零 ({proc.returncode}): {proc.stderr[:200]}"
-        )
+        logger.warning(f"llmfit 返回非零 ({proc.returncode}): {proc.stderr[:200]}")
         return None
     return proc.stdout
 
@@ -254,8 +253,7 @@ def recommend_models(
             speed_score=float(sc.get("speed", 0) or 0),
             quality_score=float(sc.get("quality", 0) or 0),
             context_length=int(
-                item.get("effective_context_length", item.get("context_length", 0))
-                or 0
+                item.get("effective_context_length", item.get("context_length", 0)) or 0
             ),
             size_gb=float(
                 item.get("total_memory_gb", item.get("disk_size_gb", 0)) or 0
@@ -283,7 +281,9 @@ def select_local_model(use_case: str = _DEFAULT_USE_CASE) -> SelectionResult:
     """
     result = SelectionResult()
     if not is_llmfit_available():
-        result.reason = "llmfit 未安装 (Windows: scoop install llmfit / uv tool install llmfit)"
+        result.reason = (
+            "llmfit 未安装 (Windows: scoop install llmfit / uv tool install llmfit)"
+        )
         return result
     hw = detect_hardware()
     if hw:

@@ -14,6 +14,7 @@
 Usage:
     .venv\\Scripts\\python.exe research\\regime_fixed_backtest.py
 """
+
 from __future__ import annotations
 
 import json
@@ -55,7 +56,7 @@ def backtest(R, codes, scheme, detector=None):  # noqa: N806
             tw_used = TRAIN_SHORT
             use_mvsk = False
         elif scheme == "bl_mv_252":
-            R_train = R[t - TRAIN_SHORT:t]
+            R_train = R[t - TRAIN_SHORT : t]
             cov = np.cov(R_train, rowvar=False) * 252
             mu_bl = bl_posterior_mu(codes, R_train, cov, w_bench)
             w_new = optimize_weights(mu_bl, cov, w_bench)
@@ -64,40 +65,46 @@ def backtest(R, codes, scheme, detector=None):  # noqa: N806
         elif scheme == "bl_mvsk_378":
             if t < TRAIN_LONG:
                 # 数据不够 378, 回退 252+MV
-                R_train = R[t - TRAIN_SHORT:t]
+                R_train = R[t - TRAIN_SHORT : t]
                 cov = np.cov(R_train, rowvar=False) * 252
                 mu_bl = bl_posterior_mu(codes, R_train, cov, w_bench)
                 w_new = optimize_weights(mu_bl, cov, w_bench)
                 tw_used = TRAIN_SHORT
                 use_mvsk = False
             else:
-                R_train = R[t - TRAIN_LONG:t]
+                R_train = R[t - TRAIN_LONG : t]
                 cov = np.cov(R_train, rowvar=False) * 252
                 mu_bl = bl_posterior_mu(codes, R_train, cov, w_bench)
-                w_new = optimize_weights(mu_bl, cov, w_bench, R_train, GAMMA_S_FIX, GAMMA_K_FIX)
+                w_new = optimize_weights(
+                    mu_bl, cov, w_bench, R_train, GAMMA_S_FIX, GAMMA_K_FIX
+                )
                 tw_used = TRAIN_LONG
                 use_mvsk = True
         elif scheme == "regime_old":
             # 原 P3: train=252 固定, 仅切 MV/MVSK
-            R_train = R[t - TRAIN_SHORT:t]
+            R_train = R[t - TRAIN_SHORT : t]
             cov = np.cov(R_train, rowvar=False) * 252
             mu_bl = bl_posterior_mu(codes, R_train, cov, w_bench)
             r_det = detector.detect(R_train)
             if r_det.use_mvsk:
-                w_new = optimize_weights(mu_bl, cov, w_bench, R_train, GAMMA_S_FIX, GAMMA_K_FIX)
+                w_new = optimize_weights(
+                    mu_bl, cov, w_bench, R_train, GAMMA_S_FIX, GAMMA_K_FIX
+                )
             else:
                 w_new = optimize_weights(mu_bl, cov, w_bench)
             tw_used = TRAIN_SHORT
             use_mvsk = r_det.use_mvsk
         elif scheme == "regime_fixed":
             # 修正: 低波动→252+MV, 高波动→378+MVSK
-            R_train_short = R[t - TRAIN_SHORT:t]
+            R_train_short = R[t - TRAIN_SHORT : t]
             r_det = detector.detect(R_train_short)
             if r_det.use_mvsk and t >= TRAIN_LONG:
-                R_train = R[t - TRAIN_LONG:t]
+                R_train = R[t - TRAIN_LONG : t]
                 cov = np.cov(R_train, rowvar=False) * 252
                 mu_bl = bl_posterior_mu(codes, R_train, cov, w_bench)
-                w_new = optimize_weights(mu_bl, cov, w_bench, R_train, GAMMA_S_FIX, GAMMA_K_FIX)
+                w_new = optimize_weights(
+                    mu_bl, cov, w_bench, R_train, GAMMA_S_FIX, GAMMA_K_FIX
+                )
                 tw_used = TRAIN_LONG
             else:
                 R_train = R_train_short
@@ -111,7 +118,7 @@ def backtest(R, codes, scheme, detector=None):  # noqa: N806
 
         regime_log.append({"t": int(t), "tw": tw_used, "mvsk": use_mvsk})
 
-        R_hold = R[t:t + HOLD_PERIOD]
+        R_hold = R[t : t + HOLD_PERIOD]
         turnover = 0.5 * float(np.abs(w_new - w_old).sum())
         cost = turnover * TURNOVER_BPS / 1e4
         period_rets = R_hold @ w_new
@@ -126,8 +133,12 @@ def backtest(R, codes, scheme, detector=None):  # noqa: N806
     peak = np.maximum.accumulate(cum_nav)
     max_dd = float((cum_nav / peak - 1.0).min())
     return {
-        "夏普": m["年化夏普"], "收益": m["年化收益"], "末净值": float(cum_nav[-1]),
-        "回撤": max_dd, "偏度": m["组合偏度"], "峰度": m["超额峰度"],
+        "夏普": m["年化夏普"],
+        "收益": m["年化收益"],
+        "末净值": float(cum_nav[-1]),
+        "回撤": max_dd,
+        "偏度": m["组合偏度"],
+        "峰度": m["超额峰度"],
         "regime_log": regime_log,
     }
 
@@ -150,14 +161,18 @@ def main() -> int:
         ("修正Regime(动态tw)", "regime_fixed"),
     ]
 
-    print(f"{'方案':<24}{'夏普':<10}{'净值':<10}{'收益':<10}{'回撤':<10}{'偏度':<8}{'峰度':<8}")
+    print(
+        f"{'方案':<24}{'夏普':<10}{'净值':<10}{'收益':<10}{'回撤':<10}{'偏度':<8}{'峰度':<8}"
+    )
     print("-" * 80)
     results = {}
     for label, key in schemes:
         m = backtest(R, codes, key, detector)
         results[label] = m
-        print(f"{label:<24}{m['夏普']:<10.4f}{m['末净值']:<10.4f}{m['收益']:<10.4f}"
-              f"{m['回撤']:<10.4f}{m['偏度']:<8.3f}{m['峰度']:<8.3f}")
+        print(
+            f"{label:<24}{m['夏普']:<10.4f}{m['末净值']:<10.4f}{m['收益']:<10.4f}"
+            f"{m['回撤']:<10.4f}{m['偏度']:<8.3f}{m['峰度']:<8.3f}"
+        )
 
     # 增量分析
     print("\n" + "=" * 80)
@@ -165,9 +180,15 @@ def main() -> int:
     mvsk = results["始终BL+MVSK(378)"]
     old = results["原Regime(252固定)"]
     fix = results["修正Regime(动态tw)"]
-    print(f"修正 Regime vs 始终 BL+MV:    Δ夏普={fix['夏普']-mv['夏普']:+.4f}  Δ净值={fix['末净值']-mv['末净值']:+.4f}")
-    print(f"修正 Regime vs 始终 BL+MVSK:  Δ夏普={fix['夏普']-mvsk['夏普']:+.4f}  Δ净值={fix['末净值']-mvsk['末净值']:+.4f}")
-    print(f"修正 Regime vs 原 Regime:     Δ夏普={fix['夏普']-old['夏普']:+.4f}  Δ净值={fix['末净值']-old['末净值']:+.4f}")
+    print(
+        f"修正 Regime vs 始终 BL+MV:    Δ夏普={fix['夏普']-mv['夏普']:+.4f}  Δ净值={fix['末净值']-mv['末净值']:+.4f}"
+    )
+    print(
+        f"修正 Regime vs 始终 BL+MVSK:  Δ夏普={fix['夏普']-mvsk['夏普']:+.4f}  Δ净值={fix['末净值']-mvsk['末净值']:+.4f}"
+    )
+    print(
+        f"修正 Regime vs 原 Regime:     Δ夏普={fix['夏普']-old['夏普']:+.4f}  Δ净值={fix['末净值']-old['末净值']:+.4f}"
+    )
 
     # regime 时间线
     log = fix["regime_log"]
@@ -179,8 +200,13 @@ def main() -> int:
     for r in log:
         print(f"  {r['t']:<6}{r['tw']:<6}{r['mvsk']:<6}")
 
-    out = {"结果": {scheme: {k: v for k, v in m.items() if k != "regime_log"} for scheme, m in results.items()},
-           "regime_log": fix["regime_log"]}
+    out = {
+        "结果": {
+            scheme: {k: v for k, v in m.items() if k != "regime_log"}
+            for scheme, m in results.items()
+        },
+        "regime_log": fix["regime_log"],
+    }
     out_path = _PROJECT_ROOT / "research" / "regime_fixed_backtest_result.json"
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)

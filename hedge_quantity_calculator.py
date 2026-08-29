@@ -111,14 +111,32 @@ if _config_path.exists():
 
 _futures_prices = _config.get("futures_prices", {})
 futures = {
-    "IF": {"multiplier": 300, "beta": 1.0, "price": float(_futures_prices.get("IF", 3800.0)), "name": "沪深300"},
-    "IC": {"multiplier": 200, "beta": 1.2, "price": float(_futures_prices.get("IC", 5500.0)), "name": "中证500"},
-    "IM": {"multiplier": 200, "beta": 1.1, "price": float(_futures_prices.get("IM", 5800.0)), "name": "中证1000"},
+    "IF": {
+        "multiplier": 300,
+        "beta": 1.0,
+        "price": float(_futures_prices.get("IF", 3800.0)),
+        "name": "沪深300",
+    },
+    "IC": {
+        "multiplier": 200,
+        "beta": 1.2,
+        "price": float(_futures_prices.get("IC", 5500.0)),
+        "name": "中证500",
+    },
+    "IM": {
+        "multiplier": 200,
+        "beta": 1.1,
+        "price": float(_futures_prices.get("IM", 5800.0)),
+        "name": "中证1000",
+    },
 }
 
 if not _config_path.exists():
-    logger.warning("[OFFLINE_ONLY] 未找到配置文件 %s, 使用硬编码期货行情 IF=3800/IC=5500/IM=5800, "
-                    "实盘前必须替换为实时数据源", _config_path)
+    logger.warning(
+        "[OFFLINE_ONLY] 未找到配置文件 %s, 使用硬编码期货行情 IF=3800/IC=5500/IM=5800, "
+        "实盘前必须替换为实时数据源",
+        _config_path,
+    )
 else:
     logger.info("[OFFLINE_CONFIG] 已从 %s 读取期货行情", _config_path)
 
@@ -133,7 +151,9 @@ else:
 fut = futures[preferred]
 notional_per_contract = fut["multiplier"] * fut["price"]
 beta_adjusted_notional = notional_per_contract * fut["beta"]
-n_contracts = int(value_to_hedge / beta_adjusted_notional) if beta_adjusted_notional > 0 else 0
+n_contracts = (
+    int(value_to_hedge / beta_adjusted_notional) if beta_adjusted_notional > 0 else 0
+)
 
 # 成本估算
 commission_rate = 0.000023

@@ -9,6 +9,7 @@
   - archive_report 创建嵌套目录
   - archive_report 写入 OSError → 记录日志并返回路径
 """
+
 from __future__ import annotations
 
 import os
@@ -97,7 +98,5 @@ class TestArchiveReportError:
         d = date(2026, 8, 14)
         with patch("builtins.open", side_effect=OSError("boom")):
             path = ra.archive_report(str(tmp_path), "fail.txt", "x", d)
-        expected = os.path.join(
-            str(tmp_path), "每日报告归档", "2026-08-14", "fail.txt"
-        )
+        expected = os.path.join(str(tmp_path), "每日报告归档", "2026-08-14", "fail.txt")
         assert path == expected

@@ -13,6 +13,7 @@
          Plan B: 启用 G15 事件驱动引擎回测补样本
          Plan C: 推迟决策至 2026-08-31 (样本 20+) 并启用影子 10% 灰度
 """
+
 from __future__ import annotations
 
 import argparse
@@ -167,9 +168,16 @@ def main() -> int:
         for s in plan_c["steps"]:
             print(f"  - {s}")
 
-    out_path = _PROJECT_ROOT / "reports" / "evolution" / f"decision_day_plan_{args.decision_day}.json"
+    out_path = (
+        _PROJECT_ROOT
+        / "reports"
+        / "evolution"
+        / f"decision_day_plan_{args.decision_day}.json"
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print()
     print(f"完整预案已归档: {out_path}")
     return 0

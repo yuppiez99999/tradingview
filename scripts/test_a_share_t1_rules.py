@@ -10,6 +10,7 @@
 运行:
     python scripts/test_a_share_t1_rules.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -112,9 +113,14 @@ def test_filter_order() -> bool:
 
     # 买入 1000 股
     buy_order = OrderData(
-        order_id="b1", code="600519.SH", exchange="SSE",
-        direction="BUY", offset="OPEN", order_type="MARKET",
-        price=1800.0, volume=1000.0,
+        order_id="b1",
+        code="600519.SH",
+        exchange="SSE",
+        direction="BUY",
+        offset="OPEN",
+        order_type="MARKET",
+        price=1800.0,
+        volume=1000.0,
     )
     result = filter_order_t1(rules, buy_order, today)
     assert result.passed and result.adjusted_volume == 1000.0
@@ -124,9 +130,14 @@ def test_filter_order() -> bool:
 
     # Day1 卖出 → T+1 拦截
     sell_order = OrderData(
-        order_id="s1", code="600519.SH", exchange="SSE",
-        direction="SELL", offset="CLOSE", order_type="MARKET",
-        price=1850.0, volume=1000.0,
+        order_id="s1",
+        code="600519.SH",
+        exchange="SSE",
+        direction="SELL",
+        offset="CLOSE",
+        order_type="MARKET",
+        price=1850.0,
+        volume=1000.0,
     )
     result = filter_order_t1(rules, sell_order, today)
     assert not result.passed, f"Day1 卖出应被 T+1 拦截, 实际 passed={result.passed}"
@@ -167,9 +178,16 @@ def test_price_limit() -> bool:
 def test_bar_to_date() -> bool:
     """测试 6: BarData.date → date 转换。"""
     bar = BarData(
-        code="600519.SH", exchange="SSE", period="1d",
-        open=1800, high=1850, low=1790, close=1840, volume=10000,
-        date=20240603, time=0,
+        code="600519.SH",
+        exchange="SSE",
+        period="1d",
+        open=1800,
+        high=1850,
+        low=1790,
+        close=1840,
+        volume=10000,
+        date=20240603,
+        time=0,
     )
     d = bar_to_date(bar)
     assert d == date(2024, 6, 3), f"日期应为 2024-06-03, 实际 {d}"
@@ -210,9 +228,8 @@ def main() -> int:
     if failed == 0:
         print("✅ 全部通过 — T+1 模拟规则正确")
         return 0
-    else:
-        print("❌ 存在失败 — 需排查")
-        return 1
+    print("❌ 存在失败 — 需排查")
+    return 1
 
 
 if __name__ == "__main__":

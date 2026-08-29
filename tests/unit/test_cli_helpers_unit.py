@@ -2,6 +2,7 @@
 单元测试: utils/cli_helpers.py
 覆盖 write_report_file / archive_report / get_stock_name / log_execution_summary / get_ml_signal_section / get_etf_flow_data / get_portfolio_quotes / get_archive_dir
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -67,6 +68,7 @@ class TestGetStockName:
 
     def test_with_positions_file(self, tmp_path):
         import json
+
         config_dir = tmp_path / "config"
         config_dir.mkdir()
         (config_dir / "positions.json").write_text(
@@ -78,6 +80,7 @@ class TestGetStockName:
 
     def test_code_not_in_positions(self, tmp_path):
         import json
+
         config_dir = tmp_path / "config"
         config_dir.mkdir()
         (config_dir / "positions.json").write_text(

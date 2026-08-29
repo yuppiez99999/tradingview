@@ -57,7 +57,11 @@ def load_positions() -> tuple[dict[str, float], dict[str, float], dict[str, str]
     styles = {}
     for item in data.values():
         code = item.get("code")
-        qty = item.get("phase1_shares") or item.get("total_shares") or item.get("shares", 0)
+        qty = (
+            item.get("phase1_shares")
+            or item.get("total_shares")
+            or item.get("shares", 0)
+        )
         price = item.get("est_price", 0.0)
         style = item.get("style", "其他")
         if code and qty:
@@ -86,7 +90,9 @@ def calc_current_allocation(positions: dict, prices: dict, style_map: dict) -> d
     return style_allocation
 
 
-def validate_order(code: str, action: str, shares: int, price: float, positions: dict) -> dict:
+def validate_order(
+    code: str, action: str, shares: int, price: float, positions: dict
+) -> dict:
     est_amount = shares * price
     errors = []
     warnings = []
@@ -113,7 +119,9 @@ def validate_order(code: str, action: str, shares: int, price: float, positions:
     }
 
 
-def generate_rebalance_orders(style_allocation: dict, target_allocation: dict, positions: dict, prices: dict) -> list:
+def generate_rebalance_orders(
+    style_allocation: dict, target_allocation: dict, positions: dict, prices: dict
+) -> list:
     orders = []
 
     for style, target_weight in target_allocation.items():
@@ -144,7 +152,9 @@ def generate_rebalance_orders(style_allocation: dict, target_allocation: dict, p
                 if current_qty <= 0:
                     continue  # 无持仓，跳过后去下一标的
 
-            max_shares_for_code = int(MAX_SINGLE_ORDER_AMOUNT / price / MIN_LOT_SIZE) * MIN_LOT_SIZE
+            max_shares_for_code = (
+                int(MAX_SINGLE_ORDER_AMOUNT / price / MIN_LOT_SIZE) * MIN_LOT_SIZE
+            )
             needed_shares = int(remaining_gap / price / MIN_LOT_SIZE) * MIN_LOT_SIZE
             qty = min(max_shares_for_code, needed_shares)
 
@@ -212,23 +222,29 @@ def generate_max_weight_reduction_orders(
             continue
         style = styles.get(code, "其他")
         validation = validate_order(code, "SELL", excess_shares, price, positions)
-        orders.append({
-            "style": style,
-            "code": code,
-            "action": "SELL",
-            "order_type": "LIMIT",
-            "shares": excess_shares,
-            "est_price": price,
-            "est_amount": excess_shares * price,
-            "target_weight": max_weight,
-            "current_weight": current_weight,
-            "gap": excess_value,
-            "validation": validation,
-            "reason": "max_single_weight_violation",
-        })
+        orders.append(
+            {
+                "style": style,
+                "code": code,
+                "action": "SELL",
+                "order_type": "LIMIT",
+                "shares": excess_shares,
+                "est_price": price,
+                "est_amount": excess_shares * price,
+                "target_weight": max_weight,
+                "current_weight": current_weight,
+                "gap": excess_value,
+                "validation": validation,
+                "reason": "max_single_weight_violation",
+            }
+        )
         logger.warning(
             "max_single_weight 违规: %s (%s) 当前 %.1f%% > %.1f%%, 强制减仓 %d 股",
-            code, style, current_weight * 100, max_weight * 100, excess_shares,
+            code,
+            style,
+            current_weight * 100,
+            max_weight * 100,
+            excess_shares,
         )
     return orders
 
@@ -240,7 +256,10 @@ def build_report(style_allocation: dict, target_allocation: dict, orders: list) 
         "date": datetime.now().strftime("%Y-%m-%d"),
         "total_value": total,
         "style_allocation": {
-            s: {"amount": style_allocation[s]["amount"], "weight": style_allocation[s]["weight"]}
+            s: {
+                "amount": style_allocation[s]["amount"],
+                "weight": style_allocation[s]["weight"],
+            }
             for s in style_allocation
         },
         "target_allocation": target_allocation,
@@ -261,7 +280,9 @@ def build_report(style_allocation: dict, target_allocation: dict, orders: list) 
 def main() -> None:
     positions, prices, styles = load_positions()
     style_allocation = calc_current_allocation(positions, prices, styles)
-    orders = generate_rebalance_orders(style_allocation, TARGET_ALLOCATION, positions, prices)
+    orders = generate_rebalance_orders(
+        style_allocation, TARGET_ALLOCATION, positions, prices
+    )
     report = build_report(style_allocation, TARGET_ALLOCATION, orders)
 
     logger.info("=" * 70)
@@ -271,15 +292,23 @@ def main() -> None:
     logger.info(f"组合总市值: {report['total_value']:,.0f}")
     logger.info(f"{'风格':10s} {'当前权重':>10s} {'目标权重':>10s} {'偏差':>10s}")
     logger.info("-" * 70)
-    for style in sorted(set(list(style_allocation.keys()) + list(TARGET_ALLOCATION.keys()))):
+    for style in sorted(
+        set(list(style_allocation.keys()) + list(TARGET_ALLOCATION.keys()))
+    ):
         current = style_allocation.get(style, {}).get("weight", 0.0)
         target = TARGET_ALLOCATION.get(style, 0.0)
         deviation = current - target
         status = "✅" if abs(deviation) < 0.02 else "⚠️"
-        logger.info(f"{style:10s} {current:>10.2%} {target:>10.2%} {deviation:>+10.2%} {status}")
+        logger.info(
+            f"{style:10s} {current:>10.2%} {target:>10.2%} {deviation:>+10.2%} {status}"
+        )
     logger.info("-" * 70)
-    logger.info(f"订单数: {report['summary']['total_orders']} (有效 {report['summary']['valid_orders']})")
-    logger.info(f"买入: {report['summary']['buy_orders']} | 卖出: {report['summary']['sell_orders']}")
+    logger.info(
+        f"订单数: {report['summary']['total_orders']} (有效 {report['summary']['valid_orders']})"
+    )
+    logger.info(
+        f"买入: {report['summary']['buy_orders']} | 卖出: {report['summary']['sell_orders']}"
+    )
     logger.info(f"总交易金额: {report['summary']['total_trade_value']:,.0f}")
     logger.info(f"单笔限额: {MIN_TRADE_AMOUNT:,} ~ {MAX_SINGLE_ORDER_AMOUNT:,} 元")
 
@@ -287,7 +316,9 @@ def main() -> None:
         status = "✅" if o["validation"]["valid"] else "❌"
         logger.info(f"[{i}] {status} {o['action']} | {o['code']} | {o['style']}")
         logger.info(f"    数量: {o['shares']} | 预估金额: {o['est_amount']:,.0f}")
-        logger.info(f"    当前权重: {o['current_weight']:.2%} | 目标权重: {o['target_weight']:.2%}")
+        logger.info(
+            f"    当前权重: {o['current_weight']:.2%} | 目标权重: {o['target_weight']:.2%}"
+        )
         if o["validation"]["warnings"]:
             logger.warning(f"    警告: {'; '.join(o['validation']['warnings'])}")
         if not o["validation"]["valid"]:
@@ -295,7 +326,11 @@ def main() -> None:
     logger.info("=" * 70)
 
     # T3.6 修正: 输出路径使用项目根目录的 reports/
-    out_path = _PROJECT_ROOT / "reports" / f"rebalance_execution_orders_{datetime.now():%Y%m%d}.json"
+    out_path = (
+        _PROJECT_ROOT
+        / "reports"
+        / f"rebalance_execution_orders_{datetime.now():%Y%m%d}.json"
+    )
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)

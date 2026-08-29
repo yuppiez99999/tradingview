@@ -175,10 +175,14 @@ class TCAManager:
         # 2. 核心指标 (bps)
         # IS = (执行价 - 决策价) / 决策价 × 10000 (买入)
         #    = (决策价 - 执行价) / 决策价 × 10000 (卖出)
-        is_signed_return = self._signed_return(avg_exec_price, benchmark.decision_price, side)
+        is_signed_return = self._signed_return(
+            avg_exec_price, benchmark.decision_price, side
+        )
         is_cost_bps = is_signed_return * 10000
 
-        arrival_signed = self._signed_return(avg_exec_price, benchmark.arrival_price, side)
+        arrival_signed = self._signed_return(
+            avg_exec_price, benchmark.arrival_price, side
+        )
         arrival_cost_bps = arrival_signed * 10000
 
         # VWAP 偏离
@@ -190,18 +194,24 @@ class TCAManager:
 
         # 收盘价偏离
         if benchmark.close_price > 0:
-            close_signed = self._signed_return(avg_exec_price, benchmark.close_price, side)
+            close_signed = self._signed_return(
+                avg_exec_price, benchmark.close_price, side
+            )
             close_deviation_bps = close_signed * 10000
         else:
             close_deviation_bps = 0.0
 
         # 3. 成本分解
         # 市场冲击 = 到达价 - 决策价 (订单造成的价格变动)
-        impact_signed = self._signed_return(benchmark.arrival_price, benchmark.decision_price, side)
+        impact_signed = self._signed_return(
+            benchmark.arrival_price, benchmark.decision_price, side
+        )
         market_impact_bps = impact_signed * 10000
 
         # 时机成本 = 执行价 - 到达价 (执行延迟)
-        timing_signed = self._signed_return(avg_exec_price, benchmark.arrival_price, side)
+        timing_signed = self._signed_return(
+            avg_exec_price, benchmark.arrival_price, side
+        )
         timing_cost_bps = timing_signed * 10000
 
         # 滑点 = 执行价 - VWAP (相对市场基准的滑点)
@@ -212,7 +222,9 @@ class TCAManager:
             unfilled = order_shares - total_shares
             # 假设未成交部分按收盘价计算损失
             if benchmark.close_price > 0:
-                opp_signed = self._signed_return(benchmark.close_price, benchmark.decision_price, side)
+                opp_signed = self._signed_return(
+                    benchmark.close_price, benchmark.decision_price, side
+                )
                 opportunity_cost_bps = opp_signed * 10000 * (unfilled / order_shares)
             else:
                 opportunity_cost_bps = 0.0
@@ -220,8 +232,14 @@ class TCAManager:
             opportunity_cost_bps = 0.0
 
         # 4. 执行质量
-        fill_rate = total_shares / order_shares if order_shares and order_shares > 0 else 1.0
-        participation_rate = total_shares / interval_volume if interval_volume and interval_volume > 0 else 0.0
+        fill_rate = (
+            total_shares / order_shares if order_shares and order_shares > 0 else 1.0
+        )
+        participation_rate = (
+            total_shares / interval_volume
+            if interval_volume and interval_volume > 0
+            else 0.0
+        )
 
         # 择时能力评分 [-1, 1]
         # 正分 = 在低价买入/高价卖出 (优于决策价)
@@ -298,9 +316,20 @@ class TCAManager:
             try:
                 order_shares = (orders or {}).get(symbol)
                 interval_volume = (volumes or {}).get(symbol)
-                report = self.analyze(fills, benchmarks[symbol], order_shares, interval_volume)
+                report = self.analyze(
+                    fills, benchmarks[symbol], order_shares, interval_volume
+                )
                 reports[symbol] = report
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 # 单标失败不影响其他
                 continue
         return reports
@@ -314,25 +343,51 @@ class TCAManager:
         if not reports:
             return {"total_notional": 0, "total_cost": 0, "avg_cost_bps": 0}
 
-        total_notional = sum(r.total_shares * r.avg_exec_price for r in reports.values())
+        total_notional = sum(
+            r.total_shares * r.avg_exec_price for r in reports.values()
+        )
         total_cost = sum(r.total_cost for r in reports.values())
         avg_is_bps = (
-            (sum(r.is_cost_bps * r.total_shares * r.avg_exec_price for r in reports.values()) / total_notional)
+            (
+                sum(
+                    r.is_cost_bps * r.total_shares * r.avg_exec_price
+                    for r in reports.values()
+                )
+                / total_notional
+            )
             if total_notional > 0
             else 0
         )
         avg_vwap_bps = (
-            (sum(r.vwap_deviation_bps * r.total_shares * r.avg_exec_price for r in reports.values()) / total_notional)
+            (
+                sum(
+                    r.vwap_deviation_bps * r.total_shares * r.avg_exec_price
+                    for r in reports.values()
+                )
+                / total_notional
+            )
             if total_notional > 0
             else 0
         )
         avg_impact_bps = (
-            (sum(r.market_impact_bps * r.total_shares * r.avg_exec_price for r in reports.values()) / total_notional)
+            (
+                sum(
+                    r.market_impact_bps * r.total_shares * r.avg_exec_price
+                    for r in reports.values()
+                )
+                / total_notional
+            )
             if total_notional > 0
             else 0
         )
         avg_timing_bps = (
-            (sum(r.timing_cost_bps * r.total_shares * r.avg_exec_price for r in reports.values()) / total_notional)
+            (
+                sum(
+                    r.timing_cost_bps * r.total_shares * r.avg_exec_price
+                    for r in reports.values()
+                )
+                / total_notional
+            )
             if total_notional > 0
             else 0
         )
@@ -342,8 +397,12 @@ class TCAManager:
         for r in reports.values():
             grade_dist[r.quality_grade] = grade_dist.get(r.quality_grade, 0) + 1
 
-        worst_symbol = max(reports.values(), key=lambda r: r.is_cost_bps).symbol if reports else ""
-        best_symbol = min(reports.values(), key=lambda r: r.is_cost_bps).symbol if reports else ""
+        worst_symbol = (
+            max(reports.values(), key=lambda r: r.is_cost_bps).symbol if reports else ""
+        )
+        best_symbol = (
+            min(reports.values(), key=lambda r: r.is_cost_bps).symbol if reports else ""
+        )
 
         return {
             "n_orders": len(reports),

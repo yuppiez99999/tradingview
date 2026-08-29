@@ -14,6 +14,7 @@
     new_config = adaptive_optimize("688041.SH", LGB_ENHANCED_CONFIG, drift_signal=report)
     # 然后用 new_config 替换原 config 进行训练
 """
+
 from __future__ import annotations
 
 import copy
@@ -29,9 +30,9 @@ logger = logging.getLogger("adaptive_optimize")
 ADAPTIVE_OPTIMIZE_CONFIG = {
     "feature_flag_name": "USE_ADAPTIVE_OPTIMIZE",
     # 漂移强度阈值 (0-1)
-    "drift_severity_threshold_light": 0.25,   # 超过此值: 轻度调整
+    "drift_severity_threshold_light": 0.25,  # 超过此值: 轻度调整
     "drift_severity_threshold_medium": 0.50,  # 超过此值: 中度调整
-    "drift_severity_threshold_heavy": 0.75,   # 超过此值: 重度调整
+    "drift_severity_threshold_heavy": 0.75,  # 超过此值: 重度调整
     # 参数调整幅度 (相对于基准值的乘法因子)
     # 学习率: 漂移越严重, lr 越小 (保守学习)
     "lr_factor_light": 0.75,
@@ -70,7 +71,16 @@ def _check_feature_flag(flag_name: str) -> bool:
     try:
         val = os.getenv(flag_name, "False")
         return val.lower() in ("true", "1", "yes", "on")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return False
 
@@ -104,15 +114,21 @@ def _compute_drift_severity(drift_signal: dict[str, Any] | None) -> float:
     historic_ic = float(ic_stats.get("mean_ic") or 0)
     if historic_ic > 0:
         # IC 下降比例 (归一化到 0-1)
-        ic_drop = max(0.0, min(1.0, (historic_ic - recent_ic) / max(historic_ic, 0.001)))
+        ic_drop = max(
+            0.0, min(1.0, (historic_ic - recent_ic) / max(historic_ic, 0.001))
+        )
         severity += ic_drop * 0.35  # IC 衰减权重 35%
         components += 1
 
     # 2. 告警数量与严重度
     alerts = drift_signal.get("alerts", [])
     if alerts:
-        crit_count = sum(1 for a in alerts if str(a.get("severity", "")).lower() == "critical")
-        warn_count = sum(1 for a in alerts if str(a.get("severity", "")).lower() == "warning")
+        crit_count = sum(
+            1 for a in alerts if str(a.get("severity", "")).lower() == "critical"
+        )
+        warn_count = sum(
+            1 for a in alerts if str(a.get("severity", "")).lower() == "warning"
+        )
         # 最多 5 条 critical + 10 条 warning 触发满值
         alert_score = min(1.0, crit_count * 0.25 + warn_count * 0.08)
         severity += alert_score * 0.25
@@ -189,8 +205,10 @@ def adaptive_optimize(
         }
     """
     # Feature Flag 检查
-    enabled = override_enabled if override_enabled is not None else _check_feature_flag(
-        ADAPTIVE_OPTIMIZE_CONFIG["feature_flag_name"]
+    enabled = (
+        override_enabled
+        if override_enabled is not None
+        else _check_feature_flag(ADAPTIVE_OPTIMIZE_CONFIG["feature_flag_name"])
     )
 
     # 深拷贝原配置 (遵循不可变性原则)
@@ -229,7 +247,9 @@ def adaptive_optimize(
         result["_adaptive_meta"]["level"] = level
 
         if level == "none":
-            logger.debug(f"[adaptive_optimize] {symbol}: 漂移强度 {severity:.3f} < 阈值, 无需调整")
+            logger.debug(
+                f"[adaptive_optimize] {symbol}: 漂移强度 {severity:.3f} < 阈值, 无需调整"
+            )
             return result
 
         # Step 3: 应用参数调整
@@ -242,29 +262,45 @@ def adaptive_optimize(
         new_lr = _apply_factor(base_lr, lr_factor, cfg["lr_min"], cfg["lr_max"])
         if new_lr != base_lr:
             lgb_params["learning_rate"] = new_lr
-            adjustments["learning_rate"] = {"from": base_lr, "to": new_lr, "factor": lr_factor}
+            adjustments["learning_rate"] = {
+                "from": base_lr,
+                "to": new_lr,
+                "factor": lr_factor,
+            }
 
         # 3.2 估计器数量
         base_n_est = int(lgb_params.get("n_estimators", 2000))
         n_est_factor = cfg[f"n_est_factor_{level}"]
-        new_n_est = _apply_factor(base_n_est, n_est_factor, cfg["n_est_min"], cfg["n_est_max"])
+        new_n_est = _apply_factor(
+            base_n_est, n_est_factor, cfg["n_est_min"], cfg["n_est_max"]
+        )
         if new_n_est != base_n_est:
             lgb_params["n_estimators"] = int(new_n_est)
-            adjustments["n_estimators"] = {"from": base_n_est, "to": int(new_n_est), "factor": n_est_factor}
+            adjustments["n_estimators"] = {
+                "from": base_n_est,
+                "to": int(new_n_est),
+                "factor": n_est_factor,
+            }
 
         # 3.3 树深度
         base_depth = int(lgb_params.get("max_depth", 6))
         depth_factor = cfg[f"max_depth_factor_{level}"]
-        new_depth = _apply_factor(base_depth, depth_factor, cfg["max_depth_min"], cfg["max_depth_max"])
+        new_depth = _apply_factor(
+            base_depth, depth_factor, cfg["max_depth_min"], cfg["max_depth_max"]
+        )
         if new_depth != base_depth:
             lgb_params["max_depth"] = int(new_depth)
             # 同步调整 num_leaves (通常 <= 2^max_depth)
             base_leaves = int(lgb_params.get("num_leaves", 31))
-            new_leaves = min(base_leaves, int(2 ** new_depth - 1))
+            new_leaves = min(base_leaves, int(2**new_depth - 1))
             if new_leaves != base_leaves:
                 lgb_params["num_leaves"] = new_leaves
                 adjustments["num_leaves"] = {"from": base_leaves, "to": new_leaves}
-            adjustments["max_depth"] = {"from": base_depth, "to": int(new_depth), "factor": depth_factor}
+            adjustments["max_depth"] = {
+                "from": base_depth,
+                "to": int(new_depth),
+                "factor": depth_factor,
+            }
 
         # 3.4 正则化
         base_reg_alpha = float(lgb_params.get("reg_alpha", 0.1))
@@ -274,30 +310,57 @@ def adaptive_optimize(
         new_reg_lambda = _apply_factor(base_reg_lambda, reg_factor, 0.0, cfg["reg_max"])
         if new_reg_alpha != base_reg_alpha:
             lgb_params["reg_alpha"] = new_reg_alpha
-            adjustments["reg_alpha"] = {"from": base_reg_alpha, "to": new_reg_alpha, "factor": reg_factor}
+            adjustments["reg_alpha"] = {
+                "from": base_reg_alpha,
+                "to": new_reg_alpha,
+                "factor": reg_factor,
+            }
         if new_reg_lambda != base_reg_lambda:
             lgb_params["reg_lambda"] = new_reg_lambda
-            adjustments["reg_lambda"] = {"from": base_reg_lambda, "to": new_reg_lambda, "factor": reg_factor}
+            adjustments["reg_lambda"] = {
+                "from": base_reg_lambda,
+                "to": new_reg_lambda,
+                "factor": reg_factor,
+            }
 
         # 3.5 早停轮数
         base_early = int(result.get("early_stopping_rounds", 200))
         early_factor = cfg[f"early_stop_factor_{level}"]
-        new_early = _apply_factor(base_early, early_factor, cfg["early_stop_min"], cfg["early_stop_max"])
+        new_early = _apply_factor(
+            base_early, early_factor, cfg["early_stop_min"], cfg["early_stop_max"]
+        )
         if new_early != base_early:
             result["early_stopping_rounds"] = int(new_early)
-            adjustments["early_stopping_rounds"] = {"from": base_early, "to": int(new_early), "factor": early_factor}
+            adjustments["early_stopping_rounds"] = {
+                "from": base_early,
+                "to": int(new_early),
+                "factor": early_factor,
+            }
 
         # 保存调整记录
         result["_adaptive_meta"]["adjustments"] = adjustments
 
         # 日志
         if adjustments:
-            adj_summary = ", ".join(f"{k}: {v['from']}→{v['to']}" for k, v in adjustments.items())
-            logger.info(f"[adaptive_optimize] {symbol}: 级别={level}, 强度={severity:.3f}, 调整: {adj_summary}")
+            adj_summary = ", ".join(
+                f"{k}: {v['from']}→{v['to']}" for k, v in adjustments.items()
+            )
+            logger.info(
+                f"[adaptive_optimize] {symbol}: 级别={level}, 强度={severity:.3f}, 调整: {adj_summary}"
+            )
         else:
             logger.debug(f"[adaptive_optimize] {symbol}: 级别={level} 但无实际参数变化")
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"[adaptive_optimize] {symbol}: 自适应优化失败, 返回原配置: {e}")
@@ -345,7 +408,9 @@ def quick_optimize_for_drift(
         mock_signal["should_retrain"] = True
         # 预期: > 0.75
 
-    return adaptive_optimize(symbol, config, drift_signal=mock_signal, override_enabled=True)
+    return adaptive_optimize(
+        symbol, config, drift_signal=mock_signal, override_enabled=True
+    )
 
 
 if __name__ == "__main__":
@@ -368,10 +433,12 @@ if __name__ == "__main__":
     logger.info("  N4 adaptive_optimize 自检 (4 个级别)")
     logger.info("=" * 70)
     logger.info("\n基准配置:")
-    print(f"  lr={base_config['lgb_params']['learning_rate']}, "
-          f"n_est={base_config['lgb_params']['n_estimators']}, "
-          f"depth={base_config['lgb_params']['max_depth']}, "
-          f"early_stop={base_config['early_stopping_rounds']}")
+    print(
+        f"  lr={base_config['lgb_params']['learning_rate']}, "
+        f"n_est={base_config['lgb_params']['n_estimators']}, "
+        f"depth={base_config['lgb_params']['max_depth']}, "
+        f"early_stop={base_config['early_stopping_rounds']}"
+    )
 
     for level in ["none", "light", "medium", "heavy"]:
         logger.info(f"\n--- 级别: {level} ---")

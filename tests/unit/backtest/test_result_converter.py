@@ -11,6 +11,7 @@
     日期长度不匹配: 抛出 ValueError
     集成测试: EventDrivenEngine → ResultConverter 端到端
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -37,6 +38,7 @@ from utils.hedge_rebalance_backtest import BacktestResult
 # ConversionConfig 测试
 # ============================================================
 
+
 def test_conversion_config_defaults() -> None:
     """ConversionConfig 默认值与向量化回测常量对齐。"""
     config = ConversionConfig()
@@ -62,6 +64,7 @@ def test_conversion_config_custom() -> None:
 # ============================================================
 # ResultConverter.convert 基础测试
 # ============================================================
+
 
 def test_convert_returns_backtest_result() -> None:
     """convert 返回 BacktestResult 实例。"""
@@ -166,6 +169,7 @@ def test_convert_n_days_set_correctly() -> None:
 # _calc_daily_returns 公式测试
 # ============================================================
 
+
 def test_daily_returns_first_value_zero() -> None:
     """daily_returns[0] = 0.0 (与向量化回测 _rets 一致)。"""
     converter = ResultConverter()
@@ -229,6 +233,7 @@ def test_daily_returns_zero_prev_protected() -> None:
 # ============================================================
 # _calc_metrics 指标公式测试
 # ============================================================
+
 
 def test_total_return_formula() -> None:
     """total_return = (eq[-1] - eq[0]) / eq[0]。"""
@@ -418,6 +423,7 @@ def test_win_rate_with_losses() -> None:
 # 边界情况测试
 # ============================================================
 
+
 def test_convert_single_point_equity_curve() -> None:
     """单点 equity_curve (只有初始资金) → 所有指标为 0。"""
     converter = ResultConverter()
@@ -510,6 +516,7 @@ def test_convert_with_fill_records() -> None:
 # _generate_dates 测试
 # ============================================================
 
+
 def test_generate_dates_length() -> None:
     """生成的日期长度 = n_points。"""
     converter = ResultConverter()
@@ -593,6 +600,7 @@ def test_generate_dates_custom_start() -> None:
 # 集成测试: EventDrivenEngine → ResultConverter
 # ============================================================
 
+
 def test_end_to_end_engine_to_backtest_result() -> None:
     """端到端: 引擎运行 → EngineSummary → BacktestResult。"""
     from utils.backtest.event_driven_engine import EventDrivenEngine
@@ -664,14 +672,16 @@ def test_metrics_match_manual_calculation() -> None:
 
     # 手动计算
     eq_arr = np.array(eq)
-    rets = np.array([0.0] + [
-        (eq[i] - eq[i - 1]) / eq[i - 1] for i in range(1, len(eq))
-    ])
+    rets = np.array(
+        [0.0] + [(eq[i] - eq[i - 1]) / eq[i - 1] for i in range(1, len(eq))]
+    )
     expected_total_return = (eq[-1] - eq[0]) / eq[0]
     n_years = 3 / TRADING_DAYS_PER_YEAR
     expected_annual_return = (1 + expected_total_return) ** (1 / max(n_years, 0.5)) - 1
     expected_vol = float(np.std(rets) * np.sqrt(TRADING_DAYS_PER_YEAR))
-    expected_sharpe = (expected_annual_return - RISK_FREE_RATE) / max(expected_vol, 0.001)
+    expected_sharpe = (expected_annual_return - RISK_FREE_RATE) / max(
+        expected_vol, 0.001
+    )
     peak = np.maximum.accumulate(eq_arr)
     expected_dd = float(abs(np.min((eq_arr - peak) / peak)))
 
@@ -706,6 +716,7 @@ def test_converter_does_not_modify_summary() -> None:
 # 手续费分配测试 (按 event_index)
 # ============================================================
 
+
 def test_commission_rate_from_config() -> None:
     """ConversionConfig 的 commission_rate 被用于计算手续费。"""
     config = ConversionConfig(commission_rate=0.0005)
@@ -720,8 +731,13 @@ def test_commission_rate_from_config() -> None:
         n_orders_rejected=0,
         equity_curve=[1_000_000.0] * 6,
         trade_records=[
-            {"order_id": "o1", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 100.0, "event_index": 3},
+            {
+                "order_id": "o1",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 100.0,
+                "event_index": 3,
+            },
         ],
     )
 
@@ -746,12 +762,27 @@ def test_transaction_costs_allocated_by_event_index() -> None:
         n_orders_rejected=0,
         equity_curve=[1_000_000.0] * 10,
         trade_records=[
-            {"order_id": "o1", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 200.0, "event_index": 1},
-            {"order_id": "o2", "status": "ALL_TRADED",
-             "price": 110.0, "volume": 150.0, "event_index": 4},
-            {"order_id": "o3", "status": "ALL_TRADED",
-             "price": 120.0, "volume": 100.0, "event_index": 7},
+            {
+                "order_id": "o1",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 200.0,
+                "event_index": 1,
+            },
+            {
+                "order_id": "o2",
+                "status": "ALL_TRADED",
+                "price": 110.0,
+                "volume": 150.0,
+                "event_index": 4,
+            },
+            {
+                "order_id": "o3",
+                "status": "ALL_TRADED",
+                "price": 120.0,
+                "volume": 100.0,
+                "event_index": 7,
+            },
         ],
     )
 
@@ -786,8 +817,12 @@ def test_transaction_costs_without_event_index_fallback() -> None:
         n_orders_rejected=0,
         equity_curve=[1_000_000.0] * 4,
         trade_records=[
-            {"order_id": "old", "status": "ALL_TRADED",
-             "price": 50.0, "volume": 200.0},  # 无 event_index
+            {
+                "order_id": "old",
+                "status": "ALL_TRADED",
+                "price": 50.0,
+                "volume": 200.0,
+            },  # 无 event_index
         ],
     )
 
@@ -812,10 +847,20 @@ def test_transaction_costs_rejected_not_counted() -> None:
         n_orders_rejected=1,
         equity_curve=[1_000_000.0] * 4,
         trade_records=[
-            {"order_id": "o1", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 100.0, "event_index": 2},
-            {"order_id": "o2", "status": "REJECTED",
-             "price": 100.0, "volume": 500.0, "event_index": 2},
+            {
+                "order_id": "o1",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 100.0,
+                "event_index": 2,
+            },
+            {
+                "order_id": "o2",
+                "status": "REJECTED",
+                "price": 100.0,
+                "volume": 500.0,
+                "event_index": 2,
+            },
         ],
     )
 
@@ -830,6 +875,7 @@ def test_transaction_costs_rejected_not_counted() -> None:
 # ============================================================
 # yearly_stats 逐年统计测试
 # ============================================================
+
 
 def test_yearly_stats_basic() -> None:
     """逐年统计: 一年 252 天数据, 产出 1 条 yearly_stats。"""
@@ -1031,6 +1077,7 @@ def test_yearly_stats_short_series_no_stats() -> None:
 # 换手率统计测试
 # ============================================================
 
+
 def test_turnover_daily_from_trade_records() -> None:
     """换手率 = sum(price * volume) / equity[event_index]。"""
     converter = ResultConverter()
@@ -1045,10 +1092,20 @@ def test_turnover_daily_from_trade_records() -> None:
         n_orders_rejected=0,
         equity_curve=eq,
         trade_records=[
-            {"order_id": "o1", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 500.0, "event_index": 2},
-            {"order_id": "o2", "status": "ALL_TRADED",
-             "price": 105.0, "volume": 300.0, "event_index": 4},
+            {
+                "order_id": "o1",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 500.0,
+                "event_index": 2,
+            },
+            {
+                "order_id": "o2",
+                "status": "ALL_TRADED",
+                "price": 105.0,
+                "volume": 300.0,
+                "event_index": 4,
+            },
         ],
     )
 
@@ -1078,12 +1135,27 @@ def test_turnover_daily_same_day_aggregation() -> None:
         n_orders_rejected=0,
         equity_curve=eq,
         trade_records=[
-            {"order_id": "o1", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 200.0, "event_index": 1},
-            {"order_id": "o2", "status": "ALL_TRADED",
-             "price": 110.0, "volume": 150.0, "event_index": 1},
-            {"order_id": "o3", "status": "ALL_TRADED",
-             "price": 120.0, "volume": 100.0, "event_index": 2},
+            {
+                "order_id": "o1",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 200.0,
+                "event_index": 1,
+            },
+            {
+                "order_id": "o2",
+                "status": "ALL_TRADED",
+                "price": 110.0,
+                "volume": 150.0,
+                "event_index": 1,
+            },
+            {
+                "order_id": "o3",
+                "status": "ALL_TRADED",
+                "price": 120.0,
+                "volume": 100.0,
+                "event_index": 2,
+            },
         ],
     )
 
@@ -1110,10 +1182,20 @@ def test_turnover_daily_rejected_not_counted() -> None:
         n_orders_rejected=1,
         equity_curve=eq,
         trade_records=[
-            {"order_id": "o1", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 500.0, "event_index": 2},
-            {"order_id": "o2", "status": "REJECTED",
-             "price": 100.0, "volume": 10000.0, "event_index": 2},
+            {
+                "order_id": "o1",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 500.0,
+                "event_index": 2,
+            },
+            {
+                "order_id": "o2",
+                "status": "REJECTED",
+                "price": 100.0,
+                "volume": 10000.0,
+                "event_index": 2,
+            },
         ],
     )
 
@@ -1138,8 +1220,7 @@ def test_turnover_daily_fallback_to_day0() -> None:
         n_orders_rejected=0,
         equity_curve=eq,
         trade_records=[
-            {"order_id": "old", "status": "ALL_TRADED",
-             "price": 80.0, "volume": 250.0},
+            {"order_id": "old", "status": "ALL_TRADED", "price": 80.0, "volume": 250.0},
         ],
     )
 
@@ -1165,10 +1246,20 @@ def test_annual_turnover_formula() -> None:
         n_orders_rejected=0,
         equity_curve=eq,
         trade_records=[
-            {"order_id": "o1", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 1000.0, "event_index": 3},
-            {"order_id": "o2", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 1000.0, "event_index": 7},
+            {
+                "order_id": "o1",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 1000.0,
+                "event_index": 3,
+            },
+            {
+                "order_id": "o2",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 1000.0,
+                "event_index": 7,
+            },
         ],
     )
 
@@ -1194,10 +1285,20 @@ def test_window_turnover_formula() -> None:
         n_orders_rejected=0,
         equity_curve=eq,
         trade_records=[
-            {"order_id": "o1", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 500.0, "event_index": 5},
-            {"order_id": "o2", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 500.0, "event_index": 25},
+            {
+                "order_id": "o1",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 500.0,
+                "event_index": 5,
+            },
+            {
+                "order_id": "o2",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 500.0,
+                "event_index": 25,
+            },
         ],
     )
 
@@ -1248,10 +1349,20 @@ def test_yearly_stats_turnover_field() -> None:
         n_orders_rejected=0,
         equity_curve=eq,
         trade_records=[
-            {"order_id": "o1", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 500.0, "event_index": 50},
-            {"order_id": "o2", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 500.0, "event_index": 200},
+            {
+                "order_id": "o1",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 500.0,
+                "event_index": 50,
+            },
+            {
+                "order_id": "o2",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 500.0,
+                "event_index": 200,
+            },
         ],
     )
 
@@ -1281,8 +1392,13 @@ def test_turnover_with_equity_curve_variation() -> None:
         n_orders_rejected=0,
         equity_curve=eq,
         trade_records=[
-            {"order_id": "o1", "status": "ALL_TRADED",
-             "price": 100.0, "volume": 1_000.0, "event_index": 5},
+            {
+                "order_id": "o1",
+                "status": "ALL_TRADED",
+                "price": 100.0,
+                "volume": 1_000.0,
+                "event_index": 5,
+            },
         ],
     )
 

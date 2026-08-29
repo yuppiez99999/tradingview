@@ -10,86 +10,135 @@ from risk_control_system import MultiLevelRiskControlSystem, RiskType
 def create_high_risk_data():
     """创建高风险测试数据"""
     return {
-        'market': {
-            'returns': [-0.05, -0.08, -0.12, -0.03, -0.06, -0.09, -0.04, -0.07, -0.05, -0.08],
-            'prices': [100, 95, 87, 84, 81, 75, 72, 67, 64, 59],
-            'vix': 45.0,  # VIX处于高位
-            'correlation': 0.95  # 相关性极高
+        "market": {
+            "returns": [
+                -0.05,
+                -0.08,
+                -0.12,
+                -0.03,
+                -0.06,
+                -0.09,
+                -0.04,
+                -0.07,
+                -0.05,
+                -0.08,
+            ],
+            "prices": [100, 95, 87, 84, 81, 75, 72, 67, 64, 59],
+            "vix": 45.0,  # VIX处于高位
+            "correlation": 0.95,  # 相关性极高
         },
-        'stock': {
-            'position_size': 0.35,  # 单一股票仓位过高
-            'beta': 2.5,  # Beta过高
-            'pe_ratio': 80,  # PE比率过高
-            'pb_ratio': 15,  # PB比率过高
-            'dividend_yield': 0.005,  # 股息率过低
-            'volume': 500000,  # 交易量低
-            'market_cap': 5000000000  # 市值较小
+        "stock": {
+            "position_size": 0.35,  # 单一股票仓位过高
+            "beta": 2.5,  # Beta过高
+            "pe_ratio": 80,  # PE比率过高
+            "pb_ratio": 15,  # PB比率过高
+            "dividend_yield": 0.005,  # 股息率过低
+            "volume": 500000,  # 交易量低
+            "market_cap": 5000000000,  # 市值较小
         },
-        'portfolio': {
-            'positions': {'AAPL': 0.4, 'MSFT': 0.3, 'GOOGL': 0.2, 'AMZN': 0.1},  # 集中度极高
-            'correlation_matrix': np.array([
-                [1.0, 0.95, 0.92, 0.88],
-                [0.95, 1.0, 0.90, 0.85],
-                [0.92, 0.90, 1.0, 0.87],
-                [0.88, 0.85, 0.87, 1.0]
-            ]),  # 相关性极高
-            'sector_allocation': {'Technology': 0.8, 'Healthcare': 0.15, 'Finance': 0.05}  # 行业集中度过高
+        "portfolio": {
+            "positions": {
+                "AAPL": 0.4,
+                "MSFT": 0.3,
+                "GOOGL": 0.2,
+                "AMZN": 0.1,
+            },  # 集中度极高
+            "correlation_matrix": np.array(
+                [
+                    [1.0, 0.95, 0.92, 0.88],
+                    [0.95, 1.0, 0.90, 0.85],
+                    [0.92, 0.90, 1.0, 0.87],
+                    [0.88, 0.85, 0.87, 1.0],
+                ]
+            ),  # 相关性极高
+            "sector_allocation": {
+                "Technology": 0.8,
+                "Healthcare": 0.15,
+                "Finance": 0.05,
+            },  # 行业集中度过高
         },
-        'operational': {
-            'trades_per_day': 150,  # 交易频率过高
-            'avg_slippage': 0.035,  # 滑点过大
-            'system_health': 0.75,  # 系统健康度低
-            'execution_quality': 0.65  # 执行质量低
+        "operational": {
+            "trades_per_day": 150,  # 交易频率过高
+            "avg_slippage": 0.035,  # 滑点过大
+            "system_health": 0.75,  # 系统健康度低
+            "execution_quality": 0.65,  # 执行质量低
         },
-        'emotional': {
-            'fear_greed_index': 90,  # 极度贪婪
-            'herding_score': 0.9,  # 严重跟风
-            'sentiment_extreme': 0.95  # 极端情绪
-        }
+        "emotional": {
+            "fear_greed_index": 90,  # 极度贪婪
+            "herding_score": 0.9,  # 严重跟风
+            "sentiment_extreme": 0.95,  # 极端情绪
+        },
     }
+
 
 def create_medium_risk_data():
     """创建中等风险测试数据"""
     return {
-        'market': {
-            'returns': [0.02, -0.03, 0.01, -0.04, 0.02, -0.01, 0.03, -0.02, 0.01, -0.03],
-            'prices': [100, 102, 99, 100, 96, 98, 101, 99, 100, 97],
-            'vix': 30.0,
-            'correlation': 0.75
+        "market": {
+            "returns": [
+                0.02,
+                -0.03,
+                0.01,
+                -0.04,
+                0.02,
+                -0.01,
+                0.03,
+                -0.02,
+                0.01,
+                -0.03,
+            ],
+            "prices": [100, 102, 99, 100, 96, 98, 101, 99, 100, 97],
+            "vix": 30.0,
+            "correlation": 0.75,
         },
-        'stock': {
-            'position_size': 0.18,
-            'beta': 1.8,
-            'pe_ratio': 40,
-            'pb_ratio': 8,
-            'dividend_yield': 0.015,
-            'volume': 800000,
-            'market_cap': 8000000000
+        "stock": {
+            "position_size": 0.18,
+            "beta": 1.8,
+            "pe_ratio": 40,
+            "pb_ratio": 8,
+            "dividend_yield": 0.015,
+            "volume": 800000,
+            "market_cap": 8000000000,
         },
-        'portfolio': {
-            'positions': {'AAPL': 0.2, 'MSFT': 0.15, 'GOOGL': 0.12, 'AMZN': 0.1, 'TSLA': 0.08, 'META': 0.07},
-            'correlation_matrix': np.array([
-                [1.0, 0.7, 0.6, 0.8, 0.5, 0.6],
-                [0.7, 1.0, 0.5, 0.6, 0.4, 0.5],
-                [0.6, 0.5, 1.0, 0.7, 0.3, 0.4],
-                [0.8, 0.6, 0.7, 1.0, 0.5, 0.6],
-                [0.5, 0.4, 0.3, 0.5, 1.0, 0.4],
-                [0.6, 0.5, 0.4, 0.6, 0.4, 1.0]
-            ]),
-            'sector_allocation': {'Technology': 0.5, 'Healthcare': 0.2, 'Finance': 0.15, 'Energy': 0.15}
+        "portfolio": {
+            "positions": {
+                "AAPL": 0.2,
+                "MSFT": 0.15,
+                "GOOGL": 0.12,
+                "AMZN": 0.1,
+                "TSLA": 0.08,
+                "META": 0.07,
+            },
+            "correlation_matrix": np.array(
+                [
+                    [1.0, 0.7, 0.6, 0.8, 0.5, 0.6],
+                    [0.7, 1.0, 0.5, 0.6, 0.4, 0.5],
+                    [0.6, 0.5, 1.0, 0.7, 0.3, 0.4],
+                    [0.8, 0.6, 0.7, 1.0, 0.5, 0.6],
+                    [0.5, 0.4, 0.3, 0.5, 1.0, 0.4],
+                    [0.6, 0.5, 0.4, 0.6, 0.4, 1.0],
+                ]
+            ),
+            "sector_allocation": {
+                "Technology": 0.5,
+                "Healthcare": 0.2,
+                "Finance": 0.15,
+                "Energy": 0.15,
+            },
         },
-        'operational': {
-            'trades_per_day': 120,
-            'avg_slippage': 0.025,
-            'system_health': 0.85,
-            'execution_quality': 0.75
+        "operational": {
+            "trades_per_day": 120,
+            "avg_slippage": 0.025,
+            "system_health": 0.85,
+            "execution_quality": 0.75,
         },
-        'emotional': {
-            'fear_greed_index': 60,
-            'herding_score': 0.6,
-            'sentiment_extreme': 0.6
-        }
+        "emotional": {
+            "fear_greed_index": 60,
+            "herding_score": 0.6,
+            "sentiment_extreme": 0.6,
+        },
     }
+
 
 def test_risk_scenarios():
     """测试不同风险场景"""
@@ -104,7 +153,9 @@ def test_risk_scenarios():
 
     # 测试高风险场景
     print("\n=== 高风险场景测试 ===")
-    overall_score, individual_scores = risk_system.calculate_overall_risk(high_risk_data)
+    overall_score, individual_scores = risk_system.calculate_overall_risk(
+        high_risk_data
+    )
     print(f"整体风险分数: {overall_score:.3f}")
     print(f"风险等级: {risk_system._get_overall_risk_level(overall_score)}")
     print("各维度风险分数:")
@@ -115,13 +166,17 @@ def test_risk_scenarios():
     alerts = risk_system.generate_all_alerts(high_risk_data)
     print(f"\n告警数量: {len(alerts)}")
     for alert in alerts:
-        print(f"  {alert.risk_type.value}: {alert.risk_level.value} ({alert.risk_score:.3f})")
+        print(
+            f"  {alert.risk_type.value}: {alert.risk_level.value} ({alert.risk_score:.3f})"
+        )
         print(f"    描述: {alert.description}")
         print(f"    建议: {alert.suggested_action}")
 
     # 测试中等风险场景
     print("\n=== 中等风险场景测试 ===")
-    overall_score_medium, individual_scores_medium = risk_system.calculate_overall_risk(medium_risk_data)
+    overall_score_medium, individual_scores_medium = risk_system.calculate_overall_risk(
+        medium_risk_data
+    )
     print(f"整体风险分数: {overall_score_medium:.3f}")
     print(f"风险等级: {risk_system._get_overall_risk_level(overall_score_medium)}")
     print("各维度风险分数:")
@@ -137,7 +192,12 @@ def test_risk_scenarios():
 
     # 测试风险趋势分析
     print("\n=== 风险趋势分析 ===")
-    historical_data = [high_risk_data, medium_risk_data, high_risk_data, medium_risk_data]
+    historical_data = [
+        high_risk_data,
+        medium_risk_data,
+        high_risk_data,
+        medium_risk_data,
+    ]
     trend_analysis = risk_system.get_risk_trend_analysis(historical_data)
     print(f"当前风险分数: {trend_analysis['current_risk_score']:.3f}")
     print(f"平均风险分数: {trend_analysis['average_risk_score']:.3f}")
@@ -160,6 +220,7 @@ def test_risk_scenarios():
     for i, rec in enumerate(medium_risk_recommendations, 1):
         print(f"  {i}. {rec}")
 
+
 def test_control_thresholds():
     """测试风险控制阈值调整"""
     print("\n=== 测试风险控制阈值调整 ===")
@@ -176,8 +237,7 @@ def test_control_thresholds():
 
     # 调整市场风险阈值
     risk_system.update_control_thresholds(
-        RiskType.MARKET,
-        {'medium': 0.4, 'high': 0.7, 'critical': 0.85}
+        RiskType.MARKET, {"medium": 0.4, "high": 0.7, "critical": 0.85}
     )
 
     # 重新计算风险
@@ -197,6 +257,7 @@ def test_control_thresholds():
     risk_system.enable_control(RiskType.EMOTIONAL)
     overall_score, _individual_scores = risk_system.calculate_overall_risk(data)
     print(f"重新启用情绪风险后整体风险分数: {overall_score:.3f}")
+
 
 if __name__ == "__main__":
     test_risk_scenarios()

@@ -1,4 +1,5 @@
 """从 returns_history.json 重建 ETF/股票价格序列并写入本地兜底目录"""
+
 import json
 import os
 
@@ -31,7 +32,7 @@ def code_alias(code: str):
     code = str(code).strip()
     for prefix in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
         if code.startswith(prefix):
-            return code[len(prefix):]
+            return code[len(prefix) :]
     return code
 
 
@@ -41,11 +42,28 @@ def main():
     positions = load_positions()
 
     portfolio_codes = [
-        "588080", "512760", "588000", "512880", "512800",
-        "510050", "510300", "510500", "512100", "515030",
-        "512170", "518880", "159915",
-        "688041", "300308", "002371", "603019", "688017",
-        "300274", "601088", "600276", "600900",
+        "588080",
+        "512760",
+        "588000",
+        "512880",
+        "512800",
+        "510050",
+        "510300",
+        "510500",
+        "512100",
+        "515030",
+        "512170",
+        "518880",
+        "159915",
+        "688041",
+        "300308",
+        "002371",
+        "603019",
+        "688017",
+        "300274",
+        "601088",
+        "600276",
+        "600900",
     ]
 
     saved = 0
@@ -93,10 +111,12 @@ def main():
 
         records = []
         for dt, price in prices.items():
-            records.append({
-                "日期": pd.Timestamp(dt).strftime("%Y-%m-%d"),
-                "收盘": round(float(price), 6),
-            })
+            records.append(
+                {
+                    "日期": pd.Timestamp(dt).strftime("%Y-%m-%d"),
+                    "收盘": round(float(price), 6),
+                }
+            )
 
         out_path = os.path.join(FALLBACK_DIR, f"{code}.json")
         payload = {
@@ -108,7 +128,9 @@ def main():
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
         saved += 1
-        print(f"saved {code}: {len(records)} days, {records[0]['日期']} ~ {records[-1]['日期']}, end={records[-1]['收盘']}")
+        print(
+            f"saved {code}: {len(records)} days, {records[0]['日期']} ~ {records[-1]['日期']}, end={records[-1]['收盘']}"
+        )
 
     print(f"\n已保存 {saved} 个标的到 {FALLBACK_DIR}")
     if skipped:

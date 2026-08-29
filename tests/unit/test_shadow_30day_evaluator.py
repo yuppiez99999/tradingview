@@ -9,6 +9,7 @@
 说明: 与 test_shadow_30day_unit.py (启动器全量) 互补, 本文件按
       TDD Guard 一一对应规则命名, 覆盖评估器公共契约。
 """
+
 from __future__ import annotations
 
 import json
@@ -87,10 +88,7 @@ class TestEvaluator:
         _write_jsonl(mvsk, [_mvsk_record("2026-08-21", 0.005) for _ in range(10)])
         _write_jsonl(
             qlib,
-            [
-                _qlib_record(f"2026-08-2{d}", 0.3, 0.2)
-                for d in range(1, 10)
-            ],
+            [_qlib_record(f"2026-08-2{d}", 0.3, 0.2) for d in range(1, 10)],
         )
 
         report = Shadow30DayEvaluator().evaluate(mvsk, qlib)

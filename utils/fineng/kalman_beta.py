@@ -51,26 +51,26 @@ from dataclasses import dataclass
 class KalmanBetaResult:
     """卡尔曼滤波时变 Beta 拟合结果"""
 
-    filtered_beta: list[float]            # 滤波后 Beta 序列 β_{t|t}
-    predicted_beta: list[float]           # 预测 Beta 序列 β_{t|t-1}
-    filtered_variance: list[float]        # 滤波误差方差 P_{t|t}
-    predicted_variance: list[float]       # 预测误差方差 P_{t|t-1}
-    kalman_gain: list[float]              # 卡尔曼增益 K_t
+    filtered_beta: list[float]  # 滤波后 Beta 序列 β_{t|t}
+    predicted_beta: list[float]  # 预测 Beta 序列 β_{t|t-1}
+    filtered_variance: list[float]  # 滤波误差方差 P_{t|t}
+    predicted_variance: list[float]  # 预测误差方差 P_{t|t-1}
+    kalman_gain: list[float]  # 卡尔曼增益 K_t
 
     # 参数
-    Q: float                              # 状态噪声方差
-    R: float                              # 观测噪声方差
+    Q: float  # 状态噪声方差
+    R: float  # 观测噪声方差
 
     # 摘要统计
-    mean_beta: float                      # 平均 Beta
-    std_beta: float                       # Beta 标准差 (时变程度)
+    mean_beta: float  # 平均 Beta
+    std_beta: float  # Beta 标准差 (时变程度)
     min_beta: float
     max_beta: float
-    latest_beta: float                    # 最新 Beta (用于当前对冲)
+    latest_beta: float  # 最新 Beta (用于当前对冲)
 
     # 诊断
-    converged: bool                       # 滤波是否收敛
-    effective_days: int                   # 有效估计天数
+    converged: bool  # 滤波是否收敛
+    effective_days: int  # 有效估计天数
     error_message: str = ""
 
 
@@ -81,11 +81,11 @@ class BetaHedgeComparison:
     date: str
     kalman_beta: float
     ols_beta: float
-    kalman_hedged_variance: float         # Kalman 对冲后组合方差
-    ols_hedged_variance: float            # OLS 对冲后组合方差
-    variance_reduction_pct: float         # 方差下降百分比 (正值=Kalman 更优)
-    kalman_beta_std: float                # Beta 时变标准差
-    meets_threshold: bool                 # 方差下降 ≥ 5%
+    kalman_hedged_variance: float  # Kalman 对冲后组合方差
+    ols_hedged_variance: float  # OLS 对冲后组合方差
+    variance_reduction_pct: float  # 方差下降百分比 (正值=Kalman 更优)
+    kalman_beta_std: float  # Beta 时变标准差
+    meets_threshold: bool  # 方差下降 ≥ 5%
     walk_forward_result: str = "pending"  # Walk-Forward 闸门状态
 
 
@@ -127,7 +127,9 @@ def rolling_ols_beta(
         mx = sum(x_win) / window
         my = sum(y_win) / window
 
-        cov = sum((xi - mx) * (yi - my) for xi, yi in zip(x_win, y_win, strict=True)) / (window - 1)
+        cov = sum(
+            (xi - mx) * (yi - my) for xi, yi in zip(x_win, y_win, strict=True)
+        ) / (window - 1)
         var_x = sum((xi - mx) ** 2 for xi in x_win) / (window - 1)
 
         if var_x > 1e-12:
@@ -291,10 +293,13 @@ def fit_kalman_beta(
             my = sum(portfolio_returns) / n
             var_x = sum((xi - mx) ** 2 for xi in index_returns) / n
             if var_x > 1e-12:
-                cov = sum(
-                    (xi - mx) * (yi - my)
-                    for xi, yi in zip(index_returns, portfolio_returns, strict=True)
-                ) / n
+                cov = (
+                    sum(
+                        (xi - mx) * (yi - my)
+                        for xi, yi in zip(index_returns, portfolio_returns, strict=True)
+                    )
+                    / n
+                )
                 ols_beta_val = cov / var_x
 
         return KalmanBetaResult(
@@ -330,9 +335,12 @@ def fit_kalman_beta(
         my = sum(init_y) / 30
         var_x = sum((xi - mx) ** 2 for xi in init_x) / 29
         if var_x > 1e-12:
-            cov = sum(
-                (xi - mx) * (yi - my) for xi, yi in zip(init_x, init_y, strict=True)
-            ) / 29
+            cov = (
+                sum(
+                    (xi - mx) * (yi - my) for xi, yi in zip(init_x, init_y, strict=True)
+                )
+                / 29
+            )
             beta0 = cov / var_x
         else:
             beta0 = 1.0
@@ -340,14 +348,15 @@ def fit_kalman_beta(
         beta0 = 1.0
 
     # ---- 卡尔曼滤波 ----
-    (filtered_beta, predicted_beta,
-     filtered_P, predicted_P, gains) = _kalman_filter_scalar(
-        y=portfolio_returns,
-        x=index_returns,
-        Q=Q,
-        R=R,
-        beta0=beta0,
-        P0=1.0,
+    filtered_beta, predicted_beta, filtered_P, predicted_P, gains = (
+        _kalman_filter_scalar(
+            y=portfolio_returns,
+            x=index_returns,
+            Q=Q,
+            R=R,
+            beta0=beta0,
+            P0=1.0,
+        )
     )
 
     # ---- 收敛检查 ----
@@ -377,10 +386,12 @@ def fit_kalman_beta(
 
     mean_beta = sum(valid_betas) / len(valid_betas)
     # 使用最后 60 日的标准差 (更稳定)
-    tail = valid_betas[-min(60, len(valid_betas)):]
-    std_beta = math.sqrt(
-        sum((b - mean_beta) ** 2 for b in tail) / max(len(tail) - 1, 1)
-    ) if len(tail) > 1 else 0.0
+    tail = valid_betas[-min(60, len(valid_betas)) :]
+    std_beta = (
+        math.sqrt(sum((b - mean_beta) ** 2 for b in tail) / max(len(tail) - 1, 1))
+        if len(tail) > 1
+        else 0.0
+    )
 
     return KalmanBetaResult(
         filtered_beta=filtered_beta,

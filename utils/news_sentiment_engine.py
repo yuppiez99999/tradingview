@@ -101,7 +101,9 @@ class SentimentResult:
     # 异常新闻 (突发/极端情感)
     anomalies: list[NewsItem] = field(default_factory=list)
     # 热门事件
-    hot_events: list[tuple[str, int]] = field(default_factory=list)  # (event_type, count)
+    hot_events: list[tuple[str, int]] = field(
+        default_factory=list
+    )  # (event_type, count)
     # 元数据
     total_news_processed: int = 0
     processing_time_ms: float = 0.0
@@ -246,8 +248,12 @@ class NewsSentimentEngine:
         w_direct: float = 0.7,  # 直接情感权重
         w_propagated: float = 0.3,  # 传播情感权重
     ):
-        self.positive_words = positive_words if positive_words is not None else POSITIVE_WORDS
-        self.negative_words = negative_words if negative_words is not None else NEGATIVE_WORDS
+        self.positive_words = (
+            positive_words if positive_words is not None else POSITIVE_WORDS
+        )
+        self.negative_words = (
+            negative_words if negative_words is not None else NEGATIVE_WORDS
+        )
         self.half_life_hours = float(half_life_hours)
         self.max_history_days = int(max_history_days)
         self.breaking_threshold = float(breaking_news_threshold)
@@ -286,7 +292,16 @@ class NewsSentimentEngine:
             try:
                 self.add_news(news)
                 count += 1
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as exc:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("[NewsSentiment] 添加新闻失败 %s: %s", news.news_id, exc)
         return count
 
@@ -342,7 +357,16 @@ class NewsSentimentEngine:
         except ImportError:
             logger.warning("[NewsSentiment] scrapling_adapter 不可用, 跳过抓取")
             return 0
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # P2 模块 fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as exc:  # P2 模块 fail-safe
             logger.warning("[NewsSentiment] Scrapling 抓取失败: %s", exc)
             return 0
 
@@ -370,9 +394,7 @@ class NewsSentimentEngine:
 
             news_items: list[NewsItem] = []
             for raw in raw_items:
-                news = self._convert_scrapling_item(
-                    raw, stock_code, [stock_code]
-                )
+                news = self._convert_scrapling_item(raw, stock_code, [stock_code])
                 if news is not None:
                     news_items.append(news)
 
@@ -385,7 +407,16 @@ class NewsSentimentEngine:
                 )
                 return count
             return 0
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # P2 模块 fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as exc:  # P2 模块 fail-safe
             logger.warning("[NewsSentiment] 公告抓取失败: %s", exc)
             return 0
 
@@ -565,8 +596,12 @@ class NewsSentimentEngine:
                 content = " | ".join(content_parts)
 
                 # 计算置信度 + 影响强度
-                confidence = self._social_confidence(sig.mention_count, sig.engagement_score)
-                impact = self._social_impact_score(sig.engagement_score, abs(sig.sentiment_score))
+                confidence = self._social_confidence(
+                    sig.mention_count, sig.engagement_score
+                )
+                impact = self._social_impact_score(
+                    sig.engagement_score, abs(sig.sentiment_score)
+                )
 
                 news = NewsItem(
                     news_id=news_id,
@@ -597,7 +632,16 @@ class NewsSentimentEngine:
                 news.event_type = "SOCIAL"
                 news.impact_horizon_hours = 12
                 ingested += 1
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc: # noqa: BLE001  # P2 fail-safe, 单条失败不阻断批量
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as exc:  # noqa: BLE001  # P2 fail-safe, 单条失败不阻断批量
                 logger.warning(
                     "[NewsSentiment] last30days 信号注入失败 (idx=%d, topic=%s): %s",
                     idx,
@@ -660,7 +704,9 @@ class NewsSentimentEngine:
             "PARTNERSHIP": 0.8,
         }
         event_w = event_weights.get(news.event_type, 1.0)
-        news.impact_score = min(news.confidence * abs(news.sentiment_score) * event_w, 1.0)
+        news.impact_score = min(
+            news.confidence * abs(news.sentiment_score) * event_w, 1.0
+        )
 
         # 影响时长 (事件类型决定)
         horizon_map = {
@@ -694,7 +740,9 @@ class NewsSentimentEngine:
 
         start_time = time.time()
         result = SentimentResult()
-        result.total_news_processed = sum(len(self.news_store.get(s, [])) for s in symbols)
+        result.total_news_processed = sum(
+            len(self.news_store.get(s, [])) for s in symbols
+        )
 
         cutoff = datetime.now() - timedelta(days=self.max_history_days)
         all_news_count: dict[str, int] = defaultdict(int)
@@ -706,7 +754,9 @@ class NewsSentimentEngine:
                 continue
 
             # 过滤过期新闻
-            recent_news = [n for n in news_list if n.publish_time and n.publish_time > cutoff]
+            recent_news = [
+                n for n in news_list if n.publish_time and n.publish_time > cutoff
+            ]
             if not recent_news:
                 continue
 
@@ -725,7 +775,9 @@ class NewsSentimentEngine:
             all_sentiments.append(composite)
 
             # 突发新闻
-            breaking = any(abs(n.sentiment_score) > self.breaking_threshold for n in news_24h)
+            breaking = any(
+                abs(n.sentiment_score) > self.breaking_threshold for n in news_24h
+            )
 
             # 事件分布
             event_dist: dict[str, int] = defaultdict(int)
@@ -744,7 +796,9 @@ class NewsSentimentEngine:
                         r_news = list(self.news_store.get(r, []))
                         if r_news:
                             r_sentiments = [n.sentiment_score for n in r_news]
-                            related_sentiments.append(sum(r_sentiments) / len(r_sentiments))
+                            related_sentiments.append(
+                                sum(r_sentiments) / len(r_sentiments)
+                            )
                 if related_sentiments:
                     propagated = sum(related_sentiments) / len(related_sentiments)
 
@@ -756,13 +810,17 @@ class NewsSentimentEngine:
             confidence = min(news_count_24h / 5.0, 1.0)
 
             # Top 3 新闻
-            top_news = sorted(recent_news, key=lambda n: abs(n.sentiment_score), reverse=True)[:3]
+            top_news = sorted(
+                recent_news, key=lambda n: abs(n.sentiment_score), reverse=True
+            )[:3]
             top_news_dicts = [
                 {
                     "title": n.title,
                     "sentiment": n.sentiment_score,
                     "event_type": n.event_type,
-                    "publish_time": n.publish_time.isoformat() if n.publish_time else "",
+                    "publish_time": (
+                        n.publish_time.isoformat() if n.publish_time else ""
+                    ),
                 }
                 for n in top_news
             ]
@@ -782,12 +840,18 @@ class NewsSentimentEngine:
             )
 
         # 全局情感
-        result.market_sentiment = sum(all_sentiments) / len(all_sentiments) if all_sentiments else 0.0
+        result.market_sentiment = (
+            sum(all_sentiments) / len(all_sentiments) if all_sentiments else 0.0
+        )
 
         # 异常新闻
         for sym in symbols:
             for n in self.news_store.get(sym, []):
-                if abs(n.sentiment_score) > self.breaking_threshold and n.publish_time and n.publish_time > cutoff:
+                if (
+                    abs(n.sentiment_score) > self.breaking_threshold
+                    and n.publish_time
+                    and n.publish_time > cutoff
+                ):
                     if n not in result.anomalies:
                         result.anomalies.append(n)
 
@@ -839,7 +903,11 @@ class NewsSentimentEngine:
         for sym in list(self.news_store.keys()):
             original = len(self.news_store[sym])
             self.news_store[sym] = deque(
-                (n for n in self.news_store[sym] if n.publish_time and n.publish_time > cutoff),
+                (
+                    n
+                    for n in self.news_store[sym]
+                    if n.publish_time and n.publish_time > cutoff
+                ),
                 maxlen=500,
             )
             cleared += original - len(self.news_store[sym])

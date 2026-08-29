@@ -138,3 +138,14 @@ Wave 5 达到阶段性完成：数据管线完整、GAT 学习注意力优于静
 - 代码模块：`utils/alpha_factor/graph.py`、`gat_factor.py`、`gat_factor_torch.py`、`gate1_validation.py`；`utils/graph_data_source.py`、`supply_chain_builder.py`
 - 排期：`cairn/ROADMAP.md`（Wave 5）
 - 日志：`cairn/LOG.md`
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [GNN 供应链产业链因子落地设计](gnn-supply-chain-factor.md) (相似度 63%)
+- [Alpha 因子体系](alpha-factor-system.md) (相似度 9%)
+- [Wave 6 启动前置研究笔记（2026-08-11）](wave6-prep-study-notes.md) (相似度 7%)
+- [数据管道架构](data-pipeline.md) (相似度 6%)
+- [GitHub 高价值项目集成策略（Wave 6）](github-integration-wave6.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

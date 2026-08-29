@@ -48,7 +48,9 @@ import os  # noqa: E402
 
 from utils.tdam_client import TDAMClient, TDAMConfig
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("tdam_phase1p")
 
 CACHE_DIR = PROJECT_ROOT / "reports" / "tdam_cache"
@@ -207,7 +209,8 @@ def generate_expert_cache(
         status = "OK" if expert_cache["success"] else "DEGRADED"
         logger.info(
             "  [%s] %s: %d queries, %d items (%s)",
-            expert_name, status,
+            expert_name,
+            status,
             len(expert_cache["queries"]),
             expert_cache["items_count"],
             f"weight={weight:.0%}",
@@ -222,7 +225,8 @@ def main() -> None:
         description="Phase 1' 盘后离线记忆增强作业 — 生成专家 prompt 上下文缓存",
     )
     parser.add_argument(
-        "--date", "-d",
+        "--date",
+        "-d",
         default="",
         help="日期 (YYYY-MM-DD, 默认今天)",
     )

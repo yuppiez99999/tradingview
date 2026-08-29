@@ -20,6 +20,7 @@
     0 = 文档与代码一致
     1 = 发现不一致 (应更新文档)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -85,7 +86,9 @@ def parse_plan_status(plan_path: Path) -> dict[str, dict[str, str]]:
     items: dict[str, dict[str, str]] = {}
 
     # 匹配表格行: | U1 | ... | ✅ 完成 | ... 或 | G3 | ... | 🔲 未启动 | ...
-    table_pattern = re.compile(r"^\|\s*([UGPWTFS]\d+(?:-\d+)?)\s*\|.*?\|\s*(.{1,30})\s*\|")
+    table_pattern = re.compile(
+        r"^\|\s*([UGPWTFS]\d+(?:-\d+)?)\s*\|.*?\|\s*(.{1,30})\s*\|"
+    )
 
     for i, line in enumerate(lines, 1):
         m = table_pattern.match(line)
@@ -119,13 +122,15 @@ def check_consistency(plan_path: Path) -> list[dict[str, Any]]:
             plan_status = plan_items[marker]["status"]
             # 如果 git 有提交但计划标"未启动", 是不一致
             if plan_status == "not_started":
-                inconsistencies.append({
-                    "marker": marker,
-                    "issue": f"git log 有 {len(commits)} 次提交但计划标'未启动'",
-                    "commits": commits,
-                    "plan_line": plan_items[marker]["line"],
-                    "plan_raw": plan_items[marker]["raw"],
-                })
+                inconsistencies.append(
+                    {
+                        "marker": marker,
+                        "issue": f"git log 有 {len(commits)} 次提交但计划标'未启动'",
+                        "commits": commits,
+                        "plan_line": plan_items[marker]["line"],
+                        "plan_raw": plan_items[marker]["raw"],
+                    }
+                )
 
     return inconsistencies
 
@@ -133,7 +138,9 @@ def check_consistency(plan_path: Path) -> list[dict[str, Any]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="计划文档代码驱动更新检查")
     parser.add_argument("--plan", default=str(DEFAULT_PLAN), help="计划文档路径")
-    parser.add_argument("--update", action="store_true", help="自动更新文档状态(实验性)")
+    parser.add_argument(
+        "--update", action="store_true", help="自动更新文档状态(实验性)"
+    )
     args = parser.parse_args(argv)
 
     plan_path = Path(args.plan)

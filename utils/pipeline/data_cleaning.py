@@ -20,7 +20,12 @@ from typing import Any, Optional
 import numpy as np
 
 from utils.pipeline.config import get_pipeline_config
-from utils.pipeline.types import DataQualityReport, PipelineConfig, PipelineResult, PipelineStage
+from utils.pipeline.types import (
+    DataQualityReport,
+    PipelineConfig,
+    PipelineResult,
+    PipelineStage,
+)
 
 logger = logging.getLogger("pipeline.data_cleaning")
 
@@ -127,7 +132,9 @@ class DataCleaningPipeline:
                     outlier_flags=outlier_result.get(symbol, []),
                     missing_fields=gap_result.get(symbol, {}).get("missing", []),
                     gap_days=gap_result.get(symbol, {}).get("gap_days", 0),
-                    multi_source_deviation_pct=multi_source_result.get(symbol, {}).get("deviation_pct", 0.0),
+                    multi_source_deviation_pct=multi_source_result.get(symbol, {}).get(
+                        "deviation_pct", 0.0
+                    ),
                     passed=qs["score"] >= self.config.min_quality_score,
                     meta=qs["meta"],
                 )
@@ -152,7 +159,9 @@ class DataCleaningPipeline:
                     "n_symbols": total_symbols,
                     "n_passed": passed_count,
                     "n_failed": total_symbols - passed_count,
-                    "avg_quality_score": round(sum(r.quality_score for r in reports) / max(len(reports), 1), 2),
+                    "avg_quality_score": round(
+                        sum(r.quality_score for r in reports) / max(len(reports), 1), 2
+                    ),
                 },
                 reports=report_paths,
             )
@@ -163,7 +172,16 @@ class DataCleaningPipeline:
             )
             return reports, result
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"[数据清洗] 失败: {e}", exc_info=True)
@@ -184,6 +202,7 @@ class DataCleaningPipeline:
         data = {}
         try:
             from utils.data_provider import DataProvider
+
             provider = DataProvider()
             target_symbols = symbols or self._get_default_symbols()
             for sym in target_symbols:
@@ -191,7 +210,16 @@ class DataCleaningPipeline:
                     snapshot = provider.get_realtime_snapshot(sym)
                     if snapshot:
                         data[sym] = snapshot
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
         except ImportError:
@@ -202,11 +230,29 @@ class DataCleaningPipeline:
         """获取默认监控标的列表"""
         try:
             from utils.positions_loader import load_positions
+
             positions = load_positions()
             return [p.get("symbol", "") for p in positions if p.get("symbol")]
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-            return ["300308", "002371", "688041", "600900", "601088", "600276", "600519"]
+            return [
+                "300308",
+                "002371",
+                "688041",
+                "600900",
+                "601088",
+                "600276",
+                "600519",
+            ]
 
     def _validate_multi_source(self, data: dict) -> dict[str, dict]:
         """多源数据交叉验证
@@ -227,7 +273,16 @@ class DataCleaningPipeline:
                     "n_sources": len(prices),
                     "prices": prices,
                 }
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 result[symbol] = {"deviation_pct": 0.0, "n_sources": 0}
         return result
@@ -249,8 +304,16 @@ class DataCleaningPipeline:
         prices: dict[str, float] = {}
         try:
             from utils.data_provider import MarketDataProvider
+
             provider = MarketDataProvider()
-        except (ImportError, ValueError, TypeError, AttributeError, RuntimeError, OSError):
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ):
             # 数据提供器不可用: 无法交叉校验, 返回空 (上层记 n_sources=0)
             return prices
 
@@ -265,7 +328,16 @@ class DataCleaningPipeline:
                 price = float(payload.get("index_price", 0) or 0)
                 if price > 0:
                     prices[source_name] = price
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 单源取数失败: 格式/类型/字段/属性/运行时/网络/超时, 跳过该源继续校验其余源
                 continue
         return prices
@@ -331,7 +403,16 @@ class DataCleaningPipeline:
                     "gap_days": gap_days,
                     "n_nan": nan_count,
                 }
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
         return result
@@ -364,7 +445,16 @@ class DataCleaningPipeline:
                     "quality_score": gate_result.quality_score,
                     "reasons": gate_result.reasons,
                 }
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
         return result
@@ -424,13 +514,28 @@ class DataCleaningPipeline:
         """获取历史价格序列"""
         try:
             from utils.data_provider import DataProvider
+
             provider = DataProvider()
             df = provider.get_history(symbol, days=days)
             if df is not None and not df.empty:
-                col = "close" if "close" in df.columns else (df.columns[-1] if len(df.columns) > 0 else None)
+                col = (
+                    "close"
+                    if "close" in df.columns
+                    else (df.columns[-1] if len(df.columns) > 0 else None)
+                )
                 if col:
                     return df[col].dropna().tolist()
-        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return []
@@ -444,6 +549,7 @@ class DataCleaningPipeline:
         json_path = self._report_dir / f"data_quality_{timestamp}.json"
         try:
             import json
+
             with open(json_path, "w", encoding="utf-8") as f:
                 json.dump(
                     [r.__dict__ for r in reports],
@@ -453,7 +559,16 @@ class DataCleaningPipeline:
                     default=str,
                 )
             paths.append(str(json_path))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"保存 JSON 报告失败: {e}")
 
@@ -461,17 +576,41 @@ class DataCleaningPipeline:
         csv_path = self._report_dir / f"data_quality_{timestamp}.csv"
         try:
             import csv
+
             with open(csv_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow(["symbol", "quality_score", "passed", "outlier_flags", "gap_days", "deviation_pct"])
+                writer.writerow(
+                    [
+                        "symbol",
+                        "quality_score",
+                        "passed",
+                        "outlier_flags",
+                        "gap_days",
+                        "deviation_pct",
+                    ]
+                )
                 for r in reports:
-                    writer.writerow([
-                        r.symbol, r.quality_score, r.passed,
-                        ";".join(r.outlier_flags), r.gap_days,
-                        r.multi_source_deviation_pct,
-                    ])
+                    writer.writerow(
+                        [
+                            r.symbol,
+                            r.quality_score,
+                            r.passed,
+                            ";".join(r.outlier_flags),
+                            r.gap_days,
+                            r.multi_source_deviation_pct,
+                        ]
+                    )
             paths.append(str(csv_path))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
 

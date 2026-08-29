@@ -10,6 +10,7 @@
     - 空信号
     - current_positions 调仓
 """
+
 from __future__ import annotations
 
 import pytest
@@ -32,7 +33,9 @@ class TestDataclass:
 
     @pytest.mark.unit
     def test_order_with_tags(self):
-        o = Order(symbol="300750", side="sell", quantity=200, price=50.0, tags={"w": 0.1})
+        o = Order(
+            symbol="300750", side="sell", quantity=200, price=50.0, tags={"w": 0.1}
+        )
         assert o.price == 50.0
         assert o.tags == {"w": 0.1}
 

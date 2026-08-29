@@ -49,7 +49,9 @@ DEFAULT_THEME_WEIGHTS: dict[str, float] = {
 class ScoringConfig:
     """打分配置"""
 
-    theme_weights: dict[str, float] = field(default_factory=lambda: dict(DEFAULT_THEME_WEIGHTS))
+    theme_weights: dict[str, float] = field(
+        default_factory=lambda: dict(DEFAULT_THEME_WEIGHTS)
+    )
     # 每个主题选取的因子数上限（避免某主题因子数过多压制其他主题）
     max_factors_per_theme: int = 30
     # 并行计算
@@ -88,7 +90,16 @@ def _compute_single_stock_factor(
         adapter = get_vibe_adapter()
         result = adapter.compute_single_stock(kline_df, factor_ids=factor_ids)
         return symbol, dict(result.values)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # noqa: BLE001
         logger.debug(f"因子计算失败 {symbol}: {e}")
         return symbol, {}
 
@@ -128,7 +139,9 @@ def select_factor_ids(adapter, config: ScoringConfig) -> dict[str, list[str]]:
                 seen.add(fid)
                 unique.append(fid)
         theme_factors[theme] = unique[: config.max_factors_per_theme]
-        logger.info(f"  主题 {theme:12s} 权重 {weight * 100:.0f}%  选取 {len(theme_factors[theme])} 个因子")
+        logger.info(
+            f"  主题 {theme:12s} 权重 {weight * 100:.0f}%  选取 {len(theme_factors[theme])} 个因子"
+        )
 
     return theme_factors
 
@@ -189,9 +202,20 @@ def batch_compute_factors(
                 if kline_df is None or kline_df.empty:
                     failed += 1
                     continue
-                future = executor.submit(_compute_single_stock_factor, symbol, kline_df, all_factor_ids)
+                future = executor.submit(
+                    _compute_single_stock_factor, symbol, kline_df, all_factor_ids
+                )
                 futures[future] = symbol
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001
                 logger.debug(f"K线加载失败 {symbol}: {e}")
                 failed += 1
 
@@ -204,7 +228,16 @@ def batch_compute_factors(
                     completed += 1
                 else:
                     failed += 1
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001
                 logger.debug(f"因子计算异常 {symbol}: {e}")
                 failed += 1
 
@@ -224,7 +257,9 @@ def batch_compute_factors(
                 )
 
     elapsed = time.time() - start_time
-    logger.info(f"因子计算完成: {completed} 成功 / {failed} 失败  耗时: {elapsed:.1f}秒")
+    logger.info(
+        f"因子计算完成: {completed} 成功 / {failed} 失败  耗时: {elapsed:.1f}秒"
+    )
 
     # 3. 构建 DataFrame
     if not factor_values:
@@ -304,7 +339,9 @@ def cross_sectional_score(
             # 归一化主题得分到 [0,1]
             theme_vals = scores[col]
             if theme_vals.std() > 1e-10:
-                theme_norm = (theme_vals - theme_vals.min()) / (theme_vals.max() - theme_vals.min() + 1e-10)
+                theme_norm = (theme_vals - theme_vals.min()) / (
+                    theme_vals.max() - theme_vals.min() + 1e-10
+                )
             else:
                 theme_norm = pd.Series(0.5, index=theme_vals.index)
             scores["composite_score"] += theme_norm * weight
@@ -363,7 +400,9 @@ def industry_neutralize(
         else:
             result.loc[group_idx] = 0.0
 
-    logger.info(f"行业中性化完成: {result.notna().sum()} 只股票分布在 {aligned.nunique()} 个行业")
+    logger.info(
+        f"行业中性化完成: {result.notna().sum()} 只股票分布在 {aligned.nunique()} 个行业"
+    )
     return result
 
 

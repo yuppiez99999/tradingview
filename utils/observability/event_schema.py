@@ -34,7 +34,9 @@ class ObservabilityEvent(BaseModel):
     event_type: str = Field(..., description="事件类型标识")
     message: str = Field(default="", description="人类可读消息")
     context: dict[str, Any] = Field(default_factory=dict, description="扩展上下文")
-    trace_id: Optional[str] = Field(default=None, description="追踪 ID (后续 OpenTelemetry 接入)")
+    trace_id: Optional[str] = Field(
+        default=None, description="追踪 ID (后续 OpenTelemetry 接入)"
+    )
 
 
 class OrderEvent(ObservabilityEvent):
@@ -55,7 +57,9 @@ class RiskEvent(ObservabilityEvent):
     event_type: str = "risk"
     risk_level: str = Field(..., description="风控级别 (caution/reduction/liquidate)")
     trigger: str = Field(..., description="触发原因")
-    action: str = Field(..., description="风控动作 (pass/reduce/disable/liquidate/kill)")
+    action: str = Field(
+        ..., description="风控动作 (pass/reduce/disable/liquidate/kill)"
+    )
 
 
 class ExecutionEvent(ObservabilityEvent):

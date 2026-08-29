@@ -16,6 +16,7 @@
     13. 买卖方向 (BUY/SELL)
     14. PnL 归因恒等式: Alpha + Execution + Risk = Total
 """
+
 from __future__ import annotations
 
 import json
@@ -111,8 +112,13 @@ class TestFillRecord:
 
     def test_fill_record_with_optional_fields(self):
         fill = FillRecord(
-            symbol="600276", side="SELL", shares=1000, price=10.0,
-            broker="CTA", venue="SSE", order_id="ORD001",
+            symbol="600276",
+            side="SELL",
+            shares=1000,
+            price=10.0,
+            broker="CTA",
+            venue="SSE",
+            order_id="ORD001",
             timestamp="2026-07-27T10:00:00",
         )
         assert fill.broker == "CTA"
@@ -158,15 +164,20 @@ class TestRecord:
         with pytest.raises(PostTradeAttributionError, match="FillRecord"):
             attribution_no_save.record("not a FillRecord")  # type: ignore[misc]
 
+
 # ============================================================
 # 测试 3: compare_estimate_vs_actual() 预估 vs 实际对比
 # ============================================================
 class TestCompareEstimateVsActual:
     def test_compare_returns_estimate_vs_actual(self, attribution_no_save):
         fill = make_fill(price=50.05)
-        estimate = MockPreTradeEstimate(estimated_cost_bps=5.0, estimated_cost_amount=250.0)
+        estimate = MockPreTradeEstimate(
+            estimated_cost_bps=5.0, estimated_cost_amount=250.0
+        )
         attribution_no_save.record(fill, estimate)
-        comparison = attribution_no_save.compare_estimate_vs_actual("600276", decision_price=50.0)
+        comparison = attribution_no_save.compare_estimate_vs_actual(
+            "600276", decision_price=50.0
+        )
         assert isinstance(comparison, EstimateVsActual)
         assert comparison.symbol == "600276"
         # 实际成本 = (50.05 - 50.0) / 50.0 * 10000 = 10 bps
@@ -189,7 +200,9 @@ class TestCompareEstimateVsActual:
         fill = make_fill(price=50.05)  # 实际成本 = 10 bps
         estimate = MockPreTradeEstimate(estimated_cost_bps=8.0)  # 偏差 2 bps < 5
         attribution_no_save.record(fill, estimate)
-        comparison = attribution_no_save.compare_estimate_vs_actual("600276", decision_price=50.0)
+        comparison = attribution_no_save.compare_estimate_vs_actual(
+            "600276", decision_price=50.0
+        )
         assert comparison.within_tolerance is True
 
     def test_compare_outside_tolerance(self, attribution_no_save):
@@ -197,7 +210,9 @@ class TestCompareEstimateVsActual:
         fill = make_fill(price=50.5)  # 实际成本 = 100 bps
         estimate = MockPreTradeEstimate(estimated_cost_bps=10.0)  # 偏差 90 bps > 5
         attribution_no_save.record(fill, estimate)
-        comparison = attribution_no_save.compare_estimate_vs_actual("600276", decision_price=50.0)
+        comparison = attribution_no_save.compare_estimate_vs_actual(
+            "600276", decision_price=50.0
+        )
         assert comparison.within_tolerance is False
 
     def test_compare_sell_side(self, attribution_no_save):
@@ -205,7 +220,9 @@ class TestCompareEstimateVsActual:
         estimate = MockPreTradeEstimate(side="SELL", estimated_cost_bps=5.0)
         attribution_no_save.record(fill, estimate)
         # 卖出: 实际成本 = |49.95 - 50.0| / 50.0 * 10000 = 10 bps
-        comparison = attribution_no_save.compare_estimate_vs_actual("600276", decision_price=50.0)
+        comparison = attribution_no_save.compare_estimate_vs_actual(
+            "600276", decision_price=50.0
+        )
         assert comparison.side == "SELL"
         assert abs(comparison.actual_cost_bps - 10.0) < 0.01
 
@@ -216,8 +233,11 @@ class TestCompareEstimateVsActual:
 class TestAttributePnL:
     def test_attribute_returns_pnl_attribution(self, attribution_no_save):
         result = attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=10.05,
-            shares=10000, side="BUY",
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="BUY",
         )
         assert isinstance(result, PnLAttribution)
         assert result.symbol == "600276"
@@ -229,8 +249,12 @@ class TestAttributePnL:
     def test_buy_execution_pnl_negative_when_price_higher(self, attribution_no_save):
         """买入: 实际价 > 决策价 → Execution PnL 为负 (执行成本)"""
         result = attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=10.05,
-            shares=10000, side="BUY", estimated_entry_price=10.0,
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="BUY",
+            estimated_entry_price=10.0,
         )
         # Execution = (10.0 - 10.05) * 10000 * 1 = -500
         assert result.execution_pnl == pytest.approx(-500.0, abs=0.01)
@@ -239,8 +263,12 @@ class TestAttributePnL:
     def test_buy_execution_pnl_positive_when_price_lower(self, attribution_no_save):
         """买入: 实际价 < 决策价 → Execution PnL 为正 (执行优于预估)"""
         result = attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=9.95,
-            shares=10000, side="BUY", estimated_entry_price=10.0,
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=9.95,
+            shares=10000,
+            side="BUY",
+            estimated_entry_price=10.0,
         )
         # Execution = (10.0 - 9.95) * 10000 * 1 = 500
         assert result.execution_pnl == pytest.approx(500.0, abs=0.01)
@@ -249,8 +277,12 @@ class TestAttributePnL:
     def test_sell_execution_pnl_positive_when_price_higher(self, attribution_no_save):
         """卖出: 实际价 > 决策价 → Execution PnL 为正 (执行优于预估)"""
         result = attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=10.05,
-            shares=10000, side="SELL", estimated_entry_price=10.0,
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="SELL",
+            estimated_entry_price=10.0,
         )
         # Execution = (10.0 - 10.05) * 10000 * -1 = 500
         assert result.execution_pnl == pytest.approx(500.0, abs=0.01)
@@ -258,8 +290,12 @@ class TestAttributePnL:
     def test_sell_execution_pnl_negative_when_price_lower(self, attribution_no_save):
         """卖出: 实际价 < 决策价 → Execution PnL 为负"""
         result = attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=9.95,
-            shares=10000, side="SELL", estimated_entry_price=10.0,
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=9.95,
+            shares=10000,
+            side="SELL",
+            estimated_entry_price=10.0,
         )
         # Execution = (10.0 - 9.95) * 10000 * -1 = -500
         assert result.execution_pnl == pytest.approx(-500.0, abs=0.01)
@@ -267,16 +303,23 @@ class TestAttributePnL:
     def test_alpha_pnl_zero_when_no_estimated_entry(self, attribution_no_save):
         """无 estimated_entry_price 时 Alpha PnL = 0 (entry = decision)"""
         result = attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=10.05,
-            shares=10000, side="BUY",
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="BUY",
         )
         assert result.alpha_pnl == 0.0
 
     def test_alpha_pnl_with_estimated_entry(self, attribution_no_save):
         """有 estimated_entry_price 时 Alpha PnL = (decision - entry) * shares * direction"""
         result = attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=10.05,
-            shares=10000, side="BUY", estimated_entry_price=9.8,
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="BUY",
+            estimated_entry_price=9.8,
         )
         # Alpha = (10.0 - 9.8) * 10000 * 1 = 2000
         assert result.alpha_pnl == pytest.approx(2000.0, abs=0.01)
@@ -284,18 +327,29 @@ class TestAttributePnL:
     def test_risk_pnl_sum_of_components(self, attribution_no_save):
         """Risk PnL = hedge + stop_loss + position_adjust"""
         result = attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=10.05,
-            shares=10000, side="BUY",
-            hedge_pnl=-500, stop_loss_pnl=-200, position_adjust_pnl=100,
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="BUY",
+            hedge_pnl=-500,
+            stop_loss_pnl=-200,
+            position_adjust_pnl=100,
         )
         assert result.risk_pnl == pytest.approx(-600.0, abs=0.01)
 
     def test_total_pnl_equals_alpha_plus_execution_plus_risk(self, attribution_no_save):
         """恒等式: Total = Alpha + Execution + Risk"""
         result = attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=10.05,
-            shares=10000, side="BUY", estimated_entry_price=9.8,
-            hedge_pnl=-500, stop_loss_pnl=0, position_adjust_pnl=0,
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="BUY",
+            estimated_entry_price=9.8,
+            hedge_pnl=-500,
+            stop_loss_pnl=0,
+            position_adjust_pnl=0,
         )
         assert result.total_pnl == pytest.approx(
             result.alpha_pnl + result.execution_pnl + result.risk_pnl, abs=0.01
@@ -304,29 +358,42 @@ class TestAttributePnL:
     def test_invalid_decision_price_raises(self, attribution_no_save):
         with pytest.raises(PostTradeAttributionError, match="decision_price"):
             attribution_no_save.attribute_pnl(
-                symbol="X", decision_price=-1, avg_exec_price=10,
-                shares=100, side="BUY",
+                symbol="X",
+                decision_price=-1,
+                avg_exec_price=10,
+                shares=100,
+                side="BUY",
             )
 
     def test_invalid_shares_raises(self, attribution_no_save):
         with pytest.raises(PostTradeAttributionError, match="shares"):
             attribution_no_save.attribute_pnl(
-                symbol="X", decision_price=10, avg_exec_price=10,
-                shares=0, side="BUY",
+                symbol="X",
+                decision_price=10,
+                avg_exec_price=10,
+                shares=0,
+                side="BUY",
             )
 
     def test_invalid_side_raises(self, attribution_no_save):
         with pytest.raises(PostTradeAttributionError, match="side"):
             attribution_no_save.attribute_pnl(
-                symbol="X", decision_price=10, avg_exec_price=10,
-                shares=100, side="UNKNOWN",
+                symbol="X",
+                decision_price=10,
+                avg_exec_price=10,
+                shares=100,
+                side="UNKNOWN",
             )
 
     def test_bps_calculation(self, attribution_no_save):
         """测试 bps = pnl / notional * 10000"""
         result = attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=10.0,
-            shares=10000, side="BUY", hedge_pnl=-100,
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=10.0,
+            shares=10000,
+            side="BUY",
+            hedge_pnl=-100,
         )
         # notional = 10000 * 10.0 = 100000
         # risk_bps = -100 / 100000 * 10000 = -10
@@ -398,12 +465,20 @@ class TestSummarize:
 
     def test_summarize_with_pnl_data(self, attribution_no_save):
         attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=10.05,
-            shares=10000, side="BUY", hedge_pnl=-500,
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="BUY",
+            hedge_pnl=-500,
         )
         attribution_no_save.attribute_pnl(
-            symbol="000001", decision_price=15.0, avg_exec_price=14.95,
-            shares=5000, side="BUY", hedge_pnl=-200,
+            symbol="000001",
+            decision_price=15.0,
+            avg_exec_price=14.95,
+            shares=5000,
+            side="BUY",
+            hedge_pnl=-200,
         )
         result = attribution_no_save.summarize()
         assert result["n_fills"] == 0  # fills 是 record() 的, 不是 attribute_pnl 的
@@ -423,8 +498,13 @@ class TestSummarize:
     def test_summarize_pct_calculation(self, attribution_no_save):
         """测试 alpha_pct + execution_pct + risk_pct = 100% (当 total != 0)"""
         attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10.0, avg_exec_price=10.05,
-            shares=10000, side="BUY", hedge_pnl=-500, estimated_entry_price=10.0,
+            symbol="600276",
+            decision_price=10.0,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="BUY",
+            hedge_pnl=-500,
+            estimated_entry_price=10.0,
         )
         result = attribution_no_save.summarize()
         if result["total_pnl"] != 0:
@@ -438,12 +518,18 @@ class TestSummarize:
 class TestHistoryQueries:
     def test_get_pnl_history_by_symbol(self, attribution_no_save):
         attribution_no_save.attribute_pnl(
-            symbol="600276", decision_price=10, avg_exec_price=10.05,
-            shares=10000, side="BUY",
+            symbol="600276",
+            decision_price=10,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="BUY",
         )
         attribution_no_save.attribute_pnl(
-            symbol="000001", decision_price=15, avg_exec_price=14.95,
-            shares=5000, side="BUY",
+            symbol="000001",
+            decision_price=15,
+            avg_exec_price=14.95,
+            shares=5000,
+            side="BUY",
         )
         history_600276 = attribution_no_save.get_pnl_history("600276")
         assert len(history_600276) == 1
@@ -452,8 +538,11 @@ class TestHistoryQueries:
     def test_get_pnl_history_all(self, attribution_no_save):
         for sym in ["A", "B", "C"]:
             attribution_no_save.attribute_pnl(
-                symbol=sym, decision_price=10, avg_exec_price=10,
-                shares=1000, side="BUY",
+                symbol=sym,
+                decision_price=10,
+                avg_exec_price=10,
+                shares=1000,
+                side="BUY",
             )
         all_history = attribution_no_save.get_pnl_history()
         assert len(all_history) == 3
@@ -482,6 +571,7 @@ class TestJsonlPersistence:
     def test_record_saved_to_fills_file(self, attribution_tmp_dir, tmp_path):
         attribution_tmp_dir.record(make_fill())
         from datetime import datetime
+
         date_str = datetime.now().strftime("%Y-%m-%d")
         file_path = tmp_path / f"fills_{date_str}.jsonl"
         assert file_path.exists()
@@ -496,16 +586,21 @@ class TestJsonlPersistence:
         attribution_tmp_dir.record(fill, estimate)
         attribution_tmp_dir.compare_estimate_vs_actual("600276", decision_price=50.0)
         from datetime import datetime
+
         date_str = datetime.now().strftime("%Y-%m-%d")
         file_path = tmp_path / f"estimate_vs_actual_{date_str}.jsonl"
         assert file_path.exists()
 
     def test_pnl_attribution_saved_to_file(self, attribution_tmp_dir, tmp_path):
         attribution_tmp_dir.attribute_pnl(
-            symbol="600276", decision_price=10, avg_exec_price=10.05,
-            shares=10000, side="BUY",
+            symbol="600276",
+            decision_price=10,
+            avg_exec_price=10.05,
+            shares=10000,
+            side="BUY",
         )
         from datetime import datetime
+
         date_str = datetime.now().strftime("%Y-%m-%d")
         file_path = tmp_path / f"pnl_attribution_{date_str}.jsonl"
         assert file_path.exists()
@@ -529,6 +624,7 @@ class TestJsonlPersistence:
 
         attribution_tmp_dir.calibrate(mock_estimator)
         from datetime import datetime
+
         date_str = datetime.now().strftime("%Y-%m-%d")
         file_path = tmp_path / f"calibration_{date_str}.jsonl"
         assert file_path.exists()
@@ -565,11 +661,16 @@ class TestTCAManagerRecordFacade:
             tmp_path,
         )
         from utils.tca_engine import TCAManager
+
         tca = TCAManager()
-        tca.record({
-            "symbol": "600276", "side": "BUY",
-            "shares": 1000, "price": 50.0,
-        })
+        tca.record(
+            {
+                "symbol": "600276",
+                "side": "BUY",
+                "shares": 1000,
+                "price": 50.0,
+            }
+        )
         # 验证记录已写入
         attr = tca._post_trade_attribution
         fills = attr.get_fills("600276")
@@ -583,6 +684,7 @@ class TestTCAManagerRecordFacade:
         )
         from utils.tca_engine import TCAManager
         from utils.tca_post_trade_attribution import FillRecord
+
         tca = TCAManager()
         fill = FillRecord(symbol="000001", side="SELL", shares=500, price=15.0)
         tca.record(fill)
@@ -596,6 +698,7 @@ class TestTCAManagerRecordFacade:
             tmp_path,
         )
         from utils.tca_engine import TCAManager
+
         tca = TCAManager()
         result = tca.calibrate()
         assert result is None
@@ -612,8 +715,11 @@ class TestHedgeEngineOnFill:
             tmp_path,
         )
         from utils.hedge_execution_engine import HedgeExecutionEngine
+
         engine = HedgeExecutionEngine()
-        engine.on_fill({"symbol": "510050", "side": "BUY", "shares": 10000, "price": 3.45})
+        engine.on_fill(
+            {"symbol": "510050", "side": "BUY", "shares": 10000, "price": 3.45}
+        )
         attr = engine.get_post_trade_attribution()
         assert attr is not None
         fills = attr.get_fills("510050")
@@ -628,6 +734,7 @@ class TestHedgeEngineOnFill:
         )
         from utils.hedge_execution_engine import HedgeExecutionEngine
         from utils.tca_post_trade_attribution import FillRecord
+
         engine = HedgeExecutionEngine()
         fill = FillRecord(symbol="600276", side="BUY", shares=1000, price=50.0)
         engine.on_fill(fill)
@@ -644,9 +751,13 @@ class TestHedgeEngineOnFill:
         )
         from utils.hedge_execution_engine import HedgeExecutionEngine
         from utils.tca_engine import FillRecord as TCAFillRecord
+
         engine = HedgeExecutionEngine()
         fill = TCAFillRecord(
-            symbol="600276", side="BUY", shares=1000, price=50.0,
+            symbol="600276",
+            side="BUY",
+            shares=1000,
+            price=50.0,
             timestamp="2026-07-27T10:00:00",
         )
         engine.on_fill(fill)
@@ -680,21 +791,37 @@ class TestHedgeEngineOnFill:
 # 测试 12: PnL 归因恒等式
 # ============================================================
 class TestPnLIdentity:
-    @pytest.mark.parametrize("side, decision, exec_price, entry, hedge, stop, adjust, shares", [
-        ("BUY", 10.0, 10.05, 10.0, -500, 0, 0, 10000),
-        ("SELL", 10.0, 9.95, 10.0, 200, -100, 50, 5000),
-        ("BUY", 50.0, 49.8, 49.5, 0, 0, 0, 20000),
-        ("SELL", 100.0, 100.5, 100.0, -1000, -500, 300, 8000),
-    ])
+    @pytest.mark.parametrize(
+        "side, decision, exec_price, entry, hedge, stop, adjust, shares",
+        [
+            ("BUY", 10.0, 10.05, 10.0, -500, 0, 0, 10000),
+            ("SELL", 10.0, 9.95, 10.0, 200, -100, 50, 5000),
+            ("BUY", 50.0, 49.8, 49.5, 0, 0, 0, 20000),
+            ("SELL", 100.0, 100.5, 100.0, -1000, -500, 300, 8000),
+        ],
+    )
     def test_total_equals_alpha_plus_exec_plus_risk(
-        self, attribution_no_save,
-        side, decision, exec_price, entry, hedge, stop, adjust, shares,
+        self,
+        attribution_no_save,
+        side,
+        decision,
+        exec_price,
+        entry,
+        hedge,
+        stop,
+        adjust,
+        shares,
     ):
         """测试多场景下 Total = Alpha + Execution + Risk"""
         result = attribution_no_save.attribute_pnl(
-            symbol="TEST", decision_price=decision, avg_exec_price=exec_price,
-            shares=shares, side=side, hedge_pnl=hedge,
-            stop_loss_pnl=stop, position_adjust_pnl=adjust,
+            symbol="TEST",
+            decision_price=decision,
+            avg_exec_price=exec_price,
+            shares=shares,
+            side=side,
+            hedge_pnl=hedge,
+            stop_loss_pnl=stop,
+            position_adjust_pnl=adjust,
             estimated_entry_price=entry,
         )
         assert result.total_pnl == pytest.approx(

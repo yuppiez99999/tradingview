@@ -21,6 +21,7 @@ from utils.alpha.theoretical_metrics import (
 # LyapunovStabilityMeter 测试
 # ============================================================
 
+
 class TestLyapunovStabilityMeter:
     """Lyapunov 稳定性度量器测试."""
 
@@ -43,7 +44,9 @@ class TestLyapunovStabilityMeter:
             )
 
         summary = meter.assess_stability()
-        assert summary.mean_exponent < 0, f"收敛系统 λ 应 < 0, 实际 {summary.mean_exponent}"
+        assert (
+            summary.mean_exponent < 0
+        ), f"收敛系统 λ 应 < 0, 实际 {summary.mean_exponent}"
         assert summary.is_system_stable, f"收敛系统应稳定: {summary.assessment}"
 
     def test_diverging_system_is_unstable(self):
@@ -64,7 +67,9 @@ class TestLyapunovStabilityMeter:
             )
 
         summary = meter.assess_stability()
-        assert summary.mean_exponent > 0, f"发散系统 λ 应 > 0, 实际 {summary.mean_exponent}"
+        assert (
+            summary.mean_exponent > 0
+        ), f"发散系统 λ 应 > 0, 实际 {summary.mean_exponent}"
         assert not summary.is_system_stable
 
     def test_constant_system_is_marginal(self):
@@ -83,7 +88,9 @@ class TestLyapunovStabilityMeter:
             )
 
         summary = meter.assess_stability()
-        assert abs(summary.mean_exponent) < 0.5, f"恒定系统 λ 应 ≈ 0, 实际 {summary.mean_exponent}"
+        assert (
+            abs(summary.mean_exponent) < 0.5
+        ), f"恒定系统 λ 应 ≈ 0, 实际 {summary.mean_exponent}"
 
     def test_lyapunov_value_non_negative(self):
         """Lyapunov 值应非负."""
@@ -121,7 +128,7 @@ class TestLyapunovStabilityMeter:
         for i in range(5):
             meter.update(
                 timestamp=f"2026-08-{i+1:02d}",
-                ic=0.03 + 0.01 * (0.8 ** i),
+                ic=0.03 + 0.01 * (0.8**i),
                 daily_return=0.0,
             )
         path = tmp_path / "lyapunov_report.json"
@@ -140,6 +147,7 @@ class TestLyapunovStabilityMeter:
 # ============================================================
 # FeedbackPhaseAnalyzer 测试
 # ============================================================
+
 
 class TestFeedbackPhaseAnalyzer:
     """反馈延迟相位分析器测试."""
@@ -175,7 +183,6 @@ class TestFeedbackPhaseAnalyzer:
         measurement = analyzer.measure(
             timestamp="2026-08-19",
             detection_delay_hours=12.0,
-
             retrain_delay_hours=24.0,
             validation_delay_hours=12.0,
         )
@@ -216,6 +223,7 @@ class TestFeedbackPhaseAnalyzer:
 # ============================================================
 # VariationSelectionBalancer 测试
 # ============================================================
+
 
 class TestVariationSelectionBalancer:
     """变异-选择平衡器测试."""

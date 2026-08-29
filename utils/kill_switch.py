@@ -91,7 +91,11 @@ class KillSwitch:
             # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
-            return fallback_cfg.get("kill_switch", {}) if isinstance(fallback_cfg, dict) else {}
+            return (
+                fallback_cfg.get("kill_switch", {})
+                if isinstance(fallback_cfg, dict)
+                else {}
+            )
         except (ImportError, AttributeError, OSError, yaml.YAMLError) as e:
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
             try:
@@ -194,7 +198,9 @@ class KillSwitch:
         positions_file = project_root / "config" / "positions.json"
 
         if not positions_file.exists():
-            logger.warning(f"持仓文件不存在: {positions_file}, 使用保守保证金占用率 0.50")
+            logger.warning(
+                f"持仓文件不存在: {positions_file}, 使用保守保证金占用率 0.50"
+            )
             return None
 
         try:
@@ -231,17 +237,29 @@ class KillSwitch:
 
         # 检查是否存在真实期货持仓 (type=FUTURE)
         positions = data.get("positions", {})
-        has_real_futures = any(
-            isinstance(p, dict) and p.get("type", "").upper() == "FUTURE"
-            for p in positions.values()
-        ) if isinstance(positions, dict) else False
+        has_real_futures = (
+            any(
+                isinstance(p, dict) and p.get("type", "").upper() == "FUTURE"
+                for p in positions.values()
+            )
+            if isinstance(positions, dict)
+            else False
+        )
 
         # 无期货对冲模式 (OPTIONS_ONLY / COVERED_CALL_PUT_PROTECT / MULTI_STRATEGY_OPTIONS) 或 无真实期货持仓:
         # budget_summary.usage_pct 是期权权利金预算消耗进度 (正常 50-90%), 非保证金占用率.
         # 将其当作 margin_usage_ratio 会导致 L2 误触发 (82.5% > 75% 阈值).
-        no_futures_modes = ("OPTIONS_ONLY", "COVERED_CALL_PUT_PROTECT", "MULTI_STRATEGY_OPTIONS")
+        no_futures_modes = (
+            "OPTIONS_ONLY",
+            "COVERED_CALL_PUT_PROTECT",
+            "MULTI_STRATEGY_OPTIONS",
+        )
         if hedge_mode in no_futures_modes or not has_real_futures:
-            reason = f"{hedge_mode} 模式(无期货)" if hedge_mode in no_futures_modes else "无真实期货持仓"
+            reason = (
+                f"{hedge_mode} 模式(无期货)"
+                if hedge_mode in no_futures_modes
+                else "无真实期货持仓"
+            )
             logger.info(
                 "[KillSwitch] %s: 预算消耗 %.1f%% (非保证金占用), 跳过预算估算, 落入实际持仓估算",
                 reason,
@@ -268,7 +286,9 @@ class KillSwitch:
         total_hedge_capital = budget_summary.get("total_hedge_capital", hedge_capital)
         if total_put_premium is not None and total_hedge_capital:
             try:
-                ratio = max(0.0, min(1.0, float(total_put_premium) / float(total_hedge_capital)))
+                ratio = max(
+                    0.0, min(1.0, float(total_put_premium) / float(total_hedge_capital))
+                )
                 logger.info(
                     "[KillSwitch] 对冲预算估算保证金占用: "
                     "total_put_premium=¥%.0f, total_hedge_capital=¥%.0f, ratio=%.1f%%",
@@ -297,7 +317,9 @@ class KillSwitch:
         hedge_capital = float(data.get("meta", {}).get("hedge_capital", 2_000_000))
         positions = data.get("positions", {})
 
-        total_position_value, estimated_margin_usage = self._compute_position_margin(positions)
+        total_position_value, estimated_margin_usage = self._compute_position_margin(
+            positions
+        )
 
         if total_capital <= 0:
             logger.warning("total_capital <= 0, 使用保守保证金占用率 0.50")
@@ -422,7 +444,9 @@ class KillSwitch:
                 logger.warning(f"KILL_SWITCH_TOTAL_MARGIN 非法值: {env_margin}, 忽略")
 
         # 2. 从 kill_switch 配置读取 (self.config 来自 portfolio.yaml)
-        cfg_margin = self.config.get("total_margin") if isinstance(self.config, dict) else None
+        cfg_margin = (
+            self.config.get("total_margin") if isinstance(self.config, dict) else None
+        )
         if isinstance(cfg_margin, (int, float)) and cfg_margin > 0:
             return float(cfg_margin)
 
@@ -436,7 +460,13 @@ class KillSwitch:
                 total_capital = float(data.get("meta", {}).get("total_capital", 0))
                 if total_capital > 0:
                     return total_capital
-        except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError, OSError) as e:
+        except (
+            FileNotFoundError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            OSError,
+        ) as e:
             logger.debug(f"读取 positions.json total_capital 失败: {e}")
 
         # 4. 兼容默认值
@@ -535,7 +565,9 @@ class KillSwitch:
         # 兼容字段: can_trade / can_open / action
         can_trade = level < 2  # L0/L1 可交易(但不可开仓), L2+ 不可交易
         can_open = level == 0  # 仅正常状态可开仓
-        action_str = actions[0] if actions else ("正常" if level == 0 else f"L{level}熔断")
+        action_str = (
+            actions[0] if actions else ("正常" if level == 0 else f"L{level}熔断")
+        )
 
         result = {
             "timestamp": datetime.now().isoformat(),
@@ -671,8 +703,19 @@ class KillSwitch:
                 }
             )
             executed = True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # broker API 异常类型不可预知, 必须 fail-closed
-            logger.critical(f"Kill Switch L{level} broker callback 执行失败! 熔断协议未真正执行: {e}")
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # broker API 异常类型不可预知, 必须 fail-closed
+            logger.critical(
+                f"Kill Switch L{level} broker callback 执行失败! 熔断协议未真正执行: {e}"
+            )
             # P1-1 修复: callback 失败时, 将 pending 状态的 action 改为 failed
             for a in actions_taken:
                 if a.get("status") == "pending":
@@ -749,7 +792,12 @@ class KillSwitch:
             total_value += mv
 
         if total_value <= 0:
-            return {"level": "OK", "max_concentration": 0, "max_concentration_code": "", "action": "无持仓"}
+            return {
+                "level": "OK",
+                "max_concentration": 0,
+                "max_concentration_code": "",
+                "action": "无持仓",
+            }
 
         # 找最大集中度 (T01 FIX: 显式 float 类型, 避免 None 运算)
         max_code = max(pos_values, key=lambda k: pos_values.get(k, 0.0))
@@ -840,4 +888,6 @@ if __name__ == "__main__":
         history = ks.get_event_history(args.history)
         logger.info(f"\n最近 {args.history} 天熔断事件: {len(history)} 次")
         for r in history:
-            logger.info(f"  {r.get('timestamp', 'N/A')} - L{r.get('level', 0)} {r.get('level_name', '')}")
+            logger.info(
+                f"  {r.get('timestamp', 'N/A')} - L{r.get('level', 0)} {r.get('level_name', '')}"
+            )

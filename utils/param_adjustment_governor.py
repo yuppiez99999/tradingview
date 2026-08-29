@@ -170,11 +170,16 @@ class ParameterAdjustmentGovernor:
                 approved=False,
                 request=req,
                 rejection_code=RejectionCode.INVALID_REASON,
-                rejection_reason=(f"理由 '{req.reason}' 不在白名单 {sorted(valid_reasons)}"),
+                rejection_reason=(
+                    f"理由 '{req.reason}' 不在白名单 {sorted(valid_reasons)}"
+                ),
             )
 
         # 3. 证据要求 (除 MANUAL_OVERRIDE 外都需证据)
-        if self.require_evidence and req.reason != AdjustmentReason.MANUAL_OVERRIDE.value:
+        if (
+            self.require_evidence
+            and req.reason != AdjustmentReason.MANUAL_OVERRIDE.value
+        ):
             if not req.evidence:
                 return AdjustmentResult(
                     approved=False,
@@ -197,7 +202,8 @@ class ParameterAdjustmentGovernor:
                         f"参数 {req.param} 在冷却期内 (距上次调整 {elapsed} 天, "
                         f"需 {self.min_interval_days} 天, 还需 {cooldown_remaining} 天)"
                     ),
-                    effective_after=last.committed_at + timedelta(days=self.min_interval_days),
+                    effective_after=last.committed_at
+                    + timedelta(days=self.min_interval_days),
                 )
 
         # 5. 月度次数
@@ -207,7 +213,9 @@ class ParameterAdjustmentGovernor:
                 approved=False,
                 request=req,
                 rejection_code=RejectionCode.MONTHLY_LIMIT_EXCEEDED,
-                rejection_reason=(f"参数 {req.param} 本月已调整 {month_count} 次, 超过月度上限 {self.max_per_month}"),
+                rejection_reason=(
+                    f"参数 {req.param} 本月已调整 {month_count} 次, 超过月度上限 {self.max_per_month}"
+                ),
             )
 
         # 全部通过
@@ -254,7 +262,9 @@ class ParameterAdjustmentGovernor:
     # 回滚
     # ============================================================
 
-    def rollback(self, param: str, operator: str, reason: str = "rollback") -> AdjustmentRecord | None:
+    def rollback(
+        self, param: str, operator: str, reason: str = "rollback"
+    ) -> AdjustmentRecord | None:
         """回滚到上一个参数值.
 
         Args:
@@ -304,7 +314,9 @@ class ParameterAdjustmentGovernor:
             return list(self._history)
         return [r for r in self._history if r.param == param]
 
-    def get_cooldown_status(self, param: str, now: datetime | None = None) -> dict[str, Any]:
+    def get_cooldown_status(
+        self, param: str, now: datetime | None = None
+    ) -> dict[str, Any]:
         """查询参数的冷却状态"""
         now = now or datetime.now()
         last = self._last_adjustment(param)

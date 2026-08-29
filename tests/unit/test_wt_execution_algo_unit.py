@@ -133,7 +133,9 @@ class TestMinImpactExecutor:
     def test_calculate_large_order_splits(self):
         """大单 → 多笔拆分"""
         e = MinImpactExecutor(min_order_size=100)
-        orders = e.calculate_optimal_splits(10_000_000, 10, avg_daily_volume=1_000_000, volatility=0.02)
+        orders = e.calculate_optimal_splits(
+            10_000_000, 10, avg_daily_volume=1_000_000, volatility=0.02
+        )
         assert len(orders) >= 1
         total_qty = sum(o["qty"] for o in orders)
         assert total_qty == 1_000_000  # 10M / 10
@@ -175,7 +177,6 @@ class TestMinImpactExecutor:
         assert result["total_qty"] == 0
         assert result["num_orders"] == 0
         assert result["slippage_pct"] == 0.0
-
 
 
 # ============================================================
@@ -387,7 +388,9 @@ class TestConvenienceFunctions:
     """split_order / compare_execution / execute_order_with_algorithm 测试"""
 
     def test_split_order(self):
-        orders = split_order(1_000_000, 10, algorithm="min_impact", avg_daily_volume=1_000_000)
+        orders = split_order(
+            1_000_000, 10, algorithm="min_impact", avg_daily_volume=1_000_000
+        )
         assert len(orders) >= 1
 
     def test_split_order_twap(self):
@@ -401,7 +404,9 @@ class TestConvenienceFunctions:
 
     def test_execute_order_with_algorithm(self):
         with patch("utils.wt_execution_algo.time.sleep"):
-            result = execute_order_with_algorithm(1_000_000, 10, algorithm="min_impact", avg_daily_volume=1_000_000)
+            result = execute_order_with_algorithm(
+                1_000_000, 10, algorithm="min_impact", avg_daily_volume=1_000_000
+            )
         assert "algorithm" in result
         assert "orders" in result
         assert "simulation" in result

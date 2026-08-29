@@ -200,11 +200,22 @@ class VibeBacktestBridge:
             )
 
         try:
-            result = self._execute_backtest(factor_ids, symbols, start_date, end_date, price_data)
+            result = self._execute_backtest(
+                factor_ids, symbols, start_date, end_date, price_data
+            )
             if self.config.audit_enabled and result.status == "success":
                 self._write_audit(result)
             return result
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 回测 fail-safe, 不阻断主流程
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # 回测 fail-safe, 不阻断主流程
             logger.error("Vibe 回测失败: %s", e)
             logger.debug(traceback.format_exc())
             return VibeBacktestResult(
@@ -297,7 +308,16 @@ class VibeBacktestBridge:
                 for date in df.index:
                     date_str = str(date.date()) if hasattr(date, "date") else str(date)
                     scores.setdefault(date_str, {})[symbol] = composite
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 因子计算 fail-safe
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # 因子计算 fail-safe
                 logger.warning("[%s] 因子计算失败: %s", symbol, e)
                 continue
 
@@ -382,7 +402,13 @@ class VibeBacktestBridge:
                     cost_bps = self.config.commission_bps + self.config.slippage_bps
                     if weight < prev_weight:  # 卖出
                         cost_bps += self.config.stamp_duty_bps
-                    total_cost += turnover * abs(weight) * self.config.initial_capital * cost_bps / 10000
+                    total_cost += (
+                        turnover
+                        * abs(weight)
+                        * self.config.initial_capital
+                        * cost_bps
+                        / 10000
+                    )
                     n_trades += 1
 
             daily_returns[date_str] = day_return
@@ -474,7 +500,13 @@ class VibeBacktestBridge:
         if vibe_result.status != "success":
             return {"status": "vibe_not_success", "deviation_pct": float("inf")}
 
-        metrics = ["total_return", "annual_return", "max_drawdown", "sharpe_ratio", "win_rate"]
+        metrics = [
+            "total_return",
+            "annual_return",
+            "max_drawdown",
+            "sharpe_ratio",
+            "win_rate",
+        ]
         comparison: dict[str, float] = {}
 
         for metric in metrics:
@@ -528,5 +560,17 @@ class VibeBacktestBridge:
                 "adapter_failed": adapter_health.get("failed", 0),
                 "benchmark": self.config.benchmark,
             }
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 健康检查 fail-safe
-            return {"flag_enabled": is_enabled("USE_VIBE_BACKTEST_BRIDGE"), "error": str(e)}
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # 健康检查 fail-safe
+            return {
+                "flag_enabled": is_enabled("USE_VIBE_BACKTEST_BRIDGE"),
+                "error": str(e),
+            }

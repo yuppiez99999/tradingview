@@ -60,7 +60,12 @@ def _load_observation_days_required() -> int:
         with open(SHADOW_ADMISSION_YAML, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
         settings = cfg.get("settings", {})
-        return int(settings.get("observation_days", settings.get("min_observation_days", OBSERVATION_DAYS_REQUIRED)))
+        return int(
+            settings.get(
+                "observation_days",
+                settings.get("min_observation_days", OBSERVATION_DAYS_REQUIRED),
+            )
+        )
     except (OSError, Exception):
         return OBSERVATION_DAYS_REQUIRED
 
@@ -72,8 +77,10 @@ OBSERVATION_DAYS_REQUIRED = _load_observation_days_required()
 # 数据结构
 # ============================================================
 
+
 class PhaseBStage(Enum):
     """阶段 B 进度阶段."""
+
     WAITING_OBSERVATION = "waiting_observation"  # 等待观察期满
     STAGE_0_READY = "ready"  # 观察期满, 待启用
     STAGE_1_DRIFT_MONITOR = "drift_monitor"  # DriftMonitor 只读监控
@@ -87,6 +94,7 @@ class PhaseBStage(Enum):
 @dataclass
 class PhaseBStatus:
     """阶段 B 状态快照."""
+
     stage: str = "waiting_observation"
     observation_start: str = "2026-07-23"
     observation_days_completed: int = 0
@@ -135,9 +143,11 @@ class PhaseBStatus:
 # Phase B shadow 连续稳定天数守卫 (v8.7 Sprint 1 门禁)
 # ============================================================
 
+
 @dataclass(frozen=True)
 class DailyHealthVerdict:
     """当日 shadow 健康三元判定结果."""
+
     date: str
     healthy: bool
     reason: str
@@ -145,7 +155,9 @@ class DailyHealthVerdict:
     cumulative_stable_days: int = 0
 
 
-_SHADOW_DAILY_HEALTH_LOG = PROJECT_ROOT / "reports" / "evolution" / "shadow_daily_health.jsonl"
+_SHADOW_DAILY_HEALTH_LOG = (
+    PROJECT_ROOT / "reports" / "evolution" / "shadow_daily_health.jsonl"
+)
 _KILL_SWITCH_STATE = PROJECT_ROOT / "reports" / "evolution" / "kill_switch_state.json"
 _HONEST_VALIDATION_DIR = PROJECT_ROOT / "reports" / "honest_validation"
 
@@ -156,9 +168,17 @@ def _check_kill_switch_inactive(date: str) -> tuple[bool, str]:
         return True, ""
     try:
         data = json.loads(_KILL_SWITCH_STATE.read_text(encoding="utf-8"))
-        for flag_name in ("USE_DRIFT_DETECTOR", "USE_FEEDBACK_LOOP", "USE_AUTO_RETRAIN", "USE_MLOPS_PIPELINE"):
+        for flag_name in (
+            "USE_DRIFT_DETECTOR",
+            "USE_FEEDBACK_LOOP",
+            "USE_AUTO_RETRAIN",
+            "USE_MLOPS_PIPELINE",
+        ):
             flag_state = data.get(flag_name, {})
-            if isinstance(flag_state, dict) and flag_state.get("triggered_date") == date:
+            if (
+                isinstance(flag_state, dict)
+                and flag_state.get("triggered_date") == date
+            ):
                 return False, f"kill_switch_triggered:{flag_name}"
         return True, ""
     except Exception:
@@ -179,7 +199,9 @@ def _check_no_lookahead_bias(date: str) -> tuple[bool, str]:
         return True, ""
 
 
-def evaluate_daily_shadow_health(date: str, min_samples: int = 20) -> DailyHealthVerdict:
+def evaluate_daily_shadow_health(
+    date: str, min_samples: int = 20
+) -> DailyHealthVerdict:
     """当日 shadow 健康三元判定.
 
     三维度皆绿方判健康:
@@ -188,7 +210,9 @@ def evaluate_daily_shadow_health(date: str, min_samples: int = 20) -> DailyHealt
         ③ Honest Validation 当日无前视偏差告警
     """
     if not OBSERVATION_DATA.exists():
-        return DailyHealthVerdict(date=date, healthy=False, reason="shadow_data_missing")
+        return DailyHealthVerdict(
+            date=date, healthy=False, reason="shadow_data_missing"
+        )
 
     daily_return = 0.0
     found = False
@@ -211,23 +235,36 @@ def evaluate_daily_shadow_health(date: str, min_samples: int = 20) -> DailyHealt
         return DailyHealthVerdict(date=date, healthy=False, reason="parse_error")
 
     if total_samples < min_samples:
-        return DailyHealthVerdict(date=date, healthy=False, reason="sample_insufficient", daily_return=daily_return)
+        return DailyHealthVerdict(
+            date=date,
+            healthy=False,
+            reason="sample_insufficient",
+            daily_return=daily_return,
+        )
 
     if not found:
         return DailyHealthVerdict(date=date, healthy=False, reason="no_daily_return")
 
     ks_ok, ks_reason = _check_kill_switch_inactive(date)
     if not ks_ok:
-        return DailyHealthVerdict(date=date, healthy=False, reason=ks_reason, daily_return=daily_return)
+        return DailyHealthVerdict(
+            date=date, healthy=False, reason=ks_reason, daily_return=daily_return
+        )
 
     lb_ok, lb_reason = _check_no_lookahead_bias(date)
     if not lb_ok:
-        return DailyHealthVerdict(date=date, healthy=False, reason=lb_reason, daily_return=daily_return)
+        return DailyHealthVerdict(
+            date=date, healthy=False, reason=lb_reason, daily_return=daily_return
+        )
 
-    return DailyHealthVerdict(date=date, healthy=True, reason="ok", daily_return=daily_return)
+    return DailyHealthVerdict(
+        date=date, healthy=True, reason="ok", daily_return=daily_return
+    )
 
 
-def update_stable_days(status: PhaseBStatus, verdict: DailyHealthVerdict) -> PhaseBStatus:
+def update_stable_days(
+    status: PhaseBStatus, verdict: DailyHealthVerdict
+) -> PhaseBStatus:
     """连续稳定天数计数器 (异常归零).
 
     健康 +1, 异常归零, 持久化到 phase_b_status.json.
@@ -253,24 +290,31 @@ def update_stable_days(status: PhaseBStatus, verdict: DailyHealthVerdict) -> Pha
     else:
         status.consecutive_stable_days = 0
 
-    status.daily_health_log.append({
-        "date": verdict.date,
-        "healthy": verdict.healthy,
-        "reason": verdict.reason,
-        "daily_return": verdict.daily_return,
-        "cumulative_stable_days": status.consecutive_stable_days,
-    })
-
+    status.daily_health_log.append(
+        {
+            "date": verdict.date,
+            "healthy": verdict.healthy,
+            "reason": verdict.reason,
+            "daily_return": verdict.daily_return,
+            "cumulative_stable_days": status.consecutive_stable_days,
+        }
+    )
 
     try:
         with _SHADOW_DAILY_HEALTH_LOG.open("a", encoding="utf-8") as f:
-            f.write(json.dumps({
-                "date": verdict.date,
-                "healthy": verdict.healthy,
-                "reason": verdict.reason,
-                "daily_return": verdict.daily_return,
-                "cumulative_stable_days": status.consecutive_stable_days,
-            }, ensure_ascii=False) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "date": verdict.date,
+                        "healthy": verdict.healthy,
+                        "reason": verdict.reason,
+                        "daily_return": verdict.daily_return,
+                        "cumulative_stable_days": status.consecutive_stable_days,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
     except Exception:
         pass
 
@@ -280,15 +324,22 @@ def update_stable_days(status: PhaseBStatus, verdict: DailyHealthVerdict) -> Pha
 def generate_shadow_stable_report(status: PhaseBStatus) -> Path:
     """生成 Phase B shadow 7 天稳定达标报告."""
     from datetime import datetime
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_dir = PROJECT_ROOT / "reports" / "shadow"
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"shadow_stable_7d_report_{timestamp}.json"
 
-    daily_records = status.daily_health_log[-7:] if len(status.daily_health_log) >= 7 else status.daily_health_log
+    daily_records = (
+        status.daily_health_log[-7:]
+        if len(status.daily_health_log) >= 7
+        else status.daily_health_log
+    )
     stable_days = status.consecutive_stable_days
     target_met = stable_days >= status.stable_days_target
-    sprint1_admission = target_met and len(status.daily_health_log) >= status.min_shadow_samples
+    sprint1_admission = (
+        target_met and len(status.daily_health_log) >= status.min_shadow_samples
+    )
 
     report = {
         "generated_at": datetime.now().isoformat(),
@@ -303,13 +354,16 @@ def generate_shadow_stable_report(status: PhaseBStatus) -> Path:
         },
     }
 
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    report_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     return report_path
 
 
 # ============================================================
 # 进度计算
 # ============================================================
+
 
 def _count_observation_days() -> int:
     """从 daily_returns.jsonl 计算观察期累计天数."""
@@ -329,7 +383,16 @@ def _count_observation_days() -> int:
                         seen_dates.add(str(date_val)[:10])
                 except json.JSONDecodeError:
                     continue
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         pass
     return len(seen_dates)
@@ -342,7 +405,16 @@ def _load_phase_b_status() -> PhaseBStatus:
             with STATUS_PATH.open("r", encoding="utf-8") as f:
                 data = json.load(f)
             return PhaseBStatus.from_dict(data)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
     return PhaseBStatus()
@@ -458,7 +530,16 @@ def _check_stage_health(status: PhaseBStatus) -> tuple[bool, str]:
                             recent_errors += 1
                     except json.JSONDecodeError:
                         continue
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
 
@@ -547,7 +628,11 @@ def _read_b2_shadow_warmup() -> tuple[int, bool]:
         data = json.loads(_B2_SHADOW_STATUS_FILE.read_text(encoding="utf-8"))
         warmup = int(data.get("warmup_days", 0))
         history = data.get("history", [])
-        all_go = all("Go" in str(h.get("suggestion", "")) for h in history) if history else False
+        all_go = (
+            all("Go" in str(h.get("suggestion", "")) for h in history)
+            if history
+            else False
+        )
         return warmup, all_go
     except (ValueError, TypeError, KeyError, OSError):
         return 0, False
@@ -569,7 +654,16 @@ def _get_flag_state(flag_name: str) -> bool:
         evolution = data.get("evolution", data)
         feature_flags = evolution.get("feature_flags", {})
         return bool(feature_flags.get(flag_name, False))
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return False
 
@@ -616,7 +710,16 @@ def _sync_flags_to_system_config(flags: dict[str, bool]) -> tuple[bool, str]:
             logger.info("Flag 已同步到 system_config.json: %s", applied)
             return True, f"已落盘 {len(applied)} 个 flag 变更: {applied}"
         return True, "flag 状态无变化, 无需落盘"
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         return False, f"同步 flag 失败: {e}"
 
 
@@ -655,7 +758,12 @@ def _apply_flags_to_runtime(flags: dict[str, bool], reason: str) -> tuple[bool, 
                 continue
             try:
                 if want:
-                    ff.enable(flag_name, signer=_ENABLER_SIGNER, co_signer=_ENABLER_CO_SIGNER, reason=reason)
+                    ff.enable(
+                        flag_name,
+                        signer=_ENABLER_SIGNER,
+                        co_signer=_ENABLER_CO_SIGNER,
+                        reason=reason,
+                    )
                 else:
                     ff.disable(flag_name, signer=_ENABLER_SIGNER, reason=reason)
                 applied[flag_name] = want
@@ -663,7 +771,10 @@ def _apply_flags_to_runtime(flags: dict[str, bool], reason: str) -> tuple[bool, 
                 skipped.append(f"{flag_name}({e})")
 
         if skipped:
-            return False, f"部分 flag 失败: {', '.join(skipped)}; 已应用: {applied or '无'}"
+            return (
+                False,
+                f"部分 flag 失败: {', '.join(skipped)}; 已应用: {applied or '无'}",
+            )
         if applied:
             return True, f"运行时已应用 {len(applied)} 个 flag: {applied}"
         return True, "运行时 flag 已一致, 无需变更"
@@ -673,7 +784,9 @@ def _apply_flags_to_runtime(flags: dict[str, bool], reason: str) -> tuple[bool, 
         return False, f"运行时 flag 应用失败: {e}"
 
 
-def _execute_flag_decisions(flags: dict[str, bool], reason: str) -> tuple[bool, list[str]]:
+def _execute_flag_decisions(
+    flags: dict[str, bool], reason: str
+) -> tuple[bool, list[str]]:
     """决策→执行总入口: 同时落盘运行时覆盖层 + system_config 快照.
 
     Returns:
@@ -691,6 +804,7 @@ def _execute_flag_decisions(flags: dict[str, bool], reason: str) -> tuple[bool, 
 # ============================================================
 # 命令处理
 # ============================================================
+
 
 def cmd_check() -> int:
     """检查当前阶段 B 状态."""
@@ -750,14 +864,17 @@ def cmd_advance() -> int:
             status.stage = PhaseBStage.STAGE_0_READY.value
             status.current_stage_start = datetime.now().strftime("%Y-%m-%d")
             status.current_stage_days = 0
-            status.notes.append(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 观察期满, 进入 Ready 状态")
+            status.notes.append(
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 观察期满, 进入 Ready 状态"
+            )
             _save_phase_b_status(status)
             print("[OK] 观察期已满 → Stage 0 (Ready)")
             return 0
-        else:
-            need = status.observation_days_required - obs_days
-            print(f"[WAIT] 观察期 {obs_days}/{status.observation_days_required} 天, 还需 {need} 天")
-            return 1
+        need = status.observation_days_required - obs_days
+        print(
+            f"[WAIT] 观察期 {obs_days}/{status.observation_days_required} 天, 还需 {need} 天"
+        )
+        return 1
 
     # 2) 如果处于就绪状态 → 启动 Stage 1
     if status.stage == PhaseBStage.STAGE_0_READY.value:
@@ -768,19 +885,27 @@ def cmd_advance() -> int:
         status.stage = PhaseBStage.STAGE_1_DRIFT_MONITOR.value
         status.current_stage_start = datetime.now().strftime("%Y-%m-%d")
         status.current_stage_days = 0
-        status.flags_enabled = STAGE_FLAGS.get(PhaseBStage.STAGE_1_DRIFT_MONITOR.value, {})
+        status.flags_enabled = STAGE_FLAGS.get(
+            PhaseBStage.STAGE_1_DRIFT_MONITOR.value, {}
+        )
         # v8.7 修复: 决策→执行闭环 — 先落盘 flag 再提交状态, 失败则还原 (fail-close)
-        ok_exec, exec_msgs = _execute_flag_decisions(status.flags_enabled, "Phase B 启动 Stage 1 DriftMonitor")
+        ok_exec, exec_msgs = _execute_flag_decisions(
+            status.flags_enabled, "Phase B 启动 Stage 1 DriftMonitor"
+        )
         if not ok_exec:
             status.stage = PhaseBStage.STAGE_0_READY.value
             status.flags_enabled = {}
             ts = datetime.now().strftime("%Y-%m-%d %H:%M")
-            status.notes.append(f"[{ts}] 启动 Stage 1 失败 (flag 落盘失败): {'; '.join(exec_msgs)}")
+            status.notes.append(
+                f"[{ts}] 启动 Stage 1 失败 (flag 落盘失败): {'; '.join(exec_msgs)}"
+            )
             _save_phase_b_status(status)
             print(f"[FAIL] 启动中止 — flag 落盘失败: {'; '.join(exec_msgs)}")
             return 1
         ts = datetime.now().strftime("%Y-%m-%d %H:%M")
-        status.notes.append(f"[{ts}] 启动 Stage 1: DriftMonitor 只读监控; {'; '.join(exec_msgs)}")
+        status.notes.append(
+            f"[{ts}] 启动 Stage 1: DriftMonitor 只读监控; {'; '.join(exec_msgs)}"
+        )
         _save_phase_b_status(status)
         print("[OK] → Stage 1: DriftMonitor 只读监控")
         print(f"     Flags 已设置: {status.flags_enabled}")
@@ -817,7 +942,9 @@ def cmd_advance() -> int:
     status.flags_enabled.update(new_flags)
     # v8.7 修复: 决策→执行闭环 — 推进前先落盘 flag (运行时覆盖层 + system_config 快照),
     # 失败则还原状态并中止 (fail-close: 决策路径不静默降级)
-    ok_exec, exec_msgs = _execute_flag_decisions(status.flags_enabled, f"Phase B 推进到 {next_stage}")
+    ok_exec, exec_msgs = _execute_flag_decisions(
+        status.flags_enabled, f"Phase B 推进到 {next_stage}"
+    )
     if not ok_exec:
         status.stage = _prev_stage(next_stage)
         status.current_stage_start = datetime.now().strftime("%Y-%m-%d")
@@ -825,7 +952,9 @@ def cmd_advance() -> int:
         for k in new_flags:
             status.flags_enabled.pop(k, None)
         ts = datetime.now().strftime("%Y-%m-%d %H:%M")
-        status.notes.append(f"[{ts}] 推进到 {next_stage} 失败 (flag 落盘失败): {'; '.join(exec_msgs)}")
+        status.notes.append(
+            f"[{ts}] 推进到 {next_stage} 失败 (flag 落盘失败): {'; '.join(exec_msgs)}"
+        )
         _save_phase_b_status(status)
         print(f"[FAIL] 推进中止 — flag 落盘失败: {'; '.join(exec_msgs)}")
         return 1
@@ -871,7 +1000,9 @@ def cmd_rollback() -> int:
         "USE_FINENG_PATH_SIM": False,
     }
     ok_exec, exec_msgs = _execute_flag_decisions(rollback_flags, "Phase B 紧急回滚")
-    status.notes.append(f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 回滚执行: {'; '.join(exec_msgs)}")
+    status.notes.append(
+        f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 回滚执行: {'; '.join(exec_msgs)}"
+    )
     _save_phase_b_status(status)
     print("[ROLLBACK] 所有进化 Feature Flag 已关闭")
     print(f"     Flags: {status.flags_enabled}")
@@ -906,7 +1037,9 @@ def cmd_sync_flags() -> int:
         print(f"[BLOCK] kill_switch 当日已触发 ({ks_msg}), 拒绝对账执行")
         return 1
 
-    print(f"[SYNC] 对账 {len(status.flags_enabled)} 个已决策 flags (stage={status.stage}):")
+    print(
+        f"[SYNC] 对账 {len(status.flags_enabled)} 个已决策 flags (stage={status.stage}):"
+    )
     for name, val in sorted(status.flags_enabled.items()):
         print(f"    {name} = {val}")
 
@@ -949,16 +1082,20 @@ def cmd_auto() -> int:
         try:
             verdict = evaluate_daily_shadow_health(today)
             status = update_stable_days(status, verdict)
-            print(f"[AUTO] 健康检查 {today}: healthy={verdict.healthy}, reason={verdict.reason}, "
-                  f"stable_days={status.consecutive_stable_days}/{status.stable_days_target}")
+            print(
+                f"[AUTO] 健康检查 {today}: healthy={verdict.healthy}, reason={verdict.reason}, "
+                f"stable_days={status.consecutive_stable_days}/{status.stable_days_target}"
+            )
         except Exception as e:
             print(f"[AUTO] 健康检查异常: {e}")
 
     _save_phase_b_status(status)
 
     # 自动推进逻辑
-    if status.stage in (PhaseBStage.WAITING_OBSERVATION.value,
-                         PhaseBStage.STAGE_0_READY.value):
+    if status.stage in (
+        PhaseBStage.WAITING_OBSERVATION.value,
+        PhaseBStage.STAGE_0_READY.value,
+    ):
         return cmd_advance()
 
     # 检查是否可以推进
@@ -969,12 +1106,10 @@ def cmd_auto() -> int:
             print(f"[AUTO] 阶段 {status.stage} 健康, 可推进到 {next_stage}")
             print("    执行: py scripts/phase_b_progressive_enabler.py --advance")
             return 0
-        else:
-            print(f"[AUTO] 已在最终阶段 ({status.stage}), 无需推进")
-            return 0
-    else:
-        print(f"[AUTO] 暂不推进: {health_msg}")
+        print(f"[AUTO] 已在最终阶段 ({status.stage}), 无需推进")
         return 0
+    print(f"[AUTO] 暂不推进: {health_msg}")
+    return 0
 
 
 def _estimate_start_date(remaining_days: int) -> str:
@@ -992,26 +1127,32 @@ def _estimate_start_date(remaining_days: int) -> str:
 # CLI
 # ============================================================
 
+
 def main() -> int:
     import argparse
+
     parser = argparse.ArgumentParser(description="阶段 B 渐进启用调度器")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--check", action="store_true", help="检查当前阶段 B 状态")
     group.add_argument("--advance", action="store_true", help="尝试推进到下一阶段")
     group.add_argument("--rollback", action="store_true", help="紧急回滚全部 Flag")
     group.add_argument("--auto", action="store_true", help="每日自动调度 (定时任务)")
-    group.add_argument("--sync-flags", action="store_true", help="把已决策 flags 对账执行到运行时 (幂等)")
+    group.add_argument(
+        "--sync-flags",
+        action="store_true",
+        help="把已决策 flags 对账执行到运行时 (幂等)",
+    )
     args = parser.parse_args()
 
     if args.check:
         return cmd_check()
-    elif args.advance:
+    if args.advance:
         return cmd_advance()
-    elif args.rollback:
+    if args.rollback:
         return cmd_rollback()
-    elif args.auto:
+    if args.auto:
         return cmd_auto()
-    elif args.sync_flags:
+    if args.sync_flags:
         return cmd_sync_flags()
     return 0
 

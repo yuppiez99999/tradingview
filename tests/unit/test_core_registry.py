@@ -15,6 +15,7 @@
     - TestTrackPerformanceDecorator: 装饰器行为
     - TestStrategyRegistrySingleton: 单例模式
 """
+
 from __future__ import annotations
 
 import sys
@@ -41,6 +42,7 @@ from utils.infra.core import (  # noqa: E402
 # ============================================================
 class DummyStrategy:
     """测试用策略 (无参构造)."""
+
     name = "dummy"
 
     def __init__(self) -> None:
@@ -52,12 +54,14 @@ class DummyStrategy:
 
 class AnotherStrategy:
     """另一个测试用策略."""
+
     def __init__(self) -> None:
         self.name = "another"
 
 
 class FailingStrategy:
     """构造会抛异常的策略."""
+
     def __init__(self) -> None:
         raise RuntimeError("intentional failure")
 
@@ -116,14 +120,18 @@ class TestStrategyRegistryBasic(unittest.TestCase):
 
     def test_get_metadata(self) -> None:
         """测试: get_metadata 返回元数据."""
-        self.reg.register("dummy", DummyStrategy, metadata={
-            "description": "test strategy",
-            "version": "2.0.0",
-            "author": "tester",
-            "capital": 500_000,
-            "max_weight": 0.30,
-            "min_weight": 0.10,
-        })
+        self.reg.register(
+            "dummy",
+            DummyStrategy,
+            metadata={
+                "description": "test strategy",
+                "version": "2.0.0",
+                "author": "tester",
+                "capital": 500_000,
+                "max_weight": 0.30,
+                "min_weight": 0.10,
+            },
+        )
         meta = self.reg.get_metadata("dummy")
         self.assertEqual(meta.name, "dummy")
         self.assertEqual(meta.description, "test strategy")
@@ -257,7 +265,9 @@ class TestPerformanceRecord(unittest.TestCase):
     def test_record_call_tracks_errors(self) -> None:
         """测试: _record_call 记录异常."""
         self.reg.register("dummy", DummyStrategy)
-        self.reg._record_call("dummy", latency_ms=5.0, success=False, error_msg="RuntimeError: test")
+        self.reg._record_call(
+            "dummy", latency_ms=5.0, success=False, error_msg="RuntimeError: test"
+        )
         perf = self.reg.get_performance("dummy")
         self.assertEqual(perf.errors_count, 1)
         self.assertIn("test", perf.last_error)
@@ -265,12 +275,15 @@ class TestPerformanceRecord(unittest.TestCase):
     def test_update_metrics(self) -> None:
         """测试: update_metrics 更新业务指标."""
         self.reg.register("dummy", DummyStrategy)
-        self.reg.update_metrics("dummy", {
-            "pnl_total": 10000.0,
-            "sharpe_ratio": 1.5,
-            "max_drawdown": 0.08,
-            "ic_ir": 0.42,
-        })
+        self.reg.update_metrics(
+            "dummy",
+            {
+                "pnl_total": 10000.0,
+                "sharpe_ratio": 1.5,
+                "max_drawdown": 0.08,
+                "ic_ir": 0.42,
+            },
+        )
         perf = self.reg.get_performance("dummy")
         self.assertEqual(perf.pnl_total, 10000.0)
         self.assertEqual(perf.sharpe_ratio, 1.5)
@@ -474,7 +487,10 @@ class TestRegisterDecorator(unittest.TestCase):
 
     def test_register_decorator_registers_class(self) -> None:
         """测试: @StrategyRegistry.register_decorator 注册类."""
-        @StrategyRegistry.register_decorator("decorated_strategy", metadata={"capital": 200_000})
+
+        @StrategyRegistry.register_decorator(
+            "decorated_strategy", metadata={"capital": 200_000}
+        )
         class DecoratedStrategy:
             def __init__(self) -> None:
                 self.name = "decorated"

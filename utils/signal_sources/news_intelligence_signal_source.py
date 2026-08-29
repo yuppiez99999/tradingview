@@ -21,6 +21,7 @@
 - confidence < min_confidence 时自动降权 (返回 confidence=0, action=HOLD)
 - 采集失败/LLM 不可用时返回中性 SignalResult (score=0.5, confidence=0)
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,6 +30,7 @@ from typing import Any, Optional
 
 try:
     from ..logging_manager import get_logger
+
     logger = get_logger("news_intelligence_signal_source")
 except ImportError:
     logger = logging.getLogger("news_intelligence_signal_source")
@@ -58,6 +60,7 @@ DEFAULT_ARTICLE_LIMIT: int = 20
 # ============================================================
 # 新闻智能信号源
 # ============================================================
+
 
 class NewsIntelligenceSignalSource:
     """新闻智能信号源 — 适配 SignalFusionEngine.register_source 的 getter 签名
@@ -98,7 +101,9 @@ class NewsIntelligenceSignalSource:
         if self._engine is not None:
             return self._engine
         if NewsIntelligenceEngine is None:
-            raise RuntimeError("NewsIntelligenceEngine 未导入, 检查 utils.news_intelligence")
+            raise RuntimeError(
+                "NewsIntelligenceEngine 未导入, 检查 utils.news_intelligence"
+            )
         try:
             self._engine = NewsIntelligenceEngine(
                 lookback_days=self.lookback_days,
@@ -137,7 +142,14 @@ class NewsIntelligenceSignalSource:
             if report is None:
                 return self._neutral_signal(code, "引擎返回空报告")
             return self._to_signal_result(report)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.debug("news_intel 信号获取异常 code=%s: %s", code, e)
             return self._neutral_signal(code, f"获取异常: {e}")
 

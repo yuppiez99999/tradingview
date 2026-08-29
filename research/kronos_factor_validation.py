@@ -34,6 +34,7 @@ Kronos 因子有效性验证脚本 (阶段 1: 研究验证)
     ├── kronos_ic_timeseries.csv      # IC 时间序列
     └── kronos_validation.log         # 运行日志
 """
+
 from __future__ import annotations
 
 import argparse
@@ -53,8 +54,12 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 for _proxy_key in [
-    "HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
-    "ICUBE_PROXY_HOST", "ICUBE_PROXY_PORT",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "ICUBE_PROXY_HOST",
+    "ICUBE_PROXY_PORT",
 ]:
     os.environ[_proxy_key] = ""
 os.environ["NO_PROXY"] = "*"
@@ -62,8 +67,18 @@ os.environ["no_proxy"] = "*"
 
 try:
     import requests as _requests
+
     _requests.adapters.DEFAULT_RETRIES = 2
-except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+except (
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    RuntimeError,
+    OSError,
+    TimeoutError,
+    ConnectionError,
+):
     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     pass
 
@@ -72,8 +87,18 @@ os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 try:
     import huggingface_hub
+
     huggingface_hub.constants.HF_HUB_DISABLE_PROGRESS_BARS = True
-except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+except (
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    RuntimeError,
+    OSError,
+    TimeoutError,
+    ConnectionError,
+):
     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     pass
 
@@ -112,9 +137,11 @@ def setup_logging(log_dir: Path) -> None:
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class KronosFactorResult:
     """Kronos 因子验证结果"""
+
     factor_name: str
     model_size: str
     ic_mean: float = 0.0
@@ -137,6 +164,7 @@ class KronosFactorResult:
 @dataclass
 class KronosValidationReport:
     """完整验证报告"""
+
     generation_time: str
     model_sizes_tested: list[str]
     symbols: list[str]
@@ -156,6 +184,7 @@ class KronosValidationReport:
 # ============================================================
 # Kronos 模型封装 (延迟加载, 失败安全)
 # ============================================================
+
 
 class KronosModelWrapper:
     """Kronos 模型封装，支持延迟加载和失败安全
@@ -201,9 +230,21 @@ class KronosModelWrapper:
                 from model import Kronos, KronosPredictor, KronosTokenizer
 
             model_name_map = {
-                "mini": ("NeoQuasar/Kronos-Tokenizer-2k", "NeoQuasar/Kronos-mini", 2048),
-                "small": ("NeoQuasar/Kronos-Tokenizer-base", "NeoQuasar/Kronos-small", 512),
-                "base": ("NeoQuasar/Kronos-Tokenizer-base", "NeoQuasar/Kronos-base", 512),
+                "mini": (
+                    "NeoQuasar/Kronos-Tokenizer-2k",
+                    "NeoQuasar/Kronos-mini",
+                    2048,
+                ),
+                "small": (
+                    "NeoQuasar/Kronos-Tokenizer-base",
+                    "NeoQuasar/Kronos-small",
+                    512,
+                ),
+                "base": (
+                    "NeoQuasar/Kronos-Tokenizer-base",
+                    "NeoQuasar/Kronos-base",
+                    512,
+                ),
             }
             tok_name, model_name, max_ctx = model_name_map.get(
                 self.model_size, model_name_map["small"]
@@ -217,6 +258,7 @@ class KronosModelWrapper:
             self._model = Kronos.from_pretrained(model_name)
 
             import torch
+
             if self.device == "auto":
                 dev = "cuda" if torch.cuda.is_available() else "cpu"
             else:
@@ -234,7 +276,16 @@ class KronosModelWrapper:
                 f"(耗时 {self._init_time:.0f}ms, 设备: {dev})"
             )
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._available = False
@@ -252,8 +303,14 @@ class KronosModelWrapper:
 
         try:
             subprocess.run(
-                ["git", "clone", "--depth", "1",
-                 "https://github.com/shiyu-coder/Kronos.git", str(tmp_dir)],
+                [
+                    "git",
+                    "clone",
+                    "--depth",
+                    "1",
+                    "https://github.com/shiyu-coder/Kronos.git",
+                    str(tmp_dir),
+                ],
                 check=True,
                 timeout=120,
             )
@@ -264,8 +321,7 @@ class KronosModelWrapper:
             if req_file.exists():
                 LOGGER.info("安装 Kronos 依赖 (仅新增缺失包)...")
                 subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "-q",
-                     "-r", str(req_file)],
+                    [sys.executable, "-m", "pip", "install", "-q", "-r", str(req_file)],
                     timeout=300,
                 )
             LOGGER.info("Kronos 克隆安装完成")
@@ -311,21 +367,31 @@ class KronosModelWrapper:
             input_df = input_df.reset_index()
             if "date" in input_df.columns:
                 x_timestamp = input_df["date"]
-            elif "index" in input_df.columns and isinstance(input_df["index"].iloc[0], pd.Timestamp):
+            elif "index" in input_df.columns and isinstance(
+                input_df["index"].iloc[0], pd.Timestamp
+            ):
                 x_timestamp = input_df["index"]
             else:
-                x_timestamp = pd.Series(pd.date_range(
-                    start=datetime(2020, 1, 1), periods=len(input_df), freq="D"
-                ))
+                x_timestamp = pd.Series(
+                    pd.date_range(
+                        start=datetime(2020, 1, 1), periods=len(input_df), freq="D"
+                    )
+                )
 
-            last_date = x_timestamp.iloc[-1] if len(x_timestamp) > 0 else pd.Timestamp.now()
-            y_timestamp = pd.Series(pd.date_range(
-                start=last_date + pd.Timedelta(days=1),
-                periods=pred_len,
-                freq="D",
-            ))
+            last_date = (
+                x_timestamp.iloc[-1] if len(x_timestamp) > 0 else pd.Timestamp.now()
+            )
+            y_timestamp = pd.Series(
+                pd.date_range(
+                    start=last_date + pd.Timedelta(days=1),
+                    periods=pred_len,
+                    freq="D",
+                )
+            )
 
-            input_df_for_predict = input_df.drop(columns=["date", "index"], errors="ignore")
+            input_df_for_predict = input_df.drop(
+                columns=["date", "index"], errors="ignore"
+            )
 
             pred_df = self._predictor.predict(
                 df=input_df_for_predict,
@@ -338,7 +404,16 @@ class KronosModelWrapper:
             )
             return pred_df
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             LOGGER.warning(f"预测失败: {e}")
@@ -349,6 +424,7 @@ class KronosModelWrapper:
 # ============================================================
 # 因子信号提取
 # ============================================================
+
 
 def extract_kronos_factors(
     pred_df: pd.DataFrame,
@@ -394,20 +470,33 @@ def extract_kronos_factors(
         if len(pred_df) >= 5:
             ret_5d = factors.get("KRONOS_RET_5D", 0.0)
             hist_returns = hist_df["close"].pct_change().dropna()
-            hist_vol = float(hist_returns.tail(20).std()) if len(hist_returns) >= 20 else 0.02
+            hist_vol = (
+                float(hist_returns.tail(20).std()) if len(hist_returns) >= 20 else 0.02
+            )
             factors["KRONOS_MOM"] = ret_5d / max(hist_vol, 1e-6)
 
         factors["KRONOS_DIR"] = 1.0 if factors.get("KRONOS_RET_5D", 0.0) >= 0 else -1.0
 
         if len(pred_df) >= 5:
-            pred_range = (pred_df["high"].iloc[:5].max() - pred_df["low"].iloc[:5].min()) / last_close
+            pred_range = (
+                pred_df["high"].iloc[:5].max() - pred_df["low"].iloc[:5].min()
+            ) / last_close
             factors["KRONOS_CONF"] = 1.0 / max(pred_range, 1e-4)
 
         if len(pred_df) >= 5:
             pred_mean = float(pred_df["close"].iloc[:5].mean())
             factors["KRONOS_PREMIUM"] = (pred_mean - last_close) / last_close
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         LOGGER.debug(f"提取因子失败: {e}")
@@ -418,6 +507,7 @@ def extract_kronos_factors(
 # ============================================================
 # 主验证引擎
 # ============================================================
+
 
 class KronosValidationEngine:
     """Kronos 因子验证引擎"""
@@ -447,6 +537,7 @@ class KronosValidationEngine:
         """获取数据源 (延迟初始化)"""
         if self._data_source is None:
             from utils.akshare_data_source import AKShareDataSource
+
             self._data_source = AKShareDataSource()
         return self._data_source
 
@@ -478,9 +569,20 @@ class KronosValidationEngine:
                 try:
                     df = pd.read_parquet(fpath)
                     if df is not None and not df.empty:
-                        LOGGER.debug(f"  {symbol}: 从本地缓存 {fpath.name} 读取 {len(df)} 条")
+                        LOGGER.debug(
+                            f"  {symbol}: 从本地缓存 {fpath.name} 读取 {len(df)} 条"
+                        )
                         return df
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     LOGGER.debug(f"  {symbol}: 读取本地缓存 {fpath.name} 失败: {e}")
         return None
@@ -492,7 +594,9 @@ class KronosValidationEngine:
         end_date: str,
     ) -> dict[str, pd.DataFrame]:
         """获取所有标的的历史K线数据 (优先本地缓存, 兜底远程数据源)"""
-        LOGGER.info(f"获取 {len(symbols)} 只标的的历史K线数据 ({start_date} ~ {end_date})")
+        LOGGER.info(
+            f"获取 {len(symbols)} 只标的的历史K线数据 ({start_date} ~ {end_date})"
+        )
         ds = None
 
         all_data = {}
@@ -504,7 +608,16 @@ class KronosValidationEngine:
             try:
                 df = self._fetch_from_local_cache(sym)
                 source = "本地缓存"
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 df = None
 
@@ -514,7 +627,16 @@ class KronosValidationEngine:
                         ds = self._get_data_source()
                     df = ds.get_historical_klines(sym, period="1d", count=1000)
                     source = "远程数据源"
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     failed.append(f"{sym}: {e}")
                     continue
@@ -578,9 +700,11 @@ class KronosValidationEngine:
 
         common_dates = sorted(common_dates)
         if rebalance_freq == "weekly":
-            rebalance_dates = [d for i, d in enumerate(common_dates)
-                               if i == 0 or (d.weekday() == 0
-                                              and (d - common_dates[i - 1]).days >= 5)]
+            rebalance_dates = [
+                d
+                for i, d in enumerate(common_dates)
+                if i == 0 or (d.weekday() == 0 and (d - common_dates[i - 1]).days >= 5)
+            ]
         else:
             rebalance_dates = common_dates
 
@@ -604,7 +728,7 @@ class KronosValidationEngine:
                 if pos < self.lookback:
                     continue
 
-                hist_slice = df.iloc[pos - self.lookback: pos].copy()
+                hist_slice = df.iloc[pos - self.lookback : pos].copy()
 
                 t0 = time.perf_counter()
                 try:
@@ -619,16 +743,27 @@ class KronosValidationEngine:
                         factors = extract_kronos_factors(pred_df, hist_slice)
                         for fname, fval in factors.items():
                             if np.isfinite(fval):
-                                all_factor_records.append({
-                                    "date": rebal_date,
-                                    "symbol": sym,
-                                    "factor": f"{fname}_{model_size.upper()}",
-                                    "value": fval,
-                                })
+                                all_factor_records.append(
+                                    {
+                                        "date": rebal_date,
+                                        "symbol": sym,
+                                        "factor": f"{fname}_{model_size.upper()}",
+                                        "value": fval,
+                                    }
+                                )
                     else:
                         error_count += 1
 
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:
 
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     error_count += 1
@@ -735,14 +870,30 @@ class KronosValidationEngine:
 
                 for fwd_h, ic_list in [(horizon, ics), (5, ics_5d)]:
                     if fwd_h in returns_panels:
-                        r = returns_panels[fwd_h].loc[date].reindex(fvals.index).dropna()
+                        r = (
+                            returns_panels[fwd_h]
+                            .loc[date]
+                            .reindex(fvals.index)
+                            .dropna()
+                        )
                         common = fvals.index.intersection(r.index)
                         if len(common) >= 3:
                             try:
-                                ic = float(fvals[common].corr(r[common], method="spearman"))
+                                ic = float(
+                                    fvals[common].corr(r[common], method="spearman")
+                                )
                                 if np.isfinite(ic):
                                     ic_list.append(ic)
-                            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                            except (
+                                ValueError,
+                                TypeError,
+                                KeyError,
+                                AttributeError,
+                                RuntimeError,
+                                OSError,
+                                TimeoutError,
+                                ConnectionError,
+                            ):
                                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                                 pass
 
@@ -774,7 +925,9 @@ class KronosValidationEngine:
 
             direction = "positive" if ic_mean >= 0 else "negative"
 
-            n_syms = int(factor_series.count(axis=1).mean()) if len(factor_series) > 0 else 0
+            n_syms = (
+                int(factor_series.count(axis=1).mean()) if len(factor_series) > 0 else 0
+            )
 
             return KronosFactorResult(
                 factor_name=factor_name,
@@ -791,7 +944,16 @@ class KronosValidationEngine:
                 direction=direction,
             )
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             LOGGER.debug(f"验证因子 {factor_name} 失败: {e}")
@@ -835,7 +997,9 @@ class KronosValidationEngine:
 
             panel = self.generate_factor_panel(all_data, model_size)
             if panel.empty:
-                report.notes.append(f"Kronos-{model_size}: 未生成因子面板 (模型可能不可用)")
+                report.notes.append(
+                    f"Kronos-{model_size}: 未生成因子面板 (模型可能不可用)"
+                )
                 continue
 
             panel_file = self.output_dir / f"kronos_factor_panel_{model_size}.csv"
@@ -879,9 +1043,7 @@ class KronosValidationEngine:
         self._save_markdown_report(report, md_file)
         LOGGER.info(f"Markdown 报告已保存: {md_file}")
 
-    def _save_markdown_report(
-        self, report: KronosValidationReport, path: Path
-    ) -> None:
+    def _save_markdown_report(self, report: KronosValidationReport, path: Path) -> None:
         """生成 Markdown 格式报告"""
         lines = []
 
@@ -900,7 +1062,9 @@ class KronosValidationEngine:
         lines.append("- **IC**: 因子值与未来收益的 Spearman 秩相关系数")
         lines.append("- **IC_IR**: IC均值 / IC标准差，衡量因子稳定性")
         lines.append("- **有效标准**: |IC| ≥ 0.03 且 |IC_IR| ≥ 0.3")
-        lines.append("- **评分**: |IC|×20 + min(|IC_IR|,3)×10 + 正IC占比×10 + 5日衰减×5")
+        lines.append(
+            "- **评分**: |IC|×20 + min(|IC_IR|,3)×10 + 正IC占比×10 + 5日衰减×5"
+        )
         lines.append("")
 
         effective = [r for r in report.results if r.effective]
@@ -921,8 +1085,12 @@ class KronosValidationEngine:
         if effective:
             lines.append("## ✅ 有效因子列表 (|IC|≥0.03 且 |IC_IR|≥0.3)")
             lines.append("")
-            lines.append("| 排名 | 因子名 | 模型 | IC均值 | IC_IR | 正IC占比 | 5日衰减 | 样本天数 | 方向 | 评分 |")
-            lines.append("|------|--------|------|--------|-------|----------|---------|----------|------|------|")
+            lines.append(
+                "| 排名 | 因子名 | 模型 | IC均值 | IC_IR | 正IC占比 | 5日衰减 | 样本天数 | 方向 | 评分 |"
+            )
+            lines.append(
+                "|------|--------|------|--------|-------|----------|---------|----------|------|------|"
+            )
             for i, r in enumerate(effective):
                 lines.append(
                     f"| {i+1} | {r.factor_name} | {r.model_size} | "
@@ -934,8 +1102,12 @@ class KronosValidationEngine:
 
         lines.append("## 📊 全部因子排名")
         lines.append("")
-        lines.append("| 排名 | 因子名 | 模型 | IC均值 | IC_IR | 正IC占比 | 有效 | 评分 |")
-        lines.append("|------|--------|------|--------|-------|----------|------|------|")
+        lines.append(
+            "| 排名 | 因子名 | 模型 | IC均值 | IC_IR | 正IC占比 | 有效 | 评分 |"
+        )
+        lines.append(
+            "|------|--------|------|--------|-------|----------|------|------|"
+        )
         for i, r in enumerate(all_results):
             eff_marker = "✅" if r.effective else "❌"
             lines.append(
@@ -970,18 +1142,35 @@ class KronosValidationEngine:
 # CLI 入口
 # ============================================================
 
+
 def get_default_symbols(fast: bool = False) -> list[str]:
     """获取默认标的池"""
     core_etfs = [
-        "510300.SH", "510500.SH", "512100.SH", "588000.SH",
-        "159915.SZ", "510050.SH", "518880.SH", "512170.SH",
-        "512880.SH", "512800.SH", "515030.SH", "512760.SH",
+        "510300.SH",
+        "510500.SH",
+        "512100.SH",
+        "588000.SH",
+        "159915.SZ",
+        "510050.SH",
+        "518880.SH",
+        "512170.SH",
+        "512880.SH",
+        "512800.SH",
+        "515030.SH",
+        "512760.SH",
     ]
 
     core_stocks = [
-        "600900.SH", "601088.SH", "600276.SH", "688041.SH",
-        "002371.SZ", "300308.SZ", "603019.SH", "300033.SZ",
-        "300274.SZ", "688017.SH",
+        "600900.SH",
+        "601088.SH",
+        "600276.SH",
+        "688041.SH",
+        "002371.SZ",
+        "300308.SZ",
+        "603019.SH",
+        "300033.SZ",
+        "300274.SZ",
+        "688017.SH",
     ]
 
     if fast:
@@ -994,8 +1183,12 @@ def main():
     parser.add_argument("--codes", type=str, default="", help="标的代码, 逗号分隔")
     parser.add_argument("--start", type=str, default="2024-01-01", help="开始日期")
     parser.add_argument("--end", type=str, default=None, help="结束日期 (默认今天)")
-    parser.add_argument("--models", type=str, default="small",
-                        help="模型规模, 逗号分隔 (mini/small/base)")
+    parser.add_argument(
+        "--models",
+        type=str,
+        default="small",
+        help="模型规模, 逗号分隔 (mini/small/base)",
+    )
     parser.add_argument("--lookback", type=int, default=400, help="回看窗口")
     parser.add_argument("--pred-len", type=int, default=20, help="预测长度")
     parser.add_argument("--fast", action="store_true", help="快速验证模式 (少标的)")
@@ -1017,7 +1210,11 @@ def main():
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:
-        output_dir = Path(__file__).resolve().parent / "outputs" / f"kronos_validation_{timestamp}"
+        output_dir = (
+            Path(__file__).resolve().parent
+            / "outputs"
+            / f"kronos_validation_{timestamp}"
+        )
 
     setup_logging(output_dir)
 
@@ -1045,7 +1242,16 @@ def main():
         else:
             print("\n⚠️  未发现有效因子 (|IC|≥0.03 且 |IC_IR|≥0.3)")
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         LOGGER.error(f"验证流程异常: {e}")

@@ -5,6 +5,7 @@
 
 测试康波周期阶段判定、行业轮动、大宗商品信号、十五五交叠、报告生成。
 """
+
 from __future__ import annotations
 
 import sys
@@ -104,11 +105,15 @@ class KondratievCycleTest:
 
     def test_get_next_phase_prosperity_to_stagflation(self):
         a = KondratievCycleAnalyzer()
-        assert a._get_next_phase(KondratievPhase.PROSPERITY) == KondratievPhase.STAGFLATION
+        assert (
+            a._get_next_phase(KondratievPhase.PROSPERITY) == KondratievPhase.STAGFLATION
+        )
 
     def test_get_next_phase_stagflation_to_recession(self):
         a = KondratievCycleAnalyzer()
-        assert a._get_next_phase(KondratievPhase.STAGFLATION) == KondratievPhase.RECESSION
+        assert (
+            a._get_next_phase(KondratievPhase.STAGFLATION) == KondratievPhase.RECESSION
+        )
 
     def test_get_next_phase_recession_to_recovery(self):
         a = KondratievCycleAnalyzer()
@@ -199,7 +204,11 @@ class KondratievCycleTest:
         a = KondratievCycleAnalyzer()
         result = a.get_commodity_signals()
         # 复苏期推荐 铜/锡/白银
-        recommended = {item["name"] for item in result if item["kondratiev_recommendation"] == "推荐"}
+        recommended = {
+            item["name"]
+            for item in result
+            if item["kondratiev_recommendation"] == "推荐"
+        }
         assert "铜" in recommended
         assert "锡" in recommended
         assert "白银" in recommended
@@ -208,7 +217,11 @@ class KondratievCycleTest:
         a = KondratievCycleAnalyzer()
         result = a.get_commodity_signals()
         # 黄金/原油/铝 不在复苏期推荐列表
-        watch = {item["name"] for item in result if item["kondratiev_recommendation"] == "观望"}
+        watch = {
+            item["name"]
+            for item in result
+            if item["kondratiev_recommendation"] == "观望"
+        }
         assert "黄金" in watch
         assert "原油" in watch
         assert "铝" in watch

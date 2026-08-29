@@ -30,6 +30,7 @@ from core.finrl_x_interface import (
 # 枚举测试
 # ============================================================
 
+
 class TestEnums:
     def test_weight_sources(self):
         assert len(WeightSource) == 3
@@ -41,6 +42,7 @@ class TestEnums:
 # ============================================================
 # 权重中心测试
 # ============================================================
+
 
 class TestWeightCenter:
     def test_submit(self):
@@ -88,6 +90,7 @@ class TestWeightCenter:
 # 策略管线测试
 # ============================================================
 
+
 class TestStrategyPipeline:
     def test_add_remove(self):
         p = StrategyPipeline()
@@ -131,6 +134,7 @@ class TestStrategyPipeline:
 # 一致性验证测试
 # ============================================================
 
+
 class TestBacktestLiveConsistency:
     def test_verify_weights(self):
         wc = WeightCenter()
@@ -166,6 +170,7 @@ class TestBacktestLiveConsistency:
 # 集成接口测试
 # ============================================================
 
+
 class TestFinRLXInterface:
     def test_submit_weights(self):
         iface = FinRLXInterface()
@@ -176,18 +181,22 @@ class TestFinRLXInterface:
 
     def test_build_pipeline(self):
         iface = FinRLXInterface()
-        p = iface.build_pipeline([
-            StrategyNode("data", PipelineStage.DATA),
-            StrategyNode("signal", PipelineStage.SIGNAL),
-            StrategyNode("weight", PipelineStage.WEIGHT),
-        ])
+        p = iface.build_pipeline(
+            [
+                StrategyNode("data", PipelineStage.DATA),
+                StrategyNode("signal", PipelineStage.SIGNAL),
+                StrategyNode("weight", PipelineStage.WEIGHT),
+            ]
+        )
         assert isinstance(p, StrategyPipeline)
 
     def test_run_pipeline(self):
         iface = FinRLXInterface()
-        iface.build_pipeline([
-            StrategyNode("id", func=lambda x, ctx: x * 2),
-        ])
+        iface.build_pipeline(
+            [
+                StrategyNode("id", func=lambda x, ctx: x * 2),
+            ]
+        )
         result = iface.run_pipeline(5)
         assert result == 10
 
@@ -201,6 +210,7 @@ class TestFinRLXInterface:
 # ============================================================
 # 旧管道兼容测试
 # ============================================================
+
 
 class TestLegacyAdapter:
     def test_get_weights(self):
@@ -227,6 +237,7 @@ class TestLegacyAdapter:
 # 端到端测试
 # ============================================================
 
+
 class TestEndToEnd:
     def test_full_workflow(self):
         iface = FinRLXInterface()
@@ -242,10 +253,12 @@ class TestEndToEnd:
         def weight_fn(data: object, ctx: dict) -> np.ndarray:
             return np.array([0.4, 0.3, 0.2, 0.1])
 
-        iface.build_pipeline([
-            StrategyNode("data", PipelineStage.DATA, lambda x, ctx: x),
-            StrategyNode("weight", PipelineStage.WEIGHT, weight_fn),
-        ])
+        iface.build_pipeline(
+            [
+                StrategyNode("data", PipelineStage.DATA, lambda x, ctx: x),
+                StrategyNode("weight", PipelineStage.WEIGHT, weight_fn),
+            ]
+        )
         result = iface.run_pipeline(np.random.randn(100, 4))
         iface.submit_backtest_weights(result)
         assert abs(result.sum() - 1.0) < 1e-6

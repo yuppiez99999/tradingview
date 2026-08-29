@@ -154,6 +154,7 @@ class LimitPoolProvider:
         """直接获取 akshare 模块 (用于涨停池 API)"""
         try:
             import akshare as ak
+
             return ak
         except ImportError:
             logger.warning("[LimitPoolProvider] akshare 未安装")
@@ -238,10 +239,14 @@ class LimitPoolProvider:
             if df_zt is not None and len(df_zt) > 0:
                 # 代码列可能叫 "代码" 或 "symbol"
                 code_col = "代码" if "代码" in df_zt.columns else df_zt.columns[1]
-                pool_data.limit_up_codes = set(df_zt[code_col].astype(str).str.zfill(6).tolist())
+                pool_data.limit_up_codes = set(
+                    df_zt[code_col].astype(str).str.zfill(6).tolist()
+                )
                 pool_data.limit_up_detail = df_zt.to_dict("records")
             logger.info(
-                "[LimitPoolProvider] %s 涨停池: %d 只", date_str, pool_data.n_limit_up,
+                "[LimitPoolProvider] %s 涨停池: %d 只",
+                date_str,
+                pool_data.n_limit_up,
             )
         except Exception as e:
             logger.warning("[LimitPoolProvider] 涨停池获取失败 %s: %s", date_str, e)
@@ -251,10 +256,14 @@ class LimitPoolProvider:
             df_dt = ak.stock_zt_pool_dt_em(date=date_str)
             if df_dt is not None and len(df_dt) > 0:
                 code_col = "代码" if "代码" in df_dt.columns else df_dt.columns[1]
-                pool_data.limit_down_codes = set(df_dt[code_col].astype(str).str.zfill(6).tolist())
+                pool_data.limit_down_codes = set(
+                    df_dt[code_col].astype(str).str.zfill(6).tolist()
+                )
                 pool_data.limit_down_detail = df_dt.to_dict("records")
             logger.info(
-                "[LimitPoolProvider] %s 跌停池: %d 只", date_str, pool_data.n_limit_down,
+                "[LimitPoolProvider] %s 跌停池: %d 只",
+                date_str,
+                pool_data.n_limit_down,
             )
         except Exception as e:
             logger.warning("[LimitPoolProvider] 跌停池获取失败 %s: %s", date_str, e)
@@ -264,9 +273,13 @@ class LimitPoolProvider:
             df_zbgc = ak.stock_zt_pool_zbgc_em(date=date_str)
             if df_zbgc is not None and len(df_zbgc) > 0:
                 code_col = "代码" if "代码" in df_zbgc.columns else df_zbgc.columns[1]
-                pool_data.broken_codes = set(df_zbgc[code_col].astype(str).str.zfill(6).tolist())
+                pool_data.broken_codes = set(
+                    df_zbgc[code_col].astype(str).str.zfill(6).tolist()
+                )
             logger.info(
-                "[LimitPoolProvider] %s 炸板池: %d 只", date_str, pool_data.n_broken,
+                "[LimitPoolProvider] %s 炸板池: %d 只",
+                date_str,
+                pool_data.n_broken,
             )
         except Exception as e:
             # 炸板池不是关键数据, 失败不告警
@@ -285,9 +298,7 @@ class LimitPoolProvider:
     # 批量 API (回测预热)
     # ------------------------------------------------------------
 
-    def get_pools_batch(
-        self, dates: list[str | datetime]
-    ) -> dict[str, LimitPoolData]:
+    def get_pools_batch(self, dates: list[str | datetime]) -> dict[str, LimitPoolData]:
         """批量获取多日涨停池数据 (回测预热)
 
         Args:
@@ -301,7 +312,8 @@ class LimitPoolProvider:
             date_str = self._normalize_date(date)
             result[date_str] = self.get_pool(date_str)
         logger.info(
-            "[LimitPoolProvider] 批量预热 %d 天涨停池数据完成", len(dates),
+            "[LimitPoolProvider] 批量预热 %d 天涨停池数据完成",
+            len(dates),
         )
         return result
 

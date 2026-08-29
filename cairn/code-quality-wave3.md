@@ -149,3 +149,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 - [ ] DQC Phase 1: 模块骨架 + P2 检查点实现 (与 Wave 4 对齐)
 - [ ] 死代码清理: `verify_b33_hedge_refactor.py` 等历史遗留验证脚本归档
 - [ ] `pip install -e .` 包结构方案评估 (长期)
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [Bug修复追踪表 v2.4](bug_fix_tracker.md) (相似度 9%)
+- [daily_workflow.py 拆分复盘报告 (5 轮 · 2026-08-12)](daily-workflow-split-retrospective.md) (相似度 7%)
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 7%)
+- [代码质量工业级差距审计 — 2026-08-19](code-quality-industrial-gap-20260819.md) (相似度 6%)
+- [测试健康度治理经验（2026-08-19）](test-health-20260819.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

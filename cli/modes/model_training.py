@@ -9,7 +9,6 @@
 """
 
 
-
 def run_model_training(args):
     """统一模型训练入口 (v5.7 Phase 2 增强)
 
@@ -22,12 +21,17 @@ def run_model_training(args):
     # 检测增强训练引擎是否可用
     try:
         from core.context import ML_ENHANCED_TRAINER_AVAILABLE
+
         if ML_ENHANCED_TRAINER_AVAILABLE:
             print("  💡 建议使用增强训练引擎:")
             print("    python v5.10.py --train-enhanced             # T+1 基础训练")
             print("    python v5.10.py --train-enhanced --horizon 5  # T+5 中期预测")
-            print("    python v5.10.py --train-enhanced --horizon 10 --optuna  # T+10+贝叶斯优化")
-            print("    python v5.10.py --train-enhanced --optuna --trials 100  # 100次Optuna试验")
+            print(
+                "    python v5.10.py --train-enhanced --horizon 10 --optuna  # T+10+贝叶斯优化"
+            )
+            print(
+                "    python v5.10.py --train-enhanced --optuna --trials 100  # 100次Optuna试验"
+            )
         else:
             print("  ❌ 增强训练引擎未安装")
             print("     pip install scikit-learn lightgbm optuna")

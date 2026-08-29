@@ -25,6 +25,7 @@ FinMultiTime 是多市场、多时间分辨率的金融时间序列基准:
     data = bench.generate_aligned_dataset(n_days=252)
     report = bench.validate_alignment(data)
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,9 +42,11 @@ logger = logging.getLogger("finmultitime_benchmark")
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class MarketData:
     """单市场多分辨率数据."""
+
     market: str  # 市场名 (SP500/HS300)
     minute: pd.DataFrame  # 分钟数据
     daily: pd.DataFrame  # 日数据
@@ -55,6 +58,7 @@ class MarketData:
 @dataclass
 class AlignedDataset:
     """对齐后的多市场数据集."""
+
     markets: dict[str, MarketData]
     aligned_dates: pd.DatetimeIndex  # 对齐的交易日
     alignment_stats: dict[str, Any] = field(default_factory=dict)
@@ -63,6 +67,7 @@ class AlignedDataset:
 @dataclass
 class ValidationReport:
     """验证报告."""
+
     timestamp_aligned: bool  # 时间戳对齐
     resolution_consistency: bool  # 分辨率一致性
     cross_market_coverage: float  # 跨市场覆盖率
@@ -73,6 +78,7 @@ class ValidationReport:
 # ============================================================
 # FinMultiTime 基准
 # ============================================================
+
 
 class FinMultiTimeBenchmark:
     """FinMultiTime 多模态基准数据生成与验证.
@@ -106,16 +112,22 @@ class FinMultiTimeBenchmark:
         close = initial_price * np.exp(np.cumsum(returns))
         open_ = np.roll(close, 1)
         open_[0] = initial_price
-        high = np.maximum(open_, close) * (1 + np.abs(rng.normal(0, volatility * 0.3, n)))
-        low = np.minimum(open_, close) * (1 - np.abs(rng.normal(0, volatility * 0.3, n)))
+        high = np.maximum(open_, close) * (
+            1 + np.abs(rng.normal(0, volatility * 0.3, n))
+        )
+        low = np.minimum(open_, close) * (
+            1 - np.abs(rng.normal(0, volatility * 0.3, n))
+        )
         volume = rng.integers(1_000_000, 100_000_000, n).astype(float)
-        return pd.DataFrame({
-            "open": open_,
-            "high": high,
-            "low": low,
-            "close": close,
-            "volume": volume,
-        })
+        return pd.DataFrame(
+            {
+                "open": open_,
+                "high": high,
+                "low": low,
+                "close": close,
+                "volume": volume,
+            }
+        )
 
     def _generate_news_sentiment(
         self,
@@ -124,12 +136,14 @@ class FinMultiTimeBenchmark:
     ) -> pd.DataFrame:
         """生成新闻情感数据."""
         n = len(dates)
-        return pd.DataFrame({
-            "date": dates,
-            "sentiment": rng.normal(0, 1, n),  # 情感分数 [-3, 3] 近似
-            "news_count": rng.integers(0, 50, n),
-            "relevance": rng.uniform(0, 1, n),
-        })
+        return pd.DataFrame(
+            {
+                "date": dates,
+                "sentiment": rng.normal(0, 1, n),  # 情感分数 [-3, 3] 近似
+                "news_count": rng.integers(0, 50, n),
+                "relevance": rng.uniform(0, 1, n),
+            }
+        )
 
     def _generate_fundamentals(
         self,
@@ -138,13 +152,15 @@ class FinMultiTimeBenchmark:
     ) -> pd.DataFrame:
         """生成财报指标数据."""
         n = len(quarters)
-        return pd.DataFrame({
-            "quarter": quarters,
-            "revenue": rng.lognormal(20, 0.5, n),  # 营收
-            "earnings": rng.normal(0, 1e8, n),  # 盈利
-            "pe_ratio": rng.uniform(5, 50, n),  # 市盈率
-            "debt_ratio": rng.uniform(0, 1, n),  # 负债率
-        })
+        return pd.DataFrame(
+            {
+                "quarter": quarters,
+                "revenue": rng.lognormal(20, 0.5, n),  # 营收
+                "earnings": rng.normal(0, 1e8, n),  # 盈利
+                "pe_ratio": rng.uniform(5, 50, n),  # 市盈率
+                "debt_ratio": rng.uniform(0, 1, n),  # 负债率
+            }
+        )
 
     def generate_market_data(
         self,
@@ -168,7 +184,9 @@ class FinMultiTimeBenchmark:
         # 日数据
         drift = 0.0003 if market == "SP500" else 0.0002
         vol = 0.012 if market == "SP500" else 0.015
-        daily_df = self._generate_ohlcv(n_days, 4000.0 if market == "SP500" else 4000.0, drift, vol, rng)
+        daily_df = self._generate_ohlcv(
+            n_days, 4000.0 if market == "SP500" else 4000.0, drift, vol, rng
+        )
         daily_df.index = daily_dates
         daily_df.index.name = "date"
 
@@ -192,13 +210,19 @@ class FinMultiTimeBenchmark:
         minute_df.index.name = "datetime"
 
         # 季度数据 (聚合日数据)
-        quarterly_df = daily_df.resample("QE").agg({
-            "open": "first",
-            "high": "max",
-            "low": "min",
-            "close": "last",
-            "volume": "sum",
-        }).dropna()
+        quarterly_df = (
+            daily_df.resample("QE")
+            .agg(
+                {
+                    "open": "first",
+                    "high": "max",
+                    "low": "min",
+                    "close": "last",
+                    "volume": "sum",
+                }
+            )
+            .dropna()
+        )
 
         # 新闻情感
         news_df = self._generate_news_sentiment(daily_dates, rng)
@@ -302,7 +326,13 @@ class FinMultiTimeBenchmark:
         modal_count = 0
         modal_total = 0
         for md in dataset.markets.values():
-            for modal in [md.minute, md.daily, md.quarterly, md.news_sentiment, md.fundamentals]:
+            for modal in [
+                md.minute,
+                md.daily,
+                md.quarterly,
+                md.news_sentiment,
+                md.fundamentals,
+            ]:
                 modal_total += 1
                 if len(modal) > 0:
                     modal_count += 1
@@ -349,6 +379,7 @@ class FinMultiTimeBenchmark:
 # CLI 入口
 # ============================================================
 
+
 def main() -> None:
     """CLI 入口: 演示 FinMultiTime 基准."""
     print("=" * 60)
@@ -387,7 +418,9 @@ def main() -> None:
     summary = bench.benchmark_summary(dataset, report)
     print(f"  总市场: {summary['n_markets']}")
     print(f"  总对齐天数: {summary['n_aligned_days']}")
-    print(f"  验证通过: {summary['validation']['timestamp_aligned'] and summary['validation']['resolution_consistency']}")
+    print(
+        f"  验证通过: {summary['validation']['timestamp_aligned'] and summary['validation']['resolution_consistency']}"
+    )
 
 
 if __name__ == "__main__":

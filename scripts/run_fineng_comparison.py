@@ -117,9 +117,15 @@ def run_garch_comparison(daily_returns: list[float], date_str: str) -> dict[str,
         result = {
             "status": "completed",
             "date": date_str,
-            "garch_vol": round(report.garch_vol, 6) if not math.isnan(report.garch_vol) else None,
+            "garch_vol": (
+                round(report.garch_vol, 6) if not math.isnan(report.garch_vol) else None
+            ),
             "ewma_vol": round(report.ewma_vol, 6),
-            "ratio": round(report.garch_vs_ewma_ratio, 4) if not math.isnan(report.garch_vs_ewma_ratio) else None,
+            "ratio": (
+                round(report.garch_vs_ewma_ratio, 4)
+                if not math.isnan(report.garch_vs_ewma_ratio)
+                else None
+            ),
             "garch_persistence": round(report.garch_persistence, 4),
             "garch_converged": report.garch_converged,
             "interpretation": _interpret_garch(report),
@@ -128,12 +134,25 @@ def run_garch_comparison(daily_returns: list[float], date_str: str) -> dict[str,
             "GARCH: vol=%.4f, EWMA=%.4f, ratio=%.2f, converged=%s",
             report.garch_vol if not math.isnan(report.garch_vol) else 0,
             report.ewma_vol,
-            report.garch_vs_ewma_ratio if not math.isnan(report.garch_vs_ewma_ratio) else 0,
+            (
+                report.garch_vs_ewma_ratio
+                if not math.isnan(report.garch_vs_ewma_ratio)
+                else 0
+            ),
             report.garch_converged,
         )
         return result
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("GARCH 对照异常: %s", e)
@@ -171,15 +190,27 @@ def run_kalman_comparison(
         result = {
             "status": "completed",
             "date": date_str,
-            "latest_kalman_beta": round(comparison.latest_kalman_beta, 4) if not math.isnan(comparison.latest_kalman_beta) else None,
-            "latest_ols_beta": round(comparison.latest_ols_beta, 4) if not math.isnan(comparison.latest_ols_beta) else None,
-            "beta_diff": round(abs(comparison.latest_kalman_beta - comparison.latest_ols_beta), 4),
+            "latest_kalman_beta": (
+                round(comparison.latest_kalman_beta, 4)
+                if not math.isnan(comparison.latest_kalman_beta)
+                else None
+            ),
+            "latest_ols_beta": (
+                round(comparison.latest_ols_beta, 4)
+                if not math.isnan(comparison.latest_ols_beta)
+                else None
+            ),
+            "beta_diff": round(
+                abs(comparison.latest_kalman_beta - comparison.latest_ols_beta), 4
+            ),
             "kalman_hedged_var": round(comparison.kalman_hedged_var, 8),
             "ols_hedged_var": round(comparison.ols_hedged_var, 8),
             "unhedged_var": round(comparison.unhedged_var, 8),
             "kalman_var_reduction_pct": round(comparison.kalman_var_reduction_pct, 2),
             "ols_var_reduction_pct": round(comparison.ols_var_reduction_pct, 2),
-            "kalman_vs_ols_improvement_pct": round(comparison.kalman_vs_ols_improvement_pct, 2),
+            "kalman_vs_ols_improvement_pct": round(
+                comparison.kalman_vs_ols_improvement_pct, 2
+            ),
             "kalman_converged": comparison.kalman_converged,
             "interpretation": _interpret_kalman(comparison),
         }
@@ -193,7 +224,16 @@ def run_kalman_comparison(
         )
         return result
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("Kalman 对照异常: %s", e)
@@ -229,8 +269,16 @@ def run_evt_comparison(daily_returns: list[float], date_str: str) -> dict[str, A
             "xi": round(evt.xi, 6),
             "var_99": round(var_es.var_99, 6),
             "es_99": round(var_es.es_99, 6),
-            "var_99_annualized": round(var_es.var_99 * math.sqrt(252), 4) if not math.isnan(var_es.var_99) else None,
-            "es_99_annualized": round(var_es.es_99 * math.sqrt(252), 4) if not math.isnan(var_es.es_99) else None,
+            "var_99_annualized": (
+                round(var_es.var_99 * math.sqrt(252), 4)
+                if not math.isnan(var_es.var_99)
+                else None
+            ),
+            "es_99_annualized": (
+                round(var_es.es_99 * math.sqrt(252), 4)
+                if not math.isnan(var_es.es_99)
+                else None
+            ),
             "interpretation": _interpret_evt(evt, var_es),
         }
         logger.info(
@@ -242,7 +290,16 @@ def run_evt_comparison(daily_returns: list[float], date_str: str) -> dict[str, A
         )
         return result
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("EVT 对照异常: %s", e)
@@ -252,6 +309,7 @@ def run_evt_comparison(daily_returns: list[float], date_str: str) -> dict[str, A
 # ============================================================
 # 解读函数 (人类可读)
 # ============================================================
+
 
 def _interpret_garch(report: Any) -> str:
     if not report.garch_converged:
@@ -280,7 +338,9 @@ def _interpret_evt(evt: Any, var_es: Any) -> str:
         return f"ξ={evt.xi:.3f} > 0.3, 分布极厚尾, 极端风险显著高于正态假设"
     if evt.xi < 0:
         return f"ξ={evt.xi:.3f} < 0, 分布有上界, 极端风险有限"
-    return f"ξ={evt.xi:.3f}, 厚尾适中, ES99 年化={abs(var_es.es_99 * math.sqrt(252)):.2%}"
+    return (
+        f"ξ={evt.xi:.3f}, 厚尾适中, ES99 年化={abs(var_es.es_99 * math.sqrt(252)):.2%}"
+    )
 
 
 def main() -> int:
@@ -312,7 +372,9 @@ def main() -> int:
 
     # 2. Kalman (需指数收益)
     if not args.skip_kalman and index_returns:
-        results["kalman"] = run_kalman_comparison(portfolio_returns, index_returns, date_str)
+        results["kalman"] = run_kalman_comparison(
+            portfolio_returns, index_returns, date_str
+        )
     elif not args.skip_kalman:
         results["kalman"] = {"status": "skipped", "reason": "无指数收益数据"}
 

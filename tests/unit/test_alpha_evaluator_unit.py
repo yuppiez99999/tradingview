@@ -1,4 +1,5 @@
 """alpha_evaluator 单元测试 — Alpha 因子验证闭环全分支覆盖"""
+
 from __future__ import annotations
 
 import json
@@ -120,6 +121,7 @@ class TestAlphaEvaluatorInit:
 
     def test_default_report_dir(self, isolated_history, monkeypatch):
         from utils.alpha_evaluator import REPORT_DIR
+
         e = AlphaEvaluator()
         assert e.report_dir == REPORT_DIR
 
@@ -146,7 +148,9 @@ class TestEvaluateAllBasic:
         forward = _make_forward_returns()
         result = evaluator.evaluate_all(FakeFactorLibraryResult(factors), forward)
         assert result.total_factors == 3
-        assert result.active_factors + result.degraded_factors + result.dead_factors == 3
+        assert (
+            result.active_factors + result.degraded_factors + result.dead_factors == 3
+        )
 
     def test_no_forward_returns(self, evaluator):
         factors = _make_factors(["MOM_20D"])
@@ -158,7 +162,9 @@ class TestEvaluateAllBasic:
         factors = _make_factors(["MOM_20D"])
         forward = _make_forward_returns()
         result = evaluator.evaluate_all(FakeFactorLibraryResult(factors), forward)
-        report_path = evaluator.report_dir / result.report_date / "alpha_evaluation.json"
+        report_path = (
+            evaluator.report_dir / result.report_date / "alpha_evaluation.json"
+        )
         assert report_path.exists()
         with open(report_path, encoding="utf-8") as f:
             saved = json.load(f)
@@ -426,13 +432,17 @@ class TestEvaluateAllStatusClassification:
 
 class TestEvaluateAllFiniteGuards:
     def test_inf_ic_guard(self, evaluator, monkeypatch):
-        monkeypatch.setattr(evaluator, "_compute_ics", lambda *a: (float("inf"), 0.0, 0.0))
+        monkeypatch.setattr(
+            evaluator, "_compute_ics", lambda *a: (float("inf"), 0.0, 0.0)
+        )
         factors = {"X": FakeFactorValue({f"S{i}": 1.0 for i in range(10)}, "t")}
         result = evaluator.evaluate_all(FakeFactorLibraryResult(factors), {})
         assert result.evaluations[0]["ic_1d"] == 0.0
 
     def test_nan_ic_guard(self, evaluator, monkeypatch):
-        monkeypatch.setattr(evaluator, "_compute_ics", lambda *a: (float("nan"), 0.0, 0.0))
+        monkeypatch.setattr(
+            evaluator, "_compute_ics", lambda *a: (float("nan"), 0.0, 0.0)
+        )
         factors = {"X": FakeFactorValue({f"S{i}": 1.0 for i in range(10)}, "t")}
         result = evaluator.evaluate_all(FakeFactorLibraryResult(factors), {})
         assert result.evaluations[0]["ic_1d"] == 0.0
@@ -492,9 +502,7 @@ class TestEvaluateAllWithHistory:
 
     def test_decay_with_sufficient_history(self, tmp_path, isolated_history):
         history_file = tmp_path / "factor_history.jsonl"
-        records = [
-            {"factor_name": "MOM", "ic_1d": 0.1} for _ in range(10)
-        ]
+        records = [{"factor_name": "MOM", "ic_1d": 0.1} for _ in range(10)]
         with open(history_file, "w", encoding="utf-8") as f:
             for r in records:
                 f.write(json.dumps(r) + "\n")

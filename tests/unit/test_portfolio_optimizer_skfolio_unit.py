@@ -38,6 +38,7 @@ from utils.portfolio_optimizer_skfolio import (
 # 枚举测试
 # ============================================================
 
+
 class TestStrategy:
     """策略枚举测试。"""
 
@@ -56,6 +57,7 @@ class TestStrategy:
 # 结果测试
 # ============================================================
 
+
 class TestOptimizationResult:
     """优化结果测试。"""
 
@@ -73,6 +75,7 @@ class TestOptimizationResult:
 # ============================================================
 # Numpy 优化器测试
 # ============================================================
+
 
 class TestNumpyOptimizer:
     """numpy 核心优化器测试。"""
@@ -141,6 +144,7 @@ class TestNumpyOptimizer:
 # 配置测试
 # ============================================================
 
+
 class TestSkfolioConfig:
     """配置测试。"""
 
@@ -164,6 +168,7 @@ class TestSkfolioConfig:
 # ============================================================
 # 集成优化器测试
 # ============================================================
+
 
 class TestSkfolioOptimizer:
     """集成优化器测试。"""
@@ -234,6 +239,7 @@ class TestSkfolioOptimizer:
 # 便捷函数测试
 # ============================================================
 
+
 class TestConvenienceFunctions:
     """便捷函数测试。"""
 
@@ -258,6 +264,7 @@ class TestConvenienceFunctions:
 # 端到端集成测试
 # ============================================================
 
+
 class TestEndToEnd:
     """端到端集成测试。"""
 
@@ -278,14 +285,18 @@ class TestEndToEnd:
     def test_sharpe_maximization(self):
         """MaxSharpe 策略夏普最高。"""
         rng = np.random.default_rng(42)
-        returns = rng.standard_normal((500, 5)) * 0.02 + np.array([0.001, 0.002, 0.003, 0.0005, 0.004])
+        returns = rng.standard_normal((500, 5)) * 0.02 + np.array(
+            [0.001, 0.002, 0.003, 0.0005, 0.004]
+        )
 
         opt_ms = SkfolioOptimizer(strategy=Strategy.MAX_SHARPE)
         opt_mv = SkfolioOptimizer(strategy=Strategy.MIN_VARIANCE)
         opt_ms.fit(returns)
         opt_mv.fit(returns)
 
-        assert opt_ms.get_result().sharpe_ratio >= opt_mv.get_result().sharpe_ratio - 1e-6
+        assert (
+            opt_ms.get_result().sharpe_ratio >= opt_mv.get_result().sharpe_ratio - 1e-6
+        )
 
     def test_risk_parity_diversified(self):
         """风险平价权重分散。"""

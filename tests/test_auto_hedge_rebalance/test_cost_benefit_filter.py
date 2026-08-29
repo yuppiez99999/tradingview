@@ -39,7 +39,9 @@ def normal_risk() -> PortfolioRisk:
 class TestCostBenefitFilterPass:
     """成本效益通过测试。"""
 
-    def test_high_benefit_passes(self, cost_filter: CostBenefitFilter, normal_risk: PortfolioRisk) -> None:
+    def test_high_benefit_passes(
+        self, cost_filter: CostBenefitFilter, normal_risk: PortfolioRisk
+    ) -> None:
         # Arrange — 高回撤 + 高对冲比例 → 高收益
         selection = ToolSelection(
             tool_type=HedgeToolType.INDEX_FUTURES,
@@ -54,7 +56,9 @@ class TestCostBenefitFilterPass:
         assert result.cost_estimate > 0
         assert result.expected_benefit > 0
 
-    def test_calm_state_zero_cost_passes(self, cost_filter: CostBenefitFilter, normal_risk: PortfolioRisk) -> None:
+    def test_calm_state_zero_cost_passes(
+        self, cost_filter: CostBenefitFilter, normal_risk: PortfolioRisk
+    ) -> None:
         # Arrange — CALM 状态 (对冲比例 0%)
         selection = ToolSelection(tool_type=HedgeToolType.NONE, hedge_ratio=0.0)
         # Act
@@ -68,7 +72,9 @@ class TestCostBenefitFilterPass:
 class TestCostBenefitFilterReject:
     """成本效益拒绝测试。"""
 
-    def test_low_benefit_rejected(self, cost_filter: CostBenefitFilter, normal_risk: PortfolioRisk) -> None:
+    def test_low_benefit_rejected(
+        self, cost_filter: CostBenefitFilter, normal_risk: PortfolioRisk
+    ) -> None:
         # Arrange — 低回撤 + 低对冲比例 → 低收益
         selection = ToolSelection(
             tool_type=HedgeToolType.INDEX_FUTURES,
@@ -143,7 +149,9 @@ class TestCostBenefitFilterBoundary:
         # Assert — 恰好等于阈值时应拒绝 (严格大于才通过)
         assert result.passed is False
 
-    def test_zero_hedge_ratio_passes(self, cost_filter: CostBenefitFilter, normal_risk: PortfolioRisk) -> None:
+    def test_zero_hedge_ratio_passes(
+        self, cost_filter: CostBenefitFilter, normal_risk: PortfolioRisk
+    ) -> None:
         # Arrange
         selection = ToolSelection(
             tool_type=HedgeToolType.INDEX_FUTURES,

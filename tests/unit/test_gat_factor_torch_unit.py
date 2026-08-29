@@ -3,12 +3,14 @@
 torch 在 Python 3.8 环境 DLL 加载失败 (caffe2_nvrtc.dll),
 本测试文件在 torch 可用时运行, 否则全部跳过。
 """
+
 from __future__ import annotations
 
 import pytest
 
 try:
     import torch
+
     _TORCH_OK = True
 except (ImportError, OSError, ModuleNotFoundError):
     _TORCH_OK = False

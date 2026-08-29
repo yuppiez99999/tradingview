@@ -49,27 +49,31 @@ logger = logging.getLogger("trading_group_reflector")
 # 错误类型枚举
 # ============================================================
 
+
 class ErrorType(str, Enum):
     """决策错误类型分类。"""
-    SIGNAL_ERROR = "signal_error"          # 信号方向错误 (该买却卖)
-    TIMING_ERROR = "timing_error"          # 时机错误 (过早或过晚)
-    POSITION_ERROR = "position_error"      # 仓位错误 (过大或过小)
-    RISK_ERROR = "risk_error"              # 风控错误 (未止损或过度止损)
-    NO_ERROR = "no_error"                  # 无错误
+
+    SIGNAL_ERROR = "signal_error"  # 信号方向错误 (该买却卖)
+    TIMING_ERROR = "timing_error"  # 时机错误 (过早或过晚)
+    POSITION_ERROR = "position_error"  # 仓位错误 (过大或过小)
+    RISK_ERROR = "risk_error"  # 风控错误 (未止损或过度止损)
+    NO_ERROR = "no_error"  # 无错误
 
 
 class ReflectionGrade(str, Enum):
     """自反思评级。"""
-    EXCELLENT = "excellent"   # 决策正确且盈利
-    GOOD = "good"             # 决策正确但盈利有限
-    NEUTRAL = "neutral"       # 决策中性
-    POOR = "poor"             # 决策有瑕疵
-    BAD = "bad"               # 决策错误
+
+    EXCELLENT = "excellent"  # 决策正确且盈利
+    GOOD = "good"  # 决策正确但盈利有限
+    NEUTRAL = "neutral"  # 决策中性
+    POOR = "poor"  # 决策有瑕疵
+    BAD = "bad"  # 决策错误
 
 
 # ============================================================
 # 自反思记录
 # ============================================================
+
 
 @dataclass
 class ReflectionRecord:
@@ -88,6 +92,7 @@ class ReflectionRecord:
         market_state: 决策时市场状态快照
         timestamp: 反思时间
     """
+
     decision_id: str
     ticker: str
     action: str
@@ -129,6 +134,7 @@ class ReflectionRecord:
 # 合成训练样本
 # ============================================================
 
+
 @dataclass
 class SyntheticSample:
     """合成的训练样本。
@@ -140,6 +146,7 @@ class SyntheticSample:
         source: 来源 (正样本/负样本/困难样本)
         ticker: 标的代码
     """
+
     features: dict[str, Any]
     label: int  # 0 或 1
     weight: float = 1.0
@@ -160,6 +167,7 @@ class SyntheticSample:
 # 动态止盈止损结果
 # ============================================================
 
+
 @dataclass
 class DynamicStops:
     """动态止盈止损计算结果。
@@ -172,6 +180,7 @@ class DynamicStops:
         risk_score: 风险评分 (0-1, 越高越危险)
         reason: 调整理由
     """
+
     stop_loss: float
     take_profit: float
     trailing_stop: Optional[float] = None
@@ -193,6 +202,7 @@ class DynamicStops:
 # ============================================================
 # 数据合成器
 # ============================================================
+
 
 class DataSynthesizer:
     """从历史决策合成训练数据。
@@ -289,6 +299,7 @@ class DataSynthesizer:
 # 动态止盈止损管理器
 # ============================================================
 
+
 class DynamicStopLossManager:
     """基于市场状态动态调整止盈止损。
 
@@ -299,11 +310,13 @@ class DynamicStopLossManager:
     - 最大回撤限制: 硬性风控约束
     """
 
-    def __init__(self,
-                 atr_stop_multiplier: float = 2.0,
-                 atr_profit_multiplier: float = 3.0,
-                 max_loss_pct: float = 0.05,
-                 max_position_pct: float = 0.25) -> None:
+    def __init__(
+        self,
+        atr_stop_multiplier: float = 2.0,
+        atr_profit_multiplier: float = 3.0,
+        max_loss_pct: float = 0.05,
+        max_position_pct: float = 0.25,
+    ) -> None:
         """初始化动态止盈止损管理器。
 
         Args:
@@ -317,12 +330,15 @@ class DynamicStopLossManager:
         self.max_loss_pct = max_loss_pct
         self.max_position_pct = max_position_pct
 
-    def compute(self, entry_price: float,
-                atr: float,
-                trend_strength: float = 0.0,
-                holding_days: int = 0,
-                action: str = "buy",
-                max_holding_days: int = 20) -> DynamicStops:
+    def compute(
+        self,
+        entry_price: float,
+        atr: float,
+        trend_strength: float = 0.0,
+        holding_days: int = 0,
+        action: str = "buy",
+        max_holding_days: int = 20,
+    ) -> DynamicStops:
         """计算动态止盈止损。
 
         Args:
@@ -390,6 +406,7 @@ class DynamicStopLossManager:
 # TradingGroup 自反思引擎
 # ============================================================
 
+
 class TradingGroupReflector:
     """TradingGroup 自反思引擎 — 整合自反思 + 数据合成 + 动态止盈止损。
 
@@ -400,10 +417,12 @@ class TradingGroupReflector:
         stops = reflector.compute_dynamic_stops(entry, atr, trend)
     """
 
-    def __init__(self,
-                 profit_threshold: float = 0.01,
-                 loss_threshold: float = -0.01,
-                 hard_sample_threshold: float = 0.02) -> None:
+    def __init__(
+        self,
+        profit_threshold: float = 0.01,
+        loss_threshold: float = -0.01,
+        hard_sample_threshold: float = 0.02,
+    ) -> None:
         """初始化自反思引擎。
 
         Args:
@@ -417,9 +436,12 @@ class TradingGroupReflector:
         self.stop_manager = DynamicStopLossManager()
         self._history: list[ReflectionRecord] = []
 
-    def reflect(self, decision: dict[str, Any],
-                outcome: dict[str, Any],
-                market_state: Optional[dict[str, Any]] = None) -> ReflectionRecord:
+    def reflect(
+        self,
+        decision: dict[str, Any],
+        outcome: dict[str, Any],
+        market_state: Optional[dict[str, Any]] = None,
+    ) -> ReflectionRecord:
         """对单次决策进行自反思。
 
         Args:
@@ -441,7 +463,10 @@ class TradingGroupReflector:
         outcome_return = outcome.get("return")
 
         error_type, grade, improvement = self._evaluate(
-            action, entry_price, exit_price, outcome_return,
+            action,
+            entry_price,
+            exit_price,
+            outcome_return,
         )
 
         record = ReflectionRecord(
@@ -462,9 +487,13 @@ class TradingGroupReflector:
         logger.debug(f"自反思完成: {decision_id} → {grade.value}/{error_type.value}")
         return record
 
-    def _evaluate(self, action: str, entry_price: float,
-                  exit_price: Optional[float],
-                  outcome_return: Optional[float]) -> tuple[ErrorType, ReflectionGrade, str]:
+    def _evaluate(
+        self,
+        action: str,
+        entry_price: float,
+        exit_price: Optional[float],
+        outcome_return: Optional[float],
+    ) -> tuple[ErrorType, ReflectionGrade, str]:
         """评估决策正确性, 返回 (错误类型, 评级, 改进建议)。
 
         outcome_return 是策略收益率 (正值=盈利, 负值=亏损), 与多空方向无关。
@@ -482,8 +511,9 @@ class TradingGroupReflector:
 
         return ErrorType.NO_ERROR, ReflectionGrade.NEUTRAL, "收益中性, 无明显错误"
 
-    def synthesize_data(self,
-                        records: Optional[list[ReflectionRecord]] = None) -> list[SyntheticSample]:
+    def synthesize_data(
+        self, records: Optional[list[ReflectionRecord]] = None
+    ) -> list[SyntheticSample]:
         """合成训练数据。
 
         Args:
@@ -496,11 +526,14 @@ class TradingGroupReflector:
             records = self._history
         return self.synthesizer.synthesize(records)
 
-    def compute_dynamic_stops(self, entry_price: float,
-                              atr: float,
-                              trend_strength: float = 0.0,
-                              holding_days: int = 0,
-                              action: str = "buy") -> DynamicStops:
+    def compute_dynamic_stops(
+        self,
+        entry_price: float,
+        atr: float,
+        trend_strength: float = 0.0,
+        holding_days: int = 0,
+        action: str = "buy",
+    ) -> DynamicStops:
         """计算动态止盈止损。"""
         return self.stop_manager.compute(
             entry_price=entry_price,
@@ -568,6 +601,7 @@ class TradingGroupReflector:
 # CLI 入口
 # ============================================================
 
+
 def main() -> None:
     """CLI 入口: 演示 TradingGroup 自反思机制。"""
     print("=" * 60)
@@ -579,30 +613,61 @@ def main() -> None:
 
     print("\n--- 1. 自反思 ---")
     decisions = [
-        ({"decision_id": "d1", "ticker": "000001.SZ", "action": "buy", "entry_price": 10.0},
-         {"exit_price": 10.5, "return": 0.05, "timestamp": "2026-08-23"}),
-        ({"decision_id": "d2", "ticker": "600519.SH", "action": "buy", "entry_price": 1500.0},
-         {"exit_price": 1450.0, "return": -0.033, "timestamp": "2026-08-23"}),
-        ({"decision_id": "d3", "ticker": "000858.SZ", "action": "sell", "entry_price": 200.0},
-         {"exit_price": 195.0, "return": 0.025, "timestamp": "2026-08-23"}),
+        (
+            {
+                "decision_id": "d1",
+                "ticker": "000001.SZ",
+                "action": "buy",
+                "entry_price": 10.0,
+            },
+            {"exit_price": 10.5, "return": 0.05, "timestamp": "2026-08-23"},
+        ),
+        (
+            {
+                "decision_id": "d2",
+                "ticker": "600519.SH",
+                "action": "buy",
+                "entry_price": 1500.0,
+            },
+            {"exit_price": 1450.0, "return": -0.033, "timestamp": "2026-08-23"},
+        ),
+        (
+            {
+                "decision_id": "d3",
+                "ticker": "000858.SZ",
+                "action": "sell",
+                "entry_price": 200.0,
+            },
+            {"exit_price": 195.0, "return": 0.025, "timestamp": "2026-08-23"},
+        ),
     ]
     for decision, outcome in decisions:
         record = reflector.reflect(decision, outcome, {"volatility": 0.02})
-        print(f"  {record.decision_id}: {record.grade.value}/{record.error_type.value} → {record.improvement}")
+        print(
+            f"  {record.decision_id}: {record.grade.value}/{record.error_type.value} → {record.improvement}"
+        )
 
     summary = reflector.get_reflection_summary()
-    print(f"\n  摘要: 胜率={summary['win_rate']:.1%}, 平均收益={summary['avg_return']:.2%}")
+    print(
+        f"\n  摘要: 胜率={summary['win_rate']:.1%}, 平均收益={summary['avg_return']:.2%}"
+    )
 
     print("\n--- 2. 数据合成 ---")
     samples = reflector.synthesize_data()
     sample_summary = reflector.synthesizer.get_summary(samples)
     print(f"  样本数: {sample_summary['n_samples']}")
-    print(f"  正样本: {sample_summary['n_positive']}, 负样本: {sample_summary['n_negative']}")
+    print(
+        f"  正样本: {sample_summary['n_positive']}, 负样本: {sample_summary['n_negative']}"
+    )
     print(f"  来源: {sample_summary['source_counts']}")
 
     print("\n--- 3. 动态止盈止损 ---")
     stops = reflector.compute_dynamic_stops(
-        entry_price=10.0, atr=0.3, trend_strength=0.6, holding_days=5, action="buy",
+        entry_price=10.0,
+        atr=0.3,
+        trend_strength=0.6,
+        holding_days=5,
+        action="buy",
     )
     print(f"  止损: {stops.stop_loss}, 止盈: {stops.take_profit}")
     print(f"  移动止损: {stops.trailing_stop}, 仓位: {stops.position_size}")

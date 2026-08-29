@@ -10,6 +10,7 @@ PluginRegistry — 插件注册中心
 
 线程安全: 注册/卸载加锁, 查询/执行无锁 (假设插件列表在启动时确定).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -93,9 +94,13 @@ class PluginRegistry:
             if plugin is None:
                 return None
             if isinstance(plugin, RoutingPlugin):
-                self._routing_plugins = [p for p in self._routing_plugins if p.name != name]
+                self._routing_plugins = [
+                    p for p in self._routing_plugins if p.name != name
+                ]
             elif isinstance(plugin, ConflictDetectionPlugin):
-                self._conflict_plugins = [p for p in self._conflict_plugins if p.name != name]
+                self._conflict_plugins = [
+                    p for p in self._conflict_plugins if p.name != name
+                ]
             logger.debug("插件已卸载: %s", name)
             return plugin
 
@@ -187,8 +192,12 @@ class PluginRegistry:
             成功加载的插件数
         """
         if config_path is None:
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            config_path = os.path.join(base_dir, "configs", "ai_coordinator_plugins.yaml")
+            base_dir = os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            )
+            config_path = os.path.join(
+                base_dir, "configs", "ai_coordinator_plugins.yaml"
+            )
 
         try:
             import yaml  # type: ignore
@@ -221,7 +230,13 @@ class PluginRegistry:
                     plugin = cls()
                     self.register(plugin)
                     count += 1
-                except (ImportError, AttributeError, PluginRegistryError, TypeError, ValueError) as e:
+                except (
+                    ImportError,
+                    AttributeError,
+                    PluginRegistryError,
+                    TypeError,
+                    ValueError,
+                ) as e:
                     logger.warning("插件加载失败 %s.%s: %s", module_name, class_name, e)
         logger.info("从 %s 加载 %d 个插件", config_path, count)
         return count

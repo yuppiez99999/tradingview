@@ -21,6 +21,7 @@
     - 测试文件可独立运行:
       python -m pytest tests/unit/test_g7_external_data_source_boost.py -q
 """
+
 from __future__ import annotations
 
 import json
@@ -35,7 +36,9 @@ import pytest
 # ============================================================
 # 路径设置
 # ============================================================
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -61,6 +64,7 @@ if not hasattr(external_data_source, "cast"):
 # ============================================================
 # 辅助函数 / fixture
 # ============================================================
+
 
 def _mock_response(status_code=200, json_data=None):
     """创建 mock HTTP 响应."""
@@ -129,14 +133,21 @@ class TestMacroIndicator:
     """MacroIndicator 数据类与 to_dict."""
 
     def test_default_optional_fields(self):
-        mi = MacroIndicator(name="CPI", value=2.5, unit="%", date="2026-01", source="FRED")
+        mi = MacroIndicator(
+            name="CPI", value=2.5, unit="%", date="2026-01", source="FRED"
+        )
         assert mi.previous is None
         assert mi.change is None
 
     def test_to_dict_full(self):
         mi = MacroIndicator(
-            name="CPI", value=2.5, unit="%", date="2026-01", source="FRED",
-            previous=2.3, change=0.2,
+            name="CPI",
+            value=2.5,
+            unit="%",
+            date="2026-01",
+            source="FRED",
+            previous=2.3,
+            change=0.2,
         )
         d = mi.to_dict()
         assert d["name"] == "CPI"
@@ -148,7 +159,9 @@ class TestMacroIndicator:
         assert d["change"] == 0.2
 
     def test_to_dict_none_optionals(self):
-        mi = MacroIndicator(name="GDP", value=100.0, unit="%", date="2026-Q1", source="Econdb")
+        mi = MacroIndicator(
+            name="GDP", value=100.0, unit="%", date="2026-Q1", source="Econdb"
+        )
         d = mi.to_dict()
         assert d["previous"] is None
         assert d["change"] is None
@@ -199,20 +212,22 @@ class TestFREDApi:
     def test_get_indicator_missing_value_dot(self, mock_session):
         """FRED 缺失值 '.' 返回 None (P1-T1 修复)."""
         api = FREDApi(api_key="key")
-        mock_session.get.return_value = _mock_response(json_data={
-            "observations": [{"value": ".", "date": "2026-01"}]
-        })
+        mock_session.get.return_value = _mock_response(
+            json_data={"observations": [{"value": ".", "date": "2026-01"}]}
+        )
         assert api.get_indicator("CPIAUCSL") is None
 
     @patch("utils.external_data_source._SESSION")
     def test_get_indicator_success_with_previous(self, mock_session):
         api = FREDApi(api_key="key")
-        mock_session.get.return_value = _mock_response(json_data={
-            "observations": [
-                {"value": "2.5", "date": "2026-02"},
-                {"value": "2.3", "date": "2026-01"},
-            ]
-        })
+        mock_session.get.return_value = _mock_response(
+            json_data={
+                "observations": [
+                    {"value": "2.5", "date": "2026-02"},
+                    {"value": "2.3", "date": "2026-01"},
+                ]
+            }
+        )
         result = api.get_indicator("CPIAUCSL")
         assert result is not None
         assert result.name == "CPIAUCSL"
@@ -227,9 +242,9 @@ class TestFREDApi:
     def test_get_indicator_success_single_observation(self, mock_session):
         """仅 1 条观测值时 previous=None, change=None."""
         api = FREDApi(api_key="key")
-        mock_session.get.return_value = _mock_response(json_data={
-            "observations": [{"value": "2.5", "date": "2026-02"}]
-        })
+        mock_session.get.return_value = _mock_response(
+            json_data={"observations": [{"value": "2.5", "date": "2026-02"}]}
+        )
         result = api.get_indicator("CPIAUCSL")
         assert result is not None
         assert result.previous is None
@@ -255,10 +270,14 @@ class TestFREDApi:
         """get_macro_snapshot 仅部分 series 返回数据."""
         api = FREDApi(api_key="key")
         with patch.object(api, "get_indicator") as mock_get:
+
             def side_effect(sid):
                 if sid == "CPIAUCSL":
-                    return MacroIndicator(name=sid, value=2.5, unit="%", date="2026-01", source="FRED")
+                    return MacroIndicator(
+                        name=sid, value=2.5, unit="%", date="2026-01", source="FRED"
+                    )
                 return None
+
             mock_get.side_effect = side_effect
             result = api.get_macro_snapshot()
         assert "CPI" in result
@@ -299,21 +318,23 @@ class TestEcondbApi:
     @patch("utils.external_data_source._SESSION")
     def test_get_indicator_none_value(self, mock_session):
         """缺失值 None 返回 None (P1-T1)."""
-        mock_session.get.return_value = _mock_response(json_data={
-            "data": [{"value": None, "date": "2026-01"}]
-        })
+        mock_session.get.return_value = _mock_response(
+            json_data={"data": [{"value": None, "date": "2026-01"}]}
+        )
         api = EcondbApi()
         assert api.get_indicator("CPIUS") is None
 
     @patch("utils.external_data_source._SESSION")
     def test_get_indicator_success(self, mock_session):
         """EcondbApi 取 series_data[-1] 作为最新值."""
-        mock_session.get.return_value = _mock_response(json_data={
-            "data": [
-                {"value": "2.3", "date": "2025-12"},
-                {"value": "2.5", "date": "2026-01"},
-            ]
-        })
+        mock_session.get.return_value = _mock_response(
+            json_data={
+                "data": [
+                    {"value": "2.3", "date": "2025-12"},
+                    {"value": "2.5", "date": "2026-01"},
+                ]
+            }
+        )
         api = EcondbApi()
         result = api.get_indicator("CPIUS")
         assert result is not None
@@ -351,13 +372,41 @@ class TestFedTreasuryApi:
     def test_all_maturities_with_hyphen(self, mock_session):
         """匹配 'X-Month' / 'X-Year' 格式."""
         records = [
-            {"security_desc": "3-Month Bill", "avg_interest_rate_amount": "4.5", "record_date": "2026-01-01"},
-            {"security_desc": "6-Month Bill", "avg_interest_rate_amount": "4.3", "record_date": "2026-01-01"},
-            {"security_desc": "1-Year Note", "avg_interest_rate_amount": "4.0", "record_date": "2026-01-01"},
-            {"security_desc": "2-Year Note", "avg_interest_rate_amount": "3.8", "record_date": "2026-01-01"},
-            {"security_desc": "5-Year Note", "avg_interest_rate_amount": "3.5", "record_date": "2026-01-01"},
-            {"security_desc": "10-Year Note", "avg_interest_rate_amount": "3.2", "record_date": "2026-01-01"},
-            {"security_desc": "30-Year Bond", "avg_interest_rate_amount": "3.4", "record_date": "2026-01-01"},
+            {
+                "security_desc": "3-Month Bill",
+                "avg_interest_rate_amount": "4.5",
+                "record_date": "2026-01-01",
+            },
+            {
+                "security_desc": "6-Month Bill",
+                "avg_interest_rate_amount": "4.3",
+                "record_date": "2026-01-01",
+            },
+            {
+                "security_desc": "1-Year Note",
+                "avg_interest_rate_amount": "4.0",
+                "record_date": "2026-01-01",
+            },
+            {
+                "security_desc": "2-Year Note",
+                "avg_interest_rate_amount": "3.8",
+                "record_date": "2026-01-01",
+            },
+            {
+                "security_desc": "5-Year Note",
+                "avg_interest_rate_amount": "3.5",
+                "record_date": "2026-01-01",
+            },
+            {
+                "security_desc": "10-Year Note",
+                "avg_interest_rate_amount": "3.2",
+                "record_date": "2026-01-01",
+            },
+            {
+                "security_desc": "30-Year Bond",
+                "avg_interest_rate_amount": "3.4",
+                "record_date": "2026-01-01",
+            },
         ]
         mock_session.get.return_value = _mock_response(json_data={"data": records})
         api = FedTreasuryApi()
@@ -374,8 +423,16 @@ class TestFedTreasuryApi:
     def test_maturities_with_space(self, mock_session):
         """匹配 'X Month' / 'X Year' 格式."""
         records = [
-            {"security_desc": "3 Month Bill", "avg_interest_rate_amount": "4.5", "record_date": "2026-01-01"},
-            {"security_desc": "10 Year Note", "avg_interest_rate_amount": "3.2", "record_date": "2026-01-01"},
+            {
+                "security_desc": "3 Month Bill",
+                "avg_interest_rate_amount": "4.5",
+                "record_date": "2026-01-01",
+            },
+            {
+                "security_desc": "10 Year Note",
+                "avg_interest_rate_amount": "3.2",
+                "record_date": "2026-01-01",
+            },
         ]
         mock_session.get.return_value = _mock_response(json_data={"data": records})
         api = FedTreasuryApi()
@@ -387,7 +444,11 @@ class TestFedTreasuryApi:
     def test_unmatched_desc_skipped(self, mock_session):
         """不匹配任何期限的记录被跳过."""
         records = [
-            {"security_desc": "Unknown Security", "avg_interest_rate_amount": "5.0", "record_date": "2026-01-01"},
+            {
+                "security_desc": "Unknown Security",
+                "avg_interest_rate_amount": "5.0",
+                "record_date": "2026-01-01",
+            },
         ]
         mock_session.get.return_value = _mock_response(json_data={"data": records})
         api = FedTreasuryApi()
@@ -443,17 +504,19 @@ class TestAlphaVantageApi:
     @patch("utils.external_data_source._SESSION")
     def test_success(self, mock_session):
         api = AlphaVantageApi(api_key="key")
-        mock_session.get.return_value = _mock_response(json_data={
-            "Global Quote": {
-                "02. open": "150.0",
-                "03. high": "155.0",
-                "04. low": "148.0",
-                "05. price": "152.0",
-                "08. previous close": "149.0",
-                "06. volume": "1000000",
-                "10. change percent": "2.0%",
+        mock_session.get.return_value = _mock_response(
+            json_data={
+                "Global Quote": {
+                    "02. open": "150.0",
+                    "03. high": "155.0",
+                    "04. low": "148.0",
+                    "05. price": "152.0",
+                    "08. previous close": "149.0",
+                    "06. volume": "1000000",
+                    "10. change percent": "2.0%",
+                }
             }
-        })
+        )
         result = api.get_global_quote("AAPL")
         assert result is not None
         assert result["symbol"] == "AAPL"
@@ -519,9 +582,9 @@ class TestFinnhubApi:
     @patch("utils.external_data_source._SESSION")
     def test_get_quote_success(self, mock_session):
         api = FinnhubApi(api_key="key")
-        mock_session.get.return_value = _mock_response(json_data={
-            "c": 152.0, "o": 150.0, "h": 155.0, "l": 148.0, "pc": 149.0
-        })
+        mock_session.get.return_value = _mock_response(
+            json_data={"c": 152.0, "o": 150.0, "h": 155.0, "l": 148.0, "pc": 149.0}
+        )
         result = api.get_quote("AAPL")
         assert result is not None
         assert result["symbol"] == "AAPL"
@@ -538,9 +601,9 @@ class TestFinnhubApi:
     def test_get_quote_prev_close_zero(self, mock_session):
         """prev_close=0 时 change_pct=0."""
         api = FinnhubApi(api_key="key")
-        mock_session.get.return_value = _mock_response(json_data={
-            "c": 152.0, "o": 150.0, "h": 155.0, "l": 148.0, "pc": 0
-        })
+        mock_session.get.return_value = _mock_response(
+            json_data={"c": 152.0, "o": 150.0, "h": 155.0, "l": 148.0, "pc": 0}
+        )
         result = api.get_quote("AAPL")
         assert result is not None
         assert result["change_pct"] == 0
@@ -565,10 +628,20 @@ class TestFinnhubApi:
     def test_get_market_news_success(self, mock_session):
         api = FinnhubApi(api_key="key")
         news_items = [
-            {"headline": "News 1", "summary": "Summary 1", "source": "SRC",
-             "url": "http://example.com/1", "datetime": 1700000000},
-            {"headline": "News 2", "summary": "Summary 2", "source": "SRC2",
-             "url": "http://example.com/2", "datetime": 1700001000},
+            {
+                "headline": "News 1",
+                "summary": "Summary 1",
+                "source": "SRC",
+                "url": "http://example.com/1",
+                "datetime": 1700000000,
+            },
+            {
+                "headline": "News 2",
+                "summary": "Summary 2",
+                "source": "SRC2",
+                "url": "http://example.com/2",
+                "datetime": 1700001000,
+            },
         ]
         mock_session.get.return_value = _mock_response(json_data=news_items)
         result = api.get_market_news("general")
@@ -585,8 +658,13 @@ class TestFinnhubApi:
         """最多返回 10 条."""
         api = FinnhubApi(api_key="key")
         news_items = [
-            {"headline": f"News {i}", "summary": "", "source": "", "url": "",
-             "datetime": 1700000000 + i}
+            {
+                "headline": f"News {i}",
+                "summary": "",
+                "source": "",
+                "url": "",
+                "datetime": 1700000000 + i,
+            }
             for i in range(15)
         ]
         mock_session.get.return_value = _mock_response(json_data=news_items)
@@ -626,13 +704,15 @@ class TestCoinGeckoApi:
 
     @patch("utils.external_data_source._SESSION")
     def test_get_price_success(self, mock_session):
-        mock_session.get.return_value = _mock_response(json_data={
-            "bitcoin": {
-                "usd": 50000,
-                "usd_24h_change": 2.5,
-                "usd_market_cap": 1000000000000,
+        mock_session.get.return_value = _mock_response(
+            json_data={
+                "bitcoin": {
+                    "usd": 50000,
+                    "usd_24h_change": 2.5,
+                    "usd_market_cap": 1000000000000,
+                }
             }
-        })
+        )
         api = CoinGeckoApi()
         result = api.get_price("bitcoin", "usd")
         assert result is not None
@@ -656,14 +736,16 @@ class TestCoinGeckoApi:
 
     @patch("utils.external_data_source._SESSION")
     def test_get_global_market_success(self, mock_session):
-        mock_session.get.return_value = _mock_response(json_data={
-            "data": {
-                "total_market_cap": {"usd": 2000000000000},
-                "total_volume": {"usd": 100000000000},
-                "market_cap_percentage": {"btc": 40, "eth": 20},
-                "market_cap_change_percentage_24h_usd": -3.5,
+        mock_session.get.return_value = _mock_response(
+            json_data={
+                "data": {
+                    "total_market_cap": {"usd": 2000000000000},
+                    "total_volume": {"usd": 100000000000},
+                    "market_cap_percentage": {"btc": 40, "eth": 20},
+                    "market_cap_change_percentage_24h_usd": -3.5,
+                }
             }
-        })
+        )
         api = CoinGeckoApi()
         result = api.get_global_market()
         assert result is not None
@@ -822,12 +904,16 @@ class TestGetMacroSnapshot:
         """缓存未命中, FRED 可用时获取数据."""
         mgr = ExternalDataManager()
         mgr.fred = FREDApi(api_key="key")
-        with patch.object(mgr.fred, "get_macro_snapshot") as mock_fred, \
-             patch.object(mgr.treasury, "get_treasury_yields") as mock_treasury, \
-             patch.object(mgr.coingecko, "get_global_market") as mock_crypto, \
-             patch.object(mgr, "_save_cache") as mock_save:
+        with (
+            patch.object(mgr.fred, "get_macro_snapshot") as mock_fred,
+            patch.object(mgr.treasury, "get_treasury_yields") as mock_treasury,
+            patch.object(mgr.coingecko, "get_global_market") as mock_crypto,
+            patch.object(mgr, "_save_cache") as mock_save,
+        ):
             mock_fred.return_value = {
-                "CPI": MacroIndicator(name="CPI", value=2.5, unit="%", date="2026-01", source="FRED")
+                "CPI": MacroIndicator(
+                    name="CPI", value=2.5, unit="%", date="2026-01", source="FRED"
+                )
             }
             mock_treasury.return_value = {"10Y": 3.2}
             mock_crypto.return_value = {"total_market_cap": 1000}
@@ -842,9 +928,11 @@ class TestGetMacroSnapshot:
         """FRED 不可用时跳过, 所有源空时不保存缓存."""
         mgr = ExternalDataManager()
         mgr.fred = FREDApi(api_key="")
-        with patch.object(mgr.treasury, "get_treasury_yields", return_value={}), \
-             patch.object(mgr.coingecko, "get_global_market", return_value=None), \
-             patch.object(mgr, "_save_cache") as mock_save:
+        with (
+            patch.object(mgr.treasury, "get_treasury_yields", return_value={}),
+            patch.object(mgr.coingecko, "get_global_market", return_value=None),
+            patch.object(mgr, "_save_cache") as mock_save,
+        ):
             result = mgr.get_macro_snapshot()
         assert result == {}
         mock_save.assert_not_called()
@@ -853,10 +941,14 @@ class TestGetMacroSnapshot:
         """部分数据源返回空时, snapshot 非空仍保存缓存."""
         mgr = ExternalDataManager()
         mgr.fred = FREDApi(api_key="key")
-        with patch.object(mgr.fred, "get_macro_snapshot", return_value={}), \
-             patch.object(mgr.treasury, "get_treasury_yields", return_value={"10Y": 3.2}), \
-             patch.object(mgr.coingecko, "get_global_market", return_value=None), \
-             patch.object(mgr, "_save_cache") as mock_save:
+        with (
+            patch.object(mgr.fred, "get_macro_snapshot", return_value={}),
+            patch.object(
+                mgr.treasury, "get_treasury_yields", return_value={"10Y": 3.2}
+            ),
+            patch.object(mgr.coingecko, "get_global_market", return_value=None),
+            patch.object(mgr, "_save_cache") as mock_save,
+        ):
             result = mgr.get_macro_snapshot()
         assert "treasury_yields" in result
         assert "crypto_market" not in result
@@ -887,10 +979,15 @@ class TestGetGlobalStock:
         mgr = ExternalDataManager()
         mgr.finnhub = FinnhubApi(api_key="key")
         mgr.alpha_vantage = AlphaVantageApi(api_key="key")
-        with patch.object(mgr.finnhub, "get_quote",
-                          return_value={"symbol": "AAPL", "source": "finnhub"}), \
-             patch.object(mgr.alpha_vantage, "get_global_quote") as mock_av, \
-             patch.object(mgr, "_save_cache"):
+        with (
+            patch.object(
+                mgr.finnhub,
+                "get_quote",
+                return_value={"symbol": "AAPL", "source": "finnhub"},
+            ),
+            patch.object(mgr.alpha_vantage, "get_global_quote") as mock_av,
+            patch.object(mgr, "_save_cache"),
+        ):
             result = mgr.get_global_stock("AAPL")
         assert result["source"] == "finnhub"
         mock_av.assert_not_called()
@@ -900,10 +997,15 @@ class TestGetGlobalStock:
         mgr = ExternalDataManager()
         mgr.finnhub = FinnhubApi(api_key="key")
         mgr.alpha_vantage = AlphaVantageApi(api_key="key")
-        with patch.object(mgr.finnhub, "get_quote", return_value=None), \
-             patch.object(mgr.alpha_vantage, "get_global_quote",
-                          return_value={"symbol": "AAPL", "source": "alpha_vantage"}) as mock_av, \
-             patch.object(mgr, "_save_cache"):
+        with (
+            patch.object(mgr.finnhub, "get_quote", return_value=None),
+            patch.object(
+                mgr.alpha_vantage,
+                "get_global_quote",
+                return_value={"symbol": "AAPL", "source": "alpha_vantage"},
+            ) as mock_av,
+            patch.object(mgr, "_save_cache"),
+        ):
             result = mgr.get_global_stock("AAPL")
         assert result["source"] == "alpha_vantage"
         mock_av.assert_called_once()
@@ -923,9 +1025,11 @@ class TestGetGlobalStock:
         mgr = ExternalDataManager()
         mgr.finnhub = FinnhubApi(api_key="key")
         mgr.alpha_vantage = AlphaVantageApi(api_key="key")
-        with patch.object(mgr.finnhub, "get_quote", return_value=None), \
-             patch.object(mgr.alpha_vantage, "get_global_quote", return_value=None), \
-             patch.object(mgr, "_save_cache") as mock_save:
+        with (
+            patch.object(mgr.finnhub, "get_quote", return_value=None),
+            patch.object(mgr.alpha_vantage, "get_global_quote", return_value=None),
+            patch.object(mgr, "_save_cache") as mock_save,
+        ):
             result = mgr.get_global_stock("AAPL")
         assert result is None
         mock_save.assert_not_called()
@@ -952,17 +1056,24 @@ class TestGetCryptoPrice:
 
     def test_cache_miss_success(self, isolated_cache):
         mgr = ExternalDataManager()
-        with patch.object(mgr.coingecko, "get_price",
-                          return_value={"coin": "bitcoin", "price": 50000}), \
-             patch.object(mgr, "_save_cache") as mock_save:
+        with (
+            patch.object(
+                mgr.coingecko,
+                "get_price",
+                return_value={"coin": "bitcoin", "price": 50000},
+            ),
+            patch.object(mgr, "_save_cache") as mock_save,
+        ):
             result = mgr.get_crypto_price("bitcoin")
         assert result["price"] == 50000
         mock_save.assert_called_once()
 
     def test_cache_miss_none(self, isolated_cache):
         mgr = ExternalDataManager()
-        with patch.object(mgr.coingecko, "get_price", return_value=None), \
-             patch.object(mgr, "_save_cache") as mock_save:
+        with (
+            patch.object(mgr.coingecko, "get_price", return_value=None),
+            patch.object(mgr, "_save_cache") as mock_save,
+        ):
             result = mgr.get_crypto_price("bitcoin")
         assert result is None
         mock_save.assert_not_called()
@@ -990,9 +1101,12 @@ class TestGetMarketNews:
     def test_cache_miss_success(self, isolated_cache):
         mgr = ExternalDataManager()
         mgr.finnhub = FinnhubApi(api_key="key")
-        with patch.object(mgr.finnhub, "get_market_news",
-                          return_value=[{"title": "News 1"}]), \
-             patch.object(mgr, "_save_cache") as mock_save:
+        with (
+            patch.object(
+                mgr.finnhub, "get_market_news", return_value=[{"title": "News 1"}]
+            ),
+            patch.object(mgr, "_save_cache") as mock_save,
+        ):
             result = mgr.get_market_news()
         assert len(result) == 1
         mock_save.assert_called_once()

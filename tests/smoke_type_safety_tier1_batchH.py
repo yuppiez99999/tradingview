@@ -1,6 +1,7 @@
 """Smoke tests for Batch H (4 modules × 5 = 20 type:ignore → 0).
 Modules: black_litterman_optimizer, ml_enhanced_selector, quant_neutral_runner, trading_rules.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -34,6 +35,7 @@ for name, path in [
 print("\n=== Smoke Test 2: BlackLittermanOptimizer PEP604 + cast ===")
 try:
     import numpy as np
+
     BLOpt = modules["bl"].BlackLittermanOptimizer
     opt = BLOpt()
     assets = ["A", "B", "C"]
@@ -41,7 +43,9 @@ try:
     cov = np.eye(3) * 0.04
     # optimize with PEP 604 cov_matrix: np.ndarray | pd.DataFrame
     result = opt.optimize(assets, mkt_w, cov)
-    assert hasattr(result, "optimal_weights"), f"BLResult missing optimal_weights: {result}"
+    assert hasattr(
+        result, "optimal_weights"
+    ), f"BLResult missing optimal_weights: {result}"
     w = np.asarray(result.optimal_weights)
     assert len(w) == 3, f"weights len={len(w)}, expected 3"
     print(f"  [OK] BL optimize() → weights={w.round(4).tolist()}")
@@ -61,14 +65,18 @@ try:
     selector.train(X, y, feature_names=["f1", "f2"])
     # predict_proba — uses assert self._model is not None
     proba = selector.predict_proba(X)
-    assert proba is not None and len(proba) == 12, f"proba len={len(proba) if proba is not None else None}"
+    assert (
+        proba is not None and len(proba) == 12
+    ), f"proba len={len(proba) if proba is not None else None}"
     # predict — same assert
     preds = selector.predict(X)
     assert len(preds) == 12, f"preds len={len(preds)}"
     # get_feature_importance — same assert
     imp = selector.get_feature_importance()
     assert isinstance(imp, dict) and len(imp) == 2, f"importance={imp}"
-    print(f"  [OK] MLS predict_proba({len(proba)}) + predict({len(preds)}) + importance({list(imp.keys())})")
+    print(
+        f"  [OK] MLS predict_proba({len(proba)}) + predict({len(preds)}) + importance({list(imp.keys())})"
+    )
     passed += 1
 except Exception as e:  # noqa: BLE001
     print(f"  [FAIL] MLS: {e}")
@@ -117,7 +125,9 @@ try:
     # 主板
     r5 = tr.get_trading_rule("600001", product_class="STOCK")
     assert r5["price_limit_pct"] == 0.10, f"600 limit={r5['price_limit_pct']}"
-    print(f"  [OK] TR FUTURE/OPTION/688/300/600 limits = {r1['price_limit_pct']}/{r2['price_limit_pct']}/{r3['price_limit_pct']}/{r4['price_limit_pct']}/{r5['price_limit_pct']}")
+    print(
+        f"  [OK] TR FUTURE/OPTION/688/300/600 limits = {r1['price_limit_pct']}/{r2['price_limit_pct']}/{r3['price_limit_pct']}/{r4['price_limit_pct']}/{r5['price_limit_pct']}"
+    )
     passed += 1
 except Exception as e:  # noqa: BLE001
     print(f"  [FAIL] TR: {e}")

@@ -11,6 +11,7 @@
 使用:
     python annualized_return_forecast.py
 """
+
 import json
 import logging
 import os
@@ -23,8 +24,8 @@ import pandas as pd
 # 统一成本模型（全系统唯一成本来源，禁止本地硬编码）
 from utils.cost_model import get_cost_model
 
-logging.basicConfig(level=logging.INFO, format='%(message)s')
-logger = logging.getLogger('forecast')
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger("forecast")
 
 # 持仓标的 (从 config/positions.json 同步 - 22标的, 500万计划)
 # 说明: 已剔除数据过期严重的同花顺、卓胜微、藏格矿业，权重已重新分配
@@ -100,12 +101,16 @@ def load_qlib_bin(code: str, field: str = "close") -> pd.Series:
         with open(cal_path) as f:
             dates = [line.strip() for line in f if line.strip()]
     else:
-        dates = pd.bdate_range("2015-01-01", periods=len(values)).strftime("%Y-%m-%d").tolist()
+        dates = (
+            pd.bdate_range("2015-01-01", periods=len(values))
+            .strftime("%Y-%m-%d")
+            .tolist()
+        )
 
     if len(values) > len(dates):
-        values = values[:len(dates)]
+        values = values[: len(dates)]
     elif len(values) < len(dates):
-        dates = dates[:len(values)]
+        dates = dates[: len(values)]
 
     s = pd.Series(values, index=pd.to_datetime(dates), name=code)
     # 去除尾部 NaN
@@ -119,7 +124,14 @@ def load_wind_mcp_data(code: str, days: int = 1200) -> pd.Series:
         import wind_mcp_fetcher as wm
 
         is_fund = code.startswith("5") or code.startswith("1599")
-        windcode = f"{code}.SH" if code.startswith("6") or code.startswith("5") or code.startswith("11") or code.startswith("13") else f"{code}.SZ"
+        windcode = (
+            f"{code}.SH"
+            if code.startswith("6")
+            or code.startswith("5")
+            or code.startswith("11")
+            or code.startswith("13")
+            else f"{code}.SZ"
+        )
         if code.startswith("4") or code.startswith("8"):
             windcode = f"{code}.SH"
         elif code.startswith("0") or code.startswith("3") or code.startswith("1599"):
@@ -141,13 +153,24 @@ def load_wind_mcp_data(code: str, days: int = 1200) -> pd.Series:
         df = df.sort_values("日期").drop_duplicates("日期")
         s = df.set_index("日期")["收盘"].sort_index()
         return s[s > 0].dropna()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as exc:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.debug(f"  Wind MCP 加载失败 {code}: {exc}")
         return pd.Series()
 
 
-def load_akshare_data(code: str, start_date: str = "2018-01-01", end_date: str = None) -> pd.Series:
+def load_akshare_data(
+    code: str, start_date: str = "2018-01-01", end_date: str = None
+) -> pd.Series:
     """从 akshare 加载价格数据作为 QLib 缺失时的备选"""
     if end_date is None:
         end_date = datetime.now().strftime("%Y-%m-%d")
@@ -159,15 +182,37 @@ def load_akshare_data(code: str, start_date: str = "2018-01-01", end_date: str =
             etf_hist_df = pd.DataFrame()
             try:
                 etf_hist_df = ak.fund_etf_hist_sina(symbol=code)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc_sina:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as exc_sina:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.debug(f"  akshare 新浪 ETF 失败 {code}: {exc_sina}")
             if etf_hist_df.empty:
                 try:
                     etf_hist_df = ak.fund_etf_hist_em(
-                        symbol=code, period="daily", start_date=start_date, end_date=end_date, adjust="hfq"
+                        symbol=code,
+                        period="daily",
+                        start_date=start_date,
+                        end_date=end_date,
+                        adjust="hfq",
                     )
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc_em:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as exc_em:
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.debug(f"  akshare 东方财富 ETF 失败 {code}: {exc_em}")
             if etf_hist_df.empty:
@@ -179,7 +224,11 @@ def load_akshare_data(code: str, start_date: str = "2018-01-01", end_date: str =
             s = etf_hist_df["收盘"].sort_index()
         else:
             stock_zh_a_hist_df = ak.stock_zh_a_hist(
-                symbol=code, period="daily", start_date=start_date, end_date=end_date, adjust="hfq"
+                symbol=code,
+                period="daily",
+                start_date=start_date,
+                end_date=end_date,
+                adjust="hfq",
             )
             if stock_zh_a_hist_df.empty:
                 return pd.Series()
@@ -189,7 +238,16 @@ def load_akshare_data(code: str, start_date: str = "2018-01-01", end_date: str =
 
         s = s[s > 0].dropna()
         return s
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as exc:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.debug(f"  akshare 加载失败 {code}: {exc}")
         return pd.Series()
@@ -199,6 +257,7 @@ def load_ifind_data(code: str, days: int = 800) -> pd.Series:
     """从 iFinD MCP 加载价格数据作为 QLib/akshare 失败时的回退"""
     try:
         from utils.ifind_client import IFindClient
+
         client = IFindClient()
         if code.startswith("5") or code.startswith("1599"):
             raw = client.get_etf_historical(code, days=days)
@@ -215,7 +274,16 @@ def load_ifind_data(code: str, days: int = 800) -> pd.Series:
             df["日期"] = pd.to_datetime(df["日期"])
             s = df.set_index("日期")["收盘"].sort_index()
         return s[s > 0].dropna()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as exc:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.debug(f"  iFinD 加载失败 {code}: {exc}")
         return pd.Series()
@@ -247,7 +315,16 @@ def load_local_etf_fallback(code: str) -> pd.Series:
                 df["日期"] = pd.to_datetime(df["日期"])
                 s = df.set_index("日期")["收盘"].sort_index()
                 return s[s > 0].dropna()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as exc:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"  本地ETF兜底失败 {code}: {exc}")
     return pd.Series()
@@ -259,7 +336,7 @@ def compute_historical_stats(prices: pd.Series, window: int = 252) -> dict:
         return {}
 
     # 基础价格校验
-    if prices.iloc[0] <= 0 or (hasattr(prices, 'iloc') and prices.iloc[-1] <= 0):
+    if prices.iloc[0] <= 0 or (hasattr(prices, "iloc") and prices.iloc[-1] <= 0):
         logger.warning("  [SKIP] 价格序列含非正值，无法计算统计指标")
         return {}
 
@@ -290,7 +367,16 @@ def compute_historical_stats(prices: pd.Series, window: int = 252) -> dict:
         if not np.isfinite(max_dd):
             logger.warning("  [SKIP] 最大回撤计算失败 (NaN/Inf)")
             return {}
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as exc:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning("  [SKIP] 最大回撤计算失败: %s", exc)
         return {}
@@ -298,7 +384,11 @@ def compute_historical_stats(prices: pd.Series, window: int = 252) -> dict:
     # Sortino
     downside = returns[returns < 0]
     downside_std = downside.std() if len(downside) > 0 else np.nan
-    sortino = (annual_return - RF_RATE) / (downside_std * np.sqrt(252)) if np.isfinite(downside_std) and downside_std > 1e-6 else 0.0
+    sortino = (
+        (annual_return - RF_RATE) / (downside_std * np.sqrt(252))
+        if np.isfinite(downside_std) and downside_std > 1e-6
+        else 0.0
+    )
 
     # Calmar
     calmar = annual_return / abs(max_dd) if max_dd < 0 and abs(max_dd) > 1e-6 else 0.0
@@ -307,7 +397,16 @@ def compute_historical_stats(prices: pd.Series, window: int = 252) -> dict:
     try:
         skew = returns.skew()
         kurtosis = returns.kurtosis()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         skew = 0.0
         kurtosis = 0.0
@@ -406,7 +505,9 @@ def forecast_annualized_return() -> dict:
         last_date = prices.index[-1]
         days_since_last = (datetime.now() - last_date).days
         if days_since_last > 365:
-            logger.warning(f"  {name} ({code}) 数据过期: {last_date.date()}, 已 {days_since_last} 天, 跳过")
+            logger.warning(
+                f"  {name} ({code}) 数据过期: {last_date.date()}, 已 {days_since_last} 天, 跳过"
+            )
             continue
 
         # 历史统计
@@ -422,7 +523,16 @@ def forecast_annualized_return() -> dict:
         # 信号 [-1, 1] × 年化波动率 × 0.3 (信号衰减系数)
         try:
             ml_expected_excess = ml_signal * stats["annual_vol"] * 0.3
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as exc:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"  {name} ({code}) ML 预期收益计算失败: {exc}, 跳过")
             continue
@@ -431,9 +541,17 @@ def forecast_annualized_return() -> dict:
         # 因子分解 (简化版)
         # 板块因子: 科技 1.05x, 制造 1.0x, 防御 0.8x, 资源 1.1x, 黄金 0.7x
         sector_factor = {
-            "科技": 1.05, "制造": 1.0, "防御": 0.85,
-            "资源": 1.1, "黄金": 0.7, "金融": 0.9, "核心宽基": 1.0,
-            "新能源": 1.08, "医药": 0.95, "顺周期": 0.9, "成长": 1.02
+            "科技": 1.05,
+            "制造": 1.0,
+            "防御": 0.85,
+            "资源": 1.1,
+            "黄金": 0.7,
+            "金融": 0.9,
+            "核心宽基": 1.0,
+            "新能源": 1.08,
+            "医药": 0.95,
+            "顺周期": 0.9,
+            "成长": 1.02,
         }.get(sector, 1.0)
 
         # 动量因子: 近 60 日收益率年化
@@ -445,33 +563,40 @@ def forecast_annualized_return() -> dict:
             momentum_return = (recent_60.iloc[-1] / recent_60.iloc[0] - 1) * (252 / 60)
             # 异常值保护
             if not np.isfinite(momentum_return) or abs(momentum_return) > 10.0:
-                logger.warning(f"  {name} ({code}) 动量收益异常: {momentum_return*100:.2f}%，已归零")
+                logger.warning(
+                    f"  {name} ({code}) 动量收益异常: {momentum_return*100:.2f}%，已归零"
+                )
                 momentum_return = 0.0
 
         # 因子预期: 板块因子 × 历史均值 × 0.5 + 动量 × 0.5
-        factor_expected = (stats["annual_return"] * sector_factor * 0.5 +
-                          momentum_return * 0.5)
+        factor_expected = (
+            stats["annual_return"] * sector_factor * 0.5 + momentum_return * 0.5
+        )
 
         # 综合预期: 50% 历史 + 30% ML + 20% 因子
-        blended_return = (0.50 * stats["annual_return"] +
-                         0.30 * ml_expected_return +
-                         0.20 * factor_expected)
+        blended_return = (
+            0.50 * stats["annual_return"]
+            + 0.30 * ml_expected_return
+            + 0.20 * factor_expected
+        )
 
-        results.append({
-            "code": code,
-            "name": name,
-            "weight": weight,
-            "sector": sector,
-            "hist_return": stats["annual_return"],
-            "hist_vol": stats["annual_vol"],
-            "hist_sharpe": stats["sharpe"],
-            "ml_signal": round(ml_signal, 4),
-            "ml_expected": round(ml_expected_return, 4),
-            "factor_expected": round(factor_expected, 4),
-            "blended_forecast": round(blended_return, 4),
-            "data_range": f"{stats['data_start']} ~ {stats['data_end']}",
-            "n_days": stats["n_days"],
-        })
+        results.append(
+            {
+                "code": code,
+                "name": name,
+                "weight": weight,
+                "sector": sector,
+                "hist_return": stats["annual_return"],
+                "hist_vol": stats["annual_vol"],
+                "hist_sharpe": stats["sharpe"],
+                "ml_signal": round(ml_signal, 4),
+                "ml_expected": round(ml_expected_return, 4),
+                "factor_expected": round(factor_expected, 4),
+                "blended_forecast": round(blended_return, 4),
+                "data_range": f"{stats['data_start']} ~ {stats['data_end']}",
+                "n_days": stats["n_days"],
+            }
+        )
 
         # 组合加权
         portfolio_hist_return += stats["annual_return"] * weight
@@ -490,22 +615,24 @@ def forecast_annualized_return() -> dict:
         asset_weights_arr = np.array(asset_weights)
         w_sigma_sq = np.sum((asset_weights_arr * asset_vols_arr) ** 2)
         w_sigma_sum = np.sum(asset_weights_arr * asset_vols_arr)
-        portfolio_var = (1 - DEFAULT_RHO) * w_sigma_sq + DEFAULT_RHO * (w_sigma_sum ** 2)
+        portfolio_var = (1 - DEFAULT_RHO) * w_sigma_sq + DEFAULT_RHO * (w_sigma_sum**2)
         portfolio_vol = np.sqrt(max(portfolio_var, 0))
     elif len(asset_vols) == 1:
         portfolio_vol = asset_vols[0] * asset_weights[0]
     else:
         portfolio_vol = 0
-    blended_portfolio = (0.50 * portfolio_hist_return +
-                        0.30 * portfolio_ml_return +
-                        0.20 * portfolio_factor_return)
+    blended_portfolio = (
+        0.50 * portfolio_hist_return
+        + 0.30 * portfolio_ml_return
+        + 0.20 * portfolio_factor_return
+    )
 
     # 成本拖累：统一成本模型（此前错误地取 0.45%，严重低估；现已并入
     # 佣金/印花税/冲击/期权覆盖/期货对冲，年化约 2.4%，全系统唯一来源）
     cost_model = get_cost_model()
     cost_breakdown = cost_model.breakdown()
-    cost_drag = cost_breakdown["total"]   # 年化总成本
-    hedge_cost = 0.0                        # 对冲成本已并入 cost_model.annual_total_cost
+    cost_drag = cost_breakdown["total"]  # 年化总成本
+    hedge_cost = 0.0  # 对冲成本已并入 cost_model.annual_total_cost
 
     # 最终预期（净收益必须扣除统一年化成本后再报）
     net_return = cost_model.net_return(blended_portfolio)
@@ -521,7 +648,11 @@ def forecast_annualized_return() -> dict:
         "historical_forecast": {
             "portfolio_annual_return": round(portfolio_hist_return, 4),
             "portfolio_volatility": round(portfolio_vol, 4),
-            "portfolio_sharpe": round((portfolio_hist_return - RF_RATE) / portfolio_vol, 3) if portfolio_vol > 0 else 0,
+            "portfolio_sharpe": (
+                round((portfolio_hist_return - RF_RATE) / portfolio_vol, 3)
+                if portfolio_vol > 0
+                else 0
+            ),
         },
         "ml_forecast": {
             "portfolio_annual_return": round(portfolio_ml_return, 4),
@@ -647,7 +778,9 @@ def main():
     logger.info("\n" + "=" * 70)
     logger.info("各标的年化收益预测")
     logger.info("=" * 70)
-    logger.info(f"{'代码':<8} {'名称':<10} {'权重':>6} {'历史σ':>8} {'历史收益':>8} {'ML信号':>8} {'综合预测':>8}")
+    logger.info(
+        f"{'代码':<8} {'名称':<10} {'权重':>6} {'历史σ':>8} {'历史收益':>8} {'ML信号':>8} {'综合预测':>8}"
+    )
     logger.info("─" * 70)
 
     for a in forecast["assets"]:
@@ -659,8 +792,10 @@ def main():
 
     logger.info("─" * 70)
     bf = forecast["blended_forecast"]
-    logger.info(f"{'组合':<8} {'':<10} {forecast['portfolio']['total_weight']:>5.1%} "
-                f"{'':>8} {'':>8} {'':>8} {bf['gross_return']:>+7.1%}")
+    logger.info(
+        f"{'组合':<8} {'':<10} {forecast['portfolio']['total_weight']:>5.1%} "
+        f"{'':>8} {'':>8} {'':>8} {bf['gross_return']:>+7.1%}"
+    )
     logger.info(f"\n毛收益:   {bf['gross_return']:.2%}")
     logger.info(f"成本拖累: -{bf['cost_drag']:.2%}")
     logger.info(f"对冲成本: -{bf['hedge_cost']:.2%}")
@@ -678,7 +813,9 @@ def main():
         r = bt_result["returns"]
         c = bt_result["costs"]
         comp = bt_result["comparison"]
-        logger.info(f"回测区间: {bt_result['backtest_period']['start']} ~ {bt_result['backtest_period']['end']}")
+        logger.info(
+            f"回测区间: {bt_result['backtest_period']['start']} ~ {bt_result['backtest_period']['end']}"
+        )
         logger.info(f"总收益:   {r['total_return']:.2%}")
         logger.info(f"年化收益: {r['annual_return_gross']:.2%}")
         logger.info(f"最大回撤: {r['max_drawdown']:.2%}")
@@ -707,8 +844,9 @@ def main():
     }
 
     report_path = os.path.join(
-        os.path.dirname(__file__), "reports",
-        f"annualized_return_forecast_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        os.path.dirname(__file__),
+        "reports",
+        f"annualized_return_forecast_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
     )
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     with open(report_path, "w", encoding="utf-8") as f:

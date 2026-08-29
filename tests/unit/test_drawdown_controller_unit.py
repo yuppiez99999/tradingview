@@ -3,6 +3,7 @@
 被测模块: utils/drawdown_controller.py
 覆盖目标: >=95%
 """
+
 from __future__ import annotations
 
 import sys
@@ -19,6 +20,7 @@ from utils.drawdown_controller import DrawdownController  # noqa: E402
 # ============================================================
 # check_drawdown — 各级别
 # ============================================================
+
 
 class TestCheckDrawdown:
     def setup_method(self):
@@ -75,6 +77,7 @@ class TestCheckDrawdown:
 # check_drawdown — high_water_mark
 # ============================================================
 
+
 class TestHighWaterMark:
     def test_hwm_takes_priority(self):
         dc = DrawdownController()
@@ -91,6 +94,7 @@ class TestHighWaterMark:
 # ============================================================
 # check_drawdown — fail-closed
 # ============================================================
+
 
 class TestFailClosed:
     def test_zero_peak(self):
@@ -113,6 +117,7 @@ class TestFailClosed:
 # ============================================================
 # execute_response
 # ============================================================
+
 
 class TestExecuteResponse:
     def setup_method(self):
@@ -153,10 +158,13 @@ class TestExecuteResponse:
 # get_event_history
 # ============================================================
 
+
 class TestEventHistory:
     def test_empty_history(self, tmp_path, monkeypatch):
         dc = DrawdownController()
-        monkeypatch.setattr("utils.drawdown_controller.LOG_FILE", tmp_path / "events.jsonl")
+        monkeypatch.setattr(
+            "utils.drawdown_controller.LOG_FILE", tmp_path / "events.jsonl"
+        )
         assert dc.get_event_history(30) == []
 
     def test_history_after_event(self, tmp_path, monkeypatch):

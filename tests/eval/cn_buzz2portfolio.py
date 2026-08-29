@@ -44,12 +44,14 @@ logger = logging.getLogger("cn_buzz2portfolio")
 # 新闻分类枚举
 # ============================================================
 
+
 class NewsCategory(str, Enum):
     """新闻类别。"""
-    MACRO_POLICY = "macro_policy"        # 宏观政策
-    INDUSTRY_DYNAMICS = "industry"       # 行业动态
-    COMPANY_ANNOUNCEMENT = "company"     # 公司公告
-    MARKET_SENTIMENT = "sentiment"       # 市场情绪
+
+    MACRO_POLICY = "macro_policy"  # 宏观政策
+    INDUSTRY_DYNAMICS = "industry"  # 行业动态
+    COMPANY_ANNOUNCEMENT = "company"  # 公司公告
+    MARKET_SENTIMENT = "sentiment"  # 市场情绪
     UNKNOWN = "unknown"
 
 
@@ -58,7 +60,16 @@ class NewsCategory(str, Enum):
 # ============================================================
 
 INDUSTRY_KEYWORDS: dict[str, list[str]] = {
-    "高端制造": ["半导体", "芯片", "集成电路", "高端装备", "数控机床", "工业母机", "航空", "航天"],
+    "高端制造": [
+        "半导体",
+        "芯片",
+        "集成电路",
+        "高端装备",
+        "数控机床",
+        "工业母机",
+        "航空",
+        "航天",
+    ],
     "新能源": ["光伏", "风电", "储能", "锂电", "新能源汽车", "充电桩", "氢能", "钠电"],
     "消费": ["白酒", "食品", "零售", "旅游", "餐饮", "家电", "服装", "免税"],
     "医药": ["创新药", "医疗器械", "疫苗", "中药", "CRO", "CDMO", "生物制药"],
@@ -71,15 +82,32 @@ INDUSTRY_KEYWORDS: dict[str, list[str]] = {
 
 # 宏观政策关键词
 MACRO_KEYWORDS: list[str] = [
-    "降准", "降息", "MLF", "LPR", "逆回购", "财政", "专项债", "减税",
-    "两会", "五年规划", "十五五", "国常会", "发改委", "央行", "证监会",
-    "注册制", "退市", "IPO", "再融资",
+    "降准",
+    "降息",
+    "MLF",
+    "LPR",
+    "逆回购",
+    "财政",
+    "专项债",
+    "减税",
+    "两会",
+    "五年规划",
+    "十五五",
+    "国常会",
+    "发改委",
+    "央行",
+    "证监会",
+    "注册制",
+    "退市",
+    "IPO",
+    "再融资",
 ]
 
 
 # ============================================================
 # 新闻条目
 # ============================================================
+
 
 @dataclass
 class NewsItem:
@@ -95,6 +123,7 @@ class NewsItem:
         sentiment: 情绪评分 (-1 到 +1, 正=利好)
         heat: 热度评分 (0 到 1)
     """
+
     title: str
     content: str = ""
     source: str = ""
@@ -120,6 +149,7 @@ class NewsItem:
 # 组合配置结果
 # ============================================================
 
+
 @dataclass
 class PortfolioConfig:
     """投资组合配置结果。
@@ -130,6 +160,7 @@ class PortfolioConfig:
         confidence: 配置置信度 (0-1)
         reasoning: 配置理由
     """
+
     target_weights: dict[str, float] = field(default_factory=dict)
     macro_signal: str = "neutral"
     confidence: float = 0.0
@@ -148,6 +179,7 @@ class PortfolioConfig:
 # Stage 1: 新闻分类器
 # ============================================================
 
+
 class NewsClassifier:
     """Stage 1: 新闻收集与分类。
 
@@ -160,15 +192,14 @@ class NewsClassifier:
 
         if any(kw in text for kw in MACRO_KEYWORDS):
             news.category = NewsCategory.MACRO_POLICY
-        elif any(
-            kw in text
-            for kws in INDUSTRY_KEYWORDS.values()
-            for kw in kws
-        ):
+        elif any(kw in text for kws in INDUSTRY_KEYWORDS.values() for kw in kws):
             news.category = NewsCategory.INDUSTRY_DYNAMICS
         elif any(kw in text for kw in ["公告", "财报", "业绩", "预告", "披露"]):
             news.category = NewsCategory.COMPANY_ANNOUNCEMENT
-        elif any(kw in text for kw in ["情绪", "恐慌", "贪婪", "涨停", "跌停", "牛市", "熊市"]):
+        elif any(
+            kw in text
+            for kw in ["情绪", "恐慌", "贪婪", "涨停", "跌停", "牛市", "熊市"]
+        ):
             news.category = NewsCategory.MARKET_SENTIMENT
 
         return news
@@ -182,14 +213,36 @@ class NewsClassifier:
 # Stage 2: 舆情分析器
 # ============================================================
 
+
 class BuzzAnalyzer:
     """Stage 2: 舆情分析。
 
     关键词匹配 → 行业映射 + 情绪评分 + 热度评分。
     """
 
-    POSITIVE_KEYWORDS = ["利好", "增长", "突破", "创新高", "超预期", "加仓", "买入", "上调", "繁荣"]
-    NEGATIVE_KEYWORDS = ["利空", "下降", "下滑", "亏损", "退市", "违规", "处罚", "下调", "危机", "暴跌"]
+    POSITIVE_KEYWORDS = [
+        "利好",
+        "增长",
+        "突破",
+        "创新高",
+        "超预期",
+        "加仓",
+        "买入",
+        "上调",
+        "繁荣",
+    ]
+    NEGATIVE_KEYWORDS = [
+        "利空",
+        "下降",
+        "下滑",
+        "亏损",
+        "退市",
+        "违规",
+        "处罚",
+        "下调",
+        "危机",
+        "暴跌",
+    ]
 
     def analyze(self, news: NewsItem) -> NewsItem:
         """分析单条新闻的舆情。"""
@@ -228,7 +281,9 @@ class BuzzAnalyzer:
             heat = min(1.0, heat + 0.2)
         return round(heat, 2)
 
-    def get_industry_buzz(self, news_items: list[NewsItem]) -> dict[str, dict[str, float]]:
+    def get_industry_buzz(
+        self, news_items: list[NewsItem]
+    ) -> dict[str, dict[str, float]]:
         """获取各行业舆情汇总。
 
         Returns:
@@ -255,6 +310,7 @@ class BuzzAnalyzer:
 # Stage 3: 组合构建器
 # ============================================================
 
+
 class PortfolioConstructor:
     """Stage 3: 投资组合构建。
 
@@ -273,9 +329,12 @@ class PortfolioConstructor:
         "公用": 0.03,
     }
 
-    def construct(self, news_items: list[NewsItem],
-                  industry_buzz: dict[str, dict[str, float]],
-                  current_weights: Optional[dict[str, float]] = None) -> PortfolioConfig:
+    def construct(
+        self,
+        news_items: list[NewsItem],
+        industry_buzz: dict[str, dict[str, float]],
+        current_weights: Optional[dict[str, float]] = None,
+    ) -> PortfolioConfig:
         """构建投资组合配置。
 
         Args:
@@ -324,8 +383,9 @@ class PortfolioConstructor:
             return "bearish"
         return "neutral"
 
-    def _compute_confidence(self, news_items: list[NewsItem],
-                            industry_buzz: dict[str, dict[str, float]]) -> float:
+    def _compute_confidence(
+        self, news_items: list[NewsItem], industry_buzz: dict[str, dict[str, float]]
+    ) -> float:
         """计算配置置信度。"""
         n_news = len(news_items)
         n_industries = len(industry_buzz)
@@ -335,8 +395,9 @@ class PortfolioConstructor:
         industry_factor = min(1.0, n_industries / 5.0)
         return round(0.5 * news_factor + 0.5 * industry_factor, 2)
 
-    def _build_reasoning(self, macro_signal: str,
-                         industry_buzz: dict[str, dict[str, float]]) -> str:
+    def _build_reasoning(
+        self, macro_signal: str, industry_buzz: dict[str, dict[str, float]]
+    ) -> str:
         """构建配置理由。"""
         reasons: list[str] = [f"宏观信号: {macro_signal}"]
         top_industries = sorted(
@@ -354,6 +415,7 @@ class PortfolioConstructor:
 # Tri-Stage CPA Agent
 # ============================================================
 
+
 class TriStageCPAAgent:
     """Tri-Stage CPA Agent — 三阶段中国组合代理。
 
@@ -367,8 +429,11 @@ class TriStageCPAAgent:
         self.analyzer = BuzzAnalyzer()
         self.constructor = PortfolioConstructor()
 
-    def run(self, news_items: list[NewsItem],
-            current_weights: Optional[dict[str, float]] = None) -> PortfolioConfig:
+    def run(
+        self,
+        news_items: list[NewsItem],
+        current_weights: Optional[dict[str, float]] = None,
+    ) -> PortfolioConfig:
         """运行三阶段 CPA 代理。
 
         Args:
@@ -392,7 +457,9 @@ class TriStageCPAAgent:
 
         # Stage 3: 组合构建
         config = self.constructor.construct(analyzed, industry_buzz, current_weights)
-        logger.debug(f"Stage 3 完成: 宏观={config.macro_signal}, 置信度={config.confidence}")
+        logger.debug(
+            f"Stage 3 完成: 宏观={config.macro_signal}, 置信度={config.confidence}"
+        )
 
         return config
 
@@ -400,6 +467,7 @@ class TriStageCPAAgent:
 # ============================================================
 # CN-Buzz2Portfolio 基准
 # ============================================================
+
 
 class CNBuzz2PortfolioBenchmark:
     """CN-Buzz2Portfolio 中国市场基准测试框架。
@@ -413,8 +481,11 @@ class CNBuzz2PortfolioBenchmark:
         self.agent = TriStageCPAAgent()
         self._results: list[dict[str, Any]] = []
 
-    def run(self, news_items: list[NewsItem],
-            current_weights: Optional[dict[str, float]] = None) -> PortfolioConfig:
+    def run(
+        self,
+        news_items: list[NewsItem],
+        current_weights: Optional[dict[str, float]] = None,
+    ) -> PortfolioConfig:
         """运行基准测试。
 
         Args:
@@ -426,12 +497,14 @@ class CNBuzz2PortfolioBenchmark:
         """
         config = self.agent.run(news_items, current_weights)
 
-        self._results.append({
-            "n_news": len(news_items),
-            "macro_signal": config.macro_signal,
-            "confidence": config.confidence,
-            "n_industries": len(config.target_weights),
-        })
+        self._results.append(
+            {
+                "n_news": len(news_items),
+                "macro_signal": config.macro_signal,
+                "confidence": config.confidence,
+                "n_industries": len(config.target_weights),
+            }
+        )
 
         return config
 
@@ -472,7 +545,9 @@ class CNBuzz2PortfolioBenchmark:
         }
 
     @staticmethod
-    def create_news_from_titles(titles: list[str], source: str = "财联社") -> list[NewsItem]:
+    def create_news_from_titles(
+        titles: list[str], source: str = "财联社"
+    ) -> list[NewsItem]:
         """从标题列表创建新闻条目 (便捷方法)。"""
         return [NewsItem(title=t, source=source) for t in titles]
 
@@ -480,6 +555,7 @@ class CNBuzz2PortfolioBenchmark:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示 CN-Buzz2Portfolio 基准。"""

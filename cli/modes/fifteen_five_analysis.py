@@ -28,7 +28,9 @@ def run_fifteen_five_analysis(args):
     overview = analyzer.get_policy_overview()
     print("\n  📋 十五五规划七大战略方向:")
     for o in overview:
-        print(f"    {o['direction']}: 权重={o['weight']:.0%}, 优先级={o['relevance_score']}")
+        print(
+            f"    {o['direction']}: 权重={o['weight']:.0%}, 优先级={o['relevance_score']}"
+        )
 
     progress.update(3, "生成权重调整建议...")
     holdings = analyzer.analyze_holdings()
@@ -38,14 +40,16 @@ def run_fifteen_five_analysis(args):
         print(f"    {h['name']}: 评分={h['overall_score']}, 等级={h['grade']}")
     print("\n  ⚖️ 权重调整建议:")
     for adj in adjustments:
-        direction = "+" if adj['weight_adjust_pct'] > 0 else ""
-        print(f"    {adj['name']}: {adj['suggestion']} ({direction}{adj['weight_adjust_pct']:.1f}%)")
+        direction = "+" if adj["weight_adjust_pct"] > 0 else ""
+        print(
+            f"    {adj['name']}: {adj['suggestion']} ({direction}{adj['weight_adjust_pct']:.1f}%)"
+        )
 
     progress.update(4, "生成报告...")
     report = analyzer.generate_report()
 
     write_report_file(report, args.output)
-    archive_report(report, '十五五规划适配')
+    archive_report(report, "十五五规划适配")
 
     progress.complete("✅ 十五五规划分析完成")
     return analyzer

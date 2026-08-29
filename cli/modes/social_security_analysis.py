@@ -28,14 +28,18 @@ def run_social_security_analysis(args):
     summary = tracker.classifier.get_style_summary()
     print("\n  📊 社保基金四大风格配置:")
     for style, info in summary.items():
-        print(f"    {style}: 权重={info['weight']:.0%}, 建议={info['recommended_action']}")
+        print(
+            f"    {style}: 权重={info['weight']:.0%}, 建议={info['recommended_action']}"
+        )
         print(f"      ETF: {', '.join(info['top_etfs'][:2])}")
 
     progress.update(3, "获取ETF风格映射...")
     etf_classifications = tracker.classifier.get_all_etf_classifications()
     print("\n  🔗 ETF风格映射 (前10):")
     for etf in etf_classifications[:10]:
-        print(f"    {etf['name']} → {etf['social_style']} (匹配度={etf['match_score']})")
+        print(
+            f"    {etf['name']} → {etf['social_style']} (匹配度={etf['match_score']})"
+        )
 
     progress.update(4, "生成报告...")
     flow_data = get_etf_flow_data()
@@ -45,7 +49,7 @@ def run_social_security_analysis(args):
     report = tracker.generate_report(flow_data=flow_data)
 
     write_report_file(report, args.output)
-    archive_report(report, '社保基金ETF追踪')
+    archive_report(report, "社保基金ETF追踪")
 
     progress.complete("✅ 社保基金ETF追踪完成")
     return tracker

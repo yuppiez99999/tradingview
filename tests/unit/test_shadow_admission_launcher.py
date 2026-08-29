@@ -10,6 +10,7 @@
     7. 每日 DSR 报告生成
     8. CLI 命令入口 (start/daily/status/evaluate)
 """
+
 from __future__ import annotations
 
 import json
@@ -42,6 +43,7 @@ from scripts.shadow_admission_launcher import (  # noqa: E402
 # ============================================================
 # 测试 fixture
 # ============================================================
+
 
 @pytest.fixture
 def temp_state_file(tmp_path: Path) -> Path:
@@ -104,10 +106,10 @@ def completed_state_failing_metrics(sample_state: dict[str, Any]) -> dict[str, A
     started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
     sample_state["started_at"] = started
     sample_state["latest_metrics"] = {
-        "dsr": 3.0,           # < 5
+        "dsr": 3.0,  # < 5
         "annual_return": 0.10,  # < 0.15
-        "max_drawdown": 0.12,   # > 0.10
-        "sharpe_cv": 1.5,       # > 1.0
+        "max_drawdown": 0.12,  # > 0.10
+        "sharpe_cv": 1.5,  # > 1.0
     }
     return sample_state
 
@@ -135,6 +137,7 @@ def sample_criteria() -> dict[str, Any]:
 # ============================================================
 # 1. 工具函数测试
 # ============================================================
+
 
 class TestUtilities:
     """工具函数测试."""
@@ -183,6 +186,7 @@ class TestStateFileIO:
 # ============================================================
 # 2. 观察期进度计算测试
 # ============================================================
+
 
 class TestObservationProgress:
     """_compute_observation_progress 测试."""
@@ -233,6 +237,7 @@ class TestObservationProgress:
 # 3. Stage 2 推进条件评估测试 (HC-4)
 # ============================================================
 
+
 class TestStage2Promotion:
     """_check_stage_2_blockers 测试 (HC-4 阻塞)."""
 
@@ -251,7 +256,9 @@ class TestStage2Promotion:
         assert result["can_promote"] is False
         assert any("fail_fast_triggered=true" in b for b in result["blockers"])
 
-    def test_pass_when_complete_and_metrics_meet(self, completed_state, sample_criteria):
+    def test_pass_when_complete_and_metrics_meet(
+        self, completed_state, sample_criteria
+    ):
         """观察期完成 + 指标达标 → 可推进."""
         result = _check_stage_2_blockers(completed_state, sample_criteria)
         assert result["can_promote"] is True
@@ -259,9 +266,13 @@ class TestStage2Promotion:
         # 至少有 6 个 promoters (观察期 + fail_fast + 4 个指标)
         assert len(result["promoters"]) >= 6
 
-    def test_block_when_metrics_fail(self, completed_state_failing_metrics, sample_criteria):
+    def test_block_when_metrics_fail(
+        self, completed_state_failing_metrics, sample_criteria
+    ):
         """观察期完成但指标不达标 → 阻塞."""
-        result = _check_stage_2_blockers(completed_state_failing_metrics, sample_criteria)
+        result = _check_stage_2_blockers(
+            completed_state_failing_metrics, sample_criteria
+        )
         assert result["can_promote"] is False
         # 应有 4 个指标阻塞 (DSR / 年化 / 回撤 / Sharpe CV)
         blockers_str = " ".join(result["blockers"])
@@ -275,7 +286,7 @@ class TestStage2Promotion:
         started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
         sample_state["started_at"] = started
         sample_state["latest_metrics"] = {
-            "dsr": 5.0,            # == min_dsr
+            "dsr": 5.0,  # == min_dsr
             "annual_return": 0.20,
             "max_drawdown": 0.08,
             "sharpe_cv": 0.9,
@@ -304,7 +315,7 @@ class TestStage2Promotion:
         sample_state["latest_metrics"] = {
             "dsr": 6.0,
             "annual_return": 0.20,
-            "max_drawdown": 0.10,   # == max_drawdown
+            "max_drawdown": 0.10,  # == max_drawdown
             "sharpe_cv": 0.9,
         }
         result = _check_stage_2_blockers(sample_state, sample_criteria)
@@ -314,6 +325,7 @@ class TestStage2Promotion:
 # ============================================================
 # 4. 配置加载测试 (HC-5)
 # ============================================================
+
 
 class TestConfigLoading:
     """配置加载测试."""
@@ -375,7 +387,6 @@ class TestConfigLoading:
         sf = cfg["single_factor"]
         assert sf["config_name"] == "Config_E"
 
-
     def test_config_combination_config_e_plus1(self):
         """因子组合用 Config_E_plus1."""
         cfg = _load_shadow_config()
@@ -383,10 +394,10 @@ class TestConfigLoading:
         assert fc["config_name"] == "Config_E_plus1"
 
 
-
 # ============================================================
 # 5. CLI 命令测试
 # ============================================================
+
 
 class TestCLICommands:
     """CLI 命令测试 (使用 tmp_path 隔离)."""
@@ -516,6 +527,7 @@ class TestCLICommands:
 # ============================================================
 # 6. 端到端流程测试
 # ============================================================
+
 
 class TestEndToEnd:
     """端到端流程测试: start → daily → status → evaluate."""

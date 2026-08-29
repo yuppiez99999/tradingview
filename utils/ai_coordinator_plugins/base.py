@@ -8,6 +8,7 @@ Plugin 抽象接口 — W.C.3 deepseek-harness 插件化重构基类
 所有插件通过 can_handle() 判断是否处理当前上下文, PluginRegistry 按 priority
 降序遍历, 第一个 can_handle=True 的插件执行 handle().
 """
+
 from __future__ import annotations
 
 import abc
@@ -85,7 +86,9 @@ class Plugin(abc.ABC):
         """执行处理, 返回结果"""
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={self.name!r}, priority={self.priority})"
+        return (
+            f"{self.__class__.__name__}(name={self.name!r}, priority={self.priority})"
+        )
 
 
 class RoutingPlugin(Plugin):

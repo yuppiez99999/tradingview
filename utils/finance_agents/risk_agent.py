@@ -123,7 +123,9 @@ class RiskAgent(BaseAgent):
             metrics["avg_amount_20d"] = round(liquidity_amount, 0)
             if liquidity_amount < self.LIQUIDITY_MIN_AMOUNT:
                 strength -= 0.2
-                signals.append(f"20日均成交额 {liquidity_amount / 1e8:.2f}亿 (低流动性)")
+                signals.append(
+                    f"20日均成交额 {liquidity_amount / 1e8:.2f}亿 (低流动性)"
+                )
 
         # 决策动作
         if strength < -0.5:

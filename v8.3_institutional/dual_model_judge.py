@@ -18,6 +18,7 @@ v8.6 自动闭环核心: DeepSeek + GLM-5.2 分别对盈亏/风控/对冲做判�
     from dual_model_judge import run_dual_model_judgment
     verdict = run_dual_model_judgment(review_report, trade_date="2026-08-19")
 """
+
 from __future__ import annotations
 
 import json
@@ -93,9 +94,14 @@ def _call_deepseek(prompt: str, system: str) -> str | None:
     """单独调用 DeepSeek (不走 fallback 链,确保独立性)"""
     try:
         from utils.alpha.llm.router import LLMRouter
+
         router = LLMRouter.get_instance()
         result = router._call_deepseek(
-            prompt, system, temperature=0.3, max_tokens=1500, timeout=15,
+            prompt,
+            system,
+            temperature=0.3,
+            max_tokens=1500,
+            timeout=15,
         )
         return result
     except (ImportError, RuntimeError, ValueError, TypeError) as exc:
@@ -107,9 +113,14 @@ def _call_glm(prompt: str, system: str) -> str | None:
     """单独调用 GLM (不走 fallback 链,确保独立性)"""
     try:
         from utils.alpha.llm.router import LLMRouter
+
         router = LLMRouter.get_instance()
         result = router._call_glm(
-            prompt, system, temperature=0.3, max_tokens=1500, timeout=15,
+            prompt,
+            system,
+            temperature=0.3,
+            max_tokens=1500,
+            timeout=15,
         )
         return result
     except (ImportError, RuntimeError, ValueError, TypeError) as exc:
@@ -314,7 +325,10 @@ def run_dual_model_judgment(
 
 if __name__ == "__main__":
     import sys
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    )
     d = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
     review_path = REPORTS_DIR / f"execution_review_{d}.json"
     if not review_path.exists():

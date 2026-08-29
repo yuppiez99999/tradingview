@@ -13,6 +13,7 @@
 10. 线程安全: 并发调用只触发一次扫描
 11. _reset_prediction_prices_index 清空缓存
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -80,7 +81,9 @@ def _write_pnl_report(
 
 def _make_details(symbol_prices: dict) -> list:
     """构造 details: {code: price} → [{"code": code, "close_price": price}, ...]"""
-    return [{"code": code, "close_price": price} for code, price in symbol_prices.items()]
+    return [
+        {"code": code, "close_price": price} for code, price in symbol_prices.items()
+    ]
 
 
 # ============================================================
@@ -92,11 +95,13 @@ def test_single_scan_for_multiple_symbols(tmp_path, monkeypatch):
     reports_dir = tmp_path / "v8.3_institutional" / "reports"
     for i in range(40):
         date_str = f"202501{i:02d}"
-        details = _make_details({
-            "600519.SH": 1500.0 + i,
-            "000858.SZ": 200.0 + i,
-            "601318.SH": 80.0 + i,
-        })
+        details = _make_details(
+            {
+                "600519.SH": 1500.0 + i,
+                "000858.SZ": 200.0 + i,
+                "601318.SH": 80.0 + i,
+            }
+        )
         _write_pnl_report(reports_dir, date_str, details)
 
     monkeypatch.setattr(daily_trade_executor, "PROJECT_ROOT", tmp_path)
@@ -118,9 +123,9 @@ def test_single_scan_for_multiple_symbols(tmp_path, monkeypatch):
             assert len(arr) == 40
 
     # 整个测试只扫描 1 次 (索引构建后复用)
-    assert glob_call_count["n"] == 1, (
-        f"期望只扫描 1 次, 实际扫描 {glob_call_count['n']} 次 (O(N×M) 未优化为 O(M))"
-    )
+    assert (
+        glob_call_count["n"] == 1
+    ), f"期望只扫描 1 次, 实际扫描 {glob_call_count['n']} 次 (O(N×M) 未优化为 O(M))"
 
 
 def test_cache_reused_across_calls(tmp_path, monkeypatch):
@@ -204,7 +209,10 @@ def test_first_match_per_file(tmp_path, monkeypatch):
             f"202501{i:02d}",
             [
                 {"code": "600519.SH", "close_price": 100.0 + i},
-                {"code": "600519.SZ", "close_price": 999.0},  # 同 code 不同后缀, 第二次出现
+                {
+                    "code": "600519.SZ",
+                    "close_price": 999.0,
+                },  # 同 code 不同后缀, 第二次出现
             ],
         )
     monkeypatch.setattr(daily_trade_executor, "PROJECT_ROOT", tmp_path)
@@ -337,7 +345,9 @@ def test_thread_safe_single_scan(tmp_path, monkeypatch):
 
     def _worker(idx):
         with patch("pathlib.Path.glob", _count_glob):
-            results[idx] = daily_trade_executor._load_prediction_prices("600519", days=120)
+            results[idx] = daily_trade_executor._load_prediction_prices(
+                "600519", days=120
+            )
 
     threads = [threading.Thread(target=_worker, args=(i,)) for i in range(8)]
     for t in threads:
@@ -351,9 +361,9 @@ def test_thread_safe_single_scan(tmp_path, monkeypatch):
         assert len(r) == 40
 
     # 并发下只扫描 1 次 (双检锁生效)
-    assert glob_call_count["n"] == 1, (
-        f"并发下扫描了 {glob_call_count['n']} 次, 期望 1 次 (双检锁失效)"
-    )
+    assert (
+        glob_call_count["n"] == 1
+    ), f"并发下扫描了 {glob_call_count['n']} 次, 期望 1 次 (双检锁失效)"
 
 
 def test_reset_clears_cache(tmp_path, monkeypatch):
@@ -394,12 +404,14 @@ def test_multiple_symbols_share_index(tmp_path, monkeypatch):
         _write_pnl_report(
             reports_dir,
             f"202501{i:02d}",
-            _make_details({
-                "600519.SH": 1500.0 + i,
-                "000858.SZ": 200.0 + i,
-                "601318.SH": 80.0 + i,
-                "510300.SH": 4.0 + i * 0.01,
-            }),
+            _make_details(
+                {
+                    "600519.SH": 1500.0 + i,
+                    "000858.SZ": 200.0 + i,
+                    "601318.SH": 80.0 + i,
+                    "510300.SH": 4.0 + i * 0.01,
+                }
+            ),
         )
     monkeypatch.setattr(daily_trade_executor, "PROJECT_ROOT", tmp_path)
 
@@ -432,10 +444,12 @@ def test_fetch_prediction_signals_uses_index(tmp_path, monkeypatch):
         _write_pnl_report(
             reports_dir,
             f"202501{i:02d}",
-            _make_details({
-                "600519.SH": 1500.0 + i,
-                "000858.SZ": 200.0 + i,
-            }),
+            _make_details(
+                {
+                    "600519.SH": 1500.0 + i,
+                    "000858.SZ": 200.0 + i,
+                }
+            ),
         )
     monkeypatch.setattr(daily_trade_executor, "PROJECT_ROOT", tmp_path)
 
@@ -452,6 +466,7 @@ def test_fetch_prediction_signals_uses_index(tmp_path, monkeypatch):
     with patch("pathlib.Path.glob", _count_glob):
         try:
             from utils.tf_price_predictor import PricePredictor  # noqa: F401
+
             _has_predictor = True
         except Exception:
             _has_predictor = False

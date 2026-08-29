@@ -37,7 +37,9 @@ def configure_paths(base_dir: Path, models_dir: Path) -> None:
 # ============================================================
 # 模型持久化
 # ============================================================
-def save_model(symbol: str, result: dict[str, Any], config: dict[str, Any]) -> dict[str, str]:
+def save_model(
+    symbol: str, result: dict[str, Any], config: dict[str, Any]
+) -> dict[str, str]:
     """保存 LGB 模型 + 元数据。
 
     Args:

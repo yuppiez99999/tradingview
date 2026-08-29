@@ -20,7 +20,27 @@ import pandas as pd
 from institutional_pipeline_runner import InstitutionalPipelineRunner, PipelineContext
 from utils.data_provider import MarketDataProvider
 from utils.path_config import get_data_cache_dir, get_historical_base_file
-from utils.risk_constraints import DEFAULT_MAX_SECTOR, DEFAULT_MAX_WEIGHT, enforce_hard_constraints
+from utils.risk_constraints import (
+    DEFAULT_MAX_SECTOR,
+    DEFAULT_MAX_WEIGHT,
+    enforce_hard_constraints,
+)
+
+try:
+    from utils.risk_params import (
+        get_max_drawdown_limit as _get_max_drawdown_limit,
+    )
+except Exception:
+    # 若直接导入失败，尝试基于文件位置注入 sys.path 后重试
+    from pathlib import Path as _Path
+
+    BASE_DIR_FALLBACK = _Path(__file__).resolve().parent.parent
+    import sys as _sys
+
+    _sys.path.insert(0, str(BASE_DIR_FALLBACK))
+    from utils.risk_params import (
+        get_max_drawdown_limit as _get_max_drawdown_limit,
+    )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("backtest")
@@ -29,20 +49,52 @@ logger = logging.getLogger("backtest")
 # === 板块映射 (与 institutional_pipeline_runner._build_sector_map 一致) ===
 # 用于回测中对缓存权重二次校验板块集中度硬约束
 _BACKTEST_SECTOR_MAP = {
-    "600519": "消费", "000858": "消费",
-    "601318": "金融", "000001": "金融", "600036": "金融", "601398": "金融",
-    "600016": "金融", "601166": "金融", "600000": "金融",
-    "512880": "金融", "512800": "金融",
-    "600276": "医药", "300760": "医药", "002594": "医药", "002422": "医药", "512170": "医药",
-    "000063": "科技", "688041": "科技", "300308": "科技", "002371": "科技",
-    "603019": "科技", "688981": "科技",
-    "588000": "科技", "588080": "科技", "512760": "科技",
-    "688017": "制造", "000425": "制造", "600089": "制造", "000680": "制造", "000333": "制造",
-    "600219": "资源", "600019": "资源", "000408": "资源", "000975": "资源",
-    "300274": "新能源", "515030": "新能源",
-    "601088": "顺周期", "600900": "防御", "512890": "防御",
-    "515180": "红利", "518880": "黄金",
-    "510300": "宽基", "510050": "宽基", "510500": "宽基", "159915": "宽基", "512100": "宽基",
+    "600519": "消费",
+    "000858": "消费",
+    "601318": "金融",
+    "000001": "金融",
+    "600036": "金融",
+    "601398": "金融",
+    "600016": "金融",
+    "601166": "金融",
+    "600000": "金融",
+    "512880": "金融",
+    "512800": "金融",
+    "600276": "医药",
+    "300760": "医药",
+    "002594": "医药",
+    "002422": "医药",
+    "512170": "医药",
+    "000063": "科技",
+    "688041": "科技",
+    "300308": "科技",
+    "002371": "科技",
+    "603019": "科技",
+    "688981": "科技",
+    "588000": "科技",
+    "588080": "科技",
+    "512760": "科技",
+    "688017": "制造",
+    "000425": "制造",
+    "600089": "制造",
+    "000680": "制造",
+    "000333": "制造",
+    "600219": "资源",
+    "600019": "资源",
+    "000408": "资源",
+    "000975": "资源",
+    "300274": "新能源",
+    "515030": "新能源",
+    "601088": "顺周期",
+    "600900": "防御",
+    "512890": "防御",
+    "515180": "红利",
+    "518880": "黄金",
+    "510300": "宽基",
+    "510050": "宽基",
+    "510500": "宽基",
+    "159915": "宽基",
+    "512100": "宽基",
 }
 
 # === 回撤熔断器参数 (V2: 单次触发模式) ===
@@ -50,10 +102,10 @@ _BACKTEST_SECTOR_MAP = {
 # V2修复: 原"持续触发"模式在2023年1-3月恢复期持续减仓, 导致V1+13%→V2-1.7%。
 #         改为"单次触发": 仅在前月亏损且当前回撤>5%时触发, 前月盈利则解除。
 #         这样既防止连续亏损扩大, 又允许参与市场恢复。
-_DRAWDOWN_BREAKER_THRESHOLD = 0.05   # 5% 回撤触发熔断
-_DRAWDOWN_BREAKER_FACTOR = 0.6       # 触发后下月仓位×0.6 (V2: 0.5→0.6)
-_DRAWDOWN_SEVERE_THRESHOLD = 0.10    # 10% 严重回撤
-_DRAWDOWN_SEVERE_FACTOR = 0.4        # 严重回撤下月仓位×0.4 (V2: 0.3→0.4)
+_DRAWDOWN_BREAKER_THRESHOLD = 0.05  # 5% 回撤触发熔断
+_DRAWDOWN_BREAKER_FACTOR = 0.6  # 触发后下月仓位×0.6 (V2: 0.5→0.6)
+_DRAWDOWN_SEVERE_THRESHOLD = 0.10  # 10% 严重回撤
+_DRAWDOWN_SEVERE_FACTOR = 0.4  # 严重回撤下月仓位×0.4 (V2: 0.3→0.4)
 
 # === V7.1 信号后处理参数 (bull regime 下高波动股权重惩罚) ===
 # 动机: 2024-06 (bull regime) 688017 权重10%但跌34.82%, 300308 权重8%但跌17.34%
@@ -84,10 +136,8 @@ BACKTEST_INTEGRITY_WARNING = (
 )
 
 # 回测模型验收约束（与 enhanced_backtest 保持一致）
-MIN_ANNUAL_RETURN = 0.08      # 年化收益率下限：>= 8%
+MIN_ANNUAL_RETURN = 0.08  # 年化收益率下限：>= 8%
 # B1.3: 从 config/risk_params.yaml 统一读取 (fail-safe 兜底 0.15)
-from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
-
 MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()  # 最大回撤上限：<= 15%
 
 
@@ -112,20 +162,21 @@ def _evaluate_acceptance(annual_return: float, max_drawdown: float) -> dict:
     ]
     passed = all(c["ok"] for c in checks)
     if passed:
-        logger.info(f"回测验收达标：年化 {annual_return:.2%} >= {MIN_ANNUAL_RETURN:.0%}，"
-                    f"回撤 {max_drawdown:.2%} <= {MAX_DRAWDOWN_LIMIT:.0%}")
+        logger.info(
+            f"回测验收达标：年化 {annual_return:.2%} >= {MIN_ANNUAL_RETURN:.0%}，"
+            f"回撤 {max_drawdown:.2%} <= {MAX_DRAWDOWN_LIMIT:.0%}"
+        )
     else:
-        logger.warning(f"回测验收未达标：年化 {annual_return:.2%}（需>={MIN_ANNUAL_RETURN:.0%}），"
-                       f"回撤 {max_drawdown:.2%}（需<={MAX_DRAWDOWN_LIMIT:.0%}）")
+        logger.warning(
+            f"回测验收未达标：年化 {annual_return:.2%}（需>={MIN_ANNUAL_RETURN:.0%}），"
+            f"回撤 {max_drawdown:.2%}（需<={MAX_DRAWDOWN_LIMIT:.0%}）"
+        )
     return {
         "passed": passed,
         "min_annual_return": MIN_ANNUAL_RETURN,
         "max_drawdown_limit": MAX_DRAWDOWN_LIMIT,
         "checks": checks,
     }
-
-
-
 
 
 def _monthly_dates(start: str, end: str) -> list[pd.Timestamp]:
@@ -139,8 +190,19 @@ def _to_naive_idx(idx):
         if hasattr(idx, "tz") and idx.tz is not None:
             idx = idx.tz_localize(None)
         # 元素级规范化 (部分 pandas 版本下 idx.tz_localize(None) 不改元素 tz)
-        return pd.DatetimeIndex([pd.Timestamp(d).tz_localize(None) if pd.Timestamp(d).tzinfo else pd.Timestamp(d) for d in idx])
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        return pd.DatetimeIndex(
+            [(pd.Timestamp(d).tz_localize(None) if pd.Timestamp(d).tzinfo else pd.Timestamp(d)) for d in idx]
+        )
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return idx
 
@@ -165,7 +227,16 @@ def _load_symbol_history(symbol: str, date: pd.Timestamp, provider: MarketDataPr
     if base_file.exists():
         try:
             df = pd.read_parquet(base_file)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             df = None
     # 如果 _base.parquet 不存在, 尝试按日期分片的 _5y_{date}.parquet
@@ -175,7 +246,16 @@ def _load_symbol_history(symbol: str, date: pd.Timestamp, provider: MarketDataPr
         if dated_file.exists():
             try:
                 df = pd.read_parquet(dated_file)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 df = None
     # 直接用 data_provider (跳过 free_stockdb, 避免启动超时15s导致回测卡住)
@@ -209,7 +289,16 @@ def _next_month_returns(symbol: str, date: pd.Timestamp, provider: MarketDataPro
         if start_price <= 0 or end_price <= 0:
             return 0.0
         return float(end_price / start_price - 1)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning("获取%s月度收益失败 %s: %s", symbol, date, e)
         return 0.0
@@ -260,7 +349,16 @@ def _compute_symbol_20d_returns(scaled: dict, cutoff) -> dict:
         if sym_base.exists():
             try:
                 df_sym = pd.read_parquet(sym_base)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 df_sym = None
         if df_sym is not None and not df_sym.empty:
@@ -273,7 +371,16 @@ def _compute_symbol_20d_returns(scaled: dict, cutoff) -> dict:
                     close_sym = df_sym["close"]
                     ret_20d = float(close_sym.iloc[-1] / close_sym.iloc[-1 - 20] - 1)
                     symbol_rets[symbol] = ret_20d
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     pass
     return symbol_rets
@@ -316,8 +423,13 @@ def _apply_momentum_reversal_adjustment(scaled: dict, symbol_rets: dict, cutoff,
         "n_oversold_increased": n_oversold,
         "n_overbought_reduced": n_overbought,
     }
-    logger.info("反转调整 %s: regime=%s 超跌加仓%d, 超涨减仓%d",
-               cutoff.strftime("%Y-%m-%d"), regime, n_oversold, n_overbought)
+    logger.info(
+        "反转调整 %s: regime=%s 超跌加仓%d, 超涨减仓%d",
+        cutoff.strftime("%Y-%m-%d"),
+        regime,
+        n_oversold,
+        n_overbought,
+    )
     return scaled, defensive_info
 
 
@@ -344,7 +456,16 @@ def _apply_market_regime_scaling(weights: dict, date: pd.Timestamp) -> tuple:
     try:
         if hasattr(cutoff, "tz") and cutoff.tz is not None:
             cutoff = cutoff.tz_localize(None)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         cutoff = pd.Timestamp(cutoff).tz_localize(None) if pd.Timestamp(cutoff).tzinfo else pd.Timestamp(cutoff)
 
@@ -353,11 +474,24 @@ def _apply_market_regime_scaling(weights: dict, date: pd.Timestamp) -> tuple:
     if base_file.exists():
         try:
             df = pd.read_parquet(base_file)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             df = None
     if df is None or df.empty:
-        return weights, {"regime": "unknown", "factor": 1.0, "reason": "data_unavailable"}
+        return weights, {
+            "regime": "unknown",
+            "factor": 1.0,
+            "reason": "data_unavailable",
+        }
 
     if hasattr(df.index, "tz") and df.index.tz is not None:
         df.index = df.index.tz_localize(None)
@@ -365,7 +499,11 @@ def _apply_market_regime_scaling(weights: dict, date: pd.Timestamp) -> tuple:
     df = df[df.index <= cutoff]
     min_required = max(ma_period + slope_window, vol_lookback, mom_lookback)
     if len(df) < min_required:
-        return weights, {"regime": "insufficient_data", "factor": 1.0, "reason": "history_too_short"}
+        return weights, {
+            "regime": "insufficient_data",
+            "factor": 1.0,
+            "reason": "history_too_short",
+        }
 
     close = df["close"]
     ma = close.rolling(ma_period).mean()
@@ -389,10 +527,17 @@ def _apply_market_regime_scaling(weights: dict, date: pd.Timestamp) -> tuple:
         scaled, defensive_info = _apply_momentum_reversal_adjustment(scaled, symbol_rets, cutoff, regime)
 
     return scaled, {
-        "symbol": proxy, "regime": regime, "factor": factor,
-        "base_factor": base_factor, "vol_override": vol_override, "mom_override": mom_override,
-        "realized_vol_20d": recent_vol, "mom_20d": mom_20d,
-        "close": latest_close, "ma60": latest_ma, "ma_slope": ma_slope,
+        "symbol": proxy,
+        "regime": regime,
+        "factor": factor,
+        "base_factor": base_factor,
+        "vol_override": vol_override,
+        "mom_override": mom_override,
+        "realized_vol_20d": recent_vol,
+        "mom_20d": mom_20d,
+        "close": latest_close,
+        "ma60": latest_ma,
+        "ma_slope": ma_slope,
         "exposure_before": sum(weights.values()),
         "exposure_after": sum(scaled.values()),
         "defensive": defensive_info,
@@ -400,14 +545,23 @@ def _apply_market_regime_scaling(weights: dict, date: pd.Timestamp) -> tuple:
 
 
 def _apply_v71_weight_penalty(weights, date, regime_info):
-    regime = regime_info.get('regime', 'unknown')
-    if regime != 'bull':
-        return weights, {'regime': regime, 'penalized': 0, 'details': []}
+    regime = regime_info.get("regime", "unknown")
+    if regime != "bull":
+        return weights, {"regime": regime, "penalized": 0, "details": []}
     cutoff = pd.Timestamp(date).normalize()
     try:
-        if hasattr(cutoff, 'tz') and cutoff.tz is not None:
+        if hasattr(cutoff, "tz") and cutoff.tz is not None:
             cutoff = cutoff.tz_localize(None)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         pass
     penalized = []
@@ -415,28 +569,52 @@ def _apply_v71_weight_penalty(weights, date, regime_info):
     for code, w in weights.items():
         if w <= 0:
             continue
-        sym_file = Path('data_cache') / f'historical_{code}_5y_base.parquet'
+        sym_file = Path("data_cache") / f"historical_{code}_5y_base.parquet"
         if not sym_file.exists():
             continue
         try:
             df_sym = pd.read_parquet(sym_file)
-            if hasattr(df_sym.index, 'tz') and df_sym.index.tz is not None:
+            if hasattr(df_sym.index, "tz") and df_sym.index.tz is not None:
                 df_sym.index = df_sym.index.tz_localize(None)
             df_sym = df_sym.sort_index()
             df_sym = df_sym[df_sym.index <= cutoff]
             if len(df_sym) < 21:
                 continue
-            vol20 = float(df_sym['close'].pct_change().tail(20).std())
+            vol20 = float(df_sym["close"].pct_change().tail(20).std())
             if vol20 > _V71_BULL_HIGH_VOL_THRESHOLD:
                 adjusted[code] = w * _V71_BULL_VOL_PENALTY
-                penalized.append({'code': code, 'vol20': vol20, 'old_w': w, 'new_w': adjusted[code]})
-                logger.info('[V7.1] %s: bull vol20=%.4f w %.4f->%.4f', code, vol20, w, adjusted[code])
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                penalized.append({"code": code, "vol20": vol20, "old_w": w, "new_w": adjusted[code]})
+                logger.info(
+                    "[V7.1] %s: bull vol20=%.4f w %.4f->%.4f",
+                    code,
+                    vol20,
+                    w,
+                    adjusted[code],
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-            logger.warning('[V7.1] %s fail: %s', code, e)
+            logger.warning("[V7.1] %s fail: %s", code, e)
     if penalized:
-        logger.info('[V7.1] %s: penalize %d/%d', cutoff.strftime('%Y-%m-%d'), len(penalized), len(weights))
-    return adjusted, {'regime': regime, 'penalized': len(penalized), 'details': penalized}
+        logger.info(
+            "[V7.1] %s: penalize %d/%d",
+            cutoff.strftime("%Y-%m-%d"),
+            len(penalized),
+            len(weights),
+        )
+    return adjusted, {
+        "regime": regime,
+        "penalized": len(penalized),
+        "details": penalized,
+    }
 
 
 def _load_existing_pipeline_result(date_str: str) -> dict:
@@ -453,6 +631,7 @@ def _load_existing_pipeline_result(date_str: str) -> dict:
       这些情况下的缓存结果不可信, 必须重新运行 pipeline。
     """
     from pathlib import Path
+
     # 无效状态列表 — 这些状态下的缓存结果不可复用
     INVALID_STATUSES = {  # noqa: N806
         "blocked_by_data_gate",
@@ -469,11 +648,21 @@ def _load_existing_pipeline_result(date_str: str) -> dict:
     # 也尝试邻近日期 (BMS 可能落在 02/03 号)
     try:
         from datetime import datetime, timedelta
+
         base = datetime.strptime(date_str, "%Y-%m-%d")
         for delta in [1, 2, 3, -1, -2]:
             alt = (base + timedelta(days=delta)).strftime("%Y-%m-%d")
             candidates.append(Path("output") / "institutional_pipeline" / alt / "pipeline_backtest.json")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         pass
 
@@ -489,7 +678,8 @@ def _load_existing_pipeline_result(date_str: str) -> dict:
                 if status in INVALID_STATUSES:
                     logger.warning(
                         "缓存结果状态无效, 拒绝复用: %s status=%s (需重新运行 pipeline)",
-                        p, status,
+                        p,
+                        status,
                     )
                     continue
 
@@ -498,7 +688,8 @@ def _load_existing_pipeline_result(date_str: str) -> dict:
                 if integrity_issues:
                     logger.warning(
                         "缓存结果存在完整性问题, 拒绝复用: %s issues=%d (前视偏差/mock alpha)",
-                        p, len(integrity_issues),
+                        p,
+                        len(integrity_issues),
                     )
                     continue
 
@@ -511,9 +702,23 @@ def _load_existing_pipeline_result(date_str: str) -> dict:
                     continue
 
                 if weights:
-                    logger.info("复用已有回测结果: %s (weights=%d symbols, status=%s)", p, len(weights), status)
+                    logger.info(
+                        "复用已有回测结果: %s (weights=%d symbols, status=%s)",
+                        p,
+                        len(weights),
+                        status,
+                    )
                     return {"weights": weights, "status": status, "source": "cached"}
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("读取缓存失败 %s: %s", p, e)
     return {}
@@ -529,6 +734,7 @@ def _init_cost_model() -> tuple:
     返回 (单次再平衡成本率, 月度期权/期货损耗)
     """
     from utils.cost_model import get_cost_model
+
     _cost_model = get_cost_model()
     # 单次再平衡的交易成本率 (佣金双边 + 印花税卖出占比 + 冲击双边)
     _trade_cost_rate = (
@@ -537,9 +743,7 @@ def _init_cost_model() -> tuple:
         + _cost_model.impact_per_side_bps * 2
     ) / 10000.0  # bps → 小数
     # 期权覆盖 + 期货对冲年化损耗分摊到月度
-    _monthly_overlay_cost = (
-        _cost_model.option_overlay_bps + _cost_model.futures_basis_bps
-    ) / 10000.0 / 12
+    _monthly_overlay_cost = (_cost_model.option_overlay_bps + _cost_model.futures_basis_bps) / 10000.0 / 12
     return _trade_cost_rate, _monthly_overlay_cost
 
 
@@ -621,9 +825,13 @@ def _enforce_sector_constraints(weights: dict, regime_info: dict, date_str: str)
     return weights, regime_info
 
 
-def _apply_drawdown_breaker(weights: dict, prev_month_return: float,
-                            equity_curve: float, equity_peak: float,
-                            date_str: str) -> tuple:
+def _apply_drawdown_breaker(
+    weights: dict,
+    prev_month_return: float,
+    equity_curve: float,
+    equity_peak: float,
+    date_str: str,
+) -> tuple:
     """回撤熔断器: 单次触发模式 (V2)
 
     仅在前月亏损 AND 当前回撤>5% 时触发, 前月盈利则解除
@@ -640,15 +848,24 @@ def _apply_drawdown_breaker(weights: dict, prev_month_return: float,
         dd_breaker_factor = _DRAWDOWN_BREAKER_FACTOR
         dd_breaker_level = "warning"
     if dd_breaker_factor < 1.0:
-        logger.warning("回撤熔断 %s: dd=%.2f%% prev_ret=%+.2f%% level=%s factor=%.2f",
-                       date_str, current_dd * 100, prev_month_return * 100,
-                       dd_breaker_level, dd_breaker_factor)
+        logger.warning(
+            "回撤熔断 %s: dd=%.2f%% prev_ret=%+.2f%% level=%s factor=%.2f",
+            date_str,
+            current_dd * 100,
+            prev_month_return * 100,
+            dd_breaker_level,
+            dd_breaker_factor,
+        )
         weights = {s: w * dd_breaker_factor for s, w in weights.items()}
     return weights, dd_breaker_factor, dd_breaker_level, current_dd
 
 
-def _apply_profit_taking(weights: dict, profit_taking_symbols: dict,
-                         portfolio_pt_factor: float, date_str: str) -> tuple:
+def _apply_profit_taking(
+    weights: dict,
+    profit_taking_symbols: dict,
+    portfolio_pt_factor: float,
+    date_str: str,
+) -> tuple:
     """月度止盈减仓 (V4: 基于上月信号对本月权重减仓)
 
     返回 (调整后 weights, pt_applied 列表)
@@ -668,18 +885,21 @@ def _apply_profit_taking(weights: dict, profit_taking_symbols: dict,
     return weights, pt_applied
 
 
-def _compute_turnover_cost(weights: dict, prev_weights: dict,
-                           _trade_cost_rate: float, _monthly_overlay_cost: float) -> tuple:
+def _compute_turnover_cost(
+    weights: dict,
+    prev_weights: dict,
+    _trade_cost_rate: float,
+    _monthly_overlay_cost: float,
+) -> tuple:
     """交易成本扣除 (BUG-R7 真实修复, 2026-07-25)
 
     基于换手率计算: turnover = sum(|w_new - w_old|) / 2 (双边)
     返回 (turnover, trade_cost, total_cost)
     """
     if prev_weights:
-        turnover = sum(
-            abs(weights.get(s, 0.0) - prev_weights.get(s, 0.0))
-            for s in set(weights) | set(prev_weights)
-        ) / 2.0
+        turnover = (
+            sum(abs(weights.get(s, 0.0) - prev_weights.get(s, 0.0)) for s in set(weights) | set(prev_weights)) / 2.0
+        )
     else:
         # 首月建仓: 纯买入, 按总仓位的一半计算 (单边买入成本)
         turnover = sum(weights.values()) / 2.0
@@ -688,8 +908,7 @@ def _compute_turnover_cost(weights: dict, prev_weights: dict,
     return turnover, trade_cost, total_cost
 
 
-def _detect_profit_taking_signals(rets: dict, port_return: float,
-                                  date_str: str) -> tuple:
+def _detect_profit_taking_signals(rets: dict, port_return: float, date_str: str) -> tuple:
     """月度止盈信号检测 (基于本月收益, 供下月使用)
 
     返回 (new_pt_symbols, new_portfolio_pt_factor)
@@ -700,24 +919,44 @@ def _detect_profit_taking_signals(rets: dict, port_return: float,
         sym_ret = rets.get(symbol, 0.0)
         if sym_ret > 0.50:  # V4.1: 单标的月收益 > 50% (原30%)
             new_pt_symbols[symbol] = 0.6  # V4.1: 下月×0.6 (原0.5)
-            logger.info("止盈信号 %s: %s 月收益%.2f%% > 50%%, 下月权重×0.6",
-                       date_str, symbol, sym_ret * 100)
+            logger.info(
+                "止盈信号 %s: %s 月收益%.2f%% > 50%%, 下月权重×0.6",
+                date_str,
+                symbol,
+                sym_ret * 100,
+            )
     if port_return > 0.12:  # V6.2: 保持12%阈值 (V6.1降为10%导致级联效应, 回退)
         new_portfolio_pt_factor = 0.80  # V6.2: 下月×0.80 (V6原0.85, 仅加大减仓力度)
-        logger.info("止盈信号 %s: 组合月收益%.2f%% > 12%%, 下月仓位×0.80",
-                   date_str, port_return * 100)
+        logger.info(
+            "止盈信号 %s: 组合月收益%.2f%% > 12%%, 下月仓位×0.80",
+            date_str,
+            port_return * 100,
+        )
     return new_pt_symbols, new_portfolio_pt_factor
 
 
-def _build_month_record(date_str: str, status: str, weights: dict, rets: dict,
-                        port_return: float, port_return_gross: float,
-                        regime_info: dict, turnover: float, trade_cost: float,
-                        total_cost: float, _trade_cost_rate: float,
-                        _monthly_overlay_cost: float,
-                        dd_breaker_level: str, dd_breaker_factor: float,
-                        current_dd: float, equity_curve: float, equity_peak: float,
-                        new_pt_symbols: dict, new_portfolio_pt_factor: float,
-                        pt_applied: list) -> dict:
+def _build_month_record(
+    date_str: str,
+    status: str,
+    weights: dict,
+    rets: dict,
+    port_return: float,
+    port_return_gross: float,
+    regime_info: dict,
+    turnover: float,
+    trade_cost: float,
+    total_cost: float,
+    _trade_cost_rate: float,
+    _monthly_overlay_cost: float,
+    dd_breaker_level: str,
+    dd_breaker_factor: float,
+    current_dd: float,
+    equity_curve: float,
+    equity_peak: float,
+    new_pt_symbols: dict,
+    new_portfolio_pt_factor: float,
+    pt_applied: list,
+) -> dict:
     """构建单月回测记录字典"""
     return {
         "date": date_str,
@@ -783,8 +1022,12 @@ def _summarize_backtest(records: list, symbols: list, start: str, end: str) -> d
     return result
 
 
-def run_backtest(symbols: list[str], start: str = "2023-07-01", end: str = "2025-12-31",
-                 resume: bool = True) -> dict:
+def run_backtest(
+    symbols: list[str],
+    start: str = "2023-07-01",
+    end: str = "2025-12-31",
+    resume: bool = True,
+) -> dict:
     """
     运行Walk-Forward回测
 
@@ -807,8 +1050,8 @@ def run_backtest(symbols: list[str], start: str = "2023-07-01", end: str = "2025
     records: list[dict] = []
 
     # === 回撤熔断器状态 (路径依赖, V2: 单次触发模式) ===
-    equity_curve = 1.0   # 运行中权益曲线
-    equity_peak = 1.0    # 运行中权益峰值
+    equity_curve = 1.0  # 运行中权益曲线
+    equity_peak = 1.0  # 运行中权益峰值
     prev_month_return = 0.0  # 上月收益 (用于单次触发判断)
 
     # === 交易成本模型 (BUG-R7 真实修复, 2026-07-25 顶级对冲基金审计 P0-1) ===
@@ -849,11 +1092,11 @@ def run_backtest(symbols: list[str], start: str = "2023-07-01", end: str = "2025
 
         # === 回撤熔断器: 单次触发模式 (V2) ===
         weights, dd_breaker_factor, dd_breaker_level, current_dd = _apply_drawdown_breaker(
-            weights, prev_month_return, equity_curve, equity_peak, date_str)
+            weights, prev_month_return, equity_curve, equity_peak, date_str
+        )
 
         # === 月度止盈减仓 (V4: 基于上月信号对本月权重减仓) ===
-        weights, pt_applied = _apply_profit_taking(
-            weights, profit_taking_symbols, portfolio_pt_factor, date_str)
+        weights, pt_applied = _apply_profit_taking(weights, profit_taking_symbols, portfolio_pt_factor, date_str)
 
         rets = {}
         for symbol in symbols:
@@ -863,33 +1106,58 @@ def run_backtest(symbols: list[str], start: str = "2023-07-01", end: str = "2025
 
         # === 交易成本扣除 (BUG-R7 真实修复, 2026-07-25) ===
         turnover, trade_cost, total_cost = _compute_turnover_cost(
-            weights, prev_weights, _trade_cost_rate, _monthly_overlay_cost)
+            weights, prev_weights, _trade_cost_rate, _monthly_overlay_cost
+        )
         port_return = port_return_gross - total_cost
 
         # === 月度止盈信号检测 (基于本月收益, 供下月使用) ===
-        new_pt_symbols, new_portfolio_pt_factor = _detect_profit_taking_signals(
-            rets, port_return, date_str)
+        new_pt_symbols, new_portfolio_pt_factor = _detect_profit_taking_signals(rets, port_return, date_str)
         profit_taking_symbols = new_pt_symbols
         portfolio_pt_factor = new_portfolio_pt_factor
 
         # === 更新权益曲线和上月收益 (用于下月回撤判断) ===
-        equity_curve *= (1 + port_return)
+        equity_curve *= 1 + port_return
         equity_peak = max(equity_peak, equity_curve)
         prev_month_return = port_return  # 记录本月收益, 供下月熔断判断
         prev_weights = dict(weights)  # 记录本月最终权重, 供下月换手率计算
 
-        records.append(_build_month_record(
-            date_str, status, weights, rets, port_return, port_return_gross,
-            regime_info, turnover, trade_cost, total_cost, _trade_cost_rate,
-            _monthly_overlay_cost, dd_breaker_level, dd_breaker_factor, current_dd,
-            equity_curve, equity_peak, new_pt_symbols, new_portfolio_pt_factor, pt_applied))
-        logger.info("回测 %s: gross=%.2f%% net=%.2f%% cost=%.4f%%(turnover=%.2f) regime=%s factor=%s dd_breaker=%s(%.2f) pt=%s",
-                    date_str, port_return_gross * 100, port_return * 100, total_cost * 100,
-                    turnover,
-                    regime_info.get("regime", "n/a"),
-                    regime_info.get("factor", "n/a"),
-                    dd_breaker_level, dd_breaker_factor,
-                    "yes" if pt_applied else "no")
+        records.append(
+            _build_month_record(
+                date_str,
+                status,
+                weights,
+                rets,
+                port_return,
+                port_return_gross,
+                regime_info,
+                turnover,
+                trade_cost,
+                total_cost,
+                _trade_cost_rate,
+                _monthly_overlay_cost,
+                dd_breaker_level,
+                dd_breaker_factor,
+                current_dd,
+                equity_curve,
+                equity_peak,
+                new_pt_symbols,
+                new_portfolio_pt_factor,
+                pt_applied,
+            )
+        )
+        logger.info(
+            "回测 %s: gross=%.2f%% net=%.2f%% cost=%.4f%%(turnover=%.2f) regime=%s factor=%s dd_breaker=%s(%.2f) pt=%s",
+            date_str,
+            port_return_gross * 100,
+            port_return * 100,
+            total_cost * 100,
+            turnover,
+            regime_info.get("regime", "n/a"),
+            regime_info.get("factor", "n/a"),
+            dd_breaker_level,
+            dd_breaker_factor,
+            "yes" if pt_applied else "no",
+        )
 
     if not records:
         return {"error": "no_backtest_results"}
@@ -903,5 +1171,18 @@ if __name__ == "__main__":
     logger.debug(BACKTEST_INTEGRITY_WARNING)
     logger.info("=" * 80)
     logger.warning(BACKTEST_INTEGRITY_WARNING)
-    result = run_backtest(["600519", "000858", "601318", "000001", "600036", "601398", "600276", "000063"], start="2024-01-01", end="2025-12-31")
+    result = run_backtest(
+        [
+            "600519",
+            "000858",
+            "601318",
+            "000001",
+            "600036",
+            "601398",
+            "600276",
+            "000063",
+        ],
+        start="2024-01-01",
+        end="2025-12-31",
+    )
     logger.info(json.dumps(result, ensure_ascii=False, indent=2))

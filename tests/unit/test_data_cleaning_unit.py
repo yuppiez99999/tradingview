@@ -3,6 +3,7 @@
 被测模块: utils/pipeline/data_cleaning.py
 覆盖目标: >=85%
 """
+
 from __future__ import annotations
 
 import sys
@@ -49,7 +50,9 @@ class TestCalcQualityScore:
 
     def test_multi_source_penalty(self):
         pipe = DataCleaningPipeline.__new__(DataCleaningPipeline)
-        result = pipe._calc_quality_score("A", {"A": {"deviation_pct": 2.0}}, {}, {}, {})
+        result = pipe._calc_quality_score(
+            "A", {"A": {"deviation_pct": 2.0}}, {}, {}, {}
+        )
         assert result["score"] < 100.0
         assert "multi_source_penalty" in result["meta"]
 
@@ -135,9 +138,9 @@ class TestCheckGate:
     def test_normal_check(self):
         pipe = DataCleaningPipeline.__new__(DataCleaningPipeline)
         mock_gate = MagicMock()
-        mock_gate.check_and_gate = MagicMock(return_value=MagicMock(
-            allowed=True, quality_score=95.0, reasons=[]
-        ))
+        mock_gate.check_and_gate = MagicMock(
+            return_value=MagicMock(allowed=True, quality_score=95.0, reasons=[])
+        )
         pipe._data_gate = mock_gate
         result = pipe._check_gate({"A": {"close": 10}})
         assert result["A"]["allowed"] is True
@@ -197,11 +200,13 @@ class TestRun:
             "A": {"close": 10.0, "high": 11.0, "low": 9.0, "volume": 1000},
             "B": {"close": 20.0, "high": 21.0, "low": 19.0, "volume": 2000},
         }
-        with patch.object(pipe, "_validate_multi_source", return_value={}), \
-             patch.object(pipe, "_detect_outliers", return_value={}), \
-             patch.object(pipe, "_fill_gaps", return_value={}), \
-             patch.object(pipe, "_check_gate", return_value={}), \
-             patch.object(pipe, "_save_reports", return_value=[]):
+        with (
+            patch.object(pipe, "_validate_multi_source", return_value={}),
+            patch.object(pipe, "_detect_outliers", return_value={}),
+            patch.object(pipe, "_fill_gaps", return_value={}),
+            patch.object(pipe, "_check_gate", return_value={}),
+            patch.object(pipe, "_save_reports", return_value=[]),
+        ):
             reports, result = pipe.run(market_data=data, save_report=False)
         assert result.stage == PipelineStage.DATA_CLEANING
 
@@ -211,8 +216,12 @@ class TestSaveReports:
         pipe = DataCleaningPipeline.__new__(DataCleaningPipeline)
         pipe._report_dir = tmp_path
         report = DataQualityReport(
-            symbol="A", quality_score=95.0, passed=True,
-            outlier_flags=[], gap_days=0, multi_source_deviation_pct=0.0,
+            symbol="A",
+            quality_score=95.0,
+            passed=True,
+            outlier_flags=[],
+            gap_days=0,
+            multi_source_deviation_pct=0.0,
         )
         paths = pipe._save_reports([report])
         assert len(paths) >= 1
@@ -222,8 +231,12 @@ class TestSaveReports:
         pipe = DataCleaningPipeline.__new__(DataCleaningPipeline)
         pipe._report_dir = tmp_path
         report = DataQualityReport(
-            symbol="B", quality_score=60.0, passed=False,
-            outlier_flags=["z_score=3.5"], gap_days=2, multi_source_deviation_pct=1.5,
+            symbol="B",
+            quality_score=60.0,
+            passed=False,
+            outlier_flags=["z_score=3.5"],
+            gap_days=2,
+            multi_source_deviation_pct=1.5,
         )
         paths = pipe._save_reports([report])
         assert any(p.endswith(".csv") for p in paths)
@@ -281,7 +294,9 @@ class DataCleaningPipelineTest:
         """成功加载持仓返回标的列表"""
         pipe = self._make_pipe()
         mock_positions = [{"symbol": "600519"}, {"symbol": "000001"}, {}]
-        with patch("utils.positions_loader.load_positions", return_value=mock_positions):
+        with patch(
+            "utils.positions_loader.load_positions", return_value=mock_positions
+        ):
             result = pipe._get_default_symbols()
         assert "600519" in result
         assert "000001" in result
@@ -289,7 +304,10 @@ class DataCleaningPipelineTest:
     def test_get_default_symbols_exception(self):
         """加载异常返回默认标的"""
         pipe = self._make_pipe()
-        with patch("utils.positions_loader.load_positions", side_effect=ImportError("no module")):
+        with patch(
+            "utils.positions_loader.load_positions",
+            side_effect=ImportError("no module"),
+        ):
             result = pipe._get_default_symbols()
         assert isinstance(result, list)
         assert len(result) > 0
@@ -302,7 +320,9 @@ class DataCleaningPipelineTest:
     def test_validate_multi_source_single_price(self):
         """单源价格偏离 0"""
         pipe = self._make_pipe()
-        with patch.object(pipe, "_fetch_multi_source_prices", return_value={"wind": 10.0}):
+        with patch.object(
+            pipe, "_fetch_multi_source_prices", return_value={"wind": 10.0}
+        ):
             result = pipe._validate_multi_source({"A": {}})
         assert result["A"]["deviation_pct"] == 0.0
         assert result["A"]["n_sources"] == 1
@@ -310,8 +330,11 @@ class DataCleaningPipelineTest:
     def test_validate_multi_source_multiple_prices(self):
         """多源价格计算偏离度"""
         pipe = self._make_pipe()
-        with patch.object(pipe, "_fetch_multi_source_prices",
-                          return_value={"wind": 10.0, "tdx": 10.1, "akshare": 9.9}):
+        with patch.object(
+            pipe,
+            "_fetch_multi_source_prices",
+            return_value={"wind": 10.0, "tdx": 10.1, "akshare": 9.9},
+        ):
             result = pipe._validate_multi_source({"A": {}})
         assert result["A"]["n_sources"] == 3
         assert result["A"]["deviation_pct"] > 0
@@ -327,7 +350,9 @@ class DataCleaningPipelineTest:
     def test_validate_multi_source_exception(self):
         """取价异常返回 0 偏离"""
         pipe = self._make_pipe()
-        with patch.object(pipe, "_fetch_multi_source_prices", side_effect=RuntimeError("fail")):
+        with patch.object(
+            pipe, "_fetch_multi_source_prices", side_effect=RuntimeError("fail")
+        ):
             result = pipe._validate_multi_source({"A": {}})
         assert result["A"]["deviation_pct"] == 0.0
 
@@ -346,11 +371,15 @@ class DataCleaningPipelineTest:
         """mock provider 返回多源价格"""
         pipe = self._make_pipe()
         mock_provider = MagicMock()
-        mock_provider._try_wind_mcp_realtime = MagicMock(return_value={"index_price": 10.0})
+        mock_provider._try_wind_mcp_realtime = MagicMock(
+            return_value={"index_price": 10.0}
+        )
         mock_provider._try_tdx_realtime = MagicMock(return_value={"index_price": 10.1})
         mock_provider._try_akshare_realtime = MagicMock(return_value={"index_price": 0})
         mock_provider._try_sina_http_realtime = MagicMock(return_value=None)
-        with patch("utils.data_provider.MarketDataProvider", return_value=mock_provider):
+        with patch(
+            "utils.data_provider.MarketDataProvider", return_value=mock_provider
+        ):
             prices = pipe._fetch_multi_source_prices("600519")
         assert "wind_mcp" in prices
         assert prices["wind_mcp"] == 10.0
@@ -363,12 +392,16 @@ class DataCleaningPipelineTest:
         """provider 缺少方法时跳过该源"""
         pipe = self._make_pipe()
         mock_provider = MagicMock()
-        mock_provider._try_wind_mcp_realtime = MagicMock(return_value={"index_price": 10.0})
+        mock_provider._try_wind_mcp_realtime = MagicMock(
+            return_value={"index_price": 10.0}
+        )
         # 其他方法不存在 (getattr 返回 None)
         del mock_provider._try_tdx_realtime
         del mock_provider._try_akshare_realtime
         del mock_provider._try_sina_http_realtime
-        with patch("utils.data_provider.MarketDataProvider", return_value=mock_provider):
+        with patch(
+            "utils.data_provider.MarketDataProvider", return_value=mock_provider
+        ):
             prices = pipe._fetch_multi_source_prices("600519")
         assert "wind_mcp" in prices
 
@@ -376,9 +409,13 @@ class DataCleaningPipelineTest:
         """单源异常不影响其他源"""
         pipe = self._make_pipe()
         mock_provider = MagicMock()
-        mock_provider._try_wind_mcp_realtime = MagicMock(side_effect=RuntimeError("timeout"))
+        mock_provider._try_wind_mcp_realtime = MagicMock(
+            side_effect=RuntimeError("timeout")
+        )
         mock_provider._try_tdx_realtime = MagicMock(return_value={"index_price": 10.0})
-        with patch("utils.data_provider.MarketDataProvider", return_value=mock_provider):
+        with patch(
+            "utils.data_provider.MarketDataProvider", return_value=mock_provider
+        ):
             prices = pipe._fetch_multi_source_prices("600519")
         assert "wind_mcp" not in prices
         assert "tdx" in prices
@@ -452,8 +489,11 @@ class DataCleaningPipelineTest:
         """成功获取历史价格"""
         pipe = self._make_pipe()
         import pandas as pd
+
         mock_provider = MagicMock()
-        mock_provider.get_history.return_value = pd.DataFrame({"close": [1.0, 2.0, 3.0]})
+        mock_provider.get_history.return_value = pd.DataFrame(
+            {"close": [1.0, 2.0, 3.0]}
+        )
         with patch("utils.data_provider.DataProvider", return_value=mock_provider):
             result = pipe._get_price_history("A")
         assert result == [1.0, 2.0, 3.0]
@@ -462,6 +502,7 @@ class DataCleaningPipelineTest:
         """空 DataFrame 返回空列表"""
         pipe = self._make_pipe()
         import pandas as pd
+
         mock_provider = MagicMock()
         mock_provider.get_history.return_value = pd.DataFrame()
         with patch("utils.data_provider.DataProvider", return_value=mock_provider):
@@ -488,6 +529,7 @@ class DataCleaningPipelineTest:
         """无 close 列使用最后一列"""
         pipe = self._make_pipe()
         import pandas as pd
+
         mock_provider = MagicMock()
         mock_provider.get_history.return_value = pd.DataFrame({"price": [1.0, 2.0]})
         with patch("utils.data_provider.DataProvider", return_value=mock_provider):
@@ -519,7 +561,10 @@ class DataCleaningPipelineTest:
         """单标的异常跳过"""
         pipe = self._make_pipe()
         mock_provider = MagicMock()
-        mock_provider.get_realtime_snapshot.side_effect = [RuntimeError("fail"), {"close": 10.0}]
+        mock_provider.get_realtime_snapshot.side_effect = [
+            RuntimeError("fail"),
+            {"close": 10.0},
+        ]
         with patch("utils.data_provider.DataProvider", return_value=mock_provider):
             result = pipe._load_market_data(["A", "B"])
         assert "A" not in result
@@ -536,11 +581,19 @@ class DataCleaningPipelineTest:
             "A": {"close": 10.0, "high": 11.0, "low": 9.0, "volume": 1000},
             "B": {"close": 20.0, "high": 21.0, "low": 19.0, "volume": 2000},
         }
-        with patch.object(pipe, "_validate_multi_source", return_value={"A": {"deviation_pct": 2.0}}), \
-             patch.object(pipe, "_detect_outliers", return_value={"B": ["z_score=3.5"]}), \
-             patch.object(pipe, "_fill_gaps", return_value={"A": {"missing": [], "gap_days": 0}}), \
-             patch.object(pipe, "_check_gate", return_value={}), \
-             patch.object(pipe, "_save_reports", return_value=[]):
+        with (
+            patch.object(
+                pipe,
+                "_validate_multi_source",
+                return_value={"A": {"deviation_pct": 2.0}},
+            ),
+            patch.object(pipe, "_detect_outliers", return_value={"B": ["z_score=3.5"]}),
+            patch.object(
+                pipe, "_fill_gaps", return_value={"A": {"missing": [], "gap_days": 0}}
+            ),
+            patch.object(pipe, "_check_gate", return_value={}),
+            patch.object(pipe, "_save_reports", return_value=[]),
+        ):
             reports, result = pipe.run(market_data=data, save_report=False)
         assert len(reports) == 2
         assert result.success is True
@@ -556,10 +609,12 @@ class DataCleaningPipelineTest:
         pipe = self._make_pipe(tmp_path)
         pipe.config.multi_source_check = False
         data = {"A": {"close": 10.0}}
-        with patch.object(pipe, "_detect_outliers", return_value={}), \
-             patch.object(pipe, "_fill_gaps", return_value={}), \
-             patch.object(pipe, "_check_gate", return_value={}), \
-             patch.object(pipe, "_save_reports", return_value=[]):
+        with (
+            patch.object(pipe, "_detect_outliers", return_value={}),
+            patch.object(pipe, "_fill_gaps", return_value={}),
+            patch.object(pipe, "_check_gate", return_value={}),
+            patch.object(pipe, "_save_reports", return_value=[]),
+        ):
             reports, result = pipe.run(market_data=data, save_report=False)
         assert len(reports) == 1
         assert reports[0].multi_source_deviation_pct == 0.0
@@ -567,8 +622,10 @@ class DataCleaningPipelineTest:
     def test_run_loads_data_when_none(self, tmp_path):
         """market_data=None 时加载数据"""
         pipe = self._make_pipe(tmp_path)
-        with patch.object(pipe, "_load_market_data", return_value={}), \
-             patch.object(pipe, "_save_reports", return_value=[]):
+        with (
+            patch.object(pipe, "_load_market_data", return_value={}),
+            patch.object(pipe, "_save_reports", return_value=[]),
+        ):
             reports, result = pipe.run(market_data=None, save_report=False)
         assert reports == []
         assert result.success is True
@@ -577,18 +634,22 @@ class DataCleaningPipelineTest:
         """save_report=True 保存报告"""
         pipe = self._make_pipe(tmp_path)
         data = {"A": {"close": 10.0}}
-        with patch.object(pipe, "_validate_multi_source", return_value={}), \
-             patch.object(pipe, "_detect_outliers", return_value={}), \
-             patch.object(pipe, "_fill_gaps", return_value={}), \
-             patch.object(pipe, "_check_gate", return_value={}), \
-             patch.object(pipe, "_save_reports", return_value=["/fake/path.json"]):
+        with (
+            patch.object(pipe, "_validate_multi_source", return_value={}),
+            patch.object(pipe, "_detect_outliers", return_value={}),
+            patch.object(pipe, "_fill_gaps", return_value={}),
+            patch.object(pipe, "_check_gate", return_value={}),
+            patch.object(pipe, "_save_reports", return_value=["/fake/path.json"]),
+        ):
             reports, result = pipe.run(market_data=data, save_report=True)
         assert result.reports == ["/fake/path.json"]
 
     def test_run_exception(self, tmp_path):
         """run() 异常返回失败结果"""
         pipe = self._make_pipe(tmp_path)
-        with patch.object(pipe, "_validate_multi_source", side_effect=RuntimeError("boom")):
+        with patch.object(
+            pipe, "_validate_multi_source", side_effect=RuntimeError("boom")
+        ):
             reports, result = pipe.run(market_data={"A": {}}, save_report=False)
         assert reports == []
         assert result.success is False
@@ -600,12 +661,20 @@ class DataCleaningPipelineTest:
         pipe.config.min_quality_score = 80.0
         data = {"A": {"close": 10.0}, "B": {"close": 20.0}}
         # A: 高偏离 → 低分; B: 正常 → 高分
-        with patch.object(pipe, "_validate_multi_source",
-                          return_value={"A": {"deviation_pct": 10.0}, "B": {"deviation_pct": 0.0}}), \
-             patch.object(pipe, "_detect_outliers", return_value={}), \
-             patch.object(pipe, "_fill_gaps", return_value={}), \
-             patch.object(pipe, "_check_gate", return_value={}), \
-             patch.object(pipe, "_save_reports", return_value=[]):
+        with (
+            patch.object(
+                pipe,
+                "_validate_multi_source",
+                return_value={
+                    "A": {"deviation_pct": 10.0},
+                    "B": {"deviation_pct": 0.0},
+                },
+            ),
+            patch.object(pipe, "_detect_outliers", return_value={}),
+            patch.object(pipe, "_fill_gaps", return_value={}),
+            patch.object(pipe, "_check_gate", return_value={}),
+            patch.object(pipe, "_save_reports", return_value=[]),
+        ):
             reports, result = pipe.run(market_data=data, save_report=False)
         a_report = next(r for r in reports if r.symbol == "A")
         b_report = next(r for r in reports if r.symbol == "B")

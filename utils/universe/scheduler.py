@@ -70,7 +70,16 @@ class KlinesLoader:
                     logger.info("  K线加载器: 使用通达信数据源 (TCP)")
                 else:
                     self._tdx_source = None
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001
                 logger.debug(f"通达信不可用: {e}")
         return self._tdx_source
 
@@ -80,7 +89,16 @@ class KlinesLoader:
                 from utils.akshare_data_source import get_akshare_source
 
                 self._akshare_source = get_akshare_source()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001
                 logger.debug(f"AKShare 不可用: {e}")
         return self._akshare_source
 
@@ -97,7 +115,16 @@ class KlinesLoader:
                 if not df.empty and len(df) >= self.count * 0.5:
                     self._cache[symbol] = df
                     return df
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("Unexpected error in scheduler.py", exc_info=True)
 
@@ -112,9 +139,20 @@ class KlinesLoader:
                 if all(c in df.columns for c in required):
                     try:
                         df.to_parquet(cache_file)
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        AttributeError,
+                        RuntimeError,
+                        OSError,
+                        TimeoutError,
+                        ConnectionError,
+                    ):
                         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-                        logger.warning("Unexpected error in scheduler.py", exc_info=True)
+                        logger.warning(
+                            "Unexpected error in scheduler.py", exc_info=True
+                        )
                     self._cache[symbol] = df
                     return df
 
@@ -134,14 +172,27 @@ class KlinesLoader:
                     "成交量": "volume",
                     "成交额": "amount",
                 }
-                df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+                df = df.rename(
+                    columns={k: v for k, v in rename_map.items() if k in df.columns}
+                )
                 required = ["open", "high", "low", "close", "volume"]
                 if all(c in df.columns for c in required):
                     try:
                         df.to_parquet(cache_file, index=False)
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        AttributeError,
+                        RuntimeError,
+                        OSError,
+                        TimeoutError,
+                        ConnectionError,
+                    ):
                         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-                        logger.warning("Unexpected error in scheduler.py", exc_info=True)
+                        logger.warning(
+                            "Unexpected error in scheduler.py", exc_info=True
+                        )
                     self._cache[symbol] = df
                     return df
 
@@ -158,9 +209,9 @@ class KlinesLoader:
             return symbol
         if symbol.startswith("6"):
             return f"{symbol}.SH"
-        elif symbol.startswith(("0", "3")):
+        if symbol.startswith(("0", "3")):
             return f"{symbol}.SZ"
-        elif symbol.startswith(("4", "8")):
+        if symbol.startswith(("4", "8")):
             return f"{symbol}.BJ"
         return symbol
 
@@ -240,7 +291,12 @@ def run_daily_scan(
         # 阶段 1: 获取股票池
         # ============================================================
         logger.info(f"\n[1/6] 获取股票池 ({pool})...")
-        from .stock_universe import _get_builtin_pool, get_full_market_snapshot, get_industry_map, get_universe
+        from .stock_universe import (
+            _get_builtin_pool,
+            get_full_market_snapshot,
+            get_industry_map,
+            get_universe,
+        )
 
         universe_df = get_universe(pool=pool)
         if universe_df.empty:
@@ -282,7 +338,13 @@ def run_daily_scan(
             if filtered_df.empty:
                 logger.warning("风险过滤后股票池为空，使用原始股票池")
                 filtered_df = universe_df.copy()
-                for col in ["price", "amount", "volume", "turnover_ratio", "change_ratio"]:
+                for col in [
+                    "price",
+                    "amount",
+                    "volume",
+                    "turnover_ratio",
+                    "change_ratio",
+                ]:
                     if col not in filtered_df.columns:
                         filtered_df[col] = 100.0 if col == "price" else 1e8
                 filter_stats = {
@@ -301,7 +363,13 @@ def run_daily_scan(
         # ============================================================
         logger.info("\n[3/6] 批量计算因子...")
         symbols = filtered_df["code"].tolist()
-        name_map = dict(zip(filtered_df["code"], filtered_df.get("name", filtered_df["code"]), strict=True))
+        name_map = dict(
+            zip(
+                filtered_df["code"],
+                filtered_df.get("name", filtered_df["code"]),
+                strict=True,
+            )
+        )
 
         klines_loader = KlinesLoader(count=300)
         # 预热 K 线（烟雾测试不需要预热所有）
@@ -312,7 +380,12 @@ def run_daily_scan(
                 if (i + 1) % 100 == 0:
                     logger.info(f"    K线进度: {i + 1}/{len(symbols)}")
 
-        from .factor_scorer import ScoringConfig, batch_compute_factors, cross_sectional_score, industry_neutralize
+        from .factor_scorer import (
+            ScoringConfig,
+            batch_compute_factors,
+            cross_sectional_score,
+            industry_neutralize,
+        )
 
         # 烟雾测试用更少因子
         scoring_config = ScoringConfig()
@@ -349,7 +422,11 @@ def run_daily_scan(
         scores_df["composite_score_neutral"] = neutral_scores
         # 用中性化得分重排
         scores_df = scores_df.sort_values("composite_score_neutral", ascending=False)
-        scores_df["rank"] = scores_df["composite_score_neutral"].rank(ascending=False, method="min").astype(int)
+        scores_df["rank"] = (
+            scores_df["composite_score_neutral"]
+            .rank(ascending=False, method="min")
+            .astype(int)
+        )
 
         # ============================================================
         # 阶段 5: 分层组合构建
@@ -403,12 +480,23 @@ def run_daily_scan(
         logger.info("\n" + "=" * 70)
         logger.info(f"✅ 扫描完成  耗时: {result.elapsed_seconds:.1f}秒")
         logger.info(f"  股票池: {result.universe_size}  过滤后: {result.filtered_size}")
-        logger.info(f"  因子计算: {result.factor_computed} 成功 / {result.factor_failed} 失败")
+        logger.info(
+            f"  因子计算: {result.factor_computed} 成功 / {result.factor_failed} 失败"
+        )
         logger.info(f"  持仓: {result.portfolio_size} 只")
         logger.info(f"  报告目录: {output_dir}")
         logger.info("=" * 70)
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # noqa: BLE001
         result.success = False
         result.error = str(e)
         result.elapsed_seconds = time.time() - start_time
@@ -418,7 +506,9 @@ def run_daily_scan(
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
     # 烟雾测试
     result = run_daily_scan(smoke_test=True, smoke_count=5)
     logger.info(result)

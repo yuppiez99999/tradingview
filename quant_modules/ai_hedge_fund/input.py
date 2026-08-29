@@ -44,12 +44,18 @@ def add_common_args(
             help="Use all available analysts (overrides --analysts)",
         )
     if include_ollama:
-        parser.add_argument("--ollama", action="store_true", help="Use Ollama for local LLM inference")
-    parser.add_argument("--model", type=str, required=False, help="Model name to use (e.g., gpt-4o)")
+        parser.add_argument(
+            "--ollama", action="store_true", help="Use Ollama for local LLM inference"
+        )
+    parser.add_argument(
+        "--model", type=str, required=False, help="Model name to use (e.g., gpt-4o)"
+    )
     return parser
 
 
-def add_date_args(parser: argparse.ArgumentParser, *, default_months_back: int | None = None) -> argparse.ArgumentParser:
+def add_date_args(
+    parser: argparse.ArgumentParser, *, default_months_back: int | None = None
+) -> argparse.ArgumentParser:
     if default_months_back is None:
         parser.add_argument("--start-date", type=str, help="Start date (YYYY-MM-DD)")
         parser.add_argument("--end-date", type=str, help="End date (YYYY-MM-DD)")
@@ -63,7 +69,9 @@ def add_date_args(parser: argparse.ArgumentParser, *, default_months_back: int |
         parser.add_argument(
             "--start-date",
             type=str,
-            default=(datetime.now() - relativedelta(months=default_months_back)).strftime("%Y-%m-%d"),
+            default=(
+                datetime.now() - relativedelta(months=default_months_back)
+            ).strftime("%Y-%m-%d"),
             help="Start date in YYYY-MM-DD format",
         )
     return parser
@@ -84,7 +92,9 @@ def select_analysts(flags: dict | None = None) -> list[str]:
 
     choices = questionary.checkbox(
         "Select your AI analysts.",
-        choices=[questionary.Choice(display, value=value) for display, value in ANALYST_ORDER],
+        choices=[
+            questionary.Choice(display, value=value) for display, value in ANALYST_ORDER
+        ],
         instruction="\n\nInstructions: \n1. Press Space to select/unselect analysts.\n2. Press 'a' to select/unselect all.\n3. Press Enter when done.",
         validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
         style=questionary.Style(
@@ -111,13 +121,15 @@ def select_model(use_ollama: bool, model_flag: str | None = None) -> tuple[str, 
         model = find_model_by_name(model_flag)
         if model:
             return model.model_name, model.provider.value
-        else:
-            pass
+        pass
 
     if use_ollama:
         model_name = questionary.select(
             "Select your Ollama model:",
-            choices=[questionary.Choice(display, value=value) for display, value, _ in OLLAMA_LLM_ORDER],
+            choices=[
+                questionary.Choice(display, value=value)
+                for display, value, _ in OLLAMA_LLM_ORDER
+            ],
             style=questionary.Style(
                 [
                     ("selected", "fg:green bold"),
@@ -143,7 +155,10 @@ def select_model(use_ollama: bool, model_flag: str | None = None) -> tuple[str, 
     else:
         model_choice = questionary.select(
             "Select your LLM model:",
-            choices=[questionary.Choice(display, value=(name, provider)) for display, name, provider in LLM_ORDER],
+            choices=[
+                questionary.Choice(display, value=(name, provider))
+                for display, name, provider in LLM_ORDER
+            ],
             style=questionary.Style(
                 [
                     ("selected", "fg:green bold"),
@@ -173,7 +188,12 @@ def select_model(use_ollama: bool, model_flag: str | None = None) -> tuple[str, 
     return model_name, model_provider or ""
 
 
-def resolve_dates(start_date: str | None, end_date: str | None, *, default_months_back: int | None = None) -> tuple[str, str]:
+def resolve_dates(
+    start_date: str | None,
+    end_date: str | None,
+    *,
+    default_months_back: int | None = None,
+) -> tuple[str, str]:
     if start_date:
         try:
             datetime.strptime(start_date, "%Y-%m-%d")
@@ -221,7 +241,12 @@ def parse_cli_inputs(
     parser = argparse.ArgumentParser(description=description)
 
     # Common/interactive flags
-    add_common_args(parser, require_tickers=require_tickers, include_analyst_flags=True, include_ollama=True)
+    add_common_args(
+        parser,
+        require_tickers=require_tickers,
+        include_analyst_flags=True,
+        include_ollama=True,
+    )
     add_date_args(parser, default_months_back=default_months_back)
 
     # Funding flags (standardized, with alias)
@@ -242,20 +267,34 @@ def parse_cli_inputs(
     )
 
     if include_reasoning_flag:
-        parser.add_argument("--show-reasoning", action="store_true", help="Show reasoning from each agent")
+        parser.add_argument(
+            "--show-reasoning",
+            action="store_true",
+            help="Show reasoning from each agent",
+        )
     if include_graph_flag:
-        parser.add_argument("--show-agent-graph", action="store_true", help="Show the agent graph")
+        parser.add_argument(
+            "--show-agent-graph", action="store_true", help="Show the agent graph"
+        )
 
     args = parser.parse_args()
 
     # Normalize parsed values
     tickers = parse_tickers(getattr(args, "tickers", None))
-    selected_analysts = select_analysts({
-        "analysts_all": getattr(args, "analysts_all", False),
-        "analysts": getattr(args, "analysts", None),
-    })
-    model_name, model_provider = select_model(getattr(args, "ollama", False), getattr(args, "model", None))
-    start_date, end_date = resolve_dates(getattr(args, "start_date", None), getattr(args, "end_date", None), default_months_back=default_months_back)
+    selected_analysts = select_analysts(
+        {
+            "analysts_all": getattr(args, "analysts_all", False),
+            "analysts": getattr(args, "analysts", None),
+        }
+    )
+    model_name, model_provider = select_model(
+        getattr(args, "ollama", False), getattr(args, "model", None)
+    )
+    start_date, end_date = resolve_dates(
+        getattr(args, "start_date", None),
+        getattr(args, "end_date", None),
+        default_months_back=default_months_back,
+    )
 
     return CLIInputs(
         tickers=tickers,
@@ -270,5 +309,3 @@ def parse_cli_inputs(
         show_agent_graph=getattr(args, "show_agent_graph", False),
         raw_args=args,
     )
-
-

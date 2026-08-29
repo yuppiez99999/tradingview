@@ -180,7 +180,11 @@ class AlphaEvaluator:
         forward_returns: dict[str, float],
     ) -> tuple[float, float, float]:
         """计算 IC（Information Coefficient）"""
-        common = [s for s in factor_values if s in forward_returns and math.isfinite(factor_values[s])]
+        common = [
+            s
+            for s in factor_values
+            if s in forward_returns and math.isfinite(factor_values[s])
+        ]
         if len(common) < 5:
             return 0.0, 0.0, 0.0
 
@@ -264,7 +268,16 @@ class AlphaEvaluator:
                     if not name:
                         continue
                     self._history.setdefault(name, []).append(item)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("[AlphaEvaluator] 加载历史失败: %s", e)
 
     def _save_report(self, report: AlphaEvaluationReport) -> None:
@@ -274,7 +287,16 @@ class AlphaEvaluator:
             json_path = date_path / "alpha_evaluation.json"
             with open(json_path, "w", encoding="utf-8") as f:
                 json.dump(report.to_dict(), f, ensure_ascii=False, indent=2)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error("[AlphaEvaluator] 保存报告失败: %s", e)
 
     def _build_summary(self, active: int, degraded: int, dead: int) -> str:

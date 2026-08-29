@@ -6,6 +6,7 @@
     - 支持查看 Markdown 报告
     - 容错降级: 子模块异常不阻塞整体
 """
+
 from __future__ import annotations
 
 import sys
@@ -47,31 +48,57 @@ def main() -> None:
 
     panel = load_attribution_panel(selected_date)
     if not panel:
-        render_empty_state(f"{selected_date.strftime('%Y-%m-%d')} 无归因报告", icon="🎯")
+        render_empty_state(
+            f"{selected_date.strftime('%Y-%m-%d')} 无归因报告", icon="🎯"
+        )
         return
 
     # ===== 顶部 KPI =====
-    render_kpi_row([
-        {"label": "生成耗时 (ms)", "value": f"{panel.get('generation_time_ms', 0):.1f}", "icon": "⏱️"},
-        {"label": "Brinson 状态", "value": panel.get("brinson", {}).get("status", "-"), "icon": "⚖️"},
-        {"label": "Factor 状态", "value": panel.get("factor", {}).get("status", "-"), "icon": "📈"},
-        {"label": "TCA 状态", "value": panel.get("tca", {}).get("status", "-"), "icon": "💰"},
-    ])
+    render_kpi_row(
+        [
+            {
+                "label": "生成耗时 (ms)",
+                "value": f"{panel.get('generation_time_ms', 0):.1f}",
+                "icon": "⏱️",
+            },
+            {
+                "label": "Brinson 状态",
+                "value": panel.get("brinson", {}).get("status", "-"),
+                "icon": "⚖️",
+            },
+            {
+                "label": "Factor 状态",
+                "value": panel.get("factor", {}).get("status", "-"),
+                "icon": "📈",
+            },
+            {
+                "label": "TCA 状态",
+                "value": panel.get("tca", {}).get("status", "-"),
+                "icon": "💰",
+            },
+        ]
+    )
 
     st.divider()
 
     # ===== 三大归因模块标签页 =====
-    tab_brinson, tab_factor, tab_tca, tab_md = st.tabs([
-        "⚖️ Brinson 归因",
-        "📈 Barra 因子归因",
-        "💰 TCA 执行归因",
-        "📄 Markdown 报告",
-    ])
+    tab_brinson, tab_factor, tab_tca, tab_md = st.tabs(
+        [
+            "⚖️ Brinson 归因",
+            "📈 Barra 因子归因",
+            "💰 TCA 执行归因",
+            "📄 Markdown 报告",
+        ]
+    )
 
     # Brinson 归因
     with tab_brinson:
         brinson = panel.get("brinson", {})
-        if brinson and brinson.get("status") not in ("disabled", "feature_flag_disabled", "empty"):
+        if brinson and brinson.get("status") not in (
+            "disabled",
+            "feature_flag_disabled",
+            "empty",
+        ):
             st.subheader("配置效应 / 选股效应 / 交互效应")
             ar = brinson.get("allocation_return", 0)
             sr = brinson.get("selection_return", 0)
@@ -98,11 +125,18 @@ def main() -> None:
     # Barra 因子归因
     with tab_factor:
         factor = panel.get("factor", {})
-        if factor and factor.get("status") not in ("disabled", "feature_flag_disabled", "empty"):
+        if factor and factor.get("status") not in (
+            "disabled",
+            "feature_flag_disabled",
+            "empty",
+        ):
             st.subheader("因子风险分解")
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("主动风险 (Tracking Error)", f"{factor.get('active_risk', 0)*100:.2f}%")
+                st.metric(
+                    "主动风险 (Tracking Error)",
+                    f"{factor.get('active_risk', 0)*100:.2f}%",
+                )
             with col2:
                 st.metric("因子风险贡献", f"{factor.get('factor_risk', 0)*100:.2f}%")
             with col3:
@@ -120,7 +154,11 @@ def main() -> None:
     # TCA 执行归因
     with tab_tca:
         tca = panel.get("tca", {})
-        if tca and tca.get("status") not in ("disabled", "feature_flag_disabled", "empty"):
+        if tca and tca.get("status") not in (
+            "disabled",
+            "feature_flag_disabled",
+            "empty",
+        ):
             st.subheader("执行成本分解")
             col1, col2, col3, col4 = st.columns(4)
             with col1:

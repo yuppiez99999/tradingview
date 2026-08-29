@@ -30,10 +30,14 @@ class SignalMixin:
         if df is None or df.empty or len(df) < 30:
             raise ValueError("history_too_short")
         close = df["close"].dropna()
-        volume = df["volume"].dropna() if "volume" in df.columns else pd.Series(dtype=float)
+        volume = (
+            df["volume"].dropna() if "volume" in df.columns else pd.Series(dtype=float)
+        )
         return close, volume
 
-    def _compute_alpha_components(self, close: pd.Series, volume: pd.Series) -> dict[str, float]:
+    def _compute_alpha_components(
+        self, close: pd.Series, volume: pd.Series
+    ) -> dict[str, float]:
         """计算动量、波动率、换手率、RSI、均线、MACD、布林带等组件信号。"""
         return {
             "momentum": self._calc_momentum(close),
@@ -48,14 +52,26 @@ class SignalMixin:
     def _calc_momentum(self, close: pd.Series) -> float:
         """多周期动量: 5d/20d/60d 加权。"""
         ret_5d = float(close.iloc[-1] / close.iloc[-6] - 1) if len(close) > 5 else 0.0
-        ret_20d = float(close.iloc[-1] / close.iloc[-21] - 1) if len(close) > 20 else 0.0
-        ret_60d = float(close.iloc[-1] / close.iloc[-61] - 1) if len(close) > 60 else 0.0
+        ret_20d = (
+            float(close.iloc[-1] / close.iloc[-21] - 1) if len(close) > 20 else 0.0
+        )
+        ret_60d = (
+            float(close.iloc[-1] / close.iloc[-61] - 1) if len(close) > 60 else 0.0
+        )
         return 0.40 * ret_5d + 0.35 * ret_20d + 0.25 * ret_60d
 
     def _calc_vol_breakout(self, close: pd.Series) -> float:
         """波动率突破: 当前 vs 历史波动率。"""
-        vol_20d = float(close.pct_change().rolling(20).std().iloc[-1]) if len(close) > 20 else 0.0
-        vol_60d = float(close.pct_change().rolling(60).std().iloc[-1]) if len(close) > 60 else vol_20d
+        vol_20d = (
+            float(close.pct_change().rolling(20).std().iloc[-1])
+            if len(close) > 20
+            else 0.0
+        )
+        vol_60d = (
+            float(close.pct_change().rolling(60).std().iloc[-1])
+            if len(close) > 60
+            else vol_20d
+        )
         vol_ratio = float(vol_20d / vol_60d) if vol_60d > 1e-12 else 1.0
         return float(max(-1.0, min(1.0, (vol_ratio - 1.0) * 8)))
 
@@ -174,7 +190,11 @@ class SignalMixin:
                 sentiment = macro.get("risk_sentiment", {}) or {}
             if not sentiment:
                 sentiment = self.data_provider.get_risk_sentiment() or {}
-            score = float(sentiment.get("score", 0.0)) if isinstance(sentiment, dict) else 0.0
+            score = (
+                float(sentiment.get("score", 0.0))
+                if isinstance(sentiment, dict)
+                else 0.0
+            )
             strength = float(max(-1.0, min(1.0, score)))
 
             if strength == 0.0:
@@ -189,7 +209,9 @@ class SignalMixin:
                             if len(s) > 5:
                                 return float(s.iloc[-1] / s.iloc[-6] - 1)
                         except Exception as e:
-                            logger.debug("[Pipeline] 宏观代理信号计算失败 %s: %s", symbol, e)
+                            logger.debug(
+                                "[Pipeline] 宏观代理信号计算失败 %s: %s", symbol, e
+                            )
                         return None
 
                     rets_or_none = run_io_batch(
@@ -202,7 +224,9 @@ class SignalMixin:
                     )
                     rets = [r for r in rets_or_none if r is not None]
                     if rets:
-                        macro_proxy = float(max(-1.0, min(1.0, sum(rets) / len(rets) * 8)))
+                        macro_proxy = float(
+                            max(-1.0, min(1.0, sum(rets) / len(rets) * 8))
+                        )
                         if macro_proxy != 0.0:
                             strength = macro_proxy
                 except Exception as e:
@@ -229,11 +253,17 @@ class SignalMixin:
                     confs = []
                     for item in news_sentiment:
                         if isinstance(item, dict):
-                            vals.append(float(item.get("sentiment_score", item.get("score", 0.0))))
+                            vals.append(
+                                float(
+                                    item.get("sentiment_score", item.get("score", 0.0))
+                                )
+                            )
                             confs.append(float(item.get("confidence", 0.0)))
                     if vals:
                         strength = float(max(-1.0, min(1.0, sum(vals) / len(vals))))
-                        confidence = float(min(1.0, (sum(confs) / len(confs)) if confs else 0.2 + 0.1))
+                        confidence = float(
+                            min(1.0, (sum(confs) / len(confs)) if confs else 0.2 + 0.1)
+                        )
 
                 if strength == 0.0 and confidence <= 0.2:
                     try:
@@ -251,7 +281,8 @@ class SignalMixin:
                 conf = (
                     0.55
                     if any(
-                        isinstance(item, dict) and item.get("sentiment_score", item.get("score", 0.0)) != 0.0
+                        isinstance(item, dict)
+                        and item.get("sentiment_score", item.get("score", 0.0)) != 0.0
                         for item in (news_sentiment or [])
                     )
                     else confidence
@@ -327,7 +358,11 @@ class SignalMixin:
                     try:
                         change_pct = float(change_pct)
                     except Exception:
-                        logger.debug("[Pipeline] change_pct 转换失败 symbol=%s raw=%r", symbol, change_pct)
+                        logger.debug(
+                            "[Pipeline] change_pct 转换失败 symbol=%s raw=%r",
+                            symbol,
+                            change_pct,
+                        )
                         change_pct = 0.0
                     if math.isfinite(change_pct) and change_pct != 0.0:
                         strength = float(max(-1.0, min(1.0, change_pct / 10.0)))
@@ -346,8 +381,7 @@ class SignalMixin:
                     # B2.2 修复: 旧实现用 `conf = 0.55 if change_pct != 0.0 else confidence`
                     # 错误覆盖了已经算好的 confidence (0.6/0.4/0.45 三档), 改为直接返回 confidence
                     return (symbol, {"strength": strength, "confidence": confidence})
-                else:
-                    return (symbol, {"strength": 0.0, "confidence": 0.2})
+                return (symbol, {"strength": 0.0, "confidence": 0.2})
             except Exception as e:
                 logger.warning("[Pipeline] 真实ETF信号获取失败 %s: %s", symbol, e)
                 return (symbol, {"strength": 0.0, "confidence": 0.2})

@@ -3,6 +3,7 @@
 被测模块: utils/ic_hedge_calculator.py
 覆盖目标: >=95%
 """
+
 from __future__ import annotations
 
 import sys
@@ -21,6 +22,7 @@ from utils.ic_hedge_calculator import (  # noqa: E402
 # ============================================================
 # calculate — 正常场景
 # ============================================================
+
 
 class TestCalculateNormal:
     def test_basic_hedge(self):
@@ -73,6 +75,7 @@ class TestCalculateNormal:
 # calculate — 异常参数
 # ============================================================
 
+
 class TestCalculateInvalid:
     def test_zero_market_value(self):
         calc = ICHedgeCalculator()
@@ -94,6 +97,7 @@ class TestCalculateInvalid:
 # ============================================================
 # calculate — 上限控制
 # ============================================================
+
 
 class TestMaxContracts:
     def test_capped_at_max(self):
@@ -120,6 +124,7 @@ class TestMaxContracts:
 # ============================================================
 # calculate — 基差调整
 # ============================================================
+
 
 class TestBasisAdjustment:
     def test_high_basis_triggers_warning(self):
@@ -160,6 +165,7 @@ class TestBasisAdjustment:
 # calculate — 保证金约束
 # ============================================================
 
+
 class TestMarginConstraint:
     def test_margin_usage_ratio(self):
         calc = ICHedgeCalculator()
@@ -189,6 +195,7 @@ class TestMarginConstraint:
 # build_hedge_order
 # ============================================================
 
+
 class TestBuildHedgeOrder:
     def test_order_with_contracts(self):
         calc = ICHedgeCalculator()
@@ -210,6 +217,7 @@ class TestBuildHedgeOrder:
 # ============================================================
 # build_rebalance_order
 # ============================================================
+
 
 class TestBuildRebalanceOrder:
     def test_hold(self):
@@ -235,6 +243,7 @@ class TestBuildRebalanceOrder:
 # ============================================================
 # summary
 # ============================================================
+
 
 class TestSummary:
     def test_summary_output(self):

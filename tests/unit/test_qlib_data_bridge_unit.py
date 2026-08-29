@@ -2,6 +2,7 @@
 单元测试: utils/qlib_data_bridge.py
 覆盖 to_qlib_symbol / from_qlib_symbol / dataframe_to_qlib_record / qlib_signal_to_system / get_qlib_cache_root
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -78,8 +79,13 @@ class TestDataframeToQlibRecord:
 
     def test_basic_conversion(self):
         df = pd.DataFrame(
-            {"open": [10.0, 11.0], "high": [11.0, 12.0], "low": [9.0, 10.0],
-             "close": [10.5, 11.5], "volume": [1000, 2000]},
+            {
+                "open": [10.0, 11.0],
+                "high": [11.0, 12.0],
+                "low": [9.0, 10.0],
+                "close": [10.5, 11.5],
+                "volume": [1000, 2000],
+            },
             index=pd.to_datetime(["2026-01-01", "2026-01-02"]),
         )
         records = dataframe_to_qlib_record(df)
@@ -91,8 +97,14 @@ class TestDataframeToQlibRecord:
 
     def test_with_amount(self):
         df = pd.DataFrame(
-            {"open": [10.0], "high": [11.0], "low": [9.0],
-             "close": [10.5], "volume": [1000], "amount": [5000]},
+            {
+                "open": [10.0],
+                "high": [11.0],
+                "low": [9.0],
+                "close": [10.5],
+                "volume": [1000],
+                "amount": [5000],
+            },
             index=pd.to_datetime(["2026-01-01"]),
         )
         records = dataframe_to_qlib_record(df)

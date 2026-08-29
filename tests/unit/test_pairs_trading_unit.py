@@ -3,6 +3,7 @@
 目标模块: utils/strategy_lib/pairs_trading.py (branch-rate 0.0303 → 高覆盖)
 覆盖: PairSignal / PairsTrading (backtest_pair 全分支 + 空返回路径 + 异常路径)
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -10,23 +11,28 @@ import pandas as pd
 import pytest
 
 from utils.strategy_lib.pairs_trading import (
+    _HAS_STATSMODELS,
     PairSignal,
     PairsTrading,
-    _HAS_STATSMODELS,
 )
-
 
 # ============================================================
 # PairSignalTest — 配对信号数据结构
 # ============================================================
 
+
 class PairSignalTest:
 
     def test_init_all_fields(self):
         ps = PairSignal(
-            code_a="000001.SZ", code_b="000002.SZ",
-            hedge_ratio=1.2, intercept=0.5,
-            half_life=15.0, zscore=2.1, signal=1, pvalue=0.01,
+            code_a="000001.SZ",
+            code_b="000002.SZ",
+            hedge_ratio=1.2,
+            intercept=0.5,
+            half_life=15.0,
+            zscore=2.1,
+            signal=1,
+            pvalue=0.01,
         )
         assert ps.code_a == "000001.SZ"
         assert ps.code_b == "000002.SZ"
@@ -39,9 +45,14 @@ class PairSignalTest:
 
     def test_to_dict_rounds(self):
         ps = PairSignal(
-            code_a="a", code_b="b",
-            hedge_ratio=1.23456, intercept=0.12345,
-            half_life=12.345, zscore=-2.1234, signal=-1, pvalue=0.01234,
+            code_a="a",
+            code_b="b",
+            hedge_ratio=1.23456,
+            intercept=0.12345,
+            half_life=12.345,
+            zscore=-2.1234,
+            signal=-1,
+            pvalue=0.01234,
         )
         d = ps.to_dict()
         assert d["code_a"] == "a"
@@ -54,9 +65,14 @@ class PairSignalTest:
 
     def test_to_dict_none_half_life(self):
         ps = PairSignal(
-            code_a="a", code_b="b",
-            hedge_ratio=1.0, intercept=0.0,
-            half_life=None, zscore=0.0, signal=0, pvalue=0.5,
+            code_a="a",
+            code_b="b",
+            hedge_ratio=1.0,
+            intercept=0.0,
+            half_life=None,
+            zscore=0.0,
+            signal=0,
+            pvalue=0.5,
         )
         d = ps.to_dict()
         assert d["half_life"] is None
@@ -64,9 +80,14 @@ class PairSignalTest:
     def test_to_dict_zero_half_life_falsy(self):
         """half_life=0.0 时 to_dict 返回 None (falsy 判断)."""
         ps = PairSignal(
-            code_a="a", code_b="b",
-            hedge_ratio=1.0, intercept=0.0,
-            half_life=0.0, zscore=0.0, signal=0, pvalue=0.5,
+            code_a="a",
+            code_b="b",
+            hedge_ratio=1.0,
+            intercept=0.0,
+            half_life=0.0,
+            zscore=0.0,
+            signal=0,
+            pvalue=0.5,
         )
         d = ps.to_dict()
         assert d["half_life"] is None
@@ -75,6 +96,7 @@ class PairSignalTest:
 # ============================================================
 # PairsTradingInitTest — 构造与参数
 # ============================================================
+
 
 class PairsTradingInitTest:
 
@@ -89,9 +111,12 @@ class PairsTradingInitTest:
 
     def test_init_custom(self):
         pt = PairsTrading(
-            significance=0.01, zscore_window=30,
-            entry_z=1.5, exit_z=0.3,
-            min_half_life=2, max_half_life=100,
+            significance=0.01,
+            zscore_window=30,
+            entry_z=1.5,
+            exit_z=0.3,
+            min_half_life=2,
+            max_half_life=100,
         )
         assert pt.significance == 0.01
         assert pt.zscore_window == 30
@@ -105,13 +130,16 @@ class PairsTradingInitTest:
 # PairsTradingEmptyReturnTest — 无 statsmodels 时的空返回路径
 # ============================================================
 
+
 class PairsTradingEmptyReturnTest:
 
     def test_find_cointegrated_pairs_no_statsmodels(self):
         """无 statsmodels 时 find_cointegrated_pairs 返回空列表."""
         pt = PairsTrading()
         if not _HAS_STATSMODELS:
-            result = pt.find_cointegrated_pairs({"A": pd.DataFrame(), "B": pd.DataFrame()})
+            result = pt.find_cointegrated_pairs(
+                {"A": pd.DataFrame(), "B": pd.DataFrame()}
+            )
             assert result == []
 
     def test_find_cointegrated_pairs_single_symbol(self):
@@ -140,6 +168,7 @@ class PairsTradingEmptyReturnTest:
 # ============================================================
 # PairsTradingBacktestTest — backtest_pair 向量回测 (不依赖 statsmodels)
 # ============================================================
+
 
 class PairsTradingBacktestTest:
 
@@ -233,6 +262,7 @@ class PairsTradingBacktestTest:
 # PairsTradingCointTestTest — _coint_test 异常路径
 # ============================================================
 
+
 class PairsTradingCointTestTest:
 
     def test_coint_test_short_series(self):
@@ -260,6 +290,7 @@ class PairsTradingCointTestTest:
 # PairsTradingHalfLifeTest — _estimate_half_life 异常路径
 # ============================================================
 
+
 class PairsTradingHalfLifeTest:
 
     def test_half_life_short_series(self):
@@ -282,6 +313,7 @@ class PairsTradingHalfLifeTest:
 # PairsTradingGenerateSignalsTest — 信号生成路径
 # ============================================================
 
+
 class PairsTradingGenerateSignalsTest:
 
     def test_generate_signals_with_explicit_pairs(self):
@@ -294,7 +326,15 @@ class PairsTradingGenerateSignalsTest:
         pb = pd.Series(np.cumsum(np.random.randn(n)) + 100, index=dates)
         df_a = pd.DataFrame({"close": pa})
         df_b = pd.DataFrame({"close": pb})
-        pairs = [{"code_a": "A", "code_b": "B", "beta": 1.0, "intercept": 0.0, "pvalue": 0.01}]
+        pairs = [
+            {
+                "code_a": "A",
+                "code_b": "B",
+                "beta": 1.0,
+                "intercept": 0.0,
+                "pvalue": 0.01,
+            }
+        ]
         signals = pt.generate_signals({"A": df_a, "B": df_b}, pairs=pairs)
         assert len(signals) == 1
         assert isinstance(signals[0], PairSignal)
@@ -305,7 +345,15 @@ class PairsTradingGenerateSignalsTest:
     def test_generate_signals_missing_price(self):
         """协整对的标的不在 price_data 中时跳过."""
         pt = PairsTrading()
-        pairs = [{"code_a": "X", "code_b": "Y", "beta": 1.0, "intercept": 0.0, "pvalue": 0.01}]
+        pairs = [
+            {
+                "code_a": "X",
+                "code_b": "Y",
+                "beta": 1.0,
+                "intercept": 0.0,
+                "pvalue": 0.01,
+            }
+        ]
         signals = pt.generate_signals({}, pairs=pairs)
         assert signals == []
 
@@ -315,7 +363,15 @@ class PairsTradingGenerateSignalsTest:
         dates = pd.date_range("2024-01-01", periods=10, freq="B")
         df_a = pd.DataFrame({"close": np.arange(10.0)}, index=dates)
         df_b = pd.DataFrame({"close": np.arange(10.0) + 1}, index=dates)
-        pairs = [{"code_a": "A", "code_b": "B", "beta": 1.0, "intercept": 0.0, "pvalue": 0.01}]
+        pairs = [
+            {
+                "code_a": "A",
+                "code_b": "B",
+                "beta": 1.0,
+                "intercept": 0.0,
+                "pvalue": 0.01,
+            }
+        ]
         signals = pt.generate_signals({"A": df_a, "B": df_b}, pairs=pairs)
         assert signals == []
 
@@ -329,7 +385,15 @@ class PairsTradingGenerateSignalsTest:
         pb = pd.Series(np.cumsum(np.random.randn(n)) + 100, index=dates)
         df_a = pd.DataFrame({"close": pa})
         df_b = pd.DataFrame({"close": pb})
-        pairs = [{"code_a": "A", "code_b": "B", "beta": 1.0, "intercept": 0.0, "pvalue": 0.01}]
+        pairs = [
+            {
+                "code_a": "A",
+                "code_b": "B",
+                "beta": 1.0,
+                "intercept": 0.0,
+                "pvalue": 0.01,
+            }
+        ]
         signals = pt.generate_signals({"A": df_a, "B": df_b}, pairs=pairs)
         for s in signals:
             assert s.signal in (-1, 0, 1)
@@ -345,6 +409,14 @@ class PairsTradingGenerateSignalsTest:
         pb = pd.Series(np.cumsum(np.random.randn(n)) + 100, index=dates)
         df_a = pd.DataFrame({"price": pa})  # 用 price 而非 close
         df_b = pd.DataFrame({"price": pb})
-        pairs = [{"code_a": "A", "code_b": "B", "beta": 1.0, "intercept": 0.0, "pvalue": 0.01}]
+        pairs = [
+            {
+                "code_a": "A",
+                "code_b": "B",
+                "beta": 1.0,
+                "intercept": 0.0,
+                "pvalue": 0.01,
+            }
+        ]
         signals = pt.generate_signals({"A": df_a, "B": df_b}, pairs=pairs)
         assert len(signals) == 1

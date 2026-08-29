@@ -205,14 +205,25 @@ class GlobalCancelGuard:
         for attempt in range(self.max_retries + 1):
             try:
                 result = broker.cancel(order)
-                if result is True or (isinstance(result, dict) and result.get("success")):
+                if result is True or (
+                    isinstance(result, dict) and result.get("success")
+                ):
                     return True
                 # cancel 返回 False, 重试
                 if attempt < self.max_retries:
                     time.sleep(self.retry_delay_sec)
                     continue
                 return False
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # broker API 异常类型不可预知
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # broker API 异常类型不可预知
                 logger.debug(
                     "[GlobalCancelGuard] 撤单失败 attempt=%d: %s, error=%s",
                     attempt + 1,

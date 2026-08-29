@@ -1,4 +1,5 @@
 """local_llm 单元测试 — 本地 LLM 推理客户端"""
+
 from unittest.mock import MagicMock, patch
 
 from utils.local_llm import (
@@ -54,7 +55,10 @@ class TestIsAvailable:
 
     def test_llama_cpp_not_installed(self):
         client = LocalLLMClient(model_path="/fake/path.gguf")
-        with patch("os.path.exists", return_value=True), patch.dict("sys.modules", {"llama_cpp": None}):
+        with (
+            patch("os.path.exists", return_value=True),
+            patch.dict("sys.modules", {"llama_cpp": None}),
+        ):
             with patch("builtins.__import__", side_effect=ImportError):
                 assert client.is_available() is False
 
@@ -70,10 +74,12 @@ class TestFormatPrompt:
 
     def test_system_and_user(self):
         client = LocalLLMClient()
-        result = client._format_prompt([
-            {"role": "system", "content": "you are helpful"},
-            {"role": "user", "content": "hi"},
-        ])
+        result = client._format_prompt(
+            [
+                {"role": "system", "content": "you are helpful"},
+                {"role": "user", "content": "hi"},
+            ]
+        )
         assert "<|im_start|>system" in result
         assert "you are helpful" in result
         assert "<|im_start|>user" in result
@@ -81,11 +87,13 @@ class TestFormatPrompt:
 
     def test_assistant_role(self):
         client = LocalLLMClient()
-        result = client._format_prompt([
-            {"role": "user", "content": "q"},
-            {"role": "assistant", "content": "a"},
-            {"role": "user", "content": "q2"},
-        ])
+        result = client._format_prompt(
+            [
+                {"role": "user", "content": "q"},
+                {"role": "assistant", "content": "a"},
+                {"role": "user", "content": "q2"},
+            ]
+        )
         assert "<|im_start|>assistant" in result
         assert "a" in result
 
@@ -103,10 +111,16 @@ class TestFormatPrompt:
 class TestChat:
     def test_chat_response(self):
         client = LocalLLMClient(model_path="/fake.gguf")
-        mock_model = MagicMock(return_value={
-            "choices": [{"text": "test response"}],
-            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
-        })
+        mock_model = MagicMock(
+            return_value={
+                "choices": [{"text": "test response"}],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                },
+            }
+        )
         with patch.object(client, "_load_model", return_value=mock_model):
             response = client.chat([{"role": "user", "content": "hi"}])
         assert response["choices"][0]["message"]["content"] == "test response"
@@ -115,12 +129,16 @@ class TestChat:
 
     def test_chat_custom_temp(self):
         client = LocalLLMClient(model_path="/fake.gguf")
-        mock_model = MagicMock(return_value={
-            "choices": [{"text": "resp"}],
-            "usage": {},
-        })
+        mock_model = MagicMock(
+            return_value={
+                "choices": [{"text": "resp"}],
+                "usage": {},
+            }
+        )
         with patch.object(client, "_load_model", return_value=mock_model):
-            client.chat([{"role": "user", "content": "hi"}], temperature=0.1, max_tokens=100)
+            client.chat(
+                [{"role": "user", "content": "hi"}], temperature=0.1, max_tokens=100
+            )
         call_kwargs = mock_model.call_args[1]
         assert call_kwargs["temperature"] == 0.1
         assert call_kwargs["max_tokens"] == 100
@@ -141,20 +159,24 @@ class TestStreamResponse:
 class TestGenerate:
     def test_generate_with_system(self):
         client = LocalLLMClient(model_path="/fake.gguf")
-        mock_model = MagicMock(return_value={
-            "choices": [{"text": "generated"}],
-            "usage": {},
-        })
+        mock_model = MagicMock(
+            return_value={
+                "choices": [{"text": "generated"}],
+                "usage": {},
+            }
+        )
         with patch.object(client, "_load_model", return_value=mock_model):
             result = client.generate("hello", system_prompt="be helpful")
         assert result == "generated"
 
     def test_generate_without_system(self):
         client = LocalLLMClient(model_path="/fake.gguf")
-        mock_model = MagicMock(return_value={
-            "choices": [{"text": "no system"}],
-            "usage": {},
-        })
+        mock_model = MagicMock(
+            return_value={
+                "choices": [{"text": "no system"}],
+                "usage": {},
+            }
+        )
         with patch.object(client, "_load_model", return_value=mock_model):
             result = client.generate("hello")
         assert result == "no system"
@@ -163,6 +185,7 @@ class TestGenerate:
 class TestGetLocalLLM:
     def test_returns_none_if_unavailable(self):
         import utils.local_llm as mod
+
         old = mod._default_client
         mod._default_client = None
         try:
@@ -173,6 +196,7 @@ class TestGetLocalLLM:
 
     def test_returns_client_if_available(self):
         import utils.local_llm as mod
+
         old = mod._default_client
         mock_client = MagicMock()
         mock_client.is_available.return_value = True
@@ -187,6 +211,7 @@ class TestGetLocalLLM:
 class TestLocalLLMAvailable:
     def test_false_when_unavailable(self):
         import utils.local_llm as mod
+
         old = mod._default_client
         mod._default_client = None
         try:
@@ -196,6 +221,7 @@ class TestLocalLLMAvailable:
 
     def test_true_when_available(self):
         import utils.local_llm as mod
+
         old = mod._default_client
         mock_client = MagicMock()
         mock_client.is_available.return_value = True

@@ -84,7 +84,9 @@ class P2CacheQualityGate:
             - 事件列表: 所有 DQC 事件 (含 INFO/WARN/ERROR/CRITICAL)
         """
         self._published = []
-        logger.info("DQC P2 开始检查: target_date=%s, symbols=%d", target_date, len(symbols))
+        logger.info(
+            "DQC P2 开始检查: target_date=%s, symbols=%d", target_date, len(symbols)
+        )
 
         # 1. 加载数据 (若未提供)
         if df is None:
@@ -98,7 +100,10 @@ class P2CacheQualityGate:
                     value=0.0,
                     threshold=1.0,
                     message=f"P2 检查失败: 缓存数据未加载 (cache_path={cache_path})",
-                    context={"target_date": str(target_date), "cache_path": str(cache_path) if cache_path else None},
+                    context={
+                        "target_date": str(target_date),
+                        "cache_path": str(cache_path) if cache_path else None,
+                    },
                 )
                 self._publish(event)
                 return False, self._published
@@ -108,7 +113,9 @@ class P2CacheQualityGate:
             # 完整性 (C-01~C-06)
             events_c = check_completeness(df, target_date, symbols, self._checkpoint)
             # 时效性 (T-01~T-03)
-            events_t = check_timeliness(df, target_date, self._checkpoint, data_arrival_time)
+            events_t = check_timeliness(
+                df, target_date, self._checkpoint, data_arrival_time
+            )
             # 准确性 (A-01~A-06)
             events_a = check_accuracy(df, self._checkpoint)
             # 唯一性 (U-01, U-03)
@@ -142,7 +149,8 @@ class P2CacheQualityGate:
             # 观察模式: 仅日志不阻断
             logger.warning(
                 "DQC P2 发现 %d 个阻断级问题, 但 Feature Flag %s=False, 观察模式不阻断",
-                len(blocking), FLAG_USE_P2_GATE,
+                len(blocking),
+                FLAG_USE_P2_GATE,
             )
             return True, self._published
 
@@ -152,14 +160,18 @@ class P2CacheQualityGate:
 
         logger.info(
             "DQC P2 完成: passed=%s, events=%d, blocking=%d",
-            passed, len(all_events), len(blocking),
+            passed,
+            len(all_events),
+            len(blocking),
         )
         return passed, self._published
 
     # ============================================================
     # 内部方法
     # ============================================================
-    def _load_cache(self, target_date: date, cache_path: Optional[Path]) -> Optional[pd.DataFrame]:
+    def _load_cache(
+        self, target_date: date, cache_path: Optional[Path]
+    ) -> Optional[pd.DataFrame]:
         """从缓存文件加载数据."""
         if cache_path is None or not cache_path.exists():
             return None
@@ -214,9 +226,14 @@ class P2CacheQualityGate:
                 if event.level == DQCLevel.CRITICAL
                 else RiskEventType.LIQUIDITY_BREACH
             )
-            severity = RiskSeverity(self.level.to_risk_severity) if False else RiskSeverity(
-                "critical" if event.level in (DQCLevel.ERROR, DQCLevel.CRITICAL)
-                else ("warn" if event.level == DQCLevel.WARN else "info")
+            severity = (
+                RiskSeverity(self.level.to_risk_severity)
+                if False
+                else RiskSeverity(
+                    "critical"
+                    if event.level in (DQCLevel.ERROR, DQCLevel.CRITICAL)
+                    else ("warn" if event.level == DQCLevel.WARN else "info")
+                )
             )
 
             risk_event = RiskEvent(
@@ -247,7 +264,8 @@ class P2CacheQualityGate:
         """记录阻断决策到日志."""
         logger.error(
             "DQC P2 阻断因子计算: target_date=%s, blocking_events=%d",
-            target_date, len(blocking),
+            target_date,
+            len(blocking),
         )
         for e in blocking:
             logger.error("  - [%s] %s", e.metric_id, e.message)
@@ -256,6 +274,7 @@ class P2CacheQualityGate:
         """检查 Feature Flag 是否启用阻断模式."""
         try:
             from utils.infra.feature_flags import is_enabled
+
             return is_enabled(FLAG_USE_P2_GATE)
         except (ImportError, RuntimeError, ValueError) as e:
             logger.debug("Feature Flag 检查失败, 默认不阻断: %s", e)

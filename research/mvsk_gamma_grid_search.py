@@ -6,6 +6,7 @@
 Usage:
     .venv\\Scripts\\python.exe research\\mvsk_gamma_grid_search.py
 """
+
 from __future__ import annotations
 
 import json
@@ -58,18 +59,20 @@ def run_grid(
             m = compute_risk_metrics(R, w)
             turn, cost = turnover_cost(w, w_bench, cost_bps=15.0)
             net = m["年化收益"] - cost
-            results.append({
-                "gamma_s": gs,
-                "gamma_k": gk,
-                "年化收益": m["年化收益"],
-                "年化夏普": m["年化夏普"],
-                "组合偏度": m["组合偏度"],
-                "超额峰度": m["超额峰度"],
-                "日CVaR95": m["日CVaR95"],
-                "换手率": turn,
-                "成本后净收益": net,
-                "求解器": res.solver_status,
-            })
+            results.append(
+                {
+                    "gamma_s": gs,
+                    "gamma_k": gk,
+                    "年化收益": m["年化收益"],
+                    "年化夏普": m["年化夏普"],
+                    "组合偏度": m["组合偏度"],
+                    "超额峰度": m["超额峰度"],
+                    "日CVaR95": m["日CVaR95"],
+                    "换手率": turn,
+                    "成本后净收益": net,
+                    "求解器": res.solver_status,
+                }
+            )
 
     return results
 
@@ -84,7 +87,9 @@ def print_heatmap(results: list[dict], metric: str, title: str) -> None:
     for gs in GAMMA_S_GRID:
         row = f"{gs:<10.1f}"
         for gk in GAMMA_K_GRID:
-            val = next(r[metric] for r in results if r["gamma_s"] == gs and r["gamma_k"] == gk)
+            val = next(
+                r[metric] for r in results if r["gamma_s"] == gs and r["gamma_k"] == gk
+            )
             row += f"{val:>10.4f}"
         print(row)
 
@@ -99,22 +104,30 @@ def print_pareto(results: list[dict]) -> None:
         for s in results:
             if s is r:
                 continue
-            if (s["成本后净收益"] >= r["成本后净收益"]
-                    and s["超额峰度"] <= r["超额峰度"]
-                    and (s["成本后净收益"] > r["成本后净收益"]
-                         or s["超额峰度"] < r["超额峰度"])):
+            if (
+                s["成本后净收益"] >= r["成本后净收益"]
+                and s["超额峰度"] <= r["超额峰度"]
+                and (
+                    s["成本后净收益"] > r["成本后净收益"]
+                    or s["超额峰度"] < r["超额峰度"]
+                )
+            ):
                 dominated = True
                 break
         if not dominated:
             pareto.append(r)
 
     pareto.sort(key=lambda x: x["超额峰度"])
-    print(f"{'γ_s':<8}{'γ_k':<8}{'净收益':<12}{'夏普':<10}{'偏度':<10}{'峰度':<10}{'CVaR95':<12}")
+    print(
+        f"{'γ_s':<8}{'γ_k':<8}{'净收益':<12}{'夏普':<10}{'偏度':<10}{'峰度':<10}{'CVaR95':<12}"
+    )
     print("-" * 70)
     for r in pareto:
-        print(f"{r['gamma_s']:<8.1f}{r['gamma_k']:<8.2f}{r['成本后净收益']:<12.4f}"
-              f"{r['年化夏普']:<10.4f}{r['组合偏度']:<10.4f}{r['超额峰度']:<10.4f}"
-              f"{r['日CVaR95']:<12.4f}")
+        print(
+            f"{r['gamma_s']:<8.1f}{r['gamma_k']:<8.2f}{r['成本后净收益']:<12.4f}"
+            f"{r['年化夏普']:<10.4f}{r['组合偏度']:<10.4f}{r['超额峰度']:<10.4f}"
+            f"{r['日CVaR95']:<12.4f}"
+        )
 
 
 def find_optima(results: list[dict]) -> None:
@@ -131,9 +144,11 @@ def find_optima(results: list[dict]) -> None:
     best_balanced = max(balanced, key=lambda r: r["成本后净收益"]) if balanced else None
 
     def show(label, r):
-        print(f"  {label}: γ_s={r['gamma_s']:.1f} γ_k={r['gamma_k']:.2f} → "
-              f"净收益={r['成本后净收益']:.4f} 夏普={r['年化夏普']:.4f} "
-              f"偏度={r['组合偏度']:.4f} 峰度={r['超额峰度']:.4f}")
+        print(
+            f"  {label}: γ_s={r['gamma_s']:.1f} γ_k={r['gamma_k']:.2f} → "
+            f"净收益={r['成本后净收益']:.4f} 夏普={r['年化夏普']:.4f} "
+            f"偏度={r['组合偏度']:.4f} 峰度={r['超额峰度']:.4f}"
+        )
 
     show("最大夏普", best_sharpe)
     show("最大净收益", best_net)
@@ -152,8 +167,10 @@ def print_u_curve(results: list[dict]) -> None:
     print("-" * 50)
     for gs in GAMMA_S_GRID:
         r = next(r for r in results if r["gamma_s"] == gs and r["gamma_k"] == 0.1)
-        print(f"{gs:<8.1f}{r['成本后净收益']:<12.4f}{r['年化夏普']:<10.4f}"
-              f"{r['组合偏度']:<10.4f}{r['超额峰度']:<10.4f}")
+        print(
+            f"{gs:<8.1f}{r['成本后净收益']:<12.4f}{r['年化夏普']:<10.4f}"
+            f"{r['组合偏度']:<10.4f}{r['超额峰度']:<10.4f}"
+        )
 
 
 def main() -> int:
@@ -172,7 +189,9 @@ def main() -> int:
     cov = np.cov(R, rowvar=False) * 252
     w_bench = np.ones(N) / N
 
-    print(f"\n网格搜索: {len(GAMMA_S_GRID)} × {len(GAMMA_K_GRID)} = {len(GAMMA_S_GRID)*len(GAMMA_K_GRID)} 组合...")
+    print(
+        f"\n网格搜索: {len(GAMMA_S_GRID)} × {len(GAMMA_K_GRID)} = {len(GAMMA_S_GRID)*len(GAMMA_K_GRID)} 组合..."
+    )
     results = run_grid(R, mu, cov, w_bench)
     print(f"完成 {len(results)} 组合")
 
@@ -191,8 +210,16 @@ def main() -> int:
 
     out_path = _PROJECT_ROOT / "research" / "mvsk_gamma_grid_result.json"
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump({"网格": results, "gamma_s_grid": GAMMA_S_GRID, "gamma_k_grid": GAMMA_K_GRID},
-                  f, ensure_ascii=False, indent=2)
+        json.dump(
+            {
+                "网格": results,
+                "gamma_s_grid": GAMMA_S_GRID,
+                "gamma_k_grid": GAMMA_K_GRID,
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
     print(f"\n结果已保存: {out_path}")
 
     return 0

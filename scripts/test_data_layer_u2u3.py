@@ -41,7 +41,10 @@ from utils.price_limit_calculator import (
 # 合成数据
 # ============================================================
 
-def make_synthetic_price_data(n_days: int = 10, n_stocks: int = 5) -> dict[str, pd.DataFrame]:
+
+def make_synthetic_price_data(
+    n_days: int = 10, n_stocks: int = 5
+) -> dict[str, pd.DataFrame]:
     """构造 n 只股票 × n_days 天 OHLCV DataFrame"""
     rng = np.random.default_rng(20260812)
     price_data = {}
@@ -49,13 +52,16 @@ def make_synthetic_price_data(n_days: int = 10, n_stocks: int = 5) -> dict[str, 
         code = f"{600000 + i:06d}"
         start = 10.0 + 2.0 * i
         closes = (start * np.cumprod(1 + rng.normal(0, 0.02, size=n_days))).tolist()
-        df = pd.DataFrame({
-            "open": [c * 0.99 for c in closes],
-            "high": [c * 1.02 for c in closes],
-            "low": [c * 0.98 for c in closes],
-            "close": closes,
-            "volume": (1e6 * rng.lognormal(0, 0.4, size=n_days)).tolist(),
-        }, index=pd.date_range("2026-08-01", periods=n_days, freq="B"))
+        df = pd.DataFrame(
+            {
+                "open": [c * 0.99 for c in closes],
+                "high": [c * 1.02 for c in closes],
+                "low": [c * 0.98 for c in closes],
+                "close": closes,
+                "volume": (1e6 * rng.lognormal(0, 0.4, size=n_days)).tolist(),
+            },
+            index=pd.date_range("2026-08-01", periods=n_days, freq="B"),
+        )
         price_data[code] = df
     return price_data
 
@@ -63,6 +69,7 @@ def make_synthetic_price_data(n_days: int = 10, n_stocks: int = 5) -> dict[str, 
 # ============================================================
 # 测试
 # ============================================================
+
 
 def test_limit_pool_provider_singleton():
     """测试 1: LimitPoolProvider 单例 + 缓存"""
@@ -181,7 +188,9 @@ def test_build_backtest_integration():
     assert len(data_without_pool) > 0
     assert "limit_up_prices" in data_without_pool[0]
     assert "limit_up_pool" not in data_without_pool[0]
-    print(f"  无 provider: {len(data_without_pool)} 天, 含 limit_up_prices, 无 limit_up_pool ✓")
+    print(
+        f"  无 provider: {len(data_without_pool)} 天, 含 limit_up_prices, 无 limit_up_pool ✓"
+    )
 
     # 提供 limit_pool_provider (注入涨停池字段)
     provider = LimitPoolProvider()
@@ -195,7 +204,9 @@ def test_build_backtest_integration():
     assert "broken_pool" in data_with_pool[0]
     # limit_up_pool 应为 set 类型
     assert isinstance(data_with_pool[0]["limit_up_pool"], set)
-    print(f"  有 provider: {len(data_with_pool)} 天, 含 limit_up_pool/limit_down_pool/broken_pool ✓")
+    print(
+        f"  有 provider: {len(data_with_pool)} 天, 含 limit_up_pool/limit_down_pool/broken_pool ✓"
+    )
 
 
 def test_akshare_suspend_list():
@@ -245,7 +256,9 @@ def test_cross_validate():
     assert all(v["calc_limit_up"] for v in result.values())
     # pool_limit_up: 涨停池不可用 → 全 False
     assert not any(v["pool_limit_up"] for v in result.values())
-    print(f"  交叉校验 {len(result)} 标的: calc 全 True, pool 全 False (akshare 不可用) ✓")
+    print(
+        f"  交叉校验 {len(result)} 标的: calc 全 True, pool 全 False (akshare 不可用) ✓"
+    )
 
 
 def test_determinism():
@@ -284,6 +297,7 @@ def test_existing_u2_u3_still_pass():
 # ============================================================
 # 主流程
 # ============================================================
+
 
 def main() -> int:
     print("=" * 72)

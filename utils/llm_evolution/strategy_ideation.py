@@ -45,23 +45,37 @@ logger = logging.getLogger("strategy_ideation")
 # 协议定义 (鸭子类型, 避免硬依赖 LLMRouter)
 # ============================================================
 
+
 class LLMChatProtocol(Protocol):
     """D1 需要的 LLM 最小接口."""
 
-    def chat(self, prompt: str, system: str = "", temperature: float | None = None,
-             max_tokens: int | None = None) -> str | None: ...
+    def chat(
+        self,
+        prompt: str,
+        system: str = "",
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str | None: ...
 
 
 class AuditLoggerProtocol(Protocol):
     """D1 需要的审计接口."""
 
-    def log(self, module: str, action: str, severity: str = "INFO",
-            symbol: str = "", reason: str = "", **kwargs: Any) -> None: ...
+    def log(
+        self,
+        module: str,
+        action: str,
+        severity: str = "INFO",
+        symbol: str = "",
+        reason: str = "",
+        **kwargs: Any,
+    ) -> None: ...
 
 
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 @dataclass
 class MarketObservation:
@@ -88,8 +102,13 @@ class MarketObservation:
             f"波动率: {self.volatility:.4f}",
         ]
         if self.sector_performance:
-            top_sectors = sorted(self.sector_performance.items(), key=lambda x: x[1], reverse=True)[:5]
-            lines.append("板块表现 (前5): " + ", ".join(f"{k}({v:+.2f}%)" for k, v in top_sectors))
+            top_sectors = sorted(
+                self.sector_performance.items(), key=lambda x: x[1], reverse=True
+            )[:5]
+            lines.append(
+                "板块表现 (前5): "
+                + ", ".join(f"{k}({v:+.2f}%)" for k, v in top_sectors)
+            )
         if self.summary:
             lines.append(f"摘要: {self.summary}")
         return "\n".join(lines)
@@ -100,21 +119,25 @@ class Hypothesis:
     """LLM 生成的策略假设 (D1 第 2 步产出)."""
 
     id: str = ""
-    description: str = ""           # 自然语言假设描述
-    market_observation: str = ""    # 市场观察依据
-    factor_direction: str = ""      # 因子方向 (long_small/long_large/long_short)
-    proposed_factors: list[dict] = field(default_factory=list)  # 候选因子列表 [{name, category, formula}]
-    strategy_style: str = ""        # 策略风格 (momentum/value/growth/...)
-    llm_model: str = ""             # 生成模型
-    audit_record: str = ""          # 审计记录 ID
-    status: str = "pending"         # pending / validated / falsified / promoted
+    description: str = ""  # 自然语言假设描述
+    market_observation: str = ""  # 市场观察依据
+    factor_direction: str = ""  # 因子方向 (long_small/long_large/long_short)
+    proposed_factors: list[dict] = field(
+        default_factory=list
+    )  # 候选因子列表 [{name, category, formula}]
+    strategy_style: str = ""  # 策略风格 (momentum/value/growth/...)
+    llm_model: str = ""  # 生成模型
+    audit_record: str = ""  # 审计记录 ID
+    status: str = "pending"  # pending / validated / falsified / promoted
     created_at: str = ""
-    diversity_hash: str = ""        # 用于多样性去重的 hash
+    diversity_hash: str = ""  # 用于多样性去重的 hash
 
     def compute_diversity_hash(self) -> str:
         """计算多样性 hash (基于描述+因子方向+风格)."""
         key = f"{self.description[:100]}|{self.factor_direction}|{self.strategy_style}"
-        self.diversity_hash = hashlib.md5(key.encode(), usedforsecurity=False).hexdigest()[:12]
+        self.diversity_hash = hashlib.md5(
+            key.encode(), usedforsecurity=False
+        ).hexdigest()[:12]
         return self.diversity_hash
 
 
@@ -180,6 +203,7 @@ HYPOTHESIS_PROMPT_TEMPLATE = """基于以下市场观察, 生成 {n} 个不同�
 # ============================================================
 # 主类
 # ============================================================
+
 
 class StrategyIdeationEngine:
     """LLM 策略 Ideation 生成引擎 — D1 五步流水线."""
@@ -304,12 +328,20 @@ class StrategyIdeationEngine:
                     cand["verdict"] = verdict
                     validated.append(cand)
                 else:
-                    self._audit("REJECT", f"因子 {cand.get('name')} 验证未通过", severity="WARN")
+                    self._audit(
+                        "REJECT", f"因子 {cand.get('name')} 验证未通过", severity="WARN"
+                    )
             except Exception as exc:
                 logger.warning(f"[D1] 因子验证异常: {exc}")
-                self._audit("VERIFY_ERROR", f"因子 {cand.get('name')} 验证异常: {exc}", severity="WARN")
+                self._audit(
+                    "VERIFY_ERROR",
+                    f"因子 {cand.get('name')} 验证异常: {exc}",
+                    severity="WARN",
+                )
 
-        self._audit("VALIDATE", f"验证 {len(candidates)} 个因子, 通过 {len(validated)} 个")
+        self._audit(
+            "VALIDATE", f"验证 {len(candidates)} 个因子, 通过 {len(validated)} 个"
+        )
         return validated
 
     # ------------------------------------------------------------
@@ -320,7 +352,9 @@ class StrategyIdeationEngine:
         """将验证通过的因子入库 (Shadow 模式仅记录, 不实际执行)."""
         count = len(validated)
         if self.shadow_mode:
-            self._audit("PROMOTE_SHADOW", f"Shadow 模式: {count} 个因子标记入库 (不实际执行)")
+            self._audit(
+                "PROMOTE_SHADOW", f"Shadow 模式: {count} 个因子标记入库 (不实际执行)"
+            )
         else:
             self._audit("PROMOTE", f"入库 {count} 个因子")
         return count
@@ -348,14 +382,18 @@ class StrategyIdeationEngine:
             result.observation = self.observe_market(market_data)
 
             # Step 2: 生成假设
-            result.hypotheses = self.generate_hypotheses(result.observation, n=n_hypotheses)
+            result.hypotheses = self.generate_hypotheses(
+                result.observation, n=n_hypotheses
+            )
 
             # Step 3-5: 对每个假设设计因子 → 验证 → 入库
             for hyp in result.hypotheses:
                 candidates = self.design_factors(hyp)
                 result.total_candidates += len(candidates)
 
-                validated = self.validate_factors(candidates, verifier=verifier, factor_data=factor_data)
+                validated = self.validate_factors(
+                    candidates, verifier=verifier, factor_data=factor_data
+                )
                 result.total_validated += len(validated)
 
                 promoted = self.promote_to_library(validated)
@@ -375,11 +413,14 @@ class StrategyIdeationEngine:
 
         result.finished_at = datetime.now().isoformat(timespec="seconds")
 
-        self._audit("CYCLE", (
-            f"周期 {cycle_id}: 假设={len(result.hypotheses)} "
-            f"候选={result.total_candidates} 验证通过={result.total_validated} "
-            f"入库={result.total_promoted} 多样性={result.diversity_score:.2f}"
-        ))
+        self._audit(
+            "CYCLE",
+            (
+                f"周期 {cycle_id}: 假设={len(result.hypotheses)} "
+                f"候选={result.total_candidates} 验证通过={result.total_validated} "
+                f"入库={result.total_promoted} 多样性={result.diversity_score:.2f}"
+            ),
+        )
 
         return result
 
@@ -387,7 +428,9 @@ class StrategyIdeationEngine:
     # 内部方法
     # ------------------------------------------------------------
 
-    def _parse_hypotheses(self, response: str, observation: MarketObservation) -> list[Hypothesis]:
+    def _parse_hypotheses(
+        self, response: str, observation: MarketObservation
+    ) -> list[Hypothesis]:
         """解析 LLM 返回的 JSON 假设列表."""
         # 提取 JSON 块
         json_str = response
@@ -411,7 +454,9 @@ class StrategyIdeationEngine:
             hyp = Hypothesis(
                 id=f"hyp_{datetime.now().strftime('%Y%m%d')}_{i:03d}",
                 description=h.get("description", ""),
-                market_observation=h.get("market_observation", observation.to_prompt_context()),
+                market_observation=h.get(
+                    "market_observation", observation.to_prompt_context()
+                ),
                 factor_direction=h.get("factor_direction", "long_small"),
                 proposed_factors=h.get("proposed_factors", []),
                 strategy_style=h.get("strategy_style", "balanced"),

@@ -2,6 +2,7 @@
 单元测试: utils/event_tracker.py
 覆盖 EventTracker / get_event_tracker / track_event / track_operation
 """
+
 from __future__ import annotations
 
 import time
@@ -9,7 +10,12 @@ import time
 import pytest
 
 from utils import event_tracker as et
-from utils.event_tracker import EventTracker, get_event_tracker, track_event, track_operation
+from utils.event_tracker import (
+    EventTracker,
+    get_event_tracker,
+    track_event,
+    track_operation,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -117,7 +123,9 @@ class TestLogPriceCheck:
 
     def test_invalid_price(self):
         tracker = EventTracker()
-        tracker.log_price_check("000001.SZ", 0.0, "akshare", valid=False, reason="zero price")
+        tracker.log_price_check(
+            "000001.SZ", 0.0, "akshare", valid=False, reason="zero price"
+        )
 
 
 class TestFinishSession:
@@ -158,6 +166,7 @@ class TestTrackEventDecorator:
         @track_event("my_op")
         def my_func(x):
             return x * 2
+
         result = my_func(5)
         assert result == 10
 
@@ -165,12 +174,14 @@ class TestTrackEventDecorator:
         @track_event()
         def my_func(x):
             return x + 1
+
         assert my_func(3) == 4
 
     def test_exception_propagates(self):
         @track_event("failing_op")
         def my_func():
             raise ValueError("test error")
+
         with pytest.raises(ValueError):
             my_func()
 

@@ -11,6 +11,7 @@
   - HedgeRebalanceBacktest: _run_s1 ~ _run_s5 (用合成数据)
   - format_comparison_report / save_report
 """
+
 import sys
 from pathlib import Path
 
@@ -80,8 +81,19 @@ class TestComputeVol30d:
         assert compute_portfolio_vol_30d([0.01, 0.02], 1) == 0.18
 
     def test_normal_case(self):
-        rets = [0.01, -0.01, 0.02, -0.005, 0.015, -0.008, 0.012, -0.003,
-                0.018, -0.01, 0.005]
+        rets = [
+            0.01,
+            -0.01,
+            0.02,
+            -0.005,
+            0.015,
+            -0.008,
+            0.012,
+            -0.003,
+            0.018,
+            -0.01,
+            0.005,
+        ]
         vol = compute_portfolio_vol_30d(rets, 10)
         assert vol > 0
         # 年化波动率应约 0.01 * sqrt(252) ≈ 0.158
@@ -233,8 +245,12 @@ class TestGetDynamicRebalanceThreshold:
 class TestDataclasses:
     def test_backtest_result_defaults(self):
         r = BacktestResult(
-            name="test", equity_curve=[100], dates=[pd.Timestamp("2026-01-01")],
-            daily_returns=[0.0], trade_count=0, hedge_costs=[0.0],
+            name="test",
+            equity_curve=[100],
+            dates=[pd.Timestamp("2026-01-01")],
+            daily_returns=[0.0],
+            trade_count=0,
+            hedge_costs=[0.0],
             transaction_costs=[0.0],
         )
         assert r.name == "test"
@@ -245,13 +261,21 @@ class TestDataclasses:
 
     def test_multi_strategy_result(self):
         r1 = BacktestResult(
-            name="s1", equity_curve=[100], dates=[pd.Timestamp("2026-01-01")],
-            daily_returns=[0.0], trade_count=0, hedge_costs=[0.0],
+            name="s1",
+            equity_curve=[100],
+            dates=[pd.Timestamp("2026-01-01")],
+            daily_returns=[0.0],
+            trade_count=0,
+            hedge_costs=[0.0],
             transaction_costs=[0.0],
         )
         r2 = BacktestResult(
-            name="s2", equity_curve=[100], dates=[pd.Timestamp("2026-01-01")],
-            daily_returns=[0.0], trade_count=0, hedge_costs=[0.0],
+            name="s2",
+            equity_curve=[100],
+            dates=[pd.Timestamp("2026-01-01")],
+            daily_returns=[0.0],
+            trade_count=0,
+            hedge_costs=[0.0],
             transaction_costs=[0.0],
         )
         multi = MultiStrategyResult(strategies=[r1, r2])
@@ -266,10 +290,13 @@ class TestHedgeRebalanceBacktestHelpers:
     def engine(self):
         """构造一个简单的回测引擎 (3 天数据)"""
         dates = pd.date_range("2026-01-01", periods=3, freq="B")
-        price_df = pd.DataFrame({
-            "300308": [100.0, 101.0, 102.0],
-            "688041": [50.0, 50.5, 51.0],
-        }, index=dates)
+        price_df = pd.DataFrame(
+            {
+                "300308": [100.0, 101.0, 102.0],
+                "688041": [50.0, 50.5, 51.0],
+            },
+            index=dates,
+        )
         csi300_ret = pd.Series([0.0, 0.01, 0.005], index=dates)
         return HedgeRebalanceBacktest(price_df, csi300_ret)
 
@@ -298,7 +325,10 @@ class TestHedgeRebalanceBacktestHelpers:
         assert rets == [0.0, 0.0, 0.0]
 
     def test_compute_turnover_no_prev(self):
-        assert HedgeRebalanceBacktest._compute_turnover(None, {"A": 100}, {"A": 100}) == 0.0
+        assert (
+            HedgeRebalanceBacktest._compute_turnover(None, {"A": 100}, {"A": 100})
+            == 0.0
+        )
 
     def test_compute_turnover_no_change(self):
         prev = {"A": 100}
@@ -326,17 +356,25 @@ class TestHedgeRebalanceBacktestHelpers:
 class TestMetrics:
     def test_metrics_calculated(self):
         dates = pd.date_range("2026-01-01", periods=5, freq="B")
-        price_df = pd.DataFrame({
-            "300308": [100.0, 101.0, 102.0, 101.5, 103.0],
-        }, index=dates)
+        price_df = pd.DataFrame(
+            {
+                "300308": [100.0, 101.0, 102.0, 101.5, 103.0],
+            },
+            index=dates,
+        )
         csi300_ret = pd.Series([0.0, 0.01, 0.005, -0.002, 0.008], index=dates)
 
         engine = HedgeRebalanceBacktest(price_df, csi300_ret)
         r = BacktestResult(
-            name="test", equity_curve=[1_000_000, 1_010_000, 1_020_000, 1_015_000, 1_030_000],
-            dates=dates, daily_returns=[0.0, 0.01, 0.0099, -0.0049, 0.0148],
-            trade_count=2, hedge_costs=[0.0] * 5, transaction_costs=[0.0] * 5,
-            n_days=5, turnover_daily=[0.0, 0.1, 0.05, 0.0, 0.08],
+            name="test",
+            equity_curve=[1_000_000, 1_010_000, 1_020_000, 1_015_000, 1_030_000],
+            dates=dates,
+            daily_returns=[0.0, 0.01, 0.0099, -0.0049, 0.0148],
+            trade_count=2,
+            hedge_costs=[0.0] * 5,
+            transaction_costs=[0.0] * 5,
+            n_days=5,
+            turnover_daily=[0.0, 0.1, 0.05, 0.0, 0.08],
         )
         engine._metrics(r)
         assert r.total_return > 0
@@ -361,11 +399,14 @@ class TestStrategyRuns:
         np.random.seed(42)
         dates = pd.date_range("2026-01-01", periods=30, freq="B")
         # 构造 3 个标的的价格数据
-        price_df = pd.DataFrame({
-            "300308": 100 + np.cumsum(np.random.normal(0, 0.5, 30)),
-            "688041": 50 + np.cumsum(np.random.normal(0, 0.3, 30)),
-            "601088": 20 + np.cumsum(np.random.normal(0, 0.1, 30)),
-        }, index=dates)
+        price_df = pd.DataFrame(
+            {
+                "300308": 100 + np.cumsum(np.random.normal(0, 0.5, 30)),
+                "688041": 50 + np.cumsum(np.random.normal(0, 0.3, 30)),
+                "601088": 20 + np.cumsum(np.random.normal(0, 0.1, 30)),
+            },
+            index=dates,
+        )
         csi300_ret = pd.Series(np.random.normal(0.001, 0.01, 30), index=dates)
         index_rets = {
             "IF": csi300_ret,
@@ -403,7 +444,7 @@ class TestStrategyRuns:
 
     def test_run_all(self, engine):
         multi = engine.run_all()
-        assert len(multi.strategies) == 5
+        assert len(multi.strategies) == 6
         # 每个策略应已计算 metrics
         for s in multi.strategies:
             assert len(s.equity_curve) == 30
@@ -421,10 +462,15 @@ class TestReportGeneration:
         strategies = []
         for name in ["S1", "S2", "S3", "S4", "S5"]:
             r = BacktestResult(
-                name=name, equity_curve=[1_000_000, 1_010_000, 1_005_000, 1_020_000, 1_025_000],
-                dates=dates, daily_returns=[0.0, 0.01, -0.005, 0.015, 0.005],
-                trade_count=1, hedge_costs=[0.0] * 5, transaction_costs=[10.0] * 5,
-                n_days=5, turnover_daily=[0.0, 0.05, 0.0, 0.03, 0.0],
+                name=name,
+                equity_curve=[1_000_000, 1_010_000, 1_005_000, 1_020_000, 1_025_000],
+                dates=dates,
+                daily_returns=[0.0, 0.01, -0.005, 0.015, 0.005],
+                trade_count=1,
+                hedge_costs=[0.0] * 5,
+                transaction_costs=[10.0] * 5,
+                n_days=5,
+                turnover_daily=[0.0, 0.05, 0.0, 0.03, 0.0],
             )
             strategies.append(r)
         return MultiStrategyResult(strategies=strategies)
@@ -490,7 +536,9 @@ class TestBacktestDataLoader:
     def test_load_csi300_from_index_data(self, tmp_path):
         loader = BacktestDataLoader(cache_dir=str(tmp_path))
         # 预设 _index_data
-        loader._index_data["IF"] = pd.Series([100, 101, 102], index=pd.date_range("2026-01-01", periods=3))
+        loader._index_data["IF"] = pd.Series(
+            [100, 101, 102], index=pd.date_range("2026-01-01", periods=3)
+        )
         csi = loader.load_csi300("2026-01-01", "2026-01-31")
         assert len(csi) == 3
 

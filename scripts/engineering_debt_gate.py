@@ -47,6 +47,7 @@
     1 = YELLOW
     2 = RED
 """
+
 from __future__ import annotations
 
 import sys
@@ -71,7 +72,11 @@ sys.path.insert(0, str(_PROJECT_ROOT / "scripts"))
 def _check_test_collection_errors() -> tuple[bool, str]:
     """T1 测试 collection 是否有 ERROR."""
     # 快速检查: 已知删除模块是否被测试引用
-    known_missing = ["hedging.hedge_coordinator", "risk.portfolio_risk_assessor", "dsr_bootstrap"]
+    known_missing = [
+        "hedging.hedge_coordinator",
+        "risk.portfolio_risk_assessor",
+        "dsr_bootstrap",
+    ]
     stale_count = 0
     tests_dir = _PROJECT_ROOT / "tests"
     if tests_dir.exists():
@@ -122,7 +127,9 @@ def _check_env_isolation() -> tuple[bool, str]:
                 content = py_file.read_text(encoding="utf-8", errors="replace")
                 for line in content.splitlines():
                     stripped = line.strip()
-                    if not stripped.startswith("#") and ("from research." in stripped or "import research." in stripped):
+                    if not stripped.startswith("#") and (
+                        "from research." in stripped or "import research." in stripped
+                    ):
                         violations += 1
             except OSError:
                 continue
@@ -186,7 +193,10 @@ def _check_fail_safe_broad_except() -> tuple[bool, str]:
             except OSError:
                 continue
     if count > _FAIL_SAFE_WARN_THRESHOLD:
-        return False, f"fail-safe 宽捕获 {count} 处 (> {_FAIL_SAFE_WARN_THRESHOLD}, 需排期精确化)"
+        return (
+            False,
+            f"fail-safe 宽捕获 {count} 处 (> {_FAIL_SAFE_WARN_THRESHOLD}, 需排期精确化)",
+        )
     return True, f"fail-safe 宽捕获 {count} 处 (<= {_FAIL_SAFE_WARN_THRESHOLD})"
 
 
@@ -257,10 +267,12 @@ def _check_bare_broad_except() -> tuple[bool, str]:
     if count > _BARE_BROAD_EXCEPT_WARN_THRESHOLD:
         sample = "; ".join(hits[:3]) if hits else ""
         return False, (
-            f"裸 except Exception {count} 处 (> {_BARE_BROAD_EXCEPT_WARN_THRESHOLD}, "
-            f"需排期精确化; 样本: {sample})"
+            f"裸 except Exception {count} 处 (> {_BARE_BROAD_EXCEPT_WARN_THRESHOLD}, " f"需排期精确化; 样本: {sample})"
         )
-    return True, f"裸 except Exception {count} 处 (<= {_BARE_BROAD_EXCEPT_WARN_THRESHOLD})"
+    return (
+        True,
+        f"裸 except Exception {count} 处 (<= {_BARE_BROAD_EXCEPT_WARN_THRESHOLD})",
+    )
 
 
 # T8 覆盖率退化阈值: 当前 line_rate < 基线 - 此值 即判退化
@@ -286,14 +298,10 @@ def _check_coverage_baseline() -> tuple[bool, str]:
     cov_xml_path = _PROJECT_ROOT / "reports" / "coverage.xml"
 
     if not baseline_path.exists():
-        return False, (
-            f"基线缺失: {baseline_path.name} "
-            "(需运行 python scripts/_check_coverage_trend.py 冻结)"
-        )
+        return False, (f"基线缺失: {baseline_path.name} " "(需运行 python scripts/_check_coverage_trend.py 冻结)")
     if not cov_xml_path.exists():
         return False, (
-            f"覆盖率报告缺失: {cov_xml_path.name} "
-            "(需运行 pytest --cov=utils --cov-report=xml:reports/coverage.xml)"
+            f"覆盖率报告缺失: {cov_xml_path.name} " "(需运行 pytest --cov=utils --cov-report=xml:reports/coverage.xml)"
         )
 
     try:
@@ -315,17 +323,17 @@ def _check_coverage_baseline() -> tuple[bool, str]:
             f"覆盖率退化: 当前 {cur_lr:.4f} < 基线 {base_lr:.4f} - "
             f"{_COVERAGE_DEGRADATION_THRESHOLD:.2f} (delta={delta:+.4f})"
         )
-    return True, (
-        f"覆盖率未退化: 当前 {cur_lr:.4f}, 基线 {base_lr:.4f} (delta={delta:+.4f})"
-    )
+    return True, (f"覆盖率未退化: 当前 {cur_lr:.4f}, 基线 {base_lr:.4f} (delta={delta:+.4f})")
 
 
 # ==================== T9–T14 不崩风控六件套 模块自检 (2026-08-12 Wave4 Phase2) ====================
+
 
 def _risk_module_smoke(module_name: str, required_attrs: tuple[str, ...]) -> tuple[bool, str]:
     """通用: 可 import + 必要属性/类存在."""
     try:
         import importlib
+
         mod = importlib.import_module(module_name)
     except Exception as exc:  # pragma: no cover - 仅异常路径
         return False, f"{module_name} import 失败: {type(exc).__name__}: {exc}"
@@ -345,6 +353,7 @@ def _check_t09_pretrade_guard() -> tuple[bool, str]:
         return ok, info
     # 行为自检 1: 150 股 (非 100 整数倍) 应被拦截
     from utils.risk.pretrade_guard import GuardOrderRequest, PreTradeGuard
+
     try:
         g = PreTradeGuard()
         r1 = g.check(GuardOrderRequest("sh600000", "buy", 150, 10.0))
@@ -367,7 +376,12 @@ def _check_t10_position_limit_enforcer() -> tuple[bool, str]:
     """T10 持仓集中度执行器: 单票/行业/净敞口/总杠杆."""
     return _risk_module_smoke(
         "utils.risk.position_limit_enforcer",
-        ("PositionLimitEnforcer", "PositionSnapshot", "OrderImpact", "EnforcementResult"),
+        (
+            "PositionLimitEnforcer",
+            "PositionSnapshot",
+            "OrderImpact",
+            "EnforcementResult",
+        ),
     )
 
 
@@ -408,14 +422,24 @@ def _check_t14_risk_audit_logger() -> tuple[bool, str]:
     from datetime import datetime
 
     from utils.risk.risk_audit_logger import RiskAuditLogger
+
     try:
         with tempfile.TemporaryDirectory() as td:
             lg = RiskAuditLogger(project_root=td, audit_dir="audit", buffer_capacity=10)
-            lg.log("T09_PRETRADE", "BLOCK", severity="WARNING", symbol="sh1", reason="SMOKE")
+            lg.log(
+                "T09_PRETRADE",
+                "BLOCK",
+                severity="WARNING",
+                symbol="sh1",
+                reason="SMOKE",
+            )
             lg.flush()
             today = datetime.now().strftime("%Y-%m-%d")
             if len(lg.query_by_date(today)) < 1:
-                return False, "RiskAuditLogger 行为自检失败: 写+flush 后 query_by_date 未读回"
+                return (
+                    False,
+                    "RiskAuditLogger 行为自检失败: 写+flush 后 query_by_date 未读回",
+                )
     except Exception as exc:  # pragma: no cover
         return False, f"RiskAuditLogger 行为自检异常: {type(exc).__name__}: {exc}"
     return True, "T14 RiskAuditLogger 落盘+查询行为自检 ✓"
@@ -423,12 +447,18 @@ def _check_t14_risk_audit_logger() -> tuple[bool, str]:
 
 # ==================== T15–T18 实盘验证四件套 模块自检 (2026-08-12 Wave4 Phase3) ====================
 
+
 def _check_t15_live_order_executor() -> tuple[bool, str]:
     """T15 实盘下单编排器: 整合 T09-T12 风控门 + broker 下单 + T14 审计."""
     ok, info = _risk_module_smoke(
         "utils.risk.live_order_executor",
-        ("LiveOrderExecutor", "LiveExecutionResult", "SliceExecutionResult",
-         "BrokerProtocol", "FillsStoreProtocol"),
+        (
+            "LiveOrderExecutor",
+            "LiveExecutionResult",
+            "SliceExecutionResult",
+            "BrokerProtocol",
+            "FillsStoreProtocol",
+        ),
     )
     if not ok:
         return ok, info
@@ -457,11 +487,16 @@ def _check_t15_live_order_executor() -> tuple[bool, str]:
         symbol: str = "sh600000"
         side: str = "buy"
         slices: list = None
+
     try:
         broker = MagicMock()
         broker.is_live = False
         broker.name = "smoke"
-        broker.get_order_status.return_value = {"state": "FILLED", "filled_qty": 0, "avg_price": 0.0}
+        broker.get_order_status.return_value = {
+            "state": "FILLED",
+            "filled_qty": 0,
+            "avg_price": 0.0,
+        }
         audit = RiskAuditLogger(project_root=Path(tempfile.mkdtemp()), audit_dir="audit")
         ex = LiveOrderExecutor(
             broker=broker,
@@ -492,6 +527,7 @@ def _check_t16_order_lifecycle_tracker() -> tuple[bool, str]:
         return ok, info
     # 行为自检: map_broker_state 映射 + OrderState 终态
     from utils.risk.order_lifecycle_tracker import OrderState, map_broker_state
+
     try:
         assert map_broker_state("53") == OrderState.FILLED
         assert map_broker_state("CANCELLED") == OrderState.CANCELLED
@@ -515,13 +551,19 @@ def _check_t18_gradual_rollout_orchestrator() -> tuple[bool, str]:
     """T18 灰度发布编排器: 4 阶段状态机 + 准入/回滚门禁 + 资金比例管理."""
     ok, info = _risk_module_smoke(
         "utils.risk.gradual_rollout_orchestrator",
-        ("GradualRolloutOrchestrator", "RolloutStage", "StageAdmissionCriteria",
-         "StageMetrics", "default_criteria"),
+        (
+            "GradualRolloutOrchestrator",
+            "RolloutStage",
+            "StageAdmissionCriteria",
+            "StageMetrics",
+            "default_criteria",
+        ),
     )
     if not ok:
         return ok, info
     # 行为自检: 4 阶段 capital_ratio 严格递增 + 不可跳阶段
     from utils.risk.gradual_rollout_orchestrator import RolloutStage
+
     try:
         stages = list(RolloutStage)
         ratios = [s.capital_ratio for s in stages]
@@ -535,10 +577,12 @@ def _check_t18_gradual_rollout_orchestrator() -> tuple[bool, str]:
 
 # ==================== D1–D4 LLM 智能进化 Phase D 模块自检 (2026-08-12 G6) ====================
 
+
 def _llm_evo_module_smoke(module_name: str, required_attrs: tuple[str, ...]) -> tuple[bool, str]:
     """通用: utils.llm_evolution 子模块可 import + 必要对象存在."""
     try:
         import importlib
+
         mod = importlib.import_module(module_name)
     except Exception as exc:
         return False, f"{module_name} import 失败: {type(exc).__name__}: {exc}"
@@ -552,22 +596,48 @@ def _check_d1_strategy_ideation() -> tuple[bool, str]:
     """D1 LLM 策略 Ideation 引擎: 五步流水线 (观察→假设→因子→验证→入库)."""
     ok, info = _llm_evo_module_smoke(
         "utils.llm_evolution.strategy_ideation",
-        ("StrategyIdeationEngine", "MarketObservation", "Hypothesis", "IdeationCycleResult"),
+        (
+            "StrategyIdeationEngine",
+            "MarketObservation",
+            "Hypothesis",
+            "IdeationCycleResult",
+        ),
     )
     if not ok:
         return ok, info
     # 行为自检: MockLLM 生成假设 + 多样性去重
-    from utils.llm_evolution.strategy_ideation import MarketObservation, StrategyIdeationEngine
+    from utils.llm_evolution.strategy_ideation import (
+        MarketObservation,
+        StrategyIdeationEngine,
+    )
+
     try:
+
         class _MockLLM:
             name = "smoke"
+
             def chat(self, prompt, system="", temperature=None, max_tokens=None):
                 import json
-                return json.dumps({"hypotheses": [
-                    {"description": "测试假设", "factor_direction": "long_small",
-                     "proposed_factors": [{"name": "EP", "category": "Value", "formula": "1/PE"}],
-                     "strategy_style": "value"}
-                ]})
+
+                return json.dumps(
+                    {
+                        "hypotheses": [
+                            {
+                                "description": "测试假设",
+                                "factor_direction": "long_small",
+                                "proposed_factors": [
+                                    {
+                                        "name": "EP",
+                                        "category": "Value",
+                                        "formula": "1/PE",
+                                    }
+                                ],
+                                "strategy_style": "value",
+                            }
+                        ]
+                    }
+                )
+
         engine = StrategyIdeationEngine(llm_router=_MockLLM())
         obs = MarketObservation(date="2026-08-12", index_close=3200.0)
         hyps = engine.generate_hypotheses(obs, n=3)
@@ -590,10 +660,21 @@ def _check_d2_hypothesis_verifier() -> tuple[bool, str]:
         return ok, info
     # 行为自检: 显著 IC 通过 + 不显著 IC 证伪
     from utils.llm_evolution.hypothesis_verifier import HypothesisVerifier
+
     try:
         v = HypothesisVerifier()
-        good_data = {"ic_series": [0.04 + 0.001 * i for i in range(100)], "max_drawdown": 0.08, "wf_mean_ic": 0.038, "dsr_score": 1.5}
-        bad_data = {"ic_series": [0.001 * ((-1) ** i) for i in range(100)], "max_drawdown": 0.20, "wf_mean_ic": 0.0, "dsr_score": 0.5}
+        good_data = {
+            "ic_series": [0.04 + 0.001 * i for i in range(100)],
+            "max_drawdown": 0.08,
+            "wf_mean_ic": 0.038,
+            "dsr_score": 1.5,
+        }
+        bad_data = {
+            "ic_series": [0.001 * ((-1) ** i) for i in range(100)],
+            "max_drawdown": 0.20,
+            "wf_mean_ic": 0.0,
+            "dsr_score": 0.5,
+        }
         good = v.verify({"name": "GOOD"}, good_data)
         bad = v.verify({"name": "BAD"}, bad_data)
         if not good["enter_ab_bucket"]:
@@ -618,6 +699,7 @@ def _check_d3_knowledge_base() -> tuple[bool, str]:
     from pathlib import Path
 
     from utils.llm_evolution.knowledge_base import KnowledgeBase, KnowledgeEntry
+
     try:
         with tempfile.TemporaryDirectory() as td:
             kb = KnowledgeBase(path=Path(td) / "kb.jsonl")
@@ -653,12 +735,17 @@ def _check_d4_dual_loop_orchestrator() -> tuple[bool, str]:
     from utils.llm_evolution.hypothesis_verifier import HypothesisVerifier
     from utils.llm_evolution.knowledge_base import KnowledgeBase
     from utils.llm_evolution.strategy_ideation import StrategyIdeationEngine
+
     try:
+
         class _MockLLM:
             name = "smoke"
+
             def chat(self, *a, **kw):
                 import json
+
                 return json.dumps({"hypotheses": []})
+
         ks = MagicMock()
         ks.evaluate_trade.return_value = MagicMock(allowed=False, reason="BLOCKED")
         with tempfile.TemporaryDirectory() as td:
@@ -732,7 +819,10 @@ def _check_d5_auto_research_skill() -> tuple[bool, str]:
     if not skill_md.exists():
         return False, "D5 SKILL.md 缺失"
 
-    return True, f"D5 AutoResearchSkill 迭代+退役自检 ✓ (候选 {len(iteration.candidates_generated)}, 入库 {len(iteration.promoted_factors)})"
+    return (
+        True,
+        f"D5 AutoResearchSkill 迭代+退役自检 ✓ (候选 {len(iteration.candidates_generated)}, 入库 {len(iteration.promoted_factors)})",
+    )
 
 
 def _check_d6_litellm_router() -> tuple[bool, str]:
@@ -746,13 +836,15 @@ def _check_d6_litellm_router() -> tuple[bool, str]:
             ProviderInfo,
             Usage,
         )
-        from utils.llm_gateway.types import SCENE_PROVIDER_MAP, SCENE_TEMPERATURE_MAP  # noqa: F401
+
+        # types imports intentionally omitted when not needed
     except ImportError as exc:
         return False, f"D6 import 失败: {exc}"
 
     # 2. 行为自检: 场景路由 + 统计 + glm5_client 兼容
     try:
         from unittest.mock import MagicMock
+
         LiteLLMRouter.reset_instance()
         # mock inner router
         mock_inner = MagicMock()
@@ -775,15 +867,22 @@ def _check_d6_litellm_router() -> tuple[bool, str]:
         router.chat(ChatRequest(prompt="报告", scene="report"))
         call_kwargs = mock_inner.chat.call_args
         if call_kwargs.kwargs.get("temperature") != 0.5:
-            return False, f"D6 场景路由失败: report 温度应为 0.5, 实际 {call_kwargs.kwargs.get('temperature')}"
+            return (
+                False,
+                f"D6 场景路由失败: report 温度应为 0.5, 实际 {call_kwargs.kwargs.get('temperature')}",
+            )
 
         # 统计检查 (reset 后仅 1 次)
         stats = router.get_stats()
         if stats["total_calls"] != 1 or stats["success_calls"] != 1:
-            return False, f"D6 统计失败: calls={stats['total_calls']} success={stats['success_calls']}"
+            return (
+                False,
+                f"D6 统计失败: calls={stats['total_calls']} success={stats['success_calls']}",
+            )
 
         # glm5_client 兼容检查
         from utils.glm5_client import GLM5Client
+
         client = GLM5Client()
         # is_ready 应返回 bool
         assert isinstance(client.is_ready(), bool)
@@ -805,7 +904,10 @@ def _check_d6_litellm_router() -> tuple[bool, str]:
             return False, f"D6 glm5_client 重构未完成: 仍有 {line_count} 行 (预期 ≤400)"
 
     LiteLLMRouter.reset_instance()
-    return True, f"D6 LiteLLMRouter 场景路由+统计+glm5_client 兼容自检 ✓ (stats: {stats['total_calls']} calls)"
+    return (
+        True,
+        f"D6 LiteLLMRouter 场景路由+统计+glm5_client 兼容自检 ✓ (stats: {stats['total_calls']} calls)",
+    )
 
 
 def _check_d7_daily_workflow_split() -> tuple[bool, str]:
@@ -828,10 +930,21 @@ def _check_d7_daily_workflow_split() -> tuple[bool, str]:
     if not phases_dir.is_dir():
         return False, "D7 workflow/phases/ 目录不存在"
     expected_phases = [
-        "check.py", "calibrate.py", "market.py", "risk.py", "hedge.py",
-        "hedge_fund.py", "quant_neutral.py", "v10_risk.py", "cash_management.py",
-        "directional_futures.py", "signal.py", "signal_qlib.py", "signal_ifind.py",
-        "signal_lgb.py", "autolearn.py",
+        "check.py",
+        "calibrate.py",
+        "market.py",
+        "risk.py",
+        "hedge.py",
+        "hedge_fund.py",
+        "quant_neutral.py",
+        "v10_risk.py",
+        "cash_management.py",
+        "directional_futures.py",
+        "signal.py",
+        "signal_qlib.py",
+        "signal_ifind.py",
+        "signal_lgb.py",
+        "autolearn.py",
     ]
     missing_phases = [p for p in expected_phases if not (phases_dir / p).exists()]
     if missing_phases:
@@ -845,9 +958,12 @@ def _check_d7_daily_workflow_split() -> tuple[bool, str]:
     # 5. _scan_func_quality.py 可运行 (扫描 workflow/phases/ 不崩溃)
     try:
         import subprocess
+
         result = subprocess.run(
             [sys.executable, str(scan_script), "--target-dir", str(phases_dir)],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=str(_PROJECT_ROOT),
         )
         if result.returncode not in (0, 1):  # 0=无Strong, 1=有Strong, 2=异常
@@ -855,7 +971,10 @@ def _check_d7_daily_workflow_split() -> tuple[bool, str]:
     except (subprocess.SubprocessError, OSError) as exc:
         return False, f"D7 _scan_func_quality.py 执行失败: {exc}"
 
-    return True, f"D7 daily_workflow 拆分收尾 ✓ ({dw_lines} 行 ≤3000, 15 phase + context, scan 脚本可用)"
+    return (
+        True,
+        f"D7 daily_workflow 拆分收尾 ✓ ({dw_lines} 行 ≤3000, 15 phase + context, scan 脚本可用)",
+    )
 
 
 def _check_d8_g7_coverage_sprint() -> tuple[bool, str]:
@@ -885,6 +1004,7 @@ def _check_d8_g7_coverage_sprint() -> tuple[bool, str]:
         return False, "D8 coverage_baseline.json 缺失"
     try:
         import json
+
         base = json.loads(baseline_path.read_text(encoding="utf-8", errors="replace"))
         base_lr = float(base.get("line_rate", 0.0))
         if base_lr < 0.40:
@@ -895,12 +1015,16 @@ def _check_d8_g7_coverage_sprint() -> tuple[bool, str]:
     # 4. G7 测试文件可导入 (语法检查)
     try:
         import py_compile
+
         for t in g7_tests:
             py_compile.compile(str(_PROJECT_ROOT / t), doraise=True)
     except py_compile.PyCompileError as exc:
         return False, f"D8 G7 测试文件编译失败: {exc}"
 
-    return True, f"D8 G7 覆盖率冲刺 ✓ ({len(g7_tests)} 测试文件, 基线 {base_lr:.4f}, 排除模式正确)"
+    return (
+        True,
+        f"D8 G7 覆盖率冲刺 ✓ ({len(g7_tests)} 测试文件, 基线 {base_lr:.4f}, 排除模式正确)",
+    )
 
 
 def _check_d9_coverage_sprint4_target() -> tuple[bool, str]:
@@ -946,7 +1070,10 @@ def _check_d11_phase_b_shadow_stable() -> tuple[bool, str]:
 
     status_path = _PROJECT_ROOT / "reports" / "evolution" / "phase_b_status.json"
     if not status_path.exists():
-        return False, "D11 phase_b_status.json 缺失 (需运行 phase_b_progressive_enabler.py)"
+        return (
+            False,
+            "D11 phase_b_status.json 缺失 (需运行 phase_b_progressive_enabler.py)",
+        )
     try:
         data = json.loads(status_path.read_text(encoding="utf-8", errors="replace"))
         stable_days = int(data.get("consecutive_stable_days", 0))
@@ -954,8 +1081,14 @@ def _check_d11_phase_b_shadow_stable() -> tuple[bool, str]:
         min_samples = int(data.get("min_shadow_samples", 20))
         total_samples = len(data.get("daily_health_log", []))
         if stable_days >= target and total_samples >= min_samples:
-            return True, f"D11 Phase B shadow 稳定达标 ✓ ({stable_days}/{target} 天, {total_samples} 样本)"
-        return False, f"D11 Phase B shadow 未达标 ({stable_days}/{target} 天, {total_samples}/{min_samples} 样本)"
+            return (
+                True,
+                f"D11 Phase B shadow 稳定达标 ✓ ({stable_days}/{target} 天, {total_samples} 样本)",
+            )
+        return (
+            False,
+            f"D11 Phase B shadow 未达标 ({stable_days}/{target} 天, {total_samples}/{min_samples} 样本)",
+        )
     except (json.JSONDecodeError, ValueError, TypeError) as exc:
         return False, f"D11 phase_b_status.json 解析失败: {type(exc).__name__}: {exc}"
 
@@ -963,6 +1096,7 @@ def _check_d11_phase_b_shadow_stable() -> tuple[bool, str]:
 @dataclass(frozen=True)
 class V87GateSummary:
     """v8.7 发布三门禁汇总结果 (frozen)."""
+
     phase_b_stable_7d: bool
     oversized_file_split: bool
     coverage_sprint4_080: bool
@@ -1070,9 +1204,29 @@ def main() -> int:
     #   - D5–D8   告警性 (AutoResearch/LiteLLM/workflow拆分/G7覆盖率): 异常→YELLOW
     #   - D9–D11  阻断性 (v8.7 发布门禁: 覆盖率0.80/超大文件拆分/PhaseB稳定): 任何失败 → RED
     blocking_codes = {"T1", "T2", "T3", "T4", "T5", "D9", "D10", "D11"}
-    warn_codes = {"T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13", "T14",
-                  "T15", "T16", "T17", "T18",
-                  "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"}
+    warn_codes = {
+        "T6",
+        "T7",
+        "T8",
+        "T9",
+        "T10",
+        "T11",
+        "T12",
+        "T13",
+        "T14",
+        "T15",
+        "T16",
+        "T17",
+        "T18",
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5",
+        "D6",
+        "D7",
+        "D8",
+    }
     blocking_fails = sum(1 for code, _, (ok, _) in checks if not ok and code in blocking_codes)
     warn_fails = sum(1 for code, _, (ok, _) in checks if not ok and code in warn_codes)
 

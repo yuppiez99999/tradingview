@@ -1,6 +1,7 @@
 """
 iFinD 资讯研判命令行入口
 """
+
 from __future__ import annotations
 
 import argparse
@@ -36,13 +37,21 @@ def main(argv: list[str] | None = None) -> int:
 
     analyzer = IFinDNewsAnalyzer()
     if not analyzer.available():
-        print("iFinD 模块不可用，请检查 skills/ifind-finance-data/call.py 与 mcp_config.json")
+        print(
+            "iFinD 模块不可用，请检查 skills/ifind-finance-data/call.py 与 mcp_config.json"
+        )
         return 2
 
-    output: dict = {"ok": True, "updated_at": datetime.now().isoformat(), "insights": []}
+    output: dict = {
+        "ok": True,
+        "updated_at": datetime.now().isoformat(),
+        "insights": [],
+    }
 
     if args.trending:
-        items = analyzer.search_trending(args.trending, industry_name=args.industry or "", size=args.size)
+        items = analyzer.search_trending(
+            args.trending, industry_name=args.industry or "", size=args.size
+        )
         output["trending"] = [
             {
                 "title": item.title,
@@ -53,7 +62,11 @@ def main(argv: list[str] | None = None) -> int:
             for item in items
         ]
     elif args.symbol or args.symbols:
-        symbols = [s.strip() for s in (args.symbols or args.symbol or "").split(",") if s.strip()]
+        symbols = [
+            s.strip()
+            for s in (args.symbols or args.symbol or "").split(",")
+            if s.strip()
+        ]
         if not symbols and args.symbol:
             symbols = [args.symbol.strip()]
         insights = analyzer.batch_analyze(symbols, size=args.size, days=args.days)

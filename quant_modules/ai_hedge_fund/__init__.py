@@ -11,11 +11,11 @@ AI Hedge Fund 模块 — 集成到量化策略 v5.6+
 """
 
 __all__ = [
-    'ANALYST_CONFIG',
-    'get_analyst_nodes',
-    'get_agents_list',
-    'run_ai_hedge_fund',
-    'is_available',
+    "ANALYST_CONFIG",
+    "get_analyst_nodes",
+    "get_agents_list",
+    "run_ai_hedge_fund",
+    "is_available",
 ]
 
 
@@ -24,6 +24,7 @@ def is_available() -> bool:
     try:
         import langchain_core
         import langgraph
+
         return True
     except ImportError:
         return False
@@ -32,10 +33,12 @@ def is_available() -> bool:
 def get_analyst_nodes():
     """获取分析师节点映射 (懒加载)"""
     from quant_modules.ai_hedge_fund.utils.analysts import get_analyst_nodes as _get
+
     return _get()
 
 
 def get_agents_list():
     """获取分析师列表 (懒加载)"""
     from quant_modules.ai_hedge_fund.utils.analysts import get_agents_list as _get
+
     return _get()

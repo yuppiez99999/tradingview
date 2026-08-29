@@ -10,6 +10,7 @@
     - 零回归: 不修改既有六件套接口签名
     - 不新增第三方依赖: 纯 Python 实现 (math/logging/dataclasses/datetime/typing)
 """
+
 from __future__ import annotations
 
 import logging
@@ -67,7 +68,11 @@ def _student_t_ppf(p: float, dof: int) -> float:
     """Student-t 分位数 (Cornish-Fisher 近似)."""
     z = _norm_ppf(p)
 
-    cf = z + (z ** 3 - z) / (4.0 * dof) + (5.0 * z ** 5 - 16.0 * z ** 3 + 3.0 * z) / (96.0 * dof * dof)
+    cf = (
+        z
+        + (z**3 - z) / (4.0 * dof)
+        + (5.0 * z**5 - 16.0 * z**3 + 3.0 * z) / (96.0 * dof * dof)
+    )
     return cf
 
 
@@ -103,26 +108,38 @@ class CVaRConfig:
             logger.warning("[CVaR] 非法 distribution=%s, 使用默认 normal", dist)
 
         dof = data.get("dof", 5)
-        kwargs["dof"] = int(dof) if isinstance(dof, (int, float)) and int(dof) >= 2 else 5
+        kwargs["dof"] = (
+            int(dof) if isinstance(dof, (int, float)) and int(dof) >= 2 else 5
+        )
         if not (isinstance(dof, (int, float)) and int(dof) >= 2):
             logger.warning("[CVaR] 非法 dof=%s, 使用默认 5", dof)
 
         cl = data.get("confidence_level", 0.95)
-        kwargs["confidence_level"] = float(cl) if isinstance(cl, (int, float)) and 0.90 <= cl <= 0.999 else 0.95
+        kwargs["confidence_level"] = (
+            float(cl) if isinstance(cl, (int, float)) and 0.90 <= cl <= 0.999 else 0.95
+        )
         if not (isinstance(cl, (int, float)) and 0.90 <= cl <= 0.999):
             logger.warning("[CVaR] 非法 confidence_level=%s, 使用默认 0.95", cl)
 
         tp = data.get("threshold_percentile", 0.95)
-        kwargs["threshold_percentile"] = float(tp) if isinstance(tp, (int, float)) and 0.90 <= tp <= 0.99 else 0.95
+        kwargs["threshold_percentile"] = (
+            float(tp) if isinstance(tp, (int, float)) and 0.90 <= tp <= 0.99 else 0.95
+        )
 
         mh = data.get("min_history", 30)
-        kwargs["min_history"] = int(mh) if isinstance(mh, (int, float)) and int(mh) >= 10 else 30
+        kwargs["min_history"] = (
+            int(mh) if isinstance(mh, (int, float)) and int(mh) >= 10 else 30
+        )
 
         v95 = data.get("var_95_limit_pct", -0.04)
-        kwargs["var_95_limit_pct"] = float(v95) if isinstance(v95, (int, float)) and v95 < 0 else -0.04
+        kwargs["var_95_limit_pct"] = (
+            float(v95) if isinstance(v95, (int, float)) and v95 < 0 else -0.04
+        )
 
         v99 = data.get("var_99_limit_pct", -0.06)
-        kwargs["var_99_limit_pct"] = float(v99) if isinstance(v99, (int, float)) and v99 < 0 else -0.06
+        kwargs["var_99_limit_pct"] = (
+            float(v99) if isinstance(v99, (int, float)) and v99 < 0 else -0.06
+        )
 
         kwargs["enable_var_comparison"] = bool(data.get("enable_var_comparison", True))
 
@@ -133,7 +150,9 @@ class CVaRConfig:
         else:
             kwargs["fallback_chain"] = ("evt", "historical")
 
-        kwargs["feature_flag_name"] = str(data.get("feature_flag_name", "USE_CVAR_RISK_METRIC"))
+        kwargs["feature_flag_name"] = str(
+            data.get("feature_flag_name", "USE_CVAR_RISK_METRIC")
+        )
         return cls(**kwargs)
 
     @classmethod
@@ -142,7 +161,9 @@ class CVaRConfig:
             import json
             from pathlib import Path
 
-            cfg_path = Path(__file__).resolve().parents[2] / "config" / "system_config.json"
+            cfg_path = (
+                Path(__file__).resolve().parents[2] / "config" / "system_config.json"
+            )
             if not cfg_path.exists():
                 logger.warning("[CVaR] system_config.json 不存在, 使用全部默认值")
                 return cls()
@@ -150,7 +171,9 @@ class CVaRConfig:
             cvar_cfg = cfg.get("risk_management", {}).get("cvar", {})
             risk_metric = cvar_cfg.get("risk_metric", {})
             if not risk_metric:
-                logger.warning("[CVaR] risk_management.cvar.risk_metric 子段缺失, 使用全部默认值")
+                logger.warning(
+                    "[CVaR] risk_management.cvar.risk_metric 子段缺失, 使用全部默认值"
+                )
                 return cls()
             return cls.from_dict(risk_metric)
         except (OSError, ValueError, TypeError, KeyError) as e:
@@ -201,7 +224,9 @@ class CVaRCalculator:
     def config(self) -> CVaRConfig:
         return self._config
 
-    def _validate_returns(self, returns: list[float], min_history: int) -> tuple[bool, str]:
+    def _validate_returns(
+        self, returns: list[float], min_history: int
+    ) -> tuple[bool, str]:
         if not returns:
             return (False, "输入序列为空")
         n = len(returns)
@@ -246,15 +271,14 @@ class CVaRCalculator:
                 phi_z = math.exp(-z_alpha * z_alpha / 2.0) / math.sqrt(2.0 * math.pi)
                 cvar = -sigma * phi_z / (1.0 - alpha)
                 return (cvar, "", False)
-            elif distribution == "student_t":
+            if distribution == "student_t":
                 if dof < 2:
                     return (_NAN, f"Student-t 自由度不足: dof={dof} < 2", False)
                 t_alpha = _student_t_ppf(alpha, dof)
                 factor = t_alpha * (dof + t_alpha * t_alpha) / (dof - 1.0)
                 cvar = -sigma * factor / (1.0 - alpha)
                 return (cvar, "", False)
-            else:
-                return (_NAN, f"未知分布: {distribution}", False)
+            return (_NAN, f"未知分布: {distribution}", False)
         except (ZeroDivisionError, OverflowError, TypeError, ValueError) as e:
             return (_NAN, f"parametric 计算异常: {e}", False)
 
@@ -263,7 +287,9 @@ class CVaRCalculator:
     ) -> tuple[float, str, bool, dict]:
         evt_info: dict[str, Any] = {}
         try:
-            result = fit_evt(returns, threshold_percentile=threshold_percentile, min_history=120)
+            result = fit_evt(
+                returns, threshold_percentile=threshold_percentile, min_history=120
+            )
             evt_info = {
                 "xi": result.xi,
                 "n_excess": result.n_excess,
@@ -282,14 +308,25 @@ class CVaRCalculator:
             elif abs(confidence - 0.99) < 1e-6:
                 cvar = result.es_99
             else:
-                evt_dict = evt_var_es(returns, confidence=confidence, threshold_percentile=threshold_percentile)
+                evt_dict = evt_var_es(
+                    returns,
+                    confidence=confidence,
+                    threshold_percentile=threshold_percentile,
+                )
                 cvar = evt_dict.get("es", _NAN)
 
             if result.xi > 0.5:
                 warnings.append("ξ>0.5 估计极不稳定")
 
             return (cvar, "; ".join(warnings) if warnings else "", True, evt_info)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             return (_NAN, f"EVT 模块调用异常: {e}", False, evt_info)
 
     def _apply_fallback_chain(
@@ -302,7 +339,9 @@ class CVaRCalculator:
     ) -> tuple[float, str, str, bool, dict]:
         chain = list(self._config.fallback_chain)
         if failed_method == "monte_carlo":
-            candidates = ["parametric"] + [m for m in chain if m != failed_method and m != "parametric"]
+            candidates = ["parametric"] + [
+                m for m in chain if m != failed_method and m != "parametric"
+            ]
         else:
             candidates = [m for m in chain if m != failed_method]
 
@@ -325,7 +364,13 @@ class CVaRCalculator:
                 continue
 
             if not math.isnan(cvar):
-                return (cvar, warning + f"→降级至 {method}", method + "_fallback", converged, evt_info)
+                return (
+                    cvar,
+                    warning + f"→降级至 {method}",
+                    method + "_fallback",
+                    converged,
+                    evt_info,
+                )
 
         return (_NAN, warning + "降级链耗尽", failed_method + "_fail_closed", False, {})
 
@@ -346,13 +391,17 @@ class CVaRCalculator:
                 ratio = cvar_pct / var_pct
             result = {"var_pct": var_pct, "cvar_to_var_ratio": ratio}
             if cvar_pct > var_pct + 1e-10:
-                logger.warning("[CVaR] CVaR/VaR 不变量违反: cvar=%s > var=%s", cvar_pct, var_pct)
+                logger.warning(
+                    "[CVaR] CVaR/VaR 不变量违反: cvar=%s > var=%s", cvar_pct, var_pct
+                )
             return result
         except (IndexError, TypeError, ValueError, ZeroDivisionError) as e:
             logger.warning("[CVaR] VaR 对照计算异常: %s", e)
             return None
 
-    def _check_breach(self, cvar_pct: float, confidence: float) -> tuple[bool, str | None, float | None]:
+    def _check_breach(
+        self, cvar_pct: float, confidence: float
+    ) -> tuple[bool, str | None, float | None]:
         if math.isnan(cvar_pct):
             return (False, None, None)
         if abs(confidence - 0.95) < 1e-6:
@@ -399,7 +448,14 @@ class CVaRCalculator:
         )
         try:
             self._bus.publish(event)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.error("[CVaR] 总线发布异常 (fail-open): %s", e)
 
     def _write_audit_log(
@@ -445,15 +501,28 @@ class CVaRCalculator:
         eff_conf = confidence if confidence is not None else cfg.confidence_level
         eff_dist = distribution or cfg.distribution
         eff_dof = dof if dof is not None else cfg.dof
-        eff_tp = threshold_percentile if threshold_percentile is not None else cfg.threshold_percentile
+        eff_tp = (
+            threshold_percentile
+            if threshold_percentile is not None
+            else cfg.threshold_percentile
+        )
 
         def _fail_closed(warning: str) -> CVaRResult:
             elapsed = (time.perf_counter() - start) * 1000
             return CVaRResult(
-                cvar_pct=_NAN, cvar_amount=None, method=eff_method, method_used=eff_method,
-                confidence=eff_conf, breach=False, breach_level=None, threshold=None,
-                warning=warning, evt_converged=False, var_comparison=None,
-                timestamp=_utcnow_iso(), elapsed_ms=elapsed,
+                cvar_pct=_NAN,
+                cvar_amount=None,
+                method=eff_method,
+                method_used=eff_method,
+                confidence=eff_conf,
+                breach=False,
+                breach_level=None,
+                threshold=None,
+                warning=warning,
+                evt_converged=False,
+                var_comparison=None,
+                timestamp=_utcnow_iso(),
+                elapsed_ms=elapsed,
             )
 
         if not (0.90 <= eff_conf <= 0.999):
@@ -470,22 +539,37 @@ class CVaRCalculator:
         evt_info: dict[str, Any] = {}
 
         if eff_method == "historical":
-            cvar_pct, warning, evt_converged = self._calculate_historical(returns, eff_conf)
+            cvar_pct, warning, evt_converged = self._calculate_historical(
+                returns, eff_conf
+            )
         elif eff_method == "parametric":
-            cvar_pct, warning, evt_converged = self._calculate_parametric(returns, eff_conf, eff_dist, eff_dof)
+            cvar_pct, warning, evt_converged = self._calculate_parametric(
+                returns, eff_conf, eff_dist, eff_dof
+            )
         elif eff_method == "evt":
-            cvar_pct, warning, evt_converged, evt_info = self._calculate_evt(returns, eff_conf, eff_tp)
+            cvar_pct, warning, evt_converged, evt_info = self._calculate_evt(
+                returns, eff_conf, eff_tp
+            )
         elif eff_method == "monte_carlo":
-            cvar_pct, warning, evt_converged = self._calculate_parametric(returns, eff_conf, eff_dist, eff_dof)
+            cvar_pct, warning, evt_converged = self._calculate_parametric(
+                returns, eff_conf, eff_dist, eff_dof
+            )
             if not math.isnan(cvar_pct):
                 method_used = "parametric_fallback"
         else:
             return _fail_closed(f"未知计算方式: {eff_method}")
 
         if math.isnan(cvar_pct):
-            cvar_pct, warning, method_used, evt_converged, evt_info = self._apply_fallback_chain(
-                returns, eff_conf, eff_method, warning,
-                distribution=eff_dist, dof=eff_dof, threshold_percentile=eff_tp,
+            cvar_pct, warning, method_used, evt_converged, evt_info = (
+                self._apply_fallback_chain(
+                    returns,
+                    eff_conf,
+                    eff_method,
+                    warning,
+                    distribution=eff_dist,
+                    dof=eff_dof,
+                    threshold_percentile=eff_tp,
+                )
             )
 
         breach = False
@@ -494,8 +578,12 @@ class CVaRCalculator:
         if not _skip_breach and not math.isnan(cvar_pct):
             breach, breach_level, threshold = self._check_breach(cvar_pct, eff_conf)
             if breach and breach_level:
-                self._publish_breach_event(cvar_pct, threshold or 0.0, eff_conf, method_used, breach_level)
-                self._write_audit_log(cvar_pct, threshold or 0.0, eff_conf, method_used, breach_level)
+                self._publish_breach_event(
+                    cvar_pct, threshold or 0.0, eff_conf, method_used, breach_level
+                )
+                self._write_audit_log(
+                    cvar_pct, threshold or 0.0, eff_conf, method_used, breach_level
+                )
 
         var_comparison = None
         if not math.isnan(cvar_pct):
@@ -509,10 +597,19 @@ class CVaRCalculator:
 
         elapsed = (time.perf_counter() - start) * 1000
         return CVaRResult(
-            cvar_pct=cvar_pct, cvar_amount=cvar_amount, method=eff_method, method_used=method_used,
-            confidence=eff_conf, breach=breach, breach_level=breach_level, threshold=threshold,
-            warning=warning, evt_converged=evt_converged, var_comparison=var_comparison,
-            timestamp=_utcnow_iso(), elapsed_ms=elapsed,
+            cvar_pct=cvar_pct,
+            cvar_amount=cvar_amount,
+            method=eff_method,
+            method_used=method_used,
+            confidence=eff_conf,
+            breach=breach,
+            breach_level=breach_level,
+            threshold=threshold,
+            warning=warning,
+            evt_converged=evt_converged,
+            var_comparison=var_comparison,
+            timestamp=_utcnow_iso(),
+            elapsed_ms=elapsed,
         )
 
     def calculate_scalar(
@@ -524,8 +621,11 @@ class CVaRCalculator:
         return_amount: bool = False,
     ) -> float:
         result = self.calculate(
-            returns, portfolio_value=portfolio_value, method=method,
-            confidence=confidence, _skip_breach=True,
+            returns,
+            portfolio_value=portfolio_value,
+            method=method,
+            confidence=confidence,
+            _skip_breach=True,
         )
         if return_amount:
             return result.cvar_amount if result.cvar_amount is not None else _NAN
@@ -549,12 +649,19 @@ class CVaRCalculator:
             start = time.perf_counter()
             elapsed = (time.perf_counter() - start) * 1000
             return CVaRResult(
-                cvar_pct=_NAN, cvar_amount=None, method=method or self._config.method,
+                cvar_pct=_NAN,
+                cvar_amount=None,
+                method=method or self._config.method,
                 method_used=method or self._config.method,
                 confidence=confidence or self._config.confidence_level,
-                breach=False, breach_level=None, threshold=None,
-                warning="; ".join(warnings), evt_converged=False, var_comparison=None,
-                timestamp=_utcnow_iso(), elapsed_ms=elapsed,
+                breach=False,
+                breach_level=None,
+                threshold=None,
+                warning="; ".join(warnings),
+                evt_converged=False,
+                var_comparison=None,
+                timestamp=_utcnow_iso(),
+                elapsed_ms=elapsed,
             )
 
         lengths = [len(returns_matrix[pos["code"]]) for pos in positions]
@@ -568,32 +675,49 @@ class CVaRCalculator:
 
         portfolio_returns: list[float] = []
         for i in range(min_len):
-            r = sum(pos.get("weight", 0.0) * returns_matrix[pos["code"]][i] for pos in positions)
+            r = sum(
+                pos.get("weight", 0.0) * returns_matrix[pos["code"]][i]
+                for pos in positions
+            )
             portfolio_returns.append(r)
 
         result = self.calculate(
-            portfolio_returns, portfolio_value=portfolio_value,
-            method=method, confidence=confidence,
+            portfolio_returns,
+            portfolio_value=portfolio_value,
+            method=method,
+            confidence=confidence,
         )
         if warnings and result.warning:
             combined = result.warning + "; " + "; ".join(warnings)
             return CVaRResult(
-                cvar_pct=result.cvar_pct, cvar_amount=result.cvar_amount,
-                method=result.method, method_used=result.method_used,
-                confidence=result.confidence, breach=result.breach,
-                breach_level=result.breach_level, threshold=result.threshold,
-                warning=combined, evt_converged=result.evt_converged,
-                var_comparison=result.var_comparison, timestamp=result.timestamp,
+                cvar_pct=result.cvar_pct,
+                cvar_amount=result.cvar_amount,
+                method=result.method,
+                method_used=result.method_used,
+                confidence=result.confidence,
+                breach=result.breach,
+                breach_level=result.breach_level,
+                threshold=result.threshold,
+                warning=combined,
+                evt_converged=result.evt_converged,
+                var_comparison=result.var_comparison,
+                timestamp=result.timestamp,
                 elapsed_ms=result.elapsed_ms,
             )
-        elif warnings:
+        if warnings:
             return CVaRResult(
-                cvar_pct=result.cvar_pct, cvar_amount=result.cvar_amount,
-                method=result.method, method_used=result.method_used,
-                confidence=result.confidence, breach=result.breach,
-                breach_level=result.breach_level, threshold=result.threshold,
-                warning="; ".join(warnings), evt_converged=result.evt_converged,
-                var_comparison=result.var_comparison, timestamp=result.timestamp,
+                cvar_pct=result.cvar_pct,
+                cvar_amount=result.cvar_amount,
+                method=result.method,
+                method_used=result.method_used,
+                confidence=result.confidence,
+                breach=result.breach,
+                breach_level=result.breach_level,
+                threshold=result.threshold,
+                warning="; ".join(warnings),
+                evt_converged=result.evt_converged,
+                var_comparison=result.var_comparison,
+                timestamp=result.timestamp,
                 elapsed_ms=result.elapsed_ms,
             )
         return result

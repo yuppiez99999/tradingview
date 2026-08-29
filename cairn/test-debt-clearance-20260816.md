@@ -155,3 +155,14 @@
 ## 七、contains 标签
 
 `contains: BLE111副作用` `contains: FeatureFlags签名` `contains: sys.modules污染` `contains: 归因配置缺失` `contains: 测试断言过期` `contains: Python3.14兼容` `contains: 磁盘空间不足`
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 16%)
+- [Bug修复追踪表 v2.4](bug_fix_tracker.md) (相似度 13%)
+- [测试健康度治理经验（2026-08-19）](test-health-20260819.md) (相似度 12%)
+- [新代码审查 bug 模式与根因（2026-08-17）](code-review-newcode-bug-patterns-20260817.md) (相似度 10%)
+- [EOD 运维经验沉淀：OpenBLAS 内存修复 + U9 端到端验证 + D7 断言增强（2026-08-07）](eod-operations-lessons-20260807.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

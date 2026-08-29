@@ -37,8 +37,10 @@ logger = logging.getLogger("iv_surface_deep_hedge")
 # 枚举
 # ============================================================
 
+
 class HedgeToolType(str, Enum):
     """对冲工具类型。"""
+
     OPTION = "option"
     FUTURE = "future"
     ETF = "etf"
@@ -46,14 +48,16 @@ class HedgeToolType(str, Enum):
 
 class VolatilitySignal(str, Enum):
     """波动率信号。"""
-    SHORT_VOL = "short_vol"      # 做空波动率 (IV > RV)
-    LONG_VOL = "long_vol"        # 做多波动率 (IV < RV)
-    NEUTRAL = "neutral"          # 中性 (IV ≈ RV)
+
+    SHORT_VOL = "short_vol"  # 做空波动率 (IV > RV)
+    LONG_VOL = "long_vol"  # 做多波动率 (IV < RV)
+    NEUTRAL = "neutral"  # 中性 (IV ≈ RV)
 
 
 # ============================================================
 # 方差风险溢价
 # ============================================================
+
 
 @dataclass
 class VarianceRiskPremium:
@@ -65,6 +69,7 @@ class VarianceRiskPremium:
         vrp: 方差风险溢价 (IV² - RV²)
         signal: 波动率信号
     """
+
     implied_var: float
     realized_var: float
     vrp: float = 0.0
@@ -85,8 +90,8 @@ class VRPCalculator:
     def compute(implied_vol: float, realized_vol: float) -> VarianceRiskPremium:
         """计算 VRP。"""
         return VarianceRiskPremium(
-            implied_var=implied_vol ** 2,
-            realized_var=realized_vol ** 2,
+            implied_var=implied_vol**2,
+            realized_var=realized_vol**2,
         )
 
     @staticmethod
@@ -107,8 +112,8 @@ class VRPCalculator:
         n = len(implied_vols)
         vrp = np.zeros(n)
         for i in range(window, n):
-            iv_mean = np.mean(implied_vols[i - window:i] ** 2)
-            rv_mean = np.mean(realized_vols[i - window:i] ** 2)
+            iv_mean = np.mean(implied_vols[i - window : i] ** 2)
+            rv_mean = np.mean(realized_vols[i - window : i] ** 2)
             vrp[i] = iv_mean - rv_mean
         return vrp
 
@@ -116,6 +121,7 @@ class VRPCalculator:
 # ============================================================
 # 对冲工具
 # ============================================================
+
 
 @dataclass
 class HedgeTool:
@@ -131,6 +137,7 @@ class HedgeTool:
         volga: volga 暴露 (∂vega/∂vol)
         price: 价格
     """
+
     tool_type: HedgeToolType
     strike: float = 0.0
     maturity: float = 0.0
@@ -145,55 +152,57 @@ class HedgeTool:
 # 二阶希腊字母计算
 # ============================================================
 
+
 class SecondOrderGreeks:
     """二阶波动率希腊字母计算 (vega/vanna/volga)。"""
 
     @staticmethod
-    def vanna(spot: float, strike: float, maturity: float,
-              vol: float, rate: float = 0.03) -> float:
+    def vanna(
+        spot: float, strike: float, maturity: float, vol: float, rate: float = 0.03
+    ) -> float:
         """vanna = ∂delta/∂vol = -N'(d1) * d2 / vol。
 
         衡量 delta 对波动率的敏感度。
         """
         if maturity <= 0 or vol <= 0:
             return 0.0
-        d1 = (
-            np.log(spot / strike) + (rate + 0.5 * vol ** 2) * maturity
-        ) / (vol * np.sqrt(maturity))
+        d1 = (np.log(spot / strike) + (rate + 0.5 * vol**2) * maturity) / (
+            vol * np.sqrt(maturity)
+        )
         d2 = d1 - vol * np.sqrt(maturity)
-        n_prime_d1 = np.exp(-0.5 * d1 ** 2) / np.sqrt(2 * np.pi)
+        n_prime_d1 = np.exp(-0.5 * d1**2) / np.sqrt(2 * np.pi)
         return -n_prime_d1 * d2 / vol
 
     @staticmethod
-    def volga(spot: float, strike: float, maturity: float,
-              vol: float, rate: float = 0.03) -> float:
+    def volga(
+        spot: float, strike: float, maturity: float, vol: float, rate: float = 0.03
+    ) -> float:
         """volga = ∂vega/∂vol = vega * d1 * d2 / vol。
 
         衡量 vega 对波动率的敏感度。
         """
         if maturity <= 0 or vol <= 0:
             return 0.0
-        d1 = (
-            np.log(spot / strike) + (rate + 0.5 * vol ** 2) * maturity
-        ) / (vol * np.sqrt(maturity))
+        d1 = (np.log(spot / strike) + (rate + 0.5 * vol**2) * maturity) / (
+            vol * np.sqrt(maturity)
+        )
         d2 = d1 - vol * np.sqrt(maturity)
-        n_prime_d1 = np.exp(-0.5 * d1 ** 2) / np.sqrt(2 * np.pi)
+        n_prime_d1 = np.exp(-0.5 * d1**2) / np.sqrt(2 * np.pi)
         vega = spot * n_prime_d1 * np.sqrt(maturity)
         return vega * d1 * d2 / vol
 
     @staticmethod
     def all_vol_greeks(
-        spot: float, strike: float, maturity: float,
-        vol: float, rate: float = 0.03
+        spot: float, strike: float, maturity: float, vol: float, rate: float = 0.03
     ) -> dict[str, float]:
         """所有波动率希腊字母。"""
         if maturity <= 0 or vol <= 0:
             return {"vega": 0.0, "vanna": 0.0, "volga": 0.0}
-        d1 = (
-            np.log(spot / strike) + (rate + 0.5 * vol ** 2) * maturity
-        ) / (vol * np.sqrt(maturity))
+        d1 = (np.log(spot / strike) + (rate + 0.5 * vol**2) * maturity) / (
+            vol * np.sqrt(maturity)
+        )
         d2 = d1 - vol * np.sqrt(maturity)
-        n_prime_d1 = np.exp(-0.5 * d1 ** 2) / np.sqrt(2 * np.pi)
+        n_prime_d1 = np.exp(-0.5 * d1**2) / np.sqrt(2 * np.pi)
         vega = spot * n_prime_d1 * np.sqrt(maturity)
         vanna = -n_prime_d1 * d2 / vol
         volga = vega * d1 * d2 / vol
@@ -204,9 +213,11 @@ class SecondOrderGreeks:
 # 多工具对冲器
 # ============================================================
 
+
 @dataclass
 class DeepHedgeResult:
     """深度对冲结果。"""
+
     hedge_quantities: np.ndarray = field(default_factory=lambda: np.array([]))
     residual_vega: float = 0.0
     residual_vanna: float = 0.0
@@ -282,6 +293,7 @@ class MultiToolHedger:
 # IV 面深度对冲引擎
 # ============================================================
 
+
 class IVSurfaceDeepHedgeEngine:
     """IV 面深度对冲引擎.
 
@@ -322,8 +334,10 @@ class IVSurfaceDeepHedgeEngine:
 
         logger.debug(
             "深度对冲: vega=%.4f, vanna=%.4f, volga=%.4f, signal=%s",
-            result.residual_vega, result.residual_vanna,
-            result.residual_volga, vrp.signal.value
+            result.residual_vega,
+            result.residual_vanna,
+            result.residual_volga,
+            vrp.signal.value,
         )
 
         return result
@@ -339,15 +353,17 @@ class IVSurfaceDeepHedgeEngine:
         tools: list[HedgeTool] = []
         for k, t, iv in zip(strikes, maturities, ivs, strict=True):
             greeks = SecondOrderGreeks.all_vol_greeks(spot, k, t, iv)
-            tools.append(HedgeTool(
-                tool_type=HedgeToolType.OPTION,
-                strike=k,
-                maturity=t,
-                iv=iv,
-                vega=greeks["vega"],
-                vanna=greeks["vanna"],
-                volga=greeks["volga"],
-            ))
+            tools.append(
+                HedgeTool(
+                    tool_type=HedgeToolType.OPTION,
+                    strike=k,
+                    maturity=t,
+                    iv=iv,
+                    vega=greeks["vega"],
+                    vanna=greeks["vanna"],
+                    volga=greeks["volga"],
+                )
+            )
         return tools
 
     def get_stats(self) -> dict[str, Any]:
@@ -357,6 +373,7 @@ class IVSurfaceDeepHedgeEngine:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示 IV 面深度对冲。"""
@@ -370,7 +387,9 @@ def main() -> None:
     print("\n--- 方差风险溢价 ---")
     for iv, rv in [(0.25, 0.15), (0.15, 0.20), (0.20, 0.20)]:
         vrp = VRPCalculator.compute(iv, rv)
-        print(f"  IV={iv:.2f}, RV={rv:.2f}: VRP={vrp.vrp:.4f}, signal={vrp.signal.value}")
+        print(
+            f"  IV={iv:.2f}, RV={rv:.2f}: VRP={vrp.vrp:.4f}, signal={vrp.signal.value}"
+        )
 
     spot = 100.0
     strikes = [90, 95, 100, 105, 110]
@@ -381,12 +400,18 @@ def main() -> None:
 
     print(f"\n--- 对冲工具 ({len(tools)} 个期权) ---")
     for t in tools:
-        print(f"  K={t.strike}: vega={t.vega:.3f}, vanna={t.vanna:.4f}, volga={t.volga:.3f}")
+        print(
+            f"  K={t.strike}: vega={t.vega:.3f}, vanna={t.vanna:.4f}, volga={t.volga:.3f}"
+        )
 
     print("\n--- 深度对冲 (vega=100, vanna=10, volga=50) ---")
     result = engine.hedge(
-        portfolio_vega=100, portfolio_vanna=10, portfolio_volga=50,
-        tools=tools, implied_vol=0.22, realized_vol=0.15,
+        portfolio_vega=100,
+        portfolio_vanna=10,
+        portfolio_volga=50,
+        tools=tools,
+        implied_vol=0.22,
+        realized_vol=0.15,
     )
     print(f"  对冲量: {result.hedge_quantities}")
     print(f"  剩余 vega: {result.residual_vega:.4f}")

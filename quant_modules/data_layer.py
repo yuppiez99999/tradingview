@@ -11,6 +11,7 @@ DataConnectorManager 仅负责按优先级注册并选择"最高优先级连接�
     active = manager.get_active_connector()
     label = manager.get_data_source_label()
 """
+
 from __future__ import annotations
 
 import logging
@@ -37,40 +38,39 @@ class DataConnectorManager:
             connector: 连接器实例
             priority: 优先级 (数值越小越高, 默认 100)
         """
-        entry = {'name': name, 'priority': priority, 'instance': connector}
+        entry = {"name": name, "priority": priority, "instance": connector}
         self._connectors.append(entry)
         # 按优先级排序
-        self._connectors.sort(key=lambda x: x['priority'])
+        self._connectors.sort(key=lambda x: x["priority"])
         # 更新活跃连接器
-        if self._active is None or priority < self._active['priority']:
+        if self._active is None or priority < self._active["priority"]:
             self._active = entry
-        logger.debug('连接器注册: %s (优先级 %d)', name, priority)
+        logger.debug("连接器注册: %s (优先级 %d)", name, priority)
 
     def get_active_connector(self) -> Optional[Any]:
         """获取最高优先级的可用连接器实例, 无可用返回 None。"""
         if self._active is None:
             return None
-        return self._active['instance']
+        return self._active["instance"]
 
     def get_data_source_label(self) -> str:
         """获取当前数据源标签字符串 (如 'Wind MCP'), 无可用返回 'Unknown'。"""
         if self._active is None:
-            return 'Unknown'
-        return self._active['name']
+            return "Unknown"
+        return self._active["name"]
 
     def list_connectors(self) -> list[dict[str, Any]]:
         """列出所有已注册连接器 (按优先级排序)。"""
         return [
-            {'name': c['name'], 'priority': c['priority']}
-            for c in self._connectors
+            {"name": c["name"], "priority": c["priority"]} for c in self._connectors
         ]
 
     def get_connector(self, name: str) -> Optional[Any]:
         """按名称获取连接器实例, 不存在返回 None。"""
         for c in self._connectors:
-            if c['name'] == name:
-                return c['instance']
+            if c["name"] == name:
+                return c["instance"]
         return None
 
 
-__all__ = ['DataConnectorManager']
+__all__ = ["DataConnectorManager"]

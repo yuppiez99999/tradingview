@@ -51,7 +51,7 @@ def ols_regression(
     x_centered = x_arr - x_mean
     y_centered = y_arr - y_mean
 
-    sxx = float(np.sum(x_centered ** 2))
+    sxx = float(np.sum(x_centered**2))
     if sxx < 1e-12:
         return 0.0, y_mean, 0.0
     sxy = float(np.sum(x_centered * y_centered))
@@ -61,7 +61,7 @@ def ols_regression(
     # R²
     y_hat = alpha + beta * x_arr
     ss_res = float(np.sum((y_arr - y_hat) ** 2))
-    ss_tot = float(np.sum(y_centered ** 2))
+    ss_tot = float(np.sum(y_centered**2))
     r_sq = 1.0 - ss_res / ss_tot if ss_tot > 1e-12 else 0.0
 
     return float(beta), float(alpha), float(r_sq)
@@ -92,7 +92,7 @@ def _adf_statistic(residuals: np.ndarray) -> float:
     lag = residuals[:-1]
     diff = np.diff(residuals)
     # OLS: diff = rho * lag + u
-    sxx = float(np.sum(lag ** 2))
+    sxx = float(np.sum(lag**2))
     if sxx < 1e-12:
         return 0.0
     sxy = float(np.sum(lag * diff))
@@ -100,7 +100,7 @@ def _adf_statistic(residuals: np.ndarray) -> float:
     # 残差标准误
     u = diff - rho * lag
     n_eff = len(u)
-    sigma_u2 = float(np.sum(u ** 2)) / (n_eff - 1)
+    sigma_u2 = float(np.sum(u**2)) / (n_eff - 1)
     se_rho = float(np.sqrt(sigma_u2 / sxx))
     if se_rho < 1e-12:
         return 0.0
@@ -172,8 +172,12 @@ def engle_granger_test(
     n = len(y_arr)
     if n != len(x_arr) or n < 30:
         return CointegrationResult(
-            is_cointegrated=False, hedge_ratio=0.0, intercept=0.0,
-            adf_statistic=0.0, pvalue=1.0, half_life=None,
+            is_cointegrated=False,
+            hedge_ratio=0.0,
+            intercept=0.0,
+            adf_statistic=0.0,
+            pvalue=1.0,
+            half_life=None,
         )
 
     # 1. OLS 回归
@@ -214,7 +218,7 @@ def _estimate_half_life(spread: np.ndarray) -> float | None:
         return None
     lag = spread[:-1]
     diff = np.diff(spread)
-    sxx = float(np.sum(lag ** 2))
+    sxx = float(np.sum(lag**2))
     if sxx < 1e-12:
         return None
     sxy = float(np.sum(lag * diff))
@@ -252,7 +256,12 @@ def johansen_test(
     """
     arr = np.asarray(series, dtype=float)
     if arr.ndim != 2 or arr.shape[0] < 20 or arr.shape[1] < 2:
-        return {"rank": 0, "eigenvalues": [], "is_cointegrated": False, "n_variables": 0}
+        return {
+            "rank": 0,
+            "eigenvalues": [],
+            "is_cointegrated": False,
+            "n_variables": 0,
+        }
 
     n_obs, n_vars = arr.shape
     # 一阶差分
@@ -268,16 +277,28 @@ def johansen_test(
         sigma_11 = np.cov(lag_arr.T)
         sigma_01 = np.cov(diff_arr.T, lag_arr.T)[:n_vars, n_vars:]
         if np.linalg.matrix_rank(sigma_11) < n_vars:
-            return {"rank": 0, "eigenvalues": [], "is_cointegrated": False, "n_variables": n_vars}
+            return {
+                "rank": 0,
+                "eigenvalues": [],
+                "is_cointegrated": False,
+                "n_variables": n_vars,
+            }
         pi_mat = sigma_01 @ np.linalg.inv(sigma_11)
         eigenvalues = np.linalg.eigvals(pi_mat)
         # 协整秩 = 显著负特征值数 (简化: |λ| > 0.1 视为非零)
         rank = int(np.sum(np.abs(eigenvalues) > 0.1))
         return {
             "rank": rank,
-            "eigenvalues": [float(ev) for ev in sorted(eigenvalues, key=lambda x: -abs(x))],
+            "eigenvalues": [
+                float(ev) for ev in sorted(eigenvalues, key=lambda x: -abs(x))
+            ],
             "is_cointegrated": rank > 0,
             "n_variables": n_vars,
         }
     except (np.linalg.LinAlgError, ValueError, FloatingPointError):
-        return {"rank": 0, "eigenvalues": [], "is_cointegrated": False, "n_variables": n_vars}
+        return {
+            "rank": 0,
+            "eigenvalues": [],
+            "is_cointegrated": False,
+            "n_variables": n_vars,
+        }

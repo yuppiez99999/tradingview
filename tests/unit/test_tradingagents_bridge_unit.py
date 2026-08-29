@@ -69,7 +69,15 @@ class TestTradingAgentsBridge:
         """端口开 + 健康检查通过 → True"""
         b = TradingAgentsBridge()
         with patch.object(b, "_check_port", return_value=True):
-            with patch.object(b, "_http_get", return_value={"status": "ok", "tradingagents_available": True, "python_version": "3.11.0"}):
+            with patch.object(
+                b,
+                "_http_get",
+                return_value={
+                    "status": "ok",
+                    "tradingagents_available": True,
+                    "python_version": "3.11.0",
+                },
+            ):
                 assert b.is_available() is True
 
     def test_is_available_port_open_health_bad(self):
@@ -83,7 +91,11 @@ class TestTradingAgentsBridge:
         """端口开 + tradingagents_available=False → False"""
         b = TradingAgentsBridge()
         with patch.object(b, "_check_port", return_value=True):
-            with patch.object(b, "_http_get", return_value={"status": "ok", "tradingagents_available": False}):
+            with patch.object(
+                b,
+                "_http_get",
+                return_value={"status": "ok", "tradingagents_available": False},
+            ):
                 assert b.is_available() is False
 
     def test_is_available_health_exception(self):
@@ -117,12 +129,17 @@ class TestTradingAgentsBridge:
     def test_get_analysts_success(self):
         b = TradingAgentsBridge()
         with patch.object(b, "is_available", return_value=True):
-            with patch.object(b, "_http_get", return_value={"analysts": ["fundamental", "technical"]}):
+            with patch.object(
+                b, "_http_get", return_value={"analysts": ["fundamental", "technical"]}
+            ):
                 assert b.get_analysts() == ["fundamental", "technical"]
 
     def test_get_analysts_no_field(self):
         b = TradingAgentsBridge()
-        with patch.object(b, "is_available", return_value=True), patch.object(b, "_http_get", return_value={}):
+        with (
+            patch.object(b, "is_available", return_value=True),
+            patch.object(b, "_http_get", return_value={}),
+        ):
             assert b.get_analysts() == []
 
     def test_analyze_empty_ticker(self):
@@ -135,7 +152,11 @@ class TestTradingAgentsBridge:
         """微服务不可用 → 降级"""
         b = TradingAgentsBridge()
         with patch.object(b, "is_available", return_value=False):
-            with patch.object(b, "_fallback_to_local", return_value={"action": "HOLD", "source": "fallback_local"}):
+            with patch.object(
+                b,
+                "_fallback_to_local",
+                return_value={"action": "HOLD", "source": "fallback_local"},
+            ):
                 result = b.analyze("AAPL", "2026-08-01")
         assert result["source"] == "fallback_local"
 
@@ -161,17 +182,26 @@ class TestTradingAgentsBridge:
         b = TradingAgentsBridge()
         with patch.object(b, "is_available", return_value=True):
             with patch.object(b, "_http_post", return_value={"error": "bad"}):
-                with patch.object(b, "_fallback_to_local", return_value={"action": "HOLD", "source": "fallback_local"}):
+                with patch.object(
+                    b,
+                    "_fallback_to_local",
+                    return_value={"action": "HOLD", "source": "fallback_local"},
+                ):
                     result = b.analyze("AAPL", "2026-08-01")
         assert result["source"] == "fallback_local"
 
     def test_analyze_url_error(self):
         """URLError → 降级"""
         from urllib.error import URLError
+
         b = TradingAgentsBridge()
         with patch.object(b, "is_available", return_value=True):
             with patch.object(b, "_http_post", side_effect=URLError("timeout")):
-                with patch.object(b, "_fallback_to_local", return_value={"action": "HOLD", "source": "fallback_local"}):
+                with patch.object(
+                    b,
+                    "_fallback_to_local",
+                    return_value={"action": "HOLD", "source": "fallback_local"},
+                ):
                     result = b.analyze("AAPL", "2026-08-01")
         assert result["source"] == "fallback_local"
 
@@ -223,6 +253,7 @@ class TestTradingAgentsBridge:
 
     def test_http_post_url_error(self):
         from urllib.error import URLError
+
         b = TradingAgentsBridge()
         with patch("utils.tradingagents_bridge.urlopen", side_effect=URLError("fail")):
             assert b._http_post("/analyze", {}) is None
@@ -253,6 +284,8 @@ class TestConvenienceFunctions:
             assert tradingagents_bridge.is_available() is False
 
     def test_analyze_convenience(self):
-        with patch.object(TradingAgentsBridge, "analyze", return_value={"action": "HOLD"}):
+        with patch.object(
+            TradingAgentsBridge, "analyze", return_value={"action": "HOLD"}
+        ):
             result = tradingagents_bridge.analyze("")
         assert result["action"] == "HOLD"

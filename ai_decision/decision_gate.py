@@ -45,14 +45,15 @@ class RiskContext:
         agent_veto: RiskAgent 是否一票否决
         agent_veto_reason: RiskAgent 否决原因
     """
+
     symbol: str = ""
-    portfolio_value: float = 1_000_000.0   # 组合净值
-    proposed_notional: float = 0.0         # 计划下单名义金额
-    daily_used_pct: float = 0.0            # 日内已用净值比例
-    is_limit_up: bool = False             # 涨停不可买
-    is_limit_down: bool = False           # 跌停不可卖
-    blacklist: tuple = ()                  # 黑名单标的
-    agent_veto: bool = False               # RiskAgent 否决
+    portfolio_value: float = 1_000_000.0  # 组合净值
+    proposed_notional: float = 0.0  # 计划下单名义金额
+    daily_used_pct: float = 0.0  # 日内已用净值比例
+    is_limit_up: bool = False  # 涨停不可买
+    is_limit_down: bool = False  # 跌停不可卖
+    blacklist: tuple = ()  # 黑名单标的
+    agent_veto: bool = False  # RiskAgent 否决
     agent_veto_reason: str = ""
 
 
@@ -66,7 +67,8 @@ class GateResult:
         veto_reason: 否决原因汇总文本
         risk_checks: 各项检查明细键值对
     """
-    passed: bool = True                   # 是否通过硬风控
+
+    passed: bool = True  # 是否通过硬风控
     veto: bool = False
     veto_reason: str = ""
     risk_checks: dict[str, Any] = field(default_factory=dict)
@@ -119,24 +121,32 @@ def run_hard_risk(decision: TradingDecision, rc: RiskContext) -> GateResult:
         checks["limit_down"] = rc.is_limit_down
 
     # 4. 单笔金额上限 (<= 净值 max_single_pct)
-    single_pct = rc.proposed_notional / rc.portfolio_value if rc.portfolio_value else 1.0
+    single_pct = (
+        rc.proposed_notional / rc.portfolio_value if rc.portfolio_value else 1.0
+    )
     max_single = float(get_config("gate.max_single_pct", 0.02))
-    checks["single_pct"] = {"value": round(single_pct, 4), "limit": max_single,
-                            "ok": single_pct <= max_single}
+    checks["single_pct"] = {
+        "value": round(single_pct, 4),
+        "limit": max_single,
+        "ok": single_pct <= max_single,
+    }
     if single_pct > max_single:
         res.veto = True
-        res.veto_reason = (res.veto_reason + "; " if res.veto_reason else "")
+        res.veto_reason = res.veto_reason + "; " if res.veto_reason else ""
         res.veto_reason += f"单笔 {single_pct:.2%} 超过上限 {max_single:.2%}"
         res.passed = False
 
     # 5. 日内累计上限
     total_pct = rc.daily_used_pct + single_pct
     max_daily = float(get_config("gate.max_daily_pct", 0.10))
-    checks["daily_pct"] = {"value": round(total_pct, 4), "limit": max_daily,
-                           "ok": total_pct <= max_daily}
+    checks["daily_pct"] = {
+        "value": round(total_pct, 4),
+        "limit": max_daily,
+        "ok": total_pct <= max_daily,
+    }
     if total_pct > max_daily:
         res.veto = True
-        res.veto_reason = (res.veto_reason + "; " if res.veto_reason else "")
+        res.veto_reason = res.veto_reason + "; " if res.veto_reason else ""
         res.veto_reason += f"日内累计 {total_pct:.2%} 超过上限 {max_daily:.2%}"
         res.passed = False
 
@@ -144,8 +154,9 @@ def run_hard_risk(decision: TradingDecision, rc: RiskContext) -> GateResult:
     return res
 
 
-def apply_mode(decision: TradingDecision, gate: GateResult,
-               mode: str | None = None) -> TradingDecision:
+def apply_mode(
+    decision: TradingDecision, gate: GateResult, mode: str | None = None
+) -> TradingDecision:
     """按运行模式决定最终执行态并写入 decision。
 
     根据 gate 结果与运行模式 (shadow/paper/auto) 设置 decision 的
@@ -201,7 +212,9 @@ def apply_mode(decision: TradingDecision, gate: GateResult,
         if decision.action not in ("buy", "sell"):
             decision.executed = False
             decision.escalation = True
-            decision.escalation_reason = f"action={decision.action} 不可执行, 仅 buy/sell 允许自动下单"
+            decision.escalation_reason = (
+                f"action={decision.action} 不可执行, 仅 buy/sell 允许自动下单"
+            )
         elif escalation:
             decision.executed = False
             decision.escalation = True

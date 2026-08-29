@@ -110,3 +110,14 @@
 
 - v8.7 灰度50%运行中 → 100% 全量发布 (12-31 deadline)
 - 实盘交易接入 (用户明确要求"暂不接入实盘，后期全部计划完成后接入实盘")
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [篮子清算最小 shortfall](basket-liquidation.md) (相似度 36%)
+- [R&D-Agent-Quant 多智能体因子挖掘引擎 (LIT-1.1)](rd-agent-quant.md) (相似度 28%)
+- [AlphaCFG 语法引导因子发现 (LIT-1.5)](alpha-cfg-discovery.md) (相似度 27%)
+- [FinMultiTime 多模态基准数据 — LIT-5.3](finmultitime-benchmark.md) (相似度 26%)
+- [RAG + RL 自适应情感分析 — LIT-5.4](rag-rl-sentiment.md) (相似度 24%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

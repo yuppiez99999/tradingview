@@ -39,7 +39,9 @@ def get_latest_qlib_report():
         "qlib_improved_train_*.json",
     ]
     for pattern in preferred:
-        reports = sorted(REPORTS_DIR.glob(pattern), key=lambda x: x.stat().st_mtime, reverse=True)
+        reports = sorted(
+            REPORTS_DIR.glob(pattern), key=lambda x: x.stat().st_mtime, reverse=True
+        )
         if reports:
             return reports[0]
     return None
@@ -90,7 +92,11 @@ def apply_industry_neutralization():
         for i, stock_code in enumerate(valid_stocks):
             neutral_signal = float(ranks[i])
             stock_signals[stock_code]["neutral_signal"] = neutral_signal
-            direction = "看多" if neutral_signal > 0.3 else ("看空" if neutral_signal < -0.3 else "中性")
+            direction = (
+                "看多"
+                if neutral_signal > 0.3
+                else ("看空" if neutral_signal < -0.3 else "中性")
+            )
             stock_signals[stock_code]["neutral_direction"] = direction
             logger.info(
                 f"    {stock_code} {stock_signals[stock_code]['name']:6s} 原始:{stock_signals[stock_code]['raw_signal']:+.4f} → 中性化:{neutral_signal:+.4f} ({direction})"
@@ -99,7 +105,7 @@ def apply_industry_neutralization():
     def convert_code(code):
         if code.startswith("SH"):
             return code[2:] + ".SH"
-        elif code.startswith("SZ"):
+        if code.startswith("SZ"):
             return code[2:] + ".SZ"
         return code
 
@@ -109,8 +115,12 @@ def apply_industry_neutralization():
         if pos_code in positions_data["positions"]:
             pos = positions_data["positions"][pos_code]
             pos["qlib_neutral_signal"] = sig_info.get("neutral_signal")
-            pos["qlib_neutral_direction"] = sig_info.get("neutral_direction", pos.get("qlib_direction"))
-            logger.info(f"    {stock_code} → {pos_code} {pos.get('name', '')} 中性化:{sig_info.get('neutral_direction', '')}")
+            pos["qlib_neutral_direction"] = sig_info.get(
+                "neutral_direction", pos.get("qlib_direction")
+            )
+            logger.info(
+                f"    {stock_code} → {pos_code} {pos.get('name', '')} 中性化:{sig_info.get('neutral_direction', '')}"
+            )
 
     positions_data["meta"]["last_qlib_neutral_update"] = report.get("timestamp", "")
 

@@ -9,6 +9,7 @@
     6. 按 symbols 过滤撤单
     7. 部分失败时 success=False
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock

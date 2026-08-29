@@ -10,13 +10,17 @@ from utils.feature_store.offline_store import OfflineStore
 
 @pytest.fixture
 def store(tmp_path):
-    cfg = FeatureStoreConfig(offline_backend="parquet", offline_parquet_dir=str(tmp_path / "fs"))
+    cfg = FeatureStoreConfig(
+        offline_backend="parquet", offline_parquet_dir=str(tmp_path / "fs")
+    )
     return OfflineStore(cfg)
 
 
 class TestOfflineStoreInit:
     def test_default_config(self, tmp_path):
-        cfg = FeatureStoreConfig(offline_backend="parquet", offline_parquet_dir=str(tmp_path / "fs"))
+        cfg = FeatureStoreConfig(
+            offline_backend="parquet", offline_parquet_dir=str(tmp_path / "fs")
+        )
         s = OfflineStore(cfg)
         assert s._root.exists()
 

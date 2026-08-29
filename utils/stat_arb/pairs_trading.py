@@ -98,14 +98,16 @@ def find_cointegrated_pairs(
                 if result.half_life < min_half_life or result.half_life > max_half_life:
                     continue
 
-            candidates.append({
-                "code_a": sym_a,
-                "code_b": sym_b,
-                "pvalue": result.pvalue,
-                "hedge_ratio": result.hedge_ratio,
-                "intercept": result.intercept,
-                "half_life": result.half_life,
-            })
+            candidates.append(
+                {
+                    "code_a": sym_a,
+                    "code_b": sym_b,
+                    "pvalue": result.pvalue,
+                    "hedge_ratio": result.hedge_ratio,
+                    "intercept": result.intercept,
+                    "half_life": result.half_life,
+                }
+            )
 
     # 按 p-value 升序, 取前 max_pairs
     candidates.sort(key=lambda d: d["pvalue"])
@@ -165,7 +167,7 @@ class PairsTradingEngine:
         pa = np.asarray(price_a[-min_len:], dtype=float)
         pb = np.asarray(price_b[-min_len:], dtype=float)
         spread = pa - hedge_ratio * pb - intercept
-        window = spread[-self.zscore_window:]
+        window = spread[-self.zscore_window :]
         mu = float(np.mean(window))
         sigma = float(np.std(window, ddof=1))
         if sigma < 1e-12:
@@ -208,14 +210,16 @@ class PairsTradingEngine:
             else:
                 sig = 0  # 持有
 
-            signals.append(PairSignal(
-                code_a=code_a,
-                code_b=code_b,
-                hedge_ratio=pair["hedge_ratio"],
-                intercept=pair["intercept"],
-                half_life=pair.get("half_life"),
-                zscore=z,
-                signal=sig,
-                pvalue=pair["pvalue"],
-            ))
+            signals.append(
+                PairSignal(
+                    code_a=code_a,
+                    code_b=code_b,
+                    hedge_ratio=pair["hedge_ratio"],
+                    intercept=pair["intercept"],
+                    half_life=pair.get("half_life"),
+                    zscore=z,
+                    signal=sig,
+                    pvalue=pair["pvalue"],
+                )
+            )
         return signals

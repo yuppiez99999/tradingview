@@ -19,6 +19,7 @@
   - 数学恒等式: 因子收益总和 = Σ 单因子贡献 (残差 = 0)
   - 不依赖网络: ConfigManager / Feature Flag 通过 mock 控制
 """
+
 from __future__ import annotations
 
 import math
@@ -92,6 +93,7 @@ from utils.attribution.factor_attribution import (  # noqa: E402
 # 1. 常量定义测试
 # ============================================================
 
+
 class TestConstants:
     """常量定义完整性测试."""
 
@@ -150,16 +152,33 @@ class TestConstants:
     def test_barra_style_factors_count(self):
         """Barra 风格因子共 10 个."""
         assert len(BARRA_STYLE_FACTORS) == 10
-        for f in ["Size", "Beta", "Momentum", "ResidualVolatility",
-                  "NonLinearSize", "BookToPrice", "Liquidity",
-                  "EarningsYield", "Growth", "Leverage"]:
+        for f in [
+            "Size",
+            "Beta",
+            "Momentum",
+            "ResidualVolatility",
+            "NonLinearSize",
+            "BookToPrice",
+            "Liquidity",
+            "EarningsYield",
+            "Growth",
+            "Leverage",
+        ]:
             assert f in BARRA_STYLE_FACTORS
 
     def test_sector_factors_count(self):
         """行业因子共 8 个."""
         assert len(SECTOR_FACTORS) == 8
-        for s in ["tech", "manufacturing", "cyclical", "resources",
-                  "defensive", "finance", "consumer", "healthcare"]:
+        for s in [
+            "tech",
+            "manufacturing",
+            "cyclical",
+            "resources",
+            "defensive",
+            "finance",
+            "consumer",
+            "healthcare",
+        ]:
             assert s in SECTOR_FACTORS
 
     def test_factor_names_mapping_complete(self):
@@ -181,14 +200,20 @@ class TestConstants:
 
     def test_status_codes_distinct(self):
         """状态码互不相同."""
-        codes = [STATUS_OK, STATUS_FEATURE_FLAG_DISABLED, STATUS_INSUFFICIENT_DATA,
-                 STATUS_FACTOR_MISMATCH, STATUS_EMPTY_INPUT]
+        codes = [
+            STATUS_OK,
+            STATUS_FEATURE_FLAG_DISABLED,
+            STATUS_INSUFFICIENT_DATA,
+            STATUS_FACTOR_MISMATCH,
+            STATUS_EMPTY_INPUT,
+        ]
         assert len(set(codes)) == len(codes)
 
 
 # ============================================================
 # 2. 异常体系测试
 # ============================================================
+
 
 class TestExceptions:
     """异常体系完整性测试."""
@@ -233,6 +258,7 @@ class TestExceptions:
 # ============================================================
 # 3. 数据类测试
 # ============================================================
+
 
 class TestDataClasses:
     """数据类字段与序列化测试."""
@@ -374,10 +400,15 @@ class TestDataClasses:
             specific_pnl=500.0,
             benchmark_code="510300.SH",
             style_factor_attributions=[
-                FactorAttribution(factor_name="Size", factor_display_name="市值",
-                                  portfolio_exposure=0.5, active_exposure=0.5,
-                                  factor_return=0.001, contribution_to_pnl=500.0,
-                                  contribution_pct=0.1),
+                FactorAttribution(
+                    factor_name="Size",
+                    factor_display_name="市值",
+                    portfolio_exposure=0.5,
+                    active_exposure=0.5,
+                    factor_return=0.001,
+                    contribution_to_pnl=500.0,
+                    contribution_pct=0.1,
+                ),
             ],
         )
         md = r.to_markdown()
@@ -411,6 +442,7 @@ class TestDataClasses:
 # ============================================================
 # 4. 核心算法函数测试
 # ============================================================
+
 
 class TestCoreFunctions:
     """核心算法函数测试."""
@@ -588,6 +620,7 @@ class TestCoreFunctions:
 # 5. attribute_factors 主函数测试
 # ============================================================
 
+
 class TestAttributeFactors:
     """attribute_factors 主函数测试."""
 
@@ -666,8 +699,12 @@ class TestAttributeFactors:
         assert result.n_factors == 2
         # Size: active_exposure = 0.5 - 0 = 0.5
         # Beta: active_exposure = 0 - 1.0 = -1.0
-        size_fa = next(f for f in result.style_factor_attributions if f.factor_name == "Size")
-        beta_fa = next(f for f in result.style_factor_attributions if f.factor_name == "Beta")
+        size_fa = next(
+            f for f in result.style_factor_attributions if f.factor_name == "Size"
+        )
+        beta_fa = next(
+            f for f in result.style_factor_attributions if f.factor_name == "Beta"
+        )
         assert abs(size_fa.active_exposure - 0.5) < 1e-6
         assert abs(beta_fa.active_exposure - (-1.0)) < 1e-6
 
@@ -681,13 +718,15 @@ class TestAttributeFactors:
         )
         # 各因子贡献
         expected_pnl = (
-            0.5 * 0.001 * 1_000_000 +    # Size: 500
-            (-0.7) * 0.002 * 1_000_000 +  # Beta: -1400
-            0.2 * 0.005 * 1_000_000        # Momentum: 1000
+            0.5 * 0.001 * 1_000_000  # Size: 500
+            + (-0.7) * 0.002 * 1_000_000  # Beta: -1400
+            + 0.2 * 0.005 * 1_000_000  # Momentum: 1000
         )
         assert abs(result.factor_pnl - expected_pnl) < 1e-6
         # 验证手动求和 = factor_pnl
-        manual_sum = sum(f.contribution_to_pnl for f in result.style_factor_attributions)
+        manual_sum = sum(
+            f.contribution_to_pnl for f in result.style_factor_attributions
+        )
         assert abs(manual_sum - result.factor_pnl) < 1e-6
 
     def test_attribution_residual_is_zero_when_no_explicit_active_return(self):
@@ -763,7 +802,9 @@ class TestAttributeFactors:
         # Size 贡献 = 0.5 × 0.001 × 1M = 500, 500/1M = 0.0005 < 0.005 → 不显著
         # Beta 贡献 = 0.001 × 0.002 × 1M = 0.002, 远小于阈值 → 不显著
         # 注意: 实际计算时, 由于 contribution/portfolio_value = 0.0005 < 0.005
-        size_fa = next(f for f in result.style_factor_attributions if f.factor_name == "Size")
+        size_fa = next(
+            f for f in result.style_factor_attributions if f.factor_name == "Size"
+        )
         assert not size_fa.is_significant
 
     def test_attribution_significant_factor(self):
@@ -810,7 +851,9 @@ class TestAttributeFactors:
         )
         # 贡献: Size=500, Beta=-1400, Momentum=1000
         # 按绝对值降序: Beta(1400) > Momentum(1000) > Size(500)
-        contribs = [abs(f.contribution_to_pnl) for f in result.style_factor_attributions]
+        contribs = [
+            abs(f.contribution_to_pnl) for f in result.style_factor_attributions
+        ]
         assert contribs == sorted(contribs, reverse=True)
 
     def test_attribution_contribution_pct(self):
@@ -824,8 +867,12 @@ class TestAttributeFactors:
         # Size: 500, Beta: 600, 总: 1100
         # Size 占比: 500/1100 ≈ 0.4545
         # Beta 占比: 600/1100 ≈ 0.5455
-        size_fa = next(f for f in result.style_factor_attributions if f.factor_name == "Size")
-        beta_fa = next(f for f in result.style_factor_attributions if f.factor_name == "Beta")
+        size_fa = next(
+            f for f in result.style_factor_attributions if f.factor_name == "Size"
+        )
+        beta_fa = next(
+            f for f in result.style_factor_attributions if f.factor_name == "Beta"
+        )
         assert abs(size_fa.contribution_pct - 500.0 / 1100.0) < 1e-6
         assert abs(beta_fa.contribution_pct - 600.0 / 1100.0) < 1e-6
 
@@ -892,9 +939,13 @@ class TestAttributeFactors:
             portfolio_value=1_000_000,
             ic_metrics=ic_metrics,
         )
-        size_fa = next(f for f in result.style_factor_attributions if f.factor_name == "Size")
+        size_fa = next(
+            f for f in result.style_factor_attributions if f.factor_name == "Size"
+        )
         assert size_fa.ic_metrics == {"ic_mean": 0.05, "ic_ir": 0.8}
-        beta_fa = next(f for f in result.style_factor_attributions if f.factor_name == "Beta")
+        beta_fa = next(
+            f for f in result.style_factor_attributions if f.factor_name == "Beta"
+        )
         assert beta_fa.ic_metrics == {"ic_mean": 0.02, "ic_ir": 0.4}
 
     def test_attribution_benchmark_code_passed_through(self):
@@ -924,6 +975,7 @@ class TestAttributeFactors:
 # ============================================================
 # 6. FactorAttributionManager 主类测试
 # ============================================================
+
 
 class TestFactorAttributionManager:
     """FactorAttributionManager 主类测试."""
@@ -975,7 +1027,7 @@ class TestFactorAttributionManager:
     def test_attribute_with_feature_flag_enabled(self):
         """Feature Flag 启用时执行归因."""
         mgr = FactorAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_exposures={"Size": 0.5, "Beta": 1.1},
                 benchmark_exposures={"Size": 0.0, "Beta": 1.0},
@@ -991,7 +1043,7 @@ class TestFactorAttributionManager:
     def test_attribute_uses_default_benchmark_exposures(self):
         """未提供 benchmark_exposures 时使用配置中的默认值."""
         mgr = FactorAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_exposures={"Size": 0.5, "Beta": 1.1},
                 factor_returns={"Size": 0.001, "Beta": 0.002},
@@ -1005,7 +1057,7 @@ class TestFactorAttributionManager:
         mgr = FactorAttributionManager(
             config={"settings": {}, "benchmark_factor_exposures": {}}
         )
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_exposures={"Size": 0.5},
                 factor_returns={"Size": 0.001},
@@ -1017,7 +1069,7 @@ class TestFactorAttributionManager:
     def test_attribute_returns_insufficient_when_no_returns(self):
         """未提供因子收益率时返回 insufficient_data."""
         mgr = FactorAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_exposures={"Size": 0.5},
                 benchmark_exposures={"Size": 0.0},
@@ -1030,7 +1082,7 @@ class TestFactorAttributionManager:
     def test_attribute_handles_invalid_input_gracefully(self):
         """无效输入优雅处理 (返回 empty_input 状态)."""
         mgr = FactorAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_exposures={},
                 benchmark_exposures={},
@@ -1042,7 +1094,7 @@ class TestFactorAttributionManager:
     def test_attribute_handles_non_positive_portfolio_value(self):
         """组合价值非正返回 empty_input."""
         mgr = FactorAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_exposures={"Size": 0.5},
                 benchmark_exposures={"Size": 0.0},
@@ -1054,19 +1106,31 @@ class TestFactorAttributionManager:
     def test_attribute_from_positions_basic(self):
         """从持仓列表归因 (聚合到因子维度)."""
         mgr = FactorAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute_from_positions(
                 portfolio_positions=[
-                    {"code": "600519", "weight": 0.4,
-                     "factor_exposures": {"Size": 0.5, "Beta": 1.1}},
-                    {"code": "000858", "weight": 0.6,
-                     "factor_exposures": {"Size": 0.3, "Beta": 0.9}},
+                    {
+                        "code": "600519",
+                        "weight": 0.4,
+                        "factor_exposures": {"Size": 0.5, "Beta": 1.1},
+                    },
+                    {
+                        "code": "000858",
+                        "weight": 0.6,
+                        "factor_exposures": {"Size": 0.3, "Beta": 0.9},
+                    },
                 ],
                 benchmark_positions=[
-                    {"code": "600519", "weight": 0.5,
-                     "factor_exposures": {"Size": 0.0, "Beta": 1.0}},
-                    {"code": "000858", "weight": 0.5,
-                     "factor_exposures": {"Size": 0.0, "Beta": 1.0}},
+                    {
+                        "code": "600519",
+                        "weight": 0.5,
+                        "factor_exposures": {"Size": 0.0, "Beta": 1.0},
+                    },
+                    {
+                        "code": "000858",
+                        "weight": 0.5,
+                        "factor_exposures": {"Size": 0.0, "Beta": 1.0},
+                    },
                 ],
                 factor_returns={"Size": 0.001, "Beta": 0.002},
                 portfolio_value=1_000_000,
@@ -1092,7 +1156,7 @@ class TestFactorAttributionManager:
     def test_attribute_from_positions_empty_list(self):
         """空持仓列表返回 insufficient_data."""
         mgr = FactorAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute_from_positions(
                 portfolio_positions=[],
                 benchmark_positions=[
@@ -1125,10 +1189,16 @@ class TestFactorAttributionManager:
         """持仓聚合到因子维度 (加权平均)."""
         mgr = FactorAttributionManager()
         positions = [
-            {"code": "600519", "weight": 0.4,
-             "factor_exposures": {"Size": 0.5, "Beta": 1.1}},
-            {"code": "000858", "weight": 0.6,
-             "factor_exposures": {"Size": 0.3, "Beta": 0.9}},
+            {
+                "code": "600519",
+                "weight": 0.4,
+                "factor_exposures": {"Size": 0.5, "Beta": 1.1},
+            },
+            {
+                "code": "000858",
+                "weight": 0.6,
+                "factor_exposures": {"Size": 0.3, "Beta": 0.9},
+            },
         ]
         exposures, active_weights = mgr._aggregate_positions_to_factors(positions)
         # Size 加权平均: 0.4×0.5 + 0.6×0.3 = 0.38, 权重和 = 1.0, 所以 0.38/1.0 = 0.38
@@ -1148,8 +1218,10 @@ class TestFactorAttributionManager:
     def test_load_config_handles_exception(self):
         """_load_config 异常时返回空字典."""
         mgr = FactorAttributionManager()
-        with patch('utils.attribution.factor_attribution.get_config',
-                   side_effect=OSError("test")):
+        with patch(
+            "utils.attribution.factor_attribution.get_config",
+            side_effect=OSError("test"),
+        ):
             cfg = mgr._load_config("non_existent")
         assert cfg == {}
 
@@ -1162,8 +1234,9 @@ class TestFactorAttributionManager:
     def test_is_enabled_handles_exception(self):
         """_is_enabled 异常时返回 False."""
         mgr = FactorAttributionManager()
-        with patch('utils.infra.feature_flags.is_enabled',
-                   side_effect=AttributeError("test")):
+        with patch(
+            "utils.infra.feature_flags.is_enabled", side_effect=AttributeError("test")
+        ):
             result = mgr._is_enabled()
         assert result is False
 
@@ -1171,6 +1244,7 @@ class TestFactorAttributionManager:
 # ============================================================
 # 7. Feature Flag 透传测试
 # ============================================================
+
 
 class TestFeatureFlag:
     """Feature Flag 透传测试 (HC-1)."""
@@ -1188,15 +1262,17 @@ class TestFeatureFlag:
 
     def test_is_factor_attribution_enabled_handles_import_error(self):
         """导入失败时返回 False."""
-        with patch('utils.infra.feature_flags.is_enabled',
-                   side_effect=ImportError("no module")):
+        with patch(
+            "utils.infra.feature_flags.is_enabled", side_effect=ImportError("no module")
+        ):
             result = is_factor_attribution_enabled()
         assert result is False
 
     def test_is_factor_attribution_enabled_handles_exception(self):
         """异常时返回 False."""
-        with patch('utils.infra.feature_flags.is_enabled',
-                   side_effect=RuntimeError("test")):
+        with patch(
+            "utils.infra.feature_flags.is_enabled", side_effect=RuntimeError("test")
+        ):
             result = is_factor_attribution_enabled()
         assert result is False
 
@@ -1221,7 +1297,9 @@ class TestFeatureFlag:
     def test_feature_flag_disabled_does_not_execute_algorithm(self):
         """Feature Flag 关闭时不执行算法 (零开销)."""
         mgr = FactorAttributionManager()
-        with patch('utils.attribution.factor_attribution.attribute_factors') as mock_attr:
+        with patch(
+            "utils.attribution.factor_attribution.attribute_factors"
+        ) as mock_attr:
             result = mgr.attribute(
                 portfolio_exposures={"Size": 0.5},
                 benchmark_exposures={"Size": 0.0},
@@ -1235,6 +1313,7 @@ class TestFeatureFlag:
 # ============================================================
 # 8. 便捷函数测试
 # ============================================================
+
 
 class TestConvenienceFunctions:
     """便捷函数测试."""
@@ -1272,6 +1351,7 @@ class TestConvenienceFunctions:
 # ============================================================
 # 9. 边界条件测试
 # ============================================================
+
 
 class TestEdgeCases:
     """边界条件测试."""
@@ -1319,7 +1399,9 @@ class TestEdgeCases:
             factor_returns={"Size": 0.001, "Beta": 0.002},
             portfolio_value=1_000_000,
         )
-        size_fa = next(f for f in result.style_factor_attributions if f.factor_name == "Size")
+        size_fa = next(
+            f for f in result.style_factor_attributions if f.factor_name == "Size"
+        )
         assert size_fa.active_exposure < 0
         assert size_fa.contribution_to_pnl < 0
 
@@ -1407,9 +1489,13 @@ class TestEdgeCases:
             portfolio_value=1_000_000,
             factor_names=custom_names,
         )
-        size_fa = next(f for f in result.style_factor_attributions if f.factor_name == "Size")
+        size_fa = next(
+            f for f in result.style_factor_attributions if f.factor_name == "Size"
+        )
         assert size_fa.factor_display_name == "市值(自定义)"
-        beta_fa = next(f for f in result.style_factor_attributions if f.factor_name == "Beta")
+        beta_fa = next(
+            f for f in result.style_factor_attributions if f.factor_name == "Beta"
+        )
         assert beta_fa.factor_display_name == "贝塔(自定义)"
 
     def test_attribution_with_custom_annualization_factor(self):
@@ -1440,21 +1526,36 @@ class TestEdgeCases:
 # 10. 数学恒等式与一致性测试
 # ============================================================
 
+
 class TestMathematicalIdentities:
     """数学恒等式验证测试."""
 
     def test_factor_pnl_equals_sum_of_contributions(self):
         """因子 PnL = Σ 单因子贡献."""
         result = attribute_factors(
-            portfolio_exposures={"Size": 0.5, "Beta": 0.3, "Momentum": 0.2,
-                                 "finance": 0.4},
-            benchmark_exposures={"Size": 0.0, "Beta": 1.0, "Momentum": 0.0,
-                                 "finance": 0.3},
-            factor_returns={"Size": 0.001, "Beta": 0.002, "Momentum": 0.005,
-                            "finance": 0.003},
+            portfolio_exposures={
+                "Size": 0.5,
+                "Beta": 0.3,
+                "Momentum": 0.2,
+                "finance": 0.4,
+            },
+            benchmark_exposures={
+                "Size": 0.0,
+                "Beta": 1.0,
+                "Momentum": 0.0,
+                "finance": 0.3,
+            },
+            factor_returns={
+                "Size": 0.001,
+                "Beta": 0.002,
+                "Momentum": 0.005,
+                "finance": 0.003,
+            },
             portfolio_value=1_000_000,
         )
-        all_attributions = result.style_factor_attributions + result.sector_factor_attributions
+        all_attributions = (
+            result.style_factor_attributions + result.sector_factor_attributions
+        )
         manual_sum = sum(f.contribution_to_pnl for f in all_attributions)
         assert abs(manual_sum - result.factor_pnl) < 1e-6
 
@@ -1470,7 +1571,9 @@ class TestMathematicalIdentities:
         # active_return = factor_pnl + specific_pnl
         # residual = active_return - factor_pnl - specific_pnl = 0
         assert abs(result.residual) < 1e-6
-        assert abs(result.active_return - (result.factor_pnl + result.specific_pnl)) < 1e-6
+        assert (
+            abs(result.active_return - (result.factor_pnl + result.specific_pnl)) < 1e-6
+        )
 
     def test_active_risk_pythagorean(self):
         """主动风险满足勾股定理: active_risk² = factor_risk² + specific_risk²."""
@@ -1483,8 +1586,13 @@ class TestMathematicalIdentities:
             stock_specific_risks={"600519": 0.02, "000858": 0.025},
         )
         # active_risk² = factor_risk² + specific_risk²
-        assert abs(result.active_risk**2 -
-                   (result.factor_risk**2 + result.specific_risk**2)) < 1e-6
+        assert (
+            abs(
+                result.active_risk**2
+                - (result.factor_risk**2 + result.specific_risk**2)
+            )
+            < 1e-6
+        )
 
     def test_factor_risk_pct_between_zero_and_one(self):
         """因子风险占比在 [0, 1] 之间."""
@@ -1542,12 +1650,15 @@ class TestMathematicalIdentities:
 # 11. 综合场景测试
 # ============================================================
 
+
 class TestIntegrationScenarios:
     """综合场景测试."""
 
     def test_full_barra_10_factor_attribution(self):
         """完整 Barra 10 因子归因场景."""
-        portfolio_exposures = {f: 0.1 * (i + 1) for i, f in enumerate(BARRA_STYLE_FACTORS)}
+        portfolio_exposures = {
+            f: 0.1 * (i + 1) for i, f in enumerate(BARRA_STYLE_FACTORS)
+        }
         benchmark_exposures = {f: 0.0 for f in BARRA_STYLE_FACTORS}
         factor_returns = {f: 0.001 * (i + 1) for i, f in enumerate(BARRA_STYLE_FACTORS)}
 
@@ -1564,7 +1675,9 @@ class TestIntegrationScenarios:
         assert len(result.style_factor_attributions) == 10
         assert len(result.sector_factor_attributions) == 0
         # 验证因子 PnL = Σ contribution
-        manual_sum = sum(f.contribution_to_pnl for f in result.style_factor_attributions)
+        manual_sum = sum(
+            f.contribution_to_pnl for f in result.style_factor_attributions
+        )
         assert abs(manual_sum - result.factor_pnl) < 1e-6
 
     def test_full_8_sector_attribution(self):
@@ -1644,6 +1757,7 @@ class TestIntegrationScenarios:
     def test_attribution_to_dict_json_serializable(self):
         """归因结果可 JSON 序列化."""
         import json
+
         result = attribute_factors(
             portfolio_exposures={"Size": 0.5, "Beta": 0.3},
             benchmark_exposures={"Size": 0.0, "Beta": 1.0},

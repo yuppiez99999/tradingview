@@ -1,4 +1,5 @@
 """批量获取微信读书书籍详情和章节目录."""
+
 import json
 import os
 import time
@@ -21,18 +22,24 @@ BOOKS = [
     ("3300128060", "行为金融与投资心理学", "诺夫辛格"),
 ]
 
+
 def call_api(payload):
     payload["skill_version"] = SKILL_VER
     body = json.dumps(payload).encode()
-    req = urllib.request.Request(API, data=body, headers={
-        "Authorization": f"Bearer {KEY}",
-        "Content-Type": "application/json",
-    })
+    req = urllib.request.Request(
+        API,
+        data=body,
+        headers={
+            "Authorization": f"Bearer {KEY}",
+            "Content-Type": "application/json",
+        },
+    )
     try:
         resp = urllib.request.urlopen(req, timeout=15)
         return json.loads(resp.read())
     except Exception as e:
         return {"error": str(e)}
+
 
 results = []
 for book_id, short_name, author in BOOKS:
@@ -42,30 +49,34 @@ for book_id, short_name, author in BOOKS:
     ch_list = []
     if "chapters" in chapters:
         for ch in chapters["chapters"][:30]:
-            ch_list.append({
-                "title": ch.get("title"),
-                "level": ch.get("level", 1),
-                "wordCount": ch.get("wordCount"),
-            })
+            ch_list.append(
+                {
+                    "title": ch.get("title"),
+                    "level": ch.get("level", 1),
+                    "wordCount": ch.get("wordCount"),
+                }
+            )
 
-    results.append({
-        "bookId": book_id,
-        "short_name": short_name,
-        "target_author": author,
-        "title": info.get("title"),
-        "author": info.get("author"),
-        "translator": info.get("translator"),
-        "intro": info.get("intro", "")[:500],
-        "category": info.get("category"),
-        "publisher": info.get("publisher"),
-        "publishTime": info.get("publishTime"),
-        "isbn": info.get("isbn"),
-        "wordCount": info.get("wordCount"),
-        "newRating": info.get("newRating"),
-        "newRatingCount": info.get("newRatingCount"),
-        "deepLink": info.get("deepLink"),
-        "chapters": ch_list,
-    })
+    results.append(
+        {
+            "bookId": book_id,
+            "short_name": short_name,
+            "target_author": author,
+            "title": info.get("title"),
+            "author": info.get("author"),
+            "translator": info.get("translator"),
+            "intro": info.get("intro", "")[:500],
+            "category": info.get("category"),
+            "publisher": info.get("publisher"),
+            "publishTime": info.get("publishTime"),
+            "isbn": info.get("isbn"),
+            "wordCount": info.get("wordCount"),
+            "newRating": info.get("newRating"),
+            "newRatingCount": info.get("newRatingCount"),
+            "deepLink": info.get("deepLink"),
+            "chapters": ch_list,
+        }
+    )
     time.sleep(0.5)
 
 print(json.dumps(results, ensure_ascii=False, indent=2))

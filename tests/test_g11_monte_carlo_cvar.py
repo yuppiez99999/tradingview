@@ -44,7 +44,12 @@ def test_mc_cvar_normal_in_plausible_band():
     此处仅校验 MC 正态落在总市值 0.5%~4% 的合理风险区间 (total_value=170000).
     """
     mc = PortfolioRiskAnalyzer.calculate_cvar(
-        _POS, volatility=_VOL, method="monte_carlo", n_paths=200000, dist="normal", seed=42
+        _POS,
+        volatility=_VOL,
+        method="monte_carlo",
+        n_paths=200000,
+        dist="normal",
+        seed=42,
     )
     total = 170000.0
     # 95% 正态 ES 理论值 = sigma*phi(1.645)/0.05 ≈ 4.12% of total (本例 7019)
@@ -86,9 +91,9 @@ def test_student_t_variance_scaling_preserves_vol():
     returns = samples * period_vol
     emp_std = float(np.std(returns))
     # 校正后经验标准差应接近目标 period_vol (容忍 5%)
-    assert abs(emp_std - period_vol) / period_vol < 0.05, (
-        f"方差校正失效: 经验std {emp_std} 偏离目标 {period_vol}"
-    )
+    assert (
+        abs(emp_std - period_vol) / period_vol < 0.05
+    ), f"方差校正失效: 经验std {emp_std} 偏离目标 {period_vol}"
 
 
 def test_student_t_uncorrected_would_inflate_vol():
@@ -98,7 +103,10 @@ def test_student_t_uncorrected_would_inflate_vol():
     rng = np.random.default_rng(42)
     raw = rng.standard_t(dof, size=50000) * _VOL  # 未缩放
     emp_std_raw = float(np.std(raw))
-    assert abs(emp_std_raw - _VOL * expected_inflation) / (_VOL * expected_inflation) < 0.05
+    assert (
+        abs(emp_std_raw - _VOL * expected_inflation) / (_VOL * expected_inflation)
+        < 0.05
+    )
     assert emp_std_raw > _VOL, "未缩放样本标准差应显著大于目标波动率 (即放大风险)"
 
 
@@ -106,6 +114,7 @@ def test_student_t_uncorrected_would_inflate_vol():
 def test_hedge_engine_no_history_uses_mc_cvar():
     """hedge_engine 无历史数据分支应复用 _cvar_monte_carlo, 而非 var*2.0 粗暴近似."""
     from utils.hedge_engine import _WTPortfolioRiskAnalyzer  # noqa: F401
+
     total_value = 170000.0
     vol_30d = 0.05
     # 直接调用 hedge_engine 实际使用的同一调用契约
@@ -130,11 +139,13 @@ def test_load_cvar_config_default_present():
 
 def test_analyze_portfolio_emits_cvar_method():
     """analyze_portfolio 应返回 cvar_method 字段且为 monte_carlo_* 口径."""
-    result = PortfolioRiskAnalyzer().analyze_portfolio(_POS, total_built=100000.0, target=1000000.0)
-    assert "cvar_method" in result
-    assert result["cvar_method"].startswith("monte_carlo"), (
-        f"cvar_method 应为 monte_carlo 口径, 实际 {result['cvar_method']}"
+    result = PortfolioRiskAnalyzer().analyze_portfolio(
+        _POS, total_built=100000.0, target=1000000.0
     )
+    assert "cvar_method" in result
+    assert result["cvar_method"].startswith(
+        "monte_carlo"
+    ), f"cvar_method 应为 monte_carlo 口径, 实际 {result['cvar_method']}"
     assert result["cvar_95"] > 0
 
 
@@ -145,7 +156,9 @@ def test_analyze_portfolio_analytic_fallback_on_bad_config(monkeypatch):
         raise RuntimeError("simulated config failure")
 
     monkeypatch.setattr("utils.wt_risk_control._load_cvar_config", _boom)
-    result = PortfolioRiskAnalyzer().analyze_portfolio(_POS, total_built=100000.0, target=1000000.0)
+    result = PortfolioRiskAnalyzer().analyze_portfolio(
+        _POS, total_built=100000.0, target=1000000.0
+    )
     assert result["cvar_95"] > 0
     assert result["cvar_method"] == "analytic_fallback"
 
@@ -157,9 +170,9 @@ def test_g1_broker_failsafe_to_simulated():
 
     broker = get_broker()
     # 降级目标: 模拟券商, 非 QMT 实盘接口
-    assert type(broker).__name__ == "SimulatedBroker", (
-        f"enabled=false 应降级 SimulatedBroker, 实际 {type(broker).__name__}"
-    )
+    assert (
+        type(broker).__name__ == "SimulatedBroker"
+    ), f"enabled=false 应降级 SimulatedBroker, 实际 {type(broker).__name__}"
     # 不裸实盘: 降级对象绝不应是 QMT 实盘接口
     assert type(broker).__name__ != "QmtBrokerAPI", "禁止裸实盘: 不得装配 QmtBrokerAPI"
 

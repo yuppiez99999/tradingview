@@ -27,6 +27,7 @@ Pre-commit Check (Python 包装器)
     - 静默模式: 仅输出失败项与结论,不刷屏
     - 容错: 自检本身异常时 exit 0,不阻断开发流程
 """
+
 from __future__ import annotations
 
 import os
@@ -48,11 +49,13 @@ if sys.platform == "win32":
     os.environ.setdefault("PYTHONIOENCODING", "utf-8")
     os.environ.setdefault("PYTHONUTF8", "1")
 
+
 # 延迟导入门禁子脚本 (避免 pre-commit 阶段不必要的 import 开销)
 def _import_check_nan_pollution():
     """延迟导入 NaN 守卫检查脚本."""
     try:
         from scripts import check_nan_pollution
+
         return check_nan_pollution
     except ImportError:
         return None
@@ -81,6 +84,7 @@ def main() -> int:
 
     # 跳过条件 2: 环境变量 SKIP_P0_CHECK=1 (紧急提交时使用)
     import os
+
     if os.environ.get("SKIP_P0_CHECK") == "1":
         print("[pre-commit] SKIP_P0_CHECK=1,跳过 P0 自检")
         return 0
@@ -90,7 +94,10 @@ def main() -> int:
     try:
         result = subprocess.run(
             ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
-            capture_output=True, text=True, cwd=str(PROJECT_ROOT), timeout=10,
+            capture_output=True,
+            text=True,
+            cwd=str(PROJECT_ROOT),
+            timeout=10,
         )
         staged_files = [f for f in result.stdout.strip().split("\n") if f]
         if staged_files:
@@ -99,9 +106,20 @@ def main() -> int:
                 for f in staged_files
             )
             if doc_only:
-                print(f"[pre-commit] 仅文档/配置变更 ({len(staged_files)} 文件),跳过 P0 自检")
+                print(
+                    f"[pre-commit] 仅文档/配置变更 ({len(staged_files)} 文件),跳过 P0 自检"
+                )
                 return 0
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"[pre-commit] 检查暂存区异常 (容错继续): {e}", file=sys.stderr)
 
@@ -128,7 +146,16 @@ def main() -> int:
             print("[pre-commit] ✅ 硬编码路径检查通过")
         except subprocess.TimeoutExpired:
             print("[pre-commit] 路径检查超时,容错通过", file=sys.stderr)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             print(f"[pre-commit] 路径检查异常 (容错通过): {e}", file=sys.stderr)
 
@@ -145,12 +172,24 @@ def main() -> int:
             )
             if dangling_result.returncode != 0:
                 print("[pre-commit] 悬挂引用检查失败,阻止提交", file=sys.stderr)
-                print("[pre-commit] 修复方法: 更新 import 路径或归档陈旧测试", file=sys.stderr)
+                print(
+                    "[pre-commit] 修复方法: 更新 import 路径或归档陈旧测试",
+                    file=sys.stderr,
+                )
                 return 1
             print("[pre-commit] 悬挂引用检查通过")
         except subprocess.TimeoutExpired:
             print("[pre-commit] 悬挂引用检查超时,容错通过", file=sys.stderr)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             print(f"[pre-commit] 悬挂引用检查异常 (容错通过): {e}", file=sys.stderr)
 
     # === 第二点五道门禁: P0 文件 print 检查 (CODE_REVIEW_PLAN Task 1.1) ===
@@ -165,7 +204,10 @@ def main() -> int:
             try:
                 diff_result = subprocess.run(
                     ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
-                    capture_output=True, text=True, cwd=str(PROJECT_ROOT), timeout=10,
+                    capture_output=True,
+                    text=True,
+                    cwd=str(PROJECT_ROOT),
+                    timeout=10,
                     env=_utf8_env(),
                 )
                 staged = [f for f in diff_result.stdout.strip().split("\n") if f]
@@ -180,16 +222,32 @@ def main() -> int:
                         env=_utf8_env(),
                     )
                     if p0_result.returncode != 0:
-                        print("[pre-commit] 裸 print 检查失败,阻止提交", file=sys.stderr)
-                        print("[pre-commit] 修复: 改用 logger; 或加 `# allow-print` 豁免; 或 SKIP_P0_PRINT=1 临时跳过", file=sys.stderr)
+                        print(
+                            "[pre-commit] 裸 print 检查失败,阻止提交", file=sys.stderr
+                        )
+                        print(
+                            "[pre-commit] 修复: 改用 logger; 或加 `# allow-print` 豁免; 或 SKIP_P0_PRINT=1 临时跳过",
+                            file=sys.stderr,
+                        )
                         return 1
                     print("[pre-commit] P0 print 检查通过")
                 else:
                     print("[pre-commit] 暂存区无 P0 文件,跳过 P0 print 检查")
             except subprocess.TimeoutExpired:
                 print("[pre-commit] P0 print 检查超时,容错通过", file=sys.stderr)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
-                print(f"[pre-commit] P0 print 检查异常 (容错通过): {e}", file=sys.stderr)
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
+                print(
+                    f"[pre-commit] P0 print 检查异常 (容错通过): {e}", file=sys.stderr
+                )
 
     # === 第三道门禁: P0 启动自检 (--skip-datasource 加速) ===
     check_script = PROJECT_ROOT / "scripts" / "run_p0_startup_check.py"
@@ -209,7 +267,16 @@ def main() -> int:
     except subprocess.TimeoutExpired:
         print("[pre-commit] P0 自检超时 (120s),容错通过", file=sys.stderr)
         return 0
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"[pre-commit] P0 自检异常 (容错通过): {e}", file=sys.stderr)
         return 0
@@ -217,7 +284,9 @@ def main() -> int:
     if exit_code == 0:
         print("[pre-commit] ✅ P0 自检通过")
     else:
-        print(f"[pre-commit] ❌ P0 自检失败 (exit={exit_code}),阻止提交", file=sys.stderr)
+        print(
+            f"[pre-commit] ❌ P0 自检失败 (exit={exit_code}),阻止提交", file=sys.stderr
+        )
         print("[pre-commit] 修复后重试,或临时用 SKIP_P0_CHECK=1 跳过", file=sys.stderr)
         return 1
 
@@ -229,30 +298,55 @@ def main() -> int:
             # 只检查暂存区中的 Python 文件, 避免历史代码阻断提交
             diff_result = subprocess.run(
                 ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
-                capture_output=True, text=True, cwd=str(PROJECT_ROOT), timeout=10,
+                capture_output=True,
+                text=True,
+                cwd=str(PROJECT_ROOT),
+                timeout=10,
                 env=_utf8_env(),
             )
             staged_files = [
-                PROJECT_ROOT / f for f in diff_result.stdout.splitlines()
+                PROJECT_ROOT / f
+                for f in diff_result.stdout.splitlines()
                 if f.endswith(".py") and (PROJECT_ROOT / f).exists()
             ]
             if staged_files:
                 nan_result = subprocess.run(
-                    [sys.executable, str(nan_script), "--files", *[str(f) for f in staged_files]],
+                    [
+                        sys.executable,
+                        str(nan_script),
+                        "--files",
+                        *[str(f) for f in staged_files],
+                    ],
                     cwd=str(PROJECT_ROOT),
                     timeout=60,
                     env=_utf8_env(),
                 )
                 if nan_result.returncode != 0:
-                    print("[pre-commit] ❌ NaN 污染守卫检查失败,阻止提交", file=sys.stderr)
-                    print("[pre-commit] 修复: 为 np.corrcoef / IC 计算添加 nan_to_num / std 检查防护", file=sys.stderr)
+                    print(
+                        "[pre-commit] ❌ NaN 污染守卫检查失败,阻止提交", file=sys.stderr
+                    )
+                    print(
+                        "[pre-commit] 修复: 为 np.corrcoef / IC 计算添加 nan_to_num / std 检查防护",
+                        file=sys.stderr,
+                    )
                     return 1
-                print(f"[pre-commit] NaN 污染守卫检查通过 (检查 {len(staged_files)} 个暂存文件)")
+                print(
+                    f"[pre-commit] NaN 污染守卫检查通过 (检查 {len(staged_files)} 个暂存文件)"
+                )
             else:
                 print("[pre-commit] NaN 污染守卫检查跳过 (无暂存 Python 文件)")
         except subprocess.TimeoutExpired:
             print("[pre-commit] NaN 守卫检查超时,容错通过", file=sys.stderr)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             print(f"[pre-commit] NaN 守卫检查异常 (容错通过): {e}", file=sys.stderr)
     else:
         print("[pre-commit] ⚠️ NaN 守卫检查脚本未找到,跳过", file=sys.stderr)
@@ -265,7 +359,10 @@ def main() -> int:
         print(f"[pre-commit] {skill_msg}")
         if not skill_passed:
             print("[pre-commit] ❌ skill 安全扫描阻断,阻止提交", file=sys.stderr)
-            print("[pre-commit] 修复: 检查 SARIF 报告 critical/high 漏洞; 或 SKIP_SKILL_SCAN=1 临时跳过", file=sys.stderr)
+            print(
+                "[pre-commit] 修复: 检查 SARIF 报告 critical/high 漏洞; 或 SKIP_SKILL_SCAN=1 临时跳过",
+                file=sys.stderr,
+            )
             return 1
     except Exception as e:
         print(f"[pre-commit] skill 安全扫描异常 (容错通过): {e}", file=sys.stderr)

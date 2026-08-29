@@ -31,6 +31,7 @@ from utils.signal_sources.news_intelligence_signal_source import (
 # 辅助: 构造 mock 采集器 / mock LLM
 # ============================================================
 
+
 def make_mock_scraper(articles):
     """构造 mock WebScraper, fetch_news 返回指定文章列表"""
     scraper = MagicMock()
@@ -41,7 +42,9 @@ def make_mock_scraper(articles):
 def make_mock_llm(response_content):
     """构造 mock GLM5Client, chat 返回指定 content"""
     llm = MagicMock()
-    llm.chat = MagicMock(return_value={"content": response_content, "role": "assistant"})
+    llm.chat = MagicMock(
+        return_value={"content": response_content, "role": "assistant"}
+    )
     return llm
 
 
@@ -62,6 +65,7 @@ def make_mock_articles(n=3):
 # ============================================================
 # NewsArticle / NewsIntelligenceReport 不可变性
 # ============================================================
+
 
 class TestNewsArticleImmutable:
     def test_frozen_dataclass(self):
@@ -103,6 +107,7 @@ class TestNewsIntelligenceReportImmutable:
 # resolve_keyword
 # ============================================================
 
+
 class TestResolveKeyword:
     def test_sh_suffix(self):
         assert resolve_keyword("600519.SH") == "600519"
@@ -123,6 +128,7 @@ class TestResolveKeyword:
 # ============================================================
 # NewsIntelligenceEngine — LLM 成功路径
 # ============================================================
+
 
 class TestEngineLLMSuccess:
     def test_llm_returns_valid_json(self):
@@ -197,6 +203,7 @@ class TestEngineLLMSuccess:
 # ============================================================
 # NewsIntelligenceEngine — 降级路径
 # ============================================================
+
 
 class TestEngineFallback:
     def test_empty_code_returns_neutral(self):
@@ -285,6 +292,7 @@ class TestEngineFallback:
 # _extract_json / _to_str_tuple
 # ============================================================
 
+
 class TestExtractJson:
     def test_plain_json(self):
         result = NewsIntelligenceEngine._extract_json('{"score": 0.8}')
@@ -336,16 +344,29 @@ class TestToStrTuple:
 # _convert_to_article
 # ============================================================
 
+
 class TestConvertToArticle:
     def test_dict_input(self):
-        item = {"title": "标题", "content": "内容", "url": "http://x", "source": "源", "published_at": "2026"}
+        item = {
+            "title": "标题",
+            "content": "内容",
+            "url": "http://x",
+            "source": "源",
+            "published_at": "2026",
+        }
         art = NewsIntelligenceEngine._convert_to_article(item)
         assert art is not None
         assert art.title == "标题"
         assert art.content == "内容"
 
     def test_object_input(self):
-        item = MagicMock(title="标题", content="内容", url="http://x", source="源", published_at="2026")
+        item = MagicMock(
+            title="标题",
+            content="内容",
+            url="http://x",
+            source="源",
+            published_at="2026",
+        )
         art = NewsIntelligenceEngine._convert_to_article(item)
         assert art is not None
         assert art.title == "标题"
@@ -360,17 +381,20 @@ class TestConvertToArticle:
 # NewsIntelligenceSignalSource
 # ============================================================
 
+
 class TestNewsIntelligenceSignalSource:
     def test_get_signal_success(self):
         mock_engine = MagicMock()
-        mock_engine.get_report = MagicMock(return_value=NewsIntelligenceReport(
-            code="600519.SH",
-            score=0.8,
-            action="BUY",
-            confidence=0.7,
-            summary="利好",
-            article_count=3,
-        ))
+        mock_engine.get_report = MagicMock(
+            return_value=NewsIntelligenceReport(
+                code="600519.SH",
+                score=0.8,
+                action="BUY",
+                confidence=0.7,
+                summary="利好",
+                article_count=3,
+            )
+        )
         source = NewsIntelligenceSignalSource(engine=mock_engine)
         result = source.get_signal("600519.SH")
 
@@ -394,12 +418,14 @@ class TestNewsIntelligenceSignalSource:
 
     def test_low_confidence_becomes_hold(self):
         mock_engine = MagicMock()
-        mock_engine.get_report = MagicMock(return_value=NewsIntelligenceReport(
-            code="600519.SH",
-            score=0.9,
-            action="BUY",
-            confidence=0.1,
-        ))
+        mock_engine.get_report = MagicMock(
+            return_value=NewsIntelligenceReport(
+                code="600519.SH",
+                score=0.9,
+                action="BUY",
+                confidence=0.1,
+            )
+        )
         source = NewsIntelligenceSignalSource(engine=mock_engine, min_confidence=0.3)
         result = source.get_signal("600519.SH")
 
@@ -418,14 +444,16 @@ class TestNewsIntelligenceSignalSource:
 
     def test_fallback_report_tagged_in_reason(self):
         mock_engine = MagicMock()
-        mock_engine.get_report = MagicMock(return_value=NewsIntelligenceReport(
-            code="600519.SH",
-            score=0.6,
-            action="HOLD",
-            confidence=0.5,
-            summary="词典降级",
-            fallback_used=True,
-        ))
+        mock_engine.get_report = MagicMock(
+            return_value=NewsIntelligenceReport(
+                code="600519.SH",
+                score=0.6,
+                action="HOLD",
+                confidence=0.5,
+                summary="词典降级",
+                fallback_used=True,
+            )
+        )
         source = NewsIntelligenceSignalSource(engine=mock_engine, min_confidence=0.3)
         result = source.get_signal("600519.SH")
 

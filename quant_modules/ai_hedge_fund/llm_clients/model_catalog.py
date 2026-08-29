@@ -64,14 +64,23 @@ _QWEN_MODELS: dict[str, list[ModelOption]] = {
 _MINIMAX_MODELS: dict[str, list[ModelOption]] = {
     "quick": [
         ("MiniMax-M3 - Latest, 1M ctx, native multimodal", "MiniMax-M3"),
-        ("MiniMax-M2.7-highspeed - Fast M2.7, 204K ctx, ~100 TPS", "MiniMax-M2.7-highspeed"),
-        ("MiniMax-M2.5-highspeed - Previous-gen highspeed, 204K ctx", "MiniMax-M2.5-highspeed"),
+        (
+            "MiniMax-M2.7-highspeed - Fast M2.7, 204K ctx, ~100 TPS",
+            "MiniMax-M2.7-highspeed",
+        ),
+        (
+            "MiniMax-M2.5-highspeed - Previous-gen highspeed, 204K ctx",
+            "MiniMax-M2.5-highspeed",
+        ),
         ("Custom model ID", "custom"),
     ],
     "deep": [
         ("MiniMax-M3 - Latest flagship, 1M ctx, multimodal coding/agent", "MiniMax-M3"),
         ("MiniMax-M2.7 - Previous flagship, 204K ctx", "MiniMax-M2.7"),
-        ("MiniMax-M2.7-highspeed - Same quality as M2.7, ~100 TPS", "MiniMax-M2.7-highspeed"),
+        (
+            "MiniMax-M2.7-highspeed - Same quality as M2.7, ~100 TPS",
+            "MiniMax-M2.7-highspeed",
+        ),
         ("MiniMax-M2.5 - Earlier flagship, 204K ctx", "MiniMax-M2.5"),
         ("Custom model ID", "custom"),
     ],
@@ -89,41 +98,77 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-5.5 - Latest frontier, 1M context", "gpt-5.5"),
             ("GPT-5.4 - Previous-gen frontier, 1M context, cost-effective", "gpt-5.4"),
             ("GPT-5.2 - Strong reasoning, cost-effective", "gpt-5.2"),
-            ("GPT-5.5 Pro - Most capable, expensive ($30/$180 per 1M tokens)", "gpt-5.5-pro"),
+            (
+                "GPT-5.5 Pro - Most capable, expensive ($30/$180 per 1M tokens)",
+                "gpt-5.5-pro",
+            ),
         ],
     },
     "anthropic": {
         "quick": [
-            ("Claude Sonnet 5 - Best speed and intelligence balance", "claude-sonnet-5"),
-            ("Claude Haiku 4.5 - Fastest with near-frontier intelligence", "claude-haiku-4-5"),
+            (
+                "Claude Sonnet 5 - Best speed and intelligence balance",
+                "claude-sonnet-5",
+            ),
+            (
+                "Claude Haiku 4.5 - Fastest with near-frontier intelligence",
+                "claude-haiku-4-5",
+            ),
         ],
         "deep": [
             ("Claude Fable 5 - Most capable, long-running agents", "claude-fable-5"),
-            ("Claude Opus 4.8 - Frontier agentic coding and reasoning", "claude-opus-4-8"),
-            ("Claude Sonnet 5 - Near-frontier intelligence at Sonnet cost", "claude-sonnet-5"),
-            ("Claude Opus 4.7 - Previous frontier, long-running agents", "claude-opus-4-7"),
+            (
+                "Claude Opus 4.8 - Frontier agentic coding and reasoning",
+                "claude-opus-4-8",
+            ),
+            (
+                "Claude Sonnet 5 - Near-frontier intelligence at Sonnet cost",
+                "claude-sonnet-5",
+            ),
+            (
+                "Claude Opus 4.7 - Previous frontier, long-running agents",
+                "claude-opus-4-7",
+            ),
         ],
     },
     "google": {
         "quick": [
-            ("Gemini 3.5 Flash - Latest, frontier agentic + coding (GA)", "gemini-3.5-flash"),
+            (
+                "Gemini 3.5 Flash - Latest, frontier agentic + coding (GA)",
+                "gemini-3.5-flash",
+            ),
             ("Gemini 3.1 Flash Lite - Most cost-efficient", "gemini-3.1-flash-lite"),
         ],
         "deep": [
-            ("Gemini 3.1 Pro - Reasoning-first, complex workflows (preview)", "gemini-3.1-pro-preview"),
-            ("Gemini 3.5 Flash - Latest GA, strong agentic + coding", "gemini-3.5-flash"),
+            (
+                "Gemini 3.1 Pro - Reasoning-first, complex workflows (preview)",
+                "gemini-3.1-pro-preview",
+            ),
+            (
+                "Gemini 3.5 Flash - Latest GA, strong agentic + coding",
+                "gemini-3.5-flash",
+            ),
         ],
     },
     "xai": {
         "quick": [
             ("Grok 4.3 - Latest flagship, fast with built-in reasoning", "grok-4.3"),
-            ("Grok 4.20 (Non-Reasoning) - Speed-optimized", "grok-4.20-0309-non-reasoning"),
+            (
+                "Grok 4.20 (Non-Reasoning) - Speed-optimized",
+                "grok-4.20-0309-non-reasoning",
+            ),
             ("Grok Build 0.1 - Coding-specialized, 256K ctx", "grok-build-0.1"),
         ],
         "deep": [
             ("Grok 4.3 - Latest flagship, built-in reasoning, 1M ctx", "grok-4.3"),
-            ("Grok 4.20 (Reasoning) - Previous-gen reasoning", "grok-4.20-0309-reasoning"),
-            ("Grok 4.20 Multi-Agent - Multi-agent reasoning", "grok-4.20-multi-agent-0309"),
+            (
+                "Grok 4.20 (Reasoning) - Previous-gen reasoning",
+                "grok-4.20-0309-reasoning",
+            ),
+            (
+                "Grok 4.20 Multi-Agent - Multi-agent reasoning",
+                "grok-4.20-multi-agent-0309",
+            ),
         ],
     },
     # DeepSeek: the deepseek-chat / deepseek-reasoner aliases are deprecated
@@ -132,7 +177,10 @@ MODEL_OPTIONS: ProviderModeOptions = {
     # handles the reasoning_content round-trip).
     "deepseek": {
         "quick": [
-            ("DeepSeek V4 Flash - Latest fast model, thinking + non-thinking", "deepseek-v4-flash"),
+            (
+                "DeepSeek V4 Flash - Latest fast model, thinking + non-thinking",
+                "deepseek-v4-flash",
+            ),
             ("Custom model ID", "custom"),
         ],
         "deep": [
@@ -200,11 +248,7 @@ def get_known_models() -> dict[str, list[str]]:
     """Build known model names from the shared CLI catalog."""
     return {
         provider: sorted(
-            {
-                value
-                for options in mode_options.values()
-                for _, value in options
-            }
+            {value for options in mode_options.values() for _, value in options}
         )
         for provider, mode_options in MODEL_OPTIONS.items()
     }

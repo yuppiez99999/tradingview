@@ -3,6 +3,7 @@
 被测模块: tests/eval/ranking_loss_eval.py
 文献: #59 CIKM 2025
 """
+
 from __future__ import annotations
 
 import sys
@@ -31,6 +32,7 @@ from tests.eval.ranking_loss_eval import (  # noqa: E402
 # ============================================================
 # 排序指标测试
 # ============================================================
+
 
 class TestRankingMetrics:
     def test_dcg_at_k(self):
@@ -68,6 +70,7 @@ class TestRankingMetrics:
 # Pointwise 损失测试
 # ============================================================
 
+
 class TestPointwiseLoss:
     def test_compute(self):
         scores = np.array([0.5, 0.3, 0.8])
@@ -96,6 +99,7 @@ class TestPointwiseLoss:
 # Pairwise 损失测试
 # ============================================================
 
+
 class TestPairwiseLoss:
     def test_compute(self):
         scores = np.array([0.5, 0.3, 0.8])
@@ -116,6 +120,7 @@ class TestPairwiseLoss:
 # Listwise 损失测试
 # ============================================================
 
+
 class TestListwiseLoss:
     def test_compute(self):
         scores = np.array([0.5, 0.3, 0.8])
@@ -135,6 +140,7 @@ class TestListwiseLoss:
 # ============================================================
 # 评估器测试
 # ============================================================
+
 
 class TestRankingLossEvaluator:
     def test_generate_data(self):
@@ -171,6 +177,7 @@ class TestRankingLossEvaluator:
 # ============================================================
 # 验收标准测试
 # ============================================================
+
 
 class TestAcceptanceCriteria:
     """LIT-5.5 验收: pointwise/pairwise/listwise 对比 + 选最优."""

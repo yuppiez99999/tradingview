@@ -7,6 +7,7 @@
     - net_return() 净收益
     - DEFAULT_COST_MODEL / get_cost_model()
 """
+
 from __future__ import annotations
 
 import pytest
@@ -97,17 +98,23 @@ class TestBreakdown:
         c = CostAssumption()
         bd = c.breakdown()
         assert bd["commission"] == pytest.approx(0.0048)  # 48/10000
-        assert bd["stamp_duty"] == pytest.approx(0.003)   # 30/10000
-        assert bd["market_impact"] == pytest.approx(0.012) # 120/10000
-        assert bd["option_overlay"] == pytest.approx(0.003) # 30/10000
-        assert bd["futures_basis"] == pytest.approx(0.0015) # 15/10000
+        assert bd["stamp_duty"] == pytest.approx(0.003)  # 30/10000
+        assert bd["market_impact"] == pytest.approx(0.012)  # 120/10000
+        assert bd["option_overlay"] == pytest.approx(0.003)  # 30/10000
+        assert bd["futures_basis"] == pytest.approx(0.0015)  # 15/10000
         assert bd["total"] == pytest.approx(0.0243)
 
     @pytest.mark.unit
     def test_breakdown_sums_to_total(self):
         c = CostAssumption()
         bd = c.breakdown()
-        parts = bd["commission"] + bd["stamp_duty"] + bd["market_impact"] + bd["option_overlay"] + bd["futures_basis"]
+        parts = (
+            bd["commission"]
+            + bd["stamp_duty"]
+            + bd["market_impact"]
+            + bd["option_overlay"]
+            + bd["futures_basis"]
+        )
         assert parts == pytest.approx(bd["total"])
 
 

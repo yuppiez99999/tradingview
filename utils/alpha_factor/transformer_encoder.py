@@ -36,7 +36,11 @@ try:  # pragma: no cover - 依赖环境差异
     torch = _torch_impl
     nn = _torch_nn_impl
     _TORCH_AVAILABLE = True
-except (ImportError, OSError, AttributeError):  # pragma: no cover - torch 不装/DLL 加载失败/部分初始化也不影响主流程
+except (
+    ImportError,
+    OSError,
+    AttributeError,
+):  # pragma: no cover - torch 不装/DLL 加载失败/部分初始化也不影响主流程
     torch = None
     nn = None
 
@@ -49,6 +53,7 @@ except (ImportError, OSError, AttributeError):  # pragma: no cover - torch 不�
 @dataclass
 class FactorEncodingResult:
     """因子编码输出 (与 torch / numpy 模式解耦)"""
+
     # Z ∈ R^{N × D} — 每只股票的 embedding (行对应 stocks 顺序)
     embeddings: np.ndarray
     # 股票顺序列表 (与 embeddings 行号对齐)
@@ -77,8 +82,15 @@ class NumpyFactorEncoder:
         + LayerNorm
     """
 
-    def __init__(self, n_factors: int, d_model: int = 64, n_heads: int = 4,
-                 n_layers: int = 2, dropout: float = 0.1, seed: int = 42):
+    def __init__(
+        self,
+        n_factors: int,
+        d_model: int = 64,
+        n_heads: int = 4,
+        n_layers: int = 2,
+        dropout: float = 0.1,
+        seed: int = 42,
+    ):
         self.n_factors = int(n_factors)
         self.d_model = int(d_model)
         self.n_heads = int(n_heads)
@@ -107,14 +119,16 @@ class NumpyFactorEncoder:
     def _gelu(x: np.ndarray) -> np.ndarray:
         # 近似 GELU: 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
         c = np.sqrt(2.0 / np.pi)
-        return 0.5 * x * (1.0 + np.tanh(c * (x + 0.044715 * (x ** 3))))
+        return 0.5 * x * (1.0 + np.tanh(c * (x + 0.044715 * (x**3))))
 
     # ------------------------------------------------------------
-    def _self_attn_shadow(self, Z: np.ndarray) -> tuple[np.ndarray, Optional[np.ndarray]]:
+    def _self_attn_shadow(
+        self, Z: np.ndarray
+    ) -> tuple[np.ndarray, Optional[np.ndarray]]:
         """N×D 影子自注意力: QKV 近似 + softmax + 残差"""
         qkv = Z @ self.W_qkv  # [N, 3D]
         D = self.d_model
-        Q, K, V = qkv[:, :D], qkv[:, D: 2 * D], qkv[:, 2 * D:]
+        Q, K, V = qkv[:, :D], qkv[:, D : 2 * D], qkv[:, 2 * D :]
         # 单头 (影子模式不拆头, 保持可运行)
         dk = max(1, int(np.sqrt(D)))
         scores = Q @ K.T / dk  # [N, N]
@@ -126,14 +140,18 @@ class NumpyFactorEncoder:
         return out, attn
 
     # ------------------------------------------------------------
-    def encode(self, factor_matrix: np.ndarray) -> tuple[np.ndarray, Optional[np.ndarray]]:
+    def encode(
+        self, factor_matrix: np.ndarray
+    ) -> tuple[np.ndarray, Optional[np.ndarray]]:
         """前向编码: X ∈ R^{N×F} → Z ∈ R^{N×D}"""
         N, F = factor_matrix.shape
         if self.n_factors != F:
             raise ValueError(
                 f"输入因子维度 {F} 与编码器 n_factors={self.n_factors} 不匹配"
             )
-        X = np.nan_to_num(factor_matrix, nan=0.0, posinf=3.0, neginf=-3.0).astype(np.float64)
+        X = np.nan_to_num(factor_matrix, nan=0.0, posinf=3.0, neginf=-3.0).astype(
+            np.float64
+        )
 
         # 投影
         Z = self._layernorm(X @ self.W_proj + self.b_proj)
@@ -164,15 +182,23 @@ if _TORCH_AVAILABLE:  # pragma: no cover - 仅当环境装了 torch 才走这条
         - 与 EigenAlpha FactorEncoder 基本一致, 但去掉 PositionEncode (截面因子无时序位置)
         """
 
-        def __init__(self, n_factors: int, d_model: int = 64, n_heads: int = 4,
-                     n_layers: int = 2, dropout: float = 0.1):
+        def __init__(
+            self,
+            n_factors: int,
+            d_model: int = 64,
+            n_heads: int = 4,
+            n_layers: int = 2,
+            dropout: float = 0.1,
+        ):
             super().__init__()
             self.n_factors = int(n_factors)
             self.d_model = int(d_model)
             self.proj = nn.Linear(self.n_factors, d_model)
             enc_layer = nn.TransformerEncoderLayer(
-                d_model=d_model, nhead=n_heads,
-                dim_feedforward=d_model * 4, dropout=dropout,
+                d_model=d_model,
+                nhead=n_heads,
+                dim_feedforward=d_model * 4,
+                dropout=dropout,
                 batch_first=True,
             )
             self.encoder = nn.TransformerEncoder(enc_layer, num_layers=n_layers)
@@ -259,8 +285,11 @@ def factors_to_matrix(
             except (TypeError, ValueError):
                 per_factor_syms[fname] = set()
                 continue
-        s_set = {str(s) for s, v in sym_map.items()
-                 if v is not None and isinstance(v, (int, float)) and np.isfinite(v)}
+        s_set = {
+            str(s)
+            for s, v in sym_map.items()
+            if v is not None and isinstance(v, (int, float)) and np.isfinite(v)
+        }
         per_factor_syms[fname] = s_set
         if stocks is None:
             all_symbols.update(s_set)
@@ -324,8 +353,12 @@ def encode_factor_frame(
     N, F = X.shape
     if encoder is None:
         encoder = build_factor_encoder(
-            n_factors=F, d_model=d_model, n_heads=n_heads,
-            n_layers=n_layers, force_backend=force_backend, seed=seed,
+            n_factors=F,
+            d_model=d_model,
+            n_heads=n_heads,
+            n_layers=n_layers,
+            force_backend=force_backend,
+            seed=seed,
         )
 
     # 输入若为空矩阵 (无股票或无因子) → 空输出
@@ -346,9 +379,12 @@ def encode_factor_frame(
         if encoder.n_factors != F:
             # 重新构建匹配维度的 numpy encoder (保持 seed 一致)
             encoder = NumpyFactorEncoder(
-                n_factors=F, d_model=encoder.d_model,
-                n_heads=encoder.n_heads, n_layers=encoder.n_layers,
-                dropout=encoder.dropout, seed=seed,
+                n_factors=F,
+                d_model=encoder.d_model,
+                n_heads=encoder.n_heads,
+                n_layers=encoder.n_layers,
+                dropout=encoder.dropout,
+                seed=seed,
             )
         emb, attn = encoder.encode(X)
     else:  # torch 编码器

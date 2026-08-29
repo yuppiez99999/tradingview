@@ -15,6 +15,7 @@
 运行:
     python scripts/run_200w_etf_backtest.py
 """
+
 from __future__ import annotations
 
 import json
@@ -84,7 +85,9 @@ def _build_weight_map(config: dict) -> dict[str, float]:
     return weights
 
 
-def _compute_metrics(equity: np.ndarray, name: str, hedge_cost: float = 0.0) -> StrategyResult:
+def _compute_metrics(
+    equity: np.ndarray, name: str, hedge_cost: float = 0.0
+) -> StrategyResult:
     """计算性能指标."""
     if len(equity) < 2:
         return StrategyResult(name=name)
@@ -116,7 +119,9 @@ def _compute_metrics(equity: np.ndarray, name: str, hedge_cost: float = 0.0) -> 
     )
 
 
-def _bs_put_price(spot: float, strike: float, t: float, r: float = 0.02, sigma: float = 0.25) -> float:
+def _bs_put_price(
+    spot: float, strike: float, t: float, r: float = 0.02, sigma: float = 0.25
+) -> float:
     """Black-Scholes 认沽期权定价."""
     if t <= 0:
         return max(strike - spot, 0.0)
@@ -128,7 +133,9 @@ def _bs_put_price(spot: float, strike: float, t: float, r: float = 0.02, sigma: 
     return max(put, 0.0001)
 
 
-def _bs_call_price(spot: float, strike: float, t: float, r: float = 0.02, sigma: float = 0.25) -> float:
+def _bs_call_price(
+    spot: float, strike: float, t: float, r: float = 0.02, sigma: float = 0.25
+) -> float:
     """Black-Scholes 认购期权定价."""
     if t <= 0:
         return max(spot - strike, 0.0)
@@ -183,7 +190,7 @@ def _run_backtest(
         daily_hedge_ret = annual_hedge_pct / _TRADING_DAYS
         hedge_cost = total_capital * annual_hedge_pct * (n_days / _TRADING_DAYS)
         for i in range(1, n_days):
-            equity[i] *= (1 - daily_hedge_ret)
+            equity[i] *= 1 - daily_hedge_ret
 
     return _compute_metrics(equity, strategy_name, hedge_cost)
 
@@ -221,51 +228,57 @@ def _generate_report(
             f"{r.win_rate:.1%} | {r.hedge_cost_annual_pct:.2%} |"
         )
 
-    lines.extend([
-        "",
-        "## 2. 详细指标",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 2. 详细指标",
+            "",
+        ]
+    )
 
     for r in results:
-        lines.extend([
-            f"### {r.name}",
-            f"- 总收益率: {r.total_return:.2%}",
-            f"- 年化收益: {r.annual_return:.2%}",
-            f"- 年化波动: {r.annual_volatility:.2%}",
-            f"- 夏普比率: {r.sharpe_ratio:.3f}",
-            f"- 最大回撤: {r.max_drawdown:.2%}",
-            f"- Calmar比率: {r.calmar_ratio:.3f}",
-            f"- 日胜率: {r.win_rate:.1%}",
-            f"- 对冲成本总计: {r.hedge_cost_total:,.0f} 元",
-            f"- 对冲成本/年: {r.hedge_cost_annual_pct:.2%}",
-            "",
-        ])
+        lines.extend(
+            [
+                f"### {r.name}",
+                f"- 总收益率: {r.total_return:.2%}",
+                f"- 年化收益: {r.annual_return:.2%}",
+                f"- 年化波动: {r.annual_volatility:.2%}",
+                f"- 夏普比率: {r.sharpe_ratio:.3f}",
+                f"- 最大回撤: {r.max_drawdown:.2%}",
+                f"- Calmar比率: {r.calmar_ratio:.3f}",
+                f"- 日胜率: {r.win_rate:.1%}",
+                f"- 对冲成本总计: {r.hedge_cost_total:,.0f} 元",
+                f"- 对冲成本/年: {r.hedge_cost_annual_pct:.2%}",
+                "",
+            ]
+        )
 
     best = max(results, key=lambda r: r.sharpe_ratio)
-    lines.extend([
-        "## 3. 结论",
-        "",
-        f"- **最优策略**: {best.name} (夏普 {best.sharpe_ratio:.3f})",
-        f"- **年化收益**: {best.annual_return:.2%}",
-        f"- **最大回撤**: {best.max_drawdown:.2%}",
-        f"- **对冲成本/年**: {best.hedge_cost_annual_pct:.2%}",
-        "",
-        "## 4. 配置摘要",
-        "",
-        f"- 核心仓: {len(config.get('core_holdings', []))} 只ETF",
-        f"- 卫星仓: {len(config.get('satellite_holdings', []))} 只ETF",
-        f"- 现金仓: {len(config.get('cash_holdings', []))} 只ETF",
-        "- 期权策略: Protective Put + Covered Call + Tail Protection",
-        "- 定价模型: Black-Scholes",
-        "",
-        "## 5. 声明",
-        "",
-        "- 本回测使用BS模型估算期权成本, 未接入真实期权市场数据.",
-        "- 回测结果仅供参考, 不构成投资建议.",
-        "- 后续 Phase 3 将接入影子账户验证.",
-        "",
-    ])
+    lines.extend(
+        [
+            "## 3. 结论",
+            "",
+            f"- **最优策略**: {best.name} (夏普 {best.sharpe_ratio:.3f})",
+            f"- **年化收益**: {best.annual_return:.2%}",
+            f"- **最大回撤**: {best.max_drawdown:.2%}",
+            f"- **对冲成本/年**: {best.hedge_cost_annual_pct:.2%}",
+            "",
+            "## 4. 配置摘要",
+            "",
+            f"- 核心仓: {len(config.get('core_holdings', []))} 只ETF",
+            f"- 卫星仓: {len(config.get('satellite_holdings', []))} 只ETF",
+            f"- 现金仓: {len(config.get('cash_holdings', []))} 只ETF",
+            "- 期权策略: Protective Put + Covered Call + Tail Protection",
+            "- 定价模型: Black-Scholes",
+            "",
+            "## 5. 声明",
+            "",
+            "- 本回测使用BS模型估算期权成本, 未接入真实期权市场数据.",
+            "- 回测结果仅供参考, 不构成投资建议.",
+            "- 后续 Phase 3 将接入影子账户验证.",
+            "",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -304,12 +317,31 @@ def main() -> None:
 
     results = [
         _run_backtest(prices, bt_weights, config, "S1: 无对冲"),
-        _run_backtest(prices, bt_weights, config, "S2: 仅Protective Put", use_protective_put=True),
-        _run_backtest(prices, bt_weights, config, "S3: Put+Covered Call", use_protective_put=True, use_covered_call=True),
-        _run_backtest(prices, bt_weights, config, "S4: Put+Call+Tail", use_protective_put=True, use_covered_call=True, use_tail_protection=True),
+        _run_backtest(
+            prices, bt_weights, config, "S2: 仅Protective Put", use_protective_put=True
+        ),
+        _run_backtest(
+            prices,
+            bt_weights,
+            config,
+            "S3: Put+Covered Call",
+            use_protective_put=True,
+            use_covered_call=True,
+        ),
+        _run_backtest(
+            prices,
+            bt_weights,
+            config,
+            "S4: Put+Call+Tail",
+            use_protective_put=True,
+            use_covered_call=True,
+            use_tail_protection=True,
+        ),
     ]
     for r in results:
-        print(f"  {r.name}: 年化{r.annual_return:.2%} 夏普{r.sharpe_ratio:.3f} 回撤{r.max_drawdown:.2%}")
+        print(
+            f"  {r.name}: 年化{r.annual_return:.2%} 夏普{r.sharpe_ratio:.3f} 回撤{r.max_drawdown:.2%}"
+        )
 
     print("\n[4] 生成报告...")
     _REPORT_DIR.mkdir(parents=True, exist_ok=True)

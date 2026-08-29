@@ -48,9 +48,12 @@ class TestOptimizerInit:
 
     def test_custom(self):
         opt = InstitutionalPortfolioOptimizer(
-            total_capital=1_000_000, max_weight=0.25,
-            max_sector_concentration=0.40, max_turnover=0.30,
-            risk_aversion=2.0, min_position_weight=0.02,
+            total_capital=1_000_000,
+            max_weight=0.25,
+            max_sector_concentration=0.40,
+            max_turnover=0.30,
+            risk_aversion=2.0,
+            min_position_weight=0.02,
         )
         assert opt.total_capital == 1_000_000.0
         assert opt.max_weight == 0.25
@@ -75,7 +78,10 @@ class TestOptimize:
         opt = InstitutionalPortfolioOptimizer()
         decision = opt.optimize(
             expected_returns={"A": 0.10, "B": 0.05},
-            current_positions={"A": {"shares": 100, "cost_price": 50}, "B": {"shares": 200, "cost_price": 30}},
+            current_positions={
+                "A": {"shares": 100, "cost_price": 50},
+                "B": {"shares": 200, "cost_price": 30},
+            },
         )
         assert len(decision.target_weights) == 2
 
@@ -95,7 +101,10 @@ class TestOptimize:
         opt = InstitutionalPortfolioOptimizer()
         decision = opt.optimize(
             expected_returns={"A": 0.10, "B": 0.05},
-            current_positions={"A": {"shares": 100, "cost_price": 50}, "B": {"shares": 200, "cost_price": 30}},
+            current_positions={
+                "A": {"shares": 100, "cost_price": 50},
+                "B": {"shares": 200, "cost_price": 30},
+            },
         )
         assert isinstance(decision.trades, list)
 
@@ -141,7 +150,10 @@ class TestCurrentWeights:
 
     def test_with_positions(self):
         opt = InstitutionalPortfolioOptimizer()
-        positions = {"A": {"shares": 100, "cost_price": 50}, "B": {"shares": 200, "cost_price": 25}}
+        positions = {
+            "A": {"shares": 100, "cost_price": 50},
+            "B": {"shares": 200, "cost_price": 25},
+        }
         result = opt._current_weights(["A", "B"], positions)
         total = result.sum()
         assert total == pytest.approx(1.0)

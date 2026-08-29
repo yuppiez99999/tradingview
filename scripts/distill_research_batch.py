@@ -126,15 +126,20 @@ def main() -> int:
         description="研究内容蒸馏离线批处理 (cangjie-skill RIA--TV++ 量化版)",
     )
     parser.add_argument(
-        "--date", type=str, default=None,
+        "--date",
+        type=str,
+        default=None,
         help="交易日期 YYYY-MM-DD 或 YYYYMMDD, 默认今日",
     )
     parser.add_argument(
-        "--input-dir", type=str, default=None,
+        "--input-dir",
+        type=str,
+        default=None,
         help="研究输入目录, 默认 data/research_inputs/",
     )
     parser.add_argument(
-        "--verbose", action="store_true",
+        "--verbose",
+        action="store_true",
         help="显示 DEBUG 日志",
     )
     args = parser.parse_args()
@@ -144,7 +149,8 @@ def main() -> int:
 
     trade_date = args.date or datetime.now().strftime("%Y-%m-%d")
     input_dir = (
-        Path(args.input_dir) if args.input_dir
+        Path(args.input_dir)
+        if args.input_dir
         else (_PROJECT_ROOT / "data" / "research_inputs")
     )
 
@@ -158,7 +164,16 @@ def main() -> int:
     # 延迟导入, 避免日志配置前导入触发默认日志
     try:
         from utils.research_distiller import DistilledSignal, ResearchDistiller
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.info(f"[FATAL] 无法导入 ResearchDistiller: {e}")
         logger.error("导入 ResearchDistiller 失败: %s", e, exc_info=True)
@@ -166,14 +181,25 @@ def main() -> int:
 
     try:
         distiller = ResearchDistiller()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.info(f"[FATAL] ResearchDistiller 初始化失败: {e}")
         logger.error("ResearchDistiller 初始化失败: %s", e, exc_info=True)
         return 1
 
-    print(f"\n[1/4] ResearchDistiller 初始化: LLM={distiller.llm_available}, "
-          f"名称词典={len(distiller._name_to_symbol)}")
+    print(
+        f"\n[1/4] ResearchDistiller 初始化: LLM={distiller.llm_available}, "
+        f"名称词典={len(distiller._name_to_symbol)}"
+    )
 
     # 扫描输入
     categories = scan_research_inputs(input_dir)
@@ -191,8 +217,19 @@ def main() -> int:
             if str(empty_path):
                 logger.info(f"\n[4/4] 空快照已保存: {empty_path}")
             else:
-                logger.info("\n[4/4] 空快照保存失败 (非致命, daily_workflow 会 fail-closed)")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                logger.info(
+                    "\n[4/4] 空快照保存失败 (非致命, daily_workflow 会 fail-closed)"
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("保存空快照失败 (非致命): %s", e)
         return 0
@@ -206,7 +243,16 @@ def main() -> int:
             sigs = distiller.distill_report(pdf_path)
             all_signals.extend(sigs)
             logger.info("  → 提取 %d 个信号", len(sigs))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("研报蒸馏失败 (%s): %s", pdf_path, e)
 
@@ -216,13 +262,24 @@ def main() -> int:
             transcript = txt_path.read_text(encoding="utf-8", errors="ignore")
             symbol = parse_symbol_from_earnings_filename(txt_path.name)
             if not symbol:
-                logger.warning("业绩会纪要文件名无法解析 symbol, 跳过: %s", txt_path.name)
+                logger.warning(
+                    "业绩会纪要文件名无法解析 symbol, 跳过: %s", txt_path.name
+                )
                 continue
             logger.info("蒸馏业绩会: %s (symbol=%s)", txt_path.name, symbol)
             sigs = distiller.distill_earnings_call(transcript, symbol)
             all_signals.extend(sigs)
             logger.info("  → 提取 %d 个信号", len(sigs))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("业绩会蒸馏失败 (%s): %s", txt_path, e)
 
@@ -233,7 +290,16 @@ def main() -> int:
             sigs = distiller.distill_book_chapter(md_path)
             all_signals.extend(sigs)
             logger.info("  → 提取 %d 个信号", len(sigs))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("书籍蒸馏失败 (%s): %s", md_path, e)
 
@@ -249,7 +315,16 @@ def main() -> int:
             sigs = distiller.distill_news_batch(news_items)
             all_signals.extend(sigs)
             logger.info("  → 提取 %d 个信号", len(sigs))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("新闻蒸馏失败 (%s): %s", json_path, e)
 
@@ -272,7 +347,16 @@ def main() -> int:
             logger.info("  ✗ 保存失败, 详见日志")
             logger.error("保存快照失败 (output_path=%s)", output_path)
             return 1
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.error("保存快照异常: %s", e, exc_info=True)
         return 1

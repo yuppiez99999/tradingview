@@ -15,6 +15,7 @@
     dd = DrawdownReader().get_current_drawdown()
     # dd = 0.0352 表示当前回撤 3.52% (正数); None 表示数据不可用
 """
+
 from __future__ import annotations
 
 import json
@@ -105,7 +106,8 @@ class DrawdownReader:
                 current_nav = nav_values[-1]
                 logger.debug(
                     "回撤数据: peak=%.6f, current=%.6f, drawdown=%.4f%%",
-                    peak_nav, current_nav,
+                    peak_nav,
+                    current_nav,
                     (peak_nav - current_nav) / peak_nav * 100 if peak_nav > 0 else 0,
                 )
                 return (peak_nav, current_nav)
@@ -116,7 +118,9 @@ class DrawdownReader:
                 try:
                     current = float(current_nav_field)
                     # 无历史 nav 时, peak = current (回撤 = 0)
-                    logger.debug("daily_nav 为空, 从 current_nav 备选读取: %.6f", current)
+                    logger.debug(
+                        "daily_nav 为空, 从 current_nav 备选读取: %.6f", current
+                    )
                     return (current, current)
                 except (TypeError, ValueError):
                     pass

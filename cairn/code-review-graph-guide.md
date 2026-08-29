@@ -47,3 +47,14 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes_tool` for code review.
 3. Use `get_affected_flows_tool` to understand impact.
 4. Use `query_graph_tool` pattern="tests_for" to check coverage.
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [docs/1 八项目集成 — Sprint A 知识专题](docs1-integration-sprint-a-20260817.md) (相似度 8%)
+- [第三方项目集成专题 — 2026-08-21](third-party-integration-20260821.md) (相似度 6%)
+- [代码质量提升外部资源评估](code-quality-external-resources-20260821.md) (相似度 6%)
+- [开发工作流自动化 (Dev Workflow Automation)](dev-workflow-automation.md) (相似度 5%)
+- [代码架构与模块导航](architecture-map.md) (相似度 4%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

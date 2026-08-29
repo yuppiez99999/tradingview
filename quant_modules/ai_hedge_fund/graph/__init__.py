@@ -23,11 +23,19 @@ __all__ = [
 
 def __getattr__(name: str):
     """懒加载 checkpointer / reflection (依赖 langgraph-checkpoint-sqlite)."""
-    if name in ("get_checkpointer", "has_checkpoint", "checkpoint_step",
-                "clear_checkpoint", "clear_all_checkpoints", "thread_id"):
+    if name in (
+        "get_checkpointer",
+        "has_checkpoint",
+        "checkpoint_step",
+        "clear_checkpoint",
+        "clear_all_checkpoints",
+        "thread_id",
+    ):
         from quant_modules.ai_hedge_fund.graph import checkpointer as _cp
+
         return getattr(_cp, name)
     if name == "Reflector":
         from quant_modules.ai_hedge_fund.graph.reflection import Reflector as _R
+
         return _R
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

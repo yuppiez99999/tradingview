@@ -8,6 +8,7 @@
 
 不覆盖: 真实 schtasks 集成测试 (需 Windows 任务计划程序环境)
 """
+
 from __future__ import annotations
 
 import json
@@ -151,10 +152,15 @@ class TestTranslateTaskResult(unittest.TestCase):
     """测试 schtasks 状态码翻译 — 用于告警上下文"""
 
     def test_translate_never_run(self):
-        self.assertEqual(wd.translate_task_result("267011"), "SCHED_E_TASK_HAS_NOT_RUN (任务从未运行)")
+        self.assertEqual(
+            wd.translate_task_result("267011"),
+            "SCHED_E_TASK_HAS_NOT_RUN (任务从未运行)",
+        )
 
     def test_translate_running(self):
-        self.assertEqual(wd.translate_task_result("267009"), "SCHED_E_TASK_IS_RUNNING (任务正在运行)")
+        self.assertEqual(
+            wd.translate_task_result("267009"), "SCHED_E_TASK_IS_RUNNING (任务正在运行)"
+        )
 
     def test_translate_success(self):
         self.assertEqual(wd.translate_task_result("0"), "成功")

@@ -2,11 +2,11 @@ import os
 import sys
 
 base = os.path.abspath(r"..\..\15_每日工作流")
-print('cwd=', os.getcwd())
-print('insert=', base)
-print('exists=', os.path.isdir(base))
+print("cwd=", os.getcwd())
+print("insert=", base)
+print("exists=", os.path.isdir(base))
 sys.path.insert(0, base)
-print('sys.path=', sys.path[:3])
+print("sys.path=", sys.path[:3])
 
 from morning_market_fetcher import (  # noqa: E402
     _fetch_sina_coal_price,

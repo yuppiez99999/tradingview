@@ -175,11 +175,17 @@ class GreekHedgeManager:
         iv_ratio_mult = 1.0 / max(iv_ratio, 0.5)
 
         term_ratio = iv.front_month_iv / max(iv.second_month_iv, 0.01)
-        term_mult = (1.0 + (1.0 - term_ratio) * 0.5) if term_ratio <= 1.0 else (1.0 / term_ratio)
+        term_mult = (
+            (1.0 + (1.0 - term_ratio) * 0.5)
+            if term_ratio <= 1.0
+            else (1.0 / term_ratio)
+        )
 
         skew = iv.put_25d_iv - iv.call_25d_iv
         normal_skew = 0.04
-        skew_mult = 1.0 if skew <= normal_skew else 1.0 / (1.0 + (skew - normal_skew) * 10)
+        skew_mult = (
+            1.0 if skew <= normal_skew else 1.0 / (1.0 + (skew - normal_skew) * 10)
+        )
 
         composite = max(0.3, min(1.5, iv_ratio_mult * term_mult * skew_mult))
 
@@ -198,7 +204,9 @@ class GreekHedgeManager:
             "dynamic": True,
         }
 
-    def _bs_d1_d2(self, S: float, K: float, T: float, r: float, sigma: float) -> tuple[float, float]:
+    def _bs_d1_d2(
+        self, S: float, K: float, T: float, r: float, sigma: float
+    ) -> tuple[float, float]:
         """计算 Black-Scholes d1 和 d2"""
         if T <= 0 or sigma <= 0 or S <= 0:
             return 0.0, 0.0
@@ -207,7 +215,9 @@ class GreekHedgeManager:
         d2 = d1 - sigma * sqrt_T
         return d1, d2
 
-    def _bs_delta(self, S: float, K: float, T: float, r: float, sigma: float, call: bool = True) -> float:
+    def _bs_delta(
+        self, S: float, K: float, T: float, r: float, sigma: float, call: bool = True
+    ) -> float:
         """计算期权 Delta
 
         与 _bs_gamma/_bs_theta/_bs_vega/_bs_rho 一致: 无效输入 (S<=0/T<=0/sigma<=0)
@@ -218,8 +228,7 @@ class GreekHedgeManager:
         d1, _ = self._bs_d1_d2(S, K, T, r, sigma)
         if call:
             return _norm_cdf(d1)
-        else:
-            return _norm_cdf(d1) - 1.0
+        return _norm_cdf(d1) - 1.0
 
     def _bs_gamma(self, S: float, K: float, T: float, r: float, sigma: float) -> float:
         """计算期权 Gamma"""
@@ -229,7 +238,9 @@ class GreekHedgeManager:
             return 0.0
         return _norm_pdf(d1) / (S * sigma * sqrt_T)
 
-    def _bs_theta(self, S: float, K: float, T: float, r: float, sigma: float, call: bool = True) -> float:
+    def _bs_theta(
+        self, S: float, K: float, T: float, r: float, sigma: float, call: bool = True
+    ) -> float:
         """计算期权 Theta (年化)"""
         d1, d2 = self._bs_d1_d2(S, K, T, r, sigma)
         sqrt_T = math.sqrt(T)
@@ -250,18 +261,25 @@ class GreekHedgeManager:
             return 0.0
         return S * _norm_pdf(d1) * sqrt_T / 100.0
 
-    def _bs_rho(self, S: float, K: float, T: float, r: float, sigma: float, call: bool = True) -> float:
+    def _bs_rho(
+        self, S: float, K: float, T: float, r: float, sigma: float, call: bool = True
+    ) -> float:
         """计算期权 Rho (每1%利率变化)"""
         _d1, d2 = self._bs_d1_d2(S, K, T, r, sigma)
         if S <= 0 or T <= 0:
             return 0.0
         if call:
             return K * T * math.exp(-r * T) * _norm_cdf(d2) / 100.0
-        else:
-            return -K * T * math.exp(-r * T) * _norm_cdf(-d2) / 100.0
+        return -K * T * math.exp(-r * T) * _norm_cdf(-d2) / 100.0
 
     def calc_option_greeks(
-        self, S: float, K: float, T: float, r: float = 0.02, sigma: float = 0.2, call: bool = True
+        self,
+        S: float,
+        K: float,
+        T: float,
+        r: float = 0.02,
+        sigma: float = 0.2,
+        call: bool = True,
     ) -> GreekExposure:
         """计算期权完整 Greeks"""
         return GreekExposure(
@@ -272,7 +290,9 @@ class GreekHedgeManager:
             rho=self._bs_rho(S, K, T, r, sigma, call),
         )
 
-    def calc_portfolio_greeks(self, positions: dict[str, dict], prices: dict[str, float]) -> GreekExposure:
+    def calc_portfolio_greeks(
+        self, positions: dict[str, dict], prices: dict[str, float]
+    ) -> GreekExposure:
         """计算持仓组合的 Greeks 暴露 (兼容 Dict[str, float] 和 Dict[str, dict])
 
         期权持仓自动使用 Black-Scholes 模型计算 Greeks
@@ -326,7 +346,10 @@ class GreekHedgeManager:
         return exposure
 
     def target_futures_delta_hedge(
-        self, portfolio_exposure: GreekExposure, hedge_instruments: list[HedgeInstrument], prices: dict[str, float]
+        self,
+        portfolio_exposure: GreekExposure,
+        hedge_instruments: list[HedgeInstrument],
+        prices: dict[str, float],
     ) -> dict[str, float]:
         """基于 Delta 计算期货对冲目标量"""
         if not hedge_instruments:
@@ -353,7 +376,10 @@ class GreekHedgeManager:
         return targets
 
     def target_option_greeks_hedge(
-        self, portfolio_exposure: GreekExposure, options: list[HedgeInstrument], prices: dict[str, float]
+        self,
+        portfolio_exposure: GreekExposure,
+        options: list[HedgeInstrument],
+        prices: dict[str, float],
     ) -> dict[str, dict]:
         """基于 Greeks 计算期权对冲目标量"""
         if not options:
@@ -380,10 +406,16 @@ class GreekHedgeManager:
             return 0.0
         return hedge_value / portfolio_value
 
-    def rebalance_signal(self, current_exposure: GreekExposure, tolerance: float = 0.05) -> dict[str, bool]:
+    def rebalance_signal(
+        self, current_exposure: GreekExposure, tolerance: float = 0.05
+    ) -> dict[str, bool]:
         """判断是否需要再平衡"""
-        delta_ok = abs(current_exposure.delta - self.target_delta) <= tolerance * max(abs(current_exposure.delta), 1.0)
-        gamma_ok = abs(current_exposure.gamma - self.target_gamma) <= tolerance * max(abs(current_exposure.gamma), 1.0)
+        delta_ok = abs(current_exposure.delta - self.target_delta) <= tolerance * max(
+            abs(current_exposure.delta), 1.0
+        )
+        gamma_ok = abs(current_exposure.gamma - self.target_gamma) <= tolerance * max(
+            abs(current_exposure.gamma), 1.0
+        )
         vega_ok = abs(current_exposure.vega) <= self.max_vega
         theta_ok = current_exposure.theta >= self.max_theta_burn
         return {

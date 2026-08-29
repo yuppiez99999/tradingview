@@ -135,3 +135,14 @@ Qlib LGBM/Transformer → 本地因子库 (AlphaFactorLibrary) → 中性信号 
 - 通达信（TDX）：免费行情客户端数据源
 - AKShare：开源 Python 金融数据接口库
 - 新浪财经 HTTP：最后的兜底方案
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码架构与模块导航](architecture-map.md) (相似度 11%)
+- [代码审查经验沉淀：量化系统 8.4 资金安全与回测可信度](code-review-lessons-v8.4.md) (相似度 8%)
+- [回测标准](backtest-standards.md) (相似度 8%)
+- [GNN 供应链产业链因子落地设计](gnn-supply-chain-factor.md) (相似度 7%)
+- [自我进化框架](self-evolution-framework.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

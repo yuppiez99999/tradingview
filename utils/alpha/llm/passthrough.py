@@ -57,7 +57,16 @@ def passthrough_to_legacy(
     except ImportError as e:
         logger.error("透传失败: 无法导入 %s: %s", passthrough_module, e)
         return None
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error("透传调用失败: %s", e)
         return None
 
@@ -88,7 +97,16 @@ def passthrough_deep_to_legacy(
         # 没有 chat_deep, 用 chat
         fn = getattr(mod, passthrough_function)
         return cast(Optional[str], fn(prompt, system))
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error("透传 chat_deep 失败: %s", e)
         return None
 

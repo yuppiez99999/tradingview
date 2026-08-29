@@ -134,3 +134,14 @@ LiveOrderExecutor → QMT broker      ← 实盘下单
 - 信号融合接入点：`utils/signal_fusion.py:84` `SignalFusionEngine.register_source()`
 - 盘中决策引擎：`utils/etf_flow_decision.py:122` `ETFFlowDecisionEngine`
 - 排期：`cairn/ROADMAP.md` Wave 7 Sprint 1-3（W7.1.7 / W7.2.9 / W7.3.8）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [Shadow 30 天验证 (W7.2.8 + W7.2.9)](shadow-30day-validation.md) (相似度 24%)
+- [MVSK 高阶矩组合优化（YAND 启发）](mvsk-higher-moment-optimization.md) (相似度 16%)
+- [回测标准](backtest-standards.md) (相似度 12%)
+- [A股ETF + 期权对冲 + 自我再平衡子模型](etf-option-hedge-model.md) (相似度 10%)
+- [代码架构与模块导航](architecture-map.md) (相似度 10%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

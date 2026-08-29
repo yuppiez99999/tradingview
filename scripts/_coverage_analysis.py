@@ -1,4 +1,5 @@
 """覆盖率分析临时脚本 — 解析 coverage.xml 识别低覆盖模块."""
+
 import xml.etree.ElementTree as ET
 from pathlib import Path
 

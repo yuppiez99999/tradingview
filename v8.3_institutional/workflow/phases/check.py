@@ -2,6 +2,7 @@
 
 原位置: daily_workflow.py L1015-L1091
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,12 +26,22 @@ def phase_check(ctx: WorkflowContext) -> bool:
     V75_READY = getattr(_dw, "V75_READY", False) if _dw else False
     SHENHUA_READY = getattr(_dw, "SHENHUA_READY", False) if _dw else False
     PHASE_MANAGER_READY = getattr(_dw, "PHASE_MANAGER_READY", False) if _dw else False
-    HEDGE_FUND_MODULES_READY = getattr(_dw, "HEDGE_FUND_MODULES_READY", False) if _dw else False
-    INSTITUTIONAL_MODULES_READY = getattr(_dw, "INSTITUTIONAL_MODULES_READY", False) if _dw else False
-    RISK_MGT_MODULES_READY = getattr(_dw, "RISK_MGT_MODULES_READY", False) if _dw else False
+    HEDGE_FUND_MODULES_READY = (
+        getattr(_dw, "HEDGE_FUND_MODULES_READY", False) if _dw else False
+    )
+    INSTITUTIONAL_MODULES_READY = (
+        getattr(_dw, "INSTITUTIONAL_MODULES_READY", False) if _dw else False
+    )
+    RISK_MGT_MODULES_READY = (
+        getattr(_dw, "RISK_MGT_MODULES_READY", False) if _dw else False
+    )
     ALPHA_MODULES_READY = getattr(_dw, "ALPHA_MODULES_READY", False) if _dw else False
-    EXECUTION_MODULES_READY = getattr(_dw, "EXECUTION_MODULES_READY", False) if _dw else False
-    ALT_DATA_MODULES_READY = getattr(_dw, "ALT_DATA_MODULES_READY", False) if _dw else False
+    EXECUTION_MODULES_READY = (
+        getattr(_dw, "EXECUTION_MODULES_READY", False) if _dw else False
+    )
+    ALT_DATA_MODULES_READY = (
+        getattr(_dw, "ALT_DATA_MODULES_READY", False) if _dw else False
+    )
     NTPSync = getattr(_dw, "NTPSync", None) if _dw else None
     RiskManager = getattr(_dw, "RiskManager", None) if _dw else None
     CircuitBreaker = getattr(_dw, "CircuitBreaker", None) if _dw else None
@@ -54,7 +65,8 @@ def phase_check(ctx: WorkflowContext) -> bool:
             )
         if ctx.phase_manager and ctx.phase_manager.is_quarter_end(
             datetime.strptime(ctx.trade_date, "%Y-%m-%d").date()
-            if ctx.trade_date else None
+            if ctx.trade_date
+            else None
         ):
             logger.info("[十五五阶段] 季度末 - 将在 v10_risk 阶段触发季度评估")
 
@@ -78,7 +90,11 @@ def phase_check(ctx: WorkflowContext) -> bool:
     if not V75_READY:
         logger.warning("v7.5 模块未就绪，进入降级模式继续执行")
         checks["v75_modules"] = False
-        ctx.state["phases"]["check"] = {"status": "PASS", "checks": checks, "degraded": True}
+        ctx.state["phases"]["check"] = {
+            "status": "PASS",
+            "checks": checks,
+            "degraded": True,
+        }
         return True
 
     # NTP 同步
@@ -86,7 +102,9 @@ def phase_check(ctx: WorkflowContext) -> bool:
         ntp = NTPSync()
         offset = ntp.get_offset()
         checks["ntp_sync"] = abs(offset) < 0.05
-        logger.info(f"NTP 同步: offset={offset:.3f}s {'OK' if checks['ntp_sync'] else 'DRIFT'}")
+        logger.info(
+            f"NTP 同步: offset={offset:.3f}s {'OK' if checks['ntp_sync'] else 'DRIFT'}"
+        )
     except Exception as e:  # fail-safe
         logger.warning(f"NTP 同步失败 (使用本地时间): {e}")
         checks["ntp_sync"] = True  # 降级允许
@@ -102,7 +120,11 @@ def phase_check(ctx: WorkflowContext) -> bool:
         logger.error(f"风控初始化失败: {e}")
         checks["risk_manager"] = False
         checks["circuit_breaker"] = False
-        ctx.state["phases"]["check"] = {"status": "PASS", "checks": checks, "degraded": True}
+        ctx.state["phases"]["check"] = {
+            "status": "PASS",
+            "checks": checks,
+            "degraded": True,
+        }
         logger.warning("风控初始化失败，进入降级模式继续执行")
         return True
 

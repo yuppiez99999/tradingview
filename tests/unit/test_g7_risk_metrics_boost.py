@@ -13,6 +13,7 @@
   - calculate_portfolio_weights (positions.json 格式)
   - _align_and_dropna (内部工具函数)
 """
+
 import sys
 from pathlib import Path
 
@@ -144,7 +145,7 @@ class TestCalculateMaxDrawdown:
         dd, start, end = calculate_max_drawdown(prices)
         assert 0.3 < dd < 0.34
         assert start == 1  # 峰值在 120
-        assert end == 2   # 谷值在 80
+        assert end == 2  # 谷值在 80
 
     def test_nan_filtered(self):
         prices = np.array([100, np.nan, 120, np.nan, 80])
@@ -546,9 +547,17 @@ class TestCalculatePortfolioWeights:
 
     def test_normal_case(self):
         positions = {
-            "600519": {"phase1_amount": 100000, "phase2_amount": 50000, "phase3_amount": 0},
+            "600519": {
+                "phase1_amount": 100000,
+                "phase2_amount": 50000,
+                "phase3_amount": 0,
+            },
             "000858": {"phase1_amount": 50000, "phase2_amount": 0, "phase3_amount": 0},
-            "601318": {"phase1_amount": 0, "phase2_amount": 0, "phase3_amount": 0},  # 全 0 跳过
+            "601318": {
+                "phase1_amount": 0,
+                "phase2_amount": 0,
+                "phase3_amount": 0,
+            },  # 全 0 跳过
         }
         weights = calculate_portfolio_weights(positions)
         assert len(weights) == 2  # 601318 被过滤

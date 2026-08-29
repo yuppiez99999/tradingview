@@ -10,6 +10,7 @@
     场景7: DSR 恰好等于阈值 → promote
     场景8: fail-fast 触发 → rollback
 """
+
 from __future__ import annotations
 
 import json
@@ -52,6 +53,7 @@ class _MockDsrResult:
 def _make_mock_dsr_func(dsr_value: float):
     def _mock_compute_dsr(self):
         return _MockDsrResult(deflated_sharpe_ratio=dsr_value)
+
     return _mock_compute_dsr
 
 
@@ -60,12 +62,15 @@ def mock_dsr_if_missing(monkeypatch):
     try:
         import deflated_sharpe  # noqa: F401
     except ImportError:
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85))
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85)
+        )
 
 
 # ============================================================
 # 共享 fixture
 # ============================================================
+
 
 @pytest.fixture
 def shadow_adapter():
@@ -109,6 +114,7 @@ def _write_shadow_returns(tmp_path, returns, start_date="2026-01-01"):
     shadow_dir.mkdir(parents=True, exist_ok=True)
     path = shadow_dir / "daily_returns.jsonl"
     from datetime import date, timedelta
+
     base = date.fromisoformat(start_date)
     lines = []
     for i, ret in enumerate(returns):
@@ -137,14 +143,21 @@ def _make_guard_decision():
 # 场景1: 足够样本 + 高 DSR → promote
 # ============================================================
 
+
 class TestL2Promote:
     """L2 影子验证通过 → promote."""
 
-    def test_high_dsr_promote(self, orchestrator, good_daily_returns, tmp_path, monkeypatch):
+    def test_high_dsr_promote(
+        self, orchestrator, good_daily_returns, tmp_path, monkeypatch
+    ):
         path = _write_shadow_returns(tmp_path, good_daily_returns)
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85))
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85)
+        )
 
         result = orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
@@ -154,11 +167,17 @@ class TestL2Promote:
         assert result.level == "L2"
         assert "promote" in result.reason
 
-    def test_memory_status_executed(self, orchestrator, good_daily_returns, tmp_path, monkeypatch):
+    def test_memory_status_executed(
+        self, orchestrator, good_daily_returns, tmp_path, monkeypatch
+    ):
         path = _write_shadow_returns(tmp_path, good_daily_returns)
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85))
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85)
+        )
 
         orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
@@ -168,11 +187,17 @@ class TestL2Promote:
         executed_calls = [c for c in calls if c.args and c.args[1] == "executed"]
         assert len(executed_calls) >= 1
 
-    def test_loop_health_promote_count(self, orchestrator, good_daily_returns, tmp_path, monkeypatch):
+    def test_loop_health_promote_count(
+        self, orchestrator, good_daily_returns, tmp_path, monkeypatch
+    ):
         path = _write_shadow_returns(tmp_path, good_daily_returns)
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85))
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85)
+        )
 
         orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
@@ -184,14 +209,21 @@ class TestL2Promote:
 # 场景2: 足够样本 + 低 DSR → rollback
 # ============================================================
 
+
 class TestL2Rollback:
     """L2 影子验证未通过 → rollback."""
 
-    def test_low_dsr_rollback(self, orchestrator, poor_daily_returns, tmp_path, monkeypatch):
+    def test_low_dsr_rollback(
+        self, orchestrator, poor_daily_returns, tmp_path, monkeypatch
+    ):
         path = _write_shadow_returns(tmp_path, poor_daily_returns)
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.2))
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.2)
+        )
 
         result = orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
@@ -200,11 +232,17 @@ class TestL2Rollback:
         assert result.executed is False
         assert "rollback" in result.reason
 
-    def test_memory_status_rolled_back(self, orchestrator, poor_daily_returns, tmp_path, monkeypatch):
+    def test_memory_status_rolled_back(
+        self, orchestrator, poor_daily_returns, tmp_path, monkeypatch
+    ):
         path = _write_shadow_returns(tmp_path, poor_daily_returns)
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.2))
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.2)
+        )
 
         orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
@@ -213,11 +251,17 @@ class TestL2Rollback:
         rolled_back_calls = [c for c in calls if c.args and c.args[1] == "rolled_back"]
         assert len(rolled_back_calls) >= 1
 
-    def test_loop_health_rollback_count(self, orchestrator, poor_daily_returns, tmp_path, monkeypatch):
+    def test_loop_health_rollback_count(
+        self, orchestrator, poor_daily_returns, tmp_path, monkeypatch
+    ):
         path = _write_shadow_returns(tmp_path, poor_daily_returns)
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.2))
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.2)
+        )
 
         orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
@@ -229,13 +273,16 @@ class TestL2Rollback:
 # 场景3: 样本不足 → 降级
 # ============================================================
 
+
 class TestL2InsufficientSamples:
     """样本不足 → 降级假设通过."""
 
     def test_few_returns_degraded(self, orchestrator, tmp_path, monkeypatch):
         path = _write_shadow_returns(tmp_path, [0.01, 0.02, 0.005])
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
 
         result = orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
@@ -248,6 +295,7 @@ class TestL2InsufficientSamples:
 # ============================================================
 # 场景4: adapter 不可用 → 降级
 # ============================================================
+
 
 class TestL2AdapterUnavailable:
     """adapter 不可用 → 降级假设通过."""
@@ -276,36 +324,62 @@ class TestL2AdapterUnavailable:
 # 场景5: 多次 L2 循环 → 闭环健康度指标
 # ============================================================
 
+
 class TestLoopHealthMultipleCycles:
     """多次 L2 循环后健康度指标正确."""
 
-    def test_mixed_promote_rollback(self, orchestrator, good_daily_returns, poor_daily_returns, tmp_path, monkeypatch):
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
+    def test_mixed_promote_rollback(
+        self,
+        orchestrator,
+        good_daily_returns,
+        poor_daily_returns,
+        tmp_path,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
 
         # 第1次: promote (DSR=0.85)
-        path1 = _write_shadow_returns(tmp_path, good_daily_returns, start_date="2026-01-01")
+        path1 = _write_shadow_returns(
+            tmp_path, good_daily_returns, start_date="2026-01-01"
+        )
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path1)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85))
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85)
+        )
         orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
         )
 
         # 第2次: rollback (DSR=0.2) — 需要新的 adapter (因为 run_shadow 会累积)
-        new_adapter = ShadowAccountAdapter(account_id="shadow_l2_e2e_2", strategy_id="l2_2")
+        new_adapter = ShadowAccountAdapter(
+            account_id="shadow_l2_e2e_2", strategy_id="l2_2"
+        )
         orchestrator._shadow_adapter = new_adapter
-        path2 = _write_shadow_returns(tmp_path, poor_daily_returns, start_date="2026-02-01")
+        path2 = _write_shadow_returns(
+            tmp_path, poor_daily_returns, start_date="2026-02-01"
+        )
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path2)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.2))
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.2)
+        )
         orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-02-01T00:00:00"
         )
 
         # 第3次: promote (DSR=0.9)
-        new_adapter2 = ShadowAccountAdapter(account_id="shadow_l2_e2e_3", strategy_id="l2_3")
+        new_adapter2 = ShadowAccountAdapter(
+            account_id="shadow_l2_e2e_3", strategy_id="l2_3"
+        )
         orchestrator._shadow_adapter = new_adapter2
-        path3 = _write_shadow_returns(tmp_path, good_daily_returns, start_date="2026-03-01")
+        path3 = _write_shadow_returns(
+            tmp_path, good_daily_returns, start_date="2026-03-01"
+        )
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path3)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.9))
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.9)
+        )
         orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-03-01T00:00:00"
         )
@@ -318,30 +392,42 @@ class TestLoopHealthMultipleCycles:
 # 场景6: 再平衡反馈链 → daily_returns.jsonl → L2 读取
 # ============================================================
 
+
 class TestRebalanceFeedbackToL2:
     """再平衡回写 daily_returns.jsonl → L2 读取验证."""
 
-    def test_rebalance_written_returns_read_by_l2(self, orchestrator, tmp_path, monkeypatch):
+    def test_rebalance_written_returns_read_by_l2(
+        self, orchestrator, tmp_path, monkeypatch
+    ):
         """模拟再平衡回写 daily_returns.jsonl, 然后 L2 读取."""
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85))
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85)
+        )
 
         # 模拟再平衡回写 (与 _write_rebalance_feedback_to_shadow 格式一致)
         shadow_dir = tmp_path / "reports" / "shadow"
         shadow_dir.mkdir(parents=True, exist_ok=True)
         path = shadow_dir / "daily_returns.jsonl"
         from datetime import date, timedelta
+
         base = date(2026, 1, 1)
         lines = []
         for i in range(30):
             d = (base + timedelta(days=i)).isoformat()
             ret = 0.005 if i % 2 == 0 else -0.002
-            lines.append(json.dumps({
-                "date": d,
-                "daily_return": ret,
-                "source": "rebalance_feedback_v86",
-                "rebalance_executed": True,
-            }))
+            lines.append(
+                json.dumps(
+                    {
+                        "date": d,
+                        "daily_return": ret,
+                        "source": "rebalance_feedback_v86",
+                        "rebalance_executed": True,
+                    }
+                )
+            )
         path.write_text("\n".join(lines), encoding="utf-8")
 
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
@@ -364,15 +450,22 @@ class TestRebalanceFeedbackToL2:
 # 场景7: DSR 恰好等于阈值 → promote
 # ============================================================
 
+
 class TestL2DsrBoundary:
     """DSR 恰好等于阈值 → promote (>= 判断)."""
 
-    def test_dsr_equals_threshold(self, orchestrator, good_daily_returns, tmp_path, monkeypatch):
+    def test_dsr_equals_threshold(
+        self, orchestrator, good_daily_returns, tmp_path, monkeypatch
+    ):
         path = _write_shadow_returns(tmp_path, good_daily_returns)
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
         # DSR 恰好等于阈值 0.5
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.5))
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.5)
+        )
 
         result = orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
@@ -380,12 +473,18 @@ class TestL2DsrBoundary:
         assert result.status == CYCLE_STATUS_SUCCESS
         assert result.executed is True
 
-    def test_dsr_just_below_threshold(self, orchestrator, good_daily_returns, tmp_path, monkeypatch):
+    def test_dsr_just_below_threshold(
+        self, orchestrator, good_daily_returns, tmp_path, monkeypatch
+    ):
         path = _write_shadow_returns(tmp_path, good_daily_returns)
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
         # DSR = 0.499 < 0.5
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.499))
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.499)
+        )
 
         result = orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
@@ -398,14 +497,21 @@ class TestL2DsrBoundary:
 # 场景8: get_loop_health_metrics 端到端
 # ============================================================
 
+
 class TestLoopHealthE2E:
     """闭环健康度指标端到端验证."""
 
-    def test_metrics_after_l2_promote(self, orchestrator, good_daily_returns, tmp_path, monkeypatch):
+    def test_metrics_after_l2_promote(
+        self, orchestrator, good_daily_returns, tmp_path, monkeypatch
+    ):
         path = _write_shadow_returns(tmp_path, good_daily_returns)
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path)
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85))
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85)
+        )
 
         orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
@@ -415,23 +521,42 @@ class TestLoopHealthE2E:
         assert metrics["l2_rollback_count"] == 0
         assert metrics["l2_promote_rate"] == 1.0
 
-    def test_metrics_after_mixed_cycles(self, orchestrator, good_daily_returns, poor_daily_returns, tmp_path, monkeypatch):
-        monkeypatch.setattr("utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20)
+    def test_metrics_after_mixed_cycles(
+        self,
+        orchestrator,
+        good_daily_returns,
+        poor_daily_returns,
+        tmp_path,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "utils.alpha.shadow_account_adapter.MIN_SAMPLES_FOR_DSR", 20
+        )
 
         # promote
-        path1 = _write_shadow_returns(tmp_path, good_daily_returns, start_date="2026-01-01")
+        path1 = _write_shadow_returns(
+            tmp_path, good_daily_returns, start_date="2026-01-01"
+        )
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path1)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85))
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.85)
+        )
         orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-01-01T00:00:00"
         )
 
         # rollback
-        adapter2 = ShadowAccountAdapter(account_id="shadow_e2e_mix_2", strategy_id="mix_2")
+        adapter2 = ShadowAccountAdapter(
+            account_id="shadow_e2e_mix_2", strategy_id="mix_2"
+        )
         orchestrator._shadow_adapter = adapter2
-        path2 = _write_shadow_returns(tmp_path, poor_daily_returns, start_date="2026-02-01")
+        path2 = _write_shadow_returns(
+            tmp_path, poor_daily_returns, start_date="2026-02-01"
+        )
         monkeypatch.setattr("utils.evolution.orchestrator._SHADOW_RETURNS_PATH", path2)
-        monkeypatch.setattr(ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.2))
+        monkeypatch.setattr(
+            ShadowAccountAdapter, "compute_dsr", _make_mock_dsr_func(0.2)
+        )
         orchestrator._route_l2(
             _make_proposal("promote"), _make_guard_decision(), "2026-02-01T00:00:00"
         )

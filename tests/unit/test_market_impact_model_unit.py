@@ -3,6 +3,7 @@
 被测模块: utils/market_impact_model.py
 覆盖目标: >=95%
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,6 +27,7 @@ from utils.market_impact_model import (  # noqa: E402
 # 数据结构测试
 # ============================================================
 
+
 class TestImpactParams:
     def test_defaults(self):
         p = ImpactParams()
@@ -45,11 +47,17 @@ class TestImpactParams:
 class TestImpactEstimate:
     def test_construction(self):
         est = ImpactEstimate(
-            symbol="600519", order_shares=10000, adv=500000,
-            participation_rate=0.02, temporary_impact_bps=5.0,
-            permanent_impact_bps=3.0, total_impact_bps=8.0,
-            price_impact=1.44, decision_price=1800.0,
-            expected_exec_price=1801.44, model_used="SQRT+AC",
+            symbol="600519",
+            order_shares=10000,
+            adv=500000,
+            participation_rate=0.02,
+            temporary_impact_bps=5.0,
+            permanent_impact_bps=3.0,
+            total_impact_bps=8.0,
+            price_impact=1.44,
+            decision_price=1800.0,
+            expected_exec_price=1801.44,
+            model_used="SQRT+AC",
         )
         assert est.symbol == "600519"
         assert est.model_used == "SQRT+AC"
@@ -57,11 +65,17 @@ class TestImpactEstimate:
 
     def test_with_metadata(self):
         est = ImpactEstimate(
-            symbol="000001", order_shares=500, adv=1000000,
-            participation_rate=0.0005, temporary_impact_bps=1.0,
-            permanent_impact_bps=0.5, total_impact_bps=1.5,
-            price_impact=0.015, decision_price=10.0,
-            expected_exec_price=10.015, model_used="SQRT+AC",
+            symbol="000001",
+            order_shares=500,
+            adv=1000000,
+            participation_rate=0.0005,
+            temporary_impact_bps=1.0,
+            permanent_impact_bps=0.5,
+            total_impact_bps=1.5,
+            price_impact=0.015,
+            decision_price=10.0,
+            expected_exec_price=10.015,
+            model_used="SQRT+AC",
             metadata={"vol": 0.03},
         )
         assert est.metadata["vol"] == 0.03
@@ -70,10 +84,14 @@ class TestImpactEstimate:
 class TestOptimalTrajectory:
     def test_construction(self):
         traj = OptimalTrajectory(
-            times=[0, 0.5, 1.0], holdings=[100, 50, 0],
-            trades=[0, 50, 50], speeds=[0, 100, 100],
-            expected_cost=10.0, cost_variance=5.0,
-            efficient_frontier_lam=1.0, half_life=0.35,
+            times=[0, 0.5, 1.0],
+            holdings=[100, 50, 0],
+            trades=[0, 50, 50],
+            speeds=[0, 100, 100],
+            expected_cost=10.0,
+            cost_variance=5.0,
+            efficient_frontier_lam=1.0,
+            half_life=0.35,
         )
         assert traj.times == [0, 0.5, 1.0]
         assert traj.holdings[-1] == 0
@@ -84,10 +102,13 @@ class TestOptimalTrajectory:
 # MarketImpactModel.estimate
 # ============================================================
 
+
 class TestEstimate:
     def test_basic_estimate(self):
         model = MarketImpactModel()
-        est = model.estimate(symbol="600519", order_shares=10000, adv=500000, decision_price=1800.0)
+        est = model.estimate(
+            symbol="600519", order_shares=10000, adv=500000, decision_price=1800.0
+        )
         assert est.symbol == "600519"
         assert est.order_shares == 10000
         assert est.adv == 500000
@@ -99,12 +120,16 @@ class TestEstimate:
 
     def test_negative_shares_abs(self):
         model = MarketImpactModel()
-        est = model.estimate(symbol="TEST", order_shares=-5000, adv=100000, decision_price=10.0)
+        est = model.estimate(
+            symbol="TEST", order_shares=-5000, adv=100000, decision_price=10.0
+        )
         assert est.order_shares == 5000
 
     def test_adv_none_uses_default(self):
         model = MarketImpactModel(default_adv=200000)
-        est = model.estimate(symbol="X", order_shares=1000, adv=None, decision_price=5.0)
+        est = model.estimate(
+            symbol="X", order_shares=1000, adv=None, decision_price=5.0
+        )
         assert est.adv == 200000
 
     def test_adv_zero_uses_default(self):
@@ -119,44 +144,62 @@ class TestEstimate:
 
     def test_volatility_scaling(self):
         model = MarketImpactModel()
-        est_low = model.estimate(symbol="X", order_shares=1000, adv=100000, volatility=0.01)
-        est_high = model.estimate(symbol="X", order_shares=1000, adv=100000, volatility=0.05)
+        est_low = model.estimate(
+            symbol="X", order_shares=1000, adv=100000, volatility=0.01
+        )
+        est_high = model.estimate(
+            symbol="X", order_shares=1000, adv=100000, volatility=0.05
+        )
         assert est_high.total_impact_bps > est_low.total_impact_bps
 
     def test_volatility_scaling_disabled(self):
         params = ImpactParams(volatility_scaling=False)
         model = MarketImpactModel(params=params)
-        est_low = model.estimate(symbol="X", order_shares=1000, adv=100000, volatility=0.01)
-        est_high = model.estimate(symbol="X", order_shares=1000, adv=100000, volatility=0.05)
+        est_low = model.estimate(
+            symbol="X", order_shares=1000, adv=100000, volatility=0.01
+        )
+        est_high = model.estimate(
+            symbol="X", order_shares=1000, adv=100000, volatility=0.05
+        )
         assert est_low.total_impact_bps == pytest.approx(est_high.total_impact_bps)
 
     def test_vol_scale_floor(self):
         model = MarketImpactModel()
-        est = model.estimate(symbol="X", order_shares=1000, adv=100000, volatility=0.001)
+        est = model.estimate(
+            symbol="X", order_shares=1000, adv=100000, volatility=0.001
+        )
         assert est.metadata["vol_scale"] >= 0.5
 
     def test_decision_price_impact(self):
         model = MarketImpactModel()
-        est = model.estimate(symbol="X", order_shares=1000, adv=100000, decision_price=100.0)
+        est = model.estimate(
+            symbol="X", order_shares=1000, adv=100000, decision_price=100.0
+        )
         expected_price = 100.0 * (1 + est.total_impact_bps / 10000.0)
         assert est.expected_exec_price == pytest.approx(expected_price)
         assert est.price_impact == pytest.approx(100.0 * est.total_impact_bps / 10000.0)
 
     def test_zero_decision_price(self):
         model = MarketImpactModel()
-        est = model.estimate(symbol="X", order_shares=1000, adv=100000, decision_price=0.0)
+        est = model.estimate(
+            symbol="X", order_shares=1000, adv=100000, decision_price=0.0
+        )
         assert est.price_impact == 0.0
         assert est.expected_exec_price == 0.0
 
     def test_execution_time_days(self):
         model = MarketImpactModel()
-        est = model.estimate(symbol="X", order_shares=10000, adv=100000, execution_time_days=5.0)
+        est = model.estimate(
+            symbol="X", order_shares=10000, adv=100000, execution_time_days=5.0
+        )
         assert est.metadata["execution_time_days"] == 5.0
 
     def test_custom_params(self):
         params = ImpactParams(eta=0.3, gamma=0.6, alpha=0.8, sr_coefficient=0.8)
         model = MarketImpactModel(params=params)
-        est = model.estimate(symbol="X", order_shares=10000, adv=100000, decision_price=50.0)
+        est = model.estimate(
+            symbol="X", order_shares=10000, adv=100000, decision_price=50.0
+        )
         assert est.total_impact_bps > 0
 
 
@@ -164,10 +207,13 @@ class TestEstimate:
 # MarketImpactModel.optimal_trajectory
 # ============================================================
 
+
 class TestOptimalTrajectoryMethod:
     def test_basic_trajectory(self):
         model = MarketImpactModel()
-        traj = model.optimal_trajectory(total_shares=10000, time_horizon=1.0, n_steps=10)
+        traj = model.optimal_trajectory(
+            total_shares=10000, time_horizon=1.0, n_steps=10
+        )
         assert len(traj.times) == 11
         assert len(traj.holdings) == 11
         assert traj.holdings[0] == pytest.approx(10000, rel=1e-6)
@@ -211,12 +257,23 @@ class TestOptimalTrajectoryMethod:
 # MarketImpactModel.estimate_basket
 # ============================================================
 
+
 class TestEstimateBasket:
     def test_multiple_orders(self):
         model = MarketImpactModel()
         orders = [
-            {"symbol": "600519", "order_shares": 10000, "adv": 500000, "decision_price": 1800},
-            {"symbol": "000001", "order_shares": 5000, "adv": 1000000, "decision_price": 15},
+            {
+                "symbol": "600519",
+                "order_shares": 10000,
+                "adv": 500000,
+                "decision_price": 1800,
+            },
+            {
+                "symbol": "000001",
+                "order_shares": 5000,
+                "adv": 1000000,
+                "decision_price": 15,
+            },
         ]
         results = model.estimate_basket(orders)
         assert len(results) == 2
@@ -238,6 +295,7 @@ class TestEstimateBasket:
 # ============================================================
 # MarketImpactModel.efficient_frontier
 # ============================================================
+
 
 class TestEfficientFrontier:
     def test_default_lam_range(self):
@@ -261,13 +319,18 @@ class TestEfficientFrontier:
 # classify_order_urgency
 # ============================================================
 
+
 class TestClassifyOrderUrgency:
     def test_high_urgency_large_signal(self):
-        result = classify_order_urgency(order_shares=20000, adv=100000, alpha_signal_strength=0.8)
+        result = classify_order_urgency(
+            order_shares=20000, adv=100000, alpha_signal_strength=0.8
+        )
         assert result == "HIGH"
 
     def test_high_urgency_volatility(self):
-        result = classify_order_urgency(order_shares=20000, adv=100000, market_volatility=0.04)
+        result = classify_order_urgency(
+            order_shares=20000, adv=100000, market_volatility=0.04
+        )
         assert result == "HIGH"
 
     def test_low_urgency(self):
@@ -275,7 +338,9 @@ class TestClassifyOrderUrgency:
         assert result == "LOW"
 
     def test_medium_urgency(self):
-        result = classify_order_urgency(order_shares=5000, adv=100000, alpha_signal_strength=0.1)
+        result = classify_order_urgency(
+            order_shares=5000, adv=100000, alpha_signal_strength=0.1
+        )
         assert result == "MEDIUM"
 
     def test_zero_adv(self):
@@ -283,13 +348,16 @@ class TestClassifyOrderUrgency:
         assert result in ("LOW", "MEDIUM", "HIGH")
 
     def test_negative_signal(self):
-        result = classify_order_urgency(order_shares=20000, adv=100000, alpha_signal_strength=-0.8)
+        result = classify_order_urgency(
+            order_shares=20000, adv=100000, alpha_signal_strength=-0.8
+        )
         assert result == "HIGH"
 
 
 # ============================================================
 # 永久冲击指数衰减 (文献 #50, LIT-4.2)
 # ============================================================
+
 
 class TestPermanentImpactExponentialDecay:
     """文献 #50: 永久冲击指数衰减模型测试."""
@@ -339,10 +407,12 @@ class TestPermanentImpactExponentialDecay:
     def test_decay_beta_effect(self):
         """β 越大饱和越快, 大单永久冲击越低."""
         fast_params = ImpactParams(
-            permanent_impact_model="exponential_decay", permanent_decay_beta=50.0,
+            permanent_impact_model="exponential_decay",
+            permanent_decay_beta=50.0,
         )
         slow_params = ImpactParams(
-            permanent_impact_model="exponential_decay", permanent_decay_beta=1.0,
+            permanent_impact_model="exponential_decay",
+            permanent_decay_beta=1.0,
         )
         fast_model = MarketImpactModel(params=fast_params)
         slow_model = MarketImpactModel(params=slow_params)
@@ -368,7 +438,9 @@ class TestCompareImpactModels:
     def test_compare_basic(self):
         model = MarketImpactModel()
         comparison = model.compare_impact_models(
-            symbol="600519", order_shares=50000, adv=100000,
+            symbol="600519",
+            order_shares=50000,
+            adv=100000,
         )
         assert comparison["symbol"] == "600519"
         assert comparison["linear_permanent_bps"] > 0
@@ -379,7 +451,9 @@ class TestCompareImpactModels:
         """大单场景: 永久冲击降低 > 0."""
         model = MarketImpactModel()
         comparison = model.compare_impact_models(
-            symbol="X", order_shares=80000, adv=100000,
+            symbol="X",
+            order_shares=80000,
+            adv=100000,
         )
         assert comparison["permanent_reduction_pct"] > 0
 
@@ -387,7 +461,9 @@ class TestCompareImpactModels:
         """小单场景: 永久冲击降低接近 0 (一阶近似)."""
         model = MarketImpactModel()
         comparison = model.compare_impact_models(
-            symbol="X", order_shares=100, adv=100000,
+            symbol="X",
+            order_shares=100,
+            adv=100000,
         )
         assert abs(comparison["permanent_reduction_pct"]) < 20.0
 
@@ -395,7 +471,9 @@ class TestCompareImpactModels:
         """极大单: 衰减模型达到饱和."""
         model = MarketImpactModel()
         comparison = model.compare_impact_models(
-            symbol="X", order_shares=500000, adv=100000,
+            symbol="X",
+            order_shares=500000,
+            adv=100000,
         )
         assert comparison["decay_model_saturated"] is True
 
@@ -411,7 +489,10 @@ class TestValidateCostReduction:
         )
         model = MarketImpactModel(params=decay_params)
         validation = model.validate_cost_reduction(
-            symbol="600519", large_order_shares=50000, adv=100000, threshold_pct=50.0,
+            symbol="600519",
+            large_order_shares=50000,
+            adv=100000,
+            threshold_pct=50.0,
         )
         assert validation["passed"] is True
         assert validation["permanent_reduction_pct"] >= 50.0
@@ -420,21 +501,29 @@ class TestValidateCostReduction:
         """小单: 永久冲击降低 < 50% (一阶近似, 无饱和效应)."""
         model = MarketImpactModel()
         validation = model.validate_cost_reduction(
-            symbol="X", large_order_shares=100, adv=100000, threshold_pct=50.0,
+            symbol="X",
+            large_order_shares=100,
+            adv=100000,
+            threshold_pct=50.0,
         )
         assert validation["passed"] is False
 
     def test_custom_threshold(self):
         model = MarketImpactModel()
         validation = model.validate_cost_reduction(
-            symbol="X", large_order_shares=30000, adv=100000, threshold_pct=10.0,
+            symbol="X",
+            large_order_shares=30000,
+            adv=100000,
+            threshold_pct=10.0,
         )
         assert validation["threshold_pct"] == 10.0
 
     def test_validation_report_fields(self):
         model = MarketImpactModel()
         validation = model.validate_cost_reduction(
-            symbol="TEST", large_order_shares=50000, adv=100000,
+            symbol="TEST",
+            large_order_shares=50000,
+            adv=100000,
         )
         assert "symbol" in validation
         assert "participation_rate" in validation
@@ -464,4 +553,6 @@ class TestOptimalTrajectoryDecayModel:
         decay_traj = decay_model.optimal_trajectory(total_shares=1000, n_steps=5)
         # 持仓轨迹应完全一致 (闭式解不依赖永久冲击模型)
         for i in range(6):
-            assert decay_traj.holdings[i] == pytest.approx(linear_traj.holdings[i], rel=1e-6)
+            assert decay_traj.holdings[i] == pytest.approx(
+                linear_traj.holdings[i], rel=1e-6
+            )

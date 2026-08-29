@@ -4,6 +4,7 @@
 - 风险预算约束优化器
 - 压力测试情景库
 """
+
 import sys
 from pathlib import Path
 
@@ -42,7 +43,9 @@ def test_ledoit_wolf():
 
     print(f"  样本数: T={result.n_observations}, N={result.n_assets}")
     print(f"  收缩强度 δ*={result.shrinkage_intensity:.3f}")
-    print(f"  条件数: {result.condition_number_before:.0f} → {result.condition_number_after:.0f}")
+    print(
+        f"  条件数: {result.condition_number_before:.0f} → {result.condition_number_after:.0f}"
+    )
     print(f"  平均方差: {result.avg_variance:.4f}")
     print(f"  平均相关性: {result.avg_correlation:.3f}")
 
@@ -151,11 +154,41 @@ def test_stress_test_engine():
     assert len(engine.scenarios) == 10
 
     positions = [
-        {"code": "600519", "amount": 100000, "sector": "食品饮料", "style": "value", "type": "STOCK"},
-        {"code": "000858", "amount": 80000, "sector": "食品饮料", "style": "growth", "type": "STOCK"},
-        {"code": "601318", "amount": 120000, "sector": "非银金融", "style": "value", "type": "STOCK"},
-        {"code": "600036", "amount": 90000, "sector": "银行", "style": "value", "type": "STOCK"},
-        {"code": "518880", "amount": 60000, "sector": "黄金", "style": "", "type": "GOLD"},
+        {
+            "code": "600519",
+            "amount": 100000,
+            "sector": "食品饮料",
+            "style": "value",
+            "type": "STOCK",
+        },
+        {
+            "code": "000858",
+            "amount": 80000,
+            "sector": "食品饮料",
+            "style": "growth",
+            "type": "STOCK",
+        },
+        {
+            "code": "601318",
+            "amount": 120000,
+            "sector": "非银金融",
+            "style": "value",
+            "type": "STOCK",
+        },
+        {
+            "code": "600036",
+            "amount": 90000,
+            "sector": "银行",
+            "style": "value",
+            "type": "STOCK",
+        },
+        {
+            "code": "518880",
+            "amount": 60000,
+            "sector": "黄金",
+            "style": "",
+            "type": "GOLD",
+        },
     ]
     total_value = sum(p["amount"] for p in positions)
 
@@ -163,8 +196,10 @@ def test_stress_test_engine():
     results = engine.run_all_scenarios(positions, total_value)
     print(f"\n  {len(results)} 个场景结果:")
     for r in results:
-        print(f"    {r.scenario_name}: return={r.portfolio_return:+.2%}, pnl=¥{r.portfolio_pnl:+.0f}, "
-              f"breach={r.is_breach}")
+        print(
+            f"    {r.scenario_name}: return={r.portfolio_return:+.2%}, pnl=¥{r.portfolio_pnl:+.0f}, "
+            f"breach={r.is_breach}"
+        )
 
     assert len(results) == 10  # v8.4: 8 原场景 + 2 新流动性场景
 
@@ -183,9 +218,11 @@ def test_stress_test_engine():
 
     # 测试 3c: 汇总
     summary = engine.summarize(results)
-    print(f"\n  汇总: 最严重={summary['worst_scenario']}, "
-          f"worst_return={summary['worst_return']:.2%}, "
-          f"breaches={summary['n_breaches']}")
+    print(
+        f"\n  汇总: 最严重={summary['worst_scenario']}, "
+        f"worst_return={summary['worst_return']:.2%}, "
+        f"breaches={summary['n_breaches']}"
+    )
     assert summary["n_scenarios"] == 10  # v8.4: 8 原场景 + 2 新流动性场景
 
     # 测试 3d: 自定义场景
@@ -216,6 +253,7 @@ if __name__ == "__main__":
             results.append((t.__name__, "PASS", ""))
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             results.append((t.__name__, "FAIL", str(e)[:200]))
 

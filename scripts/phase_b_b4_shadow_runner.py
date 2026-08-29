@@ -24,6 +24,7 @@ LLM 反馈闭环验证:
 
 对齐 spec §5.5 + design §2.4 + tasks T1.3.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,8 +33,14 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
+
+try:
+    from datetime import UTC, datetime
+except ImportError:  # Python 3.8 compatibility
+    from datetime import datetime
+
+    UTC = UTC
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -58,6 +65,7 @@ def _utc_now_iso() -> str:
 # B3StatusChecker — B3 状态前置检查器
 # ============================================================
 
+
 @dataclass
 class B3Status:
     enabled: bool
@@ -77,10 +85,15 @@ def check_b3_status() -> B3Status:
         warmup_days = data.get("warmup_days", 0)
         rollback_count = data.get("rollback_count", 0)
         if warmup_days >= WARMUP_TARGET_DAYS and rollback_count == 0:
-            return B3Status(True, True, warmup_days,
-                            f"B3 shadow 已跑 {warmup_days} 天, 无回退")
-        return B3Status(False, False, warmup_days,
-                        f"B3 未稳定: warmup_days={warmup_days}/{WARMUP_TARGET_DAYS}, rollback_count={rollback_count}")
+            return B3Status(
+                True, True, warmup_days, f"B3 shadow 已跑 {warmup_days} 天, 无回退"
+            )
+        return B3Status(
+            False,
+            False,
+            warmup_days,
+            f"B3 未稳定: warmup_days={warmup_days}/{WARMUP_TARGET_DAYS}, rollback_count={rollback_count}",
+        )
     except (json.JSONDecodeError, OSError) as e:
         return B3Status(False, False, 0, f"读取 B3 状态失败: {e}")
 
@@ -88,6 +101,7 @@ def check_b3_status() -> B3Status:
 # ============================================================
 # FlagInvariantChecker — feature flag 不变式校验器
 # ============================================================
+
 
 def read_flag_default(flag_name: str) -> bool:
     """从 system_config.json 读取 feature_flags 中指定 flag 的值."""
@@ -118,6 +132,7 @@ def check_flag_invariant() -> bool:
 # ============================================================
 # LLMFeedbackLoopValidator — LLM 反馈闭环验证器
 # ============================================================
+
 
 @dataclass
 class LLMLoopResult:
@@ -190,7 +205,9 @@ def _validate_llm_feedback_loop(
                 entries_written=entries_written,
             )
 
-        loop_closed = kb_write_success and kb_read_success and ideation_feedback_received
+        loop_closed = (
+            kb_write_success and kb_read_success and ideation_feedback_received
+        )
 
         return LLMLoopResult(
             loop_closed=loop_closed,
@@ -216,6 +233,7 @@ def _validate_llm_feedback_loop(
 # ============================================================
 # ShadowRunner — B4 shadow 运行器
 # ============================================================
+
 
 @dataclass
 class B4ShadowResult:
@@ -300,14 +318,27 @@ def run_shadow(
 # ShadowStatus — shadow 状态独立存储
 # ============================================================
 
+
 def load_shadow_status() -> dict:
     if not SHADOW_STATUS_FILE.exists():
-        return {"run_count": 0, "last_run": "", "warmup_days": 0, "consecutive_failures": 0, "history": []}
+        return {
+            "run_count": 0,
+            "last_run": "",
+            "warmup_days": 0,
+            "consecutive_failures": 0,
+            "history": [],
+        }
     try:
         with open(SHADOW_STATUS_FILE, encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError):
-        return {"run_count": 0, "last_run": "", "warmup_days": 0, "consecutive_failures": 0, "history": []}
+        return {
+            "run_count": 0,
+            "last_run": "",
+            "warmup_days": 0,
+            "consecutive_failures": 0,
+            "history": [],
+        }
 
 
 def update_shadow_status(result: B4ShadowResult, date: str) -> dict:
@@ -315,13 +346,15 @@ def update_shadow_status(result: B4ShadowResult, date: str) -> dict:
     status = load_shadow_status()
 
     history = status.get("history", [])
-    history.append({
-        "date": date,
-        "loop_closed": result.loop_closed,
-        "llm_available": result.llm_available,
-        "need_rollback": result.need_rollback,
-        "suggestion": result.suggestion,
-    })
+    history.append(
+        {
+            "date": date,
+            "loop_closed": result.loop_closed,
+            "llm_available": result.llm_available,
+            "need_rollback": result.need_rollback,
+            "suggestion": result.suggestion,
+        }
+    )
     if len(history) > 30:
         history = history[-30:]
 
@@ -347,6 +380,7 @@ def update_shadow_status(result: B4ShadowResult, date: str) -> dict:
 # ============================================================
 # ReportSaver — 报告落盘
 # ============================================================
+
 
 @dataclass
 class B4ShadowVerificationResult:
@@ -404,26 +438,42 @@ def save_verification_result(result: B4ShadowVerificationResult, date: str) -> s
 # main
 # ============================================================
 
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Phase B B4 shadow 模式运行器 (MLOps 管线)")
+    parser = argparse.ArgumentParser(
+        description="Phase B B4 shadow 模式运行器 (MLOps 管线)"
+    )
     parser.add_argument("--date", type=str, default=None, help="运行日期 YYYY-MM-DD")
     parser.add_argument("--warmup-only", action="store_true", help="只更新预热计数")
-    parser.add_argument("--check-invariant", action="store_true", help="只检查 flag 不变式")
-    parser.add_argument("--shadow-days", type=int, default=SHADOW_DAYS_DEFAULT, help="shadow 运行天数")
+    parser.add_argument(
+        "--check-invariant", action="store_true", help="只检查 flag 不变式"
+    )
+    parser.add_argument(
+        "--shadow-days", type=int, default=SHADOW_DAYS_DEFAULT, help="shadow 运行天数"
+    )
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s"
+    )
 
     date_str = args.date or datetime.now().strftime("%Y-%m-%d")
 
     if args.check_invariant:
         ok = check_flag_invariant()
-        print(f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}")
+        print(
+            f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}"
+        )
         return 0 if ok else 1
 
     logger.info("B3 状态前置检查...")
     b3 = check_b3_status()
-    logger.info("B3 状态: enabled=%s, healthy=%s, shadow_days=%s", b3.enabled, b3.healthy, b3.shadow_days)
+    logger.info(
+        "B3 状态: enabled=%s, healthy=%s, shadow_days=%s",
+        b3.enabled,
+        b3.healthy,
+        b3.shadow_days,
+    )
     if not b3.healthy:
         print(f"\n[B3 检查] FAIL — {b3.message}")
         print("[B4 Shadow] 拒绝启动: B3 未稳定或预热不足")
@@ -441,13 +491,19 @@ def main() -> int:
         SHADOW_REPORT_DIR.mkdir(parents=True, exist_ok=True)
         with open(SHADOW_STATUS_FILE, "w", encoding="utf-8") as f:
             json.dump(status, f, ensure_ascii=False, indent=2)
-        print(f"\n[WARMUP-ONLY] warmup_days={status['warmup_days']}/{WARMUP_TARGET_DAYS}")
+        print(
+            f"\n[WARMUP-ONLY] warmup_days={status['warmup_days']}/{WARMUP_TARGET_DAYS}"
+        )
         return 0
 
     logger.info("B4 Shadow 路径运行 (LLM 反馈闭环验证)...")
     run_result = run_shadow(shadow_days=args.shadow_days)
-    logger.info("loop_closed=%s, llm_available=%s, need_rollback=%s",
-                run_result.loop_closed, run_result.llm_available, run_result.need_rollback)
+    logger.info(
+        "loop_closed=%s, llm_available=%s, need_rollback=%s",
+        run_result.loop_closed,
+        run_result.llm_available,
+        run_result.need_rollback,
+    )
 
     logger.info("FLAG 不变式校验 (运行后)...")
     flag_ok = check_flag_invariant()
@@ -459,7 +515,9 @@ def main() -> int:
 
     if consecutive_failures >= LLM_FAILURE_THRESHOLD:
         run_result.need_rollback = True
-        run_result.rollback_reason = f"连续失败 {consecutive_failures} >= {LLM_FAILURE_THRESHOLD}, 自动回退 B3"
+        run_result.rollback_reason = (
+            f"连续失败 {consecutive_failures} >= {LLM_FAILURE_THRESHOLD}, 自动回退 B3"
+        )
 
     result = B4ShadowVerificationResult(
         verification_time=_utc_now_iso(),
@@ -475,7 +533,11 @@ def main() -> int:
         entries_read=run_result.entries_read,
         warmup_days=warmup_days,
         flag_invariant=flag_ok,
-        b3_status={"enabled": b3.enabled, "healthy": b3.healthy, "shadow_days": b3.shadow_days},
+        b3_status={
+            "enabled": b3.enabled,
+            "healthy": b3.healthy,
+            "shadow_days": b3.shadow_days,
+        },
         warmup_sufficient=warmup_sufficient,
         consecutive_failures=consecutive_failures,
     )
@@ -483,20 +545,28 @@ def main() -> int:
     report_path = save_verification_result(result, date_str)
 
     print(f"\n[B4 Shadow 完成] 日期={date_str}")
-    print(f"[LLM 闭环] {'闭合' if run_result.loop_closed else '未闭合'} / LLM {'可用' if run_result.llm_available else '降级'}")
-    print(f"[知识库] 写入={run_result.entries_written} / 读取={run_result.entries_read}")
+    print(
+        f"[LLM 闭环] {'闭合' if run_result.loop_closed else '未闭合'} / LLM {'可用' if run_result.llm_available else '降级'}"
+    )
+    print(
+        f"[知识库] 写入={run_result.entries_written} / 读取={run_result.entries_read}"
+    )
     print(f"[降级护栏] {'触发回退' if run_result.need_rollback else '未触发'}")
     if run_result.need_rollback:
         print(f"[回退原因] {run_result.rollback_reason}")
     print(f"[建议] {run_result.suggestion}")
     print(f"[FLAG 不变式] {'PASS' if flag_ok else 'FAIL'}")
-    print(f"[预热] warmup_days={warmup_days}/{WARMUP_TARGET_DAYS} {'✅ 达标' if warmup_sufficient else '⏳ 不足'}")
+    print(
+        f"[预热] warmup_days={warmup_days}/{WARMUP_TARGET_DAYS} {'✅ 达标' if warmup_sufficient else '⏳ 不足'}"
+    )
     print(f"[连续失败] {consecutive_failures}/{LLM_FAILURE_THRESHOLD}")
     print(f"[报告] {report_path}")
     print(f"[状态] {SHADOW_STATUS_FILE}")
 
     if not warmup_sufficient:
-        print(f"[风险] 预热不足 ({warmup_days} < {WARMUP_TARGET_DAYS} 天), 需继续每日 EOD 运行")
+        print(
+            f"[风险] 预热不足 ({warmup_days} < {WARMUP_TARGET_DAYS} 天), 需继续每日 EOD 运行"
+        )
 
     return 0 if (flag_ok and b3.healthy and not run_result.need_rollback) else 1
 

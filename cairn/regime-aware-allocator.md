@@ -32,3 +32,14 @@
 |------|------|------|
 | `utils/regime_aware_allocator.py` | ~440 | 核心实现 |
 | `tests/unit/test_regime_aware_allocator_unit.py` | ~290 | 单元测试 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [FinRL-X 权重中心接口架构](finrl-x-interface.md) (相似度 22%)
+- [制度门控 Transformer (Adaptive Financial Transformer)](regime-gated-transformer.md) (相似度 20%)
+- [对冲方案 v8.7 优化 — RegimeFolio 动态阈值 + 紧急跨级 + IV 感知 + Deep Hedging + 多智能体](hedge-v87-regime-adaptive-20260827.md) (相似度 17%)
+- [年化收益校准标准 v1.0](returns-calibration-standards.md) (相似度 14%)
+- [隐含波动率曲面深度对冲](iv-surface-deep-hedge.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -5,6 +5,7 @@
     - 回测报告浏览
     - Sharpe / DSR / 回撤 / 年化等核心指标
 """
+
 from __future__ import annotations
 
 import sys
@@ -41,12 +42,38 @@ def main() -> None:
     st.subheader("📊 V9 基线指标 (生产基线)")
     st.caption("评估标准: DSR>=5 + 年化>=15% + 回撤<=10% + Sharpe CV<1.0")
 
-    render_kpi_row([
-        {"label": "DSR", "value": "8", "delta": "达标 (>=5)", "delta_positive": True, "icon": "🎯"},
-        {"label": "年化收益", "value": "19.62%", "delta": "达标 (>=15%)", "delta_positive": True, "icon": "📈"},
-        {"label": "最大回撤", "value": "-9.95%", "delta": "达标 (<=10%)", "delta_positive": True, "icon": "📉"},
-        {"label": "Sharpe CV", "value": "0.88", "delta": "达标 (<1.0)", "delta_positive": True, "icon": "📡"},
-    ])
+    render_kpi_row(
+        [
+            {
+                "label": "DSR",
+                "value": "8",
+                "delta": "达标 (>=5)",
+                "delta_positive": True,
+                "icon": "🎯",
+            },
+            {
+                "label": "年化收益",
+                "value": "19.62%",
+                "delta": "达标 (>=15%)",
+                "delta_positive": True,
+                "icon": "📈",
+            },
+            {
+                "label": "最大回撤",
+                "value": "-9.95%",
+                "delta": "达标 (<=10%)",
+                "delta_positive": True,
+                "icon": "📉",
+            },
+            {
+                "label": "Sharpe CV",
+                "value": "0.88",
+                "delta": "达标 (<1.0)",
+                "delta_positive": True,
+                "icon": "📡",
+            },
+        ]
+    )
 
     st.success("✅ V9 Regime-Specific LGB 模型全部达标, 当前生产基线 (2026-07-25 确认)")
 
@@ -78,6 +105,7 @@ def main() -> None:
     if pipeline_states:
         try:
             import pandas as pd
+
             rows = []
             for p in pipeline_states:
                 rows.append({"文件": p.name, "路径": str(p.parent)})

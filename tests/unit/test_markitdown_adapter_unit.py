@@ -12,6 +12,7 @@
     - get_status
     - 便捷函数 get_adapter / convert_to_markdown / convert_url
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -247,12 +248,16 @@ class TestConvertToMarkdown:
     @pytest.mark.unit
     def test_convert_timeout(self, tmp_path):
         import subprocess
+
         adapter = MarkItDownAdapter()
         adapter._py_version = "3.12"
         adapter._installed = True
         f = tmp_path / "test.pdf"
         f.write_text("dummy")
-        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="markitdown", timeout=120)):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd="markitdown", timeout=120),
+        ):
             result = adapter.convert_to_markdown(str(f))
         assert result == ""
 
@@ -297,10 +302,14 @@ class TestConvertUrl:
     @pytest.mark.unit
     def test_timeout(self):
         import subprocess
+
         adapter = MarkItDownAdapter()
         adapter._py_version = "3.12"
         adapter._installed = True
-        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="markitdown", timeout=120)):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd="markitdown", timeout=120),
+        ):
             result = adapter.convert_url("https://example.com")
         assert result == ""
 

@@ -7,6 +7,7 @@
     - 验证 fail-closed 行为统一: 触发 L2 (禁止开仓), 不触发 L3 (强制平仓)
     - 覆盖 OvernightGapMonitor + MarketCircuitBreaker 两个 Guard
 """
+
 import pytest
 
 from utils.market_circuit_breaker import MarketCircuitBreaker
@@ -22,13 +23,12 @@ def all_data_sources_down(monkeypatch):
     3. ExternalDataManager → 抛 ConnectionError
     4. cache 文件不存在
     """
+
     def _empty_quotes(codes):
         return {}
 
     try:
-        monkeypatch.setattr(
-            "utils.astock_realtime.get_realtime_quotes", _empty_quotes
-        )
+        monkeypatch.setattr("utils.astock_realtime.get_realtime_quotes", _empty_quotes)
     except (AttributeError, ImportError):
         pass
 
@@ -45,6 +45,10 @@ def all_data_sources_down(monkeypatch):
     try:
         monkeypatch.setattr(
             "utils.overnight_gap_monitor.OvernightGapMonitor._fetch_via_external_source",
+            lambda self: (None, None, False),
+        )
+        monkeypatch.setattr(
+            "utils.overnight_gap_monitor.OvernightGapMonitor._fetch_via_tdx_proxy",
             lambda self: (None, None, False),
         )
         monkeypatch.setattr(
@@ -86,7 +90,9 @@ class TestFailClosedPrinciple:
     @pytest.mark.integration
     @pytest.mark.p0
     @pytest.mark.bug("BUG#1b")
-    def test_market_circuit_breaker_fail_closed_returns_l2_not_l3(self, all_data_sources_down):
+    def test_market_circuit_breaker_fail_closed_returns_l2_not_l3(
+        self, all_data_sources_down
+    ):
         """MarketCircuitBreaker: 数据源全不可用 → L2 (不是 L3)"""
         mcb = MarketCircuitBreaker()
         status = mcb.check_market_status()
@@ -98,7 +104,9 @@ class TestFailClosedPrinciple:
         assert status["can_trade"] is True
 
     @pytest.mark.integration
-    def test_fail_closed_preserves_sell_orders(self, all_data_sources_down, sample_trade_plan):
+    def test_fail_closed_preserves_sell_orders(
+        self, all_data_sources_down, sample_trade_plan
+    ):
         """fail-closed 触发 L2 时, 必须保留 SELL 订单 (允许平仓)
 
         sample_trade_plan 含:
@@ -116,24 +124,29 @@ class TestFailClosedPrinciple:
         afternoon = plan["execution_plan"]["afternoon_orders"]
 
         # SELL 订单必须保留
-        assert any(o["direction"] == "SELL" for o in morning), \
-            "fail-closed L2 必须保留 SELL 订单 (允许平仓)"
+        assert any(
+            o["direction"] == "SELL" for o in morning
+        ), "fail-closed L2 必须保留 SELL 订单 (允许平仓)"
         # BUY 订单必须被过滤
         for order in morning + afternoon:
             assert order["direction"] != "BUY", "fail-closed L2 应过滤所有 BUY"
 
     @pytest.mark.integration
-    def test_fail_closed_does_not_halt_all_trading(self, all_data_sources_down, sample_trade_plan):
+    def test_fail_closed_does_not_halt_all_trading(
+        self, all_data_sources_down, sample_trade_plan
+    ):
         """fail-closed 不能触发 halt_all_trading (L3 才能触发)"""
         ogm = OvernightGapMonitor()
         risk = ogm.evaluate_overnight_risk()
         plan = ogm.apply_to_plan(sample_trade_plan, risk)
 
         # halt_all_trading 只能由 L3 触发, fail-closed (L2) 不能
-        assert plan["market_state"].get("halt_all_trading") is not True, \
-            "fail-closed L2 不能触发 halt_all_trading (L3 才能触发)"
-        assert plan["market_state"]["circuit_level"] == "WARNING", \
-            "fail-closed 应为 WARNING, 不是 CRITICAL"
+        assert (
+            plan["market_state"].get("halt_all_trading") is not True
+        ), "fail-closed L2 不能触发 halt_all_trading (L3 才能触发)"
+        assert (
+            plan["market_state"]["circuit_level"] == "WARNING"
+        ), "fail-closed 应为 WARNING, 不是 CRITICAL"
 
 
 # ============================================================
@@ -168,6 +181,7 @@ class TestRealExtremeMarketTriggersL3:
     @pytest.mark.integration
     def test_real_hs300_crash_7pct_triggers_l3(self, monkeypatch):
         """真实沪深300 跌 7% (有数据) → L3 全局平仓"""
+
         def _crash_quotes(codes):
             return {"510300": {"price": 3.78, "pre_close": 4.06, "change_pct": -7.0}}
 

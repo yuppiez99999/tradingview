@@ -2,6 +2,7 @@
 
 被测模块: utils/option_exercise_risk.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -303,7 +304,12 @@ class TestCheckAll:
             {"symbol": _CALL, "side": "SELL", "quantity": 10, "premium": 0.05},
             {"symbol": "garbage", "side": "SELL", "quantity": 10, "premium": 0.05},
             {"symbol": _PUT, "side": "BUY", "quantity": 5, "premium": 0.04},
-            {"symbol": "159915C2507M03000.SH", "side": "SELL", "quantity": 3, "premium": 0.03},
+            {
+                "symbol": "159915C2507M03000.SH",
+                "side": "SELL",
+                "quantity": 3,
+                "premium": 0.03,
+            },
         ]
         prices = {"510050.SH": 3.3}
         results = mgr.check_all(positions, prices)
@@ -337,10 +343,18 @@ class TestCheckAll:
 class TestGenerateCloseOrders:
     def _make(self, prob, side, itm=True):
         return ExerciseRiskResult(
-            symbol=_CALL, side=side, option_type="CALL", strike=3.0,
-            underlying_price=3.3, days_to_expiry=1, moneyness=1.1,
-            is_itm=itm, assignment_probability=prob,
-            recommended_action="x", potential_loss=1000.0, message="m",
+            symbol=_CALL,
+            side=side,
+            option_type="CALL",
+            strike=3.0,
+            underlying_price=3.3,
+            days_to_expiry=1,
+            moneyness=1.1,
+            is_itm=itm,
+            assignment_probability=prob,
+            recommended_action="x",
+            potential_loss=1000.0,
+            message="m",
         )
 
     def test_sell_certain_order_high_urgency(self):
@@ -420,10 +434,17 @@ class TestAutoCloseDeepItm:
     def test_shallow_itm_not_candidate(self):
         mgr = _manager(3)
         positions = [{"symbol": _CALL, "side": "SELL", "quantity": 10, "premium": 0.05}]
-        assert mgr.auto_close_deep_itm(positions, {"510050.SH": 3.1}, moneyness_threshold=1.05) == []
+        assert (
+            mgr.auto_close_deep_itm(
+                positions, {"510050.SH": 3.1}, moneyness_threshold=1.05
+            )
+            == []
+        )
 
     def test_custom_threshold_allows_shallower(self):
         mgr = _manager(3)
         positions = [{"symbol": _CALL, "side": "SELL", "quantity": 10, "premium": 0.05}]
-        orders = mgr.auto_close_deep_itm(positions, {"510050.SH": 3.1}, moneyness_threshold=1.02)
+        orders = mgr.auto_close_deep_itm(
+            positions, {"510050.SH": 3.1}, moneyness_threshold=1.02
+        )
         assert len(orders) == 1

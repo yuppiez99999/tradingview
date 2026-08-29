@@ -8,6 +8,7 @@
     - 全 mock KillSwitch / DrawdownController 等依赖, 不触发真实文件 IO
     - 重点验证 level 字符串归一化 (L0/L1/L2/L3/OK) 和订单过滤逻辑
 """
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,15 +19,12 @@ from utils.risk_guard_integrator import RiskGuardIntegrator
 # 辅助 fixture
 # ============================================================
 
+
 @pytest.fixture
 def integrator(tmp_path, monkeypatch):
     """隔离 LOGS_DIR / REPORTS_DIR / TRADE_PLANS_DIR 的 RiskGuardIntegrator 实例"""
-    monkeypatch.setattr(
-        "utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs"
-    )
-    monkeypatch.setattr(
-        "utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports"
-    )
+    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports")
     monkeypatch.setattr(
         "utils.risk_guard_integrator.TRADE_PLANS_DIR", tmp_path / "trade_plans"
     )
@@ -60,6 +58,7 @@ def mock_kill_switch_module(integrator, monkeypatch):
 
     # Patch import inside guard_kill_switch
     import sys
+
     sys.modules["utils.kill_switch"] = MagicMock(KillSwitch=mock_class)
     return mock_class, mock_instance
 
@@ -86,7 +85,11 @@ class TestBUG4L2NotTreatedAsL3:
     @pytest.mark.p1
     @pytest.mark.bug("BUG#4")
     def test_bug4_l2_filters_buy_keeps_sell_not_clears_all(
-        self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_full
+        self,
+        integrator,
+        mock_kill_switch_module,
+        sample_trade_plan,
+        sample_pnl_report_full,
     ):
         """BUG#4 核心: L2 时只能过滤 BUY, 不能清空所有订单
 
@@ -105,7 +108,7 @@ class TestBUG4L2NotTreatedAsL3:
             "margin_usage_ratio": 0.75,
             "actions": ["force_close_deep_otm_short"],
             "auto_execute": True,
-            "can_trade": False,   # ← BUG#4 触发条件: L2 时 can_trade 也为 False
+            "can_trade": False,  # ← BUG#4 触发条件: L2 时 can_trade 也为 False
             "can_open": False,
             "action": "L2熔断",
         }
@@ -121,14 +124,19 @@ class TestBUG4L2NotTreatedAsL3:
         assert afternoon == [], "L2 应过滤 afternoon 的 BUY 订单"
 
         # 不应触发 halt_all_trading (L3 才触发)
-        assert plan["market_state"].get("circuit_level") == "WARNING", \
-            "L2 应为 WARNING, 不是 CRITICAL"
+        assert (
+            plan["market_state"].get("circuit_level") == "WARNING"
+        ), "L2 应为 WARNING, 不是 CRITICAL"
 
     @pytest.mark.unit
     @pytest.mark.p1
     @pytest.mark.bug("BUG#4")
     def test_bug4_l3_clears_all_orders(
-        self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_full
+        self,
+        integrator,
+        mock_kill_switch_module,
+        sample_trade_plan,
+        sample_pnl_report_full,
     ):
         """BUG#4 对比: L3 时确实清空所有订单 (正确行为)"""
         _mock_class, mock_instance = mock_kill_switch_module
@@ -155,7 +163,11 @@ class TestBUG4L2NotTreatedAsL3:
     @pytest.mark.p1
     @pytest.mark.bug("BUG#4")
     def test_bug4_l1_only_marks_no_order_modification(
-        self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_full
+        self,
+        integrator,
+        mock_kill_switch_module,
+        sample_trade_plan,
+        sample_pnl_report_full,
     ):
         """BUG#4 边界: L1 时不应修改订单, 只标记 WATCH"""
         _mock_class, mock_instance = mock_kill_switch_module
@@ -165,13 +177,15 @@ class TestBUG4L2NotTreatedAsL3:
             "margin_usage_ratio": 0.55,
             "actions": ["disable_new_positions"],
             "auto_execute": True,
-            "can_trade": True,   # L1 时 can_trade=True
+            "can_trade": True,  # L1 时 can_trade=True
             "can_open": False,
             "action": "L1警戒",
         }
 
         original_morning = list(sample_trade_plan["execution_plan"]["morning_orders"])
-        original_afternoon = list(sample_trade_plan["execution_plan"]["afternoon_orders"])
+        original_afternoon = list(
+            sample_trade_plan["execution_plan"]["afternoon_orders"]
+        )
 
         plan = integrator.guard_kill_switch(sample_pnl_report_full, sample_trade_plan)
 
@@ -185,7 +199,11 @@ class TestBUG4L2NotTreatedAsL3:
     @pytest.mark.p1
     @pytest.mark.bug("BUG#4")
     def test_bug4_string_level_l2_normalized_correctly(
-        self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_full
+        self,
+        integrator,
+        mock_kill_switch_module,
+        sample_trade_plan,
+        sample_pnl_report_full,
     ):
         """BUG#4 边界: 字符串 'L2' 也能正确归一化为 2, 不被当作 L3"""
         _mock_class, mock_instance = mock_kill_switch_module
@@ -219,18 +237,27 @@ class TestP0DFallbackInGuardKillSwitch:
     @pytest.mark.p0
     @pytest.mark.bug("P0-D")
     def test_p0d_none_margin_falls_back_to_estimate(
-        self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_broken_p0d
+        self,
+        integrator,
+        mock_kill_switch_module,
+        sample_trade_plan,
+        sample_pnl_report_broken_p0d,
     ):
         """P0-D: margin_used=None, total_equity=None → 调用 _estimate_margin_from_positions"""
         _mock_class, mock_instance = mock_kill_switch_module
         mock_instance._estimate_margin_from_positions.return_value = 0.40
         mock_instance.check_margin_status.return_value = {
-            "level": 0, "margin_usage_ratio": 0.40,
-            "can_trade": True, "can_open": True, "action": "正常",
+            "level": 0,
+            "margin_usage_ratio": 0.40,
+            "can_trade": True,
+            "can_open": True,
+            "action": "正常",
         }
 
         # sample_pnl_report_broken_p0d 含 margin_used=None, total_equity=None
-        plan = integrator.guard_kill_switch(sample_pnl_report_broken_p0d, sample_trade_plan)
+        plan = integrator.guard_kill_switch(
+            sample_pnl_report_broken_p0d, sample_trade_plan
+        )
 
         # 必须调用 _estimate_margin_from_positions
         mock_instance._estimate_margin_from_positions.assert_called_once()
@@ -241,14 +268,23 @@ class TestP0DFallbackInGuardKillSwitch:
     @pytest.mark.p0
     @pytest.mark.bug("P0-D")
     def test_p0d_estimate_failure_uses_conservative_050(
-        self, integrator, mock_kill_switch_module, sample_trade_plan, sample_pnl_report_broken_p0d
+        self,
+        integrator,
+        mock_kill_switch_module,
+        sample_trade_plan,
+        sample_pnl_report_broken_p0d,
     ):
         """P0-D: _estimate_margin_from_positions 抛异常时使用保守值 0.50"""
         _mock_class, mock_instance = mock_kill_switch_module
-        mock_instance._estimate_margin_from_positions.side_effect = Exception("positions.json missing")
+        mock_instance._estimate_margin_from_positions.side_effect = Exception(
+            "positions.json missing"
+        )
         mock_instance.check_margin_status.return_value = {
-            "level": 1, "margin_usage_ratio": 0.50,
-            "can_trade": True, "can_open": False, "action": "L1警戒",
+            "level": 1,
+            "margin_usage_ratio": 0.50,
+            "can_trade": True,
+            "can_open": False,
+            "action": "L1警戒",
         }
 
         # 不应抛异常, 使用保守值 0.50
@@ -307,13 +343,9 @@ class TestDeduplicatePutOrders:
     def test_no_duplicate_no_modification(self, integrator):
         """无重复时订单不变"""
         plan = {
-            "put_protection_orders": [
-                {"underlying": "510050", "contracts": 60}
-            ],
+            "put_protection_orders": [{"underlying": "510050", "contracts": 60}],
             "hedge_execution": {
-                "options_orders": [
-                    {"instrument": "588080 Put", "contracts": 25}
-                ],
+                "options_orders": [{"instrument": "588080 Put", "contracts": 25}],
                 "futures_orders": [{"instrument": "IF"}],
             },
         }
@@ -333,8 +365,16 @@ class TestDeduplicatePutOrders:
             ],
             "hedge_execution": {
                 "options_orders": [
-                    {"instrument": "510050 Put", "contracts": 30, "order_id": "HEDGE_PUT_1"},  # 重复
-                    {"instrument": "588080 Put", "contracts": 25, "order_id": "HEDGE_PUT_2"},  # 保留
+                    {
+                        "instrument": "510050 Put",
+                        "contracts": 30,
+                        "order_id": "HEDGE_PUT_1",
+                    },  # 重复
+                    {
+                        "instrument": "588080 Put",
+                        "contracts": 25,
+                        "order_id": "HEDGE_PUT_2",
+                    },  # 保留
                 ],
                 "futures_orders": [{"instrument": "IF"}],
             },
@@ -345,7 +385,9 @@ class TestDeduplicatePutOrders:
 
         # 510050 Put 应被剔除, 只剩 588080 Put
         assert len(plan["hedge_execution"]["options_orders"]) == 1
-        assert plan["hedge_execution"]["options_orders"][0]["instrument"] == "588080 Put"
+        assert (
+            plan["hedge_execution"]["options_orders"][0]["instrument"] == "588080 Put"
+        )
 
         # risk_guard 应记录去重信息
         assert "put_hedge_dedup" in plan["risk_guard"]

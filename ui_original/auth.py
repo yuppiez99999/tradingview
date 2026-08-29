@@ -30,6 +30,7 @@
     - 默认凭据仅用于开发, 生产环境必须修改
     - 会话状态在浏览器关闭后失效
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -66,6 +67,7 @@ DEFAULT_CONFIG_NAME = "ui_auth"
 # 数据类
 # ============================================================
 
+
 @dataclass
 class AuthConfig:
     """鉴权配置快照.
@@ -76,6 +78,7 @@ class AuthConfig:
         credentials: 凭据列表 [{username, password_hash}]
         session_ttl_seconds: 会话 TTL (秒)
     """
+
     enabled: bool | None = None
     require_in_production: bool = True
     credentials: list[dict[str, str]] = field(default_factory=list)
@@ -94,6 +97,7 @@ class AuthConfig:
 # ============================================================
 # 核心函数
 # ============================================================
+
 
 def hash_password(password: str) -> str:
     """对密码进行 SHA-256 哈希.
@@ -141,7 +145,9 @@ def load_auth_config(config_name: str = DEFAULT_CONFIG_NAME) -> AuthConfig:
                 cfg.enabled = bool(raw["enabled"])
             cfg.require_in_production = bool(raw.get("require_in_production", True))
             cfg.credentials = list(raw.get("credentials", []))
-            cfg.session_ttl_seconds = int(raw.get("session_ttl_seconds", DEFAULT_SESSION_TTL))
+            cfg.session_ttl_seconds = int(
+                raw.get("session_ttl_seconds", DEFAULT_SESSION_TTL)
+            )
             logger.debug("鉴权配置加载: %s", cfg.to_dict())
     except Exception as e:
         logger.warning("鉴权配置加载失败, 使用默认值: %s", e)
@@ -251,6 +257,7 @@ def check_session_valid(
 # Streamlit 集成函数 (仅在使用 Streamlit 时调用)
 # ============================================================
 
+
 def get_session_state() -> Any:
     """获取 Streamlit session_state (若可用).
 
@@ -259,6 +266,7 @@ def get_session_state() -> Any:
     """
     try:
         import streamlit as st  # type: ignore[import-not-found]
+
         return st.session_state
     except (ImportError, RuntimeError):
         # ImportError: 未安装 streamlit
@@ -376,9 +384,7 @@ def _render_flag_disabled() -> None:
         f"如需启用, 请在 `v8.3_institutional/config/feature_flags.yaml` 中设置 "
         f"`{FLAG_NAME}: true` 并通过 `FeatureFlags.enable('{FLAG_NAME}', signer, co_signer)` 双签启用."
     )
-    st.info(
-        "**HC-1 硬约束**: 默认关闭以保护 V9 生产基线, 启用需双签审计."
-    )
+    st.info("**HC-1 硬约束**: 默认关闭以保护 V9 生产基线, 启用需双签审计.")
 
 
 __all__ = [

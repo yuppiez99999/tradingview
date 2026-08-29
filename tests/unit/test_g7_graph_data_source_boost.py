@@ -29,6 +29,7 @@
     - 测试文件可独立运行:
       python -m pytest tests/unit/test_g7_graph_data_source_boost.py -q
 """
+
 from __future__ import annotations
 
 import io
@@ -44,7 +45,9 @@ import requests
 # ============================================================
 # PROJECT_ROOT sys.path 注入 (使测试文件可独立运行)
 # ============================================================
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -365,8 +368,13 @@ class TestGet:
         fresh_ds._session.get.return_value = mock_resp
 
         custom_headers = {"X-Custom": "1"}
-        result = fresh_ds._get("http://test", {}, headers=custom_headers,
-                               source="ths_hot_reason", timeout=5)
+        result = fresh_ds._get(
+            "http://test",
+            {},
+            headers=custom_headers,
+            source="ths_hot_reason",
+            timeout=5,
+        )
 
         assert result == {"data": "ok"}
         assert fresh_ds.source_health["ths_hot_reason"]["ok"] is True
@@ -421,7 +429,9 @@ class TestGet:
         mock_session.get.side_effect = requests.exceptions.ConnectionError("reset")
         ds._session = mock_session
 
-        with patch("utils.graph_data_source.requests.Session", return_value=mock_session):
+        with patch(
+            "utils.graph_data_source.requests.Session", return_value=mock_session
+        ):
             result = ds._get("http://test", {})
 
         assert result is None
@@ -443,7 +453,9 @@ class TestGet:
 
         ds._session = mock_session_1
 
-        with patch("utils.graph_data_source.requests.Session", return_value=mock_session_2):
+        with patch(
+            "utils.graph_data_source.requests.Session", return_value=mock_session_2
+        ):
             result = ds._get("http://test", {})
 
         assert result == {"ok": True}
@@ -458,7 +470,9 @@ class TestGet:
         mock_session.close.side_effect = ValueError("close error")
         ds._session = mock_session
 
-        with patch("utils.graph_data_source.requests.Session", return_value=mock_session):
+        with patch(
+            "utils.graph_data_source.requests.Session", return_value=mock_session
+        ):
             result = ds._get("http://test", {})
 
         assert result is None  # 不因 close 异常崩溃
@@ -475,11 +489,11 @@ class TestGetStockBoards:
         mock_response = {
             "data": {
                 "diff": [
-                    {"f12": "600276", "f14": "恒瑞医药"},        # 6位数字 → stock
-                    {"f12": "BK1036", "f14": "半导体概念"},       # 含"概念" → concept
-                    {"f12": "BK1037", "f14": "江苏板块"},         # 含"板块" → region
-                    {"f12": "BK1038", "f14": "半导体"},           # BK开头 → industry
-                    {"f12": "XX999", "f14": "上证指数"},          # 兜底 → index
+                    {"f12": "600276", "f14": "恒瑞医药"},  # 6位数字 → stock
+                    {"f12": "BK1036", "f14": "半导体概念"},  # 含"概念" → concept
+                    {"f12": "BK1037", "f14": "江苏板块"},  # 含"板块" → region
+                    {"f12": "BK1038", "f14": "半导体"},  # BK开头 → industry
+                    {"f12": "XX999", "f14": "上证指数"},  # 兜底 → index
                 ]
             }
         }
@@ -496,11 +510,13 @@ class TestGetStockBoards:
 
     def test_empty_name_skipped(self, fresh_ds):
         mock_response = {
-            "data": {"diff": [
-                {"f12": "BK001", "f14": ""},           # 空名 → skip
-                {"f12": "BK002", "f14": "None"},       # "None" → skip
-                {"f12": "BK003", "f14": "有效板块"},    # 保留
-            ]}
+            "data": {
+                "diff": [
+                    {"f12": "BK001", "f14": ""},  # 空名 → skip
+                    {"f12": "BK002", "f14": "None"},  # "None" → skip
+                    {"f12": "BK003", "f14": "有效板块"},  # 保留
+                ]
+            }
         }
         with patch.object(fresh_ds, "_get", return_value=mock_response):
             boards = fresh_ds.get_stock_boards("688041")
@@ -534,11 +550,15 @@ class TestGetStockBoards:
 
     def test_items_missing_fields(self, fresh_ds):
         """item 缺 f12/f14 → 空字符串, name 空 → skip."""
-        mock_response = {"data": {"diff": [
-            {"f12": "BK001"},  # 无 f14 → name="" → skip
-            {"f14": "有名字"},  # 无 f12 → code=""
-            {"f13": 1},        # 都缺 → skip (name="")
-        ]}}
+        mock_response = {
+            "data": {
+                "diff": [
+                    {"f12": "BK001"},  # 无 f14 → name="" → skip
+                    {"f14": "有名字"},  # 无 f12 → code=""
+                    {"f13": 1},  # 都缺 → skip (name="")
+                ]
+            }
+        }
         with patch.object(fresh_ds, "_get", return_value=mock_response):
             boards = fresh_ds.get_stock_boards("688041")
         assert len(boards) == 1
@@ -684,7 +704,10 @@ class TestGetThemes:
 
     def test_error_code_returns_empty(self, fresh_ds, caplog):
         mock_resp = {"errocode": 1, "errormsg": "系统错误"}
-        with patch.object(fresh_ds, "_get", return_value=mock_resp), caplog.at_level("WARNING"):
+        with (
+            patch.object(fresh_ds, "_get", return_value=mock_resp),
+            caplog.at_level("WARNING"),
+        ):
             result = fresh_ds.get_themes("2026-01-15")
         assert result == []
         assert any("同花顺热点错误" in r.message for r in caplog.records)
@@ -726,10 +749,12 @@ class TestFetchBoardStocks:
 
     def test_file_cache_miss_then_fetch(self, fresh_ds):
         mock_resp = {
-            "data": {"diff": [
-                {"f12": "001", "f14": "股票A", "f100": "半导体"},
-                {"f12": "002", "f14": "股票B", "f100": "半导体"},
-            ]}
+            "data": {
+                "diff": [
+                    {"f12": "001", "f14": "股票A", "f100": "半导体"},
+                    {"f12": "002", "f14": "股票B", "f100": "半导体"},
+                ]
+            }
         }
         with patch.object(fresh_ds, "_load_board_cache", return_value=[]):
             with patch.object(fresh_ds, "_get", return_value=mock_resp):
@@ -752,10 +777,12 @@ class TestFetchBoardStocks:
     def test_empty_code_skipped(self, fresh_ds):
         """diff 中 f12 为空 → 跳过."""
         mock_resp = {
-            "data": {"diff": [
-                {"f12": "", "f14": "无代码", "f100": ""},
-                {"f12": "001", "f14": "有代码", "f100": "半导体"},
-            ]}
+            "data": {
+                "diff": [
+                    {"f12": "", "f14": "无代码", "f100": ""},
+                    {"f12": "001", "f14": "有代码", "f100": "半导体"},
+                ]
+            }
         }
         with patch.object(fresh_ds, "_load_board_cache", return_value=[]):
             with patch.object(fresh_ds, "_get", return_value=mock_resp):
@@ -860,7 +887,9 @@ class TestSaveBoardCache:
 
     def test_appends_to_existing(self, tmp_path):
         cache_file = tmp_path / "cache.json"
-        cache_file.write_text(json.dumps({"existing": [{"code": "000"}]}), encoding="utf-8")
+        cache_file.write_text(
+            json.dumps({"existing": [{"code": "000"}]}), encoding="utf-8"
+        )
         with patch.object(gds_module, "_BOARD_CACHE_FILE", str(cache_file)):
             ds = GraphDataSource()
             ds._save_board_cache("new_key", [{"code": "001"}])
@@ -898,7 +927,12 @@ class TestSaveBoardCache:
 
 class TestFetchMainBusiness:
     def test_file_cache_hit(self, fresh_ds):
-        cached = {"code": "688041", "products": ["cached"], "industries": [], "review": ""}
+        cached = {
+            "code": "688041",
+            "products": ["cached"],
+            "industries": [],
+            "review": "",
+        }
         with patch.object(fresh_ds, "_load_json_cache_value", return_value=cached):
             with patch.object(fresh_ds, "_get") as mock_get:
                 result = fresh_ds.fetch_main_business("688041")
@@ -985,7 +1019,7 @@ class TestFetchMainBusiness:
                 {"MAINOP_TYPE": "1", "ITEM_NAME": "芯片", "MBI_RATIO": 0.5},
             ],
             "jyps": [
-                {"BUSINESS_REVIEW": ""},        # 空 → 跳过
+                {"BUSINESS_REVIEW": ""},  # 空 → 跳过
                 {"BUSINESS_REVIEW": "实际评述"},  # 取这个
                 {"BUSINESS_REVIEW": "被忽略"},
             ],
@@ -1015,7 +1049,9 @@ class TestFetchMainBusiness:
         assert result["products"] == ["芯片", "封装"]
 
     def test_url_contains_f10_code(self, fresh_ds):
-        mock_resp = {"zygcfx": [{"MAINOP_TYPE": "1", "ITEM_NAME": "芯片", "MBI_RATIO": 0.5}]}
+        mock_resp = {
+            "zygcfx": [{"MAINOP_TYPE": "1", "ITEM_NAME": "芯片", "MBI_RATIO": 0.5}]
+        }
         with patch.object(fresh_ds, "_load_json_cache_value", return_value=None):
             with patch.object(fresh_ds, "_get", return_value=mock_resp) as mock_get:
                 fresh_ds.fetch_main_business("688041")
@@ -1024,7 +1060,9 @@ class TestFetchMainBusiness:
         assert "SH688041" in url_arg  # 6开头 → SH
 
     def test_url_contains_sz_f10_code(self, fresh_ds):
-        mock_resp = {"zygcfx": [{"MAINOP_TYPE": "1", "ITEM_NAME": "芯片", "MBI_RATIO": 0.5}]}
+        mock_resp = {
+            "zygcfx": [{"MAINOP_TYPE": "1", "ITEM_NAME": "芯片", "MBI_RATIO": 0.5}]
+        }
         with patch.object(fresh_ds, "_load_json_cache_value", return_value=None):
             with patch.object(fresh_ds, "_get", return_value=mock_resp) as mock_get:
                 fresh_ds.fetch_main_business("300308")
@@ -1033,7 +1071,9 @@ class TestFetchMainBusiness:
         assert "SZ300308" in url_arg  # 3开头 → SZ
 
     def test_timeout_is_15(self, fresh_ds):
-        mock_resp = {"zygcfx": [{"MAINOP_TYPE": "1", "ITEM_NAME": "芯片", "MBI_RATIO": 0.5}]}
+        mock_resp = {
+            "zygcfx": [{"MAINOP_TYPE": "1", "ITEM_NAME": "芯片", "MBI_RATIO": 0.5}]
+        }
         with patch.object(fresh_ds, "_load_json_cache_value", return_value=None):
             with patch.object(fresh_ds, "_get", return_value=mock_resp) as mock_get:
                 fresh_ds.fetch_main_business("688041")
@@ -1161,9 +1201,13 @@ class TestBuildConceptEdges:
 class TestBuildIndustryEdges:
     def test_same_industry_creates_edge(self, fresh_ds):
         def mock_industry(code):
-            return {"001": {"industry": "半导体"}, "002": {"industry": "半导体"}}.get(code)
+            return {"001": {"industry": "半导体"}, "002": {"industry": "半导体"}}.get(
+                code
+            )
 
-        with patch.object(fresh_ds, "get_industry_relationship", side_effect=mock_industry):
+        with patch.object(
+            fresh_ds, "get_industry_relationship", side_effect=mock_industry
+        ):
             edges = fresh_ds.build_industry_edges(["001", "002"])
 
         assert len(edges) == 1
@@ -1176,9 +1220,13 @@ class TestBuildIndustryEdges:
 
     def test_different_industry_no_edge(self, fresh_ds):
         def mock_industry(code):
-            return {"001": {"industry": "半导体"}, "002": {"industry": "新能源"}}.get(code)
+            return {"001": {"industry": "半导体"}, "002": {"industry": "新能源"}}.get(
+                code
+            )
 
-        with patch.object(fresh_ds, "get_industry_relationship", side_effect=mock_industry):
+        with patch.object(
+            fresh_ds, "get_industry_relationship", side_effect=mock_industry
+        ):
             edges = fresh_ds.build_industry_edges(["001", "002"])
         assert edges == []
 
@@ -1188,8 +1236,9 @@ class TestBuildIndustryEdges:
         assert edges == []
 
     def test_empty_industry_no_edge(self, fresh_ds):
-        with patch.object(fresh_ds, "get_industry_relationship",
-                          return_value={"industry": ""}):
+        with patch.object(
+            fresh_ds, "get_industry_relationship", return_value={"industry": ""}
+        ):
             edges = fresh_ds.build_industry_edges(["001", "002"])
         assert edges == []
 
@@ -1322,6 +1371,7 @@ class TestBuildMainBusinessEdges:
 
     def test_dedup_pairs(self, fresh_ds):
         """同一对只生成一条边."""
+
         def mock_mb(code):
             return {
                 "001": {"products": ["A", "B", "C"], "industries": []},
@@ -1336,6 +1386,7 @@ class TestBuildMainBusinessEdges:
 
     def test_strength_capped_at_1(self, fresh_ds):
         tags = [f"P{i}" for i in range(10)]  # 10 shared
+
         def mock_mb(code):
             return {"products": tags, "industries": []}
 
@@ -1347,14 +1398,18 @@ class TestBuildMainBusinessEdges:
 
     def test_empty_products_and_industries_skipped(self, fresh_ds):
         """mb 存在但 products/industries 为空 → tags 为空 → 跳过."""
-        with patch.object(fresh_ds, "fetch_main_business",
-                          return_value={"products": [], "industries": []}):
+        with patch.object(
+            fresh_ds,
+            "fetch_main_business",
+            return_value={"products": [], "industries": []},
+        ):
             edges = fresh_ds.build_main_business_edges(["001", "002"])
         assert edges == []
 
     def test_source_info_truncates_to_three(self, fresh_ds):
         """source_info 中 shared 只取前3个."""
         tags = [f"P{i}" for i in range(5)]
+
         def mock_mb(code):
             return {"products": tags, "industries": []}
 
@@ -1371,19 +1426,55 @@ class TestBuildMainBusinessEdges:
 
 class TestBuildGraphEdges:
     def test_all_included(self, fresh_ds):
-        industry_edges = [{"source": "001", "target": "002", "relation_type": "COMPETITOR",
-                            "strength": 0.7, "source_info": "industry:A"}]
-        concept_edges = [{"source": "001", "target": "002", "relation_type": "PARTNER",
-                          "strength": 0.2, "source_info": "concept:X"}]
-        mb_edges = [{"source": "001", "target": "002", "relation_type": "PARTNER",
-                     "strength": 0.55, "source_info": "main_business:Y"}]
-        theme_edges = [{"source": "001", "target": "003", "relation_type": "PARTNER",
-                        "strength": 0.5, "source_info": "theme:Z"}]
+        industry_edges = [
+            {
+                "source": "001",
+                "target": "002",
+                "relation_type": "COMPETITOR",
+                "strength": 0.7,
+                "source_info": "industry:A",
+            }
+        ]
+        concept_edges = [
+            {
+                "source": "001",
+                "target": "002",
+                "relation_type": "PARTNER",
+                "strength": 0.2,
+                "source_info": "concept:X",
+            }
+        ]
+        mb_edges = [
+            {
+                "source": "001",
+                "target": "002",
+                "relation_type": "PARTNER",
+                "strength": 0.55,
+                "source_info": "main_business:Y",
+            }
+        ]
+        theme_edges = [
+            {
+                "source": "001",
+                "target": "003",
+                "relation_type": "PARTNER",
+                "strength": 0.5,
+                "source_info": "theme:Z",
+            }
+        ]
 
-        with patch.object(fresh_ds, "build_industry_edges", return_value=industry_edges):
-            with patch.object(fresh_ds, "build_concept_edges", return_value=concept_edges):
-                with patch.object(fresh_ds, "build_main_business_edges", return_value=mb_edges):
-                    with patch.object(fresh_ds, "build_thematic_edges", return_value=theme_edges):
+        with patch.object(
+            fresh_ds, "build_industry_edges", return_value=industry_edges
+        ):
+            with patch.object(
+                fresh_ds, "build_concept_edges", return_value=concept_edges
+            ):
+                with patch.object(
+                    fresh_ds, "build_main_business_edges", return_value=mb_edges
+                ):
+                    with patch.object(
+                        fresh_ds, "build_thematic_edges", return_value=theme_edges
+                    ):
                         edges = fresh_ds.build_graph_edges(["001", "002"])
 
         assert len(edges) == 4  # 全部合并
@@ -1391,9 +1482,13 @@ class TestBuildGraphEdges:
     def test_no_themes(self, fresh_ds):
         with patch.object(fresh_ds, "build_industry_edges", return_value=[]):
             with patch.object(fresh_ds, "build_concept_edges", return_value=[]):
-                with patch.object(fresh_ds, "build_main_business_edges", return_value=[]):
+                with patch.object(
+                    fresh_ds, "build_main_business_edges", return_value=[]
+                ):
                     with patch.object(fresh_ds, "build_thematic_edges") as mock_themes:
-                        edges = fresh_ds.build_graph_edges(["001"], include_themes=False)
+                        edges = fresh_ds.build_graph_edges(
+                            ["001"], include_themes=False
+                        )
 
         assert edges == []
         mock_themes.assert_not_called()
@@ -1402,8 +1497,12 @@ class TestBuildGraphEdges:
         with patch.object(fresh_ds, "build_industry_edges", return_value=[]):
             with patch.object(fresh_ds, "build_concept_edges", return_value=[]):
                 with patch.object(fresh_ds, "build_main_business_edges") as mock_mb:
-                    with patch.object(fresh_ds, "build_thematic_edges", return_value=[]):
-                        edges = fresh_ds.build_graph_edges(["001"], include_main_business=False)
+                    with patch.object(
+                        fresh_ds, "build_thematic_edges", return_value=[]
+                    ):
+                        edges = fresh_ds.build_graph_edges(
+                            ["001"], include_main_business=False
+                        )
 
         assert edges == []
         mock_mb.assert_not_called()
@@ -1411,8 +1510,12 @@ class TestBuildGraphEdges:
     def test_date_passed_to_thematic(self, fresh_ds):
         with patch.object(fresh_ds, "build_industry_edges", return_value=[]):
             with patch.object(fresh_ds, "build_concept_edges", return_value=[]):
-                with patch.object(fresh_ds, "build_main_business_edges", return_value=[]):
-                    with patch.object(fresh_ds, "build_thematic_edges", return_value=[]) as mock_t:
+                with patch.object(
+                    fresh_ds, "build_main_business_edges", return_value=[]
+                ):
+                    with patch.object(
+                        fresh_ds, "build_thematic_edges", return_value=[]
+                    ) as mock_t:
                         fresh_ds.build_graph_edges(["001"], date="2026-01-15")
 
         # date 作为位置参数传递给 build_thematic_edges

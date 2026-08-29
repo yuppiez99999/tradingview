@@ -9,7 +9,11 @@ qlib.init(provider_uri=QLIB_DATA_DIR, region="cn")
 from qlib.data import D  # noqa: E402
 
 print("=== 示例数据 (sh600519):")
-df = D.features(["sh600519"], ["$close", "$volume", "$factor", "$pe", "$pb", "$roeq"], start_time="2024-01-01")
+df = D.features(
+    ["sh600519"],
+    ["$close", "$volume", "$factor", "$pe", "$pb", "$roeq"],
+    start_time="2024-01-01",
+)
 print(f"  行数: {len(df)}")
 print(f"  列: {list(df.columns)}")
 print(df.head(5))

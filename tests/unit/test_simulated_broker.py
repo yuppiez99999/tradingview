@@ -3,6 +3,7 @@
 验证回测撮合路径: 盘口构造、Almgren-Chriss 滑点、下单/撤单、成交回报。
 全部内存操作, 无副作用、无网络依赖。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -51,7 +52,9 @@ def test_fill_dataclass_fields():
 
 
 def test_order_book_construction():
-    ob = OrderBook(symbol="600519.SH", bid1=99.0, ask1=101.0, bid1_vol=500, ask1_vol=500)
+    ob = OrderBook(
+        symbol="600519.SH", bid1=99.0, ask1=101.0, bid1_vol=500, ask1_vol=500
+    )
     assert ob.bid1 == 99.0
     assert ob.ask1 == 101.0
     assert ob.ask1 - ob.bid1 == pytest.approx(2.0)

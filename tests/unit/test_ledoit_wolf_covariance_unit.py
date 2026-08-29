@@ -3,6 +3,7 @@
 被测模块: utils/ledoit_wolf_covariance.py
 覆盖目标: >=85%
 """
+
 from __future__ import annotations
 
 import sys
@@ -16,7 +17,10 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.ledoit_wolf_covariance import LedoitWolfCovariance, ShrinkageResult  # noqa: E402
+from utils.ledoit_wolf_covariance import (
+    LedoitWolfCovariance,
+    ShrinkageResult,
+)  # noqa: E402
 
 
 class LedoitWolfCovarianceTest:
@@ -30,7 +34,9 @@ class LedoitWolfCovarianceTest:
         assert est.periods_per_year == 252
 
     def test_init_custom(self):
-        est = LedoitWolfCovariance(assume_zero_mean=True, annualize=True, periods_per_year=365)
+        est = LedoitWolfCovariance(
+            assume_zero_mean=True, annualize=True, periods_per_year=365
+        )
         assert est.assume_zero_mean is True
         assert est.annualize is True
         assert est.periods_per_year == 365

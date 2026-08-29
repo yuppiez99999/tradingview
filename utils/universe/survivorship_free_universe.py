@@ -228,9 +228,7 @@ class SurvivorshipBiasFreeUniverse:
 
         # 检查区间内退市股数量
         delisted_in_period = [
-            r
-            for r in self._delisted_db
-            if start <= r.delist_date <= end
+            r for r in self._delisted_db if start <= r.delist_date <= end
         ]
 
         if delisted_in_period:
@@ -246,8 +244,7 @@ class SurvivorshipBiasFreeUniverse:
 
         if coverage < 0.5:
             warnings.append(
-                f"快照覆盖率仅 {coverage:.1%}，低于 50%，"
-                "建议先生成历史快照"
+                f"快照覆盖率仅 {coverage:.1%}，低于 50%，" "建议先生成历史快照"
             )
 
         has_bias = len(delisted_in_period) > 0 or coverage < 0.3
@@ -316,7 +313,16 @@ class SurvivorshipBiasFreeUniverse:
                 result = self._filter_delisted(current, current_date)
                 self._save_snapshot(current_date, result)
                 stats["created"] += 1
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("构建快照 %s 失败: %s", current_date, e)
                 stats["errors"] += 1
@@ -391,9 +397,7 @@ class SurvivorshipBiasFreeUniverse:
         start = self._normalize_date(start_date) if start_date else "0000-01-01"
         end = self._normalize_date(end_date) if end_date else "9999-12-31"
 
-        return [
-            r for r in self._delisted_db if start <= r.delist_date <= end
-        ]
+        return [r for r in self._delisted_db if start <= r.delist_date <= end]
 
     def auto_detect_delisted(self, lookback_days: int = 90) -> int:
         """自动检测近期退市股（通过对比当前成分股和历史快照）
@@ -441,9 +445,7 @@ class SurvivorshipBiasFreeUniverse:
             return universe
 
         as_of = self._normalize_date(as_of_date)
-        delisted_codes = {
-            r.code for r in self._delisted_db if r.delist_date <= as_of
-        }
+        delisted_codes = {r.code for r in self._delisted_db if r.delist_date <= as_of}
 
         if not delisted_codes:
             return universe.copy()
@@ -482,7 +484,16 @@ class SurvivorshipBiasFreeUniverse:
                 return None
             df["code"] = df["code"].astype(str).str.zfill(6)
             return df
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("加载快照 %s 失败: %s", date, e)
             return None
@@ -501,7 +512,16 @@ class SurvivorshipBiasFreeUniverse:
             data = df[["code", "name", "index"]].to_dict("records")
             with open(snapshot_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=1)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("保存快照 %s 失败: %s", date, e)
 
@@ -518,7 +538,16 @@ class SurvivorshipBiasFreeUniverse:
                 data = json.load(f)
             self._delisted_db = [DelistedStockRecord.from_dict(d) for d in data]
             logger.info("加载退市股数据库: %d 只", len(self._delisted_db))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("加载退市股数据库失败: %s，使用内置数据", e)
             self._delisted_db = self._get_builtin_delisted()
@@ -529,7 +558,16 @@ class SurvivorshipBiasFreeUniverse:
             data = [r.to_dict() for r in self._delisted_db]
             with open(self._delisted_db_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("保存退市股数据库失败: %s", e)
 

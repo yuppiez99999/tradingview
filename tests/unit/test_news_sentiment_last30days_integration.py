@@ -55,7 +55,9 @@ def _make_signal(
 def _make_signals_mixed() -> list[Last30DaysSignal]:
     """构造混合情感的多平台信号."""
     return [
-        _make_signal("gold price", "reddit", sentiment=0.7, mentions=100, engagement=3000.0),
+        _make_signal(
+            "gold price", "reddit", sentiment=0.7, mentions=100, engagement=3000.0
+        ),
         _make_signal("gold price", "x", sentiment=-0.4, mentions=60, engagement=1500.0),
         _make_signal("AI chip", "hn", sentiment=0.5, mentions=40, engagement=800.0),
     ]
@@ -106,7 +108,9 @@ class TestSignalConversion:
             engagement=2000.0,
         )
         with patch("utils.infra.feature_flags.is_enabled", return_value=True):
-            count = engine.ingest_last30days_signals([sig], default_symbols=["600916.SH"])
+            count = engine.ingest_last30days_signals(
+                [sig], default_symbols=["600916.SH"]
+            )
 
         assert count == 1
         # 检查 news_store 中的 NewsItem
@@ -168,7 +172,10 @@ class TestSignalConversion:
         engine = NewsSentimentEngine()
         sig = _make_signal()
         sig.summary = "Bullish gold discussion"
-        sig.source_urls = ["https://reddit.com/r/gold/abc", "https://reddit.com/r/gold/def"]
+        sig.source_urls = [
+            "https://reddit.com/r/gold/abc",
+            "https://reddit.com/r/gold/def",
+        ]
         with patch("utils.infra.feature_flags.is_enabled", return_value=True):
             engine.ingest_last30days_signals([sig], default_symbols=["600916.SH"])
         all_news = [n for v in engine.news_store.values() for n in v]
@@ -208,7 +215,9 @@ class TestSymbolAssociation:
             "AI chip": ["002475.SZ"],  # 立讯
         }
         with patch("utils.infra.feature_flags.is_enabled", return_value=True):
-            engine.ingest_last30days_signals([sig_gold, sig_ai], symbol_mapping=symbol_mapping)
+            engine.ingest_last30days_signals(
+                [sig_gold, sig_ai], symbol_mapping=symbol_mapping
+            )
         # 600916.SH 应有 1 条新闻
         assert len(engine.news_store.get("600916.SH", [])) == 1
         assert len(engine.news_store.get("002475.SZ", [])) == 1
@@ -218,7 +227,9 @@ class TestSymbolAssociation:
         sig = _make_signal(topic="unknown topic")
         with patch("utils.infra.feature_flags.is_enabled", return_value=True):
             engine.ingest_last30days_signals(
-                [sig], symbol_mapping={"gold": ["600916.SH"]}, default_symbols=["000001.SZ"]
+                [sig],
+                symbol_mapping={"gold": ["600916.SH"]},
+                default_symbols=["000001.SZ"],
             )
         # topic 不在 mapping 中, 应回退到 default_symbols
         assert len(engine.news_store.get("000001.SZ", [])) == 1
@@ -246,8 +257,20 @@ class TestSentimentAggregation:
         engine = NewsSentimentEngine()
         # 注入 3 条正面 reddit 信号, 关联到 600916.SH
         signals = [
-            _make_signal(topic="gold", platform="reddit", sentiment=0.7, mentions=80, engagement=2000.0),
-            _make_signal(topic="gold", platform="x", sentiment=0.5, mentions=60, engagement=1500.0),
+            _make_signal(
+                topic="gold",
+                platform="reddit",
+                sentiment=0.7,
+                mentions=80,
+                engagement=2000.0,
+            ),
+            _make_signal(
+                topic="gold",
+                platform="x",
+                sentiment=0.5,
+                mentions=60,
+                engagement=1500.0,
+            ),
         ]
         symbol_mapping = {"gold": ["600916.SH"]}
         with patch("utils.infra.feature_flags.is_enabled", return_value=True):
@@ -298,8 +321,9 @@ class TestFailSafe:
                 raise RuntimeError("simulated failure")
             original_add(news)
 
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), patch.object(
-            engine, "add_news", side_effect=flaky_add
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch.object(engine, "add_news", side_effect=flaky_add),
         ):
             count = engine.ingest_last30days_signals([bad_sig, good_sig])
         # 一条失败, 一条成功
@@ -354,19 +378,27 @@ class TestEndToEnd:
 
         # mock adapter 的 CLI 调用返回 2 条信号
         mock_signals = [
-            _make_signal("gold price", "reddit", sentiment=0.6, mentions=80, engagement=2500.0),
-            _make_signal("gold price", "x", sentiment=-0.2, mentions=40, engagement=500.0),
+            _make_signal(
+                "gold price", "reddit", sentiment=0.6, mentions=80, engagement=2500.0
+            ),
+            _make_signal(
+                "gold price", "x", sentiment=-0.2, mentions=40, engagement=500.0
+            ),
         ]
 
         # 同时 patch adapter 模块和 feature_flags 模块的 is_enabled 引用
         # (adapter 通过 `from utils.infra.feature_flags import is_enabled` 直接绑定)
-        with patch("utils.last30days_adapter.is_enabled", return_value=True), patch(
-            "utils.infra.feature_flags.is_enabled", return_value=True
-        ), patch.object(
-            adapter, "_query_cli", return_value=mock_signals
-        ), patch.object(adapter, "_save_cache"), patch.object(adapter, "_check_cli", return_value=True):
+        with (
+            patch("utils.last30days_adapter.is_enabled", return_value=True),
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch.object(adapter, "_query_cli", return_value=mock_signals),
+            patch.object(adapter, "_save_cache"),
+            patch.object(adapter, "_check_cli", return_value=True),
+        ):
             # 1) adapter 查询
-            signals = adapter.search_topic("gold price", platforms=["reddit", "x"], days=7)
+            signals = adapter.search_topic(
+                "gold price", platforms=["reddit", "x"], days=7
+            )
             assert len(signals) == 2
 
             # 2) engine 注入

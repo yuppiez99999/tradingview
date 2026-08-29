@@ -44,6 +44,7 @@ S1-S7 门禁 (与 ROADMAP Wave 5 CHAIN_MOM_60D 入库流程对齐):
 
 集成日期: 2026-08-12 (阶段 A, OPTIMAL_PLAN v3)
 """
+
 from __future__ import annotations
 
 import logging
@@ -74,6 +75,7 @@ class FactorCandidate:
         created_at: ISO 时间戳
         candidate_id: 唯一 ID (uuid4 前 12 位)
     """
+
     name: str
     category: str
     source: str
@@ -87,6 +89,7 @@ class FactorCandidate:
 @dataclass(frozen=True)
 class GateStage:
     """S1-S7 门禁阶段常量."""
+
     S1_EFFECTIVE_IC = "S1_EFFECTIVE_IC"
     S2_EFFECTIVE_ICIR = "S2_EFFECTIVE_ICIR"
     S3_LONG_SHORT_SHARPE = "S3_LONG_SHORT_SHARPE"
@@ -94,8 +97,15 @@ class GateStage:
     S5_BACKTEST_INCREMENT = "S5_BACKTEST_INCREMENT"
     S6_PAPER_TRADING = "S6_PAPER_TRADING"
     S7_SMALL_CAPITAL = "S7_SMALL_CAPITAL"
-    ALL_STAGES = (S1_EFFECTIVE_IC, S2_EFFECTIVE_ICIR, S3_LONG_SHORT_SHARPE,
-                  S4_ORTHOGONAL, S5_BACKTEST_INCREMENT, S6_PAPER_TRADING, S7_SMALL_CAPITAL)
+    ALL_STAGES = (
+        S1_EFFECTIVE_IC,
+        S2_EFFECTIVE_ICIR,
+        S3_LONG_SHORT_SHARPE,
+        S4_ORTHOGONAL,
+        S5_BACKTEST_INCREMENT,
+        S6_PAPER_TRADING,
+        S7_SMALL_CAPITAL,
+    )
 
 
 @dataclass
@@ -104,16 +114,17 @@ class GateStatus:
 
     S1-S5 为离线可计算门禁, S6/S7 为长期运行态门禁.
     """
-    s1_effective_ic: float = 0.0           # 阈值 ≥ 0.03
-    s2_effective_icir: float = 0.0         # 阈值 ≥ 0.30
-    s3_long_short_sharpe: float = 0.0      # 阈值 ≥ 1.0
-    s4_max_corr_with_existing: float = 0.0 # 阈值 < 0.7
-    s5_backtest_increment: float = 0.0     # 阈值 ≥ 0.05 (基准组合夏普边际改善)
-    s6_paper_trading_days: int = 0         # 目标 ≥ 63 (3 月)
-    s7_small_capital_days: int = 0         # 目标 ≥ 63 (3 月, 5-10% 资金)
+
+    s1_effective_ic: float = 0.0  # 阈值 ≥ 0.03
+    s2_effective_icir: float = 0.0  # 阈值 ≥ 0.30
+    s3_long_short_sharpe: float = 0.0  # 阈值 ≥ 1.0
+    s4_max_corr_with_existing: float = 0.0  # 阈值 < 0.7
+    s5_backtest_increment: float = 0.0  # 阈值 ≥ 0.05 (基准组合夏普边际改善)
+    s6_paper_trading_days: int = 0  # 目标 ≥ 63 (3 月)
+    s7_small_capital_days: int = 0  # 目标 ≥ 63 (3 月, 5-10% 资金)
     current_stage: str = GateStage.S1_EFFECTIVE_IC
     passed_stages: list[str] = field(default_factory=list)
-    failed_stage: str = ""                 # 首个失败阶段 (空表示全通过)
+    failed_stage: str = ""  # 首个失败阶段 (空表示全通过)
     failure_reason: str = ""
 
     @property
@@ -135,13 +146,20 @@ class FactorEvaluationResult:
 
     封装 G15 引擎 + 三件套 + Tear Sheet + 门禁状态.
     """
+
     candidate: FactorCandidate
     gate_status: GateStatus
     # 复用现有评估产物 (Any 避免硬依赖, 实际类型见类型提示注释)
-    tear_sheet: Optional[Any] = None       # utils.alpha_factor.evaluator.FactorTearSheet
-    engine_summary: Optional[Any] = None   # utils.backtest.event_driven_engine.EngineSummary
-    backtest_result: Optional[Any] = None  # utils.hedge_rebalance_backtest.BacktestResult
-    honest_validation: Optional[Any] = None  # utils.backtest.honest_validation.HonestValidationResult
+    tear_sheet: Optional[Any] = None  # utils.alpha_factor.evaluator.FactorTearSheet
+    engine_summary: Optional[Any] = (
+        None  # utils.backtest.event_driven_engine.EngineSummary
+    )
+    backtest_result: Optional[Any] = (
+        None  # utils.hedge_rebalance_backtest.BacktestResult
+    )
+    honest_validation: Optional[Any] = (
+        None  # utils.backtest.honest_validation.HonestValidationResult
+    )
     # 诊断字段
     n_observations: int = 0
     evaluation_time_ms: float = 0.0
@@ -156,12 +174,13 @@ class FactorEvaluationResult:
 @dataclass(frozen=True)
 class ResearchIteration:
     """单次研究迭代结果 (不可变)."""
+
     iteration_id: str
     timestamp: str
     candidates_generated: list[FactorCandidate] = field(default_factory=list)
     evaluations: list[FactorEvaluationResult] = field(default_factory=list)
-    promoted_factors: list[str] = field(default_factory=list)   # 通过门禁并注册的因子名
-    retired_factors: list[str] = field(default_factory=list)    # 本次退役的因子名
+    promoted_factors: list[str] = field(default_factory=list)  # 通过门禁并注册的因子名
+    retired_factors: list[str] = field(default_factory=list)  # 本次退役的因子名
     summary: str = ""
     duration_ms: float = 0.0
 
@@ -169,6 +188,7 @@ class ResearchIteration:
 @dataclass(frozen=True)
 class AutoResearchConfig:
     """AutoResearch Skill 配置 (不可变)."""
+
     # 门禁阈值 (与 ROADMAP Wave 5 对齐)
     s1_min_effective_ic: float = 0.03
     s2_min_effective_icir: float = 0.30
@@ -179,7 +199,7 @@ class AutoResearchConfig:
     retire_icir_threshold: float = 0.2
     retire_consecutive_months: int = 6
     # 运行模式
-    dry_run: bool = True                   # True=不写入生产因子库
+    dry_run: bool = True  # True=不写入生产因子库
     max_candidates_per_iteration: int = 20
     enable_honest_validation: bool = True  # 三件套 (CPCV+DSR+Noise)
     # G15 引擎配置
@@ -314,6 +334,7 @@ class ResearchContext:
 
     可变以允许各组件在执行中追加诊断信息.
     """
+
     # 行情数据 (与 AlphaFactorLibrary.compute_all 入参对齐)
     price_data: dict[str, dict[str, Any]] = field(default_factory=dict)
     # 基本面数据
@@ -370,7 +391,14 @@ class AutoResearchSkill:
             raise ValueError("gates 不能为空, 至少需要一个门禁阶段")
         self._generator = generator
         self._evaluator = evaluator
-        self._gates = sorted(gates, key=lambda g: GateStage.ALL_STAGES.index(g.stage) if g.stage in GateStage.ALL_STAGES else 99)
+        self._gates = sorted(
+            gates,
+            key=lambda g: (
+                GateStage.ALL_STAGES.index(g.stage)
+                if g.stage in GateStage.ALL_STAGES
+                else 99
+            ),
+        )
         self._registry = registry
         self._config = config or AutoResearchConfig()
         self._iterations: list[ResearchIteration] = []
@@ -417,7 +445,8 @@ class AutoResearchSkill:
         except (ValueError, RuntimeError, OSError) as exc:
             logger.error("因子生成失败: %s", exc)
             return ResearchIteration(
-                iteration_id=iter_id, timestamp=ts,
+                iteration_id=iter_id,
+                timestamp=ts,
                 summary=f"生成失败: {exc}",
                 duration_ms=(datetime.now() - started).total_seconds() * 1000,
             )
@@ -434,7 +463,12 @@ class AutoResearchSkill:
             evaluations.append(eval_result)
 
             if eval_result.error_message:
-                logger.warning("[%s] %s 评估失败: %s", iter_id, cand.name, eval_result.error_message)
+                logger.warning(
+                    "[%s] %s 评估失败: %s",
+                    iter_id,
+                    cand.name,
+                    eval_result.error_message,
+                )
                 continue
 
             # 串联门禁
@@ -446,7 +480,12 @@ class AutoResearchSkill:
             # 通过门禁 → 注册 (dry_run 时仅日志)
             if self._registry.register(cand):
                 promoted.append(cand.name)
-                logger.info("[%s] %s 已注册 (dry_run=%s)", iter_id, cand.name, self._config.dry_run)
+                logger.info(
+                    "[%s] %s 已注册 (dry_run=%s)",
+                    iter_id,
+                    cand.name,
+                    self._config.dry_run,
+                )
 
         duration_ms = (datetime.now() - started).total_seconds() * 1000
         iteration = ResearchIteration(

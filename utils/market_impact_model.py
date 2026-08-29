@@ -172,7 +172,12 @@ class MarketImpactModel:
         # === Square-Root 模型 (主) ===
         # Δp_bps = σ × c × sqrt(participation)
         # 这里用 sr_coefficient × vol_scale × sqrt(participation) × 10000
-        sqrt_impact_bps = self.params.sr_coefficient * vol_scale * math.sqrt(max(participation, 1e-10)) * 10000
+        sqrt_impact_bps = (
+            self.params.sr_coefficient
+            * vol_scale
+            * math.sqrt(max(participation, 1e-10))
+            * 10000
+        )
 
         # === Almgren-Chriss 分解 ===
         # 临时冲击 (非线性): h(v) = η × v^α
@@ -411,7 +416,8 @@ class MarketImpactModel:
             for i in range(n_steps + 1):
                 holdings[i] = total_shares * (1 - i / n_steps)
             trades = [
-                -holdings[i] + holdings[i - 1] if i > 0 else total_shares - holdings[0] for i in range(n_steps + 1)
+                -holdings[i] + holdings[i - 1] if i > 0 else total_shares - holdings[0]
+                for i in range(n_steps + 1)
             ]
             speeds = [t / (time_horizon / n_steps) for t in trades]
             return OptimalTrajectory(
@@ -477,7 +483,9 @@ class MarketImpactModel:
             )
         else:
             perm_cost = (gamma / 2) * total_shares * total_shares
-        temp_cost = (eta / (alpha + 1)) * np.sum(np.abs(trades_full / dt) ** (alpha + 1)) * dt
+        temp_cost = (
+            (eta / (alpha + 1)) * np.sum(np.abs(trades_full / dt) ** (alpha + 1)) * dt
+        )
         total_cost = perm_cost + temp_cost
 
         # 风险 = σ² × Σ x_i² × Δt
@@ -618,7 +626,10 @@ def main() -> None:
     print("\n--- 1. 基本冲击估计 ---")
     model = MarketImpactModel()
     est = model.estimate(
-        symbol="600519", order_shares=10000, adv=500000, decision_price=1800.0,
+        symbol="600519",
+        order_shares=10000,
+        adv=500000,
+        decision_price=1800.0,
     )
     print(f"  标的: {est.symbol}")
     print(f"  参与度: {est.participation_rate:.4%}")
@@ -640,7 +651,9 @@ def main() -> None:
         linear_est = model.estimate(symbol="TEST", order_shares=shares, adv=500000)
         decay_est = decay_model.estimate(symbol="TEST", order_shares=shares, adv=500000)
         reduction = (
-            1.0 - decay_est.permanent_impact_bps / max(linear_est.permanent_impact_bps, 1e-10)
+            1.0
+            - decay_est.permanent_impact_bps
+            / max(linear_est.permanent_impact_bps, 1e-10)
         ) * 100.0
         print(
             f"  参与度 {participation:>5.0%}: "
@@ -652,7 +665,10 @@ def main() -> None:
     # === 3. 大单成本降低验证 (≥ 50%) ===
     print("\n--- 3. 大单成本降低验证 (验收: ≥ 50%) ---")
     validation = decay_model.validate_cost_reduction(
-        symbol="600519", large_order_shares=250000, adv=500000, threshold_pct=50.0,
+        symbol="600519",
+        large_order_shares=250000,
+        adv=500000,
+        threshold_pct=50.0,
     )
     print(f"  参与度: {validation['participation_rate']:.2%}")
     print(f"  永久冲击降低: {validation['permanent_reduction_pct']:.1f}%")

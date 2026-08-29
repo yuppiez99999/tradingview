@@ -1,4 +1,5 @@
 """free_stockdb_adapter 单元测试 — free-stockdb 数据适配器"""
+
 from datetime import datetime
 from unittest.mock import patch
 
@@ -89,51 +90,73 @@ class TestNormalizeFsDataframe:
 
     def test_list_of_dicts(self):
         data = [
-            {"date": "20260101", "open": 10, "high": 11, "low": 9, "close": 10.5, "volume": 1000},
-            {"date": "20260102", "open": 10.5, "high": 12, "low": 10, "close": 11.5, "volume": 2000},
+            {
+                "date": "20260101",
+                "open": 10,
+                "high": 11,
+                "low": 9,
+                "close": 10.5,
+                "volume": 1000,
+            },
+            {
+                "date": "20260102",
+                "open": 10.5,
+                "high": 12,
+                "low": 10,
+                "close": 11.5,
+                "volume": 2000,
+            },
         ]
         result = _normalize_fs_dataframe(data, "A")
         assert len(result) == 2
         assert "close" in result.columns
 
     def test_dataframe(self):
-        df = pd.DataFrame({
-            "date": ["20260101", "20260102"],
-            "open": [10, 10.5],
-            "high": [11, 12],
-            "low": [9, 10],
-            "close": [10.5, 11.5],
-            "volume": [1000, 2000],
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["20260101", "20260102"],
+                "open": [10, 10.5],
+                "high": [11, 12],
+                "low": [9, 10],
+                "close": [10.5, 11.5],
+                "volume": [1000, 2000],
+            }
+        )
         result = _normalize_fs_dataframe(df, "A")
         assert len(result) == 2
 
     def test_chinese_aliases(self):
-        df = pd.DataFrame({
-            "date": ["20260101"],
-            "开盘价": [10],
-            "最高价": [11],
-            "最低价": [9],
-            "收盘价": [10.5],
-            "成交量": [1000],
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["20260101"],
+                "开盘价": [10],
+                "最高价": [11],
+                "最低价": [9],
+                "收盘价": [10.5],
+                "成交量": [1000],
+            }
+        )
         result = _normalize_fs_dataframe(df, "A")
         assert "open" in result.columns
         assert "close" in result.columns
 
     def test_dropna_close(self):
-        df = pd.DataFrame({
-            "date": ["20260101", "20260102"],
-            "close": [10.5, None],
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["20260101", "20260102"],
+                "close": [10.5, None],
+            }
+        )
         result = _normalize_fs_dataframe(df, "A")
         assert len(result) == 1
 
     def test_sorted_index(self):
-        df = pd.DataFrame({
-            "date": ["20260102", "20260101"],
-            "close": [11.5, 10.5],
-        })
+        df = pd.DataFrame(
+            {
+                "date": ["20260102", "20260101"],
+                "close": [11.5, 10.5],
+            }
+        )
         result = _normalize_fs_dataframe(df, "A")
         assert result.index[0] < result.index[1]
 

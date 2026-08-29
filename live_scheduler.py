@@ -53,8 +53,12 @@ from utils.path_config import get_logs_dir, get_project_root, setup_sys_path
 # 路径初始化 (v8.5+: 通过 path_config 统一管理)
 # ============================================================
 setup_sys_path()
-BASE_DIR = get_project_root()   # 修复: 此前缺失导致模块级 LOCK_FILE = BASE_DIR/... 立即抛 NameError
-V75_DIR = BASE_DIR / "v7.5_institutional"   # 修复: 此前缺失导致 F821 Undefined name V75_DIR (遗留 v7.5 目录, 不存在时 .exists() 守卫优雅跳过)
+BASE_DIR = (
+    get_project_root()
+)  # 修复: 此前缺失导致模块级 LOCK_FILE = BASE_DIR/... 立即抛 NameError
+V75_DIR = (
+    BASE_DIR / "v7.5_institutional"
+)  # 修复: 此前缺失导致 F821 Undefined name V75_DIR (遗留 v7.5 目录, 不存在时 .exists() 守卫优雅跳过)
 LOG_DIR = get_logs_dir()
 LOG_DIR.mkdir(exist_ok=True)
 
@@ -64,10 +68,14 @@ LOG_DIR.mkdir(exist_ok=True)
 logger = logging.getLogger("live_scheduler")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(logging.Formatter("%(asctime)s [%(threadName)s] [%(levelname)s] %(message)s"))
+handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(threadName)s] [%(levelname)s] %(message)s")
+)
 logger.addHandler(handler)
 file_handler = logging.FileHandler(LOG_DIR / "live_scheduler.log", encoding="utf-8")
-file_handler.setFormatter(logging.Formatter("%(asctime)s [%(threadName)s] [%(levelname)s] %(message)s"))
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(threadName)s] [%(levelname)s] %(message)s")
+)
 logger.addHandler(file_handler)
 
 # ============================================================
@@ -167,7 +175,13 @@ def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
             try:
                 market_data = provider.get_market_data(code)
                 if market_data:
-                    for key in ["price", "index_price", "close", "last_price", "current_price"]:
+                    for key in [
+                        "price",
+                        "index_price",
+                        "close",
+                        "last_price",
+                        "current_price",
+                    ]:
                         if market_data.get(key):
                             prices[code] = float(market_data[key])
                             break
@@ -206,7 +220,9 @@ def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
 
             actual_weights = calculate_portfolio_weights(positions)
 
-            trade_plan_path = V75_DIR / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
+            trade_plan_path = (
+                V75_DIR / "trade_plans" / "auto_trade_plan_500w_2026-2030.json"
+            )
             if trade_plan_path.exists():
                 with open(trade_plan_path, encoding="utf-8") as f:
                     plan = json.load(f)
@@ -223,7 +239,9 @@ def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
                     "actual_weights": actual_weights,
                     "target_weights": target_weights,
                     "deviations": deviations,
-                    "exceeds_threshold": {k: v for k, v in deviations.items() if v > 0.05},
+                    "exceeds_threshold": {
+                        k: v for k, v in deviations.items() if v > 0.05
+                    },
                 }
                 logger.info(
                     f"[auto_rebalance] 权重偏差检查完成, {len(result['data']['exceeds_threshold'])} 个标的偏差>5%"
@@ -284,7 +302,14 @@ def _fetch_live_futures_prices() -> dict:
         from hedging.hedge_engine_v59 import get_live_futures_prices
 
         live_prices = get_live_futures_prices() or {}
-    except (ImportError, KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
+    except (
+        ImportError,
+        KeyError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        RuntimeError,
+    ) as e:
         logger.warning(f"[hedge_rebalance] hedge_engine 实时期货价格获取失败: {e}")
     return live_prices
 
@@ -318,9 +343,21 @@ def _fetch_futures_from_provider(live_prices: dict) -> None:
         _quarter_code = f"{_next_q_yy:02d}{_next_q:02d}"
 
         futures_codes = {
-            "IF": [f"IF{_cur_code}.CFFEX", f"IF{_next_code}.CFFEX", f"IF{_quarter_code}.CFFEX"],
-            "IM": [f"IM{_cur_code}.CFFEX", f"IM{_next_code}.CFFEX", f"IM{_quarter_code}.CFFEX"],
-            "IC": [f"IC{_cur_code}.CFFEX", f"IC{_next_code}.CFFEX", f"IC{_quarter_code}.CFFEX"],
+            "IF": [
+                f"IF{_cur_code}.CFFEX",
+                f"IF{_next_code}.CFFEX",
+                f"IF{_quarter_code}.CFFEX",
+            ],
+            "IM": [
+                f"IM{_cur_code}.CFFEX",
+                f"IM{_next_code}.CFFEX",
+                f"IM{_quarter_code}.CFFEX",
+            ],
+            "IC": [
+                f"IC{_cur_code}.CFFEX",
+                f"IC{_next_code}.CFFEX",
+                f"IC{_quarter_code}.CFFEX",
+            ],
         }
         for ft_key, ft_code_list in futures_codes.items():
             if ft_key in live_prices:
@@ -337,7 +374,9 @@ def _fetch_futures_from_provider(live_prices: dict) -> None:
                             break  # 获取成功, 不再尝试其他合约
                 except (KeyError, ValueError, TypeError, AttributeError) as e_ft:
                     # SR1 修复: 单标的失败不再静默 pass, 记录 warning
-                    logger.debug(f"[hedge_rebalance] {ft_key} ({ft_code}) 实时价格获取失败: {e_ft}")
+                    logger.debug(
+                        f"[hedge_rebalance] {ft_key} ({ft_code}) 实时价格获取失败: {e_ft}"
+                    )
     except (ImportError, AttributeError, RuntimeError) as e:
         logger.warning(f"[hedge_rebalance] MarketDataProvider 不可用: {e}")
 
@@ -363,7 +402,9 @@ def _alert_futures_price_all_failed() -> None:
     try:
         from utils.notify import send_sms_alert
 
-        send_sms_alert("[量化系统-SR1告警] 期货实时价格源全失效, 对冲计算使用硬编码兜底价, 请立即排查!")
+        send_sms_alert(
+            "[量化系统-SR1告警] 期货实时价格源全失效, 对冲计算使用硬编码兜底价, 请立即排查!"
+        )
     except ImportError:
         logger.warning("[hedge_rebalance][SR1] utils.notify 不可用, 告警未发送")
     except (RuntimeError, ValueError, TypeError, AttributeError) as e:
@@ -414,8 +455,12 @@ def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
                 else:
                     _log_futures_prices(futures_config, n_realtime)
 
-                beta_hedger = BetaHedger(futures_config=futures_config, beta_trigger=0.7, beta_target=0.3)
-                order = beta_hedger.compute_hedge(portfolio_beta=1.0, portfolio_value=portfolio_value)
+                beta_hedger = BetaHedger(
+                    futures_config=futures_config, beta_trigger=0.7, beta_target=0.3
+                )
+                order = beta_hedger.compute_hedge(
+                    portfolio_beta=1.0, portfolio_value=portfolio_value
+                )
 
                 result["data"] = {
                     "portfolio_value": portfolio_value,
@@ -438,7 +483,10 @@ def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
     start = datetime.now()
     result = {"status": "OK", "data": {}}
     try:
-        from utils.etf_flow_monitor import get_etf_flow_summary, refresh_etf_flow_signals
+        from utils.etf_flow_monitor import (
+            get_etf_flow_summary,
+            refresh_etf_flow_signals,
+        )
 
         summary = get_etf_flow_summary()
 
@@ -521,7 +569,9 @@ def run_ml_signal_scan(dry_run: bool = False) -> dict[str, Any]:
     return result
 
 
-def _enrich_with_kronos(predictions: dict[str, Any], codes: list[str]) -> dict[str, Any]:
+def _enrich_with_kronos(
+    predictions: dict[str, Any], codes: list[str]
+) -> dict[str, Any]:
     """用 Kronos Challenger 预测丰富 predictions 字典.
 
     HC-1: USE_KRONOS_PREDICTOR=False 时返回 disabled 状态, 不修改 predictions.
@@ -557,7 +607,9 @@ def _enrich_with_kronos(predictions: dict[str, Any], codes: list[str]) -> dict[s
         predictor = KronosPredictor.get_instance()
         if not predictor.available:
             meta["status"] = "error"
-            meta["error"] = f"Kronos model unavailable: {predictor.init_error or 'unknown'}"
+            meta["error"] = (
+                f"Kronos model unavailable: {predictor.init_error or 'unknown'}"
+            )
             logger.debug(f"[ml_signal_scan] Kronos 不可用: {meta['error']}")
             return meta
 
@@ -705,7 +757,9 @@ def _run_strategy_scoring() -> tuple | None:
         eval_result = {
             "composite_score": float(getattr(score_report, "composite_score", 0) or 0),
             "return_metrics": getattr(score_report, "return_metrics", None),
-            "diversification_metrics": getattr(score_report, "diversification_metrics", None),
+            "diversification_metrics": getattr(
+                score_report, "diversification_metrics", None
+            ),
             "degraded": bool(getattr(score_report, "is_degraded", False)),
             "degraded_reason": str(getattr(score_report, "degraded_reason", "")),
         }
@@ -783,6 +837,7 @@ def _run_adaptive_optimize(eval_result: dict, ic_store: dict) -> str | None:
         # 加载基准训练配置 (与 N1 _trigger_retrain_with_cooldown 对齐)
         try:
             from lgb_enhanced_trainer import LGB_ENHANCED_CONFIG
+
             base_config = LGB_ENHANCED_CONFIG
         except ImportError as e:  # P2-1: 收敛为具体异常类型 + 日志
             logger.debug("LGB_ENHANCED_CONFIG 不可用, 降级为内置配置: %s", e)
@@ -844,7 +899,10 @@ def run_strategy_evaluation(dry_run: bool = False) -> dict[str, Any]:
     flag_val = os.getenv("USE_STRATEGY_EVALUATION", "False")
     enabled = flag_val.lower() in ("true", "1", "yes", "on")
     if not enabled:
-        result["data"] = {"enabled": False, "message": "USE_STRATEGY_EVALUATION=False, 跳过"}
+        result["data"] = {
+            "enabled": False,
+            "message": "USE_STRATEGY_EVALUATION=False, 跳过",
+        }
         result["duration"] = (datetime.now() - start).total_seconds()
         logger.info("[strategy_eval] Feature Flag 关闭, 跳过评估")
         return result
@@ -877,7 +935,10 @@ def run_strategy_evaluation(dry_run: bool = False) -> dict[str, Any]:
 
         # 2. 计算并记录当日 IC (N3)
         _record_ic_from_signal_history(
-            signal_history, compute_ic_from_signals, record_daily_ic, record_ic_from_qlib_report
+            signal_history,
+            compute_ic_from_signals,
+            record_daily_ic,
+            record_ic_from_qlib_report,
         )
 
         # 3. 策略多维评分 (N2)
@@ -933,7 +994,9 @@ class LiveScheduler:
     def __init__(self, dry_run: bool = False, max_workers: int = 6):
         self.dry_run = dry_run
         self.max_workers = max_workers
-        self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="live")
+        self.executor = ThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="live"
+        )
         self.timers: dict[str, threading.Timer] = {}
         self.module_last_run: dict[str, datetime] = {}
         self.module_results: dict[str, list[dict]] = {}
@@ -955,7 +1018,9 @@ class LiveScheduler:
                     }
                 )
                 if len(self.module_results[module_name]) > 100:
-                    self.module_results[module_name] = self.module_results[module_name][-50:]
+                    self.module_results[module_name] = self.module_results[module_name][
+                        -50:
+                    ]
 
             MODULE_STATUS[module_name] = {
                 "status": result["status"],
@@ -1011,7 +1076,9 @@ class LiveScheduler:
         if feature_flag:
             flag_val = os.getenv(feature_flag, "False")
             if flag_val.lower() not in ("true", "1", "yes", "on"):
-                logger.info(f"  [跳过] {module_name}: feature_flag {feature_flag}=False")
+                logger.info(
+                    f"  [跳过] {module_name}: feature_flag {feature_flag}=False"
+                )
                 return
 
         def check_and_run() -> None:
@@ -1048,11 +1115,15 @@ class LiveScheduler:
 
         for mod in MODULE_DEFINITIONS:
             if mod["interval_seconds"]:
-                logger.info(f"  [启动] {mod['name']}: {mod['description']} (每{mod['interval_seconds'] / 60:.0f}分钟)")
+                logger.info(
+                    f"  [启动] {mod['name']}: {mod['description']} (每{mod['interval_seconds'] / 60:.0f}分钟)"
+                )
                 self._schedule_module(mod)
             else:
                 # v8.6.13 P0 FIX: 定时模块全部走 _schedule_timed_module, 不再硬编码只调度 daily_report
-                logger.info(f"  [启动] {mod['name']}: {mod['description']} (定时 {mod['trigger_time']})")
+                logger.info(
+                    f"  [启动] {mod['name']}: {mod['description']} (定时 {mod['trigger_time']})"
+                )
                 self._schedule_timed_module(mod)
 
         logger.info("  所有模块已启动")
@@ -1078,7 +1149,10 @@ class LiveScheduler:
             "running": RUNNING_EVENT.is_set(),
             "dry_run": self.dry_run,
             "modules": MODULE_STATUS,
-            "last_runs": {k: v.isoformat() if isinstance(v, datetime) else v for k, v in self.module_last_run.items()},
+            "last_runs": {
+                k: v.isoformat() if isinstance(v, datetime) else v
+                for k, v in self.module_last_run.items()
+            },
             "timestamp": datetime.now().isoformat(),
         }
 
@@ -1114,15 +1188,23 @@ def _is_process_alive(pid: int) -> bool:
     """检查进程是否存活"""
     try:
         if sys.platform == "win32":
-            result = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
             return str(pid) in result.stdout
-        else:
-            try:
-                os.kill(pid, 0)
-                return True
-            except OSError:
-                return False
-    except (subprocess.SubprocessError, OSError, RuntimeError) as e:  # P2-1: 收敛为具体异常类型 + 日志
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
+    except (
+        subprocess.SubprocessError,
+        OSError,
+        RuntimeError,
+    ) as e:  # P2-1: 收敛为具体异常类型 + 日志
         logger.debug("PID存活检查失败 (pid=%s): %s", pid, e, exc_info=True)
         return False
 
@@ -1207,7 +1289,11 @@ def main() -> None:
                     # taskkill 失败: PID 可能已不存在, 或权限不足
                     stderr_msg = (result.stderr or "").strip()
                     # exit code 128 = "无此进程" (PID 已退出), 可安全删除锁
-                    if "找不到" in stderr_msg or "no such" in stderr_msg.lower() or "not found" in stderr_msg.lower():
+                    if (
+                        "找不到" in stderr_msg
+                        or "no such" in stderr_msg.lower()
+                        or "not found" in stderr_msg.lower()
+                    ):
                         logger.info(f"PID {lock['pid']} 已不存在, 清理锁文件")
                         _remove_lock()
                     else:

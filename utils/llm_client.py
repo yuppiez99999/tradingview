@@ -35,9 +35,11 @@ from typing import Any, Optional
 logger = None
 try:
     from utils.logger import get_logger
+
     logger = get_logger("llm_client")
 except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
     import logging
+
     logger = logging.getLogger("llm_client")
 
 # 全局配置: 成本单价 (元 / 1K tokens), P2 外置价格表将覆盖此处
@@ -57,12 +59,21 @@ _USAGE_LOG = Path(__file__).resolve().parent.parent / "reports" / "llm_usage.jso
 # 底层客户端加载 (懒加载, 避免无 Key 环境导入报错)
 # ============================================================
 
+
 def _load_glm5():
     """加载主系统 GLM5 客户端, 失败返回 None。"""
     try:
         from utils.glm5_client import get_glm5_client
+
         return get_glm5_client()
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+    except (
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+    ) as e:
         logger.warning(f"统一LLM: glm5_client 加载失败 ({e})")
         return None
 
@@ -72,12 +83,21 @@ def _load_legacy():
     try:
         import sys
         from pathlib import Path as _P
+
         _path = _P(__file__).resolve().parent.parent.parent / "15_每日工作流"
         if _path.exists() and str(_path) not in sys.path:
             sys.path.insert(0, str(_path))
         import llm_client as _legacy
+
         return _legacy
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+    except (
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+    ) as e:
         logger.warning(f"统一LLM: 15_每日工作流/llm_client 加载失败 ({e})")
         return None
 
@@ -100,12 +120,15 @@ def _ensure_clients():
 # 成本记录 (P2 前置: 落盘 token 用量)
 # ============================================================
 
-def _record_usage(model: str, prompt_tokens: int, completion_tokens: int,
-                  latency_ms: int, source: str) -> None:
+
+def _record_usage(
+    model: str, prompt_tokens: int, completion_tokens: int, latency_ms: int, source: str
+) -> None:
     """记录单次 LLM 调用用量到 reports/llm_usage.jsonl。"""
     price = _DEFAULT_PRICE_TABLE.get(model) or _DEFAULT_PRICE_TABLE["default"]
-    cost = (prompt_tokens / 1000.0) * price["input"] + \
-           (completion_tokens / 1000.0) * price["output"]
+    cost = (prompt_tokens / 1000.0) * price["input"] + (
+        completion_tokens / 1000.0
+    ) * price["output"]
     row = {
         "ts": datetime.now().isoformat(timespec="seconds"),
         "model": model,
@@ -127,8 +150,10 @@ def _record_usage(model: str, prompt_tokens: int, completion_tokens: int,
 # 统一对外 API
 # ============================================================
 
-def chat(prompt: str, system: str = "", temperature: float = 0.3,
-         max_tokens: int = 2000) -> Optional[str]:
+
+def chat(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
+) -> Optional[str]:
     """统一对话接口, 返回纯文本 (屏蔽底层 dict/str 差异)。
 
     优先 GLM5, 降级 15_每日工作流 三级链。
@@ -149,35 +174,66 @@ def chat(prompt: str, system: str = "", temperature: float = 0.3,
                 content = resp.get("content")
                 model = resp.get("model", "glm-5")
                 usage = resp.get("usage") or {}
-                _record_usage(model, usage.get("prompt_tokens", 0),
-                              usage.get("completion_tokens", 0),
-                              int((time.time() - start) * 1000), "glm5")
+                _record_usage(
+                    model,
+                    usage.get("prompt_tokens", 0),
+                    usage.get("completion_tokens", 0),
+                    int((time.time() - start) * 1000),
+                    "glm5",
+                )
                 if content:
                     return content
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"统一LLM: GLM5 chat 失败 ({e}), 降级")
 
     # 2. 降级路径: 15_每日工作流 三级链
     if _legacy_client is not None:
         try:
-            result = _legacy_client.chat(prompt=prompt, system=system,
-                                         temperature=temperature, max_tokens=max_tokens)
-            _record_usage("legacy-chain", len(prompt) // 2, 0,
-                          int((time.time() - start) * 1000), "legacy")
+            result = _legacy_client.chat(
+                prompt=prompt,
+                system=system,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            _record_usage(
+                "legacy-chain",
+                len(prompt) // 2,
+                0,
+                int((time.time() - start) * 1000),
+                "legacy",
+            )
             if result:
                 return result
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"统一LLM: legacy chat 失败 ({e})")
 
     return None
 
 
-def generate_analysis(prompt: str, temperature: float = 0.3,
-                      max_tokens: int = 2000) -> Optional[str]:
+def generate_analysis(
+    prompt: str, temperature: float = 0.3, max_tokens: int = 2000
+) -> Optional[str]:
     """生成分析文本 (兼容旧接口), 等价于 chat(prompt, 金融分析系统提示)。"""
-    return chat(prompt=prompt,
-                system="你是一个专业的金融分析助手。",
-                temperature=temperature, max_tokens=max_tokens)
+    return chat(
+        prompt=prompt,
+        system="你是一个专业的金融分析助手。",
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
 
 
 def test_connection() -> dict[str, Any]:
@@ -192,7 +248,11 @@ def test_connection() -> dict[str, Any]:
     if _legacy_client is not None and hasattr(_legacy_client, "test_connection"):
         try:
             legacy_res = _legacy_client.test_connection()
-            result["legacy"] = bool(legacy_res.get("success")) if isinstance(legacy_res, dict) else bool(legacy_res)
+            result["legacy"] = (
+                bool(legacy_res.get("success"))
+                if isinstance(legacy_res, dict)
+                else bool(legacy_res)
+            )
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             result["legacy"] = False
     result["available"] = result["glm5"] or result["legacy"]
@@ -204,12 +264,14 @@ def quick_chat(message: str, **kwargs) -> str:
     return chat(message, **kwargs) or ""
 
 
-def chat_deep(prompt: str, system: str = "",
-              temperature: float = 0.3, max_tokens: int = 4000) -> Optional[str]:
+def chat_deep(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4000
+) -> Optional[str]:
     """深度思考模式 (兼容旧接口), 复用统一 chat 并放宽 max_tokens。
 
     旧 15_每日工作流/llm_client.py 的 chat_deep 使用 DeepSeek R1 推理模型;
     统一层当前路由到 GLM5/三级链, 深度推理由底层 provider 决定。
     """
-    return chat(prompt=prompt, system=system,
-                temperature=temperature, max_tokens=max_tokens)
+    return chat(
+        prompt=prompt, system=system, temperature=temperature, max_tokens=max_tokens
+    )

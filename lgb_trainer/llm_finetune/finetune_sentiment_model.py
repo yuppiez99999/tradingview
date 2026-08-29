@@ -6,6 +6,7 @@ LoRA 微调情感分类模型 — W.C.1
 
 替代 unsloth 方案: 直接用 transformers + peft + trl (unsloth 在 Windows 有 triton 兼容问题).
 """
+
 from __future__ import annotations
 
 import functools
@@ -145,15 +146,20 @@ def finetune(
     model = apply_lora(model, config)
 
     train_texts_formatted = [
-        _format_instruction(t, label) for t, label in zip(train_texts, train_labels, strict=True)
+        _format_instruction(t, label)
+        for t, label in zip(train_texts, train_labels, strict=True)
     ]
 
     from datasets import Dataset
+
     train_dataset = Dataset.from_dict({"text": train_texts_formatted})
 
     eval_dataset = None
     if eval_texts and eval_labels:
-        eval_formatted = [_format_instruction(t, label) for t, label in zip(eval_texts, eval_labels, strict=True)]
+        eval_formatted = [
+            _format_instruction(t, label)
+            for t, label in zip(eval_texts, eval_labels, strict=True)
+        ]
         eval_dataset = Dataset.from_dict({"text": eval_formatted})
 
     sft_config = SFTConfig(
@@ -225,7 +231,9 @@ def _parse_label(response: str) -> str:
 
 
 @functools.lru_cache(maxsize=4)
-def _get_predictor(model_dir: str, base_model: str, use_4bit: bool) -> "SentimentPredictor":
+def _get_predictor(
+    model_dir: str, base_model: str, use_4bit: bool
+) -> "SentimentPredictor":
     """缓存模型实例 (按 model_dir+base_model+量化配置 维度缓存).
 
     lru_cache 避免 evaluate 循环中反复加载模型 (NEW-1 修复).
@@ -280,7 +288,7 @@ class SentimentPredictor:
                 do_sample=False,
             )
         response = self.tokenizer.decode(
-            outputs[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True
+            outputs[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True
         )
         return _parse_label(response)
 
@@ -288,7 +296,7 @@ class SentimentPredictor:
         """批量推理 (减少 GPU kernel launch 开销)."""
         results: list[str] = []
         for i in range(0, len(texts), batch_size):
-            batch = texts[i:i + batch_size]
+            batch = texts[i : i + batch_size]
             prompts = [_format_instruction(t) for t in batch]
             inputs = self.tokenizer(
                 prompts,
@@ -305,7 +313,7 @@ class SentimentPredictor:
                 )
             for j, out in enumerate(outputs):
                 resp = self.tokenizer.decode(
-                    out[inputs["input_ids"][j].shape[0]:], skip_special_tokens=True
+                    out[inputs["input_ids"][j].shape[0] :], skip_special_tokens=True
                 )
                 results.append(_parse_label(resp))
         return results

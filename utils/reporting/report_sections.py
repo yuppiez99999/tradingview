@@ -261,7 +261,9 @@ def render_phase_summary(phases_state: dict[str, Any]) -> list[str]:
         lines.append("")
         fills = execute_state.get("fills", [])
         if isinstance(fills, list):
-            total_notional = sum(f.get("notional", 0) for f in fills if isinstance(f, dict))
+            total_notional = sum(
+                f.get("notional", 0) for f in fills if isinstance(f, dict)
+            )
             lines.append(f"- 成交笔数: {len(fills)}")
             lines.append(f"- 总成交金额: {total_notional:,.2f}")
         else:
@@ -479,7 +481,9 @@ def write_report_with_retry(
     for attempt in range(1, max_retries + 1):
         try:
             report_path.write_text(content, encoding="utf-8")
-            logger.info(f"[ReportWriter] 报告写入成功: {report_path} (attempt={attempt})")
+            logger.info(
+                f"[ReportWriter] 报告写入成功: {report_path} (attempt={attempt})"
+            )
             return report_path
         except PermissionError as e:
             last_error = e
@@ -495,7 +499,9 @@ def write_report_with_retry(
                 time.sleep(retry_delay_seconds)
 
     # 所有重试失败
-    raise OSError(f"报告写入失败, 已重试 {max_retries} 次: {report_path}, 最后错误: {last_error}")
+    raise OSError(
+        f"报告写入失败, 已重试 {max_retries} 次: {report_path}, 最后错误: {last_error}"
+    )
 
 
 def save_state_json(
@@ -555,8 +561,16 @@ def build_report_summary(
 
     # 统计阶段成功率
     total_phases = len(phases_state)
-    ok_count = sum(1 for p in phases_state.values() if isinstance(p, dict) and (p.get("status") in ("ok", True)))
-    fail_count = sum(1 for p in phases_state.values() if isinstance(p, dict) and p.get("status") in ("error", "failed"))
+    ok_count = sum(
+        1
+        for p in phases_state.values()
+        if isinstance(p, dict) and (p.get("status") in ("ok", True))
+    )
+    fail_count = sum(
+        1
+        for p in phases_state.values()
+        if isinstance(p, dict) and p.get("status") in ("error", "failed")
+    )
 
     lines.append(f"- 阶段执行: {ok_count}/{total_phases} 成功, {fail_count} 失败")
 

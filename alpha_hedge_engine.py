@@ -33,11 +33,14 @@ except Exception as e:
     KillSwitch = None
     import logging as _logging
 
-    _logging.getLogger("alpha_hedge_engine").error("KillSwitch 模块加载失败, 风控熔断协议不可用: %s", e)
+    _logging.getLogger("alpha_hedge_engine").error(
+        "KillSwitch 模块加载失败, 风控熔断协议不可用: %s", e
+    )
 
 # B1.3: 从 config/risk_params.yaml 统一读取回撤上限 (fail-safe 兜底 0.15)
 try:
     from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit
+
     _DEFAULT_MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 except Exception as e:  # noqa: BLE001
     logger.exception(f"读取回撤上限失败, 已降级使用 0.15: {e}")
@@ -47,7 +50,12 @@ except Exception as e:  # noqa: BLE001
 class RiskControl:
     """统一风控检查器，集成 DrawdownCircuitBreaker + KillSwitch 两套熔断协议"""
 
-    def __init__(self, margin_limit: float = 0.50, max_drawdown_limit: float | None = None, fat_finger_limit: float = 500000) -> None:
+    def __init__(
+        self,
+        margin_limit: float = 0.50,
+        max_drawdown_limit: float | None = None,
+        fat_finger_limit: float = 500000,
+    ) -> None:
         # B1.3: 默认值从 config/risk_params.yaml 读取
         if max_drawdown_limit is None:
             max_drawdown_limit = _DEFAULT_MAX_DRAWDOWN_LIMIT
@@ -55,7 +63,9 @@ class RiskControl:
         self.max_drawdown_limit = max_drawdown_limit
         self.fat_finger_limit = fat_finger_limit
         self.drawdown_breaker = (
-            DrawdownCircuitBreaker(max_drawdown=max_drawdown_limit) if DrawdownCircuitBreaker else None
+            DrawdownCircuitBreaker(max_drawdown=max_drawdown_limit)
+            if DrawdownCircuitBreaker
+            else None
         )
         # 集成 utils/kill_switch 的三级保证金熔断协议 (L1=50%, L2=65%, L3=75%)
         self.kill_switch = KillSwitch(margin_limit=margin_limit) if KillSwitch else None
@@ -98,7 +108,7 @@ class RiskControl:
                     "【严重警报】保证金使用率超 75%%！触发系统强平并熔断所有开仓权限！(KillSwitch不可用, 降级防护)"
                 )
                 return False
-            elif margin_usage >= 0.60:
+            if margin_usage >= 0.60:
                 logger.warning(
                     "【警告】保证金使用率达 %.0f%%，系统已锁死开仓权限，仅允许平仓。(KillSwitch不可用, 降级防护)",
                     margin_usage * 100,
@@ -114,7 +124,12 @@ class RiskControl:
         action = status.get("action", "unknown")
 
         if not can_trade:
-            logger.error("【KillSwitch-L%d】保证金%.1f%% 触发熔断: %s — 不可交易", level, margin_usage * 100, action)
+            logger.error(
+                "【KillSwitch-L%d】保证金%.1f%% 触发熔断: %s — 不可交易",
+                level,
+                margin_usage * 100,
+                action,
+            )
             # 执行熔断协议（fail-fast: 无 broker_callback 时抛 RuntimeError）
             if level >= 1:
                 try:
@@ -125,7 +140,12 @@ class RiskControl:
             return False
 
         if not status.get("can_open", True):
-            logger.warning("【KillSwitch-L%d】保证金%.1f%%: %s — 仅允许平仓", level, margin_usage * 100, action)
+            logger.warning(
+                "【KillSwitch-L%d】保证金%.1f%%: %s — 仅允许平仓",
+                level,
+                margin_usage * 100,
+                action,
+            )
             return False
 
         return True
@@ -133,36 +153,57 @@ class RiskControl:
     def check_liquidity_spread(self, ask_price: float, bid_price: float) -> bool:
         # BUG-2 修复: NaN 报价 fail-open — NaN > 0.05 为 False 导致返回 True
         # 入口校验 ask/bid 为有限正数
-        if not (math.isfinite(ask_price) and math.isfinite(bid_price)
-                and bid_price > 0 and ask_price > 0):
-            logger.warning("【拦截】买卖报价无效 (ask=%s, bid=%s), 拒绝交易", ask_price, bid_price)
+        if not (
+            math.isfinite(ask_price)
+            and math.isfinite(bid_price)
+            and bid_price > 0
+            and ask_price > 0
+        ):
+            logger.warning(
+                "【拦截】买卖报价无效 (ask=%s, bid=%s), 拒绝交易", ask_price, bid_price
+            )
             return False
         spread_ratio = (ask_price - bid_price) / bid_price
         if spread_ratio > 0.05:
-            logger.warning("【拦截】买卖价差大于 5%% (%.2f%%)，拒绝交易。", spread_ratio * 100)
+            logger.warning(
+                "【拦截】买卖价差大于 5%% (%.2f%%)，拒绝交易。", spread_ratio * 100
+            )
             return False
         return True
 
     def check_fat_finger(self, order_amount: float) -> bool:
         if order_amount > self.fat_finger_limit:
-            logger.warning("【拦截】单笔金额 %.2f 超过防胖手指限额 %.2f", order_amount, self.fat_finger_limit)
+            logger.warning(
+                "【拦截】单笔金额 %.2f 超过防胖手指限额 %.2f",
+                order_amount,
+                self.fat_finger_limit,
+            )
             return False
         return True
 
 
 class OptionContractFinder:
     @staticmethod
-    def find_call_contract(underlying_code: str, strike_price: float, month: str = "next") -> str:
+    def find_call_contract(
+        underlying_code: str, strike_price: float, month: str = "next"
+    ) -> str:
         return f"{underlying_code[:6]}-C-{int(strike_price)}"
 
     @staticmethod
-    def find_put_contract(underlying_code: str, strike_price: float, month: str = "far") -> str:
+    def find_put_contract(
+        underlying_code: str, strike_price: float, month: str = "far"
+    ) -> str:
         return f"{underlying_code[:6]}-P-{int(strike_price)}"
 
 
 class AlphaHedgeEngine:
-    def __init__(self, account_id: str, broker: Any = None, mode: str = "sim",
-                 total_aum: float = None) -> None:
+    def __init__(
+        self,
+        account_id: str,
+        broker: Any = None,
+        mode: str = "sim",
+        total_aum: float = None,
+    ) -> None:
         self.account_id = account_id
         self.mode = mode
         self.broker = broker
@@ -220,15 +261,25 @@ class AlphaHedgeEngine:
 
             current_price = self._get_last_price(etf_code)
             # BUG-1 修复: NaN 绕过校验 — NaN <= 0 为 False, NaN 会传播到 int(NaN) 崩溃
-            if current_price is None or current_price <= 0 or not math.isfinite(current_price):
-                logger.warning("[备兑开仓] %s 当前价格无效 (%s), 跳过", etf_code, current_price)
+            if (
+                current_price is None
+                or current_price <= 0
+                or not math.isfinite(current_price)
+            ):
+                logger.warning(
+                    "[备兑开仓] %s 当前价格无效 (%s), 跳过", etf_code, current_price
+                )
                 continue
             target_strike = current_price * 1.05
             if target_strike <= 0 or not math.isfinite(target_strike):
-                logger.warning("[备兑开仓] %s 目标行权价无效 (%s), 跳过", etf_code, target_strike)
+                logger.warning(
+                    "[备兑开仓] %s 目标行权价无效 (%s), 跳过", etf_code, target_strike
+                )
                 continue
 
-            target_option = OptionContractFinder.find_call_contract(etf_code, target_strike, month="next")
+            target_option = OptionContractFinder.find_call_contract(
+                etf_code, target_strike, month="next"
+            )
 
             ask_price, bid_price = self._get_option_quotes(target_option)
 
@@ -240,7 +291,8 @@ class AlphaHedgeEngine:
             if order_volume <= 0:
                 logger.warning(
                     "[备兑开仓] %s 持仓不足 (%s 股 < 10000 股/张), 无法形成 1 张期权, 跳过",
-                    etf_code, available_volume,
+                    etf_code,
+                    available_volume,
                 )
                 continue
             order_amount = order_volume * ask_price * 10000
@@ -248,10 +300,18 @@ class AlphaHedgeEngine:
             if not self.risk_control.check_fat_finger(order_amount):
                 continue
 
-            logger.info("【执行】对 %s 卖出 %s 张 %s @ %s", etf_code, order_volume, target_option, ask_price)
+            logger.info(
+                "【执行】对 %s 卖出 %s 张 %s @ %s",
+                etf_code,
+                order_volume,
+                target_option,
+                ask_price,
+            )
 
-            result = self._execute_order(target_option, order_volume, "SELL_OPEN", ask_price)
-            logger.info("下单结果: %s", result.get('status', 'UNKNOWN'))
+            result = self._execute_order(
+                target_option, order_volume, "SELL_OPEN", ask_price
+            )
+            logger.info("下单结果: %s", result.get("status", "UNKNOWN"))
 
     def tail_risk_monitor(self) -> None:
         logger.info("\n>>> 启动 Gamma 引擎：尾部风险监控中...")
@@ -261,7 +321,9 @@ class AlphaHedgeEngine:
         is_breakdown_ma60 = self._check_tech_breakdown(tech_etf)
         iv_percentile = self._get_iv_percentile(tech_etf)
 
-        logger.info("技术面破位: %s, IV分位: %.2f%%", is_breakdown_ma60, iv_percentile * 100)
+        logger.info(
+            "技术面破位: %s, IV分位: %.2f%%", is_breakdown_ma60, iv_percentile * 100
+        )
 
         if is_breakdown_ma60 or iv_percentile < 0.10:
             logger.info("【触发对冲】大盘破位或保险极度便宜，启动尾部防御买入 Put！")
@@ -269,18 +331,26 @@ class AlphaHedgeEngine:
             current_price = self._get_last_price(tech_etf)
             # ER2 修复: current_price 零值未保护 — 后续 target_strike 和除零都依赖此值
             if current_price <= 0:
-                logger.warning("[尾部防御] %s 当前价格无效 (%s), 放弃买入 Put", tech_etf, current_price)
+                logger.warning(
+                    "[尾部防御] %s 当前价格无效 (%s), 放弃买入 Put",
+                    tech_etf,
+                    current_price,
+                )
                 return
             target_strike = current_price * 0.95
             # ER2 修复: target_strike 零值未保护 (current_price 极小或 NaN 时)
             if target_strike <= 0 or not math.isfinite(target_strike):
                 logger.warning(
                     "[尾部防御] %s 目标行权价无效 (%s, current_price=%s), 放弃买入 Put",
-                    tech_etf, target_strike, current_price,
+                    tech_etf,
+                    target_strike,
+                    current_price,
                 )
                 return
 
-            target_put = OptionContractFinder.find_put_contract(tech_etf, target_strike, month="far")
+            target_put = OptionContractFinder.find_put_contract(
+                tech_etf, target_strike, month="far"
+            )
 
             ask_price, bid_price = self._get_option_quotes(target_put)
 
@@ -289,22 +359,35 @@ class AlphaHedgeEngine:
 
             # ER2 修复: ask_price 零值未保护 — 防 ZeroDivisionError
             if ask_price <= 0:
-                logger.warning("[尾部防御] %s 卖一价无效 (%s), 无法计算仓位, 放弃", target_put, ask_price)
+                logger.warning(
+                    "[尾部防御] %s 卖一价无效 (%s), 无法计算仓位, 放弃",
+                    target_put,
+                    ask_price,
+                )
                 return
 
             budget = 20000
             volume = int(budget / (ask_price * 10000))
 
             if volume <= 0:
-                logger.warning("【警告】预算 %s 不足 (ask_price=%s), 无法购买 Put 合约 %s", budget, ask_price, target_put)
+                logger.warning(
+                    "【警告】预算 %s 不足 (ask_price=%s), 无法购买 Put 合约 %s",
+                    budget,
+                    ask_price,
+                    target_put,
+                )
                 return
 
-            logger.info("【执行】买入 %s 张 %s 作为下行保险 @ %s", volume, target_put, ask_price)
+            logger.info(
+                "【执行】买入 %s 张 %s 作为下行保险 @ %s", volume, target_put, ask_price
+            )
 
             result = self._execute_order(target_put, volume, "BUY_OPEN", ask_price)
-            logger.info("下单结果: %s", result.get('status', 'UNKNOWN'))
+            logger.info("下单结果: %s", result.get("status", "UNKNOWN"))
 
-    def execute_options_order(self, symbol: str, qty: int, side: str, price: float) -> dict:
+    def execute_options_order(
+        self, symbol: str, qty: int, side: str, price: float
+    ) -> dict:
         """执行期权订单，包含流动性/风控检查"""
         logger.info("\n>>> 执行期权订单: %s %s手 %s @ %s", side, qty, symbol, price)
 
@@ -345,8 +428,11 @@ class AlphaHedgeEngine:
             try:
                 # P0-C3: 真正执行尾部对冲（买入 Put 下行保险），而非仅记录日志
                 self.tail_risk_monitor()
-                logger.info("【回撤熔断】尾部防御已执行 (级别 %s, allow_new_buy=%s)",
-                            level, getattr(decision, "allow_new_buy", True))
+                logger.info(
+                    "【回撤熔断】尾部防御已执行 (级别 %s, allow_new_buy=%s)",
+                    level,
+                    getattr(decision, "allow_new_buy", True),
+                )
             except NotImplementedError as e:
                 # broker 不提供尾部防御所需接口: fail-closed, 保留熔断决策但提示
                 logger.error("【回撤熔断】尾部防御不可用(%s)，HALT 仍禁止新建多头", e)
@@ -383,7 +469,9 @@ class AlphaHedgeEngine:
             if price and price > 0:
                 return price
         # M2修复: 取消硬编码兜底 1.00 (错误兜底会扭曲组合估值和风险计算)
-        logger.warning("无法获取 %s 的最新价格 (broker 不可用或无数据), 返回 NaN", symbol)
+        logger.warning(
+            "无法获取 %s 的最新价格 (broker 不可用或无数据), 返回 NaN", symbol
+        )
         return float("nan")
 
     def _get_option_quotes(self, symbol: str) -> tuple:
@@ -455,58 +543,58 @@ class AlphaHedgeEngine:
         # 商品期权按品种映射 (大商所 DCE / 郑商所 CZCE / 上期所 SHFE)
         _COMMODITY_MULTIPLIER = {
             # 大商所 DCE
-            "m": 10,    # 豆粕
-            "c": 10,    # 玉米
-            "i": 100,   # 铁矿石
-            "p": 10,    # 棕榈油
-            "pp": 5,    # 聚丙烯
-            "v": 5,     # PVC
-            "l": 5,     # 聚乙烯
-            "a": 10,    # 豆一
-            "b": 10,    # 豆二
-            "y": 10,    # 豆油
-            "cs": 10,   # 玉米淀粉
-            "eg": 10,   # 乙二醇
-            "pg": 20,   # LPG
+            "m": 10,  # 豆粕
+            "c": 10,  # 玉米
+            "i": 100,  # 铁矿石
+            "p": 10,  # 棕榈油
+            "pp": 5,  # 聚丙烯
+            "v": 5,  # PVC
+            "l": 5,  # 聚乙烯
+            "a": 10,  # 豆一
+            "b": 10,  # 豆二
+            "y": 10,  # 豆油
+            "cs": 10,  # 玉米淀粉
+            "eg": 10,  # 乙二醇
+            "pg": 20,  # LPG
             # 郑商所 CZCE
-            "sr": 10,   # 白糖
-            "cf": 5,    # 棉花
-            "ta": 5,    # PTA
-            "ma": 10,   # 甲醇
-            "oi": 10,   # 菜油
-            "rm": 10,   # 菜粕
-            "fg": 20,   # 玻璃
-            "sf": 5,    # 硅铁
-            "sm": 5,    # 锰硅
-            "ap": 10,   # 苹果
-            "cj": 5,    # 红枣
-            "ur": 20,   # 尿素
-            "sa": 20,   # 纯碱
-            "pf": 5,    # 短纤
-            "pk": 5,    # 花生
-            "sh": 30,   # 烧碱
-            "px": 5,    # 对二甲苯
+            "sr": 10,  # 白糖
+            "cf": 5,  # 棉花
+            "ta": 5,  # PTA
+            "ma": 10,  # 甲醇
+            "oi": 10,  # 菜油
+            "rm": 10,  # 菜粕
+            "fg": 20,  # 玻璃
+            "sf": 5,  # 硅铁
+            "sm": 5,  # 锰硅
+            "ap": 10,  # 苹果
+            "cj": 5,  # 红枣
+            "ur": 20,  # 尿素
+            "sa": 20,  # 纯碱
+            "pf": 5,  # 短纤
+            "pk": 5,  # 花生
+            "sh": 30,  # 烧碱
+            "px": 5,  # 对二甲苯
             # 上期所 SHFE
-            "cu": 5,    # 铜
-            "al": 5,    # 铝
-            "zn": 5,    # 锌
-            "pb": 5,    # 铅
-            "ni": 1,    # 镍
-            "sn": 1,    # 锡
-            "au": 1000, # 黄金
-            "ag": 15,   # 白银
-            "rb": 10,   # 螺纹钢
-            "wr": 10,   # 线材
-            "hc": 10,   # 热轧卷板
-            "ss": 5,    # 不锈钢
-            "ao": 20,   # 氧化铝
-            "br": 5,    # 丁二烯橡胶
+            "cu": 5,  # 铜
+            "al": 5,  # 铝
+            "zn": 5,  # 锌
+            "pb": 5,  # 铅
+            "ni": 1,  # 镍
+            "sn": 1,  # 锡
+            "au": 1000,  # 黄金
+            "ag": 15,  # 白银
+            "rb": 10,  # 螺纹钢
+            "wr": 10,  # 线材
+            "hc": 10,  # 热轧卷板
+            "ss": 5,  # 不锈钢
+            "ao": 20,  # 氧化铝
+            "br": 5,  # 丁二烯橡胶
             # 上海国际能源交易中心 INE
-            "sc": 1000, # 原油
-            "lu": 10,   # 低硫燃料油
-            "nr": 10,   # 20号胶
-            "bc": 5,    # 国际铜
-            "ec": 50,   # 集运指数
+            "sc": 1000,  # 原油
+            "lu": 10,  # 低硫燃料油
+            "nr": 10,  # 20号胶
+            "bc": 5,  # 国际铜
+            "ec": 50,  # 集运指数
         }
 
         # 尝试从合约代码提取品种前缀 (如 "m2509-C-3200" -> "m", "ag2509-P-5800" -> "ag")
@@ -519,7 +607,9 @@ class AlphaHedgeEngine:
         return 10000
 
     def run_daily_routine(self, current_drawdown: Optional[float] = None) -> None:
-        logger.info("[%s] 启动宏观对冲专户执行引擎...", time.strftime('%Y-%m-%d %H:%M:%S'))
+        logger.info(
+            "[%s] 启动宏观对冲专户执行引擎...", time.strftime("%Y-%m-%d %H:%M:%S")
+        )
         # M17 修复: 区分可恢复异常 (log 并继续) 和致命异常 (log 后 re-raise)
         # 原逻辑捕获所有异常后继续执行, 调用者无法感知失败
         try:
@@ -533,9 +623,11 @@ class AlphaHedgeEngine:
             # 三重判断: 任一为真即 halt (防字段缺失导致绕过)
             halt = bool(
                 drawdown_decision
-                and (drawdown_decision.get("level") == "HALT"
-                     or drawdown_decision.get("allow_new_buy") is False
-                     or drawdown_decision.get("breach_hard_limit"))
+                and (
+                    drawdown_decision.get("level") == "HALT"
+                    or drawdown_decision.get("allow_new_buy") is False
+                    or drawdown_decision.get("breach_hard_limit")
+                )
             )
             if halt:
                 logger.error(
@@ -548,8 +640,9 @@ class AlphaHedgeEngine:
             else:
                 self.execute_covered_call()
                 self.tail_risk_monitor()
-            logger.info(">>> 本次轮询执行完毕。状态：%s。",
-                        "熔断保护中" if halt else "安全")
+            logger.info(
+                ">>> 本次轮询执行完毕。状态：%s。", "熔断保护中" if halt else "安全"
+            )
         except NotImplementedError as e:
             # 可恢复: broker 不提供某些接口, 降级处理
             logger.warning("【降级】功能不可用, 跳过: %s", e)
@@ -564,18 +657,24 @@ class AlphaHedgeEngine:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
 
     # C6 修复: mode 独立于 broker 是否加载, 通过显式参数控制
     # 原 logic: broker 加载成功 → mode="real", 但使用 MockAccount 虚假数据 → 可能基于虚假数据真实下单
-    explicit_mode = os.environ.get("ALPHA_HEDGE_MODE", "sim").lower()  # 默认 sim, 需显式设置才进 real
+    explicit_mode = os.environ.get(
+        "ALPHA_HEDGE_MODE", "sim"
+    ).lower()  # 默认 sim, 需显式设置才进 real
 
     broker = None
     if explicit_mode == "real":
         try:
             import importlib.util
 
-            spec = importlib.util.spec_from_file_location("ths_real_broker", "v8.3_institutional/ths_real_broker.py")
+            spec = importlib.util.spec_from_file_location(
+                "ths_real_broker", "v8.3_institutional/ths_real_broker.py"
+            )
             ths_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(ths_module)
             THSRealBroker = ths_module.THSRealBroker  # noqa: N806
@@ -584,14 +683,18 @@ def main() -> None:
             # 请通过 THSRealBroker 的标准初始化方式接入真实账户
             # 以下仅为 broker 加载校验, 实际账户接入应由调用方完成
             if not hasattr(THSRealBroker, "get_positions"):
-                logger.error("[C6] THSRealBroker 缺少 get_positions 接口, 降级为 sim 模式")
+                logger.error(
+                    "[C6] THSRealBroker 缺少 get_positions 接口, 降级为 sim 模式"
+                )
                 explicit_mode = "sim"
             elif not hasattr(THSRealBroker, "get_price"):
                 logger.error("[C6] THSRealBroker 缺少 get_price 接口, 降级为 sim 模式")
                 explicit_mode = "sim"
             else:
                 # 注意: 此处不创建 MockAccount, 真实使用时由调用方传入真实 account
-                logger.warning("[C6] real 模式需调用方提供真实 account, 当前未实例化 broker")
+                logger.warning(
+                    "[C6] real 模式需调用方提供真实 account, 当前未实例化 broker"
+                )
                 explicit_mode = "sim"  # 安全降级: 未提供真实 account 时不进 real
         except Exception as e:
             logger.warning("THSRealBroker 不可用: %s，将使用模拟模式", e)
@@ -599,7 +702,9 @@ def main() -> None:
     else:
         logger.info("ALPHA_HEDGE_MODE=sim (默认), 使用模拟模式")
 
-    engine = AlphaHedgeEngine(account_id="YOUR_ACCOUNT", broker=broker, mode=explicit_mode)
+    engine = AlphaHedgeEngine(
+        account_id="YOUR_ACCOUNT", broker=broker, mode=explicit_mode
+    )
 
     logger.info("\n" + "=" * 60)
     logger.info("亚洲宏观多策略专户 - 期权量化执行引擎")

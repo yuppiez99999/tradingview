@@ -18,12 +18,12 @@ class ColoredFormatter(logging.Formatter):
     """彩色日志格式化器 — 借鉴 TradingAgents-CN ColoredFormatter"""
 
     COLORS = {
-        'DEBUG': '\033[36m',     # 青色
-        'INFO': '\033[32m',      # 绿色
-        'WARNING': '\033[33m',   # 黄色
-        'ERROR': '\033[31m',     # 红色
-        'CRITICAL': '\033[35m',  # 紫色
-        'RESET': '\033[0m',
+        "DEBUG": "\033[36m",  # 青色
+        "INFO": "\033[32m",  # 绿色
+        "WARNING": "\033[33m",  # 黄色
+        "ERROR": "\033[31m",  # 红色
+        "CRITICAL": "\033[35m",  # 紫色
+        "RESET": "\033[0m",
     }
 
     def format(self, record: logging.LogRecord) -> str:
@@ -37,18 +37,27 @@ class StructuredFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         import json
+
         log_entry = {
-            'timestamp': datetime.fromtimestamp(record.created).isoformat(),
-            'level': record.levelname,
-            'logger': record.name,
-            'message': record.getMessage(),
-            'module': record.module,
-            'function': record.funcName,
-            'line': record.lineno,
+            "timestamp": datetime.fromtimestamp(record.created).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
         }
         # 附加性能追踪字段
-        for attr in ('duration_ms', 'operation', 'target', 'session_id',
-                     'event_type', 'stock_code', 'cost', 'tokens'):
+        for attr in (
+            "duration_ms",
+            "operation",
+            "target",
+            "session_id",
+            "event_type",
+            "stock_code",
+            "cost",
+            "tokens",
+        ):
             if hasattr(record, attr):
                 log_entry[attr] = getattr(record, attr)
         return json.dumps(log_entry, ensure_ascii=False)
@@ -63,97 +72,107 @@ class QuantSystemLogger:
         self._setup_logging()
 
     def _load_default_config(self) -> dict[str, Any]:
-        log_level = os.getenv('QUANT_LOG_LEVEL', 'INFO').upper()
-        log_dir = os.getenv('QUANT_LOG_DIR', './logs')
+        log_level = os.getenv("QUANT_LOG_LEVEL", "INFO").upper()
+        log_dir = os.getenv("QUANT_LOG_DIR", "./logs")
 
         return {
-            'level': log_level,
-            'format': {
-                'console': '%(asctime)s | %(name)-18s | %(levelname)-8s | %(message)s',
-                'file': '%(asctime)s | %(name)-18s | %(levelname)-8s | %(module)s:%(funcName)s:%(lineno)d | %(message)s',
+            "level": log_level,
+            "format": {
+                "console": "%(asctime)s | %(name)-18s | %(levelname)-8s | %(message)s",
+                "file": "%(asctime)s | %(name)-18s | %(levelname)-8s | %(module)s:%(funcName)s:%(lineno)d | %(message)s",
             },
-            'handlers': {
-                'console': {'enabled': True, 'colored': True, 'level': log_level},
-                'file': {'enabled': True, 'level': 'DEBUG', 'max_size': '10MB', 'backup_count': 5, 'directory': log_dir},
-                'structured': {'enabled': False, 'level': 'INFO', 'directory': log_dir},
+            "handlers": {
+                "console": {"enabled": True, "colored": True, "level": log_level},
+                "file": {
+                    "enabled": True,
+                    "level": "DEBUG",
+                    "max_size": "10MB",
+                    "backup_count": 5,
+                    "directory": log_dir,
+                },
+                "structured": {"enabled": False, "level": "INFO", "directory": log_dir},
             },
-            'loggers': {
-                'quant': {'level': log_level},
-                'trading': {'level': log_level},
-                'data_source': {'level': log_level},
-                'urllib3': {'level': 'WARNING'},
-                'requests': {'level': 'WARNING'},
-                'matplotlib': {'level': 'WARNING'},
+            "loggers": {
+                "quant": {"level": log_level},
+                "trading": {"level": log_level},
+                "data_source": {"level": log_level},
+                "urllib3": {"level": "WARNING"},
+                "requests": {"level": "WARNING"},
+                "matplotlib": {"level": "WARNING"},
             },
         }
 
     def _setup_logging(self) -> None:
-        log_dir = Path(self.config['handlers']['file']['directory'])
+        log_dir = Path(self.config["handlers"]["file"]["directory"])
         log_dir.mkdir(parents=True, exist_ok=True)
 
         root_logger = logging.getLogger()
-        root_logger.setLevel(getattr(logging, self.config['level']))
+        root_logger.setLevel(getattr(logging, self.config["level"]))
         root_logger.handlers.clear()
 
         self._add_console_handler(root_logger)
         self._add_file_handler(root_logger)
 
-        if self.config['handlers']['structured']['enabled']:
+        if self.config["handlers"]["structured"]["enabled"]:
             self._add_structured_handler(root_logger)
 
         self._configure_specific_loggers()
 
     def _add_console_handler(self, logger: logging.Logger) -> None:
-        if not self.config['handlers']['console']['enabled']:
+        if not self.config["handlers"]["console"]["enabled"]:
             return
         stream = sys.stderr
         handler = logging.StreamHandler(stream)
-        handler.setLevel(getattr(logging, self.config['handlers']['console']['level']))
+        handler.setLevel(getattr(logging, self.config["handlers"]["console"]["level"]))
 
-        if self.config['handlers']['console']['colored'] and stream.isatty():
-            formatter = ColoredFormatter(self.config['format']['console'])
+        if self.config["handlers"]["console"]["colored"] and stream.isatty():
+            formatter = ColoredFormatter(self.config["format"]["console"])
         else:
-            formatter = logging.Formatter(self.config['format']['console'])
+            formatter = logging.Formatter(self.config["format"]["console"])
 
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
     def _add_file_handler(self, logger: logging.Logger) -> None:
-        if not self.config['handlers']['file']['enabled']:
+        if not self.config["handlers"]["file"]["enabled"]:
             return
-        log_dir = Path(self.config['handlers']['file']['directory'])
-        log_file = log_dir / 'quant_system.log'
+        log_dir = Path(self.config["handlers"]["file"]["directory"])
+        log_file = log_dir / "quant_system.log"
 
-        max_size = self._parse_size(self.config['handlers']['file']['max_size'])
-        backup_count = self.config['handlers']['file']['backup_count']
+        max_size = self._parse_size(self.config["handlers"]["file"]["max_size"])
+        backup_count = self.config["handlers"]["file"]["backup_count"]
 
         handler = logging.handlers.RotatingFileHandler(
-            log_file, maxBytes=max_size, backupCount=backup_count, encoding='utf-8')
-        handler.setLevel(getattr(logging, self.config['handlers']['file']['level']))
-        handler.setFormatter(logging.Formatter(self.config['format']['file']))
+            log_file, maxBytes=max_size, backupCount=backup_count, encoding="utf-8"
+        )
+        handler.setLevel(getattr(logging, self.config["handlers"]["file"]["level"]))
+        handler.setFormatter(logging.Formatter(self.config["format"]["file"]))
         logger.addHandler(handler)
 
     def _add_structured_handler(self, logger: logging.Logger) -> None:
-        log_dir = Path(self.config['handlers']['structured']['directory'])
-        log_file = log_dir / 'quant_structured.log'
+        log_dir = Path(self.config["handlers"]["structured"]["directory"])
+        log_file = log_dir / "quant_structured.log"
         handler = logging.handlers.RotatingFileHandler(
-            log_file, maxBytes=10 * 1024 * 1024, backupCount=3, encoding='utf-8')
-        handler.setLevel(getattr(logging, self.config['handlers']['structured']['level']))
+            log_file, maxBytes=10 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        )
+        handler.setLevel(
+            getattr(logging, self.config["handlers"]["structured"]["level"])
+        )
         handler.setFormatter(StructuredFormatter())
         logger.addHandler(handler)
 
     def _configure_specific_loggers(self) -> None:
-        for logger_name, logger_config in self.config['loggers'].items():
+        for logger_name, logger_config in self.config["loggers"].items():
             lg = logging.getLogger(logger_name)
-            lg.setLevel(getattr(logging, logger_config['level']))
+            lg.setLevel(getattr(logging, logger_config["level"]))
 
     def _parse_size(self, size_str: str) -> int:
         size_str = size_str.upper()
-        if size_str.endswith('KB'):
+        if size_str.endswith("KB"):
             return int(size_str[:-2]) * 1024
-        elif size_str.endswith('MB'):
+        if size_str.endswith("MB"):
             return int(size_str[:-2]) * 1024 * 1024
-        elif size_str.endswith('GB'):
+        if size_str.endswith("GB"):
             return int(size_str[:-2]) * 1024 * 1024 * 1024
         return int(size_str)
 

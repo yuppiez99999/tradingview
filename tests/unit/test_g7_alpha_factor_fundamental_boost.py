@@ -35,12 +35,22 @@ from utils.alpha_factor.fundamental import (  # noqa: E402
 # compute_value_factors
 # ============================================================
 
+
 class TestValueFactors:
     def test_empty_fundamentals(self):
         result = compute_value_factors({})
         assert set(result.keys()) == {
-            "EP", "BP", "SP", "CFP", "DP", "FCFP", "EV_EBITDA", "SP_EV",
-            "PE_EX", "PEG", "PB_INT",
+            "EP",
+            "BP",
+            "SP",
+            "CFP",
+            "DP",
+            "FCFP",
+            "EV_EBITDA",
+            "SP_EV",
+            "PE_EX",
+            "PEG",
+            "PB_INT",
         }
         for fval in result.values():
             assert fval.values == {}
@@ -150,6 +160,7 @@ class TestValueFactors:
 # compute_growth_factors
 # ============================================================
 
+
 class TestGrowthFactors:
     def test_empty_fundamentals(self):
         result = compute_growth_factors({})
@@ -212,10 +223,15 @@ class TestGrowthFactors:
 
     def test_all_five_bases(self):
         """5 个基础量都有预计算字段."""
-        fund = {"A": {
-            "revenue_yoy": 0.1, "net_profit_yoy": 0.2,
-            "operating_cash_flow_yoy": 0.3, "roe_yoy": 0.4, "roa_yoy": 0.5,
-        }}
+        fund = {
+            "A": {
+                "revenue_yoy": 0.1,
+                "net_profit_yoy": 0.2,
+                "operating_cash_flow_yoy": 0.3,
+                "roe_yoy": 0.4,
+                "roa_yoy": 0.5,
+            }
+        }
         result = compute_growth_factors(fund)
         assert result["REV_YOY"].values["A"] == pytest.approx(0.1)
         assert result["NP_YOY"].values["A"] == pytest.approx(0.2)
@@ -227,6 +243,7 @@ class TestGrowthFactors:
 # ============================================================
 # compute_quality_factors
 # ============================================================
+
 
 class TestQualityFactors:
     def test_empty_fundamentals(self):
@@ -292,6 +309,7 @@ class TestQualityFactors:
 # compute_leverage_factors
 # ============================================================
 
+
 class TestLeverageFactors:
     def test_empty_fundamentals(self):
         result = compute_leverage_factors({})
@@ -331,6 +349,7 @@ class TestLeverageFactors:
 # ============================================================
 # compute_operation_factors
 # ============================================================
+
 
 class TestOperationFactors:
     def test_empty_fundamentals(self):

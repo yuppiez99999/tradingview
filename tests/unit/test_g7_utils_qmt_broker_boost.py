@@ -13,6 +13,7 @@ utils/qmt_broker.py 是 re-export shim, 真正实现在 ms_strategy/src/executio
      - get_positions / get_available_funds / check_funds_sufficient
      - get_order_book / get_volume_profile
 """
+
 from __future__ import annotations
 
 import importlib
@@ -40,28 +41,34 @@ class TestQmtBrokerShim:
 
     def test_shim_imports_successfully(self):
         import utils.qmt_broker as shim  # noqa: F401
+
         assert shim is not None
 
     def test_shim_marks_itself_as_shim(self):
         import utils.qmt_broker as shim
+
         assert getattr(shim, "__file_shim__", False) is True
 
     def test_shim_exposes_upstream_path(self):
         import utils.qmt_broker as shim
+
         assert hasattr(shim, "__upstream_path__")
         assert "qmt_broker.py" in shim.__upstream_path__
 
     def test_shim_reexports_qmt_order_status(self):
         import utils.qmt_broker as shim
+
         assert hasattr(shim, "QMT_ORDER_STATUS")
         assert shim.QMT_ORDER_STATUS[55] == "ALL_TRADED"
 
     def test_shim_reexports_qmt_broker_api_class(self):
         import utils.qmt_broker as shim
+
         assert hasattr(shim, "QmtBrokerAPI")
 
     def test_shim_reexports_xtquant_available_flag(self):
         import utils.qmt_broker as shim
+
         assert hasattr(shim, "XTQUANT_AVAILABLE")
         # xtquant 未安装时为 False
         assert shim.XTQUANT_AVAILABLE in (True, False)
@@ -138,6 +145,7 @@ def mock_xtquant(monkeypatch):
     monkeypatch.setitem(sys.modules, "xtquant.xttrader", xttrader_mod)
 
     import ms_strategy.src.execution.qmt_broker as qmt_broker_mod
+
     importlib.reload(qmt_broker_mod)
 
     yield {
@@ -179,9 +187,13 @@ class TestQmtBrokerInit:
     def test_init_custom_params(self, mock_xtquant):
         broker_cls = mock_xtquant["module"].QmtBrokerAPI  # noqa: N806
         broker = broker_cls(
-            account_id="A", session_id=2, account_type="FUTURE",
-            path="/tmp", min_cash_buffer=1000.0,
-            default_order_type=1102, quick_trade=1,
+            account_id="A",
+            session_id=2,
+            account_type="FUTURE",
+            path="/tmp",
+            min_cash_buffer=1000.0,
+            default_order_type=1102,
+            quick_trade=1,
         )
         assert broker.account_type == "FUTURE"
         assert broker.path == "/tmp"
@@ -316,30 +328,34 @@ class TestCancel:
     def test_cancel_success(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
         broker.connect()
-        order = Order(order_id="1", symbol="X", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
+        order = Order(
+            order_id="1", symbol="X", qty=100, side="BUY", order_type="LIMIT", price=4.5
+        )
         assert broker.cancel(order) is True
 
     def test_cancel_not_connected(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
-        order = Order(order_id="1", symbol="X", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
+        order = Order(
+            order_id="1", symbol="X", qty=100, side="BUY", order_type="LIMIT", price=4.5
+        )
         assert broker.cancel(order) is False
 
     def test_cancel_failure_nonzero(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
         broker.connect()
         broker._xt_trader.cancelOrder = MagicMock(return_value=-1)
-        order = Order(order_id="1", symbol="X", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
+        order = Order(
+            order_id="1", symbol="X", qty=100, side="BUY", order_type="LIMIT", price=4.5
+        )
         assert broker.cancel(order) is False
 
     def test_cancel_exception_returns_false(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
         broker.connect()
         broker._xt_trader.cancelOrder = MagicMock(side_effect=OSError("cancel err"))
-        order = Order(order_id="1", symbol="X", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
+        order = Order(
+            order_id="1", symbol="X", qty=100, side="BUY", order_type="LIMIT", price=4.5
+        )
         assert broker.cancel(order) is False
 
 
@@ -351,18 +367,26 @@ class TestCancel:
 class TestWaitFill:
     def test_wait_fill_not_connected(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
-        order = Order(order_id="1", symbol="X", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
+        order = Order(
+            order_id="1", symbol="X", qty=100, side="BUY", order_type="LIMIT", price=4.5
+        )
         assert broker.wait_fill(order, timeout=1) is None
 
     def test_wait_fill_all_traded(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
         broker.connect()
-        order = Order(order_id="1", symbol="X", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
-        with patch.object(broker, "_query_order_detail", return_value={
-            "status": 55, "traded_volume": 100, "traded_price": 4.52,
-        }):
+        order = Order(
+            order_id="1", symbol="X", qty=100, side="BUY", order_type="LIMIT", price=4.5
+        )
+        with patch.object(
+            broker,
+            "_query_order_detail",
+            return_value={
+                "status": 55,
+                "traded_volume": 100,
+                "traded_price": 4.52,
+            },
+        ):
             result = broker.wait_fill(order, timeout=5)
         assert result is not None
         assert result["order_id"] == "1"
@@ -372,21 +396,30 @@ class TestWaitFill:
     def test_wait_fill_cancelled_status(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
         broker.connect()
-        order = Order(order_id="1", symbol="X", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
-        with patch.object(broker, "_query_order_detail", return_value={
-            "status": 57, "traded_volume": 0,
-        }):
+        order = Order(
+            order_id="1", symbol="X", qty=100, side="BUY", order_type="LIMIT", price=4.5
+        )
+        with patch.object(
+            broker,
+            "_query_order_detail",
+            return_value={
+                "status": 57,
+                "traded_volume": 0,
+            },
+        ):
             result = broker.wait_fill(order, timeout=5)
         assert result is None
 
     def test_wait_fill_timeout(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
         broker.connect()
-        order = Order(order_id="1", symbol="X", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
-        with patch.object(broker, "_query_order_detail", return_value=None), \
-             patch.object(broker, "cancel", return_value=True):
+        order = Order(
+            order_id="1", symbol="X", qty=100, side="BUY", order_type="LIMIT", price=4.5
+        )
+        with (
+            patch.object(broker, "_query_order_detail", return_value=None),
+            patch.object(broker, "cancel", return_value=True),
+        ):
             result = broker.wait_fill(order, timeout=0.1)
         assert result is None
 
@@ -400,8 +433,9 @@ class TestCallbacks:
     def test_on_order_update_pending_order(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
         broker.connect()
-        order = Order(order_id="9", symbol="X", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
+        order = Order(
+            order_id="9", symbol="X", qty=100, side="BUY", order_type="LIMIT", price=4.5
+        )
         broker._pending_orders["9"] = order
         broker._on_order_update({"order_id": "9", "status": 55})
         assert order.status == "ALL_TRADED"
@@ -429,10 +463,16 @@ class TestCallbacks:
 
     def test_on_trade_appends_fill(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
-        broker._on_trade({
-            "trade_id": "t1", "order_id": "o1", "code": "X.SH",
-            "volume": 100, "price": 4.5, "direction": "BUY",
-        })
+        broker._on_trade(
+            {
+                "trade_id": "t1",
+                "order_id": "o1",
+                "code": "X.SH",
+                "volume": 100,
+                "price": 4.5,
+                "direction": "BUY",
+            }
+        )
         assert len(broker.fills) == 1
         assert broker.fills[0].symbol == "X.SH"
         assert broker.fills[0].qty == 100
@@ -578,11 +618,15 @@ class TestAccountAndPositions:
 class TestOrderBookAndVolume:
     def test_get_order_book(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
-        tick_data = {"X.SH": {
-            "bidPrice": [4.50, 4.49], "bidVol": [100, 200],
-            "askPrice": [4.51, 4.52], "askVol": [150, 250],
-            "volume": 10000,
-        }}
+        tick_data = {
+            "X.SH": {
+                "bidPrice": [4.50, 4.49],
+                "bidVol": [100, 200],
+                "askPrice": [4.51, 4.52],
+                "askVol": [150, 250],
+                "volume": 10000,
+            }
+        }
         mock_xtquant["xtdata"].get_full_tick = MagicMock(return_value=tick_data)
         result = broker.get_order_book("X.SH")
         assert result is not None
@@ -604,10 +648,13 @@ class TestOrderBookAndVolume:
     def test_get_volume_profile(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
         import numpy as np
+
         vol = np.array([100, 200, 300])
-        mock_xtquant["xtdata"].get_market_data = MagicMock(return_value={
-            "volume": {"X.SH": vol},
-        })
+        mock_xtquant["xtdata"].get_market_data = MagicMock(
+            return_value={
+                "volume": {"X.SH": vol},
+            }
+        )
         result = broker.get_volume_profile("X.SH", window_minutes=3)
         assert result is not None
         assert len(result) == 3
@@ -616,10 +663,13 @@ class TestOrderBookAndVolume:
     def test_get_volume_profile_total_zero(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
         import numpy as np
+
         vol = np.array([0, 0, 0])
-        mock_xtquant["xtdata"].get_market_data = MagicMock(return_value={
-            "volume": {"X.SH": vol},
-        })
+        mock_xtquant["xtdata"].get_market_data = MagicMock(
+            return_value={
+                "volume": {"X.SH": vol},
+            }
+        )
         result = broker.get_volume_profile("X.SH", window_minutes=3)
         assert result is not None
         assert len(result) == 3
@@ -627,14 +677,18 @@ class TestOrderBookAndVolume:
 
     def test_get_volume_profile_symbol_missing(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
-        mock_xtquant["xtdata"].get_market_data = MagicMock(return_value={
-            "volume": {},
-        })
+        mock_xtquant["xtdata"].get_market_data = MagicMock(
+            return_value={
+                "volume": {},
+            }
+        )
         assert broker.get_volume_profile("X.SH") is None
 
     def test_get_volume_profile_exception(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
-        mock_xtquant["xtdata"].get_market_data = MagicMock(side_effect=RuntimeError("err"))
+        mock_xtquant["xtdata"].get_market_data = MagicMock(
+            side_effect=RuntimeError("err")
+        )
         assert broker.get_volume_profile("X.SH") is None
 
 
@@ -673,9 +727,17 @@ class TestQueryOrderDetail:
 
     def test_build_fill_dict(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
-        order = Order(order_id="1", symbol="X.SH", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
-        result = broker._build_fill_dict(order, {"traded_price": 4.52, "traded_volume": 100})
+        order = Order(
+            order_id="1",
+            symbol="X.SH",
+            qty=100,
+            side="BUY",
+            order_type="LIMIT",
+            price=4.5,
+        )
+        result = broker._build_fill_dict(
+            order, {"traded_price": 4.52, "traded_volume": 100}
+        )
         assert result["order_id"] == "1"
         assert result["fill_id"] == "QMT-1"
         assert result["price"] == pytest.approx(4.52)
@@ -683,8 +745,14 @@ class TestQueryOrderDetail:
 
     def test_build_fill_dict_fallback_to_order_values(self, mock_xtquant):
         broker = _make_broker(mock_xtquant)
-        order = Order(order_id="1", symbol="X.SH", qty=100, side="BUY",
-                      order_type="LIMIT", price=4.5)
+        order = Order(
+            order_id="1",
+            symbol="X.SH",
+            qty=100,
+            side="BUY",
+            order_type="LIMIT",
+            price=4.5,
+        )
         result = broker._build_fill_dict(order, {})
         assert result["price"] == pytest.approx(4.5)
         assert result["qty"] == 100
@@ -703,6 +771,7 @@ class TestShimEdgeCases:
         import importlib
 
         import utils.qmt_broker as shim
+
         # 让上游 import 失败: 将上游模块设为 None 触发 ImportError
         monkeypatch.setitem(sys.modules, "ms_strategy.src.execution.qmt_broker", None)
         with pytest.raises(ImportError):
@@ -713,6 +782,7 @@ class TestShimEdgeCases:
         import importlib
 
         import utils.qmt_broker as shim
+
         ms_dir = str(PROJECT_ROOT / "ms_strategy")
         # 临时移除所有 ms_strategy 路径实例
         removed = []

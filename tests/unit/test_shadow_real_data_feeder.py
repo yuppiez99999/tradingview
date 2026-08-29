@@ -13,6 +13,7 @@
     - 使用 tmp_path fixture 隔离 jsonl 文件
     - 不依赖真实 trade_plan 文件 (构造临时 JSON)
 """
+
 from __future__ import annotations
 
 import json
@@ -130,10 +131,20 @@ def mock_provider_with_prices():
     """
     price_data = {
         "600276": _make_price_df(
-            [("2026-07-25", 10.0), ("2026-07-26", 10.0), ("2026-07-27", 10.0), ("2026-07-28", 10.5)]
+            [
+                ("2026-07-25", 10.0),
+                ("2026-07-26", 10.0),
+                ("2026-07-27", 10.0),
+                ("2026-07-28", 10.5),
+            ]
         ),
         "588000": _make_price_df(
-            [("2026-07-25", 1.0), ("2026-07-26", 1.0), ("2026-07-27", 1.0), ("2026-07-28", 1.01)]
+            [
+                ("2026-07-25", 1.0),
+                ("2026-07-26", 1.0),
+                ("2026-07-27", 1.0),
+                ("2026-07-28", 1.01),
+            ]
         ),
     }
     return MockMarketDataProvider(price_data=price_data)
@@ -201,7 +212,9 @@ class TestShadowRealDataFeederInit:
                 output_path=tmp_path / "out.jsonl",
             )
 
-    def test_init_with_invalid_weights_source(self, mock_provider_with_prices, tmp_path):
+    def test_init_with_invalid_weights_source(
+        self, mock_provider_with_prices, tmp_path
+    ):
         """非法 weights_source 应抛 ValueError."""
         with pytest.raises(ValueError, match="weights_source 必须为"):
             ShadowRealDataFeeder(
@@ -341,9 +354,7 @@ class TestFeedSingleDate:
     def test_symbol_fetch_failure_continues(self, tmp_path):
         """单个标的拉取失败应继续处理其他标的."""
         price_data = {
-            "600276": _make_price_df(
-                [("2026-07-27", 10.0), ("2026-07-28", 10.5)]
-            ),
+            "600276": _make_price_df([("2026-07-27", 10.0), ("2026-07-28", 10.5)]),
         }
         provider = MockMarketDataProvider(
             price_data=price_data,
@@ -388,7 +399,9 @@ class TestFeedSingleDate:
             {"600276": 0.5, "588000": 0.5},
         )
         assert len(result.symbols_detail) == 2
-        detail_600276 = next(d for d in result.symbols_detail if d["symbol"] == "600276")
+        detail_600276 = next(
+            d for d in result.symbols_detail if d["symbol"] == "600276"
+        )
         assert detail_600276["weight"] == 0.5
         assert detail_600276["prev_close"] == 10.0
         assert detail_600276["target_close"] == 10.5
@@ -440,9 +453,15 @@ class TestFeedSingleDate:
         import utils.alpha.shadow_real_data_feeder as mod
 
         # 让所有权重源都不可用
-        monkeypatch.setattr(mod, "_TRADE_PLAN_DIR", tmp_path / "nonexistent_trade_plans")
-        monkeypatch.setattr(mod, "_STRATEGY_PLAN_DIR", tmp_path / "nonexistent_strategy")
-        monkeypatch.setattr(mod, "_POSITIONS_JSON", tmp_path / "nonexistent_positions.json")
+        monkeypatch.setattr(
+            mod, "_TRADE_PLAN_DIR", tmp_path / "nonexistent_trade_plans"
+        )
+        monkeypatch.setattr(
+            mod, "_STRATEGY_PLAN_DIR", tmp_path / "nonexistent_strategy"
+        )
+        monkeypatch.setattr(
+            mod, "_POSITIONS_JSON", tmp_path / "nonexistent_positions.json"
+        )
 
         provider = MockMarketDataProvider()
         feeder = ShadowRealDataFeeder(
@@ -598,7 +617,12 @@ class TestFetchSymbolPrices:
         provider = MockMarketDataProvider(
             price_data={
                 "600276": _make_price_df(
-                    [("2026-07-25", 10.0), ("2026-07-26", 10.2), ("2026-07-27", 10.1), ("2026-07-28", 10.5)]
+                    [
+                        ("2026-07-25", 10.0),
+                        ("2026-07-26", 10.2),
+                        ("2026-07-27", 10.1),
+                        ("2026-07-28", 10.5),
+                    ]
                 )
             }
         )
@@ -608,6 +632,30 @@ class TestFetchSymbolPrices:
         )
         prev, target = feeder._fetch_symbol_prices("600276", "2026-08-04")
         # 精确匹配失败, fallback: target=df.iloc[-1]=10.5, prev=df.iloc[-2]=10.1
+        assert target == 10.5
+        assert prev == 10.1
+
+    def test_future_date_uses_latest_available_close(self, tmp_path):
+        """目标日晚于最新行情时, 应回退到最后一条已知交易日的收盘价."""
+        provider = MockMarketDataProvider(
+            price_data={
+                "600276": _make_price_df(
+                    [
+                        ("2026-07-25", 10.0),
+                        ("2026-07-26", 10.2),
+                        ("2026-07-27", 10.1),
+                        ("2026-07-28", 10.5),
+                    ]
+                )
+            }
+        )
+        feeder = ShadowRealDataFeeder(
+            data_provider=provider,
+            output_path=tmp_path / "out.jsonl",
+        )
+
+        prev, target = feeder._fetch_symbol_prices("600276", "2026-07-29")
+
         assert target == 10.5
         assert prev == 10.1
 
@@ -784,9 +832,7 @@ class TestWeightsLoading:
         positions_path = tmp_path / "positions.json"
         trade_plans_dir.mkdir()
         strategy_dir.mkdir()
-        positions_path.write_text(
-            json.dumps({"600276": 0.05}), encoding="utf-8"
-        )
+        positions_path.write_text(json.dumps({"600276": 0.05}), encoding="utf-8")
 
         monkeypatch.setattr(mod, "_TRADE_PLAN_DIR", trade_plans_dir)
         monkeypatch.setattr(mod, "_STRATEGY_PLAN_DIR", strategy_dir)
@@ -824,7 +870,9 @@ class TestWeightsLoading:
                 {
                     "execution_plan": {
                         "day_capital": 100000,
-                        "morning_orders": [{"code": "600276", "est_amount": 5000, "side": "BUY"}],
+                        "morning_orders": [
+                            {"code": "600276", "est_amount": 5000, "side": "BUY"}
+                        ],
                         "afternoon_orders": [],
                     }
                 }
@@ -1084,7 +1132,9 @@ class TestCrossValidate:
         assert result.is_valid is True
         assert "normal" in result.notes
 
-    def test_no_weights_load_returns_unknown(self, feeder_with_mock, tmp_path, monkeypatch):
+    def test_no_weights_load_returns_unknown(
+        self, feeder_with_mock, tmp_path, monkeypatch
+    ):
         """Day 2: 无 target_weights 且 weights 加载失败 → unknown + is_valid=False.
 
         2026-08-11 v8.6.14: 需显式 monkeypatch _POSITIONS_JSON 到不存在路径,
@@ -1092,9 +1142,16 @@ class TestCrossValidate:
         导致 cross_validate 处理 26 个 symbol (全 no_price) 返回 inconsistent 而非 unknown.
         """
         import utils.alpha.shadow_real_data_feeder as mod
-        monkeypatch.setattr(mod, "_TRADE_PLAN_DIR", tmp_path / "nonexistent_trade_plans")
-        monkeypatch.setattr(mod, "_STRATEGY_PLAN_DIR", tmp_path / "nonexistent_strategy")
-        monkeypatch.setattr(mod, "_POSITIONS_JSON", tmp_path / "nonexistent_positions.json")
+
+        monkeypatch.setattr(
+            mod, "_TRADE_PLAN_DIR", tmp_path / "nonexistent_trade_plans"
+        )
+        monkeypatch.setattr(
+            mod, "_STRATEGY_PLAN_DIR", tmp_path / "nonexistent_strategy"
+        )
+        monkeypatch.setattr(
+            mod, "_POSITIONS_JSON", tmp_path / "nonexistent_positions.json"
+        )
 
         result = feeder_with_mock.cross_validate("2026-07-28", 0.025)
         assert isinstance(result, ValidationResult)
@@ -1107,9 +1164,7 @@ class TestCrossValidate:
 
     def test_empty_weights_returns_unknown(self, feeder_with_mock):
         """Day 2: 空 target_weights → unknown + is_valid=False."""
-        result = feeder_with_mock.cross_validate(
-            "2026-07-28", 0.025, target_weights={}
-        )
+        result = feeder_with_mock.cross_validate("2026-07-28", 0.025, target_weights={})
         assert isinstance(result, ValidationResult)
         assert result.source_consistency == "unknown"
         assert result.is_valid is False
@@ -1129,14 +1184,20 @@ class TestCrossValidate:
         secondary = MockMarketDataProvider(
             price_data={
                 "600276": _make_price_df(
-                    [("2026-07-25", 10.0), ("2026-07-26", 10.0),
-                     ("2026-07-27", 10.0), ("2026-07-28", 10.5)]
+                    [
+                        ("2026-07-25", 10.0),
+                        ("2026-07-26", 10.0),
+                        ("2026-07-27", 10.0),
+                        ("2026-07-28", 10.5),
+                    ]
                 ),
             }
         )
         target_weights = {"600276": 1.0}
         result = feeder_with_mock.cross_validate(
-            "2026-07-28", 0.05, target_weights=target_weights,
+            "2026-07-28",
+            0.05,
+            target_weights=target_weights,
             secondary_provider=secondary,
         )
         assert isinstance(result, ValidationResult)
@@ -1155,15 +1216,21 @@ class TestCrossValidate:
         secondary = MockMarketDataProvider(
             price_data={
                 "600276": _make_price_df(
-                    [("2026-07-25", 100.0), ("2026-07-26", 100.0),
-                     ("2026-07-27", 100.0), ("2026-07-28", 101.0)]
+                    [
+                        ("2026-07-25", 100.0),
+                        ("2026-07-26", 100.0),
+                        ("2026-07-27", 100.0),
+                        ("2026-07-28", 101.0),
+                    ]
                 ),
             }
         )
         target_weights = {"600276": 1.0}
         # primary_return=0.05 (5%), secondary 重算 = 0.01 (1%)
         result = feeder_with_mock.cross_validate(
-            "2026-07-28", 0.05, target_weights=target_weights,
+            "2026-07-28",
+            0.05,
+            target_weights=target_weights,
             secondary_provider=secondary,
         )
         assert isinstance(result, ValidationResult)
@@ -1179,13 +1246,9 @@ class TestCrossValidate:
         # 构造一个异常 symbol (价格 0 → 触发 non_positive_price)
         abnormal_provider = MockMarketDataProvider(
             price_data={
-                "600276": _make_price_df(
-                    [("2026-07-27", 10.0), ("2026-07-28", 10.5)]
-                ),
+                "600276": _make_price_df([("2026-07-27", 10.0), ("2026-07-28", 10.5)]),
                 # BAD001: prev_close=0 (异常)
-                "BAD001": _make_price_df(
-                    [("2026-07-27", 0.0), ("2026-07-28", 10.0)]
-                ),
+                "BAD001": _make_price_df([("2026-07-27", 0.0), ("2026-07-28", 10.0)]),
             }
         )
         feeder = ShadowRealDataFeeder(
@@ -1502,7 +1565,9 @@ class TestPriceCache:
         assert feeder.get_cache_stats().misses == 2
         assert feeder.get_cache_stats().size == 0
 
-    def test_get_cache_stats_returns_snapshot(self, mock_provider_with_prices, tmp_path):
+    def test_get_cache_stats_returns_snapshot(
+        self, mock_provider_with_prices, tmp_path
+    ):
         """get_cache_stats 返回快照 (修改不影响内部状态)."""
         feeder = ShadowRealDataFeeder(
             data_provider=mock_provider_with_prices,
@@ -1536,7 +1601,8 @@ class TestFeedHistoryParallel:
             max_workers=1,
         )
         results_serial = feeder_serial.feed_history(
-            "2026-07-27", "2026-07-28",
+            "2026-07-27",
+            "2026-07-28",
             weights_history=weights_history,
         )
 
@@ -1547,7 +1613,8 @@ class TestFeedHistoryParallel:
             max_workers=2,
         )
         results_parallel = feeder_parallel.feed_history(
-            "2026-07-27", "2026-07-28",
+            "2026-07-27",
+            "2026-07-28",
             weights_history=weights_history,
         )
 
@@ -1574,7 +1641,8 @@ class TestFeedHistoryParallel:
             "2026-07-28": {"600276": 1.0},
         }
         feeder.feed_history(
-            "2026-07-27", "2026-07-28",
+            "2026-07-27",
+            "2026-07-28",
             weights_history=weights_history,
             progress_callback=callback,
         )
@@ -1590,9 +1658,7 @@ class TestFeedHistoryParallel:
         # 用一个会抛异常的 symbol 构造异常日
         provider = MockMarketDataProvider(
             price_data={
-                "600276": _make_price_df(
-                    [("2026-07-27", 10.0), ("2026-07-28", 10.5)]
-                ),
+                "600276": _make_price_df([("2026-07-27", 10.0), ("2026-07-28", 10.5)]),
             },
             raise_on_symbol={"BAD001"},
         )
@@ -1606,7 +1672,8 @@ class TestFeedHistoryParallel:
             "2026-07-28": {"600276": 1.0},  # 成功
         }
         results = feeder.feed_history(
-            "2026-07-27", "2026-07-28",
+            "2026-07-27",
+            "2026-07-28",
             weights_history=weights_history,
         )
         assert len(results) == 2
@@ -1627,8 +1694,12 @@ class TestFeedHistoryParallel:
         provider = CountingProvider(
             price_data={
                 "600276": _make_price_df(
-                    [("2026-07-25", 10.0), ("2026-07-26", 10.0),
-                     ("2026-07-27", 10.0), ("2026-07-28", 10.5)]
+                    [
+                        ("2026-07-25", 10.0),
+                        ("2026-07-26", 10.0),
+                        ("2026-07-27", 10.0),
+                        ("2026-07-28", 10.5),
+                    ]
                 ),
             }
         )
@@ -1645,7 +1716,8 @@ class TestFeedHistoryParallel:
         )
         call_count["n"] = 0
         feeder.feed_history(
-            "2026-07-27", "2026-07-28",
+            "2026-07-27",
+            "2026-07-28",
             weights_history=weights_history,
         )
         calls_with_cache = call_count["n"]
@@ -1669,7 +1741,8 @@ class TestFeedHistoryParallel:
             "2026-07-28": {"600276": 1.0},
         }
         feeder.feed_history(
-            "2026-07-27", "2026-07-28",
+            "2026-07-27",
+            "2026-07-28",
             weights_history=weights_history,
             progress_callback=callback,
         )
@@ -1778,12 +1851,11 @@ class TestCliMain:
         class FakeProvider:
             def __init__(self, *args, **kwargs):
                 self.source_health = {"tdx": {"ok": True}}
+
             def get_historical_data(self, symbol, period="1y"):
                 return pd.DataFrame()
 
-        monkeypatch.setattr(
-            "utils.data_provider.MarketDataProvider", FakeProvider
-        )
+        monkeypatch.setattr("utils.data_provider.MarketDataProvider", FakeProvider)
 
         exit_code = mod.main(["--date", "invalid-date"])
         assert exit_code == 1
@@ -1794,28 +1866,27 @@ class TestCliMain:
 
         # Mock provider 返回价格数据
         price_data = {
-            "600276": _make_price_df(
-                [("2026-07-27", 10.0), ("2026-07-28", 10.5)]
-            ),
+            "600276": _make_price_df([("2026-07-27", 10.0), ("2026-07-28", 10.5)]),
         }
 
         class FakeProvider:
             def __init__(self, *args, **kwargs):
                 self.source_health = {"tdx": {"ok": True, "last_error": ""}}
                 self._price_data = price_data
+
             def get_historical_data(self, symbol, period="1y"):
                 return self._price_data.get(symbol, pd.DataFrame())
 
-        monkeypatch.setattr(
-            "utils.data_provider.MarketDataProvider", FakeProvider
-        )
+        monkeypatch.setattr("utils.data_provider.MarketDataProvider", FakeProvider)
 
         # 使用 manual 模式 + 手动传入权重 (通过 --weights-source manual 时无法自动加载)
         # 改用 plan_file 模式 + 临时文件
         trade_plan = {
             "execution_plan": {
                 "day_capital": 100000,
-                "morning_orders": [{"code": "600276", "est_amount": 5000, "side": "BUY"}],
+                "morning_orders": [
+                    {"code": "600276", "est_amount": 5000, "side": "BUY"}
+                ],
                 "afternoon_orders": [],
             }
         }
@@ -1823,12 +1894,17 @@ class TestCliMain:
         weights_file.write_text(json.dumps(trade_plan), encoding="utf-8")
 
         output = tmp_path / "out.jsonl"
-        exit_code = mod.main([
-            "--date", "2026-07-28",
-            "--dry-run",
-            "--weights-file", str(weights_file),
-            "--output", str(output),
-        ])
+        exit_code = mod.main(
+            [
+                "--date",
+                "2026-07-28",
+                "--dry-run",
+                "--weights-file",
+                str(weights_file),
+                "--output",
+                str(output),
+            ]
+        )
         # 应成功 (exit_code=0)
         assert exit_code == 0
         # dry-run 模式不应写盘

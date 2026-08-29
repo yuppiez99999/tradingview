@@ -1,4 +1,5 @@
 """T18 单元测试 — GradualRolloutOrchestrator 灰度发布编排器."""
+
 from __future__ import annotations
 
 import pytest
@@ -15,9 +16,13 @@ from utils.risk.risk_audit_logger import RiskAuditLogger
 # 测试夹具
 # ============================================================
 
-def _make_orchestrator(initial_stage: RolloutStage = RolloutStage.PAPER_TRADING) -> GradualRolloutOrchestrator:
+
+def _make_orchestrator(
+    initial_stage: RolloutStage = RolloutStage.PAPER_TRADING,
+) -> GradualRolloutOrchestrator:
     import tempfile
     from pathlib import Path
+
     audit = RiskAuditLogger(project_root=Path(tempfile.mkdtemp()), audit_dir="audit")
     return GradualRolloutOrchestrator(audit_logger=audit, initial_stage=initial_stage)
 
@@ -39,6 +44,7 @@ def _good_metrics(running_days: int = 10) -> StageMetrics:
 # ============================================================
 # RolloutStage 枚举测试
 # ============================================================
+
 
 class TestRolloutStage:
     def test_capital_ratio(self):
@@ -63,6 +69,7 @@ class TestRolloutStage:
 # 默认准入条件
 # ============================================================
 
+
 class TestDefaultCriteria:
     def test_all_stages_present(self):
         crit = default_criteria()
@@ -86,6 +93,7 @@ class TestDefaultCriteria:
 # ============================================================
 # 准入评估
 # ============================================================
+
 
 class TestEvaluatePromotion:
     def test_paper_to_shadow_all_pass(self):
@@ -143,6 +151,7 @@ class TestEvaluatePromotion:
 # 回滚评估
 # ============================================================
 
+
 class TestEvaluateRollback:
     def test_no_rollback_when_healthy(self):
         orch = _make_orchestrator(RolloutStage.LIVE_SHADOW)
@@ -197,6 +206,7 @@ class TestEvaluateRollback:
 # 阶段切换
 # ============================================================
 
+
 class TestStageTransition:
     def test_promote_paper_to_shadow(self):
         orch = _make_orchestrator(RolloutStage.PAPER_TRADING)
@@ -241,6 +251,7 @@ class TestStageTransition:
 # 资金切分
 # ============================================================
 
+
 class TestCapitalSplit:
     def test_paper_trading_zero_live(self):
         orch = _make_orchestrator(RolloutStage.PAPER_TRADING)
@@ -271,6 +282,7 @@ class TestCapitalSplit:
 # 状态快照
 # ============================================================
 
+
 class TestStateSnapshot:
     def test_initial_state(self):
         orch = _make_orchestrator(RolloutStage.PAPER_TRADING)
@@ -294,6 +306,7 @@ class TestStateSnapshot:
 # ============================================================
 # 端到端流程
 # ============================================================
+
 
 class TestEndToEndFlow:
     def test_full_lifecycle(self):

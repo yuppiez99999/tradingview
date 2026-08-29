@@ -112,7 +112,9 @@ class KillSwitchAdapter:
         """
         # 同步直调原 KillSwitch (HC-2 铁律: 不走总线)
         start_ts = time.perf_counter()
-        status = cast(dict[str, Any], self._ks.check_margin_status(margin_usage=margin_usage))
+        status = cast(
+            dict[str, Any], self._ks.check_margin_status(margin_usage=margin_usage)
+        )
         elapsed_ms = (time.perf_counter() - start_ts) * 1000
 
         # 仅在 level>=1 时发布归档事件 (best-effort, 不影响同步路径)
@@ -201,13 +203,24 @@ class KillSwitchAdapter:
                     content=f"保证金占用={margin_usage}, margin_call={status.get('margin_call', False)}",
                     level=level,
                 )
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ):
                 logger.warning("MARGIN_BREACH 告警发送失败 (fail-open)", exc_info=True)
             return
 
         try:
             level: int = int(status.get("level", 0))
-            usage = float(margin_usage if margin_usage is not None else status.get("margin_usage_ratio", 0.0))
+            usage = float(
+                margin_usage
+                if margin_usage is not None
+                else status.get("margin_usage_ratio", 0.0)
+            )
             event = make_margin_breach_event(
                 source="kill_switch",
                 margin_usage=usage,
@@ -217,8 +230,16 @@ class KillSwitchAdapter:
                 extreme_margin_call=status.get("extreme_margin_call", False),
             )
             self.bus.publish(event)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OverflowError,
+            OSError,
+        ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
             # 风险隔离边界: KillSwitch 总线发布异常不得影响核心风控
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失
@@ -260,7 +281,14 @@ class KillSwitchAdapter:
                     content=f"executed={result.get('executed', False)}, actions={result.get('actions_taken', [])}",
                     level="critical",
                 )
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ):
                 logger.warning("KILL_SWITCH 告警发送失败 (fail-open)", exc_info=True)
             return
 
@@ -280,8 +308,16 @@ class KillSwitchAdapter:
                 actions_taken=action_names,
             )
             self.bus.publish(event)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OverflowError,
+            OSError,
+        ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
             # 风险隔离边界: KillSwitch 总线发布异常不得影响核心风控
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失
@@ -328,14 +364,14 @@ class KillSwitchAdapter:
                 confidence=1.0,
                 source="kill_switch_adapter",
             )
-        elif level == 2:
+        if level == 2:
             return RiskDecision(
                 action=RiskAction.FORCE_LIQUIDATE,
                 reason="margin_level_2_force_close",
                 confidence=0.95,
                 source="kill_switch_adapter",
             )
-        elif level == 1:
+        if level == 1:
             return RiskDecision(
                 action=RiskAction.DISABLE_NEW_ORDERS,
                 reason="margin_level_1_defensive",
@@ -350,7 +386,9 @@ class KillSwitchAdapter:
         )
 
 
-def adapt_kill_switch(kill_switch: Any, bus: RiskBus | None = None) -> KillSwitchAdapter:
+def adapt_kill_switch(
+    kill_switch: Any, bus: RiskBus | None = None
+) -> KillSwitchAdapter:
     """便捷函数: 包装 KillSwitch 为适配器.
 
     Args:

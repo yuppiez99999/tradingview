@@ -32,7 +32,9 @@ class TestOnlineStoreInit:
         assert s._ttl_seconds == 7 * 86400
 
     def test_redis_fallback_to_memory(self):
-        cfg = FeatureStoreConfig(online_backend="redis", online_redis_url="redis://invalid:9999/0")
+        cfg = FeatureStoreConfig(
+            online_backend="redis", online_redis_url="redis://invalid:9999/0"
+        )
         s = OnlineStore(cfg)
         assert s._redis is None
 

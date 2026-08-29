@@ -31,6 +31,7 @@ W6.3.2 新增: 确定性事件时钟 (nautilus_trader 风格)
     - 单一职责: 引擎只编排,撮合交给 MatchingEngine,延迟交给 LatencyModel
     - 多小文件 (§5.3): 本模块 < 400 行
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -82,13 +83,15 @@ class NonMonotonicTimestampError(ValueError):
 
 class EventClockMode:
     """W6.3.2: 事件时钟模式常量。"""
+
     MONOTONIC_INDEX = "MONOTONIC_INDEX"  # 默认, 向后兼容 (_n_events 单调递增整数)
-    WALL_CLOCK_NS = "WALL_CLOCK_NS"      # 新语义, event.ts_event 纳秒级 UNIX 时间戳
+    WALL_CLOCK_NS = "WALL_CLOCK_NS"  # 新语义, event.ts_event 纳秒级 UNIX 时间戳
 
 
 # ============================================================
 # 数据类
 # ============================================================
+
 
 @dataclass
 class PendingOrder:
@@ -99,6 +102,7 @@ class PendingOrder:
         - WALL_CLOCK_NS 模式:    使用 ready_ts (就绪时的纳秒级时间戳, 0 表示未设置)
     两者同时存在, 由 EventDrivenEngine 根据 event_clock_mode 选择读取的字段。
     """
+
     order: OrderData
     # MONOTONIC_INDEX 模式: 剩余多少个事件才可撮合 (0 = 下个事件可撮合)
     remaining_latency: int = 0
@@ -118,6 +122,7 @@ class Position:
         avg_price: 持仓均价
         last_price: 最新标记价 (用于 mark-to-market)
     """
+
     code: str
     direction: str
     volume: float = 0.0
@@ -150,8 +155,8 @@ class Position:
             # 加仓: 重算均价; 平仓部分: 均价不变
             if fill_volume > 0:
                 self.avg_price = (
-                    (self.avg_price * self.volume + fill_price * fill_volume) / new_vol
-                )
+                    self.avg_price * self.volume + fill_price * fill_volume
+                ) / new_vol
             self.volume = new_vol
 
 
@@ -161,10 +166,13 @@ class EngineSnapshot:
 
     所有 list/dict 字段均为副本,外部修改不影响引擎内部状态。
     """
+
     cash: float
     equity: float
-    event_clock_mode: str          # W6.3.2: 当前时钟模式
-    last_ts_event: int             # W6.3.2: 最新事件 ts_event (WALL_CLOCK_NS 模式下有效; MONOTONIC_INDEX=0)
+    event_clock_mode: str  # W6.3.2: 当前时钟模式
+    last_ts_event: (
+        int  # W6.3.2: 最新事件 ts_event (WALL_CLOCK_NS 模式下有效; MONOTONIC_INDEX=0)
+    )
     n_events_processed: int
     n_orders_submitted: int
     n_orders_filled: int
@@ -174,7 +182,7 @@ class EngineSnapshot:
     long_positions: dict
     short_positions: dict
     market_prices: dict
-    equity_curve: list             # W6.3.2: MONOTONIC_INDEX=list[float], WALL_CLOCK_NS=list[Tuple[int, float]] (ts_ns, equity)
+    equity_curve: list  # W6.3.2: MONOTONIC_INDEX=list[float], WALL_CLOCK_NS=list[Tuple[int, float]] (ts_ns, equity)
 
 
 @dataclass
@@ -196,6 +204,7 @@ class EngineSummary:
         equity_timestamps_ns: list[int]  (W6.3.2: WALL_CLOCK_NS 模式下对应 equity_curve 的时间戳列表, MONOTONIC_INDEX=[])
         trade_records: 成交记录列表 (order_id, code, direction, price, volume)
     """
+
     initial_capital: float
     final_equity: float
     total_return: float
@@ -213,6 +222,7 @@ class EngineSummary:
 # ============================================================
 # 主引擎
 # ============================================================
+
 
 class EventDrivenEngine:
     """事件驱动回测主引擎 — 串联所有组件,驱动事件循环。
@@ -259,7 +269,10 @@ class EventDrivenEngine:
         self._commission_rate = commission_rate
 
         # W6.3.2: 事件时钟模式校验 + 初始化
-        if event_clock_mode not in (EventClockMode.MONOTONIC_INDEX, EventClockMode.WALL_CLOCK_NS):
+        if event_clock_mode not in (
+            EventClockMode.MONOTONIC_INDEX,
+            EventClockMode.WALL_CLOCK_NS,
+        ):
             raise ValueError(
                 f"event_clock_mode 必须是 '{EventClockMode.MONOTONIC_INDEX}' 或 "
                 f"'{EventClockMode.WALL_CLOCK_NS}', 实际={event_clock_mode!r}"
@@ -280,7 +293,7 @@ class EventDrivenEngine:
 
         # 队列
         self._latency_queue: "deque[PendingOrder]" = deque()  # 延迟中的订单
-        self._matchable_queue: "deque[OrderData]" = deque()   # 就绪待撮合订单
+        self._matchable_queue: "deque[OrderData]" = deque()  # 就绪待撮合订单
         self._order_queue = OrderQueue()  # 订单生命周期管理 (活动/完成/撤单)
 
         # 行情与权益曲线
@@ -288,7 +301,9 @@ class EventDrivenEngine:
         # W6.3.2: 双模式
         #   MONOTONIC_INDEX: [float, float, ...]                 (每个事件一个权益点)
         #   WALL_CLOCK_NS:    [(int_ns, float), (int_ns, float), ...] (时间戳 + 权益)
-        self._equity_curve: list = [initial_capital]  # 向后兼容初始化 (MONO: [cash], WALL: 首个元素是初始标量, 首事件时 append tuple)
+        self._equity_curve: list = [
+            initial_capital
+        ]  # 向后兼容初始化 (MONO: [cash], WALL: 首个元素是初始标量, 首事件时 append tuple)
         self._trade_records: list[dict] = []
 
         # 计数器
@@ -413,8 +428,12 @@ class EventDrivenEngine:
             n_orders_rejected=self._n_rejected,
             pending_latency_count=len(self._latency_queue),
             matchable_queue_count=len(self._matchable_queue),
-            long_positions={k: dataclasses.asdict(v) for k, v in self._long_positions.items()},
-            short_positions={k: dataclasses.asdict(v) for k, v in self._short_positions.items()},
+            long_positions={
+                k: dataclasses.asdict(v) for k, v in self._long_positions.items()
+            },
+            short_positions={
+                k: dataclasses.asdict(v) for k, v in self._short_positions.items()
+            },
             market_prices=dict(self._market_prices),
             equity_curve=list(self._equity_curve),
         )
@@ -441,7 +460,9 @@ class EventDrivenEngine:
                     curve.append(float(item[1]))
                 else:
                     # 防御性兼容
-                    curve.append(float(item) if not isinstance(item, tuple) else float(item[-1]))
+                    curve.append(
+                        float(item) if not isinstance(item, tuple) else float(item[-1])
+                    )
                     timestamps.append(0)
 
         return EngineSummary(
@@ -531,17 +552,19 @@ class EventDrivenEngine:
         except KeyError:
             pass  # 订单可能已被其他路径处理
         self._n_filled += 1
-        self._trade_records.append({
-            "order_id": order.order_id,
-            "code": order.code,
-            "direction": order.direction,
-            "offset": order.offset,
-            "price": fill_price,
-            "volume": fill_volume,
-            "status": "ALL_TRADED",
-            "event_index": self._n_events,
-            "ts_event_ns": self._last_ts_event,  # W6.3.2: 成交事件时间戳 (两种模式都填充)
-        })
+        self._trade_records.append(
+            {
+                "order_id": order.order_id,
+                "code": order.code,
+                "direction": order.direction,
+                "offset": order.offset,
+                "price": fill_price,
+                "volume": fill_volume,
+                "status": "ALL_TRADED",
+                "event_index": self._n_events,
+                "ts_event_ns": self._last_ts_event,  # W6.3.2: 成交事件时间戳 (两种模式都填充)
+            }
+        )
 
     def _on_partial_fill(
         self, order: OrderData, fill_price: float, fill_volume: float
@@ -560,15 +583,17 @@ class EventDrivenEngine:
         except KeyError:
             pass
         self._n_rejected += 1
-        self._trade_records.append({
-            "order_id": order.order_id,
-            "code": order.code,
-            "direction": order.direction,
-            "reason": reason,
-            "status": "REJECTED",
-            "event_index": self._n_events,
-            "ts_event_ns": self._last_ts_event,  # W6.3.2: 拒单事件时间戳
-        })
+        self._trade_records.append(
+            {
+                "order_id": order.order_id,
+                "code": order.code,
+                "direction": order.direction,
+                "reason": reason,
+                "status": "REJECTED",
+                "event_index": self._n_events,
+                "ts_event_ns": self._last_ts_event,  # W6.3.2: 拒单事件时间戳
+            }
+        )
 
     # ============================================================
     # 内部: 持仓与现金 (无时钟模式依赖, 未修改)
@@ -625,9 +650,13 @@ class EventDrivenEngine:
     def _mark_positions(self, event: MarketEvent) -> None:
         """用当前事件价格标记持仓 (mark-to-market)。"""
         if event.code in self._long_positions:
-            self._long_positions[event.code].last_price = self._market_prices[event.code]
+            self._long_positions[event.code].last_price = self._market_prices[
+                event.code
+            ]
         if event.code in self._short_positions:
-            self._short_positions[event.code].last_price = self._market_prices[event.code]
+            self._short_positions[event.code].last_price = self._market_prices[
+                event.code
+            ]
 
     def _record_equity_point(self) -> None:
         """W6.3.2: 双模式权益记录。
@@ -638,9 +667,7 @@ class EventDrivenEngine:
             self._equity_curve.append((last_ts_event, self._equity))  — list[Tuple[int, float]]
             注意: 首元素初始值是标量 initial_capital, 首事件后第一个元素是 (ts, equity) 元组
         """
-        long_value = sum(
-            p.volume * p.last_price for p in self._long_positions.values()
-        )
+        long_value = sum(p.volume * p.last_price for p in self._long_positions.values())
         short_value = sum(
             p.volume * p.last_price for p in self._short_positions.values()
         )
@@ -657,7 +684,7 @@ class EventDrivenEngine:
 __all__ = [
     "EngineSnapshot",
     "EngineSummary",
-    "EventClockMode",        # W6.3.2 新增
+    "EventClockMode",  # W6.3.2 新增
     "EventDrivenEngine",
     "NonMonotonicTimestampError",  # W6.3.2 新增
     "PendingOrder",

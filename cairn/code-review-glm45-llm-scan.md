@@ -108,3 +108,14 @@ related:
 6. **提交阶段**：聚焦 commit 本次修复文件，不混入无关修改。
 
 **核心原则：LLM 扫描是"探针"不是"判官"——它的价值在于把人类注意力引导到可疑区域，最终缺陷判定权在人类。误报率高的模型（如 GLM 4.5-air 的 92% 误报）反而更有价值，因为它不漏报，配合严格二次过滤即可兼得召回与精度。**
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [Agent 直接审查兜底方法论（外部 LLM 额度耗尽时）](code-review-agent-fallback-20260810.md) (相似度 23%)
+- [MMR 评审规约 (multi-model-review 集成协议)](mmr-review-protocol.md) (相似度 17%)
+- [open-code-review 代码审查报告（核心模块）](code-quality-review-open-code-review.md) (相似度 13%)
+- [OCR 扫描代码评论落地（2026-08-11）](ocr-scan-comments-20260811.md) (相似度 12%)
+- [代码质量审查 Wave6（2026-08-06）— 对冲/执行/管道/数据模块 + 待复核项复核](code-quality-review-wave6-20260806.md) (相似度 12%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

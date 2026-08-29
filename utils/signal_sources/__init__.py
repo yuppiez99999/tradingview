@@ -9,6 +9,7 @@
 - news_intel: 新闻智能信号源 (财经新闻 + LLM 深度解读, TradingAgents 启发)
 - finnhunter: FinnewsHunter 事件驱动 alpha 信号源 (新闻事件类型 → alpha 强度, FinnewsHunter 启发)
 """
+
 from __future__ import annotations
 
 try:
@@ -26,4 +27,8 @@ try:
 except ImportError:
     pass
 
-__all__ = ["SentimentSignalSource", "NewsIntelligenceSignalSource", "FinnewsHunterSignalSource"]
+__all__ = [
+    "SentimentSignalSource",
+    "NewsIntelligenceSignalSource",
+    "FinnewsHunterSignalSource",
+]

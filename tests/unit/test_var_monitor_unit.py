@@ -2,6 +2,7 @@
 单元测试: utils/var_monitor.py
 覆盖 VaRMonitor.calculate_var / calculate_var_from_positions / execute_breach_response / get_event_history
 """
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -43,7 +44,7 @@ class TestCalculateVar:
 
     def test_breach_detection(self):
         vm = VaRMonitor()
-        returns = [-0.06E0] * 50 + [0.001] * 50
+        returns = [-0.06e0] * 50 + [0.001] * 50
         result = vm.calculate_var(returns, 5_000_000)
         assert result["any_breach"] is True
         assert len(result["actions"]) > 0
@@ -72,13 +73,18 @@ class TestCalculateVar:
         vm = VaRMonitor()
         returns = [-0.02] * 100
         result = vm.calculate_var(returns, 1_000_000)
-        assert result["var_95_amount"] == pytest.approx(result["var_95_pct"] * 1_000_000)
+        assert result["var_95_amount"] == pytest.approx(
+            result["var_95_pct"] * 1_000_000
+        )
 
 
 class TestCalculateVarFromPositions:
     def test_basic(self):
         vm = VaRMonitor()
-        positions = [{"code": "600519", "weight": 0.5}, {"code": "000001", "weight": 0.5}]
+        positions = [
+            {"code": "600519", "weight": 0.5},
+            {"code": "000001", "weight": 0.5},
+        ]
         returns_matrix = {
             "600519": [0.01, -0.02, 0.005] * 20,
             "000001": [-0.01, 0.02, -0.005] * 20,
@@ -128,6 +134,7 @@ class TestGetEventHistory:
     def test_with_events(self, tmp_path):
         import json
         from datetime import datetime
+
         log_file = tmp_path / "var_events.jsonl"
         event = {"timestamp": datetime.now().isoformat(), "event": "test"}
         log_file.write_text(json.dumps(event) + "\n", encoding="utf-8")

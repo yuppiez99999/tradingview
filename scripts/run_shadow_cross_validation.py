@@ -9,6 +9,7 @@ ShadowRealDataFeeder.cross_validate 对每日数据进行二次校验,
     python scripts/run_shadow_cross_validation.py            # 处理 11 条全部记录
     python scripts/run_shadow_cross_validation.py --date 2026-08-10  # 单日
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,7 +66,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--output",
-        default=str(_PROJECT_ROOT / "reports" / "shadow" / "cross_validation_summary.json"),
+        default=str(
+            _PROJECT_ROOT / "reports" / "shadow" / "cross_validation_summary.json"
+        ),
         help="校验汇总输出路径",
     )
     args = parser.parse_args()
@@ -118,10 +121,14 @@ def main() -> int:
             result = feeder.cross_validate(date, float(daily_return), target_weights)
             new_rec = dict(rec)
             new_rec["cross_validated"] = bool(getattr(result, "is_valid", False))
-            new_rec["source_consistency"] = getattr(result, "source_consistency", "unknown")
+            new_rec["source_consistency"] = getattr(
+                result, "source_consistency", "unknown"
+            )
             new_rec["cross_validated_at"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
             new_rec["cross_validated_notes"] = getattr(result, "notes", "") or ""
-            new_rec["cross_validated_sources"] = list(getattr(result, "sources_used", []) or [])
+            new_rec["cross_validated_sources"] = list(
+                getattr(result, "sources_used", []) or []
+            )
             # 回写到总表
             for i, r in enumerate(records):
                 if r.get("date") == date:
@@ -132,7 +139,9 @@ def main() -> int:
                     "date": date,
                     "daily_return": daily_return,
                     "cross_validated": bool(getattr(result, "is_valid", False)),
-                    "source_consistency": getattr(result, "source_consistency", "unknown"),
+                    "source_consistency": getattr(
+                        result, "source_consistency", "unknown"
+                    ),
                     "notes": getattr(result, "notes", "") or "",
                 }
             )
@@ -144,7 +153,14 @@ def main() -> int:
                 getattr(result, "source_consistency", "unknown"),
                 (getattr(result, "notes", "") or "")[:80],
             )
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             failed += 1
             logger.error("[%s] 校验失败: %s", date, e)
             summary["results"].append(
@@ -162,7 +178,9 @@ def main() -> int:
     summary["failed"] = failed
     summary["updated_file"] = str(input_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     logger.info("交叉校验完成: 成功 %d, 失败 %d", success, failed)
     logger.info("汇总: %s", output_path)

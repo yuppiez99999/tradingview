@@ -7,6 +7,7 @@
     - 无 trades 属性容错
     - 异常容错
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -31,11 +32,13 @@ class _FakeDecision:
 class TestL1Filter:
     @pytest.mark.unit
     def test_filter_buy_keep_sell(self):
-        decision = _FakeDecision([
-            {"side": "BUY", "symbol": "600519"},
-            {"side": "SELL", "symbol": "300750"},
-            {"side": "BUY", "symbol": "688981"},
-        ])
+        decision = _FakeDecision(
+            [
+                {"side": "BUY", "symbol": "600519"},
+                {"side": "SELL", "symbol": "300750"},
+                {"side": "BUY", "symbol": "688981"},
+            ]
+        )
         ks_result = {"can_open": False}
         result = apply_killswitch_l1_filter(decision, ks_result, {})
 
@@ -46,10 +49,12 @@ class TestL1Filter:
 
     @pytest.mark.unit
     def test_all_buy_filtered(self):
-        decision = _FakeDecision([
-            {"side": "BUY", "symbol": "600519"},
-            {"side": "BUY", "symbol": "300750"},
-        ])
+        decision = _FakeDecision(
+            [
+                {"side": "BUY", "symbol": "600519"},
+                {"side": "BUY", "symbol": "300750"},
+            ]
+        )
         ks_result = {"can_open": False}
         result = apply_killswitch_l1_filter(decision, ks_result, {})
 
@@ -59,14 +64,18 @@ class TestL1Filter:
     @pytest.mark.unit
     def test_no_buy_no_filter_log(self):
         """全 SELL → 不记录过滤统计 (before == after)"""
-        decision = _FakeDecision([
-            {"side": "SELL", "symbol": "600519"},
-        ])
+        decision = _FakeDecision(
+            [
+                {"side": "SELL", "symbol": "600519"},
+            ]
+        )
         ks_result = {"can_open": False}
         result = apply_killswitch_l1_filter(decision, ks_result, {})
 
         assert len(decision.trades) == 1
-        assert "steps" not in result or "killswitch_l1_filter" not in result.get("steps", {})
+        assert "steps" not in result or "killswitch_l1_filter" not in result.get(
+            "steps", {}
+        )
 
     @pytest.mark.unit
     def test_empty_trades(self):
@@ -84,10 +93,12 @@ class TestL1Filter:
 class TestNoFilter:
     @pytest.mark.unit
     def test_can_open_true_no_filter(self):
-        decision = _FakeDecision([
-            {"side": "BUY", "symbol": "600519"},
-            {"side": "SELL", "symbol": "300750"},
-        ])
+        decision = _FakeDecision(
+            [
+                {"side": "BUY", "symbol": "600519"},
+                {"side": "SELL", "symbol": "300750"},
+            ]
+        )
         ks_result = {"can_open": True}
         apply_killswitch_l1_filter(decision, ks_result, {})
 
@@ -95,9 +106,11 @@ class TestNoFilter:
 
     @pytest.mark.unit
     def test_ks_result_none_no_filter(self):
-        decision = _FakeDecision([
-            {"side": "BUY", "symbol": "600519"},
-        ])
+        decision = _FakeDecision(
+            [
+                {"side": "BUY", "symbol": "600519"},
+            ]
+        )
         apply_killswitch_l1_filter(decision, None, {})
 
         assert len(decision.trades) == 1
@@ -105,9 +118,11 @@ class TestNoFilter:
     @pytest.mark.unit
     def test_ks_result_missing_can_open_key(self):
         """ks_result 无 can_open 键 → 默认 can_open=True, 不过滤"""
-        decision = _FakeDecision([
-            {"side": "BUY", "symbol": "600519"},
-        ])
+        decision = _FakeDecision(
+            [
+                {"side": "BUY", "symbol": "600519"},
+            ]
+        )
         ks_result = {}
         apply_killswitch_l1_filter(decision, ks_result, {})
 

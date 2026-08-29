@@ -1,4 +1,5 @@
 """T06: Combinatorial Purged CV 单元测试."""
+
 from __future__ import annotations
 
 import sys
@@ -48,22 +49,30 @@ class TestConfigValidation:
 
 class TestSplitGeneration:
     def test_split_count_matches_combination(self):
-        cv = CombinatorialPurgedCV(CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=10))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=10)
+        )
         splits = cv.split(n_samples=600)
         assert len(splits) == 15  # C(6,2) = 15
 
     def test_split_count_n6_k1(self):
-        cv = CombinatorialPurgedCV(CPCVConfig(n_groups=6, n_test_groups=1, min_train_samples=10))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(n_groups=6, n_test_groups=1, min_train_samples=10)
+        )
         splits = cv.split(n_samples=600)
         assert len(splits) == 6
 
     def test_split_count_n5_k2(self):
-        cv = CombinatorialPurgedCV(CPCVConfig(n_groups=5, n_test_groups=2, min_train_samples=10))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(n_groups=5, n_test_groups=2, min_train_samples=10)
+        )
         splits = cv.split(n_samples=500)
         assert len(splits) == 10
 
     def test_each_split_has_non_empty_test(self):
-        cv = CombinatorialPurgedCV(CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=10))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=10)
+        )
         splits = cv.split(n_samples=600)
         for split in splits:
             assert len(split.test_idx) > 0
@@ -72,9 +81,11 @@ class TestSplitGeneration:
 
 class TestPurgeAndEmbargo:
     def test_train_test_no_overlap(self):
-        cv = CombinatorialPurgedCV(CPCVConfig(
-            n_groups=6, n_test_groups=2, embargo_pct=0.0, min_train_samples=10
-        ))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(
+                n_groups=6, n_test_groups=2, embargo_pct=0.0, min_train_samples=10
+            )
+        )
         splits = cv.split(n_samples=600)
         for split in splits:
             train_set = set(split.train_idx.tolist())
@@ -82,22 +93,32 @@ class TestPurgeAndEmbargo:
             assert len(train_set & test_set) == 0
 
     def test_embargo_removes_post_test_samples(self):
-        cv = CombinatorialPurgedCV(CPCVConfig(
-            n_groups=6, n_test_groups=2, embargo_pct=0.02, min_train_samples=10
-        ))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(
+                n_groups=6, n_test_groups=2, embargo_pct=0.02, min_train_samples=10
+            )
+        )
         n_samples = 600
         n_embargo = max(1, int(n_samples * 0.02))
         splits = cv.split(n_samples=n_samples)
         for split in splits:
             test_max = int(split.test_idx[-1])
-            embargo_range = set(range(test_max + 1, min(test_max + n_embargo + 1, n_samples)))
+            embargo_range = set(
+                range(test_max + 1, min(test_max + n_embargo + 1, n_samples))
+            )
             train_set = set(split.train_idx.tolist())
             assert len(embargo_range & train_set) == 0
 
     def test_purge_removes_around_test_samples(self):
-        cv = CombinatorialPurgedCV(CPCVConfig(
-            n_groups=6, n_test_groups=2, purge_pct=0.1, embargo_pct=0.0, min_train_samples=10
-        ))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(
+                n_groups=6,
+                n_test_groups=2,
+                purge_pct=0.1,
+                embargo_pct=0.0,
+                min_train_samples=10,
+            )
+        )
         splits = cv.split(n_samples=600)
         for split in splits:
             test_min = int(split.test_idx[0])
@@ -118,7 +139,9 @@ class TestRun:
         def strategy_fn(train_df, test_df):
             return pd.Series(train_df["ret"].mean(), index=test_df.index)
 
-        cv = CombinatorialPurgedCV(CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=20))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=20)
+        )
         results = cv.run(data, strategy_fn, verbose=False)
         assert len(results) > 0
         assert all(isinstance(r, CPCVResult) for r in results)
@@ -131,13 +154,16 @@ class TestRun:
         )
 
         call_count = [0]
+
         def strategy_fn(train_df, test_df):
             call_count[0] += 1
             if call_count[0] == 3:
                 raise ValueError("模拟策略失败")
             return pd.Series([0.001] * len(test_df))
 
-        cv = CombinatorialPurgedCV(CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=20))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=20)
+        )
         results = cv.run(data, strategy_fn, verbose=False)
         assert len(results) > 0
         assert len(results) < 15
@@ -154,14 +180,23 @@ class TestAggregate:
         def strategy_fn(train_df, test_df):
             return pd.Series(train_df["ret"].mean(), index=test_df.index)
 
-        cv = CombinatorialPurgedCV(CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=20))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=20)
+        )
         results = cv.run(data, strategy_fn, verbose=False)
         agg = cv.aggregate(results)
 
         assert agg["n_paths"] == len(results)
-        for key in ["sharpe_mean", "sharpe_std", "sharpe_median",
-                    "sharpe_p5", "sharpe_p95", "sharpe_min", "sharpe_max",
-                    "sharpe_distribution"]:
+        for key in [
+            "sharpe_mean",
+            "sharpe_std",
+            "sharpe_median",
+            "sharpe_p5",
+            "sharpe_p95",
+            "sharpe_min",
+            "sharpe_max",
+            "sharpe_distribution",
+        ]:
             assert key in agg
         assert len(agg["sharpe_distribution"]) == len(results)
 
@@ -180,7 +215,9 @@ class TestAggregate:
         def strategy_fn(train_df, test_df):
             return pd.Series([0.001] * len(test_df))
 
-        cv = CombinatorialPurgedCV(CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=20))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=20)
+        )
         results = cv.run(data, strategy_fn, verbose=False)
         agg = cv.aggregate(results)
 
@@ -191,16 +228,16 @@ class TestAggregate:
 
 class TestEdgeCases:
     def test_insufficient_samples_reduces_groups(self):
-        cv = CombinatorialPurgedCV(CPCVConfig(
-            n_groups=10, n_test_groups=2, min_train_samples=5
-        ))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(n_groups=10, n_test_groups=2, min_train_samples=5)
+        )
         splits = cv.split(n_samples=20)
         assert isinstance(splits, list)
 
     def test_min_train_samples_filter(self):
-        cv = CombinatorialPurgedCV(CPCVConfig(
-            n_groups=6, n_test_groups=2, min_train_samples=1000
-        ))
+        cv = CombinatorialPurgedCV(
+            CPCVConfig(n_groups=6, n_test_groups=2, min_train_samples=1000)
+        )
         splits = cv.split(n_samples=600)
         assert len(splits) == 0
 

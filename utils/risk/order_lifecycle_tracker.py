@@ -50,6 +50,7 @@ logger = logging.getLogger("order_lifecycle")
 # 协议定义
 # ============================================================
 
+
 class BrokerProtocol(Protocol):
     """T16 需要的 broker 最小接口."""
 
@@ -57,13 +58,13 @@ class BrokerProtocol(Protocol):
         """返回 {state: str, filled_qty: int, avg_price: float, rejection_reason: str}."""
         ...
 
-    def cancel_order(self, broker_order_id: str) -> bool:
-        ...
+    def cancel_order(self, broker_order_id: str) -> bool: ...
 
 
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 class OrderState(StrEnum):
     """订单 8 态状态机."""
@@ -80,8 +81,13 @@ class OrderState(StrEnum):
     @property
     def is_terminal(self) -> bool:
         """是否终态 (不会再转移)."""
-        return self in (OrderState.FILLED, OrderState.CANCELLED,
-                        OrderState.REJECTED, OrderState.ERROR, OrderState.ORPHANED)
+        return self in (
+            OrderState.FILLED,
+            OrderState.CANCELLED,
+            OrderState.REJECTED,
+            OrderState.ERROR,
+            OrderState.ORPHANED,
+        )
 
     @property
     def is_active(self) -> bool:
@@ -93,12 +99,17 @@ class OrderState(StrEnum):
 _VALID_TRANSITIONS: dict[OrderState, set[OrderState]] = {
     OrderState.PENDING: {OrderState.SUBMITTED, OrderState.REJECTED, OrderState.ERROR},
     OrderState.SUBMITTED: {
-        OrderState.PARTIAL_FILL, OrderState.FILLED,
-        OrderState.CANCELLED, OrderState.REJECTED, OrderState.ERROR,
+        OrderState.PARTIAL_FILL,
+        OrderState.FILLED,
+        OrderState.CANCELLED,
+        OrderState.REJECTED,
+        OrderState.ERROR,
         OrderState.ORPHANED,
     },
     OrderState.PARTIAL_FILL: {
-        OrderState.FILLED, OrderState.CANCELLED, OrderState.ERROR,
+        OrderState.FILLED,
+        OrderState.CANCELLED,
+        OrderState.ERROR,
     },
     OrderState.FILLED: set(),
     OrderState.CANCELLED: set(),
@@ -112,8 +123,8 @@ _VALID_TRANSITIONS: dict[OrderState, set[OrderState]] = {
 class TrackedOrder:
     """被跟踪的订单."""
 
-    order_id: str               # 内部订单 ID
-    broker_order_id: str        # broker 返回的委托编号
+    order_id: str  # 内部订单 ID
+    broker_order_id: str  # broker 返回的委托编号
     symbol: str
     side: str
     planned_qty: int
@@ -125,7 +136,9 @@ class TrackedOrder:
     timeout_deadline: datetime = field(default_factory=datetime.now)
     rejection_reason: str = ""
     callback: Callable | None = None
-    transition_history: list[tuple[str, str, str]] = field(default_factory=list)  # (from, to, ts)
+    transition_history: list[tuple[str, str, str]] = field(
+        default_factory=list
+    )  # (from, to, ts)
 
     @property
     def is_timed_out(self) -> bool:
@@ -141,6 +154,7 @@ class TrackedOrder:
 # ============================================================
 # broker 状态码映射 (兼容 QMT / 通用)
 # ============================================================
+
 
 def map_broker_state(raw_state: str) -> OrderState:
     """把 broker 返回的原始状态字符串映射到 OrderState.
@@ -180,6 +194,7 @@ def map_broker_state(raw_state: str) -> OrderState:
 # ============================================================
 # 主类
 # ============================================================
+
 
 class OrderLifecycleTracker:
     """订单生命周期跟踪器 — 状态机 + 超时撤单 + 孤儿单检测."""
@@ -256,7 +271,9 @@ class OrderLifecycleTracker:
             symbol=symbol,
             reason=f"注册订单 order_id={order_id} broker_id={broker_order_id} qty={planned_qty}",
         )
-        logger.info(f"[T16] 注册订单 {order_id} → {broker_order_id} ({symbol} {side} {planned_qty})")
+        logger.info(
+            f"[T16] 注册订单 {order_id} → {broker_order_id} ({symbol} {side} {planned_qty})"
+        )
         return tracked
 
     def get_state(self, order_id: str) -> OrderState | None:
@@ -292,7 +309,9 @@ class OrderLifecycleTracker:
             try:
                 status = self.broker.get_order_status(tracked.broker_order_id)
             except Exception as exc:
-                logger.warning(f"[T16] 查询 broker 状态异常 {tracked.broker_order_id}: {exc}")
+                logger.warning(
+                    f"[T16] 查询 broker 状态异常 {tracked.broker_order_id}: {exc}"
+                )
                 continue
 
             raw_state = status.get("state", "")
@@ -301,7 +320,9 @@ class OrderLifecycleTracker:
             avg_price = float(status.get("avg_price", 0.0))
             rejection_reason = status.get("rejection_reason", "")
 
-            if self._transition(tracked, new_state, filled_qty, avg_price, rejection_reason):
+            if self._transition(
+                tracked, new_state, filled_qty, avg_price, rejection_reason
+            ):
                 changed.append(tracked)
 
         # 检查超时
@@ -359,7 +380,11 @@ class OrderLifecycleTracker:
         tracked.transition_history.append((old_state.value, new_state.value, now_str))
 
         # 审计日志
-        severity = "INFO" if new_state in (OrderState.FILLED, OrderState.PARTIAL_FILL) else "WARN"
+        severity = (
+            "INFO"
+            if new_state in (OrderState.FILLED, OrderState.PARTIAL_FILL)
+            else "WARN"
+        )
         self.audit.log(
             module="T16_LIFECYCLE",
             action="OTHER",
@@ -422,12 +447,16 @@ class OrderLifecycleTracker:
                 logger.info(f"[T16] 撤单成功 {tracked.order_id}")
                 return True
             # broker 返回 False (撤单失败), 标记 ERROR
-            self._transition(tracked, OrderState.ERROR, rejection_reason="broker 拒绝撤单")
+            self._transition(
+                tracked, OrderState.ERROR, rejection_reason="broker 拒绝撤单"
+            )
             logger.warning(f"[T16] 撤单被拒 {tracked.order_id}")
             return False
         except Exception as exc:
             logger.error(f"[T16] 撤单异常 {tracked.order_id}: {exc}")
-            self._transition(tracked, OrderState.ERROR, rejection_reason=f"撤单异常: {exc}")
+            self._transition(
+                tracked, OrderState.ERROR, rejection_reason=f"撤单异常: {exc}"
+            )
             return False
 
     # ------------------------------------------------------------
@@ -444,8 +473,7 @@ class OrderLifecycleTracker:
             "active_count": len(active),
             "terminal_count": len(orders) - len(active),
             "by_state": {
-                s.value: sum(1 for o in orders if o.state == s)
-                for s in OrderState
+                s.value: sum(1 for o in orders if o.state == s) for s in OrderState
             },
             "active_order_ids": [o.order_id for o in active],
         }

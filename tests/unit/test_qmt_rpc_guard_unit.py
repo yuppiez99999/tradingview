@@ -6,6 +6,7 @@
 - Token 恒定时间比较 + 未配置 fail-closed
 - IP 白名单 fail-open (空白名单放行, 兼容默认 127.0.0.1)
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -26,6 +27,7 @@ from utils.execution.qmt_rpc_server import (
 # ============================================================
 # _assert_safe_bind 启动守卫
 # ============================================================
+
 
 class TestAssertSafeBind:
     """fail-closed: 非回环且无白名单 → 拒绝启动。"""
@@ -65,6 +67,7 @@ class TestAssertSafeBind:
 # _mask_account 账户脱敏
 # ============================================================
 
+
 class TestMaskAccount:
     """CWE-200: 只回传尾 4 位。"""
 
@@ -88,6 +91,7 @@ class TestMaskAccount:
 # ============================================================
 # _verify_token 恒定时间比较 + fail-closed
 # ============================================================
+
 
 class TestVerifyToken:
     """Token 鉴权: 未配置→503, 不匹配→401, 匹配→放行。"""
@@ -124,6 +128,7 @@ class TestVerifyToken:
 # ============================================================
 # _verify_ip IP 白名单 (fail-open)
 # ============================================================
+
 
 class TestVerifyIp:
     """IP 校验: 空白名单放行 (兼容默认), 白名单内放行, 白名单外 403。"""

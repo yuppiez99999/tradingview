@@ -6,6 +6,7 @@
     - 今日交易计划摘要
     - 归因面板摘要
 """
+
 from __future__ import annotations
 
 import sys
@@ -53,12 +54,38 @@ def main() -> None:
     if today_plan and isinstance(today_plan, dict):
         pnl_today = today_plan.get("meta", {}).get("estimated_total_cost", "-")
 
-    render_kpi_row([
-        {"label": "总资产", "value": "¥5,023,000", "delta": "+0.46%", "delta_positive": True, "icon": "💰"},
-        {"label": "日收益", "value": "¥23,000", "delta": "+0.46%", "delta_positive": True, "icon": "📈"},
-        {"label": "年化收益 YTD", "value": "8.2%", "delta": "+1.2%", "delta_positive": True, "icon": "📅"},
-        {"label": "最大回撤", "value": "-3.1%", "delta": "-0.5%", "delta_positive": False, "icon": "📉"},
-    ])
+    render_kpi_row(
+        [
+            {
+                "label": "总资产",
+                "value": "¥5,023,000",
+                "delta": "+0.46%",
+                "delta_positive": True,
+                "icon": "💰",
+            },
+            {
+                "label": "日收益",
+                "value": "¥23,000",
+                "delta": "+0.46%",
+                "delta_positive": True,
+                "icon": "📈",
+            },
+            {
+                "label": "年化收益 YTD",
+                "value": "8.2%",
+                "delta": "+1.2%",
+                "delta_positive": True,
+                "icon": "📅",
+            },
+            {
+                "label": "最大回撤",
+                "value": "-3.1%",
+                "delta": "-0.5%",
+                "delta_positive": False,
+                "icon": "📉",
+            },
+        ]
+    )
 
     st.divider()
 
@@ -70,10 +97,17 @@ def main() -> None:
         render_status_badge("NORMAL", label="风险模式: NORMAL")
 
         render_status_metric(label="Kill Switch", value="CLOSED", status="NORMAL")
-        render_status_metric(label="Shadow 准入", value="观察期 Day 1", status="WARNING")
-        render_status_metric(label="盘中时段", value="是" if is_intraday_hours() else "否",
-                             status="NORMAL" if is_intraday_hours() else "INFO")
-        render_status_metric(label="Feature Flag", value="USE_STREAMLIT_UI=True", status="NORMAL")
+        render_status_metric(
+            label="Shadow 准入", value="观察期 Day 1", status="WARNING"
+        )
+        render_status_metric(
+            label="盘中时段",
+            value="是" if is_intraday_hours() else "否",
+            status="NORMAL" if is_intraday_hours() else "INFO",
+        )
+        render_status_metric(
+            label="Feature Flag", value="USE_STREAMLIT_UI=True", status="NORMAL"
+        )
 
     with col2:
         st.subheader("📋 今日交易计划摘要")
@@ -82,7 +116,9 @@ def main() -> None:
                 orders = today_plan.get("orders", [])
                 st.metric("订单数量", len(orders) if isinstance(orders, list) else 0)
                 st.metric("预估成本", f"¥{pnl_today}")
-                st.metric("生成时间", today_plan.get("meta", {}).get("generated_at", "-"))
+                st.metric(
+                    "生成时间", today_plan.get("meta", {}).get("generated_at", "-")
+                )
             except Exception as e:
                 render_error_state("交易计划解析失败", str(e))
         else:
@@ -119,13 +155,24 @@ def main() -> None:
         try:
             col_x, col_y, col_z = st.columns(3)
             with col_x:
-                st.metric("观察期进度", f"{shadow.get('progress_days', 0)}/{shadow.get('target_days', 14)} 天")
+                st.metric(
+                    "观察期进度",
+                    f"{shadow.get('progress_days', 0)}/{shadow.get('target_days', 14)} 天",
+                )
             with col_y:
-                st.metric("Fail-Fast", "未触发" if not shadow.get("fail_fast_triggered") else "已触发",
-                          delta="正常" if not shadow.get("fail_fast_triggered") else "异常",
-                          delta_color="normal" if not shadow.get("fail_fast_triggered") else "inverse")
+                st.metric(
+                    "Fail-Fast",
+                    "未触发" if not shadow.get("fail_fast_triggered") else "已触发",
+                    delta="正常" if not shadow.get("fail_fast_triggered") else "异常",
+                    delta_color=(
+                        "normal" if not shadow.get("fail_fast_triggered") else "inverse"
+                    ),
+                )
             with col_z:
-                st.metric("Stage 2 推进", "阻塞" if shadow.get("stage2_blocked", True) else "可推进")
+                st.metric(
+                    "Stage 2 推进",
+                    "阻塞" if shadow.get("stage2_blocked", True) else "可推进",
+                )
         except Exception as e:
             render_error_state("Shadow 状态解析失败", str(e))
     else:

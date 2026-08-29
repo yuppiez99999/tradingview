@@ -12,6 +12,7 @@
     - ExecutionRouter.route_with_tca (flag 关闭/启用 approved/启用 rejected/启用 异常)
     - ExecutionRouter._save_review (落盘 jsonl)
 """
+
 from __future__ import annotations
 
 import json
@@ -193,13 +194,17 @@ class TestEstimateSlippage:
     def test_vwap_formula(self):
         router = ExecutionRouter(review_save_dir="reports/execution_test")
         # base=1.0, vol=0.02 → 1.0*0.02*10000=200
-        assert router._estimate_slippage("VWAP", 1_000_000, 0.02) == pytest.approx(200.0)
+        assert router._estimate_slippage("VWAP", 1_000_000, 0.02) == pytest.approx(
+            200.0
+        )
 
     @pytest.mark.unit
     def test_twap_formula(self):
         router = ExecutionRouter(review_save_dir="reports/execution_test")
         # base=1.0, vol=0.02 → 1.0*0.02*10000*0.6=120
-        assert router._estimate_slippage("TWAP", 1_000_000, 0.02) == pytest.approx(120.0)
+        assert router._estimate_slippage("TWAP", 1_000_000, 0.02) == pytest.approx(
+            120.0
+        )
 
     @pytest.mark.unit
     def test_small_notional_base_floor(self):
@@ -255,7 +260,12 @@ class TestRoute:
     @pytest.mark.unit
     def test_high_urgency_routes_to_is(self):
         router = ExecutionRouter(review_save_dir="reports/execution_test")
-        order = {"symbol": "000001", "quantity": 1000, "side": "buy", "notional": 200_000}
+        order = {
+            "symbol": "000001",
+            "quantity": 1000,
+            "side": "buy",
+            "notional": 200_000,
+        }
         signal = {"strength": 0.6, "confidence": 0.8}
         market_state = {"volatility": 0.02, "liquidity": 1.0, "spread": 0.001}
 
@@ -347,7 +357,9 @@ class TestReview:
 
     @pytest.mark.unit
     def test_outside_tolerance(self, tmp_path):
-        router = ExecutionRouter(review_save_dir=str(tmp_path), shortfall_tolerance_bps=3.0)
+        router = ExecutionRouter(
+            review_save_dir=str(tmp_path), shortfall_tolerance_bps=3.0
+        )
         planned = {"symbol": "000001", "price": 10.0, "slippage_bps": 0.0}
         executed = {"symbol": "000001", "price": 10.01, "slippage_bps": 0.0}
 
@@ -413,6 +425,7 @@ class TestRouteWithTCA:
     def test_flag_disabled_returns_none(self, monkeypatch, tmp_path):
         """USE_TCA_PRE_TRADE_ESTIMATE=False → (plan, None)"""
         import utils.execution_router as er_mod
+
         monkeypatch.setattr(er_mod, "_tca_pre_trade_enabled", lambda: False)
 
         router = ExecutionRouter(review_save_dir=str(tmp_path))
@@ -427,6 +440,7 @@ class TestRouteWithTCA:
     def test_flag_enabled_approved(self, monkeypatch, tmp_path):
         """flag 启用, estimator 返回 approved=True"""
         import utils.execution_router as er_mod
+
         monkeypatch.setattr(er_mod, "_tca_pre_trade_enabled", lambda: True)
 
         mock_estimator = MagicMock()
@@ -436,11 +450,15 @@ class TestRouteWithTCA:
         mock_estimate.rejection_reason = ""
         mock_estimator.estimate.return_value = mock_estimate
 
-        router = ExecutionRouter(review_save_dir=str(tmp_path), tca_estimator=mock_estimator)
+        router = ExecutionRouter(
+            review_save_dir=str(tmp_path), tca_estimator=mock_estimator
+        )
         order = {"symbol": "000001", "notional": 200_000}
         signal = {"confidence": 0.8, "strength": 0.6}
 
-        plan, estimate = router.route_with_tca(order, signal, {"volatility": 0.02, "adv": 1_000_000})
+        plan, estimate = router.route_with_tca(
+            order, signal, {"volatility": 0.02, "adv": 1_000_000}
+        )
         assert estimate is mock_estimate
         assert plan.meta["tca_enabled"] is True
         assert plan.meta["tca_cost_bps"] == 10.0
@@ -451,6 +469,7 @@ class TestRouteWithTCA:
     def test_flag_enabled_rejected(self, monkeypatch, tmp_path):
         """flag 启用, estimator 返回 approved=False → tca_rejected"""
         import utils.execution_router as er_mod
+
         monkeypatch.setattr(er_mod, "_tca_pre_trade_enabled", lambda: True)
 
         mock_estimator = MagicMock()
@@ -460,7 +479,9 @@ class TestRouteWithTCA:
         mock_estimate.rejection_reason = "cost exceeds threshold"
         mock_estimator.estimate.return_value = mock_estimate
 
-        router = ExecutionRouter(review_save_dir=str(tmp_path), tca_estimator=mock_estimator)
+        router = ExecutionRouter(
+            review_save_dir=str(tmp_path), tca_estimator=mock_estimator
+        )
         order = {"symbol": "000001", "notional": 200_000}
         signal = {"confidence": 0.8, "strength": 0.6}
 
@@ -473,12 +494,15 @@ class TestRouteWithTCA:
     def test_flag_enabled_estimator_exception(self, monkeypatch, tmp_path):
         """flag 启用, estimator 抛异常 → fail-safe (plan, None)"""
         import utils.execution_router as er_mod
+
         monkeypatch.setattr(er_mod, "_tca_pre_trade_enabled", lambda: True)
 
         mock_estimator = MagicMock()
         mock_estimator.estimate.side_effect = RuntimeError("estimator down")
 
-        router = ExecutionRouter(review_save_dir=str(tmp_path), tca_estimator=mock_estimator)
+        router = ExecutionRouter(
+            review_save_dir=str(tmp_path), tca_estimator=mock_estimator
+        )
         order = {"symbol": "000001", "notional": 200_000}
         signal = {"confidence": 0.8, "strength": 0.6}
 
@@ -491,6 +515,7 @@ class TestRouteWithTCA:
     def test_flag_enabled_market_state_none(self, monkeypatch, tmp_path):
         """flag 启用, market_state=None → 用默认值构造 market_data"""
         import utils.execution_router as er_mod
+
         monkeypatch.setattr(er_mod, "_tca_pre_trade_enabled", lambda: True)
 
         mock_estimator = MagicMock()
@@ -500,7 +525,9 @@ class TestRouteWithTCA:
         mock_estimate.rejection_reason = ""
         mock_estimator.estimate.return_value = mock_estimate
 
-        router = ExecutionRouter(review_save_dir=str(tmp_path), tca_estimator=mock_estimator)
+        router = ExecutionRouter(
+            review_save_dir=str(tmp_path), tca_estimator=mock_estimator
+        )
         order = {"symbol": "000001", "notional": 200_000}
 
         plan, estimate = router.route_with_tca(order, None, None)

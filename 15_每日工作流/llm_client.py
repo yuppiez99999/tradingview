@@ -14,6 +14,7 @@ from typing import Any, Optional
 # ============================================================
 _ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
 
+
 def _load_env_file(path: Path) -> None:
     if not path.exists():
         return
@@ -23,6 +24,7 @@ def _load_env_file(path: Path) -> None:
             continue
         key, _, value = line.partition("=")
         os.environ[key.strip()] = value.strip()
+
 
 _load_env_file(_ENV_PATH)
 
@@ -35,16 +37,22 @@ VOLCENGINE_API_KEY: str = os.environ.get("VOLCENGINE_API_KEY", "")
 DEEPSEEK_API_KEY: str = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL: str = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL: str = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
-DEEPSEEK_REASONER_MODEL: str = os.environ.get("DEEPSEEK_REASONER_MODEL", "deepseek-reasoner")
+DEEPSEEK_REASONER_MODEL: str = os.environ.get(
+    "DEEPSEEK_REASONER_MODEL", "deepseek-reasoner"
+)
 
 # 智谱 GLM
 GLM_API_KEY: str = os.environ.get("GLM_API_KEY", "")
-GLM_BASE_URL: str = os.environ.get("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
+GLM_BASE_URL: str = os.environ.get(
+    "GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"
+)
 GLM_MODEL: str = os.environ.get("GLM_MODEL", "glm-5.2")
 
 # 腾讯混元 Hy3 Preview
 HY3_API_KEY: str = os.environ.get("HY3_API_KEY", "")
-HY3_BASE_URL: str = os.environ.get("HY3_BASE_URL", "https://tokenhub.tencentmaas.com/v1")
+HY3_BASE_URL: str = os.environ.get(
+    "HY3_BASE_URL", "https://tokenhub.tencentmaas.com/v1"
+)
 HY3_MODEL: str = os.environ.get("HY3_MODEL", "hy3-preview")
 
 # 百度智能云千帆
@@ -73,8 +81,13 @@ OLLAMA_DEEP_MODEL: str = os.environ.get("OLLAMA_DEEP_MODEL", "deepseek-r1:14b")
 if "OLLAMA_NUM_GPUS" not in os.environ:
     try:
         import subprocess as _sp
-        _r = _sp.run(["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
-                     capture_output=True, text=True, timeout=5)
+
+        _r = _sp.run(
+            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
         if _r.returncode == 0 and _r.stdout.strip():
             _vram_mb = float(_r.stdout.strip().split("\n")[0].strip())
             if _vram_mb >= 8000:
@@ -122,10 +135,13 @@ def _record_provider_success(name: str) -> None:
 # Ollama 服务管理
 # ============================================================
 
+
 def _is_ollama_running() -> bool:
     """检查 Ollama 服务是否正在运行"""
     try:
-        req = urllib.request.Request(f"{OLLAMA_BASE_URL.rstrip('/')}/api/tags", method="GET")
+        req = urllib.request.Request(
+            f"{OLLAMA_BASE_URL.rstrip('/')}/api/tags", method="GET"
+        )
         with urllib.request.urlopen(req, timeout=5):
             return True
     except Exception:
@@ -146,7 +162,9 @@ def _start_ollama_server() -> bool:
         if num_gpus:
             env["OLLAMA_NUM_GPUS"] = num_gpus
 
-        _ollama_default = os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ollama\ollama.exe")
+        _ollama_default = os.path.expandvars(
+            r"%LOCALAPPDATA%\Programs\Ollama\ollama.exe"
+        )
         ollama_exe = Path(os.environ.get("OLLAMA_PATH", _ollama_default))
         if not ollama_exe.exists():
             ollama_exe = Path("ollama")
@@ -175,12 +193,18 @@ def _start_ollama_server() -> bool:
 # 底层 HTTP 调用
 # ============================================================
 
-def _request_chat_completion(base_url: str, api_key: str, model: str,
-                             prompt: str, system: str = "",
-                             temperature: float = 0.3,
-                             max_tokens: int = 2000,
-                             timeout: int = 60,
-                             endpoint_path: str = "/v1/chat/completions") -> Optional[str]:
+
+def _request_chat_completion(
+    base_url: str,
+    api_key: str,
+    model: str,
+    prompt: str,
+    system: str = "",
+    temperature: float = 0.3,
+    max_tokens: int = 2000,
+    timeout: int = 60,
+    endpoint_path: str = "/v1/chat/completions",
+) -> Optional[str]:
     # MC1 修复: 各 provider 的 base_url 已含版本路径时, endpoint_path 应为 "/chat/completions"
     # - DeepSeek: base_url=https://api.deepseek.com → endpoint=/v1/chat/completions (默认)
     # - 豆包: base_url=https://ark.cn-beijing.volces.com/api/v3 → endpoint=/chat/completions
@@ -197,12 +221,14 @@ def _request_chat_completion(base_url: str, api_key: str, model: str,
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        payload = json.dumps({
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+        ).encode("utf-8")
 
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         # MC5 修复: 使用无代理 opener, 避免系统代理拒绝转发国内金融 API
@@ -219,10 +245,17 @@ def _request_chat_completion(base_url: str, api_key: str, model: str,
         return None
 
 
-def _request_qianfan_chat(base_url: str, api_key: str, secret_key: str,
-                          model: str, prompt: str, system: str = "",
-                          temperature: float = 0.3, max_tokens: int = 2000,
-                          timeout: int = 60) -> Optional[str]:
+def _request_qianfan_chat(
+    base_url: str,
+    api_key: str,
+    secret_key: str,
+    model: str,
+    prompt: str,
+    system: str = "",
+    temperature: float = 0.3,
+    max_tokens: int = 2000,
+    timeout: int = 60,
+) -> Optional[str]:
     try:
         url = base_url.rstrip("/")
         headers = {
@@ -233,12 +266,14 @@ def _request_qianfan_chat(base_url: str, api_key: str, secret_key: str,
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        payload = json.dumps({
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+        ).encode("utf-8")
 
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -254,8 +289,10 @@ def _request_qianfan_chat(base_url: str, api_key: str, secret_key: str,
 # 各提供商适配
 # ============================================================
 
-def _chat_qianfan(prompt: str, system: str = "",
-                  temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+
+def _chat_qianfan(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
+) -> Optional[str]:
     if not QIANFAN_API_KEY:
         return None
     return _request_qianfan_chat(
@@ -270,8 +307,9 @@ def _chat_qianfan(prompt: str, system: str = "",
     )
 
 
-def _chat_hy3(prompt: str, system: str = "",
-              temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+def _chat_hy3(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
+) -> Optional[str]:
     if not HY3_API_KEY:
         return None
     # MC1 修复: HY3 base_url 已含 /v1, endpoint 应为 /chat/completions
@@ -287,8 +325,9 @@ def _chat_hy3(prompt: str, system: str = "",
     )
 
 
-def _chat_glm(prompt: str, system: str = "",
-              temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+def _chat_glm(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
+) -> Optional[str]:
     if not GLM_API_KEY:
         return None
     # MC1 修复: GLM base_url 已含 /api/paas/v4, endpoint 应为 /chat/completions
@@ -304,8 +343,9 @@ def _chat_glm(prompt: str, system: str = "",
     )
 
 
-def _chat_doubao(prompt: str, system: str = "",
-                 temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+def _chat_doubao(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
+) -> Optional[str]:
     # MC1 修复: 豆包 base_url 已含 /api/v3, endpoint 应为 /chat/completions
     # 原代码拼接 /api/v3 + /v1/chat/completions = /api/v3/v1/chat/completions (404)
     try:
@@ -323,8 +363,9 @@ def _chat_doubao(prompt: str, system: str = "",
         return None
 
 
-def _chat_deepseek(prompt: str, system: str = "",
-                    temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+def _chat_deepseek(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
+) -> Optional[str]:
     """DeepSeek V3 对话 (主 LLM)"""
     if not DEEPSEEK_API_KEY:
         return None
@@ -339,8 +380,9 @@ def _chat_deepseek(prompt: str, system: str = "",
     )
 
 
-def _chat_deepseek_reasoner(prompt: str, system: str = "",
-                             temperature: float = 0.3, max_tokens: int = 4000) -> Optional[str]:
+def _chat_deepseek_reasoner(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4000
+) -> Optional[str]:
     """DeepSeek R1 推理模型 (深度思考, 主 deep 模型)
 
     适用于复杂交易决策 (对冲/仓位/多标的联动)、多维度风险评估、长周期趋势研判。
@@ -359,12 +401,14 @@ def _chat_deepseek_reasoner(prompt: str, system: str = "",
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        payload = json.dumps({
-            "model": DEEPSEEK_REASONER_MODEL,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "model": DEEPSEEK_REASONER_MODEL,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+        ).encode("utf-8")
 
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=120) as resp:
@@ -378,16 +422,22 @@ def _chat_deepseek_reasoner(prompt: str, system: str = "",
             # 附带思考过程摘要 (如有)
             reasoning = message.get("reasoning_content", "")
             if reasoning and len(reasoning) > 50 and reasoning != content:
-                return f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
+                return (
+                    f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
+                )
             return content.strip()
         return None
     except Exception:
         return None
 
 
-def _chat_ollama(prompt: str, system: str = "",
-                 temperature: float = 0.3, max_tokens: int = 2000,
-                 model: Optional[str] = None) -> Optional[str]:
+def _chat_ollama(
+    prompt: str,
+    system: str = "",
+    temperature: float = 0.3,
+    max_tokens: int = 2000,
+    model: Optional[str] = None,
+) -> Optional[str]:
     try:
         _start_ollama_server()
         env = os.environ.copy()
@@ -414,9 +464,13 @@ def _chat_ollama(prompt: str, system: str = "",
         return None
 
 
-def _chat_ollama_api(prompt: str, system: str = "",
-                     temperature: float = 0.3, max_tokens: int = 2000,
-                     model: Optional[str] = None) -> Optional[str]:
+def _chat_ollama_api(
+    prompt: str,
+    system: str = "",
+    temperature: float = 0.3,
+    max_tokens: int = 2000,
+    model: Optional[str] = None,
+) -> Optional[str]:
     try:
         _start_ollama_server()
         use_model = model or OLLAMA_MODEL
@@ -437,8 +491,10 @@ def _chat_ollama_api(prompt: str, system: str = "",
 # 公开 API
 # ============================================================
 
-def chat(prompt: str, system: str = "",
-         temperature: float = 0.3, max_tokens: int = 2000) -> Optional[str]:
+
+def chat(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
+) -> Optional[str]:
     """多级降级聊天调用 (DeepSeek 优先 + MC2 熔断器)
 
     MC2 修复:
@@ -471,15 +527,21 @@ def chat(prompt: str, system: str = "",
     return None
 
 
-def generate_analysis(prompt: str, temperature: float = 0.3,
-                      max_tokens: int = 2000) -> Optional[str]:
+def generate_analysis(
+    prompt: str, temperature: float = 0.3, max_tokens: int = 2000
+) -> Optional[str]:
     """生成分析文本（兼容旧接口）"""
-    return chat(prompt=prompt, system="你是一个专业的金融分析助手。",
-                temperature=temperature, max_tokens=max_tokens)
+    return chat(
+        prompt=prompt,
+        system="你是一个专业的金融分析助手。",
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
 
 
-def chat_deep(prompt: str, system: str = "",
-              temperature: float = 0.3, max_tokens: int = 4000) -> Optional[str]:
+def chat_deep(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4000
+) -> Optional[str]:
     """深度思考模式：使用 DeepSeek R1 (deepseek-reasoner) 推理模型进行复杂决策分析
 
     适用于：
@@ -505,16 +567,18 @@ def chat_deep(prompt: str, system: str = "",
     if result:
         return result
     # 备用 2: Ollama CLI 方式
-    result = _chat_ollama(prompt, deep_system, temperature, max_tokens, model=OLLAMA_DEEP_MODEL)
+    result = _chat_ollama(
+        prompt, deep_system, temperature, max_tokens, model=OLLAMA_DEEP_MODEL
+    )
     if result:
         return result
     # 兜底降级到普通 chat（质量稍差但能返回）
     return chat(prompt, system, temperature, max_tokens)
 
 
-def _chat_ollama_deep_api(prompt: str, system: str = "",
-                          temperature: float = 0.3,
-                          max_tokens: int = 4000) -> Optional[str]:
+def _chat_ollama_deep_api(
+    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4000
+) -> Optional[str]:
     """深度推理模型的 API 调用，支持提取 reasoning_content"""
     try:
         _start_ollama_server()
@@ -525,15 +589,17 @@ def _chat_ollama_deep_api(prompt: str, system: str = "",
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        payload = json.dumps({
-            "model": OLLAMA_DEEP_MODEL,
-            "messages": messages,
-            "stream": False,
-            "options": {
-                "temperature": temperature,
-                "num_predict": max_tokens,
-            },
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "model": OLLAMA_DEEP_MODEL,
+                "messages": messages,
+                "stream": False,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                },
+            }
+        ).encode("utf-8")
 
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=300) as resp:
@@ -544,7 +610,9 @@ def _chat_ollama_deep_api(prompt: str, system: str = "",
         reasoning = message.get("reasoning_content", "")
         if content:
             if reasoning and len(reasoning) > 50:
-                return f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
+                return (
+                    f"{content.strip()}\n\n---\n_思考过程：{reasoning.strip()[:500]}_"
+                )
             return content.strip()
         return None
     except Exception:

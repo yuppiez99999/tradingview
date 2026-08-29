@@ -5,6 +5,7 @@
 
 测试 T+0/T+1 交易制度判定、可卖判断、下一交易日、完整交易规则获取。
 """
+
 from __future__ import annotations
 
 import sys

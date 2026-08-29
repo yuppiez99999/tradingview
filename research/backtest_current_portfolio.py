@@ -28,6 +28,7 @@
     python backtest_current_portfolio.py --no-hedge  # 不含对冲
     python backtest_current_portfolio.py --no-vibe   # 不使用 Vibe-Trading (仅代理回退)
 """
+
 from __future__ import annotations
 
 import json
@@ -40,21 +41,31 @@ import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("backtest_portfolio")
+try:
+    from utils.risk_params import (
+        get_max_drawdown_limit as _get_max_drawdown_limit,
+    )
+except Exception:
+    # 如果直接导入失败, 在运行时回退到基于文件位置的 sys.path 注入再导入
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(BASE_DIR))
+    from utils.risk_params import (
+        get_max_drawdown_limit as _get_max_drawdown_limit,
+    )
 
+# 初始化路径常量
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
 REPORTS_DIR = BASE_DIR / "v8.3_institutional" / "reports"
 CACHE_DIR = BASE_DIR / "cache"
 
 # B1.3: 从 config/risk_params.yaml 统一读取回撤上限 (fail-safe 兜底 0.15)
-sys.path.insert(0, str(BASE_DIR))
-from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
-
 _DEFAULT_MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 
 # Vibe-Trading 适配器 (可选, 不可用时优雅降级)
 try:
     from utils.vibe_trading_adapter import VibeTradingAdapter
+
     _VIBE_AVAILABLE = True
 except ImportError:
     _VIBE_AVAILABLE = False
@@ -85,9 +96,9 @@ class PortfolioBacktester:
     TARGET_CALMAR = 0.60
 
     # 对冲参数
-    IF_HEDGE_RATIO = 0.50   # 对冲50% Beta
+    IF_HEDGE_RATIO = 0.50  # 对冲50% Beta
     IF_MULTIPLIER = 300
-    REBALANCE_FREQ = 20     # 20个交易日再平衡
+    REBALANCE_FREQ = 20  # 20个交易日再平衡
 
     def __init__(self, positions_file: str = None, use_vibe: bool = True):
         self.positions_file = Path(positions_file) if positions_file else CONFIG_DIR / "positions.json"
@@ -99,7 +110,16 @@ class PortfolioBacktester:
             try:
                 self._vibe_adapter = VibeTradingAdapter(force_init=False)
                 logger.info("Vibe-Trading 适配器已启用")
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"Vibe-Trading 适配器初始化失败: {e}")
                 self.use_vibe = False
@@ -107,9 +127,18 @@ class PortfolioBacktester:
     def _load_positions(self) -> dict:
         """加载持仓配置"""
         try:
-            with open(self.positions_file, encoding='utf-8') as f:
+            with open(self.positions_file, encoding="utf-8") as f:
                 return json.load(f)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"加载持仓失败: {e}")
             return {}
@@ -155,7 +184,16 @@ class PortfolioBacktester:
             if len(df.columns) >= portfolio_count * 0.7:
                 logger.info(f"从缓存加载回测数据: {len(df)} 行, {len(df.columns)} 列")
                 return df
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return None
@@ -167,14 +205,21 @@ class PortfolioBacktester:
             return price_data
         try:
             logger.info("  [Vibe-Trading] 正在加载数据...")
-            vibe_batch = self._vibe_adapter.get_batch_ohlcv(
-                symbols, start_date, end_date, interval="1D"
-            )
+            vibe_batch = self._vibe_adapter.get_batch_ohlcv(symbols, start_date, end_date, interval="1D")
             for code, df in vibe_batch.items():
                 if isinstance(df, pd.DataFrame) and "close" in df.columns:
                     price_data[code] = df["close"]
             logger.info(f"  [Vibe-Trading] 成功加载 {len(price_data)}/{len(symbols)} 只标的")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"  [Vibe-Trading] 加载失败: {e}, 尝试代理回退")
         return price_data
@@ -188,17 +233,26 @@ class PortfolioBacktester:
         for code in symbols:
             if code in price_data:
                 continue
-            code_num = code.split('.')[0]
-            exchange = code.split('.')[-1] if '.' in code else ''
+            code_num = code.split(".")[0]
+            exchange = code.split(".")[-1] if "." in code else ""
             for suffix in ["_2y.parquet", ".parquet"]:
                 parquet_path = ohlcv_dir / f"{code_num}_{exchange}{suffix}"
                 if parquet_path.exists():
                     try:
                         df_p = pd.read_parquet(parquet_path)
-                        if 'close' in df_p.columns and len(df_p) > 60:
-                            price_data[code] = df_p['close']
+                        if "close" in df_p.columns and len(df_p) > 60:
+                            price_data[code] = df_p["close"]
                             loaded += 1
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        AttributeError,
+                        RuntimeError,
+                        OSError,
+                        TimeoutError,
+                        ConnectionError,
+                    ):
                         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                         pass
                     break
@@ -210,21 +264,21 @@ class PortfolioBacktester:
     def _get_proxy_map() -> dict:
         """返回 ETF/指数代理映射表（用于缺失标的的降级方案）"""
         return {
-            "588080.SH": "588000.SH",   # 科创50ETF易方达 → 科创50ETF华夏
-            "510050.SH": "588000.SH",   # 上证50ETF → 科创50(成长风格近似)
-            "510300.SH": "588000.SH",   # 沪深300ETF → 科创50
-            "510500.SH": "588000.SH",   # 中证500ETF → 科创50
-            "512100.SH": "588000.SH",   # 中证1000ETF → 科创50
-            "159915.SZ": "588000.SH",   # 创业板ETF → 科创50
-            "159992.SZ": "588000.SH",   # 创新药ETF → 科创50(成长风格)
-            "512400.SH": "518880.SH",   # 有色金属ETF → 黄金ETF(资源风格)
-            "516160.SH": "588000.SH",   # 高端装备ETF → 科创50(制造风格)
-            "512170.SH": "600276.SH",   # 医疗ETF → 恒瑞医药(医药风格)
-            "512880.SH": "588000.SH",   # 证券ETF → 科创50(牛市联动)
-            "512760.SH": "588000.SH",   # 半导体ETF → 科创50
-            "512800.SH": "588000.SH",   # 银华军工 → 科创50
-            "515030.SH": "588000.SH",   # 新能源车ETF → 科创50
-            "511010.SH": "588000.SH",   # 国债ETF → 用588000近似(低波动)
+            "588080.SH": "588000.SH",  # 科创50ETF易方达 → 科创50ETF华夏
+            "510050.SH": "588000.SH",  # 上证50ETF → 科创50(成长风格近似)
+            "510300.SH": "588000.SH",  # 沪深300ETF → 科创50
+            "510500.SH": "588000.SH",  # 中证500ETF → 科创50
+            "512100.SH": "588000.SH",  # 中证1000ETF → 科创50
+            "159915.SZ": "588000.SH",  # 创业板ETF → 科创50
+            "159992.SZ": "588000.SH",  # 创新药ETF → 科创50(成长风格)
+            "512400.SH": "518880.SH",  # 有色金属ETF → 黄金ETF(资源风格)
+            "516160.SH": "588000.SH",  # 高端装备ETF → 科创50(制造风格)
+            "512170.SH": "600276.SH",  # 医疗ETF → 恒瑞医药(医药风格)
+            "512880.SH": "588000.SH",  # 证券ETF → 科创50(牛市联动)
+            "512760.SH": "588000.SH",  # 半导体ETF → 科创50
+            "512800.SH": "588000.SH",  # 银华军工 → 科创50
+            "515030.SH": "588000.SH",  # 新能源车ETF → 科创50
+            "511010.SH": "588000.SH",  # 国债ETF → 用588000近似(低波动)
         }
 
     def _apply_proxy_mapping(self, price_data: dict) -> int:
@@ -238,8 +292,7 @@ class PortfolioBacktester:
                 logger.info(f"  [代理映射] {code} → {proxy}")
         return proxy_applied
 
-    def fetch_historical_data(self, start_date: str = "2021-01-01",
-                              end_date: str = None) -> pd.DataFrame:
+    def fetch_historical_data(self, start_date: str = "2021-01-01", end_date: str = None) -> pd.DataFrame:
         """拉取历史日频数据 (v8.4.1 Vibe-Trading 集成版)
 
         数据源优先级:
@@ -284,12 +337,21 @@ class PortfolioBacktester:
         # 合并为DataFrame
         df = pd.DataFrame(price_data)
         df = df.sort_index()
-        df = df.ffill().dropna(how='all')
+        df = df.ffill().dropna(how="all")
 
         # 保存缓存
         try:
             df.to_pickle(str(cache_file))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
 
@@ -300,8 +362,7 @@ class PortfolioBacktester:
         )
         return df
 
-    def calc_risk_parity_weights(self, returns: pd.DataFrame,
-                                  base_weights: dict[str, float]) -> pd.Series:
+    def calc_risk_parity_weights(self, returns: pd.DataFrame, base_weights: dict[str, float]) -> pd.Series:
         """计算 Risk Parity 权重
 
         基于过去60日波动率的倒数加权:
@@ -330,8 +391,13 @@ class PortfolioBacktester:
 
         return blended
 
-    def backtest(self, start_date: str = "2021-01-01", end_date: str = None,
-                 use_hedge: bool = True, use_risk_parity: bool = True) -> dict:
+    def backtest(
+        self,
+        start_date: str = "2021-01-01",
+        end_date: str = None,
+        use_hedge: bool = True,
+        use_risk_parity: bool = True,
+    ) -> dict:
         """执行回测
 
         Args:
@@ -349,7 +415,10 @@ class PortfolioBacktester:
         # 获取数据
         price_df = self.fetch_historical_data(start_date, end_date)
         if price_df.empty:
-            return {"error": "无法获取历史数据", "suggestion": "请检查网络连接或akshare版本"}
+            return {
+                "error": "无法获取历史数据",
+                "suggestion": "请检查网络连接或akshare版本",
+            }
 
         # 计算日收益率
         returns_df = price_df.pct_change().dropna()
@@ -358,18 +427,19 @@ class PortfolioBacktester:
 
         # 获取基础权重
         portfolio = self.get_portfolio_codes()
-        base_weights = {code: info["weight"] for code, info in portfolio.items()
-                       if code in returns_df.columns}
+        base_weights = {code: info["weight"] for code, info in portfolio.items() if code in returns_df.columns}
 
         if not base_weights:
-            return {"error": "持仓代码与历史数据无交集",
-                    "available": list(returns_df.columns),
-                    "required": list(portfolio.keys())}
+            return {
+                "error": "持仓代码与历史数据无交集",
+                "available": list(returns_df.columns),
+                "required": list(portfolio.keys()),
+            }
 
         # 归一化权重
         total_w = sum(base_weights.values())
         if total_w > 0:
-            base_weights = {k: v/total_w for k, v in base_weights.items()}
+            base_weights = {k: v / total_w for k, v in base_weights.items()}
 
         # 回测模拟
         portfolio_returns = []
@@ -383,10 +453,7 @@ class PortfolioBacktester:
             # 再平衡检查
             if i % self.REBALANCE_FREQ == 0:
                 if use_risk_parity and i >= 60:
-                    current_weights = self.calc_risk_parity_weights(
-                        returns_df.iloc[max(0, i-60):i],
-                        base_weights
-                    )
+                    current_weights = self.calc_risk_parity_weights(returns_df.iloc[max(0, i - 60) : i], base_weights)
                 else:
                     current_weights = pd.Series(base_weights).reindex(returns_df.columns).fillna(0)
 
@@ -457,7 +524,7 @@ class PortfolioBacktester:
             "suggestions": suggestions,
             "nav_summary": {
                 "start_nav": 1.0,
-                "end_nav": round(float(cumulative_nav.iloc[-1]), 4) if len(cumulative_nav) > 0 else 1.0,
+                "end_nav": (round(float(cumulative_nav.iloc[-1]), 4) if len(cumulative_nav) > 0 else 1.0),
                 "peak_nav": round(float(cumulative_nav.max()), 4),
                 "trough_nav": round(float(cumulative_nav.min()), 4),
             },
@@ -465,8 +532,7 @@ class PortfolioBacktester:
 
         return result
 
-    def _calc_performance_metrics(self, daily_returns: pd.Series,
-                                   cumulative_nav: pd.Series) -> dict:
+    def _calc_performance_metrics(self, daily_returns: pd.Series, cumulative_nav: pd.Series) -> dict:
         """计算绩效指标"""
         n_years = len(daily_returns) / 252
 
@@ -480,7 +546,7 @@ class PortfolioBacktester:
         max_drawdown = float(drawdowns.min())
 
         # Sharpe (无风险利率 2%)
-        excess_returns = daily_returns - 0.02/252
+        excess_returns = daily_returns - 0.02 / 252
         sharpe = float(excess_returns.mean() / excess_returns.std() * np.sqrt(252)) if excess_returns.std() > 0 else 0
 
         # Calmar
@@ -527,50 +593,55 @@ class PortfolioBacktester:
         }
         return checks
 
-    def _generate_suggestions(self, metrics: dict, portfolio: dict,
-                              returns_df: pd.DataFrame) -> list[dict]:
+    def _generate_suggestions(self, metrics: dict, portfolio: dict, returns_df: pd.DataFrame) -> list[dict]:
         """生成调仓建议"""
         suggestions = []
 
         # 收益不达标
         if metrics["annual_return"] < self.TARGET_ANNUAL_RETURN:
-            suggestions.append({
-                "type": "INCREASE_ALPHA",
-                "severity": "HIGH",
-                "message": f"年化收益 {metrics['annual_return']*100:.2f}% < 目标 {self.TARGET_ANNUAL_RETURN*100:.0f}%",
-                "actions": [
-                    "增加高Alpha标的权重 (科技成长)",
-                    "增加Theta收益 (备兑看涨策略覆盖更多标的)",
-                    "考虑动量因子择时 (趋势确认后加仓)",
-                ],
-            })
+            suggestions.append(
+                {
+                    "type": "INCREASE_ALPHA",
+                    "severity": "HIGH",
+                    "message": f"年化收益 {metrics['annual_return']*100:.2f}% < 目标 {self.TARGET_ANNUAL_RETURN*100:.0f}%",
+                    "actions": [
+                        "增加高Alpha标的权重 (科技成长)",
+                        "增加Theta收益 (备兑看涨策略覆盖更多标的)",
+                        "考虑动量因子择时 (趋势确认后加仓)",
+                    ],
+                }
+            )
 
         # 回撤超标
         if abs(metrics["max_drawdown"]) > self.TARGET_MAX_DRAWDOWN:
-            suggestions.append({
-                "type": "REDUCE_DRAWDOWN",
-                "severity": "CRITICAL",
-                "message": f"最大回撤 {metrics['max_drawdown']*100:.2f}% > 目标 {self.TARGET_MAX_DRAWDOWN*100:.0f}%",
-                "actions": [
-                    "增加IF对冲比例 (50% → 70%)",
-                    "增加低波动标的权重 (国债ETF/黄金ETF)",
-                    "缩减高Beta标的 (科创50/半导体)",
-                    "启动尾部认沽保护 (OTM 5% Put)",
-                ],
-            })
+            suggestions.append(
+                {
+                    "type": "REDUCE_DRAWDOWN",
+                    "severity": "CRITICAL",
+                    "message": f"最大回撤 {metrics['max_drawdown']*100:.2f}% > 目标 {self.TARGET_MAX_DRAWDOWN*100:.0f}%",
+                    "actions": [
+                        "增加IF对冲比例 (50% → 70%)",
+                        "增加低波动标的权重 (国债ETF/黄金ETF)",
+                        "缩减高Beta标的 (科创50/半导体)",
+                        "启动尾部认沽保护 (OTM 5% Put)",
+                    ],
+                }
+            )
 
         # Sharpe不达标
         if metrics["sharpe_ratio"] < self.TARGET_SHARPE:
-            suggestions.append({
-                "type": "IMPROVE_RISK_RETURN",
-                "severity": "MEDIUM",
-                "message": f"Sharpe {metrics['sharpe_ratio']:.3f} < 目标 {self.TARGET_SHARPE}",
-                "actions": [
-                    "优化Risk Parity权重 (降低高波动标的配比)",
-                    "增加不相关资产 (黄金/国债/商品)",
-                    "使用波动率目标控制 (vol targeting 12%)",
-                ],
-            })
+            suggestions.append(
+                {
+                    "type": "IMPROVE_RISK_RETURN",
+                    "severity": "MEDIUM",
+                    "message": f"Sharpe {metrics['sharpe_ratio']:.3f} < 目标 {self.TARGET_SHARPE}",
+                    "actions": [
+                        "优化Risk Parity权重 (降低高波动标的配比)",
+                        "增加不相关资产 (黄金/国债/商品)",
+                        "使用波动率目标控制 (vol targeting 12%)",
+                    ],
+                }
+            )
 
         # 标的级别的诊断
         if not returns_df.empty:
@@ -580,12 +651,14 @@ class PortfolioBacktester:
             for code, ret in worst.items():
                 if ret < 0:
                     name = portfolio.get(code, {}).get("name", code)
-                    suggestions.append({
-                        "type": "REPLACE_UNDERPERFORMER",
-                        "severity": "LOW",
-                        "message": f"{name} ({code}) 年化收益 {ret*100:.1f}%, 拖累组合",
-                        "actions": [f"考虑减仓或替换 {name}"],
-                    })
+                    suggestions.append(
+                        {
+                            "type": "REPLACE_UNDERPERFORMER",
+                            "severity": "LOW",
+                            "message": f"{name} ({code}) 年化收益 {ret*100:.1f}%, 拖累组合",
+                            "actions": [f"考虑减仓或替换 {name}"],
+                        }
+                    )
 
         return suggestions
 
@@ -596,7 +669,7 @@ class PortfolioBacktester:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         report_path = output_dir / f"backtest_portfolio_{datetime.now():%Y%m%d}.json"
-        with open(report_path, 'w', encoding='utf-8') as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
         logger.info(f"回测报告已保存: {report_path}")
@@ -609,8 +682,9 @@ class PortfolioBacktester:
 if __name__ == "__main__":
     import argparse
     import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
     parser = argparse.ArgumentParser(description="实际持仓回测验证 (Vibe-Trading 集成版)")

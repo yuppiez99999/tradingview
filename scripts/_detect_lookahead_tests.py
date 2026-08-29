@@ -13,6 +13,7 @@ _detect_lookahead_tests.py — 前视偏差测试检出器
 用法:
     python scripts/_detect_lookahead_tests.py [--test-dir tests/]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -79,13 +80,19 @@ def detect_lookahead_tests(test_dir: Path) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="前视偏差测试检出器")
     parser.add_argument("--test-dir", type=Path, default=_ROOT / "tests")
-    parser.add_argument("--output", type=Path, default=_ROOT / "reports" / "ci" / "lookahead_tests.json")
+    parser.add_argument(
+        "--output", type=Path, default=_ROOT / "reports" / "ci" / "lookahead_tests.json"
+    )
     args = parser.parse_args()
 
     violations = detect_lookahead_tests(args.test_dir)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
-        json.dumps({"violations": violations, "count": len(violations)}, ensure_ascii=False, indent=2),
+        json.dumps(
+            {"violations": violations, "count": len(violations)},
+            ensure_ascii=False,
+            indent=2,
+        ),
         encoding="utf-8",
     )
 

@@ -51,7 +51,9 @@ class DataContractViolationError(DataContractError):
 
     def __init__(self, violations: list[Violation]):
         self.violations = violations
-        messages = "; ".join(f"[{v.severity.value}] {v.field}: {v.message}" for v in violations)
+        messages = "; ".join(
+            f"[{v.severity.value}] {v.field}: {v.message}" for v in violations
+        )
         super().__init__(f"数据契约违规 ({len(violations)} 项): {messages}")
 
 
@@ -251,7 +253,9 @@ class DataContract:
         try:
             mode_enum = ValidationMode(mode)
         except ValueError as err:
-            raise DataContractError(f"无效的校验模式: {mode}, 应为 warn_only / enforce") from err
+            raise DataContractError(
+                f"无效的校验模式: {mode}, 应为 warn_only / enforce"
+            ) from err
 
         violations: list[Violation] = []
 
@@ -272,7 +276,9 @@ class DataContract:
             violations.extend(self._check_point_in_time(panel, current_date))
 
         # 判断是否通过 (无 ERROR/CRITICAL 即通过)
-        passed = not any(v.severity in (Severity.ERROR, Severity.CRITICAL) for v in violations)
+        passed = not any(
+            v.severity in (Severity.ERROR, Severity.CRITICAL) for v in violations
+        )
         result = ValidationResult(
             passed=passed,
             violations=tuple(violations),
@@ -283,13 +289,20 @@ class DataContract:
 
         # 模式处理
         if not passed:
-            error_violations = [v for v in violations if v.severity in (Severity.ERROR, Severity.CRITICAL)]
+            error_violations = [
+                v
+                for v in violations
+                if v.severity in (Severity.ERROR, Severity.CRITICAL)
+            ]
             if mode_enum == ValidationMode.ENFORCE and error_violations:
-                logger.error(f"数据契约校验失败 ({len(error_violations)} 项 ERROR/CRITICAL)")
+                logger.error(
+                    f"数据契约校验失败 ({len(error_violations)} 项 ERROR/CRITICAL)"
+                )
                 raise DataContractViolationError(error_violations)
-            else:
-                for v in error_violations:
-                    logger.warning(f"[数据契约] [{v.severity.value}] {v.field}: {v.message}")
+            for v in error_violations:
+                logger.warning(
+                    f"[数据契约] [{v.severity.value}] {v.field}: {v.message}"
+                )
         else:
             logger.info(
                 f"数据契约校验通过 (契约={self.contract_name} v{self.version}, "
@@ -346,7 +359,9 @@ class DataContract:
                 violations.append(
                     Violation(
                         field=col,
-                        severity=Severity.WARNING if null_ratio < 0.2 else Severity.ERROR,
+                        severity=(
+                            Severity.WARNING if null_ratio < 0.2 else Severity.ERROR
+                        ),
                         message=f"null 比例过高: {null_ratio:.2%} (阈值 {schema.max_null_ratio:.2%})",
                         value=null_ratio,
                         expected=schema.max_null_ratio,
@@ -422,7 +437,9 @@ class DataContract:
             )
         return violations
 
-    def _check_point_in_time(self, panel: pd.DataFrame, current_date: datetime) -> list[Violation]:
+    def _check_point_in_time(
+        self, panel: pd.DataFrame, current_date: datetime
+    ) -> list[Violation]:
         """检查 point-in-time 切片正确性 (无未来信息泄漏)."""
         violations = []
         if "date" not in panel.columns:
@@ -436,7 +453,16 @@ class DataContract:
                 dates = pd.to_datetime(date_col, errors="coerce")
             else:
                 dates = date_col
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return violations
 
@@ -475,7 +501,16 @@ def validate_point_in_time(panel: pd.DataFrame, current_date: datetime) -> bool:
         else:
             dates = panel["date"]
         return int((dates > current_date).sum()) == 0
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"point-in-time 校验异常: {e}")
         return True  # 异常时乐观返回
@@ -495,21 +530,81 @@ def _build_v9_default_contract() -> DataContract:
     # V9 模型常用因子 schema (与 lgbm_factor_mining.py compute_all_factors 对齐)
     v9_features = (
         # 动量类
-        FeatureSchema("MOM_5D", "float64", "close.pct_change(5)", "t 日收盘后", NullPolicy.DROP, (-1.0, 1.0), 0.05),
-        FeatureSchema("MOM_20D", "float64", "close.pct_change(20)", "t 日收盘后", NullPolicy.DROP, (-1.0, 1.0), 0.05),
-        FeatureSchema("MOM_60D", "float64", "close.pct_change(60)", "t 日收盘后", NullPolicy.DROP, (-1.0, 1.0), 0.05),
+        FeatureSchema(
+            "MOM_5D",
+            "float64",
+            "close.pct_change(5)",
+            "t 日收盘后",
+            NullPolicy.DROP,
+            (-1.0, 1.0),
+            0.05,
+        ),
+        FeatureSchema(
+            "MOM_20D",
+            "float64",
+            "close.pct_change(20)",
+            "t 日收盘后",
+            NullPolicy.DROP,
+            (-1.0, 1.0),
+            0.05,
+        ),
+        FeatureSchema(
+            "MOM_60D",
+            "float64",
+            "close.pct_change(60)",
+            "t 日收盘后",
+            NullPolicy.DROP,
+            (-1.0, 1.0),
+            0.05,
+        ),
         # 波动率类
         FeatureSchema(
-            "VOL_5D", "float64", "ret.rolling(5).std()", "t 日收盘后", NullPolicy.FILL_ZERO, (0.0, 1.0), 0.05
+            "VOL_5D",
+            "float64",
+            "ret.rolling(5).std()",
+            "t 日收盘后",
+            NullPolicy.FILL_ZERO,
+            (0.0, 1.0),
+            0.05,
         ),
         FeatureSchema(
-            "VOL_20D", "float64", "ret.rolling(20).std()", "t 日收盘后", NullPolicy.FILL_ZERO, (0.0, 1.0), 0.05
+            "VOL_20D",
+            "float64",
+            "ret.rolling(20).std()",
+            "t 日收盘后",
+            NullPolicy.FILL_ZERO,
+            (0.0, 1.0),
+            0.05,
         ),
         # 技术指标
-        FeatureSchema("RSI_14D", "float64", "RSI(14)", "t 日收盘后", NullPolicy.WARN, (0.0, 100.0), 0.05),
-        FeatureSchema("MACD", "float64", "MACD histogram", "t 日收盘后", NullPolicy.WARN, (-1.0, 1.0), 0.05),
+        FeatureSchema(
+            "RSI_14D",
+            "float64",
+            "RSI(14)",
+            "t 日收盘后",
+            NullPolicy.WARN,
+            (0.0, 100.0),
+            0.05,
+        ),
+        FeatureSchema(
+            "MACD",
+            "float64",
+            "MACD histogram",
+            "t 日收盘后",
+            NullPolicy.WARN,
+            (-1.0, 1.0),
+            0.05,
+        ),
         # 基本面代理
-        FeatureSchema("SIZE_PROXY", "float64", "close.iloc[-1]", "t 日收盘后", NullPolicy.WARN, (0.0, 100000.0), 0.01),
+        FeatureSchema(
+            "SIZE_PROXY",
+            "float64",
+            "close.iloc[-1]",
+            "t 日收盘后",
+            NullPolicy.WARN,
+            (0.0, 100000.0),
+            0.01,
+        ),
     )
     return DataContract(
         contract_name="v9_lgb_data_contract",
@@ -531,7 +626,9 @@ def _build_v9_default_contract() -> DataContract:
             "TimeSeriesSplit(n_splits=5) 禁随机 split"
         ),
         pii_policy="无 PII (量化数据均为公开市场数据); 不接账户级数据; 永久保留",
-        change_policy=("破坏性变更需 PR + Iteration Compact 评审; 新版本须能加载旧版本训练的 artifact (向后兼容)"),
+        change_policy=(
+            "破坏性变更需 PR + Iteration Compact 评审; 新版本须能加载旧版本训练的 artifact (向后兼容)"
+        ),
     )
 
 

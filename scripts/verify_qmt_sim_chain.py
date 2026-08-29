@@ -17,6 +17,7 @@ QMT 执行链路模拟盘验证 (2026-08-25)
 用法:
     .venv\\Scripts\\python.exe scripts\\verify_qmt_sim_chain.py
 """
+
 from __future__ import annotations
 
 import os
@@ -41,7 +42,7 @@ TOKEN = "sim-verify-token-20260825"
 
 # 测试参数
 CAPITAL = 2_000_000
-BUY_SYMBOL, BUY_PRICE, BUY_QTY = "510300.SH", 3.950, 100     # 沪深300ETF
+BUY_SYMBOL, BUY_PRICE, BUY_QTY = "510300.SH", 3.950, 100  # 沪深300ETF
 CANCEL_SYMBOL, CANCEL_PRICE, CANCEL_QTY = "510500.SH", 6.100, 200  # 中证500ETF
 
 results: list[dict] = []
@@ -60,6 +61,7 @@ def main() -> int:
     # 静默告警通道 (验证过程不外发钉钉/飞书)
     try:
         import utils.notify as _notify
+
         _notify.send_alert = lambda *a, **k: {"log": True}
     except (ImportError, AttributeError):
         pass
@@ -85,8 +87,9 @@ def main() -> int:
 
     import uvicorn
 
-    config = uvicorn.Config(rpc_server.app, host="127.0.0.1", port=RPC_PORT,
-                            log_level="warning")
+    config = uvicorn.Config(
+        rpc_server.app, host="127.0.0.1", port=RPC_PORT, log_level="warning"
+    )
     server = uvicorn.Server(config)
     t = threading.Thread(target=server.run, daemon=True)
     t.start()
@@ -107,35 +110,59 @@ def main() -> int:
         bad = RemoteQmtBroker(rpc_url=RPC_URL, token="wrong-token", timeout=5)
         record("T2 错误 Token 被拒 (401)", not bad.connect())
 
-        order = broker.place(BUY_SYMBOL, BUY_QTY, "BUY", order_type="LIMIT",
-                             price=BUY_PRICE)
-        record(f"T3 限价下单 {BUY_SYMBOL} BUY {BUY_QTY}",
-               order is not None and order.order_id != "",
-               f"order_id={getattr(order, 'order_id', None)}")
+        order = broker.place(
+            BUY_SYMBOL, BUY_QTY, "BUY", order_type="LIMIT", price=BUY_PRICE
+        )
+        record(
+            f"T3 限价下单 {BUY_SYMBOL} BUY {BUY_QTY}",
+            order is not None and order.order_id != "",
+            f"order_id={getattr(order, 'order_id', None)}",
+        )
 
         fill = broker.wait_fill(order, timeout=5) if order else None
-        fill_ok = bool(fill and fill.get("qty") == BUY_QTY
-                       and fill.get("price", 0) > BUY_PRICE)
-        record("T4 等待成交 (BUY 滑点方向正确)", fill_ok,
-               f"fill_price={fill.get('price', 0):.4f} > 委托 {BUY_PRICE:.3f}"
-               if fill else "未成交")
+        fill_ok = bool(
+            fill and fill.get("qty") == BUY_QTY and fill.get("price", 0) > BUY_PRICE
+        )
+        record(
+            "T4 等待成交 (BUY 滑点方向正确)",
+            fill_ok,
+            (
+                f"fill_price={fill.get('price', 0):.4f} > 委托 {BUY_PRICE:.3f}"
+                if fill
+                else "未成交"
+            ),
+        )
 
-        order2 = broker.place(CANCEL_SYMBOL, CANCEL_QTY, "BUY", order_type="LIMIT",
-                              price=CANCEL_PRICE - 0.05)
+        order2 = broker.place(
+            CANCEL_SYMBOL,
+            CANCEL_QTY,
+            "BUY",
+            order_type="LIMIT",
+            price=CANCEL_PRICE - 0.05,
+        )
         cancelled = broker.cancel(order2) if order2 else False
-        record(f"T5 撤单 {CANCEL_SYMBOL}", cancelled,
-               f"status={getattr(order2, 'status', None)}")
+        record(
+            f"T5 撤单 {CANCEL_SYMBOL}",
+            cancelled,
+            f"status={getattr(order2, 'status', None)}",
+        )
 
         positions = broker.get_positions()
-        record("T6 持仓查询", positions.get(BUY_SYMBOL) == BUY_QTY,
-               f"positions={positions}")
+        record(
+            "T6 持仓查询",
+            positions.get(BUY_SYMBOL) == BUY_QTY,
+            f"positions={positions}",
+        )
 
         account = broker.get_account_info()
         expected_avail = CAPITAL - BUY_QTY * (fill.get("price", 0) if fill else 0)
         avail_ok = abs(account.get("available", 0) - expected_avail) < 1.0
-        record("T7 账户查询 (资金扣减正确)", avail_ok,
-               f"available={account.get('available', 0):.2f} "
-               f"(期望≈{expected_avail:.2f})")
+        record(
+            "T7 账户查询 (资金扣减正确)",
+            avail_ok,
+            f"available={account.get('available', 0):.2f} "
+            f"(期望≈{expected_avail:.2f})",
+        )
 
         # ── 3. broker_factory 装配逻辑 (生产装配路径) ──
         print("\n[3] broker_factory 装配验证 (双签保护)")
@@ -145,36 +172,51 @@ def main() -> int:
         os.environ["QMT_RPC_URL"] = RPC_URL
         os.environ["QMT_RPC_TOKEN"] = TOKEN
         prod_broker = get_broker({"enabled": True, "dry_run": False})
-        record("T8 production+RPC_URL → RemoteQmtBroker",
-               type(prod_broker).__name__ == "RemoteQmtBroker",
-               f"实际类型={type(prod_broker).__name__}")
+        record(
+            "T8 production+RPC_URL → RemoteQmtBroker",
+            type(prod_broker).__name__ == "RemoteQmtBroker",
+            f"实际类型={type(prod_broker).__name__}",
+        )
 
         os.environ["TRADING_ENV"] = "shadow"
         shadow_broker = get_broker({"enabled": True, "dry_run": False})
-        record("T9 TRADING_ENV=shadow → 强制降级模拟 (双签保护)",
-               type(shadow_broker).__name__ == "SimulatedBroker",
-               f"实际类型={type(shadow_broker).__name__}")
+        record(
+            "T9 TRADING_ENV=shadow → 强制降级模拟 (双签保护)",
+            type(shadow_broker).__name__ == "SimulatedBroker",
+            f"实际类型={type(shadow_broker).__name__}",
+        )
 
         dry_broker = get_broker({"enabled": True, "dry_run": True})
-        record("T10 dry_run=true → 影子模拟",
-               type(dry_broker).__name__ == "SimulatedBroker",
-               f"实际类型={type(dry_broker).__name__}")
+        record(
+            "T10 dry_run=true → 影子模拟",
+            type(dry_broker).__name__ == "SimulatedBroker",
+            f"实际类型={type(dry_broker).__name__}",
+        )
     finally:
         server.should_exit = True
         t.join(timeout=5)
-        for k in ("TRADING_ENV", "QMT_RPC_URL", "QMT_RPC_TOKEN",
-                  "QMT_RPC_HOST", "QMT_RPC_PORT"):
+        for k in (
+            "TRADING_ENV",
+            "QMT_RPC_URL",
+            "QMT_RPC_TOKEN",
+            "QMT_RPC_HOST",
+            "QMT_RPC_PORT",
+        ):
             os.environ.pop(k, None)
 
     # ── 4. 汇总 + 报告 ──
     passed = sum(1 for r in results if r["ok"])
     total = len(results)
     print("\n" + "=" * 72)
-    print(f"结果: {passed}/{total} 通过" + (" — 执行链路验证 PASS" if passed == total else " — 存在 FAIL"))
+    print(
+        f"结果: {passed}/{total} 通过"
+        + (" — 执行链路验证 PASS" if passed == total else " — 存在 FAIL")
+    )
 
     lines = [
         "=" * 76,
-        "  QMT 执行链路模拟盘验证报告 — " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "  QMT 执行链路模拟盘验证报告 — "
+        + datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "=" * 76,
         "",
         "链路: RemoteQmtBroker ──HTTP+Token──▶ qmt_rpc_server(FastAPI) ──▶ SimulatedBroker",

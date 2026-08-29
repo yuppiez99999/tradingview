@@ -3,6 +3,7 @@
 覆盖 6 个数据类 × 4 类场景 (正常 / 裸码跳过 / 空 exchange 跳过 / strict 抛错 / 非 strict warning):
     - TickData / BarData / OrderData / TradeData / PositionData / ContractData
 """
+
 from __future__ import annotations
 
 import warnings as _warnings
@@ -27,27 +28,52 @@ from utils.wt_structs import (
 # ============================================================
 
 _TICK_KWARGS = dict(
-    code="600519.SH", exchange="SSE",
-    price=1700.0, open=1690.0, high=1705.0, low=1688.0, pre_close=1685.0,
-    volume=1_000_000, amount=1_700_000_000,
+    code="600519.SH",
+    exchange="SSE",
+    price=1700.0,
+    open=1690.0,
+    high=1705.0,
+    low=1688.0,
+    pre_close=1685.0,
+    volume=1_000_000,
+    amount=1_700_000_000,
 )
 _BAR_KWARGS = dict(
-    code="600519.SH", exchange="SSE", period="1d",
-    open=1690.0, high=1705.0, low=1688.0, close=1700.0,
-    volume=1_000_000, amount=1_700_000_000,
+    code="600519.SH",
+    exchange="SSE",
+    period="1d",
+    open=1690.0,
+    high=1705.0,
+    low=1688.0,
+    close=1700.0,
+    volume=1_000_000,
+    amount=1_700_000_000,
 )
 _ORDER_KWARGS = dict(
-    order_id="o1", code="600519.SH", exchange="SSE", direction="BUY",
+    order_id="o1",
+    code="600519.SH",
+    exchange="SSE",
+    direction="BUY",
 )
 _TRADE_KWARGS = dict(
-    trade_id="t1", order_id="o1", code="600519.SH", exchange="SSE",
-    direction="BUY", offset="OPEN", price=1700.0, volume=100, amount=1_700_000,
+    trade_id="t1",
+    order_id="o1",
+    code="600519.SH",
+    exchange="SSE",
+    direction="BUY",
+    offset="OPEN",
+    price=1700.0,
+    volume=100,
+    amount=1_700_000,
 )
 _POSITION_KWARGS = dict(
-    code="600519.SH", exchange="SSE",
+    code="600519.SH",
+    exchange="SSE",
 )
 _CONTRACT_KWARGS = dict(
-    code="600519.SH", exchange="SSE", name="贵州茅台",
+    code="600519.SH",
+    exchange="SSE",
+    name="贵州茅台",
 )
 
 # 每个数据类的 (构造函数, 必填 kwargs)
@@ -73,11 +99,12 @@ class TestNormalConstruct:
         with _warnings.catch_warnings(record=True) as record:
             _warnings.simplefilter("always")
             obj = cls(**kwargs)
-        relevant = [w for w in record
-                    if issubclass(w.category, CodeExchangeMismatchWarning)]
-        assert len(relevant) == 0, (
-            f"{cls_name} 一致构造应无 warning, 实际: {[str(w.message) for w in relevant]}"
-        )
+        relevant = [
+            w for w in record if issubclass(w.category, CodeExchangeMismatchWarning)
+        ]
+        assert (
+            len(relevant) == 0
+        ), f"{cls_name} 一致构造应无 warning, 实际: {[str(w.message) for w in relevant]}"
         assert obj.code == kwargs["code"]
         assert obj.exchange == kwargs["exchange"]
 
@@ -101,8 +128,9 @@ class TestBareCodeSkip:
         with _warnings.catch_warnings(record=True) as record:
             _warnings.simplefilter("always")
             cls(**bare_kwargs)
-        relevant = [w for w in record
-                    if issubclass(w.category, CodeExchangeMismatchWarning)]
+        relevant = [
+            w for w in record if issubclass(w.category, CodeExchangeMismatchWarning)
+        ]
         assert len(relevant) == 0, "裸码 (code 无 '.') 应跳过校验"
 
 
@@ -118,8 +146,9 @@ class TestUnknownExchangeSkip:
         with _warnings.catch_warnings(record=True) as record:
             _warnings.simplefilter("always")
             cls(**bad_kwargs)
-        relevant = [w for w in record
-                    if issubclass(w.category, CodeExchangeMismatchWarning)]
+        relevant = [
+            w for w in record if issubclass(w.category, CodeExchangeMismatchWarning)
+        ]
         assert len(relevant) == 0, "exchange 为空应跳过校验"
 
     @pytest.mark.parametrize("cls_name,cls,kwargs", _ALL_DATACLASSES)
@@ -128,8 +157,9 @@ class TestUnknownExchangeSkip:
         with _warnings.catch_warnings(record=True) as record:
             _warnings.simplefilter("always")
             cls(**bad_kwargs)
-        relevant = [w for w in record
-                    if issubclass(w.category, CodeExchangeMismatchWarning)]
+        relevant = [
+            w for w in record if issubclass(w.category, CodeExchangeMismatchWarning)
+        ]
         assert len(relevant) == 0, "exchange=UNKNOWN 应跳过校验"
 
 
@@ -198,8 +228,9 @@ class TestCaseInsensitive:
         with _warnings.catch_warnings(record=True) as record:
             _warnings.simplefilter("always")
             cls(**low_kwargs)
-        relevant = [w for w in record
-                    if issubclass(w.category, CodeExchangeMismatchWarning)]
+        relevant = [
+            w for w in record if issubclass(w.category, CodeExchangeMismatchWarning)
+        ]
         assert len(relevant) == 0, "exchange 小写规范化后应视为一致"
 
     @pytest.mark.parametrize("cls_name,cls,kwargs", _ALL_DATACLASSES)
@@ -209,8 +240,9 @@ class TestCaseInsensitive:
         with _warnings.catch_warnings(record=True) as record:
             _warnings.simplefilter("always")
             cls(**low_kwargs)
-        relevant = [w for w in record
-                    if issubclass(w.category, CodeExchangeMismatchWarning)]
+        relevant = [
+            w for w in record if issubclass(w.category, CodeExchangeMismatchWarning)
+        ]
         assert len(relevant) == 0, "code 后缀小写规范化后应视为一致"
 
 
@@ -249,19 +281,29 @@ class TestStrictContextManager:
 
 
 class TestOldSuffixNormalized:
-    @pytest.mark.parametrize("cls_name,cls,kwargs", [
-        ("PositionData", PositionData, {
-            "code": "CU2508.SHF", "exchange": "SHFE"  # SHF 后缀 → 预期 SHFE
-        }),
-        ("ContractData", ContractData, {
-            "code": "CF2509.ZCE", "exchange": "CZCE", "name": "棉花期货"
-        }),
-    ])
+    @pytest.mark.parametrize(
+        "cls_name,cls,kwargs",
+        [
+            (
+                "PositionData",
+                PositionData,
+                {"code": "CU2508.SHF", "exchange": "SHFE"},  # SHF 后缀 → 预期 SHFE
+            ),
+            (
+                "ContractData",
+                ContractData,
+                {"code": "CF2509.ZCE", "exchange": "CZCE", "name": "棉花期货"},
+            ),
+        ],
+    )
     def test_old_suffix_accepted(self, cls_name, cls, kwargs) -> None:
         """旧后缀 SHF/ZCE — normalize 后与 SHFE/CZCE 一致 → 无 warning。"""
         with _warnings.catch_warnings(record=True) as record:
             _warnings.simplefilter("always")
             cls(**kwargs)
-        relevant = [w for w in record
-                    if issubclass(w.category, CodeExchangeMismatchWarning)]
-        assert len(relevant) == 0, f"{cls_name} 旧后缀 {kwargs['code']!r} 规范化后应视为一致"
+        relevant = [
+            w for w in record if issubclass(w.category, CodeExchangeMismatchWarning)
+        ]
+        assert (
+            len(relevant) == 0
+        ), f"{cls_name} 旧后缀 {kwargs['code']!r} 规范化后应视为一致"

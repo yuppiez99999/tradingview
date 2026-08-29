@@ -1,4 +1,5 @@
 """D2 单元测试 — HypothesisVerifier 假设验证框架."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,44 +15,71 @@ from utils.llm_evolution.hypothesis_verifier import (
 # 测试夹具
 # ============================================================
 
-def _make_verifier(thresholds: VerificationThresholds | None = None) -> HypothesisVerifier:
+
+def _make_verifier(
+    thresholds: VerificationThresholds | None = None,
+) -> HypothesisVerifier:
     return HypothesisVerifier(audit_logger=MagicMock(), thresholds=thresholds)
 
 
 def _good_factor_data(n: int = 100) -> dict[str, Any]:
     """IC 显著的因子数据."""
     import random
+
     random.seed(42)
     ic_series = [0.04 + random.gauss(0, 0.01) for _ in range(n)]
-    return {"ic_series": ic_series, "max_drawdown": 0.08, "wf_mean_ic": 0.038, "dsr_score": 1.5}
+    return {
+        "ic_series": ic_series,
+        "max_drawdown": 0.08,
+        "wf_mean_ic": 0.038,
+        "dsr_score": 1.5,
+    }
+
 
 def _bad_factor_data(n: int = 100) -> dict[str, Any]:
     """IC 不显著的因子数据."""
     import random
+
     random.seed(42)
     ic_series = [random.gauss(0, 0.02) for _ in range(n)]
-    return {"ic_series": ic_series, "max_drawdown": 0.20, "wf_mean_ic": 0.001, "dsr_score": 0.5}
+    return {
+        "ic_series": ic_series,
+        "max_drawdown": 0.20,
+        "wf_mean_ic": 0.001,
+        "dsr_score": 0.5,
+    }
 
 
 # ============================================================
 # HypothesisVerdict 属性
 # ============================================================
 
+
 class TestHypothesisVerdict:
     def test_pass_all_true(self):
         v = HypothesisVerdict(
-            ic_significant=True, purged_kfold_pass=True, cro_gate_pass=True,
+            ic_significant=True,
+            purged_kfold_pass=True,
+            cro_gate_pass=True,
             honest_validation_pass=True,
         )
         assert v.pass_all
 
     def test_pass_all_false(self):
-        v = HypothesisVerdict(ic_significant=True, purged_kfold_pass=False, cro_gate_pass=True)
+        v = HypothesisVerdict(
+            ic_significant=True, purged_kfold_pass=False, cro_gate_pass=True
+        )
         assert not v.pass_all
 
     def test_summary_text(self):
-        v = HypothesisVerdict(factor_name="EP", rank_ic_mean=0.05, icir=0.8,
-                              ic_positive_ratio=0.65, cv_score=0.3, enter_ab_bucket=True)
+        v = HypothesisVerdict(
+            factor_name="EP",
+            rank_ic_mean=0.05,
+            icir=0.8,
+            ic_positive_ratio=0.65,
+            cv_score=0.3,
+            enter_ab_bucket=True,
+        )
         text = v.summary_text()
         assert "EP" in text
         assert "YES" in text
@@ -60,6 +88,7 @@ class TestHypothesisVerdict:
 # ============================================================
 # 验证逻辑
 # ============================================================
+
 
 class TestVerify:
     def test_good_factor_enters_ab_bucket(self):
@@ -123,6 +152,7 @@ class TestVerify:
 # 自定义阈值
 # ============================================================
 
+
 class TestCustomThresholds:
     def test_strict_thresholds(self):
         strict = VerificationThresholds(min_rank_ic=0.08, min_icir=1.0)
@@ -132,8 +162,12 @@ class TestCustomThresholds:
         assert result["falsified"] is True
 
     def test_lenient_thresholds(self):
-        lenient = VerificationThresholds(min_rank_ic=0.01, min_icir=0.1,
-                                          min_ic_positive_ratio=0.50, min_effect_size=0.1)
+        lenient = VerificationThresholds(
+            min_rank_ic=0.01,
+            min_icir=0.1,
+            min_ic_positive_ratio=0.50,
+            min_effect_size=0.1,
+        )
         verifier = _make_verifier(thresholds=lenient)
         result = verifier.verify({"name": "EP"}, _good_factor_data())
         assert result["enter_ab_bucket"] is True
@@ -142,6 +176,7 @@ class TestCustomThresholds:
 # ============================================================
 # 批量验证
 # ============================================================
+
 
 class TestBatchVerify:
     def test_batch_mixed(self):
@@ -168,6 +203,7 @@ class TestBatchVerify:
 # ============================================================
 # 统计工具
 # ============================================================
+
 
 class TestStatsTools:
     def test_safe_mean_empty(self):

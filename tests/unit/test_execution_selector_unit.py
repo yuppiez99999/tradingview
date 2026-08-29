@@ -2,6 +2,7 @@
 单元测试: utils/execution_selector.py
 覆盖 _estimate_depth_ratio / _compute_adaptive_weights / _make_result / choose_execution_algorithm
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -99,8 +100,13 @@ class TestMakeResult:
 
     def test_with_all_params(self):
         result = _make_result(
-            "vwap", "full", comparison={"a": 1}, orders=[1, 2],
-            estimated_cost=100.0, cost_bps=5.0, execution_time_minutes=30.0,
+            "vwap",
+            "full",
+            comparison={"a": 1},
+            orders=[1, 2],
+            estimated_cost=100.0,
+            cost_bps=5.0,
+            execution_time_minutes=30.0,
             adaptive_params={"key": "val"},
         )
         assert result["comparison"] == {"a": 1}
@@ -131,9 +137,24 @@ class TestChooseExecutionAlgorithm:
 
     def test_selects_best_algorithm(self):
         comparison = {
-            "twap": {"estimated_cost": 50, "cost_bps": 5, "execution_time_minutes": 30, "orders": []},
-            "vwap": {"estimated_cost": 40, "cost_bps": 4, "execution_time_minutes": 20, "orders": []},
-            "immediate": {"estimated_cost": 100, "cost_bps": 10, "execution_time_minutes": 5, "orders": []},
+            "twap": {
+                "estimated_cost": 50,
+                "cost_bps": 5,
+                "execution_time_minutes": 30,
+                "orders": [],
+            },
+            "vwap": {
+                "estimated_cost": 40,
+                "cost_bps": 4,
+                "execution_time_minutes": 20,
+                "orders": [],
+            },
+            "immediate": {
+                "estimated_cost": 100,
+                "cost_bps": 10,
+                "execution_time_minutes": 5,
+                "orders": [],
+            },
         }
         mock_mod = MagicMock()
         mock_mod.compare_execution = MagicMock(return_value=comparison)
@@ -145,22 +166,41 @@ class TestChooseExecutionAlgorithm:
 
     def test_max_execution_time_filter(self):
         comparison = {
-            "twap": {"estimated_cost": 50, "cost_bps": 5, "execution_time_minutes": 120, "orders": []},
-            "immediate": {"estimated_cost": 100, "cost_bps": 10, "execution_time_minutes": 5, "orders": []},
+            "twap": {
+                "estimated_cost": 50,
+                "cost_bps": 5,
+                "execution_time_minutes": 120,
+                "orders": [],
+            },
+            "immediate": {
+                "estimated_cost": 100,
+                "cost_bps": 10,
+                "execution_time_minutes": 5,
+                "orders": [],
+            },
         }
         mock_mod = MagicMock()
         mock_mod.compare_execution = MagicMock(return_value=comparison)
         with patch.dict("sys.modules", {"utils.wt_execution_algo": mock_mod}):
-            result = choose_execution_algorithm(100000, 10.0, 10000, max_execution_minutes=60)
+            result = choose_execution_algorithm(
+                100000, 10.0, 10000, max_execution_minutes=60
+            )
         assert result["algorithm"] == "immediate"
 
     def test_all_exceed_time(self):
         comparison = {
-            "twap": {"estimated_cost": 50, "cost_bps": 5, "execution_time_minutes": 120, "orders": []},
+            "twap": {
+                "estimated_cost": 50,
+                "cost_bps": 5,
+                "execution_time_minutes": 120,
+                "orders": [],
+            },
         }
         mock_mod = MagicMock()
         mock_mod.compare_execution = MagicMock(return_value=comparison)
         with patch.dict("sys.modules", {"utils.wt_execution_algo": mock_mod}):
-            result = choose_execution_algorithm(100000, 10.0, 10000, max_execution_minutes=30)
+            result = choose_execution_algorithm(
+                100000, 10.0, 10000, max_execution_minutes=30
+            )
         assert result["algorithm"] == "immediate"
         assert "超时" in result["reason"]

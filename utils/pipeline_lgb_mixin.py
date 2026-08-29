@@ -159,7 +159,9 @@ class LGBMixin:
         proxy_code = _V9_REGIME_PROXY_SYMBOL
         proxy_df = self._historical_cache.get(proxy_code)
         if proxy_df is None or proxy_df.empty:
-            logger.warning("[V9-Regime] 大盘代理 %s 数据缺失, 无法计算 regime", proxy_code)
+            logger.warning(
+                "[V9-Regime] 大盘代理 %s 数据缺失, 无法计算 regime", proxy_code
+            )
             return None
 
         try:
@@ -174,7 +176,10 @@ class LGBMixin:
 
             n_valid = int((regime_series != "unknown").sum())
             logger.info(
-                "[V9-Regime] regime 序列构建成功: %d 行 (有效 %d, 代理=%s)", len(regime_series), n_valid, proxy_code
+                "[V9-Regime] regime 序列构建成功: %d 行 (有效 %d, 代理=%s)",
+                len(regime_series),
+                n_valid,
+                proxy_code,
             )
             return regime_series
         except Exception as e:
@@ -198,7 +203,9 @@ class LGBMixin:
             return empty_result
 
         logger.info(
-            "[LGB-WF] 开始 Walk-forward 训练 (as_of=%s, V9=%s)", self.ctx.report_date, _V9_REGIME_SPECIFIC_ENABLED
+            "[LGB-WF] 开始 Walk-forward 训练 (as_of=%s, V9=%s)",
+            self.ctx.report_date,
+            _V9_REGIME_SPECIFIC_ENABLED,
         )
 
         featured_dict = self._build_lgb_feature_dict()
@@ -240,10 +247,25 @@ class LGBMixin:
                 gc.collect()
             except Exception as e:
                 failed += 1
-                logger.warning("[LGB-WF] %s 训练失败 (重试 %d 次后): %s", code, _LGB_TRAIN_MAX_RETRIES, e)
+                logger.warning(
+                    "[LGB-WF] %s 训练失败 (重试 %d 次后): %s",
+                    code,
+                    _LGB_TRAIN_MAX_RETRIES,
+                    e,
+                )
 
-        logger.info("[LGB-WF] 训练完成: trained=%d failed=%d skipped=%d", trained, failed, skipped)
-        return {"trained": trained, "failed": failed, "skipped": skipped, "results": self._lgb_models}
+        logger.info(
+            "[LGB-WF] 训练完成: trained=%d failed=%d skipped=%d",
+            trained,
+            failed,
+            skipped,
+        )
+        return {
+            "trained": trained,
+            "failed": failed,
+            "skipped": skipped,
+            "results": self._lgb_models,
+        }
 
     def _build_regime_series_safe(self) -> Any | None:
         """V9: 计算大盘 regime 序列 (用截至 cutoff 的 proxy 数据), 失败返回 None。"""
@@ -271,7 +293,11 @@ class LGBMixin:
             try:
                 if _V9_REGIME_SPECIFIC_ENABLED and regime_series is not None:
                     result = train_symbol_regime_specific(
-                        code, df, config, regime_series, min_samples_per_regime=_V9_MIN_SAMPLES_PER_REGIME,
+                        code,
+                        df,
+                        config,
+                        regime_series,
+                        min_samples_per_regime=_V9_MIN_SAMPLES_PER_REGIME,
                     )
                 else:
                     result = train_symbol_enhanced(code, df, config)
@@ -281,7 +307,11 @@ class LGBMixin:
                 if attempt < _LGB_TRAIN_MAX_RETRIES:
                     logger.warning(
                         "[LGB-WF] %s 第 %d 次训练失败: %s, 准备重试 (%d/%d)",
-                        code, attempt + 1, e, attempt + 1, _LGB_TRAIN_MAX_RETRIES,
+                        code,
+                        attempt + 1,
+                        e,
+                        attempt + 1,
+                        _LGB_TRAIN_MAX_RETRIES,
                     )
                     time.sleep(_LGB_TRAIN_RETRY_DELAY)
                     gc.collect()
@@ -295,7 +325,9 @@ class LGBMixin:
             return None
         return result
 
-    def _build_model_cache(self, result: dict[str, Any], regime_series: Any | None) -> dict[str, Any]:
+    def _build_model_cache(
+        self, result: dict[str, Any], regime_series: Any | None
+    ) -> dict[str, Any]:
         """构建模型缓存 (内存中, 不落盘)。
 
         V9: 额外缓存 models_by_regime / features_by_regime / selected_regime

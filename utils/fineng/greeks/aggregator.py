@@ -23,15 +23,15 @@ class PositionGreeks:
 
     code: str = ""
     instrument_type: str = "STOCK"  # STOCK / FUTURES / OPTION
-    direction: str = "LONG"         # LONG / SHORT
-    quantity: float = 0.0           # 持仓数量 (正数)
-    multiplier: float = 1.0         # 合约乘数
+    direction: str = "LONG"  # LONG / SHORT
+    quantity: float = 0.0  # 持仓数量 (正数)
+    multiplier: float = 1.0  # 合约乘数
     delta: float = 0.0
     gamma: float = 0.0
     theta: float = 0.0
     vega: float = 0.0
     rho: float = 0.0
-    market_value: float = 0.0       # 市值
+    market_value: float = 0.0  # 市值
 
 
 @dataclass
@@ -226,15 +226,23 @@ class PortfolioGreeksAggregator:
 
         delta_excess = abs(portfolio.delta) - delta_tolerance * mv if mv > 0 else 0
         if delta_excess > 0:
-            alerts.append(f"Delta 超标: {portfolio.delta:.0f} (容忍 {delta_tolerance * mv:.0f})")
+            alerts.append(
+                f"Delta 超标: {portfolio.delta:.0f} (容忍 {delta_tolerance * mv:.0f})"
+            )
 
-        gamma_excess = abs(portfolio.gamma) - gamma_tolerance * abs(portfolio.delta) if abs(portfolio.delta) > 1e-6 else 0
+        gamma_excess = (
+            abs(portfolio.gamma) - gamma_tolerance * abs(portfolio.delta)
+            if abs(portfolio.delta) > 1e-6
+            else 0
+        )
         if gamma_excess > 0:
             alerts.append(f"Gamma 超标: {portfolio.gamma:.6f}")
 
         vega_excess = abs(portfolio.vega) - vega_tolerance * mv if mv > 0 else 0
         if vega_excess > 0:
-            alerts.append(f"Vega 超标: {portfolio.vega:.0f} (容忍 {vega_tolerance * mv:.0f})")
+            alerts.append(
+                f"Vega 超标: {portfolio.vega:.0f} (容忍 {vega_tolerance * mv:.0f})"
+            )
 
         return {
             "need_rebalance": len(alerts) > 0,

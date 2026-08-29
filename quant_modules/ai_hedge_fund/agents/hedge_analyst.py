@@ -22,16 +22,22 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-logger = logging.getLogger('ai_hedge_fund.hedge_analyst')
+logger = logging.getLogger("ai_hedge_fund.hedge_analyst")
 
 
 class HedgeAnalystSignal(BaseModel):
-    overall_hedge_decision: str = Field(description="NO_HEDGE|LIGHT_HEDGE|MODERATE_HEDGE|STRONG_HEDGE|FULL_HEDGE")
+    overall_hedge_decision: str = Field(
+        description="NO_HEDGE|LIGHT_HEDGE|MODERATE_HEDGE|STRONG_HEDGE|FULL_HEDGE"
+    )
     hedge_urgency_score: float = Field(description="0-1, 越高越紧急")
     taleb_tail_risk_score: float = Field(description="0-1 尾部风险评分")
     burry_valuation_risk_score: float = Field(description="0-1 估值风险评分")
-    druckenmiller_macro_cycle: str = Field(description="EXPANSION|PEAK|CONTRACTION|RECOVERY")
-    preferred_instrument: str = Field(description="IF|IC|IH|IM|510300_PUT|510050_PUT|NONE")
+    druckenmiller_macro_cycle: str = Field(
+        description="EXPANSION|PEAK|CONTRACTION|RECOVERY"
+    )
+    preferred_instrument: str = Field(
+        description="IF|IC|IH|IM|510300_PUT|510050_PUT|NONE"
+    )
     hedge_ratio: float = Field(description="0-1, 建议对冲比例")
     confidence: int = Field(description="0-100 分析置信度")
     reasoning: str = Field(description="分析推理过程")
@@ -129,7 +135,14 @@ def hedge_analyst_agent(state: dict[str, Any]) -> dict[str, Any]:
     analyst_signals.get("risk_management_agent", {})
 
     # 构建分析上下文
-    context = _build_hedge_context(tickers, portfolio, market_data, taleb_signal, burry_signal, druckenmiller_signal)
+    context = _build_hedge_context(
+        tickers,
+        portfolio,
+        market_data,
+        taleb_signal,
+        burry_signal,
+        druckenmiller_signal,
+    )
 
     # 构建消息
     message_content = f"""{HEDGE_ANALYST_PROMPT}
@@ -169,9 +182,20 @@ def hedge_analyst_agent(state: dict[str, Any]) -> dict[str, Any]:
             "reasoning": response.reasoning,
         }
 
-    except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError) as e:
+    except (
+        RuntimeError,
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        TimeoutError,
+        ImportError,
+    ) as e:
         logger.warning(f"Hedge Analyst LLM调用失败: {e}，使用规则引擎回退")
-        analyst_signals["hedge_analyst_agent"] = _rule_based_hedge_fallback(analyst_signals)
+        analyst_signals["hedge_analyst_agent"] = _rule_based_hedge_fallback(
+            analyst_signals
+        )
 
     return {
         "messages": state.get("messages", []),
@@ -201,21 +225,27 @@ def _build_hedge_context(
         lines.append("\n### Taleb 尾部风险分析 (已有)")
         for ticker, sig in taleb_signal.items():
             if isinstance(sig, dict):
-                lines.append(f"  {ticker}: {sig.get('signal', '?')} (confidence={sig.get('confidence', 0)})")
+                lines.append(
+                    f"  {ticker}: {sig.get('signal', '?')} (confidence={sig.get('confidence', 0)})"
+                )
 
     # Burry信号摘要
     if burry_signal:
         lines.append("\n### Burry 做空/逆势分析 (已有)")
         for ticker, sig in burry_signal.items():
             if isinstance(sig, dict):
-                lines.append(f"  {ticker}: {sig.get('signal', '?')} (confidence={sig.get('confidence', 0)})")
+                lines.append(
+                    f"  {ticker}: {sig.get('signal', '?')} (confidence={sig.get('confidence', 0)})"
+                )
 
     # Druckenmiller信号摘要
     if druckenmiller_signal:
         lines.append("\n### Druckenmiller 宏观分析 (已有)")
         for ticker, sig in druckenmiller_signal.items():
             if isinstance(sig, dict):
-                lines.append(f"  {ticker}: {sig.get('signal', '?')} (confidence={sig.get('confidence', 0)})")
+                lines.append(
+                    f"  {ticker}: {sig.get('signal', '?')} (confidence={sig.get('confidence', 0)})"
+                )
 
     # 市场数据
     if market_data:
@@ -264,19 +294,19 @@ def _rule_based_hedge_fallback(analyst_signals: dict) -> dict:
     for agent_key, signals in analyst_signals.items():
         if agent_key == "nassim_taleb_agent":
             for _ticker, sig in signals.items():
-                if isinstance(sig, dict) and sig.get('signal') == 'bearish':
+                if isinstance(sig, dict) and sig.get("signal") == "bearish":
                     taleb_concern += 1
         elif agent_key == "michael_burry_agent":
             for _ticker, sig in signals.items():
-                if isinstance(sig, dict) and sig.get('signal') == 'bearish':
+                if isinstance(sig, dict) and sig.get("signal") == "bearish":
                     burry_concern += 1
                     bearish_count += 1
         elif agent_key in ("stanley_druckenmiller_agent", "warren_buffett_agent"):
             for _ticker, sig in signals.items():
                 if isinstance(sig, dict):
-                    if sig.get('signal') == 'bearish':
+                    if sig.get("signal") == "bearish":
                         bearish_count += 1
-                    elif sig.get('signal') == 'bullish':
+                    elif sig.get("signal") == "bullish":
                         bullish_count += 1
 
     # 简单规则: Taleb+Burry都悲观 → 对冲
@@ -307,13 +337,16 @@ def _rule_based_hedge_fallback(analyst_signals: dict) -> dict:
         "confidence": 60,
         "hedge_ratio": ratio,
         "urgency_score": urgency,
-        "reasoning": json.dumps({
-            "overall_hedge_decision": hedge_decision,
-            "hedge_urgency_score": urgency,
-            "taleb_concern_signals": taleb_concern,
-            "burry_concern_signals": burry_concern,
-            "bearish_vs_bullish": f"{bearish_count} vs {bullish_count}",
-            "hedge_recommendation": {"hedge_ratio": ratio},
-            "note": "规则引擎回退 — LLM不可用时的保守估计",
-        }, ensure_ascii=False),
+        "reasoning": json.dumps(
+            {
+                "overall_hedge_decision": hedge_decision,
+                "hedge_urgency_score": urgency,
+                "taleb_concern_signals": taleb_concern,
+                "burry_concern_signals": burry_concern,
+                "bearish_vs_bullish": f"{bearish_count} vs {bullish_count}",
+                "hedge_recommendation": {"hedge_ratio": ratio},
+                "note": "规则引擎回退 — LLM不可用时的保守估计",
+            },
+            ensure_ascii=False,
+        ),
     }

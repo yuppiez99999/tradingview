@@ -17,6 +17,7 @@ Usage:
     - --dry-run 只显示将要做的改动, 不实际写入
     - IDE 配置同步是 best-effort (文件不存在时跳过)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -91,6 +92,7 @@ class SwitchResult:
 # Profile 加载
 # ============================================================
 
+
 def list_profiles() -> list[CLIProfile]:
     """列出所有可用 CLI profile (从 configs/cli_profiles/*.yaml 加载)"""
     if yaml is None:
@@ -129,6 +131,7 @@ def _parse_profile(data: dict[str, Any]) -> CLIProfile:
 # ============================================================
 # .env 读写
 # ============================================================
+
 
 def _read_env(path: Path | None = None) -> dict[str, str]:
     """读取 .env 为 dict (保留行序由 OrderedDict 保证)"""
@@ -198,7 +201,10 @@ def backup_env(path: Path | None = None) -> Path | None:
 # IDE 配置同步
 # ============================================================
 
-def _sync_ide_config(ide_dir: str, config: dict[str, Any], project_root: Path = _PROJECT_ROOT) -> bool:
+
+def _sync_ide_config(
+    ide_dir: str, config: dict[str, Any], project_root: Path = _PROJECT_ROOT
+) -> bool:
     """同步单个 IDE 配置 (best-effort)
 
     Returns:
@@ -221,7 +227,9 @@ def _sync_ide_config(ide_dir: str, config: dict[str, Any], project_root: Path = 
         try:
             data = json.loads(settings_file.read_text(encoding="utf-8"))
             data[model_field] = model_value
-            settings_file.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            settings_file.write_text(
+                json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
             return True
         except (json.JSONDecodeError, ValueError, TypeError, OSError) as e:
             print(f"警告: 同步 {ide_dir} 配置失败: {e}", file=sys.stderr)
@@ -234,6 +242,7 @@ def _sync_ide_config(ide_dir: str, config: dict[str, Any], project_root: Path = 
 # 切换 / 查询
 # ============================================================
 
+
 def current() -> CLIProfile | None:
     """从 .env 推断当前激活的 profile"""
     env = _read_env()
@@ -244,7 +253,9 @@ def current() -> CLIProfile | None:
     return None
 
 
-def switch(profile_name: str, dry_run: bool = False, backup: bool = True) -> SwitchResult:
+def switch(
+    profile_name: str, dry_run: bool = False, backup: bool = True
+) -> SwitchResult:
     """切换到指定 profile
 
     Args:
@@ -277,7 +288,10 @@ def switch(profile_name: str, dry_run: bool = False, backup: bool = True) -> Swi
 # CLI 入口
 # ============================================================
 
-def _format_profile_table(profiles: list[CLIProfile], current_profile: CLIProfile | None) -> str:
+
+def _format_profile_table(
+    profiles: list[CLIProfile], current_profile: CLIProfile | None
+) -> str:
     lines = []
     for p in profiles:
         marker = " ← 当前" if current_profile and p.name == current_profile.name else ""
@@ -294,8 +308,12 @@ def main(argv: list[str] | None = None) -> int:
 
     switch_parser = sub.add_parser("switch", help="切换到指定 profile")
     switch_parser.add_argument("profile", help="目标 profile 名称")
-    switch_parser.add_argument("--dry-run", action="store_true", help="只显示改动, 不实际写入")
-    switch_parser.add_argument("--no-backup", action="store_true", help="跳过 .env 备份")
+    switch_parser.add_argument(
+        "--dry-run", action="store_true", help="只显示改动, 不实际写入"
+    )
+    switch_parser.add_argument(
+        "--no-backup", action="store_true", help="跳过 .env 备份"
+    )
 
     args = parser.parse_args(argv)
 
@@ -316,7 +334,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "switch":
         result = switch(args.profile, dry_run=args.dry_run, backup=not args.no_backup)
         if args.dry_run:
-            print(f"[dry-run] 将切换到: {result.profile.name} ({result.profile.display_name})")
+            print(
+                f"[dry-run] 将切换到: {result.profile.name} ({result.profile.display_name})"
+            )
             print(f"  .env 更新: {result.profile.env_vars}")
             print(f"  IDE 同步: {list(result.profile.ide_configs.keys())}")
         else:

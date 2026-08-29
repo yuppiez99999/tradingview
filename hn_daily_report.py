@@ -64,23 +64,96 @@ logger = logging.getLogger("hn_daily_report")
 # ============================================================
 _TAG_RULES: list[tuple[list[str], str]] = [
     (
-        ["ai", "gpt", "llm", "claude", "gemini", "openai", "deepseek", "模型", "machine learning", "deep learning"],
+        [
+            "ai",
+            "gpt",
+            "llm",
+            "claude",
+            "gemini",
+            "openai",
+            "deepseek",
+            "模型",
+            "machine learning",
+            "deep learning",
+        ],
         "AI/ML",
     ),
-    (["security", "privacy", "漏洞", "leak", "hack", "攻击", "密码", "隐私"], "安全/隐私"),
-    (["hardware", "chip", "cpu", "gpu", "semiconductor", "芯片", "硬件", "nvidia", "amd", "intel"], "硬件/芯片"),
-    (["science", "research", "paper", "研究", "论文", "物理", "天文", "生物", "医学"], "科学/研究"),
+    (
+        ["security", "privacy", "漏洞", "leak", "hack", "攻击", "密码", "隐私"],
+        "安全/隐私",
+    ),
+    (
+        [
+            "hardware",
+            "chip",
+            "cpu",
+            "gpu",
+            "semiconductor",
+            "芯片",
+            "硬件",
+            "nvidia",
+            "amd",
+            "intel",
+        ],
+        "硬件/芯片",
+    ),
+    (
+        [
+            "science",
+            "research",
+            "paper",
+            "研究",
+            "论文",
+            "物理",
+            "天文",
+            "生物",
+            "医学",
+        ],
+        "科学/研究",
+    ),
     (["startup", "launch", "founder", "创业", "融资", "ipo", "收购"], "创业/产品"),
-    (["economy", "policy", "regulation", "market", "经济", "政策", "监管", "股市"], "经济/政策"),
-    (["database", "data", "storage", "analytics", "数据库", "存储", "流式"], "数据/数据库"),
-    (["cloud", "aws", "azure", "gcp", "data center", "云计算", "数据中心"], "云/基础设施"),
-    (["open source", "github", "linux", "开源", "工具", "framework", "library"], "开源/工具"),
-    (["programming", "code", "python", "javascript", "typescript", "java", "go", "rust", "编程", "代码"], "编程/开发"),
+    (
+        ["economy", "policy", "regulation", "market", "经济", "政策", "监管", "股市"],
+        "经济/政策",
+    ),
+    (
+        ["database", "data", "storage", "analytics", "数据库", "存储", "流式"],
+        "数据/数据库",
+    ),
+    (
+        ["cloud", "aws", "azure", "gcp", "data center", "云计算", "数据中心"],
+        "云/基础设施",
+    ),
+    (
+        ["open source", "github", "linux", "开源", "工具", "framework", "library"],
+        "开源/工具",
+    ),
+    (
+        [
+            "programming",
+            "code",
+            "python",
+            "javascript",
+            "typescript",
+            "java",
+            "go",
+            "rust",
+            "编程",
+            "代码",
+        ],
+        "编程/开发",
+    ),
     (["space", "rocket", "nasa", "spacex", "卫星", "火箭", "航天"], "航天/太空"),
     (["robot", "robotics", "自动驾驶", "机器人", "无人机"], "机器人/自动驾驶"),
-    (["energy", "battery", "solar", "nuclear", "能源", "电池", "光伏", "核电"], "能源/碳中和"),
+    (
+        ["energy", "battery", "solar", "nuclear", "能源", "电池", "光伏", "核电"],
+        "能源/碳中和",
+    ),
     (["biotech", "pharma", "drug", "生物技术", "医药", "疫苗"], "生物/医药"),
-    (["finance", "bank", "payment", "crypto", "bitcoin", "以太坊", "金融", "支付"], "金融/加密"),
+    (
+        ["finance", "bank", "payment", "crypto", "bitcoin", "以太坊", "金融", "支付"],
+        "金融/加密",
+    ),
 ]
 
 
@@ -139,7 +212,9 @@ def _fetch_item_summary(object_id: str) -> dict[str, Any]:
     """从 Algolia items 端点获取单个帖子的摘要信息。"""
     url = f"{ALGOLIA_ITEM_URL}/{object_id}"
     try:
-        resp = requests.get(url, timeout=REQUEST_TIMEOUT, proxies={"http": None, "https": None})
+        resp = requests.get(
+            url, timeout=REQUEST_TIMEOUT, proxies={"http": None, "https": None}
+        )
         if resp.status_code == 200:
             data = resp.json()
             return {
@@ -156,7 +231,9 @@ def _fetch_top_comments(object_id: str, max_comments: int = 3) -> list[str]:
     """获取高赞/热门评论的简短摘要。"""
     url = f"{ALGOLIA_ITEM_URL}/{object_id}"
     try:
-        resp = requests.get(url, timeout=REQUEST_TIMEOUT, proxies={"http": None, "https": None})
+        resp = requests.get(
+            url, timeout=REQUEST_TIMEOUT, proxies={"http": None, "https": None}
+        )
         if resp.status_code != 200:
             return []
         data = resp.json()
@@ -225,7 +302,9 @@ def fetch_hn_top_stories(
     logger.info("请求 HN Algolia: %s", url)
 
     try:
-        resp = requests.get(url, timeout=REQUEST_TIMEOUT, proxies={"http": None, "https": None})
+        resp = requests.get(
+            url, timeout=REQUEST_TIMEOUT, proxies={"http": None, "https": None}
+        )
         resp.raise_for_status()
     except requests.RequestException as e:
         logger.error("HN Algolia 请求失败: %s", e)
@@ -251,7 +330,9 @@ def fetch_hn_top_stories(
             if created_at_i is None:
                 continue
             start_ts = int(
-                datetime.datetime.combine(target_date, datetime.time.min, tzinfo=datetime.UTC).timestamp()
+                datetime.datetime.combine(
+                    target_date, datetime.time.min, tzinfo=datetime.UTC
+                ).timestamp()
             )
             end_ts = start_ts + 86400
             if not (start_ts <= created_at_i < end_ts):
@@ -298,11 +379,15 @@ def fetch_hn_top_stories(
 # ============================================================
 # 报告生成
 # ============================================================
-def render_markdown(stories: list[dict[str, Any]], report_date: datetime.date, top_n: int) -> str:
+def render_markdown(
+    stories: list[dict[str, Any]], report_date: datetime.date, top_n: int
+) -> str:
     """渲染基础版 HN 热帖讨论榜 Markdown 报告。"""
     today_str = report_date.strftime("%Y-%m-%d")
     now_str = datetime.datetime.now().strftime("%H:%M:%S")
-    weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][report_date.weekday()]
+    weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][
+        report_date.weekday()
+    ]
 
     lines: list[str] = []
     add = lines.append
@@ -318,7 +403,9 @@ def render_markdown(stories: list[dict[str, Any]], report_date: datetime.date, t
     add("")
 
     if not stories:
-        add("今日未获取到 HN 热帖，可能原因：网络异常、API 限流或当日无符合条件的帖子。")
+        add(
+            "今日未获取到 HN 热帖，可能原因：网络异常、API 限流或当日无符合条件的帖子。"
+        )
         add("")
         add("> 建议检查网络连接后重试；若需手工验证，可直接访问：  ")
         add(
@@ -334,7 +421,9 @@ def render_markdown(stories: list[dict[str, Any]], report_date: datetime.date, t
         add(f"### {s['rank']}. {s['title']}")
         add("")
         add(f"🔗 [原文链接]({s['url']}) | [HN 讨论]({s['hn_url']})  ")
-        add(f"👤 {s['author']} | 👍 {s['points']} | 💬 {s['comments']} | 🕒 {s['created_at']}")
+        add(
+            f"👤 {s['author']} | 👍 {s['points']} | 💬 {s['comments']} | 🕒 {s['created_at']}"
+        )
         add("")
 
     add("---")
@@ -347,11 +436,15 @@ def render_markdown(stories: list[dict[str, Any]], report_date: datetime.date, t
     return "\n".join(lines)
 
 
-def render_markdown_enhanced(stories: list[dict[str, Any]], report_date: datetime.date, top_n: int) -> str:
+def render_markdown_enhanced(
+    stories: list[dict[str, Any]], report_date: datetime.date, top_n: int
+) -> str:
     """渲染增强版 HN 热帖讨论榜：自动分类 + 摘要 + 热门评论摘要。"""
     today_str = report_date.strftime("%Y-%m-%d")
     now_str = datetime.datetime.now().strftime("%H:%M:%S")
-    weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][report_date.weekday()]
+    weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][
+        report_date.weekday()
+    ]
 
     lines: list[str] = []
     add = lines.append
@@ -367,7 +460,9 @@ def render_markdown_enhanced(stories: list[dict[str, Any]], report_date: datetim
     add("")
 
     if not stories:
-        add("今日未获取到 HN 热帖，可能原因：网络异常、API 限流或当日无符合条件的帖子。")
+        add(
+            "今日未获取到 HN 热帖，可能原因：网络异常、API 限流或当日无符合条件的帖子。"
+        )
         add("")
         add("> 建议检查网络连接后重试；若需手工验证，可直接访问：  ")
         add(
@@ -409,7 +504,9 @@ def render_markdown_enhanced(stories: list[dict[str, Any]], report_date: datetim
             add(f"📝 {summary}")
             add("")
         add(f"🔗 [原文链接]({s['url']}) | [HN 讨论]({s['hn_url']})  ")
-        add(f"👤 {s['author']} | 👍 {s['points']} | 💬 {s['comments']} | 🕒 {s['created_at']}")
+        add(
+            f"👤 {s['author']} | 👍 {s['points']} | 💬 {s['comments']} | 🕒 {s['created_at']}"
+        )
         add("")
 
         if top_comments:
@@ -455,7 +552,9 @@ def enrich_stories(stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return enriched
 
 
-def save_report(markdown_text: str, report_date: datetime.date, enhanced: bool = False) -> Path:
+def save_report(
+    markdown_text: str, report_date: datetime.date, enhanced: bool = False
+) -> Path:
     """保存 Markdown 报告到 每日报告归档/YYYY-MM-DD/。"""
     date_folder = REPORT_ROOT / report_date.strftime("%Y-%m-%d")
     date_folder.mkdir(parents=True, exist_ok=True)
@@ -476,17 +575,30 @@ def save_report(markdown_text: str, report_date: datetime.date, enhanced: bool =
 # ============================================================
 def main() -> int:
     parser = argparse.ArgumentParser(description="Hacker News 每日热帖讨论榜报告生成器")
-    parser.add_argument("--date", type=str, default=None, help="指定日期 YYYY-MM-DD，默认今天")
-    parser.add_argument("--top", type=int, default=DEFAULT_TOP_N, help=f"Top N 条，默认 {DEFAULT_TOP_N}")
+    parser.add_argument(
+        "--date", type=str, default=None, help="指定日期 YYYY-MM-DD，默认今天"
+    )
+    parser.add_argument(
+        "--top", type=int, default=DEFAULT_TOP_N, help=f"Top N 条，默认 {DEFAULT_TOP_N}"
+    )
     parser.add_argument("--dry-run", action="store_true", help="仅预览不写入文件")
-    parser.add_argument("--enhanced", action="store_true", help="生成增强版报告（带分类标签、摘要、评论摘要）")
+    parser.add_argument(
+        "--enhanced",
+        action="store_true",
+        help="生成增强版报告（带分类标签、摘要、评论摘要）",
+    )
     args = parser.parse_args()
 
     report_date = _parse_date(args.date)
     top_n = max(1, args.top)
     enhanced = bool(args.enhanced)
 
-    logger.info("开始生成 HN 热帖报告: date=%s, top=%d, enhanced=%s", report_date, top_n, enhanced)
+    logger.info(
+        "开始生成 HN 热帖报告: date=%s, top=%d, enhanced=%s",
+        report_date,
+        top_n,
+        enhanced,
+    )
     stories = fetch_hn_top_stories(top_n=top_n, target_date=report_date)
 
     if not stories:

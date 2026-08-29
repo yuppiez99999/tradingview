@@ -3,9 +3,9 @@
 目标模块: utils/execution/qmt_rpc_server.py (0% → 高覆盖)
 覆盖: 鉴权 / IP 白名单 / 账户脱敏 / 启动守卫 / QmtGateway / 各 endpoint / main
 """
+
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,10 +13,10 @@ from fastapi.testclient import TestClient
 
 from utils.execution import qmt_rpc_server as srv
 
-
 # ============================================================
 # MaskAccountTest — 账户脱敏
 # ============================================================
+
 
 class MaskAccountTest:
 
@@ -39,6 +39,7 @@ class MaskAccountTest:
 # ============================================================
 # AssertSafeBindTest — 启动安全守卫
 # ============================================================
+
 
 class AssertSafeBindTest:
 
@@ -71,6 +72,7 @@ class AssertSafeBindTest:
 # QmtGatewayTest — 网关连接管理
 # ============================================================
 
+
 class QmtGatewayTest:
 
     def test_init_defaults(self):
@@ -95,6 +97,7 @@ class QmtGatewayTest:
     def test_ensure_connected_reconnect_throttle(self):
         """冷却期内不重连."""
         import time
+
         gw = srv.QmtGateway()
         gw.last_reconnect = time.time()  # 刚连过
         result = gw.ensure_connected()
@@ -119,6 +122,7 @@ class QmtGatewayTest:
 # ============================================================
 # VerifyTokenTest — Token 鉴权
 # ============================================================
+
 
 class VerifyTokenTest:
 
@@ -150,10 +154,10 @@ class VerifyTokenTest:
 # VerifyIpTest — IP 白名单
 # ============================================================
 
+
 class VerifyIpTest:
 
     def test_no_whitelist_passes(self, monkeypatch):
-        from fastapi import Request
         monkeypatch.delenv("QMT_RPC_ALLOWED_IPS", raising=False)
         req = MagicMock()
         srv._verify_ip(req)
@@ -176,6 +180,7 @@ class VerifyIpTest:
 # ============================================================
 # ApiEndpointTest — FastAPI 端点集成
 # ============================================================
+
 
 class ApiEndpointTest:
     """用 TestClient 测试各端点 (mock gateway 连接状态)."""
@@ -322,7 +327,11 @@ class ApiEndpointTest:
         mock_broker.is_connected = True
         mock_order = MagicMock()
         mock_broker.orders = {"O1": mock_order}
-        mock_broker.wait_fill.return_value = {"order_id": "O1", "price": 10.5, "qty": 100}
+        mock_broker.wait_fill.return_value = {
+            "order_id": "O1",
+            "price": 10.5,
+            "qty": 100,
+        }
         srv.gateway.broker = mock_broker
         with TestClient(srv.app) as client:
             resp = client.post(
@@ -391,6 +400,7 @@ class ApiEndpointTest:
 # MainTest — 入口函数
 # ============================================================
 
+
 class MainTest:
 
     def test_main_loopback_invokes_uvicorn(self, monkeypatch):
@@ -406,7 +416,10 @@ class MainTest:
     def test_main_custom_host_port(self, monkeypatch):
         monkeypatch.setenv("QMT_RPC_TOKEN", "t")
         with patch("uvicorn.run") as mock_run:
-            with patch("sys.argv", ["qmt_rpc_server.py", "--host", "127.0.0.1", "--port", "9999"]):
+            with patch(
+                "sys.argv",
+                ["qmt_rpc_server.py", "--host", "127.0.0.1", "--port", "9999"],
+            ):
                 srv.main()
         assert mock_run.called
         call_kwargs = mock_run.call_args

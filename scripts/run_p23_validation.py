@@ -11,6 +11,7 @@ P2.3 跑三件套检验:
   python scripts/run_p23_validation.py              # 完整三件套
   python scripts/run_p23_validation.py --quick       # 仅 DSR (跳过依赖 ms_strategy 的 CPCV/Noise)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -28,7 +29,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [P2.3] %(message)s")
 logger = logging.getLogger("p23_validation")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-REF_SCRIPT = PROJECT_ROOT / "data" / "etf_option_backtest" / "run_etf_option_backtest.py"
+REF_SCRIPT = (
+    PROJECT_ROOT / "data" / "etf_option_backtest" / "run_etf_option_backtest.py"
+)
 SYS_PATH_ADDED = False
 
 
@@ -38,6 +41,7 @@ def _ensure_ref_script() -> Any:
         sys.path.insert(0, str(PROJECT_ROOT))
         SYS_PATH_ADDED = True
     import importlib.util
+
     spec = importlib.util.spec_from_file_location("etf_ref_backtest", str(REF_SCRIPT))
     mod = importlib.util.module_from_spec(spec)
     sys.modules["etf_ref_backtest"] = mod
@@ -71,11 +75,13 @@ class StrategyValidation:
     details: dict[str, Any] = field(default_factory=dict)
 
 
-def run_validation(strategies: list[tuple[str, Any, list[float]]],
-                   n_trials_dsr: int,
-                   quick: bool,
-                   cpcv_n_groups: int = 6,
-                   cpcv_n_test_groups: int = 2) -> list[StrategyValidation]:
+def run_validation(
+    strategies: list[tuple[str, Any, list[float]]],
+    n_trials_dsr: int,
+    quick: bool,
+    cpcv_n_groups: int = 6,
+    cpcv_n_test_groups: int = 2,
+) -> list[StrategyValidation]:
     results = []
     for name, strategy_eq, _bench_eq in strategies:
         rets = _equity_to_daily_returns(strategy_eq)
@@ -84,7 +90,12 @@ def run_validation(strategies: list[tuple[str, Any, list[float]]],
             continue
 
         logger.info("--- %s ---", name)
-        logger.info("  日收益率: mean=%.6f std=%.6f n=%d", float(rets.mean()), float(rets.std()), len(rets))
+        logger.info(
+            "  日收益率: mean=%.6f std=%.6f n=%d",
+            float(rets.mean()),
+            float(rets.std()),
+            len(rets),
+        )
 
         v = StrategyValidation(name=name, n_returns=len(rets))
 
@@ -109,7 +120,9 @@ def run_validation(strategies: list[tuple[str, Any, list[float]]],
             v.cpcv_stable = hvr.cpcv.is_stable
             v.cpcv_cv = hvr.cpcv.sharpe_cv
             v.cpcv_n_paths = hvr.cpcv.n_paths
-            v.noise_stable = getattr(hvr.noise, "is_stable", False) if hvr.noise else False
+            v.noise_stable = (
+                getattr(hvr.noise, "is_stable", False) if hvr.noise else False
+            )
             v.is_honest = hvr.is_honest
             v.verdict = hvr.verdict
             v.details = {
@@ -139,7 +152,9 @@ def fmt_report(results: list[StrategyValidation], n_trials_dsr: int) -> str:
     lines.append("  验收标准: DSR≥0.95 AND CPCV CV<0.5 AND Noise stable → HONEST")
     lines.append("")
 
-    lines.append(f"  {'策略':<28} {'年化%':>6} {'回撤%':>6} {'Sharpe':>7} {'DSR':>7} {'P值':>7} {'CPCV':>7} {'Noise':>7} {'判定':>8}")
+    lines.append(
+        f"  {'策略':<28} {'年化%':>6} {'回撤%':>6} {'Sharpe':>7} {'DSR':>7} {'P值':>7} {'CPCV':>7} {'Noise':>7} {'判定':>8}"
+    )
     lines.append("  " + "-" * 76)
     for v in results:
         dsr_s = f"{v.dsr:.4f}" if v.dsr else "N/A"
@@ -157,11 +172,17 @@ def fmt_report(results: list[StrategyValidation], n_trials_dsr: int) -> str:
             lines.append(f"  [{v.name}] {v.verdict}")
     lines.append("")
     lines.append("  === 判定说明 ===")
-    lines.append("  DSR (Deflated Sharpe Ratio): 经 n_trials 多重检验修正后的显著性, ≥0.95 表示策略")
+    lines.append(
+        "  DSR (Deflated Sharpe Ratio): 经 n_trials 多重检验修正后的显著性, ≥0.95 表示策略"
+    )
     lines.append("    收益不大可能由随机筛选(数据窥探)产生")
-    lines.append("  CPCV (组合清洗交叉验证): 多路径 Sharpe 变异系数 <0.5 且正向路径 >80% 表示策略")
+    lines.append(
+        "  CPCV (组合清洗交叉验证): 多路径 Sharpe 变异系数 <0.5 且正向路径 >80% 表示策略"
+    )
     lines.append("    在不同时间段表现一致, 非特定窗口过拟合")
-    lines.append("  Noise (噪音注入): 注入 10% 噪音后 1000 次实验中策略指标稳定表示策略信号")
+    lines.append(
+        "  Noise (噪音注入): 注入 10% 噪音后 1000 次实验中策略指标稳定表示策略信号"
+    )
     lines.append("    而非高端噪音")
     lines.append("  联合判定: DSR≥0.95 AND CPCV stable AND Noise stable → HONEST")
     lines.append("=" * 78)
@@ -170,12 +191,28 @@ def fmt_report(results: list[StrategyValidation], n_trials_dsr: int) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="P2.3 诚实回测三件套验证")
-    parser.add_argument("--quick", action="store_true", help="仅 DSR (跳过依赖 ms_strategy 的 CPCV/Noise)")
-    parser.add_argument("--data-file", default=None, help="合并面板 parquet 路径 (默认 data/etf_option_backtest/all_etf_daily.parquet)")
-    parser.add_argument("--strategies", default="s1s3s5", help="策略选择: s1s3s5|s1s3s5s6|s6|all")
-    parser.add_argument("--n-trials", type=int, default=5, help="DSR 多重检验修正的 n_trials")
-    parser.add_argument("--cpcv-groups", type=int, default=6, help="CPCV 分组数 (默认 6)")
-    parser.add_argument("--cpcv-test-groups", type=int, default=2, help="CPCV 测试组数 (默认 2)")
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="仅 DSR (跳过依赖 ms_strategy 的 CPCV/Noise)",
+    )
+    parser.add_argument(
+        "--data-file",
+        default=None,
+        help="合并面板 parquet 路径 (默认 data/etf_option_backtest/all_etf_daily.parquet)",
+    )
+    parser.add_argument(
+        "--strategies", default="s1s3s5", help="策略选择: s1s3s5|s1s3s5s6|s6|all"
+    )
+    parser.add_argument(
+        "--n-trials", type=int, default=5, help="DSR 多重检验修正的 n_trials"
+    )
+    parser.add_argument(
+        "--cpcv-groups", type=int, default=6, help="CPCV 分组数 (默认 6)"
+    )
+    parser.add_argument(
+        "--cpcv-test-groups", type=int, default=2, help="CPCV 测试组数 (默认 2)"
+    )
     args = parser.parse_args()
 
     logger.info("加载参考模块 (run_etf_option_backtest)...")
@@ -212,10 +249,16 @@ def main() -> int:
     strategies = [(name, eq, bench_eq) for name, eq in strategy_eqs]
     n_trials_dsr = args.n_trials
 
-    logger.info("运行诚实回测三件套 (n_trials=%d, quick=%s, cpcv=%d/%d)...",
-                n_trials_dsr, args.quick, args.cpcv_groups, args.cpcv_test_groups)
-    results = run_validation(strategies, n_trials_dsr, args.quick,
-                             args.cpcv_groups, args.cpcv_test_groups)
+    logger.info(
+        "运行诚实回测三件套 (n_trials=%d, quick=%s, cpcv=%d/%d)...",
+        n_trials_dsr,
+        args.quick,
+        args.cpcv_groups,
+        args.cpcv_test_groups,
+    )
+    results = run_validation(
+        strategies, n_trials_dsr, args.quick, args.cpcv_groups, args.cpcv_test_groups
+    )
 
     # BUG FIX (2026-08-25): results 可能因样本不足被跳过而比 strategies 短,
     # zip 按位置配对会把指标错配到错误的策略上, 改为按 name 对齐。
@@ -230,8 +273,12 @@ def main() -> int:
         v.sharpe = m["sharpe"]
         logger.info(
             "%s: 年化=%.2f%% 回撤=%.2f%% Sharpe=%.3f DSR=%.4f(%s) CPCV=%s Noise=%s → %s",
-            name, v.annual_return_pct, v.max_drawdown_pct, v.sharpe,
-            v.dsr, "PASS" if v.dsr_pass else "FAIL",
+            name,
+            v.annual_return_pct,
+            v.max_drawdown_pct,
+            v.sharpe,
+            v.dsr,
+            "PASS" if v.dsr_pass else "FAIL",
             "PASS" if v.cpcv_stable else "N/A",
             "PASS" if v.noise_stable else "N/A",
             "HONEST" if v.is_honest else "FAIL",

@@ -754,3 +754,14 @@ Gate1 判定：**PASS**（通过因子：CHAIN_MOM_60D — effIC=0.094≥0.01，
   2. **有偏评估会制造"学习优势"镜像**：B5 掩码泄漏让 GAT 获得非边邻居的额外信息（全局平均），叠加 B1/B2 前视偏差，使"学习注意力 > 静态权重"这一命题在有偏框架下被假阳。修复偏差后，GAT 的"优势"消失，说明此前优势主要来自偏差而非真实学习能力。
   3. **Layer 2 命题当前状态**：从"通过"修正为"未通过"。GAT 学习注意力在绝对预测力上未稳健优于静态权重，仅在稳定性/风险调整收益上有微弱优势。Layer 2 是否推进需更长历史 + 更大 universe + 多因子融合进一步验证，**当前不可作为 GAT 优于静态的依据**。
 - **详见**：`cairn/LOG.md` 2026-08-03 条目"GAT Layer 2 无偏验证 (B1-B5 全套) — +0.039 增益证伪, Gate2 FAIL"。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [Wave 5 阶段性总结报告 — GNN 供应链产业链因子](gnn-supply-chain-factor-wave5-review.md) (相似度 63%)
+- [Alpha 因子体系](alpha-factor-system.md) (相似度 18%)
+- [Wave 6 启动前置研究笔记（2026-08-11）](wave6-prep-study-notes.md) (相似度 10%)
+- [GitHub 高价值项目集成策略（Wave 6）](github-integration-wave6.md) (相似度 8%)
+- [代码审查经验沉淀：量化系统 8.4 资金安全与回测可信度](code-review-lessons-v8.4.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

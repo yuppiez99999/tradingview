@@ -22,6 +22,7 @@
     pytest tests/test_data_contracts.py -v -m contract
     pytest tests/test_data_contracts.py -v -k positions --tb=short
 """
+
 from __future__ import annotations
 
 import glob
@@ -34,6 +35,7 @@ import pytest
 # ============================================================================
 # 工具函数
 # ============================================================================
+
 
 def _load_json(path: Path) -> dict[str, Any]:
     """加载 JSON 文件"""
@@ -79,8 +81,7 @@ def _assert_key_type(data: dict, key: str, expected_type, file_label: str) -> No
         else:
             exp_name = "(" + ", ".join(t.__name__ for t in expected_types) + ")"
         pytest.fail(
-            f"[{file_label}] 字段 {key} 应为 {exp_name},"
-            f"实际 {actual.__name__}"
+            f"[{file_label}] 字段 {key} 应为 {exp_name}," f"实际 {actual.__name__}"
         )
 
 
@@ -93,6 +94,7 @@ def _find_latest(pattern: str) -> Path | None:
 # ============================================================================
 # 契约 1: positions.json (现货持仓状态)
 # ============================================================================
+
 
 class TestPositionsJsonContract:
     """config/positions.json 数据契约"""
@@ -135,9 +137,9 @@ class TestPositionsJsonContract:
     def test_positions_dict_format(self, positions_data):
         """契约 1.3: positions 必须为 dict (非 list),key 为 symbol"""
         positions = positions_data.get("positions", {})
-        assert isinstance(positions, dict), (
-            f"positions 应为 dict,实际 {type(positions).__name__}"
-        )
+        assert isinstance(
+            positions, dict
+        ), f"positions 应为 dict,实际 {type(positions).__name__}"
         assert len(positions) > 0, "positions 不能为空"
 
     @pytest.mark.contract
@@ -145,27 +147,28 @@ class TestPositionsJsonContract:
         """契约 1.4: 每个持仓项的必需字段 — code/name/shares"""
         positions = positions_data.get("positions", {})
         for symbol, item in positions.items():
-            assert isinstance(item, dict), (
-                f"positions.{symbol} 应为 dict,实际 {type(item).__name__}"
-            )
+            assert isinstance(
+                item, dict
+            ), f"positions.{symbol} 应为 dict,实际 {type(item).__name__}"
             _assert_keys_present(
                 item,
                 ["code", "name", "shares"],
                 f"positions.{symbol}",
             )
             # shares 类型与值约束
-            assert isinstance(item["shares"], (int, float)) and not isinstance(item["shares"], bool), (
-                f"positions.{symbol}.shares 应为数值,实际 {type(item['shares']).__name__}"
-            )
+            assert isinstance(item["shares"], (int, float)) and not isinstance(
+                item["shares"], bool
+            ), f"positions.{symbol}.shares 应为数值,实际 {type(item['shares']).__name__}"
             # shares 允许 0 (清仓后保留条目),但不能为负 (现货账户不允许空头)
-            assert item["shares"] >= 0, (
-                f"positions.{symbol}.shares 不能为负: {item['shares']}"
-            )
+            assert (
+                item["shares"] >= 0
+            ), f"positions.{symbol}.shares 不能为负: {item['shares']}"
 
 
 # ============================================================================
 # 契约 2: trade_plan_*.json (每日交易计划)
 # ============================================================================
+
 
 class TestTradePlanContract:
     """v8.3_institutional/trade_plans/trade_plan_*.json 数据契约"""
@@ -191,15 +194,29 @@ class TestTradePlanContract:
     def test_top_level_keys(self, trade_plan_data, trade_plan_filename):
         """契约 2.1: 顶层必需字段 — 19 个核心字段"""
         required = [
-            "trade_date", "weekday", "capital", "stock_etf_capital",
-            "hedge_capital", "execution_mode", "strategy", "metadata",
-            "phase", "market_state", "risk_controls", "hedge_config",
-            "hedge_fund_overlays", "execution_plan", "options_execution",
-            "hedge_account", "futures_options_hedge", "risk_guard",
+            "trade_date",
+            "weekday",
+            "capital",
+            "stock_etf_capital",
+            "hedge_capital",
+            "execution_mode",
+            "strategy",
+            "metadata",
+            "phase",
+            "market_state",
+            "risk_controls",
+            "hedge_config",
+            "hedge_fund_overlays",
+            "execution_plan",
+            "options_execution",
+            "hedge_account",
+            "futures_options_hedge",
+            "risk_guard",
             "hedge_execution",
         ]
         _assert_keys_present(
-            trade_plan_data, required,
+            trade_plan_data,
+            required,
             f"{trade_plan_filename} 顶层",
         )
 
@@ -208,19 +225,20 @@ class TestTradePlanContract:
         """契约 2.2: 资金字段类型与值约束"""
         for key in ("capital", "stock_etf_capital", "hedge_capital"):
             _assert_key_type(
-                trade_plan_data, key, int,
+                trade_plan_data,
+                key,
+                int,
                 f"{trade_plan_filename}",
             )
-            assert trade_plan_data[key] > 0, (
-                f"{trade_plan_filename}.{key} 必须 > 0"
-            )
+            assert trade_plan_data[key] > 0, f"{trade_plan_filename}.{key} 必须 > 0"
 
     @pytest.mark.contract
     def test_metadata_version(self, trade_plan_data, trade_plan_filename):
         """契约 2.3: metadata.version 必须存在且为字符串"""
         meta = trade_plan_data.get("metadata", {})
         _assert_keys_present(
-            meta, ["generated_at", "version"],
+            meta,
+            ["generated_at", "version"],
             f"{trade_plan_filename}.metadata",
         )
         assert isinstance(meta["version"], str), (
@@ -235,12 +253,16 @@ class TestTradePlanContract:
         # 五大 Guard 的状态字段 (允许为 None 但 key 必须存在)
         required_guards = [
             "kill_switch",
-            "drawdown_level", "drawdown_action",
-            "vol_scale", "vol_action",
-            "hedge_action", "put_action",
+            "drawdown_level",
+            "drawdown_action",
+            "vol_scale",
+            "vol_action",
+            "hedge_action",
+            "put_action",
         ]
         _assert_keys_present(
-            rg, required_guards,
+            rg,
+            required_guards,
             f"{trade_plan_filename}.risk_guard",
         )
 
@@ -249,12 +271,16 @@ class TestTradePlanContract:
         """契约 2.5: hedge_execution 必需子字段"""
         he = trade_plan_data.get("hedge_execution", {})
         required_he = [
-            "generated_at", "drawdown_level", "portfolio_status",
-            "futures_orders", "options_orders",
+            "generated_at",
+            "drawdown_level",
+            "portfolio_status",
+            "futures_orders",
+            "options_orders",
             "execution_status",
         ]
         _assert_keys_present(
-            he, required_he,
+            he,
+            required_he,
             f"{trade_plan_filename}.hedge_execution",
         )
         # execution_status 必须是有效枚举值
@@ -296,6 +322,7 @@ class TestTradePlanContract:
 # 契约 3: hedge_execution_fill_*.json (对冲执行回填)
 # ============================================================================
 
+
 class TestHedgeExecutionFillContract:
     """v8.3_institutional/reports/hedge_execution_fill_*.json 数据契约"""
 
@@ -319,11 +346,18 @@ class TestHedgeExecutionFillContract:
     def test_top_level_keys(self, hedge_fill_data, hedge_fill_filename):
         """契约 3.1: 顶层必需字段"""
         required = [
-            "trade_date", "generated_at", "portfolio_beta",
-            "total_hedge_pct", "total_cost", "hedge_enabled", "orders",
+            "trade_date",
+            "generated_at",
+            "portfolio_beta",
+            "total_hedge_pct",
+            "total_cost",
+            "hedge_enabled",
+            "orders",
         ]
         _assert_keys_present(
-            hedge_fill_data, required, hedge_fill_filename,
+            hedge_fill_data,
+            required,
+            hedge_fill_filename,
         )
 
     @pytest.mark.contract
@@ -331,9 +365,15 @@ class TestHedgeExecutionFillContract:
         """契约 3.2: 字段类型校验"""
         _assert_key_type(hedge_fill_data, "trade_date", str, hedge_fill_filename)
         _assert_key_type(hedge_fill_data, "generated_at", str, hedge_fill_filename)
-        _assert_key_type(hedge_fill_data, "portfolio_beta", (int, float), hedge_fill_filename)
-        _assert_key_type(hedge_fill_data, "total_hedge_pct", (int, float), hedge_fill_filename)
-        _assert_key_type(hedge_fill_data, "total_cost", (int, float), hedge_fill_filename)
+        _assert_key_type(
+            hedge_fill_data, "portfolio_beta", (int, float), hedge_fill_filename
+        )
+        _assert_key_type(
+            hedge_fill_data, "total_hedge_pct", (int, float), hedge_fill_filename
+        )
+        _assert_key_type(
+            hedge_fill_data, "total_cost", (int, float), hedge_fill_filename
+        )
         _assert_key_type(hedge_fill_data, "hedge_enabled", bool, hedge_fill_filename)
         _assert_key_type(hedge_fill_data, "orders", list, hedge_fill_filename)
 
@@ -347,13 +387,13 @@ class TestHedgeExecutionFillContract:
         """
         beta = hedge_fill_data.get("portfolio_beta", 0)
         # 组合 beta 合理范围 [-2, 2] (含对冲后)
-        assert -2.0 <= beta <= 2.0, (
-            f"{hedge_fill_filename}.portfolio_beta 超出合理范围 [-2, 2]: {beta}"
-        )
+        assert (
+            -2.0 <= beta <= 2.0
+        ), f"{hedge_fill_filename}.portfolio_beta 超出合理范围 [-2, 2]: {beta}"
         total_cost = hedge_fill_data.get("total_cost", 0)
-        assert total_cost >= 0, (
-            f"{hedge_fill_filename}.total_cost 不能为负: {total_cost}"
-        )
+        assert (
+            total_cost >= 0
+        ), f"{hedge_fill_filename}.total_cost 不能为负: {total_cost}"
         total_hedge_pct = hedge_fill_data.get("total_hedge_pct", 0)
         # 多策略叠加可超过 1.0 (tail + beta),上界 2.0 容纳组合对冲
         assert 0 <= total_hedge_pct <= 2.0, (
@@ -365,6 +405,7 @@ class TestHedgeExecutionFillContract:
 # ============================================================================
 # 契约 4: daily_returns.jsonl (影子账户每日收益)
 # ============================================================================
+
 
 class TestDailyReturnsContract:
     """reports/shadow/daily_returns.jsonl 数据契约"""
@@ -407,12 +448,12 @@ class TestDailyReturnsContract:
                 f"daily_returns.jsonl 第 {idx + 1} 行",
             )
             # 类型与值约束
-            assert isinstance(record["date"], str), (
-                f"daily_returns.jsonl 第 {idx + 1} 行 date 应为 str"
-            )
-            assert isinstance(record["daily_return"], (int, float)), (
-                f"daily_returns.jsonl 第 {idx + 1} 行 daily_return 应为数值"
-            )
+            assert isinstance(
+                record["date"], str
+            ), f"daily_returns.jsonl 第 {idx + 1} 行 date 应为 str"
+            assert isinstance(
+                record["daily_return"], (int, float)
+            ), f"daily_returns.jsonl 第 {idx + 1} 行 daily_return 应为数值"
             # 收益率合理范围 [-0.5, 0.5] (单日 ±50% 极端值)
             assert -0.5 <= record["daily_return"] <= 0.5, (
                 f"daily_returns.jsonl 第 {idx + 1} 行 daily_return "

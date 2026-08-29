@@ -33,6 +33,7 @@
     0 = 全部断言通过
     1 = 有断言失败 (应告警)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -47,7 +48,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 class AssertionResult:
     """单项数据有效性断言结果."""
 
-    def __init__(self, code: str, name: str, passed: bool, detail: str, evidence: str = ""):
+    def __init__(
+        self, code: str, name: str, passed: bool, detail: str, evidence: str = ""
+    ):
         self.code = code
         self.name = name
         self.passed = passed
@@ -69,19 +72,29 @@ def check_d1_stress_test_nonzero(date_str: str) -> AssertionResult:
     """D1 压力测试 actual_pnl 不能全为 0."""
     # 搜索最近的 stress_test 报告
     reports_dir = _PROJECT_ROOT / "reports"
-    stress_files = sorted(reports_dir.glob("stress_test_*.json"), reverse=True) if reports_dir.exists() else []
+    stress_files = (
+        sorted(reports_dir.glob("stress_test_*.json"), reverse=True)
+        if reports_dir.exists()
+        else []
+    )
 
     if not stress_files:
-        return AssertionResult("D1", "压力测试非零", True, "无压力测试报告(未运行, 跳过)")
+        return AssertionResult(
+            "D1", "压力测试非零", True, "无压力测试报告(未运行, 跳过)"
+        )
 
     data = _load_json(stress_files[0])
     if not data:
-        return AssertionResult("D1", "压力测试非零", False, f"无法解析: {stress_files[0].name}")
+        return AssertionResult(
+            "D1", "压力测试非零", False, f"无法解析: {stress_files[0].name}"
+        )
 
     # 模拟持仓报告: 非真实数据, 降级为 WARN 不阻断 (stress_test_runner 已 fail-close 防假真实报告)
     if data.get("is_simulated", False):
         return AssertionResult(
-            "D1", "压力测试非零", True,
+            "D1",
+            "压力测试非零",
+            True,
             f"报告为模拟持仓 (is_simulated=true), 跳过真实数据校验: {stress_files[0].name}",
             str(stress_files[0].name),
         )
@@ -91,11 +104,15 @@ def check_d1_stress_test_nonzero(date_str: str) -> AssertionResult:
 
     if zero_count == len(scenarios) and len(scenarios) > 0:
         return AssertionResult(
-            "D1", "压力测试非零", False,
+            "D1",
+            "压力测试非零",
+            False,
             f"全部 {len(scenarios)} 个场景 actual_pnl=0 (持仓为空, 用了模拟持仓)",
             str(stress_files[0].name),
         )
-    return AssertionResult("D1", "压力测试非零", True, f"{len(scenarios)} 个场景, {zero_count} 个为零")
+    return AssertionResult(
+        "D1", "压力测试非零", True, f"{len(scenarios)} 个场景, {zero_count} 个为零"
+    )
 
 
 def check_d2_alpha_signals_nonzero(date_str: str) -> AssertionResult:
@@ -104,28 +121,38 @@ def check_d2_alpha_signals_nonzero(date_str: str) -> AssertionResult:
     if not pipeline_dir.exists():
         return AssertionResult("D2", "Alpha信号非零", True, "无 pipeline 目录(跳过)")
 
-    signal_files = sorted(pipeline_dir.glob(f"alpha_signals_{date_str}*.json"), reverse=True)
+    signal_files = sorted(
+        pipeline_dir.glob(f"alpha_signals_{date_str}*.json"), reverse=True
+    )
     if not signal_files:
         # 尝试找最近的
         signal_files = sorted(pipeline_dir.glob("alpha_signals_*.json"), reverse=True)
 
     if not signal_files:
-        return AssertionResult("D2", "Alpha信号非零", True, "无 alpha_signals 报告(跳过)")
+        return AssertionResult(
+            "D2", "Alpha信号非零", True, "无 alpha_signals 报告(跳过)"
+        )
 
     data = _load_json(signal_files[0])
     if not data:
-        return AssertionResult("D2", "Alpha信号非零", False, f"无法解析: {signal_files[0].name}")
+        return AssertionResult(
+            "D2", "Alpha信号非零", False, f"无法解析: {signal_files[0].name}"
+        )
 
     status = data.get("status", "")
     n_stocks = data.get("n_stocks", 0)
 
     if status == "fallback" or n_stocks == 0:
         return AssertionResult(
-            "D2", "Alpha信号非零", False,
+            "D2",
+            "Alpha信号非零",
+            False,
             f"alpha_signals status={status}, n_stocks={n_stocks} (因子计算可能全失败)",
             str(signal_files[0].name),
         )
-    return AssertionResult("D2", "Alpha信号非零", True, f"n_stocks={n_stocks}, status={status}")
+    return AssertionResult(
+        "D2", "Alpha信号非零", True, f"n_stocks={n_stocks}, status={status}"
+    )
 
 
 def check_d3_drift_shadow_observed(date_str: str) -> AssertionResult:
@@ -142,12 +169,16 @@ def check_d3_drift_shadow_observed(date_str: str) -> AssertionResult:
 
     data = _load_json(drift_files[0])
     if not data:
-        return AssertionResult("D3", "DriftShadow非零", True, f"非JSON格式: {drift_files[0].name}")
+        return AssertionResult(
+            "D3", "DriftShadow非零", True, f"非JSON格式: {drift_files[0].name}"
+        )
 
     observed = data.get("observed", data.get("observed_count", "N/A"))
     if isinstance(observed, str) and "0/0" in observed:
         return AssertionResult(
-            "D3", "DriftShadow非零", False,
+            "D3",
+            "DriftShadow非零",
+            False,
             "observed=0/0 (信号链断裂, 预测从未传入)",
             str(drift_files[0].name),
         )
@@ -159,7 +190,9 @@ def check_d4_positions_nonempty(date_str: str) -> AssertionResult:
     positions_path = _PROJECT_ROOT / "config" / "positions.json"
     data = _load_json(positions_path)
     if not data:
-        return AssertionResult("D4", "持仓非空", False, "positions.json 不存在或无法解析")
+        return AssertionResult(
+            "D4", "持仓非空", False, "positions.json 不存在或无法解析"
+        )
 
     positions = data.get("positions", data.get("holdings", []))
     if isinstance(positions, dict) or isinstance(positions, list):
@@ -168,14 +201,20 @@ def check_d4_positions_nonempty(date_str: str) -> AssertionResult:
         count = 0
 
     if count == 0:
-        return AssertionResult("D4", "持仓非空", False, "positions.json 持仓数为 0 (空仓状态?)")
+        return AssertionResult(
+            "D4", "持仓非空", False, "positions.json 持仓数为 0 (空仓状态?)"
+        )
     return AssertionResult("D4", "持仓非空", True, f"持仓数={count}")
 
 
 def check_d5_hedge_fill_nonempty(date_str: str) -> AssertionResult:
     """D5 hedge_execution_fill orders 不能为空."""
     # date_str 可能是 "20260806" (无横线) 或 "2026-08-06" (带横线)
-    date_dashed = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}" if len(date_str) == 8 else date_str
+    date_dashed = (
+        f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+        if len(date_str) == 8
+        else date_str
+    )
     # 搜索多个可能的位置和文件名格式
     candidates = [
         _PROJECT_ROOT / "reports" / f"hedge_execution_fill_{date_dashed}.json",
@@ -192,15 +231,24 @@ def check_d5_hedge_fill_nonempty(date_str: str) -> AssertionResult:
             break
 
     if fill_path is None:
-        return AssertionResult("D5", "对冲成交非空", True, "无对冲成交报告(当日可能未对冲)")
+        return AssertionResult(
+            "D5", "对冲成交非空", True, "无对冲成交报告(当日可能未对冲)"
+        )
 
     data = _load_json(fill_path)
     if not data:
-        return AssertionResult("D5", "对冲成交非空", False, f"无法解析: {fill_path.name}")
+        return AssertionResult(
+            "D5", "对冲成交非空", False, f"无法解析: {fill_path.name}"
+        )
 
     orders = data.get("orders", [])
     if len(orders) == 0:
-        return AssertionResult("D5", "对冲成交非空", False, "hedge_execution_fill orders 为空 (对冲未执行?)")
+        return AssertionResult(
+            "D5",
+            "对冲成交非空",
+            False,
+            "hedge_execution_fill orders 为空 (对冲未执行?)",
+        )
     return AssertionResult("D5", "对冲成交非空", True, f"orders={len(orders)}")
 
 
@@ -208,12 +256,16 @@ def check_d6_daily_returns_continuous(date_str: str) -> AssertionResult:
     """D6 daily_returns.jsonl 不能连续缺失."""
     returns_path = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
     if not returns_path.exists():
-        return AssertionResult("D6", "收益数据连续", True, "无 daily_returns.jsonl (跳过)")
+        return AssertionResult(
+            "D6", "收益数据连续", True, "无 daily_returns.jsonl (跳过)"
+        )
 
     try:
         lines = returns_path.read_text(encoding="utf-8").strip().splitlines()
         if len(lines) < 2:
-            return AssertionResult("D6", "收益数据连续", True, f"仅 {len(lines)} 条 (样本不足, 跳过)")
+            return AssertionResult(
+                "D6", "收益数据连续", True, f"仅 {len(lines)} 条 (样本不足, 跳过)"
+            )
 
         # 检查最后几条的日期是否连续
         dates: list[str] = []
@@ -233,7 +285,9 @@ def check_d6_daily_returns_continuous(date_str: str) -> AssertionResult:
                 gap = (datetime.now() - latest).days
                 if gap > 5:
                     return AssertionResult(
-                        "D6", "收益数据连续", False,
+                        "D6",
+                        "收益数据连续",
+                        False,
                         f"最近收益日期 {dates[-1]} 距今 {gap} 天 (数据断档)",
                         str(returns_path.name),
                     )
@@ -260,7 +314,11 @@ def check_d7_vix_consistency(date_str: str) -> AssertionResult:
         vol_regime_vix = None
         data = None
         evolution_dir = _PROJECT_ROOT / "reports" / "evolution"
-        candidates = sorted(evolution_dir.glob("vol_regime_weights_*.json")) if evolution_dir.exists() else []
+        candidates = (
+            sorted(evolution_dir.glob("vol_regime_weights_*.json"))
+            if evolution_dir.exists()
+            else []
+        )
         vol_regime_path = candidates[-1] if candidates else None
         if vol_regime_path is not None and vol_regime_path.exists():
             with open(vol_regime_path, encoding="utf-8") as f:
@@ -282,10 +340,17 @@ def check_d7_vix_consistency(date_str: str) -> AssertionResult:
             cache_vix = cache_data.get("vix")
 
         if vol_regime_vix is None and cache_vix is None:
-            return AssertionResult("D7", "VIX口径一致", True, "无 VIX 数据可比 (两源均无数据, 跳过)")
+            return AssertionResult(
+                "D7", "VIX口径一致", True, "无 VIX 数据可比 (两源均无数据, 跳过)"
+            )
 
         if vol_regime_vix is None or cache_vix is None:
-            return AssertionResult("D7", "VIX口径一致", True, f"仅一源有数据 (vol_regime={vol_regime_vix}, cache={cache_vix}), 跳过")
+            return AssertionResult(
+                "D7",
+                "VIX口径一致",
+                True,
+                f"仅一源有数据 (vol_regime={vol_regime_vix}, cache={cache_vix}), 跳过",
+            )
 
         # EOD 后 vix_cache 会被刷新为新 RV 值, 但 vol_regime_weights 仍是盘中值.
         # 如果两者时间戳不一致 (cache 更新), 允许较大差异 (EOD 刷新导致 RV 变化).
@@ -296,33 +361,60 @@ def check_d7_vix_consistency(date_str: str) -> AssertionResult:
         is_eod_refresh = False
         if cache_ts and vol_ts:
             # 场景1: vol_regime 是盘中 (09-15), cache 是 EOD 后 (16+)
-            if any(h in vol_ts for h in ["09:", "10:", "11:", "12:", "13:", "14:", "15:"]) and "16:" in cache_ts:
+            if (
+                any(
+                    h in vol_ts
+                    for h in ["09:", "10:", "11:", "12:", "13:", "14:", "15:"]
+                )
+                and "16:" in cache_ts
+            ):
                 is_eod_refresh = True
             # 场景2: 两者都是 16:xx 但 cache 时间更晚
             elif "16:" in vol_ts and "16:" in cache_ts:
                 # 简单比较: cache 的分钟数 > vol 的分钟数
                 try:
-                    vol_min = int(vol_ts.split("T")[1].split(":")[1]) if "T" in vol_ts else int(vol_ts.split(" ")[1].split(":")[1])
-                    cache_min = int(cache_ts.split("T")[1].split(":")[1]) if "T" in cache_ts else int(cache_ts.split(" ")[1].split(":")[1])
+                    vol_min = (
+                        int(vol_ts.split("T")[1].split(":")[1])
+                        if "T" in vol_ts
+                        else int(vol_ts.split(" ")[1].split(":")[1])
+                    )
+                    cache_min = (
+                        int(cache_ts.split("T")[1].split(":")[1])
+                        if "T" in cache_ts
+                        else int(cache_ts.split(" ")[1].split(":")[1])
+                    )
                     if cache_min > vol_min:
                         is_eod_refresh = True
                 except (IndexError, ValueError):
                     pass
 
-        diff_pct = abs(vol_regime_vix - cache_vix) / max(vol_regime_vix, cache_vix) * 100
+        diff_pct = (
+            abs(vol_regime_vix - cache_vix) / max(vol_regime_vix, cache_vix) * 100
+        )
         # EOD 刷新场景: 容忍 80% 差异 (RV 因当日大涨/大跌而显著变化)
         threshold = 80 if is_eod_refresh else 50
         if diff_pct > threshold:
             return AssertionResult(
-                "D7", "VIX口径一致", False,
+                "D7",
+                "VIX口径一致",
+                False,
                 f"VIX 口径差异 {diff_pct:.1f}% (vol_regime={vol_regime_vix:.2f}, cache={cache_vix:.2f})",
             )
         note = " (EOD刷新, 非口径不一致)" if is_eod_refresh else ""
         return AssertionResult(
-            "D7", "VIX口径一致", True,
+            "D7",
+            "VIX口径一致",
+            True,
             f"vol_regime={vol_regime_vix:.2f}, cache={cache_vix:.2f}, 差异={diff_pct:.1f}%{note}",
         )
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+    ) as e:
         return AssertionResult("D7", "VIX口径一致", True, f"检查异常 (容错通过): {e}")
 
 
@@ -342,10 +434,16 @@ def check_d8_fills_format_consistency(date_str: str) -> AssertionResult:
     """
     fills_dir = _PROJECT_ROOT / "reports" / "fills"
     if not fills_dir.exists():
-        return AssertionResult("D8", "fills格式一致", True, "无 fills 目录(未运行执行链, 跳过)")
+        return AssertionResult(
+            "D8", "fills格式一致", True, "无 fills 目录(未运行执行链, 跳过)"
+        )
 
     # 搜索当日的 fills 文件 (支持 date_str 带横线或不带横线)
-    date_dashed = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}" if len(date_str) == 8 else date_str
+    date_dashed = (
+        f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+        if len(date_str) == 8
+        else date_str
+    )
     candidates = [
         fills_dir / f"fills_{date_dashed}.jsonl",
         fills_dir / f"fills_{date_str}.jsonl",
@@ -363,7 +461,9 @@ def check_d8_fills_format_consistency(date_str: str) -> AssertionResult:
             break
 
     if fill_path is None:
-        return AssertionResult("D8", "fills格式一致", True, "无 fills 文件(当日未运行执行链, 跳过)")
+        return AssertionResult(
+            "D8", "fills格式一致", True, "无 fills 文件(当日未运行执行链, 跳过)"
+        )
 
     required_fields = {"symbol", "side", "filled_qty", "avg_price"}
     valid_sides = {"BUY", "SELL"}
@@ -412,19 +512,27 @@ def check_d8_fills_format_consistency(date_str: str) -> AssertionResult:
                     if len(issues) < 3:
                         issues.append(f"行{line_num}: side={side} 非BUY/SELL")
     except OSError as e:
-        return AssertionResult("D8", "fills格式一致", False, f"读取 fills 文件失败: {e}")
+        return AssertionResult(
+            "D8", "fills格式一致", False, f"读取 fills 文件失败: {e}"
+        )
 
     if total_records == 0:
-        return AssertionResult("D8", "fills格式一致", True, f"{fill_path.name} 为空(无成交, 跳过)")
+        return AssertionResult(
+            "D8", "fills格式一致", True, f"{fill_path.name} 为空(无成交, 跳过)"
+        )
 
     if invalid_records > 0:
         detail = f"{invalid_records}/{total_records} 条记录无效"
         if issues:
             detail += f" — {'; '.join(issues)}"
-        return AssertionResult("D8", "fills格式一致", False, detail, str(fill_path.name))
+        return AssertionResult(
+            "D8", "fills格式一致", False, detail, str(fill_path.name)
+        )
 
     return AssertionResult(
-        "D8", "fills格式一致", True,
+        "D8",
+        "fills格式一致",
+        True,
         f"{total_records} 条成交记录全部有效 (字段完整+数值非零+side合法)",
     )
 
@@ -434,30 +542,50 @@ def check_d9_fills_store_instantiable(date_str: str) -> AssertionResult:
     try:
         sys.path.insert(0, str(_PROJECT_ROOT))
         from utils.execution.fills_store import FillsStore  # noqa: F401
+
         store = FillsStore()
         # 尝试写入一条测试记录 (不落盘到正式目录)
         test_rec = store.record_fill(
-            "000001", "BUY", 100, 10.0,
-            is_live=False, strategy="assertion_test"
+            "000001", "BUY", 100, 10.0, is_live=False, strategy="assertion_test"
         )
         if not isinstance(test_rec, dict):
-            return AssertionResult("D9", "FillsStore可实例化", False, "record_fill 返回值不是 dict")
+            return AssertionResult(
+                "D9", "FillsStore可实例化", False, "record_fill 返回值不是 dict"
+            )
         # 验证关键字段
         required = {"symbol", "side", "filled_qty", "avg_price", "ts", "date"}
         missing = required - set(test_rec.keys())
         if missing:
-            return AssertionResult("D9", "FillsStore可实例化", False, f"record_fill 返回值缺字段: {missing}")
-        return AssertionResult("D9", "FillsStore可实例化", True, "FillsStore 实例化成功, record_fill 返回完整字段")
+            return AssertionResult(
+                "D9",
+                "FillsStore可实例化",
+                False,
+                f"record_fill 返回值缺字段: {missing}",
+            )
+        return AssertionResult(
+            "D9",
+            "FillsStore可实例化",
+            True,
+            "FillsStore 实例化成功, record_fill 返回完整字段",
+        )
     except ImportError as e:
-        return AssertionResult("D9", "FillsStore可实例化", False, f"无法导入 FillsStore: {e}")
+        return AssertionResult(
+            "D9", "FillsStore可实例化", False, f"无法导入 FillsStore: {e}"
+        )
     except Exception as e:
-        return AssertionResult("D9", "FillsStore可实例化", False, f"FillsStore 运行异常: {e}")
+        return AssertionResult(
+            "D9", "FillsStore可实例化", False, f"FillsStore 运行异常: {e}"
+        )
 
 
 def check_d10_hedge_fill_schema(date_str: str) -> AssertionResult:
     """D10 hedge_execution_fill 数据契约完整性 (对冲执行文件格式)."""
     # date_str 可能是 "20260806" (无横线) 或 "2026-08-06" (带横线)
-    date_dashed = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}" if len(date_str) == 8 else date_str
+    date_dashed = (
+        f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+        if len(date_str) == 8
+        else date_str
+    )
     candidates = [
         _PROJECT_ROOT / "reports" / f"hedge_execution_fill_{date_dashed}.json",
         _PROJECT_ROOT / "reports" / f"hedge_execution_fill_{date_str}.json",
@@ -473,27 +601,58 @@ def check_d10_hedge_fill_schema(date_str: str) -> AssertionResult:
             break
 
     if fill_path is None:
-        return AssertionResult("D10", "hedge_fill数据契约", True, "无 hedge_execution_fill 文件(当日未对冲, 跳过)")
+        return AssertionResult(
+            "D10",
+            "hedge_fill数据契约",
+            True,
+            "无 hedge_execution_fill 文件(当日未对冲, 跳过)",
+        )
 
     data = _load_json(fill_path)
     if not data:
-        return AssertionResult("D10", "hedge_fill数据契约", False, f"无法解析: {fill_path.name}")
+        return AssertionResult(
+            "D10", "hedge_fill数据契约", False, f"无法解析: {fill_path.name}"
+        )
 
     # 必填顶层字段 (兼容 daily_pnl 数据契约)
-    required_top = {"trade_date", "portfolio_beta", "beta_after_hedge", "total_cost", "hedge_enabled", "orders"}
+    required_top = {
+        "trade_date",
+        "portfolio_beta",
+        "beta_after_hedge",
+        "total_cost",
+        "hedge_enabled",
+        "orders",
+    }
     missing_top = required_top - set(data.keys())
     if missing_top:
-        return AssertionResult("D10", "hedge_fill数据契约", False, f"顶层缺字段: {missing_top}", str(fill_path.name))
+        return AssertionResult(
+            "D10",
+            "hedge_fill数据契约",
+            False,
+            f"顶层缺字段: {missing_top}",
+            str(fill_path.name),
+        )
 
     orders = data.get("orders", [])
     if not isinstance(orders, list):
-        return AssertionResult("D10", "hedge_fill数据契约", False, "orders 不是列表", str(fill_path.name))
+        return AssertionResult(
+            "D10", "hedge_fill数据契约", False, "orders 不是列表", str(fill_path.name)
+        )
 
     if len(orders) == 0:
-        return AssertionResult("D10", "hedge_fill数据契约", True, "orders 为空(当日无成交, 跳过)")
+        return AssertionResult(
+            "D10", "hedge_fill数据契约", True, "orders 为空(当日无成交, 跳过)"
+        )
 
     # 检查单笔订单字段
-    required_order = {"instrument", "direction", "contracts", "premium_total", "status", "fill_time"}
+    required_order = {
+        "instrument",
+        "direction",
+        "contracts",
+        "premium_total",
+        "status",
+        "fill_time",
+    }
     invalid = 0
     for _i, o in enumerate(orders[:5]):
         if not isinstance(o, dict):
@@ -504,8 +663,16 @@ def check_d10_hedge_fill_schema(date_str: str) -> AssertionResult:
             invalid += 1
 
     if invalid > 0:
-        return AssertionResult("D10", "hedge_fill数据契约", False, f"{invalid}/{min(len(orders),5)} 笔订单字段不完整", str(fill_path.name))
-    return AssertionResult("D10", "hedge_fill数据契约", True, f"数据契约完整, orders={len(orders)} 笔")
+        return AssertionResult(
+            "D10",
+            "hedge_fill数据契约",
+            False,
+            f"{invalid}/{min(len(orders),5)} 笔订单字段不完整",
+            str(fill_path.name),
+        )
+    return AssertionResult(
+        "D10", "hedge_fill数据契约", True, f"数据契约完整, orders={len(orders)} 笔"
+    )
 
 
 def check_d11_hedge_positions_updated(date_str: str) -> AssertionResult:
@@ -513,26 +680,44 @@ def check_d11_hedge_positions_updated(date_str: str) -> AssertionResult:
     positions_path = _PROJECT_ROOT / "config" / "positions.json"
     data = _load_json(positions_path)
     if not data:
-        return AssertionResult("D11", "hedge_positions更新", False, "positions.json 不存在或无法解析")
+        return AssertionResult(
+            "D11", "hedge_positions更新", False, "positions.json 不存在或无法解析"
+        )
 
     hedge = data.get("hedge_positions", {})
     if not isinstance(hedge, dict):
-        return AssertionResult("D11", "hedge_positions更新", False, "hedge_positions 不是字典")
+        return AssertionResult(
+            "D11", "hedge_positions更新", False, "hedge_positions 不是字典"
+        )
 
     actual = hedge.get("actual_positions", [])
     if not isinstance(actual, list):
-        return AssertionResult("D11", "hedge_positions更新", False, "actual_positions 不是列表")
+        return AssertionResult(
+            "D11", "hedge_positions更新", False, "actual_positions 不是列表"
+        )
 
     last_exec = hedge.get("last_hedge_execution", {})
     if not isinstance(last_exec, dict):
-        return AssertionResult("D11", "hedge_positions更新", True, "actual_positions 存在但无 last_hedge_execution")
+        return AssertionResult(
+            "D11",
+            "hedge_positions更新",
+            True,
+            "actual_positions 存在但无 last_hedge_execution",
+        )
 
     if len(actual) == 0:
-        return AssertionResult("D11", "hedge_positions更新", True, "actual_positions 为空(当日无成交, 跳过)")
+        return AssertionResult(
+            "D11",
+            "hedge_positions更新",
+            True,
+            "actual_positions 为空(当日无成交, 跳过)",
+        )
 
     return AssertionResult(
-        "D11", "hedge_positions更新", True,
-        f"actual_positions={len(actual)} 笔, last_exec={last_exec.get('date', 'N/A')}"
+        "D11",
+        "hedge_positions更新",
+        True,
+        f"actual_positions={len(actual)} 笔, last_exec={last_exec.get('date', 'N/A')}",
     )
 
 
@@ -540,7 +725,10 @@ def check_d12_fills_pnl_bridge_functional(date_str: str) -> AssertionResult:
     """D12 FillsPnLBridge augment_market_prices 功能可运行 (G4 桥接验证)."""
     try:
         sys.path.insert(0, str(_PROJECT_ROOT))
-        from utils.execution.fills_pnl_bridge import augment_market_prices, realized_pnl  # noqa: F401
+        from utils.execution.fills_pnl_bridge import (
+            augment_market_prices,
+            realized_pnl,
+        )  # noqa: F401
 
         # 构造测试 market_prices
         test_mp = {
@@ -550,25 +738,44 @@ def check_d12_fills_pnl_bridge_functional(date_str: str) -> AssertionResult:
         # 当日无 fills 时应返回原字典浅拷贝
         result = augment_market_prices(test_mp, date_str)
         if not isinstance(result, dict):
-            return AssertionResult("D12", "PnL桥接功能", False, "augment_market_prices 返回值不是 dict")
+            return AssertionResult(
+                "D12", "PnL桥接功能", False, "augment_market_prices 返回值不是 dict"
+            )
         if len(result) != len(test_mp):
-            return AssertionResult("D12", "PnL桥接功能", False, "augment_market_prices 改变了字典结构")
+            return AssertionResult(
+                "D12", "PnL桥接功能", False, "augment_market_prices 改变了字典结构"
+            )
 
         # 验证 realized_pnl 可调用
         rpnl = realized_pnl(date_str)
         if not isinstance(rpnl, dict):
-            return AssertionResult("D12", "PnL桥接功能", False, "realized_pnl 返回值不是 dict")
+            return AssertionResult(
+                "D12", "PnL桥接功能", False, "realized_pnl 返回值不是 dict"
+            )
 
-        return AssertionResult("D12", "PnL桥接功能", True, "augment_market_prices + realized_pnl 均可正常运行")
+        return AssertionResult(
+            "D12",
+            "PnL桥接功能",
+            True,
+            "augment_market_prices + realized_pnl 均可正常运行",
+        )
     except ImportError as e:
-        return AssertionResult("D12", "PnL桥接功能", False, f"无法导入 fills_pnl_bridge: {e}")
+        return AssertionResult(
+            "D12", "PnL桥接功能", False, f"无法导入 fills_pnl_bridge: {e}"
+        )
     except Exception as e:
-        return AssertionResult("D12", "PnL桥接功能", False, f"fills_pnl_bridge 运行异常: {e}")
+        return AssertionResult(
+            "D12", "PnL桥接功能", False, f"fills_pnl_bridge 运行异常: {e}"
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="沉默失败主动探测")
-    parser.add_argument("--date", default=datetime.now().strftime("%Y-%m-%d"), help="检查日期 YYYY-MM-DD")
+    parser.add_argument(
+        "--date",
+        default=datetime.now().strftime("%Y-%m-%d"),
+        help="检查日期 YYYY-MM-DD",
+    )
     args = parser.parse_args(argv)
 
     date_str = args.date.replace("-", "")
@@ -610,10 +817,13 @@ def main(argv: list[str] | None = None) -> int:
             sys.path.insert(0, str(_PROJECT_ROOT))
             from utils.notify import send_alert
 
-            failed_items = [f"{r.code} {r.name}: {r.detail}" for r in results if not r.passed]
+            failed_items = [
+                f"{r.code} {r.name}: {r.detail}" for r in results if not r.passed
+            ]
             send_alert(
                 "沉默失败检测告警",
-                f"检测到 {fail_count} 项数据有效性断言失败:\n" + "\n".join(failed_items),
+                f"检测到 {fail_count} 项数据有效性断言失败:\n"
+                + "\n".join(failed_items),
                 level="warning",
             )
         except ImportError:

@@ -6,6 +6,7 @@
     DTE-7  total_built_after 不再重复累加 (进度口径)
     DTE-3  stop_loss 管理器不可用时返回标记项告警可见
 """
+
 from __future__ import annotations
 
 
@@ -23,7 +24,11 @@ class TestWtRiskFailClose:
             return None
         except Exception:
             # DTE-2 修复: 风控崩溃时保守阻断
-            return {"status": "blocked", "reason": "风控异常保守阻断", "risk_score": 1.0}
+            return {
+                "status": "blocked",
+                "reason": "风控异常保守阻断",
+                "risk_score": 1.0,
+            }
 
     def test_wt_risk_exception_blocks(self):
         """DTE-2: 风控异常 → blocked (修复前 return None 放行)."""
@@ -44,11 +49,13 @@ class TestStopLossDegraded:
         """DTE-3: 不可用时返回 __manager_unavailable 标记 (而非空列表)."""
         manager = None
         if not manager:
-            result = [{
-                "code": "__manager_unavailable",
-                "action": "HOLD",
-                "order_info": "stop_loss_manager 不可用, 止损风控降级",
-            }]
+            result = [
+                {
+                    "code": "__manager_unavailable",
+                    "action": "HOLD",
+                    "order_info": "stop_loss_manager 不可用, 止损风控降级",
+                }
+            ]
         else:
             result = []
         assert len(result) == 1
@@ -77,7 +84,10 @@ class TestRefPriceDegraded:
 
     def test_live_price_wins(self):
         """DTE-4: 有实时价优先."""
-        assert self._resolve_ref_price({"600519": 1680.0}, "600519", {"600519": 10.0}) == 1680.0
+        assert (
+            self._resolve_ref_price({"600519": 1680.0}, "600519", {"600519": 10.0})
+            == 1680.0
+        )
 
 
 class TestTotalBuiltNoDoubleCount:

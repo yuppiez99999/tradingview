@@ -11,6 +11,7 @@
 运行:
     python -m pytest tests/unit/test_g7_alpha_factor_library_top_boost.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -84,8 +85,8 @@ class TestExports:
 
 class TestBuildDemoData:
     def test_return_structure(self) -> None:
-        price_data, fundamentals, industries, benchmark_returns = lib_mod._build_demo_data(
-            n_symbols=4, n_days=50
+        price_data, fundamentals, industries, benchmark_returns = (
+            lib_mod._build_demo_data(n_symbols=4, n_days=50)
         )
         assert len(price_data) == 4
         assert len(fundamentals) == 4
@@ -154,7 +155,8 @@ class TestPrintSummary:
             for i in range(n_factors_per_cat):
                 name = f"{cat}_{i}"
                 factors[name] = FactorValue(
-                    name=name, category=cat,
+                    name=name,
+                    category=cat,
                     values={"A": 1.0, "B": 2.0},
                     ic_5d=0.04 + i * 0.01,
                 )

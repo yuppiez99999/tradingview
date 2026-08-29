@@ -7,6 +7,7 @@
 
 对齐 tasks T1.6.
 """
+
 from __future__ import annotations
 
 import json
@@ -44,11 +45,14 @@ def fusion_engine(tmp_path):
 # 场景 1: 模型注册
 # ============================================================
 
+
 class TestModelRegistration:
     """qlib_lgb_v2 模型注册到 SignalFusionEngine."""
 
     def test_register_success(self, fusion_engine):
-        result = register_qlib_lgb_v2_shadow(fusion_engine, use_qlib=True, qlib_mode="shadow")
+        result = register_qlib_lgb_v2_shadow(
+            fusion_engine, use_qlib=True, qlib_mode="shadow"
+        )
         assert result is True
         assert fusion_engine.has_source(QLIB_LGB_V2_MODEL_NAME)
 
@@ -83,28 +87,38 @@ class TestModelRegistration:
 # 场景 2: shadow 信号记录
 # ============================================================
 
+
 class TestShadowSignalRecording:
     """qlib_lgb_v2 shadow 信号记录到 jsonl."""
 
     def test_apply_shadow_returns_result(self, fusion_engine):
         result = apply_qlib_lgb_v2_shadow(
-            fusion_engine, symbol="600519", trade_date="2026-08-18",
-            use_qlib=True, qlib_mode="shadow",
+            fusion_engine,
+            symbol="600519",
+            trade_date="2026-08-18",
+            use_qlib=True,
+            qlib_mode="shadow",
         )
         assert isinstance(result, QlibShadowResult)
 
     def test_apply_shadow_success(self, fusion_engine):
         result = apply_qlib_lgb_v2_shadow(
-            fusion_engine, symbol="600519", trade_date="2026-08-18",
-            use_qlib=True, qlib_mode="shadow",
+            fusion_engine,
+            symbol="600519",
+            trade_date="2026-08-18",
+            use_qlib=True,
+            qlib_mode="shadow",
         )
         assert result.success is True
         assert result.shadow_mode is True
 
     def test_apply_shadow_signal_computed(self, fusion_engine):
         result = apply_qlib_lgb_v2_shadow(
-            fusion_engine, symbol="600519", trade_date="2026-08-18",
-            use_qlib=True, qlib_mode="shadow",
+            fusion_engine,
+            symbol="600519",
+            trade_date="2026-08-18",
+            use_qlib=True,
+            qlib_mode="shadow",
         )
         assert result.qlib_signal != 0.0 or result.success is True
 
@@ -141,28 +155,39 @@ class TestShadowSignalRecording:
 # 场景 3: 数据桥接失败 fail-closed
 # ============================================================
 
+
 class TestDataBridgeFailClosed:
     """数据桥接失败: qlib_data_bridge 异常时 fail-closed."""
 
     def test_apply_shadow_disabled_returns_skip(self, fusion_engine):
         result = apply_qlib_lgb_v2_shadow(
-            fusion_engine, symbol="600519", use_qlib=False,
+            fusion_engine,
+            symbol="600519",
+            use_qlib=False,
         )
         assert result.success is False
         assert "跳过" in result.error_message
 
     def test_apply_shadow_kill_switch(self, fusion_engine):
         result = apply_qlib_lgb_v2_shadow(
-            fusion_engine, symbol="600519", use_qlib=True,
+            fusion_engine,
+            symbol="600519",
+            use_qlib=True,
             kill_switch_triggered=True,
         )
         assert result.success is False
         assert "kill_switch" in result.error_message
 
     def test_apply_shadow_signal_failure_fail_closed(self, fusion_engine):
-        with patch("utils.signal_fusion._get_qlib_lgb_v2_signal", side_effect=ImportError("qlib not installed")):
+        with patch(
+            "utils.signal_fusion._get_qlib_lgb_v2_signal",
+            side_effect=ImportError("qlib not installed"),
+        ):
             result = apply_qlib_lgb_v2_shadow(
-                fusion_engine, symbol="600519", use_qlib=True, qlib_mode="shadow",
+                fusion_engine,
+                symbol="600519",
+                use_qlib=True,
+                qlib_mode="shadow",
             )
         assert result.success is False
         assert "fail-closed" in result.error_message or "失败" in result.error_message
@@ -173,7 +198,10 @@ class TestDataBridgeFailClosed:
         assert -1.0 <= signal <= 1.0 or abs(signal) < 10.0
 
     def test_get_qlib_signal_with_bridge_failure(self):
-        with patch("utils.qlib_data_bridge.to_qlib_symbol", side_effect=Exception("bridge error")):
+        with patch(
+            "utils.qlib_data_bridge.to_qlib_symbol",
+            side_effect=Exception("bridge error"),
+        ):
             with pytest.raises(Exception, match="bridge error"):
                 _get_qlib_lgb_v2_signal("600519")
 
@@ -182,13 +210,17 @@ class TestDataBridgeFailClosed:
 # 辅助测试: active 模式
 # ============================================================
 
+
 class TestActiveMode:
     """qlib_lgb_v2 active 模式."""
 
     def test_apply_active_mode(self, fusion_engine):
         result = apply_qlib_lgb_v2_shadow(
-            fusion_engine, symbol="600519", trade_date="2026-08-18",
-            use_qlib=True, qlib_mode="active",
+            fusion_engine,
+            symbol="600519",
+            trade_date="2026-08-18",
+            use_qlib=True,
+            qlib_mode="active",
         )
         assert result.success is True
         assert result.shadow_mode is False
@@ -200,7 +232,10 @@ class TestActiveMode:
             report_path,
         )
         apply_qlib_lgb_v2_shadow(
-            fusion_engine, symbol="600519", trade_date="2026-08-18",
-            use_qlib=True, qlib_mode="active",
+            fusion_engine,
+            symbol="600519",
+            trade_date="2026-08-18",
+            use_qlib=True,
+            qlib_mode="active",
         )
         assert not report_path.exists()

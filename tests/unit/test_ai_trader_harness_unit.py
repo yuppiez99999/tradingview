@@ -38,45 +38,56 @@ from tests.eval.ai_trader_harness import (
 # DataRecord 测试
 # ============================================================
 
+
 class TestDataRecord:
     """数据记录测试。"""
 
     def test_hash_auto_computed(self):
         """哈希自动计算。"""
-        r = DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                       price=100.0, volume=1000000)
+        r = DataRecord(
+            timestamp="2024-01-01 15:00:00", symbol="A", price=100.0, volume=1000000
+        )
         assert r.record_hash != ""
         assert len(r.record_hash) == 16  # SHA256 前 16 字符
 
     def test_hash_valid_for_unchanged(self):
         """未篡改的记录哈希有效。"""
-        r = DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                       price=100.0, volume=1000000)
+        r = DataRecord(
+            timestamp="2024-01-01 15:00:00", symbol="A", price=100.0, volume=1000000
+        )
         assert r.is_hash_valid() is True
 
     def test_hash_invalid_after_tamper(self):
         """篡改后哈希无效。"""
-        r = DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                       price=100.0, volume=1000000)
+        r = DataRecord(
+            timestamp="2024-01-01 15:00:00", symbol="A", price=100.0, volume=1000000
+        )
         original_hash = r.record_hash
         # 篡改: 修改价格但保持旧哈希
-        tampered = DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                              price=200.0, volume=1000000,
-                              record_hash=original_hash)
+        tampered = DataRecord(
+            timestamp="2024-01-01 15:00:00",
+            symbol="A",
+            price=200.0,
+            volume=1000000,
+            record_hash=original_hash,
+        )
         assert tampered.is_hash_valid() is False
 
     def test_hash_deterministic(self):
         """相同内容产生相同哈希。"""
-        r1 = DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                        price=100.0, volume=1000000)
-        r2 = DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                        price=100.0, volume=1000000)
+        r1 = DataRecord(
+            timestamp="2024-01-01 15:00:00", symbol="A", price=100.0, volume=1000000
+        )
+        r2 = DataRecord(
+            timestamp="2024-01-01 15:00:00", symbol="A", price=100.0, volume=1000000
+        )
         assert r1.record_hash == r2.record_hash
 
     def test_to_dict(self):
         """序列化为 dict。"""
-        r = DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                       price=100.0, volume=1000000)
+        r = DataRecord(
+            timestamp="2024-01-01 15:00:00", symbol="A", price=100.0, volume=1000000
+        )
         d = r.to_dict()
         assert d["timestamp"] == "2024-01-01 15:00:00"
         assert d["price"] == 100.0
@@ -85,6 +96,7 @@ class TestDataRecord:
 # ============================================================
 # RealTimeStream 测试
 # ============================================================
+
 
 class TestRealTimeStream:
     """实时数据流测试。"""
@@ -152,14 +164,19 @@ class TestRealTimeStream:
 # DataContaminationDetector 测试
 # ============================================================
 
+
 class TestDataContaminationDetector:
     """数据污染检测器测试 (核心创新)。"""
 
     def test_clean_records_pass(self):
         """干净数据通过检测。"""
         records = [
-            DataRecord(timestamp=f"2024-01-{i:02d} 15:00:00", symbol="A",
-                       price=100.0 + i, volume=1000000)
+            DataRecord(
+                timestamp=f"2024-01-{i:02d} 15:00:00",
+                symbol="A",
+                price=100.0 + i,
+                volume=1000000,
+            )
             for i in range(1, 11)
         ]
         detector = DataContaminationDetector()
@@ -171,13 +188,18 @@ class TestDataContaminationDetector:
     def test_hash_violation_detected(self):
         """哈希篡改被检测。"""
         records = [
-            DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                       price=100.0, volume=1000000),
+            DataRecord(
+                timestamp="2024-01-01 15:00:00", symbol="A", price=100.0, volume=1000000
+            ),
         ]
         # 篡改
-        tampered = DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                              price=200.0, volume=1000000,
-                              record_hash=records[0].record_hash)
+        tampered = DataRecord(
+            timestamp="2024-01-01 15:00:00",
+            symbol="A",
+            price=200.0,
+            volume=1000000,
+            record_hash=records[0].record_hash,
+        )
         detector = DataContaminationDetector()
         report = detector.detect([tampered])
         assert report.is_contaminated is True
@@ -186,10 +208,12 @@ class TestDataContaminationDetector:
     def test_order_violation_detected(self):
         """乱序被检测。"""
         records = [
-            DataRecord(timestamp="2024-01-03 15:00:00", symbol="A",
-                       price=100.0, volume=1000000),
-            DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                       price=101.0, volume=1000000),
+            DataRecord(
+                timestamp="2024-01-03 15:00:00", symbol="A", price=100.0, volume=1000000
+            ),
+            DataRecord(
+                timestamp="2024-01-01 15:00:00", symbol="A", price=101.0, volume=1000000
+            ),
         ]
         detector = DataContaminationDetector()
         report = detector.detect(records)
@@ -199,10 +223,12 @@ class TestDataContaminationDetector:
     def test_future_timestamp_detected(self):
         """未来时间戳被检测。"""
         records = [
-            DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                       price=100.0, volume=1000000),
-            DataRecord(timestamp="2099-12-31 15:00:00", symbol="A",
-                       price=101.0, volume=1000000),
+            DataRecord(
+                timestamp="2024-01-01 15:00:00", symbol="A", price=100.0, volume=1000000
+            ),
+            DataRecord(
+                timestamp="2099-12-31 15:00:00", symbol="A", price=101.0, volume=1000000
+            ),
         ]
         detector = DataContaminationDetector()
         report = detector.detect(records, decision_cutoff="2024-06-30 15:00:00")
@@ -212,8 +238,13 @@ class TestDataContaminationDetector:
     def test_untrusted_source_detected(self):
         """不可信来源被检测。"""
         records = [
-            DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                       price=100.0, volume=1000000, source="unknown"),
+            DataRecord(
+                timestamp="2024-01-01 15:00:00",
+                symbol="A",
+                price=100.0,
+                volume=1000000,
+                source="unknown",
+            ),
         ]
         detector = DataContaminationDetector()
         report = detector.detect(records)
@@ -230,10 +261,16 @@ class TestDataContaminationDetector:
     def test_contamination_score(self):
         """污染分数计算。"""
         records = [
-            DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                       price=100.0, volume=1000000),
-            DataRecord(timestamp="2024-01-02 15:00:00", symbol="A",
-                       price=101.0, volume=1000000, source="unknown"),
+            DataRecord(
+                timestamp="2024-01-01 15:00:00", symbol="A", price=100.0, volume=1000000
+            ),
+            DataRecord(
+                timestamp="2024-01-02 15:00:00",
+                symbol="A",
+                price=101.0,
+                volume=1000000,
+                source="unknown",
+            ),
         ]
         detector = DataContaminationDetector()
         report = detector.detect(records)
@@ -245,6 +282,7 @@ class TestDataContaminationDetector:
 # AgentAdapter 测试
 # ============================================================
 
+
 class TestAgentAdapter:
     """Agent 适配器测试。"""
 
@@ -252,8 +290,12 @@ class TestAgentAdapter:
         """动量策略。"""
         agent = AgentAdapter(name="test", strategy="momentum")
         records = [
-            DataRecord(timestamp=f"2024-01-{i:02d} 15:00:00", symbol="A",
-                       price=100.0 + i * 2, volume=1000000)
+            DataRecord(
+                timestamp=f"2024-01-{i:02d} 15:00:00",
+                symbol="A",
+                price=100.0 + i * 2,
+                volume=1000000,
+            )
             for i in range(1, 11)
         ]
         decision = agent.make_decision(records, "A", "2024-01-10 15:00:00")
@@ -264,13 +306,20 @@ class TestAgentAdapter:
         """均值回归策略。"""
         agent = AgentAdapter(name="test", strategy="mean_revert")
         records = [
-            DataRecord(timestamp=f"2024-01-{i:02d} 15:00:00", symbol="A",
-                       price=100.0, volume=1000000)
+            DataRecord(
+                timestamp=f"2024-01-{i:02d} 15:00:00",
+                symbol="A",
+                price=100.0,
+                volume=1000000,
+            )
             for i in range(1, 11)
         ]
         # 添加一个偏离均值的记录
-        records.append(DataRecord(timestamp="2024-01-11 15:00:00", symbol="A",
-                                  price=150.0, volume=1000000))
+        records.append(
+            DataRecord(
+                timestamp="2024-01-11 15:00:00", symbol="A", price=150.0, volume=1000000
+            )
+        )
         decision = agent.make_decision(records, "A", "2024-01-11 15:00:00")
         assert decision.action in ("buy", "sell", "hold")
 
@@ -278,8 +327,12 @@ class TestAgentAdapter:
         """价值策略。"""
         agent = AgentAdapter(name="test", strategy="value")
         records = [
-            DataRecord(timestamp=f"2024-01-{i:02d} 15:00:00", symbol="A",
-                       price=100.0 + i, volume=1000000)
+            DataRecord(
+                timestamp=f"2024-01-{i:02d} 15:00:00",
+                symbol="A",
+                price=100.0 + i,
+                volume=1000000,
+            )
             for i in range(1, 21)
         ]
         decision = agent.make_decision(records, "A", "2024-01-20 15:00:00")
@@ -289,8 +342,9 @@ class TestAgentAdapter:
         """情感策略。"""
         agent = AgentAdapter(name="test", strategy="sentiment")
         records = [
-            DataRecord(timestamp="2024-01-01 15:00:00", symbol="A",
-                       price=100.0, volume=1000000)
+            DataRecord(
+                timestamp="2024-01-01 15:00:00", symbol="A", price=100.0, volume=1000000
+            )
         ]
         decision = agent.make_decision(records, "A", "2024-01-01 15:00:00")
         assert decision.action in ("buy", "sell", "hold")
@@ -299,8 +353,12 @@ class TestAgentAdapter:
         """集成策略。"""
         agent = AgentAdapter(name="test", strategy="ensemble")
         records = [
-            DataRecord(timestamp=f"2024-01-{i:02d} 15:00:00", symbol="A",
-                       price=100.0 + i, volume=1000000)
+            DataRecord(
+                timestamp=f"2024-01-{i:02d} 15:00:00",
+                symbol="A",
+                price=100.0 + i,
+                volume=1000000,
+            )
             for i in range(1, 11)
         ]
         decision = agent.make_decision(records, "A", "2024-01-10 15:00:00")
@@ -317,8 +375,12 @@ class TestAgentAdapter:
         """决策记录所用数据。"""
         agent = AgentAdapter(name="test", strategy="momentum")
         records = [
-            DataRecord(timestamp=f"2024-01-{i:02d} 15:00:00", symbol="A",
-                       price=100.0 + i, volume=1000000)
+            DataRecord(
+                timestamp=f"2024-01-{i:02d} 15:00:00",
+                symbol="A",
+                price=100.0 + i,
+                volume=1000000,
+            )
             for i in range(1, 11)
         ]
         decision = agent.make_decision(records, "A", "2024-01-10 15:00:00")
@@ -328,6 +390,7 @@ class TestAgentAdapter:
 # ============================================================
 # AITraderHarness 端到端测试
 # ============================================================
+
 
 class TestAITraderHarness:
     """主评估器端到端测试。"""
@@ -408,6 +471,7 @@ class TestAITraderHarness:
 # 数据结构测试
 # ============================================================
 
+
 class TestDataStructures:
     """数据结构测试。"""
 
@@ -419,8 +483,12 @@ class TestDataStructures:
 
     def test_agent_eval_result_accuracy(self):
         """AgentEvalResult 准确率计算。"""
-        r = AgentEvalResult(agent_name="test", strategy="momentum",
-                           n_correct_decisions=8, n_total_decisions=10)
+        r = AgentEvalResult(
+            agent_name="test",
+            strategy="momentum",
+            n_correct_decisions=8,
+            n_total_decisions=10,
+        )
         assert r.accuracy == 0.8
 
     def test_agent_eval_result_zero_accuracy(self):
@@ -431,7 +499,8 @@ class TestDataStructures:
     def test_eval_report_to_dict(self):
         """EvalReport 序列化。"""
         report = AITraderEvalReport(
-            start_date="2024-01-01", end_date="2024-06-30",
+            start_date="2024-01-01",
+            end_date="2024-06-30",
             symbols=["A"],
             results=[AgentEvalResult(agent_name="test", strategy="momentum")],
         )

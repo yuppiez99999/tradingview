@@ -129,3 +129,14 @@ endlocal
 - 日志: `logs/eod_fallback.log`
 - 计划任务: `v84_PostMarket` (15:30) + `v84_EOD_Fallback` (16:00)
 - 前序: `cairn/eod-scheduled-task-fix-20260819.md`（08-19 Python 路径修复）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [EOD 计划任务静默失败 + 观察期样本补录（2026-08-19）](eod-scheduled-task-fix-20260819.md) (相似度 25%)
+- [EOD 运维经验沉淀：OpenBLAS 内存修复 + U9 端到端验证 + D7 断言增强（2026-08-07）](eod-operations-lessons-20260807.md) (相似度 15%)
+- [Shadow 数据质量闭环设计](shadow-data-quality-loop.md) (相似度 7%)
+- [盘前工作流并行化 + 情感信号注入 + 12任务定时注册](daily-workflow-parallel-sentiment-20260826.md) (相似度 7%)
+- [观察期配置脱节修复 — 2026-08-09](observation-period-config-drift-20260809.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

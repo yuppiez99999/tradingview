@@ -3,6 +3,7 @@
 被测模块: tests/eval/finmultitime_benchmark.py
 文献: #63 FinMultiTime (2025.06)
 """
+
 from __future__ import annotations
 
 import sys
@@ -22,6 +23,7 @@ from tests.eval.finmultitime_benchmark import (  # noqa: E402
 # ============================================================
 # 数据生成测试
 # ============================================================
+
 
 class TestGenerateMarketData:
     def test_sp500_generation(self):
@@ -83,6 +85,7 @@ class TestGenerateMarketData:
 # 对齐数据集测试
 # ============================================================
 
+
 class TestAlignedDataset:
     def test_generate_aligned(self):
         """生成对齐数据集."""
@@ -111,6 +114,7 @@ class TestAlignedDataset:
 # ============================================================
 # 验证测试
 # ============================================================
+
 
 class TestValidation:
     def test_validation_report(self):
@@ -148,6 +152,7 @@ class TestValidation:
 # 基准摘要测试
 # ============================================================
 
+
 class TestBenchmarkSummary:
     def test_summary(self):
         """基准摘要."""
@@ -175,6 +180,7 @@ class TestBenchmarkSummary:
 # ============================================================
 # 验收标准测试
 # ============================================================
+
 
 class TestAcceptanceCriteria:
     """LIT-5.3 验收: S&P500+HS300 对齐 + 三分辨率 + 多模态."""

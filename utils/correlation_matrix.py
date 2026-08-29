@@ -99,15 +99,10 @@ def _close_series(code: str, df: pd.DataFrame) -> pd.Series:
     # Support trade_date as index name, column, or a plain DatetimeIndex.
     if "trade_date" in df.columns:
         ts = df.set_index("trade_date")["close"]
-    elif "close" in df.columns and (
-        "trade_date" in df.index.names
-        or isinstance(df.index, pd.DatetimeIndex)
-    ):
+    elif "close" in df.columns and ("trade_date" in df.index.names or isinstance(df.index, pd.DatetimeIndex)):
         ts = df["close"]
     else:
-        raise ValueError(
-            f"No trade_date index/column for price series '{code}'"
-        )
+        raise ValueError(f"No trade_date index/column for price series '{code}'")
     return ts.sort_index()
 
 
@@ -155,14 +150,9 @@ def _rolling_correlation_matrix(
     aligned = pd.concat(returns_frames, axis=1).dropna()
     if aligned.empty:
         ranges = {
-            code: f"{closes[code].index.min()} .. {closes[code].index.max()}"
-            for code in codes
-            if len(closes[code]) > 0
+            code: f"{closes[code].index.min()} .. {closes[code].index.max()}" for code in codes if len(closes[code]) > 0
         }
-        raise ValueError(
-            f"No overlapping return data between assets. "
-            f"Date ranges: {ranges}"
-        )
+        raise ValueError(f"No overlapping return data between assets. " f"Date ranges: {ranges}")
 
     # Apply the trailing window — only use the last `window` rows of aligned data
     if len(aligned) > window:
@@ -232,7 +222,7 @@ def _fetch_price_series(
                 continue
             try:
                 loader = loader_cls()
-            except Exception as exc:  # noqa: BLE001 - loader fallback 链: 构造异常类型不可枚举(依赖缺失/网络/配置), 降级下一 loader
+            except (TypeError, ValueError, AttributeError, RuntimeError, OSError) as exc:
                 logger.debug("correlation: loader %s failed to construct: %s", name, exc)
                 continue
             if not loader.is_available():
@@ -245,7 +235,7 @@ def _fetch_price_series(
                     interval="1D",
                     fields=["trade_date", "open", "high", "low", "close", "volume"],
                 )
-            except Exception as exc:  # noqa: BLE001 - loader fallback 链: 网络/格式/接口异常不可枚举, 降级下一 loader
+            except (TypeError, ValueError, AttributeError, RuntimeError, OSError) as exc:
                 logger.warning("correlation: %s fetch via %s failed: %s", symbol, name, exc)
                 continue
             if symbol in result and not result[symbol].empty:
@@ -254,8 +244,10 @@ def _fetch_price_series(
             logger.warning("correlation: %s returned no data via %s", symbol, name)
         else:
             logger.warning(
-                "correlation: no loader in the %s chain returned data for %s "
-                "(normalized from %r)", market, symbol, code,
+                "correlation: no loader in the %s chain returned data for %s " "(normalized from %r)",
+                market,
+                symbol,
+                code,
             )
 
     return price_series
@@ -284,10 +276,7 @@ def compute_correlation_matrix(
     price_series = _fetch_price_series(codes, start_date, end_date)
 
     if len(price_series) < 2:
-        raise ValueError(
-            f"Could not fetch price data for at least 2 assets. "
-            f"Fetched: {list(price_series.keys())}"
-        )
+        raise ValueError(f"Could not fetch price data for at least 2 assets. " f"Fetched: {list(price_series.keys())}")
 
     labels, matrix = _rolling_correlation_matrix(price_series, days, method)
     return {

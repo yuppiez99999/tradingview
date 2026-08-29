@@ -47,6 +47,7 @@ class OfflineStore:
     def _init_duckdb(self) -> None:
         try:
             import duckdb
+
             db_path = self._config.offline_duckdb_path
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
             self._duckdb = duckdb.connect(db_path, read_only=False)
@@ -60,7 +61,10 @@ class OfflineStore:
             """)
             logger.info("[FeatureStore] OfflineStore duckdb connected: %s", db_path)
         except Exception as e:
-            logger.warning("[FeatureStore] OfflineStore duckdb init failed (%s), falling back to parquet", e)
+            logger.warning(
+                "[FeatureStore] OfflineStore duckdb init failed (%s), falling back to parquet",
+                e,
+            )
             self._duckdb = None
 
     def _feature_dir(self, feature_name: str) -> Path:
@@ -77,7 +81,10 @@ class OfflineStore:
         if self._config.reject_nan:
             records = [r for r in records if self._validate_no_nan(r)]
         if not records:
-            logger.warning("[FeatureStore] OfflineStore write_batch all rejected (NaN/inf): %s", feature_name)
+            logger.warning(
+                "[FeatureStore] OfflineStore write_batch all rejected (NaN/inf): %s",
+                feature_name,
+            )
             return 0
         if self._duckdb is not None:
             return self._write_duckdb(feature_name, records)
@@ -89,7 +96,7 @@ class OfflineStore:
         count = 0
         batch_size = self._config.batch_size
         for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
+            batch = records[i : i + batch_size]
             df = pd.DataFrame(batch)
             if "date" in df.columns:
                 for _, row in df.iterrows():
@@ -106,6 +113,7 @@ class OfflineStore:
 
     def _write_duckdb(self, feature_name: str, records: list[dict[str, Any]]) -> int:
         import json
+
         count = 0
         for record in records:
             date_key = str(record.get("date", ""))
@@ -121,7 +129,9 @@ class OfflineStore:
                 logger.warning("[FeatureStore] OfflineStore duckdb write failed: %s", e)
         return count
 
-    def read_range(self, feature_name: str, start_date: str, end_date: str) -> pd.DataFrame:
+    def read_range(
+        self, feature_name: str, start_date: str, end_date: str
+    ) -> pd.DataFrame:
         """读取日期范围内的特征数据. 返回空 DataFrame 表示未找到."""
         if not feature_name:
             return pd.DataFrame()
@@ -131,7 +141,9 @@ class OfflineStore:
                 return df
         return self._read_parquet(feature_name, start_date, end_date)
 
-    def _read_parquet(self, feature_name: str, start_date: str, end_date: str) -> pd.DataFrame:
+    def _read_parquet(
+        self, feature_name: str, start_date: str, end_date: str
+    ) -> pd.DataFrame:
         feature_dir = self._feature_dir(feature_name)
         if not feature_dir.exists():
             return pd.DataFrame()
@@ -142,13 +154,20 @@ class OfflineStore:
                 try:
                     frames.append(pd.read_parquet(parquet_file))
                 except Exception as e:
-                    logger.warning("[FeatureStore] OfflineStore parquet read failed %s: %s", parquet_file, e)
+                    logger.warning(
+                        "[FeatureStore] OfflineStore parquet read failed %s: %s",
+                        parquet_file,
+                        e,
+                    )
         if not frames:
             return pd.DataFrame()
         return pd.concat(frames, ignore_index=True)
 
-    def _read_duckdb(self, feature_name: str, start_date: str, end_date: str) -> pd.DataFrame:
+    def _read_duckdb(
+        self, feature_name: str, start_date: str, end_date: str
+    ) -> pd.DataFrame:
         import json
+
         try:
             result = self._duckdb.execute(
                 "SELECT date, data FROM features WHERE feature_name = ? AND date >= ? AND date <= ? ORDER BY date",
@@ -158,7 +177,9 @@ class OfflineStore:
                 return pd.DataFrame()
             records = []
             for date_key, data_json in result:
-                record = json.loads(data_json) if isinstance(data_json, str) else data_json
+                record = (
+                    json.loads(data_json) if isinstance(data_json, str) else data_json
+                )
                 if not isinstance(record, dict):
                     record = {"data": record}
                 record.setdefault("date", date_key)
@@ -173,19 +194,26 @@ class OfflineStore:
         if self._duckdb is not None:
             try:
                 import json
+
                 result = self._duckdb.execute(
                     "SELECT date, data FROM features WHERE feature_name = ? ORDER BY date DESC LIMIT 1",
                     [feature_name],
                 ).fetchall()
                 if result:
                     date_key, data_json = result[0]
-                    record = json.loads(data_json) if isinstance(data_json, str) else data_json
+                    record = (
+                        json.loads(data_json)
+                        if isinstance(data_json, str)
+                        else data_json
+                    )
                     if not isinstance(record, dict):
                         record = {"data": record}
                     record.setdefault("date", date_key)
                     return pd.DataFrame([record])
             except Exception as e:
-                logger.warning("[FeatureStore] OfflineStore duckdb read_latest failed: %s", e)
+                logger.warning(
+                    "[FeatureStore] OfflineStore duckdb read_latest failed: %s", e
+                )
         feature_dir = self._feature_dir(feature_name)
         if not feature_dir.exists():
             return pd.DataFrame()
@@ -195,7 +223,9 @@ class OfflineStore:
         try:
             return pd.read_parquet(files[0])
         except Exception as e:
-            logger.warning("[FeatureStore] OfflineStore parquet read_latest failed: %s", e)
+            logger.warning(
+                "[FeatureStore] OfflineStore parquet read_latest failed: %s", e
+            )
             return pd.DataFrame()
 
     def delete_feature(self, feature_name: str) -> int:
@@ -208,7 +238,9 @@ class OfflineStore:
                 )
                 count += result.fetchone()[0] if result else 0
             except Exception as e:
-                logger.warning("[FeatureStore] OfflineStore duckdb delete failed: %s", e)
+                logger.warning(
+                    "[FeatureStore] OfflineStore duckdb delete failed: %s", e
+                )
         feature_dir = self._feature_dir(feature_name)
         if feature_dir.exists():
             for f in feature_dir.glob("*.parquet"):
@@ -225,7 +257,9 @@ class OfflineStore:
         features = set()
         if self._duckdb is not None:
             try:
-                result = self._duckdb.execute("SELECT DISTINCT feature_name FROM features").fetchall()
+                result = self._duckdb.execute(
+                    "SELECT DISTINCT feature_name FROM features"
+                ).fetchall()
                 features.update(r[0] for r in result)
             except Exception as e:
                 logger.warning("[FeatureStore] OfflineStore duckdb list failed: %s", e)
@@ -238,6 +272,7 @@ class OfflineStore:
     @staticmethod
     def _validate_no_nan(record: dict[str, Any]) -> bool:
         import math
+
         for v in record.values():
             if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
                 return False

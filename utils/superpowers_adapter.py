@@ -28,6 +28,7 @@
 
 集成日期: 2026-08-22 (v8.6, GitHub 今日热门项目集成)
 """
+
 from __future__ import annotations
 
 import logging
@@ -37,7 +38,9 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-_SUPERPOWERS_SRC = Path(__file__).resolve().parent.parent.parent / "10_第三方项目" / "superpowers"
+_SUPERPOWERS_SRC = (
+    Path(__file__).resolve().parent.parent.parent / "10_第三方项目" / "superpowers"
+)
 _SKILLS_DIR = _SUPERPOWERS_SRC / "skills"
 
 
@@ -47,18 +50,26 @@ class SuperpowersConfig:
 
     skills_dir: Path = field(default_factory=lambda: _SKILLS_DIR)
     # Agent → 技能映射 (每位分析师适用的开发流程技能)
-    agent_skill_map: dict[str, list[str]] = field(default_factory=lambda: {
-        "warren_buffett": ["systematic-debugging", "verification-before-completion"],
-        "ben_graham": ["systematic-debugging", "writing-plans"],
-        "phil_fisher": ["brainstorming", "executing-plans"],
-        "cathie_wood": ["brainstorming", "dispatching-parallel-agents"],
-        "michael_burry": ["systematic-debugging", "receiving-code-review"],
-        "charlie_munger": ["verification-before-completion", "writing-plans"],
-        "peter_lynch": ["executing-plans", "test-driven-development"],
-        "stanley_druckenmiller": ["dispatching-parallel-agents", "systematic-debugging"],
-        "ray_dalio": ["writing-plans", "verification-before-completion"],
-        "bill_ackman": ["brainstorming", "requesting-code-review"],
-    })
+    agent_skill_map: dict[str, list[str]] = field(
+        default_factory=lambda: {
+            "warren_buffett": [
+                "systematic-debugging",
+                "verification-before-completion",
+            ],
+            "ben_graham": ["systematic-debugging", "writing-plans"],
+            "phil_fisher": ["brainstorming", "executing-plans"],
+            "cathie_wood": ["brainstorming", "dispatching-parallel-agents"],
+            "michael_burry": ["systematic-debugging", "receiving-code-review"],
+            "charlie_munger": ["verification-before-completion", "writing-plans"],
+            "peter_lynch": ["executing-plans", "test-driven-development"],
+            "stanley_druckenmiller": [
+                "dispatching-parallel-agents",
+                "systematic-debugging",
+            ],
+            "ray_dalio": ["writing-plans", "verification-before-completion"],
+            "bill_ackman": ["brainstorming", "requesting-code-review"],
+        }
+    )
 
 
 class SuperpowersAdapter:
@@ -148,7 +159,9 @@ class SuperpowersAdapter:
 _superpowers_instance: Optional[SuperpowersAdapter] = None
 
 
-def get_superpowers_adapter(config: Optional[SuperpowersConfig] = None) -> SuperpowersAdapter:
+def get_superpowers_adapter(
+    config: Optional[SuperpowersConfig] = None,
+) -> SuperpowersAdapter:
     """获取 superpowers 适配器单例."""
     global _superpowers_instance
     if _superpowers_instance is None:

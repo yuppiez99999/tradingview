@@ -1,5 +1,3 @@
-
-
 import json
 import logging
 from typing import Literal
@@ -19,6 +17,7 @@ from quant_modules.ai_hedge_fund.utils.progress import progress
 # 将新闻标题净化后再喂给 LLM, 防御提示注入/同形字/隐藏文本攻击
 try:
     from utils.adversarial_news_guard import AdversarialNewsGuard
+
     _news_guard = AdversarialNewsGuard()
 except (ImportError, ModuleNotFoundError, OSError, AttributeError):
     _news_guard = None
@@ -71,57 +70,76 @@ def news_sentiment_agent(state: AgentState, agent_id: str = "news_sentiment_agen
         if company_news:
             # Check the 10 most recent articles
             recent_articles = company_news[:10]
-            articles_without_sentiment = [news for news in recent_articles if news.sentiment is None]
+            articles_without_sentiment = [
+                news for news in recent_articles if news.sentiment is None
+            ]
 
             # Analyze only the 5 most recent articles without sentiment to reduce LLM calls
             if articles_without_sentiment:
-              # We only take the first 5 articles, but this is configurable
-              num_articles_to_analyze = 5
-              articles_to_analyze = articles_without_sentiment[:num_articles_to_analyze]
-              progress.update_status(agent_id, ticker, f"Analyzing sentiment for {len(articles_to_analyze)} articles")
-
-              for idx, news in enumerate(articles_to_analyze):
-                # We analyze based on title, but can also pass in the entire article text,
-                # but this is more expensive and requires extracting the text from the article.
-                # Note: this is an opportunity for improvement!
-                progress.update_status(agent_id, ticker, f"Analyzing sentiment for article {idx + 1} of {len(articles_to_analyze)}")
-                # HIGH-2: 净化新闻标题防提示注入 (激活 adversarial_news_guard)
-                headline = news.title
-                if _news_guard is not None:
-                    try:
-                        _sanitized = _news_guard.sanitize(news.title)
-                        if not _sanitized.is_safe:
-                            logger.warning(
-                                "注入威胁拦截 ticker=%s threat=%s, 降级neutral",
-                                ticker, _sanitized.report.threat_types,
-                            )
-                            news.sentiment = "neutral"
-                            sentiment_confidences[id(news)] = 0
-                            continue
-                        headline = _sanitized.clean_text
-                    except (ValueError, TypeError, AttributeError, RuntimeError):
-                        pass
-                prompt = (
-                    f"Please analyze the sentiment of the following news headline "
-                    f"with the following context: "
-                    f"The stock is {ticker}. "
-                    f"Determine if sentiment is 'positive', 'negative', or 'neutral' for the stock {ticker} only. "
-                    f"Also provide a confidence score for your prediction from 0 to 100. "
-                    f"Respond in JSON format.\n\n"
-                    f"Headline: {headline}"
+                # We only take the first 5 articles, but this is configurable
+                num_articles_to_analyze = 5
+                articles_to_analyze = articles_without_sentiment[
+                    :num_articles_to_analyze
+                ]
+                progress.update_status(
+                    agent_id,
+                    ticker,
+                    f"Analyzing sentiment for {len(articles_to_analyze)} articles",
                 )
-                response = call_llm(prompt, Sentiment, agent_name=agent_id, state=state)
-                if response:
-                    news.sentiment = response.sentiment.lower()
-                    sentiment_confidences[id(news)] = response.confidence
-                else:
-                    news.sentiment = "neutral"
-                    sentiment_confidences[id(news)] = 0
-                sentiments_classified_by_llm += 1
+
+                for idx, news in enumerate(articles_to_analyze):
+                    # We analyze based on title, but can also pass in the entire article text,
+                    # but this is more expensive and requires extracting the text from the article.
+                    # Note: this is an opportunity for improvement!
+                    progress.update_status(
+                        agent_id,
+                        ticker,
+                        f"Analyzing sentiment for article {idx + 1} of {len(articles_to_analyze)}",
+                    )
+                    # HIGH-2: 净化新闻标题防提示注入 (激活 adversarial_news_guard)
+                    headline = news.title
+                    if _news_guard is not None:
+                        try:
+                            _sanitized = _news_guard.sanitize(news.title)
+                            if not _sanitized.is_safe:
+                                logger.warning(
+                                    "注入威胁拦截 ticker=%s threat=%s, 降级neutral",
+                                    ticker,
+                                    _sanitized.report.threat_types,
+                                )
+                                news.sentiment = "neutral"
+                                sentiment_confidences[id(news)] = 0
+                                continue
+                            headline = _sanitized.clean_text
+                        except (ValueError, TypeError, AttributeError, RuntimeError):
+                            pass
+                    prompt = (
+                        f"Please analyze the sentiment of the following news headline "
+                        f"with the following context: "
+                        f"The stock is {ticker}. "
+                        f"Determine if sentiment is 'positive', 'negative', or 'neutral' for the stock {ticker} only. "
+                        f"Also provide a confidence score for your prediction from 0 to 100. "
+                        f"Respond in JSON format.\n\n"
+                        f"Headline: {headline}"
+                    )
+                    response = call_llm(
+                        prompt, Sentiment, agent_name=agent_id, state=state
+                    )
+                    if response:
+                        news.sentiment = response.sentiment.lower()
+                        sentiment_confidences[id(news)] = response.confidence
+                    else:
+                        news.sentiment = "neutral"
+                        sentiment_confidences[id(news)] = 0
+                    sentiments_classified_by_llm += 1
 
             # Aggregate sentiment across all articles
             sentiment = pd.Series([n.sentiment for n in company_news]).dropna()
-            news_signals = np.where(sentiment == "negative","bearish", np.where(sentiment == "positive", "bullish", "neutral")).tolist()
+            news_signals = np.where(
+                sentiment == "negative",
+                "bearish",
+                np.where(sentiment == "positive", "bullish", "neutral"),
+            ).tolist()
 
         progress.update_status(agent_id, ticker, "Aggregating signals")
 
@@ -144,7 +162,7 @@ def news_sentiment_agent(state: AgentState, agent_id: str = "news_sentiment_agen
             overall_signal=overall_signal,
             bullish_signals=bullish_signals,
             bearish_signals=bearish_signals,
-            total_signals=total_signals
+            total_signals=total_signals,
         )
 
         # Create reasoning for the news sentiment
@@ -169,7 +187,9 @@ def news_sentiment_agent(state: AgentState, agent_id: str = "news_sentiment_agen
             "reasoning": reasoning,
         }
 
-        progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))
+        progress.update_status(
+            agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4)
+        )
 
     message = HumanMessage(
         content=json.dumps(sentiment_analysis),
@@ -197,7 +217,7 @@ def _calculate_confidence_score(
     overall_signal: str,
     bullish_signals: int,
     bearish_signals: int,
-    total_signals: int
+    total_signals: int,
 ) -> float:
     """
     Calculate confidence score for a sentiment signal.
@@ -223,11 +243,13 @@ def _calculate_confidence_score(
     if sentiment_confidences:
         # Get articles that match the overall signal
         matching_articles = [
-            news for news in company_news
-            if news.sentiment and (
-                (overall_signal == "bullish" and news.sentiment == "positive") or
-                (overall_signal == "bearish" and news.sentiment == "negative") or
-                (overall_signal == "neutral" and news.sentiment == "neutral")
+            news
+            for news in company_news
+            if news.sentiment
+            and (
+                (overall_signal == "bullish" and news.sentiment == "positive")
+                or (overall_signal == "bearish" and news.sentiment == "negative")
+                or (overall_signal == "neutral" and news.sentiment == "neutral")
             )
         ]
 
@@ -241,7 +263,9 @@ def _calculate_confidence_score(
         if llm_confidences:
             # Weight: 70% from LLM confidence scores, 30% from signal proportion
             avg_llm_confidence = sum(llm_confidences) / len(llm_confidences)
-            signal_proportion = (max(bullish_signals, bearish_signals) / total_signals) * 100
+            signal_proportion = (
+                max(bullish_signals, bearish_signals) / total_signals
+            ) * 100
             return round(0.7 * avg_llm_confidence + 0.3 * signal_proportion, 2)
 
     # Fallback to proportion-based confidence

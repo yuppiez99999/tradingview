@@ -13,7 +13,9 @@ import requests
 API_KEY = os.environ.get("APIZERO_API_KEY", "")
 BASE_URL = "https://api.caiyunapp.com/v2.6"
 if not API_KEY:
-    print("[WARN] 未设置 APIZERO_API_KEY 环境变量, 探测将失败. 请先 export/set APIZERO_API_KEY=<key>")
+    print(
+        "[WARN] 未设置 APIZERO_API_KEY 环境变量, 探测将失败. 请先 export/set APIZERO_API_KEY=<key>"
+    )
 
 # 关键标的地理位置 (经度, 纬度)
 LOCATIONS = {
@@ -64,10 +66,18 @@ def probe_realtime(location: str, name: str) -> dict:
                 print(f"  降水量: {precip}")
 
             return {"ok": True, "data": data, "fields": list(realtime.keys())}
-        else:
-            print(f"  ❌ 失败: {resp.text[:200]}")
-            return {"ok": False, "error": resp.text}
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        print(f"  ❌ 失败: {resp.text[:200]}")
+        return {"ok": False, "error": resp.text}
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"  ❌ 异常: {e}")
         return {"ok": False, "error": str(e)}
@@ -86,7 +96,9 @@ def probe_hourly(location: str, name: str) -> dict:
             hourly = result.get("hourly", {})
 
             # 检查可用的预报类型
-            available = [k for k in hourly.keys() if isinstance(hourly[k], list) and hourly[k]]
+            available = [
+                k for k in hourly.keys() if isinstance(hourly[k], list) and hourly[k]
+            ]
             print(f"  ✅ 可用, 预报类型: {available}")
 
             # 抽样第一个温度点
@@ -95,8 +107,12 @@ def probe_hourly(location: str, name: str) -> dict:
                 first = temp_data[0]
                 last = temp_data[-1]
                 print(f"  温度预报点数: {len(temp_data)}")
-                print(f"  起点: {first.get('datetime', '?')} → {first.get('value', '?')}℃")
-                print(f"  终点: {last.get('datetime', '?')} → {last.get('value', '?')}℃")
+                print(
+                    f"  起点: {first.get('datetime', '?')} → {first.get('value', '?')}℃"
+                )
+                print(
+                    f"  终点: {last.get('datetime', '?')} → {last.get('value', '?')}℃"
+                )
 
                 # 检查时间覆盖范围
                 times = [d.get("datetime", "") for d in temp_data if "datetime" in d]
@@ -114,10 +130,18 @@ def probe_hourly(location: str, name: str) -> dict:
                 print(f"  降水预报点数: {len(precip_data)}")
 
             return {"ok": True, "forecast_types": available, "points": len(temp_data)}
-        else:
-            print(f"  ❌ 失败: {resp.status_code}")
-            return {"ok": False}
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        print(f"  ❌ 失败: {resp.status_code}")
+        return {"ok": False}
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"  ❌ 异常: {e}")
         return {"ok": False}
@@ -135,7 +159,9 @@ def probe_daily(location: str, name: str) -> dict:
             result = data.get("result", {})
             daily = result.get("daily", {})
 
-            available = [k for k in daily.keys() if isinstance(daily[k], list) and daily[k]]
+            available = [
+                k for k in daily.keys() if isinstance(daily[k], list) and daily[k]
+            ]
             print(f"  ✅ 可用, 预报类型: {available}")
 
             # 抽样
@@ -143,7 +169,9 @@ def probe_daily(location: str, name: str) -> dict:
             if temp_15:
                 print(f"  15天温度: {len(temp_15)} 天")
                 for d in temp_15[:3]:
-                    print(f"    {d.get('date', '?')}: {d.get('max', '?')}℃ / {d.get('min', '?')}℃")
+                    print(
+                        f"    {d.get('date', '?')}: {d.get('max', '?')}℃ / {d.get('min', '?')}℃"
+                    )
 
             # 风力
             wind_15 = daily.get("wind", [])
@@ -165,10 +193,22 @@ def probe_daily(location: str, name: str) -> dict:
             if uv_15:
                 print(f"  紫外线预报: {len(uv_15)} 天")
 
-            return {"ok": True, "forecast_types": available, "days": len(temp_15) if temp_15 else 0}
-        else:
-            return {"ok": False}
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            return {
+                "ok": True,
+                "forecast_types": available,
+                "days": len(temp_15) if temp_15 else 0,
+            }
+        return {"ok": False}
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {"ok": False, "error": str(e)}
 
@@ -200,9 +240,17 @@ def probe_minutely(location: str, name: str) -> dict:
                 print(f"  首条: {summary[0] if summary else 'N/A'}")
 
             return {"ok": True, "fields": available}
-        else:
-            return {"ok": False}
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        return {"ok": False}
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {"ok": False, "error": str(e)}
 
@@ -243,7 +291,9 @@ def main():
         minutely_ok = res["minutely"].get("ok", False)
 
         status = "✅" if all([realtime_ok, hourly_ok, daily_ok, minutely_ok]) else "⚠️"
-        print(f"  {status} {name}: 实时={realtime_ok}, 小时={hourly_ok}, 天={daily_ok}, 分钟={minutely_ok}")
+        print(
+            f"  {status} {name}: 实时={realtime_ok}, 小时={hourly_ok}, 天={daily_ok}, 分钟={minutely_ok}"
+        )
 
         if not all([realtime_ok, hourly_ok, daily_ok, minutely_ok]):
             all_ok = False

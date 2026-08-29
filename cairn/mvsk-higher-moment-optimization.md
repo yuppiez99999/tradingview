@@ -371,3 +371,14 @@ max  w'μ - (δ/2) TE² + γ_s · skew(w'r) - γ_k · exkurt(w'r)
 - **P4**：✅ 完成。995 日跨周期验证：BL+MVSK(378) **4/4 段跑赢 BL+MV**（Δ夏普 +0.22），γ_s=0.1 泛化成功，γ_k 可调到 0.1（夏普 +0.683）。**MVSK 生产就绪**。
 
 **下一步行动**：09-05 后接入 `utils/universe/scheduler.py` 中线层用 BL+MVSK(378, γ_s=0.1, γ_k=0.1)，短线层用 BL+MV(252)。冷启动期 378 日。不需要 regime 检测器。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [Shadow 30 天验证 (W7.2.8 + W7.2.9)](shadow-30day-validation.md) (相似度 27%)
+- [qlib 选股模型回测验证与 V9 对比](qlib-backtest-validation.md) (相似度 16%)
+- [对冲方案 v8.7 优化 — RegimeFolio 动态阈值 + 紧急跨级 + IV 感知 + Deep Hedging + 多智能体](hedge-v87-regime-adaptive-20260827.md) (相似度 15%)
+- [A股ETF + 期权对冲 + 自我再平衡子模型](etf-option-hedge-model.md) (相似度 12%)
+- [回测标准](backtest-standards.md) (相似度 12%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

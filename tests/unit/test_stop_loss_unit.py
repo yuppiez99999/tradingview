@@ -35,7 +35,11 @@ class TestStopLossMonitorInit:
         assert m.max_single_loss == 50_000
 
     def test_custom(self):
-        m = StopLossMonitor(warning_threshold_pct=-8, critical_threshold_pct=-3, trailing_drawdown_pct=15)
+        m = StopLossMonitor(
+            warning_threshold_pct=-8,
+            critical_threshold_pct=-3,
+            trailing_drawdown_pct=15,
+        )
         assert m.warning_threshold == 8
         assert m.critical_threshold == 3
         assert m.trailing_drawdown_pct == 15
@@ -126,8 +130,12 @@ class TestCheckSingle:
     def test_normal_case(self):
         m = StopLossMonitor()
         result = m.check_single(
-            code="600276", name="药明康德", current_price=100, base_price=90,
-            stop_loss_pct=-15, take_profit_pct=50,
+            code="600276",
+            name="药明康德",
+            current_price=100,
+            base_price=90,
+            stop_loss_pct=-15,
+            take_profit_pct=50,
         )
         assert result["code"] == "600276"
         assert result["pnl_pct"] == pytest.approx(11.11, abs=0.1)
@@ -136,8 +144,12 @@ class TestCheckSingle:
     def test_triggered(self):
         m = StopLossMonitor()
         result = m.check_single(
-            code="A", name="A", current_price=80, base_price=100,
-            stop_loss_pct=-15, take_profit_pct=50,
+            code="A",
+            name="A",
+            current_price=80,
+            base_price=100,
+            stop_loss_pct=-15,
+            take_profit_pct=50,
         )
         assert result["alert_level"] == "triggered"
         assert result["stop_loss"]["is_triggered"] is True
@@ -145,17 +157,26 @@ class TestCheckSingle:
     def test_invalid_price(self):
         m = StopLossMonitor()
         result = m.check_single(
-            code="A", name="A", current_price=None, base_price=100,
-            stop_loss_pct=-15, take_profit_pct=50,
+            code="A",
+            name="A",
+            current_price=None,
+            base_price=100,
+            stop_loss_pct=-15,
+            take_profit_pct=50,
         )
         assert result["status"] == "unknown"
 
     def test_with_explicit_prices(self):
         m = StopLossMonitor()
         result = m.check_single(
-            code="A", name="A", current_price=95, base_price=100,
-            stop_loss_pct=-15, take_profit_pct=50,
-            stop_loss_price=85, take_profit_price=150,
+            code="A",
+            name="A",
+            current_price=95,
+            base_price=100,
+            stop_loss_pct=-15,
+            take_profit_pct=50,
+            stop_loss_price=85,
+            take_profit_price=150,
         )
         assert result["stop_loss"]["trigger_price"] == 85
         assert result["take_profit"]["trigger_price"] == 150
@@ -163,15 +184,27 @@ class TestCheckSingle:
     def test_trailing_stop(self):
         m = StopLossMonitor()
         result = m.check_single(
-            code="A", name="A", current_price=110, base_price=100,
-            stop_loss_pct=-15, take_profit_pct=50,
-            high_price=130, trailing_stop=True,
+            code="A",
+            name="A",
+            current_price=110,
+            base_price=100,
+            stop_loss_pct=-15,
+            take_profit_pct=50,
+            high_price=130,
+            trailing_stop=True,
         )
         assert result["trailing_active"] is True
 
     def test_history_recorded(self):
         m = StopLossMonitor()
-        m.check_single(code="A", name="A", current_price=100, base_price=90, stop_loss_pct=-15, take_profit_pct=50)
+        m.check_single(
+            code="A",
+            name="A",
+            current_price=100,
+            base_price=90,
+            stop_loss_pct=-15,
+            take_profit_pct=50,
+        )
         assert len(m.alerts_history) == 1
 
 
@@ -179,8 +212,20 @@ class TestCheckAll:
     def test_basic(self):
         m = StopLossMonitor()
         rules = [
-            {"code": "A", "name": "A", "base_price": 100, "stop_loss_pct": -15, "take_profit_pct": 50},
-            {"code": "B", "name": "B", "base_price": 200, "stop_loss_pct": -10, "take_profit_pct": 30},
+            {
+                "code": "A",
+                "name": "A",
+                "base_price": 100,
+                "stop_loss_pct": -15,
+                "take_profit_pct": 50,
+            },
+            {
+                "code": "B",
+                "name": "B",
+                "base_price": 200,
+                "stop_loss_pct": -10,
+                "take_profit_pct": 30,
+            },
         ]
         quotes = {"A": {"price": 90}, "B": {"price": 210}}
         results = m.check_all(rules, quotes)
@@ -209,11 +254,27 @@ class TestGenerateRiskReport:
 
     def test_with_alerts(self):
         alerts = [
-            {"code": "A", "name": "StockA", "alert_level": "normal", "current_price": 100,
-             "pnl_pct": 5, "stop_loss": {"trigger_price": 85}, "distance_to_sl_pct": 15, "risk_score": 10},
-            {"code": "B", "name": "StockB", "alert_level": "triggered", "current_price": 80,
-             "pnl_pct": -20, "stop_loss": {"trigger_price": 85}, "distance_to_sl_pct": -5,
-             "risk_score": 80, "action_suggestion": "立即执行止损"},
+            {
+                "code": "A",
+                "name": "StockA",
+                "alert_level": "normal",
+                "current_price": 100,
+                "pnl_pct": 5,
+                "stop_loss": {"trigger_price": 85},
+                "distance_to_sl_pct": 15,
+                "risk_score": 10,
+            },
+            {
+                "code": "B",
+                "name": "StockB",
+                "alert_level": "triggered",
+                "current_price": 80,
+                "pnl_pct": -20,
+                "stop_loss": {"trigger_price": 85},
+                "distance_to_sl_pct": -5,
+                "risk_score": 80,
+                "action_suggestion": "立即执行止损",
+            },
         ]
         report = generate_risk_report(alerts)
         assert "监控总数: 2" in report
@@ -223,8 +284,16 @@ class TestGenerateRiskReport:
 
     def test_overall_assessment(self):
         alerts = [
-            {"code": "A", "name": "A", "alert_level": "normal", "current_price": 100,
-             "pnl_pct": 5, "stop_loss": {"trigger_price": 85}, "distance_to_sl_pct": 15, "risk_score": 70},
+            {
+                "code": "A",
+                "name": "A",
+                "alert_level": "normal",
+                "current_price": 100,
+                "pnl_pct": 5,
+                "stop_loss": {"trigger_price": 85},
+                "distance_to_sl_pct": 15,
+                "risk_score": 70,
+            },
         ]
         report = generate_risk_report(alerts)
         assert "高风险" in report

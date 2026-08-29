@@ -236,3 +236,14 @@ run_startup_selfcheck() → available=3/3, overall_ok=true
 - `cairn/github-integration-wave6.md` — Wave6 集成经验
 - `cairn/github-trending-wave9-20260819.md` — Wave9 trending 统计
 - `cairn/third-party-integration-20260821.md` — 第三方项目集成总览
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [docs/1 八项目集成 — Sprint A 知识专题](docs1-integration-sprint-a-20260817.md) (相似度 15%)
+- [第三方项目集成专题 — 2026-08-21](third-party-integration-20260821.md) (相似度 11%)
+- [第三方项目批量集成专题 — 2026-08-22](third-party-integration-batch-20260822.md) (相似度 11%)
+- [华为云 ModelArts 云端训练部署](cloud-modelarts-deployment.md) (相似度 11%)
+- [Wave 9：GitHub 热榜项目集成决策沉淀](github-trending-wave9-20260819.md) (相似度 10%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

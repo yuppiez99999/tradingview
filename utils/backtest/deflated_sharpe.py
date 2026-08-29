@@ -110,8 +110,11 @@ def _expected_max_sr(
         return 0.0
     z_max = np.sqrt(2 * np.log(max(n_trials, 2)))
     # 偏度/峰度修正 (Bailey & López de Prado)
-    correction = 1 + (skewness / 6) * (z_max**2 - 1) + \
-        ((kurtosis - 3) / 24) * (z_max**3 - 3 * z_max)
+    correction = (
+        1
+        + (skewness / 6) * (z_max**2 - 1)
+        + ((kurtosis - 3) / 24) * (z_max**3 - 3 * z_max)
+    )
     return float(z_max * correction / np.sqrt(max(n_observations, 1)))
 
 
@@ -171,7 +174,13 @@ def deflated_sharpe_ratio(
 
     logger.info(
         "DSR: Sharpe=%.3f, E[SR_max]=%.4f, DSR=%.4f, p=%.4f, n_trials=%d, n_obs=%d → %s",
-        sr, e_max, dsr, p_value, n_trials, n, "PASS" if is_pass else "FAIL",
+        sr,
+        e_max,
+        dsr,
+        p_value,
+        n_trials,
+        n,
+        "PASS" if is_pass else "FAIL",
     )
 
     return DSRResult(

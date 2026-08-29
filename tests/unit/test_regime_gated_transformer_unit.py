@@ -3,6 +3,7 @@
 被测模块: utils/regime_gated_transformer.py
 文献: #58 Adaptive Financial Transformer (Regime-Gated) (2026.06)
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,6 +31,7 @@ from utils.regime_gated_transformer import (  # noqa: E402
 # 枚举测试
 # ============================================================
 
+
 class TestEnums:
     def test_semantic_classes(self):
         assert len(SemanticClass) == 11
@@ -43,6 +45,7 @@ class TestEnums:
 # ============================================================
 # 特征语义映射测试
 # ============================================================
+
 
 class TestFeatureSemanticMapper:
     def test_map_single_sample(self):
@@ -87,6 +90,7 @@ class TestFeatureSemanticMapper:
 # 制度检测测试
 # ============================================================
 
+
 class TestRegimeDetector:
     def test_detect_returns_regime(self):
         detector = RegimeDetector()
@@ -129,6 +133,7 @@ class TestRegimeDetector:
 # 制度门控 Transformer 测试
 # ============================================================
 
+
 class TestRegimeGatedTransformer:
     def test_forward_returns_output(self):
         transformer = RegimeGatedTransformer()
@@ -168,6 +173,7 @@ class TestRegimeGatedTransformer:
 # ============================================================
 # 自适应金融 Transformer 测试
 # ============================================================
+
 
 class TestAdaptiveFinancialTransformer:
     def test_forward_basic(self):
@@ -218,6 +224,7 @@ class TestAdaptiveFinancialTransformer:
 # ============================================================
 # 验收标准测试
 # ============================================================
+
 
 class TestAcceptanceCriteria:
     """LIT-5.1 验收: 95特征→11语义类 + 制度门控 + 复杂度降≥10%."""

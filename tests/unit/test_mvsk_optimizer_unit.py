@@ -9,6 +9,7 @@
 - return_matrix 列数不匹配抛 ValueError
 - γ_s=0 且 γ_k=0 时即使传 return_matrix 也不启用
 """
+
 from __future__ import annotations
 
 import math
@@ -28,7 +29,10 @@ from utils.risk_budget_optimizer import RiskBudgetOptimizer  # noqa: E402
 # 测试数据构造
 # ============================================================
 
-def _make_skewed_returns(n_assets: int = 10, n_days: int = 252, seed: int = 7) -> np.ndarray:
+
+def _make_skewed_returns(
+    n_assets: int = 10, n_days: int = 252, seed: int = 7
+) -> np.ndarray:
     """生成含负偏度+肥尾的收益矩阵 (模拟 A 股涨跌停截断).
 
     混合正态: 85% N(μ, σ²) + 15% N(μ-3σ, (2σ)²) → 负偏度 + 超额峰度.
@@ -71,6 +75,7 @@ def _portfolio_exkurt(returns: np.ndarray, w: np.ndarray) -> float:
 # ============================================================
 # 向后兼容测试
 # ============================================================
+
 
 class TestMVSKBackwardCompat:
     def test_no_return_matrix_degrades_to_mv(self):
@@ -122,6 +127,7 @@ class TestMVSKBackwardCompat:
 # ============================================================
 # MVSK 启用与诊断字段测试
 # ============================================================
+
 
 class TestMVSKEnabled:
     def test_mvsk_enabled_fills_diagnostics(self):
@@ -183,6 +189,7 @@ class TestMVSKEnabled:
 # 高阶矩优化效果测试
 # ============================================================
 
+
 class TestMVSKEffect:
     def test_skew_aversion_improves_skew(self):
         """偏度厌恶应使 MVSK 组合偏度 >= MV 组合偏度 (鼓励正偏度/抑制负偏度)."""
@@ -195,22 +202,32 @@ class TestMVSKEffect:
         opt = RiskBudgetOptimizer(risk_aversion=2.5)
 
         result_mv = opt.optimize(
-            symbols=symbols, expected_returns=mu, cov_matrix=cov,
-            benchmark_weights=w_bench, max_tracking_error=0.06, max_weight=0.25,
+            symbols=symbols,
+            expected_returns=mu,
+            cov_matrix=cov,
+            benchmark_weights=w_bench,
+            max_tracking_error=0.06,
+            max_weight=0.25,
         )
         result_mvsk = opt.optimize(
-            symbols=symbols, expected_returns=mu, cov_matrix=cov,
-            benchmark_weights=w_bench, max_tracking_error=0.06, max_weight=0.25,
-            return_matrix=R, skew_aversion=2.0, kurtosis_aversion=0.0,
+            symbols=symbols,
+            expected_returns=mu,
+            cov_matrix=cov,
+            benchmark_weights=w_bench,
+            max_tracking_error=0.06,
+            max_weight=0.25,
+            return_matrix=R,
+            skew_aversion=2.0,
+            kurtosis_aversion=0.0,
         )
 
         # 用外部函数算 MV 权重的实际偏度 (result_mv.portfolio_skewness=0 因未启用 MVSK)
         mv_skew = _portfolio_skew(R, result_mv.optimal_weights)
         mvsk_skew = result_mvsk.portfolio_skewness
         # MVSK 偏度应不差于 MV (允许数值噪声, 给 1e-3 容差)
-        assert mvsk_skew >= mv_skew - 1e-3, (
-            f"MVSK 偏度 {mvsk_skew:.4f} < MV 偏度 {mv_skew:.4f}"
-        )
+        assert (
+            mvsk_skew >= mv_skew - 1e-3
+        ), f"MVSK 偏度 {mvsk_skew:.4f} < MV 偏度 {mv_skew:.4f}"
 
     def test_kurtosis_aversion_improves_kurtosis(self):
         """峰度厌恶应使 MVSK 组合超额峰度 <= MV 组合超额峰度."""
@@ -223,26 +240,37 @@ class TestMVSKEffect:
         opt = RiskBudgetOptimizer(risk_aversion=2.5)
 
         result_mv = opt.optimize(
-            symbols=symbols, expected_returns=mu, cov_matrix=cov,
-            benchmark_weights=w_bench, max_tracking_error=0.06, max_weight=0.25,
+            symbols=symbols,
+            expected_returns=mu,
+            cov_matrix=cov,
+            benchmark_weights=w_bench,
+            max_tracking_error=0.06,
+            max_weight=0.25,
         )
         result_mvsk = opt.optimize(
-            symbols=symbols, expected_returns=mu, cov_matrix=cov,
-            benchmark_weights=w_bench, max_tracking_error=0.06, max_weight=0.25,
-            return_matrix=R, skew_aversion=0.0, kurtosis_aversion=1.0,
+            symbols=symbols,
+            expected_returns=mu,
+            cov_matrix=cov,
+            benchmark_weights=w_bench,
+            max_tracking_error=0.06,
+            max_weight=0.25,
+            return_matrix=R,
+            skew_aversion=0.0,
+            kurtosis_aversion=1.0,
         )
 
         mv_exkurt = _portfolio_exkurt(R, result_mv.optimal_weights)
         mvsk_exkurt = result_mvsk.portfolio_excess_kurtosis
         # MVSK 峰度应不差于 MV
-        assert mvsk_exkurt <= mv_exkurt + 1e-3, (
-            f"MVSK 峰度 {mvsk_exkurt:.4f} > MV 峰度 {mv_exkurt:.4f}"
-        )
+        assert (
+            mvsk_exkurt <= mv_exkurt + 1e-3
+        ), f"MVSK 峰度 {mvsk_exkurt:.4f} > MV 峰度 {mv_exkurt:.4f}"
 
 
 # ============================================================
 # 异常处理测试
 # ============================================================
+
 
 class TestMVSKErrors:
     def test_return_matrix_wrong_columns_raises(self):

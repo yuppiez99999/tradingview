@@ -8,6 +8,7 @@
   - compute_ic (正常/数据不足)
 使用真实 sklearn + 小数据集, mock factor_library.
 """
+
 from __future__ import annotations
 
 import sys
@@ -265,8 +266,11 @@ class TestGenerate:
     def test_generate_zero_signal_when_all_zero_factors(self, generator):
         # 全零因子矩阵 → raw_signal 全零 → normalized 保持零
         dates = pd.date_range("2026-01-01", periods=60, freq="B")
-        X = pd.DataFrame(np.zeros((60, 5)), index=dates,  # noqa: N806
-                         columns=["momentum", "volatility", "value", "quality", "size"])
+        X = pd.DataFrame(
+            np.zeros((60, 5)),
+            index=dates,  # noqa: N806
+            columns=["momentum", "volatility", "value", "quality", "size"],
+        )
         signal = generator.generate(X, None, retrain=False)
         assert (signal == 0.0).all()
 

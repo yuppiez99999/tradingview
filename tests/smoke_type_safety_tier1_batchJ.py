@@ -7,6 +7,7 @@ Modules:
   - attribution/brinson_attribution (2: 冗余 ignore 移除, PEP 604 已启用)
   - attribution/factor_attribution (2: 冗余 ignore 移除, list[str] 已注解)
 """
+
 from __future__ import annotations
 
 import importlib
@@ -62,7 +63,9 @@ try:
     # _check_pit_violations 使用 pit_checker importlib 导入
     assert hasattr(evaluator, "_check_pit_violations"), "_check_pit_violations missing"
     # _compute_wf_sharpe_decay 使用 walk_forward importlib 导入
-    assert hasattr(evaluator, "_compute_wf_sharpe_decay"), "_compute_wf_sharpe_decay missing"
+    assert hasattr(
+        evaluator, "_compute_wf_sharpe_decay"
+    ), "_compute_wf_sharpe_decay missing"
     # _compute_dsr 使用 deflated_sharpe importlib 导入
     assert hasattr(evaluator, "_compute_dsr"), "_compute_dsr missing"
     # 验证 walk_forward 衰减计算 (不依赖外部包时降级返回 -1.0)
@@ -109,7 +112,9 @@ except Exception as e:  # noqa: BLE001
 print("\n=== Smoke Test 5: BrinsonAttribution 冗余 ignore 移除 ===")
 try:
     br_mod = modules["br"]
-    assert hasattr(br_mod, "BrinsonAttributionManager"), "BrinsonAttributionManager missing"
+    assert hasattr(
+        br_mod, "BrinsonAttributionManager"
+    ), "BrinsonAttributionManager missing"
     # 验证 attribute 方法签名接受 dict[str, float] | None 参数
     import inspect
 

@@ -14,6 +14,7 @@ ECC mle-workflow MLE-10 修复验证:
     8. DelayedLabelTracker 记录预测 + 延迟标签观测 + IC 计算
     9. PredictionRecord / DelayedMetrics 不可变性
 """
+
 from __future__ import annotations
 
 import json
@@ -57,14 +58,16 @@ def baseline_panel():
     """基线 panel (含 3 个特征, 100 行)."""
     np.random.seed(42)
     n = 100
-    return pd.DataFrame({
-        "code": [f"TEST{i:03d}.SZ" for i in range(n)] * 2,
-        "date": ["2026-01-01"] * n + ["2026-01-02"] * n,
-        "MOM_5D": np.random.randn(2 * n) * 0.02,
-        "VOL_20D": np.abs(np.random.randn(2 * n)) * 0.01,
-        "RSI_14D": np.random.uniform(20, 80, 2 * n),
-        "y": np.random.randn(2 * n) * 0.01,
-    })
+    return pd.DataFrame(
+        {
+            "code": [f"TEST{i:03d}.SZ" for i in range(n)] * 2,
+            "date": ["2026-01-01"] * n + ["2026-01-02"] * n,
+            "MOM_5D": np.random.randn(2 * n) * 0.02,
+            "VOL_20D": np.abs(np.random.randn(2 * n)) * 0.01,
+            "RSI_14D": np.random.uniform(20, 80, 2 * n),
+            "y": np.random.randn(2 * n) * 0.01,
+        }
+    )
 
 
 @pytest.fixture
@@ -77,14 +80,16 @@ def drifted_panel(baseline_panel):
     rsi_no_drift = np.random.uniform(20, 80, 2 * n)
     # 切回 123 生成漂移特征
     np.random.seed(123)
-    return pd.DataFrame({
-        "code": [f"TEST{i:03d}.SZ" for i in range(n)] * 2,
-        "date": ["2026-07-28"] * n + ["2026-07-29"] * n,
-        "MOM_5D": np.random.randn(2 * n) * 0.02 + 0.5,  # 均值漂移 0.5
-        "VOL_20D": np.abs(np.random.randn(2 * n)) * 0.05,  # 方差扩大 5x
-        "RSI_14D": rsi_no_drift,  # 无漂移 (与 baseline 同种子同分布)
-        "y": np.random.randn(2 * n) * 0.01,
-    })
+    return pd.DataFrame(
+        {
+            "code": [f"TEST{i:03d}.SZ" for i in range(n)] * 2,
+            "date": ["2026-07-28"] * n + ["2026-07-29"] * n,
+            "MOM_5D": np.random.randn(2 * n) * 0.02 + 0.5,  # 均值漂移 0.5
+            "VOL_20D": np.abs(np.random.randn(2 * n)) * 0.05,  # 方差扩大 5x
+            "RSI_14D": rsi_no_drift,  # 无漂移 (与 baseline 同种子同分布)
+            "y": np.random.randn(2 * n) * 0.01,
+        }
+    )
 
 
 @pytest.fixture
@@ -99,10 +104,10 @@ def alert_owners_file(tmp_path):
     file = tmp_path / "alert_owners.yaml"
     file.write_text(
         "v9_lgb:\n"
-        "  owner: \"测试负责人\"\n"
-        "  slack_channel: \"#test-alerts\"\n"
-        "  email: \"test@example.com\"\n"
-        "  runbook_url: \"docs/runbooks/MODEL_DRIFT_RUNBOOK.md\"\n",
+        '  owner: "测试负责人"\n'
+        '  slack_channel: "#test-alerts"\n'
+        '  email: "test@example.com"\n'
+        '  runbook_url: "docs/runbooks/MODEL_DRIFT_RUNBOOK.md"\n',
         encoding="utf-8",
     )
     return str(file)
@@ -211,7 +216,9 @@ class TestComputeFeatureDrift:
         np.random.seed(42)
         baseline = pd.Series(np.random.randn(500))
         current = pd.Series(np.random.randn(500) + 1.0)  # 均值偏移 1.0
-        report = compute_feature_drift(baseline, current, feature_name="drifted_feature")
+        report = compute_feature_drift(
+            baseline, current, feature_name="drifted_feature"
+        )
         assert report.severity in (DriftSeverity.HIGH, DriftSeverity.CRITICAL)
         assert report.drift_score > 0.2
 
@@ -231,7 +238,8 @@ class TestComputeFeatureDrift:
         baseline = pd.Series(np.random.randn(100))
         current = pd.Series(np.random.randn(100))
         report = compute_feature_drift(
-            baseline, current,
+            baseline,
+            current,
             feature_name="MOM_5D",
             model_name="v9_lgb",
             model_version="v1.0",
@@ -271,7 +279,11 @@ class TestComputePredictionDrift:
         baseline = np.random.randn(500)
         current = np.random.randn(500) + 0.5  # 均值偏移
         report = compute_prediction_drift(baseline, current)
-        assert report.severity in (DriftSeverity.MEDIUM, DriftSeverity.HIGH, DriftSeverity.CRITICAL)
+        assert report.severity in (
+            DriftSeverity.MEDIUM,
+            DriftSeverity.HIGH,
+            DriftSeverity.CRITICAL,
+        )
 
 
 # ============================================================
@@ -295,6 +307,7 @@ class TestDriftReportImmutability:
         )
         with pytest.raises(FrozenInstanceError):
             report.model_name = "modified"  # type: ignore[assignment]
+
     def test_drift_report_to_dict(self):
         """DriftReport.to_dict() 返回完整字段."""
         report = DriftReport(
@@ -379,7 +392,9 @@ class TestSimModeDriftMonitorActivation:
 class TestRunDailyCheck:
     """测试 run_daily_check 批量检查."""
 
-    def test_inactive_monitor_returns_empty(self, baseline_panel, drifted_panel, clean_storage_dir):
+    def test_inactive_monitor_returns_empty(
+        self, baseline_panel, drifted_panel, clean_storage_dir
+    ):
         """未激活的监控器返回空列表."""
         with patch("utils.alpha.drift_monitor._USE_DRIFT_DETECTOR_FLAG", False):
             monitor = SimModeDriftMonitor(
@@ -392,7 +407,9 @@ class TestRunDailyCheck:
             reports = monitor.run_daily_check(drifted_panel)
             assert reports == []
 
-    def test_active_monitor_returns_reports(self, baseline_panel, drifted_panel, clean_storage_dir):
+    def test_active_monitor_returns_reports(
+        self, baseline_panel, drifted_panel, clean_storage_dir
+    ):
         """激活的监控器返回 DriftReport 列表."""
         monitor = SimModeDriftMonitor(
             model_name="v9_lgb",
@@ -405,7 +422,9 @@ class TestRunDailyCheck:
         assert len(reports) > 0
         assert all(isinstance(r, DriftReport) for r in reports)
 
-    def test_drifted_feature_has_high_severity(self, baseline_panel, drifted_panel, clean_storage_dir):
+    def test_drifted_feature_has_high_severity(
+        self, baseline_panel, drifted_panel, clean_storage_dir
+    ):
         """漂移特征 MOM_5D 应有 HIGH/CRITICAL severity."""
         monitor = SimModeDriftMonitor(
             model_name="v9_lgb",
@@ -417,10 +436,14 @@ class TestRunDailyCheck:
         reports = monitor.run_daily_check(drifted_panel)
         mom_report = next((r for r in reports if r.feature_name == "MOM_5D"), None)
         assert mom_report is not None, "应检测到 MOM_5D"
-        assert mom_report.severity in (DriftSeverity.HIGH, DriftSeverity.CRITICAL), \
-            f"MOM_5D 漂移 0.5 应为 HIGH/CRITICAL, 实际: {mom_report.severity}"
+        assert mom_report.severity in (
+            DriftSeverity.HIGH,
+            DriftSeverity.CRITICAL,
+        ), f"MOM_5D 漂移 0.5 应为 HIGH/CRITICAL, 实际: {mom_report.severity}"
 
-    def test_non_drifted_feature_has_low_severity(self, baseline_panel, drifted_panel, clean_storage_dir):
+    def test_non_drifted_feature_has_low_severity(
+        self, baseline_panel, drifted_panel, clean_storage_dir
+    ):
         """未漂移特征 RSI_14D 应为 LOW severity."""
         monitor = SimModeDriftMonitor(
             model_name="v9_lgb",
@@ -432,10 +455,13 @@ class TestRunDailyCheck:
         reports = monitor.run_daily_check(drifted_panel)
         rsi_report = next((r for r in reports if r.feature_name == "RSI_14D"), None)
         assert rsi_report is not None, "应检测到 RSI_14D"
-        assert rsi_report.severity == DriftSeverity.LOW, \
-            f"RSI_14D 无漂移应为 LOW, 实际: {rsi_report.severity}"
+        assert (
+            rsi_report.severity == DriftSeverity.LOW
+        ), f"RSI_14D 无漂移应为 LOW, 实际: {rsi_report.severity}"
 
-    def test_reports_sorted_by_severity_desc(self, baseline_panel, drifted_panel, clean_storage_dir):
+    def test_reports_sorted_by_severity_desc(
+        self, baseline_panel, drifted_panel, clean_storage_dir
+    ):
         """报告按 severity 降序 (CRITICAL 优先)."""
         monitor = SimModeDriftMonitor(
             model_name="v9_lgb",
@@ -453,9 +479,14 @@ class TestRunDailyCheck:
                 DriftSeverity.LOW: 0,
             }
             for i in range(len(reports) - 1):
-                assert severity_order[reports[i].severity] >= severity_order[reports[i + 1].severity]
+                assert (
+                    severity_order[reports[i].severity]
+                    >= severity_order[reports[i + 1].severity]
+                )
 
-    def test_reports_persisted_to_json(self, baseline_panel, drifted_panel, clean_storage_dir):
+    def test_reports_persisted_to_json(
+        self, baseline_panel, drifted_panel, clean_storage_dir
+    ):
         """报告持久化到 JSON 文件."""
         monitor = SimModeDriftMonitor(
             model_name="v9_lgb",
@@ -474,7 +505,9 @@ class TestRunDailyCheck:
         assert len(persisted) == len(reports)
         assert all("model_name" in r for r in persisted)
 
-    def test_history_accumulates(self, baseline_panel, drifted_panel, clean_storage_dir):
+    def test_history_accumulates(
+        self, baseline_panel, drifted_panel, clean_storage_dir
+    ):
         """历史报告累积."""
         monitor = SimModeDriftMonitor(
             model_name="v9_lgb",
@@ -526,7 +559,9 @@ class TestAlertOwners:
         owners = _load_alert_owners(str(tmp_path / "nonexistent.yaml"))
         assert owners == {}
 
-    def test_monitor_loads_owner(self, baseline_panel, clean_storage_dir, alert_owners_file):
+    def test_monitor_loads_owner(
+        self, baseline_panel, clean_storage_dir, alert_owners_file
+    ):
         """监控器从配置加载 owner."""
         monitor = SimModeDriftMonitor(
             model_name="v9_lgb",
@@ -739,6 +774,7 @@ class TestDataclassImmutability:
         )
         with pytest.raises(FrozenInstanceError):
             record.symbol = "modified"  # type: ignore[assignment]
+
     def test_delayed_metrics_is_frozen(self):
         """DelayedMetrics 是 frozen dataclass."""
         metrics = DelayedMetrics(
@@ -749,6 +785,7 @@ class TestDataclassImmutability:
         )
         with pytest.raises(FrozenInstanceError):
             metrics.ic = 0.99  # type: ignore[assignment]
+
     def test_prediction_record_to_dict(self):
         """PredictionRecord.to_dict() 返回完整字段 (property 不在 dict)."""
         record = PredictionRecord(

@@ -135,3 +135,14 @@ ocr 负责文件筛选 + 规则解析，AI agent 负责逐行精读。规则覆�
 - [ ] 重复操作是否幂等？（模式 5）
 - [ ] 优化器是否有解析梯度或合理步长？（模式 2）
 - [ ] 推理是否有 batch + 内存管理？（模式 2）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 15%)
+- [测试债清零经验沉淀 (2026-08-16)](test-debt-clearance-20260816.md) (相似度 10%)
+- [代码质量审查 Wave6（2026-08-06）— 对冲/执行/管道/数据模块 + 待复核项复核](code-quality-review-wave6-20260806.md) (相似度 9%)
+- [GLM 4.5-air LLM 驱动代码审查方法论（open-code-review + GLM 4.5-air）](code-review-glm45-llm-scan.md) (相似度 8%)
+- [OCR 扫描代码评论落地（2026-08-11）](ocr-scan-comments-20260811.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -251,10 +251,18 @@ class AutoFactorFactory:
     def _save_state(self) -> None:
         """保存当前状态到磁盘 (幂等)"""
         state = {
-            "discovered": {k: self._dataclass_to_dict(v) for k, v in self._discovered.items()},
-            "validated": {k: self._dataclass_to_dict(v) for k, v in self._validated.items()},
-            "deployed": {k: self._dataclass_to_dict(v) for k, v in self._deployed.items()},
-            "retired": {k: self._dataclass_to_dict(v) for k, v in self._retired.items()},
+            "discovered": {
+                k: self._dataclass_to_dict(v) for k, v in self._discovered.items()
+            },
+            "validated": {
+                k: self._dataclass_to_dict(v) for k, v in self._validated.items()
+            },
+            "deployed": {
+                k: self._dataclass_to_dict(v) for k, v in self._deployed.items()
+            },
+            "retired": {
+                k: self._dataclass_to_dict(v) for k, v in self._retired.items()
+            },
             "ic_history": self._ic_history,
         }
         try:
@@ -262,7 +270,16 @@ class AutoFactorFactory:
                 json.dumps(state, ensure_ascii=False, indent=2, default=str),
                 encoding="utf-8",
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning(f"保存 AutoFactorFactory 状态失败: {e}")
 
@@ -293,7 +310,16 @@ class AutoFactorFactory:
                 f"deployed={len(self._deployed)}, "
                 f"retired={len(self._retired)}"
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning(f"加载 AutoFactorFactory 状态失败: {e}")
 
@@ -344,10 +370,14 @@ class AutoFactorFactory:
 
         # 使用 factor_discovery_enhanced 的发现能力
         if data_source == "qlib":
-            factor_panels, _ = self._discover_via_qlib(universe, start_date, end_date, step)
+            factor_panels, _ = self._discover_via_qlib(
+                universe, start_date, end_date, step
+            )
         else:
             # 使用 factor_discovery.py 的 AKShare 发现能力
-            factor_panels = self._discover_via_akshare(universe, start_date, end_date, step)
+            factor_panels = self._discover_via_akshare(
+                universe, start_date, end_date, step
+            )
 
         # 转换为 CandidateFactor 列表
         candidates = []
@@ -378,12 +408,15 @@ class AutoFactorFactory:
         self._save_state()
 
         # 审计记录
-        self._audit("discover", {
-            "data_source": data_source,
-            "universe": universe,
-            "n_candidates": len(candidates),
-            "factor_names": [c.name for c in candidates],
-        })
+        self._audit(
+            "discover",
+            {
+                "data_source": data_source,
+                "universe": universe,
+                "n_candidates": len(candidates),
+                "factor_names": [c.name for c in candidates],
+            },
+        )
 
         logger.info(f"[Discovery] 完成: 发现 {len(candidates)} 个候选因子")
         return candidates
@@ -403,14 +436,18 @@ class AutoFactorFactory:
                 load_qlib_data,
             )
         except ImportError:
-            logger.warning("utils.factor_research.factor_discovery_enhanced 不可用, 降级到基础技术因子")
+            logger.warning(
+                "utils.factor_research.factor_discovery_enhanced 不可用, 降级到基础技术因子"
+            )
             return self._discover_basic_technical(), {}
 
         if not init_qlib():
             logger.warning("QLib 初始化失败, 降级到基础技术因子")
             return self._discover_basic_technical(), {}
 
-        df = load_qlib_data(instruments=universe, start_time=start_date, end_time=end_date)
+        df = load_qlib_data(
+            instruments=universe, start_time=start_date, end_time=end_date
+        )
         if df.empty:
             logger.warning("QLib 数据为空, 降级到基础技术因子")
             return self._discover_basic_technical(), {}
@@ -431,13 +468,19 @@ class AutoFactorFactory:
     ) -> dict[str, pd.DataFrame]:
         """通过 AKShare 发现因子 — 复用 factor_discovery.py 的 ETF 发现能力."""
         try:
-            from utils.factor_research.factor_discovery import FactorCalculator, FactorDataFetcher
+            from utils.factor_research.factor_discovery import (
+                FactorCalculator,
+                FactorDataFetcher,
+            )
         except ImportError:
-            logger.warning("utils.factor_research.factor_discovery 不可用, 降级到基础技术因子")
+            logger.warning(
+                "utils.factor_research.factor_discovery 不可用, 降级到基础技术因子"
+            )
             return self._discover_basic_technical()
 
         # 获取标的列表
         from utils.factor_research.factor_discovery import UNIVERSE_PRESETS
+
         codes = UNIVERSE_PRESETS.get(universe, UNIVERSE_PRESETS.get("etf_core", []))
 
         fetcher = FactorDataFetcher()
@@ -468,13 +511,21 @@ class AutoFactorFactory:
         if "SIZE_PROXY" in name_upper:
             return "Fundamental_Proxy"
         # 动量类
-        if any(x in name_upper for x in ["MOM", "REVERSAL", "UP_DOWN", "MACD", "RSI", "OBV"]):
+        if any(
+            x in name_upper
+            for x in ["MOM", "REVERSAL", "UP_DOWN", "MACD", "RSI", "OBV"]
+        ):
             return "Momentum"
         # 波动率类
-        if any(x in name_upper for x in ["VOL_", "DOWNSIDE", "SKEW", "KURT", "ATR", "BB_"]):
+        if any(
+            x in name_upper for x in ["VOL_", "DOWNSIDE", "SKEW", "KURT", "ATR", "BB_"]
+        ):
             return "Volatility"
         # 流动性类
-        if any(x in name_upper for x in ["TURNOVER", "AMIHUD", "VOLUME_CHG", "VOLUME_Z", "LIQ"]):
+        if any(
+            x in name_upper
+            for x in ["TURNOVER", "AMIHUD", "VOLUME_CHG", "VOLUME_Z", "LIQ"]
+        ):
             return "Liquidity"
         # 规模类
         if any(x in name_upper for x in ["SIZE", "MCAP"]):
@@ -483,7 +534,9 @@ class AutoFactorFactory:
         if any(x in name_upper for x in ["MA_DEV", "GTJA", "ALPHA"]):
             return "Technical"
         # 基本面代理
-        if any(x in name_upper for x in ["PROXY", "EARNING_STABILITY", "QUALITY_PROXY"]):
+        if any(
+            x in name_upper for x in ["PROXY", "EARNING_STABILITY", "QUALITY_PROXY"]
+        ):
             return "Fundamental_Proxy"
         # 默认
         return "Other"
@@ -588,14 +641,18 @@ class AutoFactorFactory:
                 validate_factors,
             )
         except ImportError:
-            logger.error("utils.factor_research.factor_discovery_enhanced 不可用, 无法验证")
+            logger.error(
+                "utils.factor_research.factor_discovery_enhanced 不可用, 无法验证"
+            )
             return []
 
         if not init_qlib():
             logger.error("QLib 不可用, 无法验证")
             return []
 
-        df = load_qlib_data(instruments=universe, start_time=start_date, end_time=end_date)
+        df = load_qlib_data(
+            instruments=universe, start_time=start_date, end_time=end_date
+        )
         if df.empty:
             logger.error("QLib 数据为空, 无法验证")
             return []
@@ -606,7 +663,9 @@ class AutoFactorFactory:
             return []
 
         # Step 2: 基础验证 (IC/IR/分组收益)
-        raw_results = validate_factors(factor_panels, forward_returns, n_groups=n_groups)
+        raw_results = validate_factors(
+            factor_panels, forward_returns, n_groups=n_groups
+        )
 
         # Step 3: Walk-Forward 验证 (可选)
         wf_results: dict[str, dict] = {}
@@ -668,16 +727,17 @@ class AutoFactorFactory:
 
         # 审计记录
         n_effective = sum(1 for v in validated if v.effective)
-        self._audit("validate", {
-            "n_candidates": len(candidates),
-            "n_validated": len(validated),
-            "n_effective": n_effective,
-            "top_factors": [v.name for v in validated[:5]],
-        })
-
-        logger.info(
-            f"[Validation] 完成: 有效 {n_effective}/{len(validated)} 个因子"
+        self._audit(
+            "validate",
+            {
+                "n_candidates": len(candidates),
+                "n_validated": len(validated),
+                "n_effective": n_effective,
+                "top_factors": [v.name for v in validated[:5]],
+            },
         )
+
+        logger.info(f"[Validation] 完成: 有效 {n_effective}/{len(validated)} 个因子")
         return validated
 
     def _run_walk_forward_validation(
@@ -754,17 +814,36 @@ class AutoFactorFactory:
                             if len(common) >= 5:
                                 try:
                                     from scipy.stats import spearmanr
+
                                     ic, _ = spearmanr(fvals[common], rets[common])
                                     if not np.isnan(ic):
                                         test_ics.append(ic)
-                                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                                except (
+                                    ValueError,
+                                    TypeError,
+                                    KeyError,
+                                    AttributeError,
+                                    RuntimeError,
+                                    OSError,
+                                    TimeoutError,
+                                    ConnectionError,
+                                ):
                                     # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                                     pass
 
                     if test_ics:
                         window_ics.extend(test_ics)
 
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:
 
                     # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                     logger.debug(f"  WF 窗口异常 [{fname}]: {e}")
@@ -781,9 +860,7 @@ class AutoFactorFactory:
                     "consistency": float(np.mean(arr > 0)),
                 }
 
-        logger.info(
-            f"[Walk-Forward] 完成: {len(wf_results)} 个因子有有效结果"
-        )
+        logger.info(f"[Walk-Forward] 完成: {len(wf_results)} 个因子有有效结果")
         return wf_results
 
     def _compute_validation_score(self, vf: ValidatedFactor) -> float:
@@ -833,7 +910,8 @@ class AutoFactorFactory:
         """
         if validated is None:
             validated = [
-                v for v in self._validated.values()
+                v
+                for v in self._validated.values()
                 if v.effective and v.name not in self._deployed
             ]
 
@@ -875,7 +953,11 @@ class AutoFactorFactory:
                 deploy_date=datetime.now().strftime("%Y-%m-%d"),
                 library_key=f"auto_{vf.name.lower()}",
                 code_path=code_path,
-                version=self._deployed[vf.name].version + 1 if vf.name in self._deployed else 1,
+                version=(
+                    self._deployed[vf.name].version + 1
+                    if vf.name in self._deployed
+                    else 1
+                ),
                 active=True,
             )
 
@@ -889,10 +971,13 @@ class AutoFactorFactory:
         self._save_state()
 
         # 审计记录
-        self._audit("deploy", {
-            "n_deployed": len(deployed),
-            "factor_names": [d.name for d in deployed],
-        })
+        self._audit(
+            "deploy",
+            {
+                "n_deployed": len(deployed),
+                "factor_names": [d.name for d in deployed],
+            },
+        )
 
         logger.info(
             f"[Deploy] 完成: 部署 {len(deployed)} 个因子 "
@@ -921,7 +1006,16 @@ class AutoFactorFactory:
         try:
             file_path.write_text(code, encoding="utf-8")
             logger.info(f"[Deploy] 代码已生成: {file_path}")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning(f"[Deploy] 生成代码失败: {e}")
             return ""
@@ -986,9 +1080,7 @@ def compute_{safe_name}(
     )
 '''
 
-    def _register_to_library(
-        self, vf: ValidatedFactor, df: DeployedFactor
-    ) -> bool:
+    def _register_to_library(self, vf: ValidatedFactor, df: DeployedFactor) -> bool:
         """注册因子到 AlphaFactorLibrary.
 
         通过扩展 AlphaFactorLibrary 的 compute_all 方法, 将新因子集成到生产流水线.
@@ -1004,7 +1096,16 @@ def compute_{safe_name}(
             if registry_path.exists():
                 try:
                     registry = json.loads(registry_path.read_text(encoding="utf-8"))
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                     registry = {}
 
@@ -1027,7 +1128,16 @@ def compute_{safe_name}(
             logger.info(f"[Deploy] 因子 {vf.name} 已注册到因子登记簿")
             return True
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning(f"[Deploy] 注册因子 {vf.name} 失败: {e}")
@@ -1070,12 +1180,16 @@ def compute_{safe_name}(
                 continue
 
             # 取最近 N 日 IC
-            recent_ics = [h.get("ic", 0.0) for h in ic_history[-self.retire_confirm_days:]]
+            recent_ics = [
+                h.get("ic", 0.0) for h in ic_history[-self.retire_confirm_days :]
+            ]
             if not recent_ics:
                 continue
 
             current_ic = float(np.mean(recent_ics))
-            days_below = sum(1 for ic in recent_ics if abs(ic) < self.ic_retire_threshold)
+            days_below = sum(
+                1 for ic in recent_ics if abs(ic) < self.ic_retire_threshold
+            )
 
             suggestion = RetireSuggestion(
                 name=name,
@@ -1108,11 +1222,14 @@ def compute_{safe_name}(
         self._save_state()
 
         # 审计记录
-        self._audit("monitor", {
-            "n_active": len(active),
-            "n_retired": len(retired_names),
-            "retired_factors": retired_names,
-        })
+        self._audit(
+            "monitor",
+            {
+                "n_active": len(active),
+                "n_retired": len(retired_names),
+                "retired_factors": retired_names,
+            },
+        )
 
         logger.info(
             f"[Monitor] 完成: 监控 {len(active)} 个因子, "
@@ -1130,10 +1247,12 @@ def compute_{safe_name}(
                 if name not in self._ic_history:
                     self._ic_history[name] = []
                 # 记录当前时间戳和占位 IC
-                self._ic_history[name].append({
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                    "ic": 0.0,  # 占位, 需实际数据源
-                })
+                self._ic_history[name].append(
+                    {
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "ic": 0.0,  # 占位, 需实际数据源
+                    }
+                )
         except ImportError:
             # 降级: 记录空历史
             for name in self._deployed:
@@ -1161,7 +1280,16 @@ def compute_{safe_name}(
                         json.dumps(registry, ensure_ascii=False, indent=2),
                         encoding="utf-8",
                     )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 pass
 
@@ -1249,7 +1377,16 @@ def compute_{safe_name}(
 
             report.status = "success"
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             report.status = "error"
@@ -1259,14 +1396,17 @@ def compute_{safe_name}(
         report.duration_seconds = time.time() - start_time
 
         # 审计记录
-        self._audit("run_pipeline", {
-            "status": report.status,
-            "n_discovered": report.n_discovered,
-            "n_validated": report.n_validated,
-            "n_deployed": report.n_deployed,
-            "n_retired": report.n_retired,
-            "duration_seconds": report.duration_seconds,
-        })
+        self._audit(
+            "run_pipeline",
+            {
+                "status": report.status,
+                "n_discovered": report.n_discovered,
+                "n_validated": report.n_validated,
+                "n_deployed": report.n_deployed,
+                "n_retired": report.n_retired,
+                "duration_seconds": report.duration_seconds,
+            },
+        )
 
         logger.info(
             f"[Pipeline] 完成: "
@@ -1287,13 +1427,29 @@ def compute_{safe_name}(
         """保存流水线报告到磁盘."""
         report_dir = self.data_dir / "reports"
         report_dir.mkdir(parents=True, exist_ok=True)
-        report_file = report_dir / f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        report_file = (
+            report_dir / f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
         try:
             report_file.write_text(
-                json.dumps(self._dataclass_to_dict(report), ensure_ascii=False, indent=2, default=str),
+                json.dumps(
+                    self._dataclass_to_dict(report),
+                    ensure_ascii=False,
+                    indent=2,
+                    default=str,
+                ),
                 encoding="utf-8",
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             logger.warning(f"保存流水线报告失败: {e}")
 
@@ -1324,9 +1480,9 @@ def compute_{safe_name}(
             "n_retired": len(retired),
             "active_factors": [d.name for d in active],
             "retired_factors": retired,
-            "top_validated": sorted(
-                validated, key=lambda v: v.score, reverse=True
-            )[:10],
+            "top_validated": sorted(validated, key=lambda v: v.score, reverse=True)[
+                :10
+            ],
         }
 
     # ------------------------------------------------------------
@@ -1342,7 +1498,16 @@ def compute_{safe_name}(
                     action=action,
                     details=details,
                 )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
                 logger.debug(f"审计记录失败: {e}")
 

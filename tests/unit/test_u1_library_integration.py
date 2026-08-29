@@ -13,6 +13,7 @@
     - use_timeseries = factor_history is not None and forward_returns_history is not None
                        and len(forward_returns_history) >= 20
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,6 +32,7 @@ pytestmark = [pytest.mark.unit]
 # ============================================================
 # Helper: 构造测试数据
 # ============================================================
+
 
 def _build_price_data(n_symbols: int = 10, n_days: int = 30) -> dict:
     """构造 price_data: {symbol: {"closes": [...], "volumes": [...], "highs": [...], "lows": [...]}}."""
@@ -70,14 +72,14 @@ def _build_forward_returns_history(
     np.random.seed(456)
     symbols = [f"TEST{i:03d}.SZ" for i in range(n_symbols)]
     return [
-        {sym: float(np.random.randn() * 0.02) for sym in symbols}
-        for _ in range(n_days)
+        {sym: float(np.random.randn() * 0.02) for sym in symbols} for _ in range(n_days)
     ]
 
 
 # ============================================================
 # 场景 1: 传入 factor_history 走时序 IC/ICIR 模式 ✅
 # ============================================================
+
 
 class TestTimeseriesMode:
     """传入 factor_history + forward_returns_history 时走时序模式."""
@@ -112,11 +114,17 @@ class TestTimeseriesMode:
         n_days, n_symbols = 25, 10
         symbols = [f"TEST{i:03d}.SZ" for i in range(n_symbols)]
         np.random.seed(789)
-        fwd_returns = [{sym: float(np.random.randn() * 0.02) for sym in symbols} for _ in range(n_days)]
+        fwd_returns = [
+            {sym: float(np.random.randn() * 0.02) for sym in symbols}
+            for _ in range(n_days)
+        ]
         # 因子值 = forward_return + 小噪声 (强正相关)
         factor_history = {
             "MOM_20D": [
-                {sym: fwd_returns[i][sym] + np.random.randn() * 0.001 for sym in symbols}
+                {
+                    sym: fwd_returns[i][sym] + np.random.randn() * 0.001
+                    for sym in symbols
+                }
                 for i in range(n_days)
             ]
         }
@@ -139,6 +147,7 @@ class TestTimeseriesMode:
 # ============================================================
 # 场景 2: 不传 factor_history 走降级单点 IC (向后兼容) ✅
 # ============================================================
+
 
 class TestBackwardCompatibility:
     """不传 factor_history 时走降级单点 IC (向后兼容)."""
@@ -178,6 +187,7 @@ class TestBackwardCompatibility:
 # 场景 3: factor_history 部分因子有历史部分无 (混合模式) ✅
 # ============================================================
 
+
 class TestMixedMode:
     """factor_history 部分因子有历史部分无时的混合模式."""
 
@@ -212,6 +222,7 @@ class TestMixedMode:
 # 场景 4: factor_history 样本不足 (<20 天) 仍走降级单点 IC ✅
 # ============================================================
 
+
 class TestInsufficientSamples:
     """forward_returns_history < 20 天时仍走降级单点 IC."""
 
@@ -240,6 +251,7 @@ class TestInsufficientSamples:
 # ============================================================
 # 场景 5: evaluate_factors 直接调用幂等性验证 ✅
 # ============================================================
+
 
 class TestEvaluateFactorsIdempotency:
     """evaluate_factors 直接调用幂等性 (重复调用结果一致)."""

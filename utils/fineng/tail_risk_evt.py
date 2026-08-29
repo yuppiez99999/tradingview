@@ -51,27 +51,27 @@ class EVTResult:
     """POT-GPD 尾部风险估计结果"""
 
     # 阈值
-    threshold_u: float                # 阈值 (负值, 如 -0.02 = -2%)
-    threshold_percentile: float       # 阈值分位数 (如 0.95)
+    threshold_u: float  # 阈值 (负值, 如 -0.02 = -2%)
+    threshold_percentile: float  # 阈值分位数 (如 0.95)
 
     # 超越样本
-    n_total: int                      # 总样本量
-    n_excess: int                     # 超越样本数
+    n_total: int  # 总样本量
+    n_excess: int  # 超越样本数
 
     # GPD 参数
-    sigma: float                      # GPD 尺度参数 σ > 0
-    xi: float                         # GPD 形状参数 ξ
-    log_likelihood: float             # 最大对数似然
+    sigma: float  # GPD 尺度参数 σ > 0
+    xi: float  # GPD 形状参数 ξ
+    log_likelihood: float  # 最大对数似然
 
     # 尾部风险
-    var_975: float                    # VaR 97.5% (负值)
-    var_99: float                     # VaR 99% (负值)
-    es_975: float                     # ES 97.5% (负值, 更极端)
-    es_99: float                      # ES 99% (负值)
+    var_975: float  # VaR 97.5% (负值)
+    var_99: float  # VaR 99% (负值)
+    es_975: float  # ES 97.5% (负值, 更极端)
+    es_99: float  # ES 99% (负值)
 
     # 置信区间 (通过 Profile Likelihood 近似)
-    xi_lower: float                   # ξ 95% CI 下界
-    xi_upper: float                   # ξ 95% CI 上界
+    xi_lower: float  # ξ 95% CI 下界
+    xi_upper: float  # ξ 95% CI 上界
     sigma_lower: float
     sigma_upper: float
 
@@ -80,7 +80,7 @@ class EVTResult:
     empirical_var_99: float
     empirical_es_975: float
     empirical_es_99: float
-    evt_vs_empirical_ratio: float     # EVT ES(99%) / 经验 ES(99%), 偏离 >30% 应告警
+    evt_vs_empirical_ratio: float  # EVT ES(99%) / 经验 ES(99%), 偏离 >30% 应告警
 
     # 状态
     converged: bool
@@ -357,8 +357,8 @@ def fit_evt(
         )
 
     # ---- 尾部风险计算 ----
-    p_975 = 0.025   # 左侧 2.5%
-    p_99 = 0.01     # 左侧 1%
+    p_975 = 0.025  # 左侧 2.5%
+    p_99 = 0.01  # 左侧 1%
 
     def evt_var(alpha: float) -> float:
         """EVT VaR: 注意这里 α 是左侧尾部概率 (0.01, 0.025)"""
@@ -423,7 +423,9 @@ def fit_evt(
     if ratio > 1.30 and not math.isnan(ratio):
         if warning:
             warning += "; "
-        warning += f"EVT ES(99%) / 经验 ES(99%) = {ratio:.2f} > 1.30, 差异过大应手工复核"
+        warning += (
+            f"EVT ES(99%) / 经验 ES(99%) = {ratio:.2f} > 1.30, 差异过大应手工复核"
+        )
 
     return EVTResult(
         threshold_u=threshold_u,

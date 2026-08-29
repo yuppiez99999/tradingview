@@ -13,7 +13,7 @@ from typing import Any, Optional
 
 import pandas as pd
 
-logger = logging.getLogger('ai_hedge_fund.data_adapter')
+logger = logging.getLogger("ai_hedge_fund.data_adapter")
 
 # ── 尝试导入现有数据源模块 ──
 try:
@@ -122,6 +122,7 @@ except ImportError:
         source: str = ""
         sentiment: Optional[float] = None
 
+
 # ── 内置轻量缓存 ──
 _cache: dict = {}
 
@@ -134,13 +135,14 @@ def _cache_key(*args: Any) -> str:
 # 价格数据获取 (多源回退)
 # ═══════════════════════════════════════════════════════════════
 
+
 def _normalize_ticker(ticker: str) -> str:
     """标准化 A 股代码：处理 6位代码/带后缀等各种格式"""
     ticker = str(ticker).strip().upper()
     # 去除常见后缀
-    for suffix in ['.SH', '.SZ', '.BJ', '.SS', '.XSHE', '.XSHG']:
+    for suffix in [".SH", ".SZ", ".BJ", ".SS", ".XSHE", ".XSHG"]:
         if ticker.endswith(suffix):
-            ticker = ticker[:-len(suffix)]
+            ticker = ticker[: -len(suffix)]
             break
     return ticker
 
@@ -150,13 +152,13 @@ def _get_market_suffix(ticker: str) -> str:
     code = _normalize_ticker(ticker)
     if len(code) != 6:
         return ""
-    if code.startswith(('60', '68')):
-        return '.SH'
-    elif code.startswith(('00', '30', '002', '003')):
-        return '.SZ'
-    elif code.startswith(('8', '4')):
-        return '.BJ'
-    return '.SZ'  # 默认深市
+    if code.startswith(("60", "68")):
+        return ".SH"
+    if code.startswith(("00", "30", "002", "003")):
+        return ".SZ"
+    if code.startswith(("8", "4")):
+        return ".BJ"
+    return ".SZ"  # 默认深市
 
 
 def _fetch_sina_price(ticker: str, start_date: str, end_date: str) -> list[Price]:
@@ -166,10 +168,13 @@ def _fetch_sina_price(ticker: str, start_date: str, end_date: str) -> list[Price
         suffix = _get_market_suffix(ticker)
         # 新浪接口: sh600036 或 sz000001
         secid = f"{'sh' if suffix == '.SH' else 'sz'}{code}"
-        url = (f"https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/"
-               f"CN_MarketData.getKLineData?symbol={secid}&scale=240&ma=no&datalen=500")
+        url = (
+            f"https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/"
+            f"CN_MarketData.getKLineData?symbol={secid}&scale=240&ma=no&datalen=500"
+        )
 
         import requests
+
         resp = requests.get(url, timeout=15)
         data = resp.json()
 
@@ -179,20 +184,22 @@ def _fetch_sina_price(ticker: str, start_date: str, end_date: str) -> list[Price
         prices = []
         for row in data:
             try:
-                day = row.get('day', '')
+                day = row.get("day", "")
                 if start_date and day < start_date:
                     continue
                 if end_date and day > end_date:
                     continue
 
-                prices.append(Price(
-                    open=float(row.get('open', 0)),
-                    close=float(row.get('close', 0)),
-                    high=float(row.get('high', 0)),
-                    low=float(row.get('low', 0)),
-                    volume=int(float(row.get('volume', 0))),
-                    time=day,
-                ))
+                prices.append(
+                    Price(
+                        open=float(row.get("open", 0)),
+                        close=float(row.get("close", 0)),
+                        high=float(row.get("high", 0)),
+                        low=float(row.get("low", 0)),
+                        volume=int(float(row.get("volume", 0))),
+                        time=day,
+                    )
+                )
             except (ValueError, KeyError):
                 continue
 
@@ -206,13 +213,18 @@ def _fetch_akshare_price(ticker: str, start_date: str, end_date: str) -> list[Pr
     """从 AKShare 获取日K线数据 (免费, 需安装 akshare)"""
     try:
         import akshare as ak
+
         code = _normalize_ticker(ticker)
 
         df = ak.stock_zh_a_hist(
             symbol=code,
             period="daily",
             start_date=start_date.replace("-", "") if start_date else "20200101",
-            end_date=end_date.replace("-", "") if end_date else datetime.date.today().strftime("%Y%m%d"),
+            end_date=(
+                end_date.replace("-", "")
+                if end_date
+                else datetime.date.today().strftime("%Y%m%d")
+            ),
             adjust="qfq",  # 前复权
         )
 
@@ -222,14 +234,16 @@ def _fetch_akshare_price(ticker: str, start_date: str, end_date: str) -> list[Pr
         prices = []
         for _, row in df.iterrows():
             try:
-                prices.append(Price(
-                    open=float(row.get('开盘', 0)),
-                    close=float(row.get('收盘', 0)),
-                    high=float(row.get('最高', 0)),
-                    low=float(row.get('最低', 0)),
-                    volume=int(row.get('成交量', 0)),
-                    time=str(row.get('日期', ''))[:10],
-                ))
+                prices.append(
+                    Price(
+                        open=float(row.get("开盘", 0)),
+                        close=float(row.get("收盘", 0)),
+                        high=float(row.get("最高", 0)),
+                        low=float(row.get("最低", 0)),
+                        volume=int(row.get("成交量", 0)),
+                        time=str(row.get("日期", ""))[:10],
+                    )
+                )
             except (ValueError, KeyError):
                 continue
 
@@ -237,12 +251,21 @@ def _fetch_akshare_price(ticker: str, start_date: str, end_date: str) -> list[Pr
     except ImportError:
         logger.debug("akshare 未安装，跳过多源回退")
         return []
-    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        TimeoutError,
+    ) as e:
         logger.debug(f"akshare 价格获取失败 {ticker}: {e}")
         return []
 
 
-def get_prices(ticker: str, start_date: str, end_date: str, api_key: str = None) -> list[Price]:
+def get_prices(
+    ticker: str, start_date: str, end_date: str, api_key: str = None
+) -> list[Price]:
     """获取价格数据 — 多源回退 (sina → akshare → 空)"""
     ckey = _cache_key("prices", ticker, start_date, end_date)
     if ckey in _cache:
@@ -262,15 +285,26 @@ def prices_to_df(prices: list[Price]) -> pd.DataFrame:
     """将 Price 列表转为 DataFrame"""
     if not prices:
         return pd.DataFrame()
-    df = pd.DataFrame([{
-        'open': p.open, 'close': p.close, 'high': p.high,
-        'low': p.low, 'volume': p.volume,
-    } for p in prices], index=pd.to_datetime([p.time for p in prices]))
+    df = pd.DataFrame(
+        [
+            {
+                "open": p.open,
+                "close": p.close,
+                "high": p.high,
+                "low": p.low,
+                "volume": p.volume,
+            }
+            for p in prices
+        ],
+        index=pd.to_datetime([p.time for p in prices]),
+    )
     df.sort_index(inplace=True)
     return df
 
 
-def get_price_data(ticker: str, start_date: str, end_date: str, api_key: str = None) -> pd.DataFrame:
+def get_price_data(
+    ticker: str, start_date: str, end_date: str, api_key: str = None
+) -> pd.DataFrame:
     """获取价格数据返回 DataFrame"""
     prices = get_prices(ticker, start_date, end_date, api_key)
     return prices_to_df(prices)
@@ -280,33 +314,67 @@ def get_price_data(ticker: str, start_date: str, end_date: str, api_key: str = N
 # 财务指标数据获取
 # ═══════════════════════════════════════════════════════════════
 
-def _make_financial_metrics(ticker: str, report_period: str = "", **overrides: Any) -> FinancialMetrics:
+
+def _make_financial_metrics(
+    ticker: str, report_period: str = "", **overrides: Any
+) -> FinancialMetrics:
     """构造 FinancialMetrics，填充全部必填字段的默认值"""
     defaults = dict(
-        ticker=ticker, report_period=report_period, period="ttm", currency="CNY",
-        market_cap=None, enterprise_value=None,
-        price_to_earnings_ratio=None, price_to_book_ratio=None, price_to_sales_ratio=None,
-        enterprise_value_to_ebitda_ratio=None, enterprise_value_to_revenue_ratio=None,
-        free_cash_flow_yield=None, peg_ratio=None,
-        gross_margin=None, operating_margin=None, net_margin=None,
-        return_on_equity=None, return_on_assets=None, return_on_invested_capital=None,
-        asset_turnover=None, inventory_turnover=None, receivables_turnover=None,
-        days_sales_outstanding=None, operating_cycle=None, working_capital_turnover=None,
-        current_ratio=None, quick_ratio=None, cash_ratio=None, operating_cash_flow_ratio=None,
-        debt_to_equity=None, debt_to_assets=None, interest_coverage=None,
-        revenue_growth=None, earnings_growth=None, book_value_growth=None,
-        earnings_per_share_growth=None, free_cash_flow_growth=None,
-        operating_income_growth=None, ebitda_growth=None, payout_ratio=None,
-        earnings_per_share=None, book_value_per_share=None, free_cash_flow_per_share=None,
+        ticker=ticker,
+        report_period=report_period,
+        period="ttm",
+        currency="CNY",
+        market_cap=None,
+        enterprise_value=None,
+        price_to_earnings_ratio=None,
+        price_to_book_ratio=None,
+        price_to_sales_ratio=None,
+        enterprise_value_to_ebitda_ratio=None,
+        enterprise_value_to_revenue_ratio=None,
+        free_cash_flow_yield=None,
+        peg_ratio=None,
+        gross_margin=None,
+        operating_margin=None,
+        net_margin=None,
+        return_on_equity=None,
+        return_on_assets=None,
+        return_on_invested_capital=None,
+        asset_turnover=None,
+        inventory_turnover=None,
+        receivables_turnover=None,
+        days_sales_outstanding=None,
+        operating_cycle=None,
+        working_capital_turnover=None,
+        current_ratio=None,
+        quick_ratio=None,
+        cash_ratio=None,
+        operating_cash_flow_ratio=None,
+        debt_to_equity=None,
+        debt_to_assets=None,
+        interest_coverage=None,
+        revenue_growth=None,
+        earnings_growth=None,
+        book_value_growth=None,
+        earnings_per_share_growth=None,
+        free_cash_flow_growth=None,
+        operating_income_growth=None,
+        ebitda_growth=None,
+        payout_ratio=None,
+        earnings_per_share=None,
+        book_value_per_share=None,
+        free_cash_flow_per_share=None,
     )
     defaults.update({k: v for k, v in overrides.items() if k in defaults})
     return FinancialMetrics(**defaults)
 
 
-def _fetch_akshare_financial_metrics(ticker: str, limit: int = 10) -> list[FinancialMetrics]:
+def _fetch_akshare_financial_metrics(
+    ticker: str, limit: int = 10
+) -> list[FinancialMetrics]:
     """从 AKShare 获取财务指标数据"""
     try:
         import akshare as ak
+
         code = _normalize_ticker(ticker)
 
         # 获取主要财务指标
@@ -318,29 +386,42 @@ def _fetch_akshare_financial_metrics(ticker: str, limit: int = 10) -> list[Finan
         metrics_list = []
         for _i, row in df.head(limit).iterrows():
             try:
-                report_date = str(row.get('报告期', ''))[:10]
-                metrics_list.append(_make_financial_metrics(
-                    ticker=ticker,
-                    report_period=report_date,
-                    return_on_equity=_safe_float(row.get('净资产收益率')),
-                    operating_margin=_safe_float(row.get('营业利润率')),
-                    net_margin=_safe_float(row.get('销售净利率')),
-                    debt_to_equity=_safe_float(row.get('产权比率')),
-                    current_ratio=_safe_float(row.get('流动比率')),
-                    quick_ratio=_safe_float(row.get('速动比率')),
-                    revenue_growth=_safe_float(row.get('营业收入增长率')),
-                    earnings_growth=_safe_float(row.get('净利润增长率')),
-                    gross_margin=_safe_float(row.get('销售毛利率')),
-                    earnings_per_share=_safe_float(row.get('基本每股收益')),
-                ))
-            except (TypeError, ValueError, KeyError):# fail-safe: 单行解析失败跳过, 不阻断整批财务指标
+                report_date = str(row.get("报告期", ""))[:10]
+                metrics_list.append(
+                    _make_financial_metrics(
+                        ticker=ticker,
+                        report_period=report_date,
+                        return_on_equity=_safe_float(row.get("净资产收益率")),
+                        operating_margin=_safe_float(row.get("营业利润率")),
+                        net_margin=_safe_float(row.get("销售净利率")),
+                        debt_to_equity=_safe_float(row.get("产权比率")),
+                        current_ratio=_safe_float(row.get("流动比率")),
+                        quick_ratio=_safe_float(row.get("速动比率")),
+                        revenue_growth=_safe_float(row.get("营业收入增长率")),
+                        earnings_growth=_safe_float(row.get("净利润增长率")),
+                        gross_margin=_safe_float(row.get("销售毛利率")),
+                        earnings_per_share=_safe_float(row.get("基本每股收益")),
+                    )
+                )
+            except (
+                TypeError,
+                ValueError,
+                KeyError,
+            ):  # fail-safe: 单行解析失败跳过, 不阻断整批财务指标
                 continue
 
         return metrics_list
     except ImportError:
         logger.debug("akshare 未安装")
         return []
-    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        TimeoutError,
+    ) as e:
         logger.debug(f"akshare 财务指标获取失败 {ticker}: {e}")
         return []
 
@@ -349,12 +430,13 @@ def _fetch_baostock_financial(ticker: str, limit: int = 10) -> list[FinancialMet
     """从 Baostock 获取财务数据"""
     try:
         import baostock as bs
+
         code = _normalize_ticker(ticker)
         suffix = _get_market_suffix(ticker)
         bs_code = f"{'sh' if suffix == '.SH' else 'sz'}.{code}"
 
         lg = bs.login()
-        if lg.error_code != '0':
+        if lg.error_code != "0":
             return []
 
         # 获取利润表
@@ -380,7 +462,14 @@ def _fetch_baostock_financial(ticker: str, limit: int = 10) -> list[FinancialMet
 
     except ImportError:
         return []
-    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        TimeoutError,
+    ) as e:
         logger.debug(f"baostock 获取失败 {ticker}: {e}")
         return []
 
@@ -400,15 +489,17 @@ def get_financial_metrics(
     metrics = _fetch_akshare_financial_metrics(ticker, limit)
     if not metrics:
         # 回退: 返回默认空指标
-        metrics = [_make_financial_metrics(
-            ticker=ticker,
-            report_period=end_date,
-            return_on_equity=0.10,
-            operating_margin=0.15,
-            net_margin=0.10,
-            debt_to_equity=0.5,
-            current_ratio=1.5,
-        )]
+        metrics = [
+            _make_financial_metrics(
+                ticker=ticker,
+                report_period=end_date,
+                return_on_equity=0.10,
+                operating_margin=0.15,
+                net_margin=0.10,
+                debt_to_equity=0.5,
+                current_ratio=1.5,
+            )
+        ]
 
     _cache[ckey] = metrics
     return metrics
@@ -423,12 +514,15 @@ def search_line_items(
     api_key: str = None,
 ) -> list[LineItem]:
     """获取财务明细项 — 多源回退"""
-    ckey = _cache_key("line_items", ticker, str(line_items), end_date, period, str(limit))
+    ckey = _cache_key(
+        "line_items", ticker, str(line_items), end_date, period, str(limit)
+    )
     if ckey in _cache:
         return _cache[ckey]
 
     try:
         import akshare as ak
+
         code = _normalize_ticker(ticker)
 
         # 获取利润表
@@ -443,24 +537,36 @@ def search_line_items(
 
         for i in range(num_periods):
             try:
-                row_profit = df_profit.iloc[i] if df_profit is not None and i < len(df_profit) else None
-                row_balance = df_balance.iloc[i] if df_balance is not None and i < len(df_balance) else None
-                row_cf = df_cashflow.iloc[i] if df_cashflow is not None and i < len(df_cashflow) else None
+                row_profit = (
+                    df_profit.iloc[i]
+                    if df_profit is not None and i < len(df_profit)
+                    else None
+                )
+                row_balance = (
+                    df_balance.iloc[i]
+                    if df_balance is not None and i < len(df_balance)
+                    else None
+                )
+                row_cf = (
+                    df_cashflow.iloc[i]
+                    if df_cashflow is not None and i < len(df_cashflow)
+                    else None
+                )
 
                 # 计算衍生字段
-                current_assets = _safe_float_val(row_balance, '流动资产合计')
-                current_liabilities = _safe_float_val(row_balance, '流动负债合计')
+                current_assets = _safe_float_val(row_balance, "流动资产合计")
+                current_liabilities = _safe_float_val(row_balance, "流动负债合计")
                 working_capital = None
                 if current_assets is not None and current_liabilities is not None:
                     working_capital = current_assets - current_liabilities
 
-                operating_income = _safe_float_val(row_profit, '营业利润')
-                depreciation = _safe_float_val(row_cf, '固定资产折旧')
+                operating_income = _safe_float_val(row_profit, "营业利润")
+                depreciation = _safe_float_val(row_cf, "固定资产折旧")
                 ebitda = None
                 if operating_income is not None and depreciation is not None:
                     ebitda = operating_income + depreciation
 
-                ocf = _safe_float_val(row_cf, '经营活动产生的现金流量净额')
+                ocf = _safe_float_val(row_cf, "经营活动产生的现金流量净额")
                 capex = _infer_capex(row_cf) if row_cf is not None else None
                 free_cash_flow = None
                 if ocf is not None and capex is not None:
@@ -468,35 +574,52 @@ def search_line_items(
 
                 item = LineItem(
                     ticker=ticker,
-                    report_period=str(row_profit.name)[:10] if row_profit is not None else end_date,
+                    report_period=(
+                        str(row_profit.name)[:10]
+                        if row_profit is not None
+                        else end_date
+                    ),
                     period=period,
                     currency="CNY",
                     # 利润表
-                    revenue=_safe_float_val(row_profit, '营业总收入'),
-                    net_income=_safe_float_val(row_profit, '净利润'),
+                    revenue=_safe_float_val(row_profit, "营业总收入"),
+                    net_income=_safe_float_val(row_profit, "净利润"),
                     operating_income=operating_income,
-                    ebit=operating_income if operating_income is not None else _safe_float_val(row_profit, '营业利润'),
+                    ebit=(
+                        operating_income
+                        if operating_income is not None
+                        else _safe_float_val(row_profit, "营业利润")
+                    ),
                     ebitda=ebitda,
-                    interest_expense=_safe_float_val(row_profit, '利息费用'),
+                    interest_expense=_safe_float_val(row_profit, "利息费用"),
                     # 资产负债表
-                    total_assets=_safe_float_val(row_balance, '资产总计'),
-                    total_liabilities=_safe_float_val(row_balance, '负债合计'),
-                    shareholders_equity=_safe_float_val(row_balance, '归属于母公司股东权益合计'),
+                    total_assets=_safe_float_val(row_balance, "资产总计"),
+                    total_liabilities=_safe_float_val(row_balance, "负债合计"),
+                    shareholders_equity=_safe_float_val(
+                        row_balance, "归属于母公司股东权益合计"
+                    ),
                     current_assets=current_assets,
                     current_liabilities=current_liabilities,
                     working_capital=working_capital,
-                    total_debt=_safe_float_val(row_balance, '负债合计'),  # 简化：total_debt ≈ total_liabilities
-                    cash_and_equivalents=_safe_float_val(row_balance, '货币资金'),
+                    total_debt=_safe_float_val(
+                        row_balance, "负债合计"
+                    ),  # 简化：total_debt ≈ total_liabilities
+                    cash_and_equivalents=_safe_float_val(row_balance, "货币资金"),
                     # 现金流量表
                     capital_expenditure=capex,
                     depreciation_and_amortization=depreciation,
                     free_cash_flow=free_cash_flow,
                     # 其他
-                    gross_profit=_safe_float_val(row_profit, '营业利润'),
+                    gross_profit=_safe_float_val(row_profit, "营业利润"),
                     outstanding_shares=_get_shares(ticker),
                 )
                 line_items_list.append(item)
-            except (TypeError, ValueError, KeyError, AttributeError):# fail-safe: 单行财务明细解析失败跳过, 不阻断整批
+            except (
+                TypeError,
+                ValueError,
+                KeyError,
+                AttributeError,
+            ):  # fail-safe: 单行财务明细解析失败跳过, 不阻断整批
                 continue
 
         _cache[ckey] = line_items_list
@@ -504,7 +627,14 @@ def search_line_items(
 
     except ImportError:
         logger.debug("akshare 未安装，返回模拟财务数据")
-    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        TimeoutError,
+    ) as e:
         logger.debug(f"财务明细获取失败 {ticker}: {e}")
 
     # 回退: 返回模拟 LineItem（包含所有 Agent 需要的字段）
@@ -544,29 +674,45 @@ def search_line_items(
 # 市值、内部交易、新闻
 # ═══════════════════════════════════════════════════════════════
 
-def get_market_cap(ticker: str, end_date: str = None, api_key: str = None) -> Optional[float]:
+
+def get_market_cap(
+    ticker: str, end_date: str = None, api_key: str = None
+) -> Optional[float]:
     """获取市值 — 从 AKShare 或新浪获取"""
     try:
         import akshare as ak
+
         code = _normalize_ticker(ticker)
 
         # 从实时行情获取市值
         df = ak.stock_zh_a_spot_em()
-        row = df[df['代码'] == code]
+        row = df[df["代码"] == code]
         if not row.empty:
-            total_mv = row.iloc[0].get('总市值', None)
+            total_mv = row.iloc[0].get("总市值", None)
             if total_mv and total_mv > 0:
                 return float(total_mv)
 
         # 回退: 从财务数据中估计
-        prices = get_prices(ticker, end_date or "2024-01-01", end_date or datetime.date.today().isoformat())
+        prices = get_prices(
+            ticker,
+            end_date or "2024-01-01",
+            end_date or datetime.date.today().isoformat(),
+        )
         if prices:
             latest_price = prices[-1].close
             shares = _get_shares(ticker)
             if latest_price > 0 and shares > 0:
                 return latest_price * shares
 
-    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        TimeoutError,
+        ImportError,
+    ) as e:
         logger.debug(f"市值获取失败 {ticker}: {e}")
 
     return None
@@ -598,13 +744,19 @@ def get_company_news(
 # 辅助函数
 # ═══════════════════════════════════════════════════════════════
 
+
 def _safe_float(val: Any) -> Optional[float]:
     """安全转换为 float，处理百分比和中文数字"""
-    if val is None or pd.isna(val) if hasattr(val, '__iter__') else False:
+    if val is None or pd.isna(val) if hasattr(val, "__iter__") else False:
         return None
     try:
         if isinstance(val, str):
-            val = val.replace('%', '').replace(',', '').replace('亿', 'e8').replace('万', 'e4')
+            val = (
+                val.replace("%", "")
+                .replace(",", "")
+                .replace("亿", "e8")
+                .replace("万", "e4")
+            )
         return float(val)
     except (ValueError, TypeError):
         return None
@@ -618,7 +770,12 @@ def _safe_float_val(row: Any, col_name: str) -> Optional[float]:
         for col in row.index:
             if col_name in str(col):
                 return _safe_float(row[col])
-    except (TypeError, ValueError, KeyError, AttributeError):# fail-safe: 列不存在或类型异常时返回 None 由调用方兜底
+    except (
+        TypeError,
+        ValueError,
+        KeyError,
+        AttributeError,
+    ):  # fail-safe: 列不存在或类型异常时返回 None 由调用方兜底
         pass
     return None
 
@@ -627,21 +784,30 @@ def _get_shares(ticker: str) -> int:
     """获取总股本"""
     try:
         import akshare as ak
+
         code = _normalize_ticker(ticker)
         df = ak.stock_zh_a_spot_em()
-        row = df[df['代码'] == code]
+        row = df[df["代码"] == code]
         if not row.empty:
-            return int(row.iloc[0].get('总股本', 0) or 0)
-    except (ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError):# fail-safe: 总股本获取失败时用默认值 10 亿股兜底
+            return int(row.iloc[0].get("总股本", 0) or 0)
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        TimeoutError,
+        ImportError,
+    ):  # fail-safe: 总股本获取失败时用默认值 10 亿股兜底
         pass
     return 1_000_000_000
 
 
 def _infer_capex(cf_row: Any) -> Optional[float]:
     """从现金流量表推断资本支出"""
-    val = _safe_float_val(cf_row, '购建固定资产')
+    val = _safe_float_val(cf_row, "购建固定资产")
     if val is None:
-        val = _safe_float_val(cf_row, '投资活动现金流出')
+        val = _safe_float_val(cf_row, "投资活动现金流出")
     return val
 
 
@@ -649,27 +815,37 @@ def _infer_capex(cf_row: Any) -> Optional[float]:
 # 数据源状态检查
 # ═══════════════════════════════════════════════════════════════
 
+
 def get_data_source_status() -> dict:
     """获取当前数据源状态"""
     status = {
-        'sina_api': False,
-        'akshare': False,
-        'baostock': False,
+        "sina_api": False,
+        "akshare": False,
+        "baostock": False,
     }
     try:
         import requests
+
         resp = requests.get("https://money.finance.sina.com.cn/", timeout=5)
-        status['sina_api'] = resp.status_code == 200
-    except (OSError, TimeoutError, ImportError, ValueError, TypeError):# fail-safe: 数据源探测失败时状态保持 False, 不抛异常
+        status["sina_api"] = resp.status_code == 200
+    except (
+        OSError,
+        TimeoutError,
+        ImportError,
+        ValueError,
+        TypeError,
+    ):  # fail-safe: 数据源探测失败时状态保持 False, 不抛异常
         pass
     try:
         import akshare  # noqa: F401
-        status['akshare'] = True
+
+        status["akshare"] = True
     except ImportError:
         pass
     try:
         import baostock  # noqa: F401
-        status['baostock'] = True
+
+        status["baostock"] = True
     except ImportError:
         pass
     return status

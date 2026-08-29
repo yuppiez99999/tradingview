@@ -3,6 +3,7 @@
 被测模块: utils/risk_budget_allocator.py
 覆盖目标: >=85%
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -102,7 +103,9 @@ class RiskBudgetAllocatorTest:
     def test_allocate_strong_bearish_skipped(self):
         alloc = RiskBudgetAllocator()
         positions = [{"code": "000001", "code_clean": "000001", "remaining": 100000}]
-        signals = {"000001": {"direction": "DOWN", "confidence": 0.8, "signal_strength": -0.6}}
+        signals = {
+            "000001": {"direction": "DOWN", "confidence": 0.8, "signal_strength": -0.6}
+        }
         result = alloc.allocate_daily_budget(positions, signals=signals)
         assert result["000001"]["allocated"] == 0.0
 
@@ -110,8 +113,16 @@ class RiskBudgetAllocatorTest:
         alloc = RiskBudgetAllocator()
         # remaining 足够大，避免 base_allocated 被 remaining 截断
         positions = [{"code": "000001", "code_clean": "000001", "remaining": 500000}]
-        signals_neutral = {"000001": {"direction": "NEUTRAL", "confidence": 0.0, "signal_strength": 0.0}}
-        signals_bull = {"000001": {"direction": "UP", "confidence": 0.8, "signal_strength": 0.6}}
+        signals_neutral = {
+            "000001": {
+                "direction": "NEUTRAL",
+                "confidence": 0.0,
+                "signal_strength": 0.0,
+            }
+        }
+        signals_bull = {
+            "000001": {"direction": "UP", "confidence": 0.8, "signal_strength": 0.6}
+        }
         r_neutral = alloc.allocate_daily_budget(positions, signals=signals_neutral)
         r_bull = alloc.allocate_daily_budget(positions, signals=signals_bull)
         # 强看多加码 1.3 倍
@@ -166,7 +177,9 @@ class RiskBudgetAllocatorTest:
         # 缩减: combined=0.75 → 命中缩减分支, allocated = base × 0.8
         macro = {"000001": {"combined_score": 0.75}}
         reduced_result = alloc.allocate_daily_budget(positions, macro_scores=macro)
-        assert reduced_result["000001"]["allocated"] == pytest.approx(base_allocated * 0.8)
+        assert reduced_result["000001"]["allocated"] == pytest.approx(
+            base_allocated * 0.8
+        )
         assert reduced_result["000001"]["allocated"] > 0  # 缩减但非零
 
     @pytest.mark.skip(
@@ -186,7 +199,9 @@ class RiskBudgetAllocatorTest:
         etf_signals = {"000001": "关注-弱信号"}
         # combined < 1.0 (默认 combined=1.0，用 macro 使其 < 1.0 但 >= 0.85)
         macro = {"000001": {"combined_score": 0.9}}
-        r_with_etf = alloc.allocate_daily_budget(positions, macro_scores=macro, etf_signals=etf_signals)
+        r_with_etf = alloc.allocate_daily_budget(
+            positions, macro_scores=macro, etf_signals=etf_signals
+        )
         r_no_etf = alloc.allocate_daily_budget(positions, macro_scores=macro)
         assert r_with_etf["000001"]["allocated"] < r_no_etf["000001"]["allocated"]
 
@@ -218,7 +233,9 @@ class RiskBudgetAllocatorTest:
             {"code": "000002", "code_clean": "000002", "remaining": 100000},
         ]
         rng = np.random.default_rng(7)
-        rm = pd.DataFrame(rng.normal(0, 0.01, size=(50, 2)), columns=["000001", "000002"])
+        rm = pd.DataFrame(
+            rng.normal(0, 0.01, size=(50, 2)), columns=["000001", "000002"]
+        )
         result = alloc.allocate_daily_budget(positions, returns_matrix=rm)
         # risk_budgeter 不存在 → spec is None → 回退等权
         assert len(result) == 2
@@ -241,7 +258,9 @@ class RiskBudgetAllocatorTest:
             {"code": "000002", "code_clean": "000002", "remaining": 100000},
         ]
         rng = np.random.default_rng(7)
-        rm = pd.DataFrame(rng.normal(0, 0.01, size=(50, 2)), columns=["000001", "000002"])
+        rm = pd.DataFrame(
+            rng.normal(0, 0.01, size=(50, 2)), columns=["000001", "000002"]
+        )
 
         mock_budgeter = MagicMock()
         mock_budgeter.risk_parity_weights.return_value = np.array([0.3, 0.7])
@@ -249,9 +268,13 @@ class RiskBudgetAllocatorTest:
         mock_mod.RiskBudgeter.return_value = mock_budgeter
 
         mock_spec = MagicMock()
-        mock_spec.loader.exec_module.side_effect = lambda m: setattr(m, "RiskBudgeter", mock_mod.RiskBudgeter)
+        mock_spec.loader.exec_module.side_effect = lambda m: setattr(
+            m, "RiskBudgeter", mock_mod.RiskBudgeter
+        )
 
-        monkeypatch.setattr(importlib.util, "spec_from_file_location", lambda *a, **k: mock_spec)
+        monkeypatch.setattr(
+            importlib.util, "spec_from_file_location", lambda *a, **k: mock_spec
+        )
         result = alloc.allocate_daily_budget(positions, returns_matrix=rm)
         assert abs(result["000001"]["weight"] - 0.3) < 1e-9
         assert abs(result["000002"]["weight"] - 0.7) < 1e-9
@@ -263,17 +286,25 @@ class RiskBudgetAllocatorTest:
             {"code": "000002", "code_clean": "000002", "remaining": 100000},
         ]
         rng = np.random.default_rng(7)
-        rm = pd.DataFrame(rng.normal(0, 0.01, size=(50, 2)), columns=["000001", "000002"])
+        rm = pd.DataFrame(
+            rng.normal(0, 0.01, size=(50, 2)), columns=["000001", "000002"]
+        )
 
         mock_budgeter = MagicMock()
-        mock_budgeter.risk_parity_weights.return_value = np.array([0.5, 0.3, 0.2])  # len=3 != n=2
+        mock_budgeter.risk_parity_weights.return_value = np.array(
+            [0.5, 0.3, 0.2]
+        )  # len=3 != n=2
         mock_mod = MagicMock()
         mock_mod.RiskBudgeter.return_value = mock_budgeter
 
         mock_spec = MagicMock()
-        mock_spec.loader.exec_module.side_effect = lambda m: setattr(m, "RiskBudgeter", mock_mod.RiskBudgeter)
+        mock_spec.loader.exec_module.side_effect = lambda m: setattr(
+            m, "RiskBudgeter", mock_mod.RiskBudgeter
+        )
 
-        monkeypatch.setattr(importlib.util, "spec_from_file_location", lambda *a, **k: mock_spec)
+        monkeypatch.setattr(
+            importlib.util, "spec_from_file_location", lambda *a, **k: mock_spec
+        )
         result = alloc.allocate_daily_budget(positions, returns_matrix=rm)
         # 维度不匹配 → 回退等权
         assert abs(result["000001"]["weight"] - 0.5) < 1e-9
@@ -285,12 +316,16 @@ class RiskBudgetAllocatorTest:
             {"code": "000002", "code_clean": "000002", "remaining": 100000},
         ]
         rng = np.random.default_rng(7)
-        rm = pd.DataFrame(rng.normal(0, 0.01, size=(50, 2)), columns=["000001", "000002"])
+        rm = pd.DataFrame(
+            rng.normal(0, 0.01, size=(50, 2)), columns=["000001", "000002"]
+        )
 
         mock_spec = MagicMock()
         mock_spec.loader.exec_module.side_effect = RuntimeError("exec failed")
 
-        monkeypatch.setattr(importlib.util, "spec_from_file_location", lambda *a, **k: mock_spec)
+        monkeypatch.setattr(
+            importlib.util, "spec_from_file_location", lambda *a, **k: mock_spec
+        )
         result = alloc.allocate_daily_budget(positions, returns_matrix=rm)
         # 异常 → 回退等权
         assert abs(result["000001"]["weight"] - 0.5) < 1e-9

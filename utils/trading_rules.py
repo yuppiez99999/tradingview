@@ -99,7 +99,9 @@ def is_t0_eligible(code: str, product_class: str = "STOCK") -> bool:
     return False  # 默认 T+1
 
 
-def can_sell_today(code: str, buy_date: date, product_class: str = "STOCK") -> tuple[bool, str]:
+def can_sell_today(
+    code: str, buy_date: date, product_class: str = "STOCK"
+) -> tuple[bool, str]:
     """判断今日是否可以卖出
 
     Args:
@@ -116,10 +118,12 @@ def can_sell_today(code: str, buy_date: date, product_class: str = "STOCK") -> t
     today = date.today()
     if buy_date < today:
         return True, ""
-    elif buy_date == today:
-        return False, f"T+1限制: {code} 今日买入, 最早 {_next_trade_day(today)} 方可卖出"
-    else:
-        return False, f"日期异常: buy_date={buy_date} > today={today}"
+    if buy_date == today:
+        return (
+            False,
+            f"T+1限制: {code} 今日买入, 最早 {_next_trade_day(today)} 方可卖出",
+        )
+    return False, f"日期异常: buy_date={buy_date} > today={today}"
 
 
 def _next_trade_day(d: date) -> date:

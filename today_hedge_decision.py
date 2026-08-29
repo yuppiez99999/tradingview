@@ -74,7 +74,9 @@ for code, qty in positions.items():
     risk_amounts[risk] += amt
 
 # 集中度分析
-sorted_positions = sorted(positions.items(), key=lambda x: x[1] * prices.get(x[0], 0.0), reverse=True)
+sorted_positions = sorted(
+    positions.items(), key=lambda x: x[1] * prices.get(x[0], 0.0), reverse=True
+)
 top5 = sorted_positions[:5]
 top5_amount = sum(qty * prices.get(code, 0.0) for code, qty in top5)
 
@@ -85,9 +87,19 @@ try:
 except ImportError:
     # 回退: 7.1 旧路径环境下使用硬编码 (与 utils/risk/style_beta.py 保持同步)
     style_beta_proxy = {
-        "宽基": 0.95, "高端制造": 1.15, "科技": 1.20, "制造": 1.05,
-        "新能源": 1.10, "医药": 0.85, "化工": 1.00, "银行": 0.75,
-        "防御": 0.60, "顺周期": 1.10, "避险": -0.10, "红利": 0.70, "成长": 1.25,
+        "宽基": 0.95,
+        "高端制造": 1.15,
+        "科技": 1.20,
+        "制造": 1.05,
+        "新能源": 1.10,
+        "医药": 0.85,
+        "化工": 1.00,
+        "银行": 0.75,
+        "防御": 0.60,
+        "顺周期": 1.10,
+        "避险": -0.10,
+        "红利": 0.70,
+        "成长": 1.25,
     }
 
 portfolio_beta_est = 0.0
@@ -175,7 +187,9 @@ logger.info(f"市场状态: {plan.get('regime')}")
 logger.info(f"组合Beta: {plan.get('portfolio_beta')}")
 logger.info(f"总对冲比例: {float(plan.get('total_hedge_pct', 0.0) or 0.0) * 100:.2f}%")
 logger.info(f"总成本比例: {float(plan.get('total_cost_pct', 0.0) or 0.0) * 100:.4f}%")
-logger.info(f"最大对冲上限: {float(plan.get('max_hedge_limit', 0.0) or 0.0) * 100:.2f}%")
+logger.info(
+    f"最大对冲上限: {float(plan.get('max_hedge_limit', 0.0) or 0.0) * 100:.2f}%"
+)
 logger.info("分项:")
 for k in ["beta_hedge", "vol_hedge", "corr_hedge", "tail_hedge"]:
     logger.info(f"  {k}: {plan.get('summary', {}).get(k, 'N/A')}")
@@ -186,11 +200,17 @@ logger.info("-" * 60)
 
 # 优化判断逻辑
 beta_over = portfolio_beta_est > 0.7
-tech_heavy = style_amounts.get("科技", 0) / day_capital > 0.20 if day_capital > 0 else False
-mfg_heavy = style_amounts.get("制造", 0) / day_capital > 0.30 if day_capital > 0 else False
+tech_heavy = (
+    style_amounts.get("科技", 0) / day_capital > 0.20 if day_capital > 0 else False
+)
+mfg_heavy = (
+    style_amounts.get("制造", 0) / day_capital > 0.30 if day_capital > 0 else False
+)
 high_risk_ratio = risk_amounts.get("高", 0) / day_capital if day_capital > 0 else 0
 defense_weak = (
-    (style_amounts.get("防御", 0) + style_amounts.get("避险", 0)) / day_capital < 0.15 if day_capital > 0 else True
+    (style_amounts.get("防御", 0) + style_amounts.get("避险", 0)) / day_capital < 0.15
+    if day_capital > 0
+    else True
 )
 single_large = top5_amount / day_capital > 0.40 if day_capital > 0 else False
 
@@ -209,16 +229,22 @@ if beta_over or tech_heavy or mfg_heavy or high_risk_ratio > 0.30 or single_larg
         mfg_pct = style_amounts.get("制造", 0) / day_capital * 100
         logger.info(f"  - 制造风格占比 {mfg_pct:.1f}% > 30%，周期敞口过大")
     if high_risk_ratio > 0.30:
-        logger.info(f"  - 高风险标的占比 {high_risk_ratio * 100:.1f}% > 30%，波动风险偏高")
+        logger.info(
+            f"  - 高风险标的占比 {high_risk_ratio * 100:.1f}% > 30%，波动风险偏高"
+        )
     if single_large:
-        logger.info(f"  - Top5集中度 {top5_amount / day_capital * 100:.1f}% > 40%，个股集中度风险")
+        logger.info(
+            f"  - Top5集中度 {top5_amount / day_capital * 100:.1f}% > 40%，个股集中度风险"
+        )
     if defense_weak:
         logger.info("  - 防御/避险资产占比偏低，组合缺乏下跌保护")
 else:
     logger.info("结论: 暂不开启额外对冲")
     logger.info("理由:")
     logger.info(f"  - 估算组合Beta {portfolio_beta_est:.2f} <= 0.7")
-    logger.info(f"  - 科技+制造合计 {(style_amounts.get('科技', 0) + style_amounts.get('制造', 0)) / day_capital * 100:.1f}%")
+    logger.info(
+        f"  - 科技+制造合计 {(style_amounts.get('科技', 0) + style_amounts.get('制造', 0)) / day_capital * 100:.1f}%"
+    )
     logger.info(f"  - 高风险占比 {high_risk_ratio * 100:.1f}%")
     logger.info("  - 当前仅第一阶段22.5%底仓，暴露可控")
 
@@ -252,7 +278,9 @@ logger.info("波动率对冲触发: VIX > 30")
 logger.info("相关性对冲触发: 持仓平均相关 > 0.85 且跳升 > 0.15")
 logger.info("尾部风险触发: 回撤 > 5% 或 VIX > 25")
 logger.info("当前状态:")
-logger.info(f"  估算Beta: {portfolio_beta_est:.2f} {'(已触发)' if portfolio_beta_est > 0.7 else '(未触发)'}")
+logger.info(
+    f"  估算Beta: {portfolio_beta_est:.2f} {'(已触发)' if portfolio_beta_est > 0.7 else '(未触发)'}"
+)
 logger.info(f"  VIX假设: {vix:.1f} {'(已触发)' if vix > 30 else '(未触发)'}")
 logger.info(f"  当前回撤: {hwm_drawdown * 100:.1f}%")
 logger.info(f"  市场状态: {plan.get('regime')}")

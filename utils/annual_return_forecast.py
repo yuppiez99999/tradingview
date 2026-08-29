@@ -22,6 +22,7 @@
   属纯生产级模块, 已迁移至 utils/ 以消除生产代码对 research 包的跨层依赖。
   PROJECT_ROOT = Path(__file__).resolve().parent.parent → utils/ 的父级即项目根, 路径逻辑不变。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -48,13 +49,15 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+from utils.risk_params import (  # noqa: E402
+    get_max_drawdown_limit as _get_max_drawdown_limit,
+)
+
 # ============================================================
 # 目标参数 (与 README 对齐: 年化>=8%, 回撤<15%)
 # ============================================================
 TARGET_ANNUAL_RETURN = 0.08
 # B1.3: 从 config/risk_params.yaml 统一读取 (fail-safe 兜底 0.15)
-from utils.risk_params import get_max_drawdown_limit as _get_max_drawdown_limit  # noqa: E402
-
 MAX_DRAWDOWN_LIMIT = _get_max_drawdown_limit()
 RF_RATE = 0.025  # 无风险利率 (10年国债)
 TARGET_SHARPE = 1.0
@@ -62,9 +65,9 @@ TARGET_SHARPE = 1.0
 # ============================================================
 # 核心策略假设
 # ============================================================
-DEFAULT_CC_YIELD = 0.065          # Covered Call 年化权利金率 (基于现货市值, 近月平值 Call, 参考值)
-DEFAULT_TARGET_STOCK_RATIO = 0.90 # 建仓完成度目标 90% (留 10% 现金应对追加保证金/再平衡)
-DEFAULT_CASH_INTEREST = 0.011     # 货币基金/逆回购年化 1.1%
+DEFAULT_CC_YIELD = 0.065  # Covered Call 年化权利金率 (基于现货市值, 近月平值 Call, 参考值)
+DEFAULT_TARGET_STOCK_RATIO = 0.90  # 建仓完成度目标 90% (留 10% 现金应对追加保证金/再平衡)
+DEFAULT_CASH_INTEREST = 0.011  # 货币基金/逆回购年化 1.1%
 
 
 # ============================================================
@@ -129,7 +132,16 @@ def _load_json(path: Path | None) -> dict[str, Any] | None:
     try:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return None
 
@@ -174,11 +186,11 @@ def _extract_baseline(trade_plan: dict[str, Any], pnl_report: dict[str, Any]) ->
         "stock_market_value": stock_market_value,
         "stock_cost": stock_cost,
         "cash_unallocated": cash_unallocated,
-        "cc_premium_annual": cc_premium_annual,           # 基于市值的年化权利金率
+        "cc_premium_annual": cc_premium_annual,  # 基于市值的年化权利金率
         "cc_premium_monthly": cc_premium_monthly,
         "cash_interest_annual": cash_interest_annual,
         "put_premium_cost": put_premium_cost,
-        "actual_stock_ratio": stock_market_value / capital if capital > 0 else 0.0,  # 当前实际仓位占比
+        "actual_stock_ratio": (stock_market_value / capital if capital > 0 else 0.0),  # 当前实际仓位占比
         "target_stock_ratio": DEFAULT_TARGET_STOCK_RATIO,  # 建仓完成度目标 90%
     }
 
@@ -195,35 +207,37 @@ def _extract_baseline(trade_plan: dict[str, Any], pnl_report: dict[str, Any]) ->
 SCENARIO_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "保守情景",
-        "spot_annual_return": -0.17,       # 现货下跌17%（均值-1σ，弱市年份）
-        "hedge_impact": 0.07,              # 对冲贡献+7%（IF+Put在下跌中提供保护，约40%对冲效率）
-        "max_drawdown": -0.16,             # 回撤估计 -16%（破15%红线）
+        "spot_annual_return": -0.17,  # 现货下跌17%（均值-1σ，弱市年份）
+        "hedge_impact": 0.07,  # 对冲贡献+7%（IF+Put在下跌中提供保护，约40%对冲效率）
+        "max_drawdown": -0.16,  # 回撤估计 -16%（破15%红线）
         "sharpe_target": 0.4,
         "description": "现货下跌17%，对冲吸收7%，CC权利金提供缓冲，综合年化约-3%~-4%",
     },
     {
         "name": "中性情景",
-        "spot_annual_return": 0.08,        # 现货上涨8%（A股长期均值）
-        "hedge_impact": -0.005,            # 对冲成本0.5%（上涨时对冲工具亏损）
-        "max_drawdown": -0.12,             # 回撤估计 -12%（上涨年份回调较浅）
+        "spot_annual_return": 0.08,  # 现货上涨8%（A股长期均值）
+        "hedge_impact": -0.005,  # 对冲成本0.5%（上涨时对冲工具亏损）
+        "max_drawdown": -0.12,  # 回撤估计 -12%（上涨年份回调较浅）
         "sharpe_target": 1.2,
         "description": "现货上涨8%，对冲工具小幅拖累，CC权利金增厚，综合年化约+14%",
     },
     {
         "name": "悲观情景",
-        "spot_annual_return": -0.42,       # 现货暴跌42%（均值-2σ，2008/2018级别）
-        "hedge_impact": 0.18,              # 对冲贡献+18%（约43%对冲效率，不足以完全覆盖）
-        "max_drawdown": -0.27,             # 回撤估计 -27%（大幅超过15%红线）
+        "spot_annual_return": -0.42,  # 现货暴跌42%（均值-2σ，2008/2018级别）
+        "hedge_impact": 0.18,  # 对冲贡献+18%（约43%对冲效率，不足以完全覆盖）
+        "max_drawdown": -0.27,  # 回撤估计 -27%（大幅超过15%红线）
         "sharpe_target": -0.2,
         "description": "现货暴跌42%，对冲部分吸收，综合年化约-17%，回撤大幅突破15%红线",
     },
 ]
 
 
-def _calc_scenario(spot_annual_return: float,
-                   hedge_impact: float,
-                   baseline: dict[str, float],
-                   max_drawdown: float = -0.15) -> dict[str, Any]:
+def _calc_scenario(
+    spot_annual_return: float,
+    hedge_impact: float,
+    baseline: dict[str, float],
+    max_drawdown: float = -0.15,
+) -> dict[str, Any]:
     """计算单情景下的综合年化收益
 
     综合收益 = spot_return × stock_ratio + hedge_impact + cc_yield × stock_ratio + cash_interest × cash_ratio
@@ -236,8 +250,14 @@ def _calc_scenario(spot_annual_return: float,
 
     # 使用当前实际仓位 (若尚未满仓则保守估计)
     # 同时记录目标仓位用于参考
-    actual_stock_ratio = baseline.get("actual_stock_ratio", baseline.get("target_stock_ratio", DEFAULT_TARGET_STOCK_RATIO))
-    stock_ratio = min(actual_stock_ratio, baseline.get("target_stock_ratio", DEFAULT_TARGET_STOCK_RATIO))
+    actual_stock_ratio = baseline.get(
+        "actual_stock_ratio",
+        baseline.get("target_stock_ratio", DEFAULT_TARGET_STOCK_RATIO),
+    )
+    stock_ratio = min(
+        actual_stock_ratio,
+        baseline.get("target_stock_ratio", DEFAULT_TARGET_STOCK_RATIO),
+    )
     cash_ratio = max(1.0 - stock_ratio, 0.0)
 
     # CC 权利金率 (基于市值) → 组合层面贡献
@@ -249,8 +269,7 @@ def _calc_scenario(spot_annual_return: float,
     cash_contribution = baseline["cash_interest_annual"] * cash_ratio
     put_cost = baseline.get("put_premium_cost", 0.0)  # Put保护权利金年化成本
 
-    total_annual_return = (spot_contribution + hedge_contribution
-                         + cc_contribution + cash_contribution - put_cost)
+    total_annual_return = spot_contribution + hedge_contribution + cc_contribution + cash_contribution - put_cost
 
     # 估算波动率: 现货年化波动 ~18%, 对冲后降至 ~12%; 现金 1%
     portfolio_vol = 0.12 * stock_ratio + 0.01 * cash_ratio
@@ -299,7 +318,10 @@ def _extract_key_risks(trade_plan: dict[str, Any], pnl_report: dict[str, Any]) -
         risks.append(f"当前回撤 {max_dd:.2%} 已接近 -15% 红线, 警戒级别提升")
 
     capital = _safe_float(trade_plan.get("capital"), 5_000_000.0)
-    stock_mv = _safe_float(pnl_report.get("portfolio_pnl", {}).get("summary", {}).get("total_market_value"), 0.0)
+    stock_mv = _safe_float(
+        pnl_report.get("portfolio_pnl", {}).get("summary", {}).get("total_market_value"),
+        0.0,
+    )
     if capital > 0 and stock_mv / capital < 0.5:
         risks.append("建仓期未完成, 现金占比过高拖累收益")
 
@@ -342,7 +364,10 @@ def forecast_annual_return(target_date: str | None = None) -> dict[str, Any]:
     # 回撤红线硬约束验证
     drawdown_breaches = [s["name"] for s in scenarios if s.get("drawdown_breached")]
     if drawdown_breaches:
-        key_risks.insert(0, f"⚠️ 回撤红线突破: {', '.join(drawdown_breaches)} 情景回撤 >= -15%, 需调整对冲比例")
+        key_risks.insert(
+            0,
+            f"⚠️ 回撤红线突破: {', '.join(drawdown_breaches)} 情景回撤 >= -15%, 需调整对冲比例",
+        )
 
     # 8% 目标硬约束验证
     target_breaches = [s["name"] for s in scenarios if not s.get("meets_target")]
@@ -422,7 +447,16 @@ def write_to_trade_plan(forecast: dict[str, Any], target_date: str | None = None
         with open(plan_path, "w", encoding="utf-8") as f:
             json.dump(plan, f, ensure_ascii=False, indent=2)
         return plan_path
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return None
 
@@ -440,7 +474,9 @@ def print_forecast(forecast: dict[str, Any]) -> None:
     print("=" * 80)
 
     target = forecast.get("target", {})
-    print(f"目标: 年化 >= {target.get('annual_return', 0):.2%} | 最大回撤 < {target.get('max_drawdown', 0):.2%} | RF = {target.get('rf_rate', 0):.2%}")
+    print(
+        f"目标: 年化 >= {target.get('annual_return', 0):.2%} | 最大回撤 < {target.get('max_drawdown', 0):.2%} | RF = {target.get('rf_rate', 0):.2%}"
+    )
     print()
 
     baseline = forecast.get("baseline", {})
@@ -454,7 +490,9 @@ def print_forecast(forecast: dict[str, Any]) -> None:
     print()
 
     print("多情景测算 (建仓完成度 90%):")
-    print(f"{'情景':<10} {'现货':>7} {'现货贡献':>9} {'对冲':>7} {'CC贡献':>8} {'现金':>7} {'综合':>8} {'夏普':>7} {'回撤':>7} {'达标':>5} {'回撤合规':>8}")
+    print(
+        f"{'情景':<10} {'现货':>7} {'现货贡献':>9} {'对冲':>7} {'CC贡献':>8} {'现金':>7} {'综合':>8} {'夏普':>7} {'回撤':>7} {'达标':>5} {'回撤合规':>8}"
+    )
     print("-" * 95)
     for s in forecast.get("scenarios", []):
         print(
@@ -475,17 +513,27 @@ def print_forecast(forecast: dict[str, Any]) -> None:
     summary = forecast.get("summary", {})
     if summary:
         print("综合结论:")
-        print(f"  最佳/最差/平均收益: {summary.get('best_case', 0):+.2%} / {summary.get('worst_case', 0):+.2%} / {summary.get('average', 0):+.2%}")
+        print(
+            f"  最佳/最差/平均收益: {summary.get('best_case', 0):+.2%} / {summary.get('worst_case', 0):+.2%} / {summary.get('average', 0):+.2%}"
+        )
         print(f"  最佳夏普比率:       {summary.get('best_sharpe', 0):.3f}")
         print(f"  最差回撤:           {summary.get('worst_drawdown', 0):+.2%}")
-        print(f"  达标情景:           {summary.get('scenarios_meeting_target', 0)} / {summary.get('scenarios_total', 0)} ({summary.get('target_achievement_rate', 0):.0%})")
+        print(
+            f"  达标情景:           {summary.get('scenarios_meeting_target', 0)} / {summary.get('scenarios_total', 0)} ({summary.get('target_achievement_rate', 0):.0%})"
+        )
 
         hc = summary.get("hard_constraints", {})
         print()
         print("硬约束验证 (必须全部为 True):")
-        print(f"  {'✅' if hc.get('annual_return_8pct_met') else '🚨'} 年化 8% 目标 (保守+中性情景): {hc.get('annual_return_8pct_met', False)}")
-        print(f"  {'✅' if hc.get('drawdown_under_15pct') else '🚨'} 回撤 < 15% (所有情景):          {hc.get('drawdown_under_15pct', False)}")
-        print(f"  {'✅' if hc.get('all_constraints_met') else '🚨'} 全部约束达成:                    {hc.get('all_constraints_met', False)}")
+        print(
+            f"  {'✅' if hc.get('annual_return_8pct_met') else '🚨'} 年化 8% 目标 (保守+中性情景): {hc.get('annual_return_8pct_met', False)}"
+        )
+        print(
+            f"  {'✅' if hc.get('drawdown_under_15pct') else '🚨'} 回撤 < 15% (所有情景):          {hc.get('drawdown_under_15pct', False)}"
+        )
+        print(
+            f"  {'✅' if hc.get('all_constraints_met') else '🚨'} 全部约束达成:                    {hc.get('all_constraints_met', False)}"
+        )
     print()
 
     risks = forecast.get("key_risks", [])

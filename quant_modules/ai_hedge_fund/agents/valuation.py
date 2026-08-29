@@ -23,7 +23,10 @@ from quant_modules.ai_hedge_fund.utils.progress import progress
 
 logger = logging.getLogger(__name__)
 
-def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analyst_agent"):
+
+def valuation_analyst_agent(
+    state: AgentState, agent_id: str = "valuation_analyst_agent"
+):
     """Run valuation across tickers and write signals back to `state`."""
 
     data = state["data"]
@@ -44,7 +47,9 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
             api_key=api_key,
         )
         if not financial_metrics:
-            progress.update_status(agent_id, ticker, "Failed: No financial metrics found")
+            progress.update_status(
+                agent_id, ticker, "Failed: No financial metrics found"
+            )
             continue
         most_recent_metrics = financial_metrics[0]
 
@@ -64,7 +69,7 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
                 "revenue",
                 "operating_income",
                 "ebit",
-                "ebitda"
+                "ebitda",
             ],
             end_date=end_date,
             period="ttm",
@@ -72,7 +77,9 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
             api_key=api_key,
         )
         if len(line_items) < 2:
-            progress.update_status(agent_id, ticker, "Failed: Insufficient financial line items")
+            progress.update_status(
+                agent_id, ticker, "Failed: Insufficient financial line items"
+            )
             continue
         li_curr, li_prev = line_items[0], line_items[1]
 
@@ -80,8 +87,8 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
         # Valuation models
         # ------------------------------------------------------------------
         # Handle potential None values for working capital
-        wc_curr = getattr(li_curr, 'working_capital', None)
-        wc_prev = getattr(li_prev, 'working_capital', None)
+        wc_curr = getattr(li_curr, "working_capital", None)
+        wc_prev = getattr(li_prev, "working_capital", None)
         if wc_curr is not None and wc_prev is not None:
             wc_change = wc_curr - wc_prev
         else:
@@ -102,8 +109,8 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
         # Calculate WACC
         wacc = calculate_wacc(
             market_cap=most_recent_metrics.market_cap or 0,
-            total_debt=getattr(li_curr, 'total_debt', None),
-            cash=getattr(li_curr, 'cash_and_equivalents', None),
+            total_debt=getattr(li_curr, "total_debt", None),
+            cash=getattr(li_curr, "cash_and_equivalents", None),
             interest_coverage=most_recent_metrics.interest_coverage,
             debt_to_equity=most_recent_metrics.debt_to_equity,
         )
@@ -111,23 +118,23 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
         # Prepare FCF history for enhanced DCF
         fcf_history = []
         for li in line_items:
-            if hasattr(li, 'free_cash_flow') and li.free_cash_flow is not None:
+            if hasattr(li, "free_cash_flow") and li.free_cash_flow is not None:
                 fcf_history.append(li.free_cash_flow)
 
         # Enhanced DCF with scenarios
         dcf_results = calculate_dcf_scenarios(
             fcf_history=fcf_history,
             growth_metrics={
-                'revenue_growth': most_recent_metrics.revenue_growth,
-                'fcf_growth': most_recent_metrics.free_cash_flow_growth,
-                'earnings_growth': most_recent_metrics.earnings_growth
+                "revenue_growth": most_recent_metrics.revenue_growth,
+                "fcf_growth": most_recent_metrics.free_cash_flow_growth,
+                "earnings_growth": most_recent_metrics.earnings_growth,
             },
             wacc=wacc,
             market_cap=most_recent_metrics.market_cap or 0,
-            revenue_growth=most_recent_metrics.revenue_growth
+            revenue_growth=most_recent_metrics.revenue_growth,
         )
 
-        dcf_val = dcf_results['expected_value']
+        dcf_val = dcf_results["expected_value"]
 
         # Implied Equity Value
         ev_ebitda_val = calculate_ev_ebitda_value(financial_metrics)
@@ -155,19 +162,34 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
             "residual_income": {"value": rim_val, "weight": 0.10},
         }
 
-        total_weight = sum(v["weight"] for v in method_values.values() if v["value"] > 0)
+        total_weight = sum(
+            v["weight"] for v in method_values.values() if v["value"] > 0
+        )
         if total_weight == 0:
-            progress.update_status(agent_id, ticker, "Failed: All valuation methods zero")
+            progress.update_status(
+                agent_id, ticker, "Failed: All valuation methods zero"
+            )
             continue
 
         for v in method_values.values():
-            v["gap"] = (v["value"] - market_cap) / market_cap if v["value"] > 0 else None
+            v["gap"] = (
+                (v["value"] - market_cap) / market_cap if v["value"] > 0 else None
+            )
 
-        weighted_gap = sum(
-            v["weight"] * v["gap"] for v in method_values.values() if v["gap"] is not None
-        ) / total_weight
+        weighted_gap = (
+            sum(
+                v["weight"] * v["gap"]
+                for v in method_values.values()
+                if v["gap"] is not None
+            )
+            / total_weight
+        )
 
-        signal = "bullish" if weighted_gap > 0.15 else "bearish" if weighted_gap < -0.15 else "neutral"
+        signal = (
+            "bullish"
+            if weighted_gap > 0.15
+            else "bearish" if weighted_gap < -0.15 else "neutral"
+        )
         confidence = round(min(abs(weighted_gap) / 0.30 * 100, 100))
 
         # Enhanced reasoning with DCF scenario details
@@ -180,7 +202,7 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
                 )
 
                 # Add enhanced DCF details
-                if m == "dcf" and 'dcf_results' in locals():
+                if m == "dcf" and "dcf_results" in locals():
                     enhanced_details = (
                         f"{base_details}\n"
                         f"  WACC: {wacc:.1%}, Bear: ${dcf_results['downside']:,.2f}, "
@@ -191,20 +213,25 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
 
                 reasoning[f"{m}_analysis"] = {
                     "signal": (
-                        "bullish" if vals["gap"] and vals["gap"] > 0.15 else
-                        "bearish" if vals["gap"] and vals["gap"] < -0.15 else "neutral"
+                        "bullish"
+                        if vals["gap"] and vals["gap"] > 0.15
+                        else (
+                            "bearish"
+                            if vals["gap"] and vals["gap"] < -0.15
+                            else "neutral"
+                        )
                     ),
                     "details": enhanced_details,
                 }
 
         # Add overall DCF scenario summary if available
-        if 'dcf_results' in locals():
+        if "dcf_results" in locals():
             reasoning["dcf_scenario_analysis"] = {
                 "bear_case": f"${dcf_results['downside']:,.2f}",
                 "base_case": f"${dcf_results['scenarios']['base']:,.2f}",
                 "bull_case": f"${dcf_results['upside']:,.2f}",
                 "wacc_used": f"{wacc:.1%}",
-                "fcf_periods_analyzed": len(fcf_history)
+                "fcf_periods_analyzed": len(fcf_history),
             }
 
         valuation_analysis[ticker] = {
@@ -212,7 +239,9 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
             "confidence": confidence,
             "reasoning": reasoning,
         }
-        progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))
+        progress.update_status(
+            agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4)
+        )
 
     # ---- Emit message (for LLM tool chain) ----
     msg = HumanMessage(content=json.dumps(valuation_analysis), name=agent_id)
@@ -226,9 +255,11 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
 
     return {"messages": [msg], "data": data}
 
+
 #############################
 # Helper Valuation Functions
 #############################
+
 
 def calculate_owner_earnings_value(
     net_income: float | None,
@@ -241,7 +272,10 @@ def calculate_owner_earnings_value(
     num_years: int = 5,
 ) -> float:
     """Buffett owner‑earnings valuation with margin‑of‑safety."""
-    if not all(isinstance(x, (int, float)) for x in [net_income, depreciation, capex, working_capital_change]):
+    if not all(
+        isinstance(x, (int, float))
+        for x in [net_income, depreciation, capex, working_capital_change]
+    ):
         return 0
 
     owner_earnings = net_income + depreciation - capex - working_capital_change
@@ -254,9 +288,9 @@ def calculate_owner_earnings_value(
         pv += future / (1 + required_return) ** yr
 
     terminal_growth = min(growth_rate, 0.03)
-    term_val = (owner_earnings * (1 + growth_rate) ** num_years * (1 + terminal_growth)) / (
-        required_return - terminal_growth
-    )
+    term_val = (
+        owner_earnings * (1 + growth_rate) ** num_years * (1 + terminal_growth)
+    ) / (required_return - terminal_growth)
     pv_term = term_val / (1 + required_return) ** num_years
 
     intrinsic = pv + pv_term
@@ -298,9 +332,13 @@ def calculate_ev_ebitda_value(financial_metrics: list):
         return 0
 
     ebitda_now = m0.enterprise_value / m0.enterprise_value_to_ebitda_ratio
-    med_mult = statistics.median([
-        m.enterprise_value_to_ebitda_ratio for m in financial_metrics if m.enterprise_value_to_ebitda_ratio
-    ])
+    med_mult = statistics.median(
+        [
+            m.enterprise_value_to_ebitda_ratio
+            for m in financial_metrics
+            if m.enterprise_value_to_ebitda_ratio
+        ]
+    )
     ev_implied = med_mult * ebitda_now
     net_debt = (m0.enterprise_value or 0) - (m0.market_cap or 0)
     return max(ev_implied - net_debt, 0)
@@ -316,7 +354,9 @@ def calculate_residual_income_value(
     num_years: int = 5,
 ):
     """Residual Income Model (Edwards‑Bell‑Ohlson)."""
-    if not (market_cap and net_income and price_to_book_ratio and price_to_book_ratio > 0):
+    if not (
+        market_cap and net_income and price_to_book_ratio and price_to_book_ratio > 0
+    ):
         return 0
 
     book_val = market_cap / price_to_book_ratio
@@ -329,8 +369,10 @@ def calculate_residual_income_value(
         ri_t = ri0 * (1 + book_value_growth) ** yr
         pv_ri += ri_t / (1 + cost_of_equity) ** yr
 
-    term_ri = ri0 * (1 + book_value_growth) ** (num_years + 1) / (
-        cost_of_equity - terminal_growth_rate
+    term_ri = (
+        ri0
+        * (1 + book_value_growth) ** (num_years + 1)
+        / (cost_of_equity - terminal_growth_rate)
     )
     pv_term = term_ri / (1 + cost_of_equity) ** num_years
 
@@ -342,6 +384,7 @@ def calculate_residual_income_value(
 # Enhanced DCF Helper Functions
 ####################################
 
+
 def calculate_wacc(
     market_cap: float,
     total_debt: float | None,
@@ -350,7 +393,7 @@ def calculate_wacc(
     debt_to_equity: float | None,
     beta_proxy: float = 1.0,
     risk_free_rate: float = 0.045,
-    market_risk_premium: float = 0.06
+    market_risk_premium: float = 0.06,
 ) -> float:
     """Calculate WACC using available financial data."""
 
@@ -360,7 +403,9 @@ def calculate_wacc(
     # Cost of Debt - estimate from interest coverage
     if interest_coverage and interest_coverage > 0:
         # Higher coverage = lower cost of debt
-        cost_of_debt = max(risk_free_rate + 0.01, risk_free_rate + (10 / interest_coverage))
+        cost_of_debt = max(
+            risk_free_rate + 0.01, risk_free_rate + (10 / interest_coverage)
+        )
     else:
         cost_of_debt = risk_free_rate + 0.05  # Default spread
 
@@ -404,7 +449,7 @@ def calculate_enhanced_dcf_value(
     growth_metrics: dict,
     wacc: float,
     market_cap: float,
-    revenue_growth: float | None = None
+    revenue_growth: float | None = None,
 ) -> float:
     """Enhanced DCF with multi-stage growth."""
 
@@ -440,7 +485,9 @@ def calculate_enhanced_dcf_value(
     # Transition stage
     for year in range(4, 8):
         transition_rate = transition_growth * (8 - year) / 4  # Declining
-        fcf_projected = base_fcf * (1 + high_growth) ** 3 * (1 + transition_rate) ** (year - 3)
+        fcf_projected = (
+            base_fcf * (1 + high_growth) ** 3 * (1 + transition_rate) ** (year - 3)
+        )
         pv += fcf_projected / (1 + wacc) ** year
 
     # Terminal value
@@ -461,42 +508,40 @@ def calculate_dcf_scenarios(
     growth_metrics: dict,
     wacc: float,
     market_cap: float,
-    revenue_growth: float | None = None
+    revenue_growth: float | None = None,
 ) -> dict:
     """Calculate DCF under multiple scenarios."""
 
     scenarios = {
-        'bear': {'growth_adj': 0.5, 'wacc_adj': 1.2, 'terminal_adj': 0.8},
-        'base': {'growth_adj': 1.0, 'wacc_adj': 1.0, 'terminal_adj': 1.0},
-        'bull': {'growth_adj': 1.5, 'wacc_adj': 0.9, 'terminal_adj': 1.2}
+        "bear": {"growth_adj": 0.5, "wacc_adj": 1.2, "terminal_adj": 0.8},
+        "base": {"growth_adj": 1.0, "wacc_adj": 1.0, "terminal_adj": 1.0},
+        "bull": {"growth_adj": 1.5, "wacc_adj": 0.9, "terminal_adj": 1.2},
     }
 
     results = {}
     base_revenue_growth = revenue_growth or 0.05
 
     for scenario, adjustments in scenarios.items():
-        adjusted_revenue_growth = base_revenue_growth * adjustments['growth_adj']
-        adjusted_wacc = wacc * adjustments['wacc_adj']
+        adjusted_revenue_growth = base_revenue_growth * adjustments["growth_adj"]
+        adjusted_wacc = wacc * adjustments["wacc_adj"]
 
         results[scenario] = calculate_enhanced_dcf_value(
             fcf_history=fcf_history,
             growth_metrics=growth_metrics,
             wacc=adjusted_wacc,
             market_cap=market_cap,
-            revenue_growth=adjusted_revenue_growth
+            revenue_growth=adjusted_revenue_growth,
         )
 
     # Probability-weighted average
     expected_value = (
-        results['bear'] * 0.2 +
-        results['base'] * 0.6 +
-        results['bull'] * 0.2
+        results["bear"] * 0.2 + results["base"] * 0.6 + results["bull"] * 0.2
     )
 
     return {
-        'scenarios': results,
-        'expected_value': expected_value,
-        'range': results['bull'] - results['bear'],
-        'upside': results['bull'],
-        'downside': results['bear']
+        "scenarios": results,
+        "expected_value": expected_value,
+        "range": results["bull"] - results["bear"],
+        "upside": results["bull"],
+        "downside": results["bear"],
     }

@@ -34,6 +34,7 @@
     NOTIFY_TIMEOUT        告警超时秒数 (默认 5)
     NOTIFY_ENABLED        是否启用外部告警 (默认 true, false 时只打日志)
 """
+
 from __future__ import annotations
 
 import json
@@ -96,7 +97,9 @@ def _send_dingtalk(title: str, content: str, level: str = "warning") -> bool:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:  # nosec B310  # 钉钉 webhook 合法 URL
+        with urllib.request.urlopen(
+            req, timeout=_TIMEOUT
+        ) as resp:  # nosec B310  # 钉钉 webhook 合法 URL
             body = resp.read().decode("utf-8", errors="replace")
             if '"errcode":0' in body or '"success"' in body.lower():
                 logger.info("钉钉告警发送成功: %s", title)
@@ -142,7 +145,9 @@ def _send_feishu(title: str, content: str, level: str = "warning") -> bool:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:  # nosec B310  # 飞书 webhook 合法 URL
+        with urllib.request.urlopen(
+            req, timeout=_TIMEOUT
+        ) as resp:  # nosec B310  # 飞书 webhook 合法 URL
             body = resp.read().decode("utf-8", errors="replace")
             if "0" in body and "StatusCode" not in body:
                 # 飞书成功响应通常是 {"StatusCode": 0, "StatusMessage": "success", "code": 0}
@@ -244,7 +249,9 @@ def send_sms_alert(message: str, level: str = "warning") -> bool:
     return external_ok
 
 
-def send_async_alert(title: str, content: str, level: str = "warning") -> threading.Thread:
+def send_async_alert(
+    title: str, content: str, level: str = "warning"
+) -> threading.Thread:
     """异步发送告警 (不阻塞主流程).
 
     用于交易主路径中, 告警发送不应影响交易延迟。

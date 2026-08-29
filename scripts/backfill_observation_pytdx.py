@@ -1,4 +1,5 @@
 """用 pytdx 补录 08-12~08-14 观察期日收益数据."""
+
 from __future__ import annotations
 
 import json
@@ -13,15 +14,18 @@ logger = logging.getLogger(__name__)
 PROJ = Path(__file__).resolve().parent.parent
 JSONL = PROJ / "reports" / "shadow" / "daily_returns.jsonl"
 
+
 def tdx_code(code: str) -> tuple[int, str]:
     if code.endswith(".SH"):
         return (1, code.replace(".SH", ""))
     return (0, code.replace(".SZ", ""))
 
+
 def fetch_closes(api: TdxHq_API, code: str, count: int = 10) -> dict[str, float]:
     market, symbol = tdx_code(code)
     bars = api.get_security_bars(4, market, symbol, 0, count)
     return {b["datetime"][:10]: b["close"] for b in bars}
+
 
 def main():
     pos = json.loads((PROJ / "config" / "positions.json").read_text(encoding="utf-8"))
@@ -45,8 +49,12 @@ def main():
 
     results = []
     for date in target_dates:
-        prev_date_map = {"2026-08-11": "2026-08-10", "2026-08-12": "2026-08-11",
-                         "2026-08-13": "2026-08-12", "2026-08-14": "2026-08-13"}
+        prev_date_map = {
+            "2026-08-11": "2026-08-10",
+            "2026-08-12": "2026-08-11",
+            "2026-08-13": "2026-08-12",
+            "2026-08-14": "2026-08-13",
+        }
         prev_date = prev_date_map.get(date)
         if not prev_date:
             continue
@@ -65,18 +73,20 @@ def main():
 
         if total_prev > 0 and symbols_ok >= 20:
             daily_return = round((total_curr - total_prev) / total_prev, 6)
-            results.append({
-                "date": date,
-                "daily_return": daily_return,
-                "source": "w13a_real_market_feed",
-                "updated_at": "2026-08-14T18:30:00",
-                "symbols_count": symbols_ok,
-                "cross_validated": True,
-                "source_consistency": "high",
-                "cross_validated_at": "2026-08-14T18:30:00",
-                "cross_validated_notes": f"pytdx backfill, {symbols_ok} symbols",
-                "cross_validated_sources": ["pytdx"],
-            })
+            results.append(
+                {
+                    "date": date,
+                    "daily_return": daily_return,
+                    "source": "w13a_real_market_feed",
+                    "updated_at": "2026-08-14T18:30:00",
+                    "symbols_count": symbols_ok,
+                    "cross_validated": True,
+                    "source_consistency": "high",
+                    "cross_validated_at": "2026-08-14T18:30:00",
+                    "cross_validated_notes": f"pytdx backfill, {symbols_ok} symbols",
+                    "cross_validated_sources": ["pytdx"],
+                }
+            )
             logger.info(f"  {date}: {daily_return*100:+.4f}% ({symbols_ok} 标的)")
         else:
             logger.warning(f"  {date}: 标的不足 ({symbols_ok}<20), 跳过")
@@ -101,7 +111,10 @@ def main():
     else:
         logger.info("无新记录需追加 (日期已存在)")
 
-    logger.info(f"当前 daily_returns.jsonl 总记录数: {len(existing) + len(new_records)}")
+    logger.info(
+        f"当前 daily_returns.jsonl 总记录数: {len(existing) + len(new_records)}"
+    )
+
 
 if __name__ == "__main__":
     main()

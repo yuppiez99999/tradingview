@@ -21,6 +21,7 @@
     # 指定路径
     data = load_positions(path="/custom/positions.json")
 """
+
 from __future__ import annotations
 
 import json

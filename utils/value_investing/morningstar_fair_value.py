@@ -32,7 +32,9 @@ def fetch_page(page: int) -> dict:
     url = API_BASE.format(page=page, page_size=PAGE_SIZE)
     result = subprocess.run(
         ["curl", "-s", "-H", "User-Agent: Mozilla/5.0", url],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     return json.loads(result.stdout)
 
@@ -66,7 +68,6 @@ def main():
         except Exception:
             time.sleep(1)
 
-
     # 计算潜在涨幅
     stocks = []
     for row in all_rows:
@@ -78,18 +79,20 @@ def main():
         ticker = extract_ticker(row.get("TenforeId", ""))
         upside = (fair_value - close_price) / close_price * 100
 
-        stocks.append({
-            "ticker": ticker,
-            "name": row.get("Name", ""),
-            "close_price": round(close_price, 2),
-            "fair_value": round(fair_value, 2),
-            "upside_pct": round(upside, 1),
-            "star_rating": row.get("StarRatingM255", ""),
-            "moat": row.get("EconomicMoat", ""),
-            "uncertainty": row.get("AssessmentOfFairValueUncertainty", ""),
-            "sector": row.get("SectorName", ""),
-            "industry": row.get("IndustryName", ""),
-        })
+        stocks.append(
+            {
+                "ticker": ticker,
+                "name": row.get("Name", ""),
+                "close_price": round(close_price, 2),
+                "fair_value": round(fair_value, 2),
+                "upside_pct": round(upside, 1),
+                "star_rating": row.get("StarRatingM255", ""),
+                "moat": row.get("EconomicMoat", ""),
+                "uncertainty": row.get("AssessmentOfFairValueUncertainty", ""),
+                "sector": row.get("SectorName", ""),
+                "industry": row.get("IndustryName", ""),
+            }
+        )
 
     # 按潜在涨幅排序
     stocks.sort(key=lambda x: x["upside_pct"], reverse=True)
@@ -105,14 +108,25 @@ def main():
     csv_path = os.path.join(OUTPUT_DIR, f"morningstar_fair_value_{today}.csv")
 
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=[
-            "rank", "ticker", "name", "close_price", "fair_value",
-            "upside_pct", "star_rating", "moat", "uncertainty", "sector", "industry"
-        ])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "rank",
+                "ticker",
+                "name",
+                "close_price",
+                "fair_value",
+                "upside_pct",
+                "star_rating",
+                "moat",
+                "uncertainty",
+                "sector",
+                "industry",
+            ],
+        )
         writer.writeheader()
         for i, s in enumerate(stocks, 1):
             writer.writerow({"rank": i, **s})
-
 
     # 统计摘要
     undervalued = [s for s in stocks if s["upside_pct"] > 0]

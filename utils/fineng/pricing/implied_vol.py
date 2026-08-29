@@ -31,11 +31,11 @@ from utils.fineng.pricing.black_scholes import (
 class ImpliedVolResult:
     """隐含波动率求解结果"""
 
-    iv: float               # 隐含波动率 (年化)
-    n_iterations: int       # 迭代次数
-    converged: bool         # 是否收敛
-    price_error: float      # 最终定价误差 (市场价 - 模型价)
-    method: str             # 使用的算法: "newton_raphson" / "bisection"
+    iv: float  # 隐含波动率 (年化)
+    n_iterations: int  # 迭代次数
+    converged: bool  # 是否收敛
+    price_error: float  # 最终定价误差 (市场价 - 模型价)
+    method: str  # 使用的算法: "newton_raphson" / "bisection"
 
 
 # ============================================================
@@ -81,8 +81,11 @@ def implied_vol(
     if market_price < min_price - 1e-10:
         # 不抛异常, 返回零波动 (实践中可能是数据错误)
         return ImpliedVolResult(
-            iv=0.0, n_iterations=0, converged=False,
-            price_error=market_price - min_price, method="newton_raphson",
+            iv=0.0,
+            n_iterations=0,
+            converged=False,
+            price_error=market_price - min_price,
+            method="newton_raphson",
         )
 
     sigma = initial_guess
@@ -94,14 +97,24 @@ def implied_vol(
 
         if abs(price_diff) < tolerance:
             return ImpliedVolResult(
-                iv=sigma, n_iterations=i + 1, converged=True,
-                price_error=price_diff, method="newton_raphson",
+                iv=sigma,
+                n_iterations=i + 1,
+                converged=True,
+                price_error=price_diff,
+                method="newton_raphson",
             )
 
         if vega_raw < 1e-12:
             # Vega 接近零 (深度虚值/到期), 切换到 Bisection
             return implied_vol_bisection(
-                market_price, S, K, T, r, is_call, tolerance, max_iterations,
+                market_price,
+                S,
+                K,
+                T,
+                r,
+                is_call,
+                tolerance,
+                max_iterations,
             )
 
         # Newton-Raphson 步
@@ -115,7 +128,14 @@ def implied_vol(
 
     # 未收敛, 尝试 Bisection
     return implied_vol_bisection(
-        market_price, S, K, T, r, is_call, tolerance, max_iterations,
+        market_price,
+        S,
+        K,
+        T,
+        r,
+        is_call,
+        tolerance,
+        max_iterations,
     )
 
 
@@ -162,8 +182,11 @@ def implied_vol_bisection(
         price_high = bs_price(S, K, T, r, sigma_high, is_call)
         if price_low > market_price or price_high < market_price:
             return ImpliedVolResult(
-                iv=0.0, n_iterations=0, converged=False,
-                price_error=float("inf"), method="bisection",
+                iv=0.0,
+                n_iterations=0,
+                converged=False,
+                price_error=float("inf"),
+                method="bisection",
             )
 
     for i in range(max_iterations):
@@ -172,8 +195,11 @@ def implied_vol_bisection(
 
         if abs(price_mid - market_price) < tolerance:
             return ImpliedVolResult(
-                iv=sigma_mid, n_iterations=i + 1, converged=True,
-                price_error=price_mid - market_price, method="bisection",
+                iv=sigma_mid,
+                n_iterations=i + 1,
+                converged=True,
+                price_error=price_mid - market_price,
+                method="bisection",
             )
 
         if price_mid < market_price:
@@ -184,8 +210,11 @@ def implied_vol_bisection(
     sigma_final = (sigma_low + sigma_high) / 2.0
     price_final = bs_price(S, K, T, r, sigma_final, is_call)
     return ImpliedVolResult(
-        iv=sigma_final, n_iterations=max_iterations, converged=False,
-        price_error=price_final - market_price, method="bisection",
+        iv=sigma_final,
+        n_iterations=max_iterations,
+        converged=False,
+        price_error=price_final - market_price,
+        method="bisection",
     )
 
 
@@ -209,5 +238,4 @@ def _no_arbitrage_lower_bound(
     discount = math.exp(-r * T)
     if is_call:
         return max(0.0, S - K * discount)
-    else:
-        return max(0.0, K * discount - S)
+    return max(0.0, K * discount - S)

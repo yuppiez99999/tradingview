@@ -42,7 +42,9 @@ class TestBacktestEngine:
         assert e.trades == []
 
     def test_init_custom(self):
-        e = BacktestEngine(initial_capital=500_000, commission_rate=0.0005, slippage_rate=0.002)
+        e = BacktestEngine(
+            initial_capital=500_000, commission_rate=0.0005, slippage_rate=0.002
+        )
         assert e.initial_capital == 500_000
         assert e.commission_rate == 0.0005
         assert e.slippage_rate == 0.002
@@ -259,7 +261,14 @@ class TestBacktestEngine:
         e.run(data, lambda d, p: [])
         report = e.generate_report()
         assert report["status"] == "success"
-        for field in ["initial_capital", "final_equity", "total_return", "sharpe_ratio", "max_drawdown", "win_rate"]:
+        for field in [
+            "initial_capital",
+            "final_equity",
+            "total_return",
+            "sharpe_ratio",
+            "max_drawdown",
+            "win_rate",
+        ]:
             assert field in report
 
 
@@ -340,7 +349,9 @@ class TestBacktestDataLoader:
     """BacktestDataLoader 数据加载器测试"""
 
     def test_generate_synthetic_data(self):
-        data = BacktestDataLoader.generate_synthetic_data("2026-08-03", "2026-08-07", ["A", "B"])
+        data = BacktestDataLoader.generate_synthetic_data(
+            "2026-08-03", "2026-08-07", ["A", "B"]
+        )
         assert len(data) >= 3  # 8/3-8/7 有 5 个工作日
         for day in data:
             assert "date" in day
@@ -350,7 +361,9 @@ class TestBacktestDataLoader:
 
     def test_generate_synthetic_data_weekend_skip(self):
         """周末跳过"""
-        data = BacktestDataLoader.generate_synthetic_data("2026-08-01", "2026-08-02", ["A"])
+        data = BacktestDataLoader.generate_synthetic_data(
+            "2026-08-01", "2026-08-02", ["A"]
+        )
         # 8/1=周六, 8/2=周日 → 0 个工作日
         assert len(data) == 0
 
@@ -363,11 +376,18 @@ class TestBacktestDataLoader:
         with tempfile.TemporaryDirectory() as d:
             pos_file = os.path.join(d, "positions_2026-08-01.json")
             with open(pos_file, "w", encoding="utf-8") as f:
-                json.dump({
-                    "positions": {
-                        "A": {"etf_flow_signal": "强加仓", "etf_inflow": 100, "avg_cost": 10}
-                    }
-                }, f)
+                json.dump(
+                    {
+                        "positions": {
+                            "A": {
+                                "etf_flow_signal": "强加仓",
+                                "etf_inflow": 100,
+                                "avg_cost": 10,
+                            }
+                        }
+                    },
+                    f,
+                )
             data = BacktestDataLoader.load_from_positions_history(d)
         assert len(data) == 1
         assert data[0]["date"] == "2026-08-01"
@@ -377,12 +397,15 @@ class TestBacktestDataLoader:
         with tempfile.TemporaryDirectory() as d:
             pos_file = os.path.join(d, "positions_2026-08-01.json")
             with open(pos_file, "w", encoding="utf-8") as f:
-                json.dump({
-                    "positions": {
-                        "A": {"avg_cost": 10},
-                        "B": {"avg_cost": 20},
-                    }
-                }, f)
+                json.dump(
+                    {
+                        "positions": {
+                            "A": {"avg_cost": 10},
+                            "B": {"avg_cost": 20},
+                        }
+                    },
+                    f,
+                )
             data = BacktestDataLoader.load_from_positions_history(d, tickers=["A"])
         assert len(data) == 1
         assert "A" in data[0]["prices"]
@@ -398,7 +421,9 @@ class TestConvenienceFunctions:
     """run_etf_signal_backtest / compare_strategies 测试"""
 
     def test_run_etf_signal_backtest(self):
-        data = BacktestDataLoader.generate_synthetic_data("2026-08-03", "2026-08-07", ["A"])
+        data = BacktestDataLoader.generate_synthetic_data(
+            "2026-08-03", "2026-08-07", ["A"]
+        )
         result = run_etf_signal_backtest(data, initial_capital=500_000)
         assert result["status"] == "success"
         assert result["initial_capital"] == 500_000

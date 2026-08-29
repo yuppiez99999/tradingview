@@ -15,9 +15,10 @@ import json
 import logging
 import sys
 import threading
+from collections.abc import Collection
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Collection, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,14 @@ class FillsStore:
                         line = line.strip()
                         if line:
                             records.append(json.loads(line))
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.warning("[FillsStore] 读取 %s 失败: %s", path, e)
         # 仅补充落盘失败而保留在内存兜底的记录 (避免与已落盘记录重复)
         for rec in self._buffer.get(rec_date, []):

@@ -4,6 +4,7 @@
 数据准备 → LoRA 微调 → 评估 → 导出
 支持从 reflections.jsonl 或合成数据加载训练样本.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,7 +24,9 @@ from .finetune_sentiment_model import (
 logger = logging.getLogger("llm_finetune_pipeline")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-REFLECTIONS_PATH = _PROJECT_ROOT / "reports" / "ai_hedge_fund" / "memory" / "reflections.jsonl"
+REFLECTIONS_PATH = (
+    _PROJECT_ROOT / "reports" / "ai_hedge_fund" / "memory" / "reflections.jsonl"
+)
 
 
 @dataclass
@@ -54,7 +57,9 @@ def load_training_data(
     return _load_synthetic(max_samples)
 
 
-def _load_synthetic(max_samples: int) -> tuple[list[str], list[str], list[str], list[str]]:
+def _load_synthetic(
+    max_samples: int,
+) -> tuple[list[str], list[str], list[str], list[str]]:
     """合成财经新闻情感分类数据 (POC 用)
 
     NEW-3 修复: 分层均衡采样, 每类 max_samples//3 个, 避免标签偏斜.
@@ -83,7 +88,16 @@ def _load_synthetic(max_samples: int) -> tuple[list[str], list[str], list[str], 
         ],
     }
 
-    companies = ["贵州茅台", "宁德时代", "比亚迪", "中国平安", "招商银行", "五粮液", "隆基绿能", "伊利股份"]
+    companies = [
+        "贵州茅台",
+        "宁德时代",
+        "比亚迪",
+        "中国平安",
+        "招商银行",
+        "五粮液",
+        "隆基绿能",
+        "伊利股份",
+    ]
     texts: list[str] = []
     labels: list[str] = []
 
@@ -107,7 +121,9 @@ def _load_synthetic(max_samples: int) -> tuple[list[str], list[str], list[str], 
     return texts[:split], labels[:split], texts[split:], labels[split:]
 
 
-def _load_from_reflections(max_samples: int) -> tuple[list[str], list[str], list[str], list[str]]:
+def _load_from_reflections(
+    max_samples: int,
+) -> tuple[list[str], list[str], list[str], list[str]]:
     """从 reflections.jsonl 加载决策反思数据"""
     texts: list[str] = []
     labels: list[str] = []
@@ -167,12 +183,14 @@ def evaluate(
         is_correct = pred == true_label
         if is_correct:
             correct += 1
-        predictions.append({
-            "text": text[:80],
-            "true": true_label,
-            "pred": pred,
-            "correct": is_correct,
-        })
+        predictions.append(
+            {
+                "text": text[:80],
+                "true": true_label,
+                "pred": pred,
+                "correct": is_correct,
+            }
+        )
 
     accuracy = correct / len(eval_labels)
     return accuracy, predictions
@@ -199,7 +217,9 @@ def run_pipeline(
     logger.info("=== W.C.1 LLM 微调 Pipeline ===")
     logger.info("数据源: %s, 最大样本: %d", data_source, max_samples)
 
-    train_texts, train_labels, eval_texts, eval_labels = load_training_data(data_source, max_samples)
+    train_texts, train_labels, eval_texts, eval_labels = load_training_data(
+        data_source, max_samples
+    )
     logger.info("训练集: %d, 验证集: %d", len(train_texts), len(eval_texts))
 
     result = finetune(train_texts, train_labels, config, eval_texts, eval_labels)
@@ -208,7 +228,9 @@ def run_pipeline(
     eval_accuracy = 0.0
     sample_predictions: list[dict[str, Any]] | None = None
     if eval_texts:
-        eval_accuracy, sample_predictions = evaluate(result.output_dir, eval_texts, eval_labels, config)
+        eval_accuracy, sample_predictions = evaluate(
+            result.output_dir, eval_texts, eval_labels, config
+        )
         logger.info("评估准确率: %.2f%%", eval_accuracy * 100)
 
     return PipelineResult(

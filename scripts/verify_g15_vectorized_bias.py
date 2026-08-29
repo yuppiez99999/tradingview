@@ -19,6 +19,7 @@
     - 用 MarketDataProvider 拉取历史价, 不涉及实盘
     - 若 G15 接入 shadow 账户成功, 可复用 Plan B 做样本补充
 """
+
 from __future__ import annotations
 
 import argparse
@@ -86,7 +87,14 @@ def _run_g15_single_day(
             else:
                 continue
             bars.append(bar)
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             print(f"  [SKIP] {symbol} 拉取失败: {e}")
             continue
 
@@ -196,7 +204,9 @@ def main() -> int:
 
     out_path = _PROJECT_ROOT / "reports" / "evolution" / "g15_vs_vectorized_bias.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"\n偏差报告已归档: {out_path}")
     print(f"  最大绝对偏差: {max_abs_bias:.4%}")
     print(f"  是否 <= 5%:  {'YES' if max_abs_bias <= 0.05 else 'NO (需排查)'}")

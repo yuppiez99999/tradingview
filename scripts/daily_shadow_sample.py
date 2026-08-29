@@ -18,6 +18,7 @@
     - 容错: 数据源失败时记录日志并退出, 不抛异常
     - 静默: 默认 INFO 级别日志, 写入 logs/daily_shadow_sample_YYYYMMDD.log
 """
+
 from __future__ import annotations
 
 import argparse
@@ -137,7 +138,10 @@ def _run_cross_validate(logger: logging.Logger) -> dict:
             logger.error("交叉验证脚本退出码非零: %d", result.returncode)
             if result.stderr:
                 logger.error("stderr: %s", result.stderr[-500:])
-            return {"cross_validate_done": False, "error": f"exit_code={result.returncode}"}
+            return {
+                "cross_validate_done": False,
+                "error": f"exit_code={result.returncode}",
+            }
 
         return {"cross_validate_done": True}
     except subprocess.TimeoutExpired:

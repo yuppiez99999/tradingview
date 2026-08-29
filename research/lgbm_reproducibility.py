@@ -10,6 +10,7 @@ LightGBM 训练管道可复现性模块 — 兼容转发层
 
 生产代码与测试应直接 `from utils.lgbm_reproducibility import ...`。
 """
+
 from utils.lgbm_reproducibility import *  # noqa: F401,F403 — 向后兼容转发
 from utils.lgbm_reproducibility import (
     MANIFEST_REQUIRED_FIELDS,

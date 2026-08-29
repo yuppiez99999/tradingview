@@ -49,6 +49,7 @@ logger = logging.getLogger("theoretical_metrics")
 # 1. Lyapunov 稳定性定量度量
 # ============================================================
 
+
 @dataclass
 class LyapunovState:
     """单个时间点的 Lyapunov 状态."""
@@ -158,7 +159,7 @@ class LyapunovStabilityMeter:
         """
         ic_deviation = (ic - self.ic_target) ** 2
         return_deviation = (daily_return - self.return_target) ** 2
-        drift_deviation = drift_score ** 2
+        drift_deviation = drift_score**2
 
         v = (
             self.w_ic * ic_deviation
@@ -285,13 +286,16 @@ class LyapunovStabilityMeter:
             ],
         }
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        path.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         logger.info("Lyapunov 报告已保存: %s", path)
 
 
 # ============================================================
 # 2. 反馈延迟相位分析
 # ============================================================
+
 
 @dataclass
 class FeedbackDelayMeasurement:
@@ -497,13 +501,16 @@ class FeedbackPhaseAnalyzer:
             ],
         }
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        path.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         logger.info("相位分析报告已保存: %s", path)
 
 
 # ============================================================
 # 3. 变异速率与选择压力平衡
 # ============================================================
+
 
 @dataclass
 class VariationSelectionState:
@@ -728,5 +735,7 @@ class VariationSelectionBalancer:
             ],
         }
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        path.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         logger.info("变异-选择平衡报告已保存: %s", path)

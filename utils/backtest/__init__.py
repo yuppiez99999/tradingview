@@ -19,6 +19,7 @@
     - 多小文件(§5.3): 每个模块 120-400 行
     - 复用数据类: 全量使用 utils.wt_structs 的 dataclass
 """
+
 from utils.backtest.a_share_rules import (
     AShareTradingRules,
     PositionLot,

@@ -210,7 +210,9 @@ class VaRBacktester:
         traffic = self._traffic_light(x)
 
         # 模型有效性: 交通灯非红区 AND Kupiec 检验不显著
-        is_valid = traffic != TRAFFIC_LIGHT_RED and kupiec_pval > self.SIGNIFICANCE_LEVEL
+        is_valid = (
+            traffic != TRAFFIC_LIGHT_RED and kupiec_pval > self.SIGNIFICANCE_LEVEL
+        )
 
         # 生成报告
         report = self._generate_report(
@@ -452,10 +454,9 @@ class VaRBacktester:
         """
         if exceptions <= self.GREEN_ZONE_MAX:
             return TRAFFIC_LIGHT_GREEN
-        elif exceptions <= self.YELLOW_ZONE_MAX:
+        if exceptions <= self.YELLOW_ZONE_MAX:
             return TRAFFIC_LIGHT_YELLOW
-        else:
-            return TRAFFIC_LIGHT_RED
+        return TRAFFIC_LIGHT_RED
 
     # ================================================================
     # 报告生成
@@ -508,7 +509,9 @@ class VaRBacktester:
         lines.append(f"  LR 统计量:       {kupiec_stat:.4f}")
         lines.append(f"  p 值:           {kupiec_pval:.4f}")
         lines.append(f"  显著性水平:     {self.SIGNIFICANCE_LEVEL}")
-        lines.append(f"  结论:           {'通过' if kupiec_pass else '拒绝'} (H0: 实际例外率 = 预期例外率)")
+        lines.append(
+            f"  结论:           {'通过' if kupiec_pass else '拒绝'} (H0: 实际例外率 = 预期例外率)"
+        )
         lines.append("")
 
         # -- Christoffersen 独立性检验 --
@@ -526,7 +529,9 @@ class VaRBacktester:
             lines.append(f"    例外   -> 例外:    n11 = {n11}")
             if n11 > 0:
                 lines.append(f"  *** 检测到例外聚类 (n11={n11}) ***")
-        lines.append(f"  结论:           {'通过' if christ_pass else '拒绝'} (H0: 例外事件相互独立)")
+        lines.append(
+            f"  结论:           {'通过' if christ_pass else '拒绝'} (H0: 例外事件相互独立)"
+        )
         lines.append("")
 
         # -- Basel 交通灯 --
@@ -603,7 +608,9 @@ if __name__ == "__main__":
     import argparse
     import json
 
-    parser = argparse.ArgumentParser(description="VaR 回测 -- Kupiec POF + Christoffersen + Basel 交通灯")
+    parser = argparse.ArgumentParser(
+        description="VaR 回测 -- Kupiec POF + Christoffersen + Basel 交通灯"
+    )
     parser.add_argument(
         "--var-file",
         type=str,

@@ -31,11 +31,16 @@ def engine(tmp_path: Path) -> AutoHedgeRebalanceEngine:
                 "cost_benefit": {"threshold": 1.5},
                 "cooldown": {"days": 5},
                 "rolling_window": {"days": 252, "min_sample_days": 30},
-                "circuit_breaker": {"daily_drop_trigger": 0.05, "extreme_drawdown_trigger": 0.25},
+                "circuit_breaker": {
+                    "daily_drop_trigger": 0.05,
+                    "extreme_drawdown_trigger": 0.25,
+                },
             },
             f,
         )
-    return AutoHedgeRebalanceEngine(base_dir=str(tmp_path), config_path="config.yaml", hedge_engine=MagicMock())
+    return AutoHedgeRebalanceEngine(
+        base_dir=str(tmp_path), config_path="config.yaml", hedge_engine=MagicMock()
+    )
 
 
 class TestEngineIntegration:
@@ -43,7 +48,9 @@ class TestEngineIntegration:
 
     def test_eod_decision_full_flow(self, engine: AutoHedgeRebalanceEngine) -> None:
         # Arrange & Act
-        plan = engine.run_eod_decision(portfolio_volatility=0.20, portfolio_drawdown_60d=0.08)
+        plan = engine.run_eod_decision(
+            portfolio_volatility=0.20, portfolio_drawdown_60d=0.08
+        )
         # Assert — 全部子结果存在
         assert plan.tool_selection is not None
         assert plan.filter_result is not None

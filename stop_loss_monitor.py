@@ -29,7 +29,9 @@ from typing import Any, Optional
 
 import yaml
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("stop_loss_monitor")
 
 # 添加路径
@@ -44,6 +46,7 @@ setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 try:
     from utils.concurrency import atomic_write_json as _atomic_write_json
 except ImportError:
+
     def _atomic_write_json(path: str, data: dict) -> None:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -80,7 +83,12 @@ class StopLossMonitor:
     监控持仓标的的实时价格, 触发止损/止盈/移动止损
     """
 
-    def __init__(self, rules_file: Optional[str] = None, positions_file: Optional[str] = None, broker: Any = None):
+    def __init__(
+        self,
+        rules_file: Optional[str] = None,
+        positions_file: Optional[str] = None,
+        broker: Any = None,
+    ):
         """
         Args:
             rules_file: 止损规则 YAML 文件路径
@@ -131,7 +139,9 @@ class StopLossMonitor:
         # 触发历史
         self.trigger_history: list[TriggerRecord] = []
 
-        logger.info(f"止损监控器初始化: {len(self.rules)} 条规则, broker={self.broker.__class__.__name__}")
+        logger.info(
+            f"止损监控器初始化: {len(self.rules)} 条规则, broker={self.broker.__class__.__name__}"
+        )
 
     @staticmethod
     def _sanitize_numpy_tags(text: str) -> str:
@@ -282,7 +292,9 @@ class StopLossMonitor:
                     if price > 0:
                         return float(price)
         except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
-            logger.exception("[StopLoss] 读取 positions.json 价格失败 code=%s", pure_code)
+            logger.exception(
+                "[StopLoss] 读取 positions.json 价格失败 code=%s", pure_code
+            )
 
         # 3. 尝试从 price_history 读取 (P3-3: 移除已删除的 11_量化策略 历史回退路径)
         try:
@@ -303,7 +315,7 @@ class StopLossMonitor:
     def _to_wind_code(code: str) -> str:
         if code.startswith("6"):
             return f"{code}.SH"
-        elif code.startswith(("0", "3")):
+        if code.startswith(("0", "3")):
             return f"{code}.SZ"
         return f"{code}.SH"
 
@@ -351,7 +363,9 @@ class StopLossMonitor:
         # 止损: 价格上涨触及上方止损线
         if current_price >= stop_loss_price:
             trigger_type = (
-                TriggerType.TRAILING_STOP if trailing_stop and current_price < entry_price else TriggerType.STOP_LOSS
+                TriggerType.TRAILING_STOP
+                if trailing_stop and current_price < entry_price
+                else TriggerType.STOP_LOSS
             )
             return TriggerRecord(
                 timestamp=datetime.now().isoformat(),
@@ -422,7 +436,9 @@ class StopLossMonitor:
 
         # S2 修复: 空头持仓反向逻辑 (价格上涨止损, 价格下跌止盈, 平仓=BUY 买回)
         if is_short:
-            return self._evaluate_short(pure_code, name, shares, entry_price, current_price, rule)
+            return self._evaluate_short(
+                pure_code, name, shares, entry_price, current_price, rule
+            )
 
         # 止损线
         # P1-2 修复: 优先用 per-asset 规则的 stop_loss_pct, 缺失时用 risk.yaml 的 default_stop_pct
@@ -443,7 +459,9 @@ class StopLossMonitor:
         if trailing_stop:
             if pure_code not in self._high_water_mark:
                 self._high_water_mark[pure_code] = entry_price
-            self._high_water_mark[pure_code] = max(self._high_water_mark[pure_code], current_price)
+            self._high_water_mark[pure_code] = max(
+                self._high_water_mark[pure_code], current_price
+            )
             high = self._high_water_mark[pure_code]
             # 移动止损线 = 最高价 × (1 + stop_loss_pct)
             trailing_stop_price = high * (1 + stop_loss_pct)
@@ -455,7 +473,9 @@ class StopLossMonitor:
         # 检查止损
         if current_price <= stop_loss_price:
             trigger_type = (
-                TriggerType.TRAILING_STOP if trailing_stop and current_price > entry_price else TriggerType.STOP_LOSS
+                TriggerType.TRAILING_STOP
+                if trailing_stop and current_price > entry_price
+                else TriggerType.STOP_LOSS
             )
             return TriggerRecord(
                 timestamp=datetime.now().isoformat(),
@@ -524,7 +544,9 @@ class StopLossMonitor:
         for record in triggered:
             if record.action in ("SELL", "BUY"):
                 side = "sell" if record.action == "SELL" else "buy"
-                success, order_id = self._execute_close(record.code, side, record.shares, record.current_price)
+                success, order_id = self._execute_close(
+                    record.code, side, record.shares, record.current_price
+                )
                 record.executed = success
                 record.order_id = order_id
 
@@ -544,10 +566,14 @@ class StopLossMonitor:
 
         return triggered
 
-    def _execute_close(self, code: str, side: str, shares: int, price: float) -> tuple[bool, str]:
+    def _execute_close(
+        self, code: str, side: str, shares: int, price: float
+    ) -> tuple[bool, str]:
         """通过 broker 执行平仓 (side='sell' 多头卖出 / 'buy' 空头买回)"""
         if not self.broker:
-            logger.warning(f"无 broker, 仅记录: {side.upper()} {code} {shares}@{price:.2f}")
+            logger.warning(
+                f"无 broker, 仅记录: {side.upper()} {code} {shares}@{price:.2f}"
+            )
             return False, "no_broker"
 
         try:
@@ -556,7 +582,10 @@ class StopLossMonitor:
             if success and self.execution_mode == "MOCK":
                 logger.warning(
                     "[WARN] %s %s %d@%.2f 通过 MockBroker 模拟成交 (EXECUTION_MODE=MOCK, 真实持仓未变)",
-                    side.upper(), code, shares, price,
+                    side.upper(),
+                    code,
+                    shares,
+                    price,
                 )
             return success, order_id
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
@@ -568,7 +597,9 @@ class StopLossMonitor:
         log_dir = os.path.join(_BASE, "reports")
         os.makedirs(log_dir, exist_ok=True)
 
-        log_path = os.path.join(log_dir, f"stop_loss_trigger_{datetime.now().strftime('%Y%m%d')}.json")
+        log_path = os.path.join(
+            log_dir, f"stop_loss_trigger_{datetime.now().strftime('%Y%m%d')}.json"
+        )
         existing = []
         if os.path.exists(log_path):
             try:
@@ -614,7 +645,11 @@ class StopLossMonitor:
             "monitored": n_monitored,
             "rules_loaded": len(self.rules),
             "triggers_today": len(
-                [t for t in self.trigger_history if t.timestamp.startswith(datetime.now().strftime("%Y-%m-%d"))]
+                [
+                    t
+                    for t in self.trigger_history
+                    if t.timestamp.startswith(datetime.now().strftime("%Y-%m-%d"))
+                ]
             ),
             "high_water_marks": dict(self._high_water_mark),
             "low_water_marks": dict(self._low_water_mark),

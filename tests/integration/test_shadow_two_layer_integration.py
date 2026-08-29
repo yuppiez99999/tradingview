@@ -13,6 +13,7 @@
 关联文档: cairn/shadow-data-quality-loop.md §4.3 门槛设计: 两层防护
 关联脚本: scripts/observation_watchdog.py / scripts/integrate_cleaned_to_drift.py
 """
+
 from __future__ import annotations
 
 import json
@@ -54,6 +55,7 @@ class TestTwoLayerIntegration:
         write_cleaned_jsonl(env["cleaned_file"], make_real_records(6))
 
         from scripts.observation_watchdog import run_watchdog
+
         result = run_watchdog(required_days=14, dry_run=False, force_trigger=False)
 
         # 看门狗门槛判定
@@ -85,6 +87,7 @@ class TestTwoLayerIntegration:
         write_cleaned_jsonl(env["cleaned_file"], make_real_records(14))
 
         from scripts.observation_watchdog import run_watchdog
+
         result = run_watchdog(required_days=14, dry_run=False, force_trigger=False)
 
         # 看门狗门槛判定
@@ -100,7 +103,7 @@ class TestTwoLayerIntegration:
         assert alerts[0]["status"] == "completed"
         assert alerts[0]["data_source"] == "shadow_daily_returns_cleaned"
         assert alerts[0]["n_baseline"] == 8  # 14 * 0.6 = 8.4 → 8
-        assert alerts[0]["n_current"] == 6   # 14 - 8 = 6
+        assert alerts[0]["n_current"] == 6  # 14 - 8 = 6
         # 数据质量元信息
         assert alerts[0]["data_quality"]["real"] == 14
         assert alerts[0]["data_quality"]["excluded_non_real"] == 0
@@ -131,6 +134,7 @@ class TestTwoLayerIntegration:
         write_cleaned_jsonl(env["cleaned_file"], make_real_records(3))
 
         from scripts.observation_watchdog import run_watchdog
+
         result = run_watchdog(required_days=14, dry_run=False, force_trigger=True)
 
         # 看门狗门槛确实 FAIL
@@ -160,6 +164,7 @@ class TestTwoLayerIntegration:
         write_cleaned_jsonl(env["cleaned_file"], make_real_records(5))
 
         from scripts.observation_watchdog import run_watchdog
+
         result = run_watchdog(required_days=14, dry_run=False, force_trigger=True)
 
         # 看门狗门槛 FAIL
@@ -174,7 +179,7 @@ class TestTwoLayerIntegration:
         assert len(alerts) == 1
         assert alerts[0]["status"] == "completed"
         assert alerts[0]["n_baseline"] == 3  # max(2, int(5*0.6))=3
-        assert alerts[0]["n_current"] == 2   # 5 - 3 = 2
+        assert alerts[0]["n_current"] == 2  # 5 - 3 = 2
 
     @pytest.mark.integration
     def test_idempotent_alert_writing(self, temp_shadow_env):
@@ -217,9 +222,12 @@ class TestTwoLayerIntegration:
         """
         env = temp_shadow_env
         write_progress_json(env["progress_file"], days_completed=14)
-        write_cleaned_jsonl(env["cleaned_file"], make_mixed_records(real_n=10, backtest_n=4))
+        write_cleaned_jsonl(
+            env["cleaned_file"], make_mixed_records(real_n=10, backtest_n=4)
+        )
 
         from scripts.observation_watchdog import run_watchdog
+
         result = run_watchdog(required_days=14, dry_run=False, force_trigger=False)
 
         # GATE-A 通过 (日历天数达标)
@@ -250,6 +258,7 @@ class TestTwoLayerIntegration:
         write_cleaned_jsonl(env["cleaned_file"], make_real_records(4))
 
         from scripts.observation_watchdog import run_watchdog
+
         result = run_watchdog(required_days=14, dry_run=False, force_trigger=True)
 
         assert result["trigger_result"]["triggered"] is True
@@ -272,6 +281,7 @@ class TestTwoLayerIntegration:
         write_cleaned_jsonl(env["cleaned_file"], make_real_records(14))
 
         from scripts.observation_watchdog import run_watchdog
+
         result = run_watchdog(required_days=14, dry_run=True, force_trigger=False)
 
         # 门槛达标
@@ -298,6 +308,7 @@ class TestTwoLayerIntegration:
         write_cleaned_jsonl(env["cleaned_file"], records)
 
         from scripts.observation_watchdog import run_watchdog
+
         run_watchdog(required_days=14, dry_run=False, force_trigger=False)
 
         alerts = read_jsonl(env["drift_alerts"])
@@ -349,6 +360,7 @@ class TestTwoLayerIntegration:
         write_cleaned_jsonl(env["cleaned_file"], make_real_records(14))
 
         from scripts.observation_watchdog import run_watchdog
+
         run_watchdog(required_days=14, dry_run=False, force_trigger=False)
 
         # progress.json 应被刷新 (由 refresh_observation_progress 写入)

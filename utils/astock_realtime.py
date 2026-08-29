@@ -67,6 +67,7 @@ def _http_get(url: str, ref: str | None = None, timeout: int = 10) -> bytes:
         req.add_header("Referer", ref)
     return _opener.open(req, timeout=timeout).read()  # type: ignore
 
+
 def get_eastmoney_quotes(codes: list[str]) -> dict[str, dict]:
     """东财 push2 批量行情 (主源). 返回 {code: {price, pre_close, change_pct, pe, pb, mktcap_yi, ...}}."""
     global _eastmoney_blocked
@@ -109,7 +110,16 @@ def get_eastmoney_quotes(codes: list[str]) -> dict[str, dict]:
             }
         if out:
             logger.info(f"东财实时价成功: {len(out)} 只")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"东财实时价获取失败: {e}")
         _eastmoney_blocked = True
@@ -148,7 +158,16 @@ def get_tencent_quotes(codes: list[str]) -> dict[str, dict]:
                         "pb": pb or None,
                         "source": "tencent",
                     }
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"腾讯实时价获取失败: {e}")
     return out
@@ -168,8 +187,7 @@ def get_realtime_quotes(codes: list[str], use_cache: bool = True) -> dict[str, d
                 return c[1]  # type: ignore[index]
     res = get_eastmoney_quotes(codes)
     missing_or_bad = [
-        c for c in codes
-        if c not in res or float(res[c].get("price") or 0) == 0
+        c for c in codes if c not in res or float(res[c].get("price") or 0) == 0
     ]
     if missing_or_bad:
         res.update(get_tencent_quotes(missing_or_bad))

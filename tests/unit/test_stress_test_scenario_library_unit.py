@@ -9,6 +9,7 @@
     - add_custom_scenario / create_custom_shock
     - get_worst_scenario / get_breached_scenarios / summarize
 """
+
 from __future__ import annotations
 
 import pytest
@@ -38,8 +39,12 @@ class TestStressScenario:
     @pytest.mark.unit
     def test_construction(self):
         s = StressScenario(
-            name="test", description="d", start_date="2020-01-01", end_date="2020-06-01",
-            severity="moderate", shocks=ShockFactors(equity_market=-0.20),
+            name="test",
+            description="d",
+            start_date="2020-01-01",
+            end_date="2020-06-01",
+            severity="moderate",
+            shocks=ShockFactors(equity_market=-0.20),
         )
         assert s.name == "test"
         assert s.historical_market_return == 0.0
@@ -96,8 +101,20 @@ class TestRunScenario:
     @pytest.fixture
     def positions(self):
         return [
-            {"code": "600276", "amount": 500000, "sector": "医药", "style": "growth", "type": "STOCK"},
-            {"code": "510300", "amount": 300000, "sector": "指数", "style": "", "type": "ETF"},
+            {
+                "code": "600276",
+                "amount": 500000,
+                "sector": "医药",
+                "style": "growth",
+                "type": "STOCK",
+            },
+            {
+                "code": "510300",
+                "amount": 300000,
+                "sector": "指数",
+                "style": "",
+                "type": "ETF",
+            },
         ]
 
     @pytest.mark.unit
@@ -111,7 +128,9 @@ class TestRunScenario:
     @pytest.mark.unit
     def test_breach(self, engine):
         """极端场景 → 突破阈值"""
-        positions = [{"code": "600276", "amount": 1_000_000, "sector": "金融", "type": "STOCK"}]
+        positions = [
+            {"code": "600276", "amount": 1_000_000, "sector": "金融", "type": "STOCK"}
+        ]
         scenario = engine.scenarios[0]  # 2008 extreme
         result = engine.run_scenario(scenario, positions, 1_000_000)
         assert result.is_breach is True
@@ -120,10 +139,16 @@ class TestRunScenario:
     @pytest.mark.unit
     def test_no_breach(self, engine):
         """温和场景 + 小仓位 → 不突破"""
-        positions = [{"code": "600276", "amount": 100, "sector": "医药", "type": "STOCK"}]
+        positions = [
+            {"code": "600276", "amount": 100, "sector": "医药", "type": "STOCK"}
+        ]
         scenario = StressScenario(
-            name="mild", description="", start_date="", end_date="",
-            severity="mild", shocks=ShockFactors(equity_market=-0.01),
+            name="mild",
+            description="",
+            start_date="",
+            end_date="",
+            severity="mild",
+            shocks=ShockFactors(equity_market=-0.01),
         )
         result = engine.run_scenario(scenario, positions, 1_000_000)
         assert result.is_breach is False
@@ -143,9 +168,14 @@ class TestRunScenario:
     @pytest.mark.unit
     def test_etf_limit_down(self, engine):
         """ETF 跌停 → 额外冲击"""
-        positions = [{"code": "510300", "amount": 500000, "sector": "指数", "type": "ETF"}]
+        positions = [
+            {"code": "510300", "amount": 500000, "sector": "指数", "type": "ETF"}
+        ]
         scenario = StressScenario(
-            name="etf_test", description="", start_date="", end_date="",
+            name="etf_test",
+            description="",
+            start_date="",
+            end_date="",
             severity="extreme",
             shocks=ShockFactors(equity_market=-0.10, etf_limit_down_pct=0.6),
         )
@@ -154,11 +184,20 @@ class TestRunScenario:
 
     @pytest.mark.unit
     def test_futures_liquidity(self, engine):
-        positions = [{"code": "IF2406", "amount": 500000, "sector": "期货", "type": "FUTURES"}]
+        positions = [
+            {"code": "IF2406", "amount": 500000, "sector": "期货", "type": "FUTURES"}
+        ]
         scenario = StressScenario(
-            name="fut_test", description="", start_date="", end_date="",
+            name="fut_test",
+            description="",
+            start_date="",
+            end_date="",
             severity="extreme",
-            shocks=ShockFactors(equity_market=-0.10, futures_liquidity_dry_up=0.8, hedge_slippage_bps=200),
+            shocks=ShockFactors(
+                equity_market=-0.10,
+                futures_liquidity_dry_up=0.8,
+                hedge_slippage_bps=200,
+            ),
         )
         result = engine.run_scenario(scenario, positions, 1_000_000)
         assert "liquidity" in result.by_factor
@@ -173,7 +212,9 @@ class TestRunAllScenarios:
     @pytest.mark.unit
     def test_all(self):
         engine = StressTestEngine()
-        positions = [{"code": "600276", "amount": 500000, "sector": "医药", "type": "STOCK"}]
+        positions = [
+            {"code": "600276", "amount": 500000, "sector": "医药", "type": "STOCK"}
+        ]
         results = engine.run_all_scenarios(positions, 1_000_000)
         assert len(results) == 10
 
@@ -189,8 +230,12 @@ class TestCustomScenario:
         engine = StressTestEngine()
         initial = len(engine.scenarios)
         scenario = StressScenario(
-            name="custom", description="", start_date="", end_date="",
-            severity="moderate", shocks=ShockFactors(equity_market=-0.15),
+            name="custom",
+            description="",
+            start_date="",
+            end_date="",
+            severity="moderate",
+            shocks=ShockFactors(equity_market=-0.15),
         )
         engine.add_custom_scenario(scenario)
         assert len(engine.scenarios) == initial + 1
@@ -199,7 +244,9 @@ class TestCustomScenario:
     def test_create_custom_shock(self):
         engine = StressTestEngine()
         scenario = engine.create_custom_shock(
-            name="test_shock", description="test", shocks=ShockFactors(equity_market=-0.20),
+            name="test_shock",
+            description="test",
+            shocks=ShockFactors(equity_market=-0.20),
         )
         assert scenario.name == "test_shock"
         assert scenario in engine.scenarios
@@ -214,7 +261,9 @@ class TestAnalysisTools:
     @pytest.mark.unit
     def test_worst_scenario(self):
         engine = StressTestEngine()
-        positions = [{"code": "600276", "amount": 500000, "sector": "金融", "type": "STOCK"}]
+        positions = [
+            {"code": "600276", "amount": 500000, "sector": "金融", "type": "STOCK"}
+        ]
         results = engine.run_all_scenarios(positions, 1_000_000)
         worst = engine.get_worst_scenario(results)
         assert worst is not None
@@ -228,7 +277,9 @@ class TestAnalysisTools:
     @pytest.mark.unit
     def test_breached_scenarios(self):
         engine = StressTestEngine()
-        positions = [{"code": "600276", "amount": 1_000_000, "sector": "金融", "type": "STOCK"}]
+        positions = [
+            {"code": "600276", "amount": 1_000_000, "sector": "金融", "type": "STOCK"}
+        ]
         results = engine.run_all_scenarios(positions, 1_000_000)
         breaches = engine.get_breached_scenarios(results)
         assert all(r.is_breach for r in breaches)
@@ -236,7 +287,9 @@ class TestAnalysisTools:
     @pytest.mark.unit
     def test_summarize(self):
         engine = StressTestEngine()
-        positions = [{"code": "600276", "amount": 500000, "sector": "医药", "type": "STOCK"}]
+        positions = [
+            {"code": "600276", "amount": 500000, "sector": "医药", "type": "STOCK"}
+        ]
         results = engine.run_all_scenarios(positions, 1_000_000)
         summary = engine.summarize(results)
         assert summary["n_scenarios"] == 10

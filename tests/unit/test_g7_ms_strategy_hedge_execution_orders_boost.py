@@ -6,6 +6,7 @@
   - main: 主流程 (mock 文件 IO)
 mock 文件读取与 json 加载, 不依赖真实 positions.json.
 """
+
 from __future__ import annotations
 
 import json
@@ -150,7 +151,13 @@ class TestBuildOrdersStructure:
     def test_return_keys(self):
         plan = {"action": "HEDGE", "portfolio_beta": 1.2, "total_hedge_pct": 0.5}
         result = heo.build_orders(plan, {}, {})
-        assert set(result.keys()) == {"date", "action", "portfolio_beta", "hedge_pct", "orders"}
+        assert set(result.keys()) == {
+            "date",
+            "action",
+            "portfolio_beta",
+            "hedge_pct",
+            "orders",
+        }
         assert result["action"] == "HEDGE"
         assert result["hedge_pct"] == 0.5
 
@@ -200,8 +207,16 @@ class TestLoadPositions:
     def test_load_positions_normal(self):
         fake_data = {
             "positions": {
-                "510300.SH": {"code": "510300.SH", "phase1_shares": 1000, "est_price": 4.5},
-                "510050.SH": {"code": "510050.SH", "total_shares": 500, "est_price": 3.0},
+                "510300.SH": {
+                    "code": "510300.SH",
+                    "phase1_shares": 1000,
+                    "est_price": 4.5,
+                },
+                "510050.SH": {
+                    "code": "510050.SH",
+                    "total_shares": 500,
+                    "est_price": 3.0,
+                },
             }
         }
         with patch("builtins.open", mock_open(read_data=json.dumps(fake_data))):
@@ -262,10 +277,14 @@ class TestMain:
         fake_positions = {"X": 100.0}
         fake_prices = {"X": 10.0}
 
-        with patch.object(heo, "load_positions", return_value=(fake_positions, fake_prices)), \
-             patch("os.path.exists", return_value=False), \
-             patch("builtins.open", mock_open()) as m_open, \
-             patch("builtins.print"):
+        with (
+            patch.object(
+                heo, "load_positions", return_value=(fake_positions, fake_prices)
+            ),
+            patch("os.path.exists", return_value=False),
+            patch("builtins.open", mock_open()) as m_open,
+            patch("builtins.print"),
+        ):
             heo.main()
 
         # 验证 open 被调用写文件 (load_positions 被 mock, 但 main 仍 open out_path 写)
@@ -275,17 +294,21 @@ class TestMain:
 
     def test_main_reads_plan_when_exists(self, tmp_path):
         fake_plan = {"action": "HEDGE", "portfolio_beta": 1.2, "total_hedge_pct": 0.3}
-        with patch.object(heo, "load_positions", return_value=({}, {})), \
-             patch("os.path.exists", return_value=True), \
-             patch("builtins.open", mock_open(read_data=json.dumps(fake_plan))), \
-             patch("builtins.print"):
+        with (
+            patch.object(heo, "load_positions", return_value=({}, {})),
+            patch("os.path.exists", return_value=True),
+            patch("builtins.open", mock_open(read_data=json.dumps(fake_plan))),
+            patch("builtins.print"),
+        ):
             # 不应抛出
             heo.main()
 
     def test_main_default_plan_when_not_exists(self):
-        with patch.object(heo, "load_positions", return_value=({}, {})), \
-             patch("os.path.exists", return_value=False), \
-             patch("builtins.open", mock_open()), \
-             patch("builtins.print"):
+        with (
+            patch.object(heo, "load_positions", return_value=({}, {})),
+            patch("os.path.exists", return_value=False),
+            patch("builtins.open", mock_open()),
+            patch("builtins.print"),
+        ):
             # 不应抛出
             heo.main()

@@ -1,4 +1,5 @@
 """T13 单元测试 — TradeOrderReconciler 盘后对账."""
+
 from __future__ import annotations
 
 import pytest
@@ -11,7 +12,9 @@ from utils.risk.trade_order_reconciler import (
 
 
 def _fill(fid, oid, sym, side, qty, px):
-    return FillRecord(fill_id=fid, order_id=oid, symbol=sym, side=side, filled_qty=qty, avg_price=px)
+    return FillRecord(
+        fill_id=fid, order_id=oid, symbol=sym, side=side, filled_qty=qty, avg_price=px
+    )
 
 
 class TestReconcileCoverage:
@@ -110,7 +113,7 @@ class TestAggregationOfMultipleFillsForSameOrder:
         rec = TradeOrderReconciler(price_deviation_bps=100)
         planned = [PlannedOrder("o1", "sh1", "buy", 300, limit_price=10.0)]
         fills = [
-            _fill("f1", "o1", "sh1", "buy", 100, 9.0),   # 加权 (900+2200)/300 = 10.333
+            _fill("f1", "o1", "sh1", "buy", 100, 9.0),  # 加权 (900+2200)/300 = 10.333
             _fill("f2", "o1", "sh1", "buy", 200, 11.0),
         ]
         r = rec.reconcile("d", planned, fills)
@@ -125,5 +128,3 @@ class TestReportSummaryText:
         assert "对账报告" in txt
         assert "计划单数" in txt
         assert "总问题数" in txt
-
-

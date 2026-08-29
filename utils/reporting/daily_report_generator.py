@@ -237,10 +237,20 @@ class DailyReportGenerator:
             self._config_source = self._resolve_config_source(config_name)
 
         # 解析配置项
-        settings = self._config.get("settings", {}) if isinstance(self._config, dict) else {}
-        self._report_dir = Path(report_dir) if report_dir else Path(settings.get("report_dir", DEFAULT_REPORT_DIR))
-        self._md_template = settings.get("markdown_filename_template", DEFAULT_MD_TEMPLATE)
-        self._json_template = settings.get("json_filename_template", DEFAULT_JSON_TEMPLATE)
+        settings = (
+            self._config.get("settings", {}) if isinstance(self._config, dict) else {}
+        )
+        self._report_dir = (
+            Path(report_dir)
+            if report_dir
+            else Path(settings.get("report_dir", DEFAULT_REPORT_DIR))
+        )
+        self._md_template = settings.get(
+            "markdown_filename_template", DEFAULT_MD_TEMPLATE
+        )
+        self._json_template = settings.get(
+            "json_filename_template", DEFAULT_JSON_TEMPLATE
+        )
         self._save_json = bool(settings.get("save_state_json", True))
         self._max_retries = int(settings.get("write_max_retries", 3))
         self._retry_delay = float(settings.get("write_retry_delay_seconds", 0.5))
@@ -295,7 +305,9 @@ class DailyReportGenerator:
             sim_mode = sim_mode or input_data.sim_mode
             live_mode = live_mode or input_data.live_mode
             phases_state = phases_state or input_data.phases_state
-            pnl_attribution_result = pnl_attribution_result or input_data.pnl_attribution_result
+            pnl_attribution_result = (
+                pnl_attribution_result or input_data.pnl_attribution_result
+            )
             barra_result = barra_result or input_data.barra_result
             guard_results = guard_results or input_data.guard_results
 
@@ -308,7 +320,12 @@ class DailyReportGenerator:
             return self._build_disabled_result(trade_date, start_time)
 
         # 空输入检查
-        if not phases_state and not pnl_attribution_result and not barra_result and not guard_results:
+        if (
+            not phases_state
+            and not pnl_attribution_result
+            and not barra_result
+            and not guard_results
+        ):
             return self._build_empty_result(trade_date, start_time)
 
         # 生成报告
@@ -327,7 +344,14 @@ class DailyReportGenerator:
                 start_time=start_time,
             )
             return result
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             elapsed_ms = (time.perf_counter() - start_time) * 1000
             logger.error(f"[DailyReportGenerator] 报告生成失败: {e}", exc_info=True)
             return ReportResult(
@@ -413,11 +437,16 @@ class DailyReportGenerator:
                 md_filename = self._md_template.format(date=trade_date.replace("-", ""))
                 md_path = self._report_dir / md_filename
                 result.report_path = write_report_with_retry(
-                    md_path, lines, max_retries=self._max_retries, retry_delay_seconds=self._retry_delay
+                    md_path,
+                    lines,
+                    max_retries=self._max_retries,
+                    retry_delay_seconds=self._retry_delay,
                 )
 
                 if self._save_json:
-                    json_filename = self._json_template.format(date=trade_date.replace("-", ""))
+                    json_filename = self._json_template.format(
+                        date=trade_date.replace("-", "")
+                    )
                     json_path = self._report_dir / json_filename
                     result.state_path = save_state_json(
                         json_path,
@@ -443,10 +472,14 @@ class DailyReportGenerator:
 
             return bool(FeatureFlags.get_instance().is_enabled(self._feature_flag_name))  # type: ignore
         except (ImportError, AttributeError) as e:
-            logger.debug(f"[DailyReportGenerator] Feature Flag 查询失败 (默认 False): {e}")
+            logger.debug(
+                f"[DailyReportGenerator] Feature Flag 查询失败 (默认 False): {e}"
+            )
             return False
 
-    def _build_disabled_result(self, trade_date: str, start_time: float) -> ReportResult:
+    def _build_disabled_result(
+        self, trade_date: str, start_time: float
+    ) -> ReportResult:
         """构建 Feature Flag 关闭时的降级结果."""
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         return ReportResult(
@@ -479,7 +512,9 @@ class DailyReportGenerator:
             if cfg:
                 return cfg
         except (ImportError, AttributeError) as exc:
-            logger.warning(f"[DailyReportGenerator] 加载配置失败 (name={config_name}): {exc}")
+            logger.warning(
+                f"[DailyReportGenerator] 加载配置失败 (name={config_name}): {exc}"
+            )
         return {}
 
     def _resolve_config_source(self, config_name: str) -> str:

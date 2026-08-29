@@ -115,7 +115,12 @@ def loop_with_initial_weights(tmp_memory: EvolutionMemory) -> FeedbackLoop:
     故使用 4 因子 (等权 0.25 <= 0.3) 避免 fixture 本身违反约束.
     """
     fl = FeedbackLoop(
-        initial_weights={"momentum": 0.30, "value": 0.25, "quality": 0.25, "size": 0.20},
+        initial_weights={
+            "momentum": 0.30,
+            "value": 0.25,
+            "quality": 0.25,
+            "size": 0.20,
+        },
         memory=tmp_memory,
     )
     fl._enabled = True
@@ -375,9 +380,9 @@ class TestDailyChangeLimit:
             factor_contributions={"momentum": 1.0, "value": -1.0, "quality": 0.0},
         )
         for k, change in update.clamped_changes.items():
-            assert abs(change) <= loop.max_daily_change + 1e-10, (
-                f"因子 {k} 变化 {change} 超过上限 {loop.max_daily_change}"
-            )
+            assert (
+                abs(change) <= loop.max_daily_change + 1e-10
+            ), f"因子 {k} 变化 {change} 超过上限 {loop.max_daily_change}"
 
     def test_extreme_contribution_clamped(
         self, loop_with_initial_weights: FeedbackLoop
@@ -439,13 +444,16 @@ class TestMaxWeight:
             update = loop.update_weights(
                 daily_pnl=0.01,
                 factor_contributions={
-                    "momentum": 1.0, "value": 0.0, "quality": 0.0, "size": 0.0,
+                    "momentum": 1.0,
+                    "value": 0.0,
+                    "quality": 0.0,
+                    "size": 0.0,
                 },
             )
             for k, w in update.new_weights.items():
-                assert w <= loop.max_weight + 1e-4, (
-                    f"因子 {k} 权重 {w} 超过 max_weight {loop.max_weight}"
-                )
+                assert (
+                    w <= loop.max_weight + 1e-4
+                ), f"因子 {k} 权重 {w} 超过 max_weight {loop.max_weight}"
 
     def test_weight_never_negative(self, loop_with_initial_weights: FeedbackLoop):
         """连续多次负向贡献, 权重不低于 0."""
@@ -454,7 +462,10 @@ class TestMaxWeight:
             update = loop.update_weights(
                 daily_pnl=-0.01,
                 factor_contributions={
-                    "momentum": -1.0, "value": 0.0, "quality": 0.0, "size": 0.0,
+                    "momentum": -1.0,
+                    "value": 0.0,
+                    "quality": 0.0,
+                    "size": 0.0,
                 },
             )
             for k, w in update.new_weights.items():
@@ -484,14 +495,20 @@ class TestSmoothing:
         fl.update_weights(
             daily_pnl=0.001,
             factor_contributions={
-                "momentum": 0.001, "value": -0.001, "quality": 0.0, "size": 0.0,
+                "momentum": 0.001,
+                "value": -0.001,
+                "quality": 0.0,
+                "size": 0.0,
             },
         )
         # 第二次更新触发平滑
         update = fl.update_weights(
             daily_pnl=0.001,
             factor_contributions={
-                "momentum": 0.001, "value": -0.001, "quality": 0.0, "size": 0.0,
+                "momentum": 0.001,
+                "value": -0.001,
+                "quality": 0.0,
+                "size": 0.0,
             },
         )
         # 平滑后权重应介于两次之间 (不等于当前)
@@ -593,7 +610,10 @@ class TestSevenDayAlarm:
             update = fl.update_weights(
                 daily_pnl=0.001,
                 factor_contributions={
-                    "momentum": 0.001, "value": -0.001, "quality": 0.0, "size": 0.0,
+                    "momentum": 0.001,
+                    "value": -0.001,
+                    "quality": 0.0,
+                    "size": 0.0,
                 },
             )
         # 默认阈值 0.30, 小幅调整不会触发
@@ -725,7 +745,11 @@ class TestQueryAPI:
         for _ in range(3):
             fl.update_weights(
                 daily_pnl=0.001,
-                factor_contributions={"momentum": 0.001, "value": -0.001, "quality": 0.0},
+                factor_contributions={
+                    "momentum": 0.001,
+                    "value": -0.001,
+                    "quality": 0.0,
+                },
             )
         history = fl.get_history(days=7)
         assert len(history) == 3
@@ -737,7 +761,11 @@ class TestQueryAPI:
         for _ in range(5):
             fl.update_weights(
                 daily_pnl=0.001,
-                factor_contributions={"momentum": 0.001, "value": -0.001, "quality": 0.0},
+                factor_contributions={
+                    "momentum": 0.001,
+                    "value": -0.001,
+                    "quality": 0.0,
+                },
             )
         history = fl.get_history(days=2)
         assert len(history) == 2
@@ -881,9 +909,7 @@ class TestIntegrationScenarios:
         # m 权重应渐进增加 (允许浮点误差)
         first_m = updates[0].new_weights["m"]
         last_m = updates[-1].new_weights["m"]
-        assert last_m > first_m, (
-            f"单向调整后权重应增加: first={first_m}, last={last_m}"
-        )
+        assert last_m > first_m, f"单向调整后权重应增加: first={first_m}, last={last_m}"
 
         # 所有单日变化 <= max_daily_change
         for u in updates:
@@ -909,9 +935,9 @@ class TestIntegrationScenarios:
         final = fl.get_current_weights()
         # 震荡后权重应接近初始 (去噪生效)
         for k in initial:
-            assert abs(final[k] - initial[k]) < 0.15, (
-                f"因子 {k} 震荡后偏移过大: {initial[k]} → {final[k]}"
-            )
+            assert (
+                abs(final[k] - initial[k]) < 0.15
+            ), f"因子 {k} 震荡后偏移过大: {initial[k]} → {final[k]}"
 
     def test_zero_contributions_no_change(self, loop_with_initial_weights):
         """全零贡献, 权重不变 (归一化为中性)."""
@@ -920,14 +946,17 @@ class TestIntegrationScenarios:
         update = fl.update_weights(
             daily_pnl=0.0,
             factor_contributions={
-                "momentum": 0.0, "value": 0.0, "quality": 0.0, "size": 0.0,
+                "momentum": 0.0,
+                "value": 0.0,
+                "quality": 0.0,
+                "size": 0.0,
             },
         )
         # 归一化为 0, raw_changes=0, 权重不变 (经归一化后)
         for k in initial:
-            assert abs(update.new_weights[k] - initial[k]) < 0.01, (
-                f"因子 {k} 全零贡献下权重变化: {initial[k]} → {update.new_weights[k]}"
-            )
+            assert (
+                abs(update.new_weights[k] - initial[k]) < 0.01
+            ), f"因子 {k} 全零贡献下权重变化: {initial[k]} → {update.new_weights[k]}"
 
     def test_total_change_pct_calculation(self, loop_with_initial_weights):
         """total_change_pct 正确计算 (L1 范数 / 2)."""
@@ -935,7 +964,10 @@ class TestIntegrationScenarios:
         update = fl.update_weights(
             daily_pnl=0.001,
             factor_contributions={
-                "momentum": 0.5, "value": -0.5, "quality": 0.0, "size": 0.0,
+                "momentum": 0.5,
+                "value": -0.5,
+                "quality": 0.0,
+                "size": 0.0,
             },
         )
         # total_change_pct >= 0

@@ -8,6 +8,7 @@
   - 空行跳过
   - 已存在的环境变量不覆盖 (setdefault 语义)
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,35 +32,37 @@ def load_dotenv(env_path: str | None = None, override: bool = False) -> bool:
         # 自动查找: 项目根 (本文件上两级) / 当前目录
         project_root = Path(__file__).resolve().parent.parent
         candidates = [
-            project_root / '.env',
-            Path.cwd() / '.env',
+            project_root / ".env",
+            Path.cwd() / ".env",
         ]
         for p in candidates:
             if p.is_file():
                 env_path = str(p)
                 break
         else:
-            logger.debug('.env 文件未找到 (查找路径: %s, %s)', *candidates)
+            logger.debug(".env 文件未找到 (查找路径: %s, %s)", *candidates)
             return False
 
     env_file = Path(env_path)
     if not env_file.is_file():
-        logger.debug('.env 文件不存在: %s', env_path)
+        logger.debug(".env 文件不存在: %s", env_path)
         return False
 
     loaded = 0
     try:
-        with env_file.open(encoding='utf-8') as f:
+        with env_file.open(encoding="utf-8") as f:
             for line_no, raw_line in enumerate(f, 1):
                 line = raw_line.strip()
                 # 跳过空行和注释
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
                 # 解析 KEY=VALUE
-                if '=' not in line:
-                    logger.warning('.env L%d: 缺少 = 分隔符, 跳过: %s', line_no, line[:50])
+                if "=" not in line:
+                    logger.warning(
+                        ".env L%d: 缺少 = 分隔符, 跳过: %s", line_no, line[:50]
+                    )
                     continue
-                key, _, value = line.partition('=')
+                key, _, value = line.partition("=")
                 key = key.strip()
                 value = value.strip()
                 # 去除引号包裹
@@ -74,8 +77,8 @@ def load_dotenv(env_path: str | None = None, override: bool = False) -> bool:
                     os.environ[key] = value
                     loaded += 1
     except OSError as e:
-        logger.warning('.env 加载失败: %s', e)
+        logger.warning(".env 加载失败: %s", e)
         return False
 
-    logger.debug('.env 加载完成: %d 个变量 (文件: %s)', loaded, env_path)
+    logger.debug(".env 加载完成: %d 个变量 (文件: %s)", loaded, env_path)
     return True

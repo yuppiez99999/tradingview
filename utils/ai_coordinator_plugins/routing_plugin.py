@@ -12,6 +12,7 @@
 
 为避免循环导入, 本模块用字符串值比较 TaskType / Priority (兼容 Enum 和 str).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -48,7 +49,10 @@ class BudgetGuardRoutingPlugin(RoutingPlugin):
         if context.daily_token_budget <= 0:
             return False
         budget_ratio = context.budget_ratio
-        is_critical = _enum_value(context.priority) == "critical" or _enum_value(context.priority) == "4"
+        is_critical = (
+            _enum_value(context.priority) == "critical"
+            or _enum_value(context.priority) == "4"
+        )
         return budget_ratio > 0.8 and not is_critical
 
     def handle(self, context: RoutingContext) -> RoutingResult:
@@ -79,7 +83,9 @@ class IntradayRoutingPlugin(RoutingPlugin):
         return _enum_value(context.task_type) == "intraday_decision"
 
     def handle(self, context: RoutingContext) -> RoutingResult:
-        return RoutingResult(model="doubao_speed", reason="盘中决策: 豆包 Speed 速度快成本低")
+        return RoutingResult(
+            model="doubao_speed", reason="盘中决策: 豆包 Speed 速度快成本低"
+        )
 
 
 # ── 深度研究插件 ──
@@ -104,8 +110,12 @@ class DeepResearchRoutingPlugin(RoutingPlugin):
 
     def handle(self, context: RoutingContext) -> RoutingResult:
         if context.budget_ratio < 0.5:
-            return RoutingResult(model="deepseek", reason="深度研究: 预算充足用 deepseek")
-        return RoutingResult(model="doubao_speed", reason="深度研究: 预算紧张降级 doubao_speed")
+            return RoutingResult(
+                model="deepseek", reason="深度研究: 预算充足用 deepseek"
+            )
+        return RoutingResult(
+            model="doubao_speed", reason="深度研究: 预算紧张降级 doubao_speed"
+        )
 
 
 # ── 宏观分析插件 ──
@@ -131,7 +141,9 @@ class MacroAnalysisRoutingPlugin(RoutingPlugin):
     def handle(self, context: RoutingContext) -> RoutingResult:
         if context.budget_ratio < 0.6:
             return RoutingResult(model="glm5", reason="宏观分析: 预算充足用 glm5")
-        return RoutingResult(model="doubao_speed", reason="宏观分析: 预算紧张降级 doubao_speed")
+        return RoutingResult(
+            model="doubao_speed", reason="宏观分析: 预算紧张降级 doubao_speed"
+        )
 
 
 # ── 默认兜底插件 (最低优先级) ──
@@ -155,7 +167,9 @@ class DefaultRoutingPlugin(RoutingPlugin):
         return True
 
     def handle(self, context: RoutingContext) -> RoutingResult:
-        return RoutingResult(model="doubao_speed", reason="默认: 日报/情绪分析用便宜模型")
+        return RoutingResult(
+            model="doubao_speed", reason="默认: 日报/情绪分析用便宜模型"
+        )
 
 
 # ── 工厂函数: 一次性创建全部默认路由插件 ──

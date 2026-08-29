@@ -10,6 +10,7 @@ PluginRegistry + 插件化协调器 单元测试
 - 插件路径: USE_PLUGIN_COORDINATOR=true 走 PluginRegistry
 - shadow 比对: 插件路径与旧路径决策一致性
 """
+
 from __future__ import annotations
 
 import sys
@@ -56,6 +57,7 @@ from utils.ai_coordinator_plugins.routing_plugin import (  # noqa: E402
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def tmp_db():
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
@@ -74,7 +76,9 @@ def registry():
     r.clear()
 
 
-def _make_routing_context(task_type=TaskType.DAILY_REPORT, priority=Priority.MEDIUM, budget_ratio=0.1):
+def _make_routing_context(
+    task_type=TaskType.DAILY_REPORT, priority=Priority.MEDIUM, budget_ratio=0.1
+):
     return RoutingContext(
         task_type=task_type,
         priority=priority,
@@ -97,6 +101,7 @@ def _make_conflict_context():
 # ============================================================
 # 1. PluginRegistry 注册/卸载/列举
 # ============================================================
+
 
 class TestPluginRegistry:
     def test_register_routing_plugin(self, registry):
@@ -167,6 +172,7 @@ class TestPluginRegistry:
 # 2. 路由插件
 # ============================================================
 
+
 class TestRoutingPlugins:
     def test_budget_guard_high_budget(self):
         plugin = BudgetGuardRoutingPlugin()
@@ -235,6 +241,7 @@ class TestRoutingPlugins:
 # 3. 冲突检测插件
 # ============================================================
 
+
 class TestConflictPlugins:
     def test_majority_vote_basic(self):
         plugin = MajorityVotePlugin()
@@ -297,6 +304,7 @@ class TestConflictPlugins:
 # 4. PluginRegistry 执行
 # ============================================================
 
+
 class TestRegistryExecution:
     def test_resolve_routing_full_set(self, registry):
         for p in create_default_routing_plugins():
@@ -338,6 +346,7 @@ class TestRegistryExecution:
 # 5. 向后兼容: USE_PLUGIN_COORDINATOR=false 走旧路径
 # ============================================================
 
+
 class TestBackwardCompatibility:
     def test_route_legacy_path(self, tmp_db):
         with patch("utils.ai_coordinator._is_flag_enabled", return_value=False):
@@ -372,6 +381,7 @@ class TestBackwardCompatibility:
 # ============================================================
 # 6. 插件路径: USE_PLUGIN_COORDINATOR=true
 # ============================================================
+
 
 class TestPluginPath:
     def test_route_plugin_path(self, tmp_db):
@@ -408,18 +418,22 @@ class TestPluginPath:
 # 7. shadow 比对: 插件路径与旧路径决策一致性
 # ============================================================
 
+
 class TestShadowConsistency:
-    @pytest.mark.parametrize("task_type,priority,budget_ratio", [
-        (TaskType.INTRADAY_DECISION, Priority.LOW, 0.1),
-        (TaskType.DEEP_RESEARCH, Priority.MEDIUM, 0.3),
-        (TaskType.DEEP_RESEARCH, Priority.MEDIUM, 0.6),
-        (TaskType.MACRO_ANALYSIS, Priority.HIGH, 0.4),
-        (TaskType.MACRO_ANALYSIS, Priority.HIGH, 0.7),
-        (TaskType.DAILY_REPORT, Priority.MEDIUM, 0.1),
-        (TaskType.SENTIMENT, Priority.LOW, 0.5),
-        (TaskType.INTRADAY_DECISION, Priority.MEDIUM, 0.85),
-        (TaskType.DEEP_RESEARCH, Priority.CRITICAL, 0.95),
-    ])
+    @pytest.mark.parametrize(
+        "task_type,priority,budget_ratio",
+        [
+            (TaskType.INTRADAY_DECISION, Priority.LOW, 0.1),
+            (TaskType.DEEP_RESEARCH, Priority.MEDIUM, 0.3),
+            (TaskType.DEEP_RESEARCH, Priority.MEDIUM, 0.6),
+            (TaskType.MACRO_ANALYSIS, Priority.HIGH, 0.4),
+            (TaskType.MACRO_ANALYSIS, Priority.HIGH, 0.7),
+            (TaskType.DAILY_REPORT, Priority.MEDIUM, 0.1),
+            (TaskType.SENTIMENT, Priority.LOW, 0.5),
+            (TaskType.INTRADAY_DECISION, Priority.MEDIUM, 0.85),
+            (TaskType.DEEP_RESEARCH, Priority.CRITICAL, 0.95),
+        ],
+    )
     def test_route_shadow_consistency(self, tmp_db, task_type, priority, budget_ratio):
         with patch("utils.ai_coordinator._is_flag_enabled", return_value=False):
             legacy_coord = AICoordinator(daily_token_budget=500000, db_path=tmp_db)
@@ -455,6 +469,7 @@ class TestShadowConsistency:
 # ============================================================
 # 8. 从 YAML 配置加载
 # ============================================================
+
 
 class TestConfigLoad:
     def test_load_from_config(self, registry):

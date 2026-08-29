@@ -52,3 +52,14 @@
 
 - BT-7: adv 缺失时应显式标记降级而非 `max(qty*100,1)` 低估冲击。
 - BT-4/BT-5: avg_cost_bps 量纲、索引容错。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查明细 — 轻量子模块 (alpha/governance/macro/ml/monitoring) (2026-08-24)](code-review-lightweight-20260824.md) (相似度 20%)
+- [代码审查明细 — risk 模块 (2026-08-24)](code-review-risk-20260824.md) (相似度 17%)
+- [代码审查明细 — 主链路 institutional_pipeline_runner (2026-08-24)](code-review-pipeline-20260824.md) (相似度 17%)
+- [代码审查明细 — data 模块 (2026-08-24)](code-review-data-20260824.md) (相似度 16%)
+- [代码审查明细 — hedging 模块 (2026-08-24)](code-review-hedging-20260824.md) (相似度 15%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -22,6 +22,7 @@
     layer = OpsHealthLayer()
     score = layer.collect()
 """
+
 from __future__ import annotations
 
 import json
@@ -91,7 +92,8 @@ class OpsHealthLayer:
 
         logger.info(
             "OpsHealthLayer 初始化: enabled=%s (flag=%s)",
-            self._enabled, feature_flag_name,
+            self._enabled,
+            feature_flag_name,
         )
 
     # ============================================================
@@ -101,8 +103,18 @@ class OpsHealthLayer:
     def _check_feature_flag(flag_name: str) -> bool:
         try:
             from utils.infra.feature_flags import is_enabled
+
             return bool(is_enabled(flag_name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Feature Flag 检查失败 (降级 False): %s — %s", flag_name, e)
             return False
@@ -113,11 +125,24 @@ class OpsHealthLayer:
     def _load_weights(self) -> dict[str, float]:
         try:
             from utils.config_manager import get_config
+
             cfg = get_config("evolution") or {}
             w = (cfg.get("ops_health", {}) or {}).get("weights", {})
             if w:
-                return {k: float(w.get(k, DEFAULT_WEIGHTS.get(k, 0.0))) for k in DEFAULT_WEIGHTS}
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                return {
+                    k: float(w.get(k, DEFAULT_WEIGHTS.get(k, 0.0)))
+                    for k in DEFAULT_WEIGHTS
+                }
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("OpsHealth 权重加载失败, 用默认值: %s", e)
         return dict(DEFAULT_WEIGHTS)
@@ -127,11 +152,21 @@ class OpsHealthLayer:
         dirs_config = dict(DEFAULT_REPORT_DIRS)
         try:
             from utils.config_manager import get_config
+
             cfg = get_config("evolution") or {}
             configured = (cfg.get("ops_health", {}) or {}).get("report_dirs", {})
             if configured:
                 dirs_config.update(configured)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         if override:
@@ -147,8 +182,11 @@ class OpsHealthLayer:
 
         if not self._enabled:
             return LayerScore(
-                layer="ops", score=0.0, is_degraded=True,
-                degraded_reason="FEATURE_FLAG_DISABLED", collected_at=now,
+                layer="ops",
+                score=0.0,
+                is_degraded=True,
+                degraded_reason="FEATURE_FLAG_DISABLED",
+                collected_at=now,
             )
 
         # 采集子指标 (各自容错)
@@ -177,8 +215,11 @@ class OpsHealthLayer:
         score = max(0.0, min(1.0, score))
 
         return LayerScore(
-            layer="ops", score=score, sub_metrics=sub_metrics,
-            is_degraded=False, collected_at=now,
+            layer="ops",
+            score=score,
+            sub_metrics=sub_metrics,
+            is_degraded=False,
+            collected_at=now,
         )
 
     # ============================================================
@@ -205,15 +246,35 @@ class OpsHealthLayer:
             try:
                 latest = json.loads(files[0].read_text(encoding="utf-8"))
                 results = latest.get("results", [])
-                c3_items = [r for r in results if str(r.get("code", "")).startswith("C3")]
+                c3_items = [
+                    r for r in results if str(r.get("code", "")).startswith("C3")
+                ]
                 if c3_items:
                     passed = sum(1 for r in c3_items if r.get("status") == "PASS")
                     return passed / len(c3_items) if c3_items else 0.8
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
             return 0.8  # 有归档但解析失败, 给中高分
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.3
 
@@ -228,7 +289,16 @@ class OpsHealthLayer:
                 return 0.4
             # 有报告 = 数据质量监控就绪
             return 0.8
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.5
 
@@ -243,14 +313,25 @@ class OpsHealthLayer:
                 return 0.8  # 无告警文件 = 无漂移
             # 检查最新告警时间
             latest_file = max(files, key=lambda f: f.stat().st_mtime)
-            age_seconds = (datetime.now(UTC).timestamp() - latest_file.stat().st_mtime)
+            age_seconds = datetime.now(UTC).timestamp() - latest_file.stat().st_mtime
             if age_seconds < DEFAULT_ALERT_RECENCY_WINDOW:
                 # 24h 内有告警, 扣分 (越新扣分越多)
                 # age=0 → 0.2 (最新告警, 扣分最多)
                 # age=window(24h) → 0.8 (接近窗口边界, 扣分最少)
-                return max(0.2, 0.2 + (age_seconds / DEFAULT_ALERT_RECENCY_WINDOW) * 0.6)
+                return max(
+                    0.2, 0.2 + (age_seconds / DEFAULT_ALERT_RECENCY_WINDOW) * 0.6
+                )
             return 0.8  # 旧告警 (>24h), 不扣分
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.5
 
@@ -264,12 +345,20 @@ class OpsHealthLayer:
             files = list(fa_dir.glob("*.json")) + list(fa_dir.glob("*.jsonl"))
             now_ts = datetime.now(UTC).timestamp()
             recent_changes = sum(
-                1 for f in files
-                if (now_ts - f.stat().st_mtime) < (7 * 86400)
+                1 for f in files if (now_ts - f.stat().st_mtime) < (7 * 86400)
             )
             # 变更越少越高分 (0 变更=1.0, 10 变更=0.0)
             return max(0.0, 1.0 - recent_changes / 10.0)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.5
 
@@ -282,11 +371,19 @@ class OpsHealthLayer:
             files = list(rb_dir.glob("*.json")) + list(rb_dir.glob("*.jsonl"))
             now_ts = datetime.now(UTC).timestamp()
             recent_events = sum(
-                1 for f in files
-                if (now_ts - f.stat().st_mtime) < (7 * 86400)
+                1 for f in files if (now_ts - f.stat().st_mtime) < (7 * 86400)
             )
             # 事件越少越高分 (0 事件=1.0, 20 事件=0.0)
             return max(0.0, 1.0 - recent_events / 20.0)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.5

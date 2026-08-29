@@ -10,10 +10,10 @@ from typing import Any
 
 @dataclass
 class ScreenResult:
-    triggered: list[str] = field(default_factory=list)      # 触发的指标编号 ["1","3"]
-    exemptions: list[str] = field(default_factory=list)     # 命中的豁免 ["A","C"]
-    hard_fail: bool = False                                  # 触发且无对应豁免
-    detail: dict[str, str] = field(default_factory=dict)    # 每指标判定说明
+    triggered: list[str] = field(default_factory=list)  # 触发的指标编号 ["1","3"]
+    exemptions: list[str] = field(default_factory=list)  # 命中的豁免 ["A","C"]
+    hard_fail: bool = False  # 触发且无对应豁免
+    detail: dict[str, str] = field(default_factory=dict)  # 每指标判定说明
 
 
 def _safe_get(data: dict[str, Any], key: str, default: float = float("nan")) -> float:
@@ -70,7 +70,9 @@ def screen_quality(
     # 3. 利息覆盖 < 2 (银行/保险豁免整条)
     if not is_bank_insurance and intcov < t.get("interest_coverage_min", 2.0):
         res.triggered.append("3")
-        res.detail["3"] = f"利息覆盖 {intcov:.1f} < {t.get('interest_coverage_min', 2.0)}"
+        res.detail["3"] = (
+            f"利息覆盖 {intcov:.1f} < {t.get('interest_coverage_min', 2.0)}"
+        )
 
     # 4. 长期毛利率 < 15%
     if gm < t.get("gross_margin_min", 0.15):
@@ -80,7 +82,9 @@ def screen_quality(
     # 5. 经营CF/净利润 < 0.7
     if ocf_ni < t.get("ocf_to_netincome_min", 0.7):
         res.triggered.append("5")
-        res.detail["5"] = f"经营CF/净利润 {ocf_ni:.2f} < {t.get('ocf_to_netincome_min', 0.7)}"
+        res.detail["5"] = (
+            f"经营CF/净利润 {ocf_ni:.2f} < {t.get('ocf_to_netincome_min', 0.7)}"
+        )
 
     # 6. 长期净利率 < 5%
     if nm < t.get("net_margin_min", 0.05):
@@ -90,7 +94,9 @@ def screen_quality(
     # 7. 5年股本膨胀 > 20%
     if dilu > t.get("share_dilution_5y_max", 0.20):
         res.triggered.append("7")
-        res.detail["7"] = f"5年股本膨胀 {dilu:.2%} > {t.get('share_dilution_5y_max', 0.20):.0%}"
+        res.detail["7"] = (
+            f"5年股本膨胀 {dilu:.2%} > {t.get('share_dilution_5y_max', 0.20):.0%}"
+        )
 
     if not res.triggered:
         res.detail["overall"] = "全部 7 指标达标"
@@ -113,7 +119,12 @@ def screen_quality(
         res.detail["exemption_B"] = "主动低利润率: 毛利>30% & 近2年净利回升≥5%"
 
     # 豁免C: 高周转薄利 (适用于指标4和6)
-    if ("4" in res.triggered or "6" in res.triggered) and roe > 0.20 and ocf_ni > 1.0 and high_turnover:
+    if (
+        ("4" in res.triggered or "6" in res.triggered)
+        and roe > 0.20
+        and ocf_ni > 1.0
+        and high_turnover
+    ):
         res.exemptions.append("C")
         res.detail["exemption_C"] = "高周转薄利: ROE>20% & CF/净利>1 & 高周转薄利模式"
 

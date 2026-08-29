@@ -22,6 +22,7 @@ Motrix 是 Electron 桌面应用 (TypeScript), 本模块仅借鉴其设计理念
   - docs/高价值项目集成排期计划_20260811.md §8.2 (W9-A Sprint)
   - cairn/github-trending-wave9-20260819.md (待创建)
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,6 +37,7 @@ from utils.http_session import make_no_proxy_session
 
 try:
     from utils.logging_manager import get_logger
+
     logger = get_logger("download_manager")
 except ImportError:
     logger = logging.getLogger("download_manager")
@@ -44,6 +46,7 @@ except ImportError:
 # ============================================================
 # 任务状态机
 # ============================================================
+
 
 class DownloadStatus(StrEnum):
     PENDING = "pending"
@@ -74,6 +77,7 @@ class DownloadTask:
         error: 失败原因 (status=FAILED 时填)
         checksum: 期望校验和 (md5/sha256, 可选)
     """
+
     url: str
     dest: str
     filename: Optional[str] = None
@@ -95,6 +99,7 @@ class DownloadTask:
 
     def _infer_filename(self) -> str:
         from urllib.parse import unquote, urlparse
+
         name = unquote(os.path.basename(urlparse(self.url).path))
         return name or f"download_{int(self.created_at)}.bin"
 
@@ -102,6 +107,7 @@ class DownloadTask:
 # ============================================================
 # 下载管理器
 # ============================================================
+
 
 class DownloadManager:
     """统一下载管理器 (脚手架)
@@ -173,7 +179,7 @@ class DownloadManager:
                 task.updated_at = time.time()
                 logger.warning("attempt %d failed: %s (%s)", attempt + 1, task.url, exc)
                 if attempt < task.max_retries:
-                    time.sleep(2 ** attempt)  # 指数退避
+                    time.sleep(2**attempt)  # 指数退避
 
         task.status = DownloadStatus.FAILED
         logger.error("failed after %d retries: %s", task.max_retries + 1, task.url)
@@ -233,7 +239,10 @@ class DownloadManager:
 # 便捷函数
 # ============================================================
 
-def download(url: str, dest: Optional[str] = None, filename: Optional[str] = None) -> DownloadTask:
+
+def download(
+    url: str, dest: Optional[str] = None, filename: Optional[str] = None
+) -> DownloadTask:
     """一次性下载便捷函数"""
     mgr = DownloadManager()
     task = mgr.submit(url, dest, filename)

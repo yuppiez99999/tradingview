@@ -2,6 +2,7 @@
 
 验证 calc_ic_series_from_history / calc_ic_ir / evaluate_factors 时序模式
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,6 +27,7 @@ from utils.alpha_factor.base import (
 # calc_ic_series_from_history 测试
 # ============================================================
 
+
 class TestCalcIcSeriesFromHistory:
     """时序 IC 序列计算 (Spearman rank IC)"""
 
@@ -38,7 +40,10 @@ class TestCalcIcSeriesFromHistory:
         for _ in range(30):
             fv = {f"stock_{i}": float(np.random.randn()) for i in range(10)}
             # 收益 = 因子值 + 噪声 (正相关)
-            fr = {f"stock_{i}": fv[f"stock_{i}"] + 0.5 * float(np.random.randn()) for i in range(10)}
+            fr = {
+                f"stock_{i}": fv[f"stock_{i}"] + 0.5 * float(np.random.randn())
+                for i in range(10)
+            }
             factor_history.append(fv)
             forward_returns_history.append(fr)
 
@@ -57,7 +62,10 @@ class TestCalcIcSeriesFromHistory:
         for _ in range(30):
             fv = {f"stock_{i}": float(np.random.randn()) for i in range(10)}
             # 收益 = -因子值 + 噪声 (负相关)
-            fr = {f"stock_{i}": -fv[f"stock_{i}"] + 0.5 * float(np.random.randn()) for i in range(10)}
+            fr = {
+                f"stock_{i}": -fv[f"stock_{i}"] + 0.5 * float(np.random.randn())
+                for i in range(10)
+            }
             factor_history.append(fv)
             forward_returns_history.append(fr)
 
@@ -93,11 +101,31 @@ class TestCalcIcSeriesFromHistory:
 
     def test_missing_symbols_handled(self):
         """标的集合不完全重叠时, 只用交集计算"""
-        fv = {"a": 1.0, "b": 2.0, "c": 3.0, "d": 4.0, "e": 5.0,
-              "f": 6.0, "g": 7.0, "h": 8.0, "i": 9.0, "j": 10.0}
-        fr = {"a": 0.01, "b": 0.02, "c": 0.03, "d": 0.04, "e": 0.05,
-              "f": 0.06, "g": 0.07, "h": 0.08, "i": 0.09, "j": 0.10,
-              "extra": 0.11}  # extra 不在因子中
+        fv = {
+            "a": 1.0,
+            "b": 2.0,
+            "c": 3.0,
+            "d": 4.0,
+            "e": 5.0,
+            "f": 6.0,
+            "g": 7.0,
+            "h": 8.0,
+            "i": 9.0,
+            "j": 10.0,
+        }
+        fr = {
+            "a": 0.01,
+            "b": 0.02,
+            "c": 0.03,
+            "d": 0.04,
+            "e": 0.05,
+            "f": 0.06,
+            "g": 0.07,
+            "h": 0.08,
+            "i": 0.09,
+            "j": 0.10,
+            "extra": 0.11,
+        }  # extra 不在因子中
         ic_series = calc_ic_series_from_history([fv], [fr], min_samples=5)
         assert len(ic_series) == 1
         # 完全正相关的 10 只股票, IC 应接近 1.0
@@ -113,12 +141,15 @@ class TestCalcIcSeriesFromHistory:
         ic_series = calc_ic_series_from_history([fv], [fr])
         # Spearman: 完全单调正相关 → IC=1.0
         # Pearson: 也接近 1.0 但不完全是 (线性相关)
-        assert abs(ic_series[0] - 1.0) < 1e-6, f"Spearman 完全单调应 IC=1.0, 实际 {ic_series[0]}"
+        assert (
+            abs(ic_series[0] - 1.0) < 1e-6
+        ), f"Spearman 完全单调应 IC=1.0, 实际 {ic_series[0]}"
 
 
 # ============================================================
 # calc_ic_ir 测试
 # ============================================================
+
 
 class TestCalcIcIr:
     """IC_IR = mean(IC) / std(IC) 计算"""
@@ -158,7 +189,7 @@ class TestCalcIcIr:
 
     def test_nan_handling(self):
         """IC 序列包含 NaN 时, 过滤后计算"""
-        ic_series = [0.1, float('nan'), 0.2, 0.15, float('inf')] + [0.1] * 25
+        ic_series = [0.1, float("nan"), 0.2, 0.15, float("inf")] + [0.1] * 25
         # NaN 和 inf 被过滤, 剩余 >= 20 个有限值
         ic_ir, ic_mean, ic_std = calc_ic_ir(ic_series, min_periods=20)
         # 不崩溃即可, 数值合理性不严格校验 (inf 过滤后可能不足 20)
@@ -171,12 +202,15 @@ class TestCalcIcIr:
         ic_ir, ic_mean, ic_std = calc_ic_ir(ic_series, min_periods=20)
         # 手动计算 ddof=1 的标准差
         expected_std = float(np.std(ic_series, ddof=1))
-        assert abs(ic_std - expected_std) < 1e-10, f"应使用 ddof=1, 期望 std={expected_std}, 实际 {ic_std}"
+        assert (
+            abs(ic_std - expected_std) < 1e-10
+        ), f"应使用 ddof=1, 期望 std={expected_std}, 实际 {ic_std}"
 
 
 # ============================================================
 # evaluate_factors 时序模式测试
 # ============================================================
+
 
 class TestEvaluateFactorsTimeseries:
     """evaluate_factors U1 升级: 时序 IC/ICIR 模式"""
@@ -205,7 +239,9 @@ class TestEvaluateFactorsTimeseries:
         np.random.seed(42)
         fwd_returns = []
         for _ in range(n_days):
-            fr = {f"stock_{i}": float(np.random.randn() * 0.01) for i in range(n_symbols)}
+            fr = {
+                f"stock_{i}": float(np.random.randn() * 0.01) for i in range(n_symbols)
+            }
             fwd_returns.append(fr)
         return fwd_returns
 
@@ -217,8 +253,9 @@ class TestEvaluateFactorsTimeseries:
 
         result = FactorLibraryResult()
         result.factors["TEST_FACTOR"] = FactorValue(
-            name="TEST_FACTOR", category="Test",
-            values={f"stock_{i}": float(i) for i in range(10)}
+            name="TEST_FACTOR",
+            category="Test",
+            values={f"stock_{i}": float(i) for i in range(10)},
         )
 
         evaluate_factors(result, price_data, factor_history, fwd_returns)
@@ -238,8 +275,9 @@ class TestEvaluateFactorsTimeseries:
 
         result = FactorLibraryResult()
         result.factors["TEST_FACTOR"] = FactorValue(
-            name="TEST_FACTOR", category="Test",
-            values={f"stock_{i}": float(i) for i in range(10)}
+            name="TEST_FACTOR",
+            category="Test",
+            values={f"stock_{i}": float(i) for i in range(10)},
         )
 
         # 不传 factor_history / forward_returns_history
@@ -257,8 +295,9 @@ class TestEvaluateFactorsTimeseries:
 
         result = FactorLibraryResult()
         result.factors["TEST_FACTOR"] = FactorValue(
-            name="TEST_FACTOR", category="Test",
-            values={f"stock_{i}": float(i) for i in range(10)}
+            name="TEST_FACTOR",
+            category="Test",
+            values={f"stock_{i}": float(i) for i in range(10)},
         )
 
         evaluate_factors(result, price_data)
@@ -270,18 +309,23 @@ class TestEvaluateFactorsTimeseries:
         n_effective_2 = len(result.effective_factors)
 
         assert n_strong_1 == n_strong_2, "幂等: 重复调用不应增加 strong_factors"
-        assert n_effective_1 == n_effective_2, "幂等: 重复调用不应增加 effective_factors"
+        assert (
+            n_effective_1 == n_effective_2
+        ), "幂等: 重复调用不应增加 effective_factors"
 
     def test_short_history_falls_back_to_legacy(self):
         """前向收益历史 < 20 天时, 降级为单点 IC"""
         price_data = self._make_price_data()
-        factor_history = self._make_factor_history("TEST_FACTOR", n_days=10)  # 不足 20 天
+        factor_history = self._make_factor_history(
+            "TEST_FACTOR", n_days=10
+        )  # 不足 20 天
         fwd_returns = self._make_forward_returns_history(n_days=10)
 
         result = FactorLibraryResult()
         result.factors["TEST_FACTOR"] = FactorValue(
-            name="TEST_FACTOR", category="Test",
-            values={f"stock_{i}": float(i) for i in range(10)}
+            name="TEST_FACTOR",
+            category="Test",
+            values={f"stock_{i}": float(i) for i in range(10)},
         )
 
         evaluate_factors(result, price_data, factor_history, fwd_returns)
@@ -298,8 +342,9 @@ class TestEvaluateFactorsTimeseries:
 
         result = FactorLibraryResult()
         result.factors["TEST_FACTOR"] = FactorValue(
-            name="TEST_FACTOR", category="Test",
-            values={f"stock_{i}": float(i) for i in range(10)}
+            name="TEST_FACTOR",
+            category="Test",
+            values={f"stock_{i}": float(i) for i in range(10)},
         )
 
         evaluate_factors(result, price_data, factor_history, fwd_returns)
@@ -329,6 +374,7 @@ class TestEvaluateFactorsTimeseries:
 # 与 gate1_validation 一致性验证
 # ============================================================
 
+
 class TestGate1Consistency:
     """验证 calc_ic_series_from_history 与 gate1_validation 趋势一致
 
@@ -344,7 +390,10 @@ class TestGate1Consistency:
         forward_returns_history = []
         for _ in range(30):
             fv = {f"stock_{i}": float(np.random.randn()) for i in range(20)}
-            fr = {f"stock_{i}": fv[f"stock_{i}"] + 0.3 * float(np.random.randn()) for i in range(20)}
+            fr = {
+                f"stock_{i}": fv[f"stock_{i}"] + 0.3 * float(np.random.randn())
+                for i in range(20)
+            }
             factor_history.append(fv)
             forward_returns_history.append(fr)
 

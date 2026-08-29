@@ -12,6 +12,7 @@
     python -m research.factor_discovery --universe etf50 --start 2022-01-01
     python -m research.factor_discovery --codes 510300,588000,159915 --start 2023-01-01
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,29 +50,86 @@ logging.basicConfig(
 
 UNIVERSE_PRESETS = {
     "etf_core": [
-        "510300.SH", "510500.SH", "512100.SH", "588000.SH",
-        "159915.SZ", "510050.SH", "560080.SH", "159995.SZ",
+        "510300.SH",
+        "510500.SH",
+        "512100.SH",
+        "588000.SH",
+        "159915.SZ",
+        "510050.SH",
+        "560080.SH",
+        "159995.SZ",
     ],
     "etf_broad": [
-        "510300.SH", "510500.SH", "512100.SH", "588000.SH",
-        "159915.SZ", "510050.SH", "560080.SH", "159995.SZ",
-        "512400.SH", "516160.SH", "159992.SZ", "515030.SH",
-        "515050.SH", "512660.SH", "512690.SH", "512760.SH",
-        "515790.SH", "516950.SH", "159825.SZ", "562500.SH",
+        "510300.SH",
+        "510500.SH",
+        "512100.SH",
+        "588000.SH",
+        "159915.SZ",
+        "510050.SH",
+        "560080.SH",
+        "159995.SZ",
+        "512400.SH",
+        "516160.SH",
+        "159992.SZ",
+        "515030.SH",
+        "515050.SH",
+        "512660.SH",
+        "512690.SH",
+        "512760.SH",
+        "515790.SH",
+        "516950.SH",
+        "159825.SZ",
+        "562500.SH",
     ],
     "etf50": [
-        "510300.SH", "510500.SH", "512100.SH", "588000.SH",
-        "159915.SZ", "510050.SH", "560080.SH", "159995.SZ",
-        "512400.SH", "516160.SH", "159992.SZ", "515030.SH",
-        "515050.SH", "512660.SH", "512690.SH", "512760.SH",
-        "515790.SH", "516950.SH", "159825.SZ", "562500.SH",
-        "518880.SH", "513100.SH", "513500.SH", "513050.SH",
-        "513030.SH", "513520.SH", "159920.SZ", "510900.SH",
-        "510230.SH", "512010.SH", "512070.SH", "512170.SH",
-        "512200.SH", "512290.SH", "512300.SH", "512310.SH",
-        "512330.SH", "512340.SH", "512350.SH", "512360.SH",
-        "512380.SH", "512390.SH", "512410.SH", "512420.SH",
-        "512430.SH", "512450.SH", "512460.SH", "512470.SH",
+        "510300.SH",
+        "510500.SH",
+        "512100.SH",
+        "588000.SH",
+        "159915.SZ",
+        "510050.SH",
+        "560080.SH",
+        "159995.SZ",
+        "512400.SH",
+        "516160.SH",
+        "159992.SZ",
+        "515030.SH",
+        "515050.SH",
+        "512660.SH",
+        "512690.SH",
+        "512760.SH",
+        "515790.SH",
+        "516950.SH",
+        "159825.SZ",
+        "562500.SH",
+        "518880.SH",
+        "513100.SH",
+        "513500.SH",
+        "513050.SH",
+        "513030.SH",
+        "513520.SH",
+        "159920.SZ",
+        "510900.SH",
+        "510230.SH",
+        "512010.SH",
+        "512070.SH",
+        "512170.SH",
+        "512200.SH",
+        "512290.SH",
+        "512300.SH",
+        "512310.SH",
+        "512330.SH",
+        "512340.SH",
+        "512350.SH",
+        "512360.SH",
+        "512380.SH",
+        "512390.SH",
+        "512410.SH",
+        "512420.SH",
+        "512430.SH",
+        "512450.SH",
+        "512460.SH",
+        "512470.SH",
     ],
 }
 
@@ -80,9 +138,11 @@ UNIVERSE_PRESETS = {
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class FactorValidationResult:
     """因子有效性验证结果"""
+
     factor_name: str
     category: str
     ic_mean: float = 0.0
@@ -105,6 +165,7 @@ class FactorValidationResult:
 @dataclass
 class DiscoveryReport:
     """因子挖掘报告"""
+
     universe: list[str]
     start_date: str
     end_date: str
@@ -119,6 +180,7 @@ class DiscoveryReport:
 # ============================================================
 # 数据获取
 # ============================================================
+
 
 class FactorDataFetcher:
     """因子挖掘数据获取器"""
@@ -143,7 +205,16 @@ class FactorDataFetcher:
                         symbols.append(f"{code_num}.{market}")
                     elif "index" in fname:
                         pass
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
         return symbols
@@ -161,7 +232,16 @@ class FactorDataFetcher:
                 df = pd.read_parquet(cache_path)
                 if len(df) > 60:
                     return df
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
         return None
@@ -198,7 +278,9 @@ class FactorDataFetcher:
                     df = df[(df.index >= start_dt) & (df.index <= end_dt)]
                     if len(df) > 60:
                         result[code] = df
-                        logger.debug(f"  [{i+1}/{len(codes)}] {code}: 缓存 {len(df)} 条")
+                        logger.debug(
+                            f"  [{i+1}/{len(codes)}] {code}: 缓存 {len(df)} 条"
+                        )
                         continue
 
                 ak_code = self.source._to_akshare_code(code)
@@ -209,14 +291,25 @@ class FactorDataFetcher:
                 else:
                     failed.append(code)
                     logger.warning(f"  [{i+1}/{len(codes)}] {code}: 数据不足")
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 failed.append(code)
                 logger.warning(f"  [{i+1}/{len(codes)}] {code}: 获取失败 {e}")
 
             time.sleep(0.15)
 
-        logger.info(f"数据获取完成: 成功 {len(result)}/{len(codes)}, 失败 {len(failed)}")
+        logger.info(
+            f"数据获取完成: 成功 {len(result)}/{len(codes)}, 失败 {len(failed)}"
+        )
         if failed:
             logger.warning(f"失败列表: {failed[:10]}...")
         return result
@@ -239,7 +332,16 @@ class FactorDataFetcher:
                     end_date=end_fmt,
                     adjust="qfq",
                 )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 df = ak.fund_etf_hist_em(
                     symbol=code,
@@ -256,7 +358,16 @@ class FactorDataFetcher:
             df = df.sort_index()
             return df
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"获取 {code} 失败: {e}")
@@ -265,10 +376,17 @@ class FactorDataFetcher:
     def _normalize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """标准化列名"""
         col_map = {
-            "日期": "date", "开盘": "open", "收盘": "close",
-            "最高": "high", "最低": "low", "成交量": "volume",
-            "成交额": "amount", "振幅": "amplitude", "涨跌幅": "pct_chg",
-            "涨跌额": "change", "换手率": "turnover",
+            "日期": "date",
+            "开盘": "open",
+            "收盘": "close",
+            "最高": "high",
+            "最低": "low",
+            "成交量": "volume",
+            "成交额": "amount",
+            "振幅": "amplitude",
+            "涨跌幅": "pct_chg",
+            "涨跌额": "change",
+            "换手率": "turnover",
         }
         df = df.rename(columns={k: v for k, v in col_map.items() if k in df.columns})
 
@@ -286,6 +404,7 @@ class FactorDataFetcher:
 # ============================================================
 # 因子计算器
 # ============================================================
+
 
 class FactorCalculator:
     """因子计算器 - 支持滚动因子计算"""
@@ -312,13 +431,17 @@ class FactorCalculator:
         logger.info(f"开始计算因子面板: {len(daily_data)} 只标的, step={step}")
 
         all_dates = sorted(set().union(*[set(df.index) for df in daily_data.values()]))
-        all_dates = [d for d in all_dates if d >= all_dates[0] + timedelta(days=lookback)]
+        all_dates = [
+            d for d in all_dates if d >= all_dates[0] + timedelta(days=lookback)
+        ]
 
         codes = list(daily_data.keys())
         factor_panels: dict[str, pd.DataFrame] = {}
 
         calc_dates = all_dates[::step]
-        logger.info(f"  计算时点: {len(calc_dates)} 个 (从 {calc_dates[0].date()} 到 {calc_dates[-1].date()})")
+        logger.info(
+            f"  计算时点: {len(calc_dates)} 个 (从 {calc_dates[0].date()} 到 {calc_dates[-1].date()})"
+        )
 
         for idx, calc_date in enumerate(calc_dates):
             price_snapshot = {}
@@ -340,7 +463,9 @@ class FactorCalculator:
 
             for fname, fval in result.factors.items():
                 if fname not in factor_panels:
-                    factor_panels[fname] = pd.DataFrame(index=calc_dates, columns=codes, dtype=float)
+                    factor_panels[fname] = pd.DataFrame(
+                        index=calc_dates, columns=codes, dtype=float
+                    )
 
                 for code, val in fval.values.items():
                     if code in factor_panels[fname].columns:
@@ -359,6 +484,7 @@ class FactorCalculator:
 # ============================================================
 # 因子有效性验证
 # ============================================================
+
 
 class FactorValidator:
     """因子有效性验证器"""
@@ -396,7 +522,16 @@ class FactorValidator:
                 result = self._validate_single(fname, fpanel, returns_panel)
                 if result is not None:
                     results.append(result)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"验证因子 {fname} 失败: {e}")
 
@@ -404,7 +539,9 @@ class FactorValidator:
 
         n_effective = sum(1 for r in results if r.effective)
         n_strong = sum(1 for r in results if abs(r.ic_ir) >= self.IR_STRONG_THRESHOLD)
-        logger.info(f"验证完成: 有效因子 {n_effective}/{len(results)}, 强因子 {n_strong}")
+        logger.info(
+            f"验证完成: 有效因子 {n_effective}/{len(results)}, 强因子 {n_strong}"
+        )
 
         return results
 
@@ -458,10 +595,21 @@ class FactorValidator:
                     common = fvals.index.intersection(rets.index)
                     if len(common) >= 3:
                         try:
-                            ic = float(fvals[common].corr(rets[common], method="spearman"))
+                            ic = float(
+                                fvals[common].corr(rets[common], method="spearman")
+                            )
                             if not np.isnan(ic):
                                 ic_list.append(ic)
-                        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                        except (
+                            ValueError,
+                            TypeError,
+                            KeyError,
+                            AttributeError,
+                            RuntimeError,
+                            OSError,
+                            TimeoutError,
+                            ConnectionError,
+                        ):
                             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                             pass
 
@@ -499,6 +647,7 @@ class FactorValidator:
 # 报告输出
 # ============================================================
 
+
 class ReportGenerator:
     """报告生成器"""
 
@@ -522,8 +671,12 @@ class ReportGenerator:
         lines.append("## 强因子 (|IC_IR| ≥ 0.5)")
         lines.append("")
         if report.strong_factors:
-            lines.append("| 因子名 | 类别 | IC均值 | IC_IR | 正IC占比 | 5日衰减 | 评分 | 方向 |")
-            lines.append("|--------|------|--------|-------|----------|---------|------|------|")
+            lines.append(
+                "| 因子名 | 类别 | IC均值 | IC_IR | 正IC占比 | 5日衰减 | 评分 | 方向 |"
+            )
+            lines.append(
+                "|--------|------|--------|-------|----------|---------|------|------|"
+            )
             for r in report.strong_factors:
                 lines.append(
                     f"| {r.factor_name} | {r.category} | {r.ic_mean:.4f} | "
@@ -537,8 +690,12 @@ class ReportGenerator:
         lines.append("## 有效因子 (|IC| ≥ 0.03 且 |IC_IR| ≥ 0.3)")
         lines.append("")
         if report.effective_factors:
-            lines.append("| 因子名 | 类别 | IC均值 | IC_IR | 正IC占比 | 5日衰减 | 评分 | 方向 |")
-            lines.append("|--------|------|--------|-------|----------|---------|------|------|")
+            lines.append(
+                "| 因子名 | 类别 | IC均值 | IC_IR | 正IC占比 | 5日衰减 | 评分 | 方向 |"
+            )
+            lines.append(
+                "|--------|------|--------|-------|----------|---------|------|------|"
+            )
             for r in report.effective_factors:
                 lines.append(
                     f"| {r.factor_name} | {r.category} | {r.ic_mean:.4f} | "
@@ -551,9 +708,13 @@ class ReportGenerator:
 
         lines.append("## 全因子排名")
         lines.append("")
-        lines.append("| 排名 | 因子名 | 类别 | IC均值 | IC_IR | 正IC占比 | 5日衰减 | 有效 | 评分 |")
-        lines.append("|------|--------|------|--------|-------|----------|---------|------|------|")
-        all_factors = getattr(report, 'all_factors_sorted', report.effective_factors)
+        lines.append(
+            "| 排名 | 因子名 | 类别 | IC均值 | IC_IR | 正IC占比 | 5日衰减 | 有效 | 评分 |"
+        )
+        lines.append(
+            "|------|--------|------|--------|-------|----------|---------|------|------|"
+        )
+        all_factors = getattr(report, "all_factors_sorted", report.effective_factors)
         for i, r in enumerate(all_factors):
             eff_marker = "✅" if r.effective else "❌"
             lines.append(
@@ -573,7 +734,10 @@ class ReportGenerator:
 
         content = "\n".join(lines)
 
-        output_path = output_dir / f"factor_discovery_report_{report.start_date}_{report.end_date}.md"
+        output_path = (
+            output_dir
+            / f"factor_discovery_report_{report.start_date}_{report.end_date}.md"
+        )
         output_path.write_text(content, encoding="utf-8")
         logger.info(f"报告已保存: {output_path}")
 
@@ -583,6 +747,7 @@ class ReportGenerator:
 # ============================================================
 # 主流程
 # ============================================================
+
 
 def run_discovery(
     universe: str = "etf_core",
@@ -615,7 +780,11 @@ def run_discovery(
     else:
         target_codes = UNIVERSE_PRESETS.get(universe, UNIVERSE_PRESETS["etf_core"])
 
-    output_path = Path(output_dir) if output_dir else Path(__file__).parent.parent / "research" / "outputs"
+    output_path = (
+        Path(output_dir)
+        if output_dir
+        else Path(__file__).parent.parent / "research" / "outputs"
+    )
     output_path.mkdir(parents=True, exist_ok=True)
 
     logger.info("=" * 60)
@@ -690,7 +859,9 @@ def run_discovery(
             for r in strong
         ],
     }
-    json_path.write_text(json.dumps(json_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    json_path.write_text(
+        json.dumps(json_data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     logger.info(f"JSON 数据已保存: {json_path}")
     logger.info("")
@@ -702,7 +873,9 @@ def run_discovery(
     if strong:
         logger.info("  TOP 5 强因子:")
         for i, r in enumerate(strong[:5]):
-            logger.info(f"    {i+1}. {r.factor_name} (IC={r.ic_mean:.4f}, IR={r.ic_ir:.3f}, {r.direction})")
+            logger.info(
+                f"    {i+1}. {r.factor_name} (IC={r.ic_mean:.4f}, IR={r.ic_ir:.3f}, {r.direction})"
+            )
     logger.info("=" * 60)
 
     return report
@@ -710,17 +883,16 @@ def run_discovery(
 
 def main():
     parser = argparse.ArgumentParser(description="因子挖掘工具")
-    parser.add_argument("--universe", default="local_cached",
-                       choices=list(UNIVERSE_PRESETS.keys()) + ["local_cached"],
-                       help="预设标的池 (local_cached=使用本地缓存全部标的)")
-    parser.add_argument("--codes", default=None,
-                       help="自定义标的代码 (逗号分隔)")
-    parser.add_argument("--start", default="2023-01-01",
-                       help="起始日期 YYYY-MM-DD")
-    parser.add_argument("--end", default=None,
-                       help="结束日期 YYYY-MM-DD")
-    parser.add_argument("--output", default=None,
-                       help="输出目录")
+    parser.add_argument(
+        "--universe",
+        default="local_cached",
+        choices=list(UNIVERSE_PRESETS.keys()) + ["local_cached"],
+        help="预设标的池 (local_cached=使用本地缓存全部标的)",
+    )
+    parser.add_argument("--codes", default=None, help="自定义标的代码 (逗号分隔)")
+    parser.add_argument("--start", default="2023-01-01", help="起始日期 YYYY-MM-DD")
+    parser.add_argument("--end", default=None, help="结束日期 YYYY-MM-DD")
+    parser.add_argument("--output", default=None, help="输出目录")
     args = parser.parse_args()
 
     run_discovery(

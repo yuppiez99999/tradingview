@@ -15,6 +15,7 @@
 运行:
     python -m pytest tests/unit/test_g7_backtest_vectorbt_bridge_boost.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -42,7 +43,9 @@ from utils.wt_structs import BarData  # noqa: E402
 # ============================================================
 
 
-def _make_bar(close: float, open_: float | None = None, code: str = "600519.SH") -> BarData:
+def _make_bar(
+    close: float, open_: float | None = None, code: str = "600519.SH"
+) -> BarData:
     return BarData(
         code=code,
         exchange="SH",
@@ -57,7 +60,9 @@ def _make_bar(close: float, open_: float | None = None, code: str = "600519.SH")
     )
 
 
-def _make_bars(closes: list[float], opens: list[float] | None = None, code: str = "600519.SH") -> list[BarData]:
+def _make_bars(
+    closes: list[float], opens: list[float] | None = None, code: str = "600519.SH"
+) -> list[BarData]:
     opens = opens or closes
     return [_make_bar(c, o, code) for c, o in zip(closes, opens, strict=True)]
 
@@ -70,18 +75,32 @@ def _make_bars(closes: list[float], opens: list[float] | None = None, code: str 
 class TestComparisonReport:
     def test_defaults(self) -> None:
         r = ComparisonReport(
-            g15_final_equity=1_000_000, vbt_final_equity=1_000_000,
-            equity_deviation_pct=0.0, g15_total_return=0.0, vbt_total_return=0.0,
-            return_deviation_pct=0.0, passed=True, n_signals=10, n_buy_signals=2, n_sell_signals=2,
+            g15_final_equity=1_000_000,
+            vbt_final_equity=1_000_000,
+            equity_deviation_pct=0.0,
+            g15_total_return=0.0,
+            vbt_total_return=0.0,
+            return_deviation_pct=0.0,
+            passed=True,
+            n_signals=10,
+            n_buy_signals=2,
+            n_sell_signals=2,
         )
         assert r.threshold_pct == 5.0
         assert r.notes == []
 
     def test_summary_pass(self) -> None:
         r = ComparisonReport(
-            g15_final_equity=1_100_000, vbt_final_equity=1_100_000,
-            equity_deviation_pct=0.5, g15_total_return=0.1, vbt_total_return=0.1,
-            return_deviation_pct=0.5, passed=True, n_signals=10, n_buy_signals=2, n_sell_signals=2,
+            g15_final_equity=1_100_000,
+            vbt_final_equity=1_100_000,
+            equity_deviation_pct=0.5,
+            g15_total_return=0.1,
+            vbt_total_return=0.1,
+            return_deviation_pct=0.5,
+            passed=True,
+            n_signals=10,
+            n_buy_signals=2,
+            n_sell_signals=2,
         )
         s = r.summary()
         assert "PASS" in s
@@ -89,9 +108,16 @@ class TestComparisonReport:
 
     def test_summary_fail(self) -> None:
         r = ComparisonReport(
-            g15_final_equity=1_000_000, vbt_final_equity=1_100_000,
-            equity_deviation_pct=10.0, g15_total_return=0.0, vbt_total_return=0.1,
-            return_deviation_pct=10.0, passed=False, n_signals=10, n_buy_signals=2, n_sell_signals=2,
+            g15_final_equity=1_000_000,
+            vbt_final_equity=1_100_000,
+            equity_deviation_pct=10.0,
+            g15_total_return=0.0,
+            vbt_total_return=0.1,
+            return_deviation_pct=10.0,
+            passed=False,
+            n_signals=10,
+            n_buy_signals=2,
+            n_sell_signals=2,
         )
         s = r.summary()
         assert "FAIL" in s
@@ -112,19 +138,23 @@ class TestGenerateMaCrossSignals:
 
     def test_golden_cross(self) -> None:
         # 构造先跌后涨, 产生金叉
-        closes = pd.Series([100, 99, 98, 97, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106.0])
+        closes = pd.Series(
+            [100, 99, 98, 97, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106.0]
+        )
         signals = generate_ma_cross_signals(closes, fast_window=2, slow_window=5)
         assert "BUY" in signals
 
     def test_death_cross(self) -> None:
         # 构造先涨后跌, 产生死叉
-        closes = pd.Series([100, 101, 102, 103, 104, 105, 106, 105, 104, 103, 102, 101, 100, 99, 98.0])
+        closes = pd.Series(
+            [100, 101, 102, 103, 104, 105, 106, 105, 104, 103, 102, 101, 100, 99, 98.0]
+        )
         signals = generate_ma_cross_signals(closes, fast_window=2, slow_window=5)
         assert "SELL" in signals
 
     def test_all_hold_no_cross(self) -> None:
         # 单调上升, 快线始终在慢线上方 → 无交叉
-        closes = pd.Series([100.0 * (1.01 ** i) for i in range(30)])
+        closes = pd.Series([100.0 * (1.01**i) for i in range(30)])
         signals = generate_ma_cross_signals(closes, fast_window=2, slow_window=5)
         # 可能有初始 HOLD, 但不应有交叉 (单调)
         assert len(signals) == 30
@@ -149,7 +179,12 @@ class TestVectorBtBridgeInit:
         assert b._position_size == 1000.0
 
     def test_custom(self) -> None:
-        b = VectorBtBridge(initial_capital=500_000, commission_rate=0.0005, threshold_pct=3.0, position_size=500.0)
+        b = VectorBtBridge(
+            initial_capital=500_000,
+            commission_rate=0.0005,
+            threshold_pct=3.0,
+            position_size=500.0,
+        )
         assert b._initial_capital == 500_000
         assert b._commission_rate == 0.0005
         assert b._threshold_pct == 3.0
@@ -222,8 +257,12 @@ class TestRunVectorbt:
 class TestRunMaCrossComparison:
     def test_full_comparison(self) -> None:
         # 构造 30 天数据, mock vectorbt
-        closes = pd.Series([100.0 * (1.001 ** i) + (5.0 if i > 15 else -5.0) for i in range(30)])
-        opens = pd.Series([100.0 * (1.001 ** i) + (5.0 if i > 15 else -5.0) for i in range(30)])
+        closes = pd.Series(
+            [100.0 * (1.001**i) + (5.0 if i > 15 else -5.0) for i in range(30)]
+        )
+        opens = pd.Series(
+            [100.0 * (1.001**i) + (5.0 if i > 15 else -5.0) for i in range(30)]
+        )
         bars = _make_bars(list(closes), list(opens))
 
         mock_vbt = MagicMock()
@@ -235,8 +274,11 @@ class TestRunMaCrossComparison:
         b = VectorBtBridge()
         with patch.dict(sys.modules, {"vectorbt": mock_vbt}):
             report = b.run_ma_cross_comparison(
-                bars=bars, closes=closes, opens=opens,
-                fast_window=2, slow_window=5,
+                bars=bars,
+                closes=closes,
+                opens=opens,
+                fast_window=2,
+                slow_window=5,
             )
             assert isinstance(report, ComparisonReport)
             assert report.n_signals == 30

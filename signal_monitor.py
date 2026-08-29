@@ -32,13 +32,17 @@ def get_latest_qlib_report() -> Path | None:
         "qlib_v3_train_*.json",
     ]
     for pattern in preferred:
-        reports = sorted(REPORTS_DIR.glob(pattern), key=lambda x: x.stat().st_mtime, reverse=True)
+        reports = sorted(
+            REPORTS_DIR.glob(pattern), key=lambda x: x.stat().st_mtime, reverse=True
+        )
         if reports:
             return reports[0]
     return None
 
 
-def _parse_portfolio_signals(report: dict[str, Any]) -> tuple[list[Any], dict[str, int], list[dict[str, Any]]]:
+def _parse_portfolio_signals(
+    report: dict[str, Any],
+) -> tuple[list[Any], dict[str, int], list[dict[str, Any]]]:
     """从 portfolio_signals 字段解析信号 (v5+ 报告格式)"""
     signals = []
     dist = {"long": 0, "short": 0, "neutral": 0}
@@ -72,7 +76,9 @@ def _parse_portfolio_signals(report: dict[str, Any]) -> tuple[list[Any], dict[st
     return signals, dist, stock_signals
 
 
-def _parse_legacy_signals(report: dict[str, Any]) -> tuple[list[Any], dict[str, int], list[dict[str, Any]]]:
+def _parse_legacy_signals(
+    report: dict[str, Any],
+) -> tuple[list[Any], dict[str, int], list[dict[str, Any]]]:
     """从 signals 字段解析信号 (v3/v4 报告格式)"""
     signals_dict = report["signals"]
     signals = list(signals_dict.values())
@@ -104,7 +110,9 @@ def _parse_legacy_signals(report: dict[str, Any]) -> tuple[list[Any], dict[str, 
     return signals, dist, stock_signals
 
 
-def _parse_stock_signals_fallback(report: dict[str, Any]) -> tuple[list[Any], dict[str, int], list[dict[str, Any]]]:
+def _parse_stock_signals_fallback(
+    report: dict[str, Any],
+) -> tuple[list[Any], dict[str, int], list[dict[str, Any]]]:
     """从 stock_signals 字段解析信号 (兜底格式)"""
     stock_signals = report.get("stock_signals", [])
     signals = [s.get("latest_signal", 0) for s in stock_signals if isinstance(s, dict)]
@@ -112,7 +120,9 @@ def _parse_stock_signals_fallback(report: dict[str, Any]) -> tuple[list[Any], di
     return signals, dist, stock_signals
 
 
-def _collect_signals_from_report(report: dict[str, Any]) -> tuple[list[Any], dict[str, int], list[dict[str, Any]]]:
+def _collect_signals_from_report(
+    report: dict[str, Any],
+) -> tuple[list[Any], dict[str, int], list[dict[str, Any]]]:
     """根据报告格式分发信号解析, 返回 (signals, dist, stock_signals)"""
     if "portfolio_signals" in report:
         return _parse_portfolio_signals(report)
@@ -146,7 +156,6 @@ def analyze_signal_effectiveness() -> None:
     with open(report_path, encoding="utf-8") as f:
         report = json.load(f)
 
-
     signals, dist, stock_signals = _collect_signals_from_report(report)
 
     total = sum(dist.values())
@@ -158,7 +167,9 @@ def analyze_signal_effectiveness() -> None:
         pass
 
     # 过滤非数值信号, 防止 np.mean/np.std/max/min 抛 TypeError
-    numeric_signals = [s for s in signals if isinstance(s, (int, float)) and not isinstance(s, bool)]
+    numeric_signals = [
+        s for s in signals if isinstance(s, (int, float)) and not isinstance(s, bool)
+    ]
     if numeric_signals:
         pass
     else:
@@ -169,8 +180,12 @@ def analyze_signal_effectiveness() -> None:
     ic_ir = metrics.get("ic_ir", 0)
     quality, color = _determine_quality_rating(ic_ir)
 
-    long_stocks = [s for s in stock_signals if isinstance(s, dict) and s.get("direction") == "看多"]
-    short_stocks = [s for s in stock_signals if isinstance(s, dict) and s.get("direction") == "看空"]
+    long_stocks = [
+        s for s in stock_signals if isinstance(s, dict) and s.get("direction") == "看多"
+    ]
+    short_stocks = [
+        s for s in stock_signals if isinstance(s, dict) and s.get("direction") == "看空"
+    ]
 
     # GitHub 集成钩子: OpenViking 记录信号评估结果到 Agent 长期记忆 (2026-08-21)
     try:
@@ -179,11 +194,12 @@ def analyze_signal_effectiveness() -> None:
             get_openviking_memory,
             is_openviking_available,
         )
+
         if is_openviking_available():
             get_openviking_memory().add_context(
                 agent_id="signal_monitor",
                 content=f"信号有效性评估: quality={quality}, ic_ir={ic_ir:.4f}, "
-                        f"total={total}, long={len(long_stocks)}, short={len(short_stocks)}",
+                f"total={total}, long={len(long_stocks)}, short={len(short_stocks)}",
                 metadata={"report": str(report_path), "type": "signal_evaluation"},
                 memory_type="decision",
             )
@@ -192,15 +208,25 @@ def analyze_signal_effectiveness() -> None:
 
     if long_stocks and short_stocks:
         # 用 .get() 防 KeyError, 过滤非数值信号
-        long_signals = [s.get("latest_signal") for s in long_stocks if isinstance(s.get("latest_signal"), (int, float))]
-        short_signals = [s.get("latest_signal") for s in short_stocks if isinstance(s.get("latest_signal"), (int, float))]
+        long_signals = [
+            s.get("latest_signal")
+            for s in long_stocks
+            if isinstance(s.get("latest_signal"), (int, float))
+        ]
+        short_signals = [
+            s.get("latest_signal")
+            for s in short_stocks
+            if isinstance(s.get("latest_signal"), (int, float))
+        ]
         if long_signals and short_signals:
             long_avg_signal = np.mean(long_signals)
             short_avg_signal = np.mean(short_signals)
             long_avg_signal - short_avg_signal
 
     # 过滤无 latest_signal 的条目, 防 KeyError; 用 .get() 安全访问其他字段
-    valid_signals = [s for s in stock_signals if isinstance(s, dict) and "latest_signal" in s]
+    valid_signals = [
+        s for s in stock_signals if isinstance(s, dict) and "latest_signal" in s
+    ]
     for _sig in sorted(valid_signals, key=lambda x: x["latest_signal"], reverse=True):
         pass
 
@@ -217,7 +243,9 @@ def analyze_signal_effectiveness() -> None:
         "metrics": {
             "ic_ir": metrics.get("ic_ir", 0),
             "mean_daily_ic": metrics.get("mean_daily_ic", metrics.get("avg_ic", 0)),
-            "overall_ic": metrics.get("ic", metrics.get("ic_test", metrics.get("overall_ic", 0))),
+            "overall_ic": metrics.get(
+                "ic", metrics.get("ic_test", metrics.get("overall_ic", 0))
+            ),
             "ic_positive_ratio": metrics.get("ic_positive_ratio", 0),
         },
         "signal_distribution": dist,

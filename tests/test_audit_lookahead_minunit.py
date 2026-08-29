@@ -10,6 +10,7 @@
     - 年化收益率 > 8% 建立在无未来函数的真实回测上 (而非 bfill 虚高)
     - 回撤 < 15% 的风控在最小交易单位正确的前提下生效
 """
+
 from __future__ import annotations
 
 import sys
@@ -47,9 +48,10 @@ class LookAheadBfillFixTest(unittest.TestCase):
         # 检查 .bfill( 方法调用形式 (带点号和左括号), 排除注释中的描述性文本
         bfill_calls = re.findall(r"\.bfill\s*\(", source)
         self.assertEqual(
-            len(bfill_calls), 0,
+            len(bfill_calls),
+            0,
             f"_add_technical_features 仍包含 {len(bfill_calls)} 处 .bfill() 方法调用 "
-            "— 前视偏差未修复! bfill 会用未来数据填充历史 NaN, 导致回测虚高."
+            "— 前视偏差未修复! bfill 会用未来数据填充历史 NaN, 导致回测虚高.",
         )
         # ffill 是允许的 (前向填充, 用过去数据)
         self.assertIn(".ffill()", source, "应使用 df.ffill() 替代 df.bfill().ffill()")
@@ -65,13 +67,16 @@ class LookAheadBfillFixTest(unittest.TestCase):
 
         # 构造 OHLCV 数据, 在 close 列第 5 行注入 NaN
         dates = pd.date_range("2026-01-01", periods=30, freq="D")
-        df = pd.DataFrame({
-            "open": np.arange(30, dtype=float) + 10,
-            "high": np.arange(30, dtype=float) + 11,
-            "low": np.arange(30, dtype=float) + 9,
-            "close": np.arange(30, dtype=float) + 10,
-            "volume": np.arange(30, dtype=float) * 1000 + 500,
-        }, index=dates)
+        df = pd.DataFrame(
+            {
+                "open": np.arange(30, dtype=float) + 10,
+                "high": np.arange(30, dtype=float) + 11,
+                "low": np.arange(30, dtype=float) + 9,
+                "close": np.arange(30, dtype=float) + 10,
+                "volume": np.arange(30, dtype=float) * 1000 + 500,
+            },
+            index=dates,
+        )
 
         # 注入 NaN (模拟停牌/数据缺失)
         df.loc[dates[5], "close"] = np.nan
@@ -82,9 +87,10 @@ class LookAheadBfillFixTest(unittest.TestCase):
         # 如果是 bfill, 会用第 6 行的值 (16.0) 填充 — 这是错误的
         filled_value = result.loc[dates[5], "close"]
         self.assertEqual(
-            filled_value, 14.0,
+            filled_value,
+            14.0,
             f"close[5] 应被 ffill 为 14.0 (过去值), 实际为 {filled_value}. "
-            "若为 16.0 则说明仍在用 bfill (未来数据泄漏)."
+            "若为 16.0 则说明仍在用 bfill (未来数据泄漏).",
         )
 
     def test_missing_ohlcv_raises_keyerror(self):
@@ -92,11 +98,13 @@ class LookAheadBfillFixTest(unittest.TestCase):
         from alpha.qlib_signal_adapter import _add_technical_features
 
         # 缺少 high/low 列的 DataFrame
-        df_bad = pd.DataFrame({
-            "open": [10, 11, 12],
-            "close": [10, 11, 12],
-            "volume": [1000, 2000, 3000],
-        })
+        df_bad = pd.DataFrame(
+            {
+                "open": [10, 11, 12],
+                "close": [10, 11, 12],
+                "volume": [1000, 2000, 3000],
+            }
+        )
 
         with self.assertRaises(KeyError) as ctx:
             _add_technical_features(df_bad)
@@ -115,6 +123,7 @@ class MinUnitFixTest(unittest.TestCase):
     def setUpClass(cls):
         """用 importlib 直接从文件路径加载 trading_rules, 绕过 utils 包导入问题"""
         import importlib.util
+
         tr_path = PROJECT_ROOT / "utils" / "trading_rules.py"
         spec = importlib.util.spec_from_file_location("trading_rules_test", tr_path)
         cls.tr = importlib.util.module_from_spec(spec)

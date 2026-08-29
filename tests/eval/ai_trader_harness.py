@@ -93,18 +93,20 @@ DEFAULT_SYMBOLS = [
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class DataRecord:
     """单条数据记录 (含时间戳 + 哈希 + 来源)。
 
     哈希用于检测数据篡改: content 哈希应与 record_hash 一致。
     """
-    timestamp: str          # 数据时点 (YYYY-MM-DD HH:MM:SS)
+
+    timestamp: str  # 数据时点 (YYYY-MM-DD HH:MM:SS)
     symbol: str
     price: float
     volume: int
     source: str = "synthetic"  # 数据来源
-    record_hash: str = ""      # 内容哈希 (用于篡改检测)
+    record_hash: str = ""  # 内容哈希 (用于篡改检测)
 
     def __post_init__(self) -> None:
         if not self.record_hash:
@@ -112,7 +114,9 @@ class DataRecord:
 
     def _compute_hash(self) -> str:
         """计算内容哈希 (用于篡改检测)。"""
-        content = f"{self.timestamp}|{self.symbol}|{self.price}|{self.volume}|{self.source}"
+        content = (
+            f"{self.timestamp}|{self.symbol}|{self.price}|{self.volume}|{self.source}"
+        )
         return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
     def is_hash_valid(self) -> bool:
@@ -133,9 +137,10 @@ class DataRecord:
 @dataclass
 class AgentDecision:
     """Agent 在某时点的决策。"""
+
     timestamp: str
     symbol: str
-    action: str          # "buy" / "sell" / "hold"
+    action: str  # "buy" / "sell" / "hold"
     weight: float
     data_used: list[DataRecord] = field(default_factory=list)  # 决策所用数据
     reasoning: str = ""
@@ -144,6 +149,7 @@ class AgentDecision:
 @dataclass
 class ContaminationReport:
     """数据污染检测报告。"""
+
     is_contaminated: bool = False
     hash_violations: int = 0
     order_violations: int = 0
@@ -169,6 +175,7 @@ class ContaminationReport:
 @dataclass
 class AgentEvalResult:
     """单个 Agent 的评估结果。"""
+
     agent_name: str
     strategy: str
     decisions: list[AgentDecision] = field(default_factory=list)
@@ -189,13 +196,16 @@ class AgentEvalResult:
 @dataclass
 class AITraderEvalReport:
     """完整评估报告 (多 Agent 竞技场)。"""
+
     start_date: str = ""
     end_date: str = ""
     symbols: list[str] = field(default_factory=list)
     results: list[AgentEvalResult] = field(default_factory=list)
     generated_at: str = ""
     n_stream_records: int = 0
-    global_contamination: ContaminationReport = field(default_factory=ContaminationReport)
+    global_contamination: ContaminationReport = field(
+        default_factory=ContaminationReport
+    )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -225,6 +235,7 @@ class AITraderEvalReport:
 # 实时数据流模拟
 # ============================================================
 
+
 class RealTimeStream:
     """实时数据流模拟 — 按时间顺序生成数据记录。
 
@@ -234,8 +245,9 @@ class RealTimeStream:
     3. 支持注入污染 (用于测试检测器)
     """
 
-    def __init__(self, symbols: list[str], start_date: str,
-                 end_date: str, seed: int = 42) -> None:
+    def __init__(
+        self, symbols: list[str], start_date: str, end_date: str, seed: int = 42
+    ) -> None:
         self.symbols = symbols
         self.start_date = start_date
         self.end_date = end_date
@@ -254,14 +266,22 @@ class RealTimeStream:
             if current.weekday() < 5:  # 工作日
                 ts = current.strftime("%Y-%m-%d 15:00:00")  # 收盘时点
                 for symbol in self.symbols:
-                    price = round(100.0 * (1.0 + rng.uniform(-0.3, 0.3))
-                                  * (1.0 + rng.gauss(0, 0.02)), 4)
+                    price = round(
+                        100.0
+                        * (1.0 + rng.uniform(-0.3, 0.3))
+                        * (1.0 + rng.gauss(0, 0.02)),
+                        4,
+                    )
                     volume = int(1e6 * (1.0 + rng.uniform(-0.5, 0.5)))
-                    self._records.append(DataRecord(
-                        timestamp=ts, symbol=symbol,
-                        price=price, volume=volume,
-                        source="realtime-stream",
-                    ))
+                    self._records.append(
+                        DataRecord(
+                            timestamp=ts,
+                            symbol=symbol,
+                            price=price,
+                            volume=volume,
+                            source="realtime-stream",
+                        )
+                    )
             current += timedelta(days=1)
 
     def get_records_up_to(self, timestamp: str) -> list[DataRecord]:
@@ -282,9 +302,11 @@ class RealTimeStream:
             r = self._records[idx]
             # 篡改: 修改价格但保持旧哈希
             self._records[idx] = DataRecord(
-                timestamp=r.timestamp, symbol=r.symbol,
+                timestamp=r.timestamp,
+                symbol=r.symbol,
                 price=round(r.price * 1.5, 4),  # 篡改价格
-                volume=r.volume, source=r.source,
+                volume=r.volume,
+                source=r.source,
                 record_hash=r.record_hash,  # 保持旧哈希 (不匹配)
             )
 
@@ -295,6 +317,7 @@ class RealTimeStream:
         rng = random.Random(self.seed + 200)
         # 按标的分组找到同标的相邻记录对
         from collections import defaultdict
+
         by_symbol: dict[str, list[int]] = defaultdict(list)
         for idx, rec in enumerate(self._records):
             by_symbol[rec.symbol].append(idx)
@@ -310,7 +333,10 @@ class RealTimeStream:
                     break
                 if rng.random() < 0.3:  # 30% 概率交换
                     idx1, idx2 = symbol_indices[i], symbol_indices[i + 1]
-                    self._records[idx1], self._records[idx2] = self._records[idx2], self._records[idx1]
+                    self._records[idx1], self._records[idx2] = (
+                        self._records[idx2],
+                        self._records[idx1],
+                    )
                     swapped += 1
 
     def inject_future_timestamp(self, n: int = 1) -> None:
@@ -323,14 +349,18 @@ class RealTimeStream:
             idx = rng.randint(0, len(self._records) - 1)
             r = self._records[idx]
             self._records[idx] = DataRecord(
-                timestamp=future_ts, symbol=r.symbol,
-                price=r.price, volume=r.volume, source=r.source,
+                timestamp=future_ts,
+                symbol=r.symbol,
+                price=r.price,
+                volume=r.volume,
+                source=r.source,
             )
 
 
 # ============================================================
 # 数据污染检测器 (五层防线)
 # ============================================================
+
 
 class DataContaminationDetector:
     """数据污染检测器 — AI-Trader 基准的核心创新。
@@ -343,16 +373,19 @@ class DataContaminationDetector:
     5. 来源校验: 检测数据来源可信度
     """
 
-    def __init__(self,
-                 hash_threshold: float = CONTAMINATION_HASH_THRESHOLD,
-                 order_threshold: float = CONTAMINATION_ORDER_THRESHOLD,
-                 future_ts_threshold: float = CONTAMINATION_FUTURE_TS_THRESHOLD) -> None:
+    def __init__(
+        self,
+        hash_threshold: float = CONTAMINATION_HASH_THRESHOLD,
+        order_threshold: float = CONTAMINATION_ORDER_THRESHOLD,
+        future_ts_threshold: float = CONTAMINATION_FUTURE_TS_THRESHOLD,
+    ) -> None:
         self.hash_threshold = hash_threshold
         self.order_threshold = order_threshold
         self.future_ts_threshold = future_ts_threshold
 
-    def detect(self, records: list[DataRecord],
-               decision_cutoff: Optional[str] = None) -> ContaminationReport:
+    def detect(
+        self, records: list[DataRecord], decision_cutoff: Optional[str] = None
+    ) -> ContaminationReport:
         """执行数据污染检测。
 
         Args:
@@ -378,6 +411,7 @@ class DataContaminationDetector:
 
         # 2. 时序校验 (检测乱序) — 仅检测同一标的内的乱序 (跨标的无可比性)
         from collections import defaultdict
+
         by_symbol: dict[str, list[DataRecord]] = defaultdict(list)
         for record in records:
             by_symbol[record.symbol].append(record)
@@ -394,23 +428,38 @@ class DataContaminationDetector:
                 if record.timestamp > decision_cutoff:
                     future_ts_violations += 1
             if future_ts_violations > 0:
-                reasons.append(f"未来时间戳 {future_ts_violations}/{total} 条 (决策使用了未来数据)")
+                reasons.append(
+                    f"未来时间戳 {future_ts_violations}/{total} 条 (决策使用了未来数据)"
+                )
 
         # 4. 隔离校验 (来源检查)
-        trusted_sources = {"synthetic", "realtime-stream", "wind-terminal", "tdx", "akshare"}
+        trusted_sources = {
+            "synthetic",
+            "realtime-stream",
+            "wind-terminal",
+            "tdx",
+            "akshare",
+        }
         for record in records:
             if record.source not in trusted_sources:
                 isolation_violations += 1
         if isolation_violations > 0:
-            reasons.append(f"不可信来源 {isolation_violations}/{total} 条 (评估环境未隔离)")
+            reasons.append(
+                f"不可信来源 {isolation_violations}/{total} 条 (评估环境未隔离)"
+            )
 
         # 计算污染分数
-        score = (hash_violations + order_violations + future_ts_violations + isolation_violations) / total
+        score = (
+            hash_violations
+            + order_violations
+            + future_ts_violations
+            + isolation_violations
+        ) / total
         is_contaminated = (
-            hash_violations > 0 or
-            order_violations > 0 or
-            future_ts_violations > 0 or
-            isolation_violations > 0
+            hash_violations > 0
+            or order_violations > 0
+            or future_ts_violations > 0
+            or isolation_violations > 0
         )
 
         return ContaminationReport(
@@ -429,36 +478,45 @@ class DataContaminationDetector:
 # Agent 适配器
 # ============================================================
 
+
 class AgentAdapter:
     """Agent 原生适配器 (模拟 AI-Trader 平台注册的 agent)。
 
     mock 模式: 使用确定性策略生成决策, 不调用真实 LLM。
     """
 
-    def __init__(self, name: str, strategy: str = "momentum",
-                 mock: bool = True) -> None:
+    def __init__(
+        self, name: str, strategy: str = "momentum", mock: bool = True
+    ) -> None:
         self.name = name
         self.strategy = strategy
         self.mock = mock
 
-    def make_decision(self, records: list[DataRecord],
-                      symbol: str, cutoff: str) -> AgentDecision:
+    def make_decision(
+        self, records: list[DataRecord], symbol: str, cutoff: str
+    ) -> AgentDecision:
         """基于截止 cutoff 的数据生成决策。"""
-        symbol_records = [r for r in records if r.symbol == symbol and r.timestamp <= cutoff]
+        symbol_records = [
+            r for r in records if r.symbol == symbol and r.timestamp <= cutoff
+        ]
         if not symbol_records:
-            return AgentDecision(timestamp=cutoff, symbol=symbol,
-                                action="hold", weight=0.0)
+            return AgentDecision(
+                timestamp=cutoff, symbol=symbol, action="hold", weight=0.0
+            )
 
         action, weight, reasoning = self._apply_strategy(symbol_records, symbol)
         return AgentDecision(
-            timestamp=cutoff, symbol=symbol,
-            action=action, weight=weight,
+            timestamp=cutoff,
+            symbol=symbol,
+            action=action,
+            weight=weight,
             data_used=symbol_records[-20:],  # 最近 20 条
             reasoning=reasoning,
         )
 
-    def _apply_strategy(self, records: list[DataRecord],
-                        symbol: str) -> tuple[str, float, str]:
+    def _apply_strategy(
+        self, records: list[DataRecord], symbol: str
+    ) -> tuple[str, float, str]:
         """应用交易策略生成决策。"""
         prices = [r.price for r in records]
         if len(prices) < 2:
@@ -480,9 +538,17 @@ class AgentAdapter:
             current = prices[-1]
             deviation = (current - avg) / avg if avg > 0 else 0.0
             if deviation > 0.03:
-                return "sell", min(1.0, abs(deviation) * 5), f"mean_revert: dev=+{deviation:.4f}"
+                return (
+                    "sell",
+                    min(1.0, abs(deviation) * 5),
+                    f"mean_revert: dev=+{deviation:.4f}",
+                )
             elif deviation < -0.03:
-                return "buy", min(1.0, abs(deviation) * 5), f"mean_revert: dev={deviation:.4f}"
+                return (
+                    "buy",
+                    min(1.0, abs(deviation) * 5),
+                    f"mean_revert: dev={deviation:.4f}",
+                )
             return "hold", 0.0, f"mean_revert: dev={deviation:.4f}"
 
         elif self.strategy == "value":
@@ -519,13 +585,18 @@ class AgentAdapter:
             if buy_score > sell_score and buy_score > 0.1:
                 return "buy", buy_score / len(actions), f"ensemble: buy={buy_score:.4f}"
             elif sell_score > buy_score and sell_score > 0.1:
-                return "sell", sell_score / len(actions), f"ensemble: sell={sell_score:.4f}"
+                return (
+                    "sell",
+                    sell_score / len(actions),
+                    f"ensemble: sell={sell_score:.4f}",
+                )
             return "hold", 0.0, f"ensemble: buy={buy_score:.4f}, sell={sell_score:.4f}"
 
 
 # ============================================================
 # 主评估器
 # ============================================================
+
 
 class AITraderHarness:
     """AI-Trader 实时未污染评估基准主评估器。
@@ -536,17 +607,19 @@ class AITraderHarness:
         report = harness.run_evaluation(agents, "2024-01-01", "2024-06-30")
     """
 
-    def __init__(self, symbols: Optional[list[str]] = None,
-                 seed: int = 42) -> None:
+    def __init__(self, symbols: Optional[list[str]] = None, seed: int = 42) -> None:
         self.symbols = symbols or DEFAULT_SYMBOLS
         self.seed = seed
         self.detector = DataContaminationDetector()
 
-    def run_evaluation(self, agents: list[AgentAdapter],
-                       start_date: str, end_date: str) -> AITraderEvalReport:
+    def run_evaluation(
+        self, agents: list[AgentAdapter], start_date: str, end_date: str
+    ) -> AITraderEvalReport:
         """运行多 Agent 实时未污染评估。"""
-        logger.info(f"AI-Trader: 开始评估 {len(agents)} 个 agent, "
-                    f"区间 {start_date} ~ {end_date}")
+        logger.info(
+            f"AI-Trader: 开始评估 {len(agents)} 个 agent, "
+            f"区间 {start_date} ~ {end_date}"
+        )
 
         # 1. 生成实时数据流
         stream = RealTimeStream(self.symbols, start_date, end_date, self.seed)
@@ -576,13 +649,17 @@ class AITraderHarness:
             global_contamination=global_contamination,
         )
 
-        n_clean = sum(1 for r in results
-                      if r.error is None and not r.contamination.is_contaminated)
+        n_clean = sum(
+            1
+            for r in results
+            if r.error is None and not r.contamination.is_contaminated
+        )
         logger.info(f"AI-Trader: 评估完成, {n_clean}/{len(results)} agent 数据未污染")
         return report
 
-    def _sample_eval_timestamps(self, records: list[DataRecord],
-                                max_points: int = 30) -> list[str]:
+    def _sample_eval_timestamps(
+        self, records: list[DataRecord], max_points: int = 30
+    ) -> list[str]:
         """采样评估时点 (均匀采样)。"""
         all_ts = list({r.timestamp for r in records})
         all_ts.sort()
@@ -591,9 +668,9 @@ class AITraderHarness:
         step = len(all_ts) // max_points
         return all_ts[::step][:max_points]
 
-    def _evaluate_single(self, agent: AgentAdapter,
-                         stream: RealTimeStream,
-                         eval_timestamps: list[str]) -> AgentEvalResult:
+    def _evaluate_single(
+        self, agent: AgentAdapter, stream: RealTimeStream, eval_timestamps: list[str]
+    ) -> AgentEvalResult:
         """评估单个 agent。"""
         start_time = time.time()
         decisions: list[AgentDecision] = []
@@ -614,7 +691,9 @@ class AITraderHarness:
             total_records = 0
             for decision in decisions:
                 if decision.data_used:
-                    report = self.detector.detect(decision.data_used, decision.timestamp)
+                    report = self.detector.detect(
+                        decision.data_used, decision.timestamp
+                    )
                     if report.is_contaminated:
                         total_violations += 1
                     hash_violations += report.hash_violations
@@ -626,18 +705,36 @@ class AITraderHarness:
             # 汇总各决策的污染报告 (不合并 data_used, 避免跨决策人工乱序)
             all_reasons: list[str] = []
             is_contaminated = (
-                hash_violations > 0 or order_violations > 0 or
-                future_ts_violations > 0 or isolation_violations > 0
+                hash_violations > 0
+                or order_violations > 0
+                or future_ts_violations > 0
+                or isolation_violations > 0
             )
             if hash_violations > 0:
                 all_reasons.append(f"哈希校验失败 {hash_violations} 条 (数据被篡改)")
             if order_violations > 0:
-                all_reasons.append(f"时序乱序 {order_violations} 处 (数据到达顺序违反时序)")
+                all_reasons.append(
+                    f"时序乱序 {order_violations} 处 (数据到达顺序违反时序)"
+                )
             if future_ts_violations > 0:
-                all_reasons.append(f"未来时间戳 {future_ts_violations} 条 (决策使用了未来数据)")
+                all_reasons.append(
+                    f"未来时间戳 {future_ts_violations} 条 (决策使用了未来数据)"
+                )
             if isolation_violations > 0:
-                all_reasons.append(f"不可信来源 {isolation_violations} 条 (评估环境未隔离)")
-            score = (hash_violations + order_violations + future_ts_violations + isolation_violations) / total_records if total_records > 0 else 0.0
+                all_reasons.append(
+                    f"不可信来源 {isolation_violations} 条 (评估环境未隔离)"
+                )
+            score = (
+                (
+                    hash_violations
+                    + order_violations
+                    + future_ts_violations
+                    + isolation_violations
+                )
+                / total_records
+                if total_records > 0
+                else 0.0
+            )
             contamination = ContaminationReport(
                 is_contaminated=is_contaminated,
                 hash_violations=hash_violations,
@@ -661,8 +758,14 @@ class AITraderHarness:
                 n_total_decisions=len(decisions),
                 elapsed_seconds=round(elapsed, 4),
             )
-        except (ValueError, KeyError, TypeError, AttributeError,
-                OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             return AgentEvalResult(
                 agent_name=agent.name,
                 strategy=agent.strategy,
@@ -671,8 +774,9 @@ class AITraderHarness:
                 error=str(e),
             )
 
-    def run_contamination_test(self, agents: list[AgentAdapter],
-                               start_date: str, end_date: str) -> dict[str, Any]:
+    def run_contamination_test(
+        self, agents: list[AgentAdapter], start_date: str, end_date: str
+    ) -> dict[str, Any]:
         """运行污染注入测试 (验证检测器能否发现注入的污染)。
 
         注入三种污染, 验证检测器能否全部检出。
@@ -716,11 +820,14 @@ class AITraderHarness:
             },
             "all_detected": hash_detected and order_detected and future_detected,
         }
-        logger.info(f"AI-Trader: 污染注入测试 {'全部检出' if result['all_detected'] else '检出失败'}")
+        logger.info(
+            f"AI-Trader: 污染注入测试 {'全部检出' if result['all_detected'] else '检出失败'}"
+        )
         return result
 
-    def save_report(self, report: AITraderEvalReport,
-                    output_dir: str = "reports/eval/ai_trader") -> Path:
+    def save_report(
+        self, report: AITraderEvalReport, output_dir: str = "reports/eval/ai_trader"
+    ) -> Path:
         """保存评估报告到 JSON 文件。"""
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -736,6 +843,7 @@ class AITraderHarness:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 运行 AI-Trader 评估基准。
@@ -766,28 +874,42 @@ def main() -> None:
     report = harness.run_evaluation(agents, "2024-01-01", "2024-06-30")
     filepath = harness.save_report(report)
 
-    print(f"\n全局数据污染: {'是' if report.global_contamination.is_contaminated else '否'}"
-          f" (score={report.global_contamination.contamination_score:.6f})")
+    print(
+        f"\n全局数据污染: {'是' if report.global_contamination.is_contaminated else '否'}"
+        f" (score={report.global_contamination.contamination_score:.6f})"
+    )
     print(f"数据流记录数: {report.n_stream_records}")
 
     for result in report.results:
         status = "污染" if result.contamination.is_contaminated else "干净"
         print(f"\n{result.agent_name} ({result.strategy}):")
         print(f"  数据状态: {status}")
-        print(f"  准确率: {result.accuracy:.2%} ({result.n_correct_decisions}/{result.n_total_decisions})")
+        print(
+            f"  准确率: {result.accuracy:.2%} ({result.n_correct_decisions}/{result.n_total_decisions})"
+        )
         if result.contamination.reasons:
             print(f"  原因: {result.contamination.reasons}")
 
     # 2. 污染注入测试 (验证检测器)
     print("\n--- 2. 污染注入测试 (验证检测器) ---")
-    contamination_test = harness.run_contamination_test(agents, "2024-01-01", "2024-06-30")
-    print(f"\n哈希篡改检测: {'通过' if contamination_test['hash_contamination']['detected'] else '失败'}"
-          f" ({contamination_test['hash_contamination']['violations']} 违规)")
-    print(f"乱序检测: {'通过' if contamination_test['order_contamination']['detected'] else '失败'}"
-          f" ({contamination_test['order_contamination']['violations']} 违规)")
-    print(f"未来时间戳检测: {'通过' if contamination_test['future_ts_contamination']['detected'] else '失败'}"
-          f" ({contamination_test['future_ts_contamination']['violations']} 违规)")
-    print(f"\n污染注入测试: {'全部检出' if contamination_test['all_detected'] else '检出失败'}")
+    contamination_test = harness.run_contamination_test(
+        agents, "2024-01-01", "2024-06-30"
+    )
+    print(
+        f"\n哈希篡改检测: {'通过' if contamination_test['hash_contamination']['detected'] else '失败'}"
+        f" ({contamination_test['hash_contamination']['violations']} 违规)"
+    )
+    print(
+        f"乱序检测: {'通过' if contamination_test['order_contamination']['detected'] else '失败'}"
+        f" ({contamination_test['order_contamination']['violations']} 违规)"
+    )
+    print(
+        f"未来时间戳检测: {'通过' if contamination_test['future_ts_contamination']['detected'] else '失败'}"
+        f" ({contamination_test['future_ts_contamination']['violations']} 违规)"
+    )
+    print(
+        f"\n污染注入测试: {'全部检出' if contamination_test['all_detected'] else '检出失败'}"
+    )
 
     print(f"\n报告已保存: {filepath}")
 

@@ -47,7 +47,9 @@ def _ensure_utf8_stream() -> None:
         if buffer is None:
             continue
         try:
-            setattr(sys, name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace"))
+            setattr(
+                sys, name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace")
+            )
         except (ValueError, TypeError, KeyError, AttributeError, OSError):
             pass
 
@@ -57,9 +59,20 @@ _ensure_utf8_stream()
 logger = logging.getLogger(__name__)
 
 # 默认持仓 (对应 config/portfolio.yaml 核心标的, 桥接自测用)
-DEFAULT_SYMBOLS = ["688041", "300308", "002371", "603019", "300782",
-                   "688017", "300274", "000408", "601088", "600276",
-                   "600900", "300033"]
+DEFAULT_SYMBOLS = [
+    "688041",
+    "300308",
+    "002371",
+    "603019",
+    "300782",
+    "688017",
+    "300274",
+    "000408",
+    "601088",
+    "600276",
+    "600900",
+    "300033",
+]
 
 
 class SupplyChainBuilder:
@@ -111,21 +124,28 @@ class SupplyChainBuilder:
         default_count = 0
         if self.include_default_chains:
             # 先看默认链是否已通过真实边覆盖, 避免重复
-            existing = {(e.source, e.target) for e in self.graph.adjacency.values()
-                        for e in e}
+            existing = {
+                (e.source, e.target) for e in self.graph.adjacency.values() for e in e
+            }
             for chain_name, edges in SupplyChainGraph.DEFAULT_CHAINS.items():
                 for src, tgt, rtype, strength in edges:
                     if (src, tgt) in existing:
                         continue
-                    self.graph.add_edge(SupplyChainEdge(
-                        source=src, target=tgt, relation_type=rtype,
-                        strength=strength, source_info=f"默认_{chain_name}",
-                    ))
+                    self.graph.add_edge(
+                        SupplyChainEdge(
+                            source=src,
+                            target=tgt,
+                            relation_type=rtype,
+                            strength=strength,
+                            source_info=f"默认_{chain_name}",
+                        )
+                    )
                     default_count += 1
 
         return {
             "node_count": len(self.graph.all_nodes),
-            "edge_count": len(self.graph.adjacency) and sum(len(v) for v in self.graph.adjacency.values()),
+            "edge_count": len(self.graph.adjacency)
+            and sum(len(v) for v in self.graph.adjacency.values()),
             "real_edges": real_count,
             "default_added": default_count,
             "symbols": self.symbols,
@@ -136,14 +156,23 @@ class SupplyChainBuilder:
         edges = []
         for e in raw_edges:
             try:
-                edges.append(SupplyChainEdge(
-                    source=str(e["source"]),
-                    target=str(e["target"]),
-                    relation_type=str(e["relation_type"]),
-                    strength=float(e.get("strength", 0.5)),
-                    source_info=str(e.get("source_info", "")),
-                ))
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
+                edges.append(
+                    SupplyChainEdge(
+                        source=str(e["source"]),
+                        target=str(e["target"]),
+                        relation_type=str(e["relation_type"]),
+                        strength=float(e.get("strength", 0.5)),
+                        source_info=str(e.get("source_info", "")),
+                    )
+                )
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as exc:
                 logger.warning("[Builder] 边转换失败: %s — %s", exc, e)
         return edges
 
@@ -177,8 +206,10 @@ class SupplyChainBuilder:
         lines.append("=" * 70)
         lines.append("GNN 供应链关系图谱摘要")
         lines.append("=" * 70)
-        lines.append(f"标的数: {len(self.symbols)} | 节点数: {info['node_count']} | "
-                     f"边数: {info['edge_count']}")
+        lines.append(
+            f"标的数: {len(self.symbols)} | 节点数: {info['node_count']} | "
+            f"边数: {info['edge_count']}"
+        )
         lines.append(f"最大传播跳数: {self.max_hops} (防过度平滑)")
 
         hubs = summary.get("hubs", [])
@@ -245,7 +276,14 @@ def load_positions_symbols() -> list[str]:
                 if base:
                     clean.append(base)
             return list(dict.fromkeys(clean))
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as exc:
             logger.warning(f"[Builder] positions.json 解析失败: {exc}")
     # portfolio.yaml 兜底
     return DEFAULT_SYMBOLS
@@ -255,18 +293,25 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="GNN 供应链关系图谱构建器")
-    parser.add_argument("--symbols", type=str, default="",
-                        help="标的代码逗号分隔, 如 688041,300308,002371")
-    parser.add_argument("--from-positions", action="store_true",
-                        help="从 config/positions.json 读取持仓")
-    parser.add_argument("--no-themes", action="store_true",
-                        help="不含当日题材边")
-    parser.add_argument("--no-default", action="store_true",
-                        help="不含默认产业链兜底")
-    parser.add_argument("--max-hops", type=int, default=2,
-                        help="影响传播最大跳数 (默认2, 防过度平滑)")
-    parser.add_argument("--propagate", type=str, default="",
-                        help="从指定节点传播影响, 如 688041")
+    parser.add_argument(
+        "--symbols",
+        type=str,
+        default="",
+        help="标的代码逗号分隔, 如 688041,300308,002371",
+    )
+    parser.add_argument(
+        "--from-positions",
+        action="store_true",
+        help="从 config/positions.json 读取持仓",
+    )
+    parser.add_argument("--no-themes", action="store_true", help="不含当日题材边")
+    parser.add_argument("--no-default", action="store_true", help="不含默认产业链兜底")
+    parser.add_argument(
+        "--max-hops", type=int, default=2, help="影响传播最大跳数 (默认2, 防过度平滑)"
+    )
+    parser.add_argument(
+        "--propagate", type=str, default="", help="从指定节点传播影响, 如 688041"
+    )
     parser.add_argument("--verbose", action="store_true", help="详细日志")
     args = parser.parse_args()
 
@@ -297,8 +342,10 @@ def main() -> int:
         if not paths:
             logger.info("  (无传播路径)")
         for p in paths[:15]:
-            logger.info(f"  {' -> '.join(p.path)}  强度={p.total_strength:.3f} "
-                  f"类型={p.edge_types}")
+            logger.info(
+                f"  {' -> '.join(p.path)}  强度={p.total_strength:.3f} "
+                f"类型={p.edge_types}"
+            )
 
     return 0
 

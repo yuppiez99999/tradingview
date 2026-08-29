@@ -101,9 +101,19 @@ class Last30DaysAdapter:
     缓存: TTL=600s (news 类)
     """
 
-    SUPPORTED_PLATFORMS = {"reddit", "x", "youtube", "hn", "tiktok", "polymarket", "github"}
+    SUPPORTED_PLATFORMS = {
+        "reddit",
+        "x",
+        "youtube",
+        "hn",
+        "tiktok",
+        "polymarket",
+        "github",
+    }
 
-    def __init__(self, cache_ttl: int = _CACHE_TTL, cli_timeout: int = _CLI_TIMEOUT) -> None:
+    def __init__(
+        self, cache_ttl: int = _CACHE_TTL, cli_timeout: int = _CLI_TIMEOUT
+    ) -> None:
         self.cache_ttl = int(cache_ttl)
         self.cli_timeout = int(cli_timeout)
         self._cli_available: bool | None = None
@@ -200,14 +210,22 @@ class Last30DaysAdapter:
                 "npx",
                 "-y",
                 "last30days-skill",
-                "--topic", topic,
-                "--platforms", ",".join(platforms),
-                "--days", str(days),
-                "--format", "json",
+                "--topic",
+                topic,
+                "--platforms",
+                ",".join(platforms),
+                "--days",
+                str(days),
+                "--format",
+                "json",
             ]
 
             # 清空代理环境变量 (避免代理干扰)
-            env = {k: v for k, v in os.environ.items() if k.lower() not in ("http_proxy", "https_proxy")}
+            env = {
+                k: v
+                for k, v in os.environ.items()
+                if k.lower() not in ("http_proxy", "https_proxy")
+            }
             env["NO_PROXY"] = "*"
 
             result = subprocess.run(
@@ -235,7 +253,15 @@ class Last30DaysAdapter:
             logger.warning("last30days CLI 调用失败: %s", e)
             logger.debug(traceback.format_exc())
             return []
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # 模块 fail-safe, 不阻断主流程
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # 模块 fail-safe, 不阻断主流程
             logger.error("last30days 查询异常: %s", e)
             logger.debug(traceback.format_exc())
             return []
@@ -319,7 +345,10 @@ class Last30DaysAdapter:
 
         # 加权情感 (按互动量加权)
         if total_engagement > 0:
-            composite = sum(s.sentiment_score * s.engagement_score for s in signals) / total_engagement
+            composite = (
+                sum(s.sentiment_score * s.engagement_score for s in signals)
+                / total_engagement
+            )
         else:
             composite = sum(s.sentiment_score for s in signals) / len(signals)
 
@@ -341,7 +370,9 @@ class Last30DaysAdapter:
     def _cache_key(self, topic: str, platforms: list[str], days: int) -> str:
         """生成缓存键 (MD5 哈希)."""
         raw = f"{topic}|{','.join(sorted(platforms))}|{days}"
-        return hashlib.md5(raw.encode("utf-8")).hexdigest()  # nosec B324 — 非安全用途, 仅作缓存键哈希
+        return hashlib.md5(
+            raw.encode("utf-8"), usedforsecurity=False
+        ).hexdigest()  # 非安全用途, 仅作缓存键哈希
 
     def _load_cache(self, key: str) -> list[Last30DaysSignal] | None:
         """加载缓存 (过期返回 None)."""
@@ -407,7 +438,9 @@ class Last30DaysAdapter:
         """返回适配器健康状态."""
         return {
             "flag_enabled": is_enabled("USE_LAST30DAYS_SENTIMENT"),
-            "cli_available": self.cli_available if self._cli_available is not None else False,
+            "cli_available": (
+                self.cli_available if self._cli_available is not None else False
+            ),
             "supported_platforms": list(self.SUPPORTED_PLATFORMS),
             "cache_ttl": self.cache_ttl,
         }

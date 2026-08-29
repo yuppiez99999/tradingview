@@ -16,6 +16,7 @@
 运行:
     python -m pytest tests/unit/test_g7_smart_order_router_boost.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -56,9 +57,15 @@ class TestDataclasses:
 
     def test_venue_score_required_fields(self) -> None:
         s = VenueScore(
-            venue_name="V1", total_score=0.8,
-            liquidity_score=0.9, cost_score=0.8, speed_score=0.7, anonymity_score=0.1,
-            expected_fill_price=100.0, expected_fill_ratio=0.95, expected_cost_bps=3.0,
+            venue_name="V1",
+            total_score=0.8,
+            liquidity_score=0.9,
+            cost_score=0.8,
+            speed_score=0.7,
+            anonymity_score=0.1,
+            expected_fill_price=100.0,
+            expected_fill_ratio=0.95,
+            expected_cost_bps=3.0,
         )
         assert s.recommended_shares == 0.0
 
@@ -136,9 +143,12 @@ class TestRoute:
     def test_smart_with_order_books(self) -> None:
         r = SmartOrderRouter()
         ob = OrderBookSnapshot(
-            venue_name="SSE_MAIN", timestamp="t",
-            bid_prices=[99.0, 98.0], bid_sizes=[5000, 3000],
-            ask_prices=[101.0, 102.0], ask_sizes=[4000, 2000],
+            venue_name="SSE_MAIN",
+            timestamp="t",
+            bid_prices=[99.0, 98.0],
+            bid_sizes=[5000, 3000],
+            ask_prices=[101.0, 102.0],
+            ask_sizes=[4000, 2000],
             last_price=100.0,
         )
         d = r.route("600519", "BUY", 10000, order_books={"SSE_MAIN": ob})
@@ -151,20 +161,24 @@ class TestRoute:
         assert d.strategy == "SMART"
 
     def test_dark_first_with_dark_pool(self) -> None:
-        r = SmartOrderRouter(venues=[
-            Venue(name="EXCH", venue_type="EXCHANGE", liquidity_score=0.9),
-            Venue(name="DARK", venue_type="DARK_POOL", liquidity_score=0.5),
-        ])
+        r = SmartOrderRouter(
+            venues=[
+                Venue(name="EXCH", venue_type="EXCHANGE", liquidity_score=0.9),
+                Venue(name="DARK", venue_type="DARK_POOL", liquidity_score=0.5),
+            ]
+        )
         d = r.route("600519", "BUY", 1000, strategy="DARK_FIRST")
         # 仅暗池场所被选
         for a in d.allocations:
             assert a.venue_name == "DARK"
 
     def test_liquidity_first_sorts_by_liquidity(self) -> None:
-        r = SmartOrderRouter(venues=[
-            Venue(name="LOW_LIQ", venue_type="EXCHANGE", liquidity_score=0.3),
-            Venue(name="HIGH_LIQ", venue_type="EXCHANGE", liquidity_score=0.9),
-        ])
+        r = SmartOrderRouter(
+            venues=[
+                Venue(name="LOW_LIQ", venue_type="EXCHANGE", liquidity_score=0.3),
+                Venue(name="HIGH_LIQ", venue_type="EXCHANGE", liquidity_score=0.9),
+            ]
+        )
         d = r.route("600519", "BUY", 1000, strategy="LIQUIDITY_FIRST", max_venues=2)
         # 高流动性应排前
         assert d.allocations[0].venue_name == "HIGH_LIQ"
@@ -184,10 +198,17 @@ class TestRoute:
 
     def test_unavailable_venue_skipped(self) -> None:
         # 用自定义 venues 避免污染类级 DEFAULT_VENUES
-        r = SmartOrderRouter(venues=[
-            Venue(name="V_OFF", venue_type="EXCHANGE", liquidity_score=0.9, available=False),
-            Venue(name="V_ON", venue_type="EXCHANGE", liquidity_score=0.5),
-        ])
+        r = SmartOrderRouter(
+            venues=[
+                Venue(
+                    name="V_OFF",
+                    venue_type="EXCHANGE",
+                    liquidity_score=0.9,
+                    available=False,
+                ),
+                Venue(name="V_ON", venue_type="EXCHANGE", liquidity_score=0.5),
+            ]
+        )
         d = r.route("600519", "BUY", 10000)
         for a in d.allocations:
             assert a.venue_name != "V_OFF"
@@ -205,11 +226,16 @@ class TestScoreVenues:
         assert len(scores) == len(r.venues)  # 所有默认场所均评分
 
     def test_buy_uses_ask_depth(self) -> None:
-        r = SmartOrderRouter(venues=[Venue(name="V", venue_type="EXCHANGE", liquidity_score=0.5)])
+        r = SmartOrderRouter(
+            venues=[Venue(name="V", venue_type="EXCHANGE", liquidity_score=0.5)]
+        )
         ob = OrderBookSnapshot(
-            venue_name="V", timestamp="t",
-            bid_prices=[99.0], bid_sizes=[1000],
-            ask_prices=[101.0], ask_sizes=[5000],
+            venue_name="V",
+            timestamp="t",
+            bid_prices=[99.0],
+            bid_sizes=[1000],
+            ask_prices=[101.0],
+            ask_sizes=[5000],
             last_price=100.0,
         )
         scores = r._score_venues("BUY", 10000, {"V": ob})
@@ -218,11 +244,16 @@ class TestScoreVenues:
         assert scores[0].expected_fill_price == 101.0
 
     def test_sell_uses_bid_depth(self) -> None:
-        r = SmartOrderRouter(venues=[Venue(name="V", venue_type="EXCHANGE", liquidity_score=0.5)])
+        r = SmartOrderRouter(
+            venues=[Venue(name="V", venue_type="EXCHANGE", liquidity_score=0.5)]
+        )
         ob = OrderBookSnapshot(
-            venue_name="V", timestamp="t",
-            bid_prices=[99.0], bid_sizes=[5000],
-            ask_prices=[101.0], ask_sizes=[1000],
+            venue_name="V",
+            timestamp="t",
+            bid_prices=[99.0],
+            bid_sizes=[5000],
+            ask_prices=[101.0],
+            ask_sizes=[1000],
             last_price=100.0,
         )
         scores = r._score_venues("SELL", 10000, {"V": ob})
@@ -318,9 +349,12 @@ class TestDetectGaming:
     def test_balanced_book_no_gaming(self) -> None:
         r = SmartOrderRouter()
         ob = OrderBookSnapshot(
-            venue_name="V", timestamp="t",
-            bid_prices=[99.0], bid_sizes=[5000],
-            ask_prices=[101.0], ask_sizes=[5000],
+            venue_name="V",
+            timestamp="t",
+            bid_prices=[99.0],
+            bid_sizes=[5000],
+            ask_prices=[101.0],
+            ask_sizes=[5000],
             last_price=100.0,
         )
         detected, risk = r._detect_gaming({"V": ob}, "BUY")
@@ -330,9 +364,12 @@ class TestDetectGaming:
     def test_imbalanced_book(self) -> None:
         r = SmartOrderRouter(gaming_threshold=0.5)
         ob = OrderBookSnapshot(
-            venue_name="V", timestamp="t",
-            bid_prices=[99.0], bid_sizes=[10000],
-            ask_prices=[99.01], ask_sizes=[100],
+            venue_name="V",
+            timestamp="t",
+            bid_prices=[99.0],
+            bid_sizes=[10000],
+            ask_prices=[99.01],
+            ask_sizes=[100],
             last_price=99.0,
         )
         detected, risk = r._detect_gaming({"V": ob}, "BUY")

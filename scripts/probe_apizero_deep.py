@@ -15,7 +15,9 @@ warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 API_KEY = os.environ.get("APIZERO_API_KEY", "")
 BASE = "https://v1.apizero.cn/api"
 if not API_KEY:
-    print("[WARN] 未设置 APIZERO_API_KEY 环境变量, 探测将失败. 请先 export/set APIZERO_API_KEY=<key>")
+    print(
+        "[WARN] 未设置 APIZERO_API_KEY 环境变量, 探测将失败. 请先 export/set APIZERO_API_KEY=<key>"
+    )
 LOCATION = "121.47,31.23"  # 上海
 
 
@@ -73,7 +75,16 @@ def explore_endpoint(name, params):
 
         return d
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"   ❌ 异常: {type(e).__name__}: {e}")
@@ -91,11 +102,14 @@ def main():
     print("\n" + "#" * 60)
     print("# 1. 综合天气 (weather) - 上海")
     print("#" * 60)
-    d1 = explore_endpoint("综合天气", {
-        "type": "weather",
-        "location": LOCATION,
-        "alert": "true",
-    })
+    d1 = explore_endpoint(
+        "综合天气",
+        {
+            "type": "weather",
+            "location": LOCATION,
+            "alert": "true",
+        },
+    )
 
     time.sleep(0.5)
 
@@ -103,10 +117,13 @@ def main():
     print("\n" + "#" * 60)
     print("# 2. 实时天气 (realtime)")
     print("#" * 60)
-    explore_endpoint("实时天气", {
-        "type": "realtime",
-        "location": LOCATION,
-    })
+    explore_endpoint(
+        "实时天气",
+        {
+            "type": "realtime",
+            "location": LOCATION,
+        },
+    )
 
     time.sleep(0.5)
 
@@ -114,11 +131,14 @@ def main():
     print("\n" + "#" * 60)
     print("# 3. 小时预报 (hourly, 360h = 15天)")
     print("#" * 60)
-    d3 = explore_endpoint("小时预报", {
-        "type": "hourly",
-        "location": LOCATION,
-        "hours": 360,
-    })
+    d3 = explore_endpoint(
+        "小时预报",
+        {
+            "type": "hourly",
+            "location": LOCATION,
+            "hours": 360,
+        },
+    )
 
     time.sleep(0.5)
 
@@ -126,11 +146,14 @@ def main():
     print("\n" + "#" * 60)
     print("# 4. 天预报 (daily, 15天)")
     print("#" * 60)
-    d4 = explore_endpoint("天预报", {
-        "type": "daily",
-        "location": LOCATION,
-        "days": 15,
-    })
+    d4 = explore_endpoint(
+        "天预报",
+        {
+            "type": "daily",
+            "location": LOCATION,
+            "days": 15,
+        },
+    )
 
     time.sleep(0.5)
 
@@ -138,10 +161,13 @@ def main():
     print("\n" + "#" * 60)
     print("# 5. 分钟级降水 (minutely, 2小时)")
     print("#" * 60)
-    explore_endpoint("分钟级降水", {
-        "type": "minutely",
-        "location": LOCATION,
-    })
+    explore_endpoint(
+        "分钟级降水",
+        {
+            "type": "minutely",
+            "location": LOCATION,
+        },
+    )
 
     # 6. 输出完整 JSON 结构摘要供开发
     print("\n\n" + "=" * 60)
@@ -192,7 +218,9 @@ def main():
                         first = v[0]
                         if isinstance(first, dict):
                             print(f"    字段: {list(first.keys())}")
-                            print(f"    首条: {json.dumps(first, ensure_ascii=False)[:200]}")
+                            print(
+                                f"    首条: {json.dumps(first, ensure_ascii=False)[:200]}"
+                            )
                 else:
                     print(f"  {k}: {v}")
 
@@ -208,7 +236,9 @@ def main():
                         first = v[0]
                         if isinstance(first, dict):
                             print(f"    字段: {list(first.keys())}")
-                            print(f"    首条: {json.dumps(first, ensure_ascii=False)[:200]}")
+                            print(
+                                f"    首条: {json.dumps(first, ensure_ascii=False)[:200]}"
+                            )
                 else:
                     print(f"  {k}: {v}")
 

@@ -110,9 +110,11 @@ def make_no_proxy_session(
     session.proxies = {"http": None, "https": None}  # 显式禁用代理
 
     # 默认 headers
-    session.headers.update({
-        "User-Agent": user_agent or _DEFAULT_UA,
-    })
+    session.headers.update(
+        {
+            "User-Agent": user_agent or _DEFAULT_UA,
+        }
+    )
 
     # 重试机制 + 连接池
     if max_retries > 0:
@@ -129,7 +131,9 @@ def make_no_proxy_session(
 
     logger.debug(
         "[http_session] 创建无代理 Session: name=%s, retries=%s, pool=%s",
-        name or "unnamed", max_retries, pool_connections,
+        name or "unnamed",
+        max_retries,
+        pool_connections,
     )
     return session
 

@@ -14,6 +14,7 @@
     # 指定输出目录
     py -3.8 research/run_universe_scan.py --output reports/universe/custom/
 """
+
 from __future__ import annotations
 
 import argparse

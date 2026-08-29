@@ -3,6 +3,7 @@
 被测模块: utils/greek_hedge_manager.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import sys
@@ -22,6 +23,7 @@ from utils.greek_hedge_manager import (  # noqa: E402
 # ============================================================
 # __init__ + max_vega
 # ============================================================
+
 
 class TestInit:
     def test_default(self):
@@ -44,6 +46,7 @@ class TestInit:
 # 动态 Vega 上限
 # ============================================================
 
+
 class TestDynamicVega:
     def test_no_iv_env(self):
         mgr = GreekHedgeManager(max_vega=50000.0)
@@ -64,7 +67,9 @@ class TestDynamicVega:
     def test_backwardation_reduces(self):
         iv_contango = IVEnvironment(front_month_iv=0.18, second_month_iv=0.22)
         iv_backward = IVEnvironment(front_month_iv=0.25, second_month_iv=0.20)
-        mgr_c = GreekHedgeManager(max_vega=50000.0, iv_env=iv_contango/0.20 if False else iv_contango)
+        mgr_c = GreekHedgeManager(
+            max_vega=50000.0, iv_env=iv_contango / 0.20 if False else iv_contango
+        )
         mgr_b = GreekHedgeManager(max_vega=50000.0, iv_env=iv_backward)
         assert mgr_b.max_vega < mgr_c.max_vega
 
@@ -98,6 +103,7 @@ class TestDynamicVega:
 # ============================================================
 # Black-Scholes Greeks
 # ============================================================
+
 
 class TestBSGreeks:
     def test_call_delta(self):
@@ -137,6 +143,7 @@ class TestBSGreeks:
 # ============================================================
 # calc_portfolio_greeks
 # ============================================================
+
 
 class TestPortfolioGreeks:
     def test_stock_only(self):
@@ -182,11 +189,20 @@ class TestPortfolioGreeks:
 # target_futures_delta_hedge
 # ============================================================
 
+
 class TestFuturesHedge:
     def test_basic(self):
         mgr = GreekHedgeManager(target_delta=0.0)
         exposure = GreekExposure(delta=100_000)
-        instruments = [HedgeInstrument(code="IF", instrument_type="FUTURES", direction="SHORT", multiplier=300, delta=-1.0)]
+        instruments = [
+            HedgeInstrument(
+                code="IF",
+                instrument_type="FUTURES",
+                direction="SHORT",
+                multiplier=300,
+                delta=-1.0,
+            )
+        ]
         prices = {"IF": 4000.0}
         targets = mgr.target_futures_delta_hedge(exposure, instruments, prices)
         assert "IF" in targets
@@ -198,7 +214,19 @@ class TestFuturesHedge:
     def test_zero_residual(self):
         mgr = GreekHedgeManager(target_delta=100.0)
         exposure = GreekExposure(delta=100.0)
-        targets = mgr.target_futures_delta_hedge(exposure, [HedgeInstrument(code="IF", instrument_type="FUTURES", direction="SHORT", multiplier=1, delta=1)], {"IF": 10})
+        targets = mgr.target_futures_delta_hedge(
+            exposure,
+            [
+                HedgeInstrument(
+                    code="IF",
+                    instrument_type="FUTURES",
+                    direction="SHORT",
+                    multiplier=1,
+                    delta=1,
+                )
+            ],
+            {"IF": 10},
+        )
         assert targets == {}
 
 
@@ -206,11 +234,21 @@ class TestFuturesHedge:
 # target_option_greeks_hedge
 # ============================================================
 
+
 class TestOptionHedge:
     def test_basic(self):
         mgr = GreekHedgeManager(max_vega=50000.0)
         exposure = GreekExposure(delta=100_000, gamma=500, vega=20000)
-        opts = [HedgeInstrument(code="PUT", instrument_type="OPTION", direction="LONG", delta=-0.3, gamma=0.01, vega=100)]
+        opts = [
+            HedgeInstrument(
+                code="PUT",
+                instrument_type="OPTION",
+                direction="LONG",
+                delta=-0.3,
+                gamma=0.01,
+                vega=100,
+            )
+        ]
         prices = {"PUT": 5.0}
         targets = mgr.target_option_greeks_hedge(exposure, opts, prices)
         assert "PUT" in targets
@@ -223,6 +261,7 @@ class TestOptionHedge:
 # ============================================================
 # hedge_ratio
 # ============================================================
+
 
 class TestHedgeRatio:
     def test_basic(self):
@@ -238,9 +277,12 @@ class TestHedgeRatio:
 # rebalance_signal
 # ============================================================
 
+
 class TestRebalanceSignal:
     def test_no_rebalance(self):
-        mgr = GreekHedgeManager(target_delta=0.0, target_gamma=0.0, max_vega=50000.0, max_theta_burn=-5000.0)
+        mgr = GreekHedgeManager(
+            target_delta=0.0, target_gamma=0.0, max_vega=50000.0, max_theta_burn=-5000.0
+        )
         exp = GreekExposure(delta=0.0, gamma=0.0, vega=1000.0, theta=-1000.0)
         sig = mgr.rebalance_signal(exp)
         assert sig["need_rebalance"] is False

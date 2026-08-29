@@ -1,4 +1,5 @@
 """utils.fineng.kalman_beta 单元测试 — Kalman 时变 Beta / 滚动 OLS / 对冲对比"""
+
 from __future__ import annotations
 
 import random
@@ -63,7 +64,9 @@ def test_backtest_hedge_comparison():
     assert math.isfinite(cmp.ols_hedged_variance)
     assert isinstance(cmp.variance_reduction_pct, float)
     # 对冲后组合方差应低于未对冲 (组合本身有 beta=1.5 暴露)
-    assert cmp.kalman_hedged_variance < cmp.ols_hedged_variance + 1.0  # Kalman 不差于 OLS
+    assert (
+        cmp.kalman_hedged_variance < cmp.ols_hedged_variance + 1.0
+    )  # Kalman 不差于 OLS
     assert cmp.kalman_hedged_variance >= 0.0
 
 

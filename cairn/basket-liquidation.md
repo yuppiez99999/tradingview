@@ -50,3 +50,14 @@ print(result.total_shortfall, result.vs_naive_improvement)
 | LIT-4.4 | utils/safe_execution_agent.py | 41 | ✅ |
 | LIT-4.5 | utils/basket_liquidation.py | 18 | ✅ |
 | **合计** | **5 模块** | **172 测试** | **全部 ✅** |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 36%)
+- [市场冲击模型 (Almgren-Chriss + 永久冲击指数衰减)](market-impact-model.md) (相似度 21%)
+- [TT-DAC-PS 最优执行算法](tt-dac-ps.md) (相似度 17%)
+- [AlphaCFG 语法引导因子发现 (LIT-1.5)](alpha-cfg-discovery.md) (相似度 16%)
+- [R&D-Agent-Quant 多智能体因子挖掘引擎 (LIT-1.1)](rd-agent-quant.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -138,6 +138,7 @@ def _default_option_multiplier(instrument: str) -> int:
         return 100
     return 10000
 
+
 # 期权 Delta 估算 (OTM 程度近似):
 #  - 认沽 OTM 5% 的 Delta ≈ -0.25 (每张覆盖 10000 份标的)
 #  - 备兑卖出 Call OTM 5-8% 的 Delta ≈ -0.20 (卖出虚值Call的 Delta 为负)
@@ -179,9 +180,12 @@ class OptionsSimBroker:
 
         # 权利金定价
         if is_buy:
-            base_premium = float(order.get("premium_total")
-                                 or order.get("premium_budget")
-                                 or order.get("est_total_premium") or 0)
+            base_premium = float(
+                order.get("premium_total")
+                or order.get("premium_budget")
+                or order.get("est_total_premium")
+                or 0
+            )
             premium = base_premium * (1.0 + self.MOCK_SLIPPAGE)
         else:
             # 优先取显式总权利金; 缺失时回退按 每张权利金 * 张数 计算, 避免 est_premium_per_contract 默认 0 造成的死路径
@@ -194,12 +198,18 @@ class OptionsSimBroker:
                 base_premium = per_contract * contracts
                 if base_premium == 0:
                     import logging as _logging
+
                     _logging.getLogger(__name__).warning(
                         "备兑Call权利金缺失 est_total_premium 且 est_premium_per_contract*contracts=0, "
-                        "订单 %s 权利金记为 0", order.get("order_id", "?"))
+                        "订单 %s 权利金记为 0",
+                        order.get("order_id", "?"),
+                    )
             premium = base_premium * (1.0 - self.MOCK_SLIPPAGE)
 
-        multiplier = float(order.get("multiplier") or _default_option_multiplier(order.get("instrument")))
+        multiplier = float(
+            order.get("multiplier")
+            or _default_option_multiplier(order.get("instrument"))
+        )
         contracts = int(order.get("contracts", 0))
 
         fill = {
@@ -213,7 +223,9 @@ class OptionsSimBroker:
             "strike": order.get("strike", order.get("strike_rule", "")),
             "strike_rule": order.get("strike_rule", ""),
             "premium_total": round(premium, 2),
-            "premium_per_unit": round(premium / multiplier / contracts, 6) if contracts > 0 else 0.0,
+            "premium_per_unit": (
+                round(premium / multiplier / contracts, 6) if contracts > 0 else 0.0
+            ),
             "multiplier": multiplier,
             "slippage": self.MOCK_SLIPPAGE,
             "fill_time": datetime.now().isoformat(),
@@ -283,7 +295,10 @@ def _collect_pending_orders(plan: dict) -> list[dict[str, Any]]:
         )
         if not is_option:
             return
-        oid = order.get("order_id") or f"{order.get('instrument')}-{order.get('contracts')}-{order.get('strike_rule')}"
+        oid = (
+            order.get("order_id")
+            or f"{order.get('instrument')}-{order.get('contracts')}-{order.get('strike_rule')}"
+        )
         if oid in seen_ids:
             return
         seen_ids.add(oid)
@@ -337,13 +352,19 @@ def _extract_underlying_code(order: dict[str, Any]) -> str:
         1. order.underlying / order.underlying_code / order.code (可能带 .SH/.SZ 后缀)
         2. order.instrument 前缀 (如 '510050 Put' → '510050')
     """
-    code = order.get("underlying") or order.get("underlying_code") or order.get("code") or ""
+    code = (
+        order.get("underlying")
+        or order.get("underlying_code")
+        or order.get("code")
+        or ""
+    )
     if code:
         # 去掉交易所后缀: 510300.SH → 510300
         return code.split(".")[0]
     instrument = str(order.get("instrument", ""))
     # 从 instrument 提取纯数字代码 (如 '510050 Put' → '510050', '159915 Put' → '159915')
     import re as _re
+
     m = _re.match(r"\s*(\d{6})", instrument)
     if m:
         return m.group(1)
@@ -382,8 +403,10 @@ def execute_hedge_orders(
 
     # 1. 读取 trade_plan (v8.3 路径优先, 兼容项目根)
     plan = {}
-    for cand in (TRADE_PLANS_DIR / f"trade_plan_{date_compact}.json",
-                 PROJECT_ROOT / f"trade_plan_{date_compact}.json"):
+    for cand in (
+        TRADE_PLANS_DIR / f"trade_plan_{date_compact}.json",
+        PROJECT_ROOT / f"trade_plan_{date_compact}.json",
+    ):
         if cand.exists():
             plan = _load_json(cand)
             if plan:
@@ -391,7 +414,12 @@ def execute_hedge_orders(
 
     if not plan:
         logger.warning("未找到 trade_plan: %s, 无订单可执行", trade_date)
-        return {"trade_date": trade_date, "hedge_enabled": False, "orders": [], "reason": "no_trade_plan"}
+        return {
+            "trade_date": trade_date,
+            "hedge_enabled": False,
+            "orders": [],
+            "reason": "no_trade_plan",
+        }
 
     # 读取持仓配置 (含 hedge_positions)
     positions_data = _load_json(POSITIONS_FILE)
@@ -413,6 +441,7 @@ def execute_hedge_orders(
 
     # 3. 计算对冲前组合 Beta
     from utils.hedge_execution_engine import HedgeExecutionEngine
+
     engine = HedgeExecutionEngine()
     portfolio_beta = engine.calc_portfolio_beta()
     portfolio_value = engine.calc_portfolio_market_value()
@@ -433,8 +462,13 @@ def execute_hedge_orders(
 
         # 计算标的市值与 Delta 影响
         underlying_price = _load_underlying_price(positions_data, order)
-        multiplier = float(order.get("multiplier") or _default_option_multiplier(order.get("instrument")))
-        notional_per_contract = underlying_price * multiplier if underlying_price > 0 else 0
+        multiplier = float(
+            order.get("multiplier")
+            or _default_option_multiplier(order.get("instrument"))
+        )
+        notional_per_contract = (
+            underlying_price * multiplier if underlying_price > 0 else 0
+        )
 
         # H14 修复: 标的价缺失时 notional=0 → beta_impact 静默记为 0，对冲 Beta 下降被误报为 0
         if underlying_price <= 0:
@@ -449,9 +483,14 @@ def execute_hedge_orders(
         delta_per_contract = _compute_option_delta(order)
         delta_per_contract * contracts
         # Beta 影响 ≈ (Delta 名义覆盖 / 组合市值) × 标的Beta(用1近似)
-        order_notional = notional_per_contract * contracts if notional_per_contract > 0 else 0
-        beta_impact = (order_notional / portfolio_value * 1.0 * abs(delta_per_contract)
-                       if portfolio_value > 0 and delta_per_contract != 0 else 0.0)
+        order_notional = (
+            notional_per_contract * contracts if notional_per_contract > 0 else 0
+        )
+        beta_impact = (
+            order_notional / portfolio_value * 1.0 * abs(delta_per_contract)
+            if portfolio_value > 0 and delta_per_contract != 0
+            else 0.0
+        )
         # BUY_PUT 降低组合Beta; 卖出Call也降低(备兑) — 均为负Delta贡献
         beta_impact = -abs(beta_impact) if delta_per_contract < 0 else abs(beta_impact)
 
@@ -477,16 +516,18 @@ def execute_hedge_orders(
         # 调用 TCA 归因 (仅非 dry-run)
         if not dry_run:
             try:
-                engine.on_fill({
-                    "symbol": fill.get("instrument", ""),
-                    "side": "BUY" if "PUT" in direction else "SELL",
-                    "shares": contracts,
-                    "price": fill["premium_total"],
-                    "timestamp": fill["fill_time"],
-                    "order_id": fill["order_id"],
-                    "broker": "OptionsSimBroker",
-                    "venue": fill.get("exchange", ""),
-                })
+                engine.on_fill(
+                    {
+                        "symbol": fill.get("instrument", ""),
+                        "side": "BUY" if "PUT" in direction else "SELL",
+                        "shares": contracts,
+                        "price": fill["premium_total"],
+                        "timestamp": fill["fill_time"],
+                        "order_id": fill["order_id"],
+                        "broker": "OptionsSimBroker",
+                        "venue": fill.get("exchange", ""),
+                    }
+                )
             except Exception as exc:  # noqa: BLE001
                 logger.warning("TCA 归因失败 (fail-safe): %s", exc)
 
@@ -501,7 +542,9 @@ def execute_hedge_orders(
         "generated_at": datetime.now().isoformat(),
         "portfolio_beta": round(portfolio_beta, 4),
         "beta_after_hedge": round(beta_after, 4),
-        "total_hedge_pct": round(total_put_cost / portfolio_value, 4) if portfolio_value > 0 else 0.0,
+        "total_hedge_pct": (
+            round(total_put_cost / portfolio_value, 4) if portfolio_value > 0 else 0.0
+        ),
         "total_cost": round(total_cost, 2),
         "put_cost": round(total_put_cost, 2),
         "call_income": round(total_call_income, 2),
@@ -513,8 +556,11 @@ def execute_hedge_orders(
     }
 
     if dry_run:
-        logger.info("[DRY-RUN] 期权撮合完成: %d 笔成交, 净成本 ¥%.2f, 未落盘未更新持仓",
-                    len(fills), total_cost)
+        logger.info(
+            "[DRY-RUN] 期权撮合完成: %d 笔成交, 净成本 ¥%.2f, 未落盘未更新持仓",
+            len(fills),
+            total_cost,
+        )
         return result
 
     # 5. 落盘 hedge_execution_fill_{date}.json (data contract)
@@ -539,13 +585,16 @@ def execute_hedge_orders(
     # 归档到每日报告归档
     archive_path = ARCHIVE_DIR / trade_date / f"对冲执行单_{date_compact}.json"
     archive_path.parent.mkdir(parents=True, exist_ok=True)
-    _atomic_write_json(archive_path, {
-        "date": trade_date,
-        "action": "HEDGE_EXECUTE",
-        "portfolio_beta": result["portfolio_beta"],
-        "beta_after_hedge": result["beta_after_hedge"],
-        "orders": fills,
-    })
+    _atomic_write_json(
+        archive_path,
+        {
+            "date": trade_date,
+            "action": "HEDGE_EXECUTE",
+            "portfolio_beta": result["portfolio_beta"],
+            "beta_after_hedge": result["beta_after_hedge"],
+            "orders": fills,
+        },
+    )
 
     # 6. 更新 positions.json hedge_positions 状态 (不可变)
     _update_positions_state(positions_data, fills, trade_date)
@@ -553,7 +602,9 @@ def execute_hedge_orders(
     return result
 
 
-def _update_positions_state(positions_data: dict, fills: list[dict[str, Any]], trade_date: str) -> None:
+def _update_positions_state(
+    positions_data: dict, fills: list[dict[str, Any]], trade_date: str
+) -> None:
     """更新 positions.json hedge_positions:
       - active_orders 中已成交订单 status → FILLED
       - 记录 actual_positions (实际期权持仓)
@@ -585,10 +636,12 @@ def _update_positions_state(positions_data: dict, fills: list[dict[str, Any]], t
                     # 且方向一致 (BUY_PUT<->BUY_PUT, SELL_CALL<->SELL_CALL)
                     # Bug-4 修复: order_id 缺失时仅当 fill 也无 order_id 才回退到 inst+dir 匹配,
                     # 避免多笔同 inst 同 dir PENDING 订单被一笔成交误标为 FILLED
-                    same_inst = (fill_inst == inst and inst != "")
-                    same_dir = (direction == fill_dir)
+                    same_inst = fill_inst == inst and inst != ""
+                    same_dir = direction == fill_dir
                     fill_oid = fill.get("order_id")
-                    if (oid and fill_oid == oid) or (same_inst and same_dir and not oid and not fill_oid):
+                    if (oid and fill_oid == oid) or (
+                        same_inst and same_dir and not oid and not fill_oid
+                    ):
                         o["status"] = "FILLED"
                         o["fill_time"] = fill.get("fill_time", "")
                         o["premium_total"] = fill.get("premium_total", 0)
@@ -601,18 +654,20 @@ def _update_positions_state(positions_data: dict, fills: list[dict[str, Any]], t
     for fill in fills:
         if fill.get("status") != "FILLED":
             continue
-        actual.append({
-            "instrument": fill.get("instrument", ""),
-            "underlying": fill.get("underlying", ""),
-            "direction": fill.get("direction", ""),
-            "contracts": fill.get("contracts", 0),
-            "strike": fill.get("strike", fill.get("strike_rule", "")),
-            "premium_total": fill.get("premium_total", 0),
-            "delta": fill.get("delta", 0),
-            "beta_reduction": fill.get("beta_reduction", 0),
-            "fill_time": fill.get("fill_time", ""),
-            "expiry": _parse_expiry_from_instrument(fill.get("instrument", "")),
-        })
+        actual.append(
+            {
+                "instrument": fill.get("instrument", ""),
+                "underlying": fill.get("underlying", ""),
+                "direction": fill.get("direction", ""),
+                "contracts": fill.get("contracts", 0),
+                "strike": fill.get("strike", fill.get("strike_rule", "")),
+                "premium_total": fill.get("premium_total", 0),
+                "delta": fill.get("delta", 0),
+                "beta_reduction": fill.get("beta_reduction", 0),
+                "fill_time": fill.get("fill_time", ""),
+                "expiry": _parse_expiry_from_instrument(fill.get("instrument", "")),
+            }
+        )
     if actual:
         hedge_positions["actual_positions"] = actual
         hedge_positions["actual_positions_date"] = trade_date
@@ -625,8 +680,11 @@ def _update_positions_state(positions_data: dict, fills: list[dict[str, Any]], t
 
     # 原子写回
     _atomic_write_json(POSITIONS_FILE, new_data)
-    logger.info("positions.json hedge_positions 已更新: %d 笔成交, actual_positions=%d",
-                len(fills), len(actual))
+    logger.info(
+        "positions.json hedge_positions 已更新: %d 笔成交, actual_positions=%d",
+        len(fills),
+        len(actual),
+    )
 
 
 def print_result(result: dict[str, Any]) -> None:
@@ -642,7 +700,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="期权对冲订单执行器")
     parser.add_argument("--date", default=None, help="目标交易日 YYYY-MM-DD")
     parser.add_argument("--dry-run", action="store_true", help="干跑, 不落盘不更新持仓")
-    parser.add_argument("--confirm-only", action="store_true", help="仅输出待确认订单, 不撮合")
+    parser.add_argument(
+        "--confirm-only", action="store_true", help="仅输出待确认订单, 不撮合"
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="详细日志")
     args = parser.parse_args()
 

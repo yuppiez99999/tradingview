@@ -3,6 +3,7 @@
 被测模块: utils/var_backtest.py
 覆盖目标: >=95%
 """
+
 from __future__ import annotations
 
 import sys
@@ -29,6 +30,7 @@ from utils.var_backtest import (  # noqa: E402
 # _chi2_sf
 # ============================================================
 
+
 class TestChi2Sf:
     def test_zero(self):
         assert _chi2_sf(0.0) == 1.0
@@ -52,15 +54,23 @@ class TestChi2Sf:
 # VarBacktestResult
 # ============================================================
 
+
 class TestVarBacktestResult:
     def test_construction(self):
         r = VarBacktestResult(
-            exceptions_count=3, total_observations=250,
-            expected_exceptions=2.5, exception_rate=0.012,
-            expected_rate=0.01, kupiec_pof_statistic=0.1,
-            kupiec_p_value=0.75, christoffersen_statistic=0.05,
-            christoffersen_p_value=0.82, traffic_light="GREEN",
-            is_model_valid=True, confidence=0.99, window=250,
+            exceptions_count=3,
+            total_observations=250,
+            expected_exceptions=2.5,
+            exception_rate=0.012,
+            expected_rate=0.01,
+            kupiec_pof_statistic=0.1,
+            kupiec_p_value=0.75,
+            christoffersen_statistic=0.05,
+            christoffersen_p_value=0.82,
+            traffic_light="GREEN",
+            is_model_valid=True,
+            confidence=0.99,
+            window=250,
         )
         assert r.exceptions_count == 3
         assert r.summary_report == ""
@@ -68,12 +78,19 @@ class TestVarBacktestResult:
 
     def test_to_dict(self):
         r = VarBacktestResult(
-            exceptions_count=5, total_observations=250,
-            expected_exceptions=2.5, exception_rate=0.02,
-            expected_rate=0.01, kupiec_pof_statistic=1.5,
-            kupiec_p_value=0.22, christoffersen_statistic=0.8,
-            christoffersen_p_value=0.37, traffic_light="YELLOW",
-            is_model_valid=True, confidence=0.99, window=250,
+            exceptions_count=5,
+            total_observations=250,
+            expected_exceptions=2.5,
+            exception_rate=0.02,
+            expected_rate=0.01,
+            kupiec_pof_statistic=1.5,
+            kupiec_p_value=0.22,
+            christoffersen_statistic=0.8,
+            christoffersen_p_value=0.37,
+            traffic_light="YELLOW",
+            is_model_valid=True,
+            confidence=0.99,
+            window=250,
             transition_matrix=[[240, 5], [5, 0]],
         )
         d = r.to_dict()
@@ -85,6 +102,7 @@ class TestVarBacktestResult:
 # ============================================================
 # VaRBacktester.backtest
 # ============================================================
+
 
 class TestBacktest:
     def test_green_zone(self):
@@ -148,6 +166,7 @@ class TestBacktest:
 # VaRBacktester._kupiec_pof_test
 # ============================================================
 
+
 class TestKupiecPof:
     def test_zero_exceptions(self):
         bt = VaRBacktester()
@@ -176,6 +195,7 @@ class TestKupiecPof:
 # ============================================================
 # VaRBacktester._christoffersen_test
 # ============================================================
+
 
 class TestChristoffersen:
     def test_no_exceptions(self):
@@ -210,6 +230,7 @@ class TestChristoffersen:
 # VaRBacktester._traffic_light
 # ============================================================
 
+
 class TestTrafficLight:
     def test_green(self):
         bt = VaRBacktester()
@@ -231,14 +252,22 @@ class TestTrafficLight:
 # VaRBacktester._generate_report
 # ============================================================
 
+
 class TestGenerateReport:
     def test_report_content(self):
         bt = VaRBacktester()
         report = bt._generate_report(
-            n=250, x=3, p=0.01, expected=2.5, confidence=0.99,
-            kupiec_stat=0.1, kupiec_pval=0.75,
-            christ_stat=0.05, christ_pval=0.82,
-            traffic=TRAFFIC_LIGHT_GREEN, is_valid=True,
+            n=250,
+            x=3,
+            p=0.01,
+            expected=2.5,
+            confidence=0.99,
+            kupiec_stat=0.1,
+            kupiec_pval=0.75,
+            christ_stat=0.05,
+            christ_pval=0.82,
+            traffic=TRAFFIC_LIGHT_GREEN,
+            is_valid=True,
             trans_matrix=[[245, 3], [2, 0]],
         )
         assert "VaR" in report
@@ -248,10 +277,17 @@ class TestGenerateReport:
     def test_red_report(self):
         bt = VaRBacktester()
         report = bt._generate_report(
-            n=250, x=15, p=0.01, expected=2.5, confidence=0.99,
-            kupiec_stat=50.0, kupiec_pval=0.001,
-            christ_stat=5.0, christ_pval=0.02,
-            traffic=TRAFFIC_LIGHT_RED, is_valid=False,
+            n=250,
+            x=15,
+            p=0.01,
+            expected=2.5,
+            confidence=0.99,
+            kupiec_stat=50.0,
+            kupiec_pval=0.001,
+            christ_stat=5.0,
+            christ_pval=0.02,
+            traffic=TRAFFIC_LIGHT_RED,
+            is_valid=False,
             trans_matrix=[[230, 10], [10, 5]],
         )
         assert "RED" in report

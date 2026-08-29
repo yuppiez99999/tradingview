@@ -38,7 +38,10 @@ from typing import Any, Protocol
 
 from utils.llm_evolution.hypothesis_verifier import HypothesisVerifier
 from utils.llm_evolution.knowledge_base import KnowledgeBase
-from utils.llm_evolution.strategy_ideation import IdeationCycleResult, StrategyIdeationEngine
+from utils.llm_evolution.strategy_ideation import (
+    IdeationCycleResult,
+    StrategyIdeationEngine,
+)
 
 logger = logging.getLogger("dual_loop")
 
@@ -47,8 +50,11 @@ logger = logging.getLogger("dual_loop")
 # 协议
 # ============================================================
 
+
 class KillSwitchProtocol(Protocol):
-    def evaluate_trade(self, symbol: str, side: str, notional: float, is_open_new: bool = True) -> Any: ...
+    def evaluate_trade(
+        self, symbol: str, side: str, notional: float, is_open_new: bool = True
+    ) -> Any: ...
 
 
 class CircuitBreakerProtocol(Protocol):
@@ -59,6 +65,7 @@ class CircuitBreakerProtocol(Protocol):
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 @dataclass
 class DualLoopReport:
@@ -99,21 +106,23 @@ class DualLoopReport:
 # 安全配置
 # ============================================================
 
+
 @dataclass
 class DualLoopSafetyConfig:
     """双层闭环安全配置."""
 
-    max_cycles: int = 7                    # 最大连续周期
-    max_consecutive_failures: int = 3      # 最大连续失败次数
-    max_token_per_cycle: int = 50_000      # 每周期 token 上限
+    max_cycles: int = 7  # 最大连续周期
+    max_consecutive_failures: int = 3  # 最大连续失败次数
+    max_token_per_cycle: int = 50_000  # 每周期 token 上限
     require_manual_approval_after: bool = True  # max_cycles 后需人工审批
-    kill_switch_check: bool = True         # 是否检查 Kill Switch
-    circuit_breaker_check: bool = True     # 是否检查 Circuit Breaker
+    kill_switch_check: bool = True  # 是否检查 Kill Switch
+    circuit_breaker_check: bool = True  # 是否检查 Circuit Breaker
 
 
 # ============================================================
 # 主类
 # ============================================================
+
 
 class DualLoopOrchestrator:
     """双层闭环编排器 — LLM 假设生成层 ↔ B4 进化执行层."""
@@ -261,7 +270,10 @@ class DualLoopOrchestrator:
         report.consecutive_failures = self._consecutive_failures
         report.finished_at = datetime.now().isoformat(timespec="seconds")
 
-        if self.safety.require_manual_approval_after and report.total_cycles >= max_cycles:
+        if (
+            self.safety.require_manual_approval_after
+            and report.total_cycles >= max_cycles
+        ):
             report.pause_reason = f"已达到 max_cycles={max_cycles}, 需人工审批才能继续"
 
         logger.info(f"[D4] 连续运行完成: {report.summary_text()}")
@@ -277,7 +289,10 @@ class DualLoopOrchestrator:
             try:
                 dec = self.kill_switch.evaluate_trade("_system", "buy", 0.0)
                 if not getattr(dec, "allowed", True):
-                    return True, f"Kill Switch 拦截: {getattr(dec, 'reason', 'unknown')}"
+                    return (
+                        True,
+                        f"Kill Switch 拦截: {getattr(dec, 'reason', 'unknown')}",
+                    )
             except Exception as exc:
                 logger.warning(f"[D4] Kill Switch 检查异常: {exc}")
 

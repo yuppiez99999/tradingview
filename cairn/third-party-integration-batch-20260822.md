@@ -206,3 +206,14 @@ llm-finetune = [...]       # unsloth 训练加速
 3. **AERS 全库**: 如需更多实证研究 skill（贝叶斯/复现/文献综述），可从 AERS 原仓库按需补充
 4. **unsloth 实际训练**: 需 Linux + CUDA GPU 环境，Windows 仅可做封装层验证
 5. **supply_chain_risk 集成**: 可在 `daily_trade_executor.py` 中调用 evaluate_supplier 为持仓标的生成供应链风险评分
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [第三方项目集成专题 — 2026-08-21](third-party-integration-20260821.md) (相似度 18%)
+- [GitHub 周热门项目集成 Wave10 (2026-08-21)](github-integration-wave10-20260821.md) (相似度 11%)
+- [docs/1 八项目集成 — Sprint A 知识专题](docs1-integration-sprint-a-20260817.md) (相似度 10%)
+- [代码质量提升外部资源评估](code-quality-external-resources-20260821.md) (相似度 8%)
+- [Wave 6 启动前置研究笔记（2026-08-11）](wave6-prep-study-notes.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

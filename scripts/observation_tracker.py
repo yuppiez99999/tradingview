@@ -61,7 +61,9 @@ OBSERVATION_START = "2026-07-23"
 # yaml 优先, 回退默认 14 (兼容离线 / yaml 缺失)
 # 注意: 观察天数字段在 settings.observation_days 嵌套层 (非顶层)
 _SETTINGS = _CFG.get("settings", {})
-OBSERVATION_DAYS = int(_SETTINGS.get("observation_days", _SETTINGS.get("min_observation_days", 14)))
+OBSERVATION_DAYS = int(
+    _SETTINGS.get("observation_days", _SETTINGS.get("min_observation_days", 14))
+)
 MIN_SAMPLES = int(
     _CFG.get("admission_criteria", {}).get(
         "min_samples_for_dsr", _CFG.get("min_samples", 20)
@@ -91,7 +93,16 @@ def load_json(path: Path) -> dict | None:
     try:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return None
 
@@ -130,10 +141,12 @@ def generate_snapshot() -> dict[str, Any]:
         ret = r.get("daily_return", 0.0)
         total_return += ret
         if r.get("date", "")[:10] >= (now - timedelta(days=5)).strftime("%Y-%m-%d"):
-            recent_returns.append({
-                "date": r.get("date", "")[:10],
-                "daily_return": ret,
-            })
+            recent_returns.append(
+                {
+                    "date": r.get("date", "")[:10],
+                    "daily_return": ret,
+                }
+            )
 
     cumulative_return = total_return  # 简化: 对数加总
 
@@ -148,12 +161,18 @@ def generate_snapshot() -> dict[str, Any]:
     estimated_remaining_days = obs_remaining
     remaining_days_count = 0
     future = now
-    while remaining_days_count < estimated_remaining_days and future < now + timedelta(days=60):
+    while remaining_days_count < estimated_remaining_days and future < now + timedelta(
+        days=60
+    ):
         future += timedelta(days=1)
         if future.weekday() < 5:
-            remaining_days_count += 1 if remaining_days_count < estimated_remaining_days else 0
+            remaining_days_count += (
+                1 if remaining_days_count < estimated_remaining_days else 0
+            )
 
-    est_completion = future.strftime("%Y-%m-%d") if estimated_remaining_days > 0 else now_str[:10]
+    est_completion = (
+        future.strftime("%Y-%m-%d") if estimated_remaining_days > 0 else now_str[:10]
+    )
 
     # 4) 决策日志统计
     decisions = load_jsonl(DECISIONS_LOG)
@@ -226,15 +245,23 @@ def print_summary(snapshot: dict) -> None:
     print(f"T0.6 观察期追踪 — {snapshot['generated_at']}")
     print("=" * 60)
     print()
-    print(f"  状态: {status_light} {'可启用阶段 B' if obs['ready_for_phase_b'] else '观察中'}")
+    print(
+        f"  状态: {status_light} {'可启用阶段 B' if obs['ready_for_phase_b'] else '观察中'}"
+    )
     print()
     print("  [观察期进度]")
-    print(f"    起始: {obs['start_date']}  → 目前 {obs['days_completed']}/{obs['required_days']} 天 ({obs['progress_pct']}%)")
-    print(f"    剩余: {obs['days_remaining']} 天 (预计 {obs['estimated_completion']} 完成)")
+    print(
+        f"    起始: {obs['start_date']}  → 目前 {obs['days_completed']}/{obs['required_days']} 天 ({obs['progress_pct']}%)"
+    )
+    print(
+        f"    剩余: {obs['days_remaining']} 天 (预计 {obs['estimated_completion']} 完成)"
+    )
     print(f"    交易日流逝: {obs['trading_days_elapsed']} 天")
     print()
     print("  [数据收集]")
-    print(f"    Shadow 样本: {obs['samples_collected']}/{obs['min_samples']} ({'OK' if obs['samples_collected'] >= obs['min_samples'] else 'NOK'})")
+    print(
+        f"    Shadow 样本: {obs['samples_collected']}/{obs['min_samples']} ({'OK' if obs['samples_collected'] >= obs['min_samples'] else 'NOK'})"
+    )
     print(f"    累计收益: {shadow['cumulative_return']}%")
     print(f"    数据记录: {shadow['total_records']} 条 / {shadow['unique_dates']} 天")
     if shadow["recent_5d_returns"]:
@@ -246,8 +273,10 @@ def print_summary(snapshot: dict) -> None:
     print()
     print("  [阶段 B 状态]")
     print(f"    阶段: {pb['stage']}")
-    if pb['flags_enabled']:
-        print(f"    Flags: {', '.join(f'{k}={v}' for k, v in pb['flags_enabled'].items())}")
+    if pb["flags_enabled"]:
+        print(
+            f"    Flags: {', '.join(f'{k}={v}' for k, v in pb['flags_enabled'].items())}"
+        )
     print()
     print("  [评估器]")
     print(f"    状态: {ev['status']}")
@@ -261,7 +290,7 @@ def print_summary(snapshot: dict) -> None:
     # 剩余天数摘要
     if obs["ready_for_phase_b"]:
         print("  [下一步] 观察期已满且数据充足, 可执行:")
-        print('    py -X utf8 scripts/phase_b_progressive_enabler.py --advance')
+        print("    py -X utf8 scripts/phase_b_progressive_enabler.py --advance")
     else:
         reasons = []
         if obs["days_remaining"] > 0:
@@ -276,6 +305,7 @@ def print_summary(snapshot: dict) -> None:
 
 def main() -> int:
     import argparse
+
     parser = argparse.ArgumentParser(description="T0.6 观察期累积追踪器")
     parser.add_argument("--json", action="store_true", help="输出 JSON 格式")
     args = parser.parse_args()

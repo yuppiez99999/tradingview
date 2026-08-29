@@ -44,6 +44,7 @@
     - reports/evolution/observation_watchdog.jsonl  (每次运行的监控记录)
     - 达标时额外写入: drift_alerts.jsonl / observation_progress.json (由 run_integration 产出)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -68,7 +69,11 @@ for _name in ("stdout", "stderr"):
         _buffer = getattr(_stream, "buffer", None)
         if _buffer is not None:
             try:
-                setattr(sys, _name, io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"))
+                setattr(
+                    sys,
+                    _name,
+                    io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"),
+                )
             except (OSError, ValueError):
                 pass
 
@@ -96,7 +101,11 @@ HOLIDAYS_2026: set[str] = {
     # 元旦
     "2026-01-01",
     # 春节 (2026-02-16 ~ 2026-02-22, 此处仅列工作日)
-    "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20",
+    "2026-02-16",
+    "2026-02-17",
+    "2026-02-18",
+    "2026-02-19",
+    "2026-02-20",
     # 清明
     "2026-04-06",
     # 劳动节
@@ -106,7 +115,12 @@ HOLIDAYS_2026: set[str] = {
     # 中秋 (2026-09-25 调休)
     "2026-09-25",
     # 国庆 + 中秋连休
-    "2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08",
+    "2026-10-01",
+    "2026-10-02",
+    "2026-10-05",
+    "2026-10-06",
+    "2026-10-07",
+    "2026-10-08",
 }
 
 
@@ -169,7 +183,9 @@ def load_observation_progress() -> dict[str, Any]:
         进度快照字典, 文件不存在返回空字典
     """
     if not OBSERVATION_PROGRESS_FILE.exists():
-        logger.warning("observation_progress.json 不存在: %s", OBSERVATION_PROGRESS_FILE)
+        logger.warning(
+            "observation_progress.json 不存在: %s", OBSERVATION_PROGRESS_FILE
+        )
         return {}
     try:
         with open(OBSERVATION_PROGRESS_FILE, encoding="utf-8") as f:
@@ -188,7 +204,11 @@ def load_cleaned_real_records() -> tuple[list[dict[str, Any]], dict[str, int]]:
         - quality_stats: 各质量标签的计数
     """
     quality_stats: dict[str, int] = {
-        "real": 0, "backtest": 0, "fixed": 0, "missing": 0, "unknown": 0,
+        "real": 0,
+        "backtest": 0,
+        "fixed": 0,
+        "missing": 0,
+        "unknown": 0,
     }
     real_records: list[dict[str, Any]] = []
 
@@ -313,7 +333,9 @@ def detect_data_stall(real_records: list[dict[str, Any]]) -> dict[str, Any]:
         }
 
     # 计算 last_date+1 到 today 之间的交易日数 (不含 last_date, 含今天若为交易日)
-    stalled = count_trading_days_between(last_date + timedelta(days=1), today + timedelta(days=1))
+    stalled = count_trading_days_between(
+        last_date + timedelta(days=1), today + timedelta(days=1)
+    )
     return {
         "is_stalled": stalled >= DATA_STALL_THRESHOLD_DAYS,
         "last_data_date": last_date_str,
@@ -401,9 +423,18 @@ def trigger_drift_evaluation(force: bool) -> dict[str, Any]:
             "alert_psi": alert.get("psi", 0),
             "alert_ks": alert.get("drift_score", 0),
             "quality_stats": quality_stats,
-            "obs_ready_for_phase_b": obs_snapshot.get("observation", {}).get("ready_for_phase_b", False),
+            "obs_ready_for_phase_b": obs_snapshot.get("observation", {}).get(
+                "ready_for_phase_b", False
+            ),
         }
-    except (FileNotFoundError, ValueError, TypeError, KeyError, RuntimeError, OSError) as exc:
+    except (
+        FileNotFoundError,
+        ValueError,
+        TypeError,
+        KeyError,
+        RuntimeError,
+        OSError,
+    ) as exc:
         logger.exception("漂移判定触发失败: %s", exc)
         return {"triggered": False, "error": str(exc)}
 
@@ -472,7 +503,9 @@ def print_summary(
     print(f"[观察期达标看门狗] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    mode = "DRY-RUN" if dry_run else ("FORCE-TRIGGER" if force_trigger else "PRODUCTION")
+    mode = (
+        "DRY-RUN" if dry_run else ("FORCE-TRIGGER" if force_trigger else "PRODUCTION")
+    )
     print(f"模式: {mode}")
     print()
 
@@ -507,7 +540,11 @@ def print_summary(
     for label in ["real", "backtest", "fixed", "missing", "unknown"]:
         cnt = quality_stats.get(label, 0)
         pct = (cnt / total * 100) if total else 0
-        marker = "✓" if label == "real" else ("✗" if label in ("backtest", "missing") else "·")
+        marker = (
+            "✓"
+            if label == "real"
+            else ("✗" if label in ("backtest", "missing") else "·")
+        )
         print(f"  {marker} {label:<10} {cnt:>4} ({pct:5.1f}%)")
     print()
 
@@ -517,13 +554,17 @@ def print_summary(
     if stall["is_stalled"]:
         last = stall.get("last_data_date") or "N/A"
         stalled_days = stall.get("stalled_trading_days", -1)
-        print(f"  ⚠️  断档告警: {stalled_days} 个交易日无新数据 (阈值 {stall['threshold']})")
+        print(
+            f"  ⚠️  断档告警: {stalled_days} 个交易日无新数据 (阈值 {stall['threshold']})"
+        )
         print(f"  最新数据日期: {last}")
         print(f"  原因: {stall.get('reason', 'unknown')}")
         print("  建议: 检查 v84_PostMarket 是否正常运行, 数据源是否可用")
     else:
         last = stall.get("last_data_date", "N/A")
-        print(f"  ✓ 数据正常: 最新日期 {last}, 断档天数 {stall.get('stalled_trading_days', 0)}")
+        print(
+            f"  ✓ 数据正常: 最新日期 {last}, 断档天数 {stall.get('stalled_trading_days', 0)}"
+        )
     print()
 
     print("─" * 60)
@@ -543,19 +584,26 @@ def print_summary(
             psi = trigger_result.get("alert_psi", 0)
             ks = trigger_result.get("alert_ks", 0)
             severity_emoji = {
-                "low": "🟢", "medium": "🟡", "high": "🟠", "critical": "🔴",
+                "low": "🟢",
+                "medium": "🟡",
+                "high": "🟠",
+                "critical": "🔴",
             }.get(severity, "❓")
             print("  ✓ 已触发漂移判定")
             print(f"    告警状态: {status}")
             print(f"    {severity_emoji} 严重等级: {severity}")
             print(f"    PSI: {psi:.4f}")
             print(f"    KS:  {ks:.4f}")
-            print(f"    阶段 B 就绪: {trigger_result.get('obs_ready_for_phase_b', False)}")
+            print(
+                f"    阶段 B 就绪: {trigger_result.get('obs_ready_for_phase_b', False)}"
+            )
         elif trigger_result.get("error"):
             print(f"  ✗ 触发失败: {trigger_result['error']}")
         else:
             print("  ⏸  未触发漂移判定 (门槛未达标)")
-            print(f"     原因: 还需 {gates['days_remaining']} 天 + {gates['samples_remaining']} 条样本")
+            print(
+                f"     原因: 还需 {gates['days_remaining']} 天 + {gates['samples_remaining']} 条样本"
+            )
     print()
 
     print("─" * 60)
@@ -600,6 +648,7 @@ def run_watchdog(
         # 兜底: 调用 observation_tracker 刷新一次
         try:
             from scripts.observation_tracker import generate_snapshot
+
             progress = generate_snapshot()
         except (ImportError, RuntimeError, OSError, ValueError) as exc:
             logger.exception("observation_tracker 刷新失败: %s", exc)
@@ -618,7 +667,9 @@ def run_watchdog(
     obs = progress.get("observation", {})
     start_date_str = obs.get("start_date", "")
     est_completion = estimate_completion_date(
-        gates["days_completed"], required_days, start_date_str,
+        gates["days_completed"],
+        required_days,
+        start_date_str,
     )
 
     # 6. 决定是否触发漂移判定
@@ -628,7 +679,8 @@ def run_watchdog(
     if should_trigger:
         logger.info(
             "门槛达标 (days=%d, real=%d), 触发漂移判定",
-            gates["days_completed"], gates["real_count"],
+            gates["days_completed"],
+            gates["real_count"],
         )
         trigger_result = trigger_drift_evaluation(force=force_trigger)
     else:
@@ -637,8 +689,10 @@ def run_watchdog(
         else:
             logger.info(
                 "门槛未达标 (days=%d/%d, real=%d/%d), 跳过漂移判定",
-                gates["days_completed"], required_days,
-                gates["real_count"], required_days,
+                gates["days_completed"],
+                required_days,
+                gates["real_count"],
+                required_days,
             )
 
     # 7. 持久化监控日志
@@ -699,7 +753,8 @@ def parse_args() -> argparse.Namespace:
         help="强制触发漂移判定 (跳过门槛检查, 用于手动重跑)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="启用 DEBUG 级别日志",
     )

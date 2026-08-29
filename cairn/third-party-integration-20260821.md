@@ -193,3 +193,14 @@ flag 检查失败时降级为不注册（不崩溃主流程）。
 - **S1 LLM prompt 调优**: 当前中文 prompt 较简，可按实际效果迭代（参考 TradingAgents news_analyst.py 的 prompt 设计）
 - **A1 索引**: 重启 Codex 后在主系统目录执行 "Index this project" 建立知识图谱索引
 - **A1 配置修复**: Claude Code/VS Code/OpenClaw 的 mcp.json 配置失败，如需使用这些 agent 需手动修复配置格式
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [第三方项目批量集成专题 — 2026-08-22](third-party-integration-batch-20260822.md) (相似度 18%)
+- [GitHub 周热门项目集成 Wave10 (2026-08-21)](github-integration-wave10-20260821.md) (相似度 11%)
+- [代码质量提升外部资源评估](code-quality-external-resources-20260821.md) (相似度 11%)
+- [测试健康度治理经验（2026-08-19）](test-health-20260819.md) (相似度 9%)
+- [docs/1 八项目集成 — Sprint A 知识专题](docs1-integration-sprint-a-20260817.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

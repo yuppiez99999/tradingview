@@ -8,6 +8,7 @@
     - v9_dsr_maxpass_json: V9 DSR max_pass 评估结果 JSON
     - v9_baseline_metrics: 整合的基线指标字典 (供测试断言)
 """
+
 from __future__ import annotations
 
 import json
@@ -24,6 +25,7 @@ def pytest_configure(config):
         "markers",
         "nightly: 仅 nightly CI 运行的长耗时回归测试 (>30 分钟, 如 V9 完整回测)",
     )
+
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -48,7 +50,9 @@ def _find_latest_json(prefix: str) -> Path:
         FileNotFoundError: 未找到任何匹配文件
     """
     if not VALIDATION_REPORTS_DIR.exists():
-        raise FileNotFoundError(f"validation_reports 目录不存在: {VALIDATION_REPORTS_DIR}")
+        raise FileNotFoundError(
+            f"validation_reports 目录不存在: {VALIDATION_REPORTS_DIR}"
+        )
 
     candidates = sorted(VALIDATION_REPORTS_DIR.glob(f"{prefix}*.json"))
     if not candidates:
@@ -107,6 +111,7 @@ def _parse_baseline_lock(text: str) -> dict[str, str]:
 # ============================================================
 # Fixtures
 # ============================================================
+
 
 @pytest.fixture(scope="session")
 def v9_baseline_lock() -> dict[str, Any]:

@@ -12,6 +12,7 @@
     py -X utf8 scripts/register_factors_to_feature_store.py --dry-run  # 只打印不写盘
     py -X utf8 scripts/register_factors_to_feature_store.py --stats    # 只统计已注册
 """
+
 from __future__ import annotations
 
 import argparse
@@ -28,67 +29,161 @@ FACTOR_VERSION = "1.0"
 
 FACTOR_CATALOG: dict[str, list[str]] = {
     "Momentum": [
-        "MOM_20D", "MOM_60D", "MOM_120D", "MOM_252D", "MOM_12_1M",
-        "MOM_REVERSAL_5D", "MOM_REVERSAL_20D", "MOM_VOLUME_ADJ",
-        "MOM_UP_DOWN", "MOM_INDUSTRY_ADJ",
+        "MOM_20D",
+        "MOM_60D",
+        "MOM_120D",
+        "MOM_252D",
+        "MOM_12_1M",
+        "MOM_REVERSAL_5D",
+        "MOM_REVERSAL_20D",
+        "MOM_VOLUME_ADJ",
+        "MOM_UP_DOWN",
+        "MOM_INDUSTRY_ADJ",
     ],
     "LowVolatility": [
-        "VOL_20D", "VOL_120D", "VOL_60D", "VOL_252D",
-        "VOL_BETA", "VOL_DOWNSIDE", "VOL_IDIO", "VOL_SKEW",
+        "VOL_20D",
+        "VOL_120D",
+        "VOL_60D",
+        "VOL_252D",
+        "VOL_BETA",
+        "VOL_DOWNSIDE",
+        "VOL_IDIO",
+        "VOL_SKEW",
     ],
     "Size": [
-        "SIZE_LOG_MCAP", "SIZE_LOG_NS", "SIZE_LOG_REV", "SIZE_LOG_ASSETS",
-        "SIZE_SMALL_LARGE_RATIO", "SIZE_NON_LINEAR", "SIZE_CUBIC",
+        "SIZE_LOG_MCAP",
+        "SIZE_LOG_NS",
+        "SIZE_LOG_REV",
+        "SIZE_LOG_ASSETS",
+        "SIZE_SMALL_LARGE_RATIO",
+        "SIZE_NON_LINEAR",
+        "SIZE_CUBIC",
     ],
     "Liquidity": [
-        "LIQ_TURNOVER_20D", "LIQ_TURNOVER_60D", "LIQ_AMIHUD", "LIQ_SPREAD",
-        "LIQ_DEPTH", "LIQ_RSVP", "LIQ_ZERO_RET_DAYS", "LIQ_VOLUME_ZSCORE",
+        "LIQ_TURNOVER_20D",
+        "LIQ_TURNOVER_60D",
+        "LIQ_AMIHUD",
+        "LIQ_SPREAD",
+        "LIQ_DEPTH",
+        "LIQ_RSVP",
+        "LIQ_ZERO_RET_DAYS",
+        "LIQ_VOLUME_ZSCORE",
     ],
     "Value": [
-        "EP", "BP", "SP", "CFP", "DP", "FCFP",
-        "EV_EBITDA", "SP_EV", "PE_EX", "PEG", "PB_INT",
+        "EP",
+        "BP",
+        "SP",
+        "CFP",
+        "DP",
+        "FCFP",
+        "EV_EBITDA",
+        "SP_EV",
+        "PE_EX",
+        "PEG",
+        "PB_INT",
     ],
     "Growth": [
-        "REV_Q", "REV_YOY", "REV_TTM", "NP_Q", "NP_YOY", "NP_TTM",
-        "OCF_Q", "OCF_YOY", "OCF_TTM", "ROE_Q", "ROE_YOY", "ROE_TTM",
-        "ROA_Q", "ROA_YOY", "ROA_TTM",
+        "REV_Q",
+        "REV_YOY",
+        "REV_TTM",
+        "NP_Q",
+        "NP_YOY",
+        "NP_TTM",
+        "OCF_Q",
+        "OCF_YOY",
+        "OCF_TTM",
+        "ROE_Q",
+        "ROE_YOY",
+        "ROE_TTM",
+        "ROA_Q",
+        "ROA_YOY",
+        "ROA_TTM",
     ],
     "Quality": [
-        "ROE", "ROA", "ROIC", "GROSS_MARGIN", "NET_MARGIN", "EBITDA_MARGIN",
-        "CASH_NP", "ACCRUALS", "DEBT_TO_EQUITY", "CURRENT_RATIO",
-        "ACCRUAL_CHG", "QUICK_RATIO", "GROSS_MARGIN_STAB",
+        "ROE",
+        "ROA",
+        "ROIC",
+        "GROSS_MARGIN",
+        "NET_MARGIN",
+        "EBITDA_MARGIN",
+        "CASH_NP",
+        "ACCRUALS",
+        "DEBT_TO_EQUITY",
+        "CURRENT_RATIO",
+        "ACCRUAL_CHG",
+        "QUICK_RATIO",
+        "GROSS_MARGIN_STAB",
     ],
     "Leverage": [
-        "EQ_MULT", "INT_DEBT", "DE_RATIO", "LT_DEBT", "QUICK", "INT_COV",
+        "EQ_MULT",
+        "INT_DEBT",
+        "DE_RATIO",
+        "LT_DEBT",
+        "QUICK",
+        "INT_COV",
     ],
     "Operation": [
-        "ASSET_TURN", "INV_TURN", "AR_TURN", "AP_TURN", "CASH_CYCLE",
+        "ASSET_TURN",
+        "INV_TURN",
+        "AR_TURN",
+        "AP_TURN",
+        "CASH_CYCLE",
     ],
     "Technical": [
-        "GTJA_004", "GTJA_019", "GTJA_026", "GTJA_131",
-        "GTJA_022", "GTJA_025", "GTJA_028", "GTJA_132", "GTJA_178",
-        "GTJA_006", "GTJA_012", "GTJA_054", "GTJA_085",
-        "GTJA_030", "GTJA_033", "GTJA_040", "GTJA_043",
-        "GTJA_057", "GTJA_144", "GTJA_101",
+        "GTJA_004",
+        "GTJA_019",
+        "GTJA_026",
+        "GTJA_131",
+        "GTJA_022",
+        "GTJA_025",
+        "GTJA_028",
+        "GTJA_132",
+        "GTJA_178",
+        "GTJA_006",
+        "GTJA_012",
+        "GTJA_054",
+        "GTJA_085",
+        "GTJA_030",
+        "GTJA_033",
+        "GTJA_040",
+        "GTJA_043",
+        "GTJA_057",
+        "GTJA_144",
+        "GTJA_101",
     ],
     "Expectation": [
-        "SUE", "SUE_REVISION", "CONSENSUS_2Y", "RD_RATIO",
-        "MS_TAIL_VOL", "MS_OPEN_BIG",
+        "SUE",
+        "SUE_REVISION",
+        "CONSENSUS_2Y",
+        "RD_RATIO",
+        "MS_TAIL_VOL",
+        "MS_OPEN_BIG",
     ],
     "LeadLag": [
-        "CHAIN_MOM_20D", "CHAIN_MOM_60D", "CHAIN_REVERSAL_5D",
-        "CHAIN_NEIGHBOR_DIFF", "CHAIN_CONCENTRATION",
+        "CHAIN_MOM_20D",
+        "CHAIN_MOM_60D",
+        "CHAIN_REVERSAL_5D",
+        "CHAIN_NEIGHBOR_DIFF",
+        "CHAIN_CONCENTRATION",
     ],
     "ChipDistribution": [
-        "CYQ_PROFIT_RATIO", "CYQ_CONCENTRATION",
-        "CYQ_COST_DEVIATION", "CYQ_PEAK_POSITION",
+        "CYQ_PROFIT_RATIO",
+        "CYQ_CONCENTRATION",
+        "CYQ_COST_DEVIATION",
+        "CYQ_PEAK_POSITION",
     ],
     "FactorMining": [
-        "FM_RET_1D", "FM_MOM_5D", "FM_MOM_20D",
-        "FM_IDIO_VOL", "FM_AMIHUD_AMT", "FM_CIRC_MCAP",
+        "FM_RET_1D",
+        "FM_MOM_5D",
+        "FM_MOM_20D",
+        "FM_IDIO_VOL",
+        "FM_AMIHUD_AMT",
+        "FM_CIRC_MCAP",
     ],
     "EigenAlpha": [
-        "FM_DEMO_VOL_WEIGHTED_MOM", "FM_DEMO_ZERO_TRADE_DAYS", "FM_DEMO_ROE_SMOOTHED",
+        "FM_DEMO_VOL_WEIGHTED_MOM",
+        "FM_DEMO_ZERO_TRADE_DAYS",
+        "FM_DEMO_ROE_SMOOTHED",
     ],
 }
 
@@ -133,7 +228,13 @@ def register_all_factors(dry_run: bool = False) -> dict[str, int]:
     config = FeatureStoreConfig()
     registry = Registry(config)
 
-    stats = {"total": 0, "registered": 0, "duplicate": 0, "failed": 0, "by_category": {}}
+    stats = {
+        "total": 0,
+        "registered": 0,
+        "duplicate": 0,
+        "failed": 0,
+        "by_category": {},
+    }
 
     for category, names in FACTOR_CATALOG.items():
         cat_count = 0
@@ -197,7 +298,9 @@ def main() -> None:
             print(f"  {cat:20s} {cnt:3d}")
         return
 
-    print(f"开始注册 {sum(len(v) for v in FACTOR_CATALOG.values())} 个因子到 FeatureStore Registry...")
+    print(
+        f"开始注册 {sum(len(v) for v in FACTOR_CATALOG.values())} 个因子到 FeatureStore Registry..."
+    )
     if args.dry_run:
         print("[DRY-RUN] 不写盘")
 

@@ -63,16 +63,35 @@ def _load_yaml(path: str) -> dict | None:
     """加载 YAML 配置文件."""
     try:
         import yaml
+
         with open(path, encoding="utf-8") as f:
             return yaml.safe_load(f)
     except ImportError:
         try:
             # 备选: 简单解析 (不支持嵌套 YAML)
             logger.warning("PyYAML 不可用, 尝试 JSON 解析")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.error("加载 YAML 配置失败: %s", e)
     return None
@@ -101,7 +120,10 @@ def _ensure_config() -> bool:
     _factor_config = cfg.get("factor_config", {}) or {}
     logger.info(
         "气象映射配置加载: %d 股票, %d ETF, %d 期货, %d 板块",
-        len(_stocks_cache), len(_etfs_cache), len(_futures_cache), len(_sectors_cache),
+        len(_stocks_cache),
+        len(_etfs_cache),
+        len(_futures_cache),
+        len(_sectors_cache),
     )
     return True
 
@@ -110,15 +132,17 @@ def _ensure_config() -> bool:
 # 因子计算数据类
 # ============================================================
 
+
 @dataclass
 class FactorScore:
     """单个因子得分"""
+
     name: str = ""
-    value: float = 0.0          # 原始值
-    score: float = 0.0          # 标准化得分 (-1.0 ~ +1.0)
-    weight: float = 1.0          # 权重
-    contribution: float = 0.0    # 加权贡献 = score * weight
-    description: str = ""        # 描述
+    value: float = 0.0  # 原始值
+    score: float = 0.0  # 标准化得分 (-1.0 ~ +1.0)
+    weight: float = 1.0  # 权重
+    contribution: float = 0.0  # 加权贡献 = score * weight
+    description: str = ""  # 描述
 
     def __post_init__(self):
         self.contribution = self.score * self.weight
@@ -127,13 +151,14 @@ class FactorScore:
 @dataclass
 class WeatherFactorResult:
     """气象因子综合评估结果"""
+
     symbol: str = ""
     name: str = ""
     category: str = ""
     weather_sensitivity: float = 0.0
-    composite_score: float = 0.0        # 综合得分 (-2.0 ~ +2.0)
-    signal: str = "NEUTRAL"              # STRONG_BULL/BULLISH/NEUTRAL/BEARISH/STRONG_BEAR
-    confidence: float = 0.0              # 置信度 (0-1)
+    composite_score: float = 0.0  # 综合得分 (-2.0 ~ +2.0)
+    signal: str = "NEUTRAL"  # STRONG_BULL/BULLISH/NEUTRAL/BEARISH/STRONG_BEAR
+    confidence: float = 0.0  # 置信度 (0-1)
     factors: list[FactorScore] = field(default_factory=list)
     key_drivers: list[str] = field(default_factory=list)
     alerts: list[str] = field(default_factory=list)
@@ -149,6 +174,7 @@ class WeatherFactorResult:
 @dataclass
 class SectorWeatherResult:
     """板块级气象评估"""
+
     sector: str = ""
     name: str = ""
     composite_score: float = 0.0
@@ -160,6 +186,7 @@ class SectorWeatherResult:
 # ============================================================
 # 因子计算引擎
 # ============================================================
+
 
 class WeatherFactorEngine:
     """气象因子计算引擎.
@@ -193,6 +220,7 @@ class WeatherFactorEngine:
         if self._adapter is None:
             try:
                 from utils.weather_data_adapter import get_adapter
+
                 self._adapter = get_adapter()
             except ImportError:
                 logger.warning("WeatherDataAdapter 不可用")
@@ -219,24 +247,27 @@ class WeatherFactorEngine:
         """评估所有标的 (股票 + ETF + 期货)."""
         results: list[WeatherFactorResult] = []
 
-        for item in (_stocks_cache or []):
+        for item in _stocks_cache or []:
             result = self.evaluate_symbol(item.get("symbol", ""), item)
             if result:
                 results.append(result)
 
-        for item in (_etfs_cache or []):
+        for item in _etfs_cache or []:
             result = self.evaluate_symbol(item.get("symbol", ""), item)
             if result:
                 results.append(result)
 
-        for item in (_futures_cache or []):
+        for item in _futures_cache or []:
             result = self.evaluate_symbol(item.get("symbol", ""), item)
             if result:
                 results.append(result)
 
         results.sort(key=lambda r: abs(r.composite_score), reverse=True)
-        logger.info("气象因子评估完成: %d 个标的, 平均得分=%.3f", len(results),
-                     sum(r.composite_score for r in results) / max(len(results), 1))
+        logger.info(
+            "气象因子评估完成: %d 个标的, 平均得分=%.3f",
+            len(results),
+            sum(r.composite_score for r in results) / max(len(results), 1),
+        )
         return results
 
     def evaluate_symbol(
@@ -330,8 +361,10 @@ class WeatherFactorEngine:
         weather = self._get_weighted_weather(locations)
         if weather is None:
             return SectorWeatherResult(
-                sector=sector, name=sector_cfg.get("name", sector),
-                composite_score=0.0, signal=self.SIGNAL_NEUTRAL,
+                sector=sector,
+                name=sector_cfg.get("name", sector),
+                composite_score=0.0,
+                signal=self.SIGNAL_NEUTRAL,
                 summary="天气数据获取失败",
             )
 
@@ -342,7 +375,7 @@ class WeatherFactorEngine:
 
         # 收集该板块下的标的结果
         symbol_results = []
-        for item in (_stocks_cache or []):
+        for item in _stocks_cache or []:
             if item.get("category") == sector:
                 r = self.evaluate_symbol(item.get("symbol", ""), item)
                 if r:
@@ -443,7 +476,16 @@ class WeatherFactorEngine:
                 alerts = self.adapter.get_alerts(lon, lat)
                 all_alerts.extend(alerts or [])
 
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
 
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("获取 %s 天气异常: %s", loc.get("name"), e)
@@ -456,10 +498,16 @@ class WeatherFactorEngine:
         weighted["hourly_temp_mean"] = self._mean(hourly_temps)
         weighted["hourly_temp_std"] = self._std(hourly_temps)
         weighted["hourly_precip_max"] = max(hourly_precips) if hourly_precips else 0.0
-        weighted["daily_max_temp"] = max(daily_max_temps) if daily_max_temps else weighted["temperature"]
-        weighted["daily_min_temp"] = min(daily_min_temps) if daily_min_temps else weighted["temperature"]
+        weighted["daily_max_temp"] = (
+            max(daily_max_temps) if daily_max_temps else weighted["temperature"]
+        )
+        weighted["daily_min_temp"] = (
+            min(daily_min_temps) if daily_min_temps else weighted["temperature"]
+        )
         weighted["daily_precip_sum"] = sum(daily_precips) if daily_precips else 0.0
-        weighted["daily_wind_max"] = max(daily_wind_speeds) if daily_wind_speeds else weighted["wind_speed"]
+        weighted["daily_wind_max"] = (
+            max(daily_wind_speeds) if daily_wind_speeds else weighted["wind_speed"]
+        )
         weighted["alerts"] = all_alerts
         weighted["timestamp"] = self._now_ts()
 
@@ -501,9 +549,7 @@ class WeatherFactorEngine:
 
         return factors
 
-    def _calc_temperature_factor(
-        self, weather: dict, category: str
-    ) -> FactorScore:
+    def _calc_temperature_factor(self, weather: dict, category: str) -> FactorScore:
         """温度因子.
 
         逻辑:
@@ -593,13 +639,14 @@ class WeatherFactorEngine:
                 desc = f"温度中性 {temp:.0f}℃"
 
         return FactorScore(
-            name="temperature", value=temp, score=score,
-            weight=weight, description=desc,
+            name="temperature",
+            value=temp,
+            score=score,
+            weight=weight,
+            description=desc,
         )
 
-    def _calc_precipitation_factor(
-        self, weather: dict, category: str
-    ) -> FactorScore:
+    def _calc_precipitation_factor(self, weather: dict, category: str) -> FactorScore:
         """降水因子.
 
         逻辑:
@@ -676,13 +723,14 @@ class WeatherFactorEngine:
                 desc = "降水中性"
 
         return FactorScore(
-            name="precipitation", value=max(precip, precip_sum / 7.0),
-            score=score, weight=weight, description=desc,
+            name="precipitation",
+            value=max(precip, precip_sum / 7.0),
+            score=score,
+            weight=weight,
+            description=desc,
         )
 
-    def _calc_wind_factor(
-        self, weather: dict, category: str
-    ) -> FactorScore:
+    def _calc_wind_factor(self, weather: dict, category: str) -> FactorScore:
         """风速因子.
 
         逻辑:
@@ -740,13 +788,14 @@ class WeatherFactorEngine:
                 desc = "风力正常"
 
         return FactorScore(
-            name="wind", value=max_wind, score=score,
-            weight=weight, description=desc,
+            name="wind",
+            value=max_wind,
+            score=score,
+            weight=weight,
+            description=desc,
         )
 
-    def _calc_dswrf_factor(
-        self, weather: dict, category: str
-    ) -> FactorScore:
+    def _calc_dswrf_factor(self, weather: dict, category: str) -> FactorScore:
         """辐照因子 (Downward Surface Shortwave Flux).
 
         逻辑:
@@ -792,13 +841,14 @@ class WeatherFactorEngine:
             desc = "辐照中性"
 
         return FactorScore(
-            name="dswrf", value=dswrf, score=score,
-            weight=weight, description=desc,
+            name="dswrf",
+            value=dswrf,
+            score=score,
+            weight=weight,
+            description=desc,
         )
 
-    def _calc_pressure_factor(
-        self, weather: dict, category: str
-    ) -> FactorScore:
+    def _calc_pressure_factor(self, weather: dict, category: str) -> FactorScore:
         """气压因子."""
         press = weather.get("pressure", 101325.0)
         press_hpa = press / 100.0  # Pa → hPa
@@ -821,13 +871,14 @@ class WeatherFactorEngine:
             desc = f"气压正常 {press_hpa:.0f}hPa"
 
         return FactorScore(
-            name="pressure", value=press_hpa, score=score,
-            weight=weight, description=desc,
+            name="pressure",
+            value=press_hpa,
+            score=score,
+            weight=weight,
+            description=desc,
         )
 
-    def _calc_aqi_factor(
-        self, weather: dict, category: str
-    ) -> FactorScore:
+    def _calc_aqi_factor(self, weather: dict, category: str) -> FactorScore:
         """空气质量因子."""
         aqi = weather.get("aqi_chn", 50)
         cfg = self._factor_cfg.get("aqi", {})
@@ -859,13 +910,14 @@ class WeatherFactorEngine:
             desc = f"重度污染 AQI={aqi} → 停工!"
 
         return FactorScore(
-            name="aqi", value=aqi, score=score,
-            weight=weight, description=desc,
+            name="aqi",
+            value=aqi,
+            score=score,
+            weight=weight,
+            description=desc,
         )
 
-    def _calc_visibility_factor(
-        self, weather: dict, category: str
-    ) -> FactorScore:
+    def _calc_visibility_factor(self, weather: dict, category: str) -> FactorScore:
         """能见度因子."""
         vis = weather.get("visibility", 20.0)
         cfg = self._factor_cfg.get("visibility", {})
@@ -885,8 +937,11 @@ class WeatherFactorEngine:
             desc = f"能见度良好 {vis:.1f}km"
 
         return FactorScore(
-            name="visibility", value=vis, score=score,
-            weight=weight, description=desc,
+            name="visibility",
+            value=vis,
+            score=score,
+            weight=weight,
+            description=desc,
         )
 
     # ----------------------------------------------------------
@@ -919,14 +974,13 @@ class WeatherFactorEngine:
         """将得分映射到信号等级."""
         if score >= 1.2:
             return WeatherFactorEngine.SIGNAL_STRONG_BULL
-        elif score >= 0.4:
+        if score >= 0.4:
             return WeatherFactorEngine.SIGNAL_BULLISH
-        elif score <= -1.2:
+        if score <= -1.2:
             return WeatherFactorEngine.SIGNAL_STRONG_BEAR
-        elif score <= -0.4:
+        if score <= -0.4:
             return WeatherFactorEngine.SIGNAL_BEARISH
-        else:
-            return WeatherFactorEngine.SIGNAL_NEUTRAL
+        return WeatherFactorEngine.SIGNAL_NEUTRAL
 
     def _compute_confidence(
         self, factors: list[FactorScore], meta: dict, weather: dict
@@ -950,9 +1004,7 @@ class WeatherFactorEngine:
 
         return min(1.0, consistency * 0.5 + completeness * 0.3 + sensitivity * 0.2)
 
-    def _check_alerts(
-        self, weather: dict, meta: dict
-    ) -> list[str]:
+    def _check_alerts(self, weather: dict, meta: dict) -> list[str]:
         """检查气象预警."""
         alerts: list[str] = []
         temp = weather.get("temperature", 20.0)
@@ -979,8 +1031,11 @@ class WeatherFactorEngine:
         return alerts[:5]
 
     def _generate_reasoning(
-        self, meta: dict, factors: list[FactorScore],
-        composite: float, signal: str,
+        self,
+        meta: dict,
+        factors: list[FactorScore],
+        composite: float,
+        signal: str,
     ) -> str:
         """生成人类可读的推理解释."""
         symbol_name = meta.get("name", "")
@@ -992,8 +1047,7 @@ class WeatherFactorEngine:
             return f"{symbol_name}({category}): 气象条件中性, 无显著驱动因子"
 
         drivers = "; ".join(
-            f"{f.name}={f.score:+.2f}({f.description[:30]})"
-            for f in strong[:3]
+            f"{f.name}={f.score:+.2f}({f.description[:30]})" for f in strong[:3]
         )
 
         direction = "利好" if composite > 0 else ("利空" if composite < 0 else "中性")
@@ -1013,9 +1067,7 @@ class WeatherFactorEngine:
                     return item
         return None
 
-    def _neutral_result(
-        self, meta: dict, reason: str
-    ) -> WeatherFactorResult:
+    def _neutral_result(self, meta: dict, reason: str) -> WeatherFactorResult:
         """返回中性结果 (降级)."""
         return WeatherFactorResult(
             symbol=meta.get("symbol", ""),
@@ -1050,6 +1102,7 @@ class WeatherFactorEngine:
     @staticmethod
     def _now_ts() -> float:
         import time as _t
+
         return _t.time()
 
 

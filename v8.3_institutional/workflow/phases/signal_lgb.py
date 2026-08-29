@@ -15,6 +15,7 @@
 - 拆分后 __file__ = v8.3_institutional/workflow/phases/signal_lgb.py, 上溯 4 层到项目根
 - signals_path = 项目根/models/lgb_enhanced/lgb_enhanced_signals.json
 """
+
 from __future__ import annotations
 
 import json
@@ -39,8 +40,12 @@ def load_lgb_enhanced_signals() -> dict[str, dict[str, Any]]:
         # __file__ = v8.3_institutional/workflow/phases/signal_lgb.py
         # 上溯 4 层到项目根目录 (与原 daily_workflow.py 上溯 2 层等价)
         signals_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
-            "models", "lgb_enhanced", "lgb_enhanced_signals.json",
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            ),
+            "models",
+            "lgb_enhanced",
+            "lgb_enhanced_signals.json",
         )
         if not os.path.exists(signals_path):
             logger.debug("LGB增强信号文件不存在: %s", signals_path)
@@ -53,7 +58,9 @@ def load_lgb_enhanced_signals() -> dict[str, dict[str, Any]]:
         file_date = data.get("trade_date", "")
         today_str = datetime.now().strftime("%Y-%m-%d")
         if file_date != today_str:
-            logger.info("LGB增强信号非今日 (文件: %s, 今日: %s), 跳过", file_date, today_str)
+            logger.info(
+                "LGB增强信号非今日 (文件: %s, 今日: %s), 跳过", file_date, today_str
+            )
             return {}
 
         signals = data.get("signals", {})
@@ -72,7 +79,9 @@ def load_lgb_enhanced_signals() -> dict[str, dict[str, Any]]:
                 "quality_flag": info.get("quality_flag", "OK"),
                 "name": info.get("name", code),
             }
-        logger.info("LGB增强信号加载: %d 个标的 (trade_date=%s)", len(result), file_date)
+        logger.info(
+            "LGB增强信号加载: %d 个标的 (trade_date=%s)", len(result), file_date
+        )
         return result
 
     except Exception as e:  # fail-safe

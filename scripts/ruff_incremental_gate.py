@@ -9,6 +9,7 @@
     python scripts/ruff_incremental_gate.py file1.py file2.py ...
     (fail-open: 无基线文件时仅打印警告并 PASS)
 """
+
 from __future__ import annotations
 
 import json
@@ -33,8 +34,18 @@ def _norm(p: str) -> str:
 
 def _run_ruff(rules: str, files: list[str]) -> str:
     proc = subprocess.run(
-        [sys.executable, "-m", "ruff", "check", "--select", rules,
-         "--output-format", "concise", "--no-cache", *files],
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "--select",
+            rules,
+            "--output-format",
+            "concise",
+            "--no-cache",
+            *files,
+        ],
         cwd=str(ROOT),
         capture_output=True,
         encoding="utf-8",
@@ -45,7 +56,7 @@ def _run_ruff(rules: str, files: list[str]) -> str:
 
 def _count_per_file(output: str, files: set[str]) -> dict[str, int]:
     """按归一化路径统计每文件违规数。files 为归一化后的集合。"""
-    counts: dict[str, int] = {f: 0 for f in files}
+    counts: dict[str, int] = dict.fromkeys(files, 0)
     pat = re.compile(r"^(.+?):\d+:\d+:")
     for line in output.splitlines():
         m = pat.match(line)
@@ -68,9 +79,13 @@ def main(argv: list[str]) -> int:
         # M-6 (2026-08-09): 区分本地与 CI。
         # 本地开发 fail-open 便于上手; CI 环境必须 fail-closed, 否则门禁被静默停用。
         if os.environ.get("CI"):
-            print(f"[G-1][FATAL] CI 环境基线文件缺失 {BASELINE_PATH}, 门禁禁用将放过全部违规")
+            print(
+                f"[G-1][FATAL] CI 环境基线文件缺失 {BASELINE_PATH}, 门禁禁用将放过全部违规"
+            )
             return 1
-        print(f"[G-1][WARN] 基线文件缺失 {BASELINE_PATH}, 本地 fail-open PASS (请先运行 ruff_baseline_gen.py)")
+        print(
+            f"[G-1][WARN] 基线文件缺失 {BASELINE_PATH}, 本地 fail-open PASS (请先运行 ruff_baseline_gen.py)"
+        )
         return 0
 
     baseline = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
@@ -101,7 +116,9 @@ def main(argv: list[str]) -> int:
         cur_n = cur_enf.get(f, 0)
         # 新文件 (不在基线) 允许, 但应低于合理阈值; 这里仅监控存量文件的新增
         if f in base_enf and cur_n > base_n:
-            errors.append(f"[ENFORCED] {f}: 违规 {cur_n} > 基线 {base_n} (新增 {cur_n - base_n} 条)")
+            errors.append(
+                f"[ENFORCED] {f}: 违规 {cur_n} > 基线 {base_n} (新增 {cur_n - base_n} 条)"
+            )
 
     if errors:
         print("[G-1] ruff 增量门禁失败:")

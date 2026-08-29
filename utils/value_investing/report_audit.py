@@ -40,31 +40,31 @@ _CTX = Context(prec=28, rounding=ROUND_HALF_EVEN)
 # 例：收入：1,239亿元、PE 18.8x、毛利率 56%、市值 ~$5,670亿
 _PATTERNS = [
     # 百分比
-    (r'([\d,，\.]+)\s*%',                        '%',    'percent'),
+    (r"([\d,，\.]+)\s*%", "%", "percent"),
     # 亿元/亿美元/亿港元
-    (r'([\d,，\.]+)\s*亿(元|美元|港元|RMB|USD|HKD)?', '亿',    'hundred_million'),
+    (r"([\d,，\.]+)\s*亿(元|美元|港元|RMB|USD|HKD)?", "亿", "hundred_million"),
     # 倍数 PE/PB/PS
-    (r'([\d,，\.]+)\s*[xX倍]',                   'x',    'multiple'),
+    (r"([\d,，\.]+)\s*[xX倍]", "x", "multiple"),
     # 万亿
-    (r'([\d,，\.]+)\s*万亿',                      '万亿', 'trillion'),
+    (r"([\d,，\.]+)\s*万亿", "万亿", "trillion"),
     # 美元绝对值（B/T）
-    (r'\$\s*([\d,，\.]+)\s*([BMT亿])',             '$',    'usd_abs'),
+    (r"\$\s*([\d,，\.]+)\s*([BMT亿])", "$", "usd_abs"),
     # 纯整数（如市值、收入、用户数等，出现在表格 | 里）
-    (r'\|\s*[~约]?\$?([\d,，\.]+)\s*\|',          '',     'table_num'),
+    (r"\|\s*[~约]?\$?([\d,，\.]+)\s*\|", "", "table_num"),
 ]
 
 _LABEL_RE = re.compile(
-    r'(?P<label>[^\|\n：:]{2,25})[：:\s]+[~约]?\$?(?P<num>[\d,，\.]+)\s*(?P<unit>亿[元美港]?元?|万亿|[xX倍]|%|[BMT])?'
+    r"(?P<label>[^\|\n：:]{2,25})[：:\s]+[~约]?\$?(?P<num>[\d,，\.]+)\s*(?P<unit>亿[元美港]?元?|万亿|[xX倍]|%|[BMT])?"
 )
 
 _TABLE_ROW_RE = re.compile(
-    r'\|\s*(?P<label>[^|]{1,40})\s*\|\s*[~约]?\$?(?P<num>[\d,，\.]+)\s*(?P<unit>亿[元美港]?元?|万亿|[xX倍]|%|[BMT])?\s*\|'
+    r"\|\s*(?P<label>[^|]{1,40})\s*\|\s*[~约]?\$?(?P<num>[\d,，\.]+)\s*(?P<unit>亿[元美港]?元?|万亿|[xX倍]|%|[BMT])?\s*\|"
 )
 
 
 def _clean_num(s: str) -> float:
     """把带逗号、中文逗号的数字字符串转为 float。"""
-    s = s.replace(',', '').replace('，', '').strip()
+    s = s.replace(",", "").replace("，", "").strip()
     try:
         return float(s)
     except ValueError:
@@ -78,20 +78,35 @@ def _is_valid_label(label: str) -> bool:
     if len(label) < 2:
         return False
     # 纯数字或纯年份
-    if re.fullmatch(r'[\d\s年季度Q]+', label):
+    if re.fullmatch(r"[\d\s年季度Q]+", label):
         return False
     # 以符号/markdown标记开头
-    if re.match(r'^[+\-\*#\|~\$>_`]', label):
+    if re.match(r"^[+\-\*#\|~\$>_`]", label):
         return False
     # 含有 markdown 粗体/代码标记
-    if '**' in label or '`' in label or '__' in label:
+    if "**" in label or "`" in label or "__" in label:
         return False
     # 标签含有纯增速符号（如 +56%、-13% 单独作标签）
-    if re.fullmatch(r'[+\-]?\d+(\.\d+)?%', label):
+    if re.fullmatch(r"[+\-]?\d+(\.\d+)?%", label):
         return False
     # 常见无意义标签
-    _SKIP = {'来源', 'sources', 'source', '说明', '注意', '备注', '数据来源',
-             'n/a', '—', '-', '/', '合计', 'total', '单位', '趋势'}
+    _SKIP = {
+        "来源",
+        "sources",
+        "source",
+        "说明",
+        "注意",
+        "备注",
+        "数据来源",
+        "n/a",
+        "—",
+        "-",
+        "/",
+        "合计",
+        "total",
+        "单位",
+        "趋势",
+    }
     if label.lower() in _SKIP:
         return False
     return True
@@ -99,14 +114,14 @@ def _is_valid_label(label: str) -> bool:
 
 # 两列表格行：| 标签 | 数值 unit |（专为财务报告的 KV 表设计）
 _KV_TABLE_RE = re.compile(
-    r'^\|\s*(?P<label>[^|*\n]{2,40}?)\s*\|\s*[~约]?\$?(?P<num>[\d,，\.]+)\s*'
-    r'(?P<unit>亿[元美港]?元?|万亿|[xX倍]|%|[BMT亿])?\s*[\|（\(]'
+    r"^\|\s*(?P<label>[^|*\n]{2,40}?)\s*\|\s*[~约]?\$?(?P<num>[\d,，\.]+)\s*"
+    r"(?P<unit>亿[元美港]?元?|万亿|[xX倍]|%|[BMT亿])?\s*[\|（\(]"
 )
 
 # 带标签的 KV 行：标签：数值 单位
 _KV_LABEL_RE = re.compile(
-    r'(?P<label>[\u4e00-\u9fa5A-Za-z][^\|\n：:*]{1,30})[：:]\s*[~约]?\$?'
-    r'(?P<num>[\d,，\.]+)\s*(?P<unit>亿[元美港]?元?|万亿|[xX倍]|%|[BMT])?'
+    r"(?P<label>[\u4e00-\u9fa5A-Za-z][^\|\n：:*]{1,30})[：:]\s*[~约]?\$?"
+    r"(?P<num>[\d,，\.]+)\s*(?P<unit>亿[元美港]?元?|万亿|[xX倍]|%|[BMT])?"
 )
 
 
@@ -117,35 +132,43 @@ def _parse_md_tables(lines: list) -> list:
     while i < len(lines):
         line = lines[i].strip()
         # 检测表头行（含 | 且不是分隔行）
-        if '|' in line and not re.match(r'^\|[\-\s\|:]+\|$', line):
-            headers_raw = [h.strip().strip('*_').strip() for h in line.split('|')]
+        if "|" in line and not re.match(r"^\|[\-\s\|:]+\|$", line):
+            headers_raw = [h.strip().strip("*_").strip() for h in line.split("|")]
             headers_raw = [h for h in headers_raw if h]
             # 下一行应是分隔行
-            if i + 1 < len(lines) and re.match(r'^\|[\-\s\|:]+\|$', lines[i+1].strip()):
+            if i + 1 < len(lines) and re.match(
+                r"^\|[\-\s\|:]+\|$", lines[i + 1].strip()
+            ):
                 i += 2  # 跳过分隔行
                 # 读数据行
                 while i < len(lines):
                     dline = lines[i].strip()
-                    if not dline or not dline.startswith('|'):
+                    if not dline or not dline.startswith("|"):
                         break
-                    cells = [c.strip().strip('*_~').strip() for c in dline.split('|')]
-                    cells = [c for c in cells if c != '']
+                    cells = [c.strip().strip("*_~").strip() for c in dline.split("|")]
+                    cells = [c for c in cells if c != ""]
                     if len(cells) < 2:
                         i += 1
                         continue
                     row_label = cells[0]
                     for col_idx, cell in enumerate(cells[1:], start=1):
-                        col_header = headers_raw[col_idx] if col_idx < len(headers_raw) else f'列{col_idx}'
+                        col_header = (
+                            headers_raw[col_idx]
+                            if col_idx < len(headers_raw)
+                            else f"列{col_idx}"
+                        )
                         # 提取 cell 中的数字+单位
                         m = re.search(
-                            r'[~约]?\$?([\d,，\.]+)\s*(亿[元美港]?元?|万亿|[xX倍]|%|[BMT])?',
-                            cell
+                            r"[~约]?\$?([\d,，\.]+)\s*(亿[元美港]?元?|万亿|[xX倍]|%|[BMT])?",
+                            cell,
                         )
                         if m:
                             val = _clean_num(m.group(1))
-                            unit = (m.group(2) or '').strip()
+                            unit = (m.group(2) or "").strip()
                             if val and val != 0 and val < 1e15:
-                                results.append((row_label, col_header, val, unit, i + 1, dline))
+                                results.append(
+                                    (row_label, col_header, val, unit, i + 1, dline)
+                                )
                     i += 1
                 continue
         i += 1
@@ -167,28 +190,30 @@ def extract_data_points(md_text: str) -> list:
     seen = set()
 
     def _add(label, val, unit, lineno, raw):
-        label = re.sub(r'[\*_`]+', '', label).strip()
+        label = re.sub(r"[\*_`]+", "", label).strip()
         if not _is_valid_label(label):
             return
         if val is None or val == 0 or val > 1e15:
             return
         # 过滤纯年份/季度
-        if re.fullmatch(r'(20\d{2}|Q[1-4]|\d{4}\s*Q[1-4])', label.strip()):
+        if re.fullmatch(r"(20\d{2}|Q[1-4]|\d{4}\s*Q[1-4])", label.strip()):
             return
         key = f"{label}|{round(val,4)}|{unit}"
         if key in seen:
             return
         seen.add(key)
-        points.append({
-            'id': len(points) + 1,
-            'label': label,
-            'reported_value': val,
-            'unit': unit,
-            'raw_text': raw[:120],
-            'line_number': lineno,
-        })
+        points.append(
+            {
+                "id": len(points) + 1,
+                "label": label,
+                "reported_value": val,
+                "unit": unit,
+                "raw_text": raw[:120],
+                "line_number": lineno,
+            }
+        )
 
-    lines = md_text.split('\n')
+    lines = md_text.split("\n")
     in_code = False
 
     # --- 1. 多列表格 ---
@@ -197,7 +222,16 @@ def extract_data_points(md_text: str) -> list:
         if not _is_valid_label(row_label):
             continue
         # 跳过无意义列标题（YoY增速列单独标注，不作为待核验数据）
-        if col_header.upper() in ('YOY', 'YOY增速', '增速', '同比', '变化', '趋势', '说明', '备注'):
+        if col_header.upper() in (
+            "YOY",
+            "YOY增速",
+            "增速",
+            "同比",
+            "变化",
+            "趋势",
+            "说明",
+            "备注",
+        ):
             continue
         # label = "行标签 · 列标题"（若列标题是行标签的补充）
         if col_header and col_header != row_label:
@@ -209,18 +243,18 @@ def extract_data_points(md_text: str) -> list:
     # --- 2. KV 冒号行 ---
     for lineno, line in enumerate(lines, start=1):
         stripped = line.strip()
-        if stripped.startswith('```'):
+        if stripped.startswith("```"):
             in_code = not in_code
             continue
-        if in_code or stripped.startswith('> ') or re.match(r'^#{1,6}\s', stripped):
+        if in_code or stripped.startswith("> ") or re.match(r"^#{1,6}\s", stripped):
             continue
-        if '|' in stripped:
+        if "|" in stripped:
             continue  # 表格已在上面处理
 
         for m in _KV_LABEL_RE.finditer(stripped):
-            label = m.group('label')
-            val = _clean_num(m.group('num'))
-            unit = (m.group('unit') or '').strip()
+            label = m.group("label")
+            val = _clean_num(m.group("num"))
+            unit = (m.group("unit") or "").strip()
             _add(label, val, unit, lineno, stripped)
 
     return points
@@ -233,20 +267,20 @@ def sample_points(points: list, ratio: float = 0.15, seed: int = None) -> list:
     rng = Random(seed)
     sampled = rng.sample(points, n)
     # 按行号排序，方便人工比对
-    return sorted(sampled, key=lambda p: p['line_number'])
+    return sorted(sampled, key=lambda p: p["line_number"])
 
 
 # ---------------------------------------------------------------------------
 # 准出/打回判决
 # ---------------------------------------------------------------------------
 
-_TOLERANCE = 0.01   # 1% 容差
+_TOLERANCE = 0.01  # 1% 容差
 
 
 def _pct_diff(reported: float, fetched: float) -> float:
     """相对偏差 (absolute)。"""
     if reported == 0:
-        return 0.0 if fetched == 0 else float('inf')
+        return 0.0 if fetched == 0 else float("inf")
     return abs(reported - fetched) / abs(reported)
 
 
@@ -276,13 +310,13 @@ def render_verdict(results: list, report_name: str = "") -> dict:
     warn_items = []
 
     for item in results:
-        label = item.get('label', '?')
-        reported = float(item.get('reported_value', 0))
-        unit = item.get('unit', '')
-        fetched = item.get('fetched_value')
-        source = item.get('fetched_source', '?')
-        fetched2 = item.get('fetched_value2')
-        source2 = item.get('fetched_source2', '')
+        label = item.get("label", "?")
+        reported = float(item.get("reported_value", 0))
+        unit = item.get("unit", "")
+        fetched = item.get("fetched_value")
+        source = item.get("fetched_source", "?")
+        fetched2 = item.get("fetched_value2")
+        source2 = item.get("fetched_source2", "")
 
         # --- 主来源比对 ---
         if fetched is None:
@@ -303,68 +337,70 @@ def render_verdict(results: list, report_name: str = "") -> dict:
         pass2 = (diff2 is None) or (diff2 <= _TOLERANCE)
 
         if pass1 and pass2:
-            detail = f'{source}: {fetched:.2f} (偏差 {diff1*100:.2f}%)'
+            detail = f"{source}: {fetched:.2f} (偏差 {diff1*100:.2f}%)"
             if diff2 is not None:
-                detail += f'  |  {source2}: {fetched2:.2f} (偏差 {diff2*100:.2f}%)'
+                detail += f"  |  {source2}: {fetched2:.2f} (偏差 {diff2*100:.2f}%)"
         elif not pass1 and not pass2:
-            detail = f'{source}: {fetched:.2f} (偏差 {diff1*100:.2f}%)'
+            detail = f"{source}: {fetched:.2f} (偏差 {diff1*100:.2f}%)"
             if diff2 is not None:
-                detail += f'  |  {source2}: {fetched2:.2f} (偏差 {diff2*100:.2f}%)'
-            fail_items.append({
-                'id': item['id'],
-                'label': label,
-                'reported': reported,
-                'unit': unit,
-                'fetched': fetched,
-                'source': source,
-                'fetched2': fetched2,
-                'source2': source2,
-                'diff1_pct': round(diff1 * 100, 2),
-                'diff2_pct': round(diff2 * 100, 2) if diff2 is not None else None,
-                'raw_text': item.get('raw_text', ''),
-                'line_number': item.get('line_number', 0),
-            })
+                detail += f"  |  {source2}: {fetched2:.2f} (偏差 {diff2*100:.2f}%)"
+            fail_items.append(
+                {
+                    "id": item["id"],
+                    "label": label,
+                    "reported": reported,
+                    "unit": unit,
+                    "fetched": fetched,
+                    "source": source,
+                    "fetched2": fetched2,
+                    "source2": source2,
+                    "diff1_pct": round(diff1 * 100, 2),
+                    "diff2_pct": round(diff2 * 100, 2) if diff2 is not None else None,
+                    "raw_text": item.get("raw_text", ""),
+                    "line_number": item.get("line_number", 0),
+                }
+            )
         else:
             # 一个来源通过，一个不通过 → 警告，不计入失败
-            detail = f'{source}: {fetched:.2f} (偏差 {diff1*100:.2f}%)'
+            detail = f"{source}: {fetched:.2f} (偏差 {diff1*100:.2f}%)"
             if diff2 is not None:
-                detail += f'  |  {source2}: {fetched2:.2f} (偏差 {diff2*100:.2f}%)'
-            warn_items.append({
-                'id': item['id'], 'label': label,
-                'reported': reported, 'unit': unit,
-                'diff1_pct': round(diff1 * 100, 2),
-                'diff2_pct': round(diff2 * 100, 2) if diff2 is not None else None,
-            })
+                detail += f"  |  {source2}: {fetched2:.2f} (偏差 {diff2*100:.2f}%)"
+            warn_items.append(
+                {
+                    "id": item["id"],
+                    "label": label,
+                    "reported": reported,
+                    "unit": unit,
+                    "diff1_pct": round(diff1 * 100, 2),
+                    "diff2_pct": round(diff2 * 100, 2) if diff2 is not None else None,
+                }
+            )
 
-
-
-    total = len([r for r in results if r.get('fetched_value') is not None])
+    total = len([r for r in results if r.get("fetched_value") is not None])
     fail_count = len(fail_items)
     warn_count = len(warn_items)
     pass_count = total - fail_count - warn_count
 
-
     if fail_count == 0:
-        verdict = 'PASS'
+        verdict = "PASS"
     else:
         for fi in fail_items:
-            if fi.get('fetched2') is not None:
+            if fi.get("fetched2") is not None:
                 pass
-        verdict = 'FAIL'
+        verdict = "FAIL"
 
     if warn_count > 0:
         for wi in warn_items:
             pass
 
-
     return {
-        'verdict': verdict,
-        'pass_count': pass_count,
-        'warn_count': warn_count,
-        'fail_count': fail_count,
-        'total': total,
-        'fail_items': fail_items,
-        'warn_items': warn_items,
+        "verdict": verdict,
+        "pass_count": pass_count,
+        "warn_count": warn_count,
+        "fail_count": fail_count,
+        "total": total,
+        "fail_items": fail_items,
+        "warn_items": warn_items,
     }
 
 
@@ -372,9 +408,10 @@ def render_verdict(results: list, report_name: str = "") -> dict:
 # CLI Entry Point
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
-        description='Report Audit Tool — 研究报告数据抽检工具',
+        description="Report Audit Tool — 研究报告数据抽检工具",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 工作流程：
@@ -399,30 +436,37 @@ def main():
 
   固定随机种子（复现同一批样本）：
     python3 tools/report_audit.py extract --report reports/xxx.md --seed 42
-        """)
+        """,
+    )
 
-    sub = parser.add_subparsers(dest='command')
+    sub = parser.add_subparsers(dest="command")
 
     # extract
-    ext = sub.add_parser('extract', help='从报告提取数据点并随机抽样')
-    ext.add_argument('--report', required=True, help='报告文件路径（Markdown）')
-    ext.add_argument('--ratio', type=float, default=0.15, help='抽样比例，默认 0.15')
-    ext.add_argument('--seed', type=int, default=None, help='随机种子（可选，用于复现）')
-    ext.add_argument('--dry-run', action='store_true', help='只打印，不输出 JSON')
+    ext = sub.add_parser("extract", help="从报告提取数据点并随机抽样")
+    ext.add_argument("--report", required=True, help="报告文件路径（Markdown）")
+    ext.add_argument("--ratio", type=float, default=0.15, help="抽样比例，默认 0.15")
+    ext.add_argument(
+        "--seed", type=int, default=None, help="随机种子（可选，用于复现）"
+    )
+    ext.add_argument("--dry-run", action="store_true", help="只打印，不输出 JSON")
 
     # verdict
-    vrd = sub.add_parser('verdict', help='根据核验结果输出准出/打回判决')
-    vrd.add_argument('--results', required=True, help='JSON 数组，含 fetched_value 等字段')
-    vrd.add_argument('--report', default='', help='报告名称（可选，用于显示）')
-    vrd.add_argument('--output-json', action='store_true', help='将判决结果以 JSON 输出到 stdout')
+    vrd = sub.add_parser("verdict", help="根据核验结果输出准出/打回判决")
+    vrd.add_argument(
+        "--results", required=True, help="JSON 数组，含 fetched_value 等字段"
+    )
+    vrd.add_argument("--report", default="", help="报告名称（可选，用于显示）")
+    vrd.add_argument(
+        "--output-json", action="store_true", help="将判决结果以 JSON 输出到 stdout"
+    )
 
     args = parser.parse_args()
 
-    if args.command == 'extract':
+    if args.command == "extract":
         if not os.path.exists(args.report):
             sys.exit(1)
 
-        with open(args.report, encoding='utf-8') as f:
+        with open(args.report, encoding="utf-8") as f:
             text = f.read()
 
         all_points = extract_data_points(text)
@@ -437,37 +481,39 @@ def main():
             # 输出可填写的 JSON 模板
             template = []
             for p in sampled:
-                template.append({
-                    'id': p['id'],
-                    'label': p['label'],
-                    'reported_value': p['reported_value'],
-                    'unit': p['unit'],
-                    'line_number': p['line_number'],
-                    'raw_text': p['raw_text'],
-                    'fetched_value': None,       # ← 填入主来源核验值
-                    'fetched_source': '',        # ← 填入主来源名称
-                    'fetched_value2': None,      # ← 填入副来源核验值（可选）
-                    'fetched_source2': '',       # ← 填入副来源名称（可选）
-                })
+                template.append(
+                    {
+                        "id": p["id"],
+                        "label": p["label"],
+                        "reported_value": p["reported_value"],
+                        "unit": p["unit"],
+                        "line_number": p["line_number"],
+                        "raw_text": p["raw_text"],
+                        "fetched_value": None,  # ← 填入主来源核验值
+                        "fetched_source": "",  # ← 填入主来源名称
+                        "fetched_value2": None,  # ← 填入副来源核验值（可选）
+                        "fetched_source2": "",  # ← 填入副来源名称（可选）
+                    }
+                )
 
-    elif args.command == 'verdict':
+    elif args.command == "verdict":
         try:
             results = json.loads(args.results)
         except json.JSONDecodeError:
             sys.exit(1)
 
-        report_name = args.report or ''
+        report_name = args.report or ""
         outcome = render_verdict(results, report_name=report_name)
 
         if args.output_json:
             pass
 
         # 非零退出码表示打回，方便 CI/脚本判断
-        sys.exit(0 if outcome['verdict'] == 'PASS' else 1)
+        sys.exit(0 if outcome["verdict"] == "PASS" else 1)
 
     else:
         parser.print_help()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

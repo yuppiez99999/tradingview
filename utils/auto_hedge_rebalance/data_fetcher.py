@@ -117,9 +117,14 @@ class HedgeToolDataFetcher:
             from utils.hedge_engine import get_live_futures_prices
 
             prices = get_live_futures_prices()
-            result = {k: prices.get(k, _FALLBACK_FUTURES_PRICES.get(k, 0.0)) for k in target_codes}
+            result = {
+                k: prices.get(k, _FALLBACK_FUTURES_PRICES.get(k, 0.0))
+                for k in target_codes
+            }
 
-            missing = [k for k in target_codes if k not in prices or prices.get(k, 0) <= 0]
+            missing = [
+                k for k in target_codes if k not in prices or prices.get(k, 0) <= 0
+            ]
             if missing:
                 self._add_flag(f"期货行情部分缺失: {','.join(missing)}，使用兜底价格")
         except Exception as exc:
@@ -413,7 +418,9 @@ class HedgeToolDataFetcher:
         etf_options = self.fetch_etf_options(etf_option_codes)
         reverse_etf = self.fetch_reverse_etf(reverse_etf_codes)
 
-        all_fallback = all("全链失效" in f or "全行情降级" in f for f in self._fallback_flags)
+        all_fallback = all(
+            "全链失效" in f or "全行情降级" in f for f in self._fallback_flags
+        )
         if all_fallback and not futures and not etf_options and not reverse_etf:
             self._add_flag("全行情降级")
 

@@ -32,7 +32,10 @@ from utils.alpha.llm.base import (
     CallRecord,
     ProviderFn,
 )
-from utils.alpha.llm.passthrough import passthrough_deep_to_legacy, passthrough_to_legacy
+from utils.alpha.llm.passthrough import (
+    passthrough_deep_to_legacy,
+    passthrough_to_legacy,
+)
 from utils.alpha.llm.providers import (
     call_deepseek,
     call_deepseek_reasoner,
@@ -123,7 +126,11 @@ class LLMRouter:
         注意: 使用 deepcopy 避免修改 ConfigManager 缓存的字典 (测试安全).
         """
         # 检查 OmniRoute Feature Flag (独立于 llm_router 的 flag)
-        use_omniroute = os.environ.get("USE_OMNIROUTE", "True").lower() in ("true", "1", "yes")
+        use_omniroute = os.environ.get("USE_OMNIROUTE", "True").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
 
         cfg = get_config("llm_router", default={})
         if not cfg:
@@ -144,7 +151,10 @@ class LLMRouter:
 
         # fallback 链
         self._fallback_chain = list(
-            self._settings.get("fallback_chain", ["deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"])
+            self._settings.get(
+                "fallback_chain",
+                ["deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"],
+            )
         )
         if use_omniroute and "omniroute" not in self._fallback_chain:
             self._fallback_chain.insert(0, "omniroute")
@@ -154,7 +164,9 @@ class LLMRouter:
         self._ollama_timeout = int(self._settings.get("ollama_timeout_seconds", 30))
 
         # 生成参数
-        self._default_temperature = float(self._settings.get("default_temperature", 0.3))
+        self._default_temperature = float(
+            self._settings.get("default_temperature", 0.3)
+        )
         self._default_max_tokens = int(self._settings.get("default_max_tokens", 2000))
 
         # 审计日志
@@ -172,8 +184,12 @@ class LLMRouter:
         self._silent_fallback = bool(self._settings.get("silent_fallback", True))
 
         # Feature Flag
-        self._feature_flag_name = self._settings.get("feature_flag_name", "USE_LLM_REPORT_ANALYZER")
-        self._passthrough_module = self._settings.get("passthrough_module", "llm_client")
+        self._feature_flag_name = self._settings.get(
+            "feature_flag_name", "USE_LLM_REPORT_ANALYZER"
+        )
+        self._passthrough_module = self._settings.get(
+            "passthrough_module", "llm_client"
+        )
         self._passthrough_function = self._settings.get("passthrough_function", "chat")
 
         logger.info(
@@ -249,7 +265,10 @@ class LLMRouter:
         # Feature Flag 透传 (HC-1)
         if not is_enabled(self._feature_flag_name):
             return passthrough_to_legacy(
-                prompt, system, temperature, max_tokens,
+                prompt,
+                system,
+                temperature,
+                max_tokens,
                 passthrough_module=self._passthrough_module,
                 passthrough_function=self._passthrough_function,
             )
@@ -283,7 +302,8 @@ class LLMRouter:
         if not is_enabled(self._feature_flag_name):
             # 透传: 尝试旧 llm_client.chat_deep
             return passthrough_deep_to_legacy(
-                prompt, system,
+                prompt,
+                system,
                 passthrough_module=self._passthrough_module,
                 passthrough_function=self._passthrough_function,
             )
@@ -341,7 +361,16 @@ class LLMRouter:
                         result = fn("ping", "", 0.1, 10, self._default_timeout)
                         if result is not None:
                             available = name
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):  # P2 模块 fail-safe, 待后续精确化
                     pass
 
         return {
@@ -363,7 +392,9 @@ class LLMRouter:
                     "display_name": cfg.get("name", name),
                     "enabled": cfg.get("enabled", True),
                     "api_key_configured": has_key,
-                    "timeout_seconds": cfg.get("timeout_seconds", self._default_timeout),
+                    "timeout_seconds": cfg.get(
+                        "timeout_seconds", self._default_timeout
+                    ),
                     "in_fallback_chain": name in self._fallback_chain,
                 }
             )
@@ -427,28 +458,36 @@ class LLMRouter:
                         latency_ms,
                     )
                     return result
-                else:
-                    # 返回 None (软失败)
-                    write_audit_log(
-                        CallRecord(
-                            timestamp=datetime.utcnow().isoformat() + "Z",
-                            prompt=prompt,
-                            system=system,
-                            provider=name,
-                            success=False,
-                            latency_ms=latency_ms,
-                            error_type="SoftFailure",
-                            error_message="Provider returned None",
-                        ),
-                        audit_log_dir=self._audit_log_dir,
-                        enabled=self._audit_log_enabled,
-                    )
-                    logger.warning(
-                        "LLMRouter provider 软失败: %s (latency=%.0fms)",
-                        name,
-                        latency_ms,
-                    )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+                # 返回 None (软失败)
+                write_audit_log(
+                    CallRecord(
+                        timestamp=datetime.utcnow().isoformat() + "Z",
+                        prompt=prompt,
+                        system=system,
+                        provider=name,
+                        success=False,
+                        latency_ms=latency_ms,
+                        error_type="SoftFailure",
+                        error_message="Provider returned None",
+                    ),
+                    audit_log_dir=self._audit_log_dir,
+                    enabled=self._audit_log_enabled,
+                )
+                logger.warning(
+                    "LLMRouter provider 软失败: %s (latency=%.0fms)",
+                    name,
+                    latency_ms,
+                )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 latency_ms = (time.perf_counter() - start_ts) * 1000.0
                 last_error = e
                 write_audit_log(
@@ -481,12 +520,11 @@ class LLMRouter:
                 tried_providers,
             )
             return None
-        else:
-            raise AllProvidersFailedError(
-                f"所有 provider 失败: tried={tried_providers}, last_error={last_error}",
-                tried_providers=tried_providers,
-                last_error=last_error,
-            )
+        raise AllProvidersFailedError(
+            f"所有 provider 失败: tried={tried_providers}, last_error={last_error}",
+            tried_providers=tried_providers,
+            last_error=last_error,
+        )
 
     # ============================================================
     # Provider 薄代理方法 (委托到 providers/, 保持测试兼容)
@@ -516,7 +554,12 @@ class LLMRouter:
         """代理: DeepSeek V3 (deepseek-chat) — 主 LLM."""
         cfg = self._providers_config.get("deepseek", {})
         return call_deepseek(
-            prompt, system, temperature, max_tokens, timeout, cfg,
+            prompt,
+            system,
+            temperature,
+            max_tokens,
+            timeout,
+            cfg,
             max_retries=self._max_retries,
             retry_delay=self._retry_delay,
         )
@@ -543,7 +586,12 @@ class LLMRouter:
         """代理: 豆包 Speed (火山引擎 Ark) — OpenAI 兼容接口."""
         cfg = self._providers_config.get("doubao", {})
         return call_doubao(
-            prompt, system, temperature, max_tokens, timeout, cfg,
+            prompt,
+            system,
+            temperature,
+            max_tokens,
+            timeout,
+            cfg,
             max_retries=self._max_retries,
             retry_delay=self._retry_delay,
         )
@@ -559,7 +607,12 @@ class LLMRouter:
         """代理: 智谱 GLM-5 — OpenAI 兼容接口."""
         cfg = self._providers_config.get("glm", {})
         return call_glm(
-            prompt, system, temperature, max_tokens, timeout, cfg,
+            prompt,
+            system,
+            temperature,
+            max_tokens,
+            timeout,
+            cfg,
             max_retries=self._max_retries,
             retry_delay=self._retry_delay,
         )
@@ -575,7 +628,12 @@ class LLMRouter:
         """代理: SiliconFlow — OpenAI 兼容接口."""
         cfg = self._providers_config.get("siliconflow", {})
         return call_siliconflow(
-            prompt, system, temperature, max_tokens, timeout, cfg,
+            prompt,
+            system,
+            temperature,
+            max_tokens,
+            timeout,
+            cfg,
             max_retries=self._max_retries,
             retry_delay=self._retry_delay,
         )
@@ -594,7 +652,12 @@ class LLMRouter:
         """
         cfg = self._providers_config.get("ds4", {})
         return call_ds4(
-            prompt, system, temperature, max_tokens, timeout, cfg,
+            prompt,
+            system,
+            temperature,
+            max_tokens,
+            timeout,
+            cfg,
             max_retries=self._max_retries,
             retry_delay=self._retry_delay,
         )
@@ -610,7 +673,12 @@ class LLMRouter:
         """代理: Ollama 本地 — OpenAI 兼容接口."""
         cfg = self._providers_config.get("ollama", {})
         return call_ollama(
-            prompt, system, temperature, max_tokens, timeout, cfg,
+            prompt,
+            system,
+            temperature,
+            max_tokens,
+            timeout,
+            cfg,
             max_retries=self._max_retries,
             retry_delay=self._retry_delay,
         )
@@ -625,7 +693,11 @@ class LLMRouter:
         """代理: Ollama 深度推理模型 (deepseek-r1:14b)."""
         cfg = self._providers_config.get("ollama", {})
         return call_ollama_deep(
-            prompt, system, temperature, max_tokens, cfg,
+            prompt,
+            system,
+            temperature,
+            max_tokens,
+            cfg,
             ollama_timeout=self._ollama_timeout,
         )
 

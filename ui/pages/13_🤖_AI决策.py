@@ -33,7 +33,7 @@ with st.sidebar:
         "AI模型",
         ["glm-4-plus", "glm-4-flash", "glm-4"],
         index=0,
-        help="glm-4-plus: 稳定强大(推荐) | glm-4-flash: 快速低成本"
+        help="glm-4-plus: 稳定强大(推荐) | glm-4-flash: 快速低成本",
     )
 
     check_interval = st.slider(
@@ -42,7 +42,7 @@ with st.sidebar:
         max_value=3600,
         value=300,
         step=60,
-        help="盘中决策检查的时间间隔"
+        help="盘中决策检查的时间间隔",
     )
 
     min_confidence = st.slider(
@@ -51,7 +51,7 @@ with st.sidebar:
         max_value=1.0,
         value=0.6,
         step=0.1,
-        help="只显示置信度高于此值的交易信号"
+        help="只显示置信度高于此值的交易信号",
     )
 
     enable_notifications = st.checkbox("启用风险预警通知", value=True)
@@ -77,20 +77,20 @@ col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
     if st.button("📊 生成决策", type="primary", use_container_width=True):
-        st.session_state['generate_decision'] = True
+        st.session_state["generate_decision"] = True
 
 with col2:
     if st.button("🔄 刷新持仓", use_container_width=True):
-        st.session_state['refresh_positions'] = True
+        st.session_state["refresh_positions"] = True
 
 with col3:
     if st.button("📋 查看历史报告", use_container_width=True):
-        st.session_state['view_reports'] = True
+        st.session_state["view_reports"] = True
 
 st.markdown("---")
 
 # 生成决策
-if st.session_state.get('generate_decision'):
+if st.session_state.get("generate_decision"):
     try:
         from utils.intraday_decision import IntradayDecisionMonitor
 
@@ -130,35 +130,53 @@ if st.session_state.get('generate_decision'):
         if decision.trading_signals:
             # 过滤低置信度信号
             filtered_signals = [
-                sig for sig in decision.trading_signals
+                sig
+                for sig in decision.trading_signals
                 if sig.confidence >= min_confidence
             ]
 
             if filtered_signals:
                 signal_data = []
                 for sig in filtered_signals:
-                    action_map = {'BUY': '买入', 'SELL': '卖出', 'HOLD': '持有', 'REDUCE': '减仓'}
+                    action_map = {
+                        "BUY": "买入",
+                        "SELL": "卖出",
+                        "HOLD": "持有",
+                        "REDUCE": "减仓",
+                    }
                     action_cn = action_map.get(sig.action, sig.action)
 
-                    color = {'BUY': 'green', 'SELL': 'red', 'HOLD': 'blue', 'REDUCE': 'orange'}.get(sig.action, 'gray')
+                    color = {
+                        "BUY": "green",
+                        "SELL": "red",
+                        "HOLD": "blue",
+                        "REDUCE": "orange",
+                    }.get(sig.action, "gray")
 
-                    signal_data.append({
-                        '代码': sig.code,
-                        '名称': sig.name,
-                        '动作': action_cn,
-                        '当前仓位': f"{sig.current_weight:.2%}",
-                        '目标仓位': f"{sig.target_weight:.2%}",
-                        '数量': sig.quantity,
-                        '置信度': f"{sig.confidence:.2f}",
-                        '紧急程度': sig.urgency,
-                    })
+                    signal_data.append(
+                        {
+                            "代码": sig.code,
+                            "名称": sig.name,
+                            "动作": action_cn,
+                            "当前仓位": f"{sig.current_weight:.2%}",
+                            "目标仓位": f"{sig.target_weight:.2%}",
+                            "数量": sig.quantity,
+                            "置信度": f"{sig.confidence:.2f}",
+                            "紧急程度": sig.urgency,
+                        }
+                    )
 
                 st.dataframe(signal_data, use_container_width=True)
 
                 # 显示详细理由
                 with st.expander("查看决策理由"):
                     for sig in filtered_signals:
-                        action_map = {'BUY': '买入', 'SELL': '卖出', 'HOLD': '持有', 'REDUCE': '减仓'}
+                        action_map = {
+                            "BUY": "买入",
+                            "SELL": "卖出",
+                            "HOLD": "持有",
+                            "REDUCE": "减仓",
+                        }
                         action_cn = action_map.get(sig.action, sig.action)
                         st.markdown(f"**{action_cn} {sig.code} {sig.name}**")
                         st.markdown(f"- 理由: {sig.reason}")
@@ -209,7 +227,7 @@ if st.session_state.get('generate_decision'):
 
             # 提供下载链接
             try:
-                with open(report_path, encoding='utf-8') as f:
+                with open(report_path, encoding="utf-8") as f:
                     report_content = f.read()
 
                 st.download_button(
@@ -223,42 +241,49 @@ if st.session_state.get('generate_decision'):
 
     except ImportError:
         st.error("❌ GLM5决策模块未安装")
-        st.code("pip install zhipuai", language='bash')
+        st.code("pip install zhipuai", language="bash")
     except Exception as e:
         st.error(f"❌ 执行失败: {e}")
         st.exception(e)
 
 # 刷新持仓
-elif st.session_state.get('refresh_positions'):
+elif st.session_state.get("refresh_positions"):
     try:
         import json
-        positions_path = Path(__file__).parent.parent / 'config' / 'positions.json'
+
+        positions_path = Path(__file__).parent.parent / "config" / "positions.json"
 
         if positions_path.exists():
-            with open(positions_path, encoding='utf-8') as f:
+            with open(positions_path, encoding="utf-8") as f:
                 data = json.load(f)
 
-            positions = data.get('positions', {})
-            cash = data.get('cash', 0)
+            positions = data.get("positions", {})
+            cash = data.get("cash", 0)
 
-            st.success(f"✅ 持仓数据已刷新 - {len(positions)} 只持仓, 现金: {cash:,.0f}元")
+            st.success(
+                f"✅ 持仓数据已刷新 - {len(positions)} 只持仓, 现金: {cash:,.0f}元"
+            )
 
             # 显示持仓概览
             st.subheader("📊 持仓概览")
 
-            active_positions = {k: v for k, v in positions.items() if v.get('shares', 0) > 0}
+            active_positions = {
+                k: v for k, v in positions.items() if v.get("shares", 0) > 0
+            }
 
             if active_positions:
                 holding_data = []
                 for code, pos in active_positions.items():
-                    holding_data.append({
-                        '代码': code,
-                        '名称': pos.get('name', code),
-                        '股数': pos.get('shares', 0),
-                        '成本价': pos.get('avg_cost', 0),
-                        '目标权重': f"{pos.get('target_weight', 0):.1%}",
-                        '类别': pos.get('category', 'unknown'),
-                    })
+                    holding_data.append(
+                        {
+                            "代码": code,
+                            "名称": pos.get("name", code),
+                            "股数": pos.get("shares", 0),
+                            "成本价": pos.get("avg_cost", 0),
+                            "目标权重": f"{pos.get('target_weight', 0):.1%}",
+                            "类别": pos.get("category", "unknown"),
+                        }
+                    )
 
                 st.dataframe(holding_data, use_container_width=True)
             else:
@@ -270,11 +295,11 @@ elif st.session_state.get('refresh_positions'):
         st.error(f"❌ 刷新持仓失败: {e}")
 
 # 查看历史报告
-elif st.session_state.get('view_reports'):
+elif st.session_state.get("view_reports"):
     st.subheader("📋 历史决策报告")
 
     try:
-        reports_dir = Path(__file__).parent.parent / 'reports'
+        reports_dir = Path(__file__).parent.parent / "reports"
 
         if not reports_dir.exists():
             st.info("暂无历史报告")
@@ -285,12 +310,14 @@ elif st.session_state.get('view_reports'):
         for date_dir in sorted(reports_dir.iterdir(), reverse=True):
             if date_dir.is_dir():
                 for report_file in date_dir.glob("盘中决策_*.md"):
-                    report_files.append({
-                        'path': report_file,
-                        'date': date_dir.name,
-                        'name': report_file.name,
-                        'size': report_file.stat().st_size,
-                    })
+                    report_files.append(
+                        {
+                            "path": report_file,
+                            "date": date_dir.name,
+                            "name": report_file.name,
+                            "size": report_file.stat().st_size,
+                        }
+                    )
 
         if not report_files:
             st.info("暂无历史决策报告")
@@ -308,7 +335,7 @@ elif st.session_state.get('view_reports'):
             with col2:
                 if st.button("查看", key=f"view_{i}"):
                     try:
-                        with open(report['path'], encoding='utf-8') as f:
+                        with open(report["path"], encoding="utf-8") as f:
                             content = f.read()
                         st.markdown(content)
                     except Exception as e:
@@ -356,19 +383,20 @@ else:
     with col1:
         try:
             import zhipuai
+
             st.metric("SDK状态", "✅ 已安装", f"zhipuai {zhipuai.__version__}")
         except ImportError:
             st.metric("SDK状态", "❌ 未安装", "pip install zhipuai")
 
     with col2:
-        env_path = Path(__file__).parent.parent / '.env'
+        env_path = Path(__file__).parent.parent / ".env"
         if env_path.exists():
             st.metric("环境配置", "✅ .env存在")
         else:
             st.metric("环境配置", "❌ .env缺失")
 
     with col3:
-        positions_path = Path(__file__).parent.parent / 'config' / 'positions.json'
+        positions_path = Path(__file__).parent.parent / "config" / "positions.json"
         if positions_path.exists():
             st.metric("持仓文件", "✅ 存在")
         else:

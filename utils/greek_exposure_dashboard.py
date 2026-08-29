@@ -67,14 +67,27 @@ def load_positions(path: str | Path = DEFAULT_POSITIONS_PATH):
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # P2 模块 fail-safe, 待后续精确化
         return {}, {}
 
     positions = {}
     prices = {}
     for item in data.get("positions", {}).values():
         code = item.get("code")
-        qty = item.get("phase1_shares") or item.get("total_shares") or item.get("shares", 0)
+        qty = (
+            item.get("phase1_shares")
+            or item.get("total_shares")
+            or item.get("shares", 0)
+        )
         price = item.get("est_price", 0.0)
         if code and qty:
             positions[code] = {
@@ -112,7 +125,9 @@ def _signal_level(value: float, target: float, tolerance: float = 0.05) -> str:
     return "CRITICAL"
 
 
-def _build_recommendations(exposure: Any, signals: dict[str, bool], levels: dict[str, str]) -> list[str]:
+def _build_recommendations(
+    exposure: Any, signals: dict[str, bool], levels: dict[str, str]
+) -> list[str]:
     """基于 Greeks 暴露生成行动建议"""
     recs: list[str] = []
 
@@ -131,10 +146,14 @@ def _build_recommendations(exposure: Any, signals: dict[str, bool], levels: dict
             )
 
     if levels.get("gamma") in ("WARN", "CRITICAL") and signals.get("gamma_rebalance"):
-        recs.append(f"Gamma 再平衡: 当前 Gamma {exposure.gamma:,.2f}, 建议调整期权头寸以平抑二阶导风险")
+        recs.append(
+            f"Gamma 再平衡: 当前 Gamma {exposure.gamma:,.2f}, 建议调整期权头寸以平抑二阶导风险"
+        )
 
     if levels.get("vega") in ("WARN", "CRITICAL") and signals.get("vega_rebalance"):
-        recs.append(f"Vega 再平衡: 当前 Vega {exposure.vega:,.2f}, 建议买入/卖出跨式期权降低波动率敞口")
+        recs.append(
+            f"Vega 再平衡: 当前 Vega {exposure.vega:,.2f}, 建议买入/卖出跨式期权降低波动率敞口"
+        )
 
     if levels.get("theta") in ("WARN", "CRITICAL") and signals.get("theta_rebalance"):
         recs.append(
@@ -214,12 +233,16 @@ def compute_dashboard(
     dashboard.signal_levels = {
         "delta": _signal_level(exposure.delta, target_delta, tolerance),
         "gamma": _signal_level(exposure.gamma, target_gamma, tolerance),
-        "vega": "OK"
-        if abs(exposure.vega) <= max_vega
-        else ("WARN" if abs(exposure.vega) <= 1.5 * max_vega else "CRITICAL"),
-        "theta": "OK"
-        if exposure.theta >= max_theta_burn
-        else ("WARN" if exposure.theta >= 1.5 * max_theta_burn else "CRITICAL"),
+        "vega": (
+            "OK"
+            if abs(exposure.vega) <= max_vega
+            else ("WARN" if abs(exposure.vega) <= 1.5 * max_vega else "CRITICAL")
+        ),
+        "theta": (
+            "OK"
+            if exposure.theta >= max_theta_burn
+            else ("WARN" if exposure.theta >= 1.5 * max_theta_burn else "CRITICAL")
+        ),
     }
 
     # 每标的 Greeks 贡献 (Top 10)
@@ -250,7 +273,9 @@ def compute_dashboard(
     dashboard.per_position = per_position[:10]
 
     # 行动建议
-    dashboard.recommendations = _build_recommendations(exposure, signals, dashboard.signal_levels)
+    dashboard.recommendations = _build_recommendations(
+        exposure, signals, dashboard.signal_levels
+    )
 
     return dashboard
 
@@ -290,10 +315,18 @@ def print_dashboard(positions_path: str | Path = DEFAULT_POSITIONS_PATH) -> None
     snap = dashboard.snapshot
     targets = dashboard.targets
     logger.info("\n[当前 Greeks 暴露]")
-    logger.info(f"  Delta: {snap.delta:>15,.2f}  (目标: {targets.get('target_delta', 0):,.2f})")
-    logger.info(f"  Gamma: {snap.gamma:>15,.2f}  (目标: {targets.get('target_gamma', 0):,.2f})")
-    logger.info(f"  Theta: {snap.theta:>15,.2f}  (下限: {targets.get('max_theta_burn', 0):,.2f})")
-    logger.info(f"  Vega:  {snap.vega:>15,.2f}  (上限: {targets.get('max_vega', 0):,.2f})")
+    logger.info(
+        f"  Delta: {snap.delta:>15,.2f}  (目标: {targets.get('target_delta', 0):,.2f})"
+    )
+    logger.info(
+        f"  Gamma: {snap.gamma:>15,.2f}  (目标: {targets.get('target_gamma', 0):,.2f})"
+    )
+    logger.info(
+        f"  Theta: {snap.theta:>15,.2f}  (下限: {targets.get('max_theta_burn', 0):,.2f})"
+    )
+    logger.info(
+        f"  Vega:  {snap.vega:>15,.2f}  (上限: {targets.get('max_vega', 0):,.2f})"
+    )
     logger.info(f"  Rho:   {snap.rho:>15,.2f}")
 
     logger.info("\n[再平衡信号强度]")
@@ -303,13 +336,19 @@ def print_dashboard(positions_path: str | Path = DEFAULT_POSITIONS_PATH) -> None
         level = levels.get(greek, "OK")
         signal = signals.get(f"{greek}_rebalance", False)
         icon = {"OK": "✅", "WARN": "⚠️ ", "CRITICAL": "🚨"}.get(level, "?")
-        logger.info(f"  {icon} {greek.upper():<6} {level:<10} 再平衡: {'需要' if signal else '正常'}")
+        logger.info(
+            f"  {icon} {greek.upper():<6} {level:<10} 再平衡: {'需要' if signal else '正常'}"
+        )
     overall = signals.get("need_rebalance", False)
-    logger.info(f"  {'🚨' if overall else '✅'} 综合   {'需要再平衡' if overall else '正常'}")
+    logger.info(
+        f"  {'🚨' if overall else '✅'} 综合   {'需要再平衡' if overall else '正常'}"
+    )
 
     if dashboard.per_position:
         logger.info("\n[Top 10 标的 Delta 贡献]")
-        logger.info(f"  {'代码':<12} {'名称':<12} {'名义价值':>14} {'Delta':>14} {'Gamma':>10} {'Theta':>10} {'Vega':>10}")
+        logger.info(
+            f"  {'代码':<12} {'名称':<12} {'名义价值':>14} {'Delta':>14} {'Gamma':>10} {'Theta':>10} {'Vega':>10}"
+        )
         for p in dashboard.per_position:
             logger.info(
                 f"  {p['code']:<12} {p['name'][:10]:<12} "

@@ -160,7 +160,9 @@ class FREDApi:
             # P1-T1: FRED 缺失值为 ".", float() 会抛异常吞掉整条数据
             value = _parse_api_float(latest.get("value"))
             if value is None:
-                logger.warning(f"FRED {series_id} 最新观测值无效: {latest.get('value')!r}")
+                logger.warning(
+                    f"FRED {series_id} 最新观测值无效: {latest.get('value')!r}"
+                )
                 return None
             date = latest.get("date", "")
 
@@ -180,7 +182,16 @@ class FREDApi:
                 change=change,
             )
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"FRED 获取 {series_id} 失败: {e}")
             return None
 
@@ -243,7 +254,9 @@ class EcondbApi:
             # P1-T1: 缺失值 None/"N/A" 此前 float() 抛异常吞掉整条数据
             value = _parse_api_float(latest.get("value"))
             if value is None:
-                logger.warning(f"Econdb {ticker} 最新观测值无效: {latest.get('value')!r}")
+                logger.warning(
+                    f"Econdb {ticker} 最新观测值无效: {latest.get('value')!r}"
+                )
                 return None
             date = latest.get("date", "")
 
@@ -255,7 +268,16 @@ class EcondbApi:
                 source="Econdb",
             )
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Econdb 获取 {ticker} 失败: {e}")
             return None
 
@@ -317,7 +339,16 @@ class FedTreasuryApi:
 
             return yields
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Fed Treasury 获取国债收益率失败: {e}")
             return {}
 
@@ -372,7 +403,16 @@ class AlphaVantageApi:
                 "source": "alpha_vantage",
             }
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Alpha Vantage 获取 {symbol} 失败: {e}")
             return None
 
@@ -412,7 +452,9 @@ class FinnhubApi:
 
             current = float(data.get("c", 0))
             prev_close = float(data.get("pc", 0))
-            change_pct = ((current - prev_close) / prev_close * 100) if prev_close > 0 else 0
+            change_pct = (
+                ((current - prev_close) / prev_close * 100) if prev_close > 0 else 0
+            )
 
             return {
                 "symbol": symbol,
@@ -425,7 +467,16 @@ class FinnhubApi:
                 "source": "finnhub",
             }
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Finnhub 获取 {symbol} 失败: {e}")
             return None
 
@@ -455,13 +506,24 @@ class FinnhubApi:
                     "summary": n.get("summary", ""),
                     "source": n.get("source", ""),
                     "url": n.get("url", ""),
-                    "datetime": datetime.fromtimestamp(n.get("datetime", 0)).isoformat(),
+                    "datetime": datetime.fromtimestamp(
+                        n.get("datetime", 0)
+                    ).isoformat(),
                     "category": category,
                 }
                 for n in news[:10]  # 最多10条
             ]
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"Finnhub 获取新闻失败: {e}")
             return []
 
@@ -479,7 +541,9 @@ class CoinGeckoApi:
     def __init__(self):
         self.available = True
 
-    def get_price(self, coin_id: str = "bitcoin", vs_currency: str = "usd") -> Optional[dict]:
+    def get_price(
+        self, coin_id: str = "bitcoin", vs_currency: str = "usd"
+    ) -> Optional[dict]:
         """获取加密货币价格
 
         Args:
@@ -511,7 +575,16 @@ class CoinGeckoApi:
                 "source": "coingecko",
             }
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"CoinGecko 获取 {coin_id} 失败: {e}")
             return None
 
@@ -528,11 +601,22 @@ class CoinGeckoApi:
                 "total_market_cap": data.get("total_market_cap", {}).get("usd", 0),
                 "total_volume": data.get("total_volume", {}).get("usd", 0),
                 "market_cap_percentage": data.get("market_cap_percentage", {}),
-                "market_cap_change_24h_pct": data.get("market_cap_change_percentage_24h_usd", 0),
+                "market_cap_change_24h_pct": data.get(
+                    "market_cap_change_percentage_24h_usd", 0
+                ),
                 "source": "coingecko",
             }
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"CoinGecko 全球市场数据获取失败: {e}")
             return None
 
@@ -600,7 +684,16 @@ class ExternalDataManager:
                 from utils.concurrency import atomic_write_text
 
                 atomic_write_text(cache_file, payload)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # 缓存失败不阻断主流程
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # 缓存失败不阻断主流程
             logger.warning(f"缓存保存失败: {e}")
 
     def get_macro_snapshot(self) -> dict[str, Any]:
@@ -760,6 +853,8 @@ if __name__ == "__main__":
     logger.info("\n--- 加密货币价格 ---")
     btc = manager.get_crypto_price("bitcoin")
     if btc:
-        logger.info(f"  BTC: ${btc.get('price', 0):,.2f} ({btc.get('change_24h_pct', 0):.2f}%)")
+        logger.info(
+            f"  BTC: ${btc.get('price', 0):,.2f} ({btc.get('change_24h_pct', 0):.2f}%)"
+        )
 
     logger.info("\n✅ 自检完成")

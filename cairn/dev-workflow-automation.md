@@ -168,3 +168,14 @@ Windows PowerShell 不支持 `ls -la` (Linux 语法),需用 `Get-ChildItem` 或 
 
 ### contains/claude-hooks-stdin-format
 Claude Code PreToolUse/PostToolUse hook 的 stdin JSON 格式为 `{"tool_name":"Edit","tool_input":{"file_path":"..."}}`。`file_path` 字段名可能因工具不同而异 (Edit/Write 用 `file_path`,部分工具用 `path`),hook 脚本应同时检查两个字段。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [ai_decision 全链路集成计划 — C 轨](ai-decision-integration.md) (相似度 19%)
+- [Agent-Skills 集成与适配（2026-08-24）](agent-skills-integration.md) (相似度 10%)
+- [第三方项目集成专题 — 2026-08-21](third-party-integration-20260821.md) (相似度 6%)
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 6%)
+- [CI 修复与门禁落地经验（R1/R2/R4 · 2026-08-12）](ci-repair-and-gate-lessons-20260812.md) (相似度 5%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

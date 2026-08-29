@@ -47,7 +47,10 @@ class DrawdownController:
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     def check_drawdown(
-        self, peak_value: float, current_value: float, high_water_mark: float | None = None
+        self,
+        peak_value: float,
+        current_value: float,
+        high_water_mark: float | None = None,
     ) -> dict[str, Any]:
         """计算当前回撤级别
 
@@ -80,9 +83,12 @@ class DrawdownController:
             logger.critical(
                 "ref_peak <= 0 (peak=%s, high_water_mark=%s), 数据异常, "
                 "fail-closed 返回 Level 4 极限防御",
-                peak_value, high_water_mark,
+                peak_value,
+                high_water_mark,
             )
-            return self._build_result(peak_value, current_value, 0, 0, "极限防御", level=4)
+            return self._build_result(
+                peak_value, current_value, 0, 0, "极限防御", level=4
+            )
 
         drawdown_amount = current_value - ref_peak
         drawdown_pct = drawdown_amount / ref_peak if ref_peak > 0 else 0
@@ -91,18 +97,53 @@ class DrawdownController:
         dd_abs = abs(min(drawdown_pct, 0))
 
         if dd_abs >= self.LEVEL_4_THRESHOLD:
-            return self._build_result(ref_peak, current_value, drawdown_amount, drawdown_pct, "极限防御", level=4)
-        elif dd_abs >= self.LEVEL_3_THRESHOLD:
-            return self._build_result(ref_peak, current_value, drawdown_amount, drawdown_pct, "二级防御", level=3)
-        elif dd_abs >= self.LEVEL_2_THRESHOLD:
-            return self._build_result(ref_peak, current_value, drawdown_amount, drawdown_pct, "一级防御", level=2)
-        elif dd_abs >= self.LEVEL_1_THRESHOLD:
-            return self._build_result(ref_peak, current_value, drawdown_amount, drawdown_pct, "预警审查", level=1)
-        else:
-            return self._build_result(ref_peak, current_value, drawdown_amount, drawdown_pct, "正常", level=0)
+            return self._build_result(
+                ref_peak,
+                current_value,
+                drawdown_amount,
+                drawdown_pct,
+                "极限防御",
+                level=4,
+            )
+        if dd_abs >= self.LEVEL_3_THRESHOLD:
+            return self._build_result(
+                ref_peak,
+                current_value,
+                drawdown_amount,
+                drawdown_pct,
+                "二级防御",
+                level=3,
+            )
+        if dd_abs >= self.LEVEL_2_THRESHOLD:
+            return self._build_result(
+                ref_peak,
+                current_value,
+                drawdown_amount,
+                drawdown_pct,
+                "一级防御",
+                level=2,
+            )
+        if dd_abs >= self.LEVEL_1_THRESHOLD:
+            return self._build_result(
+                ref_peak,
+                current_value,
+                drawdown_amount,
+                drawdown_pct,
+                "预警审查",
+                level=1,
+            )
+        return self._build_result(
+            ref_peak, current_value, drawdown_amount, drawdown_pct, "正常", level=0
+        )
 
     def _build_result(
-        self, peak: float, current: float, dd_amount: float, dd_pct: float, level_name: str, level: int = 0
+        self,
+        peak: float,
+        current: float,
+        dd_amount: float,
+        dd_pct: float,
+        level_name: str,
+        level: int = 0,
     ) -> dict[str, Any]:
         """构建回撤检测结果"""
         actions: list[str] = []
@@ -192,7 +233,16 @@ class DrawdownController:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"写入回撤日志失败: {e}")
 
     def execute_response(self, level: int) -> dict[str, Any]:
@@ -232,8 +282,15 @@ class DrawdownController:
                         "priority": "max_loss_first",
                         "status": "pending_execute",
                     },
-                    {"action": "increase_hedge_ratio", "to": 0.60, "status": "pending_execute"},
-                    {"action": "pause_covered_call_selling", "status": "pending_execute"},
+                    {
+                        "action": "increase_hedge_ratio",
+                        "to": 0.60,
+                        "status": "pending_execute",
+                    },
+                    {
+                        "action": "pause_covered_call_selling",
+                        "status": "pending_execute",
+                    },
                     {
                         "action": "increase_tail_put_budget",
                         "from_pct": 0.0025,
@@ -246,20 +303,48 @@ class DrawdownController:
         elif level == 3:
             actions_taken.extend(
                 [
-                    {"action": "reduce_stock_position", "pct": 0.40, "cumulative": True, "status": "pending_execute"},
-                    {"action": "increase_hedge_ratio", "to": 0.80, "status": "pending_execute"},
+                    {
+                        "action": "reduce_stock_position",
+                        "pct": 0.40,
+                        "cumulative": True,
+                        "status": "pending_execute",
+                    },
+                    {
+                        "action": "increase_hedge_ratio",
+                        "to": 0.80,
+                        "status": "pending_execute",
+                    },
                     {"action": "halve_quant_neutral", "status": "pending_execute"},
-                    {"action": "close_all_covered_calls_keep_puts", "status": "pending_execute"},
-                    {"action": "trigger_strategy_pause_assessment", "status": "pending_execute"},
+                    {
+                        "action": "close_all_covered_calls_keep_puts",
+                        "status": "pending_execute",
+                    },
+                    {
+                        "action": "trigger_strategy_pause_assessment",
+                        "status": "pending_execute",
+                    },
                 ]
             )
         elif level == 4:
             actions_taken.extend(
                 [
-                    {"action": "reduce_stock_position", "pct": 0.60, "cumulative": True, "status": "pending_execute"},
+                    {
+                        "action": "reduce_stock_position",
+                        "pct": 0.60,
+                        "cumulative": True,
+                        "status": "pending_execute",
+                    },
                     {"action": "close_all_quant_neutral", "status": "pending_execute"},
-                    {"action": "move_to_cash", "target_pct": 0.60, "status": "pending_execute"},
-                    {"action": "move_to_short_term_bond", "target_pct": 0.40, "status": "pending_execute"},
+                    {
+                        "action": "move_to_cash",
+                        "target_pct": 0.60,
+                        "status": "pending_execute",
+                    },
+                    {
+                        "action": "move_to_short_term_bond",
+                        "target_pct": 0.40,
+                        "status": "pending_execute",
+                    },
                     {"action": "launch_exit_assessment", "status": "pending_execute"},
                 ]
             )
@@ -293,9 +378,27 @@ class DrawdownController:
                             dt = datetime.fromisoformat(ts)
                             if dt.timestamp() >= cutoff:
                                 records.append(record)
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        AttributeError,
+                        RuntimeError,
+                        OSError,
+                        TimeoutError,
+                        ConnectionError,
+                    ):  # P2 模块 fail-safe, 待后续精确化
                         continue
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
         return records
@@ -312,7 +415,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="组合回撤四级响应控制器")
     parser.add_argument("--peak", type=float, default=5_000_000, help="历史峰值")
     parser.add_argument("--current", type=float, required=True, help="当前净值")
-    parser.add_argument("--execute", type=int, choices=[1, 2, 3, 4], help="执行响应动作")
+    parser.add_argument(
+        "--execute", type=int, choices=[1, 2, 3, 4], help="执行响应动作"
+    )
     parser.add_argument("--history", type=int, default=30, help="查看历史(天)")
     args = parser.parse_args()
 

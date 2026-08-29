@@ -55,7 +55,11 @@ except ImportError:  # pragma: no cover
 # 原有模块 (v7.5 — 严禁删除, V9 基线依赖)
 # ============================================================
 # 原有模块
-from .etf_flow_monitor import ETFRealTimeTracker, get_etf_flow_summary, refresh_etf_flow_signals
+from .etf_flow_monitor import (
+    ETFRealTimeTracker,
+    get_etf_flow_summary,
+    refresh_etf_flow_signals,
+)
 from .wt_backtest_engine import (
     BacktestDataLoader,
     BacktestEngine,
@@ -68,7 +72,12 @@ from .wt_contracts_manager import (
     ContractsManager,
     get_contracts_manager,
 )
-from .wt_execution_algo import MinImpactExecutor, TWAPExecutor, VWAPExecutor, execute_order_with_algorithm
+from .wt_execution_algo import (
+    MinImpactExecutor,
+    TWAPExecutor,
+    VWAPExecutor,
+    execute_order_with_algorithm,
+)
 from .wt_hedge_strategy import (
     BetaHedgeStrategy,
     DynamicHedgeStrategy,

@@ -151,7 +151,9 @@ def get_latest_ic() -> float:
 if __name__ == "__main__":
     # 自检: 用 dummy 数据验证管道
     logger.info("=== ic_recorder 自检 ===")
-    dummy_signals = [{"predicted_return": 0.01 * i, "actual_return": 0.012 * i} for i in range(15)]
+    dummy_signals = [
+        {"predicted_return": 0.01 * i, "actual_return": 0.012 * i} for i in range(15)
+    ]
     ic = compute_ic_from_signals(dummy_signals, min_samples=10)
     assert ic is not None and 0.0 <= ic <= 1.0, f"IC 计算异常: {ic}"
     logger.info(f"  compute_ic_from_signals: IC={ic:.4f} ✓")
@@ -160,7 +162,9 @@ if __name__ == "__main__":
     store = load_ic_store()
     assert store["latest_ic"] == ic
     assert any(h["source"] == "self_test" for h in store["history"])
-    logger.debug(f"  record/load: latest_ic={store['latest_ic']:.4f}, history_len={len(store['history'])} ✓")
+    logger.debug(
+        f"  record/load: latest_ic={store['latest_ic']:.4f}, history_len={len(store['history'])} ✓"
+    )
 
     logger.info(f"  存储路径: {IC_STORE_PATH}")
     logger.info("=== 自检通过 ===")

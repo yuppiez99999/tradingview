@@ -178,7 +178,11 @@ def compute_momentum_score(
         动量评分 (0-100, 越高越强势)
     """
     th = thresholds or DEFAULT_THRESHOLDS
-    rets = list(returns[-lookback_days:]) if len(returns) > lookback_days else list(returns)
+    rets = (
+        list(returns[-lookback_days:])
+        if len(returns) > lookback_days
+        else list(returns)
+    )
     if not rets:
         return 50.0
 
@@ -315,10 +319,14 @@ class SectorRotation:
         self._thresholds = dict(DEFAULT_THRESHOLDS)
         self._thresholds.update(self._config.get("thresholds", {}) or {})
         self._regime_adjustments = dict(DEFAULT_REGIME_ADJUSTMENTS)
-        self._regime_adjustments.update(self._config.get("regime_adjustments", {}) or {})
+        self._regime_adjustments.update(
+            self._config.get("regime_adjustments", {}) or {}
+        )
 
         # 参数
-        self._lookback_days = int(self._settings.get("lookback_days", DEFAULT_LOOKBACK_DAYS))
+        self._lookback_days = int(
+            self._settings.get("lookback_days", DEFAULT_LOOKBACK_DAYS)
+        )
         self._top_n = int(self._settings.get("top_n", DEFAULT_TOP_N))
         self._bottom_n = int(self._settings.get("bottom_n", DEFAULT_BOTTOM_N))
         self._min_samples = int(self._settings.get("min_samples", DEFAULT_MIN_SAMPLES))
@@ -336,7 +344,16 @@ class SectorRotation:
             if not cfg:
                 logger.warning("配置未找到: %s, 使用默认配置", config_name)
             return cfg
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("配置加载失败: %s (%s), 使用默认配置", config_name, e)
             return {}
 
@@ -346,14 +363,26 @@ class SectorRotation:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(self._feature_flag_name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
     def _get_regime_adjustment(self, regime: str) -> dict[str, float]:
         """获取 regime 调整因子."""
         return self._regime_adjustments.get(
             regime,
-            self._regime_adjustments.get("default", {"momentum_boost": 1.0, "flow_boost": 1.0, "valuation_boost": 1.0}),
+            self._regime_adjustments.get(
+                "default",
+                {"momentum_boost": 1.0, "flow_boost": 1.0, "valuation_boost": 1.0},
+            ),
         )
 
     def generate_signals(
@@ -406,9 +435,13 @@ class SectorRotation:
         regime_adjusted = regime != "unknown"
 
         # 调整后的权重
-        w_mom = self._signal_weights.get("momentum", 0.5) * adj.get("momentum_boost", 1.0)
+        w_mom = self._signal_weights.get("momentum", 0.5) * adj.get(
+            "momentum_boost", 1.0
+        )
         w_flow = self._signal_weights.get("flow", 0.3) * adj.get("flow_boost", 1.0)
-        w_val = self._signal_weights.get("valuation", 0.2) * adj.get("valuation_boost", 1.0)
+        w_val = self._signal_weights.get("valuation", 0.2) * adj.get(
+            "valuation_boost", 1.0
+        )
         total_w = w_mom + w_flow + w_val
         if total_w > 0:
             w_mom /= total_w
@@ -423,7 +456,11 @@ class SectorRotation:
             flow = (sector_flows or {}).get(code, 0.0)
             val = (sector_valuations or {}).get(code, 0.5)
 
-            mom_score = compute_momentum_score(rets, self._lookback_days, self._thresholds) if rets else 50.0
+            mom_score = (
+                compute_momentum_score(rets, self._lookback_days, self._thresholds)
+                if rets
+                else 50.0
+            )
             flow_score = compute_flow_score(flow, self._thresholds)
             val_score = compute_valuation_score(val, self._thresholds)
 
@@ -452,7 +489,9 @@ class SectorRotation:
 
         # Top N / Bottom N
         top_codes = [s.code for s in signals[: self._top_n]]
-        bottom_codes = [s.code for s in signals[-self._bottom_n :] if self._bottom_n > 0]
+        bottom_codes = [
+            s.code for s in signals[-self._bottom_n :] if self._bottom_n > 0
+        ]
 
         return RotationResult(
             signals=signals,
@@ -485,7 +524,11 @@ class SectorRotation:
         return RotationResult(
             signals=signals,
             top_sectors=[s.code for s in signals[: self._top_n]],
-            bottom_sectors=[s.code for s in signals[-self._bottom_n :]] if self._bottom_n > 0 else [],
+            bottom_sectors=(
+                [s.code for s in signals[-self._bottom_n :]]
+                if self._bottom_n > 0
+                else []
+            ),
             regime=regime,
             regime_adjusted=False,
             n_sectors=len(signals),
@@ -541,7 +584,16 @@ def is_sector_rotation_enabled() -> bool:
         from utils.infra.feature_flags import is_enabled
 
         return bool(is_enabled(FLAG_NAME))
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         return False
 
 

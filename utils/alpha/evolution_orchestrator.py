@@ -62,7 +62,9 @@ if str(_PROJECT_ROOT) not in sys.path:
 # ============================================================
 
 # 默认数据源 (Shadow daily returns, 由 daily_workflow 写入)
-DEFAULT_DAILY_RETURNS_PATH = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+DEFAULT_DAILY_RETURNS_PATH = (
+    _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+)
 
 # 决策日志路径
 DEFAULT_DECISIONS_LOG_PATH = _PROJECT_ROOT / "reports" / "evolution" / "decisions.jsonl"
@@ -217,8 +219,16 @@ class EvolutionOrchestrator:
             feature_flag_name: 编排器 Flag 名称 (HC-1)
             evaluator_flag_name: 评估器 Flag 名称 (HC-1)
         """
-        self.daily_returns_path = Path(daily_returns_path) if daily_returns_path else DEFAULT_DAILY_RETURNS_PATH
-        self.decisions_log_path = Path(decisions_log_path) if decisions_log_path else DEFAULT_DECISIONS_LOG_PATH
+        self.daily_returns_path = (
+            Path(daily_returns_path)
+            if daily_returns_path
+            else DEFAULT_DAILY_RETURNS_PATH
+        )
+        self.decisions_log_path = (
+            Path(decisions_log_path)
+            if decisions_log_path
+            else DEFAULT_DECISIONS_LOG_PATH
+        )
         self.observation_start_date = observation_start_date
 
         self.feature_flag_name = feature_flag_name
@@ -257,7 +267,16 @@ class EvolutionOrchestrator:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Feature Flag 检查失败, 默认禁用: %s (%s)", name, e)
             return False
@@ -346,7 +365,16 @@ class EvolutionOrchestrator:
                 collected_at=self._now_iso(),
             )
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.exception("collect_metrics 失败: %s", e)
@@ -378,9 +406,13 @@ class EvolutionOrchestrator:
             return None
 
         if not self._evaluator_enabled:
-            logger.info("评估器禁用, 跳过评估 (flag=%s=False)", self.evaluator_flag_name)
+            logger.info(
+                "评估器禁用, 跳过评估 (flag=%s=False)", self.evaluator_flag_name
+            )
             self._status.status = STATUS_DEGRADED
-            self._status.degraded_reason = f"evaluator_disabled ({self.evaluator_flag_name}=False)"
+            self._status.degraded_reason = (
+                f"evaluator_disabled ({self.evaluator_flag_name}=False)"
+            )
             return None
 
         # 收集指标 (如果未提供)
@@ -390,7 +422,9 @@ class EvolutionOrchestrator:
         if metrics.is_degraded:
             logger.warning("指标快照降级, 跳过评估: %s", metrics.degraded_reason)
             self._status.status = STATUS_DEGRADED
-            self._status.degraded_reason = f"metrics_degraded: {metrics.degraded_reason}"
+            self._status.degraded_reason = (
+                f"metrics_degraded: {metrics.degraded_reason}"
+            )
             return None
 
         if metrics.sample_count < MIN_SAMPLES_FOR_EVALUATION:
@@ -408,7 +442,16 @@ class EvolutionOrchestrator:
                 from utils.alpha.strategy_evaluator import StrategyEvaluator
 
                 self._evaluator = StrategyEvaluator()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.exception("StrategyEvaluator 加载失败: %s", e)
             self._status.status = STATUS_DEGRADED
@@ -441,7 +484,16 @@ class EvolutionOrchestrator:
 
             return report
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.exception("evaluate_current 失败: %s", e)
@@ -474,7 +526,10 @@ class EvolutionOrchestrator:
             return False
 
         # 观察期内强制 action=evaluate_only (HC-4)
-        if self._status.in_observation and action not in (ACTION_EVALUATE_ONLY, ACTION_NOOP):
+        if self._status.in_observation and action not in (
+            ACTION_EVALUATE_ONLY,
+            ACTION_NOOP,
+        ):
             logger.warning(
                 "观察期内强制 action=%s → %s (HC-4)",
                 action,
@@ -525,9 +580,29 @@ class EvolutionOrchestrator:
                 record.observation_day,
                 self._status.observation_total,
             )
+
+            # ECL sink 旁路双写 (CTX-A1, flag 控制常驻注册)
+            try:
+                from utils.infra.ecl.sinks import iter_registered_sinks
+
+                for sink in iter_registered_sinks():
+                    if not sink.write(record.to_dict()):
+                        logger.warning("ECL sink 写入失败(已降级, 不影响主流程)")
+            except (ImportError, AttributeError, RuntimeError) as e:
+                logger.debug("ECL sink 遍历跳过: %s", e)
+
             return True
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.exception("log_decision 写入失败: %s", e)
@@ -609,6 +684,7 @@ class EvolutionOrchestrator:
         """检查 USE_VOL_REGIME_WEIGHTER Flag."""
         try:
             from utils.infra.feature_flags import is_enabled
+
             return bool(is_enabled("USE_VOL_REGIME_WEIGHTER"))
         except (ImportError, AttributeError):
             return False
@@ -646,6 +722,7 @@ class EvolutionOrchestrator:
             from pathlib import Path
 
             import yaml
+
             portfolio_path = Path("configs/portfolio.yaml")
             if not portfolio_path.exists():
                 logger.warning("portfolio.yaml 不存在: %s", portfolio_path)
@@ -654,7 +731,14 @@ class EvolutionOrchestrator:
                 data = yaml.safe_load(f) or {}
             logger.debug("portfolio.yaml 快照已读取 (只读)")
             return data
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("读取 portfolio.yaml 失败: %s", e)
             return {"assets": []}
 
@@ -685,9 +769,17 @@ class EvolutionOrchestrator:
         """
         try:
             from utils.alpha.vix_data_source import VixDataSource
+
             # EOD 强制刷新: use_cache=False 确保获取当日最新数据
             return VixDataSource().fetch_vix(use_cache=False)
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("VixDataSource 调用失败: %s", e)
             return None
 
@@ -725,7 +817,16 @@ class EvolutionOrchestrator:
             else:
                 self._status.status = STATUS_ENABLED
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("更新观察期状态失败: %s", e)
@@ -742,7 +843,16 @@ class EvolutionOrchestrator:
                         continue
                     record = json.loads(line)
                     return record.get("date")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return None
         return None
@@ -782,7 +892,16 @@ class EvolutionOrchestrator:
 
             return records[-limit:][::-1]  # 倒序
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.exception("get_recent_decisions 失败: %s", e)

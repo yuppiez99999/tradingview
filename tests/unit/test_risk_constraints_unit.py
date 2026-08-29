@@ -5,6 +5,7 @@
     - validate_risk_budget (集中度/板块/VaR/无价格数据)
     - _approx_var (有价格/无价格/短历史)
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -48,7 +49,10 @@ class TestEnforceHardConstraints:
         weights = {"A": 0.10, "B": 0.10, "C": 0.10}
         sector_map = {"A": "tech", "B": "tech", "C": "finance"}
         clamped, violations = enforce_hard_constraints(
-            weights, max_weight=0.15, sector_map=sector_map, max_sector=0.15,
+            weights,
+            max_weight=0.15,
+            sector_map=sector_map,
+            max_sector=0.15,
         )
         # tech 板块 0.20 > 0.15 → 压缩
         tech_total = clamped["A"] + clamped["B"]
@@ -64,8 +68,19 @@ class TestEnforceHardConstraints:
 
     @pytest.mark.unit
     def test_normalization_triggered(self):
-        weights = {"A": 0.10, "B": 0.10, "C": 0.10, "D": 0.10, "E": 0.10, "F": 0.10,
-                    "G": 0.10, "H": 0.10, "I": 0.10, "J": 0.10, "K": 0.10}
+        weights = {
+            "A": 0.10,
+            "B": 0.10,
+            "C": 0.10,
+            "D": 0.10,
+            "E": 0.10,
+            "F": 0.10,
+            "G": 0.10,
+            "H": 0.10,
+            "I": 0.10,
+            "J": 0.10,
+            "K": 0.10,
+        }
         clamped, violations = enforce_hard_constraints(weights, max_weight=0.20)
         # 总和 1.10 > 1.0 → 归一化
         total = sum(clamped.values())
@@ -110,7 +125,10 @@ class TestValidateRiskBudget:
         weights = {"A": 0.08, "B": 0.08, "C": 0.05}
         sector_map = {"A": "tech", "B": "tech", "C": "finance"}
         ok, violations = validate_risk_budget(
-            weights, max_weight=0.10, sector_map=sector_map, max_sector=0.15,
+            weights,
+            max_weight=0.10,
+            sector_map=sector_map,
+            max_sector=0.15,
         )
         assert ok is False
         assert any("板块" in v for v in violations)

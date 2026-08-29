@@ -28,6 +28,7 @@
 
 集成日期: 2026-08-22 (v8.6, GitHub 今日热门项目集成)
 """
+
 from __future__ import annotations
 
 import logging
@@ -37,7 +38,9 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-_ONNX_SRC = Path(__file__).resolve().parent.parent.parent / "10_第三方项目" / "onnxruntime"
+_ONNX_SRC = (
+    Path(__file__).resolve().parent.parent.parent / "10_第三方项目" / "onnxruntime"
+)
 _MODEL_DIR = Path(__file__).resolve().parent.parent / "models" / "onnx_exported"
 
 
@@ -45,10 +48,12 @@ _MODEL_DIR = Path(__file__).resolve().parent.parent / "models" / "onnx_exported"
 class OnnxConfig:
     """ONNX Runtime 适配配置."""
 
-    providers: list[str] = field(default_factory=lambda: [
-        "CUDAExecutionProvider",  # GPU 优先
-        "CPUExecutionProvider",   # CPU 回退
-    ])
+    providers: list[str] = field(
+        default_factory=lambda: [
+            "CUDAExecutionProvider",  # GPU 优先
+            "CPUExecutionProvider",  # CPU 回退
+        ]
+    )
     intra_op_num_threads: int = 4
     inter_op_num_threads: int = 1
     graph_optimization_level: str = "all"  # all / basic / none
@@ -78,6 +83,7 @@ class OnnxRuntimeAdapter:
         """延迟加载 onnxruntime."""
         try:
             import onnxruntime as ort  # type: ignore
+
             self._ort = ort
             logger.info("✓ onnxruntime 已加载 (%s)", ort.__version__)
         except ImportError as e:
@@ -129,9 +135,13 @@ class OnnxRuntimeAdapter:
             session_options.intra_op_num_threads = self.config.intra_op_num_threads
             session_options.inter_op_num_threads = self.config.inter_op_num_threads
             if self.config.graph_optimization_level == "all":
-                session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+                session_options.graph_optimization_level = (
+                    ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+                )
             elif self.config.graph_optimization_level == "basic":
-                session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+                session_options.graph_optimization_level = (
+                    ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+                )
 
             session = ort.InferenceSession(
                 str(path),
@@ -170,8 +180,14 @@ class OnnxRuntimeAdapter:
             return {}
         try:
             return {
-                "inputs": [{"name": i.name, "shape": i.shape, "type": i.type} for i in session.get_inputs()],
-                "outputs": [{"name": o.name, "shape": o.shape, "type": o.type} for o in session.get_outputs()],
+                "inputs": [
+                    {"name": i.name, "shape": i.shape, "type": i.type}
+                    for i in session.get_inputs()
+                ],
+                "outputs": [
+                    {"name": o.name, "shape": o.shape, "type": o.type}
+                    for o in session.get_outputs()
+                ],
             }
         except (RuntimeError, AttributeError) as e:
             logger.warning("获取模型信息失败: %s", e)

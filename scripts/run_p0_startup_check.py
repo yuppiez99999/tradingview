@@ -38,6 +38,7 @@ P0 启动自检 - 命令行入口
     python scripts/run_p0_startup_check.py
     if ($LASTEXITCODE -ne 0) { exit 1 }
 """
+
 from __future__ import annotations
 
 import argparse
@@ -75,7 +76,16 @@ def archive_report(report_json: str, check_time: str) -> Path:
         for old in archives[:-30]:
             try:
                 old.unlink()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
 
@@ -91,32 +101,30 @@ def main() -> int:
 
     _logging.basicConfig(level=_logging.ERROR, format="%(message)s")
 
-    parser = argparse.ArgumentParser(
-        description="P0 启动自检 - 在工作流启动前拦截错误"
+    parser = argparse.ArgumentParser(description="P0 启动自检 - 在工作流启动前拦截错误")
+    parser.add_argument(
+        "--strict", action="store_true", help="严格模式: WARN FAIL 也算阻止性失败"
     )
     parser.add_argument(
-        "--strict", action="store_true",
-        help="严格模式: WARN FAIL 也算阻止性失败"
+        "--skip-datasource",
+        action="store_true",
+        help="跳过数据源连通性检查 (加速启动,但降低覆盖度)",
     )
     parser.add_argument(
-        "--skip-datasource", action="store_true",
-        help="跳过数据源连通性检查 (加速启动,但降低覆盖度)"
+        "--json", action="store_true", help="输出 JSON 格式报告 (供其他程序消费)"
     )
     parser.add_argument(
-        "--json", action="store_true",
-        help="输出 JSON 格式报告 (供其他程序消费)"
+        "--archive",
+        action="store_true",
+        help="将报告归档到 reports/system_check/ (保留最近 30 份)",
     )
     parser.add_argument(
-        "--archive", action="store_true",
-        help="将报告归档到 reports/system_check/ (保留最近 30 份)"
+        "--quiet", action="store_true", help="安静模式: 只输出失败项与最终结论"
     )
     parser.add_argument(
-        "--quiet", action="store_true",
-        help="安静模式: 只输出失败项与最终结论"
-    )
-    parser.add_argument(
-        "--auto-fix", action="store_true",
-        help="自动修复模式: 检测失败时尝试 L0/L1 修复后重检 (T1.5 新增)"
+        "--auto-fix",
+        action="store_true",
+        help="自动修复模式: 检测失败时尝试 L0/L1 修复后重检 (T1.5 新增)",
     )
     args = parser.parse_args()
 

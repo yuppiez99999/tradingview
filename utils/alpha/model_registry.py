@@ -198,8 +198,20 @@ class ModelRegistry:
                 mlflow.set_tracking_uri(tracking_uri)
             self._mlflow_client = MlflowClient()
             self._mlflow_available = True
-            logger.info("MLflow Model Registry 已启用: tracking_uri=%s", tracking_uri or mlflow.get_tracking_uri())
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            logger.info(
+                "MLflow Model Registry 已启用: tracking_uri=%s",
+                tracking_uri or mlflow.get_tracking_uri(),
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("MLflow 初始化失败, 降级为本地存储: %s", e)
             self._mlflow_available = False
             self._mlflow_client = None
@@ -286,7 +298,16 @@ class ModelRegistry:
 
             joblib.dump(model, model_file)
             source = str(model_file)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("模型序列化失败 (joblib): %s, 跳过本地保存", e)
             source = ""
 
@@ -309,7 +330,16 @@ class ModelRegistry:
                     tags=tags,
                 )
                 logger.info("MLflow 已注册模型: %s (run_id=%s)", name, mlflow_run_id)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("MLflow 注册失败: %s", e)
 
         # 创建版本记录
@@ -384,7 +414,9 @@ class ModelRegistry:
         # 验证转换合法性
         current_stage = ModelStage.from_string(target.stage)
         if not self._is_valid_transition(current_stage, to_stage):
-            raise StageTransitionError(f"非法阶段转换: {current_stage.value} → {to_stage.value}")
+            raise StageTransitionError(
+                f"非法阶段转换: {current_stage.value} → {to_stage.value}"
+            )
 
         # 如果晋升到 PRODUCTION, 自动将其他 PRODUCTION 版本归档
         if to_stage == ModelStage.PRODUCTION:
@@ -403,14 +435,27 @@ class ModelRegistry:
         self._save_metadata(name)
 
         # MLflow 阶段转换
-        if self._mlflow_available and target.mlflow_model_uri and self._mlflow_client is not None:
+        if (
+            self._mlflow_available
+            and target.mlflow_model_uri
+            and self._mlflow_client is not None
+        ):
             try:
                 self._mlflow_client.transition_model_version_stage(
                     name=name,
                     version=str(version),
                     stage=to_stage.value.upper(),
                 )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("MLflow 阶段转换失败: %s", e)
 
         logger.info(
@@ -423,15 +468,21 @@ class ModelRegistry:
         )
         return target
 
-    def promote_model(self, name: str, version: int, by: str = "system") -> ModelVersion:
+    def promote_model(
+        self, name: str, version: int, by: str = "system"
+    ) -> ModelVersion:
         """晋升模型到 PRODUCTION (便捷方法)."""
         return self.transition_stage(name, version, ModelStage.PRODUCTION, by)
 
-    def archive_model(self, name: str, version: int, by: str = "system") -> ModelVersion:
+    def archive_model(
+        self, name: str, version: int, by: str = "system"
+    ) -> ModelVersion:
         """归档模型 (便捷方法)."""
         return self.transition_stage(name, version, ModelStage.ARCHIVED, by)
 
-    def _is_valid_transition(self, from_stage: ModelStage, to_stage: ModelStage) -> bool:
+    def _is_valid_transition(
+        self, from_stage: ModelStage, to_stage: ModelStage
+    ) -> bool:
         """验证阶段转换合法性.
 
         合法转换:
@@ -454,7 +505,9 @@ class ModelRegistry:
     # ============================================================
     # 查询接口
     # ============================================================
-    def get_model_versions(self, name: str, stage: ModelStage | None = None) -> list[ModelVersion]:
+    def get_model_versions(
+        self, name: str, stage: ModelStage | None = None
+    ) -> list[ModelVersion]:
         """查询模型版本列表.
 
         Args:
@@ -527,12 +580,18 @@ class ModelRegistry:
             target = self.get_model_info(name, version)
         else:
             target_stage = stage or ModelStage.PRODUCTION
-            target = self.get_production_version(name) if target_stage == ModelStage.PRODUCTION else None
+            target = (
+                self.get_production_version(name)
+                if target_stage == ModelStage.PRODUCTION
+                else None
+            )
             if target is None:
                 versions = self.get_model_versions(name, target_stage)
                 target = versions[0] if versions else None
         if target is None:
-            raise ModelVersionNotFoundError(f"模型 {name} 无可加载版本 (version={version}, stage={stage})")
+            raise ModelVersionNotFoundError(
+                f"模型 {name} 无可加载版本 (version={version}, stage={stage})"
+            )
 
         # MLflow 加载 (优先)
         if self._mlflow_available and target.mlflow_model_uri:
@@ -540,7 +599,16 @@ class ModelRegistry:
                 import mlflow
 
                 return mlflow.pyfunc.load_model(target.mlflow_model_uri)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("MLflow 加载失败, 回退到本地: %s", e)
 
         # 本地加载
@@ -549,7 +617,16 @@ class ModelRegistry:
                 import joblib
 
                 return joblib.load(target.source)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
                 logger.exception("本地模型加载失败: %s", e)
                 raise ModelRegistryError(f"模型加载失败: {e}") from e
         raise ModelRegistryError(f"模型 {name} v{target.version} 无可用 source")
@@ -557,7 +634,9 @@ class ModelRegistry:
     # ============================================================
     # 删除 (软删除, 仅归档)
     # ============================================================
-    def delete_model_version(self, name: str, version: int, force: bool = False) -> bool:
+    def delete_model_version(
+        self, name: str, version: int, force: bool = False
+    ) -> bool:
         """删除模型版本.
 
         Args:
@@ -648,7 +727,18 @@ class ModelRegistry:
                     matched = True
                     for metric_name, (op, threshold) in metric_filter.items():
                         val = v.metrics.get(metric_name, 0.0)
-                        if op == ">=" and not val >= threshold or op == ">" and not val > threshold or op == "<=" and not val <= threshold or op == "<" and not val < threshold or op == "==" and not val == threshold:
+                        if (
+                            op == ">="
+                            and not val >= threshold
+                            or op == ">"
+                            and not val > threshold
+                            or op == "<="
+                            and not val <= threshold
+                            or op == "<"
+                            and not val < threshold
+                            or op == "=="
+                            and not val == threshold
+                        ):
                             matched = False
                             break
                     if not matched:

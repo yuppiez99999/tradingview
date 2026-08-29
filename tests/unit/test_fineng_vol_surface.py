@@ -1,4 +1,5 @@
 """utils.fineng.models.vol_surface 单元测试 — VolSlice / VolSurface / build_vol_surface_from_points"""
+
 from __future__ import annotations
 
 from datetime import date
@@ -15,9 +16,10 @@ from utils.fineng.models.vol_surface import (
 def _slice(T: float = 0.25) -> VolSlice:
     # strikes/ivs 按升序; ATM 在中间
     return VolSlice(
-        expiry=date(2026, 9, 1), T=T,
+        expiry=date(2026, 9, 1),
+        T=T,
         strikes=[3.0, 3.25, 3.5, 3.75, 4.0],
-        ivs=[0.18, 0.19, 0.20, 0.21, 0.22],   # 单调升 (put 低 call 高)
+        ivs=[0.18, 0.19, 0.20, 0.21, 0.22],  # 单调升 (put 低 call 高)
         deltas=[0.90, 0.70, 0.50, 0.30, 0.10],
     )
 

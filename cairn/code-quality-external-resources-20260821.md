@@ -64,3 +64,14 @@ related:
 - **ECC 价值误判风险**: ECC 有 64 Agent + 261 Skill，数量庞大容易产生"接入即提升"的错觉。实际经 `ecc-python-rules-crosscheck_20260821.md` 逐条比对，ECC python rules 是量化系统 CI 的极弱子集。**教训**: 评估外部资源必须逐条比对已有体系，不能被数量迷惑。
 - **FinClaw 名不副实**: 宣传 1031 Skill，实际内容极少。**教训**: GitHub 项目 stars/描述不可信，必须实际读取内容。
 - **CI 配置≠CI 运行**: 量化系统有 7 个 CI workflow，但 6 个脚本缺失导致实际失效。**教训**: 配置存在不等于实际运行，必须验证 CI 实际执行状态。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [策略迭代压缩模板（Strategy Iteration Compact）](strategy-iteration-compact-template.md) (相似度 11%)
+- [第三方项目集成专题 — 2026-08-21](third-party-integration-20260821.md) (相似度 11%)
+- [CI 修复与门禁落地经验（R1/R2/R4 · 2026-08-12）](ci-repair-and-gate-lessons-20260812.md) (相似度 9%)
+- [第三方项目批量集成专题 — 2026-08-22](third-party-integration-batch-20260822.md) (相似度 8%)
+- [TDAM Phase 0b 数据导入经验沉淀（2026-08-07）](tdam-phase0b-import-lessons-20260807.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -51,6 +51,7 @@ from utils.alpha_factor.base import (  # noqa: E402
 # 数据结构
 # ============================================================
 
+
 class TestFactorValue:
     def test_defaults(self):
         fv = FactorValue(name="EP", category="Value", values={"A": 1.0})
@@ -62,8 +63,12 @@ class TestFactorValue:
 
     def test_full_construction(self):
         fv = FactorValue(
-            name="MOM", category="Momentum", values={"A": 0.1},
-            ic_1d=0.05, ic_ir=1.2, ic_mode="timeseries",
+            name="MOM",
+            category="Momentum",
+            values={"A": 0.1},
+            ic_1d=0.05,
+            ic_ir=1.2,
+            ic_mode="timeseries",
         )
         assert fv.ic_1d == 0.05
         assert fv.ic_ir == 1.2
@@ -83,6 +88,7 @@ class TestFactorLibraryResult:
 # ============================================================
 # winsorize
 # ============================================================
+
 
 class TestWinsorize:
     def test_empty(self):
@@ -117,6 +123,7 @@ class TestWinsorize:
 # standardize
 # ============================================================
 
+
 class TestStandardize:
     def test_empty(self):
         assert standardize({}) == {}
@@ -137,6 +144,7 @@ class TestStandardize:
 # ============================================================
 # neutralize_by_industry
 # ============================================================
+
 
 class TestNeutralizeByIndustry:
     def test_basic(self):
@@ -162,6 +170,7 @@ class TestNeutralizeByIndustry:
 # neutralize_by_size
 # ============================================================
 
+
 class TestNeutralizeBySize:
     def test_few_symbols_returns_original(self):
         """< 3 个共同标的 → 返回原值."""
@@ -186,6 +195,7 @@ class TestNeutralizeBySize:
 # ============================================================
 # orthogonalize / residualize
 # ============================================================
+
 
 class TestOrthogonalize:
     def test_few_common_returns_copy(self):
@@ -224,6 +234,7 @@ class TestOrthogonalize:
 # ============================================================
 # _forward_returns / calc_ic
 # ============================================================
+
 
 class TestForwardReturns:
     def test_basic(self):
@@ -279,6 +290,7 @@ class TestCalcIc:
 # ============================================================
 # calc_ic_series_from_history / calc_ic_ir
 # ============================================================
+
 
 class TestCalcIcSeries:
     def test_empty_history(self):
@@ -341,6 +353,7 @@ class TestCalcIcIr:
 # evaluate_factors
 # ============================================================
 
+
 class TestEvaluateFactors:
     def _make_result(self, name="EP", values=None):
         values = values or {"A": 1.0, "B": 2.0, "C": 3.0}
@@ -371,14 +384,22 @@ class TestEvaluateFactors:
         price_data = {f"S{i}": {"closes": list(range(100, 130))} for i in range(10)}
         # 构造 25 天的时序历史
         factor_history = {
-            "EP": [{f"S{i}": float(np.random.randn()) for i in range(10)} for _ in range(25)]
+            "EP": [
+                {f"S{i}": float(np.random.randn()) for i in range(10)}
+                for _ in range(25)
+            ]
         }
         forward_returns_history = [
-            {f"S{i}": float(np.random.randn() * 0.01) for i in range(10)} for _ in range(25)
+            {f"S{i}": float(np.random.randn() * 0.01) for i in range(10)}
+            for _ in range(25)
         ]
         np.random.seed(42)
-        evaluate_factors(result, price_data, factor_history=factor_history,
-                         forward_returns_history=forward_returns_history)
+        evaluate_factors(
+            result,
+            price_data,
+            factor_history=factor_history,
+            forward_returns_history=forward_returns_history,
+        )
         fval = result.factors["EP"]
         assert fval.ic_mode == "timeseries"
 
@@ -398,14 +419,19 @@ class TestEvaluateFactors:
 # compute_factor_corr_matrix
 # ============================================================
 
+
 class TestComputeFactorCorrMatrix:
     def test_empty_returns_none(self):
         assert compute_factor_corr_matrix({}) is None
 
     def test_basic(self):
         factors = {
-            "A": FactorValue(name="A", category="X", values={"S1": 1.0, "S2": 2.0, "S3": 3.0}),
-            "B": FactorValue(name="B", category="X", values={"S1": 3.0, "S2": 2.0, "S3": 1.0}),
+            "A": FactorValue(
+                name="A", category="X", values={"S1": 1.0, "S2": 2.0, "S3": 3.0}
+            ),
+            "B": FactorValue(
+                name="B", category="X", values={"S1": 3.0, "S2": 2.0, "S3": 1.0}
+            ),
         }
         corr = compute_factor_corr_matrix(factors)
         assert corr is not None
@@ -415,6 +441,7 @@ class TestComputeFactorCorrMatrix:
 # ============================================================
 # register_factor / list_registered_factors / compute_registered_factors
 # ============================================================
+
 
 class TestRegistry:
     def test_list_registered_factors(self):
@@ -432,17 +459,27 @@ class TestRegistry:
     def test_compute_registered_factors_with_price_data(self):
         """提供 price_data, 装饰器因子应能计算."""
         price_data = {
-            "A": {"closes": list(range(100, 130)), "volumes": [1000] * 30, "amounts": [100000] * 30},
-            "B": {"closes": list(range(200, 230)), "volumes": [2000] * 30, "amounts": [200000] * 30},
+            "A": {
+                "closes": list(range(100, 130)),
+                "volumes": [1000] * 30,
+                "amounts": [100000] * 30,
+            },
+            "B": {
+                "closes": list(range(200, 230)),
+                "volumes": [2000] * 30,
+                "amounts": [200000] * 30,
+            },
         }
         result = compute_registered_factors({"price_data": price_data})
         assert isinstance(result, dict)
 
     def test_register_custom_factor(self):
         """注册自定义装饰器因子."""
+
         @register_factor(category="Test", name="TEST_CUSTOM_FACTOR")
         def my_factor(price_data=None):
             return {"A": 1.0, "B": 2.0}
+
         assert "TEST_CUSTOM_FACTOR" in _FACTOR_REGISTRY
         result = compute_registered_factors({}, select=["TEST_CUSTOM_FACTOR"])
         assert "TEST_CUSTOM_FACTOR" in result
@@ -468,6 +505,7 @@ class TestRegistry:
 # build_forward_returns_history
 # ============================================================
 
+
 class TestBuildForwardReturnsHistory:
     def test_empty_price_data(self):
         assert build_forward_returns_history({}) == []
@@ -491,8 +529,13 @@ class TestBuildForwardReturnsHistory:
             build_forward_returns_history({}, forward_window=0)
 
     def test_with_symbols_whitelist(self):
-        price_data = {"A": {"closes": [100, 105, 110]}, "B": {"closes": [200, 210, 220]}}
-        history = build_forward_returns_history(price_data, forward_window=1, symbols=["A"])
+        price_data = {
+            "A": {"closes": [100, 105, 110]},
+            "B": {"closes": [200, 210, 220]},
+        }
+        history = build_forward_returns_history(
+            price_data, forward_window=1, symbols=["A"]
+        )
         assert len(history) == 2
         assert "A" in history[0]
         assert "B" not in history[0]
@@ -502,32 +545,49 @@ class TestBuildForwardReturnsHistory:
 # build_factor_history_from_prices
 # ============================================================
 
+
 class TestBuildFactorHistoryFromPrices:
     def test_empty_price_data(self):
         def factor_fn(pd):
             return {"A": 1.0}
+
         assert build_factor_history_from_prices({}, factor_fn) == {}
 
     def test_insufficient_length(self):
         """min_len <= warmup_window → 空."""
         price_data = {"A": {"closes": [100, 105, 110]}}
+
         def factor_fn(pd):
             return {"A": 1.0}
-        assert build_factor_history_from_prices(price_data, factor_fn, warmup_window=20) == {}
+
+        assert (
+            build_factor_history_from_prices(price_data, factor_fn, warmup_window=20)
+            == {}
+        )
 
     def test_basic(self):
         # build_factor_history_from_prices 检查 closes/volumes/highs/lows 四键
         price_data = {
-            "A": {"closes": list(range(100, 130)), "volumes": [1000] * 30,
-                  "highs": list(range(101, 131)), "lows": list(range(99, 129))},
-            "B": {"closes": list(range(200, 230)), "volumes": [2000] * 30,
-                  "highs": list(range(201, 231)), "lows": list(range(199, 229))},
+            "A": {
+                "closes": list(range(100, 130)),
+                "volumes": [1000] * 30,
+                "highs": list(range(101, 131)),
+                "lows": list(range(99, 129)),
+            },
+            "B": {
+                "closes": list(range(200, 230)),
+                "volumes": [2000] * 30,
+                "highs": list(range(201, 231)),
+                "lows": list(range(199, 229)),
+            },
         }
 
         def factor_fn(pd_slice):
             return {sym: data["closes"][-1] for sym, data in pd_slice.items()}
 
-        history = build_factor_history_from_prices(price_data, factor_fn, warmup_window=20)
+        history = build_factor_history_from_prices(
+            price_data, factor_fn, warmup_window=20
+        )
         # 应有 "factor" 键 (因为返回 {sym: value} 格式)
         assert "factor" in history
         # 长度 = 30 - 20 = 10
@@ -535,31 +595,47 @@ class TestBuildFactorHistoryFromPrices:
 
     def test_factor_fn_returns_factor_value(self):
         price_data = {
-            "A": {"closes": list(range(100, 130)), "volumes": [1000] * 30,
-                  "highs": list(range(101, 131)), "lows": list(range(99, 129))}
+            "A": {
+                "closes": list(range(100, 130)),
+                "volumes": [1000] * 30,
+                "highs": list(range(101, 131)),
+                "lows": list(range(99, 129)),
+            }
         }
 
         def factor_fn(pd_slice):
-            return FactorValue(name="MY_F", category="X",
-                               values={sym: data["closes"][-1] for sym, data in pd_slice.items()})
+            return FactorValue(
+                name="MY_F",
+                category="X",
+                values={sym: data["closes"][-1] for sym, data in pd_slice.items()},
+            )
 
-        history = build_factor_history_from_prices(price_data, factor_fn, warmup_window=20)
+        history = build_factor_history_from_prices(
+            price_data, factor_fn, warmup_window=20
+        )
         assert "MY_F" in history
 
     def test_factor_fn_exception_handled(self):
         """factor_fn 抛异常 → 该 t 跳过."""
         price_data = {
-            "A": {"closes": list(range(100, 130)), "volumes": [1000] * 30,
-                  "highs": list(range(101, 131)), "lows": list(range(99, 129))}
+            "A": {
+                "closes": list(range(100, 130)),
+                "volumes": [1000] * 30,
+                "highs": list(range(101, 131)),
+                "lows": list(range(99, 129)),
+            }
         }
 
         call_count = [0]
+
         def factor_fn(pd_slice):
             call_count[0] += 1
             if call_count[0] == 1:
                 raise ValueError("forced")
             return {"A": 1.0}
 
-        history = build_factor_history_from_prices(price_data, factor_fn, warmup_window=20)
+        history = build_factor_history_from_prices(
+            price_data, factor_fn, warmup_window=20
+        )
         # 第一次调用异常, 但后续正常, 应有结果
         assert "factor" in history

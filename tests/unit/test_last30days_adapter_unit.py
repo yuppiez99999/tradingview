@@ -71,8 +71,12 @@ class TestAggregateSentiment:
 
     def test_with_engagement(self):
         signals = [
-            Last30DaysSignal(topic="t", platform="reddit", sentiment_score=0.8, engagement_score=100),
-            Last30DaysSignal(topic="t", platform="x", sentiment_score=-0.4, engagement_score=50),
+            Last30DaysSignal(
+                topic="t", platform="reddit", sentiment_score=0.8, engagement_score=100
+            ),
+            Last30DaysSignal(
+                topic="t", platform="x", sentiment_score=-0.4, engagement_score=50
+            ),
         ]
         result = Last30DaysAdapter.aggregate_sentiment(signals)
         assert result["total_engagement"] == 150.0
@@ -122,16 +126,20 @@ class TestCacheKey:
 
     def test_different_topic(self):
         adapter = Last30DaysAdapter()
-        assert adapter._cache_key("gold", ["reddit"], 7) != adapter._cache_key("oil", ["reddit"], 7)
+        assert adapter._cache_key("gold", ["reddit"], 7) != adapter._cache_key(
+            "oil", ["reddit"], 7
+        )
 
 
 class TestParseCliOutput:
     def test_valid_list(self):
         adapter = Last30DaysAdapter()
-        stdout = json.dumps([
-            {"platform": "reddit", "sentiment_score": 0.5, "mention_count": 10},
-            {"platform": "x", "sentiment_score": -0.3, "engagement_score": 50},
-        ]).encode("utf-8")
+        stdout = json.dumps(
+            [
+                {"platform": "reddit", "sentiment_score": 0.5, "mention_count": 10},
+                {"platform": "x", "sentiment_score": -0.3, "engagement_score": 50},
+            ]
+        ).encode("utf-8")
         signals = adapter._parse_cli_output(stdout, "gold", ["reddit", "x"])
         assert len(signals) == 2
         assert signals[0].platform == "reddit"
@@ -140,7 +148,9 @@ class TestParseCliOutput:
 
     def test_dict_with_results(self):
         adapter = Last30DaysAdapter()
-        stdout = json.dumps({"results": [{"platform": "hn", "sentiment_score": 0.1}]}).encode("utf-8")
+        stdout = json.dumps(
+            {"results": [{"platform": "hn", "sentiment_score": 0.1}]}
+        ).encode("utf-8")
         signals = adapter._parse_cli_output(stdout, "tech", ["hn"])
         assert len(signals) == 1
         assert signals[0].platform == "hn"
@@ -157,10 +167,12 @@ class TestParseCliOutput:
 
     def test_unsupported_platform_filtered(self):
         adapter = Last30DaysAdapter()
-        stdout = json.dumps([
-            {"platform": "reddit", "sentiment_score": 0.5},
-            {"platform": "facebook", "sentiment_score": 0.3},
-        ]).encode("utf-8")
+        stdout = json.dumps(
+            [
+                {"platform": "reddit", "sentiment_score": 0.5},
+                {"platform": "facebook", "sentiment_score": 0.3},
+            ]
+        ).encode("utf-8")
         signals = adapter._parse_cli_output(stdout, "gold", ["reddit"])
         assert len(signals) == 1
         assert signals[0].platform == "reddit"
@@ -234,7 +246,10 @@ class TestCheckCli:
         adapter = Last30DaysAdapter()
         assert adapter.cli_available is False
 
-    @patch("utils.last30days_adapter.subprocess.run", side_effect=TimeoutExpired(cmd="npx", timeout=5))
+    @patch(
+        "utils.last30days_adapter.subprocess.run",
+        side_effect=TimeoutExpired(cmd="npx", timeout=5),
+    )
     def test_timeout(self, _mock):
         adapter = Last30DaysAdapter()
         assert adapter.cli_available is False
@@ -261,7 +276,15 @@ class TestSearchTopicFlagEnabled:
             MagicMock(returncode=0),
             MagicMock(
                 returncode=0,
-                stdout=json.dumps([{"platform": "reddit", "sentiment_score": 0.5, "mention_count": 10}]).encode("utf-8"),
+                stdout=json.dumps(
+                    [
+                        {
+                            "platform": "reddit",
+                            "sentiment_score": 0.5,
+                            "mention_count": 10,
+                        }
+                    ]
+                ).encode("utf-8"),
             ),
         ]
         adapter = Last30DaysAdapter()
@@ -296,7 +319,9 @@ class TestSaveLoadCache:
     def test_round_trip(self, tmp_path):
         adapter = Last30DaysAdapter()
         with patch("utils.last30days_adapter._CACHE_DIR", tmp_path):
-            signals = [Last30DaysSignal(topic="gold", platform="reddit", sentiment_score=0.5)]
+            signals = [
+                Last30DaysSignal(topic="gold", platform="reddit", sentiment_score=0.5)
+            ]
             key = "testkey123"
             adapter._save_cache(key, signals)
             loaded = adapter._load_cache(key)
@@ -316,6 +341,7 @@ class TestSaveLoadCache:
             key = "expiredkey"
             adapter._save_cache(key, signals)
             import time
+
             time.sleep(0.01)
             assert adapter._load_cache(key) is None
 
@@ -324,7 +350,9 @@ class TestWriteAudit:
     def test_basic(self, tmp_path):
         adapter = Last30DaysAdapter()
         with patch("utils.last30days_adapter._AUDIT_DIR", tmp_path):
-            signals = [Last30DaysSignal(topic="gold", platform="reddit", sentiment_score=0.5)]
+            signals = [
+                Last30DaysSignal(topic="gold", platform="reddit", sentiment_score=0.5)
+            ]
             adapter._write_audit("gold", ["reddit"], 7, signals)
             files = list(tmp_path.glob("query_*.jsonl"))
             assert len(files) == 1

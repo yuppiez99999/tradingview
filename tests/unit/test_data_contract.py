@@ -12,6 +12,7 @@
     9. V9_DEFAULT_CONTRACT 校验干净 panel 通过
     10. ValidationResult 序列化为 dict
 """
+
 import json
 import sys
 from dataclasses import FrozenInstanceError
@@ -52,23 +53,25 @@ def clean_panel() -> pd.DataFrame:
     for code in codes:
         for date in dates:
             close = float(np.random.uniform(10, 50))
-            rows.append({
-                "code": code,
-                "date": date.strftime("%Y-%m-%d"),
-                "open": close * 0.99,
-                "high": close * 1.02,
-                "low": close * 0.98,
-                "close": close,
-                "volume": float(np.random.randint(100000, 1000000)),
-                "y": float(np.random.randn() * 0.02),
-                "MOM_5D": float(np.random.uniform(-0.1, 0.1)),
-                "MOM_20D": float(np.random.uniform(-0.2, 0.2)),
-                "VOL_5D": float(np.random.uniform(0.01, 0.05)),
-                "VOL_20D": float(np.random.uniform(0.01, 0.05)),
-                "RSI_14D": float(np.random.uniform(20, 80)),
-                "MACD": float(np.random.uniform(-0.01, 0.01)),
-                "SIZE_PROXY": close,
-            })
+            rows.append(
+                {
+                    "code": code,
+                    "date": date.strftime("%Y-%m-%d"),
+                    "open": close * 0.99,
+                    "high": close * 1.02,
+                    "low": close * 0.98,
+                    "close": close,
+                    "volume": float(np.random.randint(100000, 1000000)),
+                    "y": float(np.random.randn() * 0.02),
+                    "MOM_5D": float(np.random.uniform(-0.1, 0.1)),
+                    "MOM_20D": float(np.random.uniform(-0.2, 0.2)),
+                    "VOL_5D": float(np.random.uniform(0.01, 0.05)),
+                    "VOL_20D": float(np.random.uniform(0.01, 0.05)),
+                    "RSI_14D": float(np.random.uniform(20, 80)),
+                    "MACD": float(np.random.uniform(-0.01, 0.01)),
+                    "SIZE_PROXY": close,
+                }
+            )
     return pd.DataFrame(rows)
 
 
@@ -94,7 +97,7 @@ def panel_with_future_data(clean_panel: pd.DataFrame) -> pd.DataFrame:
     panel = clean_panel.copy()
     # 把最后 5 行的日期改为未来
     future_dates = pd.date_range("2025-12-01", periods=5, freq="B")
-    panel.loc[len(panel)-5:, "date"] = future_dates.strftime("%Y-%m-%d")
+    panel.loc[len(panel) - 5 :, "date"] = future_dates.strftime("%Y-%m-%d")
     return panel
 
 
@@ -133,6 +136,7 @@ class TestDataContractImmutability:
     def test_replace_returns_new_instance(self):
         """dataclasses.replace 返回新实例."""
         from dataclasses import replace
+
         v2 = replace(V9_DEFAULT_CONTRACT, version="2.0")
         assert V9_DEFAULT_CONTRACT.version == "1.0"
         assert v2.version == "2.0"
@@ -149,7 +153,8 @@ class TestRequiredColumnsCheck:
         result = V9_DEFAULT_CONTRACT.validate(clean_panel, mode="warn_only")
         # 无 CRITICAL 级必填列缺失违规
         critical_violations = [
-            v for v in result.violations
+            v
+            for v in result.violations
             if v.severity == Severity.CRITICAL and "必填列缺失" in v.message
         ]
         assert len(critical_violations) == 0
@@ -158,9 +163,12 @@ class TestRequiredColumnsCheck:
         self, panel_missing_required_column: pd.DataFrame
     ):
         """缺失 close 列 → CRITICAL 违规."""
-        result = V9_DEFAULT_CONTRACT.validate(panel_missing_required_column, mode="warn_only")
+        result = V9_DEFAULT_CONTRACT.validate(
+            panel_missing_required_column, mode="warn_only"
+        )
         close_violations = [
-            v for v in result.violations
+            v
+            for v in result.violations
             if v.field == "close" and v.severity == Severity.CRITICAL
         ]
         assert len(close_violations) > 0
@@ -188,7 +196,8 @@ class TestFeatureSchemaCheck:
         """
         result = V9_DEFAULT_CONTRACT.validate(panel_with_nulls, mode="warn_only")
         null_violations = [
-            v for v in result.violations
+            v
+            for v in result.violations
             if v.field == "MOM_5D" and "null 比例过高" in v.message
         ]
         assert len(null_violations) > 0
@@ -203,7 +212,8 @@ class TestFeatureSchemaCheck:
         panel.loc[:n_null, "MOM_5D"] = np.nan
         result = V9_DEFAULT_CONTRACT.validate(panel, mode="warn_only")
         null_violations = [
-            v for v in result.violations
+            v
+            for v in result.violations
             if v.field == "MOM_5D" and "null 比例过高" in v.message
         ]
         assert len(null_violations) > 0
@@ -215,7 +225,8 @@ class TestFeatureSchemaCheck:
         panel.loc[0, "RSI_14D"] = 150.0  # 超出 (0, 100) 范围
         result = V9_DEFAULT_CONTRACT.validate(panel, mode="warn_only")
         range_violations = [
-            v for v in result.violations
+            v
+            for v in result.violations
             if v.field == "RSI_14D" and "值范围超界" in v.message
         ]
         assert len(range_violations) > 0
@@ -232,8 +243,7 @@ class TestLabelCheck:
         panel = clean_panel.drop(columns=["y"])
         result = V9_DEFAULT_CONTRACT.validate(panel, mode="warn_only")
         label_violations = [
-            v for v in result.violations
-            if v.field == "y" and "标签列缺失" in v.message
+            v for v in result.violations if v.field == "y" and "标签列缺失" in v.message
         ]
         assert len(label_violations) > 0
         assert label_violations[0].severity == Severity.ERROR
@@ -248,10 +258,7 @@ class TestEntityGrainCheck:
     def test_duplicate_rows_yields_error(self, panel_with_duplicates: pd.DataFrame):
         """重复行 → ERROR."""
         result = V9_DEFAULT_CONTRACT.validate(panel_with_duplicates, mode="warn_only")
-        dup_violations = [
-            v for v in result.violations
-            if "实体粒度重复" in v.message
-        ]
+        dup_violations = [v for v in result.violations if "实体粒度重复" in v.message]
         assert len(dup_violations) > 0
         assert dup_violations[0].severity == Severity.ERROR
 
@@ -269,7 +276,8 @@ class TestPointInTimeCheck:
             panel_with_future_data, mode="warn_only", current_date=current_date
         )
         pit_violations = [
-            v for v in result.violations
+            v
+            for v in result.violations
             if v.field == "date" and "point-in-time 违规" in v.message
         ]
         assert len(pit_violations) > 0
@@ -282,12 +290,13 @@ class TestPointInTimeCheck:
             clean_panel, mode="warn_only", current_date=current_date
         )
         pit_violations = [
-            v for v in result.violations
-            if "point-in-time 违规" in v.message
+            v for v in result.violations if "point-in-time 违规" in v.message
         ]
         assert len(pit_violations) == 0
 
-    def test_validate_point_in_time_standalone_function(self, clean_panel: pd.DataFrame):
+    def test_validate_point_in_time_standalone_function(
+        self, clean_panel: pd.DataFrame
+    ):
         """validate_point_in_time 独立函数."""
         # 无未来数据
         assert validate_point_in_time(clean_panel, datetime(2025, 12, 31)) is True
@@ -301,13 +310,19 @@ class TestPointInTimeCheck:
 class TestValidationModes:
     """ECC GAP-8: 校验模式."""
 
-    def test_warn_only_does_not_raise(self, panel_missing_required_column: pd.DataFrame):
+    def test_warn_only_does_not_raise(
+        self, panel_missing_required_column: pd.DataFrame
+    ):
         """warn_only 模式不抛异常, 仅返回 failed=True."""
-        result = V9_DEFAULT_CONTRACT.validate(panel_missing_required_column, mode="warn_only")
+        result = V9_DEFAULT_CONTRACT.validate(
+            panel_missing_required_column, mode="warn_only"
+        )
         assert result.passed is False
         assert result.mode == ValidationMode.WARN_ONLY
 
-    def test_enforce_raises_on_critical(self, panel_missing_required_column: pd.DataFrame):
+    def test_enforce_raises_on_critical(
+        self, panel_missing_required_column: pd.DataFrame
+    ):
         """enforce 模式有 CRITICAL → 抛 DataContractViolationError."""
         with pytest.raises(DataContractViolationError):
             V9_DEFAULT_CONTRACT.validate(panel_missing_required_column, mode="enforce")
@@ -354,7 +369,9 @@ class TestV9DefaultContract:
     def test_v9_contract_required_columns(self):
         """V9 契约 required_columns 含 code/date/close/open/high/low/volume."""
         required = set(V9_DEFAULT_CONTRACT.required_columns)
-        assert {"code", "date", "close", "open", "high", "low", "volume"}.issubset(required)
+        assert {"code", "date", "close", "open", "high", "low", "volume"}.issubset(
+            required
+        )
 
     def test_v9_contract_validates_clean_panel(self, clean_panel: pd.DataFrame):
         """V9 契约校验干净 panel 通过 (passed=True)."""
@@ -389,9 +406,13 @@ class TestValidationResultSerialization:
         json_str = json.dumps(d, default=str)
         assert json.loads(json_str) == d
 
-    def test_error_count_and_critical_count(self, panel_missing_required_column: pd.DataFrame):
+    def test_error_count_and_critical_count(
+        self, panel_missing_required_column: pd.DataFrame
+    ):
         """error_count 和 critical_count 正确."""
-        result = V9_DEFAULT_CONTRACT.validate(panel_missing_required_column, mode="warn_only")
+        result = V9_DEFAULT_CONTRACT.validate(
+            panel_missing_required_column, mode="warn_only"
+        )
         # 缺失 close 列 → CRITICAL
         assert result.critical_count > 0
         assert result.error_count >= 0  # 可能有 entity grain 重复等其他 ERROR

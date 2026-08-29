@@ -16,6 +16,7 @@ remote_qmt_broker — 云端侧 QMT 远程客户端 (BrokerAPI 实现)
     QMT_RPC_TOKEN   — 鉴权 token (与 Win 侧 QMT_RPC_TOKEN 一致)
     QMT_RPC_TIMEOUT — HTTP 超时秒 (默认 10)
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import httpx
+
     HTTPX_AVAILABLE = True
 except ImportError:
     HTTPX_AVAILABLE = False
@@ -73,7 +75,9 @@ class RemoteQmtBroker(BrokerAPI):
 
     def _post(self, path: str, payload: dict) -> Optional[dict]:
         try:
-            resp = self._client.post(path, json=payload, headers=self._headers(), timeout=self.timeout)
+            resp = self._client.post(
+                path, json=payload, headers=self._headers(), timeout=self.timeout
+            )
             if resp.status_code == 200:
                 return resp.json()
             logger.error("RPC POST %s 失败: %d %s", path, resp.status_code, resp.text)
@@ -107,8 +111,11 @@ class RemoteQmtBroker(BrokerAPI):
             if result and result.get("connected"):
                 self._connected = True
                 self._last_health = time.time()
-                logger.info("RemoteQmtBroker 已连接: %s (account=%s)",
-                            self.rpc_url, result.get("account", ""))
+                logger.info(
+                    "RemoteQmtBroker 已连接: %s (account=%s)",
+                    self.rpc_url,
+                    result.get("account", ""),
+                )
                 return True
             logger.error("Win 网关健康检查失败: %s", result)
             self._connected = False
@@ -146,14 +153,27 @@ class RemoteQmtBroker(BrokerAPI):
     # 下单
     # ------------------------------------------------------------
 
-    def place(self, symbol: str, qty: int, side: str,
-              order_type: str = "LIMIT", price: float = 0.0,
-              ts: str = "", callback: Optional[Callable] = None) -> Optional[Order]:
+    def place(
+        self,
+        symbol: str,
+        qty: int,
+        side: str,
+        order_type: str = "LIMIT",
+        price: float = 0.0,
+        ts: str = "",
+        callback: Optional[Callable] = None,
+    ) -> Optional[Order]:
         if not self.is_connected:
             logger.error("RemoteQmtBroker 未连接, 无法下单")
             return None
-        payload = {"symbol": symbol, "qty": qty, "side": side,
-                   "order_type": order_type, "price": price, "ts": ts}
+        payload = {
+            "symbol": symbol,
+            "qty": qty,
+            "side": side,
+            "order_type": order_type,
+            "price": price,
+            "ts": ts,
+        }
         result = self._post("/order", payload)
         if not result:
             return None
@@ -169,8 +189,14 @@ class RemoteQmtBroker(BrokerAPI):
                 ts=result.get("ts", ts or datetime.now().isoformat()),
             )
             self.orders[order.order_id] = order
-            logger.info("RPC 下单: %s %s %s qty=%d order_id=%s",
-                        symbol, side, order_type, qty, order.order_id)
+            logger.info(
+                "RPC 下单: %s %s %s qty=%d order_id=%s",
+                symbol,
+                side,
+                order_type,
+                qty,
+                order.order_id,
+            )
             return order
         except (ValueError, TypeError, KeyError, AttributeError) as exc:
             logger.error("RPC 下单响应解析失败: %s", exc)
@@ -194,7 +220,9 @@ class RemoteQmtBroker(BrokerAPI):
         if not self.is_connected:
             return None
         # 把轮询交给 Win 侧 (它离 QMT 最近, 延迟最低)
-        result = self._post("/wait_fill", {"order_id": order.order_id, "timeout": timeout})
+        result = self._post(
+            "/wait_fill", {"order_id": order.order_id, "timeout": timeout}
+        )
         if not result:
             return None
         if not result.get("filled"):
@@ -214,9 +242,13 @@ class RemoteQmtBroker(BrokerAPI):
             order.filled_qty = fill.qty
             order.avg_price = fill.price
             return {
-                "order_id": fill.order_id, "fill_id": fill.fill_id,
-                "symbol": fill.symbol, "qty": fill.qty,
-                "price": fill.price, "side": fill.side, "ts": fill.ts,
+                "order_id": fill.order_id,
+                "fill_id": fill.fill_id,
+                "symbol": fill.symbol,
+                "qty": fill.qty,
+                "price": fill.price,
+                "side": fill.side,
+                "ts": fill.ts,
             }
         except (ValueError, TypeError, KeyError, AttributeError) as exc:
             logger.error("RPC wait_fill 响应解析失败: %s", exc)

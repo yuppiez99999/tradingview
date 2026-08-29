@@ -36,6 +36,7 @@ from utils.fingpt_integration import (
 # 枚举测试
 # ============================================================
 
+
 class TestEnums:
     """枚举测试。"""
 
@@ -57,6 +58,7 @@ class TestEnums:
 # ============================================================
 # LoRAConfig 测试
 # ============================================================
+
 
 class TestLoRAConfig:
     """LoRA 配置测试。"""
@@ -89,6 +91,7 @@ class TestLoRAConfig:
 # FinGPTConfig 测试
 # ============================================================
 
+
 class TestFinGPTConfig:
     """FinGPT 配置测试。"""
 
@@ -114,6 +117,7 @@ class TestFinGPTConfig:
 # ============================================================
 # FinGPTClient 测试
 # ============================================================
+
 
 class TestFinGPTClient:
     """FinGPT 客户端测试。"""
@@ -161,6 +165,7 @@ class TestFinGPTClient:
 # RLSPTrainer 测试
 # ============================================================
 
+
 class TestRLSPConfig:
     """RLSP 配置测试。"""
 
@@ -180,7 +185,9 @@ class TestTrainingRecord:
     """训练记录测试。"""
 
     def test_to_dict(self):
-        record = TrainingRecord(epoch=1, step=10, loss=0.5, reward=0.02, excess_return=0.01)
+        record = TrainingRecord(
+            epoch=1, step=10, loss=0.5, reward=0.02, excess_return=0.01
+        )
         d = record.to_dict()
         assert d["epoch"] == 1
         assert d["loss"] == 0.5
@@ -199,7 +206,9 @@ class TestRLSPTrainer:
         """正超额收益 → 正奖励。"""
         trainer = RLSPTrainer()
         reward = trainer.compute_reward(
-            portfolio_return=0.05, market_return=0.01, volatility=0.01,
+            portfolio_return=0.05,
+            market_return=0.01,
+            volatility=0.01,
         )
         assert reward > 0
 
@@ -207,7 +216,9 @@ class TestRLSPTrainer:
         """负超额收益 → 负奖励。"""
         trainer = RLSPTrainer()
         reward = trainer.compute_reward(
-            portfolio_return=0.01, market_return=0.05, volatility=0.01,
+            portfolio_return=0.01,
+            market_return=0.05,
+            volatility=0.01,
         )
         assert reward < 0
 
@@ -223,8 +234,12 @@ class TestRLSPTrainer:
         trainer = RLSPTrainer()
         trainer.setup()
         record = trainer.train_step(
-            epoch=0, step=0, loss=0.5,
-            portfolio_return=0.02, market_return=0.01, volatility=0.015,
+            epoch=0,
+            step=0,
+            loss=0.5,
+            portfolio_return=0.02,
+            market_return=0.01,
+            volatility=0.015,
         )
         assert isinstance(record, TrainingRecord)
         assert record.epoch == 0
@@ -259,6 +274,7 @@ class TestRLSPTrainer:
 # ============================================================
 # ModelRouter 测试
 # ============================================================
+
 
 class TestModelRouter:
     """模型路由器测试。"""
@@ -320,6 +336,7 @@ class TestModelRouter:
 # 端到端集成测试
 # ============================================================
 
+
 class TestEndToEnd:
     """端到端集成测试。"""
 
@@ -345,7 +362,8 @@ class TestEndToEnd:
         rewards = []
         for i in range(10):
             record = trainer.train_step(
-                epoch=i, step=i,
+                epoch=i,
+                step=i,
                 loss=0.5 - i * 0.05,
                 portfolio_return=0.01 + i * 0.003,
                 market_return=0.01,

@@ -4,6 +4,7 @@ test_g7_option_exercise_risk_boost.py — 期权行权风险覆盖率补强测�
 
 覆盖 P0 risk 链路: utils/option_exercise_risk.py
 """
+
 from __future__ import annotations
 
 from datetime import date

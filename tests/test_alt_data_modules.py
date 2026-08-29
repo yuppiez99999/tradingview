@@ -24,12 +24,14 @@ if PROJECT_ROOT not in sys.path:
 # 1. NewsSentimentEngine 测试
 # ============================================================
 
+
 class TestNewsSentimentEngine(unittest.TestCase):
     """新闻情感分析引擎测试"""
 
     def setUp(self):
         """每个测试前创建一个新的引擎实例"""
         from utils.news_sentiment_engine import NewsItem, NewsSentimentEngine
+
         self.engine = NewsSentimentEngine()
         self.NewsItem = NewsItem
 
@@ -92,13 +94,15 @@ class TestNewsSentimentEngine(unittest.TestCase):
         """测试单标的分析"""
         # 添加几条新闻
         for i in range(3):
-            self.engine.add_news(self.NewsItem(
-                news_id=f"analyze_{i}",
-                title="业绩增长 订单增加",
-                content="业绩大增 净利增长",
-                symbols=["600519"],
-                publish_time=datetime.now() - timedelta(hours=i),
-            ))
+            self.engine.add_news(
+                self.NewsItem(
+                    news_id=f"analyze_{i}",
+                    title="业绩增长 订单增加",
+                    content="业绩大增 净利增长",
+                    symbols=["600519"],
+                    publish_time=datetime.now() - timedelta(hours=i),
+                )
+            )
         result = self.engine.analyze(symbols=["600519"])
         # 应有结果
         self.assertIn("600519", result.signals)
@@ -115,26 +119,30 @@ class TestNewsSentimentEngine(unittest.TestCase):
     def test_analyze_multiple_symbols(self):
         """测试多标的分析"""
         for i, sym in enumerate(["600519", "000858", "601318"]):
-            self.engine.add_news(self.NewsItem(
-                news_id=f"multi_{i}",
-                title="公司业绩增长",
-                content="业绩大增",
-                symbols=[sym],
-                publish_time=datetime.now(),
-            ))
+            self.engine.add_news(
+                self.NewsItem(
+                    news_id=f"multi_{i}",
+                    title="公司业绩增长",
+                    content="业绩大增",
+                    symbols=[sym],
+                    publish_time=datetime.now(),
+                )
+            )
         result = self.engine.analyze(symbols=["600519", "000858", "601318"])
         self.assertGreaterEqual(len(result.signals), 1)
 
     def test_analyze_with_supply_chain_propagation(self):
         """测试供应链传播"""
         # 600519 有新闻, 000858 是其供应链关联
-        self.engine.add_news(self.NewsItem(
-            news_id="sc_test_1",
-            title="业绩大增",
-            content="净利增长",
-            symbols=["600519"],
-            publish_time=datetime.now(),
-        ))
+        self.engine.add_news(
+            self.NewsItem(
+                news_id="sc_test_1",
+                title="业绩大增",
+                content="净利增长",
+                symbols=["600519"],
+                publish_time=datetime.now(),
+            )
+        )
         supply_map = {"600519": ["000858"]}
         result = self.engine.analyze(
             symbols=["600519", "000858"],
@@ -187,11 +195,13 @@ class TestNewsSentimentEngine(unittest.TestCase):
 # 2. SupplyChainGraph 测试
 # ============================================================
 
+
 class TestSupplyChainGraph(unittest.TestCase):
     """供应链关系图谱测试"""
 
     def setUp(self):
         from utils.supply_chain_graph import SupplyChainEdge, SupplyChainGraph
+
         self.graph = SupplyChainGraph()
         self.SupplyChainEdge = SupplyChainEdge
 
@@ -203,8 +213,10 @@ class TestSupplyChainGraph(unittest.TestCase):
     def test_add_single_edge(self):
         """测试添加单条边"""
         edge = self.SupplyChainEdge(
-            source="600519", target="000858",
-            relation_type="SUPPLIER", strength=0.7,
+            source="600519",
+            target="000858",
+            relation_type="SUPPLIER",
+            strength=0.7,
         )
         self.graph.add_edge(edge)
         self.assertIn("600519", self.graph.adjacency)
@@ -215,9 +227,15 @@ class TestSupplyChainGraph(unittest.TestCase):
     def test_add_edges_batch(self):
         """测试批量添加边"""
         edges = [
-            self.SupplyChainEdge(source="A", target="B", relation_type="SUPPLIER", strength=0.5),
-            self.SupplyChainEdge(source="B", target="C", relation_type="CUSTOMER", strength=0.6),
-            self.SupplyChainEdge(source="C", target="D", relation_type="PARTNER", strength=0.4),
+            self.SupplyChainEdge(
+                source="A", target="B", relation_type="SUPPLIER", strength=0.5
+            ),
+            self.SupplyChainEdge(
+                source="B", target="C", relation_type="CUSTOMER", strength=0.6
+            ),
+            self.SupplyChainEdge(
+                source="C", target="D", relation_type="PARTNER", strength=0.4
+            ),
         ]
         count = self.graph.add_edges(edges)
         self.assertEqual(count, 3)
@@ -233,12 +251,22 @@ class TestSupplyChainGraph(unittest.TestCase):
     def test_propagate_impact(self):
         """测试影响传播"""
         # 构建链路: A → B → C
-        self.graph.add_edge(self.SupplyChainEdge(
-            source="A", target="B", relation_type="SUPPLIER", strength=0.8,
-        ))
-        self.graph.add_edge(self.SupplyChainEdge(
-            source="B", target="C", relation_type="SUPPLIER", strength=0.6,
-        ))
+        self.graph.add_edge(
+            self.SupplyChainEdge(
+                source="A",
+                target="B",
+                relation_type="SUPPLIER",
+                strength=0.8,
+            )
+        )
+        self.graph.add_edge(
+            self.SupplyChainEdge(
+                source="B",
+                target="C",
+                relation_type="SUPPLIER",
+                strength=0.6,
+            )
+        )
         # 从 A 传播
         paths = self.graph.propagate_impact(source="A", impact_strength=1.0, max_hops=3)
         self.assertGreater(len(paths), 0)
@@ -282,21 +310,36 @@ class TestSupplyChainGraph(unittest.TestCase):
 
     def test_find_path(self):
         """测试路径查找"""
-        self.graph.add_edge(self.SupplyChainEdge(
-            source="A", target="B", relation_type="SUPPLIER", strength=0.5,
-        ))
-        self.graph.add_edge(self.SupplyChainEdge(
-            source="B", target="C", relation_type="SUPPLIER", strength=0.5,
-        ))
+        self.graph.add_edge(
+            self.SupplyChainEdge(
+                source="A",
+                target="B",
+                relation_type="SUPPLIER",
+                strength=0.5,
+            )
+        )
+        self.graph.add_edge(
+            self.SupplyChainEdge(
+                source="B",
+                target="C",
+                relation_type="SUPPLIER",
+                strength=0.5,
+            )
+        )
         path = self.graph.find_path(source="A", target="C")
         self.assertIsNotNone(path)
         self.assertEqual(path, ["A", "B", "C"])
 
     def test_find_path_no_connection(self):
         """测试无连接路径查找"""
-        self.graph.add_edge(self.SupplyChainEdge(
-            source="A", target="B", relation_type="SUPPLIER", strength=0.5,
-        ))
+        self.graph.add_edge(
+            self.SupplyChainEdge(
+                source="A",
+                target="B",
+                relation_type="SUPPLIER",
+                strength=0.5,
+            )
+        )
         path = self.graph.find_path(source="A", target="Z")
         self.assertIsNone(path)
 
@@ -304,6 +347,7 @@ class TestSupplyChainGraph(unittest.TestCase):
 # ============================================================
 # 3. AltDataIndicators 测试
 # ============================================================
+
 
 class TestAltDataIndicators(unittest.TestCase):
     """另类数据指标测试"""
@@ -316,6 +360,7 @@ class TestAltDataIndicators(unittest.TestCase):
             SatelliteIndicator,
             SearchIndexIndicator,
         )
+
         self.engine = AltDataIndicators()
         self.SatelliteIndicator = SatelliteIndicator
         self.SearchIndexIndicator = SearchIndexIndicator
@@ -329,7 +374,12 @@ class TestAltDataIndicators(unittest.TestCase):
         self.assertGreater(self.engine.w_recruit, 0.0)
         self.assertGreater(self.engine.w_patent, 0.0)
         # 权重总和应接近 1
-        total_w = self.engine.w_sat + self.engine.w_search + self.engine.w_recruit + self.engine.w_patent
+        total_w = (
+            self.engine.w_sat
+            + self.engine.w_search
+            + self.engine.w_recruit
+            + self.engine.w_patent
+        )
         self.assertAlmostEqual(total_w, 1.0, places=2)
 
     def test_add_satellite_indicator(self):
@@ -387,8 +437,12 @@ class TestAltDataIndicators(unittest.TestCase):
         count = self.engine.load_demo_data(["300308", "688981"])
         self.assertGreater(count, 0)
         # 应有至少 1 条数据
-        total = (len(self.engine.satellite_data) + len(self.engine.search_data) +
-                 len(self.engine.recruitment_data) + len(self.engine.patent_data))
+        total = (
+            len(self.engine.satellite_data)
+            + len(self.engine.search_data)
+            + len(self.engine.recruitment_data)
+            + len(self.engine.patent_data)
+        )
         self.assertGreater(total, 0)
 
     def test_analyze_single_symbol(self):

@@ -23,10 +23,10 @@ logger = logging.getLogger("ai_decision.rag_context")
 
 # 来源可信度分级 (越高越优先保留)
 _SOURCE_TIER: dict[str, int] = {
-    "official": 3,     # 交易所/公司公告/监管
-    "broker": 2,       # 券商研报
-    "news": 1,         # 财经新闻
-    "social": 0,       # 社交/论坛
+    "official": 3,  # 交易所/公司公告/监管
+    "broker": 2,  # 券商研报
+    "news": 1,  # 财经新闻
+    "social": 0,  # 社交/论坛
 }
 
 # 相关性时间窗 (默认 7 天以内的新闻/研报视为相关)
@@ -45,8 +45,9 @@ def _parse_dt(value: Any) -> datetime | None:
     return None
 
 
-def _relevance_filter(items: list[dict[str, Any]], symbol: str,
-                      now: datetime) -> list[str]:
+def _relevance_filter(
+    items: list[dict[str, Any]], symbol: str, now: datetime
+) -> list[str]:
     """相关性 + 时效性 + 来源三层过滤, 返回保留的新闻/研报摘要文本"""
     kept: list[str] = []
     scored: list[tuple] = []
@@ -74,13 +75,15 @@ def _relevance_filter(items: list[dict[str, Any]], symbol: str,
     return kept
 
 
-def build_context(symbol: str,
-                  market_data: dict[str, Any] | None = None,
-                  fundamentals: dict[str, Any] | None = None,
-                  news: list[dict[str, Any]] | None = None,
-                  macro: dict[str, Any] | None = None,
-                  agent_decisions: list[dict[str, Any]] | None = None,
-                  agent_consensus: dict[str, Any] | None = None) -> DecisionContext:
+def build_context(
+    symbol: str,
+    market_data: dict[str, Any] | None = None,
+    fundamentals: dict[str, Any] | None = None,
+    news: list[dict[str, Any]] | None = None,
+    macro: dict[str, Any] | None = None,
+    agent_decisions: list[dict[str, Any]] | None = None,
+    agent_consensus: dict[str, Any] | None = None,
+) -> DecisionContext:
     """构建决策上下文
 
     各上游数据均可为空 (Mock 场景), 缺失项以占位填充, 保证全链路可跑.
@@ -136,6 +139,8 @@ def context_to_prompt(ctx: DecisionContext) -> str:
     ac = ctx.agent_consensus
     if ac:
         lines.append("## 五 Agent 加权共识")
-        lines.append(f"- action: {ac.get('action')}  strength: {ac.get('strength')}  "
-                     f"confidence: {ac.get('confidence')}")
+        lines.append(
+            f"- action: {ac.get('action')}  strength: {ac.get('strength')}  "
+            f"confidence: {ac.get('confidence')}"
+        )
     return "\n".join(lines)

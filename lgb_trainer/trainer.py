@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -204,9 +205,9 @@ def train_symbol_enhanced(
     )
 
     # === Step 3: 用筛选后的特征重新 CV ===
-    X_selected = np.asarray(df[selected_features].values, dtype=np.float64)  # noqa: N806
-    X_selected = np.nan_to_num(X_selected, nan=0.0, posinf=0.0, neginf=0.0)  # noqa: N806
-    cv_after_selection = time_series_cv_evaluate(X_selected, y_all, config, n_splits=config["n_splits"], code=symbol)
+    x_selected = np.asarray(df[selected_features].values, dtype=np.float64)
+    x_selected = np.nan_to_num(x_selected, nan=0.0, posinf=0.0, neginf=0.0)
+    cv_after_selection = time_series_cv_evaluate(x_selected, y_all, config, n_splits=config["n_splits"], code=symbol)
 
     # === Step 4: 最终模型 ===
     n_test = max(int(len(df) * config["test_ratio"]), 20)
@@ -214,17 +215,17 @@ def train_symbol_enhanced(
     train_df = df.iloc[:n_train]
     test_df = df.iloc[n_train:]
 
-    X_train = np.asarray(train_df[selected_features].values, dtype=np.float64)  # noqa: N806
+    x_train = np.asarray(train_df[selected_features].values, dtype=np.float64)
     y_train = np.asarray(train_df["target"].values, dtype=np.float64)
-    X_test = np.asarray(test_df[selected_features].values, dtype=np.float64)  # noqa: N806
+    x_test = np.asarray(test_df[selected_features].values, dtype=np.float64)
     y_test = np.asarray(test_df["target"].values, dtype=np.float64)
 
-    X_train = np.nan_to_num(X_train, nan=0.0, posinf=0.0, neginf=0.0)  # noqa: N806
-    X_test = np.nan_to_num(X_test, nan=0.0, posinf=0.0, neginf=0.0)  # noqa: N806
+    x_train = np.nan_to_num(x_train, nan=0.0, posinf=0.0, neginf=0.0)
+    x_test = np.nan_to_num(x_test, nan=0.0, posinf=0.0, neginf=0.0)
 
-    final_model, _ = train_lgb_with_fallback(X_train, y_train, X_test, y_test, config, log_tag=f"{symbol}-final")
+    final_model, _ = train_lgb_with_fallback(x_train, y_train, x_test, y_test, config, log_tag=f"{symbol}-final")
 
-    y_pred = final_model.predict(X_test)
+    y_pred = final_model.predict(x_test)
     final_r2 = _r2_score(y_test, y_pred)
     final_ic = _ic_score(y_test, y_pred)
     final_sharpe = _signal_sharpe(y_test, y_pred)
@@ -263,10 +264,15 @@ def train_symbol_enhanced(
         adaptive_config = dict(config)
         adaptive_config["lgb_params"] = adaptive_params
         adaptive_model, _ = train_lgb_with_fallback(
-            X_train, y_train, X_test, y_test, adaptive_config, log_tag=f"{symbol}-adaptive"
+            x_train,
+            y_train,
+            x_test,
+            y_test,
+            adaptive_config,
+            log_tag=f"{symbol}-adaptive",
         )
 
-        y_pred_adaptive = adaptive_model.predict(X_test)
+        y_pred_adaptive = adaptive_model.predict(x_test)
         adaptive_r2 = _r2_score(y_test, y_pred_adaptive)
         adaptive_ic = _ic_score(y_test, y_pred_adaptive)
         adaptive_sharpe = _signal_sharpe(y_test, y_pred_adaptive)
@@ -419,7 +425,15 @@ def _prepare_regime_training_data(
     ]
 
     logger.info(f"[V9-Regime] {symbol}: bull={n_bull}, non_bull={n_non_bull}, total={len(df)}")
-    return df, regime_aligned, bull_mask, non_bull_mask, n_bull, n_non_bull, all_feature_cols
+    return (
+        df,
+        regime_aligned,
+        bull_mask,
+        non_bull_mask,
+        n_bull,
+        n_non_bull,
+        all_feature_cols,
+    )
 
 
 def _train_one_regime_model(
@@ -543,15 +557,41 @@ def train_symbol_regime_specific(
     """
     prepared = _prepare_regime_training_data(symbol, df, config, regime_series)
     if prepared is None:
-        return {"status": "SKIP", "symbol": symbol, "reason": f"样本不足 ({len(df)} < {config['min_samples']})"}
-    df, regime_aligned, bull_mask, non_bull_mask, n_bull, n_non_bull, all_feature_cols = prepared
+        return {
+            "status": "SKIP",
+            "symbol": symbol,
+            "reason": f"样本不足 ({len(df)} < {config['min_samples']})",
+        }
+    (
+        df,
+        regime_aligned,
+        bull_mask,
+        non_bull_mask,
+        n_bull,
+        n_non_bull,
+        all_feature_cols,
+    ) = prepared
 
     # 训练 bull / non_bull 模型
     bull_result = _train_one_regime_model(
-        symbol, df, bull_mask, n_bull, all_feature_cols, config, "bull", min_samples_per_regime
+        symbol,
+        df,
+        bull_mask,
+        n_bull,
+        all_feature_cols,
+        config,
+        "bull",
+        min_samples_per_regime,
     )
     non_bull_result = _train_one_regime_model(
-        symbol, df, non_bull_mask, n_non_bull, all_feature_cols, config, "non_bull", min_samples_per_regime
+        symbol,
+        df,
+        non_bull_mask,
+        n_non_bull,
+        all_feature_cols,
+        config,
+        "non_bull",
+        min_samples_per_regime,
     )
 
     # 任一 regime 模型缺失 → 训练 full fallback
@@ -561,14 +601,18 @@ def train_symbol_regime_specific(
 
     # 所有模型都失败
     if bull_result is None and non_bull_result is None and full_result is None:
-        return {"status": "SKIP", "symbol": symbol, "reason": "所有 regime 模型训练失败"}
+        return {
+            "status": "SKIP",
+            "symbol": symbol,
+            "reason": "所有 regime 模型训练失败",
+        }
 
     selected, active = _select_active_regime_model(regime_aligned, bull_result, non_bull_result, full_result)
 
     return {
         "status": "OK",
         "symbol": symbol,
-        "current_regime": regime_aligned.iloc[-1] if len(regime_aligned) > 0 else "unknown",
+        "current_regime": (regime_aligned.iloc[-1] if len(regime_aligned) > 0 else "unknown"),
         "selected_regime": selected,
         "n_bull_samples": n_bull,
         "n_non_bull_samples": n_non_bull,
@@ -591,7 +635,7 @@ def train_symbol_regime_specific(
         },
         "features_by_regime": {
             "bull": bull_result.get("selected_features") if bull_result else None,
-            "non_bull": non_bull_result.get("selected_features") if non_bull_result else None,
+            "non_bull": (non_bull_result.get("selected_features") if non_bull_result else None),
             "full": full_result.get("selected_features") if full_result else None,
         },
     }
@@ -626,7 +670,10 @@ def _train_regime_subset(
     # 原因: config["min_samples"]=150 (全样本阈值), 但 bull regime 子集通常只有 100-180 样本
     #       使用 150 会导致 bull 模型在大多数月份失败, 失去 regime-specific 价值
     if len(df_clean) < min_samples_per_regime:
-        return {"status": "SKIP", "reason": f"{regime_label} 样本不足 ({len(df_clean)} < {min_samples_per_regime})"}
+        return {
+            "status": "SKIP",
+            "reason": f"{regime_label} 样本不足 ({len(df_clean)} < {min_samples_per_regime})",
+        }
 
     # 临时降低 config["min_samples"] 以适配 regime 子集
     # 原因: train_symbol_enhanced 内部也会检查 config["min_samples"], 若不降低会再次拒绝
@@ -676,7 +723,11 @@ def _verify_gpu_availability(config: dict[str, Any]) -> None:
         _X = _np.array([[1, 2], [3, 4]], dtype=_np.float32)  # noqa: N806
         _y = _np.array([1.0, 2.0], dtype=_np.float32)
         _d = _lgb.Dataset(_X, label=_y)
-        _m = _lgb.train({"objective": "regression", "device_type": "gpu", "verbose": -1}, _d, num_boost_round=1)
+        _m = _lgb.train(
+            {"objective": "regression", "device_type": "gpu", "verbose": -1},
+            _d,
+            num_boost_round=1,
+        )
         logger.info("# GPU 训练验证: 通过 ✓")
     except Exception as _e:
         logger.warning(f"# GPU 验证失败, 回退 CPU: {_e}")
@@ -864,8 +915,7 @@ def _mark_quality_flag(code: str, result: dict[str, Any], config: dict[str, Any]
     # P0-1: 检测纯噪声模型 (best_iter=1 且预测方向错误)
     if best_iter <= 1 and final_ic < 0:
         logger.warning(
-            f"  [NOISE] {code}: best_iter={best_iter}, final_ic={final_ic:.4f}, "
-            f"模型为纯噪声, 信号强制置零"
+            f"  [NOISE] {code}: best_iter={best_iter}, final_ic={final_ic:.4f}, " f"模型为纯噪声, 信号强制置零"
         )
         result["quality_flag"] = "NOISE"
         return
@@ -941,9 +991,7 @@ def _generate_integrated_signals(results: dict[str, dict[str, Any]]) -> dict[str
                 "model_type": "LightGBM_Enhanced_RealOHLCV_Sentiment",
             }
     if suppressed:
-        logger.warning(
-            f"  [SIGNAL_SUPPRESS] {len(suppressed)} 个低质量信号已置零: {', '.join(suppressed)}"
-        )
+        logger.warning(f"  [SIGNAL_SUPPRESS] {len(suppressed)} 个低质量信号已置零: {', '.join(suppressed)}")
 
     signals_path = MODELS_DIR / "lgb_enhanced_signals.json"
     signals_data: dict[str, Any] = {
@@ -971,6 +1019,7 @@ def run_enhanced_training(
     force_retrain: bool = False,
     config: dict[str, Any] | None = None,
     use_news: bool = True,
+    post_train_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """执行增强训练
 
@@ -979,11 +1028,13 @@ def run_enhanced_training(
         force_retrain: 强制重训
         config: 训练配置 (None 时使用 LGB_ENHANCED_CONFIG)
         use_news: 是否启用新闻情绪因子
+        post_train_callback: 训练后回调钩子 (ER-1.1)，接收训练结果字典；
+            None 时训练行为不变（向后兼容）；回调异常 fail-safe 降级不阻断训练
 
     Returns:
         训练结果汇总 {"status", "total", "trained", "skipped", "failed", "results", "signals"}
     """
-    from autolearn_trainer import POSITION_SYMBOLS
+    from autolearn_trainer import POSITION_SYMBOLS, invoke_post_train_callback
 
     if config is None:
         # 延迟导入配置 (避免主模块未注入时使用空默认值)
@@ -1052,7 +1103,7 @@ def run_enhanced_training(
     # Step 5: 集成信号
     signals_data = _generate_integrated_signals(results)
 
-    return {
+    result = {
         "status": "OK",
         "total": len(symbols),
         "trained": saved,
@@ -1061,3 +1112,9 @@ def run_enhanced_training(
         "results": results,
         "signals": signals_data,
     }
+
+    # Step 6: post_train_callback 钩子 (ER-1.1, Wave 7-ERL Sprint 1)
+    # 训练完成后调用回调，用于训练→进化→再平衡联动；fail-safe 降级
+    invoke_post_train_callback(post_train_callback, result, logger_name="lgb_enhanced")
+
+    return result

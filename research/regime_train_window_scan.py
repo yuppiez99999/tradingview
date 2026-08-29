@@ -11,6 +11,7 @@
 Usage:
     .venv\\Scripts\\python.exe research\\regime_train_window_scan.py
 """
+
 from __future__ import annotations
 
 import json
@@ -48,8 +49,8 @@ def backtest(R, codes, train_window, gs, gk):  # noqa: N806
 
     t = train_window
     while t + HOLD_PERIOD <= T:
-        R_train = R[t - train_window:t]  # noqa: N806
-        R_hold = R[t:t + HOLD_PERIOD]  # noqa: N806
+        R_train = R[t - train_window : t]  # noqa: N806
+        R_hold = R[t : t + HOLD_PERIOD]  # noqa: N806
         cov = np.cov(R_train, rowvar=False) * 252
         mu_bl = bl_posterior_mu(codes, R_train, cov, w_bench)
 
@@ -73,9 +74,14 @@ def backtest(R, codes, train_window, gs, gk):  # noqa: N806
     peak = np.maximum.accumulate(cum_nav)
     max_dd = float((cum_nav / peak - 1.0).min())
     return {
-        "夏普": m["年化夏普"], "收益": m["年化收益"], "末净值": float(cum_nav[-1]),
-        "回撤": max_dd, "偏度": m["组合偏度"], "峰度": m["超额峰度"],
-        "n_rebal": n_rebal, "样本外天数": len(daily_rets),
+        "夏普": m["年化夏普"],
+        "收益": m["年化收益"],
+        "末净值": float(cum_nav[-1]),
+        "回撤": max_dd,
+        "偏度": m["组合偏度"],
+        "峰度": m["超额峰度"],
+        "n_rebal": n_rebal,
+        "样本外天数": len(daily_rets),
     }
 
 
@@ -87,7 +93,9 @@ def main() -> int:
     print(f"加载缓存: {T} 日 × {N} 股\n")
 
     results = {}
-    print(f"{'train':<8}{'方案':<22}{'换仓':<6}{'样本外':<8}{'夏普':<10}{'净值':<10}{'回撤':<10}{'偏度':<8}{'峰度':<8}")
+    print(
+        f"{'train':<8}{'方案':<22}{'换仓':<6}{'样本外':<8}{'夏普':<10}{'净值':<10}{'回撤':<10}{'偏度':<8}{'峰度':<8}"
+    )
     print("-" * 90)
 
     for tw in TRAIN_WINDOWS:
@@ -95,9 +103,11 @@ def main() -> int:
         for label, gs, gk in SCHEMES:
             m = backtest(R, codes, tw, gs, gk)
             results[tw][label] = m
-            print(f"{tw:<8}{label:<22}{m['n_rebal']:<6}{m['样本外天数']:<8}"
-                  f"{m['夏普']:<10.4f}{m['末净值']:<10.4f}{m['回撤']:<10.4f}"
-                  f"{m['偏度']:<8.3f}{m['峰度']:<8.3f}")
+            print(
+                f"{tw:<8}{label:<22}{m['n_rebal']:<6}{m['样本外天数']:<8}"
+                f"{m['夏普']:<10.4f}{m['末净值']:<10.4f}{m['回撤']:<10.4f}"
+                f"{m['偏度']:<8.3f}{m['峰度']:<8.3f}"
+            )
         # MVSK vs MV 增量
         mv = results[tw]["BL+MV"]
         mvsk = results[tw]["BL+MVSK(0.1,0.05)"]
@@ -114,8 +124,10 @@ def main() -> int:
         mv = results[tw]["BL+MV"]["夏普"]
         mvsk1 = results[tw]["BL+MVSK(0.1,0.05)"]["夏普"]
         mvsk2 = results[tw]["BL+MVSK(0.5,0.05)"]["夏普"]
-        print(f"train={tw}: MV={mv:+.3f}  MVSK(0.1)={mvsk1:+.3f} (Δ={mvsk1-mv:+.3f})  "
-              f"MVSK(0.5)={mvsk2:+.3f} (Δ={mvsk2-mv:+.3f})")
+        print(
+            f"train={tw}: MV={mv:+.3f}  MVSK(0.1)={mvsk1:+.3f} (Δ={mvsk1-mv:+.3f})  "
+            f"MVSK(0.5)={mvsk2:+.3f} (Δ={mvsk2-mv:+.3f})"
+        )
 
     out = {"train_windows": TRAIN_WINDOWS, "结果": results}
     out_path = _PROJECT_ROOT / "research" / "regime_train_window_scan_result.json"

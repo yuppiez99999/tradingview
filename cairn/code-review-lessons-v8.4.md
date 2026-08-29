@@ -217,3 +217,14 @@ related:
 - [ ] 测试断言符合引擎真实行为（先读引擎逻辑再写断言）？
 
 **每修复一个 bug，应更新本文档对应模式条目，让"防复发"制度化。**
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [回测标准](backtest-standards.md) (相似度 16%)
+- [代码质量修复批次 — 2026-08-13（审查报告 B1/B2/S1/S2/S3/S4/S5/N1）](code-quality-fix-batch-20260813.md) (相似度 12%)
+- [Agent-Skills 集成与适配（2026-08-24）](agent-skills-integration.md) (相似度 11%)
+- [成交回报驱动 PnL：G2/G4 执行闭环补齐经验沉淀（2026-08-08）](fills-driven-pnl-lessons-20260808.md) (相似度 11%)
+- [代码审查质量门禁经验沉淀：为什么多次审查仍有 bug](code-review-quality-gate-lessons-20260811.md) (相似度 11%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

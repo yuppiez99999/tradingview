@@ -38,6 +38,7 @@ HC-1: 任何 PR 必须通过 V9 基线回归测试
     - 独立实现 DSR/CV 公式 (双盲验证 _calc_v9_dsr_v2.py 的正确性)
     - 失败时输出详细差异报告 (T1.8 验收标准 #3)
 """
+
 from __future__ import annotations
 
 import json
@@ -58,6 +59,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # ============================================================
 # 独立实现 DSR / Sharpe CV 公式 (双盲验证)
 # ============================================================
+
 
 def _compute_sharpe_monthly(returns: list[float]) -> float:
     """计算月度 Sharpe 比率.
@@ -104,9 +106,7 @@ def _compute_dsr_bailey(
     if n_samples <= 1 or n_trials <= 1:
         return 0.0
     sr_var = (1.0 / (n_samples - 1)) * (
-        1.0
-        - skewness * sharpe_monthly
-        + (kurtosis_fisher / 4.0) * sharpe_monthly ** 2
+        1.0 - skewness * sharpe_monthly + (kurtosis_fisher / 4.0) * sharpe_monthly**2
     )
     sr_var = max(sr_var, 1e-10)
     sr_std = math.sqrt(sr_var)
@@ -162,7 +162,7 @@ def _compute_sharpe_cv_rolling(
     rolling_sharpes: list[float] = []
     n = len(returns)
     for i in range(window, n + 1):
-        w = returns[i - window:i]
+        w = returns[i - window : i]
         if len(w) >= min_periods and statistics.stdev(w) > 0:
             w_sharpe = (statistics.mean(w) / statistics.stdev(w)) * math.sqrt(12)
             rolling_sharpes.append(w_sharpe)
@@ -252,6 +252,7 @@ def _recompute_metrics_from_records(
     try:
         import numpy as np  # noqa: F401
         from scipy import stats as scipy_stats
+
         skewness = float(scipy_stats.skew(returns))
         kurtosis_fisher = float(scipy_stats.kurtosis(returns, fisher=True))
     except ImportError:
@@ -287,6 +288,7 @@ def _recompute_metrics_from_records(
 # Layer 1: 基线完整性测试
 # ============================================================
 
+
 class TestBaselineIntegrity:
     """Layer 1 — 基线文件完整性检查."""
 
@@ -297,7 +299,9 @@ class TestBaselineIntegrity:
             f"HC-1 硬约束: 必须有基线锁定文件以记录生产 commit hash"
         )
 
-    def test_baseline_lock_has_commit_hash(self, v9_baseline_lock: dict[str, Any]) -> None:
+    def test_baseline_lock_has_commit_hash(
+        self, v9_baseline_lock: dict[str, Any]
+    ) -> None:
         """LOCK 文件必须包含 40 位 commit hash."""
         parsed = v9_baseline_lock["parsed"]
         assert "commit_hash" in parsed, (
@@ -306,11 +310,13 @@ class TestBaselineIntegrity:
         )
         commit_hash = parsed["commit_hash"]
         assert len(commit_hash) == 40, f"commit hash 长度异常: {commit_hash}"
-        assert all(c in "0123456789abcdef" for c in commit_hash.lower()), (
-            f"commit hash 含非十六进制字符: {commit_hash}"
-        )
+        assert all(
+            c in "0123456789abcdef" for c in commit_hash.lower()
+        ), f"commit hash 含非十六进制字符: {commit_hash}"
 
-    def test_baseline_lock_has_lock_date(self, v9_baseline_lock: dict[str, Any]) -> None:
+    def test_baseline_lock_has_lock_date(
+        self, v9_baseline_lock: dict[str, Any]
+    ) -> None:
         """LOCK 文件必须包含锁定日期."""
         parsed = v9_baseline_lock["parsed"]
         assert "lock_date" in parsed, "LOCK 文件缺少 '锁定日期' 字段"
@@ -345,6 +351,7 @@ class TestBaselineIntegrity:
 # Layer 2: 指标重算一致性测试
 # ============================================================
 
+
 class TestMetricRecomputation:
     """Layer 2 — 独立重算指标并与基线 JSON 比对.
 
@@ -359,9 +366,9 @@ class TestMetricRecomputation:
         """records 数量与基线 n_months 一致."""
         records = v9_backtest_json["data"]["records"]
         expected = v9_baseline_metrics["n_months"]
-        assert len(records) == expected, (
-            f"records 数 ({len(records)}) 与基线 n_months ({expected}) 不一致"
-        )
+        assert (
+            len(records) == expected
+        ), f"records 数 ({len(records)}) 与基线 n_months ({expected}) 不一致"
 
     def test_annual_return_consistency(
         self,
@@ -463,6 +470,7 @@ class TestMetricRecomputation:
 # Layer 3: 阈值通过检查
 # ============================================================
 
+
 class TestThresholdCompliance:
     """Layer 3 — V9 基线指标必须通过 HC-1 验收阈值."""
 
@@ -480,17 +488,17 @@ class TestThresholdCompliance:
         """年化收益 >= 15%."""
         actual = v9_baseline_metrics["annual_return"]
         threshold = v9_baseline_metrics["thresholds"]["annual_return_min"]
-        assert actual >= threshold, (
-            f"年化收益未达标: {actual*100:.2f}% < {threshold*100:.2f}%"
-        )
+        assert (
+            actual >= threshold
+        ), f"年化收益未达标: {actual*100:.2f}% < {threshold*100:.2f}%"
 
     def test_max_drawdown_threshold(self, v9_baseline_metrics: dict[str, Any]) -> None:
         """最大回撤 <= 10%."""
         actual = v9_baseline_metrics["max_drawdown"]
         threshold = v9_baseline_metrics["thresholds"]["max_drawdown_max"]
-        assert actual <= threshold, (
-            f"最大回撤未达标: {actual*100:.2f}% > {threshold*100:.2f}%"
-        )
+        assert (
+            actual <= threshold
+        ), f"最大回撤未达标: {actual*100:.2f}% > {threshold*100:.2f}%"
 
     def test_sharpe_cv_threshold(self, v9_baseline_metrics: dict[str, Any]) -> None:
         """Sharpe CV < 1.0 (12 月滚动)."""
@@ -505,9 +513,9 @@ class TestThresholdCompliance:
         """胜率 >= 60% (额外指标)."""
         actual = v9_baseline_metrics["win_rate"]
         threshold = v9_baseline_metrics["thresholds"]["win_rate_min"]
-        assert actual >= threshold, (
-            f"胜率未达标: {actual*100:.2f}% < {threshold*100:.2f}%"
-        )
+        assert (
+            actual >= threshold
+        ), f"胜率未达标: {actual*100:.2f}% < {threshold*100:.2f}%"
 
     def test_all_thresholds_pass(self, v9_baseline_metrics: dict[str, Any]) -> None:
         """所有阈值同时通过 (综合检查)."""
@@ -515,7 +523,9 @@ class TestThresholdCompliance:
         t = v9_baseline_metrics["thresholds"]
         failures: list[str] = []
         if m["dsr_max_pass"] < t["dsr_max_pass_min"]:
-            failures.append(f"DSR max_pass={m['dsr_max_pass']} < {t['dsr_max_pass_min']}")
+            failures.append(
+                f"DSR max_pass={m['dsr_max_pass']} < {t['dsr_max_pass_min']}"
+            )
         if m["annual_return"] < t["annual_return_min"]:
             failures.append(
                 f"年化={m['annual_return']*100:.2f}% < {t['annual_return_min']*100:.2f}%"
@@ -530,15 +540,15 @@ class TestThresholdCompliance:
             failures.append(
                 f"胜率={m['win_rate']*100:.2f}% < {t['win_rate_min']*100:.2f}%"
             )
-        assert not failures, (
-            "V9 基线回归未通过 HC-1 验收标准:\n  - "
-            + "\n  - ".join(failures)
+        assert not failures, "V9 基线回归未通过 HC-1 验收标准:\n  - " + "\n  - ".join(
+            failures
         )
 
 
 # ============================================================
 # Layer 4: V9 代码可导入性测试
 # ============================================================
+
 
 class TestV9CodeImportability:
     """Layer 4 — V9 训练/推理代码必须可导入.
@@ -549,22 +559,26 @@ class TestV9CodeImportability:
     def test_institutional_pipeline_runner_importable(self) -> None:
         """institutional_pipeline_runner 模块可导入."""
         import sys
+
         # 项目根目录必须在 sys.path
         if str(PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(PROJECT_ROOT))
 
         import institutional_pipeline_runner as ipr
-        assert hasattr(ipr, "_V9_REGIME_SPECIFIC_ENABLED"), (
-            "institutional_pipeline_runner 缺少 _V9_REGIME_SPECIFIC_ENABLED 常量"
-        )
+
+        assert hasattr(
+            ipr, "_V9_REGIME_SPECIFIC_ENABLED"
+        ), "institutional_pipeline_runner 缺少 _V9_REGIME_SPECIFIC_ENABLED 常量"
 
     def test_v9_regime_specific_enabled(self) -> None:
         """V9 总开关 _V9_REGIME_SPECIFIC_ENABLED == True."""
         import sys
+
         if str(PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(PROJECT_ROOT))
 
         import institutional_pipeline_runner as ipr
+
         assert ipr._V9_REGIME_SPECIFIC_ENABLED is True, (
             f"_V9_REGIME_SPECIFIC_ENABLED = {ipr._V9_REGIME_SPECIFIC_ENABLED}, 期望 True\n"
             f"V9 总开关必须开启以激活 Regime-Specific LGB 训练路径"
@@ -573,24 +587,27 @@ class TestV9CodeImportability:
     def test_v9_config_constants(self) -> None:
         """V9 配置常量值合理."""
         import sys
+
         if str(PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(PROJECT_ROOT))
 
         import institutional_pipeline_runner as ipr
+
         assert ipr._V9_MIN_SAMPLES_PER_REGIME >= 50, (
             f"_V9_MIN_SAMPLES_PER_REGIME={ipr._V9_MIN_SAMPLES_PER_REGIME} 过小 "
             f"(应 >=50 以保证 regime 子集统计可靠性)"
         )
-        assert ipr._V9_REGIME_PROXY_SYMBOL == "510300", (
-            f"_V9_REGIME_PROXY_SYMBOL={ipr._V9_REGIME_PROXY_SYMBOL}, 期望 510300 (沪深300ETF)"
-        )
-        assert ipr._V9_REGIME_MA_PERIOD >= 20, (
-            f"_V9_REGIME_MA_PERIOD={ipr._V9_REGIME_MA_PERIOD} 过小"
-        )
+        assert (
+            ipr._V9_REGIME_PROXY_SYMBOL == "510300"
+        ), f"_V9_REGIME_PROXY_SYMBOL={ipr._V9_REGIME_PROXY_SYMBOL}, 期望 510300 (沪深300ETF)"
+        assert (
+            ipr._V9_REGIME_MA_PERIOD >= 20
+        ), f"_V9_REGIME_MA_PERIOD={ipr._V9_REGIME_MA_PERIOD} 过小"
 
     def test_lgb_enhanced_trainer_importable(self) -> None:
         """lgb_enhanced_trainer 模块可导入且 V9 函数可用."""
         import sys
+
         if str(PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -598,25 +615,29 @@ class TestV9CodeImportability:
             compute_regime_series,
             train_symbol_regime_specific,
         )
-        assert callable(train_symbol_regime_specific), (
-            "train_symbol_regime_specific 不可调用"
-        )
+
+        assert callable(
+            train_symbol_regime_specific
+        ), "train_symbol_regime_specific 不可调用"
         assert callable(compute_regime_series), "compute_regime_series 不可调用"
 
     def test_backtest_runner_importable(self) -> None:
         """backtest_runner 模块可导入且 run_backtest 可调用."""
         import sys
+
         if str(PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(PROJECT_ROOT))
         sys.path.insert(0, str(PROJECT_ROOT / "research"))
 
         from backtest_runner import run_backtest
+
         assert callable(run_backtest), "run_backtest 不可调用"
 
 
 # ============================================================
 # Layer 5: 完整回测 (nightly, 默认跳过)
 # ============================================================
+
 
 @pytest.mark.nightly
 class TestV9FullBacktestNightly:
@@ -632,6 +653,7 @@ class TestV9FullBacktestNightly:
         失败时输出详细差异报告.
         """
         import sys
+
         if str(PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(PROJECT_ROOT))
         if str(PROJECT_ROOT / "research") not in sys.path:
@@ -652,10 +674,29 @@ class TestV9FullBacktestNightly:
         from backtest_runner import run_backtest
 
         symbols = [
-            "588000", "688041", "002371", "688981", "300308", "000425", "601088",
-            "600276", "600900", "515180", "600036", "518880", "300274", "603019",
-            "600089", "688017", "600219", "600019", "000680", "000333", "000408",
-            "000975", "002422",
+            "588000",
+            "688041",
+            "002371",
+            "688981",
+            "300308",
+            "000425",
+            "601088",
+            "600276",
+            "600900",
+            "515180",
+            "600036",
+            "518880",
+            "300274",
+            "603019",
+            "600089",
+            "688017",
+            "600219",
+            "600019",
+            "000680",
+            "000333",
+            "000408",
+            "000975",
+            "002422",
         ]
         result = run_backtest(
             symbols=symbols,
@@ -678,13 +719,9 @@ class TestV9FullBacktestNightly:
                 f"最大回撤退化: {recomputed['max_drawdown']*100:.2f}% > 10%"
             )
         if recomputed["sharpe_cv"] >= 1.0:
-            failures.append(
-                f"Sharpe CV 退化: {recomputed['sharpe_cv']:.4f} >= 1.0"
-            )
+            failures.append(f"Sharpe CV 退化: {recomputed['sharpe_cv']:.4f} >= 1.0")
         if recomputed["dsr_max_pass"] < 5:
-            failures.append(
-                f"DSR max_pass 退化: {recomputed['dsr_max_pass']} < 5"
-            )
+            failures.append(f"DSR max_pass 退化: {recomputed['dsr_max_pass']} < 5")
 
         # 与基线对比 (不允许显著退化, 容差 10%)
         baseline_annual = float(baseline["annual_return"])
@@ -701,7 +738,6 @@ class TestV9FullBacktestNightly:
                 f"vs 基线={baseline_dd*100:.2f}% (扩大 >10%)"
             )
 
-        assert not failures, (
-            "V9 完整回测回归失败 — 指标退化:\n  - "
-            + "\n  - ".join(failures)
+        assert not failures, "V9 完整回测回归失败 — 指标退化:\n  - " + "\n  - ".join(
+            failures
         )

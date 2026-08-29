@@ -27,8 +27,13 @@ from ai_decision.orchestrator import run_batch, run_decision
 
 
 def _force_mock() -> None:
-    for k in ("DEEPSEEK_API_KEY", "GLM_API_KEY", "MOONSHOT_API_KEY",
-              "CLAUDE_API_KEY", "OPENAI_API_KEY"):
+    for k in (
+        "DEEPSEEK_API_KEY",
+        "GLM_API_KEY",
+        "MOONSHOT_API_KEY",
+        "CLAUDE_API_KEY",
+        "OPENAI_API_KEY",
+    ):
         os.environ.pop(k, None)
 
 
@@ -46,14 +51,19 @@ def _build_risk_context(args) -> RiskContext:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="ai_decision", description="多 AI 辩论共识自动交易决策系统")
+        prog="ai_decision", description="多 AI 辩论共识自动交易决策系统"
+    )
     parser.add_argument("--symbol", help="单标的代码, 如 600519")
     parser.add_argument("--batch", help="批量标的文件 (每行一个代码)")
-    parser.add_argument("--mode", default=None,
-                        choices=["shadow", "paper", "auto"],
-                        help="运行模式 (缺省读配置, 默认 shadow)")
-    parser.add_argument("--mock-force", action="store_true",
-                        help="强制清空 API Key, 纯 Mock 验证全链路")
+    parser.add_argument(
+        "--mode",
+        default=None,
+        choices=["shadow", "paper", "auto"],
+        help="运行模式 (缺省读配置, 默认 shadow)",
+    )
+    parser.add_argument(
+        "--mock-force", action="store_true", help="强制清空 API Key, 纯 Mock 验证全链路"
+    )
     parser.add_argument("--portfolio-value", type=float, default=1_000_000.0)
     parser.add_argument("--proposed-notional", type=float, default=0.0)
     parser.add_argument("--daily-used-pct", type=float, default=0.0)
@@ -62,12 +72,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--blacklist", nargs="*", default=[])
     parser.add_argument("--json", action="store_true", help="输出 JSON")
     parser.add_argument("--verbose", "-v", action="store_true")
-    parser.add_argument("--execute", action="store_true",
-                        help="启用执行桥接: 决策生成后自动调用 execute_bridge 进行灰度执行")
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="启用执行桥接: 决策生成后自动调用 execute_bridge 进行灰度执行",
+    )
     args = parser.parse_args(argv)
 
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
-                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     if args.mock_force:
         _force_mock()
 
@@ -106,8 +121,11 @@ def main(argv: list[str] | None = None) -> int:
                 execution_result.get("escalation_reason") or dec.escalation_reason
             )
 
-        print(json.dumps(dec.to_dict(), ensure_ascii=False, indent=2)
-              if args.json else _fmt(dec))
+        print(
+            json.dumps(dec.to_dict(), ensure_ascii=False, indent=2)
+            if args.json
+            else _fmt(dec)
+        )
         return 0
 
     # batch
@@ -132,9 +150,11 @@ def _fmt(dec) -> str:
         mode_display = er.get("mode", dec.mode)
         plan = er.get("plan", {})
         exec_info = f" | mode={mode_display} qty={plan.get('qty', '?')} notional={plan.get('notional', 'N/A')}"
-    return (f"[{dec.mode.upper()}|{flag}] {dec.symbol}: {dec.action} "
-            f"strength={dec.strength:.3f} conf={dec.confidence:.3f} "
-            f"verdict={dec.verdict_type}{esc}{exec_info}")
+    return (
+        f"[{dec.mode.upper()}|{flag}] {dec.symbol}: {dec.action} "
+        f"strength={dec.strength:.3f} conf={dec.confidence:.3f} "
+        f"verdict={dec.verdict_type}{esc}{exec_info}"
+    )
 
 
 if __name__ == "__main__":

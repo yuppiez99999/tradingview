@@ -61,10 +61,10 @@ class OrderImpact:
     """单笔订单对持仓的影响."""
 
     symbol: str
-    side: str       # "buy" | "sell"
-    delta_shares: int   # 正数 = 增加股数, 负数 = 减少股数 (调用方负责按 side 换算正负)
+    side: str  # "buy" | "sell"
+    delta_shares: int  # 正数 = 增加股数, 负数 = 减少股数 (调用方负责按 side 换算正负)
     price: float
-    sector: str = ""    # 可选, 若未传则从 PositionSnapshot.sectors 取
+    sector: str = ""  # 可选, 若未传则从 PositionSnapshot.sectors 取
 
     @property
     def delta_notional(self) -> float:
@@ -76,11 +76,17 @@ class EnforcementResult:
     rejected: bool = False
     reasons: list[str] = field(default_factory=list)
     checked: list[str] = field(default_factory=list)
-    projected_single: dict[str, float] = field(default_factory=dict)  # symbol → 下单后占比
-    projected_sector: dict[str, float] = field(default_factory=dict)  # sector → 下单后占比
+    projected_single: dict[str, float] = field(
+        default_factory=dict
+    )  # symbol → 下单后占比
+    projected_sector: dict[str, float] = field(
+        default_factory=dict
+    )  # sector → 下单后占比
     projected_net_exp_pct: float = 0.0
     projected_gross_lv: float = 0.0
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    timestamp: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
 
     @property
     def is_pass(self) -> bool:
@@ -99,7 +105,9 @@ class PositionLimitEnforcer:
         mode: str = "BLOCK",
     ) -> None:
         if not (0 < single_name_cap_pct <= 1.0):
-            raise ValueError(f"single_name_cap_pct 应在 (0, 1], 实际 {single_name_cap_pct}")
+            raise ValueError(
+                f"single_name_cap_pct 应在 (0, 1], 实际 {single_name_cap_pct}"
+            )
         if not (0 < sector_cap_pct <= 1.0):
             raise ValueError(f"sector_cap_pct 应在 (0, 1], 实际 {sector_cap_pct}")
         if net_exposure_cap_pct <= 0:
@@ -126,7 +134,9 @@ class PositionLimitEnforcer:
         if snap.total_equity <= 0:
             # 无权益则所有比例检查无意义, 直接 fail-close
             r = EnforcementResult(rejected=(self.mode == "BLOCK"))
-            r.reasons.append(f"[EQUITY_ZERO] total_equity={snap.total_equity} ≤ 0, 禁止任何下单")
+            r.reasons.append(
+                f"[EQUITY_ZERO] total_equity={snap.total_equity} ≤ 0, 禁止任何下单"
+            )
             return r
 
         result = EnforcementResult()
@@ -150,7 +160,9 @@ class PositionLimitEnforcer:
         self._rule_single_name(projected_mv, snap.total_equity, result)
         # 2. 行业集中度
         sector_affecting = impact.sector or snap.sectors.get(impact.symbol, "")
-        self._rule_sector(projected_mv, snap.sectors, sector_affecting, snap.total_equity, result)
+        self._rule_sector(
+            projected_mv, snap.sectors, sector_affecting, snap.total_equity, result
+        )
         # 3. 净敞口
         self._rule_net_exposure(result)
         # 4. 总杠杆

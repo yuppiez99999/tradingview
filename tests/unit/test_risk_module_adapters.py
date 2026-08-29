@@ -10,6 +10,7 @@
     7. 异常隔离: 适配器异常不影响其他模块
     8. RiskDecisionAggregator 聚合多模块决策 (STRICTEST)
 """
+
 from __future__ import annotations
 
 import sys
@@ -55,6 +56,7 @@ class MockCircuitBreaker:
         class FakeState:
             def __init__(self, val: str) -> None:
                 self.value = val
+
         return FakeState(self._state)
 
 
@@ -64,7 +66,9 @@ class MockVaRMonitor:
     def __init__(self) -> None:
         self.last_result: dict[str, Any] = {}
 
-    def calculate_var(self, returns_history: list[float], portfolio_value: float) -> dict[str, Any]:
+    def calculate_var(
+        self, returns_history: list[float], portfolio_value: float
+    ) -> dict[str, Any]:
         return self.last_result
 
 
@@ -197,10 +201,13 @@ class TestVaRMonitorAdapter:
         """95% VaR 超限 → REDUCE_POSITION 10%."""
         adapter = VaRMonitorAdapter(MockVaRMonitor())
 
-        event = make_event(RiskEventType.VAR_BREACH, {
-            "var_type": "var_95",
-            "breach_pct": -0.035,  # -3.5%
-        })
+        event = make_event(
+            RiskEventType.VAR_BREACH,
+            {
+                "var_type": "var_95",
+                "breach_pct": -0.035,  # -3.5%
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.REDUCE_POSITION
@@ -211,10 +218,13 @@ class TestVaRMonitorAdapter:
         """99% VaR 超限 → REDUCE_POSITION 20%."""
         adapter = VaRMonitorAdapter(MockVaRMonitor())
 
-        event = make_event(RiskEventType.VAR_BREACH, {
-            "var_type": "var_99",
-            "breach_pct": -0.055,  # -5.5%
-        })
+        event = make_event(
+            RiskEventType.VAR_BREACH,
+            {
+                "var_type": "var_99",
+                "breach_pct": -0.055,  # -5.5%
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.REDUCE_POSITION
@@ -225,9 +235,12 @@ class TestVaRMonitorAdapter:
         """未知 var_type → PASS."""
         adapter = VaRMonitorAdapter(MockVaRMonitor())
 
-        event = make_event(RiskEventType.VAR_BREACH, {
-            "var_type": "var_unknown",
-        })
+        event = make_event(
+            RiskEventType.VAR_BREACH,
+            {
+                "var_type": "var_unknown",
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.PASS
@@ -266,10 +279,13 @@ class TestVaRMonitorAdapter:
         """95% CVaR 超限 → REDUCE_POSITION 10% (与 var_95 一致)."""
         adapter = VaRMonitorAdapter(MockVaRMonitor())
 
-        event = make_event(RiskEventType.VAR_BREACH, {
-            "var_type": "cvar_95",
-            "breach_pct": -0.045,  # -4.5%
-        })
+        event = make_event(
+            RiskEventType.VAR_BREACH,
+            {
+                "var_type": "cvar_95",
+                "breach_pct": -0.045,  # -4.5%
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.REDUCE_POSITION
@@ -281,10 +297,13 @@ class TestVaRMonitorAdapter:
         """99% CVaR 超限 → REDUCE_POSITION 20% (与 var_99 一致)."""
         adapter = VaRMonitorAdapter(MockVaRMonitor())
 
-        event = make_event(RiskEventType.VAR_BREACH, {
-            "var_type": "cvar_99",
-            "breach_pct": -0.065,  # -6.5%
-        })
+        event = make_event(
+            RiskEventType.VAR_BREACH,
+            {
+                "var_type": "cvar_99",
+                "breach_pct": -0.065,  # -6.5%
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.REDUCE_POSITION
@@ -296,10 +315,13 @@ class TestVaRMonitorAdapter:
         """回归保护: 既有 var_95 分支不受 cvar 扩展影响."""
         adapter = VaRMonitorAdapter(MockVaRMonitor())
 
-        event = make_event(RiskEventType.VAR_BREACH, {
-            "var_type": "var_95",
-            "breach_pct": -0.035,
-        })
+        event = make_event(
+            RiskEventType.VAR_BREACH,
+            {
+                "var_type": "var_95",
+                "breach_pct": -0.035,
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.REDUCE_POSITION
@@ -310,10 +332,13 @@ class TestVaRMonitorAdapter:
         """回归保护: 既有 var_99 分支不受 cvar 扩展影响."""
         adapter = VaRMonitorAdapter(MockVaRMonitor())
 
-        event = make_event(RiskEventType.VAR_BREACH, {
-            "var_type": "var_99",
-            "breach_pct": -0.055,
-        })
+        event = make_event(
+            RiskEventType.VAR_BREACH,
+            {
+                "var_type": "var_99",
+                "breach_pct": -0.055,
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.REDUCE_POSITION
@@ -339,10 +364,13 @@ class TestOvernightGapAdapter:
         """L1 预警 → PASS."""
         adapter = OvernightGapAdapter(MockGapMonitor(level=1))
 
-        event = make_event(RiskEventType.OVERNIGHT_GAP, {
-            "level": 1,
-            "sp500_drop_pct": -0.015,  # -1.5%
-        })
+        event = make_event(
+            RiskEventType.OVERNIGHT_GAP,
+            {
+                "level": 1,
+                "sp500_drop_pct": -0.015,  # -1.5%
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.PASS
@@ -352,10 +380,13 @@ class TestOvernightGapAdapter:
         """L2 熔断 → DISABLE_NEW_ORDERS."""
         adapter = OvernightGapAdapter(MockGapMonitor(level=2))
 
-        event = make_event(RiskEventType.OVERNIGHT_GAP, {
-            "level": 2,
-            "sp500_drop_pct": -0.025,  # -2.5%
-        })
+        event = make_event(
+            RiskEventType.OVERNIGHT_GAP,
+            {
+                "level": 2,
+                "sp500_drop_pct": -0.025,  # -2.5%
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.DISABLE_NEW_ORDERS
@@ -365,10 +396,13 @@ class TestOvernightGapAdapter:
         """L3 全局平仓 → FORCE_LIQUIDATE."""
         adapter = OvernightGapAdapter(MockGapMonitor(level=3))
 
-        event = make_event(RiskEventType.OVERNIGHT_GAP, {
-            "level": 3,
-            "sp500_drop_pct": -0.035,  # -3.5%
-        })
+        event = make_event(
+            RiskEventType.OVERNIGHT_GAP,
+            {
+                "level": 3,
+                "sp500_drop_pct": -0.035,  # -3.5%
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.FORCE_LIQUIDATE
@@ -378,10 +412,13 @@ class TestOvernightGapAdapter:
         """L0 正常 → PASS."""
         adapter = OvernightGapAdapter(MockGapMonitor(level=0))
 
-        event = make_event(RiskEventType.OVERNIGHT_GAP, {
-            "level": 0,
-            "sp500_drop_pct": 0.005,
-        })
+        event = make_event(
+            RiskEventType.OVERNIGHT_GAP,
+            {
+                "level": 0,
+                "sp500_drop_pct": 0.005,
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.PASS
@@ -421,11 +458,14 @@ class TestRiskGuardAdapter:
         """单标的权重未超限 → PASS."""
         adapter = RiskGuardAdapter(MockRiskGuard())
 
-        event = make_event(RiskEventType.CONCENTRATION_BREACH, {
-            "breach_type": "single_symbol",
-            "weight": 0.08,  # 8% < 10%
-            "threshold": 0.10,
-        })
+        event = make_event(
+            RiskEventType.CONCENTRATION_BREACH,
+            {
+                "breach_type": "single_symbol",
+                "weight": 0.08,  # 8% < 10%
+                "threshold": 0.10,
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.PASS
@@ -435,11 +475,14 @@ class TestRiskGuardAdapter:
         """单标的权重 10-15% → REDUCE_POSITION 5%."""
         adapter = RiskGuardAdapter(MockRiskGuard())
 
-        event = make_event(RiskEventType.CONCENTRATION_BREACH, {
-            "breach_type": "single_symbol",
-            "weight": 0.12,  # 12%
-            "threshold": 0.10,
-        })
+        event = make_event(
+            RiskEventType.CONCENTRATION_BREACH,
+            {
+                "breach_type": "single_symbol",
+                "weight": 0.12,  # 12%
+                "threshold": 0.10,
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.REDUCE_POSITION
@@ -449,11 +492,14 @@ class TestRiskGuardAdapter:
         """单标的权重 >15% → REDUCE_POSITION 10%."""
         adapter = RiskGuardAdapter(MockRiskGuard())
 
-        event = make_event(RiskEventType.CONCENTRATION_BREACH, {
-            "breach_type": "single_symbol",
-            "weight": 0.18,  # 18%
-            "threshold": 0.10,
-        })
+        event = make_event(
+            RiskEventType.CONCENTRATION_BREACH,
+            {
+                "breach_type": "single_symbol",
+                "weight": 0.18,  # 18%
+                "threshold": 0.10,
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.REDUCE_POSITION
@@ -464,11 +510,14 @@ class TestRiskGuardAdapter:
         """单行业权重 >30% → REDUCE_POSITION 8%."""
         adapter = RiskGuardAdapter(MockRiskGuard())
 
-        event = make_event(RiskEventType.CONCENTRATION_BREACH, {
-            "breach_type": "single_industry",
-            "weight": 0.35,  # 35%
-            "threshold": 0.30,
-        })
+        event = make_event(
+            RiskEventType.CONCENTRATION_BREACH,
+            {
+                "breach_type": "single_industry",
+                "weight": 0.35,  # 35%
+                "threshold": 0.30,
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.REDUCE_POSITION
@@ -478,11 +527,14 @@ class TestRiskGuardAdapter:
         """单行业权重未超限 → PASS."""
         adapter = RiskGuardAdapter(MockRiskGuard())
 
-        event = make_event(RiskEventType.CONCENTRATION_BREACH, {
-            "breach_type": "single_industry",
-            "weight": 0.25,  # 25% < 30%
-            "threshold": 0.30,
-        })
+        event = make_event(
+            RiskEventType.CONCENTRATION_BREACH,
+            {
+                "breach_type": "single_industry",
+                "weight": 0.25,  # 25% < 30%
+                "threshold": 0.30,
+            },
+        )
         decision = adapter.make_decision(event)
 
         assert decision.action == RiskAction.PASS
@@ -535,7 +587,9 @@ class TestRiskModuleRegistry:
         assert bus.get_decision_subscriber_count(RiskEventType.LIQUIDITY_BREACH) == 1
         assert bus.get_decision_subscriber_count(RiskEventType.VAR_BREACH) == 1
         assert bus.get_decision_subscriber_count(RiskEventType.OVERNIGHT_GAP) == 1
-        assert bus.get_decision_subscriber_count(RiskEventType.CONCENTRATION_BREACH) == 1
+        assert (
+            bus.get_decision_subscriber_count(RiskEventType.CONCENTRATION_BREACH) == 1
+        )
 
     def test_get_adapter(self):
         """获取已注册的适配器."""
@@ -600,6 +654,7 @@ class TestAsyncDecisionNonBlocking:
     def test_sync_decide_latency(self):
         """sync_decide 延迟应 <10ms (4 个适配器)."""
         import time
+
         bus = RiskBus()
         bus.clear_subscribers()
 
@@ -611,10 +666,13 @@ class TestAsyncDecisionNonBlocking:
             risk_guard=MockRiskGuard(),
         )
 
-        event = make_event(RiskEventType.VAR_BREACH, {
-            "var_type": "var_95",
-            "breach_pct": -0.035,
-        })
+        event = make_event(
+            RiskEventType.VAR_BREACH,
+            {
+                "var_type": "var_95",
+                "breach_pct": -0.035,
+            },
+        )
 
         # 1000 次 sync_decide
         n = 1000
@@ -650,7 +708,9 @@ class TestAsyncDecisionNonBlocking:
         decision = bus.sync_decide(cb_event)
         assert decision.action == RiskAction.DISABLE_NEW_ORDERS
 
-        gap_event = make_event(RiskEventType.OVERNIGHT_GAP, {"level": 3, "sp500_drop_pct": -0.035})
+        gap_event = make_event(
+            RiskEventType.OVERNIGHT_GAP, {"level": 3, "sp500_drop_pct": -0.035}
+        )
         decision = bus.sync_decide(gap_event)
         assert decision.action == RiskAction.FORCE_LIQUIDATE
 
@@ -724,10 +784,13 @@ class TestMultiModuleAggregation:
 
         bus.subscribe_decision(RiskEventType.VAR_BREACH, extra_decider)
 
-        event = make_event(RiskEventType.VAR_BREACH, {
-            "var_type": "var_95",
-            "breach_pct": -0.035,
-        })
+        event = make_event(
+            RiskEventType.VAR_BREACH,
+            {
+                "var_type": "var_95",
+                "breach_pct": -0.035,
+            },
+        )
         decision = bus.sync_decide(event)
 
         # 两个决策者都返回 REDUCE_POSITION, 取最大 reduce_pct

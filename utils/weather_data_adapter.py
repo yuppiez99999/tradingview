@@ -47,10 +47,7 @@ logger = logging.getLogger("weather_data")
 # ============================================================
 # 代理绕过设置
 # ============================================================
-os.environ.setdefault(
-    "NO_PROXY",
-    "apizero.cn,open-meteo.com,caiyunapp.com"
-)
+os.environ.setdefault("NO_PROXY", "apizero.cn,open-meteo.com,caiyunapp.com")
 os.environ.setdefault("no_proxy", os.environ["NO_PROXY"])
 
 # ============================================================
@@ -60,6 +57,7 @@ try:
     import requests as _requests
     from requests.adapters import HTTPAdapter
     from urllib3.util.retry import Retry
+
     _REQUESTS_AVAILABLE = True
 except ImportError:
     _requests = None
@@ -72,9 +70,11 @@ warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 # 数据类
 # ============================================================
 
+
 @dataclass
 class WeatherRealtime:
     """实时天气快照"""
+
     temperature: float = 0.0
     apparent_temperature: float = 0.0
     humidity: float = 0.0
@@ -119,6 +119,7 @@ class WeatherRealtime:
 @dataclass
 class WeatherHourlyPoint:
     """单小时预报点"""
+
     datetime: str = ""
     temperature: float = 0.0
     apparent_temperature: float = 0.0
@@ -138,6 +139,7 @@ class WeatherHourlyPoint:
 @dataclass
 class WeatherDailyPoint:
     """单日预报"""
+
     date: str = ""
     temp_max: float = 0.0
     temp_min: float = 0.0
@@ -165,6 +167,7 @@ class WeatherDailyPoint:
 @dataclass
 class WeatherMinutelyPoint:
     """分钟级降水"""
+
     minute_index: int = 0
     precipitation: float = 0.0
     precipitation_2h: float = 0.0
@@ -175,6 +178,7 @@ class WeatherMinutelyPoint:
 @dataclass
 class WeatherForecast:
     """完整天气预报"""
+
     realtime: WeatherRealtime | None = None
     hourly: list[WeatherHourlyPoint] = field(default_factory=list)
     daily: list[WeatherDailyPoint] = field(default_factory=list)
@@ -210,7 +214,9 @@ def _get_session() -> Any | None:
         backoff_factor=0.3,
         status_forcelist=[429, 500, 502, 503, 504],
     )
-    adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=4, pool_maxsize=8)
+    adapter = HTTPAdapter(
+        max_retries=retry_strategy, pool_connections=4, pool_maxsize=8
+    )
     session.mount("https://", adapter)
     session.mount("http://", adapter)
 
@@ -221,6 +227,7 @@ def _get_session() -> Any | None:
 # ============================================================
 # 适配器主类
 # ============================================================
+
 
 class WeatherDataAdapter:
     """气象数据适配器 — apizero.cn + Open-Meteo 降级链.
@@ -251,7 +258,7 @@ class WeatherDataAdapter:
     @property
     def is_available(self) -> bool:
         # 缓存过期后重新检测 (10 分钟)
-        if self._available is not None and hasattr(self, '_available_expires_at'):
+        if self._available is not None and hasattr(self, "_available_expires_at"):
             if time.time() < self._available_expires_at:
                 return self._available
             self._available = None  # 强制重新检测
@@ -269,8 +276,13 @@ class WeatherDataAdapter:
         try:
             resp = self._session.get(
                 self.API_URL,
-                params={"type": "realtime", "location": "116.4,39.9", "key": self.api_key},
-                timeout=8, verify=True,
+                params={
+                    "type": "realtime",
+                    "location": "116.4,39.9",
+                    "key": self.api_key,
+                },
+                timeout=8,
+                verify=True,
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -280,7 +292,16 @@ class WeatherDataAdapter:
                     return True
             logger.warning("apizero API 检测失败: HTTP %d", resp.status_code)
             return False
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("apizero API 不可用: %s, 将降级", e)
             return False
@@ -307,7 +328,8 @@ class WeatherDataAdapter:
             resp = self._session.get(
                 self.API_URL,
                 params={**params, "key": self.api_key},
-                timeout=8, verify=True,
+                timeout=8,
+                verify=True,
             )
             if resp.status_code == 429:
                 # 触发限流 — 立即标记 apizero 不可用, 10 分钟内不再尝试
@@ -316,7 +338,9 @@ class WeatherDataAdapter:
                 logger.warning("apizero 触发限流 (429), 降级到 Open-Meteo")
                 return None
             if resp.status_code != 200:
-                logger.warning("apizero 请求失败: HTTP %d, params=%s", resp.status_code, params)
+                logger.warning(
+                    "apizero 请求失败: HTTP %d, params=%s", resp.status_code, params
+                )
                 return None
             data = resp.json()
             if data.get("code") != 0:
@@ -326,7 +350,16 @@ class WeatherDataAdapter:
             result = data.get("data", {})
             self._cache[cache_key] = (time.time(), result)
             return result
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("apizero 请求异常: %s", e)
             return None
@@ -343,16 +376,20 @@ class WeatherDataAdapter:
             return None
         try:
             params = {
-                "latitude": lat, "longitude": lon,
+                "latitude": lat,
+                "longitude": lon,
                 "current": "temperature_2m,relative_humidity_2m,apparent_temperature,"
-                           "wind_speed_10m,wind_direction_10m,"
-                           "precipitation,cloud_cover,pressure_msl,visibility",
+                "wind_speed_10m,wind_direction_10m,"
+                "precipitation,cloud_cover,pressure_msl,visibility",
                 "hourly": "temperature_2m,wind_speed_10m,precipitation,cloud_cover",
                 "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
                 "forecast_days": 15,
             }
             resp = self._session.get(
-                self.OPENMETEO_URL, params=params, timeout=8, verify=True,
+                self.OPENMETEO_URL,
+                params=params,
+                timeout=8,
+                verify=True,
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -360,7 +397,16 @@ class WeatherDataAdapter:
                 self._cache[cache_key] = (time.time(), data)
                 return data
             logger.warning("Open-Meteo 请求失败: HTTP %d", resp.status_code)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Open-Meteo 请求异常: %s", e)
         return None
@@ -399,12 +445,8 @@ class WeatherDataAdapter:
             precipitation_nearest_distance=self._f(
                 rt.get("precipitation", {}).get("nearest", {}).get("distance")
             ),
-            aqi_chn=int(
-                rt.get("air_quality", {}).get("aqi", {}).get("chn", 0) or 0
-            ),
-            aqi_usa=int(
-                rt.get("air_quality", {}).get("aqi", {}).get("usa", 0) or 0
-            ),
+            aqi_chn=int(rt.get("air_quality", {}).get("aqi", {}).get("chn", 0) or 0),
+            aqi_usa=int(rt.get("air_quality", {}).get("aqi", {}).get("usa", 0) or 0),
             pm25=self._f(rt.get("air_quality", {}).get("pm25")),
             pm10=self._f(rt.get("air_quality", {}).get("pm10")),
             server_time=data.get("server_time", ""),
@@ -444,7 +486,10 @@ class WeatherDataAdapter:
     # ----------------------------------------------------------
 
     def get_hourly(
-        self, lon: float, lat: float, hours: int = 72,
+        self,
+        lon: float,
+        lat: float,
+        hours: int = 72,
         raw_data: dict | None = None,
     ) -> list[WeatherHourlyPoint]:
         """获取指定坐标的小时级预报.
@@ -457,7 +502,9 @@ class WeatherDataAdapter:
             data = raw_data
         else:
             loc = f"{lon},{lat}"
-            data = self._request({"type": "hourly", "location": loc, "hours": min(hours, 360)})
+            data = self._request(
+                {"type": "hourly", "location": loc, "hours": min(hours, 360)}
+            )
             if data is None:
                 logger.info("小时预报降级到 Open-Meteo")
                 return self._fallback_hourly(lon, lat)
@@ -484,33 +531,51 @@ class WeatherDataAdapter:
             wind = wind_list[i] if i < len(wind_list) else {}
             aqi_item = aqi_list[i] if i < len(aqi_list) else {}
 
-            result.append(WeatherHourlyPoint(
-                datetime=temp_list[i].get("datetime", "") if i < len(temp_list) else "",
-                temperature=self._f(temp_list[i].get("value") if i < len(temp_list) else None),
-                apparent_temperature=self._f(
-                    app_temp_list[i].get("value") if i < len(app_temp_list) else None
-                ),
-                precipitation=self._f(precip.get("value")),
-                precipitation_probability=self._f(precip.get("probability")),
-                wind_speed=self._f(wind.get("speed")),
-                wind_direction=self._f(wind.get("direction")),
-                humidity=self._f(hum_list[i].get("value") if i < len(hum_list) else None),
-                cloudrate=self._f(cloud_list[i].get("value") if i < len(cloud_list) else None),
-                skycon=skycon_list[i].get("value", "") if i < len(skycon_list) else "",
-                pressure=self._f(
-                    press_list[i].get("value") if i < len(press_list) else None
-                ),
-                visibility=self._f(
-                    vis_list[i].get("value") if i < len(vis_list) else None
-                ),
-                dswrf=self._f(
-                    dswrf_list[i].get("value") if i < len(dswrf_list) else None
-                ),
-                aqi_chn=int(
-                    (aqi_item.get("value", {}).get("chn", 0) if isinstance(aqi_item.get("value"), dict) else 0)
-                    or 0
-                ),
-            ))
+            result.append(
+                WeatherHourlyPoint(
+                    datetime=(
+                        temp_list[i].get("datetime", "") if i < len(temp_list) else ""
+                    ),
+                    temperature=self._f(
+                        temp_list[i].get("value") if i < len(temp_list) else None
+                    ),
+                    apparent_temperature=self._f(
+                        app_temp_list[i].get("value")
+                        if i < len(app_temp_list)
+                        else None
+                    ),
+                    precipitation=self._f(precip.get("value")),
+                    precipitation_probability=self._f(precip.get("probability")),
+                    wind_speed=self._f(wind.get("speed")),
+                    wind_direction=self._f(wind.get("direction")),
+                    humidity=self._f(
+                        hum_list[i].get("value") if i < len(hum_list) else None
+                    ),
+                    cloudrate=self._f(
+                        cloud_list[i].get("value") if i < len(cloud_list) else None
+                    ),
+                    skycon=(
+                        skycon_list[i].get("value", "") if i < len(skycon_list) else ""
+                    ),
+                    pressure=self._f(
+                        press_list[i].get("value") if i < len(press_list) else None
+                    ),
+                    visibility=self._f(
+                        vis_list[i].get("value") if i < len(vis_list) else None
+                    ),
+                    dswrf=self._f(
+                        dswrf_list[i].get("value") if i < len(dswrf_list) else None
+                    ),
+                    aqi_chn=int(
+                        (
+                            aqi_item.get("value", {}).get("chn", 0)
+                            if isinstance(aqi_item.get("value"), dict)
+                            else 0
+                        )
+                        or 0
+                    ),
+                )
+            )
 
         return result
 
@@ -527,15 +592,17 @@ class WeatherDataAdapter:
         clouds = h.get("cloud_cover", [])
         result = []
         for i, t in enumerate(times):
-            result.append(WeatherHourlyPoint(
-                datetime=t,
-                temperature=self._f(temps[i] if i < len(temps) else None),
-                apparent_temperature=0.0,
-                precipitation=self._f(precs[i] if i < len(precs) else None),
-                precipitation_probability=0.0,
-                wind_speed=self._f(winds[i] if i < len(winds) else None),
-                cloudrate=self._f(clouds[i] if i < len(clouds) else None) / 100.0,
-            ))
+            result.append(
+                WeatherHourlyPoint(
+                    datetime=t,
+                    temperature=self._f(temps[i] if i < len(temps) else None),
+                    apparent_temperature=0.0,
+                    precipitation=self._f(precs[i] if i < len(precs) else None),
+                    precipitation_probability=0.0,
+                    wind_speed=self._f(winds[i] if i < len(winds) else None),
+                    cloudrate=self._f(clouds[i] if i < len(clouds) else None) / 100.0,
+                )
+            )
         return result
 
     # ----------------------------------------------------------
@@ -543,7 +610,10 @@ class WeatherDataAdapter:
     # ----------------------------------------------------------
 
     def get_daily(
-        self, lon: float, lat: float, days: int = 15,
+        self,
+        lon: float,
+        lat: float,
+        days: int = 15,
         raw_data: dict | None = None,
     ) -> list[WeatherDailyPoint]:
         """获取指定坐标的天级预报.
@@ -556,7 +626,9 @@ class WeatherDataAdapter:
             data = raw_data
         else:
             loc = f"{lon},{lat}"
-            data = self._request({"type": "daily", "location": loc, "days": min(days, 15)})
+            data = self._request(
+                {"type": "daily", "location": loc, "days": min(days, 15)}
+            )
             if data is None:
                 logger.info("天预报降级到 Open-Meteo")
                 return self._fallback_daily(lon, lat)
@@ -589,33 +661,39 @@ class WeatherDataAdapter:
             astro = astro_list[i] if i < len(astro_list) else {}
             aqi_item = aqi_list[i] if i < len(aqi_list) else {}
 
-            result.append(WeatherDailyPoint(
-                date=item.get("date", ""),
-                temp_max=self._f(item.get("max")),
-                temp_min=self._f(item.get("min")),
-                temp_avg=self._f(item.get("avg")),
-                precip_max=self._f(precip.get("max")),
-                precip_avg=self._f(precip.get("avg")),
-                precip_probability=self._f(precip.get("probability")),
-                wind_max_speed=self._f(wind.get("max", {}).get("speed")),
-                wind_max_direction=self._f(wind.get("max", {}).get("direction")),
-                wind_avg_speed=self._f(wind.get("avg", {}).get("speed")),
-                humidity_max=self._f(hum.get("max")),
-                humidity_min=self._f(hum.get("min")),
-                humidity_avg=self._f(hum.get("avg")),
-                cloudrate_max=self._f(cloud.get("max")),
-                pressure_max=self._f(press.get("max")),
-                visibility_max=self._f(vis.get("max")),
-                dswrf_max=self._f(dswrf.get("max")),
-                dswrf_avg=self._f(dswrf.get("avg")),
-                skycon=skycon.get("value", ""),
-                sunrise=astro.get("sunrise", {}).get("time", ""),
-                sunset=astro.get("sunset", {}).get("time", ""),
-                aqi_chn_max=int(
-                    (aqi_item.get("max", {}).get("chn", 0) if isinstance(aqi_item.get("max"), dict) else 0)
-                    or 0
-                ),
-            ))
+            result.append(
+                WeatherDailyPoint(
+                    date=item.get("date", ""),
+                    temp_max=self._f(item.get("max")),
+                    temp_min=self._f(item.get("min")),
+                    temp_avg=self._f(item.get("avg")),
+                    precip_max=self._f(precip.get("max")),
+                    precip_avg=self._f(precip.get("avg")),
+                    precip_probability=self._f(precip.get("probability")),
+                    wind_max_speed=self._f(wind.get("max", {}).get("speed")),
+                    wind_max_direction=self._f(wind.get("max", {}).get("direction")),
+                    wind_avg_speed=self._f(wind.get("avg", {}).get("speed")),
+                    humidity_max=self._f(hum.get("max")),
+                    humidity_min=self._f(hum.get("min")),
+                    humidity_avg=self._f(hum.get("avg")),
+                    cloudrate_max=self._f(cloud.get("max")),
+                    pressure_max=self._f(press.get("max")),
+                    visibility_max=self._f(vis.get("max")),
+                    dswrf_max=self._f(dswrf.get("max")),
+                    dswrf_avg=self._f(dswrf.get("avg")),
+                    skycon=skycon.get("value", ""),
+                    sunrise=astro.get("sunrise", {}).get("time", ""),
+                    sunset=astro.get("sunset", {}).get("time", ""),
+                    aqi_chn_max=int(
+                        (
+                            aqi_item.get("max", {}).get("chn", 0)
+                            if isinstance(aqi_item.get("max"), dict)
+                            else 0
+                        )
+                        or 0
+                    ),
+                )
+            )
 
         return result
 
@@ -631,22 +709,22 @@ class WeatherDataAdapter:
         precip = d.get("precipitation_sum", [])
         result = []
         for i, t in enumerate(times):
-            result.append(WeatherDailyPoint(
-                date=t,
-                temp_max=self._f(temp_max[i] if i < len(temp_max) else None),
-                temp_min=self._f(temp_min[i] if i < len(temp_min) else None),
-                precip_max=self._f(precip[i] if i < len(precip) else None),
-                precip_avg=self._f(precip[i] if i < len(precip) else None),
-            ))
+            result.append(
+                WeatherDailyPoint(
+                    date=t,
+                    temp_max=self._f(temp_max[i] if i < len(temp_max) else None),
+                    temp_min=self._f(temp_min[i] if i < len(temp_min) else None),
+                    precip_max=self._f(precip[i] if i < len(precip) else None),
+                    precip_avg=self._f(precip[i] if i < len(precip) else None),
+                )
+            )
         return result
 
     # ----------------------------------------------------------
     # 综合预报
     # ----------------------------------------------------------
 
-    def get_forecast(
-        self, lon: float, lat: float, days: int = 15
-    ) -> WeatherForecast:
+    def get_forecast(self, lon: float, lat: float, days: int = 15) -> WeatherForecast:
         """获取完整天气预报 (综合接口, 一次请求获取所有数据)."""
         loc = f"{lon},{lat}"
         data = self._request({"type": "weather", "location": loc, "alert": "true"})
@@ -657,8 +735,11 @@ class WeatherDataAdapter:
             hourly = self._fallback_hourly(lon, lat)
             daily = self._fallback_daily(lon, lat)
             return WeatherForecast(
-                realtime=realtime, hourly=hourly, daily=daily,
-                source="openmeteo_fallback", timestamp=time.time(),
+                realtime=realtime,
+                hourly=hourly,
+                daily=daily,
+                source="openmeteo_fallback",
+                timestamp=time.time(),
             )
 
         # 解析 realtime
@@ -747,14 +828,13 @@ class WeatherDataAdapter:
         """将云量 (%) 映射到 skycon 代码."""
         if cloud_cover < 10:
             return "CLEAR_DAY"
-        elif cloud_cover < 30:
+        if cloud_cover < 30:
             return "MOSTLY_CLEAR_DAY"
-        elif cloud_cover < 60:
+        if cloud_cover < 60:
             return "PARTLY_CLOUDY_DAY"
-        elif cloud_cover < 80:
+        if cloud_cover < 80:
             return "MOSTLY_CLOUDY_DAY"
-        else:
-            return "CLOUDY"
+        return "CLOUDY"
 
     def clear_cache(self) -> None:
         """清空本地缓存."""

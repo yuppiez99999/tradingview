@@ -16,6 +16,7 @@
     10. 摘要生成: _build_summary
     11. save_report: 文件写入/异常
 """
+
 from __future__ import annotations
 
 import json
@@ -40,7 +41,9 @@ class TestFactorContribution:
     """FactorContribution dataclass 测试."""
 
     def test_creation_minimal(self):
-        fc = FactorContribution(factor_name="momentum", contribution=100.0, contribution_pct=0.05)
+        fc = FactorContribution(
+            factor_name="momentum", contribution=100.0, contribution_pct=0.05
+        )
         assert fc.factor_name == "momentum"
         assert fc.contribution == 100.0
         assert fc.contribution_pct == 0.05
@@ -221,7 +224,9 @@ class TestCalcStyleAttribution:
             {"weight": 0.5, "style_exposures": {"momentum": 0.4, "growth": 0.2}},
         ]
         factor_returns = {"momentum": [0.01, 0.02], "growth": [0.005, 0.01]}
-        pnl, factors = engine._calc_style_attribution(positions, factor_returns, 1_000_000)
+        pnl, factors = engine._calc_style_attribution(
+            positions, factor_returns, 1_000_000
+        )
         assert len(factors) == 7
         momentum_fc = next(f for f in factors if f.factor_name == "momentum")
         assert momentum_fc.exposure > 0
@@ -234,7 +239,9 @@ class TestCalcStyleAttribution:
             {"weight": 1.0, "style_exposures": {"momentum": 0.4}},
         ]
         factor_returns = {"momentum": [0.01]}
-        pnl, factors = engine._calc_style_attribution(positions, factor_returns, 1_000_000)
+        pnl, factors = engine._calc_style_attribution(
+            positions, factor_returns, 1_000_000
+        )
         momentum_fc = next(f for f in factors if f.factor_name == "momentum")
         assert abs(momentum_fc.exposure - 0.6) < 1e-6
 
@@ -242,7 +249,9 @@ class TestCalcStyleAttribution:
         engine = PnLAttributionEngine()
         positions = [{"weight": 1.0, "style_exposures": {"momentum": 1.0}}]
         factor_returns = {"momentum": [0.1]}
-        pnl, factors = engine._calc_style_attribution(positions, factor_returns, 1_000_000)
+        pnl, factors = engine._calc_style_attribution(
+            positions, factor_returns, 1_000_000
+        )
         momentum_fc = next(f for f in factors if f.factor_name == "momentum")
         assert momentum_fc.is_significant is True
 
@@ -263,7 +272,9 @@ class TestCalcSectorAttribution:
             {"weight": 0.4, "sector": "consumer"},
         ]
         sector_returns = {"tech": [0.02, 0.01], "consumer": [0.005, 0.003]}
-        pnl, factors = engine._calc_sector_attribution(positions, sector_returns, 1_000_000)
+        pnl, factors = engine._calc_sector_attribution(
+            positions, sector_returns, 1_000_000
+        )
         assert len(factors) == 2
         tech_fc = next(f for f in factors if f.factor_name == "tech")
         assert tech_fc.exposure == pytest.approx(0.6)
@@ -273,7 +284,9 @@ class TestCalcSectorAttribution:
         engine = PnLAttributionEngine()
         positions = [{"weight": 1.0, "sector": "custom_sector"}]
         sector_returns = {"custom_sector": [0.01]}
-        pnl, factors = engine._calc_sector_attribution(positions, sector_returns, 1_000_000)
+        pnl, factors = engine._calc_sector_attribution(
+            positions, sector_returns, 1_000_000
+        )
         assert len(factors) == 1
         assert factors[0].factor_name == "custom_sector"
 
@@ -281,7 +294,9 @@ class TestCalcSectorAttribution:
         engine = PnLAttributionEngine()
         positions = [{"weight": 0.0, "sector": "tech"}]
         sector_returns = {"tech": [0.01]}
-        pnl, factors = engine._calc_sector_attribution(positions, sector_returns, 1_000_000)
+        pnl, factors = engine._calc_sector_attribution(
+            positions, sector_returns, 1_000_000
+        )
         assert factors == []
 
     def test_normalization(self):
@@ -291,7 +306,9 @@ class TestCalcSectorAttribution:
             {"weight": 2.0, "sector": "consumer"},
         ]
         sector_returns = {"tech": [0.01], "consumer": [0.01]}
-        pnl, factors = engine._calc_sector_attribution(positions, sector_returns, 1_000_000)
+        pnl, factors = engine._calc_sector_attribution(
+            positions, sector_returns, 1_000_000
+        )
         tech_fc = next(f for f in factors if f.factor_name == "tech")
         assert tech_fc.exposure == pytest.approx(0.5)
 
@@ -466,7 +483,9 @@ class TestAttributeMain:
     def test_simple_returns(self):
         engine = PnLAttributionEngine()
         positions = [{"weight": 1.0, "market_value": 1_000_000, "sector": "tech"}]
-        result = engine.attribute(positions=positions, portfolio_returns=[0.01, 0.02, -0.005])
+        result = engine.attribute(
+            positions=positions, portfolio_returns=[0.01, 0.02, -0.005]
+        )
         assert result.total_pnl > 0
         assert result.total_return_pct > 0
 

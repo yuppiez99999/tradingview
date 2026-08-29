@@ -3,6 +3,7 @@
 覆盖 PerformanceMetrics / DeflatedSharpeRatio 及模块级便捷函数的全部公开接口,
 包括 Sharpe/Sortino/Calmar/MaxDD/VaR/CVaR/Omega/ProfitFactor 的核心路径与边界分支.
 """
+
 from __future__ import annotations
 
 import math
@@ -255,9 +256,21 @@ class TestSummary:
         rets = pd.Series([0.002, -0.001] * 50)
         pm = PerformanceMetrics(rets)
         s = pm.summary()
-        for key in ("annual_return", "annual_vol", "max_drawdown", "sharpe",
-                    "sortino", "calmar", "objective", "var_95", "cvar_95",
-                    "win_rate", "profit_factor", "omega", "n_days"):
+        for key in (
+            "annual_return",
+            "annual_vol",
+            "max_drawdown",
+            "sharpe",
+            "sortino",
+            "calmar",
+            "objective",
+            "var_95",
+            "cvar_95",
+            "win_rate",
+            "profit_factor",
+            "omega",
+            "n_days",
+        ):
             assert key in s
         assert s["n_days"] == 100
 
@@ -291,21 +304,36 @@ class TestDeflatedSharpeRatio:
         assert 0.0 <= val <= 1.0
 
     def test_is_significant(self):
-        dsr_good = DeflatedSharpeRatio(sharpe_ratio=5.0, n_trials=2, n_observations=1000)
-        dsr_bad = DeflatedSharpeRatio(sharpe_ratio=0.01, n_trials=100, n_observations=100)
+        dsr_good = DeflatedSharpeRatio(
+            sharpe_ratio=5.0, n_trials=2, n_observations=1000
+        )
+        dsr_bad = DeflatedSharpeRatio(
+            sharpe_ratio=0.01, n_trials=100, n_observations=100
+        )
         assert dsr_good.is_significant(threshold=0.5) is True
         assert dsr_bad.is_significant(threshold=0.99) is False
 
     def test_summary_keys(self):
         dsr = DeflatedSharpeRatio(sharpe_ratio=1.5, n_trials=10, n_observations=500)
         s = dsr.summary()
-        for key in ("sharpe_ratio", "expected_max_sr", "dsr", "significant",
-                    "n_trials", "n_observations"):
+        for key in (
+            "sharpe_ratio",
+            "expected_max_sr",
+            "dsr",
+            "significant",
+            "n_trials",
+            "n_observations",
+        ):
             assert key in s
 
     def test_skewness_kurtosis_correction(self):
-        dsr = DeflatedSharpeRatio(sharpe_ratio=1.0, n_trials=10, n_observations=100,
-                                  skewness=1.0, kurtosis=5.0)
+        dsr = DeflatedSharpeRatio(
+            sharpe_ratio=1.0,
+            n_trials=10,
+            n_observations=100,
+            skewness=1.0,
+            kurtosis=5.0,
+        )
         em = dsr.expected_max_sr()
         assert em > 0
 
@@ -370,8 +398,9 @@ class TestComputeDsr:
         assert 0.0 <= val <= 1.0
 
     def test_matches_class(self):
-        val = compute_dsr(observed_sr=1.5, n_trials=10, t_obs=300,
-                          skewness=0.5, kurtosis=4.0)
+        val = compute_dsr(
+            observed_sr=1.5, n_trials=10, t_obs=300, skewness=0.5, kurtosis=4.0
+        )
         expected = DeflatedSharpeRatio(1.5, 10, 300, 0.5, 4.0).compute()
         assert val == pytest.approx(expected)
 
@@ -380,9 +409,18 @@ class TestComputeAllMetrics:
     def test_keys(self):
         rets = pd.Series([0.002, -0.001] * 50)
         m = compute_all_metrics(rets, rf=0.02)
-        for key in ("annual_return", "annual_vol", "sharpe", "sortino",
-                    "calmar", "max_drawdown", "var_95", "cvar_95",
-                    "win_rate", "n_days"):
+        for key in (
+            "annual_return",
+            "annual_vol",
+            "sharpe",
+            "sortino",
+            "calmar",
+            "max_drawdown",
+            "var_95",
+            "cvar_95",
+            "win_rate",
+            "n_days",
+        ):
             assert key in m
 
     def test_max_drawdown_is_positive(self):

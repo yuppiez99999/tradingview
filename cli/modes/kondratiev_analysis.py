@@ -38,13 +38,15 @@ def run_kondratiev_analysis(args):
     sectors = analyzer.get_sector_allocation()
     print("\n  📈 行业配置建议:")
     for s in sectors[:5]:
-        print(f"    {s['sector']}: 综合得分={s['combined_score']}, 建议={s['recommendation']}")
+        print(
+            f"    {s['sector']}: 综合得分={s['combined_score']}, 建议={s['recommendation']}"
+        )
 
     progress.update(4, "生成报告...")
     report = analyzer.generate_report()
 
-    write_report_file(report, getattr(args, 'output', None))
-    archive_report(report, '康波周期分析')
+    write_report_file(report, getattr(args, "output", None))
+    archive_report(report, "康波周期分析")
 
     progress.complete("✅ 康波周期分析完成")
     return analyzer

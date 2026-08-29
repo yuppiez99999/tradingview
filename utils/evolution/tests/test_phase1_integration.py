@@ -79,7 +79,9 @@ def tmp_project(tmp_path: Path):
 @pytest.fixture
 def memory(tmp_project: Path) -> EvolutionMemory:
     """共享的 EvolutionMemory 实例 (写入临时项目)."""
-    return EvolutionMemory(memory_path=tmp_project / "reports" / "evolution" / "memory.jsonl")
+    return EvolutionMemory(
+        memory_path=tmp_project / "reports" / "evolution" / "memory.jsonl"
+    )
 
 
 @pytest.fixture
@@ -139,6 +141,7 @@ class TestScenario1SystemFix:
         self, auto_fix_engine: AutoFixEngine, memory: EvolutionMemory
     ):
         """高风险问题应仅告警, 不修复, 但仍记录到 Memory (rejected)."""
+
         class FakeCheckResult:
             code = "C99.1"
             name = "持仓不一致"
@@ -184,18 +187,22 @@ class TestScenario2ProposalApproval:
         assert decision.violated_defense == 0
 
         # 2. 记录到 Memory (status=pending)
-        pid = memory.record({
-            "level": proposal.level,
-            "action_type": proposal.action_type,
-            "trigger_reason": proposal.trigger_reason,
-            "target_module": proposal.target_module,
-            "rollback_plan": proposal.rollback_plan,
-            "status": STATUS_PENDING,
-            "result": decision.to_dict(),
-        })
+        pid = memory.record(
+            {
+                "level": proposal.level,
+                "action_type": proposal.action_type,
+                "trigger_reason": proposal.trigger_reason,
+                "target_module": proposal.target_module,
+                "rollback_plan": proposal.rollback_plan,
+                "status": STATUS_PENDING,
+                "result": decision.to_dict(),
+            }
+        )
 
         # 3. 模拟执行, 更新状态
-        memory.update_status(pid, STATUS_EXECUTED, result={"new_ic": 0.075, "old_ic": 0.02})
+        memory.update_status(
+            pid, STATUS_EXECUTED, result={"new_ic": 0.075, "old_ic": 0.02}
+        )
 
         # 4. 学习总结
         memory.learn(pid, "夏季 IC 衰减是季节性现象, 重训有效")
@@ -226,15 +233,17 @@ class TestScenario2ProposalApproval:
         assert decision.violated_defense == 3  # DEFENSE_ROLLBACK
 
         # 记录被拒提案 (审计)
-        memory.record({
-            "level": proposal.level,
-            "action_type": proposal.action_type,
-            "trigger_reason": proposal.trigger_reason,
-            "target_module": proposal.target_module,
-            "rollback_plan": proposal.rollback_plan,
-            "status": STATUS_REJECTED,
-            "result": decision.to_dict(),
-        })
+        memory.record(
+            {
+                "level": proposal.level,
+                "action_type": proposal.action_type,
+                "trigger_reason": proposal.trigger_reason,
+                "target_module": proposal.target_module,
+                "rollback_plan": proposal.rollback_plan,
+                "status": STATUS_REJECTED,
+                "result": decision.to_dict(),
+            }
+        )
 
         records = memory.query(status=STATUS_REJECTED)
         assert len(records) == 1
@@ -265,15 +274,17 @@ class TestScenario3StrategyEvaluation:
         }
 
         # 记录评估动作
-        memory.record({
-            "level": LEVEL_L2,
-            "action_type": "evaluate",
-            "trigger_reason": "EOD 评估周期触发",
-            "target_module": "v9_baseline",
-            "rollback_plan": "评估是只读操作, 无需回滚",
-            "score_report": mock_score_report,
-            "status": STATUS_EXECUTED,
-        })
+        memory.record(
+            {
+                "level": LEVEL_L2,
+                "action_type": "evaluate",
+                "trigger_reason": "EOD 评估周期触发",
+                "target_module": "v9_baseline",
+                "rollback_plan": "评估是只读操作, 无需回滚",
+                "score_report": mock_score_report,
+                "status": STATUS_EXECUTED,
+            }
+        )
 
         # 验证
         records = memory.query(action_type="evaluate")
@@ -294,15 +305,17 @@ class TestScenario3StrategyEvaluation:
             "recommendation": "reject",
         }
 
-        memory.record({
-            "level": LEVEL_L2,
-            "action_type": "evaluate",
-            "trigger_reason": "Reward hacking 检测",
-            "target_module": "candidate_model_v2",
-            "rollback_plan": "不晋升, 保持当前模型",
-            "score_report": high_risk_report,
-            "status": STATUS_REJECTED,  # 被拒
-        })
+        memory.record(
+            {
+                "level": LEVEL_L2,
+                "action_type": "evaluate",
+                "trigger_reason": "Reward hacking 检测",
+                "target_module": "candidate_model_v2",
+                "rollback_plan": "不晋升, 保持当前模型",
+                "score_report": high_risk_report,
+                "status": STATUS_REJECTED,  # 被拒
+            }
+        )
 
         records = memory.query(status=STATUS_REJECTED)
         assert len(records) == 1
@@ -317,17 +330,17 @@ class TestScenario3StrategyEvaluation:
 class TestScenario4KillSwitchFreeze:
     """验收标准4: Kill Switch 触发 → Guard 冻结所有提案."""
 
-    def test_l2_kill_switch_freezes_l2_and_l3(
-        self, memory: EvolutionMemory
-    ):
+    def test_l2_kill_switch_freezes_l2_and_l3(self, memory: EvolutionMemory):
         """L2 熔断应冻结 L2/L3 进化, 但允许 L1 (修复)."""
         ks = MockKillSwitch(events=[make_ks_event(level=2, hours_ago=1)])
         guard = EvolutionGuard(memory=memory, kill_switch=ks)
 
         # L2 提案应被冻结
         l2_proposal = EvolutionProposal(
-            level=LEVEL_L2, action_type="retrain",
-            target_module="model_a", weight_change=0.05,
+            level=LEVEL_L2,
+            action_type="retrain",
+            target_module="model_a",
+            weight_change=0.05,
             rollback_plan="rollback",
         )
         l2_decision = guard.check_proposal(l2_proposal)
@@ -336,9 +349,12 @@ class TestScenario4KillSwitchFreeze:
 
         # L3 提案应被冻结
         l3_proposal = EvolutionProposal(
-            level=LEVEL_L3, action_type="factor_deploy",
-            target_module="factor_b", weight_change=0.05,
-            rollback_plan="rollback", shadow_days=10,
+            level=LEVEL_L3,
+            action_type="factor_deploy",
+            target_module="factor_b",
+            weight_change=0.05,
+            rollback_plan="rollback",
+            shadow_days=10,
         )
         l3_decision = guard.check_proposal(l3_proposal)
         assert not l3_decision.passed
@@ -346,16 +362,16 @@ class TestScenario4KillSwitchFreeze:
 
         # L1 提案应通过 (L1 是修复, 不被 L2 熔断冻结)
         l1_proposal = EvolutionProposal(
-            level=LEVEL_L1, action_type="fix",
-            target_module="config", weight_change=0.0,
+            level=LEVEL_L1,
+            action_type="fix",
+            target_module="config",
+            weight_change=0.0,
             rollback_plan="",
         )
         l1_decision = guard.check_proposal(l1_proposal)
         assert l1_decision.passed
 
-    def test_l3_kill_switch_freezes_all(
-        self, memory: EvolutionMemory
-    ):
+    def test_l3_kill_switch_freezes_all(self, memory: EvolutionMemory):
         """L3 熔断应冻结所有层级 (L1/L2/L3)."""
         ks = MockKillSwitch(events=[make_ks_event(level=3, hours_ago=1)])
         guard = EvolutionGuard(memory=memory, kill_switch=ks)
@@ -366,38 +382,43 @@ class TestScenario4KillSwitchFreeze:
             (LEVEL_L3, 10, "r"),
         ]:
             proposal = EvolutionProposal(
-                level=level, action_type="test",
-                target_module="mod", weight_change=0.05,
-                rollback_plan=rb, shadow_days=shadow,
+                level=level,
+                action_type="test",
+                target_module="mod",
+                weight_change=0.05,
+                rollback_plan=rb,
+                shadow_days=shadow,
             )
             decision = guard.check_proposal(proposal)
             assert not decision.passed, f"L3 熔断应冻结 {level}"
             assert decision.violated_defense == DEFENSE_KILL_SWITCH
 
-    def test_freeze_decisions_can_be_audited(
-        self, memory: EvolutionMemory
-    ):
+    def test_freeze_decisions_can_be_audited(self, memory: EvolutionMemory):
         """熔断冻结决策应能写入 Memory 审计."""
         ks = MockKillSwitch(events=[make_ks_event(level=2, hours_ago=1)])
         guard = EvolutionGuard(memory=memory, kill_switch=ks)
 
         proposal = EvolutionProposal(
-            level=LEVEL_L2, action_type="retrain",
-            target_module="frozen_model", weight_change=0.05,
+            level=LEVEL_L2,
+            action_type="retrain",
+            target_module="frozen_model",
+            weight_change=0.05,
             rollback_plan="r",
         )
         decision = guard.check_proposal(proposal)
 
         # 记录被冻结的提案
-        memory.record({
-            "level": proposal.level,
-            "action_type": proposal.action_type,
-            "trigger_reason": proposal.trigger_reason,
-            "target_module": proposal.target_module,
-            "rollback_plan": proposal.rollback_plan,
-            "status": STATUS_REJECTED,
-            "result": decision.to_dict(),
-        })
+        memory.record(
+            {
+                "level": proposal.level,
+                "action_type": proposal.action_type,
+                "trigger_reason": proposal.trigger_reason,
+                "target_module": proposal.target_module,
+                "rollback_plan": proposal.rollback_plan,
+                "status": STATUS_REJECTED,
+                "result": decision.to_dict(),
+            }
+        )
 
         records = memory.query(target_module="frozen_model", status=STATUS_REJECTED)
         assert len(records) == 1
@@ -413,7 +434,10 @@ class TestScenario5EndToEnd:
     """验收标准5: 完整端到端联调 (多组件协同)."""
 
     def test_full_evolution_lifecycle(
-        self, guard: EvolutionGuard, auto_fix_engine: AutoFixEngine, memory: EvolutionMemory,
+        self,
+        guard: EvolutionGuard,
+        auto_fix_engine: AutoFixEngine,
+        memory: EvolutionMemory,
         tmp_project: Path,
     ):
         """完整进化生命周期:
@@ -439,26 +463,32 @@ class TestScenario5EndToEnd:
 
         # === 阶段2: 进化提案审批 ===
         proposal = EvolutionProposal(
-            level=LEVEL_L2, action_type="weight_adjust",
-            target_module="momentum_factor", weight_change=0.08,
+            level=LEVEL_L2,
+            action_type="weight_adjust",
+            target_module="momentum_factor",
+            weight_change=0.08,
             rollback_plan="恢复原权重 0.15",
             trigger_reason="动量因子 IC 提升至 0.06",
         )
         decision = guard.check_proposal(proposal)
         assert decision.passed
 
-        pid = memory.record({
-            "level": proposal.level,
-            "action_type": proposal.action_type,
-            "trigger_reason": proposal.trigger_reason,
-            "target_module": proposal.target_module,
-            "rollback_plan": proposal.rollback_plan,
-            "status": STATUS_PENDING,
-            "result": decision.to_dict(),
-        })
+        pid = memory.record(
+            {
+                "level": proposal.level,
+                "action_type": proposal.action_type,
+                "trigger_reason": proposal.trigger_reason,
+                "target_module": proposal.target_module,
+                "rollback_plan": proposal.rollback_plan,
+                "status": STATUS_PENDING,
+                "result": decision.to_dict(),
+            }
+        )
 
         # === 阶段3: 执行 + 更新状态 ===
-        memory.update_status(pid, STATUS_EXECUTED, result={"old_weight": 0.15, "new_weight": 0.23})
+        memory.update_status(
+            pid, STATUS_EXECUTED, result={"old_weight": 0.15, "new_weight": 0.23}
+        )
 
         # === 阶段4: 学习 ===
         memory.learn(pid, "动量因子 IC 提升后适度增配, 7 日观察收益增强")
@@ -482,24 +512,33 @@ class TestScenario5EndToEnd:
         """频率限制: 同模块 24h 内只能进化 1 次 (跨提案验证)."""
         # 第一次提案: 通过
         p1 = EvolutionProposal(
-            level=LEVEL_L2, action_type="retrain",
-            target_module="shared_model", weight_change=0.05,
+            level=LEVEL_L2,
+            action_type="retrain",
+            target_module="shared_model",
+            weight_change=0.05,
             rollback_plan="r",
         )
         d1 = guard.check_proposal(p1)
         assert d1.passed
 
         # 记录第一次 (模拟已执行)
-        memory.record({
-            "level": p1.level, "action_type": p1.action_type,
-            "trigger_reason": "首次", "target_module": p1.target_module,
-            "rollback_plan": p1.rollback_plan, "status": STATUS_EXECUTED,
-        })
+        memory.record(
+            {
+                "level": p1.level,
+                "action_type": p1.action_type,
+                "trigger_reason": "首次",
+                "target_module": p1.target_module,
+                "rollback_plan": p1.rollback_plan,
+                "status": STATUS_EXECUTED,
+            }
+        )
 
         # 第二次同模块提案: 应被超频拒绝
         p2 = EvolutionProposal(
-            level=LEVEL_L2, action_type="retrain",
-            target_module="shared_model", weight_change=0.03,
+            level=LEVEL_L2,
+            action_type="retrain",
+            target_module="shared_model",
+            weight_change=0.03,
             rollback_plan="r",
         )
         d2 = guard.check_proposal(p2)
@@ -508,49 +547,72 @@ class TestScenario5EndToEnd:
 
         # 不同模块的第三次提案: 应通过 (不超频)
         p3 = EvolutionProposal(
-            level=LEVEL_L2, action_type="retrain",
-            target_module="other_model", weight_change=0.03,
+            level=LEVEL_L2,
+            action_type="retrain",
+            target_module="other_model",
+            weight_change=0.03,
             rollback_plan="r",
         )
         d3 = guard.check_proposal(p3)
         assert d3.passed
 
     def test_audit_trail_complete(
-        self, guard: EvolutionGuard, auto_fix_engine: AutoFixEngine, memory: EvolutionMemory
+        self,
+        guard: EvolutionGuard,
+        auto_fix_engine: AutoFixEngine,
+        memory: EvolutionMemory,
     ):
         """审计完整性: 所有动作 (fix/evaluate/weight_adjust/rejected) 都在 Memory 可查."""
+
         # 1. AutoFix 修复
         class FakeCheck:
             code = "C6.1"
             name = "磁盘"
             detail = "tmp 文件"
             remediation = "清理"
+
         auto_fix_engine.try_fix(FakeCheck())
 
         # 2. 评估 (mock)
-        memory.record({
-            "level": LEVEL_L2, "action_type": "evaluate",
-            "trigger_reason": "EOD", "target_module": "v9",
-            "rollback_plan": "只读", "status": STATUS_EXECUTED,
-        })
+        memory.record(
+            {
+                "level": LEVEL_L2,
+                "action_type": "evaluate",
+                "trigger_reason": "EOD",
+                "target_module": "v9",
+                "rollback_plan": "只读",
+                "status": STATUS_EXECUTED,
+            }
+        )
 
         # 3. 通过的提案
         p = EvolutionProposal(
-            level=LEVEL_L2, action_type="weight_adjust",
-            target_module="factor_a", weight_change=0.05, rollback_plan="r",
+            level=LEVEL_L2,
+            action_type="weight_adjust",
+            target_module="factor_a",
+            weight_change=0.05,
+            rollback_plan="r",
         )
         d = guard.check_proposal(p)
         assert d.passed
-        memory.record({
-            "level": p.level, "action_type": p.action_type,
-            "trigger_reason": "IC 提升", "target_module": p.target_module,
-            "rollback_plan": p.rollback_plan, "status": STATUS_PENDING,
-        })
+        memory.record(
+            {
+                "level": p.level,
+                "action_type": p.action_type,
+                "trigger_reason": "IC 提升",
+                "target_module": p.target_module,
+                "rollback_plan": p.rollback_plan,
+                "status": STATUS_PENDING,
+            }
+        )
 
         # 4. 被拒的提案 (超频)
         p2 = EvolutionProposal(
-            level=LEVEL_L2, action_type="weight_adjust",
-            target_module="factor_a", weight_change=0.03, rollback_plan="r",
+            level=LEVEL_L2,
+            action_type="weight_adjust",
+            target_module="factor_a",
+            weight_change=0.03,
+            rollback_plan="r",
         )
         d2 = guard.check_proposal(p2)
         assert not d2.passed

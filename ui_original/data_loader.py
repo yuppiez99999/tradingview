@@ -25,6 +25,7 @@
     - reports/strategy_registry/*.jsonl             — 策略注册审计
     - v8.3_institutional/config/*.yaml              — 配置文件
 """
+
 from __future__ import annotations
 
 import glob
@@ -64,6 +65,7 @@ INTRADAY_CACHE_TTL = 1
 # ============================================================
 # 工具函数
 # ============================================================
+
 
 def get_project_root() -> Path:
     """获取项目根目录."""
@@ -119,6 +121,7 @@ def file_exists(path: str | Path) -> bool:
 # ============================================================
 # 文件读取函数
 # ============================================================
+
 
 def read_json(
     path: str | Path,
@@ -284,7 +287,10 @@ def find_latest_file(
 # 业务专用加载函数
 # ============================================================
 
-def load_attribution_panel(target_date: str | date | datetime | None = None) -> dict[str, Any] | None:
+
+def load_attribution_panel(
+    target_date: str | date | datetime | None = None,
+) -> dict[str, Any] | None:
     """加载日级归因面板 JSON.
 
     Args:
@@ -317,7 +323,9 @@ def load_shadow_state() -> dict[str, Any] | None:
     return read_json(REPORTS_DIR / "shadow" / "admission_state.json", default=None)
 
 
-def load_shadow_dsr(target_date: str | date | datetime | None = None) -> dict[str, Any] | None:
+def load_shadow_dsr(
+    target_date: str | date | datetime | None = None,
+) -> dict[str, Any] | None:
     """加载 Shadow DSR 报告.
 
     Args:
@@ -331,7 +339,9 @@ def load_shadow_dsr(target_date: str | date | datetime | None = None) -> dict[st
     return read_json(path, default=None)
 
 
-def load_theta_plan(target_date: str | date | datetime | None = None) -> dict[str, Any] | None:
+def load_theta_plan(
+    target_date: str | date | datetime | None = None,
+) -> dict[str, Any] | None:
     """加载 Theta 交易计划.
 
     Args:
@@ -341,12 +351,18 @@ def load_theta_plan(target_date: str | date | datetime | None = None) -> dict[st
         Theta 计划字典, 或 None
     """
     # theta_plans 文件名格式: theta_plan_YYYYMMDD.json
-    d = format_date(target_date, fmt="%Y%m%d") if target_date else today_str(fmt="%Y%m%d")
+    d = (
+        format_date(target_date, fmt="%Y%m%d")
+        if target_date
+        else today_str(fmt="%Y%m%d")
+    )
     path = REPORTS_DIR / "theta_plans" / f"theta_plan_{d}.json"
     return read_json(path, default=None)
 
 
-def load_tca_fills(target_date: str | date | datetime | None = None) -> list[dict[str, Any]]:
+def load_tca_fills(
+    target_date: str | date | datetime | None = None,
+) -> list[dict[str, Any]]:
     """加载 TCA 执行归因 JSONL.
 
     Args:
@@ -360,7 +376,9 @@ def load_tca_fills(target_date: str | date | datetime | None = None) -> list[dic
     return read_jsonl(path, default=[])
 
 
-def load_risk_bus_events(target_date: str | date | datetime | None = None) -> list[dict[str, Any]]:
+def load_risk_bus_events(
+    target_date: str | date | datetime | None = None,
+) -> list[dict[str, Any]]:
     """加载风险总线审计事件.
 
     Args:
@@ -374,7 +392,9 @@ def load_risk_bus_events(target_date: str | date | datetime | None = None) -> li
     return read_jsonl(path, default=[])
 
 
-def load_llm_router_calls(target_date: str | date | datetime | None = None) -> list[dict[str, Any]]:
+def load_llm_router_calls(
+    target_date: str | date | datetime | None = None,
+) -> list[dict[str, Any]]:
     """加载 LLM 路由审计日志.
 
     Args:
@@ -388,7 +408,9 @@ def load_llm_router_calls(target_date: str | date | datetime | None = None) -> l
     return read_jsonl(path, default=[])
 
 
-def load_pnl_attribution(target_date: str | date | datetime | None = None) -> dict[str, Any] | None:
+def load_pnl_attribution(
+    target_date: str | date | datetime | None = None,
+) -> dict[str, Any] | None:
     """加载 PnL 归因报告.
 
     Args:
@@ -463,6 +485,7 @@ def load_recent_data_quality(n: int = 5) -> list[dict[str, Any]]:
 # Streamlit 缓存集成 (仅在使用 Streamlit 时调用)
 # ============================================================
 
+
 def get_cache_decorator(ttl: int = DEFAULT_CACHE_TTL):
     """获取 Streamlit 缓存装饰器 (若可用).
 
@@ -474,12 +497,14 @@ def get_cache_decorator(ttl: int = DEFAULT_CACHE_TTL):
     """
     try:
         import streamlit as st  # type: ignore[import-not-found]
+
         # noqa: F401  # noqa: F401
         return st.cache_data(ttl=ttl, show_spinner=False)
     except (ImportError, RuntimeError):
         # 未安装 streamlit 或不在运行时上下文
         def _noop(func):
             return func
+
         return _noop
 
 
@@ -500,6 +525,7 @@ def streamlit_autorefresh(interval_sec: int = 60, key: str = "ui_autorefresh") -
 
         # noqa: F401
         from streamlit_autorefresh import st_autorefresh  # type: ignore[import-not-found]
+
         st_autorefresh(interval=interval_sec * 1000, key=key)
         return True
     except ImportError:

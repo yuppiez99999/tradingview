@@ -29,6 +29,7 @@ from utils.alpha_factor.library import AlphaFactorLibrary  # noqa: E402
 # 测试数据构造
 # ============================================================
 
+
 def _make_price_data(n_syms=5, n_days=300):
     """构造测试用 price_data (足够长度覆盖所有窗口)."""
     np.random.seed(42)
@@ -39,8 +40,10 @@ def _make_price_data(n_syms=5, n_days=300):
         highs = [c * 1.01 for c in closes]
         lows = [c * 0.99 for c in closes]
         price_data[f"S{i}"] = {
-            "closes": closes, "volumes": vols,
-            "highs": highs, "lows": lows,
+            "closes": closes,
+            "volumes": vols,
+            "highs": highs,
+            "lows": lows,
             "opens": closes,
         }
     return price_data
@@ -50,10 +53,15 @@ def _make_fundamentals(n_syms=5):
     """构造测试用 fundamentals."""
     return {
         f"S{i}": {
-            "pe": 10.0 + i, "pb": 1.0 + i * 0.5, "ps": 2.0 + i,
-            "roe": 0.1 + i * 0.02, "revenue": 1e8 * (i + 1),
-            "market_cap": 5e8 * (i + 1), "negotiable_value": 3e8 * (i + 1),
-            "total_asset": 8e8 * (i + 1), "revenue_yoy": 0.1 + i * 0.05,
+            "pe": 10.0 + i,
+            "pb": 1.0 + i * 0.5,
+            "ps": 2.0 + i,
+            "roe": 0.1 + i * 0.02,
+            "revenue": 1e8 * (i + 1),
+            "market_cap": 5e8 * (i + 1),
+            "negotiable_value": 3e8 * (i + 1),
+            "total_asset": 8e8 * (i + 1),
+            "revenue_yoy": 0.1 + i * 0.05,
         }
         for i in range(n_syms)
     }
@@ -62,6 +70,7 @@ def _make_fundamentals(n_syms=5):
 # ============================================================
 # AlphaFactorLibrary 初始化
 # ============================================================
+
 
 class TestAlphaFactorLibraryInit:
     def test_defaults(self):
@@ -80,11 +89,16 @@ class TestAlphaFactorLibraryInit:
 
     def test_custom_params(self):
         lib = AlphaFactorLibrary(
-            neutralize_industry=True, neutralize_size=True,
-            enable_technical=False, enable_expectation=False,
-            technical_all=True, enable_graph=False,
-            enable_decorators=False, enable_chip=False,
-            chip_window=100, enable_expression=True,
+            neutralize_industry=True,
+            neutralize_size=True,
+            enable_technical=False,
+            enable_expectation=False,
+            technical_all=True,
+            enable_graph=False,
+            enable_decorators=False,
+            enable_chip=False,
+            chip_window=100,
+            enable_expression=True,
             expressions=[("TEST", "close")],
         )
         assert lib.neutralize_industry is True
@@ -103,6 +117,7 @@ class TestAlphaFactorLibraryInit:
 # ============================================================
 # compute_all 主入口
 # ============================================================
+
 
 class TestComputeAll:
     def test_empty_inputs(self):
@@ -167,10 +182,10 @@ class TestComputeAll:
         lib = AlphaFactorLibrary()
         price_data = _make_price_data()
         fundamentals = _make_fundamentals()
-        fundamentals_prev = {
-            f"S{i}": {"revenue": 1e8 * i} for i in range(5)
-        }
-        result = lib.compute_all(price_data, fundamentals, fundamentals_prev=fundamentals_prev)
+        fundamentals_prev = {f"S{i}": {"revenue": 1e8 * i} for i in range(5)}
+        result = lib.compute_all(
+            price_data, fundamentals, fundamentals_prev=fundamentals_prev
+        )
         assert isinstance(result, FactorLibraryResult)
 
     def test_with_technical_selected_ids(self):
@@ -183,6 +198,7 @@ class TestComputeAll:
 # ============================================================
 # 中性化处理
 # ============================================================
+
 
 class TestNeutralization:
     def test_neutralize_industry(self):
@@ -204,6 +220,7 @@ class TestNeutralization:
 # 因子评估与相关性矩阵
 # ============================================================
 
+
 class TestEvaluation:
     def test_effective_and_strong_factors(self):
         lib = AlphaFactorLibrary()
@@ -218,7 +235,10 @@ class TestEvaluation:
         result = lib.compute_all(price_data, {})
         # 有因子时应有相关性矩阵
         if result.factors:
-            assert result.factor_corr_matrix is not None or result.factor_corr_matrix is None
+            assert (
+                result.factor_corr_matrix is not None
+                or result.factor_corr_matrix is None
+            )
 
     def test_debug_info(self):
         lib = AlphaFactorLibrary()
@@ -230,6 +250,7 @@ class TestEvaluation:
 # ============================================================
 # 向后兼容委托方法
 # ============================================================
+
 
 class TestDelegateMethods:
     def test_winsorize(self):
@@ -261,7 +282,8 @@ class TestDelegateMethods:
         lib = AlphaFactorLibrary()
         result = FactorLibraryResult()
         result.factors["EP"] = FactorValue(
-            name="EP", category="Value",
+            name="EP",
+            category="Value",
             values={f"S{i}": float(i) for i in range(10)},
         )
         price_data = {f"S{i}": {"closes": [100, 100 + i]} for i in range(10)}
@@ -271,7 +293,9 @@ class TestDelegateMethods:
     def test_compute_factor_corr_matrix(self):
         lib = AlphaFactorLibrary()
         factors = {
-            "A": FactorValue(name="A", category="X", values={"S1": 1.0, "S2": 2.0, "S3": 3.0}),
+            "A": FactorValue(
+                name="A", category="X", values={"S1": 1.0, "S2": 2.0, "S3": 3.0}
+            ),
         }
         corr = lib._compute_factor_corr_matrix(factors)
         assert corr is not None

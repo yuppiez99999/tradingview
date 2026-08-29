@@ -41,7 +41,16 @@ def write_audit_log(
         log_file = audit_log_dir / f"calls_{date_str}.jsonl"
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(record.to_dict(), ensure_ascii=False) + "\n")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.warning("审计日志写入失败: %s", e)
 
 

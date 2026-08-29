@@ -544,8 +544,17 @@ def fetch_st_codes() -> set[str]:
         # akshare ST 接口返回 "代码" 列
         code_col = "代码" if "代码" in df.columns else df.columns[0]
         return {str(c).strip() for c in df[code_col].tolist() if str(c).strip()}
-    except (ImportError, RuntimeError, OSError, ConnectionError, ValueError, KeyError) as e:
-        logger.warning("[PriceLimitCalculator] 获取 ST 代码失败 (akshare 不可用): %s", e)
+    except (
+        ImportError,
+        RuntimeError,
+        OSError,
+        ConnectionError,
+        ValueError,
+        KeyError,
+    ) as e:
+        logger.warning(
+            "[PriceLimitCalculator] 获取 ST 代码失败 (akshare 不可用): %s", e
+        )
         return set()
 
 

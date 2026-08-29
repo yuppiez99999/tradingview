@@ -39,6 +39,7 @@ ai_decision.eod_review — 审计日志自动复盘
     path = gen.save(report, "2026-07-28")
     logger.info(f"EOD 复盘已生成: {path}")
 """
+
 from __future__ import annotations
 
 import json
@@ -67,9 +68,11 @@ _TCA_ESTIMATE_DIR = _PROJECT_ROOT / "reports" / "tca"
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class AlertsConfig:
     """告警阈值配置 (从 ai_decision.yaml.alerts 加载)"""
+
     brier_threshold: float = 0.25
     auto_daily_limit: int = 50
     model_consecutive_failures: int = 3
@@ -94,14 +97,17 @@ class AlertsConfig:
                 return cls(
                     brier_threshold=brier_th,
                     auto_daily_limit=int(alerts.get("auto_daily_limit", 50)),
-                    model_consecutive_failures=int(alerts.get("model_consecutive_failures", 3)),
+                    model_consecutive_failures=int(
+                        alerts.get("model_consecutive_failures", 3)
+                    ),
                     veto_spike_ratio=float(alerts.get("veto_spike_ratio", 2.0)),
                     tca_df_ratio=float(alerts.get("tca_df_ratio", 0.2)),
                     normal_veto_rate=float(alerts.get("normal_veto_rate", 0.25)),
-                    confidence_floor=float(alerts.get("confidence_floor", 1.0 - brier_th)),
+                    confidence_floor=float(
+                        alerts.get("confidence_floor", 1.0 - brier_th)
+                    ),
                 )
-        except (ValueError, TypeError, KeyError, AttributeError,
-                RuntimeError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
             # float/int 转换可能抛 ValueError/TypeError;
             # dict 操作可能抛 KeyError/AttributeError; get_config 可能抛 RuntimeError
             logger.debug("[EOD] alerts 配置加载失败, 用默认值: %s", e)
@@ -122,6 +128,7 @@ class EODReviewReport:
         alerts: 告警列表 (5 条规则)
         generated_at: 生成时间 ISO
     """
+
     date: str = ""
     decision_distribution: dict[str, Any] = field(default_factory=dict)
     debate_effectiveness: dict[str, Any] = field(default_factory=dict)
@@ -147,6 +154,7 @@ class EODReviewReport:
 # ============================================================
 # EOD 复盘生成器
 # ============================================================
+
 
 class EODReviewGenerator:
     """每日 EOD 审计日志复盘生成器
@@ -270,8 +278,7 @@ class EODReviewGenerator:
                             records.append(json.loads(line))
                         except json.JSONDecodeError:
                             continue
-        except (OSError, ValueError, TypeError, AttributeError,
-                RuntimeError) as exc:
+        except (OSError, ValueError, TypeError, AttributeError, RuntimeError) as exc:
             # open() 失败抛 OSError (含 FileNotFoundError/PermissionError);
             # line.strip() 对非字符串抛 AttributeError; 文件编码可能抛 ValueError
             logger.error("[EOD] JSONL 加载失败 %s: %s", path, exc)
@@ -367,15 +374,12 @@ class EODReviewGenerator:
                 "false_positive_rate": 0.0,
             }
 
-        debate_count = sum(
-            1 for r in records
-            if r.get("verdict_type", "") == "DEBATE"
-        )
+        debate_count = sum(1 for r in records if r.get("verdict_type", "") == "DEBATE")
         # 辩论后仍 hold = False Positive
         fp_count = sum(
-            1 for r in records
-            if r.get("verdict_type", "") == "DEBATE"
-            and r.get("action", "") == "hold"
+            1
+            for r in records
+            if r.get("verdict_type", "") == "DEBATE" and r.get("action", "") == "hold"
         )
         confidences = [
             float(r.get("decision_confidence", 0.0))
@@ -540,8 +544,14 @@ class EODReviewGenerator:
                     model_failures[role] = cf
                 if role_stats.get("is_open", False):
                     open_breakers.append(role)
-        except (RuntimeError, KeyError, TypeError, AttributeError, ValueError,
-                OSError) as exc:
+        except (
+            RuntimeError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            ValueError,
+            OSError,
+        ) as exc:
             # monitor.get_stats() 可能抛: 运行时错误/字段缺失/类型不匹配/
             # 属性缺失/值错误/IO 错误
             logger.error("[EOD] 模型健康状态获取失败: %s", exc)
@@ -588,14 +598,16 @@ class EODReviewGenerator:
         model_failures = anomaly.get("model_consecutive_failures", {})
         for role, cf in model_failures.items():
             if cf >= self._alerts_cfg.model_consecutive_failures:
-                alerts.append({
-                    "rule": "model_consecutive_failures",
-                    "severity": "WARNING",
-                    "role": role,
-                    "value": cf,
-                    "threshold": self._alerts_cfg.model_consecutive_failures,
-                    "message": f"{role} 连续失败 {cf} 次 ≥ {self._alerts_cfg.model_consecutive_failures}",
-                })
+                alerts.append(
+                    {
+                        "rule": "model_consecutive_failures",
+                        "severity": "WARNING",
+                        "role": role,
+                        "value": cf,
+                        "threshold": self._alerts_cfg.model_consecutive_failures,
+                        "message": f"{role} 连续失败 {cf} 次 ≥ {self._alerts_cfg.model_consecutive_failures}",
+                    }
+                )
 
         # 规则 2: 置信度健康度 (原"Brier 跌破阈值"近似修正)
         # 原 brier_approx = 1 - avg_confidence 是错误近似:
@@ -608,28 +620,32 @@ class EODReviewGenerator:
         if avg_conf > 0 and avg_conf < self._alerts_cfg.confidence_floor:
             # 等价 brier 值 (仅用于展示, 非真实 Brier)
             brier_display = 1.0 - avg_conf
-            alerts.append({
-                "rule": "confidence_health",
-                "severity": "CRITICAL",
-                "value": round(avg_conf, 4),
-                "threshold": self._alerts_cfg.confidence_floor,
-                "message": (
-                    f"平均置信度 {avg_conf:.4f} < 阈值 {self._alerts_cfg.confidence_floor:.4f}"
-                    f" (等价 Brier 近似 {brier_display:.4f} > {self._alerts_cfg.brier_threshold}, "
-                    f"真实 Brier 需 actual_outcome 数据)"
-                ),
-            })
+            alerts.append(
+                {
+                    "rule": "confidence_health",
+                    "severity": "CRITICAL",
+                    "value": round(avg_conf, 4),
+                    "threshold": self._alerts_cfg.confidence_floor,
+                    "message": (
+                        f"平均置信度 {avg_conf:.4f} < 阈值 {self._alerts_cfg.confidence_floor:.4f}"
+                        f" (等价 Brier 近似 {brier_display:.4f} > {self._alerts_cfg.brier_threshold}, "
+                        f"真实 Brier 需 actual_outcome 数据)"
+                    ),
+                }
+            )
 
         # 规则 3: auto 异常放量
         auto_count = anomaly.get("auto_daily_count", 0)
         if auto_count > self._alerts_cfg.auto_daily_limit:
-            alerts.append({
-                "rule": "auto_daily_limit",
-                "severity": "CRITICAL",
-                "value": auto_count,
-                "threshold": self._alerts_cfg.auto_daily_limit,
-                "message": f"auto 模式单日 {auto_count} 笔 > 上限 {self._alerts_cfg.auto_daily_limit}",
-            })
+            alerts.append(
+                {
+                    "rule": "auto_daily_limit",
+                    "severity": "CRITICAL",
+                    "value": auto_count,
+                    "threshold": self._alerts_cfg.auto_daily_limit,
+                    "message": f"auto 模式单日 {auto_count} 笔 > 上限 {self._alerts_cfg.auto_daily_limit}",
+                }
+            )
 
         # 规则 4: 硬风控拦截突增
         # veto_spike_ratio 默认 2.0, 含义是 veto_rate > 正常水平的 2 倍
@@ -638,16 +654,18 @@ class EODReviewGenerator:
         normal_veto_rate = self._alerts_cfg.normal_veto_rate
         veto_spike_threshold = normal_veto_rate * self._alerts_cfg.veto_spike_ratio
         if veto_rate > veto_spike_threshold:
-            alerts.append({
-                "rule": "veto_spike",
-                "severity": "WARNING",
-                "value": round(veto_rate, 4),
-                "threshold": round(veto_spike_threshold, 4),
-                "message": (
-                    f"硬风控否决率 {veto_rate:.1%} > 正常 {normal_veto_rate:.0%} "
-                    f"× {self._alerts_cfg.veto_spike_ratio} = {veto_spike_threshold:.1%}"
-                ),
-            })
+            alerts.append(
+                {
+                    "rule": "veto_spike",
+                    "severity": "WARNING",
+                    "value": round(veto_rate, 4),
+                    "threshold": round(veto_spike_threshold, 4),
+                    "message": (
+                        f"硬风控否决率 {veto_rate:.1%} > 正常 {normal_veto_rate:.0%} "
+                        f"× {self._alerts_cfg.veto_spike_ratio} = {veto_spike_threshold:.1%}"
+                    ),
+                }
+            )
 
         # 规则 5: TCA 评级 D/F 占比
         grade_dist = exec_quality.get("tca_grade_distribution", {})
@@ -656,13 +674,15 @@ class EODReviewGenerator:
         if total_graded > 0:
             df_ratio = d_f_count / total_graded
             if df_ratio > self._alerts_cfg.tca_df_ratio:
-                alerts.append({
-                    "rule": "tca_grade_df",
-                    "severity": "WARNING",
-                    "value": round(df_ratio, 4),
-                    "threshold": self._alerts_cfg.tca_df_ratio,
-                    "message": f"TCA 评级 D/F 占比 {d_f_count}/{total_graded} = {df_ratio:.1%} > {self._alerts_cfg.tca_df_ratio:.0%}",
-                })
+                alerts.append(
+                    {
+                        "rule": "tca_grade_df",
+                        "severity": "WARNING",
+                        "value": round(df_ratio, 4),
+                        "threshold": self._alerts_cfg.tca_df_ratio,
+                        "message": f"TCA 评级 D/F 占比 {d_f_count}/{total_graded} = {df_ratio:.1%} > {self._alerts_cfg.tca_df_ratio:.0%}",
+                    }
+                )
 
         return alerts
 
@@ -687,6 +707,7 @@ class EODReviewGenerator:
             # 尝试导入 realtime_monitor 告警接口
             # 未来可对接飞书/钉钉/邮件等通道
             import importlib
+
             rm = importlib.import_module("realtime_monitor")
             # 如果 realtime_monitor 有推送接口, 调用它
             push_fn = getattr(rm, "push_alert", None) or getattr(rm, "send_alert", None)
@@ -698,24 +719,47 @@ class EODReviewGenerator:
                             message=alert.get("message", ""),
                             severity=alert.get("severity", "WARNING"),
                         )
-                    except (RuntimeError, OSError, ConnectionError, TimeoutError,
-                            ValueError, TypeError, KeyError, AttributeError):
+                    except (
+                        RuntimeError,
+                        OSError,
+                        ConnectionError,
+                        TimeoutError,
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        AttributeError,
+                    ):
                         # push_fn 可能抛: 网络/超时/参数格式/字段缺失/类型不匹配
                         # 单条失败不影响其他告警推送
                         pass  # pragma: no cover
-                logger.info("[EOD] 告警已推送: CRITICAL=%d WARNING=%d", critical_count, warning_count)
+                logger.info(
+                    "[EOD] 告警已推送: CRITICAL=%d WARNING=%d",
+                    critical_count,
+                    warning_count,
+                )
             else:
                 logger.info(
                     "[EOD] 告警未推送 (realtime_monitor 无 push_alert 接口): "
-                    "CRITICAL=%d WARNING=%d", critical_count, warning_count,
+                    "CRITICAL=%d WARNING=%d",
+                    critical_count,
+                    warning_count,
                 )
         except ImportError:
             logger.info(
-                "[EOD] 告警未推送 (realtime_monitor 未安装): "
-                "CRITICAL=%d WARNING=%d", critical_count, warning_count,
+                "[EOD] 告警未推送 (realtime_monitor 未安装): " "CRITICAL=%d WARNING=%d",
+                critical_count,
+                warning_count,
             )
-        except (RuntimeError, OSError, ConnectionError, TimeoutError,
-                ValueError, TypeError, KeyError, AttributeError) as exc:
+        except (
+            RuntimeError,
+            OSError,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+        ) as exc:
             # 告警推送可能抛: 网络/超时/参数格式/字段缺失/类型不匹配/属性缺失
             logger.warning("[EOD] 告警推送异常 (不影响复盘): %s", exc)
 
@@ -733,8 +777,12 @@ class EODReviewGenerator:
             "",
         ]
 
-        lines.extend(self._md_decision_distribution(report.get("decision_distribution", {})))
-        lines.extend(self._md_debate_effectiveness(report.get("debate_effectiveness", {})))
+        lines.extend(
+            self._md_decision_distribution(report.get("decision_distribution", {}))
+        )
+        lines.extend(
+            self._md_debate_effectiveness(report.get("debate_effectiveness", {}))
+        )
         lines.extend(self._md_risk_interception(report.get("risk_interception", {})))
         lines.extend(self._md_execution_quality(report.get("execution_quality", {})))
         lines.extend(self._md_anomaly_detection(report.get("anomaly_detection", {})))
@@ -749,16 +797,24 @@ class EODReviewGenerator:
         lines.append(f"- 决策总数: **{total}**")
         action_dist = dd.get("action_distribution", {})
         if action_dist:
-            lines.append("- Action: " + " / ".join(f"{k}={v}" for k, v in action_dist.items()))
+            lines.append(
+                "- Action: " + " / ".join(f"{k}={v}" for k, v in action_dist.items())
+            )
         mode_dist = dd.get("mode_distribution", {})
         if mode_dist:
-            lines.append("- Mode: " + " / ".join(f"{k}={v}" for k, v in mode_dist.items()))
+            lines.append(
+                "- Mode: " + " / ".join(f"{k}={v}" for k, v in mode_dist.items())
+            )
         verdict_dist = dd.get("verdict_type_distribution", {})
         if verdict_dist:
-            lines.append("- Verdict: " + " / ".join(f"{k}={v}" for k, v in verdict_dist.items()))
+            lines.append(
+                "- Verdict: " + " / ".join(f"{k}={v}" for k, v in verdict_dist.items())
+            )
         conf = dd.get("confidence_stats", {})
         if conf.get("mean", 0) > 0:
-            lines.append(f"- 置信度: 均值={conf['mean']:.3f} 最小={conf['min']:.3f} 最大={conf['max']:.3f}")
+            lines.append(
+                f"- 置信度: 均值={conf['mean']:.3f} 最小={conf['min']:.3f} 最大={conf['max']:.3f}"
+            )
         lines.append("")
         return lines
 
@@ -813,9 +869,10 @@ class EODReviewGenerator:
             lines.append(f"- 平均延迟: {avg_latency:.1f} ms")
         grade_dist = eq.get("tca_grade_distribution", {})
         if grade_dist:
-            lines.append("- TCA 评级: " + " / ".join(
-                f"{k}={v}" for k, v in sorted(grade_dist.items())
-            ))
+            lines.append(
+                "- TCA 评级: "
+                + " / ".join(f"{k}={v}" for k, v in sorted(grade_dist.items()))
+            )
         avg_cost = eq.get("tca_avg_is_cost_bps", 0.0)
         if avg_cost > 0:
             lines.append(f"- 平均 TCA 成本: {avg_cost:.2f} bps")
@@ -832,9 +889,10 @@ class EODReviewGenerator:
         lines.append(f"- auto 模式单日: {auto_count} 笔")
         lines.append(f"- 否决率: {veto_rate:.1%}")
         if model_failures:
-            lines.append("- 模型连续失败: " + " / ".join(
-                f"{role}={cf}" for role, cf in model_failures.items()
-            ))
+            lines.append(
+                "- 模型连续失败: "
+                + " / ".join(f"{role}={cf}" for role, cf in model_failures.items())
+            )
         if open_breakers:
             lines.append(f"- 熔断开启: {', '.join(open_breakers)}")
         if not model_failures and not open_breakers:

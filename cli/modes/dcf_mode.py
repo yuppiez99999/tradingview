@@ -20,7 +20,9 @@ def run_dcf_mode(args) -> Optional[str]:
     """
     ticker = getattr(args, "ticker", None) or getattr(args, "kronos_code", None)
     if not ticker:
-        print("❌ 请提供 --ticker 参数，例如: python \"量化策略系统 v5.10.py\" --dcf --ticker 600519")
+        print(
+            '❌ 请提供 --ticker 参数，例如: python "量化策略系统 v5.10.py" --dcf --ticker 600519'
+        )
         return None
 
     company_name = getattr(args, "name", None) or ticker
@@ -40,6 +42,7 @@ def run_dcf_mode(args) -> Optional[str]:
     market_data: dict[str, Any] = {}
     try:
         from quant_modules.data_layer import DataConnectorManager
+
         connector_manager = DataConnectorManager()
         quote = connector_manager.get_quote(ticker)
         if quote:

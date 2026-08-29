@@ -3,6 +3,7 @@
 被测模块: nlp/rag_rl_sentiment.py
 文献: #69 CODS 2025
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,6 +28,7 @@ from nlp.rag_rl_sentiment import (  # noqa: E402
 # ============================================================
 # RAG 检索测试
 # ============================================================
+
 
 class TestRAGRetriever:
     def test_add_news(self):
@@ -58,6 +60,7 @@ class TestRAGRetriever:
 # ============================================================
 # PPO 调优器测试
 # ============================================================
+
 
 class TestPPOSentimentTuner:
     def test_init_weights(self):
@@ -124,6 +127,7 @@ class TestPPOSentimentTuner:
 # 自适应 Hub 测试
 # ============================================================
 
+
 class TestAdaptiveSentimentHub:
     def test_add_news(self):
         hub = AdaptiveSentimentHub()
@@ -187,6 +191,7 @@ class TestAdaptiveSentimentHub:
 # ============================================================
 # 验收标准测试
 # ============================================================
+
 
 class TestAcceptanceCriteria:
     """LIT-5.4 验收: LLaMA+RAG+PPO + 市场反馈自适应 + 准确率+5%."""

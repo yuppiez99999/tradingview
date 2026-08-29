@@ -94,3 +94,14 @@ related:
 - 工作区总览：`工作区资产扫描统计_20260803.md`（根目录 `E:\各种PY程序\`）
 - 代码审查方法论：`cairn/code-review-glm45-llm-scan.md`
 - 主系统架构：`AGENTS.md` §1-§4
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [P0 经典理论四件套实现 — 2026-08-23](p0-classic-theory-impl-20260823.md) (相似度 11%)
+- [经典理论覆盖度审计 — 2026-08-19](classic-theory-coverage-20260819.md) (相似度 10%)
+- [skfolio 统一优化后端](portfolio-optimizer-skfolio.md) (相似度 7%)
+- [Alpha 因子体系](alpha-factor-system.md) (相似度 7%)
+- [年化收益校准标准 v1.0](returns-calibration-standards.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

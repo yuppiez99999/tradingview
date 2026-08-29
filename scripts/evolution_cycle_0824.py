@@ -12,6 +12,7 @@
     - L2 影子验证: DSR < 阈值自动 rollback, 不进入实盘
     - 200万ETF定投: 仅生成计划文档, 不提交任何实盘订单
 """
+
 from __future__ import annotations
 
 import json
@@ -67,18 +68,20 @@ def _run_evolution_cycle() -> dict:
             return result
 
         cycle = orch.run_cycle()
-        result.update({
-            "status": cycle.status,
-            "level": cycle.level,
-            "action": cycle.action,
-            "executed": cycle.executed,
-            "reason": cycle.reason,
-            "weight_adjustments": cycle.weight_adjustments,
-            "metrics_snapshot": cycle.metrics_snapshot,
-            "evaluator_report": cycle.evaluator_report,
-            "guard_decision": cycle.guard_decision,
-            "timestamp": cycle.timestamp or datetime.now().isoformat(),
-        })
+        result.update(
+            {
+                "status": cycle.status,
+                "level": cycle.level,
+                "action": cycle.action,
+                "executed": cycle.executed,
+                "reason": cycle.reason,
+                "weight_adjustments": cycle.weight_adjustments,
+                "metrics_snapshot": cycle.metrics_snapshot,
+                "evaluator_report": cycle.evaluator_report,
+                "guard_decision": cycle.guard_decision,
+                "timestamp": cycle.timestamp or datetime.now().isoformat(),
+            }
+        )
 
         try:
             health = orch.get_loop_health_metrics()
@@ -110,13 +113,15 @@ def _generate_etf_dca_plan() -> dict:
     for etf in core_etfs:
         w = etf.get("weight", 0)
         alloc = monthly_dca * w / core_weight_sum if core_weight_sum > 0 else 0
-        core_allocations.append({
-            "code": etf["code"],
-            "name": etf["name"],
-            "weight": round(w, 4),
-            "allocation_cny": round(alloc, 2),
-            "allocation_wan": round(alloc / 10000, 2),
-        })
+        core_allocations.append(
+            {
+                "code": etf["code"],
+                "name": etf["name"],
+                "weight": round(w, 4),
+                "allocation_cny": round(alloc, 2),
+                "allocation_wan": round(alloc / 10000, 2),
+            }
+        )
 
     satellite_allocations = []
     satellite_weight_sum = sum(
@@ -125,14 +130,18 @@ def _generate_etf_dca_plan() -> dict:
     satellite_dca = monthly_dca * 0.25  # 卫星仓占25%
     for etf in satellite_etfs:
         w = etf.get("weight_base", etf.get("weight", 0))
-        alloc = satellite_dca * w / satellite_weight_sum if satellite_weight_sum > 0 else 0
-        satellite_allocations.append({
-            "code": etf["code"],
-            "name": etf["name"],
-            "weight": round(w, 4),
-            "allocation_cny": round(alloc, 2),
-            "allocation_wan": round(alloc / 10000, 2),
-        })
+        alloc = (
+            satellite_dca * w / satellite_weight_sum if satellite_weight_sum > 0 else 0
+        )
+        satellite_allocations.append(
+            {
+                "code": etf["code"],
+                "name": etf["name"],
+                "weight": round(w, 4),
+                "allocation_cny": round(alloc, 2),
+                "allocation_wan": round(alloc / 10000, 2),
+            }
+        )
 
     return {
         "config_file": str(config_path.name),
@@ -142,7 +151,9 @@ def _generate_etf_dca_plan() -> dict:
         "core_allocations": core_allocations,
         "satellite_allocations": satellite_allocations,
         "core_total_wan": round(sum(a["allocation_wan"] for a in core_allocations), 2),
-        "satellite_total_wan": round(sum(a["allocation_wan"] for a in satellite_allocations), 2),
+        "satellite_total_wan": round(
+            sum(a["allocation_wan"] for a in satellite_allocations), 2
+        ),
         "note": "仅生成计划, 未提交实盘订单",
     }
 
@@ -165,46 +176,54 @@ def _build_report(flags: dict, cycle_result: dict, etf_plan: dict) -> str:
         status = "✅ 已启用" if enabled else "❌ 未启用"
         lines.append(f"| `{flag}` | {status} |")
 
-    lines.extend([
-        "",
-        "## 2. 进化循环结果",
-        "",
-        f"- **状态**: `{cycle_result['status']}`",
-        f"- **层级**: `{cycle_result['level'] or 'N/A'}`",
-        f"- **动作**: `{cycle_result['action'] or 'N/A'}`",
-        f"- **是否执行**: {cycle_result['executed']}",
-        f"- **原因**: {cycle_result['reason'] or 'N/A'}",
-        f"- **时间戳**: {cycle_result['timestamp']}",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 2. 进化循环结果",
+            "",
+            f"- **状态**: `{cycle_result['status']}`",
+            f"- **层级**: `{cycle_result['level'] or 'N/A'}`",
+            f"- **动作**: `{cycle_result['action'] or 'N/A'}`",
+            f"- **是否执行**: {cycle_result['executed']}",
+            f"- **原因**: {cycle_result['reason'] or 'N/A'}",
+            f"- **时间戳**: {cycle_result['timestamp']}",
+            "",
+        ]
+    )
 
     wa = cycle_result.get("weight_adjustments", {})
     if wa:
-        lines.extend([
-            "### 2.1 再平衡建议 (weight_adjustments)",
-            "",
-            "| 标的 | 权重乘子 |",
-            "|------|----------|",
-        ])
+        lines.extend(
+            [
+                "### 2.1 再平衡建议 (weight_adjustments)",
+                "",
+                "| 标的 | 权重乘子 |",
+                "|------|----------|",
+            ]
+        )
         for code, mult in wa.items():
             lines.append(f"| {code} | {mult:.4f} |")
         lines.append("")
     else:
-        lines.extend([
-            "### 2.1 再平衡建议",
-            "",
-            "本次循环未产生权重调整建议 (no_action 或无需进化).",
-            "",
-        ])
+        lines.extend(
+            [
+                "### 2.1 再平衡建议",
+                "",
+                "本次循环未产生权重调整建议 (no_action 或无需进化).",
+                "",
+            ]
+        )
 
     health = cycle_result.get("loop_health", {})
     if health:
-        lines.extend([
-            "### 2.2 闭环健康度指标",
-            "",
-            "| 指标 | 值 |",
-            "|------|----|",
-        ])
+        lines.extend(
+            [
+                "### 2.2 闭环健康度指标",
+                "",
+                "| 指标 | 值 |",
+                "|------|----|",
+            ]
+        )
         for k, v in health.items():
             if isinstance(v, float):
                 lines.append(f"| {k} | {v:.4f} |")
@@ -212,20 +231,22 @@ def _build_report(flags: dict, cycle_result: dict, etf_plan: dict) -> str:
                 lines.append(f"| {k} | {v} |")
         lines.append("")
 
-    lines.extend([
-        "## 3. 200万ETF首笔定投计划 (非实盘)",
-        "",
-        f"- **配置文件**: `{etf_plan['config_file']}`",
-        f"- **总资金**: {etf_plan['total_capital_wan']:.0f} 万元",
-        f"- **月定投额**: {etf_plan['monthly_dca_wan']:.0f} 万元",
-        f"- **Phase 1 周期**: {etf_plan['phase_1_period']}",
-        f"- **备注**: {etf_plan['note']}",
-        "",
-        "### 3.1 核心仓分配 (75%)",
-        "",
-        "| 代码 | 名称 | 权重 | 金额(元) | 金额(万) |",
-        "|------|------|------|----------|----------|",
-    ])
+    lines.extend(
+        [
+            "## 3. 200万ETF首笔定投计划 (非实盘)",
+            "",
+            f"- **配置文件**: `{etf_plan['config_file']}`",
+            f"- **总资金**: {etf_plan['total_capital_wan']:.0f} 万元",
+            f"- **月定投额**: {etf_plan['monthly_dca_wan']:.0f} 万元",
+            f"- **Phase 1 周期**: {etf_plan['phase_1_period']}",
+            f"- **备注**: {etf_plan['note']}",
+            "",
+            "### 3.1 核心仓分配 (75%)",
+            "",
+            "| 代码 | 名称 | 权重 | 金额(元) | 金额(万) |",
+            "|------|------|------|----------|----------|",
+        ]
+    )
     for a in etf_plan["core_allocations"]:
         lines.append(
             f"| {a['code']} | {a['name']} | {a['weight']:.1%} | "
@@ -233,13 +254,15 @@ def _build_report(flags: dict, cycle_result: dict, etf_plan: dict) -> str:
         )
     lines.append(f"| **合计** | | | | **{etf_plan['core_total_wan']:.2f}** |")
 
-    lines.extend([
-        "",
-        "### 3.2 卫星仓分配 (25%)",
-        "",
-        "| 代码 | 名称 | 权重 | 金额(元) | 金额(万) |",
-        "|------|------|------|----------|----------|",
-    ])
+    lines.extend(
+        [
+            "",
+            "### 3.2 卫星仓分配 (25%)",
+            "",
+            "| 代码 | 名称 | 权重 | 金额(元) | 金额(万) |",
+            "|------|------|------|----------|----------|",
+        ]
+    )
     for a in etf_plan["satellite_allocations"]:
         lines.append(
             f"| {a['code']} | {a['name']} | {a['weight']:.1%} | "
@@ -247,17 +270,19 @@ def _build_report(flags: dict, cycle_result: dict, etf_plan: dict) -> str:
         )
     lines.append(f"| **合计** | | | | **{etf_plan['satellite_total_wan']:.2f}** |")
 
-    lines.extend([
-        "",
-        "## 4. 安全声明",
-        "",
-        "- 本次执行为**非实盘模式**, 仅生成再平衡建议和定投计划.",
-        "- L3 进化层受 HC-4 人工审批闸门保护, `executed=False`, 绝不自动执行.",
-        "- L2 影子验证: DSR < 阈值时自动 rollback, 不进入实盘.",
-        "- 200万ETF定投: 仅生成计划文档, 未提交任何实盘订单.",
-        "- 后续: 完成全部计划后, 再接入实盘执行.",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 4. 安全声明",
+            "",
+            "- 本次执行为**非实盘模式**, 仅生成再平衡建议和定投计划.",
+            "- L3 进化层受 HC-4 人工审批闸门保护, `executed=False`, 绝不自动执行.",
+            "- L2 影子验证: DSR < 阈值时自动 rollback, 不进入实盘.",
+            "- 200万ETF定投: 仅生成计划文档, 未提交任何实盘订单.",
+            "- 后续: 完成全部计划后, 再接入实盘执行.",
+            "",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -292,8 +317,12 @@ def main() -> None:
     etf_plan = _generate_etf_dca_plan()
     print(f"  总资金: {etf_plan['total_capital_wan']:.0f} 万元")
     print(f"  月定投: {etf_plan['monthly_dca_wan']:.0f} 万元")
-    print(f"  核心仓: {len(etf_plan['core_allocations'])} 只 → {etf_plan['core_total_wan']:.2f} 万")
-    print(f"  卫星仓: {len(etf_plan['satellite_allocations'])} 只 → {etf_plan['satellite_total_wan']:.2f} 万")
+    print(
+        f"  核心仓: {len(etf_plan['core_allocations'])} 只 → {etf_plan['core_total_wan']:.2f} 万"
+    )
+    print(
+        f"  卫星仓: {len(etf_plan['satellite_allocations'])} 只 → {etf_plan['satellite_total_wan']:.2f} 万"
+    )
 
     print("\n[4] 生成报告...")
     report_md = _build_report(flags, cycle_result, etf_plan)

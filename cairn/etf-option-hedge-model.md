@@ -210,3 +210,14 @@ ETF期权对冲再平衡子模型 (etf_option_hedge_rebalancer.py)
 | Phase 5 | 11-06~12-31 | 全量启用+持续监控+年度报告 | 待启动 |
 
 **关键依赖**：Phase 4 需 Wave 7 Sprint 3 实盘验证四件套就绪；Phase 5 需 Wave 7 v8.7 发布。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [年化收益校准标准 v1.0](returns-calibration-standards.md) (相似度 19%)
+- [风控架构](risk-architecture.md) (相似度 18%)
+- [对冲方案 v8.7 优化 — RegimeFolio 动态阈值 + 紧急跨级 + IV 感知 + Deep Hedging + 多智能体](hedge-v87-regime-adaptive-20260827.md) (相似度 14%)
+- [自我进化迭代再平衡闭环（Evolution-Rebalance Loop）](evolution-rebalance-loop.md) (相似度 13%)
+- [MVSK 高阶矩组合优化（YAND 启发）](mvsk-higher-moment-optimization.md) (相似度 12%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

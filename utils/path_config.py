@@ -55,7 +55,16 @@ def _load_env_file(env_path: Path) -> None:
             value = value.strip().strip('"').strip("'")
             if key and key not in os.environ:
                 os.environ[key] = value
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # .env 解析失败不影响程序运行 (fail-safe)
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # .env 解析失败不影响程序运行 (fail-safe)
         pass
 
 
@@ -120,6 +129,7 @@ def get_institutional_pipeline_report_dir() -> Path:
 # ═══════════════════════════════════════════════════════════════════════
 # v8.4+ 统一路径: 所有模块用这些函数获取路径, 禁止硬编码绝对路径
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def get_config_dir() -> Path:
     """持仓/策略配置文件目录 (config/)"""
@@ -196,11 +206,12 @@ def setup_sys_path() -> None:
         sys.path.insert(0, r"e:\\各种PY程序\\28-终极量化交易系统8.4\\utils")
     """
     import sys as _sys
+
     _roots = [
         str(_PROJECT_ROOT),
         str(get_v8_root_dir()),  # v8.3_institutional/ (autolearn_trainer 等根模块)
-        str(get_v8_src_dir()),   # v8.3_institutional/src/ (hedging/signals/risk 等)
-        str(get_utils_dir()),   # utils/
+        str(get_v8_src_dir()),  # v8.3_institutional/src/ (hedging/signals/risk 等)
+        str(get_utils_dir()),  # utils/
     ]
     # 先 remove 已存在路径再 insert(0), 确保项目根始终在最前.
     # 修复路径遮蔽 bug: 旧版 "if p not in sys.path" 会让已存在的项目根被推后,
@@ -228,7 +239,9 @@ def describe_paths() -> dict:
     return {
         "project_root": str(_PROJECT_ROOT),
         "data_root": str(DATA_ROOT),
-        "data_root_source": "QUANT_DATA_ROOT env" if using_custom else "project_root (default)",
+        "data_root_source": (
+            "QUANT_DATA_ROOT env" if using_custom else "project_root (default)"
+        ),
         "data_cache": str(get_data_cache_dir()),
         "output": str(get_output_dir()),
         "reports": str(get_reports_dir()),
@@ -241,4 +254,5 @@ def describe_paths() -> dict:
 # 模块加载时打印路径配置 (方便排查)
 if __name__ == "__main__":
     import json
+
     logger.info(json.dumps(describe_paths(), indent=2, ensure_ascii=False))

@@ -3,6 +3,7 @@
 被测模块: utils/supply_chain_graph.py
 覆盖目标: >=85%
 """
+
 from __future__ import annotations
 
 import sys
@@ -22,7 +23,9 @@ from utils.supply_chain_graph import (  # noqa: E402
 
 
 def _make_edge(source="A", target="B", rtype="SUPPLIER", strength=0.5, **kwargs):
-    return SupplyChainEdge(source=source, target=target, relation_type=rtype, strength=strength, **kwargs)
+    return SupplyChainEdge(
+        source=source, target=target, relation_type=rtype, strength=strength, **kwargs
+    )
 
 
 class TestSupplyChainEdge:

@@ -21,6 +21,7 @@
 
 集成日期: 2026-08-12 (W7.4.3, LiteLLM 多模型路由统一)
 """
+
 from __future__ import annotations
 
 import logging
@@ -99,6 +100,7 @@ class LiteLLMRouter:
             return self._inner_router
         try:
             from utils.alpha.llm.router import LLMRouter
+
             self._inner_router = LLMRouter.get_instance()
         except (ImportError, RuntimeError) as exc:
             logger.warning("LLMRouter 加载失败, 降级直返: %s", exc)
@@ -130,7 +132,9 @@ class LiteLLMRouter:
         inner = self._get_inner_router()
         if inner is None:
             return self._build_error_response(
-                request, "LLMRouter 不可用", started,
+                request,
+                "LLMRouter 不可用",
+                started,
             )
 
         try:
@@ -148,7 +152,9 @@ class LiteLLMRouter:
 
         if content is None:
             return self._build_error_response(
-                request, "所有 provider 失败", started,
+                request,
+                "所有 provider 失败",
+                started,
             )
 
         # 成功
@@ -246,7 +252,8 @@ class LiteLLMRouter:
                 ),
                 "total_prompt_tokens": self._total_prompt_tokens,
                 "total_completion_tokens": self._total_completion_tokens,
-                "total_tokens": self._total_prompt_tokens + self._total_completion_tokens,
+                "total_tokens": self._total_prompt_tokens
+                + self._total_completion_tokens,
                 "provider_stats": dict(self._provider_stats),
             }
 
@@ -280,7 +287,9 @@ class LiteLLMRouter:
                 }
             self._provider_stats[provider_name]["calls"] += 1
             self._provider_stats[provider_name]["prompt_tokens"] += usage.prompt_tokens
-            self._provider_stats[provider_name]["completion_tokens"] += usage.completion_tokens
+            self._provider_stats[provider_name][
+                "completion_tokens"
+            ] += usage.completion_tokens
 
     @staticmethod
     def _estimate_usage(prompt: str, content: str) -> Usage:

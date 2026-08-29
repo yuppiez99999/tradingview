@@ -31,7 +31,7 @@ class PlannedOrder:
 
     order_id: str
     symbol: str
-    side: str       # buy / sell
+    side: str  # buy / sell
     planned_qty: int
     limit_price: float | None = None
 
@@ -156,7 +156,9 @@ class TradeOrderReconciler:
                 total_qty = sum(f.filled_qty for f in matching)
                 total_notional = sum(f.filled_qty * f.avg_price for f in matching)
                 item.filled_qty = total_qty
-                item.avg_fill_price = total_notional / total_qty if total_qty > 0 else None
+                item.avg_fill_price = (
+                    total_notional / total_qty if total_qty > 0 else None
+                )
                 used_fill_ids.update(f.fill_id for f in matching)
                 report.total_filled_orders += 1
 
@@ -224,6 +226,7 @@ class TradeOrderReconciler:
         if not p.exists():
             return fills
         import json
+
         with open(p, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
@@ -233,13 +236,17 @@ class TradeOrderReconciler:
                     d = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                fills.append(FillRecord(
-                    fill_id=str(d.get("fill_id") or d.get("id") or ""),
-                    order_id=str(d.get("order_id") or d.get("parent_order_id") or ""),
-                    symbol=str(d.get("symbol") or d.get("code") or ""),
-                    side=str(d.get("side") or "buy"),
-                    filled_qty=int(d.get("filled_qty") or d.get("qty") or 0),
-                    avg_price=float(d.get("avg_price") or d.get("price") or 0.0),
-                    timestamp=str(d.get("timestamp") or d.get("ts") or ""),
-                ))
+                fills.append(
+                    FillRecord(
+                        fill_id=str(d.get("fill_id") or d.get("id") or ""),
+                        order_id=str(
+                            d.get("order_id") or d.get("parent_order_id") or ""
+                        ),
+                        symbol=str(d.get("symbol") or d.get("code") or ""),
+                        side=str(d.get("side") or "buy"),
+                        filled_qty=int(d.get("filled_qty") or d.get("qty") or 0),
+                        avg_price=float(d.get("avg_price") or d.get("price") or 0.0),
+                        timestamp=str(d.get("timestamp") or d.get("ts") or ""),
+                    )
+                )
         return fills

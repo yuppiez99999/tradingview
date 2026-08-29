@@ -159,7 +159,9 @@ class SmartBetaEngine:
             all_factors = set()  # type: ignore
             for scores in factor_scores.values():
                 all_factors.update(scores.keys())
-            factor_weights = {f: 1.0 / len(all_factors) for f in all_factors} if all_factors else {}
+            factor_weights = (
+                {f: 1.0 / len(all_factors) for f in all_factors} if all_factors else {}
+            )
 
         # 2. 因子择时调整
         factor_timing_info: list[FactorTimingInfo] = []
@@ -222,7 +224,9 @@ class SmartBetaEngine:
         else:
             expected_vol = 0.20  # 默认 20%
 
-        sharpe = (expected_ret - risk_free_rate) / expected_vol if expected_vol > 0 else 0.0
+        sharpe = (
+            (expected_ret - risk_free_rate) / expected_vol if expected_vol > 0 else 0.0
+        )
 
         # 跟踪误差 vs 市值加权
         if benchmark_weights is None:
@@ -303,7 +307,9 @@ class SmartBetaEngine:
                     current_weight=adj_w,
                     timing_signal=float(momentum_signal),
                     factor_momentum=float(
-                        np.sum(history[-self.timing_window :]) if len(history) >= self.timing_window else 0.0
+                        np.sum(history[-self.timing_window :])
+                        if len(history) >= self.timing_window
+                        else 0.0
                     ),
                 )
             )

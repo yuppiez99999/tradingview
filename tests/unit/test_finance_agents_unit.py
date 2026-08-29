@@ -11,6 +11,7 @@
   - 单模块测试, 全 Mock, <1s 完成
   - 不依赖 LLM (SentimentAgent 默认 use_llm=False)
 """
+
 from __future__ import annotations
 
 import pytest
@@ -36,8 +37,11 @@ class TestValueAgent:
         """PE 分位 < 20% → 看多"""
         ctx = {
             "fundamentals": {
-                "pe": 10, "pb": 1.5, "roe": 0.20,
-                "pe_percentile": 0.10, "pb_percentile": 0.15,
+                "pe": 10,
+                "pb": 1.5,
+                "roe": 0.20,
+                "pe_percentile": 0.10,
+                "pb_percentile": 0.15,
             },
         }
         agent = ValueAgent()
@@ -51,8 +55,11 @@ class TestValueAgent:
         """PE 分位 > 80% → 看空"""
         ctx = {
             "fundamentals": {
-                "pe": 80, "pb": 8, "roe": 0.10,
-                "pe_percentile": 0.90, "pb_percentile": 0.85,
+                "pe": 80,
+                "pb": 8,
+                "roe": 0.10,
+                "pe_percentile": 0.90,
+                "pb_percentile": 0.85,
             },
         }
         agent = ValueAgent()
@@ -76,7 +83,9 @@ class TestValueAgent:
         }
         ctx_high_roe = {
             "fundamentals": {
-                "pe": 15, "pb": 2, "pe_percentile": 0.30,
+                "pe": 15,
+                "pb": 2,
+                "pe_percentile": 0.30,
                 "roe": 0.25,
             },
         }
@@ -90,7 +99,9 @@ class TestValueAgent:
         """DCF 折价 > 20% → 看多"""
         ctx = {
             "fundamentals": {
-                "pe": 20, "pb": 3, "pe_percentile": 0.50,
+                "pe": 20,
+                "pb": 3,
+                "pe_percentile": 0.50,
                 "dcf_intrinsic_value": 120.0,
             },
             "market_data": {"close": 80.0},
@@ -115,8 +126,7 @@ class TestMomentumAgent:
         """上升趋势 → 看多"""
         # 30 日单调上升
         kline = [
-            {"close": 10 + i * 0.5, "volume": 1e7, "amount": 1e8}
-            for i in range(30)
+            {"close": 10 + i * 0.5, "volume": 1e7, "amount": 1e8} for i in range(30)
         ]
         agent = MomentumAgent()
         d = agent.analyze("X", {"kline": kline})
@@ -127,8 +137,7 @@ class TestMomentumAgent:
     def test_momentum_agent_downtrend_returns_sell(self):
         """下降趋势 → 看空"""
         kline = [
-            {"close": 25 - i * 0.5, "volume": 1e7, "amount": 1e8}
-            for i in range(30)
+            {"close": 25 - i * 0.5, "volume": 1e7, "amount": 1e8} for i in range(30)
         ]
         agent = MomentumAgent()
         d = agent.analyze("X", {"kline": kline})
@@ -213,9 +222,13 @@ class TestRiskAgent:
         # 构造 30% 回撤: 从 10 涨到 15 再跌到 10.5
         kline = []
         for i in range(15):
-            kline.append({"close": 10 + i * 0.3, "volume": 1e7, "amount": 1e8})  # 10 → 14.2
+            kline.append(
+                {"close": 10 + i * 0.3, "volume": 1e7, "amount": 1e8}
+            )  # 10 → 14.2
         for i in range(15):
-            kline.append({"close": 14.2 - i * 0.25, "volume": 1e7, "amount": 1e8})  # 14.2 → 10.7
+            kline.append(
+                {"close": 14.2 - i * 0.25, "volume": 1e7, "amount": 1e8}
+            )  # 14.2 → 10.7
         # 峰值 14.2, 谷值 10.7, 回撤 = (14.2-10.7)/14.2 = 24.6% 接近 25%
         # 改大一点确保触发
         kline[-1] = {"close": 10.0, "volume": 1e7, "amount": 1e8}
@@ -264,7 +277,10 @@ class TestRiskAgent:
         # 可能是波动率 veto 或回撤 veto (取决于哪个先触发)
         assert d.veto_reason != ""
         # 验证 metrics 中至少有波动率数据
-        assert "volatility_20d_annual" in d.key_metrics or "max_drawdown_20d" in d.key_metrics
+        assert (
+            "volatility_20d_annual" in d.key_metrics
+            or "max_drawdown_20d" in d.key_metrics
+        )
 
 
 # ============================================================
@@ -281,8 +297,8 @@ class TestMacroAgent:
         ctx = {
             "macro_data": {
                 "bond_10y_yield": 0.024,  # 2.4% < 2.5%
-                "north_flow": 8e9,         # 80 亿流入
-                "industry_score": 0.75,    # 行业景气
+                "north_flow": 8e9,  # 80 亿流入
+                "industry_score": 0.75,  # 行业景气
                 "index_return_20d": 0.06,  # 大盘 6%
             },
         }
@@ -297,9 +313,9 @@ class TestMacroAgent:
         ctx = {
             "macro_data": {
                 "bond_10y_yield": 0.038,  # 3.8% > 3.5%
-                "north_flow": -8e9,        # 80 亿流出
-                "industry_score": 0.20,    # 行业低迷
-                "index_return_20d": -0.06, # 大盘跌 6%
+                "north_flow": -8e9,  # 80 亿流出
+                "industry_score": 0.20,  # 行业低迷
+                "index_return_20d": -0.06,  # 大盘跌 6%
             },
         }
         agent = MacroAgent()

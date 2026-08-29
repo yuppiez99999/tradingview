@@ -177,3 +177,14 @@ related:
 - 代码审查质量门禁：`cairn/code-review-quality-gate-lessons-20260811.md`
 - 工业级防复发机制：`cairn/industrial-grade-anti-regression-framework.md`
 - 代码审查流程：`docs/CODE_REVIEW_PROCESS.md`
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [运维部署 + 灰度发布 (2026-08-24)](ops-gray-release-20260824.md) (相似度 18%)
+- [代码审查质量门禁经验沉淀：为什么多次审查仍有 bug](code-review-quality-gate-lessons-20260811.md) (相似度 17%)
+- [影子观察期真实性核查 (2026-08-24)](shadow-realness-audit-20260824.md) (相似度 17%)
+- [回测标准](backtest-standards.md) (相似度 13%)
+- [DTE-1 建仓接入 FillsStore 事实源 (2026-08-24)](dte1-build-fills-store-20260824.md) (相似度 11%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

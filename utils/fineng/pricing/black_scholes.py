@@ -176,8 +176,7 @@ def bs_price(
     """
     if is_call:
         return bs_call_price(S, K, T, r, sigma)
-    else:
-        return bs_put_price(S, K, T, r, sigma)
+    return bs_put_price(S, K, T, r, sigma)
 
 
 # ============================================================
@@ -208,21 +207,18 @@ def bs_delta(
     if T <= 0.0:
         if is_call:
             return 1.0 if S >= K else 0.0
-        else:
-            return -1.0 if S <= K else 0.0
+        return -1.0 if S <= K else 0.0
 
     if sigma <= 0.0:
         fwd = K * math.exp(-r * T)
         if is_call:
             return 1.0 if fwd <= S else 0.0
-        else:
-            return -1.0 if fwd >= S else 0.0
+        return -1.0 if fwd >= S else 0.0
 
     d1, _d2 = bs_d1_d2(S, K, T, r, sigma)
     if is_call:
         return norm_cdf(d1)
-    else:
-        return norm_cdf(d1) - 1.0
+    return norm_cdf(d1) - 1.0
 
 
 def bs_gamma(
@@ -326,7 +322,11 @@ def bs_rho(
 
     _d1, d2 = bs_d1_d2(S, K, T, r, sigma)
     discount = math.exp(-r * T)
-    raw_rho = K * T * discount * norm_cdf(d2) if is_call else -K * T * discount * norm_cdf(-d2)
+    raw_rho = (
+        K * T * discount * norm_cdf(d2)
+        if is_call
+        else -K * T * discount * norm_cdf(-d2)
+    )
     return raw_rho / 100.0
 
 
@@ -385,7 +385,12 @@ def bs_all_greeks(
             vega=bs_vega(S, K, T, r, sigma),
             rho=bs_rho(S, K, T, r, sigma, is_call),
             price=price,
-            S=S, K=K, T=T, r=r, sigma=sigma, is_call=is_call,
+            S=S,
+            K=K,
+            T=T,
+            r=r,
+            sigma=sigma,
+            is_call=is_call,
         )
 
     d1, d2 = bs_d1_d2(S, K, T, r, sigma)
@@ -418,7 +423,12 @@ def bs_all_greeks(
         vega=vega,
         rho=rho,
         price=price,
-        S=S, K=K, T=T, r=r, sigma=sigma, is_call=is_call,
+        S=S,
+        K=K,
+        T=T,
+        r=r,
+        sigma=sigma,
+        is_call=is_call,
     )
 
 

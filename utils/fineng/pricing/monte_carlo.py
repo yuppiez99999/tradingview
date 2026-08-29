@@ -28,11 +28,11 @@ from utils.fineng.pricing.black_scholes import bs_price
 class MCPricingResult:
     """蒙特卡洛定价结果"""
 
-    price: float              # 期权价格 (均值)
-    standard_error: float     # 标准误 (σ/√n)
+    price: float  # 期权价格 (均值)
+    standard_error: float  # 标准误 (σ/√n)
     confidence_95: tuple[float, float]  # 95% 置信区间
-    n_paths: int              # 模拟路径数
-    n_steps: int              # 每路径时间步数
+    n_paths: int  # 模拟路径数
+    n_steps: int  # 每路径时间步数
     elapsed_seconds: float = 0.0  # 耗时
 
     @property
@@ -88,9 +88,13 @@ class MonteCarloEngine:
         """蒙特卡洛欧式期权定价"""
         if S <= 0 or K <= 0 or T <= 0 or sigma <= 0:
             payoff = max(S - K, 0) if is_call else max(K - S, 0)
-            return MCPricingResult(price=payoff, standard_error=0.0,
-                                   confidence_95=(payoff, payoff),
-                                   n_paths=self.n_paths, n_steps=self.n_steps)
+            return MCPricingResult(
+                price=payoff,
+                standard_error=0.0,
+                confidence_95=(payoff, payoff),
+                n_paths=self.n_paths,
+                n_steps=self.n_steps,
+            )
 
         dt = T / self.n_steps
         drift = (r - 0.5 * sigma * sigma) * dt
@@ -168,9 +172,13 @@ class MonteCarloEngine:
         """
         if S <= 0 or K <= 0 or T <= 0 or sigma <= 0:
             payoff = max(S - K, 0) if is_call else max(K - S, 0)
-            return MCPricingResult(price=payoff, standard_error=0.0,
-                                   confidence_95=(payoff, payoff),
-                                   n_paths=self.n_paths, n_steps=self.n_steps)
+            return MCPricingResult(
+                price=payoff,
+                standard_error=0.0,
+                confidence_95=(payoff, payoff),
+                n_paths=self.n_paths,
+                n_steps=self.n_steps,
+            )
 
         dt = T / self.n_steps
         drift = (r - 0.5 * sigma * sigma) * dt
@@ -208,9 +216,11 @@ class MonteCarloEngine:
             se = 0.0
 
         return MCPricingResult(
-            price=price, standard_error=se,
+            price=price,
+            standard_error=se,
             confidence_95=(max(price - 1.96 * se, 0), price + 1.96 * se),
-            n_paths=n_total, n_steps=self.n_steps,
+            n_paths=n_total,
+            n_steps=self.n_steps,
         )
 
     # -----------------------------------------------------------
@@ -232,9 +242,13 @@ class MonteCarloEngine:
         barrier < S (向下敲出)
         """
         if S <= 0 or K <= 0 or T <= 0 or sigma <= 0 or barrier <= 0:
-            return MCPricingResult(price=0.0, standard_error=0.0,
-                                   confidence_95=(0.0, 0.0),
-                                   n_paths=0, n_steps=self.n_steps)
+            return MCPricingResult(
+                price=0.0,
+                standard_error=0.0,
+                confidence_95=(0.0, 0.0),
+                n_paths=0,
+                n_steps=self.n_steps,
+            )
 
         dt = T / self.n_steps
         drift = (r - 0.5 * sigma * sigma) * dt
@@ -271,9 +285,11 @@ class MonteCarloEngine:
             se = 0.0
 
         return MCPricingResult(
-            price=price, standard_error=se,
+            price=price,
+            standard_error=se,
             confidence_95=(max(price - 1.96 * se, 0), price + 1.96 * se),
-            n_paths=n_total, n_steps=self.n_steps,
+            n_paths=n_total,
+            n_steps=self.n_steps,
         )
 
     # -----------------------------------------------------------
@@ -281,7 +297,11 @@ class MonteCarloEngine:
     # -----------------------------------------------------------
 
     def _simulate_terminal(
-        self, S: float, drift: float, vol_dt: float, sign: float = 1.0,
+        self,
+        S: float,
+        drift: float,
+        vol_dt: float,
+        sign: float = 1.0,
     ) -> float:
         """模拟终值 (一步到位, 用于欧式期权)
 
@@ -295,7 +315,11 @@ class MonteCarloEngine:
         return S * math.exp(total_drift + total_vol * Z * sign)
 
     def _simulate_path(
-        self, S: float, drift: float, vol_dt: float, sign: float = 1.0,
+        self,
+        S: float,
+        drift: float,
+        vol_dt: float,
+        sign: float = 1.0,
     ) -> list[float]:
         """模拟完整价格路径"""
         path = [S]

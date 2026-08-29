@@ -55,13 +55,14 @@ logger = logging.getLogger("rollout_orchestrator")
 # 数据结构
 # ============================================================
 
+
 class RolloutStage(StrEnum):
     """灰度发布 4 阶段 (严格递进, 不可跳)."""
 
-    PAPER_TRADING = "paper_trading"   # 0% 实盘
-    LIVE_SHADOW = "live_shadow"       # 10% 实盘
-    LIVE_PARALLEL = "live_parallel"   # 50% 实盘
-    LIVE_FULL = "live_full"           # 100% 实盘
+    PAPER_TRADING = "paper_trading"  # 0% 实盘
+    LIVE_SHADOW = "live_shadow"  # 10% 实盘
+    LIVE_PARALLEL = "live_parallel"  # 50% 实盘
+    LIVE_FULL = "live_full"  # 100% 实盘
 
     @property
     def capital_ratio(self) -> float:
@@ -93,11 +94,11 @@ class StageAdmissionCriteria:
     """阶段升级准入条件."""
 
     min_running_days: int = 5
-    max_drawdown_pct: float = 0.05       # 5%
-    max_drift_pct: float = 0.02          # 2%
-    max_kill_switch_triggers: int = 0    # L1+ 触发次数
+    max_drawdown_pct: float = 0.05  # 5%
+    max_drift_pct: float = 0.02  # 2%
+    max_kill_switch_triggers: int = 0  # L1+ 触发次数
     max_reconcile_issues: int = 0
-    min_fill_rate: float = 0.95          # 95%
+    min_fill_rate: float = 0.95  # 95%
 
 
 @dataclass
@@ -130,13 +131,14 @@ class RolloutState:
 # 默认准入条件
 # ============================================================
 
+
 def default_criteria() -> dict[RolloutStage, StageAdmissionCriteria]:
     """返回默认的阶段准入条件 (保守策略)."""
     return {
         RolloutStage.PAPER_TRADING: StageAdmissionCriteria(
             min_running_days=7,
             max_drawdown_pct=0.05,
-            max_drift_pct=0.0,    # paper 阶段不应有 drift
+            max_drift_pct=0.0,  # paper 阶段不应有 drift
             max_kill_switch_triggers=0,
             max_reconcile_issues=0,
             min_fill_rate=0.95,
@@ -172,6 +174,7 @@ def default_criteria() -> dict[RolloutStage, StageAdmissionCriteria]:
 # ============================================================
 # 主类
 # ============================================================
+
 
 class GradualRolloutOrchestrator:
     """灰度发布编排器 — 4 阶段状态机 + 准入/回滚门禁."""
@@ -269,7 +272,9 @@ class GradualRolloutOrchestrator:
     # 回滚评估
     # ------------------------------------------------------------
 
-    def evaluate_rollback(self, metrics: StageMetrics) -> tuple[bool, str, RolloutStage]:
+    def evaluate_rollback(
+        self, metrics: StageMetrics
+    ) -> tuple[bool, str, RolloutStage]:
         """评估是否需要回滚.
 
         Returns:
@@ -292,7 +297,9 @@ class GradualRolloutOrchestrator:
                 "T11 IntradayCircuitBreaker 熔断 OPEN",
             ),
             (
-                metrics.current_drawdown_pct > self.criteria.get(current, StageAdmissionCriteria()).max_drawdown_pct * 2,
+                metrics.current_drawdown_pct
+                > self.criteria.get(current, StageAdmissionCriteria()).max_drawdown_pct
+                * 2,
                 f"单日回撤超 2x 阈值: {metrics.current_drawdown_pct:.2%}",
             ),
             (
@@ -331,7 +338,9 @@ class GradualRolloutOrchestrator:
             severity="INFO",
             reason=f"灰度升级 {current.value} → {target.value} (资金比例 {target.capital_ratio:.0%})",
         )
-        logger.info(f"[T18] 灰度升级: {current.value} → {target.value} (ratio={target.capital_ratio:.0%})")
+        logger.info(
+            f"[T18] 灰度升级: {current.value} → {target.value} (ratio={target.capital_ratio:.0%})"
+        )
         return target
 
     def rollback(self, reason: str) -> RolloutStage:
@@ -355,7 +364,9 @@ class GradualRolloutOrchestrator:
             severity="CRITICAL",
             reason=f"灰度回滚 {current.value} → {target.value} (原因: {reason})",
         )
-        logger.warning(f"[T18] 灰度回滚: {current.value} → {target.value} (原因: {reason})")
+        logger.warning(
+            f"[T18] 灰度回滚: {current.value} → {target.value} (原因: {reason})"
+        )
         return target
 
     def force_stage(self, stage: RolloutStage, reason: str = "manual") -> None:
@@ -371,19 +382,25 @@ class GradualRolloutOrchestrator:
             severity="CRITICAL",
             reason=f"强制设置阶段 {old.value} → {stage.value} (原因: {reason})",
         )
-        logger.warning(f"[T18] 强制设置阶段: {old.value} → {stage.value} (原因: {reason})")
+        logger.warning(
+            f"[T18] 强制设置阶段: {old.value} → {stage.value} (原因: {reason})"
+        )
 
     # ------------------------------------------------------------
     # 内部
     # ------------------------------------------------------------
 
-    def _record_transition(self, from_s: RolloutStage, to_s: RolloutStage, action: str) -> None:
-        self._state.history.append({
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "from": from_s.value,
-            "to": to_s.value,
-            "action": action,
-        })
+    def _record_transition(
+        self, from_s: RolloutStage, to_s: RolloutStage, action: str
+    ) -> None:
+        self._state.history.append(
+            {
+                "timestamp": datetime.now().isoformat(timespec="seconds"),
+                "from": from_s.value,
+                "to": to_s.value,
+                "action": action,
+            }
+        )
 
     # ------------------------------------------------------------
     # 资金切分

@@ -8,6 +8,7 @@
 3. 实现分层回测验证因子单调性 (5/10分组)
 4. 计算更多技术面因子 (Qlib158 + 自定义)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -23,7 +24,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 logger = logging.getLogger("factor_discovery_enhanced")
 
 
@@ -38,10 +41,20 @@ def init_qlib():
     """初始化 QLib"""
     try:
         import qlib
+
         qlib.init(provider_uri=QLIB_DATA_DIR, region="cn")
         logger.info("QLib 初始化成功")
         return True
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"QLib 初始化失败: {e}")
         return False
@@ -79,7 +92,9 @@ def load_qlib_data(
 
     df.columns = [c.replace("$", "") for c in df.columns]
     df = df.dropna(subset=["close", "volume"])
-    logger.info(f"加载完成: {len(df)} 行, {df.index.get_level_values('instrument').nunique()} 只股票")
+    logger.info(
+        f"加载完成: {len(df)} 行, {df.index.get_level_values('instrument').nunique()} 只股票"
+    )
 
     return df
 
@@ -87,6 +102,7 @@ def load_qlib_data(
 # ============================================================
 # 扩展因子计算 (50+ 因子)
 # ============================================================
+
 
 def _compute_momentum_factors(close: pd.Series, ret: pd.Series, n: int) -> dict:
     """计算动量类与反转类因子"""
@@ -109,7 +125,9 @@ def _compute_momentum_factors(close: pd.Series, ret: pd.Series, n: int) -> dict:
     for w in [20, 60]:
         if n > w:
             ret_w = ret.iloc[-w:]
-            factors[f"UP_DOWN_RATIO_{w}D"] = (ret_w > 0).sum() / max((ret_w < 0).sum(), 1)
+            factors[f"UP_DOWN_RATIO_{w}D"] = (ret_w > 0).sum() / max(
+                (ret_w < 0).sum(), 1
+            )
     return factors
 
 
@@ -159,18 +177,23 @@ def _compute_liquidity_factors(volume: pd.Series, ret: pd.Series, n: int) -> dic
     # 成交量变化率
     for w in [5, 20]:
         if n > w * 2:
-            factors[f"VOLUME_CHG_{w}D"] = volume.iloc[-w:].mean() / volume.iloc[-2*w:-w].mean() - 1.0
+            factors[f"VOLUME_CHG_{w}D"] = (
+                volume.iloc[-w:].mean() / volume.iloc[-2 * w : -w].mean() - 1.0
+            )
 
     # 成交量 Z-Score
     for w in [20, 60]:
         if n > w:
             vol_w = volume.iloc[-w:]
-            factors[f"VOLUME_Z_{w}D"] = (volume.iloc[-1] - vol_w.mean()) / max(vol_w.std(), 1e-12)
+            factors[f"VOLUME_Z_{w}D"] = (volume.iloc[-1] - vol_w.mean()) / max(
+                vol_w.std(), 1e-12
+            )
     return factors
 
 
-def _compute_technical_indicators(close: pd.Series, high: pd.Series, low: pd.Series,
-                                  ret: pd.Series, n: int) -> dict:
+def _compute_technical_indicators(
+    close: pd.Series, high: pd.Series, low: pd.Series, ret: pd.Series, n: int
+) -> dict:
     """计算技术指标类因子 (MA偏离/MACD/RSI/布林带/ATR)"""
     factors = {}
     # === 技术指标类 ===
@@ -207,17 +230,21 @@ def _compute_technical_indicators(close: pd.Series, high: pd.Series, low: pd.Ser
     # 真实波幅 ATR
     for w in [14, 28]:
         if n > w:
-            tr = pd.concat([
-                high - low,
-                (high - close.shift(1)).abs(),
-                (low - close.shift(1)).abs(),
-            ], axis=1).max(axis=1)
+            tr = pd.concat(
+                [
+                    high - low,
+                    (high - close.shift(1)).abs(),
+                    (low - close.shift(1)).abs(),
+                ],
+                axis=1,
+            ).max(axis=1)
             factors[f"ATR_{w}D"] = tr.iloc[-w:].mean() / max(close.iloc[-1], 1e-12)
     return factors
 
 
-def _compute_price_volume_factors(close: pd.Series, volume: pd.Series,
-                                  ret: pd.Series, n: int) -> dict:
+def _compute_price_volume_factors(
+    close: pd.Series, volume: pd.Series, ret: pd.Series, n: int
+) -> dict:
     """计算价量关系类因子 (OBV/价量背离)"""
     factors = {}
     # === 价量关系类 ===
@@ -231,11 +258,15 @@ def _compute_price_volume_factors(close: pd.Series, volume: pd.Series,
         if n > w:
             price_new_high = close.iloc[-1] >= close.iloc[-w:].max()
             vol_new_high = volume.iloc[-1] >= volume.iloc[-w:].max()
-            factors[f"PRICE_VOL_DIVERG_{w}D"] = 1.0 if (price_new_high and not vol_new_high) else 0.0
+            factors[f"PRICE_VOL_DIVERG_{w}D"] = (
+                1.0 if (price_new_high and not vol_new_high) else 0.0
+            )
     return factors
 
 
-def _compute_fundamental_proxy_factors(close: pd.Series, ret: pd.Series, n: int) -> dict:
+def _compute_fundamental_proxy_factors(
+    close: pd.Series, ret: pd.Series, n: int
+) -> dict:
     """计算基本面代理因子 (从量价衍生)"""
     factors = {}
     # === 基本面代理因子 (从量价衍生) ===
@@ -301,22 +332,37 @@ def _collect_date_factors(stock_groups: dict, date: pd.Timestamp) -> dict:
             fv = compute_technical_factors(hist_slice)
             if len(fv) > 0:
                 date_factors[inst] = fv
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             continue
     return date_factors
 
 
-def _merge_date_factors_into_panel(date_factors: dict, factor_data: dict,
-                                   date: pd.Timestamp, calc_dates: pd.Index,
-                                   instruments: pd.Index) -> None:
+def _merge_date_factors_into_panel(
+    date_factors: dict,
+    factor_data: dict,
+    date: pd.Timestamp,
+    calc_dates: pd.Index,
+    instruments: pd.Index,
+) -> None:
     """将单日因子值合并进 factor_data 面板 (原地修改)"""
     if not date_factors:
         return
     df_f = pd.DataFrame(date_factors).T
     for fname in df_f.columns:
         if fname not in factor_data:
-            factor_data[fname] = pd.DataFrame(index=calc_dates, columns=instruments, dtype=float)
+            factor_data[fname] = pd.DataFrame(
+                index=calc_dates, columns=instruments, dtype=float
+            )
         for inst in df_f.index:
             if inst in factor_data[fname].columns:
                 factor_data[fname].loc[date, inst] = df_f.loc[inst, fname]
@@ -332,8 +378,9 @@ def _clean_factor_panels(factor_data: dict) -> dict:
     return factor_panels
 
 
-def _compute_forward_returns_panel(stock_groups: dict, calc_dates: pd.Index,
-                                   instruments: pd.Index) -> dict:
+def _compute_forward_returns_panel(
+    stock_groups: dict, calc_dates: pd.Index, instruments: pd.Index
+) -> dict:
     """计算多周期远期收益面板 {fwd_day: DataFrame(date x stock)}"""
     forward_returns = {}
     for fwd in [1, 5, 10, 20]:
@@ -368,14 +415,18 @@ def compute_factors_panel_qlib(
     logger.info(f"计算因子面板: {len(instruments)} 只股票, {len(calc_dates)} 个时点")
 
     # 按股票分组
-    stock_groups = {inst: df.xs(inst, level="instrument").sort_index() for inst in instruments}
+    stock_groups = {
+        inst: df.xs(inst, level="instrument").sort_index() for inst in instruments
+    }
 
     factor_data = {}
     count = 0
 
     for date in calc_dates:
         date_factors = _collect_date_factors(stock_groups, date)
-        _merge_date_factors_into_panel(date_factors, factor_data, date, calc_dates, instruments)
+        _merge_date_factors_into_panel(
+            date_factors, factor_data, date, calc_dates, instruments
+        )
 
         count += 1
         if count % 10 == 0:
@@ -387,7 +438,9 @@ def compute_factors_panel_qlib(
     logger.info(f"因子面板计算完成: {len(factor_panels)} 个因子")
 
     # 计算远期收益
-    forward_returns = _compute_forward_returns_panel(stock_groups, calc_dates, instruments)
+    forward_returns = _compute_forward_returns_panel(
+        stock_groups, calc_dates, instruments
+    )
 
     return factor_panels, forward_returns
 
@@ -395,6 +448,7 @@ def compute_factors_panel_qlib(
 # ============================================================
 # 因子有效性验证
 # ============================================================
+
 
 @dataclass
 class FactorValidationResult:
@@ -414,13 +468,16 @@ class FactorValidationResult:
     score: float = 0.0
 
 
-def _compute_ic_for_date(fvals: pd.Series, date: pd.Timestamp,
-                        fwd_1d: pd.DataFrame,
-                        fwd_5d: pd.DataFrame) -> tuple[list, list]:
+def _compute_ic_for_date(
+    fvals: pd.Series, date: pd.Timestamp, fwd_1d: pd.DataFrame, fwd_5d: pd.DataFrame
+) -> tuple[list, list]:
     """计算单日 1d/5d IC 值; 返回 (ics_1d_single, ics_5d_single) 各含 0 或 1 个元素"""
     ics_1d_single = []
     ics_5d_single = []
-    for _fwd, ic_list, fr_panel in [(1, ics_1d_single, fwd_1d), (5, ics_5d_single, fwd_5d)]:
+    for _fwd, ic_list, fr_panel in [
+        (1, ics_1d_single, fwd_1d),
+        (5, ics_5d_single, fwd_5d),
+    ]:
         if fr_panel is not None and len(fr_panel) > 0 and date in fr_panel.index:
             rets = fr_panel.loc[date].reindex(fvals.index).dropna()
             common = fvals.index.intersection(rets.index)
@@ -429,15 +486,24 @@ def _compute_ic_for_date(fvals: pd.Series, date: pd.Timestamp,
                     ic = float(fvals[common].corr(rets[common], method="spearman"))
                     if not np.isnan(ic):
                         ic_list.append(ic)
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     pass
     return ics_1d_single, ics_5d_single
 
 
-def _compute_group_returns_for_date(fvals: pd.Series, date: pd.Timestamp,
-                                    fwd_1d: pd.DataFrame,
-                                    n_groups: int) -> list:
+def _compute_group_returns_for_date(
+    fvals: pd.Series, date: pd.Timestamp, fwd_1d: pd.DataFrame, n_groups: int
+) -> list:
     """计算单日 n_groups 分层回测各组平均收益; 失败返回空列表"""
     if not (len(fwd_1d) > 0 and date in fwd_1d.index):
         return []
@@ -455,14 +521,27 @@ def _compute_group_returns_for_date(fvals: pd.Series, date: pd.Timestamp,
             group_stocks = ranked[(ranked > start) & (ranked <= end)].index
             group_rets.append(rets_1d[group_stocks].mean())
         return group_rets
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return []
 
 
-def _aggregate_factor_statistics(result: FactorValidationResult, ics_1d: list,
-                                 ics_5d: list, group_rets_by_date: list,
-                                 n_groups: int) -> bool:
+def _aggregate_factor_statistics(
+    result: FactorValidationResult,
+    ics_1d: list,
+    ics_5d: list,
+    group_rets_by_date: list,
+    n_groups: int,
+) -> bool:
     """汇总单因子 IC 统计、分层回测统计与评分; 返回是否成功聚合"""
     if len(ics_1d) < 5:
         return False
@@ -494,10 +573,7 @@ def _aggregate_factor_statistics(result: FactorValidationResult, ics_1d: list,
         result.monotonicity = float(corr) if not np.isnan(corr) else 0.0
 
     # 有效性判定
-    result.effective = (
-        abs(result.ic_mean) >= 0.02
-        and abs(result.ic_ir) >= 0.3
-    )
+    result.effective = abs(result.ic_mean) >= 0.02 and abs(result.ic_ir) >= 0.3
 
     # 综合评分
     result.score = (
@@ -546,7 +622,9 @@ def validate_factors(
                 continue
 
             # IC 计算
-            ic_1d_single, ic_5d_single = _compute_ic_for_date(fvals, date, fwd_1d, fwd_5d)
+            ic_1d_single, ic_5d_single = _compute_ic_for_date(
+                fvals, date, fwd_1d, fwd_5d
+            )
             ics_1d.extend(ic_1d_single)
             ics_5d.extend(ic_5d_single)
 
@@ -556,7 +634,9 @@ def validate_factors(
                 group_rets_by_date.append(group_rets)
 
         # 统计 IC 与评分
-        if _aggregate_factor_statistics(result, ics_1d, ics_5d, group_rets_by_date, n_groups):
+        if _aggregate_factor_statistics(
+            result, ics_1d, ics_5d, group_rets_by_date, n_groups
+        ):
             results.append(result)
 
     results.sort(key=lambda r: r.score, reverse=True)
@@ -570,6 +650,7 @@ def validate_factors(
 # ============================================================
 # 报告生成
 # ============================================================
+
 
 def generate_report(
     results: list[FactorValidationResult],
@@ -600,8 +681,12 @@ def generate_report(
     lines.append("## 强因子 TOP 10")
     lines.append("")
     display = strong[:10] if strong else results[:10]
-    lines.append("| 排名 | 因子名 | 类别 | IC | IC_IR | 正IC% | 多空收益 | 单调性 | 5日衰减 | 评分 | 方向 |")
-    lines.append("|------|--------|------|-----|-------|-------|----------|--------|---------|------|------|")
+    lines.append(
+        "| 排名 | 因子名 | 类别 | IC | IC_IR | 正IC% | 多空收益 | 单调性 | 5日衰减 | 评分 | 方向 |"
+    )
+    lines.append(
+        "|------|--------|------|-----|-------|-------|----------|--------|---------|------|------|"
+    )
     for i, r in enumerate(display):
         ls_ret = f"{r.long_short_return*100:.2f}%" if r.long_short_return else "N/A"
         mono = f"{r.monotonicity:.3f}" if r.group_returns else "N/A"
@@ -617,24 +702,44 @@ def generate_report(
     lines.append("")
     for r in results[:5]:
         if r.group_returns:
-            lines.append(f"### {r.factor_name} (IC={r.ic_mean:.4f}, IR={r.ic_ir:.3f}, 方向={r.direction})")
+            lines.append(
+                f"### {r.factor_name} (IC={r.ic_mean:.4f}, IR={r.ic_ir:.3f}, 方向={r.direction})"
+            )
             lines.append("")
             lines.append("| 分组 | 平均日收益 | 累计收益 |")
             lines.append("|------|-----------|----------|")
             cum = 1.0
             for gi, gr in enumerate(r.group_returns):
-                cum *= (1 + gr)
-                label = "空头" if (gi == 0 and r.direction == "positive") or (gi == len(r.group_returns)-1 and r.direction == "negative") else "多头" if (gi == len(r.group_returns)-1 and r.direction == "positive") or (gi == 0 and r.direction == "negative") else f"G{gi+1}"
+                cum *= 1 + gr
+                label = (
+                    "空头"
+                    if (gi == 0 and r.direction == "positive")
+                    or (gi == len(r.group_returns) - 1 and r.direction == "negative")
+                    else (
+                        "多头"
+                        if (
+                            gi == len(r.group_returns) - 1 and r.direction == "positive"
+                        )
+                        or (gi == 0 and r.direction == "negative")
+                        else f"G{gi+1}"
+                    )
+                )
                 lines.append(f"| {label} | {gr*100:.3f}% | {cum*100-100:.2f}% |")
             lines.append("")
-            lines.append(f"  **单调性**: {r.monotonicity:.3f} | **多空日收益**: {r.long_short_return*100:.3f}%")
+            lines.append(
+                f"  **单调性**: {r.monotonicity:.3f} | **多空日收益**: {r.long_short_return*100:.3f}%"
+            )
             lines.append("")
 
     # 全因子排名
     lines.append("## 全因子排名")
     lines.append("")
-    lines.append("| 排名 | 因子名 | 类别 | IC | IC_IR | 正IC% | 多空收益 | 有效 | 评分 |")
-    lines.append("|------|--------|------|-----|-------|-------|----------|------|------|")
+    lines.append(
+        "| 排名 | 因子名 | 类别 | IC | IC_IR | 正IC% | 多空收益 | 有效 | 评分 |"
+    )
+    lines.append(
+        "|------|--------|------|-----|-------|-------|----------|------|------|"
+    )
     for i, r in enumerate(results):
         ls_ret = f"{r.long_short_return*100:.3f}%" if r.long_short_return else "N/A"
         eff_marker = "✅" if r.effective else "❌"
@@ -696,7 +801,9 @@ def generate_report(
             for r in results
         ],
     }
-    json_path.write_text(json.dumps(json_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    json_path.write_text(
+        json.dumps(json_data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     return content
 
@@ -704,6 +811,7 @@ def generate_report(
 # ============================================================
 # 主流程
 # ============================================================
+
 
 def run_enhanced_discovery(
     instruments: str = "csi500",
@@ -718,7 +826,9 @@ def run_enhanced_discovery(
     if end_date is None:
         end_date = datetime.now().strftime("%Y-%m-%d")
 
-    output_path = Path(output_dir) if output_dir else Path(__file__).resolve().parent / "outputs"
+    output_path = (
+        Path(output_dir) if output_dir else Path(__file__).resolve().parent / "outputs"
+    )
     output_path.mkdir(parents=True, exist_ok=True)
 
     logger.info("=" * 60)
@@ -733,7 +843,9 @@ def run_enhanced_discovery(
         logger.error("QLib 不可用, 退出")
         return
 
-    df = load_qlib_data(instruments=instruments, start_time=start_date, end_time=end_date)
+    df = load_qlib_data(
+        instruments=instruments, start_time=start_date, end_time=end_date
+    )
     n_stocks = df.index.get_level_values("instrument").nunique()
 
     factor_panels, forward_returns = compute_factors_panel_qlib(df, step=step)
@@ -762,7 +874,9 @@ def run_enhanced_discovery(
     if eff:
         logger.info("  TOP 有效因子:")
         for i, r in enumerate(eff[:5]):
-            logger.info(f"    {i+1}. {r.factor_name} (IC={r.ic_mean:.4f}, IR={r.ic_ir:.3f}, 多空={r.long_short_return*100:.3f}%/日)")
+            logger.info(
+                f"    {i+1}. {r.factor_name} (IC={r.ic_mean:.4f}, IR={r.ic_ir:.3f}, 多空={r.long_short_return*100:.3f}%/日)"
+            )
     logger.info("=" * 60)
 
     return results
@@ -770,9 +884,12 @@ def run_enhanced_discovery(
 
 def main():
     parser = argparse.ArgumentParser(description="增强版因子挖掘工具 (QLib)")
-    parser.add_argument("--universe", default="csi500",
-                       choices=["all", "csi300", "csi500", "csi800"],
-                       help="股票池")
+    parser.add_argument(
+        "--universe",
+        default="csi500",
+        choices=["all", "csi300", "csi500", "csi800"],
+        help="股票池",
+    )
     parser.add_argument("--start", default="2021-01-01", help="起始日期")
     parser.add_argument("--end", default=None, help="结束日期")
     parser.add_argument("--step", type=int, default=20, help="计算步长 (交易日)")

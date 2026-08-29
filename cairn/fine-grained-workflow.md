@@ -108,3 +108,14 @@ new_state = agent(state)  # 兼容 agent_func(state) → state 接口
 - **LIT-2.2**: TradingGroup 自反思机制 — 增强 `utils/ai_coordinator.py`
 - **实际集成**: 将 `create_fine_grained_agent` 接入 `orchestrator.py` 替换旧 agent_func
 - **真实执行器**: 替换 7 个 mock 执行器为实际数据/因子/信号/风控模块
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [TradingGroup 自反思机制 (Self-Reflection + Data-Synthesis + Dynamic Stops)](trading-group-reflection.md) (相似度 15%)
+- [盘前工作流并行化 + 情感信号注入 + 12任务定时注册](daily-workflow-parallel-sentiment-20260826.md) (相似度 14%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 10%)
+- [CN-Buzz2Portfolio 中国市场基准](cn-buzz2portfolio.md) (相似度 8%)
+- [Wave 6 启动前置研究笔记（2026-08-11）](wave6-prep-study-notes.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

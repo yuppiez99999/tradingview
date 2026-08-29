@@ -216,3 +216,14 @@ Python 3.8 不支持内置类型 subscript，导致模块导入抛 `TypeError: '
 2. **CLI 报告函数 print vs logger**: 面向人类终端的表格/分隔线输出，print 有语义合理性；全转 logger 会破坏格式。真正风险是 GBK 编码，用 `sys.stdout.reconfigure` 兜底比全转 logger 更合适。
 3. **OFFLINE_ONLY 脚本可 import 纯常量模块**: `hedge_quantity_calculator.py` 的硬护栏阻止**被 import**，不阻止它 **import 别人**。提取共享常量到 `utils/hedge_constants.py` 是安全的 DRY 收敛。
 4. **二级兜底已有动态读取时，标注优于改行为**: `DEFAULT_PRICES` 已有 `load_latest_prices()` 从收盘报告动态读取作为一级来源，DEFAULT_PRICES 只是二级兜底。标注角色 + stale 风险，比移除个股价格（改行为+破坏测试）更安全。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查经验沉淀：量化系统 8.4 资金安全与回测可信度](code-review-lessons-v8.4.md) (相似度 12%)
+- [TradingGroup 自反思机制 (Self-Reflection + Data-Synthesis + Dynamic Stops)](trading-group-reflection.md) (相似度 11%)
+- [OCR 扫描代码评论落地（2026-08-11）](ocr-scan-comments-20260811.md) (相似度 10%)
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 9%)
+- [2026-08-08 代码审查修复批次经验沉淀](code-review-fix-batch-20260808.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

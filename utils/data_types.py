@@ -36,7 +36,12 @@ def safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
 
         if isinstance(val, str):
             val = val.strip()
-            if val == "" or val == "-" or val == "--" or val.lower() in ("null", "none", "nan", "inf", "-inf"):
+            if (
+                val == ""
+                or val == "-"
+                or val == "--"
+                or val.lower() in ("null", "none", "nan", "inf", "-inf")
+            ):
                 return default
 
         try:
@@ -163,7 +168,14 @@ def get_currency_tag(code: Optional[str]) -> str:
     根据代码推断报价币种
     """
     market = get_market_tag(code)
-    return {"cn": "CNY", "hk": "HKD", "us": "USD", "tw": "TWD", "jp": "JPY", "kr": "KRW"}.get(market, "CNY")
+    return {
+        "cn": "CNY",
+        "hk": "HKD",
+        "us": "USD",
+        "tw": "TWD",
+        "jp": "JPY",
+        "kr": "KRW",
+    }.get(market, "CNY")
 
 
 # ============================================

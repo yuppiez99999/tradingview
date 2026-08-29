@@ -119,7 +119,9 @@ class BuildPlanExecutor:
     # 阶段匹配
     # ---------------------------------------------------------------
 
-    def get_active_phase(self, target_date: Optional[date] = None) -> tuple[Optional[dict], int, str]:
+    def get_active_phase(
+        self, target_date: Optional[date] = None
+    ) -> tuple[Optional[dict], int, str]:
         """
         获取指定日期的活跃建仓阶段
 
@@ -132,7 +134,9 @@ class BuildPlanExecutor:
 
         phase_summaries = self.plan_data["phase_summary"]  # type: ignore[index]
         # 从 plan_data metadata 加载阶段配置 (避免硬编码, 支持计划文件更新)
-        metadata_build_phases = self.plan_data.get("metadata", {}).get("build_phases", [])
+        metadata_build_phases = self.plan_data.get("metadata", {}).get(
+            "build_phases", []
+        )
         if metadata_build_phases:
             build_phases_config = [
                 {
@@ -179,7 +183,9 @@ class BuildPlanExecutor:
     # 交易指令生成
     # ---------------------------------------------------------------
 
-    def _adjust_shares_for_multiplier(self, total_shares: int, capital_multiplier: float, idx: int, code: str) -> tuple[int, list]:
+    def _adjust_shares_for_multiplier(
+        self, total_shares: int, capital_multiplier: float, idx: int, code: str
+    ) -> tuple[int, list]:
         """资金倍率调整：返回 (调整后股数, 警告列表)"""
         warnings = []
         if capital_multiplier >= 1.0:
@@ -195,7 +201,9 @@ class BuildPlanExecutor:
             )
         return total_shares, warnings
 
-    def _check_price_deviation(self, current_price: Optional[float], est_price: float, code: str, name: str) -> tuple[bool, str]:
+    def _check_price_deviation(
+        self, current_price: Optional[float], est_price: float, code: str, name: str
+    ) -> tuple[bool, str]:
         """价格偏离检查：返回 (是否暂停, 暂停原因)"""
         if current_price is None or est_price <= 0:
             return False, ""
@@ -210,7 +218,9 @@ class BuildPlanExecutor:
             return True, pause_reason
         return False, ""
 
-    def _calculate_session_shares(self, total_shares: int, lot_size: int) -> tuple[int, int]:
+    def _calculate_session_shares(
+        self, total_shares: int, lot_size: int
+    ) -> tuple[int, int]:
         """计算上下半场股数（满足最小交易单位）"""
         morning_shares = max(0, int(total_shares * self.SESSION_SPLIT))
         morning_shares = (morning_shares // lot_size) * lot_size
@@ -222,7 +232,16 @@ class BuildPlanExecutor:
 
         return morning_shares, afternoon_shares
 
-    def _create_trade_order(self, idx: int, code: str, info: dict, session: str, shares: int, est_price: float, limit_price: float) -> TradeOrder:
+    def _create_trade_order(
+        self,
+        idx: int,
+        code: str,
+        info: dict,
+        session: str,
+        shares: int,
+        est_price: float,
+        limit_price: float,
+    ) -> TradeOrder:
         """创建 TradeOrder"""
         return TradeOrder(
             priority=idx,
@@ -280,36 +299,58 @@ class BuildPlanExecutor:
         if est_price <= 0 or total_shares is None or total_shares <= 0:
             return {"warnings": [f"{raw_code} 数据无效，跳过"]}
 
-        total_shares, adj_warnings = self._adjust_shares_for_multiplier(total_shares, capital_multiplier, idx, raw_code)
+        total_shares, adj_warnings = self._adjust_shares_for_multiplier(
+            total_shares, capital_multiplier, idx, raw_code
+        )
 
         current_price = safe_float(price_quotes.get(code)) if price_quotes else None
-        should_pause, pause_reason = self._check_price_deviation(current_price, est_price, code, info.get("name", ""))
+        should_pause, pause_reason = self._check_price_deviation(
+            current_price, est_price, code, info.get("name", "")
+        )
         if should_pause:
             return {
-                "paused": [{
-                    "priority": idx,
-                    "code": code,
-                    "name": info.get("name", ""),
-                    "shares": total_shares,
-                    "est_price": est_price,
-                    "current_price": current_price,
-                    "reason": pause_reason,
-                }],
+                "paused": [
+                    {
+                        "priority": idx,
+                        "code": code,
+                        "name": info.get("name", ""),
+                        "shares": total_shares,
+                        "est_price": est_price,
+                        "current_price": current_price,
+                        "reason": pause_reason,
+                    }
+                ],
                 "warnings": [f"{code} {info.get('name', '')} {pause_reason}"],
             }
 
         target_info = self.plan_data.get("target_portfolio", {}).get(code, {})
         lot_size = safe_int(target_info.get("lots") or info.get("lots"), default=100)
         lot_size = lot_size if lot_size and lot_size > 0 else 100
-        morning_shares, afternoon_shares = self._calculate_session_shares(total_shares, lot_size)
+        morning_shares, afternoon_shares = self._calculate_session_shares(
+            total_shares, lot_size
+        )
 
         limit_price = round(est_price * (1 + self.PRICE_BUFFER), 3)
 
         result = {"warnings": adj_warnings}
         if morning_shares > 0:
-            result["morning"] = [self._create_trade_order(idx, code, info, "morning", morning_shares, est_price, limit_price)]
+            result["morning"] = [
+                self._create_trade_order(
+                    idx, code, info, "morning", morning_shares, est_price, limit_price
+                )
+            ]
         if afternoon_shares > 0:
-            result["afternoon"] = [self._create_trade_order(idx, code, info, "afternoon", afternoon_shares, est_price, limit_price)]
+            result["afternoon"] = [
+                self._create_trade_order(
+                    idx,
+                    code,
+                    info,
+                    "afternoon",
+                    afternoon_shares,
+                    est_price,
+                    limit_price,
+                )
+            ]
         return result
 
     def generate_daily_orders(
@@ -334,11 +375,15 @@ class BuildPlanExecutor:
 
         phase_summary, phase_idx, status = self.get_active_phase(target_date)
         if status != "active":
-            return self._build_empty_sheet(target_date, phase_summary, phase_idx, status)
+            return self._build_empty_sheet(
+                target_date, phase_summary, phase_idx, status
+            )
 
         plan = self.plan_data["position_plan"]  # type: ignore[index]
         phase_assets = phase_summary["assets"]  # type: ignore[index]
-        sorted_assets = sorted([a for a in phase_assets if a["shares"] > 0], key=lambda x: -x["amount"])
+        sorted_assets = sorted(
+            [a for a in phase_assets if a["shares"] > 0], key=lambda x: -x["amount"]
+        )
 
         morning_orders = []
         afternoon_orders = []
@@ -346,7 +391,9 @@ class BuildPlanExecutor:
         warnings = []
 
         for idx, asset in enumerate(sorted_assets, 1):
-            result = self._process_asset(idx, asset, plan, price_quotes, capital_multiplier)
+            result = self._process_asset(
+                idx, asset, plan, price_quotes, capital_multiplier
+            )
             if result is None:
                 continue
             morning_orders.extend(result.get("morning", []))
@@ -386,7 +433,12 @@ class BuildPlanExecutor:
             from utils.gtja191_factors import GTJA191Factors
 
             df = get_historical_data(code, period="6m")
-            if df is None or df.empty or "close" not in df.columns or "amount" not in df.columns:
+            if (
+                df is None
+                or df.empty
+                or "close" not in df.columns
+                or "amount" not in df.columns
+            ):
                 return None
 
             factors = GTJA191Factors(lookback=20)
@@ -429,11 +481,19 @@ class BuildPlanExecutor:
         if sheet.morning_orders:
             lines.append("## 上午批次 (09:30 — 10:30)")
             lines.append("")
-            lines.append("| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 | technical_alpha |")
-            lines.append("|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|--------:|")
+            lines.append(
+                "| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 | technical_alpha |"
+            )
+            lines.append(
+                "|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|--------:|"
+            )
 
             for o in sheet.morning_orders:
-                alpha_str = f"{o.technical_alpha:.4f}" if o.technical_alpha is not None else "N/A"
+                alpha_str = (
+                    f"{o.technical_alpha:.4f}"
+                    if o.technical_alpha is not None
+                    else "N/A"
+                )
                 lines.append(
                     f"| {o.priority} | {o.code} | {o.name} | "
                     f"{o.shares:,} | {o.est_price:.3f} | {o.limit_price:.3f} | "
@@ -448,11 +508,19 @@ class BuildPlanExecutor:
         if sheet.afternoon_orders:
             lines.append("## 下午批次 (14:00 — 14:30)")
             lines.append("")
-            lines.append("| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 | technical_alpha |")
-            lines.append("|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|--------:|")
+            lines.append(
+                "| 优先级 | 代码 | 名称 | 买入股数 | 预估单价 | 限价 | 预估金额 | 风格 | technical_alpha |"
+            )
+            lines.append(
+                "|:-------|:-----|:-----|--------:|--------:|------|--------:|:-----|--------:|"
+            )
 
             for o in sheet.afternoon_orders:
-                alpha_str = f"{o.technical_alpha:.4f}" if o.technical_alpha is not None else "N/A"
+                alpha_str = (
+                    f"{o.technical_alpha:.4f}"
+                    if o.technical_alpha is not None
+                    else "N/A"
+                )
                 lines.append(
                     f"| {o.priority} | {o.code} | {o.name} | "
                     f"{o.shares:,} | {o.est_price:.3f} | {o.limit_price:.3f} | "
@@ -517,8 +585,12 @@ class BuildPlanExecutor:
             "total_capital": sheet.total_capital,
             "day_capital": sheet.day_capital,
             "generated_at": datetime.now().isoformat(),
-            "morning_orders": [{**asdict(o), "session": o.session} for o in sheet.morning_orders],
-            "afternoon_orders": [{**asdict(o), "session": o.session} for o in sheet.afternoon_orders],
+            "morning_orders": [
+                {**asdict(o), "session": o.session} for o in sheet.morning_orders
+            ],
+            "afternoon_orders": [
+                {**asdict(o), "session": o.session} for o in sheet.afternoon_orders
+            ],
             "paused_orders": sheet.paused_orders,
             "warnings": sheet.warnings,
         }
@@ -547,7 +619,9 @@ class BuildPlanExecutor:
                 completed_capital += self.plan_data["phase_summary"][i]["capital_amount"]  # type: ignore[index]
         # 整体进度
         total_capital = self.plan_data["metadata"]["total_capital"]  # type: ignore[index]
-        progress = min(completed_capital / total_capital, 1.0) if total_capital > 0 else 0
+        progress = (
+            min(completed_capital / total_capital, 1.0) if total_capital > 0 else 0
+        )
 
         status_info = {
             "date": today.strftime("%Y-%m-%d"),
@@ -577,7 +651,9 @@ class BuildPlanExecutor:
     # 保存
     # ---------------------------------------------------------------
 
-    def save_trade_sheet(self, sheet: DailyTradeSheet, output_dir: Optional[str] = None) -> tuple[str, str]:
+    def save_trade_sheet(
+        self, sheet: DailyTradeSheet, output_dir: Optional[str] = None
+    ) -> tuple[str, str]:
         """保存交易指令单到文件"""
         out_dir = output_dir or OUTPUT_DIR
         os.makedirs(out_dir, exist_ok=True)
@@ -617,7 +693,9 @@ class BuildPlanExecutor:
         ret_20d = market_state.get("index_return_20d", 0)
         ret_5d = market_state.get("index_return_5d", 0)
         margin_chg = market_state.get("margin_balance_change", 0)
-        mfg_dd = market_state.get("sector_health", {}).get("high_end_manufacturing_20d", 0)
+        mfg_dd = market_state.get("sector_health", {}).get(
+            "high_end_manufacturing_20d", 0
+        )
 
         # M-1 (2026-08-09): 指数收益率/VIX 数据不可信时, fail-closed 暂停建仓。
         # 关键: 不能依赖 .get("index_return_20d", 0) 的良性默认值——0 会落到 NORMAL 档导致满仓。
@@ -641,7 +719,9 @@ class BuildPlanExecutor:
         # ---- v7.1 新增维度 ----
         # ETF资金流向信号
         etf_flows = market_state.get("etf_flows", {})
-        etf_signal = etf_flows.get("overall_signal", "neutral")  # bullish/bearish/neutral
+        etf_signal = etf_flows.get(
+            "overall_signal", "neutral"
+        )  # bullish/bearish/neutral
         etf_net_flow = etf_flows.get("net_flow_billion", 0)  # 净流入/出（亿）
 
         # 宏观实体经济热度 (0~100, >80=过热, <30=过冷)
@@ -682,9 +762,13 @@ class BuildPlanExecutor:
                 "6. 转入纯防御模式：仅持有国债ETF+黄金+现金",
             ]
             if macro_heat > 85:
-                protocol["actions"].append(f"7. 宏观预警: 实体经济热度{macro_heat:.0f}，处于过热区间({macro_regime})")
+                protocol["actions"].append(
+                    f"7. 宏观预警: 实体经济热度{macro_heat:.0f}，处于过热区间({macro_regime})"
+                )
             if etf_signal == "bearish":
-                protocol["actions"].append(f"8. 资金预警: 国家队ETF净流出{abs(etf_net_flow):.0f}亿，主力撤离信号")
+                protocol["actions"].append(
+                    f"8. 资金预警: 国家队ETF净流出{abs(etf_net_flow):.0f}亿，主力撤离信号"
+                )
             protocol["hedge_suggestions"] = self._get_hedge_suggestions("extreme")
 
         # 红色：VIX>40 或 双周>15% 或 两融降>10%
@@ -707,7 +791,9 @@ class BuildPlanExecutor:
                 "5. 监控两融余额变化，若继续恶化则启动极端协议",
             ]
             if etf_signal == "bearish":
-                protocol["actions"].append(f"6. 资金面预警: ETF净流出{abs(etf_net_flow):.0f}亿，主力机构在撤退")
+                protocol["actions"].append(
+                    f"6. 资金面预警: ETF净流出{abs(etf_net_flow):.0f}亿，主力机构在撤退"
+                )
             if macro_heat > 80:
                 protocol["actions"].append(
                     f"7. 宏观预警: 实体经济热度{macro_heat:.0f}({macro_regime})，注意过热回调风险"
@@ -716,7 +802,11 @@ class BuildPlanExecutor:
 
         # 橙色：VIX>35 或 单周>8%
         # v7.1: ETF小幅流出（净流出>20亿）亦触发橙色
-        elif vix > 35 or abs(ret_5d) > 0.08 or (etf_signal == "bearish" and etf_net_flow < -20):
+        elif (
+            vix > 35
+            or abs(ret_5d) > 0.08
+            or (etf_signal == "bearish" and etf_net_flow < -20)
+        ):
             protocol["level"] = 2
             protocol["level_name"] = "HIGH"
             protocol["day_capital_multiplier"] = 0.0
@@ -727,7 +817,9 @@ class BuildPlanExecutor:
                 "4. 准备科创50虚值Put（行权价=当前价×0.90）",
             ]
             if etf_signal == "bearish":
-                protocol["actions"].append(f"5. 资金面: ETF净流出{abs(etf_net_flow):.0f}亿，关注持续性")
+                protocol["actions"].append(
+                    f"5. 资金面: ETF净流出{abs(etf_net_flow):.0f}亿，关注持续性"
+                )
             protocol["hedge_suggestions"] = self._get_hedge_suggestions("high")
 
         # 黄色：VIX>30 或 单日>3% 或 两融降>5%
@@ -749,21 +841,29 @@ class BuildPlanExecutor:
                 "4. 关注高端制造板块止盈/止损触发条件",
             ]
             if etf_signal == "bearish":
-                protocol["actions"].append(f"5. 资金面: ETF小幅净流出{abs(etf_net_flow):.0f}亿，保持警惕")
+                protocol["actions"].append(
+                    f"5. 资金面: ETF小幅净流出{abs(etf_net_flow):.0f}亿，保持警惕"
+                )
             if macro_heat < 30:
-                protocol["actions"].append(f"6. 宏观预警: 实体经济偏冷({macro_heat:.0f})，注意经济下行对市场的拖累")
+                protocol["actions"].append(
+                    f"6. 宏观预警: 实体经济偏冷({macro_heat:.0f})，注意经济下行对市场的拖累"
+                )
             protocol["hedge_suggestions"] = self._get_hedge_suggestions("medium")
 
         # 行业集中度特殊检测
         if abs(mfg_dd) > 0.15 and protocol["level"] < 2:
             protocol["level"] = max(protocol["level"], 2)
             protocol["level_name"] = "HIGH"
-            protocol["actions"].append(f"行业预警: 高端制造板块20日回撤{mfg_dd:.1%}，建议启动风格对冲")
+            protocol["actions"].append(
+                f"行业预警: 高端制造板块20日回撤{mfg_dd:.1%}，建议启动风格对冲"
+            )
 
         # v7.1: ETF流向与宏观背离信号检测（即使VIX较低也可能有隐忧）
         if etf_signal == "bearish" and macro_heat > 70 and protocol["level"] < 1:
             protocol["level"] = max(protocol["level"], 1)
-            protocol["day_capital_multiplier"] = min(protocol["day_capital_multiplier"], 0.70)
+            protocol["day_capital_multiplier"] = min(
+                protocol["day_capital_multiplier"], 0.70
+            )
             protocol["actions"].append(
                 f"背离信号: 宏观偏热({macro_heat:.0f})但ETF资金流出{abs(etf_net_flow):.0f}亿，主力可能在获利了结"
             )
@@ -888,10 +988,14 @@ class BuildPlanExecutor:
             order = next((o for o in all_orders if o.code == code), None)  # type: ignore[misc]
             style = order.style if order else "default"
             beta = self.STYLE_BETA_MAP.get(style, 1.0)
-            portfolio_beta += (amt / portfolio_value) * beta if portfolio_value > 0 else 0
+            portfolio_beta += (
+                (amt / portfolio_value) * beta if portfolio_value > 0 else 0
+            )
 
         style_weights = {
-            style: round(amt / portfolio_value * 100, 1) for style, amt in style_amounts.items() if portfolio_value > 0
+            style: round(amt / portfolio_value * 100, 1)
+            for style, amt in style_amounts.items()
+            if portfolio_value > 0
         }
 
         top_style = max(style_weights, key=style_weights.get, default="")  # type: ignore[misc]
@@ -912,9 +1016,14 @@ class BuildPlanExecutor:
                     "shares": positions[code],
                     "price": prices[code],
                     "amount": round(positions[code] * prices[code], 2),
-                    "style": next((o.style for o in all_orders if o.code == code), "default"),
+                    "style": next(
+                        (o.style for o in all_orders if o.code == code), "default"
+                    ),
                     "beta": self.STYLE_BETA_MAP.get(
-                        next((o.style for o in all_orders if o.code == code), "default"), 1.0
+                        next(
+                            (o.style for o in all_orders if o.code == code), "default"
+                        ),
+                        1.0,
                     ),
                 }
                 for code in positions
@@ -1002,10 +1111,14 @@ if __name__ == "__main__":
   python build_plan_executor.py --check-status            # 查看建仓状态
         """,
     )
-    parser.add_argument("--date", "-d", type=str, default=None, help="目标日期 YYYY-MM-DD (默认: 今日)")
+    parser.add_argument(
+        "--date", "-d", type=str, default=None, help="目标日期 YYYY-MM-DD (默认: 今日)"
+    )
     parser.add_argument("--json", action="store_true", help="以 JSON 格式输出")
     parser.add_argument("--check-status", action="store_true", help="查看建仓当前状态")
-    parser.add_argument("--plan-file", type=str, default=None, help="建仓计划 JSON 文件路径")
+    parser.add_argument(
+        "--plan-file", type=str, default=None, help="建仓计划 JSON 文件路径"
+    )
 
     args = parser.parse_args()
 
@@ -1033,4 +1146,3 @@ if __name__ == "__main__":
         pass  # allow-print: CLI --json 输出
     else:
         pass  # allow-print: CLI Markdown 输出
-

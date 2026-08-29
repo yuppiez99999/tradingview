@@ -8,8 +8,11 @@ from pathlib import Path
 
 
 def _get_ollama_path() -> str:
-    return os.environ.get("OLLAMA_PATH",
-        str(Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe"))
+    return os.environ.get(
+        "OLLAMA_PATH",
+        str(Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe"),
+    )
+
 
 env = os.environ.copy()
 env["OLLAMA_NUM_GPUS"] = "0"
@@ -34,7 +37,9 @@ proc = subprocess.Popen(
 time.sleep(8)
 
 try:
-    req = urllib.request.Request("http://localhost:11434/api/tags", method="GET", timeout=10)
+    req = urllib.request.Request(
+        "http://localhost:11434/api/tags", method="GET", timeout=10
+    )
     with urllib.request.urlopen(req) as resp:
         data = json.loads(resp.read().decode("utf-8"))
         print("Ollama API is accessible!")
@@ -44,16 +49,15 @@ except Exception as e:
 
 time.sleep(20)
 
-body = json.dumps({
-    "model": "qwen2.5:7b",
-    "messages": [{"role": "user", "content": "ping"}]
-}).encode("utf-8")
+body = json.dumps(
+    {"model": "qwen2.5:7b", "messages": [{"role": "user", "content": "ping"}]}
+).encode("utf-8")
 
 req = urllib.request.Request(
     "http://localhost:11434/v1/chat/completions",
     data=body,
     headers={"Content-Type": "application/json"},
-    method="POST"
+    method="POST",
 )
 
 print("\nTesting chat completion...")

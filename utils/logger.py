@@ -15,9 +15,11 @@ import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
-LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(pathname)s:%(lineno)d | %(message)s"
+LOG_FORMAT = (
+    "%(asctime)s | %(levelname)-8s | %(name)s | %(pathname)s:%(lineno)d | %(message)s"
+)
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 DEFAULT_LOG_DIR = "logs"
 _DEFAULT_LITELLM_LOG_LEVEL = "WARNING"
@@ -55,7 +57,7 @@ class RelativePathFormatter(logging.Formatter):
         self,
         fmt: Optional[str] = None,
         datefmt: Optional[str] = None,
-        relative_to: Optional[str | Path] = None,
+        relative_to: Optional[Union[str, Path]] = None,
     ) -> None:
         super().__init__(fmt, datefmt)
         self.relative_to = Path(relative_to) if relative_to else Path.cwd()
@@ -97,7 +99,8 @@ class Logger:
     def _setup_handlers(self) -> None:
         """兼容旧行为：控制台 + 单文件轮转"""
         formatter = RelativePathFormatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s", relative_to=Path.cwd()
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            relative_to=Path.cwd(),
         )
 
         if self.log_file:
@@ -170,7 +173,9 @@ def _init_root_logging(
         root_logger.handlers.clear()
 
     project_root = Path.cwd()
-    formatter = RelativePathFormatter(LOG_FORMAT, LOG_DATE_FORMAT, relative_to=project_root)
+    formatter = RelativePathFormatter(
+        LOG_FORMAT, LOG_DATE_FORMAT, relative_to=project_root
+    )
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(console_level)
@@ -290,7 +295,9 @@ def setup_loggers(log_prefix: str = "quantitative_strategy_system") -> dict:
         "strategy_optimizer",
     ]
 
-    module_loggers = {module: get_logger(module, log_dir=DEFAULT_LOG_DIR) for module in modules}
+    module_loggers = {
+        module: get_logger(module, log_dir=DEFAULT_LOG_DIR) for module in modules
+    }
 
     logging.info("日志系统初始化完成")
     return {"system": system_logger, "modules": module_loggers}

@@ -5,6 +5,7 @@
     2. JSON 和 YAML 都覆盖
     3. 每个测试 < 1s
 """
+
 import json
 from pathlib import Path
 

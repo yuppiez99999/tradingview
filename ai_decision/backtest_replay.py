@@ -44,6 +44,7 @@ ai_decision.backtest_replay — 历史回放 + 三基线对比
   - backtest_replay_mocks.py: MockHistoryDataLoader
   - backtest_replay.py (本文件): BacktestReplay 核心 + re-export
 """
+
 from __future__ import annotations
 
 import json
@@ -85,6 +86,7 @@ _REPORT_DIR = _PROJECT_ROOT / "reports" / "ai_decision"
 # ============================================================
 # 回放引擎
 # ============================================================
+
 
 class BacktestReplay:
     """三基线历史回放引擎
@@ -133,7 +135,8 @@ class BacktestReplay:
         """
         logger.info(
             "[Replay] 开始三基线对比: %s ~ %s, symbols=%s",
-            self._config.start_date, self._config.end_date,
+            self._config.start_date,
+            self._config.end_date,
             self._config.symbols or "(all constituents)",
         )
 
@@ -146,15 +149,28 @@ class BacktestReplay:
             try:
                 result = self.replay_history(bt)
                 baselines[bt.value] = result
-            except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError) as exc:
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+            ) as exc:
                 # 回放过程可能抛: 数据缺失/字段错误/IO 错误
                 logger.error("[Replay] 基线 %s 回放失败: %s", bt.value, exc)
                 baselines[bt.value] = BaselineResult(baseline=bt.value)
 
         # 计算边际夏普
-        sharpe_debate = baselines.get(BaselineType.AI_DEBATE.value, BaselineResult()).metrics.get("sharpe", 0.0)
-        sharpe_agents = baselines.get(BaselineType.FIVE_AGENTS.value, BaselineResult()).metrics.get("sharpe", 0.0)
-        sharpe_rule = baselines.get(BaselineType.RULE_ONLY.value, BaselineResult()).metrics.get("sharpe", 0.0)
+        sharpe_debate = baselines.get(
+            BaselineType.AI_DEBATE.value, BaselineResult()
+        ).metrics.get("sharpe", 0.0)
+        sharpe_agents = baselines.get(
+            BaselineType.FIVE_AGENTS.value, BaselineResult()
+        ).metrics.get("sharpe", 0.0)
+        sharpe_rule = baselines.get(
+            BaselineType.RULE_ONLY.value, BaselineResult()
+        ).metrics.get("sharpe", 0.0)
 
         marginal_debate_vs_agents = sharpe_debate - sharpe_agents
         marginal_agents_vs_rule = sharpe_agents - sharpe_rule
@@ -198,8 +214,11 @@ class BacktestReplay:
             self._config.start_date, self._config.end_date
         )
         if len(dates) < MIN_TRADING_DAYS:
-            logger.warning("[Replay] 交易日不足 %d (实际 %d), 结果可能不显著",
-                           MIN_TRADING_DAYS, len(dates))
+            logger.warning(
+                "[Replay] 交易日不足 %d (实际 %d), 结果可能不显著",
+                MIN_TRADING_DAYS,
+                len(dates),
+            )
 
         symbols = self._config.symbols
         # 注意: 当 symbols=None 时, 不能只在 start_date 取一次成分股快照,
@@ -219,8 +238,11 @@ class BacktestReplay:
 
             # 每日重新获取成分股快照 (防幸存者偏差, 项目记忆硬约束)
             # 当 self._config.symbols 已指定时, 用固定列表 (回测特定标的池)
-            daily_symbols = symbols if symbols is not None else \
-                self._loader.get_constituents(date_str)
+            daily_symbols = (
+                symbols
+                if symbols is not None
+                else self._loader.get_constituents(date_str)
+            )
 
             for sym in daily_symbols:
                 # 前视偏差: 不可交易则跳过 (停牌/涨跌停)
@@ -268,7 +290,9 @@ class BacktestReplay:
         n_sell = sum(1 for d in all_decisions if d.get("action") == "sell")
         n_hold = sum(1 for d in all_decisions if d.get("action") == "hold")
 
-        debate_rate = debate_triggered_count / total_decisions if total_decisions > 0 else 0.0
+        debate_rate = (
+            debate_triggered_count / total_decisions if total_decisions > 0 else 0.0
+        )
 
         return BaselineResult(
             baseline=baseline.value,
@@ -288,8 +312,11 @@ class BacktestReplay:
     # ------------------------------------------------------------
 
     def _run_ai_debate(
-        self, symbol: str, date_str: str,
-        market_data: dict[str, Any], fundamentals: dict[str, Any],
+        self,
+        symbol: str,
+        date_str: str,
+        market_data: dict[str, Any],
+        fundamentals: dict[str, Any],
     ) -> dict[str, Any]:
         """基线 1: 完整 run_decision (辩论 + 聚合 + 风控)
 
@@ -311,16 +338,33 @@ class BacktestReplay:
                 "verdict_type": decision.verdict_type,
                 "debate_triggered": decision.verdict_type == "DEBATE",
             }
-        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError, TimeoutError) as exc:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+        ) as exc:
             # run_decision 可能抛: 数据缺失/字段错误/网络超时/LLM 调用失败
-            logger.warning("[Replay] ai_debate %s %s 失败, 降级 hold: %s",
-                           symbol, date_str, exc)
-            return {"action": "hold", "strength": 0.0, "confidence": 0.0,
-                    "verdict_type": "ERROR", "debate_triggered": False}
+            logger.warning(
+                "[Replay] ai_debate %s %s 失败, 降级 hold: %s", symbol, date_str, exc
+            )
+            return {
+                "action": "hold",
+                "strength": 0.0,
+                "confidence": 0.0,
+                "verdict_type": "ERROR",
+                "debate_triggered": False,
+            }
 
     def _run_five_agents_only(
-        self, symbol: str, date_str: str,
-        market_data: dict[str, Any], fundamentals: dict[str, Any],
+        self,
+        symbol: str,
+        date_str: str,
+        market_data: dict[str, Any],
+        fundamentals: dict[str, Any],
     ) -> dict[str, Any]:
         """基线 2: 仅五 Agent 共识 (跳过辩论/judge)
 
@@ -337,8 +381,11 @@ class BacktestReplay:
 
             # 构造 TradingDecision 并过风控门 (与 run_decision 一致)
             decision = TradingDecision(
-                symbol=symbol, action=action, strength=strength,
-                confidence=confidence, verdict_type="FAST",
+                symbol=symbol,
+                action=action,
+                strength=strength,
+                confidence=confidence,
+                verdict_type="FAST",
             )
             rc = RiskContext(symbol=symbol)
             rc.agent_veto = bool(agent_res.get("veto", False))
@@ -353,15 +400,31 @@ class BacktestReplay:
                 "verdict_type": "FAST",
                 "debate_triggered": False,
             }
-        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError, TimeoutError) as exc:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+        ) as exc:
             # five_agents 调用可能抛: 数据缺失/字段错误/网络超时/Agent 调用失败
-            logger.warning("[Replay] five_agents %s %s 失败, 降级 hold: %s",
-                           symbol, date_str, exc)
-            return {"action": "hold", "strength": 0.0, "confidence": 0.0,
-                    "verdict_type": "ERROR", "debate_triggered": False}
+            logger.warning(
+                "[Replay] five_agents %s %s 失败, 降级 hold: %s", symbol, date_str, exc
+            )
+            return {
+                "action": "hold",
+                "strength": 0.0,
+                "confidence": 0.0,
+                "verdict_type": "ERROR",
+                "debate_triggered": False,
+            }
 
     def _run_rule_only(
-        self, symbol: str, date_str: str,
+        self,
+        symbol: str,
+        date_str: str,
         market_data: dict[str, Any],
     ) -> dict[str, Any]:
         """基线 3: 纯规则兜底 (跳过 AI)
@@ -382,8 +445,11 @@ class BacktestReplay:
 
         # 过风控门 (与 run_decision 一致)
         decision = TradingDecision(
-            symbol=symbol, action=action, strength=strength,
-            confidence=0.4, verdict_type="RULE",
+            symbol=symbol,
+            action=action,
+            strength=strength,
+            confidence=0.4,
+            verdict_type="RULE",
         )
         rc = RiskContext(symbol=symbol)
         gate = run_hard_risk(decision, rc)
@@ -402,7 +468,9 @@ class BacktestReplay:
     # ------------------------------------------------------------
 
     def _compute_returns(
-        self, decisions: list[dict[str, Any]], dates: list[str],
+        self,
+        decisions: list[dict[str, Any]],
+        dates: list[str],
     ) -> list[float]:
         """计算策略日收益序列
 
@@ -486,8 +554,12 @@ class BacktestReplay:
         for sym in common:
             fv = factor_values.get(sym)
             fr = forward_returns.get(sym)
-            if (isinstance(fv, (int, float)) and isinstance(fr, (int, float))
-                    and math.isfinite(fv) and math.isfinite(fr)):
+            if (
+                isinstance(fv, (int, float))
+                and isinstance(fr, (int, float))
+                and math.isfinite(fv)
+                and math.isfinite(fr)
+            ):
                 pairs.append((fv, fr))
 
         if len(pairs) < MIN_IC_SAMPLES:
@@ -516,11 +588,14 @@ class BacktestReplay:
         return num / denom
 
     def _compute_metrics(
-        self, returns: list[float], ic_series: list[float],
+        self,
+        returns: list[float],
+        ic_series: list[float],
     ) -> dict[str, Any]:
         """用 FastBacktest 计算绩效指标 (复用, 不重写)"""
         try:
             from utils.alpha.fast_backtest import BacktestResult, FastBacktest
+
             if len(returns) < MIN_TRADING_DAYS:
                 return self._empty_metrics()
             bt = FastBacktest()
@@ -530,8 +605,14 @@ class BacktestReplay:
                 ic_series=pd.Series(ic_series) if ic_series else None,
             )
             return result.summary()
-        except (ValueError, KeyError, TypeError, AttributeError,
-                RuntimeError, OSError) as exc:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as exc:
             # FastBacktest.run 可能抛: 数据格式错误/字段缺失/类型不匹配/
             # 属性缺失/运行时错误/IO 错误; pandas/numpy 操作多为前两类
             logger.warning("[Replay] FastBacktest 计算失败, 返回空指标: %s", exc)
@@ -541,10 +622,20 @@ class BacktestReplay:
     def _empty_metrics() -> dict[str, Any]:
         """空指标 (数据不足或异常时降级)"""
         return {
-            "annual_return": 0.0, "annual_vol": 0.0, "sharpe": 0.0,
-            "sortino": 0.0, "calmar": 0.0, "max_drawdown": 0.0,
-            "win_rate": 0.0, "dsr": 0.0, "ic_ir": 0.0, "sharpe_cv": 0.0,
-            "n_windows": 0, "n_trials": 1, "passed_v9": False, "v9_failures": [],
+            "annual_return": 0.0,
+            "annual_vol": 0.0,
+            "sharpe": 0.0,
+            "sortino": 0.0,
+            "calmar": 0.0,
+            "max_drawdown": 0.0,
+            "win_rate": 0.0,
+            "dsr": 0.0,
+            "ic_ir": 0.0,
+            "sharpe_cv": 0.0,
+            "n_windows": 0,
+            "n_trials": 1,
+            "passed_v9": False,
+            "v9_failures": [],
         }
 
     # ------------------------------------------------------------
@@ -603,8 +694,7 @@ class BacktestReplay:
                 checks["disclosure_date_check"] = "disclosure_date" in fund
             else:
                 checks["disclosure_date_check"] = True  # 无数据视为通过
-        except (ValueError, KeyError, TypeError, AttributeError,
-                RuntimeError, OSError):
+        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError):
             # loader 可能抛: 数据缺失/字段错误/类型不匹配/属性缺失/运行时/IO 错误
             # fund 非 dict 时 "in" 抛 TypeError
             checks["disclosure_date_check"] = False
@@ -616,8 +706,7 @@ class BacktestReplay:
                 checks["constituent_snapshot_check"] = isinstance(constituents, list)
             else:
                 checks["constituent_snapshot_check"] = True
-        except (ValueError, KeyError, TypeError, AttributeError,
-                RuntimeError, OSError):
+        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError):
             # loader 可能抛: 数据缺失/类型不匹配/属性缺失/运行时/IO 错误
             checks["constituent_snapshot_check"] = False
 
@@ -628,8 +717,7 @@ class BacktestReplay:
                 checks["tradability_check"] = isinstance(tradable, bool)
             else:
                 checks["tradability_check"] = True
-        except (ValueError, KeyError, TypeError, AttributeError,
-                RuntimeError, OSError):
+        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError, OSError):
             # loader 可能抛: 数据缺失/类型不匹配/属性缺失/运行时/IO 错误
             checks["tradability_check"] = False
 
@@ -665,13 +753,15 @@ class BacktestReplay:
             icon = "✅" if passed else "❌"
             lines.append(f"- {icon} {check}: {'通过' if passed else '未通过'}")
 
-        lines.extend([
-            "",
-            "## 3. 三基线绩效对比",
-            "",
-            "| 基线 | 决策数 | Buy/Sell/Hold | Sharpe | 年化收益 | 最大回撤 | IC_IR | 辩论触发率 |",
-            "|------|--------|---------------|--------|----------|----------|-------|-----------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 3. 三基线绩效对比",
+                "",
+                "| 基线 | 决策数 | Buy/Sell/Hold | Sharpe | 年化收益 | 最大回撤 | IC_IR | 辩论触发率 |",
+                "|------|--------|---------------|--------|----------|----------|-------|-----------|",
+            ]
+        )
 
         for bt_value in ["ai_debate", "five_agents", "rule_only"]:
             bl = report.baselines.get(bt_value, {})
@@ -688,19 +778,23 @@ class BacktestReplay:
                 f"{annual:.2%} | {max_dd:.2%} | {ic_ir:.3f} | {debate_rate:.1%} |"
             )
 
-        lines.extend([
-            "",
-            "## 4. 边际夏普 (增量价值)",
-            "",
-            f"- ai_debate - five_agents = **{report.marginal_sharpe_debate_vs_agents:+.4f}**"
-            f" ({'✅ 超过阈值' if report.marginal_sharpe_debate_vs_agents > MARGINAL_SHARPE_THRESHOLD else '❌ 未达阈值'} {MARGINAL_SHARPE_THRESHOLD})",
-            f"- five_agents - rule_only = **{report.marginal_sharpe_agents_vs_rule:+.4f}**"
-            f" ({'✅ 超过阈值' if report.marginal_sharpe_agents_vs_rule > MARGINAL_SHARPE_THRESHOLD else '❌ 未达阈值'} {MARGINAL_SHARPE_THRESHOLD})",
-            "",
-            "## 5. 上线建议",
-            "",
-        ])
-        rec_icon = {"auto": "🟢", "paper": "🟡", "shadow": "🔴"}.get(report.recommendation, "⚪")
+        lines.extend(
+            [
+                "",
+                "## 4. 边际夏普 (增量价值)",
+                "",
+                f"- ai_debate - five_agents = **{report.marginal_sharpe_debate_vs_agents:+.4f}**"
+                f" ({'✅ 超过阈值' if report.marginal_sharpe_debate_vs_agents > MARGINAL_SHARPE_THRESHOLD else '❌ 未达阈值'} {MARGINAL_SHARPE_THRESHOLD})",
+                f"- five_agents - rule_only = **{report.marginal_sharpe_agents_vs_rule:+.4f}**"
+                f" ({'✅ 超过阈值' if report.marginal_sharpe_agents_vs_rule > MARGINAL_SHARPE_THRESHOLD else '❌ 未达阈值'} {MARGINAL_SHARPE_THRESHOLD})",
+                "",
+                "## 5. 上线建议",
+                "",
+            ]
+        )
+        rec_icon = {"auto": "🟢", "paper": "🟡", "shadow": "🔴"}.get(
+            report.recommendation, "⚪"
+        )
         lines.append(f"### {rec_icon} {report.recommendation.upper()}")
         if report.recommendation == "auto":
             lines.append("")

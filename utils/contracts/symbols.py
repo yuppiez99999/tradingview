@@ -28,6 +28,7 @@
     - 单一职责: 本模块只做解析, 不做行情/交易
     - 多小文件 (§5.3): 本模块 < 400 行
 """
+
 from __future__ import annotations
 
 import re
@@ -39,12 +40,12 @@ from typing import Literal, NewType, Optional
 # NewType 定义 (运行时 = str, mypy 静态可区分)
 # ============================================================
 
-AShareCode6 = NewType("AShareCode6", str)                  # "600519" (6位裸码)
-WindCode = NewType("WindCode", str)                         # "600519.SH" / "IF2507.CFFEX"
-EastMoneySecId = NewType("EastMoneySecId", str)             # "1.600519"
-FuturesContractCode = NewType("FuturesContractCode", str)   # "IF2507.CFFEX"
-ExchangeCode = NewType("ExchangeCode", str)                 # "SSE" / "CFFEX" / "SHFE"
-ProductCode = NewType("ProductCode", str)                   # "IF" / "CU" / "600519"
+AShareCode6 = NewType("AShareCode6", str)  # "600519" (6位裸码)
+WindCode = NewType("WindCode", str)  # "600519.SH" / "IF2507.CFFEX"
+EastMoneySecId = NewType("EastMoneySecId", str)  # "1.600519"
+FuturesContractCode = NewType("FuturesContractCode", str)  # "IF2507.CFFEX"
+ExchangeCode = NewType("ExchangeCode", str)  # "SSE" / "CFFEX" / "SHFE"
+ProductCode = NewType("ProductCode", str)  # "IF" / "CU" / "600519"
 
 
 # ============================================================
@@ -66,45 +67,61 @@ class SymbolParseError(ValueError):
     def __init__(self, raw: str, reason: str) -> None:
         self.raw = raw
         self.reason = reason
-        super().__init__(
-            f"SymbolParseError: 无法解析合约代码 {raw!r} — {reason}"
-        )
+        super().__init__(f"SymbolParseError: 无法解析合约代码 {raw!r} — {reason}")
 
 
 # ============================================================
 # 交易所常量 + 映射表
 # ============================================================
 
-EXCHANGES = frozenset({
-    "SSE", "SZSE", "BSE",                           # 股票
-    "CFFEX", "SHFE", "INE", "DCE", "CZCE", "GFEX",  # 期货
-})
+EXCHANGES = frozenset(
+    {
+        "SSE",
+        "SZSE",
+        "BSE",  # 股票
+        "CFFEX",
+        "SHFE",
+        "INE",
+        "DCE",
+        "CZCE",
+        "GFEX",  # 期货
+    }
+)
 
 # Wind 后缀 → 规范化交易所 (兼容旧写法 SHF→SHFE, ZCE→CZCE)
 _SUFFIX_TO_EXCHANGE: dict[str, str] = {
-    "SH": "SSE", "SHSE": "SSE",
+    "SH": "SSE",
+    "SHSE": "SSE",
     "SZ": "SZSE",
     "BJ": "BSE",
     "CFFEX": "CFFEX",
-    "SHFE": "SHFE", "SHF": "SHFE",
+    "SHFE": "SHFE",
+    "SHF": "SHFE",
     "INE": "INE",
     "DCE": "DCE",
-    "CZCE": "CZCE", "ZCE": "CZCE",
+    "CZCE": "CZCE",
+    "ZCE": "CZCE",
     "GFEX": "GFEX",
 }
 
 # 规范化交易所 → Wind 后缀 (输出用, 统一为规范形式)
 _EXCHANGE_TO_SUFFIX: dict[str, str] = {
-    "SSE": "SH", "SZSE": "SZ", "BSE": "BJ",
-    "CFFEX": "CFFEX", "SHFE": "SHFE", "INE": "INE",
-    "DCE": "DCE", "CZCE": "CZCE", "GFEX": "GFEX",
+    "SSE": "SH",
+    "SZSE": "SZ",
+    "BSE": "BJ",
+    "CFFEX": "CFFEX",
+    "SHFE": "SHFE",
+    "INE": "INE",
+    "DCE": "DCE",
+    "CZCE": "CZCE",
+    "GFEX": "GFEX",
 }
 
 # 东财 secid 市场前缀
-_EM_SH = "1"   # 沪市
-_EM_SZ = "0"   # 深市
-_EM_BJ = "1"   # 北交所 (W6.3.3 Step1: 与旧 astock_realtime fallback 保持 1.xxx 一致,
-                # 新前缀判定 83/43/87/88 ∈ BSE 后, 若用 0.xxx 会与旧 1.xxx 差异 → 保守对齐)
+_EM_SH = "1"  # 沪市
+_EM_SZ = "0"  # 深市
+_EM_BJ = "1"  # 北交所 (W6.3.3 Step1: 与旧 astock_realtime fallback 保持 1.xxx 一致,
+# 新前缀判定 83/43/87/88 ∈ BSE 后, 若用 0.xxx 会与旧 1.xxx 差异 → 保守对齐)
 _EM_UNKNOWN = "1"  # 未知前缀 (与旧 astock_realtime fallback 一致, 默认 1.xxx)
 
 # 股票/ETF/可转债 前缀规则表
@@ -112,12 +129,12 @@ _EM_UNKNOWN = "1"  # 未知前缀 (与旧 astock_realtime fallback 一致, 默�
 #   注意: 3 位前缀 (113/110/123/127/128) 被 2 位前缀 (11/12) 覆盖, 资产类型一致, 无冲突
 _PREFIX_RULES: list[tuple[tuple[str, ...], str, str, str]] = [
     (("60",), "SSE", "STOCK", _EM_SH),
-    (("68",), "SSE", "STOCK", _EM_SH),             # 科创板
-    (("9",), "SSE", "B_STOCK", _EM_SH),             # 沪 B 股
-    (("11",), "SSE", "CONVERTIBLE_BOND", _EM_SH),   # 沪可转债 (含 113/110)
+    (("68",), "SSE", "STOCK", _EM_SH),  # 科创板
+    (("9",), "SSE", "B_STOCK", _EM_SH),  # 沪 B 股
+    (("11",), "SSE", "CONVERTIBLE_BOND", _EM_SH),  # 沪可转债 (含 113/110)
     (("51", "58"), "SSE", "ETF", _EM_SH),
     (("00",), "SZSE", "STOCK", _EM_SZ),
-    (("30",), "SZSE", "STOCK", _EM_SZ),             # 创业板
+    (("30",), "SZSE", "STOCK", _EM_SZ),  # 创业板
     (("12",), "SZSE", "CONVERTIBLE_BOND", _EM_SZ),  # 深可转债 (含 123/127/128)
     (("15", "16"), "SZSE", "ETF", _EM_SZ),
     (("83", "43", "87", "88"), "BSE", "BSE_STOCK", _EM_BJ),
@@ -154,6 +171,7 @@ class SymbolInfo:
         futures_month: 期货月份, 非期货为 None
         warnings: 解析过程中的警告列表 (strict=False 时填充)
     """
+
     raw: str
     wind_code: str
     code6: str
@@ -202,7 +220,10 @@ def _classify_by_prefix(code6: str) -> tuple[str, str, str]:
 def _parse_futures_match(raw: str, m: re.Match) -> SymbolInfo:
     """解析期货合约 (正则已匹配)。"""
     product, yy, mm, suffix = (
-        m.group(1), m.group(2), m.group(3), m.group(4),
+        m.group(1),
+        m.group(2),
+        m.group(3),
+        m.group(4),
     )
     exchange = _normalize_exchange(suffix)
     code6 = f"{product}{yy}{mm}"
@@ -212,8 +233,12 @@ def _parse_futures_match(raw: str, m: re.Match) -> SymbolInfo:
     # 东财期货 secid 格式较复杂 (如 8.IF2507), Step 2 补充; 暂 best-effort
     secid = f"0.{code6}"
     return SymbolInfo(
-        raw=raw, wind_code=wind_code, code6=code6,
-        exchange=exchange, asset_type=atype, product=product,
+        raw=raw,
+        wind_code=wind_code,
+        code6=code6,
+        exchange=exchange,
+        asset_type=atype,
+        product=product,
         eastmoney_secid=secid,
         futures_year=2000 + int(yy),
         futures_month=int(mm),
@@ -259,14 +284,17 @@ def parse_symbol(
         except SymbolParseError:
             exchange = "SSE" if market == "1" else "SZSE"
             atype = "UNKNOWN"
-            warns.append(
-                f"secid 市场前缀 {market} 与裸码 {code6} 前缀不匹配, 降级"
-            )
+            warns.append(f"secid 市场前缀 {market} 与裸码 {code6} 前缀不匹配, 降级")
         wind_code = f"{code6}.{_exchange_to_suffix(exchange)}"
         return SymbolInfo(
-            raw=raw, wind_code=wind_code, code6=code6,
-            exchange=exchange, asset_type=atype, product=code6,
-            eastmoney_secid=raw, warnings=warns,
+            raw=raw,
+            wind_code=wind_code,
+            code6=code6,
+            exchange=exchange,
+            asset_type=atype,
+            product=code6,
+            eastmoney_secid=raw,
+            warnings=warns,
         )
 
     # 2. 期货合约 (正则匹配)
@@ -275,12 +303,8 @@ def parse_symbol(
         return _parse_futures_match(raw, fut_m)
     if hint_asset == "future" and not fut_m:
         if strict:
-            raise SymbolParseError(
-                raw, "hint_asset='future' 但代码不匹配期货正则"
-            )
-        warns.append(
-            f"hint_asset='future' 但代码 {raw!r} 不匹配期货正则, 降级 auto"
-        )
+            raise SymbolParseError(raw, "hint_asset='future' 但代码不匹配期货正则")
+        warns.append(f"hint_asset='future' 但代码 {raw!r} 不匹配期货正则, 降级 auto")
 
     # 3. Wind 码 (含 ".")
     if "." in raw:
@@ -311,9 +335,14 @@ def parse_symbol(
             # W6.3.3 Step1: 与旧 astock_realtime fallback 对齐 (未知前缀默认 1.xxx)
             secid = f"{_EM_UNKNOWN}.{code6}"
         return SymbolInfo(
-            raw=raw, wind_code=wind_code, code6=code6,
-            exchange=exchange, asset_type=atype, product=code6,
-            eastmoney_secid=secid, warnings=warns,
+            raw=raw,
+            wind_code=wind_code,
+            code6=code6,
+            exchange=exchange,
+            asset_type=atype,
+            product=code6,
+            eastmoney_secid=secid,
+            warnings=warns,
         )
 
     # 4. 裸码 (无后缀, 自动推断)
@@ -330,8 +359,12 @@ def parse_symbol(
             stacklevel=2,
         )
         return SymbolInfo(
-            raw=raw, wind_code=raw, code6=code6,
-            exchange="UNKNOWN", asset_type="UNKNOWN", product=code6,
+            raw=raw,
+            wind_code=raw,
+            code6=code6,
+            exchange="UNKNOWN",
+            asset_type="UNKNOWN",
+            product=code6,
             # W6.3.3 Step1: 与旧 astock_realtime fallback 对齐 (未知前缀默认 1.xxx)
             eastmoney_secid=f"{_EM_UNKNOWN}.{code6}",
             warnings=[f"无法识别裸码前缀 {code6[:2]!r}"],
@@ -339,9 +372,14 @@ def parse_symbol(
     wind_code = f"{code6}.{_exchange_to_suffix(exchange)}"
     secid = f"{em_mkt}.{code6}"
     return SymbolInfo(
-        raw=raw, wind_code=wind_code, code6=code6,
-        exchange=exchange, asset_type=atype, product=code6,
-        eastmoney_secid=secid, warnings=warns,
+        raw=raw,
+        wind_code=wind_code,
+        code6=code6,
+        exchange=exchange,
+        asset_type=atype,
+        product=code6,
+        eastmoney_secid=secid,
+        warnings=warns,
     )
 
 

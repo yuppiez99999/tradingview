@@ -31,6 +31,7 @@ logger = logging.getLogger("knowledge_base")
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class KnowledgeEntry:
     """知识库单条记录."""
@@ -52,7 +53,7 @@ class KnowledgeEntry:
 
     # 归因
     attribution: str = ""  # 为什么成功/失败的自然语言解释
-    lessons: str = ""      # 经验教训
+    lessons: str = ""  # 经验教训
 
     # 元数据
     llm_model: str = ""
@@ -77,6 +78,7 @@ class KnowledgeEntry:
 # 主类
 # ============================================================
 
+
 class KnowledgeBase:
     """知识沉淀库 — JSONL 持久化 + 查询 + LLM 上下文反馈."""
 
@@ -95,7 +97,9 @@ class KnowledgeBase:
     # 持久化
     # ------------------------------------------------------------
 
-    def persist(self, hypothesis: Any, verdict: dict[str, Any] | None = None) -> KnowledgeEntry:
+    def persist(
+        self, hypothesis: Any, verdict: dict[str, Any] | None = None
+    ) -> KnowledgeEntry:
         """将假设和验证结果沉淀到知识库.
 
         Args:
@@ -183,14 +187,16 @@ class KnowledgeBase:
         falsified = self.query(status="falsified")
 
         # 取最近 N 条
-        recent_validated = validated[-self.max_context_entries:]
-        recent_falsified = falsified[-self.max_context_entries // 2:]
+        recent_validated = validated[-self.max_context_entries :]
+        recent_falsified = falsified[-self.max_context_entries // 2 :]
 
         lines: list[str] = []
         if recent_validated:
             lines.append("已验证假设 (可参考扩展):")
             for e in recent_validated:
-                lines.append(f"  - {e.description[:80]} (IC={e.rank_ic_mean:.4f}, ICIR={e.icir:.2f})")
+                lines.append(
+                    f"  - {e.description[:80]} (IC={e.rank_ic_mean:.4f}, ICIR={e.icir:.2f})"
+                )
 
         if recent_falsified:
             lines.append("已证伪假设 (避免重复):")

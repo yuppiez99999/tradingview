@@ -78,3 +78,14 @@ B5-1 加权均价 / B6-1 坏行容错 / B4-1 配置缓存 / C2-1 import os / C4-
 - 批次计划：`docs/CODE_REVIEW_PLAN_GLM52_20260810.md`
 - 关联方法论：`cairn/code-review-glm45-llm-scan.md`（有额度时的 LLM 扫描法）
 - 修复 commit：`d9dd7beb`（fix(exec): 批次B/C代码审查修复）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [GLM 4.5-air LLM 驱动代码审查方法论（open-code-review + GLM 4.5-air）](code-review-glm45-llm-scan.md) (相似度 23%)
+- [MMR 评审规约 (multi-model-review 集成协议)](mmr-review-protocol.md) (相似度 20%)
+- [open-code-review 代码审查报告（核心模块）](code-quality-review-open-code-review.md) (相似度 15%)
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 13%)
+- [代码质量审查 Wave6（2026-08-06）— 对冲/执行/管道/数据模块 + 待复核项复核](code-quality-review-wave6-20260806.md) (相似度 12%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

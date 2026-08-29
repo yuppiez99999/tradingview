@@ -2,6 +2,7 @@
 基于历史真实数据计算已实现年化收益率，用于验证预测准确性
 数据源: config/returns_history.json (25标的) + config/market_returns.json (基准)
 """
+
 import json
 import os
 from datetime import datetime
@@ -12,15 +13,26 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # 持仓权重 (来自 portfolio_return_projection.json asset_detail.weight)
 POSITION_WEIGHTS = {
-    "588000": 0.1375, "512480": 0.1317, "516160": 0.1317, "515030": 0.126,
-    "159915": 0.115, "159992": 0.0947, "512400": 0.0929, "512010": 0.0664,
-    "601088": 0.0638, "518880": 0.0307, "511260": 0.005, "511520": 0.0037,
+    "588000": 0.1375,
+    "512480": 0.1317,
+    "516160": 0.1317,
+    "515030": 0.126,
+    "159915": 0.115,
+    "159992": 0.0947,
+    "512400": 0.0929,
+    "512010": 0.0664,
+    "601088": 0.0638,
+    "518880": 0.0307,
+    "511260": 0.005,
+    "511520": 0.0037,
     "511360": 0.001,
 }
+
 
 def load_json(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
 
 def main():
     rh = load_json(os.path.join(PROJECT_ROOT, "config", "returns_history.json"))
@@ -64,15 +76,15 @@ def main():
     print("-" * 70)
 
     per_asset_results = []
-    MIN_VALID_POINTS = 5  # noqa: N806
-    MAX_ANNUALIZED = 2.0   # noqa: N806 年化上限 +200% (原 5000% 过于宽松, 300308 等短期暴涨股会失真)
-    MIN_ANNUALIZED = -0.99  # noqa: N806
-    BAYESIAN_PRIOR = 0.15   # noqa: N806 贝叶斯收缩先验: 15% 年化 (A股长期权益收益率中枢)
+    min_valid_points = 5
+    max_annualized = 2.0
+    min_annualized = -0.99
+    bayesian_prior = 0.15
     for i, code in enumerate(codes):
         returns = data[:, i]
         # 去除 NaN
         valid = returns[~np.isnan(returns)]
-        if len(valid) < MIN_VALID_POINTS:
+        if len(valid) < min_valid_points:
             continue
         # 累计收益 = ∏(1+r) - 1
         cum = np.prod(1 + valid) - 1
@@ -88,14 +100,16 @@ def main():
         if years < 2.0 and abs(annualized) > 0.5:
             shrink_weight = max(0.0, min(0.7, 1.0 - years / 2.0))
             original_ann = annualized
-            annualized = annualized * (1 - shrink_weight) + BAYESIAN_PRIOR * shrink_weight
+            annualized = annualized * (1 - shrink_weight) + bayesian_prior * shrink_weight
             print(
                 f"  [{code}] 短周期贝叶斯收缩: {original_ann*100:+.1f}% → "
                 f"{annualized*100:+.1f}% (收缩强度 {shrink_weight*100:.0f}%)"
             )
 
-        if not (MIN_ANNUALIZED <= annualized <= MAX_ANNUALIZED):
-            print(f"  [SKIP] {code}: 年化收益异常 ({annualized*100:+.2f}%)，超出阈值 [{MIN_ANNUALIZED*100:.0f}%, {MAX_ANNUALIZED*100:.0f}%]")
+        if not (min_annualized <= annualized <= max_annualized):
+            print(
+                f"  [SKIP] {code}: 年化收益异常 ({annualized*100:+.2f}%)，超出阈值 [{min_annualized*100:.0f}%, {max_annualized*100:.0f}%]"
+            )
             continue
         # 日波动率 → 年化
         daily_vol = np.std(valid)
@@ -103,13 +117,21 @@ def main():
         sharpe = annualized / annual_vol if annual_vol > 1e-6 else 0.0
         weight = POSITION_WEIGHTS.get(code, 0)
 
-        per_asset_results.append({
-            "code": code, "cum": cum, "annualized": annualized,
-            "vol": annual_vol, "sharpe": sharpe, "weight": weight,
-        })
+        per_asset_results.append(
+            {
+                "code": code,
+                "cum": cum,
+                "annualized": annualized,
+                "vol": annual_vol,
+                "sharpe": sharpe,
+                "weight": weight,
+            }
+        )
 
-        print(f"{code:<10}{cum*100:>12.2f}{annualized*100:>12.2f}"
-              f"{annual_vol*100:>12.2f}{sharpe:>8.2f}{weight*100:>7.2f}%")
+        print(
+            f"{code:<10}{cum*100:>12.2f}{annualized*100:>12.2f}"
+            f"{annual_vol*100:>12.2f}{sharpe:>8.2f}{weight*100:>7.2f}%"
+        )
 
     # 2) 持仓组合加权年化收益率
     print()
@@ -117,7 +139,9 @@ def main():
     print("[2] 持仓组合真实年化收益率（按 portfolio 权重加权）")
     print("-" * 70)
     total_weight = sum(r["weight"] for r in per_asset_results)
-    weighted_annualized = sum(r["annualized"] * r["weight"] for r in per_asset_results) / total_weight if total_weight > 0 else 0
+    weighted_annualized = (
+        sum(r["annualized"] * r["weight"] for r in per_asset_results) / total_weight if total_weight > 0 else 0
+    )
     weighted_cum = sum(r["cum"] * r["weight"] for r in per_asset_results) / total_weight if total_weight > 0 else 0
     print(f"持仓标的总权重: {total_weight*100:.2f}%")
     print(f"加权累计收益率: {weighted_cum*100:.2f}%")
@@ -137,7 +161,7 @@ def main():
         market_sharpe = 0.0
     else:
         market_annualized = (1 + market_cum) ** (1 / years) - 1
-        market_annualized = max(min(market_annualized, MAX_ANNUALIZED), MIN_ANNUALIZED)
+        market_annualized = max(min(market_annualized, max_annualized), min_annualized)
         market_vol = np.std(market_data) * np.sqrt(252)
         market_sharpe = market_annualized / market_vol if market_vol > 1e-6 else 0.0
     print(f"基准累计: {market_cum*100:.2f}%")
@@ -179,6 +203,7 @@ def main():
     print("=" * 70)
     print("分析完成")
     print("=" * 70)
+
 
 if __name__ == "__main__":
     main()

@@ -51,11 +51,13 @@ class TestAlphaFactorLibrary(unittest.TestCase):
     def test_module_import(self):
         """测试模块可导入"""
         from utils.alpha_factor_library import AlphaFactorLibrary
+
         self.assertTrue(callable(AlphaFactorLibrary))
 
     def test_factor_computation(self):
         """测试因子计算"""
         from utils.alpha_factor_library import AlphaFactorLibrary
+
         lib = AlphaFactorLibrary()
         result = lib.compute_all(
             price_data=self.prices,
@@ -72,6 +74,7 @@ class TestAlphaFactorLibrary(unittest.TestCase):
     def test_factor_neutralization(self):
         """测试因子中性化"""
         from utils.alpha_factor_library import AlphaFactorLibrary
+
         lib = AlphaFactorLibrary()
         result = lib.compute_all(
             price_data=self.prices,
@@ -100,11 +103,13 @@ class TestMomentumReversalEngine(unittest.TestCase):
 
     def test_module_import(self):
         from utils.momentum_reversal_engine import MomentumReversalEngine
+
         self.assertTrue(callable(MomentumReversalEngine))
 
     def test_signal_generation(self):
         """测试信号生成"""
         from utils.momentum_reversal_engine import MomentumReversalEngine
+
         engine = MomentumReversalEngine()
         result = engine.generate_signals(self.prices)
         self.assertIsNotNone(result)
@@ -114,6 +119,7 @@ class TestMomentumReversalEngine(unittest.TestCase):
     def test_confidence_range(self):
         """测试置信度在 [0, 1] 范围内"""
         from utils.momentum_reversal_engine import MomentumReversalEngine
+
         engine = MomentumReversalEngine()
         result = engine.generate_signals(self.prices)
         # signals 是 Dict[str, MomentumSignal]
@@ -145,11 +151,13 @@ class TestSmartBetaEngine(unittest.TestCase):
 
     def test_module_import(self):
         from utils.smart_beta_engine import SmartBetaEngine
+
         self.assertTrue(callable(SmartBetaEngine))
 
     def test_optimization(self):
         """测试权重优化"""
         from utils.smart_beta_engine import SmartBetaEngine
+
         engine = SmartBetaEngine()
         result = engine.optimize(
             symbols=self.symbols,
@@ -169,6 +177,7 @@ class TestSmartBetaEngine(unittest.TestCase):
     def test_concentration_hhi(self):
         """测试集中度 HHI 计算"""
         from utils.smart_beta_engine import SmartBetaEngine
+
         engine = SmartBetaEngine()
         result = engine.optimize(
             symbols=self.symbols,
@@ -190,6 +199,7 @@ class TestEdgeCases(unittest.TestCase):
     def test_single_asset(self):
         """单标的场景"""
         from utils.momentum_reversal_engine import MomentumReversalEngine
+
         np.random.seed(42)
         prices = pd.DataFrame(
             {"SOLO.SH": np.cumprod(1 + np.random.randn(60) * 0.02) * 100}
@@ -201,6 +211,7 @@ class TestEdgeCases(unittest.TestCase):
     def test_empty_data(self):
         """空数据场景"""
         from utils.alpha_factor_library import AlphaFactorLibrary
+
         lib = AlphaFactorLibrary()
         empty_df = pd.DataFrame()
         try:

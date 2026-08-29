@@ -3,6 +3,7 @@
 目标模块: utils/dqc/aggregator.py (branch-rate 0.1154 → 高覆盖)
 覆盖: AlertState / AlertAggregator (should_emit/record_emit/check_escalation/cleanup_stale 全分支)
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -12,18 +13,15 @@ import pytest
 from utils.dqc.aggregator import (
     AlertAggregator,
     AlertState,
-    CRITICAL_ESCALATION_WINDOW,
-    ESCALATION_WINDOW,
-    SUPPRESS_WINDOW,
     _level_rank,
     get_aggregator,
 )
 from utils.dqc.event_types import DQCLevel
 
-
 # ============================================================
 # LevelRankTest — 级别排序辅助
 # ============================================================
+
 
 class LevelRankTest:
 
@@ -41,11 +39,14 @@ class LevelRankTest:
 # AlertStateTest — 报警状态数据结构
 # ============================================================
 
+
 class AlertStateTest:
 
     def test_init(self):
         now = datetime.now()
-        s = AlertState(metric_id="M1", level=DQCLevel.WARN, first_seen=now, last_seen=now)
+        s = AlertState(
+            metric_id="M1", level=DQCLevel.WARN, first_seen=now, last_seen=now
+        )
         assert s.metric_id == "M1"
         assert s.level == DQCLevel.WARN
         assert s.emit_count == 0
@@ -54,19 +55,25 @@ class AlertStateTest:
 
     def test_is_stale_false(self):
         now = datetime.now()
-        s = AlertState(metric_id="M1", level=DQCLevel.WARN, first_seen=now, last_seen=now)
+        s = AlertState(
+            metric_id="M1", level=DQCLevel.WARN, first_seen=now, last_seen=now
+        )
         assert s.is_stale(now) is False
 
     def test_is_stale_true(self):
         now = datetime.now()
         old = now - timedelta(hours=2)
-        s = AlertState(metric_id="M1", level=DQCLevel.WARN, first_seen=old, last_seen=old)
+        s = AlertState(
+            metric_id="M1", level=DQCLevel.WARN, first_seen=old, last_seen=old
+        )
         assert s.is_stale(now) is True
 
     def test_is_stale_custom_window(self):
         now = datetime.now()
         recent = now - timedelta(minutes=10)
-        s = AlertState(metric_id="M1", level=DQCLevel.WARN, first_seen=recent, last_seen=recent)
+        s = AlertState(
+            metric_id="M1", level=DQCLevel.WARN, first_seen=recent, last_seen=recent
+        )
         assert s.is_stale(now, window=timedelta(minutes=5)) is True
         assert s.is_stale(now, window=timedelta(hours=1)) is False
 
@@ -74,6 +81,7 @@ class AlertStateTest:
 # ============================================================
 # AlertAggregatorTest — 报警聚合器核心
 # ============================================================
+
 
 class AlertAggregatorTest:
 
@@ -226,6 +234,7 @@ class AlertAggregatorTest:
 # ============================================================
 # AlertAggregatorSingletonTest — 单例模式
 # ============================================================
+
 
 class AlertAggregatorSingletonTest:
 

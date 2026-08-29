@@ -18,3 +18,14 @@
 |------|------|------|
 | `utils/iv_surface_deep_hedge.py` | ~330 | 核心实现 |
 | `tests/unit/test_iv_surface_deep_hedge_unit.py` | ~190 | 18 单元测试 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [DeltaHedge 多智能体期权优化](delta-hedge-multi-agent.md) (相似度 35%)
+- [Deep Hedging RL 范式集成](deep-hedging-rl.md) (相似度 27%)
+- [FinRL-X 权重中心接口架构](finrl-x-interface.md) (相似度 20%)
+- [对冲方案 v8.7 优化 — RegimeFolio 动态阈值 + 紧急跨级 + IV 感知 + Deep Hedging + 多智能体](hedge-v87-regime-adaptive-20260827.md) (相似度 17%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

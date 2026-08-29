@@ -53,13 +53,16 @@ def _estimate_option_expiry() -> str:
         month += 1
     # 取该月第 4 个周三 (A股ETF期权到期规则)
     import calendar
+
     c = calendar.monthcalendar(year, month)
     wednesdays = [wk[calendar.WEDNESDAY] for wk in c if wk[calendar.WEDNESDAY] != 0]
     day = wednesdays[3] if len(wednesdays) > 3 else wednesdays[-1]
     return f"{year:04d}-{month:02d}-{day:02d}"
 
 
-def _resolve_option_underlying_price(underlying: str, market_prices: Optional[dict]) -> Optional[float]:
+def _resolve_option_underlying_price(
+    underlying: str, market_prices: Optional[dict]
+) -> Optional[float]:
     """从 market_prices 解析期权标的今日收盘价。
 
     fill 文件中 underlying 可能为 '510300' / '510300.SH' / '510050'，
@@ -98,6 +101,7 @@ def _parse_option_strike(strike_raw, spot: float, is_put: bool) -> float:
         return float(s)
     # 解析 OTM_xpct_to_ypct
     import re
+
     m = re.search(r"(\d+(?:\.\d+)?)\s*pct\s*to\s*(\d+(?:\.\d+)?)\s*pct", s)
     if m:
         lo, hi = float(m.group(1)), float(m.group(2))
@@ -159,8 +163,9 @@ def _fetch_if_close_from_sina(futures_price: float, if_codes: list[str]) -> floa
     return futures_price
 
 
-def _fetch_if_close_from_provider(futures_price: float, if_codes: list[str],
-                                  data_provider) -> float:
+def _fetch_if_close_from_provider(
+    futures_price: float, if_codes: list[str], data_provider
+) -> float:
     """从 data_provider 获取 IF 期货收盘价，未找到有效价格时返回原 futures_price"""
     if not data_provider:
         return futures_price
@@ -172,7 +177,9 @@ def _fetch_if_close_from_provider(futures_price: float, if_codes: list[str],
             if not futures_data:
                 continue
             fc_price = (
-                futures_data.get("close") or futures_data.get("last") or futures_data.get("price")
+                futures_data.get("close")
+                or futures_data.get("last")
+                or futures_data.get("price")
             )
             if not fc_price or fc_price <= 0:
                 continue
@@ -209,7 +216,9 @@ def analyze_hedge_position(
         instrument = order.get("instrument", "")
         contracts = order.get("contracts", 0)
         direction = _resolve_order_direction(order)
-        order_type = order.get("type", order.get("order_type", "FUTURES"))  # FUTURES / OPTIONS / FUTURES_OPTIONS
+        order_type = order.get(
+            "type", order.get("order_type", "FUTURES")
+        )  # FUTURES / OPTIONS / FUTURES_OPTIONS
 
         # ---- 期权分支: 正确计算期权对冲盈亏 (修复原 bug: 期权 hedge_pnl 恒为 0) ----
         if order_type == "OPTIONS":
@@ -217,10 +226,12 @@ def analyze_hedge_position(
             # 当前标的价格: 优先 market_prices, 其次开仓时标的参考价
             spot = _resolve_option_underlying_price(underlying, market_prices)
             if spot is None:
-                spot = float(order.get("index_price", order.get("underlying_price", 0)) or 0)
+                spot = float(
+                    order.get("index_price", order.get("underlying_price", 0)) or 0
+                )
 
             # 期权类型: BUY_PUT -> 买入认沽; SELL_COVERED_CALL -> 备兑卖出认购
-            is_put = (direction == "BUY_PUT")
+            is_put = direction == "BUY_PUT"
             opt_kind = "put" if is_put else "call"
 
             # 行权价: fill 文件为 OTM 规则字符串, 无真实数字时按 OTM 规则从当前标的价推算
@@ -235,7 +246,12 @@ def analyze_hedge_position(
             if spot > 0 and strike > 0:
                 expiry = _estimate_option_expiry()
                 from datetime import datetime
-                T = max((datetime.strptime(expiry, "%Y-%m-%d") - datetime.now()).days / 365.0, 0.0)
+
+                T = max(
+                    (datetime.strptime(expiry, "%Y-%m-%d") - datetime.now()).days
+                    / 365.0,
+                    0.0,
+                )
                 now_price = _bs_option_price(spot, strike, T, 0.02, 0.15, opt_kind)
 
             multiplier = order.get("multiplier", 10000)
@@ -244,7 +260,11 @@ def analyze_hedge_position(
             # hedge_pnl 含义: 当前期权市值 (多头正/空头负), 配合 net_pnl 公式 = 现货 + 期权市值 - 建仓支出
             hedge_pnl = current_market_value
 
-            if_change_pct = ((now_price / (premium_total / contracts / multiplier)) - 1) * 100 if (premium_total > 0 and contracts > 0) else 0
+            if_change_pct = (
+                ((now_price / (premium_total / contracts / multiplier)) - 1) * 100
+                if (premium_total > 0 and contracts > 0)
+                else 0
+            )
 
             total_hedge_notional += abs(premium_total)
 
@@ -253,7 +273,9 @@ def analyze_hedge_position(
                     "instrument": instrument,
                     "contracts": contracts,
                     "direction": direction,
-                    "entry_price": round(premium_total / contracts if contracts else premium_total, 2),
+                    "entry_price": round(
+                        premium_total / contracts if contracts else premium_total, 2
+                    ),
                     "close_price": round(now_price, 4),
                     "multiplier": multiplier,
                     "notional": round(abs(premium_total), 2),
@@ -294,9 +316,13 @@ def analyze_hedge_position(
                 raise  # Re-raise unknown exception
             # 2. 尝试 data_provider (close/last/price)
             if if_close == futures_price:
-                if_close = _fetch_if_close_from_provider(futures_price, if_codes, data_provider)
+                if_close = _fetch_if_close_from_provider(
+                    futures_price, if_codes, data_provider
+                )
 
-        if_change_pct = (if_close - futures_price) / futures_price if futures_price > 0 else 0
+        if_change_pct = (
+            (if_close - futures_price) / futures_price if futures_price > 0 else 0
+        )
 
         # 对冲头寸盈亏（做空方向）
         hedge_pnl = 0.0
@@ -317,7 +343,9 @@ def analyze_hedge_position(
                 "notional": round(notional, 2),
                 "cost": order.get("cost", 0),
                 "hedge_pnl": round(hedge_pnl, 2),
-                "hedge_pnl_pct": round(if_change_pct * 100 * (-1 if direction == "SELL" else 1), 2),
+                "hedge_pnl_pct": round(
+                    if_change_pct * 100 * (-1 if direction == "SELL" else 1), 2
+                ),
                 "hedge_type": order.get("hedge_type", order.get("type", "")),
                 "beta_reduced": round(order.get("beta_reduced", 0), 3),
                 "cost_breakdown": order.get("cost_breakdown"),
@@ -336,12 +364,18 @@ def analyze_hedge_position(
             "total_hedge_notional": round(total_hedge_notional, 2),
             "current_portfolio_beta": round(hedge_data.get("portfolio_beta", 1.0), 3),
             # 优先使用 fill 文件顶层的真实 Beta 降低 (对冲后 Beta), 避免从 order 累加的误差
-            "beta_after_hedge": round(hedge_data.get("beta_after_hedge", target_beta), 3),
+            "beta_after_hedge": round(
+                hedge_data.get("beta_after_hedge", target_beta), 3
+            ),
             "total_beta_reduction": round(
-                hedge_data.get("portfolio_beta", 1.0) - hedge_data.get("beta_after_hedge", target_beta), 4
+                hedge_data.get("portfolio_beta", 1.0)
+                - hedge_data.get("beta_after_hedge", target_beta),
+                4,
             ),
             "target_beta": round(target_beta, 3),
-            "hedge_effectiveness": calculate_hedge_effectiveness(hedge_details, hedge_data),
+            "hedge_effectiveness": calculate_hedge_effectiveness(
+                hedge_details, hedge_data
+            ),
         },
     }
 

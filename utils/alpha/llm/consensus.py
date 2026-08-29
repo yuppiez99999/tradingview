@@ -17,6 +17,7 @@
     result = run_consensus(artifact_text, lens="data-claim",
                             models=["deepseek", "glm"], judge_mode="vote")
 """
+
 from __future__ import annotations
 
 import json
@@ -121,17 +122,17 @@ DISCOVER_SYSTEM_PROMPT = (
     "你是独立评审专家。审查给定制品并报告发现。必须返回严格JSON:\n"
     "{\n"
     '  "findings": [\n'
-    '    {\n'
+    "    {\n"
     '      "id": "F1",\n'
     '      "severity": "critical|high|medium|low",\n'
     '      "title": "问题标题",\n'
     '      "description": "问题描述",\n'
     '      "evidence": "原文证据引用",\n'
     '      "location": "位置"\n'
-    '    }\n'
-    '  ]\n'
+    "    }\n"
+    "  ]\n"
     "}\n"
-    "只返回JSON。若无疑似问题,返回 {\"findings\": []}。"
+    '只返回JSON。若无疑似问题,返回 {"findings": []}。'
 )
 
 
@@ -183,6 +184,7 @@ class MultiModelConsensus:
     def _get_router(self) -> Any:
         if self._router is None:
             from utils.alpha.llm.router import LLMRouter
+
             self._router = LLMRouter.get_instance()
         return self._router
 
@@ -191,26 +193,50 @@ class MultiModelConsensus:
         try:
             if model == "deepseek":
                 return router._call_deepseek(
-                    prompt, system, self.temperature, self.max_tokens, self.timeout,
+                    prompt,
+                    system,
+                    self.temperature,
+                    self.max_tokens,
+                    self.timeout,
                 )
             if model == "glm":
                 return router._call_glm(
-                    prompt, system, self.temperature, self.max_tokens, self.timeout,
+                    prompt,
+                    system,
+                    self.temperature,
+                    self.max_tokens,
+                    self.timeout,
                 )
             if model == "doubao":
                 return router._call_doubao(
-                    prompt, system, self.temperature, self.max_tokens, self.timeout,
+                    prompt,
+                    system,
+                    self.temperature,
+                    self.max_tokens,
+                    self.timeout,
                 )
             logger.warning("未知模型: %s, 跳过", model)
             return None
-        except (ImportError, RuntimeError, ValueError, TypeError, AttributeError) as exc:
+        except (
+            ImportError,
+            RuntimeError,
+            ValueError,
+            TypeError,
+            AttributeError,
+        ) as exc:
             logger.warning("%s 调用失败: %s", model, exc)
             return None
 
     def discover(
-        self, artifact: str, lens: str = "correctness",
+        self,
+        artifact: str,
+        lens: str = "correctness",
     ) -> tuple[list[Finding], dict[str, str | None]]:
-        system = DISCOVER_SYSTEM_PROMPT + "\n\n" + LENS_PROMPTS.get(lens, LENS_PROMPTS["correctness"])
+        system = (
+            DISCOVER_SYSTEM_PROMPT
+            + "\n\n"
+            + LENS_PROMPTS.get(lens, LENS_PROMPTS["correctness"])
+        )
         user_prompt = f"## 待审查制品\n\n{artifact}\n\n请独立审查并报告发现。"
 
         findings: list[Finding] = []
@@ -225,16 +251,18 @@ class MultiModelConsensus:
             if not parsed:
                 continue
             for f in parsed.get("findings", []):
-                findings.append(Finding(
-                    id=f.get("id", f"F{len(findings) + 1}"),
-                    lens=lens,
-                    severity=f.get("severity", "medium"),
-                    title=f.get("title", ""),
-                    description=f.get("description", ""),
-                    evidence=f.get("evidence", ""),
-                    location=f.get("location", ""),
-                    model=model,
-                ))
+                findings.append(
+                    Finding(
+                        id=f.get("id", f"F{len(findings) + 1}"),
+                        lens=lens,
+                        severity=f.get("severity", "medium"),
+                        title=f.get("title", ""),
+                        description=f.get("description", ""),
+                        evidence=f.get("evidence", ""),
+                        location=f.get("location", ""),
+                        model=model,
+                    )
+                )
 
         return findings, raws
 
@@ -281,17 +309,20 @@ class MultiModelConsensus:
 
             avg_conf = (
                 sum(float(v.get("confidence", 0.5)) for v in votes) / total
-                if total > 0 else 0.0
+                if total > 0
+                else 0.0
             )
 
-            verdicts.append(Verdict(
-                finding_id=cand.id,
-                votes=votes,
-                confirmed_count=confirmed,
-                total_judges=total,
-                verdict=verdict_str,
-                confidence=round(avg_conf, 4),
-            ))
+            verdicts.append(
+                Verdict(
+                    finding_id=cand.id,
+                    votes=votes,
+                    confirmed_count=confirmed,
+                    total_judges=total,
+                    verdict=verdict_str,
+                    confidence=round(avg_conf, 4),
+                )
+            )
 
         return verdicts
 
@@ -331,7 +362,8 @@ class MultiModelConsensus:
             ]
 
             active_models = [
-                m for m in self.models
+                m
+                for m in self.models
                 if raws.get(m) or any(v.total_judges > 0 for v in verdicts)
             ]
             if len(active_models) >= 2:
@@ -343,7 +375,9 @@ class MultiModelConsensus:
             else:
                 result.mode = "rule_fallback"
 
-            result.agreement = len(confirmed_ids) == len(verdicts) or len(confirmed_ids) == 0
+            result.agreement = (
+                len(confirmed_ids) == len(verdicts) or len(confirmed_ids) == 0
+            )
             if not result.agreement:
                 result.divergence_reason = (
                     f"{len(confirmed_ids)}/{len(verdicts)} 候选被 confirmed"
@@ -372,9 +406,14 @@ class MultiModelConsensus:
             "confirmed_count": len(result.confirmed_findings),
             "findings": [
                 {
-                    "id": f.id, "lens": f.lens, "severity": f.severity,
-                    "title": f.title, "description": f.description,
-                    "evidence": f.evidence, "location": f.location, "model": f.model,
+                    "id": f.id,
+                    "lens": f.lens,
+                    "severity": f.severity,
+                    "title": f.title,
+                    "description": f.description,
+                    "evidence": f.evidence,
+                    "location": f.location,
+                    "model": f.model,
                 }
                 for f in result.confirmed_findings
             ],
@@ -409,13 +448,17 @@ def run_consensus(
         out = Path(output_path)
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "w", encoding="utf-8") as f:
-            json.dump(MultiModelConsensus.to_dict(result), f, ensure_ascii=False, indent=2)
+            json.dump(
+                MultiModelConsensus.to_dict(result), f, ensure_ascii=False, indent=2
+            )
         logger.info("共识结果已保存: %s", out)
 
     return result
 
 
-def findings_from_ocr(ocr_json: dict[str, Any], severity_filter: list[str] | None = None) -> list[Finding]:
+def findings_from_ocr(
+    ocr_json: dict[str, Any], severity_filter: list[str] | None = None
+) -> list[Finding]:
     """从 ocr 产出中提取 Finding 列表 (L3 级联入口)
 
     Args:
@@ -431,14 +474,16 @@ def findings_from_ocr(ocr_json: dict[str, Any], severity_filter: list[str] | Non
         sev = c.get("severity", "medium")
         if sev not in severity_filter:
             continue
-        findings.append(Finding(
-            id=c.get("id", f"OCR{i + 1}"),
-            lens="correctness",
-            severity=sev,
-            title=c.get("title", c.get("message", "")[:80]),
-            description=c.get("message", c.get("description", "")),
-            evidence=c.get("evidence", c.get("snippet", "")),
-            location=c.get("file", c.get("location", "")),
-            model="ocr-glm",
-        ))
+        findings.append(
+            Finding(
+                id=c.get("id", f"OCR{i + 1}"),
+                lens="correctness",
+                severity=sev,
+                title=c.get("title", c.get("message", "")[:80]),
+                description=c.get("message", c.get("description", "")),
+                evidence=c.get("evidence", c.get("snippet", "")),
+                location=c.get("file", c.get("location", "")),
+                model="ocr-glm",
+            )
+        )
     return findings

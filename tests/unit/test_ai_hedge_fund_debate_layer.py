@@ -38,13 +38,16 @@ from unittest.mock import patch
 import pytest
 
 # 路径设置 (兼容 conftest.py 已做的路径注入)
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 # 尝试加载 .env
 try:
     from dotenv import load_dotenv
+
     load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
 except ImportError:
     pass
@@ -57,26 +60,58 @@ except ImportError:
 
 def make_analyst_signals_bull_dominant() -> dict[str, dict[str, Any]]:
     """构造看多占优的分析师信号 (8 看多 / 3 看空 / 2 中性)"""
-    bull_agents = ["warren_buffett", "ben_graham", "peter_lynch", "bill_ackman",
-                   "charlie_munger", "phil_fisher", "cathie_wood", "aswath_damodaran"]
+    bull_agents = [
+        "warren_buffett",
+        "ben_graham",
+        "peter_lynch",
+        "bill_ackman",
+        "charlie_munger",
+        "phil_fisher",
+        "cathie_wood",
+        "aswath_damodaran",
+    ]
     bear_agents = ["michael_burry", "nassim_taleb", "mohnish_pabrai"]
     neutral_agents = ["sentiment", "news_sentiment"]
 
     signals: dict[str, dict[str, Any]] = {}
     for agent in bull_agents:
         signals[agent] = {
-            "AAPL": {"signal": "bullish", "confidence": 75, "reasoning": f"{agent} 看好 AAPL 的护城河与现金流"},
-            "MSFT": {"signal": "bullish", "confidence": 70, "reasoning": f"{agent} 认为云业务增长可持续"},
+            "AAPL": {
+                "signal": "bullish",
+                "confidence": 75,
+                "reasoning": f"{agent} 看好 AAPL 的护城河与现金流",
+            },
+            "MSFT": {
+                "signal": "bullish",
+                "confidence": 70,
+                "reasoning": f"{agent} 认为云业务增长可持续",
+            },
         }
     for agent in bear_agents:
         signals[agent] = {
-            "AAPL": {"signal": "bearish", "confidence": 60, "reasoning": f"{agent} 担忧估值过高"},
-            "MSFT": {"signal": "bearish", "confidence": 55, "reasoning": f"{agent} 看到 AI 投入回报不确定"},
+            "AAPL": {
+                "signal": "bearish",
+                "confidence": 60,
+                "reasoning": f"{agent} 担忧估值过高",
+            },
+            "MSFT": {
+                "signal": "bearish",
+                "confidence": 55,
+                "reasoning": f"{agent} 看到 AI 投入回报不确定",
+            },
         }
     for agent in neutral_agents:
         signals[agent] = {
-            "AAPL": {"signal": "neutral", "confidence": 50, "reasoning": f"{agent} 信号混合"},
-            "MSFT": {"signal": "neutral", "confidence": 50, "reasoning": f"{agent} 信号混合"},
+            "AAPL": {
+                "signal": "neutral",
+                "confidence": 50,
+                "reasoning": f"{agent} 信号混合",
+            },
+            "MSFT": {
+                "signal": "neutral",
+                "confidence": 50,
+                "reasoning": f"{agent} 信号混合",
+            },
         }
     return signals
 
@@ -84,18 +119,34 @@ def make_analyst_signals_bull_dominant() -> dict[str, dict[str, Any]]:
 def make_analyst_signals_bear_dominant() -> dict[str, dict[str, Any]]:
     """构造看空占优的分析师信号 (3 看多 / 9 看空)"""
     bull_agents = ["warren_buffett", "ben_graham", "peter_lynch"]
-    bear_agents = ["michael_burry", "nassim_taleb", "mohnish_pabrai", "bill_ackman",
-                   "charlie_munger", "phil_fisher", "cathie_wood", "aswath_damodaran",
-                   "stanley_druckenmiller"]
+    bear_agents = [
+        "michael_burry",
+        "nassim_taleb",
+        "mohnish_pabrai",
+        "bill_ackman",
+        "charlie_munger",
+        "phil_fisher",
+        "cathie_wood",
+        "aswath_damodaran",
+        "stanley_druckenmiller",
+    ]
 
     signals: dict[str, dict[str, Any]] = {}
     for agent in bull_agents:
         signals[agent] = {
-            "TSLA": {"signal": "bullish", "confidence": 65, "reasoning": f"{agent} 看 Tesla 长期创新"},
+            "TSLA": {
+                "signal": "bullish",
+                "confidence": 65,
+                "reasoning": f"{agent} 看 Tesla 长期创新",
+            },
         }
     for agent in bear_agents:
         signals[agent] = {
-            "TSLA": {"signal": "bearish", "confidence": 70, "reasoning": f"{agent} 担忧估值泡沫与竞争加剧"},
+            "TSLA": {
+                "signal": "bearish",
+                "confidence": 70,
+                "reasoning": f"{agent} 担忧估值泡沫与竞争加剧",
+            },
         }
     return signals
 
@@ -103,13 +154,31 @@ def make_analyst_signals_bear_dominant() -> dict[str, dict[str, Any]]:
 def make_analyst_signals_balanced() -> dict[str, dict[str, Any]]:
     """构造多空均衡的信号 (5 看多 / 5 看空)"""
     signals: dict[str, dict[str, Any]] = {}
-    for i, agent in enumerate(["warren_buffett", "ben_graham", "peter_lynch", "bill_ackman", "cathie_wood"]):
+    for i, agent in enumerate(
+        ["warren_buffett", "ben_graham", "peter_lynch", "bill_ackman", "cathie_wood"]
+    ):
         signals[agent] = {
-            "NVDA": {"signal": "bullish", "confidence": 65 + i, "reasoning": f"{agent} 看好 AI 算力需求"},
+            "NVDA": {
+                "signal": "bullish",
+                "confidence": 65 + i,
+                "reasoning": f"{agent} 看好 AI 算力需求",
+            },
         }
-    for i, agent in enumerate(["michael_burry", "nassim_taleb", "mohnish_pabrai", "charlie_munger", "aswath_damodaran"]):
+    for i, agent in enumerate(
+        [
+            "michael_burry",
+            "nassim_taleb",
+            "mohnish_pabrai",
+            "charlie_munger",
+            "aswath_damodaran",
+        ]
+    ):
         signals[agent] = {
-            "NVDA": {"signal": "bearish", "confidence": 60 + i, "reasoning": f"{agent} 担忧周期见顶"},
+            "NVDA": {
+                "signal": "bearish",
+                "confidence": 60 + i,
+                "reasoning": f"{agent} 担忧周期见顶",
+            },
         }
     return signals
 
@@ -124,7 +193,11 @@ class TestRuleBasedDebate:
 
     def test_bull_dominant_debate(self, tmp_path):
         """看多占优时, 辩论裁决应为 bull"""
-        from quant_modules.ai_hedge_fund.debate_layer import DebateLayer, DebateResult, DebateSession
+        from quant_modules.ai_hedge_fund.debate_layer import (
+            DebateLayer,
+            DebateResult,
+            DebateSession,
+        )
 
         layer = DebateLayer(use_llm=False, log_dir=str(tmp_path), enable_audit=True)
         signals = make_analyst_signals_bull_dominant()
@@ -170,12 +243,20 @@ class TestRuleBasedDebate:
 
         nvda_result = session.debate_results["NVDA"]
         # 5 看多 vs 5 看空, net_confidence 接近 0 → tie
-        assert nvda_result.winner in ("tie", "bull", "bear")  # 具体取决于 confidence 数值
+        assert nvda_result.winner in (
+            "tie",
+            "bull",
+            "bear",
+        )  # 具体取决于 confidence 数值
         assert nvda_result.final_signal in ("neutral", "bullish", "bearish")
 
     def test_debate_structure_completeness(self, tmp_path):
         """验证 DebateResult 结构完整性 (两轮辩论 + 裁决字段)"""
-        from quant_modules.ai_hedge_fund.debate_layer import DebateLayer, DebateResult, DebateStance
+        from quant_modules.ai_hedge_fund.debate_layer import (
+            DebateLayer,
+            DebateResult,
+            DebateStance,
+        )
 
         layer = DebateLayer(use_llm=False, log_dir=str(tmp_path))
         signals = make_analyst_signals_bull_dominant()
@@ -271,9 +352,21 @@ def _get_llm_config() -> Optional[dict[str, str]]:
 
     # 按优先级检测可用的 provider
     providers = [
-        {"model_name": "deepseek-chat", "model_provider": "DeepSeek", "api_key_env": "DEEPSEEK_API_KEY"},
-        {"model_name": "gpt-4.1-mini", "model_provider": "OpenAI", "api_key_env": "OPENAI_API_KEY"},
-        {"model_name": "meta-llama/llama-3.1-8b-instruct", "model_provider": "OpenRouter", "api_key_env": "OPENROUTER_API_KEY"},
+        {
+            "model_name": "deepseek-chat",
+            "model_provider": "DeepSeek",
+            "api_key_env": "DEEPSEEK_API_KEY",
+        },
+        {
+            "model_name": "gpt-4.1-mini",
+            "model_provider": "OpenAI",
+            "api_key_env": "OPENAI_API_KEY",
+        },
+        {
+            "model_name": "meta-llama/llama-3.1-8b-instruct",
+            "model_provider": "OpenRouter",
+            "api_key_env": "OPENROUTER_API_KEY",
+        },
     ]
     for p in providers:
         if os.getenv(p["api_key_env"]):
@@ -336,8 +429,12 @@ class TestRealLLMDebate:
 
         start = time.time()
         stance = layer._generate_stance(
-            "AAPL", ticker_signals, side="bull", round_num=1,
-            opponent_stance=None, state=state,
+            "AAPL",
+            ticker_signals,
+            side="bull",
+            round_num=1,
+            opponent_stance=None,
+            state=state,
         )
         elapsed = time.time() - start
 
@@ -352,20 +449,30 @@ class TestRealLLMDebate:
         """LLM Round 2 生成看空立场 + 反驳"""
         from quant_modules.ai_hedge_fund.debate_layer import DebateLayer, DebateStance
 
-        layer = DebateLayer(use_llm=True, model_name=_LLM_CONFIG["model_name"], log_dir=str(tmp_path))
+        layer = DebateLayer(
+            use_llm=True, model_name=_LLM_CONFIG["model_name"], log_dir=str(tmp_path)
+        )
         state = self._make_state()
         signals = make_analyst_signals_bull_dominant()
         ticker_signals = DebateLayer._extract_ticker_signals("AAPL", signals)
 
         # 先生成 bull R1 作为对手
         bull_r1 = layer._generate_stance(
-            "AAPL", ticker_signals, side="bull", round_num=1,
-            opponent_stance=None, state=state,
+            "AAPL",
+            ticker_signals,
+            side="bull",
+            round_num=1,
+            opponent_stance=None,
+            state=state,
         )
         # 再生成 bear R2 (看到 bull_r1 后反驳)
         bear_r2 = layer._generate_stance(
-            "AAPL", ticker_signals, side="bear", round_num=2,
-            opponent_stance=bull_r1, state=state,
+            "AAPL",
+            ticker_signals,
+            side="bear",
+            round_num=2,
+            opponent_stance=bull_r1,
+            state=state,
         )
 
         assert isinstance(bear_r2, DebateStance)
@@ -375,7 +482,11 @@ class TestRealLLMDebate:
 
     def test_llm_full_debate_end_to_end(self, tmp_path):
         """LLM 完整两轮辩论端到端测试"""
-        from quant_modules.ai_hedge_fund.debate_layer import DebateLayer, DebateResult, DebateSession
+        from quant_modules.ai_hedge_fund.debate_layer import (
+            DebateLayer,
+            DebateResult,
+            DebateSession,
+        )
 
         layer = DebateLayer(
             use_llm=True,
@@ -407,11 +518,17 @@ class TestRealLLMDebate:
         # 耗时应在合理范围 (4 次 LLM 调用, 每次 <30s)
         assert elapsed < 180.0, f"完整辩论耗时 {elapsed:.1f}s 超过 180s"
 
-        print(f"\n[LLM 辩论结果] AAPL: winner={result.winner}, "
-              f"signal={result.final_signal}, conf={result.final_confidence}, "
-              f"net_conf={result.net_confidence}, 耗时={elapsed:.1f}s")
-        print(f"  Bull R1: conf={result.bull_round1.confidence}, args={result.bull_round1.key_arguments[:2]}")
-        print(f"  Bear R1: conf={result.bear_round1.confidence}, args={result.bear_round1.key_arguments[:2]}")
+        print(
+            f"\n[LLM 辩论结果] AAPL: winner={result.winner}, "
+            f"signal={result.final_signal}, conf={result.final_confidence}, "
+            f"net_conf={result.net_confidence}, 耗时={elapsed:.1f}s"
+        )
+        print(
+            f"  Bull R1: conf={result.bull_round1.confidence}, args={result.bull_round1.key_arguments[:2]}"
+        )
+        print(
+            f"  Bear R1: conf={result.bear_round1.confidence}, args={result.bear_round1.key_arguments[:2]}"
+        )
         print(f"  Bull R2 反驳: {result.bull_final.rebuttals[:1]}")
         print(f"  Bear R2 反驳: {result.bear_final.rebuttals[:1]}")
         print(f"  裁决理由: {result.reasoning[:200]}")
@@ -479,7 +596,8 @@ class TestAuditLog:
         signals = {
             "warren_buffett": {
                 "AAPL": {
-                    "signal": "bullish", "confidence": 80,
+                    "signal": "bullish",
+                    "confidence": 80,
                     "reasoning": "x" * 1000,  # 超长 reasoning
                 }
             }
@@ -521,7 +639,9 @@ class TestDebateNode:
         }
 
         # Mock 审计目录到 tmp_path 避免污染生产
-        with patch("quant_modules.ai_hedge_fund.debate_layer._DEBATE_LOG_DIR", str(tmp_path)):
+        with patch(
+            "quant_modules.ai_hedge_fund.debate_layer._DEBATE_LOG_DIR", str(tmp_path)
+        ):
             result_state = debate_node(state)
 
         # 验证 analyst_signals 被更新
@@ -551,7 +671,9 @@ class TestDebateNode:
             "metadata": {"enable_debate_llm": False},
         }
 
-        with patch("quant_modules.ai_hedge_fund.debate_layer._DEBATE_LOG_DIR", str(tmp_path)):
+        with patch(
+            "quant_modules.ai_hedge_fund.debate_layer._DEBATE_LOG_DIR", str(tmp_path)
+        ):
             result_state = debate_node(state)
 
         assert "debate_verdict" in result_state["data"]["analyst_signals"]
@@ -574,8 +696,14 @@ class TestFallbackPath:
         signals = make_analyst_signals_bull_dominant()
 
         # Mock _llm_available 返回 True, 但 _llm_generate_stance 抛异常
-        with patch.object(DebateLayer, "_llm_available", return_value=True), \
-             patch.object(DebateLayer, "_llm_generate_stance", side_effect=RuntimeError("LLM 服务不可用")):
+        with (
+            patch.object(DebateLayer, "_llm_available", return_value=True),
+            patch.object(
+                DebateLayer,
+                "_llm_generate_stance",
+                side_effect=RuntimeError("LLM 服务不可用"),
+            ),
+        ):
             session = layer.run_full_debate(["AAPL"], signals)
 
         # 应降级为规则模式, 结果结构完整
@@ -675,7 +803,9 @@ class TestRuleVsLLMComparison:
         signals = make_analyst_signals_bull_dominant()
 
         # 规则模式
-        rule_layer = DebateLayer(use_llm=False, log_dir=str(tmp_path / "rule"), enable_audit=False)
+        rule_layer = DebateLayer(
+            use_llm=False, log_dir=str(tmp_path / "rule"), enable_audit=False
+        )
         rule_session = rule_layer.run_full_debate(["AAPL"], signals)
         rule_evidence = rule_session.debate_results["AAPL"].bull_final.evidence_summary
 
@@ -683,7 +813,9 @@ class TestRuleVsLLMComparison:
         @dataclass
         class SimpleRequest:
             api_keys: dict[str, str] = field(
-                default_factory=lambda: {_LLM_CONFIG["api_key_env"]: os.getenv(_LLM_CONFIG["api_key_env"])}
+                default_factory=lambda: {
+                    _LLM_CONFIG["api_key_env"]: os.getenv(_LLM_CONFIG["api_key_env"])
+                }
             )
 
         state = {
@@ -696,8 +828,10 @@ class TestRuleVsLLMComparison:
             },
         }
         llm_layer = DebateLayer(
-            use_llm=True, model_name=_LLM_CONFIG["model_name"],
-            log_dir=str(tmp_path / "llm"), enable_audit=False,
+            use_llm=True,
+            model_name=_LLM_CONFIG["model_name"],
+            log_dir=str(tmp_path / "llm"),
+            enable_audit=False,
         )
         llm_session = llm_layer.run_full_debate(["AAPL"], signals, state=state)
         llm_evidence = llm_session.debate_results["AAPL"].bull_final.evidence_summary

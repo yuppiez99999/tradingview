@@ -110,3 +110,14 @@ python -X utf8 scripts/shadow_real_data_feeder.py --date 2026-07-24  # -1.0584%
 | `reports/shadow/daily_returns.jsonl` | Shadow 日报收益（20 条，07-23~08-19） |
 | `reports/evolution/observation_progress.json` | 观察期进度（20/21 天，20/20 样本） |
 | `15_每日工作流/setup_eod_scheduled_task.ps1` | EOD 计划任务注册脚本（需更新 Python 路径） |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [08-21 EOD 不失败保障方案（2026-08-20）](eod-fallback-guarantee-20260820.md) (相似度 25%)
+- [EOD 运维经验沉淀：OpenBLAS 内存修复 + U9 端到端验证 + D7 断言增强（2026-08-07）](eod-operations-lessons-20260807.md) (相似度 18%)
+- [盘前工作流并行化 + 情感信号注入 + 12任务定时注册](daily-workflow-parallel-sentiment-20260826.md) (相似度 14%)
+- [观察期配置脱节修复 — 2026-08-09](observation-period-config-drift-20260809.md) (相似度 12%)
+- [Shadow 数据质量闭环设计](shadow-data-quality-loop.md) (相似度 12%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

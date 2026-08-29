@@ -9,6 +9,7 @@
     - OpenAI Chat Completions API: https://platform.openai.com/docs/api-reference/chat
     - LiteLLM 统一接口规范
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -35,8 +36,8 @@ class Usage:
 class ProviderInfo:
     """Provider 元信息."""
 
-    name: str           # deepseek/doubao/glm/siliconflow/ollama/omniroute
-    model: str          # 实际调用的模型名
+    name: str  # deepseek/doubao/glm/siliconflow/ollama/omniroute
+    model: str  # 实际调用的模型名
     latency_ms: float = 0.0
     success: bool = True
     error: str = ""
@@ -132,20 +133,20 @@ class ChatResponse:
 
 # 场景 → 推荐 provider 映射 (与 multi_model_router.py 场景对齐)
 SCENE_PROVIDER_MAP: dict[str, str] = {
-    "intraday": "deepseek",       # 盘中决策 → 轻量快速
-    "rebalance": "deepseek",      # 再平衡 → 深度推理
-    "report": "doubao",           # 报告生成 → 创意
-    "hedge": "deepseek",          # 对冲决策 → 深度
-    "default": "deepseek",        # 默认
+    "intraday": "deepseek",  # 盘中决策 → 轻量快速
+    "rebalance": "deepseek",  # 再平衡 → 深度推理
+    "report": "doubao",  # 报告生成 → 创意
+    "hedge": "deepseek",  # 对冲决策 → 深度
+    "default": "deepseek",  # 默认
 }
 
 # 场景 → 温度参数映射
 SCENE_TEMPERATURE_MAP: dict[str, float] = {
-    "intraday": 0.1,       # 盘中决策低温度 (确定性)
-    "rebalance": 0.2,      # 再平衡中低温度
-    "report": 0.5,         # 报告生成中温度 (创意)
-    "hedge": 0.15,         # 对冲决策低温度
-    "default": 0.3,        # 默认
+    "intraday": 0.1,  # 盘中决策低温度 (确定性)
+    "rebalance": 0.2,  # 再平衡中低温度
+    "report": 0.5,  # 报告生成中温度 (创意)
+    "hedge": 0.15,  # 对冲决策低温度
+    "default": 0.3,  # 默认
 }
 
 

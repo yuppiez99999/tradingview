@@ -24,6 +24,7 @@
     python scripts/run_ai_decision_eod.py --date 2026-07-28  # 指定日期
     python scripts/run_ai_decision_eod.py --print            # 打印 Markdown 到 stdout
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,19 +43,20 @@ def main() -> int:
     Returns:
         0=成功无告警, 1=成功但有告警, 2=异常
     """
-    parser = argparse.ArgumentParser(
-        description="ai_decision 每日 EOD 审计日志复盘"
-    )
+    parser = argparse.ArgumentParser(description="ai_decision 每日 EOD 审计日志复盘")
     parser.add_argument(
-        "--date", default=None,
+        "--date",
+        default=None,
         help="报告日期 (YYYY-MM-DD), 默认今天",
     )
     parser.add_argument(
-        "--print", action="store_true",
+        "--print",
+        action="store_true",
         help="打印 Markdown 到 stdout (除落盘外)",
     )
     parser.add_argument(
-        "--no-save", action="store_true",
+        "--no-save",
+        action="store_true",
         help="不落盘, 仅返回报告 (默认会落盘)",
     )
     args = parser.parse_args()
@@ -85,15 +87,24 @@ def main() -> int:
             for a in warning:
                 print(f"  🟡 [{a.get('rule', '')}] {a.get('message', '')}")
             return 1
-        else:
-            print("✅ 无告警")
-            return 0
+        print("✅ 无告警")
+        return 0
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as exc:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"❌ 复盘生成失败: {exc}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 2
 

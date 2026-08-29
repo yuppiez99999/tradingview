@@ -18,6 +18,7 @@
 用法：
   py research/analyze_factor_ic.py --universe hs300 --n-stocks 80 --horizon 20
 """
+
 from __future__ import annotations
 
 import argparse
@@ -53,13 +54,24 @@ MIN_LOOKBACK = 120
 FACTOR_CACHE_DIR = _REPO_ROOT / "data" / "cache" / "factor_series"
 
 
-def fetch_factor_series(symbol: str, kline_df: pd.DataFrame, factor_ids, adapter) -> pd.DataFrame | None:
+def fetch_factor_series(
+    symbol: str, kline_df: pd.DataFrame, factor_ids, adapter
+) -> pd.DataFrame | None:
     """为单只股票计算全部因子的完整时间序列（对齐到 kline 索引）"""
     if kline_df is None or len(kline_df) < 60:
         return None
     try:
         result = adapter.compute_single_stock(kline_df, factor_ids=list(factor_ids))
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # noqa: BLE001
         logger.debug(f"因子计算失败 {symbol}: {e}")
         return None
 
@@ -77,9 +89,13 @@ def fetch_factor_series(symbol: str, kline_df: pd.DataFrame, factor_ids, adapter
 def _parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--universe", default="hs300", choices=["hs300", "zz500", "hs300_zz500"])
+    parser.add_argument(
+        "--universe", default="hs300", choices=["hs300", "zz500", "hs300_zz500"]
+    )
     parser.add_argument("--n-stocks", type=int, default=80)
-    parser.add_argument("--horizon", type=int, default=20, help="前视收益窗口（交易日）")
+    parser.add_argument(
+        "--horizon", type=int, default=20, help="前视收益窗口（交易日）"
+    )
     parser.add_argument("--kline-count", type=int, default=600)
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
@@ -114,8 +130,10 @@ def _prepare_factor_setup(kline_count: int):
     config = ScoringConfig(kline_count=kline_count)
     theme_factors = select_factor_ids(adapter, config)
     all_factor_ids = sorted({fid for fids in theme_factors.values() for fid in fids})
-    logger.info(f"选取因子 {len(all_factor_ids)} 个 / 主题: " +
-                ", ".join(f"{k}={len(v)}" for k, v in theme_factors.items()))
+    logger.info(
+        f"选取因子 {len(all_factor_ids)} 个 / 主题: "
+        + ", ".join(f"{k}={len(v)}" for k, v in theme_factors.items())
+    )
     return loader, adapter, theme_factors, all_factor_ids
 
 
@@ -130,7 +148,16 @@ def _compute_stock_factor_series(codes, loader, adapter, all_factor_ids) -> dict
         if cache_file.exists():
             try:
                 df = pd.read_parquet(cache_file)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 df = None
         if df is None or "_close" not in df.columns:
@@ -142,7 +169,16 @@ def _compute_stock_factor_series(codes, loader, adapter, all_factor_ids) -> dict
                 continue
             try:
                 df.to_parquet(cache_file)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
         stock_data[code] = df
@@ -160,7 +196,9 @@ def _build_rebalance_dates(stock_data: dict) -> tuple:
     for df in stock_data.values():
         all_dates.update(df.index.tolist())
     all_dates = sorted(all_dates)
-    logger.info(f"全样本日期范围: {all_dates[0].date()} -> {all_dates[-1].date()}  (共 {len(all_dates)} 交易日)")
+    logger.info(
+        f"全样本日期范围: {all_dates[0].date()} -> {all_dates[-1].date()}  (共 {len(all_dates)} 交易日)"
+    )
 
     # 调仓日：每隔 REBALANCE_STEP 取一个，且需留出前视窗口
     rebal_dates = all_dates[::REBALANCE_STEP]
@@ -188,7 +226,9 @@ def _compute_window_forward_returns(d, d_h, stock_data, all_factor_ids) -> tuple
     return rows, fwd_ret
 
 
-def _compute_window_ic(d, all_dates, stock_data, all_factor_ids, theme_factors, horizon: int):
+def _compute_window_ic(
+    d, all_dates, stock_data, all_factor_ids, theme_factors, horizon: int
+):
     """计算单个调仓日的综合 IC 及各主题 IC；返回 (ic, theme_ics) 或 None"""
     d_pos = all_dates.index(d)
     # 前视窗口末端日期
@@ -204,7 +244,9 @@ def _compute_window_ic(d, all_dates, stock_data, all_factor_ids, theme_factors, 
     fdf = pd.DataFrame(rows).T  # index=code, columns=factor
     # 横截面打分（要求每只股票有足够历史 -> 用因子值非空的行）
     # 过滤掉因子几乎全空的股票
-    valid_codes = [c for c in fdf.index if fdf.loc[c].notna().sum() >= len(all_factor_ids) * 0.3]
+    valid_codes = [
+        c for c in fdf.index if fdf.loc[c].notna().sum() >= len(all_factor_ids) * 0.3
+    ]
     if len(valid_codes) < 30:
         return None
     fdf = fdf.loc[valid_codes]
@@ -271,7 +313,9 @@ def _summarize_theme_ic(theme_ic_records: dict) -> dict:
         tir = tm / ts if ts > 1e-9 else 0.0
         tt = tm / (ts / np.sqrt(len(a)))
         theme_summary[theme] = (tm, tir, tt, (a > 0).mean())
-        logger.info(f"  {theme:12s}: IC={tm:+.4f}  ICIR={tir:+.3f}  t={tt:+.2f}  正值={(a>0).mean()*100:.0f}%")
+        logger.info(
+            f"  {theme:12s}: IC={tm:+.4f}  ICIR={tir:+.3f}  t={tt:+.2f}  正值={(a>0).mean()*100:.0f}%"
+        )
     return theme_summary
 
 
@@ -284,18 +328,27 @@ def _judge_verdict(ic_mean: float, t_stat: float) -> str:
     return "基本无效 - 因子得分与未来收益无显著相关"
 
 
-def _save_results(ic_arr, ic_mean, ic_std, icir, t_stat, pct_pos, theme_summary, verdict) -> None:
+def _save_results(
+    ic_arr, ic_mean, ic_std, icir, t_stat, pct_pos, theme_summary, verdict
+) -> None:
     """保存 IC 分析结果到 JSON 文件"""
     out = {
         "composite": {
-            "n_windows": len(ic_arr), "ic_mean": ic_mean, "ic_std": ic_std,
-            "icir": icir, "t_stat": t_stat, "pct_positive": pct_pos,
+            "n_windows": len(ic_arr),
+            "ic_mean": ic_mean,
+            "ic_std": ic_std,
+            "icir": icir,
+            "t_stat": t_stat,
+            "pct_positive": pct_pos,
         },
-        "themes": {k: {"ic_mean": v[0], "icir": v[1], "t_stat": v[2], "pct_positive": v[3]}
-                   for k, v in theme_summary.items()},
+        "themes": {
+            k: {"ic_mean": v[0], "icir": v[1], "t_stat": v[2], "pct_positive": v[3]}
+            for k, v in theme_summary.items()
+        },
         "verdict": verdict,
     }
     import json
+
     out_path = _REPO_ROOT / "reports" / "universe" / "factor_ic_result.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
@@ -315,7 +368,9 @@ def main():
         return
 
     # 2. K 线加载器 + 因子适配器
-    loader, adapter, theme_factors, all_factor_ids = _prepare_factor_setup(args.kline_count)
+    loader, adapter, theme_factors, all_factor_ids = _prepare_factor_setup(
+        args.kline_count
+    )
 
     # 3. 计算并缓存每只股票因子时间序列
     stock_data = _compute_stock_factor_series(codes, loader, adapter, all_factor_ids)
@@ -333,7 +388,9 @@ def main():
     all_dates, rebal_dates = _build_rebalance_dates(stock_data)
 
     for d in rebal_dates:
-        result = _compute_window_ic(d, all_dates, stock_data, all_factor_ids, theme_factors, args.horizon)
+        result = _compute_window_ic(
+            d, all_dates, stock_data, all_factor_ids, theme_factors, args.horizon
+        )
         if result is None:
             continue
         ic, theme_ics = result
@@ -361,13 +418,19 @@ def main():
     # 找出最有效主题
     best_theme = max(theme_summary.items(), key=lambda kv: abs(kv[1][0]), default=None)
     if best_theme:
-        logger.info(f"  最有效主题: {best_theme[0]} (IC={best_theme[1][0]:+.4f}, t={best_theme[1][2]:+.2f})")
+        logger.info(
+            f"  最有效主题: {best_theme[0]} (IC={best_theme[1][0]:+.4f}, t={best_theme[1][2]:+.2f})"
+        )
     worst_theme = min(theme_summary.items(), key=lambda kv: abs(kv[1][0]), default=None)
     if worst_theme:
-        logger.info(f"  最弱主题:   {worst_theme[0]} (IC={worst_theme[1][0]:+.4f}, t={worst_theme[1][2]:+.2f})")
+        logger.info(
+            f"  最弱主题:   {worst_theme[0]} (IC={worst_theme[1][0]:+.4f}, t={worst_theme[1][2]:+.2f})"
+        )
 
     # 7. 保存结果
-    _save_results(ic_arr, ic_mean, ic_std, icir, t_stat, pct_pos, theme_summary, verdict)
+    _save_results(
+        ic_arr, ic_mean, ic_std, icir, t_stat, pct_pos, theme_summary, verdict
+    )
 
 
 if __name__ == "__main__":

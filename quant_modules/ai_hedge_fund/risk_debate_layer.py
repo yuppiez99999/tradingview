@@ -30,6 +30,7 @@ _MAX_ROUNDS = int(os.environ.get("AI_HEDGE_RISK_DEBATE_ROUNDS", "1"))
 
 class RiskDebateResult(BaseModel):
     """3 方风控辩论结果"""
+
     aggressive_stance: Literal["aggressive", "neutral", "conservative"] = "neutral"
     conservative_stance: Literal["aggressive", "neutral", "conservative"] = "neutral"
     neutral_stance: Literal["aggressive", "neutral", "conservative"] = "neutral"
@@ -40,8 +41,13 @@ class RiskDebateResult(BaseModel):
     summary: str = Field(default="", description="辩论摘要")
 
 
-def _build_prompt(role: str, trader_decision: str, risk_report: str,
-                  history: str, other_responses: dict[str, str]) -> str:
+def _build_prompt(
+    role: str,
+    trader_decision: str,
+    risk_report: str,
+    history: str,
+    other_responses: dict[str, str],
+) -> str:
     """构建 debator prompt (借鉴 TradingAgents aggressive/conservative/neutral)"""
     role_desc = {
         "aggressive": (
@@ -61,9 +67,7 @@ def _build_prompt(role: str, trader_decision: str, risk_report: str,
         ),
     }[role]
 
-    other_args = "\n".join(
-        f"{k} analyst: {v}" for k, v in other_responses.items() if v
-    )
+    other_args = "\n".join(f"{k} analyst: {v}" for k, v in other_responses.items() if v)
 
     return (
         f"{role_desc}\n\n"
@@ -84,7 +88,11 @@ def _invoke_debator(role: str, prompt: str, state: dict) -> str:
         from quant_modules.ai_hedge_fund.utils.llm import get_agent_model_config
 
         model_name, model_provider = get_agent_model_config(state, "risk_debate")
-        provider_enum = ModelProvider(model_provider) if isinstance(model_provider, str) else model_provider
+        provider_enum = (
+            ModelProvider(model_provider)
+            if isinstance(model_provider, str)
+            else model_provider
+        )
         llm = get_model(model_name, provider_enum)
         response = llm.invoke(prompt)
         content = response.content if hasattr(response, "content") else str(response)
@@ -131,7 +139,9 @@ def risk_debate_node(state) -> dict:
     trader_decision = ""
     try:
         last_msg = state["messages"][-1]
-        trader_decision = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+        trader_decision = (
+            last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+        )
     except (IndexError, KeyError, AttributeError):
         pass
 
@@ -139,7 +149,9 @@ def risk_debate_node(state) -> dict:
     responses: dict[str, str] = {}
     for _ in range(_MAX_ROUNDS):
         for role in ("aggressive", "conservative", "neutral"):
-            prompt = _build_prompt(role, trader_decision, risk_report, history, responses)
+            prompt = _build_prompt(
+                role, trader_decision, risk_report, history, responses
+            )
             argument = _invoke_debator(role, prompt, state)
             if argument:
                 responses[role] = argument

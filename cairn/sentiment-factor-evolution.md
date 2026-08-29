@@ -148,3 +148,14 @@ related:
 2. **情绪半衰期校准**：当前用固定 5 日变化率，不同事件类型（突发利空 vs 行业政策）的情绪衰减速度差异很大，需要按事件类型动态调参
 3. **情绪拥挤度监控**：当大量标的出现同向极端情绪时（如全市场过度乐观），情绪因子可能成为反向指标而非选股信号
 4. **与 Vega 监控联动**：市场恐慌情绪（极度负面 market_sentiment）通常伴随隐含波动率飙升，可开发「情绪-波动率」联合信号用于期权对冲决策
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [CN-Buzz2Portfolio 中国市场基准](cn-buzz2portfolio.md) (相似度 18%)
+- [对抗新闻攻击防护 (Adversarial News Attack Guard)](adversarial-news-guard.md) (相似度 17%)
+- [制度门控 Transformer (Adaptive Financial Transformer)](regime-gated-transformer.md) (相似度 12%)
+- [模型训练与生命周期](model-training.md) (相似度 12%)
+- [推荐书目：对系统有工程指导意义的中外书籍](recommended-reading-20260819.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

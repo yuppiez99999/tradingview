@@ -135,10 +135,14 @@ class MockV1Orchestrator:
         action: str = "evaluate_only",
         metrics: Any | None = None,
     ) -> bool:
-        self.logged_decisions.append({
-            "action": action,
-            "report": report.to_dict() if report and hasattr(report, "to_dict") else {},
-        })
+        self.logged_decisions.append(
+            {
+                "action": action,
+                "report": (
+                    report.to_dict() if report and hasattr(report, "to_dict") else {}
+                ),
+            }
+        )
         return True
 
 
@@ -177,7 +181,9 @@ def tmp_project(tmp_path: Path):
 @pytest.fixture
 def memory(tmp_project: Path) -> EvolutionMemory:
     """共享 EvolutionMemory (写入临时项目)."""
-    return EvolutionMemory(memory_path=tmp_project / "reports" / "evolution" / "memory.jsonl")
+    return EvolutionMemory(
+        memory_path=tmp_project / "reports" / "evolution" / "memory.jsonl"
+    )
 
 
 @pytest.fixture
@@ -187,7 +193,9 @@ def guard(memory: EvolutionMemory) -> EvolutionGuard:
 
 
 @pytest.fixture
-def orchestrator(memory: EvolutionMemory, guard: EvolutionGuard) -> EvolutionOrchestratorV2:
+def orchestrator(
+    memory: EvolutionMemory, guard: EvolutionGuard
+) -> EvolutionOrchestratorV2:
     """启用的编排器 (注入真实 Memory + Guard + Mock v1)."""
     # 强制 enabled=True (绕过 Feature Flag, 测试用)
     orch = EvolutionOrchestratorV2(
@@ -220,8 +228,11 @@ class TestFeatureFlagAndInit:
         orch = EvolutionOrchestratorV2(memory=memory)
         orch._enabled = False
         proposal = EvolutionProposal(
-            level=LEVEL_L2, action_type="retrain",
-            target_module="m", weight_change=0.05, rollback_plan="r",
+            level=LEVEL_L2,
+            action_type="retrain",
+            target_module="m",
+            weight_change=0.05,
+            rollback_plan="r",
         )
         result = orch.route_proposal(proposal)
         assert result.status == CYCLE_STATUS_DISABLED
@@ -243,11 +254,15 @@ class TestFeatureFlagAndInit:
 class TestKillSwitchFreeze:
     """Kill Switch 触发时冻结所有进化 (HC-5)."""
 
-    def test_l2_kill_switch_freezes_cycle(self, memory: EvolutionMemory, guard: EvolutionGuard):
+    def test_l2_kill_switch_freezes_cycle(
+        self, memory: EvolutionMemory, guard: EvolutionGuard
+    ):
         """L2 熔断冻结 run_cycle."""
         ks = MockKillSwitch(events=[make_ks_event(level=2)])
         orch = EvolutionOrchestratorV2(
-            memory=memory, guard=guard, kill_switch=ks,
+            memory=memory,
+            guard=guard,
+            kill_switch=ks,
             v1_orchestrator=MockV1Orchestrator(),
         )
         orch._enabled = True
@@ -256,11 +271,15 @@ class TestKillSwitchFreeze:
         assert result.status == CYCLE_STATUS_FROZEN
         assert "kill_switch" in result.reason
 
-    def test_l3_kill_switch_freezes_cycle(self, memory: EvolutionMemory, guard: EvolutionGuard):
+    def test_l3_kill_switch_freezes_cycle(
+        self, memory: EvolutionMemory, guard: EvolutionGuard
+    ):
         """L3 熔断冻结所有层级."""
         ks = MockKillSwitch(events=[make_ks_event(level=3)])
         orch = EvolutionOrchestratorV2(
-            memory=memory, guard=guard, kill_switch=ks,
+            memory=memory,
+            guard=guard,
+            kill_switch=ks,
             v1_orchestrator=MockV1Orchestrator(),
         )
         orch._enabled = True
@@ -268,11 +287,15 @@ class TestKillSwitchFreeze:
         result = orch.run_cycle()
         assert result.status == CYCLE_STATUS_FROZEN
 
-    def test_no_kill_switch_event_continues(self, memory: EvolutionMemory, guard: EvolutionGuard):
+    def test_no_kill_switch_event_continues(
+        self, memory: EvolutionMemory, guard: EvolutionGuard
+    ):
         """无熔断事件时正常执行."""
         ks = MockKillSwitch(events=[])
         orch = EvolutionOrchestratorV2(
-            memory=memory, guard=guard, kill_switch=ks,
+            memory=memory,
+            guard=guard,
+            kill_switch=ks,
             v1_orchestrator=MockV1Orchestrator(),
         )
         orch._enabled = True
@@ -294,8 +317,10 @@ class TestL1Routing:
     ):
         """L1 提案应记录到 Memory 且 status=executed."""
         proposal = EvolutionProposal(
-            level=LEVEL_L1, action_type="fix",
-            target_module="config", weight_change=0.0,
+            level=LEVEL_L1,
+            action_type="fix",
+            target_module="config",
+            weight_change=0.0,
             rollback_plan="",
             trigger_reason="C6.1 磁盘空间不足",
         )
@@ -326,8 +351,10 @@ class TestL2Routing:
     ):
         """合规 L2 提案通过 Guard, 标记为 executed."""
         proposal = EvolutionProposal(
-            level=LEVEL_L2, action_type="retrain",
-            target_module="lgb_model", weight_change=0.05,
+            level=LEVEL_L2,
+            action_type="retrain",
+            target_module="lgb_model",
+            weight_change=0.05,
             rollback_plan="回滚至 v8.6.14 基线",
             trigger_reason="IC 衰减",
         )
@@ -348,8 +375,10 @@ class TestL2Routing:
     ):
         """违规 L2 提案被 Guard 拒绝, 记录为 rejected."""
         proposal = EvolutionProposal(
-            level=LEVEL_L2, action_type="weight_adjust",
-            target_module="factor_a", weight_change=0.05,
+            level=LEVEL_L2,
+            action_type="weight_adjust",
+            target_module="factor_a",
+            weight_change=0.05,
             rollback_plan="",  # 缺回滚方案 → 被拒
         )
 
@@ -376,8 +405,10 @@ class TestL3Routing:
     ):
         """合规 L3 提案通过 Guard, 标记为 pending (等待人工审批)."""
         proposal = EvolutionProposal(
-            level=LEVEL_L3, action_type="factor_deploy",
-            target_module="new_factor_a", weight_change=0.05,
+            level=LEVEL_L3,
+            action_type="factor_deploy",
+            target_module="new_factor_a",
+            weight_change=0.05,
             rollback_plan="下线新因子, 恢复原因子库",
             shadow_days=10,  # 满足影子隔离要求
             trigger_reason="发现 IC=0.08 的新因子",
@@ -399,8 +430,10 @@ class TestL3Routing:
     ):
         """L3 提案影子天数不足 → 被 Guard 拒绝."""
         proposal = EvolutionProposal(
-            level=LEVEL_L3, action_type="factor_deploy",
-            target_module="new_factor_b", weight_change=0.05,
+            level=LEVEL_L3,
+            action_type="factor_deploy",
+            target_module="new_factor_b",
+            weight_change=0.05,
             rollback_plan="下线",
             shadow_days=2,  # 不足 5 天 → 被拒
         )
@@ -432,13 +465,16 @@ class TestRunCycle:
                 collected_at=datetime.now(UTC).isoformat(),
             ),
             report=MockScoreReport(
-                public_score=0.5, private_score=0.5,
+                public_score=0.5,
+                private_score=0.5,
                 reward_hacking_risk=0.2,
                 recommendation="continue",
             ),
         )
         orch = EvolutionOrchestratorV2(
-            memory=memory, guard=guard, v1_orchestrator=v1,
+            memory=memory,
+            guard=guard,
+            v1_orchestrator=v1,
         )
         orch._enabled = True
 
@@ -467,13 +503,16 @@ class TestRunCycle:
                 collected_at=datetime.now(UTC).isoformat(),
             ),
             report=MockScoreReport(
-                public_score=0.8, private_score=0.75,
+                public_score=0.8,
+                private_score=0.75,
                 reward_hacking_risk=0.15,
                 recommendation="promote",
             ),
         )
         orch = EvolutionOrchestratorV2(
-            memory=memory, guard=guard, v1_orchestrator=v1,
+            memory=memory,
+            guard=guard,
+            v1_orchestrator=v1,
         )
         orch._enabled = True
 
@@ -499,13 +538,16 @@ class TestRunCycle:
                 collected_at=datetime.now(UTC).isoformat(),
             ),
             report=MockScoreReport(
-                public_score=0.3, private_score=0.2,
+                public_score=0.3,
+                private_score=0.2,
                 reward_hacking_risk=0.8,
                 recommendation="rollback",
             ),
         )
         orch = EvolutionOrchestratorV2(
-            memory=memory, guard=guard, v1_orchestrator=v1,
+            memory=memory,
+            guard=guard,
+            v1_orchestrator=v1,
         )
         orch._enabled = True
 
@@ -529,7 +571,9 @@ class TestRunCycle:
             ),
         )
         orch = EvolutionOrchestratorV2(
-            memory=memory, guard=guard, v1_orchestrator=v1,
+            memory=memory,
+            guard=guard,
+            v1_orchestrator=v1,
         )
         orch._enabled = True
 
@@ -550,7 +594,9 @@ class TestRunCycle:
             report=None,  # 评估跳过
         )
         orch = EvolutionOrchestratorV2(
-            memory=memory, guard=guard, v1_orchestrator=v1,
+            memory=memory,
+            guard=guard,
+            v1_orchestrator=v1,
         )
         orch._enabled = True
 
@@ -573,32 +619,41 @@ class TestAuditCompleteness:
         """L1 + L2(通过) + L2(拒绝) + L3(待审批) 全部记录到 Memory."""
         # L1
         p1 = EvolutionProposal(
-            level=LEVEL_L1, action_type="fix",
-            target_module="m1", weight_change=0.0,
+            level=LEVEL_L1,
+            action_type="fix",
+            target_module="m1",
+            weight_change=0.0,
         )
         orchestrator.route_proposal(p1)
 
         # L2 通过
         p2 = EvolutionProposal(
-            level=LEVEL_L2, action_type="retrain",
-            target_module="m2", weight_change=0.05,
+            level=LEVEL_L2,
+            action_type="retrain",
+            target_module="m2",
+            weight_change=0.05,
             rollback_plan="r",
         )
         orchestrator.route_proposal(p2)
 
         # L2 拒绝 (缺回滚)
         p3 = EvolutionProposal(
-            level=LEVEL_L2, action_type="weight_adjust",
-            target_module="m3", weight_change=0.05,
+            level=LEVEL_L2,
+            action_type="weight_adjust",
+            target_module="m3",
+            weight_change=0.05,
             rollback_plan="",
         )
         orchestrator.route_proposal(p3)
 
         # L3 待审批
         p4 = EvolutionProposal(
-            level=LEVEL_L3, action_type="factor_deploy",
-            target_module="m4", weight_change=0.05,
-            rollback_plan="r", shadow_days=10,
+            level=LEVEL_L3,
+            action_type="factor_deploy",
+            target_module="m4",
+            weight_change=0.05,
+            rollback_plan="r",
+            shadow_days=10,
         )
         orchestrator.route_proposal(p4)
 
@@ -638,13 +693,16 @@ class TestEndToEndLifecycle:
                 collected_at=datetime.now(UTC).isoformat(),
             ),
             report=MockScoreReport(
-                public_score=0.85, private_score=0.78,
+                public_score=0.85,
+                private_score=0.78,
                 reward_hacking_risk=0.12,
                 recommendation="promote",
             ),
         )
         orch = EvolutionOrchestratorV2(
-            memory=memory, guard=guard, v1_orchestrator=v1,
+            memory=memory,
+            guard=guard,
+            v1_orchestrator=v1,
         )
         orch._enabled = True
 

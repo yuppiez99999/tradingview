@@ -9,6 +9,7 @@
   - rollback() 紧急回滚
   - observation_days_elapsed() 观察天数计算
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,18 +27,21 @@ if str(_PROJECT_ROOT) not in sys.path:
 # should_run_on_date 灰度判断
 # ============================================================
 
+
 class TestShouldRunOnDate:
     """should_run_on_date() 灰度比例判断."""
 
     @pytest.mark.unit
     def test_zero_percent_always_false(self):
         from scripts.gradual_rollout_manager import should_run_on_date
+
         assert should_run_on_date("2026-08-22", 0) is False
         assert should_run_on_date("2026-01-01", 0) is False
 
     @pytest.mark.unit
     def test_hundred_percent_always_true(self):
         from scripts.gradual_rollout_manager import should_run_on_date
+
         assert should_run_on_date("2026-08-22", 100) is True
         assert should_run_on_date("2026-01-01", 100) is True
 
@@ -45,6 +49,7 @@ class TestShouldRunOnDate:
     def test_same_date_same_result(self):
         """同一日期 + 同一比例 → 同一结果 (确定性)."""
         from scripts.gradual_rollout_manager import should_run_on_date
+
         r1 = should_run_on_date("2026-08-22", 30)
         r2 = should_run_on_date("2026-08-22", 30)
         assert r1 == r2
@@ -58,8 +63,11 @@ class TestShouldRunOnDate:
 
         total = 1000
         enabled = sum(
-            1 for i in range(total)
-            if should_run_on_date((date(2026, 1, 1) + timedelta(days=i)).isoformat(), 30)
+            1
+            for i in range(total)
+            if should_run_on_date(
+                (date(2026, 1, 1) + timedelta(days=i)).isoformat(), 30
+            )
         )
         ratio = enabled / total
         assert 0.25 < ratio < 0.35  # ~30% ± 5%
@@ -68,6 +76,7 @@ class TestShouldRunOnDate:
     def test_different_dates_different_results(self):
         """不同日期有不同结果 (不是全 true 或全 false)."""
         from scripts.gradual_rollout_manager import should_run_on_date
+
         results = [should_run_on_date(f"2026-01-{d:02d}", 50) for d in range(1, 31)]
         assert True in results
         assert False in results
@@ -77,12 +86,14 @@ class TestShouldRunOnDate:
 # RolloutStatus 序列化
 # ============================================================
 
+
 class TestRolloutStatus:
     """RolloutStatus 序列化/反序列化."""
 
     @pytest.mark.unit
     def test_default_status(self):
         from scripts.gradual_rollout_manager import RolloutStage, RolloutStatus
+
         s = RolloutStatus()
         assert s.stage == RolloutStage.NOT_STARTED
         assert s.percent == 0
@@ -90,6 +101,7 @@ class TestRolloutStatus:
     @pytest.mark.unit
     def test_to_dict_from_dict_round_trip(self):
         from scripts.gradual_rollout_manager import RolloutStage, RolloutStatus
+
         s = RolloutStatus()
         s.stage = RolloutStage.STAGE_1_10PCT
         s.percent = 10
@@ -102,6 +114,7 @@ class TestRolloutStatus:
     @pytest.mark.unit
     def test_from_dict_invalid_stage(self):
         from scripts.gradual_rollout_manager import RolloutStage, RolloutStatus
+
         d = {"stage": "INVALID_STAGE", "percent": 50}
         s = RolloutStatus.from_dict(d)
         assert s.stage == RolloutStage.NOT_STARTED
@@ -110,6 +123,7 @@ class TestRolloutStatus:
 # ============================================================
 # load/save 状态持久化
 # ============================================================
+
 
 class TestStatusPersistence:
     """load_status / save_status 持久化."""
@@ -154,6 +168,7 @@ class TestStatusPersistence:
 # check_health 健康度检查
 # ============================================================
 
+
 class TestCheckHealth:
     """check_health() 健康度检查."""
 
@@ -161,7 +176,9 @@ class TestCheckHealth:
     def test_metrics_unavailable_fails(self, monkeypatch):
         from scripts.gradual_rollout_manager import RolloutStatus, check_health
 
-        with patch("scripts.gradual_rollout_manager.collect_health_metrics", return_value={}):
+        with patch(
+            "scripts.gradual_rollout_manager.collect_health_metrics", return_value={}
+        ):
             status = RolloutStatus()
             passed, reason = check_health(status)
         assert passed is False
@@ -171,8 +188,16 @@ class TestCheckHealth:
     def test_insufficient_cycles_fails(self, monkeypatch):
         from scripts.gradual_rollout_manager import RolloutStatus, check_health
 
-        metrics = {"total_cycles": 2, "l2_promote_rate": 0.8, "avg_latency_ms": 100, "evolution_trigger_rate": 0.5}
-        with patch("scripts.gradual_rollout_manager.collect_health_metrics", return_value=metrics):
+        metrics = {
+            "total_cycles": 2,
+            "l2_promote_rate": 0.8,
+            "avg_latency_ms": 100,
+            "evolution_trigger_rate": 0.5,
+        }
+        with patch(
+            "scripts.gradual_rollout_manager.collect_health_metrics",
+            return_value=metrics,
+        ):
             status = RolloutStatus()
             passed, reason = check_health(status)
         assert passed is False
@@ -182,8 +207,16 @@ class TestCheckHealth:
     def test_low_promote_rate_fails(self, monkeypatch):
         from scripts.gradual_rollout_manager import RolloutStatus, check_health
 
-        metrics = {"total_cycles": 10, "l2_promote_rate": 0.1, "avg_latency_ms": 100, "evolution_trigger_rate": 0.5}
-        with patch("scripts.gradual_rollout_manager.collect_health_metrics", return_value=metrics):
+        metrics = {
+            "total_cycles": 10,
+            "l2_promote_rate": 0.1,
+            "avg_latency_ms": 100,
+            "evolution_trigger_rate": 0.5,
+        }
+        with patch(
+            "scripts.gradual_rollout_manager.collect_health_metrics",
+            return_value=metrics,
+        ):
             status = RolloutStatus()
             passed, reason = check_health(status)
         assert passed is False
@@ -193,8 +226,16 @@ class TestCheckHealth:
     def test_high_latency_fails(self, monkeypatch):
         from scripts.gradual_rollout_manager import RolloutStatus, check_health
 
-        metrics = {"total_cycles": 10, "l2_promote_rate": 0.8, "avg_latency_ms": 10000, "evolution_trigger_rate": 0.5}
-        with patch("scripts.gradual_rollout_manager.collect_health_metrics", return_value=metrics):
+        metrics = {
+            "total_cycles": 10,
+            "l2_promote_rate": 0.8,
+            "avg_latency_ms": 10000,
+            "evolution_trigger_rate": 0.5,
+        }
+        with patch(
+            "scripts.gradual_rollout_manager.collect_health_metrics",
+            return_value=metrics,
+        ):
             status = RolloutStatus()
             passed, reason = check_health(status)
         assert passed is False
@@ -204,8 +245,16 @@ class TestCheckHealth:
     def test_all_checks_pass(self, monkeypatch):
         from scripts.gradual_rollout_manager import RolloutStatus, check_health
 
-        metrics = {"total_cycles": 10, "l2_promote_rate": 0.8, "avg_latency_ms": 200, "evolution_trigger_rate": 0.5}
-        with patch("scripts.gradual_rollout_manager.collect_health_metrics", return_value=metrics):
+        metrics = {
+            "total_cycles": 10,
+            "l2_promote_rate": 0.8,
+            "avg_latency_ms": 200,
+            "evolution_trigger_rate": 0.5,
+        }
+        with patch(
+            "scripts.gradual_rollout_manager.collect_health_metrics",
+            return_value=metrics,
+        ):
             status = RolloutStatus()
             passed, reason = check_health(status)
         assert passed is True
@@ -215,6 +264,7 @@ class TestCheckHealth:
 # ============================================================
 # advance_stage 阶段推进
 # ============================================================
+
 
 class TestAdvanceStage:
     """advance_stage() 阶段推进."""
@@ -312,6 +362,7 @@ class TestAdvanceStage:
 # rollback 紧急回滚
 # ============================================================
 
+
 class TestRollback:
     """rollback() 紧急回滚."""
 
@@ -357,12 +408,17 @@ class TestRollback:
 # observation_days_elapsed 观察天数
 # ============================================================
 
+
 class TestObservationDays:
     """observation_days_elapsed() 观察天数计算."""
 
     @pytest.mark.unit
     def test_no_start_date(self):
-        from scripts.gradual_rollout_manager import RolloutStatus, observation_days_elapsed
+        from scripts.gradual_rollout_manager import (
+            RolloutStatus,
+            observation_days_elapsed,
+        )
+
         status = RolloutStatus()
         assert observation_days_elapsed(status) == 0
 
@@ -370,7 +426,10 @@ class TestObservationDays:
     def test_three_days_elapsed(self):
         from datetime import date, timedelta
 
-        from scripts.gradual_rollout_manager import RolloutStatus, observation_days_elapsed
+        from scripts.gradual_rollout_manager import (
+            RolloutStatus,
+            observation_days_elapsed,
+        )
 
         status = RolloutStatus()
         status.stage_start_date = (date.today() - timedelta(days=3)).isoformat()
@@ -380,6 +439,7 @@ class TestObservationDays:
 # ============================================================
 # should_run_today 今日灰度判断
 # ============================================================
+
 
 class TestShouldRunToday:
     """should_run_today() 今日灰度判断."""
@@ -415,6 +475,7 @@ class TestShouldRunToday:
 # orchestrator _check_rollout_eligible
 # ============================================================
 
+
 class TestOrchestratorRolloutCheck:
     """EvolutionOrchestratorV2._check_rollout_eligible() 灰度检查."""
 
@@ -425,8 +486,13 @@ class TestOrchestratorRolloutCheck:
 
         mock_memory = MagicMock()
         mock_memory.record.return_value = "pid"
-        orch = EvolutionOrchestratorV2(memory=mock_memory, guard=MagicMock(), kill_switch=None)
-        with patch("scripts.gradual_rollout_manager.should_run_today", side_effect=ImportError("no module")):
+        orch = EvolutionOrchestratorV2(
+            memory=mock_memory, guard=MagicMock(), kill_switch=None
+        )
+        with patch(
+            "scripts.gradual_rollout_manager.should_run_today",
+            side_effect=ImportError("no module"),
+        ):
             result = orch._check_rollout_eligible()
         assert result is True
 
@@ -440,9 +506,13 @@ class TestOrchestratorRolloutCheck:
 
         mock_memory = MagicMock()
         mock_memory.record.return_value = "pid"
-        orch = EvolutionOrchestratorV2(memory=mock_memory, guard=MagicMock(), kill_switch=None)
+        orch = EvolutionOrchestratorV2(
+            memory=mock_memory, guard=MagicMock(), kill_switch=None
+        )
         orch._enabled = True
-        with patch("scripts.gradual_rollout_manager.should_run_today", return_value=False):
+        with patch(
+            "scripts.gradual_rollout_manager.should_run_today", return_value=False
+        ):
             result = orch.run_cycle()
         assert result.status == CYCLE_STATUS_DISABLED
         assert "rollout" in result.reason
@@ -456,9 +526,13 @@ class TestOrchestratorRolloutCheck:
 
         mock_memory = MagicMock()
         mock_memory.record.return_value = "pid"
-        orch = EvolutionOrchestratorV2(memory=mock_memory, guard=MagicMock(), kill_switch=None)
+        orch = EvolutionOrchestratorV2(
+            memory=mock_memory, guard=MagicMock(), kill_switch=None
+        )
         orch._enabled = True
-        with patch("scripts.gradual_rollout_manager.should_run_today", return_value=True):
+        with patch(
+            "scripts.gradual_rollout_manager.should_run_today", return_value=True
+        ):
             result = orch.run_cycle()
         # 不应因灰度被禁用 (可能因其他原因 disabled/degraded, 但不是 rollout)
         assert "rollout" not in result.reason

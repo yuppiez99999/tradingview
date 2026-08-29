@@ -39,6 +39,7 @@
     - HC-4: 只读生产数据, 不动 V9 基线
     - HC-5: 配置走 ConfigManager
 """
+
 from __future__ import annotations
 
 import json
@@ -81,8 +82,11 @@ ACTION_RETRAIN = "retrain"
 ACTION_DATASOURCE_SWITCH = "datasource_switch"
 ACTION_MANUAL = "manual"
 VALID_ACTIONS = (
-    ACTION_CODE_PATCH, ACTION_CONFIG_ROLLBACK, ACTION_RETRAIN,
-    ACTION_DATASOURCE_SWITCH, ACTION_MANUAL,
+    ACTION_CODE_PATCH,
+    ACTION_CONFIG_ROLLBACK,
+    ACTION_RETRAIN,
+    ACTION_DATASOURCE_SWITCH,
+    ACTION_MANUAL,
 )
 
 # 层名
@@ -108,6 +112,7 @@ class FixSuggestion:
         requires_human_approval: 是否需要人工审批 (HC-3: 默认 True)
         remediation_commands: 可执行修复命令列表 (复用 CheckResult.remediation)
     """
+
     action_type: str
     target_file: str = ""
     description: str = ""
@@ -151,6 +156,7 @@ class RootCause:
         confidence: 置信度 0.0-1.0
         detected_at: 检测时间 ISO8601
     """
+
     cause_id: str
     layer: str
     category: str
@@ -194,9 +200,7 @@ class RootCause:
                 f"severity 必须是 {VALID_SEVERITIES} 之一, 实际 = {self.severity}"
             )
         if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(
-                f"confidence 必须在 [0, 1], 实际 = {self.confidence}"
-            )
+            raise ValueError(f"confidence 必须在 [0, 1], 实际 = {self.confidence}")
 
 
 @dataclass(frozen=True)
@@ -211,6 +215,7 @@ class CausalChain:
         confidence: 链整体置信度 (取节点最小值或加权)
         description: 人类可读的因果链描述
     """
+
     chain_id: str
     nodes: list[RootCause] = field(default_factory=list)
     confidence: float = 0.5
@@ -226,9 +231,7 @@ class CausalChain:
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(
-                f"confidence 必须在 [0, 1], 实际 = {self.confidence}"
-            )
+            raise ValueError(f"confidence 必须在 [0, 1], 实际 = {self.confidence}")
 
 
 @dataclass(frozen=True)
@@ -244,6 +247,7 @@ class RootCauseReport:
         source_health_report_at: 输入 HealthReport 的生成时间
         summary: 一句话摘要
     """
+
     causes: list[RootCause] = field(default_factory=list)
     causal_chains: list[CausalChain] = field(default_factory=list)
     is_degraded: bool = False
@@ -269,23 +273,29 @@ class RootCauseReport:
         causes: list[RootCause] = []
         for c in d.get("causes", []):
             fix_d = c.get("suggested_fix", {})
-            causes.append(RootCause(
-                cause_id=c.get("cause_id", ""),
-                layer=c.get("layer", ""),
-                category=c.get("category", ""),
-                severity=c.get("severity", SEVERITY_LOW),
-                evidence=c.get("evidence", {}),
-                suggested_fix=FixSuggestion(
-                    action_type=fix_d.get("action_type", ACTION_MANUAL),
-                    target_file=fix_d.get("target_file", ""),
-                    description=fix_d.get("description", ""),
-                    estimated_risk=float(fix_d.get("estimated_risk", 0.5)),
-                    requires_human_approval=bool(fix_d.get("requires_human_approval", True)),
-                    remediation_commands=list(fix_d.get("remediation_commands", [])),
-                ),
-                confidence=float(c.get("confidence", 0.5)),
-                detected_at=c.get("detected_at", ""),
-            ))
+            causes.append(
+                RootCause(
+                    cause_id=c.get("cause_id", ""),
+                    layer=c.get("layer", ""),
+                    category=c.get("category", ""),
+                    severity=c.get("severity", SEVERITY_LOW),
+                    evidence=c.get("evidence", {}),
+                    suggested_fix=FixSuggestion(
+                        action_type=fix_d.get("action_type", ACTION_MANUAL),
+                        target_file=fix_d.get("target_file", ""),
+                        description=fix_d.get("description", ""),
+                        estimated_risk=float(fix_d.get("estimated_risk", 0.5)),
+                        requires_human_approval=bool(
+                            fix_d.get("requires_human_approval", True)
+                        ),
+                        remediation_commands=list(
+                            fix_d.get("remediation_commands", [])
+                        ),
+                    ),
+                    confidence=float(c.get("confidence", 0.5)),
+                    detected_at=c.get("detected_at", ""),
+                )
+            )
         chains: list[CausalChain] = []
         for ch in d.get("causal_chains", []):
             chain_nodes = [
@@ -301,12 +311,14 @@ class RootCauseReport:
                 )
                 for n in ch.get("nodes", [])
             ]
-            chains.append(CausalChain(
-                chain_id=ch.get("chain_id", ""),
-                nodes=chain_nodes,
-                confidence=float(ch.get("confidence", 0.5)),
-                description=ch.get("description", ""),
-            ))
+            chains.append(
+                CausalChain(
+                    chain_id=ch.get("chain_id", ""),
+                    nodes=chain_nodes,
+                    confidence=float(ch.get("confidence", 0.5)),
+                    description=ch.get("description", ""),
+                )
+            )
         return cls(
             causes=causes,
             causal_chains=chains,
@@ -352,7 +364,9 @@ class UnifiedRootCauseAnalyzer:
         self._llm_enabled = self._check_feature_flag(use_llm_assist_flag)
 
         # 持久化路径
-        self.persistence_path = Path(persistence_path) if persistence_path else DEFAULT_ROOT_CAUSES_PATH
+        self.persistence_path = (
+            Path(persistence_path) if persistence_path else DEFAULT_ROOT_CAUSES_PATH
+        )
 
         # 懒加载诊断器 (避免循环依赖)
         self._code_diagnoser: Any | None = None
@@ -363,7 +377,10 @@ class UnifiedRootCauseAnalyzer:
 
         logger.info(
             "UnifiedRootCauseAnalyzer 初始化: enabled=%s (flag=%s), llm_assist=%s (flag=%s)",
-            self._enabled, feature_flag_name, self._llm_enabled, use_llm_assist_flag,
+            self._enabled,
+            feature_flag_name,
+            self._llm_enabled,
+            use_llm_assist_flag,
         )
 
     # ============================================================
@@ -374,10 +391,22 @@ class UnifiedRootCauseAnalyzer:
         """检查 Feature Flag (HC-1). 失败时降级为 False."""
         try:
             from utils.infra.feature_flags import is_enabled
+
             return bool(is_enabled(flag_name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-            logger.warning("Feature Flag 检查失败 (降级为 False): %s — %s", flag_name, e)
+            logger.warning(
+                "Feature Flag 检查失败 (降级为 False): %s — %s", flag_name, e
+            )
             return False
 
     @property
@@ -395,29 +424,69 @@ class UnifiedRootCauseAnalyzer:
         self._diagnosers_loaded = True
         try:
             from utils.alpha.layers.code_diagnoser import CodeDiagnoser
+
             self._code_diagnoser = CodeDiagnoser()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("CodeDiagnoser 加载失败 (降级): %s", e)
             self._code_diagnoser = None
         try:
             from utils.alpha.layers.strategy_diagnoser import StrategyDiagnoser
+
             self._strategy_diagnoser = StrategyDiagnoser()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("StrategyDiagnoser 加载失败 (降级): %s", e)
             self._strategy_diagnoser = None
         try:
             from utils.alpha.layers.ops_diagnoser import OpsDiagnoser
+
             self._ops_diagnoser = OpsDiagnoser()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("OpsDiagnoser 加载失败 (降级): %s", e)
             self._ops_diagnoser = None
         try:
             from utils.alpha.causal_chain import CausalChainBuilder
+
             self._chain_builder = CausalChainBuilder()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("CausalChainBuilder 加载失败 (降级): %s", e)
             self._chain_builder = None
@@ -454,9 +523,17 @@ class UnifiedRootCauseAnalyzer:
 
         # 三层诊断 (各自容错)
         all_causes: list[RootCause] = []
-        all_causes.extend(self._safe_diagnose(self._code_diagnoser, "code", health_report, now))
-        all_causes.extend(self._safe_diagnose(self._strategy_diagnoser, "strategy", health_report, now))
-        all_causes.extend(self._safe_diagnose(self._ops_diagnoser, "ops", health_report, now))
+        all_causes.extend(
+            self._safe_diagnose(self._code_diagnoser, "code", health_report, now)
+        )
+        all_causes.extend(
+            self._safe_diagnose(
+                self._strategy_diagnoser, "strategy", health_report, now
+            )
+        )
+        all_causes.extend(
+            self._safe_diagnose(self._ops_diagnoser, "ops", health_report, now)
+        )
 
         # 跨层因果链
         causal_chains = self._build_chains(all_causes, now)
@@ -491,7 +568,9 @@ class UnifiedRootCauseAnalyzer:
         try:
             result = diagnoser.diagnose(health_report)
             if not isinstance(result, list):
-                logger.warning("%s 诊断器返回非 list (跳过): %s", layer, type(result).__name__)
+                logger.warning(
+                    "%s 诊断器返回非 list (跳过): %s", layer, type(result).__name__
+                )
                 return []
             # 校验每个元素是 RootCause
             valid: list[RootCause] = []
@@ -501,7 +580,16 @@ class UnifiedRootCauseAnalyzer:
                 else:
                     logger.warning("%s 诊断器返回非 RootCause 元素 (跳过)", layer)
             return valid
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("%s 层诊断失败 (降级为空): %s", layer, e)
             return []
@@ -514,7 +602,16 @@ class UnifiedRootCauseAnalyzer:
             result = self._chain_builder.build(causes)
             if isinstance(result, list):
                 return [c for c in result if isinstance(c, CausalChain)]
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("因果链构建失败 (降级为空): %s", e)
         return []
@@ -527,13 +624,23 @@ class UnifiedRootCauseAnalyzer:
         """
         try:
             from utils.alpha.llm_router import chat
+
             prompt = self._build_llm_prompt(causes)
             enhanced = chat(prompt)  # HC-2: 内部 5s 超时
             if enhanced and isinstance(enhanced, str):
                 logger.info("LLM 辅助根因分析完成 (增强 %d 条)", len(causes))
                 # 这里不重写 RootCause (frozen), 仅记录 LLM 输出到日志
                 # 实际增强留给 Stage 3 修复阶段使用
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("LLM 辅助根因分析失败 (降级跳过): %s", e)
         return causes
@@ -543,7 +650,9 @@ class UnifiedRootCauseAnalyzer:
         """构建 LLM 辅助推理 prompt."""
         lines = ["请分析以下根因的关联性和优先级,输出修复建议:"]
         for c in causes[:10]:  # 限制前 10 条避免 token 超限
-            lines.append(f"- [{c.layer}/{c.severity}] {c.category}: {c.suggested_fix.description}")
+            lines.append(
+                f"- [{c.layer}/{c.severity}] {c.category}: {c.suggested_fix.description}"
+            )
         return "\n".join(lines)
 
     @staticmethod
@@ -558,7 +667,9 @@ class UnifiedRootCauseAnalyzer:
         chain_str = f", {len(chains)} 条因果链" if chains else ""
         return f"识别 {len(causes)} 条根因 ({sev_str}{chain_str})"
 
-    def _degraded_report(self, reason: str, now: str, source_at: str) -> RootCauseReport:
+    def _degraded_report(
+        self, reason: str, now: str, source_at: str
+    ) -> RootCauseReport:
         """生成降级报告 (Flag 关闭 / 诊断器全失败)."""
         return RootCauseReport(
             is_degraded=True,
@@ -576,7 +687,16 @@ class UnifiedRootCauseAnalyzer:
                 return str(getattr(health_report, "generated_at", ""))
             if isinstance(health_report, dict):
                 return str(health_report.get("generated_at", ""))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return ""
@@ -590,7 +710,16 @@ class UnifiedRootCauseAnalyzer:
             self.persistence_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.persistence_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(report.to_dict(), ensure_ascii=False) + "\n")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("根因报告持久化失败 (不影响内存报告): %s", e)
 
@@ -599,8 +728,10 @@ class UnifiedRootCauseAnalyzer:
         try:
             if not self.persistence_path.exists():
                 return []
-            lines = self.persistence_path.read_text(encoding="utf-8").strip().splitlines()
-            recent = lines[-(days * 2):] if len(lines) > days * 2 else lines
+            lines = (
+                self.persistence_path.read_text(encoding="utf-8").strip().splitlines()
+            )
+            recent = lines[-(days * 2) :] if len(lines) > days * 2 else lines
             reports: list[RootCauseReport] = []
             for line in reversed(recent):
                 line = line.strip()
@@ -608,11 +739,29 @@ class UnifiedRootCauseAnalyzer:
                     continue
                 try:
                     reports.append(RootCauseReport.from_dict(json.loads(line)))
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
             return reports
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("读取根因历史失败: %s", e)
             return []

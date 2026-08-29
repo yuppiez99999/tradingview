@@ -6,6 +6,7 @@
     QueueLatency:   基础延迟、max cap、pending_count=0、大量积压
     LatencyModel:   ABC 不可直接实例化
 """
+
 from __future__ import annotations
 
 import random
@@ -23,6 +24,7 @@ from utils.backtest.latency_model import (
 # LatencyModel ABC 测试
 # ============================================================
 
+
 def test_latency_model_is_abstract() -> None:
     """LatencyModel 是抽象类,不能直接实例化。"""
     with pytest.raises(TypeError):
@@ -39,6 +41,7 @@ def test_all_models_are_latency_model() -> None:
 # ============================================================
 # FixedLatency 测试 (3 用例)
 # ============================================================
+
 
 def test_fixed_latency_zero_delay(sample_buy_order) -> None:
     """FixedLatency(0): 返回 0 延迟,用于与向量化对比验证。"""
@@ -75,6 +78,7 @@ def test_fixed_latency_ignores_all_params(sample_buy_order) -> None:
 # ============================================================
 # RandomLatency 测试 (5 用例)
 # ============================================================
+
 
 def test_random_latency_reproducibility(sample_buy_order) -> None:
     """相同 seed 产生相同结果(可复现)。"""
@@ -152,6 +156,7 @@ def test_random_latency_single_value_range() -> None:
 # ============================================================
 # QueueLatency 测试 (6 用例)
 # ============================================================
+
 
 def test_queue_latency_no_pending_orders(sample_buy_order) -> None:
     """pending_count=0 时,返回 base_ticks。"""
@@ -233,6 +238,7 @@ def test_queue_latency_default_values(sample_buy_order) -> None:
 # ============================================================
 # 可选参数兼容性测试
 # ============================================================
+
 
 def test_models_accept_none_order() -> None:
     """所有模型接受 None 作为 order 参数(接口兼容性)。"""

@@ -118,7 +118,9 @@ def compute_lead_lag_factors(
         agg = _weighted_avg({n: mom_20d[n] for n in valid}, valid)
         if agg is not None:
             values[sym] = agg
-    factors["CHAIN_MOM_20D"] = FactorValue(name="CHAIN_MOM_20D", category="LeadLag", values=values)
+    factors["CHAIN_MOM_20D"] = FactorValue(
+        name="CHAIN_MOM_20D", category="LeadLag", values=values
+    )
 
     # 2. CHAIN_MOM_60D: 邻居 60 日动量加权
     values = {}
@@ -130,7 +132,9 @@ def compute_lead_lag_factors(
         agg = _weighted_avg({n: mom_60d[n] for n in valid}, valid)
         if agg is not None:
             values[sym] = agg
-    factors["CHAIN_MOM_60D"] = FactorValue(name="CHAIN_MOM_60D", category="LeadLag", values=values)
+    factors["CHAIN_MOM_60D"] = FactorValue(
+        name="CHAIN_MOM_60D", category="LeadLag", values=values
+    )
 
     # 3. CHAIN_REVERSAL_5D: 邻居短期反转
     values = {}
@@ -142,7 +146,9 @@ def compute_lead_lag_factors(
         agg = _weighted_avg({n: rev_5d[n] for n in valid}, valid)
         if agg is not None:
             values[sym] = agg
-    factors["CHAIN_REVERSAL_5D"] = FactorValue(name="CHAIN_REVERSAL_5D", category="LeadLag", values=values)
+    factors["CHAIN_REVERSAL_5D"] = FactorValue(
+        name="CHAIN_REVERSAL_5D", category="LeadLag", values=values
+    )
 
     # 4. CHAIN_NEIGHBOR_DIFF: 个股 20 日动量 - 邻居 20 日动量 (脱钩度)
     values = {}
@@ -177,6 +183,7 @@ def compute_lead_lag_factors(
     # 行业中性化 (可选): 对 CHAIN_MOM_20D 做行业中性化
     if industries and factors.get("CHAIN_MOM_20D"):
         from utils.alpha_factor.base import neutralize_by_industry
+
         factors["CHAIN_MOM_20D"].values = neutralize_by_industry(
             factors["CHAIN_MOM_20D"].values, industries
         )
@@ -207,7 +214,11 @@ def orthogonalize_chain_factors(
         if not factor.values:
             continue
         anchor_name = mapping.get(name)
-        if anchor_name and anchor_name in mom_factors and mom_factors[anchor_name].values:
+        if (
+            anchor_name
+            and anchor_name in mom_factors
+            and mom_factors[anchor_name].values
+        ):
             # 正交化: 保留因子中独立于对应动量因子的部分
             factor.values = residualize(factor.values, mom_factors[anchor_name].values)
         result[name] = factor

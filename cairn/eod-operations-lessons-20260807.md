@@ -163,3 +163,14 @@ Memory allocation still failed after 10 retries, giving up
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2026-08-07 | v1.0 | 初版：OpenBLAS 内存修复、D7 断言增强、U9 端到端验证经验 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [EOD 计划任务静默失败 + 观察期样本补录（2026-08-19）](eod-scheduled-task-fix-20260819.md) (相似度 18%)
+- [08-21 EOD 不失败保障方案（2026-08-20）](eod-fallback-guarantee-20260820.md) (相似度 15%)
+- [数据修复经验沉淀：EOD 管道数据断链诊断与修复（2026-08-06）](data-integrity-fix-lessons-20260806.md) (相似度 13%)
+- [成交回报驱动 PnL：G2/G4 执行闭环补齐经验沉淀（2026-08-08）](fills-driven-pnl-lessons-20260808.md) (相似度 12%)
+- [观察期配置脱节修复 — 2026-08-09](observation-period-config-drift-20260809.md) (相似度 11%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

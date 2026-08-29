@@ -57,3 +57,14 @@ print(result.predictions, result.regime, result.complexity_reduction)
 | 情绪 | 72-80 | 情绪指标/新闻 |
 | 宏观 | 81-89 | 利率/CPI/PMI |
 | 技术形态 | 90-94 | 图形/形态 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [RegimeFolio 制度感知组合优化](regime-aware-allocator.md) (相似度 20%)
+- [Alpha 因子体系](alpha-factor-system.md) (相似度 13%)
+- [情绪因子演化：v4.0 → v4.3](sentiment-factor-evolution.md) (相似度 12%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 10%)
+- [模型训练与生命周期](model-training.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

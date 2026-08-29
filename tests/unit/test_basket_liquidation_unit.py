@@ -3,6 +3,7 @@
 被测模块: utils/basket_liquidation.py
 文献: #55 Minimal Shortfall Basket Liquidation (2025.02)
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,6 +26,7 @@ from utils.basket_liquidation import (  # noqa: E402
 # ============================================================
 # 因子模型测试
 # ============================================================
+
 
 class TestFactorModel:
     def test_from_covariance_identity(self):
@@ -62,11 +64,13 @@ class TestFactorModel:
 # 篮子清算测试
 # ============================================================
 
+
 class TestBasketLiquidator:
     def test_basic_liquidation(self):
         liquidator = BasketLiquidator()
         result = liquidator.liquidate(
-            symbols=["A", "B"], shares=[10000, 5000],
+            symbols=["A", "B"],
+            shares=[10000, 5000],
             adv=[500000, 1000000],
         )
         assert len(result.symbols) == 2
@@ -75,7 +79,10 @@ class TestBasketLiquidator:
     def test_slices_count(self):
         liquidator = BasketLiquidator()
         result = liquidator.liquidate(
-            symbols=["A"], shares=[10000], adv=[500000], n_slices=5,
+            symbols=["A"],
+            shares=[10000],
+            adv=[500000],
+            n_slices=5,
         )
         assert len(result.slices) == 5
 
@@ -83,8 +90,10 @@ class TestBasketLiquidator:
         liquidator = BasketLiquidator()
         corr = np.array([[1.0, 0.5], [0.5, 1.0]])
         result = liquidator.liquidate(
-            symbols=["A", "B"], shares=[10000, 10000],
-            adv=[500000, 500000], corr_matrix=corr,
+            symbols=["A", "B"],
+            shares=[10000, 10000],
+            adv=[500000, 500000],
+            corr_matrix=corr,
         )
         assert result.total_shortfall > 0
 
@@ -92,8 +101,10 @@ class TestBasketLiquidator:
         """无相关性 (单位矩阵): shortfall = 朴素清算."""
         liquidator = BasketLiquidator()
         result = liquidator.liquidate(
-            symbols=["A", "B"], shares=[10000, 10000],
-            adv=[500000, 500000], corr_matrix=np.eye(2),
+            symbols=["A", "B"],
+            shares=[10000, 10000],
+            adv=[500000, 500000],
+            corr_matrix=np.eye(2),
         )
         # 无相关性时, 联合清算 ≈ 朴素清算
         assert result.vs_naive_improvement == pytest.approx(0, abs=100)
@@ -101,7 +112,8 @@ class TestBasketLiquidator:
     def test_factor_model_in_result(self):
         liquidator = BasketLiquidator()
         result = liquidator.liquidate(
-            symbols=["A", "B", "C"], shares=[10000, 5000, 8000],
+            symbols=["A", "B", "C"],
+            shares=[10000, 5000, 8000],
             adv=[500000, 1000000, 300000],
         )
         assert result.factor_model is not None
@@ -118,7 +130,8 @@ class TestBasketLiquidator:
         corr = cov / np.sqrt(np.outer(np.diag(cov), np.diag(cov)))
         result = liquidator.liquidate(
             symbols=[f"S{i}" for i in range(n)],
-            shares=[10000] * n, adv=[500000] * n,
+            shares=[10000] * n,
+            adv=[500000] * n,
             corr_matrix=corr,
         )
         assert result.full_dimensions == n
@@ -127,7 +140,10 @@ class TestBasketLiquidator:
     def test_metadata(self):
         liquidator = BasketLiquidator()
         result = liquidator.liquidate(
-            symbols=["A"], shares=[1000], adv=[500000], n_slices=5,
+            symbols=["A"],
+            shares=[1000],
+            adv=[500000],
+            n_slices=5,
         )
         assert result.metadata["n_slices"] == 5
         assert "n_factors" in result.metadata
@@ -135,8 +151,10 @@ class TestBasketLiquidator:
     def test_trades_sum_to_total(self):
         liquidator = BasketLiquidator()
         result = liquidator.liquidate(
-            symbols=["A", "B"], shares=[10000, 5000],
-            adv=[500000, 1000000], n_slices=10,
+            symbols=["A", "B"],
+            shares=[10000, 5000],
+            adv=[500000, 1000000],
+            n_slices=10,
         )
         total_traded_0 = sum(s.trades[0] for s in result.slices)
         total_traded_1 = sum(s.trades[1] for s in result.slices)
@@ -156,10 +174,15 @@ class TestBasketLiquidationResult:
     def test_construction(self):
         fm = FactorModel(loadings=np.ones((2, 1)), specific_var=np.ones(2), n_factors=1)
         result = BasketLiquidationResult(
-            symbols=["A", "B"], total_shares=[100, 200], slices=[],
-            total_shortfall=100, naive_shortfall=120,
-            vs_naive_improvement=20, factor_model=fm,
-            effective_dimensions=2, full_dimensions=2,
+            symbols=["A", "B"],
+            total_shares=[100, 200],
+            slices=[],
+            total_shortfall=100,
+            naive_shortfall=120,
+            vs_naive_improvement=20,
+            factor_model=fm,
+            effective_dimensions=2,
+            full_dimensions=2,
         )
         assert result.metadata == {}
 
@@ -167,6 +190,7 @@ class TestBasketLiquidationResult:
 # ============================================================
 # 验收标准测试
 # ============================================================
+
 
 class TestAcceptanceCriteria:
     """LIT-4.5 验收: 高相关股票 RL 清算 + 解决维度灾难."""
@@ -176,8 +200,10 @@ class TestAcceptanceCriteria:
         liquidator = BasketLiquidator()
         corr = np.array([[1.0, 0.8], [0.8, 1.0]])
         result = liquidator.liquidate(
-            symbols=["A", "B"], shares=[10000, 10000],
-            adv=[500000, 500000], corr_matrix=corr,
+            symbols=["A", "B"],
+            shares=[10000, 10000],
+            adv=[500000, 500000],
+            corr_matrix=corr,
         )
         assert result.total_shortfall > 0
 
@@ -192,7 +218,8 @@ class TestAcceptanceCriteria:
         corr = cov / np.sqrt(np.outer(np.diag(cov), np.diag(cov)))
         result = liquidator.liquidate(
             symbols=[f"S{i}" for i in range(n)],
-            shares=[10000] * n, adv=[500000] * n,
+            shares=[10000] * n,
+            adv=[500000] * n,
             corr_matrix=corr,
         )
         # 3 因子结构 → 有效维度 ≈ 4 (3+1), 远小于 10
@@ -204,8 +231,10 @@ class TestAcceptanceCriteria:
         liquidator = BasketLiquidator()
         corr = np.array([[1.0, 0.5], [0.5, 1.0]])
         result = liquidator.liquidate(
-            symbols=["A", "B"], shares=[10000, 10000],
-            adv=[500000, 500000], corr_matrix=corr,
+            symbols=["A", "B"],
+            shares=[10000, 10000],
+            adv=[500000, 500000],
+            corr_matrix=corr,
         )
         assert result.naive_shortfall > 0
         assert isinstance(result.vs_naive_improvement, float)

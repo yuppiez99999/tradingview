@@ -23,9 +23,7 @@ from utils.alpha_factor.base import (
 )
 
 
-def _residualize_against(
-    target: dict[str, float], anchor: dict[str, float]
-) -> dict[str, float]:
+def _residualize_against(target: dict[str, float], anchor: dict[str, float]) -> dict[str, float]:
     """对 target 关于 anchor 做截面回归取残差 (解耦共线)
 
     已迁移到 base.residualize, 此处保留薄包装以兼容已有调用。
@@ -54,7 +52,12 @@ def compute_momentum_factors(
     factors: dict[str, FactorValue] = {}
 
     # MOM_20D / 60D / 120D / 252D
-    for window, name in [(20, "MOM_20D"), (60, "MOM_60D"), (120, "MOM_120D"), (252, "MOM_252D")]:
+    for window, name in [
+        (20, "MOM_20D"),
+        (60, "MOM_60D"),
+        (120, "MOM_120D"),
+        (252, "MOM_252D"),
+    ]:
         values = {}
         for sym, data in price_data.items():
             closes = data.get("closes", [])
@@ -89,10 +92,7 @@ def compute_momentum_factors(
         closes = data.get("closes", [])
         if len(closes) > 120:
             # 滚动 20 日收益率序列
-            ret20_series = np.array([
-                closes[i] / closes[i - 20] - 1.0
-                for i in range(20, len(closes))
-            ])
+            ret20_series = np.array([closes[i] / closes[i - 20] - 1.0 for i in range(20, len(closes))])
             if len(ret20_series) >= 20:
                 current = ret20_series[-1]
                 rank = float(np.sum(ret20_series <= current) / len(ret20_series))
@@ -246,9 +246,7 @@ def compute_volatility_factors(
             if len(closes) > 60:
                 rets = np.diff(closes[-61:])
                 bench = (
-                    np.array(benchmark_returns[-60:])
-                    if len(benchmark_returns) >= 60
-                    else np.array(benchmark_returns)
+                    np.array(benchmark_returns[-60:]) if len(benchmark_returns) >= 60 else np.array(benchmark_returns)
                 )
                 if len(rets) == len(bench):
                     beta = np.cov(rets, bench)[0, 1] / max(np.var(bench), 1e-10)
@@ -364,7 +362,7 @@ def compute_size_factors(
     values = {}
     cubic_raw: dict[str, float] = {}
     for sym, lc in log_caps.items():
-        cubic_raw[sym] = float(lc ** 3)
+        cubic_raw[sym] = float(lc**3)
     if len(cubic_raw) >= 3:
         values = orthogonalize(cubic_raw, log_caps)
     factors["SIZE_CUBIC"] = FactorValue(name="SIZE_CUBIC", category="Size", values=values)
@@ -387,7 +385,10 @@ def compute_liquidity_factors(
     # 60D 对 20D 正交化: 保留长期换手率中独立于短期的部分 (长期流动性趋势)
     turnover_20d: dict[str, float] = {}
     turnover_60d_raw: dict[str, float] = {}
-    for window, name, sink in [(20, "LIQ_TURNOVER_20D", turnover_20d), (60, "LIQ_TURNOVER_60D", turnover_60d_raw)]:
+    for window, name, sink in [
+        (20, "LIQ_TURNOVER_20D", turnover_20d),
+        (60, "LIQ_TURNOVER_60D", turnover_60d_raw),
+    ]:
         values = {}
         for sym, data in price_data.items():
             vols = data.get("volumes", [])
@@ -600,7 +601,9 @@ def compute_factor_mining_factors(
         if n > 20 and len(vols) >= n:
             # 优先用真实 amounts, 缺失则用 closes*volumes 近似 (同 technical.py _to_ohlcv_df 惯例)
             if amounts is None or len(amounts) < n:
-                amounts = [c * v for c, v in zip(closes, vols)]  # noqa: B905 - vols 允许长于 closes, 按较短截断为设计语义
+                amounts = [
+                    c * v for c, v in zip(closes, vols, strict=False)
+                ]  # noqa: B905 - vols 允许长于 closes, 按较短截断为设计语义
             window = min(20, n - 1)
             illiq_list = []
             for t in range(n - window, n):
@@ -694,7 +697,9 @@ def _fm_demo_zero_trade_days(price_data: dict[str, Any], window: int = 20) -> di
     name="FM_DEMO_ROE_SMOOTHED",
     description="ROE 行业内平滑 (装饰器示例): 截面 winsorize + zscore, 展示 fundamentals 参数注入",
 )
-def _fm_demo_roe_smoothed(fundamentals: dict[str, Any] | None = None, industries: dict[str, str] | None = None) -> dict[str, float]:
+def _fm_demo_roe_smoothed(
+    fundamentals: dict[str, Any] | None = None, industries: dict[str, str] | None = None
+) -> dict[str, float]:
     """ROE 行业内中性化 + 3σ winsorize
 
     演示 fundamentals / industries 参数按名注入 (在 library.py context 中已提供)。

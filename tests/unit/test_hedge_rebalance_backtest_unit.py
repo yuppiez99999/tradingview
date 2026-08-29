@@ -70,7 +70,12 @@ class TestConstants:
             assert code in CODE_CATEGORIES
 
     def test_sector_rotation_keys(self):
-        assert set(SECTOR_ROTATION.keys()) == {"recovery", "prosperity", "stagflation", "recession"}
+        assert set(SECTOR_ROTATION.keys()) == {
+            "recovery",
+            "prosperity",
+            "stagflation",
+            "recession",
+        }
 
     def test_sector_rotation_weights_sum(self):
         for _regime, weights in SECTOR_ROTATION.items():
@@ -335,8 +340,13 @@ class TestGetDynamicRebalanceThreshold:
 class TestBacktestResult:
     def test_defaults(self):
         r = BacktestResult(
-            name="test", equity_curve=[1e6], dates=[pd.Timestamp("2026-01-01")],
-            daily_returns=[0.0], trade_count=0, hedge_costs=[0.0], transaction_costs=[0.0],
+            name="test",
+            equity_curve=[1e6],
+            dates=[pd.Timestamp("2026-01-01")],
+            daily_returns=[0.0],
+            trade_count=0,
+            hedge_costs=[0.0],
+            transaction_costs=[0.0],
         )
         assert r.name == "test"
         assert r.total_return == 0.0
@@ -346,9 +356,16 @@ class TestBacktestResult:
 
     def test_v2_fields(self):
         r = BacktestResult(
-            name="test", equity_curve=[1e6], dates=[pd.Timestamp("2026-01-01")],
-            daily_returns=[0.0], trade_count=0, hedge_costs=[0.0], transaction_costs=[0.0],
-            hedge_pnl_total=1000, hedge_days=30, hedge_effective_ratio=0.6,
+            name="test",
+            equity_curve=[1e6],
+            dates=[pd.Timestamp("2026-01-01")],
+            daily_returns=[0.0],
+            trade_count=0,
+            hedge_costs=[0.0],
+            transaction_costs=[0.0],
+            hedge_pnl_total=1000,
+            hedge_days=30,
+            hedge_effective_ratio=0.6,
         )
         assert r.hedge_pnl_total == 1000
         assert r.hedge_days == 30
@@ -356,9 +373,16 @@ class TestBacktestResult:
 
     def test_v22_cost_fields(self):
         r = BacktestResult(
-            name="test", equity_curve=[1e6], dates=[pd.Timestamp("2026-01-01")],
-            daily_returns=[0.0], trade_count=0, hedge_costs=[0.0], transaction_costs=[0.0],
-            roll_cost=500, margin_cost=300, slippage_cost=200,
+            name="test",
+            equity_curve=[1e6],
+            dates=[pd.Timestamp("2026-01-01")],
+            daily_returns=[0.0],
+            trade_count=0,
+            hedge_costs=[0.0],
+            transaction_costs=[0.0],
+            roll_cost=500,
+            margin_cost=300,
+            slippage_cost=200,
         )
         assert r.roll_cost == 500
         assert r.margin_cost == 300
@@ -373,7 +397,10 @@ class TestHedgeRebalanceBacktestHelpers:
     def backtest(self):
         dates = pd.date_range("2026-01-01", periods=10)
         price_df = pd.DataFrame(
-            {"300308": [100 + i for i in range(10)], "688041": [200 + i for i in range(10)]},
+            {
+                "300308": [100 + i for i in range(10)],
+                "688041": [200 + i for i in range(10)],
+            },
             index=dates,
         )
         csi300_ret = pd.Series([0.001] * 10, index=dates)
@@ -413,7 +440,9 @@ class TestHedgeRebalanceBacktestHelpers:
         assert rets[1] == 0
 
     def test_compute_turnover_no_prev(self):
-        assert HedgeRebalanceBacktest._compute_turnover(None, {"A": 100}, {"A": 10}) == 0.0
+        assert (
+            HedgeRebalanceBacktest._compute_turnover(None, {"A": 100}, {"A": 10}) == 0.0
+        )
 
     def test_compute_turnover_normal(self):
         prev = {"A": 100, "B": 200}
@@ -442,18 +471,20 @@ class TestHedgeRebalanceBacktestHelpers:
 class TestMetrics:
     def test_metrics_calculation(self):
         dates = pd.date_range("2026-01-01", periods=100)
-        price_df = pd.DataFrame(
-            {"300308": [100] * 100}, index=dates
-        )
+        price_df = pd.DataFrame({"300308": [100] * 100}, index=dates)
         csi300_ret = pd.Series([0.001] * 100, index=dates)
         bt = HedgeRebalanceBacktest(price_df, csi300_ret)
 
-        eq = [1_000_000 * (1.001 ** i) for i in range(100)]
+        eq = [1_000_000 * (1.001**i) for i in range(100)]
         rets = bt._rets(eq)
         r = BacktestResult(
-            name="test", equity_curve=eq, dates=dates,
-            daily_returns=rets, trade_count=5,
-            hedge_costs=[0.0] * 100, transaction_costs=[0.0] * 100,
+            name="test",
+            equity_curve=eq,
+            dates=dates,
+            daily_returns=rets,
+            trade_count=5,
+            hedge_costs=[0.0] * 100,
+            transaction_costs=[0.0] * 100,
             n_days=100,
         )
         bt._metrics(r)
@@ -472,10 +503,15 @@ class TestMetrics:
         eq = [1_000_000] * 50
         rets = [0.0] * 50
         r = BacktestResult(
-            name="test", equity_curve=eq, dates=dates,
-            daily_returns=rets, trade_count=0,
-            hedge_costs=[0.0] * 50, transaction_costs=[0.0] * 50,
-            n_days=50, turnover_daily=[0.01] * 50,
+            name="test",
+            equity_curve=eq,
+            dates=dates,
+            daily_returns=rets,
+            trade_count=0,
+            hedge_costs=[0.0] * 50,
+            transaction_costs=[0.0] * 50,
+            n_days=50,
+            turnover_daily=[0.01] * 50,
             turnover_window=20,
         )
         bt._metrics(r)
@@ -490,7 +526,13 @@ class TestFormatComparisonReport:
     def test_report_generation(self):
         dates = pd.date_range("2026-01-01", periods=10)
         strategies = []
-        for name in ["S1:静态基准", "S2:仅再平衡", "S3:固定对冲", "S4:多指数联动", "S5:再平衡+尾保"]:
+        for name in [
+            "S1:静态基准",
+            "S2:仅再平衡",
+            "S3:固定对冲",
+            "S4:多指数联动",
+            "S5:再平衡+尾保",
+        ]:
             r = BacktestResult(
                 name=name,
                 equity_curve=[1_000_000, 1_010_000],
@@ -515,11 +557,16 @@ class TestFormatComparisonReport:
                 hedge_days=10,
                 annual_turnover=0.15,
                 window_turnover=0.12,
-                yearly_stats=[{
-                    "year": 2026, "return": 0.01, "volatility": 0.15,
-                    "max_drawdown": 0.05, "csi300_return": 0.02,
-                    "market_type": "震荡市",
-                }],
+                yearly_stats=[
+                    {
+                        "year": 2026,
+                        "return": 0.01,
+                        "volatility": 0.15,
+                        "max_drawdown": 0.05,
+                        "csi300_return": 0.02,
+                        "market_type": "震荡市",
+                    }
+                ],
             )
             strategies.append(r)
         multi = MultiStrategyResult(strategies=strategies)
@@ -533,10 +580,13 @@ class TestFormatComparisonReport:
         strategies = []
         for name in ["S1", "S2", "S3", "S4", "S5"]:
             r = BacktestResult(
-                name=name, equity_curve=[1e6, 1.1e6],
+                name=name,
+                equity_curve=[1e6, 1.1e6],
                 dates=pd.date_range("2026-01-01", periods=2),
-                daily_returns=[0.0, 0.1], trade_count=1,
-                hedge_costs=[0, 0], transaction_costs=[0, 0],
+                daily_returns=[0.0, 0.1],
+                trade_count=1,
+                hedge_costs=[0, 0],
+                transaction_costs=[0, 0],
                 yearly_stats=[],
             )
             strategies.append(r)

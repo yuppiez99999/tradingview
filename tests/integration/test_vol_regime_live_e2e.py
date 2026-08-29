@@ -14,6 +14,7 @@ VolRegimeWeighter 实盘集成端到端测试
     - 验证报告文件生成 (reports/evolution/)
     - 验证 decisions.jsonl 审计链 (EOD 场景)
 """
+
 from __future__ import annotations
 
 import json
@@ -46,6 +47,7 @@ def real_shadow_state() -> dict:
 def real_portfolio() -> dict:
     """读取真实 portfolio.yaml 数据."""
     import yaml
+
     portfolio_path = _PROJECT_ROOT / "configs" / "portfolio.yaml"
     if not portfolio_path.exists():
         pytest.skip(f"portfolio.yaml 不存在: {portfolio_path}")
@@ -67,11 +69,15 @@ def temp_reports_dir(tmp_path) -> Path:
 class TestLiveMonitoringChain:
     """测试 AutoTradingSystem 盘中实时监控链路."""
 
-    def test_live_chain_vix_from_shadow_state(self, real_shadow_state, real_portfolio, caplog):
+    def test_live_chain_vix_from_shadow_state(
+        self, real_shadow_state, real_portfolio, caplog
+    ):
         """盘中链路: VIX 从 shadow_state 获取, 完整调用 VolRegimeWeighter."""
         # 跳过 Flag 检查, 强制启用
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter:
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter,
+        ):
 
             # Mock VolRegimeWeighter.run_cycle 返回 bull 档
             MockWeighter.return_value.run_cycle.return_value = {
@@ -98,6 +104,7 @@ class TestLiveMonitoringChain:
 
             # 调用 VolRegimeWeighter
             from utils.alpha.vol_regime_weighter import VolRegimeWeighter
+
             weighter = VolRegimeWeighter()
             result = weighter.run_cycle(
                 portfolio_snapshot=real_portfolio,
@@ -116,27 +123,41 @@ class TestLiveMonitoringChain:
     def test_live_chain_bear_regime_alert(self, real_portfolio, caplog):
         """bear 档触发告警日志."""
         # 模拟 VIX=35 (bear 档)
-        with patch("utils.infra.feature_flags.is_enabled", return_value=True), \
-             patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS, \
-             patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader:
+        with (
+            patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch("utils.alpha.vix_data_source.VixDataSource") as MockVixDS,
+            patch("utils.alpha.drawdown_reader.DrawdownReader") as MockDDReader,
+        ):
 
             MockVixDS.return_value.fetch_vix.return_value = 35.0
             MockDDReader.return_value.get_current_drawdown.return_value = 0.08
 
             # Mock AutoTradingSystem
-            with patch("utils.execution.automated_execution_system.AutomatedExecutionSystem.__init__",
-                        return_value=None):
+            with patch(
+                "utils.execution.automated_execution_system.AutomatedExecutionSystem.__init__",
+                return_value=None,
+            ):
                 from utils.auto_trading_system import AutoTradingSystem
+
                 system = AutoTradingSystem.__new__(AutoTradingSystem)
                 system.monitor_interval = 30
                 system.is_running = False
                 system._monitor_thread = None
-                system.stats = {"start_time": None, "cycles_completed": 0, "errors": 0, "last_update": None}
+                system.stats = {
+                    "start_time": None,
+                    "cycles_completed": 0,
+                    "errors": 0,
+                    "last_update": None,
+                }
 
-                with patch("pathlib.Path.exists", return_value=True), \
-                     patch("pathlib.Path.open", MagicMock()), \
-                     patch("yaml.safe_load", return_value=real_portfolio), \
-                     patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter") as MockWeighter:
+                with (
+                    patch("pathlib.Path.exists", return_value=True),
+                    patch("pathlib.Path.open", MagicMock()),
+                    patch("yaml.safe_load", return_value=real_portfolio),
+                    patch(
+                        "utils.alpha.vol_regime_weighter.VolRegimeWeighter"
+                    ) as MockWeighter,
+                ):
 
                     MockWeighter.return_value.run_cycle.return_value = {
                         "status": "ok",
@@ -151,8 +172,10 @@ class TestLiveMonitoringChain:
                         system._check_vol_regime()
 
                     # 验证告警日志
-                    assert any("波动率告警" in r.message and r.levelno == logging.WARNING
-                                for r in caplog.records)
+                    assert any(
+                        "波动率告警" in r.message and r.levelno == logging.WARNING
+                        for r in caplog.records
+                    )
 
 
 # ============================================================
@@ -161,7 +184,9 @@ class TestLiveMonitoringChain:
 class TestEodChain:
     """测试 EOD EvolutionOrchestrator 完整链路."""
 
-    def test_eod_chain_orchestrator_call(self, real_shadow_state, real_portfolio, temp_reports_dir):
+    def test_eod_chain_orchestrator_call(
+        self, real_shadow_state, real_portfolio, temp_reports_dir
+    ):
         """EOD 链路: orchestrator → _fetch_vix → DrawdownReader → run_cycle."""
         from utils.alpha.drawdown_reader import DrawdownReader
         from utils.alpha.vix_data_source import VixDataSource
@@ -292,11 +317,16 @@ class TestVixDataSourceChain:
         ds = VixDataSource()
 
         # Mock wind_get_kline 返回 30 条 K 线数据
-        mock_kline = [
-            {"close": 2.50 + i * 0.01 * ((-1) ** i)} for i in range(30)
-        ]
+        mock_kline = [{"close": 2.50 + i * 0.01 * ((-1) ** i)} for i in range(30)]
 
-        with patch.dict(sys.modules, {"wind_mcp_fetcher": MagicMock(wind_get_kline=MagicMock(return_value=mock_kline))}):
+        with patch.dict(
+            sys.modules,
+            {
+                "wind_mcp_fetcher": MagicMock(
+                    wind_get_kline=MagicMock(return_value=mock_kline)
+                )
+            },
+        ):
             vix = ds._fetch_from_wind_kline()
 
         # Mock 数据波动率可能不在合理区间, 但函数应该返回 float 或 None
@@ -331,6 +361,7 @@ class TestConfigIntegrity:
     def test_vol_regime_weighter_yaml_complete(self):
         """vol_regime_weighter.yaml 包含所有必要字段."""
         import yaml
+
         config_path = _PROJECT_ROOT / "configs" / "vol_regime_weighter.yaml"
         if not config_path.exists():
             pytest.skip("vol_regime_weighter.yaml 不存在")

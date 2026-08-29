@@ -10,6 +10,7 @@ v8.6 补齐模块: 基于复盘结果调整风控阈值, 写回 AI Gate 限值�
     from dynamic_risk_adjuster import run_dynamic_risk_adjuster
     run_dynamic_risk_adjuster(trade_date="2026-08-19", write_gate_limits=True)
 """
+
 from __future__ import annotations
 
 import json
@@ -69,7 +70,9 @@ def _compute_tighten_factor(risk_level: str, risk_score: float) -> float:
         return 1.0
 
 
-def run_dynamic_risk_adjuster(trade_date: str, write_gate_limits: bool = False) -> dict[str, Any]:
+def run_dynamic_risk_adjuster(
+    trade_date: str, write_gate_limits: bool = False
+) -> dict[str, Any]:
     """基于复盘结果调整风控阈值
 
     Args:
@@ -80,7 +83,9 @@ def run_dynamic_risk_adjuster(trade_date: str, write_gate_limits: bool = False) 
         调整结果字典
     """
     logger.info("=" * 60)
-    logger.info(f"动态风控调整启动 | trade_date={trade_date} | write_gate_limits={write_gate_limits}")
+    logger.info(
+        f"动态风控调整启动 | trade_date={trade_date} | write_gate_limits={write_gate_limits}"
+    )
     logger.info("=" * 60)
 
     review = _load_review_report(trade_date)
@@ -95,10 +100,16 @@ def run_dynamic_risk_adjuster(trade_date: str, write_gate_limits: bool = False) 
 
     # 调整限值 (收紧系数越小, 限值越严格)
     adjusted_limits = {
-        "max_single_order_amount": round(BASE_LIMITS["max_single_order_amount"] * tighten_factor, 0),
+        "max_single_order_amount": round(
+            BASE_LIMITS["max_single_order_amount"] * tighten_factor, 0
+        ),
         "max_total_amount": round(BASE_LIMITS["max_total_amount"] * tighten_factor, 0),
-        "min_approval_rate": round(min(0.99, BASE_LIMITS["min_approval_rate"] + (1 - tighten_factor) * 0.1), 4),
-        "max_position_concentration": round(BASE_LIMITS["max_position_concentration"] * tighten_factor, 4),
+        "min_approval_rate": round(
+            min(0.99, BASE_LIMITS["min_approval_rate"] + (1 - tighten_factor) * 0.1), 4
+        ),
+        "max_position_concentration": round(
+            BASE_LIMITS["max_position_concentration"] * tighten_factor, 4
+        ),
         "price_band": round(BASE_LIMITS["price_band"] * tighten_factor, 4),
     }
 
@@ -120,7 +131,11 @@ def run_dynamic_risk_adjuster(trade_date: str, write_gate_limits: bool = False) 
         "ai_hit_rate_score": round(1.0 - trigger["ai_hit_rate"], 4),
         "pnl_score": scores.get("pnl_score", 0),
         "execution_gap_score": scores.get("gap_score", 0),
-        "rejection_score": round(trigger["rejected_count"] / max(1, trigger["approved_count"] + trigger["rejected_count"]), 4),
+        "rejection_score": round(
+            trigger["rejected_count"]
+            / max(1, trigger["approved_count"] + trigger["rejected_count"]),
+            4,
+        ),
     }
 
     result = {
@@ -155,25 +170,39 @@ def run_dynamic_risk_adjuster(trade_date: str, write_gate_limits: bool = False) 
         if ai_gate:
             ai_gate["dynamic_limits_loaded"] = True
             ai_gate["dynamic_limits_path"] = str(dr_path)
-            ai_gate.setdefault("hard_limits", {}).update({
-                "max_single_order_amount": int(adjusted_limits["max_single_order_amount"]),
-                "max_total_amount": int(adjusted_limits["max_total_amount"]),
-                "max_position_concentration": adjusted_limits["max_position_concentration"],
-                "price_protection_pct": adjusted_limits["price_band"],
-            })
+            ai_gate.setdefault("hard_limits", {}).update(
+                {
+                    "max_single_order_amount": int(
+                        adjusted_limits["max_single_order_amount"]
+                    ),
+                    "max_total_amount": int(adjusted_limits["max_total_amount"]),
+                    "max_position_concentration": adjusted_limits[
+                        "max_position_concentration"
+                    ],
+                    "price_protection_pct": adjusted_limits["price_band"],
+                }
+            )
             ai_gate_path = TRADE_INSTRUCTIONS_DIR / f"ai_gate_{trade_date}.json"
             with open(ai_gate_path, "w", encoding="utf-8") as f:
                 json.dump(ai_gate, f, ensure_ascii=False, indent=2)
             logger.info(f"AI Gate 限值已写回: {ai_gate_path}")
 
-    logger.info(f"动态风控调整完成: risk_level={risk_level} tighten={tighten_factor} "
-                f"max_single={adjusted_limits['max_single_order_amount']}")
+    logger.info(
+        f"动态风控调整完成: risk_level={risk_level} tighten={tighten_factor} "
+        f"max_single={adjusted_limits['max_single_order_amount']}"
+    )
 
     return result
 
 
 if __name__ == "__main__":
     import sys
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    )
     d = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
-    run_dynamic_risk_adjuster(trade_date=d, write_gate_limits="--write-gate" in sys.argv or "--auto" in sys.argv)
+    run_dynamic_risk_adjuster(
+        trade_date=d,
+        write_gate_limits="--write-gate" in sys.argv or "--auto" in sys.argv,
+    )

@@ -90,7 +90,12 @@ class TestTickMatcher:
         assert m.stamp_duty == 0.001
 
     def test_init_custom(self):
-        m = TickMatcher(slippage_rate=0.002, commission_rate=0.0005, min_commission=10.0, stamp_duty=0.002)
+        m = TickMatcher(
+            slippage_rate=0.002,
+            commission_rate=0.0005,
+            min_commission=10.0,
+            stamp_duty=0.002,
+        )
         assert m.slippage_rate == 0.002
         assert m.commission_rate == 0.0005
         assert m.min_commission == 10.0
@@ -143,7 +148,9 @@ class TestTickMatcher:
     def test_match_market_order(self):
         """市价单直接成交"""
         m = TickMatcher()
-        order = make_order(direction="BUY", price=0.0, volume=100.0, order_type="MARKET")
+        order = make_order(
+            direction="BUY", price=0.0, volume=100.0, order_type="MARKET"
+        )
         tick = make_tick(price=100.0, volume=10000.0)
         trade = m.match_order(order, tick)
         assert trade is not None
@@ -197,7 +204,9 @@ class TestTickMatcher:
     def test_match_trade_data_fields(self):
         """成交回报字段完整性"""
         m = TickMatcher()
-        order = make_order(direction="BUY", price=200.0, volume=100.0, order_id="O_TEST")
+        order = make_order(
+            direction="BUY", price=200.0, volume=100.0, order_id="O_TEST"
+        )
         tick = make_tick(price=100.0, volume=10000.0, timestamp=1234.5)
         trade = m.match_order(order, tick)
         assert trade is not None
@@ -266,7 +275,20 @@ class TestTickBacktestEngine:
 
     def test_load_bar_data(self):
         e = TickBacktestEngine()
-        bars = {"600519.SH": [BarData(code="600519.SH", exchange="SSE", period="1d", open=1, high=2, low=0.5, close=1.5, volume=100)]}
+        bars = {
+            "600519.SH": [
+                BarData(
+                    code="600519.SH",
+                    exchange="SSE",
+                    period="1d",
+                    open=1,
+                    high=2,
+                    low=0.5,
+                    close=1.5,
+                    volume=100,
+                )
+            ]
+        }
         e.load_bar_data(bars)
         assert e.bar_data == bars
 
@@ -317,8 +339,12 @@ class TestTickBacktestEngine:
 
     def test_get_position_profit_with_positions(self):
         e = TickBacktestEngine()
-        e.positions["A"] = PositionData(code="A", exchange="SSE", volume=100, avg_price=50, last_price=60)
-        e.positions["B"] = PositionData(code="B", exchange="SSE", volume=200, avg_price=30, last_price=25)
+        e.positions["A"] = PositionData(
+            code="A", exchange="SSE", volume=100, avg_price=50, last_price=60
+        )
+        e.positions["B"] = PositionData(
+            code="B", exchange="SSE", volume=200, avg_price=30, last_price=25
+        )
         # A: (60-50)*100 = 1000, B: (25-30)*200 = -1000
         assert e.get_position_profit() == 0.0
 
@@ -329,7 +355,9 @@ class TestTickBacktestEngine:
     def test_get_total_equity_with_positions(self):
         e = TickBacktestEngine()
         e.cash = 500_000
-        e.positions["A"] = PositionData(code="A", exchange="SSE", volume=100, avg_price=50, last_price=60)
+        e.positions["A"] = PositionData(
+            code="A", exchange="SSE", volume=100, avg_price=50, last_price=60
+        )
         # 500000 + 100*60 = 506000
         assert e.get_total_equity() == 506_000.0
 
@@ -400,8 +428,16 @@ class TestTickBacktestEngine:
     def test_process_trade_buy_updates_position(self):
         e = TickBacktestEngine()
         trade = TradeData(
-            trade_id="T1", order_id="O1", code="600519.SH", exchange="SSE",
-            direction="BUY", offset="OPEN", price=100, volume=50, amount=5000, timestamp=1,
+            trade_id="T1",
+            order_id="O1",
+            code="600519.SH",
+            exchange="SSE",
+            direction="BUY",
+            offset="OPEN",
+            price=100,
+            volume=50,
+            amount=5000,
+            timestamp=1,
         )
         e._process_trade(trade)
         pos = e.positions["600519.SH"]
@@ -412,10 +448,20 @@ class TestTickBacktestEngine:
     def test_process_trade_sell_reduces_position(self):
         e = TickBacktestEngine()
         # 先建仓
-        e.positions["600519.SH"] = PositionData(code="600519.SH", exchange="SSE", volume=100, avg_price=50)
+        e.positions["600519.SH"] = PositionData(
+            code="600519.SH", exchange="SSE", volume=100, avg_price=50
+        )
         trade = TradeData(
-            trade_id="T1", order_id="O1", code="600519.SH", exchange="SSE",
-            direction="SELL", offset="CLOSE", price=60, volume=30, amount=1800, timestamp=1,
+            trade_id="T1",
+            order_id="O1",
+            code="600519.SH",
+            exchange="SSE",
+            direction="SELL",
+            offset="CLOSE",
+            price=60,
+            volume=30,
+            amount=1800,
+            timestamp=1,
         )
         e._process_trade(trade)
         pos = e.positions["600519.SH"]
@@ -424,7 +470,9 @@ class TestTickBacktestEngine:
 
     def test_update_position_prices(self):
         e = TickBacktestEngine()
-        e.positions["A"] = PositionData(code="A", exchange="SSE", volume=100, last_price=50)
+        e.positions["A"] = PositionData(
+            code="A", exchange="SSE", volume=100, last_price=50
+        )
         e._update_position_prices({"A": 55})
         assert e.positions["A"].last_price == 55
 
@@ -438,10 +486,35 @@ class TestConvenienceFunctions:
     """ticks_from_csv / bars_from_csv / run_tick_backtest 测试"""
 
     def test_ticks_from_csv(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["timestamp", "price", "open", "high", "low", "pre_close", "volume", "amount"])
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False, newline="", encoding="utf-8"
+        ) as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "timestamp",
+                    "price",
+                    "open",
+                    "high",
+                    "low",
+                    "pre_close",
+                    "volume",
+                    "amount",
+                ],
+            )
             writer.writeheader()
-            writer.writerow({"timestamp": "1000", "price": "100", "open": "99", "high": "101", "low": "98", "pre_close": "99", "volume": "1000", "amount": "100000"})
+            writer.writerow(
+                {
+                    "timestamp": "1000",
+                    "price": "100",
+                    "open": "99",
+                    "high": "101",
+                    "low": "98",
+                    "pre_close": "99",
+                    "volume": "1000",
+                    "amount": "100000",
+                }
+            )
             path = f.name
         try:
             ticks = ticks_from_csv(path, "600519.SH", "SSE")
@@ -452,10 +525,23 @@ class TestConvenienceFunctions:
             os.unlink(path)
 
     def test_bars_from_csv(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["date", "open", "high", "low", "close", "volume"])
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False, newline="", encoding="utf-8"
+        ) as f:
+            writer = csv.DictWriter(
+                f, fieldnames=["date", "open", "high", "low", "close", "volume"]
+            )
             writer.writeheader()
-            writer.writerow({"date": "2026-08-18", "open": "100", "high": "105", "low": "99", "close": "103", "volume": "10000"})
+            writer.writerow(
+                {
+                    "date": "2026-08-18",
+                    "open": "100",
+                    "high": "105",
+                    "low": "99",
+                    "close": "103",
+                    "volume": "10000",
+                }
+            )
             path = f.name
         try:
             bars = bars_from_csv(path, "600519.SH", "SSE", "1d")
@@ -472,6 +558,8 @@ class TestConvenienceFunctions:
 
     def test_run_tick_backtest_with_ticks(self):
         ticks = {"600519.SH": [make_tick(price=100, timestamp=1.0, volume=10000)]}
-        result = run_tick_backtest(strategy=None, tick_data=ticks, initial_capital=500_000)
+        result = run_tick_backtest(
+            strategy=None, tick_data=ticks, initial_capital=500_000
+        )
         assert result["engine"] == "TickBacktestEngine"
         assert result["initial_capital"] == 500_000

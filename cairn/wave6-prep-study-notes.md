@@ -164,3 +164,13 @@ TradingAgents 增强方向：
 - [x] AI Hedge Fund LangGraph 架构摸底
 - [ ] 下一步：Sprint 1 因子移植与装饰器实现
 
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [GitHub 高价值项目集成策略（Wave 6）](github-integration-wave6.md) (相似度 22%)
+- [nautilus_trader 架构研究报告 — Wave 6 Sprint 3 W6.3.1](nautilus-trader-study.md) (相似度 20%)
+- [Alpha 因子体系](alpha-factor-system.md) (相似度 16%)
+- [GNN 供应链产业链因子落地设计](gnn-supply-chain-factor.md) (相似度 10%)
+- [P0 经典理论四件套实现 — 2026-08-23](p0-classic-theory-impl-20260823.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

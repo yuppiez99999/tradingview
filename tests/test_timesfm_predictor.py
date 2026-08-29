@@ -44,8 +44,10 @@ class TestPreflight:
         from utils.timesfm_predictor import TimesFMPredictor
 
         pred = TimesFMPredictor.__new__(TimesFMPredictor)
-        pred.config = {"preflight": {"min_ram_gb": 2.0, "min_disk_gb": 1.0},
-                       "checkpoint": "models/timesfm/"}
+        pred.config = {
+            "preflight": {"min_ram_gb": 2.0, "min_disk_gb": 1.0},
+            "checkpoint": "models/timesfm/",
+        }
         with patch.dict(sys.modules, {"psutil": None}):
             assert pred.preflight_check() is True
 
@@ -62,9 +64,15 @@ class TestForecast:
         pred = _make_predictor(available=True)
         pred._tfm.forecast.return_value = (
             np.array([[0.1, 0.2, 0.3, 0.4, 0.5]]),
-            np.array([[[0.05, 0.1, 0.2, 0.3, 0.4],
-                       [0.1, 0.2, 0.3, 0.4, 0.5],
-                       [0.2, 0.3, 0.4, 0.5, 0.6]]]),
+            np.array(
+                [
+                    [
+                        [0.05, 0.1, 0.2, 0.3, 0.4],
+                        [0.1, 0.2, 0.3, 0.4, 0.5],
+                        [0.2, 0.3, 0.4, 0.5, 0.6],
+                    ]
+                ]
+            ),
         )
         out = pred.forecast(np.arange(100, dtype=float), horizon=5)
         assert out.available is True

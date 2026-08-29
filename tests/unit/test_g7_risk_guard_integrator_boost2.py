@@ -14,6 +14,7 @@
     9) 一致性校验 (CRITICAL/WARNING 对齐 + Theta Covered Call 拦截)
     10) 去重逻辑边界 (无法识别底层 / 单侧空 / 全量重复)
 """
+
 import json
 import os
 import sys
@@ -26,7 +27,9 @@ import pytest
 # ============================================================
 # PROJECT_ROOT sys.path 注入
 # ============================================================
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 for _p in [
     PROJECT_ROOT,
     os.path.join(PROJECT_ROOT, "v8.3_institutional"),
@@ -46,6 +49,7 @@ from utils.risk_guard_integrator import (  # noqa: E402
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def integrator(tmp_path, monkeypatch):
     """隔离所有外部路径的集成器实例"""
@@ -58,7 +62,9 @@ def integrator(tmp_path, monkeypatch):
     monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
     monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
     monkeypatch.setattr("utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir)
-    monkeypatch.setattr("utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir)
+    monkeypatch.setattr(
+        "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+    )
     return RiskGuardIntegrator(report_date="2026-07-21", total_capital=5_000_000)
 
 
@@ -74,7 +80,9 @@ def integrator_no_report_date(tmp_path, monkeypatch):
     monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
     monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
     monkeypatch.setattr("utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir)
-    monkeypatch.setattr("utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir)
+    monkeypatch.setattr(
+        "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+    )
     return RiskGuardIntegrator(total_capital=5_000_000)
 
 
@@ -82,17 +90,25 @@ def integrator_no_report_date(tmp_path, monkeypatch):
 # 辅助函数
 # ============================================================
 
+
 def _block_module(monkeypatch, module_name):
     monkeypatch.setitem(sys.modules, module_name, None)
 
 
 def _block_all_optional_modules(monkeypatch):
     for mod in [
-        "utils.drawdown_controller", "utils.vol_target_controller",
-        "utils.hedge_execution_engine", "utils.protective_put_engine",
-        "utils.kill_switch", "utils.market_circuit_breaker",
-        "utils.overnight_gap_monitor", "utils.ifind_news_analyzer",
-        "hedging.correlation_hedger", "hedging", "pandas", "akshare",
+        "utils.drawdown_controller",
+        "utils.vol_target_controller",
+        "utils.hedge_execution_engine",
+        "utils.protective_put_engine",
+        "utils.kill_switch",
+        "utils.market_circuit_breaker",
+        "utils.overnight_gap_monitor",
+        "utils.ifind_news_analyzer",
+        "hedging.correlation_hedger",
+        "hedging",
+        "pandas",
+        "akshare",
         "utils.astock_realtime",
     ]:
         try:
@@ -110,19 +126,48 @@ def _inject_mock_module(monkeypatch, module_name, class_name, instance=None):
     return mock_mod, mock_cls, mock_inst
 
 
-def _make_pnl_report_v1(total_cost=1_000_000, total_market_value=1_050_000,
-                        total_pnl=50_000, margin_used=600_000,
-                        total_equity=1_500_000, positions=None):
+def _make_pnl_report_v1(
+    total_cost=1_000_000,
+    total_market_value=1_050_000,
+    total_pnl=50_000,
+    margin_used=600_000,
+    total_equity=1_500_000,
+    positions=None,
+):
     """完整格式 v1: portfolio_pnl.summary + portfolio_pnl.details"""
     details = positions or [
-        {"code": "588080.SH", "name": "科创50ETF", "market_value": 350_000,
-         "pnl": 20_000, "daily_pnl_pct": 6.0, "cost_amount": 330_000},
-        {"code": "510050.SH", "name": "上证50ETF", "market_value": 300_000,
-         "pnl": 15_000, "daily_pnl_pct": 5.3, "cost_amount": 285_000},
-        {"code": "510300.SH", "name": "沪深300ETF", "market_value": 250_000,
-         "pnl": 10_000, "daily_pnl_pct": 4.2, "cost_amount": 240_000},
-        {"code": "159915.SZ", "name": "创业板ETF", "market_value": 150_000,
-         "pnl": 5_000, "daily_pnl_pct": 3.4, "cost_amount": 145_000},
+        {
+            "code": "588080.SH",
+            "name": "科创50ETF",
+            "market_value": 350_000,
+            "pnl": 20_000,
+            "daily_pnl_pct": 6.0,
+            "cost_amount": 330_000,
+        },
+        {
+            "code": "510050.SH",
+            "name": "上证50ETF",
+            "market_value": 300_000,
+            "pnl": 15_000,
+            "daily_pnl_pct": 5.3,
+            "cost_amount": 285_000,
+        },
+        {
+            "code": "510300.SH",
+            "name": "沪深300ETF",
+            "market_value": 250_000,
+            "pnl": 10_000,
+            "daily_pnl_pct": 4.2,
+            "cost_amount": 240_000,
+        },
+        {
+            "code": "159915.SZ",
+            "name": "创业板ETF",
+            "market_value": 150_000,
+            "pnl": 5_000,
+            "daily_pnl_pct": 3.4,
+            "cost_amount": 145_000,
+        },
     ]
     return {
         "portfolio_pnl": {
@@ -139,9 +184,13 @@ def _make_pnl_report_v1(total_cost=1_000_000, total_market_value=1_050_000,
     }
 
 
-def _make_pnl_report_v2(total_cost=1_000_000, total_market_value=1_050_000,
-                        total_pnl=50_000, margin_used=600_000,
-                        total_equity=1_500_000):
+def _make_pnl_report_v2(
+    total_cost=1_000_000,
+    total_market_value=1_050_000,
+    total_pnl=50_000,
+    margin_used=600_000,
+    total_equity=1_500_000,
+):
     """完整格式 v2: portfolio_pnl.positions (list)"""
     return {
         "portfolio_pnl": {
@@ -179,21 +228,36 @@ def _make_pnl_report_v3():
 def _make_pnl_report_v4():
     """简化格式 v4: 顶层 positions (list)"""
     return {
-        "summary": {"total_cost": 100_000, "total_market_value": 105_000, "total_pnl": 5000},
+        "summary": {
+            "total_cost": 100_000,
+            "total_market_value": 105_000,
+            "total_pnl": 5000,
+        },
         "positions": [
             {"symbol": "512100.SH", "market_value": 105_000, "pnl": 5000},
         ],
     }
 
 
-def _make_plan_full(budget=200_000, buy_orders=None, sell_orders=None,
-                    hedge_ratio=0.15, circuit_level=None):
+def _make_plan_full(
+    budget=200_000,
+    buy_orders=None,
+    sell_orders=None,
+    hedge_ratio=0.15,
+    circuit_level=None,
+):
     """构造完整交易计划"""
     morning = []
     afternoon = []
     if buy_orders is None:
         buy_orders = [
-            {"code": "510300.SH", "side": "BUY", "shares": 5000, "est_amount": 25_000, "limit_price": 5.0},
+            {
+                "code": "510300.SH",
+                "side": "BUY",
+                "shares": 5000,
+                "est_amount": 25_000,
+                "limit_price": 5.0,
+            },
             {"code": "510500.SH", "side": "BUY", "shares": 3000, "est_amount": 18_000},
         ]
     if sell_orders is None:
@@ -213,8 +277,16 @@ def _make_plan_full(budget=200_000, buy_orders=None, sell_orders=None,
             "day_capital": budget,
             "total_amount": 65_000,
             "options_orders": [
-                {"direction": "SELL_CALL", "name": "CoveredCall_510050", "est_premium_total": 5000},
-                {"direction": "BUY_PUT", "name": "ProtectivePut_588080", "est_premium_total": 3000},
+                {
+                    "direction": "SELL_CALL",
+                    "name": "CoveredCall_510050",
+                    "est_premium_total": 5000,
+                },
+                {
+                    "direction": "BUY_PUT",
+                    "name": "ProtectivePut_588080",
+                    "est_premium_total": 3000,
+                },
             ],
             "options_orders_count": 2,
             "options_total_premium": 5000,
@@ -248,6 +320,7 @@ def _make_empty_plan():
 # ========================================================================
 # 一、parse_kill_switch_level 边界条件 (精确阈值测试) — 18 tests
 # ========================================================================
+
 
 class TestParseKillSwitchLevelExact:
     """KillSwitchLevel 解析函数 — 所有分支精确覆盖"""
@@ -346,6 +419,7 @@ class TestParseKillSwitchLevelExact:
 # 二、KillSwitchLevel 枚举值验证 — 5 tests
 # ========================================================================
 
+
 class TestKillSwitchEnum:
     def test_enum_values_correct(self):
         assert int(KillSwitchLevel.OK) == 0
@@ -378,9 +452,12 @@ class TestKillSwitchEnum:
 # 三、RiskGuardIntegrator.__init__ & _log 边界 — 10 tests
 # ========================================================================
 
+
 class TestInitAndLog:
     def test_init_default_date(self, integrator_no_report_date):
-        assert integrator_no_report_date.report_date == datetime.now().strftime("%Y-%m-%d")
+        assert integrator_no_report_date.report_date == datetime.now().strftime(
+            "%Y-%m-%d"
+        )
 
     def test_init_custom_capital(self, integrator):
         assert integrator.total_capital == 5_000_000
@@ -403,7 +480,8 @@ class TestInitAndLog:
         """模拟 logger.info 抛 UnicodeEncodeError (GBK 控制台)"""
         mock_logger = MagicMock()
         mock_logger.info.side_effect = [
-            UnicodeEncodeError("gbk", "中文消息", 0, 1, "illegal multibyte sequence"), None
+            UnicodeEncodeError("gbk", "中文消息", 0, 1, "illegal multibyte sequence"),
+            None,
         ]
         monkeypatch.setattr("utils.risk_guard_integrator.logger", mock_logger)
         integrator._log("包含中文的日志消息")
@@ -423,8 +501,12 @@ class TestInitAndLog:
             d.mkdir(exist_ok=True)
         monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
         monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
-        monkeypatch.setattr("utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir)
-        monkeypatch.setattr("utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir)
+        monkeypatch.setattr(
+            "utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir
+        )
+        monkeypatch.setattr(
+            "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+        )
         assert not logs_dir.exists()
         RiskGuardIntegrator(report_date="2026-07-21")
         assert logs_dir.exists()
@@ -438,37 +520,41 @@ class TestInitAndLog:
 # 四、_extract_underlying_code 完整映射表测试 — 12 tests
 # ========================================================================
 
+
 class TestExtractUnderlyingCode:
     """UNDERLYING_CODE_MAP 完整覆盖 + 模糊匹配"""
 
-    @pytest.mark.parametrize("input_name,expected", [
-        ("510050", "510050"),
-        ("上证50", "510050"),
-        ("50etf", "510050"),
-        ("上证50etf", "510050"),
-        ("sz50", "510050"),
-        ("588080", "588080"),
-        ("科创50", "588080"),
-        ("科创50etf", "588080"),
-        ("kc50", "588080"),
-        ("588000", "588080"),
-        ("159915", "159915"),
-        ("创业板", "159915"),
-        ("创业板etf", "159915"),
-        ("cyb", "159915"),
-        ("510300", "510300"),
-        ("沪深300", "510300"),
-        ("300etf", "510300"),
-        ("hs300", "510300"),
-        ("510500", "510500"),
-        ("中证500", "510500"),
-        ("500etf", "510500"),
-        ("zz500", "510500"),
-        ("512100", "512100"),
-        ("中证1000", "512100"),
-        ("1000etf", "512100"),
-        ("zz1000", "512100"),
-    ])
+    @pytest.mark.parametrize(
+        "input_name,expected",
+        [
+            ("510050", "510050"),
+            ("上证50", "510050"),
+            ("50etf", "510050"),
+            ("上证50etf", "510050"),
+            ("sz50", "510050"),
+            ("588080", "588080"),
+            ("科创50", "588080"),
+            ("科创50etf", "588080"),
+            ("kc50", "588080"),
+            ("588000", "588080"),
+            ("159915", "159915"),
+            ("创业板", "159915"),
+            ("创业板etf", "159915"),
+            ("cyb", "159915"),
+            ("510300", "510300"),
+            ("沪深300", "510300"),
+            ("300etf", "510300"),
+            ("hs300", "510300"),
+            ("510500", "510500"),
+            ("中证500", "510500"),
+            ("500etf", "510500"),
+            ("zz500", "510500"),
+            ("512100", "512100"),
+            ("中证1000", "512100"),
+            ("1000etf", "512100"),
+            ("zz1000", "512100"),
+        ],
+    )
     def test_direct_mapping(self, integrator, input_name, expected):
         assert integrator._extract_underlying_code(input_name) == expected
 
@@ -497,6 +583,7 @@ class TestExtractUnderlyingCode:
 # 五、_load_pnl_report 配置加载错误处理 — 12 tests
 # ========================================================================
 
+
 class TestLoadPnlReportErrors:
     def test_no_report_anywhere_returns_none(self, integrator):
         """4 个候选路径都不存在"""
@@ -506,6 +593,7 @@ class TestLoadPnlReportErrors:
     def test_daily_report_dir_with_dash(self, integrator):
         """候选 1: 每日报告归档/{date}/daily_pnl_report_{date}.json"""
         from utils.risk_guard_integrator import DAILY_REPORT_DIR
+
         report_dir = DAILY_REPORT_DIR
         date_dir = report_dir / integrator.report_date
         date_dir.mkdir(parents=True, exist_ok=True)
@@ -520,6 +608,7 @@ class TestLoadPnlReportErrors:
     def test_daily_report_dir_no_dash(self, integrator):
         """候选 2: 每日报告归档/{date}/daily_pnl_report_{无横杠}.json"""
         from utils.risk_guard_integrator import DAILY_REPORT_DIR
+
         report_dir = DAILY_REPORT_DIR
         date_dir = report_dir / integrator.report_date
         date_dir.mkdir(parents=True, exist_ok=True)
@@ -535,6 +624,7 @@ class TestLoadPnlReportErrors:
     def test_old_reports_dir_dash(self, integrator):
         """候选 3: v8.3_institutional/reports/daily_pnl_report_{date}.json"""
         from utils.risk_guard_integrator import REPORTS_DIR
+
         reports_dir = REPORTS_DIR
         data = {"portfolio_pnl": {"summary": {"total_cost": 300}}}
         (reports_dir / f"daily_pnl_report_{integrator.report_date}.json").write_text(
@@ -547,6 +637,7 @@ class TestLoadPnlReportErrors:
     def test_old_reports_dir_no_dash(self, integrator):
         """候选 4: v8.3_institutional/reports/daily_pnl_report_{无横杠}.json"""
         from utils.risk_guard_integrator import REPORTS_DIR
+
         reports_dir = REPORTS_DIR
         no_dash = integrator.report_date.replace("-", "")
         data = {"portfolio_pnl": {"summary": {"total_cost": 400}}}
@@ -560,10 +651,12 @@ class TestLoadPnlReportErrors:
     def test_corrupted_json_continues(self, integrator):
         """文件损坏但存在 → 跳过，继续下一个候选"""
         from utils.risk_guard_integrator import REPORTS_DIR
+
         reports_dir = REPORTS_DIR
         bad_file = reports_dir / f"daily_pnl_report_{integrator.report_date}.json"
         bad_file.write_text("{ this is : not valid json [[", encoding="utf-8")
         from utils.risk_guard_integrator import DAILY_REPORT_DIR
+
         report_dir = DAILY_REPORT_DIR
         date_dir = report_dir / integrator.report_date
         date_dir.mkdir(parents=True, exist_ok=True)
@@ -578,19 +671,23 @@ class TestLoadPnlReportErrors:
     def test_all_corrupted_returns_none(self, integrator):
         """所有 4 个候选文件都损坏 → 返回 None"""
         from utils.risk_guard_integrator import REPORTS_DIR
+
         reports_dir = REPORTS_DIR
         from utils.risk_guard_integrator import DAILY_REPORT_DIR
+
         daily_dir = DAILY_REPORT_DIR
         for p in [
             reports_dir / f"daily_pnl_report_{integrator.report_date}.json",
-            reports_dir / f"daily_pnl_report_{integrator.report_date.replace('-', '')}.json",
+            reports_dir
+            / f"daily_pnl_report_{integrator.report_date.replace('-', '')}.json",
         ]:
             p.write_text("INVALID JSON!!!", encoding="utf-8")
         date_dir = daily_dir / integrator.report_date
         date_dir.mkdir(parents=True, exist_ok=True)
         for p in [
             date_dir / f"daily_pnl_report_{integrator.report_date}.json",
-            date_dir / f"daily_pnl_report_{integrator.report_date.replace('-', '')}.json",
+            date_dir
+            / f"daily_pnl_report_{integrator.report_date.replace('-', '')}.json",
         ]:
             p.write_text("NOT JSON EITHER", encoding="utf-8")
         result = integrator._load_pnl_report()
@@ -599,17 +696,23 @@ class TestLoadPnlReportErrors:
     def test_priority_order(self, integrator):
         """优先级：候选1 > 候选2 > 候选3 > 候选4"""
         from utils.risk_guard_integrator import REPORTS_DIR
+
         reports_dir = REPORTS_DIR
         from utils.risk_guard_integrator import DAILY_REPORT_DIR
+
         daily_dir = DAILY_REPORT_DIR
         date_dir = daily_dir / integrator.report_date
         date_dir.mkdir(parents=True, exist_ok=True)
-        for i, p in enumerate([
-            date_dir / f"daily_pnl_report_{integrator.report_date}.json",
-            date_dir / f"daily_pnl_report_{integrator.report_date.replace('-', '')}.json",
-            reports_dir / f"daily_pnl_report_{integrator.report_date}.json",
-            reports_dir / f"daily_pnl_report_{integrator.report_date.replace('-', '')}.json",
-        ]):
+        for i, p in enumerate(
+            [
+                date_dir / f"daily_pnl_report_{integrator.report_date}.json",
+                date_dir
+                / f"daily_pnl_report_{integrator.report_date.replace('-', '')}.json",
+                reports_dir / f"daily_pnl_report_{integrator.report_date}.json",
+                reports_dir
+                / f"daily_pnl_report_{integrator.report_date.replace('-', '')}.json",
+            ]
+        ):
             p.write_text(json.dumps({"idx": i}), encoding="utf-8")
         result = integrator._load_pnl_report()
         assert result["idx"] == 0
@@ -618,6 +721,7 @@ class TestLoadPnlReportErrors:
 # ========================================================================
 # 六、_extract_positions / _extract_summary 多格式兼容 — 10 tests
 # ========================================================================
+
 
 class TestExtractPositionsAndSummary:
     def test_v1_details_list(self, integrator):
@@ -651,7 +755,10 @@ class TestExtractPositionsAndSummary:
 
     def test_invalid_types_safe(self, integrator):
         """positions 为 str/int 时安全返回空列表"""
-        assert integrator._extract_positions({"portfolio_pnl": {"details": "not_list"}}) == []
+        assert (
+            integrator._extract_positions({"portfolio_pnl": {"details": "not_list"}})
+            == []
+        )
         assert integrator._extract_positions({"positions": 42}) == []
 
     def test_summary_v1_full_format(self, integrator):
@@ -679,6 +786,7 @@ class TestExtractPositionsAndSummary:
 # 七、guard_drawdown Level 0/1/2/3/4 精确边界 — 15 tests
 # ========================================================================
 
+
 class TestGuardDrawdownExact:
     """回撤级别精确阈值 (5%/8%/12%/15%)"""
 
@@ -687,14 +795,14 @@ class TestGuardDrawdownExact:
         """注入 DrawdownController mock"""
         self.mock_dc = MagicMock()
         _inject_mock_module(
-            monkeypatch, "utils.drawdown_controller",
-            "DrawdownController", self.mock_dc
+            monkeypatch, "utils.drawdown_controller", "DrawdownController", self.mock_dc
         )
         self.monkeypatch = monkeypatch
 
     def _run(self, integrator, level, dd_pct, cost=1_000_000, value=1_000_000):
         self.mock_dc.check_drawdown.return_value = {
-            "level": level, "drawdown_pct": dd_pct,
+            "level": level,
+            "drawdown_pct": dd_pct,
         }
         report = _make_pnl_report_v1(total_cost=cost, total_market_value=value)
         plan = _make_plan_full()
@@ -780,7 +888,7 @@ class TestGuardDrawdownExact:
     def test_zero_cost_skip(self, integrator):
         plan = integrator.guard_drawdown(
             {"portfolio_pnl": {"summary": {"total_cost": 0, "total_market_value": 0}}},
-            _make_plan_full()
+            _make_plan_full(),
         )
         assert "drawdown_level" not in plan.get("risk_guard", {})
 
@@ -794,6 +902,7 @@ class TestGuardDrawdownExact:
 # ========================================================================
 # 八、_apply_budget_cut / _apply_hedge_boost 预算分配 — 10 tests
 # ========================================================================
+
 
 class TestBudgetAllocation:
     def test_budget_cut_0pct(self, integrator):
@@ -867,13 +976,16 @@ class TestBudgetAllocation:
 # 九、guard_vol_target 波动率阈值精确边界 — 10 tests
 # ========================================================================
 
+
 class TestGuardVolTarget:
     @pytest.fixture(autouse=True)
     def _setup(self, monkeypatch):
         self.mock_vtc = MagicMock()
         _inject_mock_module(
-            monkeypatch, "utils.vol_target_controller",
-            "VolTargetController", self.mock_vtc
+            monkeypatch,
+            "utils.vol_target_controller",
+            "VolTargetController",
+            self.mock_vtc,
         )
         self.monkeypatch = monkeypatch
         monkeypatch.setattr(
@@ -938,7 +1050,9 @@ class TestGuardVolTarget:
         self._set_vol(0.30, 0.50)
         plan = _make_plan_full()
         buy_order = plan["execution_plan"]["morning_orders"][0]
-        sell_order = [o for o in plan["execution_plan"]["morning_orders"] if o["side"] == "SELL"][0]
+        sell_order = [
+            o for o in plan["execution_plan"]["morning_orders"] if o["side"] == "SELL"
+        ][0]
         orig_buy_shares = buy_order["shares"]
         orig_sell_shares = sell_order["shares"]
         result = integrator.guard_vol_target(_make_pnl_report_v1(), plan)
@@ -973,6 +1087,7 @@ class TestGuardVolTarget:
 # 十、guard_kill_switch L1/L2/L3 精确阈值 + 激活/恢复流程 — 18 tests
 # ========================================================================
 
+
 class TestGuardKillSwitch:
     """KillSwitch 三级协议 — 保证金 + 集中度 + 完整状态机"""
 
@@ -980,8 +1095,7 @@ class TestGuardKillSwitch:
     def _setup(self, monkeypatch):
         self.mock_ks = MagicMock()
         _inject_mock_module(
-            monkeypatch, "utils.kill_switch",
-            "KillSwitch", self.mock_ks
+            monkeypatch, "utils.kill_switch", "KillSwitch", self.mock_ks
         )
         self.monkeypatch = monkeypatch
 
@@ -989,15 +1103,19 @@ class TestGuardKillSwitch:
     def test_l3_via_module_margin_95pct(self, integrator):
         """保证金 95% → L3"""
         self.mock_ks.check_margin_status.return_value = {
-            "level": "L3", "can_trade": False, "can_open": False,
-            "action": "MARGIN_CRITICAL: 保证金≥95%"
+            "level": "L3",
+            "can_trade": False,
+            "can_open": False,
+            "action": "MARGIN_CRITICAL: 保证金≥95%",
         }
         self.mock_ks.check_concentration.return_value = {
-            "level": "OK", "max_concentration": 0.1, "max_concentration_code": ""
+            "level": "OK",
+            "max_concentration": 0.1,
+            "max_concentration_code": "",
         }
         plan = integrator.guard_kill_switch(
             _make_pnl_report_v1(margin_used=950_000, total_equity=1_000_000),
-            _make_plan_full()
+            _make_plan_full(),
         )
         assert plan["market_state"]["circuit_level"] == "CRITICAL"
         assert plan["market_state"]["build_allowed"] is False
@@ -1006,16 +1124,19 @@ class TestGuardKillSwitch:
     def test_l2_via_module_margin_75pct(self, integrator):
         """保证金 75% → L2"""
         self.mock_ks.check_margin_status.return_value = {
-            "level": "L2", "can_trade": True, "can_open": False,
-            "action": "MARGIN_LIMIT: 保证金≥75%"
+            "level": "L2",
+            "can_trade": True,
+            "can_open": False,
+            "action": "MARGIN_LIMIT: 保证金≥75%",
         }
         self.mock_ks.check_concentration.return_value = {
-            "level": "OK", "max_concentration": 0.1, "max_concentration_code": ""
+            "level": "OK",
+            "max_concentration": 0.1,
+            "max_concentration_code": "",
         }
         plan = _make_plan_full()
         result = integrator.guard_kill_switch(
-            _make_pnl_report_v1(margin_used=750_000, total_equity=1_000_000),
-            plan
+            _make_pnl_report_v1(margin_used=750_000, total_equity=1_000_000), plan
         )
         assert result["market_state"]["circuit_level"] == "WARNING"
         assert result["market_state"]["build_allowed"] is False
@@ -1026,29 +1147,37 @@ class TestGuardKillSwitch:
     def test_l1_via_module_margin_50pct(self, integrator):
         """保证金 50% → L1"""
         self.mock_ks.check_margin_status.return_value = {
-            "level": "L1", "can_trade": True, "can_open": True,
-            "action": "MARGIN_WATCH: 保证金≥50%"
+            "level": "L1",
+            "can_trade": True,
+            "can_open": True,
+            "action": "MARGIN_WATCH: 保证金≥50%",
         }
         self.mock_ks.check_concentration.return_value = {
-            "level": "OK", "max_concentration": 0.1, "max_concentration_code": ""
+            "level": "OK",
+            "max_concentration": 0.1,
+            "max_concentration_code": "",
         }
         plan = _make_plan_full()
         result = integrator.guard_kill_switch(
-            _make_pnl_report_v1(margin_used=500_000, total_equity=1_000_000),
-            plan
+            _make_pnl_report_v1(margin_used=500_000, total_equity=1_000_000), plan
         )
         assert result["market_state"]["circuit_level"] == "WATCH"
 
     def test_ok_via_module_margin_49pct(self, integrator):
         self.mock_ks.check_margin_status.return_value = {
-            "level": "OK", "can_trade": True, "can_open": True, "action": "正常"
+            "level": "OK",
+            "can_trade": True,
+            "can_open": True,
+            "action": "正常",
         }
         self.mock_ks.check_concentration.return_value = {
-            "level": "OK", "max_concentration": 0.1, "max_concentration_code": ""
+            "level": "OK",
+            "max_concentration": 0.1,
+            "max_concentration_code": "",
         }
         plan = integrator.guard_kill_switch(
             _make_pnl_report_v1(margin_used=490_000, total_equity=1_000_000),
-            _make_plan_full()
+            _make_plan_full(),
         )
         ks = plan["risk_guard"]["kill_switch"]
         assert ks["level"] == "OK"
@@ -1058,7 +1187,7 @@ class TestGuardKillSwitch:
         _block_module(monkeypatch, "utils.kill_switch")
         plan = integrator.guard_kill_switch(
             _make_pnl_report_v1(margin_used=950_000, total_equity=1_000_000),
-            _make_plan_full()
+            _make_plan_full(),
         )
         assert plan["market_state"]["circuit_level"] == "CRITICAL"
 
@@ -1066,7 +1195,7 @@ class TestGuardKillSwitch:
         _block_module(monkeypatch, "utils.kill_switch")
         plan = integrator.guard_kill_switch(
             _make_pnl_report_v1(margin_used=949_900, total_equity=1_000_000),
-            _make_plan_full()
+            _make_plan_full(),
         )
         assert plan["market_state"].get("circuit_level") != "CRITICAL"
 
@@ -1074,7 +1203,7 @@ class TestGuardKillSwitch:
         _block_module(monkeypatch, "utils.kill_switch")
         plan = integrator.guard_kill_switch(
             _make_pnl_report_v1(margin_used=750_000, total_equity=1_000_000),
-            _make_plan_full()
+            _make_plan_full(),
         )
         assert plan["market_state"]["circuit_level"] == "WARNING"
 
@@ -1082,7 +1211,7 @@ class TestGuardKillSwitch:
         _block_module(monkeypatch, "utils.kill_switch")
         plan = integrator.guard_kill_switch(
             _make_pnl_report_v1(margin_used=749_900, total_equity=1_000_000),
-            _make_plan_full()
+            _make_plan_full(),
         )
         assert plan["market_state"].get("circuit_level") != "WARNING"
 
@@ -1090,7 +1219,7 @@ class TestGuardKillSwitch:
         _block_module(monkeypatch, "utils.kill_switch")
         plan = integrator.guard_kill_switch(
             _make_pnl_report_v1(margin_used=500_000, total_equity=1_000_000),
-            _make_plan_full()
+            _make_plan_full(),
         )
         assert plan["market_state"]["circuit_level"] == "WATCH"
 
@@ -1098,63 +1227,88 @@ class TestGuardKillSwitch:
         _block_module(monkeypatch, "utils.kill_switch")
         plan = integrator.guard_kill_switch(
             _make_pnl_report_v1(margin_used=499_900, total_equity=1_000_000),
-            _make_plan_full()
+            _make_plan_full(),
         )
-        assert "circuit_level" not in plan["market_state"] or plan["market_state"].get("circuit_level") != "WATCH"
+        assert (
+            "circuit_level" not in plan["market_state"]
+            or plan["market_state"].get("circuit_level") != "WATCH"
+        )
 
     # ── 集中度升级覆盖 (v8.6.13 P0 fix) ──
     def test_concentration_upgrades_margin_ok_to_l3(self, integrator):
         """保证金 OK 但集中度 L3 → 整体升级 L3"""
         self.mock_ks.check_margin_status.return_value = {
-            "level": "OK", "can_trade": True, "can_open": True, "action": "正常"
+            "level": "OK",
+            "can_trade": True,
+            "can_open": True,
+            "action": "正常",
         }
         self.mock_ks.check_concentration.return_value = {
-            "level": "L3", "max_concentration": 0.55, "max_concentration_code": "600519"
+            "level": "L3",
+            "max_concentration": 0.55,
+            "max_concentration_code": "600519",
         }
         plan = integrator.guard_kill_switch(
             _make_pnl_report_v1(margin_used=300_000, total_equity=1_000_000),
-            _make_plan_full()
+            _make_plan_full(),
         )
         assert plan["market_state"]["circuit_level"] == "CRITICAL"
 
     def test_concentration_upgrades_l1_to_l2(self, integrator):
         self.mock_ks.check_margin_status.return_value = {
-            "level": "L1", "can_trade": True, "can_open": True, "action": "WATCH"
+            "level": "L1",
+            "can_trade": True,
+            "can_open": True,
+            "action": "WATCH",
         }
         self.mock_ks.check_concentration.return_value = {
-            "level": "L2", "max_concentration": 0.38, "max_concentration_code": "000858"
+            "level": "L2",
+            "max_concentration": 0.38,
+            "max_concentration_code": "000858",
         }
-        plan = integrator.guard_kill_switch(
-            _make_pnl_report_v1(), _make_plan_full()
-        )
+        plan = integrator.guard_kill_switch(_make_pnl_report_v1(), _make_plan_full())
         assert plan["market_state"]["circuit_level"] == "WARNING"
 
     # ── P0-D 修复: margin_used/None 回退估算 ──
     def test_margin_used_none_fallback_estimate(self, integrator):
         self.mock_ks._estimate_margin_from_positions.return_value = 0.55
         self.mock_ks.check_margin_status.return_value = {
-            "level": "L1", "can_trade": True, "can_open": True, "action": "WATCH"
+            "level": "L1",
+            "can_trade": True,
+            "can_open": True,
+            "action": "WATCH",
         }
         self.mock_ks.check_concentration.return_value = {
-            "level": "OK", "max_concentration": 0.1, "max_concentration_code": ""
+            "level": "OK",
+            "max_concentration": 0.1,
+            "max_concentration_code": "",
         }
         report = _make_pnl_report_v1()
         report["portfolio_pnl"]["summary"]["margin_used"] = None
         plan = integrator.guard_kill_switch(report, _make_plan_full())
-        assert plan["risk_guard"]["kill_switch"]["margin_usage"] == pytest.approx(0.55, abs=0.01)
+        assert plan["risk_guard"]["kill_switch"]["margin_usage"] == pytest.approx(
+            0.55, abs=0.01
+        )
 
     def test_margin_used_none_estimate_fails(self, integrator):
         self.mock_ks._estimate_margin_from_positions.side_effect = RuntimeError("boom")
         self.mock_ks.check_margin_status.return_value = {
-            "level": "L1", "can_trade": True, "can_open": True, "action": "WATCH"
+            "level": "L1",
+            "can_trade": True,
+            "can_open": True,
+            "action": "WATCH",
         }
         self.mock_ks.check_concentration.return_value = {
-            "level": "OK", "max_concentration": 0.1, "max_concentration_code": ""
+            "level": "OK",
+            "max_concentration": 0.1,
+            "max_concentration_code": "",
         }
         report = _make_pnl_report_v1()
         report["portfolio_pnl"]["summary"]["margin_used"] = None
         plan = integrator.guard_kill_switch(report, _make_plan_full())
-        assert plan["risk_guard"]["kill_switch"]["margin_usage"] == pytest.approx(0.50, abs=0.01)
+        assert plan["risk_guard"]["kill_switch"]["margin_usage"] == pytest.approx(
+            0.50, abs=0.01
+        )
 
     def test_total_equity_none_no_module_fallback(self, integrator, monkeypatch):
         _block_module(monkeypatch, "utils.kill_switch")
@@ -1175,8 +1329,7 @@ class TestGuardKillSwitch:
             {"direction": "SELL_CLOSE", "code": "E", "est_amount": 500},
         ]
         result = integrator.guard_kill_switch(
-            _make_pnl_report_v1(margin_used=800_000, total_equity=1_000_000),
-            plan
+            _make_pnl_report_v1(margin_used=800_000, total_equity=1_000_000), plan
         )
         kept = result["execution_plan"]["morning_orders"]
         codes = [o["code"] for o in kept]
@@ -1191,20 +1344,20 @@ class TestGuardKillSwitch:
         _block_module(monkeypatch, "utils.kill_switch")
         plan = _make_plan_full(circuit_level="CRITICAL")
         result = integrator.guard_kill_switch(
-            _make_pnl_report_v1(margin_used=800_000, total_equity=1_000_000),
-            plan
+            _make_pnl_report_v1(margin_used=800_000, total_equity=1_000_000), plan
         )
         assert result["market_state"]["circuit_level"] == "CRITICAL"
 
     # ── 集中度检查异常降级 ──
     def test_concentration_check_exception_safe(self, integrator):
         self.mock_ks.check_margin_status.return_value = {
-            "level": "OK", "can_trade": True, "can_open": True, "action": "正常"
+            "level": "OK",
+            "can_trade": True,
+            "can_open": True,
+            "action": "正常",
         }
         self.mock_ks.check_concentration.side_effect = KeyError("missing_field")
-        plan = integrator.guard_kill_switch(
-            _make_pnl_report_v1(), _make_plan_full()
-        )
+        plan = integrator.guard_kill_switch(_make_pnl_report_v1(), _make_plan_full())
         assert "concentration" not in plan["risk_guard"]["kill_switch"]
 
 
@@ -1212,6 +1365,7 @@ class TestGuardKillSwitch:
 # 十一、guard_market_circuit_breaker / guard_liquidity_crisis /
 #        guard_overnight_gap 崩溃 fail-closed + 降级 — 12 tests
 # ========================================================================
+
 
 class TestGuardFailClosedPaths:
     """所有 Guard 的异常路径 + fail-closed 策略"""
@@ -1242,13 +1396,17 @@ class TestGuardFailClosedPaths:
         result = integrator.guard_market_circuit_breaker({}, plan)
         assert result["market_state"]["circuit_level"] == "CRITICAL"
 
-    def test_liquidity_data_unavailable_warning_not_critical(self, integrator, monkeypatch):
+    def test_liquidity_data_unavailable_warning_not_critical(
+        self, integrator, monkeypatch
+    ):
         """数据源不可用 → WARNING, 不清空订单 (P1-LIVE-05 fix)"""
+
         def mock_fetch(self2, *a, **kw):
             return 0, 0, "fail_closed"
+
         monkeypatch.setattr(
             "utils.risk_guard_integrator.RiskGuardIntegrator._fetch_limit_counts",
-            mock_fetch
+            mock_fetch,
         )
         plan = _make_plan_full()
         orig_morning = list(plan["execution_plan"]["morning_orders"])
@@ -1260,9 +1418,10 @@ class TestGuardFailClosedPaths:
     def test_liquidity_triggered_critical(self, integrator, monkeypatch):
         def mock_fetch(self2, *a, **kw):
             return 1500, 600, "akshare"
+
         monkeypatch.setattr(
             "utils.risk_guard_integrator.RiskGuardIntegrator._fetch_limit_counts",
-            mock_fetch
+            mock_fetch,
         )
         plan = _make_plan_full()
         result = integrator.guard_liquidity_crisis(_make_pnl_report_v1(), plan)
@@ -1273,21 +1432,27 @@ class TestGuardFailClosedPaths:
     def test_liquidity_normal(self, integrator, monkeypatch):
         def mock_fetch(self2, *a, **kw):
             return 30, 20, "akshare"
+
         monkeypatch.setattr(
             "utils.risk_guard_integrator.RiskGuardIntegrator._fetch_limit_counts",
-            mock_fetch
+            mock_fetch,
         )
-        plan = integrator.guard_liquidity_crisis(_make_pnl_report_v1(), _make_plan_full())
+        plan = integrator.guard_liquidity_crisis(
+            _make_pnl_report_v1(), _make_plan_full()
+        )
         assert plan["risk_guard"]["liquidity_crisis"]["action"] == "NORMAL"
 
     def test_liquidity_crash_fail_closed(self, integrator, monkeypatch):
         def mock_fetch(self2, *a, **kw):
             raise RuntimeError("network down")
+
         monkeypatch.setattr(
             "utils.risk_guard_integrator.RiskGuardIntegrator._fetch_limit_counts",
-            mock_fetch
+            mock_fetch,
         )
-        plan = integrator.guard_liquidity_crisis(_make_pnl_report_v1(), _make_plan_full())
+        plan = integrator.guard_liquidity_crisis(
+            _make_pnl_report_v1(), _make_plan_full()
+        )
         assert plan["market_state"]["build_allowed"] is False
         assert "liquidity_crisis_error" in plan["risk_guard"]
 
@@ -1343,10 +1508,13 @@ class TestGuardFailClosedPaths:
 # 十二、guard_sentiment_breaking_news fail-open + 触发路径 — 10 tests
 # ========================================================================
 
+
 class TestSentimentGuard:
     def test_flag_off_skips(self, integrator, monkeypatch):
         monkeypatch.setenv("USE_SENTIMENT_GUARD", "False")
-        plan = integrator.guard_sentiment_breaking_news(_make_pnl_report_v1(), _make_plan_full())
+        plan = integrator.guard_sentiment_breaking_news(
+            _make_pnl_report_v1(), _make_plan_full()
+        )
         assert plan["risk_guard"]["sentiment_breaking_news"]["status"] == "DISABLED"
 
     def test_flag_variants_off(self, integrator, monkeypatch):
@@ -1358,25 +1526,33 @@ class TestSentimentGuard:
     def test_no_holdings_skips(self, integrator):
         plan = integrator.guard_sentiment_breaking_news(
             {"portfolio_pnl": {"summary": {}, "details": []}},
-            {"execution_plan": {"morning_orders": [], "afternoon_orders": []},
-             "positions": {}}
+            {
+                "execution_plan": {"morning_orders": [], "afternoon_orders": []},
+                "positions": {},
+            },
         )
         assert plan["risk_guard"]["sentiment_breaking_news"]["status"] == "SKIP"
 
     def test_import_failed_skips(self, integrator, monkeypatch):
         _block_module(monkeypatch, "utils.ifind_news_analyzer")
-        plan = integrator.guard_sentiment_breaking_news(_make_pnl_report_v1(), _make_plan_full())
+        plan = integrator.guard_sentiment_breaking_news(
+            _make_pnl_report_v1(), _make_plan_full()
+        )
         assert plan["risk_guard"]["sentiment_breaking_news"]["status"] == "SKIP"
 
     def test_ifind_unavailable_skips(self, integrator, monkeypatch):
         mock_inst = MagicMock()
         mock_inst.available.return_value = False
         _inject_mock_module(
-            monkeypatch, "utils.ifind_news_analyzer",
-            "IFinDNewsAnalyzer", mock_inst
+            monkeypatch, "utils.ifind_news_analyzer", "IFinDNewsAnalyzer", mock_inst
         )
-        plan = integrator.guard_sentiment_breaking_news(_make_pnl_report_v1(), _make_plan_full())
-        assert plan["risk_guard"]["sentiment_breaking_news"]["reason"] == "ifind_mcp_unavailable"
+        plan = integrator.guard_sentiment_breaking_news(
+            _make_pnl_report_v1(), _make_plan_full()
+        )
+        assert (
+            plan["risk_guard"]["sentiment_breaking_news"]["reason"]
+            == "ifind_mcp_unavailable"
+        )
 
     def test_analyze_exception_fail_open(self, integrator, monkeypatch):
         """负面新闻异常 → fail-open (不阻塞)"""
@@ -1384,8 +1560,7 @@ class TestSentimentGuard:
         mock_inst.available.return_value = True
         mock_inst.batch_analyze.side_effect = RuntimeError("API 限流")
         _inject_mock_module(
-            monkeypatch, "utils.ifind_news_analyzer",
-            "IFinDNewsAnalyzer", mock_inst
+            monkeypatch, "utils.ifind_news_analyzer", "IFinDNewsAnalyzer", mock_inst
         )
         plan = _make_plan_full()
         orig = plan["execution_plan"]["morning_orders"][:]
@@ -1396,35 +1571,48 @@ class TestSentimentGuard:
     def test_no_critical_negative_ok(self, integrator, monkeypatch):
         mock_inst = MagicMock()
         mock_inst.available.return_value = True
-        insight = MagicMock(symbol="510300", name="沪深300",
-                           direction="neutral", confidence=0.5,
-                           reasons=[], news_count=2)
+        insight = MagicMock(
+            symbol="510300",
+            name="沪深300",
+            direction="neutral",
+            confidence=0.5,
+            reasons=[],
+            news_count=2,
+        )
         mock_inst.batch_analyze.return_value = [insight]
         _inject_mock_module(
-            monkeypatch, "utils.ifind_news_analyzer",
-            "IFinDNewsAnalyzer", mock_inst
+            monkeypatch, "utils.ifind_news_analyzer", "IFinDNewsAnalyzer", mock_inst
         )
-        plan = integrator.guard_sentiment_breaking_news(_make_pnl_report_v1(), _make_plan_full())
+        plan = integrator.guard_sentiment_breaking_news(
+            _make_pnl_report_v1(), _make_plan_full()
+        )
         assert plan["risk_guard"]["sentiment_breaking_news"]["status"] == "OK"
         assert plan["risk_guard"]["sentiment_breaking_news"]["triggered"] is False
 
     def test_triggered_critical_negative(self, integrator, monkeypatch):
         mock_inst = MagicMock()
         mock_inst.available.return_value = True
-        insight = MagicMock(symbol="600519", name="贵州茅台",
-                           direction="negative", confidence=0.95,
-                           reasons=["财务造假", "监管立案"], news_count=5)
+        insight = MagicMock(
+            symbol="600519",
+            name="贵州茅台",
+            direction="negative",
+            confidence=0.95,
+            reasons=["财务造假", "监管立案"],
+            news_count=5,
+        )
         mock_inst.batch_analyze.return_value = [insight]
         _inject_mock_module(
-            monkeypatch, "utils.ifind_news_analyzer",
-            "IFinDNewsAnalyzer", mock_inst
+            monkeypatch, "utils.ifind_news_analyzer", "IFinDNewsAnalyzer", mock_inst
         )
         plan = _make_plan_full()
         result = integrator.guard_sentiment_breaking_news(_make_pnl_report_v1(), plan)
         assert result["risk_guard"]["sentiment_breaking_news"]["status"] == "TRIGGERED"
         assert result["risk_guard"]["sentiment_breaking_news"]["triggered"] is True
         assert result["market_state"]["build_allowed"] is False
-        assert "600519" in result["risk_guard"]["sentiment_breaking_news"]["triggered_symbols"]
+        assert (
+            "600519"
+            in result["risk_guard"]["sentiment_breaking_news"]["triggered_symbols"]
+        )
 
     def test_extract_holding_symbols_from_pnl(self, integrator):
         symbols = integrator._extract_holding_symbols(_make_pnl_report_v1(), {})
@@ -1443,32 +1631,42 @@ class TestSentimentGuard:
 #        guard_correlation_hedge 接口集成 — 12 tests
 # ========================================================================
 
+
 class TestHedgeIntegrationInterfaces:
     def test_hedge_within_budget_pending(self, integrator, monkeypatch):
         mock_inst = MagicMock()
         mock_inst.generate_hedge_orders.return_value = {
             "futures_orders": [
-                {"contracts": 2, "est_price": 3800, "notional": 380_000,
-                 "rationale": {"beta_to_hedge": 0.5}}
+                {
+                    "contracts": 2,
+                    "est_price": 3800,
+                    "notional": 380_000,
+                    "rationale": {"beta_to_hedge": 0.5},
+                }
             ],
-            "options_orders": [
-                {"instrument": "510050 Put", "est_premium": 5000}
-            ],
+            "options_orders": [{"instrument": "510050 Put", "est_premium": 5000}],
             "cost_summary": {
-                "within_budget": True, "hedge_mode": "FUTURES_PLUS_OPTIONS",
-                "total_cost": 15_000, "budget_threshold": 50_000,
-                "buffer_for_roll": 3000, "total_premium_budget": 5000,
-                "total_margin_required": 10_000, "hedge_capital_usage_pct": 0.3,
+                "within_budget": True,
+                "hedge_mode": "FUTURES_PLUS_OPTIONS",
+                "total_cost": 15_000,
+                "budget_threshold": 50_000,
+                "buffer_for_roll": 3000,
+                "total_premium_budget": 5000,
+                "total_margin_required": 10_000,
+                "hedge_capital_usage_pct": 0.3,
             },
             "portfolio_status": {
-                "portfolio_beta_before": 0.85, "target_beta_after": 0.3,
+                "portfolio_beta_before": 0.85,
+                "target_beta_after": 0.3,
                 "hedge_capital": 50_000,
             },
         }
         mock_inst.write_to_trade_plan = MagicMock()
         _inject_mock_module(
-            monkeypatch, "utils.hedge_execution_engine",
-            "HedgeExecutionEngine", mock_inst
+            monkeypatch,
+            "utils.hedge_execution_engine",
+            "HedgeExecutionEngine",
+            mock_inst,
         )
         plan = integrator.guard_hedge_execution(
             _make_pnl_report_v1(), _make_plan_full(), "2026-07-22"
@@ -1482,20 +1680,27 @@ class TestHedgeIntegrationInterfaces:
             "futures_orders": [{"contracts": 10, "est_price": 3800}],
             "options_orders": [],
             "cost_summary": {
-                "within_budget": False, "hedge_mode": "FUTURES_ONLY",
-                "total_cost": 200_000, "budget_threshold": 50_000,
-                "buffer_for_roll": 0, "total_premium_budget": 0,
-                "total_margin_required": 200_000, "hedge_capital_usage_pct": 4.0,
+                "within_budget": False,
+                "hedge_mode": "FUTURES_ONLY",
+                "total_cost": 200_000,
+                "budget_threshold": 50_000,
+                "buffer_for_roll": 0,
+                "total_premium_budget": 0,
+                "total_margin_required": 200_000,
+                "hedge_capital_usage_pct": 4.0,
             },
             "portfolio_status": {
-                "portfolio_beta_before": 0.9, "target_beta_after": 0.1,
+                "portfolio_beta_before": 0.9,
+                "target_beta_after": 0.1,
                 "hedge_capital": 50_000,
             },
         }
         mock_inst.write_to_trade_plan = MagicMock()
         _inject_mock_module(
-            monkeypatch, "utils.hedge_execution_engine",
-            "HedgeExecutionEngine", mock_inst
+            monkeypatch,
+            "utils.hedge_execution_engine",
+            "HedgeExecutionEngine",
+            mock_inst,
         )
         plan = integrator.guard_hedge_execution(
             _make_pnl_report_v1(), _make_plan_full(), "2026-07-22"
@@ -1509,20 +1714,27 @@ class TestHedgeIntegrationInterfaces:
             "futures_orders": [],
             "options_orders": [{"instrument": "510300 Put"}],
             "cost_summary": {
-                "within_budget": True, "hedge_mode": "OPTIONS_ONLY",
-                "total_cost": 5000, "budget_threshold": 20_000,
-                "buffer_for_roll": 500, "total_premium_budget": 5000,
-                "total_margin_required": 0, "hedge_capital_usage_pct": 0.25,
+                "within_budget": True,
+                "hedge_mode": "OPTIONS_ONLY",
+                "total_cost": 5000,
+                "budget_threshold": 20_000,
+                "buffer_for_roll": 500,
+                "total_premium_budget": 5000,
+                "total_margin_required": 0,
+                "hedge_capital_usage_pct": 0.25,
             },
             "portfolio_status": {
-                "portfolio_beta_before": 0.5, "target_beta_after": 0.2,
+                "portfolio_beta_before": 0.5,
+                "target_beta_after": 0.2,
                 "hedge_capital": 20_000,
             },
         }
         mock_inst.write_to_trade_plan = MagicMock()
         _inject_mock_module(
-            monkeypatch, "utils.hedge_execution_engine",
-            "HedgeExecutionEngine", mock_inst
+            monkeypatch,
+            "utils.hedge_execution_engine",
+            "HedgeExecutionEngine",
+            mock_inst,
         )
         plan = integrator.guard_hedge_execution(
             _make_pnl_report_v1(), _make_plan_full(), "2026-07-22"
@@ -1539,16 +1751,20 @@ class TestHedgeIntegrationInterfaces:
         mock_inst = MagicMock()
         mock_inst.generate_hedge_orders.side_effect = RuntimeError("connect fail")
         _inject_mock_module(
-            monkeypatch, "utils.hedge_execution_engine",
-            "HedgeExecutionEngine", mock_inst
+            monkeypatch,
+            "utils.hedge_execution_engine",
+            "HedgeExecutionEngine",
+            mock_inst,
         )
         plan = integrator.guard_hedge_execution({}, _make_plan_full(), "2026-07-22")
         assert "ERROR" in plan["risk_guard"]["hedge_action"]
 
     def test_put_below_threshold_skips(self, integrator, monkeypatch):
         _inject_mock_module(
-            monkeypatch, "utils.protective_put_engine",
-            "ProtectivePutEngine", MagicMock()
+            monkeypatch,
+            "utils.protective_put_engine",
+            "ProtectivePutEngine",
+            MagicMock(),
         )
         report = _make_pnl_report_v1(total_market_value=500_000)
         plan = integrator.guard_protective_put(report, _make_plan_full(), "2026-07-22")
@@ -1565,12 +1781,12 @@ class TestHedgeIntegrationInterfaces:
             "total_premium_est": 3500,
         }
         _inject_mock_module(
-            monkeypatch, "utils.protective_put_engine",
-            "ProtectivePutEngine", mock_inst
+            monkeypatch, "utils.protective_put_engine", "ProtectivePutEngine", mock_inst
         )
         plan = integrator.guard_protective_put(
             _make_pnl_report_v1(total_market_value=2_000_000),
-            _make_plan_full(), "2026-07-22"
+            _make_plan_full(),
+            "2026-07-22",
         )
         assert len(plan["put_protection_orders"]) == 2
         assert plan["risk_guard"]["put_action"] == "GENERATED_2_PUTS"
@@ -1578,23 +1794,24 @@ class TestHedgeIntegrationInterfaces:
     def test_put_existing_protection_ok(self, integrator, monkeypatch):
         mock_inst = MagicMock()
         mock_inst.generate_put_orders.return_value = {
-            "should_execute": False, "orders": [], "reason": "滚仓周期未到"
+            "should_execute": False,
+            "orders": [],
+            "reason": "滚仓周期未到",
         }
         _inject_mock_module(
-            monkeypatch, "utils.protective_put_engine",
-            "ProtectivePutEngine", mock_inst
+            monkeypatch, "utils.protective_put_engine", "ProtectivePutEngine", mock_inst
         )
         plan = integrator.guard_protective_put(
             _make_pnl_report_v1(total_market_value=2_000_000),
-            _make_plan_full(), "2026-07-22"
+            _make_plan_full(),
+            "2026-07-22",
         )
         assert plan["risk_guard"]["put_action"] == "EXISTING_PROTECTION_OK"
 
     def test_put_import_error(self, integrator, monkeypatch):
         _block_module(monkeypatch, "utils.protective_put_engine")
         plan = integrator.guard_protective_put(
-            _make_pnl_report_v1(total_market_value=2_000_000),
-            {}, "2026-07-22"
+            _make_pnl_report_v1(total_market_value=2_000_000), {}, "2026-07-22"
         )
         assert "put_action" not in plan.get("risk_guard", {})
 
@@ -1602,10 +1819,15 @@ class TestHedgeIntegrationInterfaces:
         mock_inst = MagicMock()
         mock_inst.compute_hedge.return_value = {
             "action": "SAFE_HAVEN_ALLOC",
-            "avg_corr": 0.92, "baseline_corr": 0.60, "jump": 0.32,
-            "gold_weight": 0.10, "repo_weight": 0.15,
-            "gold_value": 500_000, "repo_value": 750_000,
-            "gold_etf": "518880", "repo_symbol": "GC001",
+            "avg_corr": 0.92,
+            "baseline_corr": 0.60,
+            "jump": 0.32,
+            "gold_weight": 0.10,
+            "repo_weight": 0.15,
+            "gold_value": 500_000,
+            "repo_value": 750_000,
+            "gold_etf": "518880",
+            "repo_symbol": "GC001",
         }
         mock_mod_cls = MagicMock(return_value=mock_inst)
         mock_mod = MagicMock()
@@ -1616,7 +1838,7 @@ class TestHedgeIntegrationInterfaces:
         monkeypatch.setitem(sys.modules, "hedging.correlation_hedger", mock_mod)
         monkeypatch.setattr(
             "utils.risk_guard_integrator.RiskGuardIntegrator._build_position_returns",
-            lambda self, *a, **kw: MagicMock(empty=False)
+            lambda self, *a, **kw: MagicMock(empty=False),
         )
         plan = integrator.guard_correlation_hedge(
             _make_pnl_report_v1(total_market_value=5_000_000), _make_plan_full()
@@ -1631,30 +1853,40 @@ class TestHedgeIntegrationInterfaces:
         monkeypatch.setitem(sys.modules, "hedging.correlation_hedger", mock_mod)
         monkeypatch.setattr(
             "utils.risk_guard_integrator.RiskGuardIntegrator._build_position_returns",
-            lambda self, *a, **kw: None
+            lambda self, *a, **kw: None,
         )
-        plan = integrator.guard_correlation_hedge(_make_pnl_report_v1(), _make_plan_full())
+        plan = integrator.guard_correlation_hedge(
+            _make_pnl_report_v1(), _make_plan_full()
+        )
         assert plan["risk_guard"]["correlation_hedge"]["action"] == "NO_DATA"
 
     def test_safe_haven_orders_both(self, integrator):
-        result = integrator._build_safe_haven_orders({
-            "gold_weight": 0.05, "repo_weight": 0.10,
-            "gold_value": 250_000, "repo_value": 500_000,
-        })
+        result = integrator._build_safe_haven_orders(
+            {
+                "gold_weight": 0.05,
+                "repo_weight": 0.10,
+                "gold_value": 250_000,
+                "repo_value": 500_000,
+            }
+        )
         assert len(result) == 2
         assert result[0]["symbol"] == "518880"
         assert result[1]["symbol"] == "GC001"
 
     def test_safe_haven_orders_neither(self, integrator):
-        result = integrator._build_safe_haven_orders({
-            "gold_weight": 0.0, "repo_weight": 0.0,
-        })
+        result = integrator._build_safe_haven_orders(
+            {
+                "gold_weight": 0.0,
+                "repo_weight": 0.0,
+            }
+        )
         assert len(result) == 0
 
 
 # ========================================================================
 # 十四、_deduplicate_put_orders 边界 — 8 tests
 # ========================================================================
+
 
 class TestDeduplicatePutOrders:
     def test_no_protection_no_options_skips(self, integrator):
@@ -1739,6 +1971,7 @@ class TestDeduplicatePutOrders:
 # 十五、一致性校验 (CRITICAL/WARNING 对齐 + Theta CC 拦截) — 8 tests
 # ========================================================================
 
+
 class TestConsistencyCheck:
     def test_critical_forces_build_allowed_false(self, integrator, monkeypatch):
         _block_all_optional_modules(monkeypatch)
@@ -1758,7 +1991,9 @@ class TestConsistencyCheck:
         result = integrator.run_all_guards("2026-07-22")
         assert result["market_state"]["spot_build_allowed"] is False
 
-    def test_theta_covered_call_blocked_when_spot_disallowed(self, integrator, monkeypatch):
+    def test_theta_covered_call_blocked_when_spot_disallowed(
+        self, integrator, monkeypatch
+    ):
         _block_all_optional_modules(monkeypatch)
         plan = _make_plan_full()
         plan["market_state"]["circuit_level"] = "WARNING"
@@ -1779,15 +2014,20 @@ class TestConsistencyCheck:
         orig_build = plan["execution_plan"].get("options_orders_count", 0)
         result = integrator.run_all_guards("2026-07-22")
         cc_kept = [
-            o for o in result["execution_plan"].get("options_orders", [])
+            o
+            for o in result["execution_plan"].get("options_orders", [])
             if "CoveredCall" in str(o.get("name", ""))
         ]
-        assert len(cc_kept) == orig_build or result["market_state"].get("circuit_level") != "NORMAL"
+        assert (
+            len(cc_kept) == orig_build
+            or result["market_state"].get("circuit_level") != "NORMAL"
+        )
 
 
 # ========================================================================
 # 十六、_load_next_trade_plan / _save_trade_plan / _write_guard_log — 8 tests
 # ========================================================================
+
 
 class TestPlanIoAndLog:
     def test_load_nonexistent_plan(self, integrator):
@@ -1795,6 +2035,7 @@ class TestPlanIoAndLog:
 
     def test_load_corrupted_plan(self, integrator):
         from utils.risk_guard_integrator import TRADE_PLANS_DIR
+
         tp_dir = TRADE_PLANS_DIR
         bad = tp_dir / "trade_plan_20260722.json"
         bad.write_text("{ not json", encoding="utf-8")
@@ -1808,6 +2049,7 @@ class TestPlanIoAndLog:
 
     def test_save_creates_backup(self, integrator):
         from utils.risk_guard_integrator import TRADE_PLANS_DIR
+
         tp_dir = TRADE_PLANS_DIR
         plan_path = tp_dir / "trade_plan_20260722.json"
         plan_path.write_text(json.dumps({"v": 1}), encoding="utf-8")
@@ -1820,6 +2062,7 @@ class TestPlanIoAndLog:
         integrator._log("msg2")
         integrator._write_guard_log("2026-07-22")
         from utils.risk_guard_integrator import LOGS_DIR
+
         logs_dir = LOGS_DIR
         log_file = logs_dir / "risk_guard_20260722.log"
         assert log_file.exists()
@@ -1829,9 +2072,11 @@ class TestPlanIoAndLog:
 
     def test_write_guard_log_permission_error_safe(self, integrator, monkeypatch):
         """磁盘满/权限错时不崩溃 (pass)"""
+
         class ReadOnlyDir:
             def __truediv__(self, other):
                 raise PermissionError("read-only filesystem")
+
         monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", ReadOnlyDir())
         integrator._log("will fail silently")
         try:
@@ -1844,6 +2089,7 @@ class TestPlanIoAndLog:
 # 十七、main() CLI 入口 + run_all_guards 完整流程 — 6 tests
 # ========================================================================
 
+
 class TestCliAndRunAll:
     def test_main_no_args(self, monkeypatch, tmp_path):
         logs_dir = tmp_path / "logs"
@@ -1854,8 +2100,12 @@ class TestCliAndRunAll:
             d.mkdir(parents=True, exist_ok=True)
         monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
         monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
-        monkeypatch.setattr("utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir)
-        monkeypatch.setattr("utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir)
+        monkeypatch.setattr(
+            "utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir
+        )
+        monkeypatch.setattr(
+            "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+        )
         monkeypatch.setattr(sys, "argv", ["risk_guard_integrator", "2026-07-21"])
         try:
             main()
@@ -1871,9 +2121,15 @@ class TestCliAndRunAll:
             d.mkdir(parents=True, exist_ok=True)
         monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
         monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
-        monkeypatch.setattr("utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir)
-        monkeypatch.setattr("utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir)
-        monkeypatch.setattr(sys, "argv", ["risk_guard_integrator", "2026-07-21", "2026-07-23"])
+        monkeypatch.setattr(
+            "utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir
+        )
+        monkeypatch.setattr(
+            "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+        )
+        monkeypatch.setattr(
+            sys, "argv", ["risk_guard_integrator", "2026-07-21", "2026-07-23"]
+        )
         try:
             main()
         except Exception as e:
@@ -1888,6 +2144,7 @@ class TestCliAndRunAll:
     def test_run_all_guards_with_report_and_plan(self, integrator, monkeypatch):
         _block_all_optional_modules(monkeypatch)
         from utils.risk_guard_integrator import DAILY_REPORT_DIR
+
         daily_dir = DAILY_REPORT_DIR
         date_dir = daily_dir / integrator.report_date
         date_dir.mkdir(parents=True, exist_ok=True)
@@ -1895,6 +2152,7 @@ class TestCliAndRunAll:
             json.dumps(_make_pnl_report_v1()), encoding="utf-8"
         )
         from utils.risk_guard_integrator import TRADE_PLANS_DIR
+
         tp_dir = TRADE_PLANS_DIR
         (tp_dir / "trade_plan_20260722.json").write_text(
             json.dumps(_make_plan_full()), encoding="utf-8"
@@ -1904,6 +2162,7 @@ class TestCliAndRunAll:
 
     def test_run_all_guards_preserves_sell_orders_in_l2(self, integrator, monkeypatch):
         _block_all_optional_modules(monkeypatch)
+
         def fake_ks(self2, pnl, plan):
             plan["market_state"] = plan.get("market_state", {})
             plan["market_state"]["circuit_level"] = "WARNING"
@@ -1911,9 +2170,13 @@ class TestCliAndRunAll:
             plan["market_state"]["spot_build_allowed"] = False
             plan["risk_guard"] = plan.get("risk_guard", {})
             plan["risk_guard"]["kill_switch"] = {
-                "level": "L2", "margin_usage": 0.80, "can_trade": True, "can_open": False
+                "level": "L2",
+                "margin_usage": 0.80,
+                "can_trade": True,
+                "can_open": False,
             }
             return plan
+
         monkeypatch.setattr(
             "utils.risk_guard_integrator.RiskGuardIntegrator.guard_kill_switch", fake_ks
         )
@@ -1923,6 +2186,7 @@ class TestCliAndRunAll:
             {"side": "BUY", "code": "Y", "shares": 50},
         ]
         from utils.risk_guard_integrator import DAILY_REPORT_DIR
+
         daily_dir = DAILY_REPORT_DIR
         date_dir = daily_dir / integrator.report_date
         date_dir.mkdir(parents=True, exist_ok=True)
@@ -1930,6 +2194,7 @@ class TestCliAndRunAll:
             json.dumps(_make_pnl_report_v1()), encoding="utf-8"
         )
         from utils.risk_guard_integrator import TRADE_PLANS_DIR
+
         tp_dir = TRADE_PLANS_DIR
         (tp_dir / "trade_plan_20260722.json").write_text(
             json.dumps(plan), encoding="utf-8"
@@ -1950,6 +2215,7 @@ class TestCliAndRunAll:
 # 十八、_extract_daily_returns 边界 — 4 tests
 # ========================================================================
 
+
 class TestExtractDailyReturns:
     def test_no_history_files_empty(self, integrator):
         result = integrator._extract_daily_returns(_make_pnl_report_v1())
@@ -1957,26 +2223,32 @@ class TestExtractDailyReturns:
 
     def test_fewer_than_5_days_empty(self, integrator):
         from utils.risk_guard_integrator import REPORTS_DIR
+
         reports_dir = REPORTS_DIR
         for i in range(3):
             d = f"2026-07-{18+i:02d}"
             p = reports_dir / f"daily_pnl_report_{d}.json"
-            p.write_text(json.dumps({
-                "portfolio_pnl": {"summary": {"total_pnl_pct": 1.0 + i}}
-            }), encoding="utf-8")
+            p.write_text(
+                json.dumps({"portfolio_pnl": {"summary": {"total_pnl_pct": 1.0 + i}}}),
+                encoding="utf-8",
+            )
         result = integrator._extract_daily_returns(_make_pnl_report_v1())
         assert result == []
 
     def test_22_days_ok(self, integrator):
         from utils.risk_guard_integrator import REPORTS_DIR
+
         reports_dir = REPORTS_DIR
         base = datetime(2026, 7, 1)
         for i in range(25):
             d = (base + timedelta(days=i)).strftime("%Y-%m-%d")
             p = reports_dir / f"daily_pnl_report_{d}.json"
-            p.write_text(json.dumps({
-                "portfolio_pnl": {"summary": {"total_pnl_pct": 0.5 + i * 0.01}}
-            }), encoding="utf-8")
+            p.write_text(
+                json.dumps(
+                    {"portfolio_pnl": {"summary": {"total_pnl_pct": 0.5 + i * 0.01}}}
+                ),
+                encoding="utf-8",
+            )
         result = integrator._extract_daily_returns(_make_pnl_report_v1())
         assert len(result) == 22
         assert all(isinstance(x, float) for x in result)
@@ -1985,9 +2257,10 @@ class TestExtractDailyReturns:
         class BrokenGlob:
             def __call__(self, pattern):
                 raise RuntimeError("disk error")
+
         monkeypatch.setattr(
             "utils.risk_guard_integrator.REPORTS_DIR",
-            MagicMock(glob=MagicMock(side_effect=RuntimeError("boom")))
+            MagicMock(glob=MagicMock(side_effect=RuntimeError("boom"))),
         )
         result = integrator._extract_daily_returns(_make_pnl_report_v1())
         assert result == []
@@ -1997,6 +2270,7 @@ class TestExtractDailyReturns:
 # 十九、_build_position_returns 边界 — 6 tests
 # ========================================================================
 
+
 class TestBuildPositionReturns:
     def test_no_positions_returns_none(self, integrator):
         result = integrator._build_position_returns({"portfolio_pnl": {}})
@@ -2004,6 +2278,7 @@ class TestBuildPositionReturns:
 
     def test_fewer_than_10_report_files(self, integrator):
         from utils.risk_guard_integrator import REPORTS_DIR
+
         reports_dir = REPORTS_DIR
         report = _make_pnl_report_v1()
         for i in range(5):
@@ -2021,6 +2296,7 @@ class TestBuildPositionReturns:
 
     def test_exception_returns_none(self, integrator):
         from utils.risk_guard_integrator import REPORTS_DIR
+
         reports_dir = REPORTS_DIR
         report = _make_pnl_report_v1()
         for i in range(15):
@@ -2040,18 +2316,13 @@ if __name__ == "__main__":
 # 二十、补充未覆盖分支测试（覆盖率冲刺）
 # ========================================================================
 
+
 class TestUncoveredBranches:
     """补充之前未覆盖的关键分支"""
 
     def test_extract_positions_dict_details(self, integrator):
         """dict.portfolio_pnl.details 是 list, 直接返回"""
-        report = {
-            "portfolio_pnl": {
-                "details": [
-                    {"code": "000001", "quantity": 200}
-                ]
-            }
-        }
+        report = {"portfolio_pnl": {"details": [{"code": "000001", "quantity": 200}]}}
         positions = integrator._extract_positions(report)
         assert isinstance(positions, list)
         assert any(p["code"] == "000001" for p in positions)
@@ -2070,16 +2341,19 @@ class TestUncoveredBranches:
     def test_extract_daily_returns_legacy_pnl_summary(self, integrator):
         """兼容旧格式: report.portfolio_pnl 是 dict 而不是 dict.summary"""
         from utils.risk_guard_integrator import REPORTS_DIR
+
         reports_dir = REPORTS_DIR
         import datetime
         from datetime import timedelta
+
         base = datetime.date(2026, 7, 1)
         for i in range(5):
             d = (base + timedelta(days=i)).strftime("%Y-%m-%d")
             p = reports_dir / f"daily_pnl_report_{d}.json"
-            p.write_text(json.dumps({
-                "portfolio_pnl": {"total_pnl_pct": 0.01 + i * 0.01}
-            }), encoding="utf-8")
+            p.write_text(
+                json.dumps({"portfolio_pnl": {"total_pnl_pct": 0.01 + i * 0.01}}),
+                encoding="utf-8",
+            )
         report = {
             "trade_date": "2026-07-22",
             "portfolio_pnl": {"total_pnl_pct": 0.02},
@@ -2093,7 +2367,9 @@ class TestUncoveredBranches:
         plan = _make_plan_full()
         plan.setdefault("risk_guard", {})["hedge_execution"] = {"actions": {}}
         plan["execution_plan"]["morning_orders"] = []
-        result = integrator.guard_hedge_execution(_make_pnl_report_v1(), plan, "2026-07-22")
+        result = integrator.guard_hedge_execution(
+            _make_pnl_report_v1(), plan, "2026-07-22"
+        )
         assert result["risk_guard"]["hedge_execution"]["actions"] == {}
         assert "action" not in result["risk_guard"]["hedge_execution"]
 
@@ -2108,7 +2384,9 @@ class TestUncoveredBranches:
         plan["market_state"] = {"circuit_level": "NORMAL"}
         plan["execution_plan"]["options_orders_count"] = 0
         plan["execution_plan"]["options_orders"] = []
-        result = integrator.guard_protective_put(_make_pnl_report_v1(), plan, "2026-07-22")
+        result = integrator.guard_protective_put(
+            _make_pnl_report_v1(), plan, "2026-07-22"
+        )
         assert "risk_guard" in result
         assert result["risk_guard"].get("put_protection") is not None
 
@@ -2116,7 +2394,10 @@ class TestUncoveredBranches:
         """L1 不触发放量/集中度, 但设置 circuit_level=WATCH"""
         _block_all_optional_modules(monkeypatch)
         plan = _make_plan_full()
-        plan.setdefault("risk_guard", {})["liquidity"] = {"limit_up_count": 20, "limit_down_count": 20}
+        plan.setdefault("risk_guard", {})["liquidity"] = {
+            "limit_up_count": 20,
+            "limit_down_count": 20,
+        }
         plan["positions"] = [{"code": f"{i:06d}", "weight": 0.1} for i in range(9)]
         pnl = _make_pnl_report_v1(margin_used=800_000, total_equity=1_500_000)
         result = integrator.guard_kill_switch(pnl, plan)
@@ -2127,13 +2408,21 @@ class TestUncoveredBranches:
         """集中度检查: 单一标的 >=0.3 触发 L2"""
         mock_ks = MagicMock()
         mock_ks.check_margin_status.return_value = {
-            "level": "OK", "can_trade": True, "can_open": True, "action": "正常"
+            "level": "OK",
+            "can_trade": True,
+            "can_open": True,
+            "action": "正常",
         }
         mock_ks.check_concentration.return_value = {
-            "level": "L2", "max_concentration": 0.5,
-            "max_concentration_code": "600519"
+            "level": "L2",
+            "max_concentration": 0.5,
+            "max_concentration_code": "600519",
         }
-        monkeypatch.setitem(sys.modules, "utils.kill_switch", MagicMock(KillSwitch=MagicMock(return_value=mock_ks)))
+        monkeypatch.setitem(
+            sys.modules,
+            "utils.kill_switch",
+            MagicMock(KillSwitch=MagicMock(return_value=mock_ks)),
+        )
         plan = _make_plan_full()
         plan["positions"] = [
             {"code": "600519", "market_value": 500_000},
@@ -2141,11 +2430,20 @@ class TestUncoveredBranches:
         ]
         result = integrator.guard_kill_switch(_make_pnl_report_v1(), plan)
         assert result["risk_guard"]["kill_switch"]["level"] == "L2"
-        assert result["risk_guard"]["kill_switch"]["concentration"]["max_concentration_code"] == "600519"
+        assert (
+            result["risk_guard"]["kill_switch"]["concentration"][
+                "max_concentration_code"
+            ]
+            == "600519"
+        )
 
     def test_fetch_limit_counts_layer2_akshare_fails(self, integrator, monkeypatch):
         """Layer 2: akshare 返回 None, astock_realtime 也失败"""
-        monkeypatch.setitem(sys.modules, "akshare", MagicMock(stock_zh_a_spot_em=MagicMock(return_value=None)))
+        monkeypatch.setitem(
+            sys.modules,
+            "akshare",
+            MagicMock(stock_zh_a_spot_em=MagicMock(return_value=None)),
+        )
         lu, ld, src = integrator._fetch_limit_counts()
         assert src == "fail_closed"
 
@@ -2169,11 +2467,17 @@ class TestUncoveredBranches:
         mock_series.ge.return_value = MagicMock(sum=MagicMock(return_value=3))
         mock_series.le.return_value = MagicMock(sum=MagicMock(return_value=1))
         mock_df.__getitem__ = lambda s, k: mock_series
-        monkeypatch.setitem(sys.modules, "akshare", MagicMock(stock_zh_a_spot_em=MagicMock(return_value=None)))
+        monkeypatch.setitem(
+            sys.modules,
+            "akshare",
+            MagicMock(stock_zh_a_spot_em=MagicMock(return_value=None)),
+        )
         lu, ld, src = integrator._fetch_limit_counts()
         assert src == "fail_closed"
 
-    def test_run_all_guards_kill_switch_exception(self, integrator, monkeypatch, caplog):
+    def test_run_all_guards_kill_switch_exception(
+        self, integrator, monkeypatch, caplog
+    ):
         """run_all_guards 中 kill_switch 崩溃时降级处理"""
         _block_all_optional_modules(monkeypatch)
         monkeypatch.setattr(

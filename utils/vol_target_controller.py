@@ -54,6 +54,7 @@ CACHE_DIR = BASE_DIR / "cache"
 
 class VolBudgetResult(TypedDict, total=False):
     """波动率预算调整结果 (混合类型字段: 数值/布尔/时间)"""
+
     original_budget: float
     vol_scale: float
     threshold_active: bool
@@ -113,7 +114,12 @@ class VolTargetController:
         n = len(returns)
 
         # EWMA 权重
-        weights = np.array([(1 - self.EWMA_LAMBDA) * (self.EWMA_LAMBDA**i) for i in range(n - 1, -1, -1)])
+        weights = np.array(
+            [
+                (1 - self.EWMA_LAMBDA) * (self.EWMA_LAMBDA**i)
+                for i in range(n - 1, -1, -1)
+            ]
+        )
         weights /= weights.sum()
 
         # EWMA 方差
@@ -124,7 +130,9 @@ class VolTargetController:
         # 年化
         annual_vol = daily_vol * self.ANNUALIZATION_FACTOR
 
-        logger.info(f"已实现波动率: 日{daily_vol * 100:.2f}% → 年化{annual_vol * 100:.2f}%")
+        logger.info(
+            f"已实现波动率: 日{daily_vol * 100:.2f}% → 年化{annual_vol * 100:.2f}%"
+        )
         return annual_vol
 
     def calc_vol_scale(self, realized_vol: float | None = None) -> float:
@@ -191,7 +199,9 @@ class VolTargetController:
         else:
             adjusted_budget = original_budget  # 波动率正常, 不缩减
 
-        reduction_pct = 1.0 - (adjusted_budget / original_budget) if original_budget > 0 else 0
+        reduction_pct = (
+            1.0 - (adjusted_budget / original_budget) if original_budget > 0 else 0
+        )
 
         # 生成建议文本
         if vol_scale >= self.VOL_SCALE_THRESHOLD:
@@ -248,11 +258,24 @@ class VolTargetController:
                         report = json.load(f)
                     # 尝试提取日收益率
                     pnl = report.get("portfolio_summary", {})
-                    daily_return = pnl.get("daily_return_pct", pnl.get("total_return_pct", 0))
+                    daily_return = pnl.get(
+                        "daily_return_pct", pnl.get("total_return_pct", 0)
+                    )
                     if isinstance(daily_return, (int, float)):
-                        returns.append(daily_return / 100.0 if abs(daily_return) > 1 else daily_return)
+                        returns.append(
+                            daily_return / 100.0
+                            if abs(daily_return) > 1
+                            else daily_return
+                        )
                     break  # 找到一份即可, 跳出候选路径循环
-                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+                except (
+                    ValueError,
+                    KeyError,
+                    TypeError,
+                    AttributeError,
+                    OSError,
+                    RuntimeError,
+                ):
                     continue
 
         # 如果报告数据不足, 尝试从持仓成本与当前价估算
@@ -298,7 +321,14 @@ class VolTargetController:
         try:
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"保存vol缓存失败: {e}")
 
     @classmethod
@@ -311,7 +341,11 @@ class VolTargetController:
             with open(cache_path, encoding="utf-8") as f:
                 data = json.load(f)
             vol_scale_val = cast(dict[str, Any], data).get("vol_scale")
-            return float(vol_scale_val) if isinstance(vol_scale_val, (int, float)) else None
+            return (
+                float(vol_scale_val)
+                if isinstance(vol_scale_val, (int, float))
+                else None
+            )
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return None
 
@@ -322,12 +356,16 @@ class VolTargetController:
 if __name__ == "__main__":
     import argparse
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
 
     parser = argparse.ArgumentParser(description="波动率目标控制器")
     parser.add_argument("--budget", type=float, default=150000, help="原始每日建仓金额")
     parser.add_argument("--target-vol", type=float, default=0.12, help="目标年化波动率")
-    parser.add_argument("--force-vol", type=float, default=None, help="强制指定realized_vol (测试)")
+    parser.add_argument(
+        "--force-vol", type=float, default=None, help="强制指定realized_vol (测试)"
+    )
     args = parser.parse_args()
 
     vtc = VolTargetController(target_vol=args.target_vol)
@@ -339,6 +377,8 @@ if __name__ == "__main__":
     logger.info(json.dumps(result, ensure_ascii=False, indent=2))
     logger.info(f"\n{'=' * 50}")
     logger.info(f"原始预算: ¥{result['original_budget']:,.0f}")
-    logger.info(f"Vol Scale: {result['vol_scale']:.3f} ({'触发缩仓' if result['threshold_active'] else '正常'})")
+    logger.info(
+        f"Vol Scale: {result['vol_scale']:.3f} ({'触发缩仓' if result['threshold_active'] else '正常'})"
+    )
     logger.info(f"调整后预算: ¥{result['adjusted_budget']:,.0f}")
     logger.info(f"建议: {result['recommendation']}")

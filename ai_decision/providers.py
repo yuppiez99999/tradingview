@@ -35,6 +35,7 @@ logger = logging.getLogger("ai_decision.providers")
 # 抽象基类
 # ============================================================
 
+
 class BaseProvider(ABC):
     """所有 Provider 的抽象基类"""
 
@@ -52,9 +53,13 @@ class BaseProvider(ABC):
 # 适配现有 llm_client.py
 # ============================================================
 
-def _ollama_reachable(host: str = "localhost", port: int = 11434, timeout: float = 0.5) -> bool:
+
+def _ollama_reachable(
+    host: str = "localhost", port: int = 11434, timeout: float = 0.5
+) -> bool:
     """快速 socket 探活，避免 Ollama 服务未启动时盲等超时"""
     import socket
+
     try:
         with socket.create_connection((host, port), timeout=timeout):
             return True
@@ -107,11 +112,16 @@ class LlmClientProvider(BaseProvider):
             except (ImportError, ModuleNotFoundError):
                 import sys
                 from pathlib import Path
+
                 _wf_dir = str(Path(__file__).resolve().parent.parent / "15_每日工作流")
                 if _wf_dir not in sys.path:
                     sys.path.insert(0, _wf_dir)
                 from llm_client import chat, chat_deep
-        except (ImportError, ModuleNotFoundError, OSError) as exc:  # pragma: no cover - 导入失败兜底
+        except (
+            ImportError,
+            ModuleNotFoundError,
+            OSError,
+        ) as exc:  # pragma: no cover - 导入失败兜底
             logger.warning("llm_client 不可用: %s", exc)
             return None
         try:
@@ -119,13 +129,22 @@ class LlmClientProvider(BaseProvider):
             # (DeepSeek → GLM → Ollama API → Ollama CLI)
             # 不接受 provider/timeout 参数, 全部按 temperature=0.3 调用
             if system:
-                resp = chat_deep(prompt, system=system, temperature=0.3, max_tokens=4000)
+                resp = chat_deep(
+                    prompt, system=system, temperature=0.3, max_tokens=4000
+                )
             else:
                 resp = chat(prompt, system="", temperature=0.3, max_tokens=2000)
             if isinstance(resp, str) and resp.strip():
                 return resp
             return None
-        except (RuntimeError, ValueError, TypeError, OSError, ConnectionError, TimeoutError) as exc:
+        except (
+            RuntimeError,
+            ValueError,
+            TypeError,
+            OSError,
+            ConnectionError,
+            TimeoutError,
+        ) as exc:
             # llm_client 内部多级降级仍可能抛: 网络/超时/JSON 解析/响应格式异常
             logger.warning("LlmClientProvider(%s) 调用失败: %s", self.preferred, exc)
             return None
@@ -135,12 +154,17 @@ class LlmClientProvider(BaseProvider):
 # Moonshot (Kimi3) OpenAI 兼容
 # ============================================================
 
+
 class MoonshotProvider(BaseProvider):
     """Kimi3 (Moonshot) OpenAI 兼容 /chat/completions"""
 
-    def __init__(self, api_key_env: str = "MOONSHOT_API_KEY",
-                 base_url: str = "https://api.moonshot.cn/v1",
-                 model: str = "moonshot-v1-8k", role: str = "") -> None:
+    def __init__(
+        self,
+        api_key_env: str = "MOONSHOT_API_KEY",
+        base_url: str = "https://api.moonshot.cn/v1",
+        model: str = "moonshot-v1-8k",
+        role: str = "",
+    ) -> None:
         self.api_key_env = api_key_env
         self.base_url = base_url
         self.model = model
@@ -157,24 +181,39 @@ class MoonshotProvider(BaseProvider):
             return None
         try:
             import requests
+
             messages = []
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
             resp = requests.post(
                 f"{self.base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {self._key}",
-                         "Content-Type": "application/json"},
-                json={"model": self.model, "messages": messages,
-                      "temperature": 0.3, "max_tokens": 1500},
+                headers={
+                    "Authorization": f"Bearer {self._key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": 0.3,
+                    "max_tokens": 1500,
+                },
                 timeout=timeout,
             )
             resp.raise_for_status()
             data = resp.json()
             text = data["choices"][0]["message"]["content"]
             return text if isinstance(text, str) and text.strip() else None
-        except (ImportError, OSError, ConnectionError, TimeoutError,
-                ValueError, KeyError, TypeError, RuntimeError) as exc:
+        except (
+            ImportError,
+            OSError,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            KeyError,
+            TypeError,
+            RuntimeError,
+        ) as exc:
             # requests 抛 OSError 子类 (ConnectionError/Timeout/HTTPError);
             # JSON 解析失败抛 ValueError; data["choices"][0] 解析失败抛 KeyError/TypeError
             logger.warning("MoonshotProvider 调用失败: %s", exc)
@@ -185,12 +224,17 @@ class MoonshotProvider(BaseProvider):
 # Claude OpenAI 兼容代理
 # ============================================================
 
+
 class ClaudeProvider(BaseProvider):
     """Claude OpenAI 兼容代理 /chat/completions (可指向任意 OpenAI 兼容网关)"""
 
-    def __init__(self, api_key_env: str = "CLAUDE_API_KEY",
-                 base_url: str = "https://api.anthropic.com/v1",
-                 model: str = "claude-sonnet-4-20250514", role: str = "") -> None:
+    def __init__(
+        self,
+        api_key_env: str = "CLAUDE_API_KEY",
+        base_url: str = "https://api.anthropic.com/v1",
+        model: str = "claude-sonnet-4-20250514",
+        role: str = "",
+    ) -> None:
         self.api_key_env = api_key_env
         self.base_url = base_url
         self.model = model
@@ -207,24 +251,39 @@ class ClaudeProvider(BaseProvider):
             return None
         try:
             import requests
+
             messages = []
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
             resp = requests.post(
                 f"{self.base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {self._key}",
-                         "Content-Type": "application/json"},
-                json={"model": self.model, "messages": messages,
-                      "temperature": 0.3, "max_tokens": 1500},
+                headers={
+                    "Authorization": f"Bearer {self._key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": 0.3,
+                    "max_tokens": 1500,
+                },
                 timeout=timeout,
             )
             resp.raise_for_status()
             data = resp.json()
             text = data["choices"][0]["message"]["content"]
             return text if isinstance(text, str) and text.strip() else None
-        except (ImportError, OSError, ConnectionError, TimeoutError,
-                ValueError, KeyError, TypeError, RuntimeError) as exc:
+        except (
+            ImportError,
+            OSError,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            KeyError,
+            TypeError,
+            RuntimeError,
+        ) as exc:
             logger.warning("ClaudeProvider 调用失败: %s", exc)
             return None
 
@@ -233,6 +292,7 @@ class ClaudeProvider(BaseProvider):
 # GptProvider — OpenAI 兼容 (盘中研判占位, 可扩展)
 # ============================================================
 
+
 class GptProvider(BaseProvider):
     """OpenAI 兼容 GPT Provider (占位, 可扩展)
 
@@ -240,9 +300,13 @@ class GptProvider(BaseProvider):
     由 get_active_provider 自动降级 Mock. 用户后期在 .env 填入 OPENAI_API_KEY 即可启用.
     """
 
-    def __init__(self, api_key_env: str = "OPENAI_API_KEY",
-                 base_url: str = "https://api.openai.com/v1",
-                 model: str = "gpt-4o", role: str = "") -> None:
+    def __init__(
+        self,
+        api_key_env: str = "OPENAI_API_KEY",
+        base_url: str = "https://api.openai.com/v1",
+        model: str = "gpt-4o",
+        role: str = "",
+    ) -> None:
         self.api_key_env = api_key_env
         self.base_url = base_url
         self.model = model
@@ -259,24 +323,39 @@ class GptProvider(BaseProvider):
             return None
         try:
             import requests
+
             messages = []
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
             resp = requests.post(
                 f"{self.base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {self._key}",
-                         "Content-Type": "application/json"},
-                json={"model": self.model, "messages": messages,
-                      "temperature": 0.3, "max_tokens": 1500},
+                headers={
+                    "Authorization": f"Bearer {self._key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": 0.3,
+                    "max_tokens": 1500,
+                },
                 timeout=timeout,
             )
             resp.raise_for_status()
             data = resp.json()
             text = data["choices"][0]["message"]["content"]
             return text if isinstance(text, str) and text.strip() else None
-        except (ImportError, OSError, ConnectionError, TimeoutError,
-                ValueError, KeyError, TypeError, RuntimeError) as exc:
+        except (
+            ImportError,
+            OSError,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            KeyError,
+            TypeError,
+            RuntimeError,
+        ) as exc:
             logger.warning("GptProvider 调用失败: %s", exc)
             return None
 
@@ -284,6 +363,7 @@ class GptProvider(BaseProvider):
 # ============================================================
 # MockProvider — 零依赖规则兜底
 # ============================================================
+
 
 class MockProvider(BaseProvider):
     """MockProvider: 无任何 API Key 时保证全链路可跑
@@ -306,7 +386,13 @@ class MockProvider(BaseProvider):
     def generate(self, prompt: str, system: str = "", timeout: int = 30) -> str | None:
         try:
             return self._rule_based_response(prompt)
-        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError) as exc:  # pragma: no cover
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+        ) as exc:  # pragma: no cover
             logger.debug("MockProvider 规则生成异常: %s", exc)
             return None
 
@@ -318,6 +404,7 @@ class MockProvider(BaseProvider):
         # 抽取 change_pct (涨跌幅)
         change = 0.0
         import re
+
         m = re.search(r"涨跌幅[^\d\-]+([\-]?\d+(?:\.\d+)?)", prompt)
         if m:
             try:
@@ -336,17 +423,25 @@ class MockProvider(BaseProvider):
         if self.role == "bull":
             change * 0.05 + self.bias
             if change > 0:
-                return (f"看多观点: 当前价格动量向上 (涨跌幅 {change:.2f}%), "
-                        "技术形态偏强, 建议逢低建仓. 置信度中等偏高.")
-            return (f"看多观点: 尽管短期回调 (涨跌幅 {change:.2f}%), 但估值具备长期吸引力, "
-                    "维持结构性看多. 置信度中等.")
+                return (
+                    f"看多观点: 当前价格动量向上 (涨跌幅 {change:.2f}%), "
+                    "技术形态偏强, 建议逢低建仓. 置信度中等偏高."
+                )
+            return (
+                f"看多观点: 尽管短期回调 (涨跌幅 {change:.2f}%), 但估值具备长期吸引力, "
+                "维持结构性看多. 置信度中等."
+            )
         if self.role == "bear":
             -change * 0.05 + self.bias
             if change < 0:
-                return (f"看空观点: 价格动量向下 (涨跌幅 {change:.2f}%), 下行风险释放未尽, "
-                        "建议减仓规避. 置信度中等偏高.")
-            return (f"看空观点: 虽短期反弹, 但估值偏高 (PE={pe:.1f}) 且宏观不确定性大, "
-                    "维持谨慎看空. 置信度中等.")
+                return (
+                    f"看空观点: 价格动量向下 (涨跌幅 {change:.2f}%), 下行风险释放未尽, "
+                    "建议减仓规避. 置信度中等偏高."
+                )
+            return (
+                f"看空观点: 虽短期反弹, 但估值偏高 (PE={pe:.1f}) 且宏观不确定性大, "
+                "维持谨慎看空. 置信度中等."
+            )
         # judge
         if change > 1:
             return "裁决: 多方动量占优, 但需警惕追高风险, 建议偏多但控制仓位."
@@ -361,18 +456,20 @@ class MockProvider(BaseProvider):
 
 # 角色 -> (真实 Provider 工厂, 缺省真实后端标识)
 _ROLE_BACKENDS: dict[str, str] = {
-    "signal": "deepseek",       # DeepSeek = 信号计算/代码
-    "compliance": "ollama",     # Ollama 本地 = 合规审计 (qwen2.5:3b 兜底)
-    "research": "moonshot",     # Kimi3 = 研报图表多模态
-    "reasoning": "claude",      # Claude = 深度推理/风控
-    "intraday": "gpt",          # GPT = 盘中研判 (占位)
+    "signal": "deepseek",  # DeepSeek = 信号计算/代码
+    "compliance": "ollama",  # Ollama 本地 = 合规审计 (qwen2.5:3b 兜底)
+    "research": "moonshot",  # Kimi3 = 研报图表多模态
+    "reasoning": "claude",  # Claude = 深度推理/风控
+    "intraday": "gpt",  # GPT = 盘中研判 (占位)
     "bull": "deepseek",
-    "bear": "ollama",           # Ollama 本地 = 看空辩论
+    "bear": "ollama",  # Ollama 本地 = 看空辩论
     "judge": "claude",
 }
 
 
-def get_active_provider(role: str, role_backends: dict[str, str] | None = None) -> BaseProvider:
+def get_active_provider(
+    role: str, role_backends: dict[str, str] | None = None
+) -> BaseProvider:
     """按角色返回可用 Provider; 缺失 Key 自动降级到 MockProvider
 
     Args:
@@ -386,7 +483,11 @@ def get_active_provider(role: str, role_backends: dict[str, str] | None = None) 
 
     # 尝试构造真实 Provider 并验证 Key
     try:
-        if backend == "deepseek" or backend == "glm" or backend in ("qianfan", "doubao", "hy3", "ollama"):
+        if (
+            backend == "deepseek"
+            or backend == "glm"
+            or backend in ("qianfan", "doubao", "hy3", "ollama")
+        ):
             prov = LlmClientProvider(preferred=backend, role=role)
             if prov.available:
                 return prov
@@ -404,7 +505,14 @@ def get_active_provider(role: str, role_backends: dict[str, str] | None = None) 
                 prov = GptProvider(role=role)
                 if prov.available:
                     return prov
-    except (ImportError, AttributeError, TypeError, ValueError, OSError, RuntimeError) as exc:
+    except (
+        ImportError,
+        AttributeError,
+        TypeError,
+        ValueError,
+        OSError,
+        RuntimeError,
+    ) as exc:
         # Provider 构造可能抛: 导入失败/属性缺失/参数错误/环境读取错误
         logger.debug("构造真实 Provider(%s) 失败, 降级 Mock: %s", backend, exc)
 

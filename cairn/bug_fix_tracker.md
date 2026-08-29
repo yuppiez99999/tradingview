@@ -166,3 +166,14 @@
 | `_final_quality_scan.py` | scripts/ | ✓ 全量质量扫描 (13 类风险模式) |
 | fix_print_to_logging.py | scripts/ | 待编写 (第四阶段) |
 | fix_type_ignore.py | scripts/ | 待编写 (第三阶段) |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 13%)
+- [测试债清零经验沉淀 (2026-08-16)](test-debt-clearance-20260816.md) (相似度 13%)
+- [数据修复经验沉淀：EOD 管道数据断链诊断与修复（2026-08-06）](data-integrity-fix-lessons-20260806.md) (相似度 12%)
+- [B905 zip(strict=True) 全量治理 — 2026-08-24](zip-strict-gate-cleanup-20260824.md) (相似度 10%)
+- [Wave 3 代码质量持续修复 — 第三阶段 TYPE_IGNORE + SYS_PATH 核心清零](code-quality-wave3.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -12,6 +12,7 @@ TeamMemoryHub 单元测试
 
 使用临时 db, mock is_enabled 返回 True (flag 默认 false).
 """
+
 from __future__ import annotations
 
 import sys
@@ -34,6 +35,7 @@ from utils.ai_memory.team_memory_hub import (  # noqa: E402
 # ============================================================
 # Fixtures
 # ============================================================
+
 
 @pytest.fixture
 def tmp_db():
@@ -69,6 +71,7 @@ def hub_flag_off(tmp_db):
 # 测试组 1: feature-flag 关闭时 no-op
 # ============================================================
 
+
 class TestFlagOff:
     def test_share_lesson_noop(self, hub_flag_off):
         result = hub_flag_off.share_lesson("agent", "600519", "教训")
@@ -90,6 +93,7 @@ class TestFlagOff:
 # ============================================================
 # 测试组 2: 写入 + 检索
 # ============================================================
+
 
 class TestShareAndQuery:
     def test_share_and_query_roundtrip(self, hub):
@@ -134,6 +138,7 @@ class TestShareAndQuery:
     def test_query_order_by_recency(self, hub):
         hub.share_lesson("agent", "600519", "旧教训")
         import time
+
         time.sleep(0.01)
         hub.share_lesson("agent", "600519", "新教训")
         lessons = hub.query_relevant_lessons(ticker="600519")
@@ -148,6 +153,7 @@ class TestShareAndQuery:
 # ============================================================
 # 测试组 3: 批量获取 + prompt 注入
 # ============================================================
+
 
 class TestBatchAndPrompt:
     def test_get_lessons_for_tickers(self, hub):
@@ -180,6 +186,7 @@ class TestBatchAndPrompt:
 # 测试组 4: 分析师画像
 # ============================================================
 
+
 class TestAgentProfile:
     def test_profile_basic(self, hub):
         hub.share_lesson("agent_a", "600519", "教训 1", outcome="correct5d")
@@ -210,6 +217,7 @@ class TestAgentProfile:
 # ============================================================
 # 测试组 5: 统计 + 数据类
 # ============================================================
+
 
 class TestStatsAndDataclasses:
     def test_stats(self, hub):
@@ -243,6 +251,7 @@ class TestStatsAndDataclasses:
 # ============================================================
 # 测试组 6: 上下文管理 + 单例
 # ============================================================
+
 
 class TestLifecycle:
     def test_context_manager(self, tmp_db):

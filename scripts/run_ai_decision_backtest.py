@@ -23,6 +23,7 @@
     # 打印 Markdown 到 stdout
     python scripts/run_ai_decision_backtest.py --print
 """
+
 from __future__ import annotations
 
 import argparse
@@ -44,39 +45,48 @@ def main() -> int:
     Returns:
         0=成功且建议 shadow, 1=成功且建议 paper/auto, 2=异常
     """
-    parser = argparse.ArgumentParser(
-        description="ai_decision 历史回放 + 三基线对比"
-    )
+    parser = argparse.ArgumentParser(description="ai_decision 历史回放 + 三基线对比")
     parser.add_argument(
-        "--symbols", nargs="*", default=None,
+        "--symbols",
+        nargs="*",
+        default=None,
         help="标的池 (空格分隔, 默认 Mock 3 只)",
     )
     parser.add_argument(
-        "--days", type=int, default=60,
+        "--days",
+        type=int,
+        default=60,
         help="回放天数 (Mock 模式, 默认 60)",
     )
     parser.add_argument(
-        "--start", default=None,
+        "--start",
+        default=None,
         help="开始日期 (YYYY-MM-DD, 默认 Mock 起点)",
     )
     parser.add_argument(
-        "--end", default=None,
+        "--end",
+        default=None,
         help="结束日期 (YYYY-MM-DD, 默认 Mock 终点)",
     )
     parser.add_argument(
-        "--horizon", type=int, default=5,
+        "--horizon",
+        type=int,
+        default=5,
         help="前瞻收益天数 (IC 计算, 默认 5)",
     )
     parser.add_argument(
-        "--freq", default="W",
+        "--freq",
+        default="W",
         help="调仓频率 (D/W/M, 默认 W)",
     )
     parser.add_argument(
-        "--print", action="store_true",
+        "--print",
+        action="store_true",
         help="打印 Markdown 到 stdout",
     )
     parser.add_argument(
-        "--no-save", action="store_true",
+        "--no-save",
+        action="store_true",
         help="不落盘, 仅返回报告",
     )
     args = parser.parse_args()
@@ -123,8 +133,12 @@ def main() -> int:
             print(f"  {bt:15s}: Sharpe={sharpe:+.4f}  决策数={n_dec}")
         print()
         print("📈 边际夏普:")
-        print(f"  辩论增量 (debate-agents): {report.marginal_sharpe_debate_vs_agents:+.4f}")
-        print(f"  Agent增量 (agents-rule):  {report.marginal_sharpe_agents_vs_rule:+.4f}")
+        print(
+            f"  辩论增量 (debate-agents): {report.marginal_sharpe_debate_vs_agents:+.4f}"
+        )
+        print(
+            f"  Agent增量 (agents-rule):  {report.marginal_sharpe_agents_vs_rule:+.4f}"
+        )
         print()
         rec_icon = {"auto": "🟢", "paper": "🟡", "shadow": "🔴"}.get(
             report.recommendation, "⚪"
@@ -139,11 +153,21 @@ def main() -> int:
 
         return 1 if report.recommendation in ("auto", "paper") else 0
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as exc:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"❌ 回放失败: {exc}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 2
 

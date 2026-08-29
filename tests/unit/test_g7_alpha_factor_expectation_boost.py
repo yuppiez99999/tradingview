@@ -27,13 +27,18 @@ from utils.alpha_factor.expectation import compute_expectation_factors  # noqa: 
 # 基础: 空输入
 # ============================================================
 
+
 class TestExpectationEmpty:
     def test_empty_fundamentals_and_price_data(self):
         result = compute_expectation_factors({}, None)
         # 6 个因子全部产出, 但 values 为空
         assert set(result.keys()) == {
-            "SUE", "SUE_REVISION", "CONSENSUS_2Y", "RD_RATIO",
-            "MS_TAIL_VOL", "MS_OPEN_BIG",
+            "SUE",
+            "SUE_REVISION",
+            "CONSENSUS_2Y",
+            "RD_RATIO",
+            "MS_TAIL_VOL",
+            "MS_OPEN_BIG",
         }
         for fval in result.values():
             assert fval.values == {}
@@ -59,6 +64,7 @@ class TestExpectationEmpty:
 # ============================================================
 # 预期类因子 (从 fundamentals)
 # ============================================================
+
 
 class TestExpectationFromFundamentals:
     def test_sue_positive(self):
@@ -115,6 +121,7 @@ class TestExpectationFromFundamentals:
 # 微观结构类因子 (price_data 优先, fundamentals 兜底)
 # ============================================================
 
+
 class TestMicrostructureFactors:
     def test_ms_tail_vol_from_price_data_reverse_sign(self):
         """MS_TAIL_VOL 反向 (sign=-1): 高尾盘占比 = 低分."""
@@ -168,6 +175,7 @@ class TestMicrostructureFactors:
 # ============================================================
 # 综合: 因子结构完整性
 # ============================================================
+
 
 class TestFactorStructure:
     def test_all_factors_have_correct_category(self):

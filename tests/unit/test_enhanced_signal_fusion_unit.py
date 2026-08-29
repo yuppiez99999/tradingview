@@ -97,9 +97,13 @@ class TestEnhancedSignalFusionEngine:
         with tempfile.TemporaryDirectory() as d:
             db_path = os.path.join(d, "test.db")
             engine = EnhancedSignalFusionEngine(db_path=db_path)
-            engine.register_enhanced_source("test_source", lambda: None, initial_weight=0.5)
+            engine.register_enhanced_source(
+                "test_source", lambda: None, initial_weight=0.5
+            )
             assert "test_source" in engine._performance_metrics
-            assert engine._performance_metrics["test_source"].source_name == "test_source"
+            assert (
+                engine._performance_metrics["test_source"].source_name == "test_source"
+            )
 
     def test_compute_multi_dimensional_scores_empty(self):
         with tempfile.TemporaryDirectory() as d:
@@ -133,5 +137,7 @@ class TestEnhancedSignalFusionEngine:
         with tempfile.TemporaryDirectory() as d:
             db_path = os.path.join(d, "test.db")
             engine = EnhancedSignalFusionEngine(db_path=db_path)
-            engine._performance_metrics["x"] = SourcePerformanceMetrics(source_name="x", recent_accuracy=0.8)
+            engine._performance_metrics["x"] = SourcePerformanceMetrics(
+                source_name="x", recent_accuracy=0.8
+            )
             assert engine._get_source_performance_score("x") == 0.8

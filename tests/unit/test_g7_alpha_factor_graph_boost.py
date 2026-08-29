@@ -12,6 +12,7 @@
 运行:
     python -m pytest tests/unit/test_g7_alpha_factor_graph_boost.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -60,9 +61,9 @@ class _FakeGraph:
 def _make_price_data() -> dict[str, dict[str, list[float]]]:
     """构造 3 只标的的价格数据, 每只 80 天 (足够 60 日动量)。"""
     return {
-        "A": {"closes": [100.0 * (1.001 ** i) for i in range(80)]},
-        "B": {"closes": [50.0 * (1.002 ** i) for i in range(80)]},
-        "C": {"closes": [80.0 * (0.999 ** i) for i in range(80)]},
+        "A": {"closes": [100.0 * (1.001**i) for i in range(80)]},
+        "B": {"closes": [50.0 * (1.002**i) for i in range(80)]},
+        "C": {"closes": [80.0 * (0.999**i) for i in range(80)]},
     }
 
 
@@ -95,7 +96,7 @@ class TestMomentum:
         assert _momentum(closes, 2) is None
 
     def test_long_series(self) -> None:
-        closes = [100.0 * (1.01 ** i) for i in range(80)]
+        closes = [100.0 * (1.01**i) for i in range(80)]
         m = _momentum(closes, 20)
         assert m is not None
         assert m > 0
@@ -180,8 +181,11 @@ class TestComputeLeadLagFactors:
         price_data = _make_price_data()
         factors = compute_lead_lag_factors(price_data, graph=None)
         assert set(factors.keys()) == {
-            "CHAIN_MOM_20D", "CHAIN_MOM_60D", "CHAIN_REVERSAL_5D",
-            "CHAIN_NEIGHBOR_DIFF", "CHAIN_CONCENTRATION",
+            "CHAIN_MOM_20D",
+            "CHAIN_MOM_60D",
+            "CHAIN_REVERSAL_5D",
+            "CHAIN_NEIGHBOR_DIFF",
+            "CHAIN_CONCENTRATION",
         }
         for fv in factors.values():
             assert fv.values == {}
@@ -234,7 +238,7 @@ class TestComputeLeadLagFactors:
         # A 的 closes 不足 20 → 无 mom_20d → NEIGHBOR_DIFF 跳过 A
         price_data = {
             "A": {"closes": [100.0, 101.0, 102.0]},
-            "B": {"closes": [50.0 * (1.002 ** i) for i in range(80)]},
+            "B": {"closes": [50.0 * (1.002**i) for i in range(80)]},
         }
         g = _FakeGraph({"A": [_FakeEdge("B", 1.0)]})
         factors = compute_lead_lag_factors(price_data, graph=g)
@@ -246,7 +250,9 @@ class TestComputeLeadLagFactors:
         industries = {"A": "Tech", "B": "Tech", "C": "Finance"}
         with patch("utils.alpha_factor.base.neutralize_by_industry") as mock_neut:
             mock_neut.side_effect = lambda v, i: {k: 0.0 for k in v}
-            factors = compute_lead_lag_factors(price_data, graph=g, industries=industries)
+            factors = compute_lead_lag_factors(
+                price_data, graph=g, industries=industries
+            )
             assert mock_neut.called
             # 中性化后 CHAIN_MOM_20D 全为 0
             assert all(v == 0.0 for v in factors["CHAIN_MOM_20D"].values.values())
@@ -268,8 +274,16 @@ class TestComputeLeadLagFactors:
 
 class TestOrthogonalizeChainFactors:
     def test_empty_values_skipped(self) -> None:
-        chain = {"CHAIN_MOM_20D": FactorValue(name="CHAIN_MOM_20D", category="LeadLag", values={})}
-        mom = {"MOM_20D": FactorValue(name="MOM_20D", category="Momentum", values={"A": 1.0})}
+        chain = {
+            "CHAIN_MOM_20D": FactorValue(
+                name="CHAIN_MOM_20D", category="LeadLag", values={}
+            )
+        }
+        mom = {
+            "MOM_20D": FactorValue(
+                name="MOM_20D", category="Momentum", values={"A": 1.0}
+            )
+        }
         result = orthogonalize_chain_factors(chain, mom)
         # 空 values → 跳过, 不出现在 result
         assert "CHAIN_MOM_20D" not in result
@@ -278,10 +292,16 @@ class TestOrthogonalizeChainFactors:
         # CHAIN_CONCENTRATION 不在 mapping → 无 anchor → 透传
         chain = {
             "CHAIN_CONCENTRATION": FactorValue(
-                name="CHAIN_CONCENTRATION", category="LeadLag", values={"A": 0.5, "B": 0.3}
+                name="CHAIN_CONCENTRATION",
+                category="LeadLag",
+                values={"A": 0.5, "B": 0.3},
             )
         }
-        mom = {"MOM_20D": FactorValue(name="MOM_20D", category="Momentum", values={"A": 1.0})}
+        mom = {
+            "MOM_20D": FactorValue(
+                name="MOM_20D", category="Momentum", values={"A": 1.0}
+            )
+        }
         result = orthogonalize_chain_factors(chain, mom)
         assert result["CHAIN_CONCENTRATION"].values == {"A": 0.5, "B": 0.3}
 
@@ -309,12 +329,16 @@ class TestOrthogonalizeChainFactors:
     def test_residualize_applied(self) -> None:
         chain = {
             "CHAIN_MOM_20D": FactorValue(
-                name="CHAIN_MOM_20D", category="LeadLag", values={"A": 1.0, "B": 2.0, "C": 3.0}
+                name="CHAIN_MOM_20D",
+                category="LeadLag",
+                values={"A": 1.0, "B": 2.0, "C": 3.0},
             )
         }
         mom = {
             "MOM_20D": FactorValue(
-                name="MOM_20D", category="Momentum", values={"A": 2.0, "B": 4.0, "C": 6.0}
+                name="MOM_20D",
+                category="Momentum",
+                values={"A": 2.0, "B": 4.0, "C": 6.0},
             )
         }
         with patch("utils.alpha_factor.graph.residualize") as mock_res:
@@ -326,15 +350,43 @@ class TestOrthogonalizeChainFactors:
     def test_all_four_mappings(self) -> None:
         # 验证 4 个映射键均能触发正交化
         chain = {
-            "CHAIN_MOM_20D": FactorValue(name="CHAIN_MOM_20D", category="LeadLag", values={"A": 1.0, "B": 2.0, "C": 3.0}),
-            "CHAIN_MOM_60D": FactorValue(name="CHAIN_MOM_60D", category="LeadLag", values={"A": 1.0, "B": 2.0, "C": 3.0}),
-            "CHAIN_REVERSAL_5D": FactorValue(name="CHAIN_REVERSAL_5D", category="LeadLag", values={"A": 1.0, "B": 2.0, "C": 3.0}),
-            "CHAIN_NEIGHBOR_DIFF": FactorValue(name="CHAIN_NEIGHBOR_DIFF", category="LeadLag", values={"A": 1.0, "B": 2.0, "C": 3.0}),
+            "CHAIN_MOM_20D": FactorValue(
+                name="CHAIN_MOM_20D",
+                category="LeadLag",
+                values={"A": 1.0, "B": 2.0, "C": 3.0},
+            ),
+            "CHAIN_MOM_60D": FactorValue(
+                name="CHAIN_MOM_60D",
+                category="LeadLag",
+                values={"A": 1.0, "B": 2.0, "C": 3.0},
+            ),
+            "CHAIN_REVERSAL_5D": FactorValue(
+                name="CHAIN_REVERSAL_5D",
+                category="LeadLag",
+                values={"A": 1.0, "B": 2.0, "C": 3.0},
+            ),
+            "CHAIN_NEIGHBOR_DIFF": FactorValue(
+                name="CHAIN_NEIGHBOR_DIFF",
+                category="LeadLag",
+                values={"A": 1.0, "B": 2.0, "C": 3.0},
+            ),
         }
         mom = {
-            "MOM_20D": FactorValue(name="MOM_20D", category="Momentum", values={"A": 2.0, "B": 4.0, "C": 6.0}),
-            "MOM_60D": FactorValue(name="MOM_60D", category="Momentum", values={"A": 2.0, "B": 4.0, "C": 6.0}),
-            "MOM_REVERSAL_5D": FactorValue(name="MOM_REVERSAL_5D", category="Momentum", values={"A": 2.0, "B": 4.0, "C": 6.0}),
+            "MOM_20D": FactorValue(
+                name="MOM_20D",
+                category="Momentum",
+                values={"A": 2.0, "B": 4.0, "C": 6.0},
+            ),
+            "MOM_60D": FactorValue(
+                name="MOM_60D",
+                category="Momentum",
+                values={"A": 2.0, "B": 4.0, "C": 6.0},
+            ),
+            "MOM_REVERSAL_5D": FactorValue(
+                name="MOM_REVERSAL_5D",
+                category="Momentum",
+                values={"A": 2.0, "B": 4.0, "C": 6.0},
+            ),
         }
         with patch("utils.alpha_factor.graph.residualize") as mock_res:
             mock_res.side_effect = lambda v, c: {k: -1.0 for k in v}

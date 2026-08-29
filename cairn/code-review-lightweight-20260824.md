@@ -45,3 +45,14 @@
 
 - LW-2: intraday_monitor 数据源优先级移除 iFinD, 对齐 AGENTS.md 标准 (Wind→TDX→AKShare→新浪)。
 - LW-3: target_beta 从配置读取。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查明细 — risk 模块 (2026-08-24)](code-review-risk-20260824.md) (相似度 28%)
+- [代码审查明细 — data 模块 (2026-08-24)](code-review-data-20260824.md) (相似度 21%)
+- [代码审查明细 — hedging 模块 (2026-08-24)](code-review-hedging-20260824.md) (相似度 21%)
+- [代码审查明细 — 主链路 institutional_pipeline_runner (2026-08-24)](code-review-pipeline-20260824.md) (相似度 21%)
+- [代码审查明细 — backtest 模块 (2026-08-24)](code-review-backtest-20260824.md) (相似度 20%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -5,6 +5,7 @@
     - 持仓风险贡献
     - 权重分布
 """
+
 from __future__ import annotations
 
 import sys
@@ -45,22 +46,26 @@ def main() -> None:
         if isinstance(orders, list):
             for o in orders:
                 if isinstance(o, dict):
-                    holdings.append({
-                        "代码": o.get("symbol", "-"),
-                        "方向": o.get("side", "-"),
-                        "数量": o.get("shares", 0),
-                        "成本": o.get("price", 0),
-                        "权重": o.get("weight", 0),
-                    })
+                    holdings.append(
+                        {
+                            "代码": o.get("symbol", "-"),
+                            "方向": o.get("side", "-"),
+                            "数量": o.get("shares", 0),
+                            "成本": o.get("price", 0),
+                            "权重": o.get("weight", 0),
+                        }
+                    )
 
     # KPI 行
     total_value = sum(h.get("数量", 0) * h.get("成本", 0) for h in holdings)
-    render_kpi_row([
-        {"label": "持仓数量", "value": str(len(holdings)), "icon": "📊"},
-        {"label": "持仓市值", "value": f"¥{total_value:,.2f}", "icon": "💰"},
-        {"label": "现金占比", "value": "5.2%", "icon": "💵"},
-        {"label": "杠杆比例", "value": "1.0x", "icon": "⚖️"},
-    ])
+    render_kpi_row(
+        [
+            {"label": "持仓数量", "value": str(len(holdings)), "icon": "📊"},
+            {"label": "持仓市值", "value": f"¥{total_value:,.2f}", "icon": "💰"},
+            {"label": "现金占比", "value": "5.2%", "icon": "💵"},
+            {"label": "杠杆比例", "value": "1.0x", "icon": "⚖️"},
+        ]
+    )
 
     st.divider()
 
@@ -76,6 +81,7 @@ def main() -> None:
     if holdings:
         try:
             import pandas as pd
+
             df = pd.DataFrame(holdings)
             if "权重" in df.columns and "代码" in df.columns:
                 chart_data = df.set_index("代码")["权重"]

@@ -40,7 +40,11 @@ for _name in ("stdout", "stderr"):
         _buffer = getattr(_stream, "buffer", None)
         if _buffer is not None:
             try:
-                setattr(sys, _name, io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"))
+                setattr(
+                    sys,
+                    _name,
+                    io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"),
+                )
             except Exception:
                 pass
 
@@ -69,13 +73,14 @@ def run_backfill(start_date: str, end_date: str, dry_run: bool = False) -> None:
     feeder = ShadowRealDataFeeder(
         data_provider=provider,
         weights_source="auto",  # 自动从 positions.json 加载
-        skip_weekend=True,      # 跳过周末
+        skip_weekend=True,  # 跳过周末
         verbose=True,
     )
 
     if dry_run:
         logger.info("【DRY-RUN 模式】只预览不写盘, 逐日计算 ...")
         from datetime import datetime, timedelta
+
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
         current = start_dt
@@ -86,7 +91,9 @@ def run_backfill(start_date: str, end_date: str, dry_run: bool = False) -> None:
             results.append(r)
             current += timedelta(days=1)
     else:
-        logger.info("【正式回填】%s ~ %s, 将覆盖已存在的回测回填记录 ...", start_date, end_date)
+        logger.info(
+            "【正式回填】%s ~ %s, 将覆盖已存在的回测回填记录 ...", start_date, end_date
+        )
         results = feeder.feed_history(start_date, end_date)
 
     # 打印逐日结果
@@ -116,7 +123,9 @@ def run_backfill(start_date: str, end_date: str, dry_run: bool = False) -> None:
         print(f"{r.date:<12} {status:<10} {ret_str:>10} {cov_str:>8} {err}")
 
     print("-" * 70)
-    print(f"汇总: 成功 {success_count} / 跳过 {skipped_count} / 失败 {failed_count} / 总计 {len(results)}")
+    print(
+        f"汇总: 成功 {success_count} / 跳过 {skipped_count} / 失败 {failed_count} / 总计 {len(results)}"
+    )
     if dry_run:
         print("【DRY-RUN】未写入文件, 加 --dry-run 移除即正式回填")
     else:
@@ -147,7 +156,8 @@ def main() -> None:
         help="只预览不写盘 (推荐先跑一次确认数据)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="启用 DEBUG 级别日志",
     )

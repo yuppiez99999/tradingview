@@ -4,6 +4,7 @@
 broker_factory: 默认 disabled -> SimulatedBroker; 单测用最小 config 覆盖。
 FillsStore: 进程内单例, 落盘 JSONL, load_day 不重复计数; 用 tmp_path 隔离落盘。
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -44,6 +45,7 @@ def _make_file_path(tmp_path):
         p = Path(tmp_path) / "reports" / "fills" / f"fills_{date}.jsonl"
         p.parent.mkdir(parents=True, exist_ok=True)
         return p
+
     return _fp
 
 

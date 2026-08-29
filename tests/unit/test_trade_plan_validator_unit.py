@@ -2,6 +2,7 @@
 单元测试: utils/trade_plan_validator.py
 覆盖 TradePlanValidator.validate / validate_file / auto_fix + strict/non-strict 模式
 """
+
 from __future__ import annotations
 
 import json
@@ -14,10 +15,16 @@ def _valid_plan() -> dict:
         "trade_date": "20260818",
         "phase": {"daily_capital": 150000, "day_capital": 150000},
         "execution_plan": {
-            "morning_orders": [{"symbol": "000001.SZ", "direction": "buy", "shares": 100}],
+            "morning_orders": [
+                {"symbol": "000001.SZ", "direction": "buy", "shares": 100}
+            ],
             "afternoon_orders": [],
         },
-        "market_state": {"spot_build_allowed": True, "build_allowed": True, "circuit_level": "NORMAL"},
+        "market_state": {
+            "spot_build_allowed": True,
+            "build_allowed": True,
+            "circuit_level": "NORMAL",
+        },
         "risk_guard": {"drawdown_level": 0},
     }
 
@@ -116,7 +123,9 @@ class TestTypeChecks:
     def test_zero_shares_warning(self):
         v = TradePlanValidator()
         plan = _valid_plan()
-        plan["execution_plan"]["morning_orders"] = [{"symbol": "000001.SZ", "direction": "buy", "shares": 0}]
+        plan["execution_plan"]["morning_orders"] = [
+            {"symbol": "000001.SZ", "direction": "buy", "shares": 0}
+        ]
         result = v.validate(plan)
         assert any("shares" in w for w in result["warnings"])
 

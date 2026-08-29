@@ -11,6 +11,7 @@
     - 便捷函数
     - 边界条件
 """
+
 from __future__ import annotations
 
 import sys
@@ -52,6 +53,7 @@ from utils.alpha.sector_rotation import (  # noqa: E402
 # TestConstants - 常量定义测试
 # ============================================================
 
+
 class TestConstants:
     """常量定义测试."""
 
@@ -68,7 +70,14 @@ class TestConstants:
 
     def test_default_thresholds(self):
         """DEFAULT_THRESHOLDS 包含所有阈值."""
-        for key in ["momentum_strong", "momentum_weak", "flow_in_strong", "flow_out_strong", "valuation_cheap", "valuation_expensive"]:
+        for key in [
+            "momentum_strong",
+            "momentum_weak",
+            "flow_in_strong",
+            "flow_out_strong",
+            "valuation_cheap",
+            "valuation_expensive",
+        ]:
             assert key in DEFAULT_THRESHOLDS
 
     def test_default_regime_adjustments(self):
@@ -97,6 +106,7 @@ class TestConstants:
 # TestExceptions - 异常体系测试
 # ============================================================
 
+
 class TestExceptions:
     """异常体系测试."""
 
@@ -117,6 +127,7 @@ class TestExceptions:
 # TestDataClasses - 数据类测试
 # ============================================================
 
+
 class TestDataClasses:
     """数据类测试."""
 
@@ -130,7 +141,9 @@ class TestDataClasses:
 
     def test_sector_signal_to_dict(self):
         """SectorSignal.to_dict() 正确."""
-        s = SectorSignal(code="801010", name="农林牧渔", composite_score=75.0, label="BUY")
+        s = SectorSignal(
+            code="801010", name="农林牧渔", composite_score=75.0, label="BUY"
+        )
         d = s.to_dict()
         assert d["code"] == "801010"
         assert d["name"] == "农林牧渔"
@@ -149,7 +162,9 @@ class TestDataClasses:
     def test_rotation_result_to_dict(self):
         """RotationResult.to_dict() 正确."""
         s = SectorSignal(code="801010", composite_score=75.0)
-        r = RotationResult(signals=[s], top_sectors=["801010"], regime="bull", n_sectors=1)
+        r = RotationResult(
+            signals=[s], top_sectors=["801010"], regime="bull", n_sectors=1
+        )
         d = r.to_dict()
         assert d["top_sectors"] == ["801010"]
         assert d["regime"] == "bull"
@@ -161,6 +176,7 @@ class TestDataClasses:
 # ============================================================
 # TestScoringFunctions - 评分函数测试
 # ============================================================
+
 
 class TestMomentumScore:
     """compute_momentum_score() 测试."""
@@ -228,7 +244,9 @@ class TestFlowScore:
 
     def test_custom_thresholds(self):
         """自定义阈值."""
-        score = compute_flow_score(0.5, {"flow_in_strong": 0.5, "flow_out_strong": -0.5})
+        score = compute_flow_score(
+            0.5, {"flow_in_strong": 0.5, "flow_out_strong": -0.5}
+        )
         assert score == 100.0
 
 
@@ -290,6 +308,7 @@ class TestClassifySignalLabel:
 # TestSectorRotation - 主类测试
 # ============================================================
 
+
 class TestSectorRotation:
     """SectorRotation 主类测试."""
 
@@ -333,7 +352,11 @@ class TestSectorRotation:
         sr = SectorRotation()
         sr._is_enabled = lambda: True
         # 仅 3 个行业, min_samples=10
-        returns = {"801010": [0.001] * 20, "801030": [0.001] * 20, "801050": [0.001] * 20}
+        returns = {
+            "801010": [0.001] * 20,
+            "801030": [0.001] * 20,
+            "801050": [0.001] * 20,
+        }
         result = sr.generate_signals(sector_returns=returns)
         assert result.status == "insufficient_data"
 
@@ -356,7 +379,7 @@ class TestSectorRotation:
         returns = {
             "801010": [0.001] * 20,
             "801030": [-0.005] * 20,  # 最差
-            "801050": [0.005] * 20,   # 最好
+            "801050": [0.005] * 20,  # 最好
         }
         # 补足 7 个行业满足 min_samples=10 (默认)
         for i in range(4, 11):
@@ -426,6 +449,7 @@ class TestSectorRotation:
 # TestFeatureFlag - Feature Flag 透传测试 (HC-1)
 # ============================================================
 
+
 class TestFeatureFlag:
     """Feature Flag 透传测试 (HC-1)."""
 
@@ -459,6 +483,7 @@ class TestFeatureFlag:
 # TestIntegration - 集成场景测试
 # ============================================================
 
+
 class TestIntegration:
     """集成场景测试."""
 
@@ -466,6 +491,7 @@ class TestIntegration:
         """完整工作流: regime + signals."""
         # 1. 获取 regime
         from utils.alpha.macro_indicator import MacroIndicatorManager
+
         macro_mgr = MacroIndicatorManager()
         macro_mgr._is_enabled = lambda: True
         macro_mgr.update(new_returns=[0.002] * 70)
@@ -513,7 +539,7 @@ class TestIntegration:
         }
         valuations = {
             "HIGH_VAL": 0.9,  # 高估
-            "LOW_VAL": 0.1,   # 低估
+            "LOW_VAL": 0.1,  # 低估
             "S1": 0.5,
             "S2": 0.5,
             "S3": 0.5,
@@ -530,14 +556,19 @@ class TestIntegration:
             sector_valuations=valuations,
             regime="bull",
         )
-        bear_rank_low_val = next(s.rank for s in result_bear.signals if s.code == "LOW_VAL")
-        bull_rank_low_val = next(s.rank for s in result_bull.signals if s.code == "LOW_VAL")
+        bear_rank_low_val = next(
+            s.rank for s in result_bear.signals if s.code == "LOW_VAL"
+        )
+        bull_rank_low_val = next(
+            s.rank for s in result_bull.signals if s.code == "LOW_VAL"
+        )
         assert bear_rank_low_val <= bull_rank_low_val
 
 
 # ============================================================
 # TestEdgeCases - 边界条件测试
 # ============================================================
+
 
 class TestEdgeCases:
     """边界条件测试."""

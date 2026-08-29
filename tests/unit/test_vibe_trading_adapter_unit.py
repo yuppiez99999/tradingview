@@ -117,7 +117,9 @@ class TestVibeTradingAdapter:
     def test_get_ohlcv_from_vibe(self):
         """Vibe-Trading 成功 → 返回数据"""
         a = VibeTradingAdapter()
-        mock_df = pd.DataFrame({"open": [1], "high": [2], "low": [0.5], "close": [1.5], "volume": [100]})
+        mock_df = pd.DataFrame(
+            {"open": [1], "high": [2], "low": [0.5], "close": [1.5], "volume": [100]}
+        )
         with patch.object(a._core, "initialize", return_value=True):
             with patch.object(a._core, "fetch", return_value=mock_df):
                 df = a.get_ohlcv("510300.SH", "2026-01-01", "2026-08-01")
@@ -126,7 +128,9 @@ class TestVibeTradingAdapter:
     def test_get_ohlcv_from_local_cache(self):
         """Vibe-Trading 失败 → 本地缓存命中"""
         a = VibeTradingAdapter()
-        mock_df = pd.DataFrame({"open": [1], "high": [2], "low": [0.5], "close": [1.5], "volume": [100]})
+        mock_df = pd.DataFrame(
+            {"open": [1], "high": [2], "low": [0.5], "close": [1.5], "volume": [100]}
+        )
         with patch.object(a._core, "initialize", return_value=False):
             with patch.object(a, "_try_local_cache", return_value=mock_df):
                 df = a.get_ohlcv("600519.SH", "2026-01-01", "2026-08-01")
@@ -153,8 +157,12 @@ class TestVibeTradingAdapter:
 
     def test_get_price_dataframe_success(self):
         a = VibeTradingAdapter()
-        mock_df = pd.DataFrame({"close": [100, 101, 102]}, index=pd.date_range("2026-01-01", periods=3))
-        with patch.object(a, "get_batch_ohlcv", return_value={"A": mock_df, "B": mock_df}):
+        mock_df = pd.DataFrame(
+            {"close": [100, 101, 102]}, index=pd.date_range("2026-01-01", periods=3)
+        )
+        with patch.object(
+            a, "get_batch_ohlcv", return_value={"A": mock_df, "B": mock_df}
+        ):
             df = a.get_price_dataframe(["A", "B"], "2026-01-01", "2026-08-01")
         assert not df.empty
         assert "A" in df.columns
@@ -176,7 +184,9 @@ class TestVibeTradingAdapter:
     def test_try_local_cache_no_dir(self):
         a = VibeTradingAdapter()
         with patch("utils.vibe_trading_adapter._PROJECT_ROOT") as mock_root:
-            mock_root.__truediv__ = MagicMock(return_value=MagicMock(exists=MagicMock(return_value=False)))
+            mock_root.__truediv__ = MagicMock(
+                return_value=MagicMock(exists=MagicMock(return_value=False))
+            )
             result = a._try_local_cache("600519.SH", "2026-01-01", "2026-08-01")
         assert result is None
 
@@ -220,6 +230,10 @@ class TestConvenienceFunctions:
         assert df.empty
 
     def test_get_price_matrix_convenience(self):
-        with patch.object(VibeTradingAdapter, "get_price_dataframe", return_value=pd.DataFrame()):
-            df = vibe_trading_adapter.get_price_matrix(["X"], "2026-01-01", "2026-08-01")
+        with patch.object(
+            VibeTradingAdapter, "get_price_dataframe", return_value=pd.DataFrame()
+        ):
+            df = vibe_trading_adapter.get_price_matrix(
+                ["X"], "2026-01-01", "2026-08-01"
+            )
         assert df.empty

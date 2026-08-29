@@ -1,4 +1,5 @@
 """T15 单元测试 — LiveOrderExecutor 实盘下单编排器."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -21,6 +22,7 @@ from utils.risk.risk_audit_logger import RiskAuditLogger
 # 测试夹具
 # ============================================================
 
+
 @dataclass
 class MockSlice:
     slice_idx: int = 0
@@ -39,7 +41,9 @@ class MockPlan:
 class MockBroker:
     """模拟 broker, 可配置返回状态."""
 
-    def __init__(self, is_live: bool = True, fill_qty: int = 100, avg_price: float = 10.0):
+    def __init__(
+        self, is_live: bool = True, fill_qty: int = 100, avg_price: float = 10.0
+    ):
         self.is_live = is_live
         self.name = "mock_broker"
         self._fill_qty = fill_qty
@@ -48,7 +52,9 @@ class MockBroker:
         self.place_order_called = 0
         self._last_qty = 0
 
-    def place_order(self, symbol: str, side: str, qty: int, price: float, order_type: str = "limit") -> str:
+    def place_order(
+        self, symbol: str, side: str, qty: int, price: float, order_type: str = "limit"
+    ) -> str:
         self.place_order_called += 1
         self._next_id += 1
         self._last_qty = qty
@@ -59,13 +65,19 @@ class MockBroker:
 
     def get_order_status(self, broker_order_id: str) -> dict[str, Any]:
         # 返回最近一次下单的请求数量作为成交数量
-        return {"state": "FILLED", "filled_qty": self._last_qty, "avg_price": self._avg_price}
+        return {
+            "state": "FILLED",
+            "filled_qty": self._last_qty,
+            "avg_price": self._avg_price,
+        }
 
 
 class FailingBroker(MockBroker):
     """下单抛异常的 broker."""
 
-    def place_order(self, symbol: str, side: str, qty: int, price: float, order_type: str = "limit") -> str:
+    def place_order(
+        self, symbol: str, side: str, qty: int, price: float, order_type: str = "limit"
+    ) -> str:
         raise RuntimeError("broker connection refused")
 
 
@@ -80,8 +92,11 @@ def _make_executor(
 ) -> LiveOrderExecutor:
     import tempfile
     from pathlib import Path
+
     if audit is None:
-        audit = RiskAuditLogger(project_root=Path(tempfile.mkdtemp()), audit_dir="audit")
+        audit = RiskAuditLogger(
+            project_root=Path(tempfile.mkdtemp()), audit_dir="audit"
+        )
     return LiveOrderExecutor(
         broker=broker or MockBroker(),
         pretrade_guard=guard or PreTradeGuard(),
@@ -97,11 +112,15 @@ def _make_executor(
 # 测试类
 # ============================================================
 
+
 class TestExecutorConstruction:
     def test_none_broker_raises(self):
         import tempfile
         from pathlib import Path
-        audit = RiskAuditLogger(project_root=Path(tempfile.mkdtemp()), audit_dir="audit")
+
+        audit = RiskAuditLogger(
+            project_root=Path(tempfile.mkdtemp()), audit_dir="audit"
+        )
         with pytest.raises(ValueError, match="broker 不能为 None"):
             LiveOrderExecutor(
                 broker=None,
@@ -123,7 +142,9 @@ class TestNormalExecution:
         broker = MockBroker(fill_qty=100, avg_price=10.0)
         fills_mock = MagicMock()
         ex = _make_executor(broker=broker, fills_store=fills_mock)
-        plan = MockPlan(slices=[MockSlice(slice_idx=0, target_shares=100, limit_price=10.0)])
+        plan = MockPlan(
+            slices=[MockSlice(slice_idx=0, target_shares=100, limit_price=10.0)]
+        )
 
         result = ex.execute_plan(plan)
 
@@ -139,11 +160,13 @@ class TestNormalExecution:
     def test_multi_slice_success(self):
         broker = MockBroker(fill_qty=100)
         ex = _make_executor(broker=broker)
-        plan = MockPlan(slices=[
-            MockSlice(0, 100, 10.0),
-            MockSlice(1, 200, 11.0),
-            MockSlice(2, 100, 10.5),
-        ])
+        plan = MockPlan(
+            slices=[
+                MockSlice(0, 100, 10.0),
+                MockSlice(1, 200, 11.0),
+                MockSlice(2, 100, 10.5),
+            ]
+        )
 
         result = ex.execute_plan(plan)
 
@@ -296,7 +319,9 @@ class TestLiveExecutionResult:
 
     def test_fully_filled_property(self):
         result = LiveExecutionResult(
-            plan_id="test", total_slices=2,
-            submitted_count=2, filled_count=2,
+            plan_id="test",
+            total_slices=2,
+            submitted_count=2,
+            filled_count=2,
         )
         assert result.fully_filled

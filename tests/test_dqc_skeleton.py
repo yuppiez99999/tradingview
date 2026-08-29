@@ -35,6 +35,7 @@ def test_import_dqc_module():
     """验证 DQC 模块可正常 import."""
     from utils.dqc import DQCLevel
     from utils.dqc.event_types import DQCCheckpoint, DQCMetric
+
     assert DQCLevel.ERROR.value == "error"
     assert DQCCheckpoint.P2_CACHE.value == "P2"
     assert DQCMetric.C01_SYMBOL_COVERAGE.value == "C-01"
@@ -106,31 +107,40 @@ def test_dqc_level_is_blocking():
 @pytest.fixture
 def sample_good_df():
     """构造一个合规的样本 DataFrame."""
-    return pd.DataFrame({
-        "symbol": ["600519.SH", "000858.SZ", "600519.SH", "000858.SZ"],
-        "date": ["2026-08-01", "2026-08-01", "2026-08-02", "2026-08-02"],
-        "open": [1800.0, 150.0, 1810.0, 151.0],
-        "high": [1820.0, 152.0, 1830.0, 153.0],
-        "low": [1790.0, 149.0, 1800.0, 150.0],
-        "close": [1810.0, 151.0, 1820.0, 152.0],
-        "volume": [100000, 200000, 110000, 210000],
-        "preclose": [1790.0, 149.0, 1810.0, 151.0],
-    })
+    return pd.DataFrame(
+        {
+            "symbol": ["600519.SH", "000858.SZ", "600519.SH", "000858.SZ"],
+            "date": ["2026-08-01", "2026-08-01", "2026-08-02", "2026-08-02"],
+            "open": [1800.0, 150.0, 1810.0, 151.0],
+            "high": [1820.0, 152.0, 1830.0, 153.0],
+            "low": [1790.0, 149.0, 1800.0, 150.0],
+            "close": [1810.0, 151.0, 1820.0, 152.0],
+            "volume": [100000, 200000, 110000, 210000],
+            "preclose": [1790.0, 149.0, 1810.0, 151.0],
+        }
+    )
 
 
 @pytest.fixture
 def sample_bad_df():
     """构造一个有问题的样本 DataFrame (多种违规)."""
-    return pd.DataFrame({
-        "symbol": ["600519.SH", "000858.SZ", "600519.SH", "300308.SZ"],
-        "date": ["2026-08-01", "2026-08-01", "2026-08-01", "2026-08-02"],  # 600519 重复
-        "open": [1800.0, 150.0, 1800.0, 1194.0],
-        "high": [1790.0, 152.0, 1800.0, 1195.0],  # 600519: high < open 违反
-        "low": [1810.0, 149.0, 1800.0, 1193.0],   # 600519: low > open 违反
-        "close": [0.0, 151.0, 1800.0, 1194.0],     # 600519: close=0 零价格
-        "volume": [-100, 200000, 110000, 210000],  # 600519: 成交量为负
-        "preclose": [1790.0, 149.0, 1790.0, 1190.0],
-    })
+    return pd.DataFrame(
+        {
+            "symbol": ["600519.SH", "000858.SZ", "600519.SH", "300308.SZ"],
+            "date": [
+                "2026-08-01",
+                "2026-08-01",
+                "2026-08-01",
+                "2026-08-02",
+            ],  # 600519 重复
+            "open": [1800.0, 150.0, 1800.0, 1194.0],
+            "high": [1790.0, 152.0, 1800.0, 1195.0],  # 600519: high < open 违反
+            "low": [1810.0, 149.0, 1800.0, 1193.0],  # 600519: low > open 违反
+            "close": [0.0, 151.0, 1800.0, 1194.0],  # 600519: close=0 零价格
+            "volume": [-100, 200000, 110000, 210000],  # 600519: 成交量为负
+            "preclose": [1790.0, 149.0, 1790.0, 1190.0],
+        }
+    )
 
 
 def test_completeness_check_good(sample_good_df):
@@ -144,7 +154,9 @@ def test_completeness_check_good(sample_good_df):
         expected_symbols=symbols,
     )
     blocking = [e for e in events if e.level.is_blocking]
-    assert len(blocking) == 0, f"合规数据不应有阻断事件: {[e.message for e in blocking]}"
+    assert (
+        len(blocking) == 0
+    ), f"合规数据不应有阻断事件: {[e.message for e in blocking]}"
 
 
 def test_completeness_check_missing_symbol(sample_good_df):
@@ -201,7 +213,9 @@ def test_p2_gate_pass_good_data(sample_good_df):
         symbols=symbols,
         df=sample_good_df,
     )
-    assert passed is True, f"合规数据应通过 P2: {[e.message for e in events if e.level.is_blocking]}"
+    assert (
+        passed is True
+    ), f"合规数据应通过 P2: {[e.message for e in events if e.level.is_blocking]}"
 
 
 def test_p2_gate_block_bad_data(sample_bad_df):
@@ -258,7 +272,9 @@ def test_aggregator_first_emit():
     from utils.dqc.aggregator import AlertAggregator
 
     agg = AlertAggregator()  # 直接构造, 避免单例污染
-    should, reason = agg.should_emit("C-01", DQCLevel := __import__("utils.dqc", fromlist=["DQCLevel"]).DQCLevel.WARN)
+    should, reason = agg.should_emit(
+        "C-01", DQCLevel := __import__("utils.dqc", fromlist=["DQCLevel"]).DQCLevel.WARN
+    )
     assert should is True
     assert reason is None
 

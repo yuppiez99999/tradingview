@@ -31,9 +31,12 @@ class TestIVRoundTrip(unittest.TestCase):
         for sigma_true in [0.10, 0.20, 0.35, 0.50]:
             price = bs_call_price(100, 100, 0.5, 0.02, sigma_true)
             result = implied_vol(price, 100, 100, 0.5, 0.02, is_call=True)
-            self.assertTrue(result.converged, f"IV not converged for sigma={sigma_true}")
-            self.assertAlmostEqual(result.iv, sigma_true, places=5,
-                                   msg=f"sigma={sigma_true}")
+            self.assertTrue(
+                result.converged, f"IV not converged for sigma={sigma_true}"
+            )
+            self.assertAlmostEqual(
+                result.iv, sigma_true, places=5, msg=f"sigma={sigma_true}"
+            )
 
     def test_round_trip_put(self):
         """看跌期权往返测试"""
@@ -59,13 +62,19 @@ class TestBinomialConvergence(unittest.TestCase):
         bs_c = bs_call_price(100, 100, 1.0, 0.05, 0.20)
 
         tree_50 = BinomialTree(n_steps=50)
-        err_50 = abs(tree_50.price(100, 100, 1.0, 0.05, 0.20, is_call=True).price - bs_c)
+        err_50 = abs(
+            tree_50.price(100, 100, 1.0, 0.05, 0.20, is_call=True).price - bs_c
+        )
 
         tree_500 = BinomialTree(n_steps=500)
-        err_500 = abs(tree_500.price(100, 100, 1.0, 0.05, 0.20, is_call=True).price - bs_c)
+        err_500 = abs(
+            tree_500.price(100, 100, 1.0, 0.05, 0.20, is_call=True).price - bs_c
+        )
 
         tree_2000 = BinomialTree(n_steps=2000)
-        err_2000 = abs(tree_2000.price(100, 100, 1.0, 0.05, 0.20, is_call=True).price - bs_c)
+        err_2000 = abs(
+            tree_2000.price(100, 100, 1.0, 0.05, 0.20, is_call=True).price - bs_c
+        )
 
         # 误差应递减
         self.assertGreater(err_50, err_500)
@@ -77,8 +86,15 @@ class TestBinomialConvergence(unittest.TestCase):
         """美式期权 ≥ 欧式期权 (因为有提前行权溢价)"""
         tree = BinomialTree(n_steps=200)
         am = tree.price(100, 90, 0.5, 0.02, 0.25, is_call=False).price  # ITM Put
-        eu = tree.price(100, 90, 0.5, 0.02, 0.25, is_call=False,
-                        exercise=BinomialExerciseStyle.EUROPEAN).price
+        eu = tree.price(
+            100,
+            90,
+            0.5,
+            0.02,
+            0.25,
+            is_call=False,
+            exercise=BinomialExerciseStyle.EUROPEAN,
+        ).price
         self.assertGreaterEqual(am, eu)
 
     def test_convenience_function(self):
@@ -94,13 +110,21 @@ class TestMCvsBS(unittest.TestCase):
     def test_mc_within_ci(self):
         """MC 定价 BS 误差应在 3*SE 内"""
         bs_c = bs_call_price(100, 100, 1.0, 0.05, 0.20)
-        mc = MonteCarloEngine(n_paths=200000, n_steps=1, seed=42,
-                              use_antithetic=True, use_control_variate=False)
+        mc = MonteCarloEngine(
+            n_paths=200000,
+            n_steps=1,
+            seed=42,
+            use_antithetic=True,
+            use_control_variate=False,
+        )
         result = mc.price_european(100, 100, 1.0, 0.05, 0.20, is_call=True)
 
         error = abs(result.price - bs_c)
-        self.assertLess(error, 3 * result.standard_error,
-                        f"MC error {error:.4f} > 3*SE {3 * result.standard_error:.4f}")
+        self.assertLess(
+            error,
+            3 * result.standard_error,
+            f"MC error {error:.4f} > 3*SE {3 * result.standard_error:.4f}",
+        )
 
 
 class TestGreeksAggregator(unittest.TestCase):
@@ -109,18 +133,23 @@ class TestGreeksAggregator(unittest.TestCase):
     def test_single_option(self):
         """单期权持仓聚合"""
         agg = PortfolioGreeksAggregator()
-        portfolio = agg.aggregate([{
-            "code": "510050C2500M6.SH",
-            "type": "OPTION",
-            "qty": 10,
-            "price": 0.15,
-            "S": 2.75,
-            "K": 2.50,
-            "T": 0.5,
-            "sigma": 0.22,
-            "is_call": True,
-            "multiplier": 10000,
-        }], r=0.02)
+        portfolio = agg.aggregate(
+            [
+                {
+                    "code": "510050C2500M6.SH",
+                    "type": "OPTION",
+                    "qty": 10,
+                    "price": 0.15,
+                    "S": 2.75,
+                    "K": 2.50,
+                    "T": 0.5,
+                    "sigma": 0.22,
+                    "is_call": True,
+                    "multiplier": 10000,
+                }
+            ],
+            r=0.02,
+        )
         self.assertEqual(len(portfolio.positions), 1)
         self.assertGreater(portfolio.delta, 0)  # Call Delta > 0
         self.assertGreater(portfolio.gamma, 0)
@@ -128,12 +157,16 @@ class TestGreeksAggregator(unittest.TestCase):
     def test_stock_only(self):
         """纯股票持仓"""
         agg = PortfolioGreeksAggregator()
-        portfolio = agg.aggregate([{
-            "code": "510050.SH",
-            "type": "STOCK",
-            "qty": 10000,
-            "price": 2.75,
-        }])
+        portfolio = agg.aggregate(
+            [
+                {
+                    "code": "510050.SH",
+                    "type": "STOCK",
+                    "qty": 10000,
+                    "price": 2.75,
+                }
+            ]
+        )
         self.assertGreater(portfolio.delta, 0)
         self.assertEqual(portfolio.gamma, 0.0)
         self.assertEqual(portfolio.vega, 0.0)
@@ -141,12 +174,24 @@ class TestGreeksAggregator(unittest.TestCase):
     def test_mixed_portfolio(self):
         """混合持仓 (股票 + 期权)"""
         agg = PortfolioGreeksAggregator()
-        portfolio = agg.aggregate([
-            {"code": "510050.SH", "type": "STOCK", "qty": 10000, "price": 2.75},
-            {"code": "510050P2500M6.SH", "type": "OPTION", "qty": -5,
-             "price": 0.08, "S": 2.75, "K": 2.50, "T": 0.5, "sigma": 0.22,
-             "is_call": False, "multiplier": 10000},
-        ], r=0.02)
+        portfolio = agg.aggregate(
+            [
+                {"code": "510050.SH", "type": "STOCK", "qty": 10000, "price": 2.75},
+                {
+                    "code": "510050P2500M6.SH",
+                    "type": "OPTION",
+                    "qty": -5,
+                    "price": 0.08,
+                    "S": 2.75,
+                    "K": 2.50,
+                    "T": 0.5,
+                    "sigma": 0.22,
+                    "is_call": False,
+                    "multiplier": 10000,
+                },
+            ],
+            r=0.02,
+        )
         # 检查有合理的 Delta 和 Vega
         self.assertIsNotNone(portfolio.delta)
         self.assertIsNotNone(portfolio.vega)
@@ -155,12 +200,24 @@ class TestGreeksAggregator(unittest.TestCase):
     def test_rebalance_signal(self):
         """再平衡信号生成"""
         agg = PortfolioGreeksAggregator()
-        portfolio = agg.aggregate([
-            {"code": "510050.SH", "type": "STOCK", "qty": 100000, "price": 2.75},
-            {"code": "510050C2500M6.SH", "type": "OPTION", "qty": -100,
-             "price": 0.50, "S": 2.75, "K": 2.50, "T": 0.5, "sigma": 0.22,
-             "is_call": True, "multiplier": 10000},
-        ], r=0.02)
+        portfolio = agg.aggregate(
+            [
+                {"code": "510050.SH", "type": "STOCK", "qty": 100000, "price": 2.75},
+                {
+                    "code": "510050C2500M6.SH",
+                    "type": "OPTION",
+                    "qty": -100,
+                    "price": 0.50,
+                    "S": 2.75,
+                    "K": 2.50,
+                    "T": 0.5,
+                    "sigma": 0.22,
+                    "is_call": True,
+                    "multiplier": 10000,
+                },
+            ],
+            r=0.02,
+        )
 
         signal = agg.rebalance_signal(portfolio, delta_tolerance=0.01)
         self.assertIsInstance(signal, dict)

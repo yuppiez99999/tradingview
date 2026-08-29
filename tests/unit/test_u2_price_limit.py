@@ -60,24 +60,27 @@ class TestNormalizeCode:
 
 
 class TestGetBoardType:
-    @pytest.mark.parametrize("code,expected", [
-        ("600519.SH", BoardType.MAIN_SH),     # 沪市主板
-        ("601318.SH", BoardType.MAIN_SH),
-        ("000001.SZ", BoardType.MAIN_SZ),     # 深市主板
-        ("002594.SZ", BoardType.MAIN_SZ),     # 原中小板已合并主板
-        ("300750.SZ", BoardType.GEM),         # 创业板
-        ("301266.SZ", BoardType.GEM),         # 创业板 (301)
-        ("688981.SH", BoardType.STAR),        # 科创板
-        ("689009.SH", BoardType.STAR),
-        ("830879.BJ", BoardType.BSE),         # 北交所
-        ("430047.BJ", BoardType.BSE),
-        ("510050.SH", BoardType.ETF),         # 沪市 ETF
-        ("588080.SH", BoardType.ETF),
-        ("159915.SZ", BoardType.ETF),         # 深市 ETF
-        ("161725.SZ", BoardType.ETF),         # LOF
-        ("113001.SH", BoardType.BOND),        # 可转债
-        ("123001.SZ", BoardType.BOND),
-    ])
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            ("600519.SH", BoardType.MAIN_SH),  # 沪市主板
+            ("601318.SH", BoardType.MAIN_SH),
+            ("000001.SZ", BoardType.MAIN_SZ),  # 深市主板
+            ("002594.SZ", BoardType.MAIN_SZ),  # 原中小板已合并主板
+            ("300750.SZ", BoardType.GEM),  # 创业板
+            ("301266.SZ", BoardType.GEM),  # 创业板 (301)
+            ("688981.SH", BoardType.STAR),  # 科创板
+            ("689009.SH", BoardType.STAR),
+            ("830879.BJ", BoardType.BSE),  # 北交所
+            ("430047.BJ", BoardType.BSE),
+            ("510050.SH", BoardType.ETF),  # 沪市 ETF
+            ("588080.SH", BoardType.ETF),
+            ("159915.SZ", BoardType.ETF),  # 深市 ETF
+            ("161725.SZ", BoardType.ETF),  # LOF
+            ("113001.SH", BoardType.BOND),  # 可转债
+            ("123001.SZ", BoardType.BOND),
+        ],
+    )
     def test_board_classification(self, code, expected):
         assert get_board_type(code) == expected
 
@@ -203,7 +206,9 @@ class TestIsAtLimit:
 # ============================================================
 class TestDetectSuspended:
     def test_normal_trading(self):
-        assert detect_suspended_from_row(close=10.0, volume=1000, open_price=10.0) is False
+        assert (
+            detect_suspended_from_row(close=10.0, volume=1000, open_price=10.0) is False
+        )
 
     def test_zero_close(self):
         assert detect_suspended_from_row(close=0.0, volume=0, open_price=0) is True
@@ -228,7 +233,7 @@ class TestEnrichDayDataList:
         data = [
             {"date": "2024-01-01", "prices": {"600519.SH": 10.0}},
             {"date": "2024-01-02", "prices": {"600519.SH": 11.0}},  # 涨停
-            {"date": "2024-01-03", "prices": {"600519.SH": 9.0}},   # 跌停
+            {"date": "2024-01-03", "prices": {"600519.SH": 9.0}},  # 跌停
         ]
         result = enrich_day_data_list(data)
 
@@ -280,8 +285,11 @@ class TestEnrichDayDataList:
     def test_does_not_overwrite_existing(self):
         # setdefault: 不覆盖调用方预先提供的字段
         data = [
-            {"date": "2024-01-01", "prices": {"600519.SH": 10.0},
-             "limit_up_prices": {"600519.SH": 99.99}},
+            {
+                "date": "2024-01-01",
+                "prices": {"600519.SH": 10.0},
+                "limit_up_prices": {"600519.SH": 99.99},
+            },
             {"date": "2024-01-02", "prices": {"600519.SH": 11.0}},
         ]
         result = enrich_day_data_list(data)
@@ -301,13 +309,16 @@ class TestEnrichDayDataList:
 class TestBuildFromOhlcv:
     def _make_price_df(self, closes, volumes=None, opens=None):
         dates = pd.date_range("2024-01-01", periods=len(closes), freq="D")
-        df = pd.DataFrame({
-            "open": opens or closes,
-            "high": [c * 1.02 for c in closes],
-            "low": [c * 0.98 for c in closes],
-            "close": closes,
-            "volume": volumes if volumes else [1000] * len(closes),
-        }, index=dates)
+        df = pd.DataFrame(
+            {
+                "open": opens or closes,
+                "high": [c * 1.02 for c in closes],
+                "low": [c * 0.98 for c in closes],
+                "close": closes,
+                "volume": volumes if volumes else [1000] * len(closes),
+            },
+            index=dates,
+        )
         return df
 
     def test_basic_build(self):
@@ -331,21 +342,27 @@ class TestBuildFromOhlcv:
         # 600519 在第 2 日停牌 (无数据), 第 3 日恢复;
         # 加入第二个标的 000001 撑起完整 3 日交易日历, 使第 2 日进入 union
         dates = pd.date_range("2024-01-01", periods=3, freq="D")
-        df_main = pd.DataFrame({
-            "open": [10.0, 9.0],
-            "high": [10.2, 9.2],
-            "low": [9.8, 8.8],
-            "close": [10.0, 9.0],
-            "volume": [1000, 1000],
-        }, index=[dates[0], dates[2]])  # 缺第 2 日 → 停牌
+        df_main = pd.DataFrame(
+            {
+                "open": [10.0, 9.0],
+                "high": [10.2, 9.2],
+                "low": [9.8, 8.8],
+                "close": [10.0, 9.0],
+                "volume": [1000, 1000],
+            },
+            index=[dates[0], dates[2]],
+        )  # 缺第 2 日 → 停牌
         # 第二个标的完整 3 日数据, 确保第 2 日进入交易日历 union
-        df_aux = pd.DataFrame({
-            "open": [5.0, 5.5, 5.2],
-            "high": [5.1, 5.6, 5.3],
-            "low": [4.9, 5.4, 5.1],
-            "close": [5.0, 5.5, 5.2],
-            "volume": [2000, 2000, 2000],
-        }, index=dates)
+        df_aux = pd.DataFrame(
+            {
+                "open": [5.0, 5.5, 5.2],
+                "high": [5.1, 5.6, 5.3],
+                "low": [4.9, 5.4, 5.1],
+                "close": [5.0, 5.5, 5.2],
+                "volume": [2000, 2000, 2000],
+            },
+            index=dates,
+        )
         price_data = {"600519.SH": df_main, "000001.SZ": df_aux}
         data = build_backtest_data_from_ohlcv(price_data)
 
@@ -412,15 +429,20 @@ class TestBacktestEngineConstraints:
         data = [
             {"date": "2024-01-01", "prices": {"600519.SH": 10.0}},
             # 第二日涨停 11.0 = limit_up, 强加仓信号应被拦截
-            {"date": "2024-01-02", "prices": {"600519.SH": 11.0},
-             "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}}},
+            {
+                "date": "2024-01-02",
+                "prices": {"600519.SH": 11.0},
+                "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}},
+            },
         ]
         enrich_day_data_list(data)
         # 验证 limit_up 已注入
         assert data[1]["limit_up_prices"]["600519.SH"] == 11.0
 
         engine = BacktestEngine(initial_capital=1_000_000)
-        strategy = __import__("utils.wt_backtest_engine", fromlist=["ETFSignalStrategy"]).ETFSignalStrategy()
+        strategy = __import__(
+            "utils.wt_backtest_engine", fromlist=["ETFSignalStrategy"]
+        ).ETFSignalStrategy()
 
         def strategy_func(day_data, positions):
             return strategy.generate_signals(day_data, positions)
@@ -433,18 +455,26 @@ class TestBacktestEngineConstraints:
         """跌停 (price <= limit_down) 不可卖出"""
         # 先建仓, 再在跌停日尝试卖出
         data = [
-            {"date": "2024-01-01", "prices": {"600519.SH": 10.0},
-             "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}}},
+            {
+                "date": "2024-01-01",
+                "prices": {"600519.SH": 10.0},
+                "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}},
+            },
             # 第二日跌停 9.0 = limit_down, 强减仓信号应被拦截
-            {"date": "2024-01-02", "prices": {"600519.SH": 9.0},
-             "etf_signals": {"600519.SH": {"signal": "强减仓", "inflow": -100}}},
+            {
+                "date": "2024-01-02",
+                "prices": {"600519.SH": 9.0},
+                "etf_signals": {"600519.SH": {"signal": "强减仓", "inflow": -100}},
+            },
         ]
         enrich_day_data_list(data)
         # 验证 limit_down 已注入
         assert data[1]["limit_down_prices"]["600519.SH"] == 9.0
 
         engine = BacktestEngine(initial_capital=1_000_000)
-        strategy = __import__("utils.wt_backtest_engine", fromlist=["ETFSignalStrategy"]).ETFSignalStrategy()
+        strategy = __import__(
+            "utils.wt_backtest_engine", fromlist=["ETFSignalStrategy"]
+        ).ETFSignalStrategy()
 
         def strategy_func(day_data, positions):
             return strategy.generate_signals(day_data, positions)
@@ -459,15 +489,20 @@ class TestBacktestEngineConstraints:
         data = [
             {"date": "2024-01-01", "prices": {"600519.SH": 10.0}},
             # 第二日停牌 (价格为 0)
-            {"date": "2024-01-02", "prices": {"600519.SH": 0.0},
-             "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}}},
+            {
+                "date": "2024-01-02",
+                "prices": {"600519.SH": 0.0},
+                "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}},
+            },
         ]
         enrich_day_data_list(data)
         # 验证 suspended 已注入
         assert data[1]["suspended"]["600519.SH"] is True
 
         engine = BacktestEngine(initial_capital=1_000_000)
-        strategy = __import__("utils.wt_backtest_engine", fromlist=["ETFSignalStrategy"]).ETFSignalStrategy()
+        strategy = __import__(
+            "utils.wt_backtest_engine", fromlist=["ETFSignalStrategy"]
+        ).ETFSignalStrategy()
 
         def strategy_func(day_data, positions):
             return strategy.generate_signals(day_data, positions)
@@ -485,16 +520,24 @@ class TestBackwardCompatibility:
         """无 limit 字段时回测行为与原有一致 (不约束)"""
         # 不调用 enrich, 直接构造无 limit 字段的数据
         data = [
-            {"date": "2024-01-01", "prices": {"600519.SH": 10.0},
-             "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}}},
+            {
+                "date": "2024-01-01",
+                "prices": {"600519.SH": 10.0},
+                "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}},
+            },
             # 第二日"涨停" 11.0 但无 limit_up_prices → 不约束, 应能买入
-            {"date": "2024-01-02", "prices": {"600519.SH": 11.0},
-             "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}}},
+            {
+                "date": "2024-01-02",
+                "prices": {"600519.SH": 11.0},
+                "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}},
+            },
         ]
         # 不调用 enrich_day_data_list
 
         engine = BacktestEngine(initial_capital=1_000_000)
-        strategy = __import__("utils.wt_backtest_engine", fromlist=["ETFSignalStrategy"]).ETFSignalStrategy()
+        strategy = __import__(
+            "utils.wt_backtest_engine", fromlist=["ETFSignalStrategy"]
+        ).ETFSignalStrategy()
 
         def strategy_func(day_data, positions):
             return strategy.generate_signals(day_data, positions)
@@ -506,7 +549,8 @@ class TestBackwardCompatibility:
     def test_synthetic_with_limit_flag(self):
         """generate_synthetic_data(with_limit_constraints=True) 注入字段"""
         data = BacktestDataLoader.generate_synthetic_data(
-            "2024-01-01", "2024-01-15",
+            "2024-01-01",
+            "2024-01-15",
             ["600519.SH", "300750.SZ"],
             with_limit_constraints=True,
         )
@@ -520,7 +564,9 @@ class TestBackwardCompatibility:
     def test_synthetic_without_limit_flag_backward_compat(self):
         """generate_synthetic_data(with_limit_constraints=False) 默认不注入 (向后兼容)"""
         data = BacktestDataLoader.generate_synthetic_data(
-            "2024-01-01", "2024-01-05", ["600519.SH"],
+            "2024-01-01",
+            "2024-01-05",
+            ["600519.SH"],
         )
         # 默认不注入 limit 字段
         assert "limit_up_prices" not in data[0]

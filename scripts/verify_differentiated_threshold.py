@@ -34,7 +34,11 @@ def main() -> int:
         {"symbol": "600519.SH", "name": "贵州茅台", "ret_pct": 18.0},  # 10cm 正常
         # 20cm 标的 - 合理涨停
         {"symbol": "300750.SZ", "name": "宁德时代", "ret_pct": 22.0},  # 20cm 涨停(正常)
-        {"symbol": "300750.SZ", "name": "宁德时代", "ret_pct": -21.5},  # 20cm 跌停(正常)
+        {
+            "symbol": "300750.SZ",
+            "name": "宁德时代",
+            "ret_pct": -21.5,
+        },  # 20cm 跌停(正常)
         {"symbol": "688981.SH", "name": "中芯国际", "ret_pct": 25.0},  # 20cm 涨停(正常)
         {"symbol": "301579.SZ", "name": "博众精工", "ret_pct": 28.0},  # 20cm 涨停(正常)
         # 20cm 标的 - 真实异常
@@ -47,7 +51,11 @@ def main() -> int:
         {"symbol": "588000.SH", "name": "科创50ETF", "ret_pct": 31.0},  # 20cm ETF 异常
         # 科技/创业板 ETF
         {"symbol": "159915.SZ", "name": "创业板ETF", "ret_pct": 23.0},  # 20cm ETF 涨停
-        {"symbol": "562500.SH", "name": "中证1000ETF", "ret_pct": 26.0},  # 20cm ETF 涨停
+        {
+            "symbol": "562500.SH",
+            "name": "中证1000ETF",
+            "ret_pct": 26.0,
+        },  # 20cm ETF 涨停
     ]
 
     results = []
@@ -78,17 +86,19 @@ def main() -> int:
         if exempt:
             exempted += 1
 
-        results.append({
-            "symbol": symbol,
-            "name": tc["name"],
-            "ret_pct": ret,
-            "board": board,
-            "is_20cm": is_20cm,
-            "threshold": f"±{int(threshold * 100)}%",
-            "old_logic": "异常" if old_flag else "正常",
-            "new_logic": "异常" if new_flag else "正常",
-            "exempted": exempt,
-        })
+        results.append(
+            {
+                "symbol": symbol,
+                "name": tc["name"],
+                "ret_pct": ret,
+                "board": board,
+                "is_20cm": is_20cm,
+                "threshold": f"±{int(threshold * 100)}%",
+                "old_logic": "异常" if old_flag else "正常",
+                "new_logic": "异常" if new_flag else "正常",
+                "exempted": exempt,
+            }
+        )
 
     # 打印结果
     print(f"\n测试用例数: {len(results)}")
@@ -130,7 +140,9 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     out_json = out_dir / "threshold_validation_report.json"
-    out_json.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_json.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # 生成 MD
     md: list[str] = []
@@ -155,7 +167,11 @@ def main() -> int:
     md.append("| 标的 | 涨跌 | 板别 | 阈值 | 旧逻辑 | 新逻辑 | 状态 |")
     md.append("|------|------|------|------|--------|--------|------|")
     for r in results:
-        status = "🟢 已豁免" if r["exempted"] else ("🔴 仍异常" if r["new_logic"] == "异常" else "⚪ 正常")
+        status = (
+            "🟢 已豁免"
+            if r["exempted"]
+            else ("🔴 仍异常" if r["new_logic"] == "异常" else "⚪ 正常")
+        )
         md.append(
             f"| {r['symbol']} | {r['ret_pct']:+.2f}% | {r['board']} | {r['threshold']} | "
             f"{r['old_logic']} | {r['new_logic']} | {status} |"
@@ -174,8 +190,12 @@ def main() -> int:
 
     md.append("## 应用范围\n")
     md.append("本次差异化阈值逻辑已应用于以下数据清洗流水线模块：\n")
-    md.append("1. **ShadowRealDataFeeder** (`shadow_real_data_feeder.py`) — 影子账户数据交叉验证")
-    md.append("2. **CrossValidationEngine** (`cross_validation.py`) — 数据一致性校验引擎")
+    md.append(
+        "1. **ShadowRealDataFeeder** (`shadow_real_data_feeder.py`) — 影子账户数据交叉验证"
+    )
+    md.append(
+        "2. **CrossValidationEngine** (`cross_validation.py`) — 数据一致性校验引擎"
+    )
     md.append("3. **DataLayer** (`data_layer.py`) — 数据层管理器")
     md.append("4. **QualityValidator** (`quality_validator.py`) — 质量验证器")
     md.append("\n所有模块统一从 `utils.market_rules` 导入规则，确保单一事实源。")

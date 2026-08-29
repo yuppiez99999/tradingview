@@ -33,7 +33,10 @@ def check_kronos_real_data():
     print("[2/3] 检查真实数据路径（11_量化策略/kronos_predictor）...")
     try:
         import importlib.util
-        kronos_path = os.path.join(PROJECT_ROOT, "..", "11_量化策略", "utils", "kronos_predictor.py")
+
+        kronos_path = os.path.join(
+            PROJECT_ROOT, "..", "11_量化策略", "utils", "kronos_predictor.py"
+        )
         if not os.path.exists(kronos_path):
             print("  [SKIP] 未找到 11_量化策略/utils/kronos_predictor.py")
             return None
@@ -84,7 +87,9 @@ def run_factor_evaluation(df, label="data"):
         print(f"  [OK] Alpha144={alpha144:.6e}")
         print(f"       technical_alpha={result.factors['technical_alpha']}")
         print(f"       composite={result.composite}, signal={result.signal}")
-        print(f"       summary signal={summary.get('signal')}, avg={summary.get('avg_composite')}")
+        print(
+            f"       summary signal={summary.get('signal')}, avg={summary.get('avg_composite')}"
+        )
         return True
     except Exception as e:
         print(f"  [FAIL] 端到端评估异常: {e}")

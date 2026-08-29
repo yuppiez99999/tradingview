@@ -18,6 +18,68 @@ import requests as _requests
 
 logger = logging.getLogger(__name__)
 
+# Ensure utils path is available early so downstream reporting imports work at top-level
+_PROJECT_ROOT = _Path(__file__).resolve().parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+try:
+    from utils.path_config import setup_sys_path
+
+    setup_sys_path()
+except Exception:  # noqa: BLE001
+    # best-effort: if setup_sys_path is unavailable, continue; downstream imports may fail later
+    pass
+
+# Import reporting/AI helpers at module top to satisfy E402 (imports should be at file top)
+from ai.recommendation_generator import (  # noqa: E402
+    generate_ai_recommendations as _ai_generate_recommendations,
+)
+from ai.recommendation_generator import (  # noqa: E402
+    generate_deepseek_recommendations as _ai_generate_deepseek_recs,
+)
+from reporting.hedge_analyzer import (  # noqa: E402
+    analyze_hedge_position as _hedge_analyze_position,
+)
+from reporting.hedge_analyzer import (  # noqa: E402
+    analyze_hedge_positions_plan as _hedge_analyze_positions_plan,
+)
+from reporting.hedge_analyzer import (  # noqa: E402
+    calculate_hedge_effectiveness as _hedge_calculate_effectiveness,
+)
+from reporting.markdown_renderer import (  # noqa: E402
+    generate_report as _md_generate_report,
+)
+from reporting.next_day_planner import (  # noqa: E402
+    generate_next_day_plan as _plan_generate_next_day,
+)
+from reporting.pnl_calculator import (  # noqa: E402
+    calculate_max_drawdown as _pnl_calculate_max_drawdown,
+)
+from reporting.pnl_calculator import (  # noqa: E402
+    calculate_pnl as _pnl_calc,
+)
+from reporting.pnl_calculator import (  # noqa: E402
+    calculate_volatility as _pnl_calculate_volatility,
+)
+from reporting.pnl_calculator import (  # noqa: E402
+    count_stop_loss_status as _pnl_count_stop_loss_status,
+)
+from reporting.pnl_calculator import (  # noqa: E402
+    get_position_status as _pnl_get_position_status,
+)
+from reporting.price_fetcher import (  # noqa: E402
+    assess_data_source_health as _price_assess_data_source_health,
+)
+from reporting.price_fetcher import (  # noqa: E402
+    fetch_market_prices as _price_fetch_market_prices,
+)
+from reporting.price_fetcher import (  # noqa: E402
+    fetch_sina_realtime as _price_fetch_sina_realtime,
+)
+from reporting.price_fetcher import (  # noqa: E402
+    to_sina_code as _price_to_sina_code,
+)
+
 
 def _load_dotenv() -> None:
     """轻量级 .env 加载器 (无第三方依赖)
@@ -52,6 +114,7 @@ _SINA_SESSION = _requests.Session()
 _SINA_SESSION.trust_env = False
 _SINA_SESSION.proxies = {"http": None, "https": None}
 
+
 # C5修复: 注册进程退出时清理 HTTPSession 连接池, 避免资源泄漏
 @atexit.register
 def _cleanup_sina_session() -> None:
@@ -60,6 +123,7 @@ def _cleanup_sina_session() -> None:
         _SINA_SESSION.close()
     except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
         pass
+
 
 # Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
 _PROJECT_ROOT = _Path(__file__).resolve().parent
@@ -85,6 +149,7 @@ IFIND_TOKEN = ""
 # ═══════════════════════════════════════════════════════════════
 try:
     from utils.alpha.llm_router import chat as _llm_chat
+
     _LLM_ROUTER_AVAILABLE = True
 except Exception as _e:  # P2 模块 fail-safe  # noqa: BLE001
     _llm_chat = None  # type: ignore[misc]
@@ -96,7 +161,10 @@ DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 
 
 def _call_deepseek(
-    system_prompt: str, user_prompt: str, temperature: float = 0.4, max_tokens: int = 1500
+    system_prompt: str,
+    user_prompt: str,
+    temperature: float = 0.4,
+    max_tokens: int = 1500,
 ) -> Optional[str]:
     """调用 LLM 生成文本 (B3.4.4: 统一走 LLMRouter)
 
@@ -116,7 +184,12 @@ def _call_deepseek(
     if not _llm_chat:
         return None
     try:
-        result = _llm_chat(user_prompt, system=system_prompt, temperature=temperature, max_tokens=max_tokens)
+        result = _llm_chat(
+            user_prompt,
+            system=system_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
         if result and result.strip():
             return result.strip()
         return None
@@ -133,50 +206,6 @@ def _call_deepseek(
 # - reporting.next_day_planner: 次日计划
 # - ai.recommendation_generator: AI 建议生成
 # ═══════════════════════════════════════════════════════════════
-from ai.recommendation_generator import (  # noqa: E402
-    generate_ai_recommendations as _ai_generate_recommendations,
-)
-from ai.recommendation_generator import (  # noqa: E402
-    generate_deepseek_recommendations as _ai_generate_deepseek_recs,
-)
-from reporting.hedge_analyzer import (  # noqa: E402
-    analyze_hedge_position as _hedge_analyze_position,
-)
-from reporting.hedge_analyzer import (  # noqa: E402
-    analyze_hedge_positions_plan as _hedge_analyze_positions_plan,
-)
-from reporting.hedge_analyzer import (  # noqa: E402
-    calculate_hedge_effectiveness as _hedge_calculate_effectiveness,
-)
-from reporting.markdown_renderer import generate_report as _md_generate_report  # noqa: E402
-from reporting.next_day_planner import generate_next_day_plan as _plan_generate_next_day  # noqa: E402
-from reporting.pnl_calculator import (  # noqa: E402
-    calculate_max_drawdown as _pnl_calculate_max_drawdown,
-)
-from reporting.pnl_calculator import (  # noqa: E402
-    calculate_pnl as _pnl_calc,
-)
-from reporting.pnl_calculator import (  # noqa: E402
-    calculate_volatility as _pnl_calculate_volatility,
-)
-from reporting.pnl_calculator import (  # noqa: E402
-    count_stop_loss_status as _pnl_count_stop_loss_status,
-)
-from reporting.pnl_calculator import (  # noqa: E402
-    get_position_status as _pnl_get_position_status,
-)
-from reporting.price_fetcher import (  # noqa: E402
-    assess_data_source_health as _price_assess_data_source_health,
-)
-from reporting.price_fetcher import (  # noqa: E402
-    fetch_market_prices as _price_fetch_market_prices,
-)
-from reporting.price_fetcher import (  # noqa: E402
-    fetch_sina_realtime as _price_fetch_sina_realtime,
-)
-from reporting.price_fetcher import (  # noqa: E402
-    to_sina_code as _price_to_sina_code,
-)
 
 
 def _load_trade_plan_prices(trade_plan_path: Optional[str]) -> dict[str, float]:
@@ -210,7 +239,7 @@ def _build_snap_index(sim_positions: dict[str, dict]) -> dict[str, dict]:
         norm = sk.lower()
         for prefix in ("sh", "sz", "bj"):
             if norm.startswith(prefix):
-                norm = norm[len(prefix):]
+                norm = norm[len(prefix) :]
                 break
         snap_index[norm] = sv
     return snap_index
@@ -340,7 +369,6 @@ class PortfolioAnalyzer:
                 continue
             extra += 1
             self._add_extra_position(norm_code, sv, positions)
-
 
     @staticmethod
     def _to_sina_code(code: str) -> str:
@@ -512,10 +540,14 @@ class PortfolioAnalyzer:
         ao = hedge.get("active_orders", {})
         put_count = sum(pp.get("contracts", 0) for pp in (ao.get("put_protection", []) or []))
         call_count = sum(cc.get("contracts", 0) for cc in (ao.get("covered_call", []) or []))
-        hedge_desc = f"已建仓 Covered Call {call_count} 张 + Put 保护 {put_count} 张, 尾部保护" if (put_count or call_count) else "对冲头寸待执行"
+        hedge_desc = (
+            f"已建仓 Covered Call {call_count} 张 + Put 保护 {put_count} 张, 尾部保护"
+            if (put_count or call_count)
+            else "对冲头寸待执行"
+        )
         return {
             "concentration_risk": f"{max_name} {max_weight:.0%} (最大单标的), 共 {len(positions)} 只持仓",
-            "volatility_risk": f"高波动标的 ({'/'.join(high_vol_hits[:3])}) 占比 {sum(positions[c].get('amount',0) for c in positions if any(hv in c for hv in high_vol_codes))/total_amount:.0%}",
+            "volatility_risk": f"高波动标的 ({'/'.join(high_vol_hits[:3])}) 占比 {sum(positions[c].get('amount', 0) for c in positions if any(hv in c for hv in high_vol_codes)) / total_amount:.0%}",
             "hedge_coverage": hedge_desc,
             "policy_risk": "十五五规划落地节奏、半导体出口管制、AI 监管、医保集采",
             "liquidity_risk": "500 万规模对个股冲击成本约 0.1-0.3%",
@@ -615,7 +647,6 @@ def print_report_summary(report: dict) -> None:
         pass
 
 
-
 def _build_data_integrity_warning(data_health: dict) -> str:
     """构建数据完整性警告文本"""
     data_status = data_health.get("status", "UNKNOWN")
@@ -638,10 +669,15 @@ def _build_data_integrity_warning(data_health: dict) -> str:
 >
 """
     if data_status == "FALLBACK_HEAVY":
+        fallback_count = data_health.get("fallback_count", 0)
+        no_data_cnt = data_health.get("no_data_count", 0)
+        total = data_health.get("total_positions", 0)
+        unreal_count = fallback_count + no_data_cnt
         return f"""
-> **⚠️ 数据源回退警告**
-> {data_health.get("fallback_count", 0)} 个标的使用了回退价格源（fallback），数据质量下降。
-> 建议检查主数据源（Wind MCP）是否正常运行。
+> **⚠️⚠️ 数据源严重降级警告 ⚠️⚠️**
+> {unreal_count}/{total} 个标的未使用实时行情（兜底{fallback_count} + 无数据{no_data_cnt}）。
+> 盈亏数据基于兜底/缓存价格计算，**并非真实交易结果**。
+> 基于此报告生成的交易计划需人工确认后方可执行。
 >
 """
     return ""
@@ -808,9 +844,7 @@ def _render_expected_performance(exp_perf: dict, proj: dict) -> str:
     _base = _proj_scenarios.get("base", {})
 
     _ann_raw = (
-        exp_perf.get("annual_return")
-        or _base.get("weighted_annualized")
-        or _proj_expected.get("expected_annualized")
+        exp_perf.get("annual_return") or _base.get("weighted_annualized") or _proj_expected.get("expected_annualized")
     )
     if isinstance(_ann_raw, (int, float)) and _ann_raw > 1:
         _ann_raw = _ann_raw / 100.0
@@ -881,7 +915,9 @@ def _render_return_projection_section(proj: dict) -> str:
         fin = sc.get("final_amount", 0)
         profit = sc.get("total_profit", 0)
         profit_str = f"+¥{profit:,.0f}" if profit >= 0 else f"-¥{abs(profit):,.0f}"
-        md += f"| {icon} {sc.get('label', s_key)} | {prob:.0%} | {ann:.2f}% | {cum:.2f}% | ¥{fin:,.0f} | {profit_str} |\n"
+        md += (
+            f"| {icon} {sc.get('label', s_key)} | {prob:.0%} | {ann:.2f}% | {cum:.2f}% | ¥{fin:,.0f} | {profit_str} |\n"
+        )
 
     md += f"""
 #### 加权期望
@@ -1224,7 +1260,10 @@ def main() -> None:
     if hedge_dir.exists():
         # 优先查找当日的对冲执行文件
         date_compact = report_date_arg.replace("-", "")
-        hedge_candidates = sorted(hedge_dir.glob(f"hedge_execution_fill_{report_date_arg}*.json"), reverse=True)
+        hedge_candidates = sorted(
+            hedge_dir.glob(f"hedge_execution_fill_{report_date_arg}*.json"),
+            reverse=True,
+        )
         if not hedge_candidates:
             hedge_candidates = sorted(hedge_dir.glob("hedge_execution_fill_*.json"), reverse=True)
         if hedge_candidates:

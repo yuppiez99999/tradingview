@@ -1,4 +1,5 @@
 """AI交易竞技场 — v5.10 多策略实时对抗面板 · 中文版"""
+
 import os
 import sys
 
@@ -201,9 +202,11 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 def _now():
     return datetime.now()
 
+
 def _card(html: str, accent: bool = False):
     cls = "glass-card glass-card-accent" if accent else "glass-card"
     st.markdown(f'<div class="{cls}">{html}</div>', unsafe_allow_html=True)
+
 
 # (保留备用) 用于未来扩展的区块标题辅助函数
 # def _section_title(text: str, icon: str = ""):
@@ -218,7 +221,13 @@ with st.sidebar:
 
     symbol = st.selectbox(
         "📌 交易标的",
-        ["BTC/USDT 5分钟", "ETH/USDT 5分钟", "沪深300 5分钟", "中证1000 5分钟", "上证50 5分钟"],
+        [
+            "BTC/USDT 5分钟",
+            "ETH/USDT 5分钟",
+            "沪深300 5分钟",
+            "中证1000 5分钟",
+            "上证50 5分钟",
+        ],
     )
     strategy = st.selectbox(
         "🧠 AI策略",
@@ -226,10 +235,12 @@ with st.sidebar:
     )
 
     st.divider()
-    n_sim = st.slider("📊 模拟交易笔数", 5000, 100000, 36402, 1000,
-                      help="控制蒙特卡洛模拟的精度")
-    vol_factor = st.slider("📈 波动率因子", 0.1, 3.0, 1.0, 0.05,
-                           help="调整价格随机游走波动幅度")
+    n_sim = st.slider(
+        "📊 模拟交易笔数", 5000, 100000, 36402, 1000, help="控制蒙特卡洛模拟的精度"
+    )
+    vol_factor = st.slider(
+        "📈 波动率因子", 0.1, 3.0, 1.0, 0.05, help="调整价格随机游走波动幅度"
+    )
 
     st.divider()
     st.checkbox("🔄 实时脉冲图", value=True, key="show_pulse")
@@ -260,15 +271,15 @@ h_left, h_mid, h_right = st.columns([3, 2.5, 1.5])
 with h_left:
     st.markdown(
         '<div style="font-size:0.72rem;letter-spacing:0.12em;color:#8b949e;text-transform:uppercase;margin-bottom:0.15rem;">'
-        '量化策略系统 v5.10 · AI实时交易竞技场</div>'
+        "量化策略系统 v5.10 · AI实时交易竞技场</div>"
         '<div style="display:flex;align-items:center;gap:0.7rem;">'
         '<div style="width:40px;height:40px;border-radius:12px;'
-        'background:linear-gradient(135deg,#f59e0b,#8b5cf6);'
-        'display:flex;align-items:center;justify-content:center;'
+        "background:linear-gradient(135deg,#f59e0b,#8b5cf6);"
+        "display:flex;align-items:center;justify-content:center;"
         'font-size:1.2rem;font-weight:800;color:#fff;">🏆</div>'
         '<span style="font-size:1.5rem;font-weight:800;letter-spacing:-0.02em;color:#f8fafc;">'
-        'AI FABLE 5 · 米罗鱼</span>'
-        '</div>',
+        "AI FABLE 5 · 米罗鱼</span>"
+        "</div>",
         unsafe_allow_html=True,
     )
 
@@ -279,7 +290,7 @@ with h_mid:
         '<span class="badge badge-primary">主网</span>'
         '<span class="badge badge-warning">第 7,185 轮</span>'
         '<span class="badge badge-purple">5 策略并行</span>'
-        '</div>',
+        "</div>",
         unsafe_allow_html=True,
     )
 
@@ -289,9 +300,9 @@ with h_right:
         f'<div style="text-align:right;margin-top:0.5rem;">'
         f'<div style="font-size:0.72rem;color:#8b949e;letter-spacing:0.08em;">北京时间</div>'
         f'<div style="font-size:1.25rem;font-weight:700;color:#f8fafc;font-variant-numeric:tabular-nums;">'
-        f'{now:%Y-%m-%d %H:%M:%S}</div>'
+        f"{now:%Y-%m-%d %H:%M:%S}</div>"
         f'<div style="font-size:0.72rem;color:#8b949e;">UTC {datetime.now(UTC):%H:%M:%S}</div>'
-        f'</div>',
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -309,13 +320,13 @@ with c1:
         f'<div><span style="color:#8b949e;">已实现盈亏</span> <span class="metric-up">+¥{realized_pnl:,}</span></div>'
         f'<div><span style="color:#8b949e;">策略来源</span> <span style="color:#f8fafc;font-weight:600;">Mirofish v3</span></div>'
         f'<div><span style="color:#8b949e;">交易笔数</span> <span style="color:#f8fafc;font-weight:600;">{n_trades:,}</span></div>'
-        '</div>'
+        "</div>"
         '<div style="margin-top:0.5rem;display:flex;gap:1.5rem;font-size:0.82rem;">'
         '<div><span class="metric-up">+¥8,974</span> <span style="color:#8b949e;">5月14日 做多</span></div>'
         '<div><span class="metric-up">+¥6,887</span> <span style="color:#8b949e;">6月4日 做多</span></div>'
         '<div><span class="metric-up">+¥5,062</span> <span style="color:#8b949e;">5月7日 做多</span></div>'
         '<div><span class="metric-up">+¥4,897</span> <span style="color:#8b949e;">5月14日 做空</span></div>'
-        '</div>'
+        "</div>"
     )
     _card(html, accent=True)
 
@@ -345,8 +356,10 @@ with c4:
     spark_y = np.cumsum(np.random.RandomState(99).randn(30) * 180) + 8000
     fig_spark = go.Figure(
         go.Scatter(
-            x=spark_x, y=spark_y,
-            mode="lines", fill="tozeroy",
+            x=spark_x,
+            y=spark_y,
+            mode="lines",
+            fill="tozeroy",
             line=dict(color="#22c55e", width=2.2),
             fillcolor="rgba(34,197,94,0.1)",
         )
@@ -356,7 +369,8 @@ with c4:
         height=90,
         xaxis=dict(visible=False, fixedrange=True),
         yaxis=dict(visible=False, fixedrange=True),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
         showlegend=False,
     )
     html = (
@@ -364,10 +378,15 @@ with c4:
         '<div style="display:flex;justify-content:space-between;align-items:center;">'
         f'<div><div style="font-size:1.75rem;font-weight:700;color:#f8fafc;">×{top_multiplier:.2f}</div>'
         f'<div class="metric-up">+¥{realized_pnl:,}</div></div>'
-        '</div>'
+        "</div>"
     )
     _card(html)
-    st.plotly_chart(fig_spark, use_container_width=True, config={'displayModeBar': False}, key="spark_pnl")
+    st.plotly_chart(
+        fig_spark,
+        use_container_width=True,
+        config={"displayModeBar": False},
+        key="spark_pnl",
+    )
 
 # ═══════════════════════════════════════════════
 # 第二行：概率落点板
@@ -386,11 +405,11 @@ if st.session_state.get("show_lattice", True):
             '<div class="stat-row"><span>本轮盈亏</span><span class="metric-up">+¥331</span></div>'
             '<div class="stat-row"><span>历史总计</span><span class="value">36,402</span></div>'
             '<div class="stat-row"><span>累计已实现</span><span class="metric-up">+¥438,000</span></div>'
-            '</div>'
+            "</div>"
             '<div class="hairline"></div>'
             '<div style="font-size:0.72rem;color:#6e7681;line-height:1.5;">'
-            '大数定律 — 6倍赔率棋盘需要足够多的重复次数才能收敛。当前策略通过高频微交易积累统计优势。'
-            '</div>'
+            "大数定律 — 6倍赔率棋盘需要足够多的重复次数才能收敛。当前策略通过高频微交易积累统计优势。"
+            "</div>"
         )
 
     with board_right:
@@ -398,10 +417,14 @@ if st.session_state.get("show_lattice", True):
         rs = np.random.RandomState(7)
         bins = np.arange(-12, 13)
         counts = rs.poisson(lam=55, size=len(bins))
-        counts[len(bins)//2 + 1:] += rs.poisson(35, size=len(bins) - len(bins)//2 - 1)
+        counts[len(bins) // 2 + 1 :] += rs.poisson(
+            35, size=len(bins) - len(bins) // 2 - 1
+        )
 
         fig_board = make_subplots(
-            rows=2, cols=1, shared_xaxes=True,
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
             row_heights=[0.65, 0.35],
             vertical_spacing=0.05,
         )
@@ -410,27 +433,41 @@ if st.session_state.get("show_lattice", True):
         drop_y = rs.uniform(0, 100, 350)
         fig_board.add_trace(
             go.Scatter(
-                x=drop_x, y=drop_y, mode="markers",
+                x=drop_x,
+                y=drop_y,
+                mode="markers",
                 marker=dict(size=3.5, color="rgba(201,209,217,0.3)", symbol="circle"),
-                name="落点", hoverinfo="skip",
-            ), row=1, col=1,
+                name="落点",
+                hoverinfo="skip",
+            ),
+            row=1,
+            col=1,
         )
-        fig_board.add_vline(x=0, line=dict(color="#f59e0b", dash="dot", width=1.8),
-                            annotation_text="均衡线", annotation_font_color="#f59e0b",
-                            row=1, col=1)
+        fig_board.add_vline(
+            x=0,
+            line=dict(color="#f59e0b", dash="dot", width=1.8),
+            annotation_text="均衡线",
+            annotation_font_color="#f59e0b",
+            row=1,
+            col=1,
+        )
         # 直方图
         bar_colors = ["#22c55e" if v >= 0 else "#ef4444" for v in bins]
         fig_board.add_trace(
             go.Bar(
-                x=bins, y=counts,
+                x=bins,
+                y=counts,
                 marker=dict(color=bar_colors, opacity=0.85),
                 name="分布",
-            ), row=2, col=1,
+            ),
+            row=2,
+            col=1,
         )
         fig_board.update_layout(
             height=360,
             margin=dict(l=20, r=20, t=10, b=25),
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
             showlegend=False,
             font=dict(color="#c9d1d9", size=11),
             xaxis=dict(showgrid=False, zeroline=False),
@@ -438,7 +475,12 @@ if st.session_state.get("show_lattice", True):
             xaxis2=dict(showgrid=False, zeroline=False, title="收益分布"),
             yaxis2=dict(showgrid=False, zeroline=False, title="频次"),
         )
-        st.plotly_chart(fig_board, use_container_width=True, config={'displayModeBar': False}, key="lattice")
+        st.plotly_chart(
+            fig_board,
+            use_container_width=True,
+            config={"displayModeBar": False},
+            key="lattice",
+        )
 
 # ═══════════════════════════════════════════════
 # 第三行：关系网络图
@@ -461,7 +503,7 @@ if st.session_state.get("show_graph", True):
             '<span class="legend-dot" style="background:#8b5cf6;"></span>催化剂事件</div>'
             '<div style="display:flex;align-items:center;gap:0.5rem;">'
             '<span class="legend-dot" style="background:#1890ff;"></span>聚类中心枢纽</div>'
-            '</div>'
+            "</div>"
             '<div class="hairline"></div>'
             '<div class="stat-row"><span>空头路径数</span><span class="value">334</span></div>'
             '<div class="stat-row"><span>多头路径数</span><span class="value">1,069</span></div>'
@@ -477,50 +519,84 @@ if st.session_state.get("show_graph", True):
         x = rs.normal(0, 1, n_nodes)
         y = rs.normal(0, 1, n_nodes)
         sizes = rs.uniform(6, 24, n_nodes)
-        colors = rs.choice(["#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#1890ff"], n_nodes)
+        colors = rs.choice(
+            ["#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#1890ff"], n_nodes
+        )
 
         fig_graph = go.Figure()
         # 边
         edge_idx = rs.choice(n_nodes, size=(70, 2))
         for a, b in edge_idx:
             if a != b:
-                fig_graph.add_trace(go.Scatter(
-                    x=[x[a], x[b]], y=[y[a], y[b]],
-                    mode="lines",
-                    line=dict(color="rgba(201,209,217,0.07)", width=0.8),
-                    hoverinfo="skip", showlegend=False,
-                ))
+                fig_graph.add_trace(
+                    go.Scatter(
+                        x=[x[a], x[b]],
+                        y=[y[a], y[b]],
+                        mode="lines",
+                        line=dict(color="rgba(201,209,217,0.07)", width=0.8),
+                        hoverinfo="skip",
+                        showlegend=False,
+                    )
+                )
         # 节点
-        fig_graph.add_trace(go.Scatter(
-            x=x, y=y, mode="markers",
-            marker=dict(size=sizes, color=colors, opacity=0.88,
-                        line=dict(color="rgba(248,250,252,0.25)", width=1)),
-            name="信号节点", hoverinfo="skip",
-        ))
+        fig_graph.add_trace(
+            go.Scatter(
+                x=x,
+                y=y,
+                mode="markers",
+                marker=dict(
+                    size=sizes,
+                    color=colors,
+                    opacity=0.88,
+                    line=dict(color="rgba(248,250,252,0.25)", width=1),
+                ),
+                name="信号节点",
+                hoverinfo="skip",
+            )
+        )
         # 中位数路径
         t = np.linspace(-2.2, 2.2, 120)
-        fig_graph.add_trace(go.Scatter(
-            x=t, y=np.sin(t * 1.1) * 0.55,
-            mode="lines", line=dict(color="#f59e0b", width=3, dash="dot"),
-            name="中位数路径",
-        ))
+        fig_graph.add_trace(
+            go.Scatter(
+                x=t,
+                y=np.sin(t * 1.1) * 0.55,
+                mode="lines",
+                line=dict(color="#f59e0b", width=3, dash="dot"),
+                name="中位数路径",
+            )
+        )
         # 高亮大节点
         for idx in [10, 25, 50]:
-            fig_graph.add_trace(go.Scatter(
-                x=[x[idx]], y=[y[idx]], mode="markers",
-                marker=dict(size=sizes[idx]*2.2, color=colors[idx], opacity=0.25,
-                            line=dict(color=colors[idx], width=2)),
-                showlegend=False, hoverinfo="skip",
-            ))
+            fig_graph.add_trace(
+                go.Scatter(
+                    x=[x[idx]],
+                    y=[y[idx]],
+                    mode="markers",
+                    marker=dict(
+                        size=sizes[idx] * 2.2,
+                        color=colors[idx],
+                        opacity=0.25,
+                        line=dict(color=colors[idx], width=2),
+                    ),
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
         fig_graph.update_layout(
             height=330,
             margin=dict(l=5, r=5, t=5, b=5),
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
             showlegend=False,
             xaxis=dict(showgrid=False, zeroline=False, visible=False),
             yaxis=dict(showgrid=False, zeroline=False, visible=False),
         )
-        st.plotly_chart(fig_graph, use_container_width=True, config={'displayModeBar': False}, key="network_graph")
+        st.plotly_chart(
+            fig_graph,
+            use_container_width=True,
+            config={"displayModeBar": False},
+            key="network_graph",
+        )
 
     # 边分布
     edge_cols = st.columns([3, 1])
@@ -535,22 +611,35 @@ if st.session_state.get("show_graph", True):
             '<div class="stat-row"><span>P(下跌)</span><span class="metric-down">0.17</span></div>'
             '<div class="stat-row"><span>相对盘口优势</span><span class="metric-up">+24%</span></div>'
             '<div class="stat-row"><span>综合置信度</span><span class="metric-up">95.6%</span></div>'
-            '</div>'
+            "</div>"
         )
         edge_bins = ["0-2", "3-5", "6-10", "11-20", "20+"]
         edge_vals = [8, 14, 22, 11, 5]
-        fig_edge = go.Figure(go.Bar(
-            x=edge_bins, y=edge_vals,
-            marker=dict(color=["#1890ff", "#1890ff", "#f59e0b", "#ef4444", "#ef4444"], opacity=0.85),
-        ))
+        fig_edge = go.Figure(
+            go.Bar(
+                x=edge_bins,
+                y=edge_vals,
+                marker=dict(
+                    color=["#1890ff", "#1890ff", "#f59e0b", "#ef4444", "#ef4444"],
+                    opacity=0.85,
+                ),
+            )
+        )
         fig_edge.update_layout(
-            height=130, margin=dict(l=5, r=5, t=10, b=25),
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            height=130,
+            margin=dict(l=5, r=5, t=10, b=25),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
             font=dict(color="#c9d1d9", size=10),
             xaxis=dict(showgrid=False, title="边数区间"),
             yaxis=dict(showgrid=False),
         )
-        st.plotly_chart(fig_edge, use_container_width=True, config={'displayModeBar': False}, key="edge_dist")
+        st.plotly_chart(
+            fig_edge,
+            use_container_width=True,
+            config={"displayModeBar": False},
+            key="edge_dist",
+        )
 
 # ═══════════════════════════════════════════════
 # 第四行：BTC 分时脉冲
@@ -577,39 +666,61 @@ if st.session_state.get("show_pulse", True):
         target = 76000
 
         fig_pulse = go.Figure()
-        fig_pulse.add_trace(go.Scatter(
-            x=times, y=price,
-            mode="lines", line=dict(color="#1890ff", width=2.5),
-            fill="tozeroy", fillcolor="rgba(24,144,255,0.07)",
-            name="实时价格",
-        ))
+        fig_pulse.add_trace(
+            go.Scatter(
+                x=times,
+                y=price,
+                mode="lines",
+                line=dict(color="#1890ff", width=2.5),
+                fill="tozeroy",
+                fillcolor="rgba(24,144,255,0.07)",
+                name="实时价格",
+            )
+        )
         fig_pulse.add_hline(
-            y=target, line=dict(color="#f59e0b", dash="dash", width=2),
-            annotation_text="目标 ¥76,000", annotation_font_color="#f59e0b",
+            y=target,
+            line=dict(color="#f59e0b", dash="dash", width=2),
+            annotation_text="目标 ¥76,000",
+            annotation_font_color="#f59e0b",
         )
         # Parlay 标记点
         mk_t = [times[12], times[30], times[50], times[65]]
         mk_p = [price[12], price[30], price[50], price[65]]
-        fig_pulse.add_trace(go.Scatter(
-            x=mk_t, y=mk_p,
-            mode="markers+text",
-            text=["+¥1,785", "连胜", "三连胜", "大满贯"],
-            textposition="top center",
-            textfont=dict(color="#22c55e", size=10),
-            marker=dict(size=11, color="#22c55e", symbol="circle",
-                        line=dict(color="white", width=1.8)),
-            name="连赢标记",
-        ))
+        fig_pulse.add_trace(
+            go.Scatter(
+                x=mk_t,
+                y=mk_p,
+                mode="markers+text",
+                text=["+¥1,785", "连胜", "三连胜", "大满贯"],
+                textposition="top center",
+                textfont=dict(color="#22c55e", size=10),
+                marker=dict(
+                    size=11,
+                    color="#22c55e",
+                    symbol="circle",
+                    line=dict(color="white", width=1.8),
+                ),
+                name="连赢标记",
+            )
+        )
         fig_pulse.update_layout(
             height=240,
             margin=dict(l=25, r=30, t=20, b=35),
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
             font=dict(color="#c9d1d9", size=11),
-            xaxis=dict(showgrid=False, zeroline=False, tickformat="%H:%M", title="时间 (UTC)"),
+            xaxis=dict(
+                showgrid=False, zeroline=False, tickformat="%H:%M", title="时间 (UTC)"
+            ),
             yaxis=dict(showgrid=False, zeroline=False, tickprefix="$", title="价格"),
             showlegend=False,
         )
-        st.plotly_chart(fig_pulse, use_container_width=True, config={'displayModeBar': False}, key="pulse_chart")
+        st.plotly_chart(
+            fig_pulse,
+            use_container_width=True,
+            config={"displayModeBar": False},
+            key="pulse_chart",
+        )
 
     with p_right:
         _card(
@@ -617,18 +728,18 @@ if st.session_state.get("show_pulse", True):
             '<div style="margin-top:0.4rem;">'
             '<div class="stat-row"><span>📈 看涨</span><span class="metric-up">58¢</span></div>'
             '<div class="stat-row"><span>📉 看跌</span><span class="metric-down">44¢</span></div>'
-            '</div>'
+            "</div>"
         )
         _card(
             '<div class="metric-label">脉冲强度</div>'
             '<div class="strength-bar">'
             '<div class="strength-fill" style="width:78%;background:linear-gradient(90deg,#f59e0b,#ef4444);"></div>'
-            '</div>'
+            "</div>"
             '<div style="margin-top:0.3rem;display:flex;justify-content:space-between;font-size:0.78rem;">'
             '<span style="color:#8b949e;">偏空</span>'
             '<span style="color:#f59e0b;font-weight:700;">78%</span>'
             '<span style="color:#8b949e;">偏多</span>'
-            '</div>'
+            "</div>"
         )
 
 # ═══════════════════════════════════════════════

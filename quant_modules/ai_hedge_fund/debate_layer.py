@@ -39,8 +39,12 @@ logger = logging.getLogger("ai_hedge_fund.debate")
 
 # 审计留痕目录
 _DEBATE_LOG_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
-    "reports", "ai_hedge_fund", "debates",
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ),
+    "reports",
+    "ai_hedge_fund",
+    "debates",
 )
 
 
@@ -51,6 +55,7 @@ _DEBATE_LOG_DIR = os.path.join(
 
 class DebateStance(BaseModel):
     """单轮辩论立场"""
+
     stance: Literal["bullish", "bearish", "neutral"]
     confidence: int = Field(description="置信度 0-100")
     key_arguments: list[str] = Field(description="核心论点列表 (3~5 条)")
@@ -60,6 +65,7 @@ class DebateStance(BaseModel):
 
 class DebateResult(BaseModel):
     """完整两轮辩论结果 (单个 ticker)"""
+
     ticker: str
     # Round 1
     bull_round1: DebateStance
@@ -69,7 +75,9 @@ class DebateResult(BaseModel):
     bear_final: DebateStance
     # 裁决
     winner: Literal["bull", "bear", "tie"]
-    net_confidence: int = Field(description="Bull confidence - Bear confidence, 范围 [-100, 100]")
+    net_confidence: int = Field(
+        description="Bull confidence - Bear confidence, 范围 [-100, 100]"
+    )
     final_signal: Literal["bullish", "bearish", "neutral"]
     final_confidence: int = Field(description="最终信号置信度 0-100")
     reasoning: str = Field(description="裁决理由")
@@ -83,6 +91,7 @@ class DebateResult(BaseModel):
 @dataclass
 class DebateSession:
     """一次完整辩论会话 (多 ticker)"""
+
     session_id: str
     timestamp: str
     tickers: list[str]
@@ -172,10 +181,15 @@ class DebateLayer:
         self._rate_limited_caller = None
         if self.use_rate_limiter:
             try:
-                from quant_modules.ai_hedge_fund.llm_rate_limiter import get_global_llm_caller
+                from quant_modules.ai_hedge_fund.llm_rate_limiter import (
+                    get_global_llm_caller,
+                )
+
                 self._rate_limited_caller = get_global_llm_caller()
             except ImportError:
-                logger.warning("use_rate_limiter=True 但 llm_rate_limiter 模块不可用, 降级为直接调用")
+                logger.warning(
+                    "use_rate_limiter=True 但 llm_rate_limiter 模块不可用, 降级为直接调用"
+                )
 
     # ------------------------------------------------------------
     # 公开主入口: 一次性运行完整两轮辩论
@@ -211,13 +225,23 @@ class DebateLayer:
             try:
                 result = self._debate_single_ticker(ticker, analyst_signals, state)
                 session.debate_results[ticker] = result
-            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError) as exc:
+            except (
+                RuntimeError,
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                OSError,
+                TimeoutError,
+                ImportError,
+            ) as exc:
                 err_msg = f"{ticker}: {exc!r}"
                 session.errors.append(err_msg)
                 logger.warning("辩论失败 %s: %r", ticker, exc)
                 # 降级: 规则模式生成占位结果
                 session.debate_results[ticker] = self._rule_based_debate(
-                    ticker, analyst_signals,
+                    ticker,
+                    analyst_signals,
                 )
 
         # 审计留痕
@@ -242,27 +266,45 @@ class DebateLayer:
 
         # Round 1: Bull / Bear 各自初版论点
         bull_r1 = self._generate_stance(
-            ticker, ticker_signals, side="bull", round_num=1,
-            opponent_stance=None, state=state,
+            ticker,
+            ticker_signals,
+            side="bull",
+            round_num=1,
+            opponent_stance=None,
+            state=state,
         )
         bear_r1 = self._generate_stance(
-            ticker, ticker_signals, side="bear", round_num=1,
-            opponent_stance=None, state=state,
+            ticker,
+            ticker_signals,
+            side="bear",
+            round_num=1,
+            opponent_stance=None,
+            state=state,
         )
 
         # Round 2: 看到对方 Round 1 后做反驳
         bull_final = self._generate_stance(
-            ticker, ticker_signals, side="bull", round_num=2,
-            opponent_stance=bear_r1, state=state,
+            ticker,
+            ticker_signals,
+            side="bull",
+            round_num=2,
+            opponent_stance=bear_r1,
+            state=state,
         )
         bear_final = self._generate_stance(
-            ticker, ticker_signals, side="bear", round_num=2,
-            opponent_stance=bull_r1, state=state,
+            ticker,
+            ticker_signals,
+            side="bear",
+            round_num=2,
+            opponent_stance=bull_r1,
+            state=state,
         )
 
         # 裁决
         winner, net_conf, final_signal, final_conf, reasoning = self._adjudicate(
-            bull_final, bear_final, ticker_signals,
+            bull_final,
+            bear_final,
+            ticker_signals,
         )
 
         return DebateResult(
@@ -298,12 +340,30 @@ class DebateLayer:
         if self.use_llm and self._llm_available():
             try:
                 return self._llm_generate_stance(
-                    ticker, ticker_signals, side, round_num, opponent_stance, state,
+                    ticker,
+                    ticker_signals,
+                    side,
+                    round_num,
+                    opponent_stance,
+                    state,
                 )
-            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError, ImportError) as exc:
-                logger.warning("LLM 辩论失败 %s/%s R%d, 降级规则: %r", ticker, side, round_num, exc)
+            except (
+                RuntimeError,
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                OSError,
+                TimeoutError,
+                ImportError,
+            ) as exc:
+                logger.warning(
+                    "LLM 辩论失败 %s/%s R%d, 降级规则: %r", ticker, side, round_num, exc
+                )
 
-        return self._rule_generate_stance(ticker, ticker_signals, side, round_num, opponent_stance)
+        return self._rule_generate_stance(
+            ticker, ticker_signals, side, round_num, opponent_stance
+        )
 
     def _llm_available(self) -> bool:
         """检测 LLM 依赖是否可用"""
@@ -311,6 +371,7 @@ class DebateLayer:
             from langchain_core.prompts import ChatPromptTemplate  # noqa: F401
 
             from quant_modules.ai_hedge_fund.utils.llm import call_llm  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -342,32 +403,40 @@ class DebateLayer:
         opponent_text = ""
         if opponent_stance:
             opp_args = "; ".join(opponent_stance.key_arguments[:3])
-            opponent_text = f"\n对方({('bear' if side=='bull' else 'bull')})论点: {opp_args}"
+            opponent_text = (
+                f"\n对方({('bear' if side=='bull' else 'bull')})论点: {opp_args}"
+            )
 
         side_label = "看多(Bull)" if side == "bull" else "看空(Bear)"
 
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", (
-                "你是一位专业的{side_label}研究员, 负责为股票 {ticker} 构建多空辩论中的{side_label}论点。"
-                "基于以下分析师信号, 提炼{side_label}证据链, "
-                "{rebuttal_instr}"
-                "输出结构化 JSON (stance/confidence/key_arguments/rebuttals/evidence_summary)。"
-            )),
-            ("human", (
-                "股票: {ticker}\n"
-                "分析师信号:\n{signals_text}{opponent_text}\n\n"
-                "请生成{side_label}立场 (stance 必须为 '{stance_value}'):"
-            )),
-        ])
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    (
+                        "你是一位专业的{side_label}研究员, 负责为股票 {ticker} 构建多空辩论中的{side_label}论点。"
+                        "基于以下分析师信号, 提炼{side_label}证据链, "
+                        "{rebuttal_instr}"
+                        "输出结构化 JSON (stance/confidence/key_arguments/rebuttals/evidence_summary)。"
+                    ),
+                ),
+                (
+                    "human",
+                    (
+                        "股票: {ticker}\n"
+                        "分析师信号:\n{signals_text}{opponent_text}\n\n"
+                        "请生成{side_label}立场 (stance 必须为 '{stance_value}'):"
+                    ),
+                ),
+            ]
+        )
 
         # stance 强制与 side 一致
         stance_filter = "bullish" if side == "bull" else "bearish"
 
         # Rebuttal 指令 (仅 Round 2)
         if round_num >= 2 and opponent_stance:
-            rebuttal_instr = (
-                "并针对对方论点做反驳 (rebuttals 字段填入 2~3 条反驳)。"
-            )
+            rebuttal_instr = "并针对对方论点做反驳 (rebuttals 字段填入 2~3 条反驳)。"
         else:
             rebuttal_instr = ""
 
@@ -381,17 +450,25 @@ class DebateLayer:
         )
 
         agent_name = f"{'bull' if side=='bull' else 'bear'}_researcher"
+
         def default_fn():
             return self._rule_generate_stance(
-                    ticker, ticker_signals, side, round_num, opponent_stance,
-                )
+                ticker,
+                ticker_signals,
+                side,
+                round_num,
+                opponent_stance,
+            )
 
         # W6.2.4: 可选通过 RateLimitedLLMCaller 调用 (令牌桶限流 + TTL 缓存 + 重试 + 统计)
         if self._rate_limited_caller is not None:
             # 构造缓存键 (ticker + side + round + signals 摘要)
             try:
                 from quant_modules.ai_hedge_fund.llm_rate_limiter import TTLCache
-                cache_key = TTLCache.make_key(ticker, side, round_num, signals_text[:200])
+
+                cache_key = TTLCache.make_key(
+                    ticker, side, round_num, signals_text[:200]
+                )
             except ImportError:
                 cache_key = None
             try:
@@ -409,9 +486,22 @@ class DebateLayer:
                     cache_key=cache_key,
                     timeout=30.0,
                 )
-            except (RuntimeError, ValueError, TypeError, KeyError, AttributeError, OSError, TimeoutError) as exc:
-                logger.warning("RateLimitedLLMCaller 调用失败 %s/%s R%d, 降级规则: %r",
-                               ticker, side, round_num, exc)
+            except (
+                RuntimeError,
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                OSError,
+                TimeoutError,
+            ) as exc:
+                logger.warning(
+                    "RateLimitedLLMCaller 调用失败 %s/%s R%d, 降级规则: %r",
+                    ticker,
+                    side,
+                    round_num,
+                    exc,
+                )
                 return default_fn()
         else:
             result = call_llm(
@@ -440,21 +530,25 @@ class DebateLayer:
         opponent_stance: Optional[DebateStance],
     ) -> DebateStance:
         """规则模式: 基于 bullish/bearish 数量统计生成立场"""
-        bull_count = sum(1 for s in ticker_signals.values()
-                         if s.get("signal") == "bullish")
-        bear_count = sum(1 for s in ticker_signals.values()
-                         if s.get("signal") == "bearish")
+        bull_count = sum(
+            1 for s in ticker_signals.values() if s.get("signal") == "bullish"
+        )
+        bear_count = sum(
+            1 for s in ticker_signals.values() if s.get("signal") == "bearish"
+        )
         total = max(1, len(ticker_signals))
 
         if side == "bull":
             confidence = int(40 + (bull_count / total) * 50)  # 40~90
-            target_signals = [s for s in ticker_signals.values()
-                              if s.get("signal") == "bullish"]
+            target_signals = [
+                s for s in ticker_signals.values() if s.get("signal") == "bullish"
+            ]
             stance = "bullish"
         else:
             confidence = int(40 + (bear_count / total) * 50)
-            target_signals = [s for s in ticker_signals.values()
-                              if s.get("signal") == "bearish"]
+            target_signals = [
+                s for s in ticker_signals.values() if s.get("signal") == "bearish"
+            ]
             stance = "bearish"
 
         # 提取关键论点
@@ -465,16 +559,22 @@ class DebateLayer:
                 if r:
                     key_args.append(f"[{agent_id}] {r}")
         if not key_args:
-            key_args.append(f"基于 {bull_count}/{total} 看多 vs {bear_count}/{total} 看空的统计优势")
+            key_args.append(
+                f"基于 {bull_count}/{total} 看多 vs {bear_count}/{total} 看空的统计优势"
+            )
 
         # Round 2 反驳
         rebuttals: list[str] = []
         if round_num >= 2 and opponent_stance:
             opp_side = "看空" if side == "bull" else "看多"
             for opp_arg in opponent_stance.key_arguments[:2]:
-                rebuttals.append(f"对方{opp_side}论点「{opp_arg[:60]}」忽略了我方 {len(target_signals)} 个支持信号")
+                rebuttals.append(
+                    f"对方{opp_side}论点「{opp_arg[:60]}」忽略了我方 {len(target_signals)} 个支持信号"
+                )
             if not rebuttals:
-                rebuttals.append(f"对方{opp_side}置信度仅 {opponent_stance.confidence}, 证据不充分")
+                rebuttals.append(
+                    f"对方{opp_side}置信度仅 {opponent_stance.confidence}, 证据不充分"
+                )
 
         return DebateStance(
             stance=stance,
@@ -498,10 +598,12 @@ class DebateLayer:
         net_conf = bull.confidence - bear.confidence
 
         # 分析师信号加权 (bloomberg 式: 分析师一致性)
-        bull_count = sum(1 for s in ticker_signals.values()
-                         if s.get("signal") == "bullish")
-        bear_count = sum(1 for s in ticker_signals.values()
-                         if s.get("signal") == "bearish")
+        bull_count = sum(
+            1 for s in ticker_signals.values() if s.get("signal") == "bullish"
+        )
+        bear_count = sum(
+            1 for s in ticker_signals.values() if s.get("signal") == "bearish"
+        )
         analyst_net = bull_count - bear_count
 
         # 综合裁决: 辩论置信度差 (权重 0.6) + 分析师一致性 (权重 0.4)
@@ -543,8 +645,13 @@ class DebateLayer:
 
         过滤掉 risk_management_agent / portfolio_manager / hedge_analyst 等非分析师信号
         """
-        exclude_prefixes = ("risk_management", "portfolio_manager", "hedge_analyst",
-                            "bull_researcher", "bear_researcher")
+        exclude_prefixes = (
+            "risk_management",
+            "portfolio_manager",
+            "hedge_analyst",
+            "bull_researcher",
+            "bear_researcher",
+        )
         out: dict[str, dict[str, Any]] = {}
         for agent_id, sigs in analyst_signals.items():
             if any(agent_id.startswith(p) for p in exclude_prefixes):
@@ -567,10 +674,15 @@ class DebateLayer:
         winner, net, sig, conf, reason = DebateLayer()._adjudicate(bull2, bear2, ts)
         return DebateResult(
             ticker=ticker,
-            bull_round1=bull, bear_round1=bear,
-            bull_final=bull2, bear_final=bear2,
-            winner=winner, net_confidence=net,
-            final_signal=sig, final_confidence=conf, reasoning=reason,
+            bull_round1=bull,
+            bear_round1=bear,
+            bull_final=bull2,
+            bear_final=bear2,
+            winner=winner,
+            net_confidence=net,
+            final_signal=sig,
+            final_confidence=conf,
+            reasoning=reason,
         )
 
     @staticmethod
@@ -618,7 +730,9 @@ class DebateLayer:
     # ------------------------------------------------------------
 
     @staticmethod
-    def session_to_signals(session: DebateSession) -> dict[str, dict[str, dict[str, Any]]]:
+    def session_to_signals(
+        session: DebateSession,
+    ) -> dict[str, dict[str, dict[str, Any]]]:
         """把 DebateSession 转为 analyst_signals 格式
 
         返回:
@@ -637,13 +751,15 @@ class DebateLayer:
                 "signal": result.bull_final.stance,
                 "confidence": result.bull_final.confidence,
                 "reasoning": result.bull_final.evidence_summary
-                             + " | 反驳: " + "; ".join(result.bull_final.rebuttals),
+                + " | 反驳: "
+                + "; ".join(result.bull_final.rebuttals),
             }
             bear_out[ticker] = {
                 "signal": result.bear_final.stance,
                 "confidence": result.bear_final.confidence,
                 "reasoning": result.bear_final.evidence_summary
-                             + " | 反驳: " + "; ".join(result.bear_final.rebuttals),
+                + " | 反驳: "
+                + "; ".join(result.bear_final.rebuttals),
             }
             verdict_out[ticker] = {
                 "signal": result.final_signal,
@@ -717,10 +833,15 @@ def debate_node(state: Any) -> Any:
     # 记录到 messages (与现有 Agent 输出格式一致)
     try:
         from langchain_core.messages import HumanMessage
+
         summary_text = json.dumps(
-            {t: s["debate_summary"] if "debate_summary" in s else s
-             for t, s in state["metadata"]["debate_summary"].items()},
-            ensure_ascii=False, indent=2, default=str,
+            {
+                t: s["debate_summary"] if "debate_summary" in s else s
+                for t, s in state["metadata"]["debate_summary"].items()
+            },
+            ensure_ascii=False,
+            indent=2,
+            default=str,
         )
         state["messages"].append(
             HumanMessage(content=f"[Debate Layer] 辩论完成:\n{summary_text}")

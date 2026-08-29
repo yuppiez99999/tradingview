@@ -4,6 +4,7 @@
 包括窗口生成/简化模式/完整模式/CV优化/指标聚合的核心路径与边界分支.
 strategy_fn / train_func / test_func 以可调用对象或 mock 隔离.
 """
+
 from __future__ import annotations
 
 import sys
@@ -29,9 +30,13 @@ from ms_strategy.src.backtest.walk_forward import (  # noqa: E402
 
 class TestWalkForwardResult:
     def test_defaults(self):
-        r = WalkForwardResult(window_id=0, train_start="2020-01-01",
-                              train_end="2021-01-01", test_start="2021-01-01",
-                              test_end="2021-04-01")
+        r = WalkForwardResult(
+            window_id=0,
+            train_start="2020-01-01",
+            train_end="2021-01-01",
+            test_start="2021-01-01",
+            test_end="2021-04-01",
+        )
         assert r.sortino == 0.0
         assert r.sharpe == 0.0
         assert r.test_returns is None
@@ -157,10 +162,12 @@ class TestRunSimpleMode:
 
     def test_date_col_sorting(self):
         np.random.seed(42)
-        data = pd.DataFrame({
-            "date": pd.date_range("2020-01-01", periods=500, freq="D"),
-            "ret": np.random.normal(0.001, 0.01, 500),
-        })
+        data = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=500, freq="D"),
+                "ret": np.random.normal(0.001, 0.01, 500),
+            }
+        )
         # 打乱顺序
         data = data.sample(frac=1.0, random_state=42).reset_index(drop=True)
 
@@ -220,7 +227,9 @@ class TestRunFullMode:
             return pd.Series(np.random.normal(0.001, 0.01, len(test_data)))
 
         wf = WalkForward(train_months=6, test_months=1, step_months=1)
-        results = wf.run(data, train_func=train_func, test_func=test_func, verbose=False)
+        results = wf.run(
+            data, train_func=train_func, test_func=test_func, verbose=False
+        )
         assert isinstance(results, list)
         if len(results) > 0:
             assert isinstance(results[0], WalkForwardResult)
@@ -239,8 +248,13 @@ class TestRunFullMode:
             return pd.Series(np.random.normal(0.001, 0.01, len(test_data)))
 
         wf = WalkForward(train_months=6, test_months=1, step_months=1)
-        results = wf.run(data, train_func=train_func, test_func=test_func,
-                         param_grid={"alpha": [0.5, 1.0, 2.0]}, verbose=False)
+        results = wf.run(
+            data,
+            train_func=train_func,
+            test_func=test_func,
+            param_grid={"alpha": [0.5, 1.0, 2.0]},
+            verbose=False,
+        )
         assert isinstance(results, list)
 
 
@@ -260,8 +274,9 @@ class TestCvOptimize:
         def test_func(data, params):
             return pd.Series([0.01])
 
-        best = wf._cv_optimize(train_data, train_func, test_func,
-                               {"alpha": [0.5, 1.0, 2.0]}, "sortino")
+        best = wf._cv_optimize(
+            train_data, train_func, test_func, {"alpha": [0.5, 1.0, 2.0]}, "sortino"
+        )
         assert best.get("alpha") == 2.0
 
     def test_train_func_returns_non_dict(self):
@@ -274,8 +289,9 @@ class TestCvOptimize:
         def test_func(data, params):
             return pd.Series([0.01])
 
-        best = wf._cv_optimize(train_data, train_func, test_func,
-                               {"alpha": [0.5, 1.0]}, "sortino")
+        best = wf._cv_optimize(
+            train_data, train_func, test_func, {"alpha": [0.5, 1.0]}, "sortino"
+        )
         # 非 dict → score=0, best_params 可能为空 → 回退 train_func
         assert isinstance(best, (dict, float, int))
 
@@ -291,8 +307,9 @@ class TestCvOptimize:
         def test_func(data, params):
             return pd.Series([0.01])
 
-        best = wf._cv_optimize(train_data, train_func, test_func,
-                               {"alpha": [1.0, 2.0]}, "sortino")
+        best = wf._cv_optimize(
+            train_data, train_func, test_func, {"alpha": [1.0, 2.0]}, "sortino"
+        )
         # 1.0 失败, 2.0 成功
         assert best.get("alpha") == 2.0
 
@@ -325,15 +342,25 @@ class TestAggregateMetrics:
         wf = WalkForward()
         wf.results = [
             WalkForwardResult(
-                window_id=0, train_start="2020-01-01", train_end="2021-01-01",
-                test_start="2021-01-01", test_end="2021-04-01",
-                sortino=1.5, calmar=2.0, max_dd=-0.1,
+                window_id=0,
+                train_start="2020-01-01",
+                train_end="2021-01-01",
+                test_start="2021-01-01",
+                test_end="2021-04-01",
+                sortino=1.5,
+                calmar=2.0,
+                max_dd=-0.1,
                 test_returns=np.array([0.001, -0.002, 0.003]),
             ),
             WalkForwardResult(
-                window_id=1, train_start="2020-04-01", train_end="2021-04-01",
-                test_start="2021-04-01", test_end="2021-07-01",
-                sortino=1.8, calmar=2.5, max_dd=-0.08,
+                window_id=1,
+                train_start="2020-04-01",
+                train_end="2021-04-01",
+                test_start="2021-04-01",
+                test_end="2021-07-01",
+                sortino=1.8,
+                calmar=2.5,
+                max_dd=-0.08,
                 test_returns=np.array([0.002, -0.001, 0.004]),
             ),
         ]
@@ -350,8 +377,11 @@ class TestAggregateMetrics:
         wf = WalkForward()
         wf.results = [
             WalkForwardResult(
-                window_id=0, train_start="2020-01-01", train_end="2021-01-01",
-                test_start="2021-01-01", test_end="2021-04-01",
+                window_id=0,
+                train_start="2020-01-01",
+                train_end="2021-01-01",
+                test_start="2021-01-01",
+                test_end="2021-04-01",
                 test_returns=None,
             ),
         ]
@@ -375,9 +405,14 @@ class TestSummary:
         wf = WalkForward()
         wf.results = [
             WalkForwardResult(
-                window_id=0, train_start="2020-01-01", train_end="2021-01-01",
-                test_start="2021-01-01", test_end="2021-04-01",
-                sortino=1.5, calmar=2.0, max_dd=-0.1,
+                window_id=0,
+                train_start="2020-01-01",
+                train_end="2021-01-01",
+                test_start="2021-01-01",
+                test_end="2021-04-01",
+                sortino=1.5,
+                calmar=2.0,
+                max_dd=-0.1,
                 test_returns=np.array([0.001, -0.002, 0.003]),
             ),
         ]

@@ -40,7 +40,16 @@ def call_omniroute(
 
         client = OmniRouteClient.get_instance()
         return client.chat(prompt, system, temperature, max_tokens)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe
         logger.warning("OmniRoute provider 调用失败 (降级): %s", e)
         return None
 

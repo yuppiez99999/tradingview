@@ -10,6 +10,7 @@
     python scripts/run_ai_decision_dashboard.py --date 2026-07-28  # 指定日期
     python scripts/run_ai_decision_dashboard.py --degrade-check    # 仅检查降级
 """
+
 from __future__ import annotations
 
 import argparse
@@ -28,15 +29,15 @@ def main() -> int:
     Returns:
         0=成功无告警, 1=成功但有告警, 2=异常
     """
-    parser = argparse.ArgumentParser(
-        description="ai_decision 每日延迟/成本看板"
-    )
+    parser = argparse.ArgumentParser(description="ai_decision 每日延迟/成本看板")
     parser.add_argument(
-        "--date", default=None,
+        "--date",
+        default=None,
         help="报告日期 (YYYY-MM-DD), 默认今天",
     )
     parser.add_argument(
-        "--degrade-check", action="store_true",
+        "--degrade-check",
+        action="store_true",
         help="仅检查超预算降级, 不生成完整看板",
     )
     args = parser.parse_args()
@@ -52,9 +53,8 @@ def main() -> int:
                 for role, action in degrade.items():
                     print(f"  {role} → {action}")
                 return 1
-            else:
-                print("✅ 无需降级")
-                return 0
+            print("✅ 无需降级")
+            return 0
 
         # 生成完整看板
         report = gen.generate_daily_dashboard(args.date)
@@ -72,15 +72,24 @@ def main() -> int:
             for a in warning:
                 print(f"  🟡 [{a.get('dimension', '')}] {a.get('message', '')}")
             return 1
-        else:
-            print("✅ 无告警")
-            return 0
+        print("✅ 无告警")
+        return 0
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as exc:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"❌ 看板生成失败: {exc}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 2
 

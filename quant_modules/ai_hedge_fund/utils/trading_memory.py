@@ -40,7 +40,9 @@ class TradingMemoryLog:
         if self._log_path.exists():
             raw = self._log_path.read_text(encoding="utf-8")
             for line in raw.splitlines():
-                if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("| pending]"):
+                if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith(
+                    "| pending]"
+                ):
                     return
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
@@ -189,7 +191,9 @@ class TradingMemoryLog:
             matched = False
             for (trade_date, ticker), upd in list(update_map.items()):
                 pending_prefix = f"[{trade_date} | {ticker} |"
-                if tag_line.startswith(pending_prefix) and tag_line.endswith("| pending]"):
+                if tag_line.startswith(pending_prefix) and tag_line.endswith(
+                    "| pending]"
+                ):
                     fields = [f.strip() for f in tag_line[1:-1].split("|")]
                     rating = fields[2]
                     raw_pct = f"{upd['raw_return']:+.1%}"
@@ -277,7 +281,9 @@ class TradingMemoryLog:
         decision_match = self._DECISION_RE.search(body)
         reflection_match = self._REFLECTION_RE.search(body)
         entry["decision"] = decision_match.group(1).strip() if decision_match else ""
-        entry["reflection"] = reflection_match.group(1).strip() if reflection_match else ""
+        entry["reflection"] = (
+            reflection_match.group(1).strip() if reflection_match else ""
+        )
         return entry
 
     def _format_full(self, e: dict) -> str:

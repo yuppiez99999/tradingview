@@ -24,6 +24,7 @@ eval_flywheel / experience_rag) 桥接到本系统现有模块, 集中管理集�
 
 集成日期: 2026-08-25
 """
+
 from __future__ import annotations
 
 import logging
@@ -145,13 +146,19 @@ def evaluate_with_flywheel(
                 prompt=f"因子 {ev['factor_name']} 预测",
                 response=str(ev.get("ic_1d", 0.0)),
                 reference=str(ev.get("ic_ir", 0.0)),
-                metadata={"factor": ev["factor_name"], "category": ev.get("category", "")},
+                metadata={
+                    "factor": ev["factor_name"],
+                    "category": ev.get("category", ""),
+                },
             )
         )
     fw = get_eval_flywheel()
     metrics = metrics or [EvalMetric.IC_1D, EvalMetric.IC_IR, EvalMetric.SHARPE]
     fw_result = fw.grade(fw.prepare_data(cases, source="alpha_evaluator"), metrics)
-    return {"alpha_report": alpha_report.to_dict(), "flywheel_result": fw_result.to_dict()}
+    return {
+        "alpha_report": alpha_report.to_dict(),
+        "flywheel_result": fw_result.to_dict(),
+    }
 
 
 # ============================================================

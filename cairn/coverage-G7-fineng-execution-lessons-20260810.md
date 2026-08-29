@@ -138,3 +138,14 @@
 - G7 达标（目标模块多数 80%+，纯 math 全达标，执行核心两模块达标）
 - 遗留：ntp_sync / qmt_broker 受环境限制覆盖率低，待 G1 QMT 真实下单接线（Phase 4，08-23 后）时补足
 - 关联任务：G6 mypy 基线模式 CI、G5 移除 `import research.*` 环境隔离
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码质量工业级差距审计 — 2026-08-19](code-quality-industrial-gap-20260819.md) (相似度 8%)
+- [G1 QMT 真实下单接线 (2026-08-24)](g1-qmt-wiring-20260824.md) (相似度 7%)
+- [工程 CI/质量 (Wave 7-QC 衔接) (2026-08-24)](engineering-qc-20260824.md) (相似度 7%)
+- [测试健康度治理经验（2026-08-19）](test-health-20260819.md) (相似度 7%)
+- [代码质量修复批次 — 2026-08-13（审查报告 B1/B2/S1/S2/S3/S4/S5/N1）](code-quality-fix-batch-20260813.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

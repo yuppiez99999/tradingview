@@ -124,7 +124,9 @@ class BrokerAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_market_data(self, symbol: str, period: str = "1d", count: int = 100) -> dict:
+    def get_market_data(
+        self, symbol: str, period: str = "1d", count: int = 100
+    ) -> dict:
         """获取市场数据"""
         pass
 
@@ -157,7 +159,9 @@ class BrokerAdapter(ABC):
             "details": order.to_dict(),
         }
         self.order_log.append(event_record)
-        logger.info(f"[{event}] {order.order_id}: {order.symbol} {order.side.value} {order.quantity}")
+        logger.info(
+            f"[{event}] {order.order_id}: {order.symbol} {order.side.value} {order.quantity}"
+        )
 
 
 class SimulatedBroker(BrokerAdapter):
@@ -193,13 +197,17 @@ class SimulatedBroker(BrokerAdapter):
         logger.info("[SIMULATED] 模拟盘环境已连接")
         logger.info(f"  初始资金: ¥{self.account_balance:,.0f}")
         logger.info(f"  滑点模型: {self.simulation_settings['slippage_model']}")
-        logger.info(f"  成交率: {self.simulation_settings['fill_probability'] * 100:.0f}%")
+        logger.info(
+            f"  成交率: {self.simulation_settings['fill_probability'] * 100:.0f}%"
+        )
         return True
 
     def disconnect(self) -> None:
         logger.info("[SIMULATED] 模拟盘环境已断开")
 
-    def get_market_data(self, symbol: str, period: str = "1d", count: int = 100) -> dict:
+    def get_market_data(
+        self, symbol: str, period: str = "1d", count: int = 100
+    ) -> dict:
         """
         获取真实行情数据(通过Wind或其他数据源)
         """
@@ -255,7 +263,11 @@ class SimulatedBroker(BrokerAdapter):
             else:
                 # 市价单使用收盘价+滑点
                 slippage = last_price * self.simulation_settings["slippage_pct"]
-                fill_price = last_price + slippage if order.side == OrderSide.BUY else last_price - slippage
+                fill_price = (
+                    last_price + slippage
+                    if order.side == OrderSide.BUY
+                    else last_price - slippage
+                )
 
             # 模拟成交概率
             import random
@@ -268,13 +280,23 @@ class SimulatedBroker(BrokerAdapter):
                 order.filled_at = datetime.now()
 
                 # 计算费用
-                commission = fill_price * order.quantity * self.simulation_settings["commission_rate"]
+                commission = (
+                    fill_price
+                    * order.quantity
+                    * self.simulation_settings["commission_rate"]
+                )
                 stamp_tax = (
                     commission * 0
                     if order.side == OrderSide.BUY
-                    else fill_price * order.quantity * self.simulation_settings["stamp_tax"]
+                    else fill_price
+                    * order.quantity
+                    * self.simulation_settings["stamp_tax"]
                 )
-                transfer_fee = fill_price * order.quantity * self.simulation_settings["transfer_fee"]
+                transfer_fee = (
+                    fill_price
+                    * order.quantity
+                    * self.simulation_settings["transfer_fee"]
+                )
                 total_cost = commission + stamp_tax + transfer_fee
 
                 # 更新资金
@@ -332,7 +354,9 @@ class SimulatedBroker(BrokerAdapter):
         for symbol, pos in self.position_book.items():
             if pos["long"] > 0 or pos["short"] > 0:
                 market_data = self.get_market_data(symbol)
-                current_price = market_data["data"][-1]["close"] if market_data.get("data") else 0
+                current_price = (
+                    market_data["data"][-1]["close"] if market_data.get("data") else 0
+                )
 
                 positions.append(
                     {
@@ -367,11 +391,15 @@ class SimulatedBroker(BrokerAdapter):
             "performance_summary": {
                 "total_trades": len(self.filled_orders),
                 "win_rate": sum(
-                    1 for o in self.filled_orders if o.side == OrderSide.SELL and o.avg_fill_price > o.price
+                    1
+                    for o in self.filled_orders
+                    if o.side == OrderSide.SELL and o.avg_fill_price > o.price
                 )
                 / max(len(self.filled_orders), 1),
                 "total_commission": sum(
-                    o.avg_fill_price * o.filled_quantity * self.simulation_settings["commission_rate"]
+                    o.avg_fill_price
+                    * o.filled_quantity
+                    * self.simulation_settings["commission_rate"]
                     for o in self.filled_orders
                 ),
             },
@@ -400,7 +428,9 @@ class LiveBrokerAdapter(BrokerAdapter):
         self.broker_name = broker_name
         self.is_live = True
         self.risk_checks_enabled = True
-        self.daily_trade_limit = config.get("daily_trade_limit", 10000000)  # 日交易额1000万
+        self.daily_trade_limit = config.get(
+            "daily_trade_limit", 10000000
+        )  # 日交易额1000万
         self.circuit_breaker_threshold = 0.03  # 3%熔断
         self.api_client = None
 
@@ -475,7 +505,9 @@ class BrokerFactory:
 broker_instance: Optional[BrokerAdapter] = None
 
 
-def initialize_broker(mode: str = "simulated", config: Optional[dict] = None) -> BrokerAdapter:
+def initialize_broker(
+    mode: str = "simulated", config: Optional[dict] = None
+) -> BrokerAdapter:
     """
     初始化券商适配器
 
@@ -517,12 +549,19 @@ if __name__ == "__main__":
 
     # 提交测试订单
     test_order = BrokerOrder(
-        symbol="510050P", side=OrderSide.BUY, order_type=OrderType.LIMIT, quantity=10, price=0.500, strategy="TEST"
+        symbol="510050P",
+        side=OrderSide.BUY,
+        order_type=OrderType.LIMIT,
+        quantity=10,
+        price=0.500,
+        strategy="TEST",
     )
 
     result = sim_broker.submit_order(test_order)
     logger.info(f"\n订单结果: {result}")
-    logger.info(f"订单详情: {json.dumps(test_order.to_dict(), indent=2, ensure_ascii=False)}")
+    logger.info(
+        f"订单详情: {json.dumps(test_order.to_dict(), indent=2, ensure_ascii=False)}"
+    )
 
     # 生成模拟报告
     report = sim_broker.generate_simulation_report()

@@ -71,7 +71,7 @@ logger = logging.getLogger(__name__)
 # Token 类型
 TT_NUMBER = "NUMBER"
 TT_IDENT = "IDENT"
-TT_OP = "OP"        # + - * / **
+TT_OP = "OP"  # + - * / **
 TT_LPAREN = "LPAREN"
 TT_RPAREN = "RPAREN"
 TT_COMMA = "COMMA"
@@ -305,7 +305,9 @@ def _op_rank(x: dict[str, float]) -> dict[str, float]:
     ranks = np.empty_like(order, dtype=float)
     ranks[order] = np.arange(1, len(vals) + 1)
     # 处理并列: 同值取平均秩
-    unique_vals, inverse, counts = np.unique(vals, return_inverse=True, return_counts=True)
+    unique_vals, inverse, counts = np.unique(
+        vals, return_inverse=True, return_counts=True
+    )
     rank_sums = np.zeros(len(unique_vals))
     for i, _v in enumerate(vals):
         rank_sums[inverse[i]] += ranks[i]
@@ -327,7 +329,7 @@ def _op_zscore(x: dict[str, float]) -> dict[str, float]:
     mean = arr.mean()
     std = arr.std()
     if std < 1e-12:
-        return {s: 0.0 for s in x}
+        return dict.fromkeys(x, 0.0)
     return {s: float((v - mean) / std) for s, v in x.items()}
 
 
@@ -337,7 +339,7 @@ def _op_normalize(x: dict[str, float]) -> dict[str, float]:
         return x
     total = sum(abs(v) for v in x.values())
     if total < 1e-12:
-        return {s: 0.0 for s in x}
+        return dict.fromkeys(x, 0.0)
     return {s: float(v / total) for s, v in x.items()}
 
 
@@ -352,7 +354,7 @@ def _op_quantile(x: dict[str, float], q: float = 0.5) -> dict[str, float]:
         return x
     arr = np.array(list(x.values()), dtype=float)
     qv = float(np.quantile(arr, q))
-    return {s: qv for s in x}
+    return dict.fromkeys(x, qv)
 
 
 def _op_abs(x: dict[str, float]) -> dict[str, float]:
@@ -511,7 +513,18 @@ def _ts_covariance(
 # ============================================================
 
 # 价量字段名 → price_data 中的 key
-_PRICE_FIELDS = {"close", "closes", "open", "opens", "high", "highs", "low", "lows", "volume", "volumes"}
+_PRICE_FIELDS = {
+    "close",
+    "closes",
+    "open",
+    "opens",
+    "high",
+    "highs",
+    "low",
+    "lows",
+    "volume",
+    "volumes",
+}
 
 # 字段名规范化 (用户写 close, 引擎取 closes 列表)
 _FIELD_NORMALIZE = {
@@ -580,7 +593,7 @@ class ExpressionEvaluator:
     def evaluate(self, node: ASTNode) -> dict[str, float]:
         """求值入口"""
         if isinstance(node, NumberNode):
-            return {s: node.value for s in self.symbols}
+            return dict.fromkeys(self.symbols, node.value)
         if isinstance(node, FieldNode):
             return self._resolve_field_value(node.name)
         if isinstance(node, UnaryOpNode):
@@ -714,8 +727,8 @@ class ExpressionEvaluator:
 class ExpressionFactorSpec:
     """表达式因子规格定义"""
 
-    name: str           # 因子名 (如 "EXPR_MOM_RANK")
-    expression: str     # DSL 表达式 (如 "rank(close / delay(close, 20))")
+    name: str  # 因子名 (如 "EXPR_MOM_RANK")
+    expression: str  # DSL 表达式 (如 "rank(close / delay(close, 20))")
     category: str = "Expression"  # 因子类别
 
 
@@ -765,11 +778,23 @@ def compute_expression_factors(
                 category=spec.category,
                 values=values,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, ZeroDivisionError, RuntimeError, SyntaxError) as e:
-            logger.error("表达式因子 %s 求值失败: %s (表达式: %s)", spec.name, e, spec.expression)
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            ZeroDivisionError,
+            RuntimeError,
+            SyntaxError,
+        ) as e:
+            logger.error(
+                "表达式因子 %s 求值失败: %s (表达式: %s)", spec.name, e, spec.expression
+            )
 
     logger.info(
         "表达式因子引擎: 解析 %d 个表达式 → 成功 %d, 失败 %d",
-        len(specs), len(result), len(specs) - len(result),
+        len(specs),
+        len(result),
+        len(specs) - len(result),
     )
     return result

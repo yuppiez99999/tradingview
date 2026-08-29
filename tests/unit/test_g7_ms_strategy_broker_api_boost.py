@@ -3,6 +3,7 @@
 覆盖 BrokerAPI 抽象基类与 SimulatedBroker 模拟撮合全部公开接口,
 包括 Almgren-Chriss 滑点模型、上下限保护、持仓/资金更新等核心路径与边界分支.
 """
+
 from __future__ import annotations
 
 import sys
@@ -35,15 +36,28 @@ class TestDataModels:
         assert ob.ask_volumes == [0] * 5
 
     def test_order_defaults(self):
-        o = Order(order_id="1", symbol="X", qty=100, side="BUY",
-                  order_type="LIMIT", price=10.0)
+        o = Order(
+            order_id="1",
+            symbol="X",
+            qty=100,
+            side="BUY",
+            order_type="LIMIT",
+            price=10.0,
+        )
         assert o.status == "PENDING"
         assert o.filled_qty == 0
         assert o.avg_price == 0.0
 
     def test_fill(self):
-        f = Fill(fill_id="1", order_id="1", symbol="X", qty=100,
-                 price=10.0, side="BUY", ts="2026-01-01")
+        f = Fill(
+            fill_id="1",
+            order_id="1",
+            symbol="X",
+            qty=100,
+            price=10.0,
+            side="BUY",
+            ts="2026-01-01",
+        )
         assert f.qty == 100
 
 
@@ -171,8 +185,14 @@ class TestSimulatedBroker:
 
     def test_cancel_not_exists(self):
         b = SimulatedBroker()
-        order = Order(order_id="X", symbol="X", qty=100, side="BUY",
-                      order_type="LIMIT", price=10.0)
+        order = Order(
+            order_id="X",
+            symbol="X",
+            qty=100,
+            side="BUY",
+            order_type="LIMIT",
+            price=10.0,
+        )
         assert b.cancel(order) is False
 
     def test_wait_fill_buy(self):

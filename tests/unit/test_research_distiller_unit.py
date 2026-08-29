@@ -18,6 +18,7 @@
 集成日期: 2026-07-26
 集成批次: GitHub 周榜热门项目深度集成 (第二批) - 阶段 4
 """
+
 from __future__ import annotations
 
 import json
@@ -36,6 +37,7 @@ from utils.research_distiller import (
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def distiller_no_llm(tmp_path):
     """LLM 禁用的 ResearchDistiller 实例 (强制走规则引擎)
@@ -51,12 +53,17 @@ def distiller_no_llm(tmp_path):
 @pytest.fixture
 def sample_earnings_call_path():
     """sample_earnings_call_transcript.txt fixture 路径"""
-    return Path(__file__).resolve().parent.parent / "fixtures" / "sample_earnings_call_transcript.txt"
+    return (
+        Path(__file__).resolve().parent.parent
+        / "fixtures"
+        / "sample_earnings_call_transcript.txt"
+    )
 
 
 # ============================================================
 # DistilledSignal 数据结构测试 (4 个)
 # ============================================================
+
 
 class TestDistilledSignal:
     """DistilledSignal dataclass 防御性测试"""
@@ -89,7 +96,9 @@ class TestDistilledSignal:
         assert s.strength == 0.0  # NaN 归零
         assert s.confidence == 0.0  # Inf 归零
 
-        s2 = DistilledSignal(symbol="Y", strength=float("-inf"), confidence=float("nan"))
+        s2 = DistilledSignal(
+            symbol="Y", strength=float("-inf"), confidence=float("nan")
+        )
         assert s2.strength == 0.0
         assert s2.confidence == 0.0
 
@@ -131,13 +140,17 @@ class TestDistilledSignal:
 
         # from_dict 容错: 字段缺失 / 字符串数值 / 空 dict
         assert DistilledSignal.from_dict({"symbol": "X"}).strength == 0.0
-        assert DistilledSignal.from_dict({"symbol": "Y", "strength": "0.5"}).strength == 0.5
+        assert (
+            DistilledSignal.from_dict({"symbol": "Y", "strength": "0.5"}).strength
+            == 0.5
+        )
         assert DistilledSignal.from_dict({}).symbol == ""
 
 
 # ============================================================
 # ResearchDistiller 初始化测试 (1 个, 合并 init + safe_float)
 # ============================================================
+
 
 class TestResearchDistillerInit:
     """ResearchDistiller 初始化 + _safe_float 工具函数"""
@@ -171,19 +184,22 @@ class TestResearchDistillerInit:
 # distill_news_batch 规则引擎测试 (3 个)
 # ============================================================
 
+
 class TestDistillNewsBatch:
     """新闻批量蒸馏 (规则引擎兜底)"""
 
     @pytest.mark.unit
     def test_distill_news_batch_strong_positive(self, distiller_no_llm):
         """强正面关键词触发看涨信号 (强度 > 0)"""
-        signals = distiller_no_llm.distill_news_batch([
-            {
-                "title": "恒瑞医药业绩超预期",
-                "content": "净利润增长 30%, 强烈推荐, 目标价上调",
-                "symbol": "600276.SH",
-            },
-        ])
+        signals = distiller_no_llm.distill_news_batch(
+            [
+                {
+                    "title": "恒瑞医药业绩超预期",
+                    "content": "净利润增长 30%, 强烈推荐, 目标价上调",
+                    "symbol": "600276.SH",
+                },
+            ]
+        )
         assert len(signals) == 1
         s = signals[0]
         assert s.symbol == "600276.SH"
@@ -200,13 +216,15 @@ class TestDistillNewsBatch:
     @pytest.mark.unit
     def test_distill_news_batch_critical_negative(self, distiller_no_llm):
         """重大负面关键词触发强看跌信号 (强度 = -0.9, 类 veto)"""
-        signals = distiller_no_llm.distill_news_batch([
-            {
-                "title": "某公司被立案调查",
-                "content": "证监会处罚, 涉嫌财务造假",
-                "symbol": "000001.SZ",
-            },
-        ])
+        signals = distiller_no_llm.distill_news_batch(
+            [
+                {
+                    "title": "某公司被立案调查",
+                    "content": "证监会处罚, 涉嫌财务造假",
+                    "symbol": "000001.SZ",
+                },
+            ]
+        )
         assert len(signals) == 1
         s = signals[0]
         assert s.symbol == "000001.SZ"
@@ -222,9 +240,11 @@ class TestDistillNewsBatch:
         assert distiller_no_llm.distill_news_batch(None) == []
 
         # NER 识别 (无 symbol 字段, 通过文本中的完整代码识别)
-        signals = distiller_no_llm.distill_news_batch([
-            {"title": "600276.SH 业绩点评", "content": "净利润增长, 买入评级"},
-        ])
+        signals = distiller_no_llm.distill_news_batch(
+            [
+                {"title": "600276.SH 业绩点评", "content": "净利润增长, 买入评级"},
+            ]
+        )
         assert len(signals) >= 1
         assert any(s.symbol == "600276.SH" for s in signals)
 
@@ -233,12 +253,15 @@ class TestDistillNewsBatch:
 # distill_earnings_call LLM 降级测试 (2 个)
 # ============================================================
 
+
 class TestDistillEarningsCall:
     """业绩会纪要蒸馏 (LLM 降级到规则引擎)"""
 
     @pytest.mark.unit
     def test_distill_earnings_call_rule_engine_fallback(
-        self, distiller_no_llm, sample_earnings_call_path,
+        self,
+        distiller_no_llm,
+        sample_earnings_call_path,
     ):
         """LLM 禁用时, 业绩会纪要走规则引擎兜底 (forced_symbol 强制指定)"""
         transcript = sample_earnings_call_path.read_text(encoding="utf-8")
@@ -267,6 +290,7 @@ class TestDistillEarningsCall:
 # 缺失文件 / 异常输入的安全降级 (1 个)
 # ============================================================
 
+
 class TestDistillSafety:
     """研报/书籍蒸馏的安全降级 (fail-closed)"""
 
@@ -290,6 +314,7 @@ class TestDistillSafety:
 # ============================================================
 # to_signal_map 聚合测试 (1 个, 合并 4 个子场景)
 # ============================================================
+
 
 class TestToSignalMap:
     """信号聚合 (按 confidence 加权平均)"""
@@ -333,6 +358,7 @@ class TestToSignalMap:
 # save / load_daily_snapshot 持久化测试 (2 个)
 # ============================================================
 
+
 class TestSnapshotPersistence:
     """每日快照持久化读写"""
 
@@ -341,13 +367,19 @@ class TestSnapshotPersistence:
         """保存后加载, signal_map 字典完全一致"""
         signals = [
             DistilledSignal(
-                symbol="600276.SH", strength=0.6, confidence=0.8,
-                source_type="report", source_id="r1.pdf",
+                symbol="600276.SH",
+                strength=0.6,
+                confidence=0.8,
+                source_type="report",
+                source_id="r1.pdf",
                 valid_until=(datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d"),
             ),
             DistilledSignal(
-                symbol="000001.SZ", strength=-0.9, confidence=0.95,
-                source_type="news", source_id="n1",
+                symbol="000001.SZ",
+                strength=-0.9,
+                confidence=0.95,
+                source_type="news",
+                source_id="n1",
                 valid_until=(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"),
             ),
         ]
@@ -394,6 +426,7 @@ class TestSnapshotPersistence:
 # 标的代码 NER 测试 (1 个, 合并 3 个子场景)
 # ============================================================
 
+
 class TestSymbolNER:
     """标的代码 NER 识别"""
 
@@ -402,20 +435,24 @@ class TestSymbolNER:
         """代码规范化 + 文本提取 + 名称词典匹配"""
         # 1. 代码规范化
         norm = distiller_no_llm._normalize_symbol
-        assert norm("600276") == "600276.SH"      # 沪市主板
-        assert norm("000001") == "000001.SZ"      # 深市主板
-        assert norm("300750") == "300750.SZ"      # 创业板
-        assert norm("688981") == "688981.SH"      # 科创板
-        assert norm("600276.sh") == "600276.SH"   # 已带后缀大写化
-        assert norm("00700") == "00700.HK"        # 港股 5 位
-        assert norm("") == ""                     # 非法输入
+        assert norm("600276") == "600276.SH"  # 沪市主板
+        assert norm("000001") == "000001.SZ"  # 深市主板
+        assert norm("300750") == "300750.SZ"  # 创业板
+        assert norm("688981") == "688981.SH"  # 科创板
+        assert norm("600276.sh") == "600276.SH"  # 已带后缀大写化
+        assert norm("00700") == "00700.HK"  # 港股 5 位
+        assert norm("") == ""  # 非法输入
         assert norm(None) == ""
         assert norm("INVALID") == ""
-        assert norm("123") == ""                  # 3 位数字不合法
+        assert norm("123") == ""  # 3 位数字不合法
 
         # 2. 文本提取 (完整代码优先, 裸代码次之)
-        assert "600276.SH" in distiller_no_llm._extract_symbols("恒瑞医药(600276.SH)业绩超预期")
-        assert "300750.SZ" in distiller_no_llm._extract_symbols("宁德时代 300750 创新高")
+        assert "600276.SH" in distiller_no_llm._extract_symbols(
+            "恒瑞医药(600276.SH)业绩超预期"
+        )
+        assert "300750.SZ" in distiller_no_llm._extract_symbols(
+            "宁德时代 300750 创新高"
+        )
         multi = distiller_no_llm._extract_symbols("600276.SH 与 000001.SZ 同时被点名")
         assert "600276.SH" in multi
         assert "000001.SZ" in multi

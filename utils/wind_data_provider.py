@@ -9,6 +9,7 @@ v8.6.14 统一指向 utils/data_provider.py 的 MarketDataProvider
 
 参考: quant_modules/connectors.py v8.6.14 修复注记。
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,9 +31,9 @@ class WindDataProvider:
         from utils.data_provider import MarketDataProvider
 
         self._provider = MarketDataProvider()
-        self._wind_available = self._provider.source_health.get(
-            "wind_mcp", {}
-        ).get("ok", False)
+        self._wind_available = self._provider.source_health.get("wind_mcp", {}).get(
+            "ok", False
+        )
 
     def build_market_data(
         self,

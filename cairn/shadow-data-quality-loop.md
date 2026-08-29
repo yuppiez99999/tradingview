@@ -310,3 +310,14 @@ PSI 依赖分桶（binning）计算概率分布。当样本量过小时：
 
 - **2026-08-03 修订 1**：基于代码审查修正 GATE-A/GATE-B 语义描述（GATE-A 防范日历时间不足，GATE-B 防范真实数据不足，原文误将 GATE-A 描述为"小样本 PSI 统计失真"）；补充 §4.3 两层门槛说明（集成器层 `MIN_REAL_SAMPLES_FOR_DRIFT=5` + 看门狗层 `DEFAULT_REQUIRED_DAYS=14`）。参见 LOG 2026-08-03「Shadow 数据质量闭环落地」条目。
 - **2026-08-04 修订 2**：补充实战验证记录 — 三步命令盘后执行通过（backfill + clean + watchdog，6→7/14 天，日收益 -0.0603%）；记录 GATE-A/GATE-B 刷新不一致现象（§7.4 踩坑 — progress.json 的 days_completed 滞后于 cleaned.jsonl 的 real 记录数）；补充漂移响应链路调研结论（§6.1 已知限制第 3 项 — 代码已完整但 Phase 3 测试用 mock，决定等 08-14 自然触发）。参见 LOG 2026-08-04「观察期数据收集 Day 7 + 漂移响应链路调研」条目。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [自我进化框架](self-evolution-framework.md) (相似度 12%)
+- [EOD 计划任务静默失败 + 观察期样本补录（2026-08-19）](eod-scheduled-task-fix-20260819.md) (相似度 12%)
+- [观察期配置脱节修复 — 2026-08-09](observation-period-config-drift-20260809.md) (相似度 11%)
+- [自我进化迭代再平衡闭环（Evolution-Rebalance Loop）](evolution-rebalance-loop.md) (相似度 8%)
+- [经验上下文层（ECL, Experience Context Layer）设计方案](experience-context-layer.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -9,6 +9,7 @@
 
 使用临时目录隔离, 不污染生产配置.
 """
+
 from __future__ import annotations
 
 import json
@@ -67,6 +68,7 @@ class TestEvolutionToRebalanceE2E:
         fw_path.write_text(json.dumps(fw), encoding="utf-8")
 
         from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator
+
         integrator = HedgeRebalanceIntegrator.__new__(HedgeRebalanceIntegrator)
         integrator.config_dir = str(isolated_config_dir)
 
@@ -130,6 +132,7 @@ class TestEvolutionToRebalanceE2E:
         )
 
         from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator
+
         integrator = HedgeRebalanceIntegrator.__new__(HedgeRebalanceIntegrator)
         integrator.config_dir = str(isolated_config_dir)
 
@@ -157,6 +160,7 @@ class TestEvolutionToRebalanceE2E:
         fw_path.write_text(json.dumps(adjustments), encoding="utf-8")
 
         from utils.hedge_rebalance_integrator import HedgeRebalanceIntegrator
+
         integrator = HedgeRebalanceIntegrator.__new__(HedgeRebalanceIntegrator)
         integrator.config_dir = str(isolated_config_dir)
         loaded = integrator._load_evolution_factor_weights()
@@ -165,8 +169,7 @@ class TestEvolutionToRebalanceE2E:
 
         base_weights = {"600519.SH": 0.08, "601318.SH": 0.06}
         final_weights = {
-            code: w * loaded.get(code, 1.0)
-            for code, w in base_weights.items()
+            code: w * loaded.get(code, 1.0) for code, w in base_weights.items()
         }
         assert abs(final_weights["600519.SH"] - 0.104) < 1e-9
         assert abs(final_weights["601318.SH"] - 0.048) < 1e-9
@@ -209,7 +212,11 @@ class TestEvolutionToRebalanceE2E:
         adjusted = dict(target_weights)
         adjusted_count = 0
         for code, multiplier in weight_adjustments.items():
-            if code in adjusted and isinstance(multiplier, (int, float)) and 0.5 <= multiplier <= 2.0:
+            if (
+                code in adjusted
+                and isinstance(multiplier, (int, float))
+                and 0.5 <= multiplier <= 2.0
+            ):
                 adjusted[code] = adjusted[code] * float(multiplier)
                 adjusted_count += 1
 

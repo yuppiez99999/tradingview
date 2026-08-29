@@ -13,6 +13,7 @@
     - check_alert 用 monkeypatch date.today
     - 全 mock, 不读真实 configs/portfolio.yaml
 """
+
 from __future__ import annotations
 
 import sys
@@ -308,7 +309,10 @@ class TestCheckAlert:
         """Phase 0, 距 Phase 1 <= 30 天 → 预警"""
         sched = LiquidationScheduler(config_path=_write_config(tmp_path))
         # 2030-06-15, 距 7/1 = 16 天 <= 30
-        monkeypatch.setattr("utils.liquidation_scheduler.date", MagicMock(today=lambda: date(2030, 6, 15)))
+        monkeypatch.setattr(
+            "utils.liquidation_scheduler.date",
+            MagicMock(today=lambda: date(2030, 6, 15)),
+        )
 
         alert = sched.check_alert(days_threshold=30)
         assert alert is not None
@@ -322,7 +326,10 @@ class TestCheckAlert:
     def test_phase_0_no_alert_far_enough(self, tmp_path, monkeypatch):
         """Phase 0, 距 Phase 1 > 30 天 → 无预警"""
         sched = LiquidationScheduler(config_path=_write_config(tmp_path))
-        monkeypatch.setattr("utils.liquidation_scheduler.date", MagicMock(today=lambda: date(2026, 1, 1)))
+        monkeypatch.setattr(
+            "utils.liquidation_scheduler.date",
+            MagicMock(today=lambda: date(2026, 1, 1)),
+        )
 
         alert = sched.check_alert(days_threshold=30)
         assert alert is None
@@ -332,7 +339,10 @@ class TestCheckAlert:
         """Phase 1, 距 Phase 2 <= 7 天 → 预警"""
         sched = LiquidationScheduler(config_path=_write_config(tmp_path))
         # 2030-10-28, 距 11/1 = 4 天 <= 7
-        monkeypatch.setattr("utils.liquidation_scheduler.date", MagicMock(today=lambda: date(2030, 10, 28)))
+        monkeypatch.setattr(
+            "utils.liquidation_scheduler.date",
+            MagicMock(today=lambda: date(2030, 10, 28)),
+        )
 
         alert = sched.check_alert()
         assert alert is not None
@@ -343,7 +353,10 @@ class TestCheckAlert:
     def test_phase_1_no_alert_far_enough(self, tmp_path, monkeypatch):
         """Phase 1, 距 Phase 2 > 7 天 → 无预警"""
         sched = LiquidationScheduler(config_path=_write_config(tmp_path))
-        monkeypatch.setattr("utils.liquidation_scheduler.date", MagicMock(today=lambda: date(2030, 7, 15)))
+        monkeypatch.setattr(
+            "utils.liquidation_scheduler.date",
+            MagicMock(today=lambda: date(2030, 7, 15)),
+        )
 
         alert = sched.check_alert()
         assert alert is None
@@ -353,7 +366,10 @@ class TestCheckAlert:
         """Phase 2, 距 Phase 3 <= 7 天 → 预警"""
         sched = LiquidationScheduler(config_path=_write_config(tmp_path))
         # 2030-11-26, 距 12/1 = 5 天 <= 7
-        monkeypatch.setattr("utils.liquidation_scheduler.date", MagicMock(today=lambda: date(2030, 11, 26)))
+        monkeypatch.setattr(
+            "utils.liquidation_scheduler.date",
+            MagicMock(today=lambda: date(2030, 11, 26)),
+        )
 
         alert = sched.check_alert()
         assert alert is not None
@@ -364,7 +380,10 @@ class TestCheckAlert:
     def test_phase_3_no_alert(self, tmp_path, monkeypatch):
         """Phase 3 → 无预警 (check_alert 只处理 phase 0/1/2)"""
         sched = LiquidationScheduler(config_path=_write_config(tmp_path))
-        monkeypatch.setattr("utils.liquidation_scheduler.date", MagicMock(today=lambda: date(2030, 12, 15)))
+        monkeypatch.setattr(
+            "utils.liquidation_scheduler.date",
+            MagicMock(today=lambda: date(2030, 12, 15)),
+        )
 
         alert = sched.check_alert()
         assert alert is None
@@ -373,7 +392,10 @@ class TestCheckAlert:
     def test_complete_no_alert(self, tmp_path, monkeypatch):
         """complete → 无预警"""
         sched = LiquidationScheduler(config_path=_write_config(tmp_path))
-        monkeypatch.setattr("utils.liquidation_scheduler.date", MagicMock(today=lambda: date(2031, 1, 1)))
+        monkeypatch.setattr(
+            "utils.liquidation_scheduler.date",
+            MagicMock(today=lambda: date(2031, 1, 1)),
+        )
 
         alert = sched.check_alert()
         assert alert is None
@@ -382,7 +404,10 @@ class TestCheckAlert:
     def test_phase_0_custom_threshold(self, tmp_path, monkeypatch):
         """自定义 days_threshold=10, 距 7/1 = 16 > 10 → 无预警"""
         sched = LiquidationScheduler(config_path=_write_config(tmp_path))
-        monkeypatch.setattr("utils.liquidation_scheduler.date", MagicMock(today=lambda: date(2030, 6, 15)))
+        monkeypatch.setattr(
+            "utils.liquidation_scheduler.date",
+            MagicMock(today=lambda: date(2030, 6, 15)),
+        )
 
         alert = sched.check_alert(days_threshold=10)
         assert alert is None
@@ -427,7 +452,8 @@ class TestCLI:
         """CLI --current --date 2030-07-15 → 输出 Phase 1"""
         cfg_path = _write_config(tmp_path)
         monkeypatch.setattr(
-            sys, "argv",
+            sys,
+            "argv",
             ["liquidation_scheduler.py", "--current", "--date", "2030-07-15"],
         )
         # 重新导入会执行 CLI, 但 __main__ 块只在直接运行时执行

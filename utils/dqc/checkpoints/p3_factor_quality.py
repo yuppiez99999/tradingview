@@ -43,7 +43,7 @@ logger = logging.getLogger("dqc.p3_gate")
 FLAG_USE_P3_GATE = "USE_DQC_P3_GATE"
 
 # 因子 NaN 比例阈值 (X-04 可复现性, NaN 多表示计算不稳定)
-FACTOR_NAN_THRESHOLD_WARN = 0.05   # 5%
+FACTOR_NAN_THRESHOLD_WARN = 0.05  # 5%
 FACTOR_NAN_THRESHOLD_ERROR = 0.20  # 20%
 
 
@@ -92,7 +92,9 @@ class P3FactorQualityGate:
         self._published = []
         logger.info(
             "DQC P3 开始检查: target_date=%s, factor_cols=%d, rows=%d",
-            target_date, len(factor_cols), len(factor_df),
+            target_date,
+            len(factor_cols),
+            len(factor_df),
         )
 
         # 1. 输入校验
@@ -171,7 +173,8 @@ class P3FactorQualityGate:
             # 观察模式: 仅日志不阻断
             logger.warning(
                 "DQC P3 发现 %d 个阻断级问题, 但 Feature Flag %s=False, 观察模式不阻断",
-                len(blocking), FLAG_USE_P3_GATE,
+                len(blocking),
+                FLAG_USE_P3_GATE,
             )
             return True, self._published
 
@@ -181,7 +184,9 @@ class P3FactorQualityGate:
 
         logger.info(
             "DQC P3 完成: passed=%s, events=%d, blocking=%d",
-            passed, len(all_events), len(blocking),
+            passed,
+            len(all_events),
+            len(blocking),
         )
         return passed, self._published
 
@@ -199,8 +204,16 @@ class P3FactorQualityGate:
         """
         events: list[DQCEvent] = []
 
-        symbol_col = "symbol" if "symbol" in factor_df.columns else ("code" if "code" in factor_df.columns else None)
-        date_col = "date" if "date" in factor_df.columns else ("datetime" if "datetime" in factor_df.columns else None)
+        symbol_col = (
+            "symbol"
+            if "symbol" in factor_df.columns
+            else ("code" if "code" in factor_df.columns else None)
+        )
+        date_col = (
+            "date"
+            if "date" in factor_df.columns
+            else ("datetime" if "datetime" in factor_df.columns else None)
+        )
         if symbol_col is None or date_col is None:
             return events
 
@@ -208,16 +221,18 @@ class P3FactorQualityGate:
         dup_count = int(duplicates.sum())
 
         if dup_count > 0:
-            events.append(make_event(
-                metric_id="U-02",
-                level=DQCLevel.ERROR,
-                checkpoint=self._checkpoint,
-                value=float(dup_count),
-                threshold=0.0,
-                message=f"因子重复计算: (symbol, date) 重复 {dup_count} 行",
-                violation_count=dup_count,
-                factor_cols=factor_cols,
-            ))
+            events.append(
+                make_event(
+                    metric_id="U-02",
+                    level=DQCLevel.ERROR,
+                    checkpoint=self._checkpoint,
+                    value=float(dup_count),
+                    threshold=0.0,
+                    message=f"因子重复计算: (symbol, date) 重复 {dup_count} 行",
+                    violation_count=dup_count,
+                    factor_cols=factor_cols,
+                )
+            )
 
         return events
 
@@ -259,18 +274,20 @@ class P3FactorQualityGate:
             else:
                 continue
 
-            events.append(make_event(
-                metric_id="X-04",
-                level=level,
-                checkpoint=self._checkpoint,
-                value=nan_rate,
-                threshold=FACTOR_NAN_THRESHOLD_WARN,
-                message=f"因子 {col} NaN 比例 {nan_rate:.1%} (计算不稳定, 可复现性差)",
-                factor=col,
-                nan_count=nan_count,
-                nan_rate=nan_rate,
-                total_rows=total_rows,
-            ))
+            events.append(
+                make_event(
+                    metric_id="X-04",
+                    level=level,
+                    checkpoint=self._checkpoint,
+                    value=nan_rate,
+                    threshold=FACTOR_NAN_THRESHOLD_WARN,
+                    message=f"因子 {col} NaN 比例 {nan_rate:.1%} (计算不稳定, 可复现性差)",
+                    factor=col,
+                    nan_count=nan_count,
+                    nan_rate=nan_rate,
+                    total_rows=total_rows,
+                )
+            )
 
         return events
 
@@ -321,7 +338,8 @@ class P3FactorQualityGate:
                 else RiskEventType.LIQUIDITY_BREACH
             )
             severity = RiskSeverity(
-                "critical" if event.level in (DQCLevel.ERROR, DQCLevel.CRITICAL)
+                "critical"
+                if event.level in (DQCLevel.ERROR, DQCLevel.CRITICAL)
                 else ("warn" if event.level == DQCLevel.WARN else "info")
             )
 
@@ -353,7 +371,8 @@ class P3FactorQualityGate:
         """记录阻断决策到日志."""
         logger.error(
             "DQC P3 阻断训练样本生成: target_date=%s, blocking_events=%d",
-            target_date, len(blocking),
+            target_date,
+            len(blocking),
         )
         for e in blocking:
             logger.error("  - [%s] %s", e.metric_id, e.message)
@@ -362,6 +381,7 @@ class P3FactorQualityGate:
         """检查 Feature Flag 是否启用阻断模式."""
         try:
             from utils.infra.feature_flags import is_enabled
+
             return is_enabled(FLAG_USE_P3_GATE)
         except (ImportError, RuntimeError, ValueError) as e:
             logger.debug("Feature Flag 检查失败, 默认不阻断: %s", e)

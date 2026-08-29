@@ -130,3 +130,14 @@ logger.warning(
 | 版本 | 日期 | 变更内容 | 触发事件 |
 |---|---|---|---|
 | v1.0 | 2026-08-04 | 初始版本 | 300308 中际旭创 +483.6% 年化暴露阈值缺失 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [A股ETF + 期权对冲 + 自我再平衡子模型](etf-option-hedge-model.md) (相似度 19%)
+- [RegimeFolio 制度感知组合优化](regime-aware-allocator.md) (相似度 14%)
+- [MVSK 高阶矩组合优化（YAND 启发）](mvsk-higher-moment-optimization.md) (相似度 10%)
+- [对冲方案 v8.7 优化 — RegimeFolio 动态阈值 + 紧急跨级 + IV 感知 + Deep Hedging + 多智能体](hedge-v87-regime-adaptive-20260827.md) (相似度 7%)
+- [量化系统高价值代码资产地图（E:\各种PY程序）](high-value-code-assets.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

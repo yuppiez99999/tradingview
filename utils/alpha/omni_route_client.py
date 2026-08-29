@@ -71,7 +71,6 @@ CIRCUIT_BREAKER_COOLDOWN_SEC = 60  # 1 分钟冷却
 # ============================================================
 
 
-
 def _safe_urlopen(req, timeout=None):
     """安全封装 urllib.request.urlopen — 拒绝非 http/https 协议 (B310)"""
     url = req.full_url if hasattr(req, "full_url") else str(req)
@@ -119,16 +118,28 @@ class OmniRouteClient:
 
     def __init__(self) -> None:
         # 从环境变量加载配置
-        self._base_url = os.environ.get("OMNIROUTE_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
+        self._base_url = os.environ.get("OMNIROUTE_BASE_URL", DEFAULT_BASE_URL).rstrip(
+            "/"
+        )
         self._model = os.environ.get("OMNIROUTE_MODEL", DEFAULT_MODEL)
         self._deep_model = os.environ.get("OMNIROUTE_DEEP_MODEL", DEFAULT_DEEP_MODEL)
         self._timeout = int(os.environ.get("OMNIROUTE_TIMEOUT", str(DEFAULT_TIMEOUT)))
-        self._default_temperature = float(os.environ.get("OMNIROUTE_TEMPERATURE", str(DEFAULT_TEMPERATURE)))
-        self._default_max_tokens = int(os.environ.get("OMNIROUTE_MAX_TOKENS", str(DEFAULT_MAX_TOKENS)))
-        self._default_max_tokens_deep = int(os.environ.get("OMNIROUTE_MAX_TOKENS_DEEP", str(DEFAULT_MAX_TOKENS_DEEP)))
+        self._default_temperature = float(
+            os.environ.get("OMNIROUTE_TEMPERATURE", str(DEFAULT_TEMPERATURE))
+        )
+        self._default_max_tokens = int(
+            os.environ.get("OMNIROUTE_MAX_TOKENS", str(DEFAULT_MAX_TOKENS))
+        )
+        self._default_max_tokens_deep = int(
+            os.environ.get("OMNIROUTE_MAX_TOKENS_DEEP", str(DEFAULT_MAX_TOKENS_DEEP))
+        )
 
         # Feature Flag
-        self._feature_flag = os.environ.get("USE_OMNIROUTE", "True").lower() in ("true", "1", "yes")
+        self._feature_flag = os.environ.get("USE_OMNIROUTE", "True").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
 
         # 熔断器状态
         self._failure_count = 0
@@ -265,7 +276,16 @@ class OmniRouteClient:
                     result["latency_ms"] = (time.perf_counter() - start_ts) * 1000.0
                 else:
                     result["error"] = f"HTTP {resp.status}"
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001
             result["error"] = f"{type(e).__name__}: {str(e)[:200]}"
 
         return result
@@ -285,7 +305,16 @@ class OmniRouteClient:
             with _safe_urlopen(req, timeout=self._timeout) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
             return body.get("data", [])
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001
             logger.warning("OmniRoute list_models 失败: %s", e)
             return []
 
@@ -381,7 +410,9 @@ class OmniRouteClient:
             ).encode("utf-8")
 
             start_ts = time.perf_counter()
-            req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+            req = urllib.request.Request(
+                url, data=payload, headers=headers, method="POST"
+            )
             with _safe_urlopen(req, timeout=timeout) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
 
@@ -424,7 +455,16 @@ class OmniRouteClient:
             logger.warning("OmniRoute 连接失败: %s", str(e)[:200])
             self._record_failure()
             return None
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001
             logger.warning("OmniRoute 调用异常: %s: %s", type(e).__name__, str(e)[:200])
             self._record_failure()
             return None
@@ -457,7 +497,9 @@ def chat_deep(
     max_tokens: int | None = None,
 ) -> str | None:
     """快捷函数: 通过 OmniRoute 深度思考模式."""
-    return OmniRouteClient.get_instance().chat_deep(prompt, system, temperature, max_tokens)
+    return OmniRouteClient.get_instance().chat_deep(
+        prompt, system, temperature, max_tokens
+    )
 
 
 def health_check() -> dict[str, Any]:

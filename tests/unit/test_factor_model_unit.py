@@ -3,6 +3,7 @@
 被测模块: utils/factor_model.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,6 +28,7 @@ def _make_klines(n: int = 252, base: float = 10.0):
 # ============================================================
 # value_factor
 # ============================================================
+
 
 class TestValueFactor:
     def test_low_pe_high_score(self):
@@ -53,15 +55,20 @@ class TestValueFactor:
 # quality_factor
 # ============================================================
 
+
 class TestQualityFactor:
     def test_high_quality(self):
         m = FactorModel()
-        score = m.quality_factor(pd.DataFrame(), roe=0.20, debt_ratio=0.2, profit_margin=0.15)
+        score = m.quality_factor(
+            pd.DataFrame(), roe=0.20, debt_ratio=0.2, profit_margin=0.15
+        )
         assert score > 0
 
     def test_low_quality(self):
         m = FactorModel()
-        score = m.quality_factor(pd.DataFrame(), roe=0.02, debt_ratio=0.8, profit_margin=0.01)
+        score = m.quality_factor(
+            pd.DataFrame(), roe=0.02, debt_ratio=0.8, profit_margin=0.01
+        )
         assert score < 0
 
     def test_no_data(self):
@@ -72,6 +79,7 @@ class TestQualityFactor:
 # ============================================================
 # momentum_factor
 # ============================================================
+
 
 class TestMomentumFactor:
     def test_uptrend(self):
@@ -103,6 +111,7 @@ class TestMomentumFactor:
 # growth_factor
 # ============================================================
 
+
 class TestGrowthFactor:
     def test_high_growth(self):
         m = FactorModel()
@@ -120,6 +129,7 @@ class TestGrowthFactor:
 # ============================================================
 # safety_factor
 # ============================================================
+
 
 class TestSafetyFactor:
     def test_low_vol_safe(self):
@@ -149,6 +159,7 @@ class TestSafetyFactor:
 # evaluate
 # ============================================================
 
+
 class TestEvaluate:
     def test_basic(self):
         m = FactorModel()
@@ -174,7 +185,11 @@ class TestEvaluate:
 
     def test_ranking(self):
         m = FactorModel()
-        klines = {"A": _make_klines(), "B": _make_klines(base=20), "C": _make_klines(base=30)}
+        klines = {
+            "A": _make_klines(),
+            "B": _make_klines(base=20),
+            "C": _make_klines(base=30),
+        }
         results = m.evaluate(klines)
         ranks = [r.rank for r in results.values()]
         assert sorted(ranks) == [1, 2, 3]
@@ -189,12 +204,19 @@ class TestEvaluate:
         m = FactorModel()
         klines = {"600519": _make_klines()}
         results = m.evaluate(klines)
-        assert results["600519"].signal in ("strong_buy", "buy", "hold", "sell", "strong_sell")
+        assert results["600519"].signal in (
+            "strong_buy",
+            "buy",
+            "hold",
+            "sell",
+            "strong_sell",
+        )
 
 
 # ============================================================
 # generate_signal
 # ============================================================
+
 
 class TestGenerateSignal:
     def test_empty(self):
@@ -216,6 +238,7 @@ class TestGenerateSignal:
 # ============================================================
 # _to_signal
 # ============================================================
+
 
 class TestToSignal:
     def test_strong_buy(self):
@@ -243,10 +266,15 @@ class TestToSignal:
 # compute_factor_correlation
 # ============================================================
 
+
 class TestCorrelation:
     def test_basic(self):
         m = FactorModel()
-        klines = {"A": _make_klines(), "B": _make_klines(base=20), "C": _make_klines(base=30)}
+        klines = {
+            "A": _make_klines(),
+            "B": _make_klines(base=20),
+            "C": _make_klines(base=30),
+        }
         results = m.evaluate(klines)
         corr = m.compute_factor_correlation(results)
         assert isinstance(corr, pd.DataFrame)

@@ -7,6 +7,7 @@
     - assert_production_fail_closed (production 抛/development 不抛)
     - TradingEnvConfig.__str__
 """
+
 from __future__ import annotations
 
 import pytest

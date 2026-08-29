@@ -9,6 +9,7 @@
     - calibrate_threshold
     - create_default_estimator / create_no_save_estimator
 """
+
 from __future__ import annotations
 
 import pytest
@@ -31,10 +32,19 @@ class TestPreTradeEstimate:
     @pytest.mark.unit
     def test_construction(self):
         e = PreTradeEstimate(
-            symbol="000001", side="BUY", shares=1000, notional=10000, price=10.0,
-            tier="large", estimated_cost_bps=5.0, estimated_cost_amount=5.0,
-            cost_breakdown={"slippage": 1.0}, approved=True, rejection_reason="",
-            threshold_bps=30.0, latency_ms=1.0,
+            symbol="000001",
+            side="BUY",
+            shares=1000,
+            notional=10000,
+            price=10.0,
+            tier="large",
+            estimated_cost_bps=5.0,
+            estimated_cost_amount=5.0,
+            cost_breakdown={"slippage": 1.0},
+            approved=True,
+            rejection_reason="",
+            threshold_bps=30.0,
+            latency_ms=1.0,
         )
         assert e.symbol == "000001"
         assert e.timestamp != ""  # __post_init__ 填充
@@ -42,10 +52,19 @@ class TestPreTradeEstimate:
     @pytest.mark.unit
     def test_to_dict(self):
         e = PreTradeEstimate(
-            symbol="000001", side="BUY", shares=1000, notional=10000, price=10.0,
-            tier="large", estimated_cost_bps=5.0, estimated_cost_amount=5.0,
-            cost_breakdown={"slippage": 1.0}, approved=True, rejection_reason="",
-            threshold_bps=30.0, latency_ms=1.0,
+            symbol="000001",
+            side="BUY",
+            shares=1000,
+            notional=10000,
+            price=10.0,
+            tier="large",
+            estimated_cost_bps=5.0,
+            estimated_cost_amount=5.0,
+            cost_breakdown={"slippage": 1.0},
+            approved=True,
+            rejection_reason="",
+            threshold_bps=30.0,
+            latency_ms=1.0,
         )
         d = e.to_dict()
         assert d["symbol"] == "000001"
@@ -53,12 +72,22 @@ class TestPreTradeEstimate:
     @pytest.mark.unit
     def test_to_jsonl(self):
         e = PreTradeEstimate(
-            symbol="000001", side="BUY", shares=1000, notional=10000, price=10.0,
-            tier="large", estimated_cost_bps=5.0, estimated_cost_amount=5.0,
-            cost_breakdown={}, approved=True, rejection_reason="",
-            threshold_bps=30.0, latency_ms=1.0,
+            symbol="000001",
+            side="BUY",
+            shares=1000,
+            notional=10000,
+            price=10.0,
+            tier="large",
+            estimated_cost_bps=5.0,
+            estimated_cost_amount=5.0,
+            cost_breakdown={},
+            approved=True,
+            rejection_reason="",
+            threshold_bps=30.0,
+            latency_ms=1.0,
         )
         import json
+
         d = json.loads(e.to_jsonl())
         assert d["symbol"] == "000001"
 
@@ -94,7 +123,13 @@ class TestEstimate:
     @pytest.mark.unit
     def test_basic_buy(self, estimator):
         est = estimator.estimate(
-            order={"symbol": "600276", "side": "BUY", "shares": 1000, "price": 50.0, "notional": 50000},
+            order={
+                "symbol": "600276",
+                "side": "BUY",
+                "shares": 1000,
+                "price": 50.0,
+                "notional": 50000,
+            },
             market_data={"adv": 10_000_000, "volatility": 0.025},
         )
         assert est.symbol == "600276"
@@ -112,28 +147,47 @@ class TestEstimate:
     @pytest.mark.unit
     def test_empty_symbol_raises(self, estimator):
         with pytest.raises(PreTradeEstimateError):
-            estimator.estimate(order={"symbol": "", "side": "BUY", "shares": 100, "price": 10.0})
+            estimator.estimate(
+                order={"symbol": "", "side": "BUY", "shares": 100, "price": 10.0}
+            )
 
     @pytest.mark.unit
     def test_zero_shares_raises(self, estimator):
         with pytest.raises(PreTradeEstimateError):
-            estimator.estimate(order={"symbol": "000001", "side": "BUY", "shares": 0, "price": 10.0})
+            estimator.estimate(
+                order={"symbol": "000001", "side": "BUY", "shares": 0, "price": 10.0}
+            )
 
     @pytest.mark.unit
     def test_zero_price_raises(self, estimator):
         with pytest.raises(PreTradeEstimateError):
-            estimator.estimate(order={"symbol": "000001", "side": "BUY", "shares": 100, "price": 0.0})
+            estimator.estimate(
+                order={"symbol": "000001", "side": "BUY", "shares": 100, "price": 0.0}
+            )
 
     @pytest.mark.unit
     def test_invalid_side_raises(self, estimator):
         with pytest.raises(PreTradeEstimateError):
-            estimator.estimate(order={"symbol": "000001", "side": "UNKNOWN", "shares": 100, "price": 10.0})
+            estimator.estimate(
+                order={
+                    "symbol": "000001",
+                    "side": "UNKNOWN",
+                    "shares": 100,
+                    "price": 10.0,
+                }
+            )
 
     @pytest.mark.unit
     def test_approved(self, estimator):
         """小额交易 → 成本低 → 通过"""
         est = estimator.estimate(
-            order={"symbol": "600276", "side": "BUY", "shares": 100, "price": 10.0, "market_cap": 800e8},
+            order={
+                "symbol": "600276",
+                "side": "BUY",
+                "shares": 100,
+                "price": 10.0,
+                "market_cap": 800e8,
+            },
             market_data={"adv": 100_000_000, "volatility": 0.02},
         )
         assert est.approved in (True, False)  # 取决于成本
@@ -142,7 +196,13 @@ class TestEstimate:
     def test_rejection_reason(self, estimator):
         """大额交易 → 成本高 → 否决"""
         est = estimator.estimate(
-            order={"symbol": "600276", "side": "BUY", "shares": 1_000_000, "price": 10.0, "notional": 10_000_000},
+            order={
+                "symbol": "600276",
+                "side": "BUY",
+                "shares": 1_000_000,
+                "price": 10.0,
+                "notional": 10_000_000,
+            },
             market_data={"adv": 1_000_000, "volatility": 0.05},
         )
         if not est.approved:
@@ -151,7 +211,13 @@ class TestEstimate:
     @pytest.mark.unit
     def test_cost_breakdown(self, estimator):
         est = estimator.estimate(
-            order={"symbol": "600276", "side": "BUY", "shares": 1000, "price": 50.0, "notional": 50000},
+            order={
+                "symbol": "600276",
+                "side": "BUY",
+                "shares": 1000,
+                "price": 50.0,
+                "notional": 50000,
+            },
         )
         assert "slippage" in est.cost_breakdown
         assert "commission" in est.cost_breakdown
@@ -169,7 +235,12 @@ class TestEstimateBatch:
         e = PreTradeEstimator(save_to_file=False)
         orders = {
             "000001": {"symbol": "000001", "side": "BUY", "shares": 100, "price": 10.0},
-            "000002": {"symbol": "000002", "side": "SELL", "shares": 200, "price": 20.0},
+            "000002": {
+                "symbol": "000002",
+                "side": "SELL",
+                "shares": 200,
+                "price": 20.0,
+            },
         }
         results = e.estimate_batch(orders)
         assert "000001" in results
@@ -197,8 +268,20 @@ class TestFilterApproved:
     def test_filters(self):
         e = PreTradeEstimator(cost_threshold_bps=5.0, save_to_file=False)
         orders = {
-            "small": {"symbol": "000001", "side": "BUY", "shares": 100, "price": 10.0, "market_cap": 800e8},
-            "large": {"symbol": "000002", "side": "BUY", "shares": 1_000_000, "price": 10.0, "notional": 10_000_000},
+            "small": {
+                "symbol": "000001",
+                "side": "BUY",
+                "shares": 100,
+                "price": 10.0,
+                "market_cap": 800e8,
+            },
+            "large": {
+                "symbol": "000002",
+                "side": "BUY",
+                "shares": 1_000_000,
+                "price": 10.0,
+                "notional": 10_000_000,
+            },
         }
         approved = e.filter_approved(orders)
         for est in approved.values():
@@ -228,7 +311,9 @@ class TestCalibrate:
     @pytest.mark.unit
     def test_clamped(self):
         e = PreTradeEstimator(save_to_file=False)
-        new = e.calibrate_threshold([200, 300, 400], min_threshold=10, max_threshold=100)
+        new = e.calibrate_threshold(
+            [200, 300, 400], min_threshold=10, max_threshold=100
+        )
         assert new <= 100
 
 

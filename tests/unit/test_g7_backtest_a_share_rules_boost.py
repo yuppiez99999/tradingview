@@ -7,6 +7,7 @@
   - bar_to_date 日期解析
   - filter_order_t1 订单过滤
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -29,14 +30,24 @@ from utils.backtest.a_share_rules import (
 
 class TestPositionLot:
     def test_frozen_fields(self):
-        lot = PositionLot(code="600519.SH", volume=100.0, acquisition_date=date(2026, 8, 1), avg_price=1500.0)
+        lot = PositionLot(
+            code="600519.SH",
+            volume=100.0,
+            acquisition_date=date(2026, 8, 1),
+            avg_price=1500.0,
+        )
         assert lot.code == "600519.SH"
         assert lot.volume == 100.0
         assert lot.acquisition_date == date(2026, 8, 1)
         assert lot.avg_price == 1500.0
 
     def test_frozen_cannot_mutate(self):
-        lot = PositionLot(code="600519.SH", volume=100.0, acquisition_date=date(2026, 8, 1), avg_price=1500.0)
+        lot = PositionLot(
+            code="600519.SH",
+            volume=100.0,
+            acquisition_date=date(2026, 8, 1),
+            avg_price=1500.0,
+        )
         with pytest.raises((AttributeError, TypeError)):
             lot.volume = 200.0
 
@@ -77,7 +88,9 @@ class TestT1PositionTracker:
         tracker = T1PositionTracker()
         tracker.add_lot("600519.SH", 100.0, date(2026, 8, 1), 1500.0)
         tracker.add_lot("600519.SH", 200.0, date(2026, 8, 2), 1550.0)
-        consumed_vol, consumed_val = tracker.consume("600519.SH", 150.0, date(2026, 8, 3))
+        consumed_vol, consumed_val = tracker.consume(
+            "600519.SH", 150.0, date(2026, 8, 3)
+        )
         assert consumed_vol == 150.0
         assert consumed_val == pytest.approx(100.0 * 1500.0 + 50.0 * 1550.0)
         assert tracker.total_volume("600519.SH") == 150.0
@@ -86,7 +99,9 @@ class TestT1PositionTracker:
     def test_consume_insufficient(self, _mock_t0):
         tracker = T1PositionTracker()
         tracker.add_lot("600519.SH", 100.0, date(2026, 8, 1), 1500.0)
-        consumed_vol, consumed_val = tracker.consume("600519.SH", 200.0, date(2026, 8, 3))
+        consumed_vol, consumed_val = tracker.consume(
+            "600519.SH", 200.0, date(2026, 8, 3)
+        )
         assert consumed_vol == 100.0
         assert consumed_val == pytest.approx(100.0 * 1500.0)
         assert tracker.total_volume("600519.SH") == 0.0
@@ -97,7 +112,14 @@ class TestT1PositionTracker:
         tracker.add_lot("600519.SH", 100.0, date(2026, 8, 1), 1500.0)
         lots = tracker.get_lots("600519.SH")
         assert len(lots) == 1
-        lots.append(PositionLot(code="600519.SH", volume=50.0, acquisition_date=date(2026, 8, 1), avg_price=1500.0))
+        lots.append(
+            PositionLot(
+                code="600519.SH",
+                volume=50.0,
+                acquisition_date=date(2026, 8, 1),
+                avg_price=1500.0,
+            )
+        )
         assert tracker.total_volume("600519.SH") == 100.0
 
     @patch("utils.backtest.a_share_rules.is_t0_eligible", return_value=False)
@@ -173,7 +195,9 @@ class TestAShareTradingRules:
     def test_on_sell_fill_consumes(self, _mock_t0):
         rules = AShareTradingRules()
         rules.on_buy_fill("600519.SH", 100.0, 1500.0, date(2026, 8, 1))
-        consumed_vol, consumed_val = rules.on_sell_fill("600519.SH", 100.0, date(2026, 8, 3))
+        consumed_vol, consumed_val = rules.on_sell_fill(
+            "600519.SH", 100.0, date(2026, 8, 3)
+        )
         assert consumed_vol == 100.0
         assert consumed_val == pytest.approx(100.0 * 1500.0)
 
@@ -189,7 +213,11 @@ class TestBarToDate:
         assert bar_to_date(bar) == date(2026, 8, 3)
 
     def test_zero_date_fallback_ts_event(self):
-        bar = type("BarData", (), {"date": 0, "ts_event": int(datetime(2026, 8, 3, 9, 30).timestamp() * 1e9)})()
+        bar = type(
+            "BarData",
+            (),
+            {"date": 0, "ts_event": int(datetime(2026, 8, 3, 9, 30).timestamp() * 1e9)},
+        )()
         assert bar_to_date(bar) == date(2026, 8, 3)
 
     def test_zero_date_and_zero_ts_fallback_today(self):
@@ -208,8 +236,12 @@ class TestBarToDate:
 
 
 class TestFilterOrderT1:
-    def _make_order(self, direction: str = "BUY", volume: float = 100.0, code: str = "600519.SH"):
-        return type("OrderData", (), {"direction": direction, "volume": volume, "code": code})()
+    def _make_order(
+        self, direction: str = "BUY", volume: float = 100.0, code: str = "600519.SH"
+    ):
+        return type(
+            "OrderData", (), {"direction": direction, "volume": volume, "code": code}
+        )()
 
     def test_buy_pass_always(self):
         rules = AShareTradingRules()
@@ -248,7 +280,9 @@ class TestConsumeBranches:
         tracker = T1PositionTracker()
         tracker.add_lot("600519.SH", 100.0, date(2026, 8, 1), 1500.0)
         tracker.add_lot("600519.SH", 200.0, date(2026, 8, 2), 1550.0)
-        consumed_vol, consumed_val = tracker.consume("600519.SH", 30.0, date(2026, 8, 3))
+        consumed_vol, consumed_val = tracker.consume(
+            "600519.SH", 30.0, date(2026, 8, 3)
+        )
         assert consumed_vol == 30.0
         assert consumed_val == pytest.approx(30.0 * 1500.0)
         # 第一个 lot 剩余 70, 第二个 lot 保留 200
@@ -259,7 +293,9 @@ class TestConsumeBranches:
         # lot.acquisition_date >= current_date → T+1 阻断, lot 保留
         tracker = T1PositionTracker()
         tracker.add_lot("600519.SH", 100.0, date(2026, 8, 3), 1500.0)  # 当日买入
-        consumed_vol, consumed_val = tracker.consume("600519.SH", 50.0, date(2026, 8, 3))
+        consumed_vol, consumed_val = tracker.consume(
+            "600519.SH", 50.0, date(2026, 8, 3)
+        )
         # 当日买入不可卖 → consume 0
         assert consumed_vol == 0.0
         assert consumed_val == 0.0
@@ -271,7 +307,9 @@ class TestConsumeBranches:
         tracker = T1PositionTracker()
         tracker.add_lot("600519.SH", 100.0, date(2026, 8, 1), 1500.0)
         tracker.add_lot("600519.SH", 200.0, date(2026, 8, 3), 1550.0)
-        consumed_vol, consumed_val = tracker.consume("600519.SH", 150.0, date(2026, 8, 3))
+        consumed_vol, consumed_val = tracker.consume(
+            "600519.SH", 150.0, date(2026, 8, 3)
+        )
         # 仅 lot1 可卖 100, 请求 150 → 消费 100
         assert consumed_vol == 100.0
         assert consumed_val == pytest.approx(100.0 * 1500.0)
@@ -283,14 +321,18 @@ class TestConsumeBranches:
         # T+0 标的: 即使 acquisition_date >= current_date 仍可消费
         tracker = T1PositionTracker()
         tracker.add_lot("000001.SZ", 100.0, date(2026, 8, 3), 12.0)  # 当日买入
-        consumed_vol, consumed_val = tracker.consume("000001.SZ", 50.0, date(2026, 8, 3))
+        consumed_vol, consumed_val = tracker.consume(
+            "000001.SZ", 50.0, date(2026, 8, 3)
+        )
         assert consumed_vol == 50.0
         assert consumed_val == pytest.approx(50.0 * 12.0)
 
     @patch("utils.backtest.a_share_rules.is_t0_eligible", return_value=False)
     def test_consume_empty_lots_returns_zero(self, _mock_t0):
         tracker = T1PositionTracker()
-        consumed_vol, consumed_val = tracker.consume("600519.SH", 100.0, date(2026,8, 3))
+        consumed_vol, consumed_val = tracker.consume(
+            "600519.SH", 100.0, date(2026, 8, 3)
+        )
         assert consumed_vol == 0.0
         assert consumed_val == 0.0
 
@@ -358,8 +400,12 @@ class TestCheckPriceLimitPassBranch:
 
 
 class TestFilterOrderT1Partial:
-    def _make_order(self, direction: str = "BUY", volume: float = 100.0, code: str = "600519.SH"):
-        return type("OrderData", (), {"direction": direction, "volume": volume, "code": code})()
+    def _make_order(
+        self, direction: str = "BUY", volume: float = 100.0, code: str = "600519.SH"
+    ):
+        return type(
+            "OrderData", (), {"direction": direction, "volume": volume, "code": code}
+        )()
 
     @patch("utils.backtest.a_share_rules.is_t0_eligible", return_value=False)
     def test_partial_pass_when_some_available(self, _mock_t0):
@@ -376,7 +422,9 @@ class TestFilterOrderT1Partial:
     def test_full_block_when_zero_available(self, _mock_t0):
         # available == 0 → 完全拒绝
         rules = AShareTradingRules()
-        rules.on_buy_fill("600519.SH", 100.0, 1500.0, date(2026, 8, 3))  # 当日买入, 不可卖
+        rules.on_buy_fill(
+            "600519.SH", 100.0, 1500.0, date(2026, 8, 3)
+        )  # 当日买入, 不可卖
         order = self._make_order("SELL", 50.0)
         result = filter_order_t1(rules, order, date(2026, 8, 3))
         assert result.passed is False
@@ -394,7 +442,9 @@ class TestOnSellFillPartial:
         rules = AShareTradingRules()
         rules.on_buy_fill("600519.SH", 100.0, 1500.0, date(2026, 8, 1))
         # 卖出 30, 仅消费 30
-        consumed_vol, consumed_val = rules.on_sell_fill("600519.SH", 30.0, date(2026, 8, 3))
+        consumed_vol, consumed_val = rules.on_sell_fill(
+            "600519.SH", 30.0, date(2026, 8, 3)
+        )
         assert consumed_vol == 30.0
         assert consumed_val == pytest.approx(30.0 * 1500.0)
         # 剩余 70

@@ -11,6 +11,7 @@
     - 单例 + 线程安全
     - 配置加载 (HC-5)
 """
+
 from __future__ import annotations
 
 import json
@@ -204,6 +205,7 @@ class TestDataLayerBasic:
 
     def test_register_provider(self, flag_enabled_layer: DataLayer) -> None:
         """register_provider 注册自定义 provider."""
+
         def my_fn(symbol: str, **kwargs: Any) -> Any:
             return {"data": "ok"}
 
@@ -238,7 +240,9 @@ class TestFeatureFlagPassthrough:
         df = flag_disabled_layer.get_ohlcv("510300.SH", period="1y")
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 5
-        mock_provider.get_historical_data.assert_called_once_with("510300.SH", period="1y")
+        mock_provider.get_historical_data.assert_called_once_with(
+            "510300.SH", period="1y"
+        )
 
     def test_passthrough_get_snapshot(
         self,
@@ -324,7 +328,9 @@ class TestFallbackChain:
             return sample_df
 
         flag_enabled_layer.register_provider("p0_mock", p0_fn)
-        flag_enabled_layer.register_provider("p1_mock", lambda *a, **kw: pytest.fail("P1 不应被调用"))
+        flag_enabled_layer.register_provider(
+            "p1_mock", lambda *a, **kw: pytest.fail("P1 不应被调用")
+        )
 
         df = flag_enabled_layer.get_ohlcv("510300.SH")
         assert len(df) == 5
@@ -499,7 +505,9 @@ class TestP6CacheFallback:
     ) -> None:
         """Dict 序列化/反序列化."""
         flag_enabled_layer._p6_cache_store("510300.SH", "get_snapshot", sample_snapshot)
-        snap = flag_enabled_layer._p6_cache_lookup("510300.SH", operation="get_snapshot")
+        snap = flag_enabled_layer._p6_cache_lookup(
+            "510300.SH", operation="get_snapshot"
+        )
         assert isinstance(snap, dict)
         assert snap["symbol"] == "510300.SH"
 
@@ -665,6 +673,7 @@ class TestSingletonAndThreadSafety:
 
     def test_concurrent_register_provider(self, flag_enabled_layer: DataLayer) -> None:
         """并发注册 provider 不冲突."""
+
         def _register(idx: int) -> None:
             flag_enabled_layer.register_provider(
                 f"p_{idx}", lambda *a, **kw: {"idx": idx}
@@ -809,7 +818,11 @@ class TestIntegrationScenarios:
 
         # 验证 fallback 日志至少 2 条 (P0→P1, P1→P6)
         log_file = flag_enabled_layer.get_fallback_log_path()
-        lines = [line for line in log_file.read_text(encoding="utf-8").strip().split("\n") if line]
+        lines = [
+            line
+            for line in log_file.read_text(encoding="utf-8").strip().split("\n")
+            if line
+        ]
         assert len(lines) >= 2
 
     def test_get_snapshot_with_fallback(
@@ -821,7 +834,9 @@ class TestIntegrationScenarios:
         flag_enabled_layer.register_provider(
             "p0_mock", lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("P0 down"))
         )
-        flag_enabled_layer.register_provider("p1_mock", lambda *a, **kw: sample_snapshot)
+        flag_enabled_layer.register_provider(
+            "p1_mock", lambda *a, **kw: sample_snapshot
+        )
 
         snap = flag_enabled_layer.get_snapshot("510300.SH")
         assert snap["symbol"] == "510300.SH"

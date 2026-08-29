@@ -41,11 +41,12 @@ def load_pipeline_config(config_path: str | Path | None = None) -> PipelineConfi
     if path.exists():
         try:
             import yaml
+
             with open(path, encoding="utf-8") as f:
                 raw = yaml.safe_load(f)
             if raw:
                 _apply_yaml(config, raw)
-        except Exception:  # noqa: BLE001  # nosec B110 # 配置加载 fail-safe: 任何异常都用默认值
+        except (OSError, ValueError, TypeError, AttributeError):
             pass
     # 环境变量覆盖
     _apply_env_overrides(config)
@@ -61,6 +62,7 @@ def get_pipeline_config() -> PipelineConfig:
     if not _config_loaded:
         return load_pipeline_config()
     return _pipeline_config  # type: ignore
+
 
 def _apply_yaml(config: PipelineConfig, raw: dict[str, Any]) -> None:
     """将 YAML 字典映射到 PipelineConfig 字段"""
@@ -173,7 +175,10 @@ def _apply_env_overrides(config: PipelineConfig) -> None:
     env_map = {
         "PIPELINE_MODE": ("mode", str),
         "PIPELINE_ALPHA_ENABLED": ("alpha_enabled", lambda v: v.lower() == "true"),
-        "PIPELINE_EXECUTION_ENABLED": ("execution_enabled", lambda v: v.lower() == "true"),
+        "PIPELINE_EXECUTION_ENABLED": (
+            "execution_enabled",
+            lambda v: v.lower() == "true",
+        ),
         "PIPELINE_RISK_INTERVAL": ("risk_check_interval_seconds", int),
         "PIPELINE_REPORT_DIR": ("report_dir", str),
     }
@@ -182,6 +187,15 @@ def _apply_env_overrides(config: PipelineConfig) -> None:
         if val is not None:
             try:
                 setattr(config, attr, converter(val))
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass

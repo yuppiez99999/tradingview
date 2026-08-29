@@ -2,6 +2,7 @@
 单元测试: utils/data_source_manager.py
 覆盖 DataSourceStatus / CacheStats / DataSourceInfo / DataSourceRegistry / PriorityDataSourceManager / get_data_source_manager
 """
+
 from __future__ import annotations
 
 import pytest
@@ -66,7 +67,8 @@ class TestDataSourceInfo:
 
     def test_custom_values(self):
         info = DataSourceInfo(
-            name="wind", priority=100,
+            name="wind",
+            priority=100,
             status=DataSourceStatus.HEALTHY,
             success_count=5,
         )
@@ -173,6 +175,7 @@ class TestPriorityDataSourceManager:
     def test_fetch_exception_fallback(self):
         def failing(x):
             raise RuntimeError("connection error")
+
         mgr = PriorityDataSourceManager()
         mgr.register_source("wind", failing, priority=100)
         mgr.register_source("akshare", lambda x: {"ok": True}, priority=30)

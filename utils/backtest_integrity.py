@@ -64,9 +64,21 @@ def check_no_future_leakage(prices, as_of_date) -> tuple[bool, str]:
 
         future = [d for d in idx if _to_naive_ts(d) > cutoff]
         if future:
-            return False, f"检测到 {len(future)} 条 as_of_date 之后的未来数据（前视偏差）"
+            return (
+                False,
+                f"检测到 {len(future)} 条 as_of_date 之后的未来数据（前视偏差）",
+            )
         return True, "无未来数据泄漏"
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # pragma: no cover
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # pragma: no cover
         # 修复 BUG-R6: fail-open → fail-closed, 检测器崩溃时视为不通过
         # 原代码: return True (通过) — 有泄漏但检测器崩溃时系统会说"安全"
         return False, f"泄漏检测异常（fail-closed, 需人工介入）: {e}"
@@ -89,10 +101,15 @@ def evaluate_alpha_provenance(alpha_report: Any) -> str:
             return "real"
         active = alpha_report.get("active_factors", 0)
         evals = alpha_report.get("evaluations", []) or []
-        real_evals = [e for e in evals if isinstance(e, dict) and e.get("category") != "mock"]
+        real_evals = [
+            e for e in evals if isinstance(e, dict) and e.get("category") != "mock"
+        ]
         if real_evals and active > 0:
             return "real"
-        if active == 0 or (evals and all((e.get("category") == "mock") for e in evals if isinstance(e, dict))):
+        if active == 0 or (
+            evals
+            and all((e.get("category") == "mock") for e in evals if isinstance(e, dict))
+        ):
             return "mock"
         return "unknown"
 
@@ -139,7 +156,9 @@ def validate_backtest(
     # 2) alpha 来源
     provenance = evaluate_alpha_provenance(alpha_report)
     if require_real_alpha and provenance != "real":
-        issues.append(f"alpha 来源为 '{provenance}'，非真实信号；按尽职调查标准，该结果不得作为有效回测/收益证据")
+        issues.append(
+            f"alpha 来源为 '{provenance}'，非真实信号；按尽职调查标准，该结果不得作为有效回测/收益证据"
+        )
 
     is_valid = len(issues) == 0
     if not is_valid:

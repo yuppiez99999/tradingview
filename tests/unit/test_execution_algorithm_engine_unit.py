@@ -14,6 +14,7 @@
     - select_algorithm (大/中/小单 × urgency)
     - summarize_plan
 """
+
 from __future__ import annotations
 
 import math
@@ -66,7 +67,9 @@ class TestOrderDataclass:
     @pytest.mark.unit
     def test_defaults(self):
         o = Order(
-            symbol="000001", side="BUY", total_shares=1000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=1000.0,
             start_time=pd.Timestamp("2026-08-18 09:30"),
             end_time=pd.Timestamp("2026-08-18 15:00"),
         )
@@ -80,7 +83,9 @@ class TestChildOrderDataclass:
     @pytest.mark.unit
     def test_defaults(self):
         c = ChildOrder(
-            symbol="000001", side="BUY", shares=500.0,
+            symbol="000001",
+            side="BUY",
+            shares=500.0,
             scheduled_time=pd.Timestamp("2026-08-18 10:00"),
         )
         assert c.limit_price is None
@@ -116,9 +121,12 @@ class TestEngineConstruction:
     def test_custom_params(self):
         eng = ExecutionAlgorithmEngine(
             default_volume_curve=[1, 2, 3],
-            impact_coeff=0.2, impact_decay=0.6,
-            randomize_size=0.05, randomize_time=0.02,
-            risk_aversion=2.0, seed=7,
+            impact_coeff=0.2,
+            impact_decay=0.6,
+            randomize_size=0.05,
+            randomize_time=0.02,
+            risk_aversion=2.0,
+            seed=7,
         )
         assert eng.default_volume_curve == [1.0, 2.0, 3.0]
         assert eng.impact_coeff == 0.2
@@ -143,19 +151,25 @@ class TestGenerateTradingSlots:
     def test_full_day_skips_lunch(self, basic_order):
         eng = ExecutionAlgorithmEngine()
         slots = eng._generate_trading_slots(
-            basic_order.start_time, basic_order.end_time, slot_minutes=30,
+            basic_order.start_time,
+            basic_order.end_time,
+            slot_minutes=30,
         )
         # 上午 09:30-11:30 = 4 槽 (30min), 下午 13:00-15:00 = 4 槽
         assert len(slots) == 8
         # 没有槽落在午休 11:30-13:00
         for s in slots:
-            assert not (pd.Timestamp("2026-08-18 11:30") <= s < pd.Timestamp("2026-08-18 13:00"))
+            assert not (
+                pd.Timestamp("2026-08-18 11:30") <= s < pd.Timestamp("2026-08-18 13:00")
+            )
 
     @pytest.mark.unit
     def test_short_window(self, short_order):
         eng = ExecutionAlgorithmEngine()
         slots = eng._generate_trading_slots(
-            short_order.start_time, short_order.end_time, slot_minutes=10,
+            short_order.start_time,
+            short_order.end_time,
+            slot_minutes=10,
         )
         assert len(slots) == 3
         assert slots[0] == pd.Timestamp("2026-08-18 10:00")
@@ -272,7 +286,9 @@ class TestTwap:
         """start == end → 0 slots"""
         eng = ExecutionAlgorithmEngine()
         o = Order(
-            symbol="000001", side="BUY", total_shares=1000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=1000.0,
             start_time=pd.Timestamp("2026-08-18 10:00"),
             end_time=pd.Timestamp("2026-08-18 10:00"),
         )
@@ -307,7 +323,9 @@ class TestPov:
         """小 market_volume → participation*vol 不足以吃完订单, 剩余扫尾到最后一切片"""
         eng = ExecutionAlgorithmEngine()
         o = Order(
-            symbol="000001", side="BUY", total_shares=10000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=10000.0,
             start_time=pd.Timestamp("2026-08-18 10:00"),
             end_time=pd.Timestamp("2026-08-18 11:00"),
             max_participation=0.01,
@@ -322,7 +340,9 @@ class TestPov:
     def test_empty_slots(self):
         eng = ExecutionAlgorithmEngine()
         o = Order(
-            symbol="000001", side="BUY", total_shares=1000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=1000.0,
             start_time=pd.Timestamp("2026-08-18 10:00"),
             end_time=pd.Timestamp("2026-08-18 10:00"),
         )
@@ -351,9 +371,11 @@ class TestIsAlgo:
         plan_low = eng.is_algo(basic_order, daily_volatility=0.02)
         # 改 urgency 后重新构造 order
         o_high = Order(
-            symbol=basic_order.symbol, side=basic_order.side,
+            symbol=basic_order.symbol,
+            side=basic_order.side,
             total_shares=basic_order.total_shares,
-            start_time=basic_order.start_time, end_time=basic_order.end_time,
+            start_time=basic_order.start_time,
+            end_time=basic_order.end_time,
             urgency="HIGH",
         )
         plan_high = eng.is_algo(o_high)
@@ -379,7 +401,9 @@ class TestIsAlgo:
     def test_empty_slots(self):
         eng = ExecutionAlgorithmEngine()
         o = Order(
-            symbol="000001", side="BUY", total_shares=1000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=1000.0,
             start_time=pd.Timestamp("2026-08-18 10:00"),
             end_time=pd.Timestamp("2026-08-18 10:00"),
         )
@@ -442,7 +466,9 @@ class TestApplyRandomization:
     def test_length_preserved(self, basic_order):
         eng = ExecutionAlgorithmEngine()
         slots = eng._generate_trading_slots(
-            basic_order.start_time, basic_order.end_time, slot_minutes=30,
+            basic_order.start_time,
+            basic_order.end_time,
+            slot_minutes=30,
         )
         shares = [100.0] * len(slots)
         out = eng._apply_randomization(shares, slots)
@@ -452,7 +478,9 @@ class TestApplyRandomization:
     def test_no_negative_shares(self, basic_order):
         eng = ExecutionAlgorithmEngine(randomize_size=0.99)
         slots = eng._generate_trading_slots(
-            basic_order.start_time, basic_order.end_time, slot_minutes=30,
+            basic_order.start_time,
+            basic_order.end_time,
+            slot_minutes=30,
         )
         shares = [100.0] * len(slots)
         out = eng._apply_randomization(shares, slots)
@@ -463,7 +491,9 @@ class TestApplyRandomization:
     def test_time_clamped_to_trading_hours(self, basic_order):
         eng = ExecutionAlgorithmEngine(randomize_time=0.5)
         slots = eng._generate_trading_slots(
-            basic_order.start_time, basic_order.end_time, slot_minutes=30,
+            basic_order.start_time,
+            basic_order.end_time,
+            slot_minutes=30,
         )
         shares = [100.0] * len(slots)
         out = eng._apply_randomization(shares, slots)
@@ -483,7 +513,9 @@ class TestSelectAlgorithm:
     def test_large_order_pov(self):
         eng = ExecutionAlgorithmEngine()
         o = Order(
-            symbol="000001", side="BUY", total_shares=100000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=100000.0,
             start_time=pd.Timestamp("2026-08-18 09:30"),
             end_time=pd.Timestamp("2026-08-18 15:00"),
         )
@@ -494,7 +526,9 @@ class TestSelectAlgorithm:
     def test_medium_order_vwap(self):
         eng = ExecutionAlgorithmEngine()
         o = Order(
-            symbol="000001", side="BUY", total_shares=10000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=10000.0,
             start_time=pd.Timestamp("2026-08-18 09:30"),
             end_time=pd.Timestamp("2026-08-18 15:00"),
             urgency="MEDIUM",
@@ -506,7 +540,9 @@ class TestSelectAlgorithm:
     def test_medium_order_high_urgency_is(self):
         eng = ExecutionAlgorithmEngine()
         o = Order(
-            symbol="000001", side="BUY", total_shares=20000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=20000.0,
             start_time=pd.Timestamp("2026-08-18 09:30"),
             end_time=pd.Timestamp("2026-08-18 15:00"),
             urgency="HIGH",
@@ -518,7 +554,9 @@ class TestSelectAlgorithm:
     def test_small_order_vwap(self):
         eng = ExecutionAlgorithmEngine()
         o = Order(
-            symbol="000001", side="BUY", total_shares=1000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=1000.0,
             start_time=pd.Timestamp("2026-08-18 09:30"),
             end_time=pd.Timestamp("2026-08-18 15:00"),
             urgency="MEDIUM",
@@ -530,7 +568,9 @@ class TestSelectAlgorithm:
     def test_small_order_high_urgency_twap(self):
         eng = ExecutionAlgorithmEngine()
         o = Order(
-            symbol="000001", side="BUY", total_shares=1000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=1000.0,
             start_time=pd.Timestamp("2026-08-18 09:30"),
             end_time=pd.Timestamp("2026-08-18 15:00"),
             urgency="HIGH",
@@ -542,7 +582,9 @@ class TestSelectAlgorithm:
     def test_zero_adv_safe(self):
         eng = ExecutionAlgorithmEngine()
         o = Order(
-            symbol="000001", side="BUY", total_shares=1000.0,
+            symbol="000001",
+            side="BUY",
+            total_shares=1000.0,
             start_time=pd.Timestamp("2026-08-18 09:30"),
             end_time=pd.Timestamp("2026-08-18 15:00"),
         )
@@ -563,10 +605,17 @@ class TestSummarizePlan:
         plan = eng.vwap(basic_order, slot_minutes=30)
         s = eng.summarize_plan(plan)
         expected_keys = {
-            "algorithm", "symbol", "side", "total_shares",
-            "num_slices", "avg_slice_size", "max_slice_size",
-            "duration_minutes", "expected_cost_bps",
-            "expected_impact_bps", "expected_timing_risk_bps",
+            "algorithm",
+            "symbol",
+            "side",
+            "total_shares",
+            "num_slices",
+            "avg_slice_size",
+            "max_slice_size",
+            "duration_minutes",
+            "expected_cost_bps",
+            "expected_impact_bps",
+            "expected_timing_risk_bps",
         }
         assert set(s.keys()) == expected_keys
         assert s["algorithm"] == "VWAP"

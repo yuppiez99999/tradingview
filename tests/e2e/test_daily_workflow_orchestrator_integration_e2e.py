@@ -15,6 +15,7 @@
 
 集成日期: 2026-07-26 (v8.6.9 任务 1.2 Phase 7)
 """
+
 from __future__ import annotations
 
 import json
@@ -151,7 +152,9 @@ class TestE2EEnvironmentIsolation:
 
         # 验证: production 模式强制跳过
         assert signal["finance_agent_shadow_applied"] is False
-        assert signal["finance_agent_shadow_skipped_reason"] == "production_env_disabled"
+        assert (
+            signal["finance_agent_shadow_skipped_reason"] == "production_env_disabled"
+        )
         assert "finance_agent_shadow_count" not in signal
 
         # 验证: 审计日志目录下无文件生成
@@ -299,10 +302,10 @@ class TestE2ESymbolSelection:
     def test_e2e_top_5_symbols_by_weight(self, tmp_path):
         """按 |weight| 降序取前 5 个标的"""
         target_weights = {
-            "S1.SH": 0.01,   # 最小权重
+            "S1.SH": 0.01,  # 最小权重
             "S2.SH": 0.15,
             "S3.SH": 0.08,
-            "S4.SH": 0.20,   # 最大权重
+            "S4.SH": 0.20,  # 最大权重
             "S5.SH": 0.05,
             "S6.SH": 0.12,
             "S7.SH": 0.03,
@@ -401,9 +404,13 @@ class TestE2EGracefulDegradation:
         orchestrator = FailingOrchestrator(audit_log_dir=audit_dir)
 
         success_count = 0
-        for symbol in sorted(target_weights.keys(), key=lambda s: abs(target_weights[s]), reverse=True):
+        for symbol in sorted(
+            target_weights.keys(), key=lambda s: abs(target_weights[s]), reverse=True
+        ):
             try:
-                consensus = orchestrator.orchestrate(symbol, {"trade_date": "2026-07-26"})
+                consensus = orchestrator.orchestrate(
+                    symbol, {"trade_date": "2026-07-26"}
+                )
                 orchestrator.save_audit_log(consensus, None, "2026-07-26")
                 success_count += 1
             except Exception:

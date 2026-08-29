@@ -66,3 +66,14 @@
 - **LIT-2.4**: KTD-Fin 记忆控制评估
 - **实际集成**: 接入 Wind MCP 新闻扫描 → 实时热点新闻输入
 - **回测验证**: CSI300 2024-2026 历史新闻回测
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [情绪因子演化：v4.0 → v4.3](sentiment-factor-evolution.md) (相似度 18%)
+- [FinGPT 系列集成 (轻量 LoRA + RLSP 训练管线)](fingpt-integration.md) (相似度 14%)
+- [TradingGroup 自反思机制 (Self-Reflection + Data-Synthesis + Dynamic Stops)](trading-group-reflection.md) (相似度 13%)
+- [KTD-Fin 记忆控制评估基准](ktd-fin-eval.md) (相似度 13%)
+- [对抗新闻攻击防护 (Adversarial News Attack Guard)](adversarial-news-guard.md) (相似度 13%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

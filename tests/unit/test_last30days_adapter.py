@@ -95,9 +95,10 @@ class TestFlagGate:
 
     def test_flag_disabled_skips_cli(self) -> None:
         """Flag 关闭时不应调用 CLI."""
-        with patch("utils.last30days_adapter.is_enabled", return_value=False), patch(
-            "utils.last30days_adapter.subprocess.run"
-        ) as mock_run:
+        with (
+            patch("utils.last30days_adapter.is_enabled", return_value=False),
+            patch("utils.last30days_adapter.subprocess.run") as mock_run,
+        ):
             adapter = Last30DaysAdapter()
             adapter.search_topic("gold price")
             mock_run.assert_not_called()
@@ -126,7 +127,9 @@ class TestInputValidation:
             adapter = Last30DaysAdapter()
             # 全部无效平台应返回空列表 (不调用 CLI)
             with patch.object(adapter, "_query_cli") as mock_query:
-                result = adapter.search_topic("gold", platforms=["facebook", "instagram"])
+                result = adapter.search_topic(
+                    "gold", platforms=["facebook", "instagram"]
+                )
                 assert result == []
                 mock_query.assert_not_called()
 
@@ -209,9 +212,12 @@ class TestFailSafe:
     def test_cli_timeout_returns_empty(self) -> None:
         with patch("utils.last30days_adapter.is_enabled", return_value=True):
             adapter = Last30DaysAdapter()
-            with patch.object(adapter, "_check_cli", return_value=True), patch(
-                "utils.last30days_adapter.subprocess.run",
-                side_effect=subprocess.TimeoutExpired(cmd="npx", timeout=30),
+            with (
+                patch.object(adapter, "_check_cli", return_value=True),
+                patch(
+                    "utils.last30days_adapter.subprocess.run",
+                    side_effect=subprocess.TimeoutExpired(cmd="npx", timeout=30),
+                ),
             ):
                 result = adapter.search_topic("gold")
                 assert result == []
@@ -219,9 +225,12 @@ class TestFailSafe:
     def test_cli_oserror_returns_empty(self) -> None:
         with patch("utils.last30days_adapter.is_enabled", return_value=True):
             adapter = Last30DaysAdapter()
-            with patch.object(adapter, "_check_cli", return_value=True), patch(
-                "utils.last30days_adapter.subprocess.run",
-                side_effect=OSError("command not found"),
+            with (
+                patch.object(adapter, "_check_cli", return_value=True),
+                patch(
+                    "utils.last30days_adapter.subprocess.run",
+                    side_effect=OSError("command not found"),
+                ),
             ):
                 result = adapter.search_topic("gold")
                 assert result == []
@@ -233,8 +242,11 @@ class TestFailSafe:
             mock_result.returncode = 1
             mock_result.stderr = b"some error"
             mock_result.stdout = b"{}"
-            with patch.object(adapter, "_check_cli", return_value=True), patch(
-                "utils.last30days_adapter.subprocess.run", return_value=mock_result
+            with (
+                patch.object(adapter, "_check_cli", return_value=True),
+                patch(
+                    "utils.last30days_adapter.subprocess.run", return_value=mock_result
+                ),
             ):
                 # 清除缓存以避免命中
                 adapter._cli_available = True
@@ -258,9 +270,10 @@ class TestCache:
             signals_data = [_make_signal().to_dict()]
             cache_file.write_text(json.dumps(signals_data), encoding="utf-8")
 
-            with patch("utils.last30days_adapter._CACHE_DIR", tmp_path), patch.object(
-                adapter, "_query_cli"
-            ) as mock_query:
+            with (
+                patch("utils.last30days_adapter._CACHE_DIR", tmp_path),
+                patch.object(adapter, "_query_cli") as mock_query,
+            ):
                 result = adapter.search_topic("gold", platforms=["reddit"], days=7)
                 assert len(result) == 1
                 assert result[0].platform == "reddit"
@@ -271,18 +284,24 @@ class TestCache:
             adapter = Last30DaysAdapter(cache_ttl=0)  # 立即过期
             cache_key = adapter._cache_key("gold", ["reddit"], 7)
             cache_file = tmp_path / f"last30days_{cache_key}.json"
-            cache_file.write_text(json.dumps([_make_signal().to_dict()]), encoding="utf-8")
+            cache_file.write_text(
+                json.dumps([_make_signal().to_dict()]), encoding="utf-8"
+            )
 
             # 将文件 mtime 设为 1 小时前
             import os
+
             old_time = (datetime.now() - timedelta(hours=1)).timestamp()
             os.utime(cache_file, (old_time, old_time))
 
-            with patch("utils.last30days_adapter._CACHE_DIR", tmp_path), patch.object(
-                adapter,
-                "_query_cli",
-                return_value=[_make_signal()],
-            ) as mock_query:
+            with (
+                patch("utils.last30days_adapter._CACHE_DIR", tmp_path),
+                patch.object(
+                    adapter,
+                    "_query_cli",
+                    return_value=[_make_signal()],
+                ) as mock_query,
+            ):
                 result = adapter.search_topic("gold", platforms=["reddit"], days=7)
                 assert len(result) == 1
                 mock_query.assert_called_once()
@@ -314,8 +333,15 @@ class TestAggregateSentiment:
     def test_weighted_by_engagement(self) -> None:
         """互动量高的信号权重更大."""
         signals = [
-            Last30DaysSignal(topic="t", platform="reddit", sentiment_score=1.0, engagement_score=1000.0),
-            Last30DaysSignal(topic="t", platform="x", sentiment_score=-1.0, engagement_score=100.0),
+            Last30DaysSignal(
+                topic="t",
+                platform="reddit",
+                sentiment_score=1.0,
+                engagement_score=1000.0,
+            ),
+            Last30DaysSignal(
+                topic="t", platform="x", sentiment_score=-1.0, engagement_score=100.0
+            ),
         ]
         result = Last30DaysAdapter.aggregate_sentiment(signals)
         # 加权: (1.0*1000 + -1.0*100) / 1100 = 900/1100 ≈ 0.818
@@ -324,8 +350,12 @@ class TestAggregateSentiment:
 
     def test_no_engagement_falls_back_to_mean(self) -> None:
         signals = [
-            Last30DaysSignal(topic="t", platform="reddit", sentiment_score=0.6, engagement_score=0.0),
-            Last30DaysSignal(topic="t", platform="x", sentiment_score=0.4, engagement_score=0.0),
+            Last30DaysSignal(
+                topic="t", platform="reddit", sentiment_score=0.6, engagement_score=0.0
+            ),
+            Last30DaysSignal(
+                topic="t", platform="x", sentiment_score=0.4, engagement_score=0.0
+            ),
         ]
         result = Last30DaysAdapter.aggregate_sentiment(signals)
         # 简单平均: (0.6 + 0.4) / 2 = 0.5
@@ -336,7 +366,9 @@ class TestAggregateSentiment:
             Last30DaysSignal(topic="t", platform="reddit", sentiment_score=0.5),
             Last30DaysSignal(topic="t", platform="x", sentiment_score=0.3),
             Last30DaysSignal(topic="t", platform="hn", sentiment_score=-0.5),
-            Last30DaysSignal(topic="t", platform="youtube", sentiment_score=0.0),  # 中性
+            Last30DaysSignal(
+                topic="t", platform="youtube", sentiment_score=0.0
+            ),  # 中性
         ]
         result = Last30DaysAdapter.aggregate_sentiment(signals)
         # positive: >0.1 → 2 个; negative: <-0.1 → 1 个; 共 4 个
@@ -353,9 +385,11 @@ class TestAudit:
     def test_audit_written_on_success(self, tmp_path: Path) -> None:
         with patch("utils.last30days_adapter.is_enabled", return_value=True):
             adapter = Last30DaysAdapter()
-            with patch("utils.last30days_adapter._AUDIT_DIR", tmp_path), patch.object(
-                adapter, "_query_cli", return_value=[_make_signal()]
-            ), patch.object(adapter, "_save_cache"):
+            with (
+                patch("utils.last30days_adapter._AUDIT_DIR", tmp_path),
+                patch.object(adapter, "_query_cli", return_value=[_make_signal()]),
+                patch.object(adapter, "_save_cache"),
+            ):
                 adapter.search_topic("gold", platforms=["reddit"], days=7)
 
             # 审计文件应存在
@@ -370,9 +404,11 @@ class TestAudit:
     def test_audit_not_written_when_no_signals(self, tmp_path: Path) -> None:
         with patch("utils.last30days_adapter.is_enabled", return_value=True):
             adapter = Last30DaysAdapter()
-            with patch("utils.last30days_adapter._AUDIT_DIR", tmp_path), patch.object(
-                adapter, "_query_cli", return_value=[]
-            ), patch.object(adapter, "_save_cache"):
+            with (
+                patch("utils.last30days_adapter._AUDIT_DIR", tmp_path),
+                patch.object(adapter, "_query_cli", return_value=[]),
+                patch.object(adapter, "_save_cache"),
+            ):
                 adapter.search_topic("gold", platforms=["reddit"], days=7)
 
             # 无信号时不应写审计
@@ -401,6 +437,7 @@ class TestHealthAndSingleton:
         """get_adapter 应返回同一实例."""
         # 重置单例
         import utils.last30days_adapter as mod
+
         mod._adapter = None
         a1 = get_adapter()
         a2 = get_adapter()

@@ -10,6 +10,7 @@
 Usage:
     .venv\\Scripts\\python.exe research\\mvsk_ab_test_real.py
 """
+
 from __future__ import annotations
 
 import json
@@ -36,19 +37,36 @@ from tools.wind_mcp_fetcher import wind_get_kline  # noqa: E402
 # ============================================================
 
 STOCKS: list[tuple[str, str]] = [
-    ("600519.SH", "贵州茅台"), ("000858.SZ", "五粮液"),
-    ("600036.SH", "招商银行"), ("601318.SH", "中国平安"), ("601398.SH", "工商银行"),
-    ("000725.SZ", "京东方A"), ("002415.SZ", "海康威视"), ("300750.SZ", "宁德时代"),
-    ("600276.SH", "药明康德"), ("000333.SZ", "美的集团"),
-    ("601899.SH", "紫金矿业"), ("600028.SH", "中国石化"),
-    ("002594.SZ", "比亚迪"), ("601012.SH", "隆基绿能"), ("002049.SZ", "紫光国微"),
-    ("600436.SH", "片仔癀"), ("300015.SZ", "爱尔眼科"),
-    ("001979.SZ", "招商蛇口"), ("601668.SH", "中国建筑"),
-    ("600104.SH", "上汽集团"), ("600887.SH", "伊利股份"),
-    ("600030.SH", "中信证券"), ("600900.SH", "长江电力"),
-    ("600050.SH", "中国联通"), ("600309.SH", "万华化学"),
-    ("600031.SH", "三一重工"), ("600019.SH", "宝钢股份"),
-    ("601225.SH", "陕西煤业"), ("600029.SH", "南方航空"), ("601888.SH", "中国中免"),
+    ("600519.SH", "贵州茅台"),
+    ("000858.SZ", "五粮液"),
+    ("600036.SH", "招商银行"),
+    ("601318.SH", "中国平安"),
+    ("601398.SH", "工商银行"),
+    ("000725.SZ", "京东方A"),
+    ("002415.SZ", "海康威视"),
+    ("300750.SZ", "宁德时代"),
+    ("600276.SH", "药明康德"),
+    ("000333.SZ", "美的集团"),
+    ("601899.SH", "紫金矿业"),
+    ("600028.SH", "中国石化"),
+    ("002594.SZ", "比亚迪"),
+    ("601012.SH", "隆基绿能"),
+    ("002049.SZ", "紫光国微"),
+    ("600436.SH", "片仔癀"),
+    ("300015.SZ", "爱尔眼科"),
+    ("001979.SZ", "招商蛇口"),
+    ("601668.SH", "中国建筑"),
+    ("600104.SH", "上汽集团"),
+    ("600887.SH", "伊利股份"),
+    ("600030.SH", "中信证券"),
+    ("600900.SH", "长江电力"),
+    ("600050.SH", "中国联通"),
+    ("600309.SH", "万华化学"),
+    ("600031.SH", "三一重工"),
+    ("600019.SH", "宝钢股份"),
+    ("601225.SH", "陕西煤业"),
+    ("600029.SH", "南方航空"),
+    ("601888.SH", "中国中免"),
 ]
 
 N_DAYS = 504  # 约 2 年交易日
@@ -58,6 +76,7 @@ CACHE_PATH = _PROJECT_ROOT / "research" / "mvsk_real_data_cache.npz"
 # ============================================================
 # 数据获取与对齐
 # ============================================================
+
 
 def fetch_and_align() -> tuple[np.ndarray, list[str], list[str]]:
     """获取 30 只股票 K 线, 对齐日期, 构建 T×N 日收益矩阵.
@@ -69,7 +88,9 @@ def fetch_and_align() -> tuple[np.ndarray, list[str], list[str]]:
     """
     if CACHE_PATH.exists():
         cache = np.load(CACHE_PATH, allow_pickle=True)
-        print(f"加载缓存: {CACHE_PATH} ( {cache['returns'].shape[0]} 日 × {cache['returns'].shape[1]} 股 )")
+        print(
+            f"加载缓存: {CACHE_PATH} ( {cache['returns'].shape[0]} 日 × {cache['returns'].shape[1]} 股 )"
+        )
         return cache["returns"], list(cache["codes"]), list(cache["dates"])
 
     print(f"获取 {len(STOCKS)} 只股票 × {N_DAYS} 交易日 K 线 (Wind MCP)...")
@@ -79,7 +100,9 @@ def fetch_and_align() -> tuple[np.ndarray, list[str], list[str]]:
     for i, (code, name) in enumerate(STOCKS, 1):
         records = wind_get_kline(code, days=N_DAYS)
         if not records or len(records) < 252:
-            print(f"  [{i:2d}/{len(STOCKS)}] {code} {name}: 数据不足 ({len(records) if records else 0} 条), 跳过")
+            print(
+                f"  [{i:2d}/{len(STOCKS)}] {code} {name}: 数据不足 ({len(records) if records else 0} 条), 跳过"
+            )
             failed.append(code)
             continue
         # 提取 (date, close) — MATCH 字段是收盘价
@@ -114,7 +137,12 @@ def fetch_and_align() -> tuple[np.ndarray, list[str], list[str]]:
         returns[:, j] = prices[1:] / prices[:-1] - 1.0
 
     # 缓存
-    np.savez(CACHE_PATH, returns=returns, codes=np.array(codes), dates=np.array(common_dates[1:]))
+    np.savez(
+        CACHE_PATH,
+        returns=returns,
+        codes=np.array(codes),
+        dates=np.array(common_dates[1:]),
+    )
     print(f"缓存已保存: {CACHE_PATH}")
 
     return returns, codes, common_dates[1:]
@@ -123,6 +151,7 @@ def fetch_and_align() -> tuple[np.ndarray, list[str], list[str]]:
 # ============================================================
 # 主流程
 # ============================================================
+
 
 def main() -> int:
     R, codes, dates = fetch_and_align()  # noqa: N806
@@ -139,16 +168,24 @@ def main() -> int:
     # 数据诊断
     rp_bench = R @ w_bench
     bench_skew = float(((rp_bench - rp_bench.mean()) ** 3).mean() / rp_bench.std() ** 3)
-    bench_kurt = float(((rp_bench - rp_bench.mean()) ** 4).mean() / rp_bench.std() ** 4 - 3.0)
+    bench_kurt = float(
+        ((rp_bench - rp_bench.mean()) ** 4).mean() / rp_bench.std() ** 4 - 3.0
+    )
     bench_ann_ret = float(rp_bench.mean() * 252)
     bench_ann_vol = float(rp_bench.std() * np.sqrt(252))
-    print(f"等权基准: 年化收益={bench_ann_ret:.4f}  年化波动={bench_ann_vol:.4f}  偏度={bench_skew:.4f}  超额峰度={bench_kurt:.4f}")
+    print(
+        f"等权基准: 年化收益={bench_ann_ret:.4f}  年化波动={bench_ann_vol:.4f}  偏度={bench_skew:.4f}  超额峰度={bench_kurt:.4f}"
+    )
 
     # 三组实验
     results = [
         run_experiment("MV(纯均值方差)", R, mu, cov, w_bench, 0.0, 0.0, max_te=0.06),
-        run_experiment("MVSK-轻(γs0.5γk0.1)", R, mu, cov, w_bench, 0.5, 0.1, max_te=0.06),
-        run_experiment("MVSK-重(γs1.5γk0.5)", R, mu, cov, w_bench, 1.5, 0.5, max_te=0.06),
+        run_experiment(
+            "MVSK-轻(γs0.5γk0.1)", R, mu, cov, w_bench, 0.5, 0.1, max_te=0.06
+        ),
+        run_experiment(
+            "MVSK-重(γs1.5γk0.5)", R, mu, cov, w_bench, 1.5, 0.5, max_te=0.06
+        ),
     ]
 
     print_comparison(results)

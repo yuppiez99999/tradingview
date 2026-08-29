@@ -47,8 +47,10 @@ logger = logging.getLogger("delta_hedge_multi_agent")
 # 枚举
 # ============================================================
 
+
 class GreekType(str, Enum):
     """希腊字母类型。"""
+
     DELTA = "delta"
     GAMMA = "gamma"
     VEGA = "vega"
@@ -57,6 +59,7 @@ class GreekType(str, Enum):
 
 class OptionType(str, Enum):
     """期权类型。"""
+
     CALL = "call"
     PUT = "put"
 
@@ -64,6 +67,7 @@ class OptionType(str, Enum):
 # ============================================================
 # 期权工具
 # ============================================================
+
 
 @dataclass
 class OptionInstrument:
@@ -77,6 +81,7 @@ class OptionInstrument:
         price: 期权价格
         underlying: 标的价格
     """
+
     option_type: OptionType
     strike: float
     maturity: float
@@ -89,17 +94,19 @@ class OptionInstrument:
 # 希腊字母计算 (Black-Scholes)
 # ============================================================
 
+
 class GreeksCalculator:
     """Black-Scholes 希腊字母计算器。"""
 
     @staticmethod
-    def _d1(spot: float, strike: float, maturity: float,
-            vol: float, rate: float = 0.03) -> float:
+    def _d1(
+        spot: float, strike: float, maturity: float, vol: float, rate: float = 0.03
+    ) -> float:
         if maturity <= 0 or vol <= 0:
             return 0.0
-        return (
-            np.log(spot / strike) + (rate + 0.5 * vol ** 2) * maturity
-        ) / (vol * np.sqrt(maturity))
+        return (np.log(spot / strike) + (rate + 0.5 * vol**2) * maturity) / (
+            vol * np.sqrt(maturity)
+        )
 
     @staticmethod
     def _d2(d1: float, vol: float, maturity: float) -> float:
@@ -111,7 +118,7 @@ class GreeksCalculator:
 
     @staticmethod
     def _norm_pdf(x: float) -> float:
-        return np.exp(-0.5 * x ** 2) / np.sqrt(2 * np.pi)
+        return np.exp(-0.5 * x**2) / np.sqrt(2 * np.pi)
 
     @classmethod
     def delta(cls, option: OptionInstrument, rate: float = 0.03) -> float:
@@ -121,8 +128,7 @@ class GreeksCalculator:
                 return 1.0 if option.underlying > option.strike else 0.0
             return 0.0 if option.underlying > option.strike else -1.0
 
-        d1 = cls._d1(option.underlying, option.strike, option.maturity,
-                     option.iv, rate)
+        d1 = cls._d1(option.underlying, option.strike, option.maturity, option.iv, rate)
         if option.option_type == OptionType.CALL:
             return cls._norm_cdf(d1)
         return cls._norm_cdf(d1) - 1.0
@@ -132,8 +138,7 @@ class GreeksCalculator:
         """计算 gamma。"""
         if option.maturity <= 0 or option.iv <= 0:
             return 0.0
-        d1 = cls._d1(option.underlying, option.strike, option.maturity,
-                     option.iv, rate)
+        d1 = cls._d1(option.underlying, option.strike, option.maturity, option.iv, rate)
         return cls._norm_pdf(d1) / (
             option.underlying * option.iv * np.sqrt(option.maturity)
         )
@@ -143,8 +148,7 @@ class GreeksCalculator:
         """计算 vega。"""
         if option.maturity <= 0 or option.iv <= 0:
             return 0.0
-        d1 = cls._d1(option.underlying, option.strike, option.maturity,
-                     option.iv, rate)
+        d1 = cls._d1(option.underlying, option.strike, option.maturity, option.iv, rate)
         return option.underlying * cls._norm_pdf(d1) * np.sqrt(option.maturity)
 
     @classmethod
@@ -152,23 +156,34 @@ class GreeksCalculator:
         """计算 theta。"""
         if option.maturity <= 0 or option.iv <= 0:
             return 0.0
-        d1 = cls._d1(option.underlying, option.strike, option.maturity,
-                     option.iv, rate)
+        d1 = cls._d1(option.underlying, option.strike, option.maturity, option.iv, rate)
         d2 = cls._d2(d1, option.iv, option.maturity)
 
-        first = -(
-            option.underlying * cls._norm_pdf(d1) * option.iv
-        ) / (2 * np.sqrt(option.maturity))
+        first = -(option.underlying * cls._norm_pdf(d1) * option.iv) / (
+            2 * np.sqrt(option.maturity)
+        )
 
         if option.option_type == OptionType.CALL:
-            second = -rate * option.strike * np.exp(-rate * option.maturity) * cls._norm_cdf(d2)
+            second = (
+                -rate
+                * option.strike
+                * np.exp(-rate * option.maturity)
+                * cls._norm_cdf(d2)
+            )
         else:
-            second = rate * option.strike * np.exp(-rate * option.maturity) * cls._norm_cdf(-d2)
+            second = (
+                rate
+                * option.strike
+                * np.exp(-rate * option.maturity)
+                * cls._norm_cdf(-d2)
+            )
 
         return first + second
 
     @classmethod
-    def all_greeks(cls, option: OptionInstrument, rate: float = 0.03) -> dict[GreekType, float]:
+    def all_greeks(
+        cls, option: OptionInstrument, rate: float = 0.03
+    ) -> dict[GreekType, float]:
         """计算所有希腊字母。"""
         return {
             GreekType.DELTA: cls.delta(option, rate),
@@ -182,6 +197,7 @@ class GreeksCalculator:
 # 组合希腊字母
 # ============================================================
 
+
 @dataclass
 class PortfolioGreeks:
     """组合希腊字母暴露。
@@ -192,6 +208,7 @@ class PortfolioGreeks:
         vega: 组合 vega 暴露
         theta: 组合 theta 暴露
     """
+
     delta: float = 0.0
     gamma: float = 0.0
     vega: float = 0.0
@@ -202,7 +219,7 @@ class PortfolioGreeks:
 
     def total_exposure(self) -> float:
         """总暴露 (L2 范数)。"""
-        return np.sqrt(self.delta ** 2 + self.gamma ** 2 + self.vega ** 2)
+        return np.sqrt(self.delta**2 + self.gamma**2 + self.vega**2)
 
     def to_dict(self) -> dict[str, float]:
         return {
@@ -217,6 +234,7 @@ class PortfolioGreeks:
 # 对冲智能体
 # ============================================================
 
+
 @dataclass
 class HedgeAction:
     """对冲动作。
@@ -227,6 +245,7 @@ class HedgeAction:
         greek_target: 目标希腊字母
         exposure_reduced: 减少的暴露
     """
+
     instrument: OptionInstrument | None
     quantity: float
     greek_target: GreekType
@@ -268,14 +287,18 @@ class HedgingAgent:
                 continue
 
             quantity = -portfolio_exposure / inst_exposure
-            reduction = abs(portfolio_exposure) - abs(portfolio_exposure + quantity * inst_exposure)
+            reduction = abs(portfolio_exposure) - abs(
+                portfolio_exposure + quantity * inst_exposure
+            )
 
             if reduction > best_reduction:
                 best_instrument = inst
                 best_quantity = quantity
                 best_reduction = reduction
 
-        action = HedgeAction(best_instrument, best_quantity, self.greek_type, best_reduction)
+        action = HedgeAction(
+            best_instrument, best_quantity, self.greek_type, best_reduction
+        )
         self.actions.append(action)
         return action
 
@@ -283,6 +306,7 @@ class HedgingAgent:
 # ============================================================
 # RL 权重优化器
 # ============================================================
+
 
 class RLWeightOptimizer:
     """RL 权重优化器 (进化策略).
@@ -330,6 +354,7 @@ class RLWeightOptimizer:
 # 多智能体协调器
 # ============================================================
 
+
 @dataclass
 class HedgingResult:
     """对冲结果。
@@ -340,6 +365,7 @@ class HedgingResult:
         total_reduction: 总暴露减少
         weights: 各智能体权重
     """
+
     actions: list[HedgeAction] = field(default_factory=list)
     residual_greeks: PortfolioGreeks = field(default_factory=PortfolioGreeks)
     total_reduction: float = 0.0
@@ -427,6 +453,7 @@ class MultiAgentCoordinator:
 # DeltaHedge 引擎
 # ============================================================
 
+
 class DeltaHedgeEngine:
     """DeltaHedge 多智能体期权对冲引擎.
 
@@ -453,7 +480,8 @@ class DeltaHedgeEngine:
 
         logger.debug(
             "对冲完成: reduction=%.4f, residual=%.4f",
-            result.total_reduction, result.residual_greeks.total_exposure()
+            result.total_reduction,
+            result.residual_greeks.total_exposure(),
         )
 
         return result
@@ -496,7 +524,9 @@ class DeltaHedgeEngine:
             对比结果
         """
         beta_hedge_qty = -portfolio_greeks.delta / max(index_price, 1e-8) * beta
-        beta_residual = portfolio_greeks.total_exposure() - abs(beta_hedge_qty * index_price)
+        beta_residual = portfolio_greeks.total_exposure() - abs(
+            beta_hedge_qty * index_price
+        )
 
         return {
             "beta_hedge_quantity": beta_hedge_qty,
@@ -508,6 +538,7 @@ class DeltaHedgeEngine:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示 DeltaHedge 多智能体期权优化。"""
@@ -536,9 +567,11 @@ def main() -> None:
     print(f"\n--- 对冲工具 ({len(hedge_instruments)} 个期权) ---")
     for inst in hedge_instruments:
         greeks = GreeksCalculator.all_greeks(inst)
-        print(f"  {inst.option_type.value} K={inst.strike} T={inst.maturity:.3f}: "
-              f"d={greeks[GreekType.DELTA]:.3f} g={greeks[GreekType.GAMMA]:.4f} "
-              f"v={greeks[GreekType.VEGA]:.3f}")
+        print(
+            f"  {inst.option_type.value} K={inst.strike} T={inst.maturity:.3f}: "
+            f"d={greeks[GreekType.DELTA]:.3f} g={greeks[GreekType.GAMMA]:.4f} "
+            f"v={greeks[GreekType.VEGA]:.3f}"
+        )
 
     result = engine.hedge(portfolio, hedge_instruments)
 

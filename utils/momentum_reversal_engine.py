@@ -142,7 +142,11 @@ class MomentumReversalEngine:
         result = MomentumResult()
 
         # DataFrame 不支持 bool() 求值, 用 empty 属性检查
-        if price_data is None or (hasattr(price_data, "empty") and price_data.empty) or len(price_data) == 0:
+        if (
+            price_data is None
+            or (hasattr(price_data, "empty") and price_data.empty)
+            or len(price_data) == 0
+        ):
             return result
 
         # 1. 计算时间序列动量 (TSMOM)
@@ -315,7 +319,11 @@ class MomentumReversalEngine:
                     # 成交量加权: 放量反转信号更强
                     if len(vols) > window:
                         recent_vol = float(np.mean(vols[-window:]))
-                        avg_vol = float(np.mean(vols[-min(len(vols), 60) :])) if len(vols) > 0 else 1
+                        avg_vol = (
+                            float(np.mean(vols[-min(len(vols), 60) :]))
+                            if len(vols) > 0
+                            else 1
+                        )
                         vol_ratio = recent_vol / max(avg_vol, 1e-10)
                         vol_weight = min(vol_ratio, 2.0)  # 限制 2x
                     else:
@@ -336,7 +344,9 @@ class MomentumReversalEngine:
 
         基于信号一致性 (TSMOM/XSMOM/Reversal 方向是否一致)
         """
-        tsmom_avg = (sig.tsmom_20d + sig.tsmom_60d + sig.tsmom_120d + sig.tsmom_252d) / 4
+        tsmom_avg = (
+            sig.tsmom_20d + sig.tsmom_60d + sig.tsmom_120d + sig.tsmom_252d
+        ) / 4
         xsmom_avg = (sig.xsmom_20d + sig.xsmom_60d + sig.xsmom_120d) / 3
         rev_avg = (sig.reversal_5d + sig.reversal_20d) / 2
 
@@ -349,7 +359,10 @@ class MomentumReversalEngine:
         directions = [tsmom_dir, xsmom_dir, rev_dir]
         if all(d == directions[0] for d in directions) and directions[0] != 0:
             confidence = 1.0
-        elif sum(1 for d in directions if d == max(directions, key=directions.count)) >= 2:
+        elif (
+            sum(1 for d in directions if d == max(directions, key=directions.count))
+            >= 2
+        ):
             confidence = 0.6
         else:
             confidence = 0.3
@@ -404,9 +417,15 @@ class MomentumReversalEngine:
         strengths = [s.signal_strength for s in result.signals.values()]
         result.avg_signal_strength = float(np.mean(strengths))
 
-        result.bullish_count = sum(1 for s in result.signals.values() if s.signal_strength > 0.2)
-        result.bearish_count = sum(1 for s in result.signals.values() if s.signal_strength < -0.2)
-        result.neutral_count = len(result.signals) - result.bullish_count - result.bearish_count
+        result.bullish_count = sum(
+            1 for s in result.signals.values() if s.signal_strength > 0.2
+        )
+        result.bearish_count = sum(
+            1 for s in result.signals.values() if s.signal_strength < -0.2
+        )
+        result.neutral_count = (
+            len(result.signals) - result.bullish_count - result.bearish_count
+        )
 
         # 排序获取 top long/short
         sorted_signals = sorted(
@@ -414,8 +433,12 @@ class MomentumReversalEngine:
             key=lambda s: s.signal_strength,
             reverse=True,
         )
-        result.top_long_candidates = [s.symbol for s in sorted_signals[:5] if s.signal_strength > 0.2]
-        result.top_short_candidates = [s.symbol for s in sorted_signals[-5:] if s.signal_strength < -0.2]
+        result.top_long_candidates = [
+            s.symbol for s in sorted_signals[:5] if s.signal_strength > 0.2
+        ]
+        result.top_short_candidates = [
+            s.symbol for s in sorted_signals[-5:] if s.signal_strength < -0.2
+        ]
 
         # 策略状态判断
         total = len(result.signals)
@@ -441,7 +464,11 @@ class MomentumReversalEngine:
     ) -> MomentumResult:
         """过滤低置信度信号"""
         filtered = MomentumResult()
-        filtered.signals = {sym: sig for sym, sig in result.signals.items() if sig.confidence >= min_confidence}
+        filtered.signals = {
+            sym: sig
+            for sym, sig in result.signals.items()
+            if sig.confidence >= min_confidence
+        }
         self._diagnose(filtered)
         return filtered
 

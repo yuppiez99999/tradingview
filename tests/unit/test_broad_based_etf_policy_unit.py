@@ -6,6 +6,7 @@
 测试宽基ETF政策合规校验、加减仓信号映射、计划应用、国家队资金流接入。
 所有外部依赖 (macro_policy_scoring / etf_flow_monitor) 均通过 monkeypatch mock。
 """
+
 from __future__ import annotations
 
 import sys
@@ -44,6 +45,7 @@ def _make_macro_mock(ff_scores, kc_scores, style_weights=None):
         kc_scores: {code: (cycle_score, note)}
         style_weights: dict
     """
+
     def score_fifteen_five(all_keys):
         result = {}
         for key in all_keys:
@@ -343,7 +345,11 @@ class BroadBasedEtfPolicyTest:
 
     def test_apply_adjustments_no_matching_code(self):
         # plan 中没有宽基ETF代码
-        plan = {"target_portfolio": {"600519": {"style": "白酒"}}, "position_plan": {}, "phase_summary": []}
+        plan = {
+            "target_portfolio": {"600519": {"style": "白酒"}},
+            "position_plan": {},
+            "phase_summary": [],
+        }
         flow = {"510300": {"net_flow_yi": 100.0}}
         result = apply_broad_based_adjustments_to_plan(plan, flow)
         assert result["applied"] is False
@@ -352,7 +358,12 @@ class BroadBasedEtfPolicyTest:
         # info 没有 target_amount 键 → 不计算
         plan = {
             "target_portfolio": {
-                "510300": {"name": "测试", "style": "宽基", "est_price": 0, "lots": 100},
+                "510300": {
+                    "name": "测试",
+                    "style": "宽基",
+                    "est_price": 0,
+                    "lots": 100,
+                },
             },
             "position_plan": {},
             "phase_summary": [],
@@ -555,6 +566,7 @@ class BroadBasedEtfPolicyTest:
         class _MockTracker:
             def __init__(self):
                 pass
+
             def get_all_etf_fund_flows(self):
                 return {"510300": {"net_flow_yi": 100.0}}
 
@@ -575,6 +587,7 @@ class BroadBasedEtfPolicyTest:
         class _BadTracker:
             def __init__(self):
                 pass
+
             def get_all_etf_fund_flows(self):
                 raise ConnectionError("network down")
 
@@ -609,6 +622,7 @@ class BroadBasedEtfPolicyTest:
     def test_adjust_plan_exception(self, monkeypatch):
         def _raise():
             raise RuntimeError("fetch failed")
+
         monkeypatch.setattr(bbep, "fetch_national_team_flow_signals", _raise)
         plan = {"target_portfolio": {}}
         result = adjust_plan_with_national_team_flow(plan)

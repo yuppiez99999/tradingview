@@ -13,8 +13,16 @@
 
 from __future__ import annotations
 
-from .factor_scorer import batch_compute_factors, cross_sectional_score, industry_neutralize
-from .portfolio_builder import LayeredPortfolio, PortfolioConfig, build_layered_portfolio
+from .factor_scorer import (
+    batch_compute_factors,
+    cross_sectional_score,
+    industry_neutralize,
+)
+from .portfolio_builder import (
+    LayeredPortfolio,
+    PortfolioConfig,
+    build_layered_portfolio,
+)
 from .report_generator import generate_full_report
 from .risk_filter import RiskFilterConfig, filter_universe
 from .scheduler import run_daily_scan

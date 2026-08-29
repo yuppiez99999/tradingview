@@ -1,4 +1,5 @@
 """T08: Noise Injection 稳定性测试单元测试."""
+
 from __future__ import annotations
 
 import sys
@@ -65,8 +66,12 @@ class TestStabilityDetection:
         """噪音比例越高, 稳定性越差."""
         np.random.seed(42)
         rets = np.random.normal(0.001, 0.02, 504).tolist()
-        r_low = run_noise_injection_test(rets, noise_ratio=0.05, n_trials=100, random_seed=42)
-        r_high = run_noise_injection_test(rets, noise_ratio=0.5, n_trials=100, random_seed=42)
+        r_low = run_noise_injection_test(
+            rets, noise_ratio=0.05, n_trials=100, random_seed=42
+        )
+        r_high = run_noise_injection_test(
+            rets, noise_ratio=0.5, n_trials=100, random_seed=42
+        )
         # 高噪音下 P5 应更低
         assert r_high.sharpe_p5 < r_low.sharpe_p5
 

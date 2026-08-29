@@ -99,7 +99,9 @@ class CircuitBreakerAdapter:
         """基于熔断状态生成决策."""
         try:
             # 检查熔断器是否允许请求
-            allowed = self._cb.allow_request() if hasattr(self._cb, "allow_request") else True
+            allowed = (
+                self._cb.allow_request() if hasattr(self._cb, "allow_request") else True
+            )
 
             if not allowed:
                 # 熔断 OPEN, 禁止新请求
@@ -126,8 +128,16 @@ class CircuitBreakerAdapter:
                 confidence=0.9,
                 source=self.module_name,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OverflowError,
+            OSError,
+        ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
             # 风险隔离边界: 任何风险模块异常不得阻断主链路
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失
@@ -186,7 +196,7 @@ class VaRMonitorAdapter:
                     source=self.module_name,
                     reduce_pct=0.20,
                 )
-            elif var_type == "var_95":
+            if var_type == "var_95":
                 # 95% VaR 超限 → 减仓 10%
                 return RiskDecision(
                     action=RiskAction.REDUCE_POSITION,
@@ -195,7 +205,7 @@ class VaRMonitorAdapter:
                     source=self.module_name,
                     reduce_pct=0.10,
                 )
-            elif var_type == "cvar_99":
+            if var_type == "cvar_99":
                 # 99% CVaR 超限 → 减仓 20% (与 var_99 一致)
                 return RiskDecision(
                     action=RiskAction.REDUCE_POSITION,
@@ -204,7 +214,7 @@ class VaRMonitorAdapter:
                     source=self.module_name,
                     reduce_pct=0.20,
                 )
-            elif var_type == "cvar_95":
+            if var_type == "cvar_95":
                 # 95% CVaR 超限 → 减仓 10% (与 var_95 一致)
                 return RiskDecision(
                     action=RiskAction.REDUCE_POSITION,
@@ -220,8 +230,16 @@ class VaRMonitorAdapter:
                 confidence=0.5,
                 source=self.module_name,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OverflowError,
+            OSError,
+        ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
             # 风险隔离边界: 任何风险模块异常不得阻断主链路
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失
@@ -280,7 +298,7 @@ class OvernightGapAdapter:
                     confidence=0.95,
                     source=self.module_name,
                 )
-            elif level == 2:
+            if level == 2:
                 # L2 禁止开仓
                 return RiskDecision(
                     action=RiskAction.DISABLE_NEW_ORDERS,
@@ -288,7 +306,7 @@ class OvernightGapAdapter:
                     confidence=0.9,
                     source=self.module_name,
                 )
-            elif level == 1:
+            if level == 1:
                 # L1 预警 (仅观察)
                 return RiskDecision(
                     action=RiskAction.PASS,
@@ -303,8 +321,16 @@ class OvernightGapAdapter:
                 confidence=0.9,
                 source=self.module_name,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OverflowError,
+            OSError,
+        ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
             # 风险隔离边界: 任何风险模块异常不得阻断主链路
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失
@@ -366,7 +392,7 @@ class RiskGuardAdapter:
                         source=self.module_name,
                         reduce_pct=0.10,
                     )
-                elif weight > threshold:
+                if weight > threshold:
                     # 一般超限 → 减仓 5%
                     return RiskDecision(
                         action=RiskAction.REDUCE_POSITION,
@@ -391,8 +417,16 @@ class RiskGuardAdapter:
                 confidence=0.9,
                 source=self.module_name,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OverflowError,
+            OSError,
+        ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
             # 风险隔离边界: 任何风险模块异常不得阻断主链路
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失
@@ -469,8 +503,16 @@ class RiskModuleRegistry:
             adapter.register(bus)
             self._adapters[adapter.module_name] = adapter
             results[adapter.module_name] = True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OverflowError,
+            OSError,
+        ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
             # 风险隔离边界: 任何风险模块异常不得阻断主链路
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失
@@ -486,8 +528,16 @@ class RiskModuleRegistry:
             adapter.register(bus)
             self._adapters[adapter.module_name] = adapter
             results[adapter.module_name] = True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OverflowError,
+            OSError,
+        ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
             # 风险隔离边界: 任何风险模块异常不得阻断主链路
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失
@@ -503,8 +553,16 @@ class RiskModuleRegistry:
             adapter.register(bus)
             self._adapters[adapter.module_name] = adapter
             results[adapter.module_name] = True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OverflowError,
+            OSError,
+        ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
             # 风险隔离边界: 任何风险模块异常不得阻断主链路
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失
@@ -520,8 +578,16 @@ class RiskModuleRegistry:
             adapter.register(bus)
             self._adapters[adapter.module_name] = adapter
             results[adapter.module_name] = True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            ZeroDivisionError,
+            OverflowError,
+            OSError,
+        ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
             # 风险隔离边界: 任何风险模块异常不得阻断主链路
             # ValueError/TypeError — 数据格式/类型错误
             # KeyError/AttributeError — 字段/属性缺失

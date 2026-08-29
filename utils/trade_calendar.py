@@ -62,13 +62,15 @@ _MAX_TRADING_DAYS_PER_YEAR = 250
 # 公历日期固定的法定节假日 (月, 日)。
 # 春节/清明/端午/中秋依农历浮动, 无法硬编码, 只能依赖真实日历数据;
 # 此表仅用于 L1 校验与 L2 兜底, 覆盖"必然非交易日"的确定性子集。
-_FIXED_HOLIDAYS: frozenset[tuple[int, int]] = frozenset({
-    (1, 1),    # 元旦
-    (5, 1),    # 劳动节
-    (10, 1),   # 国庆节
-    (10, 2),
-    (10, 3),
-})
+_FIXED_HOLIDAYS: frozenset[tuple[int, int]] = frozenset(
+    {
+        (1, 1),  # 元旦
+        (5, 1),  # 劳动节
+        (10, 1),  # 国庆节
+        (10, 2),
+        (10, 3),
+    }
+)
 
 
 def _validate_year_dates(year: int, dates: set[str]) -> tuple[bool, str]:
@@ -114,7 +116,10 @@ def _validate_year_dates(year: int, dates: set[str]) -> tuple[bool, str]:
     if weekend_hits:
         return False, f"含周末 {len(weekend_hits)} 天, 例: {sorted(weekend_hits)[:3]}"
     if holiday_hits:
-        return False, f"含法定节假日 {len(holiday_hits)} 天, 例: {sorted(holiday_hits)[:3]}"
+        return (
+            False,
+            f"含法定节假日 {len(holiday_hits)} 天, 例: {sorted(holiday_hits)[:3]}",
+        )
 
     return True, ""
 
@@ -141,7 +146,17 @@ def _fetch_trade_dates_via_akshare(year: int) -> set[str] | None:
         dates = df[col].astype(str).str[:10].tolist()
         year_dates = {d for d in dates if d.startswith(str(year))}
         return year_dates if year_dates else None
-    except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ImportError,
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"[trade_calendar] akshare 拉取失败 (year={year}): {e}")
         return None
 
@@ -159,7 +174,16 @@ def _load_year_dates(year: int, allow_fetch: bool = True) -> set[str]:
         try:
             with open(cache_file, encoding="utf-8") as f:
                 cached = set(json.load(f))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             cached = None
 
         if cached is not None:
@@ -192,12 +216,23 @@ def _load_year_dates(year: int, allow_fetch: bool = True) -> set[str]:
             with open(cache_file, "w", encoding="utf-8") as f:
                 json.dump(sorted(dates), f, ensure_ascii=False, indent=2)
             logger.info(f"[trade_calendar] 缓存 {year} 年交易日: {len(dates)} 天")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
         return dates
 
     # 回退: 周一到周五即交易日 (无法联网时的兜底)
-    logger.warning(f"[trade_calendar] 警告: 无法获取 {year} 年交易日历, 回退到周一至周五模式")
+    logger.warning(
+        f"[trade_calendar] 警告: 无法获取 {year} 年交易日历, 回退到周一至周五模式"
+    )
     return set()
 
 

@@ -35,6 +35,7 @@
     conn = QmtConnector(QmtConfig(paper_mode=False, account_id="...", qmt_path="..."))
     conn.connect()  # 委托 QmtBrokerAPI
 """
+
 from __future__ import annotations
 
 import json
@@ -55,6 +56,7 @@ logger = logging.getLogger("qmt_connector")
 # 异常类
 # ============================================================
 
+
 class QmtConnectorError(Exception):
     """QMT 连接器基础异常."""
 
@@ -70,6 +72,7 @@ class QmtLiveModeDisabledError(QmtConnectorError):
 # ============================================================
 # 配置 & 状态
 # ============================================================
+
 
 class ConnectorState(Enum):
     """连接器状态机: IDLE → CONNECTED → DISCONNECTED."""
@@ -131,6 +134,7 @@ class PaperOrder:
 # Paper Trading 内存订单簿
 # ============================================================
 
+
 class _PaperOrderBook:
     """paper 模式内存订单簿 — 维护订单/持仓/账户.
 
@@ -145,13 +149,20 @@ class _PaperOrderBook:
     def __init__(self, config: QmtConfig) -> None:
         self._cfg = config
         self._orders: dict[str, PaperOrder] = {}
-        self._positions: dict[str, dict[str, Any]] = {}  # {symbol: {qty, avg_price, buy_date}}
+        self._positions: dict[str, dict[str, Any]] = (
+            {}
+        )  # {symbol: {qty, avg_price, buy_date}}
         self._cash = config.initial_capital
         self._market_value = 0.0
         self._today = datetime.now(UTC).strftime("%Y-%m-%d")
 
     def place_order(
-        self, symbol: str, side: str, qty: int, price: float, order_type: str = "limit",
+        self,
+        symbol: str,
+        side: str,
+        qty: int,
+        price: float,
+        order_type: str = "limit",
     ) -> PaperOrder:
         oid = f"PAPER-{uuid.uuid4().hex[:12]}"
         now = datetime.now(UTC).isoformat()
@@ -164,26 +175,44 @@ class _PaperOrderBook:
         if side.upper() == "BUY":
             if self._cash < notional + fee:
                 order = PaperOrder(
-                    broker_order_id=oid, symbol=symbol, side=side, qty=qty,
-                    price=price, order_type=order_type, state="REJECTED",
-                    rejection_reason="资金不足", created_at=now,
+                    broker_order_id=oid,
+                    symbol=symbol,
+                    side=side,
+                    qty=qty,
+                    price=price,
+                    order_type=order_type,
+                    state="REJECTED",
+                    rejection_reason="资金不足",
+                    created_at=now,
                 )
                 self._orders[oid] = order
                 return order
             self._cash -= notional + fee
-            pos = self._positions.get(symbol, {"qty": 0, "avg_price": 0.0, "buy_date": self._today})
+            pos = self._positions.get(
+                symbol, {"qty": 0, "avg_price": 0.0, "buy_date": self._today}
+            )
             old_cost = pos["qty"] * pos["avg_price"]
             pos["qty"] += qty
-            pos["avg_price"] = (old_cost + notional) / pos["qty"] if pos["qty"] != 0 else 0.0
+            pos["avg_price"] = (
+                (old_cost + notional) / pos["qty"] if pos["qty"] != 0 else 0.0
+            )
             pos["buy_date"] = self._today
             self._positions[symbol] = pos
         else:
-            pos = self._positions.get(symbol, {"qty": 0, "avg_price": 0.0, "buy_date": ""})
+            pos = self._positions.get(
+                symbol, {"qty": 0, "avg_price": 0.0, "buy_date": ""}
+            )
             if pos["qty"] < qty:
                 order = PaperOrder(
-                    broker_order_id=oid, symbol=symbol, side=side, qty=qty,
-                    price=price, order_type=order_type, state="REJECTED",
-                    rejection_reason="持仓不足", created_at=now,
+                    broker_order_id=oid,
+                    symbol=symbol,
+                    side=side,
+                    qty=qty,
+                    price=price,
+                    order_type=order_type,
+                    state="REJECTED",
+                    rejection_reason="持仓不足",
+                    created_at=now,
                 )
                 self._orders[oid] = order
                 return order
@@ -194,10 +223,17 @@ class _PaperOrderBook:
             self._positions[symbol] = pos
 
         order = PaperOrder(
-            broker_order_id=oid, symbol=symbol, side=side, qty=qty,
-            price=price, order_type=order_type, state="FILLED",
-            filled_qty=qty, avg_fill_price=fill_price,
-            created_at=now, filled_at=now,
+            broker_order_id=oid,
+            symbol=symbol,
+            side=side,
+            qty=qty,
+            price=price,
+            order_type=order_type,
+            state="FILLED",
+            filled_qty=qty,
+            avg_fill_price=fill_price,
+            created_at=now,
+            filled_at=now,
         )
         self._orders[oid] = order
         return order
@@ -212,7 +248,12 @@ class _PaperOrderBook:
     def get_order_status(self, broker_order_id: str) -> dict[str, Any]:
         order = self._orders.get(broker_order_id)
         if order is None:
-            return {"state": "NOT_FOUND", "filled_qty": 0, "avg_price": 0.0, "rejection_reason": "订单不存在"}
+            return {
+                "state": "NOT_FOUND",
+                "filled_qty": 0,
+                "avg_price": 0.0,
+                "rejection_reason": "订单不存在",
+            }
         return {
             "state": order.state,
             "filled_qty": order.filled_qty,
@@ -221,7 +262,11 @@ class _PaperOrderBook:
         }
 
     def get_positions(self) -> dict[str, dict[str, Any]]:
-        return {sym: {"qty": p["qty"], "avg_price": p["avg_price"]} for sym, p in self._positions.items() if p["qty"] != 0}
+        return {
+            sym: {"qty": p["qty"], "avg_price": p["avg_price"]}
+            for sym, p in self._positions.items()
+            if p["qty"] != 0
+        }
 
     def get_account(self) -> dict[str, Any]:
         mv = sum(p["qty"] * p["avg_price"] for p in self._positions.values())
@@ -238,6 +283,7 @@ class _PaperOrderBook:
 # ============================================================
 # 主类 — QmtConnector (实现 BrokerProtocol)
 # ============================================================
+
 
 class QmtConnector:
     """QMT 券商连接器 — paper trading 骨架 + live 委托.
@@ -276,14 +322,29 @@ class QmtConnector:
         try:
             if self._cfg.paper_mode:
                 self._paper_book = _PaperOrderBook(self._cfg)
-                logger.info("QmtConnector paper 模式就绪 (initial_capital=%.2f)", self._cfg.initial_capital)
+                logger.info(
+                    "QmtConnector paper 模式就绪 (initial_capital=%.2f)",
+                    self._cfg.initial_capital,
+                )
             else:
                 self._live_broker = self._connect_live()
             self._state = ConnectorState.CONNECTED
             self._connect_latency_ms = (time.perf_counter() - t0) * 1000.0
-            self._audit("connect", {"paper_mode": self._cfg.paper_mode, "latency_ms": round(self._connect_latency_ms, 2)})
+            self._audit(
+                "connect",
+                {
+                    "paper_mode": self._cfg.paper_mode,
+                    "latency_ms": round(self._connect_latency_ms, 2),
+                },
+            )
             return True
-        except (QmtConnectorError, OSError, RuntimeError, ValueError, TimeoutError) as exc:
+        except (
+            QmtConnectorError,
+            OSError,
+            RuntimeError,
+            ValueError,
+            TimeoutError,
+        ) as exc:
             self._state = ConnectorState.ERROR
             self._last_error = f"{type(exc).__name__}: {exc}"
             logger.error("QmtConnector connect 失败: %s", self._last_error)
@@ -297,14 +358,22 @@ class QmtConnector:
             from utils.execution.broker_factory import get_broker
         except ImportError as exc:
             raise QmtConnectorError(f"broker_factory 导入失败: {exc}") from exc
-        broker = get_broker({
-            "type": "qmt", "enabled": True, "dry_run": False,
-            "account_id": self._cfg.account_id, "session_id": self._cfg.session_id,
-            "account_type": self._cfg.account_type, "qmt_path": self._cfg.qmt_path,
-            "connect_timeout": self._cfg.connect_timeout,
-        })
+        broker = get_broker(
+            {
+                "type": "qmt",
+                "enabled": True,
+                "dry_run": False,
+                "account_id": self._cfg.account_id,
+                "session_id": self._cfg.session_id,
+                "account_type": self._cfg.account_type,
+                "qmt_path": self._cfg.qmt_path,
+                "connect_timeout": self._cfg.connect_timeout,
+            }
+        )
         if not getattr(broker, "is_live", False):
-            raise QmtConnectorError("broker_factory 返回非实盘 broker (可能 xtquant 未安装)")
+            raise QmtConnectorError(
+                "broker_factory 返回非实盘 broker (可能 xtquant 未安装)"
+            )
         return broker
 
     def disconnect(self) -> None:
@@ -332,19 +401,45 @@ class QmtConnector:
     # --------------------------------------------------------
 
     def place_order(
-        self, symbol: str, side: str, qty: int, price: float, order_type: str = "limit",
+        self,
+        symbol: str,
+        side: str,
+        qty: int,
+        price: float,
+        order_type: str = "limit",
     ) -> str:
         """提交订单, 返回 broker_order_id."""
         if self._state != ConnectorState.CONNECTED:
-            raise QmtNotConnectedError(f"连接器状态={self._state.value}, 需先 connect()")
+            raise QmtNotConnectedError(
+                f"连接器状态={self._state.value}, 需先 connect()"
+            )
         if self._cfg.paper_mode and self._paper_book is not None:
             order = self._paper_book.place_order(symbol, side, qty, price, order_type)
-            self._audit("place_order", {"oid": order.broker_order_id, "symbol": symbol, "side": side,
-                                        "qty": qty, "price": price, "state": order.state})
+            self._audit(
+                "place_order",
+                {
+                    "oid": order.broker_order_id,
+                    "symbol": symbol,
+                    "side": side,
+                    "qty": qty,
+                    "price": price,
+                    "state": order.state,
+                },
+            )
             return order.broker_order_id
         if self._live_broker is not None:
             oid = self._live_broker.place_order(symbol, side, qty, price, order_type)
-            self._audit("place_order", {"oid": oid, "symbol": symbol, "side": side, "qty": qty, "price": price, "live": True})
+            self._audit(
+                "place_order",
+                {
+                    "oid": oid,
+                    "symbol": symbol,
+                    "side": side,
+                    "qty": qty,
+                    "price": price,
+                    "live": True,
+                },
+            )
             return oid
         raise QmtNotConnectedError("无可用 broker (paper_book/live_broker 均为 None)")
 
@@ -367,7 +462,12 @@ class QmtConnector:
             return self._paper_book.get_order_status(broker_order_id)
         if self._live_broker is not None:
             return self._live_broker.get_order_status(broker_order_id)
-        return {"state": "NOT_CONNECTED", "filled_qty": 0, "avg_price": 0.0, "rejection_reason": "连接器未连接"}
+        return {
+            "state": "NOT_CONNECTED",
+            "filled_qty": 0,
+            "avg_price": 0.0,
+            "rejection_reason": "连接器未连接",
+        }
 
     # --------------------------------------------------------
     # 扩展接口 (T15-T18 实盘验证四件套)

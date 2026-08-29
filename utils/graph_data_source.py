@@ -45,7 +45,9 @@ def _ensure_utf8_stream() -> None:
         if buffer is None:
             continue
         try:
-            setattr(sys, name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace"))
+            setattr(
+                sys, name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace")
+            )
         except (ValueError, TypeError, KeyError, AttributeError, OSError):
             pass
 
@@ -80,8 +82,9 @@ _EM_INTERVAL = 0.6
 _EM_RETRIES = 4
 
 # 板块成分股本地缓存文件（减少东财请求，避免被限流）
-_BOARD_CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                 "..", "cache", "graph_board_stocks.json")
+_BOARD_CACHE_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "cache", "graph_board_stocks.json"
+)
 
 
 def _safe_float(val: Any, default: float = 0.0) -> float:
@@ -127,8 +130,14 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # 内部工具
     # ----------------------------------------------------------
-    def _get(self, url: str, params: dict[str, Any], headers: Optional[dict[str, Any]] = None,
-             source: str = "eastmoney_push2", timeout: int = 10) -> Any:
+    def _get(
+        self,
+        url: str,
+        params: dict[str, Any],
+        headers: Optional[dict[str, Any]] = None,
+        source: str = "eastmoney_push2",
+        timeout: int = 10,
+    ) -> Any:
         """GET 请求带限速 + 重试 + 健康记录.
 
         实测东财 push2 `stock/get` 偶发 `RemoteDisconnected`（TCP 连接被重置），
@@ -141,7 +150,9 @@ class GraphDataSource:
             if attempt > 0:
                 time.sleep(_EM_INTERVAL * (attempt + 1))  # 递增退避
             try:
-                r = self._session.get(url, params=params, headers=sess_headers, timeout=timeout)
+                r = self._session.get(
+                    url, params=params, headers=sess_headers, timeout=timeout
+                )
                 r.raise_for_status()
                 data = r.json()
                 # 偶发空响应 → 重试
@@ -155,7 +166,9 @@ class GraphDataSource:
             except requests.exceptions.ConnectionError as exc:
                 # 连接重置: 关闭失效 Session, 下次用全新连接 (实测东财会拒绝复用被重置的连接)
                 last_exc = exc
-                logger.debug(f"{source} 连接重置(第{attempt + 1}次): {exc}, 重建Session")
+                logger.debug(
+                    f"{source} 连接重置(第{attempt + 1}次): {exc}, 重建Session"
+                )
                 try:
                     self._session.close()
                 except (ValueError, TypeError, KeyError, AttributeError, OSError):
@@ -163,7 +176,14 @@ class GraphDataSource:
                 self._session = requests.Session()
                 self._session.headers.update(_EM_HEADERS)
                 time.sleep(_EM_INTERVAL * (attempt + 2))
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as exc:
                 last_exc = exc
                 logger.debug(f"{source} 请求失败(第{attempt + 1}次): {exc}")
                 time.sleep(_EM_INTERVAL * (attempt + 1))
@@ -195,6 +215,7 @@ class GraphDataSource:
         Returns:
             {name, code, industry, industry_code, region, concepts(str)} 或 None
         """
+
         def _fetch() -> Optional[dict[str, Any]]:
             boards = self.get_stock_boards(code)
             if not boards:
@@ -283,11 +304,13 @@ class GraphDataSource:
                 name = str(item.get("f14", ""))
                 if not name or name == "None":
                     continue
-                blocks.append({
-                    "code": code,
-                    "name": name,
-                    "category": _classify(name, code),
-                })
+                blocks.append(
+                    {
+                        "code": code,
+                        "name": name,
+                        "category": _classify(name, code),
+                    }
+                )
             return blocks
 
         return self._cached(f"boards:{code}", _fetch)
@@ -323,8 +346,9 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # 板块成分股 (扩大 universe 用)
     # ----------------------------------------------------------
-    def fetch_board_stocks(self, board_code: str, limit: int = 100,
-                           cache_ttl: int = 86400) -> list[dict[str, str]]:
+    def fetch_board_stocks(
+        self, board_code: str, limit: int = 100, cache_ttl: int = 86400
+    ) -> list[dict[str, str]]:
         """东财拉取板块成分股 (BK 板块), 带行业标签, 本地文件缓存.
 
         东财 push2 实测间歇性 RemoteDisconnected, 故用本地缓存减少请求,
@@ -368,11 +392,13 @@ class GraphDataSource:
                 code = str(it.get("f12", ""))
                 name = str(it.get("f14", ""))
                 if code:
-                    rows.append({
-                        "code": code,
-                        "name": name,
-                        "industry": str(it.get("f100", "") or ""),
-                    })
+                    rows.append(
+                        {
+                            "code": code,
+                            "name": name,
+                            "industry": str(it.get("f100", "") or ""),
+                        }
+                    )
             if rows:
                 self._save_board_cache(cache_key, rows)  # 回写本地
             return rows
@@ -388,6 +414,7 @@ class GraphDataSource:
             if time.time() - path.stat().st_mtime > ttl:
                 return []
             import json as _json
+
             data = _json.loads(path.read_text(encoding="utf-8"))
             rows = data.get(key, [])
             return rows if isinstance(rows, list) else []
@@ -398,17 +425,32 @@ class GraphDataSource:
         """写本地板块成分股缓存 (JSON)."""
         try:
             import json as _json
+
             path = Path(_BOARD_CACHE_FILE)
             data = {}
             if path.exists():
                 try:
                     data = _json.loads(path.read_text(encoding="utf-8"))
-                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+                except (
+                    ValueError,
+                    KeyError,
+                    TypeError,
+                    AttributeError,
+                    OSError,
+                    RuntimeError,
+                ):
                     data = {}
             data[key] = rows
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(_json.dumps(data, ensure_ascii=False), encoding="utf-8")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as exc:
             logger.debug(f"板块缓存写入失败: {exc}")
 
     # ----------------------------------------------------------
@@ -455,8 +497,18 @@ class GraphDataSource:
                 elif mtype == "2":
                     industry_sets[item] = max(industry_sets.get(item, 0), ratio)
             # 按营收占比降序取主要构成 (最多 6 个)
-            products = [k for k, _ in sorted(product_sets.items(), key=lambda kv: kv[1], reverse=True)][:6]
-            industries = [k for k, _ in sorted(industry_sets.items(), key=lambda kv: kv[1], reverse=True)][:6]
+            products = [
+                k
+                for k, _ in sorted(
+                    product_sets.items(), key=lambda kv: kv[1], reverse=True
+                )
+            ][:6]
+            industries = [
+                k
+                for k, _ in sorted(
+                    industry_sets.items(), key=lambda kv: kv[1], reverse=True
+                )
+            ][:6]
             review = ""
             for j in d.get("jyps") or []:
                 rev = j.get("BUSINESS_REVIEW", "")
@@ -501,6 +553,7 @@ class GraphDataSource:
             if time.time() - path.stat().st_mtime > ttl:
                 return None
             import json as _json
+
             data = _json.loads(path.read_text(encoding="utf-8"))
             return data.get(key)
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
@@ -509,7 +562,9 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # GNN 边构建 — 与 SupplyChainEdge 对齐
     # ----------------------------------------------------------
-    def build_concept_edges(self, symbols: list[str], min_concept_share: int = 1) -> list[dict[str, Any]]:
+    def build_concept_edges(
+        self, symbols: list[str], min_concept_share: int = 1
+    ) -> list[dict[str, Any]]:
         """基于概念板块共享构建 PARTNER 边（同概念两两连边）.
 
         Returns:
@@ -530,13 +585,16 @@ class GraphDataSource:
                 shared = symbol_concepts[a] & symbol_concepts[b]
                 if len(shared) >= min_concept_share:
                     strength = min(1.0, len(shared) / 5.0)  # 共享概念越多强度越高
-                    edges.append({
-                        "source": a,
-                        "target": b,
-                        "relation_type": "PARTNER",
-                        "strength": round(strength, 3),
-                        "source_info": "concept_shared:" + ",".join(sorted(shared)[:3]),
-                    })
+                    edges.append(
+                        {
+                            "source": a,
+                            "target": b,
+                            "relation_type": "PARTNER",
+                            "strength": round(strength, 3),
+                            "source_info": "concept_shared:"
+                            + ",".join(sorted(shared)[:3]),
+                        }
+                    )
         return edges
 
     def build_industry_edges(self, symbols: list[str]) -> list[dict[str, Any]]:
@@ -557,16 +615,20 @@ class GraphDataSource:
             for j in range(i + 1, len(codes)):
                 a, b = codes[i], codes[j]
                 if symbol_industry[a] == symbol_industry[b]:
-                    edges.append({
-                        "source": a,
-                        "target": b,
-                        "relation_type": "COMPETITOR",
-                        "strength": 0.7,
-                        "source_info": f"industry_shared:{symbol_industry[a]}",
-                    })
+                    edges.append(
+                        {
+                            "source": a,
+                            "target": b,
+                            "relation_type": "COMPETITOR",
+                            "strength": 0.7,
+                            "source_info": f"industry_shared:{symbol_industry[a]}",
+                        }
+                    )
         return edges
 
-    def build_thematic_edges(self, date: Optional[str] = None, min_shared: int = 1) -> list[dict[str, Any]]:
+    def build_thematic_edges(
+        self, date: Optional[str] = None, min_shared: int = 1
+    ) -> list[dict[str, Any]]:
         """基于当日题材共享构建 PARTNER 边（同题材两两连边）.
 
         Returns:
@@ -593,16 +655,20 @@ class GraphDataSource:
                     if pair in seen:
                         continue
                     seen.add(pair)
-                    edges.append({
-                        "source": pair[0],
-                        "target": pair[1],
-                        "relation_type": "PARTNER",
-                        "strength": 0.5,
-                        "source_info": f"theme:{tag}",
-                    })
+                    edges.append(
+                        {
+                            "source": pair[0],
+                            "target": pair[1],
+                            "relation_type": "PARTNER",
+                            "strength": 0.5,
+                            "source_info": f"theme:{tag}",
+                        }
+                    )
         return edges
 
-    def build_main_business_edges(self, symbols: list[str], min_shared: int = 1) -> list[dict[str, Any]]:
+    def build_main_business_edges(
+        self, symbols: list[str], min_shared: int = 1
+    ) -> list[dict[str, Any]]:
         """基于主营构成 (东财 F10) 构建 PARTNER 边 — 供应商-客户边的最佳免费近似.
 
         免费数据源无法获取真实「前五大客户/供应商名单」, 但主营构成 (分产品/分行业
@@ -612,7 +678,9 @@ class GraphDataSource:
         Returns:
             [{source, target, relation_type, strength, source_info}]
         """
-        symbol_tags: dict[str, dict[str, str]] = {}  # code -> {tag: type(product/industry)}
+        symbol_tags: dict[str, dict[str, str]] = (
+            {}
+        )  # code -> {tag: type(product/industry)}
         for code in symbols:
             mb = self.fetch_main_business(code)
             if not mb:
@@ -642,18 +710,24 @@ class GraphDataSource:
                 seen.add(pair)
                 # 主营标签重叠越多, 产业链关联越强
                 strength = min(1.0, 0.4 + 0.15 * len(shared))
-                edges.append({
-                    "source": pair[0],
-                    "target": pair[1],
-                    "relation_type": "PARTNER",
-                    "strength": round(strength, 3),
-                    "source_info": "main_business:" + ",".join(sorted(shared)[:3]),
-                })
+                edges.append(
+                    {
+                        "source": pair[0],
+                        "target": pair[1],
+                        "relation_type": "PARTNER",
+                        "strength": round(strength, 3),
+                        "source_info": "main_business:" + ",".join(sorted(shared)[:3]),
+                    }
+                )
         return edges
 
-    def build_graph_edges(self, symbols: list[str], include_themes: bool = True,
-                          include_main_business: bool = True,
-                          date: Optional[str] = None) -> list[dict[str, Any]]:
+    def build_graph_edges(
+        self,
+        symbols: list[str],
+        include_themes: bool = True,
+        include_main_business: bool = True,
+        date: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
         """一键构建 GNN 关系网全部边（行业 + 概念 + 题材 + 主营构成）.
 
         Args:
@@ -697,13 +771,19 @@ if __name__ == "__main__":
     for c in test_codes:
         info = ds.get_industry_relationship(c)
         if info:
-            logger.info(f"[行业] {info['name']}({c}) 行业={info['industry']} 地域={info['region']}")
-            logger.info(f"        概念({len(ds.get_concept_blocks(c))}): {ds.get_concept_blocks(c)[:6]}")
+            logger.info(
+                f"[行业] {info['name']}({c}) 行业={info['industry']} 地域={info['region']}"
+            )
+            logger.info(
+                f"        概念({len(ds.get_concept_blocks(c))}): {ds.get_concept_blocks(c)[:6]}"
+            )
         else:
             logger.error(f"[FAIL] {c} 无行业数据")
         boards = ds.get_stock_boards(c)
         if boards:
-            logger.info(f"        板块({len(boards)}): {[(b['name'], b['code']) for b in boards[:4]]}")
+            logger.info(
+                f"        板块({len(boards)}): {[(b['name'], b['code']) for b in boards[:4]]}"
+            )
         time.sleep(_EM_INTERVAL)
 
     logger.info("=" * 70)
@@ -712,4 +792,6 @@ if __name__ == "__main__":
     edges = ds.build_graph_edges(test_codes, include_themes=True)
     logger.info(f"构建边总数: {len(edges)}")
     for e in edges[:10]:
-        logger.info(f"  {e['source']} --{e['relation_type']}--> {e['target']} (strength={e['strength']}, {e['source_info']})")
+        logger.info(
+            f"  {e['source']} --{e['relation_type']}--> {e['target']} (strength={e['strength']}, {e['source_info']})"
+        )

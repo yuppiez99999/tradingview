@@ -30,7 +30,114 @@ from unsloth_zoo.temporary_patches.common import torch_compile
 from unsloth_zoo.temporary_patches.common import _maybe_compile
 import functools
 from typing import Any, List, Optional, Tuple, Union, Dict, Set, Callable
-from trl.trainer.ppo_trainer import (Accelerator, BaseImageProcessor, BaseTrainer, CallbackHandler, DEFAULT_CALLBACKS, DEFAULT_PROGRESS_CALLBACK, DataCollatorWithPadding, DataLoader, Dataset, ExportableState, FeatureExtractionMixin, GenerationConfig, INVALID_LOGPROB, OnlineTrainerState, Optional, PPOConfig, PPOTrainer, Path, PeftConfig, PeftModel, PolicyAndValueWrapper, PreTrainedTokenizerBase, PrinterCallback, ProcessorMixin, TrainerCallback, TrainerControl, Union, batch_generation, broadcast, contextmanager, create_reference_model, defaultdict, disable_dropout_in_model, empty_cache, exact_div, first_true_indices, forward, gather_object, gc, get_peft_model, get_reporting_integration_callbacks, get_reward, is_peft_available, is_rich_available, log_table_to_comet_experiment, masked_mean, masked_whiten, math, nn, np, nullcontext, os, pd, peft_module_casting_to_bf16, prepare_deepspeed, print_rich_table, selective_log_softmax, textwrap, time, torch, truncate_response, unwrap_model_for_generation, warnings, Accelerator, BaseImageProcessor, CallbackHandler, DEFAULT_CALLBACKS, DEFAULT_PROGRESS_CALLBACK, DataCollatorWithPadding, DataLoader, Dataset, ExportableState, FeatureExtractionMixin, OnlineTrainerState, Optional, PPOConfig, PeftConfig, PeftModel, PolicyAndValueWrapper, PreTrainedTokenizerBase, PrinterCallback, ProcessorMixin, TrainerCallback, TrainerControl, Union, broadcast, create_reference_model, disable_dropout_in_model, exact_div, forward, get_peft_model, get_reporting_integration_callbacks, is_peft_available, math, nn, os, pd, peft_module_casting_to_bf16, prepare_deepspeed, time, torch, warnings, PeftModel, is_peft_available, os, torch)
+from trl.trainer.ppo_trainer import (
+    Accelerator,
+    BaseImageProcessor,
+    BaseTrainer,
+    CallbackHandler,
+    DEFAULT_CALLBACKS,
+    DEFAULT_PROGRESS_CALLBACK,
+    DataCollatorWithPadding,
+    DataLoader,
+    Dataset,
+    ExportableState,
+    FeatureExtractionMixin,
+    GenerationConfig,
+    INVALID_LOGPROB,
+    OnlineTrainerState,
+    Optional,
+    PPOConfig,
+    PPOTrainer,
+    Path,
+    PeftConfig,
+    PeftModel,
+    PolicyAndValueWrapper,
+    PreTrainedTokenizerBase,
+    PrinterCallback,
+    ProcessorMixin,
+    TrainerCallback,
+    TrainerControl,
+    Union,
+    batch_generation,
+    broadcast,
+    contextmanager,
+    create_reference_model,
+    defaultdict,
+    disable_dropout_in_model,
+    empty_cache,
+    exact_div,
+    first_true_indices,
+    forward,
+    gather_object,
+    gc,
+    get_peft_model,
+    get_reporting_integration_callbacks,
+    get_reward,
+    is_peft_available,
+    is_rich_available,
+    log_table_to_comet_experiment,
+    masked_mean,
+    masked_whiten,
+    math,
+    nn,
+    np,
+    nullcontext,
+    os,
+    pd,
+    peft_module_casting_to_bf16,
+    prepare_deepspeed,
+    print_rich_table,
+    selective_log_softmax,
+    textwrap,
+    time,
+    torch,
+    truncate_response,
+    unwrap_model_for_generation,
+    warnings,
+    Accelerator,
+    BaseImageProcessor,
+    CallbackHandler,
+    DEFAULT_CALLBACKS,
+    DEFAULT_PROGRESS_CALLBACK,
+    DataCollatorWithPadding,
+    DataLoader,
+    Dataset,
+    ExportableState,
+    FeatureExtractionMixin,
+    OnlineTrainerState,
+    Optional,
+    PPOConfig,
+    PeftConfig,
+    PeftModel,
+    PolicyAndValueWrapper,
+    PreTrainedTokenizerBase,
+    PrinterCallback,
+    ProcessorMixin,
+    TrainerCallback,
+    TrainerControl,
+    Union,
+    broadcast,
+    create_reference_model,
+    disable_dropout_in_model,
+    exact_div,
+    forward,
+    get_peft_model,
+    get_reporting_integration_callbacks,
+    is_peft_available,
+    math,
+    nn,
+    os,
+    pd,
+    peft_module_casting_to_bf16,
+    prepare_deepspeed,
+    time,
+    torch,
+    warnings,
+    PeftModel,
+    is_peft_available,
+    os,
+    torch,
+)
 
 
 import os
@@ -44,30 +151,50 @@ import numpy as np
 from contextlib import nullcontext
 from torch.nn import functional as F
 import inspect
-from transformers import DataCollatorForSeq2Seq, DataCollatorForLanguageModeling as TransformersDataCollatorForLanguageModeling
+from transformers import (
+    DataCollatorForSeq2Seq,
+    DataCollatorForLanguageModeling as TransformersDataCollatorForLanguageModeling,
+)
 from transformers.training_args import ParallelMode
 from unsloth_zoo.device_type import DEVICE_TYPE, device_synchronize
 
 # Wrap trainer with padding to right and enable training mode
 import functools
 from types import MethodType
+
 try:
-    from unsloth_zoo.gradient_checkpointing import reset_unsloth_gradient_checkpointing_buffers
+    from unsloth_zoo.gradient_checkpointing import (
+        reset_unsloth_gradient_checkpointing_buffers,
+    )
 except:
-    def reset_unsloth_gradient_checkpointing_buffers(): pass
+
+    def reset_unsloth_gradient_checkpointing_buffers():
+        pass
+
+
 # Canonical reset lives in unsloth.models._utils so the SFT auto-packing wrapper and the plain
 # Trainer loop can import the same helper; fall back to a no-op only if it can't be imported.
 try:
     from unsloth.models._utils import _unsloth_reset_stray_compile_cache
 except Exception:
-    def _unsloth_reset_stray_compile_cache(self): pass
+
+    def _unsloth_reset_stray_compile_cache(self):
+        pass
+
+
 # Drops/renames config arguments the installed TRL no longer accepts, so a
 # script pinned to an older TRL keeps working after an upgrade. Falls back to
 # the historical raw passthrough so this can never break trainer construction.
 try:
-    from unsloth.models.rl_config_compat import filter_config_init_kwargs as _unsloth_filter_config_init_kwargs
+    from unsloth.models.rl_config_compat import (
+        filter_config_init_kwargs as _unsloth_filter_config_init_kwargs,
+    )
 except Exception:
-    def _unsloth_filter_config_init_kwargs(config_class, kwargs): return kwargs
+
+    def _unsloth_filter_config_init_kwargs(config_class, kwargs):
+        return kwargs
+
+
 def prepare_for_training_mode(f):
     @functools.wraps(f)
     def wrapper(self, *args, **kwargs):
@@ -81,14 +208,15 @@ def prepare_for_training_mode(f):
         # evaluate() / log() still work after train() completes.
         # HF's WandbCallback.setup() will call wandb.init() for the new run.
         # See: https://github.com/unslothai/unsloth/issues/3954
-        if getattr(self, '_unsloth_training_completed', False):
+        if getattr(self, "_unsloth_training_completed", False):
             try:
                 import wandb
+
                 if wandb.run is not None:
                     wandb.finish()
                     # Reset HF's WandbCallback so it calls wandb.init() for the new run
                     for cb in self.callback_handler.callbacks:
-                        if type(cb).__name__ == 'WandbCallback':
+                        if type(cb).__name__ == "WandbCallback":
                             cb._initialized = False
                             break
             except:
@@ -98,18 +226,18 @@ def prepare_for_training_mode(f):
         # Restore the GC mode the model was configured with at setup; fall back to
         # the training args only when it wasn't recorded (issue #4735). Use hasattr,
         # not a None sentinel, so a deliberately-recorded None is restored verbatim.
-        _model = getattr(self, 'model', None)
-        if hasattr(_model, '_unsloth_gradient_checkpointing'):
+        _model = getattr(self, "model", None)
+        if hasattr(_model, "_unsloth_gradient_checkpointing"):
             use_gc = _model._unsloth_gradient_checkpointing
         else:
-            use_gc = getattr(self.args, 'gradient_checkpointing', True)
-        if hasattr(self, 'model') and hasattr(self.model, "training"):
+            use_gc = getattr(self.args, "gradient_checkpointing", True)
+        if hasattr(self, "model") and hasattr(self.model, "training"):
             _was_training = self.model.training
-        if hasattr(self, 'model') and hasattr(self.model, "for_training"):
+        if hasattr(self, "model") and hasattr(self.model, "for_training"):
             self.model.for_training(use_gradient_checkpointing=use_gc)
         output = f(self, *args, **kwargs)
         # Restore previous mode when possible
-        if hasattr(self, 'model') and hasattr(self.model, "for_inference"):
+        if hasattr(self, "model") and hasattr(self.model, "for_inference"):
             if _was_training is False:
                 self.model.for_inference()
             elif _was_training is True and hasattr(self.model, "for_training"):
@@ -123,18 +251,26 @@ def prepare_for_training_mode(f):
         # finish this W&B run before starting a new one
         self._unsloth_training_completed = True
         return output
+
     return wrapper
+
+
 pass
 
 torch_compile_options = {
-    "epilogue_fusion"   : True,
-    "max_autotune"      : False,
-    "shape_padding"     : True,
-    "trace.enabled"     : False,
-    "triton.cudagraphs" : False,
+    "epilogue_fusion": True,
+    "max_autotune": False,
+    "shape_padding": True,
+    "trace.enabled": False,
+    "triton.cudagraphs": False,
 }
 
-@_maybe_compile(dynamic = True, fullgraph = True, options = torch_compile_options,)
+
+@_maybe_compile(
+    dynamic=True,
+    fullgraph=True,
+    options=torch_compile_options,
+)
 def chunked_hidden_states_selective_log_softmax(
     hidden_states: torch.Tensor,
     lm_head: torch.Tensor,
@@ -199,7 +335,9 @@ def chunked_hidden_states_selective_log_softmax(
         #   found two different devices cuda:0, cuda:1
         # On a single device every .to() here is a no-op and the result is
         # bit-identical to before.
-        chunk_hidden_states = chunk_hidden_states.to(device = lm_head.device, dtype = lm_head.dtype)
+        chunk_hidden_states = chunk_hidden_states.to(
+            device=lm_head.device, dtype=lm_head.dtype
+        )
         chunk_index = chunk_index.to(lm_head.device)
         chunk_logits = chunk_hidden_states @ lm_head.t()
 
@@ -208,14 +346,18 @@ def chunked_hidden_states_selective_log_softmax(
         if logit_scale_divide != 0.0:
             chunk_logits = chunk_logits / logit_scale_divide
         if logit_softcapping != 0.0:
-            chunk_logits = logit_softcapping * torch.tanh(chunk_logits / logit_softcapping)
+            chunk_logits = logit_softcapping * torch.tanh(
+                chunk_logits / logit_softcapping
+            )
 
         chunk_logits = chunk_logits.to(torch.float32)
 
         if temperature != 1.0:
             chunk_logits = chunk_logits / temperature
 
-        selected_logits = torch.gather(chunk_logits, dim=-1, index=chunk_index.unsqueeze(-1)).squeeze(-1)
+        selected_logits = torch.gather(
+            chunk_logits, dim=-1, index=chunk_index.unsqueeze(-1)
+        ).squeeze(-1)
         logsumexp_values = torch.logsumexp(chunk_logits, dim=-1)
         per_token_logps = selected_logits - logsumexp_values
         # Return to the caller's device so the concatenation below and every
@@ -224,37 +366,49 @@ def chunked_hidden_states_selective_log_softmax(
 
     all_per_token_logps = torch.concat(all_per_token_logps)
 
-    all_per_token_logps = all_per_token_logps.reshape((hidden_states.shape[0], hidden_states.shape[1]))
+    all_per_token_logps = all_per_token_logps.reshape(
+        (hidden_states.shape[0], hidden_states.shape[1])
+    )
     return all_per_token_logps
 
-@_maybe_compile(dynamic = True, fullgraph = True, options = torch_compile_options,)
+
+@_maybe_compile(
+    dynamic=True,
+    fullgraph=True,
+    options=torch_compile_options,
+)
 def chunked_selective_log_softmax(
     logits,
     index,
     temperature: float = 1.0,
     chunks: int = 4,
 ):
-    chunked_logits = torch.chunk(logits.reshape(-1, logits.shape[-1]), chunks = chunks, dim = 0)
-    chunked_index  = torch.chunk(index.reshape(-1), chunks = chunks, dim = 0)
+    chunked_logits = torch.chunk(
+        logits.reshape(-1, logits.shape[-1]), chunks=chunks, dim=0
+    )
+    chunked_index = torch.chunk(index.reshape(-1), chunks=chunks, dim=0)
     all_per_token_logps = []
     # Per-chunk selective_log_softmax.
     for chunk_logits, chunk_index in zip(chunked_logits, chunked_index):
         chunk_logits = chunk_logits.to(torch.float32)
         if temperature != 1.0:
             chunk_logits = chunk_logits / temperature
-        selected_logits = torch.gather(chunk_logits, dim = -1, index = chunk_index.unsqueeze(-1)).squeeze(-1)
-        logsumexp_values = torch.logsumexp(chunk_logits, dim = -1)
+        selected_logits = torch.gather(
+            chunk_logits, dim=-1, index=chunk_index.unsqueeze(-1)
+        ).squeeze(-1)
+        logsumexp_values = torch.logsumexp(chunk_logits, dim=-1)
         per_token_logps = selected_logits - logsumexp_values
         all_per_token_logps.append(per_token_logps)
     pass
     all_per_token_logps = torch.concat(all_per_token_logps)
-    all_per_token_logps = all_per_token_logps.reshape((logits.shape[0], logits.shape[1]))
+    all_per_token_logps = all_per_token_logps.reshape(
+        (logits.shape[0], logits.shape[1])
+    )
     return all_per_token_logps
 
+
 def calculate_pad_tokens_in_prompt(
-    input_ids: torch.Tensor,
-    logits_to_keep: int,
-    pad_token_id: int
+    input_ids: torch.Tensor, logits_to_keep: int, pad_token_id: int
 ) -> torch.Tensor:
     """Count left-padded tokens per sequence, e.g. [pad, pad, pad, cat] -> 3."""
     if logits_to_keep >= input_ids.shape[1]:
@@ -262,17 +416,18 @@ def calculate_pad_tokens_in_prompt(
 
     prompt_section = input_ids[:, :-logits_to_keep]
 
-    padding_mask = (prompt_section == pad_token_id)
+    padding_mask = prompt_section == pad_token_id
 
     pad_token_counts = padding_mask.sum(dim=1)
 
     return pad_token_counts
 
+
 def create_completion_attention_mask(
     completion_input_ids: torch.Tensor,
     left_pad_tokens_per_prompt: torch.Tensor,
     max_left_pad: int,
-    pad_token_id: int
+    pad_token_id: int,
 ) -> torch.Tensor:
     """Build a completion mask that zeros leading prompt and trailing pad tokens.
 
@@ -287,24 +442,24 @@ def create_completion_attention_mask(
     indices = torch.arange(completion_len, device=device).unsqueeze(0)
     shift_mask = indices >= num_tokens_to_mask.unsqueeze(1)
 
-    non_padding_mask = (completion_input_ids != pad_token_id)
+    non_padding_mask = completion_input_ids != pad_token_id
 
     final_mask = shift_mask & non_padding_mask
 
     return final_mask
 
+
 def left_pack_padding(tensor: torch.Tensor, pad_id: int) -> torch.Tensor:
     """Move all padding tokens in each sequence to the right."""
-    mask = (tensor != pad_id)
+    mask = tensor != pad_id
     # stable=True since the binary mask is unordered.
     sorted_indices = torch.argsort(mask, dim=1, descending=True, stable=True)
     packed_tensor = torch.gather(tensor, 1, sorted_indices)
     return packed_tensor
 
+
 def align_logprobs_with_mask(
-    logprob_tensor: torch.Tensor,
-    attention_mask: torch.Tensor,
-    pad_value: float = 0.0
+    logprob_tensor: torch.Tensor, attention_mask: torch.Tensor, pad_value: float = 0.0
 ) -> torch.Tensor:
     """Align a log probability tensor with a given attention mask."""
 
@@ -316,7 +471,7 @@ def align_logprobs_with_mask(
         attention_mask.shape,
         fill_value=pad_value,
         dtype=logprob_tensor.dtype,
-        device=device
+        device=device,
     )
 
     left_pad_counts = torch.argmax(attention_mask, dim=1)
@@ -325,7 +480,9 @@ def align_logprobs_with_mask(
     dest_indices = left_pad_counts.unsqueeze(1) + cols
 
     # Destination row indices, shape [batch_size, logprob_seq_len].
-    row_indices = torch.arange(batch_size, device=device).unsqueeze(1).expand_as(dest_indices)
+    row_indices = (
+        torch.arange(batch_size, device=device).unsqueeze(1).expand_as(dest_indices)
+    )
 
     # Keep only in-bounds destinations, then scatter via advanced indexing.
     valid_mask = dest_indices < mask_seq_len
@@ -335,6 +492,7 @@ def align_logprobs_with_mask(
     padded_logprobs[valid_rows, valid_cols] = valid_vals
 
     return padded_logprobs
+
 
 def align_completion_tool_mask(
     tool_mask: torch.Tensor,
@@ -357,13 +515,9 @@ def align_completion_tool_mask(
         )
     return completion_mask * aligned_tool_mask.to(dtype=completion_mask.dtype)
 
+
 def autotune_batch_and_chunks(
-    total_input_rows,
-    seq_len,
-    hidden_size,
-    vocab_size,
-    dtype_bytes=16,
-    multiplier=None
+    total_input_rows, seq_len, hidden_size, vocab_size, dtype_bytes=16, multiplier=None
 ):
     if multiplier is None:
         final_m = max(4, seq_len // 4096)
@@ -372,7 +526,7 @@ def autotune_batch_and_chunks(
 
     if torch.cuda.is_available():
         free_bytes, _ = torch.cuda.mem_get_info()
-        limit_gb = (free_bytes / (1024**3))*.80
+        limit_gb = (free_bytes / (1024**3)) * 0.80
     elif hasattr(torch, "xpu") and torch.xpu.is_available():
         # XPU: estimate free memory as total - reserved.
         total_mem = torch.xpu.get_device_properties(0).total_memory
@@ -385,11 +539,13 @@ def autotune_batch_and_chunks(
 
     bytes_to_gb = 1024**3
 
-    b_vals = torch.arange(total_input_rows, 0, -1, device='cpu', dtype=torch.float32)
+    b_vals = torch.arange(total_input_rows, 0, -1, device="cpu", dtype=torch.float32)
 
     hidden_gb = (b_vals * seq_len * hidden_size * dtype_bytes) / bytes_to_gb
 
-    base_logits = ((b_vals/total_input_rows) * b_vals * seq_len * vocab_size * dtype_bytes) / bytes_to_gb
+    base_logits = (
+        (b_vals / total_input_rows) * b_vals * seq_len * vocab_size * dtype_bytes
+    ) / bytes_to_gb
     logits_gb = base_logits / final_m
 
     total_mem_gb = hidden_gb + logits_gb
@@ -398,13 +554,14 @@ def autotune_batch_and_chunks(
     valid_indices = torch.nonzero(valid_mask, as_tuple=False)
 
     if valid_indices.shape[0] == 0:
-        #This means your GPU will OOM
+        # This means your GPU will OOM
         return 4, final_m
 
     best_idx = valid_indices[0].item()
     final_b = int(b_vals[best_idx].item())
 
     return final_b, final_m
+
 
 def sanitize_logprob(logprob):
     """Local port of trl.scripts.vllm_serve.sanitize_logprob.
@@ -416,10 +573,12 @@ def sanitize_logprob(logprob):
         )
         return None
     return value
+
+
 @dataclass
 class UnslothPPOConfig(PPOConfig):
     """
-    
+
     Configuration class for the [`PPOTrainer`].
 
     This class includes only the parameters that are specific to PPO training. For a full list of training arguments,
@@ -464,341 +623,364 @@ class UnslothPPOConfig(PPOConfig):
             This setting applies to DeepSpeed ZeRO-3. If enabled, the policy model weights are gathered for generation,
             improving generation speed. However, disabling this option allows training models that exceed the VRAM
             capacity of a single GPU, albeit at the cost of slower generation.
-    
+
     """
+
     vllm_sampling_params: Optional[Any] = field(
-        default = None,
-        metadata = {'help': 'vLLM SamplingParams'},
+        default=None,
+        metadata={"help": "vLLM SamplingParams"},
     )
-    unsloth_num_chunks : Optional[int] = field(
-        default = -1,
-        metadata = {'help': 'Chunk size to reduce memory usage. -1 is most efficient.'},
+    unsloth_num_chunks: Optional[int] = field(
+        default=-1,
+        metadata={"help": "Chunk size to reduce memory usage. -1 is most efficient."},
     )
-    unsloth_logit_chunk_multiplier : Optional[int] = field(
-            default = None,
-            metadata = {'help': 'Multiplier for chunked logit computations.'},
-        )
-    unsloth_grpo_mini_batch : Optional[int] = field(
-        default = None,
-        metadata = {'help': 'Mini batch size for GRPO hidden state accumulation. Default is None unless user defines it.'},
+    unsloth_logit_chunk_multiplier: Optional[int] = field(
+        default=None,
+        metadata={"help": "Multiplier for chunked logit computations."},
     )
-    
+    unsloth_grpo_mini_batch: Optional[int] = field(
+        default=None,
+        metadata={
+            "help": "Mini batch size for GRPO hidden state accumulation. Default is None unless user defines it."
+        },
+    )
+
     def __init__(
         self,
-        output_dir = None,
-        per_device_train_batch_size = 4,
-        num_train_epochs = 3.0,
-        max_steps = -1,
-        learning_rate = 5e-05,
-        lr_scheduler_type = 'linear',
-        lr_scheduler_kwargs = None,
-        warmup_steps = 0.1,
-        optim = 'adamw_8bit',
-        optim_args = None,
-        weight_decay = 0.001,
-        adam_beta1 = 0.9,
-        adam_beta2 = 0.999,
-        adam_epsilon = 1e-08,
-        optim_target_modules = None,
-        gradient_accumulation_steps = 2,
-        average_tokens_across_devices = True,
-        max_grad_norm = 1.0,
-        label_smoothing_factor = 0.0,
-        bf16 = False,
-        fp16 = False,
-        bf16_full_eval = False,
-        fp16_full_eval = False,
-        tf32 = None,
-        gradient_checkpointing = True,
-        gradient_checkpointing_kwargs = None,
-        torch_compile = False,
-        torch_compile_backend = None,
-        torch_compile_mode = None,
-        use_liger_kernel = False,
-        liger_kernel_config = None,
-        use_cache = False,
-        neftune_noise_alpha = None,
-        torch_empty_cache_steps = 250,
-        auto_find_batch_size = False,
-        logging_strategy = 'steps',
-        logging_steps = 1,
-        logging_first_step = False,
-        log_on_each_node = True,
-        logging_nan_inf_filter = False,
-        include_num_input_tokens_seen = False,
-        log_level = 'passive',
-        log_level_replica = 'warning',
-        disable_tqdm = None,
-        report_to = 'none',
-        run_name = None,
-        project = 'huggingface',
-        trackio_space_id = 'trackio',
-        eval_strategy = 'no',
-        eval_steps = None,
-        eval_delay = 0,
-        per_device_eval_batch_size = 4,
-        prediction_loss_only = False,
-        eval_on_start = False,
-        eval_do_concat_batches = True,
-        eval_use_gather_object = False,
-        eval_accumulation_steps = 2,
-        batch_eval_metrics = False,
-        save_only_model = False,
-        save_strategy = 'steps',
-        save_steps = 500,
-        save_on_each_node = False,
-        save_total_limit = None,
-        enable_jit_checkpoint = False,
-        push_to_hub = False,
-        hub_token = None,
-        hub_private_repo = None,
-        hub_model_id = None,
-        hub_strategy = 'every_save',
-        hub_always_push = False,
-        hub_revision = None,
-        load_best_model_at_end = False,
-        metric_for_best_model = None,
-        greater_is_better = None,
-        ignore_data_skip = False,
-        restore_callback_states_from_checkpoint = False,
-        full_determinism = False,
-        seed = 3407,
-        data_seed = 3407,
-        use_cpu = False,
-        accelerator_config = None,
-        parallelism_config = None,
-        dataloader_drop_last = False,
-        dataloader_num_workers = 0,
-        dataloader_pin_memory = True,
-        dataloader_persistent_workers = False,
-        dataloader_prefetch_factor = None,
-        remove_unused_columns = True,
-        label_names = None,
-        train_sampling_strategy = 'random',
-        length_column_name = 'length',
-        ddp_find_unused_parameters = None,
-        ddp_bucket_cap_mb = None,
-        ddp_broadcast_buffers = None,
-        ddp_backend = None,
-        ddp_timeout = 1800,
-        fsdp = None,
-        fsdp_config = None,
-        deepspeed = None,
-        debug = '',
-        skip_memory_metrics = True,
-        do_train = False,
-        do_eval = False,
-        do_predict = False,
-        resume_from_checkpoint = None,
-        warmup_ratio = None,
-        logging_dir = None,
-        local_rank = -1,
-        dataset_num_proc = None,
-        num_mini_batches = 1,
-        total_episodes = None,
-        local_rollout_forward_batch_size = 64,
-        num_sample_generations = 10,
-        response_length = 53,
-        stop_token = None,
-        stop_token_id = None,
-        temperature = 0.7,
-        missing_eos_penalty = None,
-        sft_model_path = 'EleutherAI/pythia-160m',
-        world_size = None,
-        num_total_batches = None,
-        micro_batch_size = None,
-        local_batch_size = None,
-        batch_size = None,
-        local_mini_batch_size = None,
-        mini_batch_size = None,
-        exp_name = 'ppo_config',
-        reward_model_path = 'EleutherAI/pythia-160m',
-        model_adapter_name = None,
-        ref_adapter_name = None,
-        num_ppo_epochs = 4,
-        whiten_rewards = False,
-        kl_coef = 0.05,
-        kl_estimator = 'k1',
-        cliprange = 0.2,
-        vf_coef = 0.1,
-        cliprange_value = 0.2,
-        gamma = 1.0,
-        lam = 0.95,
-        ds3_gather_for_generation = True,
-        vllm_sampling_params = None,
-        unsloth_num_chunks = -1,
-        unsloth_logit_chunk_multiplier = None,
-        unsloth_grpo_mini_batch = None,
-        
+        output_dir=None,
+        per_device_train_batch_size=4,
+        num_train_epochs=3.0,
+        max_steps=-1,
+        learning_rate=5e-05,
+        lr_scheduler_type="linear",
+        lr_scheduler_kwargs=None,
+        warmup_steps=0.1,
+        optim="adamw_8bit",
+        optim_args=None,
+        weight_decay=0.001,
+        adam_beta1=0.9,
+        adam_beta2=0.999,
+        adam_epsilon=1e-08,
+        optim_target_modules=None,
+        gradient_accumulation_steps=2,
+        average_tokens_across_devices=True,
+        max_grad_norm=1.0,
+        label_smoothing_factor=0.0,
+        bf16=False,
+        fp16=False,
+        bf16_full_eval=False,
+        fp16_full_eval=False,
+        tf32=None,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs=None,
+        torch_compile=False,
+        torch_compile_backend=None,
+        torch_compile_mode=None,
+        use_liger_kernel=False,
+        liger_kernel_config=None,
+        use_cache=False,
+        neftune_noise_alpha=None,
+        torch_empty_cache_steps=250,
+        auto_find_batch_size=False,
+        logging_strategy="steps",
+        logging_steps=1,
+        logging_first_step=False,
+        log_on_each_node=True,
+        logging_nan_inf_filter=False,
+        include_num_input_tokens_seen=False,
+        log_level="passive",
+        log_level_replica="warning",
+        disable_tqdm=None,
+        report_to="none",
+        run_name=None,
+        project="huggingface",
+        trackio_space_id="trackio",
+        eval_strategy="no",
+        eval_steps=None,
+        eval_delay=0,
+        per_device_eval_batch_size=4,
+        prediction_loss_only=False,
+        eval_on_start=False,
+        eval_do_concat_batches=True,
+        eval_use_gather_object=False,
+        eval_accumulation_steps=2,
+        batch_eval_metrics=False,
+        save_only_model=False,
+        save_strategy="steps",
+        save_steps=500,
+        save_on_each_node=False,
+        save_total_limit=None,
+        enable_jit_checkpoint=False,
+        push_to_hub=False,
+        hub_token=None,
+        hub_private_repo=None,
+        hub_model_id=None,
+        hub_strategy="every_save",
+        hub_always_push=False,
+        hub_revision=None,
+        load_best_model_at_end=False,
+        metric_for_best_model=None,
+        greater_is_better=None,
+        ignore_data_skip=False,
+        restore_callback_states_from_checkpoint=False,
+        full_determinism=False,
+        seed=3407,
+        data_seed=3407,
+        use_cpu=False,
+        accelerator_config=None,
+        parallelism_config=None,
+        dataloader_drop_last=False,
+        dataloader_num_workers=0,
+        dataloader_pin_memory=True,
+        dataloader_persistent_workers=False,
+        dataloader_prefetch_factor=None,
+        remove_unused_columns=True,
+        label_names=None,
+        train_sampling_strategy="random",
+        length_column_name="length",
+        ddp_find_unused_parameters=None,
+        ddp_bucket_cap_mb=None,
+        ddp_broadcast_buffers=None,
+        ddp_backend=None,
+        ddp_timeout=1800,
+        fsdp=None,
+        fsdp_config=None,
+        deepspeed=None,
+        debug="",
+        skip_memory_metrics=True,
+        do_train=False,
+        do_eval=False,
+        do_predict=False,
+        resume_from_checkpoint=None,
+        warmup_ratio=None,
+        logging_dir=None,
+        local_rank=-1,
+        dataset_num_proc=None,
+        num_mini_batches=1,
+        total_episodes=None,
+        local_rollout_forward_batch_size=64,
+        num_sample_generations=10,
+        response_length=53,
+        stop_token=None,
+        stop_token_id=None,
+        temperature=0.7,
+        missing_eos_penalty=None,
+        sft_model_path="EleutherAI/pythia-160m",
+        world_size=None,
+        num_total_batches=None,
+        micro_batch_size=None,
+        local_batch_size=None,
+        batch_size=None,
+        local_mini_batch_size=None,
+        mini_batch_size=None,
+        exp_name="ppo_config",
+        reward_model_path="EleutherAI/pythia-160m",
+        model_adapter_name=None,
+        ref_adapter_name=None,
+        num_ppo_epochs=4,
+        whiten_rewards=False,
+        kl_coef=0.05,
+        kl_estimator="k1",
+        cliprange=0.2,
+        vf_coef=0.1,
+        cliprange_value=0.2,
+        gamma=1.0,
+        lam=0.95,
+        ds3_gather_for_generation=True,
+        vllm_sampling_params=None,
+        unsloth_num_chunks=-1,
+        unsloth_logit_chunk_multiplier=None,
+        unsloth_grpo_mini_batch=None,
         **kwargs,
     ):
-        if learning_rate < 1e-7: print(f'Unsloth: Your learning rate of `{learning_rate}` is too small and less than 1e-7! Consider increasing it, otherwise gradient updates will be close to 0!')
-        if learning_rate > 1: print(f'Unsloth: Your learning rate of `{learning_rate}` is way too larger > 1! Consider decreasing it to 1e-1, otherwise gradient updates will explode!')
+        if learning_rate < 1e-7:
+            print(
+                f"Unsloth: Your learning rate of `{learning_rate}` is too small and less than 1e-7! Consider increasing it, otherwise gradient updates will be close to 0!"
+            )
+        if learning_rate > 1:
+            print(
+                f"Unsloth: Your learning rate of `{learning_rate}` is way too larger > 1! Consider decreasing it to 1e-1, otherwise gradient updates will explode!"
+            )
         if num_train_epochs is None:
-            num_train_epochs = 3.0  # Default to 3 epochs if None, max_steps will override
-        if output_dir is None and save_strategy == 'steps' and save_steps == 500:
-            output_dir = 'unsloth_training_checkpoints'
-            save_strategy = 'no'
+            num_train_epochs = (
+                3.0  # Default to 3 epochs if None, max_steps will override
+            )
+        if output_dir is None and save_strategy == "steps" and save_steps == 500:
+            output_dir = "unsloth_training_checkpoints"
+            save_strategy = "no"
         try:
-            from unsloth_zoo.dataset_num_proc import get_dataset_num_proc as _unsloth_get_dataset_num_proc
+            from unsloth_zoo.dataset_num_proc import (
+                get_dataset_num_proc as _unsloth_get_dataset_num_proc,
+            )
         except Exception:
             try:
-                from unsloth.dataset_num_proc import get_dataset_num_proc as _unsloth_get_dataset_num_proc
+                from unsloth.dataset_num_proc import (
+                    get_dataset_num_proc as _unsloth_get_dataset_num_proc,
+                )
             except Exception:
                 _unsloth_get_dataset_num_proc = None
         if _unsloth_get_dataset_num_proc is not None:
-            dataset_num_proc = _unsloth_get_dataset_num_proc(dataset_num_proc, serial_as_none = True)
+            dataset_num_proc = _unsloth_get_dataset_num_proc(
+                dataset_num_proc, serial_as_none=True
+            )
         if temperature <= 0:
-            raise ValueError('Unsloth: Please set a positive non-zero temperature since your results will be wrong.')
+            raise ValueError(
+                "Unsloth: Please set a positive non-zero temperature since your results will be wrong."
+            )
         elif temperature >= 10:
-            raise ValueError('Unsloth: Please set a positive non-zero temperature less than 10, since sampling will be quite erratic.')
-        
-        
+            raise ValueError(
+                "Unsloth: Please set a positive non-zero temperature less than 10, since sampling will be quite erratic."
+            )
+
         # One dict so the filter sees the mirrored parameters AND `**kwargs`:
         # filtering kwargs alone would double-bind any argument TRL renamed,
         # since the new name is itself a mirrored parameter.
         _unsloth_config_arguments = dict(
-            output_dir = output_dir,
-            per_device_train_batch_size = per_device_train_batch_size,
-            num_train_epochs = num_train_epochs,
-            max_steps = max_steps,
-            learning_rate = learning_rate,
-            lr_scheduler_type = lr_scheduler_type,
-            lr_scheduler_kwargs = lr_scheduler_kwargs,
-            warmup_steps = warmup_steps,
-            optim = optim,
-            optim_args = optim_args,
-            weight_decay = weight_decay,
-            adam_beta1 = adam_beta1,
-            adam_beta2 = adam_beta2,
-            adam_epsilon = adam_epsilon,
-            optim_target_modules = optim_target_modules,
-            gradient_accumulation_steps = gradient_accumulation_steps,
-            average_tokens_across_devices = average_tokens_across_devices,
-            max_grad_norm = max_grad_norm,
-            label_smoothing_factor = label_smoothing_factor,
-            bf16 = bf16,
-            fp16 = fp16,
-            bf16_full_eval = bf16_full_eval,
-            fp16_full_eval = fp16_full_eval,
-            tf32 = tf32,
-            gradient_checkpointing = gradient_checkpointing,
-            gradient_checkpointing_kwargs = gradient_checkpointing_kwargs,
-            torch_compile = torch_compile,
-            torch_compile_backend = torch_compile_backend,
-            torch_compile_mode = torch_compile_mode,
-            use_liger_kernel = use_liger_kernel,
-            liger_kernel_config = liger_kernel_config,
-            use_cache = use_cache,
-            neftune_noise_alpha = neftune_noise_alpha,
-            torch_empty_cache_steps = torch_empty_cache_steps,
-            auto_find_batch_size = auto_find_batch_size,
-            logging_strategy = logging_strategy,
-            logging_steps = logging_steps,
-            logging_first_step = logging_first_step,
-            log_on_each_node = log_on_each_node,
-            logging_nan_inf_filter = logging_nan_inf_filter,
-            include_num_input_tokens_seen = include_num_input_tokens_seen,
-            log_level = log_level,
-            log_level_replica = log_level_replica,
-            disable_tqdm = disable_tqdm,
-            report_to = report_to,
-            run_name = run_name,
-            project = project,
-            trackio_space_id = trackio_space_id,
-            eval_strategy = eval_strategy,
-            eval_steps = eval_steps,
-            eval_delay = eval_delay,
-            per_device_eval_batch_size = per_device_eval_batch_size,
-            prediction_loss_only = prediction_loss_only,
-            eval_on_start = eval_on_start,
-            eval_do_concat_batches = eval_do_concat_batches,
-            eval_use_gather_object = eval_use_gather_object,
-            eval_accumulation_steps = eval_accumulation_steps,
-            batch_eval_metrics = batch_eval_metrics,
-            save_only_model = save_only_model,
-            save_strategy = save_strategy,
-            save_steps = save_steps,
-            save_on_each_node = save_on_each_node,
-            save_total_limit = save_total_limit,
-            enable_jit_checkpoint = enable_jit_checkpoint,
-            push_to_hub = push_to_hub,
-            hub_token = hub_token,
-            hub_private_repo = hub_private_repo,
-            hub_model_id = hub_model_id,
-            hub_strategy = hub_strategy,
-            hub_always_push = hub_always_push,
-            hub_revision = hub_revision,
-            load_best_model_at_end = load_best_model_at_end,
-            metric_for_best_model = metric_for_best_model,
-            greater_is_better = greater_is_better,
-            ignore_data_skip = ignore_data_skip,
-            restore_callback_states_from_checkpoint = restore_callback_states_from_checkpoint,
-            full_determinism = full_determinism,
-            seed = seed,
-            data_seed = data_seed,
-            use_cpu = use_cpu,
-            accelerator_config = accelerator_config,
-            parallelism_config = parallelism_config,
-            dataloader_drop_last = dataloader_drop_last,
-            dataloader_num_workers = dataloader_num_workers,
-            dataloader_pin_memory = dataloader_pin_memory,
-            dataloader_persistent_workers = dataloader_persistent_workers,
-            dataloader_prefetch_factor = dataloader_prefetch_factor,
-            remove_unused_columns = remove_unused_columns,
-            label_names = label_names,
-            train_sampling_strategy = train_sampling_strategy,
-            length_column_name = length_column_name,
-            ddp_find_unused_parameters = ddp_find_unused_parameters,
-            ddp_bucket_cap_mb = ddp_bucket_cap_mb,
-            ddp_broadcast_buffers = ddp_broadcast_buffers,
-            ddp_backend = ddp_backend,
-            ddp_timeout = ddp_timeout,
-            fsdp = fsdp,
-            fsdp_config = fsdp_config,
-            deepspeed = deepspeed,
-            debug = debug,
-            skip_memory_metrics = skip_memory_metrics,
-            do_train = do_train,
-            do_eval = do_eval,
-            do_predict = do_predict,
-            resume_from_checkpoint = resume_from_checkpoint,
-            warmup_ratio = warmup_ratio,
-            logging_dir = logging_dir,
-            local_rank = local_rank,
-            dataset_num_proc = dataset_num_proc,
-            num_mini_batches = num_mini_batches,
-            total_episodes = total_episodes,
-            local_rollout_forward_batch_size = local_rollout_forward_batch_size,
-            num_sample_generations = num_sample_generations,
-            response_length = response_length,
-            stop_token = stop_token,
-            stop_token_id = stop_token_id,
-            temperature = temperature,
-            missing_eos_penalty = missing_eos_penalty,
-            sft_model_path = sft_model_path,
-            world_size = world_size,
-            num_total_batches = num_total_batches,
-            micro_batch_size = micro_batch_size,
-            local_batch_size = local_batch_size,
-            batch_size = batch_size,
-            local_mini_batch_size = local_mini_batch_size,
-            mini_batch_size = mini_batch_size,
-            exp_name = exp_name,
-            reward_model_path = reward_model_path,
-            model_adapter_name = model_adapter_name,
-            ref_adapter_name = ref_adapter_name,
-            num_ppo_epochs = num_ppo_epochs,
-            whiten_rewards = whiten_rewards,
-            kl_coef = kl_coef,
-            kl_estimator = kl_estimator,
-            cliprange = cliprange,
-            vf_coef = vf_coef,
-            cliprange_value = cliprange_value,
-            gamma = gamma,
-            lam = lam,
-            ds3_gather_for_generation = ds3_gather_for_generation,**kwargs)
-        super().__init__(**_unsloth_filter_config_init_kwargs(PPOConfig, _unsloth_config_arguments))
+            output_dir=output_dir,
+            per_device_train_batch_size=per_device_train_batch_size,
+            num_train_epochs=num_train_epochs,
+            max_steps=max_steps,
+            learning_rate=learning_rate,
+            lr_scheduler_type=lr_scheduler_type,
+            lr_scheduler_kwargs=lr_scheduler_kwargs,
+            warmup_steps=warmup_steps,
+            optim=optim,
+            optim_args=optim_args,
+            weight_decay=weight_decay,
+            adam_beta1=adam_beta1,
+            adam_beta2=adam_beta2,
+            adam_epsilon=adam_epsilon,
+            optim_target_modules=optim_target_modules,
+            gradient_accumulation_steps=gradient_accumulation_steps,
+            average_tokens_across_devices=average_tokens_across_devices,
+            max_grad_norm=max_grad_norm,
+            label_smoothing_factor=label_smoothing_factor,
+            bf16=bf16,
+            fp16=fp16,
+            bf16_full_eval=bf16_full_eval,
+            fp16_full_eval=fp16_full_eval,
+            tf32=tf32,
+            gradient_checkpointing=gradient_checkpointing,
+            gradient_checkpointing_kwargs=gradient_checkpointing_kwargs,
+            torch_compile=torch_compile,
+            torch_compile_backend=torch_compile_backend,
+            torch_compile_mode=torch_compile_mode,
+            use_liger_kernel=use_liger_kernel,
+            liger_kernel_config=liger_kernel_config,
+            use_cache=use_cache,
+            neftune_noise_alpha=neftune_noise_alpha,
+            torch_empty_cache_steps=torch_empty_cache_steps,
+            auto_find_batch_size=auto_find_batch_size,
+            logging_strategy=logging_strategy,
+            logging_steps=logging_steps,
+            logging_first_step=logging_first_step,
+            log_on_each_node=log_on_each_node,
+            logging_nan_inf_filter=logging_nan_inf_filter,
+            include_num_input_tokens_seen=include_num_input_tokens_seen,
+            log_level=log_level,
+            log_level_replica=log_level_replica,
+            disable_tqdm=disable_tqdm,
+            report_to=report_to,
+            run_name=run_name,
+            project=project,
+            trackio_space_id=trackio_space_id,
+            eval_strategy=eval_strategy,
+            eval_steps=eval_steps,
+            eval_delay=eval_delay,
+            per_device_eval_batch_size=per_device_eval_batch_size,
+            prediction_loss_only=prediction_loss_only,
+            eval_on_start=eval_on_start,
+            eval_do_concat_batches=eval_do_concat_batches,
+            eval_use_gather_object=eval_use_gather_object,
+            eval_accumulation_steps=eval_accumulation_steps,
+            batch_eval_metrics=batch_eval_metrics,
+            save_only_model=save_only_model,
+            save_strategy=save_strategy,
+            save_steps=save_steps,
+            save_on_each_node=save_on_each_node,
+            save_total_limit=save_total_limit,
+            enable_jit_checkpoint=enable_jit_checkpoint,
+            push_to_hub=push_to_hub,
+            hub_token=hub_token,
+            hub_private_repo=hub_private_repo,
+            hub_model_id=hub_model_id,
+            hub_strategy=hub_strategy,
+            hub_always_push=hub_always_push,
+            hub_revision=hub_revision,
+            load_best_model_at_end=load_best_model_at_end,
+            metric_for_best_model=metric_for_best_model,
+            greater_is_better=greater_is_better,
+            ignore_data_skip=ignore_data_skip,
+            restore_callback_states_from_checkpoint=restore_callback_states_from_checkpoint,
+            full_determinism=full_determinism,
+            seed=seed,
+            data_seed=data_seed,
+            use_cpu=use_cpu,
+            accelerator_config=accelerator_config,
+            parallelism_config=parallelism_config,
+            dataloader_drop_last=dataloader_drop_last,
+            dataloader_num_workers=dataloader_num_workers,
+            dataloader_pin_memory=dataloader_pin_memory,
+            dataloader_persistent_workers=dataloader_persistent_workers,
+            dataloader_prefetch_factor=dataloader_prefetch_factor,
+            remove_unused_columns=remove_unused_columns,
+            label_names=label_names,
+            train_sampling_strategy=train_sampling_strategy,
+            length_column_name=length_column_name,
+            ddp_find_unused_parameters=ddp_find_unused_parameters,
+            ddp_bucket_cap_mb=ddp_bucket_cap_mb,
+            ddp_broadcast_buffers=ddp_broadcast_buffers,
+            ddp_backend=ddp_backend,
+            ddp_timeout=ddp_timeout,
+            fsdp=fsdp,
+            fsdp_config=fsdp_config,
+            deepspeed=deepspeed,
+            debug=debug,
+            skip_memory_metrics=skip_memory_metrics,
+            do_train=do_train,
+            do_eval=do_eval,
+            do_predict=do_predict,
+            resume_from_checkpoint=resume_from_checkpoint,
+            warmup_ratio=warmup_ratio,
+            logging_dir=logging_dir,
+            local_rank=local_rank,
+            dataset_num_proc=dataset_num_proc,
+            num_mini_batches=num_mini_batches,
+            total_episodes=total_episodes,
+            local_rollout_forward_batch_size=local_rollout_forward_batch_size,
+            num_sample_generations=num_sample_generations,
+            response_length=response_length,
+            stop_token=stop_token,
+            stop_token_id=stop_token_id,
+            temperature=temperature,
+            missing_eos_penalty=missing_eos_penalty,
+            sft_model_path=sft_model_path,
+            world_size=world_size,
+            num_total_batches=num_total_batches,
+            micro_batch_size=micro_batch_size,
+            local_batch_size=local_batch_size,
+            batch_size=batch_size,
+            local_mini_batch_size=local_mini_batch_size,
+            mini_batch_size=mini_batch_size,
+            exp_name=exp_name,
+            reward_model_path=reward_model_path,
+            model_adapter_name=model_adapter_name,
+            ref_adapter_name=ref_adapter_name,
+            num_ppo_epochs=num_ppo_epochs,
+            whiten_rewards=whiten_rewards,
+            kl_coef=kl_coef,
+            kl_estimator=kl_estimator,
+            cliprange=cliprange,
+            vf_coef=vf_coef,
+            cliprange_value=cliprange_value,
+            gamma=gamma,
+            lam=lam,
+            ds3_gather_for_generation=ds3_gather_for_generation,
+            **kwargs,
+        )
+        super().__init__(
+            **_unsloth_filter_config_init_kwargs(PPOConfig, _unsloth_config_arguments)
+        )
         self.vllm_sampling_params = vllm_sampling_params
         self.unsloth_num_chunks = unsloth_num_chunks
         if unsloth_grpo_mini_batch is not None:
@@ -810,9 +992,10 @@ class UnslothPPOConfig(PPOConfig):
                     f"which is self.per_device_train_batch_size * gradient_accumulation_steps."
                 )
         self.unsloth_logit_chunk_multiplier = unsloth_logit_chunk_multiplier
-        
+
 
 pass
+
 
 class _UnslothPPOTrainer(BaseTrainer):
     """"""
@@ -835,7 +1018,12 @@ class _UnslothPPOTrainer(BaseTrainer):
     def __init__(
         self,
         args: PPOConfig,
-        processing_class: Union[PreTrainedTokenizerBase, BaseImageProcessor, FeatureExtractionMixin, ProcessorMixin],
+        processing_class: Union[
+            PreTrainedTokenizerBase,
+            BaseImageProcessor,
+            FeatureExtractionMixin,
+            ProcessorMixin,
+        ],
         model: nn.Module,
         ref_model: Optional[nn.Module],
         reward_model: nn.Module,
@@ -844,7 +1032,10 @@ class _UnslothPPOTrainer(BaseTrainer):
         data_collator: Optional[DataCollatorWithPadding] = None,
         eval_dataset: Optional[Union[Dataset, dict[str, Dataset]]] = None,
         # less commonly used
-        optimizers: tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR] = (None, None),
+        optimizers: tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR] = (
+            None,
+            None,
+        ),
         callbacks: Optional[list[TrainerCallback]] = None,
         peft_config: Optional["PeftConfig"] = None,
     ) -> None:
@@ -874,13 +1065,17 @@ class _UnslothPPOTrainer(BaseTrainer):
             raise ValueError("You cannot set both `stop_token` and `stop_token_id`.")
         elif args.stop_token:
             if args.stop_token == "eos":
-                self.policy_model.generation_config.eos_token_id = self.stop_token_id = processing_class.eos_token_id
+                self.policy_model.generation_config.eos_token_id = (
+                    self.stop_token_id
+                ) = processing_class.eos_token_id
             else:
                 raise ValueError(
                     f"Unknown `stop_token` {args.stop_token}. Allowed values are: `'eos'` and `None` (no stop token)."
                 )
         else:
-            self.policy_model.generation_config.eos_token_id = self.stop_token_id = args.stop_token_id  # None or int
+            self.policy_model.generation_config.eos_token_id = self.stop_token_id = (
+                args.stop_token_id
+            )  # None or int
 
         # Check that the kl estimator is valid
         if self.args.kl_estimator not in {"k1", "k3"}:
@@ -905,7 +1100,9 @@ class _UnslothPPOTrainer(BaseTrainer):
             if args.bf16 and getattr(self.policy_model, "is_loaded_in_4bit", False):
                 peft_module_casting_to_bf16(self.policy_model)
 
-        self.is_peft_model = is_peft_available() and isinstance(self.policy_model, PeftModel)
+        self.is_peft_model = is_peft_available() and isinstance(
+            self.policy_model, PeftModel
+        )
         self.model_adapter_name = args.model_adapter_name
         self.ref_adapter_name = args.ref_adapter_name
 
@@ -928,41 +1125,60 @@ class _UnslothPPOTrainer(BaseTrainer):
         #########
         # calculate various batch sizes
         #########
-        if args.total_episodes is None:  # allow the users to define episodes in terms of epochs.
+        if (
+            args.total_episodes is None
+        ):  # allow the users to define episodes in terms of epochs.
             args.total_episodes = int(args.num_train_epochs * self.train_dataset_len)
-        accelerator = Accelerator(gradient_accumulation_steps=args.gradient_accumulation_steps)
+        accelerator = Accelerator(
+            gradient_accumulation_steps=args.gradient_accumulation_steps
+        )
         self.accelerator = accelerator
         args.world_size = accelerator.num_processes
-        args.local_batch_size = args.per_device_train_batch_size * args.gradient_accumulation_steps
+        args.local_batch_size = (
+            args.per_device_train_batch_size * args.gradient_accumulation_steps
+        )
         args.micro_batch_size = int(args.per_device_train_batch_size * args.world_size)
         args.batch_size = int(args.local_batch_size * args.world_size)
         args.mini_batch_size = exact_div(
-            args.batch_size, args.num_mini_batches, "`batch_size` must be a multiple of `num_mini_batches`"
+            args.batch_size,
+            args.num_mini_batches,
+            "`batch_size` must be a multiple of `num_mini_batches`",
         )
         args.local_mini_batch_size = exact_div(
-            args.local_batch_size, args.num_mini_batches, "`local_batch_size` must be a multiple of `num_mini_batches`"
+            args.local_batch_size,
+            args.num_mini_batches,
+            "`local_batch_size` must be a multiple of `num_mini_batches`",
         )
         if args.whiten_rewards:
-            assert args.local_mini_batch_size >= 8, (
-                f"Per-rank minibatch size {args.local_mini_batch_size} is insufficient for whitening"
-            )
+            assert (
+                args.local_mini_batch_size >= 8
+            ), f"Per-rank minibatch size {args.local_mini_batch_size} is insufficient for whitening"
         # `per_rank_rollout_batch_size` is our `args.local_batch_size`
         # `per_rank_minibatch_size` is our `args.local_mini_batch_size`
         args.num_total_batches = math.ceil(
             args.total_episodes / args.batch_size
         )  # we may train for more than `total_episodes`
         time_tensor = torch.tensor(int(time.time()), device=accelerator.device)
-        time_int = broadcast(time_tensor, 0).item()  # avoid different timestamps across processes
+        time_int = broadcast(
+            time_tensor, 0
+        ).item()  # avoid different timestamps across processes
         args.run_name = f"{args.exp_name}__{args.seed}__{time_int}"
         self.local_seed = args.seed + accelerator.process_index * 100003  # Prime
         if args.num_sample_generations > 0:
-            self.sample_generations_freq = max(1, args.num_total_batches // args.num_sample_generations)
+            self.sample_generations_freq = max(
+                1, args.num_total_batches // args.num_sample_generations
+            )
         self.local_dataloader_batch_size = args.local_batch_size
 
         #########
         # setup model, optimizer, and others
         #########
-        for module in [self.policy_model, self.ref_model, self.value_model, self.reward_model]:
+        for module in [
+            self.policy_model,
+            self.ref_model,
+            self.value_model,
+            self.reward_model,
+        ]:
             if module is not None:
                 disable_dropout_in_model(module)
         self.model = PolicyAndValueWrapper(self.policy_model, self.value_model)
@@ -974,24 +1190,40 @@ class _UnslothPPOTrainer(BaseTrainer):
         #########
         # trainer specifics
         #########
-        default_callbacks = DEFAULT_CALLBACKS + get_reporting_integration_callbacks(self.args.report_to)
-        self.callbacks = default_callbacks if callbacks is None else default_callbacks + callbacks
-        self.callback_handler = CallbackHandler(
-            self.callbacks, self.model, self.processing_class, self.optimizer, self.lr_scheduler
+        default_callbacks = DEFAULT_CALLBACKS + get_reporting_integration_callbacks(
+            self.args.report_to
         )
-        self.add_callback(PrinterCallback if self.args.disable_tqdm else DEFAULT_PROGRESS_CALLBACK)
+        self.callbacks = (
+            default_callbacks if callbacks is None else default_callbacks + callbacks
+        )
+        self.callback_handler = CallbackHandler(
+            self.callbacks,
+            self.model,
+            self.processing_class,
+            self.optimizer,
+            self.lr_scheduler,
+        )
+        self.add_callback(
+            PrinterCallback if self.args.disable_tqdm else DEFAULT_PROGRESS_CALLBACK
+        )
         self.control = TrainerControl()
         self.state = OnlineTrainerState(
             is_local_process_zero=self.is_local_process_zero(),
             is_world_process_zero=self.is_world_process_zero(),
             stateful_callbacks=[
-                cb for cb in self.callback_handler.callbacks + [self.control] if isinstance(cb, ExportableState)
+                cb
+                for cb in self.callback_handler.callbacks + [self.control]
+                if isinstance(cb, ExportableState)
             ],
         )
         self.current_flos = 0
         self.hp_search_backend = None
-        self.is_deepspeed_enabled = getattr(self.accelerator.state, "deepspeed_plugin", None) is not None
-        self.is_fsdp_enabled = getattr(self.accelerator.state, "fsdp_plugin", None) is not None
+        self.is_deepspeed_enabled = (
+            getattr(self.accelerator.state, "deepspeed_plugin", None) is not None
+        )
+        self.is_fsdp_enabled = (
+            getattr(self.accelerator.state, "fsdp_plugin", None) is not None
+        )
         # Create distant repo and output directory if needed
         self.hub_model_id = None
         if self.args.push_to_hub:
@@ -1016,7 +1248,9 @@ class _UnslothPPOTrainer(BaseTrainer):
         # sync random states for DataLoader[shuffle=True] before `accelerator.prepare`
         # see https://gist.github.com/vwxyzjn/2581bff1e48e185e0b85b6dfe1def79c
         torch.manual_seed(args.seed)
-        self.model, self.optimizer, self.dataloader = accelerator.prepare(self.model, self.optimizer, self.dataloader)
+        self.model, self.optimizer, self.dataloader = accelerator.prepare(
+            self.model, self.optimizer, self.dataloader
+        )
         torch.manual_seed(self.local_seed)  # reset the local seed again
 
         self.eval_dataloader = DataLoader(
@@ -1029,20 +1263,30 @@ class _UnslothPPOTrainer(BaseTrainer):
 
         if self.is_deepspeed_enabled:
             self.reward_model = prepare_deepspeed(
-                self.reward_model, args.per_device_train_batch_size, args.fp16, args.bf16
+                self.reward_model,
+                args.per_device_train_batch_size,
+                args.fp16,
+                args.bf16,
             )
 
             if self.ref_model is None:
                 if not self.is_peft_model:
-                    raise ValueError("No reference model and model is not a Peft model.")
+                    raise ValueError(
+                        "No reference model and model is not a Peft model."
+                    )
             else:
                 self.ref_model = prepare_deepspeed(
-                    self.ref_model, args.per_device_train_batch_size, args.fp16, args.bf16
+                    self.ref_model,
+                    args.per_device_train_batch_size,
+                    args.fp16,
+                    args.bf16,
                 )
         else:
             if self.ref_model is None:
                 if not self.is_peft_model:
-                    raise ValueError("No reference model and model is not a Peft model.")
+                    raise ValueError(
+                        "No reference model and model is not a Peft model."
+                    )
             else:
                 self.ref_model = self.ref_model.to(self.accelerator.device)
             self.reward_model = self.reward_model.to(self.accelerator.device)
@@ -1067,7 +1311,9 @@ class _UnslothPPOTrainer(BaseTrainer):
             if self.ref_adapter_name:
                 self.model.policy.set_adapter(self.model_adapter_name or "default")
 
-    def save_model(self, output_dir: Optional[str] = None, _internal_call: bool = False):
+    def save_model(
+        self, output_dir: Optional[str] = None, _internal_call: bool = False
+    ):
         backup_model = self.model
         self.model = self.model.policy  # save only the policy
 
@@ -1108,7 +1354,11 @@ class _UnslothPPOTrainer(BaseTrainer):
 
         accelerator.print("===training policy===")
         start_time = time.time()
-        stats_shape = (args.num_ppo_epochs, args.num_mini_batches, args.gradient_accumulation_steps)
+        stats_shape = (
+            args.num_ppo_epochs,
+            args.num_mini_batches,
+            args.gradient_accumulation_steps,
+        )
         approxkl_stats = torch.zeros(stats_shape, device=device)
         pg_clipfrac_stats = torch.zeros(stats_shape, device=device)
         pg_loss_stats = torch.zeros(stats_shape, device=device)
@@ -1126,20 +1376,28 @@ class _UnslothPPOTrainer(BaseTrainer):
         # Compute absolute values for logging, eval, and save if given as ratio
         if args.logging_steps is not None:
             if args.logging_steps < 1:
-                self.state.logging_steps = math.ceil(self.state.max_steps * args.logging_steps)
+                self.state.logging_steps = math.ceil(
+                    self.state.max_steps * args.logging_steps
+                )
             else:
                 self.state.logging_steps = args.logging_steps
         if args.eval_steps is not None:
             if args.eval_steps < 1:
-                self.state.eval_steps = math.ceil(self.state.max_steps * args.eval_steps)
+                self.state.eval_steps = math.ceil(
+                    self.state.max_steps * args.eval_steps
+                )
             else:
                 self.state.eval_steps = args.eval_steps
         if args.save_steps is not None:
             if args.save_steps < 1:
-                self.state.save_steps = math.ceil(self.state.max_steps * args.save_steps)
+                self.state.save_steps = math.ceil(
+                    self.state.max_steps * args.save_steps
+                )
             else:
                 self.state.save_steps = args.save_steps
-        self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
+        self.control = self.callback_handler.on_train_begin(
+            args, self.state, self.control
+        )
 
         # backward compatibility
         if self.is_deepspeed_enabled:
@@ -1160,7 +1418,9 @@ class _UnslothPPOTrainer(BaseTrainer):
                 sequence_lengths = []
                 values = []
                 with unwrap_model_for_generation(
-                    self.model, self.accelerator, gather_deepspeed3_params=self.args.ds3_gather_for_generation
+                    self.model,
+                    self.accelerator,
+                    gather_deepspeed3_params=self.args.ds3_gather_for_generation,
                 ) as unwrapped_model:
                     query_responses, logitss = batch_generation(
                         unwrapped_model.policy,
@@ -1170,9 +1430,13 @@ class _UnslothPPOTrainer(BaseTrainer):
                         generation_config,
                     )
 
-                for i in range(0, queries.shape[0], args.local_rollout_forward_batch_size):
+                for i in range(
+                    0, queries.shape[0], args.local_rollout_forward_batch_size
+                ):
                     query = queries[i : i + args.local_rollout_forward_batch_size]
-                    query_response = query_responses[i : i + args.local_rollout_forward_batch_size]
+                    query_response = query_responses[
+                        i : i + args.local_rollout_forward_batch_size
+                    ]
                     response = query_response[:, context_length:]
                     logits = logitss[i : i + args.local_rollout_forward_batch_size]
                     logprob = selective_log_softmax(logits, response)
@@ -1181,9 +1445,15 @@ class _UnslothPPOTrainer(BaseTrainer):
 
                     if ref_policy is None:
                         with self.null_ref_context():
-                            ref_output = forward(model.policy, query_response, processing_class.pad_token_id)
+                            ref_output = forward(
+                                model.policy,
+                                query_response,
+                                processing_class.pad_token_id,
+                            )
                     else:
-                        ref_output = forward(ref_policy, query_response, processing_class.pad_token_id)
+                        ref_output = forward(
+                            ref_policy, query_response, processing_class.pad_token_id
+                        )
                     ref_logits = ref_output.logits[:, context_length - 1 : -1]
                     ref_logits /= args.temperature + 1e-7
                     ref_logprob = selective_log_softmax(ref_logits, response)
@@ -1192,21 +1462,36 @@ class _UnslothPPOTrainer(BaseTrainer):
 
                     # Response Processing 1. truncate response after the first occurrence of `stop_token_id`
                     postprocessed_response = response
-                    if self.stop_token_id is not None:  # handle the edge case when stop_token_id exists but is 0
+                    if (
+                        self.stop_token_id is not None
+                    ):  # handle the edge case when stop_token_id exists but is 0
                         postprocessed_response = truncate_response(
                             self.stop_token_id, processing_class.pad_token_id, response
                         )
 
                     # Response Processing 2. run reward model on the truncated responses
-                    postprocessed_query_response = torch.cat((query, postprocessed_response), 1)
-                    sequence_length = first_true_indices(postprocessed_response == processing_class.pad_token_id) - 1
+                    postprocessed_query_response = torch.cat(
+                        (query, postprocessed_response), 1
+                    )
+                    sequence_length = (
+                        first_true_indices(
+                            postprocessed_response == processing_class.pad_token_id
+                        )
+                        - 1
+                    )
                     unwrapped_value_model = accelerator.unwrap_model(model).value_model
                     full_value, _, _ = get_reward(
-                        unwrapped_value_model, query_response, processing_class.pad_token_id, context_length
+                        unwrapped_value_model,
+                        query_response,
+                        processing_class.pad_token_id,
+                        context_length,
                     )
                     value = full_value[:, context_length - 1 : -1].squeeze(-1)
                     _, score, _ = get_reward(
-                        reward_model, postprocessed_query_response, processing_class.pad_token_id, context_length
+                        reward_model,
+                        postprocessed_query_response,
+                        processing_class.pad_token_id,
+                        context_length,
                     )
 
                     responses.append(response)
@@ -1229,16 +1514,23 @@ class _UnslothPPOTrainer(BaseTrainer):
 
                 # Response Processing 3. Filter completion. Ensure that the sample contains stop_token_id
                 # Completions not passing that filter will receive a lower score.
-                contain_eos_token = torch.any(postprocessed_responses == self.processing_class.eos_token_id, dim=-1)
+                contain_eos_token = torch.any(
+                    postprocessed_responses == self.processing_class.eos_token_id,
+                    dim=-1,
+                )
                 if self.args.missing_eos_penalty is not None:
                     scores[~contain_eos_token] -= self.args.missing_eos_penalty
                 # accelerator.print(f"{scores=}, {(contain_eos_token.sum() / len(contain_eos_token))=}")
 
                 # be very careful with `padding_mask_p1`; see https://excalidraw.com/#json=LWnzG4w2k5DjF_EOL_xPt,e2w3a-hFJ_gX5vOfeyXGTw
-                response_idxs = torch.arange(responses.shape[1], device=responses.device).repeat(responses.shape[0], 1)
+                response_idxs = torch.arange(
+                    responses.shape[1], device=responses.device
+                ).repeat(responses.shape[0], 1)
                 padding_mask = response_idxs > sequence_lengths.unsqueeze(1)
                 logprobs = torch.masked_fill(logprobs, padding_mask, INVALID_LOGPROB)
-                ref_logprobs = torch.masked_fill(ref_logprobs, padding_mask, INVALID_LOGPROB)
+                ref_logprobs = torch.masked_fill(
+                    ref_logprobs, padding_mask, INVALID_LOGPROB
+                )
                 sequence_lengths_p1 = sequence_lengths + 1
                 padding_mask_p1 = response_idxs > (sequence_lengths_p1.unsqueeze(1))
                 values = torch.masked_fill(values, padding_mask_p1, 0)
@@ -1246,16 +1538,24 @@ class _UnslothPPOTrainer(BaseTrainer):
                 # 4. compute rewards
                 # Formula used by http://joschu.net/blog/kl-approx.html for the k1 and k3 estimators
                 logr = ref_logprobs - logprobs
-                kl = -logr if args.kl_estimator == "k1" else (logr.exp() - 1) - logr  # Else statement is k3
+                kl = (
+                    -logr if args.kl_estimator == "k1" else (logr.exp() - 1) - logr
+                )  # Else statement is k3
                 non_score_reward = -args.kl_coef * kl
                 rewards = non_score_reward.clone()
                 actual_start = torch.arange(rewards.size(0), device=rewards.device)
-                actual_end = torch.where(sequence_lengths_p1 < rewards.size(1), sequence_lengths_p1, sequence_lengths)
+                actual_end = torch.where(
+                    sequence_lengths_p1 < rewards.size(1),
+                    sequence_lengths_p1,
+                    sequence_lengths,
+                )
                 rewards[[actual_start, actual_end]] += scores
 
                 # 5. whiten rewards
                 if args.whiten_rewards:
-                    rewards = masked_whiten(rewards, mask=~padding_mask_p1, shift_mean=False)
+                    rewards = masked_whiten(
+                        rewards, mask=~padding_mask_p1, shift_mean=False
+                    )
                     rewards = torch.masked_fill(rewards, padding_mask_p1, 0)
 
                 # 6. compute advantages and returns
@@ -1277,14 +1577,22 @@ class _UnslothPPOTrainer(BaseTrainer):
             for ppo_epoch_idx in range(args.num_ppo_epochs):
                 b_inds = np.random.permutation(args.local_batch_size)
                 minibatch_idx = 0
-                for mini_batch_start in range(0, args.local_batch_size, args.local_mini_batch_size):
+                for mini_batch_start in range(
+                    0, args.local_batch_size, args.local_mini_batch_size
+                ):
                     mini_batch_end = mini_batch_start + args.local_mini_batch_size
                     mini_batch_inds = b_inds[mini_batch_start:mini_batch_end]
                     gradient_accumulation_idx = 0
-                    for micro_batch_start in range(0, args.local_mini_batch_size, args.per_device_train_batch_size):
+                    for micro_batch_start in range(
+                        0, args.local_mini_batch_size, args.per_device_train_batch_size
+                    ):
                         with accelerator.accumulate(model):
-                            micro_batch_end = micro_batch_start + args.per_device_train_batch_size
-                            micro_batch_inds = mini_batch_inds[micro_batch_start:micro_batch_end]
+                            micro_batch_end = (
+                                micro_batch_start + args.per_device_train_batch_size
+                            )
+                            micro_batch_inds = mini_batch_inds[
+                                micro_batch_start:micro_batch_end
+                            ]
                             mb_advantage = advantages[micro_batch_inds]
                             mb_responses = responses[micro_batch_inds]
                             mb_query_responses = query_responses[micro_batch_inds]
@@ -1292,15 +1600,21 @@ class _UnslothPPOTrainer(BaseTrainer):
                             mb_return = returns[micro_batch_inds]
                             mb_values = values[micro_batch_inds]
 
-                            output, vpred_temp = forward(model, mb_query_responses, processing_class.pad_token_id)
+                            output, vpred_temp = forward(
+                                model, mb_query_responses, processing_class.pad_token_id
+                            )
                             logits = output.logits[:, context_length - 1 : -1]
                             logits /= args.temperature + 1e-7
                             new_logprobs = selective_log_softmax(logits, mb_responses)
                             new_logprobs = torch.masked_fill(
-                                new_logprobs, padding_mask[micro_batch_inds], INVALID_LOGPROB
+                                new_logprobs,
+                                padding_mask[micro_batch_inds],
+                                INVALID_LOGPROB,
                             )
                             vpred = vpred_temp[:, context_length - 1 : -1].squeeze(-1)
-                            vpred = torch.masked_fill(vpred, padding_mask_p1[micro_batch_inds], 0)
+                            vpred = torch.masked_fill(
+                                vpred, padding_mask_p1[micro_batch_inds], 0
+                            )
                             vpredclipped = torch.clamp(
                                 vpred,
                                 mb_values - args.cliprange_value,
@@ -1309,38 +1623,74 @@ class _UnslothPPOTrainer(BaseTrainer):
                             vf_losses1 = torch.square(vpred - mb_return)
                             vf_losses2 = torch.square(vpredclipped - mb_return)
                             vf_loss_max = torch.max(vf_losses1, vf_losses2)
-                            vf_loss = 0.5 * masked_mean(vf_loss_max, ~padding_mask_p1[micro_batch_inds])
+                            vf_loss = 0.5 * masked_mean(
+                                vf_loss_max, ~padding_mask_p1[micro_batch_inds]
+                            )
                             vf_clipfrac = masked_mean(
-                                (vf_losses2 > vf_losses1).float(), ~padding_mask_p1[micro_batch_inds]
+                                (vf_losses2 > vf_losses1).float(),
+                                ~padding_mask_p1[micro_batch_inds],
                             )
                             logprobs_diff = new_logprobs - mb_logprobs
                             ratio = torch.exp(logprobs_diff)
                             pg_losses = -mb_advantage * ratio
-                            pg_losses2 = -mb_advantage * torch.clamp(ratio, 1.0 - args.cliprange, 1.0 + args.cliprange)
+                            pg_losses2 = -mb_advantage * torch.clamp(
+                                ratio, 1.0 - args.cliprange, 1.0 + args.cliprange
+                            )
                             pg_loss_max = torch.max(pg_losses, pg_losses2)
-                            pg_loss = masked_mean(pg_loss_max, ~padding_mask[micro_batch_inds])
+                            pg_loss = masked_mean(
+                                pg_loss_max, ~padding_mask[micro_batch_inds]
+                            )
                             loss = pg_loss + args.vf_coef * vf_loss
                             accelerator.backward(loss)
                             optimizer.step()
                             optimizer.zero_grad()
                             with torch.no_grad():
                                 pg_clipfrac = masked_mean(
-                                    (pg_losses2 > pg_losses).float(), ~padding_mask[micro_batch_inds]
+                                    (pg_losses2 > pg_losses).float(),
+                                    ~padding_mask[micro_batch_inds],
                                 )
-                                prob_dist = torch.nn.functional.softmax(logits, dim=-1, dtype = torch.float32).to(logits.dtype)
-                                entropy = torch.logsumexp(logits, dim=-1) - torch.sum(prob_dist * logits, dim=-1)
+                                prob_dist = torch.nn.functional.softmax(
+                                    logits, dim=-1, dtype=torch.float32
+                                ).to(logits.dtype)
+                                entropy = torch.logsumexp(logits, dim=-1) - torch.sum(
+                                    prob_dist * logits, dim=-1
+                                )
                                 approxkl = 0.5 * (logprobs_diff**2).mean()
-                                approxkl_stats[ppo_epoch_idx, minibatch_idx, gradient_accumulation_idx] = approxkl
-                                pg_clipfrac_stats[ppo_epoch_idx, minibatch_idx, gradient_accumulation_idx] = (
-                                    pg_clipfrac
-                                )
-                                pg_loss_stats[ppo_epoch_idx, minibatch_idx, gradient_accumulation_idx] = pg_loss
-                                vf_loss_stats[ppo_epoch_idx, minibatch_idx, gradient_accumulation_idx] = vf_loss
-                                vf_clipfrac_stats[ppo_epoch_idx, minibatch_idx, gradient_accumulation_idx] = (
-                                    vf_clipfrac
-                                )
-                                entropy_stats[ppo_epoch_idx, minibatch_idx, gradient_accumulation_idx] = entropy.mean()
-                                ratio_stats[ppo_epoch_idx, minibatch_idx, gradient_accumulation_idx] = ratio.mean()
+                                approxkl_stats[
+                                    ppo_epoch_idx,
+                                    minibatch_idx,
+                                    gradient_accumulation_idx,
+                                ] = approxkl
+                                pg_clipfrac_stats[
+                                    ppo_epoch_idx,
+                                    minibatch_idx,
+                                    gradient_accumulation_idx,
+                                ] = pg_clipfrac
+                                pg_loss_stats[
+                                    ppo_epoch_idx,
+                                    minibatch_idx,
+                                    gradient_accumulation_idx,
+                                ] = pg_loss
+                                vf_loss_stats[
+                                    ppo_epoch_idx,
+                                    minibatch_idx,
+                                    gradient_accumulation_idx,
+                                ] = vf_loss
+                                vf_clipfrac_stats[
+                                    ppo_epoch_idx,
+                                    minibatch_idx,
+                                    gradient_accumulation_idx,
+                                ] = vf_clipfrac
+                                entropy_stats[
+                                    ppo_epoch_idx,
+                                    minibatch_idx,
+                                    gradient_accumulation_idx,
+                                ] = entropy.mean()
+                                ratio_stats[
+                                    ppo_epoch_idx,
+                                    minibatch_idx,
+                                    gradient_accumulation_idx,
+                                ] = ratio.mean()
                         gradient_accumulation_idx += 1
                     minibatch_idx += 1
                     # del everything and empty cache
@@ -1361,38 +1711,83 @@ class _UnslothPPOTrainer(BaseTrainer):
                 eps = int(self.state.episode / (time.time() - start_time))
                 metrics = {}
                 metrics["eps"] = eps
-                metrics["objective/kl"] = self.accelerator.gather_for_metrics(mean_kl).mean().item()
-                metrics["objective/entropy"] = self.accelerator.gather_for_metrics(mean_entropy).mean().item()
-                metrics["objective/non_score_reward"] = (
-                    self.accelerator.gather_for_metrics(mean_non_score_reward).mean().item()
+                metrics["objective/kl"] = (
+                    self.accelerator.gather_for_metrics(mean_kl).mean().item()
                 )
-                metrics["objective/rlhf_reward"] = self.accelerator.gather_for_metrics(rlhf_reward).mean().item()
-                metrics["objective/scores"] = self.accelerator.gather_for_metrics(scores.mean()).mean().item()
-                metrics["policy/approxkl_avg"] = self.accelerator.gather_for_metrics(approxkl_stats).mean().item()
-                metrics["policy/clipfrac_avg"] = self.accelerator.gather_for_metrics(pg_clipfrac_stats).mean().item()
-                metrics["loss/policy_avg"] = self.accelerator.gather_for_metrics(pg_loss_stats).mean().item()
-                metrics["loss/value_avg"] = self.accelerator.gather_for_metrics(vf_loss_stats).mean().item()
-                metrics["val/clipfrac_avg"] = self.accelerator.gather_for_metrics(vf_clipfrac_stats).mean().item()
-                metrics["policy/entropy_avg"] = self.accelerator.gather_for_metrics(entropy_stats).mean().item()
-                metrics["val/ratio"] = self.accelerator.gather_for_metrics(ratio_stats).mean().item()
-                metrics["val/ratio_var"] = self.accelerator.gather_for_metrics(ratio_stats).var().item()
-                metrics["val/num_eos_tokens"] = (responses == processing_class.eos_token_id).sum().item()
+                metrics["objective/entropy"] = (
+                    self.accelerator.gather_for_metrics(mean_entropy).mean().item()
+                )
+                metrics["objective/non_score_reward"] = (
+                    self.accelerator.gather_for_metrics(mean_non_score_reward)
+                    .mean()
+                    .item()
+                )
+                metrics["objective/rlhf_reward"] = (
+                    self.accelerator.gather_for_metrics(rlhf_reward).mean().item()
+                )
+                metrics["objective/scores"] = (
+                    self.accelerator.gather_for_metrics(scores.mean()).mean().item()
+                )
+                metrics["policy/approxkl_avg"] = (
+                    self.accelerator.gather_for_metrics(approxkl_stats).mean().item()
+                )
+                metrics["policy/clipfrac_avg"] = (
+                    self.accelerator.gather_for_metrics(pg_clipfrac_stats).mean().item()
+                )
+                metrics["loss/policy_avg"] = (
+                    self.accelerator.gather_for_metrics(pg_loss_stats).mean().item()
+                )
+                metrics["loss/value_avg"] = (
+                    self.accelerator.gather_for_metrics(vf_loss_stats).mean().item()
+                )
+                metrics["val/clipfrac_avg"] = (
+                    self.accelerator.gather_for_metrics(vf_clipfrac_stats).mean().item()
+                )
+                metrics["policy/entropy_avg"] = (
+                    self.accelerator.gather_for_metrics(entropy_stats).mean().item()
+                )
+                metrics["val/ratio"] = (
+                    self.accelerator.gather_for_metrics(ratio_stats).mean().item()
+                )
+                metrics["val/ratio_var"] = (
+                    self.accelerator.gather_for_metrics(ratio_stats).var().item()
+                )
+                metrics["val/num_eos_tokens"] = (
+                    (responses == processing_class.eos_token_id).sum().item()
+                )
                 metrics["lr"] = self.lr_scheduler.get_last_lr()[0]
                 metrics["episode"] = self.state.episode
-                self.state.epoch = self.state.episode / self.train_dataset_len  # used by self.log
+                self.state.epoch = (
+                    self.state.episode / self.train_dataset_len
+                )  # used by self.log
                 self.state.global_step += 1
                 self.log(metrics)
 
             self.lr_scheduler.step()
-            self.control = self.callback_handler.on_step_end(args, self.state, self.control)
+            self.control = self.callback_handler.on_step_end(
+                args, self.state, self.control
+            )
             if self.control.should_save:
                 self._save_checkpoint(model, trial=None)
-                self.control = self.callback_handler.on_save(self.args, self.state, self.control)
-            del kl, mean_kl, mean_entropy, mean_non_score_reward, scores, metrics, non_score_reward
+                self.control = self.callback_handler.on_save(
+                    self.args, self.state, self.control
+                )
+            del (
+                kl,
+                mean_kl,
+                mean_entropy,
+                mean_non_score_reward,
+                scores,
+                metrics,
+                non_score_reward,
+            )
             empty_cache()
             gc.collect()
 
-            if args.num_sample_generations > 0 and (update - 1) % self.sample_generations_freq == 0:
+            if (
+                args.num_sample_generations > 0
+                and (update - 1) % self.sample_generations_freq == 0
+            ):
                 self.generate_completions(sampling=True)
                 empty_cache()
             del (
@@ -1417,10 +1812,14 @@ class _UnslothPPOTrainer(BaseTrainer):
             empty_cache()
 
         # HF trainer specifics
-        self.control = self.callback_handler.on_train_end(args, self.state, self.control)
+        self.control = self.callback_handler.on_train_end(
+            args, self.state, self.control
+        )
         if self.control.should_save:
             self._save_checkpoint(model, trial=None)
-            self.control = self.callback_handler.on_save(self.args, self.state, self.control)
+            self.control = self.callback_handler.on_save(
+                self.args, self.state, self.control
+            )
 
     def generate_completions(self, sampling: bool = False):
         args = self.args
@@ -1435,7 +1834,9 @@ class _UnslothPPOTrainer(BaseTrainer):
 
         table = defaultdict(list)
         with unwrap_model_for_generation(
-            self.model, self.accelerator, gather_deepspeed3_params=self.args.ds3_gather_for_generation
+            self.model,
+            self.accelerator,
+            gather_deepspeed3_params=self.args.ds3_gather_for_generation,
         ) as unwrapped_model:
             for batch in self.eval_dataloader:
                 query = batch["input_ids"]
@@ -1450,22 +1851,37 @@ class _UnslothPPOTrainer(BaseTrainer):
                     )
                     response = query_response[:, context_length:]
                     postprocessed_response = response
-                    if self.stop_token_id is not None:  # handle the edge case when stop_token_id exists but is 0
+                    if (
+                        self.stop_token_id is not None
+                    ):  # handle the edge case when stop_token_id exists but is 0
                         postprocessed_response = truncate_response(
                             self.stop_token_id, processing_class.pad_token_id, response
                         )
                     table["query"].extend(
-                        gather_object(processing_class.batch_decode(query, skip_special_tokens=True))
+                        gather_object(
+                            processing_class.batch_decode(
+                                query, skip_special_tokens=True
+                            )
+                        )
                     )
                     table["model response"].extend(
-                        gather_object(processing_class.batch_decode(postprocessed_response))
+                        gather_object(
+                            processing_class.batch_decode(postprocessed_response)
+                        )
                     )
 
-                    postprocessed_query_response = torch.cat((query, postprocessed_response), 1)
-                    _, score, _ = get_reward(
-                        self.reward_model, postprocessed_query_response, processing_class.pad_token_id, context_length
+                    postprocessed_query_response = torch.cat(
+                        (query, postprocessed_response), 1
                     )
-                    table["score"].extend(self.accelerator.gather_for_metrics(score).float().cpu().numpy())
+                    _, score, _ = get_reward(
+                        self.reward_model,
+                        postprocessed_query_response,
+                        processing_class.pad_token_id,
+                        context_length,
+                    )
+                    table["score"].extend(
+                        self.accelerator.gather_for_metrics(score).float().cpu().numpy()
+                    )
 
                 if sampling:
                     break
@@ -1494,6 +1910,8 @@ class _UnslothPPOTrainer(BaseTrainer):
             model_name = self.args.hub_model_id.split("/")[-1]
         self.create_model_card(model_name=model_name)
         super()._save_checkpoint(model, trial)
+
+
 class UnslothPPOTrainer(_UnslothPPOTrainer):
     """
     Trainer for Proximal Policy Optimization (PPO).
@@ -1530,8 +1948,9 @@ class UnslothPPOTrainer(_UnslothPPOTrainer):
         peft_config ([`~peft.PeftConfig`], *optional*):
             PEFT configuration to use PEFT for training. If `None`, PEFT is not used. If provided, the policy `model`
             will be wrapped with the specified PEFT adapter.
-    
+
     """
+
     def __init__(
         self,
         args,
@@ -1541,113 +1960,171 @@ class UnslothPPOTrainer(_UnslothPPOTrainer):
         reward_model,
         train_dataset,
         value_model,
-        data_collator = None,
-        eval_dataset = None,
-        callbacks = None,
-        peft_config = None,
-        **kwargs
+        data_collator=None,
+        eval_dataset=None,
+        callbacks=None,
+        peft_config=None,
+        **kwargs,
     ):
-        if args is None: args = UnslothPPOConfig()
-        use_bf16 = getattr(args, 'bf16', False)
-        if type(use_bf16) is not bool: use_bf16 = False
-        use_fp16 = getattr(args, 'fp16', False)
-        if type(use_fp16) is not bool: use_fp16 = False
+        if args is None:
+            args = UnslothPPOConfig()
+        use_bf16 = getattr(args, "bf16", False)
+        if type(use_bf16) is not bool:
+            use_bf16 = False
+        use_fp16 = getattr(args, "fp16", False)
+        if type(use_fp16) is not bool:
+            use_fp16 = False
         force_float32 = False
         try:
-            from unsloth_zoo.device_type import device_is_bf16_supported as _bf16_supported
+            from unsloth_zoo.device_type import (
+                device_is_bf16_supported as _bf16_supported,
+            )
         except Exception:
             _bf16_supported = torch.cuda.is_bf16_supported
-        full_finetuning = getattr(model, '_unsloth_full_finetuning', None)
-        if full_finetuning is None: full_finetuning = os.environ.get('UNSLOTH_ENABLE_FULL_FINETUNING', '0') == '1'
-        model_forced_float32 = getattr(model, '_unsloth_forced_float32', None)
-        if model_forced_float32 is None: model_forced_float32 = os.environ.get('UNSLOTH_FORCE_FLOAT32', '0') == '1'
+        full_finetuning = getattr(model, "_unsloth_full_finetuning", None)
+        if full_finetuning is None:
+            full_finetuning = (
+                os.environ.get("UNSLOTH_ENABLE_FULL_FINETUNING", "0") == "1"
+            )
+        model_forced_float32 = getattr(model, "_unsloth_forced_float32", None)
+        if model_forced_float32 is None:
+            model_forced_float32 = os.environ.get("UNSLOTH_FORCE_FLOAT32", "0") == "1"
         if model_forced_float32 and not (full_finetuning and _bf16_supported()):
-            print('Unsloth: Switching to float32 training since model cannot work with float16')
+            print(
+                "Unsloth: Switching to float32 training since model cannot work with float16"
+            )
             force_float32 = True
-        mixed_precision_dtype = os.environ.get('UNSLOTH_MIXED_PRECISION', 'float32')
-        dtype = getattr(model.config, 'dtype', None) or getattr(model.config, 'torch_dtype', None)
-        if dtype is None: dtype = model.get_input_embeddings().weight.dtype
+        mixed_precision_dtype = os.environ.get("UNSLOTH_MIXED_PRECISION", "float32")
+        dtype = getattr(model.config, "dtype", None) or getattr(
+            model.config, "torch_dtype", None
+        )
+        if dtype is None:
+            dtype = model.get_input_embeddings().weight.dtype
         from unsloth_zoo.utils import _get_dtype
+
         dtype = _get_dtype(dtype)
         float16 = dtype == torch.float16
         bfloat16 = dtype == torch.bfloat16
         float32 = dtype == torch.float32
-        user_float32 = bool(getattr(model, '_unsloth_user_float32', False))
+        user_float32 = bool(getattr(model, "_unsloth_user_float32", False))
         if full_finetuning:
-            if bfloat16 and use_fp16: use_fp16 = False
-            if float16 and use_bf16: use_bf16 = False
-        if not force_float32 and (float16 and use_bf16): raise TypeError('Unsloth: Model is in float16 precision but you want to use bfloat16 precision. Set fp16 to `True` and bf16 to `False`')
-        if not force_float32 and (bfloat16 and use_fp16): raise TypeError('Unsloth: Model is in bfloat16 precision but you want to use float16 precision. Set fp16 to `False` and bf16 to `True`')
+            if bfloat16 and use_fp16:
+                use_fp16 = False
+            if float16 and use_bf16:
+                use_bf16 = False
+        if not force_float32 and (float16 and use_bf16):
+            raise TypeError(
+                "Unsloth: Model is in float16 precision but you want to use bfloat16 precision. Set fp16 to `True` and bf16 to `False`"
+            )
+        if not force_float32 and (bfloat16 and use_fp16):
+            raise TypeError(
+                "Unsloth: Model is in bfloat16 precision but you want to use float16 precision. Set fp16 to `False` and bf16 to `True`"
+            )
         if force_float32:
             # Forced float32 training
             args.fp16 = False
             args.bf16 = False
-            os.environ['ACCELERATE_MIXED_PRECISION'] = 'no'
-            if hasattr(args, 'mixed_precision'): args.mixed_precision = 'no'
+            os.environ["ACCELERATE_MIXED_PRECISION"] = "no"
+            if hasattr(args, "mixed_precision"):
+                args.mixed_precision = "no"
             # args.mixed_precision is a new argument which needs to be set now
-        elif (not use_bf16 and not use_fp16) and mixed_precision_dtype == 'float32' and float32 and user_float32 and not _bf16_supported():
-            print('Unsloth: Model is in float32 and this GPU has no bfloat16 support, so training stays in float32. Pass fp16 = True to force float16 mixed precision instead.')
+        elif (
+            (not use_bf16 and not use_fp16)
+            and mixed_precision_dtype == "float32"
+            and float32
+            and user_float32
+            and not _bf16_supported()
+        ):
+            print(
+                "Unsloth: Model is in float32 and this GPU has no bfloat16 support, so training stays in float32. Pass fp16 = True to force float16 mixed precision instead."
+            )
             args.fp16 = False
             args.bf16 = False
-            os.environ['ACCELERATE_MIXED_PRECISION'] = 'no'
-            if hasattr(args, 'mixed_precision'): args.mixed_precision = 'no'
-        elif (not use_bf16 and not use_fp16) and mixed_precision_dtype == 'float32':
+            os.environ["ACCELERATE_MIXED_PRECISION"] = "no"
+            if hasattr(args, "mixed_precision"):
+                args.mixed_precision = "no"
+        elif (not use_bf16 and not use_fp16) and mixed_precision_dtype == "float32":
             # Mixed precision training. bf16 only if the GPU supports it; V100/T4 use fp16.
             use_bf16_amp = (not float16) and _bf16_supported()
             args.fp16 = not use_bf16_amp
             args.bf16 = use_bf16_amp
-            os.environ['ACCELERATE_MIXED_PRECISION'] = 'bf16' if use_bf16_amp else 'fp16'
-            if hasattr(args, 'mixed_precision'): args.mixed_precision = 'bf16' if use_bf16_amp else 'fp16'
+            os.environ["ACCELERATE_MIXED_PRECISION"] = (
+                "bf16" if use_bf16_amp else "fp16"
+            )
+            if hasattr(args, "mixed_precision"):
+                args.mixed_precision = "bf16" if use_bf16_amp else "fp16"
             # args.mixed_precision is a new argument which needs to be set now
-        elif mixed_precision_dtype == 'bfloat16':
+        elif mixed_precision_dtype == "bfloat16":
             # Both False since bfloat16 full finetuning doesn't do any autocasting.
             args.fp16 = False
             args.bf16 = False
-            os.environ['ACCELERATE_MIXED_PRECISION'] = 'no'
-            if hasattr(args, 'mixed_precision'): args.mixed_precision = 'no'
+            os.environ["ACCELERATE_MIXED_PRECISION"] = "no"
+            if hasattr(args, "mixed_precision"):
+                args.mixed_precision = "no"
             # args.mixed_precision is a new argument which needs to be set now
         elif use_bf16 or use_fp16:
             # transformers <5 exported this itself from fp16/bf16; 5.x dropped the write, so an
             # explicit flag left it unset and GRPO readers defaulted to 'fp16', wrapping a
             # bfloat16 model in a float16 autocast. See unslothai/unsloth#4891.
-            os.environ['ACCELERATE_MIXED_PRECISION'] = 'bf16' if use_bf16 else 'fp16'
-            if hasattr(args, 'mixed_precision'): args.mixed_precision = 'bf16' if use_bf16 else 'fp16'
-        
-        if getattr(args, 'eval_dataset', None) is not None and getattr(args, 'eval_strategy', 'no') == 'no':
-            args.eval_strategy = 'steps'
-            if getattr(args, 'eval_steps', None) is None: args.eval_steps = 0.1
-        ga_steps = getattr(args, 'gradient_accumulation_steps', None)
+            os.environ["ACCELERATE_MIXED_PRECISION"] = "bf16" if use_bf16 else "fp16"
+            if hasattr(args, "mixed_precision"):
+                args.mixed_precision = "bf16" if use_bf16 else "fp16"
+
+        if (
+            getattr(args, "eval_dataset", None) is not None
+            and getattr(args, "eval_strategy", "no") == "no"
+        ):
+            args.eval_strategy = "steps"
+            if getattr(args, "eval_steps", None) is None:
+                args.eval_steps = 0.1
+        ga_steps = getattr(args, "gradient_accumulation_steps", None)
         if ga_steps is not None and ga_steps > 1:
             from transformers import __version__ as transformers_version
-            if Version(transformers_version) <= Version('4.45.2'):
-                print('**** Unsloth: Please use our fixed gradient_accumulation_steps by updating transformers, TRL and Unsloth!\n'
-                      '`pip install --upgrade --no-cache-dir --force-reinstall --no-deps unsloth transformers trl unsloth_zoo`')
-        if getattr(args, 'eval_strategy', 'no') != 'no':
-            eval_bsz = getattr(args, 'per_device_eval_batch_size', 8)
-            if eval_bsz == 8 and args.per_device_train_batch_size < eval_bsz: args.per_device_eval_batch_size = args.per_device_train_batch_size
-            if getattr(args, 'eval_accumulation_steps', None) is None and ga_steps is not None: args.eval_accumulation_steps = ga_steps
-        fp16_full_eval = getattr(args, 'fp16_full_eval', False)
-        if type(fp16_full_eval) is not bool: fp16_full_eval = False
-        bf16_full_eval = getattr(args, 'bf16_full_eval', False)
-        if type(bf16_full_eval) is not bool: bf16_full_eval = False
-        if args.fp16 and bf16_full_eval: args.bf16_full_eval = False; args.fp16_full_eval = True
-        if args.bf16 and fp16_full_eval: args.bf16_full_eval = True; args.fp16_full_eval = False
+
+            if Version(transformers_version) <= Version("4.45.2"):
+                print(
+                    "**** Unsloth: Please use our fixed gradient_accumulation_steps by updating transformers, TRL and Unsloth!\n"
+                    "`pip install --upgrade --no-cache-dir --force-reinstall --no-deps unsloth transformers trl unsloth_zoo`"
+                )
+        if getattr(args, "eval_strategy", "no") != "no":
+            eval_bsz = getattr(args, "per_device_eval_batch_size", 8)
+            if eval_bsz == 8 and args.per_device_train_batch_size < eval_bsz:
+                args.per_device_eval_batch_size = args.per_device_train_batch_size
+            if (
+                getattr(args, "eval_accumulation_steps", None) is None
+                and ga_steps is not None
+            ):
+                args.eval_accumulation_steps = ga_steps
+        fp16_full_eval = getattr(args, "fp16_full_eval", False)
+        if type(fp16_full_eval) is not bool:
+            fp16_full_eval = False
+        bf16_full_eval = getattr(args, "bf16_full_eval", False)
+        if type(bf16_full_eval) is not bool:
+            bf16_full_eval = False
+        if args.fp16 and bf16_full_eval:
+            args.bf16_full_eval = False
+            args.fp16_full_eval = True
+        if args.bf16 and fp16_full_eval:
+            args.bf16_full_eval = True
+            args.fp16_full_eval = False
         if force_float32:
             args.bf16_full_eval = False
             args.fp16_full_eval = False
-        elif os.environ.get('UNSLOTH_MIXED_PRECISION', 'float32') == 'bfloat16':
+        elif os.environ.get("UNSLOTH_MIXED_PRECISION", "float32") == "bfloat16":
             args.bf16_full_eval = True
             args.fp16_full_eval = False
         elif not bf16_full_eval and not fp16_full_eval:
             args.bf16_full_eval = args.bf16
             args.fp16_full_eval = args.fp16
         _output_logits = False
-        if locals().get('compute_metrics', None) is not None: _output_logits = True
-        if locals().get('preprocess_logits_for_metrics', None) is not None: _output_logits = True
+        if locals().get("compute_metrics", None) is not None:
+            _output_logits = True
+        if locals().get("preprocess_logits_for_metrics", None) is not None:
+            _output_logits = True
         if _output_logits:
-            os.environ['UNSLOTH_RETURN_LOGITS'] = '1'
+            os.environ["UNSLOTH_RETURN_LOGITS"] = "1"
         if model is not None:
-            _warnings_issued = getattr(model, 'warnings_issued', None)
+            _warnings_issued = getattr(model, "warnings_issued", None)
             if _warnings_issued is None:
                 model.warnings_issued = {}
             elif not isinstance(_warnings_issued, dict):
@@ -1655,108 +2132,161 @@ class UnslothPPOTrainer(_UnslothPPOTrainer):
                     model.warnings_issued = dict(_warnings_issued)
                 except Exception:
                     model.warnings_issued = {}
-        if 'max_seq_length' not in locals() and not hasattr(args, 'max_seq_length'):
+        if "max_seq_length" not in locals() and not hasattr(args, "max_seq_length"):
             pass
         else:
-            model_max_seq_length = getattr(model, 'max_seq_length', None)
-            args_max_seq_length  = getattr(args,  'max_seq_length', None)
+            model_max_seq_length = getattr(model, "max_seq_length", None)
+            args_max_seq_length = getattr(args, "max_seq_length", None)
             if args_max_seq_length is None and model_max_seq_length is not None:
                 max_seq_length = model.max_seq_length
-                if hasattr(args, 'max_seq_length'): args.max_seq_length = max_seq_length
+                if hasattr(args, "max_seq_length"):
+                    args.max_seq_length = max_seq_length
             elif args_max_seq_length is not None and model_max_seq_length is not None:
                 if args_max_seq_length > model_max_seq_length:
-                    print('Unsloth: You set `max_seq_length` as ' + str(args_max_seq_length) + ' but '
-                           'the maximum the model supports is ' + str(model_max_seq_length) + '. We shall reduce it.')
+                    print(
+                        "Unsloth: You set `max_seq_length` as "
+                        + str(args_max_seq_length)
+                        + " but "
+                        "the maximum the model supports is "
+                        + str(model_max_seq_length)
+                        + ". We shall reduce it."
+                    )
                     args.max_seq_length = model_max_seq_length
-        if model is not None and hasattr(model, 'for_training'):
-            _use_gc = model._unsloth_gradient_checkpointing if hasattr(model, '_unsloth_gradient_checkpointing') else getattr(args, 'gradient_checkpointing', True)
+        if model is not None and hasattr(model, "for_training"):
+            _use_gc = (
+                model._unsloth_gradient_checkpointing
+                if hasattr(model, "_unsloth_gradient_checkpointing")
+                else getattr(args, "gradient_checkpointing", True)
+            )
             model.for_training(use_gradient_checkpointing=_use_gc)
-        if 'tokenizer' in locals() and hasattr(tokenizer, 'padding_side'): tokenizer.padding_side = 'right'
-        if 'processing_class' in locals():
-            if hasattr(processing_class, 'padding_side'): processing_class.padding_side = 'right'
-            if hasattr(processing_class, 'tokenizer') and hasattr(processing_class.tokenizer, 'padding_side'): processing_class.tokenizer.padding_side = 'right'
-        __tokenizer = processing_class if 'processing_class' in locals() else tokenizer
+        if "tokenizer" in locals() and hasattr(tokenizer, "padding_side"):
+            tokenizer.padding_side = "right"
+        if "processing_class" in locals():
+            if hasattr(processing_class, "padding_side"):
+                processing_class.padding_side = "right"
+            if hasattr(processing_class, "tokenizer") and hasattr(
+                processing_class.tokenizer, "padding_side"
+            ):
+                processing_class.tokenizer.padding_side = "right"
+        __tokenizer = processing_class if "processing_class" in locals() else tokenizer
         from unsloth_zoo.vision_utils import UnslothVisionDataCollator
+
         if not isinstance(data_collator, UnslothVisionDataCollator):
-            if isinstance(data_collator, DataCollatorForSeq2Seq) and 'labels' not in train_dataset.column_names:
+            if (
+                isinstance(data_collator, DataCollatorForSeq2Seq)
+                and "labels" not in train_dataset.column_names
+            ):
                 data_collator = TransformersDataCollatorForLanguageModeling(
                     __tokenizer,
-                    mlm = False,
-                    mlm_probability = 0.0,
-                    pad_to_multiple_of = getattr(args, 'pad_to_multiple_of', None),
+                    mlm=False,
+                    mlm_probability=0.0,
+                    pad_to_multiple_of=getattr(args, "pad_to_multiple_of", None),
                 )
-            elif isinstance(data_collator, TransformersDataCollatorForLanguageModeling) and 'labels' in train_dataset.column_names:
+            elif (
+                isinstance(data_collator, TransformersDataCollatorForLanguageModeling)
+                and "labels" in train_dataset.column_names
+            ):
                 data_collator = DataCollatorForSeq2Seq(
                     __tokenizer,
-                    pad_to_multiple_of = getattr(args, 'pad_to_multiple_of', None),
+                    pad_to_multiple_of=getattr(args, "pad_to_multiple_of", None),
                 )
         else:
-            if hasattr(args, 'remove_unused_columns'): args.remove_unused_columns = False
-            if hasattr(args, 'dataset_text_field'): args.dataset_text_field = ''
-            if hasattr(args, 'dataset_kwargs'): args.dataset_kwargs = {'skip_prepare_dataset': True}
+            if hasattr(args, "remove_unused_columns"):
+                args.remove_unused_columns = False
+            if hasattr(args, "dataset_text_field"):
+                args.dataset_text_field = ""
+            if hasattr(args, "dataset_kwargs"):
+                args.dataset_kwargs = {"skip_prepare_dataset": True}
         if not isinstance(data_collator, UnslothVisionDataCollator):
-            if not hasattr(__tokenizer, 'pad') and hasattr(__tokenizer, 'tokenizer'):
+            if not hasattr(__tokenizer, "pad") and hasattr(__tokenizer, "tokenizer"):
                 if isinstance(data_collator, DataCollatorForSeq2Seq):
                     data_collator = DataCollatorForSeq2Seq(
                         __tokenizer.tokenizer,
-                        pad_to_multiple_of = getattr(args, 'pad_to_multiple_of', None),
+                        pad_to_multiple_of=getattr(args, "pad_to_multiple_of", None),
                     )
-                elif isinstance(data_collator, TransformersDataCollatorForLanguageModeling):
+                elif isinstance(
+                    data_collator, TransformersDataCollatorForLanguageModeling
+                ):
                     data_collator = TransformersDataCollatorForLanguageModeling(
                         __tokenizer.tokenizer,
-                        mlm = False,
-                        mlm_probability = 0.0,
-                        pad_to_multiple_of = getattr(args, 'pad_to_multiple_of', None),
+                        mlm=False,
+                        mlm_probability=0.0,
+                        pad_to_multiple_of=getattr(args, "pad_to_multiple_of", None),
                     )
         other_metrics = []
-        
+
         from unsloth_zoo.logging_utils import PatchRLStatistics
-        PatchRLStatistics('ppo_trainer', other_metrics)
-        
+
+        PatchRLStatistics("ppo_trainer", other_metrics)
+
         # [TODO] Fix up DataParallel multiplying batch sizes
         # [TODO] DDP works, but DP seems to not work? [TODO]
-        if getattr(args, "parallel_mode", None) == ParallelMode.NOT_DISTRIBUTED and args.n_gpu > 1:
+        if (
+            getattr(args, "parallel_mode", None) == ParallelMode.NOT_DISTRIBUTED
+            and args.n_gpu > 1
+        ):
             if getattr(args, "_n_gpu", 1) != 1:
                 args._n_gpu = 1
         if "model" in locals() and hasattr(model, "for_training"):
-            _use_gc = model._unsloth_gradient_checkpointing if hasattr(model, '_unsloth_gradient_checkpointing') else getattr(args, 'gradient_checkpointing', True)
+            _use_gc = (
+                model._unsloth_gradient_checkpointing
+                if hasattr(model, "_unsloth_gradient_checkpointing")
+                else getattr(args, "gradient_checkpointing", True)
+            )
             model.for_training(use_gradient_checkpointing=_use_gc)
         super().__init__(
-            args = args,
-            processing_class = processing_class,
-            model = model,
-            ref_model = ref_model,
-            reward_model = reward_model,
-            train_dataset = train_dataset,
-            value_model = value_model,
-            data_collator = data_collator,
-            eval_dataset = eval_dataset,
-            callbacks = callbacks,
-            peft_config = peft_config,**kwargs)
+            args=args,
+            processing_class=processing_class,
+            model=model,
+            ref_model=ref_model,
+            reward_model=reward_model,
+            train_dataset=train_dataset,
+            value_model=value_model,
+            data_collator=data_collator,
+            eval_dataset=eval_dataset,
+            callbacks=callbacks,
+            peft_config=peft_config,
+            **kwargs,
+        )
         if "model" in locals() and hasattr(model, "for_inference"):
             model.for_inference()
-        if hasattr(self, 'neftune_hook_handle'):
+        if hasattr(self, "neftune_hook_handle"):
             self.neftune_hook_handle.remove()
-            if hasattr(self, 'neftune_hook_handle'): del self.neftune_hook_handle
-        if getattr(args, 'neftune_noise_alpha', None) is not None:
+            if hasattr(self, "neftune_hook_handle"):
+                del self.neftune_hook_handle
+        if getattr(args, "neftune_noise_alpha", None) is not None:
             model.get_input_embeddings().neftune_noise_alpha = self.neftune_noise_alpha
         pass
-        if hasattr(self, 'accelerator'):
+        if hasattr(self, "accelerator"):
             scaler = self.accelerator.scaler
             current_model = model
-            while hasattr(current_model, 'model'):
+            while hasattr(current_model, "model"):
                 current_model.accelerator_scaler = scaler
                 current_model = current_model.model
             current_model.accelerator_scaler = scaler
         pass
-        if hasattr(self, 'train'):
-            self.train = MethodType(prepare_for_training_mode(self.__class__.train), self)
+        if hasattr(self, "train"):
+            self.train = MethodType(
+                prepare_for_training_mode(self.__class__.train), self
+            )
         pass
-        if hasattr(self, 'llm') and self.llm is not None and hasattr(self.llm, 'get_tokenizer'):
+        if (
+            hasattr(self, "llm")
+            and self.llm is not None
+            and hasattr(self.llm, "get_tokenizer")
+        ):
             _vllm_tok = self.llm.get_tokenizer()
-            _pc = getattr(self, 'processing_class', None) or getattr(self, 'tokenizer', None)
-            if _vllm_tok is not None and _pc is not None and getattr(_pc, 'chat_template', None) is not None and getattr(_vllm_tok, 'chat_template', None) is None:
+            _pc = getattr(self, "processing_class", None) or getattr(
+                self, "tokenizer", None
+            )
+            if (
+                _vllm_tok is not None
+                and _pc is not None
+                and getattr(_pc, "chat_template", None) is not None
+                and getattr(_vllm_tok, "chat_template", None) is None
+            ):
                 _vllm_tok.chat_template = _pc.chat_template
         pass
-        
+
+
 pass

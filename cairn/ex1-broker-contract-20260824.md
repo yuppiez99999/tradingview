@@ -57,3 +57,14 @@
 - 真实 OrderRouter (automated_execution_system.py L149) 对接 SmartOrderRouter, 其 broker=get_broker()
   (G1 已接线); EX-1 校验确保装配的 broker 满足 SOR 契约。
 - 架构债: 同名 BrokerAPI 双重定义 (broker_api 抽象基类 vs smart_order_router Protocol), P2 后续统一。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查明细 — execution 模块 (2026-08-24)](code-review-execution-20260824.md) (相似度 14%)
+- [G1 QMT 真实下单接线 (2026-08-24)](g1-qmt-wiring-20260824.md) (相似度 13%)
+- [DTE-1 建仓接入 FillsStore 事实源 (2026-08-24)](dte1-build-fills-store-20260824.md) (相似度 12%)
+- [UE-1 统一实盘门控 (2026-08-24)](ue1-live-gate-20260824.md) (相似度 8%)
+- [代码审查明细 — daily_trade_executor (2026-08-24)](code-review-daily-executor-20260824.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

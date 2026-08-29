@@ -3,6 +3,7 @@ Wind MCP Fetcher
 
 提供 Wind MCP 的实时行情、批量行情、K线数据获取能力。
 """
+
 import json
 import os
 import re
@@ -12,7 +13,9 @@ from typing import Any, Optional
 
 import requests as _requests
 
-SKILL_DIR = os.path.join(os.path.dirname(__file__), "..", ".agents", "skills", "wind-mcp-skill")
+SKILL_DIR = os.path.join(
+    os.path.dirname(__file__), "..", ".agents", "skills", "wind-mcp-skill"
+)
 CLI_PATH = os.path.join(SKILL_DIR, "scripts", "cli.mjs")
 WIND_STOCK_ENDPOINT = "https://mcp.wind.com.cn/vserver_stock_data/mcp/"
 WIND_FUND_ENDPOINT = "https://mcp.wind.com.cn/vserver_fund_data/mcp/"
@@ -22,7 +25,11 @@ WIND_FINANCIAL_DOCS_ENDPOINT = "https://mcp.wind.com.cn/vserver_financial_docs/m
 def _ensure_wind_cli() -> Optional[str]:
     if not os.path.isfile(CLI_PATH):
         return None
-    node = sys.executable.replace("python.exe", "node.exe") if sys.executable.endswith("python.exe") else "node"
+    node = (
+        sys.executable.replace("python.exe", "node.exe")
+        if sys.executable.endswith("python.exe")
+        else "node"
+    )
     if os.path.isfile(node):
         return node
     for candidate in ("node", "node.exe", r"C:\Program Files\nodejs\node.exe"):
@@ -63,7 +70,7 @@ def _parse_sse_minute_quote(text: str) -> Optional[dict]:
         payload = json.loads(m.group(1))
     except Exception:
         return None
-    result = ((payload.get("result") or {}).get("content") or [])
+    result = (payload.get("result") or {}).get("content") or []
     if not result:
         return None
     first = result[0]
@@ -147,7 +154,9 @@ def _parse_sse_minute_quote(text: str) -> Optional[dict]:
     }
 
 
-def _wind_http(server_endpoint: str, tool_name: str, params: dict, api_key: str, retries: int = 2) -> dict:
+def _wind_http(
+    server_endpoint: str, tool_name: str, params: dict, api_key: str, retries: int = 2
+) -> dict:
     """绕过 CLI，直接请求 Wind MCP，并尝试解析 SSE。失败时自动重试。"""
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -163,7 +172,13 @@ def _wind_http(server_endpoint: str, tool_name: str, params: dict, api_key: str,
     last_err = None
     for _attempt in range(1, retries + 1):
         try:
-            resp = _requests.post(server_endpoint, headers=headers, json=payload, timeout=60, proxies={"http": None, "https": None})
+            resp = _requests.post(
+                server_endpoint,
+                headers=headers,
+                json=payload,
+                timeout=60,
+                proxies={"http": None, "https": None},
+            )
         except Exception as e:
             last_err = f"wind_http_error: {e}"
             continue
@@ -189,11 +204,17 @@ def _wind_http(server_endpoint: str, tool_name: str, params: dict, api_key: str,
             result = sse_data.get("result") if isinstance(sse_data, dict) else None
             if isinstance(result, dict) and result.get("isError"):
                 error_texts = []
-                for content in (result.get("content") or []):
+                for content in result.get("content") or []:
                     if isinstance(content, dict) and content.get("text"):
                         error_texts.append(content["text"])
-                error_msg = " | ".join(error_texts) if error_texts else "unknown_wind_error"
-                return {"ok": False, "error": f"wind_api_error: {error_msg}", "data": sse_data}
+                error_msg = (
+                    " | ".join(error_texts) if error_texts else "unknown_wind_error"
+                )
+                return {
+                    "ok": False,
+                    "error": f"wind_api_error: {error_msg}",
+                    "data": sse_data,
+                }
             return {"ok": True, "data": sse_data, "sse": True}
         try:
             data = json.loads(text)
@@ -205,7 +226,7 @@ def _wind_http(server_endpoint: str, tool_name: str, params: dict, api_key: str,
         result = data.get("result") if isinstance(data, dict) else None
         if isinstance(result, dict) and result.get("isError"):
             error_texts = []
-            for content in (result.get("content") or []):
+            for content in result.get("content") or []:
                 if isinstance(content, dict) and content.get("text"):
                     error_texts.append(content["text"])
             error_msg = " | ".join(error_texts) if error_texts else "unknown_wind_error"
@@ -215,7 +236,9 @@ def _wind_http(server_endpoint: str, tool_name: str, params: dict, api_key: str,
     return {"ok": False, "error": last_err or "wind_http_failed"}
 
 
-def _wind_http_generic(server_endpoint: str, tool_name: str, params: dict, api_key: str, retries: int = 2) -> dict:
+def _wind_http_generic(
+    server_endpoint: str, tool_name: str, params: dict, api_key: str, retries: int = 2
+) -> dict:
     """v8.6.11 新增: 通用 HTTP 调用 (不调用 _parse_sse_minute_quote)
 
     用于 K 线类工具 (get_stock_kline / get_fund_kline), 这类工具返回多行 K 线数据,
@@ -239,7 +262,13 @@ def _wind_http_generic(server_endpoint: str, tool_name: str, params: dict, api_k
     last_err = None
     for _attempt in range(1, retries + 1):
         try:
-            resp = _requests.post(server_endpoint, headers=headers, json=payload, timeout=60, proxies={"http": None, "https": None})
+            resp = _requests.post(
+                server_endpoint,
+                headers=headers,
+                json=payload,
+                timeout=60,
+                proxies={"http": None, "https": None},
+            )
         except Exception as e:
             last_err = f"wind_http_generic_error: {e}"
             continue
@@ -260,11 +289,17 @@ def _wind_http_generic(server_endpoint: str, tool_name: str, params: dict, api_k
             result = sse_data.get("result") if isinstance(sse_data, dict) else None
             if isinstance(result, dict) and result.get("isError"):
                 error_texts = []
-                for content in (result.get("content") or []):
+                for content in result.get("content") or []:
                     if isinstance(content, dict) and content.get("text"):
                         error_texts.append(content["text"])
-                error_msg = " | ".join(error_texts) if error_texts else "unknown_wind_error"
-                return {"ok": False, "error": f"wind_api_error: {error_msg}", "data": sse_data}
+                error_msg = (
+                    " | ".join(error_texts) if error_texts else "unknown_wind_error"
+                )
+                return {
+                    "ok": False,
+                    "error": f"wind_api_error: {error_msg}",
+                    "data": sse_data,
+                }
             return {"ok": True, "data": sse_data, "sse": True}
         try:
             data = json.loads(text)
@@ -274,7 +309,7 @@ def _wind_http_generic(server_endpoint: str, tool_name: str, params: dict, api_k
         result = data.get("result") if isinstance(data, dict) else None
         if isinstance(result, dict) and result.get("isError"):
             error_texts = []
-            for content in (result.get("content") or []):
+            for content in result.get("content") or []:
                 if isinstance(content, dict) and content.get("text"):
                     error_texts.append(content["text"])
             error_msg = " | ".join(error_texts) if error_texts else "unknown_wind_error"
@@ -309,15 +344,19 @@ def _get_wind_api_key() -> Optional[str]:
                         return _WIND_API_KEY_CACHE
     except Exception:
         import logging
+
         logging.getLogger(__name__).error(
             "Wind API Key 加载失败: 配置文件 %s 读取异常, 所有Wind数据调用将不可用",
-            cfg, exc_info=True
+            cfg,
+            exc_info=True,
         )
     _WIND_API_KEY_CACHE = None
     return None
 
 
-def _call_wind(server_type: str, tool_name: str, params: dict, retries: int = 2) -> dict:
+def _call_wind(
+    server_type: str, tool_name: str, params: dict, retries: int = 2
+) -> dict:
     node = _ensure_wind_cli()
     if not node:
         return {"ok": False, "error": "wind_cli_missing"}
@@ -384,25 +423,35 @@ def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[dict]:
     server_type = "fund_data" if is_fund else "stock_data"
     # 优先使用 get_stock_price_indicators (实时快照工具)
     # 回退工具名: get_fund_quote (ETF) / get_stock_quote (分钟级, 已弃用)
-    tool_name_primary = "get_stock_price_indicators" if not is_fund else "get_stock_price_indicators"
+    tool_name_primary = (
+        "get_stock_price_indicators" if not is_fund else "get_stock_price_indicators"
+    )
     tool_name_fallback = "get_fund_quote" if is_fund else "get_stock_quote"
     api_key = _get_wind_api_key()
 
     # 请求的行情指标 (中文名称, 与 Wind MCP 文档一致)
-    indexes = ("最新交易日,交易时间,最新成交价,前收盘价,今日开盘价,"
-               "今日最高价,今日最低价,成交量,成交额,涨跌幅,换手率,量比")
+    indexes = (
+        "最新交易日,交易时间,最新成交价,前收盘价,今日开盘价,"
+        "今日最高价,今日最低价,成交量,成交额,涨跌幅,换手率,量比"
+    )
 
     if api_key:
         endpoint = WIND_FUND_ENDPOINT if is_fund else WIND_STOCK_ENDPOINT
         # 第一次尝试: 用 get_stock_price_indicators + indexes 参数
-        http_res = _wind_http(endpoint, tool_name_primary,
-                              {"windcode": windcode, "indexes": indexes}, api_key)
+        http_res = _wind_http(
+            endpoint,
+            tool_name_primary,
+            {"windcode": windcode, "indexes": indexes},
+            api_key,
+        )
         if http_res.get("ok") and isinstance(http_res.get("data"), dict):
             parsed = _extract_price_indicators(http_res["data"])
             if parsed:
                 return parsed
         # 第二次尝试: 回退到 get_stock_quote/get_fund_quote (分钟级, 兼容旧接口)
-        http_res2 = _wind_http(endpoint, tool_name_fallback, {"windcode": windcode}, api_key)
+        http_res2 = _wind_http(
+            endpoint, tool_name_fallback, {"windcode": windcode}, api_key
+        )
         if http_res2.get("ok") and isinstance(http_res2.get("data"), dict):
             d = http_res2["data"]
             if d.get("price") or d.get("prev_close"):
@@ -427,13 +476,13 @@ def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[dict]:
         return None
 
     data = res.get("data") or {}
-    _content = ((data.get("result") or data).get("content") or [])
+    _content = (data.get("result") or data).get("content") or []
     if not _content:
         return None
     _first = _content[0]
     if not isinstance(_first, dict):
         return None
-    content = (_first.get("text") or "")
+    content = _first.get("text") or ""
     if not content:
         return None
     try:
@@ -449,11 +498,17 @@ def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[dict]:
 
     item = items[0]
     return {
-        "price": item.get("rt_last") or item.get("latest") or item.get("close") or item.get("MATCH") or item.get("CLOSE"),
+        "price": item.get("rt_last")
+        or item.get("latest")
+        or item.get("close")
+        or item.get("MATCH")
+        or item.get("CLOSE"),
         "open": item.get("rt_open") or item.get("open") or item.get("OPEN"),
         "high": item.get("rt_high") or item.get("high") or item.get("HIGH"),
         "low": item.get("rt_low") or item.get("low") or item.get("LOW"),
-        "prev_close": item.get("rt_pre_close") or item.get("prev_close") or item.get("PRE_CLOSE"),
+        "prev_close": item.get("rt_pre_close")
+        or item.get("prev_close")
+        or item.get("PRE_CLOSE"),
         "change": item.get("rt_change") or item.get("change_pct") or item.get("change"),
         "volume": item.get("rt_volume") or item.get("volume") or item.get("VOLUME"),
         "amount": item.get("rt_amount") or item.get("amount") or item.get("TURNOVER"),
@@ -514,12 +569,16 @@ def _extract_price_indicators(data: dict) -> Optional[dict]:
     # 如果 row 是 list, 按 columns 索引
     if isinstance(row, list):
         col_map = {name: i for i, name in enumerate(columns)}
+
         def _get(name, default=None):
             idx = col_map.get(name)
             return row[idx] if idx is not None and idx < len(row) else default
+
     elif isinstance(row, dict):
+
         def _get(name, default=None):
             return row.get(name, default)
+
     else:
         return None
 
@@ -544,7 +603,9 @@ def _extract_price_indicators(data: dict) -> Optional[dict]:
     }
 
 
-def wind_get_batch_quotes(windcodes: list[str], is_fund: bool = False) -> dict[str, Optional[dict]]:
+def wind_get_batch_quotes(
+    windcodes: list[str], is_fund: bool = False
+) -> dict[str, Optional[dict]]:
     result = {}
     for code in windcodes:
         quote = wind_get_quote(code, is_fund=is_fund)
@@ -559,8 +620,12 @@ KLINE_ADJUST_NONE = 0
 KLINE_ADJUST_HFQ = 2
 
 
-def wind_get_kline(windcode: str, days: int = 2, is_fund: bool = False,
-                   adjust: Optional[int] = KLINE_ADJUST_QFQ) -> Optional[list[dict]]:
+def wind_get_kline(
+    windcode: str,
+    days: int = 2,
+    is_fund: bool = False,
+    adjust: Optional[int] = KLINE_ADJUST_QFQ,
+) -> Optional[list[dict]]:
     """获取股票/ETF 历史 K 线数据
 
     v8.6.14 FIX (2026-08-25 复权口径修复):
@@ -578,6 +643,7 @@ def wind_get_kline(windcode: str, days: int = 2, is_fund: bool = False,
     server_type = "fund_data" if is_fund else "stock_data"
     tool_name = "get_fund_kline" if is_fund else "get_stock_kline"
     import datetime as dt
+
     end_date = dt.datetime.now()
     start_date = end_date - dt.timedelta(days=int(days * 1.5))
 
@@ -606,6 +672,7 @@ def wind_get_kline(windcode: str, days: int = 2, is_fund: bool = False,
             # HTTP 失败, 回退到 CLI
             if http_res.get("error"):
                 import logging
+
                 logging.getLogger(__name__).debug(
                     f"Wind HTTP ({tool_name}) 失败, 回退到 CLI: {http_res.get('error')}"
                 )
@@ -644,11 +711,11 @@ def _extract_kline_records(data: dict) -> list[dict]:
         return []
 
     # 路径 1: MCP content[0].text 嵌套 JSON
-    _content = ((data.get("result") or data).get("content") or [])
+    _content = (data.get("result") or data).get("content") or []
     if _content and isinstance(_content, list):
         _first = _content[0]
         if isinstance(_first, dict):
-            content = (_first.get("text") or "")
+            content = _first.get("text") or ""
             if content:
                 try:
                     parsed = json.loads(content)
@@ -791,7 +858,11 @@ def _extract_news_items(data: Any) -> list[dict]:
                 cols = [c.get("name") for c in (inner_data.get("columns") or [])]
                 rows = inner_data.get("rows") or []
                 if cols and rows:
-                    return [dict(zip(cols, row, strict=True)) for row in rows if len(cols) == len(row)]
+                    return [
+                        dict(zip(cols, row, strict=True))
+                        for row in rows
+                        if len(cols) == len(row)
+                    ]
             elif isinstance(inner_data, list):
                 return [i for i in inner_data if isinstance(i, dict)]
         elif isinstance(inner, list):
@@ -860,22 +931,19 @@ def _extract_news_items(data: Any) -> list[dict]:
             or item.get("date")
             or ""
         )
-        source = (
-            item.get("source")
-            or item.get("Source")
-            or item.get("来源")
-            or ""
-        )
+        source = item.get("source") or item.get("Source") or item.get("来源") or ""
 
         if not title and not snippet:
             continue
 
-        normalized.append({
-            "title": str(title),
-            "snippet": str(snippet),
-            "publish_time": str(publish_time) if publish_time else "",
-            "source": str(source),
-        })
+        normalized.append(
+            {
+                "title": str(title),
+                "snippet": str(snippet),
+                "publish_time": str(publish_time) if publish_time else "",
+                "source": str(source),
+            }
+        )
 
     return normalized
 
@@ -888,4 +956,3 @@ __all__ = [
     "wind_get_quote",
     "wind_search_news",  # 财经新闻搜索
 ]
-

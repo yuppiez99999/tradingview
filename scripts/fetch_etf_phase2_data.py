@@ -14,6 +14,7 @@ ETF期权对冲再平衡 Phase 2 — P2.1 数据接入 (v8.6.14 复权口径修�
   python scripts/fetch_etf_phase2_data.py                  # Wind MCP 主源 (默认)
   python scripts/fetch_etf_phase2_data.py --source sina    # sina 冗余源 (交叉验证)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,7 +27,9 @@ from datetime import datetime
 from pathlib import Path
 
 # NO_PROXY 绕过系统代理 (AGENTS.md 规范)
-os.environ["NO_PROXY"] = "push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com,sinajs.cn,sina.com.cn"
+os.environ["NO_PROXY"] = (
+    "push2his.eastmoney.com,push2.eastmoney.com,eastmoney.com,sinajs.cn,sina.com.cn"
+)
 os.environ["no_proxy"] = os.environ["NO_PROXY"]
 
 import akshare as ak
@@ -39,22 +42,106 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # ============================================================
 ETF_LIST = [
     # 宽基 60%
-    {"code": "510300", "exchange": "SH", "name": "沪深300ETF华泰柏瑞", "category": "宽基", "weight": 0.15},
-    {"code": "510500", "exchange": "SH", "name": "中证500ETF南方", "category": "宽基", "weight": 0.07},
-    {"code": "510050", "exchange": "SH", "name": "上证50ETF华夏", "category": "宽基", "weight": 0.10},
-    {"code": "512100", "exchange": "SH", "name": "中证1000ETF南方", "category": "宽基", "weight": 0.09},
-    {"code": "588000", "exchange": "SH", "name": "科创50ETF华夏", "category": "宽基", "weight": 0.10},
-    {"code": "159915", "exchange": "SZ", "name": "创业板ETF易方达", "category": "宽基", "weight": 0.08},
+    {
+        "code": "510300",
+        "exchange": "SH",
+        "name": "沪深300ETF华泰柏瑞",
+        "category": "宽基",
+        "weight": 0.15,
+    },
+    {
+        "code": "510500",
+        "exchange": "SH",
+        "name": "中证500ETF南方",
+        "category": "宽基",
+        "weight": 0.07,
+    },
+    {
+        "code": "510050",
+        "exchange": "SH",
+        "name": "上证50ETF华夏",
+        "category": "宽基",
+        "weight": 0.10,
+    },
+    {
+        "code": "512100",
+        "exchange": "SH",
+        "name": "中证1000ETF南方",
+        "category": "宽基",
+        "weight": 0.09,
+    },
+    {
+        "code": "588000",
+        "exchange": "SH",
+        "name": "科创50ETF华夏",
+        "category": "宽基",
+        "weight": 0.10,
+    },
+    {
+        "code": "159915",
+        "exchange": "SZ",
+        "name": "创业板ETF易方达",
+        "category": "宽基",
+        "weight": 0.08,
+    },
     # 行业/主题 25%
-    {"code": "512480", "exchange": "SH", "name": "半导体ETF国联安", "category": "行业主题", "weight": 0.05},
-    {"code": "512010", "exchange": "SH", "name": "医药ETF富国", "category": "行业主题", "weight": 0.06},
-    {"code": "512660", "exchange": "SH", "name": "军工ETF鹏华", "category": "行业主题", "weight": 0.04},
-    {"code": "515170", "exchange": "SH", "name": "新能源车ETF华夏", "category": "行业主题", "weight": 0.03},
-    {"code": "159939", "exchange": "SZ", "name": "信息技术ETF广发", "category": "行业主题", "weight": 0.03},
+    {
+        "code": "512480",
+        "exchange": "SH",
+        "name": "半导体ETF国联安",
+        "category": "行业主题",
+        "weight": 0.05,
+    },
+    {
+        "code": "512010",
+        "exchange": "SH",
+        "name": "医药ETF富国",
+        "category": "行业主题",
+        "weight": 0.06,
+    },
+    {
+        "code": "512660",
+        "exchange": "SH",
+        "name": "军工ETF鹏华",
+        "category": "行业主题",
+        "weight": 0.04,
+    },
+    {
+        "code": "515170",
+        "exchange": "SH",
+        "name": "新能源车ETF华夏",
+        "category": "行业主题",
+        "weight": 0.03,
+    },
+    {
+        "code": "159939",
+        "exchange": "SZ",
+        "name": "信息技术ETF广发",
+        "category": "行业主题",
+        "weight": 0.03,
+    },
     # 防御/抗通胀 15%
-    {"code": "518880", "exchange": "SH", "name": "华安黄金ETF", "category": "防御抗通胀", "weight": 0.10},
-    {"code": "511260", "exchange": "SH", "name": "国泰国债ETF", "category": "防御抗通胀", "weight": 0.05},
-    {"code": "510310", "exchange": "SH", "name": "红利ETF易方达", "category": "防御抗通胀", "weight": 0.05},
+    {
+        "code": "518880",
+        "exchange": "SH",
+        "name": "华安黄金ETF",
+        "category": "防御抗通胀",
+        "weight": 0.10,
+    },
+    {
+        "code": "511260",
+        "exchange": "SH",
+        "name": "国泰国债ETF",
+        "category": "防御抗通胀",
+        "weight": 0.05,
+    },
+    {
+        "code": "510310",
+        "exchange": "SH",
+        "name": "红利ETF易方达",
+        "category": "防御抗通胀",
+        "weight": 0.05,
+    },
 ]
 
 START_DATE = "2021-01-01"
@@ -76,11 +163,17 @@ def fetch_etf_sina(code: str, exchange: str) -> pd.DataFrame | None:
         if df is None or len(df) == 0:
             return None
         # 标准化列名
-        df = df.rename(columns={
-            "date": "date", "open": "open", "high": "high",
-            "low": "low", "close": "close", "volume": "volume",
-            "amount": "amount",
-        })
+        df = df.rename(
+            columns={
+                "date": "date",
+                "open": "open",
+                "high": "high",
+                "low": "low",
+                "close": "close",
+                "volume": "volume",
+                "amount": "amount",
+            }
+        )
         df["date"] = pd.to_datetime(df["date"])
         df = df.set_index("date").sort_index()
         # 过滤日期范围
@@ -138,7 +231,9 @@ def _run_sina() -> int:
         code = etf["code"]
         exchange = etf["exchange"]
         name = etf["name"]
-        print(f"[{i}/{len(ETF_LIST)}] {code}.{exchange} {name} ...", end=" ", flush=True)
+        print(
+            f"[{i}/{len(ETF_LIST)}] {code}.{exchange} {name} ...", end=" ", flush=True
+        )
 
         df = fetch_etf_sina(code, exchange)
         if df is None or len(df) == 0:
@@ -156,13 +251,15 @@ def _run_sina() -> int:
         date_range = f"{df.index[0].date()}~{df.index[-1].date()}"
         print(f"OK ({row_count} 行, {date_range})")
 
-        manifest["etfs"].append({
-            **etf,
-            "status": "ok",
-            "rows": row_count,
-            "date_range": date_range,
-            "file": str(out_file),
-        })
+        manifest["etfs"].append(
+            {
+                **etf,
+                "status": "ok",
+                "rows": row_count,
+                "date_range": date_range,
+                "file": str(out_file),
+            }
+        )
 
         # 礼貌延迟避免频率限制
         time.sleep(0.5)
@@ -187,7 +284,9 @@ def _run_sina() -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="ETF Phase 2 数据接入 (v8.6.14 复权口径修复)")
+    parser = argparse.ArgumentParser(
+        description="ETF Phase 2 数据接入 (v8.6.14 复权口径修复)"
+    )
     parser.add_argument(
         "--source",
         choices=["wind", "sina"],

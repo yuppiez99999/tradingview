@@ -69,3 +69,14 @@ KTD-Fin 通过数据侧掩码 + 归因分析检测这种记忆泄漏。
 - **LIT-2.5**: FinGPT 系列集成（轻量 LoRA）
 - **CSI300 验证**: 接入真实 CSI300 2024-2026 数据验证
 - **与 DeepFund 互补**: DeepFund 检测 LLM 内部时间穿越, KTD-Fin 检测数据侧记忆泄漏
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [FinGPT 系列集成 (轻量 LoRA + RLSP 训练管线)](fingpt-integration.md) (相似度 22%)
+- [DeepFund 防泄漏评估基准 (LIT-1.3)](deepfund-eval-benchmark.md) (相似度 20%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 18%)
+- [AI-Trader 实时未污染评估基准 (LIT-1.4)](ai-trader-eval-benchmark.md) (相似度 15%)
+- [CN-Buzz2Portfolio 中国市场基准](cn-buzz2portfolio.md) (相似度 13%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

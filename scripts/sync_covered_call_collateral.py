@@ -69,8 +69,10 @@ def sync_510300(topup_shares: int = 2000, topup_price: float | None = None):
         "old_avg_cost": old_avg_cost,
         "new_avg_cost": round(float(new_avg_cost), 4),
         "topup_price": est_price,
-        "collateral_status": "sufficient" if new_shares >= COVERED_CALL_COLLATERAL else "insufficient",
-        "data": data,   # 修复: 返回修改后的持仓数据, 供 main() 落盘 (此前 main 引用未定义的 data 抛 NameError)
+        "collateral_status": (
+            "sufficient" if new_shares >= COVERED_CALL_COLLATERAL else "insufficient"
+        ),
+        "data": data,  # 修复: 返回修改后的持仓数据, 供 main() 落盘 (此前 main 引用未定义的 data 抛 NameError)
     }
 
 
@@ -109,10 +111,14 @@ def main():
         with open(POSITIONS_FILE, encoding="utf-8") as f:
             data = json.load(f)
     print(f"[{r510300['code']}]")
-    print(f"  原持仓: {r510300.get('old_shares')} -> 补仓: {r510300.get('topup_shares')} -> 新持仓: {r510300.get('new_shares')}")
+    print(
+        f"  原持仓: {r510300.get('old_shares')} -> 补仓: {r510300.get('topup_shares')} -> 新持仓: {r510300.get('new_shares')}"
+    )
     print(f"  avg_cost: {r510300.get('old_avg_cost')} -> {r510300.get('new_avg_cost')}")
     print(f"  补仓价: {r510300.get('topup_price')}")
-    print(f"  备兑状态: {r510300.get('collateral_status')} (要求 {COVERED_CALL_COLLATERAL} 份)\n")
+    print(
+        f"  备兑状态: {r510300.get('collateral_status')} (要求 {COVERED_CALL_COLLATERAL} 份)\n"
+    )
 
     r510050 = check_510050_collateral()
     print(f"[{r510050['code']}]")
@@ -121,7 +127,9 @@ def main():
     print(f"  缺口:     {r510050['gap']}")
     print(f"  是否满足: {'是' if r510050['is_sufficient'] else '否'}")
     if not r510050["is_sufficient"]:
-        print(f"  建议: 补仓 {r510050['gap']} 份，预估成本 {r510050['estimated_topup_cost']} 元")
+        print(
+            f"  建议: 补仓 {r510050['gap']} 份，预估成本 {r510050['estimated_topup_cost']} 元"
+        )
     print()
 
     with open(POSITIONS_FILE, "w", encoding="utf-8") as f:

@@ -29,6 +29,7 @@
 运行:
     python -m pytest tests/unit/test_g7_etf_flow_monitor_boost.py -v
 """
+
 from __future__ import annotations
 
 import json
@@ -41,7 +42,9 @@ import pytest
 # ============================================================
 # 路径设置 (必须在导入被测模块前完成)
 # ============================================================
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -179,12 +182,14 @@ class TestFetchWindFundFlow:
     def test_valid_quote_inflow(self, tracker_no_sources):
         tracker_no_sources.wind_mcp_available = True
         tracker_no_sources._wind_mcp_client = {
-            "quote": MagicMock(return_value={
-                "price": 4.5,
-                "amount": 1_000_000_000,  # 10 亿 (1e9 * 1e-8 = 10)
-                "volume": 200_000_000,
-                "change": 1.23,
-            }),
+            "quote": MagicMock(
+                return_value={
+                    "price": 4.5,
+                    "amount": 1_000_000_000,  # 10 亿 (1e9 * 1e-8 = 10)
+                    "volume": 200_000_000,
+                    "change": 1.23,
+                }
+            ),
         }
         result = tracker_no_sources._fetch_wind_fund_flow("510300")
         assert result is not None
@@ -201,12 +206,14 @@ class TestFetchWindFundFlow:
     def test_valid_quote_outflow(self, tracker_no_sources):
         tracker_no_sources.wind_mcp_available = True
         tracker_no_sources._wind_mcp_client = {
-            "quote": MagicMock(return_value={
-                "price": 4.5,
-                "amount": -500_000_000,  # -5 亿
-                "volume": 100,
-                "change": -0.5,
-            }),
+            "quote": MagicMock(
+                return_value={
+                    "price": 4.5,
+                    "amount": -500_000_000,  # -5 亿
+                    "volume": 100,
+                    "change": -0.5,
+                }
+            ),
         }
         result = tracker_no_sources._fetch_wind_fund_flow("510050")
         assert result is not None
@@ -217,12 +224,14 @@ class TestFetchWindFundFlow:
     def test_unknown_etf_code_no_name(self, tracker_no_sources):
         tracker_no_sources.wind_mcp_available = True
         tracker_no_sources._wind_mcp_client = {
-            "quote": MagicMock(return_value={
-                "price": 1.0,
-                "amount": 1_000_000_000,
-                "volume": 0,
-                "change": 0,
-            }),
+            "quote": MagicMock(
+                return_value={
+                    "price": 1.0,
+                    "amount": 1_000_000_000,
+                    "volume": 0,
+                    "change": 0,
+                }
+            ),
         }
         # 不在 NATIONAL_TEAM_ETFS 列表中的代码
         result = tracker_no_sources._fetch_wind_fund_flow("510999")
@@ -233,12 +242,14 @@ class TestFetchWindFundFlow:
     def test_amount_none_trend_neutral(self, tracker_no_sources):
         tracker_no_sources.wind_mcp_available = True
         tracker_no_sources._wind_mcp_client = {
-            "quote": MagicMock(return_value={
-                "price": 1.0,
-                "amount": None,
-                "volume": None,
-                "change": 0,
-            }),
+            "quote": MagicMock(
+                return_value={
+                    "price": 1.0,
+                    "amount": None,
+                    "volume": None,
+                    "change": 0,
+                }
+            ),
         }
         result = tracker_no_sources._fetch_wind_fund_flow("510300")
         assert result is not None
@@ -261,7 +272,7 @@ class TestFetchWindFundFlow:
 
 @pytest.mark.skip(
     reason="API 重构: utils/etf_flow_monitor.py 已移除 iFinD 数据源, "
-           "改为 Wind MCP / 东财 / 新浪 / 价格动量回退链, 该方法不再存在"
+    "改为 Wind MCP / 东财 / 新浪 / 价格动量回退链, 该方法不再存在"
 )
 class TestFetchIFindFundFlow:
     """iFinD MCP 资金流获取 (已废弃: 源码重构移除 iFinD 数据源)."""
@@ -339,9 +350,7 @@ class TestFetchEastmoneyFundFlow:
                 ]
             }
         }
-        with patch.object(
-            etf_flow_monitor, "_em_opener"
-        ) as mock_opener:
+        with patch.object(etf_flow_monitor, "_em_opener") as mock_opener:
             mock_resp = MagicMock()
             mock_resp.read.return_value = json.dumps(resp).encode("utf-8")
             mock_opener.open.return_value = mock_resp
@@ -519,8 +528,16 @@ class TestFetchSinaFundFlow:
     def test_valid_sh_etf_inflow(self, tracker_no_sources):
         # fields: name, open, prev_close, current, high, low, ?, ?, volume, amount, ...
         fields = [
-            "沪深300ETF", "4.50", "4.40", "4.60", "4.65", "4.35",
-            "4.50", "4.55", "1000000", "500000000",
+            "沪深300ETF",
+            "4.50",
+            "4.40",
+            "4.60",
+            "4.65",
+            "4.35",
+            "4.50",
+            "4.55",
+            "1000000",
+            "500000000",
         ]
         text = self._make_sina_response("sh510300", fields)
         with patch("requests.Session") as MockSession:
@@ -545,8 +562,16 @@ class TestFetchSinaFundFlow:
 
     def test_valid_sz_etf_outflow(self, tracker_no_sources):
         fields = [
-            "创业板ETF", "3.00", "3.10", "2.95", "3.05", "2.90",
-            "3.00", "3.00", "500000", "-200000000",
+            "创业板ETF",
+            "3.00",
+            "3.10",
+            "2.95",
+            "3.05",
+            "2.90",
+            "3.00",
+            "3.00",
+            "500000",
+            "-200000000",
         ]
         text = self._make_sina_response("sz159915", fields)
         with patch("requests.Session") as MockSession:
@@ -605,8 +630,16 @@ class TestFetchSinaFundFlow:
 
     def test_invalid_float_returns_none(self, tracker_no_sources):
         fields = [
-            "ETF", "bad", "bad", "bad", "bad", "bad",
-            "x", "y", "100", "200",
+            "ETF",
+            "bad",
+            "bad",
+            "bad",
+            "bad",
+            "bad",
+            "x",
+            "y",
+            "100",
+            "200",
         ]
         text = self._make_sina_response("sh510300", fields)
         with patch("requests.Session") as MockSession:
@@ -620,8 +653,16 @@ class TestFetchSinaFundFlow:
 
     def test_current_le_zero_returns_none(self, tracker_no_sources):
         fields = [
-            "ETF", "0", "4.4", "0", "0", "0",
-            "0", "0", "0", "0",
+            "ETF",
+            "0",
+            "4.4",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
         ]
         text = self._make_sina_response("sh510300", fields)
         with patch("requests.Session") as MockSession:
@@ -862,10 +903,14 @@ class TestDetectSignals:
 
     def test_sorting_by_confidence_then_abs_flow(self, tracker_no_sources):
         flow_data = {
-            "510300": {"name": "A", "net_flow_yi": 3.0, "category": "C"},     # 低
-            "510050": {"name": "B", "net_flow_yi": 60.0, "category": "C"},    # 高
-            "510500": {"name": "C", "net_flow_yi": 15.0, "category": "C"},    # 中
-            "588000": {"name": "D", "net_flow_yi": 80.0, "category": "C"},    # 高, abs 更大
+            "510300": {"name": "A", "net_flow_yi": 3.0, "category": "C"},  # 低
+            "510050": {"name": "B", "net_flow_yi": 60.0, "category": "C"},  # 高
+            "510500": {"name": "C", "net_flow_yi": 15.0, "category": "C"},  # 中
+            "588000": {
+                "name": "D",
+                "net_flow_yi": 80.0,
+                "category": "C",
+            },  # 高, abs 更大
         }
         signals = tracker_no_sources.detect_signals(flow_data)
         # 高优先: 80 在 60 前
@@ -892,15 +937,24 @@ class TestDetectSignals:
         signals = tracker_no_sources.detect_signals(flow_data)
         s = signals[0]
         for field in (
-            "code", "name", "category", "net_flow_yi",
-            "change_pct", "trend", "signal_type", "confidence", "source",
+            "code",
+            "name",
+            "category",
+            "net_flow_yi",
+            "change_pct",
+            "trend",
+            "signal_type",
+            "confidence",
+            "source",
         ):
             assert field in s
         assert s["name"] == "沪深300ETF华泰柏瑞"
         assert s["source"] == "wind_mcp"
 
     def test_default_values_when_fields_missing(self, tracker_no_sources):
-        flow_data = {"999999": {"net_flow_yi": 60.0}}  # 缺 name/category/change_pct/trend/source
+        flow_data = {
+            "999999": {"net_flow_yi": 60.0}
+        }  # 缺 name/category/change_pct/trend/source
         signals = tracker_no_sources.detect_signals(flow_data)
         s = signals[0]
         assert s["name"] == "999999"  # 默认回退到 code
@@ -960,13 +1014,13 @@ class TestGetSignalSummary:
 
     def test_signal_counts(self, tracker_no_sources):
         flow_data = {
-            "A": {"net_flow_yi": 100.0, "name": "A", "category": "C"},   # 高
-            "B": {"net_flow_yi": 50.0, "name": "B", "category": "C"},    # 高 (>=50)
-            "C": {"net_flow_yi": 20.0, "name": "C", "category": "C"},    # 中
-            "D": {"net_flow_yi": 5.0, "name": "D", "category": "C"},     # 低
+            "A": {"net_flow_yi": 100.0, "name": "A", "category": "C"},  # 高
+            "B": {"net_flow_yi": 50.0, "name": "B", "category": "C"},  # 高 (>=50)
+            "C": {"net_flow_yi": 20.0, "name": "C", "category": "C"},  # 中
+            "D": {"net_flow_yi": 5.0, "name": "D", "category": "C"},  # 低
             "E": {"net_flow_yi": -100.0, "name": "E", "category": "C"},  # 高
-            "F": {"net_flow_yi": -20.0, "name": "F", "category": "C"},   # 中
-            "G": {"net_flow_yi": -5.0, "name": "G", "category": "C"},    # 低
+            "F": {"net_flow_yi": -20.0, "name": "F", "category": "C"},  # 中
+            "G": {"net_flow_yi": -5.0, "name": "G", "category": "C"},  # 低
         }
         summary = tracker_no_sources.get_signal_summary(flow_data)
         assert summary["signal_count"] == 7
@@ -1063,13 +1117,20 @@ class TestUpdatePositionsJson:
         pf.write_text(json.dumps(positions), encoding="utf-8")
 
         tracker_no_sources.get_all_etf_fund_flows = MagicMock(
-            return_value={"510300": {"code": "510300", "name": "X", "net_flow_yi": 20.0}}
+            return_value={
+                "510300": {"code": "510300", "name": "X", "net_flow_yi": 20.0}
+            }
         )
         tracker_no_sources.detect_signals = MagicMock(
-            return_value=[{
-                "code": "510300", "name": "X", "net_flow_yi": 20.0,
-                "signal_type": "国家队加仓信号", "confidence": "中",
-            }]
+            return_value=[
+                {
+                    "code": "510300",
+                    "name": "X",
+                    "net_flow_yi": 20.0,
+                    "signal_type": "国家队加仓信号",
+                    "confidence": "中",
+                }
+            ]
         )
 
         tracker_no_sources.update_positions_json(str(pf))
@@ -1085,10 +1146,15 @@ class TestUpdatePositionsJson:
             return_value={"510300": {"code": "510300", "name": "X", "net_flow_yi": 5.0}}
         )
         tracker_no_sources.detect_signals = MagicMock(
-            return_value=[{
-                "code": "510300", "name": "X", "net_flow_yi": 5.0,
-                "signal_type": "国家队关注信号", "confidence": "低",
-            }]
+            return_value=[
+                {
+                    "code": "510300",
+                    "name": "X",
+                    "net_flow_yi": 5.0,
+                    "signal_type": "国家队关注信号",
+                    "confidence": "低",
+                }
+            ]
         )
 
         tracker_no_sources.update_positions_json(str(pf))
@@ -1129,17 +1195,22 @@ class TestUpdatePositionsJson:
         tracker_no_sources.get_all_etf_fund_flows = MagicMock(
             return_value={
                 "510300": {
-                    "code": "510300", "name": "沪深300ETF华泰柏瑞",
+                    "code": "510300",
+                    "name": "沪深300ETF华泰柏瑞",
                     "net_flow_yi": 60.0,
                 }
             }
         )
         tracker_no_sources.detect_signals = MagicMock(
-            return_value=[{
-                "code": "510300", "name": "沪深300ETF华泰柏瑞",
-                "net_flow_yi": 60.0, "signal_type": "国家队强加仓信号",
-                "confidence": "高",
-            }]
+            return_value=[
+                {
+                    "code": "510300",
+                    "name": "沪深300ETF华泰柏瑞",
+                    "net_flow_yi": 60.0,
+                    "signal_type": "国家队强加仓信号",
+                    "confidence": "高",
+                }
+            ]
         )
 
         tracker_no_sources.update_positions_json(str(pf))
@@ -1188,7 +1259,9 @@ class TestUpdatePositionsJson:
         pf.write_text(json.dumps(positions), encoding="utf-8")
 
         tracker_no_sources.get_all_etf_fund_flows = MagicMock(
-            return_value={"510300": {"code": "510300", "name": "X", "net_flow_yi": 60.0}}
+            return_value={
+                "510300": {"code": "510300", "name": "X", "net_flow_yi": 60.0}
+            }
         )
         tracker_no_sources.detect_signals = MagicMock(return_value=[])
 
@@ -1246,10 +1319,12 @@ class TestRefreshEtfFlowSignals:
 
     def test_default_positions_file_path(self):
         # 验证默认路径拼接正确 (不实际打开文件, 只 mock tracker)
-        with patch.object(ETFRealTimeTracker, "_init_data_sources", lambda self: None), \
-             patch.object(ETFRealTimeTracker, "update_positions_json") as mock_update, \
-             patch.object(ETFRealTimeTracker, "get_all_etf_fund_flows") as mock_all, \
-             patch.object(ETFRealTimeTracker, "get_signal_summary") as mock_summary:
+        with (
+            patch.object(ETFRealTimeTracker, "_init_data_sources", lambda self: None),
+            patch.object(ETFRealTimeTracker, "update_positions_json") as mock_update,
+            patch.object(ETFRealTimeTracker, "get_all_etf_fund_flows") as mock_all,
+            patch.object(ETFRealTimeTracker, "get_signal_summary") as mock_summary,
+        ):
 
             mock_update.return_value = {"status": "success", "updated_count": 0}
             mock_all.return_value = {}
@@ -1265,10 +1340,12 @@ class TestRefreshEtfFlowSignals:
         pf = tmp_path / "custom.json"
         pf.write_text(json.dumps({"meta": {}, "positions": {}}), encoding="utf-8")
 
-        with patch.object(ETFRealTimeTracker, "_init_data_sources", lambda self: None), \
-             patch.object(ETFRealTimeTracker, "update_positions_json") as mock_update, \
-             patch.object(ETFRealTimeTracker, "get_all_etf_fund_flows") as mock_all, \
-             patch.object(ETFRealTimeTracker, "get_signal_summary") as mock_summary:
+        with (
+            patch.object(ETFRealTimeTracker, "_init_data_sources", lambda self: None),
+            patch.object(ETFRealTimeTracker, "update_positions_json") as mock_update,
+            patch.object(ETFRealTimeTracker, "get_all_etf_fund_flows") as mock_all,
+            patch.object(ETFRealTimeTracker, "get_signal_summary") as mock_summary,
+        ):
 
             mock_update.return_value = {"status": "success", "updated_count": 0}
             mock_all.return_value = {}
@@ -1282,9 +1359,11 @@ class TestRefreshEtfFlowSignals:
 
     def test_failure_no_summary(self, tmp_path):
         # update_positions_json 失败 → 不调用 get_signal_summary, 不附加 summary
-        with patch.object(ETFRealTimeTracker, "_init_data_sources", lambda self: None), \
-             patch.object(ETFRealTimeTracker, "update_positions_json") as mock_update, \
-             patch.object(ETFRealTimeTracker, "get_signal_summary") as mock_summary:
+        with (
+            patch.object(ETFRealTimeTracker, "_init_data_sources", lambda self: None),
+            patch.object(ETFRealTimeTracker, "update_positions_json") as mock_update,
+            patch.object(ETFRealTimeTracker, "get_signal_summary") as mock_summary,
+        ):
 
             mock_update.return_value = {"status": "error", "message": "boom"}
 
@@ -1304,12 +1383,19 @@ class TestGetEtfFlowSummary:
     """get_etf_flow_summary 顶层入口."""
 
     def test_returns_summary(self):
-        with patch.object(ETFRealTimeTracker, "_init_data_sources", lambda self: None), \
-             patch.object(ETFRealTimeTracker, "get_all_etf_fund_flows") as mock_all, \
-             patch.object(ETFRealTimeTracker, "get_signal_summary") as mock_summary:
+        with (
+            patch.object(ETFRealTimeTracker, "_init_data_sources", lambda self: None),
+            patch.object(ETFRealTimeTracker, "get_all_etf_fund_flows") as mock_all,
+            patch.object(ETFRealTimeTracker, "get_signal_summary") as mock_summary,
+        ):
 
             mock_all.return_value = {
-                "510300": {"code": "510300", "name": "X", "net_flow_yi": 60.0, "category": "C"}
+                "510300": {
+                    "code": "510300",
+                    "name": "X",
+                    "net_flow_yi": 60.0,
+                    "category": "C",
+                }
             }
             mock_summary.return_value = {
                 "total_flow_yi": 60.0,
@@ -1339,22 +1425,32 @@ class TestInitDataSources:
 
     def test_wind_mcp_file_missing_silent(self):
         # wind_mcp_fetcher.py 不存在时, 不抛异常, wind_mcp_available 保持 False
-        with patch.object(ETFRealTimeTracker, "_init_data_sources", ETFRealTimeTracker._init_data_sources):
+        with patch.object(
+            ETFRealTimeTracker,
+            "_init_data_sources",
+            ETFRealTimeTracker._init_data_sources,
+        ):
             t = ETFRealTimeTracker()
         assert t.wind_mcp_available is False
         assert t._wind_mcp_client is None
 
     def test_ifind_token_missing_silent(self):
         # API 重构: iFinD 数据源已移除, 本测试跳过
-        pytest.skip("utils/etf_flow_monitor.py 已移除 iFinD 数据源, ifind_mcp_available 属性不再存在")
+        pytest.skip(
+            "utils/etf_flow_monitor.py 已移除 iFinD 数据源, ifind_mcp_available 属性不再存在"
+        )
 
     def test_ifind_token_present_loads_client(self):
         # API 重构: iFinD 数据源已移除, 本测试跳过
-        pytest.skip("utils/etf_flow_monitor.py 已移除 iFinD 数据源, ifind_mcp_available 属性不再存在")
+        pytest.skip(
+            "utils/etf_flow_monitor.py 已移除 iFinD 数据源, ifind_mcp_available 属性不再存在"
+        )
 
     def test_ifind_token_present_but_constructor_raises(self):
         # API 重构: iFinD 数据源已移除, 本测试跳过
-        pytest.skip("utils/etf_flow_monitor.py 已移除 iFinD 数据源, ifind_mcp_available 属性不再存在")
+        pytest.skip(
+            "utils/etf_flow_monitor.py 已移除 iFinD 数据源, ifind_mcp_available 属性不再存在"
+        )
 
     def test_wind_mcp_file_present_but_spec_none_raises(self, tmp_path):
         # 风险路径: wind_mcp_fetcher.py 存在但 spec_from_file_location 返回 None
@@ -1371,7 +1467,9 @@ class TestInitDataSources:
         with patch("os.path.isfile", return_value=True):
             fake_spec = MagicMock()
             fake_spec.loader.exec_module.side_effect = AttributeError("missing attr")
-            with patch("importlib.util.spec_from_file_location", return_value=fake_spec):
+            with patch(
+                "importlib.util.spec_from_file_location", return_value=fake_spec
+            ):
                 t = ETFRealTimeTracker()
                 assert t.wind_mcp_available is False
                 assert t._wind_mcp_client is None

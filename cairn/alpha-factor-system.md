@@ -115,3 +115,14 @@ GTJA191 是国泰君安研究所发布的 191 个技术类 Alpha 因子，涵盖
 - 因子拥挤度监控：引入因子估值价差和头部股票集中度作为拥挤度指标
 - 行业中性化改进：当前使用一级行业分类，可升级为申万二级行业获得更精细的中性化
 - 衰退信号集成：当前 `FactorDecayMonitor`（v8.5）检测因子 IC 衰减，与退役标准联动
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [GNN 供应链产业链因子落地设计](gnn-supply-chain-factor.md) (相似度 18%)
+- [Wave 6 启动前置研究笔记（2026-08-11）](wave6-prep-study-notes.md) (相似度 16%)
+- [制度门控 Transformer (Adaptive Financial Transformer)](regime-gated-transformer.md) (相似度 13%)
+- [因子发现 Loop Engineering 升级方案](factor-discovery-loop-engineering.md) (相似度 10%)
+- [Wave 5 阶段性总结报告 — GNN 供应链产业链因子](gnn-supply-chain-factor-wave5-review.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

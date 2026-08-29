@@ -16,6 +16,7 @@
     3. 标记 @pytest.mark.e2e + @pytest.mark.slow (nightly 跑)
     4. 验证模块间协作, 不验证业务正确性
 """
+
 from __future__ import annotations
 
 import json
@@ -83,20 +84,22 @@ def synthetic_panel():
     records = []
     for symbol in symbols:
         for date in dates:
-            records.append({
-                "code": symbol,
-                "date": date.strftime("%Y-%m-%d"),
-                "open": np.random.uniform(10, 50),
-                "high": np.random.uniform(10, 55),
-                "low": np.random.uniform(8, 48),
-                "close": np.random.uniform(9, 52),
-                "volume": np.random.randint(100000, 5000000),
-                "MOM_5D": np.random.randn() * 0.02,
-                "RSI_14D": np.random.uniform(20, 80),
-                "VOL_20D": np.random.uniform(0.1, 0.4),
-                "BETA_60D": np.random.uniform(0.5, 1.5),
-                "forward_return_5d": np.random.randn() * 0.03,
-            })
+            records.append(
+                {
+                    "code": symbol,
+                    "date": date.strftime("%Y-%m-%d"),
+                    "open": np.random.uniform(10, 50),
+                    "high": np.random.uniform(10, 55),
+                    "low": np.random.uniform(8, 48),
+                    "close": np.random.uniform(9, 52),
+                    "volume": np.random.randint(100000, 5000000),
+                    "MOM_5D": np.random.randn() * 0.02,
+                    "RSI_14D": np.random.uniform(20, 80),
+                    "VOL_20D": np.random.uniform(0.1, 0.4),
+                    "BETA_60D": np.random.uniform(0.5, 1.5),
+                    "forward_return_5d": np.random.randn() * 0.03,
+                }
+            )
     return pd.DataFrame(records)
 
 

@@ -3,12 +3,11 @@
 目标模块: utils/ai_tools/research_rag.py (0% → 高覆盖)
 覆盖: Document / RetrievalResult / HashEmbedder / SQLiteVectorStore / _cosine / ResearchRAG
 """
+
 from __future__ import annotations
 
-import json
 import math
 import sqlite3
-from pathlib import Path
 
 import pytest
 
@@ -16,17 +15,17 @@ from utils.ai_tools.research_rag import (
     Document,
     Embedder,
     HashEmbedder,
-    RetrievalResult,
     ResearchRAG,
+    RetrievalResult,
     SQLiteVectorStore,
     VectorStore,
     _cosine,
 )
 
-
 # ============================================================
 # DocumentTest — RAG 文档数据结构
 # ============================================================
+
 
 class DocumentTest:
 
@@ -42,8 +41,13 @@ class DocumentTest:
 
     def test_document_with_fields(self):
         d = Document(
-            doc_id="d2", source="ann", title="t2", content="c2",
-            metadata={"sym": "510300"}, embedding=[0.1, 0.2], created_at=1000.0,
+            doc_id="d2",
+            source="ann",
+            title="t2",
+            content="c2",
+            metadata={"sym": "510300"},
+            embedding=[0.1, 0.2],
+            created_at=1000.0,
         )
         assert d.metadata == {"sym": "510300"}
         assert d.embedding == [0.1, 0.2]
@@ -53,6 +57,7 @@ class DocumentTest:
 # ============================================================
 # RetrievalResultTest — 检索结果
 # ============================================================
+
 
 class RetrievalResultTest:
 
@@ -67,6 +72,7 @@ class RetrievalResultTest:
 # ============================================================
 # HashEmbedderTest — Hash 桶 Embedding
 # ============================================================
+
 
 class HashEmbedderTest:
 
@@ -108,6 +114,7 @@ class HashEmbedderTest:
 # CosineTest — 余弦相似度辅助函数
 # ============================================================
 
+
 class CosineTest:
 
     def test_identical_vectors(self):
@@ -139,11 +146,12 @@ class CosineTest:
 # SQLiteVectorStoreTest — SQLite 向量库
 # ============================================================
 
+
 class SQLiteVectorStoreTest:
 
     def test_init_creates_table(self, tmp_path):
         db = str(tmp_path / "test_rag.db")
-        store = SQLiteVectorStore(db_path=db)
+        SQLiteVectorStore(db_path=db)
         with sqlite3.connect(db) as conn:
             tables = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
@@ -165,7 +173,10 @@ class SQLiteVectorStoreTest:
         emb = HashEmbedder()
         vec = emb.embed("content one")
         doc = Document(
-            doc_id="d1", source="report", title="T1", content="content one",
+            doc_id="d1",
+            source="report",
+            title="T1",
+            content="content one",
             embedding=vec,
         )
         store.add(doc)
@@ -187,10 +198,15 @@ class SQLiteVectorStoreTest:
         emb = HashEmbedder()
         for i in range(5):
             vec = emb.embed(f"content {i}")
-            store.add(Document(
-                doc_id=f"d{i}", source="s", title=f"T{i}",
-                content=f"content {i}", embedding=vec,
-            ))
+            store.add(
+                Document(
+                    doc_id=f"d{i}",
+                    source="s",
+                    title=f"T{i}",
+                    content=f"content {i}",
+                    embedding=vec,
+                )
+            )
         qvec = emb.embed("content 0")
         results = store.search(qvec, top_k=2)
         assert len(results) == 2
@@ -203,10 +219,15 @@ class SQLiteVectorStoreTest:
         emb = HashEmbedder()
         vecs = [emb.embed(f"doc {i}") for i in range(3)]
         for i, v in enumerate(vecs):
-            store.add(Document(
-                doc_id=f"d{i}", source="s", title=f"T{i}",
-                content=f"doc {i}", embedding=v,
-            ))
+            store.add(
+                Document(
+                    doc_id=f"d{i}",
+                    source="s",
+                    title=f"T{i}",
+                    content=f"doc {i}",
+                    embedding=v,
+                )
+            )
         results = store.search(vecs[0], top_k=3)
         scores = [r.score for r in results]
         assert scores == sorted(scores, reverse=True)
@@ -215,9 +236,15 @@ class SQLiteVectorStoreTest:
         """文档 embedding 为空时 score=0.0."""
         db = str(tmp_path / "test_rag.db")
         store = SQLiteVectorStore(db_path=db)
-        store.add(Document(
-            doc_id="d0", source="s", title="T", content="c", embedding=None,
-        ))
+        store.add(
+            Document(
+                doc_id="d0",
+                source="s",
+                title="T",
+                content="c",
+                embedding=None,
+            )
+        )
         results = store.search([1.0, 0.0], top_k=5)
         assert len(results) == 1
         assert results[0].score == 0.0
@@ -227,9 +254,13 @@ class SQLiteVectorStoreTest:
         store = SQLiteVectorStore(db_path=db)
         emb = HashEmbedder()
         vec = emb.embed("v1")
-        store.add(Document(doc_id="dup", source="s", title="T1", content="c1", embedding=vec))
+        store.add(
+            Document(doc_id="dup", source="s", title="T1", content="c1", embedding=vec)
+        )
         vec2 = emb.embed("v2")
-        store.add(Document(doc_id="dup", source="s", title="T2", content="c2", embedding=vec2))
+        store.add(
+            Document(doc_id="dup", source="s", title="T2", content="c2", embedding=vec2)
+        )
         results = store.search(vec2, top_k=5)
         assert len(results) == 1
         assert results[0].doc.title == "T2"
@@ -246,6 +277,7 @@ class SQLiteVectorStoreTest:
 # ResearchRAGTest — 研报 RAG 主接口
 # ============================================================
 
+
 class ResearchRAGTest:
 
     def test_default_init(self, tmp_path, monkeypatch):
@@ -260,7 +292,9 @@ class ResearchRAGTest:
         db = str(tmp_path / "ingest.db")
         rag = ResearchRAG(store=SQLiteVectorStore(db_path=db))
         doc = rag.ingest(
-            source="research_report", title="宁德时代深度", content="新能源车电池龙头",
+            source="research_report",
+            title="宁德时代深度",
+            content="新能源车电池龙头",
             metadata={"symbol": "300750"},
         )
         assert isinstance(doc, Document)

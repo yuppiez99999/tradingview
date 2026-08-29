@@ -17,6 +17,7 @@
     11. VaRMonitorAdapter 扩展: cvar_95/cvar_99 (在 test_risk_module_adapters.py)
     12. calculate_scalar: return_amount/_skip_breach
 """
+
 from __future__ import annotations
 
 import math
@@ -127,19 +128,21 @@ class CVaRConfigTest:
         assert cfg.fallback_chain == ("evt", "historical")
 
     def test_from_dict_valid_fields(self):
-        cfg = CVaRConfig.from_dict({
-            "method": "parametric",
-            "distribution": "student_t",
-            "dof": 10,
-            "confidence_level": 0.99,
-            "threshold_percentile": 0.975,
-            "min_history": 50,
-            "var_95_limit_pct": -0.03,
-            "var_99_limit_pct": -0.05,
-            "enable_var_comparison": False,
-            "fallback_chain": ["historical", "parametric"],
-            "feature_flag_name": "MY_FLAG",
-        })
+        cfg = CVaRConfig.from_dict(
+            {
+                "method": "parametric",
+                "distribution": "student_t",
+                "dof": 10,
+                "confidence_level": 0.99,
+                "threshold_percentile": 0.975,
+                "min_history": 50,
+                "var_95_limit_pct": -0.03,
+                "var_99_limit_pct": -0.05,
+                "enable_var_comparison": False,
+                "fallback_chain": ["historical", "parametric"],
+                "feature_flag_name": "MY_FLAG",
+            }
+        )
         assert cfg.method == "parametric"
         assert cfg.distribution == "student_t"
         assert cfg.dof == 10
@@ -212,14 +215,21 @@ class CVaRConfigTest:
         assert cfg.confidence_level == 0.95
 
     def test_from_system_config_subsection_missing(self):
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("pathlib.Path.read_text", return_value='{"risk_management": {"cvar": {}}}'):
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch(
+                "pathlib.Path.read_text",
+                return_value='{"risk_management": {"cvar": {}}}',
+            ),
+        ):
             cfg = CVaRConfig.from_system_config()
         assert cfg.method == "historical"
 
     def test_from_system_config_json_error(self):
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("pathlib.Path.read_text", return_value="not-json"):
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.read_text", return_value="not-json"),
+        ):
             cfg = CVaRConfig.from_system_config()
         assert cfg.method == "historical"
 
@@ -232,11 +242,19 @@ class CVaRResultTest:
 
     def test_to_dict_roundtrip(self):
         r = CVaRResult(
-            cvar_pct=-0.05, cvar_amount=-500.0, method="historical",
-            method_used="historical", confidence=0.95, breach=True,
-            breach_level="cvar_95", threshold=-0.04, warning="",
-            evt_converged=False, var_comparison={"var_pct": -0.04},
-            timestamp="2026-01-01T00:00:00Z", elapsed_ms=1.5,
+            cvar_pct=-0.05,
+            cvar_amount=-500.0,
+            method="historical",
+            method_used="historical",
+            confidence=0.95,
+            breach=True,
+            breach_level="cvar_95",
+            threshold=-0.04,
+            warning="",
+            evt_converged=False,
+            var_comparison={"var_pct": -0.04},
+            timestamp="2026-01-01T00:00:00Z",
+            elapsed_ms=1.5,
         )
         d = r.to_dict()
         assert d["cvar_pct"] == -0.05
@@ -248,11 +266,19 @@ class CVaRResultTest:
 
     def test_to_dict_none_fields(self):
         r = CVaRResult(
-            cvar_pct=_NAN, cvar_amount=None, method="evt",
-            method_used="evt_fail_closed", confidence=0.99, breach=False,
-            breach_level=None, threshold=None, warning="fail",
-            evt_converged=False, var_comparison=None,
-            timestamp="t", elapsed_ms=0.0,
+            cvar_pct=_NAN,
+            cvar_amount=None,
+            method="evt",
+            method_used="evt_fail_closed",
+            confidence=0.99,
+            breach=False,
+            breach_level=None,
+            threshold=None,
+            warning="fail",
+            evt_converged=False,
+            var_comparison=None,
+            timestamp="t",
+            elapsed_ms=0.0,
         )
         d = r.to_dict()
         assert d["cvar_amount"] is None
@@ -441,7 +467,9 @@ class CVaRCalculatorTest:
     def test_evt_converged_fat_tail(self):
         calc = CVaRCalculator(CVaRConfig())
         rets = fat_tail_returns(200, seed=7)
-        with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=True)):
+        with patch(
+            "utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=True)
+        ):
             cvar, warn, converged, info = calc._calculate_evt(rets, 0.975, 0.95)
         assert converged is True
         assert not math.isnan(cvar)
@@ -451,7 +479,10 @@ class CVaRCalculatorTest:
     def test_evt_short_sequence_not_converge(self):
         calc = CVaRCalculator(CVaRConfig())
         rets = normal_returns(50, seed=1)
-        with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=False, error_message="样本不足")):
+        with patch(
+            "utils.risk.cvar.fit_evt",
+            return_value=make_evt_result(converged=False, error_message="样本不足"),
+        ):
             cvar, warn, converged, _ = calc._calculate_evt(rets, 0.95, 0.95)
         assert converged is False
         assert math.isnan(cvar)
@@ -460,7 +491,10 @@ class CVaRCalculatorTest:
     def test_evt_xi_above_half_warning(self):
         calc = CVaRCalculator(CVaRConfig())
         rets = fat_tail_returns(200, seed=7)
-        with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=True, xi=0.6)):
+        with patch(
+            "utils.risk.cvar.fit_evt",
+            return_value=make_evt_result(converged=True, xi=0.6),
+        ):
             cvar, warn, converged, _ = calc._calculate_evt(rets, 0.99, 0.95)
         assert converged is True
         assert "ξ>0.5" in warn
@@ -468,7 +502,10 @@ class CVaRCalculatorTest:
     def test_evt_confidence_975_mapping(self):
         calc = CVaRCalculator(CVaRConfig())
         rets = fat_tail_returns(200, seed=7)
-        with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=True, es_975=-0.025)):
+        with patch(
+            "utils.risk.cvar.fit_evt",
+            return_value=make_evt_result(converged=True, es_975=-0.025),
+        ):
             cvar, _, converged, _ = calc._calculate_evt(rets, 0.975, 0.95)
         assert converged is True
         assert cvar == -0.025
@@ -476,7 +513,10 @@ class CVaRCalculatorTest:
     def test_evt_confidence_99_mapping(self):
         calc = CVaRCalculator(CVaRConfig())
         rets = fat_tail_returns(200, seed=7)
-        with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=True, es_99=-0.035)):
+        with patch(
+            "utils.risk.cvar.fit_evt",
+            return_value=make_evt_result(converged=True, es_99=-0.035),
+        ):
             cvar, _, converged, _ = calc._calculate_evt(rets, 0.99, 0.95)
         assert converged is True
         assert cvar == -0.035
@@ -484,8 +524,14 @@ class CVaRCalculatorTest:
     def test_evt_confidence_other_calls_evt_var_es(self):
         calc = CVaRCalculator(CVaRConfig())
         rets = fat_tail_returns(200, seed=7)
-        with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=True)), \
-             patch("utils.risk.cvar.evt_var_es", return_value={"es": -0.04, "var": -0.03}):
+        with (
+            patch(
+                "utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=True)
+            ),
+            patch(
+                "utils.risk.cvar.evt_var_es", return_value={"es": -0.04, "var": -0.03}
+            ),
+        ):
             cvar, _, converged, _ = calc._calculate_evt(rets, 0.95, 0.95)
         assert converged is True
         assert cvar == -0.04
@@ -502,7 +548,10 @@ class CVaRCalculatorTest:
     def test_evt_warning_from_result_propagated(self):
         calc = CVaRCalculator(CVaRConfig())
         rets = fat_tail_returns(200, seed=7)
-        with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=True, warning="custom_warn")):
+        with patch(
+            "utils.risk.cvar.fit_evt",
+            return_value=make_evt_result(converged=True, warning="custom_warn"),
+        ):
             _, warn, _, _ = calc._calculate_evt(rets, 0.99, 0.95)
         assert "custom_warn" in warn
 
@@ -513,9 +562,15 @@ class CVaRCalculatorTest:
         cfg = CVaRConfig(method="evt", fallback_chain=("evt", "historical"))
         calc = CVaRCalculator(cfg)
         rets = normal_returns(200, seed=42)
-        with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=False, error_message="fail")):
+        with patch(
+            "utils.risk.cvar.fit_evt",
+            return_value=make_evt_result(converged=False, error_message="fail"),
+        ):
             cvar, warn, method_used, converged, info = calc._apply_fallback_chain(
-                rets, 0.95, "evt", "EVT 不收敛: fail",
+                rets,
+                0.95,
+                "evt",
+                "EVT 不收敛: fail",
             )
         assert not math.isnan(cvar)
         assert method_used == "historical_fallback"
@@ -528,7 +583,10 @@ class CVaRCalculatorTest:
         # monte_carlo failed -> candidates = ["parametric", "evt", "historical"]
         # parametric 成功
         cvar, warn, method_used, _, _ = calc._apply_fallback_chain(
-            rets, 0.95, "monte_carlo", "mc fail",
+            rets,
+            0.95,
+            "monte_carlo",
+            "mc fail",
         )
         assert not math.isnan(cvar)
         assert method_used == "parametric_fallback"
@@ -539,7 +597,10 @@ class CVaRCalculatorTest:
         calc = CVaRCalculator(cfg)
         rets = normal_returns(200, seed=42)
         cvar, warn, method_used, converged, info = calc._apply_fallback_chain(
-            rets, 0.95, "evt", "fail",
+            rets,
+            0.95,
+            "evt",
+            "fail",
         )
         assert math.isnan(cvar)
         assert "降级链耗尽" in warn
@@ -550,9 +611,15 @@ class CVaRCalculatorTest:
         cfg = CVaRConfig(fallback_chain=("evt",))
         calc = CVaRCalculator(cfg)
         rets = normal_returns(200, seed=42)
-        with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=False, error_message="fail")):
+        with patch(
+            "utils.risk.cvar.fit_evt",
+            return_value=make_evt_result(converged=False, error_message="fail"),
+        ):
             cvar, warn, method_used, _, _ = calc._apply_fallback_chain(
-                rets, 0.95, "evt", "fail",
+                rets,
+                0.95,
+                "evt",
+                "fail",
             )
         assert math.isnan(cvar)
         assert "降级链耗尽" in warn
@@ -593,7 +660,9 @@ class CVaRCalculatorTest:
         calc, _, _, p = make_calculator(flag_enabled=False)
         try:
             rets = fat_tail_returns(200, seed=7)
-            with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=True)):
+            with patch(
+                "utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=True)
+            ):
                 result = calc.calculate(rets, method="evt", confidence=0.99)
         finally:
             p.stop()
@@ -606,7 +675,10 @@ class CVaRCalculatorTest:
         calc, _, _, p = make_calculator(config=cfg, flag_enabled=False)
         try:
             rets = normal_returns(200, seed=42)
-            with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=False, error_message="fail")):
+            with patch(
+                "utils.risk.cvar.fit_evt",
+                return_value=make_evt_result(converged=False, error_message="fail"),
+            ):
                 result = calc.calculate(rets, method="evt")
         finally:
             p.stop()
@@ -624,13 +696,22 @@ class CVaRCalculatorTest:
         assert result.method_used == "parametric_fallback"
 
     def test_calculate_monte_carlo_fail_fallback(self):
-        cfg = CVaRConfig(method="monte_carlo", distribution="student_t", dof=1,
-                         fallback_chain=("evt", "historical"))
+        cfg = CVaRConfig(
+            method="monte_carlo",
+            distribution="student_t",
+            dof=1,
+            fallback_chain=("evt", "historical"),
+        )
         calc, _, _, p = make_calculator(config=cfg, flag_enabled=False)
         try:
             rets = normal_returns(200, seed=42)
-            with patch("utils.risk.cvar.fit_evt", return_value=make_evt_result(converged=False, error_message="fail")):
-                result = calc.calculate(rets, method="monte_carlo", distribution="student_t", dof=1)
+            with patch(
+                "utils.risk.cvar.fit_evt",
+                return_value=make_evt_result(converged=False, error_message="fail"),
+            ):
+                result = calc.calculate(
+                    rets, method="monte_carlo", distribution="student_t", dof=1
+                )
         finally:
             p.stop()
         # monte_carlo -> parametric (dof=1 NaN) -> evt (fail) -> historical
@@ -742,7 +823,9 @@ class CVaRCalculatorTest:
         calc, bus, audit, p = make_calculator(flag_enabled=True)
         try:
             rets = [-0.05] * 30
-            calc.calculate(rets, portfolio_value=10000, confidence=0.95, method="historical")
+            calc.calculate(
+                rets, portfolio_value=10000, confidence=0.95, method="historical"
+            )
         finally:
             p.stop()
         event = bus.publish.call_args[0][0]
@@ -894,7 +977,9 @@ class CVaRCalculatorTest:
         calc, _, _, p = make_calculator(flag_enabled=False)
         try:
             rets = normal_returns(200, seed=42)
-            value = calc.calculate_scalar(rets, portfolio_value=10000, method="historical", return_amount=True)
+            value = calc.calculate_scalar(
+                rets, portfolio_value=10000, method="historical", return_amount=True
+            )
         finally:
             p.stop()
         assert not math.isnan(value)
@@ -931,7 +1016,9 @@ class CVaRCalculatorTest:
             rets_b = normal_returns(60, seed=2)
             positions = [{"code": "A", "weight": 0.6}, {"code": "B", "weight": 0.4}]
             matrix = {"A": rets_a, "B": rets_b}
-            result = calc.calculate_portfolio(positions, matrix, 100000, method="historical")
+            result = calc.calculate_portfolio(
+                positions, matrix, 100000, method="historical"
+            )
         finally:
             p.stop()
         assert not math.isnan(result.cvar_pct)
@@ -944,7 +1031,9 @@ class CVaRCalculatorTest:
             rets_b = normal_returns(50, seed=2)
             positions = [{"code": "A", "weight": 0.5}, {"code": "B", "weight": 0.5}]
             matrix = {"A": rets_a, "B": rets_b}
-            result = calc.calculate_portfolio(positions, matrix, 100000, method="historical")
+            result = calc.calculate_portfolio(
+                positions, matrix, 100000, method="historical"
+            )
         finally:
             p.stop()
         assert "序列长度不一致" in result.warning
@@ -956,7 +1045,9 @@ class CVaRCalculatorTest:
             rets_b = normal_returns(60, seed=2)
             positions = [{"code": "A", "weight": 0.3}, {"code": "B", "weight": 0.3}]
             matrix = {"A": rets_a, "B": rets_b}
-            result = calc.calculate_portfolio(positions, matrix, 100000, method="historical")
+            result = calc.calculate_portfolio(
+                positions, matrix, 100000, method="historical"
+            )
         finally:
             p.stop()
         assert "权重和偏离" in result.warning
@@ -966,7 +1057,9 @@ class CVaRCalculatorTest:
         try:
             positions = [{"code": "A", "weight": 0.5}, {"code": "C", "weight": 0.5}]
             matrix = {"A": normal_returns(60, seed=1)}
-            result = calc.calculate_portfolio(positions, matrix, 100000, method="historical")
+            result = calc.calculate_portfolio(
+                positions, matrix, 100000, method="historical"
+            )
         finally:
             p.stop()
         assert math.isnan(result.cvar_pct)
@@ -980,7 +1073,9 @@ class CVaRCalculatorTest:
             rets_b = normal_returns(50, seed=2)
             positions = [{"code": "A", "weight": 0.3}, {"code": "B", "weight": 0.3}]
             matrix = {"A": rets_a, "B": rets_b}
-            result = calc.calculate_portfolio(positions, matrix, 100000, method="historical")
+            result = calc.calculate_portfolio(
+                positions, matrix, 100000, method="historical"
+            )
         finally:
             p.stop()
         assert "序列长度不一致" in result.warning
@@ -1003,7 +1098,10 @@ class CVaRCalculatorTest:
         calc = CVaRCalculator(cfg)
         rets = normal_returns(200, seed=42)
         cvar, warn, method_used, _, _ = calc._apply_fallback_chain(
-            rets, 0.95, "evt", "fail",
+            rets,
+            0.95,
+            "evt",
+            "fail",
         )
         assert not math.isnan(cvar)
         assert method_used == "historical_fallback"
@@ -1031,4 +1129,3 @@ class CVaRCalculatorTest:
         rets = [None, -0.01, 0.01]  # type: ignore[list-item]
         result = calc._calculate_var_comparison(rets, 0.95, -0.02)
         assert result is None
-

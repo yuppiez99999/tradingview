@@ -6,6 +6,7 @@
     - _calc_annualized_sharpe (正常/样本不足/零标准差)
     - run_s5_validation (mock _build_universe + _compute_factors_at_entry, PASS/FAIL 场景)
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -160,10 +161,16 @@ class TestRunS5Validation:
         """mock 足够数据, 验证返回结构"""
         # 构造足够数据
         n_stocks = 20
-        price_data = {f"S{i}": {"closes": [10 + i * 0.1] * 200} for i in range(n_stocks)}
+        price_data = {
+            f"S{i}": {"closes": [10 + i * 0.1] * 200} for i in range(n_stocks)
+        }
 
-        with patch("utils.alpha_factor.s5_validation._build_universe") as mock_build, \
-             patch("utils.alpha_factor.s5_validation._compute_factors_at_entry") as mock_factors:
+        with (
+            patch("utils.alpha_factor.s5_validation._build_universe") as mock_build,
+            patch(
+                "utils.alpha_factor.s5_validation._compute_factors_at_entry"
+            ) as mock_factors,
+        ):
             mock_build.return_value = (
                 price_data,
                 [f"S{i}" for i in range(n_stocks)],

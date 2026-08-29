@@ -115,3 +115,14 @@ mmr confirmed 结论
 ## 十、contains 标签
 
 - contains: mmr-integration, multi-model-review, judge-voting, data-claim-lens, ocr-cascade
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [Agent 直接审查兜底方法论（外部 LLM 额度耗尽时）](code-review-agent-fallback-20260810.md) (相似度 20%)
+- [GLM 4.5-air LLM 驱动代码审查方法论（open-code-review + GLM 4.5-air）](code-review-glm45-llm-scan.md) (相似度 17%)
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 8%)
+- [新代码审查 bug 模式与根因（2026-08-17）](code-review-newcode-bug-patterns-20260817.md) (相似度 7%)
+- [open-code-review 代码审查报告（核心模块）](code-quality-review-open-code-review.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

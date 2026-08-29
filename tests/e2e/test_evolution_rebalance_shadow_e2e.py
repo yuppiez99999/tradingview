@@ -8,6 +8,7 @@
     场景5: 完整闭环: V2.run_cycle→weight_adjustments→再平衡→Shadow 记录
     场景6: 对比有/无进化调整的 Shadow 指标差异
 """
+
 from __future__ import annotations
 
 import logging
@@ -34,6 +35,7 @@ pytestmark = [pytest.mark.e2e]
 # Helper: mock compute_dsr (与 test_shadow_account_lifecycle_e2e 同模式)
 # ============================================================
 
+
 @dataclass
 class _MockDsrResult:
     deflated_sharpe_ratio: float = 0.85
@@ -54,6 +56,7 @@ def mock_dsr_if_missing(monkeypatch):
 # ============================================================
 # 共享 fixture
 # ============================================================
+
 
 @pytest.fixture
 def shadow_adapter():
@@ -78,10 +81,26 @@ def base_target_weights():
 @pytest.fixture
 def base_daily_returns():
     return [
-        0.005, -0.003, 0.008, -0.002, 0.004,
-        -0.006, 0.003, 0.001, -0.004, 0.007,
-        -0.005, 0.002, 0.006, -0.003, 0.004,
-        0.002, -0.001, 0.005, 0.003, -0.002,
+        0.005,
+        -0.003,
+        0.008,
+        -0.002,
+        0.004,
+        -0.006,
+        0.003,
+        0.001,
+        -0.004,
+        0.007,
+        -0.005,
+        0.002,
+        0.006,
+        -0.003,
+        0.004,
+        0.002,
+        -0.001,
+        0.005,
+        0.003,
+        -0.002,
     ]
 
 
@@ -107,11 +126,15 @@ def _simulate_portfolio_returns(
 # 场景1: 进化权重调整→Shadow 账户记录调整后收益
 # ============================================================
 
+
 class TestEvolutionDrivenRebalanceShadow:
     """进化权重调整后 Shadow 账户应记录与调整一致的收益行为."""
 
     def test_weight_adjustments_applied_to_target_weights(
-        self, base_target_weights, base_daily_returns, shadow_adapter,
+        self,
+        base_target_weights,
+        base_daily_returns,
+        shadow_adapter,
     ):
         adjustments = {"510300.SH": 1.2, "510050.SH": 0.8}
         adjusted = _apply_weight_adjustments(base_target_weights, adjustments)
@@ -125,7 +148,9 @@ class TestEvolutionDrivenRebalanceShadow:
         assert result.days_processed == len(base_daily_returns)
 
     def test_shadow_records_evolution_adjusted_returns(
-        self, base_daily_returns, shadow_adapter,
+        self,
+        base_daily_returns,
+        shadow_adapter,
     ):
         adjusted_returns = _simulate_portfolio_returns(base_daily_returns, 1.1)
         result = shadow_adapter.run_shadow(adjusted_returns)
@@ -142,7 +167,10 @@ class TestEvolutionDrivenRebalanceShadow:
         assert result.final_nav != baseline_result.final_nav
 
     def test_cycle_result_weight_adjustments_flow_to_shadow(
-        self, base_target_weights, base_daily_returns, shadow_adapter,
+        self,
+        base_target_weights,
+        base_daily_returns,
+        shadow_adapter,
     ):
         cr = CycleResult(
             status="success",
@@ -165,6 +193,7 @@ class TestEvolutionDrivenRebalanceShadow:
 # 场景2: Flag 禁用→降级到原始权重
 # ============================================================
 
+
 class TestFlagDisabledDegradation:
     """USE_EVOLUTION_ORCHESTRATOR=False 时应降级到原始逻辑."""
 
@@ -173,14 +202,16 @@ class TestFlagDisabledDegradation:
         orch._enabled = False
         orch.feature_flag_name = "USE_EVOLUTION_ORCHESTRATOR"
 
-
         result = orch.run_cycle()
 
         assert result.status == CYCLE_STATUS_DISABLED
         assert result.weight_adjustments == {}
 
     def test_disabled_flag_no_impact_on_rebalance(
-        self, base_target_weights, base_daily_returns, shadow_adapter,
+        self,
+        base_target_weights,
+        base_daily_returns,
+        shadow_adapter,
     ):
         empty_adjustments: dict[str, float] = {}
         adjusted = _apply_weight_adjustments(base_target_weights, empty_adjustments)
@@ -195,6 +226,7 @@ class TestFlagDisabledDegradation:
 # 场景3: 乘子约束 [0.5, 2.0] 边界验证
 # ============================================================
 
+
 class TestMultiplierConstraint:
     """weight_adjustments 乘子必须在 [0.5, 2.0] 范围内."""
 
@@ -202,8 +234,12 @@ class TestMultiplierConstraint:
         adjustments = {"510300.SH": 0.5, "510050.SH": 2.0, "510500.SH": 1.0}
         adjusted = _apply_weight_adjustments(base_target_weights, adjustments)
 
-        assert abs(adjusted["510300.SH"] - base_target_weights["510300.SH"] * 0.5) < 1e-9
-        assert abs(adjusted["510050.SH"] - base_target_weights["510050.SH"] * 2.0) < 1e-9
+        assert (
+            abs(adjusted["510300.SH"] - base_target_weights["510300.SH"] * 0.5) < 1e-9
+        )
+        assert (
+            abs(adjusted["510050.SH"] - base_target_weights["510050.SH"] * 2.0) < 1e-9
+        )
         assert adjusted["510500.SH"] == base_target_weights["510500.SH"]
 
     def test_out_of_range_multipliers_filtered(self, base_target_weights):
@@ -212,7 +248,9 @@ class TestMultiplierConstraint:
 
         assert adjusted["510300.SH"] == base_target_weights["510300.SH"]
         assert adjusted["510050.SH"] == base_target_weights["510050.SH"]
-        assert abs(adjusted["510500.SH"] - base_target_weights["510500.SH"] * 1.5) < 1e-9
+        assert (
+            abs(adjusted["510500.SH"] - base_target_weights["510500.SH"] * 1.5) < 1e-9
+        )
 
     def test_derive_weight_adjustments_clamps(self):
         report = {"weight_adjustments": {"A": 0.3, "B": 2.5, "C": 1.0}}
@@ -232,11 +270,13 @@ class TestMultiplierConstraint:
 # 场景4: 进化失败→fail-safe 降级
 # ============================================================
 
+
 class TestEvolutionFailSafe:
     """进化编排失败时 Shadow 账户不受影响."""
 
     def test_v2_exception_returns_empty_dict(self):
         from etf_option_hedge_rebalancer import ETFOptionHedgeRebalancer
+
         try:
             from utils.evolution.orchestrator import EvolutionOrchestratorV2
         except ImportError:
@@ -255,7 +295,10 @@ class TestEvolutionFailSafe:
         assert result == {}
 
     def test_shadow_unaffected_by_evolution_failure(
-        self, base_target_weights, base_daily_returns, shadow_adapter,
+        self,
+        base_target_weights,
+        base_daily_returns,
+        shadow_adapter,
     ):
         empty_adjustments: dict[str, float] = {}
         adjusted = _apply_weight_adjustments(base_target_weights, empty_adjustments)
@@ -276,11 +319,15 @@ class TestEvolutionFailSafe:
 # 场景5: 完整闭环: V2.run_cycle→weight_adjustments→再平衡→Shadow 记录
 # ============================================================
 
+
 class TestFullLoopShadowValidation:
     """完整闭环: V2 产出→权重调整→再平衡→Shadow 账户记录."""
 
     def test_full_loop_with_explicit_weight_adjustments(
-        self, base_target_weights, base_daily_returns, shadow_adapter,
+        self,
+        base_target_weights,
+        base_daily_returns,
+        shadow_adapter,
     ):
         cr = CycleResult(
             status="success",
@@ -302,7 +349,10 @@ class TestFullLoopShadowValidation:
         assert result.days_processed == 20
 
     def test_full_loop_flag_disabled_no_adjustments(
-        self, base_target_weights, base_daily_returns, shadow_adapter,
+        self,
+        base_target_weights,
+        base_daily_returns,
+        shadow_adapter,
     ):
         cr = CycleResult(status=CYCLE_STATUS_DISABLED)
         cycle_dict = cr.to_dict()
@@ -321,11 +371,14 @@ class TestFullLoopShadowValidation:
 # 场景6: 对比有/无进化调整的 Shadow 指标差异
 # ============================================================
 
+
 class TestShadowMetricsComparison:
     """对比有/无进化权重调整的 Shadow 账户指标差异."""
 
     def test_adjusted_vs_baseline_shadow_metrics(
-        self, base_daily_returns, shadow_adapter,
+        self,
+        base_daily_returns,
+        shadow_adapter,
     ):
         baseline_result = shadow_adapter.run_shadow(base_daily_returns)
         assert baseline_result.success
@@ -341,20 +394,27 @@ class TestShadowMetricsComparison:
         assert baseline_result.final_nav != adjusted_result.final_nav
 
     def test_weight_adjustments_direction_consistency(
-        self, base_target_weights,
+        self,
+        base_target_weights,
     ):
         promote_adjustments = {"510300.SH": 1.3, "510050.SH": 1.2}
         rollback_adjustments = {"510300.SH": 0.7, "510050.SH": 0.8}
 
-        promote_weights = _apply_weight_adjustments(base_target_weights, promote_adjustments)
-        rollback_weights = _apply_weight_adjustments(base_target_weights, rollback_adjustments)
+        promote_weights = _apply_weight_adjustments(
+            base_target_weights, promote_adjustments
+        )
+        rollback_weights = _apply_weight_adjustments(
+            base_target_weights, rollback_adjustments
+        )
 
         assert promote_weights["510300.SH"] > base_target_weights["510300.SH"]
         assert rollback_weights["510300.SH"] < base_target_weights["510300.SH"]
         assert promote_weights["510300.SH"] > rollback_weights["510300.SH"]
 
     def test_shadow_fail_fast_not_triggered_by_evolution(
-        self, base_daily_returns, shadow_adapter,
+        self,
+        base_daily_returns,
+        shadow_adapter,
     ):
         result = shadow_adapter.run_shadow(base_daily_returns)
         assert result.success

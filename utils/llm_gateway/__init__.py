@@ -17,6 +17,7 @@
     resp = router.chat(ChatRequest(prompt="你好", scene="intraday"))
     print(resp.content, resp.provider.name)
 """
+
 from __future__ import annotations
 
 from utils.llm_gateway.litellm_router import LiteLLMRouter

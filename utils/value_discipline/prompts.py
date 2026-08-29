@@ -19,7 +19,9 @@ _MASTER_BASE = """你是{master_name}, 从{perspective}视角评估 {stock_name}
 """
 
 
-def build_buffett_prompt(stock_name: str, fin: dict[str, Any], signal: Any, grade: str) -> str:
+def build_buffett_prompt(
+    stock_name: str, fin: dict[str, Any], signal: Any, grade: str
+) -> str:
     return _MASTER_BASE.format(
         master_name="巴菲特",
         perspective="财务与估值",
@@ -40,7 +42,9 @@ def build_buffett_prompt(stock_name: str, fin: dict[str, Any], signal: Any, grad
     )
 
 
-def build_munger_prompt(stock_name: str, fin: dict[str, Any], signal: Any, grade: str) -> str:
+def build_munger_prompt(
+    stock_name: str, fin: dict[str, Any], signal: Any, grade: str
+) -> str:
     return _MASTER_BASE.format(
         master_name="芒格",
         perspective="行业与竞争",
@@ -59,7 +63,9 @@ def build_munger_prompt(stock_name: str, fin: dict[str, Any], signal: Any, grade
     )
 
 
-def build_dyp_prompt(stock_name: str, fin: dict[str, Any], signal: Any, grade: str) -> str:
+def build_dyp_prompt(
+    stock_name: str, fin: dict[str, Any], signal: Any, grade: str
+) -> str:
     return _MASTER_BASE.format(
         master_name="段永平",
         perspective="商业模式",
@@ -79,7 +85,9 @@ def build_dyp_prompt(stock_name: str, fin: dict[str, Any], signal: Any, grade: s
     )
 
 
-def build_lixu_prompt(stock_name: str, fin: dict[str, Any], signal: Any, grade: str) -> str:
+def build_lixu_prompt(
+    stock_name: str, fin: dict[str, Any], signal: Any, grade: str
+) -> str:
     return _MASTER_BASE.format(
         master_name="李录",
         perspective="风险与管理层",
@@ -108,5 +116,10 @@ MASTER_BUILDERS = {
 
 def _fin_json(fin: dict[str, Any]) -> str:
     import json
-    safe = {k: v for k, v in fin.items() if isinstance(v, (int, float, str, bool, type(None)))}
+
+    safe = {
+        k: v
+        for k, v in fin.items()
+        if isinstance(v, (int, float, str, bool, type(None)))
+    }
     return json.dumps(safe, ensure_ascii=False, default=str)[:500]

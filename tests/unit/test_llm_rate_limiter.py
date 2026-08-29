@@ -9,6 +9,7 @@
     - 全局单例双检锁 (只初始化一次)
     - CallStats 除零保护 (max(1,...))
 """
+
 from __future__ import annotations
 
 import time
@@ -163,8 +164,11 @@ def test_call_tracker_record_and_stats():
 
 def test_rate_limited_caller_success_and_cache():
     caller = RateLimitedLLMCaller(
-        max_concurrent=5, refill_rate=100.0,
-        cache_max_size=10, cache_ttl=60, max_retries=2,
+        max_concurrent=5,
+        refill_rate=100.0,
+        cache_max_size=10,
+        cache_ttl=60,
+        max_retries=2,
     )
     call_count = {"n": 0}
 
@@ -174,14 +178,18 @@ def test_rate_limited_caller_success_and_cache():
 
     # 第一次调用
     r1 = caller.call(
-        fn=fake_llm, args=("q1",),
-        agent_name="buffett", model_name="gpt-4o",
+        fn=fake_llm,
+        args=("q1",),
+        agent_name="buffett",
+        model_name="gpt-4o",
         cache_key="k1",
     )
     # 相同 cache_key 应命中缓存, 不再调用 fn
     r2 = caller.call(
-        fn=fake_llm, args=("q1",),
-        agent_name="buffett", model_name="gpt-4o",
+        fn=fake_llm,
+        args=("q1",),
+        agent_name="buffett",
+        model_name="gpt-4o",
         cache_key="k1",
     )
     assert r1 == r2 == "resp:q1"
@@ -190,15 +198,19 @@ def test_rate_limited_caller_success_and_cache():
 
 def test_rate_limited_caller_rate_limit_timeout():
     caller = RateLimitedLLMCaller(
-        max_concurrent=1, refill_rate=1.0, max_retries=1,
+        max_concurrent=1,
+        refill_rate=1.0,
+        max_retries=1,
     )
     # 耗尽唯一令牌
     caller.rate_limiter.acquire(timeout=0.1)
     # 下一次 call 在 timeout=0.1 内拿不到令牌 → 抛 RuntimeError
     try:
         caller.call(
-            fn=lambda: "x", args=(),
-            agent_name="buffett", model_name="gpt-4o",
+            fn=lambda: "x",
+            args=(),
+            agent_name="buffett",
+            model_name="gpt-4o",
             timeout=0.1,
         )
         raise AssertionError("应抛 RuntimeError")

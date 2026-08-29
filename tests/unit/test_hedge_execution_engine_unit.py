@@ -8,6 +8,7 @@
     - 全 mock, 不依赖网络 (新浪行情接口)
     - 每个 bug 至少一个用例, 函数名包含 bug 编号
 """
+
 import json
 
 import pytest
@@ -17,6 +18,7 @@ from utils.hedge_execution_engine import HedgeExecutionEngine
 # ============================================================
 # 辅助 fixture
 # ============================================================
+
 
 @pytest.fixture
 def engine_with_broken_hedge_positions(tmp_path, broken_hedge_positions_p0e):
@@ -98,7 +100,9 @@ class TestP0EBrokenHedgePositions:
         try:
             orders = engine.generate_put_protection_orders(portfolio_value=4_000_000)
         except AttributeError as e:
-            pytest.fail(f"P0-E 回归: generate_put_protection_orders 抛 AttributeError: {e}")
+            pytest.fail(
+                f"P0-E 回归: generate_put_protection_orders 抛 AttributeError: {e}"
+            )
 
         # 应返回 list (即使过滤后只有 dict 类的 put 订单)
         assert isinstance(orders, list)
@@ -121,7 +125,9 @@ class TestP0EBrokenHedgePositions:
         orders = engine.generate_put_protection_orders(portfolio_value=4_000_000)
 
         # 应返回 2 个 put 订单 (ETF_put_options + ETF_put_options_2)
-        assert len(orders) == 2, f"应过滤字符串字段, 仅保留 2 个 dict put 订单, 实际: {len(orders)}"
+        assert (
+            len(orders) == 2
+        ), f"应过滤字符串字段, 仅保留 2 个 dict put 订单, 实际: {len(orders)}"
 
         # 验证订单内容
         instruments = [o["instrument"] for o in orders]
@@ -270,7 +276,9 @@ class TestFuturesHedgeOrders:
     """IF 期货空头订单生成逻辑"""
 
     @pytest.mark.unit
-    def test_beta_in_target_range_returns_empty(self, engine_with_clean_hedge_positions, monkeypatch):
+    def test_beta_in_target_range_returns_empty(
+        self, engine_with_clean_hedge_positions, monkeypatch
+    ):
         """portfolio_beta ≈ target_beta 时无需对冲, 返回空 list"""
         engine = engine_with_clean_hedge_positions
         monkeypatch.setattr(engine, "_get_if_price", lambda: 4650.0)
@@ -285,7 +293,9 @@ class TestFuturesHedgeOrders:
         assert orders == [], "Beta 已在目标范围内应返回空 list"
 
     @pytest.mark.unit
-    def test_high_beta_generates_short_contracts(self, engine_with_clean_hedge_positions, monkeypatch):
+    def test_high_beta_generates_short_contracts(
+        self, engine_with_clean_hedge_positions, monkeypatch
+    ):
         """portfolio_beta > target_beta 时生成 IF 空头订单"""
         engine = engine_with_clean_hedge_positions
         monkeypatch.setattr(engine, "_get_if_price", lambda: 4650.0)
@@ -305,7 +315,9 @@ class TestFuturesHedgeOrders:
         assert order["rationale"]["beta_to_hedge"] > 0
 
     @pytest.mark.unit
-    def test_drawdown_level_reduces_target_beta(self, engine_with_clean_hedge_positions, monkeypatch):
+    def test_drawdown_level_reduces_target_beta(
+        self, engine_with_clean_hedge_positions, monkeypatch
+    ):
         """回撤级别越高, target_beta 越低 (对冲越激进)
 
         DD_BETA_TARGETS = {0: 0.30, 1: 0.25, 2: 0.20, 3: 0.10, 4: 0.05}
@@ -321,8 +333,9 @@ class TestFuturesHedgeOrders:
         )
 
         # Level 3 target_beta=0.10, beta_to_hedge 更大 → contracts 更多
-        assert orders_l3[0]["contracts"] >= orders_l0[0]["contracts"], \
-            "回撤级别越高, 对冲合约数应越多"
+        assert (
+            orders_l3[0]["contracts"] >= orders_l0[0]["contracts"]
+        ), "回撤级别越高, 对冲合约数应越多"
         assert orders_l3[0]["rationale"]["target_beta"] == 0.10
         assert orders_l0[0]["rationale"]["target_beta"] == 0.30
 
@@ -338,9 +351,7 @@ class TestHedgeEngineRobustness:
     @pytest.mark.unit
     def test_missing_positions_file_returns_empty_dict(self, tmp_path):
         """positions_file 不存在时 _load_positions 返回空 dict"""
-        engine = HedgeExecutionEngine(
-            positions_file=str(tmp_path / "nonexistent.json")
-        )
+        engine = HedgeExecutionEngine(positions_file=str(tmp_path / "nonexistent.json"))
         assert engine.positions_data == {}
 
     @pytest.mark.unit

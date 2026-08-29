@@ -42,7 +42,12 @@ class TestParseEtfFlowData:
     def test_strong_inflow(self):
         engine = ETFFlowDecisionEngine()
         flow_data = {
-            "510300": {"net_flow_yi": 10.0, "source": "wind_mcp", "name": "沪深300", "change_pct": 1.5},
+            "510300": {
+                "net_flow_yi": 10.0,
+                "source": "wind_mcp",
+                "name": "沪深300",
+                "change_pct": 1.5,
+            },
         }
         result = engine._parse_etf_flow_data(flow_data)
         assert "510300" in result
@@ -51,7 +56,12 @@ class TestParseEtfFlowData:
     def test_strong_outflow(self):
         engine = ETFFlowDecisionEngine()
         flow_data = {
-            "510300": {"net_flow_yi": -10.0, "source": "wind_mcp", "name": "沪深300", "change_pct": -1.5},
+            "510300": {
+                "net_flow_yi": -10.0,
+                "source": "wind_mcp",
+                "name": "沪深300",
+                "change_pct": -1.5,
+            },
         }
         result = engine._parse_etf_flow_data(flow_data)
         assert result["510300"]["strength"] == -1.0
@@ -123,6 +133,7 @@ class TestCallLlmAnalysis:
     def test_llm_none_returns_none(self):
         engine = ETFFlowDecisionEngine()
         from unittest.mock import patch
+
         with patch.object(engine, "_get_llm_client", return_value=None):
             result = engine._call_llm_analysis("test prompt")
         assert result is None

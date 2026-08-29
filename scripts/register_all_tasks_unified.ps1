@@ -180,6 +180,32 @@ $tasks = @(
         Desc = "Shadow 准入 DSR 自愈 watchdog (检测+补跑+告警) 18:30"
         RepetitionInterval = $null
         RepetitionDuration = $null
+    },
+    @{
+        # 2026-08-27 新增 [P0-1]: 影子撮合桥接器每日调度
+        # 消费 DTE-1 建仓撮合链 FillsStore 真实成交, 写入 shadow_state.json trade_log
+        # 在 PostMarket(17:00) 撮合完成后运行, 与 Watchdog(18:30) 错开
+        Name = "v84_ShadowFillsIntegrator"
+        StartTime = "18:00"
+        Script = "scripts\run_shadow_fills_integrator.py"
+        Args = ""
+        Timeout = "PT5M"
+        Desc = "影子撮合桥接器每日调度 (FillsStore→trade_log, 全量幂等) 18:00 [P0-1]"
+        RepetitionInterval = $null
+        RepetitionDuration = $null
+    },
+    @{
+        # 2026-08-27 新增: 门禁三件套每日聚合记录 (21天连续计数)
+        # 运行 industrial_grade_check + assert_data_validity + engineering_debt_gate
+        # 落盘 reports/gate/gate_daily_YYYY-MM-DD.json, 维护 gate_streak.json
+        Name = "v84_GateCheckDaily"
+        StartTime = "18:10"
+        Script = "scripts\gate_check_daily.py"
+        Args = ""
+        Timeout = "PT30M"
+        Desc = "门禁三件套每日聚合 (gate_streak 21天连续计数) 18:10"
+        RepetitionInterval = $null
+        RepetitionDuration = $null
     }
 )
 

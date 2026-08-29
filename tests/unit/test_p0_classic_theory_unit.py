@@ -87,7 +87,8 @@ def _make_price_data(n_syms: int = 5, n_days: int = 300) -> dict:
         closes = list(np.cumprod(1 + np.random.normal(0, 0.01, n_days)) * 100)
         vols = [10000 * (i + 1)] * n_days
         price_data[f"S{i}"] = {
-            "closes": closes, "volumes": vols,
+            "closes": closes,
+            "volumes": vols,
             "highs": [c * 1.01 for c in closes],
             "lows": [c * 0.99 for c in closes],
         }
@@ -201,7 +202,10 @@ class TestInformationTheory:
         """因子信息含量"""
         np.random.seed(42)
         factor_vals = {f"S{i}": float(np.random.normal(0, 1)) for i in range(50)}
-        fwd_rets = {f"S{i}": factor_vals[f"S{i}"] * 0.5 + float(np.random.normal(0, 0.1)) for i in range(50)}
+        fwd_rets = {
+            f"S{i}": factor_vals[f"S{i}"] * 0.5 + float(np.random.normal(0, 0.1))
+            for i in range(50)
+        }
         ic = factor_information_content(factor_vals, fwd_rets)
         assert ic > 0
 
@@ -234,7 +238,10 @@ class TestInformationTheory:
         np.random.seed(42)
         fwd = {f"S{i}": float(np.random.normal(0, 0.02)) for i in range(50)}
         # 强因子
-        f1 = {f"S{i}": fwd[f"S{i}"] * 10 + float(np.random.normal(0, 0.01)) for i in range(50)}
+        f1 = {
+            f"S{i}": fwd[f"S{i}"] * 10 + float(np.random.normal(0, 0.01))
+            for i in range(50)
+        }
         # 弱因子
         f2 = {f"S{i}": float(np.random.normal(0, 1)) for i in range(50)}
         selected = select_factors_by_information(

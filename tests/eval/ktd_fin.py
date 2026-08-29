@@ -51,21 +51,24 @@ logger = logging.getLogger("ktd_fin")
 # 掩码策略枚举
 # ============================================================
 
+
 class MaskStrategy(str, Enum):
     """数据掩码策略。"""
-    ZERO = "zero"           # 零值掩码
-    MEAN = "mean"           # 均值掩码
-    NOISE = "noise"         # 随机噪声掩码
-    DROP = "drop"           # 丢弃掩码
+
+    ZERO = "zero"  # 零值掩码
+    MEAN = "mean"  # 均值掩码
+    NOISE = "noise"  # 随机噪声掩码
+    DROP = "drop"  # 丢弃掩码
 
 
 class LeakSeverity(str, Enum):
     """泄漏严重程度。"""
-    NONE = "none"           # 无泄漏
-    LOW = "low"             # 低风险
-    MEDIUM = "medium"       # 中等风险
-    HIGH = "high"           # 高风险
-    CRITICAL = "critical"   # 严重泄漏
+
+    NONE = "none"  # 无泄漏
+    LOW = "low"  # 低风险
+    MEDIUM = "medium"  # 中等风险
+    HIGH = "high"  # 高风险
+    CRITICAL = "critical"  # 严重泄漏
 
 
 # ============================================================
@@ -73,18 +76,19 @@ class LeakSeverity(str, Enum):
 # ============================================================
 
 BARRA_FACTORS: list[str] = [
-    "market",       # 市场因子
-    "size",         # 规模因子
-    "value",        # 价值因子
-    "momentum",     # 动量因子
-    "volatility",   # 波动率因子
-    "beta",         # Beta 因子
+    "market",  # 市场因子
+    "size",  # 规模因子
+    "value",  # 价值因子
+    "momentum",  # 动量因子
+    "volatility",  # 波动率因子
+    "beta",  # Beta 因子
 ]
 
 
 # ============================================================
 # 数据条目
 # ============================================================
+
 
 @dataclass
 class MarketDataPoint:
@@ -98,6 +102,7 @@ class MarketDataPoint:
         return_pct: 日收益率
         is_future: 是否为未来数据 (需要掩码)
     """
+
     date: str
     ticker: str
     price: float = 0.0
@@ -120,6 +125,7 @@ class MarketDataPoint:
 # 归因结果
 # ============================================================
 
+
 @dataclass
 class AttributionResult:
     """Barra 风险因子归因结果。
@@ -131,6 +137,7 @@ class AttributionResult:
         total_return: 总收益
         r_squared: 拟合优度
     """
+
     factor_exposures: dict[str, float] = field(default_factory=dict)
     factor_returns: dict[str, float] = field(default_factory=dict)
     specific_return: float = 0.0
@@ -160,6 +167,7 @@ class AttributionResult:
 # 泄漏评估结果
 # ============================================================
 
+
 @dataclass
 class LeakAssessment:
     """记忆泄漏评估结果。
@@ -173,6 +181,7 @@ class LeakAssessment:
         suspicious_factors: 异常因子列表
         reason: 评估理由
     """
+
     is_leaked: bool = False
     severity: LeakSeverity = LeakSeverity.NONE
     sharpe_ratio: float = 0.0
@@ -197,6 +206,7 @@ class LeakAssessment:
 # Agent 协议 (接口)
 # ============================================================
 
+
 class AgentProtocol(Protocol):
     """评估代理协议。"""
 
@@ -208,6 +218,7 @@ class AgentProtocol(Protocol):
 # ============================================================
 # Stage 1: 数据掩码器
 # ============================================================
+
 
 class DataMasker:
     """数据侧掩码器 — 对未来时间窗口的数据进行掩码。
@@ -244,13 +255,23 @@ class DataMasker:
                 masked_point.volume = 0.0
                 masked_point.return_pct = 0.0
             elif self.strategy == MaskStrategy.MEAN:
-                historical = [p for p in data if not p.is_future and p.ticker == point.ticker]
+                historical = [
+                    p for p in data if not p.is_future and p.ticker == point.ticker
+                ]
                 if historical:
-                    masked_point.price = sum(p.price for p in historical) / len(historical)
-                    masked_point.volume = sum(p.volume for p in historical) / len(historical)
-                    masked_point.return_pct = sum(p.return_pct for p in historical) / len(historical)
+                    masked_point.price = sum(p.price for p in historical) / len(
+                        historical
+                    )
+                    masked_point.volume = sum(p.volume for p in historical) / len(
+                        historical
+                    )
+                    masked_point.return_pct = sum(
+                        p.return_pct for p in historical
+                    ) / len(historical)
             elif self.strategy == MaskStrategy.NOISE:
-                historical = [p for p in data if not p.is_future and p.ticker == point.ticker]
+                historical = [
+                    p for p in data if not p.is_future and p.ticker == point.ticker
+                ]
                 if historical:
                     mean_ret = sum(p.return_pct for p in historical) / len(historical)
                     masked_point.price = point.price * (1.0 + mean_ret)
@@ -278,14 +299,16 @@ class DataMasker:
 # Stage 2: Barra 风险因子归因
 # ============================================================
 
+
 class BarraAttributor:
     """Barra 风险因子归因分析。
 
     将组合收益归因到 6 个 Barra 风险因子, 检测异常暴露。
     """
 
-    def attribute(self, returns: list[float],
-                  factor_exposures: dict[str, list[float]]) -> AttributionResult:
+    def attribute(
+        self, returns: list[float], factor_exposures: dict[str, list[float]]
+    ) -> AttributionResult:
         """归因分析。
 
         Args:
@@ -304,18 +327,20 @@ class BarraAttributor:
         for factor in BARRA_FACTORS:
             exposures = factor_exposures.get(factor, [])
             if exposures and len(exposures) == len(returns):
-                factor_returns[factor] = self._estimate_factor_return(returns, exposures)
+                factor_returns[factor] = self._estimate_factor_return(
+                    returns, exposures
+                )
             else:
                 factor_returns[factor] = 0.0
 
         avg_exposures: dict[str, float] = {}
         for factor in BARRA_FACTORS:
             exposures = factor_exposures.get(factor, [])
-            avg_exposures[factor] = sum(exposures) / len(exposures) if exposures else 0.0
+            avg_exposures[factor] = (
+                sum(exposures) / len(exposures) if exposures else 0.0
+            )
 
-        explained = sum(
-            avg_exposures[f] * factor_returns[f] for f in BARRA_FACTORS
-        )
+        explained = sum(avg_exposures[f] * factor_returns[f] for f in BARRA_FACTORS)
         specific = total_return - explained
 
         r_squared = self._compute_r_squared(returns, factor_exposures, factor_returns)
@@ -328,8 +353,9 @@ class BarraAttributor:
             r_squared=round(r_squared, 4),
         )
 
-    def _estimate_factor_return(self, returns: list[float],
-                                exposures: list[float]) -> float:
+    def _estimate_factor_return(
+        self, returns: list[float], exposures: list[float]
+    ) -> float:
         """估计因子收益 (简化 OLS)。"""
         n = len(returns)
         if n == 0:
@@ -343,9 +369,12 @@ class BarraAttributor:
             return 0.0
         return round((n * sum_xy - sum_x * sum_y) / denom, 6)
 
-    def _compute_r_squared(self, returns: list[float],
-                           factor_exposures: dict[str, list[float]],
-                           factor_returns: dict[str, float]) -> float:
+    def _compute_r_squared(
+        self,
+        returns: list[float],
+        factor_exposures: dict[str, list[float]],
+        factor_returns: dict[str, float],
+    ) -> float:
         """计算拟合优度 R²。"""
         if not returns:
             return 0.0
@@ -380,6 +409,7 @@ class BarraAttributor:
 # Stage 3: 记忆泄漏检测器
 # ============================================================
 
+
 class MemoryLeakDetector:
     """记忆泄漏检测器。
 
@@ -389,9 +419,12 @@ class MemoryLeakDetector:
     SHARPE_THRESHOLD = 3.0
     WIN_RATE_THRESHOLD = 0.75
 
-    def detect(self, original_result: dict[str, Any],
-               masked_result: dict[str, Any],
-               attribution: Optional[AttributionResult] = None) -> LeakAssessment:
+    def detect(
+        self,
+        original_result: dict[str, Any],
+        masked_result: dict[str, Any],
+        attribution: Optional[AttributionResult] = None,
+    ) -> LeakAssessment:
         """检测记忆泄漏。
 
         Args:
@@ -413,7 +446,10 @@ class MemoryLeakDetector:
             suspicious_factors = self._check_attribution_anomalies(attribution)
 
         is_leaked, severity, reason = self._assess(
-            sharpe, win_rate, decision_diff, suspicious_factors,
+            sharpe,
+            win_rate,
+            decision_diff,
+            suspicious_factors,
         )
 
         return LeakAssessment(
@@ -436,9 +472,13 @@ class MemoryLeakDetector:
             anomalies.append("overfitting")
         return anomalies
 
-    def _assess(self, sharpe: float, win_rate: float,
-                decision_diff: float,
-                suspicious_factors: list[str]) -> tuple[bool, LeakSeverity, str]:
+    def _assess(
+        self,
+        sharpe: float,
+        win_rate: float,
+        decision_diff: float,
+        suspicious_factors: list[str],
+    ) -> tuple[bool, LeakSeverity, str]:
         """评估泄漏严重程度。"""
         reasons: list[str] = []
 
@@ -467,6 +507,7 @@ class MemoryLeakDetector:
 # KTD-Fin 基准
 # ============================================================
 
+
 class KTDFinBenchmark:
     """KTD-Fin 记忆控制评估基准。
 
@@ -481,9 +522,12 @@ class KTDFinBenchmark:
         self.detector = MemoryLeakDetector()
         self._results: list[LeakAssessment] = []
 
-    def evaluate(self, agent: AgentProtocol,
-                 data: list[MarketDataPoint],
-                 factor_exposures: Optional[dict[str, list[float]]] = None) -> LeakAssessment:
+    def evaluate(
+        self,
+        agent: AgentProtocol,
+        data: list[MarketDataPoint],
+        factor_exposures: Optional[dict[str, list[float]]] = None,
+    ) -> LeakAssessment:
         """评估代理是否存在记忆泄漏。
 
         Args:
@@ -502,22 +546,32 @@ class KTDFinBenchmark:
         attribution = AttributionResult()
         if factor_exposures and "returns" in masked_result:
             attribution = self.attributor.attribute(
-                masked_result["returns"], factor_exposures,
+                masked_result["returns"],
+                factor_exposures,
             )
 
         assessment = self.detector.detect(original_result, masked_result, attribution)
         self._results.append(assessment)
 
-        logger.debug(f"评估完成: leaked={assessment.is_leaked}, severity={assessment.severity.value}")
+        logger.debug(
+            f"评估完成: leaked={assessment.is_leaked}, severity={assessment.severity.value}"
+        )
         return assessment
 
-    def _run_agent(self, agent: AgentProtocol,
-                   data: list[MarketDataPoint]) -> dict[str, Any]:
+    def _run_agent(
+        self, agent: AgentProtocol, data: list[MarketDataPoint]
+    ) -> dict[str, Any]:
         """运行代理并计算评估指标。"""
         try:
             prediction = agent.predict(data)
-        except (ValueError, KeyError, TypeError, AttributeError,
-                OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"代理执行失败: {e}")
             return {"sharpe_ratio": 0.0, "win_rate": 0.0, "returns": []}
 
@@ -584,6 +638,7 @@ class KTDFinBenchmark:
 # Mock Agent (用于测试)
 # ============================================================
 
+
 class MockAgent:
     """Mock 代理 (用于测试)。"""
 
@@ -598,6 +653,7 @@ class MockAgent:
             return {"returns": []}
 
         import random
+
         rng = random.Random(42)
         returns = [rng.gauss(0.001, 0.02) for _ in range(min(n, 100))]
 
@@ -616,6 +672,7 @@ class MockAgent:
 # CLI 入口
 # ============================================================
 
+
 def main() -> None:
     """CLI 入口: 演示 KTD-Fin 记忆控制评估。"""
     print("=" * 60)
@@ -627,16 +684,20 @@ def main() -> None:
 
     data = []
     for i in range(100):
-        data.append(MarketDataPoint(
-            date=f"2025-01-{i+1:02d}" if i < 31 else f"2025-02-{i-30:02d}",
-            ticker="000300.SH",
-            price=4000.0 + i * 5,
-            volume=1e8,
-            return_pct=0.001,
-            is_future=i >= 50,
-        ))
+        data.append(
+            MarketDataPoint(
+                date=f"2025-01-{i+1:02d}" if i < 31 else f"2025-02-{i-30:02d}",
+                ticker="000300.SH",
+                price=4000.0 + i * 5,
+                volume=1e8,
+                return_pct=0.001,
+                is_future=i >= 50,
+            )
+        )
 
-    print(f"\n--- 数据: {len(data)} 条 ({sum(1 for d in data if d.is_future)} 条未来) ---")
+    print(
+        f"\n--- 数据: {len(data)} 条 ({sum(1 for d in data if d.is_future)} 条未来) ---"
+    )
     mask_summary = benchmark.masker.get_mask_summary(data)
     print(f"  掩码: {mask_summary}")
 

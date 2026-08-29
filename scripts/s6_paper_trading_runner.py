@@ -95,7 +95,9 @@ def check_admission_criteria(records: list[dict], config: dict) -> dict:
             "days_tracked": days_tracked,
         }
 
-    valid_records = [r for r in records if r.get("status") == "ok" and "marginal_return" in r]
+    valid_records = [
+        r for r in records if r.get("status") == "ok" and "marginal_return" in r
+    ]
     if len(valid_records) < criteria["min_running_days"]:
         return {
             "ready_for_s7": False,
@@ -113,10 +115,26 @@ def check_admission_criteria(records: list[dict], config: dict) -> dict:
     lookahead_ok = all(r.get("lookahead_check", True) for r in valid_records)
 
     checks = {
-        "sharpe": {"value": round(sharpe, 4), "threshold": criteria["min_sharpe"], "pass": sharpe >= criteria["min_sharpe"]},
-        "consistency": {"value": round(consistency, 4), "threshold": criteria["min_long_short_consistency"], "pass": consistency >= criteria["min_long_short_consistency"]},
-        "max_drawdown": {"value": round(max_dd, 4), "threshold": criteria["max_drawdown_pct"], "pass": max_dd <= criteria["max_drawdown_pct"]},
-        "lookahead_bias": {"value": lookahead_ok, "threshold": criteria["no_lookahead_bias"], "pass": lookahead_ok},
+        "sharpe": {
+            "value": round(sharpe, 4),
+            "threshold": criteria["min_sharpe"],
+            "pass": sharpe >= criteria["min_sharpe"],
+        },
+        "consistency": {
+            "value": round(consistency, 4),
+            "threshold": criteria["min_long_short_consistency"],
+            "pass": consistency >= criteria["min_long_short_consistency"],
+        },
+        "max_drawdown": {
+            "value": round(max_dd, 4),
+            "threshold": criteria["max_drawdown_pct"],
+            "pass": max_dd <= criteria["max_drawdown_pct"],
+        },
+        "lookahead_bias": {
+            "value": lookahead_ok,
+            "threshold": criteria["no_lookahead_bias"],
+            "pass": lookahead_ok,
+        },
     }
 
     all_pass = all(c["pass"] for c in checks.values())
@@ -141,8 +159,15 @@ def _fetch_daily_factors() -> dict | None:
         {symbol: {"mom_60d": v, "chain_mom_60d": v}} 或 None (数据不可用时降级)
     """
     try:
-        from utils.alpha_factor.gate1_validation import _compute_momentum_factors, fetch_prices, load_expanded_universe
-        from utils.alpha_factor.graph import compute_lead_lag_factors, orthogonalize_chain_factors
+        from utils.alpha_factor.gate1_validation import (
+            _compute_momentum_factors,
+            fetch_prices,
+            load_expanded_universe,
+        )
+        from utils.alpha_factor.graph import (
+            compute_lead_lag_factors,
+            orthogonalize_chain_factors,
+        )
         from utils.supply_chain_builder import SupplyChainBuilder
     except ImportError as e:
         logger.warning(f"因子计算依赖不可用, 降级骨架模式: {e}")
@@ -151,7 +176,11 @@ def _fetch_daily_factors() -> dict | None:
     try:
         symbols, industries = load_expanded_universe()
         price_data = fetch_prices(symbols, days=400)
-        valid = [s for s in symbols if s in price_data and len(price_data[s].get("closes", [])) > 60]
+        valid = [
+            s
+            for s in symbols
+            if s in price_data and len(price_data[s].get("closes", [])) > 60
+        ]
         if not valid:
             logger.warning("无有效价格数据, 降级骨架模式")
             return None
@@ -159,7 +188,9 @@ def _fetch_daily_factors() -> dict | None:
         builder = SupplyChainBuilder(symbols=valid, include_themes=True, max_hops=2)
         builder.build()
 
-        chain_factors = compute_lead_lag_factors(price_data, builder.graph, industries=industries)
+        chain_factors = compute_lead_lag_factors(
+            price_data, builder.graph, industries=industries
+        )
         mom_factors = _compute_momentum_factors(price_data)
         chain_factors = orthogonalize_chain_factors(chain_factors, mom_factors)
 
@@ -220,8 +251,13 @@ def _compute_long_short_return(
     baseline_top_idx = baseline_order[-n_top:]
     baseline_bot_idx = baseline_order[:n_bot]
 
-    enhanced_return = float(np.mean(enhanced_signal[enhanced_top_idx]) - np.mean(enhanced_signal[enhanced_bot_idx]))
-    baseline_return = float(np.mean(mom_z[baseline_top_idx]) - np.mean(mom_z[baseline_bot_idx]))
+    enhanced_return = float(
+        np.mean(enhanced_signal[enhanced_top_idx])
+        - np.mean(enhanced_signal[enhanced_bot_idx])
+    )
+    baseline_return = float(
+        np.mean(mom_z[baseline_top_idx]) - np.mean(mom_z[baseline_bot_idx])
+    )
 
     return {
         "status": "ok",
@@ -275,7 +311,9 @@ def run_paper_trading(config: dict) -> dict:
             **ls_result,
         }
         if ls_result["status"] == "ok":
-            record["note"] = f"增强={ls_result['enhanced_return']} 基准={ls_result['baseline_return']} 边际={ls_result['marginal_return']}"
+            record["note"] = (
+                f"增强={ls_result['enhanced_return']} 基准={ls_result['baseline_return']} 边际={ls_result['marginal_return']}"
+            )
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_PATH, "a", encoding="utf-8") as f:

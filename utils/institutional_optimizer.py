@@ -117,7 +117,9 @@ class InstitutionalPortfolioOptimizer:
 
         # 冲击成本估算
         impact_model = impact_model or MarketImpactModel()
-        impact_costs = self._estimate_impact_costs(symbols, current_positions, impact_model)
+        impact_costs = self._estimate_impact_costs(
+            symbols, current_positions, impact_model
+        )
 
         # 优化
         weights = self._solve_weights(mu, cov, current_weights, impact_costs)
@@ -243,7 +245,9 @@ class InstitutionalPortfolioOptimizer:
             # 给正收益标的设最低参与权重，避免过度集中
             active = mu > 0.0
             if np.any(active):
-                candidate[active] = np.maximum(candidate[active], self.min_position_weight)
+                candidate[active] = np.maximum(
+                    candidate[active], self.min_position_weight
+                )
             # 先截断到 max_weight，再把剩余/不足资金在正收益标的内做水 filling
             for _ in range(100):
                 excess = candidate > self.max_weight
@@ -253,7 +257,9 @@ class InstitutionalPortfolioOptimizer:
                 remaining = 1.0 - candidate.sum()
                 active = (mu > 0.0) & (~excess)
                 if remaining > 1e-12 and np.any(active):
-                    candidate[active] = candidate[active] / candidate[active].sum() * remaining
+                    candidate[active] = (
+                        candidate[active] / candidate[active].sum() * remaining
+                    )
                 else:
                     break
             # 最终归一化：确保总和为 1.0，且不低于最低权重
@@ -262,14 +268,18 @@ class InstitutionalPortfolioOptimizer:
                 candidate = candidate / total
             active = mu > 0.0
             if np.any(active):
-                candidate[active] = np.maximum(candidate[active], self.min_position_weight)
+                candidate[active] = np.maximum(
+                    candidate[active], self.min_position_weight
+                )
                 total = float(candidate.sum())
                 if total > 1.0 + 1e-12:
                     candidate[active] = candidate[active] / total
             weights = candidate
         else:
             weights = base_weights.copy()
-        logger.info("[InstitutionalOptimizer] risk_parity_with_signal raw=%s", weights.tolist())
+        logger.info(
+            "[InstitutionalOptimizer] risk_parity_with_signal raw=%s", weights.tolist()
+        )
         return weights
 
     # ------------------------------------------------------------
@@ -285,21 +295,27 @@ class InstitutionalPortfolioOptimizer:
         if weights.size == 0:
             return weights
 
-        logger.info("[InstitutionalOptimizer] apply_constraints before=%s", weights.tolist())
+        logger.info(
+            "[InstitutionalOptimizer] apply_constraints before=%s", weights.tolist()
+        )
         # 单标的上限 + 非负，不做强制归一化，允许剩余资金作为现金
         weights = np.minimum(weights, self.max_weight)
         weights = np.maximum(weights, 0.0)
         total = weights.sum()
         if total > 1.0:
             weights = weights / total
-        logger.info("[InstitutionalOptimizer] apply_constraints after=%s", weights.tolist())
+        logger.info(
+            "[InstitutionalOptimizer] apply_constraints after=%s", weights.tolist()
+        )
 
         # 行业集中度（简化：按 sector_map 聚合）
         if sector_map:
             sector_exposure: dict[str, float] = {}
             for i, symbol in enumerate(symbols):
                 sector = sector_map.get(symbol, "unknown")
-                sector_exposure[sector] = sector_exposure.get(sector, 0.0) + float(weights[i])
+                sector_exposure[sector] = sector_exposure.get(sector, 0.0) + float(
+                    weights[i]
+                )
             for i, symbol in enumerate(symbols):
                 sector = sector_map.get(symbol, "unknown")
                 if sector_exposure.get(sector, 0.0) > self.max_sector_concentration:
@@ -327,7 +343,9 @@ class InstitutionalPortfolioOptimizer:
     ) -> PortfolioDecision:
         target_weights = {symbol: float(weights[i]) for i, symbol in enumerate(symbols)}
         expected_return = float(np.dot(weights, mu))
-        expected_risk = float(np.sqrt(np.dot(weights, np.dot(cov, weights))) if weights.size else 0.0)
+        expected_risk = float(
+            np.sqrt(np.dot(weights, np.dot(cov, weights))) if weights.size else 0.0
+        )
         estimated_cost = float(np.dot(np.abs(weights - current_weights), impact_costs))
 
         trades = []
@@ -356,7 +374,9 @@ class InstitutionalPortfolioOptimizer:
                 "turnover": turnover,
                 "risk_aversion": self.risk_aversion,
                 "max_weight": self.max_weight,
-                "solver": "pypfopt" if self._pypfopt_available() else "risk_parity_fallback",
+                "solver": (
+                    "pypfopt" if self._pypfopt_available() else "risk_parity_fallback"
+                ),
             },
         )
         logger.info(

@@ -237,3 +237,14 @@
 - Almgren & Chriss (2000) — 最优执行
 - O'Hara (1995) — Market Microstructure Theory
 - Peters (2011) — Ergodicity economics
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [P0 经典理论四件套实现 — 2026-08-23](p0-classic-theory-impl-20260823.md) (相似度 26%)
+- [推荐书目：对系统有工程指导意义的中外书籍](recommended-reading-20260819.md) (相似度 21%)
+- [哲学与交易系统：哲学思想对量化交易的工程指导](philosophy-trading-mapping-20260819.md) (相似度 13%)
+- [自我进化框架](self-evolution-framework.md) (相似度 13%)
+- [量化系统高价值代码资产地图（E:\各种PY程序）](high-value-code-assets.md) (相似度 10%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

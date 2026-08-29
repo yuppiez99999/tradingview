@@ -35,7 +35,11 @@ from utils.alpha_factor.base import (
     winsorize,
 )
 from utils.alpha_factor.library import AlphaFactorLibrary
-from utils.alpha_factor.technical import DEFAULT_GTJA, DEFAULT_GTJA_30, list_available_factors
+from utils.alpha_factor.technical import (
+    DEFAULT_GTJA,
+    DEFAULT_GTJA_30,
+    list_available_factors,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +73,9 @@ def _build_demo_data(n_symbols: int = 8, n_days: int = 300):
     rng = np.random.default_rng(seed=42)
     symbols = [f"DEMO{i:03d}" for i in range(n_symbols)]
     industry_pool = ["Manufacturing", "Finance", "Tech", "Resource"]
-    industries = {sym: industry_pool[i % len(industry_pool)] for i, sym in enumerate(symbols)}
+    industries = {
+        sym: industry_pool[i % len(industry_pool)] for i, sym in enumerate(symbols)
+    }
 
     price_data: dict[str, dict[str, list[float]]] = {}
     for sym in symbols:
@@ -83,7 +89,11 @@ def _build_demo_data(n_symbols: int = 8, n_days: int = 300):
         lows = [c * (1.0 - abs(rng.normal(0.0, 0.006))) for c in closes]
         opens = [c * (1.0 + rng.normal(0.0, 0.003)) for c in closes]
         price_data[sym] = {
-            "closes": closes, "volumes": vols, "highs": highs, "lows": lows, "opens": opens,
+            "closes": closes,
+            "volumes": vols,
+            "highs": highs,
+            "lows": lows,
+            "opens": opens,
             # 微观结构 (合成)
             "tail_volume_ratio": float(rng.uniform(0.1, 0.4)),
             "open_big_buy_ratio": float(rng.uniform(-0.1, 0.2)),

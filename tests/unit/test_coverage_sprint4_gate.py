@@ -9,6 +9,7 @@ test_coverage_sprint4_gate.py — 覆盖率守卫门禁单元测试
     - detect_stagnation() 停滞检测
     - find_uncovered_p02_branches() 未覆盖分支识别
 """
+
 from __future__ import annotations
 
 import sys
@@ -67,8 +68,7 @@ class TestDetectLookaheadTests:
     def test_exempt_honest_validation_file(self, tmp_path: Path) -> None:
         test_file = tmp_path / "test_g7_backtest_honest_validation_boost.py"
         test_file.write_text(
-            "def test_hv():\n"
-            "    future = df.shift(-1)\n",
+            "def test_hv():\n" "    future = df.shift(-1)\n",
             encoding="utf-8",
         )
         violations = detect_lookahead_tests(tmp_path)
@@ -77,8 +77,7 @@ class TestDetectLookaheadTests:
     def test_no_violations_in_clean_test(self, tmp_path: Path) -> None:
         test_file = tmp_path / "test_clean.py"
         test_file.write_text(
-            "def test_clean():\n"
-            "    assert 1 + 1 == 2\n",
+            "def test_clean():\n" "    assert 1 + 1 == 2\n",
             encoding="utf-8",
         )
         violations = detect_lookahead_tests(tmp_path)
@@ -147,7 +146,9 @@ class TestFindUncoveredP02Branches:
 
     def test_returns_list(self, tmp_path: Path) -> None:
         cov_xml = tmp_path / "coverage.xml"
-        cov_xml.write_text('<?xml version="1.0"?><coverage></coverage>', encoding="utf-8")
+        cov_xml.write_text(
+            '<?xml version="1.0"?><coverage></coverage>', encoding="utf-8"
+        )
         branches = find_uncovered_p02_branches(cov_xml)
         assert isinstance(branches, list)
 
@@ -162,8 +163,8 @@ class TestFindUncoveredP02Branches:
             '<package><class filename="utils/risk/guard.py">'
             '<line number="10" branch="true" missing-branches="1"/>'
             '<line number="20" branch="true" missing-branches="0"/>'
-            '</class></package>'
-            '</coverage>',
+            "</class></package>"
+            "</coverage>",
             encoding="utf-8",
         )
         branches = find_uncovered_p02_branches(cov_xml)
@@ -177,8 +178,8 @@ class TestFindUncoveredP02Branches:
             '<?xml version="1.0"?><coverage>'
             '<package><class filename="docs/helper.py">'
             '<line number="5" branch="true" missing-branches="1"/>'
-            '</class></package>'
-            '</coverage>',
+            "</class></package>"
+            "</coverage>",
             encoding="utf-8",
         )
         branches = find_uncovered_p02_branches(cov_xml)

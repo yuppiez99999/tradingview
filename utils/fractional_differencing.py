@@ -46,9 +46,11 @@ logger = logging.getLogger("fractional_differencing")
 # 分数阶差分
 # ============================================================
 
+
 @dataclass
 class DifferencingResult:
     """差分结果."""
+
     original: np.ndarray  # 原始序列
     differenced: np.ndarray  # 差分后序列
     d: float  # 差分阶数
@@ -232,7 +234,11 @@ class FractionalDifferencing:
         lr_memory = 0.0  # 对数收益 (一阶差分) 无记忆
 
         # 方差比 (平稳性度量)
-        fd_var = float(np.var(fd_result.differenced)) if len(fd_result.differenced) > 0 else 0
+        fd_var = (
+            float(np.var(fd_result.differenced))
+            if len(fd_result.differenced) > 0
+            else 0
+        )
         lr_var = float(np.var(log_ret)) if len(log_ret) > 0 else 0
 
         return {
@@ -251,9 +257,11 @@ class FractionalDifferencing:
 # 多指数回测验证
 # ============================================================
 
+
 @dataclass
 class BacktestResult:
     """单指数回测结果."""
+
     index_name: str
     optimal_d: float
     memory_retained: float
@@ -264,6 +272,7 @@ class BacktestResult:
 @dataclass
 class MultiIndexBacktest:
     """多指数回测结果."""
+
     results: list[BacktestResult]
     all_stationary: bool
     avg_memory_retained: float
@@ -292,7 +301,9 @@ class FractionalDifferencingBacktest:
             optimal_d=optimal_d,
             memory_retained=result.memory_retained,
             is_stationary=result.is_stationary,
-            variance=float(np.var(result.differenced)) if len(result.differenced) > 0 else 0,
+            variance=(
+                float(np.var(result.differenced)) if len(result.differenced) > 0 else 0
+            ),
         )
 
     def backtest_multi(
@@ -336,6 +347,7 @@ class FractionalDifferencingBacktest:
 # CLI 入口
 # ============================================================
 
+
 def main() -> None:
     """CLI 入口: 演示分数阶差分."""
     print("=" * 60)
@@ -349,7 +361,9 @@ def main() -> None:
     print("\n--- 1. 权重序列 ---")
     for d in [0.0, 0.25, 0.4, 0.5, 0.75, 1.0]:
         weights = fd.compute_weights(d)
-        print(f"  d={d:.2f}: {len(weights)} 权重, 前5: {[f'{w:.4f}' for w in weights[:5]]}")
+        print(
+            f"  d={d:.2f}: {len(weights)} 权重, 前5: {[f'{w:.4f}' for w in weights[:5]]}"
+        )
 
     # === 2. 分数阶差分 vs 对数收益 ===
     print("\n--- 2. 分数阶差分 vs 对数收益 ---")
@@ -385,7 +399,9 @@ def main() -> None:
     print(f"  平均记忆保持: {multi_result.avg_memory_retained:.1%}")
     print(f"  平均最优 d: {multi_result.avg_optimal_d:.2f}")
     for r in multi_result.results:
-        print(f"    {r.index_name}: d={r.optimal_d:.2f}, 记忆={r.memory_retained:.1%}, 平稳={r.is_stationary}")
+        print(
+            f"    {r.index_name}: d={r.optimal_d:.2f}, 记忆={r.memory_retained:.1%}, 平稳={r.is_stationary}"
+        )
 
 
 if __name__ == "__main__":

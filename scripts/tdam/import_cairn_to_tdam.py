@@ -17,6 +17,7 @@ TDAM MemoryCore, 打通 "cairn → TDAM" 单向同步链路。
   - 失败安全: 单条失败记录日志继续, 汇总统计成功/失败数
   - Feature Flag: 导入是显式操作, 绕过 USE_TDAM_MEMORY_ENHANCEMENT (与 test_client.py 一致)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,8 +27,11 @@ import re
 import sys
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("tdam_import")
+
 
 # 项目根目录 (向上查找 utils/ marker)
 def _find_project_root() -> Path:
@@ -117,12 +121,29 @@ def import_documents(client: TDAMClient, docs: list[dict], dry_run: bool) -> dic
             if result.get("success"):
                 stats["success"] += 1
                 if (i + 1) % 10 == 0 or i == len(docs) - 1:
-                    logger.info("导入进度 %d/%d (%s, success=%d)", i + 1, len(docs), asset_type, stats["success"])
+                    logger.info(
+                        "导入进度 %d/%d (%s, success=%d)",
+                        i + 1,
+                        len(docs),
+                        asset_type,
+                        stats["success"],
+                    )
             else:
                 stats["failed"] += 1
-                stats["errors"].append(f"[{i}] 导入失败 ({asset_type}:{title}): {result.get('error', 'unknown')}")
-                logger.warning("导入失败 (%s:%s): %s", asset_type, title, result.get("error"))
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+                stats["errors"].append(
+                    f"[{i}] 导入失败 ({asset_type}:{title}): {result.get('error', 'unknown')}"
+                )
+                logger.warning(
+                    "导入失败 (%s:%s): %s", asset_type, title, result.get("error")
+                )
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             stats["failed"] += 1
             stats["errors"].append(f"[{i}] 异常 ({asset_type}:{title}): {e}")
             logger.error("导入异常 (%s:%s): %s", asset_type, title, e)
@@ -136,8 +157,14 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="仅统计预览, 不写 TDAM")
     parser.add_argument("--limit", type=int, default=0, help="限制导入条数 (0=全部)")
     parser.add_argument("--offset", type=int, default=0, help="跳过前 N 条")
-    parser.add_argument("--asset", choices=["skill", "chat_memory"], default="", help="仅导入指定类型")
-    parser.add_argument("--base-url", default=os.environ.get("TDAM_BASE_URL", "http://127.0.0.1:8420"), help="TDAM 服务地址")
+    parser.add_argument(
+        "--asset", choices=["skill", "chat_memory"], default="", help="仅导入指定类型"
+    )
+    parser.add_argument(
+        "--base-url",
+        default=os.environ.get("TDAM_BASE_URL", "http://127.0.0.1:8420"),
+        help="TDAM 服务地址",
+    )
     args = parser.parse_args()
 
     logger.info("=== cairn → TDAM 数据导入 (Phase 0b) ===")
@@ -151,10 +178,12 @@ def main() -> int:
         return 1
 
     docs = export_data.get("documents", [])
-    logger.info("导出 %d 个文档 (chat_memory=%d, wiki=%d)",
-                len(docs),
-                export_data.get("stats", {}).get("chat_memory_count", 0),
-                export_data.get("stats", {}).get("wiki_count", 0))
+    logger.info(
+        "导出 %d 个文档 (chat_memory=%d, wiki=%d)",
+        len(docs),
+        export_data.get("stats", {}).get("chat_memory_count", 0),
+        export_data.get("stats", {}).get("wiki_count", 0),
+    )
 
     # 2. 过滤类型 (cairn 导出中 wiki 文档的 asset_type 为 "wiki", 导入为 TDAM skill)
     if args.asset == "skill":
@@ -166,7 +195,7 @@ def main() -> int:
 
     # 3. 应用 offset / limit
     if args.offset:
-        docs = docs[args.offset:]
+        docs = docs[args.offset :]
         logger.info("跳过前 %d 条, 剩余 %d", args.offset, len(docs))
     if args.limit:
         docs = docs[: args.limit]

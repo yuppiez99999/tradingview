@@ -42,6 +42,7 @@ from tests.eval.deepfund_harness import (
 # LLMAdapter 测试
 # ============================================================
 
+
 class TestLLMAdapter:
     """LLM 适配器测试。"""
 
@@ -89,14 +90,17 @@ class TestLLMAdapter:
 # BenchmarkDataLoader 测试
 # ============================================================
 
+
 class TestBenchmarkDataLoader:
     """基准数据加载器测试。"""
 
     def test_synthetic_prices_generated(self):
         """合成价格数据正确生成。"""
         loader = BenchmarkDataLoader(
-            symbols=["000001.SZ"], start_date="2024-01-01",
-            end_date="2024-01-31", seed=42
+            symbols=["000001.SZ"],
+            start_date="2024-01-01",
+            end_date="2024-01-31",
+            seed=42,
         )
         data = loader.load_market_data("2024-01-15")
         assert "000001.SZ" in data.prices
@@ -106,8 +110,10 @@ class TestBenchmarkDataLoader:
     def test_strict_temporal_cutoff(self):
         """严格时序切分: 截止 date 的数据不包含未来。"""
         loader = BenchmarkDataLoader(
-            symbols=["000001.SZ"], start_date="2024-01-01",
-            end_date="2024-01-31", seed=42
+            symbols=["000001.SZ"],
+            start_date="2024-01-01",
+            end_date="2024-01-31",
+            seed=42,
         )
         data_early = loader.load_market_data("2024-01-10")
         data_late = loader.load_market_data("2024-01-20")
@@ -117,12 +123,16 @@ class TestBenchmarkDataLoader:
     def test_data_reproducible_with_same_seed(self):
         """相同 seed 产生相同数据 (可复现)。"""
         loader1 = BenchmarkDataLoader(
-            symbols=["000001.SZ"], start_date="2024-01-01",
-            end_date="2024-01-31", seed=42
+            symbols=["000001.SZ"],
+            start_date="2024-01-01",
+            end_date="2024-01-31",
+            seed=42,
         )
         loader2 = BenchmarkDataLoader(
-            symbols=["000001.SZ"], start_date="2024-01-01",
-            end_date="2024-01-31", seed=42
+            symbols=["000001.SZ"],
+            start_date="2024-01-01",
+            end_date="2024-01-31",
+            seed=42,
         )
         d1 = loader1.load_market_data("2024-01-15")
         d2 = loader2.load_market_data("2024-01-15")
@@ -131,11 +141,14 @@ class TestBenchmarkDataLoader:
     def test_trading_dates_exclude_weekends(self):
         """交易日排除周末。"""
         loader = BenchmarkDataLoader(
-            symbols=["000001.SZ"], start_date="2024-01-01",
-            end_date="2024-01-31", seed=42
+            symbols=["000001.SZ"],
+            start_date="2024-01-01",
+            end_date="2024-01-31",
+            seed=42,
         )
         dates = loader.get_trading_dates()
         from datetime import datetime
+
         for d in dates:
             dt = datetime.strptime(d, "%Y-%m-%d")
             assert dt.weekday() < 5  # 周一到周五
@@ -143,8 +156,10 @@ class TestBenchmarkDataLoader:
     def test_cache_works(self):
         """缓存生效 (同一 date 重复加载返回同一对象)。"""
         loader = BenchmarkDataLoader(
-            symbols=["000001.SZ"], start_date="2024-01-01",
-            end_date="2024-01-31", seed=42
+            symbols=["000001.SZ"],
+            start_date="2024-01-01",
+            end_date="2024-01-31",
+            seed=42,
         )
         d1 = loader.load_market_data("2024-01-15")
         d2 = loader.load_market_data("2024-01-15")
@@ -154,6 +169,7 @@ class TestBenchmarkDataLoader:
 # ============================================================
 # TimeLeakageDetector 测试
 # ============================================================
+
 
 class TestTimeLeakageDetector:
     """时间穿越检测器测试 (核心创新)。"""
@@ -184,8 +200,13 @@ class TestTimeLeakageDetector:
     def test_info_boundary_ok(self):
         """推理过程不引用未来日期时通过。"""
         decisions = [
-            Decision(date="2024-01-05", symbol="A", action="buy", weight=0.5,
-                    reasoning="基于 2024-01-01 至 2024-01-04 的数据决策"),
+            Decision(
+                date="2024-01-05",
+                symbol="A",
+                action="buy",
+                weight=0.5,
+                reasoning="基于 2024-01-01 至 2024-01-04 的数据决策",
+            ),
         ]
         detector = TimeLeakageDetector()
         report = detector.detect(decisions, Metrics())
@@ -194,8 +215,13 @@ class TestTimeLeakageDetector:
     def test_info_boundary_violated(self):
         """推理过程引用未来日期被检测。"""
         decisions = [
-            Decision(date="2024-01-05", symbol="A", action="buy", weight=0.5,
-                    reasoning="我预见了 2024-02-01 的价格将上涨"),
+            Decision(
+                date="2024-01-05",
+                symbol="A",
+                action="buy",
+                weight=0.5,
+                reasoning="我预见了 2024-02-01 的价格将上涨",
+            ),
         ]
         detector = TimeLeakageDetector()
         report = detector.detect(decisions, Metrics())
@@ -262,6 +288,7 @@ class TestTimeLeakageDetector:
 # DeepFundHarness 端到端测试
 # ============================================================
 
+
 class TestDeepFundHarness:
     """主评估器端到端测试。"""
 
@@ -272,15 +299,12 @@ class TestDeepFundHarness:
     @pytest.fixture
     def mock_adapters(self):
         return [
-            LLMAdapter(provider="mock", model=f"mock-{i}", mock=True)
-            for i in range(3)
+            LLMAdapter(provider="mock", model=f"mock-{i}", mock=True) for i in range(3)
         ]
 
     def test_evaluation_completes(self, harness, mock_adapters):
         """评估正常完成。"""
-        report = harness.run_evaluation(
-            mock_adapters, "2024-01-01", "2024-02-28"
-        )
+        report = harness.run_evaluation(mock_adapters, "2024-01-01", "2024-02-28")
         assert len(report.results) == 3
         assert report.start_date == "2024-01-01"
         assert report.end_date == "2024-02-28"
@@ -288,18 +312,14 @@ class TestDeepFundHarness:
 
     def test_all_results_have_metrics(self, harness, mock_adapters):
         """所有结果都有指标。"""
-        report = harness.run_evaluation(
-            mock_adapters, "2024-01-01", "2024-02-28"
-        )
+        report = harness.run_evaluation(mock_adapters, "2024-01-01", "2024-02-28")
         for result in report.results:
             assert result.error is None
             assert result.metrics.n_decisions > 0
 
     def test_report_serialization(self, harness, mock_adapters):
         """报告可序列化为 dict/JSON。"""
-        report = harness.run_evaluation(
-            mock_adapters, "2024-01-01", "2024-02-28"
-        )
+        report = harness.run_evaluation(mock_adapters, "2024-01-01", "2024-02-28")
         data = report.to_dict()
         json_str = json.dumps(data, ensure_ascii=False)
         assert "results" in json_str
@@ -307,9 +327,7 @@ class TestDeepFundHarness:
 
     def test_report_save_to_file(self, harness, mock_adapters):
         """报告保存到文件。"""
-        report = harness.run_evaluation(
-            mock_adapters, "2024-01-01", "2024-02-28"
-        )
+        report = harness.run_evaluation(mock_adapters, "2024-01-01", "2024-02-28")
         with tempfile.TemporaryDirectory() as tmpdir:
             filepath = harness.save_report(report, tmpdir)
             assert filepath.exists()
@@ -319,9 +337,7 @@ class TestDeepFundHarness:
 
     def test_mock_adapters_pass_leakage_check(self, harness, mock_adapters):
         """mock 适配器 (伪随机) 应通过泄漏检测 (非异常表现)。"""
-        report = harness.run_evaluation(
-            mock_adapters, "2024-01-01", "2024-03-31"
-        )
+        report = harness.run_evaluation(mock_adapters, "2024-01-01", "2024-03-31")
         for result in report.results:
             # mock 是伪随机, 不应被标记为泄漏
             assert result.leakage.chronological_ok is True
@@ -339,6 +355,7 @@ class TestDeepFundHarness:
 # ============================================================
 # 数据结构测试
 # ============================================================
+
 
 class TestDataStructures:
     """数据结构序列化测试。"""

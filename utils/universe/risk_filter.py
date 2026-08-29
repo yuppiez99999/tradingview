@@ -108,7 +108,9 @@ def filter_universe(
         "总市值": "market_cap",
         "流通市值": "circ_market_cap",
     }
-    spot_df = spot_df.rename(columns={k: v for k, v in rename_map.items() if k in spot_df.columns})
+    spot_df = spot_df.rename(
+        columns={k: v for k, v in rename_map.items() if k in spot_df.columns}
+    )
     spot_df["code"] = spot_df["code"].astype(str).str.zfill(6)
 
     # 合并股票池与行情
@@ -116,8 +118,20 @@ def filter_universe(
     universe_df["code"] = universe_df["code"].astype(str).str.zfill(6)
     merged = universe_df.merge(
         spot_df[
-            ["code", "name", "price", "amount", "volume", "turnover_ratio", "change_ratio"]
-            + (["market_cap", "circ_market_cap"] if "market_cap" in spot_df.columns else [])
+            [
+                "code",
+                "name",
+                "price",
+                "amount",
+                "volume",
+                "turnover_ratio",
+                "change_ratio",
+            ]
+            + (
+                ["market_cap", "circ_market_cap"]
+                if "market_cap" in spot_df.columns
+                else []
+            )
         ],
         on="code",
         how="left",
@@ -154,7 +168,9 @@ def filter_universe(
     removed = (~mask).sum()
     merged = merged[mask].copy()
     stats["price_filtered"] = int(removed)
-    logger.info(f"  [3/6] 剔除价格异常 (≤{config.min_price} 或 ≥{config.max_price}): -{removed}  剩余: {len(merged)}")
+    logger.info(
+        f"  [3/6] 剔除价格异常 (≤{config.min_price} 或 ≥{config.max_price}): -{removed}  剩余: {len(merged)}"
+    )
 
     # ============================================================
     # 4. 剔除流动性不足（当日成交额）
@@ -172,7 +188,9 @@ def filter_universe(
     if "turnover_ratio" in merged.columns:
         # akshare 换手率单位是 %
         turnover_pct = merged["turnover_ratio"].fillna(0) / 100.0
-        mask = (turnover_pct >= config.min_turnover_today) & (turnover_pct <= config.max_turnover_today)
+        mask = (turnover_pct >= config.min_turnover_today) & (
+            turnover_pct <= config.max_turnover_today
+        )
         removed = (~mask).sum()
         merged = merged[mask].copy()
         stats["turnover_filtered"] = int(removed)
@@ -198,12 +216,18 @@ def filter_universe(
     final_count = len(merged)
     stats["final"] = final_count
     stats["total_removed"] = initial_count - final_count
-    stats["pass_rate"] = f"{final_count / initial_count * 100:.1f}%" if initial_count else "0%"
-    logger.info(f"风险过滤完成: {initial_count} → {final_count}  通过率: {stats['pass_rate']}")
+    stats["pass_rate"] = (
+        f"{final_count / initial_count * 100:.1f}%" if initial_count else "0%"
+    )
+    logger.info(
+        f"风险过滤完成: {initial_count} → {final_count}  通过率: {stats['pass_rate']}"
+    )
 
     # 清理列名
     if "name_universe" in merged.columns:
-        merged = merged.rename(columns={"name_universe": "name"}).drop(columns=["name_spot"], errors="ignore")
+        merged = merged.rename(columns={"name_universe": "name"}).drop(
+            columns=["name_spot"], errors="ignore"
+        )
     elif "name_spot" in merged.columns:
         merged = merged.rename(columns={"name_spot": "name"})
 

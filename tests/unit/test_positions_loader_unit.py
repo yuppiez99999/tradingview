@@ -5,6 +5,7 @@
     - get_positions_list (dict 格式/list 格式/空)
     - get_positions_dict (code 提取/无 code 用 key)
 """
+
 from __future__ import annotations
 
 import json

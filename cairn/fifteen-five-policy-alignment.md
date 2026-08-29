@@ -161,3 +161,14 @@
 2. **代码修改**: 评审通过后修改 `utils/five_year_plan.py` 的 `FIFTEEN_FIVE_POLICIES` 权重和 `STOCK_POLICY_ALIGNMENT` alignment
 3. **MCP 搜索**: 在 Claude Code CLI 中用 duckduckgo-mcp 搜索未完成项
 4. **定期更新**: 十五五专项规划仍在陆续发布，建议每月检查发改委答记者问列表页
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [CN-Buzz2Portfolio 中国市场基准](cn-buzz2portfolio.md) (相似度 6%)
+- [GNN 供应链产业链因子落地设计](gnn-supply-chain-factor.md) (相似度 4%)
+- [自我进化迭代再平衡闭环（Evolution-Rebalance Loop）](evolution-rebalance-loop.md) (相似度 3%)
+- [自我进化框架](self-evolution-framework.md) (相似度 3%)
+- [v86 集成升级方案同步记录 — 2026-08-21](v86-plan-sync-20260821.md) (相似度 3%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -32,6 +32,7 @@ try:
     from statsmodels.regression.linear_model import OLS
     from statsmodels.tools.tools import add_constant
     from statsmodels.tsa.stattools import coint
+
     _HAS_STATSMODELS = True
 except ImportError:
     _HAS_STATSMODELS = False
@@ -42,10 +43,17 @@ logger = logging.getLogger(__name__)
 class PairSignal:
     """单只协整对的信号结果"""
 
-    def __init__(self, code_a: str, code_b: str,
-                 hedge_ratio: float, intercept: float,
-                 half_life: float | None, zscore: float,
-                 signal: int, pvalue: float):
+    def __init__(
+        self,
+        code_a: str,
+        code_b: str,
+        hedge_ratio: float,
+        intercept: float,
+        half_life: float | None,
+        zscore: float,
+        signal: int,
+        pvalue: float,
+    ):
         """初始化配对信号
 
         Args:
@@ -70,14 +78,14 @@ class PairSignal:
     def to_dict(self) -> dict:
         """转换为字典"""
         return {
-            'code_a': self.code_a,
-            'code_b': self.code_b,
-            'hedge_ratio': round(self.hedge_ratio, 4),
-            'intercept': round(self.intercept, 4),
-            'half_life': round(self.half_life, 2) if self.half_life else None,
-            'zscore': round(self.zscore, 4),
-            'signal': self.signal,
-            'pvalue': round(self.pvalue, 4),
+            "code_a": self.code_a,
+            "code_b": self.code_b,
+            "hedge_ratio": round(self.hedge_ratio, 4),
+            "intercept": round(self.intercept, 4),
+            "half_life": round(self.half_life, 2) if self.half_life else None,
+            "zscore": round(self.zscore, 4),
+            "signal": self.signal,
+            "pvalue": round(self.pvalue, 4),
         }
 
 
@@ -95,12 +103,15 @@ class PairsTrading:
         其他          持有, signal = 0
     """
 
-    def __init__(self, significance: float = 0.05,
-                 zscore_window: int = 20,
-                 entry_z: float = 2.0,
-                 exit_z: float = 0.5,
-                 min_half_life: int = 1,
-                 max_half_life: int = 60):
+    def __init__(
+        self,
+        significance: float = 0.05,
+        zscore_window: int = 20,
+        entry_z: float = 2.0,
+        exit_z: float = 0.5,
+        min_half_life: int = 1,
+        max_half_life: int = 60,
+    ):
         """初始化配对交易参数
 
         Args:
@@ -112,7 +123,9 @@ class PairsTrading:
             max_half_life: 最大半衰期, 高于此值视为均值回复过慢(不套利)
         """
         if not _HAS_STATSMODELS:
-            logger.warning('statsmodels 未安装, 协整检验不可用, 请 pip install statsmodels')
+            logger.warning(
+                "statsmodels 未安装, 协整检验不可用, 请 pip install statsmodels"
+            )
 
         self.significance = significance
         self.zscore_window = zscore_window
@@ -153,9 +166,18 @@ class PairsTrading:
             # Engle-Granger 协整检验
             _score, pvalue, _ = coint(y_aligned, x_aligned)
             return float(pvalue), beta, intercept
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as exc:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-            logger.debug(f'协整检验失败: {exc}')
+            logger.debug(f"协整检验失败: {exc}")
             return 1.0, 0.0, 0.0
 
     # ---------- 半衰期估计 ----------
@@ -190,13 +212,23 @@ class PairsTrading:
                 return None
 
             return float(np.log(2) / kappa)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return None
 
     # ---------- 寻找协整对 ----------
-    def find_cointegrated_pairs(self, price_data: dict[str, pd.DataFrame],
-                                max_pairs: int = 20) -> list[dict]:
+    def find_cointegrated_pairs(
+        self, price_data: dict[str, pd.DataFrame], max_pairs: int = 20
+    ) -> list[dict]:
         """在全部标的中寻找协整对
 
         Args:
@@ -207,7 +239,7 @@ class PairsTrading:
             [{code_a, code_b, pvalue, beta, intercept, half_life}, ...]
         """
         if not _HAS_STATSMODELS:
-            logger.error('statsmodels 未安装, 无法执行协整检验')
+            logger.error("statsmodels 未安装, 无法执行协整检验")
             return []
 
         symbols = list(price_data.keys())
@@ -217,8 +249,8 @@ class PairsTrading:
         # 提取收盘价
         close_dict = {}
         for sym, df in price_data.items():
-            if 'close' in df.columns:
-                close_dict[sym] = df['close']
+            if "close" in df.columns:
+                close_dict[sym] = df["close"]
             elif len(df.columns) > 0:
                 close_dict[sym] = df.iloc[:, 0]
 
@@ -250,22 +282,25 @@ class PairsTrading:
                     if half_life < self.min_half_life or half_life > self.max_half_life:
                         continue
 
-                candidates.append({
-                    'code_a': sym_a,
-                    'code_b': sym_b,
-                    'pvalue': pvalue,
-                    'beta': beta,
-                    'intercept': intercept,
-                    'half_life': half_life,
-                })
+                candidates.append(
+                    {
+                        "code_a": sym_a,
+                        "code_b": sym_b,
+                        "pvalue": pvalue,
+                        "beta": beta,
+                        "intercept": intercept,
+                        "half_life": half_life,
+                    }
+                )
 
         # 按 p-value 升序, 取前 max_pairs
-        candidates.sort(key=lambda d: d['pvalue'])
+        candidates.sort(key=lambda d: d["pvalue"])
         return candidates[:max_pairs]
 
     # ---------- 信号生成 ----------
-    def generate_signals(self, price_data: dict[str, pd.DataFrame],
-                         pairs: list[dict] | None = None) -> list[PairSignal]:
+    def generate_signals(
+        self, price_data: dict[str, pd.DataFrame], pairs: list[dict] | None = None
+    ) -> list[PairSignal]:
         """对所有协整对生成交易信号
 
         Args:
@@ -279,23 +314,23 @@ class PairsTrading:
             pairs = self.find_cointegrated_pairs(price_data)
 
         if not pairs:
-            logger.info('无协整对, 跳过信号生成')
+            logger.info("无协整对, 跳过信号生成")
             return []
 
         # 收盘价字典
         close_dict = {}
         for sym, df in price_data.items():
-            if 'close' in df.columns:
-                close_dict[sym] = df['close']
+            if "close" in df.columns:
+                close_dict[sym] = df["close"]
             elif len(df.columns) > 0:
                 close_dict[sym] = df.iloc[:, 0]
 
         signals = []
         for pair in pairs:
-            code_a = pair['code_a']
-            code_b = pair['code_b']
-            beta = pair['beta']
-            intercept = pair['intercept']
+            code_a = pair["code_a"]
+            code_b = pair["code_b"]
+            beta = pair["beta"]
+            intercept = pair["intercept"]
 
             price_a = close_dict.get(code_a)
             price_b = close_dict.get(code_b)
@@ -310,8 +345,12 @@ class PairsTrading:
             spread = price_a.loc[common] - beta * price_b.loc[common] - intercept
 
             # 滚动 z-score
-            rolling_mean = spread.rolling(window=self.zscore_window, min_periods=1).mean()
-            rolling_std = spread.rolling(window=self.zscore_window, min_periods=1).std(ddof=0)
+            rolling_mean = spread.rolling(
+                window=self.zscore_window, min_periods=1
+            ).mean()
+            rolling_std = spread.rolling(window=self.zscore_window, min_periods=1).std(
+                ddof=0
+            )
             rolling_std = rolling_std.replace(0, np.nan)
             z = (spread - rolling_mean) / rolling_std
             z = z.fillna(0.0)
@@ -325,27 +364,34 @@ class PairsTrading:
             elif latest_z < -self.entry_z:
                 signal = +1  # 做多价差: 买 A 卖 B
             elif abs(latest_z) < self.exit_z:
-                signal = 0   # 平仓区
+                signal = 0  # 平仓区
             else:
-                signal = 0   # 持有/无信号
+                signal = 0  # 持有/无信号
 
-            signals.append(PairSignal(
-                code_a=code_a,
-                code_b=code_b,
-                hedge_ratio=beta,
-                intercept=intercept,
-                half_life=pair.get('half_life'),
-                zscore=latest_z,
-                signal=signal,
-                pvalue=pair['pvalue'],
-            ))
+            signals.append(
+                PairSignal(
+                    code_a=code_a,
+                    code_b=code_b,
+                    hedge_ratio=beta,
+                    intercept=intercept,
+                    half_life=pair.get("half_life"),
+                    zscore=latest_z,
+                    signal=signal,
+                    pvalue=pair["pvalue"],
+                )
+            )
 
         return signals
 
     # ---------- 简单回测 ----------
-    def backtest_pair(self, price_a: pd.Series, price_b: pd.Series,
-                      beta: float, intercept: float,
-                      cost_bps: float = 5.0) -> dict:
+    def backtest_pair(
+        self,
+        price_a: pd.Series,
+        price_b: pd.Series,
+        beta: float,
+        intercept: float,
+        cost_bps: float = 5.0,
+    ) -> dict:
         """单对配对的简单向量回测
 
         信号规则:
@@ -365,15 +411,22 @@ class PairsTrading:
         """
         common = price_a.dropna().index.intersection(price_b.dropna().index)
         if len(common) < self.zscore_window + 5:
-            return {'equity_curve': pd.Series(), 'trades': 0,
-                    'sharpe': 0.0, 'max_dd': 0.0, 'total_return': 0.0}
+            return {
+                "equity_curve": pd.Series(),
+                "trades": 0,
+                "sharpe": 0.0,
+                "max_dd": 0.0,
+                "total_return": 0.0,
+            }
 
         pa = price_a.loc[common]
         pb = price_b.loc[common]
         spread = pa - beta * pb - intercept
 
         rolling_mean = spread.rolling(window=self.zscore_window, min_periods=1).mean()
-        rolling_std = spread.rolling(window=self.zscore_window, min_periods=1).std(ddof=0)
+        rolling_std = spread.rolling(window=self.zscore_window, min_periods=1).std(
+            ddof=0
+        )
         rolling_std = rolling_std.replace(0, np.nan)
         z = (spread - rolling_mean) / rolling_std
         z = z.fillna(0.0)
@@ -419,11 +472,11 @@ class PairsTrading:
         trades = int((turnover > 0).sum())
 
         return {
-            'equity_curve': equity,
-            'trades': trades,
-            'sharpe': round(sharpe, 3),
-            'max_dd': round(max_dd, 4),
-            'total_return': round(total_return, 4),
-            'ann_return': round(ann_ret, 4),
-            'ann_vol': round(ann_vol, 4),
+            "equity_curve": equity,
+            "trades": trades,
+            "sharpe": round(sharpe, 3),
+            "max_dd": round(max_dd, 4),
+            "total_return": round(total_return, 4),
+            "ann_return": round(ann_ret, 4),
+            "ann_vol": round(ann_vol, 4),
         }

@@ -24,6 +24,7 @@ R1 修复项。CI "GAP-1 Smoke Test" 阶段引用本脚本, 缺失导致 CI 必�
 用法:
     python scripts/_smoke_runner.py [--smoke-dir tests/smoke] [--skip-pytest]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -81,8 +82,14 @@ def check_imports() -> list[Check]:
             m = importlib.import_module(mod)
             missing = [s for s in symbols if not hasattr(m, s)]
             if missing:
-                out.append(Check(cid, f"import {mod} (missing {missing})",
-                                 False, f"missing symbols: {missing}"))
+                out.append(
+                    Check(
+                        cid,
+                        f"import {mod} (missing {missing})",
+                        False,
+                        f"missing symbols: {missing}",
+                    )
+                )
             else:
                 out.append(Check(cid, f"import {mod}", True, "OK"))
         except (ImportError, AttributeError) as e:
@@ -95,34 +102,50 @@ def check_contract_files() -> list[Check]:
     for rel in CONTRACT_FILES:
         p = ROOT / rel
         ok = p.exists() and p.stat().st_size > 0
-        out.append(Check(
-            "FILE-" + rel.replace("/", "_").replace(".", "_"),
-            f"contract file {rel} exists & non-empty",
-            ok, "OK" if ok else f"missing/empty: {rel}",
-        ))
+        out.append(
+            Check(
+                "FILE-" + rel.replace("/", "_").replace(".", "_"),
+                f"contract file {rel} exists & non-empty",
+                ok,
+                "OK" if ok else f"missing/empty: {rel}",
+            )
+        )
     return out
 
 
 def run_pytest_smoke(smoke_dir: Path) -> list[Check]:
     out: list[Check] = []
     if not smoke_dir.exists():
-        out.append(Check(
-            "PT-absent", "tests/smoke directory present",
-            True, "no smoke dir, skipped (non-blocking)",
-        ))
+        out.append(
+            Check(
+                "PT-absent",
+                "tests/smoke directory present",
+                True,
+                "no smoke dir, skipped (non-blocking)",
+            )
+        )
         return out
     env = dict(os.environ)
     env.setdefault("PYTHONUTF8", "1")
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", str(smoke_dir), "-q", "--no-header"],
-        cwd=str(ROOT), capture_output=True, text=True,
-        encoding="utf-8", errors="replace", env=env, timeout=600,
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        timeout=600,
     )
     passed = proc.returncode == 0
-    out.append(Check(
-        "PT-smoke", f"pytest {smoke_dir} pass", passed,
-        "exit=0" if passed else (proc.stdout[-500:] + proc.stderr[-500:]),
-    ))
+    out.append(
+        Check(
+            "PT-smoke",
+            f"pytest {smoke_dir} pass",
+            passed,
+            "exit=0" if passed else (proc.stdout[-500:] + proc.stderr[-500:]),
+        )
+    )
     return out
 
 

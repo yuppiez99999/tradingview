@@ -14,6 +14,7 @@
 运行:
     python -m pytest tests/unit/test_g7_coverage_boost.py -v
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -31,6 +32,7 @@ class TestRiskGuardIntegrator:
 
     def test_init_default(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator()
         assert integrator.report_date  # 非空
         assert integrator.total_capital == 5_000_000
@@ -38,12 +40,16 @@ class TestRiskGuardIntegrator:
 
     def test_init_custom(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
-        integrator = RiskGuardIntegrator(report_date="2026-01-01", total_capital=1_000_000)
+
+        integrator = RiskGuardIntegrator(
+            report_date="2026-01-01", total_capital=1_000_000
+        )
         assert integrator.report_date == "2026-01-01"
         assert integrator.total_capital == 1_000_000
 
     def test_log(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator()
         integrator._log("测试消息")
         assert len(integrator.log_entries) == 1
@@ -52,12 +58,14 @@ class TestRiskGuardIntegrator:
 
     def test_extract_underlying_code(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         # 测试提取标的代码
         result = RiskGuardIntegrator._extract_underlying_code("沪深300期货IF2401")
         assert result is not None or result is None  # 不崩溃即可
 
     def test_get_pnl_summary(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator()
         pnl_report = {
             "summary": {"total_pnl": 10000, "total_return": 0.02},
@@ -68,6 +76,7 @@ class TestRiskGuardIntegrator:
 
     def test_extract_positions(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator()
         pnl_report = {
             "positions": [
@@ -81,12 +90,14 @@ class TestRiskGuardIntegrator:
 
     def test_extract_positions_empty(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator()
         result = integrator._extract_positions({})
         assert isinstance(result, list)
 
     def test_extract_summary(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator()
         pnl_report = {"summary": {"total_pnl": 10000, "max_drawdown": 0.05}}
         result = integrator._extract_summary(pnl_report)
@@ -94,6 +105,7 @@ class TestRiskGuardIntegrator:
 
     def test_apply_budget_cut(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator()
         plan = {
             "morning_orders": [
@@ -105,6 +117,7 @@ class TestRiskGuardIntegrator:
 
     def test_apply_hedge_boost(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator()
         plan = {
             "morning_orders": [],
@@ -115,6 +128,7 @@ class TestRiskGuardIntegrator:
 
     def test_extract_daily_returns(self) -> None:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator()
         pnl_report = {
             "daily_returns": [0.01, -0.02, 0.005, 0.03],
@@ -126,6 +140,7 @@ class TestRiskGuardIntegrator:
     def test_guard_drawdown_normal(self) -> None:
         """guard_drawdown 正常路径."""
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator(report_date="2026-01-01")
         pnl_report = {
             "summary": {"total_pnl": 10000, "max_drawdown": 0.02},
@@ -139,6 +154,7 @@ class TestRiskGuardIntegrator:
     def test_guard_vol_target_normal(self) -> None:
         """guard_vol_target 正常路径."""
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator(report_date="2026-01-01")
         pnl_report = {
             "summary": {"total_pnl": 10000},
@@ -152,6 +168,7 @@ class TestRiskGuardIntegrator:
     def test_guard_kill_switch_normal(self) -> None:
         """guard_kill_switch 正常路径."""
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator(report_date="2026-01-01")
         pnl_report = {
             "summary": {"total_pnl": 10000, "max_drawdown": 0.02},
@@ -165,6 +182,7 @@ class TestRiskGuardIntegrator:
     def test_load_pnl_report_not_found(self) -> None:
         """_load_pnl_report 文件不存在时返回 None."""
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         integrator = RiskGuardIntegrator(report_date="1999-01-01")
         result = integrator._load_pnl_report()
         assert result is None
@@ -175,11 +193,13 @@ class TestParseKillSwitchLevel:
 
     def test_parse_normal(self) -> None:
         from utils.risk_guard_integrator import parse_kill_switch_level
+
         result = parse_kill_switch_level("L1")
         assert result is not None
 
     def test_parse_invalid(self) -> None:
         from utils.risk_guard_integrator import parse_kill_switch_level
+
         result = parse_kill_switch_level("INVALID")
         # 无效输入应返回默认值或 None, 不崩溃
         assert result is not None or result is None
@@ -197,6 +217,7 @@ class TestSignalFusionEngine:
     def engine(self, tmp_path: Path) -> Any:
         """创建临时数据库的 SignalFusionEngine."""
         from utils.signal_fusion import SignalFusionEngine
+
         db_path = str(tmp_path / "test_signals.db")
         return SignalFusionEngine(db_path=db_path)
 
@@ -208,7 +229,10 @@ class TestSignalFusionEngine:
     def test_register_source(self, engine: Any) -> None:
         def mock_getter(code: str) -> Any:
             from utils.signal_fusion import SignalResult
-            return SignalResult(code=code, source="ml", score=0.8, action="BUY", confidence=0.9)
+
+            return SignalResult(
+                code=code, source="ml", score=0.8, action="BUY", confidence=0.9
+            )
 
         engine.register_source("ml", mock_getter, initial_weight=0.6)
         assert "ml" in engine._sources
@@ -217,7 +241,10 @@ class TestSignalFusionEngine:
     def test_register_source_default_weight(self, engine: Any) -> None:
         def mock_getter(code: str) -> Any:
             from utils.signal_fusion import SignalResult
-            return SignalResult(code=code, source="ml", score=0.8, action="BUY", confidence=0.9)
+
+            return SignalResult(
+                code=code, source="ml", score=0.8, action="BUY", confidence=0.9
+            )
 
         engine.register_source("ml", mock_getter)
         assert "ml" in engine._sources
@@ -227,7 +254,10 @@ class TestSignalFusionEngine:
     def test_remove_source(self, engine: Any) -> None:
         def mock_getter(code: str) -> Any:
             from utils.signal_fusion import SignalResult
-            return SignalResult(code=code, source="ml", score=0.8, action="BUY", confidence=0.9)
+
+            return SignalResult(
+                code=code, source="ml", score=0.8, action="BUY", confidence=0.9
+            )
 
         engine.register_source("ml", mock_getter)
         engine.remove_source("ml")
@@ -272,6 +302,7 @@ class TestSignalFusionEngine:
 
     def test_is_valid_signal_value(self) -> None:
         from utils.signal_fusion import SignalFusionEngine
+
         assert SignalFusionEngine._is_valid_signal_value(0.5) is True
         assert SignalFusionEngine._is_valid_signal_value(0.0) is True
         assert SignalFusionEngine._is_valid_signal_value(None) is False
@@ -293,7 +324,10 @@ class TestSignalFusionDataClasses:
 
     def test_signal_result(self) -> None:
         from utils.signal_fusion import SignalResult
-        sr = SignalResult(code="600519", source="ml", score=0.8, action="BUY", confidence=0.9)
+
+        sr = SignalResult(
+            code="600519", source="ml", score=0.8, action="BUY", confidence=0.9
+        )
         assert sr.code == "600519"
         assert sr.source == "ml"
         assert sr.score == 0.8
@@ -304,12 +338,14 @@ class TestSignalFusionDataClasses:
 
     def test_fusion_signal(self) -> None:
         from utils.signal_fusion import FusionSignal
+
         fs = FusionSignal(symbol="600519", strength=0.8, confidence=0.9)
         assert fs.symbol == "600519"
         assert fs.strength == 0.8
 
     def test_fused_signal(self) -> None:
         from utils.signal_fusion import FusedSignal
+
         fs = FusedSignal(code="600519")
         assert fs.code == "600519"
         assert fs.fused_score == 0.5
@@ -318,6 +354,7 @@ class TestSignalFusionDataClasses:
 
     def test_fused_signal_v2(self) -> None:
         from utils.signal_fusion import FusedSignalV2
+
         fs = FusedSignalV2(symbol="600519", strength=0.7)
         assert fs.symbol == "600519"
         assert fs.strength == 0.7
@@ -334,14 +371,17 @@ class TestDataProviderUtils:
 
     def test_parse_markdown_table_empty(self) -> None:
         from utils.data_provider import _parse_markdown_table
+
         assert _parse_markdown_table("") == []
 
     def test_parse_markdown_table_no_table(self) -> None:
         from utils.data_provider import _parse_markdown_table
+
         assert _parse_markdown_table("hello world") == []
 
     def test_parse_markdown_table_normal(self) -> None:
         from utils.data_provider import _parse_markdown_table
+
         text = "| code | name |\n|------|------|\n| 600519 | 贵州茅台 |"
         result = _parse_markdown_table(text)
         assert len(result) == 1
@@ -349,31 +389,37 @@ class TestDataProviderUtils:
 
     def test_mean(self) -> None:
         from utils.data_provider import _mean
+
         assert _mean([1, 2, 3]) == 2.0
         assert _mean([]) == 0.0
 
     def test_std(self) -> None:
         from utils.data_provider import _std
+
         assert _std([1]) == 0.0
         assert _std([1, 2, 3]) > 0.0
 
     def test_diff(self) -> None:
         from utils.data_provider import _diff
+
         assert _diff([1, 3, 6]) == [2, 3]
         assert _diff([1]) == []
 
     def test_where(self) -> None:
         from utils.data_provider import _where
+
         result = _where([True, False, True], 1, 0)
         assert result == [1, 0, 1]
 
     def test_eye(self) -> None:
         from utils.data_provider import _eye
+
         result = _eye(3)
         assert result == [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
 
     def test_zeros(self) -> None:
         from utils.data_provider import _zeros
+
         assert _zeros(5) == [0.0, 0.0, 0.0, 0.0, 0.0]
 
 
@@ -382,34 +428,40 @@ class TestMarketDataProvider:
 
     def test_init_default(self) -> None:
         from utils.data_provider import MarketDataProvider
+
         provider = MarketDataProvider()
         assert provider.cache_size == 1000
         assert provider.backtest_mode is False
 
     def test_init_backtest(self) -> None:
         from utils.data_provider import MarketDataProvider
+
         provider = MarketDataProvider(backtest_mode=True)
         assert provider.backtest_mode is True
 
     def test_set_backtest_date(self) -> None:
         from utils.data_provider import MarketDataProvider
+
         provider = MarketDataProvider(backtest_mode=True)
         provider.set_backtest_date("2026-01-15")
         # 不崩溃即可
 
     def test_to_wind_code_stock(self) -> None:
         from utils.data_provider import MarketDataProvider
+
         # A 股代码转换
         result = MarketDataProvider._to_wind_code("600519")
         assert isinstance(result, str)
 
     def test_to_wind_code_fund(self) -> None:
         from utils.data_provider import MarketDataProvider
+
         result = MarketDataProvider._to_wind_code("159915")
         assert isinstance(result, str)
 
     def test_is_fund(self) -> None:
         from utils.data_provider import MarketDataProvider
+
         # 基金代码检测
         assert MarketDataProvider._is_fund("159915") is True
         assert MarketDataProvider._is_fund("510300") is True
@@ -417,11 +469,13 @@ class TestMarketDataProvider:
 
     def test_to_sina_code(self) -> None:
         from utils.data_provider import MarketDataProvider
+
         result = MarketDataProvider._to_sina_code("600519")
         assert isinstance(result, str)
 
     def test_cache_suffix(self) -> None:
         from utils.data_provider import MarketDataProvider
+
         provider = MarketDataProvider()
         result = provider._cache_suffix()
         assert isinstance(result, str)
@@ -429,11 +483,13 @@ class TestMarketDataProvider:
     def test_cache_suffix_attr(self) -> None:
         """验证 cache_size 属性可访问."""
         from utils.data_provider import MarketDataProvider
+
         provider = MarketDataProvider(cache_size=500)
         assert provider.cache_size == 500
 
     def test_cache_suffix_backtest(self) -> None:
         from utils.data_provider import MarketDataProvider
+
         provider = MarketDataProvider(backtest_mode=True)
         provider.set_backtest_date("2026-01-15")
         result = provider._cache_suffix()

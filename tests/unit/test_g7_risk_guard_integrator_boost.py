@@ -30,6 +30,7 @@
     - _write_guard_log
     - main() CLI 入口
 """
+
 import json
 import os
 import sys
@@ -41,7 +42,9 @@ import pytest
 # ============================================================
 # PROJECT_ROOT sys.path 注入
 # ============================================================
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 for _p in [
     PROJECT_ROOT,
     os.path.join(PROJECT_ROOT, "v8.3_institutional"),
@@ -61,6 +64,7 @@ from utils.risk_guard_integrator import (  # noqa: E402
 # 辅助函数与 Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def integrator(tmp_path, monkeypatch):
     """隔离 LOGS_DIR / REPORTS_DIR / TRADE_PLANS_DIR / DAILY_REPORT_DIR 的实例"""
@@ -73,7 +77,9 @@ def integrator(tmp_path, monkeypatch):
     monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
     monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
     monkeypatch.setattr("utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir)
-    monkeypatch.setattr("utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir)
+    monkeypatch.setattr(
+        "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+    )
     return RiskGuardIntegrator(report_date="2026-07-21", total_capital=5_000_000)
 
 
@@ -98,10 +104,14 @@ def _block_module(monkeypatch, module_name):
 def _block_all_optional_modules(monkeypatch):
     """阻止所有可选风控模块导入, 使 guards 走 ImportError 降级路径"""
     for mod in [
-        "utils.drawdown_controller", "utils.vol_target_controller",
-        "utils.hedge_execution_engine", "utils.protective_put_engine",
-        "utils.kill_switch", "utils.market_circuit_breaker",
-        "utils.overnight_gap_monitor", "utils.ifind_news_analyzer",
+        "utils.drawdown_controller",
+        "utils.vol_target_controller",
+        "utils.hedge_execution_engine",
+        "utils.protective_put_engine",
+        "utils.kill_switch",
+        "utils.market_circuit_breaker",
+        "utils.overnight_gap_monitor",
+        "utils.ifind_news_analyzer",
         "hedging.correlation_hedger",
     ]:
         _block_module(monkeypatch, mod)
@@ -119,10 +129,22 @@ def _make_pnl_report(
 ):
     """构造完整格式 pnl_report"""
     details = positions or [
-        {"code": "588080.SH", "name": "科创50ETF", "market_value": 350_000,
-         "pnl": 20_000, "daily_pnl_pct": 6.0, "cost_amount": 330_000},
-        {"code": "510050.SH", "name": "上证50ETF", "market_value": 300_000,
-         "pnl": 15_000, "daily_pnl_pct": 5.3, "cost_amount": 285_000},
+        {
+            "code": "588080.SH",
+            "name": "科创50ETF",
+            "market_value": 350_000,
+            "pnl": 20_000,
+            "daily_pnl_pct": 6.0,
+            "cost_amount": 330_000,
+        },
+        {
+            "code": "510050.SH",
+            "name": "上证50ETF",
+            "market_value": 300_000,
+            "pnl": 15_000,
+            "daily_pnl_pct": 5.3,
+            "cost_amount": 285_000,
+        },
     ]
     return {
         "meta": {"report_date": "2026-07-21"},
@@ -147,11 +169,26 @@ def _make_plan(circuit_level=None, spot_build_allowed=None, build_allowed=None):
         "phase": {"daily_capital": 150_000, "day_capital": 150_000},
         "execution_plan": {
             "morning_orders": [
-                {"symbol": "588080.SH", "direction": "BUY", "shares": 1000, "est_amount": 100_000},
-                {"symbol": "512880.SH", "direction": "SELL", "shares": 500, "est_amount": 50_000},
+                {
+                    "symbol": "588080.SH",
+                    "direction": "BUY",
+                    "shares": 1000,
+                    "est_amount": 100_000,
+                },
+                {
+                    "symbol": "512880.SH",
+                    "direction": "SELL",
+                    "shares": 500,
+                    "est_amount": 50_000,
+                },
             ],
             "afternoon_orders": [
-                {"symbol": "510050.SH", "direction": "BUY", "shares": 2000, "est_amount": 200_000},
+                {
+                    "symbol": "510050.SH",
+                    "direction": "BUY",
+                    "shares": 2000,
+                    "est_amount": 200_000,
+                },
             ],
         },
         "market_state": {},
@@ -311,7 +348,9 @@ class TestExtractPositionsAndSummary:
 
     @pytest.mark.unit
     def test_extract_positions_from_details_dict(self, integrator):
-        report = {"portfolio_pnl": {"details": {"A": {"code": "A"}, "B": {"code": "B"}}}}
+        report = {
+            "portfolio_pnl": {"details": {"A": {"code": "A"}, "B": {"code": "B"}}}
+        }
         result = integrator._extract_positions(report)
         assert len(result) == 2
 
@@ -532,7 +571,9 @@ class TestGuardDrawdown:
         # 预算缩减 20%
         assert result["phase"]["daily_capital"] == 150_000 * 0.8
         # 订单 shares 也缩减
-        assert result["execution_plan"]["morning_orders"][0]["shares"] == int(original_shares * 0.8)
+        assert result["execution_plan"]["morning_orders"][0]["shares"] == int(
+            original_shares * 0.8
+        )
 
     @pytest.mark.unit
     def test_level3_reduce_60pct_clears_orders(self, integrator, monkeypatch):
@@ -579,7 +620,9 @@ class TestApplyBudgetCutAndHedgeBoost:
         assert result["phase"]["day_capital"] == 150_000 * 0.7
         assert result["phase"]["budget_cut_reason"] == "drawdown_cut_30%"
         # 订单 shares 缩减
-        assert result["execution_plan"]["morning_orders"][0]["shares"] == int(1000 * 0.7)
+        assert result["execution_plan"]["morning_orders"][0]["shares"] == int(
+            1000 * 0.7
+        )
 
     @pytest.mark.unit
     def test_budget_cut_default_budget(self, integrator):
@@ -637,7 +680,9 @@ class TestGuardVolTarget:
         )
         mock_inst.calc_realized_vol.return_value = 0.10
         mock_inst.calc_vol_scale.return_value = 0.90
-        monkeypatch.setattr(integrator, "_extract_daily_returns", lambda r: [0.01, 0.02])
+        monkeypatch.setattr(
+            integrator, "_extract_daily_returns", lambda r: [0.01, 0.02]
+        )
         plan = _make_plan()
         result = integrator.guard_vol_target(_make_pnl_report(), plan)
         assert result["risk_guard"]["vol_action"] == "NORMAL"
@@ -650,7 +695,9 @@ class TestGuardVolTarget:
         )
         mock_inst.calc_realized_vol.return_value = 0.25
         mock_inst.calc_vol_scale.return_value = 0.50
-        monkeypatch.setattr(integrator, "_extract_daily_returns", lambda r: [0.01, 0.02])
+        monkeypatch.setattr(
+            integrator, "_extract_daily_returns", lambda r: [0.01, 0.02]
+        )
         plan = _make_plan()
         # 添加 BUY 订单 with side 字段
         plan["execution_plan"]["morning_orders"][0]["side"] = "BUY"
@@ -688,9 +735,9 @@ class TestExtractDailyReturns:
         # 只创建 3 个文件 (< 5)
         for i in range(3):
             report = {"portfolio_pnl": {"summary": {"total_pnl_pct": 1.0}}}
-            (tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json").write_text(
-                json.dumps(report), encoding="utf-8"
-            )
+            (
+                tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json"
+            ).write_text(json.dumps(report), encoding="utf-8")
         result = integrator._extract_daily_returns({})
         assert result == []
 
@@ -698,9 +745,9 @@ class TestExtractDailyReturns:
     def test_sufficient_files_returns_returns(self, integrator, tmp_path):
         for i in range(6):
             report = {"portfolio_pnl": {"summary": {"total_pnl_pct": 1.0 + i}}}
-            (tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json").write_text(
-                json.dumps(report), encoding="utf-8"
-            )
+            (
+                tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json"
+            ).write_text(json.dumps(report), encoding="utf-8")
         result = integrator._extract_daily_returns({})
         assert len(result) == 6
         assert result[0] == 0.01  # 1.0 / 100
@@ -709,9 +756,9 @@ class TestExtractDailyReturns:
     def test_fallback_to_pnl_summary_key(self, integrator, tmp_path):
         for i in range(6):
             report = {"pnl_summary": {"total_pnl_pct": 2.0}}
-            (tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json").write_text(
-                json.dumps(report), encoding="utf-8"
-            )
+            (
+                tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json"
+            ).write_text(json.dumps(report), encoding="utf-8")
         result = integrator._extract_daily_returns({})
         assert len(result) == 6
         assert result[0] == 0.02
@@ -729,7 +776,9 @@ class TestGuardHedgeExecution:
     def test_import_error_returns_plan(self, integrator, monkeypatch):
         _block_module(monkeypatch, "utils.hedge_execution_engine")
         plan = _make_plan()
-        result = integrator.guard_hedge_execution(_make_pnl_report(), plan, "2026-07-22")
+        result = integrator.guard_hedge_execution(
+            _make_pnl_report(), plan, "2026-07-22"
+        )
         assert result is plan
 
     @pytest.mark.unit
@@ -739,7 +788,9 @@ class TestGuardHedgeExecution:
         )
         mock_inst.generate_hedge_orders.return_value = None
         plan = _make_plan()
-        result = integrator.guard_hedge_execution(_make_pnl_report(), plan, "2026-07-22")
+        result = integrator.guard_hedge_execution(
+            _make_pnl_report(), plan, "2026-07-22"
+        )
         assert result["risk_guard"]["hedge_action"] == "NO_CHANGE_NEEDED"
 
     @pytest.mark.unit
@@ -749,20 +800,29 @@ class TestGuardHedgeExecution:
         )
         mock_inst.generate_hedge_orders.return_value = {
             "futures_orders": [],
-            "options_orders": [{"instrument": "510050 Put", "contracts": 30, "est_price": 0.15}],
+            "options_orders": [
+                {"instrument": "510050 Put", "contracts": 30, "est_price": 0.15}
+            ],
             "cost_summary": {
-                "within_budget": True, "total_cost": 50000, "budget_threshold": 100000,
-                "hedge_mode": "OPTIONS_ONLY", "total_premium_budget": 50000,
-                "total_margin_required": 0, "buffer_for_roll": 10000,
+                "within_budget": True,
+                "total_cost": 50000,
+                "budget_threshold": 100000,
+                "hedge_mode": "OPTIONS_ONLY",
+                "total_premium_budget": 50000,
+                "total_margin_required": 0,
+                "buffer_for_roll": 10000,
                 "hedge_capital_usage_pct": 0.05,
             },
             "portfolio_status": {
-                "portfolio_beta_before": 1.0, "target_beta_after": 0.5,
+                "portfolio_beta_before": 1.0,
+                "target_beta_after": 0.5,
                 "hedge_capital": 1000000,
             },
         }
         plan = _make_plan()
-        result = integrator.guard_hedge_execution(_make_pnl_report(), plan, "2026-07-22")
+        result = integrator.guard_hedge_execution(
+            _make_pnl_report(), plan, "2026-07-22"
+        )
         assert result["risk_guard"]["hedge_action"] == "GENERATED_1_ORDERS"
         assert result["hedge_execution"]["execution_status"] == "PENDING"
         assert "OPTIONS_ONLY" in result["hedge_execution"]["execution_notes"][0]
@@ -776,28 +836,48 @@ class TestGuardHedgeExecution:
         )
         mock_inst.generate_hedge_orders.return_value = {
             "futures_orders": [
-                {"instrument": "IF", "contracts": 2, "est_price": 3800.0,
-                 "notional": 760000, "rationale": {"beta_to_hedge": 0.3}},
+                {
+                    "instrument": "IF",
+                    "contracts": 2,
+                    "est_price": 3800.0,
+                    "notional": 760000,
+                    "rationale": {"beta_to_hedge": 0.3},
+                },
             ],
-            "options_orders": [{"instrument": "510050 Put", "contracts": 30, "est_price": 0.15}],
+            "options_orders": [
+                {"instrument": "510050 Put", "contracts": 30, "est_price": 0.15}
+            ],
             "cost_summary": {
-                "within_budget": False, "total_cost": 200000, "budget_threshold": 100000,
-                "hedge_mode": "FUTURES_AND_OPTIONS", "total_premium_budget": 50000,
-                "total_margin_required": 150000, "buffer_for_roll": 10000,
+                "within_budget": False,
+                "total_cost": 200000,
+                "budget_threshold": 100000,
+                "hedge_mode": "FUTURES_AND_OPTIONS",
+                "total_premium_budget": 50000,
+                "total_margin_required": 150000,
+                "buffer_for_roll": 10000,
                 "hedge_capital_usage_pct": 0.20,
             },
             "portfolio_status": {
-                "portfolio_beta_before": 1.0, "target_beta_after": 0.5,
+                "portfolio_beta_before": 1.0,
+                "target_beta_after": 0.5,
                 "hedge_capital": 1000000,
             },
         }
         plan = _make_plan()
-        result = integrator.guard_hedge_execution(_make_pnl_report(), plan, "2026-07-22")
+        result = integrator.guard_hedge_execution(
+            _make_pnl_report(), plan, "2026-07-22"
+        )
         assert "CANCELLED" in result["risk_guard"]["hedge_action"]
         assert result["hedge_execution"]["execution_status"] == "CANCELLED"
         # 订单状态被改写
-        assert result["hedge_execution"]["futures_orders"][0]["status"] == "CANCELLED_OVER_BUDGET"
-        assert result["hedge_execution"]["options_orders"][0]["status"] == "CANCELLED_OVER_BUDGET"
+        assert (
+            result["hedge_execution"]["futures_orders"][0]["status"]
+            == "CANCELLED_OVER_BUDGET"
+        )
+        assert (
+            result["hedge_execution"]["options_orders"][0]["status"]
+            == "CANCELLED_OVER_BUDGET"
+        )
 
     @pytest.mark.unit
     def test_engine_exception_error(self, integrator, monkeypatch):
@@ -806,7 +886,9 @@ class TestGuardHedgeExecution:
         )
         mock_inst.generate_hedge_orders.side_effect = ValueError("engine crashed")
         plan = _make_plan()
-        result = integrator.guard_hedge_execution(_make_pnl_report(), plan, "2026-07-22")
+        result = integrator.guard_hedge_execution(
+            _make_pnl_report(), plan, "2026-07-22"
+        )
         assert "ERROR" in result["risk_guard"]["hedge_action"]
 
 
@@ -949,11 +1031,16 @@ class TestGuardKillSwitchConcentration:
         mock_inst = MagicMock()
         mock_inst._estimate_margin_from_positions.return_value = 0.30
         mock_inst.check_margin_status.return_value = {
-            "level": 0, "margin_usage_ratio": 0.30,
-            "can_trade": True, "can_open": True, "action": "正常",
+            "level": 0,
+            "margin_usage_ratio": 0.30,
+            "can_trade": True,
+            "can_open": True,
+            "action": "正常",
         }
         mock_inst.check_concentration.return_value = {
-            "level": "L2", "max_concentration": 0.40, "max_concentration_code": "588080",
+            "level": "L2",
+            "max_concentration": 0.40,
+            "max_concentration_code": "588080",
         }
         mock_cls = MagicMock(return_value=mock_inst)
         mock_mod = MagicMock()
@@ -972,8 +1059,11 @@ class TestGuardKillSwitchConcentration:
         mock_inst = MagicMock()
         mock_inst._estimate_margin_from_positions.return_value = 0.30
         mock_inst.check_margin_status.return_value = {
-            "level": 0, "margin_usage_ratio": 0.30,
-            "can_trade": True, "can_open": True, "action": "正常",
+            "level": 0,
+            "margin_usage_ratio": 0.30,
+            "can_trade": True,
+            "can_open": True,
+            "action": "正常",
         }
         mock_inst.check_concentration.side_effect = RuntimeError("data error")
         mock_cls = MagicMock(return_value=mock_inst)
@@ -993,17 +1083,27 @@ class TestGuardKillSwitchConcentration:
         mock_inst = MagicMock()
         mock_inst._estimate_margin_from_positions.return_value = 0.30
         mock_inst.check_margin_status.return_value = {
-            "level": "OK", "margin_usage_ratio": 0.30,
-            "can_trade": True, "can_open": True, "action": "正常",
+            "level": "OK",
+            "margin_usage_ratio": 0.30,
+            "can_trade": True,
+            "can_open": True,
+            "action": "正常",
         }
-        mock_inst.check_concentration.return_value = {"level": "OK", "max_concentration": 0.1}
+        mock_inst.check_concentration.return_value = {
+            "level": "OK",
+            "max_concentration": 0.1,
+        }
         mock_cls = MagicMock(return_value=mock_inst)
         mock_mod = MagicMock()
         mock_mod.KillSwitch = mock_cls
         monkeypatch.setitem(sys.modules, "utils.kill_switch", mock_mod)
 
-        report = {"portfolio_pnl": {"summary": {"margin_used": 300_000, "total_equity": 1_000_000},
-                                     "details": [{"code": "600519.SH", "est_market_value": 200_000}]}}
+        report = {
+            "portfolio_pnl": {
+                "summary": {"margin_used": 300_000, "total_equity": 1_000_000},
+                "details": [{"code": "600519.SH", "est_market_value": 200_000}],
+            }
+        }
         plan = _make_plan()
         result = integrator.guard_kill_switch(report, plan)
         assert result is not None
@@ -1031,7 +1131,10 @@ class TestGuardMarketCircuitBreaker:
             monkeypatch, "utils.market_circuit_breaker", "MarketCircuitBreaker"
         )
         mock_inst.check_market_status.return_value = {
-            "level": 0, "hs300_change_pct": -0.01, "data_source": "akshare", "actions": [],
+            "level": 0,
+            "hs300_change_pct": -0.01,
+            "data_source": "akshare",
+            "actions": [],
         }
         plan = _make_plan()
         result = integrator.guard_market_circuit_breaker(_make_pnl_report(), plan)
@@ -1043,7 +1146,9 @@ class TestGuardMarketCircuitBreaker:
             monkeypatch, "utils.market_circuit_breaker", "MarketCircuitBreaker"
         )
         mock_inst.check_market_status.return_value = {
-            "level": 2, "hs300_change_pct": -0.05, "data_source": "akshare",
+            "level": 2,
+            "hs300_change_pct": -0.05,
+            "data_source": "akshare",
             "actions": ["halt_new_positions"],
         }
         plan = _make_plan()
@@ -1073,19 +1178,24 @@ class TestGuardLiquidityCrisis:
 
     @pytest.mark.unit
     def test_data_unavailable_warning(self, integrator, monkeypatch):
-        monkeypatch.setattr(integrator, "_fetch_limit_counts",
-                            lambda r: (0, 0, "fail_closed"))
+        monkeypatch.setattr(
+            integrator, "_fetch_limit_counts", lambda r: (0, 0, "fail_closed")
+        )
         plan = _make_plan()
         result = integrator.guard_liquidity_crisis(_make_pnl_report(), plan)
         assert result["risk_guard"]["liquidity_crisis"]["triggered"] is False
-        assert result["risk_guard"]["liquidity_crisis"]["action"] == "DATA_UNAVAILABLE_NO_NEW_POSITIONS"
+        assert (
+            result["risk_guard"]["liquidity_crisis"]["action"]
+            == "DATA_UNAVAILABLE_NO_NEW_POSITIONS"
+        )
         assert result["market_state"]["build_allowed"] is False
         assert result["market_state"]["circuit_level"] == "WARNING"
 
     @pytest.mark.unit
     def test_triggered_clears_orders(self, integrator, monkeypatch):
-        monkeypatch.setattr(integrator, "_fetch_limit_counts",
-                            lambda r: (1500, 800, "akshare"))
+        monkeypatch.setattr(
+            integrator, "_fetch_limit_counts", lambda r: (1500, 800, "akshare")
+        )
         plan = _make_plan()
         result = integrator.guard_liquidity_crisis(_make_pnl_report(), plan)
         assert result["risk_guard"]["liquidity_crisis"]["triggered"] is True
@@ -1095,8 +1205,9 @@ class TestGuardLiquidityCrisis:
 
     @pytest.mark.unit
     def test_normal(self, integrator, monkeypatch):
-        monkeypatch.setattr(integrator, "_fetch_limit_counts",
-                            lambda r: (100, 50, "akshare"))
+        monkeypatch.setattr(
+            integrator, "_fetch_limit_counts", lambda r: (100, 50, "akshare")
+        )
         plan = _make_plan()
         result = integrator.guard_liquidity_crisis(_make_pnl_report(), plan)
         assert result["risk_guard"]["liquidity_crisis"]["triggered"] is False
@@ -1104,8 +1215,11 @@ class TestGuardLiquidityCrisis:
 
     @pytest.mark.unit
     def test_crash_fail_closed(self, integrator, monkeypatch):
-        monkeypatch.setattr(integrator, "_fetch_limit_counts",
-                            lambda r: (_ for _ in ()).throw(ValueError("crash")))
+        monkeypatch.setattr(
+            integrator,
+            "_fetch_limit_counts",
+            lambda r: (_ for _ in ()).throw(ValueError("crash")),
+        )
         plan = _make_plan()
         result = integrator.guard_liquidity_crisis(_make_pnl_report(), plan)
         assert result["market_state"]["build_allowed"] is False
@@ -1208,8 +1322,11 @@ class TestGuardOvernightGap:
             monkeypatch, "utils.overnight_gap_monitor", "OvernightGapMonitor"
         )
         mock_inst.evaluate_overnight_risk.return_value = {
-            "level": 0, "sp500_change_pct": -0.005,
-            "adr_deviation_pct": 0.01, "data_source": "yahoo", "trigger": "none",
+            "level": 0,
+            "sp500_change_pct": -0.005,
+            "adr_deviation_pct": 0.01,
+            "data_source": "yahoo",
+            "trigger": "none",
         }
         plan = _make_plan()
         result = integrator.guard_overnight_gap(_make_pnl_report(), plan)
@@ -1221,8 +1338,11 @@ class TestGuardOvernightGap:
             monkeypatch, "utils.overnight_gap_monitor", "OvernightGapMonitor"
         )
         mock_inst.evaluate_overnight_risk.return_value = {
-            "level": 1, "sp500_change_pct": -0.015,
-            "adr_deviation_pct": 0.025, "data_source": "yahoo", "trigger": "sp500",
+            "level": 1,
+            "sp500_change_pct": -0.015,
+            "adr_deviation_pct": 0.025,
+            "data_source": "yahoo",
+            "trigger": "sp500",
         }
         plan = _make_plan()
         result = integrator.guard_overnight_gap(_make_pnl_report(), plan)
@@ -1234,8 +1354,11 @@ class TestGuardOvernightGap:
             monkeypatch, "utils.overnight_gap_monitor", "OvernightGapMonitor"
         )
         mock_inst.evaluate_overnight_risk.return_value = {
-            "level": 2, "sp500_change_pct": -0.025,
-            "adr_deviation_pct": 0.045, "data_source": "yahoo", "trigger": "sp500",
+            "level": 2,
+            "sp500_change_pct": -0.025,
+            "adr_deviation_pct": 0.045,
+            "data_source": "yahoo",
+            "trigger": "sp500",
         }
         plan = _make_plan()
         result = integrator.guard_overnight_gap(_make_pnl_report(), plan)
@@ -1267,8 +1390,14 @@ class TestGuardOvernightGap:
 # ============================================================
 
 
-def _make_insight(direction="positive", confidence=0.5, symbol="600519",
-                  name="贵州茅台", reasons=None, news_count=3):
+def _make_insight(
+    direction="positive",
+    confidence=0.5,
+    symbol="600519",
+    name="贵州茅台",
+    reasons=None,
+    news_count=3,
+):
     """构造 mock insight 对象"""
     insight = MagicMock()
     insight.direction = direction
@@ -1294,10 +1423,15 @@ class TestGuardSentimentBreakingNews:
     def test_no_holdings_skip(self, integrator, monkeypatch):
         monkeypatch.delenv("USE_SENTIMENT_GUARD", raising=False)
         report = {"portfolio_pnl": {"summary": {}}}
-        plan = {"execution_plan": {"morning_orders": [], "afternoon_orders": []}, "risk_guard": {}}
+        plan = {
+            "execution_plan": {"morning_orders": [], "afternoon_orders": []},
+            "risk_guard": {},
+        }
         result = integrator.guard_sentiment_breaking_news(report, plan)
         assert result["risk_guard"]["sentiment_breaking_news"]["status"] == "SKIP"
-        assert result["risk_guard"]["sentiment_breaking_news"]["reason"] == "no_holdings"
+        assert (
+            result["risk_guard"]["sentiment_breaking_news"]["reason"] == "no_holdings"
+        )
 
     @pytest.mark.unit
     def test_import_error_skip(self, integrator, monkeypatch):
@@ -1305,7 +1439,9 @@ class TestGuardSentimentBreakingNews:
         plan = _make_plan()
         result = integrator.guard_sentiment_breaking_news(_make_pnl_report(), plan)
         assert result["risk_guard"]["sentiment_breaking_news"]["status"] == "SKIP"
-        assert result["risk_guard"]["sentiment_breaking_news"]["reason"] == "import_failed"
+        assert (
+            result["risk_guard"]["sentiment_breaking_news"]["reason"] == "import_failed"
+        )
 
     @pytest.mark.unit
     def test_mcp_unavailable_skip(self, integrator, monkeypatch):
@@ -1316,7 +1452,10 @@ class TestGuardSentimentBreakingNews:
         plan = _make_plan()
         result = integrator.guard_sentiment_breaking_news(_make_pnl_report(), plan)
         assert result["risk_guard"]["sentiment_breaking_news"]["status"] == "SKIP"
-        assert result["risk_guard"]["sentiment_breaking_news"]["reason"] == "ifind_mcp_unavailable"
+        assert (
+            result["risk_guard"]["sentiment_breaking_news"]["reason"]
+            == "ifind_mcp_unavailable"
+        )
 
     @pytest.mark.unit
     def test_ok_no_critical_negatives(self, integrator, monkeypatch):
@@ -1340,8 +1479,13 @@ class TestGuardSentimentBreakingNews:
         )
         mock_inst.available.return_value = True
         mock_inst.batch_analyze.return_value = [
-            _make_insight(direction="negative", confidence=0.95, symbol="600519",
-                          name="贵州茅台", reasons=["财务造假", "监管立案"]),
+            _make_insight(
+                direction="negative",
+                confidence=0.95,
+                symbol="600519",
+                name="贵州茅台",
+                reasons=["财务造假", "监管立案"],
+            ),
         ]
         plan = _make_plan()
         result = integrator.guard_sentiment_breaking_news(_make_pnl_report(), plan)
@@ -1353,8 +1497,10 @@ class TestGuardSentimentBreakingNews:
         assert result["market_state"]["spot_build_allowed"] is False
         # BUY 订单被拦截, SELL 保留
         morning = result["execution_plan"]["morning_orders"]
-        assert all(str(o.get("action", o.get("direction", ""))).upper() in ("SELL", "REDUCE")
-                   for o in morning)
+        assert all(
+            str(o.get("action", o.get("direction", ""))).upper() in ("SELL", "REDUCE")
+            for o in morning
+        )
 
     @pytest.mark.unit
     def test_batch_analyze_exception_error(self, integrator, monkeypatch):
@@ -1378,7 +1524,9 @@ class TestExtractHoldingSymbols:
 
     @pytest.mark.unit
     def test_from_pnl_report_positions(self, integrator):
-        report = {"portfolio_pnl": {"details": [{"code": "600519.SH"}, {"code": "000858.SZ"}]}}
+        report = {
+            "portfolio_pnl": {"details": [{"code": "600519.SH"}, {"code": "000858.SZ"}]}
+        }
         plan = {"execution_plan": {}}
         result = integrator._extract_holding_symbols(report, plan)
         assert result == ["600519", "000858"]
@@ -1386,10 +1534,12 @@ class TestExtractHoldingSymbols:
     @pytest.mark.unit
     def test_from_plan_execution_plan(self, integrator):
         report = {"portfolio_pnl": {}}
-        plan = {"execution_plan": {
-            "morning_orders": [{"symbol": "600519.SH"}],
-            "afternoon_orders": [{"symbol": "000858.SZ"}],
-        }}
+        plan = {
+            "execution_plan": {
+                "morning_orders": [{"symbol": "600519.SH"}],
+                "afternoon_orders": [{"symbol": "000858.SZ"}],
+            }
+        }
         result = integrator._extract_holding_symbols(report, plan)
         assert result == ["600519", "000858"]
 
@@ -1409,9 +1559,15 @@ class TestExtractHoldingSymbols:
 
     @pytest.mark.unit
     def test_dedup_preserves_order(self, integrator):
-        report = {"portfolio_pnl": {"details": [
-            {"code": "600519.SH"}, {"code": "000858.SZ"}, {"code": "600519.SH"},
-        ]}}
+        report = {
+            "portfolio_pnl": {
+                "details": [
+                    {"code": "600519.SH"},
+                    {"code": "000858.SZ"},
+                    {"code": "600519.SH"},
+                ]
+            }
+        }
         plan = {"execution_plan": {}}
         result = integrator._extract_holding_symbols(report, plan)
         assert result == ["600519", "000858"]
@@ -1455,13 +1611,22 @@ class TestGuardCorrelationHedge:
         )
         monkeypatch.setitem(sys.modules, "hedging", MagicMock())
         import pandas as pd
+
         returns_df = pd.DataFrame({"600519": [0.01, 0.02], "000858": [0.01, 0.02]})
-        monkeypatch.setattr(integrator, "_build_position_returns", lambda r, **kw: returns_df)
+        monkeypatch.setattr(
+            integrator, "_build_position_returns", lambda r, **kw: returns_df
+        )
         mock_inst.compute_hedge.return_value = {
-            "action": "SAFE_HAVEN_ALLOC", "avg_corr": 0.90, "baseline_corr": 0.70,
-            "jump": 0.20, "gold_weight": 0.05, "repo_weight": 0.03,
-            "gold_value": 50000, "repo_value": 30000,
-            "gold_etf": "518880", "repo_symbol": "GC001",
+            "action": "SAFE_HAVEN_ALLOC",
+            "avg_corr": 0.90,
+            "baseline_corr": 0.70,
+            "jump": 0.20,
+            "gold_weight": 0.05,
+            "repo_weight": 0.03,
+            "gold_value": 50000,
+            "repo_value": 30000,
+            "gold_etf": "518880",
+            "repo_symbol": "GC001",
         }
         plan = _make_plan()
         result = integrator.guard_correlation_hedge(_make_pnl_report(), plan)
@@ -1477,11 +1642,17 @@ class TestGuardCorrelationHedge:
         )
         monkeypatch.setitem(sys.modules, "hedging", MagicMock())
         import pandas as pd
+
         returns_df = pd.DataFrame({"600519": [0.01, 0.02]})
-        monkeypatch.setattr(integrator, "_build_position_returns", lambda r, **kw: returns_df)
+        monkeypatch.setattr(
+            integrator, "_build_position_returns", lambda r, **kw: returns_df
+        )
         mock_inst.compute_hedge.return_value = {
-            "action": "NO_ACTION", "avg_corr": 0.50, "baseline_corr": 0.50,
-            "jump": 0.0, "reason": "条件未满足",
+            "action": "NO_ACTION",
+            "avg_corr": 0.50,
+            "baseline_corr": 0.50,
+            "jump": 0.0,
+            "reason": "条件未满足",
         }
         plan = _make_plan()
         result = integrator.guard_correlation_hedge(_make_pnl_report(), plan)
@@ -1494,8 +1665,11 @@ class TestGuardCorrelationHedge:
         )
         monkeypatch.setitem(sys.modules, "hedging", MagicMock())
         import pandas as pd
+
         returns_df = pd.DataFrame({"600519": [0.01, 0.02]})
-        monkeypatch.setattr(integrator, "_build_position_returns", lambda r, **kw: returns_df)
+        monkeypatch.setattr(
+            integrator, "_build_position_returns", lambda r, **kw: returns_df
+        )
         mock_inst.compute_hedge.side_effect = ValueError("crash")
         plan = _make_plan()
         result = integrator.guard_correlation_hedge(_make_pnl_report(), plan)
@@ -1520,10 +1694,14 @@ class TestBuildPositionReturns:
     def test_insufficient_history_returns_none(self, integrator, tmp_path):
         # 只创建 5 个报告 (< 10)
         for i in range(5):
-            report = {"portfolio_pnl": {"details": [{"code": "600519.SH", "daily_pnl_pct": 1.0}]}}
-            (tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json").write_text(
-                json.dumps(report), encoding="utf-8"
-            )
+            report = {
+                "portfolio_pnl": {
+                    "details": [{"code": "600519.SH", "daily_pnl_pct": 1.0}]
+                }
+            }
+            (
+                tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json"
+            ).write_text(json.dumps(report), encoding="utf-8")
         report = {"portfolio_pnl": {"details": [{"code": "600519.SH"}]}}
         result = integrator._build_position_returns(report)
         assert result is None
@@ -1531,16 +1709,25 @@ class TestBuildPositionReturns:
     @pytest.mark.unit
     def test_valid_history_returns_dataframe(self, integrator, tmp_path):
         for i in range(12):
-            report = {"portfolio_pnl": {"details": [
-                {"code": "600519.SH", "daily_pnl_pct": 1.0 + i * 0.1},
-                {"code": "000858.SZ", "daily_pnl_pct": 0.5 + i * 0.05},
-            ]}}
-            (tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json").write_text(
-                json.dumps(report), encoding="utf-8"
-            )
-        report = {"portfolio_pnl": {"details": [
-            {"code": "600519.SH"}, {"code": "000858.SZ"},
-        ]}}
+            report = {
+                "portfolio_pnl": {
+                    "details": [
+                        {"code": "600519.SH", "daily_pnl_pct": 1.0 + i * 0.1},
+                        {"code": "000858.SZ", "daily_pnl_pct": 0.5 + i * 0.05},
+                    ]
+                }
+            }
+            (
+                tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json"
+            ).write_text(json.dumps(report), encoding="utf-8")
+        report = {
+            "portfolio_pnl": {
+                "details": [
+                    {"code": "600519.SH"},
+                    {"code": "000858.SZ"},
+                ]
+            }
+        }
         result = integrator._build_position_returns(report)
         assert result is not None
         assert len(result) == 12
@@ -1550,12 +1737,16 @@ class TestBuildPositionReturns:
     def test_fallback_pnl_over_market_value(self, integrator, tmp_path):
         """daily_pnl_pct 不存在时, 用 pnl/market_value"""
         for i in range(12):
-            report = {"portfolio_pnl": {"details": [
-                {"code": "600519.SH", "pnl": 1000, "market_value": 100000},
-            ]}}
-            (tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json").write_text(
-                json.dumps(report), encoding="utf-8"
-            )
+            report = {
+                "portfolio_pnl": {
+                    "details": [
+                        {"code": "600519.SH", "pnl": 1000, "market_value": 100000},
+                    ]
+                }
+            }
+            (
+                tmp_path / "reports" / f"daily_pnl_report_2026-07-{i+1:02d}.json"
+            ).write_text(json.dumps(report), encoding="utf-8")
         report = {"portfolio_pnl": {"details": [{"code": "600519.SH"}]}}
         result = integrator._build_position_returns(report)
         assert result is not None
@@ -1572,36 +1763,51 @@ class TestBuildSafeHavenOrders:
 
     @pytest.mark.unit
     def test_gold_only(self, integrator):
-        result = integrator._build_safe_haven_orders({
-            "gold_weight": 0.05, "gold_value": 50000,
-            "repo_weight": 0, "repo_value": 0,
-        })
+        result = integrator._build_safe_haven_orders(
+            {
+                "gold_weight": 0.05,
+                "gold_value": 50000,
+                "repo_weight": 0,
+                "repo_value": 0,
+            }
+        )
         assert len(result) == 1
         assert result[0]["symbol"] == "518880"
         assert result[0]["direction"] == "BUY"
 
     @pytest.mark.unit
     def test_repo_only(self, integrator):
-        result = integrator._build_safe_haven_orders({
-            "gold_weight": 0, "gold_value": 0,
-            "repo_weight": 0.03, "repo_value": 30000,
-        })
+        result = integrator._build_safe_haven_orders(
+            {
+                "gold_weight": 0,
+                "gold_value": 0,
+                "repo_weight": 0.03,
+                "repo_value": 30000,
+            }
+        )
         assert len(result) == 1
         assert result[0]["symbol"] == "GC001"
 
     @pytest.mark.unit
     def test_both_gold_and_repo(self, integrator):
-        result = integrator._build_safe_haven_orders({
-            "gold_weight": 0.05, "gold_value": 50000,
-            "repo_weight": 0.03, "repo_value": 30000,
-        })
+        result = integrator._build_safe_haven_orders(
+            {
+                "gold_weight": 0.05,
+                "gold_value": 50000,
+                "repo_weight": 0.03,
+                "repo_value": 30000,
+            }
+        )
         assert len(result) == 2
 
     @pytest.mark.unit
     def test_neither(self, integrator):
-        result = integrator._build_safe_haven_orders({
-            "gold_weight": 0, "repo_weight": 0,
-        })
+        result = integrator._build_safe_haven_orders(
+            {
+                "gold_weight": 0,
+                "repo_weight": 0,
+            }
+        )
         assert result == []
 
 
@@ -1677,8 +1883,9 @@ class TestRunAllGuards:
         """基本运行: 所有模块不可用 → guards 走 ImportError 路径"""
         _block_all_optional_modules(monkeypatch)
         # Mock _fetch_limit_counts 避免 astock_realtime ImportError 未捕获
-        monkeypatch.setattr(integrator, "_fetch_limit_counts",
-                            lambda r: (0, 0, "fail_closed"))
+        monkeypatch.setattr(
+            integrator, "_fetch_limit_counts", lambda r: (0, 0, "fail_closed")
+        )
 
         report = _make_pnl_report(margin_used=300_000, total_equity=1_000_000)
         monkeypatch.setattr(integrator, "_load_pnl_report", lambda: report)
@@ -1698,8 +1905,9 @@ class TestRunAllGuards:
     def test_consistency_check_critical(self, integrator, monkeypatch, tmp_path):
         """circuit_level=CRITICAL → 强制 build_allowed=False"""
         _block_all_optional_modules(monkeypatch)
-        monkeypatch.setattr(integrator, "_fetch_limit_counts",
-                            lambda r: (0, 0, "fail_closed"))
+        monkeypatch.setattr(
+            integrator, "_fetch_limit_counts", lambda r: (0, 0, "fail_closed")
+        )
 
         report = _make_pnl_report(margin_used=960_000, total_equity=1_000_000)
         monkeypatch.setattr(integrator, "_load_pnl_report", lambda: report)
@@ -1714,18 +1922,25 @@ class TestRunAllGuards:
         assert result["market_state"]["spot_build_allowed"] is False
 
     @pytest.mark.unit
-    def test_consistency_check_removes_covered_calls(self, integrator, monkeypatch, tmp_path):
+    def test_consistency_check_removes_covered_calls(
+        self, integrator, monkeypatch, tmp_path
+    ):
         """spot_build_allowed=False → 拦截 Covered Call 订单"""
         _block_all_optional_modules(monkeypatch)
-        monkeypatch.setattr(integrator, "_fetch_limit_counts",
-                            lambda r: (0, 0, "fail_closed"))
+        monkeypatch.setattr(
+            integrator, "_fetch_limit_counts", lambda r: (0, 0, "fail_closed")
+        )
 
         report = _make_pnl_report(margin_used=300_000, total_equity=1_000_000)
         monkeypatch.setattr(integrator, "_load_pnl_report", lambda: report)
 
         plan = _make_plan()
         plan["execution_plan"]["options_orders"] = [
-            {"direction": "SELL_CALL", "name": "CoveredCall_600519", "est_premium_total": 500},
+            {
+                "direction": "SELL_CALL",
+                "name": "CoveredCall_600519",
+                "est_premium_total": 500,
+            },
             {"direction": "BUY_PUT", "name": "ProtectivePut", "est_premium_total": 300},
         ]
         monkeypatch.setattr(integrator, "_load_next_trade_plan", lambda d: plan)
@@ -1740,8 +1955,9 @@ class TestRunAllGuards:
     def test_no_pnl_report_uses_empty(self, integrator, monkeypatch):
         """无 pnl_report → 使用空报告继续"""
         _block_all_optional_modules(monkeypatch)
-        monkeypatch.setattr(integrator, "_fetch_limit_counts",
-                            lambda r: (0, 0, "fail_closed"))
+        monkeypatch.setattr(
+            integrator, "_fetch_limit_counts", lambda r: (0, 0, "fail_closed")
+        )
 
         monkeypatch.setattr(integrator, "_load_pnl_report", lambda: None)
         monkeypatch.setattr(integrator, "_load_next_trade_plan", lambda d: None)
@@ -1784,7 +2000,9 @@ class TestMain:
         with patch("utils.risk_guard_integrator.RiskGuardIntegrator") as mock_cls:
             main()
         mock_cls.assert_called_once_with(report_date="2026-07-21")
-        mock_cls.return_value.run_all_guards.assert_called_once_with(next_trade_date="2026-07-22")
+        mock_cls.return_value.run_all_guards.assert_called_once_with(
+            next_trade_date="2026-07-22"
+        )
 
     @pytest.mark.unit
     def test_main_no_next_date_calculated(self, monkeypatch):

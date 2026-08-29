@@ -206,3 +206,14 @@ python -m pytest tests/unit/test_daily_workflow_unit.py tests/unit/test_phase_he
 - `v8.3_institutional/daily_workflow.py` L1326-L1500（修复点）
 - `tests/e2e/test_eod_dry_run.py`（验证脚本）
 - `eod_dry_run_summary_20260812.json`（验证结果摘要）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [daily_workflow.py 拆分复盘报告 (5 轮 · 2026-08-12)](daily-workflow-split-retrospective.md) (相似度 12%)
+- [daily_workflow.py 拆分计划（门禁 ≤3000 行 · 长期架构重构）](daily-workflow-split-plan.md) (相似度 12%)
+- [EOD 运维经验沉淀：OpenBLAS 内存修复 + U9 端到端验证 + D7 断言增强（2026-08-07）](eod-operations-lessons-20260807.md) (相似度 9%)
+- [open-code-review 代码审查报告（核心模块）](code-quality-review-open-code-review.md) (相似度 6%)
+- [2026-08-08 代码审查修复批次经验沉淀](code-review-fix-batch-20260808.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

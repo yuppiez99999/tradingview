@@ -14,6 +14,7 @@ v8.6.7 修复验证脚本
 用法:
     py -3 scripts/verify_v867_fixes.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -48,6 +49,7 @@ def verify_bug1() -> bool:
 
     try:
         from utils.overnight_gap_monitor import OvernightGapMonitor
+
         ogm = OvernightGapMonitor()
 
         # 验证 FAIL_CLOSED_PCT 值
@@ -97,11 +99,21 @@ def verify_bug1() -> bool:
 
         return s1_pass and s2_pass and s3_pass and s4_pass
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("BUG#1: 验证执行", False, f"异常: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -118,6 +130,7 @@ def verify_bug1b() -> bool:
 
     try:
         from utils.market_circuit_breaker import MarketCircuitBreaker
+
         mcb = MarketCircuitBreaker()
 
         # 验证 FAIL_CLOSED_PCT 值
@@ -153,7 +166,16 @@ def verify_bug1b() -> bool:
 
         return s1_pass and s2_pass and s3_pass
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("BUG#1b: 验证执行", False, f"异常: {e}")
@@ -198,7 +220,16 @@ def verify_bug2() -> bool:
 
         return s1_pass and s2_pass and s3_pass
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("BUG#2: 验证执行", False, f"异常: {e}")
@@ -218,6 +249,7 @@ def verify_bug4() -> bool:
 
     try:
         from utils.risk_guard_integrator import RiskGuardIntegrator
+
         rgi = RiskGuardIntegrator()
 
         # 构造测试 plan, 包含 BUY 和 SELL 订单
@@ -225,7 +257,7 @@ def verify_bug4() -> bool:
         # 模拟 L2 状态 (保证金 80%, level=2)
         # 直接调用 guard_kill_shift 的响应动作部分
         # 通过修改 _get_pnl_summary 返回模拟数据
-        if hasattr(rgi, '_fetch_limit_counts'):
+        if hasattr(rgi, "_fetch_limit_counts"):
             pass
 
         # mock _get_pnl_summary 返回 None 字段, 触发 P0-D 回退
@@ -266,11 +298,21 @@ def verify_bug4() -> bool:
 
         return s1_pass and s2_pass and s3_pass and s4_pass
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("BUG#4: 验证执行", False, f"异常: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -288,7 +330,9 @@ def verify_bug5() -> bool:
     - 只有实际调用 ks.execute_kill_switch(N) 的地方才需要复用 self.ks
     """
     print("\n" + "=" * 70)
-    print("BUG #5: daily_workflow.py 中 execute_kill_switch 调用前使用 getattr 复用 self.ks")
+    print(
+        "BUG #5: daily_workflow.py 中 execute_kill_switch 调用前使用 getattr 复用 self.ks"
+    )
     print("=" * 70)
 
     try:
@@ -364,7 +408,11 @@ def verify_bug5() -> bool:
                         break
 
                 # 模式 3 (bug): ks = KillSwitch() (无 callback)
-                if "ks = KillSwitch()" in line and "getattr" not in line and "self.ks" not in line:
+                if (
+                    "ks = KillSwitch()" in line
+                    and "getattr" not in line
+                    and "self.ks" not in line
+                ):
                     ks_assignment_found = ("bug", i, line.strip())
                     break
 
@@ -404,7 +452,16 @@ def verify_bug5() -> bool:
 
         return all_pass
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         record("BUG#5: 验证执行", False, f"异常: {e}")
@@ -445,9 +502,8 @@ def main():
         print("\n🎉 所有 v8.6.7 修复验证通过!")
         print("   CRO 评分提升: 9.0 → 9.5+")
         return 0
-    else:
-        print(f"\n⚠ {failed} 项验证失败, 请检查上述详情")
-        return 1
+    print(f"\n⚠ {failed} 项验证失败, 请检查上述详情")
+    return 1
 
 
 if __name__ == "__main__":

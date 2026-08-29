@@ -37,8 +37,8 @@ def run_etf_flow_monitor(args):
     report = monitor.generate_report()
     print("\n" + report)
 
-    write_report_file(report, getattr(args, 'output', None))
-    archive_report(report, 'ETF资金流向')
+    write_report_file(report, getattr(args, "output", None))
+    archive_report(report, "ETF资金流向")
 
     progress.complete(f"检测到 {len(signals)} 条信号")
 

@@ -15,6 +15,7 @@
     - 不直接读取文件, 数据通过参数传入
     - 可独立测试 (mock streamlit)
 """
+
 from __future__ import annotations
 
 import logging
@@ -47,6 +48,7 @@ def _get_streamlit():
     """获取 streamlit 模块 (若可用)."""
     try:
         import streamlit as st  # type: ignore[import-not-found]
+
         return st
     except ImportError:
         return None
@@ -55,6 +57,7 @@ def _get_streamlit():
 # ============================================================
 # 页头组件
 # ============================================================
+
 
 def render_page_header(
     title: str,
@@ -87,6 +90,7 @@ def render_page_header(
 # 状态徽标
 # ============================================================
 
+
 def render_status_badge(
     status: str,
     label: str | None = None,
@@ -110,7 +114,7 @@ def render_status_badge(
 
     st.markdown(
         f'<span style="background-color:{color}; color:white; '
-        f'padding:{padding}; border-radius:4px; font-size:{font_size}; '
+        f"padding:{padding}; border-radius:4px; font-size:{font_size}; "
         f'font-weight:bold;">{text}</span>',
         unsafe_allow_html=True,
     )
@@ -133,7 +137,7 @@ def render_status_metric(label: str, value: str, status: str = "NORMAL") -> None
         f'<div style="border-left: 4px solid {color}; padding-left: 8px; margin: 4px 0;">'
         f'<div style="color: {COLOR_MUTED}; font-size: 0.8em;">{label}</div>'
         f'<div style="font-size: 1.2em; font-weight: bold; color: {color};">{value}</div>'
-        f'</div>',
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -141,6 +145,7 @@ def render_status_metric(label: str, value: str, status: str = "NORMAL") -> None
 # ============================================================
 # KPI 卡片
 # ============================================================
+
 
 def render_kpi_card(
     label: str,
@@ -167,17 +172,15 @@ def render_kpi_card(
 
     delta_html = ""
     if delta:
-        delta_html = (
-            f'<div style="color: {delta_color}; font-size: 0.85em; margin-top: 4px;">{delta}</div>'
-        )
+        delta_html = f'<div style="color: {delta_color}; font-size: 0.85em; margin-top: 4px;">{delta}</div>'
 
     st.markdown(
         f'<div style="background-color: #f8f9fa; padding: 12px; border-radius: 8px; '
         f'border: 1px solid #e9ecef; margin: 4px 0;">'
         f'<div style="color: {COLOR_MUTED}; font-size: 0.8em;">{icon_prefix}{label}</div>'
         f'<div style="font-size: 1.5em; font-weight: bold; color: #212529;">{value}</div>'
-        f'{delta_html}'
-        f'</div>',
+        f"{delta_html}"
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -210,6 +213,7 @@ def render_kpi_row(items: list) -> None:
 # ============================================================
 # 侧边栏组件
 # ============================================================
+
 
 def render_sidebar(
     system_status: str = "NORMAL",
@@ -275,6 +279,7 @@ def render_sidebar(
 # 通用容器
 # ============================================================
 
+
 def render_info_panel(title: str, body: str, status: str = "INFO") -> None:
     """渲染信息面板.
 
@@ -293,7 +298,7 @@ def render_info_panel(title: str, body: str, status: str = "INFO") -> None:
         f'background-color: #f8f9fa; margin: 8px 0; border-radius: 4px;">'
         f'<div style="font-weight: bold; color: {color};">{title}</div>'
         f'<div style="margin-top: 4px;">{body}</div>'
-        f'</div>',
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -313,7 +318,7 @@ def render_empty_state(message: str = "暂无数据", icon: str = "📭") -> Non
         f'<div style="text-align: center; padding: 48px; color: {COLOR_MUTED};">'
         f'<div style="font-size: 3em;">{icon}</div>'
         f'<div style="font-size: 1.1em; margin-top: 12px;">{message}</div>'
-        f'</div>',
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -337,6 +342,7 @@ def render_error_state(message: str, detail: str = "") -> None:
 # ============================================================
 # 工具函数
 # ============================================================
+
 
 def format_percent(value: Any, decimals: int = 2) -> str:
     """格式化百分比.

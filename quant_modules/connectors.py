@@ -16,6 +16,7 @@ register_all_connectors 尝试注册所有可用数据源连接器到 DataConnec
 实际生效的数据层为 utils/data_provider.py 的 MarketDataProvider (四源优先链:
 Wind MCP→通达信→AKShare→新浪 HTTP)。
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def register_all_connectors(manager: 'DataConnectorManager') -> int:
+def register_all_connectors(manager: "DataConnectorManager") -> int:
     """注册所有可用数据源连接器到 manager, 返回成功注册数量。
 
     Args:
@@ -41,41 +42,44 @@ def register_all_connectors(manager: 'DataConnectorManager') -> int:
     # 1. Wind MCP (优先级 200) — 统一数据层, 内部 P1 优先链 + P5 本地缓存兜底
     try:
         from utils.data_provider import MarketDataProvider
+
         provider = MarketDataProvider(backtest_mode=False)
-        manager.register('Wind MCP', provider, priority=200)
+        manager.register("Wind MCP", provider, priority=200)
         n_registered += 1
-        logger.info('Wind MCP 连接器注册成功 (优先级 200, MarketDataProvider)')
+        logger.info("Wind MCP 连接器注册成功 (优先级 200, MarketDataProvider)")
     except ImportError:
-        logger.debug('Wind MCP 连接器不可用 (模块未安装)')
+        logger.debug("Wind MCP 连接器不可用 (模块未安装)")
     except (AttributeError, OSError, RuntimeError) as e:
-        logger.debug('Wind MCP 连接器注册失败: %s', e)
+        logger.debug("Wind MCP 连接器注册失败: %s", e)
 
     # 2. 通达信 (优先级 300)
     try:
         from utils.tdx_data_source import get_tdx_source
+
         provider = get_tdx_source()
         if provider is not None:
-            manager.register('通达信', provider, priority=300)
+            manager.register("通达信", provider, priority=300)
             n_registered += 1
-            logger.info('通达信连接器注册成功 (优先级 300)')
+            logger.info("通达信连接器注册成功 (优先级 300)")
     except ImportError:
-        logger.debug('通达信连接器不可用 (pytdx 未安装)')
+        logger.debug("通达信连接器不可用 (pytdx 未安装)")
     except (AttributeError, OSError, RuntimeError) as e:
-        logger.debug('通达信连接器注册失败: %s', e)
+        logger.debug("通达信连接器注册失败: %s", e)
 
     # 3. AKShare (优先级 400)
     try:
         from utils.akshare_data_source import get_akshare_source
+
         provider = get_akshare_source()
-        manager.register('AKShare', provider, priority=400)
+        manager.register("AKShare", provider, priority=400)
         n_registered += 1
-        logger.info('AKShare 连接器注册成功 (优先级 400)')
+        logger.info("AKShare 连接器注册成功 (优先级 400)")
     except ImportError:
-        logger.debug('AKShare 连接器不可用 (akshare 未安装)')
+        logger.debug("AKShare 连接器不可用 (akshare 未安装)")
     except (AttributeError, OSError, RuntimeError) as e:
-        logger.debug('AKShare 连接器注册失败: %s', e)
+        logger.debug("AKShare 连接器注册失败: %s", e)
 
     return n_registered
 
 
-__all__ = ['register_all_connectors']
+__all__ = ["register_all_connectors"]

@@ -21,45 +21,294 @@ from datetime import datetime
 FUNDAMENTALS = {
     "NVDA": {
         "name": "英伟达",
-        "quarters": OrderedDict([
-            ("2022-08-24", {"rev": 67.0, "rev_yoy": -4.0, "gm": 43.5, "eps_beat": -24.0, "label": "FY23Q2(Jul22) 游戏崩盘"}),
-            ("2022-11-16", {"rev": 59.3, "rev_yoy": -17.0, "gm": 53.6, "eps_beat": 7.4, "label": "FY23Q3(Oct22) 数据中心撑住"}),
-            ("2023-02-22", {"rev": 60.5, "rev_yoy": -21.0, "gm": 63.3, "eps_beat": 10.0, "label": "FY23Q4(Jan23) 毛利率拐点!"}),
-            ("2023-05-24", {"rev": 71.9, "rev_yoy": -13.0, "gm": 64.6, "eps_beat": 18.5, "label": "FY24Q1(Apr23) ★营收拐点+EPS大超预期"}),
-            ("2023-08-23", {"rev": 135.1, "rev_yoy": 101.0, "gm": 70.1, "eps_beat": 29.0, "label": "FY24Q2(Jul23) ★★爆发!营收翻倍"}),
-            ("2023-11-21", {"rev": 181.2, "rev_yoy": 206.0, "gm": 74.0, "eps_beat": 19.0, "label": "FY24Q3(Oct23) ★★★3倍增长"}),
-            ("2024-02-21", {"rev": 221.0, "rev_yoy": 265.0, "gm": 76.0, "eps_beat": 12.0, "label": "FY24Q4(Jan24) 巅峰增速"}),
-            ("2024-05-22", {"rev": 260.4, "rev_yoy": 262.0, "gm": 78.4, "eps_beat": 9.0, "label": "FY25Q1(Apr24)"}),
-        ]),
+        "quarters": OrderedDict(
+            [
+                (
+                    "2022-08-24",
+                    {
+                        "rev": 67.0,
+                        "rev_yoy": -4.0,
+                        "gm": 43.5,
+                        "eps_beat": -24.0,
+                        "label": "FY23Q2(Jul22) 游戏崩盘",
+                    },
+                ),
+                (
+                    "2022-11-16",
+                    {
+                        "rev": 59.3,
+                        "rev_yoy": -17.0,
+                        "gm": 53.6,
+                        "eps_beat": 7.4,
+                        "label": "FY23Q3(Oct22) 数据中心撑住",
+                    },
+                ),
+                (
+                    "2023-02-22",
+                    {
+                        "rev": 60.5,
+                        "rev_yoy": -21.0,
+                        "gm": 63.3,
+                        "eps_beat": 10.0,
+                        "label": "FY23Q4(Jan23) 毛利率拐点!",
+                    },
+                ),
+                (
+                    "2023-05-24",
+                    {
+                        "rev": 71.9,
+                        "rev_yoy": -13.0,
+                        "gm": 64.6,
+                        "eps_beat": 18.5,
+                        "label": "FY24Q1(Apr23) ★营收拐点+EPS大超预期",
+                    },
+                ),
+                (
+                    "2023-08-23",
+                    {
+                        "rev": 135.1,
+                        "rev_yoy": 101.0,
+                        "gm": 70.1,
+                        "eps_beat": 29.0,
+                        "label": "FY24Q2(Jul23) ★★爆发!营收翻倍",
+                    },
+                ),
+                (
+                    "2023-11-21",
+                    {
+                        "rev": 181.2,
+                        "rev_yoy": 206.0,
+                        "gm": 74.0,
+                        "eps_beat": 19.0,
+                        "label": "FY24Q3(Oct23) ★★★3倍增长",
+                    },
+                ),
+                (
+                    "2024-02-21",
+                    {
+                        "rev": 221.0,
+                        "rev_yoy": 265.0,
+                        "gm": 76.0,
+                        "eps_beat": 12.0,
+                        "label": "FY24Q4(Jan24) 巅峰增速",
+                    },
+                ),
+                (
+                    "2024-05-22",
+                    {
+                        "rev": 260.4,
+                        "rev_yoy": 262.0,
+                        "gm": 78.4,
+                        "eps_beat": 9.0,
+                        "label": "FY25Q1(Apr24)",
+                    },
+                ),
+            ]
+        ),
     },
     "AMD": {
         "name": "AMD",
-        "quarters": OrderedDict([
-            ("2022-08-02", {"rev": 65.5, "rev_yoy": 70.0, "gm": 46.0, "eps_beat": 5.0, "label": "Q2 2022 高峰"}),
-            ("2022-11-01", {"rev": 55.7, "rev_yoy": 29.0, "gm": 42.0, "eps_beat": 2.3, "label": "Q3 2022 回落"}),
-            ("2023-01-31", {"rev": 55.0, "rev_yoy": 16.0, "gm": 43.0, "eps_beat": 6.2, "label": "Q4 2022"}),
-            ("2023-05-02", {"rev": 53.5, "rev_yoy": -9.0, "gm": 44.0, "eps_beat": 7.1, "label": "Q1 2023 底部"}),
-            ("2023-08-01", {"rev": 54.0, "rev_yoy": -18.0, "gm": 46.0, "eps_beat": 1.8, "label": "Q2 2023"}),
-            ("2023-10-31", {"rev": 58.0, "rev_yoy": 4.0, "gm": 47.0, "eps_beat": 6.1, "label": "Q3 2023 开始反弹"}),
-            ("2024-01-30", {"rev": 61.7, "rev_yoy": 10.0, "gm": 47.0, "eps_beat": 3.7, "label": "Q4 2023 ★MI300发布"}),
-            ("2024-04-30", {"rev": 54.7, "rev_yoy": 2.0, "gm": 47.0, "eps_beat": 3.3, "label": "Q1 2024"}),
-            ("2024-07-30", {"rev": 58.3, "rev_yoy": 9.0, "gm": 49.0, "eps_beat": 1.5, "label": "Q2 2024"}),
-            ("2024-10-29", {"rev": 68.2, "rev_yoy": 18.0, "gm": 50.0, "eps_beat": 4.5, "label": "Q3 2024 ★数据中心加速"}),
-        ]),
+        "quarters": OrderedDict(
+            [
+                (
+                    "2022-08-02",
+                    {
+                        "rev": 65.5,
+                        "rev_yoy": 70.0,
+                        "gm": 46.0,
+                        "eps_beat": 5.0,
+                        "label": "Q2 2022 高峰",
+                    },
+                ),
+                (
+                    "2022-11-01",
+                    {
+                        "rev": 55.7,
+                        "rev_yoy": 29.0,
+                        "gm": 42.0,
+                        "eps_beat": 2.3,
+                        "label": "Q3 2022 回落",
+                    },
+                ),
+                (
+                    "2023-01-31",
+                    {
+                        "rev": 55.0,
+                        "rev_yoy": 16.0,
+                        "gm": 43.0,
+                        "eps_beat": 6.2,
+                        "label": "Q4 2022",
+                    },
+                ),
+                (
+                    "2023-05-02",
+                    {
+                        "rev": 53.5,
+                        "rev_yoy": -9.0,
+                        "gm": 44.0,
+                        "eps_beat": 7.1,
+                        "label": "Q1 2023 底部",
+                    },
+                ),
+                (
+                    "2023-08-01",
+                    {
+                        "rev": 54.0,
+                        "rev_yoy": -18.0,
+                        "gm": 46.0,
+                        "eps_beat": 1.8,
+                        "label": "Q2 2023",
+                    },
+                ),
+                (
+                    "2023-10-31",
+                    {
+                        "rev": 58.0,
+                        "rev_yoy": 4.0,
+                        "gm": 47.0,
+                        "eps_beat": 6.1,
+                        "label": "Q3 2023 开始反弹",
+                    },
+                ),
+                (
+                    "2024-01-30",
+                    {
+                        "rev": 61.7,
+                        "rev_yoy": 10.0,
+                        "gm": 47.0,
+                        "eps_beat": 3.7,
+                        "label": "Q4 2023 ★MI300发布",
+                    },
+                ),
+                (
+                    "2024-04-30",
+                    {
+                        "rev": 54.7,
+                        "rev_yoy": 2.0,
+                        "gm": 47.0,
+                        "eps_beat": 3.3,
+                        "label": "Q1 2024",
+                    },
+                ),
+                (
+                    "2024-07-30",
+                    {
+                        "rev": 58.3,
+                        "rev_yoy": 9.0,
+                        "gm": 49.0,
+                        "eps_beat": 1.5,
+                        "label": "Q2 2024",
+                    },
+                ),
+                (
+                    "2024-10-29",
+                    {
+                        "rev": 68.2,
+                        "rev_yoy": 18.0,
+                        "gm": 50.0,
+                        "eps_beat": 4.5,
+                        "label": "Q3 2024 ★数据中心加速",
+                    },
+                ),
+            ]
+        ),
     },
     "MU": {
         "name": "美光科技",
-        "quarters": OrderedDict([
-            ("2022-09-29", {"rev": 66.4, "rev_yoy": -20.0, "gm": 40.0, "eps_beat": -5.0, "label": "FY22Q4 开始下滑"}),
-            ("2022-12-21", {"rev": 40.9, "rev_yoy": -47.0, "gm": 22.0, "eps_beat": 22.0, "label": "FY23Q1 暴跌但超预期"}),
-            ("2023-03-28", {"rev": 36.9, "rev_yoy": -53.0, "gm": 11.0, "eps_beat": 5.0, "label": "FY23Q2 谷底"}),
-            ("2023-06-28", {"rev": 37.5, "rev_yoy": -57.0, "gm": -8.0, "eps_beat": 15.0, "label": "FY23Q3 毛利率转负"}),
-            ("2023-09-27", {"rev": 40.1, "rev_yoy": -40.0, "gm": -1.0, "eps_beat": 18.0, "label": "FY23Q4 ★HBM拐点信号"}),
-            ("2023-12-20", {"rev": 47.3, "rev_yoy": 16.0, "gm": 20.0, "eps_beat": 68.0, "label": "FY24Q1 ★★营收反转!EPS超68%"}),
-            ("2024-03-20", {"rev": 58.2, "rev_yoy": 58.0, "gm": 28.0, "eps_beat": 82.0, "label": "FY24Q2 ★★★爆发"}),
-            ("2024-06-26", {"rev": 68.1, "rev_yoy": 82.0, "gm": 35.4, "eps_beat": 6.9, "label": "FY24Q3"}),
-            ("2024-09-25", {"rev": 77.5, "rev_yoy": 93.0, "gm": 36.5, "eps_beat": 5.4, "label": "FY24Q4"}),
-        ]),
+        "quarters": OrderedDict(
+            [
+                (
+                    "2022-09-29",
+                    {
+                        "rev": 66.4,
+                        "rev_yoy": -20.0,
+                        "gm": 40.0,
+                        "eps_beat": -5.0,
+                        "label": "FY22Q4 开始下滑",
+                    },
+                ),
+                (
+                    "2022-12-21",
+                    {
+                        "rev": 40.9,
+                        "rev_yoy": -47.0,
+                        "gm": 22.0,
+                        "eps_beat": 22.0,
+                        "label": "FY23Q1 暴跌但超预期",
+                    },
+                ),
+                (
+                    "2023-03-28",
+                    {
+                        "rev": 36.9,
+                        "rev_yoy": -53.0,
+                        "gm": 11.0,
+                        "eps_beat": 5.0,
+                        "label": "FY23Q2 谷底",
+                    },
+                ),
+                (
+                    "2023-06-28",
+                    {
+                        "rev": 37.5,
+                        "rev_yoy": -57.0,
+                        "gm": -8.0,
+                        "eps_beat": 15.0,
+                        "label": "FY23Q3 毛利率转负",
+                    },
+                ),
+                (
+                    "2023-09-27",
+                    {
+                        "rev": 40.1,
+                        "rev_yoy": -40.0,
+                        "gm": -1.0,
+                        "eps_beat": 18.0,
+                        "label": "FY23Q4 ★HBM拐点信号",
+                    },
+                ),
+                (
+                    "2023-12-20",
+                    {
+                        "rev": 47.3,
+                        "rev_yoy": 16.0,
+                        "gm": 20.0,
+                        "eps_beat": 68.0,
+                        "label": "FY24Q1 ★★营收反转!EPS超68%",
+                    },
+                ),
+                (
+                    "2024-03-20",
+                    {
+                        "rev": 58.2,
+                        "rev_yoy": 58.0,
+                        "gm": 28.0,
+                        "eps_beat": 82.0,
+                        "label": "FY24Q2 ★★★爆发",
+                    },
+                ),
+                (
+                    "2024-06-26",
+                    {
+                        "rev": 68.1,
+                        "rev_yoy": 82.0,
+                        "gm": 35.4,
+                        "eps_beat": 6.9,
+                        "label": "FY24Q3",
+                    },
+                ),
+                (
+                    "2024-09-25",
+                    {
+                        "rev": 77.5,
+                        "rev_yoy": 93.0,
+                        "gm": 36.5,
+                        "eps_beat": 5.4,
+                        "label": "FY24Q4",
+                    },
+                ),
+            ]
+        ),
     },
 }
 
@@ -67,6 +316,7 @@ FUNDAMENTALS = {
 # ============================================================
 # 从JSON文件加载价格数据
 # ============================================================
+
 
 def load_prices_from_json(filepath):
     with open(filepath) as f:
@@ -89,6 +339,7 @@ def load_prices_from_json(filepath):
 # 动量发现引擎
 # ============================================================
 
+
 def scan_momentum(prices):
     signals = []
     for i in range(60, len(prices)):
@@ -103,18 +354,21 @@ def scan_momentum(prices):
         pct_30d = (close - close_30d_ago) / close_30d_ago * 100
 
         if is_60d_high and is_volume_surge:
-            signals.append({
-                "date": row["date"],
-                "close": round(close, 2),
-                "pct_30d": round(pct_30d, 1),
-                "vol_ratio": round(vol_5 / vol_20, 2),
-            })
+            signals.append(
+                {
+                    "date": row["date"],
+                    "close": round(close, 2),
+                    "pct_30d": round(pct_30d, 1),
+                    "vol_ratio": round(vol_5 / vol_20, 2),
+                }
+            )
     return signals
 
 
 # ============================================================
 # 价值验证引擎
 # ============================================================
+
 
 def find_fund(ticker, date):
     quarters = list(FUNDAMENTALS[ticker]["quarters"].items())
@@ -163,6 +417,7 @@ def verify(fund, prev_fund):
 # 回测主逻辑
 # ============================================================
 
+
 def backtest(ticker, prices):
     FUNDAMENTALS[ticker]["name"]
 
@@ -206,17 +461,13 @@ def backtest(ticker, prices):
             continue
         if not first_buy:
             first_buy = bs
-        " ".join(
-            f"{'✅' if v else '❌'}{k}" for k, v in bs["checks"].items()
-        )
+        " ".join(f"{'✅' if v else '❌'}{k}" for k, v in bs["checks"].items())
 
     # 展示部分被拒绝的信号（帮助理解筛选效果）
     early_rejects = [r for r in reject_signals if "2022-06" <= r["date"] <= "2023-06"]
     if early_rejects:
         for r in early_rejects[:3]:
-            " ".join(
-                f"{'✅' if v else '❌'}{k}" for k, v in r["checks"].items()
-            )
+            " ".join(f"{'✅' if v else '❌'}{k}" for k, v in r["checks"].items())
 
     # 计算收益
     if first_buy:
@@ -229,6 +480,7 @@ def backtest(ticker, prices):
 # ============================================================
 # NVDA手工分析（无法获取日线数据）
 # ============================================================
+
 
 def nvda_manual_analysis():
 
@@ -251,7 +503,6 @@ def nvda_manual_analysis():
         pass
 
     # 分析动量信号
-
 
     fund1, prev1 = find_fund("NVDA", "2023-01-27")
     s1, c1 = verify(fund1, prev1)

@@ -42,10 +42,16 @@ class FactorMeta:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "name": self.name, "version": self.version, "category": self.category,
-            "dependencies": list(self.dependencies), "calc_frequency": self.calc_frequency,
-            "storage_tier": self.storage_tier, "created_at": self.created_at,
-            "updated_at": self.updated_at, "status": self.status, "description": self.description,
+            "name": self.name,
+            "version": self.version,
+            "category": self.category,
+            "dependencies": list(self.dependencies),
+            "calc_frequency": self.calc_frequency,
+            "storage_tier": self.storage_tier,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "status": self.status,
+            "description": self.description,
         }
 
     @classmethod
@@ -56,12 +62,16 @@ class FactorMeta:
         elif not isinstance(deps, tuple):
             deps = ()
         return cls(
-            name=str(data.get("name", "")), version=str(data.get("version", "")),
-            category=str(data.get("category", "")), dependencies=deps,
+            name=str(data.get("name", "")),
+            version=str(data.get("version", "")),
+            category=str(data.get("category", "")),
+            dependencies=deps,
             calc_frequency=str(data.get("calc_frequency", "daily")),
             storage_tier=str(data.get("storage_tier", "both")),
-            created_at=str(data.get("created_at", "")), updated_at=str(data.get("updated_at", "")),
-            status=str(data.get("status", "active")), description=str(data.get("description", "")),
+            created_at=str(data.get("created_at", "")),
+            updated_at=str(data.get("updated_at", "")),
+            status=str(data.get("status", "active")),
+            description=str(data.get("description", "")),
         )
 
 
@@ -76,7 +86,9 @@ class Registry:
         self._config = config
         self._cache: dict[tuple[str, str], FactorMeta] = {}
         parquet_dir = config.offline_parquet_dir.rstrip("/\\")
-        self._json_path = os.path.join(os.path.dirname(parquet_dir), "feature_registry.json")
+        self._json_path = os.path.join(
+            os.path.dirname(parquet_dir), "feature_registry.json"
+        )
         if not self._json_path:
             self._json_path = "data/feature_registry.json"
         self._load()
@@ -137,10 +149,15 @@ class Registry:
             return (False, "duplicate registration")
         now = _utc_now_iso()
         new_meta = FactorMeta(
-            name=meta.name, version=meta.version, category=meta.category,
-            dependencies=meta.dependencies, calc_frequency=meta.calc_frequency,
-            storage_tier=meta.storage_tier, created_at=meta.created_at or now,
-            updated_at=now, status=meta.status if meta.status in _VALID_STATUSES else "active",
+            name=meta.name,
+            version=meta.version,
+            category=meta.category,
+            dependencies=meta.dependencies,
+            calc_frequency=meta.calc_frequency,
+            storage_tier=meta.storage_tier,
+            created_at=meta.created_at or now,
+            updated_at=now,
+            status=meta.status if meta.status in _VALID_STATUSES else "active",
             description=meta.description,
         )
         self._cache[key] = new_meta
@@ -158,7 +175,9 @@ class Registry:
         candidates.sort(key=lambda x: x[0])
         return candidates[-1][1]
 
-    def list_factors(self, status: str | None = None, category: str | None = None) -> list[FactorMeta]:
+    def list_factors(
+        self, status: str | None = None, category: str | None = None
+    ) -> list[FactorMeta]:
         result = []
         for meta in self._cache.values():
             if status is not None and meta.status != status:
@@ -172,7 +191,9 @@ class Registry:
         meta = self.get(name, version)
         return meta is not None and meta.status == "active"
 
-    def _update_status(self, name: str, version: str | None, new_status: str, forbidden_from: set[str]) -> tuple[bool, str]:
+    def _update_status(
+        self, name: str, version: str | None, new_status: str, forbidden_from: set[str]
+    ) -> tuple[bool, str]:
         meta = self.get(name, version)
         if meta is None:
             return (False, "factor not found")
@@ -182,10 +203,16 @@ class Registry:
             return (False, f"cannot {new_status} from {meta.status}")
         key = (meta.name, meta.version)
         updated_meta = FactorMeta(
-            name=meta.name, version=meta.version, category=meta.category,
-            dependencies=meta.dependencies, calc_frequency=meta.calc_frequency,
-            storage_tier=meta.storage_tier, created_at=meta.created_at,
-            updated_at=_utc_now_iso(), status=new_status, description=meta.description,
+            name=meta.name,
+            version=meta.version,
+            category=meta.category,
+            dependencies=meta.dependencies,
+            calc_frequency=meta.calc_frequency,
+            storage_tier=meta.storage_tier,
+            created_at=meta.created_at,
+            updated_at=_utc_now_iso(),
+            status=new_status,
+            description=meta.description,
         )
         old_meta = self._cache[key]
         self._cache[key] = updated_meta
@@ -195,7 +222,9 @@ class Registry:
         return (True, new_status)
 
     def deactivate(self, name: str, version: str | None = None) -> tuple[bool, str]:
-        return self._update_status(name, version, "inactive", {"inactive", "deprecated"})
+        return self._update_status(
+            name, version, "inactive", {"inactive", "deprecated"}
+        )
 
     def activate(self, name: str, version: str | None = None) -> tuple[bool, str]:
         return self._update_status(name, version, "active", {"deprecated"})

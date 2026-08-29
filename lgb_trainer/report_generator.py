@@ -354,7 +354,7 @@ def _build_sentiment_stats_section(result: dict[str, Any]) -> list[str]:
     lines = ["", "## 五、情绪因子入选统计", ""]
     lines.append("**v4.3**: 情绪因子已移除保护机制, 正常参与特征选择。")
     lines.append("")
-    sent_effective = 0      # 实际有贡献 (importance > 0)
+    sent_effective = 0  # 实际有贡献 (importance > 0)
     sent_total = 0
     for code, r in result["results"].items():
         if r.get("status") != "OK":
@@ -362,7 +362,11 @@ def _build_sentiment_stats_section(result: dict[str, Any]) -> list[str]:
         sent_total += 1
         selected = r.get("selected_features", [])
         top_feat = r.get("top_features", {})
-        sent_in_selection = [f for f in selected if "sent" in f or "news_" in f or "market_sent" in f or "has_news" in f]
+        sent_in_selection = [
+            f
+            for f in selected
+            if "sent" in f or "news_" in f or "market_sent" in f or "has_news" in f
+        ]
         # 仅当 importance > 0 才算"有效入选"
         sent_with_impact = [f for f in sent_in_selection if top_feat.get(f, 0) > 0]
         if sent_with_impact:
@@ -378,7 +382,9 @@ def _build_sentiment_stats_section(result: dict[str, Any]) -> list[str]:
             )
     lines.append("")
     lines.append(f"**情绪因子入选标的数**: {sent_effective} / {sent_total}")
-    lines.append(f"**情绪因子有效贡献比例 (importance>0)**: {sent_effective} / {sent_total}")
+    lines.append(
+        f"**情绪因子有效贡献比例 (importance>0)**: {sent_effective} / {sent_total}"
+    )
     return lines
 
 
@@ -396,7 +402,9 @@ def _build_extended_feature_section(result: dict[str, Any]) -> list[str]:
             ext_feats = [f for f in selected if f in cat_features]
             if ext_feats:
                 included_count += 1
-                included_details.append(f"  - {code} ({r.get('name', '')}): {', '.join(ext_feats)}")
+                included_details.append(
+                    f"  - {code} ({r.get('name', '')}): {', '.join(ext_feats)}"
+                )
         lines.append(f"### {cat_name}: {included_count} / {total_ok} 标的入选")
         lines.extend(included_details)
         lines.append("")
@@ -446,7 +454,9 @@ def _build_quality_suppress_section(result: dict[str, Any]) -> list[str]:
                 f"final_ic={final_ic:.4f}, 原始信号={raw_signal:.4f} → 置零"
             )
         elif qf == "LOW_QUALITY":
-            detail = f"  - {code} ({r.get('name', '')}): CV_R²={cv.get('mean_r2', 0):.4f}, "
+            detail = (
+                f"  - {code} ({r.get('name', '')}): CV_R²={cv.get('mean_r2', 0):.4f}, "
+            )
             detail += f"CV_IC={cv_ic:.4f}"
             if abs(cv_ic - final_ic) > 0.3:
                 detail += f", Final_IC={final_ic:.4f} (偏差={abs(cv_ic - final_ic):.2f}, 过拟合)"
@@ -481,15 +491,19 @@ def _build_quality_suppress_section(result: dict[str, Any]) -> list[str]:
         )
         lines.append("")
 
-    active_buy = sum(1 for r in result["results"].values()
-                     if r.get("quality_flag", "") not in ("LOW_QUALITY", "NOISE")
-                     and r.get("signal", 0) > 0.2)
-    active_sell = sum(1 for r in result["results"].values()
-                      if r.get("quality_flag", "") not in ("LOW_QUALITY", "NOISE")
-                      and r.get("signal", 0) < -0.2)
-    lines.append(
-        f"**抑制后有效信号**: 买入 {active_buy} 个, 卖出 {active_sell} 个"
+    active_buy = sum(
+        1
+        for r in result["results"].values()
+        if r.get("quality_flag", "") not in ("LOW_QUALITY", "NOISE")
+        and r.get("signal", 0) > 0.2
     )
+    active_sell = sum(
+        1
+        for r in result["results"].values()
+        if r.get("quality_flag", "") not in ("LOW_QUALITY", "NOISE")
+        and r.get("signal", 0) < -0.2
+    )
+    lines.append(f"**抑制后有效信号**: 买入 {active_buy} 个, 卖出 {active_sell} 个")
     return lines
 
 

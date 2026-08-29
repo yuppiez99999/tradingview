@@ -9,8 +9,11 @@ from pathlib import Path
 
 
 def _get_ollama_path() -> str:
-    return os.environ.get("OLLAMA_PATH",
-        str(Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe"))
+    return os.environ.get(
+        "OLLAMA_PATH",
+        str(Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe"),
+    )
+
 
 env = os.environ.copy()
 env["OLLAMA_NUM_GPUS"] = "0"
@@ -44,16 +47,15 @@ except Exception as e:
 
 time.sleep(30)
 
-body = json.dumps({
-    "model": "qwen2.5:7b",
-    "messages": [{"role": "user", "content": "ping"}]
-}).encode("utf-8")
+body = json.dumps(
+    {"model": "qwen2.5:7b", "messages": [{"role": "user", "content": "ping"}]}
+).encode("utf-8")
 
 req = urllib.request.Request(
     "http://localhost:11434/v1/chat/completions",
     data=body,
     headers={"Content-Type": "application/json"},
-    method="POST"
+    method="POST",
 )
 
 print("\nTesting chat completion...")

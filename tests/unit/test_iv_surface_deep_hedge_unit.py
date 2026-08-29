@@ -28,6 +28,7 @@ from utils.iv_surface_deep_hedge import (
 # 枚举测试
 # ============================================================
 
+
 class TestEnums:
     def test_hedge_tool_types(self):
         assert len(HedgeToolType) == 3
@@ -39,6 +40,7 @@ class TestEnums:
 # ============================================================
 # VRP 测试
 # ============================================================
+
 
 class TestVarianceRiskPremium:
     def test_short_vol(self):
@@ -73,6 +75,7 @@ class TestVarianceRiskPremium:
 # 二阶希腊字母测试
 # ============================================================
 
+
 class TestSecondOrderGreeks:
     def test_vanna(self):
         v = SecondOrderGreeks.vanna(100, 100, 30 / 365, 0.2)
@@ -96,6 +99,7 @@ class TestSecondOrderGreeks:
 # ============================================================
 # 多工具对冲器测试
 # ============================================================
+
 
 class TestMultiToolHedger:
     def test_no_tools(self):
@@ -126,6 +130,7 @@ class TestMultiToolHedger:
 # 引擎测试
 # ============================================================
 
+
 class TestIVSurfaceDeepHedgeEngine:
     def test_hedge(self):
         engine = IVSurfaceDeepHedgeEngine()
@@ -140,8 +145,10 @@ class TestIVSurfaceDeepHedgeEngine:
     def test_build_tools(self):
         engine = IVSurfaceDeepHedgeEngine()
         tools = engine.build_option_tools(
-            spot=100, strikes=[95, 100, 105],
-            maturities=[30 / 365] * 3, ivs=[0.22, 0.20, 0.18],
+            spot=100,
+            strikes=[95, 100, 105],
+            maturities=[30 / 365] * 3,
+            ivs=[0.22, 0.20, 0.18],
         )
         assert len(tools) == 3
         assert all(t.vega > 0 for t in tools)
@@ -156,16 +163,23 @@ class TestIVSurfaceDeepHedgeEngine:
 # 端到端测试
 # ============================================================
 
+
 class TestEndToEnd:
     def test_full_pipeline(self):
         engine = IVSurfaceDeepHedgeEngine()
         tools = engine.build_option_tools(
-            spot=100, strikes=[90, 95, 100, 105, 110],
-            maturities=[30 / 365] * 5, ivs=[0.25, 0.22, 0.20, 0.19, 0.18],
+            spot=100,
+            strikes=[90, 95, 100, 105, 110],
+            maturities=[30 / 365] * 5,
+            ivs=[0.25, 0.22, 0.20, 0.19, 0.18],
         )
         result = engine.hedge(
-            portfolio_vega=100, portfolio_vanna=10, portfolio_volga=50,
-            tools=tools, implied_vol=0.22, realized_vol=0.15,
+            portfolio_vega=100,
+            portfolio_vanna=10,
+            portfolio_volga=50,
+            tools=tools,
+            implied_vol=0.22,
+            realized_vol=0.15,
         )
         assert len(result.hedge_quantities) == 5
         assert result.vrp_signal == VolatilitySignal.SHORT_VOL

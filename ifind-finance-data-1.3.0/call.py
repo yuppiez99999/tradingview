@@ -5,11 +5,14 @@ import requests
 
 try:
     import certifi
+
     _SSL_VERIFY = certifi.where()
 except ImportError:
     _SSL_VERIFY = True
 
-CONFIG = json.loads((Path(__file__).resolve().parent / "mcp_config.json").read_text(encoding="utf-8"))
+CONFIG = json.loads(
+    (Path(__file__).resolve().parent / "mcp_config.json").read_text(encoding="utf-8")
+)
 AUTH_TOKEN = CONFIG["auth_token"]
 
 BASE = "https://api-mcp.51ifind.com:8643/ds-mcp-servers"
@@ -134,7 +137,9 @@ def _load_tool_set(server_type):
     tool_set = {
         tool.get("name")
         for tool in tools
-        if isinstance(tool, dict) and isinstance(tool.get("name"), str) and tool.get("name")
+        if isinstance(tool, dict)
+        and isinstance(tool.get("name"), str)
+        and tool.get("name")
     }
     _tool_sets[server_type] = tool_set
     return tool_set
@@ -147,7 +152,9 @@ def call(server_type, tool_name, params):
     _validate_params(params)
     allowed_tools = _load_tool_set(server_type)
     if tool_name not in allowed_tools:
-        raise ValueError(f"toolName not allowed for server_type {server_type}: {tool_name}")
+        raise ValueError(
+            f"toolName not allowed for server_type {server_type}: {tool_name}"
+        )
 
     payload = {
         "jsonrpc": "2.0",

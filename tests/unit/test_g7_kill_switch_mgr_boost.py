@@ -4,6 +4,7 @@ test_g7_kill_switch_mgr_boost.py — 三级熔断管理器覆盖率补强测试
 
 覆盖 P0 risk 链路: utils/risk/kill_switch_manager.py
 """
+
 from __future__ import annotations
 
 from utils.risk.kill_switch_manager import (
@@ -33,7 +34,11 @@ class TestKillSwitchManagerInit:
         assert ksm.thresholds[KillLevel.LIQUIDATE] == 0.95
 
     def test_custom_thresholds(self) -> None:
-        custom = {KillLevel.CAUTION: 0.40, KillLevel.REDUCTION: 0.60, KillLevel.LIQUIDATE: 0.80}
+        custom = {
+            KillLevel.CAUTION: 0.40,
+            KillLevel.REDUCTION: 0.60,
+            KillLevel.LIQUIDATE: 0.80,
+        }
         ksm = KillSwitchManager(thresholds=custom)
         assert ksm.thresholds[KillLevel.CAUTION] == 0.40
 

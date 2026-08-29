@@ -41,6 +41,7 @@
         1 项 integration (TDX 连接验证) ~10s
         命令: pytest tests/test_regression_bugfixes.py -m integration
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -53,6 +54,7 @@ import pytest
 # ============================================================================
 # REG-WIND-001: Wind MCP 路径修复
 # ============================================================================
+
 
 class TestRegWindMcpPath:
     """REG-WIND-001: Wind MCP 路径必须搜索 4 个候选位置
@@ -67,9 +69,7 @@ class TestRegWindMcpPath:
     def test_wind_mcp_fetcher_exists_in_tools(self, project_root):
         """tools/wind_mcp_fetcher.py 必须存在 (实际位置)"""
         path = Path(project_root) / "tools" / "wind_mcp_fetcher.py"
-        assert path.exists(), (
-            f"Wind MCP fetcher 实际位置应为 {path},但文件不存在"
-        )
+        assert path.exists(), f"Wind MCP fetcher 实际位置应为 {path},但文件不存在"
 
     @pytest.mark.regression
     @pytest.mark.bug("REG-WIND-001")
@@ -80,12 +80,10 @@ class TestRegWindMcpPath:
 
         source = path.read_text(encoding="utf-8")
         # 必须包含 4 个候选路径的搜索逻辑
-        assert "candidate_paths" in source, (
-            "_init_wind_mcp 应使用 candidate_paths 列表搜索多路径"
-        )
-        assert "tools" in source, (
-            "候选路径必须包含 tools/ 子目录"
-        )
+        assert (
+            "candidate_paths" in source
+        ), "_init_wind_mcp 应使用 candidate_paths 列表搜索多路径"
+        assert "tools" in source, "候选路径必须包含 tools/ 子目录"
         # 不应仅依赖项目根的单一路径
         # (检查不出现 "wind_mcp_fetcher.py" 紧跟在 _project_root / 后无 tools 的简单形式)
 
@@ -101,6 +99,7 @@ class TestRegWindMcpPath:
         sys.path.insert(0, str(project_root))
         try:
             from utils.data_provider import MarketDataProvider
+
             dp = MarketDataProvider()
             wind_health = dp.source_health.get("wind_mcp", {})
             assert wind_health.get("ok") is True, (
@@ -116,6 +115,7 @@ class TestRegWindMcpPath:
 # REG-SSE-002: SSE 解析 (K 线不应被解析为单条 quote)
 # ============================================================================
 
+
 class TestRegSseParsing:
     """REG-SSE-002: K 线 SSE 数据不应被 _parse_sse_minute_quote 误解析
 
@@ -130,9 +130,7 @@ class TestRegSseParsing:
         path = Path(project_root) / "tools" / "wind_mcp_fetcher.py"
         if not path.exists():
             pytest.skip(f"wind_mcp_fetcher.py 不存在: {path}")
-        spec = importlib.util.spec_from_file_location(
-            "wind_mcp_fetcher", str(path)
-        )
+        spec = importlib.util.spec_from_file_location("wind_mcp_fetcher", str(path))
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         return mod
@@ -141,25 +139,24 @@ class TestRegSseParsing:
     @pytest.mark.bug("REG-SSE-002")
     def test_wind_http_generic_function_exists(self, wind_mcp_module):
         """_wind_http_generic 函数必须存在 (修复后新增)"""
-        assert hasattr(wind_mcp_module, "_wind_http_generic"), (
-            "_wind_http_generic 函数必须存在,用于 K 线类工具的 SSE 解析"
-        )
+        assert hasattr(
+            wind_mcp_module, "_wind_http_generic"
+        ), "_wind_http_generic 函数必须存在,用于 K 线类工具的 SSE 解析"
 
     @pytest.mark.regression
     @pytest.mark.bug("REG-SSE-002")
     def test_parse_sse_generic_exists(self, wind_mcp_module):
         """_parse_sse_generic 函数必须存在 (通用 SSE 解析器)"""
-        assert hasattr(wind_mcp_module, "_parse_sse_generic"), (
-            "_parse_sse_generic 函数必须存在,用于通用 SSE 解析"
-        )
+        assert hasattr(
+            wind_mcp_module, "_parse_sse_generic"
+        ), "_parse_sse_generic 函数必须存在,用于通用 SSE 解析"
 
     @pytest.mark.regression
     @pytest.mark.bug("REG-SSE-002")
     def test_parse_sse_generic_extracts_data_line(self, wind_mcp_module):
         """_parse_sse_generic 必须能从 SSE 文本提取 data: 行的 JSON"""
         sse_text = (
-            "event: message\n"
-            'data: {"jsonrpc":"2.0","result":{"isError":false}}\n\n'
+            "event: message\n" 'data: {"jsonrpc":"2.0","result":{"isError":false}}\n\n'
         )
         result = wind_mcp_module._parse_sse_generic(sse_text)
         assert result is not None, "应解析出 dict"
@@ -192,22 +189,26 @@ class TestRegSseParsing:
         kline_payload = {
             "jsonrpc": "2.0",
             "result": {
-                "content": [{
-                    "text": json.dumps({
-                        "data": {
-                            "columns": [
-                                {"name": "DATE"},
-                                {"name": "OPEN"},
-                                {"name": "HIGH"},
-                                {"name": "LOW"},
-                                {"name": "CLOSE"},
-                                {"name": "VOLUME"},
-                            ],
-                            "rows": kline_rows,
-                        }
-                    })
-                }]
-            }
+                "content": [
+                    {
+                        "text": json.dumps(
+                            {
+                                "data": {
+                                    "columns": [
+                                        {"name": "DATE"},
+                                        {"name": "OPEN"},
+                                        {"name": "HIGH"},
+                                        {"name": "LOW"},
+                                        {"name": "CLOSE"},
+                                        {"name": "VOLUME"},
+                                    ],
+                                    "rows": kline_rows,
+                                }
+                            }
+                        )
+                    }
+                ]
+            },
         }
         sse_text = f"data: {json.dumps(kline_payload)}\n\n"
 
@@ -218,14 +219,15 @@ class TestRegSseParsing:
         # (这本身不算 bug,只是验证行为;真正的修复在 _wind_http_generic 不调用它)
         if result is not None:
             # 如果它返回了结果,应该至少包含 price 字段
-            assert "price" in result or "close" in result, (
-                "_parse_sse_minute_quote 若解析 K 线,应返回包含 price/close 的 dict"
-            )
+            assert (
+                "price" in result or "close" in result
+            ), "_parse_sse_minute_quote 若解析 K 线,应返回包含 price/close 的 dict"
 
 
 # ============================================================================
 # REG-HB-003: heartbeat 字段名兼容
 # ============================================================================
+
 
 class TestRegHeartbeatFieldName:
     """REG-HB-003: heartbeat 字段名 ts 与 timestamp 兼容
@@ -244,12 +246,10 @@ class TestRegHeartbeatFieldName:
 
         source = path.read_text(encoding="utf-8")
         # 必须同时检查 ts 和 timestamp
-        assert 'last.get("ts")' in source or 'last.get("ts",' in source, (
-            "C8.2 必须检查 'ts' 字段 (heartbeat 实际字段名)"
-        )
-        assert "timestamp" in source, (
-            "C8.2 必须兼容 'timestamp' 字段名"
-        )
+        assert (
+            'last.get("ts")' in source or 'last.get("ts",' in source
+        ), "C8.2 必须检查 'ts' 字段 (heartbeat 实际字段名)"
+        assert "timestamp" in source, "C8.2 必须兼容 'timestamp' 字段名"
 
     @pytest.mark.regression
     @pytest.mark.bug("REG-HB-003")
@@ -279,6 +279,7 @@ class TestRegHeartbeatFieldName:
         sys.path.insert(0, str(project_root))
         try:
             from utils.system_check import SystemChecker
+
             checker = SystemChecker(skip_datasource=True)
             # 直接调用 C8 检查方法
             checker._results = []
@@ -303,6 +304,7 @@ class TestRegHeartbeatFieldName:
 # REG-SCHEMACHECK-004: positions.json dict/list 格式适配
 # ============================================================================
 
+
 class TestRegPositionsJsonSchema:
     """REG-SCHEMACHECK-004: positions.json 格式判断
 
@@ -317,6 +319,7 @@ class TestRegPositionsJsonSchema:
         sys.path.insert(0, str(project_root))
         try:
             from utils.system_check import SystemChecker
+
             checker = SystemChecker(skip_datasource=True)
             checker._results = []
             checker.check_config_schema()
@@ -336,6 +339,7 @@ class TestRegPositionsJsonSchema:
 # REG-PATH-005: 子目录入口脚本 sys.path 注入
 # ============================================================================
 
+
 class TestRegEntryPathInjection:
     """REG-PATH-005: 子目录入口脚本必须显式注入 PROJECT_ROOT
 
@@ -353,16 +357,14 @@ class TestRegEntryPathInjection:
 
         source = path.read_text(encoding="utf-8")
         # 必须有 sys.path.insert 操作
-        assert "sys.path.insert" in source, (
-            "run_daily_morning.py 必须显式注入 sys.path"
-        )
-        assert "PROJECT_ROOT" in source, (
-            "run_daily_morning.py 必须使用 PROJECT_ROOT 变量"
-        )
+        assert "sys.path.insert" in source, "run_daily_morning.py 必须显式注入 sys.path"
+        assert (
+            "PROJECT_ROOT" in source
+        ), "run_daily_morning.py 必须使用 PROJECT_ROOT 变量"
         # 必须有 --skip-system-check 参数
-        assert "--skip-system-check" in source, (
-            "run_daily_morning.py 必须支持 --skip-system-check 参数"
-        )
+        assert (
+            "--skip-system-check" in source
+        ), "run_daily_morning.py 必须支持 --skip-system-check 参数"
 
     @pytest.mark.regression
     @pytest.mark.bug("REG-PATH-005")
@@ -384,7 +386,7 @@ class TestRegEntryPathInjection:
         assert path.exists(), f"入口脚本不存在: {path}"
 
         source = path.read_text(encoding="utf-8")
-        assert "assert_system_ready" in source, (
-            "run_daily_eod.py 必须调用 assert_system_ready()"
-        )
+        assert (
+            "assert_system_ready" in source
+        ), "run_daily_eod.py 必须调用 assert_system_ready()"
         assert "--skip-system-check" in source

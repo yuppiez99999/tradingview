@@ -22,6 +22,7 @@ import requests
 
 try:
     import certifi
+
     _SSL_VERIFY = certifi.where()
 except ImportError:
     _SSL_VERIFY = True
@@ -183,13 +184,17 @@ def _parse_ifind_response(result: dict) -> dict[str, Any]:
                 try:
                     arr = json.loads(val)
                     if isinstance(arr, list):
-                        normalized_rows = [_normalize_row(r) for r in arr if isinstance(r, dict)]
+                        normalized_rows = [
+                            _normalize_row(r) for r in arr if isinstance(r, dict)
+                        ]
                         out["tables"].extend(normalized_rows)
                         continue
                 except json.JSONDecodeError:
                     pass
             if isinstance(val, list):
-                normalized_rows = [_normalize_row(r) for r in val if isinstance(r, dict)]
+                normalized_rows = [
+                    _normalize_row(r) for r in val if isinstance(r, dict)
+                ]
                 out["tables"].extend(normalized_rows)
 
     return out
@@ -221,7 +226,13 @@ def _extract_indicators_from_row(row: dict[str, Any]) -> dict[str, float]:
         if not s or s in ("--", "-", "N/A", "NA", "null", "None"):
             continue
         # 去除千分位 / 百分号 / 单位
-        cleaned = s.replace(",", "").replace("%", "").replace("亿", "").replace("万", "").strip()
+        cleaned = (
+            s.replace(",", "")
+            .replace("%", "")
+            .replace("亿", "")
+            .replace("万", "")
+            .strip()
+        )
         try:
             val = float(cleaned)
             if "亿" in s:
@@ -326,8 +337,7 @@ class IFindClient:
                     "error": f"quota exceeded, retry after {self._quota_retry_delay}s",
                     "quota_exceeded": True,
                 }
-            else:
-                del self._quota_exceeded[server_type]
+            del self._quota_exceeded[server_type]
 
         self._init(server_type)
         self._rate_limit(server_type)
@@ -372,12 +382,19 @@ class IFindClient:
 
         try:
             result_data = data.get("result", {})
-            content = result_data.get("content", []) if isinstance(result_data, dict) else []
+            content = (
+                result_data.get("content", []) if isinstance(result_data, dict) else []
+            )
             for item in content:
                 text = item.get("text", "")
                 if "超限" in text or "quota" in text.lower() or "limit" in text.lower():
                     self._quota_exceeded[server_type] = now
-                    return {"ok": False, "error": "用户使用工具已超限", "quota_exceeded": True, "data": data}
+                    return {
+                        "ok": False,
+                        "error": "用户使用工具已超限",
+                        "quota_exceeded": True,
+                        "data": data,
+                    }
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             pass
 
@@ -387,8 +404,7 @@ class IFindClient:
     def get_historical_klines(self, code: str, days: int = 252) -> Optional[list[dict]]:
         if code.startswith("5"):
             return self._get_fund_historical(code, days)
-        else:
-            return self._get_stock_historical(code, days)
+        return self._get_stock_historical(code, days)
 
     def _get_stock_historical(self, code: str, days: int = 252) -> Optional[list[dict]]:
         all_rows = []
@@ -404,7 +420,9 @@ class IFindClient:
             e = chunk_end.strftime("%Y%m%d")
 
             result = self.call(
-                "stock", "get_stock_performance", {"query": f"{code}从{s}到{e}的开盘价、收盘价、最高价、最低价、成交量"}
+                "stock",
+                "get_stock_performance",
+                {"query": f"{code}从{s}到{e}的开盘价、收盘价、最高价、最低价、成交量"},
             )
             parsed = _parse_ifind_response(result)
             for row in parsed.get("tables", []):
@@ -413,11 +431,28 @@ class IFindClient:
                     continue
                 seen_dates.add(date_str)
                 try:
-                    open_str = _col(row, "开盘价", "开盘", "open", "Open", "OPEN") or "0"
-                    close_str = _col(row, "收盘价", "收盘", "close", "Close", "CLOSE") or "0"
-                    high_str = _col(row, "最高价", "最高", "high", "High", "HIGH") or "0"
+                    open_str = (
+                        _col(row, "开盘价", "开盘", "open", "Open", "OPEN") or "0"
+                    )
+                    close_str = (
+                        _col(row, "收盘价", "收盘", "close", "Close", "CLOSE") or "0"
+                    )
+                    high_str = (
+                        _col(row, "最高价", "最高", "high", "High", "HIGH") or "0"
+                    )
                     low_str = _col(row, "最低价", "最低", "low", "Low", "LOW") or "0"
-                    vol_str = _col(row, "成交量", "volume", "Volume", "VOLUME", "成交股数", "成交额") or "0"
+                    vol_str = (
+                        _col(
+                            row,
+                            "成交量",
+                            "volume",
+                            "Volume",
+                            "VOLUME",
+                            "成交股数",
+                            "成交额",
+                        )
+                        or "0"
+                    )
                     all_rows.append(
                         {
                             "日期": date_str,
@@ -459,7 +494,11 @@ class IFindClient:
 
     def get_etf_quotes(self, codes: list[str]) -> dict[str, dict]:
         query = "、".join(codes)
-        result = self.call("fund", "get_fund_market_performance", {"query": f"{query}最新单位净值和涨跌幅"})
+        result = self.call(
+            "fund",
+            "get_fund_market_performance",
+            {"query": f"{query}最新单位净值和涨跌幅"},
+        )
         parsed = _parse_ifind_response(result)
         quotes = {}
         for row in parsed.get("tables", []):
@@ -480,7 +519,9 @@ class IFindClient:
 
     def get_etf_historical(self, code: str, days: int = 252) -> Optional[list[dict]]:
         result = self.call(
-            "fund", "get_fund_market_performance", {"query": f"{code}近{days}个交易日的单位净值、涨跌幅"}
+            "fund",
+            "get_fund_market_performance",
+            {"query": f"{code}近{days}个交易日的单位净值、涨跌幅"},
         )
         parsed = _parse_ifind_response(result)
         tables = parsed.get("tables", [])
@@ -508,7 +549,9 @@ class IFindClient:
                 continue
         return rows if rows else None
 
-    def get_index_historical(self, index_name: str, days: int = 252) -> Optional[list[dict]]:
+    def get_index_historical(
+        self, index_name: str, days: int = 252
+    ) -> Optional[list[dict]]:
         all_rows = []
         seen_dates = set()
 
@@ -521,7 +564,11 @@ class IFindClient:
             s = chunk_start.strftime("%Y%m%d")
             e = chunk_end.strftime("%Y%m%d")
 
-            result = self.call("index", "index_data", {"query": f"{index_name}从{s}到{e}的收盘价和成交额"})
+            result = self.call(
+                "index",
+                "index_data",
+                {"query": f"{index_name}从{s}到{e}的收盘价和成交额"},
+            )
             parsed = _parse_ifind_response(result)
             for row in parsed.get("tables", []):
                 date_str = (_col(row, "日期") or "").strip()
@@ -551,7 +598,9 @@ class IFindClient:
         return all_rows if all_rows else None
 
     def get_index_latest(self, index_name: str) -> Optional[dict]:
-        result = self.call("index", "index_data", {"query": f"{index_name}最新收盘价和涨跌幅"})
+        result = self.call(
+            "index", "index_data", {"query": f"{index_name}最新收盘价和涨跌幅"}
+        )
         parsed = _parse_ifind_response(result)
         tables = parsed.get("tables", [])
         if tables:
@@ -592,7 +641,11 @@ class IFindClient:
         codes_str = ",".join(codes)
         fields = "tradeDate;tradeTime;ms;preClose;open;high;low;latest;latestVolume;avgPrice;volume;change;changeSettle;changeRatio;changeRatioSettle;increasePositionVol;preSettlement;sellVolume;buyVolume;dailyIncreasePosition;swing;latest_price;settlement;dealDirection;dealtype;openInterest;positionDiff;capitalFlow;capitalDeposition;amplitude;upperLimit;downLimit;dealtypecode"
 
-        result = self.call("futures", "get_futures_realtime", {"query": f"{codes_str}", "fields": fields})
+        result = self.call(
+            "futures",
+            "get_futures_realtime",
+            {"query": f"{codes_str}", "fields": fields},
+        )
 
         parsed = _parse_ifind_response(result)
         tables = parsed.get("tables", [])
@@ -612,35 +665,143 @@ class IFindClient:
                     "tradeDate": _col(row, "tradeDate", "交易日期", "日期") or "",
                     "tradeTime": _col(row, "tradeTime", "交易时间", "时间") or "",
                     "ms": _col(row, "ms", "毫秒") or "",
-                    "preClose": float(_col(row, "preClose", "前收盘价", "昨收")) if _col(row, "preClose", "前收盘价", "昨收") else None,
-                    "open": float(_col(row, "open", "开盘价", "开盘")) if _col(row, "open", "开盘价", "开盘") else None,
-                    "high": float(_col(row, "high", "最高价", "最高")) if _col(row, "high", "最高价", "最高") else None,
-                    "low": float(_col(row, "low", "最低价", "最低")) if _col(row, "low", "最低价", "最低") else None,
-                    "latest": float(_col(row, "latest", "最新价", "现价")) if _col(row, "latest", "最新价", "现价") else None,
-                    "latestVolume": int(_col(row, "latestVolume", "现手")) if _col(row, "latestVolume", "现手") else None,
-                    "avgPrice": float(_col(row, "avgPrice", "均价")) if _col(row, "avgPrice", "均价") else None,
-                    "volume": float(_col(row, "volume", "成交量")) if _col(row, "volume", "成交量") else None,
-                    "change": float(_col(row, "change", "涨跌")) if _col(row, "change", "涨跌") else None,
-                    "changeSettle": float(_col(row, "changeSettle", "涨跌（结算价）")) if _col(row, "changeSettle", "涨跌（结算价）") else None,
-                    "changeRatio": float(_col(row, "changeRatio", "涨跌幅")) if _col(row, "changeRatio", "涨跌幅") else None,
-                    "changeRatioSettle": float(_col(row, "changeRatioSettle", "涨跌幅（结算价）")) if _col(row, "changeRatioSettle", "涨跌幅（结算价）") else None,
-                    "increasePositionVol": float(_col(row, "increasePositionVol", "增仓量")) if _col(row, "increasePositionVol", "增仓量") else None,
-                    "preSettlement": float(_col(row, "preSettlement", "昨结算价")) if _col(row, "preSettlement", "昨结算价") else None,
-                    "sellVolume": float(_col(row, "sellVolume", "内盘")) if _col(row, "sellVolume", "内盘") else None,
-                    "buyVolume": float(_col(row, "buyVolume", "外盘")) if _col(row, "buyVolume", "外盘") else None,
-                    "dailyIncreasePosition": float(_col(row, "dailyIncreasePosition", "日增仓")) if _col(row, "dailyIncreasePosition", "日增仓") else None,
-                    "swing": float(_col(row, "swing", "振幅")) if _col(row, "swing", "振幅") else None,
-                    "latest_price": float(_col(row, "latest_price", "最新成交价")) if _col(row, "latest_price", "最新成交价") else None,
-                    "settlement": float(_col(row, "settlement", "结算价")) if _col(row, "settlement", "结算价") else None,
+                    "preClose": (
+                        float(_col(row, "preClose", "前收盘价", "昨收"))
+                        if _col(row, "preClose", "前收盘价", "昨收")
+                        else None
+                    ),
+                    "open": (
+                        float(_col(row, "open", "开盘价", "开盘"))
+                        if _col(row, "open", "开盘价", "开盘")
+                        else None
+                    ),
+                    "high": (
+                        float(_col(row, "high", "最高价", "最高"))
+                        if _col(row, "high", "最高价", "最高")
+                        else None
+                    ),
+                    "low": (
+                        float(_col(row, "low", "最低价", "最低"))
+                        if _col(row, "low", "最低价", "最低")
+                        else None
+                    ),
+                    "latest": (
+                        float(_col(row, "latest", "最新价", "现价"))
+                        if _col(row, "latest", "最新价", "现价")
+                        else None
+                    ),
+                    "latestVolume": (
+                        int(_col(row, "latestVolume", "现手"))
+                        if _col(row, "latestVolume", "现手")
+                        else None
+                    ),
+                    "avgPrice": (
+                        float(_col(row, "avgPrice", "均价"))
+                        if _col(row, "avgPrice", "均价")
+                        else None
+                    ),
+                    "volume": (
+                        float(_col(row, "volume", "成交量"))
+                        if _col(row, "volume", "成交量")
+                        else None
+                    ),
+                    "change": (
+                        float(_col(row, "change", "涨跌"))
+                        if _col(row, "change", "涨跌")
+                        else None
+                    ),
+                    "changeSettle": (
+                        float(_col(row, "changeSettle", "涨跌（结算价）"))
+                        if _col(row, "changeSettle", "涨跌（结算价）")
+                        else None
+                    ),
+                    "changeRatio": (
+                        float(_col(row, "changeRatio", "涨跌幅"))
+                        if _col(row, "changeRatio", "涨跌幅")
+                        else None
+                    ),
+                    "changeRatioSettle": (
+                        float(_col(row, "changeRatioSettle", "涨跌幅（结算价）"))
+                        if _col(row, "changeRatioSettle", "涨跌幅（结算价）")
+                        else None
+                    ),
+                    "increasePositionVol": (
+                        float(_col(row, "increasePositionVol", "增仓量"))
+                        if _col(row, "increasePositionVol", "增仓量")
+                        else None
+                    ),
+                    "preSettlement": (
+                        float(_col(row, "preSettlement", "昨结算价"))
+                        if _col(row, "preSettlement", "昨结算价")
+                        else None
+                    ),
+                    "sellVolume": (
+                        float(_col(row, "sellVolume", "内盘"))
+                        if _col(row, "sellVolume", "内盘")
+                        else None
+                    ),
+                    "buyVolume": (
+                        float(_col(row, "buyVolume", "外盘"))
+                        if _col(row, "buyVolume", "外盘")
+                        else None
+                    ),
+                    "dailyIncreasePosition": (
+                        float(_col(row, "dailyIncreasePosition", "日增仓"))
+                        if _col(row, "dailyIncreasePosition", "日增仓")
+                        else None
+                    ),
+                    "swing": (
+                        float(_col(row, "swing", "振幅"))
+                        if _col(row, "swing", "振幅")
+                        else None
+                    ),
+                    "latest_price": (
+                        float(_col(row, "latest_price", "最新成交价"))
+                        if _col(row, "latest_price", "最新成交价")
+                        else None
+                    ),
+                    "settlement": (
+                        float(_col(row, "settlement", "结算价"))
+                        if _col(row, "settlement", "结算价")
+                        else None
+                    ),
                     "dealDirection": _col(row, "dealDirection", "成交方向") or "",
                     "dealtype": _col(row, "dealtype", "成交性质") or "",
-                    "openInterest": float(_col(row, "openInterest", "持仓量")) if _col(row, "openInterest", "持仓量") else None,
-                    "positionDiff": float(_col(row, "positionDiff", "仓差")) if _col(row, "positionDiff", "仓差") else None,
-                    "capitalFlow": float(_col(row, "capitalFlow", "资金流向")) if _col(row, "capitalFlow", "资金流向") else None,
-                    "capitalDeposition": float(_col(row, "capitalDeposition", "资金沉淀")) if _col(row, "capitalDeposition", "资金沉淀") else None,
-                    "amplitude": float(_col(row, "amplitude", "振幅")) if _col(row, "amplitude", "振幅") else None,
-                    "upperLimit": float(_col(row, "upperLimit", "涨停价")) if _col(row, "upperLimit", "涨停价") else None,
-                    "downLimit": float(_col(row, "downLimit", "跌停价")) if _col(row, "downLimit", "跌停价") else None,
+                    "openInterest": (
+                        float(_col(row, "openInterest", "持仓量"))
+                        if _col(row, "openInterest", "持仓量")
+                        else None
+                    ),
+                    "positionDiff": (
+                        float(_col(row, "positionDiff", "仓差"))
+                        if _col(row, "positionDiff", "仓差")
+                        else None
+                    ),
+                    "capitalFlow": (
+                        float(_col(row, "capitalFlow", "资金流向"))
+                        if _col(row, "capitalFlow", "资金流向")
+                        else None
+                    ),
+                    "capitalDeposition": (
+                        float(_col(row, "capitalDeposition", "资金沉淀"))
+                        if _col(row, "capitalDeposition", "资金沉淀")
+                        else None
+                    ),
+                    "amplitude": (
+                        float(_col(row, "amplitude", "振幅"))
+                        if _col(row, "amplitude", "振幅")
+                        else None
+                    ),
+                    "upperLimit": (
+                        float(_col(row, "upperLimit", "涨停价"))
+                        if _col(row, "upperLimit", "涨停价")
+                        else None
+                    ),
+                    "downLimit": (
+                        float(_col(row, "downLimit", "跌停价"))
+                        if _col(row, "downLimit", "跌停价")
+                        else None
+                    ),
                     "dealtypecode": _col(row, "dealtypecode", "成交性质编码") or "",
                 }
                 rows.append(row_data)
@@ -649,7 +810,9 @@ class IFindClient:
 
         return rows if rows else None
 
-    def search_news(self, query: str, time_start: str = "", time_end: str = "", size: int = 5) -> dict:
+    def search_news(
+        self, query: str, time_start: str = "", time_end: str = "", size: int = 5
+    ) -> dict:
         params = {"query": query, "size": size}
         if time_start:
             params["time_start"] = time_start
@@ -686,7 +849,13 @@ class IFindClient:
             return {}
 
         if indicators is None:
-            indicators = ["市盈率PE", "市净率PB", "净资产收益率ROE", "总市值", "流通市值"]
+            indicators = [
+                "市盈率PE",
+                "市净率PB",
+                "净资产收益率ROE",
+                "总市值",
+                "流通市值",
+            ]
 
         indicator_str = "、".join(indicators)
         date_suffix = f"在{report_date}的" if report_date else "最新"
@@ -707,7 +876,9 @@ class IFindClient:
             if not resp.get("ok"):
                 if resp.get("quota_exceeded"):
                     raise RuntimeError("quota_exceeded")
-                logger.warning("[IFind.fundamentals] %s 失败: %s", sym, resp.get("error", "")[:80])
+                logger.warning(
+                    "[IFind.fundamentals] %s 失败: %s", sym, resp.get("error", "")[:80]
+                )
                 return sym, {}
 
             data = resp.get("data", {})
@@ -793,7 +964,13 @@ class IFindClient:
             elif isinstance(v, str):
                 try:
                     # 处理 "12.34亿" / "12.34%" / "--" 等
-                    s = v.replace(",", "").replace("%", "").replace("亿", "").replace("万", "").strip()
+                    s = (
+                        v.replace(",", "")
+                        .replace("%", "")
+                        .replace("亿", "")
+                        .replace("万", "")
+                        .strip()
+                    )
                     if s in ("--", "-", "N/A", "NA", ""):
                         continue
                     val = float(s)

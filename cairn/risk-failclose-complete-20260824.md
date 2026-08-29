@@ -51,3 +51,14 @@ daily_trade_executor 建仓结果不写回 trade_plan, 与下游 live_scheduler/
 
 - DTE-6 与 UE-1 (统一实盘门控) 互补: UE-1 管撮合/下单入口, DTE-6 管自动确认入口。
 - 当前系统 TRADING_ENV 默认 sim, DTE-6 不激活, 不影响现有手动确认流程; 设 shadow/production 后自动激活。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查明细 — daily_trade_executor (2026-08-24)](code-review-daily-executor-20260824.md) (相似度 35%)
+- [UE-1 统一实盘门控 (2026-08-24)](ue1-live-gate-20260824.md) (相似度 15%)
+- [运维部署 + 灰度发布 (2026-08-24)](ops-gray-release-20260824.md) (相似度 14%)
+- [DTE-1 建仓接入 FillsStore 事实源 (2026-08-24)](dte1-build-fills-store-20260824.md) (相似度 14%)
+- [G1 QMT 真实下单接线 (2026-08-24)](g1-qmt-wiring-20260824.md) (相似度 13%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

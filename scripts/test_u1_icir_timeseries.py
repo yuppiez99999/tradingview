@@ -48,6 +48,7 @@ from utils.alpha_factor.library import AlphaFactorLibrary
 # 1. 合成价格序列（已知因子-收益关系 → 验证 IC 数值区间）
 # ---------------------------------------------------------------------------
 
+
 def make_synthetic_price_data(
     n_stocks: int = 50,
     n_days: int = 90,
@@ -91,7 +92,9 @@ def make_synthetic_price_data(
     return price_data
 
 
-def synthetic_mom20_factor(price_data: dict[str, dict[str, list[float]]]) -> dict[str, float]:
+def synthetic_mom20_factor(
+    price_data: dict[str, dict[str, list[float]]],
+) -> dict[str, float]:
     """滚动窗口 replay 用: 单截面 20 日动量因子 (纯 closes[-1]/closes[-20]-1)
 
     与 price_volume.py 的 MOM_20D 公式一致, 便于对齐单点 vs 时序结果.
@@ -107,6 +110,7 @@ def synthetic_mom20_factor(price_data: dict[str, dict[str, list[float]]]) -> dic
 # ---------------------------------------------------------------------------
 # 2. 主测试流程
 # ---------------------------------------------------------------------------
+
 
 def main() -> int:
     print("=" * 72)
@@ -131,7 +135,9 @@ def main() -> int:
     # 非负样本/非零值检查
     first_cross_keys = len(fw_5[0])
     last_cross_keys = len(fw_5[-1])
-    print(f"  第 0 横截面覆盖标的数 = {first_cross_keys} / 第 -1 横截面 = {last_cross_keys}")
+    print(
+        f"  第 0 横截面覆盖标的数 = {first_cross_keys} / 第 -1 横截面 = {last_cross_keys}"
+    )
     assert first_cross_keys == len(syms), "首日横截面未覆盖全标的"
 
     # 语义正确性: 取 STK0000 的 closes 手动验证 t=0 的 forward 5 日收益
@@ -139,8 +145,9 @@ def main() -> int:
     c0 = price_data[s0]["closes"]
     expect_t0_5d = c0[5] / c0[0] - 1.0
     got_t0_5d = fw_5[0][s0]
-    assert math.isclose(expect_t0_5d, got_t0_5d, rel_tol=1e-9), \
-        f"语义错误: 期望 {expect_t0_5d}, 得到 {got_t0_5d}"
+    assert math.isclose(
+        expect_t0_5d, got_t0_5d, rel_tol=1e-9
+    ), f"语义错误: 期望 {expect_t0_5d}, 得到 {got_t0_5d}"
     print(f"  语义对齐: {s0} t=0→5 收益 = {got_t0_5d:+.6f} (手动一致 ✓)")
 
     # ---------- 2.3 build_factor_history_from_prices 检查 ----------
@@ -172,13 +179,15 @@ def main() -> int:
     t_end_inclusive = min_len - forward - 1  # = 90 - 5 - 1 = 84
     T_aligned = t_end_inclusive - t_start + 1
     factor_hist_raw = build_factor_history_from_prices(
-        price_data, synthetic_mom20_factor, warmup_window=warmup,
+        price_data,
+        synthetic_mom20_factor,
+        warmup_window=warmup,
     )["factor"]
     # factor_hist_raw 索引 i=0..N-1 对应 t=warmup..min_len-1
     # 需要其前缀 i=0..T_aligned-1 对应 t=warmup..warmup+T_aligned-1 = t_start..t_end_inclusive
     factor_hist_25 = factor_hist_raw[:T_aligned]
     # fw 索引 j = t (0..len(fw)-1), 需要 j ∈ [t_start..t_end_inclusive]
-    fw_5_aligned = fw[t_start: t_end_inclusive + 1]
+    fw_5_aligned = fw[t_start : t_end_inclusive + 1]
     print(f"\n[长度对齐] warmup={warmup} + forward={forward} (语义对齐 t'=t):")
     print(f"  公共有效 t ∈ [{t_start}, {t_end_inclusive}] → T_aligned = {T_aligned}")
     print(f"  factor_hist_25 (因子前缀 T 段) len = {len(factor_hist_25)}")
@@ -197,16 +206,24 @@ def main() -> int:
     # 合成数据的 MOM 方向: beta 偶数股=正, 奇数股=负; MOM_20D 值越高=越涨
     # forward 5 日收益也由 beta 决定 → 理论上应为正相关 IC
     print("  → 合成数据 beta 的方向性验证: IC 均值应>0 (预期动量有效)")
-    print(f"    实际 = {ic_mean:+.4f} {'✓ 方向符合' if ic_mean > 0 else '⚠ 方向异常 (合成数据噪声导致属正常)'}")
+    print(
+        f"    实际 = {ic_mean:+.4f} {'✓ 方向符合' if ic_mean > 0 else '⚠ 方向异常 (合成数据噪声导致属正常)'}"
+    )
 
     # ---------- 2.6 evaluate_factors 双模式对比 ----------
     # 构建一个 FactorLibraryResult: 放 MOM_20D 单点横截面 + 时序历史
-    mom20_now = synthetic_mom20_factor(price_data)  # 用全量 price_data 的单点 = t=89 横截面
+    mom20_now = synthetic_mom20_factor(
+        price_data
+    )  # 用全量 price_data 的单点 = t=89 横截面
     fval_ts = FactorValue(
-        name="MOM_20D_ts", category="Momentum", values=dict(mom20_now),
+        name="MOM_20D_ts",
+        category="Momentum",
+        values=dict(mom20_now),
     )
     fval_sp = FactorValue(
-        name="MOM_20D_sp", category="Momentum", values=dict(mom20_now),
+        name="MOM_20D_sp",
+        category="Momentum",
+        values=dict(mom20_now),
     )
     result = FactorLibraryResult()
     result.factors = {"MOM_20D_ts": fval_ts, "MOM_20D_sp": fval_sp}
@@ -216,9 +233,10 @@ def main() -> int:
         "MOM_20D_ts": factor_hist_25,  # 65 天, 对应 warmup=25..89
     }
     # forward 返回 65 天对齐版本 (25:25+65)
-    forward_history_aligned = fw_5[25: 25 + len(factor_hist_25)]
+    forward_history_aligned = fw_5[25 : 25 + len(factor_hist_25)]
     evaluate_factors(
-        result, price_data,
+        result,
+        price_data,
         factor_history=factor_history_map,
         forward_returns_history=forward_history_aligned,
     )
@@ -226,8 +244,12 @@ def main() -> int:
     for name in ("MOM_20D_ts", "MOM_20D_sp"):
         fv = result.factors[name]
         print(f"  {name} (mode={fv.ic_mode}):")
-        print(f"    ic_1d={fv.ic_1d:+.4f}  ic_5d={fv.ic_5d:+.4f}  ic_20d={fv.ic_20d:+.4f}")
-        print(f"    ic_ir={fv.ic_ir:+.3f}  ic_mean_raw={fv.ic_mean_raw:+.4f}  ic_n_samples={fv.ic_n_samples}")
+        print(
+            f"    ic_1d={fv.ic_1d:+.4f}  ic_5d={fv.ic_5d:+.4f}  ic_20d={fv.ic_20d:+.4f}"
+        )
+        print(
+            f"    ic_ir={fv.ic_ir:+.3f}  ic_mean_raw={fv.ic_mean_raw:+.4f}  ic_n_samples={fv.ic_n_samples}"
+        )
     # 断言 ic_mode 正确
     assert result.factors["MOM_20D_ts"].ic_mode == "timeseries", "时序模式标识错误"
     assert result.factors["MOM_20D_sp"].ic_mode == "single_point", "单点模式标识错误"
@@ -244,35 +266,53 @@ def main() -> int:
     t_start_lib = warmup_lib
     t_end_lib = min_len - forward_lib - 1
     T_lib = t_end_lib - t_start_lib + 1
+
     def _compute_mom20(pd_slice):
         # 返回 FactorValue (name=MOM_20D) 让构造器字典化时保留因子名, 而非落到默认 "factor"
         from utils.alpha_factor.base import FactorValue
-        return FactorValue(name="MOM_20D", category="Momentum",
-                           values=synthetic_mom20_factor(pd_slice))
+
+        return FactorValue(
+            name="MOM_20D", category="Momentum", values=synthetic_mom20_factor(pd_slice)
+        )
+
     fh_mom_raw = build_factor_history_from_prices(
-        price_data, _compute_mom20, warmup_window=warmup_lib,
+        price_data,
+        _compute_mom20,
+        warmup_window=warmup_lib,
     )
     fh_mom = {k: v[:T_lib] for k, v in fh_mom_raw.items()}
     fw_5_full = build_forward_returns_history(price_data, forward_window=forward_lib)
-    forward_history_lib = fw_5_full[t_start_lib: t_end_lib + 1]
+    forward_history_lib = fw_5_full[t_start_lib : t_end_lib + 1]
     result_lib = lib.compute_all(
-        price_data, fundamentals={}, industries={},
+        price_data,
+        fundamentals={},
+        industries={},
         factor_history=fh_mom,
         forward_returns_history=forward_history_lib,
     )
     # 诊断: 确认 fh_mom 是否正确传入
-    print(f"  [诊断] 传入 fh_mom 键数 = {len(fh_mom)}, MOM_20D 序列 = {len(fh_mom.get('MOM_20D', []))}")
+    print(
+        f"  [诊断] 传入 fh_mom 键数 = {len(fh_mom)}, MOM_20D 序列 = {len(fh_mom.get('MOM_20D', []))}"
+    )
     print(f"  [诊断] 传入 forward_history_lib 长度 = {len(forward_history_lib)}")
     mom20 = result_lib.factors.get("MOM_20D")
     if mom20:
-        print(f"  MOM_20D mode={mom20.ic_mode}  ic_ir={mom20.ic_ir:+.3f}  "
-              f"ic_5d={mom20.ic_5d:+.4f}  n_samples={mom20.ic_n_samples}")
+        print(
+            f"  MOM_20D mode={mom20.ic_mode}  ic_ir={mom20.ic_ir:+.3f}  "
+            f"ic_5d={mom20.ic_5d:+.4f}  n_samples={mom20.ic_n_samples}"
+        )
     # 所有因子都至少 ic_mode ∈ ("timeseries", "single_point", "none")
     modes = sorted({fv.ic_mode for fv in result_lib.factors.values()})
     print(f"  因子数 = {len(result_lib.factors)}  ic_mode 分布 = {modes}")
-    ts_count = sum(1 for fv in result_lib.factors.values() if fv.ic_mode == "timeseries")
-    sp_count = sum(1 for fv in result_lib.factors.values() if fv.ic_mode == "single_point")
-    print(f"  时序模式 = {ts_count} (仅在 factor_history 提供的因子)   单点降级 = {sp_count}")
+    ts_count = sum(
+        1 for fv in result_lib.factors.values() if fv.ic_mode == "timeseries"
+    )
+    sp_count = sum(
+        1 for fv in result_lib.factors.values() if fv.ic_mode == "single_point"
+    )
+    print(
+        f"  时序模式 = {ts_count} (仅在 factor_history 提供的因子)   单点降级 = {sp_count}"
+    )
     assert ts_count >= 1, "至少 MOM_20D 应为时序模式"
     assert sp_count >= 1, "其余因子应单点降级 (未提供 factor_history)"
     print("  library.compute_all 端到端 ✓")
@@ -281,11 +321,17 @@ def main() -> int:
     print("\n" + "=" * 72)
     print("U1 · 时序 IC/ICIR 验证 · 全部断言通过 ✓")
     print("=" * 72)
-    print("  构造器: build_forward_returns_history / build_factor_history_from_prices 长度对齐 ✓")
+    print(
+        "  构造器: build_forward_returns_history / build_factor_history_from_prices 长度对齐 ✓"
+    )
     print("  语义: closes[t+5]/closes[t]-1 精确匹配 ✓")
-    print(f"  时序 IC: MOM_20D × forward=5d  样本 {n_valid}≥20  IC 均值 {ic_mean:+.4f} ✓")
+    print(
+        f"  时序 IC: MOM_20D × forward=5d  样本 {n_valid}≥20  IC 均值 {ic_mean:+.4f} ✓"
+    )
     print("  evaluate_factors 双模式: timeseries / single_point 标识正确 ✓")
-    print(f"  library.compute_all 端到端: {ts_count} 因子走时序, {sp_count} 因子降级单点 ✓")
+    print(
+        f"  library.compute_all 端到端: {ts_count} 因子走时序, {sp_count} 因子降级单点 ✓"
+    )
     return 0
 
 

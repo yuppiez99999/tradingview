@@ -47,15 +47,15 @@ class GARCHResult:
     omega: float
     alpha: float
     beta: float
-    persistence: float                 # α + β (越接近 1 则波动率持续性越强)
-    long_run_vol: float                # 无条件波动率 (年化)
-    conditional_vol: list[float]       # 条件波动率序列 (每日)
-    forecast_vol: float                # 向前 1 步条件波动率预测 (年化)
-    forecast_variance: float           # 向前 1 步条件方差
-    log_likelihood: float              # 最大对数似然值
-    converged: bool                    # 是否成功拟合
-    fitted_days: int                   # 有效拟合天数
-    error_message: str = ""            # 收敛失败原因
+    persistence: float  # α + β (越接近 1 则波动率持续性越强)
+    long_run_vol: float  # 无条件波动率 (年化)
+    conditional_vol: list[float]  # 条件波动率序列 (每日)
+    forecast_vol: float  # 向前 1 步条件波动率预测 (年化)
+    forecast_variance: float  # 向前 1 步条件方差
+    log_likelihood: float  # 最大对数似然值
+    converged: bool  # 是否成功拟合
+    fitted_days: int  # 有效拟合天数
+    error_message: str = ""  # 收敛失败原因
 
     @property
     def half_life_days(self) -> float:
@@ -71,8 +71,8 @@ class VolComparisonReport:
 
     date: str
     garch_vol: float
-    ewma_vol: float                   # EWMA(λ=0.94) 波动率
-    garch_vs_ewma_ratio: float        # GARCH/EWMA 比率
+    ewma_vol: float  # EWMA(λ=0.94) 波动率
+    garch_vs_ewma_ratio: float  # GARCH/EWMA 比率
     garch_persistence: float
     garch_converged: bool
     ewma_lambda: float = 0.94
@@ -161,9 +161,7 @@ def _fine_grid(center: float, n_samples: int) -> list[float]:
     return [lo + step * i for i in range(6)]
 
 
-def _garch_loglik(
-    eps2: list[float], omega: float, alpha: float, beta: float
-) -> float:
+def _garch_loglik(eps2: list[float], omega: float, alpha: float, beta: float) -> float:
     """计算 GARCH(1,1) 对数似然
 
     LL = -½ Σ [ln(σ²_t) + ε²_t / σ²_t]

@@ -45,9 +45,11 @@ from utils.execution.broker_adapters import (  # noqa: E402
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def ths_dry_run():
     return ThsBrokerAdapter({"live": False, "mode": "ifind", "account": "test"})
+
 
 @pytest.fixture
 def xueqiu_dry_run():
@@ -58,9 +60,11 @@ def xueqiu_dry_run():
 # 基类加载
 # ============================================================
 
+
 class TestLoadBaseAdapter:
     def _reset_cache(self):
         import utils.execution.broker_adapters as ba
+
         ba._BASE_AVAILABLE = False
         ba._BASE_LOAD_ERROR = None
         sys.modules.pop("_v83_broker_adapter", None)
@@ -70,7 +74,10 @@ class TestLoadBaseAdapter:
 
     def test_load_missing_path(self, monkeypatch):
         self._reset_cache()
-        monkeypatch.setattr("utils.execution.broker_adapters._broker_adapter_path", Path("/nonexistent/broker.py"))
+        monkeypatch.setattr(
+            "utils.execution.broker_adapters._broker_adapter_path",
+            Path("/nonexistent/broker.py"),
+        )
         result = _load_base_adapter_classes()
         assert result is False
 
@@ -79,32 +86,44 @@ class TestLoadBaseAdapter:
 
         def fake_spec(*args, **kwargs):
             return None
+
         monkeypatch.setattr(importlib.util, "spec_from_file_location", fake_spec)
         result = _load_base_adapter_classes()
         assert result is False
 
     def test_load_import_error(self, monkeypatch):
         self._reset_cache()
-        path = PROJECT_ROOT / "v8.3_institutional" / "src" / "bridges" / "broker_adapter.py"
+        path = (
+            PROJECT_ROOT
+            / "v8.3_institutional"
+            / "src"
+            / "bridges"
+            / "broker_adapter.py"
+        )
         if not path.exists():
             pytest.skip("broker_adapter.py not found")
-        monkeypatch.setattr("utils.execution.broker_adapters._broker_adapter_path", path)
+        monkeypatch.setattr(
+            "utils.execution.broker_adapters._broker_adapter_path", path
+        )
         monkeypatch.setattr("utils.execution.broker_adapters._BASE_AVAILABLE", False)
         monkeypatch.setattr("utils.execution.broker_adapters._BASE_LOAD_ERROR", None)
         # Corrupt module to force error
         import tempfile
+
         bad = Path(tempfile.gettempdir()) / "bad_broker_adapter.py"
         bad.write_text("raise ImportError('forced')", encoding="utf-8")
         monkeypatch.setattr("utils.execution.broker_adapters._broker_adapter_path", bad)
         result = _load_base_adapter_classes()
         assert result is False
         import utils.execution.broker_adapters as ba
+
         assert "ImportError" in (ba._BASE_LOAD_ERROR or "")
 
 
 # ============================================================
 # 异常类
 # ============================================================
+
 
 class TestExceptions:
     def test_broker_adapter_error(self):
@@ -125,6 +144,7 @@ class TestExceptions:
 # ============================================================
 # ThsBrokerAdapter 干跑测试
 # ============================================================
+
 
 class TestThsBrokerAdapterDryRun:
     def test_create_default(self):
@@ -176,6 +196,7 @@ class TestThsBrokerAdapterDryRun:
 # _BaseLiveAdapter 初始化
 # ============================================================
 
+
 class TestBaseLiveAdapterInit:
     def test_base_init_dry_run(self, tmp_path):
         config = {"live": False, "audit_log_dir": str(tmp_path / "audit")}
@@ -201,6 +222,7 @@ class TestBaseLiveAdapterInit:
 # _BaseLiveAdapter connect / disconnect
 # ============================================================
 
+
 class TestBaseLiveAdapterConnect:
     def test_connect_dry_run_returns_true(self):
         adapter = _BaseLiveAdapter("test", {"live": False})
@@ -224,6 +246,7 @@ class TestBaseLiveAdapterConnect:
 # ============================================================
 # _BaseLiveAdapter submit_order
 # ============================================================
+
 
 class TestBaseLiveAdapterSubmitOrder:
     def test_submit_order_not_connected_raises(self):
@@ -257,6 +280,7 @@ class TestBaseLiveAdapterSubmitOrder:
 # _BaseLiveAdapter 风控
 # ============================================================
 
+
 class TestBaseLiveAdapterRisk:
     def test_pre_trade_check_dry_run(self):
         adapter = _BaseLiveAdapter("test", {"live": False})
@@ -289,6 +313,7 @@ class TestBaseLiveAdapterRisk:
 # _BaseLiveAdapter 审计
 # ============================================================
 
+
 class TestBaseLiveAdapterAudit:
     def test_audit_writes_jsonl(self, tmp_path):
         config = {"live": False, "audit_log_dir": str(tmp_path / "audit")}
@@ -306,6 +331,7 @@ class TestBaseLiveAdapterAudit:
 # ============================================================
 # ThsBrokerAdapter
 # ============================================================
+
 
 class TestThsBrokerAdapter:
     def test_init_defaults(self):
@@ -334,7 +360,9 @@ class TestThsBrokerAdapter:
         assert result is False
 
     def test_connect_ifind_with_creds(self):
-        adapter = ThsBrokerAdapter({"live": True, "mode": "ifind", "account": "acc", "password": "pass"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "ifind", "account": "acc", "password": "pass"}
+        )
         result = adapter._connect_ifind()
         assert result is True
         assert adapter._api_client is not None
@@ -345,7 +373,9 @@ class TestThsBrokerAdapter:
         assert result is False
 
     def test_connect_gui_with_path(self):
-        adapter = ThsBrokerAdapter({"live": True, "mode": "gui", "client_path": "C:/ths"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "gui", "client_path": "C:/ths"}
+        )
         result = adapter._connect_gui()
         assert result is True
 
@@ -373,6 +403,7 @@ class TestThsBrokerAdapter:
 # ============================================================
 # XueqiuBrokerAdapter
 # ============================================================
+
 
 class TestXueqiuBrokerAdapter:
     def test_init_defaults(self):
@@ -417,7 +448,9 @@ class TestXueqiuBrokerAdapter:
         assert result is False
 
     def test_submit_order_unknown_mode(self):
-        adapter = XueqiuBrokerAdapter({"live": False, "mode": "unknown", "cookies": "c"})
+        adapter = XueqiuBrokerAdapter(
+            {"live": False, "mode": "unknown", "cookies": "c"}
+        )
         adapter.connect()
         order = MagicMock()
         order.status = None
@@ -429,6 +462,7 @@ class TestXueqiuBrokerAdapter:
 # ============================================================
 # CtpFuturesAdapter
 # ============================================================
+
 
 class TestCtpFuturesAdapter:
     def test_init_defaults(self):
@@ -443,14 +477,28 @@ class TestCtpFuturesAdapter:
         assert adapter._next_order_ref() == "2"
 
     def test_connect_no_ctp_lib(self, monkeypatch):
-        monkeypatch.setattr("utils.execution.broker_adapters.CtpFuturesAdapter._import_ctp_tdapi", staticmethod(lambda: None))
+        monkeypatch.setattr(
+            "utils.execution.broker_adapters.CtpFuturesAdapter._import_ctp_tdapi",
+            staticmethod(lambda: None),
+        )
         adapter = CtpFuturesAdapter({"live": True})
         result = adapter._do_connect()
         assert result is False
 
     def test_connect_missing_params(self, monkeypatch):
-        monkeypatch.setattr("utils.execution.broker_adapters.CtpFuturesAdapter._import_ctp_tdapi", staticmethod(lambda: MagicMock()))
-        adapter = CtpFuturesAdapter({"live": True, "broker_id": "", "user_id": "", "password": "", "td_address": ""})
+        monkeypatch.setattr(
+            "utils.execution.broker_adapters.CtpFuturesAdapter._import_ctp_tdapi",
+            staticmethod(lambda: MagicMock()),
+        )
+        adapter = CtpFuturesAdapter(
+            {
+                "live": True,
+                "broker_id": "",
+                "user_id": "",
+                "password": "",
+                "td_address": "",
+            }
+        )
         result = adapter._do_connect()
         assert result is False
 
@@ -458,6 +506,7 @@ class TestCtpFuturesAdapter:
 # ============================================================
 # 工厂函数
 # ============================================================
+
 
 class TestFactoryFunctions:
     def test_list_supported_brokers(self):
@@ -489,14 +538,19 @@ class TestFactoryFunctions:
 
             def _do_connect(self):
                 return True
+
             def _do_submit_order(self, order):
                 return True
+
             def _do_cancel_order(self, order_id):
                 return True
+
             def _do_get_positions(self):
                 return []
+
             def _do_get_account_info(self):
                 return {}
+
             def _do_get_market_data(self, symbol, period, count):
                 return {}
 
@@ -508,6 +562,7 @@ class TestFactoryFunctions:
     def test_register_non_subclass_raises(self):
         class NotAnAdapter:
             pass
+
         with pytest.raises(TypeError, match="adapter_class 必须继承 _BaseLiveAdapter"):
             register_broker_adapter("bad", NotAnAdapter)
 
@@ -516,9 +571,11 @@ class TestFactoryFunctions:
 # 补充: _load_base_adapter_classes 已加载早退
 # ============================================================
 
+
 class TestLoadBaseAdapterEarlyExit:
     def test_already_loaded_returns_true(self):
         import utils.execution.broker_adapters as ba
+
         was = ba._BASE_AVAILABLE
         ba._BASE_AVAILABLE = True
         try:
@@ -531,11 +588,16 @@ class TestLoadBaseAdapterEarlyExit:
 # 补充: _BaseLiveAdapter 基类不可用
 # ============================================================
 
+
 class TestBaseUnavailable:
     def test_init_raises_when_base_unavailable(self, monkeypatch):
         monkeypatch.setattr("utils.execution.broker_adapters._BASE_AVAILABLE", False)
-        monkeypatch.setattr("utils.execution.broker_adapters._load_base_adapter_classes", lambda: False)
-        monkeypatch.setattr("utils.execution.broker_adapters._BASE_LOAD_ERROR", "forced unavailable")
+        monkeypatch.setattr(
+            "utils.execution.broker_adapters._load_base_adapter_classes", lambda: False
+        )
+        monkeypatch.setattr(
+            "utils.execution.broker_adapters._BASE_LOAD_ERROR", "forced unavailable"
+        )
         with pytest.raises(BrokerAdapterError, match="BrokerAdapter 基类不可用"):
             _BaseLiveAdapter("test", {"live": False})
 
@@ -543,6 +605,7 @@ class TestBaseUnavailable:
 # ============================================================
 # 补充: _BaseLiveAdapter disconnect / submit_order / cancel_order 异常分支
 # ============================================================
+
 
 class TestBaseDisconnectException:
     def test_disconnect_do_disconnect_raises(self):
@@ -694,7 +757,9 @@ class TestBaseGetMarketData:
     def test_success(self):
         adapter = _BaseLiveAdapter("test", {"live": False})
         adapter.connect()
-        adapter._do_get_market_data = MagicMock(return_value={"symbol": "600000", "data": [1, 2, 3]})
+        adapter._do_get_market_data = MagicMock(
+            return_value={"symbol": "600000", "data": [1, 2, 3]}
+        )
         result = adapter.get_market_data("600000")
         assert result["data"] == [1, 2, 3]
 
@@ -709,6 +774,7 @@ class TestBaseGetMarketData:
 # ============================================================
 # 补充: _pre_trade_check 市价单估价分支
 # ============================================================
+
 
 class TestPreTradeCheckMarketOrder:
     def test_market_order_with_ref_price(self):
@@ -741,11 +807,14 @@ class TestPreTradeCheckMarketOrder:
 # 补充: _audit OSError
 # ============================================================
 
+
 class TestAuditOSError:
     def test_audit_write_fails(self, tmp_path, monkeypatch):
         config = {"live": False, "audit_log_dir": str(tmp_path / "audit")}
         adapter = _BaseLiveAdapter("test", config)
-        monkeypatch.setattr("builtins.open", MagicMock(side_effect=OSError("disk full")))
+        monkeypatch.setattr(
+            "builtins.open", MagicMock(side_effect=OSError("disk full"))
+        )
         # 不应抛异常
         adapter._audit("test_event", {"k": "v"})
 
@@ -754,6 +823,7 @@ class TestAuditOSError:
 # 补充: ThsBrokerAdapter 实盘模式
 # ============================================================
 
+
 class TestThsLiveMode:
     def test_do_connect_unsupported_mode(self):
         adapter = ThsBrokerAdapter({"live": True, "mode": "unknown"})
@@ -761,7 +831,9 @@ class TestThsLiveMode:
 
     def test_connect_ifind_import_error(self, monkeypatch):
         """_connect_ifind 内部 ImportError (494-496)."""
-        adapter = ThsBrokerAdapter({"live": True, "mode": "ifind", "account": "a", "password": "p"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "ifind", "account": "a", "password": "p"}
+        )
         # 模拟 iFinDPy 导入失败: 让 logger.warning 之后的代码抛 ImportError
         # 实际_connect_ifind 在有凭证时直接返回 True, 不会触发 ImportError
         # 要触发 ImportError 需要让 self.account 或 self.password 检查后抛
@@ -777,8 +849,13 @@ class TestThsLiveMode:
 
         通过让 logger.info 抛异常来触发 except 分支 (凭证有效时走 info 路径).
         """
-        adapter = ThsBrokerAdapter({"live": True, "mode": "ifind", "account": "a", "password": "p"})
-        monkeypatch.setattr("utils.execution.broker_adapters.logger.info", MagicMock(side_effect=RuntimeError("rt")))
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "ifind", "account": "a", "password": "p"}
+        )
+        monkeypatch.setattr(
+            "utils.execution.broker_adapters.logger.info",
+            MagicMock(side_effect=RuntimeError("rt")),
+        )
         result = adapter._connect_ifind()
         assert result is False
 
@@ -787,21 +864,30 @@ class TestThsLiveMode:
 
         通过让 logger.info 抛异常来触发 except 分支 (client_path 有效时走 info 路径).
         """
-        adapter = ThsBrokerAdapter({"live": True, "mode": "gui", "client_path": "C:/ths"})
-        monkeypatch.setattr("utils.execution.broker_adapters.logger.info", MagicMock(side_effect=RuntimeError("gui")))
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "gui", "client_path": "C:/ths"}
+        )
+        monkeypatch.setattr(
+            "utils.execution.broker_adapters.logger.info",
+            MagicMock(side_effect=RuntimeError("gui")),
+        )
         result = adapter._connect_gui()
         assert result is False
 
     def test_do_disconnect_with_gui_client(self):
         """_do_disconnect 清理 gui_client (532-534)."""
-        adapter = ThsBrokerAdapter({"live": True, "mode": "gui", "client_path": "C:/ths"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "gui", "client_path": "C:/ths"}
+        )
         adapter._gui_client = {"client_path": "C:/ths"}
         adapter._do_disconnect()
         assert adapter._gui_client is None
 
     def test_do_submit_order_ifind(self):
         """ifind 模式下单 (539-552)."""
-        adapter = ThsBrokerAdapter({"live": True, "mode": "ifind", "account": "a", "password": "p"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "ifind", "account": "a", "password": "p"}
+        )
         adapter._api_client = {"account": "a"}
         order = MagicMock()
         order.symbol = "600000"
@@ -813,7 +899,9 @@ class TestThsLiveMode:
 
     def test_do_submit_order_gui(self):
         """gui 模式下单 (553-564)."""
-        adapter = ThsBrokerAdapter({"live": True, "mode": "gui", "client_path": "C:/ths"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "gui", "client_path": "C:/ths"}
+        )
         adapter._gui_client = {"client_path": "C:/ths"}
         order = MagicMock()
         order.symbol = "600000"
@@ -835,12 +923,16 @@ class TestThsLiveMode:
         assert order.status.value == "REJECTED"
 
     def test_do_cancel_order_ifind(self):
-        adapter = ThsBrokerAdapter({"live": True, "mode": "ifind", "account": "a", "password": "p"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "ifind", "account": "a", "password": "p"}
+        )
         adapter._api_client = {"account": "a"}
         assert adapter._do_cancel_order("O1") is True
 
     def test_do_cancel_order_gui(self):
-        adapter = ThsBrokerAdapter({"live": True, "mode": "gui", "client_path": "C:/ths"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "gui", "client_path": "C:/ths"}
+        )
         adapter._gui_client = {"client_path": "C:/ths"}
         assert adapter._do_cancel_order("O1") is True
 
@@ -853,7 +945,9 @@ class TestThsLiveMode:
         assert adapter._do_get_positions() == []
 
     def test_do_get_positions_with_client(self):
-        adapter = ThsBrokerAdapter({"live": True, "mode": "ifind", "account": "a", "password": "p"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "ifind", "account": "a", "password": "p"}
+        )
         adapter._api_client = {"account": "a"}
         assert adapter._do_get_positions() == []
 
@@ -863,7 +957,9 @@ class TestThsLiveMode:
         assert info["ready"] is False
 
     def test_do_get_account_info_with_client(self):
-        adapter = ThsBrokerAdapter({"live": True, "mode": "ifind", "account": "a", "password": "p"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "ifind", "account": "a", "password": "p"}
+        )
         adapter._api_client = {"account": "a"}
         info = adapter._do_get_account_info()
         assert info["ready"] is True
@@ -874,7 +970,9 @@ class TestThsLiveMode:
         assert "error" in result
 
     def test_do_get_market_data_with_client(self):
-        adapter = ThsBrokerAdapter({"live": True, "mode": "ifind", "account": "a", "password": "p"})
+        adapter = ThsBrokerAdapter(
+            {"live": True, "mode": "ifind", "account": "a", "password": "p"}
+        )
         adapter._api_client = {"account": "a"}
         result = adapter._do_get_market_data("600000", "1d", 100)
         assert result["source"] == "ifind"
@@ -884,12 +982,17 @@ class TestThsLiveMode:
 # 补充: XueqiuBrokerAdapter 实盘模式
 # ============================================================
 
+
 class TestXueqiuLiveMode:
     def test_do_connect_exception(self, monkeypatch):
         """_do_connect 异常分支 (659-663)."""
         adapter = XueqiuBrokerAdapter({"live": True, "cookies": "c"})
         # 让 self.cookies 检查后抛异常
-        monkeypatch.setattr(adapter, "cookies", property(lambda self: (_ for _ in ()).throw(RuntimeError("xq"))))
+        monkeypatch.setattr(
+            adapter,
+            "cookies",
+            property(lambda self: (_ for _ in ()).throw(RuntimeError("xq"))),
+        )
         assert adapter._do_connect() is False
 
     def test_do_disconnect(self):
@@ -900,7 +1003,9 @@ class TestXueqiuLiveMode:
 
     def test_do_submit_order_portfolio(self):
         """portfolio 模式下单 (677-689)."""
-        adapter = XueqiuBrokerAdapter({"live": True, "mode": "portfolio", "cookies": "c"})
+        adapter = XueqiuBrokerAdapter(
+            {"live": True, "mode": "portfolio", "cookies": "c"}
+        )
         adapter._session = {"cookies": "c"}
         order = MagicMock()
         order.symbol = "600000"
@@ -912,7 +1017,9 @@ class TestXueqiuLiveMode:
 
     def test_do_submit_order_broker_with_config(self):
         """broker 模式 + broker 配置 (690-707)."""
-        adapter = XueqiuBrokerAdapter({"live": True, "mode": "broker", "cookies": "c", "broker": "东方财富"})
+        adapter = XueqiuBrokerAdapter(
+            {"live": True, "mode": "broker", "cookies": "c", "broker": "东方财富"}
+        )
         adapter._session = {"cookies": "c"}
         order = MagicMock()
         order.symbol = "600000"
@@ -976,6 +1083,7 @@ class TestXueqiuLiveMode:
 # 补充: CtpFuturesAdapter 实盘模式
 # ============================================================
 
+
 class TestCtpLiveMode:
     def test_import_ctp_tdapi_import_error(self):
         """openctp_ctp 未安装 → 返回 None (787-793)."""
@@ -992,25 +1100,37 @@ class TestCtpLiveMode:
             "utils.execution.broker_adapters.CtpFuturesAdapter._import_ctp_tdapi",
             staticmethod(lambda: tdapi_mock),
         )
-        adapter = CtpFuturesAdapter({
-            "live": True, "broker_id": "9999", "user_id": "u", "password": "p",
-            "td_address": "tcp://127.0.0.1:41205",
-        })
+        adapter = CtpFuturesAdapter(
+            {
+                "live": True,
+                "broker_id": "9999",
+                "user_id": "u",
+                "password": "p",
+                "td_address": "tcp://127.0.0.1:41205",
+            }
+        )
         assert adapter._do_connect() is True
         assert adapter._td_api is not None
 
     def test_do_connect_exception(self, monkeypatch):
         """CTP 连接异常 (824-829)."""
         tdapi_mock = MagicMock()
-        tdapi_mock.CThostFtdcTraderApi_CreateFtdcTraderApi.side_effect = RuntimeError("connect fail")
+        tdapi_mock.CThostFtdcTraderApi_CreateFtdcTraderApi.side_effect = RuntimeError(
+            "connect fail"
+        )
         monkeypatch.setattr(
             "utils.execution.broker_adapters.CtpFuturesAdapter._import_ctp_tdapi",
             staticmethod(lambda: tdapi_mock),
         )
-        adapter = CtpFuturesAdapter({
-            "live": True, "broker_id": "9999", "user_id": "u", "password": "p",
-            "td_address": "tcp://127.0.0.1:41205",
-        })
+        adapter = CtpFuturesAdapter(
+            {
+                "live": True,
+                "broker_id": "9999",
+                "user_id": "u",
+                "password": "p",
+                "td_address": "tcp://127.0.0.1:41205",
+            }
+        )
         assert adapter._do_connect() is False
         assert adapter._td_api is None
 
@@ -1052,7 +1172,14 @@ class TestCtpLiveMode:
         tdapi_mock = MagicMock()
         req_mock = MagicMock()
         tdapi_mock.CThostFtdcInputOrderField.return_value = req_mock
-        adapter = CtpFuturesAdapter({"live": True, "broker_id": "9999", "user_id": "u", "default_offset": "open"})
+        adapter = CtpFuturesAdapter(
+            {
+                "live": True,
+                "broker_id": "9999",
+                "user_id": "u",
+                "default_offset": "open",
+            }
+        )
         adapter._td_api = MagicMock()
         adapter._td_api.ReqOrderInsert.return_value = 0
         monkeypatch.setattr("importlib.import_module", lambda name: tdapi_mock)
@@ -1087,6 +1214,7 @@ class TestCtpLiveMode:
 
         def raise_import(name):
             raise ImportError("no openctp")
+
         monkeypatch.setattr("importlib.import_module", raise_import)
         order = MagicMock()
         order.symbol = "IF2401"
@@ -1134,6 +1262,7 @@ class TestCtpLiveMode:
 
         def raise_import(name):
             raise ImportError("no openctp")
+
         monkeypatch.setattr("importlib.import_module", raise_import)
         assert adapter._do_cancel_order("O1") is False
 

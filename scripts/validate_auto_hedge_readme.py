@@ -1,4 +1,5 @@
 """README 校验脚本。"""
+
 import os
 import sys
 

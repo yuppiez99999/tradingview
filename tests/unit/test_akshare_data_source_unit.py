@@ -3,6 +3,7 @@
 被测模块: utils/akshare_data_source.py
 覆盖目标: >=60%
 """
+
 from __future__ import annotations
 
 import sys
@@ -172,6 +173,9 @@ class TestEnsureConnected:
         source._spot_cache_time = 0
         source._spot_cache_ttl = 60
         from utils.akshare_data_source import SourceHealthEntry
-        source.source_health = {"akshare": SourceHealthEntry(ok=False, last_error=None, last_success=None)}
+
+        source.source_health = {
+            "akshare": SourceHealthEntry(ok=False, last_error=None, last_success=None)
+        }
         with patch("builtins.__import__", side_effect=ImportError("no akshare")):
             assert source._ensure_connected() is False

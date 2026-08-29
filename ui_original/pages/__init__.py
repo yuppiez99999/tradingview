@@ -19,24 +19,25 @@
     13_logs.py        — 系统日志
     14_config.py      — 配置
 """
+
 from __future__ import annotations
 
 # 页面注册表 (page_key -> page_title)
 PAGE_REGISTRY = {
-    "dashboard":   "概览",
-    "trade_plan":  "交易计划",
-    "positions":   "持仓",
-    "risk":        "风险",
+    "dashboard": "概览",
+    "trade_plan": "交易计划",
+    "positions": "持仓",
+    "risk": "风险",
     "attribution": "归因面板",
-    "brinson":     "Brinson 归因",
-    "barra":       "Barra 因子归因",
-    "tca":         "TCA 执行归因",
-    "shadow":      "Shadow 账户",
-    "backtest":    "回测",
-    "macro":       "宏观数据",
-    "sector":      "行业轮动",
-    "logs":        "系统日志",
-    "config":      "配置",
+    "brinson": "Brinson 归因",
+    "barra": "Barra 因子归因",
+    "tca": "TCA 执行归因",
+    "shadow": "Shadow 账户",
+    "backtest": "回测",
+    "macro": "宏观数据",
+    "sector": "行业轮动",
+    "logs": "系统日志",
+    "config": "配置",
 }
 
 __all__ = ["PAGE_REGISTRY"]

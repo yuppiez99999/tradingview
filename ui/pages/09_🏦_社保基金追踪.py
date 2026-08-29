@@ -1,4 +1,5 @@
 """社保基金ETF风格追踪 — 风格分类 + 国家队信号 + 配置建议"""
+
 import os
 import sys
 
@@ -23,8 +24,13 @@ inject_global_style()
 mod = get_system_module()
 
 if not mod.SOCIAL_SECURITY_ETF_AVAILABLE:
-    render_alert_card("模块不可用", "❌ 社保基金ETF追踪模块不可用，请检查 `utils/social_security_etf.py`", level="error")
+    render_alert_card(
+        "模块不可用",
+        "❌ 社保基金ETF追踪模块不可用，请检查 `utils/social_security_etf.py`",
+        level="error",
+    )
     st.stop()
+
 
 @st.cache_data(ttl=300)
 def _run_social_security_analysis():
@@ -36,6 +42,7 @@ def _run_social_security_analysis():
     report = tracker.generate_report(flow_data=flow_data if flow_data else None)
     return summary, etf_class, flow_data, report
 
+
 if st.button("🚀 运行社保基金ETF分析", type="primary"):
     with st.spinner("运行社保基金ETF风格追踪分析..."):
         summary, etf_class, flow_data, report = _run_social_security_analysis()
@@ -45,12 +52,17 @@ if st.button("🚀 运行社保基金ETF分析", type="primary"):
     if summary:
         style_cols = st.columns(len(summary))
         for i, (style, info) in enumerate(summary.items()):
-            action = info.get('recommended_action', '标配')
+            action = info.get("recommended_action", "标配")
             icon_map = {"超配": "📈", "标配": "📊", "低配": "📉"}
             icon = icon_map.get(action, "➡️")
             with style_cols[i]:
-                color = "#52c41a" if action == "超配" else "#faad14" if action == "标配" else "#1890ff"
-                st.markdown(f"""<div style="padding:14px;border-radius:10px;background:#fafafa;
+                color = (
+                    "#52c41a"
+                    if action == "超配"
+                    else "#faad14" if action == "标配" else "#1890ff"
+                )
+                st.markdown(
+                    f"""<div style="padding:14px;border-radius:10px;background:#fafafa;
                 border-top:4px solid {color};text-align:center;">
                 <div style="font-size:32px;">{icon}</div>
                 <div style="font-size:18px;font-weight:bold;margin:8px 0;">{style}</div>
@@ -59,41 +71,66 @@ if st.button("🚀 运行社保基金ETF分析", type="primary"):
                 <div style="font-size:12px;color:#888;margin-top:4px;">
                 {', '.join(info.get('top_etfs', [])[:2])}
                 </div>
-                </div>""", unsafe_allow_html=True)
+                </div>""",
+                    unsafe_allow_html=True,
+                )
 
     # === ETF风格映射 ===
     st.subheader("🔗 ETF风格映射")
     if etf_class:
-        etf_data = [{"ETF名称": e.get('name', ''), "社保风格": e.get('social_style', ''),
-                     "匹配度": e.get('match_score', 0)} for e in etf_class[:15]]
+        etf_data = [
+            {
+                "ETF名称": e.get("name", ""),
+                "社保风格": e.get("social_style", ""),
+                "匹配度": e.get("match_score", 0),
+            }
+            for e in etf_class[:15]
+        ]
         etf_df = pd.DataFrame(etf_data)
 
         def color_match(val):
             if val >= 85:
-                return 'background-color: #f6ffed; color: #52c41a'
+                return "background-color: #f6ffed; color: #52c41a"
             elif val >= 70:
-                return 'background-color: #fffbe6; color: #faad14'
-            return ''
+                return "background-color: #fffbe6; color: #faad14"
+            return ""
 
-        st.dataframe(etf_df.style.map(color_match, subset=['匹配度']),
-                     use_container_width=True, hide_index=True)
+        st.dataframe(
+            etf_df.style.map(color_match, subset=["匹配度"]),
+            use_container_width=True,
+            hide_index=True,
+        )
 
     # === 资金流增强 ===
     st.subheader("💰 实时资金流数据")
     if flow_data:
-        render_status_card("资金流数据", f"已获取 {len(flow_data)} 只ETF资金流数据", level="success")
-        flow_table = [{"名称": data.get('name', code), "代码": code,
-                       "净流入(亿)": data.get('net_flow_yi', 0),
-                       "趋势": data.get('trend', '中性'),
-                       "类别": data.get('category', '')}
-                      for code, data in list(flow_data.items())[:15]]
-        st.dataframe(pd.DataFrame(flow_table), use_container_width=True, hide_index=True)
+        render_status_card(
+            "资金流数据", f"已获取 {len(flow_data)} 只ETF资金流数据", level="success"
+        )
+        flow_table = [
+            {
+                "名称": data.get("name", code),
+                "代码": code,
+                "净流入(亿)": data.get("net_flow_yi", 0),
+                "趋势": data.get("trend", "中性"),
+                "类别": data.get("category", ""),
+            }
+            for code, data in list(flow_data.items())[:15]
+        ]
+        st.dataframe(
+            pd.DataFrame(flow_table), use_container_width=True, hide_index=True
+        )
     else:
-        render_alert_card("资金流数据缺失", "⚠️ 未能获取实时资金流数据，将使用静态分析", level="warning")
+        render_alert_card(
+            "资金流数据缺失",
+            "⚠️ 未能获取实时资金流数据，将使用静态分析",
+            level="warning",
+        )
 
     # === 生成报告 ===
     st.download_button(
-        "📥 下载社保基金ETF报告", report,
+        "📥 下载社保基金ETF报告",
+        report,
         file_name=f"社保基金ETF追踪_{datetime.now().strftime('%Y%m%d')}.md",
         mime="text/markdown",
     )
@@ -102,7 +139,9 @@ if st.button("🚀 运行社保基金ETF分析", type="primary"):
         st.markdown(report)
 
 else:
-    render_alert_card("待运行分析", "👆 点击上方按钮开始社保基金ETF风格追踪分析", level="info")
+    render_alert_card(
+        "待运行分析", "👆 点击上方按钮开始社保基金ETF风格追踪分析", level="info"
+    )
     st.markdown("""
     ### 分析内容
     - **四大投资风格**: 稳健价值型 / 成长进取型 / 周期轮动型 / 防御避险型

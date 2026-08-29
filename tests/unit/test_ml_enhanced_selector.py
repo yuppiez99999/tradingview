@@ -12,6 +12,7 @@
     9. 输入类型兼容 (numpy/DataFrame/list)
     10. 数值稳定性 (sigmoid clip)
 """
+
 from __future__ import annotations
 
 import sys
@@ -177,8 +178,12 @@ class TestTrainingResult:
             model_dir=Path("models/test_ml_selector"),
         )
         # 前 3 个特征有信号, 后 2 个噪声
-        X, y = make_classification_data(n_samples=500, n_features=5, seed=42)  # noqa: N806
-        result = selector.train(X, y, feature_names=["sig1", "sig2", "sig3", "noise1", "noise2"])
+        X, y = make_classification_data(
+            n_samples=500, n_features=5, seed=42
+        )  # noqa: N806
+        result = selector.train(
+            X, y, feature_names=["sig1", "sig2", "sig3", "noise1", "noise2"]
+        )
         # 信号特征重要性应 > 噪声特征
         sig_imp = sum(result.feature_importance[f] for f in ["sig1", "sig2", "sig3"])
         noise_imp = sum(result.feature_importance[f] for f in ["noise1", "noise2"])
@@ -222,7 +227,9 @@ class TestPrediction:
             config=TrainingConfig(n_iterations=1000, learning_rate=0.1),
             model_dir=Path("models/test_ml_selector"),
         )
-        X, y = make_classification_data(n_samples=500, noise=0.05, seed=42)  # noqa: N806
+        X, y = make_classification_data(
+            n_samples=500, noise=0.05, seed=42
+        )  # noqa: N806
         selector.train(X, y)
         preds = selector.predict(X)
         accuracy = float(np.mean(preds == y))
@@ -440,6 +447,7 @@ class TestFeatureFlag:
         """Feature Flag 框架不可用时返回 False."""
         # mock 导入失败
         import sys
+
         original_path = sys.path[:]
         sys.path.clear()
         try:
@@ -542,6 +550,7 @@ class TestNumericalStability:
     def test_sigmoid_clip(self):
         """sigmoid 大输入不溢出."""
         from utils.alpha.ml_enhanced_selector import _LogisticRegressionNumpy
+
         # 极大/极小值
         z = np.array([1e10, -1e10, 0.0, 100.0, -100.0])
         probs = _LogisticRegressionNumpy._sigmoid(z)
@@ -579,8 +588,12 @@ class TestNumericalStability:
     def test_reproducibility(self):
         """训练可重现 (固定 random_state)."""
         config = TrainingConfig(n_iterations=100, random_state=42)
-        selector1 = MLEnhancedSelector(config=config, model_dir=Path("models/test_ml_selector"))
-        selector2 = MLEnhancedSelector(config=config, model_dir=Path("models/test_ml_selector"))
+        selector1 = MLEnhancedSelector(
+            config=config, model_dir=Path("models/test_ml_selector")
+        )
+        selector2 = MLEnhancedSelector(
+            config=config, model_dir=Path("models/test_ml_selector")
+        )
         X, y = make_classification_data(seed=42)  # noqa: N806
         selector1.train(X, y)
         selector2.train(X, y)
@@ -600,6 +613,7 @@ class TestModuleConstants:
     def test_all_exported(self):
         """__all__ 完整."""
         from utils.alpha import ml_enhanced_selector
+
         expected = {
             "MLEnhancedSelector",
             "TrainingConfig",

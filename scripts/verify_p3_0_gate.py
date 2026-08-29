@@ -15,6 +15,7 @@
     0 = 全部 PASS
     1 = 任一 FAIL (P3.1 不允许启动)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,7 +66,9 @@ def _count_build_fills(dates: list[str], strategies: tuple[str, ...]) -> dict[st
     return counts
 
 
-def verify_3_data_accumulation(dates: list[str], strategies: tuple[str, ...], min_days: int = 5) -> dict:
+def verify_3_data_accumulation(
+    dates: list[str], strategies: tuple[str, ...], min_days: int = 5
+) -> dict:
     """验证 ③: 积累 >=1 周真实成交."""
     counts = _count_build_fills(dates, strategies)
     days_with_fills = len(counts)
@@ -82,14 +85,22 @@ def verify_3_data_accumulation(dates: list[str], strategies: tuple[str, ...], mi
     }
 
 
-def verify_1_shadow_consume_fills(dates: list[str], strategies: tuple[str, ...]) -> dict:
+def verify_1_shadow_consume_fills(
+    dates: list[str], strategies: tuple[str, ...]
+) -> dict:
     """验证 ①: shadow 实读 strategy=build fills 出 NAV."""
     try:
         from shadow_account_system import ShadowAccount
     except ImportError as e:
-        return {"name": "① shadow 消费 fills", "passed": False, "detail": f"ShadowAccount 导入失败: {e}"}
+        return {
+            "name": "① shadow 消费 fills",
+            "passed": False,
+            "detail": f"ShadowAccount 导入失败: {e}",
+        }
 
-    account = ShadowAccount(account_id="p3_0_gate", strategy_id="build_fills", initial_capital=1_000_000)
+    account = ShadowAccount(
+        account_id="p3_0_gate", strategy_id="build_fills", initial_capital=1_000_000
+    )
     result = account.consume_fills_from_store(dates, strategies=strategies)
 
     fills_count = result.get("fills_count", 0)
@@ -118,7 +129,11 @@ def verify_2_daily_pnl_filtered(dates: list[str], strategies: tuple[str, ...]) -
     try:
         from utils.execution.fills_store import FillsStore
     except ImportError as e:
-        return {"name": "② daily_pnl 过滤消费", "passed": False, "detail": f"FillsStore 导入失败: {e}"}
+        return {
+            "name": "② daily_pnl 过滤消费",
+            "passed": False,
+            "detail": f"FillsStore 导入失败: {e}",
+        }
 
     store = FillsStore()
     dates_with_build_prices: list[str] = []
@@ -127,7 +142,7 @@ def verify_2_daily_pnl_filtered(dates: list[str], strategies: tuple[str, ...]) -
     for date in dates:
         try:
             prices = store.latest_avg_price_by_symbol(date, strategies=strategies)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
             continue
         if prices:
             dates_with_build_prices.append(date)
@@ -146,16 +161,20 @@ def verify_2_daily_pnl_filtered(dates: list[str], strategies: tuple[str, ...]) -
 def main() -> int:
     parser = argparse.ArgumentParser(description="P3.0 影子账户闭环门禁验证")
     parser.add_argument("--weeks", type=int, default=1, help="检查最近 N 周 (默认 1)")
-    parser.add_argument("--strategies", nargs="+", default=["build"], help="策略标签 (默认 build)")
-    parser.add_argument("--min-days", type=int, default=5, help="数据积累最少交易日 (默认 5)")
+    parser.add_argument(
+        "--strategies", nargs="+", default=["build"], help="策略标签 (默认 build)"
+    )
+    parser.add_argument(
+        "--min-days", type=int, default=5, help="数据积累最少交易日 (默认 5)"
+    )
     args = parser.parse_args()
 
     strategies_tuple = tuple(args.strategies)
     dates = _recent_trade_dates(args.weeks)
 
-    print(f"=" * 60)
-    print(f"P3.0 影子账户闭环门禁验证")
-    print(f"=" * 60)
+    print("=" * 60)
+    print("P3.0 影子账户闭环门禁验证")
+    print("=" * 60)
     print(f"检查范围: 最近 {args.weeks} 周 ({len(dates)} 个工作日)")
     print(f"策略标签: {strategies_tuple}")
     print(f"数据积累要求: >= {args.min_days} 个交易日有成交")
@@ -174,16 +193,17 @@ def main() -> int:
         print(f"  [{status}] {r['name']}: {r['detail']}")
 
     print()
-    print(f"=" * 60)
+    print("=" * 60)
     if all_passed:
-        print(f"结果: 全部 PASS — P3.1 可启动")
+        print("结果: 全部 PASS — P3.1 可启动")
         return 0
-    else:
-        failed = [r["name"] for r in results if not r["passed"]]
-        print(f"结果: FAIL ({', '.join(failed)}) — P3.1 不允许启动")
-        if not v3["passed"]:
-            print(f"  提示: 数据积累不足, 需运行 daily_trade_executor 积累更多 strategy=build fills")
-        return 1
+    failed = [r["name"] for r in results if not r["passed"]]
+    print(f"结果: FAIL ({', '.join(failed)}) — P3.1 不允许启动")
+    if not v3["passed"]:
+        print(
+            "  提示: 数据积累不足, 需运行 daily_trade_executor 积累更多 strategy=build fills"
+        )
+    return 1
 
 
 if __name__ == "__main__":

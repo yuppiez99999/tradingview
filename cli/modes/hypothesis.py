@@ -23,23 +23,26 @@ def run_hypothesis_test(args):
                 print(f"     ID: {list(strategy_registry.hypotheses.keys())[i-1]}")
                 print(f"     状态: {hyp.get('status', '未知')}")
                 print(f"     创建时间: {hyp.get('created_at', '未知')}")
-                if 'description' in hyp:
+                if "description" in hyp:
                     print(f"     描述: {hyp['description']}")
         return
 
     if args.register:
-        parts = args.register.split('|')
+        parts = args.register.split("|")
         if len(parts) >= 2:
             hyp_id = parts[0].strip()
             hyp_name = parts[1].strip()
             hyp_desc = parts[2].strip() if len(parts) > 2 else ""
 
-            strategy_registry.register_hypothesis(hyp_id, {
-                'name': hyp_name,
-                'description': hyp_desc,
-                'methodology': '统计检验',
-                'evidence': []
-            })
+            strategy_registry.register_hypothesis(
+                hyp_id,
+                {
+                    "name": hyp_name,
+                    "description": hyp_desc,
+                    "methodology": "统计检验",
+                    "evidence": [],
+                },
+            )
             print(f"\n✅ 假设已注册: {hyp_name}")
         else:
             print("\n❌ 注册格式错误，使用: --register id|名称|描述")

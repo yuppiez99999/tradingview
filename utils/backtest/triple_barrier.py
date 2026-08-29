@@ -153,9 +153,7 @@ class TripleBarrierLabeler:
     def _compute_volatility(self, prices: pd.Series) -> pd.Series:
         """计算滚动波动率 (日收益率的标准差)."""
         returns = prices.pct_change()
-        vol = returns.rolling(
-            window=self.config.volatility_window, min_periods=1
-        ).std()
+        vol = returns.rolling(window=self.config.volatility_window, min_periods=1).std()
         vol = vol.fillna(returns.std())
         return vol
 
@@ -223,9 +221,7 @@ class TripleBarrierLabeler:
                 if event_date in volatility.index:
                     vol_val = volatility[event_date]
 
-            profit_width, stop_width = self._get_barrier_widths(
-                entry_price, vol_val
-            )
+            profit_width, stop_width = self._get_barrier_widths(entry_price, vol_val)
 
             upper_barrier = entry_price * (1 + profit_width * side)
             lower_barrier = entry_price * (1 - stop_width * side)

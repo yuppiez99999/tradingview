@@ -36,16 +36,20 @@ logger = logging.getLogger("alpha_factor.evaluator")
 @dataclass
 class QuantileReturn:
     """单因子的分层收益结果"""
+
     factor_name: str
     quantile_returns: dict[int, float]  # {分位编号 1..5: 该组平均未来收益}
     long_short_return: float  # Q5 - Q1 多空收益 (做多高分, 做空低分)
-    monotonicity: float  # 单调性得分 (Spearman ρ of Q1..Q5 returns vs quantile rank, 越大越好)
+    monotonicity: (
+        float  # 单调性得分 (Spearman ρ of Q1..Q5 returns vs quantile rank, 越大越好)
+    )
     forward_window: int  # 对应前瞻窗口
 
 
 @dataclass
 class TurnoverResult:
     """换手率结果"""
+
     factor_name: str
     daily_turnover: list[float]  # 每日换手率序列 (0~1)
     avg_daily_turnover: float  # 日均换手率
@@ -55,6 +59,7 @@ class TurnoverResult:
 @dataclass
 class DecayResult:
     """因子衰减结果"""
+
     factor_name: str
     ic_by_window: dict[int, float]  # {前瞻窗口天数: IC 均值}
     icir_by_window: dict[int, float]  # {前瞻窗口天数: ICIR}
@@ -64,6 +69,7 @@ class DecayResult:
 @dataclass
 class FactorTearSheet:
     """单因子评估 Tear Sheet (alphalens 风格汇总)"""
+
     factor_name: str
     # IC/ICIR
     ic_series: list[float] = field(default_factory=list)
@@ -95,6 +101,7 @@ def _rank_corr(x: list[float], y: list[float]) -> tuple[float, float]:
         return 0.0, np.nan
     try:
         from scipy.stats import spearmanr
+
         corr, pval = spearmanr(x, y)
         if np.isnan(corr):
             return 0.0, float(pval) if not np.isnan(pval) else np.nan
@@ -118,8 +125,11 @@ def _split_into_quantiles(
         {quantile_rank(1..n): [symbol_1, symbol_2, ...]}
         rank=1 对应最低因子值组, rank=n 对应最高组
     """
-    valid = [(sym, val) for sym, val in factor_values.items()
-             if val is not None and isinstance(val, (int, float)) and np.isfinite(val)]
+    valid = [
+        (sym, val)
+        for sym, val in factor_values.items()
+        if val is not None and isinstance(val, (int, float)) and np.isfinite(val)
+    ]
     if not valid:
         return {}
     # 按因子值升序排列
@@ -164,11 +174,14 @@ def compute_quantile_returns(
     q_returns: dict[int, float] = {}
     for q in range(1, n_quantiles + 1):
         syms = groups.get(q, [])
-        rets = [forward_returns[s] for s in syms
-                if s in forward_returns
-                and forward_returns[s] is not None
-                and isinstance(forward_returns[s], (int, float))
-                and np.isfinite(forward_returns[s])]
+        rets = [
+            forward_returns[s]
+            for s in syms
+            if s in forward_returns
+            and forward_returns[s] is not None
+            and isinstance(forward_returns[s], (int, float))
+            and np.isfinite(forward_returns[s])
+        ]
         q_returns[q] = float(np.mean(rets)) if rets else 0.0
 
     q5_q1 = q_returns.get(n_quantiles, 0.0) - q_returns.get(1, 0.0)
@@ -214,8 +227,11 @@ def compute_turnover(
     prev_set: Optional[set[str]] = None
 
     for fv in factor_history:
-        valid = [(s, v) for s, v in fv.items()
-                 if v is not None and isinstance(v, (int, float)) and np.isfinite(v)]
+        valid = [
+            (s, v)
+            for s, v in fv.items()
+            if v is not None and isinstance(v, (int, float)) and np.isfinite(v)
+        ]
         if not valid:
             prev_set = None
             daily.append(0.0)
@@ -355,7 +371,10 @@ def build_factor_tear_sheet(
         # ---- IC/ICIR 时序 ----
         if factor_history is not None and forward_returns_history is not None:
             from utils.alpha_factor.base import calc_ic_ir, calc_ic_series_from_history
-            ic_series = calc_ic_series_from_history(factor_history, forward_returns_history)
+
+            ic_series = calc_ic_series_from_history(
+                factor_history, forward_returns_history
+            )
             ic_ir, ic_mean, ic_std = calc_ic_ir(ic_series, min_periods=10)
             sheet.ic_series = [float(x) for x in ic_series]
             sheet.ic_mean = ic_mean
@@ -371,21 +390,26 @@ def build_factor_tear_sheet(
         # ---- 分层收益 (alphalens quantile analysis) ----
         if latest_factor_values is not None and latest_forward_returns is not None:
             sheet.quantile = compute_quantile_returns(
-                latest_factor_values, latest_forward_returns,
-                n_quantiles=5, factor_name=factor_name,
+                latest_factor_values,
+                latest_forward_returns,
+                n_quantiles=5,
+                factor_name=factor_name,
                 forward_window=forward_window,
             )
 
         # ---- 换手率 ----
         if factor_history is not None:
             sheet.turnover = compute_turnover(
-                factor_history, top_pct=top_pct_for_turnover, factor_name=factor_name,
+                factor_history,
+                top_pct=top_pct_for_turnover,
+                factor_name=factor_name,
             )
 
         # ---- 衰减曲线 ----
         if factor_history is not None and forward_returns_by_window is not None:
             sheet.decay = compute_factor_decay(
-                factor_history, forward_returns_by_window,
+                factor_history,
+                forward_returns_by_window,
                 factor_name=factor_name,
             )
 
@@ -422,7 +446,9 @@ def evaluate_all_factors_tear_sheets(
         {factor_name: FactorTearSheet} — 所有因子的结构化评估结果
     """
     sheets: dict[str, FactorTearSheet] = {}
-    names = set(factor_history_by_name.keys()) | set(latest_factor_values_by_name.keys())
+    names = set(factor_history_by_name.keys()) | set(
+        latest_factor_values_by_name.keys()
+    )
     for name in names:
         sheets[name] = build_factor_tear_sheet(
             factor_name=name,

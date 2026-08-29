@@ -5,6 +5,7 @@
 核心思想: 直接调用 feeder 内部方法, 在同一数据集上应用旧逻辑 (20% 统一)
 和新逻辑 (20cm 30% / 10cm 20%), 收集差异化判定结果.
 """
+
 from __future__ import annotations
 
 import json
@@ -155,7 +156,9 @@ def main() -> int:
 
     out_json = _PROJECT_ROOT / "reports" / "evolution" / "anomaly_report_direct.json"
     out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_json.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # 生成可读 MD
     md: list[str] = []

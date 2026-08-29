@@ -107,7 +107,9 @@ class RiskBus:
             audit_log_dir: 审计日志目录 (None 时使用默认路径)
         """
         self._subscribers: dict[RiskEventType, list[Subscriber]] = defaultdict(list)
-        self._decision_subscribers: dict[RiskEventType, list[DecisionSubscriber]] = defaultdict(list)
+        self._decision_subscribers: dict[RiskEventType, list[DecisionSubscriber]] = (
+            defaultdict(list)
+        )
         self._event_history: deque[RiskEvent] = deque(maxlen=EVENT_HISTORY_SIZE)
         self._audit_log_dir = audit_log_dir or _AUDIT_LOG_DIR
         self._audit_log_dir.mkdir(parents=True, exist_ok=True)
@@ -247,7 +249,9 @@ class RiskBus:
                 title = f"[风控] {event.event_type.value} ({event.source})"
                 msg_parts = [f"source={event.source}", f"severity={sev}"]
                 if event.payload:
-                    payload_str = ", ".join(f"{k}={v}" for k, v in list(event.payload.items())[:5])
+                    payload_str = ", ".join(
+                        f"{k}={v}" for k, v in list(event.payload.items())[:5]
+                    )
                     msg_parts.append(payload_str)
                 from utils.notify import send_alert
 
@@ -266,8 +270,16 @@ class RiskBus:
             try:
                 cb(event)
                 invoked += 1
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                    ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                ZeroDivisionError,
+                OverflowError,
+                OSError,
+            ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
                 # 风险隔离边界: 单个订阅者/决策者异常不得影响其他
                 # ValueError/TypeError — 数据格式/类型错误
                 # KeyError/AttributeError — 字段/属性缺失
@@ -339,8 +351,16 @@ class RiskBus:
                 d = decider(event)
                 if isinstance(d, RiskDecision):
                     decisions.append(d)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                    ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                ZeroDivisionError,
+                OverflowError,
+                OSError,
+            ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
                 # 风险隔离边界: 单个订阅者/决策者异常不得影响其他
                 # ValueError/TypeError — 数据格式/类型错误
                 # KeyError/AttributeError — 字段/属性缺失
@@ -446,8 +466,16 @@ class RiskBus:
             except asyncio.CancelledError:
                 logger.info("异步消费者已停止")
                 break
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                    ZeroDivisionError, OverflowError, OSError) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                ZeroDivisionError,
+                OverflowError,
+                OSError,
+            ) as e:  # noqa: BLE001  # risk pub/sub 隔离, fail-safe
                 # 风险隔离边界: 单个订阅者/决策者异常不得影响其他
                 # ValueError/TypeError — 数据格式/类型错误
                 # KeyError/AttributeError — 字段/属性缺失
@@ -525,8 +553,11 @@ def _aggregate_strictest(decisions: Sequence[RiskDecision]) -> RiskDecision:
     # GLM 4.5 复核: 仅聚合 reduce_pct > 0 的决策, 0% 减仓不应触发聚合.
     # 防御性 getattr 防止外部构造的 RiskDecision 实例缺 reduce_pct.
     if best.action == RiskAction.REDUCE_POSITION:
-        reduce_pcts = [getattr(d, "reduce_pct", 0.0) for d in decisions
-                       if d.action == RiskAction.REDUCE_POSITION]
+        reduce_pcts = [
+            getattr(d, "reduce_pct", 0.0)
+            for d in decisions
+            if d.action == RiskAction.REDUCE_POSITION
+        ]
         meaningful = [p for p in reduce_pcts if isinstance(p, (int, float)) and p > 0]
         if meaningful:
             max_reduce = max(meaningful)
@@ -534,7 +565,9 @@ def _aggregate_strictest(decisions: Sequence[RiskDecision]) -> RiskDecision:
                 # 创建新决策 (frozen=True, 用 dataclasses.replace)
                 from dataclasses import replace
 
-                best = replace(best, reduce_pct=max_reduce, reason=f"aggregated: {best.reason}")
+                best = replace(
+                    best, reduce_pct=max_reduce, reason=f"aggregated: {best.reason}"
+                )
 
     return best
 

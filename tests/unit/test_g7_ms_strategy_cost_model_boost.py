@@ -3,6 +3,7 @@
 覆盖 CostConfig / CostModel / AlmgrenChrissCost 的全部公开接口,
 包括佣金/印花税/过户费/市场冲击/融资成本/综合成本的核心路径与边界分支.
 """
+
 from __future__ import annotations
 
 import sys
@@ -107,7 +108,9 @@ class TestMarketImpact:
     def test_volatility_scaling_on(self):
         cfg = CostConfig(volatility_scaling=True)
         cm = CostModel(cfg)
-        impact = cm.market_impact(qty=100, daily_volume=100_000, volatility=0.02, price=10.0)
+        impact = cm.market_impact(
+            qty=100, daily_volume=100_000, volatility=0.02, price=10.0
+        )
         assert impact > 0
         # 验证公式: slippage_coef * vol * sqrt(qty/vol) * (vol/0.02) * price * qty
         participation = 100 / 100_000
@@ -118,7 +121,9 @@ class TestMarketImpact:
     def test_volatility_scaling_off(self):
         cfg = CostConfig(volatility_scaling=False)
         cm = CostModel(cfg)
-        impact = cm.market_impact(qty=100, daily_volume=100_000, volatility=0.02, price=10.0)
+        impact = cm.market_impact(
+            qty=100, daily_volume=100_000, volatility=0.02, price=10.0
+        )
         participation = 100 / 100_000
         expected_bps = 0.142 * 0.02 * np.sqrt(participation)
         expected = expected_bps * 10.0 * 100
@@ -126,7 +131,9 @@ class TestMarketImpact:
 
     def test_large_participation(self):
         cm = CostModel()
-        impact = cm.market_impact(qty=50_000, daily_volume=100_000, volatility=0.03, price=20.0)
+        impact = cm.market_impact(
+            qty=50_000, daily_volume=100_000, volatility=0.03, price=20.0
+        )
         assert impact > 0
 
 
@@ -138,26 +145,46 @@ class TestMarketImpact:
 class TestTotalCost:
     def test_stock_buy_total(self):
         cm = CostModel()
-        result = cm.total_cost(qty=100, price=10.0, daily_volume=100_000,
-                               volatility=0.02, asset_type="stock", side="BUY")
+        result = cm.total_cost(
+            qty=100,
+            price=10.0,
+            daily_volume=100_000,
+            volatility=0.02,
+            asset_type="stock",
+            side="BUY",
+        )
         assert result["notional"] == pytest.approx(1000.0)
         assert result["commission"] > 0
         assert result["market_impact"] >= 0
-        assert result["total_cost"] == pytest.approx(result["commission"] + result["market_impact"])
+        assert result["total_cost"] == pytest.approx(
+            result["commission"] + result["market_impact"]
+        )
         assert result["bps"] == pytest.approx(result["total_cost"] / 1000.0)
 
     def test_zero_notional_bps_zero(self):
         cm = CostModel()
-        result = cm.total_cost(qty=0, price=10.0, daily_volume=100_000,
-                               volatility=0.02, asset_type="stock", side="BUY")
+        result = cm.total_cost(
+            qty=0,
+            price=10.0,
+            daily_volume=100_000,
+            volatility=0.02,
+            asset_type="stock",
+            side="BUY",
+        )
         assert result["notional"] == 0.0
         assert result["bps"] == 0.0
         assert result["total_cost"] == 0.0
 
     def test_keys_present(self):
         cm = CostModel()
-        result = cm.total_cost(qty=100, price=10.0, daily_volume=100_000,
-                               volatility=0.02, asset_type="stock", side="SELL")
+        result = cm.total_cost(
+            qty=100,
+            price=10.0,
+            daily_volume=100_000,
+            volatility=0.02,
+            asset_type="stock",
+            side="SELL",
+        )
         for key in ("commission", "market_impact", "total_cost", "bps", "notional"):
             assert key in result
 
@@ -205,8 +232,14 @@ class TestFinancingCost:
 class TestTradeCost:
     def test_stock_buy(self):
         cm = CostModel()
-        result = cm.trade_cost(symbol="000001", qty=100, price=10.0,
-                               side="BUY", asset_type="stock", adv=100_000)
+        result = cm.trade_cost(
+            symbol="000001",
+            qty=100,
+            price=10.0,
+            side="BUY",
+            asset_type="stock",
+            adv=100_000,
+        )
         assert result["symbol"] == "000001"
         assert result["side"] == "BUY"
         assert result["qty"] == 100
@@ -215,27 +248,47 @@ class TestTradeCost:
         assert result["stamp_duty"] == 0.0
         assert result["commission"] > 0
         assert result["slippage"] >= 0
-        assert result["total"] == pytest.approx(result["commission"] + result["slippage"])
+        assert result["total"] == pytest.approx(
+            result["commission"] + result["slippage"]
+        )
 
     def test_stock_sell_has_stamp_duty(self):
         cm = CostModel()
-        result = cm.trade_cost(symbol="000001", qty=100, price=10.0,
-                               side="SELL", asset_type="stock", adv=100_000)
+        result = cm.trade_cost(
+            symbol="000001",
+            qty=100,
+            price=10.0,
+            side="SELL",
+            asset_type="stock",
+            adv=100_000,
+        )
         assert result["stamp_duty"] == pytest.approx(1000.0 * 0.001)
         # commission 应已扣除印花税
         assert result["commission"] > 0
 
     def test_futures(self):
         cm = CostModel()
-        result = cm.trade_cost(symbol="IF2406", qty=1, price=4000.0,
-                               side="BUY", asset_type="futures", adv=10_000)
+        result = cm.trade_cost(
+            symbol="IF2406",
+            qty=1,
+            price=4000.0,
+            side="BUY",
+            asset_type="futures",
+            adv=10_000,
+        )
         assert result["stamp_duty"] == 0.0
         assert result["commission"] > 0
 
     def test_options(self):
         cm = CostModel()
-        result = cm.trade_cost(symbol="10004", qty=1, price=0.05,
-                               side="BUY", asset_type="options", adv=1000)
+        result = cm.trade_cost(
+            symbol="10004",
+            qty=1,
+            price=0.05,
+            side="BUY",
+            asset_type="options",
+            adv=1000,
+        )
         assert result["commission"] == pytest.approx(5.0)
 
     def test_adv_zero_uses_default_volume(self):
@@ -274,9 +327,15 @@ class TestAlmgrenChrissCost:
 
     def test_total_cost_with_permanent_and_temporary(self):
         ac = AlmgrenChrissCost(permanent_impact=0.1, temporary_impact=0.15)
-        result = ac.total_cost(qty=100, price=10.0, daily_volume=100_000,
-                               volatility=0.02, asset_type="stock", side="BUY",
-                               time_horizon=1)
+        result = ac.total_cost(
+            qty=100,
+            price=10.0,
+            daily_volume=100_000,
+            volatility=0.02,
+            asset_type="stock",
+            side="BUY",
+            time_horizon=1,
+        )
         assert "permanent_impact" in result
         assert "temporary_impact" in result
         assert result["permanent_impact"] > 0
@@ -285,25 +344,39 @@ class TestAlmgrenChrissCost:
 
     def test_total_cost_zero_daily_volume(self):
         ac = AlmgrenChrissCost()
-        result = ac.total_cost(qty=100, price=10.0, daily_volume=0,
-                               volatility=0.02, asset_type="stock", side="BUY")
+        result = ac.total_cost(
+            qty=100,
+            price=10.0,
+            daily_volume=0,
+            volatility=0.02,
+            asset_type="stock",
+            side="BUY",
+        )
         # daily_volume=0 → participation=0 → permanent/temp=0
         assert result["permanent_impact"] == 0.0
         assert result["temporary_impact"] == 0.0
 
     def test_total_cost_zero_notional_bps_zero(self):
         ac = AlmgrenChrissCost()
-        result = ac.total_cost(qty=0, price=10.0, daily_volume=100_000,
-                               volatility=0.02, asset_type="stock", side="BUY")
+        result = ac.total_cost(
+            qty=0,
+            price=10.0,
+            daily_volume=100_000,
+            volatility=0.02,
+            asset_type="stock",
+            side="BUY",
+        )
         assert result["notional"] == 0.0
         assert result["bps"] == 0.0
 
     def test_time_horizon_affects_temporary(self):
         ac = AlmgrenChrissCost(temporary_impact=0.15)
-        r1 = ac.total_cost(qty=100, price=10.0, daily_volume=100_000,
-                           volatility=0.02, time_horizon=1)
-        r4 = ac.total_cost(qty=100, price=10.0, daily_volume=100_000,
-                           volatility=0.02, time_horizon=4)
+        r1 = ac.total_cost(
+            qty=100, price=10.0, daily_volume=100_000, volatility=0.02, time_horizon=1
+        )
+        r4 = ac.total_cost(
+            qty=100, price=10.0, daily_volume=100_000, volatility=0.02, time_horizon=4
+        )
         # 时间跨度越大, 临时冲击越小
         assert r1["temporary_impact"] > r4["temporary_impact"]
 

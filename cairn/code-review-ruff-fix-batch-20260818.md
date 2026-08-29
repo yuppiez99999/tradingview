@@ -96,3 +96,14 @@ related:
 ## 六、contains 标签
 
 `contains: ruff-fix, F821-undefined-name, B904-raise-from, F811-redefinition, exception-chaining, type-annotation-missing-import, future-annotations-pitfall, zero-behavior-change`
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [独立代码审查 + 二次核验纠偏（2026-08-08）](code-review-independent-audit-20260808.md) (相似度 12%)
+- [2026-08-08 代码审查修复批次经验沉淀](code-review-fix-batch-20260808.md) (相似度 12%)
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 11%)
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 10%)
+- [测试健康度治理经验（2026-08-19）](test-health-20260819.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -19,6 +19,7 @@
   - 算法正确性优先: 用手工计算的期望值验证 TCA 聚合公式
   - 容错性: 子模块异常不阻塞整体报告生成
 """
+
 from __future__ import annotations
 
 import json
@@ -84,6 +85,7 @@ from utils.attribution.daily_panel import (  # noqa: E402
 # 1. 常量定义测试
 # ============================================================
 
+
 class TestConstants:
     """常量定义完整性测试."""
 
@@ -110,12 +112,18 @@ class TestConstants:
     def test_json_template(self):
         """JSON 文件名模板含 {date} 占位符."""
         assert "{date}" in DEFAULT_JSON_TEMPLATE
-        assert DEFAULT_JSON_TEMPLATE.format(date="2026-07-27") == "daily_panel_2026-07-27.json"
+        assert (
+            DEFAULT_JSON_TEMPLATE.format(date="2026-07-27")
+            == "daily_panel_2026-07-27.json"
+        )
 
     def test_markdown_template(self):
         """Markdown 文件名模板含 {date} 占位符."""
         assert "{date}" in DEFAULT_MARKDOWN_TEMPLATE
-        assert DEFAULT_MARKDOWN_TEMPLATE.format(date="2026-07-27") == "daily_panel_2026-07-27.md"
+        assert (
+            DEFAULT_MARKDOWN_TEMPLATE.format(date="2026-07-27")
+            == "daily_panel_2026-07-27.md"
+        )
 
     def test_decimal_precision_positive(self):
         """数值精度为正."""
@@ -162,6 +170,7 @@ class TestConstants:
 # 2. 异常体系测试
 # ============================================================
 
+
 class TestExceptions:
     """异常体系完整性测试."""
 
@@ -198,6 +207,7 @@ class TestExceptions:
 # ============================================================
 # 3. 输入数据类测试
 # ============================================================
+
 
 class TestInputDataClasses:
     """输入数据类测试."""
@@ -280,6 +290,7 @@ class TestInputDataClasses:
 # ============================================================
 # 4. 输出数据类测试
 # ============================================================
+
 
 class TestOutputDataClasses:
     """输出数据类测试."""
@@ -409,13 +420,20 @@ class TestOutputDataClasses:
 # 5. TCA 聚合算法测试
 # ============================================================
 
+
 class TestTCAAggregation:
     """TCA 聚合算法测试."""
 
     def test_aggregate_summary_dict(self):
         """聚合 summary_dict 模式."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                }
+            }
         )
         summary = {
             "total_pnl": 1000.0,
@@ -442,13 +460,31 @@ class TestTCAAggregation:
     def test_aggregate_pnl_list(self):
         """聚合 PnLAttribution 列表模式."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                }
+            }
         )
         pnl_list = [
-            {"symbol": "AAPL", "alpha_pnl": 100.0, "execution_pnl": 20.0,
-             "risk_pnl": 10.0, "total_pnl": 130.0, "notional": 10000.0},
-            {"symbol": "MSFT", "alpha_pnl": 200.0, "execution_pnl": 30.0,
-             "risk_pnl": 20.0, "total_pnl": 250.0, "notional": 20000.0},
+            {
+                "symbol": "AAPL",
+                "alpha_pnl": 100.0,
+                "execution_pnl": 20.0,
+                "risk_pnl": 10.0,
+                "total_pnl": 130.0,
+                "notional": 10000.0,
+            },
+            {
+                "symbol": "MSFT",
+                "alpha_pnl": 200.0,
+                "execution_pnl": 30.0,
+                "risk_pnl": 20.0,
+                "total_pnl": 250.0,
+                "notional": 20000.0,
+            },
         ]
         result = panel._aggregate_tca(TCAInput(pnl_attributions=pnl_list))
         assert result["source"] == "aggregated_from_pnl_list"
@@ -464,7 +500,13 @@ class TestTCAAggregation:
     def test_aggregate_fills_only(self):
         """仅有 fill_records 时返回基础汇总."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                }
+            }
         )
         fills = [
             {"symbol": "AAPL", "shares": 100, "price": 50.0},
@@ -482,7 +524,13 @@ class TestTCAAggregation:
     def test_aggregate_empty_input(self):
         """空 TCAInput 返回空 dict."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                }
+            }
         )
         result = panel._aggregate_tca(TCAInput())
         assert result == {}
@@ -490,10 +538,21 @@ class TestTCAAggregation:
     def test_aggregate_pnl_list_with_invalid_items(self):
         """PnL 列表含无效项时跳过."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                }
+            }
         )
         pnl_list = [
-            {"symbol": "AAPL", "alpha_pnl": 100.0, "total_pnl": 100.0, "notional": 10000.0},
+            {
+                "symbol": "AAPL",
+                "alpha_pnl": 100.0,
+                "total_pnl": 100.0,
+                "notional": 10000.0,
+            },
             {"symbol": "MSFT", "alpha_pnl": "invalid", "total_pnl": 50.0},  # 无效项
         ]
         result = panel._aggregate_tca(TCAInput(pnl_attributions=pnl_list))
@@ -505,7 +564,11 @@ class TestTCAAggregation:
         """summary_dict 残差超过容差时记录日志 (不抛异常)."""
         panel = DailyAttributionPanel(
             config={
-                "settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True},
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                },
                 "aggregation": {"residual_tolerance": 1e-9},
             }
         )
@@ -522,7 +585,13 @@ class TestTCAAggregation:
     def test_bps_calculation_zero_notional(self):
         """notional 为 0 时 bps 也为 0 (避免除零)."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                }
+            }
         )
         pnl_list = [
             {"symbol": "AAPL", "alpha_pnl": 100.0, "total_pnl": 100.0, "notional": 0.0},
@@ -535,13 +604,20 @@ class TestTCAAggregation:
 # 6. Markdown 生成测试
 # ============================================================
 
+
 class TestMarkdownGeneration:
     """Markdown 生成测试."""
 
     def test_tca_markdown_basic(self):
         """TCA Markdown 基础生成."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                }
+            }
         )
         summary = {
             "source": "post_trade_summarize",
@@ -575,7 +651,11 @@ class TestMarkdownGeneration:
         """残差超过容差时显示警告."""
         panel = DailyAttributionPanel(
             config={
-                "settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True},
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                },
                 "aggregation": {"residual_tolerance": 1e-9},
             }
         )
@@ -599,7 +679,13 @@ class TestMarkdownGeneration:
     def test_tca_markdown_zero_total_pct_na(self):
         """total_pnl=0 时占比显示 N/A."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                }
+            }
         )
         summary = {
             "total_pnl": 0.0,
@@ -621,6 +707,7 @@ class TestMarkdownGeneration:
 # ============================================================
 # 7. DailyAttributionPanel 主类测试
 # ============================================================
+
 
 class TestDailyAttributionPanel:
     """DailyAttributionPanel 主类测试."""
@@ -670,7 +757,13 @@ class TestDailyAttributionPanel:
     def test_generate_with_only_brinson(self):
         """仅 Brinson 输入时生成 partial 报告."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": True, "enable_factor": True, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": True,
+                    "enable_factor": True,
+                    "enable_tca": True,
+                }
+            }
         )
         brinson_input = BrinsonInput(
             portfolio_weights={"finance": 0.5, "tech": 0.5},
@@ -679,8 +772,10 @@ class TestDailyAttributionPanel:
             benchmark_returns={"finance": 0.01, "tech": 0.015},
         )
         # Mock Feature Flag 与子模块
-        with patch.object(panel, "_is_feature_flag_enabled", return_value=True), \
-             patch.object(panel, "_init_brinson_manager") as mock_init:
+        with (
+            patch.object(panel, "_is_feature_flag_enabled", return_value=True),
+            patch.object(panel, "_init_brinson_manager") as mock_init,
+        ):
             # 创建模拟 BrinsonAttributionManager
             mock_mgr = MagicMock()
             mock_result = MagicMock()
@@ -711,7 +806,13 @@ class TestDailyAttributionPanel:
     def test_generate_skipped_module(self):
         """配置禁用某个模块时标记为 skipped."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": False, "enable_factor": True, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": True,
+                    "enable_tca": True,
+                }
+            }
         )
         with patch.object(panel, "_is_feature_flag_enabled", return_value=True):
             report = panel.generate(
@@ -728,14 +829,22 @@ class TestDailyAttributionPanel:
     def test_generate_module_exception_handled(self):
         """子模块异常不阻塞整体报告."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": True, "enable_factor": True, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": True,
+                    "enable_factor": True,
+                    "enable_tca": True,
+                }
+            }
         )
         brinson_input = BrinsonInput(
             portfolio_weights={"finance": 1.0},
             portfolio_returns={"finance": 0.01},
         )
-        with patch.object(panel, "_is_feature_flag_enabled", return_value=True), \
-             patch.object(panel, "_init_brinson_manager") as mock_init:
+        with (
+            patch.object(panel, "_is_feature_flag_enabled", return_value=True),
+            patch.object(panel, "_init_brinson_manager") as mock_init,
+        ):
             mock_mgr = MagicMock()
             mock_mgr.attribute.side_effect = RuntimeError("Brinson 内部错误")
             mock_init.return_value = mock_mgr
@@ -753,7 +862,13 @@ class TestDailyAttributionPanel:
     def test_generate_with_all_modules_ok(self):
         """全部模块正常时返回 ok 报告."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": True, "enable_factor": True, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": True,
+                    "enable_factor": True,
+                    "enable_tca": True,
+                }
+            }
         )
         brinson_input = BrinsonInput(
             portfolio_weights={"finance": 0.5, "tech": 0.5},
@@ -765,9 +880,11 @@ class TestDailyAttributionPanel:
         )
         tca_input = TCAInput(summary_dict={"total_pnl": 1000.0, "alpha_pnl": 600.0})
 
-        with patch.object(panel, "_is_feature_flag_enabled", return_value=True), \
-             patch.object(panel, "_init_brinson_manager") as mock_brinson, \
-             patch.object(panel, "_init_factor_manager") as mock_factor:
+        with (
+            patch.object(panel, "_is_feature_flag_enabled", return_value=True),
+            patch.object(panel, "_init_brinson_manager") as mock_brinson,
+            patch.object(panel, "_init_factor_manager") as mock_factor,
+        ):
             # Mock Brinson Manager
             mock_b_mgr = MagicMock()
             mock_b_result = MagicMock()
@@ -810,7 +927,13 @@ class TestDailyAttributionPanel:
     def test_generate_with_inputs_container(self):
         """使用 DailyReportInput 统一容器."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": True, "enable_factor": True, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": True,
+                    "enable_factor": True,
+                    "enable_tca": True,
+                }
+            }
         )
         inputs = DailyReportInput(
             tca=TCAInput(summary_dict={"total_pnl": 500.0, "alpha_pnl": 300.0})
@@ -878,6 +1001,7 @@ class TestDailyAttributionPanel:
 # 8. 持久化测试
 # ============================================================
 
+
 class TestPersistence:
     """持久化测试."""
 
@@ -934,7 +1058,9 @@ class TestPersistence:
         """仅保存 JSON."""
         panel = DailyAttributionPanel(config={})
         report = DailyAttributionReport(attribution_date="2026-07-27")
-        paths = panel.save(report, report_dir=tmp_path, save_json=True, save_markdown=False)
+        paths = panel.save(
+            report, report_dir=tmp_path, save_json=True, save_markdown=False
+        )
         assert "json" in paths
         assert "markdown" not in paths
 
@@ -942,7 +1068,9 @@ class TestPersistence:
         """仅保存 Markdown."""
         panel = DailyAttributionPanel(config={})
         report = DailyAttributionReport(attribution_date="2026-07-27")
-        paths = panel.save(report, report_dir=tmp_path, save_json=False, save_markdown=True)
+        paths = panel.save(
+            report, report_dir=tmp_path, save_json=False, save_markdown=True
+        )
         assert "markdown" in paths
         assert "json" not in paths
 
@@ -967,7 +1095,13 @@ class TestPersistence:
     def test_generate_and_save(self, tmp_path):
         """generate_and_save() 一步完成生成和保存."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": True, "enable_factor": True, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": True,
+                    "enable_factor": True,
+                    "enable_tca": True,
+                }
+            }
         )
         with patch.object(panel, "_is_feature_flag_enabled", return_value=True):
             report, paths = panel.generate_and_save(
@@ -983,6 +1117,7 @@ class TestPersistence:
 # ============================================================
 # 9. 便捷函数测试
 # ============================================================
+
 
 class TestConvenienceFunctions:
     """便捷函数测试."""
@@ -1000,7 +1135,9 @@ class TestConvenienceFunctions:
 
     def test_generate_daily_report_no_save(self, tmp_path):
         """generate_daily_report(save=False) 不保存文件."""
-        with patch.object(DailyAttributionPanel, "_is_feature_flag_enabled", return_value=True):
+        with patch.object(
+            DailyAttributionPanel, "_is_feature_flag_enabled", return_value=True
+        ):
             report, paths = generate_daily_report(
                 attribution_date="2026-07-27",
                 tca_input=TCAInput(summary_dict={"total_pnl": 100.0}),
@@ -1012,7 +1149,9 @@ class TestConvenienceFunctions:
 
     def test_generate_daily_report_with_save(self, tmp_path):
         """generate_daily_report(save=True) 保存文件."""
-        with patch.object(DailyAttributionPanel, "_is_feature_flag_enabled", return_value=True):
+        with patch.object(
+            DailyAttributionPanel, "_is_feature_flag_enabled", return_value=True
+        ):
             report, paths = generate_daily_report(
                 attribution_date="2026-07-27",
                 tca_input=TCAInput(summary_dict={"total_pnl": 100.0}),
@@ -1026,6 +1165,7 @@ class TestConvenienceFunctions:
 # ============================================================
 # 10. 边界条件测试
 # ============================================================
+
 
 class TestEdgeCases:
     """边界条件测试."""
@@ -1052,20 +1192,29 @@ class TestEdgeCases:
             report = panel.generate()  # 无日期
         # 应该是今天日期 (YYYY-MM-DD)
         from datetime import datetime
+
         today = datetime.now().strftime("%Y-%m-%d")
         assert report.attribution_date == today
 
     def test_generate_partial_brinson_dict_population(self):
         """Brinson 部分有数据时 brinson_dict 被填充."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": True, "enable_factor": True, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": True,
+                    "enable_factor": True,
+                    "enable_tca": True,
+                }
+            }
         )
         brinson_input = BrinsonInput(
             portfolio_weights={"finance": 1.0},
             portfolio_returns={"finance": 0.01},
         )
-        with patch.object(panel, "_is_feature_flag_enabled", return_value=True), \
-             patch.object(panel, "_init_brinson_manager") as mock_init:
+        with (
+            patch.object(panel, "_is_feature_flag_enabled", return_value=True),
+            patch.object(panel, "_init_brinson_manager") as mock_init,
+        ):
             mock_mgr = MagicMock()
             mock_result = MagicMock()
             mock_result.status = "ok"
@@ -1135,17 +1284,26 @@ class TestEdgeCases:
 # 11. 性能测试
 # ============================================================
 
+
 class TestPerformance:
     """性能测试 (验收标准: 生成时间 < 30s)."""
 
     def test_generation_time_under_threshold(self):
         """单次报告生成时间 < 30s."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": True, "enable_factor": True, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": True,
+                    "enable_factor": True,
+                    "enable_tca": True,
+                }
+            }
         )
-        with patch.object(panel, "_is_feature_flag_enabled", return_value=True), \
-             patch.object(panel, "_init_brinson_manager") as mock_b, \
-             patch.object(panel, "_init_factor_manager") as mock_f:
+        with (
+            patch.object(panel, "_is_feature_flag_enabled", return_value=True),
+            patch.object(panel, "_init_brinson_manager") as mock_b,
+            patch.object(panel, "_init_factor_manager") as mock_f,
+        ):
             mock_b_mgr = MagicMock()
             mock_b_result = MagicMock()
             mock_b_result.status = "ok"
@@ -1193,6 +1351,7 @@ class TestPerformance:
 # 12. HC 合规性测试
 # ============================================================
 
+
 class TestHCCompliance:
     """HC (Hard Constraint) 合规性测试."""
 
@@ -1225,11 +1384,19 @@ class TestHCCompliance:
     def test_hc2_main_path_not_blocked_on_module_failure(self):
         """HC-2: 子模块失败不阻塞主路径."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": True, "enable_factor": True, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": True,
+                    "enable_factor": True,
+                    "enable_tca": True,
+                }
+            }
         )
-        with patch.object(panel, "_is_feature_flag_enabled", return_value=True), \
-             patch.object(panel, "_init_brinson_manager") as mock_b, \
-             patch.object(panel, "_init_factor_manager") as mock_f:
+        with (
+            patch.object(panel, "_is_feature_flag_enabled", return_value=True),
+            patch.object(panel, "_init_brinson_manager") as mock_b,
+            patch.object(panel, "_init_factor_manager") as mock_f,
+        ):
             # 两个 Manager 都抛异常
             mock_b.side_effect = RuntimeError("Brinson init fail")
             mock_f.side_effect = RuntimeError("Factor init fail")
@@ -1258,6 +1425,7 @@ class TestHCCompliance:
 # 13. 综合场景测试
 # ============================================================
 
+
 class TestIntegrationScenarios:
     """综合场景测试."""
 
@@ -1284,21 +1452,25 @@ class TestIntegrationScenarios:
             factor_returns={"Size": 0.001, "Beta": 0.002, "Momentum": 0.005},
             portfolio_value=1_000_000.0,
         )
-        tca_input = TCAInput(summary_dict={
-            "total_pnl": 5000.0,
-            "alpha_pnl": 3000.0,
-            "execution_pnl": 1000.0,
-            "risk_pnl": 1000.0,
-            "n_fills": 10,
-            "n_symbols": 5,
-            "alpha_bps": 6.0,
-            "execution_bps": 2.0,
-            "risk_bps": 2.0,
-        })
+        tca_input = TCAInput(
+            summary_dict={
+                "total_pnl": 5000.0,
+                "alpha_pnl": 3000.0,
+                "execution_pnl": 1000.0,
+                "risk_pnl": 1000.0,
+                "n_fills": 10,
+                "n_symbols": 5,
+                "alpha_bps": 6.0,
+                "execution_bps": 2.0,
+                "risk_bps": 2.0,
+            }
+        )
 
-        with patch.object(panel, "_is_feature_flag_enabled", return_value=True), \
-             patch.object(panel, "_init_brinson_manager") as mock_b, \
-             patch.object(panel, "_init_factor_manager") as mock_f:
+        with (
+            patch.object(panel, "_is_feature_flag_enabled", return_value=True),
+            patch.object(panel, "_init_brinson_manager") as mock_b,
+            patch.object(panel, "_init_factor_manager") as mock_f,
+        ):
             mock_b_mgr = MagicMock()
             mock_b_result = MagicMock()
             mock_b_result.status = "ok"
@@ -1367,7 +1539,11 @@ class TestIntegrationScenarios:
         """TCA 聚合时残差验证生效."""
         panel = DailyAttributionPanel(
             config={
-                "settings": {"enable_brinson": False, "enable_factor": False, "enable_tca": True},
+                "settings": {
+                    "enable_brinson": False,
+                    "enable_factor": False,
+                    "enable_tca": True,
+                },
                 "aggregation": {"residual_tolerance": 1e-9},
             }
         )
@@ -1385,7 +1561,13 @@ class TestIntegrationScenarios:
     def test_module_independence(self):
         """三个子模块互相独立, 单一失败不影响其他."""
         panel = DailyAttributionPanel(
-            config={"settings": {"enable_brinson": True, "enable_factor": True, "enable_tca": True}}
+            config={
+                "settings": {
+                    "enable_brinson": True,
+                    "enable_factor": True,
+                    "enable_tca": True,
+                }
+            }
         )
         # Brinson 输入有效, Factor 输入无效 (空), TCA 输入有效
         brinson_input = BrinsonInput(
@@ -1394,8 +1576,10 @@ class TestIntegrationScenarios:
         )
         tca_input = TCAInput(summary_dict={"total_pnl": 100.0})
 
-        with patch.object(panel, "_is_feature_flag_enabled", return_value=True), \
-             patch.object(panel, "_init_brinson_manager") as mock_b:
+        with (
+            patch.object(panel, "_is_feature_flag_enabled", return_value=True),
+            patch.object(panel, "_init_brinson_manager") as mock_b,
+        ):
             mock_b_mgr = MagicMock()
             mock_b_result = MagicMock()
             mock_b_result.status = "ok"

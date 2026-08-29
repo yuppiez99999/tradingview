@@ -29,6 +29,7 @@ logger = logging.getLogger("pipeline.order_generator")
 @dataclass
 class Order:
     """单个订单"""
+
     symbol: str
     side: str  # buy / sell
     quantity: int  # 股数（A股最小100股）
@@ -41,6 +42,7 @@ class Order:
 @dataclass
 class OrderBatch:
     """订单批次"""
+
     batch_id: str
     orders: list[Order]
     total_amount: float = 0.0
@@ -110,7 +112,11 @@ class OrderGenerator:
 
             # 单笔上限
             if abs(delta_value) > self.max_single_order_value:
-                delta_value = self.max_single_order_value if delta_value > 0 else -self.max_single_order_value
+                delta_value = (
+                    self.max_single_order_value
+                    if delta_value > 0
+                    else -self.max_single_order_value
+                )
 
             # 最小交易单位
             quantity = int(delta_value / price / self.lot_size) * self.lot_size
@@ -118,15 +124,17 @@ class OrderGenerator:
                 continue
 
             side = "buy" if quantity > 0 else "sell"
-            orders.append(Order(
-                symbol=symbol,
-                side=side,
-                quantity=abs(quantity),
-                price=price,
-                order_type="market",
-                reason=f"signal_weight={weight:.2%}",
-                tags={"target_weight": weight, "delta_value": delta_value},
-            ))
+            orders.append(
+                Order(
+                    symbol=symbol,
+                    side=side,
+                    quantity=abs(quantity),
+                    price=price,
+                    order_type="market",
+                    reason=f"signal_weight={weight:.2%}",
+                    tags={"target_weight": weight, "delta_value": delta_value},
+                )
+            )
 
         total_amount = sum(o.quantity * o.price for o in orders)
 

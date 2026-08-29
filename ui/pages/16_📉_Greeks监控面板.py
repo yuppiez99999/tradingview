@@ -34,17 +34,24 @@ inject_global_style()
 # 数据层
 # ============================================================
 
+
 @st.cache_data(ttl=30)
 def _load_option_contracts() -> list:
     try:
-        from quant_modules.greeks_calculator import build_demo_contracts, load_positions_for_greeks
+        from quant_modules.greeks_calculator import (
+            build_demo_contracts,
+            load_positions_for_greeks,
+        )
+
         contracts = load_positions_for_greeks()
         if not contracts:
-            contracts = build_demo_contracts({
-                "510300": 3.8,
-                "510050": 2.7,
-                "000300": 3850.0,
-            })
+            contracts = build_demo_contracts(
+                {
+                    "510300": 3.8,
+                    "510050": 2.7,
+                    "000300": 3850.0,
+                }
+            )
         return contracts
     except Exception as e:
         st.warning(f"Greeks 数据加载失败，使用空数据: {e}")
@@ -58,6 +65,7 @@ def _compute_portfolio(contracts):
             aggregate_portfolio_greeks,
             greeks_to_dataframe,
         )
+
         portfolio = aggregate_portfolio_greeks(contracts)
         summary_df = greeks_to_dataframe(portfolio)
         return portfolio, summary_df
@@ -80,7 +88,9 @@ with st.sidebar:
 
     st.divider()
     st.markdown("**数据说明**")
-    st.caption("- 优先读取 `config/options_positions.json`\n- 空文件时使用演示持仓\n- Greeks 基于 Black-Scholes 计算")
+    st.caption(
+        "- 优先读取 `config/options_positions.json`\n- 空文件时使用演示持仓\n- Greeks 基于 Black-Scholes 计算"
+    )
 
 # ============================================================
 # 顶部 KPI
@@ -105,9 +115,13 @@ if not summary_df.empty:
     if warnings:
         render_alert_card(" Greeks 告警", "\n".join(warnings), level="warning")
     else:
-        render_status_card(" Greeks 状态", "当前组合 Greeks 暴露处于常规区间", level="success")
+        render_status_card(
+            " Greeks 状态", "当前组合 Greeks 暴露处于常规区间", level="success"
+        )
 else:
-    st.info("暂无 Greeks 数据，请先配置 `config/options_positions.json`，或等待演示数据加载。")
+    st.info(
+        "暂无 Greeks 数据，请先配置 `config/options_positions.json`，或等待演示数据加载。"
+    )
 
 # ============================================================
 # 主区域: Tab 切换
@@ -179,22 +193,31 @@ with tab3:
     selected = st.selectbox("选择标的查看到期日明细", options=list(portfolio.keys()))
     pg = portfolio.get(selected)
     if pg:
-        expiry_df = pd.DataFrame([
-            {
-                "到期日": exp,
-                "Delta": round(bucket.get("delta", 0.0), 4),
-                "Gamma": round(bucket.get("gamma", 0.0), 4),
-                "Theta": round(bucket.get("theta", 0.0), 4),
-                "Vega": round(bucket.get("vega", 0.0), 4),
-                "净张数": bucket.get("contracts", 0),
-            }
-            for exp, bucket in sorted(pg.exposure_by_expiry.items())
-        ])
+        expiry_df = pd.DataFrame(
+            [
+                {
+                    "到期日": exp,
+                    "Delta": round(bucket.get("delta", 0.0), 4),
+                    "Gamma": round(bucket.get("gamma", 0.0), 4),
+                    "Theta": round(bucket.get("theta", 0.0), 4),
+                    "Vega": round(bucket.get("vega", 0.0), 4),
+                    "净张数": bucket.get("contracts", 0),
+                }
+                for exp, bucket in sorted(pg.exposure_by_expiry.items())
+            ]
+        )
         st.dataframe(expiry_df, use_container_width=True, hide_index=True)
 
         if not expiry_df.empty:
             fig_exp = go.Figure()
             for col in ["Delta", "Gamma", "Theta", "Vega"]:
-                fig_exp.add_trace(go.Bar(x=expiry_df["到期日"], y=expiry_df[col], name=col))
-            fig_exp.update_layout(barmode="group", height=380, margin=dict(t=40), legend=dict(orientation="h", y=1.1))
+                fig_exp.add_trace(
+                    go.Bar(x=expiry_df["到期日"], y=expiry_df[col], name=col)
+                )
+            fig_exp.update_layout(
+                barmode="group",
+                height=380,
+                margin=dict(t=40),
+                legend=dict(orientation="h", y=1.1),
+            )
             st.plotly_chart(fig_exp, use_container_width=True)

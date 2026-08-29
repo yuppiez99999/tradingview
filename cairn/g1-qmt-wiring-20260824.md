@@ -52,3 +52,14 @@ broker cfg: {'type':'qmt','enabled':False,'dry_run':True}
 - 真实下单执行路径: automated_execution_system.OrderRouter → get_broker() (本轮审查确认已注入 broker=SimulatedBroker)。
 - EX-5 已修 QmtBrokerAPI.orderStock 参数错位, 待 xtquant 装好后需验证真实下单签名。
 - 本轮审查 DTE-1 记录: daily_trade_executor 建仓执行未接撮合链, 需在 QMT 影子期前补齐 (工作线 DTE-1)。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [UE-1 统一实盘门控 (2026-08-24)](ue1-live-gate-20260824.md) (相似度 18%)
+- [DTE-1 建仓接入 FillsStore 事实源 (2026-08-24)](dte1-build-fills-store-20260824.md) (相似度 16%)
+- [EX-1 broker 契约统一 (2026-08-24)](ex1-broker-contract-20260824.md) (相似度 13%)
+- [风控 fail-close 完整化 (2026-08-24)](risk-failclose-complete-20260824.md) (相似度 13%)
+- [运维部署 + 灰度发布 (2026-08-24)](ops-gray-release-20260824.md) (相似度 12%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

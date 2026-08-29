@@ -18,6 +18,7 @@ shadow 模式运行 FeedbackLoop 但不切任何 flag (USE_FEEDBACK_LOOP 保持 
 
 对齐 spec §5.3 + design §2.4 + tasks T3.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,8 +27,14 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
+
+try:
+    from datetime import UTC, datetime
+except ImportError:  # Python 3.8 compatibility
+    from datetime import datetime
+
+    UTC = UTC
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -54,6 +61,7 @@ def _utc_now_iso() -> str:
 # B1StatusChecker — B1 状态前置检查器
 # ============================================================
 
+
 @dataclass
 class B1Status:
     enabled: bool
@@ -66,7 +74,9 @@ def check_b1_status() -> B1Status:
     """读取 phase_b_status.json 确认 B1 处于 drift_monitor 阶段."""
     try:
         if not PROD_STATUS_FILE.exists():
-            return B1Status(False, False, "unknown", f"状态文件不存在: {PROD_STATUS_FILE}")
+            return B1Status(
+                False, False, "unknown", f"状态文件不存在: {PROD_STATUS_FILE}"
+            )
         with open(PROD_STATUS_FILE, encoding="utf-8") as f:
             data = json.load(f)
         stage = data.get("stage", "unknown")
@@ -75,9 +85,16 @@ def check_b1_status() -> B1Status:
         b1_flag = flags_enabled.get("USE_DRIFT_DETECTOR", False)
         healthy_stages = {"drift_monitor", "abtest", "auto_retrain", "orchestrator"}
         if stage in healthy_stages and b1_flag:
-            return B1Status(True, True, stage, f"B1 已启用且处于 {stage} 阶段 (drift_monitor 已通过)")
+            return B1Status(
+                True,
+                True,
+                stage,
+                f"B1 已启用且处于 {stage} 阶段 (drift_monitor 已通过)",
+            )
         return B1Status(
-            b1_flag, False, stage,
+            b1_flag,
+            False,
+            stage,
             f"B1 状态异常: stage={stage}, USE_DRIFT_DETECTOR={b1_flag} (需 drift_monitor 或之后)",
         )
     except (json.JSONDecodeError, OSError) as e:
@@ -87,6 +104,7 @@ def check_b1_status() -> B1Status:
 # ============================================================
 # FlagInvariantChecker — feature flag 不变式校验器
 # ============================================================
+
 
 def read_flag_default(flag_name: str) -> bool:
     """从 system_config.json 读取 feature_flags 中指定 flag 的值."""
@@ -118,6 +136,7 @@ def check_flag_invariant() -> bool:
 # ShadowRunner — shadow 运行器
 # ============================================================
 
+
 @dataclass
 class ShadowRunResult:
     shadow_weights: dict[str, float] = field(default_factory=dict)
@@ -130,9 +149,14 @@ def _build_mock_factor_contributions() -> tuple[float, dict[str, float]]:
     """构造 mock daily_pnl + factor_contributions."""
     daily_pnl = 0.012
     factor_contributions = {
-        "mom_20d": 0.05, "mom_60d": 0.03, "vol_20d": -0.02,
-        "liq_amihud": 0.01, "value_ep": 0.04, "growth_roe": 0.06,
-        "quality_gross_margin": 0.02, "size_market_cap": -0.01,
+        "mom_20d": 0.05,
+        "mom_60d": 0.03,
+        "vol_20d": -0.02,
+        "liq_amihud": 0.01,
+        "value_ep": 0.04,
+        "growth_roe": 0.06,
+        "quality_gross_margin": 0.02,
+        "size_market_cap": -0.01,
     }
     return daily_pnl, factor_contributions
 
@@ -150,22 +174,32 @@ def run_shadow() -> ShadowRunResult:
     shadow_loop = FeedbackLoop(initial_weights=initial_weights)
     shadow_loop._enabled = True
     shadow_update = shadow_loop.update_weights(daily_pnl, factor_contributions)
-    shadow_weights = dict(shadow_update.new_weights) if hasattr(shadow_update, "new_weights") else {}
+    shadow_weights = (
+        dict(shadow_update.new_weights) if hasattr(shadow_update, "new_weights") else {}
+    )
 
     # 生产路径: flag=False, 降级返回原始权重
     prod_loop = FeedbackLoop(initial_weights=initial_weights)
     prod_update = prod_loop.update_weights(daily_pnl, factor_contributions)
-    prod_weights = dict(prod_update.new_weights) if hasattr(prod_update, "new_weights") else {}
+    prod_weights = (
+        dict(prod_update.new_weights) if hasattr(prod_update, "new_weights") else {}
+    )
 
     # diff_rate = L1(shadow - prod) / N
     all_keys = set(shadow_weights) | set(prod_weights)
     if all_keys:
-        l1_diff = sum(abs(shadow_weights.get(k, 0.0) - prod_weights.get(k, 0.0)) for k in all_keys)
+        l1_diff = sum(
+            abs(shadow_weights.get(k, 0.0) - prod_weights.get(k, 0.0)) for k in all_keys
+        )
         diff_rate = l1_diff / len(all_keys)
     else:
         diff_rate = 0.0
 
-    suggestion = "可 Go (diff < 0.05)" if diff_rate < DIFF_RATE_GO_THRESHOLD else "需人工评估 (diff >= 0.05)"
+    suggestion = (
+        "可 Go (diff < 0.05)"
+        if diff_rate < DIFF_RATE_GO_THRESHOLD
+        else "需人工评估 (diff >= 0.05)"
+    )
 
     return ShadowRunResult(
         shadow_weights=shadow_weights,
@@ -178,6 +212,7 @@ def run_shadow() -> ShadowRunResult:
 # ============================================================
 # ConsistencyComparator — 一致性比对器与报告落盘
 # ============================================================
+
 
 @dataclass
 class ShadowVerificationResult:
@@ -220,6 +255,7 @@ def save_verification_result(result: ShadowVerificationResult, date: str) -> str
 # ============================================================
 # ShadowStatus — shadow 状态独立存储
 # ============================================================
+
 
 @dataclass
 class ShadowRunRecord:
@@ -278,25 +314,34 @@ def update_shadow_status(result: ShadowRunResult, date: str) -> dict:
 # main
 # ============================================================
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Phase B B2 shadow 模式运行器")
     parser.add_argument("--date", type=str, default=None, help="运行日期 YYYY-MM-DD")
     parser.add_argument("--warmup-only", action="store_true", help="只更新预热计数")
-    parser.add_argument("--check-invariant", action="store_true", help="只检查 flag 不变式")
+    parser.add_argument(
+        "--check-invariant", action="store_true", help="只检查 flag 不变式"
+    )
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s"
+    )
 
     date_str = args.date or datetime.now().strftime("%Y-%m-%d")
 
     if args.check_invariant:
         ok = check_flag_invariant()
-        print(f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}")
+        print(
+            f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}"
+        )
         return 0 if ok else 1
 
     logger.info("B1 状态前置检查...")
     b1 = check_b1_status()
-    logger.info("B1 状态: enabled=%s, healthy=%s, stage=%s", b1.enabled, b1.healthy, b1.stage)
+    logger.info(
+        "B1 状态: enabled=%s, healthy=%s, stage=%s", b1.enabled, b1.healthy, b1.stage
+    )
     if not b1.healthy:
         print(f"\n[B1 检查] FAIL — {b1.message}")
         print("[B2 Shadow] 拒绝启动: B1 未启用或异常")
@@ -314,12 +359,16 @@ def main() -> int:
         SHADOW_REPORT_DIR.mkdir(parents=True, exist_ok=True)
         with open(SHADOW_STATUS_FILE, "w", encoding="utf-8") as f:
             json.dump(status, f, ensure_ascii=False, indent=2)
-        print(f"\n[WARMUP-ONLY] warmup_days={status['warmup_days']}/{WARMUP_TARGET_DAYS}")
+        print(
+            f"\n[WARMUP-ONLY] warmup_days={status['warmup_days']}/{WARMUP_TARGET_DAYS}"
+        )
         return 0
 
     logger.info("Shadow 路径运行...")
     run_result = run_shadow()
-    logger.info("diff_rate=%.6f, suggestion=%s", run_result.diff_rate, run_result.suggestion)
+    logger.info(
+        "diff_rate=%.6f, suggestion=%s", run_result.diff_rate, run_result.suggestion
+    )
 
     logger.info("FLAG 不变式校验 (运行后)...")
     flag_ok = check_flag_invariant()
@@ -346,12 +395,16 @@ def main() -> int:
     print(f"[diff_rate] {run_result.diff_rate:.6f} (阈值 {DIFF_RATE_GO_THRESHOLD})")
     print(f"[建议] {run_result.suggestion}")
     print(f"[FLAG 不变式] {'PASS' if flag_ok else 'FAIL'}")
-    print(f"[预热] warmup_days={warmup_days}/{WARMUP_TARGET_DAYS} {'✅ 达标' if warmup_sufficient else '⏳ 不足'}")
+    print(
+        f"[预热] warmup_days={warmup_days}/{WARMUP_TARGET_DAYS} {'✅ 达标' if warmup_sufficient else '⏳ 不足'}"
+    )
     print(f"[报告] {report_path}")
     print(f"[状态] {SHADOW_STATUS_FILE}")
 
     if not warmup_sufficient:
-        print(f"[风险] 预热不足 ({warmup_days} < {WARMUP_TARGET_DAYS} 天), 需继续每日 EOD 运行")
+        print(
+            f"[风险] 预热不足 ({warmup_days} < {WARMUP_TARGET_DAYS} 天), 需继续每日 EOD 运行"
+        )
 
     return 0 if (flag_ok and b1.healthy) else 1
 

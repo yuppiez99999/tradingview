@@ -19,6 +19,7 @@
   - 数学恒等式: 三效应总和必须等于超额收益 (残差 = 0)
   - 不依赖网络: ConfigManager / Feature Flag 通过 mock 控制
 """
+
 from __future__ import annotations
 
 import sys
@@ -80,6 +81,7 @@ from utils.attribution.brinson_attribution import (  # noqa: E402
 # 1. 常量定义测试
 # ============================================================
 
+
 class TestConstants:
     """常量定义完整性测试."""
 
@@ -102,8 +104,16 @@ class TestConstants:
     def test_default_sectors_contains_eight(self):
         """默认行业列表包含 8 大行业."""
         assert len(DEFAULT_SECTORS) == 8
-        for s in ["tech", "manufacturing", "cyclical", "resources",
-                  "defensive", "finance", "consumer", "healthcare"]:
+        for s in [
+            "tech",
+            "manufacturing",
+            "cyclical",
+            "resources",
+            "defensive",
+            "finance",
+            "consumer",
+            "healthcare",
+        ]:
             assert s in DEFAULT_SECTORS
 
     def test_sector_names_mapping_complete(self):
@@ -136,14 +146,20 @@ class TestConstants:
 
     def test_status_codes_distinct(self):
         """状态码互不相同."""
-        codes = [STATUS_OK, STATUS_FEATURE_FLAG_DISABLED, STATUS_INSUFFICIENT_DATA,
-                 STATUS_SECTOR_MISMATCH, STATUS_EMPTY_INPUT]
+        codes = [
+            STATUS_OK,
+            STATUS_FEATURE_FLAG_DISABLED,
+            STATUS_INSUFFICIENT_DATA,
+            STATUS_SECTOR_MISMATCH,
+            STATUS_EMPTY_INPUT,
+        ]
         assert len(set(codes)) == len(codes)
 
 
 # ============================================================
 # 2. 异常体系测试
 # ============================================================
+
 
 class TestExceptions:
     """异常体系完整性测试."""
@@ -188,6 +204,7 @@ class TestExceptions:
 # ============================================================
 # 3. 数据类测试
 # ============================================================
+
 
 class TestDataClasses:
     """数据类字段与序列化测试."""
@@ -317,6 +334,7 @@ class TestDataClasses:
 # 4. 核心算法函数测试
 # ============================================================
 
+
 class TestCoreFunctions:
     """核心三效应计算函数测试."""
 
@@ -417,6 +435,7 @@ class TestCoreFunctions:
 # 5. 权重校验测试
 # ============================================================
 
+
 class TestValidateWeights:
     """权重校验函数测试."""
 
@@ -473,6 +492,7 @@ class TestValidateWeights:
 # 6. 行业对齐测试
 # ============================================================
 
+
 class TestAlignSectors:
     """行业对齐函数测试."""
 
@@ -521,6 +541,7 @@ class TestAlignSectors:
 # 7. attribute_brinson 主函数测试
 # ============================================================
 
+
 class TestAttributeBrinson:
     """attribute_brinson 主归因函数测试."""
 
@@ -561,9 +582,11 @@ class TestAttributeBrinson:
             portfolio_returns={"a": 0.05, "b": -0.02, "c": 0.01},
             benchmark_returns={"a": 0.03, "b": 0.01, "c": 0.005},
         )
-        three_sum = (result.total_allocation_effect +
-                     result.total_selection_effect +
-                     result.total_interaction_effect)
+        three_sum = (
+            result.total_allocation_effect
+            + result.total_selection_effect
+            + result.total_interaction_effect
+        )
         assert abs(three_sum - result.excess_return) < 1e-10
         assert abs(result.residual) < 1e-10
 
@@ -583,8 +606,16 @@ class TestAttributeBrinson:
 
     def test_eight_sectors_full_attribution(self):
         """8 大行业完整归因."""
-        sectors = ["tech", "manufacturing", "cyclical", "resources",
-                   "defensive", "finance", "consumer", "healthcare"]
+        sectors = [
+            "tech",
+            "manufacturing",
+            "cyclical",
+            "resources",
+            "defensive",
+            "finance",
+            "consumer",
+            "healthcare",
+        ]
         p_w = {s: 0.125 for s in sectors}  # 等权
         b_w = {s: 0.125 for s in sectors}
         p_r = {s: 0.01 * i for i, s in enumerate(sectors)}
@@ -619,7 +650,10 @@ class TestAttributeBrinson:
             assert s.benchmark_weight > 0
             assert s.weight_diff == s.portfolio_weight - s.benchmark_weight
             assert s.return_diff == s.portfolio_return - s.benchmark_return
-            assert s.total_effect == s.allocation_effect + s.selection_effect + s.interaction_effect
+            assert (
+                s.total_effect
+                == s.allocation_effect + s.selection_effect + s.interaction_effect
+            )
 
     def test_custom_sector_names(self):
         """自定义行业名称映射."""
@@ -716,6 +750,7 @@ class TestAttributeBrinson:
 # 8. BrinsonAttributionManager 主类测试
 # ============================================================
 
+
 class TestBrinsonAttributionManager:
     """BrinsonAttributionManager 主类测试."""
 
@@ -723,7 +758,7 @@ class TestBrinsonAttributionManager:
         """默认初始化."""
         mgr = BrinsonAttributionManager()
         assert mgr._feature_flag_name == FLAG_NAME
-        assert mgr._config_name if hasattr(mgr, '_config_name') else True
+        assert mgr._config_name if hasattr(mgr, "_config_name") else True
         assert mgr._benchmark_code == DEFAULT_PRIMARY_BENCHMARK
 
     def test_init_with_custom_config(self):
@@ -760,7 +795,7 @@ class TestBrinsonAttributionManager:
     def test_attribute_with_feature_flag_enabled(self):
         """Feature Flag 启用时执行归因."""
         mgr = BrinsonAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_weights={"finance": 0.4, "tech": 0.6},
                 benchmark_weights={"finance": 0.3, "tech": 0.7},
@@ -774,7 +809,7 @@ class TestBrinsonAttributionManager:
     def test_attribute_uses_default_benchmark_weights(self):
         """未提供 benchmark_weights 时使用配置中的默认值."""
         mgr = BrinsonAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_weights={"finance": 0.3, "tech": 0.7},
                 portfolio_returns={"finance": 0.02, "tech": 0.05},
@@ -788,7 +823,7 @@ class TestBrinsonAttributionManager:
         mgr = BrinsonAttributionManager(
             config={"settings": {}, "benchmark_sector_weights": {}}
         )
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_weights={"a": 1.0},
                 portfolio_returns={"a": 0.01},
@@ -800,7 +835,7 @@ class TestBrinsonAttributionManager:
     def test_attribute_returns_insufficient_when_no_returns(self):
         """未提供收益率时返回 insufficient_data."""
         mgr = BrinsonAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_weights={"a": 1.0},
                 benchmark_weights={"a": 1.0},
@@ -812,7 +847,7 @@ class TestBrinsonAttributionManager:
     def test_attribute_handles_invalid_input_gracefully(self):
         """无效输入优雅处理 (返回 empty_input 状态)."""
         mgr = BrinsonAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_weights={},
                 benchmark_weights={"a": 1.0},
@@ -824,7 +859,7 @@ class TestBrinsonAttributionManager:
     def test_attribute_handles_unnormalized_weights_gracefully(self):
         """未归一化权重优雅处理 (返回 sector_mismatch 状态)."""
         mgr = BrinsonAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_weights={"a": 0.5, "b": 0.6},  # 和 1.1
                 benchmark_weights={"a": 0.5, "b": 0.5},
@@ -836,16 +871,41 @@ class TestBrinsonAttributionManager:
     def test_attribute_from_positions_basic(self):
         """从持仓列表归因 (聚合到行业维度)."""
         mgr = BrinsonAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute_from_positions(
                 portfolio_positions=[
-                    {"code": "000001", "weight": 0.3, "return": 0.02, "sector": "finance"},
-                    {"code": "600519", "weight": 0.4, "return": 0.05, "sector": "consumer"},
-                    {"code": "000858", "weight": 0.3, "return": 0.01, "sector": "consumer"},
+                    {
+                        "code": "000001",
+                        "weight": 0.3,
+                        "return": 0.02,
+                        "sector": "finance",
+                    },
+                    {
+                        "code": "600519",
+                        "weight": 0.4,
+                        "return": 0.05,
+                        "sector": "consumer",
+                    },
+                    {
+                        "code": "000858",
+                        "weight": 0.3,
+                        "return": 0.01,
+                        "sector": "consumer",
+                    },
                 ],
                 benchmark_positions=[
-                    {"code": "000001", "weight": 0.4, "return": 0.01, "sector": "finance"},
-                    {"code": "600519", "weight": 0.6, "return": 0.03, "sector": "consumer"},
+                    {
+                        "code": "000001",
+                        "weight": 0.4,
+                        "return": 0.01,
+                        "sector": "finance",
+                    },
+                    {
+                        "code": "600519",
+                        "weight": 0.6,
+                        "return": 0.03,
+                        "sector": "consumer",
+                    },
                 ],
                 attribution_date="2026-07-27",
             )
@@ -856,18 +916,24 @@ class TestBrinsonAttributionManager:
         """Feature Flag 关闭时持仓列表归因返回降级结果."""
         mgr = BrinsonAttributionManager()
         result = mgr.attribute_from_positions(
-            portfolio_positions=[{"code": "a", "weight": 1.0, "return": 0.01, "sector": "x"}],
-            benchmark_positions=[{"code": "a", "weight": 1.0, "return": 0.01, "sector": "x"}],
+            portfolio_positions=[
+                {"code": "a", "weight": 1.0, "return": 0.01, "sector": "x"}
+            ],
+            benchmark_positions=[
+                {"code": "a", "weight": 1.0, "return": 0.01, "sector": "x"}
+            ],
         )
         assert result.status == STATUS_FEATURE_FLAG_DISABLED
 
     def test_attribute_from_positions_empty_list(self):
         """空持仓列表返回 insufficient_data."""
         mgr = BrinsonAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute_from_positions(
                 portfolio_positions=[],
-                benchmark_positions=[{"code": "a", "weight": 1.0, "return": 0.01, "sector": "x"}],
+                benchmark_positions=[
+                    {"code": "a", "weight": 1.0, "return": 0.01, "sector": "x"}
+                ],
             )
         assert result.status == STATUS_INSUFFICIENT_DATA
 
@@ -892,6 +958,7 @@ class TestBrinsonAttributionManager:
 # 9. Feature Flag 透传测试
 # ============================================================
 
+
 class TestFeatureFlag:
     """Feature Flag 透传测试 (HC-1)."""
 
@@ -910,7 +977,9 @@ class TestFeatureFlag:
 
     def test_is_brinson_attribution_enabled_returns_false_on_exception(self):
         """Feature Flag 异常时返回 False."""
-        with patch("utils.infra.feature_flags.is_enabled", side_effect=RuntimeError("test")):
+        with patch(
+            "utils.infra.feature_flags.is_enabled", side_effect=RuntimeError("test")
+        ):
             assert is_brinson_attribution_enabled() is False
 
     def test_manager_is_enabled_returns_false_on_import_error(self):
@@ -920,6 +989,7 @@ class TestFeatureFlag:
         original_is_enabled = None
         try:
             import utils.infra.feature_flags as ff
+
             original_is_enabled = ff.is_enabled
             ff.is_enabled = MagicMock(side_effect=ImportError)
             assert mgr._is_enabled() is False
@@ -931,6 +1001,7 @@ class TestFeatureFlag:
 # ============================================================
 # 10. 便捷函数测试
 # ============================================================
+
 
 class TestConvenienceFunctions:
     """便捷函数测试."""
@@ -959,6 +1030,7 @@ class TestConvenienceFunctions:
 # ============================================================
 # 11. 边界条件测试
 # ============================================================
+
 
 class TestEdgeCases:
     """边界条件测试."""
@@ -1049,6 +1121,7 @@ class TestEdgeCases:
 # 12. 数学恒等式验证 (随机化测试)
 # ============================================================
 
+
 class TestMathematicalIdentity:
     """数学恒等式验证: 三效应和 = 超额收益."""
 
@@ -1060,9 +1133,11 @@ class TestMathematicalIdentity:
             portfolio_returns={"a": 0.03, "b": -0.01, "c": 0.04},
             benchmark_returns={"a": 0.02, "b": 0.005, "c": 0.025},
         )
-        three_sum = (result.total_allocation_effect +
-                     result.total_selection_effect +
-                     result.total_interaction_effect)
+        three_sum = (
+            result.total_allocation_effect
+            + result.total_selection_effect
+            + result.total_interaction_effect
+        )
         assert abs(three_sum - result.excess_return) < 1e-10
         assert abs(result.residual) < 1e-10
 
@@ -1074,9 +1149,11 @@ class TestMathematicalIdentity:
             portfolio_returns={"a": -0.05, "b": 0.08, "c": 0.02},
             benchmark_returns={"a": -0.02, "b": 0.04, "c": 0.01},
         )
-        three_sum = (result.total_allocation_effect +
-                     result.total_selection_effect +
-                     result.total_interaction_effect)
+        three_sum = (
+            result.total_allocation_effect
+            + result.total_selection_effect
+            + result.total_interaction_effect
+        )
         assert abs(three_sum - result.excess_return) < 1e-10
         assert abs(result.residual) < 1e-10
 
@@ -1107,6 +1184,7 @@ class TestMathematicalIdentity:
 # ============================================================
 # 13. Markdown 输出测试
 # ============================================================
+
 
 class TestMarkdownOutput:
     """Markdown 报告输出测试."""
@@ -1171,6 +1249,7 @@ class TestMarkdownOutput:
 # 14. 配置加载测试
 # ============================================================
 
+
 class TestConfigLoading:
     """ConfigManager 配置加载测试 (HC-5)."""
 
@@ -1228,13 +1307,14 @@ class TestConfigLoading:
 # 15. 集成场景测试
 # ============================================================
 
+
 class TestIntegration:
     """集成场景测试."""
 
     def test_full_workflow_with_feature_flag(self):
         """完整工作流 (Feature Flag 启用 -> 归因 -> 序列化)."""
         mgr = BrinsonAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute(
                 portfolio_weights={"finance": 0.4, "tech": 0.3, "consumer": 0.3},
                 benchmark_weights={"finance": 0.3, "tech": 0.4, "consumer": 0.3},
@@ -1262,7 +1342,7 @@ class TestIntegration:
     def test_positions_aggregation_correctness(self):
         """持仓聚合到行业维度的正确性."""
         mgr = BrinsonAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute_from_positions(
                 portfolio_positions=[
                     {"code": "A", "weight": 0.4, "return": 0.02, "sector": "finance"},
@@ -1281,12 +1361,15 @@ class TestIntegration:
             benchmark_returns={"finance": 0.01, "tech": 0.03},
         )
         assert abs(result.excess_return - expected.excess_return) < 1e-10
-        assert abs(result.total_allocation_effect - expected.total_allocation_effect) < 1e-10
+        assert (
+            abs(result.total_allocation_effect - expected.total_allocation_effect)
+            < 1e-10
+        )
 
     def test_multiple_sectors_aggregation(self):
         """多资产聚合到同一行业的正确性."""
         mgr = BrinsonAttributionManager()
-        with patch.object(mgr, '_is_enabled', return_value=True):
+        with patch.object(mgr, "_is_enabled", return_value=True):
             result = mgr.attribute_from_positions(
                 portfolio_positions=[
                     {"code": "A", "weight": 0.3, "return": 0.02, "sector": "consumer"},

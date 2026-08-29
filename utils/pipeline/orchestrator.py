@@ -126,20 +126,28 @@ class PipelineOrchestrator:
         try:
             # 阶段 1: 数据清洗
             if not self._run_stage_data_cleaning(market_data, symbols):
-                return self._build_result(PipelineStage.DATA_CLEANING, started_at, success=False)
+                return self._build_result(
+                    PipelineStage.DATA_CLEANING, started_at, success=False
+                )
 
             # 阶段 2: Alpha 信号
             if not self._run_stage_alpha(symbols):
-                return self._build_result(PipelineStage.ALPHA_GENERATION, started_at, success=False)
+                return self._build_result(
+                    PipelineStage.ALPHA_GENERATION, started_at, success=False
+                )
 
             # 阶段 3: 回测验证
             if not self._run_stage_backtest():
-                return self._build_result(PipelineStage.BACKTEST_GATE, started_at, success=False)
+                return self._build_result(
+                    PipelineStage.BACKTEST_GATE, started_at, success=False
+                )
 
             # 阶段 4: 执行
             if self.config.execution_enabled:
                 if not self._run_stage_execution(current_positions):
-                    return self._build_result(PipelineStage.EXECUTION, started_at, success=False)
+                    return self._build_result(
+                        PipelineStage.EXECUTION, started_at, success=False
+                    )
             else:
                 logger.info("执行模块未启用，跳过")
 
@@ -154,21 +162,34 @@ class PipelineOrchestrator:
             self._status.last_run_at = datetime.now().isoformat()
             self._status.run_count += 1
 
-            result = self._build_result(PipelineStage.COMPLETED, started_at, success=True)
+            result = self._build_result(
+                PipelineStage.COMPLETED, started_at, success=True
+            )
             logger.info("=" * 70)
             logger.info(f"闭环流水线完成 | 耗时 {result.duration_ms:.0f}ms")
             logger.info("=" * 70)
 
             return result
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"闭环流水线异常: {e}", exc_info=True)
             self._status.current_stage = PipelineStage.FAILED
             self._status.error_count += 1
 
-            return self._build_result(PipelineStage.FAILED, started_at, success=False, error=str(e))
+            return self._build_result(
+                PipelineStage.FAILED, started_at, success=False, error=str(e)
+            )
 
     def _run_stage_data_cleaning(
         self,
@@ -196,8 +217,10 @@ class PipelineOrchestrator:
             logger.warning(f"{len(failed)} 只标的未通过数据质量检查")
             # 记录但不阻断 (可根据策略调整)
 
-        logger.info(f"数据清洗完成: {len(reports)} 只标的, "
-                   f"平均质量 {np_mean([r.quality_score for r in reports]):.1f}")
+        logger.info(
+            f"数据清洗完成: {len(reports)} 只标的, "
+            f"平均质量 {np_mean([r.quality_score for r in reports]):.1f}"
+        )
         return True
 
     def _run_stage_alpha(self, symbols: Optional[list[str]]) -> bool:
@@ -216,8 +239,10 @@ class PipelineOrchestrator:
             return False
 
         self._alpha_result = signal_result
-        logger.info(f"Alpha 信号完成: {len(signal_result.signals)} 只标的, "
-                   f"模型 {signal_result.model_name}")
+        logger.info(
+            f"Alpha 信号完成: {len(signal_result.signals)} 只标的, "
+            f"模型 {signal_result.model_name}"
+        )
         return True
 
     def _run_stage_backtest(self) -> bool:
@@ -240,8 +265,10 @@ class PipelineOrchestrator:
             return False
 
         self._backtest_result = gate_result
-        logger.info(f"回测验证通过: IC={gate_result.ic:.3f}, DSR={gate_result.dsr:.2f}, "
-                   f"Sharpe={gate_result.sharpe:.2f}")
+        logger.info(
+            f"回测验证通过: IC={gate_result.ic:.3f}, DSR={gate_result.dsr:.2f}, "
+            f"Sharpe={gate_result.sharpe:.2f}"
+        )
         return True
 
     def _run_stage_execution(
@@ -269,8 +296,10 @@ class PipelineOrchestrator:
             logger.error(f"执行失败: {result.error}")
             return False
 
-        logger.info(f"执行完成: {exec_result.filled_orders}/{exec_result.total_orders} "
-                   f"({exec_result.fill_rate:.1%})")
+        logger.info(
+            f"执行完成: {exec_result.filled_orders}/{exec_result.total_orders} "
+            f"({exec_result.fill_rate:.1%})"
+        )
         return True
 
     def _run_stage_risk(self) -> bool:
@@ -312,20 +341,32 @@ class PipelineOrchestrator:
         metrics: dict[str, Any] = {
             "data_cleaning": {
                 "reports_count": len(self._data_reports),
-                "avg_quality": np_mean([r.quality_score for r in self._data_reports]) if self._data_reports else 0,
+                "avg_quality": (
+                    np_mean([r.quality_score for r in self._data_reports])
+                    if self._data_reports
+                    else 0
+                ),
             },
             "alpha": {
-                "signals_count": len(self._alpha_result.signals) if self._alpha_result else 0,
+                "signals_count": (
+                    len(self._alpha_result.signals) if self._alpha_result else 0
+                ),
                 "model": self._alpha_result.model_name if self._alpha_result else "",
             },
             "backtest": {
-                "passed": self._backtest_result.passed if self._backtest_result else False,
+                "passed": (
+                    self._backtest_result.passed if self._backtest_result else False
+                ),
                 "ic": self._backtest_result.ic if self._backtest_result else 0,
                 "dsr": self._backtest_result.dsr if self._backtest_result else 0,
             },
             "execution": {
-                "fill_rate": self._execution_result.fill_rate if self._execution_result else 0,
-                "total_orders": self._execution_result.total_orders if self._execution_result else 0,
+                "fill_rate": (
+                    self._execution_result.fill_rate if self._execution_result else 0
+                ),
+                "total_orders": (
+                    self._execution_result.total_orders if self._execution_result else 0
+                ),
             },
         }
         return metrics
@@ -382,6 +423,15 @@ def np_mean(values: list[float], default: float = 0.0) -> float:
         return default
     try:
         return sum(values) / len(values)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return default

@@ -107,14 +107,16 @@ def generate_deepseek_recommendations(
     details = pnl_data.get("details", []) or []
     # 取前 10 个标的的盈亏摘要, 避免提示词过长
     top_holdings = []
-    for d in sorted(details, key=lambda x: abs(x.get("daily_pnl_pct", 0) or 0), reverse=True)[:5]:
-        top_holdings.append({
-            "code": d.get("code", ""),
+    for d in sorted(
+        details, key=lambda x: abs(x.get("daily_pnl_pct", 0) or 0), reverse=True
+    )[:5]:
+        top_holdings.append(
+            {
+                "code": d.get("code", ""),
                 "name": d.get("name", ""),
                 "style": d.get("style", ""),
                 "daily_pnl_pct": d.get("daily_pnl_pct"),
                 "status": d.get("status", ""),
-
             }
         )
 
@@ -123,9 +125,12 @@ def generate_deepseek_recommendations(
     portfolio_beta = hedge_data.get("portfolio_beta", 1.3)
     # 取前 5 个对冲工具
     top_hedges = []
-    for h in sorted(hedge_details, key=lambda x: abs(x.get("beta_reduced", 0)), reverse=True)[:3]:
-        top_hedges.append({
-            "code": h.get("code", ""),
+    for h in sorted(
+        hedge_details, key=lambda x: abs(x.get("beta_reduced", 0)), reverse=True
+    )[:3]:
+        top_hedges.append(
+            {
+                "code": h.get("code", ""),
                 "name": h.get("name", ""),
                 "contracts": h.get("contracts", 0),
                 "beta_reduced": h.get("beta_reduced", 0),
@@ -139,10 +144,14 @@ def generate_deepseek_recommendations(
         "total_positions": len(details),
         "hedge_effectiveness": hedge_summary.get("hedge_effectiveness", 0),
         "portfolio_beta": portfolio_beta,
-        "beta_exposure": round(portfolio_beta - sum(h.get("beta_reduced", 0) for h in hedge_details), 3),
+        "beta_exposure": round(
+            portfolio_beta - sum(h.get("beta_reduced", 0) for h in hedge_details), 3
+        ),
         "top_holdings": top_holdings,
         "top_hedges": top_hedges,
-        "stop_loss_count": sum(1 for d in details if d.get("status") == "STOP_LOSS_TRIGGERED"),
+        "stop_loss_count": sum(
+            1 for d in details if d.get("status") == "STOP_LOSS_TRIGGERED"
+        ),
     }
 
     system_prompt = (
@@ -172,10 +181,14 @@ def generate_deepseek_recommendations(
         f"  {h['code']} {h['name']} | 日盈亏:{h['daily_pnl_pct']} | 状态:{h['status']} | 风格:{h['style']}"
         for h in top_holdings
     )
-    hedge_lines = "\n".join(
-        f"  {h['code']} {h['name']} | 合约:{h['contracts']}手 | 降Beta:{h['beta_reduced']} | 盈亏:{h['pnl']}"
-        for h in top_hedges
-    ) if top_hedges else "  无活跃对冲"
+    hedge_lines = (
+        "\n".join(
+            f"  {h['code']} {h['name']} | 合约:{h['contracts']}手 | 降Beta:{h['beta_reduced']} | 盈亏:{h['pnl']}"
+            for h in top_hedges
+        )
+        if top_hedges
+        else "  无活跃对冲"
+    )
 
     user_prompt = (
         f"日期: {report_date} | 组合净{pnl_dir}: {net_pnl:.2f}\n"
@@ -189,7 +202,9 @@ def generate_deepseek_recommendations(
         f"请基于以上数据, 输出 4-6 条结构化交易决策建议, 每行一条:"
     )
 
-    result = call_deepseek_fn(system_prompt, user_prompt, temperature=0.2, max_tokens=1200)
+    result = call_deepseek_fn(
+        system_prompt, user_prompt, temperature=0.2, max_tokens=1200
+    )
     if not result:
         return None
 
@@ -236,17 +251,39 @@ def generate_deepseek_recommendations(
     # DeepSeek 常先输出 "分析输入数据" "日期:" "净盈亏:" 等描述, 再给建议
     # 关键词分两类: 严格匹配 (任何位置出现都过滤) + 行开头匹配 (只在行开头才过滤, 防误杀)
     descriptive_strict = [
-        "分析输入数据", "输入数据", "数据分析", "数据解读",
-        "日期：", "日期:", "净盈亏：", "净盈亏:",
-        "持仓数：", "持仓数:", "对冲有效性：", "对冲有效性:",
-        "市场环境", "行情分析", "盘面分析", "盘面回顾",
-        "以下是", "基于以上", "综合分析", "综上所述",
+        "分析输入数据",
+        "输入数据",
+        "数据分析",
+        "数据解读",
+        "日期：",
+        "日期:",
+        "净盈亏：",
+        "净盈亏:",
+        "持仓数：",
+        "持仓数:",
+        "对冲有效性：",
+        "对冲有效性:",
+        "市场环境",
+        "行情分析",
+        "盘面分析",
+        "盘面回顾",
+        "以下是",
+        "基于以上",
+        "综合分析",
+        "综上所述",
     ]
     descriptive_line_start = [
-        "组合Beta", "组合 beta", "portfolio beta",
-        "组合净值", "组合收益", "组合波动",
-        "大盘", "指数", "板块",
+        "组合Beta",
+        "组合 beta",
+        "portfolio beta",
+        "组合净值",
+        "组合收益",
+        "组合波动",
+        "大盘",
+        "指数",
+        "板块",
     ]
+
     def _is_descriptive(line: str) -> bool:
         low = line.lower().strip()
         # 严格匹配: 任何位置出现都算描述行
@@ -264,13 +301,26 @@ def generate_deepseek_recommendations(
 
     # 操作建议关键词 (apply_llm_decisions_to_plan.py 解析依赖的关键词)
     action_keywords = [
-        "IF空头", "增加期货", "提升Beta对冲效率",
-        "510050 Put", "510300 Put", "Put保护", "买入Put",
-        "建仓顺序", "优先建仓", "调整建仓",
-        "止损", "移动止损",
-        "减持", "加仓", "仓位调整",
-        "板块权重", "增加", "降低",
+        "IF空头",
+        "增加期货",
+        "提升Beta对冲效率",
+        "510050 Put",
+        "510300 Put",
+        "Put保护",
+        "买入Put",
+        "建仓顺序",
+        "优先建仓",
+        "调整建仓",
+        "止损",
+        "移动止损",
+        "减持",
+        "加仓",
+        "仓位调整",
+        "板块权重",
+        "增加",
+        "降低",
     ]
+
     def _has_action_keyword(line: str) -> bool:
         low = line.lower()
         return any(kw.lower() in low for kw in action_keywords)

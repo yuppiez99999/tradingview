@@ -9,6 +9,7 @@
     本测试验证 PI-2 修复的【契约行为】: mock 快照 → data_degraded 标记。
     真实的 _step_data_gate 实现已按此契约修改 (institutional_pipeline_runner.py)。
 """
+
 from __future__ import annotations
 
 
@@ -27,16 +28,25 @@ def _step_data_gate_logic(symbols, snapshot_fn, gate_fn):
         gate_results.append(gate_dict)
         if not gate_dict.get("allowed"):
             all_allowed = False
-    return {"all_symbols_allowed": all_allowed, "mock_used": mock_used,
-            "data_degraded": mock_used > 0, "results": gate_results}
+    return {
+        "all_symbols_allowed": all_allowed,
+        "mock_used": mock_used,
+        "data_degraded": mock_used > 0,
+        "results": gate_results,
+    }
 
 
 class TestDataGateMockContract:
     def test_mock_snapshot_marks_degraded(self):
         """PI-2: mock 快照时 data_degraded=True, 每个 gate 记录带标记."""
         symbols = ["600519", "000001"]
-        snapshot_fn = lambda s: {"price": 10.0, "source": "mock"}  # noqa: E731
-        gate_fn = lambda s, snap: {"allowed": True}  # noqa: E731
+
+        def snapshot_fn(s):
+            return {"price": 10.0, "source": "mock"}
+
+        def gate_fn(s, snap):
+            return {"allowed": True}
+
         result = _step_data_gate_logic(symbols, snapshot_fn, gate_fn)
         assert result["data_degraded"] is True
         assert result["mock_used"] == 2
@@ -45,8 +55,16 @@ class TestDataGateMockContract:
     def test_real_snapshot_not_degraded(self):
         """PI-2: 真实快照 (source=data_provider) 时 data_degraded=False."""
         symbols = ["600519"]
-        snapshot_fn = lambda s: {"price": 1680.0, "source": "data_provider"}  # noqa: E731
-        gate_fn = lambda s, snap: {"allowed": True}  # noqa: E731
+
+        def snapshot_fn(s):
+            return {
+                "price": 1680.0,
+                "source": "data_provider",
+            }
+
+        def gate_fn(s, snap):
+            return {"allowed": True}
+
         result = _step_data_gate_logic(symbols, snapshot_fn, gate_fn)
         assert result["data_degraded"] is False
         assert result["mock_used"] == 0

@@ -61,7 +61,11 @@ DEFAULT_LLM_REGISTRY: list[dict[str, str]] = [
     {"provider": "openai", "model": "gpt-4o", "name": "GPT-4o"},
     {"provider": "openai", "model": "gpt-4o-mini", "name": "GPT-4o-mini"},
     {"provider": "openai", "model": "gpt-4-turbo", "name": "GPT-4-turbo"},
-    {"provider": "anthropic", "model": "claude-3-5-sonnet", "name": "Claude-3.5-Sonnet"},
+    {
+        "provider": "anthropic",
+        "model": "claude-3-5-sonnet",
+        "name": "Claude-3.5-Sonnet",
+    },
     {"provider": "anthropic", "model": "claude-3-5-haiku", "name": "Claude-3.5-Haiku"},
     {"provider": "deepseek", "model": "deepseek-chat", "name": "DeepSeek-V3"},
     {"provider": "deepseek", "model": "deepseek-reasoner", "name": "DeepSeek-R1"},
@@ -71,8 +75,8 @@ DEFAULT_LLM_REGISTRY: list[dict[str, str]] = [
 
 # 时间穿越检测阈值
 LEAKAGE_P_VALUE_THRESHOLD = 0.01  # 1% 显著性水平
-LEAKAGE_SHARPE_ANOMALY = 3.0      # Sharpe > 3.0 视为异常 (参考论文)
-LEAKAGE_WIN_RATE_ANOMALY = 0.75   # 胜率 > 75% 视为可疑
+LEAKAGE_SHARPE_ANOMALY = 3.0  # Sharpe > 3.0 视为异常 (参考论文)
+LEAKAGE_WIN_RATE_ANOMALY = 0.75  # 胜率 > 75% 视为可疑
 
 # 默认 A 股评估标的 (沪深 300 核心子集)
 DEFAULT_SYMBOLS = [
@@ -89,9 +93,11 @@ DEFAULT_SYMBOLS = [
 # 数据结构
 # ============================================================
 
+
 @dataclass
 class MarketData:
     """截止某时点的市场数据快照 (严格时序边界)。"""
+
     date: str
     prices: dict[str, list[float]]  # symbol -> 历史收盘价序列 (截止 date)
     volumes: dict[str, list[int]] = field(default_factory=dict)
@@ -105,10 +111,11 @@ class MarketData:
 @dataclass
 class Decision:
     """LLM 在某时点的交易决策。"""
+
     date: str
     symbol: str
-    action: str          # "buy" / "sell" / "hold"
-    weight: float        # 0.0 ~ 1.0
+    action: str  # "buy" / "sell" / "hold"
+    weight: float  # 0.0 ~ 1.0
     reasoning: str = ""  # LLM 推理过程 (用于泄漏检测)
     timestamp: str = ""  # 决策生成时间戳
 
@@ -116,6 +123,7 @@ class Decision:
 @dataclass
 class Metrics:
     """评估指标。"""
+
     total_return: float = 0.0
     sharpe_ratio: float = 0.0
     max_drawdown: float = 0.0
@@ -129,6 +137,7 @@ class Metrics:
 @dataclass
 class LeakageReport:
     """时间穿越检测报告。"""
+
     is_leaked: bool = False
     p_value: float = 1.0
     anomaly_score: float = 0.0
@@ -140,6 +149,7 @@ class LeakageReport:
 @dataclass
 class EvalResult:
     """单个 LLM 的评估结果。"""
+
     llm_name: str
     provider: str
     model: str
@@ -153,6 +163,7 @@ class EvalResult:
 @dataclass
 class EvalReport:
     """完整评估报告 (多 LLM 竞技场)。"""
+
     start_date: str = ""
     end_date: str = ""
     symbols: list[str] = field(default_factory=list)
@@ -197,6 +208,7 @@ class EvalReport:
 # LLM 适配器
 # ============================================================
 
+
 class LLMAdapter:
     """统一 LLM 接口, 复用 utils/llm_client.py, 支持 mock 模式。
 
@@ -204,8 +216,9 @@ class LLMAdapter:
     用于无 API key 环境下的基准测试 + CI 验证。
     """
 
-    def __init__(self, provider: str, model: str, name: str = "",
-                 mock: Optional[bool] = None) -> None:
+    def __init__(
+        self, provider: str, model: str, name: str = "", mock: Optional[bool] = None
+    ) -> None:
         self.provider = provider
         self.model = model
         self.name = name or f"{provider}/{model}"
@@ -233,9 +246,18 @@ class LLMAdapter:
         """加载真实 LLM 客户端 (复用项目统一客户端)。"""
         try:
             from utils import llm_client
+
             return llm_client
-        except (ImportError, ModuleNotFoundError, ValueError, KeyError,
-                TypeError, AttributeError, OSError, RuntimeError):
+        except (
+            ImportError,
+            ModuleNotFoundError,
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ):
             logger.warning("DeepFund: utils.llm_client 不可用, 降级为 mock")
             self.mock = True
             return None
@@ -247,11 +269,18 @@ class LLMAdapter:
         if self._client is None:
             return self._mock_chat(prompt, system)
         try:
-            result = self._client.chat(prompt=prompt, system=system,
-                                       temperature=0.3, max_tokens=1000)
+            result = self._client.chat(
+                prompt=prompt, system=system, temperature=0.3, max_tokens=1000
+            )
             return result or self._mock_chat(prompt, system)
-        except (ValueError, KeyError, TypeError, AttributeError,
-                OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"DeepFund: LLM chat 失败 ({e}), 降级为 mock")
             return self._mock_chat(prompt, system)
 
@@ -261,11 +290,14 @@ class LLMAdapter:
         rng = random.Random(seed)
         action = rng.choice(["buy", "sell", "hold"])
         weight = round(rng.uniform(0.0, 1.0), 4)
-        return json.dumps({
-            "action": action,
-            "weight": weight,
-            "reasoning": f"mock-{self.model}: 基于历史数据的伪随机决策",
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "action": action,
+                "weight": weight,
+                "reasoning": f"mock-{self.model}: 基于历史数据的伪随机决策",
+            },
+            ensure_ascii=False,
+        )
 
     def is_available(self) -> bool:
         """检查 LLM 是否可用 (mock 始终可用)。"""
@@ -276,14 +308,14 @@ class LLMAdapter:
         try:
             status = self._client.test_connection()
             return bool(status.get("available", False))
-        except (ValueError, KeyError, TypeError, AttributeError,
-                OSError, RuntimeError):
+        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return False
 
 
 # ============================================================
 # 基准数据加载器
 # ============================================================
+
 
 class BenchmarkDataLoader:
     """基准数据加载器, 严格时序切分 (防止信息泄漏)。
@@ -293,8 +325,9 @@ class BenchmarkDataLoader:
     生产环境可子类化并重写 load_market_data 接入真实数据。
     """
 
-    def __init__(self, symbols: list[str], start_date: str,
-                 end_date: str, seed: int = 42) -> None:
+    def __init__(
+        self, symbols: list[str], start_date: str, end_date: str, seed: int = 42
+    ) -> None:
         self.symbols = symbols
         self.start_date = start_date
         self.end_date = end_date
@@ -340,8 +373,10 @@ class BenchmarkDataLoader:
             # 严格截止: 只包含 <= date 的数据
             cutoff_idx = [i for i, d in enumerate(dates) if d <= date]
             cutoff_prices[symbol] = [prices[i] for i in cutoff_idx]
-            cutoff_volumes[symbol] = [int(1e6 * (1.0 + random.Random(hash(dates[i])).uniform(-0.5, 0.5)))
-                                      for i in cutoff_idx]
+            cutoff_volumes[symbol] = [
+                int(1e6 * (1.0 + random.Random(hash(dates[i])).uniform(-0.5, 0.5)))
+                for i in cutoff_idx
+            ]
 
         market_data = MarketData(
             date=date,
@@ -365,6 +400,7 @@ class BenchmarkDataLoader:
 # 时间穿越检测器 (核心创新)
 # ============================================================
 
+
 class TimeLeakageDetector:
     """时间穿越检测器 — DeepFund 基准的核心创新。
 
@@ -375,16 +411,22 @@ class TimeLeakageDetector:
     4. 对照组对比: 与随机决策基准对比
     """
 
-    def __init__(self, p_value_threshold: float = LEAKAGE_P_VALUE_THRESHOLD,
-                 sharpe_anomaly: float = LEAKAGE_SHARPE_ANOMALY,
-                 win_rate_anomaly: float = LEAKAGE_WIN_RATE_ANOMALY) -> None:
+    def __init__(
+        self,
+        p_value_threshold: float = LEAKAGE_P_VALUE_THRESHOLD,
+        sharpe_anomaly: float = LEAKAGE_SHARPE_ANOMALY,
+        win_rate_anomaly: float = LEAKAGE_WIN_RATE_ANOMALY,
+    ) -> None:
         self.p_value_threshold = p_value_threshold
         self.sharpe_anomaly = sharpe_anomaly
         self.win_rate_anomaly = win_rate_anomaly
 
-    def detect(self, decisions: list[Decision],
-               metrics: Metrics,
-               benchmark_metrics: Optional[Metrics] = None) -> LeakageReport:
+    def detect(
+        self,
+        decisions: list[Decision],
+        metrics: Metrics,
+        benchmark_metrics: Optional[Metrics] = None,
+    ) -> LeakageReport:
         """执行时间穿越检测, 返回泄漏报告。"""
         reasons: list[str] = []
 
@@ -404,12 +446,16 @@ class TimeLeakageDetector:
 
         if metrics.sharpe_ratio > self.sharpe_anomaly:
             anomaly_score += 0.4
-            reasons.append(f"Sharpe {metrics.sharpe_ratio:.2f} > {self.sharpe_anomaly} (异常高)")
+            reasons.append(
+                f"Sharpe {metrics.sharpe_ratio:.2f} > {self.sharpe_anomaly} (异常高)"
+            )
             p_value = min(p_value, 0.005)
 
         if metrics.win_rate > self.win_rate_anomaly:
             anomaly_score += 0.3
-            reasons.append(f"胜率 {metrics.win_rate:.2%} > {self.win_rate_anomaly:.0%} (可疑)")
+            reasons.append(
+                f"胜率 {metrics.win_rate:.2%} > {self.win_rate_anomaly:.0%} (可疑)"
+            )
             p_value = min(p_value, 0.02)
 
         # 4. 对照组对比 (与随机基准对比)
@@ -418,11 +464,15 @@ class TimeLeakageDetector:
             actual_sharpe = abs(metrics.sharpe_ratio)
             if benchmark_sharpe > 0 and actual_sharpe > benchmark_sharpe * 5:
                 anomaly_score += 0.3
-                reasons.append(f"Sharpe 超越随机基准 5 倍 ({actual_sharpe:.2f} vs {benchmark_sharpe:.2f})")
+                reasons.append(
+                    f"Sharpe 超越随机基准 5 倍 ({actual_sharpe:.2f} vs {benchmark_sharpe:.2f})"
+                )
                 p_value = min(p_value, 0.01)
 
         # 单个强异常信号 (Sharpe>3.0 或 胜率>75%) 即可触发泄漏标记
-        is_leaked = (anomaly_score >= 0.3) or (not chronological_ok) or (not info_boundary_ok)
+        is_leaked = (
+            (anomaly_score >= 0.3) or (not chronological_ok) or (not info_boundary_ok)
+        )
 
         return LeakageReport(
             is_leaked=is_leaked,
@@ -452,6 +502,7 @@ class TimeLeakageDetector:
                 continue
             # 提取 reasoning 中的日期模式 (YYYY-MM-DD)
             import re
+
             date_pattern = r"(\d{4}-\d{2}-\d{2})"
             found_dates = re.findall(date_pattern, decision.reasoning)
             for found_date in found_dates:
@@ -464,6 +515,7 @@ class TimeLeakageDetector:
 # 主评估器
 # ============================================================
 
+
 class DeepFundHarness:
     """DeepFund 防泄漏评估基准主评估器。
 
@@ -473,17 +525,19 @@ class DeepFundHarness:
         report = harness.run_evaluation(adapters, "2024-01-01", "2024-06-30")
     """
 
-    def __init__(self, symbols: Optional[list[str]] = None,
-                 seed: int = 42) -> None:
+    def __init__(self, symbols: Optional[list[str]] = None, seed: int = 42) -> None:
         self.symbols = symbols or DEFAULT_SYMBOLS
         self.seed = seed
         self.detector = TimeLeakageDetector()
 
-    def run_evaluation(self, adapters: list[LLMAdapter],
-                       start_date: str, end_date: str) -> EvalReport:
+    def run_evaluation(
+        self, adapters: list[LLMAdapter], start_date: str, end_date: str
+    ) -> EvalReport:
         """运行多 LLM 竞技场评估。"""
-        logger.info(f"DeepFund: 开始评估 {len(adapters)} 个 LLM, "
-                    f"区间 {start_date} ~ {end_date}")
+        logger.info(
+            f"DeepFund: 开始评估 {len(adapters)} 个 LLM, "
+            f"区间 {start_date} ~ {end_date}"
+        )
 
         loader = BenchmarkDataLoader(self.symbols, start_date, end_date, self.seed)
         trading_dates = loader.get_trading_dates()
@@ -514,21 +568,24 @@ class DeepFundHarness:
             generated_at=datetime.now().isoformat(timespec="seconds"),
             n_trading_days=len(eval_dates),
         )
-        logger.info(f"DeepFund: 评估完成, {sum(1 for r in results if r.error is None)} 成功, "
-                    f"{sum(1 for r in results if r.leakage.is_leaked)} 疑似泄漏")
+        logger.info(
+            f"DeepFund: 评估完成, {sum(1 for r in results if r.error is None)} 成功, "
+            f"{sum(1 for r in results if r.leakage.is_leaked)} 疑似泄漏"
+        )
         return report
 
-    def _sample_eval_dates(self, trading_dates: list[str],
-                           max_days: int = 60) -> list[str]:
+    def _sample_eval_dates(
+        self, trading_dates: list[str], max_days: int = 60
+    ) -> list[str]:
         """采样评估日期 (均匀采样, 避免全量评估)。"""
         if len(trading_dates) <= max_days:
             return trading_dates
         step = len(trading_dates) // max_days
         return trading_dates[::step][:max_days]
 
-    def _evaluate_single(self, adapter: LLMAdapter,
-                         loader: BenchmarkDataLoader,
-                         eval_dates: list[str]) -> EvalResult:
+    def _evaluate_single(
+        self, adapter: LLMAdapter, loader: BenchmarkDataLoader, eval_dates: list[str]
+    ) -> EvalResult:
         """评估单个 LLM。"""
         start_time = time.time()
         decisions: list[Decision] = []
@@ -554,8 +611,14 @@ class DeepFundHarness:
                 metrics=metrics,
                 elapsed_seconds=round(elapsed, 4),
             )
-        except (ValueError, KeyError, TypeError, AttributeError,
-                OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             return EvalResult(
                 llm_name=adapter.name,
                 provider=adapter.provider,
@@ -565,9 +628,9 @@ class DeepFundHarness:
                 error=str(e),
             )
 
-    def _make_decision(self, adapter: LLMAdapter,
-                       market_data: MarketData,
-                       symbol: str) -> Decision:
+    def _make_decision(
+        self, adapter: LLMAdapter, market_data: MarketData, symbol: str
+    ) -> Decision:
         """调用 LLM 生成单标的决策。"""
         prices = market_data.prices.get(symbol, [])
         recent_prices = prices[-20:] if len(prices) >= 20 else prices
@@ -589,18 +652,20 @@ class DeepFundHarness:
         return (
             "你是一个专业的基金经理。基于截止当前时点的历史数据做出交易决策。"
             "严格禁止使用未来信息 (时间穿越)。"
-            "返回 JSON: {\"action\": \"buy|sell|hold\", \"weight\": 0.0-1.0, "
-            "\"reasoning\": \"决策理由\"}"
+            '返回 JSON: {"action": "buy|sell|hold", "weight": 0.0-1.0, '
+            '"reasoning": "决策理由"}'
         )
 
-    def _build_prompt(self, date: str, symbol: str,
-                      recent_prices: list[float]) -> str:
-        return json.dumps({
-            "date": date,
-            "symbol": symbol,
-            "recent_prices": recent_prices,
-            "instruction": "基于截止上述时点的数据做出决策, 禁止引用未来日期",
-        }, ensure_ascii=False)
+    def _build_prompt(self, date: str, symbol: str, recent_prices: list[float]) -> str:
+        return json.dumps(
+            {
+                "date": date,
+                "symbol": symbol,
+                "recent_prices": recent_prices,
+                "instruction": "基于截止上述时点的数据做出决策, 禁止引用未来日期",
+            },
+            ensure_ascii=False,
+        )
 
     def _parse_response(self, response: str) -> tuple[str, float, str]:
         """解析 LLM 响应为 (action, weight, reasoning)。"""
@@ -616,9 +681,12 @@ class DeepFundHarness:
         except (json.JSONDecodeError, ValueError, TypeError, AttributeError):
             return "hold", 0.0, response[:200]
 
-    def _compute_metrics(self, decisions: list[Decision],
-                         loader: BenchmarkDataLoader,
-                         eval_dates: list[str]) -> Metrics:
+    def _compute_metrics(
+        self,
+        decisions: list[Decision],
+        loader: BenchmarkDataLoader,
+        eval_dates: list[str],
+    ) -> Metrics:
         """计算评估指标。"""
         if not decisions:
             return Metrics()
@@ -644,8 +712,11 @@ class DeepFundHarness:
                 daily_return = (curr_price - prev_price) / prev_price
                 # 查找该时点的决策
                 decision = next(
-                    (d for d in decisions
-                     if d.date == prev_date and d.symbol == symbol),
+                    (
+                        d
+                        for d in decisions
+                        if d.date == prev_date and d.symbol == symbol
+                    ),
                     None,
                 )
                 if decision is None:
@@ -659,7 +730,7 @@ class DeepFundHarness:
         if returns:
             mean_ret = sum(returns) / len(returns)
             std_ret = (sum((r - mean_ret) ** 2 for r in returns) / len(returns)) ** 0.5
-            sharpe = (mean_ret / std_ret * (252 ** 0.5)) if std_ret > 0 else 0.0
+            sharpe = (mean_ret / std_ret * (252**0.5)) if std_ret > 0 else 0.0
             win_rate = sum(1 for r in returns if r > 0) / len(returns)
             # 最大回撤
             cum_returns: list[float] = []
@@ -691,23 +762,27 @@ class DeepFundHarness:
             n_hold=n_hold,
         )
 
-    def _compute_random_benchmark(self, loader: BenchmarkDataLoader,
-                                  eval_dates: list[str]) -> Metrics:
+    def _compute_random_benchmark(
+        self, loader: BenchmarkDataLoader, eval_dates: list[str]
+    ) -> Metrics:
         """计算随机决策基准对照组。"""
         rng = random.Random(self.seed + 999)
         random_decisions: list[Decision] = []
         for date in eval_dates:
             for symbol in self.symbols:
-                random_decisions.append(Decision(
-                    date=date,
-                    symbol=symbol,
-                    action=rng.choice(["buy", "sell", "hold"]),
-                    weight=rng.uniform(0.0, 1.0),
-                ))
+                random_decisions.append(
+                    Decision(
+                        date=date,
+                        symbol=symbol,
+                        action=rng.choice(["buy", "sell", "hold"]),
+                        weight=rng.uniform(0.0, 1.0),
+                    )
+                )
         return self._compute_metrics(random_decisions, loader, eval_dates)
 
-    def save_report(self, report: EvalReport,
-                    output_dir: str = "reports/eval/deepfund") -> Path:
+    def save_report(
+        self, report: EvalReport, output_dir: str = "reports/eval/deepfund"
+    ) -> Path:
         """保存评估报告到 JSON 文件。"""
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -724,6 +799,7 @@ class DeepFundHarness:
 # CLI 入口
 # ============================================================
 
+
 def main() -> None:
     """CLI 入口: 运行 DeepFund 评估基准。
 
@@ -738,8 +814,9 @@ def main() -> None:
 
     # 默认使用 mock 模式 (无需 API key)
     adapters = [
-        LLMAdapter(provider=cfg["provider"], model=cfg["model"],
-                   name=cfg["name"], mock=True)
+        LLMAdapter(
+            provider=cfg["provider"], model=cfg["model"], name=cfg["name"], mock=True
+        )
         for cfg in DEFAULT_LLM_REGISTRY
     ]
     print(f"\n评估 {len(adapters)} 个 LLM (mock 模式):")
@@ -759,13 +836,17 @@ def main() -> None:
     for result in report.results:
         status = "泄漏" if result.leakage.is_leaked else "通过"
         print(f"\n{result.llm_name}:")
-        print(f"  状态: {status} (p={result.leakage.p_value:.4f}, "
-              f"anomaly={result.leakage.anomaly_score:.2f})")
+        print(
+            f"  状态: {status} (p={result.leakage.p_value:.4f}, "
+            f"anomaly={result.leakage.anomaly_score:.2f})"
+        )
         print(f"  Sharpe: {result.metrics.sharpe_ratio:.4f}")
         print(f"  胜率: {result.metrics.win_rate:.2%}")
-        print(f"  决策数: {result.metrics.n_decisions} "
-              f"(buy={result.metrics.n_buy}, sell={result.metrics.n_sell}, "
-              f"hold={result.metrics.n_hold})")
+        print(
+            f"  决策数: {result.metrics.n_decisions} "
+            f"(buy={result.metrics.n_buy}, sell={result.metrics.n_sell}, "
+            f"hold={result.metrics.n_hold})"
+        )
         if result.leakage.reasons:
             print(f"  原因: {result.leakage.reasons}")
 

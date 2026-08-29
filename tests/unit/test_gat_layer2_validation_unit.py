@@ -3,17 +3,21 @@
 gat_layer2_validation 依赖 gat_factor_torch (torch DLL 加载失败),
 纯函数部分无法单独导入。本文件在 torch 可用时运行, 否则全部跳过。
 """
+
 from __future__ import annotations
 
 import pytest
 
 try:
     import torch  # noqa: F401
+
     _TORCH_OK = True
 except (ImportError, OSError, ModuleNotFoundError, AttributeError):
     _TORCH_OK = False
 
-pytestmark = pytest.mark.skipif(not _TORCH_OK, reason="torch 不可用 (gat_factor_torch 依赖)")
+pytestmark = pytest.mark.skipif(
+    not _TORCH_OK, reason="torch 不可用 (gat_factor_torch 依赖)"
+)
 
 if _TORCH_OK:
     import numpy as np

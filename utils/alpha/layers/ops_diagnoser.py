@@ -42,6 +42,7 @@
     diagnoser = OpsDiagnoser()
     causes = diagnoser.diagnose(health_report)
 """
+
 from __future__ import annotations
 
 import json
@@ -227,13 +228,21 @@ class OpsDiagnoser:
         }
         try:
             from utils.config_manager import get_config
+
             cfg = get_config("evolution") or {}
             diag = (cfg.get("diagnostics", {}) or {}).get("ops", {}) or {}
             if diag:
-                return {
-                    k: float(diag.get(k, defaults[k])) for k in defaults
-                }
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                return {k: float(diag.get(k, defaults[k])) for k in defaults}
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Ops 诊断阈值加载失败, 用默认值: %s", e)
         return defaults
@@ -291,13 +300,23 @@ class OpsDiagnoser:
             if not sc_dir or not sc_dir.exists():
                 return causes
             from utils.alpha.layers.system_check_diff import SystemCheckDiff
+
             differ = SystemCheckDiff()
             diff = differ.diff_recent(sc_dir, days_ago=1)
             if not diff.has_regressions:
                 return causes
             # 复用 diff 工具的 to_root_causes 转换 (仅回归 + 新失败)
             causes = differ.to_root_causes(diff, now=now)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("自检归档回归诊断失败 (降级为空): %s", e)
         return causes
@@ -323,7 +342,16 @@ class OpsDiagnoser:
             latest_file = archive_files[0]
             try:
                 archive = json.loads(latest_file.read_text(encoding="utf-8"))
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("解析 system_check 归档失败 %s: %s", latest_file.name, e)
                 return causes
@@ -348,32 +376,43 @@ class OpsDiagnoser:
                 remediation = str(r.get("remediation", ""))
                 severity = SEVERITY_CRITICAL if level == "ERROR" else SEVERITY_HIGH
 
-                causes.append(RootCause(
-                    cause_id=f"ops-datasource_fail-{code}-{latest_file.stem}",
-                    layer=LAYER_OPS,
-                    category="datasource_fail",
-                    severity=severity,
-                    evidence={
-                        "check_code": code,
-                        "check_name": name,
-                        "check_level": level,
-                        "detail": detail,
-                        "remediation": remediation,
-                        "archive_file": latest_file.name,
-                        "source": "system_check_archive",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_DATASOURCE_SWITCH,
-                        target_file=_DATASOURCE_TARGET_MAP.get(code, ""),
-                        description=f"数据源 {code} {name} 失败: {detail[:200]}",
-                        estimated_risk=0.6,
-                        requires_human_approval=True,
-                        remediation_commands=[remediation] if remediation else [],
-                    ),
-                    confidence=0.9,
-                    detected_at=now,
-                ))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                causes.append(
+                    RootCause(
+                        cause_id=f"ops-datasource_fail-{code}-{latest_file.stem}",
+                        layer=LAYER_OPS,
+                        category="datasource_fail",
+                        severity=severity,
+                        evidence={
+                            "check_code": code,
+                            "check_name": name,
+                            "check_level": level,
+                            "detail": detail,
+                            "remediation": remediation,
+                            "archive_file": latest_file.name,
+                            "source": "system_check_archive",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_DATASOURCE_SWITCH,
+                            target_file=_DATASOURCE_TARGET_MAP.get(code, ""),
+                            description=f"数据源 {code} {name} 失败: {detail[:200]}",
+                            estimated_risk=0.6,
+                            requires_human_approval=True,
+                            remediation_commands=[remediation] if remediation else [],
+                        ),
+                        confidence=0.9,
+                        detected_at=now,
+                    )
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("数据源连通性诊断失败 (降级为空): %s", e)
         return causes
@@ -388,88 +427,103 @@ class OpsDiagnoser:
             dq_dir = self.report_dirs.get("data_quality")
             if not dq_dir or not dq_dir.exists():
                 # 目录不存在 → 数据质量监控未就绪
-                causes.append(RootCause(
-                    cause_id=f"ops-data_quality_no_monitoring-{now}",
-                    layer=LAYER_OPS,
-                    category="data_quality_no_monitoring",
-                    severity=SEVERITY_MEDIUM,
-                    evidence={
-                        "report_dir": str(dq_dir) if dq_dir else "",
-                        "source": "data_quality_dir",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description="数据质量监控目录不存在, 需部署数据质量报告生成器",
-                        estimated_risk=0.4,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "# 部署数据质量监控",
-                            "python scripts/run_data_quality_check.py --install",
-                        ],
-                    ),
-                    confidence=0.7,
-                    detected_at=now,
-                ))
+                causes.append(
+                    RootCause(
+                        cause_id=f"ops-data_quality_no_monitoring-{now}",
+                        layer=LAYER_OPS,
+                        category="data_quality_no_monitoring",
+                        severity=SEVERITY_MEDIUM,
+                        evidence={
+                            "report_dir": str(dq_dir) if dq_dir else "",
+                            "source": "data_quality_dir",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_MANUAL,
+                            description="数据质量监控目录不存在, 需部署数据质量报告生成器",
+                            estimated_risk=0.4,
+                            requires_human_approval=True,
+                            remediation_commands=[
+                                "# 部署数据质量监控",
+                                "python scripts/run_data_quality_check.py --install",
+                            ],
+                        ),
+                        confidence=0.7,
+                        detected_at=now,
+                    )
+                )
                 return causes
 
             # 检查最新报告新鲜度
             files = list(dq_dir.glob("*.json")) + list(dq_dir.glob("*.md"))
             if not files:
-                causes.append(RootCause(
-                    cause_id=f"ops-data_quality_stale-{now}",
-                    layer=LAYER_OPS,
-                    category="data_quality_stale",
-                    severity=SEVERITY_MEDIUM,
-                    evidence={
-                        "report_dir": str(dq_dir),
-                        "file_count": 0,
-                        "source": "data_quality_dir",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description="数据质量报告目录为空, 需运行数据质量检查",
-                        estimated_risk=0.4,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "python scripts/run_data_quality_check.py",
-                        ],
-                    ),
-                    confidence=0.7,
-                    detected_at=now,
-                ))
+                causes.append(
+                    RootCause(
+                        cause_id=f"ops-data_quality_stale-{now}",
+                        layer=LAYER_OPS,
+                        category="data_quality_stale",
+                        severity=SEVERITY_MEDIUM,
+                        evidence={
+                            "report_dir": str(dq_dir),
+                            "file_count": 0,
+                            "source": "data_quality_dir",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_MANUAL,
+                            description="数据质量报告目录为空, 需运行数据质量检查",
+                            estimated_risk=0.4,
+                            requires_human_approval=True,
+                            remediation_commands=[
+                                "python scripts/run_data_quality_check.py",
+                            ],
+                        ),
+                        confidence=0.7,
+                        detected_at=now,
+                    )
+                )
                 return causes
 
             # 检查最新文件新鲜度
             latest_file = max(files, key=lambda f: f.stat().st_mtime)
             age_seconds = datetime.now(UTC).timestamp() - latest_file.stat().st_mtime
             if age_seconds > DEFAULT_DATA_QUALITY_STALE_WINDOW:
-                causes.append(RootCause(
-                    cause_id=f"ops-data_quality_stale-{latest_file.name}",
-                    layer=LAYER_OPS,
-                    category="data_quality_stale",
-                    severity=SEVERITY_MEDIUM,
-                    evidence={
-                        "latest_file": latest_file.name,
-                        "age_seconds": int(age_seconds),
-                        "stale_threshold": DEFAULT_DATA_QUALITY_STALE_WINDOW,
-                        "source": "data_quality_dir",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"数据质量报告已过期 ({age_seconds/3600:.1f}h 未更新), "
-                            "需重新运行数据质量检查"
+                causes.append(
+                    RootCause(
+                        cause_id=f"ops-data_quality_stale-{latest_file.name}",
+                        layer=LAYER_OPS,
+                        category="data_quality_stale",
+                        severity=SEVERITY_MEDIUM,
+                        evidence={
+                            "latest_file": latest_file.name,
+                            "age_seconds": int(age_seconds),
+                            "stale_threshold": DEFAULT_DATA_QUALITY_STALE_WINDOW,
+                            "source": "data_quality_dir",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_MANUAL,
+                            description=(
+                                f"数据质量报告已过期 ({age_seconds/3600:.1f}h 未更新), "
+                                "需重新运行数据质量检查"
+                            ),
+                            estimated_risk=0.4,
+                            requires_human_approval=True,
+                            remediation_commands=[
+                                "python scripts/run_data_quality_check.py",
+                            ],
                         ),
-                        estimated_risk=0.4,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "python scripts/run_data_quality_check.py",
-                        ],
-                    ),
-                    confidence=0.75,
-                    detected_at=now,
-                ))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                        confidence=0.75,
+                        detected_at=now,
+                    )
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("数据质量诊断失败 (降级为空): %s", e)
         return causes
@@ -504,39 +558,59 @@ class OpsDiagnoser:
                 try:
                     lines = f.read_text(encoding="utf-8").strip().splitlines()
                     alert_count += sum(1 for line in lines if line.strip())
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
 
             if alert_count > 0:
                 severity = SEVERITY_HIGH if alert_count > 5 else SEVERITY_MEDIUM
-                causes.append(RootCause(
-                    cause_id=f"ops-drift_alert_recent-{now}",
-                    layer=LAYER_OPS,
-                    category="drift_alert_recent",
-                    severity=severity,
-                    evidence={
-                        "alert_count_24h": alert_count,
-                        "recent_file_count": len(recent_files),
-                        "recency_window": DEFAULT_ALERT_RECENCY_WINDOW,
-                        "source": "drift_alerts_dir",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"24h 内有 {alert_count} 条漂移告警, 需检查模型运维状态"
+                causes.append(
+                    RootCause(
+                        cause_id=f"ops-drift_alert_recent-{now}",
+                        layer=LAYER_OPS,
+                        category="drift_alert_recent",
+                        severity=severity,
+                        evidence={
+                            "alert_count_24h": alert_count,
+                            "recent_file_count": len(recent_files),
+                            "recency_window": DEFAULT_ALERT_RECENCY_WINDOW,
+                            "source": "drift_alerts_dir",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_MANUAL,
+                            description=(
+                                f"24h 内有 {alert_count} 条漂移告警, 需检查模型运维状态"
+                            ),
+                            estimated_risk=0.5,
+                            requires_human_approval=True,
+                            remediation_commands=[
+                                "# 检查漂移告警详情并评估是否需重训练",
+                                "python scripts/run_drift_check.py --summary",
+                            ],
                         ),
-                        estimated_risk=0.5,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "# 检查漂移告警详情并评估是否需重训练",
-                            "python scripts/run_drift_check.py --summary",
-                        ],
-                    ),
-                    confidence=0.8,
-                    detected_at=now,
-                ))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                        confidence=0.8,
+                        detected_at=now,
+                    )
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("漂移告警新鲜度诊断失败 (降级为空): %s", e)
         return causes
@@ -555,40 +629,52 @@ class OpsDiagnoser:
             files = list(fa_dir.glob("*.json")) + list(fa_dir.glob("*.jsonl"))
             now_ts = datetime.now(UTC).timestamp()
             recent_changes = sum(
-                1 for f in files
+                1
+                for f in files
                 if (now_ts - f.stat().st_mtime) < DEFAULT_FLAG_AUDIT_WINDOW
             )
 
             # 7 天内变更 > 5 次 → 根因
             if recent_changes > 5:
                 severity = SEVERITY_HIGH if recent_changes > 10 else SEVERITY_MEDIUM
-                causes.append(RootCause(
-                    cause_id=f"ops-flag_instability-{now}",
-                    layer=LAYER_OPS,
-                    category="flag_instability",
-                    severity=severity,
-                    evidence={
-                        "recent_changes_7d": recent_changes,
-                        "audit_window": DEFAULT_FLAG_AUDIT_WINDOW,
-                        "source": "flag_audit_dir",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"7 天内 Flag 变更 {recent_changes} 次, 频繁变更可能影响系统稳定性, "
-                            "需审查变更必要性"
+                causes.append(
+                    RootCause(
+                        cause_id=f"ops-flag_instability-{now}",
+                        layer=LAYER_OPS,
+                        category="flag_instability",
+                        severity=severity,
+                        evidence={
+                            "recent_changes_7d": recent_changes,
+                            "audit_window": DEFAULT_FLAG_AUDIT_WINDOW,
+                            "source": "flag_audit_dir",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_MANUAL,
+                            description=(
+                                f"7 天内 Flag 变更 {recent_changes} 次, 频繁变更可能影响系统稳定性, "
+                                "需审查变更必要性"
+                            ),
+                            estimated_risk=0.5,
+                            requires_human_approval=True,
+                            remediation_commands=[
+                                "# 审查 Flag 变更历史",
+                                "python scripts/run_flag_audit.py --summary --days 7",
+                            ],
                         ),
-                        estimated_risk=0.5,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "# 审查 Flag 变更历史",
-                            "python scripts/run_flag_audit.py --summary --days 7",
-                        ],
-                    ),
-                    confidence=0.75,
-                    detected_at=now,
-                ))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                        confidence=0.75,
+                        detected_at=now,
+                    )
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Flag 变更稳定性诊断失败 (降级为空): %s", e)
         return causes
@@ -607,39 +693,51 @@ class OpsDiagnoser:
             files = list(rb_dir.glob("*.json")) + list(rb_dir.glob("*.jsonl"))
             now_ts = datetime.now(UTC).timestamp()
             recent_events = sum(
-                1 for f in files
+                1
+                for f in files
                 if (now_ts - f.stat().st_mtime) < DEFAULT_RISK_EVENT_WINDOW
             )
 
             # 7 天内事件 > 5 次 → 根因
             if recent_events > 5:
                 severity = SEVERITY_CRITICAL if recent_events > 15 else SEVERITY_HIGH
-                causes.append(RootCause(
-                    cause_id=f"ops-risk_event_burst-{now}",
-                    layer=LAYER_OPS,
-                    category="risk_event_burst",
-                    severity=severity,
-                    evidence={
-                        "recent_events_7d": recent_events,
-                        "event_window": DEFAULT_RISK_EVENT_WINDOW,
-                        "source": "risk_bus_audit_dir",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=ACTION_MANUAL,
-                        description=(
-                            f"7 天内风控事件 {recent_events} 次, 需立即审查风控规则与持仓"
+                causes.append(
+                    RootCause(
+                        cause_id=f"ops-risk_event_burst-{now}",
+                        layer=LAYER_OPS,
+                        category="risk_event_burst",
+                        severity=severity,
+                        evidence={
+                            "recent_events_7d": recent_events,
+                            "event_window": DEFAULT_RISK_EVENT_WINDOW,
+                            "source": "risk_bus_audit_dir",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=ACTION_MANUAL,
+                            description=(
+                                f"7 天内风控事件 {recent_events} 次, 需立即审查风控规则与持仓"
+                            ),
+                            estimated_risk=0.8,
+                            requires_human_approval=True,
+                            remediation_commands=[
+                                "# 立即审查风控事件 (人工审核)",
+                                "python scripts/run_risk_audit.py --summary --days 7",
+                            ],
                         ),
-                        estimated_risk=0.8,
-                        requires_human_approval=True,
-                        remediation_commands=[
-                            "# 立即审查风控事件 (人工审核)",
-                            "python scripts/run_risk_audit.py --summary --days 7",
-                        ],
-                    ),
-                    confidence=0.85,
-                    detected_at=now,
-                ))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                        confidence=0.85,
+                        detected_at=now,
+                    )
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("风控事件爆发诊断失败 (降级为空): %s", e)
         return causes
@@ -673,27 +771,38 @@ class OpsDiagnoser:
 
                 desc = rule["description_tpl"].format(val=val, threshold=threshold)
 
-                causes.append(RootCause(
-                    cause_id=f"{rule['cause_id_prefix']}-{now}",
-                    layer=LAYER_OPS,
-                    category=rule["category"],
-                    severity=severity,
-                    evidence={
-                        rule["evidence_keys"]["metric"]: val,
-                        "threshold": threshold,
-                        "source": "HealthReport.ops_health",
-                    },
-                    suggested_fix=FixSuggestion(
-                        action_type=rule["action_type"],
-                        description=desc,
-                        estimated_risk=rule["estimated_risk"],
-                        requires_human_approval=True,
-                        remediation_commands=list(rule["remediation_commands"]),
-                    ),
-                    confidence=rule["confidence"],
-                    detected_at=now,
-                ))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                causes.append(
+                    RootCause(
+                        cause_id=f"{rule['cause_id_prefix']}-{now}",
+                        layer=LAYER_OPS,
+                        category=rule["category"],
+                        severity=severity,
+                        evidence={
+                            rule["evidence_keys"]["metric"]: val,
+                            "threshold": threshold,
+                            "source": "HealthReport.ops_health",
+                        },
+                        suggested_fix=FixSuggestion(
+                            action_type=rule["action_type"],
+                            description=desc,
+                            estimated_risk=rule["estimated_risk"],
+                            requires_human_approval=True,
+                            remediation_commands=list(rule["remediation_commands"]),
+                        ),
+                        confidence=rule["confidence"],
+                        detected_at=now,
+                    )
+                )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("从 HealthReport 诊断运维层失败: %s", e)
         return causes
@@ -710,11 +819,22 @@ class OpsDiagnoser:
             if isinstance(health_report, dict):
                 ls = health_report.get("layer_scores", {}).get("ops")
                 if ls is not None:
+
                     class _Wrap:
                         def __init__(self, d: dict[str, Any]) -> None:
                             self.sub_metrics = d.get("sub_metrics", {})
+
                     return _Wrap(ls)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return None

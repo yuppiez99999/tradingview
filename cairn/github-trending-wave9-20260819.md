@@ -147,3 +147,14 @@ related:
 | `docs/高价值GitHub项目清单_20260809.md` | 29 个高价值项目筛选清单（Wave 8 基线） |
 | `cairn/github-trending-wave9-20260819.md` | 本文档 — Wave 9 决策沉淀 |
 | `cairn/LOG.md` | 每个 Sprint 结束后追加记录 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [GitHub 高价值项目集成策略（Wave 6）](github-integration-wave6.md) (相似度 18%)
+- [docs/1 八项目集成 — Sprint A 知识专题](docs1-integration-sprint-a-20260817.md) (相似度 14%)
+- [经验上下文层（ECL, Experience Context Layer）设计方案](experience-context-layer.md) (相似度 10%)
+- [GitHub 周热门项目集成 Wave10 (2026-08-21)](github-integration-wave10-20260821.md) (相似度 10%)
+- [自我进化框架](self-evolution-framework.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

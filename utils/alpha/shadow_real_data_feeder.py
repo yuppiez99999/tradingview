@@ -37,6 +37,7 @@
     # 历史回填 (Day 2)
     results = feeder.feed_history("2026-07-23", "2026-08-04")
 """
+
 from __future__ import annotations
 
 import json
@@ -96,9 +97,13 @@ ISO_FMT = "%Y-%m-%dT%H:%M:%S"
 
 # Day 2: 并行化与缓存配置
 DEFAULT_MAX_WORKERS = 4  # 默认并行度 (IO 密集型, 4 线程平衡吞吐与连接数)
-MAX_MAX_WORKERS = 16     # 上限, 防止 provider 端连接数打满
-DEFAULT_CACHE_MAX_SYMBOLS = 2000  # symbol 价格缓存上限 (足够覆盖 HS300+ZZ500 约 800 标的)
-CACHE_TTL_DEFAULT_SEC = 3600  # 缓存默认 TTL 1 小时 (生产中盘后任务一次性, 主要防同次回填内重复拉取)
+MAX_MAX_WORKERS = 16  # 上限, 防止 provider 端连接数打满
+DEFAULT_CACHE_MAX_SYMBOLS = (
+    2000  # symbol 价格缓存上限 (足够覆盖 HS300+ZZ500 约 800 标的)
+)
+CACHE_TTL_DEFAULT_SEC = (
+    3600  # 缓存默认 TTL 1 小时 (生产中盘后任务一次性, 主要防同次回填内重复拉取)
+)
 
 # 持仓权重来源候选路径 (按优先级)
 _TRADE_PLAN_DIR = _PROJECT_ROOT / "v8.3_institutional" / "trade_plans"
@@ -342,7 +347,9 @@ class ShadowRealDataFeeder:
         # Day 2: Symbol 价格缓存
         # 结构: {(symbol, period): (df, fetched_at)}
         # 用 OrderedDict 实现 LRU (move_to_end 支持)
-        self._price_cache: OrderedDict[tuple[str, str], tuple[Any, float]] = OrderedDict()
+        self._price_cache: OrderedDict[tuple[str, str], tuple[Any, float]] = (
+            OrderedDict()
+        )
         self._cache_stats = CacheStats()
         self._cache_lock = threading.Lock()
 
@@ -735,7 +742,13 @@ class ShadowRealDataFeeder:
             try:
                 # 用任意日期触发拉取 (取 weights_per_date 中第一个非空日期)
                 self._fetch_symbol_prices(sym, list(weights_per_date.keys())[0])
-            except (RuntimeError, OSError, ConnectionError, TimeoutError, ValueError) as e:
+            except (
+                RuntimeError,
+                OSError,
+                ConnectionError,
+                TimeoutError,
+                ValueError,
+            ) as e:
                 logger.debug("预拉取 %s 失败 (忽略, 后续会重试): %s", sym, e)
 
         new_misses = self._cache_stats.misses - miss_before
@@ -885,7 +898,9 @@ class ShadowRealDataFeeder:
             # > 20% 差异
             consistency = "inconsistent"
             is_valid = False
-            note = f"inconsistent: relative_diff={relative_diff:.4%}, 主源与次源差异过大"
+            note = (
+                f"inconsistent: relative_diff={relative_diff:.4%}, 主源与次源差异过大"
+            )
 
         logger.info(
             "[CROSS-VALIDATE] %s: primary=%+.4f%%, secondary=%+.4f%%, diff=%.4f%%, consistency=%s",
@@ -1185,9 +1200,7 @@ class ShadowRealDataFeeder:
         result.success_count = success_count
         result.fail_count = fail_count
         result.symbols_detail = symbols_detail
-        result.coverage = (
-            success_count / len(target_weights) if target_weights else 0.0
-        )
+        result.coverage = success_count / len(target_weights) if target_weights else 0.0
 
         # 安全护栏检查
         self._apply_safety_guards(result)
@@ -1198,9 +1211,7 @@ class ShadowRealDataFeeder:
     # Day 2: Symbol 价格缓存
     # ------------------------------------------------------------
 
-    def _get_historical_data_cached(
-        self, symbol: str, period: str
-    ) -> Any:
+    def _get_historical_data_cached(self, symbol: str, period: str) -> Any:
         """带缓存地获取历史数据 (Day 2 新增).
 
         策略:
@@ -1234,9 +1245,8 @@ class ShadowRealDataFeeder:
                     # LRU: 移到末尾 (最近使用)
                     self._price_cache.move_to_end(cache_key)
                     return df
-                else:
-                    # 过期, 删除
-                    del self._price_cache[cache_key]
+                # 过期, 删除
+                del self._price_cache[cache_key]
 
         # 缓存未命中或已过期: 调用 provider (锁外执行, 避免长时间持锁)
         try:
@@ -1430,7 +1440,9 @@ class ShadowRealDataFeeder:
                 try:
                     weights = loader(path, date)
                     if weights:
-                        logger.debug("加载权重成功: %s (symbols=%d)", path, len(weights))
+                        logger.debug(
+                            "加载权重成功: %s (symbols=%d)", path, len(weights)
+                        )
                         return weights
                 except WeightsLoadError as e:
                     logger.debug("加载权重失败 %s: %s", path, e)
@@ -1440,9 +1452,7 @@ class ShadowRealDataFeeder:
             f"所有权重来源均失败 (date={date}, source={self._weights_source})"
         )
 
-    def _get_weights_candidates(
-        self, date: str
-    ) -> list[tuple[Path, Any]]:
+    def _get_weights_candidates(self, date: str) -> list[tuple[Path, Any]]:
         """获取权重文件候选列表 (按优先级).
 
         修复 (2026-08-11 v8.6.14): positions.json 提到首位作为"持仓快照"权威源.
@@ -1462,7 +1472,10 @@ class ShadowRealDataFeeder:
         date_compact = date.replace("-", "")  # YYYYMMDD
         return [
             (_POSITIONS_JSON, self._load_positions_json_file),
-            (_TRADE_PLAN_DIR / f"trade_plan_{date_compact}.json", self._load_trade_plan),
+            (
+                _TRADE_PLAN_DIR / f"trade_plan_{date_compact}.json",
+                self._load_trade_plan,
+            ),
             (_STRATEGY_PLAN_DIR / f"plan_{date}.json", self._load_strategy_plan),
         ]
 
@@ -1573,7 +1586,11 @@ class ShadowRealDataFeeder:
         if "target_weights" in plan:
             tw = plan["target_weights"]
             if isinstance(tw, dict):
-                return {str(k): float(v) for k, v in tw.items() if isinstance(v, (int, float))}
+                return {
+                    str(k): float(v)
+                    for k, v in tw.items()
+                    if isinstance(v, (int, float))
+                }
 
         # 格式 2: positions 列表
         if "positions" in plan:
@@ -1623,9 +1640,7 @@ class ShadowRealDataFeeder:
         # 格式 1: 直接字典
         if isinstance(data, dict) and "positions" not in data:
             return {
-                str(k): float(v)
-                for k, v in data.items()
-                if isinstance(v, (int, float))
+                str(k): float(v) for k, v in data.items() if isinstance(v, (int, float))
             }
 
         # 格式 2: {"positions": [...]} (list, 每项含 symbol/weight)

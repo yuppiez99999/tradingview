@@ -47,7 +47,9 @@ class GATLayer(nn.Module):
         leaky_alpha: LeakyReLU 负斜率
     """
 
-    def __init__(self, n_features: int, n_hidden: int, n_heads: int = 4, leaky_alpha: float = 0.2):
+    def __init__(
+        self, n_features: int, n_hidden: int, n_heads: int = 4, leaky_alpha: float = 0.2
+    ):
         super().__init__()
         self.n_hidden = n_hidden
         self.n_heads = n_heads
@@ -78,8 +80,8 @@ class GATLayer(nn.Module):
         proj = torch.einsum("nd,fmd->nfm", h, self.W)  # [n, H, nh]
         # 注意力分数 [n, n, H]
         # a_h[:nh]·(W_h h_i) + a_h[nh:]·(W_h h_j)
-        left = torch.einsum("nfm,fm->nf", proj, self.a[:, :self.n_hidden])
-        right = torch.einsum("nfm,fm->nf", proj, self.a[:, self.n_hidden:])
+        left = torch.einsum("nfm,fm->nf", proj, self.a[:, : self.n_hidden])
+        right = torch.einsum("nfm,fm->nf", proj, self.a[:, self.n_hidden :])
         score = left[:, None, :] + right[None, :, :]  # [n, n, H]
         score = F.leaky_relu(score, self.leaky_alpha)
 
@@ -108,8 +110,14 @@ class GATFactorTorch:
         weight_decay: 正则化
     """
 
-    def __init__(self, n_hidden: int = 16, n_heads: int = 4, lr: float = 0.005,
-                 weight_decay: float = 1e-4, device: str = "cpu"):
+    def __init__(
+        self,
+        n_hidden: int = 16,
+        n_heads: int = 4,
+        lr: float = 0.005,
+        weight_decay: float = 1e-4,
+        device: str = "cpu",
+    ):
         self.n_hidden = n_hidden
         self.n_heads = n_heads
         self.lr = lr
@@ -127,7 +135,9 @@ class GATFactorTorch:
         params = list(self.gat.parameters()) + list(self.head.parameters())
         self.optimizer = torch.optim.Adam(params, lr=self.lr, weight_decay=1e-4)
 
-    def _tensors(self, features: np.ndarray, adj: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
+    def _tensors(
+        self, features: np.ndarray, adj: np.ndarray
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         return (
             torch.tensor(features, dtype=torch.float32, device=self.device),
             torch.tensor(adj, dtype=torch.float32, device=self.device),
@@ -156,8 +166,8 @@ class GATFactorTorch:
     def _attention_alpha(self, h: torch.Tensor, adj: torch.Tensor) -> torch.Tensor:
         """计算注意力系数 alpha [n,n] (多头均值)."""
         proj = torch.einsum("nd,fmd->nfm", h, self.gat.W)  # [n,H,nh]
-        left = torch.einsum("nfm,fm->nf", proj, self.gat.a[:, :self.n_hidden])
-        right = torch.einsum("nfm,fm->nf", proj, self.gat.a[:, self.n_hidden:])
+        left = torch.einsum("nfm,fm->nf", proj, self.gat.a[:, : self.n_hidden])
+        right = torch.einsum("nfm,fm->nf", proj, self.gat.a[:, self.n_hidden :])
         score = F.leaky_relu(left[:, None, :] + right[None, :, :], self.gat.leaky_alpha)
         # 修正 B5: masked_fill(-inf) 替代乘 0, 避免无边邻居获得非零注意力
         mask = (adj == 0).unsqueeze(-1)
@@ -166,8 +176,14 @@ class GATFactorTorch:
         alpha = torch.nan_to_num(alpha, nan=0.0)
         return alpha.mean(dim=2)
 
-    def train(self, features: np.ndarray, adj: np.ndarray, labels: np.ndarray,
-              epochs: int = 300, verbose: bool = False) -> list[float]:
+    def train(
+        self,
+        features: np.ndarray,
+        adj: np.ndarray,
+        labels: np.ndarray,
+        epochs: int = 300,
+        verbose: bool = False,
+    ) -> list[float]:
         """监督训练 GAT (MSE 损失, Adam 优化器)."""
         if self.gat is None:
             self._init(features.shape[1])
@@ -190,7 +206,9 @@ class GATFactorTorch:
         return losses
 
 
-def build_adjacency(graph, symbols: list[str], weight_key: str = "strength") -> tuple[np.ndarray, list[str]]:
+def build_adjacency(
+    graph, symbols: list[str], weight_key: str = "strength"
+) -> tuple[np.ndarray, list[str]]:
     """从 SupplyChainGraph 构建邻接矩阵 (无向)."""
     idx = {s: i for i, s in enumerate(symbols)}
     n = len(symbols)

@@ -44,6 +44,7 @@ DEFAULT_WATCHLIST = {
 # 价格数据获取（通过curl绕过Python SSL问题）
 # ============================================================
 
+
 def fetch_prices_curl(ticker, days=120):
     """用curl获取Yahoo Finance日线数据"""
     end_ts = int(datetime.now().timestamp())
@@ -55,7 +56,9 @@ def fetch_prices_curl(ticker, days=120):
     try:
         result = subprocess.run(
             ["curl", "-s", "-H", "User-Agent: Mozilla/5.0", url],
-            capture_output=True, text=True, timeout=15
+            capture_output=True,
+            text=True,
+            timeout=15,
         )
         if result.returncode != 0:
             return None
@@ -79,6 +82,7 @@ def fetch_prices_curl(ticker, days=120):
 # ============================================================
 # 基本面数据管理
 # ============================================================
+
 
 def load_fundamentals():
     """加载基本面数据"""
@@ -106,7 +110,10 @@ def update_fundamental_interactive(ticker):
     eps_beat = float(input("  EPS超预期 (%): "))
 
     funds[ticker]["quarters"][date] = {
-        "label": label, "rev_yoy": rev_yoy, "gm": gm, "eps_beat": eps_beat
+        "label": label,
+        "rev_yoy": rev_yoy,
+        "gm": gm,
+        "eps_beat": eps_beat,
     }
     save_fundamentals(funds)
 
@@ -114,6 +121,7 @@ def update_fundamental_interactive(ticker):
 # ============================================================
 # 第一层：动量发现
 # ============================================================
+
 
 def check_momentum(prices):
     """检查最近交易日是否触发动量信号"""
@@ -140,7 +148,7 @@ def check_momentum(prices):
     # 近5日有突破日（不一定是今天）
     recent_breakout = False
     for i in range(-5, 0):
-        if prices[i]["close"] > max(p["high"] for p in prices[i-60:i]):
+        if prices[i]["close"] > max(p["high"] for p in prices[i - 60 : i]):
             recent_breakout = True
             break
 
@@ -159,6 +167,7 @@ def check_momentum(prices):
 # ============================================================
 # 第二层：价值验证（6维，含回测改进）
 # ============================================================
+
 
 def check_value(ticker, signal_date=None):
     """6维价值验证"""
@@ -249,6 +258,7 @@ def check_value(ticker, signal_date=None):
 # 信号分级
 # ============================================================
 
+
 def grade_signal(momentum, value):
     """综合评级"""
     if not momentum or not momentum["triggered"]:
@@ -262,19 +272,19 @@ def grade_signal(momentum, value):
 
     if score >= 5 or (score >= 4 and ind):
         return "BUY_8%", f"确信仓（{score}/6）", "建议8%仓位"
-    elif score >= 4 or (score >= 3 and ind):
+    if score >= 4 or (score >= 3 and ind):
         return "BUY_5%", f"标准仓（{score}/6）", "建议5%仓位"
-    elif score >= 3:
+    if score >= 3:
         return "BUY_3%", f"试探仓（{score}/6）", "建议3%仓位"
-    elif ind:
+    if ind:
         return "BUY_3%", f"独立条件通过：{value['independent_reason']}", "建议3%仓位"
-    else:
-        return "PASS", f"动量有但基本面不足（{score}/6）", "继续观察"
+    return "PASS", f"动量有但基本面不足（{score}/6）", "继续观察"
 
 
 # ============================================================
 # 扫描一个标的
 # ============================================================
+
 
 def scan_ticker(ticker, verbose=True):
     """扫描单个标的"""
@@ -299,18 +309,25 @@ def scan_ticker(ticker, verbose=True):
 
     if verbose:
         # 紧凑输出
-        symbol = {"BUY_8%": "🔴", "BUY_5%": "🟡", "BUY_3%": "🟢", "WATCH": "👀", "PASS": "⬜", "SKIP": "  "}
+        symbol = {
+            "BUY_8%": "🔴",
+            "BUY_5%": "🟡",
+            "BUY_3%": "🟢",
+            "WATCH": "👀",
+            "PASS": "⬜",
+            "SKIP": "  ",
+        }
         symbol.get(grade, "  ")
 
         if grade.startswith("BUY"):
             if value:
                 v = value
-                " ".join(f"{'✅' if val else '❌'}{k}" for k, val in v["checks"].items())
+                " ".join(
+                    f"{'✅' if val else '❌'}{k}" for k, val in v["checks"].items()
+                )
                 if v["independent_pass"]:
                     pass
-        elif grade == "WATCH":
-            pass
-        elif grade == "PASS":
+        elif grade == "WATCH" or grade == "PASS":
             pass
         # SKIP不输出
 
@@ -320,6 +337,7 @@ def scan_ticker(ticker, verbose=True):
 # ============================================================
 # 主程序
 # ============================================================
+
 
 def main():
     args = sys.argv[1:]
@@ -371,7 +389,6 @@ def main():
     if watch_signals:
         for s in watch_signals:
             s["momentum"]
-
 
 
 if __name__ == "__main__":

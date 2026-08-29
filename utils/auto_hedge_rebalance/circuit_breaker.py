@@ -212,7 +212,9 @@ class CircuitBreaker:
             logger.warning("[紧急] %s", emergency_action.description)
 
         else:
-            emergency_action = EmergencyAction(action_type=action, description="未知动作")
+            emergency_action = EmergencyAction(
+                action_type=action, description="未知动作"
+            )
             new_status = self._status
 
         self._persist_status(new_status)

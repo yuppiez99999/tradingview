@@ -56,8 +56,12 @@ class ValueAgent(BaseAgent):
         roe = self._safe_float(self._safe_get_fallback(fund, "roe", "roe_ttm"))
         pe_percentile = self._safe_float(self._safe_get_fallback(fund, "pe_percentile"))
         pb_percentile = self._safe_float(self._safe_get_fallback(fund, "pb_percentile"))
-        dcf_intrinsic = self._safe_float(self._safe_get_fallback(fund, "dcf_intrinsic_value"))
-        current_price = self._safe_float(self._safe_get(context, "market_data", "close"))
+        dcf_intrinsic = self._safe_float(
+            self._safe_get_fallback(fund, "dcf_intrinsic_value")
+        )
+        current_price = self._safe_float(
+            self._safe_get(context, "market_data", "close")
+        )
 
         strength = 0.0
         signals = []

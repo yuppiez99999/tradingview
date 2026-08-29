@@ -8,6 +8,7 @@
     - get_risk_automation / get_rebalance_config
     - summary
 """
+
 from __future__ import annotations
 
 import json

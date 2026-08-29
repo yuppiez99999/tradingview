@@ -110,3 +110,14 @@ run_evolution_eval.py:   observation_total=21 (lint 0)
 1. **status.json 缓存陈旧**: `reports/evolution/status.json` 的 `eval_status.next_action` 仍停留在 "11/21 天, 还需 10 天" (实际 12/21). 不影响 GATE 判定 (判定读 observation_progress.json 而非 status.json), 但人类读 status 会困惑. 留待后续刷新机制修复。
 2. **launcher 不支持历史补跑**: `shadow_admission_launcher.py daily` 只能生成今天的报告, 不支持 `--date` 参数补跑历史. 08-10/11 DSR 报告缺失但数据已在 `daily_returns.jsonl` 供 DSR 全量评估, 不影响判定。
 3. **cleaned 文件未纳入定时任务**: `clean_shadow_returns.py` 仍是手动脚本, 应纳入 `v84_PostMarket` 任务, 否则下次又会停滞.
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 15%)
+- [EOD 计划任务静默失败 + 观察期样本补录（2026-08-19）](eod-scheduled-task-fix-20260819.md) (相似度 12%)
+- [EOD 运维经验沉淀：OpenBLAS 内存修复 + U9 端到端验证 + D7 断言增强（2026-08-07）](eod-operations-lessons-20260807.md) (相似度 11%)
+- [Shadow 数据质量闭环设计](shadow-data-quality-loop.md) (相似度 11%)
+- [2026-08-08 代码审查修复批次经验沉淀](code-review-fix-batch-20260808.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

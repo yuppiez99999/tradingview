@@ -16,6 +16,7 @@
     - 撤单已终止订单返回 False
     - mark_filled/mark_partial/mark_rejected 对不存在 order_id 抛 KeyError
 """
+
 from __future__ import annotations
 
 import pytest
@@ -27,7 +28,10 @@ from utils.wt_structs import OrderData
 # 用例 1: FIFO 入队/出队
 # ============================================================
 
-def test_enqueue_and_pop_next_fifo(sample_buy_order: OrderData, sample_sell_order: OrderData) -> None:
+
+def test_enqueue_and_pop_next_fifo(
+    sample_buy_order: OrderData, sample_sell_order: OrderData
+) -> None:
     """入队后 pop_next 按 FIFO 顺序返回。"""
     # Arrange
     queue = OrderQueue()
@@ -53,6 +57,7 @@ def test_enqueue_and_pop_next_fifo(sample_buy_order: OrderData, sample_sell_orde
 # 用例 2: 重复 order_id 抛 ValueError
 # ============================================================
 
+
 def test_enqueue_duplicate_raises(sample_buy_order: OrderData) -> None:
     """重复 order_id 抛 ValueError。"""
     # Arrange
@@ -74,6 +79,7 @@ def test_enqueue_duplicate_raises(sample_buy_order: OrderData) -> None:
 # ============================================================
 # 用例 3: 撤单活动订单 → CANCELLED 新对象
 # ============================================================
+
 
 def test_cancel_active_order_returns_true(sample_buy_order: OrderData) -> None:
     """撤单活动订单返回 True,产出 CANCELLED 新对象,原对象不变。"""
@@ -102,6 +108,7 @@ def test_cancel_active_order_returns_true(sample_buy_order: OrderData) -> None:
 # 用例 4: 撤单已终止订单返回 False
 # ============================================================
 
+
 def test_cancel_already_filled_returns_false(sample_buy_order: OrderData) -> None:
     """撤单已成交订单返回 False。"""
     # Arrange
@@ -121,6 +128,7 @@ def test_cancel_already_filled_returns_false(sample_buy_order: OrderData) -> Non
 # ============================================================
 # 用例 5: mark_filled → ALL_TRADED
 # ============================================================
+
 
 def test_mark_filled_transitions_to_all_traded(sample_buy_order: OrderData) -> None:
     """mark_filled 转 ALL_TRADED,traded_volume=volume。"""
@@ -146,6 +154,7 @@ def test_mark_filled_transitions_to_all_traded(sample_buy_order: OrderData) -> N
 # 用例 6: mark_partial 累加 traded_volume → PART_TRADED
 # ============================================================
 
+
 def test_mark_partial_accumulates_traded_volume(large_buy_order: OrderData) -> None:
     """mark_partial 累加 traded_volume,未满 volume 时状态为 PART_TRADED。"""
     # Arrange
@@ -170,7 +179,10 @@ def test_mark_partial_accumulates_traded_volume(large_buy_order: OrderData) -> N
 # 用例 7: mark_partial 累计满 → 自动转 ALL_TRADED
 # ============================================================
 
-def test_mark_partial_auto_transitions_to_all_traded(large_buy_order: OrderData) -> None:
+
+def test_mark_partial_auto_transitions_to_all_traded(
+    large_buy_order: OrderData,
+) -> None:
     """mark_partial 累计 traded_volume >= volume 时自动转 ALL_TRADED。"""
     # Arrange
     queue = OrderQueue()
@@ -193,6 +205,7 @@ def test_mark_partial_auto_transitions_to_all_traded(large_buy_order: OrderData)
 # 用例 8: 不可变性 — 入参对象不被修改
 # ============================================================
 
+
 def test_immutability_no_inplace_modification(sample_buy_order: OrderData) -> None:
     """所有状态变更操作不修改入参 OrderData 对象。"""
     # Arrange
@@ -204,6 +217,7 @@ def test_immutability_no_inplace_modification(sample_buy_order: OrderData) -> No
 
     # Act: 执行所有状态变更操作(用拷贝避免污染)
     import dataclasses
+
     dataclasses.replace(sample_buy_order)
     queue.cancel(sample_buy_order.order_id)
 
@@ -230,6 +244,7 @@ def test_immutability_no_inplace_modification(sample_buy_order: OrderData) -> No
 # 补充用例: mark_rejected 状态转移
 # ============================================================
 
+
 def test_mark_rejected_transitions_to_rejected(sample_buy_order: OrderData) -> None:
     """mark_rejected 转 REJECTED 终态。"""
     # Arrange
@@ -252,6 +267,7 @@ def test_mark_rejected_transitions_to_rejected(sample_buy_order: OrderData) -> N
 # ============================================================
 # 补充用例: KeyError 边界
 # ============================================================
+
 
 def test_mark_filled_nonexistent_raises() -> None:
     """mark_filled 对不存在 order_id 抛 KeyError。"""

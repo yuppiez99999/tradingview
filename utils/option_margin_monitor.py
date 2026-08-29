@@ -141,7 +141,9 @@ def calc_call_margin(
     underlying_value = underlying_price * contract_multiplier
     otm_amount = max(strike - underlying_price, 0) * contract_multiplier
     risk_amount = max(underlying_value * 0.15 - otm_amount, underlying_value * 0.07)
-    return (premium + risk_amount) * contract_multiplier / contract_multiplier  # 简化为每张
+    return (
+        (premium + risk_amount) * contract_multiplier / contract_multiplier
+    )  # 简化为每张
 
 
 def calc_put_margin(
@@ -166,7 +168,9 @@ def calc_put_margin(
     """
     underlying_value = underlying_price * contract_multiplier
     otm_amount = max(underlying_price - strike, 0) * contract_multiplier
-    risk_amount = max(underlying_value * 0.15 - otm_amount, strike * contract_multiplier * 0.07)
+    risk_amount = max(
+        underlying_value * 0.15 - otm_amount, strike * contract_multiplier * 0.07
+    )
     return premium + risk_amount
 
 
@@ -194,9 +198,13 @@ def calc_margin(
         总保证金金额
     """
     if option_type == "CALL":
-        per_contract = calc_call_margin(underlying_price, strike, premium, contract_multiplier)
+        per_contract = calc_call_margin(
+            underlying_price, strike, premium, contract_multiplier
+        )
     else:
-        per_contract = calc_put_margin(underlying_price, strike, premium, contract_multiplier)
+        per_contract = calc_put_margin(
+            underlying_price, strike, premium, contract_multiplier
+        )
 
     # 临近到期日加收 20% 保证金
     if days_to_expiry <= 3:
@@ -288,7 +296,9 @@ class OptionMarginMonitor:
 
             underlying_price = underlying_prices.get(pos.underlying, 0.0)
             if underlying_price <= 0:
-                logger.warning("期权 %s 标的价格 %s 不可用, 跳过保证金检查", symbol, pos.underlying)
+                logger.warning(
+                    "期权 %s 标的价格 %s 不可用, 跳过保证金检查", symbol, pos.underlying
+                )
                 continue
 
             result = self._check_single(pos, underlying_price, available_funds)

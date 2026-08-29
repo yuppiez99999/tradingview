@@ -107,6 +107,7 @@ logger = logging.getLogger("ai_decision.execution_bridge")
 # 执行计划生成
 # ============================================================
 
+
 def _generate_execution_plan(
     decision: TradingDecision,
     portfolio_value: float,
@@ -135,18 +136,20 @@ def _generate_execution_plan(
         )
 
     # 价格缺失检测: auto 模式必须 veto, paper/shadow 用默认值占位 (仅模拟, 不触达 broker)
-    price_missing = (price is None or price <= 0)
+    price_missing = price is None or price <= 0
     if price_missing:
         # paper/shadow 模式允许用占位价格继续生成计划 (不触达 broker)
         # auto 模式由 L2 风控 (price_missing_check) 硬 veto, 防止以默认价灾难性下单
         price = 10.0
         logger.warning(
             "[ExecBridge] %s 价格缺失 (price=%s), auto 模式将被 L2 风控 veto",
-            decision.symbol, price,
+            decision.symbol,
+            price,
         )
     # 类型窄化: price_missing=False 时 price 非 None 且 > 0; =True 时已赋值 10.0
     # 用 cast 替代 assert 以满足 mypy, 避免 python -O 下断言被剥离 (assert 仅静态语义, 无运行时校验需求)
     from typing import cast
+
     price = cast(float, price)
 
     # 仓位计算: 组合净值 * 单笔上限 * 信号强度绝对值 * 置信度
@@ -154,7 +157,12 @@ def _generate_execution_plan(
     if abs(decision.strength) < 1e-6 or decision.confidence <= 0:
         allocation = 0.0
     else:
-        allocation = portfolio_value * max_single_pct * abs(decision.strength) * decision.confidence
+        allocation = (
+            portfolio_value
+            * max_single_pct
+            * abs(decision.strength)
+            * decision.confidence
+        )
         allocation = max(allocation, portfolio_value * 0.001)  # 最少 0.1% 净值
 
     raw_qty = max(int(allocation / price), 100)  # A股最小 100 股
@@ -196,9 +204,12 @@ def _generate_execution_plan(
 
     logger.info(
         "生成执行计划: %s %s %d股 @%.2f, 名义金额=%.2f, %d片",
-        execution_plan["symbol"], execution_plan["side"],
-        execution_plan["qty"], execution_plan["limit_price"],
-        execution_plan["notional"], slices
+        execution_plan["symbol"],
+        execution_plan["side"],
+        execution_plan["qty"],
+        execution_plan["limit_price"],
+        execution_plan["notional"],
+        slices,
     )
     return execution_plan
 
@@ -206,6 +217,7 @@ def _generate_execution_plan(
 # ============================================================
 # 核心桥接函数 - 模式分派
 # ============================================================
+
 
 def _dispatch_execution_mode(
     decision: TradingDecision,
@@ -254,8 +266,17 @@ def _dispatch_execution_mode(
                 veto = True
                 veto_reason = f"灰度回滚到 {new_stage}, 暂停执行"
                 mode_escalation = True
-                mode_escalation_reason = f"灰度回滚至 {new_stage}, 暂停执行: {rb_reason}"
-                return execution_result, msg, veto, veto_reason, mode_escalation, mode_escalation_reason
+                mode_escalation_reason = (
+                    f"灰度回滚至 {new_stage}, 暂停执行: {rb_reason}"
+                )
+                return (
+                    execution_result,
+                    msg,
+                    veto,
+                    veto_reason,
+                    mode_escalation,
+                    mode_escalation_reason,
+                )
 
         if order_router is None or broker is None:
             msg = "[AUTO] 缺少 OrderRouter/broker, 降级为 paper 执行"
@@ -282,7 +303,9 @@ def _dispatch_execution_mode(
                     logger.info(
                         "[GRAYSCALE] %s 阶段缩放: qty %d -> %d (%.0f%%), "
                         "notional %.2f -> %.2f",
-                        gs.stage, original_qty, scaled_qty,
+                        gs.stage,
+                        original_qty,
+                        scaled_qty,
                         effective_pct * 100,
                         original_qty * original_price,
                         execution_plan["notional"],
@@ -299,9 +322,11 @@ def _dispatch_execution_mode(
                     "elapsed_seconds": round(elapsed, 4),
                 }
                 if execution_result["success"]:
-                    msg = (f"[AUTO] {decision.symbol} {decision.action} "
-                           f"已下单, 耗时 {elapsed:.3f}s, "
-                           f"路由 {len(execution_result['routed_orders'])} 笔")
+                    msg = (
+                        f"[AUTO] {decision.symbol} {decision.action} "
+                        f"已下单, 耗时 {elapsed:.3f}s, "
+                        f"路由 {len(execution_result['routed_orders'])} 笔"
+                    )
                 else:
                     mode_escalation = True
                     mode_escalation_reason = (
@@ -309,7 +334,14 @@ def _dispatch_execution_mode(
                     )
                     msg = f"[AUTO] {decision.symbol} {decision.action} 下单失败"
                 logger.info(msg)
-            except (TimeoutError, ConnectionError, OSError, ValueError, KeyError, RuntimeError) as exc:
+            except (
+                TimeoutError,
+                ConnectionError,
+                OSError,
+                ValueError,
+                KeyError,
+                RuntimeError,
+            ) as exc:
                 # 下单路径可能抛出的具体异常: 网络超时/连接错误/参数错误/路由失败
                 logger.error("下单异常: %s", exc)
                 mode_escalation = True
@@ -322,12 +354,20 @@ def _dispatch_execution_mode(
         mode_escalation_reason = f"未知模式 {mode}, 按 shadow 处理"
         msg = f"[{mode}] 未知模式, 按 shadow 处理"
 
-    return execution_result, msg, veto, veto_reason, mode_escalation, mode_escalation_reason
+    return (
+        execution_result,
+        msg,
+        veto,
+        veto_reason,
+        mode_escalation,
+        mode_escalation_reason,
+    )
 
 
 # ============================================================
 # 核心桥接函数
 # ============================================================
+
 
 def execute_decision(
     decision: TradingDecision,
@@ -399,14 +439,19 @@ def execute_decision(
 
     # ===== Step A: 生成执行计划 =====
     execution_plan = _generate_execution_plan(
-        decision, portfolio_value, price,
-        max_single_pct=float(get_config("gate.max_single_pct", 0.02))
+        decision,
+        portfolio_value,
+        price,
+        max_single_pct=float(get_config("gate.max_single_pct", 0.02)),
     )
 
     # ===== Step B: L2 执行层硬风控 (不可绕过) =====
     risk_result = _execution_risk_check(
-        execution_plan, market_state, portfolio_value,
-        risk_context=risk_context, decision=decision,
+        execution_plan,
+        market_state,
+        portfolio_value,
+        risk_context=risk_context,
+        decision=decision,
         mode=mode,
     )
 
@@ -414,22 +459,38 @@ def execute_decision(
         escalation = True
         escalation_reason = f"L2 风控否决: {risk_result.veto_reason}"
         return _build_l2_veto_return(
-            decision, mode, risk_result,
-            escalation, escalation_reason, execution_plan
+            decision, mode, risk_result, escalation, escalation_reason, execution_plan
         )
 
     # ===== Step B+: TCA 执行前预筛 (步骤 2, Feature Flag 控制) =====
-    tca_pre_estimate, pre_escalation, pre_escalation_reason, tca_error = _run_tca_pre_trade(
-        decision, execution_plan, market_data_for_tca, tca_pre_trade_estimator
+    tca_pre_estimate, pre_escalation, pre_escalation_reason, tca_error = (
+        _run_tca_pre_trade(
+            decision, execution_plan, market_data_for_tca, tca_pre_trade_estimator
+        )
     )
     if pre_escalation:
         escalation = True
         escalation_reason = pre_escalation_reason
 
     # ===== Step C: 按模式分派 =====
-    execution_result, msg, grayscale_veto, veto_reason, mode_escalation, mode_escalation_reason = _dispatch_execution_mode(
-        decision, execution_plan, mode, price, order_router, broker,
-        market_state, tca_pre_estimate, tca_error, risk_result
+    (
+        execution_result,
+        msg,
+        grayscale_veto,
+        veto_reason,
+        mode_escalation,
+        mode_escalation_reason,
+    ) = _dispatch_execution_mode(
+        decision,
+        execution_plan,
+        mode,
+        price,
+        order_router,
+        broker,
+        market_state,
+        tca_pre_estimate,
+        tca_error,
+        risk_result,
     )
 
     if grayscale_veto:
@@ -437,9 +498,16 @@ def execute_decision(
         escalation = True
         escalation_reason = mode_escalation_reason
         return _build_grayscale_veto_return(
-            decision, mode, execution_plan, risk_result,
-            tca_pre_estimate, tca_error, veto_reason,
-            escalation, escalation_reason, msg
+            decision,
+            mode,
+            execution_plan,
+            risk_result,
+            tca_pre_estimate,
+            tca_error,
+            veto_reason,
+            escalation,
+            escalation_reason,
+            msg,
         )
 
     if mode_escalation:
@@ -449,32 +517,59 @@ def execute_decision(
     # ===== Step D: TCA 事后归因 (步骤 2, 仅执行成功后, Feature Flag 控制) =====
     if execution_result is not None and execution_result.get("success", True):
         tca_post_report, post_tca_error = _run_tca_post_trade(
-            tca_post_trade_manager, execution_plan, execution_result,
-            market_data_for_tca, decision
+            tca_post_trade_manager,
+            execution_plan,
+            execution_result,
+            market_data_for_tca,
+            decision,
         )
         if post_tca_error:
-            tca_error = f"{tca_error}; {post_tca_error}" if tca_error else post_tca_error
+            tca_error = (
+                f"{tca_error}; {post_tca_error}" if tca_error else post_tca_error
+            )
 
     # ===== 写入执行审计 =====
     veto = False
     veto_reason = ""
     record = _build_success_audit_record(
-        decision, mode, execution_plan, execution_result, risk_result,
-        veto, veto_reason, escalation, escalation_reason,
-        tca_pre_estimate, tca_post_report, tca_error, msg
+        decision,
+        mode,
+        execution_plan,
+        execution_result,
+        risk_result,
+        veto,
+        veto_reason,
+        escalation,
+        escalation_reason,
+        tca_pre_estimate,
+        tca_post_report,
+        tca_error,
+        msg,
     )
     audit_path = _write_execution_audit(record)
 
     return _build_success_return(
-        decision, mode, execution_plan, execution_result, risk_result,
-        audit_path, msg, veto, veto_reason, escalation, escalation_reason,
-        tca_pre_estimate, tca_post_report, tca_error
+        decision,
+        mode,
+        execution_plan,
+        execution_result,
+        risk_result,
+        audit_path,
+        msg,
+        veto,
+        veto_reason,
+        escalation,
+        escalation_reason,
+        tca_pre_estimate,
+        tca_post_report,
+        tca_error,
     )
 
 
 def _simulate_fill(plan: dict[str, Any], ref_price: float) -> dict[str, Any]:
     """模拟成交 (paper 模式) — 带 A 股滑点模型"""
     import random
+
     qty = plan.get("qty", 0)
     # 模拟滑点: 大盘 2bp, 中小盘 5bp (保守取 5bp)
     slippage_bps = random.uniform(2, 5)

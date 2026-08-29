@@ -45,6 +45,7 @@ logger = logging.getLogger("deep_hedging_rl")
 # 配置
 # ============================================================
 
+
 @dataclass
 class DeepHedgingConfig:
     """Deep Hedging 配置。
@@ -67,6 +68,7 @@ class DeepHedgingConfig:
         use_iv_surface: 是否使用隐含波动率面
         iv_surface_params: IV 面参数
     """
+
     spot: float = 100.0
     strike: float = 100.0
     maturity: float = 30 / 365
@@ -82,17 +84,20 @@ class DeepHedgingConfig:
     risk_aversion: float = 2.0
     hidden_dim: int = 32
     use_iv_surface: bool = True
-    iv_surface_params: dict[str, float] = field(default_factory=lambda: {
-        "sigma_atm": 0.2,
-        "skew": -0.02,
-        "kurt": 0.01,
-        "term_slope": -0.1,
-    })
+    iv_surface_params: dict[str, float] = field(
+        default_factory=lambda: {
+            "sigma_atm": 0.2,
+            "skew": -0.02,
+            "kurt": 0.01,
+            "term_slope": -0.1,
+        }
+    )
 
 
 # ============================================================
 # 隐含波动率面
 # ============================================================
+
 
 class VolatilitySurface:
     """SPX/SPY 隐含波动率面参数化 (SVI 简化版).
@@ -115,7 +120,7 @@ class VolatilitySurface:
         iv = (
             p["sigma_atm"]
             + p["skew"] * log_moneyness
-            + p["kurt"] * log_moneyness ** 2
+            + p["kurt"] * log_moneyness**2
             + p["term_slope"] * maturity
         )
         return max(iv, 0.01)
@@ -126,7 +131,7 @@ class VolatilitySurface:
         iv = (
             p["sigma_atm"]
             + p["skew"] * log_moneyness
-            + p["kurt"] * log_moneyness ** 2
+            + p["kurt"] * log_moneyness**2
             + p["term_slope"] * maturity
         )
         return np.maximum(iv, 0.01)
@@ -135,6 +140,7 @@ class VolatilitySurface:
 # ============================================================
 # 市场模拟器
 # ============================================================
+
 
 class MarketSimulator:
     """几何布朗运动市场模拟器。"""
@@ -151,7 +157,7 @@ class MarketSimulator:
         """
         cfg = self.config
         dt = cfg.maturity / cfg.n_steps
-        drift = (cfg.risk_free_rate - 0.5 * cfg.volatility ** 2) * dt
+        drift = (cfg.risk_free_rate - 0.5 * cfg.volatility**2) * dt
         diffusion = cfg.volatility * np.sqrt(dt)
 
         dW = self.rng.standard_normal((n_paths, cfg.n_steps))
@@ -162,8 +168,9 @@ class MarketSimulator:
 
         return prices
 
-    def simulate_with_jumps(self, n_paths: int, jump_prob: float = 0.05,
-                            jump_size: float = -0.05) -> np.ndarray:
+    def simulate_with_jumps(
+        self, n_paths: int, jump_prob: float = 0.05, jump_size: float = -0.05
+    ) -> np.ndarray:
         """含跳空的价格路径模拟。"""
         prices = self.simulate_paths(n_paths)
         cfg = self.config
@@ -181,6 +188,7 @@ class MarketSimulator:
 # Actor (对冲策略网络)
 # ============================================================
 
+
 class HedgingActor:
     """对冲策略 Actor (numpy 神经网络).
 
@@ -189,8 +197,9 @@ class HedgingActor:
     网络: 3 → hidden → hidden → 1 (tanh 激活)
     """
 
-    def __init__(self, input_dim: int = 3, hidden_dim: int = 32,
-                 seed: int = 123) -> None:
+    def __init__(
+        self, input_dim: int = 3, hidden_dim: int = 32, seed: int = 123
+    ) -> None:
         self.rng = np.random.default_rng(seed)
         scale1 = np.sqrt(2.0 / (input_dim + hidden_dim))
         scale2 = np.sqrt(2.0 / (hidden_dim + hidden_dim))
@@ -228,6 +237,7 @@ class HedgingActor:
 # 风险指标
 # ============================================================
 
+
 class RiskMeasure:
     """风险指标计算。"""
 
@@ -251,7 +261,7 @@ class RiskMeasure:
     @staticmethod
     def mse(pnl: np.ndarray) -> float:
         """均方误差。"""
-        return float(np.mean(pnl ** 2))
+        return float(np.mean(pnl**2))
 
     @staticmethod
     def expected_shortfall(pnl: np.ndarray, alpha: float = 0.95) -> float:
@@ -276,6 +286,7 @@ class RiskMeasure:
 # 对冲结果
 # ============================================================
 
+
 @dataclass
 class HedgingResult:
     """对冲结果。
@@ -286,6 +297,7 @@ class HedgingResult:
         hedging_error: 对冲误差 (std)
         transaction_costs: 交易成本
     """
+
     hedge_positions: np.ndarray
     pnl: float
     hedging_error: float
@@ -295,6 +307,7 @@ class HedgingResult:
 # ============================================================
 # Deep Hedging 训练器
 # ============================================================
+
 
 class DeepHedgingTrainer:
     """Deep Hedging RL 训练器 (进化策略优化).
@@ -317,9 +330,7 @@ class DeepHedgingTrainer:
         self.rng = np.random.default_rng(42)
         self.history: list[dict[str, float]] = []
 
-    def compute_hedge_pnl(
-        self, prices: np.ndarray
-    ) -> tuple[np.ndarray, float, float]:
+    def compute_hedge_pnl(self, prices: np.ndarray) -> tuple[np.ndarray, float, float]:
         """计算对冲 PnL。
 
         Args:
@@ -339,11 +350,13 @@ class DeepHedgingTrainer:
             log_moneyness = np.log(prices[:, t] / cfg.strike)
             prev_hedge = hedge_positions[:, t]
 
-            state = np.column_stack([
-                log_moneyness,
-                np.full(n_paths, time_to_mat),
-                prev_hedge,
-            ])
+            state = np.column_stack(
+                [
+                    log_moneyness,
+                    np.full(n_paths, time_to_mat),
+                    prev_hedge,
+                ]
+            )
 
             new_hedge = self.actor.forward(state).flatten()
             hedge_positions[:, t + 1] = new_hedge
@@ -353,9 +366,7 @@ class DeepHedgingTrainer:
 
         option_payoff = np.maximum(cfg.strike - prices[:, -1], 0)
 
-        hedge_pnl = np.sum(
-            hedge_positions[:, :-1] * np.diff(prices, axis=1), axis=1
-        )
+        hedge_pnl = np.sum(hedge_positions[:, :-1] * np.diff(prices, axis=1), axis=1)
 
         total_pnl = hedge_pnl - option_payoff - transaction_costs
 
@@ -387,8 +398,7 @@ class DeepHedgingTrainer:
         }
 
     def train_step(
-        self, n_paths: int = 500, noise_scale: float = 0.01,
-        n_perturbations: int = 20
+        self, n_paths: int = 500, noise_scale: float = 0.01, n_perturbations: int = 20
     ) -> dict[str, float]:
         """进化策略训练一步。"""
         original_params = [p.copy() for p in self.actor.get_params()]
@@ -420,8 +430,7 @@ class DeepHedgingTrainer:
         return metrics
 
     def train(
-        self, n_episodes: int | None = None,
-        n_paths: int = 500, verbose: bool = True
+        self, n_episodes: int | None = None, n_paths: int = 500, verbose: bool = True
     ) -> list[dict[str, float]]:
         """训练 Deep Hedging 策略。"""
         episodes = n_episodes or self.config.n_episodes
@@ -434,7 +443,10 @@ class DeepHedgingTrainer:
             if verbose and (ep + 1) % max(1, episodes // 10) == 0:
                 logger.info(
                     "Episode %d/%d: risk=%.4f, mean_pnl=%.4f",
-                    ep + 1, episodes, metrics["risk"], metrics["mean_pnl"]
+                    ep + 1,
+                    episodes,
+                    metrics["risk"],
+                    metrics["mean_pnl"],
                 )
 
         return self.history
@@ -443,6 +455,7 @@ class DeepHedgingTrainer:
 # ============================================================
 # Deep Hedging 引擎 (集成接口)
 # ============================================================
+
 
 class DeepHedgingEngine:
     """Deep Hedging 引擎 — 集成到 hedge_engine.py 的接口。
@@ -465,8 +478,7 @@ class DeepHedgingEngine:
         return history
 
     def hedge(
-        self, spot: float, strike: float, maturity: float,
-        n_paths: int = 1000
+        self, spot: float, strike: float, maturity: float, n_paths: int = 1000
     ) -> HedgingResult:
         """执行对冲。"""
         self.config.spot = spot
@@ -495,10 +507,84 @@ class DeepHedgingEngine:
     def is_trained(self) -> bool:
         return self._is_trained
 
+    def save_model(self, path: str) -> None:
+        """v8.8: 持久化训练好的模型到磁盘.
+
+        保存内容: actor权重 + config + history + is_trained
+        安全: 同步生成 .sha256 侧车文件, 加载时校验完整性
+        """
+        import hashlib
+        import pickle
+
+        model_state = {
+            "actor_params": [p.copy() for p in self.trainer.actor.get_params()],
+            "config": self.config,
+            "history": self.trainer.history,
+            "is_trained": self._is_trained,
+        }
+        data = pickle.dumps(model_state)
+        with open(path, "wb") as f:
+            f.write(data)
+        # 生成 SHA256 侧车文件用于加载时完整性校验
+        digest = hashlib.sha256(data).hexdigest()
+        with open(path + ".sha256", "w", encoding="utf-8") as f:
+            f.write(digest)
+        logger.info("Deep Hedging 模型已保存: %s (sha256=%s)", path, digest[:12])
+
+    def load_model(self, path: str) -> bool:
+        """v8.8: 从磁盘加载预训练模型.
+
+        Returns:
+            True if loaded successfully, False otherwise
+        """
+        import os
+        import pickle
+
+        if not os.path.exists(path):
+            logger.debug("模型文件不存在: %s", path)
+            return False
+
+        try:
+            import hashlib
+
+            # 优先校验 SHA256 侧车 (防篡改)
+            sidecar = path + ".sha256"
+            with open(path, "rb") as f:
+                raw = f.read()
+            if os.path.exists(sidecar):
+                with open(sidecar, "r", encoding="utf-8") as f:
+                    expected = f.read().strip()
+                actual = hashlib.sha256(raw).hexdigest()
+                if actual != expected:
+                    logger.error(
+                        "模型完整性校验失败: %s (expected=%s..., actual=%s...) — 拒绝加载",
+                        path, expected[:12], actual[:12],
+                    )
+                    return False
+            else:
+                digest = hashlib.sha256(raw).hexdigest()
+                logger.warning(
+                    "模型无 SHA256 侧车, 记录哈希作审计: %s sha256=%s", path, digest
+                )
+
+            model_state = pickle.loads(raw)  # noqa: S301 — SHA256 完整性已校验
+
+            self.trainer.actor.set_params(model_state["actor_params"])
+            self.trainer.history = model_state.get("history", [])
+            self._is_trained = model_state.get("is_trained", True)
+            logger.info(
+                "Deep Hedging 模型已加载: %s (trained=%s)", path, self._is_trained
+            )
+            return True
+        except (pickle.PickleError, KeyError, TypeError, OSError) as e:
+            logger.warning("模型加载失败: %s — %s", path, e)
+            return False
+
 
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示 Deep Hedging。"""
@@ -539,7 +625,9 @@ def main() -> None:
 
     improvement = metrics_before["risk"] - metrics_after["risk"]
     print("\n--- 改善 ---")
-    print(f"  CVaR 改善: {improvement:.4f} ({improvement / max(metrics_before['risk'], 1e-8):.1%})")
+    print(
+        f"  CVaR 改善: {improvement:.4f} ({improvement / max(metrics_before['risk'], 1e-8):.1%})"
+    )
 
     print("\n--- 隐含波动率面 ---")
     for k in [-0.1, -0.05, 0.0, 0.05, 0.1]:

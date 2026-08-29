@@ -10,6 +10,7 @@
     - forecast_annual_return (集成)
     - SCENARIO_DEFINITIONS 常量
 """
+
 from __future__ import annotations
 
 import pytest
@@ -70,7 +71,10 @@ class TestExtractDateStr:
 
     @pytest.mark.unit
     def test_with_dashes(self):
-        assert _extract_date_str("daily_pnl_report_2026-08-18", "daily_pnl_report_") == "20260818"
+        assert (
+            _extract_date_str("daily_pnl_report_2026-08-18", "daily_pnl_report_")
+            == "20260818"
+        )
 
 
 # ============================================================
@@ -90,14 +94,23 @@ class TestExtractBaseline:
 
     @pytest.mark.unit
     def test_with_trade_plan(self):
-        plan = {"capital": 10_000_000, "hedge_fund_overlays": {"theta_engine": {"portfolio_yield_annualized": 0.08}}}
+        plan = {
+            "capital": 10_000_000,
+            "hedge_fund_overlays": {
+                "theta_engine": {"portfolio_yield_annualized": 0.08}
+            },
+        }
         result = _extract_baseline(plan, {})
         assert result["portfolio_base"] == 10_000_000
         assert result["cc_premium_annual"] == 0.08
 
     @pytest.mark.unit
     def test_with_pnl_report(self):
-        pnl = {"portfolio_pnl": {"summary": {"total_market_value": 8_000_000, "total_cost": 7_500_000}}}
+        pnl = {
+            "portfolio_pnl": {
+                "summary": {"total_market_value": 8_000_000, "total_cost": 7_500_000}
+            }
+        }
         result = _extract_baseline({}, pnl)
         assert result["stock_market_value"] == 8_000_000
         assert result["stock_cost"] == 7_500_000
@@ -122,8 +135,10 @@ class TestCalcScenario:
     def test_neutral_scenario(self):
         baseline = _extract_baseline({}, {})
         result = _calc_scenario(
-            spot_annual_return=0.08, hedge_impact=-0.005,
-            baseline=baseline, max_drawdown=-0.12,
+            spot_annual_return=0.08,
+            hedge_impact=-0.005,
+            baseline=baseline,
+            max_drawdown=-0.12,
         )
         assert "total_annual_return" in result
         assert "sharpe_ratio" in result
@@ -135,8 +150,10 @@ class TestCalcScenario:
     def test_drawdown_breached(self):
         baseline = _extract_baseline({}, {})
         result = _calc_scenario(
-            spot_annual_return=-0.42, hedge_impact=0.18,
-            baseline=baseline, max_drawdown=-0.27,
+            spot_annual_return=-0.42,
+            hedge_impact=0.18,
+            baseline=baseline,
+            max_drawdown=-0.27,
         )
         assert result["drawdown_breached"] is True
 
@@ -144,8 +161,10 @@ class TestCalcScenario:
     def test_drawdown_not_breached(self):
         baseline = _extract_baseline({}, {})
         result = _calc_scenario(
-            spot_annual_return=0.08, hedge_impact=-0.005,
-            baseline=baseline, max_drawdown=-0.12,
+            spot_annual_return=0.08,
+            hedge_impact=-0.005,
+            baseline=baseline,
+            max_drawdown=-0.12,
         )
         assert result["drawdown_breached"] is False
 
@@ -153,7 +172,9 @@ class TestCalcScenario:
     def test_stock_ratio_capped(self):
         """actual_stock_ratio > target → 用 target"""
         plan = {"capital": 5_000_000}
-        pnl = {"portfolio_pnl": {"summary": {"total_market_value": 5_000_000}}}  # 100% 仓位
+        pnl = {
+            "portfolio_pnl": {"summary": {"total_market_value": 5_000_000}}
+        }  # 100% 仓位
         baseline = _extract_baseline(plan, pnl)
         result = _calc_scenario(0.08, -0.005, baseline, -0.12)
         # stock_ratio = min(1.0, 0.9) = 0.9
@@ -207,8 +228,10 @@ class TestBuildSummary:
         scenarios = []
         for defn in SCENARIO_DEFINITIONS:
             s = _calc_scenario(
-                defn["spot_annual_return"], defn["hedge_impact"],
-                baseline, defn["max_drawdown"],
+                defn["spot_annual_return"],
+                defn["hedge_impact"],
+                baseline,
+                defn["max_drawdown"],
             )
             s["name"] = defn["name"]
             scenarios.append(s)

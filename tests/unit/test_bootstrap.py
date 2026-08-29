@@ -13,6 +13,7 @@
     - TestBootstrapReset: 重置功能
     - TestBootstrapResult: 结果对象
 """
+
 from __future__ import annotations
 
 import logging
@@ -157,15 +158,22 @@ class TestBootstrapError(unittest.TestCase):
 
     def test_init_logger_failure_raises_bootstrap_error(self) -> None:
         """测试: _init_logger 失败抛 BootstrapError."""
-        with patch("utils.logger._init_root_logging", side_effect=RuntimeError("logger fail")):
+        with patch(
+            "utils.logger._init_root_logging", side_effect=RuntimeError("logger fail")
+        ):
             with self.assertRaises(BootstrapError) as ctx:
-                _init_logger(log_prefix="test", log_dir="logs", console_level=logging.INFO)
+                _init_logger(
+                    log_prefix="test", log_dir="logs", console_level=logging.INFO
+                )
             self.assertEqual(ctx.exception.step, "init_logger")
             self.assertIn("logger fail", ctx.exception.reason)
 
     def test_init_config_manager_import_failure(self) -> None:
         """测试: ConfigManager 导入失败抛 BootstrapError."""
-        with patch("utils.config_manager.ConfigManager.get_instance", side_effect=ImportError("no module")):
+        with patch(
+            "utils.config_manager.ConfigManager.get_instance",
+            side_effect=ImportError("no module"),
+        ):
             with self.assertRaises(BootstrapError) as ctx:
                 _init_config_manager()
             self.assertEqual(ctx.exception.step, "init_config_manager")
@@ -179,7 +187,10 @@ class TestBootstrapError(unittest.TestCase):
 
     def test_init_trading_env_failure(self) -> None:
         """测试: TradingEnv 配置读取失败抛 BootstrapError."""
-        with patch("utils.trading_env.get_trading_env_config", side_effect=RuntimeError("env fail")):
+        with patch(
+            "utils.trading_env.get_trading_env_config",
+            side_effect=RuntimeError("env fail"),
+        ):
             with self.assertRaises(BootstrapError) as ctx:
                 _init_trading_env()
             self.assertEqual(ctx.exception.step, "init_trading_env")
@@ -194,7 +205,10 @@ class TestBootstrapError(unittest.TestCase):
 
     def test_check_feature_flags_failure(self) -> None:
         """测试: FeatureFlags 初始化失败抛 BootstrapError."""
-        with patch("utils.infra.feature_flags.FeatureFlags.get_instance", side_effect=RuntimeError("flags fail")):
+        with patch(
+            "utils.infra.feature_flags.FeatureFlags.get_instance",
+            side_effect=RuntimeError("flags fail"),
+        ):
             with self.assertRaises(BootstrapError) as ctx:
                 _check_feature_flags()
             self.assertEqual(ctx.exception.step, "check_feature_flags")
@@ -259,7 +273,10 @@ class TestLoadEnvFile(unittest.TestCase):
     def test_load_env_no_file_returns_empty_dict(self) -> None:
         """测试: 无 .env 文件时返回空字典 (不抛异常)."""
         # 临时改变查找路径, 指向不存在的目录
-        with patch.object(Path, "is_file", return_value=False), patch.dict("os.environ", {}, clear=False):
+        with (
+            patch.object(Path, "is_file", return_value=False),
+            patch.dict("os.environ", {}, clear=False),
+        ):
             result = _load_env_file()
             self.assertIsInstance(result, dict)
 
@@ -278,6 +295,7 @@ class TestBootstrapIntegration(unittest.TestCase):
         result = initialize()
         # KillSwitch 的 config_path 应等于默认 CONFIG_PATH (即未显式传 config_path)
         from utils.kill_switch import CONFIG_PATH
+
         self.assertEqual(result.kill_switch.config_path, CONFIG_PATH)
 
     def test_kill_switch_check_margin_status_callable(self) -> None:
@@ -295,12 +313,14 @@ class TestBootstrapIntegration(unittest.TestCase):
     def test_config_manager_singleton(self) -> None:
         """测试: bootstrap 返回的 ConfigManager 是单例."""
         from utils.config_manager import ConfigManager
+
         result = initialize()
         self.assertIs(result.config_manager, ConfigManager.get_instance())
 
     def test_feature_flags_singleton(self) -> None:
         """测试: bootstrap 返回的 FeatureFlags 是单例."""
         from utils.infra.feature_flags import FeatureFlags
+
         result = initialize()
         self.assertIs(result.feature_flags, FeatureFlags.get_instance())
 

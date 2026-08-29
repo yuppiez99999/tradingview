@@ -388,7 +388,7 @@ CLI: `--check` / `--advance` / `--rollback` / `--auto`
 ## 十三、剩余缺口补全计划（Wave 7-ERL 子轨道）
 
 > 创建 2026-08-22 · CodeArts
-> 状态：计划已排期，待 09-05 启动
+> 状态：Sprint 1 (ER-1.1/1.2/1.3) 全部提前完成 2026-08-27; Sprint 2-3 待启动
 > 背景：阶段 1-5 完成策略级进化→再平衡闭环后，调查发现 4 个剩余缺口阻碍"完成进化后能自我再平衡"全链路自动化
 
 ### 13.1 缺口分析
@@ -408,17 +408,17 @@ CLI: `--check` / `--advance` / `--rollback` / `--auto`
 
 | 任务 | 时间 | 内容 | 关联缺口 |
 |------|------|------|---------|
-| ER-1.1 | 09-05~09-12 | 训练器新增 `post_train_callback` 钩子（`autolearn_trainer.py`/`lgb_enhanced_trainer.py`/`lgb_tscv_trainer.py`），fail-safe 降级 | G1 |
-| ER-1.2 | 09-13~09-19 | 训练→进化→再平衡串联：训练完成 → `EvolutionOrchestratorV2.run_cycle()` → `run_daily_rebalance()`，受 `USE_EVOLUTION_ORCHESTRATOR` 控制 | G1 |
-| ER-1.3 | 09-20~09-26 | 漂移→再平衡回调生产启用：`etf_option_hedge_rebalancer.py:296` 等处实例化 `DriftMonitor` 时传入 `rebalance_callback`，受 `USE_DRIFT_DETECTOR` 控制 | G2 |
+| ER-1.1 | 09-05~09-12 | 训练器新增 `post_train_callback` 钩子（`autolearn_trainer.py`/`lgb_enhanced_trainer.py`/`lgb_tscv_trainer.py`），fail-safe 降级 ✅ DONE 2026-08-27 | G1 |
+| ER-1.2 | 09-13~09-19 | 训练→进化→再平衡串联：训练完成 → `EvolutionOrchestratorV2.run_cycle()` → `run_daily_rebalance()`，受 `USE_EVOLUTION_ORCHESTRATOR` 控制 ✅ DONE 2026-08-27 | G1 |
+| ER-1.3 | 09-20~09-26 | 漂移→再平衡回调生产启用：`etf_option_hedge_rebalancer.py:296` 等处实例化 `DriftMonitor` 时传入 `rebalance_callback`，受 `USE_DRIFT_DETECTOR` 控制 ✅ DONE 2026-08-27 | G2 |
 
 #### Sprint 2（09-27 ~ 10-31）：institutional pipeline 集成
 
 | 任务 | 时间 | 内容 | 关联缺口 |
 |------|------|------|---------|
-| ER-2.1 | 09-27~10-10 | `institutional_pipeline_runner.py` 新增 `phase_evolution`（Step 4.6），调用 `EvolutionOrchestratorV2` | G3 |
-| ER-2.2 | 10-11~10-24 | 新增 `phase_rebalance`（Step 6.5），调用 `etf_option_hedge_rebalancer.run_daily_rebalance()` | G3 |
-| ER-2.3 | 10-25~10-31 | 管道编排确认：data→factors→**evolution**→signals→**rebalance**→execution→report，Feature Flag 控制 | G3 |
+| ER-2.1 | 09-27~10-10 | `institutional_pipeline_runner.py` 新增 `phase_evolution`（Step 4.6），调用 `EvolutionOrchestratorV2` ✅ 代码就绪 2026-08-27 | G3 |
+| ER-2.2 | 10-11~10-24 | 新增 `phase_rebalance`（Step 6.5），调用 `etf_option_hedge_rebalancer.run_daily_rebalance()` ✅ 代码就绪 2026-08-27 | G3 |
+| ER-2.3 | 10-25~10-31 | 管道编排确认：data→factors→**evolution**→signals→**rebalance**→execution→report，Feature Flag 控制 ✅ DONE 2026-08-27 | G3 |
 
 #### Sprint 3（11-01 ~ 12-31）：灰度发布 + 端到端验证
 
@@ -431,9 +431,9 @@ CLI: `--check` / `--advance` / `--rollback` / `--auto`
 
 ### 13.3 验收标准
 
-- [ ] 训练完成→再平衡自动触发（无需人工干预）
-- [ ] 漂移→再平衡回调生产生效（`DriftMonitor` 实例化传入 `rebalance_callback`）
-- [ ] `institutional_pipeline --phase all` 含 evolution + rebalance 阶段
+- [x] 训练完成→再平衡自动触发（无需人工干预） ✅ ER-1.2 `train_rebalance_bridge.py`
+- [x] 漂移→再平衡回调生产生效（`DriftMonitor` 实例化传入 `rebalance_callback`） ✅ ER-1.3
+- [x] `institutional_pipeline --phase all` 含 evolution + rebalance 阶段 ✅ ER-2.1/2.2/2.3 代码就绪
 - [ ] 灰度 100% 健康度达标（`l2_promote_rate` ≥ 0.3 / `evolution_trigger_rate` ≥ 0.1 / `avg_latency_ms` ≤ 5000）
 - [ ] 全链路测试覆盖（单元 + E2E + Shadow）
 
@@ -456,7 +456,9 @@ CLI: `--check` / `--advance` / `--rollback` / `--auto`
 ## 十四、指针
 
 - 本文档: `cairn/evolution-rebalance-loop.md`
-- 断裂1实现: `utils/hedge_rebalance_integrator.py:_load_evolution_factor_weights` + `check_rebalance`
+- ER-1.1 钩子: `autolearn_trainer.py:invoke_post_train_callback` (训练后回调入口)
+- ER-1.2 串联桥接: `utils/evolution/train_rebalance_bridge.py:make_train_evolution_rebalance_callback` (训练→进化→再平衡串联)
+- ER-1.3 漂移回调: `etf_option_hedge_rebalancer.py:_make_drift_rebalance_callback`
 - 断裂2实现: `15_每日工作流/run_daily_eod_workflow.py:run_phase4_9_evolution_cycle`
 - 断裂3实现: `etf_option_hedge_rebalancer.py:run_daily_rebalance` Phase 5/6
 - 断裂4实现: `utils/alpha/drift_monitor.py:__init__` rebalance_callback + `_check_retrain_trigger`
@@ -469,3 +471,14 @@ CLI: `--check` / `--advance` / `--rollback` / `--auto`
 - 进化框架文档: `cairn/self-evolution-framework.md`
 - ETF期权对冲模型: `cairn/etf-option-hedge-model.md`
 - 代码质量基线: `cairn/code-quality-industrial-gap-20260819.md`
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [自我进化框架](self-evolution-framework.md) (相似度 19%)
+- [A股ETF + 期权对冲 + 自我再平衡子模型](etf-option-hedge-model.md) (相似度 13%)
+- [GitHub 高价值项目集成策略（Wave 6）](github-integration-wave6.md) (相似度 12%)
+- [运维部署 + 灰度发布 (2026-08-24)](ops-gray-release-20260824.md) (相似度 9%)
+- [代码架构与模块导航](architecture-map.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

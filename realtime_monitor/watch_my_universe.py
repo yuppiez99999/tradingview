@@ -2,6 +2,7 @@
 只监控用户交易计划中的 14 个标的。
 数据源优先级：Wind MCP > akshare > 新浪 HTTP
 """
+
 import importlib.util
 import json
 import os
@@ -21,7 +22,9 @@ _wind_get_quote = None
 _wind_get_batch_quotes = None
 if os.path.isfile(_WIND_FETCHER_PATH):
     try:
-        spec = importlib.util.spec_from_file_location("wind_mcp_fetcher", _WIND_FETCHER_PATH)
+        spec = importlib.util.spec_from_file_location(
+            "wind_mcp_fetcher", _WIND_FETCHER_PATH
+        )
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         _wind_get_quote = getattr(mod, "wind_get_quote", None)
@@ -33,6 +36,7 @@ if os.path.isfile(_WIND_FETCHER_PATH):
 _akshare_source = None
 try:
     from utils.akshare_data_source import AKShareDataSource  # noqa: E402
+
     _akshare_source = AKShareDataSource()
 except Exception:
     pass
@@ -83,19 +87,21 @@ def fetch_akshare_stock_snapshot(codes: list) -> list:
                 change_ratio = f"{(float(price) - float(prev_close)) / float(prev_close) * 100:.6f}"
         except Exception:
             change_ratio = ""
-        results.append({
-            "code": _normalize_wind_code(code),
-            "name": quote.get("name", code),
-            "time": quote.get("timestamp", ""),
-            "latest": price,
-            "change_ratio": change_ratio,
-            "amount": quote.get("amount"),
-            "volume": quote.get("volume"),
-            "chg_1min": "",
-            "chg_3min": "",
-            "chg_5min": "",
-            "source": "akshare",
-        })
+        results.append(
+            {
+                "code": _normalize_wind_code(code),
+                "name": quote.get("name", code),
+                "time": quote.get("timestamp", ""),
+                "latest": price,
+                "change_ratio": change_ratio,
+                "amount": quote.get("amount"),
+                "volume": quote.get("volume"),
+                "chg_1min": "",
+                "chg_3min": "",
+                "chg_5min": "",
+                "source": "akshare",
+            }
+        )
     return results
 
 
@@ -148,19 +154,21 @@ def fetch_wind_snapshot(codes: list, is_fund: bool = False) -> list:
     for code, quote in batch.items():
         if not quote or not isinstance(quote, dict):
             continue
-        results.append({
-            "code": _normalize_wind_code(code),
-            "name": quote.get("name", code),
-            "time": quote.get("time", ""),
-            "latest": quote.get("price"),
-            "change_ratio": quote.get("change"),
-            "amount": quote.get("amount"),
-            "volume": quote.get("volume"),
-            "chg_1min": "",
-            "chg_3min": "",
-            "chg_5min": "",
-            "source": "wind_mcp",
-        })
+        results.append(
+            {
+                "code": _normalize_wind_code(code),
+                "name": quote.get("name", code),
+                "time": quote.get("time", ""),
+                "latest": quote.get("price"),
+                "change_ratio": quote.get("change"),
+                "amount": quote.get("amount"),
+                "volume": quote.get("volume"),
+                "chg_1min": "",
+                "chg_3min": "",
+                "chg_5min": "",
+                "source": "wind_mcp",
+            }
+        )
     return results
 
 
@@ -189,11 +197,17 @@ def _fetch_sina_realtime(codes):
         # 回归见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B3.
         try:
             import certifi
+
             _verify = certifi.where()
         except ImportError:
             _verify = True  # 回退到系统证书, 仍优于 verify=False
-        resp = requests.get(url, timeout=10, headers=headers, verify=_verify,
-                             proxies={"http": None, "https": None})
+        resp = requests.get(
+            url,
+            timeout=10,
+            headers=headers,
+            verify=_verify,
+            proxies={"http": None, "https": None},
+        )
         text = resp.text.strip()
     except Exception:
         return []
@@ -219,22 +233,26 @@ def _fetch_sina_realtime(codes):
         change_ratio = ""
         try:
             if latest and pre_close:
-                change_ratio = f"{(float(latest) - float(pre_close)) / float(pre_close) * 100:.6f}"
+                change_ratio = (
+                    f"{(float(latest) - float(pre_close)) / float(pre_close) * 100:.6f}"
+                )
         except Exception:
             change_ratio = ""
-        results.append({
-            "code": raw_code,
-            "name": name,
-            "time": now_str,
-            "latest": latest,
-            "change_ratio": change_ratio,
-            "amount": parts[9] if len(parts) > 9 else "",
-            "volume": parts[8] if len(parts) > 8 else "",
-            "chg_1min": "",
-            "chg_3min": "",
-            "chg_5min": "",
-            "source": "sina_realtime",
-        })
+        results.append(
+            {
+                "code": raw_code,
+                "name": name,
+                "time": now_str,
+                "latest": latest,
+                "change_ratio": change_ratio,
+                "amount": parts[9] if len(parts) > 9 else "",
+                "volume": parts[8] if len(parts) > 8 else "",
+                "chg_1min": "",
+                "chg_3min": "",
+                "chg_5min": "",
+                "source": "sina_realtime",
+            }
+        )
     return results
 
 

@@ -6,6 +6,7 @@
     - 风险总线事件审计
     - Kill Switch 状态
 """
+
 from __future__ import annotations
 
 import sys
@@ -40,12 +41,38 @@ def main() -> None:
     )
 
     # ===== 风险 KPI =====
-    render_kpi_row([
-        {"label": "VaR 95%", "value": "-1.8%", "delta": "-0.2%", "delta_positive": False, "icon": "📊"},
-        {"label": "CVaR 95%", "value": "-2.5%", "delta": "-0.3%", "delta_positive": False, "icon": "📉"},
-        {"label": "组合 Beta", "value": "0.45", "delta": "目标≤0.3", "delta_positive": False, "icon": "⚖️"},
-        {"label": "年化波动率", "value": "12.3%", "delta": "+0.5%", "delta_positive": False, "icon": "📈"},
-    ])
+    render_kpi_row(
+        [
+            {
+                "label": "VaR 95%",
+                "value": "-1.8%",
+                "delta": "-0.2%",
+                "delta_positive": False,
+                "icon": "📊",
+            },
+            {
+                "label": "CVaR 95%",
+                "value": "-2.5%",
+                "delta": "-0.3%",
+                "delta_positive": False,
+                "icon": "📉",
+            },
+            {
+                "label": "组合 Beta",
+                "value": "0.45",
+                "delta": "目标≤0.3",
+                "delta_positive": False,
+                "icon": "⚖️",
+            },
+            {
+                "label": "年化波动率",
+                "value": "12.3%",
+                "delta": "+0.5%",
+                "delta_positive": False,
+                "icon": "📈",
+            },
+        ]
+    )
 
     st.divider()
 
@@ -79,6 +106,7 @@ def main() -> None:
         # 按事件类型分组
         try:
             import pandas as pd
+
             df = pd.DataFrame(events)
             if "event_type" in df.columns:
                 st.subheader("事件类型分布")

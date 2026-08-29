@@ -9,6 +9,7 @@ test_v87_release_gate_summary.py — v8.7 三门禁汇总集成测试
     - V87GateSummary frozen dataclass 不可变性
     - JSON 输出结构正确
 """
+
 from __future__ import annotations
 
 import json
@@ -68,9 +69,20 @@ class TestCheckV87ReleaseGateSummary:
 
     def test_all_pass_when_three_gates_green(self) -> None:
         """三门禁全绿 → all_passed=true, blocking_reason 为空."""
-        with patch("engineering_debt_gate._check_d9_coverage_sprint4_target", return_value=(True, "D9 ok")), \
-             patch("engineering_debt_gate._check_d10_oversized_file_split", return_value=(True, "D10 ok")), \
-             patch("engineering_debt_gate._check_d11_phase_b_shadow_stable", return_value=(True, "D11 ok")):
+        with (
+            patch(
+                "engineering_debt_gate._check_d9_coverage_sprint4_target",
+                return_value=(True, "D9 ok"),
+            ),
+            patch(
+                "engineering_debt_gate._check_d10_oversized_file_split",
+                return_value=(True, "D10 ok"),
+            ),
+            patch(
+                "engineering_debt_gate._check_d11_phase_b_shadow_stable",
+                return_value=(True, "D11 ok"),
+            ),
+        ):
             summary = check_v87_release_gate_summary()
         assert summary.coverage_sprint4_080 is True
         assert summary.oversized_file_split is True
@@ -80,36 +92,80 @@ class TestCheckV87ReleaseGateSummary:
 
     def test_block_when_d9_fails(self) -> None:
         """D9 未达标 → all_passed=false, blocking_reason 含 D9."""
-        with patch("engineering_debt_gate._check_d9_coverage_sprint4_target", return_value=(False, "D9 fail")), \
-             patch("engineering_debt_gate._check_d10_oversized_file_split", return_value=(True, "D10 ok")), \
-             patch("engineering_debt_gate._check_d11_phase_b_shadow_stable", return_value=(True, "D11 ok")):
+        with (
+            patch(
+                "engineering_debt_gate._check_d9_coverage_sprint4_target",
+                return_value=(False, "D9 fail"),
+            ),
+            patch(
+                "engineering_debt_gate._check_d10_oversized_file_split",
+                return_value=(True, "D10 ok"),
+            ),
+            patch(
+                "engineering_debt_gate._check_d11_phase_b_shadow_stable",
+                return_value=(True, "D11 ok"),
+            ),
+        ):
             summary = check_v87_release_gate_summary()
         assert summary.all_passed is False
         assert "D9" in summary.blocking_reason
 
     def test_block_when_d10_fails(self) -> None:
         """D10 未达标 → all_passed=false, blocking_reason 含 D10."""
-        with patch("engineering_debt_gate._check_d9_coverage_sprint4_target", return_value=(True, "D9 ok")), \
-             patch("engineering_debt_gate._check_d10_oversized_file_split", return_value=(False, "D10 fail")), \
-             patch("engineering_debt_gate._check_d11_phase_b_shadow_stable", return_value=(True, "D11 ok")):
+        with (
+            patch(
+                "engineering_debt_gate._check_d9_coverage_sprint4_target",
+                return_value=(True, "D9 ok"),
+            ),
+            patch(
+                "engineering_debt_gate._check_d10_oversized_file_split",
+                return_value=(False, "D10 fail"),
+            ),
+            patch(
+                "engineering_debt_gate._check_d11_phase_b_shadow_stable",
+                return_value=(True, "D11 ok"),
+            ),
+        ):
             summary = check_v87_release_gate_summary()
         assert summary.all_passed is False
         assert "D10" in summary.blocking_reason
 
     def test_block_when_d11_fails(self) -> None:
         """D11 未达标 → all_passed=false, blocking_reason 含 D11."""
-        with patch("engineering_debt_gate._check_d9_coverage_sprint4_target", return_value=(True, "D9 ok")), \
-             patch("engineering_debt_gate._check_d10_oversized_file_split", return_value=(True, "D10 ok")), \
-             patch("engineering_debt_gate._check_d11_phase_b_shadow_stable", return_value=(False, "D11 fail")):
+        with (
+            patch(
+                "engineering_debt_gate._check_d9_coverage_sprint4_target",
+                return_value=(True, "D9 ok"),
+            ),
+            patch(
+                "engineering_debt_gate._check_d10_oversized_file_split",
+                return_value=(True, "D10 ok"),
+            ),
+            patch(
+                "engineering_debt_gate._check_d11_phase_b_shadow_stable",
+                return_value=(False, "D11 fail"),
+            ),
+        ):
             summary = check_v87_release_gate_summary()
         assert summary.all_passed is False
         assert "D11" in summary.blocking_reason
 
     def test_block_when_all_three_fail(self) -> None:
         """三门禁全未达标 → all_passed=false, blocking_reason 含全部三个."""
-        with patch("engineering_debt_gate._check_d9_coverage_sprint4_target", return_value=(False, "D9 fail")), \
-             patch("engineering_debt_gate._check_d10_oversized_file_split", return_value=(False, "D10 fail")), \
-             patch("engineering_debt_gate._check_d11_phase_b_shadow_stable", return_value=(False, "D11 fail")):
+        with (
+            patch(
+                "engineering_debt_gate._check_d9_coverage_sprint4_target",
+                return_value=(False, "D9 fail"),
+            ),
+            patch(
+                "engineering_debt_gate._check_d10_oversized_file_split",
+                return_value=(False, "D10 fail"),
+            ),
+            patch(
+                "engineering_debt_gate._check_d11_phase_b_shadow_stable",
+                return_value=(False, "D11 fail"),
+            ),
+        ):
             summary = check_v87_release_gate_summary()
         assert summary.all_passed is False
         assert "D11" in summary.blocking_reason
@@ -118,9 +174,20 @@ class TestCheckV87ReleaseGateSummary:
 
     def test_timestamp_format(self) -> None:
         """timestamp 格式为 YYYY-MM-DD HH:MM:SS."""
-        with patch("engineering_debt_gate._check_d9_coverage_sprint4_target", return_value=(True, "")), \
-             patch("engineering_debt_gate._check_d10_oversized_file_split", return_value=(True, "")), \
-             patch("engineering_debt_gate._check_d11_phase_b_shadow_stable", return_value=(True, "")):
+        with (
+            patch(
+                "engineering_debt_gate._check_d9_coverage_sprint4_target",
+                return_value=(True, ""),
+            ),
+            patch(
+                "engineering_debt_gate._check_d10_oversized_file_split",
+                return_value=(True, ""),
+            ),
+            patch(
+                "engineering_debt_gate._check_d11_phase_b_shadow_stable",
+                return_value=(True, ""),
+            ),
+        ):
             summary = check_v87_release_gate_summary()
         # 验证格式 YYYY-MM-DD HH:MM:SS (19 字符)
         assert len(summary.timestamp) == 19

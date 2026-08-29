@@ -58,7 +58,11 @@ class TestWithDataset:
     def test_basic(self):
         cfg = TrainingConfig(model_name="m")
         panel = pd.DataFrame(
-            {"code": ["A", "B", "A"], "date": ["2026-01-01", "2026-01-01", "2026-01-02"], "f1": [1.0, 2.0, 3.0]}
+            {
+                "code": ["A", "B", "A"],
+                "date": ["2026-01-01", "2026-01-01", "2026-01-02"],
+                "f1": [1.0, 2.0, 3.0],
+            }
         )
         cfg2 = cfg.with_dataset(panel)
         assert cfg2.dataset_uri != ""
@@ -133,12 +137,18 @@ class TestWithConfigHash:
 
 class TestComputeDatasetUri:
     def test_deterministic(self):
-        df = pd.DataFrame({"code": ["A", "B"], "date": ["2026-01-01", "2026-01-02"], "v": [1.0, 2.0]})
+        df = pd.DataFrame(
+            {"code": ["A", "B"], "date": ["2026-01-01", "2026-01-02"], "v": [1.0, 2.0]}
+        )
         assert compute_dataset_uri(df) == compute_dataset_uri(df)
 
     def test_order_independent(self):
-        df1 = pd.DataFrame({"code": ["A", "B"], "date": ["2026-01-01", "2026-01-02"], "v": [1.0, 2.0]})
-        df2 = pd.DataFrame({"code": ["B", "A"], "date": ["2026-01-02", "2026-01-01"], "v": [2.0, 1.0]})
+        df1 = pd.DataFrame(
+            {"code": ["A", "B"], "date": ["2026-01-01", "2026-01-02"], "v": [1.0, 2.0]}
+        )
+        df2 = pd.DataFrame(
+            {"code": ["B", "A"], "date": ["2026-01-02", "2026-01-01"], "v": [2.0, 1.0]}
+        )
         assert compute_dataset_uri(df1) == compute_dataset_uri(df2)
 
     def test_different_data_different_hash(self):
@@ -229,7 +239,9 @@ class TestWriteManifest:
 
 class TestVerifyReproducibility:
     def test_identical(self):
-        cfg = TrainingConfig(model_name="m", seed=42, config_hash="h1", dataset_uri="d1", code_sha="c1")
+        cfg = TrainingConfig(
+            model_name="m", seed=42, config_hash="h1", dataset_uri="d1", code_sha="c1"
+        )
         imp = {"f1": 0.5, "f2": 0.3, "f3": 0.2}
         result = verify_reproducibility(cfg, cfg, imp, imp, top_k=3)
         assert result["config_match"] is True
@@ -248,7 +260,9 @@ class TestVerifyReproducibility:
         assert result["reproducible"] is False
 
     def test_different_importance_order(self):
-        cfg = TrainingConfig(model_name="m", config_hash="h", dataset_uri="d", code_sha="c")
+        cfg = TrainingConfig(
+            model_name="m", config_hash="h", dataset_uri="d", code_sha="c"
+        )
         imp_a = {"f1": 0.5, "f2": 0.3}
         imp_b = {"f2": 0.5, "f1": 0.3}
         result = verify_reproducibility(cfg, cfg, imp_a, imp_b, top_k=2)
@@ -260,7 +274,12 @@ class TestVerifyReproducibility:
 class TestConstructDefaultConfig:
     def test_basic(self):
         panel = pd.DataFrame(
-            {"code": ["A", "B"], "date": ["2026-01-01", "2026-01-02"], "f1": [1.0, 2.0], "y": [0.1, 0.2]}
+            {
+                "code": ["A", "B"],
+                "date": ["2026-01-01", "2026-01-02"],
+                "f1": [1.0, 2.0],
+                "y": [0.1, 0.2],
+            }
         )
         cfg = construct_default_config(panel)
         assert cfg.model_name == "lgbm_factor_mining"

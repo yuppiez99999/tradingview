@@ -28,7 +28,9 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
     all_tickers = set(tickers) | set(portfolio.get("positions", {}).keys())
 
     for ticker in all_tickers:
-        progress.update_status(agent_id, ticker, "Fetching price data and calculating volatility")
+        progress.update_status(
+            agent_id, ticker, "Fetching price data and calculating volatility"
+        )
 
         prices = get_prices(
             ticker=ticker,
@@ -43,7 +45,7 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
                 "daily_volatility": 0.05,  # Default fallback volatility (5% daily)
                 "annualized_volatility": 0.05 * np.sqrt(252),
                 "volatility_percentile": 100,  # Assume high risk if no data
-                "data_points": 0
+                "data_points": 0,
             }
             continue
 
@@ -65,7 +67,7 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
             progress.update_status(
                 agent_id,
                 ticker,
-                f"Price: {current_price:.2f}, Ann. Vol: {volatility_metrics['annualized_volatility']:.1%}"
+                f"Price: {current_price:.2f}, Ann. Vol: {volatility_metrics['annualized_volatility']:.1%}",
             )
         else:
             progress.update_status(agent_id, ticker, "Warning: Insufficient price data")
@@ -74,7 +76,7 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
                 "daily_volatility": 0.05,
                 "annualized_volatility": 0.05 * np.sqrt(252),
                 "volatility_percentile": 100,
-                "data_points": len(prices_df) if not prices_df.empty else 0
+                "data_points": len(prices_df) if not prices_df.empty else 0,
             }
 
     # Build returns DataFrame aligned across tickers for correlation analysis
@@ -89,7 +91,8 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
 
     # Determine which tickers currently have exposure (non-zero absolute position)
     active_positions = {
-        t for t, pos in portfolio.get("positions", {}).items()
+        t
+        for t, pos in portfolio.get("positions", {}).items()
         if abs(pos.get("long", 0) - pos.get("short", 0)) > 0
     }
 
@@ -103,20 +106,22 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
             # Subtract market value of short positions
             total_portfolio_value -= position.get("short", 0) * current_prices[ticker]
 
-    progress.update_status(agent_id, None, f"Total portfolio value: {total_portfolio_value:.2f}")
+    progress.update_status(
+        agent_id, None, f"Total portfolio value: {total_portfolio_value:.2f}"
+    )
 
     # Calculate volatility- and correlation-adjusted risk limits for each ticker
     for ticker in tickers:
-        progress.update_status(agent_id, ticker, "Calculating volatility- and correlation-adjusted limits")
+        progress.update_status(
+            agent_id, ticker, "Calculating volatility- and correlation-adjusted limits"
+        )
 
         if ticker not in current_prices or current_prices[ticker] <= 0:
             progress.update_status(agent_id, ticker, "Failed: No valid price data")
             risk_analysis[ticker] = {
                 "remaining_position_limit": 0.0,
                 "current_price": 0.0,
-                "reasoning": {
-                    "error": "Missing price data for risk calculation"
-                }
+                "reasoning": {"error": "Missing price data for risk calculation"},
             }
             continue
 
@@ -143,7 +148,11 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
         corr_multiplier = 1.0
         if correlation_matrix is not None and ticker in correlation_matrix.columns:
             # Compute correlations with active positions (exclude self)
-            comparable = [t for t in active_positions if t in correlation_matrix.columns and t != ticker]
+            comparable = [
+                t
+                for t in active_positions
+                if t in correlation_matrix.columns and t != ticker
+            ]
             if not comparable:
                 # If no active positions, compare with all other available tickers
                 comparable = [t for t in correlation_matrix.columns if t != ticker]
@@ -159,7 +168,8 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
                     # Top 3 most correlated tickers
                     top_corr = series.sort_values(ascending=False).head(3)
                     corr_metrics["top_correlated_tickers"] = [
-                        {"ticker": idx, "correlation": float(val)} for idx, val in top_corr.items()
+                        {"ticker": idx, "correlation": float(val)}
+                        for idx, val in top_corr.items()
                     ]
                     corr_multiplier = calculate_correlation_multiplier(avg_corr)
 
@@ -179,9 +189,13 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
             "current_price": float(current_price),
             "volatility_metrics": {
                 "daily_volatility": float(vol_data.get("daily_volatility", 0.05)),
-                "annualized_volatility": float(vol_data.get("annualized_volatility", 0.25)),
-                "volatility_percentile": float(vol_data.get("volatility_percentile", 100)),
-                "data_points": int(vol_data.get("data_points", 0))
+                "annualized_volatility": float(
+                    vol_data.get("annualized_volatility", 0.25)
+                ),
+                "volatility_percentile": float(
+                    vol_data.get("volatility_percentile", 100)
+                ),
+                "data_points": int(vol_data.get("data_points", 0)),
             },
             "correlation_metrics": corr_metrics,
             "reasoning": {
@@ -193,14 +207,14 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
                 "position_limit": float(position_limit),
                 "remaining_limit": float(remaining_position_limit),
                 "available_cash": float(portfolio.get("cash", 0)),
-                "risk_adjustment": f"Volatility x Correlation adjusted: {combined_limit_pct:.1%} (base {vol_adjusted_limit_pct:.1%})"
+                "risk_adjustment": f"Volatility x Correlation adjusted: {combined_limit_pct:.1%} (base {vol_adjusted_limit_pct:.1%})",
             },
         }
 
         progress.update_status(
             agent_id,
             ticker,
-            f"Adj. limit: {combined_limit_pct:.1%}, Available: ${max_position_size:.0f}"
+            f"Adj. limit: {combined_limit_pct:.1%}, Available: ${max_position_size:.0f}",
         )
 
     progress.update_status(agent_id, None, "Done")
@@ -222,14 +236,16 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
     }
 
 
-def calculate_volatility_metrics(prices_df: pd.DataFrame, lookback_days: int = 60) -> dict:
+def calculate_volatility_metrics(
+    prices_df: pd.DataFrame, lookback_days: int = 60
+) -> dict:
     """Calculate comprehensive volatility metrics from price data."""
     if len(prices_df) < 2:
         return {
             "daily_volatility": 0.05,
             "annualized_volatility": 0.05 * np.sqrt(252),
             "volatility_percentile": 100,
-            "data_points": len(prices_df)
+            "data_points": len(prices_df),
         }
 
     # Calculate daily returns
@@ -240,7 +256,7 @@ def calculate_volatility_metrics(prices_df: pd.DataFrame, lookback_days: int = 6
             "daily_volatility": 0.05,
             "annualized_volatility": 0.05 * np.sqrt(252),
             "volatility_percentile": 100,
-            "data_points": len(daily_returns)
+            "data_points": len(daily_returns),
         }
 
     # Use the most recent lookback_days for volatility calculation
@@ -264,9 +280,15 @@ def calculate_volatility_metrics(prices_df: pd.DataFrame, lookback_days: int = 6
 
     return {
         "daily_volatility": float(daily_vol) if not np.isnan(daily_vol) else 0.025,
-        "annualized_volatility": float(annualized_vol) if not np.isnan(annualized_vol) else 0.25,
-        "volatility_percentile": float(current_vol_percentile) if not np.isnan(current_vol_percentile) else 50.0,
-        "data_points": len(recent_returns)
+        "annualized_volatility": (
+            float(annualized_vol) if not np.isnan(annualized_vol) else 0.25
+        ),
+        "volatility_percentile": (
+            float(current_vol_percentile)
+            if not np.isnan(current_vol_percentile)
+            else 50.0
+        ),
+        "data_points": len(recent_returns),
     }
 
 

@@ -14,6 +14,7 @@
     - PipelineResult.factor_history: dict[str, list[dict[str, float]]]
     - PipelineResult.forward_returns_history: list[dict[str, float]]
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,23 +41,31 @@ pytestmark = [
 # Helper: 构造测试数据
 # ============================================================
 
-def _build_factor_history_seq(n_days: int = 25, n_symbols: int = 10) -> list[dict[str, float]]:
+
+def _build_factor_history_seq(
+    n_days: int = 25, n_symbols: int = 10
+) -> list[dict[str, float]]:
     """构造单因子日频历史: [{symbol: value}, ...]."""
     np.random.seed(42)
     symbols = [f"TEST{i:03d}.SZ" for i in range(n_symbols)]
     return [{sym: float(np.random.randn()) for sym in symbols} for _ in range(n_days)]
 
 
-def _build_forward_returns_history(n_days: int = 25, n_symbols: int = 10) -> list[dict[str, float]]:
+def _build_forward_returns_history(
+    n_days: int = 25, n_symbols: int = 10
+) -> list[dict[str, float]]:
     """构造 forward returns: [{symbol: ret}, ...]."""
     np.random.seed(123)
     symbols = [f"TEST{i:03d}.SZ" for i in range(n_symbols)]
-    return [{sym: float(np.random.randn() * 0.02) for sym in symbols} for _ in range(n_days)]
+    return [
+        {sym: float(np.random.randn() * 0.02) for sym in symbols} for _ in range(n_days)
+    ]
 
 
 # ============================================================
 # 场景 1: calc_ic_series_from_history vs compute_rolling_ic_series ✅
 # ============================================================
+
 
 class TestICSeriesConsistency:
     """U1 (Spearman) vs research (Pearson) IC 序列一致性."""
@@ -75,9 +84,9 @@ class TestICSeriesConsistency:
         u1_series = calc_ic_series_from_history(factor_history, fwd_returns)
         research_series = compute_rolling_ic_series(factor_history, fwd_returns)
 
-        assert len(u1_series) == len(research_series), (
-            f"IC 序列长度不一致: U1={len(u1_series)}, research={len(research_series)}"
-        )
+        assert len(u1_series) == len(
+            research_series
+        ), f"IC 序列长度不一致: U1={len(u1_series)}, research={len(research_series)}"
 
     def test_ic_series_sign_consistency(self):
         """两版本 IC 符号一致率 >= 80% (Spearman vs Pearson 在非极端数据下高度相关)."""
@@ -115,6 +124,7 @@ class TestICSeriesConsistency:
 # 场景 2: calc_ic_ir vs compute_ic_ir ✅
 # ============================================================
 
+
 class TestICIRConsistency:
     """U1 vs research IC_IR 一致性 (同输入同输出)."""
 
@@ -138,15 +148,15 @@ class TestICIRConsistency:
         assert len(research_result) == 3
 
         # IC_IR 数值接近 (算法 1:1, 应完全一致)
-        assert abs(u1_result[0] - research_result[0]) < 1e-10, (
-            f"IC_IR 不一致: U1={u1_result[0]}, research={research_result[0]}"
-        )
-        assert abs(u1_result[1] - research_result[1]) < 1e-10, (
-            f"IC_mean 不一致: U1={u1_result[1]}, research={research_result[1]}"
-        )
-        assert abs(u1_result[2] - research_result[2]) < 1e-10, (
-            f"IC_std 不一致: U1={u1_result[2]}, research={research_result[2]}"
-        )
+        assert (
+            abs(u1_result[0] - research_result[0]) < 1e-10
+        ), f"IC_IR 不一致: U1={u1_result[0]}, research={research_result[0]}"
+        assert (
+            abs(u1_result[1] - research_result[1]) < 1e-10
+        ), f"IC_mean 不一致: U1={u1_result[1]}, research={research_result[1]}"
+        assert (
+            abs(u1_result[2] - research_result[2]) < 1e-10
+        ), f"IC_std 不一致: U1={u1_result[2]}, research={research_result[2]}"
 
     def test_ic_ir_insufficient_samples_returns_zero(self):
         """样本不足 (<20): 两版本都返回 (0.0, 0.0, 0.0)."""
@@ -168,6 +178,7 @@ class TestICIRConsistency:
 # ============================================================
 # 场景 3: PipelineResult 新增 factor_history 字段 ✅
 # ============================================================
+
 
 class TestPipelineResultFields:
     """PipelineResult 新增 factor_history / forward_returns_history 字段."""
@@ -205,6 +216,7 @@ class TestPipelineResultFields:
 # 场景 4: to_dict() 排除 factor_history 避免体积膨胀 ✅
 # ============================================================
 
+
 class TestToDictExcludesFactorHistory:
     """to_dict() 排除 factor_history / forward_returns_history."""
 
@@ -221,7 +233,9 @@ class TestToDictExcludesFactorHistory:
         d = result.to_dict()
 
         assert "factor_history" not in d, "to_dict() 不应包含 factor_history"
-        assert "forward_returns_history" not in d, "to_dict() 不应包含 forward_returns_history"
+        assert (
+            "forward_returns_history" not in d
+        ), "to_dict() 不应包含 forward_returns_history"
         # 其他字段仍存在
         assert "batch_id" in d
         assert d["batch_id"] == "test_003"

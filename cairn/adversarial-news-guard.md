@@ -85,3 +85,14 @@ AdversarialNewsGuard (综合净化管道)
 | `tests/unit/test_adversarial_news_guard_unit.py` | ~366 | 单元测试 |
 | `utils/ai_coordinator.py` | (+30行) | sanitize_news_input() 集成 |
 | `ruff.toml` | (+4行) | T201/UP042 豁免 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [情绪因子演化：v4.0 → v4.3](sentiment-factor-evolution.md) (相似度 17%)
+- [FinGPT 系列集成 (轻量 LoRA + RLSP 训练管线)](fingpt-integration.md) (相似度 16%)
+- [CN-Buzz2Portfolio 中国市场基准](cn-buzz2portfolio.md) (相似度 13%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 7%)
+- [KTD-Fin 记忆控制评估基准](ktd-fin-eval.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

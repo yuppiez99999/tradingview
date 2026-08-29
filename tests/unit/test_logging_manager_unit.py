@@ -2,6 +2,7 @@
 单元测试: utils/logging_manager.py
 覆盖 ColoredFormatter / StructuredFormatter / QuantSystemLogger / 全局单例函数
 """
+
 from __future__ import annotations
 
 import json
@@ -169,15 +170,27 @@ class TestQuantSystemLoggerInit:
             },
             "handlers": {
                 "console": {"enabled": False, "colored": False, "level": "DEBUG"},
-                "file": {"enabled": True, "level": "DEBUG", "max_size": "1MB", "backup_count": 2, "directory": str(tmp_path)},
-                "structured": {"enabled": False, "level": "INFO", "directory": str(tmp_path)},
+                "file": {
+                    "enabled": True,
+                    "level": "DEBUG",
+                    "max_size": "1MB",
+                    "backup_count": 2,
+                    "directory": str(tmp_path),
+                },
+                "structured": {
+                    "enabled": False,
+                    "level": "INFO",
+                    "directory": str(tmp_path),
+                },
             },
             "loggers": {},
         }
         mgr = QuantSystemLogger(config=cfg)
         assert mgr.config["level"] == "DEBUG"
         root = logging.getLogger()
-        has_file = any(isinstance(h, logging.handlers.RotatingFileHandler) for h in root.handlers)
+        has_file = any(
+            isinstance(h, logging.handlers.RotatingFileHandler) for h in root.handlers
+        )
         assert has_file
 
     def test_console_disabled(self, tmp_path):
@@ -186,14 +199,28 @@ class TestQuantSystemLoggerInit:
             "format": {"console": "%(message)s", "file": "%(message)s"},
             "handlers": {
                 "console": {"enabled": False, "colored": False, "level": "INFO"},
-                "file": {"enabled": False, "level": "DEBUG", "max_size": "1MB", "backup_count": 2, "directory": str(tmp_path)},
-                "structured": {"enabled": False, "level": "INFO", "directory": str(tmp_path)},
+                "file": {
+                    "enabled": False,
+                    "level": "DEBUG",
+                    "max_size": "1MB",
+                    "backup_count": 2,
+                    "directory": str(tmp_path),
+                },
+                "structured": {
+                    "enabled": False,
+                    "level": "INFO",
+                    "directory": str(tmp_path),
+                },
             },
             "loggers": {},
         }
         QuantSystemLogger(config=cfg)
         root = logging.getLogger()
-        has_stream = any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.handlers.RotatingFileHandler) for h in root.handlers)
+        has_stream = any(
+            isinstance(h, logging.StreamHandler)
+            and not isinstance(h, logging.handlers.RotatingFileHandler)
+            for h in root.handlers
+        )
         assert not has_stream
 
     def test_structured_enabled(self, tmp_path):
@@ -202,15 +229,26 @@ class TestQuantSystemLoggerInit:
             "format": {"console": "%(message)s", "file": "%(message)s"},
             "handlers": {
                 "console": {"enabled": False, "colored": False, "level": "INFO"},
-                "file": {"enabled": False, "level": "DEBUG", "max_size": "1MB", "backup_count": 2, "directory": str(tmp_path)},
-                "structured": {"enabled": True, "level": "INFO", "directory": str(tmp_path)},
+                "file": {
+                    "enabled": False,
+                    "level": "DEBUG",
+                    "max_size": "1MB",
+                    "backup_count": 2,
+                    "directory": str(tmp_path),
+                },
+                "structured": {
+                    "enabled": True,
+                    "level": "INFO",
+                    "directory": str(tmp_path),
+                },
             },
             "loggers": {},
         }
         QuantSystemLogger(config=cfg)
         root = logging.getLogger()
         has_structured = any(
-            isinstance(h, logging.handlers.RotatingFileHandler) and isinstance(h.formatter, StructuredFormatter)
+            isinstance(h, logging.handlers.RotatingFileHandler)
+            and isinstance(h.formatter, StructuredFormatter)
             for h in root.handlers
         )
         assert has_structured
@@ -221,14 +259,26 @@ class TestQuantSystemLoggerInit:
             "format": {"console": "%(message)s", "file": "%(message)s"},
             "handlers": {
                 "console": {"enabled": False, "colored": False, "level": "INFO"},
-                "file": {"enabled": False, "level": "DEBUG", "max_size": "1MB", "backup_count": 2, "directory": str(tmp_path)},
-                "structured": {"enabled": False, "level": "INFO", "directory": str(tmp_path)},
+                "file": {
+                    "enabled": False,
+                    "level": "DEBUG",
+                    "max_size": "1MB",
+                    "backup_count": 2,
+                    "directory": str(tmp_path),
+                },
+                "structured": {
+                    "enabled": False,
+                    "level": "INFO",
+                    "directory": str(tmp_path),
+                },
             },
             "loggers": {},
         }
         QuantSystemLogger(config=cfg)
         root = logging.getLogger()
-        has_file = any(isinstance(h, logging.handlers.RotatingFileHandler) for h in root.handlers)
+        has_file = any(
+            isinstance(h, logging.handlers.RotatingFileHandler) for h in root.handlers
+        )
         assert not has_file
 
 
@@ -239,8 +289,18 @@ class TestConfigureSpecificLoggers:
             "format": {"console": "%(message)s", "file": "%(message)s"},
             "handlers": {
                 "console": {"enabled": False, "colored": False, "level": "INFO"},
-                "file": {"enabled": False, "level": "DEBUG", "max_size": "1MB", "backup_count": 2, "directory": str(tmp_path)},
-                "structured": {"enabled": False, "level": "INFO", "directory": str(tmp_path)},
+                "file": {
+                    "enabled": False,
+                    "level": "DEBUG",
+                    "max_size": "1MB",
+                    "backup_count": 2,
+                    "directory": str(tmp_path),
+                },
+                "structured": {
+                    "enabled": False,
+                    "level": "INFO",
+                    "directory": str(tmp_path),
+                },
             },
             "loggers": {
                 "quant": {"level": "DEBUG"},
@@ -287,8 +347,18 @@ class TestGlobalFunctions:
             "format": {"console": "%(message)s", "file": "%(message)s"},
             "handlers": {
                 "console": {"enabled": True, "colored": False, "level": "WARNING"},
-                "file": {"enabled": False, "level": "DEBUG", "max_size": "1MB", "backup_count": 2, "directory": str(tmp_path)},
-                "structured": {"enabled": False, "level": "INFO", "directory": str(tmp_path)},
+                "file": {
+                    "enabled": False,
+                    "level": "DEBUG",
+                    "max_size": "1MB",
+                    "backup_count": 2,
+                    "directory": str(tmp_path),
+                },
+                "structured": {
+                    "enabled": False,
+                    "level": "INFO",
+                    "directory": str(tmp_path),
+                },
             },
             "loggers": {},
         }
@@ -304,8 +374,18 @@ class TestGlobalFunctions:
             "format": {"console": "%(message)s", "file": "%(message)s"},
             "handlers": {
                 "console": {"enabled": True, "colored": False, "level": "ERROR"},
-                "file": {"enabled": False, "level": "DEBUG", "max_size": "1MB", "backup_count": 2, "directory": str(tmp_path)},
-                "structured": {"enabled": False, "level": "INFO", "directory": str(tmp_path)},
+                "file": {
+                    "enabled": False,
+                    "level": "DEBUG",
+                    "max_size": "1MB",
+                    "backup_count": 2,
+                    "directory": str(tmp_path),
+                },
+                "structured": {
+                    "enabled": False,
+                    "level": "INFO",
+                    "directory": str(tmp_path),
+                },
             },
             "loggers": {},
         }

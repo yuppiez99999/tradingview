@@ -6,7 +6,9 @@ import os
 import shutil
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from ai_decision.execution_bridge import GrayscaleState
 
@@ -26,6 +28,7 @@ def _reset_test_dirs():
 # 集成测试：Shadow 模式 (仅记录，不执行)
 # ============================================================
 
+
 def test_integration_shadow_mode():
     """测试 shadow 模式 — 决策生成但不执行"""
     _reset_test_dirs()
@@ -35,6 +38,7 @@ def test_integration_shadow_mode():
     try:
         # 直接调用 run_decision 来测试
         from ai_decision.orchestrator import run_decision
+
         dec = run_decision("600519", mode="shadow")
         assert dec.mode == "shadow"
         assert dec.executed is False
@@ -49,12 +53,14 @@ def test_integration_shadow_mode():
 # 集成测试：Paper 模式 (模拟执行)
 # ============================================================
 
+
 def test_integration_paper_mode():
     """测试 paper 模式 — 模拟执行，记录执行结果"""
     _reset_test_dirs()
     os.environ["DEEPSEEK_API_KEY"] = "dummy"
     try:
         from ai_decision.orchestrator import run_decision
+
         dec = run_decision("600519", mode="paper")
         # paper 模式下应该尝试执行
         assert dec.mode == "paper"
@@ -69,6 +75,7 @@ def test_integration_paper_mode():
 # ============================================================
 # 集成测试：Auto 模式 (带 --execute 参数)
 # ============================================================
+
 
 def test_integration_auto_with_execute():
     """测试 auto 模式 + --execute — 完整执行桥接流程
@@ -105,7 +112,9 @@ def test_integration_auto_with_execute():
         )
         assert result.get("executed") in [True, False]  # 取决于具体风控
         assert result["mode"] == "auto"
-        print(f"[PASS] auto+execute: executed={result.get('executed')}, mode={result['mode']}")
+        print(
+            f"[PASS] auto+execute: executed={result.get('executed')}, mode={result['mode']}"
+        )
     finally:
         if "DEEPSEEK_API_KEY" in os.environ:
             del os.environ["DEEPSEEK_API_KEY"]
@@ -114,6 +123,7 @@ def test_integration_auto_with_execute():
 # ============================================================
 # 集成测试：CLI --execute 参数
 # ============================================================
+
 
 def test_cli_with_execute_flag():
     """测试 CLI 的 --execute 参数触发执行桥接"""
@@ -126,12 +136,14 @@ def test_cli_with_execute_flag():
         from ai_decision.models import TradingDecision
 
         # 创建模拟决策并设置执行结果
-        dec = TradingDecision(symbol="600519", action="buy", strength=0.7, confidence=0.8, mode="paper")
+        dec = TradingDecision(
+            symbol="600519", action="buy", strength=0.7, confidence=0.8, mode="paper"
+        )
         dec.execution_result = {
             "executed": True,
             "mode": "paper",
             "plan": {"qty": 100, "notional": 15000.0},
-            "veto": False
+            "veto": False,
         }
         output = _fmt(dec)
         assert "EXECUTED" in output or "paper" in output.lower()
@@ -145,6 +157,7 @@ def test_cli_with_execute_flag():
 # ============================================================
 # 集成测试：灰度状态持久化
 # ============================================================
+
 
 def test_grayscale_persistence():
     """测试灰度状态的跨进程持久化"""
@@ -167,6 +180,7 @@ def test_grayscale_persistence():
 # 端到端全链路测试
 # ============================================================
 
+
 def test_full_pipeline_end_to_end():
     """端到端全链路: 决策 → 风控 → 执行桥接 → 审计日志"""
     _reset_test_dirs()
@@ -179,19 +193,25 @@ def test_full_pipeline_end_to_end():
         dec = run_decision("600519", mode="paper")
         assert dec.symbol == "600519"
         assert dec.action in ("buy", "sell", "hold")
-        print(f"[Step 1] Decision generated: action={dec.action}, verdict={dec.verdict_type}")
+        print(
+            f"[Step 1] Decision generated: action={dec.action}, verdict={dec.verdict_type}"
+        )
 
         # Step 2: 执行桥接 (如果决策有方向)
         if dec.action != "hold":
             result = execute_decision(dec, portfolio_value=1_000_000.0, mode="paper")
             dec.execution_result = result
-            print(f"[Step 2] Execution bridge: executed={result.get('executed')}, plan={result.get('plan', {})}")
+            print(
+                f"[Step 2] Execution bridge: executed={result.get('executed')}, plan={result.get('plan', {})}"
+            )
 
         # Step 3: 检查摘要信息
         summary = get_grayscale_summary()
         assert "stage" in summary
         assert "allocation_pct" in summary
-        print(f"[Step 3] Grayscale summary: stage={summary['stage']}, alloc={summary['allocation_pct']}%")
+        print(
+            f"[Step 3] Grayscale summary: stage={summary['stage']}, alloc={summary['allocation_pct']}%"
+        )
 
         # Step 4: 验证决策可序列化
         dec_dict = dec.to_dict()
@@ -208,4 +228,5 @@ def test_full_pipeline_end_to_end():
 
 if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-v", "-s"])

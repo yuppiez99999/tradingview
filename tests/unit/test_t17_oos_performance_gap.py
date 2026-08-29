@@ -1,4 +1,5 @@
 """T17: OOS Performance Gap monitoring."""
+
 from datetime import datetime
 
 import pytest
@@ -18,9 +19,9 @@ class TestT17UpdateIsIc:
         detector.update_is_ic("v20260728", 0.08)
         assert len(detector._is_ic_history) == 1
         record = detector._is_ic_history[-1]
-        assert record['model_version'] == "v20260728"
-        assert record['is_ic'] == 0.08
-        assert isinstance(record['timestamp'], datetime)
+        assert record["model_version"] == "v20260728"
+        assert record["is_ic"] == 0.08
+        assert isinstance(record["timestamp"], datetime)
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -30,7 +31,7 @@ class TestT17UpdateIsIc:
         detector.update_is_ic("v20260715", 0.08)
         detector.update_is_ic("v20260728", 0.09)
         assert len(detector._is_ic_history) == 3
-        assert detector._is_ic_history[-1]['model_version'] == "v20260728"
+        assert detector._is_ic_history[-1]["model_version"] == "v20260728"
 
     @pytest.mark.unit
     @pytest.mark.p1
@@ -39,8 +40,8 @@ class TestT17UpdateIsIc:
         for i in range(15):
             detector.update_is_ic(f"v{i}", 0.05 + i * 0.001)
         assert len(detector._is_ic_history) == 10
-        assert detector._is_ic_history[0]['model_version'] == "v5"
-        assert detector._is_ic_history[-1]['model_version'] == "v14"
+        assert detector._is_ic_history[0]["model_version"] == "v5"
+        assert detector._is_ic_history[-1]["model_version"] == "v14"
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -125,10 +126,10 @@ class TestT17CheckOosGap:
         detector = ModelDriftDetector()
         detector.update_is_ic("v20260728", 0.08)
         stats = detector.get_oos_gap_stats()
-        assert stats['is_ic'] == 0.08
-        assert stats['oos_ic_mean'] is None
-        assert stats['gap'] is None
-        assert stats['n_oos_samples'] == 0
+        assert stats["is_ic"] == 0.08
+        assert stats["oos_ic_mean"] is None
+        assert stats["gap"] is None
+        assert stats["n_oos_samples"] == 0
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -138,10 +139,10 @@ class TestT17CheckOosGap:
         for i in range(25):
             detector.update_oos_ic(f"2026-07-{i+1:02d}", 0.05)
         stats = detector.get_oos_gap_stats()
-        assert stats['is_ic'] == 0.10
-        assert stats['oos_ic_mean'] == pytest.approx(0.05, abs=1e-6)
-        assert stats['gap'] == pytest.approx(0.05, abs=1e-6)
-        assert stats['n_oos_samples'] == 25
+        assert stats["is_ic"] == 0.10
+        assert stats["oos_ic_mean"] == pytest.approx(0.05, abs=1e-6)
+        assert stats["gap"] == pytest.approx(0.05, abs=1e-6)
+        assert stats["n_oos_samples"] == 25
 
     @pytest.mark.unit
     @pytest.mark.p1
@@ -153,8 +154,8 @@ class TestT17CheckOosGap:
         for i in range(10):
             detector.update_oos_ic(f"2026-07-{i+1:02d}", 0.07)
         stats = detector.get_oos_gap_stats()
-        assert stats['oos_ic_mean'] == pytest.approx(0.07, abs=1e-6)
-        assert stats['gap'] == pytest.approx(0.03, abs=1e-6)
+        assert stats["oos_ic_mean"] == pytest.approx(0.07, abs=1e-6)
+        assert stats["gap"] == pytest.approx(0.03, abs=1e-6)
 
 
 class TestT17ModelVersionSwitch:
@@ -201,16 +202,16 @@ class TestT17GenerateReport:
     def test_t17_report_contains_oos_gap_stats_key(self):
         detector = ModelDriftDetector()
         report = detector.generate_report()
-        assert 'oos_gap_stats' in report
+        assert "oos_gap_stats" in report
 
     @pytest.mark.unit
     @pytest.mark.p0
     def test_t17_report_oos_gap_stats_without_data(self):
         detector = ModelDriftDetector()
         report = detector.generate_report()
-        oos_stats = report['oos_gap_stats']
-        assert oos_stats['is_ic'] is None
-        assert oos_stats['gap'] is None
+        oos_stats = report["oos_gap_stats"]
+        assert oos_stats["is_ic"] is None
+        assert oos_stats["gap"] is None
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -220,11 +221,11 @@ class TestT17GenerateReport:
         for i in range(25):
             detector.update_oos_ic(f"2026-07-{i+1:02d}", 0.05)
         report = detector.generate_report()
-        oos_stats = report['oos_gap_stats']
-        assert oos_stats['is_ic'] == 0.10
-        assert oos_stats['oos_ic_mean'] == pytest.approx(0.05, abs=1e-6)
-        assert oos_stats['gap'] == pytest.approx(0.05, abs=1e-6)
-        assert oos_stats['n_oos_samples'] == 25
+        oos_stats = report["oos_gap_stats"]
+        assert oos_stats["is_ic"] == 0.10
+        assert oos_stats["oos_ic_mean"] == pytest.approx(0.05, abs=1e-6)
+        assert oos_stats["gap"] == pytest.approx(0.05, abs=1e-6)
+        assert oos_stats["n_oos_samples"] == 25
 
     @pytest.mark.unit
     @pytest.mark.p1
@@ -235,7 +236,8 @@ class TestT17GenerateReport:
             detector.update_oos_ic(f"2026-07-{i+1:02d}", 0.02)
         report = detector.generate_report()
         oos_alerts = [
-            a for a in report["alerts_24h"]
+            a
+            for a in report["alerts_24h"]
             if a["type"] == DriftType.OOS_PERFORMANCE_GAP.value
         ]
         assert len(oos_alerts) >= 1

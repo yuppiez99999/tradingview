@@ -1,4 +1,5 @@
 """投资组合优化 — 多策略资产配置对比"""
+
 import os
 import sys
 
@@ -32,6 +33,7 @@ with st.sidebar:
     start_date = st.date_input("回测起始", pd.to_datetime("2020-01-01"))
     end_date = st.date_input("回测结束", pd.to_datetime("2026-06-01"))
 
+
 @st.cache_data(ttl=600)
 def _run_portfolio_optimization(start_date_str, end_date_str):
     """缓存投资组合优化结果，10分钟TTL"""
@@ -41,45 +43,76 @@ def _run_portfolio_optimization(start_date_str, end_date_str):
     results = engine.run_all_strategies()
     return engine, results
 
+
 # 执行按钮
 if st.button("🚀 运行多策略优化", type="primary"):
-    start_str = start_date.strftime('%Y-%m-%d')
-    end_str = end_date.strftime('%Y-%m-%d')
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
     with st.spinner("运行多策略优化..."):
         engine, results = _run_portfolio_optimization(start_str, end_str)
 
     if not results:
-        render_alert_card("回测结果缺失", "未能生成回测结果，请检查数据。", level="warning")
+        render_alert_card(
+            "回测结果缺失", "未能生成回测结果，请检查数据。", level="warning"
+        )
         st.stop()
 
     # === 策略对比表 ===
     st.subheader("📊 策略表现汇总")
     compare_data = []
     for name, r in results.items():
-        compare_data.append({
-            "策略": name,
-            "总收益率%": round(r['total_return'], 2),
-            "年化收益%": round(r['annual_return'], 2),
-            "夏普比率": round(r['sharpe_ratio'], 2),
-            "最大回撤%": round(r['max_drawdown'], 2),
-            "Calmar比率": round(r['calmar_ratio'], 2),
-            "胜率%": round(r['win_rate'], 2),
-            "最终资金": round(r['final_equity'], 0),
-        })
+        compare_data.append(
+            {
+                "策略": name,
+                "总收益率%": round(r["total_return"], 2),
+                "年化收益%": round(r["annual_return"], 2),
+                "夏普比率": round(r["sharpe_ratio"], 2),
+                "最大回撤%": round(r["max_drawdown"], 2),
+                "Calmar比率": round(r["calmar_ratio"], 2),
+                "胜率%": round(r["win_rate"], 2),
+                "最终资金": round(r["final_equity"], 0),
+            }
+        )
     compare_df = pd.DataFrame(compare_data)
 
     # 高亮最佳值
     def highlight_best(s, best_idx):
-        is_max = s.name in ['总收益率%', '年化收益%', '夏普比率', 'Calmar比率', '胜率%', '最终资金']
+        is_max = s.name in [
+            "总收益率%",
+            "年化收益%",
+            "夏普比率",
+            "Calmar比率",
+            "胜率%",
+            "最终资金",
+        ]
         vals = s.values
         best_val = max(vals) if is_max else min(vals)
-        return ['background-color: #f6ffed; font-weight: bold' if v == best_val else '' for v in vals]
+        return [
+            "background-color: #f6ffed; font-weight: bold" if v == best_val else ""
+            for v in vals
+        ]
 
     styled = compare_df.style
-    for col in ['总收益率%', '年化收益%', '夏普比率', '最大回撤%', 'Calmar比率', '胜率%']:
-        styled = styled.apply(lambda s, c=col: ['background-color: #f6ffed; font-weight: bold'
-                               if s.name == c and v == (max(s.values) if c != '最大回撤%' else min(s.values))
-                               else '' for v in s], axis=0)
+    for col in [
+        "总收益率%",
+        "年化收益%",
+        "夏普比率",
+        "最大回撤%",
+        "Calmar比率",
+        "胜率%",
+    ]:
+        styled = styled.apply(
+            lambda s, c=col: [
+                (
+                    "background-color: #f6ffed; font-weight: bold"
+                    if s.name == c
+                    and v == (max(s.values) if c != "最大回撤%" else min(s.values))
+                    else ""
+                )
+                for v in s
+            ],
+            axis=0,
+        )
 
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
@@ -88,52 +121,68 @@ if st.button("🚀 运行多策略优化", type="primary"):
     chart_cols = st.columns(2)
 
     with chart_cols[0]:
-        chart1_data = pd.DataFrame({
-            "策略": [d["策略"] for d in compare_data],
-            "年化收益%": [d["年化收益%"] for d in compare_data],
-            "最大回撤%": [d["最大回撤%"] for d in compare_data],
-        }).set_index("策略")
+        chart1_data = pd.DataFrame(
+            {
+                "策略": [d["策略"] for d in compare_data],
+                "年化收益%": [d["年化收益%"] for d in compare_data],
+                "最大回撤%": [d["最大回撤%"] for d in compare_data],
+            }
+        ).set_index("策略")
         st.bar_chart(chart1_data, use_container_width=True)
 
     with chart_cols[1]:
-        chart2_data = pd.DataFrame({
-            "策略": [d["策略"] for d in compare_data],
-            "夏普比率": [d["夏普比率"] for d in compare_data],
-            "Calmar比率": [d["Calmar比率"] for d in compare_data],
-        }).set_index("策略")
+        chart2_data = pd.DataFrame(
+            {
+                "策略": [d["策略"] for d in compare_data],
+                "夏普比率": [d["夏普比率"] for d in compare_data],
+                "Calmar比率": [d["Calmar比率"] for d in compare_data],
+            }
+        ).set_index("策略")
         st.bar_chart(chart2_data, use_container_width=True)
 
     # === 最佳策略权重 ===
     st.subheader("🏆 最佳策略权重配置")
-    best = max(results.items(), key=lambda x: x[1]['sharpe_ratio'])
-    render_status_card("最优策略", f"**{best[0]}** — 夏普比率: {best[1]['sharpe_ratio']:.2f} | 收益率: {best[1]['total_return']:.2f}%", level="success")
+    best = max(results.items(), key=lambda x: x[1]["sharpe_ratio"])
+    render_status_card(
+        "最优策略",
+        f"**{best[0]}** — 夏普比率: {best[1]['sharpe_ratio']:.2f} | 收益率: {best[1]['total_return']:.2f}%",
+        level="success",
+    )
 
-    weights = best[1]['weights']
+    weights = best[1]["weights"]
     w_data = []
     for code, w in sorted(weights.items(), key=lambda x: -x[1]):
         info = engine.portfolio.get(code, {})
-        w_data.append({"标的": info.get('name', code), "权重": w * 100})
+        w_data.append({"标的": info.get("name", code), "权重": w * 100})
     w_df = pd.DataFrame(w_data)
 
-    st.vega_lite_chart(w_df, {
-        "width": "container",
-        "mark": {"type": "bar", "tooltip": True},
-        "encoding": {
-            "x": {"field": "权重", "type": "quantitative", "title": "权重 (%)"},
-            "y": {"field": "标的", "type": "nominal", "sort": "-x"},
-            "color": {"field": "标的", "type": "nominal"},
+    st.vega_lite_chart(
+        w_df,
+        {
+            "width": "container",
+            "mark": {"type": "bar", "tooltip": True},
+            "encoding": {
+                "x": {"field": "权重", "type": "quantitative", "title": "权重 (%)"},
+                "y": {"field": "标的", "type": "nominal", "sort": "-x"},
+                "color": {"field": "标的", "type": "nominal"},
+            },
         },
-    }, use_container_width=True)
+        use_container_width=True,
+    )
 
     # === 相关性矩阵 ===
     if engine.corr_matrix is not None:
         st.subheader("🔗 资产相关性矩阵")
         corr_df = engine.corr_matrix
         # 重命名列
-        rename_map = {c: engine.portfolio.get(c, {}).get('name', c) for c in corr_df.columns}
+        rename_map = {
+            c: engine.portfolio.get(c, {}).get("name", c) for c in corr_df.columns
+        }
         corr_df = corr_df.rename(columns=rename_map, index=rename_map)
-        st.dataframe(corr_df.style.background_gradient(cmap='RdYlGn', vmin=-1, vmax=1),
-                     use_container_width=True)
+        st.dataframe(
+            corr_df.style.background_gradient(cmap="RdYlGn", vmin=-1, vmax=1),
+            use_container_width=True,
+        )
 
 else:
     render_alert_card("待运行分析", "👆 点击上方按钮运行多策略优化分析", level="info")

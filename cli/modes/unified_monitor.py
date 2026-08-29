@@ -1,4 +1,5 @@
 """统一监控模式 - 一键启动所有模块 (v5.10 增强版: 8模块并行 + 自动对冲)"""
+
 import logging
 import os
 import sys
@@ -31,7 +32,7 @@ def _stock_monitor_func(get_logger: LoggerFactory) -> None:
     module_logger.info(f"[股票监控] 已获取 {len(quotes)} 只标的行情")
     for code, info in list(quotes.items())[:5]:
         module_logger.info(f"  {code}: {info['price']}")
-    ds_label = getattr(connector_manager, 'get_data_source_label', lambda: 'Unknown')()
+    ds_label = getattr(connector_manager, "get_data_source_label", lambda: "Unknown")()
     module_logger.info(f"[股票监控] 数据源: {ds_label}")
 
 
@@ -41,8 +42,11 @@ def _futures_scan_func(get_logger: LoggerFactory) -> None:
     try:
         module_logger.info("[期货期权] 运行市场扫描...")
         from quant_modules.futures_options_scanner import run_full_scan
+
         result = run_full_scan(use_wind=True, use_deepseek=False)
-        module_logger.info(f"[期货期权] 扫描完成 - 发现 {len(result.get('arbitrage_signals', []))} 个套利机会")
+        module_logger.info(
+            f"[期货期权] 扫描完成 - 发现 {len(result.get('arbitrage_signals', []))} 个套利机会"
+        )
     except ImportError as e:
         module_logger.error(f"[期货期权] 模块导入失败: {e}")
     except Exception as e:
@@ -52,14 +56,16 @@ def _futures_scan_func(get_logger: LoggerFactory) -> None:
 def _risk_check_func(get_logger: LoggerFactory) -> None:
     """止损止盈风险快照（单次，非阻塞）"""
     module_logger = get_logger("风险评估")
-    StopLossMonitor = stop_loss.get('StopLossMonitor')
+    StopLossMonitor = stop_loss.get("StopLossMonitor")
     quotes = _get_portfolio_quotes()
     if not StopLossMonitor or not quotes:
         module_logger.warning("[风险评估] 风控模块或行情不可用，跳过本轮")
         return
     try:
         alerts = StopLossMonitor().check_all(quotes)
-        module_logger.info(f"[风险评估] 检查 {len(quotes)} 只标的，发现 {len(alerts)} 条告警")
+        module_logger.info(
+            f"[风险评估] 检查 {len(quotes)} 只标的，发现 {len(alerts)} 条告警"
+        )
     except Exception as e:
         module_logger.error(f"[风险评估] 错误: {e}")
 
@@ -71,12 +77,19 @@ def _etf_flow_monitor_func(get_logger: LoggerFactory) -> None:
         module_logger.info("[ETF资金流] 运行监控...")
         quotes = _get_portfolio_quotes()
         if quotes:
-            module_logger.info(f"[ETF资金流] 已获取 {len(quotes)} 只标的行情用于资金流分析")
+            module_logger.info(
+                f"[ETF资金流] 已获取 {len(quotes)} 只标的行情用于资金流分析"
+            )
         from utils.social_security_etf import SocialSecurityETFTracker
+
         tracker = SocialSecurityETFTracker() if SOCIAL_SECURITY_ETF_AVAILABLE else None
-        tracker_result = tracker.track(tickers=list(quotes.keys())[:20]) if tracker else None
+        tracker_result = (
+            tracker.track(tickers=list(quotes.keys())[:20]) if tracker else None
+        )
         if tracker_result:
-            module_logger.info(f"[ETF资金流] 风格信号: {tracker_result.get('regime', 'N/A')}")
+            module_logger.info(
+                f"[ETF资金流] 风格信号: {tracker_result.get('regime', 'N/A')}"
+            )
     except Exception as e:
         module_logger.debug(f"[ETF资金流] 跳过本轮: {e}")
 
@@ -89,11 +102,12 @@ def _ml_signal_monitor_func(get_logger: LoggerFactory) -> None:
             return
         module_logger.info("[ML信号] 运行模型预测扫描...")
         from utils.ml_predictor import run_ml_signal_scan as ml_scan
-        data_dir = os.path.join(BASE_DIR, 'data', 'cache')
-        model_dir = os.path.join(BASE_DIR, 'models')
+
+        data_dir = os.path.join(BASE_DIR, "data", "cache")
+        model_dir = os.path.join(BASE_DIR, "models")
         result = ml_scan(data_dir=data_dir, model_dir=model_dir, threshold=0.55)
-        if 'signals' in result:
-            sigs = result['signals']
+        if "signals" in result:
+            sigs = result["signals"]
             module_logger.info(
                 f"[ML信号] 买入={len(sigs.get('buy', []))} "
                 f"卖出={len(sigs.get('sell', []))} "
@@ -109,9 +123,13 @@ def _kommo_monitor_func(get_logger: LoggerFactory) -> None:
     try:
         module_logger.info("[康波周期] 运行周期分析...")
         from utils.kondratiev_cycle import KondratievCycleAnalyzer
+
         analyzer = KondratievCycleAnalyzer()
         phase_info = analyzer.get_current_phase()
-        cycle_info = {'phase': phase_info.get('phase', 'N/A'), 'suggestion': phase_info.get('suggestion', 'N/A')}
+        cycle_info = {
+            "phase": phase_info.get("phase", "N/A"),
+            "suggestion": phase_info.get("suggestion", "N/A"),
+        }
         if cycle_info:
             module_logger.info(
                 f"[康波周期] 阶段: {cycle_info.get('phase', 'N/A')} | "
@@ -125,10 +143,12 @@ def _connector_health_func(get_logger: LoggerFactory) -> None:
     """数据源健康探测 - 每2分钟"""
     module_logger = get_logger("数据源健康探测")
     try:
-        health = getattr(connector_manager, 'check_health', lambda: {})()
-        active = health.get('active')
-        ds_label = getattr(connector_manager, 'get_data_source_label', lambda: 'Unknown')()
-        fallbacks = getattr(connector_manager, 'get_fallbacks_today', lambda: 0)()
+        health = getattr(connector_manager, "check_health", lambda: {})()
+        active = health.get("active")
+        ds_label = getattr(
+            connector_manager, "get_data_source_label", lambda: "Unknown"
+        )()
+        fallbacks = getattr(connector_manager, "get_fallbacks_today", lambda: 0)()
 
         if fallbacks > 0:
             module_logger.warning(
@@ -148,6 +168,7 @@ def _hedge_rebalance_func(get_logger: LoggerFactory, args: Any) -> None:
     try:
         module_logger.info("[对冲再平衡] 运行联动分析...")
         from cli.modes.hedge_rebalance_joint import run_hedge_rebalance_joint
+
         run_hedge_rebalance_joint(args)
         module_logger.info("[对冲再平衡] 联动分析完成")
     except ImportError as e:
@@ -159,10 +180,10 @@ def _hedge_rebalance_func(get_logger: LoggerFactory, args: Any) -> None:
 def run_unified_monitor(args: Any) -> None:
     """统一监控模式 - 一键启动所有模块 (v5.10 增强版: 8模块并行 + 自动对冲)"""
     # Windows 控制台 UTF-8 兼容
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         try:
-            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
 
@@ -175,27 +196,31 @@ def run_unified_monitor(args: Any) -> None:
     TRADE_LOG_DIR = Path(__file__).parent / "trade_logs"
     TRADE_LOG_DIR.mkdir(exist_ok=True)
 
-    log_file = TRADE_LOG_DIR / f'unified_{datetime.now():%Y%m%d_%H%M%S}.log'
+    log_file = TRADE_LOG_DIR / f"unified_{datetime.now():%Y%m%d_%H%M%S}.log"
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(message)s',
+        format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
-            logging.FileHandler(log_file, encoding='utf-8'),
-            logging.StreamHandler(sys.stderr)
-        ]
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler(sys.stderr),
+        ],
     )
-    um_logger = logging.getLogger('unified_monitor')
+    um_logger = logging.getLogger("unified_monitor")
 
     def get_module_logger(name: str) -> logging.Logger:
-        module_logger = logging.getLogger(f'unified_monitor.{name}')
+        module_logger = logging.getLogger(f"unified_monitor.{name}")
         if not module_logger.handlers:
-            module_log_file = TRADE_LOG_DIR / f'unified_{name}.log'
-            module_logger.addHandler(logging.FileHandler(module_log_file, encoding='utf-8'))
+            module_log_file = TRADE_LOG_DIR / f"unified_{name}.log"
+            module_logger.addHandler(
+                logging.FileHandler(module_log_file, encoding="utf-8")
+            )
             module_logger.setLevel(logging.INFO)
             module_logger.propagate = False
         return module_logger
 
-    def run_module_loop(name: str, func: Callable[[], None], interval: int = 300) -> None:
+    def run_module_loop(
+        name: str, func: Callable[[], None], interval: int = 300
+    ) -> None:
         """模块循环执行"""
         module_logger = get_module_logger(name)
         module_logger.info(f"🚀 启动模块: {name}")
@@ -222,27 +247,32 @@ def run_unified_monitor(args: Any) -> None:
         ("ML信号扫描", lambda: _ml_signal_monitor_func(get_module_logger), 900),
         ("康波周期监控", lambda: _kommo_monitor_func(get_module_logger), 3600),
         ("数据源健康探测", lambda: _connector_health_func(get_module_logger), 120),
-        ("对冲再平衡联动", lambda: _hedge_rebalance_func(get_module_logger, args), 1800),
+        (
+            "对冲再平衡联动",
+            lambda: _hedge_rebalance_func(get_module_logger, args),
+            1800,
+        ),
     ]
 
     print("\n" + "=" * 70)
     print("📋 已注册模块: (v5.10 增强版 - 8模块)")
     print("=" * 70)
     for name, _, interval in modules_config:
-        interval_str = f"每 {interval}秒" if interval < 3600 else f"每 {interval // 60}分钟"
+        interval_str = (
+            f"每 {interval}秒" if interval < 3600 else f"每 {interval // 60}分钟"
+        )
         print(f"  - {name}: {interval_str}")
 
     print("\n" + "=" * 70)
     print("🔥 开始并行启动所有模块...")
-    print(f"📡 当前数据源: {getattr(connector_manager, 'get_data_source_label', lambda: 'Unknown')()}")
+    print(
+        f"📡 当前数据源: {getattr(connector_manager, 'get_data_source_label', lambda: 'Unknown')()}"
+    )
     print("=" * 70)
 
     for name, func, interval in modules_config:
         thread = threading.Thread(
-            target=run_module_loop,
-            args=(name, func, interval),
-            daemon=True,
-            name=name
+            target=run_module_loop, args=(name, func, interval), daemon=True, name=name
         )
         threads.append(thread)
         thread.start()

@@ -8,6 +8,7 @@
 模块级依赖 (动态查找, 兼容 daily_workflow 作为 __main__/模块导入):
 - HEDGE_FUND_MODULES_READY, ThetaEngine, GammaEngine, KillSwitch, LiquidationScheduler
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,7 +25,9 @@ _dw = get_dw_module()
 def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
     """对冲基金视角融合阶段 — Theta/Gamma/KillSwitch/LiquidationScheduler"""
     # 动态查找模块级符号 (兼容 monkeypatch 对 daily_workflow 模块的 patch)
-    HEDGE_FUND_MODULES_READY = bool(getattr(_dw, "HEDGE_FUND_MODULES_READY", False)) if _dw else False
+    HEDGE_FUND_MODULES_READY = (
+        bool(getattr(_dw, "HEDGE_FUND_MODULES_READY", False)) if _dw else False
+    )
     ThetaEngine = getattr(_dw, "ThetaEngine", None) if _dw else None
     GammaEngine = getattr(_dw, "GammaEngine", None) if _dw else None
     KillSwitch = getattr(_dw, "KillSwitch", None) if _dw else None
@@ -63,20 +66,27 @@ def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
             # 滚仓检查 (到期前5个交易日)
             rollover_plan = theta.check_rollover()
             if rollover_plan:
-                logger.info("[Theta] 检测到需滚仓头寸: %d 个", len(rollover_plan.get("positions", [])))
+                logger.info(
+                    "[Theta] 检测到需滚仓头寸: %d 个",
+                    len(rollover_plan.get("positions", [])),
+                )
                 result["theta"]["rollover"] = rollover_plan
             else:
                 # 生成/刷新月度计划
                 monthly_plan = theta.generate_monthly_plan()
-                logger.info("[Theta] 月度Covered Call计划: %d 个头寸, 预期权利金 %.0f",
-                            len(monthly_plan.get("positions", [])),
-                            monthly_plan.get("total_est_premium", 0))
+                logger.info(
+                    "[Theta] 月度Covered Call计划: %d 个头寸, 预期权利金 %.0f",
+                    len(monthly_plan.get("positions", [])),
+                    monthly_plan.get("total_est_premium", 0),
+                )
                 result["theta"] = {
                     "enabled": True,
                     "plan_date": monthly_plan.get("plan_date"),
                     "positions_count": len(monthly_plan.get("positions", [])),
                     "total_premium": monthly_plan.get("total_est_premium", 0),
-                    "monthly_return_pct": monthly_plan.get("portfolio_yield_monthly", 0),
+                    "monthly_return_pct": monthly_plan.get(
+                        "portfolio_yield_monthly", 0
+                    ),
                     "annualized_pct": monthly_plan.get("portfolio_yield_annualized", 0),
                     "plan_path": monthly_plan.get("plan_path", ""),
                 }
@@ -90,16 +100,20 @@ def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
             raise ImportError("GammaEngine 未加载")
         gamma = GammaEngine()
         monitor_result = gamma.monitor()
-        logger.info("[Gamma] 监控完成: MA60=%s, IV分位=%s, 触发=%s",
-                    monitor_result.get("ma60_status"),
-                    monitor_result.get("iv_percentile"),
-                    monitor_result.get("triggered"))
+        logger.info(
+            "[Gamma] 监控完成: MA60=%s, IV分位=%s, 触发=%s",
+            monitor_result.get("ma60_status"),
+            monitor_result.get("iv_percentile"),
+            monitor_result.get("triggered"),
+        )
         result["gamma"] = monitor_result
         # 若触发, 记录但不在此自动执行 (由 phase_execute 接管)
         if monitor_result.get("triggered"):
-            logger.warning("[Gamma] 尾部对冲触发! 类型=%s, 预算=%.0f",
-                           monitor_result.get("trigger_type"),
-                           monitor_result.get("budget", 0))
+            logger.warning(
+                "[Gamma] 尾部对冲触发! 类型=%s, 预算=%.0f",
+                monitor_result.get("trigger_type"),
+                monitor_result.get("budget", 0),
+            )
     except Exception as e:  # fail-safe
         logger.error(f"[Gamma] 引擎执行失败: {e}", exc_info=True)
         result["gamma"] = {"status": "ERROR", "error": str(e)}
@@ -111,14 +125,33 @@ def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
         ks = KillSwitch()
         ks_status = ks.check_margin_status()
         ks_level = int(ks_status.get("level", 0)) if isinstance(ks_status, dict) else 0
-        logger.info("[KillSwitch] 当前熔断级别: L%d (%s), 保证金占用率: %.1f%%",
-                    ks_level,
-                    ks_status.get("level_name", "正常") if isinstance(ks_status, dict) else "未知",
-                    (ks_status.get("margin_usage_ratio", 0) if isinstance(ks_status, dict) else 0) * 100)
+        logger.info(
+            "[KillSwitch] 当前熔断级别: L%d (%s), 保证金占用率: %.1f%%",
+            ks_level,
+            (
+                ks_status.get("level_name", "正常")
+                if isinstance(ks_status, dict)
+                else "未知"
+            ),
+            (
+                ks_status.get("margin_usage_ratio", 0)
+                if isinstance(ks_status, dict)
+                else 0
+            )
+            * 100,
+        )
         result["kill_switch"] = {
             "level": ks_level,
-            "level_name": ks_status.get("level_name", "正常") if isinstance(ks_status, dict) else "未知",
-            "margin_usage_ratio": ks_status.get("margin_usage_ratio", 0) if isinstance(ks_status, dict) else 0,
+            "level_name": (
+                ks_status.get("level_name", "正常")
+                if isinstance(ks_status, dict)
+                else "未知"
+            ),
+            "margin_usage_ratio": (
+                ks_status.get("margin_usage_ratio", 0)
+                if isinstance(ks_status, dict)
+                else 0
+            ),
             "triggered": ks_level > 0,
         }
         if ks_level >= 1:
@@ -144,10 +177,15 @@ def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
         current_phase = ls.get_current_phase()
         phase_num = current_phase.get("phase", 0) if current_phase else 0
         phase_name = current_phase.get("name", "未知") if current_phase else "未知"
-        days_to_next = current_phase.get("days_to_next_phase") if current_phase else None
-        logger.info("[Liquidation] 当前阶段: Phase %d (%s), 距下一阶段: %s 天",
-                    phase_num, phase_name,
-                    days_to_next if days_to_next is not None else "N/A")
+        days_to_next = (
+            current_phase.get("days_to_next_phase") if current_phase else None
+        )
+        logger.info(
+            "[Liquidation] 当前阶段: Phase %d (%s), 距下一阶段: %s 天",
+            phase_num,
+            phase_name,
+            days_to_next if days_to_next is not None else "N/A",
+        )
         alert = ls.check_alert(days_threshold=30)
         result["liquidation"] = {
             "phase": phase_num,
@@ -164,10 +202,12 @@ def phase_hedge_fund(ctx: WorkflowContext) -> dict[str, Any]:
     # === 写入 state ===
     ctx.state["phases"]["hedge_fund"] = result
     logger.info("-" * 60)
-    logger.info("Phase 4.5 完成: Theta=%s, Gamma触发=%s, 熔断级别=L%d, 清仓阶段=Phase %s",
-                "OK" if result["theta"] else "SKIP",
-                result["gamma"].get("triggered", False),
-                result["kill_switch"].get("level", 0),
-                result["liquidation"].get("phase", "UNKNOWN"))
+    logger.info(
+        "Phase 4.5 完成: Theta=%s, Gamma触发=%s, 熔断级别=L%d, 清仓阶段=Phase %s",
+        "OK" if result["theta"] else "SKIP",
+        result["gamma"].get("triggered", False),
+        result["kill_switch"].get("level", 0),
+        result["liquidation"].get("phase", "UNKNOWN"),
+    )
     logger.info("=" * 60)
     return result

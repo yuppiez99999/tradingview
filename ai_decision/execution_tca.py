@@ -33,10 +33,12 @@ logger = logging.getLogger("ai_decision.execution_tca")
 # TCA Feature Flag (步骤 2: 双轨独立, 与 utils/execution_router 解耦)
 # ============================================================
 
+
 def _tca_pre_trade_enabled() -> bool:
     """USE_AI_DECISION_TCA_PRE_TRADE Feature Flag (默认 False, fail-safe)"""
     try:
         from utils.infra.feature_flags import is_enabled
+
         return bool(is_enabled("USE_AI_DECISION_TCA_PRE_TRADE"))
     except (ImportError, AttributeError, TypeError, KeyError):
         return False
@@ -46,6 +48,7 @@ def _tca_post_trade_enabled() -> bool:
     """USE_AI_DECISION_TCA_POST_TRADE Feature Flag (默认 False, fail-safe)"""
     try:
         from utils.infra.feature_flags import is_enabled
+
         return bool(is_enabled("USE_AI_DECISION_TCA_POST_TRADE"))
     except (ImportError, AttributeError, TypeError, KeyError):
         return False
@@ -54,6 +57,7 @@ def _tca_post_trade_enabled() -> bool:
 # ============================================================
 # TCA 辅助函数 (构造 FillRecord / BenchmarkPrices / 报告序列化)
 # ============================================================
+
 
 def _build_fills_from_execution(
     execution_plan: dict[str, Any],
@@ -91,13 +95,15 @@ def _build_fills_from_execution(
         return []
 
     timestamp = execution_result.get("timestamp", datetime.now().isoformat())
-    return [FillRecord(
-        symbol=symbol,
-        side=side,
-        shares=qty,
-        price=float(avg_price),
-        timestamp=timestamp,
-    )]
+    return [
+        FillRecord(
+            symbol=symbol,
+            side=side,
+            shares=qty,
+            price=float(avg_price),
+            timestamp=timestamp,
+        )
+    ]
 
 
 def _build_benchmark_from_market_data(
@@ -120,9 +126,9 @@ def _build_benchmark_from_market_data(
         return None
 
     # 决策价 = 下单时刻参考价 (兜底用 limit_price)
-    decision_price = float(market_data.get(
-        "decision_price", execution_plan.get("limit_price", 0)
-    ))
+    decision_price = float(
+        market_data.get("decision_price", execution_plan.get("limit_price", 0))
+    )
     if decision_price <= 0:
         return None
 
@@ -144,6 +150,7 @@ def _tca_report_to_dict(report: Any) -> dict[str, Any]:
         if hasattr(report, "to_dict"):
             return report.to_dict()
         from dataclasses import asdict
+
         return asdict(report)
     except (TypeError, ValueError, AttributeError, ImportError):
         # to_dict 抛 TypeError/ValueError, asdict 抛 TypeError (非 dataclass), ImportError 防御
@@ -157,6 +164,7 @@ def _tca_report_to_dict(report: Any) -> dict[str, Any]:
 # ============================================================
 # TCA 执行前预筛 / 事后归因
 # ============================================================
+
 
 def _run_tca_pre_trade(
     decision: "TradingDecision",
@@ -179,7 +187,11 @@ def _run_tca_pre_trade(
 
     # 通过 execution_bridge 模块引用调用, 支持 monkey patch
     from ai_decision import execution_bridge
-    if execution_bridge._tca_pre_trade_enabled() and tca_pre_trade_estimator is not None:
+
+    if (
+        execution_bridge._tca_pre_trade_enabled()
+        and tca_pre_trade_estimator is not None
+    ):
         try:
             tca_order = {
                 "symbol": execution_plan["symbol"],
@@ -196,13 +208,15 @@ def _run_tca_pre_trade(
                 escalation_reason = f"TCA 预筛否决: {estimate.rejection_reason}"
                 logger.warning(
                     "[TCA-PreTrade] %s 预筛否决: %s (cost=%.2f bps)",
-                    decision.symbol, estimate.rejection_reason,
+                    decision.symbol,
+                    estimate.rejection_reason,
                     estimate.estimated_cost_bps,
                 )
             else:
                 logger.info(
                     "[TCA-PreTrade] %s 预筛通过 (cost=%.2f bps, tier=%s)",
-                    decision.symbol, estimate.estimated_cost_bps,
+                    decision.symbol,
+                    estimate.estimated_cost_bps,
                     estimate.tier,
                 )
         except (ValueError, KeyError, AttributeError, TypeError, RuntimeError) as exc:
@@ -232,15 +246,20 @@ def _run_tca_post_trade(
 
     # 通过 execution_bridge 模块引用调用, 支持 monkey patch
     from ai_decision import execution_bridge
-    if not (execution_bridge._tca_post_trade_enabled()
-            and tca_post_trade_manager is not None
-            and execution_result is not None
-            and execution_result.get("success", True)):
+
+    if not (
+        execution_bridge._tca_post_trade_enabled()
+        and tca_post_trade_manager is not None
+        and execution_result is not None
+        and execution_result.get("success", True)
+    ):
         return tca_post_report, tca_error
 
     try:
         fills = _build_fills_from_execution(execution_plan, execution_result)
-        benchmark = _build_benchmark_from_market_data(market_data_for_tca, execution_plan)
+        benchmark = _build_benchmark_from_market_data(
+            market_data_for_tca, execution_plan
+        )
         if fills and benchmark:
             report = tca_post_trade_manager.analyze(
                 fills=fills,

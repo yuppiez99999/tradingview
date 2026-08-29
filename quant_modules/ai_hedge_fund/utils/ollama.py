@@ -28,8 +28,16 @@ def _get_ollama_endpoint(path: str) -> str:
     return f"{base}{path}"
 
 
-OLLAMA_DOWNLOAD_URL = {"darwin": "https://ollama.com/download/darwin", "windows": "https://ollama.com/download/windows", "linux": "https://ollama.com/download/linux"}  # macOS  # Windows  # Linux
-INSTALLATION_INSTRUCTIONS = {"darwin": "curl -fsSL https://ollama.com/install.sh | sh", "windows": "# Download from https://ollama.com/download/windows and run the installer", "linux": "curl -fsSL https://ollama.com/install.sh | sh"}
+OLLAMA_DOWNLOAD_URL = {
+    "darwin": "https://ollama.com/download/darwin",
+    "windows": "https://ollama.com/download/windows",
+    "linux": "https://ollama.com/download/linux",
+}  # macOS  # Windows  # Linux
+INSTALLATION_INSTRUCTIONS = {
+    "darwin": "curl -fsSL https://ollama.com/install.sh | sh",
+    "windows": "# Download from https://ollama.com/download/windows and run the installer",
+    "linux": "curl -fsSL https://ollama.com/install.sh | sh",
+}
 
 
 def is_ollama_installed() -> bool:
@@ -57,7 +65,9 @@ def get_locally_available_models() -> list[str]:
         response = requests.get(endpoint, timeout=5)
         if response.status_code == 200:
             data = response.json()
-            return [model["name"] for model in data["models"]] if "models" in data else []
+            return (
+                [model["name"] for model in data["models"]] if "models" in data else []
+            )
         return []
     except requests.RequestException:
         return []
@@ -69,7 +79,9 @@ def start_ollama_server() -> bool:
         return True
 
     try:
-        subprocess.Popen(["ollama", "serve"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.Popen(
+            ["ollama", "serve"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
 
         # Wait for server to start
         for _ in range(10):  # Try for 10 seconds

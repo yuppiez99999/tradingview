@@ -11,6 +11,7 @@
 
 调度: 每周五收盘后自动运行 (见 run_weekly_report.bat + schtasks)
 """
+
 import math
 import subprocess
 import sys
@@ -24,6 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # 数据缓存通过集中配置管理 (支持 QUANT_DATA_ROOT 迁移到 D 盘)
 try:
     from utils.path_config import get_data_cache_dir
+
     CACHE = get_data_cache_dir()
 except ImportError:
     CACHE = ROOT / "data_cache"  # 回退: 项目目录
@@ -33,16 +35,19 @@ OUTPUT_TMP = ROOT / "research" / "outputs"
 
 # ============ 常量 ============
 DAILY_SUFFIXES = ["_5d", "_5y_base", "_3y", "_2y"]  # 日线缓存后缀(禁用_6m脏数据)
-BUILD_DATE = "2026-07-22"      # Put建仓日
-EXPIRY = "2026-08-27"          # Put到期日
-R = 0.02                       # 无风险利率
-MULT = 10000                   # 期权合约乘数
+BUILD_DATE = "2026-07-22"  # Put建仓日
+EXPIRY = "2026-08-27"  # Put到期日
+R = 0.02  # 无风险利率
+MULT = 10000  # 期权合约乘数
+
 
 # ============ 数据加载 ============
 def load_positions():
     """加载持仓配置 (B1.7: 委托给 utils.positions_loader)"""
     from utils.positions_loader import load_positions as _load
+
     return _load(CONFIG / "positions.json")
+
 
 def load_daily(code):
     """加载日线缓存, 自动过滤脏数据(年度采样的_6m)"""
@@ -52,14 +57,29 @@ def load_daily(code):
         if fpath.exists():
             try:
                 df = pd.read_parquet(fpath)
-                if df is not None and not df.empty and "close" in df.columns and len(df) > 5:
+                if (
+                    df is not None
+                    and not df.empty
+                    and "close" in df.columns
+                    and len(df) > 5
+                ):
                     med_gap = df.index.to_series().diff().dropna().median()
                     if med_gap is not None and med_gap <= pd.Timedelta(days=5):
                         return df
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
     return None
+
 
 def get_latest_trade_date(rows_data):
     """从已加载的日线数据中找最新交易日"""
@@ -70,6 +90,7 @@ def get_latest_trade_date(rows_data):
             if latest is None or d > latest:
                 latest = d
     return latest
+
 
 def load_option_excel():
     """加载期权真实行情Excel(通配匹配), 返回 {code: {settle, iv, contract}}"""
@@ -86,25 +107,45 @@ def load_option_excel():
                     iv_val = row.get("iv")
                     real_opt[code] = {
                         "contract": str(row.get("contract_code", "估算")),
-                        "settle": float(settle) if pd.notna(settle) and str(settle) != "待查询" else None,
-                        "iv": float(iv_val) if pd.notna(iv_val) and str(iv_val) != "待查询" else None,
+                        "settle": (
+                            float(settle)
+                            if pd.notna(settle) and str(settle) != "待查询"
+                            else None
+                        ),
+                        "iv": (
+                            float(iv_val)
+                            if pd.notna(iv_val) and str(iv_val) != "待查询"
+                            else None
+                        ),
                     }
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
     return real_opt
+
 
 # ============ BS 模型 ============
 def norm_cdf(x):
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
 
+
 def bs_put(S, K, T, r, sigma):  # noqa: N803
     """Black-Scholes Put 期权定价"""
     if T <= 0 or sigma <= 0:
         return max(K - S, 0.0)
-    d1 = (math.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * math.sqrt(T))
+    d1 = (math.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
     d2 = d1 - sigma * math.sqrt(T)
     return K * math.exp(-r * T) * norm_cdf(-d2) - S * norm_cdf(-d1)
+
 
 # ============ 盈亏计算 ============
 def calc_equity_pnl(positions):
@@ -124,16 +165,26 @@ def calc_equity_pnl(positions):
             price_src = "配置"
         mv = latest_price * shares
         cost_v = avg_cost * shares
-        rows.append({
-            "code": code, "name": pos.get("name", ""), "type": pos.get("type", ""),
-            "sector": pos.get("sector", ""), "shares": shares, "avg_cost": avg_cost,
-            "price": latest_price, "src": price_src, "mv": mv, "cost": cost_v,
-            "pnl": mv - cost_v,
-            "pnl_pct": ((mv - cost_v) / cost_v * 100) if cost_v > 0 else 0.0,
-        })
+        rows.append(
+            {
+                "code": code,
+                "name": pos.get("name", ""),
+                "type": pos.get("type", ""),
+                "sector": pos.get("sector", ""),
+                "shares": shares,
+                "avg_cost": avg_cost,
+                "price": latest_price,
+                "src": price_src,
+                "mv": mv,
+                "cost": cost_v,
+                "pnl": mv - cost_v,
+                "pnl_pct": ((mv - cost_v) / cost_v * 100) if cost_v > 0 else 0.0,
+            }
+        )
     eq_mv = sum(r["mv"] for r in rows)
     eq_cost = sum(r["cost"] for r in rows)
     return rows, eq_mv, eq_cost
+
 
 def calc_put_pnl(real_opt, trade_date_str):
     """计算Put期权盈亏, 返回 (put_rows, total_cost, total_value)"""
@@ -141,10 +192,34 @@ def calc_put_pnl(real_opt, trade_date_str):
     t_build = (pd.Timestamp(EXPIRY) - pd.Timestamp(BUILD_DATE)).days / 365.0
 
     hedge_specs = [
-        {"label": "上证50ETF Put",  "code": "510050", "data_code": "510050", "contracts": 60, "budget": 900000},
-        {"label": "科创50ETF Put",  "code": "588080", "data_code": "588000", "contracts": 25, "budget": 300000},
-        {"label": "创业板ETF Put",  "code": "159915", "data_code": "159915", "contracts": 25, "budget": 250000},
-        {"label": "沪深300ETF Put", "code": "510300", "data_code": "510300", "contracts": 25, "budget": 200000},
+        {
+            "label": "上证50ETF Put",
+            "code": "510050",
+            "data_code": "510050",
+            "contracts": 60,
+            "budget": 900000,
+        },
+        {
+            "label": "科创50ETF Put",
+            "code": "588080",
+            "data_code": "588000",
+            "contracts": 25,
+            "budget": 300000,
+        },
+        {
+            "label": "创业板ETF Put",
+            "code": "159915",
+            "data_code": "159915",
+            "contracts": 25,
+            "budget": 250000,
+        },
+        {
+            "label": "沪深300ETF Put",
+            "code": "510300",
+            "data_code": "510300",
+            "contracts": 25,
+            "budget": 200000,
+        },
     ]
 
     put_rows = []
@@ -156,10 +231,18 @@ def calc_put_pnl(real_opt, trade_date_str):
         df = load_daily(spec["data_code"])
         s_cur = float(df["close"].iloc[-1]) if df is not None else 0.0
         s_build_mask = df.index <= pd.Timestamp(BUILD_DATE) if df is not None else None
-        s_build = float(df.loc[s_build_mask, "close"].iloc[-1]) if df is not None and s_build_mask.any() else s_cur
+        s_build = (
+            float(df.loc[s_build_mask, "close"].iloc[-1])
+            if df is not None and s_build_mask.any()
+            else s_cur
+        )
         K = s_build * 0.95  # noqa: N806
 
-        rets = df["close"].pct_change().dropna().tail(60) if df is not None else pd.Series()
+        rets = (
+            df["close"].pct_change().dropna().tail(60)
+            if df is not None
+            else pd.Series()
+        )
         vol_60d = float(rets.std() * math.sqrt(252)) if len(rets) > 10 else 0.25
         iv_bs = vol_60d * 1.15
         p_bs_now = bs_put(s_cur, K, t_now, R, iv_bs)
@@ -186,13 +269,25 @@ def calc_put_pnl(real_opt, trade_date_str):
         total_cost += cost
         total_value += cur_value
         total_budget += spec["budget"]
-        put_rows.append({
-            "label": spec["label"], "src": src, "contract": contract, "K": K,
-            "s_cur": s_cur, "iv": iv_used, "p_now": p_now, "contracts": contracts,
-            "cost": cost, "value": cur_value, "pnl": cur_value - cost, "budget": spec["budget"],
-        })
+        put_rows.append(
+            {
+                "label": spec["label"],
+                "src": src,
+                "contract": contract,
+                "K": K,
+                "s_cur": s_cur,
+                "iv": iv_used,
+                "p_now": p_now,
+                "contracts": contracts,
+                "cost": cost,
+                "value": cur_value,
+                "pnl": cur_value - cost,
+                "budget": spec["budget"],
+            }
+        )
 
     return put_rows, total_cost, total_value, total_budget, bs_check_err
+
 
 # ============ HTML 渲染 ============
 CSS = """
@@ -259,9 +354,11 @@ CSS = """
   @media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}body{background:#fff}.wrap{padding:0;max-width:100%}.section{break-inside:avoid;box-shadow:none;margin-bottom:16px}.kpi-grid{break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid}.header{break-inside:avoid}@page{margin:12mm;size:A4}}
 """
 
+
 def fmt(v, decimals=2):
     """格式化数字"""
     return f"{v:.{decimals}f}"
+
 
 def render_holding_rows(rows):
     """渲染持仓明细表格行"""
@@ -273,6 +370,7 @@ def render_holding_rows(rows):
         html += f"""        <tr><td><span class="t-name">{r['name']}</span><span class="t-code">{r['code']}</span></td><td style="text-align:center"><span class="pill {pill}">{r['type']}</span></td><td>{r['sector']}</td><td>{r['shares']:,}</td><td>{fmt(r['avg_cost'],4)}</td><td>{fmt(r['price'],4)}</td><td>{fmt(r['mv']/10000)}</td><td class="{cls}">{sign}{fmt(r['pnl']/10000)}</td><td class="{cls}">{sign}{fmt(r['pnl_pct'])}%</td></tr>
 """
     return html
+
 
 def render_sector_rows(sector_map, eq_mv):
     """渲染板块汇总行"""
@@ -286,20 +384,38 @@ def render_sector_rows(sector_map, eq_mv):
 """
     return html
 
+
 def render_put_rows(put_rows):
     """渲染Put期权行"""
     html = ""
     for p in put_rows:
-        pill_cls = "background:var(--green-bg);color:var(--green)" if p["src"] == "真实" else "background:#fef3c7;color:#92400e"
+        pill_cls = (
+            "background:var(--green-bg);color:var(--green)"
+            if p["src"] == "真实"
+            else "background:#fef3c7;color:#92400e"
+        )
         cls = "pos-cell" if p["pnl"] >= 0 else "neg-cell"
         sign = "+" if p["pnl"] >= 0 else ""
         html += f"""        <tr><td>{p['label']}</td><td style="text-align:center"><span class="pill" style="{pill_cls}">{p['src']}</span></td><td>{p['contract']}</td><td>{fmt(p['K'],3)}</td><td>{fmt(p['iv']*100,2)}%</td><td>{fmt(p['p_now'],4)}</td><td>{p['contracts']}</td><td>{fmt(p['cost']/10000)}</td><td>{fmt(p['value']/10000)}</td><td class="{cls}">{sign}{fmt(p['pnl']/10000)}</td></tr>
 """
     return html
 
+
 def render_bar_rows(sector_map, eq_mv):
     """渲染板块条形图"""
-    colors = {"国债":"var(--navy)","医药":"#0ea5e9","科技":"#8b5cf6","宽基":"#14b8a6","金融":"#f59e0b","资源":"#ef4444","新能源":"#22c55e","防御":"#06b6d4","制造":"#a855f7","顺周期":"#64748b","成长":"#ec4899"}
+    colors = {
+        "国债": "var(--navy)",
+        "医药": "#0ea5e9",
+        "科技": "#8b5cf6",
+        "宽基": "#14b8a6",
+        "金融": "#f59e0b",
+        "资源": "#ef4444",
+        "新能源": "#22c55e",
+        "防御": "#06b6d4",
+        "制造": "#a855f7",
+        "顺周期": "#64748b",
+        "成长": "#ec4899",
+    }
     sorted_sectors = sorted(sector_map.items(), key=lambda x: -x[1]["mv"])
     html = ""
     for s, v in sorted_sectors:
@@ -308,6 +424,7 @@ def render_bar_rows(sector_map, eq_mv):
         html += f'        <div class="bar-row"><div class="bar-name">{s}</div><div class="bar-track"><div class="bar-fill" style="width:{pct:.1f}%;background:{color}"></div></div><div class="bar-pct">{fmt(pct)}%</div></div>\n'
     return html
 
+
 def render_insights(insights):
     """渲染关键观察"""
     html = ""
@@ -315,6 +432,7 @@ def render_insights(insights):
         html += f"""    <div class="insight"><div class="insight-num">{i}</div><div class="insight-text">{text}</div></div>
 """
     return html
+
 
 def render_html(data, report_date, trade_date):
     """渲染完整HTML报告"""
@@ -326,7 +444,11 @@ def render_html(data, report_date, trade_date):
     total_put_cost = data["total_put_cost"]
     total_put_value = data["total_put_value"]
     total_pnl = eq_pnl + put_pnl
-    total_pnl_pct = total_pnl / (eq_cost + total_put_cost) * 100 if (eq_cost + total_put_cost) > 0 else 0
+    total_pnl_pct = (
+        total_pnl / (eq_cost + total_put_cost) * 100
+        if (eq_cost + total_put_cost) > 0
+        else 0
+    )
     total_assets = eq_mv + total_put_value
     total_budget = data["total_budget"]
     bs_err = data["bs_check_err"]
@@ -350,7 +472,9 @@ def render_html(data, report_date, trade_date):
     # 风险指标
     bond_mv = sector_map.get("国债", {}).get("mv", 0)
     bond_pnl = sector_map.get("国债", {}).get("pnl", 0)
-    max_pos_pct = max((r["mv"] for r in rows), default=0) / eq_mv * 100 if eq_mv > 0 else 0
+    max_pos_pct = (
+        max((r["mv"] for r in rows), default=0) / eq_mv * 100 if eq_mv > 0 else 0
+    )
     worst = min(rows, key=lambda x: x["pnl_pct"]) if rows else None
     best = max(rows, key=lambda x: x["pnl_pct"]) if rows else None
     profit_concentration = abs(bond_pnl / eq_pnl * 100) if eq_pnl != 0 else 0
@@ -365,7 +489,13 @@ def render_html(data, report_date, trade_date):
         f"<strong>仓位结构：</strong>国债占权益市值 {bond_mv/eq_mv*100:.1f}%，权益部分仓位率 {eq_mv/3000000*100:.1f}%，持仓 {len(rows)}只标的。",
         f"<strong>盈亏分布：</strong>盈利 {len(winners)}只 / 亏损 {len(losers)}只，胜率 {len(winners)/len(rows)*100:.1f}%。最大盈利(幅度)：{best['name']} {best['pnl_pct']:+.2f}%；最大亏损(幅度)：{worst['name']} {worst['pnl_pct']:+.2f}%。",
         f"<strong>Put对冲：</strong>建仓后标的微跌，Put {'增值' if put_pnl>=0 else '减值'} {put_pnl/10000:+.2f}万，对冲覆盖率 {hedge_ratio:.1f}%，保险功能{'正常' if put_pnl>=0 else '承压'}。",
-        f"<strong>⚠ 数据口径：</strong>配置预算 {total_budget/10000:.0f}万 vs BS理论权利金 {total_put_cost/10000:.2f}万" + (f"，相差 {total_budget/total_put_cost:.0f}倍，实际盈亏以券商账户为准。" if total_put_cost>0 else "。") + (f" 510050真实数据校验BS误差{bs_err:.1f}%。" if bs_err else ""),
+        f"<strong>⚠ 数据口径：</strong>配置预算 {total_budget/10000:.0f}万 vs BS理论权利金 {total_put_cost/10000:.2f}万"
+        + (
+            f"，相差 {total_budget/total_put_cost:.0f}倍，实际盈亏以券商账户为准。"
+            if total_put_cost > 0
+            else "。"
+        )
+        + (f" 510050真实数据校验BS误差{bs_err:.1f}%。" if bs_err else ""),
     ]
 
     return f"""<!DOCTYPE html>
@@ -508,6 +638,7 @@ def render_html(data, report_date, trade_date):
 </body>
 </html>"""
 
+
 # ============ PDF 转换 ============
 def convert_pdf(html_path, pdf_path):
     """用Edge/Chrome headless转PDF"""
@@ -523,16 +654,33 @@ def convert_pdf(html_path, pdf_path):
             continue
         try:
             subprocess.run(
-                [browser, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
-                 f"--print-to-pdf={pdf_path}", file_uri],
-                capture_output=True, timeout=60
+                [
+                    browser,
+                    "--headless=new",
+                    "--disable-gpu",
+                    "--no-pdf-header-footer",
+                    f"--print-to-pdf={pdf_path}",
+                    file_uri,
+                ],
+                capture_output=True,
+                timeout=60,
             )
             if Path(pdf_path).exists():
                 return True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             continue
     return False
+
 
 # ============ 主流程 ============
 def main():
@@ -552,7 +700,9 @@ def main():
     cfg = load_positions()
     positions = cfg["positions"]
     real_opt = load_option_excel()
-    print(f"[数据] 持仓 {len([p for p in positions.values() if p.get('shares',0)>0])} 只, 真实期权数据 {len(real_opt)} 条")
+    print(
+        f"[数据] 持仓 {len([p for p in positions.values() if p.get('shares',0)>0])} 只, 真实期权数据 {len(real_opt)} 条"
+    )
 
     # 2. 计算权益盈亏
     rows, eq_mv, eq_cost = calc_equity_pnl(positions)
@@ -562,13 +712,21 @@ def main():
     # 3. 确定行情基准日
     all_dfs = [load_daily(r["code"]) for r in rows]
     trade_date_ts = get_latest_trade_date(all_dfs)
-    trade_date = trade_date_ts.strftime("%Y-%m-%d") if trade_date_ts else report_date.strftime("%Y-%m-%d")
+    trade_date = (
+        trade_date_ts.strftime("%Y-%m-%d")
+        if trade_date_ts
+        else report_date.strftime("%Y-%m-%d")
+    )
     print(f"[数据] 行情基准日: {trade_date}")
 
     # 4. 计算Put期权盈亏
-    put_rows, total_put_cost, total_put_value, total_budget, bs_err = calc_put_pnl(real_opt, trade_date)
+    put_rows, total_put_cost, total_put_value, total_budget, bs_err = calc_put_pnl(
+        real_opt, trade_date
+    )
     put_pnl = total_put_value - total_put_cost
-    print(f"[盈亏] 权益 {eq_pnl/10000:+.2f}万, Put对冲 {put_pnl/10000:+.2f}万, 综合 {(eq_pnl+put_pnl)/10000:+.2f}万")
+    print(
+        f"[盈亏] 权益 {eq_pnl/10000:+.2f}万, Put对冲 {put_pnl/10000:+.2f}万, 综合 {(eq_pnl+put_pnl)/10000:+.2f}万"
+    )
 
     # 5. 汇总统计
     sector_map = {}
@@ -591,11 +749,21 @@ def main():
     losers = [r for r in rows if r["pnl"] < 0]
 
     data = {
-        "rows": rows, "put_rows": put_rows, "sector_map": sector_map, "type_map": type_map,
-        "winners": winners, "losers": losers, "eq_mv": eq_mv, "eq_cost": eq_cost,
-        "eq_pnl": eq_pnl, "eq_pnl_pct": eq_pnl_pct, "put_pnl": put_pnl,
-        "total_put_cost": total_put_cost, "total_put_value": total_put_value,
-        "total_budget": total_budget, "bs_check_err": bs_err,
+        "rows": rows,
+        "put_rows": put_rows,
+        "sector_map": sector_map,
+        "type_map": type_map,
+        "winners": winners,
+        "losers": losers,
+        "eq_mv": eq_mv,
+        "eq_cost": eq_cost,
+        "eq_pnl": eq_pnl,
+        "eq_pnl_pct": eq_pnl_pct,
+        "put_pnl": put_pnl,
+        "total_put_cost": total_put_cost,
+        "total_put_value": total_put_value,
+        "total_budget": total_budget,
+        "bs_check_err": bs_err,
     }
 
     # 6. 渲染HTML
@@ -622,6 +790,7 @@ def main():
 
     print(f"\n[完成] 报告已归档至: {archive_dir}")
     return html_path, pdf_path if not no_pdf else html_path
+
 
 if __name__ == "__main__":
     main()

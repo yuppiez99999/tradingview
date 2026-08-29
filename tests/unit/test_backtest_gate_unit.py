@@ -3,6 +3,7 @@
 被测模块: utils/pipeline/backtest_gate.py
 覆盖目标: >=80%
 """
+
 from __future__ import annotations
 
 import sys
@@ -96,10 +97,12 @@ class TestExtractCloseSeries:
         assert BacktestGate._extract_close_series(df, "A") is None
 
     def test_with_close_column(self):
-        df = pd.DataFrame({
-            "close": [10.0, 11.0, 12.0],
-            "date": ["2026-08-01", "2026-08-02", "2026-08-03"],
-        })
+        df = pd.DataFrame(
+            {
+                "close": [10.0, 11.0, 12.0],
+                "date": ["2026-08-01", "2026-08-02", "2026-08-03"],
+            }
+        )
         series = BacktestGate._extract_close_series(df, "A")
         assert series is not None
         assert len(series) == 3
@@ -118,10 +121,12 @@ class TestExtractCloseSeries:
         assert BacktestGate._extract_close_series(df, "A") is None
 
     def test_chinese_column_names(self):
-        df = pd.DataFrame({
-            "收盘": [10.0, 11.0],
-            "日期": ["2026-08-01", "2026-08-02"],
-        })
+        df = pd.DataFrame(
+            {
+                "收盘": [10.0, 11.0],
+                "日期": ["2026-08-01", "2026-08-02"],
+            }
+        )
         series = BacktestGate._extract_close_series(df, "A")
         assert series is not None
 
@@ -145,7 +150,12 @@ class TestSignalDate:
 
     def test_no_training_date_with_prices(self):
         signal = AlphaSignalResult()
-        prices = {"A": pd.Series([1, 2, 3], index=pd.to_datetime(["2026-08-01", "2026-08-02", "2026-08-03"]))}
+        prices = {
+            "A": pd.Series(
+                [1, 2, 3],
+                index=pd.to_datetime(["2026-08-01", "2026-08-02", "2026-08-03"]),
+            )
+        }
         result = BacktestGate._signal_date(signal, prices)
         assert result is not None
 
@@ -167,7 +177,16 @@ class TestForwardReturns:
         prices = {
             "A": pd.Series(
                 [10.0, 11.0, 12.0, 13.0, 14.0, 15.0],
-                index=pd.to_datetime(["2026-07-28", "2026-07-29", "2026-07-30", "2026-07-31", "2026-08-01", "2026-08-02"]),
+                index=pd.to_datetime(
+                    [
+                        "2026-07-28",
+                        "2026-07-29",
+                        "2026-07-30",
+                        "2026-07-31",
+                        "2026-08-01",
+                        "2026-08-02",
+                    ]
+                ),
             ),
         }
         result = gate._forward_returns(signal, prices, horizon=1)
@@ -188,8 +207,14 @@ class TestPortfolioReturns:
             training_date="2026-08-03",
         )
         prices = {
-            "A": pd.Series([10.0, 11.0, 12.0], index=pd.to_datetime(["2026-08-01", "2026-08-02", "2026-08-03"])),
-            "B": pd.Series([20.0, 21.0, 22.0], index=pd.to_datetime(["2026-08-01", "2026-08-02", "2026-08-03"])),
+            "A": pd.Series(
+                [10.0, 11.0, 12.0],
+                index=pd.to_datetime(["2026-08-01", "2026-08-02", "2026-08-03"]),
+            ),
+            "B": pd.Series(
+                [20.0, 21.0, 22.0],
+                index=pd.to_datetime(["2026-08-01", "2026-08-02", "2026-08-03"]),
+            ),
         }
         result = gate._portfolio_returns(signal, prices, window_days=10)
         assert isinstance(result, pd.Series)
@@ -201,8 +226,14 @@ class TestPortfolioReturns:
             training_date="2026-08-03",
         )
         prices = {
-            "A": pd.Series([10.0, 11.0, 12.0], index=pd.to_datetime(["2026-08-01", "2026-08-02", "2026-08-03"])),
-            "B": pd.Series([20.0, 21.0, 22.0], index=pd.to_datetime(["2026-08-01", "2026-08-02", "2026-08-03"])),
+            "A": pd.Series(
+                [10.0, 11.0, 12.0],
+                index=pd.to_datetime(["2026-08-01", "2026-08-02", "2026-08-03"]),
+            ),
+            "B": pd.Series(
+                [20.0, 21.0, 22.0],
+                index=pd.to_datetime(["2026-08-01", "2026-08-02", "2026-08-03"]),
+            ),
         }
         result = gate._portfolio_returns(signal, prices, window_days=10)
         assert isinstance(result, pd.Series)

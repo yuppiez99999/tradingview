@@ -20,6 +20,7 @@ CLI 参数:
 
 对齐 spec §5.2 + design §2.3 + tasks T2.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -48,8 +49,17 @@ logger = logging.getLogger("FactorRegistration")
 
 EXPECTED_FACTOR_COUNT = 117
 EXPECTED_CATEGORIES = {
-    "Momentum", "LowVolatility", "Size", "Liquidity", "Value",
-    "Growth", "Quality", "Leverage", "Operation", "Technical", "Expectation",
+    "Momentum",
+    "LowVolatility",
+    "Size",
+    "Liquidity",
+    "Value",
+    "Growth",
+    "Quality",
+    "Leverage",
+    "Operation",
+    "Technical",
+    "Expectation",
 }
 
 
@@ -74,20 +84,39 @@ def _build_mock_price_data() -> tuple[dict, dict, dict]:
         highs = [c * (1 + abs(np_rng.normal(0, 0.01))) for c in closes]
         lows = [c * (1 - abs(np_rng.normal(0, 0.01))) for c in closes]
         price_data[sym] = {
-            "closes": closes, "volumes": volumes,
-            "highs": highs, "lows": lows,
+            "closes": closes,
+            "volumes": volumes,
+            "highs": highs,
+            "lows": lows,
         }
         fundamentals[sym] = {
-            "pe": 25.0, "pb": 3.0, "roe": 0.15, "roa": 0.08,
-            "market_cap": 1e10, "revenue_yoy": 0.12, "profit_yoy": 0.18,
-            "debt_ratio": 0.4, "current_ratio": 1.5, "quick_ratio": 1.2,
-            "gross_margin": 0.5, "net_margin": 0.15, "asset_turnover": 0.6,
-            "eps": 2.0, "bps": 20.0, "revenue": 1e9, "net_profit": 1.5e8,
-            "total_assets": 5e9, "total_liabilities": 2e9,
-            "operating_cash_flow": 2e8, "inventory": 3e8,
-            "accounts_receivable": 2e8, "accounts_payable": 1e8,
-            "analyst_rating": 4.0, "target_price": 110.0,
-            "forecast_eps": 2.5, "forecast_revenue": 1.2e9,
+            "pe": 25.0,
+            "pb": 3.0,
+            "roe": 0.15,
+            "roa": 0.08,
+            "market_cap": 1e10,
+            "revenue_yoy": 0.12,
+            "profit_yoy": 0.18,
+            "debt_ratio": 0.4,
+            "current_ratio": 1.5,
+            "quick_ratio": 1.2,
+            "gross_margin": 0.5,
+            "net_margin": 0.15,
+            "asset_turnover": 0.6,
+            "eps": 2.0,
+            "bps": 20.0,
+            "revenue": 1e9,
+            "net_profit": 1.5e8,
+            "total_assets": 5e9,
+            "total_liabilities": 2e9,
+            "operating_cash_flow": 2e8,
+            "inventory": 3e8,
+            "accounts_receivable": 2e8,
+            "accounts_payable": 1e8,
+            "analyst_rating": 4.0,
+            "target_price": 110.0,
+            "forecast_eps": 2.5,
+            "forecast_revenue": 1.2e9,
         }
         industries[sym] = "白酒" if sym == "600519" else "银行"
 
@@ -99,9 +128,11 @@ def _build_mock_price_data() -> tuple[dict, dict, dict]:
 # FactorEnumerator — 因子清单枚举器
 # ============================================================
 
+
 @dataclass(frozen=True)
 class FactorMetaInfo:
     """因子元信息 (枚举结果)."""
+
     name: str
     category: str
     description: str = ""
@@ -116,8 +147,10 @@ def enumerate_all_factor_metas() -> list[FactorMetaInfo]:
 
     lib = AlphaFactorLibrary(enable_graph=False, enable_expression=False)
     result = lib.compute_all(
-        price_data, fundamentals=fundamentals,
-        industries=industries, benchmark_returns=benchmark_returns,
+        price_data,
+        fundamentals=fundamentals,
+        industries=industries,
+        benchmark_returns=benchmark_returns,
         fundamentals_prev=fundamentals,
     )
 
@@ -133,10 +166,13 @@ def enumerate_all_factor_metas() -> list[FactorMetaInfo]:
         name = reg.get("name", "")
         if name and name not in seen:
             seen.add(name)
-            metas.append(FactorMetaInfo(
-                name=name, category=reg.get("category", "Decorator"),
-                description=reg.get("description", ""),
-            ))
+            metas.append(
+                FactorMetaInfo(
+                    name=name,
+                    category=reg.get("category", "Decorator"),
+                    description=reg.get("description", ""),
+                )
+            )
 
     return metas
 
@@ -144,6 +180,7 @@ def enumerate_all_factor_metas() -> list[FactorMetaInfo]:
 # ============================================================
 # NamingValidator — 命名规范校验器
 # ============================================================
+
 
 def map_to_snake_case(name: str) -> str:
     """大写+下划线 → snake_case (如 MOM_20D → mom_20d)."""
@@ -164,6 +201,7 @@ def validate_factor_name(name: str) -> tuple[bool, str]:
 # ============================================================
 # BatchRegistrar — 批量注册器
 # ============================================================
+
 
 @dataclass
 class FailDetail:
@@ -206,9 +244,11 @@ def batch_register(
             continue
 
         fm = FactorMeta(
-            name=snake_name, version="v1",
+            name=snake_name,
+            version="v1",
             category=meta_info.category,
-            calc_frequency="daily", storage_tier="both",
+            calc_frequency="daily",
+            storage_tier="both",
             description=meta_info.description,
         )
 
@@ -240,6 +280,7 @@ def batch_register(
 # DualWriteValidator — 双写校验器
 # ============================================================
 
+
 def dual_write_and_validate(
     factor_metas: list[FactorMetaInfo],
     online_store: OnlineStore,
@@ -257,9 +298,9 @@ def dual_write_and_validate(
         value = {"value": 0.0, "registered": True}
 
         online_ok = online_store.put(snake_name, date_key, value)
-        offline_count = offline_store.write_batch(snake_name, [
-            {"date": date_key, "value": 0.0, "registered": True}
-        ])
+        offline_count = offline_store.write_batch(
+            snake_name, [{"date": date_key, "value": 0.0, "registered": True}]
+        )
 
         if not online_ok or offline_count == 0:
             half_written.append(snake_name)
@@ -270,6 +311,7 @@ def dual_write_and_validate(
 # ============================================================
 # RegistrationReporter — 报告落盘
 # ============================================================
+
 
 def save_registration_report(report: RegistrationReport, report_dir: str) -> str:
     """JSON 原子写入 (临时文件 + os.replace)."""
@@ -282,7 +324,11 @@ def save_registration_report(report: RegistrationReport, report_dir: str) -> str
         "success_count": report.success_count,
         "fail_count": report.fail_count,
         "fail_details": [
-            {"factor_name": d.factor_name, "reason": d.reason, "retry_count": d.retry_count}
+            {
+                "factor_name": d.factor_name,
+                "reason": d.reason,
+                "retry_count": d.retry_count,
+            }
             for d in report.fail_details
         ],
         "half_written": report.half_written,
@@ -304,6 +350,7 @@ def save_registration_report(report: RegistrationReport, report_dir: str) -> str
 # main
 # ============================================================
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="FeatureStore 117 因子全注册")
     parser.add_argument("--dry-run", action="store_true", help="只枚举不注册")
@@ -311,7 +358,9 @@ def main() -> int:
     parser.add_argument("--report-dir", type=str, default="reports/feature_store")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s"
+    )
 
     logger.info("枚举全部因子元信息...")
     metas = enumerate_all_factor_metas()
@@ -329,7 +378,9 @@ def main() -> int:
     if args.dry_run:
         categories = sorted(set(m.category for m in metas))
         deviation = len(metas) - EXPECTED_FACTOR_COUNT
-        print(f"\n[DRY-RUN] 因子总数: {len(metas)} (预期 {EXPECTED_FACTOR_COUNT}, 偏差 {deviation:+d})")
+        print(
+            f"\n[DRY-RUN] 因子总数: {len(metas)} (预期 {EXPECTED_FACTOR_COUNT}, 偏差 {deviation:+d})"
+        )
         print(f"[DRY-RUN] 类别覆盖: {categories}")
         print(f"[DRY-RUN] 类别数: {len(categories)}")
         return 0
@@ -347,10 +398,14 @@ def main() -> int:
 
     report_path = save_registration_report(report, args.report_dir)
 
-    print(f"\n[注册完成] {report.success_count}/{report.total_count} 成功, {report.fail_count} 失败")
+    print(
+        f"\n[注册完成] {report.success_count}/{report.total_count} 成功, {report.fail_count} 失败"
+    )
     print(f"[类别覆盖] {report.category_coverage} ({len(report.category_coverage)} 类)")
     print(f"[半写因子] {report.half_written if report.half_written else '无'}")
-    print(f"[偏差] 实际 {report.total_count}, 预期 {EXPECTED_FACTOR_COUNT}, 偏差 {report.deviation:+d}")
+    print(
+        f"[偏差] 实际 {report.total_count}, 预期 {EXPECTED_FACTOR_COUNT}, 偏差 {report.deviation:+d}"
+    )
     print(f"[报告] {report_path}")
 
     if report.fail_details:

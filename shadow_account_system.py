@@ -38,13 +38,15 @@
         print(f"Fail-Fast: {account.fail_fast_monitor.get_status()}")
 =================================================================
 """
+
 from __future__ import annotations
 
 import logging
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Collection, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +139,9 @@ class FailFastMonitor:
         self._triggered = True
         self._reason = reason
         self._triggered_date = date
-        logger.warning("[FailFastMonitor] ⚠️ Fail-Fast 触发: %s (date=%s)", reason, date)
+        logger.warning(
+            "[FailFastMonitor] ⚠️ Fail-Fast 触发: %s (date=%s)", reason, date
+        )
 
     def get_status(self) -> dict[str, Any]:
         """获取 fail-fast 状态."""
@@ -171,7 +175,9 @@ class ShadowAccount:
 
     # 运行时状态 (不参与 __init__ 参数)
     status: AccountStatus = field(default=AccountStatus.RUNNING, init=False)
-    fail_fast_monitor: FailFastMonitor = field(default_factory=FailFastMonitor, init=False)
+    fail_fast_monitor: FailFastMonitor = field(
+        default_factory=FailFastMonitor, init=False
+    )
     daily_nav: list[dict[str, Any]] = field(default_factory=list, init=False)
     trade_log: list[dict[str, Any]] = field(default_factory=list, init=False)
     current_nav: float = field(default=1.0, init=False)
@@ -187,7 +193,9 @@ class ShadowAccount:
         )
         logger.info(
             "[ShadowAccount] 初始化 | account_id=%s strategy_id=%s capital=¥%.0f",
-            self.account_id, self.strategy_id, self.initial_capital,
+            self.account_id,
+            self.strategy_id,
+            self.initial_capital,
         )
 
     def record_daily_nav(self, date: str, nav: float) -> None:
@@ -198,7 +206,9 @@ class ShadowAccount:
             nav: 当日净值 (从 1.0 开始累乘)
         """
         if self.status == AccountStatus.TERMINATED:
-            logger.warning("[ShadowAccount] 已终止, 忽略 record_daily_nav(date=%s)", date)
+            logger.warning(
+                "[ShadowAccount] 已终止, 忽略 record_daily_nav(date=%s)", date
+            )
             return
 
         # 计算日收益 (相对前一日)
@@ -226,7 +236,8 @@ class ShadowAccount:
             self.status = AccountStatus.TERMINATED
             logger.error(
                 "[ShadowAccount] ⚠️ Fail-Fast 触发, 账户已终止 (date=%s, nav=%.6f)",
-                date, nav,
+                date,
+                nav,
             )
 
     def get_performance(self) -> dict[str, Any]:
@@ -276,11 +287,23 @@ class ShadowAccount:
             from utils.execution.fills_store import FillsStore
         except ImportError:
             logger.warning("[ShadowAccount] consume_fills: FillsStore 不可用")
-            return {"fills_count": 0, "holdings": {}, "nav": 1.0, "trade_log_len": len(self.trade_log), "dates_processed": []}
+            return {
+                "fills_count": 0,
+                "holdings": {},
+                "nav": 1.0,
+                "trade_log_len": len(self.trade_log),
+                "dates_processed": [],
+            }
 
         if self.status == AccountStatus.TERMINATED:
             logger.warning("[ShadowAccount] 已终止, 忽略 consume_fills")
-            return {"fills_count": 0, "holdings": {}, "nav": self.current_nav, "trade_log_len": len(self.trade_log), "dates_processed": []}
+            return {
+                "fills_count": 0,
+                "holdings": {},
+                "nav": self.current_nav,
+                "trade_log_len": len(self.trade_log),
+                "dates_processed": [],
+            }
 
         store = FillsStore()
         holdings: dict[str, float] = {}
@@ -300,15 +323,17 @@ class ShadowAccount:
                 qty = fill.get("filled_qty", 0)
                 price = fill.get("avg_price", 0)
                 side = fill.get("side", "")
-                self.trade_log.append({
-                    "date": fill.get("date", date),
-                    "symbol": sym,
-                    "side": side,
-                    "qty": qty,
-                    "price": price,
-                    "strategy": fill.get("strategy"),
-                    "source": "fills_store",
-                })
+                self.trade_log.append(
+                    {
+                        "date": fill.get("date", date),
+                        "symbol": sym,
+                        "side": side,
+                        "qty": qty,
+                        "price": price,
+                        "strategy": fill.get("strategy"),
+                        "source": "fills_store",
+                    }
+                )
                 if side == "BUY":
                     holdings[sym] = holdings.get(sym, 0) + qty
                     cash -= qty * price
@@ -321,9 +346,14 @@ class ShadowAccount:
             # 逐日 NAV (用当日成交均价估值持仓)
             position_value = sum(
                 qty * latest_prices.get(sym, 0)
-                for sym, qty in holdings.items() if qty > 0
+                for sym, qty in holdings.items()
+                if qty > 0
             )
-            nav = (cash + position_value) / self.initial_capital if self.initial_capital > 0 else 0
+            nav = (
+                (cash + position_value) / self.initial_capital
+                if self.initial_capital > 0
+                else 0
+            )
             self.record_daily_nav(date, nav)
 
         result = {
@@ -335,7 +365,10 @@ class ShadowAccount:
         }
         logger.info(
             "[ShadowAccount] consume_fills: fills=%d holdings=%d nav=%.6f dates=%s",
-            fills_count, len(result["holdings"]), nav, dates_processed,
+            fills_count,
+            len(result["holdings"]),
+            nav,
+            dates_processed,
         )
         return result
 
@@ -352,11 +385,15 @@ class ShadowAccount:
             "daily_nav": self.daily_nav,
             "trade_log": self.trade_log,
             "fail_fast_log": (
-                [{
-                    "terminated_at": datetime.now().isoformat(),
-                    "reason": ff_status.get("reason"),
-                    "date": ff_status.get("date"),
-                }] if ff_status.get("triggered") else []
+                [
+                    {
+                        "terminated_at": datetime.now().isoformat(),
+                        "reason": ff_status.get("reason"),
+                        "date": ff_status.get("date"),
+                    }
+                ]
+                if ff_status.get("triggered")
+                else []
             ),
             "fail_fast_config": {
                 "daily_drawdown_threshold": self.fail_fast_monitor.daily_drawdown_threshold,

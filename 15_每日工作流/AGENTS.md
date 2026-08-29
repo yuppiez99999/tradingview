@@ -15,7 +15,8 @@
 | `llm_client.py` | LLM 多提供商降级客户端（DeepSeek→豆包→GLM→Ollama→HY3→千帆）+ 熔断器 + GPU 自动检测 |
 | `morning_info_runner.py` | 晨间信息采集（7 项报告：行情/康波/ETF/舆情/CNEMC/iFinD/棉花） |
 | `run_daily_morning.py` | 每日早 7 点统一入口（`--phase info/calibrate/plan/report/all`） |
-| `run_daily_eod_workflow.py` | 每日 15:30 收盘五阶段闭环（报告→计划→LLM→四Guard→归档） |
+| `run_daily_eod_workflow.py` | 每日 15:30 收盘五阶段闭环（报告→计划→LLM→四Guard→归档→审核） |
+| `run_eod_audit.py` | EOD 收盘审核（数据质量+盘中决策+告警+交易计划可信度） |
 | `run_auto_retrain.py` | ML 模型自动重训（增量/全量/指定标的） |
 | `run_daily_morning.bat` / `run_eod_workflow.bat` | 批处理启动器 |
 | `setup_*_scheduled_task.ps1` | Windows 计划任务注册（morning/eod/retrain） |

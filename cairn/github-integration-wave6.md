@@ -257,3 +257,14 @@ Wave 6  │        │        ├──Sprint1─┤──Sprint2─┤──Spr
 | v8.7 发布窗口风险 | 高 | 高 | Sprint 4 | 12-31 硬 deadline; 未达标延期至 2027 Q1, 实盘准入可先于发布 |
 | Phase B 启用暴露前视偏差 | 中 | 高 | Sprint 1 | shadow 模式先行 7 天 + kill_switch |
 | daily_workflow 拆分回归 | 中 | 高 | Sprint 1/4 | 非交易时段 + DRY-RUN 对照 + 29 单元测试 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [Wave 6 启动前置研究笔记（2026-08-11）](wave6-prep-study-notes.md) (相似度 22%)
+- [nautilus_trader 架构研究报告 — Wave 6 Sprint 3 W6.3.1](nautilus-trader-study.md) (相似度 20%)
+- [Wave 9：GitHub 热榜项目集成决策沉淀](github-trending-wave9-20260819.md) (相似度 18%)
+- [docs/1 八项目集成 — Sprint A 知识专题](docs1-integration-sprint-a-20260817.md) (相似度 16%)
+- [自我进化框架](self-evolution-framework.md) (相似度 15%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -10,6 +10,7 @@
 用法:
     python scripts/run_full_anomaly_validation.py
 """
+
 from __future__ import annotations
 
 import json
@@ -56,7 +57,9 @@ def main() -> int:
     old_abnormal_total = 0
     new_abnormal_total = 0
     new_20cm_reclassified = 0  # 原来 abnormal、现在豁免的 20cm 标的
-    new_10cm_new_abnormal = 0  # 原来正常、现在仍异常的标的 (理论上不会出现, 因为 20cm 放宽)
+    new_10cm_new_abnormal = (
+        0  # 原来正常、现在仍异常的标的 (理论上不会出现, 因为 20cm 放宽)
+    )
 
     # 收集所有 symbol (去重)
     all_symbols: set[str] = set()
@@ -120,8 +123,12 @@ def main() -> int:
 
         old_ab = sum(1 for x in abnormal_list if x["abnormal_old"])
         new_ab = sum(1 for x in abnormal_list if x["abnormal_new"])
-        freed_20cm = [x for x in abnormal_list if x["abnormal_old"] and not x["abnormal_new"]]
-        newly_abnormal = [x for x in abnormal_list if not x["abnormal_old"] and x["abnormal_new"]]
+        freed_20cm = [
+            x for x in abnormal_list if x["abnormal_old"] and not x["abnormal_new"]
+        ]
+        newly_abnormal = [
+            x for x in abnormal_list if not x["abnormal_old"] and x["abnormal_new"]
+        ]
 
         old_abnormal_total += old_ab
         new_abnormal_total += new_ab
@@ -177,15 +184,27 @@ def main() -> int:
             "reclassified_20cm": new_20cm_reclassified,
             "newly_introduced": new_10cm_new_abnormal,
             "improvement_pct": (
-                round((old_abnormal_total - new_abnormal_total) / max(old_abnormal_total, 1) * 100, 1)
+                round(
+                    (old_abnormal_total - new_abnormal_total)
+                    / max(old_abnormal_total, 1)
+                    * 100,
+                    1,
+                )
             ),
         },
         "by_date": comparison,
     }
 
-    out_path = _PROJECT_ROOT / "reports" / "evolution" / "anomaly_report_differentiated_threshold.json"
+    out_path = (
+        _PROJECT_ROOT
+        / "reports"
+        / "evolution"
+        / "anomaly_report_differentiated_threshold.json"
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     # 生成可读 MD
     md_lines: list[str] = []
@@ -196,15 +215,23 @@ def main() -> int:
     md_lines.append("| 板别 | 阈值 |")
     md_lines.append("|------|------|")
     md_lines.append(f"| 主板 (10cm) | ±{report['thresholds']['internal_10cm']:.0%} |")
-    md_lines.append(f"| 科创板/创业板 (20cm) | ±{report['thresholds']['internal_20cm']:.0%} |")
+    md_lines.append(
+        f"| 科创板/创业板 (20cm) | ±{report['thresholds']['internal_20cm']:.0%} |"
+    )
     md_lines.append("")
     md_lines.append("## 效果对比\n")
     md_lines.append("| 指标 | 值 |")
     md_lines.append("|------|------|")
     md_lines.append(f"| 覆盖天数 | {report['summary']['total_dates']} |")
-    md_lines.append(f"| 旧逻辑累计异常 (统一 ±20%) | {report['summary']['abnormal_old_total']} |")
-    md_lines.append(f"| 新逻辑累计异常 (差异化) | {report['summary']['abnormal_new_total']} |")
-    md_lines.append(f"| 20cm 合理涨停豁免数 | {report['summary']['reclassified_20cm']} |")
+    md_lines.append(
+        f"| 旧逻辑累计异常 (统一 ±20%) | {report['summary']['abnormal_old_total']} |"
+    )
+    md_lines.append(
+        f"| 新逻辑累计异常 (差异化) | {report['summary']['abnormal_new_total']} |"
+    )
+    md_lines.append(
+        f"| 20cm 合理涨停豁免数 | {report['summary']['reclassified_20cm']} |"
+    )
     md_lines.append(f"| 改善率 | {report['summary']['improvement_pct']}% |")
     md_lines.append("")
 
@@ -238,7 +265,7 @@ def main() -> int:
     md_lines.append("")
 
     md_lines.append("## 结论\n")
-    improvement = report['summary']['improvement_pct']
+    improvement = report["summary"]["improvement_pct"]
     md_lines.append(
         f"差异化阈值将 **异常告警数量降低 {improvement}%**, 主要受益于 20cm 板"
         "(科创板/创业板注册制) 的合理涨停不再被误判. "
@@ -246,7 +273,12 @@ def main() -> int:
         "需人工或策略层面进一步处理."
     )
 
-    md_path = _PROJECT_ROOT / "reports" / "evolution" / "anomaly_report_differentiated_threshold.md"
+    md_path = (
+        _PROJECT_ROOT
+        / "reports"
+        / "evolution"
+        / "anomaly_report_differentiated_threshold.md"
+    )
     md_path.write_text("\n".join(md_lines), encoding="utf-8")
 
     print(f"JSON 报告: {out_path}")

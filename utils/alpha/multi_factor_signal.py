@@ -248,7 +248,16 @@ class MultiFactorSignal:
                     self.inverted_threshold,
                     self.feature_flag_name,
                 )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("MultiFactorSignal 配置加载失败, 使用默认值: %s", e)
 
     # ============================================================
@@ -302,7 +311,9 @@ class MultiFactorSignal:
         # 在 IC 加权前过滤高相关冗余因子, 提升组合信号的信息有效性
         # 失败安全: flag 关闭/异常时使用原 factor_names (HC-1 透传)
         # ============================================================
-        filtered_names, ortho_report = self.filter_orthogonal_factors(factor_history, factor_names)
+        filtered_names, ortho_report = self.filter_orthogonal_factors(
+            factor_history, factor_names
+        )
         # 仅在过滤成功且结果非空时使用过滤结果
         if ortho_report is not None and filtered_names:
             factor_names = filtered_names
@@ -339,18 +350,24 @@ class MultiFactorSignal:
             InsufficientSamplesError: 样本不足 (n < MIN_IC_SAMPLES)
         """
         if factor_name not in factor_history:
-            raise InsufficientSamplesError(f"因子不存在: {factor_name} (available: {list(factor_history.keys())})")
+            raise InsufficientSamplesError(
+                f"因子不存在: {factor_name} (available: {list(factor_history.keys())})"
+            )
 
         hist = factor_history[factor_name]
         fwd = forward_returns or []
         n = min(len(hist), len(fwd))
         if n < MIN_IC_SAMPLES:
-            raise InsufficientSamplesError(f"样本不足: n={n} < MIN_IC_SAMPLES={MIN_IC_SAMPLES}")
+            raise InsufficientSamplesError(
+                f"样本不足: n={n} < MIN_IC_SAMPLES={MIN_IC_SAMPLES}"
+            )
 
         ic_series = self.compute_rolling_ic_series(hist[:n], fwd[:n])
         valid_ic = [v for v in ic_series if math.isfinite(v)]
         if len(valid_ic) < MIN_IC_SAMPLES:
-            raise InsufficientSamplesError(f"有效 IC 样本不足: n={len(valid_ic)} < {MIN_IC_SAMPLES}")
+            raise InsufficientSamplesError(
+                f"有效 IC 样本不足: n={len(valid_ic)} < {MIN_IC_SAMPLES}"
+            )
 
         ic_mean = sum(valid_ic) / len(valid_ic)
         var = sum((v - ic_mean) ** 2 for v in valid_ic) / max(len(valid_ic) - 1, 1)
@@ -431,10 +448,13 @@ class MultiFactorSignal:
 
         # 默认等权
         if factor_weights is None:
-            factor_weights = {name: 1.0 / n_factors for name in factor_names}
+            factor_weights = dict.fromkeys(factor_names, 1.0 / n_factors)
 
         # rank 标准化
-        ranked = {name: self.cross_sectional_rank(values) for name, values in factor_values.items()}
+        ranked = {
+            name: self.cross_sectional_rank(values)
+            for name, values in factor_values.items()
+        }
 
         # 取所有标的的并集
         all_symbols: set = set()
@@ -490,7 +510,9 @@ class MultiFactorSignal:
             return list(factor_names), None
 
         # 构建因子时间序列 (仅样本充足的因子参与正交化)
-        factor_series, evaluable_names, insufficient_names = self._build_factor_series(factor_history, factor_names)
+        factor_series, evaluable_names, insufficient_names = self._build_factor_series(
+            factor_history, factor_names
+        )
 
         # 无可评估因子, 直接返回原列表
         if not evaluable_names:
@@ -503,7 +525,16 @@ class MultiFactorSignal:
         # 调用正交化 (orthogonalizer 内部检查 USE_VIBE_FACTOR_INJECTION flag, HC-1)
         try:
             selected, report = orthogonalize_factors(factor_series, threshold=threshold)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 fail-safe, 不阻断主流程
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # P2 fail-safe, 不阻断主流程
             logger.warning(
                 "[MultiFactorSignal] 正交化异常, 降级为原因子列表: %s",
                 e,
@@ -531,14 +562,18 @@ class MultiFactorSignal:
                 )
                 return list(factor_names), None
             # success 但 0 选中 (极端情况, 所有因子被低方差丢弃)
-            logger.warning("[MultiFactorSignal] 正交化后 0 因子被选中, 降级为原因子列表")
+            logger.warning(
+                "[MultiFactorSignal] 正交化后 0 因子被选中, 降级为原因子列表"
+            )
             return list(factor_names), report
 
         # 合并: 正交化选中的 + 样本不足保留的
         # 保持原始顺序 (降低权重历史对齐的复杂度)
         selected_set = set(selected)
         insufficient_set = set(insufficient_names)
-        final_names = [f for f in factor_names if f in selected_set or f in insufficient_set]
+        final_names = [
+            f for f in factor_names if f in selected_set or f in insufficient_set
+        ]
 
         # 日志记录过滤结果
         n_dropped = len(factor_names) - len(final_names)
@@ -601,7 +636,11 @@ class MultiFactorSignal:
                 if not day_vals:
                     means.append(float("nan"))
                     continue
-                valid = [v for v in day_vals.values() if isinstance(v, (int, float)) and not math.isnan(v)]
+                valid = [
+                    v
+                    for v in day_vals.values()
+                    if isinstance(v, (int, float)) and not math.isnan(v)
+                ]
                 means.append(sum(valid) / len(valid) if valid else float("nan"))
 
             if len(means) >= ORTHO_MIN_SAMPLES:
@@ -688,9 +727,13 @@ class MultiFactorSignal:
         Returns:
             {symbol: rank_in_[0,1]}
         """
-        valid = {s: v for s, v in values.items() if isinstance(v, (int, float)) and math.isfinite(v)}
+        valid = {
+            s: v
+            for s, v in values.items()
+            if isinstance(v, (int, float)) and math.isfinite(v)
+        }
         if len(valid) < 2:
-            return {s: 0.5 for s in values}
+            return dict.fromkeys(values, 0.5)
 
         sorted_syms = sorted(valid.keys(), key=lambda s: valid[s])
         n = len(sorted_syms)
@@ -737,14 +780,20 @@ class MultiFactorSignal:
             weights = self._normalize_ic_weights(ic_irs)
 
             # 每个因子 rank 标准化
-            ranked = {name: self.cross_sectional_rank(factor_history[name][t]) for name in factor_names}
+            ranked = {
+                name: self.cross_sectional_rank(factor_history[name][t])
+                for name in factor_names
+            }
 
             # 取共同标的
             common_syms = self._common_symbols(ranked)
 
             # 加权融合
             combined_day = {
-                s: sum(weights[name] * ranked[name].get(s, 0.5) for name in factor_names) for s in common_syms
+                s: sum(
+                    weights[name] * ranked[name].get(s, 0.5) for name in factor_names
+                )
+                for s in common_syms
             }
             combined.append(combined_day)
 
@@ -769,15 +818,19 @@ class MultiFactorSignal:
         weights_history: list[dict[str, float]] = []
 
         for t in range(n_days):
-            ranked = {name: self.cross_sectional_rank(factor_history[name][t]) for name in factor_names}
+            ranked = {
+                name: self.cross_sectional_rank(factor_history[name][t])
+                for name in factor_names
+            }
             common_syms = self._common_symbols(ranked)
 
             combined_day = {
-                s: sum(equal_weight * ranked[name].get(s, 0.5) for name in factor_names) for s in common_syms
+                s: sum(equal_weight * ranked[name].get(s, 0.5) for name in factor_names)
+                for s in common_syms
             }
             combined.append(combined_day)
 
-            w_record: dict[str, Any] = {name: equal_weight for name in factor_names}
+            w_record: dict[str, Any] = dict.fromkeys(factor_names, equal_weight)
             w_record["mode"] = "equal_weight"
             weights_history.append(w_record)
 
@@ -794,7 +847,7 @@ class MultiFactorSignal:
         if abs_sum < WEIGHT_ABS_SUM_FLOOR:
             # 等权兜底
             n = len(ic_irs)
-            return {name: 1.0 / n if n > 0 else 0.0 for name in ic_irs}
+            return dict.fromkeys(ic_irs, 1.0 / n if n > 0 else 0.0)
         return {name: v / abs_sum for name, v in ic_irs.items()}
 
     @staticmethod

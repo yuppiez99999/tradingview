@@ -57,7 +57,9 @@ class DataMixin:
             logger.debug("[Pipeline] 读取 _base 缓存失败 %s: %s", symbol, e)
         return None
 
-    def _load_and_truncate(self, symbol: str, period: str, cutoff: pd.Timestamp) -> pd.DataFrame | None:
+    def _load_and_truncate(
+        self, symbol: str, period: str, cutoff: pd.Timestamp
+    ) -> pd.DataFrame | None:
         """加载历史数据并截断到回测日期（杜绝前视偏差）。
 
         优先级: _base.parquet 预下载缓存 > data_provider.get_historical_data(5y)
@@ -73,6 +75,7 @@ class DataMixin:
                 df = None
         if df is None or df.empty:
             return None
+
         # BUG 修复 (2026-08-01 顶级对冲基金重跑验证发现, V2 增强):
         # V1 修复仅对 df.index 做 tz_localize(None), 但部分 pandas 版本下
         # DatetimeIndex.tz_localize(None) 不改元素 tz, 仍抛
@@ -84,10 +87,16 @@ class DataMixin:
                 if hasattr(idx, "tz") and idx.tz is not None:
                     idx = idx.tz_localize(None)
                 # 元素级规范化 (部分 pandas 版本下 idx.tz_localize(None) 不改元素 tz)
-                return pd.DatetimeIndex([
-                    pd.Timestamp(d).tz_localize(None) if pd.Timestamp(d).tzinfo else pd.Timestamp(d)
-                    for d in idx
-                ])
+                return pd.DatetimeIndex(
+                    [
+                        (
+                            pd.Timestamp(d).tz_localize(None)
+                            if pd.Timestamp(d).tzinfo
+                            else pd.Timestamp(d)
+                        )
+                        for d in idx
+                    ]
+                )
             except Exception as e:  # noqa: BLE001
                 logger.exception(f"DatetimeIndex 时区规范化失败, 已降级返回原 idx: {e}")
                 return idx
@@ -107,15 +116,27 @@ class DataMixin:
     def _preload_historical_data(self) -> None:
         if self.data_provider is None:
             return
-        logger.info("[Pipeline] 回测预加载历史数据: symbols=%s as_of=%s", self.ctx.symbols, self.ctx.report_date)
+        logger.info(
+            "[Pipeline] 回测预加载历史数据: symbols=%s as_of=%s",
+            self.ctx.symbols,
+            self.ctx.report_date,
+        )
         # 顶级对冲基金标准: 回测预加载必须截断到 as_of_date, 杜绝未来数据泄漏
         # period='5y' 确保截断到 2024-01-01 后仍有 ~640 行（> min_samples=150）
         cutoff = pd.Timestamp(self.ctx.report_date).normalize()
 
         # B2.3: 合并 4 个 symbol 来源去重 (原实现 4 个串行 for 循环, 重复检查 cache)
         etf_candidates = [
-            "510300", "510500", "510050", "159915", "512100",
-            "512010", "512480", "512760", "515030", "515790",
+            "510300",
+            "510500",
+            "510050",
+            "159915",
+            "512100",
+            "512010",
+            "512480",
+            "512760",
+            "515030",
+            "515790",
         ]
         # 用 dict 保留插入顺序 (Python 3.7+ dict 有序), 同时去重
         merged: dict[str, None] = {}
@@ -165,9 +186,15 @@ class DataMixin:
                 continue
             self._historical_cache[symbol] = df.copy()
             loaded_count += 1
-            logger.debug("[Pipeline] 预加载 %s: %d 行 (截止 %s)", symbol, len(df), cutoff.date())
+            logger.debug(
+                "[Pipeline] 预加载 %s: %d 行 (截止 %s)", symbol, len(df), cutoff.date()
+            )
 
-        logger.info("[Pipeline] 预加载完成: %d 个标的 (cache=%d)", loaded_count, len(self._historical_cache))
+        logger.info(
+            "[Pipeline] 预加载完成: %d 个标的 (cache=%d)",
+            loaded_count,
+            len(self._historical_cache),
+        )
 
     def _real_snapshot(self, symbol: str) -> dict[str, Any]:
         if self.data_provider is None:
@@ -208,7 +235,8 @@ class DataMixin:
             evaluations = alpha_report.get("evaluations", [])
         elif hasattr(alpha_report, "evaluations"):
             evaluations = [
-                e.to_dict() if hasattr(e, "to_dict") else e for e in getattr(alpha_report, "evaluations", [])
+                e.to_dict() if hasattr(e, "to_dict") else e
+                for e in getattr(alpha_report, "evaluations", [])
             ]
         signals = {}
         for ev in evaluations:
@@ -299,7 +327,9 @@ class DataMixin:
 
         return self._truncate_history_by_date(df, symbol)
 
-    def _truncate_history_by_date(self, df: pd.DataFrame, symbol: str) -> pd.DataFrame | None:
+    def _truncate_history_by_date(
+        self, df: pd.DataFrame, symbol: str
+    ) -> pd.DataFrame | None:
         """按 report_date 截断历史数据 (回测模式防前视偏差).
 
         B2.2: 从 _get_or_load_historical 抽取, 保持单一职责.
@@ -330,8 +360,12 @@ class DataMixin:
             try:
                 close, volume = self._load_symbol_close_volume(symbol)
                 components = self._compute_alpha_components(close, volume)
-                mom_strength, mom_confidence = self._compose_momentum_signal(close, components)
-                strength, confidence = self._fuse_with_lgb_signal(symbol, mom_strength, mom_confidence)
+                mom_strength, mom_confidence = self._compose_momentum_signal(
+                    close, components
+                )
+                strength, confidence = self._fuse_with_lgb_signal(
+                    symbol, mom_strength, mom_confidence
+                )
                 return (symbol, {"strength": strength, "confidence": confidence})
             except Exception as e:
                 logger.warning("[Pipeline] 真实alpha信号获取失败 %s: %s", symbol, e)
@@ -347,7 +381,9 @@ class DataMixin:
         )
         return {s: sig for s, sig in pairs if s is not None}
 
-    def _save_alpha_signals_report(self, alpha_signals: dict[str, dict[str, Any]]) -> None:
+    def _save_alpha_signals_report(
+        self, alpha_signals: dict[str, dict[str, Any]]
+    ) -> None:
         """保存 alpha 信号报告到 reports/pipeline/alpha_signals_{timestamp}.json
 
         供 DriftShadowIntegrator._load_latest_predictions() 读取，
@@ -358,12 +394,22 @@ class DataMixin:
             from datetime import datetime as _dt
             from pathlib import Path as _Path
 
-            report_dir = _Path(self.ctx.output_root).parent / "reports" / "pipeline" if hasattr(self.ctx, "output_root") else _Path("reports") / "pipeline"
+            report_dir = (
+                _Path(self.ctx.output_root).parent / "reports" / "pipeline"
+                if hasattr(self.ctx, "output_root")
+                else _Path("reports") / "pipeline"
+            )
             report_dir.mkdir(parents=True, exist_ok=True)
 
             timestamp = _dt.now().strftime("%Y%m%d_%H%M%S")
-            signals_flat = {sym: float(sig.get("strength", 0.0)) for sym, sig in alpha_signals.items()}
-            confidence_flat = {sym: float(sig.get("confidence", 0.0)) for sym, sig in alpha_signals.items()}
+            signals_flat = {
+                sym: float(sig.get("strength", 0.0))
+                for sym, sig in alpha_signals.items()
+            }
+            confidence_flat = {
+                sym: float(sig.get("confidence", 0.0))
+                for sym, sig in alpha_signals.items()
+            }
 
             report = {
                 "model": "institutional_pipeline_v2",
@@ -377,6 +423,15 @@ class DataMixin:
             path = report_dir / f"alpha_signals_{timestamp}.json"
             with open(path, "w", encoding="utf-8") as f:
                 _json.dump(report, f, ensure_ascii=False, indent=2)
-            logger.info("[Pipeline] Alpha 信号报告已保存: %s (n=%d)", path, len(signals_flat))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+            logger.info(
+                "[Pipeline] Alpha 信号报告已保存: %s (n=%d)", path, len(signals_flat)
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             logger.warning("[Pipeline] 保存 alpha 信号报告失败: %s", e)

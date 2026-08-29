@@ -172,3 +172,14 @@ v8.3_institutional/
 - [cairn/refactoring-standards.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/cairn/refactoring-standards.md) — 重构规约（零行为变更/表驱动化/提取 helper/三轴阈值）
 - [cairn/ROADMAP.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/cairn/ROADMAP.md) — 系统路线图（Wave 4 工程化达标期）
 - [cairn/LOG.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/cairn/LOG.md) — 进展日志
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [daily_workflow.py 拆分复盘报告 (5 轮 · 2026-08-12)](daily-workflow-split-retrospective.md) (相似度 51%)
+- [重构规约 (Refactoring Standards)](refactoring-standards.md) (相似度 18%)
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 13%)
+- [phase_execute 拆单字段误用修复验证报告（2026-08-12）](phase-execute-field-access-fix-20260812.md) (相似度 12%)
+- [W6.3.3 预研 · QS-Trader 风格 secid 合约解析难点清单](w633_secid_contract_parsing_challenges.md) (相似度 10%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

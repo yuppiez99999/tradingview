@@ -1,4 +1,5 @@
 """D4 单元测试 — DualLoopOrchestrator 双层闭环编排器."""
+
 from __future__ import annotations
 
 import json
@@ -23,20 +24,32 @@ from utils.llm_evolution.strategy_ideation import (
 # 测试夹具
 # ============================================================
 
+
 class MockLLM:
     name = "mock"
 
-    def chat(self, prompt: str, system: str = "", temperature: float | None = None,
-             max_tokens: int | None = None) -> str | None:
-        return json.dumps({
-            "hypotheses": [{
-                "description": "低估值因子在调整后反弹",
-                "market_observation": "市场下跌",
-                "factor_direction": "long_small",
-                "proposed_factors": [{"name": "EP", "category": "Value", "formula": "1/PE"}],
-                "strategy_style": "value",
-            }]
-        })
+    def chat(
+        self,
+        prompt: str,
+        system: str = "",
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str | None:
+        return json.dumps(
+            {
+                "hypotheses": [
+                    {
+                        "description": "低估值因子在调整后反弹",
+                        "market_observation": "市场下跌",
+                        "factor_direction": "long_small",
+                        "proposed_factors": [
+                            {"name": "EP", "category": "Value", "formula": "1/PE"}
+                        ],
+                        "strategy_style": "value",
+                    }
+                ]
+            }
+        )
 
 
 def _make_market_data() -> dict[str, Any]:
@@ -46,6 +59,7 @@ def _make_market_data() -> dict[str, Any]:
 def _make_factor_data() -> dict[str, dict[str, Any]]:
     """IC 显著的因子数据."""
     import random
+
     random.seed(42)
     return {
         "EP": {
@@ -81,6 +95,7 @@ def _make_orchestrator(
 # DualLoopReport 属性
 # ============================================================
 
+
 class TestDualLoopReport:
     def test_success_rate(self):
         r = DualLoopReport(total_cycles=4, successful_cycles=3, failed_cycles=1)
@@ -101,6 +116,7 @@ class TestDualLoopReport:
 # 构造
 # ============================================================
 
+
 class TestConstruction:
     def test_none_engine_raises(self, tmp_path):
         with pytest.raises(ValueError, match="ideation_engine 不能为 None"):
@@ -119,6 +135,7 @@ class TestConstruction:
 # ============================================================
 # 单周期
 # ============================================================
+
 
 class TestRunCycle:
     def test_normal_cycle(self, tmp_path):
@@ -141,6 +158,7 @@ class TestRunCycle:
 
         class ErrorLLM:
             name = "error"
+
             def chat(self, *a, **kw):
                 raise RuntimeError("API down")
 
@@ -159,6 +177,7 @@ class TestRunCycle:
 # ============================================================
 # 安全检查
 # ============================================================
+
 
 class TestSafetyChecks:
     def test_kill_switch_pause(self, tmp_path):
@@ -188,7 +207,9 @@ class TestSafetyChecks:
         """关闭安全检查时, Kill Switch 不拦截."""
         ks = MagicMock()
         ks.evaluate_trade.return_value = MagicMock(allowed=False, reason="BLOCKED")
-        safety = DualLoopSafetyConfig(kill_switch_check=False, circuit_breaker_check=False)
+        safety = DualLoopSafetyConfig(
+            kill_switch_check=False, circuit_breaker_check=False
+        )
         orch = _make_orchestrator(tmp_path, safety=safety, kill_switch=ks)
         report = orch.run_cycle(_make_market_data(), _make_factor_data())
         assert report.paused is False
@@ -197,6 +218,7 @@ class TestSafetyChecks:
 # ============================================================
 # 连续运行
 # ============================================================
+
 
 class TestRunContinuous:
     def test_max_cycles(self, tmp_path):
@@ -216,6 +238,7 @@ class TestRunContinuous:
 
         class ErrorLLM:
             name = "error"
+
             def chat(self, *a, **kw):
                 raise RuntimeError("always fails")
 
@@ -254,6 +277,7 @@ class TestRunContinuous:
 # ============================================================
 # 状态重置
 # ============================================================
+
 
 class TestReset:
     def test_reset(self, tmp_path):

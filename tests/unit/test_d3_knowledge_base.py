@@ -1,4 +1,5 @@
 """D3 单元测试 — KnowledgeBase 知识沉淀库."""
+
 from __future__ import annotations
 
 import json
@@ -12,12 +13,14 @@ from utils.llm_evolution.knowledge_base import KnowledgeBase, KnowledgeEntry
 # 测试夹具
 # ============================================================
 
+
 def _make_kb(tmp_path: Path) -> KnowledgeBase:
     return KnowledgeBase(path=tmp_path / "kb.jsonl", max_context_entries=10)
 
 
 def _make_hypothesis(description: str = "低估值因子有效", style: str = "value"):
     from utils.llm_evolution.strategy_ideation import Hypothesis
+
     h = Hypothesis(
         id="hyp_test_001",
         description=description,
@@ -55,6 +58,7 @@ def _make_verdict(passed: bool = True) -> dict:
 # KnowledgeEntry 测试
 # ============================================================
 
+
 class TestKnowledgeEntry:
     def test_to_jsonl_roundtrip(self):
         entry = KnowledgeEntry(
@@ -84,6 +88,7 @@ class TestKnowledgeEntry:
 # ============================================================
 # 持久化
 # ============================================================
+
 
 class TestPersist:
     def test_persist_validated(self, tmp_path):
@@ -132,6 +137,7 @@ class TestPersist:
 # 查询
 # ============================================================
 
+
 class TestQuery:
     def test_query_by_status(self, tmp_path):
         kb = _make_kb(tmp_path)
@@ -167,6 +173,7 @@ class TestQuery:
 # LLM 上下文反馈
 # ============================================================
 
+
 class TestLoadContext:
     def test_context_with_entries(self, tmp_path):
         kb = _make_kb(tmp_path)
@@ -196,6 +203,7 @@ class TestLoadContext:
 # 统计
 # ============================================================
 
+
 class TestStats:
     def test_stats_empty(self, tmp_path):
         kb = _make_kb(tmp_path)
@@ -211,7 +219,7 @@ class TestStats:
         assert stats["total"] == 3
         assert stats["validated"] == 2
         assert stats["falsified"] == 1
-        assert stats["validation_rate"] == pytest.approx(2/3)
+        assert stats["validation_rate"] == pytest.approx(2 / 3)
         assert stats["by_style"]["value"] == 2
         assert stats["by_style"]["momentum"] == 1
         assert stats["unique_factors"] >= 1
@@ -220,6 +228,7 @@ class TestStats:
 # ============================================================
 # 归因与教训
 # ============================================================
+
 
 class TestAttribution:
     def test_attribution_validated(self, tmp_path):

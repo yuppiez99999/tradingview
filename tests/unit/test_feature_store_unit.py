@@ -3,6 +3,7 @@
 被测模块: utils/data/feature_store.py
 覆盖目标: >=95%
 """
+
 from __future__ import annotations
 
 import sys
@@ -18,6 +19,7 @@ from utils.data.feature_store import FeatureStore  # noqa: E402
 # ============================================================
 # make_key
 # ============================================================
+
 
 class TestMakeKey:
     def test_basic_namespace(self):
@@ -41,6 +43,7 @@ class TestMakeKey:
 # ============================================================
 # get / put
 # ============================================================
+
 
 class TestGetPut:
     def test_put_then_get_memory(self, tmp_path):
@@ -79,6 +82,7 @@ class TestGetPut:
 # TTL
 # ============================================================
 
+
 class TestTTL:
     def test_expired_memory(self, tmp_path):
         store = FeatureStore(cache_dir=tmp_path, ttl_seconds=0)
@@ -103,6 +107,7 @@ class TestTTL:
 # get_or_compute
 # ============================================================
 
+
 class TestGetOrCompute:
     def test_compute_on_miss(self, tmp_path):
         store = FeatureStore(cache_dir=tmp_path)
@@ -114,8 +119,10 @@ class TestGetOrCompute:
     def test_cached_no_recompute(self, tmp_path):
         store = FeatureStore(cache_dir=tmp_path, ttl_seconds=3600)
         calls = []
+
         def fn():
             return (calls.append(1), 99)[1]
+
         store.get_or_compute("k", fn)
         store.get_or_compute("k", fn)
         assert len(calls) == 1
@@ -133,6 +140,7 @@ class TestGetOrCompute:
 # ============================================================
 # clear_expired
 # ============================================================
+
 
 class TestClearExpired:
     def test_clear_all(self, tmp_path):
@@ -161,6 +169,7 @@ class TestClearExpired:
 # ============================================================
 # _path
 # ============================================================
+
 
 class TestPath:
     def test_safe_path(self, tmp_path):

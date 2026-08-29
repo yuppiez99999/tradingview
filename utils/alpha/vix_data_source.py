@@ -25,6 +25,7 @@ VIX 数据源 (A股 iVIX 替代方案)
     vix = VixDataSource().fetch_vix(use_cache=True)  # 盘中
     vix = VixDataSource().fetch_vix(use_cache=False)  # EOD 强制刷新
 """
+
 from __future__ import annotations
 
 import json
@@ -155,7 +156,11 @@ class VixDataSource:
                 return None
 
             # 取最近 _RV_LOOKBACK_DAYS 天 (不足时用全部)
-            recent_returns = returns[-_RV_LOOKBACK_DAYS:] if len(returns) >= _RV_LOOKBACK_DAYS else returns
+            recent_returns = (
+                returns[-_RV_LOOKBACK_DAYS:]
+                if len(returns) >= _RV_LOOKBACK_DAYS
+                else returns
+            )
 
             # 计算日波动率 (标准差)
             n = len(recent_returns)
@@ -169,12 +174,18 @@ class VixDataSource:
 
             # 合理性校验 (VIX 通常在 10~80 之间)
             if vix_proxy < 5 or vix_proxy > 150:
-                logger.warning("VIX 替代值异常: %.2f (年化波动率=%.4f), 跳过", vix_proxy, annual_vol)
+                logger.warning(
+                    "VIX 替代值异常: %.2f (年化波动率=%.4f), 跳过",
+                    vix_proxy,
+                    annual_vol,
+                )
                 return None
 
             logger.debug(
                 "shadow_state RV: 日波动率=%.4f%%, 年化=%.2f%%, VIX_proxy=%.2f",
-                daily_vol * 100, annual_vol * 100, vix_proxy,
+                daily_vol * 100,
+                annual_vol * 100,
+                vix_proxy,
             )
             return float(vix_proxy)
 
@@ -201,7 +212,9 @@ class VixDataSource:
 
             kline_data = wind_get_kline(_WIND_UNDERLYING_CODE, days=30)
             if not kline_data or len(kline_data) < 5:
-                logger.debug("Wind K 线数据不足: %d 条", len(kline_data) if kline_data else 0)
+                logger.debug(
+                    "Wind K 线数据不足: %d 条", len(kline_data) if kline_data else 0
+                )
                 return None
 
             # 提取收盘价, 计算日收益率
@@ -243,14 +256,23 @@ class VixDataSource:
 
             logger.debug(
                 "Wind K线 RV: 日波动率=%.4f%%, 年化=%.2f%%, VIX_proxy=%.2f",
-                daily_vol * 100, annual_vol * 100, vix_proxy,
+                daily_vol * 100,
+                annual_vol * 100,
+                vix_proxy,
             )
             return float(vix_proxy)
 
         except ImportError as e:
             logger.debug("wind_mcp_fetcher 导入失败: %s", e)
             return None
-        except (OSError, ValueError, TypeError, RuntimeError, TimeoutError, ConnectionError) as e:
+        except (
+            OSError,
+            ValueError,
+            TypeError,
+            RuntimeError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             logger.debug("Wind K 线获取失败: %s", e)
             return None
 
@@ -301,7 +323,9 @@ class VixDataSource:
             age = (datetime.now() - cached_time).total_seconds()
 
             if age > _CACHE_TTL_SECONDS:
-                logger.debug("VIX 缓存已过期 (age=%.0fs, ttl=%ds)", age, _CACHE_TTL_SECONDS)
+                logger.debug(
+                    "VIX 缓存已过期 (age=%.0fs, ttl=%ds)", age, _CACHE_TTL_SECONDS
+                )
                 return None
 
             vix = cache_data.get("vix")

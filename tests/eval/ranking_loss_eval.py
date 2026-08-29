@@ -28,6 +28,7 @@
     result = evaluator.evaluate(predictions, ground_truth)
     best = evaluator.select_best(result)
 """
+
 from __future__ import annotations
 
 import logging
@@ -43,6 +44,7 @@ logger = logging.getLogger("ranking_loss_eval")
 # ============================================================
 # 排序指标
 # ============================================================
+
 
 def dcg_at_k(rels: np.ndarray, k: int) -> float:
     """DCG@k: 折损累计增益."""
@@ -89,9 +91,11 @@ def average_precision(predicted_rank: np.ndarray) -> float:
 # 排序损失函数
 # ============================================================
 
+
 @dataclass
 class LossResult:
     """损失计算结果."""
+
     loss: float
     loss_name: str
     gradient: np.ndarray | None = None
@@ -111,7 +115,7 @@ class PointwiseLoss:
     def compute(scores: np.ndarray, labels: np.ndarray) -> LossResult:
         """计算 MSE 损失."""
         diff = scores - labels
-        loss = float(np.mean(diff ** 2))
+        loss = float(np.mean(diff**2))
         grad = 2 * diff / len(scores)
         return LossResult(loss=loss, loss_name="pointwise", gradient=grad)
 
@@ -147,8 +151,8 @@ class PairwiseLoss:
                     sig = 1.0 / (1.0 + math.exp(-diff))
                     loss -= math.log(sig + 1e-10)
                     # 梯度
-                    grad[i] += (1 - sig)
-                    grad[j] -= (1 - sig)
+                    grad[i] += 1 - sig
+                    grad[j] -= 1 - sig
                     count += 1
 
         if count > 0:
@@ -185,7 +189,9 @@ class ListwiseLoss:
         labels_pos = np.maximum(labels, 0)
         label_sum = np.sum(labels_pos)
         if label_sum == 0:
-            return LossResult(loss=0.0, loss_name="listwise", gradient=np.zeros(len(scores)))
+            return LossResult(
+                loss=0.0, loss_name="listwise", gradient=np.zeros(len(scores))
+            )
         p_labels = labels_pos / label_sum
 
         # 交叉熵
@@ -206,9 +212,11 @@ class ListwiseLoss:
 # 排序损失评估器
 # ============================================================
 
+
 @dataclass
 class EvaluationResult:
     """单损失评估结果."""
+
     loss_name: str
     final_loss: float
     ndcg_10: float
@@ -220,6 +228,7 @@ class EvaluationResult:
 @dataclass
 class ComparisonReport:
     """对比报告."""
+
     results: list[EvaluationResult]
     best_loss: str
     best_ndcg: float
@@ -379,6 +388,7 @@ class RankingLossEvaluator:
 # CLI 入口
 # ============================================================
 
+
 def main() -> None:
     """CLI 入口: 排序损失函数系统评估."""
     print("=" * 60)
@@ -400,7 +410,9 @@ def main() -> None:
     print(f"{'损失':<12} {'NDCG@10':<10} {'MAP':<10} {'MRR':<10} {'最终损失':<10}")
     print("-" * 52)
     for r in report.results:
-        print(f"{r.loss_name:<12} {r.ndcg_10:<10.4f} {r.map_score:<10.4f} {r.mrr:<10.4f} {r.final_loss:<10.4f}")
+        print(
+            f"{r.loss_name:<12} {r.ndcg_10:<10.4f} {r.map_score:<10.4f} {r.mrr:<10.4f} {r.final_loss:<10.4f}"
+        )
 
     # === 3. 最优选择 ===
     print("\n--- 3. 最优损失函数 ---")
@@ -413,7 +425,11 @@ def main() -> None:
     # === 4. 多次实验 ===
     print("\n--- 4. 多次实验稳定性 ---")
     n_trials = 5
-    all_ndcgs: dict[str, list[float]] = {"pointwise": [], "pairwise": [], "listwise": []}
+    all_ndcgs: dict[str, list[float]] = {
+        "pointwise": [],
+        "pairwise": [],
+        "listwise": [],
+    }
     for seed in range(n_trials):
         r = evaluator.run_comparison(n_items=30, n_features=10, seed=seed + 100)
         for res in r.results:
@@ -423,7 +439,9 @@ def main() -> None:
     print("-" * 52)
     for name, ndcgs in all_ndcgs.items():
         arr = np.array(ndcgs)
-        print(f"{name:<12} {arr.mean():<10.4f} {arr.std():<10.4f} {arr.min():<10.4f} {arr.max():<10.4f}")
+        print(
+            f"{name:<12} {arr.mean():<10.4f} {arr.std():<10.4f} {arr.min():<10.4f} {arr.max():<10.4f}"
+        )
 
 
 if __name__ == "__main__":

@@ -162,3 +162,14 @@ except Exception:
 ## 七、一句话结论
 
 **执行闭环的完整性判据不是"能不能撮合"，而是"成交有没有变成可追溯的落盘事实源，并被下游 PnL/TCA 真正消费"**；接入新事实源时用边界桥接 + 来源标记 + fail-open 降级，可以在零回归的前提下把断链补上。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [DTE-1 建仓接入 FillsStore 事实源 (2026-08-24)](dte1-build-fills-store-20260824.md) (相似度 22%)
+- [Agent-Skills 集成与适配（2026-08-24）](agent-skills-integration.md) (相似度 20%)
+- [数据修复经验沉淀：EOD 管道数据断链诊断与修复（2026-08-06）](data-integrity-fix-lessons-20260806.md) (相似度 19%)
+- [P3.0 影子账户闭环门禁 (2026-08-26)](p3-0-gate.md) (相似度 15%)
+- [代码审查质量门禁经验沉淀：为什么多次审查仍有 bug](code-review-quality-gate-lessons-20260811.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

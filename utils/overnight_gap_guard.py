@@ -87,11 +87,21 @@ class OvernightGapGuard:
             l2_reduce_pct: L2 降仓比例, 默认 0.30
             l3_reduce_pct: L3 降仓比例, 默认 0.50
         """
-        self.l1_threshold = float(l1_threshold) if l1_threshold is not None else self.L1_THRESHOLD
-        self.l2_threshold = float(l2_threshold) if l2_threshold is not None else self.L2_THRESHOLD
-        self.l3_threshold = float(l3_threshold) if l3_threshold is not None else self.L3_THRESHOLD
-        self.l2_reduce_pct = float(l2_reduce_pct) if l2_reduce_pct is not None else self.L2_REDUCE_PCT
-        self.l3_reduce_pct = float(l3_reduce_pct) if l3_reduce_pct is not None else self.L3_REDUCE_PCT
+        self.l1_threshold = (
+            float(l1_threshold) if l1_threshold is not None else self.L1_THRESHOLD
+        )
+        self.l2_threshold = (
+            float(l2_threshold) if l2_threshold is not None else self.L2_THRESHOLD
+        )
+        self.l3_threshold = (
+            float(l3_threshold) if l3_threshold is not None else self.L3_THRESHOLD
+        )
+        self.l2_reduce_pct = (
+            float(l2_reduce_pct) if l2_reduce_pct is not None else self.L2_REDUCE_PCT
+        )
+        self.l3_reduce_pct = (
+            float(l3_reduce_pct) if l3_reduce_pct is not None else self.L3_REDUCE_PCT
+        )
 
     def check_gap(
         self,
@@ -249,7 +259,12 @@ class OvernightGapGuard:
             # 跳空上涨 (UP): 不利方向 = 空头 (SELL/SHORT)
             # 跳空下跌 (DOWN): 不利方向 = 多头 (BUY/LONG)
             is_adverse = False
-            if status.gap_direction == "UP" and side in ("SELL", "SHORT") or status.gap_direction == "DOWN" and side in ("BUY", "LONG"):
+            if (
+                status.gap_direction == "UP"
+                and side in ("SELL", "SHORT")
+                or status.gap_direction == "DOWN"
+                and side in ("BUY", "LONG")
+            ):
                 is_adverse = True
 
             if not is_adverse:

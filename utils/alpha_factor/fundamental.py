@@ -70,7 +70,8 @@ def compute_value_factors(
 
     # PB_INT (行业调整 BP = BP - 同行业均值)
     bp_values = {
-        sym: float(1.0 / fund["pb"]) for sym, fund in fundamentals.items()
+        sym: float(1.0 / fund["pb"])
+        for sym, fund in fundamentals.items()
         if fund.get("pb", 0) and fund.get("pb", 0) > 0
     }
     if industries:
@@ -98,7 +99,11 @@ def _growth_from_fields(
     国泰君安成长类标准: 单季环比 / 同比 / TTM同比, 各 5 个基础量 (营收/净利/现金流/ROE/ROA)
     """
     out = {}
-    for fld, fname in [(field_yoy, factor_yoy), (field_qoq, factor_qoq), (field_yoy, factor_ttm)]:
+    for fld, fname in [
+        (field_yoy, factor_yoy),
+        (field_qoq, factor_qoq),
+        (field_yoy, factor_ttm),
+    ]:
         # TTM 简化为 YOY (若无独立 TTM 字段)
         values = {}
         for sym, fund in fundamentals.items():
@@ -150,7 +155,9 @@ def compute_growth_factors(
                     prev_v = prev.get(base_field, 0)
                     if curr_v and prev_v and abs(prev_v) > 1e-10:
                         values[sym] = float((curr_v - prev_v) / abs(prev_v))
-            factors[factor_name] = FactorValue(name=factor_name, category="Growth", values=values)
+            factors[factor_name] = FactorValue(
+                name=factor_name, category="Growth", values=values
+            )
 
     return factors
 
@@ -201,7 +208,9 @@ def compute_quality_factors(
         current = fund.get("current_ratio", 0)
         if quick and current:
             values[sym] = float(quick - current)
-    factors["QUICK_RATIO"] = FactorValue(name="QUICK_RATIO", category="Quality", values=values)
+    factors["QUICK_RATIO"] = FactorValue(
+        name="QUICK_RATIO", category="Quality", values=values
+    )
 
     # GROSS_MARGIN_STAB (毛利率稳定性: 用 1/std, 需历史序列, 简化用 gross_margin_stab 字段)
     values = {}
@@ -209,7 +218,9 @@ def compute_quality_factors(
         stab = fund.get("gross_margin_stab", 0)
         if stab and stab > 0:
             values[sym] = float(stab)  # 高 = 稳定 = 高分
-    factors["GROSS_MARGIN_STAB"] = FactorValue(name="GROSS_MARGIN_STAB", category="Quality", values=values)
+    factors["GROSS_MARGIN_STAB"] = FactorValue(
+        name="GROSS_MARGIN_STAB", category="Quality", values=values
+    )
 
     return factors
 

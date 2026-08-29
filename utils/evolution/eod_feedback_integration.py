@@ -146,7 +146,11 @@ def load_current_weights(weights_path: str | Path | None = None) -> dict[str, fl
                 data = json.load(f)
             if isinstance(data, dict):
                 # 过滤无效值
-                return {k: float(v) for k, v in data.items() if isinstance(v, (int, float)) and v > 0}
+                return {
+                    k: float(v)
+                    for k, v in data.items()
+                    if isinstance(v, (int, float)) and v > 0
+                }
         except (OSError, json.JSONDecodeError, ValueError) as e:
             logger.warning("读取权重文件失败, 使用默认权重: %s", e)
             return dict(DEFAULT_FACTOR_WEIGHTS)
@@ -186,12 +190,30 @@ def save_weights_atomic(
         if path.exists():
             path.unlink()
         os.rename(tmp_path, str(path))
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
         # 清理临时文件
         try:
             os.unlink(tmp_path)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             pass
         raise
@@ -343,7 +365,16 @@ def run_feedback_loop(
             len(update.new_weights),
         )
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
         logger.error("FeedbackLoop 执行失败: %s", e)
@@ -375,7 +406,16 @@ def run_feedback_loop_graceful(
     """
     try:
         return run_feedback_loop(attribution_date, **kwargs)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
         logger.error("FeedbackLoop 异常降级: %s", e)
         traceback.print_exc()
@@ -424,7 +464,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="试运行 (不写入权重文件)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="详细日志输出",
     )

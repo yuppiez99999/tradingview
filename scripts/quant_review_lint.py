@@ -16,6 +16,7 @@
   python scripts/quant_review_lint.py --strict      # 命中即 exit 1 (试点后启用)
 兼容 Python 3.8。
 """
+
 import argparse
 import ast
 import re
@@ -25,14 +26,30 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 EXECUTION_GLOB = re.compile(r"ms_strategy[\\/]src[\\/](execution|backtest|data)[\\/]")
-NOTIFY_CALL = re.compile(r"\butils\.notify\b|\bfrom\s+utils\.notify\b|\bimport\s+notify\b")
-FUTURE_FN = re.compile(r"\.shift\(\s*-")          # pandas 正向位移 = 未来函数
+NOTIFY_CALL = re.compile(
+    r"\butils\.notify\b|\bfrom\s+utils\.notify\b|\bimport\s+notify\b"
+)
+FUTURE_FN = re.compile(r"\.shift\(\s*-")  # pandas 正向位移 = 未来函数
 # 仅匹配真正的未来函数命名, 排除 __future__ / lookahead(防前视的正确命名) / validate_no_lookahead
-FUTURE_NAME = re.compile(r"(?<!_)future_[a-z]|tomorrow_close|next_day_(return|close|open)|lookahead_factor", re.IGNORECASE)
+FUTURE_NAME = re.compile(
+    r"(?<!_)future_[a-z]|tomorrow_close|next_day_(return|close|open)|lookahead_factor",
+    re.IGNORECASE,
+)
 # 仅匹配"裸截断取整" (int(price)/int(close) 当取整用), 排除 float() 类型转换与 safe_float 等通用转换
-BARE_CAST = re.compile(r"\bint\(\s*(price|close|open|high|low|bid|ask|px|value|spot)\b", re.IGNORECASE)
+BARE_CAST = re.compile(
+    r"\bint\(\s*(price|close|open|high|low|bid|ask|px|value|spot)\b", re.IGNORECASE
+)
 
-SKIP_DIRS = {"_archive", "_archive_dead_code", ".venv", "qlib_env", "node_modules", ".git", "__pycache__", ".mypy_cache"}
+SKIP_DIRS = {
+    "_archive",
+    "_archive_dead_code",
+    ".venv",
+    "qlib_env",
+    "node_modules",
+    ".git",
+    "__pycache__",
+    ".mypy_cache",
+}
 
 
 def iter_py(files):
@@ -59,7 +76,13 @@ def check_q1(path: Path, src: str) -> list:
     if EXECUTION_GLOB.search(str(path).replace("/", "\\")):
         for i, line in enumerate(src.splitlines(), 1):
             if NOTIFY_CALL.search(line):
-                hits.append((i, "Q1 信号执行分离: execution 层禁止直接调用 utils.notify", line.strip()))
+                hits.append(
+                    (
+                        i,
+                        "Q1 信号执行分离: execution 层禁止直接调用 utils.notify",
+                        line.strip(),
+                    )
+                )
     return hits
 
 
@@ -89,7 +112,13 @@ def check_q3(path: Path, src: str) -> list:
         if stripped.startswith("#") or _is_ignored(line):
             continue  # 跳过注释行与豁免行, 避免文本误匹配
         if BARE_CAST.search(line) and "round(" not in line and "Decimal" not in line:
-            hits.append((i, "Q3 价格计算疑似裸 int()/float() 截断 (warn, 建议 round/Decimal)", line.strip()))
+            hits.append(
+                (
+                    i,
+                    "Q3 价格计算疑似裸 int()/float() 截断 (warn, 建议 round/Decimal)",
+                    line.strip(),
+                )
+            )
     return hits
 
 

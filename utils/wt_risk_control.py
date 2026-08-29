@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 scipy_stats: Optional[type]
 try:
     from scipy import stats as _scipy_stats
+
     scipy_stats = _scipy_stats
 except ImportError:
     scipy_stats = None
@@ -54,8 +55,18 @@ def _load_cvar_config() -> dict:
         merged = dict(_CVAR_CONFIG_DEFAULT)
         merged.update(cvar_cfg)
         return merged
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
-        logger.warning("[CVaR] 读取 system_config.json risk_management.cvar 失败, 使用默认配置: %s", exc)
+    except (
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+    ) as exc:
+        logger.warning(
+            "[CVaR] 读取 system_config.json risk_management.cvar 失败, 使用默认配置: %s",
+            exc,
+        )
         return dict(_CVAR_CONFIG_DEFAULT)
 
 
@@ -75,17 +86,21 @@ class RiskControl:
     circuit_breaker_reason: str
 
     def __init__(self, config: Optional[dict] = None):
-        self.config = cast(dict[str, Any], config) if config is not None else {
-            "max_daily_loss_pct": 0.03,
-            "max_portfolio_drawdown_pct": 0.05,
-            "max_position_concentration_pct": 0.3,
-            "max_single_trade_pct": 0.1,
-            "max_daily_trades": 100,
-            "max_daily_volume": 1000000000,
-            "circuit_breaker_enabled": True,
-            "stop_loss_enabled": True,
-            "position_limit_enabled": True,
-        }
+        self.config = (
+            cast(dict[str, Any], config)
+            if config is not None
+            else {
+                "max_daily_loss_pct": 0.03,
+                "max_portfolio_drawdown_pct": 0.05,
+                "max_position_concentration_pct": 0.3,
+                "max_single_trade_pct": 0.1,
+                "max_daily_trades": 100,
+                "max_daily_volume": 1000000000,
+                "circuit_breaker_enabled": True,
+                "stop_loss_enabled": True,
+                "position_limit_enabled": True,
+            }
+        )
 
         self.daily_trades = 0
         self.daily_volume = 0.0
@@ -122,9 +137,7 @@ class RiskControl:
             drawdown = (self.max_equity - self.current_equity) / self.max_equity
             if drawdown >= self.config["max_portfolio_drawdown_pct"]:
                 self.circuit_breaker_tripped = True
-                self.circuit_breaker_reason = (
-                    f"组合回撤 {drawdown:.2%} >= {self.config['max_portfolio_drawdown_pct']:.2%}"
-                )
+                self.circuit_breaker_reason = f"组合回撤 {drawdown:.2%} >= {self.config['max_portfolio_drawdown_pct']:.2%}"
                 return False, self.circuit_breaker_reason
 
         if self.daily_loss >= self.config["max_daily_loss_pct"] * self.max_equity:
@@ -134,29 +147,42 @@ class RiskControl:
 
         return True, ""
 
-    def check_position_concentration(self, code: str, position_value: float, total_equity: float) -> tuple[bool, str]:
+    def check_position_concentration(
+        self, code: str, position_value: float, total_equity: float
+    ) -> tuple[bool, str]:
         """检查单标的集中度"""
         if not self.config["position_limit_enabled"]:
             return True, ""
 
         pct = position_value / total_equity if total_equity > 0 else 0
         if pct >= self.config["max_position_concentration_pct"]:
-            return False, f"单标的集中度 {pct:.2%} >= {self.config['max_position_concentration_pct']:.2%}"
+            return (
+                False,
+                f"单标的集中度 {pct:.2%} >= {self.config['max_position_concentration_pct']:.2%}",
+            )
 
         return True, ""
 
-    def check_single_trade(self, trade_amount: float, total_equity: float) -> tuple[bool, str]:
+    def check_single_trade(
+        self, trade_amount: float, total_equity: float
+    ) -> tuple[bool, str]:
         """检查单笔交易限额"""
         pct = trade_amount / total_equity if total_equity > 0 else 0
         if pct >= self.config["max_single_trade_pct"]:
-            return False, f"单笔交易占比 {pct:.2%} >= {self.config['max_single_trade_pct']:.2%}"
+            return (
+                False,
+                f"单笔交易占比 {pct:.2%} >= {self.config['max_single_trade_pct']:.2%}",
+            )
 
         return True, ""
 
     def check_daily_trade_count(self) -> tuple[bool, str]:
         """检查每日交易次数"""
         if self.daily_trades >= self.config["max_daily_trades"]:
-            return False, f"当日交易次数 {self.daily_trades} >= 上限 {self.config['max_daily_trades']}"
+            return (
+                False,
+                f"当日交易次数 {self.daily_trades} >= 上限 {self.config['max_daily_trades']}",
+            )
 
         return True, ""
 
@@ -177,7 +203,11 @@ class RiskControl:
 
     def get_risk_status(self) -> dict:
         """获取风控状态"""
-        drawdown = (self.max_equity - self.current_equity) / self.max_equity if self.max_equity > 0 else 0
+        drawdown = (
+            (self.max_equity - self.current_equity) / self.max_equity
+            if self.max_equity > 0
+            else 0
+        )
 
         return {
             "trading_enabled": self.trading_enabled,
@@ -197,7 +227,12 @@ class RiskControl:
         }
 
     def pre_trade_check(
-        self, code: str, trade_amount: float, volume: float, position_value: float, total_equity: float
+        self,
+        code: str,
+        trade_amount: float,
+        volume: float,
+        position_value: float,
+        total_equity: float,
     ) -> tuple[bool, list[str]]:
         """交易前风控检查
 
@@ -217,7 +252,9 @@ class RiskControl:
         if not ok:
             reasons.append(reason)
 
-        ok, reason = self.check_position_concentration(code, position_value + trade_amount, total_equity)
+        ok, reason = self.check_position_concentration(
+            code, position_value + trade_amount, total_equity
+        )
         if not ok:
             reasons.append(reason)
 
@@ -258,7 +295,9 @@ class StopLossManager:
             "created_at": datetime.now().isoformat(),
         }
 
-    def check_stop_loss(self, code: str, current_price: float) -> tuple[str, Optional[dict]]:
+    def check_stop_loss(
+        self, code: str, current_price: float
+    ) -> tuple[str, Optional[dict]]:
         """检查止损条件
 
         Returns:
@@ -321,7 +360,9 @@ class PortfolioRiskAnalyzer:
         return normalized
 
     @staticmethod
-    def calculate_var(positions: dict, volatility: float = 0.02, confidence_level: float = 0.95) -> float:
+    def calculate_var(
+        positions: dict, volatility: float = 0.02, confidence_level: float = 0.95
+    ) -> float:
         """计算在险价值(VaR)
 
         Args:
@@ -334,8 +375,13 @@ class PortfolioRiskAnalyzer:
         """
         normalized = PortfolioRiskAnalyzer._normalize_positions(positions)
         total_value = sum(pos["qty"] * pos["avg_cost"] for pos in normalized.values())
-        z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
+        z_score = (
+            1.645
+            if confidence_level == 0.95
+            else 2.33 if confidence_level == 0.99 else 1.28
+        )
         return float(total_value * volatility * z_score)
+
     @staticmethod
     def calculate_cvar(
         positions: dict,
@@ -364,13 +410,25 @@ class PortfolioRiskAnalyzer:
         total_value = sum(pos["qty"] * pos["avg_cost"] for pos in normalized.values())
         if method == "monte_carlo":
             return PortfolioRiskAnalyzer._cvar_monte_carlo(
-                total_value, volatility, confidence_level, n_paths, horizon_days, seed,
-                dist=dist, dof=dof,
+                total_value,
+                volatility,
+                confidence_level,
+                n_paths,
+                horizon_days,
+                seed,
+                dist=dist,
+                dof=dof,
             )
         # 默认解析正态 CVaR (对正态假设精确)
-        z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
+        z_score = (
+            1.645
+            if confidence_level == 0.95
+            else 2.33 if confidence_level == 0.99 else 1.28
+        )
         cvar_factor = volatility * (
-            z_score * math.exp(-(z_score**2) / 2) / (math.sqrt(2 * math.pi) * (1 - confidence_level))
+            z_score
+            * math.exp(-(z_score**2) / 2)
+            / (math.sqrt(2 * math.pi) * (1 - confidence_level))
         )
         return float(total_value * cvar_factor)
 
@@ -413,9 +471,17 @@ class PortfolioRiskAnalyzer:
                     period_vol = volatility * math.sqrt(horizon_days)
                     # 方差缩放校正: 保持目标 period_vol 一致
                     scale = math.sqrt(dof / (dof - 2)) if dof > 2 else 1.0
-                    samples = scipy_stats.t.rvs(dof, size=n_paths, random_state=rng) / scale
+                    samples = (
+                        scipy_stats.t.rvs(dof, size=n_paths, random_state=rng) / scale
+                    )
                     returns = samples * period_vol
-                except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    OSError,
+                ) as exc:
                     # scipy 采样异常 → fail-open 降级正态
                     logger.warning("[CVaR] Student-t 采样失败, 降级正态: %s", exc)
                     rng = np.random.default_rng(seed)
@@ -436,13 +502,22 @@ class PortfolioRiskAnalyzer:
         return total_value * cvar_return
 
     @staticmethod
-    def _cvar_analytic(total_value: float, volatility: float, confidence_level: float) -> float:
+    def _cvar_analytic(
+        total_value: float, volatility: float, confidence_level: float
+    ) -> float:
         """解析正态 CVaR (numpy 不可用时回退)."""
-        z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
+        z_score = (
+            1.645
+            if confidence_level == 0.95
+            else 2.33 if confidence_level == 0.99 else 1.28
+        )
         cvar_factor = volatility * (
-            z_score * math.exp(-(z_score**2) / 2) / (math.sqrt(2 * math.pi) * (1 - confidence_level))
+            z_score
+            * math.exp(-(z_score**2) / 2)
+            / (math.sqrt(2 * math.pi) * (1 - confidence_level))
         )
         return float(total_value * cvar_factor)
+
     @staticmethod
     def calculate_position_concentration(positions: dict) -> dict:
         """计算持仓集中度"""
@@ -487,7 +562,9 @@ class PortfolioRiskAnalyzer:
                 sectors[sector]["percentage"] = sectors[sector]["value"] / total_value
         return dict(sorted(sectors.items(), key=lambda x: -x[1]["value"]))
 
-    def analyze_portfolio(self, positions: dict, total_built: float, target: float) -> dict:
+    def analyze_portfolio(
+        self, positions: dict, total_built: float, target: float
+    ) -> dict:
         """组合级风险分析
 
         参数:
@@ -525,11 +602,26 @@ class PortfolioRiskAnalyzer:
                 dist=cvar_dist,
                 dof=cvar_dof,
             )
-            cvar_method_used = cvar_method if cvar_method != "monte_carlo" else f"monte_carlo_{cvar_dist}"
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
+            cvar_method_used = (
+                cvar_method
+                if cvar_method != "monte_carlo"
+                else f"monte_carlo_{cvar_dist}"
+            )
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as exc:
             # 观测路径 fail-open: 计算异常则降级解析正态, 标注来源, 不静默
-            logger.warning("[CVaR] analyze_portfolio 蒙特卡洛失败, 降级 analytic: %s", exc)
-            cvar_95 = self.calculate_cvar(positions, confidence_level=0.95, method="analytic")
+            logger.warning(
+                "[CVaR] analyze_portfolio 蒙特卡洛失败, 降级 analytic: %s", exc
+            )
+            cvar_95 = self.calculate_cvar(
+                positions, confidence_level=0.95, method="analytic"
+            )
             cvar_method_used = "analytic_fallback"
 
         # 建仓进度
@@ -543,7 +635,9 @@ class PortfolioRiskAnalyzer:
 
         # 综合风险评分 (0-100)
         risk_score = min(
-            concentration_risk * 0.4 + (var_95 / max(target, 1)) * 10000 * 0.3 + (1 - build_progress) * 30 * 0.3,
+            concentration_risk * 0.4
+            + (var_95 / max(target, 1)) * 10000 * 0.3
+            + (1 - build_progress) * 30 * 0.3,
             100,
         )
 
@@ -629,7 +723,9 @@ class RiskReportGenerator:
             lines.append("| 行业 | 持仓金额 | 占比 | 标的数 |")
             lines.append("|------|---------|------|--------|")
             for sector, info in sectors.items():
-                lines.append(f"| {sector} | ¥{info['value']:,.0f} | {info['percentage']:.2%} | {info['count']} |")
+                lines.append(
+                    f"| {sector} | ¥{info['value']:,.0f} | {info['percentage']:.2%} | {info['count']} |"
+                )
         else:
             lines.append("- 无数据")
 
@@ -665,7 +761,9 @@ def create_risk_control(config: Optional[dict] = None) -> RiskControl:
     return RiskControl(config)
 
 
-def create_stop_loss_manager(stop_loss_pct: float = 0.05, take_profit_pct: float = 0.10) -> StopLossManager:
+def create_stop_loss_manager(
+    stop_loss_pct: float = 0.05, take_profit_pct: float = 0.10
+) -> StopLossManager:
     """创建止损管理器"""
     return StopLossManager(stop_loss_pct, take_profit_pct)
 
@@ -685,5 +783,7 @@ if __name__ == "__main__":
 
     for code, pos in positions.items():
         stop_loss_manager.set_stop_loss(code, pos["avg_cost"], pos["qty"])
-    report = RiskReportGenerator.generate_risk_report(risk_control, stop_loss_manager, positions)
+    report = RiskReportGenerator.generate_risk_report(
+        risk_control, stop_loss_manager, positions
+    )
     logger.info(report)

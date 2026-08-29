@@ -55,7 +55,9 @@ class MomentumAgent(BaseAgent):
             )
 
         # 提取收盘价序列
-        closes = [self._safe_float(k.get("close")) for k in kline if isinstance(k, dict)]
+        closes = [
+            self._safe_float(k.get("close")) for k in kline if isinstance(k, dict)
+        ]
         if len(closes) < 20:
             return AgentDecision(
                 agent_name=self.name,
@@ -106,7 +108,9 @@ class MomentumAgent(BaseAgent):
                 strength -= 0.2
                 signals.append(f"5 日跌幅 {ret_5d:.1%} (弱势)")
         if len(closes) >= 20:
-            ret_20d = (closes[-1] - closes[-20]) / closes[-20] if closes[-20] > 0 else 0.0
+            ret_20d = (
+                (closes[-1] - closes[-20]) / closes[-20] if closes[-20] > 0 else 0.0
+            )
             metrics["return_20d"] = round(ret_20d, 4)
 
         # 3. RSI 超买超卖 (反转信号)
@@ -119,7 +123,9 @@ class MomentumAgent(BaseAgent):
                 signals.append(f"RSI {rsi:.1f} 超买 (回调预期)")
 
         # 4. 量价配合 (突破时量放大)
-        volumes = [self._safe_float(k.get("volume")) for k in kline if isinstance(k, dict)]
+        volumes = [
+            self._safe_float(k.get("volume")) for k in kline if isinstance(k, dict)
+        ]
         if len(volumes) >= 20 and volumes[-1] > 0:
             avg_vol_20 = sum(volumes[-20:]) / 20.0
             if avg_vol_20 > 0:

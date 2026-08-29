@@ -105,7 +105,12 @@ class TestABTestConfig:
 
     def test_from_dict_filters_unknown(self):
         """from_dict 应忽略未知字段."""
-        d = {"name": "t", "champion_model": "v1", "challenger_model": "v2", "unknown": 42}
+        d = {
+            "name": "t",
+            "champion_model": "v1",
+            "challenger_model": "v2",
+            "unknown": 42,
+        }
         cfg = ABTestConfig.from_dict(d)
         assert cfg.name == "t"
         assert not hasattr(cfg, "unknown")
@@ -154,8 +159,14 @@ class TestABTest:
     def test_to_dict_roundtrip(self):
         """to_dict / from_dict 往返."""
         cfg = ABTestConfig(name="t", champion_model="v1", challenger_model="v2")
-        t = ABTest(config=cfg, status=ABTestStatus.RUNNING.value, started_at="2026-08-01T00:00:00Z")
-        t.daily_records.append({"date": "2026-08-01", "champion": {"ic": 0.05}, "challenger": {"ic": 0.03}})
+        t = ABTest(
+            config=cfg,
+            status=ABTestStatus.RUNNING.value,
+            started_at="2026-08-01T00:00:00Z",
+        )
+        t.daily_records.append(
+            {"date": "2026-08-01", "champion": {"ic": 0.05}, "challenger": {"ic": 0.03}}
+        )
         d = t.to_dict()
         restored = ABTest.from_dict(d)
         assert restored.config.name == "t"
@@ -214,7 +225,9 @@ class TestLifecycle:
         assert test.config.name == "test_v9_vs_v10"
         assert test.status == ABTestStatus.CREATED.value
 
-    def test_create_duplicate(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_create_duplicate(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """重复创建应抛异常."""
         framework.create_test(sample_config)
         with pytest.raises(TestAlreadyExistsError):
@@ -222,7 +235,9 @@ class TestLifecycle:
 
     def test_create_invalid_split(self, framework: ABTestFramework):
         """无效 traffic_split 应抛异常."""
-        cfg = ABTestConfig(name="bad", champion_model="v1", challenger_model="v2", traffic_split=1.5)
+        cfg = ABTestConfig(
+            name="bad", champion_model="v1", challenger_model="v2", traffic_split=1.5
+        )
         with pytest.raises(ABTestError):
             framework.create_test(cfg)
 
@@ -238,7 +253,9 @@ class TestLifecycle:
         with pytest.raises(TestNotFoundError):
             framework.start_test("not_exist")
 
-    def test_start_already_running(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_start_already_running(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """重复启动不应报错 (仅 warning)."""
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
@@ -253,7 +270,9 @@ class TestLifecycle:
         assert test.status == ABTestStatus.STOPPED.value
         assert test.ended_at != ""
 
-    def test_full_lifecycle(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_full_lifecycle(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """完整生命周期: 创建 → 启动 → 记录 → 评估 → 晋升."""
         # 创建 + 启动
         framework.create_test(sample_config)
@@ -270,9 +289,13 @@ class TestLifecycle:
         # 评估 (champion 更优 → 应推荐 continue 或 rollback)
         result = framework.evaluate_test("test_v9_vs_v10")
         assert result.is_significant  # 差异显著
-        assert result.champion_metrics.get("ic", 0) > result.challenger_metrics.get("ic", 0)
+        assert result.champion_metrics.get("ic", 0) > result.challenger_metrics.get(
+            "ic", 0
+        )
 
-    def test_promote_flow(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_promote_flow(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """晋升流程: challenger 显著更优 → promote."""
         sample_config.min_samples = 3
         framework.create_test(sample_config)
@@ -300,13 +323,17 @@ class TestLifecycle:
 class TestGroupAssignment:
     """流量分配测试."""
 
-    def test_assign_group_before_start(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_assign_group_before_start(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """未启动时分配应抛异常."""
         framework.create_test(sample_config)
         with pytest.raises(TestNotRunningError):
             framework.assign_group("test_v9_vs_v10", "000001")
 
-    def test_hash_consistency(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_hash_consistency(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """hash 分桶应可重现."""
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
@@ -314,7 +341,9 @@ class TestGroupAssignment:
         g2 = framework.assign_group("test_v9_vs_v10", "000001")
         assert g1 == g2  # 相同 symbol 应分配到同一组
 
-    def test_hash_distribution(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_hash_distribution(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """hash 分桶应大致均匀 (20% 给 challenger)."""
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
@@ -335,7 +364,9 @@ class TestGroupAssignment:
 
     def test_zero_split(self, framework: ABTestFramework):
         """traffic_split=0 时所有流量进入 champion."""
-        cfg = ABTestConfig(name="zero", champion_model="v1", challenger_model="v2", traffic_split=0.0)
+        cfg = ABTestConfig(
+            name="zero", champion_model="v1", challenger_model="v2", traffic_split=0.0
+        )
         framework.create_test(cfg)
         framework.start_test("zero")
         for sym in ["000001", "000002", "000003"]:
@@ -343,7 +374,9 @@ class TestGroupAssignment:
 
     def test_full_split(self, framework: ABTestFramework):
         """traffic_split=1.0 时所有流量进入 challenger."""
-        cfg = ABTestConfig(name="full", champion_model="v1", challenger_model="v2", traffic_split=1.0)
+        cfg = ABTestConfig(
+            name="full", champion_model="v1", challenger_model="v2", traffic_split=1.0
+        )
         framework.create_test(cfg)
         framework.start_test("full")
         for sym in ["000001", "000002"]:
@@ -358,13 +391,17 @@ class TestGroupAssignment:
 class TestDailyMetrics:
     """每日指标记录测试."""
 
-    def test_record_metrics(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_record_metrics(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """记录每日指标."""
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
         champion = {"ic": 0.05, "sharpe": 1.0}
         challenger = {"ic": 0.04, "sharpe": 0.8}
-        framework.record_daily_metrics("test_v9_vs_v10", "2026-08-01", champion, challenger)
+        framework.record_daily_metrics(
+            "test_v9_vs_v10", "2026-08-01", champion, challenger
+        )
         test = framework.get_test("test_v9_vs_v10")
         assert len(test.daily_records) == 1
         assert test.daily_records[0]["champion"]["ic"] == 0.05
@@ -374,13 +411,17 @@ class TestDailyMetrics:
         with pytest.raises(TestNotFoundError):
             framework.record_daily_metrics("not_exist", "2026-08-01", {}, {})
 
-    def test_record_multiple_days(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_record_multiple_days(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """多日连续记录."""
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
         for i in range(30):
             date = f"2026-08-{i+1:02d}"
-            framework.record_daily_metrics("test_v9_vs_v10", date, {"ic": 0.05}, {"ic": 0.04})
+            framework.record_daily_metrics(
+                "test_v9_vs_v10", date, {"ic": 0.05}, {"ic": 0.04}
+            )
         test = framework.get_test("test_v9_vs_v10")
         assert len(test.daily_records) == 30
 
@@ -398,18 +439,24 @@ class TestEvaluation:
         with pytest.raises(TestNotFoundError):
             framework.evaluate_test("not_exist")
 
-    def test_evaluate_insufficient_data(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_evaluate_insufficient_data(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """数据不足应抛异常."""
         sample_config.min_samples = 10
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
         champion = {"ic": 0.05}
         challenger = {"ic": 0.04}
-        framework.record_daily_metrics("test_v9_vs_v10", "2026-08-01", champion, challenger)
+        framework.record_daily_metrics(
+            "test_v9_vs_v10", "2026-08-01", champion, challenger
+        )
         with pytest.raises(InsufficientDataError):
             framework.evaluate_test("test_v9_vs_v10")
 
-    def test_evaluate_champion_better(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_evaluate_champion_better(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """champion 显著更优时推荐 continue 或 rollback."""
         sample_config.min_samples = 3
         framework.create_test(sample_config)
@@ -417,7 +464,8 @@ class TestEvaluation:
         for i in range(5):
             date = f"2026-08-{i+1:02d}"
             framework.record_daily_metrics(
-                "test_v9_vs_v10", date,
+                "test_v9_vs_v10",
+                date,
                 {"ic": 0.08, "sharpe": 1.5, "dsr": 7.0},
                 {"ic": 0.02, "sharpe": 0.3, "dsr": 1.0},
             )
@@ -426,7 +474,9 @@ class TestEvaluation:
         # champion DSR 远高于 challenger → 应 rollback
         assert result.recommendation in ("rollback", "continue")
 
-    def test_evaluate_challenger_better(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_evaluate_challenger_better(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """challenger 显著更优时推荐 promote 或 continue."""
         sample_config.min_samples = 3
         sample_config.promotion_criteria = {"dsr_min": 1.0}  # 放宽阈值
@@ -435,7 +485,8 @@ class TestEvaluation:
         for i in range(5):
             date = f"2026-08-{i+1:02d}"
             framework.record_daily_metrics(
-                "test_v9_vs_v10", date,
+                "test_v9_vs_v10",
+                date,
                 {"ic": 0.03, "sharpe": 0.5, "dsr": 2.0},
                 {"ic": 0.08, "sharpe": 1.5, "dsr": 7.0},
             )
@@ -443,18 +494,26 @@ class TestEvaluation:
         assert result.challenger_better
         assert result.recommendation in ("promote", "continue")
 
-    def test_evaluate_edge_small_sample(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_evaluate_edge_small_sample(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """极小样本 (2 条) 应正常计算."""
         sample_config.min_samples = 2
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
-        framework.record_daily_metrics("test_v9_vs_v10", "2026-08-01", {"ic": 0.05}, {"ic": 0.04})
-        framework.record_daily_metrics("test_v9_vs_v10", "2026-08-02", {"ic": 0.06}, {"ic": 0.05})
+        framework.record_daily_metrics(
+            "test_v9_vs_v10", "2026-08-01", {"ic": 0.05}, {"ic": 0.04}
+        )
+        framework.record_daily_metrics(
+            "test_v9_vs_v10", "2026-08-02", {"ic": 0.06}, {"ic": 0.05}
+        )
         result = framework.evaluate_test("test_v9_vs_v10")
         assert result.p_value > 0  # 至少能算出 p 值
         assert result.effect_size != 0.0
 
-    def test_evaluate_identical_performance(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_evaluate_identical_performance(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """两组性能完全相同时 p_value=1.0, recommendation=continue."""
         sample_config.min_samples = 3
         framework.create_test(sample_config)
@@ -462,7 +521,8 @@ class TestEvaluation:
         for i in range(5):
             date = f"2026-08-{i+1:02d}"
             framework.record_daily_metrics(
-                "test_v9_vs_v10", date,
+                "test_v9_vs_v10",
+                date,
                 {"ic": 0.05, "dsr": 5.0},
                 {"ic": 0.05, "dsr": 5.0},
             )
@@ -470,24 +530,30 @@ class TestEvaluation:
         assert result.p_value >= 0.5  # 完全相同 → p 值接近 1.0
         assert result.recommendation == "continue"
 
-    def test_evaluate_detects_primary_metric(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_evaluate_detects_primary_metric(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """应优先使用 dsr 作为主要指标."""
         sample_config.min_samples = 2
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
         framework.record_daily_metrics(
-            "test_v9_vs_v10", "2026-08-01",
+            "test_v9_vs_v10",
+            "2026-08-01",
             {"dsr": 6.0, "ic": 0.05, "return": 0.01},
             {"dsr": 4.0, "ic": 0.03, "return": 0.005},
         )
         framework.record_daily_metrics(
-            "test_v9_vs_v10", "2026-08-02",
+            "test_v9_vs_v10",
+            "2026-08-02",
             {"dsr": 6.5, "ic": 0.06, "return": 0.012},
             {"dsr": 4.5, "ic": 0.04, "return": 0.006},
         )
         result = framework.evaluate_test("test_v9_vs_v10")
         # dsr 作为主指标 → champion 更优
-        assert result.champion_metrics.get("dsr", 0) > result.challenger_metrics.get("dsr", 0)
+        assert result.champion_metrics.get("dsr", 0) > result.challenger_metrics.get(
+            "dsr", 0
+        )
 
 
 # ============================================================
@@ -512,14 +578,18 @@ class TestQueries:
     def test_list_tests(self, framework: ABTestFramework):
         """列出所有测试."""
         for i in range(3):
-            cfg = ABTestConfig(name=f"test_{i}", champion_model="v1", challenger_model="v2")
+            cfg = ABTestConfig(
+                name=f"test_{i}", champion_model="v1", challenger_model="v2"
+            )
             framework.create_test(cfg)
         assert len(framework.list_tests()) == 3
 
     def test_list_tests_by_status(self, framework: ABTestFramework):
         """按状态过滤."""
         for i in range(3):
-            cfg = ABTestConfig(name=f"test_{i}", champion_model="v1", challenger_model="v2")
+            cfg = ABTestConfig(
+                name=f"test_{i}", champion_model="v1", challenger_model="v2"
+            )
             framework.create_test(cfg)
         framework.start_test("test_0")
         running = framework.list_tests(status=ABTestStatus.RUNNING)
@@ -552,20 +622,28 @@ class TestQueries:
 class TestErrorHandling:
     """异常处理测试."""
 
-    def test_promote_without_evaluation(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_promote_without_evaluation(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """未评估时晋升应抛异常."""
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
         with pytest.raises(ABTestError, match="未评估"):
             framework.promote_challenger("test_v9_vs_v10")
 
-    def test_rollback_without_registry(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_rollback_without_registry(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """无 ModelRegistry 时回滚应抛异常."""
         sample_config.min_samples = 2
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
-        framework.record_daily_metrics("test_v9_vs_v10", "2026-08-01", {"ic": 0.05}, {"ic": 0.04})
-        framework.record_daily_metrics("test_v9_vs_v10", "2026-08-02", {"ic": 0.05}, {"ic": 0.04})
+        framework.record_daily_metrics(
+            "test_v9_vs_v10", "2026-08-01", {"ic": 0.05}, {"ic": 0.04}
+        )
+        framework.record_daily_metrics(
+            "test_v9_vs_v10", "2026-08-02", {"ic": 0.05}, {"ic": 0.04}
+        )
         framework.evaluate_test("test_v9_vs_v10")
         # 没有 ModelRegistry → 应抛 ABTestError (模型未找到)
         with pytest.raises(ABTestError):
@@ -598,14 +676,18 @@ class TestEdgeCases:
         framework = ABTestFramework(results_dir=str(temp_dir))
         assert framework.list_tests() == []
 
-    def test_empty_daily_records(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_empty_daily_records(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """空 daily_records 的 evaluate 应抛异常."""
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
         with pytest.raises(InsufficientDataError):
             framework.evaluate_test("test_v9_vs_v10")
 
-    def test_assign_group_logging(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_assign_group_logging(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """分配应记录到 assignment_log."""
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
@@ -614,14 +696,22 @@ class TestEdgeCases:
         assert len(test.assignment_log) == 1
         assert test.assignment_log[0]["symbol"] == "000001"
 
-    def test_varied_metrics_across_days(self, framework: ABTestFramework, sample_config: ABTestConfig):
+    def test_varied_metrics_across_days(
+        self, framework: ABTestFramework, sample_config: ABTestConfig
+    ):
         """每日指标不同时, 汇总应正确计算平均值."""
         sample_config.min_samples = 3
         framework.create_test(sample_config)
         framework.start_test("test_v9_vs_v10")
-        framework.record_daily_metrics("test_v9_vs_v10", "2026-08-01", {"ic": 0.04}, {"ic": 0.02})
-        framework.record_daily_metrics("test_v9_vs_v10", "2026-08-02", {"ic": 0.06}, {"ic": 0.04})
-        framework.record_daily_metrics("test_v9_vs_v10", "2026-08-03", {"ic": 0.08}, {"ic": 0.06})
+        framework.record_daily_metrics(
+            "test_v9_vs_v10", "2026-08-01", {"ic": 0.04}, {"ic": 0.02}
+        )
+        framework.record_daily_metrics(
+            "test_v9_vs_v10", "2026-08-02", {"ic": 0.06}, {"ic": 0.04}
+        )
+        framework.record_daily_metrics(
+            "test_v9_vs_v10", "2026-08-03", {"ic": 0.08}, {"ic": 0.06}
+        )
         result = framework.evaluate_test("test_v9_vs_v10")
         # champion IC 均值 = (0.04+0.06+0.08)/3 = 0.06
         assert abs(result.champion_metrics.get("ic", 0) - 0.06) < 0.001

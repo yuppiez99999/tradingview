@@ -651,3 +651,14 @@ utils/alpha_factor_library.py                                                  #
 ---
 
 > **下一步**: 等待 VolRegimeWeighter 观察期（08-20）结束后，启动 Phase A MVP 开发。期间可继续细化表达式树算子集和字段集的定义。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [AlphaCFG 语法引导因子发现 (LIT-1.5)](alpha-cfg-discovery.md) (相似度 16%)
+- [R&D-Agent-Quant 多智能体因子挖掘引擎 (LIT-1.1)](rd-agent-quant.md) (相似度 13%)
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 11%)
+- [Alpha 因子体系](alpha-factor-system.md) (相似度 10%)
+- [W6.3.3 预研 · QS-Trader 风格 secid 合约解析难点清单](w633_secid_contract_parsing_challenges.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

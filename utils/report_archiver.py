@@ -5,6 +5,7 @@
 
 主入口文件的 archive_report() helper 调用此模块的 archive_report()。
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,12 +27,13 @@ def get_archive_dir(base_dir: str, target_date: date | None = None) -> str:
     """
     if target_date is None:
         target_date = date.today()
-    date_str = target_date.strftime('%Y-%m-%d')
-    return os.path.join(base_dir, '每日报告归档', date_str)
+    date_str = target_date.strftime("%Y-%m-%d")
+    return os.path.join(base_dir, "每日报告归档", date_str)
 
 
-def archive_report(base_dir: str, archive_name: str, report: str,
-                   target_date: date | None = None) -> str:
+def archive_report(
+    base_dir: str, archive_name: str, report: str, target_date: date | None = None
+) -> str:
     """将报告内容归档到按日期组织的目录, 返回归档文件路径。
 
     Args:
@@ -47,9 +49,9 @@ def archive_report(base_dir: str, archive_name: str, report: str,
     os.makedirs(archive_dir, exist_ok=True)
     archive_path = os.path.join(archive_dir, archive_name)
     try:
-        with open(archive_path, 'w', encoding='utf-8') as f:
+        with open(archive_path, "w", encoding="utf-8") as f:
             f.write(report)
-        logger.info('报告已归档: %s', archive_path)
+        logger.info("报告已归档: %s", archive_path)
     except OSError as e:
-        logger.error('报告归档失败: %s (路径: %s)', e, archive_path)
+        logger.error("报告归档失败: %s (路径: %s)", e, archive_path)
     return archive_path

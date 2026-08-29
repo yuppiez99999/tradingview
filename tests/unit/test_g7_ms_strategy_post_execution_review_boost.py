@@ -3,6 +3,7 @@
 覆盖 ExecutionReviewer 滑点/冲击/延迟分析、评级、洞察、建议、报告生成全部公开接口,
 包括空成交、零决策价、买卖方向差异、D 级订单等异常分支.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,13 +23,29 @@ from ms_strategy.src.execution.post_execution_review import (  # noqa: E402
 )
 
 
-def _make_fill(symbol="510300.SH", side="BUY", qty=1000,
-               fill_price=4.50, decision_price=4.49, arrival_price=4.495,
-               vwap_price=4.498, algo="TWAP", order_id="O1", fee=10.0):
+def _make_fill(
+    symbol="510300.SH",
+    side="BUY",
+    qty=1000,
+    fill_price=4.50,
+    decision_price=4.49,
+    arrival_price=4.495,
+    vwap_price=4.498,
+    algo="TWAP",
+    order_id="O1",
+    fee=10.0,
+):
     return FillRecord(
-        symbol=symbol, side=side, quantity=qty, fill_price=fill_price,
-        decision_price=decision_price, arrival_price=arrival_price,
-        vwap_price=vwap_price, algo=algo, order_id=order_id, fee=fee,
+        symbol=symbol,
+        side=side,
+        quantity=qty,
+        fill_price=fill_price,
+        decision_price=decision_price,
+        arrival_price=arrival_price,
+        vwap_price=vwap_price,
+        algo=algo,
+        order_id=order_id,
+        fee=fee,
     )
 
 
@@ -188,8 +205,14 @@ class TestReview:
 class TestInsights:
     def test_excellent_execution(self):
         reviewer = ExecutionReviewer()
-        fills = [_make_fill(fill_price=4.4900, decision_price=4.4900,
-                            arrival_price=4.4900, vwap_price=4.4900)]
+        fills = [
+            _make_fill(
+                fill_price=4.4900,
+                decision_price=4.4900,
+                arrival_price=4.4900,
+                vwap_price=4.4900,
+            )
+        ]
         report = reviewer.review(fills)
         titles = [i.title for i in report.insights]
         assert "执行质量优秀" in titles
@@ -223,7 +246,9 @@ class TestInsights:
         reviewer = ExecutionReviewer()
         fills = [
             _make_fill(side="BUY", fill_price=4.60, decision_price=4.50, order_id="B1"),
-            _make_fill(side="SELL", fill_price=4.50, decision_price=4.50, order_id="S1"),
+            _make_fill(
+                side="SELL", fill_price=4.50, decision_price=4.50, order_id="S1"
+            ),
         ]
         report = reviewer.review(fills)
         titles = [i.title for i in report.insights]
@@ -254,8 +279,14 @@ class TestInsights:
 class TestRecommendations:
     def test_default_good(self):
         reviewer = ExecutionReviewer()
-        fills = [_make_fill(fill_price=4.4900, decision_price=4.4900,
-                            arrival_price=4.4900, vwap_price=4.4900)]
+        fills = [
+            _make_fill(
+                fill_price=4.4900,
+                decision_price=4.4900,
+                arrival_price=4.4900,
+                vwap_price=4.4900,
+            )
+        ]
         report = reviewer.review(fills)
         assert any("执行质量良好" in r for r in report.recommendations)
 
@@ -277,8 +308,12 @@ class TestRecommendations:
     def test_algo_comparison(self):
         reviewer = ExecutionReviewer()
         fills = [
-            _make_fill(fill_price=4.4900, decision_price=4.4900, algo="TWAP", order_id="T1"),
-            _make_fill(fill_price=4.60, decision_price=4.50, algo="VWAP", order_id="V1"),
+            _make_fill(
+                fill_price=4.4900, decision_price=4.4900, algo="TWAP", order_id="T1"
+            ),
+            _make_fill(
+                fill_price=4.60, decision_price=4.50, algo="VWAP", order_id="V1"
+            ),
         ]
         report = reviewer.review(fills)
         assert any("TWAP" in r and "VWAP" in r for r in report.recommendations)
@@ -309,8 +344,15 @@ class TestRecommendations:
 class TestOverallScore:
     def test_perfect_score(self):
         reviewer = ExecutionReviewer()
-        fills = [_make_fill(fill_price=4.4900, decision_price=4.4900,
-                            arrival_price=4.4900, vwap_price=4.4900, fee=0.0)]
+        fills = [
+            _make_fill(
+                fill_price=4.4900,
+                decision_price=4.4900,
+                arrival_price=4.4900,
+                vwap_price=4.4900,
+                fee=0.0,
+            )
+        ]
         report = reviewer.review(fills)
         assert report.overall_score == 100.0
 

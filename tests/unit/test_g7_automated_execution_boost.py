@@ -22,6 +22,7 @@
     python -m pytest tests/unit/test_g7_automated_execution_boost.py -q
     python -m pytest tests/unit/test_g7_automated_execution_boost.py -v --tb=short --cov=utils.execution.automated_execution_system
 """
+
 from __future__ import annotations
 
 import json
@@ -64,6 +65,7 @@ from utils.execution.automated_execution_system import (  # noqa: E402
 # Fixtures & Helpers
 # ============================================================
 
+
 @pytest.fixture
 def clean_env(monkeypatch):
     """确保 TRADING_ENV 非 production, 避免实盘路径."""
@@ -93,13 +95,15 @@ def _make_execution_plan(
     """构造 execution_plan 辅助函数."""
     slices = []
     for i in range(num_slices):
-        slices.append({
-            "slice_id": i + 1,
-            "size": slice_size,
-            "direction": direction,
-            "instrument": instrument,
-            "price": price,
-        })
+        slices.append(
+            {
+                "slice_id": i + 1,
+                "size": slice_size,
+                "direction": direction,
+                "instrument": instrument,
+                "price": price,
+            }
+        )
     return {
         "trade_id": f"T_{uuid.uuid4().hex[:8]}",
         "instrument": instrument,
@@ -133,6 +137,7 @@ def _make_router_order(
 # ============================================================
 # 1. AutomatedExecutionSystem 初始化与配置加载 (16 tests)
 # ============================================================
+
 
 class TestAESInitialization:
     """重点1: AutomatedExecutionSystem 初始化/配置加载."""
@@ -290,6 +295,7 @@ class TestAESInitialization:
 # 2. 订单执行流程: process_execution_queue 状态机 (18 tests)
 # ============================================================
 
+
 class TestOrderExecutionFlow:
     """重点2: 订单执行流程 (下单/状态转换/重试/放弃)."""
 
@@ -317,13 +323,20 @@ class TestOrderExecutionFlow:
         assert order["execution_result"]["success"] is True
         assert len(fresh_router.execution_queue) == 0
 
-    def test_process_queue_single_failed_then_retry_pending(self, fresh_router, monkeypatch):
+    def test_process_queue_single_failed_then_retry_pending(
+        self, fresh_router, monkeypatch
+    ):
         """执行失败且 retry_count<3 → status 变回 pending."""
         plan = _make_execution_plan("600519.SH", "buy", 1, 100.0, 100.0)
         route_result = fresh_router.route_order(plan, "normal")
         order_id = route_result["routed_orders"][0]["order_id"]
 
-        fail_result = {"success": False, "error": "network timeout", "execution_time": 0, "slippage": 0}
+        fail_result = {
+            "success": False,
+            "error": "network timeout",
+            "execution_time": 0,
+            "slippage": 0,
+        }
         monkeypatch.setattr(fresh_router, "_execute_order", lambda o: fail_result)
 
         fresh_router.process_execution_queue()
@@ -339,7 +352,12 @@ class TestOrderExecutionFlow:
         plan = _make_execution_plan("600519.SH", "buy", 1, 100.0, 100.0)
         route_result = fresh_router.route_order(plan, "normal")
         order_id = route_result["routed_orders"][0]["order_id"]
-        fail_result = {"success": False, "error": "fail", "execution_time": 0, "slippage": 0}
+        fail_result = {
+            "success": False,
+            "error": "fail",
+            "execution_time": 0,
+            "slippage": 0,
+        }
         monkeypatch.setattr(fresh_router, "_execute_order", lambda o: fail_result)
 
         # 第1次失败 retry=0→1, pending
@@ -395,7 +413,9 @@ class TestOrderExecutionFlow:
         # 不抛异常
         fresh_router.process_execution_queue()
 
-    def test_process_queue_marks_inflight_before_execute(self, fresh_router, monkeypatch):
+    def test_process_queue_marks_inflight_before_execute(
+        self, fresh_router, monkeypatch
+    ):
         """G2 修复: 执行前标记 status=executing, 供并发计数."""
         plan = _make_execution_plan("600519.SH", "buy", 1, 100.0, 100.0)
         route_result = fresh_router.route_order(plan, "normal")
@@ -446,7 +466,9 @@ class TestOrderExecutionFlow:
         fresh_router.process_execution_queue()
         assert mock_record.call_count == 1
 
-    def test_record_fill_for_order_disabled_when_store_unavailable(self, fresh_router, monkeypatch):
+    def test_record_fill_for_order_disabled_when_store_unavailable(
+        self, fresh_router, monkeypatch
+    ):
         """_FILLS_STORE_AVAILABLE=False → 立即 return, 无副作用."""
         monkeypatch.setattr(
             "utils.execution.automated_execution_system._FILLS_STORE_AVAILABLE",
@@ -483,9 +505,14 @@ class TestOrderExecutionFlow:
                 {"symbol": "600519.SH", "side": "BUY"},
                 {"filled_size": 100, "average_price": 0},
             )
-        assert mock_store_cls.called is False or mock_store_cls.return_value.record_fill.called is False
+        assert (
+            mock_store_cls.called is False
+            or mock_store_cls.return_value.record_fill.called is False
+        )
 
-    def test_record_fill_for_order_calls_store_when_valid(self, fresh_router, monkeypatch):
+    def test_record_fill_for_order_calls_store_when_valid(
+        self, fresh_router, monkeypatch
+    ):
         """有效订单 → 调用 FillsStore.record_fill."""
         monkeypatch.setattr(
             "utils.execution.automated_execution_system._FILLS_STORE_AVAILABLE",
@@ -544,17 +571,27 @@ class TestOrderExecutionFlow:
 
         # 只处理队列首位的 1 个订单, 验证 popleft 恰好移除首位
         order_before = fresh_router.execution_queue[0]
+
         def limited_execute(order):
             if order is order_before:
                 return {"success": True, "execution_time": 0.1, "slippage": 0.001}
-            return {"success": False, "error": "stop", "execution_time": 0, "slippage": 0}
+            return {
+                "success": False,
+                "error": "stop",
+                "execution_time": 0,
+                "slippage": 0,
+            }
+
         original_execute = fresh_router._execute_order
         fresh_router._execute_order = limited_execute
         fresh_router.process_execution_queue()
         # process_execution_queue 会消费所有 pending 订单; 第二个订单失败后进入 pending,
         # 由于本轮 while 仍满足条件会再次处理, 最终队列会被清空.
         # 因此这里仅验证首单被执行且完成后 status 变化.
-        assert fresh_router.active_orders[order_before["order_id"]]["status"] == "completed"
+        assert (
+            fresh_router.active_orders[order_before["order_id"]]["status"]
+            == "completed"
+        )
         fresh_router._execute_order = original_execute
 
     def test_update_execution_stats_incremental_average(self, fresh_router):
@@ -596,12 +633,16 @@ class TestOrderExecutionFlow:
 # 3. 风控检查方法 (12 tests)
 # ============================================================
 
+
 class TestRiskChecks:
     """重点3: 风控检查方法."""
 
     def test_risk_pre_check_crisis_blocks(self, fresh_system):
         """市场状态 = crisis → 阻断."""
-        data = {"market_state": "crisis", "individual_scores": {"var": 0.1, "liquidity": 0.1}}
+        data = {
+            "market_state": "crisis",
+            "individual_scores": {"var": 0.1, "liquidity": 0.1},
+        }
         assert fresh_system._risk_pre_check(data) is False
 
     def test_risk_pre_check_stress_blocks(self, fresh_system):
@@ -620,7 +661,10 @@ class TestRiskChecks:
     def test_risk_pre_check_illiquid_state_passes(self, fresh_system):
         """illiquid / volatile 状态 → 不直接阻断 (由其他指标决定)."""
         for st in ("illiquid", "volatile", "normal"):
-            data = {"market_state": st, "individual_scores": {"var": 0.1, "liquidity": 0.1}}
+            data = {
+                "market_state": st,
+                "individual_scores": {"var": 0.1, "liquidity": 0.1},
+            }
             assert fresh_system._risk_pre_check(data) is True
 
     def test_risk_pre_check_var_exactly_08_blocks(self, fresh_system):
@@ -677,7 +721,10 @@ class TestRiskChecks:
         """config.risk_pre_check=False → _execute_daily_trading 跳过风控检查."""
         fresh_system.config["risk_pre_check"] = False
         # 完全 mock market_evaluator.evaluate_market_state (避免 np.triu 访问违例)
-        mock_eval_result = {"market_state": "normal", "individual_scores": {"var": 0.1, "liquidity": 0.1}}
+        mock_eval_result = {
+            "market_state": "normal",
+            "individual_scores": {"var": 0.1, "liquidity": 0.1},
+        }
         monkeypatch.setattr(
             fresh_system.market_evaluator,
             "evaluate_market_state",
@@ -688,12 +735,16 @@ class TestRiskChecks:
         # mock _generate_rebalance_orders 避免再平衡复杂路径
         monkeypatch.setattr(fresh_system, "_generate_rebalance_orders", lambda: None)
         # mock _generate_hedge_execution_orders
-        monkeypatch.setattr(fresh_system, "_generate_hedge_execution_orders", lambda hp: None)
+        monkeypatch.setattr(
+            fresh_system, "_generate_hedge_execution_orders", lambda hp: None
+        )
         # mock _update_*
         monkeypatch.setattr(fresh_system, "_update_historical_returns", lambda: None)
         monkeypatch.setattr(fresh_system, "_update_position_prices", lambda: None)
         # 用 mock 替换 _risk_pre_check, 验证不被调用
-        with patch.object(fresh_system, "_risk_pre_check", return_value=False) as mock_rpc:
+        with patch.object(
+            fresh_system, "_risk_pre_check", return_value=False
+        ) as mock_rpc:
             fresh_system._execute_daily_trading("daily_execution")
         assert mock_rpc.called is False
 
@@ -702,10 +753,13 @@ class TestRiskChecks:
 # 4. 仓位同步逻辑: 价格/收益率/市场数据 (16 tests)
 # ============================================================
 
+
 class TestPositionSync:
     """重点4: 仓位同步逻辑 (价格更新/收益率/市场数据)."""
 
-    def test_update_position_prices_no_positions_file(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_position_prices_no_positions_file(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """positions.json 不存在 → 直接 return, 无副作用."""
         monkeypatch.setattr(
             "utils.execution.automated_execution_system._PROJECT_ROOT",
@@ -714,7 +768,9 @@ class TestPositionSync:
         # 不抛异常
         fresh_system._update_position_prices()
 
-    def test_update_position_prices_wind_mcp_success(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_position_prices_wind_mcp_success(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """Wind MCP 可用 → 获取实时价格并写回."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -746,7 +802,9 @@ class TestPositionSync:
         assert saved["positions"]["pos1"]["est_price"] == 1850.0
         assert saved["positions"]["pos1"]["price_source"] == "wind_mcp"
 
-    def test_update_position_prices_wind_mcp_returns_none_skips(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_position_prices_wind_mcp_returns_none_skips(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """Wind MCP 返回 None/price=None → 计为失败, 不更新."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -775,7 +833,9 @@ class TestPositionSync:
         # 未更新
         assert saved["positions"]["p1"]["est_price"] == 1700.0
 
-    def test_update_position_prices_wind_mcp_exception_handled(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_position_prices_wind_mcp_exception_handled(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """Wind MCP 抛异常 → 静默跳过, 不中断."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -802,7 +862,9 @@ class TestPositionSync:
             # 不抛异常
             fresh_system._update_position_prices()
 
-    def test_update_position_prices_skips_no_code_or_shares(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_position_prices_skips_no_code_or_shares(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """持仓缺少 code 或 shares → 跳过."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -821,7 +883,9 @@ class TestPositionSync:
         )
         fresh_system._update_position_prices()  # 不抛异常
 
-    def test_update_position_prices_writes_when_any_success(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_position_prices_writes_when_any_success(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """有 ≥1 成功 → 才写回文件."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -858,7 +922,9 @@ class TestPositionSync:
         assert saved["positions"]["p1"]["est_price"] == 1800.0
         assert "last_update" in saved["positions"]["p1"]
 
-    def test_update_position_prices_outer_exception_handled(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_position_prices_outer_exception_handled(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """外层异常 → 捕获, 记日志, 不抛."""
         monkeypatch.setattr(
             "utils.execution.automated_execution_system._PROJECT_ROOT",
@@ -871,7 +937,9 @@ class TestPositionSync:
         # 不抛异常
         fresh_system._update_position_prices()
 
-    def test_update_historical_returns_no_positions(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_historical_returns_no_positions(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """positions.json 不存在 → return."""
         monkeypatch.setattr(
             "utils.execution.automated_execution_system._PROJECT_ROOT",
@@ -879,7 +947,9 @@ class TestPositionSync:
         )
         fresh_system._update_historical_returns()
 
-    def test_update_historical_returns_empty_symbols(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_historical_returns_empty_symbols(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """持仓有文件但 symbols 为空 → return."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -892,14 +962,20 @@ class TestPositionSync:
         )
         fresh_system._update_historical_returns()
 
-    def test_update_historical_returns_provider_get_historical_data(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_historical_returns_provider_get_historical_data(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """MarketDataProvider 成功返回 → 生成 returns/market JSON."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
         (config_dir / "positions.json").write_text(
-            json.dumps({"positions": {
-                "p1": {"code": "600519"},
-            }}),
+            json.dumps(
+                {
+                    "positions": {
+                        "p1": {"code": "600519"},
+                    }
+                }
+            ),
             encoding="utf-8",
         )
         monkeypatch.setattr(
@@ -908,14 +984,23 @@ class TestPositionSync:
         )
         fake_df = pd.DataFrame({"close": [100.0, 101.0, 102.0]})
         mock_provider_cls = MagicMock()
-        mock_provider_cls.return_value.get_historical_data.side_effect = [fake_df, fake_df]
-        with patch(
-            "utils.execution.automated_execution_system.MarketDataProvider",
-            mock_provider_cls,
-        ), patch("pandas.DataFrame.to_json"), patch("pandas.Series.to_json"):
+        mock_provider_cls.return_value.get_historical_data.side_effect = [
+            fake_df,
+            fake_df,
+        ]
+        with (
+            patch(
+                "utils.execution.automated_execution_system.MarketDataProvider",
+                mock_provider_cls,
+            ),
+            patch("pandas.DataFrame.to_json"),
+            patch("pandas.Series.to_json"),
+        ):
             fresh_system._update_historical_returns()
 
-    def test_update_historical_returns_provider_exception_noop(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_historical_returns_provider_exception_noop(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """provider.get_historical_data 抛异常 → continue, 不中断."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -928,14 +1013,18 @@ class TestPositionSync:
             str(tmp_path),
         )
         mock_provider_cls = MagicMock()
-        mock_provider_cls.return_value.get_historical_data.side_effect = KeyError("no data")
+        mock_provider_cls.return_value.get_historical_data.side_effect = KeyError(
+            "no data"
+        )
         with patch(
             "utils.execution.automated_execution_system.MarketDataProvider",
             mock_provider_cls,
         ):
             fresh_system._update_historical_returns()  # 不抛异常
 
-    def test_update_historical_returns_all_empty_skips_write(self, fresh_system, monkeypatch, tmp_path):
+    def test_update_historical_returns_all_empty_skips_write(
+        self, fresh_system, monkeypatch, tmp_path
+    ):
         """所有标的都获取失败 → returns_data 为空 → 不写盘."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -955,22 +1044,31 @@ class TestPositionSync:
         ):
             fresh_system._update_historical_returns()
         # 不应生成 returns_history.json
-        Path(__file__).parent.parent.parent / "utils" / "execution" / "config" / "returns_history.json"
+        Path(
+            __file__
+        ).parent.parent.parent / "utils" / "execution" / "config" / "returns_history.json"
         # 不检查真实文件是否存在 (其他测试用例可能创建), 只验证方法不崩溃
 
-    def test_update_historical_returns_outer_exception_caught(self, fresh_system, monkeypatch):
+    def test_update_historical_returns_outer_exception_caught(
+        self, fresh_system, monkeypatch
+    ):
         """外层异常 (如 MarketDataProvider 不存在) → 捕获, 不抛."""
         # 用不存在的路径让 json.load 崩溃
-        with patch(
-            "utils.execution.automated_execution_system.os.path.exists",
-            return_value=True,
-        ), patch(
-            "utils.execution.automated_execution_system.json.load",
-            side_effect=OSError("read fail"),
+        with (
+            patch(
+                "utils.execution.automated_execution_system.os.path.exists",
+                return_value=True,
+            ),
+            patch(
+                "utils.execution.automated_execution_system.json.load",
+                side_effect=OSError("read fail"),
+            ),
         ):
             fresh_system._update_historical_returns()
 
-    def test_get_reference_price_json_decode_error(self, fresh_router, monkeypatch, tmp_path):
+    def test_get_reference_price_json_decode_error(
+        self, fresh_router, monkeypatch, tmp_path
+    ):
         """positions.json 格式非法 → return None."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -981,13 +1079,17 @@ class TestPositionSync:
         )
         assert fresh_router._get_reference_price("600519") is None
 
-    def test_get_reference_price_price_0_or_negative_skipped(self, fresh_router, monkeypatch, tmp_path):
+    def test_get_reference_price_price_0_or_negative_skipped(
+        self, fresh_router, monkeypatch, tmp_path
+    ):
         """est_price = 0 且 last_price=0 → 跳过, return None."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
-        data = {"positions": {
-            "pos1": {"code": "600519", "est_price": 0, "last_price": -1.0},
-        }}
+        data = {
+            "positions": {
+                "pos1": {"code": "600519", "est_price": 0, "last_price": -1.0},
+            }
+        }
         (config_dir / "positions.json").write_text(json.dumps(data), encoding="utf-8")
         monkeypatch.setattr(
             "utils.execution.automated_execution_system._PROJECT_ROOT",
@@ -995,13 +1097,21 @@ class TestPositionSync:
         )
         assert fresh_router._get_reference_price("600519") is None
 
-    def test_get_reference_price_matches_symbol_substring(self, fresh_router, monkeypatch, tmp_path):
+    def test_get_reference_price_matches_symbol_substring(
+        self, fresh_router, monkeypatch, tmp_path
+    ):
         """code in key (key 可以是 "600519.SH" 等) → 命中."""
         config_dir = tmp_path / "config"
         config_dir.mkdir()
-        data = {"positions": {
-            "600519.SH_abc": {"code": "600519.SH", "est_price": 1800.0, "shares": 100},
-        }}
+        data = {
+            "positions": {
+                "600519.SH_abc": {
+                    "code": "600519.SH",
+                    "est_price": 1800.0,
+                    "shares": 100,
+                },
+            }
+        }
         (config_dir / "positions.json").write_text(json.dumps(data), encoding="utf-8")
         monkeypatch.setattr(
             "utils.execution.automated_execution_system._PROJECT_ROOT",
@@ -1014,6 +1124,7 @@ class TestPositionSync:
 # ============================================================
 # 5. 异常处理/回退路径 (12 tests)
 # ============================================================
+
 
 class TestExceptionFallback:
     """重点5: 异常处理/回退路径."""
@@ -1044,17 +1155,22 @@ class TestExceptionFallback:
             "_writeback_hedge_orders_to_trade_plan",
             MagicMock(),
         )
-        with patch(
-            "utils.execution.automated_execution_system.os.path.exists",
-            return_value=False,
-        ), patch(
-            "importlib.util.find_spec",
-            side_effect=ImportError("no hedge module"),
+        with (
+            patch(
+                "utils.execution.automated_execution_system.os.path.exists",
+                return_value=False,
+            ),
+            patch(
+                "importlib.util.find_spec",
+                side_effect=ImportError("no hedge module"),
+            ),
         ):
             fresh_system._generate_hedge_execution_orders({"action": "HEDGE"})
         # 异常被外层捕获, _consecutive_hedge_failures 未被设置 (非 B4 路径)
 
-    def test_consecutive_hedge_failures_3_triggers_alert(self, fresh_system, monkeypatch):
+    def test_consecutive_hedge_failures_3_triggers_alert(
+        self, fresh_system, monkeypatch
+    ):
         """连续3次对冲失败 → 调用 send_alert (CRITICAL)."""
         fresh_system._consecutive_hedge_failures = 2
         mock_alert = MagicMock()
@@ -1065,7 +1181,9 @@ class TestExceptionFallback:
         ):
             monkeypatch.setattr(fresh_system, "_update_historical_returns", MagicMock())
             monkeypatch.setattr(fresh_system, "_update_position_prices", MagicMock())
-            monkeypatch.setattr(fresh_system, "_writeback_hedge_orders_to_trade_plan", MagicMock())
+            monkeypatch.setattr(
+                fresh_system, "_writeback_hedge_orders_to_trade_plan", MagicMock()
+            )
             monkeypatch.setattr(fresh_system, "market_evaluator", MagicMock())
             fresh_system.market_evaluator.evaluate_market_state.return_value = {
                 "market_state": "normal",
@@ -1081,13 +1199,22 @@ class TestExceptionFallback:
                 "_generate_rebalance_orders",
                 MagicMock(side_effect=RuntimeError("rebalance missing")),
             )
-            with patch.object(fresh_system, "_get_market_data", return_value={
-                "volatility": 0.1, "liquidity": 1.0, "var_95": 0.01,
-                "sentiment_score": 0.0, "correlation_matrix": np.eye(3),
-            }):
+            with patch.object(
+                fresh_system,
+                "_get_market_data",
+                return_value={
+                    "volatility": 0.1,
+                    "liquidity": 1.0,
+                    "var_95": 0.01,
+                    "sentiment_score": 0.0,
+                    "correlation_matrix": np.eye(3),
+                },
+            ):
                 fresh_system._execute_daily_trading("daily_execution")
 
-    def test_consecutive_rebalance_failures_3_triggers_alert(self, fresh_system, monkeypatch):
+    def test_consecutive_rebalance_failures_3_triggers_alert(
+        self, fresh_system, monkeypatch
+    ):
         """连续3次再平衡失败 → send_alert CRITICAL."""
         fresh_system._consecutive_rebalance_failures = 2
         mock_alert = MagicMock()
@@ -1113,10 +1240,17 @@ class TestExceptionFallback:
                 "_generate_rebalance_orders",
                 MagicMock(side_effect=RuntimeError("rebalance module missing")),
             )
-            with patch.object(fresh_system, "_get_market_data", return_value={
-                "volatility": 0.1, "liquidity": 1.0, "var_95": 0.01,
-                "sentiment_score": 0.0, "correlation_matrix": np.eye(3),
-            }):
+            with patch.object(
+                fresh_system,
+                "_get_market_data",
+                return_value={
+                    "volatility": 0.1,
+                    "liquidity": 1.0,
+                    "var_95": 0.01,
+                    "sentiment_score": 0.0,
+                    "correlation_matrix": np.eye(3),
+                },
+            ):
                 fresh_system._execute_daily_trading("daily_execution")
         # _consecutive_rebalance_failures 从 2 → 3
         assert getattr(fresh_system, "_consecutive_rebalance_failures", 0) >= 3
@@ -1136,10 +1270,17 @@ class TestExceptionFallback:
             "volatility_regime": "normal",
             "confidence": 0.8,
         }
-        with patch.object(fresh_system, "_get_market_data", return_value={
-            "volatility": 0.1, "liquidity": 1.0, "var_95": 0.01,
-            "sentiment_score": 0.0, "correlation_matrix": np.eye(3),
-        }):
+        with patch.object(
+            fresh_system,
+            "_get_market_data",
+            return_value={
+                "volatility": 0.1,
+                "liquidity": 1.0,
+                "var_95": 0.01,
+                "sentiment_score": 0.0,
+                "correlation_matrix": np.eye(3),
+            },
+        ):
             monkeypatch.setattr(
                 fresh_system,
                 "_generate_rebalance_orders",
@@ -1266,7 +1407,9 @@ class TestExceptionFallback:
         monkeypatch.setattr(time, "sleep", lambda s: sleep_calls.append(s))
         fresh_system._performance_monitoring_loop()
 
-    def test_perf_monitor_loop_zero_orders_skips_warnings(self, fresh_system, monkeypatch):
+    def test_perf_monitor_loop_zero_orders_skips_warnings(
+        self, fresh_system, monkeypatch
+    ):
         """total_orders = 0 → debug 日志, 不告警."""
         fresh_system.is_running = True
         fresh_system.order_router.execution_stats["total_orders"] = 0
@@ -1319,6 +1462,7 @@ class TestExceptionFallback:
 # 6. 批量订单处理 (10 tests)
 # ============================================================
 
+
 class TestBatchOrderProcessing:
     """重点6: 批量订单处理."""
 
@@ -1340,13 +1484,15 @@ class TestBatchOrderProcessing:
         slices = []
         symbols = ["600519.SH", "000001.SZ", "300750.SZ", "688001.SH"]
         for i, s in enumerate(symbols):
-            slices.append({
-                "slice_id": i + 1,
-                "size": 100.0 + i * 10,
-                "direction": "buy" if i % 2 == 0 else "sell",
-                "instrument": s,
-                "price": 10.0 * (i + 1),
-            })
+            slices.append(
+                {
+                    "slice_id": i + 1,
+                    "size": 100.0 + i * 10,
+                    "direction": "buy" if i % 2 == 0 else "sell",
+                    "instrument": s,
+                    "price": 10.0 * (i + 1),
+                }
+            )
         plan = {
             "trade_id": "BATCH_1",
             "instrument": slices[0]["instrument"],
@@ -1416,10 +1562,30 @@ class TestBatchOrderProcessing:
     def test_route_order_batch_skip_invalid_slices_mixed(self, fresh_router):
         """批量中部分切片无效 → 只跳过无效, 有效切片正常路由."""
         slices = [
-            {"slice_id": 1, "size": 100, "direction": "buy", "instrument": "600519.SH"},  # ok
-            {"slice_id": 2, "size": 100, "direction": "buy", "instrument": ""},  # 空 symbol 跳过
-            {"slice_id": 3, "size": 100, "direction": "", "instrument": "000001.SZ"},  # 空 direction → buy
-            {"slice_id": 4, "size": 100, "direction": "", "instrument": ""},  # 都空 → symbol 空跳过
+            {
+                "slice_id": 1,
+                "size": 100,
+                "direction": "buy",
+                "instrument": "600519.SH",
+            },  # ok
+            {
+                "slice_id": 2,
+                "size": 100,
+                "direction": "buy",
+                "instrument": "",
+            },  # 空 symbol 跳过
+            {
+                "slice_id": 3,
+                "size": 100,
+                "direction": "",
+                "instrument": "000001.SZ",
+            },  # 空 direction → buy
+            {
+                "slice_id": 4,
+                "size": 100,
+                "direction": "",
+                "instrument": "",
+            },  # 都空 → symbol 空跳过
         ]
         plan = {
             "trade_id": "BATCH_MIXED",
@@ -1446,7 +1612,12 @@ class TestBatchOrderProcessing:
 
         def conditional_fail(order):
             if order["order_id"] in fail_ids:
-                return {"success": False, "error": "timeout", "execution_time": 0, "slippage": 0}
+                return {
+                    "success": False,
+                    "error": "timeout",
+                    "execution_time": 0,
+                    "slippage": 0,
+                }
             return {"success": True, "execution_time": 0.05, "slippage": 0.0001}
 
         monkeypatch.setattr(fresh_router, "_execute_order", conditional_fail)
@@ -1482,6 +1653,7 @@ class TestBatchOrderProcessing:
 # 7. _get_market_data 三路径 & _market_state_evaluator 补充 (6 tests)
 # ============================================================
 
+
 class TestGetMarketDataPaths:
     """市场数据获取三路径: Wind MCP → 历史数据 → 完全失败异常链."""
 
@@ -1495,7 +1667,9 @@ class TestGetMarketDataPaths:
             "utils.execution.automated_execution_system.wind_get_quote",
             return_value={"price": 4200.0},
         ):
-            base_dir = Path(__file__).parent.parent.parent / "utils" / "execution" / "config"
+            base_dir = (
+                Path(__file__).parent.parent.parent / "utils" / "execution" / "config"
+            )
             if base_dir.exists():
                 # 若历史文件存在 → 会走计算分支
                 try:
@@ -1531,48 +1705,65 @@ class TestGetMarketDataPaths:
                 # 历史文件也不存在 → 正常
                 pass
 
-    def test_get_market_data_all_sources_fail_raises_chained(self, fresh_system, monkeypatch):
+    def test_get_market_data_all_sources_fail_raises_chained(
+        self, fresh_system, monkeypatch
+    ):
         """Wind MCP 失败 + 历史文件不存在/无效 → RuntimeError 异常链."""
         monkeypatch.setattr(
             "utils.execution.automated_execution_system._WIND_MCP_AVAILABLE",
             False,
         )
         # 让 os.path.exists 返回 False, 模拟 config/ 下无文件
-        with patch(
-            "utils.execution.automated_execution_system.os.path.exists",
-            return_value=False,
-        ), pytest.raises(RuntimeError) as exc_info:
+        with (
+            patch(
+                "utils.execution.automated_execution_system.os.path.exists",
+                return_value=False,
+            ),
+            pytest.raises(RuntimeError) as exc_info,
+        ):
             fresh_system._get_market_data()
         # 外层异常消息含 "市场数据完全不可用"
         assert "市场数据完全不可用" in str(exc_info.value)
         # 异常链 (from e)
         assert exc_info.value.__cause__ is not None
 
-    def test_get_market_data_history_calc_exception_raises(self, fresh_system, monkeypatch):
+    def test_get_market_data_history_calc_exception_raises(
+        self, fresh_system, monkeypatch
+    ):
         """历史文件存在但计算异常 → RuntimeError (拒绝假数据)."""
         monkeypatch.setattr(
             "utils.execution.automated_execution_system._WIND_MCP_AVAILABLE",
             False,
         )
         # exists=True, 但 pd.read_json 抛异常
-        with patch(
-            "utils.execution.automated_execution_system.os.path.exists",
-            return_value=True,
-        ), patch(
-            "utils.execution.automated_execution_system.pd.read_json",
-            side_effect=ValueError("corrupt file"),
-        ), pytest.raises(RuntimeError):
+        with (
+            patch(
+                "utils.execution.automated_execution_system.os.path.exists",
+                return_value=True,
+            ),
+            patch(
+                "utils.execution.automated_execution_system.pd.read_json",
+                side_effect=ValueError("corrupt file"),
+            ),
+            pytest.raises(RuntimeError),
+        ):
             fresh_system._get_market_data()
 
     def test_evaluator_history_confidence_boost(self):
         """连续4个相同状态 → 置信度 +0.2 (evaluate_market_state 取最小3次后追加到 history)."""
         ev = MarketStateEvaluator()
         normal_data = {
-            "volatility": 0.10, "liquidity": 0.9, "var_95": 0.01,
-            "sentiment_score": 0.0, "correlation_matrix": np.eye(3),
+            "volatility": 0.10,
+            "liquidity": 0.9,
+            "var_95": 0.01,
+            "sentiment_score": 0.0,
+            "correlation_matrix": np.eye(3),
             "individual_scores": {
-                "volatility": 0.3, "liquidity": 0.9,
-                "var": 0.2, "sentiment": 0.1, "correlation": 0.1,
+                "volatility": 0.3,
+                "liquidity": 0.9,
+                "var": 0.2,
+                "sentiment": 0.1,
+                "correlation": 0.1,
             },
         }
         for _ in range(4):
@@ -1593,6 +1784,7 @@ class TestGetMarketDataPaths:
 # 8. TypedDict / 类型安全 + ExecutionStrategy 补充 (6 tests)
 # ============================================================
 
+
 class TestTypedDictsAndStrategy:
     """TypedDict 合约 & ExecutionStrategy 补充."""
 
@@ -1610,7 +1802,12 @@ class TestTypedDictsAndStrategy:
             "max_concurrent": 8,
             "min_balance": 200000,
         }
-        assert set(pool.keys()) == {"broker", "priority", "max_concurrent", "min_balance"}
+        assert set(pool.keys()) == {
+            "broker",
+            "priority",
+            "max_concurrent",
+            "min_balance",
+        }
 
     def test_execution_strategy_select_exception_fallback(self):
         """select_execution_strategy 异常 → 返回 conservative 策略带 error 字段."""
@@ -1668,6 +1865,7 @@ class TestTypedDictsAndStrategy:
 # ============================================================
 # 9. TradingCalendar 补充 & AES 启停 & _match_current_execution (4 tests)
 # ============================================================
+
 
 class TestCalendarAndSystemLifecycle:
     """TradingCalendar 补充 & AES 启停 & _match_current_execution."""

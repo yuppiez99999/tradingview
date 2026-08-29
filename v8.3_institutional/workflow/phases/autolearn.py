@@ -3,6 +3,7 @@
 原位置: daily_workflow.py L5986-L6053
 优先使用增强训练器 (真实OHLCV + 情绪因子 + 自适应重训), 不可用时回退到旧训练器。
 """
+
 from __future__ import annotations
 
 import logging
@@ -73,16 +74,21 @@ def phase_autolearn(ctx: WorkflowContext) -> bool:
             "failed": result.get("failed", 0),
             "signals_summary": summary,
             "top_signals": sorted(
-                [(k, v.get("signal", 0)) for k, v in signals.get("signals", {}).items()],
+                [
+                    (k, v.get("signal", 0))
+                    for k, v in signals.get("signals", {}).items()
+                ],
                 key=lambda x: abs(x[1]),
                 reverse=True,
             )[:5],
             "report_path": str(report_path) if report_path else None,
         }
-        logger.info(f"Phase 8 完成: 训练 {result.get('trained', 0)} 标的, "
-                    f"信号 {summary.get('total', 0)} 个 "
-                    f"(多 {summary.get('bullish', 0)}/空 {summary.get('bearish', 0)}/"
-                    f"中性 {summary.get('neutral', 0)})")
+        logger.info(
+            f"Phase 8 完成: 训练 {result.get('trained', 0)} 标的, "
+            f"信号 {summary.get('total', 0)} 个 "
+            f"(多 {summary.get('bullish', 0)}/空 {summary.get('bearish', 0)}/"
+            f"中性 {summary.get('neutral', 0)})"
+        )
         return True
 
     except Exception as e:  # fail-safe

@@ -56,3 +56,14 @@ assert result.compliant  # True
 | max_participation | 10% | 最大市场占比 |
 | max_cvar | 500 bps | CVaR 上限 |
 | price_limit_pct | ±10% | 涨跌停限制 |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 15%)
+- [篮子清算最小 shortfall](basket-liquidation.md) (相似度 10%)
+- [TradingGroup 自反思机制 (Self-Reflection + Data-Synthesis + Dynamic Stops)](trading-group-reflection.md) (相似度 9%)
+- [AI-Trader 实时未污染评估基准 (LIT-1.4)](ai-trader-eval-benchmark.md) (相似度 7%)
+- [KTD-Fin 记忆控制评估基准](ktd-fin-eval.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

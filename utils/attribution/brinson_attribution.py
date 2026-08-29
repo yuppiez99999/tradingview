@@ -206,11 +206,17 @@ class SectorAttribution:
             "benchmark_return": round(self.benchmark_return, DEFAULT_RETURN_PRECISION),
             "weight_diff": round(self.weight_diff, DEFAULT_DECIMAL_PRECISION),
             "return_diff": round(self.return_diff, DEFAULT_RETURN_PRECISION),
-            "allocation_effect": round(self.allocation_effect, DEFAULT_DECIMAL_PRECISION),
+            "allocation_effect": round(
+                self.allocation_effect, DEFAULT_DECIMAL_PRECISION
+            ),
             "selection_effect": round(self.selection_effect, DEFAULT_DECIMAL_PRECISION),
-            "interaction_effect": round(self.interaction_effect, DEFAULT_DECIMAL_PRECISION),
+            "interaction_effect": round(
+                self.interaction_effect, DEFAULT_DECIMAL_PRECISION
+            ),
             "total_effect": round(self.total_effect, DEFAULT_DECIMAL_PRECISION),
-            "contribution_to_excess": round(self.contribution_to_excess, DEFAULT_DECIMAL_PRECISION),
+            "contribution_to_excess": round(
+                self.contribution_to_excess, DEFAULT_DECIMAL_PRECISION
+            ),
         }
 
 
@@ -255,9 +261,15 @@ class BrinsonResult:
             "total_return": round(self.total_return, DEFAULT_RETURN_PRECISION),
             "benchmark_return": round(self.benchmark_return, DEFAULT_RETURN_PRECISION),
             "excess_return": round(self.excess_return, DEFAULT_RETURN_PRECISION),
-            "total_allocation_effect": round(self.total_allocation_effect, DEFAULT_DECIMAL_PRECISION),
-            "total_selection_effect": round(self.total_selection_effect, DEFAULT_DECIMAL_PRECISION),
-            "total_interaction_effect": round(self.total_interaction_effect, DEFAULT_DECIMAL_PRECISION),
+            "total_allocation_effect": round(
+                self.total_allocation_effect, DEFAULT_DECIMAL_PRECISION
+            ),
+            "total_selection_effect": round(
+                self.total_selection_effect, DEFAULT_DECIMAL_PRECISION
+            ),
+            "total_interaction_effect": round(
+                self.total_interaction_effect, DEFAULT_DECIMAL_PRECISION
+            ),
             "residual": round(self.residual, DEFAULT_DECIMAL_PRECISION),
             "n_sectors": self.n_sectors,
             "benchmark_code": self.benchmark_code,
@@ -283,14 +295,22 @@ class BrinsonResult:
         lines.append("")
         lines.append("| 效应类型 | 数值 | 占比 |")
         lines.append("|---------|------|------|")
-        total_effect = self.total_allocation_effect + self.total_selection_effect + self.total_interaction_effect
+        total_effect = (
+            self.total_allocation_effect
+            + self.total_selection_effect
+            + self.total_interaction_effect
+        )
         for name, value in [
             ("配置效应", self.total_allocation_effect),
             ("选股效应", self.total_selection_effect),
             ("交互效应", self.total_interaction_effect),
             ("合计", total_effect),
         ]:
-            pct = f"{value / total_effect * 100:.2f}%" if abs(total_effect) > ZERO_RETURN_EPSILON else "N/A"
+            pct = (
+                f"{value / total_effect * 100:.2f}%"
+                if abs(total_effect) > ZERO_RETURN_EPSILON
+                else "N/A"
+            )
             lines.append(f"| {name} | {value:.6f} | {pct} |")
         lines.append(f"| 残差 (应为 0) | {self.residual:.6f} | - |")
         lines.append("")
@@ -335,7 +355,9 @@ def compute_allocation_effect(
     Returns:
         配置效应 AR_i
     """
-    return (portfolio_weight - benchmark_weight) * (benchmark_sector_return - benchmark_total_return)
+    return (portfolio_weight - benchmark_weight) * (
+        benchmark_sector_return - benchmark_total_return
+    )
 
 
 def compute_selection_effect(
@@ -421,7 +443,11 @@ def validate_weights(
 
     weight_sum = sum(float(w) for w in weights.values())
     if abs(weight_sum - 1.0) > tolerance:
-        return False, weight_sum, f"权重和 {weight_sum:.6f} 偏离 1.0 超过容差 {tolerance}"
+        return (
+            False,
+            weight_sum,
+            f"权重和 {weight_sum:.6f} 偏离 1.0 超过容差 {tolerance}",
+        )
 
     return True, weight_sum, ""
 
@@ -639,11 +665,19 @@ class BrinsonAttributionManager:
         self._report_cfg = self._config.get("report", {}) or {}
 
         # 从配置加载参数
-        self._benchmark_code = str(self._settings.get("primary_benchmark", DEFAULT_PRIMARY_BENCHMARK))
-        self._weight_tolerance = float(self._settings.get("weight_sum_tolerance", DEFAULT_WEIGHT_SUM_TOLERANCE))
+        self._benchmark_code = str(
+            self._settings.get("primary_benchmark", DEFAULT_PRIMARY_BENCHMARK)
+        )
+        self._weight_tolerance = float(
+            self._settings.get("weight_sum_tolerance", DEFAULT_WEIGHT_SUM_TOLERANCE)
+        )
         self._min_sectors = int(self._settings.get("min_sectors", DEFAULT_MIN_SECTORS))
-        self._zero_weight_epsilon = float(self._thresholds.get("zero_weight_epsilon", ZERO_WEIGHT_EPSILON))
-        self._abnormal_threshold = float(self._thresholds.get("abnormal_return_threshold", ABNORMAL_RETURN_THRESHOLD))
+        self._zero_weight_epsilon = float(
+            self._thresholds.get("zero_weight_epsilon", ZERO_WEIGHT_EPSILON)
+        )
+        self._abnormal_threshold = float(
+            self._thresholds.get("abnormal_return_threshold", ABNORMAL_RETURN_THRESHOLD)
+        )
 
         # 行业名称映射 (从配置加载, 不存在则用默认)
         self._sector_names: dict[str, str] = dict(SECTOR_NAMES)
@@ -656,7 +690,8 @@ class BrinsonAttributionManager:
 
         # 默认基准权重 (从配置加载)
         self._default_benchmark_weights: dict[str, float] = {
-            k: float(v) for k, v in (self._config.get("benchmark_sector_weights", {}) or {}).items()
+            k: float(v)
+            for k, v in (self._config.get("benchmark_sector_weights", {}) or {}).items()
         }
 
     def _load_config(self, config_name: str) -> dict[str, Any]:
@@ -669,7 +704,16 @@ class BrinsonAttributionManager:
                     config_name,
                 )
             return cfg
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning(
                 "[Brinson] 配置加载失败: %s (%s), 使用默认配置",
                 config_name,
@@ -683,7 +727,17 @@ class BrinsonAttributionManager:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(self._feature_flag_name))
-        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
     # ============================================================
@@ -764,7 +818,11 @@ class BrinsonAttributionManager:
             return BrinsonResult(
                 attribution_date=attribution_date,
                 benchmark_code=benchmark_code or self._benchmark_code,
-                status=STATUS_EMPTY_INPUT if isinstance(e, InvalidInputError) else STATUS_SECTOR_MISMATCH,
+                status=(
+                    STATUS_EMPTY_INPUT
+                    if isinstance(e, InvalidInputError)
+                    else STATUS_SECTOR_MISMATCH
+                ),
                 reason=str(e),
             )
 
@@ -836,7 +894,9 @@ class BrinsonAttributionManager:
             ret = float(pos.get("return", 0.0))
 
             sector_weights[sector] = sector_weights.get(sector, 0.0) + weight
-            sector_weighted_returns[sector] = sector_weighted_returns.get(sector, 0.0) + weight * ret
+            sector_weighted_returns[sector] = (
+                sector_weighted_returns.get(sector, 0.0) + weight * ret
+            )
 
         # 行业收益率 = 行业内加权平均收益率 = Σ(w_i × r_i) / Σ(w_i)
         sector_returns: dict[str, float] = {}
@@ -876,7 +936,16 @@ def is_brinson_attribution_enabled() -> bool:
         return bool(is_enabled(FLAG_NAME))
     except ImportError:
         return False
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         return False
 
 

@@ -136,3 +136,14 @@
 - CI 配置: `.github/workflows/ci.yml`
 - 关联文档: `cairn/test-health-20260819.md`（测试健康度）
 - 关联文档: `cairn/exception-handling-standards.md`（异常处理标准）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [工程 CI/质量 (Wave 7-QC 衔接) (2026-08-24)](engineering-qc-20260824.md) (相似度 11%)
+- [测试健康度治理经验（2026-08-19）](test-health-20260819.md) (相似度 10%)
+- [2026-08-08 代码审查修复批次经验沉淀](code-review-fix-batch-20260808.md) (相似度 10%)
+- [工业级防复发机制 (Industrial Grade Anti-Regression Framework)](industrial-grade-anti-regression-framework.md) (相似度 9%)
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

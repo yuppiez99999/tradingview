@@ -50,7 +50,9 @@ class TestCheckNoTrigger:
 class TestCheckTrigger:
     """触发测试。"""
 
-    def test_daily_drop_trigger_emergency_reassess(self, breaker: CircuitBreaker) -> None:
+    def test_daily_drop_trigger_emergency_reassess(
+        self, breaker: CircuitBreaker
+    ) -> None:
         # Arrange & Act — 5.1% 触发紧急再评估
         status = breaker.check(daily_drop=0.051, max_drawdown=0.10)
         # Assert

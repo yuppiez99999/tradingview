@@ -9,6 +9,7 @@ B1.2 验收测试: 验证 utils/trade_calendar.is_trading_day
 P0 场景: 国庆 2026-10-01 (周四, 但属法定节假日, 应非交易日)
         春节 2026-02-16 (周一, 春节假期, 应非交易日)
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -28,6 +29,7 @@ from utils.trade_calendar import is_trading_day, next_trading_day  # noqa: E402
 # ============================================================
 # 多类型入参兼容性 (B1.2 核心改动)
 # ============================================================
+
 
 class TestIsTradingDayMultiTypeArgs:
     """is_trading_day 应支持 str / date / datetime / None 入参"""
@@ -65,6 +67,7 @@ class TestIsTradingDayMultiTypeArgs:
 # 节假日识别 (B1.2 核心修复点)
 # ============================================================
 
+
 class TestHolidayRecognition:
     """验证 is_trading_day 能正确识别 A 股法定节假日
 
@@ -81,7 +84,9 @@ class TestHolidayRecognition:
             # 尝试一次拉取
             dates = trade_calendar._load_year_dates(2026, allow_fetch=True)
         if not dates:
-            pytest.skip("2026 年交易日历不可用 (无缓存且 akshare 不可达), 跳过节假日断言")
+            pytest.skip(
+                "2026 年交易日历不可用 (无缓存且 akshare 不可达), 跳过节假日断言"
+            )
         return dates
 
     def test_national_day_holiday(self, ensure_2026_calendar):
@@ -115,6 +120,7 @@ class TestHolidayRecognition:
 # 周末判断 (基础功能, 不依赖日历数据)
 # ============================================================
 
+
 class TestWeekendFallback:
     """即使无节假日数据, 周末也应判定为非交易日"""
 
@@ -140,6 +146,7 @@ class TestWeekendFallback:
 # next_trading_day 基础验证
 # ============================================================
 
+
 class TestNextTradingDay:
     """next_trading_day 应跳过周末和节假日"""
 
@@ -160,6 +167,7 @@ class TestNextTradingDay:
 # 回退模式 (无缓存/无网络)
 # ============================================================
 
+
 class TestFallbackMode:
     """无日历缓存时, 回退到 '周一至周五即交易日' 模式"""
 
@@ -168,7 +176,9 @@ class TestFallbackMode:
         # 重定向 CACHE_DIR 到临时空目录
         monkeypatch.setattr(trade_calendar, "CACHE_DIR", tmp_path)
         # mock akshare 拉取返回 None
-        monkeypatch.setattr(trade_calendar, "_fetch_trade_dates_via_akshare", lambda y: None)
+        monkeypatch.setattr(
+            trade_calendar, "_fetch_trade_dates_via_akshare", lambda y: None
+        )
 
         # 周一应判定为交易日 (回退模式)
         assert is_trading_day(date(2026, 7, 13)) is True
@@ -180,6 +190,7 @@ class TestFallbackMode:
 # daily_trade_executor 调用方等价性 (B1.2 验收核心)
 # ============================================================
 
+
 class TestDailyTradeExecutorIntegration:
     """验证 daily_trade_executor.py 删除本地 is_trading_day 后,
     使用 utils.trade_calendar.is_trading_day 行为等价"""
@@ -187,6 +198,7 @@ class TestDailyTradeExecutorIntegration:
     def test_root_daily_trade_executor_imports(self):
         """根目录 daily_trade_executor 应使用 utils.trade_calendar.is_trading_day"""
         import daily_trade_executor as dte
+
         # 验证 is_trading_day 是从 utils.trade_calendar 导入的
         assert dte.is_trading_day is trade_calendar.is_trading_day
 
@@ -199,7 +211,10 @@ class TestDailyTradeExecutorIntegration:
         改为条件跳过: 若将来真的新增该副本, 守护逻辑自动恢复生效。
         """
         import importlib.util
-        ms_dte_path = PROJECT_ROOT / "ms_strategy" / "scripts" / "daily_trade_executor.py"
+
+        ms_dte_path = (
+            PROJECT_ROOT / "ms_strategy" / "scripts" / "daily_trade_executor.py"
+        )
         if not ms_dte_path.exists():
             pytest.skip(f"ms_strategy 副本不存在, 跳过等价性校验: {ms_dte_path}")
         spec = importlib.util.spec_from_file_location("ms_dte", ms_dte_path)
@@ -210,9 +225,10 @@ class TestDailyTradeExecutorIntegration:
     def test_weekend_skipped_in_accumulation_loop(self):
         """建仓期交易日计数循环应跳过周末 (原 daily_trade_executor:204 行为)"""
         from datetime import timedelta
+
         # 模拟一周的累计交易日计数 (与 daily_trade_executor 逻辑等价)
         start = date(2026, 7, 13)  # 周一
-        end = date(2026, 7, 19)    # 周日
+        end = date(2026, 7, 19)  # 周日
         current = start
         trading_days = 0
         while current <= end:

@@ -13,20 +13,23 @@ from enum import Enum
 
 class OptionType(Enum):
     """期权类型"""
+
     CALL = "CALL"
     PUT = "PUT"
 
 
 class OptionSide(Enum):
     """持仓方向"""
+
     LONG = "LONG"
     SHORT = "SHORT"
 
 
 class ExerciseStyle(Enum):
     """行权方式"""
-    EUROPEAN = "EUROPEAN"   # 欧式 (仅到期日行权)
-    AMERICAN = "AMERICAN"   # 美式 (到期前任一天可行权)
+
+    EUROPEAN = "EUROPEAN"  # 欧式 (仅到期日行权)
+    AMERICAN = "AMERICAN"  # 美式 (到期前任一天可行权)
 
 
 @dataclass(frozen=True)
@@ -74,8 +77,7 @@ class OptionSpec:
         """到期收益 (不考虑权利金)"""
         if self.is_call:
             return max(spot - self.strike, 0.0)
-        else:
-            return max(self.strike - spot, 0.0)
+        return max(self.strike - spot, 0.0)
 
     def moneyness(self, spot: float) -> float:
         """计算实值程度 (S/K for call, K/S for put)"""
@@ -83,8 +85,7 @@ class OptionSpec:
             return 0.0
         if self.is_call:
             return spot / self.strike
-        else:
-            return self.strike / spot
+        return self.strike / spot
 
     @property
     def is_itm(self, spot: float | None = None) -> bool:

@@ -150,7 +150,9 @@ class AutoRetrainScheduler:
         self.config = config
         self.enabled = bool(config.get("enabled", False))
         self.drift_threshold_count = int(config.get("drift_threshold_count", 3))
-        self.drift_threshold_severity = config.get("drift_threshold_severity", "critical")
+        self.drift_threshold_severity = config.get(
+            "drift_threshold_severity", "critical"
+        )
         self.min_interval_hours = float(config.get("min_interval_hours", 24))
         self.training_script = config.get("training_script", "qlib_v9_train.py")
         self.training_timeout_sec = int(config.get("training_timeout_sec", 1800))
@@ -186,7 +188,14 @@ class AutoRetrainScheduler:
 
             mlops_cfg = get_config("mlops", default={})
             return mlops_cfg.get("auto_retrain", {})  # type: ignore[index]
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("加载 mlops 配置失败, 使用默认值: %s", e)
             return {"enabled": False}
 
@@ -238,7 +247,14 @@ class AutoRetrainScheduler:
                     if line:
                         data = json.loads(line)
                         self._tasks.append(RetrainTask(**data))
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning("加载历史任务失败: %s", e, exc_info=True)
 
     def _save_task(self, task: RetrainTask) -> None:
@@ -246,7 +262,9 @@ class AutoRetrainScheduler:
         tasks_file = self._tasks_dir / "tasks.jsonl"
         try:
             with open(tasks_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(task.to_dict(), ensure_ascii=False, default=str) + "\n")
+                f.write(
+                    json.dumps(task.to_dict(), ensure_ascii=False, default=str) + "\n"
+                )
         except OSError as e:
             logger.warning("任务保存失败: %s", e)
 
@@ -284,8 +302,13 @@ class AutoRetrainScheduler:
         """
         with self._lock:
             # 检查是否已有训练在跑
-            if self._current_task is not None and self._current_task.status == RetrainStatus.RUNNING.value:
-                raise TrainingInProgressError(f"已有训练任务在执行: {self._current_task.task_id}")
+            if (
+                self._current_task is not None
+                and self._current_task.status == RetrainStatus.RUNNING.value
+            ):
+                raise TrainingInProgressError(
+                    f"已有训练任务在执行: {self._current_task.task_id}"
+                )
             # 检查最小间隔
             if self._last_retrain_time is not None:
                 elapsed = datetime.utcnow() - self._last_retrain_time
@@ -297,7 +320,9 @@ class AutoRetrainScheduler:
                     )
                     return False
             # 创建任务
-            task_id = f"retrain_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{trigger.value}"
+            task_id = (
+                f"retrain_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{trigger.value}"
+            )
             task = RetrainTask(
                 task_id=task_id,
                 trigger=trigger.value,
@@ -358,7 +383,14 @@ class AutoRetrainScheduler:
                 task.task_id,
                 metrics,
             )
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             task.status = RetrainStatus.FAILED.value
             task.error = str(e)
             logger.exception("训练异常: %s", e)
@@ -406,8 +438,18 @@ class AutoRetrainScheduler:
                 "stderr": result.stderr,
             }
         except subprocess.TimeoutExpired:
-            return {"success": False, "error": f"训练超时 ({self.training_timeout_sec}s)"}
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+            return {
+                "success": False,
+                "error": f"训练超时 ({self.training_timeout_sec}s)",
+            }
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             return {"success": False, "error": str(e)}
 
     def _load_trained_model(self, training_result: dict[str, Any]) -> tuple:
@@ -475,7 +517,9 @@ class AutoRetrainScheduler:
 
             # 获取当前 production 版本作为 champion
             champion = self.model_registry.get_production_version(task.model_name)
-            _champion_version = f"{task.model_name}_v{champion.version}" if champion else "baseline"  # noqa: F841
+            _champion_version = (
+                f"{task.model_name}_v{champion.version}" if champion else "baseline"
+            )  # noqa: F841
             test_name = f"auto_{task.model_name}_{task.task_id}"
             config = ABTestConfig(
                 name=test_name,
@@ -534,7 +578,9 @@ class AutoRetrainScheduler:
                 # _stop_event 默认未 set, 用 thread None 判断是否启动过
                 pass
             self._stop_event.set()
-            thread_was_running = self._scheduler_thread is not None and self._scheduler_thread.is_alive()
+            thread_was_running = (
+                self._scheduler_thread is not None and self._scheduler_thread.is_alive()
+            )
             if self._scheduler_thread and self._scheduler_thread.is_alive():
                 self._scheduler_thread.join(timeout=5.0)
             self._scheduler_thread = None
@@ -548,7 +594,14 @@ class AutoRetrainScheduler:
         while not self._stop_event.is_set():
             try:
                 self._scheduled_check()
-            except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.exception("定时检查异常: %s", e)
             self._stop_event.wait(timeout=check_interval_sec)
 
@@ -575,10 +628,19 @@ class AutoRetrainScheduler:
         with self._lock:
             return {
                 "enabled": self.enabled,
-                "is_running": (self._scheduler_thread is not None and self._scheduler_thread.is_alive()),
-                "current_task": (self._current_task.to_dict() if self._current_task else None),
+                "is_running": (
+                    self._scheduler_thread is not None
+                    and self._scheduler_thread.is_alive()
+                ),
+                "current_task": (
+                    self._current_task.to_dict() if self._current_task else None
+                ),
                 "tasks_count": len(self._tasks),
-                "last_retrain_time": (self._last_retrain_time.isoformat() + "Z" if self._last_retrain_time else None),
+                "last_retrain_time": (
+                    self._last_retrain_time.isoformat() + "Z"
+                    if self._last_retrain_time
+                    else None
+                ),
                 "config": {
                     "min_interval_hours": self.min_interval_hours,
                     "training_script": self.training_script,

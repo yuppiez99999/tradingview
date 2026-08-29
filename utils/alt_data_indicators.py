@@ -229,7 +229,11 @@ class AltDataIndicators:
             coverage_count = 0
 
             # 1) 卫星指标
-            sat_related = [s for s in self.satellite_data if sym in s.related_symbols and s.timestamp > cutoff]
+            sat_related = [
+                s
+                for s in self.satellite_data
+                if sym in s.related_symbols and s.timestamp > cutoff
+            ]
             if sat_related:
                 signal.satellite_score = self._calc_satellite_score(sat_related)
                 signal.satellite_indicators = [
@@ -246,7 +250,11 @@ class AltDataIndicators:
                 total_indicators += len(sat_related)
 
             # 2) 搜索指数
-            search_related = [s for s in self.search_data if sym in s.related_symbols and s.timestamp > cutoff]
+            search_related = [
+                s
+                for s in self.search_data
+                if sym in s.related_symbols and s.timestamp > cutoff
+            ]
             if search_related:
                 signal.search_score = self._calc_search_score(search_related)
                 signal.search_indicators = [
@@ -263,7 +271,11 @@ class AltDataIndicators:
                 total_indicators += len(search_related)
 
             # 3) 招聘数据
-            recruit_related = [r for r in self.recruitment_data if r.related_symbol == sym and r.timestamp > cutoff]
+            recruit_related = [
+                r
+                for r in self.recruitment_data
+                if r.related_symbol == sym and r.timestamp > cutoff
+            ]
             if recruit_related:
                 signal.recruitment_score = self._calc_recruitment_score(recruit_related)
                 signal.recruitment_indicators = [
@@ -279,7 +291,11 @@ class AltDataIndicators:
                 total_indicators += len(recruit_related)
 
             # 4) 专利数据
-            patent_related = [p for p in self.patent_data if p.related_symbol == sym and p.timestamp > cutoff]
+            patent_related = [
+                p
+                for p in self.patent_data
+                if p.related_symbol == sym and p.timestamp > cutoff
+            ]
             if patent_related:
                 signal.patent_score = self._calc_patent_score(patent_related)
                 signal.patent_indicators = [
@@ -450,7 +466,10 @@ class AltDataIndicators:
                     citation_count=int(rng.integers(50, 1000)),
                     patent_count_yoy=float(rng.uniform(-10, 30)),
                     citation_growth=float(rng.uniform(-15, 40)),
-                    tech_distribution={"AI": int(rng.integers(5, 50)), "芯片": int(rng.integers(5, 50))},
+                    tech_distribution={
+                        "AI": int(rng.integers(5, 50)),
+                        "芯片": int(rng.integers(5, 50)),
+                    },
                     related_symbol=sym,
                 )
             )
@@ -473,5 +492,9 @@ class AltDataIndicators:
                 [(s, r.composite_score) for s, r in result.signals.items()],
                 key=lambda x: x[1],
             )[:5],
-            "avg_coverage": float(np.mean([r.coverage for r in result.signals.values()])) if result.signals else 0.0,
+            "avg_coverage": (
+                float(np.mean([r.coverage for r in result.signals.values()]))
+                if result.signals
+                else 0.0
+            ),
         }

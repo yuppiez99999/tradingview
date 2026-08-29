@@ -14,6 +14,7 @@ DrawdownReader 单元测试
     - test_get_drawdown_details: 返回完整详情字典
     - test_custom_state_path: 自定义路径参数
 """
+
 from __future__ import annotations
 
 import json
@@ -44,7 +45,11 @@ def normal_state_file(tmp_path) -> Path:
             {"date": "2026-07-30", "nav": 0.996218, "daily_return": -0.001683},
             {"date": "2026-07-31", "nav": 1.003485, "daily_return": 0.007295},  # peak
             {"date": "2026-08-03", "nav": 0.997079, "daily_return": -0.006384},
-            {"date": "2026-08-04", "nav": 0.996477, "daily_return": -0.000603},  # current
+            {
+                "date": "2026-08-04",
+                "nav": 0.996477,
+                "daily_return": -0.000603,
+            },  # current
         ],
     }
     state_path = tmp_path / "shadow_state.json"
@@ -60,7 +65,11 @@ def zero_drawdown_state_file(tmp_path) -> Path:
         "daily_nav": [
             {"date": "2026-07-27", "nav": 1.0, "daily_return": 0.0},
             {"date": "2026-07-28", "nav": 1.002, "daily_return": 0.002},
-            {"date": "2026-07-29", "nav": 1.005, "daily_return": 0.003},  # peak = current
+            {
+                "date": "2026-07-29",
+                "nav": 1.005,
+                "daily_return": 0.003,
+            },  # peak = current
         ],
     }
     state_path = tmp_path / "shadow_state.json"

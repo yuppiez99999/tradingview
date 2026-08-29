@@ -11,6 +11,7 @@
     8. Feature Flag 透传 (HC-1)
     9. HC-2 同步路径保护 (KillSwitch 不走总线)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -111,6 +112,7 @@ class TestRiskEvent:
         assert event.timestamp.endswith("Z")
         # 应可被 fromisoformat 解析
         from datetime import datetime
+
         dt = datetime.fromisoformat(event.timestamp.rstrip("Z"))
         assert dt is not None
 
@@ -319,14 +321,21 @@ class TestFactoryFunctions:
     def test_make_margin_breach_event_explicit_severity(self):
         """显式指定 severity."""
         e = make_margin_breach_event(
-            "kill_switch", 0.55, 1, severity=RiskSeverity.CRITICAL,
+            "kill_switch",
+            0.55,
+            1,
+            severity=RiskSeverity.CRITICAL,
         )
         assert e.severity == RiskSeverity.CRITICAL
 
     def test_make_margin_breach_event_extra_payload(self):
         """附加 payload."""
         e = make_margin_breach_event(
-            "kill_switch", 0.78, 2, broker="ctp", account_id="12345",
+            "kill_switch",
+            0.78,
+            2,
+            broker="ctp",
+            account_id="12345",
         )
         assert e.payload["broker"] == "ctp"
         assert e.payload["account_id"] == "12345"
@@ -519,6 +528,7 @@ class TestRiskBusSyncDecide:
 
     def test_single_decider(self):
         """单个决策订阅者."""
+
         def decider(event: RiskEvent) -> RiskDecision:
             return RiskDecision(
                 action=RiskAction.REDUCE_POSITION,
@@ -537,6 +547,7 @@ class TestRiskBusSyncDecide:
 
     def test_aggregate_strictest(self):
         """聚合取最严格动作."""
+
         def decider_mild(event: RiskEvent) -> RiskDecision:
             return RiskDecision(action=RiskAction.PASS, reason="ok", source="mild")
 
@@ -558,14 +569,21 @@ class TestRiskBusSyncDecide:
 
     def test_aggregate_reduce_pct_max(self):
         """REDUCE_POSITION 聚合取最大 reduce_pct."""
+
         def decider_30(event: RiskEvent) -> RiskDecision:
             return RiskDecision(
-                action=RiskAction.REDUCE_POSITION, reason="r1", reduce_pct=0.3, source="d1",
+                action=RiskAction.REDUCE_POSITION,
+                reason="r1",
+                reduce_pct=0.3,
+                source="d1",
             )
 
         def decider_50(event: RiskEvent) -> RiskDecision:
             return RiskDecision(
-                action=RiskAction.REDUCE_POSITION, reason="r2", reduce_pct=0.5, source="d2",
+                action=RiskAction.REDUCE_POSITION,
+                reason="r2",
+                reduce_pct=0.5,
+                source="d2",
             )
 
         self.bus.subscribe_decision(RiskEventType.MARGIN_BREACH, decider_30)
@@ -579,11 +597,14 @@ class TestRiskBusSyncDecide:
 
     def test_decider_exception_isolated(self):
         """决策订阅者异常不影响其他订阅者."""
+
         def bad_decider(event: RiskEvent) -> RiskDecision:
             raise RuntimeError("test")
 
         def good_decider(event: RiskEvent) -> RiskDecision:
-            return RiskDecision(action=RiskAction.DISABLE_NEW_ORDERS, reason="ok", source="good")
+            return RiskDecision(
+                action=RiskAction.DISABLE_NEW_ORDERS, reason="ok", source="good"
+            )
 
         self.bus.subscribe_decision(RiskEventType.MARGIN_BREACH, bad_decider)
         self.bus.subscribe_decision(RiskEventType.MARGIN_BREACH, good_decider)
@@ -596,6 +617,7 @@ class TestRiskBusSyncDecide:
 
     def test_all_deciders_fail_returns_pass(self):
         """所有决策订阅者异常返回 PASS."""
+
         def bad_decider(event: RiskEvent) -> RiskDecision:
             raise RuntimeError("test")
 
@@ -616,7 +638,9 @@ class TestRiskDecisionAggregator:
         agg = RiskDecisionAggregator(strategy="STRICTEST")
         decisions = [
             RiskDecision(action=RiskAction.PASS, reason="r1"),
-            RiskDecision(action=RiskAction.REDUCE_POSITION, reason="r2", reduce_pct=0.3),
+            RiskDecision(
+                action=RiskAction.REDUCE_POSITION, reason="r2", reduce_pct=0.3
+            ),
             RiskDecision(action=RiskAction.KILL_SWITCH, reason="r3"),
         ]
         result = agg.aggregate(decisions)
@@ -626,9 +650,15 @@ class TestRiskDecisionAggregator:
         """最严格策略 + REDUCE_POSITION 取最大 reduce_pct."""
         agg = RiskDecisionAggregator(strategy="STRICTEST")
         decisions = [
-            RiskDecision(action=RiskAction.REDUCE_POSITION, reason="r1", reduce_pct=0.2),
-            RiskDecision(action=RiskAction.REDUCE_POSITION, reason="r2", reduce_pct=0.5),
-            RiskDecision(action=RiskAction.REDUCE_POSITION, reason="r3", reduce_pct=0.3),
+            RiskDecision(
+                action=RiskAction.REDUCE_POSITION, reason="r1", reduce_pct=0.2
+            ),
+            RiskDecision(
+                action=RiskAction.REDUCE_POSITION, reason="r2", reduce_pct=0.5
+            ),
+            RiskDecision(
+                action=RiskAction.REDUCE_POSITION, reason="r3", reduce_pct=0.3
+            ),
         ]
         result = agg.aggregate(decisions)
         assert result.action == RiskAction.REDUCE_POSITION
@@ -679,7 +709,9 @@ class TestEventHistoryAndAudit:
         self.bus.publish(make_margin_breach_event("test", 0.78, 2))
         self.bus.publish(make_drawdown_breach_event("test", 0.04))
 
-        margin_events = self.bus.get_recent_events(event_type=RiskEventType.MARGIN_BREACH)
+        margin_events = self.bus.get_recent_events(
+            event_type=RiskEventType.MARGIN_BREACH
+        )
         assert len(margin_events) == 1
         assert margin_events[0].event_type == RiskEventType.MARGIN_BREACH
 
@@ -714,6 +746,7 @@ class TestEventHistoryAndAudit:
 
         # 检查审计日志文件存在
         from datetime import datetime
+
         today = datetime.utcnow().strftime("%Y-%m-%d")
         log_file = tmp_path / f"events_{today}.jsonl"
         assert log_file.exists()
@@ -771,6 +804,7 @@ class TestHC2SyncPathProtection:
 
         验证: 即使所有订阅者都抛异常, publish 仍返回 (不抛异常).
         """
+
         def bad_handler(event: RiskEvent) -> None:
             raise RuntimeError("bus failure simulation")
 

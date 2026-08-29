@@ -182,3 +182,14 @@ shadow 验证通过后, 在 `config/llm_router.yaml` (若创建) 或环境变量
 *集成完成时间: 2026-08-21*
 *硬件评估完成: 2026-08-21 — 本机不可行*
 *下一步: 保持 Ollama fallback；ds4 待远程硬件触发*
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [v86 集成升级方案同步记录 — 2026-08-21](v86-plan-sync-20260821.md) (相似度 21%)
+- [ai_decision 全链路集成计划 — C 轨](ai-decision-integration.md) (相似度 18%)
+- [loopx 集成方案 (Long-horizon Agent Control Plane)](loopx-integration.md) (相似度 13%)
+- [docs/1 八项目集成 — Sprint A 知识专题](docs1-integration-sprint-a-20260817.md) (相似度 5%)
+- [第三方项目批量集成专题 — 2026-08-22](third-party-integration-batch-20260822.md) (相似度 5%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

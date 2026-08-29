@@ -115,7 +115,9 @@ class BlackLittermanOptimizer:
         # F-7 修复: risk_aversion(δ) 必须 > 0, 否则 w = cov_inv @ er / δ 会得到 inf/NaN 权重
         # (numpy 对 数组/0.0 返回 inf 且不抛异常, 下游仓位会被静默污染为 NaN)
         if risk_aversion <= 0:
-            raise ValueError(f"risk_aversion (δ 风险厌恶系数) 必须 > 0, 收到 {risk_aversion}")
+            raise ValueError(
+                f"risk_aversion (δ 风险厌恶系数) 必须 > 0, 收到 {risk_aversion}"
+            )
 
         self.delta = float(risk_aversion)
         self.tau = float(tau)
@@ -156,7 +158,9 @@ class BlackLittermanOptimizer:
         if n == 0:
             raise ValueError("assets 不能为空")
         if n != len(market_weights):
-            raise ValueError(f"assets ({n}) 与 market_weights ({len(market_weights)}) 维度不匹配")
+            raise ValueError(
+                f"assets ({n}) 与 market_weights ({len(market_weights)}) 维度不匹配"
+            )
 
         # 转 numpy
         w_mkt = np.asarray(market_weights, dtype=float)
@@ -182,7 +186,9 @@ class BlackLittermanOptimizer:
         else:
             P, Q, omega = self._build_view_matrices(views, assets, cov)
             # 3. BL 后验收益
-            posterior_returns, posterior_cov = self._compute_posterior(pi, cov, P, Q, omega)
+            posterior_returns, posterior_cov = self._compute_posterior(
+                pi, cov, P, Q, omega
+            )
 
         # 4. 均值-方差优化
         optimal_weights = self._mean_variance_optimize(
@@ -248,7 +254,9 @@ class BlackLittermanOptimizer:
             if not view.assets:
                 raise ValueError(f"View #{i}: assets 为空")
             if len(view.weights) != len(view.assets):
-                raise ValueError(f"View #{i}: weights 维度 {len(view.weights)} != assets {len(view.assets)}")
+                raise ValueError(
+                    f"View #{i}: weights 维度 {len(view.weights)} != assets {len(view.assets)}"
+                )
             if not (0 <= view.confidence <= 1):
                 raise ValueError(f"View #{i}: confidence 必须在 [0,1]")
 
@@ -456,7 +464,9 @@ class BlackLittermanOptimizer:
 
         # 归一化 expected_returns → 数组
         if isinstance(expected_returns, dict):
-            ret_arr = np.array([float(expected_returns.get(a, 0.0)) for a in assets], dtype=float)
+            ret_arr = np.array(
+                [float(expected_returns.get(a, 0.0)) for a in assets], dtype=float
+            )
         else:
             ret_arr = np.asarray(expected_returns, dtype=float)
 
@@ -464,7 +474,9 @@ class BlackLittermanOptimizer:
         if market_cap_weights is None:
             w_mkt = np.ones(n) / n
         elif isinstance(market_cap_weights, dict):
-            w_mkt = np.array([float(market_cap_weights.get(a, 0.0)) for a in assets], dtype=float)
+            w_mkt = np.array(
+                [float(market_cap_weights.get(a, 0.0)) for a in assets], dtype=float
+            )
         else:
             w_mkt = np.asarray(market_cap_weights, dtype=float)
         if w_mkt.sum() <= 0:

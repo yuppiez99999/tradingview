@@ -9,6 +9,7 @@
     6. dry_run 模式下不真实下单
     7. broker 未连接时返回失败
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -36,10 +37,14 @@ class BrokerCallbackSimulator:
         self._mock_broker.get_positions.return_value = self.positions
 
     def _mock_place(self, symbol, quantity, side, order_type="MARKET"):
-        self.broker_place_calls.append({
-            "symbol": symbol, "quantity": quantity,
-            "side": side, "order_type": order_type,
-        })
+        self.broker_place_calls.append(
+            {
+                "symbol": symbol,
+                "quantity": quantity,
+                "side": side,
+                "order_type": order_type,
+            }
+        )
         return f"order-{len(self.broker_place_calls):04d}"
 
     def __call__(self, level, actions):
@@ -56,53 +61,73 @@ class BrokerCallbackSimulator:
         critical_note = ""
 
         if level == 1:
-            actions_taken.append({"action": "disable_new_positions", "status": "executed"})
+            actions_taken.append(
+                {"action": "disable_new_positions", "status": "executed"}
+            )
             real_close_executed = True
 
         elif level == 2:
-            actions_taken.append({"action": "cancel_pending_buys", "status": "executed"})
+            actions_taken.append(
+                {"action": "cancel_pending_buys", "status": "executed"}
+            )
             if self.dry_run:
-                actions_taken.append({
-                    "action": "force_close_deep_otm_short",
-                    "status": "logged_dry_run",
-                })
+                actions_taken.append(
+                    {
+                        "action": "force_close_deep_otm_short",
+                        "status": "logged_dry_run",
+                    }
+                )
                 real_close_executed = True
                 critical_note = "L2 DRY-RUN"
             else:
                 # fail-closed: broker 未连接或无持仓可平必须抛异常
                 # (KillSwitch 只看异常, 不读返回的 executed 字段)
                 if not self.broker_connected:
-                    raise RuntimeError(f"L{level} broker disconnected, cannot force close")
+                    raise RuntimeError(
+                        f"L{level} broker disconnected, cannot force close"
+                    )
                 close_result = self._execute_real_force_close(level=2)
                 if not close_result["success"]:
-                    raise RuntimeError(f"L{level} no positions to close: {close_result['detail']}")
-                actions_taken.append({
-                    "action": "force_close_deep_otm_short",
-                    "status": "executed",
-                    "broker_result": close_result,
-                })
+                    raise RuntimeError(
+                        f"L{level} no positions to close: {close_result['detail']}"
+                    )
+                actions_taken.append(
+                    {
+                        "action": "force_close_deep_otm_short",
+                        "status": "executed",
+                        "broker_result": close_result,
+                    }
+                )
                 real_close_executed = True
 
         elif level == 3:
             if self.dry_run:
-                actions_taken.append({
-                    "action": "liquidate_red_etf_10pct",
-                    "status": "logged_dry_run",
-                })
+                actions_taken.append(
+                    {
+                        "action": "liquidate_red_etf_10pct",
+                        "status": "logged_dry_run",
+                    }
+                )
                 real_close_executed = True
                 critical_note = "L3 DRY-RUN"
             else:
                 # fail-closed: broker 未连接或无持仓可平必须抛异常
                 if not self.broker_connected:
-                    raise RuntimeError(f"L{level} broker disconnected, cannot liquidate")
+                    raise RuntimeError(
+                        f"L{level} broker disconnected, cannot liquidate"
+                    )
                 close_result = self._execute_real_force_close(level=3)
                 if not close_result["success"]:
-                    raise RuntimeError(f"L{level} no positions to liquidate: {close_result['detail']}")
-                actions_taken.append({
-                    "action": "liquidate_red_etf_10pct",
-                    "status": "executed",
-                    "broker_result": close_result,
-                })
+                    raise RuntimeError(
+                        f"L{level} no positions to liquidate: {close_result['detail']}"
+                    )
+                actions_taken.append(
+                    {
+                        "action": "liquidate_red_etf_10pct",
+                        "status": "executed",
+                        "broker_result": close_result,
+                    }
+                )
                 real_close_executed = True
             actions_taken.append({"action": "halt_all_trading", "status": "executed"})
 
@@ -128,14 +153,21 @@ class BrokerCallbackSimulator:
                 if qty <= 0:
                     continue
                 order_id = self._mock_broker.place(
-                    symbol=symbol, quantity=qty, side="BUY_TO_CLOSE", order_type="MARKET",
+                    symbol=symbol,
+                    quantity=qty,
+                    side="BUY_TO_CLOSE",
+                    order_type="MARKET",
                 )
                 fill = self._mock_broker.wait_fill(order_id, timeout=60)
-                fills.append({
-                    "symbol": symbol, "side": "BUY_TO_CLOSE",
-                    "quantity": qty, "fill_price": fill.get("price", 0),
-                    "status": "FILLED",
-                })
+                fills.append(
+                    {
+                        "symbol": symbol,
+                        "side": "BUY_TO_CLOSE",
+                        "quantity": qty,
+                        "fill_price": fill.get("price", 0),
+                        "status": "FILLED",
+                    }
+                )
 
         if level >= 3:
             RED_ETF_CODES = ["512890", "515180"]  # noqa: N806
@@ -152,18 +184,30 @@ class BrokerCallbackSimulator:
                     if sell_qty < 100:
                         continue
                     order_id = self._mock_broker.place(
-                        symbol=str(symbol), quantity=sell_qty, side="SELL", order_type="MARKET",
+                        symbol=str(symbol),
+                        quantity=sell_qty,
+                        side="SELL",
+                        order_type="MARKET",
                     )
                     fill = self._mock_broker.wait_fill(order_id, timeout=60)
-                    fills.append({
-                        "symbol": symbol, "side": "SELL",
-                        "quantity": sell_qty, "fill_price": fill.get("price", 0),
-                        "status": "FILLED", "rationale": "L3_red_etf_liquidation",
-                    })
+                    fills.append(
+                        {
+                            "symbol": symbol,
+                            "side": "SELL",
+                            "quantity": sell_qty,
+                            "fill_price": fill.get("price", 0),
+                            "status": "FILLED",
+                            "rationale": "L3_red_etf_liquidation",
+                        }
+                    )
 
         return {
             "success": len(fills) > 0,
-            "detail": f"L{level} done: {len(fills)} fills" if fills else f"L{level} no positions",
+            "detail": (
+                f"L{level} done: {len(fills)} fills"
+                if fills
+                else f"L{level} no positions"
+            ),
             "broker_action": f"real_close_executed_level_{level}",
             "fills": fills,
         }
@@ -174,7 +218,9 @@ class TestT09CallbackRegistration:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t09_set_broker_callback_registers_callback(self, clean_env, tmp_kill_switch_log):
+    def test_t09_set_broker_callback_registers_callback(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: set_broker_callback 后 _broker_callback 不为 None."""
         ks = KillSwitch()
         simulator = BrokerCallbackSimulator(dry_run=True)
@@ -184,7 +230,9 @@ class TestT09CallbackRegistration:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t09_l2_trigger_calls_callback_with_level_2(self, clean_env, tmp_kill_switch_log):
+    def test_t09_l2_trigger_calls_callback_with_level_2(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: L2 触发时 callback 被调用, 且 level=2."""
         ks = KillSwitch()
         simulator = BrokerCallbackSimulator(dry_run=True)
@@ -204,7 +252,9 @@ class TestT09CallbackRegistration:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t09_l3_trigger_calls_callback_with_level_3(self, clean_env, tmp_kill_switch_log):
+    def test_t09_l3_trigger_calls_callback_with_level_3(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: L3 触发时 callback 被调用, 且 level=3."""
         ks = KillSwitch()
         simulator = BrokerCallbackSimulator(dry_run=True)
@@ -224,12 +274,20 @@ class TestT09CallbackRegistration:
 
     @pytest.mark.unit
     @pytest.mark.p1
-    def test_t09_l1_trigger_calls_callback_with_level_1(self, clean_env, tmp_kill_switch_log):
+    def test_t09_l1_trigger_calls_callback_with_level_1(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: L1 触发时 callback 被调用, 且 level=1."""
         ks = KillSwitch()
         simulator = BrokerCallbackSimulator(dry_run=True)
         ks.set_broker_callback(simulator)
-        ks.config = {"level_1": {"name": "L1", "action": ["disable_new_positions"], "auto_execute": True}}
+        ks.config = {
+            "level_1": {
+                "name": "L1",
+                "action": ["disable_new_positions"],
+                "auto_execute": True,
+            }
+        }
         result = ks.execute_kill_switch(level=1)
         assert len(simulator.calls) == 1
         assert simulator.calls[0]["level"] == 1
@@ -241,22 +299,30 @@ class TestT09RealForceClose:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t09_l2_live_mode_calls_broker_place_buy_to_close(self, clean_env, tmp_kill_switch_log):
+    def test_t09_l2_live_mode_calls_broker_place_buy_to_close(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: L2 实盘模式下, broker.place 被调用, side=BUY_TO_CLOSE."""
         positions = {
             "10002568.SH": {"side": "SELL", "quantity": 5, "type": "OPTION"},
             "10002569.SH": {"side": "SELL", "quantity": 3, "type": "OPTION"},
             "510300.SH": {"side": "BUY", "quantity": 10000, "type": "ETF"},
         }
-        simulator = BrokerCallbackSimulator(dry_run=False, broker_connected=True, positions=positions)
+        simulator = BrokerCallbackSimulator(
+            dry_run=False, broker_connected=True, positions=positions
+        )
         ks = KillSwitch()
         ks.set_broker_callback(simulator)
-        ks.config = {"level_2": {"name": "L2", "action": ["force_close"], "auto_execute": True}}
+        ks.config = {
+            "level_2": {"name": "L2", "action": ["force_close"], "auto_execute": True}
+        }
         result = ks.execute_kill_switch(level=2)
 
         assert len(simulator.calls) == 1
         assert simulator.calls[0]["level"] == 2
-        buy_to_close_calls = [c for c in simulator.broker_place_calls if c["side"] == "BUY_TO_CLOSE"]
+        buy_to_close_calls = [
+            c for c in simulator.broker_place_calls if c["side"] == "BUY_TO_CLOSE"
+        ]
         assert len(buy_to_close_calls) == 2
         sell_calls = [c for c in simulator.broker_place_calls if c["side"] == "SELL"]
         assert len(sell_calls) == 0
@@ -264,19 +330,25 @@ class TestT09RealForceClose:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t09_l3_live_mode_calls_broker_place_sell_for_red_etf(self, clean_env, tmp_kill_switch_log):
+    def test_t09_l3_live_mode_calls_broker_place_sell_for_red_etf(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: L3 实盘模式下, 红利ETF被 SELL 10%."""
         positions = {
             "512890.SH": {"actual_shares": 10000, "side": "BUY"},
             "515180.SH": {"actual_shares": 5000, "side": "BUY"},
             "510300.SH": {"actual_shares": 8000, "side": "BUY"},
         }
-        simulator = BrokerCallbackSimulator(dry_run=False, broker_connected=True, positions=positions)
+        simulator = BrokerCallbackSimulator(
+            dry_run=False, broker_connected=True, positions=positions
+        )
         ks = KillSwitch()
         ks.set_broker_callback(simulator)
         ks.config = {
             "level_3": {
-                "name": "L3", "action": ["liquidate"], "auto_execute": True,
+                "name": "L3",
+                "action": ["liquidate"],
+                "auto_execute": True,
                 "source_etfs": ["512890", "515180"],
             }
         }
@@ -294,13 +366,23 @@ class TestT09RealForceClose:
 
     @pytest.mark.unit
     @pytest.mark.p1
-    def test_t09_l3_red_etf_quantity_rounded_to_100_shares(self, clean_env, tmp_kill_switch_log):
+    def test_t09_l3_red_etf_quantity_rounded_to_100_shares(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: L3 红利ETF减仓数量向下取整到 100 股."""
         positions = {"512890.SH": {"actual_shares": 850, "side": "BUY"}}
-        simulator = BrokerCallbackSimulator(dry_run=False, broker_connected=True, positions=positions)
+        simulator = BrokerCallbackSimulator(
+            dry_run=False, broker_connected=True, positions=positions
+        )
         ks = KillSwitch()
         ks.set_broker_callback(simulator)
-        ks.config = {"level_3": {"name": "L3", "action": ["liquidate"], "source_etfs": ["512890"]}}
+        ks.config = {
+            "level_3": {
+                "name": "L3",
+                "action": ["liquidate"],
+                "source_etfs": ["512890"],
+            }
+        }
         result = ks.execute_kill_switch(level=3)
 
         sell_calls = [c for c in simulator.broker_place_calls if c["side"] == "SELL"]
@@ -316,7 +398,8 @@ class TestT09DryRunMode:
     def test_t09_dry_run_l2_no_real_broker_place(self, clean_env, tmp_kill_switch_log):
         """T09: dry_run=True 时, L2 触发不调用 broker.place."""
         simulator = BrokerCallbackSimulator(
-            dry_run=True, broker_connected=True,
+            dry_run=True,
+            broker_connected=True,
             positions={"10002568.SH": {"side": "SELL", "quantity": 5}},
         )
         ks = KillSwitch()
@@ -333,12 +416,19 @@ class TestT09DryRunMode:
     def test_t09_dry_run_l3_no_real_broker_place(self, clean_env, tmp_kill_switch_log):
         """T09: dry_run=True 时, L3 触发不调用 broker.place."""
         simulator = BrokerCallbackSimulator(
-            dry_run=True, broker_connected=True,
+            dry_run=True,
+            broker_connected=True,
             positions={"512890.SH": {"actual_shares": 10000}},
         )
         ks = KillSwitch()
         ks.set_broker_callback(simulator)
-        ks.config = {"level_3": {"name": "L3", "action": ["liquidate"], "source_etfs": ["512890"]}}
+        ks.config = {
+            "level_3": {
+                "name": "L3",
+                "action": ["liquidate"],
+                "source_etfs": ["512890"],
+            }
+        }
         result = ks.execute_kill_switch(level=3)
 
         assert len(simulator.broker_place_calls) == 0
@@ -350,9 +440,13 @@ class TestT09BrokerDisconnected:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t09_l2_broker_disconnected_returns_executed_false(self, clean_env, tmp_kill_switch_log):
+    def test_t09_l2_broker_disconnected_returns_executed_false(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: L2 broker 未连接时, executed=False."""
-        simulator = BrokerCallbackSimulator(dry_run=False, broker_connected=False, positions={})
+        simulator = BrokerCallbackSimulator(
+            dry_run=False, broker_connected=False, positions={}
+        )
         ks = KillSwitch()
         ks.set_broker_callback(simulator)
         ks.config = {"level_2": {"name": "L2", "action": ["force_close"]}}
@@ -361,16 +455,28 @@ class TestT09BrokerDisconnected:
         assert len(simulator.calls) == 1
         assert result["executed"] is False
         actions_str = str(result.get("actions_taken", []))
-        assert "broker_callback_executed" in actions_str or "failed" in actions_str.lower()
+        assert (
+            "broker_callback_executed" in actions_str or "failed" in actions_str.lower()
+        )
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t09_l3_broker_disconnected_returns_executed_false(self, clean_env, tmp_kill_switch_log):
+    def test_t09_l3_broker_disconnected_returns_executed_false(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: L3 broker 未连接时, executed=False."""
-        simulator = BrokerCallbackSimulator(dry_run=False, broker_connected=False, positions={})
+        simulator = BrokerCallbackSimulator(
+            dry_run=False, broker_connected=False, positions={}
+        )
         ks = KillSwitch()
         ks.set_broker_callback(simulator)
-        ks.config = {"level_3": {"name": "L3", "action": ["liquidate"], "source_etfs": ["512890"]}}
+        ks.config = {
+            "level_3": {
+                "name": "L3",
+                "action": ["liquidate"],
+                "source_etfs": ["512890"],
+            }
+        }
         result = ks.execute_kill_switch(level=3)
         assert result["executed"] is False
 
@@ -380,7 +486,9 @@ class TestT09CallbackException:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t09_callback_raises_exception_returns_executed_false(self, clean_env, tmp_kill_switch_log):
+    def test_t09_callback_raises_exception_returns_executed_false(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: callback 抛 ConnectionError 时, executed=False."""
         ks = KillSwitch()
         failing_callback = MagicMock(side_effect=ConnectionError("broker offline"))
@@ -395,12 +503,20 @@ class TestT09CallbackException:
 
     @pytest.mark.unit
     @pytest.mark.p1
-    def test_t09_callback_timeout_returns_executed_false(self, clean_env, tmp_kill_switch_log):
+    def test_t09_callback_timeout_returns_executed_false(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: callback 抛 TimeoutError 时, executed=False."""
         ks = KillSwitch()
         timeout_callback = MagicMock(side_effect=TimeoutError("broker timeout 60s"))
         ks.set_broker_callback(timeout_callback)
-        ks.config = {"level_3": {"name": "L3", "action": ["liquidate"], "source_etfs": ["512890"]}}
+        ks.config = {
+            "level_3": {
+                "name": "L3",
+                "action": ["liquidate"],
+                "source_etfs": ["512890"],
+            }
+        }
         result = ks.execute_kill_switch(level=3)
         assert result["executed"] is False
         assert "broker_callback_failed" in str(result.get("actions_taken", []))
@@ -411,13 +527,19 @@ class TestT09EndToEndFlow:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t09_full_flow_l2_trigger_to_broker_place(self, clean_env, tmp_kill_switch_log):
+    def test_t09_full_flow_l2_trigger_to_broker_place(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09 端到端: L2 → callback → broker.place(BUY_TO_CLOSE) → executed=True."""
         positions = {"10002568.SH": {"side": "SELL", "quantity": 5, "type": "OPTION"}}
-        simulator = BrokerCallbackSimulator(dry_run=False, broker_connected=True, positions=positions)
+        simulator = BrokerCallbackSimulator(
+            dry_run=False, broker_connected=True, positions=positions
+        )
         ks = KillSwitch()
         ks.set_broker_callback(simulator)
-        ks.config = {"level_2": {"name": "L2", "action": ["force_close"], "auto_execute": True}}
+        ks.config = {
+            "level_2": {"name": "L2", "action": ["force_close"], "auto_execute": True}
+        }
         result = ks.execute_kill_switch(level=2)
 
         assert len(simulator.calls) == 1
@@ -430,18 +552,24 @@ class TestT09EndToEndFlow:
 
     @pytest.mark.unit
     @pytest.mark.p0
-    def test_t09_full_flow_l3_trigger_to_broker_place(self, clean_env, tmp_kill_switch_log):
+    def test_t09_full_flow_l3_trigger_to_broker_place(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09 端到端: L3 → callback → broker.place(SELL) → executed=True."""
         positions = {
             "512890.SH": {"actual_shares": 10000, "side": "BUY"},
             "515180.SH": {"actual_shares": 10000, "side": "BUY"},
         }
-        simulator = BrokerCallbackSimulator(dry_run=False, broker_connected=True, positions=positions)
+        simulator = BrokerCallbackSimulator(
+            dry_run=False, broker_connected=True, positions=positions
+        )
         ks = KillSwitch()
         ks.set_broker_callback(simulator)
         ks.config = {
             "level_3": {
-                "name": "L3", "action": ["liquidate"], "auto_execute": True,
+                "name": "L3",
+                "action": ["liquidate"],
+                "auto_execute": True,
                 "source_etfs": ["512890", "515180"],
             }
         }
@@ -457,9 +585,13 @@ class TestT09EndToEndFlow:
 
     @pytest.mark.unit
     @pytest.mark.p1
-    def test_t09_full_flow_l1_only_disables_new_positions(self, clean_env, tmp_kill_switch_log):
+    def test_t09_full_flow_l1_only_disables_new_positions(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: L1 触发只切断开仓权限, 不调用 broker.place."""
-        simulator = BrokerCallbackSimulator(dry_run=False, broker_connected=True, positions={})
+        simulator = BrokerCallbackSimulator(
+            dry_run=False, broker_connected=True, positions={}
+        )
         ks = KillSwitch()
         ks.set_broker_callback(simulator)
         ks.config = {"level_1": {"name": "L1", "action": ["disable_new_positions"]}}
@@ -475,7 +607,9 @@ class TestT09RepeatedTrigger:
 
     @pytest.mark.unit
     @pytest.mark.p1
-    def test_t09_repeated_l2_triggers_callback_each_time(self, clean_env, tmp_kill_switch_log):
+    def test_t09_repeated_l2_triggers_callback_each_time(
+        self, clean_env, tmp_kill_switch_log
+    ):
         """T09: 连续触发 3 次 L2, callback 被调用 3 次."""
         simulator = BrokerCallbackSimulator(dry_run=True)
         ks = KillSwitch()
@@ -498,7 +632,11 @@ class TestT09RepeatedTrigger:
         ks.set_broker_callback(simulator)
         ks.config = {
             "level_2": {"name": "L2", "action": ["force_close"]},
-            "level_3": {"name": "L3", "action": ["liquidate"], "source_etfs": ["512890"]},
+            "level_3": {
+                "name": "L3",
+                "action": ["liquidate"],
+                "source_etfs": ["512890"],
+            },
         }
 
         ks.execute_kill_switch(level=2)

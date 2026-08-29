@@ -12,6 +12,7 @@
     直接运行:  python daily_trading_workflow.py
     被调用:    from daily_trading_workflow import run_all
 """
+
 from __future__ import annotations
 
 import json
@@ -41,11 +42,13 @@ TODAY = datetime.now().strftime("%Y%m%d")
 # 模拟行情数据来源标识 (避免硬编码散落)
 MOCK_SOURCE = "模拟数据 (random seed=42)"
 
+
 # ============================================================
 # 类型定义 (类型契约)
 # ============================================================
 class PositionDict(TypedDict, total=False):
     """持仓字典类型契约"""
+
     code: str
     name: str
     shares: int
@@ -56,6 +59,7 @@ class PositionDict(TypedDict, total=False):
 
 class MarketDataDict(TypedDict):
     """行情数据字典类型契约"""
+
     open: float
     high: float
     low: float
@@ -66,6 +70,7 @@ class MarketDataDict(TypedDict):
 
 class SignalDict(TypedDict):
     """信号字典类型契约"""
+
     code: str
     name: str
     shares: int
@@ -80,6 +85,7 @@ class SignalDict(TypedDict):
 
 class PortfolioSummaryDict(TypedDict):
     """组合摘要类型契约"""
+
     total_capital: float
     total_market_value: float
     total_cost: float
@@ -159,7 +165,9 @@ def _resolve_path(relative_path: str) -> Path:
 # ============================================================
 # 模拟行情数据加载
 # ============================================================
-def _generate_mock_market_data(positions: dict[str, Any]) -> dict[str, dict[str, float]]:
+def _generate_mock_market_data(
+    positions: dict[str, Any],
+) -> dict[str, dict[str, float]]:
     """读取模拟行情数据文件，若不存在则内部生成
 
     优先读取 config/mock_market_data_{TODAY}.json 外部文件,
@@ -188,7 +196,9 @@ def _generate_mock_market_data(positions: dict[str, Any]) -> dict[str, dict[str,
                     "volume": int(q.get("volume", 0)),
                     "change_pct": float(q.get("change_pct", 0)),
                 }
-            logger.info("已加载外部行情数据: %s (%d 只标的)", mock_file.name, len(market_data))
+            logger.info(
+                "已加载外部行情数据: %s (%d 只标的)", mock_file.name, len(market_data)
+            )
             return market_data
         except Exception as e:
             logger.warning("读取外部行情文件失败, 降级为内部生成: %s", e)
@@ -210,8 +220,12 @@ def _generate_mock_market_data(positions: dict[str, Any]) -> dict[str, dict[str,
         change_pct = _rng.uniform(-0.03, 0.03)
         open_price = base_price
         close_price = round(base_price * (1 + change_pct), 3)
-        high_price = round(max(open_price, close_price) * (1 + _rng.uniform(0, 0.015)), 3)
-        low_price = round(min(open_price, close_price) * (1 - _rng.uniform(0, 0.015)), 3)
+        high_price = round(
+            max(open_price, close_price) * (1 + _rng.uniform(0, 0.015)), 3
+        )
+        low_price = round(
+            min(open_price, close_price) * (1 - _rng.uniform(0, 0.015)), 3
+        )
         volume = _rng.randint(1000, 50000)
 
         market_data[code] = {
@@ -266,9 +280,14 @@ def run_premarket() -> dict[str, Any]:
     # Put 保护标的
     put_protection = hedge.get("risk_reversal_collar", {}).get("put_protection", {})
     put_list = [
-        {"instrument": v.get("instrument", ""), "contracts": v.get("target_contracts", 0),
-         "strike": v.get("strike", ""), "budget": v.get("premium_budget", 0)}
-        for v in put_protection.values() if isinstance(v, dict)
+        {
+            "instrument": v.get("instrument", ""),
+            "contracts": v.get("target_contracts", 0),
+            "strike": v.get("strike", ""),
+            "budget": v.get("premium_budget", 0),
+        }
+        for v in put_protection.values()
+        if isinstance(v, dict)
     ]
 
     plan = {
@@ -289,13 +308,19 @@ def run_premarket() -> dict[str, Any]:
             "mode": hedge_mode,
             "permission_level": hedge.get("permission_level", "LEVEL_1"),
             "covered_call_targets": [
-                {"code": u.get("code", ""), "name": u.get("name", ""),
-                 "direction": u.get("direction", ""), "strike_rule": u.get("strike_rule", "")}
-                for u in cc_underlyings if isinstance(u, dict)
+                {
+                    "code": u.get("code", ""),
+                    "name": u.get("name", ""),
+                    "direction": u.get("direction", ""),
+                    "strike_rule": u.get("strike_rule", ""),
+                }
+                for u in cc_underlyings
+                if isinstance(u, dict)
             ],
             "put_protection": put_list,
             "bear_put_spread_enabled": hedge.get("risk_reversal_collar", {})
-            .get("bear_put_spread", {}).get("enabled", False),
+            .get("bear_put_spread", {})
+            .get("enabled", False),
             "vega_enabled": hedge.get("vega_event_driven", {}).get("enabled", False),
             "budget": {
                 "put_premium": put_premium,
@@ -314,7 +339,6 @@ def run_premarket() -> dict[str, Any]:
     plan_file = TRADE_PLANS_DIR / f"trade_plan_{TODAY}.json"
     with open(plan_file, "w", encoding="utf-8") as f:
         json.dump(plan, f, ensure_ascii=False, indent=2)
-
 
     return plan
 
@@ -366,18 +390,20 @@ def run_intraday() -> dict[str, Any]:
         else:
             signal = "HOLD"  # 涨幅较大或平稳, 持有
 
-        signals.append({
-            "code": code,
-            "name": name,
-            "shares": shares,
-            "cost": cost,
-            "close": close,
-            "market_value": round(market_value, 2),
-            "pnl": round(pnl, 2),
-            "pnl_pct": round(pnl_pct, 2),
-            "change_pct": change,
-            "signal": signal,
-        })
+        signals.append(
+            {
+                "code": code,
+                "name": name,
+                "shares": shares,
+                "cost": cost,
+                "close": close,
+                "market_value": round(market_value, 2),
+                "pnl": round(pnl, 2),
+                "pnl_pct": round(pnl_pct, 2),
+                "change_pct": change,
+                "signal": signal,
+            }
+        )
 
     result = {
         "date": TODAY,
@@ -435,13 +461,18 @@ def run_postmarket() -> dict[str, Any]:
         total_market_value += mv
         total_cost += cv
 
-        position_details.append({
-            "code": code, "name": name, "shares": shares,
-            "cost": cost, "close": close,
-            "market_value": round(mv, 2),
-            "pnl": round(pnl, 2),
-            "pnl_pct": round((pnl / cv * 100) if cv > 0 else 0, 2),
-        })
+        position_details.append(
+            {
+                "code": code,
+                "name": name,
+                "shares": shares,
+                "cost": cost,
+                "close": close,
+                "market_value": round(mv, 2),
+                "pnl": round(pnl, 2),
+                "pnl_pct": round((pnl / cv * 100) if cv > 0 else 0, 2),
+            }
+        )
 
     total_pnl = total_market_value - total_cost
     total_pnl_pct = (total_pnl / total_cost * 100) if total_cost > 0 else 0
@@ -450,6 +481,7 @@ def run_postmarket() -> dict[str, Any]:
     hedge_orders: dict[str, Any] = {}
     try:
         from utils.hedge_execution_engine import HedgeExecutionEngine
+
         engine = HedgeExecutionEngine()
         hedge_result = engine.generate_hedge_orders(drawdown_level=0)
 
@@ -489,6 +521,7 @@ def run_postmarket() -> dict[str, Any]:
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         hedge_orders = {"error": str(e)}
 
@@ -497,6 +530,7 @@ def run_postmarket() -> dict[str, Any]:
     hedge_execution_result: dict[str, Any] = {}
     try:
         from hedge_order_executor import execute_hedge_orders
+
         hedge_execution_result = execute_hedge_orders(trade_date=TODAY)
         hedge_execution_result.get("filled_count", 0)
     except Exception as e:
@@ -507,6 +541,7 @@ def run_postmarket() -> dict[str, Any]:
     rebalance_execution_result: dict[str, Any] = {}
     try:
         from rebalance_order_executor import execute_rebalance_orders
+
         rebalance_execution_result = execute_rebalance_orders(date=TODAY)
         rebalance_execution_result.get("filled", 0)
         rebalance_execution_result.get("positions_updated", 0)
@@ -540,7 +575,6 @@ def run_postmarket() -> dict[str, Any]:
     # 生成 Markdown 报告
     md_file = REPORTS_DIR / f"daily_report_{TODAY}.md"
     _generate_markdown_report(report, md_file)
-
 
     return report
 
@@ -582,12 +616,14 @@ def _generate_markdown_report(report: dict[str, Any], md_file: Path) -> None:
     # 期权订单明细
     options = ho.get("options_orders", [])
     if options:
-        lines.extend([
-            "### 期权保护订单明细",
-            "",
-            "| 标的 | 张数 | 行权价 | 预算 |",
-            "|---|---:|---|---:|",
-        ])
+        lines.extend(
+            [
+                "### 期权保护订单明细",
+                "",
+                "| 标的 | 张数 | 行权价 | 预算 |",
+                "|---|---:|---|---:|",
+            ]
+        )
         for oo in options:
             lines.append(
                 f"| {oo.get('instrument', '?')} | {oo.get('contracts', 0)} | "
@@ -598,12 +634,14 @@ def _generate_markdown_report(report: dict[str, Any], md_file: Path) -> None:
     # 持仓明细 TOP 10
     if positions:
         sorted_pos = sorted(positions, key=lambda x: abs(x.get("pnl", 0)), reverse=True)
-        lines.extend([
-            "## 三、持仓明细 (按|盈亏|排序 TOP 10)",
-            "",
-            "| 代码 | 名称 | 持仓 | 成本 | 收盘 | 盈亏 | 盈亏% |",
-            "|---|---|---:|---:|---:|---:|---:|",
-        ])
+        lines.extend(
+            [
+                "## 三、持仓明细 (按|盈亏|排序 TOP 10)",
+                "",
+                "| 代码 | 名称 | 持仓 | 成本 | 收盘 | 盈亏 | 盈亏% |",
+                "|---|---|---:|---:|---:|---:|---:|",
+            ]
+        )
         for p in sorted_pos[:10]:
             lines.append(
                 f"| {p['code']} | {p['name']} | {p['shares']} | {p['cost']:.3f} | "
@@ -627,7 +665,6 @@ def run_all() -> None:
     run_premarket()
     run_intraday()
     run_postmarket()
-
 
 
 # ============================================================

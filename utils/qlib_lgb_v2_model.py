@@ -8,6 +8,7 @@ W7.2.9 补齐真实模型: 训练脚本 ms_strategy/cloud_train/modelscope_train
 信号语义: score 为模型预测的未来 1 日收益方向, 范围约 [-0.5, 0.35]。
 正看多, 负看空。数据时效 = CSV 内最新交易日 (当前 qlib_data 到 2026-07-08)。
 """
+
 from __future__ import annotations
 
 import glob

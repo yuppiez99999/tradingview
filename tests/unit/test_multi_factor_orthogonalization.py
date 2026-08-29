@@ -39,7 +39,9 @@ def _patch_flags(enabled: bool) -> ExitStack:
         ExitStack (需在 with 语句中使用)
     """
     stack = ExitStack()
-    stack.enter_context(patch("utils.alpha.multi_factor_signal.is_enabled", return_value=enabled))
+    stack.enter_context(
+        patch("utils.alpha.multi_factor_signal.is_enabled", return_value=enabled)
+    )
     stack.enter_context(
         patch("utils.alpha.factor_orthogonalizer.is_enabled", return_value=enabled)
     )
@@ -191,9 +193,9 @@ class TestOrthogonalizationFilter:
         # F_primary 和 F_redundant 高相关, 应恰好保留一个
         correlated_pair = {"F_primary", "F_redundant"}
         kept = correlated_pair & set(filtered)
-        assert len(kept) == 1, (
-            f"高相关对应保留 1 个, 实际: {kept}, filtered: {filtered}"
-        )
+        assert (
+            len(kept) == 1
+        ), f"高相关对应保留 1 个, 实际: {kept}, filtered: {filtered}"
         # F_independent 与其他因子不相关, 应保留
         assert "F_independent" in filtered
         # 报告非 None
@@ -270,9 +272,12 @@ class TestFailSafe:
         mfs = MultiFactorSignal()
         names = ["F_0", "F_1"]
 
-        with _patch_flags(True), patch(
-            "utils.alpha.factor_orthogonalizer.orthogonalize_factors",
-            side_effect=RuntimeError("mocked runtime error"),
+        with (
+            _patch_flags(True),
+            patch(
+                "utils.alpha.factor_orthogonalizer.orthogonalize_factors",
+                side_effect=RuntimeError("mocked runtime error"),
+            ),
         ):
             filtered, report = mfs.filter_orthogonal_factors(factor_history, names)
 
@@ -287,9 +292,12 @@ class TestFailSafe:
         mfs = MultiFactorSignal()
         names = ["F_0", "F_1"]
 
-        with _patch_flags(True), patch(
-            "utils.alpha.factor_orthogonalizer.orthogonalize_factors",
-            side_effect=RuntimeError("mocked error"),
+        with (
+            _patch_flags(True),
+            patch(
+                "utils.alpha.factor_orthogonalizer.orthogonalize_factors",
+                side_effect=RuntimeError("mocked error"),
+            ),
         ):
             combined, weights = mfs.combine_factors_ic_weighted(
                 factor_history, fwd_returns, names
@@ -448,9 +456,9 @@ class TestEndToEndIntegration:
             k for k in first_weights if not k.startswith("ic_ir_") and k != "mode"
         }
         # 应恰好 2 个因子 (F_independent + 1 个高相关因子)
-        assert len(weight_keys) == 2, (
-            f"期望 2 个因子权重, 实际 {len(weight_keys)}: {weight_keys}"
-        )
+        assert (
+            len(weight_keys) == 2
+        ), f"期望 2 个因子权重, 实际 {len(weight_keys)}: {weight_keys}"
         assert "F_independent" in weight_keys
         # 高相关对中恰好 1 个
         correlated_kept = weight_keys & {"F_primary", "F_redundant"}

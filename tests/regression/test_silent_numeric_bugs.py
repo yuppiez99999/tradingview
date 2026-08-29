@@ -3,6 +3,7 @@
 这些 bug 的共同特征: 静态工具(lint/bandit/mypy)全部绿, 但会在运行时
 静默产生 inf/NaN 或把陈旧数据误报为满分新鲜数据, 直接污染交易决策。
 """
+
 from __future__ import annotations
 
 import logging
@@ -81,9 +82,9 @@ def test_p6_cache_hit_marks_stale(tmp_path):
         )
         assert result.from_cache is True, "应标记来自 P6 陈旧缓存"
         assert result.provider_level == "P6"
-        assert result.quality_score == STALE_QUALITY_SCORE, (
-            f"陈旧缓存质量分不应为 100, 实际={result.quality_score}"
-        )
+        assert (
+            result.quality_score == STALE_QUALITY_SCORE
+        ), f"陈旧缓存质量分不应为 100, 实际={result.quality_score}"
 
 
 def test_p6_cache_hit_logs_stale_warning(tmp_path, caplog):
@@ -113,6 +114,6 @@ def test_p6_cache_hit_logs_stale_warning(tmp_path, caplog):
 
         with caplog.at_level(logging.WARNING, logger="data_layer"):
             layer.get_ohlcv("510300.SH")
-        assert any("P6 陈旧缓存" in r.message for r in caplog.records), (
-            "P6 命中未打印 stale 告警"
-        )
+        assert any(
+            "P6 陈旧缓存" in r.message for r in caplog.records
+        ), "P6 命中未打印 stale 告警"

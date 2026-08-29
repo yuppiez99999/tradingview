@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # 替代 8 处裸 {} / [] + # type: ignore[assignment]
 # ============================================================
 
+
 class PositionDict(TypedDict):
     """BacktestEngine.positions[code] 的结构。"""
 
@@ -142,8 +143,7 @@ class BacktestEngine:
         slippage = price * self.slippage_rate
         if direction == "BUY":
             return price + slippage
-        else:
-            return price - slippage
+        return price - slippage
 
     def buy(self, code: str, price: float, qty: int) -> bool:
         """买入"""
@@ -165,7 +165,9 @@ class BacktestEngine:
 
         pos = self.positions[code]
         total_qty = pos["qty"] + qty
-        pos["avg_cost"] = (pos["qty"] * pos["avg_cost"] + qty * execution_price) / total_qty
+        pos["avg_cost"] = (
+            pos["qty"] * pos["avg_cost"] + qty * execution_price
+        ) / total_qty
         pos["qty"] = total_qty
         pos["current_price"] = price
 
@@ -225,7 +227,9 @@ class BacktestEngine:
 
     def get_total_equity(self) -> float:
         """计算总权益"""
-        position_value = sum(pos["qty"] * pos["current_price"] for pos in self.positions.values())
+        position_value = sum(
+            pos["qty"] * pos["current_price"] for pos in self.positions.values()
+        )
         return float(self.cash + position_value)
 
     def record_daily_pnl(self, date: Optional[str]) -> None:
@@ -268,7 +272,14 @@ class BacktestEngine:
         p = prices.get(code, 0)
         return p <= 0
 
-    def run(self, data: list[BacktestDayData], strategy_func: Callable[[dict[str, Any], dict[str, PositionDict]], list[BacktestSignalDict]], verbose: bool = False) -> dict[str, Any]:
+    def run(
+        self,
+        data: list[BacktestDayData],
+        strategy_func: Callable[
+            [dict[str, Any], dict[str, PositionDict]], list[BacktestSignalDict]
+        ],
+        verbose: bool = False,
+    ) -> dict[str, Any]:
         """运行回测
 
         Args:
@@ -312,7 +323,9 @@ class BacktestEngine:
                 # P2-2: 停牌约束——停牌不可交易
                 if self._is_suspended(day_data, code):
                     if verbose:
-                        logger.info(f"  {self.current_date} {code} 停牌, 跳过 {action} {qty}")
+                        logger.info(
+                            f"  {self.current_date} {code} 停牌, 跳过 {action} {qty}"
+                        )
                     continue
 
                 # P2-2: 涨跌停约束——涨停不可买, 跌停不可卖
@@ -320,13 +333,17 @@ class BacktestEngine:
                     lu = limit_up_prices.get(code)
                     if lu and price >= float(lu):
                         if verbose:
-                            logger.info(f"  {self.current_date} {code} 涨停, 无法买入 {qty}")
+                            logger.info(
+                                f"  {self.current_date} {code} 涨停, 无法买入 {qty}"
+                            )
                         continue
                 elif action == "SELL":
                     ld = limit_down_prices.get(code)
                     if ld and price <= float(ld):
                         if verbose:
-                            logger.info(f"  {self.current_date} {code} 跌停, 无法卖出 {qty}")
+                            logger.info(
+                                f"  {self.current_date} {code} 跌停, 无法卖出 {qty}"
+                            )
                         continue
 
                 if action == "BUY":
@@ -337,7 +354,9 @@ class BacktestEngine:
                     success = False
 
                 if verbose and success:
-                    logger.info(f"  {self.current_date} {action} {code} {qty} @ {price:.4f}")
+                    logger.info(
+                        f"  {self.current_date} {action} {code} {qty} @ {price:.4f}"
+                    )
 
             self.record_daily_pnl(self.current_date)
 
@@ -348,13 +367,24 @@ class BacktestEngine:
         if not self.daily_pnl:
             return {"status": "error", "message": "无回测数据"}
 
-        total_return = (self.equity_curve[-1]["equity"] - self.initial_capital) / self.initial_capital
-        daily_returns = [d["daily_return"] for d in self.daily_pnl if d["daily_return"] != 0]
+        total_return = (
+            self.equity_curve[-1]["equity"] - self.initial_capital
+        ) / self.initial_capital
+        daily_returns = [
+            d["daily_return"] for d in self.daily_pnl if d["daily_return"] != 0
+        ]
 
         if daily_returns:
             avg_daily_return = sum(daily_returns) / len(daily_returns)
-            std_daily_return = math.sqrt(sum((r - avg_daily_return) ** 2 for r in daily_returns) / len(daily_returns))
-            sharpe_ratio = avg_daily_return / std_daily_return * math.sqrt(252) if std_daily_return > 0 else 0
+            std_daily_return = math.sqrt(
+                sum((r - avg_daily_return) ** 2 for r in daily_returns)
+                / len(daily_returns)
+            )
+            sharpe_ratio = (
+                avg_daily_return / std_daily_return * math.sqrt(252)
+                if std_daily_return > 0
+                else 0
+            )
         else:
             avg_daily_return = 0
             std_daily_return = 0
@@ -376,18 +406,20 @@ class BacktestEngine:
 
         total_commission = sum(t["commission"] for t in self.trades)
         total_trades = len(self.trades)
-        avg_trade_amount = sum(t.get("total_cost", t.get("total_revenue", 0)) for t in self.trades) / max(
-            total_trades, 1
-        )
+        avg_trade_amount = sum(
+            t.get("total_cost", t.get("total_revenue", 0)) for t in self.trades
+        ) / max(total_trades, 1)
 
         return {
             "status": "success",
             "initial_capital": self.initial_capital,
             "final_equity": self.equity_curve[-1]["equity"],
             "total_return": total_return,
-            "annualized_return": (max(1 + total_return, 1e-9) ** (252 / len(self.daily_pnl)) - 1)
-            if len(self.daily_pnl) > 0
-            else 0,
+            "annualized_return": (
+                (max(1 + total_return, 1e-9) ** (252 / len(self.daily_pnl)) - 1)
+                if len(self.daily_pnl) > 0
+                else 0
+            ),
             "avg_daily_return": avg_daily_return,
             "std_daily_return": std_daily_return,
             "sharpe_ratio": sharpe_ratio,
@@ -438,7 +470,9 @@ class ETFSignalStrategy:
         self.validate_no_lookahead = validate_no_lookahead
         self._validated_dates: set[str] = set()
 
-    def generate_signals(self, day_data: dict[str, Any], positions: dict[str, PositionDict]) -> list[BacktestSignalDict]:
+    def generate_signals(
+        self, day_data: dict[str, Any], positions: dict[str, PositionDict]
+    ) -> list[BacktestSignalDict]:
         """生成交易信号"""
         signals: list[BacktestSignalDict] = []
         etf_signals: dict[str, dict[str, Any]] = day_data.get("etf_signals", {})
@@ -477,7 +511,9 @@ class ETFSignalStrategy:
                 if available_amount > 1000:
                     qty = int(available_amount / price / 100) * 100
                     if qty >= 100:
-                        signals.append({"code": code, "action": "BUY", "qty": qty, "price": price})
+                        signals.append(
+                            {"code": code, "action": "BUY", "qty": qty, "price": price}
+                        )
 
             elif signal_is_strong_sell or signal_is_medium_sell:
                 if current_qty > 0:
@@ -486,7 +522,9 @@ class ETFSignalStrategy:
                         qty = qty // 2
 
                     if qty >= 100:
-                        signals.append({"code": code, "action": "SELL", "qty": qty, "price": price})
+                        signals.append(
+                            {"code": code, "action": "SELL", "qty": qty, "price": price}
+                        )
 
         return signals
 
@@ -503,7 +541,9 @@ class BacktestDataLoader:
     _warned_est_price: ClassVar[bool] = False
 
     @staticmethod
-    def load_from_positions_history(positions_history_dir: str, tickers: Optional[list[str]] = None) -> list[BacktestDayData]:
+    def load_from_positions_history(
+        positions_history_dir: str, tickers: Optional[list[str]] = None
+    ) -> list[BacktestDayData]:
         """从positions.json历史记录加载数据"""
         data: list[BacktestDayData] = []
         files = sorted(os.listdir(positions_history_dir))
@@ -533,7 +573,10 @@ class BacktestDataLoader:
                     }
                     # 使用 est_price 或 avg_cost 作为价格 — 若这些值来自盘后文件，存在数据泄露风险
                     price = float(pos.get("est_price", 0) or pos.get("avg_cost", 0))
-                    if pos.get("est_price", 0) and not BacktestDataLoader._warned_est_price:
+                    if (
+                        pos.get("est_price", 0)
+                        and not BacktestDataLoader._warned_est_price
+                    ):
                         import logging
 
                         logging.getLogger("backtest").warning(
@@ -552,14 +595,25 @@ class BacktestDataLoader:
                     }
                     data.append(day)
 
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ):
                 continue
 
         return data
 
     @staticmethod
     def generate_synthetic_data(
-        start_date: str, end_date: str, tickers: list[str], base_price: float = 2.0, volatility: float = 0.02,
+        start_date: str,
+        end_date: str,
+        tickers: list[str],
+        base_price: float = 2.0,
+        volatility: float = 0.02,
         with_limit_constraints: bool = False,
     ) -> list[BacktestDayData]:
         """生成合成回测数据
@@ -573,7 +627,7 @@ class BacktestDataLoader:
         end = datetime.strptime(end_date, "%Y-%m-%d")
 
         current = start
-        prices = {t: base_price for t in tickers}
+        prices = dict.fromkeys(tickers, base_price)
 
         import random
 
@@ -595,7 +649,9 @@ class BacktestDataLoader:
             etf_signals = {}
 
             for ticker in tickers:
-                inflow = inflow_values[random.randint(0, len(inflow_values) - 1)] * (1 if random.random() > 0.3 else -1)
+                inflow = inflow_values[random.randint(0, len(inflow_values) - 1)] * (
+                    1 if random.random() > 0.3 else -1
+                )
 
                 if inflow >= 50:
                     signal = "强加仓"
@@ -659,7 +715,9 @@ class BacktestDataLoader:
         )
 
 
-def run_etf_signal_backtest(data: list[dict], initial_capital: float = 1000000.0, **kwargs: Any) -> dict:
+def run_etf_signal_backtest(
+    data: list[dict], initial_capital: float = 1000000.0, **kwargs: Any
+) -> dict:
     """便捷函数：运行ETF信号策略回测"""
     strategy = ETFSignalStrategy(**kwargs)
     engine = BacktestEngine(initial_capital=initial_capital)
@@ -670,7 +728,11 @@ def run_etf_signal_backtest(data: list[dict], initial_capital: float = 1000000.0
     return engine.run(data, strategy_func)
 
 
-def compare_strategies(data: list[dict], strategies: dict[str, Callable], initial_capital: float = 1000000.0) -> dict:
+def compare_strategies(
+    data: list[dict],
+    strategies: dict[str, Callable],
+    initial_capital: float = 1000000.0,
+) -> dict:
     """比较多个策略"""
     results = {}
 
@@ -686,7 +748,9 @@ if __name__ == "__main__":
     tickers = ["588080.SH", "512880.SH", "510050.SH", "512760.SH"]
 
     logger.info("===== 生成合成回测数据 =====")
-    data = BacktestDataLoader.generate_synthetic_data("2024-01-01", "2025-12-31", tickers)
+    data = BacktestDataLoader.generate_synthetic_data(
+        "2024-01-01", "2025-12-31", tickers
+    )
     logger.info(f"生成 {len(data)} 个交易日数据")
 
     logger.info("===== 运行ETF信号策略回测 =====")

@@ -33,6 +33,7 @@ logger = logging.getLogger("ai_decision.execution_risk")
 # 执行层硬风控 (L2)
 # ============================================================
 
+
 @dataclass
 class ExecutionRiskResult:
     """L2 执行层硬风控结果。
@@ -43,6 +44,7 @@ class ExecutionRiskResult:
         veto_reason: 否决原因汇总文本
         checks: 各项检查明细键值对
     """
+
     passed: bool = True
     veto: bool = False
     veto_reason: str = ""
@@ -110,8 +112,13 @@ def _execution_risk_check(
     # ===== Phase 1: 复用 L1 decision_gate.run_hard_risk() =====
     if risk_context is not None and decision is not None:
         _run_l1_checks(
-            execution_plan, risk_context, decision, portfolio_value,
-            checks, veto_reasons, result,
+            execution_plan,
+            risk_context,
+            decision,
+            portfolio_value,
+            checks,
+            veto_reasons,
+            result,
         )
 
     # ===== Phase 2: L2 执行层特有检查 =====

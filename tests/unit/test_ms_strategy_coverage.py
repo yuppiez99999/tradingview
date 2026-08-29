@@ -12,6 +12,7 @@ G7 覆盖率补齐 — ms_strategy 轻量纯逻辑模块单元测试
 
 注意: 本文件通过 sys.path 注入 ms_strategy 根目录, 使 `import src.xxx` 工作 (src 包用相对导入)。
 """
+
 import os
 import sys
 
@@ -84,16 +85,19 @@ class TestCostModel:
 
     def test_market_impact_increases_with_qty(self):
         cm = CostModel()
-        small = cm.market_impact(qty=10_000, daily_volume=10_000_000,
-                                 volatility=0.02, price=10.0)
-        large = cm.market_impact(qty=5_000_000, daily_volume=10_000_000,
-                                 volatility=0.02, price=10.0)
+        small = cm.market_impact(
+            qty=10_000, daily_volume=10_000_000, volatility=0.02, price=10.0
+        )
+        large = cm.market_impact(
+            qty=5_000_000, daily_volume=10_000_000, volatility=0.02, price=10.0
+        )
         assert large > small
 
     def test_total_cost_positive(self):
         cm = CostModel()
-        tc = cm.total_cost(qty=100_000, price=10.0, daily_volume=10_000_000,
-                           volatility=0.02)
+        tc = cm.total_cost(
+            qty=100_000, price=10.0, daily_volume=10_000_000, volatility=0.02
+        )
         assert tc["total_cost"] > 0
 
     def test_financing_cost_scales_with_days(self):
@@ -104,8 +108,9 @@ class TestCostModel:
 
     def test_almgren_chriss_subclass(self):
         ac = AlmgrenChrissCost()
-        tc = ac.total_cost(qty=100_000, price=10.0, daily_volume=10_000_000,
-                           volatility=0.02)
+        tc = ac.total_cost(
+            qty=100_000, price=10.0, daily_volume=10_000_000, volatility=0.02
+        )
         assert tc["total_cost"] > 0
 
 
@@ -127,8 +132,12 @@ class TestCircuitBreaker:
         cb = CircuitBreaker()
         res = cb.check_advanced(daily_drop=0.10, hwm_drawdown=0.20)
         assert isinstance(res, CircuitLevel)
-        assert res in (CircuitLevel.LEVEL_2, CircuitLevel.LEVEL_3,
-                       CircuitLevel.LEVEL_4, CircuitLevel.NORMAL)
+        assert res in (
+            CircuitLevel.LEVEL_2,
+            CircuitLevel.LEVEL_3,
+            CircuitLevel.LEVEL_4,
+            CircuitLevel.NORMAL,
+        )
 
     def test_advanced_high_triggers(self):
         cb = CircuitBreaker()
@@ -242,8 +251,9 @@ class TestCorrelationHedger:
 class TestTailRiskHedger:
     def test_regime_crisis(self):
         th = TailRiskHedger()
-        regime = th.analyze_market_regime(vix=80, hwm_drawdown=0.35,
-                                          portfolio_volatility=0.3)
+        regime = th.analyze_market_regime(
+            vix=80, hwm_drawdown=0.35, portfolio_volatility=0.3
+        )
         assert regime == MarketRegime.CRISIS
 
     def test_regime_normal(self):
@@ -291,8 +301,11 @@ class TestTailRiskHedger:
     def test_compute_hedge_full(self):
         th = TailRiskHedger()
         res = th.compute_hedge(
-            vix=80, hwm_drawdown=0.25, portfolio_value=10_000_000,
-            spot_price=1.0, bs_loss=0.6,
+            vix=80,
+            hwm_drawdown=0.25,
+            portfolio_value=10_000_000,
+            spot_price=1.0,
+            bs_loss=0.6,
         )
         assert "action" in res
         assert "otm_ladder" in res
@@ -415,14 +428,19 @@ class TestScenarioLibrary:
 
     def test_add_and_list_custom(self):
         lib = ScenarioLibrary()
-        sc = StressScenario(name="TEST", start="2020-01-01", end="2020-02-01", description="t")
+        sc = StressScenario(
+            name="TEST", start="2020-01-01", end="2020-02-01", description="t"
+        )
         lib.add_scenario(sc)
         assert "TEST" in lib.list_scenarios()
 
     def test_what_if_covid(self):
         lib = ScenarioLibrary()
-        res = lib.what_if(positions={"600000": 1000}, scenario_name="COVID_CRASH",
-                          current_prices={"600000": 10.0})
+        res = lib.what_if(
+            positions={"600000": 1000},
+            scenario_name="COVID_CRASH",
+            current_prices={"600000": 10.0},
+        )
         assert res["total_pnl"] < 0  # CSI300 shock -13%
 
     def test_what_if_missing_scenario(self):
@@ -432,21 +450,24 @@ class TestScenarioLibrary:
 
     def test_monte_carlo_tail(self):
         lib = ScenarioLibrary()
-        res = lib.monte_carlo_tail(positions={"a": 100}, prices={"a": 10.0},
-                                   n_simulations=2000)
+        res = lib.monte_carlo_tail(
+            positions={"a": 100}, prices={"a": 10.0}, n_simulations=2000
+        )
         assert "var_95" in res
         assert res["worst_case"] <= res["var_95"]
 
     def test_compliance_tests(self):
         lib = ScenarioLibrary()
-        res = lib.run_compliance_tests(positions={"600000": 1000},
-                                       prices={"600000": 10.0})
+        res = lib.run_compliance_tests(
+            positions={"600000": 1000}, prices={"600000": 10.0}
+        )
         assert set(res.keys()) == {"COVID_CRASH", "LUNA_CRASH", "YEN_CARRY"}
 
     def test_pass_criteria(self):
         lib = ScenarioLibrary()
-        comp = lib.run_compliance_tests(positions={"600000": 1000},
-                                        prices={"600000": 10.0})
+        comp = lib.run_compliance_tests(
+            positions={"600000": 1000}, prices={"600000": 10.0}
+        )
         all_passed, needs_cro, details = lib.check_pass_criteria(comp)
         assert isinstance(all_passed, bool)
         assert isinstance(needs_cro, bool)
@@ -498,8 +519,9 @@ class TestSignalGenerator:
     def test_compute_ic(self):
         sg, fm, fwd = self._setup()
         idx = pd.date_range("2024-01-01", periods=len(fwd), freq="B")
-        res = sg.compute_ic(pd.Series(fwd.values, index=idx),
-                            pd.Series(fwd.values, index=idx))
+        res = sg.compute_ic(
+            pd.Series(fwd.values, index=idx), pd.Series(fwd.values, index=idx)
+        )
         assert "ic" in res
 
     def test_get_asset_factors(self):
@@ -537,8 +559,9 @@ class TestCostAwareBacktest:
 
     def test_compute_trade_cost(self):
         cab = self._make()
-        tc = cab.compute_trade_cost(notional=10_000, side="BUY", qty=1000,
-                                    daily_volume=1_000_000, price=10.0)
+        tc = cab.compute_trade_cost(
+            notional=10_000, side="BUY", qty=1000, daily_volume=1_000_000, price=10.0
+        )
         assert tc["total_cost"] > 0
 
     def test_run_strategy(self):
@@ -620,8 +643,9 @@ class TestDynamicRiskThreshold:
 
     def test_calculate_with_regime(self):
         drt = DynamicRiskThreshold()
-        menv = MarketEnvironment(vix_current=30.0, realized_vol_20d=0.3,
-                                  price_trend=-0.8)
+        menv = MarketEnvironment(
+            vix_current=30.0, realized_vol_20d=0.3, price_trend=-0.8
+        )
         pstate = PortfolioState(current_drawdown=0.1, pnl_30d_pct=-0.05)
         res = drt.calculate(market_env=menv, portfolio_state=pstate)
         assert res.portfolio_max_drawdown < 0
@@ -676,8 +700,9 @@ class TestRiskBudgeter:
 
     def test_risk_parity(self):
         rb = RiskBudgeter()
-        rets = pd.DataFrame(np.random.default_rng(0).normal(0, 0.01, (250, 3)),
-                            columns=["a", "b", "c"])
+        rets = pd.DataFrame(
+            np.random.default_rng(0).normal(0, 0.01, (250, 3)), columns=["a", "b", "c"]
+        )
         w = rb.risk_parity_weights(returns=rets)
         assert abs(float(sum(w)) - 1.0) < 1e-6
 
@@ -792,7 +817,11 @@ class TestQlibSignalAdapter:
 
     def test_constants_and_availability(self):
         assert qsa.DEFAULT_MODEL == "lightgbm"
-        assert "lstm" in qsa.MODEL_MAP and "lightgbm" in qsa.MODEL_MAP and "transformer" in qsa.MODEL_MAP
+        assert (
+            "lstm" in qsa.MODEL_MAP
+            and "lightgbm" in qsa.MODEL_MAP
+            and "transformer" in qsa.MODEL_MAP
+        )
         # 环境中 qlib.contrib.model.lightgbm 缺失 -> _QLIB_AVAILABLE=False
         assert qsa._QLIB_AVAILABLE is False
         assert qsa.is_qlib_available() is False
@@ -820,7 +849,14 @@ class TestQlibSignalAdapter:
             index=idx,
         )
         qdf = qsa.v75_to_qlib_features(df, "600000")
-        assert list(qdf.columns) == ["open", "high", "low", "close", "volume", "instrument"]
+        assert list(qdf.columns) == [
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "instrument",
+        ]
         assert (qdf["instrument"] == "600000").all()
         assert isinstance(qdf.index, pd.DatetimeIndex)
 
@@ -892,10 +928,19 @@ class TestQlibSignalAdapter:
 
     def test_prepare_qlib_dataset_unavailable(self):
         df = self._make_ohlcv(periods=200)
-        assert qsa.prepare_qlib_dataset(
-            df, "TEST", "2023-01-01", "2023-06-01", "2023-06-02",
-            "2023-09-01", "2023-09-02", "2023-12-31",
-        ) is None
+        assert (
+            qsa.prepare_qlib_dataset(
+                df,
+                "TEST",
+                "2023-01-01",
+                "2023-06-01",
+                "2023-06-02",
+                "2023-09-01",
+                "2023-09-02",
+                "2023-12-31",
+            )
+            is None
+        )
 
     def test_v75_to_qlib_features_datetime_index_fallback(self):
         # index 非 DatetimeIndex, 但有 'datetime' 列 -> 应转为 DatetimeIndex

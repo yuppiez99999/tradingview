@@ -135,9 +135,7 @@ class CostBenefitFilter:
                 reject_reason="",
             )
 
-        reject_reason = (
-            f"成本效益不足: 预期收益{benefit:.4f} ≤ 成本{cost:.4f} × 阈值{self.threshold}"
-        )
+        reject_reason = f"成本效益不足: 预期收益{benefit:.4f} ≤ 成本{cost:.4f} × 阈值{self.threshold}"
         logger.info("[过滤] %s", reject_reason)
         return FilterResult(
             passed=False,
@@ -169,7 +167,9 @@ class CostBenefitFilter:
 
         # 保证金机会成本 = 保证金率 × 保证金占用比例
         # 期货保证金约 10-15%，取 12%
-        margin_ratio = 0.12 if selection.tool_type == HedgeToolType.INDEX_FUTURES else 0.0
+        margin_ratio = (
+            0.12 if selection.tool_type == HedgeToolType.INDEX_FUTURES else 0.0
+        )
         margin_cost = self.margin_opp_cost * margin_ratio * hedge_ratio
 
         # 权利金 (期权时) — 期权权利金约标的价格的 3%

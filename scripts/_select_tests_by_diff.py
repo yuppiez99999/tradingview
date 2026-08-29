@@ -23,6 +23,7 @@ R1 修复项。CI "Smart Test Selection" 阶段引用本脚本, 缺失导致 CI 
         --base origin/main --head HEAD \
         [--tests-root tests] [--max-diff-files 40] [--output-file reports/ci/selected_tests.txt]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,8 +42,14 @@ def run_git(args: list[str]) -> str:
     env = dict(os.environ)
     env.setdefault("PYTHONUTF8", "1")
     proc = subprocess.run(
-        ["git"] + args, cwd=str(ROOT), capture_output=True, text=True,
-        encoding="utf-8", errors="replace", env=env, timeout=120,
+        ["git"] + args,
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        timeout=120,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
@@ -117,9 +124,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--head", default="HEAD")
     parser.add_argument("--tests-root", default="tests")
     parser.add_argument("--max-diff-files", type=int, default=40)
-    parser.add_argument("--output-file", default=str(ROOT / "reports" / "ci" / "selected_tests.txt"))
-    parser.add_argument("--diff-file-list", default=None,
-                        help="可选: 直接传入变更文件列表 (逗号分隔), 跳过 git diff")
+    parser.add_argument(
+        "--output-file", default=str(ROOT / "reports" / "ci" / "selected_tests.txt")
+    )
+    parser.add_argument(
+        "--diff-file-list",
+        default=None,
+        help="可选: 直接传入变更文件列表 (逗号分隔), 跳过 git diff",
+    )
     args = parser.parse_args(argv)
 
     out_path = Path(args.output_file)
@@ -140,8 +152,11 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     # 仅看仓库内的 .py 变更
     changed_py = [c for c in changed if c.endswith(".py") and (ROOT / c).exists()]
-    changed_prod = [c for c in changed_py
-                    if not c.startswith(args.tests_root + "/") and c != "tests"]
+    changed_prod = [
+        c
+        for c in changed_py
+        if not c.startswith(args.tests_root + "/") and c != "tests"
+    ]
 
     if not changed:
         out_path.write_text("NONE\n", encoding="utf-8")
@@ -155,13 +170,25 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0
 
     # 2. 构建依赖图
-    prod_roots = ["scripts", "utils", "ai_decision", "cli", "core",
-                  "quant_modules", "lgb_trainer", "v8.3_institutional",
-                  "15_每日工作流", "."]
+    prod_roots = [
+        "scripts",
+        "utils",
+        "ai_decision",
+        "cli",
+        "core",
+        "quant_modules",
+        "lgb_trainer",
+        "v8.3_institutional",
+        "15_每日工作流",
+        ".",
+    ]
     prod_files = collect_py_roots(prod_roots)
     # 仅保留仓库内的非测试文件
-    prod_files = [p for p in prod_files
-                  if not str(p).replace("\\", "/").startswith(args.tests_root + "/")]
+    prod_files = [
+        p
+        for p in prod_files
+        if not str(p).replace("\\", "/").startswith(args.tests_root + "/")
+    ]
     graph = build_import_graph(prod_files)
     rev = reverse_graph(graph)
 

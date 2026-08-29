@@ -1,4 +1,5 @@
 """投研平台 — 参考 QuantMind Research Platform 设计"""
+
 import os
 import sys
 
@@ -22,6 +23,7 @@ from ui.components.sidebar import render_sidebar
 inject_global_style()
 render_sidebar()
 
+
 # ═══════════════════════════════════════════════════════════════
 # 模拟研究数据
 # ═══════════════════════════════════════════════════════════════
@@ -30,16 +32,18 @@ def load_research_data():
     candidates = []
     for code, name in list(STOCK_NAME_MAP.items())[:40]:
         score = round(random.uniform(0.55, 0.95), 2)
-        candidates.append({
-            "代码": code,
-            "名称": name,
-            "模型分": score,
-            "1日收益%": round(random.uniform(-3, 3), 2),
-            "5日收益%": round(random.uniform(-8, 8), 2),
-            "20日收益%": round(random.uniform(-15, 15), 2),
-            "60日收益%": round(random.uniform(-25, 25), 2),
-            "风格": get_asset_style(code)[0],
-        })
+        candidates.append(
+            {
+                "代码": code,
+                "名称": name,
+                "模型分": score,
+                "1日收益%": round(random.uniform(-3, 3), 2),
+                "5日收益%": round(random.uniform(-8, 8), 2),
+                "20日收益%": round(random.uniform(-15, 15), 2),
+                "60日收益%": round(random.uniform(-25, 25), 2),
+                "风格": get_asset_style(code)[0],
+            }
+        )
     return pd.DataFrame(candidates)
 
 
@@ -61,10 +65,7 @@ with f2:
 with f3:
     batch = st.selectbox("批次", ["全部", "批次A", "批次B", "批次C"], index=0)
 
-filtered = df[
-    (df["模型分"] >= min_score)
-    & (df["风格"].isin(style_filter))
-].copy()
+filtered = df[(df["模型分"] >= min_score) & (df["风格"].isin(style_filter))].copy()
 
 st.markdown(f"当前筛选结果：**{len(filtered)}** 只标的")
 
@@ -98,9 +99,13 @@ if not filtered.empty:
     selected = st.multiselect(
         "选择展示标的",
         options=filtered["名称"].tolist(),
-        default=filtered.sort_values("模型分", ascending=False).head(8)["名称"].tolist(),
+        default=filtered.sort_values("模型分", ascending=False)
+        .head(8)["名称"]
+        .tolist(),
     )
     if selected:
-        sel_df = filtered[filtered["名称"].isin(selected)][["名称"] + periods].set_index("名称")
+        sel_df = filtered[filtered["名称"].isin(selected)][
+            ["名称"] + periods
+        ].set_index("名称")
         st.dataframe(sel_df, use_container_width=True)
         st.bar_chart(sel_df.T, use_container_width=True)

@@ -22,7 +22,12 @@ from typing import Any
 import numpy as np
 
 from utils.pipeline.config import get_pipeline_config
-from utils.pipeline.types import AlphaSignalResult, PipelineConfig, PipelineResult, PipelineStage
+from utils.pipeline.types import (
+    AlphaSignalResult,
+    PipelineConfig,
+    PipelineResult,
+    PipelineStage,
+)
 
 logger = logging.getLogger("pipeline.alpha")
 
@@ -31,6 +36,7 @@ QLIB_ROOT = Path(__file__).resolve().parent.parent.parent / "qlib"
 _QLIB_AVAILABLE = False
 try:
     import sys
+
     # G-20260812: 仅当项目根与 qlib 目录都不在 sys.path 时才追加(append 而非 insert(0))。
     # 此前 insert(0) 把 qlib 目录置于 sys.path 最前, 劫持与 qlib 子目录同名的顶层包
     # (如 tests → qlib/tests), 使 pytest 全量收集 tests/unit/backtest 时
@@ -42,9 +48,21 @@ try:
     from qlib.contrib.model import (
         LGBModel,  # type: ignore  # G2 FIX: 从包顶层 re-export (实际定义在 gbdt.py, 无 lightgbm.py 子模块)
     )
+
     _QLIB_AVAILABLE = True
     logger.info("Qlib 导入成功")
-except (ModuleNotFoundError, ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+except (
+    ModuleNotFoundError,
+    ImportError,
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    RuntimeError,
+    OSError,
+    TimeoutError,
+    ConnectionError,
+):
     # 模块缺失/数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     logger.warning("Qlib 不可用，将回退到本地因子信号")
 
@@ -121,17 +139,38 @@ class AlphaPipeline:
                     "model": signal_result.model_name,
                     "needs_retrain": needs_retrain,
                     "qlib_available": _QLIB_AVAILABLE,
-                    "avg_signal": round(float(np.mean(list(signal_result.signals.values()))), 4) if signal_result.signals else 0.0,
-                    "avg_confidence": round(float(np.mean(list(signal_result.confidence.values()))), 4) if signal_result.confidence else 0.0,
+                    "avg_signal": (
+                        round(float(np.mean(list(signal_result.signals.values()))), 4)
+                        if signal_result.signals
+                        else 0.0
+                    ),
+                    "avg_confidence": (
+                        round(
+                            float(np.mean(list(signal_result.confidence.values()))), 4
+                        )
+                        if signal_result.confidence
+                        else 0.0
+                    ),
                 },
                 reports=[report_path] if report_path else [],
             )
 
             n_signals = len(signal_result.signals)
-            logger.info(f"[Alpha流水线] 完成: {n_signals} 个标的信号, 模型={signal_result.model_name}")
+            logger.info(
+                f"[Alpha流水线] 完成: {n_signals} 个标的信号, 模型={signal_result.model_name}"
+            )
             return signal_result, result
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"[Alpha流水线] 失败: {e}", exc_info=True)
@@ -175,7 +214,16 @@ class AlphaPipeline:
         model_metrics = {}
         try:
             model_metrics = self._train_qlib_model(train_data, model_name)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"[Alpha流水线] Qlib 训练失败: {e}，回退到本地因子")
             return self._run_local_factors(symbols)
@@ -206,13 +254,23 @@ class AlphaPipeline:
 
             # 获取历史数据
             from utils.data_provider import MarketDataProvider
+
             provider = MarketDataProvider()
 
             train_data = {}
             for sym in symbols:
                 try:
                     df = provider.get_historical_data(sym, period="3y")  # ~3 年数据
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     df = None
                 if df is not None and not df.empty:
                     qlib_records = dataframe_to_qlib_record(df)
@@ -223,7 +281,16 @@ class AlphaPipeline:
                 return None
 
             return {"symbols": list(train_data.keys()), "records": train_data}
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"准备 Qlib 数据失败: {e}")
             return None
@@ -238,9 +305,19 @@ class AlphaPipeline:
         try:
             # 如果有 GPU 且数据量 > 2000 条，用 Transformer
             import torch
-            if torch.cuda.is_available() and hasattr(self, '_get_training_data_size'):
+
+            if torch.cuda.is_available() and hasattr(self, "_get_training_data_size"):
                 return "transformer"
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return "lightgbm"
@@ -266,14 +343,25 @@ class AlphaPipeline:
                 # LGBM 训练
                 metrics["model"] = "lightgbm"
                 metrics["status"] = "trained"
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"LGBM 训练失败: {e}")
                 metrics["status"] = "failed"
 
         return metrics
 
-    def _generate_predictions(self, train_data: dict, model_name: str) -> tuple[dict[str, float], dict[str, float]]:
+    def _generate_predictions(
+        self, train_data: dict, model_name: str
+    ) -> tuple[dict[str, float], dict[str, float]]:
         """生成预测信号"""
         signals: dict[str, float] = {}
         confidence: dict[str, float] = {}
@@ -295,7 +383,17 @@ class AlphaPipeline:
                 if score is not None:
                     signals[system_sym] = float(np.clip(score, -1, 1))
                     confidence[system_sym] = 0.6  # 因子信号默认置信度
-        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             logger.warning("本地因子信号生成失败", exc_info=True)
 
         return signals, confidence
@@ -328,7 +426,17 @@ class AlphaPipeline:
                 if score is not None:
                     signals[sym] = float(np.clip(score, -1, 1))
                     confidence[sym] = 0.5
-        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 终极回退: 仅输出中性信号
             for sym in symbols:
                 signals[sym] = 0.0
@@ -359,7 +467,9 @@ class AlphaPipeline:
             arr = np.array(list(vals.values()), dtype=float)
             if arr.std() > 1e-12:
                 z = (arr - arr.mean()) / arr.std()
-                standardized_factors.append(dict(zip(vals.keys(), z.tolist(), strict=True)))
+                standardized_factors.append(
+                    dict(zip(vals.keys(), z.tolist(), strict=True))
+                )
 
         if not standardized_factors:
             return scores
@@ -373,7 +483,9 @@ class AlphaPipeline:
             scores[sym] /= n
         return scores
 
-    def _build_symbol_price_data(self, symbols: list[str]) -> dict[str, dict[str, list[float]]]:
+    def _build_symbol_price_data(
+        self, symbols: list[str]
+    ) -> dict[str, dict[str, list[float]]]:
         """将标的列表转换为因子库 price_data 格式"""
         if not symbols:
             return {}
@@ -389,8 +501,19 @@ class AlphaPipeline:
 
         try:
             from utils.alpha_factor.gate1_validation import fetch_prices
+
             return fetch_prices(clean_symbols, days=250, use_cache=True)
-        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             logger.warning("获取价格数据失败", exc_info=True)
             return {}
 
@@ -407,11 +530,22 @@ class AlphaPipeline:
         # 检查距上次重训是否超过配置间隔
         if self._last_signals.training_date:
             try:
-                last_train = datetime.strptime(self._last_signals.training_date, "%Y-%m-%d")
+                last_train = datetime.strptime(
+                    self._last_signals.training_date, "%Y-%m-%d"
+                )
                 days_since = (datetime.now() - last_train).days
                 if days_since >= self.config.train_interval_days:
                     return True
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 return True
 
@@ -419,11 +553,21 @@ class AlphaPipeline:
         if self.config.retrain_on_drift:
             try:
                 from utils.alpha.drift_monitor import DriftMonitor
+
                 monitor = DriftMonitor()
                 if monitor.check_drift_alert():
                     logger.info("[Alpha流水线] DriftMonitor 触发重训")
                     return True
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
 
@@ -433,12 +577,26 @@ class AlphaPipeline:
         """获取训练用的标的列表"""
         try:
             from utils.positions_loader import get_positions_list
+
             positions = get_positions_list()
-            symbols = [p.get("symbol", "") or p.get("code", "") for p in positions if isinstance(p, dict)]
+            symbols = [
+                p.get("symbol", "") or p.get("code", "")
+                for p in positions
+                if isinstance(p, dict)
+            ]
             symbols = [s for s in symbols if s]
             if symbols:
                 return symbols
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         return ["300308", "002371", "688041", "600900", "601088", "600276"]
@@ -455,7 +613,9 @@ class AlphaPipeline:
         clipped = np.clip(values, q01, q99)
         max_abs = max(abs(clipped.min()), abs(clipped.max()), 1e-10)
         normalized = clipped / max_abs
-        return dict(zip(signals.keys(), [round(float(v), 6) for v in normalized], strict=True))
+        return dict(
+            zip(signals.keys(), [round(float(v), 6) for v in normalized], strict=True)
+        )
 
     def _inject_to_fusion(self, signal_result: AlphaSignalResult) -> None:
         """注入信号到 SignalFusionEngine (通过 register_source 注册 pipeline_alpha 源)."""
@@ -467,16 +627,36 @@ class AlphaPipeline:
             def _pipeline_getter(code: str) -> "SignalResult":
                 sig = signal_result.signals.get(code)
                 if sig is not None:
-                    return SignalResult(code=code, source="pipeline_alpha",
-                                       score=sig.get("score", 0.5),
-                                       action=sig.get("action", "HOLD"),
-                                       confidence=sig.get("confidence", 0.5))
-                return SignalResult(code=code, source="pipeline_alpha",
-                                   score=0.0, action="HOLD", confidence=0.0)
+                    return SignalResult(
+                        code=code,
+                        source="pipeline_alpha",
+                        score=sig.get("score", 0.5),
+                        action=sig.get("action", "HOLD"),
+                        confidence=sig.get("confidence", 0.5),
+                    )
+                return SignalResult(
+                    code=code,
+                    source="pipeline_alpha",
+                    score=0.0,
+                    action="HOLD",
+                    confidence=0.0,
+                )
 
-            engine.register_source("pipeline_alpha", _pipeline_getter, initial_weight=0.10)
-            logger.info("[Alpha流水线] 信号已注入 SignalFusionEngine (register_source pipeline_alpha)")
-        except (ImportError, ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+            engine.register_source(
+                "pipeline_alpha", _pipeline_getter, initial_weight=0.10
+            )
+            logger.info(
+                "[Alpha流水线] 信号已注入 SignalFusionEngine (register_source pipeline_alpha)"
+            )
+        except (
+            ImportError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+        ) as e:
             # 含 ImportError: signal_fusion 不可用时不阻断; 其余为数据处理/计算/IO 异常
             logger.warning(f"[Alpha流水线] 注入 SignalFusionEngine 失败: {e}")
 
@@ -497,16 +677,30 @@ class AlphaPipeline:
         path = self._report_dir / f"alpha_signals_{timestamp}.json"
         try:
             with open(path, "w", encoding="utf-8") as f:
-                json.dump({
-                    "model": signal_result.model_name,
-                    "training_date": signal_result.training_date,
-                    "n_stocks": signal_result.n_stocks,
-                    "model_metrics": signal_result.model_metrics,
-                    "signals": signal_result.signals,
-                    "confidence": signal_result.confidence,
-                }, f, ensure_ascii=False, indent=2)
+                json.dump(
+                    {
+                        "model": signal_result.model_name,
+                        "training_date": signal_result.training_date,
+                        "n_stocks": signal_result.n_stocks,
+                        "model_metrics": signal_result.model_metrics,
+                        "signals": signal_result.signals,
+                        "confidence": signal_result.confidence,
+                    },
+                    f,
+                    ensure_ascii=False,
+                    indent=2,
+                )
             return str(path)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"保存信号报告失败: {e}")
             return None

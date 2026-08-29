@@ -18,7 +18,6 @@
 - v8.6.15: 因子数 9→20, 覆盖全部 21 个纯 Python 实现 (排除 alpha24 因与 alpha26 高相关)
 """
 
-
 from __future__ import annotations
 
 import numpy as np
@@ -83,21 +82,27 @@ def _to_ohlcv_df(data: dict[str, list[float]]) -> pd.DataFrame | None:
     lows = data.get("lows", closes)
     opens = data.get("opens", closes)
     vols = data.get("volumes", [0] * n)
-    amounts = data.get("amounts", [c * v for c, v in zip(closes, vols)])  # noqa: B905 - default 近似, 后续 L89 长度对齐兜底
+    amounts = data.get(
+        "amounts", [c * v for c, v in zip(closes, vols, strict=False)]
+    )  # noqa: B905 - default 近似, 后续 L89 长度对齐兜底
 
     # 长度对齐
-    min_len = min(len(closes), len(highs), len(lows), len(opens), len(vols), len(amounts))
+    min_len = min(
+        len(closes), len(highs), len(lows), len(opens), len(vols), len(amounts)
+    )
     if min_len < 2:
         return None
 
-    df = pd.DataFrame({
-        "open": opens[-min_len:],
-        "high": highs[-min_len:],
-        "low": lows[-min_len:],
-        "close": closes[-min_len:],
-        "volume": vols[-min_len:],
-        "amount": amounts[-min_len:],
-    })
+    df = pd.DataFrame(
+        {
+            "open": opens[-min_len:],
+            "high": highs[-min_len:],
+            "low": lows[-min_len:],
+            "close": closes[-min_len:],
+            "volume": vols[-min_len:],
+            "amount": amounts[-min_len:],
+        }
+    )
     return df
 
 
@@ -107,7 +112,9 @@ def _id_to_method(alpha_id: str) -> str:
     return f"alpha{int(suffix)}"
 
 
-def _compute_via_ms_strategy(df: pd.DataFrame, ids: list[str]) -> dict[str, float | None]:
+def _compute_via_ms_strategy(
+    df: pd.DataFrame, ids: list[str]
+) -> dict[str, float | None]:
     """用 ms_strategy 版本 (21因子纯 Python 实现) 计算
 
     Args:
@@ -124,7 +131,16 @@ def _compute_via_ms_strategy(df: pd.DataFrame, ids: list[str]) -> dict[str, floa
 
     try:
         g = _GTJA_MS()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {}
 
@@ -137,7 +153,16 @@ def _compute_via_ms_strategy(df: pd.DataFrame, ids: list[str]) -> dict[str, floa
         try:
             val = fn(df)
             out[alpha_id] = val
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             out[alpha_id] = None
     return out
@@ -150,9 +175,19 @@ def _compute_via_utils(df: pd.DataFrame, ids: list[str]) -> dict[str, float | No
     """
     try:
         from utils.gtja191_factors import GTJA191Factors as _GTJA_UTILS
+
         g = _GTJA_UTILS()
         return g.compute(df, factor_ids=ids)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return {}
 
@@ -180,8 +215,18 @@ def compute_technical_factors(
     elif all_factors and prefer == "utils":
         try:
             from utils.gtja191_factors import GTJA191Factors
+
             ids = GTJA191Factors().factor_ids
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             ids = DEFAULT_GTJA
     else:
@@ -204,7 +249,16 @@ def compute_technical_factors(
         # 主实现
         try:
             values_map = primary_fn(df, ids)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             values_map = {}
 
@@ -212,7 +266,16 @@ def compute_technical_factors(
         if not values_map:
             try:
                 values_map = fallback_fn(df, ids)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 values_map = {}
 
@@ -226,7 +289,11 @@ def compute_technical_factors(
             if np.isnan(fval) or np.isinf(fval):
                 continue
             # gtja191_001 -> GTJA_001
-            name = f"GTJA_{alpha_id.split('_')[-1]}" if "_" in alpha_id else f"GTJA_{alpha_id}"
+            name = (
+                f"GTJA_{alpha_id.split('_')[-1]}"
+                if "_" in alpha_id
+                else f"GTJA_{alpha_id}"
+            )
             if name not in factors:
                 factors[name] = FactorValue(name=name, category="Technical", values={})
             factors[name].values[sym] = fval
@@ -239,15 +306,35 @@ def list_available_factors() -> list[str]:
     # 优先 ms_strategy (独立可用)
     try:
         from ms_strategy.factors.gtja191_factors import GTJA191Factors
+
         g = GTJA191Factors()
         ms_methods = [m for m in dir(g) if m.startswith("alpha")]
         # 统一为 gtja191_NNN 格式 (带前导零, 与 DEFAULT_GTJA 一致)
         return [f"gtja191_{int(m[5:]):03d}" for m in ms_methods]
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # ms_strategy 不可用时静默回退到 utils 版本 (降级语义, 非吞错)
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # ms_strategy 不可用时静默回退到 utils 版本 (降级语义, 非吞错)
         pass
     # 回退 utils (需 vibe adapter)
     try:
         from utils.gtja191_factors import GTJA191Factors
+
         return GTJA191Factors().factor_ids
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # 两个实现均不可用时返回空列表, 调用方据此跳过 Technical 因子
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # 两个实现均不可用时返回空列表, 调用方据此跳过 Technical 因子
         return []

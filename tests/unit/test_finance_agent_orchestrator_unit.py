@@ -11,6 +11,7 @@
   - 不依赖 LLM 调用 (使用规则引擎兜底)
   - Python 3.8.9 兼容
 """
+
 from __future__ import annotations
 
 import json
@@ -47,8 +48,10 @@ class TestAgentDecision:
     def test_agent_decision_nan_strength_zeroed(self):
         """NaN strength 归零 (P0 防御: 与 signal_fusion 一致)"""
         d = AgentDecision(
-            agent_name="test", symbol="X",
-            strength=float("nan"), confidence=0.5,
+            agent_name="test",
+            symbol="X",
+            strength=float("nan"),
+            confidence=0.5,
         )
         assert d.strength == 0.0
         assert d.confidence == 0.5
@@ -57,8 +60,10 @@ class TestAgentDecision:
     def test_agent_decision_inf_confidence_zeroed(self):
         """Inf confidence 归零"""
         d = AgentDecision(
-            agent_name="test", symbol="X",
-            strength=0.5, confidence=float("inf"),
+            agent_name="test",
+            symbol="X",
+            strength=0.5,
+            confidence=float("inf"),
         )
         assert d.strength == 0.5
         assert d.confidence == 0.0
@@ -67,14 +72,18 @@ class TestAgentDecision:
     def test_agent_decision_strength_clipped(self):
         """strength 超出 [-1, 1] 边界裁剪"""
         d = AgentDecision(
-            agent_name="test", symbol="X",
-            strength=2.5, confidence=0.5,
+            agent_name="test",
+            symbol="X",
+            strength=2.5,
+            confidence=0.5,
         )
         assert d.strength == 1.0
 
         d2 = AgentDecision(
-            agent_name="test", symbol="X",
-            strength=-2.5, confidence=0.5,
+            agent_name="test",
+            symbol="X",
+            strength=-2.5,
+            confidence=0.5,
         )
         assert d2.strength == -1.0
 
@@ -82,7 +91,8 @@ class TestAgentDecision:
     def test_agent_decision_invalid_action_falls_back_to_hold(self):
         """非法 action 降级为 hold"""
         d = AgentDecision(
-            agent_name="test", symbol="X",
+            agent_name="test",
+            symbol="X",
             action="invalid_action",
         )
         assert d.action == "hold"
@@ -91,8 +101,10 @@ class TestAgentDecision:
     def test_agent_decision_veto_requires_reason(self):
         """veto 必须有理由, 否则填充默认"""
         d = AgentDecision(
-            agent_name="risk", symbol="X",
-            action="veto", veto_reason="",
+            agent_name="risk",
+            symbol="X",
+            action="veto",
+            veto_reason="",
         )
         assert d.veto_reason != ""
         assert "risk" in d.veto_reason
@@ -101,9 +113,13 @@ class TestAgentDecision:
     def test_agent_decision_to_dict_serializable(self):
         """to_dict() 输出可 JSON 序列化"""
         d = AgentDecision(
-            agent_name="value", symbol="600276.SH",
-            action="buy", strength=0.5, confidence=0.8,
-            reasoning="PE 低", key_metrics={"pe": 15.2},
+            agent_name="value",
+            symbol="600276.SH",
+            action="buy",
+            strength=0.5,
+            confidence=0.8,
+            reasoning="PE 低",
+            key_metrics={"pe": 15.2},
         )
         d_dict = d.to_dict()
         # 必须 JSON 可序列化
@@ -172,19 +188,23 @@ def mock_context():
     """Mock 上下文 (5 个 Agent 都可用)"""
     return {
         "kline": [
-            {"close": 10 + i * 0.1, "volume": 1e7, "amount": 1e8}
-            for i in range(30)
+            {"close": 10 + i * 0.1, "volume": 1e7, "amount": 1e8} for i in range(30)
         ],
         "fundamentals": {
-            "pe": 15.2, "pb": 2.1, "roe": 0.18,
-            "pe_percentile": 0.15, "pb_percentile": 0.20,
+            "pe": 15.2,
+            "pb": 2.1,
+            "roe": 0.18,
+            "pe_percentile": 0.15,
+            "pb_percentile": 0.20,
         },
         "news_items": [
             {"title": "业绩增长", "content": "利好", "symbol": "600276.SH"},
         ],
         "macro_data": {
-            "bond_10y_yield": 0.024, "north_flow": 8e9,
-            "industry_score": 0.75, "index_return_20d": 0.06,
+            "bond_10y_yield": 0.024,
+            "north_flow": 8e9,
+            "industry_score": 0.75,
+            "index_return_20d": 0.06,
         },
         "position_weight": 0.08,
         "beta": 1.1,
@@ -241,8 +261,7 @@ class TestOrchestrate:
         """veto 优先级最高 (RiskAgent 触发)"""
         # 构造暴跌 kline (回撤 > 25%)
         falling_kline = [
-            {"close": 10 - i * 0.3, "volume": 1e7, "amount": 1e8}
-            for i in range(30)
+            {"close": 10 - i * 0.3, "volume": 1e7, "amount": 1e8} for i in range(30)
         ]
         result = orchestrator.orchestrate("X", {"kline": falling_kline})
         # 触发 veto (回撤 > 25%)
@@ -270,8 +289,18 @@ class TestWeightedVote:
     def test_weighted_vote_all_hold(self, orchestrator):
         """所有 Agent hold → 共识 hold"""
         decisions = [
-            {"agent_name": "value", "action": "hold", "strength": 0.0, "confidence": 0.5},
-            {"agent_name": "momentum", "action": "hold", "strength": 0.0, "confidence": 0.5},
+            {
+                "agent_name": "value",
+                "action": "hold",
+                "strength": 0.0,
+                "confidence": 0.5,
+            },
+            {
+                "agent_name": "momentum",
+                "action": "hold",
+                "strength": 0.0,
+                "confidence": 0.5,
+            },
         ]
         s, c, detail = orchestrator._weighted_vote(decisions)
         assert s == 0.0
@@ -282,8 +311,18 @@ class TestWeightedVote:
     def test_weighted_vote_high_confidence_dominates(self, orchestrator):
         """高置信度 Agent 贡献更大"""
         decisions = [
-            {"agent_name": "value", "action": "buy", "strength": 0.8, "confidence": 0.9},
-            {"agent_name": "macro", "action": "sell", "strength": -0.8, "confidence": 0.1},
+            {
+                "agent_name": "value",
+                "action": "buy",
+                "strength": 0.8,
+                "confidence": 0.9,
+            },
+            {
+                "agent_name": "macro",
+                "action": "sell",
+                "strength": -0.8,
+                "confidence": 0.1,
+            },
         ]
         s, _c, _detail = orchestrator._weighted_vote(decisions)
         # value 权重 0.25 × 置信度 0.9 = 0.225
@@ -303,8 +342,19 @@ class TestWeightedVote:
     def test_weighted_vote_filters_error_decisions(self, orchestrator):
         """异常决策被过滤"""
         decisions = [
-            {"agent_name": "value", "action": "buy", "strength": 0.5, "confidence": 0.8},
-            {"agent_name": "momentum", "error": True, "action": "hold", "strength": 0, "confidence": 0},
+            {
+                "agent_name": "value",
+                "action": "buy",
+                "strength": 0.5,
+                "confidence": 0.8,
+            },
+            {
+                "agent_name": "momentum",
+                "error": True,
+                "action": "hold",
+                "strength": 0,
+                "confidence": 0,
+            },
         ]
         _s, _c, detail = orchestrator._weighted_vote(decisions)
         # 只有 value 被计入

@@ -33,6 +33,7 @@
     - HC-4: 只读生产数据, 不动 V9 基线
     - HC-5: 配置走 ConfigManager
 """
+
 from __future__ import annotations
 
 import json
@@ -89,6 +90,7 @@ class LayerScore:
         degraded_reason: 降级原因
         collected_at: 采集时间 ISO8601
     """
+
     layer: str
     score: float
     sub_metrics: dict[str, float] = field(default_factory=dict)
@@ -121,6 +123,7 @@ class HealthReport:
         generated_at: 报告生成时间 ISO8601
         sample_count: 评估样本数
     """
+
     overall_score: float
     layer_scores: dict[str, LayerScore] = field(default_factory=dict)
     trend_vs_yesterday: float = 0.0
@@ -150,7 +153,9 @@ class HealthReport:
             layer_scores[k] = LayerScore(
                 layer=v.get("layer", k),
                 score=float(v.get("score", 0.0)),
-                sub_metrics={sk: float(sv) for sk, sv in v.get("sub_metrics", {}).items()},
+                sub_metrics={
+                    sk: float(sv) for sk, sv in v.get("sub_metrics", {}).items()
+                },
                 is_degraded=bool(v.get("is_degraded", False)),
                 degraded_reason=v.get("degraded_reason", ""),
                 collected_at=v.get("collected_at", ""),
@@ -211,7 +216,9 @@ class UnifiedHealthMetrics:
 
         logger.info(
             "UnifiedHealthMetrics 初始化: enabled=%s (flag=%s), weights=%s",
-            self._enabled, feature_flag_name, self.weights,
+            self._enabled,
+            feature_flag_name,
+            self.weights,
         )
 
     # ============================================================
@@ -222,10 +229,22 @@ class UnifiedHealthMetrics:
         """检查 Feature Flag (HC-1). 失败时降级为 False."""
         try:
             from utils.infra.feature_flags import is_enabled
+
             return bool(is_enabled(flag_name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-            logger.warning("Feature Flag 检查失败 (降级为 False): %s — %s", flag_name, e)
+            logger.warning(
+                "Feature Flag 检查失败 (降级为 False): %s — %s", flag_name, e
+            )
             return False
 
     # ============================================================
@@ -235,6 +254,7 @@ class UnifiedHealthMetrics:
         """从 evolution.yaml 加载权重 (HC-5). 失败时用默认权重."""
         try:
             from utils.config_manager import get_config
+
             cfg = get_config("evolution") or {}
             w = (cfg.get("health_metrics", {}) or {}).get("weights", {})
             if w and all(k in w for k in ("code", "strategy", "ops")):
@@ -243,7 +263,16 @@ class UnifiedHealthMetrics:
                     "strategy": float(w["strategy"]),
                     "ops": float(w["ops"]),
                 }
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("从 ConfigManager 加载权重失败, 用默认值: %s", e)
         return dict(DEFAULT_WEIGHTS)
@@ -268,24 +297,54 @@ class UnifiedHealthMetrics:
         # 代码层
         try:
             from utils.alpha.layers.code_health import CodeHealthLayer
+
             self._code_layer = CodeHealthLayer()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("CodeHealthLayer 加载失败 (降级): %s", e)
             self._code_layer = None
         # 策略层
         try:
             from utils.alpha.layers.strategy_health import StrategyHealthLayer
+
             self._strategy_layer = StrategyHealthLayer()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("StrategyHealthLayer 加载失败 (降级): %s", e)
             self._strategy_layer = None
         # 运维层
         try:
             from utils.alpha.layers.ops_health import OpsHealthLayer
+
             self._ops_layer = OpsHealthLayer()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("OpsHealthLayer 加载失败 (降级): %s", e)
             self._ops_layer = None
@@ -323,22 +382,33 @@ class UnifiedHealthMetrics:
             layer_scores["code"] = self._safe_collect(self._code_layer, "code", now)
         else:
             layer_scores["code"] = LayerScore(
-                layer="code", score=0.0, is_degraded=True,
-                degraded_reason="CODE_LAYER_UNAVAILABLE", collected_at=now,
+                layer="code",
+                score=0.0,
+                is_degraded=True,
+                degraded_reason="CODE_LAYER_UNAVAILABLE",
+                collected_at=now,
             )
         if self._strategy_layer is not None:
-            layer_scores["strategy"] = self._safe_collect(self._strategy_layer, "strategy", now)
+            layer_scores["strategy"] = self._safe_collect(
+                self._strategy_layer, "strategy", now
+            )
         else:
             layer_scores["strategy"] = LayerScore(
-                layer="strategy", score=0.0, is_degraded=True,
-                degraded_reason="STRATEGY_LAYER_UNAVAILABLE", collected_at=now,
+                layer="strategy",
+                score=0.0,
+                is_degraded=True,
+                degraded_reason="STRATEGY_LAYER_UNAVAILABLE",
+                collected_at=now,
             )
         if self._ops_layer is not None:
             layer_scores["ops"] = self._safe_collect(self._ops_layer, "ops", now)
         else:
             layer_scores["ops"] = LayerScore(
-                layer="ops", score=0.0, is_degraded=True,
-                degraded_reason="OPS_LAYER_UNAVAILABLE", collected_at=now,
+                layer="ops",
+                score=0.0,
+                is_degraded=True,
+                degraded_reason="OPS_LAYER_UNAVAILABLE",
+                collected_at=now,
             )
 
         # 计算综合分 (排除降级层后重新归一化)
@@ -372,22 +442,34 @@ class UnifiedHealthMetrics:
             # 确保返回的是 LayerScore
             if not isinstance(result, LayerScore):
                 return LayerScore(
-                    layer=layer_name, score=0.0, is_degraded=True,
+                    layer=layer_name,
+                    score=0.0,
+                    is_degraded=True,
                     degraded_reason=f"INVALID_RETURN_TYPE: {type(result).__name__}",
                     collected_at=now,
                 )
             return result
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("%s 层采集失败 (降级): %s", layer_name, e)
             return LayerScore(
-                layer=layer_name, score=0.0, is_degraded=True,
-                degraded_reason=f"COLLECT_ERROR: {e}", collected_at=now,
+                layer=layer_name,
+                score=0.0,
+                is_degraded=True,
+                degraded_reason=f"COLLECT_ERROR: {e}",
+                collected_at=now,
             )
 
-    def _compute_overall(
-        self, layer_scores: dict[str, LayerScore]
-    ) -> tuple:
+    def _compute_overall(self, layer_scores: dict[str, LayerScore]) -> tuple:
         """计算综合分 (排除降级层后重新归一化).
 
         Returns:
@@ -406,9 +488,10 @@ class UnifiedHealthMetrics:
         if weight_sum <= 0:
             return 0.0, True, degraded_layers
 
-        overall = sum(
-            active_weights[k] * layer_scores[k].score for k in active_layers
-        ) / weight_sum
+        overall = (
+            sum(active_weights[k] * layer_scores[k].score for k in active_layers)
+            / weight_sum
+        )
 
         # 限制在 [0, 1]
         overall = max(0.0, min(1.0, overall))
@@ -418,8 +501,13 @@ class UnifiedHealthMetrics:
     def _degraded_report(self, reason: str, now: str) -> HealthReport:
         """生成降级报告 (Flag 关闭时)."""
         layer_scores = {
-            k: LayerScore(layer=k, score=0.0, is_degraded=True,
-                          degraded_reason=reason, collected_at=now)
+            k: LayerScore(
+                layer=k,
+                score=0.0,
+                is_degraded=True,
+                degraded_reason=reason,
+                collected_at=now,
+            )
             for k in ("code", "strategy", "ops")
         }
         return HealthReport(
@@ -440,7 +528,16 @@ class UnifiedHealthMetrics:
             self.history_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.history_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(report.to_dict(), ensure_ascii=False) + "\n")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("健康度持久化失败 (不影响内存报告): %s", e)
 
@@ -451,7 +548,7 @@ class UnifiedHealthMetrics:
                 return []
             lines = self.history_path.read_text(encoding="utf-8").strip().splitlines()
             # 取最后 days*2 行 (每天可能有多次采集), 解析有效的
-            recent = lines[-(days * 2):] if len(lines) > days * 2 else lines
+            recent = lines[-(days * 2) :] if len(lines) > days * 2 else lines
             reports: list[HealthReport] = []
             for line in reversed(recent):
                 line = line.strip()
@@ -459,11 +556,29 @@ class UnifiedHealthMetrics:
                     continue
                 try:
                     reports.append(HealthReport.from_dict(json.loads(line)))
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
             return reports
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("读取历史失败: %s", e)
             return []
@@ -478,7 +593,16 @@ class UnifiedHealthMetrics:
         try:
             past = history[target_offset]
             return round(current_score - past.overall_score, 4)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return 0.0
 

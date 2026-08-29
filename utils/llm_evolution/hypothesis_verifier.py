@@ -36,14 +36,23 @@ logger = logging.getLogger("hypothesis_verifier")
 # 协议
 # ============================================================
 
+
 class AuditLoggerProtocol(Protocol):
-    def log(self, module: str, action: str, severity: str = "INFO",
-            symbol: str = "", reason: str = "", **kwargs: Any) -> None: ...
+    def log(
+        self,
+        module: str,
+        action: str,
+        severity: str = "INFO",
+        symbol: str = "",
+        reason: str = "",
+        **kwargs: Any,
+    ) -> None: ...
 
 
 # ============================================================
 # 数据结构
 # ============================================================
+
 
 @dataclass
 class HypothesisVerdict:
@@ -95,21 +104,23 @@ class HypothesisVerdict:
 # 验证阈值 (可配置)
 # ============================================================
 
+
 @dataclass
 class VerificationThresholds:
     """验证阈值 (保守策略)."""
 
-    min_rank_ic: float = 0.03          # RankIC 均值下限
-    min_icir: float = 0.5              # ICIR 下限
+    min_rank_ic: float = 0.03  # RankIC 均值下限
+    min_icir: float = 0.5  # ICIR 下限
     min_ic_positive_ratio: float = 0.55  # 正 IC 比例下限
-    max_cv: float = 0.5                # 变异系数上限
-    min_effect_size: float = 0.2       # Cohen's d 下限
-    min_samples: int = 60              # 最少样本数
+    max_cv: float = 0.5  # 变异系数上限
+    min_effect_size: float = 0.2  # Cohen's d 下限
+    min_samples: int = 60  # 最少样本数
 
 
 # ============================================================
 # 主类
 # ============================================================
+
 
 class HypothesisVerifier:
     """假设验证框架 — IC 显著性 + Purged K-Fold + CRO Gate + AB 桶判定."""
@@ -157,16 +168,26 @@ class HypothesisVerifier:
         # ---- 1. IC 显著性检验 ----
         if n_samples < self.thresholds.min_samples:
             verdict.falsified = True
-            verdict.falsified_reason = f"样本不足: {n_samples} < {self.thresholds.min_samples}"
+            verdict.falsified_reason = (
+                f"样本不足: {n_samples} < {self.thresholds.min_samples}"
+            )
             self._audit("INSUFFICIENT", f"因子 {factor_name} 样本不足 ({n_samples})")
             return self._verdict_to_dict(verdict)
 
         verdict.rank_ic_mean = self._safe_mean(ic_series)
         verdict.rank_ic_std = self._safe_std(ic_series)
-        verdict.icir = verdict.rank_ic_mean / verdict.rank_ic_std if verdict.rank_ic_std > 0 else 0.0
+        verdict.icir = (
+            verdict.rank_ic_mean / verdict.rank_ic_std
+            if verdict.rank_ic_std > 0
+            else 0.0
+        )
         verdict.ic_positive_ratio = sum(1 for x in ic_series if x > 0) / n_samples
         verdict.effect_size = self._cohen_d(ic_series)
-        verdict.cv_score = verdict.rank_ic_std / abs(verdict.rank_ic_mean) if verdict.rank_ic_mean != 0 else 999.0
+        verdict.cv_score = (
+            verdict.rank_ic_std / abs(verdict.rank_ic_mean)
+            if verdict.rank_ic_mean != 0
+            else 999.0
+        )
 
         verdict.ic_significant = (
             verdict.rank_ic_mean >= self.thresholds.min_rank_ic
@@ -270,7 +291,7 @@ class HypothesisVerifier:
             return 0.0
         m = self._safe_mean(series)
         var = sum((x - m) ** 2 for x in series) / (len(series) - 1)
-        return var ** 0.5
+        return var**0.5
 
     def _cohen_d(self, series: list[float]) -> float:
         """Cohen's d 效应量 (简化: mean / std)."""

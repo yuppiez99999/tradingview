@@ -6,6 +6,7 @@
     - 与基准对比 (沪深300/中证500)
     - 行业归因明细
 """
+
 from __future__ import annotations
 
 import sys
@@ -52,7 +53,11 @@ def main() -> None:
         return
 
     brinson = panel.get("brinson", {})
-    if not brinson or brinson.get("status") in ("disabled", "feature_flag_disabled", "empty"):
+    if not brinson or brinson.get("status") in (
+        "disabled",
+        "feature_flag_disabled",
+        "empty",
+    ):
         render_empty_state(
             f"Brinson 归因未生成 (status={brinson.get('status', 'empty') if brinson else 'empty'})",
             icon="⚖️",
@@ -68,12 +73,14 @@ def main() -> None:
     ir = brinson.get("interaction_return", 0)
     total_active = ar + sr + ir
 
-    render_kpi_row([
-        {"label": "配置效应 AR", "value": f"{ar*100:.4f}%", "icon": "📊"},
-        {"label": "选股效应 SR", "value": f"{sr*100:.4f}%", "icon": "🎯"},
-        {"label": "交互效应 IR", "value": f"{ir*100:.4f}%", "icon": "🔄"},
-        {"label": "主动收益合计", "value": f"{total_active*100:.4f}%", "icon": "Σ"},
-    ])
+    render_kpi_row(
+        [
+            {"label": "配置效应 AR", "value": f"{ar*100:.4f}%", "icon": "📊"},
+            {"label": "选股效应 SR", "value": f"{sr*100:.4f}%", "icon": "🎯"},
+            {"label": "交互效应 IR", "value": f"{ir*100:.4f}%", "icon": "🔄"},
+            {"label": "主动收益合计", "value": f"{total_active*100:.4f}%", "icon": "Σ"},
+        ]
+    )
 
     st.divider()
 
@@ -83,6 +90,7 @@ def main() -> None:
     if sectors:
         try:
             import pandas as pd
+
             df = pd.DataFrame(sectors)
             st.dataframe(df, use_container_width=True, hide_index=True)
 

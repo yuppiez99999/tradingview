@@ -4,6 +4,7 @@
     DT-1  get_price 支持 max_age stale 校验, 陈旧数据返回 None 而非静默旧价 (Q4)
     DT-2  _on_tick 过滤无效价 (lastPrice<=0 不缓存为真实价)
 """
+
 from __future__ import annotations
 
 import time

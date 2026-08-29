@@ -1,6 +1,7 @@
 """
 G7 Coverage Boost: utils/annual_return_forecast.py (224 lines, 0% -> target ~80%)
 """
+
 from __future__ import annotations
 
 import json
@@ -65,7 +66,10 @@ class TestExtractDateStr:
         assert _extract_date_str("trade_plan_20260720", "trade_plan_") == "20260720"
 
     def test_hyphen_prefix(self):
-        assert _extract_date_str("daily_pnl_report_2026-07-20", "daily_pnl_report_") == "20260720"
+        assert (
+            _extract_date_str("daily_pnl_report_2026-07-20", "daily_pnl_report_")
+            == "20260720"
+        )
 
     def test_multiple_hyphens(self):
         assert _extract_date_str("trade_plan_2026-07-20", "trade_plan_") == "20260720"
@@ -234,12 +238,16 @@ class TestExtractBaseline:
 
     def test_monthly_premium_converted_to_annual(self):
         trade_plan = self._make_trade_plan()
-        trade_plan["hedge_fund_overlays"]["theta_engine"]["portfolio_yield_annualized"] = 0.0
+        trade_plan["hedge_fund_overlays"]["theta_engine"][
+            "portfolio_yield_annualized"
+        ] = 0.0
         trade_plan["hedge_fund_overlays"]["theta_engine"]["total_premium"] = 50_000.0
         pnl_report = self._make_pnl_report()
         pnl_report["portfolio_pnl"]["summary"]["total_market_value"] = 5_000_000.0
         baseline = _extract_baseline(trade_plan, pnl_report)
-        assert baseline["cc_premium_annual"] == pytest.approx((50_000.0 * 12) / 5_000_000.0)
+        assert baseline["cc_premium_annual"] == pytest.approx(
+            (50_000.0 * 12) / 5_000_000.0
+        )
 
     def test_missing_cost_uses_market_value(self):
         trade_plan = self._make_trade_plan()
@@ -301,21 +309,32 @@ class TestCalcScenario:
 
 
 class TestExtractKeyRisks:
-    def _trade_plan(self, theta_positions: int = 0, layer1: bool = False, capital: float = 5_000_000.0) -> dict:
+    def _trade_plan(
+        self,
+        theta_positions: int = 0,
+        layer1: bool = False,
+        capital: float = 5_000_000.0,
+    ) -> dict:
         return {
             "capital": capital,
-            "hedge_fund_overlays": {"theta_engine": {"positions_count": theta_positions}},
+            "hedge_fund_overlays": {
+                "theta_engine": {"positions_count": theta_positions}
+            },
             "hedge_config": {"layers": {"layer1_futures": layer1}},
         }
 
-    def _pnl_report(self, max_drawdown: float = -0.05, market_value: float = 4_500_000.0) -> dict:
+    def _pnl_report(
+        self, max_drawdown: float = -0.05, market_value: float = 4_500_000.0
+    ) -> dict:
         return {
             "portfolio_pnl": {"summary": {"total_market_value": market_value}},
             "risk_metrics": {"max_drawdown_pct": max_drawdown * 100},
         }
 
     def test_theta_exercise_risk(self):
-        risks = _extract_key_risks(self._trade_plan(theta_positions=1), self._pnl_report())
+        risks = _extract_key_risks(
+            self._trade_plan(theta_positions=1), self._pnl_report()
+        )
         assert any("Covered Call" in r for r in risks)
 
     def test_futures_hedge_risk(self):
@@ -323,11 +342,15 @@ class TestExtractKeyRisks:
         assert any("IF" in r for r in risks)
 
     def test_drawdown_risk(self):
-        risks = _extract_key_risks(self._trade_plan(), self._pnl_report(max_drawdown=-0.12))
+        risks = _extract_key_risks(
+            self._trade_plan(), self._pnl_report(max_drawdown=-0.12)
+        )
         assert any("回撤" in r for r in risks)
 
     def test_low_position_risk(self):
-        risks = _extract_key_risks(self._trade_plan(), self._pnl_report(market_value=1_000_000.0))
+        risks = _extract_key_risks(
+            self._trade_plan(), self._pnl_report(market_value=1_000_000.0)
+        )
         assert any("建仓期未完成" in r for r in risks)
 
     def test_no_risk_when_healthy(self):
@@ -387,8 +410,10 @@ class TestForecastAnnualReturn:
         reports_dir = tmp_path / "reports"
         plan_dir.mkdir()
         reports_dir.mkdir()
-        with patch("utils.annual_return_forecast.PLAN_DIR", plan_dir), \
-             patch("utils.annual_return_forecast.REPORTS_DIR", reports_dir):
+        with (
+            patch("utils.annual_return_forecast.PLAN_DIR", plan_dir),
+            patch("utils.annual_return_forecast.REPORTS_DIR", reports_dir),
+        ):
             forecast = forecast_annual_return("2099-01-01")
         assert len(forecast["scenarios"]) == 3
         assert forecast["baseline"]["portfolio_base"] == pytest.approx(5_000_000.0)
@@ -401,17 +426,30 @@ class TestForecastAnnualReturn:
         reports_dir.mkdir()
         plan = {
             "capital": 5_000_000.0,
-            "hedge_fund_overlays": {"theta_engine": {"portfolio_yield_annualized": 0.07}},
+            "hedge_fund_overlays": {
+                "theta_engine": {"portfolio_yield_annualized": 0.07}
+            },
         }
         report = {
-            "portfolio_pnl": {"summary": {"total_market_value": 4_000_000.0, "total_cost": 3_800_000.0}},
+            "portfolio_pnl": {
+                "summary": {
+                    "total_market_value": 4_000_000.0,
+                    "total_cost": 3_800_000.0,
+                }
+            },
             "hedge_position": {"summary": {"total_premium_budget": 20_000.0}},
             "risk_metrics": {"max_drawdown_pct": -6.0},
         }
-        (plan_dir / "trade_plan_20260720.json").write_text(json.dumps(plan, ensure_ascii=False))
-        (reports_dir / "daily_pnl_report_2026-07-20.json").write_text(json.dumps(report, ensure_ascii=False))
-        with patch("utils.annual_return_forecast.PLAN_DIR", plan_dir), \
-             patch("utils.annual_return_forecast.REPORTS_DIR", reports_dir):
+        (plan_dir / "trade_plan_20260720.json").write_text(
+            json.dumps(plan, ensure_ascii=False)
+        )
+        (reports_dir / "daily_pnl_report_2026-07-20.json").write_text(
+            json.dumps(report, ensure_ascii=False)
+        )
+        with (
+            patch("utils.annual_return_forecast.PLAN_DIR", plan_dir),
+            patch("utils.annual_return_forecast.REPORTS_DIR", reports_dir),
+        ):
             forecast = forecast_annual_return("2026-07-20")
         assert len(forecast["scenarios"]) == 3
         assert forecast["source"].startswith("trade_plan_20260720.json")
@@ -423,16 +461,32 @@ class TestForecastAnnualReturn:
         reports_dir = tmp_path / "reports"
         plan_dir.mkdir()
         reports_dir.mkdir()
-        plan = {"capital": 5_000_000.0, "hedge_fund_overlays": {"theta_engine": {"portfolio_yield_annualized": 0.0}}}
+        plan = {
+            "capital": 5_000_000.0,
+            "hedge_fund_overlays": {
+                "theta_engine": {"portfolio_yield_annualized": 0.0}
+            },
+        }
         report = {
-            "portfolio_pnl": {"summary": {"total_market_value": 4_000_000.0, "total_cost": 4_000_000.0}},
+            "portfolio_pnl": {
+                "summary": {
+                    "total_market_value": 4_000_000.0,
+                    "total_cost": 4_000_000.0,
+                }
+            },
             "hedge_position": {"summary": {"total_premium_budget": 0.0}},
             "risk_metrics": {"max_drawdown_pct": -20.0},
         }
-        (plan_dir / "trade_plan_20260720.json").write_text(json.dumps(plan, ensure_ascii=False))
-        (reports_dir / "daily_pnl_report_2026-07-20.json").write_text(json.dumps(report, ensure_ascii=False))
-        with patch("utils.annual_return_forecast.PLAN_DIR", plan_dir), \
-             patch("utils.annual_return_forecast.REPORTS_DIR", reports_dir):
+        (plan_dir / "trade_plan_20260720.json").write_text(
+            json.dumps(plan, ensure_ascii=False)
+        )
+        (reports_dir / "daily_pnl_report_2026-07-20.json").write_text(
+            json.dumps(report, ensure_ascii=False)
+        )
+        with (
+            patch("utils.annual_return_forecast.PLAN_DIR", plan_dir),
+            patch("utils.annual_return_forecast.REPORTS_DIR", reports_dir),
+        ):
             forecast = forecast_annual_return("2026-07-20")
         assert any("回撤红线突破" in r for r in forecast["key_risks"])
         assert forecast["key_risks"][0].startswith("⚠️ 回撤红线突破")
@@ -523,17 +577,33 @@ class TestMain:
         reports_dir = tmp_path / "reports"
         plan_dir.mkdir()
         reports_dir.mkdir()
-        plan = {"capital": 5_000_000.0, "hedge_fund_overlays": {"theta_engine": {"portfolio_yield_annualized": 0.0}}}
+        plan = {
+            "capital": 5_000_000.0,
+            "hedge_fund_overlays": {
+                "theta_engine": {"portfolio_yield_annualized": 0.0}
+            },
+        }
         report = {
-            "portfolio_pnl": {"summary": {"total_market_value": 4_000_000.0, "total_cost": 4_000_000.0}},
+            "portfolio_pnl": {
+                "summary": {
+                    "total_market_value": 4_000_000.0,
+                    "total_cost": 4_000_000.0,
+                }
+            },
             "hedge_position": {"summary": {"total_premium_budget": 0.0}},
             "risk_metrics": {"max_drawdown_pct": -5.0},
         }
-        (plan_dir / "trade_plan_20260720.json").write_text(json.dumps(plan, ensure_ascii=False))
-        (reports_dir / "daily_pnl_report_2026-07-20.json").write_text(json.dumps(report, ensure_ascii=False))
-        with patch("utils.annual_return_forecast.PLAN_DIR", plan_dir), \
-             patch("utils.annual_return_forecast.REPORTS_DIR", reports_dir), \
-             patch("sys.argv", ["annual_return_forecast.py", "2026-07-20", "--json"]):
+        (plan_dir / "trade_plan_20260720.json").write_text(
+            json.dumps(plan, ensure_ascii=False)
+        )
+        (reports_dir / "daily_pnl_report_2026-07-20.json").write_text(
+            json.dumps(report, ensure_ascii=False)
+        )
+        with (
+            patch("utils.annual_return_forecast.PLAN_DIR", plan_dir),
+            patch("utils.annual_return_forecast.REPORTS_DIR", reports_dir),
+            patch("sys.argv", ["annual_return_forecast.py", "2026-07-20", "--json"]),
+        ):
             code = main()
         assert code == 0
         captured = capsys.readouterr()
@@ -544,9 +614,11 @@ class TestMain:
         reports_dir = tmp_path / "reports"
         plan_dir.mkdir()
         reports_dir.mkdir()
-        with patch("utils.annual_return_forecast.PLAN_DIR", plan_dir), \
-             patch("utils.annual_return_forecast.REPORTS_DIR", reports_dir), \
-             patch("sys.argv", ["annual_return_forecast.py"]):
+        with (
+            patch("utils.annual_return_forecast.PLAN_DIR", plan_dir),
+            patch("utils.annual_return_forecast.REPORTS_DIR", reports_dir),
+            patch("sys.argv", ["annual_return_forecast.py"]),
+        ):
             code = main()
         assert code == 0
         captured = capsys.readouterr()

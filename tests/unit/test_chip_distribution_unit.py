@@ -3,6 +3,7 @@
 被测模块: utils/alpha_factor/chip_distribution.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,6 +26,7 @@ from utils.alpha_factor.chip_distribution import (  # noqa: E402
 # 辅助: 合成 OHLCV 数据
 # ============================================================
 
+
 def _make_ohlcv(n: int = 160, base: float = 10.0, vol: float = 1000.0):
     rng = np.random.default_rng(42)
     closes = [base + rng.normal(0, 0.2) for _ in range(n)]
@@ -37,6 +39,7 @@ def _make_ohlcv(n: int = 160, base: float = 10.0, vol: float = 1000.0):
 # ============================================================
 # ChipDistributionEngine — update
 # ============================================================
+
 
 class TestEngineUpdate:
     def test_insufficient_window_returns_none(self):
@@ -75,14 +78,20 @@ class TestEngineUpdate:
     def test_free_float_shares(self):
         engine = ChipDistributionEngine(window=150)
         closes, highs, lows, volumes = _make_ohlcv(160)
-        snap = engine.update("600519", closes, highs, lows, volumes, free_float_shares=1e8)
+        snap = engine.update(
+            "600519", closes, highs, lows, volumes, free_float_shares=1e8
+        )
         assert snap is not None
 
     def test_multiple_updates_same_symbol(self):
         engine = ChipDistributionEngine(window=150)
         closes, highs, lows, volumes = _make_ohlcv(160)
-        snap1 = engine.update("600519", closes[:155], highs[:155], lows[:155], volumes[:155])
-        snap2 = engine.update("600519", closes[:160], highs[:160], lows[:160], volumes[:160])
+        snap1 = engine.update(
+            "600519", closes[:155], highs[:155], lows[:155], volumes[:155]
+        )
+        snap2 = engine.update(
+            "600519", closes[:160], highs[:160], lows[:160], volumes[:160]
+        )
         assert snap1 is not None
         assert snap2 is not None
 
@@ -100,6 +109,7 @@ class TestEngineUpdate:
 # ============================================================
 # 静态方法
 # ============================================================
+
 
 class TestStaticMethods:
     def test_bin_edges_fixed(self):
@@ -146,6 +156,7 @@ class TestStaticMethods:
 # ============================================================
 # compute_chip_factors
 # ============================================================
+
 
 class TestComputeChipFactors:
     def test_basic(self):

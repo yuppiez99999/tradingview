@@ -23,6 +23,7 @@ fail-safe 策略:
     max_dd = get_max_drawdown_limit()  # 0.15
     qn_dd = get_quant_neutral_max_drawdown()  # 0.08
 """
+
 from __future__ import annotations
 
 import logging
@@ -43,11 +44,23 @@ def _get_risk_cfg() -> dict:
     """加载 risk_params 配置 (fail-safe, 失败返回空 dict)"""
     try:
         from utils.config_manager import get_risk_params_config
+
         cfg = get_risk_params_config()
         return cfg if isinstance(cfg, dict) else {}
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as exc:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-        logger.warning("[risk_params] 加载 risk_params.yaml 失败, 使用兜底常量: %s", exc)
+        logger.warning(
+            "[risk_params] 加载 risk_params.yaml 失败, 使用兜底常量: %s", exc
+        )
         return {}
 
 
@@ -61,13 +74,19 @@ def get_max_drawdown_limit() -> float:
         val = float(cfg.get("max_drawdown_limit", _FALLBACK_MAX_DRAWDOWN_LIMIT))
         # 合理性校验: 应在 [0.01, 0.50] 区间
         if not 0.01 <= val <= 0.50:
-            logger.warning("[risk_params] max_drawdown_limit=%s 越界, 回退到 %s",
-                           val, _FALLBACK_MAX_DRAWDOWN_LIMIT)
+            logger.warning(
+                "[risk_params] max_drawdown_limit=%s 越界, 回退到 %s",
+                val,
+                _FALLBACK_MAX_DRAWDOWN_LIMIT,
+            )
             return _FALLBACK_MAX_DRAWDOWN_LIMIT
         return val
     except (TypeError, ValueError) as exc:
-        logger.warning("[risk_params] max_drawdown_limit 解析失败, 回退到 %s: %s",
-                       _FALLBACK_MAX_DRAWDOWN_LIMIT, exc)
+        logger.warning(
+            "[risk_params] max_drawdown_limit 解析失败, 回退到 %s: %s",
+            _FALLBACK_MAX_DRAWDOWN_LIMIT,
+            exc,
+        )
         return _FALLBACK_MAX_DRAWDOWN_LIMIT
 
 
@@ -78,15 +97,23 @@ def get_quant_neutral_max_drawdown() -> float:
     """
     cfg = _get_risk_cfg()
     try:
-        val = float(cfg.get("quant_neutral_max_drawdown", _FALLBACK_QUANT_NEUTRAL_MAX_DRAWDOWN))
+        val = float(
+            cfg.get("quant_neutral_max_drawdown", _FALLBACK_QUANT_NEUTRAL_MAX_DRAWDOWN)
+        )
         if not 0.01 <= val <= 0.50:
-            logger.warning("[risk_params] quant_neutral_max_drawdown=%s 越界, 回退到 %s",
-                           val, _FALLBACK_QUANT_NEUTRAL_MAX_DRAWDOWN)
+            logger.warning(
+                "[risk_params] quant_neutral_max_drawdown=%s 越界, 回退到 %s",
+                val,
+                _FALLBACK_QUANT_NEUTRAL_MAX_DRAWDOWN,
+            )
             return _FALLBACK_QUANT_NEUTRAL_MAX_DRAWDOWN
         return val
     except (TypeError, ValueError) as exc:
-        logger.warning("[risk_params] quant_neutral_max_drawdown 解析失败, 回退到 %s: %s",
-                       _FALLBACK_QUANT_NEUTRAL_MAX_DRAWDOWN, exc)
+        logger.warning(
+            "[risk_params] quant_neutral_max_drawdown 解析失败, 回退到 %s: %s",
+            _FALLBACK_QUANT_NEUTRAL_MAX_DRAWDOWN,
+            exc,
+        )
         return _FALLBACK_QUANT_NEUTRAL_MAX_DRAWDOWN
 
 
@@ -121,7 +148,11 @@ def get_portfolio_drawdown_stop_pct() -> float:
     """获取组合回撤熔断阈值 (默认 0.05 = -5%)"""
     cfg = _get_risk_cfg()
     try:
-        return float(cfg.get("portfolio_drawdown_stop_pct", _FALLBACK_PORTFOLIO_DRAWDOWN_STOP_PCT))
+        return float(
+            cfg.get(
+                "portfolio_drawdown_stop_pct", _FALLBACK_PORTFOLIO_DRAWDOWN_STOP_PCT
+            )
+        )
     except (TypeError, ValueError):
         return _FALLBACK_PORTFOLIO_DRAWDOWN_STOP_PCT
 
@@ -129,7 +160,9 @@ def get_portfolio_drawdown_stop_pct() -> float:
 if __name__ == "__main__":
     # 自测
     logger.info(f"max_drawdown_limit (组合整体): {get_max_drawdown_limit()}")
-    logger.info(f"quant_neutral_max_drawdown (中性策略): {get_quant_neutral_max_drawdown()}")
+    logger.info(
+        f"quant_neutral_max_drawdown (中性策略): {get_quant_neutral_max_drawdown()}"
+    )
     logger.info(f"daily_amount_limit: {get_daily_amount_limit()}")
     logger.info(f"price_protection_pct: {get_price_protection_pct()}")
     logger.info(f"daily_loss_stop_pct: {get_daily_loss_stop_pct()}")

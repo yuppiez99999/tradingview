@@ -62,3 +62,14 @@ assert validation["passed"]  # True
 **问题**: 初始设计 `g(v) = γ_sat × (1 - exp(-β × v))`，一阶近似 = `γ_sat × β × v`，与线性 `γ × v` 不一致 (差 β 倍)。
 
 **解决**: 改为 `g(v) = γ × (1 - exp(-β × v)) / β`，一阶近似 = `γ × v`，与经典 AC 一致。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [篮子清算最小 shortfall](basket-liquidation.md) (相似度 21%)
+- [TT-DAC-PS 最优执行算法](tt-dac-ps.md) (相似度 19%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 12%)
+- [代码审查明细 — backtest 模块 (2026-08-24)](code-review-backtest-20260824.md) (相似度 10%)
+- [回测标准](backtest-standards.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

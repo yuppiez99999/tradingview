@@ -31,16 +31,20 @@ try:
     from ms_strategy.src.execution.qmt_broker import (
         __name__ as _upstream_name,  # noqa: F401
     )
+
     # 显式重新导出常见 API（基于实际 qmt_broker.py 内容）
     # 注意：使用 module 级 __all__ 已通过 * 导出，此处显式列出便于 IDE 提示
 except ImportError as _e:
     import logging
 
     logging.getLogger("utils.qmt_broker").warning(
-        "qmt_broker re-export shim: 无法从 ms_strategy.src.execution.qmt_broker 导入 — %s", _e
+        "qmt_broker re-export shim: 无法从 ms_strategy.src.execution.qmt_broker 导入 — %s",
+        _e,
     )
     raise
 
 # 标记为 shim 文件
 __file_shim__ = True
-__upstream_path__ = str(_BASE_DIR / "ms_strategy" / "src" / "execution" / "qmt_broker.py")
+__upstream_path__ = str(
+    _BASE_DIR / "ms_strategy" / "src" / "execution" / "qmt_broker.py"
+)

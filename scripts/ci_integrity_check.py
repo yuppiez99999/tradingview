@@ -19,6 +19,7 @@ ci_integrity_check.py — CI 完整性自检 (R1 / C6 机检落点)
 用法:
     python scripts/ci_integrity_check.py [--strict] [--output reports/ci/ci_integrity.json]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,7 +38,8 @@ CI_YML = WORKFLOWS_DIR / "ci.yml"
 WORKFLOW_FILES = ("ci.yml", "quality-gate.yml", "tdd-guard.yml")
 PYTHON = os.environ.get("PYTHON_EXECUTABLE") or (
     str(ROOT / ".venv" / "Scripts" / "python.exe")
-    if (ROOT / ".venv" / "Scripts" / "python.exe").exists() else "python"
+    if (ROOT / ".venv" / "Scripts" / "python.exe").exists()
+    else "python"
 )
 
 
@@ -81,8 +83,14 @@ def smoke(ref: str) -> (bool, str):
     env.setdefault("PYTHONUTF8", "1")
     try:
         proc = subprocess.run(
-            [PYTHON, str(p), "--help"], cwd=str(ROOT), capture_output=True,
-            text=True, encoding="utf-8", errors="replace", env=env, timeout=60,
+            [PYTHON, str(p), "--help"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+            timeout=60,
         )
         # 能返回 (无论 --help 是否被识别) 且不抛异常即视为可运行
         if proc.returncode in (0, 2):
@@ -94,9 +102,12 @@ def smoke(ref: str) -> (bool, str):
 
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="CI integrity check")
-    parser.add_argument("--strict", action="store_true",
-                        help="额外对每个脚本做 --help 烟测 (可运行性)")
-    parser.add_argument("--output", default=str(ROOT / "reports" / "ci" / "ci_integrity.json"))
+    parser.add_argument(
+        "--strict", action="store_true", help="额外对每个脚本做 --help 烟测 (可运行性)"
+    )
+    parser.add_argument(
+        "--output", default=str(ROOT / "reports" / "ci" / "ci_integrity.json")
+    )
     args = parser.parse_args(argv)
 
     out_path = Path(args.output)
@@ -138,11 +149,14 @@ def main(argv: Optional[list[str]] = None) -> int:
         "passed": passed,
         "refs": [r._asdict() for r in results],
     }
-    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2),
-                        encoding="utf-8")
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
-    print(f"[CI-INTEGRITY] workflows={','.join(WORKFLOW_FILES)} refs={n_total} "
-          f"missing={n_missing} unrunnable={n_unrunnable} passed={passed}")
+    print(
+        f"[CI-INTEGRITY] workflows={','.join(WORKFLOW_FILES)} refs={n_total} "
+        f"missing={n_missing} unrunnable={n_unrunnable} passed={passed}"
+    )
     print(f"[CI-INTEGRITY] report -> {out_path}")
     for wf_name, stat in per_workflow.items():
         print(f"  {wf_name}: refs={stat['refs']} missing={stat['missing']}")

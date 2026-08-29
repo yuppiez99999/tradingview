@@ -16,6 +16,7 @@
         - update_prices: 批量更新
         - 与 mock 策略集成测试
 """
+
 from __future__ import annotations
 
 import pytest
@@ -31,6 +32,7 @@ from utils.wt_structs import BarData, OrderData, TickData
 # ============================================================
 # Mock 策略 (最小实现,用于测试)
 # ============================================================
+
 
 class _MockHedgeStrategy(HedgeStrategy):
     """测试用的最小对冲策略,记录回调调用次数。"""
@@ -71,6 +73,7 @@ def capture_submitter() -> tuple[OrderSubmitter, list[OrderData]]:
 @pytest.fixture
 def failing_submitter() -> OrderSubmitter:
     """总是返回 False 的 submitter。"""
+
     def submitter(order: OrderData) -> bool:
         return False
 
@@ -80,6 +83,7 @@ def failing_submitter() -> OrderSubmitter:
 # ============================================================
 # _EngineBackedHedgeContext 测试
 # ============================================================
+
 
 def test_open_hedge_creates_sell_order(
     mock_strategy: _MockHedgeStrategy,
@@ -317,6 +321,7 @@ def test_hedge_orders_logged(
 # StrategyAdapter 测试
 # ============================================================
 
+
 def test_dispatch_tick_updates_prices_and_calls_on_tick(
     mock_strategy: _MockHedgeStrategy,
     capture_submitter: tuple[OrderSubmitter, list[OrderData]],
@@ -428,6 +433,7 @@ def test_strategy_adapter_integration_with_order_submission(
 # ============================================================
 # _EngineBackedHedgeContext._create_hedge_order 静态方法测试
 # ============================================================
+
 
 def test_create_hedge_order_static() -> None:
     """_create_hedge_order 是纯静态方法,可独立测试。"""

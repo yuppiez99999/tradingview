@@ -6,6 +6,7 @@
     - 信息比率分解
     - 行业因子贡献
 """
+
 from __future__ import annotations
 
 import sys
@@ -47,7 +48,11 @@ def main() -> None:
         return
 
     factor = panel.get("factor", {})
-    if not factor or factor.get("status") in ("disabled", "feature_flag_disabled", "empty"):
+    if not factor or factor.get("status") in (
+        "disabled",
+        "feature_flag_disabled",
+        "empty",
+    ):
         render_empty_state(
             f"Barra 因子归因未生成 (status={factor.get('status', 'empty') if factor else 'empty'})",
             icon="📈",
@@ -56,20 +61,47 @@ def main() -> None:
 
     # ===== 风险分解 =====
     st.subheader("📊 风险分解")
-    render_kpi_row([
-        {"label": "主动风险 (TE)", "value": f"{factor.get('active_risk', 0)*100:.2f}%", "icon": "📏"},
-        {"label": "因子风险", "value": f"{factor.get('factor_risk', 0)*100:.2f}%", "icon": "🎯"},
-        {"label": "特异性风险", "value": f"{factor.get('specific_risk', 0)*100:.2f}%", "icon": "🔍"},
-        {"label": "信息比率 (IR)", "value": f"{factor.get('information_ratio', 0):.4f}", "icon": "📡"},
-    ])
+    render_kpi_row(
+        [
+            {
+                "label": "主动风险 (TE)",
+                "value": f"{factor.get('active_risk', 0)*100:.2f}%",
+                "icon": "📏",
+            },
+            {
+                "label": "因子风险",
+                "value": f"{factor.get('factor_risk', 0)*100:.2f}%",
+                "icon": "🎯",
+            },
+            {
+                "label": "特异性风险",
+                "value": f"{factor.get('specific_risk', 0)*100:.2f}%",
+                "icon": "🔍",
+            },
+            {
+                "label": "信息比率 (IR)",
+                "value": f"{factor.get('information_ratio', 0):.4f}",
+                "icon": "📡",
+            },
+        ]
+    )
 
     st.divider()
 
     # ===== 10 风格因子贡献 =====
     st.subheader("🎨 10 风格因子贡献")
-    style_factors = ["Size", "Beta", "Momentum", "Residual Volatility",
-                     "Non-linear Size", "Book-to-Price", "Liquidity",
-                     "Earnings Yield", "Growth", "Leverage"]
+    style_factors = [
+        "Size",
+        "Beta",
+        "Momentum",
+        "Residual Volatility",
+        "Non-linear Size",
+        "Book-to-Price",
+        "Liquidity",
+        "Earnings Yield",
+        "Growth",
+        "Leverage",
+    ]
 
     factors_list = factor.get("factors", [])
     style_factor_data = []
@@ -81,6 +113,7 @@ def main() -> None:
     if style_factor_data:
         try:
             import pandas as pd
+
             df = pd.DataFrame(style_factor_data)
             st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -108,6 +141,7 @@ def main() -> None:
     if industry_factors:
         try:
             import pandas as pd
+
             df = pd.DataFrame(industry_factors)
             st.dataframe(df, use_container_width=True, hide_index=True)
         except Exception as e:

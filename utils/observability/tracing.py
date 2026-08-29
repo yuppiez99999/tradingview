@@ -17,18 +17,29 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, Optional
 
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import (
-    BatchSpanProcessor,
-    ConsoleSpanExporter,
-)
+try:
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import (
+        BatchSpanProcessor,
+        ConsoleSpanExporter,
+    )
 
-_TRACER_PROVIDER: Optional[TracerProvider] = None
-tracer: trace.Tracer
+    _OTEL_AVAILABLE = True
+except (
+    ImportError,
+    ModuleNotFoundError,
+):  # pragma: no cover - 依赖可选, 缺失时降级 no-op
+    # opentelemetry 为可选依赖: 生产/测试环境缺失时 fail-open 降级,
+    # 不阻塞交易主链路 (observability/__init__.py 已有 try/except 保护,
+    # 此处再包一层使 tracing 模块本身可独立导入, 避免测试收集崩溃).
+    _OTEL_AVAILABLE = False
+
+_TRACER_PROVIDER: Optional[Any] = None
+tracer: Any
 
 
-def setup_tracing(service_name: str = "quant-trading-system") -> trace.Tracer:
+def setup_tracing(service_name: str = "quant-trading-system") -> Any:
     """初始化 OpenTelemetry 追踪.
 
     当前使用 ConsoleSpanExporter (控制台输出),
@@ -39,14 +50,37 @@ def setup_tracing(service_name: str = "quant-trading-system") -> trace.Tracer:
     if _TRACER_PROVIDER is not None:
         return tracer
 
+    if not _OTEL_AVAILABLE:
+        # 可选依赖缺失: 返回 no-op tracer, 调用方无需感知降级
+        tracer = _NoOpTracer()
+        return tracer
+
     provider = TracerProvider()
-    provider.add_span_processor(
-        BatchSpanProcessor(ConsoleSpanExporter())
-    )
+    provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
     trace.set_tracer_provider(provider)
     _TRACER_PROVIDER = provider
     tracer = trace.get_tracer(service_name)
     return tracer
+
+
+class _NoOpSpan:
+    """no-op span: 缺失 opentelemetry 时的占位实现."""
+
+    def set_attribute(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def __enter__(self) -> "_NoOpSpan":
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        pass
+
+
+class _NoOpTracer:
+    """no-op tracer: 缺失 opentelemetry 时降级, 不抛异常."""
+
+    def start_as_current_span(self, name: str, **kwargs: Any) -> _NoOpSpan:
+        return _NoOpSpan()
 
 
 tracer = setup_tracing()
@@ -56,7 +90,7 @@ tracer = setup_tracing()
 def trace_span(
     name: str,
     **attributes: Any,
-) -> Iterator[trace.Span]:
+) -> Iterator[Any]:
     """通用 span 上下文管理器.
 
     Args:

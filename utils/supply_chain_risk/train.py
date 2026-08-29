@@ -42,7 +42,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +51,12 @@ logger = logging.getLogger(__name__)
 # 安全加固: pickle 完整性校验 (CWE-502)
 # ============================================================
 
+
 def _sha256_file(path):
     """流式计算文件 SHA256 (分块读取, 兼容大文件)."""
     h = hashlib.sha256()
-    with open(path, 'rb') as f:
-        for chunk in iter(lambda: f.read(1 << 20), b''):
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
 
@@ -63,33 +64,53 @@ def _sha256_file(path):
 def load_model_safe(path, expected_sha256=None):
     """安全加载 pickle 模型, 防供应链投毒 (CWE-502).
 
-    - expected_sha256 非空: 哈希不一致直接拒绝加载
+    - `path` 必须是已存在的文件
+    - `expected_sha256` 非空: 哈希不一致直接拒绝加载
     - 否则尝试读取 <path>.sha256 侧车:
-        - 侧车存在: 校验失败拒绝加载
+        - 侧车存在且非空: 校验失败拒绝加载
         - 侧车不存在: 计算并记录哈希作审计线索 (warning, 不阻断默认流程)
     """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"模型文件不存在: {path}")
+    if not path.is_file():
+        raise ValueError(f"模型路径不是文件: {path}")
+
     if expected_sha256 is None:
-        sidecar = str(path) + '.sha256'
+        sidecar = str(path) + ".sha256"
         if os.path.exists(sidecar):
-            with open(sidecar, encoding='utf-8') as f:
-                expected_sha256 = f.read().strip()
+            with open(sidecar, encoding="utf-8") as f:
+                expected_sha256 = f.read().strip() or None
+
     if expected_sha256:
         actual = _sha256_file(path)
         if actual != expected_sha256:
             raise ValueError(
-                f'模型完整性校验失败: {path} (expected={expected_sha256[:12]}..., actual={actual[:12]}...) — 文件可能被篡改, 拒绝加载'
+                f"模型完整性校验失败: {path} (expected={expected_sha256[:12]}..., actual={actual[:12]}...) — 文件可能被篡改, 拒绝加载"
             )
     else:
         digest = _sha256_file(path)
-        logger.warning('模型无 SHA256 侧车, 记录哈希作审计线索: %s sha256=%s', path, digest)
-    with open(path, 'rb') as f:
-        return pickle.load(f)
+        logger.warning(
+            "模型无 SHA256 侧车, 记录哈希作审计线索: %s sha256=%s", path, digest
+        )
+
+    with open(path, "rb") as f:
+        return pickle.load(f)  # noqa: S301 — SHA256 完整性已校验
 
 
-DATA_DIR = Path(os.environ.get(
-    "SUPPLY_CHAIN_DATA_DIR",
-    str(Path(__file__).resolve().parents[3] / "01_数据源与数据处理" / "北数所A级Token_五领域上架" / "6.16" / "北数所上架包" / "01数据文件"),
-))
+DATA_DIR = Path(
+    os.environ.get(
+        "SUPPLY_CHAIN_DATA_DIR",
+        str(
+            Path(__file__).resolve().parents[3]
+            / "01_数据源与数据处理"
+            / "北数所A级Token_五领域上架"
+            / "6.16"
+            / "北数所上架包"
+            / "01数据文件"
+        ),
+    )
+)
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "models"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -101,10 +122,11 @@ REPORT_DIR.mkdir(parents=True, exist_ok=True)
 # 工具函数
 # ============================================================
 
+
 def load_data():
     """加载金融和能源数据"""
-    finance_df = pd.read_csv(DATA_DIR / 'finance_token_A_B_20260616_205603.csv')
-    energy_df = pd.read_csv(DATA_DIR / 'energy_token_A_B_20260616_205603.csv')
+    finance_df = pd.read_csv(DATA_DIR / "finance_token_A_B_20260616_205603.csv")
+    energy_df = pd.read_csv(DATA_DIR / "energy_token_A_B_20260616_205603.csv")
     return finance_df, energy_df
 
 
@@ -120,25 +142,29 @@ def create_features(df):
     features = pd.DataFrame()
 
     # 1. 基础数值特征
-    features['quality_score'] = df['data_quality_score']
-    features['completeness'] = df['completeness']
-    features['accuracy'] = df['accuracy']
-    features['timeliness'] = df['timeliness']
-    features['compliance'] = df['compliance_score']
+    features["quality_score"] = df["data_quality_score"]
+    features["completeness"] = df["completeness"]
+    features["accuracy"] = df["accuracy"]
+    features["timeliness"] = df["timeliness"]
+    features["compliance"] = df["compliance_score"]
 
     # 2. 衍生特征
-    features['avg_dimension'] = features[['quality_score', 'completeness', 'accuracy', 'timeliness']].mean(axis=1)
-    features['dim_std'] = features[['quality_score', 'completeness', 'accuracy', 'timeliness']].std(axis=1)
-    features['quality_gap'] = features['quality_score'] - features['avg_dimension']
+    features["avg_dimension"] = features[
+        ["quality_score", "completeness", "accuracy", "timeliness"]
+    ].mean(axis=1)
+    features["dim_std"] = features[
+        ["quality_score", "completeness", "accuracy", "timeliness"]
+    ].std(axis=1)
+    features["quality_gap"] = features["quality_score"] - features["avg_dimension"]
 
     # 3. 风险相关特征
-    features['risk_factor'] = (100 - features['quality_score']) / 100  # 归一化风险因子
-    features['compliance_risk'] = (100 - features['compliance']) / 100
-    features['timeliness_risk'] = (100 - features['timeliness']) / 100
+    features["risk_factor"] = (100 - features["quality_score"]) / 100  # 归一化风险因子
+    features["compliance_risk"] = (100 - features["compliance"]) / 100
+    features["timeliness_risk"] = (100 - features["timeliness"]) / 100
 
     # 4. 类别特征 (One-Hot 编码)
-    cat_dummies = pd.get_dummies(df['category'], prefix='cat', dummy_na=False)
-    dtype_dummies = pd.get_dummies(df['data_type'], prefix='dtype', dummy_na=False)
+    cat_dummies = pd.get_dummies(df["category"], prefix="cat", dummy_na=False)
+    dtype_dummies = pd.get_dummies(df["data_type"], prefix="dtype", dummy_na=False)
 
     features = pd.concat([features, cat_dummies, dtype_dummies], axis=1)
 
@@ -156,27 +182,35 @@ def create_labels(df):
     labels = {}
 
     # 二分类标签
-    labels['binary'] = (df['token_level'] == 'A').astype(int).values
+    labels["binary"] = (df["token_level"] == "A").astype(int).values
 
     # 多分类标签 (5级风险)
-    labels['multiclass'] = pd.cut(
-        df['data_quality_score'],
-        bins=[0, 94, 96, 98, 99.5, 100],
-        labels=[0, 1, 2, 3, 4],  # 0=高危, 4=优质
-        include_lowest=True
-    ).astype(int).values
+    labels["multiclass"] = (
+        pd.cut(
+            df["data_quality_score"],
+            bins=[0, 94, 96, 98, 99.5, 100],
+            labels=[0, 1, 2, 3, 4],  # 0=高危, 4=优质
+            include_lowest=True,
+        )
+        .astype(int)
+        .values
+    )
 
     # 回归标签 (0-100 质量分)
-    labels['regression'] = df['data_quality_score'].values
+    labels["regression"] = df["data_quality_score"].values
 
     # 业务风险标签 (用于供应链决策)
     # 低于 95 分 = 高风险, 95-97 = 中等, 97-99 = 良好, 99+ = 优秀
-    labels['business_risk'] = pd.cut(
-        df['data_quality_score'],
-        bins=[0, 95, 97, 99, 100],
-        labels=[3, 2, 1, 0],  # 3=高风险, 0=优秀
-        include_lowest=True
-    ).astype(int).values
+    labels["business_risk"] = (
+        pd.cut(
+            df["data_quality_score"],
+            bins=[0, 95, 97, 99, 100],
+            labels=[3, 2, 1, 0],  # 3=高风险, 0=优秀
+            include_lowest=True,
+        )
+        .astype(int)
+        .values
+    )
 
     return labels
 
@@ -184,6 +218,7 @@ def create_labels(df):
 # ============================================================
 # 模型 1: 金融风控评分卡 (Rule-based + ML hybrid)
 # ============================================================
+
 
 class FinancialRiskScorecard:
     """
@@ -209,47 +244,57 @@ class FinancialRiskScorecard:
         self.scaler = None
         self.feature_cols = None
         self.category_map = {
-            'banking': 1.2, 'securities': 1.1, 'insurance': 1.0,
-            'funds': 1.1, 'trust': 1.15, 'consumer_finance': 1.0,
-            'fintech': 0.95, 'asset_management': 1.05
+            "banking": 1.2,
+            "securities": 1.1,
+            "insurance": 1.0,
+            "funds": 1.1,
+            "trust": 1.15,
+            "consumer_finance": 1.0,
+            "fintech": 0.95,
+            "asset_management": 1.05,
         }
         self.data_type_map = {
-            'risk_control': 1.1, 'credit_report': 1.15, 'transaction_record': 1.0,
-            'customer_profile': 0.9, 'anti_fraud': 1.2, 'credit_score': 1.25,
-            'transaction_monitoring': 1.0, 'portfolio_data': 1.05
+            "risk_control": 1.1,
+            "credit_report": 1.15,
+            "transaction_record": 1.0,
+            "customer_profile": 0.9,
+            "anti_fraud": 1.2,
+            "credit_score": 1.25,
+            "transaction_monitoring": 1.0,
+            "portfolio_data": 1.05,
         }
 
     def rule_score(self, row):
         """规则引擎评分"""
-        base_score = row['data_quality_score']
-        completeness = row['completeness']
-        accuracy = row['accuracy']
-        timeliness = row['timeliness']
-        compliance = row['compliance_score']
+        base_score = row["data_quality_score"]
+        completeness = row["completeness"]
+        accuracy = row["accuracy"]
+        timeliness = row["timeliness"]
+        compliance = row["compliance_score"]
 
         # 加权评分
         score = (
-            base_score * 0.3 +
-            completeness * 0.2 +
-            accuracy * 0.2 +
-            timeliness * 0.15 +
-            compliance * 0.15
+            base_score * 0.3
+            + completeness * 0.2
+            + accuracy * 0.2
+            + timeliness * 0.15
+            + compliance * 0.15
         )
 
         # 类别权重调整
-        if row['category'] in self.category_map:
-            score *= self.category_map[row['category']]
+        if row["category"] in self.category_map:
+            score *= self.category_map[row["category"]]
 
         # 数据类型权重调整
-        if row['data_type'] in self.data_type_map:
-            score *= self.data_type_map[row['data_type']]
+        if row["data_type"] in self.data_type_map:
+            score *= self.data_type_map[row["data_type"]]
 
         return min(100, max(0, score))
 
     def train_ml(self, features, labels):
         """训练机器学习子模型"""
-        X = features.drop(columns=['category', 'data_type'], errors='ignore')
-        y = labels['business_risk']
+        X = features.drop(columns=["category", "data_type"], errors="ignore")
+        y = labels["business_risk"]
 
         # 划分数据集
         X_train, X_test, y_train, y_test = train_test_split(
@@ -266,14 +311,14 @@ class FinancialRiskScorecard:
         lr.fit(X_train_scaled, y_train)
 
         # 随机森林
-        rf = RandomForestClassifier(n_estimators=200, max_depth=10,
-                                    random_state=42, n_jobs=-1)
+        rf = RandomForestClassifier(
+            n_estimators=200, max_depth=10, random_state=42, n_jobs=-1
+        )
         rf.fit(X_train, y_train)
 
         # 评估
         lr_pred = lr.predict(X_test_scaled)
         rf_pred = rf.predict(X_test)
-
 
         self.lr_model = lr
         self.rf_model = rf
@@ -282,9 +327,11 @@ class FinancialRiskScorecard:
         self.feature_cols = X.columns.tolist()
 
         return {
-            'logistic_regression_accuracy': self.lr_acc,
-            'random_forest_accuracy': self.rf_acc,
-            'feature_importance': dict(zip(X.columns, rf.feature_importances_, strict=True))
+            "logistic_regression_accuracy": self.lr_acc,
+            "random_forest_accuracy": self.rf_acc,
+            "feature_importance": dict(
+                zip(X.columns, rf.feature_importances_, strict=True)
+            ),
         }
 
     def _build_single_feature_vector(self, row):
@@ -296,30 +343,35 @@ class FinancialRiskScorecard:
         features = {}
 
         # 1. 数值特征
-        features['quality_score'] = row['data_quality_score']
-        features['completeness'] = row['completeness']
-        features['accuracy'] = row['accuracy']
-        features['timeliness'] = row['timeliness']
-        features['compliance'] = row['compliance_score']
+        features["quality_score"] = row["data_quality_score"]
+        features["completeness"] = row["completeness"]
+        features["accuracy"] = row["accuracy"]
+        features["timeliness"] = row["timeliness"]
+        features["compliance"] = row["compliance_score"]
 
         # 2. 衍生特征
-        quality_vals = [features['quality_score'], features['completeness'], features['accuracy'], features['timeliness']]
-        features['avg_dimension'] = np.mean(quality_vals)
-        features['dim_std'] = np.std(quality_vals)
-        features['quality_gap'] = features['quality_score'] - features['avg_dimension']
-        features['risk_factor'] = (100 - features['quality_score']) / 100
-        features['compliance_risk'] = (100 - features['compliance']) / 100
-        features['timeliness_risk'] = (100 - features['timeliness']) / 100
+        quality_vals = [
+            features["quality_score"],
+            features["completeness"],
+            features["accuracy"],
+            features["timeliness"],
+        ]
+        features["avg_dimension"] = np.mean(quality_vals)
+        features["dim_std"] = np.std(quality_vals)
+        features["quality_gap"] = features["quality_score"] - features["avg_dimension"]
+        features["risk_factor"] = (100 - features["quality_score"]) / 100
+        features["compliance_risk"] = (100 - features["compliance"]) / 100
+        features["timeliness_risk"] = (100 - features["timeliness"]) / 100
 
         # 3. One-hot 编码 - 遍历所有训练时的列
         for col in self.feature_cols:
             if col not in features:
-                if col.startswith('cat_'):
-                    cat_val = col.replace('cat_', '')
-                    features[col] = 1 if row.get('category') == cat_val else 0
-                elif col.startswith('dtype_'):
-                    dtype_val = col.replace('dtype_', '')
-                    features[col] = 1 if row.get('data_type') == dtype_val else 0
+                if col.startswith("cat_"):
+                    cat_val = col.replace("cat_", "")
+                    features[col] = 1 if row.get("category") == cat_val else 0
+                elif col.startswith("dtype_"):
+                    dtype_val = col.replace("dtype_", "")
+                    features[col] = 1 if row.get("data_type") == dtype_val else 0
 
         # 按 feature_cols 顺序构建向量
         X = np.array([features[col] for col in self.feature_cols]).reshape(1, -1)
@@ -334,7 +386,9 @@ class FinancialRiskScorecard:
         ml_score = 50.0
         if self.lr_model is not None and self.feature_cols is not None:
             # 优先使用传入的 features_row，否则自行构建
-            if features_row is not None and all(col in features_row.index for col in self.feature_cols):
+            if features_row is not None and all(
+                col in features_row.index for col in self.feature_cols
+            ):
                 X = features_row[self.feature_cols].values.reshape(1, -1)
             else:
                 X = self._build_single_feature_vector(row)
@@ -346,11 +400,17 @@ class FinancialRiskScorecard:
                 rf_probs = self.rf_model.predict_proba(X)[0]
 
                 # 将类别概率转换为评分 (0=优秀, 3=高风险)
-                lr_score = sum((3 - i) * prob * (100 / 3) for i, prob in enumerate(lr_probs))
-                rf_score = sum((3 - i) * prob * (100 / 3) for i, prob in enumerate(rf_probs))
+                lr_score = sum(
+                    (3 - i) * prob * (100 / 3) for i, prob in enumerate(lr_probs)
+                )
+                rf_score = sum(
+                    (3 - i) * prob * (100 / 3) for i, prob in enumerate(rf_probs)
+                )
 
                 # 融合ML评分
-                ml_score = (lr_score * self.lr_acc + rf_score * self.rf_acc) / (self.lr_acc + self.rf_acc)
+                ml_score = (lr_score * self.lr_acc + rf_score * self.rf_acc) / (
+                    self.lr_acc + self.rf_acc
+                )
 
         # 最终评分: 70% 规则 + 30% ML
         final_score = rule_score_val * 0.7 + ml_score * 0.3
@@ -368,20 +428,20 @@ class FinancialRiskScorecard:
     def get_risk_level(self, score):
         """根据评分返回风险等级"""
         if score >= 85:
-            return '优秀', '💚', '可授予最高信用额度，最优付款条件'
-        elif score >= 75:
-            return '良好', '🟢', '正常信用额度，标准付款条件'
-        elif score >= 65:
-            return '中等', '🟡', '建议加强尽职调查，缩短付款周期'
-        elif score >= 55:
-            return '关注', '🟠', '限制交易金额，要求预付款或担保'
-        else:
-            return '高风险', '🔴', '建议暂缓合作或要求 100% 预付'
+            return "优秀", "💚", "可授予最高信用额度，最优付款条件"
+        if score >= 75:
+            return "良好", "🟢", "正常信用额度，标准付款条件"
+        if score >= 65:
+            return "中等", "🟡", "建议加强尽职调查，缩短付款周期"
+        if score >= 55:
+            return "关注", "🟠", "限制交易金额，要求预付款或担保"
+        return "高风险", "🔴", "建议暂缓合作或要求 100% 预付"
 
 
 # ============================================================
 # 模型 2: 能源成本预警模型
 # ============================================================
+
 
 class EnergyCostAlertModel:
     """
@@ -402,40 +462,44 @@ class EnergyCostAlertModel:
 
     def __init__(self):
         self.category_weights = {
-            'coal': 1.0,      # 煤炭 - 基础能源
-            'electricity': 1.2,  # 电力 - 核心成本
-            'oil_gas': 1.1,   # 油气 - 价格敏感
-            'renewable': 0.8,  # 可再生 - 波动较大
-            'storage': 0.9,   # 储能 - 稳定因素
-            'nuclear': 1.3,   # 核电 - 安全敏感
-            'hydro': 0.85,    # 水电 - 季节性
-            'smart_grid': 1.0  # 智能电网 - 技术因素
+            "coal": 1.0,  # 煤炭 - 基础能源
+            "electricity": 1.2,  # 电力 - 核心成本
+            "oil_gas": 1.1,  # 油气 - 价格敏感
+            "renewable": 0.8,  # 可再生 - 波动较大
+            "storage": 0.9,  # 储能 - 稳定因素
+            "nuclear": 1.3,  # 核电 - 安全敏感
+            "hydro": 0.85,  # 水电 - 季节性
+            "smart_grid": 1.0,  # 智能电网 - 技术因素
         }
 
         self.data_type_weights = {
-            'production': 1.1,
-            'consumption': 1.15,
-            'grid_dispatch': 1.0,
-            'carbon_emission': 1.2,
-            'maintenance': 0.85,
-            'radiation_monitor': 1.3,
-            'dam_level': 0.9,
-            'load_forecast': 1.05
+            "production": 1.1,
+            "consumption": 1.15,
+            "grid_dispatch": 1.0,
+            "carbon_emission": 1.2,
+            "maintenance": 0.85,
+            "radiation_monitor": 1.3,
+            "dam_level": 0.9,
+            "load_forecast": 1.05,
         }
 
     def calculate_cost_risk(self, row):
         """计算能源成本风险指数"""
         # 基础分
-        base_risk = (100 - row['data_quality_score']) * 0.5
-        timeliness_risk = (100 - row['timeliness']) * 0.3
-        completeness_risk = (100 - row['completeness']) * 0.2
+        base_risk = (100 - row["data_quality_score"]) * 0.5
+        timeliness_risk = (100 - row["timeliness"]) * 0.3
+        completeness_risk = (100 - row["completeness"]) * 0.2
 
         # 类别权重
-        cat_weight = self.category_weights.get(row['category'], 1.0)
-        dtype_weight = self.data_type_weights.get(row['data_type'], 1.0)
+        cat_weight = self.category_weights.get(row["category"], 1.0)
+        dtype_weight = self.data_type_weights.get(row["data_type"], 1.0)
 
         # 综合成本风险
-        cost_risk = (base_risk + timeliness_risk + completeness_risk) * cat_weight * dtype_weight
+        cost_risk = (
+            (base_risk + timeliness_risk + completeness_risk)
+            * cat_weight
+            * dtype_weight
+        )
 
         return min(100, cost_risk)
 
@@ -460,25 +524,25 @@ class EnergyCostAlertModel:
 
         # 类别基准统计
         self.category_stats = {}
-        for cat in energy_df['category'].unique():
-            subset = energy_df[energy_df['category'] == cat]
+        for cat in energy_df["category"].unique():
+            subset = energy_df[energy_df["category"] == cat]
             risks = [self.calculate_cost_risk(r) for _, r in subset.iterrows()]
             self.category_stats[cat] = {
-                'mean': np.mean(risks),
-                'std': np.std(risks),
-                'count': len(risks)
+                "mean": np.mean(risks),
+                "std": np.std(risks),
+                "count": len(risks),
             }
 
         return {
-            'mean_cost_risk': self.mean_risk,
-            'std_cost_risk': self.std_risk,
-            'thresholds': {
-                'p25': self.p25,
-                'p50': self.p50,
-                'p75': self.p75,
-                'p90': self.p90
+            "mean_cost_risk": self.mean_risk,
+            "std_cost_risk": self.std_risk,
+            "thresholds": {
+                "p25": self.p25,
+                "p50": self.p50,
+                "p75": self.p75,
+                "p90": self.p90,
             },
-            'category_stats': self.category_stats
+            "category_stats": self.category_stats,
         }
 
     def predict_alert(self, row):
@@ -488,29 +552,29 @@ class EnergyCostAlertModel:
         # 动态阈值判断
         if cost_risk >= self.p90:
             alert_level = 3
-            status = '🔴 紧急'
-            action = '立即调整采购策略，考虑应急储备，启动价格谈判'
+            status = "🔴 紧急"
+            action = "立即调整采购策略，考虑应急储备，启动价格谈判"
         elif cost_risk >= self.p75:
             alert_level = 2
-            status = '🟡 预警'
-            action = '加强监控，启动应急预案，准备调整库存'
+            status = "🟡 预警"
+            action = "加强监控，启动应急预案，准备调整库存"
         elif cost_risk >= self.p50:
             alert_level = 1
-            status = '🔵 关注'
-            action = '常规监控，关注同类数据变化趋势'
+            status = "🔵 关注"
+            action = "常规监控，关注同类数据变化趋势"
         else:
             alert_level = 0
-            status = '🟢 正常'
-            action = '无需关注，维持现有策略'
+            status = "🟢 正常"
+            action = "无需关注，维持现有策略"
 
         return {
-            'cost_risk_index': round(cost_risk, 2),
-            'alert_level': alert_level,
-            'status': status,
-            'recommended_action': action,
-            'risk_vs_mean': round(cost_risk - self.mean_risk, 2),
-            'category': row['category'],
-            'data_type': row['data_type']
+            "cost_risk_index": round(cost_risk, 2),
+            "alert_level": alert_level,
+            "status": status,
+            "recommended_action": action,
+            "risk_vs_mean": round(cost_risk - self.mean_risk, 2),
+            "category": row["category"],
+            "data_type": row["data_type"],
         }
 
     def predict_batch(self, df):
@@ -521,6 +585,7 @@ class EnergyCostAlertModel:
 # ============================================================
 # 模型 3: 综合决策引擎
 # ============================================================
+
 
 class CombinedDecisionEngine:
     """
@@ -555,12 +620,9 @@ class CombinedDecisionEngine:
         self.trained = True
 
         return {
-            'finance_model': finance_metrics,
-            'energy_model': energy_metrics,
-            'weights': {
-                'finance': self.finance_weight,
-                'energy': self.energy_weight
-            }
+            "finance_model": finance_metrics,
+            "energy_model": energy_metrics,
+            "weights": {"finance": self.finance_weight, "energy": self.energy_weight},
         }
 
     def make_decision(self, finance_score, energy_alert, context=None):
@@ -576,39 +638,42 @@ class CombinedDecisionEngine:
             dict: 决策结果
         """
         # 将能源预警转为 0-100 分
-        alert_level = energy_alert['alert_level']
+        alert_level = energy_alert["alert_level"]
         energy_score = 100 - (alert_level * 25)  # 0→100, 1→75, 2→50, 3→25
 
         # 综合评分
         combined_score = (
-            finance_score * self.finance_weight +
-            energy_score * self.energy_weight
+            finance_score * self.finance_weight + energy_score * self.energy_weight
         )
 
         # 决策逻辑
         if combined_score >= 80:
-            decision = '✅ 通过'
+            decision = "✅ 通过"
             decision_level = 0
-            priority = '普通'
+            priority = "普通"
         elif combined_score >= 65:
-            decision = '🟡 关注'
+            decision = "🟡 关注"
             decision_level = 1
-            priority = '关注'
+            priority = "关注"
         elif combined_score >= 50:
-            decision = '🟠 限制'
+            decision = "🟠 限制"
             decision_level = 2
-            priority = '优先'
+            priority = "优先"
         else:
-            decision = '🔴 拒绝'
+            decision = "🔴 拒绝"
             decision_level = 3
-            priority = '紧急'
+            priority = "紧急"
 
         # 生成详细建议
         suggestions = []
 
         # 金融相关建议
-        risk_level, risk_emoji, risk_advice = self.finance_model.get_risk_level(finance_score)
-        suggestions.append(f"金融风险: {risk_emoji} {risk_level} ({finance_score:.1f}分)")
+        risk_level, risk_emoji, risk_advice = self.finance_model.get_risk_level(
+            finance_score
+        )
+        suggestions.append(
+            f"金融风险: {risk_emoji} {risk_level} ({finance_score:.1f}分)"
+        )
         suggestions.append(f"  → {risk_advice}")
 
         # 能源相关建议
@@ -617,24 +682,32 @@ class CombinedDecisionEngine:
 
         # 综合建议
         if decision_level == 0:
-            suggestions.append("\n📋 综合建议: 可按常规流程推进，建议合同付款条件 30-60 天")
+            suggestions.append(
+                "\n📋 综合建议: 可按常规流程推进，建议合同付款条件 30-60 天"
+            )
         elif decision_level == 1:
-            suggestions.append("\n📋 综合建议: 建议增加额外尽职调查，付款条件缩短至 15-30 天")
+            suggestions.append(
+                "\n📋 综合建议: 建议增加额外尽职调查，付款条件缩短至 15-30 天"
+            )
         elif decision_level == 2:
-            suggestions.append("\n📋 综合建议: 建议限制单笔交易金额，要求 50% 预付款或第三方担保")
+            suggestions.append(
+                "\n📋 综合建议: 建议限制单笔交易金额，要求 50% 预付款或第三方担保"
+            )
         else:
-            suggestions.append("\n📋 综合建议: 强烈建议暂缓合作或要求 100% 预付，待风险因素改善后重新评估")
+            suggestions.append(
+                "\n📋 综合建议: 强烈建议暂缓合作或要求 100% 预付，待风险因素改善后重新评估"
+            )
 
         return {
-            'combined_score': round(combined_score, 2),
-            'finance_score': finance_score,
-            'energy_score': energy_score,
-            'energy_alert': energy_alert,
-            'decision': decision,
-            'decision_level': decision_level,
-            'priority': priority,
-            'suggestions': suggestions,
-            'timestamp': datetime.now().isoformat()
+            "combined_score": round(combined_score, 2),
+            "finance_score": finance_score,
+            "energy_score": energy_score,
+            "energy_alert": energy_alert,
+            "decision": decision,
+            "decision_level": decision_level,
+            "priority": priority,
+            "suggestions": suggestions,
+            "timestamp": datetime.now().isoformat(),
         }
 
     def evaluate_supplier(self, finance_row, energy_rows=None):
@@ -652,24 +725,27 @@ class CombinedDecisionEngine:
         finance_features = create_features(pd.DataFrame([finance_row]))
         finance_score = self.finance_model.predict_score(
             finance_row,
-            finance_features.iloc[0] if not finance_features.empty else None
+            finance_features.iloc[0] if not finance_features.empty else None,
         )
 
         # 能源预警
         if energy_rows is not None and len(energy_rows) > 0:
             # 多条能源数据取最严重的
-            alerts = [self.energy_model.predict_alert(row) for _, row in energy_rows.iterrows()]
-            energy_alert = max(alerts, key=lambda x: x['alert_level'])
+            alerts = [
+                self.energy_model.predict_alert(row)
+                for _, row in energy_rows.iterrows()
+            ]
+            energy_alert = max(alerts, key=lambda x: x["alert_level"])
         else:
             # 无能源数据时使用中性评分
             energy_alert = {
-                'cost_risk_index': 50.0,
-                'alert_level': 1,
-                'status': '🔵 关注',
-                'recommended_action': '无能源维度数据，建议补充',
-                'risk_vs_mean': 0,
-                'category': 'unknown',
-                'data_type': 'unknown'
+                "cost_risk_index": 50.0,
+                "alert_level": 1,
+                "status": "🔵 关注",
+                "recommended_action": "无能源维度数据，建议补充",
+                "risk_vs_mean": 0,
+                "category": "unknown",
+                "data_type": "unknown",
             }
 
         return self.make_decision(finance_score, energy_alert)
@@ -677,36 +753,33 @@ class CombinedDecisionEngine:
     def save(self, path):
         """保存模型"""
         model_data = {
-            'finance_model': {
-                'lr_model': self.finance_model.lr_model,
-                'rf_model': self.finance_model.rf_model,
-                'scaler': self.finance_model.scaler,
-                'feature_cols': self.finance_model.feature_cols,
-                'lr_acc': self.finance_model.lr_acc,
-                'rf_acc': self.finance_model.rf_acc
+            "finance_model": {
+                "lr_model": self.finance_model.lr_model,
+                "rf_model": self.finance_model.rf_model,
+                "scaler": self.finance_model.scaler,
+                "feature_cols": self.finance_model.feature_cols,
+                "lr_acc": self.finance_model.lr_acc,
+                "rf_acc": self.finance_model.rf_acc,
             },
-            'energy_model': {
-                'p25': self.energy_model.p25,
-                'p50': self.energy_model.p50,
-                'p75': self.energy_model.p75,
-                'p90': self.energy_model.p90,
-                'mean_risk': self.energy_model.mean_risk,
-                'std_risk': self.energy_model.std_risk,
-                'category_stats': self.energy_model.category_stats
+            "energy_model": {
+                "p25": self.energy_model.p25,
+                "p50": self.energy_model.p50,
+                "p75": self.energy_model.p75,
+                "p90": self.energy_model.p90,
+                "mean_risk": self.energy_model.mean_risk,
+                "std_risk": self.energy_model.std_risk,
+                "category_stats": self.energy_model.category_stats,
             },
-            'weights': {
-                'finance': self.finance_weight,
-                'energy': self.energy_weight
-            },
-            'trained': self.trained,
-            'training_time': datetime.now().isoformat()
+            "weights": {"finance": self.finance_weight, "energy": self.energy_weight},
+            "trained": self.trained,
+            "training_time": datetime.now().isoformat(),
         }
 
-        with open(path, 'wb') as f:
+        with open(path, "wb") as f:
             pickle.dump(model_data, f)
         # CWE-502 加固: 同步写 SHA256 侧车, 供 load_model_safe 完整性校验
-        sidecar = str(path) + '.sha256'
-        with open(sidecar, 'w', encoding='utf-8') as f:
+        sidecar = str(path) + ".sha256"
+        with open(sidecar, "w", encoding="utf-8") as f:
             f.write(_sha256_file(path))
 
     @classmethod
@@ -715,34 +788,37 @@ class CombinedDecisionEngine:
         model_data = load_model_safe(path)
 
         engine = cls(
-            finance_weight=model_data['weights']['finance'],
-            energy_weight=model_data['weights']['energy']
+            finance_weight=model_data["weights"]["finance"],
+            energy_weight=model_data["weights"]["energy"],
         )
 
         # 恢复金融模型
-        engine.finance_model.lr_model = model_data['finance_model']['lr_model']
-        engine.finance_model.rf_model = model_data['finance_model']['rf_model']
-        engine.finance_model.scaler = model_data['finance_model']['scaler']
-        engine.finance_model.feature_cols = model_data['finance_model']['feature_cols']
-        engine.finance_model.lr_acc = model_data['finance_model']['lr_acc']
-        engine.finance_model.rf_acc = model_data['finance_model']['rf_acc']
+        engine.finance_model.lr_model = model_data["finance_model"]["lr_model"]
+        engine.finance_model.rf_model = model_data["finance_model"]["rf_model"]
+        engine.finance_model.scaler = model_data["finance_model"]["scaler"]
+        engine.finance_model.feature_cols = model_data["finance_model"]["feature_cols"]
+        engine.finance_model.lr_acc = model_data["finance_model"]["lr_acc"]
+        engine.finance_model.rf_acc = model_data["finance_model"]["rf_acc"]
 
         # 恢复能源模型
-        engine.energy_model.p25 = model_data['energy_model']['p25']
-        engine.energy_model.p50 = model_data['energy_model']['p50']
-        engine.energy_model.p75 = model_data['energy_model']['p75']
-        engine.energy_model.p90 = model_data['energy_model']['p90']
-        engine.energy_model.mean_risk = model_data['energy_model']['mean_risk']
-        engine.energy_model.std_risk = model_data['energy_model']['std_risk']
-        engine.energy_model.category_stats = model_data['energy_model']['category_stats']
+        engine.energy_model.p25 = model_data["energy_model"]["p25"]
+        engine.energy_model.p50 = model_data["energy_model"]["p50"]
+        engine.energy_model.p75 = model_data["energy_model"]["p75"]
+        engine.energy_model.p90 = model_data["energy_model"]["p90"]
+        engine.energy_model.mean_risk = model_data["energy_model"]["mean_risk"]
+        engine.energy_model.std_risk = model_data["energy_model"]["std_risk"]
+        engine.energy_model.category_stats = model_data["energy_model"][
+            "category_stats"
+        ]
 
-        engine.trained = model_data['trained']
+        engine.trained = model_data["trained"]
         return engine
 
 
 # ============================================================
 # 主训练流程
 # ============================================================
+
 
 def main():
 
@@ -755,7 +831,6 @@ def main():
 
     create_labels(finance_df)
     create_labels(energy_df)
-
 
     # 步骤 3: 训练综合决策引擎
     engine = CombinedDecisionEngine(finance_weight=0.6, energy_weight=0.4)
@@ -777,13 +852,13 @@ def main():
         engine.energy_model.predict_alert(row)
 
     # 测试综合决策
-    test_indices = [0, len(finance_df)//2, len(finance_df)-1]
+    test_indices = [0, len(finance_df) // 2, len(finance_df) - 1]
     for _, idx in enumerate(test_indices):
         finance_row = finance_df.iloc[idx]
-        energy_sample = energy_df.sample(min(3, len(energy_df)), random_state=idx+42)
+        energy_sample = energy_df.sample(min(3, len(energy_df)), random_state=idx + 42)
         result = engine.evaluate_supplier(finance_row, energy_sample)
 
-        for _ in result['suggestions']:
+        for _ in result["suggestions"]:
             pass
 
     # 步骤 5: 批量评分统计
@@ -793,78 +868,77 @@ def main():
 
     # 能源预警批量计算
     energy_alerts = engine.energy_model.predict_batch(energy_df)
-    alert_levels = [a['alert_level'] for a in energy_alerts]
+    alert_levels = [a["alert_level"] for a in energy_alerts]
     alert_dist = Counter(alert_levels)
     for level in sorted(alert_dist.keys()):
         alert_dist[level]
 
     # 步骤 6: 保存模型
 
-    model_path = MODEL_DIR / 'combined_risk_model_v1.0.pkl'
+    model_path = MODEL_DIR / "combined_risk_model_v1.0.pkl"
     engine.save(model_path)
 
     # 保存元数据
     metadata = {
-        'version': '1.0.0',
-        'training_date': datetime.now().isoformat(),
-        'training_data': {
-            'finance_records': len(finance_df),
-            'energy_records': len(energy_df),
-            'finance_categories': finance_df['category'].nunique(),
-            'energy_categories': energy_df['category'].nunique(),
-            'finance_data_types': finance_df['data_type'].nunique(),
-            'energy_data_types': energy_df['data_type'].nunique()
+        "version": "1.0.0",
+        "training_date": datetime.now().isoformat(),
+        "training_data": {
+            "finance_records": len(finance_df),
+            "energy_records": len(energy_df),
+            "finance_categories": finance_df["category"].nunique(),
+            "energy_categories": energy_df["category"].nunique(),
+            "finance_data_types": finance_df["data_type"].nunique(),
+            "energy_data_types": energy_df["data_type"].nunique(),
         },
-        'metrics': metrics,
-        'feature_columns': finance_features.columns.tolist(),
-        'model_architecture': {
-            'name': 'HybridRuleML',
-            'components': ['RuleBasedScorecard', 'LogisticRegression', 'RandomForest', 'EnergyCostAlert'],
-            'finance_ml_accuracy': metrics['finance_model']['random_forest_accuracy'],
-            'fusion_weights': metrics['weights']
+        "metrics": metrics,
+        "feature_columns": finance_features.columns.tolist(),
+        "model_architecture": {
+            "name": "HybridRuleML",
+            "components": [
+                "RuleBasedScorecard",
+                "LogisticRegression",
+                "RandomForest",
+                "EnergyCostAlert",
+            ],
+            "finance_ml_accuracy": metrics["finance_model"]["random_forest_accuracy"],
+            "fusion_weights": metrics["weights"],
         },
-        'thresholds': {
-            'finance_score_levels': {
-                'excellent': 85,
-                'good': 75,
-                'medium': 65,
-                'watch': 55
+        "thresholds": {
+            "finance_score_levels": {
+                "excellent": 85,
+                "good": 75,
+                "medium": 65,
+                "watch": 55,
             },
-            'energy_alert_levels': {
-                'normal': 0,
-                'watch': 1,
-                'warning': 2,
-                'critical': 3
+            "energy_alert_levels": {
+                "normal": 0,
+                "watch": 1,
+                "warning": 2,
+                "critical": 3,
             },
-            'combined_decision_levels': {
-                'approve': 80,
-                'watch': 65,
-                'restrict': 50
-            }
-        }
+            "combined_decision_levels": {"approve": 80, "watch": 65, "restrict": 50},
+        },
     }
 
-    metadata_path = MODEL_DIR / 'model_metadata.json'
-    with open(metadata_path, 'w', encoding='utf-8') as f:
+    metadata_path = MODEL_DIR / "model_metadata.json"
+    with open(metadata_path, "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
 
     # 保存类别映射
     category_mapping = {
-        'finance_categories': sorted(finance_df['category'].unique().tolist()),
-        'energy_categories': sorted(energy_df['category'].unique().tolist()),
-        'finance_data_types': sorted(finance_df['data_type'].unique().tolist()),
-        'energy_data_types': sorted(energy_df['data_type'].unique().tolist())
+        "finance_categories": sorted(finance_df["category"].unique().tolist()),
+        "energy_categories": sorted(energy_df["category"].unique().tolist()),
+        "finance_data_types": sorted(finance_df["data_type"].unique().tolist()),
+        "energy_data_types": sorted(energy_df["data_type"].unique().tolist()),
     }
-    mapping_path = MODEL_DIR / 'category_mapping.json'
-    with open(mapping_path, 'w', encoding='utf-8') as f:
+    mapping_path = MODEL_DIR / "category_mapping.json"
+    with open(mapping_path, "w", encoding="utf-8") as f:
         json.dump(category_mapping, f, ensure_ascii=False, indent=2)
 
     # 步骤 7: 输出使用指南
 
-
-
     return engine, metadata
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     engine, metadata = main()

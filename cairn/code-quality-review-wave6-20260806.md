@@ -104,3 +104,14 @@ Wave6 确认并修复 **7 个真实缺陷**（2 致命 C1/C2、1 高 C4、1 中 
 1. [alibaba/open-code-review](https://github.com/alibaba/open-code-review) — 审查工具与规则库
 2. `cairn/code-quality-review-open-code-review.md` — Wave5 审查沉淀
 3. `cairn/bug_fix_tracker.md` — 修复追踪表
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [open-code-review 代码审查报告（核心模块）](code-quality-review-open-code-review.md) (相似度 17%)
+- [Agent 直接审查兜底方法论（外部 LLM 额度耗尽时）](code-review-agent-fallback-20260810.md) (相似度 12%)
+- [GLM 4.5-air LLM 驱动代码审查方法论（open-code-review + GLM 4.5-air）](code-review-glm45-llm-scan.md) (相似度 12%)
+- [独立代码审查 + 二次核验纠偏（2026-08-08）](code-review-independent-audit-20260808.md) (相似度 12%)
+- [OCR 扫描代码评论落地（2026-08-11）](ocr-scan-comments-20260811.md) (相似度 11%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

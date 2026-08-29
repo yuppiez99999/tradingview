@@ -10,6 +10,7 @@
 - BarraRiskDecomposer.save_result 序列化
 - 集中/缺失因子诊断、风险预算审计、信息比率分解
 """
+
 from __future__ import annotations
 
 import json
@@ -39,6 +40,7 @@ N_FACTORS = len(BARRA_STYLE_FACTORS)  # 10
 # 辅助构造
 # ============================================================
 
+
 def _full_factor_exposure(symbols, seed=0):
     """构造每个标的的 10 因子暴露 (含一个集中因子 + 一个缺失因子)."""
     rng = np.random.RandomState(seed)
@@ -62,9 +64,12 @@ def _identity_cov(scale=0.01):
 # 数据结构测试
 # ============================================================
 
+
 class FactorExposureTest:
     def test_defaults(self):
-        fe = FactorExposure(factor_name="Size", exposure=0.5, contribution_to_active_risk=0.01)
+        fe = FactorExposure(
+            factor_name="Size", exposure=0.5, contribution_to_active_risk=0.01
+        )
         assert fe.factor_name == "Size"
         assert fe.exposure == 0.5
         assert fe.contribution_to_active_risk == 0.01
@@ -121,6 +126,7 @@ class ConstantsTest:
 # BarraRiskDecomposer 构造
 # ============================================================
 
+
 class BarraRiskDecomposerInitTest:
     def test_default_annual_factor(self):
         d = BarraRiskDecomposer()
@@ -139,6 +145,7 @@ class BarraRiskDecomposerInitTest:
 # ============================================================
 # decompose 主入口
 # ============================================================
+
 
 class DecomposeTest:
     def setup_method(self):
@@ -201,7 +208,9 @@ class DecomposeTest:
         assert res.industry_exposures["食品饮料"] == pytest.approx(0.0, abs=1e-10)
         # 风险预算审计
         assert res.risk_budget_used == pytest.approx(res.active_risk)
-        assert res.risk_budget_remaining == pytest.approx(max(0.05 - res.active_risk, 0.0))
+        assert res.risk_budget_remaining == pytest.approx(
+            max(0.05 - res.active_risk, 0.0)
+        )
         assert res.risk_budget_utilization == pytest.approx(res.active_risk / 0.05)
         # 主动风险 > 0
         assert res.active_risk > 0
@@ -210,7 +219,9 @@ class DecomposeTest:
         # 因子风险占比
         assert 0 <= res.factor_risk_pct <= 1
         # 信息比率
-        assert res.information_ratio == pytest.approx(res.active_return / res.active_risk)
+        assert res.information_ratio == pytest.approx(
+            res.active_return / res.active_risk
+        )
         # 个股特异性收益简化为 0
         assert res.specific_return == 0.0
         assert res.active_return == pytest.approx(res.factor_return)
@@ -221,7 +232,9 @@ class DecomposeTest:
         )
         # active_factor_exposure[Beta] = X[:,Beta] @ active_weights
         active_w = np.array([0.1, -0.1])
-        expected_country = np.array([fe["600519"]["Beta"], fe["000858"]["Beta"]]) @ active_w
+        expected_country = (
+            np.array([fe["600519"]["Beta"], fe["000858"]["Beta"]]) @ active_w
+        )
         assert res.country_exposure == pytest.approx(expected_country)
 
     def test_decompose_with_none_factor_returns(self):
@@ -391,15 +404,21 @@ class DecomposeTest:
             assert fe_obj.factor_name in BARRA_STYLE_FACTORS
             assert fe_obj.factor_return == 0.001
             # contribution_to_active_return = active_exposure * factor_return
-            assert fe_obj.contribution_to_active_return == pytest.approx(fe_obj.exposure * 0.001)
+            assert fe_obj.contribution_to_active_return == pytest.approx(
+                fe_obj.exposure * 0.001
+            )
         # factor_return = sum of contributions
-        total_contrib = sum(fe_obj.contribution_to_active_return for fe_obj in res.style_factor_exposures)
+        total_contrib = sum(
+            fe_obj.contribution_to_active_return
+            for fe_obj in res.style_factor_exposures
+        )
         assert res.factor_return == pytest.approx(total_contrib)
 
 
 # ============================================================
 # decompose_from_positions 简化入口
 # ============================================================
+
 
 class DecomposeFromPositionsTest:
     def setup_method(self):
@@ -417,8 +436,18 @@ class DecomposeFromPositionsTest:
 
     def test_basic_from_positions_equal_benchmark(self):
         positions = [
-            {"code": "600519", "amount": 60000, "market_cap": 1e10, "sector": "食品饮料"},
-            {"code": "000858", "amount": 40000, "market_cap": 5e9, "sector": "食品饮料"},
+            {
+                "code": "600519",
+                "amount": 60000,
+                "market_cap": 1e10,
+                "sector": "食品饮料",
+            },
+            {
+                "code": "000858",
+                "amount": 40000,
+                "market_cap": 5e9,
+                "sector": "食品饮料",
+            },
         ]
         res = self.dec.decompose_from_positions(positions=positions)
         assert res.symbols == ["600519", "000858"]
@@ -463,10 +492,14 @@ class DecomposeFromPositionsTest:
         # 单标的 → 主动权重=0 (等权基准=1.0)
         assert res.active_risk == 0.0
         # 验证 Size 暴露 = log(1e10)/log(1e8) = 10/8 = 1.25
-        size_fe = next(fe for fe in res.style_factor_exposures if fe.factor_name == "Size")
+        size_fe = next(
+            fe for fe in res.style_factor_exposures if fe.factor_name == "Size"
+        )
         assert size_fe.exposure == pytest.approx(0.0, abs=1e-10)  # 主动暴露=0
         # Beta 暴露 = (1.0-1.0)*2 = 0
-        beta_fe = next(fe for fe in res.style_factor_exposures if fe.factor_name == "Beta")
+        beta_fe = next(
+            fe for fe in res.style_factor_exposures if fe.factor_name == "Beta"
+        )
         assert beta_fe.exposure == pytest.approx(0.0, abs=1e-10)
 
     def test_from_positions_default_market_cap_uses_amount(self):
@@ -475,7 +508,9 @@ class DecomposeFromPositionsTest:
         res = self.dec.decompose_from_positions(positions=positions)
         assert res.symbols == ["a"]
         # log(100000)/log(1e8) = log(1e5)/log(1e8) = 5/8
-        size_fe = next(fe for fe in res.style_factor_exposures if fe.factor_name == "Size")
+        size_fe = next(
+            fe for fe in res.style_factor_exposures if fe.factor_name == "Size"
+        )
         assert size_fe.exposure == pytest.approx(0.0, abs=1e-10)  # 单标的主动暴露=0
 
     def test_from_positions_negative_pe(self):
@@ -490,6 +525,7 @@ class DecomposeFromPositionsTest:
 # ============================================================
 # save_result 序列化
 # ============================================================
+
 
 class SaveResultTest:
     def setup_method(self):
@@ -520,7 +556,9 @@ class SaveResultTest:
         assert data["country_exposure"] == pytest.approx(res.country_exposure)
         assert data["factor_risk_pct"] == pytest.approx(res.factor_risk_pct)
         assert data["information_ratio"] == pytest.approx(res.information_ratio)
-        assert data["risk_budget_utilization"] == pytest.approx(res.risk_budget_utilization)
+        assert data["risk_budget_utilization"] == pytest.approx(
+            res.risk_budget_utilization
+        )
         # 检查 FactorExposure 序列化字段
         fe0 = data["style_factor_exposures"][0]
         assert "factor_name" in fe0

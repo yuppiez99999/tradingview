@@ -8,6 +8,7 @@ test_remote_qmt_broker_unit — RemoteQmtBroker 单元测试 (mock HTTP)
 - fail-open: 网络异常返回安全空值, 不抛
 - is_connected 周期性探活
 """
+
 from __future__ import annotations
 
 import os
@@ -18,7 +19,9 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
@@ -27,6 +30,7 @@ from utils.execution.remote_qmt_broker import RemoteQmtBroker
 # ============================================================
 # fixture: mock httpx.Client
 # ============================================================
+
 
 @pytest.fixture
 def mock_client():
@@ -58,6 +62,7 @@ def _err(status=500, text="err"):
 # ============================================================
 # connect
 # ============================================================
+
 
 class TestConnect:
     def test_connect_success(self, mock_client):
@@ -93,6 +98,7 @@ class TestConnect:
 # place
 # ============================================================
 
+
 class TestPlace:
     def _connected_broker(self, mock_client):
         _, mock_get, _ = mock_client
@@ -104,11 +110,18 @@ class TestPlace:
     def test_place_success(self, mock_client):
         b = self._connected_broker(mock_client)
         _, _, mock_post = mock_client
-        mock_post.return_value = _ok({
-            "order_id": "12345", "symbol": "510300.SH", "qty": 1000,
-            "side": "BUY", "order_type": "LIMIT", "price": 4.5,
-            "status": "REPORTED", "ts": "2026-08-17T09:30:00",
-        })
+        mock_post.return_value = _ok(
+            {
+                "order_id": "12345",
+                "symbol": "510300.SH",
+                "qty": 1000,
+                "side": "BUY",
+                "order_type": "LIMIT",
+                "price": 4.5,
+                "status": "REPORTED",
+                "ts": "2026-08-17T09:30:00",
+            }
+        )
         order = b.place("510300.SH", 1000, "BUY", price=4.5)
         assert order is not None
         assert order.order_id == "12345"
@@ -138,6 +151,7 @@ class TestPlace:
 # cancel
 # ============================================================
 
+
 class TestCancel:
     def test_cancel_success(self, mock_client):
         _, mock_get, mock_post = mock_client
@@ -146,8 +160,15 @@ class TestCancel:
         b = RemoteQmtBroker(rpc_url="http://win:8765", token="t")
         b.connect()
         from ms_strategy.src.execution.broker_api import Order
-        order = Order(order_id="12345", symbol="510300.SH", qty=1000,
-                      side="BUY", order_type="LIMIT", price=4.5)
+
+        order = Order(
+            order_id="12345",
+            symbol="510300.SH",
+            qty=1000,
+            side="BUY",
+            order_type="LIMIT",
+            price=4.5,
+        )
         assert b.cancel(order) is True
 
     def test_cancel_fail_open(self, mock_client):
@@ -157,7 +178,10 @@ class TestCancel:
         b = RemoteQmtBroker(rpc_url="http://win:8765", token="t")
         b.connect()
         from ms_strategy.src.execution.broker_api import Order
-        order = Order(order_id="12345", symbol="", qty=0, side="", order_type="", price=0.0)
+
+        order = Order(
+            order_id="12345", symbol="", qty=0, side="", order_type="", price=0.0
+        )
         assert b.cancel(order) is False
 
 
@@ -165,20 +189,35 @@ class TestCancel:
 # wait_fill
 # ============================================================
 
+
 class TestWaitFill:
     def test_wait_fill_filled(self, mock_client):
         _, mock_get, mock_post = mock_client
         mock_get.return_value = _ok({"connected": True, "account": "x"})
-        mock_post.return_value = _ok({
-            "filled": True, "order_id": "12345", "fill_id": "F1",
-            "symbol": "510300.SH", "qty": 1000, "price": 4.502,
-            "side": "BUY", "ts": "2026-08-17T09:30:05",
-        })
+        mock_post.return_value = _ok(
+            {
+                "filled": True,
+                "order_id": "12345",
+                "fill_id": "F1",
+                "symbol": "510300.SH",
+                "qty": 1000,
+                "price": 4.502,
+                "side": "BUY",
+                "ts": "2026-08-17T09:30:05",
+            }
+        )
         b = RemoteQmtBroker(rpc_url="http://win:8765", token="t")
         b.connect()
         from ms_strategy.src.execution.broker_api import Order
-        order = Order(order_id="12345", symbol="510300.SH", qty=1000,
-                      side="BUY", order_type="LIMIT", price=4.5)
+
+        order = Order(
+            order_id="12345",
+            symbol="510300.SH",
+            qty=1000,
+            side="BUY",
+            order_type="LIMIT",
+            price=4.5,
+        )
         fill = b.wait_fill(order, timeout=10)
         assert fill is not None
         assert fill["qty"] == 1000
@@ -191,7 +230,10 @@ class TestWaitFill:
         b = RemoteQmtBroker(rpc_url="http://win:8765", token="t")
         b.connect()
         from ms_strategy.src.execution.broker_api import Order
-        order = Order(order_id="12345", symbol="", qty=0, side="", order_type="", price=0.0)
+
+        order = Order(
+            order_id="12345", symbol="", qty=0, side="", order_type="", price=0.0
+        )
         assert b.wait_fill(order) is None
 
 
@@ -199,10 +241,13 @@ class TestWaitFill:
 # 持仓 / 账户
 # ============================================================
 
+
 class TestQuery:
     def test_get_positions(self, mock_client):
         _, mock_get, _ = mock_client
-        mock_get.return_value = _ok({"positions": {"510300.SH": 1000, "510500.SH": 500}})
+        mock_get.return_value = _ok(
+            {"positions": {"510300.SH": 1000, "510500.SH": 500}}
+        )
         b = RemoteQmtBroker(rpc_url="http://win:8765", token="t")
         b._connected = True
         b._client = MagicMock()
@@ -213,7 +258,9 @@ class TestQuery:
 
     def test_get_account_info(self, mock_client):
         _, mock_get, _ = mock_client
-        mock_get.return_value = _ok({"available": 100000, "total": 500000, "frozen": 0, "margin": 0})
+        mock_get.return_value = _ok(
+            {"available": 100000, "total": 500000, "frozen": 0, "margin": 0}
+        )
         b = RemoteQmtBroker(rpc_url="http://win:8765", token="t")
         b._connected = True
         b._client = MagicMock()
@@ -238,6 +285,7 @@ class TestQuery:
 # ============================================================
 # disconnect
 # ============================================================
+
 
 def test_disconnect(mock_client):
     _, mock_get, _ = mock_client

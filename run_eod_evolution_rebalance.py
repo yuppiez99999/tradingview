@@ -63,7 +63,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--symbols",
         nargs="*",
-        default=["600519", "000858", "601318", "000001", "600036", "601398", "600276", "000063"],
+        default=[
+            "600519",
+            "000858",
+            "601318",
+            "000001",
+            "600036",
+            "601398",
+            "600276",
+            "000063",
+        ],
         help="标的列表",
     )
     parser.add_argument("--capital", type=float, default=3_000_000.0, help="总资本")
@@ -111,7 +120,11 @@ def _temp_enable_flags(args: argparse.Namespace) -> list[str]:
                 reason=f"EOD trigger 临时启用 {datetime.now().isoformat()}",
             )
             enabled.append("USE_EVOLUTION_ORCHESTRATOR")
-            logger.info("已启用 USE_EVOLUTION_ORCHESTRATOR (双签: %s/%s)", args.signer, args.co_signer)
+            logger.info(
+                "已启用 USE_EVOLUTION_ORCHESTRATOR (双签: %s/%s)",
+                args.signer,
+                args.co_signer,
+            )
         if args.enable_rebalance:
             enable(
                 "USE_EOD_REBALANCE",
@@ -120,7 +133,9 @@ def _temp_enable_flags(args: argparse.Namespace) -> list[str]:
                 reason=f"EOD trigger 临时启用 {datetime.now().isoformat()}",
             )
             enabled.append("USE_EOD_REBALANCE")
-            logger.info("已启用 USE_EOD_REBALANCE (双签: %s/%s)", args.signer, args.co_signer)
+            logger.info(
+                "已启用 USE_EOD_REBALANCE (双签: %s/%s)", args.signer, args.co_signer
+            )
     except Exception as e:
         logger.error("启用 flag 失败: %s", e, exc_info=True)
     return enabled
@@ -134,7 +149,11 @@ def _restore_flags(flags: list[str], signer: str) -> None:
         from utils.infra.feature_flags import disable
 
         for name in flags:
-            disable(name, signer=signer, reason=f"EOD trigger 运行后恢复 {datetime.now().isoformat()}")
+            disable(
+                name,
+                signer=signer,
+                reason=f"EOD trigger 运行后恢复 {datetime.now().isoformat()}",
+            )
             logger.info("已恢复 %s = false", name)
     except Exception as e:
         logger.warning("恢复 flag 失败 (需手动 disable): %s", e)
@@ -144,11 +163,24 @@ def _print_summary(result: dict) -> None:
     """输出运行摘要 (含 evolution + eod_rebalance 阶段状态)."""
     steps = result.get("steps", {})
     logger.info("=" * 60)
-    logger.info("EOD 运行摘要 | date=%s | mode=%s | status=%s", result.get("report_date"), result.get("mode"), result.get("status"))
+    logger.info(
+        "EOD 运行摘要 | date=%s | mode=%s | status=%s",
+        result.get("report_date"),
+        result.get("mode"),
+        result.get("status"),
+    )
     logger.info("=" * 60)
 
     # 主链路阶段
-    main_steps = ["data_gate", "alpha_evaluation", "signal_fusion", "portfolio_decision", "market_regime", "risk_budget", "execution_plans"]
+    main_steps = [
+        "data_gate",
+        "alpha_evaluation",
+        "signal_fusion",
+        "portfolio_decision",
+        "market_regime",
+        "risk_budget",
+        "execution_plans",
+    ]
     for key in main_steps:
         if key in steps:
             data = steps[key]
@@ -165,13 +197,23 @@ def _print_summary(result: dict) -> None:
     logger.info("  G3 新增阶段:")
     evolution = steps.get("evolution", {})
     if evolution:
-        logger.info("  %-22s: status=%s %s", "evolution (Step 4.6)", evolution.get("status", "?"), evolution.get("reason", ""))
+        logger.info(
+            "  %-22s: status=%s %s",
+            "evolution (Step 4.6)",
+            evolution.get("status", "?"),
+            evolution.get("reason", ""),
+        )
     else:
         logger.info("  %-22s: 未执行 (flag 关闭)", "evolution (Step 4.6)")
 
     rebalance = steps.get("eod_rebalance", {})
     if rebalance:
-        logger.info("  %-22s: status=%s %s", "eod_rebalance (Step 6.6)", rebalance.get("status", "?"), rebalance.get("reason", ""))
+        logger.info(
+            "  %-22s: status=%s %s",
+            "eod_rebalance (Step 6.6)",
+            rebalance.get("status", "?"),
+            rebalance.get("reason", ""),
+        )
     else:
         logger.info("  %-22s: 未执行 (flag 关闭)", "eod_rebalance (Step 6.6)")
 
@@ -188,8 +230,14 @@ def main() -> None:
     args = parse_args()
 
     logger.info("启动 EOD 工作流 (进化+再平衡, 受 Flag 控制)")
-    logger.info("  mode=%s | symbols=%s | capital=%.0f", args.mode, args.symbols, args.capital)
-    logger.info("  enable_evolution=%s | enable_rebalance=%s", args.enable_evolution, args.enable_rebalance)
+    logger.info(
+        "  mode=%s | symbols=%s | capital=%.0f", args.mode, args.symbols, args.capital
+    )
+    logger.info(
+        "  enable_evolution=%s | enable_rebalance=%s",
+        args.enable_evolution,
+        args.enable_rebalance,
+    )
 
     # 临时启用 flag (双签)
     enabled_flags = _temp_enable_flags(args)

@@ -49,6 +49,7 @@ class RiskBudgetAllocator:
         if len(returns) == 0:
             return default_vol
         return float(np.std(returns, ddof=1)) * np.sqrt(252)  # type: ignore
+
     def allocate_daily_budget(
         self,
         pending_positions: list[dict],
@@ -88,7 +89,11 @@ class RiskBudgetAllocator:
 
                 spec = importlib.util.spec_from_file_location(
                     "risk_budgeter",
-                    PROJECT_ROOT / "v7.5_institutional" / "src" / "risk" / "risk_budgeter.py",
+                    PROJECT_ROOT
+                    / "v7.5_institutional"
+                    / "src"
+                    / "risk"
+                    / "risk_budgeter.py",
                 )
                 if spec is not None and spec.loader is not None:
                     mod = importlib.util.module_from_spec(spec)
@@ -99,16 +104,35 @@ class RiskBudgetAllocator:
                         max_dd=self.max_dd,
                         single_trade_risk=self.single_trade_risk,
                     )
-                    rp_weights = budgeter.risk_parity_weights(returns_matrix[symbols].dropna())
+                    rp_weights = budgeter.risk_parity_weights(
+                        returns_matrix[symbols].dropna()
+                    )
                     if len(rp_weights) == n:
                         weights = rp_weights
-                        logger.info(f"[RiskBudgetAllocator] Risk Parity 权重计算成功, 目标{len(rp_weights)}个标的")
+                        logger.info(
+                            f"[RiskBudgetAllocator] Risk Parity 权重计算成功, 目标{len(rp_weights)}个标的"
+                        )
                     else:
-                        logger.info("[RiskBudgetAllocator] Risk Parity 权重维度不匹配, 回退到等权")
+                        logger.info(
+                            "[RiskBudgetAllocator] Risk Parity 权重维度不匹配, 回退到等权"
+                        )
                 else:
-                    logger.info("[RiskBudgetAllocator] 无法加载 risk_budgeter 模块, 回退到等权")
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
-                logger.error(f"[RiskBudgetAllocator] Risk Parity 计算失败: {e}, 回退到等权")
+                    logger.info(
+                        "[RiskBudgetAllocator] 无法加载 risk_budgeter 模块, 回退到等权"
+                    )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
+                logger.error(
+                    f"[RiskBudgetAllocator] Risk Parity 计算失败: {e}, 回退到等权"
+                )
 
         results: dict[str, dict] = {}
         for i, pos in enumerate(pending_positions):
@@ -119,7 +143,9 @@ class RiskBudgetAllocator:
                 continue
 
             # 基础分配 = 总资本 * 权重 * 单笔风险约束
-            base_allocated = self.total_capital * float(weights[i]) * self.single_trade_risk / 0.25
+            base_allocated = (
+                self.total_capital * float(weights[i]) * self.single_trade_risk / 0.25
+            )
             base_allocated = min(base_allocated, remaining)
 
             # 信号调整

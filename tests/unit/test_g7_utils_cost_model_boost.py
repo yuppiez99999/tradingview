@@ -4,6 +4,7 @@
 包括默认值、自定义值、边界 (rebalance=0 / sell_ratio=0)、breakdown 审计、
 net_return 扣除路径. 无外部依赖, 纯计算.
 """
+
 from __future__ import annotations
 
 import sys
@@ -110,8 +111,12 @@ class TestBreakdown:
     def test_breakdown_keys(self):
         bd = CostAssumption().breakdown()
         assert set(bd.keys()) == {
-            "commission", "stamp_duty", "market_impact",
-            "option_overlay", "futures_basis", "total",
+            "commission",
+            "stamp_duty",
+            "market_impact",
+            "option_overlay",
+            "futures_basis",
+            "total",
         }
 
     def test_breakdown_values_sum_to_total(self):
@@ -179,4 +184,6 @@ class TestGetCostModel:
         default = CostAssumption()
         assert DEFAULT_COST_MODEL.commission_bps == default.commission_bps
         assert DEFAULT_COST_MODEL.rebalance_per_year == default.rebalance_per_year
-        assert DEFAULT_COST_MODEL.annual_total_cost == pytest.approx(default.annual_total_cost)
+        assert DEFAULT_COST_MODEL.annual_total_cost == pytest.approx(
+            default.annual_total_cost
+        )

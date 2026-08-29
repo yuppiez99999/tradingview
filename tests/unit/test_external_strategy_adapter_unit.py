@@ -1,4 +1,5 @@
 """external_strategy_adapter 单元测试 — 外部策略适配器"""
+
 from pathlib import Path
 from unittest.mock import patch
 
@@ -56,30 +57,42 @@ class TestGetConsensus:
     def test_bullish_consensus(self):
         adapter = ExternalStrategyAdapter(strategy_dir=Path("/nonexistent"))
         adapter._strategies = {"s1": {"name": "s1"}, "s2": {"name": "s2"}}
-        with patch.object(adapter, "analyze_all", return_value=[
-            {"direction": "bullish", "confidence": 0.8, "score": 50},
-            {"direction": "bullish", "confidence": 0.7, "score": 40},
-        ]):
+        with patch.object(
+            adapter,
+            "analyze_all",
+            return_value=[
+                {"direction": "bullish", "confidence": 0.8, "score": 50},
+                {"direction": "bullish", "confidence": 0.7, "score": 40},
+            ],
+        ):
             result = adapter.get_consensus("600519.SH")
         assert result["direction"] == "bullish"
         assert result["bull_count"] == 2
 
     def test_bearish_consensus(self):
         adapter = ExternalStrategyAdapter(strategy_dir=Path("/nonexistent"))
-        with patch.object(adapter, "analyze_all", return_value=[
-            {"direction": "bearish", "confidence": 0.8, "score": -50},
-            {"direction": "bullish", "confidence": 0.6, "score": 30},
-            {"direction": "bearish", "confidence": 0.7, "score": -40},
-        ]):
+        with patch.object(
+            adapter,
+            "analyze_all",
+            return_value=[
+                {"direction": "bearish", "confidence": 0.8, "score": -50},
+                {"direction": "bullish", "confidence": 0.6, "score": 30},
+                {"direction": "bearish", "confidence": 0.7, "score": -40},
+            ],
+        ):
             result = adapter.get_consensus("600519.SH")
         assert result["direction"] == "bearish"
 
     def test_neutral_consensus(self):
         adapter = ExternalStrategyAdapter(strategy_dir=Path("/nonexistent"))
-        with patch.object(adapter, "analyze_all", return_value=[
-            {"direction": "bullish", "confidence": 0.8, "score": 50},
-            {"direction": "bearish", "confidence": 0.8, "score": -50},
-        ]):
+        with patch.object(
+            adapter,
+            "analyze_all",
+            return_value=[
+                {"direction": "bullish", "confidence": 0.8, "score": 50},
+                {"direction": "bearish", "confidence": 0.8, "score": -50},
+            ],
+        ):
             result = adapter.get_consensus("600519.SH")
         assert result["direction"] == "neutral"
 
@@ -87,7 +100,11 @@ class TestGetConsensus:
 class TestBuildPrompt:
     def test_basic(self):
         adapter = ExternalStrategyAdapter(strategy_dir=Path("/nonexistent"))
-        strat_def = {"name": "test", "display_name": "测试策略", "instructions": "分析规则"}
+        strat_def = {
+            "name": "test",
+            "display_name": "测试策略",
+            "instructions": "分析规则",
+        }
         system, user = adapter._build_prompt("600519.SH", strat_def, None)
         assert "测试策略" in system
         assert "600519.SH" in user
@@ -96,7 +113,9 @@ class TestBuildPrompt:
     def test_with_market_data(self):
         adapter = ExternalStrategyAdapter(strategy_dir=Path("/nonexistent"))
         strat_def = {"name": "test", "instructions": "规则"}
-        system, user = adapter._build_prompt("A", strat_def, {"close": 10.0, "volume": 1000})
+        system, user = adapter._build_prompt(
+            "A", strat_def, {"close": 10.0, "volume": 1000}
+        )
         assert "close" in user
 
 

@@ -16,8 +16,8 @@ logger = logging.getLogger("dqc.accuracy")
 
 # 涨跌幅边界 (A股: 主板 ±10%, ST ±5%, 创业板/科创板 ±20%)
 PRICE_CHANGE_LIMIT_MAIN = 0.10  # 主板 ±10%
-PRICE_CHANGE_LIMIT_ST = 0.05    # ST ±5%
-PRICE_CHANGE_LIMIT_GEM = 0.20   # 创业板/科创板 ±20%
+PRICE_CHANGE_LIMIT_ST = 0.05  # ST ±5%
+PRICE_CHANGE_LIMIT_GEM = 0.20  # 创业板/科创板 ±20%
 
 # 价格异常跳变阈值 (超过此值需检查停牌)
 PRICE_JUMP_THRESHOLD = 0.15
@@ -88,9 +88,13 @@ def _check_a01_price_change_limit(
 
     # 根据代码判断涨跌停限制 (简化版: 全部按主板 10% 检查, 超出 21% 一律 ERROR)
     threshold_main = PRICE_CHANGE_LIMIT_MAIN + 0.01  # 11% (1% 容差)
-    threshold_gem = PRICE_CHANGE_LIMIT_GEM + 0.01     # 21%
+    threshold_gem = PRICE_CHANGE_LIMIT_GEM + 0.01  # 21%
 
-    symbol_col = "symbol" if "symbol" in df_calc.columns else ("code" if "code" in df_calc.columns else None)
+    symbol_col = (
+        "symbol"
+        if "symbol" in df_calc.columns
+        else ("code" if "code" in df_calc.columns else None)
+    )
     if symbol_col is None:
         return events
 
@@ -110,17 +114,19 @@ def _check_a01_price_change_limit(
         if max_change > threshold:
             # 找出违规的行
             violations = valid[valid["change_pct"].abs() > threshold]
-            events.append(make_event(
-                metric_id="A-01",
-                level=DQCLevel.ERROR,
-                checkpoint=checkpoint,
-                value=float(max_change),
-                threshold=float(threshold),
-                message=f"标的 {symbol_str} 涨跌幅 {max_change:.1%} 超阈值 {threshold:.1%}",
-                symbol=symbol_str,
-                violation_count=len(violations),
-                max_change_pct=float(max_change),
-            ))
+            events.append(
+                make_event(
+                    metric_id="A-01",
+                    level=DQCLevel.ERROR,
+                    checkpoint=checkpoint,
+                    value=float(max_change),
+                    threshold=float(threshold),
+                    message=f"标的 {symbol_str} 涨跌幅 {max_change:.1%} 超阈值 {threshold:.1%}",
+                    symbol=symbol_str,
+                    violation_count=len(violations),
+                    max_change_pct=float(max_change),
+                )
+            )
 
     return events
 
@@ -147,34 +153,46 @@ def _check_a02_ohlcl_relation(
     invalid_high = df[(df["open"] > df["high"]) | (df["close"] > df["high"])]
 
     if not invalid_low.empty:
-        symbol_col = "symbol" if "symbol" in df.columns else ("code" if "code" in df.columns else None)
+        symbol_col = (
+            "symbol"
+            if "symbol" in df.columns
+            else ("code" if "code" in df.columns else None)
+        )
         symbols = invalid_low[symbol_col].unique().tolist() if symbol_col else []
-        events.append(make_event(
-            metric_id="A-02",
-            level=DQCLevel.ERROR,
-            checkpoint=checkpoint,
-            value=float(len(invalid_low)),
-            threshold=0.0,
-            message=f"OHLC 关系违反: open/close < low ({len(invalid_low)} 行)",
-            violation_count=len(invalid_low),
-            violation_type="below_low",
-            symbols=symbols[:5],
-        ))
+        events.append(
+            make_event(
+                metric_id="A-02",
+                level=DQCLevel.ERROR,
+                checkpoint=checkpoint,
+                value=float(len(invalid_low)),
+                threshold=0.0,
+                message=f"OHLC 关系违反: open/close < low ({len(invalid_low)} 行)",
+                violation_count=len(invalid_low),
+                violation_type="below_low",
+                symbols=symbols[:5],
+            )
+        )
 
     if not invalid_high.empty:
-        symbol_col = "symbol" if "symbol" in df.columns else ("code" if "code" in df.columns else None)
+        symbol_col = (
+            "symbol"
+            if "symbol" in df.columns
+            else ("code" if "code" in df.columns else None)
+        )
         symbols = invalid_high[symbol_col].unique().tolist() if symbol_col else []
-        events.append(make_event(
-            metric_id="A-02",
-            level=DQCLevel.ERROR,
-            checkpoint=checkpoint,
-            value=float(len(invalid_high)),
-            threshold=0.0,
-            message=f"OHLC 关系违反: open/close > high ({len(invalid_high)} 行)",
-            violation_count=len(invalid_high),
-            violation_type="above_high",
-            symbols=symbols[:5],
-        ))
+        events.append(
+            make_event(
+                metric_id="A-02",
+                level=DQCLevel.ERROR,
+                checkpoint=checkpoint,
+                value=float(len(invalid_high)),
+                threshold=0.0,
+                message=f"OHLC 关系违反: open/close > high ({len(invalid_high)} 行)",
+                violation_count=len(invalid_high),
+                violation_type="above_high",
+                symbols=symbols[:5],
+            )
+        )
 
     return events
 
@@ -193,15 +211,17 @@ def _check_a03_volume_non_negative(
 
     negative = df[df["volume"] < 0]
     if not negative.empty:
-        events.append(make_event(
-            metric_id="A-03",
-            level=DQCLevel.ERROR,
-            checkpoint=checkpoint,
-            value=float(len(negative)),
-            threshold=0.0,
-            message=f"成交量为负 ({len(negative)} 行)",
-            violation_count=len(negative),
-        ))
+        events.append(
+            make_event(
+                metric_id="A-03",
+                level=DQCLevel.ERROR,
+                checkpoint=checkpoint,
+                value=float(len(negative)),
+                threshold=0.0,
+                message=f"成交量为负 ({len(negative)} 行)",
+                violation_count=len(negative),
+            )
+        )
 
     return events
 
@@ -228,19 +248,23 @@ def _check_a04_market_cap_consistency(
 
     df_calc = df.copy()
     df_calc["calc_cap"] = df_calc["close"] * df_calc["shares"]
-    df_calc["cap_diff"] = (df_calc["calc_cap"] - df_calc["market_cap"]).abs() / df_calc["market_cap"]
+    df_calc["cap_diff"] = (df_calc["calc_cap"] - df_calc["market_cap"]).abs() / df_calc[
+        "market_cap"
+    ]
 
     violations = df_calc[df_calc["cap_diff"] > threshold]
     if not violations.empty:
-        events.append(make_event(
-            metric_id="A-04",
-            level=DQCLevel.WARN,
-            checkpoint=checkpoint,
-            value=float(len(violations)),
-            threshold=float(threshold),
-            message=f"市值一致性偏差超阈值 ({len(violations)} 行)",
-            violation_count=len(violations),
-        ))
+        events.append(
+            make_event(
+                metric_id="A-04",
+                level=DQCLevel.WARN,
+                checkpoint=checkpoint,
+                value=float(len(violations)),
+                threshold=float(threshold),
+                message=f"市值一致性偏差超阈值 ({len(violations)} 行)",
+                violation_count=len(violations),
+            )
+        )
 
     return events
 
@@ -260,8 +284,16 @@ def _check_a05_price_jump(
     if df.empty or "close" not in df.columns:
         return events
 
-    symbol_col = "symbol" if "symbol" in df.columns else ("code" if "code" in df.columns else None)
-    date_col = "date" if "date" in df.columns else ("datetime" if "datetime" in df.columns else None)
+    symbol_col = (
+        "symbol"
+        if "symbol" in df.columns
+        else ("code" if "code" in df.columns else None)
+    )
+    date_col = (
+        "date"
+        if "date" in df.columns
+        else ("datetime" if "datetime" in df.columns else None)
+    )
     if symbol_col is None or date_col is None:
         return events
 
@@ -281,16 +313,18 @@ def _check_a05_price_jump(
         # 取前 5 个最大的跳变
         top_jumps = valid.nlargest(5, "jump_pct")
         for _, row in top_jumps.iterrows():
-            events.append(make_event(
-                metric_id="A-05",
-                level=DQCLevel.WARN,
-                checkpoint=checkpoint,
-                value=float(row["jump_pct"]),
-                threshold=float(PRICE_JUMP_THRESHOLD),
-                message=f"标的 {row[symbol_col]} 价格跳变 {row['jump_pct']:.1%} (日期 {row[date_col]})",
-                symbol=str(row[symbol_col]),
-                date=str(row[date_col]),
-            ))
+            events.append(
+                make_event(
+                    metric_id="A-05",
+                    level=DQCLevel.WARN,
+                    checkpoint=checkpoint,
+                    value=float(row["jump_pct"]),
+                    threshold=float(PRICE_JUMP_THRESHOLD),
+                    message=f"标的 {row[symbol_col]} 价格跳变 {row['jump_pct']:.1%} (日期 {row[date_col]})",
+                    symbol=str(row[symbol_col]),
+                    date=str(row[date_col]),
+                )
+            )
 
     return events
 
@@ -309,14 +343,16 @@ def _check_a06_zero_price(
 
     zero_count = int((df["close"] == 0).sum())
     if zero_count > 0:
-        events.append(make_event(
-            metric_id="A-06",
-            level=DQCLevel.ERROR,
-            checkpoint=checkpoint,
-            value=float(zero_count),
-            threshold=0.0,
-            message=f"收盘价为零 ({zero_count} 行)",
-            zero_count=zero_count,
-        ))
+        events.append(
+            make_event(
+                metric_id="A-06",
+                level=DQCLevel.ERROR,
+                checkpoint=checkpoint,
+                value=float(zero_count),
+                threshold=0.0,
+                message=f"收盘价为零 ({zero_count} 行)",
+                zero_count=zero_count,
+            )
+        )
 
     return events

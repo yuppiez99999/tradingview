@@ -178,7 +178,11 @@ class BacktestResult:
             f"  Sharpe CV:     {self.sharpe_cv:.3f} (阈值 < {V9_SHARPE_CV_THRESHOLD})\n"
             f"  N Windows:     {self.n_windows}\n"
             f"  N Trials:      {self.n_trials}\n"
-            + (f"  V9 Failures:   {', '.join(self.v9_failures)}\n" if self.v9_failures else "")
+            + (
+                f"  V9 Failures:   {', '.join(self.v9_failures)}\n"
+                if self.v9_failures
+                else ""
+            )
         )
 
 
@@ -383,7 +387,11 @@ class FastBacktest:
 
         # E[SR_max] 近似
         z_max = math.sqrt(2 * math.log(max(n_trials, 2)))
-        correction = 1 + (skewness / 6) * (z_max**2 - 1) + ((kurtosis - 3) / 24) * (z_max**3 - 3 * z_max)
+        correction = (
+            1
+            + (skewness / 6) * (z_max**2 - 1)
+            + ((kurtosis - 3) / 24) * (z_max**3 - 3 * z_max)
+        )
         e_max_sr = z_max * correction / math.sqrt(max(n_observations, 1))
 
         # DSR
@@ -449,7 +457,9 @@ class FastBacktest:
             # 没有时间索引, 用滚动窗口 (21 天 ≈ 1 月)
             window = 21
             rolling_sharpe = (
-                returns.rolling(window=window).apply(lambda x: self._compute_sharpe_for_window(x), raw=False).dropna()
+                returns.rolling(window=window)
+                .apply(lambda x: self._compute_sharpe_for_window(x), raw=False)
+                .dropna()
             )
         else:
             # 有时间索引, 按月分组
@@ -541,11 +551,15 @@ class FastBacktest:
 
         # 年化收益
         if annual_return < V9_ANNUAL_RETURN_THRESHOLD:
-            failures.append(f"年化={annual_return:.2%} < {V9_ANNUAL_RETURN_THRESHOLD:.0%}")
+            failures.append(
+                f"年化={annual_return:.2%} < {V9_ANNUAL_RETURN_THRESHOLD:.0%}"
+            )
 
         # 最大回撤 (max_drawdown 是负值, 用绝对值比较)
         if abs(max_drawdown) > V9_MAX_DRAWDOWN_THRESHOLD:
-            failures.append(f"回撤={abs(max_drawdown):.2%} > {V9_MAX_DRAWDOWN_THRESHOLD:.0%}")
+            failures.append(
+                f"回撤={abs(max_drawdown):.2%} > {V9_MAX_DRAWDOWN_THRESHOLD:.0%}"
+            )
 
         # Sharpe CV
         if not math.isfinite(sharpe_cv) or sharpe_cv >= V9_SHARPE_CV_THRESHOLD:

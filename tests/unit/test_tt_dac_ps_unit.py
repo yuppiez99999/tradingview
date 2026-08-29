@@ -3,6 +3,7 @@
 被测模块: utils/execution/tt_dac_ps.py
 文献: #51 TT-DAC-PS Optimal Execution (2026.06)
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,6 +28,7 @@ from utils.execution.tt_dac_ps import (  # noqa: E402
 # ============================================================
 # OU 噪声过程测试
 # ============================================================
+
 
 class TestOUParams:
     def test_defaults(self):
@@ -90,6 +92,7 @@ class TestOUNoiseProcess:
 # LOB 模型测试
 # ============================================================
 
+
 class TestLOBParams:
     def test_defaults(self):
         p = LOBParams()
@@ -147,11 +150,15 @@ class TestLimitOrderBookModel:
 # TT-DAC-PS 执行器测试
 # ============================================================
 
+
 class TestTTDACPSExecutor:
     def test_basic_execute(self):
         executor = TTDACPSExecutor()
         result = executor.execute(
-            symbol="600519", total_shares=10000, adv=500000, decision_price=1800.0,
+            symbol="600519",
+            total_shares=10000,
+            adv=500000,
+            decision_price=1800.0,
         )
         assert result.symbol == "600519"
         assert result.total_shares == 10000
@@ -161,14 +168,19 @@ class TestTTDACPSExecutor:
     def test_negative_shares_abs(self):
         executor = TTDACPSExecutor()
         result = executor.execute(
-            symbol="X", total_shares=-5000, adv=100000,
+            symbol="X",
+            total_shares=-5000,
+            adv=100000,
         )
         assert result.total_shares == 5000
 
     def test_slices_sum_approx_total(self):
         executor = TTDACPSExecutor()
         result = executor.execute(
-            symbol="X", total_shares=10000, adv=500000, n_slices=10,
+            symbol="X",
+            total_shares=10000,
+            adv=500000,
+            n_slices=10,
         )
         total = sum(s.shares for s in result.slices)
         # LOB 速率调整后总量可能略有偏差, 但应接近
@@ -177,7 +189,10 @@ class TestTTDACPSExecutor:
     def test_ou_noise_path_length(self):
         executor = TTDACPSExecutor()
         result = executor.execute(
-            symbol="X", total_shares=1000, adv=100000, n_slices=20,
+            symbol="X",
+            total_shares=1000,
+            adv=100000,
+            n_slices=20,
         )
         assert len(result.ou_noise_path) == 20
 
@@ -191,7 +206,10 @@ class TestTTDACPSExecutor:
     def test_metadata(self):
         executor = TTDACPSExecutor()
         result = executor.execute(
-            symbol="X", total_shares=1000, adv=100000, n_slices=5,
+            symbol="X",
+            total_shares=1000,
+            adv=100000,
+            n_slices=5,
             risk_aversion=2.0,
         )
         assert result.metadata["n_slices"] == 5
@@ -201,14 +219,20 @@ class TestTTDACPSExecutor:
     def test_custom_n_slices(self):
         executor = TTDACPSExecutor()
         result = executor.execute(
-            symbol="X", total_shares=1000, adv=100000, n_slices=20,
+            symbol="X",
+            total_shares=1000,
+            adv=100000,
+            n_slices=20,
         )
         assert len(result.slices) == 20
 
     def test_slice_fields(self):
         executor = TTDACPSExecutor()
         result = executor.execute(
-            symbol="X", total_shares=1000, adv=100000, decision_price=100.0,
+            symbol="X",
+            total_shares=1000,
+            adv=100000,
+            decision_price=100.0,
         )
         s = result.slices[0]
         assert s.time >= 0
@@ -221,7 +245,9 @@ class TestCompareWithBenchmarks:
     def test_comparison_report(self):
         executor = TTDACPSExecutor()
         comp = executor.compare_with_benchmarks(
-            symbol="600519", total_shares=10000, adv=100000,
+            symbol="600519",
+            total_shares=10000,
+            adv=100000,
         )
         assert "tt_dac_ps_cost_bps" in comp
         assert "twap_cost_bps" in comp
@@ -234,14 +260,18 @@ class TestCompareWithBenchmarks:
     def test_participation_rate(self):
         executor = TTDACPSExecutor()
         comp = executor.compare_with_benchmarks(
-            symbol="X", total_shares=50000, adv=100000,
+            symbol="X",
+            total_shares=50000,
+            adv=100000,
         )
         assert comp["participation_rate"] == pytest.approx(0.5)
 
     def test_improvement_fields(self):
         executor = TTDACPSExecutor()
         comp = executor.compare_with_benchmarks(
-            symbol="X", total_shares=10000, adv=100000,
+            symbol="X",
+            total_shares=10000,
+            adv=100000,
         )
         assert comp["vs_twap_improvement_bps"] == pytest.approx(
             comp["twap_cost_bps"] - comp["tt_dac_ps_cost_bps"]
@@ -253,7 +283,9 @@ class TestCompareWithBenchmarks:
     def test_all_costs_positive(self):
         executor = TTDACPSExecutor()
         comp = executor.compare_with_benchmarks(
-            symbol="X", total_shares=10000, adv=100000,
+            symbol="X",
+            total_shares=10000,
+            adv=100000,
         )
         assert comp["tt_dac_ps_cost_bps"] > 0
         assert comp["twap_cost_bps"] > 0
@@ -263,11 +295,17 @@ class TestCompareWithBenchmarks:
 class TestTTDACPSResult:
     def test_construction(self):
         result = TTDACPSResult(
-            symbol="X", total_shares=1000, slices=[],
-            total_cost_bps=100.0, ac_cost_bps=120.0,
-            twap_cost_bps=150.0, vwap_cost_bps=140.0,
-            vs_twap_improvement=50.0, vs_vwap_improvement=40.0,
-            vs_ac_improvement=20.0, ou_noise_path=[0.0, 0.001],
+            symbol="X",
+            total_shares=1000,
+            slices=[],
+            total_cost_bps=100.0,
+            ac_cost_bps=120.0,
+            twap_cost_bps=150.0,
+            vwap_cost_bps=140.0,
+            vs_twap_improvement=50.0,
+            vs_vwap_improvement=40.0,
+            vs_ac_improvement=20.0,
+            ou_noise_path=[0.0, 0.001],
         )
         assert result.symbol == "X"
         assert result.metadata == {}
@@ -276,8 +314,12 @@ class TestTTDACPSResult:
 class TestExecutionSlice:
     def test_construction(self):
         s = ExecutionSlice(
-            time=0.5, shares=100, price=1801.0,
-            impact_bps=5.0, ou_noise=0.001, lob_impact_bps=2.0,
+            time=0.5,
+            shares=100,
+            price=1801.0,
+            impact_bps=5.0,
+            ou_noise=0.001,
+            lob_impact_bps=2.0,
         )
         assert s.time == 0.5
         assert s.shares == 100
@@ -290,7 +332,9 @@ class TestTTDACPSBeatsBenchmarks:
         """大单 (参与度 50%): TT-DAC-PS < TWAP."""
         executor = TTDACPSExecutor()
         comp = executor.compare_with_benchmarks(
-            symbol="600519", total_shares=50000, adv=100000,
+            symbol="600519",
+            total_shares=50000,
+            adv=100000,
         )
         assert comp["beats_twap"] is True
 
@@ -298,7 +342,9 @@ class TestTTDACPSBeatsBenchmarks:
         """大单 (参与度 50%): TT-DAC-PS < VWAP."""
         executor = TTDACPSExecutor()
         comp = executor.compare_with_benchmarks(
-            symbol="600519", total_shares=50000, adv=100000,
+            symbol="600519",
+            total_shares=50000,
+            adv=100000,
         )
         assert comp["beats_vwap"] is True
 
@@ -306,7 +352,9 @@ class TestTTDACPSBeatsBenchmarks:
         """大单 (参与度 50%): TT-DAC-PS < AC."""
         executor = TTDACPSExecutor()
         comp = executor.compare_with_benchmarks(
-            symbol="600519", total_shares=50000, adv=100000,
+            symbol="600519",
+            total_shares=50000,
+            adv=100000,
         )
         assert comp["beats_ac"] is True
 
@@ -316,7 +364,9 @@ class TestTTDACPSBeatsBenchmarks:
         for participation in [0.05, 0.10, 0.20, 0.50]:
             shares = int(participation * 100000)
             comp = executor.compare_with_benchmarks(
-                symbol="TEST", total_shares=shares, adv=100000,
+                symbol="TEST",
+                total_shares=shares,
+                adv=100000,
             )
             assert comp["beats_twap"], f"参与度 {participation}: 未超越 TWAP"
             assert comp["beats_vwap"], f"参与度 {participation}: 未超越 VWAP"

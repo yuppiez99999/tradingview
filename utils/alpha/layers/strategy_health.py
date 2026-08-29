@@ -22,6 +22,7 @@
     layer = StrategyHealthLayer()
     score = layer.collect()
 """
+
 from __future__ import annotations
 
 import json
@@ -76,11 +77,14 @@ class StrategyHealthLayer:
         self.feature_flag_name = feature_flag_name
         self._enabled = self._check_feature_flag(feature_flag_name)
         self.weights = weights if weights is not None else self._load_weights()
-        self.decisions_path = Path(decisions_path) if decisions_path else DEFAULT_DECISIONS_PATH
+        self.decisions_path = (
+            Path(decisions_path) if decisions_path else DEFAULT_DECISIONS_PATH
+        )
 
         logger.info(
             "StrategyHealthLayer 初始化: enabled=%s (flag=%s)",
-            self._enabled, feature_flag_name,
+            self._enabled,
+            feature_flag_name,
         )
 
     # ============================================================
@@ -90,8 +94,18 @@ class StrategyHealthLayer:
     def _check_feature_flag(flag_name: str) -> bool:
         try:
             from utils.infra.feature_flags import is_enabled
+
             return bool(is_enabled(flag_name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("Feature Flag 检查失败 (降级 False): %s — %s", flag_name, e)
             return False
@@ -102,11 +116,24 @@ class StrategyHealthLayer:
     def _load_weights(self) -> dict[str, float]:
         try:
             from utils.config_manager import get_config
+
             cfg = get_config("evolution") or {}
             w = (cfg.get("strategy_health", {}) or {}).get("weights", {})
             if w:
-                return {k: float(w.get(k, DEFAULT_WEIGHTS.get(k, 0.0))) for k in DEFAULT_WEIGHTS}
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                return {
+                    k: float(w.get(k, DEFAULT_WEIGHTS.get(k, 0.0)))
+                    for k in DEFAULT_WEIGHTS
+                }
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("StrategyHealth 权重加载失败, 用默认值: %s", e)
         return dict(DEFAULT_WEIGHTS)
@@ -120,8 +147,11 @@ class StrategyHealthLayer:
 
         if not self._enabled:
             return LayerScore(
-                layer="strategy", score=0.0, is_degraded=True,
-                degraded_reason="FEATURE_FLAG_DISABLED", collected_at=now,
+                layer="strategy",
+                score=0.0,
+                is_degraded=True,
+                degraded_reason="FEATURE_FLAG_DISABLED",
+                collected_at=now,
             )
 
         # 读取最近决策记录 (只读, HC-4)
@@ -129,9 +159,17 @@ class StrategyHealthLayer:
         observation_day, observation_total = self._get_observation_progress()
 
         # 子指标
-        private_score = float(latest_decision.get("private_score", 0.0)) if latest_decision else 0.0
-        public_score = float(latest_decision.get("public_score", 0.0)) if latest_decision else 0.0
-        rh_risk = float(latest_decision.get("reward_hacking_risk", 0.0)) if latest_decision else 0.0
+        private_score = (
+            float(latest_decision.get("private_score", 0.0)) if latest_decision else 0.0
+        )
+        public_score = (
+            float(latest_decision.get("public_score", 0.0)) if latest_decision else 0.0
+        )
+        rh_risk = (
+            float(latest_decision.get("reward_hacking_risk", 0.0))
+            if latest_decision
+            else 0.0
+        )
         anti_cheat = max(0.0, 1.0 - rh_risk)
         drift_health = self._get_drift_health()  # 第2阶段接入 DriftMonitor, 暂降级
         observation_progress = (
@@ -162,8 +200,11 @@ class StrategyHealthLayer:
         degraded_reason = "NO_DECISIONS_HISTORY" if is_degraded else ""
 
         return LayerScore(
-            layer="strategy", score=score, sub_metrics=sub_metrics,
-            is_degraded=is_degraded, degraded_reason=degraded_reason,
+            layer="strategy",
+            score=score,
+            sub_metrics=sub_metrics,
+            is_degraded=is_degraded,
+            degraded_reason=degraded_reason,
             collected_at=now,
         )
 
@@ -185,11 +226,29 @@ class StrategyHealthLayer:
                     continue
                 try:
                     return json.loads(line)
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
             return None
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("读取 decisions.jsonl 失败: %s", e)
             return None
@@ -201,12 +260,22 @@ class StrategyHealthLayer:
         """
         try:
             from utils.alpha.evolution_orchestrator import EvolutionOrchestrator
+
             orch = EvolutionOrchestrator()
             status = orch.get_status()
             day = getattr(status, "observation_day", 0)
             total = getattr(status, "observation_total", DEFAULT_OBSERVATION_TOTAL)
             return int(day), int(total)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("获取观察期进度失败 (用默认值): %s", e)
             return 0, DEFAULT_OBSERVATION_TOTAL

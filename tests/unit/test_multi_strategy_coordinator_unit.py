@@ -3,6 +3,7 @@
 被测模块: utils/multi_strategy_coordinator.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import sys
@@ -24,6 +25,7 @@ from utils.multi_strategy_coordinator import (  # noqa: E402
 # ============================================================
 # __init__ + 默认策略
 # ============================================================
+
 
 class TestInit:
     def test_default_capital(self):
@@ -56,10 +58,13 @@ class TestInit:
 # register_strategy
 # ============================================================
 
+
 class TestRegister:
     def test_new_strategy(self):
         coord = MultiStrategyCoordinator()
-        coord.register_strategy("custom", capital=300_000, max_weight=0.10, min_weight=0.02)
+        coord.register_strategy(
+            "custom", capital=300_000, max_weight=0.10, min_weight=0.02
+        )
         assert "custom" in coord.strategies
         assert coord.strategies["custom"].capital == 300_000
 
@@ -72,6 +77,7 @@ class TestRegister:
 # ============================================================
 # coordinate — 主入口
 # ============================================================
+
 
 class TestCoordinate:
     def test_empty(self):
@@ -128,6 +134,7 @@ class TestCoordinate:
 # _update_strategy_pnl
 # ============================================================
 
+
 class TestUpdatePnl:
     def test_basic(self):
         coord = MultiStrategyCoordinator()
@@ -151,6 +158,7 @@ class TestUpdatePnl:
 # _update_correlations
 # ============================================================
 
+
 class TestUpdateCorr:
     def test_basic(self):
         coord = MultiStrategyCoordinator()
@@ -161,6 +169,7 @@ class TestUpdateCorr:
 # ============================================================
 # _check_strategy_degradation
 # ============================================================
+
 
 class TestDegradation:
     def test_normal_strategy(self):
@@ -202,6 +211,7 @@ class TestDegradation:
 # ============================================================
 # _adjust_weights
 # ============================================================
+
 
 class TestAdjustWeights:
     def test_basic(self):
@@ -247,6 +257,7 @@ class TestAdjustWeights:
 # _detect_conflicts
 # ============================================================
 
+
 class TestDetectConflicts:
     def test_no_conflict(self):
         coord = MultiStrategyCoordinator()
@@ -272,14 +283,20 @@ class TestDetectConflicts:
         positions = {"A": {"weight": 0.6}, "B": {"weight": 0.5}}
         decision = CoordinationDecision()
         coord._detect_conflicts({}, positions, decision)
-        assert any(c.conflict_type == "over_position" and c.severity == "error" for c in decision.conflicts)
+        assert any(
+            c.conflict_type == "over_position" and c.severity == "error"
+            for c in decision.conflicts
+        )
 
     def test_single_symbol_over_limit(self):
         coord = MultiStrategyCoordinator()
         positions = {"A": {"strategy": "stock_long", "weight": 0.08}}
         decision = CoordinationDecision()
         coord._detect_conflicts({}, positions, decision)
-        assert any(c.conflict_type == "over_position" and c.severity == "warning" for c in decision.conflicts)
+        assert any(
+            c.conflict_type == "over_position" and c.severity == "warning"
+            for c in decision.conflicts
+        )
 
     def test_string_signal(self):
         coord = MultiStrategyCoordinator()
@@ -293,6 +310,7 @@ class TestDetectConflicts:
 # ============================================================
 # _check_risk_budget
 # ============================================================
+
 
 class TestRiskBudget:
     def test_normal(self):
@@ -317,6 +335,7 @@ class TestRiskBudget:
 # _check_cash_buffer
 # ============================================================
 
+
 class TestCashBuffer:
     def test_sufficient(self):
         coord = MultiStrategyCoordinator()
@@ -335,6 +354,7 @@ class TestCashBuffer:
 # _build_summary
 # ============================================================
 
+
 class TestBuildSummary:
     def test_basic(self):
         coord = MultiStrategyCoordinator()
@@ -344,7 +364,10 @@ class TestBuildSummary:
 
     def test_with_conflicts(self):
         coord = MultiStrategyCoordinator()
-        signals = {"stock_long": {"A": {"direction": "long"}}, "macro_hedge": {"A": {"direction": "short"}}}
+        signals = {
+            "stock_long": {"A": {"direction": "long"}},
+            "macro_hedge": {"A": {"direction": "short"}},
+        }
         positions = {"A": {"strategy": "stock_long", "weight": 0.03}}
         decision = coord.coordinate(target_signals=signals, current_positions=positions)
         assert "冲突检测" in decision.summary
@@ -353,6 +376,7 @@ class TestBuildSummary:
 # ============================================================
 # save_state
 # ============================================================
+
 
 class TestSaveState:
     def test_save(self):
@@ -365,6 +389,7 @@ class TestSaveState:
 # ============================================================
 # StrategyState / StrategyConflict dataclass
 # ============================================================
+
 
 class TestDataclasses:
     def test_strategy_state(self):

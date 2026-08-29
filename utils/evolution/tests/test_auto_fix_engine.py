@@ -187,7 +187,8 @@ class TestL0Fixes:
         positions.write_text("{}")
 
         check = CheckResultLike(
-            code="C4.1", name="配置 Schema",
+            code="C4.1",
+            name="配置 Schema",
             detail=f"positions.json 字段缺失: {positions}",
         )
         ctx = FixContext(project_root=tmp_path)
@@ -253,7 +254,8 @@ class TestL1Fixes:
         """_fix_missing_file 对目录缺失应自动创建."""
         reports_dir = tmp_path / "reports" / "evolution"
         check = CheckResultLike(
-            code="C1.9", name="报告归档目录",
+            code="C1.9",
+            name="报告归档目录",
             detail=f"目录不存在: {reports_dir}",
         )
         ctx = FixContext(project_root=tmp_path)
@@ -264,7 +266,8 @@ class TestL1Fixes:
     def test_fix_missing_file_returns_suggestion_for_files(self, tmp_path: Path):
         """_fix_missing_file 对文件缺失应返回建议 (无法自动创建)."""
         check = CheckResultLike(
-            code="C1.1", name="现货持仓状态 (config/positions.json)",
+            code="C1.1",
+            name="现货持仓状态 (config/positions.json)",
             detail="文件不存在",
         )
         ctx = FixContext(project_root=tmp_path)
@@ -283,7 +286,8 @@ class TestL2Suggestions:
     def test_suggest_dependency_extracts_package_name(self, tmp_path: Path):
         """_suggest_dependency_install 应从 detail 提取包名."""
         check = CheckResultLike(
-            code="C5.1", name="pandas",
+            code="C5.1",
+            name="pandas",
             detail="No module named 'pandas'",
         )
         ctx = FixContext(project_root=tmp_path)
@@ -296,7 +300,8 @@ class TestL2Suggestions:
     def test_suggest_dependency_extracts_double_quoted_package(self, tmp_path: Path):
         """支持双引号格式的包名提取."""
         check = CheckResultLike(
-            code="C5.2", detail='No module named "numpy"',
+            code="C5.2",
+            detail='No module named "numpy"',
         )
         ctx = FixContext(project_root=tmp_path)
         result = _suggest_dependency_install(check, ctx)
@@ -320,7 +325,8 @@ class TestHighRiskWarn:
     def test_warn_high_risk_no_fix(self, tmp_path: Path):
         """_warn_high_risk 应返回 fixed=False + 告警."""
         check = CheckResultLike(
-            code="C99.1", name="持仓不一致",
+            code="C99.1",
+            name="持仓不一致",
             detail="positions.json 与 trade_plans 不一致",
         )
         ctx = FixContext(project_root=tmp_path)
@@ -424,7 +430,9 @@ class TestExceptionHandling:
         original = engine._find_strategy
 
         def failing_find(code):
-            return RISK_L0, lambda c, ctx: (_ for _ in ()).throw(RuntimeError("simulated"))
+            return RISK_L0, lambda c, ctx: (_ for _ in ()).throw(
+                RuntimeError("simulated")
+            )
 
         engine._find_strategy = failing_find
         try:
@@ -445,8 +453,11 @@ class TestFixResult:
     def test_to_dict_contains_all_fields(self):
         """to_dict 应包含所有字段."""
         r = FixResult(
-            fixed=True, action="auto_fixed", risk_level="L0",
-            details="ok", check_code="C6.1",
+            fixed=True,
+            action="auto_fixed",
+            risk_level="L0",
+            details="ok",
+            check_code="C6.1",
         )
         d = r.to_dict()
         assert "fixed" in d
@@ -461,6 +472,7 @@ class TestFixResult:
     def test_to_dict_serializable(self):
         """to_dict 应可 JSON 序列化."""
         import json
+
         r = FixResult(fixed=False, action="warned", risk_level="high", details="d")
         json.dumps(r.to_dict())  # 不抛异常即可
 
@@ -497,7 +509,8 @@ class TestIntegration:
         engine = AutoFixEngine(memory=tmp_memory, project_root=tmp_path)
         result = engine.try_fix(
             FakeCheckResult(
-                code="C99.1", name="持仓不一致",
+                code="C99.1",
+                name="持仓不一致",
                 detail="positions 与 trade_plans 冲突",
             )
         )

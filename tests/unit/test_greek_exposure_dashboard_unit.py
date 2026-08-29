@@ -1,4 +1,5 @@
 """greek_exposure_dashboard 单元测试 — Greeks 暴露监控面板"""
+
 import json
 from unittest.mock import patch
 
@@ -51,10 +52,20 @@ class TestLoadPositions:
     def test_valid_file(self, tmp_path):
         data = {
             "positions": {
-                "A": {"code": "600519", "name": "贵州茅台", "phase1_shares": 100,
-                      "est_price": 1800.0, "beta": 1.2, "delta": 1.0},
-                "B": {"code": "000001", "name": "平安银行", "total_shares": 200,
-                      "est_price": 10.0},
+                "A": {
+                    "code": "600519",
+                    "name": "贵州茅台",
+                    "phase1_shares": 100,
+                    "est_price": 1800.0,
+                    "beta": 1.2,
+                    "delta": 1.0,
+                },
+                "B": {
+                    "code": "000001",
+                    "name": "平安银行",
+                    "total_shares": 200,
+                    "est_price": 10.0,
+                },
             }
         }
         f = tmp_path / "positions.json"
@@ -91,7 +102,9 @@ class TestLoadPositions:
         assert positions == {}
 
     def test_zero_qty_skipped(self, tmp_path):
-        data = {"positions": {"A": {"code": "001", "phase1_shares": 0, "est_price": 10.0}}}
+        data = {
+            "positions": {"A": {"code": "001", "phase1_shares": 0, "est_price": 10.0}}
+        }
         f = tmp_path / "p.json"
         f.write_text(json.dumps(data), encoding="utf-8")
         positions, _ = load_positions(f)
@@ -133,8 +146,12 @@ class TestSignalLevel:
 class TestBuildRecommendations:
     def test_no_rebalance_needed(self):
         exposure = GreekSnapshot(delta=0, gamma=0, theta=0, vega=0)
-        signals = {"delta_rebalance": False, "gamma_rebalance": False,
-                   "vega_rebalance": False, "theta_rebalance": False}
+        signals = {
+            "delta_rebalance": False,
+            "gamma_rebalance": False,
+            "vega_rebalance": False,
+            "theta_rebalance": False,
+        }
         levels = {"delta": "OK", "gamma": "OK", "vega": "OK", "theta": "OK"}
         recs = _build_recommendations(exposure, signals, levels)
         assert len(recs) == 1

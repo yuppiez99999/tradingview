@@ -9,6 +9,7 @@
     - _calc_satellite_score / _calc_search_score / _calc_recruitment_score / _calc_patent_score
     - get_signal / load_demo_data / summarize
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -33,7 +34,9 @@ from utils.alt_data_indicators import (
 class TestSatelliteIndicator:
     @pytest.mark.unit
     def test_defaults(self):
-        s = SatelliteIndicator(region="宁波港", indicator_type="PORT_ACTIVITY", value=85.5)
+        s = SatelliteIndicator(
+            region="宁波港", indicator_type="PORT_ACTIVITY", value=85.5
+        )
         assert s.region == "宁波港"
         assert s.yoy_change == 0.0
         assert s.mom_change == 0.0
@@ -102,7 +105,9 @@ class TestInit:
 
     @pytest.mark.unit
     def test_custom(self):
-        e = AltDataIndicators(w_satellite=0.4, w_search=0.3, w_recruitment=0.1, w_patent=0.2)
+        e = AltDataIndicators(
+            w_satellite=0.4, w_search=0.3, w_recruitment=0.1, w_patent=0.2
+        )
         assert e.w_sat == 0.4
         assert e.w_search == 0.3
 
@@ -140,10 +145,12 @@ class TestAddData:
     @pytest.mark.unit
     def test_add_satellite_batch(self):
         e = AltDataIndicators()
-        count = e.add_satellite_batch([
-            SatelliteIndicator("A", "PORT_ACTIVITY", 1),
-            SatelliteIndicator("B", "OIL_TANK", 2),
-        ])
+        count = e.add_satellite_batch(
+            [
+                SatelliteIndicator("A", "PORT_ACTIVITY", 1),
+                SatelliteIndicator("B", "OIL_TANK", 2),
+            ]
+        )
         assert count == 2
         assert len(e.satellite_data) == 2
 
@@ -165,9 +172,15 @@ class TestAnalyze:
     @pytest.mark.unit
     def test_with_satellite(self):
         e = AltDataIndicators()
-        e.add_satellite(SatelliteIndicator(
-            "宁波港", "PORT_ACTIVITY", 85.5, yoy_change=20.0, related_symbols=["601016"],
-        ))
+        e.add_satellite(
+            SatelliteIndicator(
+                "宁波港",
+                "PORT_ACTIVITY",
+                85.5,
+                yoy_change=20.0,
+                related_symbols=["601016"],
+            )
+        )
         result = e.analyze(["601016"])
         sig = result.signals["601016"]
         assert sig.satellite_score > 0
@@ -176,9 +189,15 @@ class TestAnalyze:
     @pytest.mark.unit
     def test_with_search(self):
         e = AltDataIndicators()
-        e.add_search(SearchIndexIndicator(
-            "半导体", "BAIDU", 5000, trend_7d=50.0, related_symbols=["002049"],
-        ))
+        e.add_search(
+            SearchIndexIndicator(
+                "半导体",
+                "BAIDU",
+                5000,
+                trend_7d=50.0,
+                related_symbols=["002049"],
+            )
+        )
         result = e.analyze(["002049"])
         sig = result.signals["002049"]
         assert sig.search_score > 0
@@ -186,9 +205,15 @@ class TestAnalyze:
     @pytest.mark.unit
     def test_with_recruitment(self):
         e = AltDataIndicators()
-        e.add_recruitment(RecruitmentIndicator(
-            "中芯", 200, job_count_yoy=30.0, salary_change=10.0, related_symbol="688981",
-        ))
+        e.add_recruitment(
+            RecruitmentIndicator(
+                "中芯",
+                200,
+                job_count_yoy=30.0,
+                salary_change=10.0,
+                related_symbol="688981",
+            )
+        )
         result = e.analyze(["688981"])
         sig = result.signals["688981"]
         assert sig.recruitment_score > 0
@@ -196,10 +221,16 @@ class TestAnalyze:
     @pytest.mark.unit
     def test_with_patent(self):
         e = AltDataIndicators()
-        e.add_patent(PatentIndicator(
-            "华为", patent_count=100, citation_count=500,
-            patent_count_yoy=20.0, citation_growth=30.0, related_symbol="300308",
-        ))
+        e.add_patent(
+            PatentIndicator(
+                "华为",
+                patent_count=100,
+                citation_count=500,
+                patent_count_yoy=20.0,
+                citation_growth=30.0,
+                related_symbol="300308",
+            )
+        )
         result = e.analyze(["300308"])
         sig = result.signals["300308"]
         assert sig.patent_score > 0
@@ -207,10 +238,16 @@ class TestAnalyze:
     @pytest.mark.unit
     def test_composite_score(self):
         e = AltDataIndicators()
-        e.add_satellite(SatelliteIndicator(
-            "港口", "PORT_ACTIVITY", 85.5, yoy_change=50.0,
-            related_symbols=["000001"], confidence=1.0,
-        ))
+        e.add_satellite(
+            SatelliteIndicator(
+                "港口",
+                "PORT_ACTIVITY",
+                85.5,
+                yoy_change=50.0,
+                related_symbols=["000001"],
+                confidence=1.0,
+            )
+        )
         result = e.analyze(["000001"])
         sig = result.signals["000001"]
         # satellite_score = 1.0 * 1.0 = 1.0, composite = 0.3 * 1.0 = 0.3
@@ -219,9 +256,15 @@ class TestAnalyze:
     @pytest.mark.unit
     def test_anomaly_detection(self):
         e = AltDataIndicators()
-        e.add_satellite(SatelliteIndicator(
-            "港口", "PORT_ACTIVITY", 100, yoy_change=100.0, related_symbols=["000001"],
-        ))
+        e.add_satellite(
+            SatelliteIndicator(
+                "港口",
+                "PORT_ACTIVITY",
+                100,
+                yoy_change=100.0,
+                related_symbols=["000001"],
+            )
+        )
         result = e.analyze(["000001"])
         # composite > 0.5 → anomaly
         if abs(result.signals["000001"].composite_score) > 0.5:
@@ -240,10 +283,16 @@ class TestAnalyze:
     def test_expired_data_filtered(self):
         e = AltDataIndicators()
         old_ts = datetime.now() - timedelta(days=60)
-        e.add_satellite(SatelliteIndicator(
-            "港口", "PORT_ACTIVITY", 85.5, yoy_change=20.0,
-            related_symbols=["000001"], timestamp=old_ts,
-        ))
+        e.add_satellite(
+            SatelliteIndicator(
+                "港口",
+                "PORT_ACTIVITY",
+                85.5,
+                yoy_change=20.0,
+                related_symbols=["000001"],
+                timestamp=old_ts,
+            )
+        )
         result = e.analyze(["000001"])
         assert result.signals["000001"].satellite_score == 0.0
 
@@ -284,7 +333,11 @@ class TestScoring:
     @pytest.mark.unit
     def test_patent_score(self):
         e = AltDataIndicators()
-        inds = [PatentIndicator("c", patent_count=100, patent_count_yoy=30.0, citation_growth=50.0)]
+        inds = [
+            PatentIndicator(
+                "c", patent_count=100, patent_count_yoy=30.0, citation_growth=50.0
+            )
+        ]
         # 0.5*1.0 + 0.5*1.0 = 1.0
         assert e._calc_patent_score(inds) == pytest.approx(1.0)
 
@@ -298,7 +351,11 @@ class TestGetSignal:
     @pytest.mark.unit
     def test_found(self):
         e = AltDataIndicators()
-        e.add_satellite(SatelliteIndicator("A", "PORT", 1, yoy_change=10.0, related_symbols=["000001"]))
+        e.add_satellite(
+            SatelliteIndicator(
+                "A", "PORT", 1, yoy_change=10.0, related_symbols=["000001"]
+            )
+        )
         sig = e.get_signal("000001")
         assert sig is not None
         assert sig.symbol == "000001"
@@ -336,7 +393,11 @@ class TestSummarize:
     @pytest.mark.unit
     def test_summary(self):
         e = AltDataIndicators()
-        e.add_satellite(SatelliteIndicator("A", "PORT", 1, yoy_change=20.0, related_symbols=["000001"]))
+        e.add_satellite(
+            SatelliteIndicator(
+                "A", "PORT", 1, yoy_change=20.0, related_symbols=["000001"]
+            )
+        )
         result = e.analyze(["000001"])
         s = e.summarize(result)
         assert s["total_signals"] == 1

@@ -133,3 +133,14 @@ secid = f"1.{num}" if mkt == "SH" else f"0.{num}"
 - 排期任务: [高价值项目集成排期计划_20260811.md W6.3.3](file:///E:/各种PY程序/28-终极量化交易系统8.4/docs/高价值项目集成排期计划_20260811.md#L222)
 - 前视偏差门禁标准: [backtest-standards.md §二](file:///E:/各种PY程序/28-终极量化交易系统8.4/cairn/backtest-standards.md)
 - 类型安全进度基线: [code-quality-wave3.md](file:///E:/各种PY程序/28-终极量化交易系统8.4/cairn/code-quality-wave3.md)
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 24%)
+- [重构规约 (Refactoring Standards)](refactoring-standards.md) (相似度 17%)
+- [nautilus_trader 架构研究报告 — Wave 6 Sprint 3 W6.3.1](nautilus-trader-study.md) (相似度 12%)
+- [daily_workflow.py 拆分计划（门禁 ≤3000 行 · 长期架构重构）](daily-workflow-split-plan.md) (相似度 10%)
+- [因子发现 Loop Engineering 升级方案](factor-discovery-loop-engineering.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

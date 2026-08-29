@@ -119,7 +119,9 @@ class StopLossMonitor:
 
         sl_price = safe_sl if safe_sl is not None else (safe_base * (1 + safe_float(stop_loss_pct, default=0.0) / 100))  # type: ignore
         tp_price = (
-            safe_tp if safe_tp is not None else (safe_base * (1 + safe_float(take_profit_pct, default=0.0) / 100))
+            safe_tp
+            if safe_tp is not None
+            else (safe_base * (1 + safe_float(take_profit_pct, default=0.0) / 100))
         )  # type: ignore
         # 当前收益率
         pnl_pct = (safe_current - safe_base) / safe_base * 100
@@ -131,7 +133,9 @@ class StopLossMonitor:
             if peak_pct >= self.trailing_drawdown_pct:
                 dd_from_peak = (safe_high - safe_current) / safe_high * 100
                 if dd_from_peak >= self.trailing_drawdown_pct * 0.3:
-                    effective_tp_price = safe_high * (1 - self.trailing_drawdown_pct / 100)
+                    effective_tp_price = safe_high * (
+                        1 - self.trailing_drawdown_pct / 100
+                    )
 
         # 距止损/止盈位距离
         dist_to_sl = (safe_current - sl_price) / sl_price * 100
@@ -154,7 +158,9 @@ class StopLossMonitor:
         }
         tp_status = {
             "type": "take_profit",
-            "trigger_price": round(effective_tp_price if trailing_stop else tp_price, 2),
+            "trigger_price": round(
+                effective_tp_price if trailing_stop else tp_price, 2
+            ),
             "trigger_pct": take_profit_pct,
             "distance_pct": round(dist_to_tp, 2),
             "is_triggered": current_price >= tp_price,
@@ -225,7 +231,12 @@ class StopLossMonitor:
             code = rule["code"]
             if code not in quotes:
                 results.append(
-                    {"code": code, "name": rule.get("name", "?"), "error": "无行情数据", "alert_level": "unknown"}
+                    {
+                        "code": code,
+                        "name": rule.get("name", "?"),
+                        "error": "无行情数据",
+                        "alert_level": "unknown",
+                    }
                 )
                 continue
 
@@ -233,7 +244,12 @@ class StopLossMonitor:
             price = q.get("price", 0)
             if price <= 0:
                 results.append(
-                    {"code": code, "name": rule.get("name", "?"), "error": "价格无效", "alert_level": "unknown"}
+                    {
+                        "code": code,
+                        "name": rule.get("name", "?"),
+                        "error": "价格无效",
+                        "alert_level": "unknown",
+                    }
                 )
                 continue
 
@@ -266,7 +282,9 @@ class StopLossMonitor:
             return AlertLevel.WARNING
         return AlertLevel.NORMAL
 
-    def _generate_action(self, level: AlertLevel, pnl_pct: float, dist_to_sl: float) -> str:
+    def _generate_action(
+        self, level: AlertLevel, pnl_pct: float, dist_to_sl: float
+    ) -> str:
         """生成操作建议"""
         if level == AlertLevel.TRIGGERED:
             return "立即执行止损！价格已跌破止损位"
@@ -282,7 +300,9 @@ class StopLossMonitor:
             return "持有观望，按计划执行"
         return "正常持有，定期监控"
 
-    def _calculate_risk_score(self, pnl_pct: float, dist_to_sl: float, risk_level: str) -> float:
+    def _calculate_risk_score(
+        self, pnl_pct: float, dist_to_sl: float, risk_level: str
+    ) -> float:
         """综合风险评分 [0-100]，越高越危险"""
         score = 0.0
 
@@ -346,8 +366,15 @@ def generate_risk_report(alerts: list[dict]) -> str:
     lines.append("")
 
     # 详情表
-    level_icons = {"normal": "OK", "warning": "WARN", "critical": "CRIT", "triggered": "TRIG"}
-    lines.append(f"{'状态':<6} {'名称':<10} {'代码':<8} {'现价':>8} {'PnL':>7} {'止损位':>8} {'距止损':>8} {'风险':>5}")
+    level_icons = {
+        "normal": "OK",
+        "warning": "WARN",
+        "critical": "CRIT",
+        "triggered": "TRIG",
+    }
+    lines.append(
+        f"{'状态':<6} {'名称':<10} {'代码':<8} {'现价':>8} {'PnL':>7} {'止损位':>8} {'距止损':>8} {'风险':>5}"
+    )
     lines.append("-" * 70)
 
     for a in alerts:
@@ -373,7 +400,9 @@ def generate_risk_report(alerts: list[dict]) -> str:
     if urgent:
         lines.append("需要立即关注:")
         for a in urgent:
-            lines.append(f"  {a['name']}({a['code']}): {a.get('action_suggestion', '')}")
+            lines.append(
+                f"  {a['name']}({a['code']}): {a.get('action_suggestion', '')}"
+            )
 
     # 综合评估
     valid_scores = [a.get("risk_score", 0) for a in alerts if "risk_score" in a]

@@ -54,14 +54,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # 强制 UTF-8 输出, 解决 GBK 编码问题
-if sys.stdout.encoding != 'utf-8':
+if sys.stdout.encoding != "utf-8":
     try:
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
-if sys.stderr.encoding != 'utf-8':
+if sys.stderr.encoding != "utf-8":
     try:
-        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
 
@@ -76,7 +76,9 @@ VENV_PYTHON = os.environ.get("QUANT_PYTHON") or sys.executable
 
 # 关键脚本路径
 GENERATE_REPORT_SCRIPT = PROJECT_ROOT / "generate_daily_report.py"
-GENERATE_TRADE_PLAN_SCRIPT = PROJECT_ROOT / "v8.3_institutional" / "generate_daily_trade_plan.py"
+GENERATE_TRADE_PLAN_SCRIPT = (
+    PROJECT_ROOT / "v8.3_institutional" / "generate_daily_trade_plan.py"
+)
 APPLY_LLM_SCRIPT = PROJECT_ROOT / "tools" / "apply_llm_decisions_to_plan.py"
 RUN_DAILY_EOD_SCRIPT = PROJECT_ROOT / "run_daily_eod.py"
 # 注意: DAILY_WORKFLOW_SCRIPT 指向的 v8.3_institutional/daily_workflow.py 实际不存在,
@@ -93,7 +95,9 @@ SHADOW_DRIFT_INTEGRATOR_SCRIPT = PROJECT_ROOT / "scripts" / "drift_shadow_integr
 # W1.3a Day 5 (2026-08-04): Shadow 状态同步 — 把 daily_returns.jsonl 同步到 shadow_state.json
 # 修复 G1 缺口延伸: feeder 写入 jsonl 后, shadow_state.json 的 daily_nav 未同步更新 (占位值断层)
 # 在阶段四点五 (feeder) 之后、阶段四点七 (drift) 之前执行, 确保状态文件始终与 jsonl 同步
-SHADOW_STATE_REBUILD_SCRIPT = PROJECT_ROOT / "scripts" / "rebuild_shadow_state_from_returns.py"
+SHADOW_STATE_REBUILD_SCRIPT = (
+    PROJECT_ROOT / "scripts" / "rebuild_shadow_state_from_returns.py"
+)
 # 阶段四点八: Phase B 状态回写 (T2 单事实源收敛, 2026-08-08)
 # 在 Shadow 数据注入 (4.5) + 状态同步 (4.5b) + 漂移检测 (4.7) 之后执行:
 #   调用 phase_b_progressive_enabler.py --auto, 把 observation_days_completed 刷新为
@@ -106,7 +110,9 @@ PHASE_B_ENABLER_SCRIPT = PROJECT_ROOT / "scripts" / "phase_b_progressive_enabler
 # 修复断链: 此前 b2_shadow_runner 从未接入任何调度, 预热永远卡 0/3, B2 永远无法启用。
 PHASE_B_B2_SHADOW_SCRIPT = PROJECT_ROOT / "scripts" / "phase_b_b2_shadow_runner.py"
 # 阶段零: 年化收益预测校准 (生成 portfolio_return_projection.json, 供阶段一报告引用)
-CALIBRATE_PROJECTION_SCRIPT = PROJECT_ROOT / "v8.3_institutional" / "calibrate_returns_projection.py"
+CALIBRATE_PROJECTION_SCRIPT = (
+    PROJECT_ROOT / "v8.3_institutional" / "calibrate_returns_projection.py"
+)
 TRADE_PLANS_DIR = PROJECT_ROOT / "v8.3_institutional" / "trade_plans"
 REPORTS_DIR_V83 = PROJECT_ROOT / "v8.3_institutional" / "reports"
 
@@ -126,6 +132,7 @@ REPORT_PATTERNS = [
 # ═══════════════════════════════════════════════════════════════
 # 工具函数
 # ═══════════════════════════════════════════════════════════════
+
 
 def get_python() -> str:
     """获取 Python 解释器路径 (优先 Python 3.11, DeepSeek SSL 兼容)"""
@@ -178,6 +185,7 @@ def is_trading_day(date_str: str) -> bool:
         sys.path.insert(0, str(PROJECT_ROOT))
     try:
         from utils.trade_calendar import is_trading_day as _unified_is_trading_day
+
         return _unified_is_trading_day(date_str)
     except Exception:
         # 兜底: 统一实现导入失败时, 回退到周末判断 (原 C3 逻辑)
@@ -188,8 +196,13 @@ def is_trading_day(date_str: str) -> bool:
             return False
 
 
-def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30,
-             allowed_exit_codes: list = None) -> tuple:
+def run_step(
+    name: str,
+    script: Path,
+    args: list,
+    timeout_minutes: int = 30,
+    allowed_exit_codes: list = None,
+) -> tuple:
     """
     运行一个工作流步骤
     返回 (success: bool, stdout: str)
@@ -215,15 +228,15 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30,
     try:
         # 清理可能干扰子进程的环境变量
         env = os.environ.copy()
-        env.pop('PYTHONHOME', None)
+        env.pop("PYTHONHOME", None)
         # W3 修复: 不再 pop PYTHONPATH — 子脚本依赖项目模块 (utils 等) 的解析路径,
         # 清空会导致 ModuleNotFoundError (如 phase_b_progressive_enabler 在 EOD 内失败).
-        env['PYTHONIOENCODING'] = 'utf-8'
-        env.pop('PYTHONUTF8', None)
+        env["PYTHONIOENCODING"] = "utf-8"
+        env.pop("PYTHONUTF8", None)
 
         # M3 修复: 使用 CREATE_NEW_PROCESS_GROUP 创建独立进程组, 便于超时后 taskkill /T 彻底清理孙进程
         creationflags = 0
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
 
         result = subprocess.run(
@@ -241,7 +254,9 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30,
         # 记录输出
         stdout_preview = result.stdout or ""
         if len(stdout_preview) > 5000:
-            stdout_preview = stdout_preview[:5000] + f"\n... [截断, 共{len(result.stdout)}字符]"
+            stdout_preview = (
+                stdout_preview[:5000] + f"\n... [截断, 共{len(result.stdout)}字符]"
+            )
         if stdout_preview:
             log(f"STDOUT:\n{stdout_preview}")
 
@@ -255,7 +270,10 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30,
             log(f"[OK] {name} 执行成功 (exit_code={result.returncode})")
             return True, result.stdout or ""
         else:
-            log(f"[FAIL] {name} 执行失败 (exit_code={result.returncode}, 允许码={allowed_exit_codes})", "ERROR")
+            log(
+                f"[FAIL] {name} 执行失败 (exit_code={result.returncode}, 允许码={allowed_exit_codes})",
+                "ERROR",
+            )
             return False, result.stdout or ""
 
     except subprocess.TimeoutExpired:
@@ -300,27 +318,37 @@ def archive_reports(today_dir: Path, report_date: str) -> int:
 
                 # 检查文件名是否包含指定日期
                 is_target_report = (
-                    date_compact in fname or
-                    date_dash in fname or
-                    fname.endswith(f"_{date_compact}.md") or
-                    fname.endswith(f"_{date_compact}.json") or
-                    fname.endswith(f"_{date_dash}.md") or
-                    fname.endswith(f"_{date_dash}.json")
+                    date_compact in fname
+                    or date_dash in fname
+                    or fname.endswith(f"_{date_compact}.md")
+                    or fname.endswith(f"_{date_compact}.json")
+                    or fname.endswith(f"_{date_dash}.md")
+                    or fname.endswith(f"_{date_dash}.json")
                 )
 
                 # C10 修复: 使用 fnmatch 进行通配符匹配 (原 startswith 把 * 当字面量, 永不命中)
                 # 额外检查: EOD 守卫报告 / 对冲执行单
                 if not is_target_report:
-                    is_target_report = any(
-                        fnmatch.fnmatch(fname, pat)
-                        for pat in ["eod_guard_report_*", "hedge_execution_fill_*",
-                                   "eod_guard_report_*.md", "hedge_execution_fill_*.json"]
-                    ) and date_dash in fname
+                    is_target_report = (
+                        any(
+                            fnmatch.fnmatch(fname, pat)
+                            for pat in [
+                                "eod_guard_report_*",
+                                "hedge_execution_fill_*",
+                                "eod_guard_report_*.md",
+                                "hedge_execution_fill_*.json",
+                            ]
+                        )
+                        and date_dash in fname
+                    )
 
                 if is_target_report:
                     dest = today_dir / fname
                     # 仅当目标不存在或源文件更新时复制
-                    if not dest.exists() or file_path.stat().st_mtime > dest.stat().st_mtime:
+                    if (
+                        not dest.exists()
+                        or file_path.stat().st_mtime > dest.stat().st_mtime
+                    ):
                         try:
                             shutil.copy2(file_path, dest)
                             archived_count += 1
@@ -359,24 +387,47 @@ def verify_llm_overrides_applied(plan_path: Path) -> dict:
 def parse_eod_args():
     """解析 EOD 工作流命令行参数"""
     parser = argparse.ArgumentParser(description="每日收盘工作流 (15:30 收盘后运行)")
-    parser.add_argument("--date", type=str, default=None,
-                        help="报告日期 YYYY-MM-DD (默认今天)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="试运行模式, 不实际执行")
-    parser.add_argument("--force", action="store_true",
-                        help="强制运行, 跳过交易日检查")
-    parser.add_argument("--skip-risk-guard", action="store_true",
-                        help="跳过阶段四 (EOD 四 Guard 风控链)")
-    parser.add_argument("--skip-archive", action="store_true",
-                        help="跳过阶段五 (报告归档)")
-    parser.add_argument("--skip-generate-plan", action="store_true",
-                        help="跳过阶段二 (生成次日交易计划, 使用已存在的计划)")
-    parser.add_argument("--skip-shadow", action="store_true",
-                        help="跳过 Shadow 相关阶段 (四点五数据收集 + 四点五B状态同步 + 四点七漂移检测, 观察期专用)")
-    parser.add_argument("--skip-feedback-loop", action="store_true",
-                        help="跳过阶段四点六 (FeedbackLoop 因子权重更新)")
-    parser.add_argument("--skip-system-check", action="store_true",
-                        help="跳过 P0 启动自检 (仅紧急情况使用,默认每次启动都自检)")
+    parser.add_argument(
+        "--date", type=str, default=None, help="报告日期 YYYY-MM-DD (默认今天)"
+    )
+    parser.add_argument("--dry-run", action="store_true", help="试运行模式, 不实际执行")
+    parser.add_argument("--force", action="store_true", help="强制运行, 跳过交易日检查")
+    parser.add_argument(
+        "--skip-risk-guard",
+        action="store_true",
+        help="跳过阶段四 (EOD 四 Guard 风控链)",
+    )
+    parser.add_argument(
+        "--skip-archive", action="store_true", help="跳过阶段五 (报告归档)"
+    )
+    parser.add_argument(
+        "--skip-audit", action="store_true", help="跳过阶段六 (EOD 收盘审核)"
+    )
+    parser.add_argument(
+        "--skip-generate-plan",
+        action="store_true",
+        help="跳过阶段二 (生成次日交易计划, 使用已存在的计划)",
+    )
+    parser.add_argument(
+        "--skip-shadow",
+        action="store_true",
+        help="跳过 Shadow 相关阶段 (四点五数据收集 + 四点五B状态同步 + 四点七漂移检测, 观察期专用)",
+    )
+    parser.add_argument(
+        "--skip-feedback-loop",
+        action="store_true",
+        help="跳过阶段四点六 (FeedbackLoop 因子权重更新)",
+    )
+    parser.add_argument(
+        "--skip-ecl",
+        action="store_true",
+        help="跳过阶段4.95 ECL旁路 (Wave10-CTX 经验上下文层, 调试/紧急排查用)",
+    )
+    parser.add_argument(
+        "--skip-system-check",
+        action="store_true",
+        help="跳过 P0 启动自检 (仅紧急情况使用,默认每次启动都自检)",
+    )
     return parser.parse_args()
 
 
@@ -388,6 +439,7 @@ def run_p0_system_check(args):
         if str(PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(PROJECT_ROOT))
         from utils.system_check import assert_system_ready
+
         assert_system_ready()  # 失败时 sys.exit(1)
     except SystemExit:
         raise
@@ -399,7 +451,12 @@ def setup_eod_context(args):
     """初始化 EOD 工作流上下文 (日期/目录/banner)"""
     report_date = args.date or datetime.now().strftime("%Y-%m-%d")
     # 路径安全: 拒绝路径遍历与非法日期格式
-    if not re.match(r"^\d{4}-\d{2}-\d{2}$", report_date) or ".." in report_date or "/" in report_date or "\\" in report_date:
+    if (
+        not re.match(r"^\d{4}-\d{2}-\d{2}$", report_date)
+        or ".." in report_date
+        or "/" in report_date
+        or "\\" in report_date
+    ):
         raise ValueError(f"非法报告日期: {report_date}")
     next_trade_date = get_next_trading_day(report_date)
     today_dir = ARCHIVE_DIR / report_date
@@ -466,8 +523,12 @@ def run_phase1_generate_report(report_date, eod_summary):
                 log(f"  ✅ 报告包含 {len(ai_recs)} 条 AI 决策建议")
                 for i, rec in enumerate(ai_recs, 1):
                     log(f"     {i}. {rec[:80]}{'...' if len(rec) > 80 else ''}")
-                eod_summary["phases"]["phase1_generate_report"]["ai_recs_count"] = len(ai_recs)
-                eod_summary["phases"]["phase1_generate_report"]["ai_recommendations"] = ai_recs
+                eod_summary["phases"]["phase1_generate_report"]["ai_recs_count"] = len(
+                    ai_recs
+                )
+                eod_summary["phases"]["phase1_generate_report"][
+                    "ai_recommendations"
+                ] = ai_recs
             except Exception as e:
                 log(f"  ⚠️ 读取报告 AI 建议失败: {e}", "WARN")
     return phase1_success
@@ -500,7 +561,10 @@ def validate_next_plan(next_trade_date, eod_summary):
     next_plan_path = TRADE_PLANS_DIR / next_plan_filename
     if not next_plan_path.exists():
         log(f"[FAIL] 次日交易计划不存在: {next_plan_path} [关键失败]", "ERROR")
-        log("请确认 generate_daily_trade_plan.py 已运行, 或使用 --skip-generate-plan 仅在计划已存在时使用", "ERROR")
+        log(
+            "请确认 generate_daily_trade_plan.py 已运行, 或使用 --skip-generate-plan 仅在计划已存在时使用",
+            "ERROR",
+        )
         log("阶段三 (LLM决策灌入) 和 阶段四 (风控守卫) 将跳过, 因无计划可操作", "ERROR")
         eod_summary["phases"]["phase2_generate_plan"] = eod_summary["phases"].get(
             "phase2_generate_plan", {}
@@ -508,7 +572,8 @@ def validate_next_plan(next_trade_date, eod_summary):
         eod_summary["phases"]["phase2_generate_plan"]["plan_exists"] = False
         eod_summary["phases"]["phase2_generate_plan"]["critical"] = True
         eod_summary["phases"]["phase2_generate_plan"]["skip_downstream"] = [
-            "phase3_apply_llm", "phase4_risk_guard"
+            "phase3_apply_llm",
+            "phase4_risk_guard",
         ]
         return False, True, True
     log(f"  ✅ 次日交易计划已就绪: {next_plan_path.name}")
@@ -544,11 +609,16 @@ def run_phase3_apply_llm(report_date, next_trade_date, next_plan_path, eod_summa
             if "build_sequence" in overrides:
                 log(f"     - 建仓顺序: {overrides['build_sequence']}")
             if "stop_loss_adjustments" in overrides:
-                log(f"     - 止损调整: {len(overrides['stop_loss_adjustments'])} 个标的")
+                log(
+                    f"     - 止损调整: {len(overrides['stop_loss_adjustments'])} 个标的"
+                )
             if "position_adjustments" in overrides:
                 log(f"     - 仓位调整: {len(overrides['position_adjustments'])} 个标的")
         else:
-            log(f"  ⚠️ LLM 决策未写入: {verify_result.get('reason', '未知原因')}", "WARN")
+            log(
+                f"  ⚠️ LLM 决策未写入: {verify_result.get('reason', '未知原因')}",
+                "WARN",
+            )
     return phase3_success
 
 
@@ -647,6 +717,7 @@ def _check_daily_returns_has_date(report_date: str) -> bool:
                     continue
                 try:
                     import json as _json
+
                     rec = _json.loads(line)
                     if str(rec.get("date", "")) == target:
                         return True
@@ -662,49 +733,68 @@ def _alert_observation_missing(report_date, feeder_success, written, eod_summary
 
     生成: ① 控制台醒目告警; ② EOD summary 告警字段; ③ 告警文件 (可追溯).
     """
-    reason = "feeder 运行失败" if not feeder_success else "daily_returns.jsonl 未包含该日期"
+    reason = (
+        "feeder 运行失败" if not feeder_success else "daily_returns.jsonl 未包含该日期"
+    )
     log("", "WARN")
     log("=" * 70, "WARN")
     log("⚠️  ⚠️  观察期数据记录失败 — 需手动记录  ⚠️  ⚠️", "WARN")
     log("=" * 70, "WARN")
     log(f"  日期: {report_date}", "WARN")
-    log(f"  原因: {reason} (feeder_success={feeder_success}, written={written})", "WARN")
+    log(
+        f"  原因: {reason} (feeder_success={feeder_success}, written={written})", "WARN"
+    )
     log("  影响: Shadow 样本断档, 阻塞自我进化观察期决策 (目标 ≥20 条)", "WARN")
     log("  手动记录步骤:", "WARN")
-    log("    1. 排查权重/数据源: 检查 config/positions.json 是否有效 + 行情源可用", "WARN")
-    log(f"    2. 重跑 feeder:  python -m utils.alpha.shadow_real_data_feeder --date {report_date}", "WARN")
+    log(
+        "    1. 排查权重/数据源: 检查 config/positions.json 是否有效 + 行情源可用",
+        "WARN",
+    )
+    log(
+        f"    2. 重跑 feeder:  python -m utils.alpha.shadow_real_data_feeder --date {report_date}",
+        "WARN",
+    )
     log("    3. 若仍失败, 手工补录 daily_returns.jsonl (需真实组合日收益)", "WARN")
-    log("    4. 记录后检查: reports/shadow/daily_returns.jsonl 最后一行应含该日期", "WARN")
+    log(
+        "    4. 记录后检查: reports/shadow/daily_returns.jsonl 最后一行应含该日期",
+        "WARN",
+    )
     log("=" * 70, "WARN")
     # 写入 EOD summary, 供下游/告警系统感知
-    eod_summary.setdefault("observation_alerts", []).append({
-        "date": report_date,
-        "type": "observation_data_missing",
-        "reason": reason,
-        "feeder_success": bool(feeder_success),
-        "written": bool(written),
-        "action": "MANUAL_RECORD_REQUIRED",
-    })
+    eod_summary.setdefault("observation_alerts", []).append(
+        {
+            "date": report_date,
+            "type": "observation_data_missing",
+            "reason": reason,
+            "feeder_success": bool(feeder_success),
+            "written": bool(written),
+            "action": "MANUAL_RECORD_REQUIRED",
+        }
+    )
     # 写告警文件 (可追溯)
     try:
         alert_dir = PROJECT_ROOT / "reports" / "evolution"
         alert_dir.mkdir(parents=True, exist_ok=True)
         alert_file = alert_dir / f"observation_alert_{report_date}.json"
         alert_file.write_text(
-            json.dumps({
-                "date": report_date,
-                "type": "observation_data_missing",
-                "reason": reason,
-                "feeder_success": bool(feeder_success),
-                "written": bool(written),
-                "action": "MANUAL_RECORD_REQUIRED",
-                "manual_steps": [
-                    "check config/positions.json + data source",
-                    f"rerun: python -m utils.alpha.shadow_real_data_feeder --date {report_date}",
-                    "manual append daily_returns.jsonl if still failing",
-                ],
-                "created": datetime.now().isoformat(),
-            }, ensure_ascii=False, indent=2),
+            json.dumps(
+                {
+                    "date": report_date,
+                    "type": "observation_data_missing",
+                    "reason": reason,
+                    "feeder_success": bool(feeder_success),
+                    "written": bool(written),
+                    "action": "MANUAL_RECORD_REQUIRED",
+                    "manual_steps": [
+                        "check config/positions.json + data source",
+                        f"rerun: python -m utils.alpha.shadow_real_data_feeder --date {report_date}",
+                        "manual append daily_returns.jsonl if still failing",
+                    ],
+                    "created": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
             encoding="utf-8",
         )
         log(f"  告警文件: {alert_file}", "WARN")
@@ -740,7 +830,10 @@ def run_phase4_5b_shadow_state_sync(report_date, eod_summary, args):
     # 前置依赖检查: 阶段四点五必须成功执行
     phase_4_5_result = eod_summary.get("phases", {}).get("phase4_5_shadow_monitor", {})
     if not phase_4_5_result.get("success") or not phase_4_5_result.get("written"):
-        log("\n>>> 阶段四点五B: 跳过 Shadow 状态同步 (阶段四点五未成功写入数据) <<<", "WARN")
+        log(
+            "\n>>> 阶段四点五B: 跳过 Shadow 状态同步 (阶段四点五未成功写入数据) <<<",
+            "WARN",
+        )
         eod_summary["phases"]["phase4_5b_shadow_state_sync"] = {
             "skipped": True,
             "reason": "phase4_5_not_successful",
@@ -765,7 +858,36 @@ def run_phase4_5b_shadow_state_sync(report_date, eod_summary, args):
     if phase_sync_success:
         log("  ✅ shadow_state.json 已同步 (daily_nav 从 daily_returns.jsonl 重建)")
     else:
-        log("  ⚠️ 状态同步失败, shadow_state.json 可能未更新 (不影响 EOD 主流程)", "WARN")
+        log(
+            "  ⚠️ 状态同步失败, shadow_state.json 可能未更新 (不影响 EOD 主流程)",
+            "WARN",
+        )
+
+    # ---- 阶段四点五B+1: Shadow 真实撮合桥接 (P0-1) ----
+    # 消费 DTE-1 建仓撮合链的 FillsStore 真实成交, 写入 trade_log,
+    # 使影子账户 NAV 基于真实撮合 (对齐 cairn/shadow-realness-audit P0 要求).
+    # fail-open: 异常/无成交仅记日志, 不阻断 EOD 主流程.
+    log("\n>>> 阶段四点五B+1: Shadow 真实撮合桥接 (shadow_fills_integrator) <<<")
+    shadow_integrator_script = (
+        PROJECT_ROOT / "scripts" / "run_shadow_fills_integrator.py"
+    )
+    phase_bridge_success, _ = run_step(
+        "Shadow Fills Integration",
+        shadow_integrator_script,
+        ["--date", report_date],
+        timeout_minutes=5,
+    )
+    eod_summary["phases"]["phase4_5b1_shadow_fills_bridge"] = {
+        "success": phase_bridge_success,
+        "script": str(shadow_integrator_script),
+        "date": report_date,
+        "p0_real_fills": True,
+    }
+    if phase_bridge_success:
+        log("  ✅ 真实撮合成交已桥接至 shadow_state.json trade_log")
+    else:
+        log("  ⚠️ 撮合桥接未产生新数据或跳过 (不影响 EOD 主流程)", "WARN")
+
     return phase_sync_success
 
 
@@ -791,9 +913,24 @@ def _load_positions_for_attribution() -> list[dict]:
         "科技": {"momentum": 0.6, "growth": 0.5, "valuation": -0.2},
         "高端制造": {"momentum": 0.4, "growth": 0.4, "valuation": 0.0},
         "顺周期": {"momentum": 0.2, "growth": 0.1, "valuation": 0.3},
-        "资源": {"momentum": 0.1, "growth": 0.0, "valuation": 0.6, "earnings_quality": 0.4},
-        "防御": {"momentum": 0.0, "growth": 0.0, "valuation": 0.4, "earnings_quality": 0.6},
-        "消费": {"momentum": 0.2, "growth": 0.2, "valuation": 0.3, "earnings_quality": 0.5},
+        "资源": {
+            "momentum": 0.1,
+            "growth": 0.0,
+            "valuation": 0.6,
+            "earnings_quality": 0.4,
+        },
+        "防御": {
+            "momentum": 0.0,
+            "growth": 0.0,
+            "valuation": 0.4,
+            "earnings_quality": 0.6,
+        },
+        "消费": {
+            "momentum": 0.2,
+            "growth": 0.2,
+            "valuation": 0.3,
+            "earnings_quality": 0.5,
+        },
     }
 
     result = []
@@ -802,15 +939,19 @@ def _load_positions_for_attribution() -> list[dict]:
         if amount <= 0:
             continue
         sector = p.get("sector") or p.get("style") or "other"
-        result.append({
-            "code": p.get("code", ""),
-            "name": p.get("name", ""),
-            "weight": amount / total_amount,
-            "sector": sector,
-            "amount": amount,
-            "market_value": amount,
-            "style_exposures": STYLE_MAP.get(sector, {"momentum": 0.1, "valuation": 0.1}),
-        })
+        result.append(
+            {
+                "code": p.get("code", ""),
+                "name": p.get("name", ""),
+                "weight": amount / total_amount,
+                "sector": sector,
+                "amount": amount,
+                "market_value": amount,
+                "style_exposures": STYLE_MAP.get(
+                    sector, {"momentum": 0.1, "valuation": 0.1}
+                ),
+            }
+        )
     return result
 
 
@@ -836,7 +977,10 @@ def _load_daily_return_for_date(report_date: str) -> float | None:
 def _load_hedge_pnl_from_eod_report(report_date: str) -> float:
     """从 EOD 报告 daily_pnl_report_{date}.json 读取对冲盈亏."""
     candidates = [
-        PROJECT_ROOT / "每日报告归档" / report_date / f"daily_pnl_report_{report_date}.json",
+        PROJECT_ROOT
+        / "每日报告归档"
+        / report_date
+        / f"daily_pnl_report_{report_date}.json",
         PROJECT_ROOT / "reports" / report_date / f"daily_pnl_report_{report_date}.json",
     ]
     for path in candidates:
@@ -881,7 +1025,8 @@ def run_phase4_55_attribution(report_date, eod_summary, args):
         if not positions:
             log("  ⚠️ 无持仓数据 (config/positions.json), 跳过归因生成", "WARN")
             eod_summary["phases"]["phase4_55_attribution"] = {
-                "success": False, "reason": "no_positions",
+                "success": False,
+                "reason": "no_positions",
             }
             return False
 
@@ -954,7 +1099,8 @@ def run_phase4_55_attribution(report_date, eod_summary, args):
         log(f"  [FAIL] PnL 归因生成异常: {e}", "ERROR")
         traceback.print_exc()
         eod_summary["phases"]["phase4_55_attribution"] = {
-            "success": False, "error": str(e),
+            "success": False,
+            "error": str(e),
         }
         return False
 
@@ -1040,7 +1186,10 @@ def run_phase4_9_evolution_cycle(report_date, eod_summary, args):
         orchestrator = EvolutionOrchestratorV2()
         if not getattr(orchestrator, "enabled", False):
             log("[SKIP] EvolutionOrchestratorV2 未启用 (Feature Flag 关闭)")
-            eod_summary["phases"]["phase4_9_evolution_cycle"] = {"skipped": True, "reason": "flag_disabled"}
+            eod_summary["phases"]["phase4_9_evolution_cycle"] = {
+                "skipped": True,
+                "reason": "flag_disabled",
+            }
             return True
 
         result = orchestrator.run_cycle()
@@ -1049,13 +1198,18 @@ def run_phase4_9_evolution_cycle(report_date, eod_summary, args):
             "action": getattr(result, "action", None),
             "proposals": len(getattr(result, "proposals", [])),
         }
-        log(f"[OK] 进化编排: action={phase_result['action']}, proposals={phase_result['proposals']}")
+        log(
+            f"[OK] 进化编排: action={phase_result['action']}, proposals={phase_result['proposals']}"
+        )
         eod_summary["phases"]["phase4_9_evolution_cycle"] = phase_result
         return True
 
     except Exception as e:
         log(f"[FAIL] 进化编排异常: {e}", "ERROR")
-        eod_summary["phases"]["phase4_9_evolution_cycle"] = {"success": False, "error": str(e)}
+        eod_summary["phases"]["phase4_9_evolution_cycle"] = {
+            "success": False,
+            "error": str(e),
+        }
         return False
 
 
@@ -1124,7 +1278,10 @@ def run_phase4_8_phase_b_sync(report_date, eod_summary, args):
         return False
 
     if not PHASE_B_ENABLER_SCRIPT.exists():
-        log(f"\n>>> 阶段四点八: 跳过 Phase B 状态回写 (脚本不存在: {PHASE_B_ENABLER_SCRIPT}) <<<", "WARN")
+        log(
+            f"\n>>> 阶段四点八: 跳过 Phase B 状态回写 (脚本不存在: {PHASE_B_ENABLER_SCRIPT}) <<<",
+            "WARN",
+        )
         eod_summary["phases"]["phase4_8_phase_b_sync"] = {
             "skipped": True,
             "reason": "script not found",
@@ -1176,12 +1333,41 @@ def run_phase4_85_b2_shadow_warmup(report_date, eod_summary, args):
         return False
 
     if not PHASE_B_B2_SHADOW_SCRIPT.exists():
-        log(f"\n>>> 阶段四点八五: 跳过 B2 shadow 预热 (脚本不存在: {PHASE_B_B2_SHADOW_SCRIPT}) <<<", "WARN")
+        log(
+            f"\n>>> 阶段四点八五: 跳过 B2 shadow 预热 (脚本不存在: {PHASE_B_B2_SHADOW_SCRIPT}) <<<",
+            "WARN",
+        )
         eod_summary["phases"]["phase4_85_b2_shadow"] = {
             "skipped": True,
             "reason": "script not found",
         }
         return False
+
+    # 2026-08-28 修复: B2 已启用后 (USE_FEEDBACK_LOOP=True), 预热使命完成,
+    # 不再调用 runner (其不变式硬要求 flag=False, 会每日 FAIL)。
+    # 读取 phase_b_status.json (阶段 4.8 刚回写), 若 B2 已启用则跳过。
+    try:
+        _pb = json.loads(
+            (PROJECT_ROOT / "reports" / "evolution" / "phase_b_status.json").read_text(
+                encoding="utf-8", errors="replace"
+            )
+        )
+        _fb_enabled = bool(
+            (_pb.get("flags_enabled") or {}).get("USE_FEEDBACK_LOOP", False)
+        )
+    except Exception:  # noqa: BLE001
+        _fb_enabled = False
+
+    if _fb_enabled:
+        log(
+            "\n>>> 阶段四点八五: B2 已启用 (USE_FEEDBACK_LOOP=True), 跳过 shadow 预热 (使命完成) <<<"
+        )
+        eod_summary["phases"]["phase4_85_b2_shadow"] = {
+            "skipped": True,
+            "reason": "B2 already enabled, warmup complete",
+            "flag_invariant": "USE_FEEDBACK_LOOP=True (post-warmup)",
+        }
+        return True
 
     log("\n>>> 阶段四点八五: B2 shadow 每日预热 (USE_FEEDBACK_LOOP=False 不变式) <<<")
     log(f"  日期: {report_date}")
@@ -1229,12 +1415,42 @@ def run_phase5_archive(report_date, today_dir, eod_summary, args):
         return False
 
 
+def run_phase6_audit(report_date, today_dir, eod_summary, args):
+    """阶段六：EOD 收盘审核 (数据质量 + 盘中决策)"""
+    if getattr(args, "skip_audit", False):
+        log("\n>>> 阶段六: 跳过审核 (--skip-audit) <<<")
+        eod_summary["phases"]["phase6_audit"] = {"skipped": True}
+        return True
+
+    log(f"\n>>> 阶段六: EOD 收盘审核 ({report_date}) <<<")
+    audit_script = SCRIPT_DIR / "run_eod_audit.py"
+    success, stdout = run_step(
+        "phase6_eod_audit",
+        audit_script,
+        ["--date", report_date],
+        timeout_minutes=5,
+        allowed_exit_codes=[0, 1],
+    )
+    audit_pass = success and "审核结果: 通过" in (stdout or "")
+    eod_summary["phases"]["phase6_audit"] = {
+        "success": success,
+        "audit_pass": audit_pass,
+        "report": str(today_dir / "eod_audit_report.md"),
+    }
+    if success and not audit_pass:
+        log(
+            "[WARN] EOD 审核不通过 — 数据不可信或盘中决策全失败，交易计划需人工确认",
+            "WARN",
+        )
+    return success
+
+
 def save_eod_summary(eod_summary, today_dir, report_date, success_count, fail_count):
     """保存 EOD 工作流摘要"""
     eod_summary["completed_at"] = datetime.now().isoformat()
     eod_summary["success_count"] = success_count
     eod_summary["fail_count"] = fail_count
-    eod_summary["overall_success"] = (fail_count == 0)
+    eod_summary["overall_success"] = fail_count == 0
 
     summary_path = today_dir / f"eod_workflow_summary_{report_date}.json"
     try:
@@ -1246,7 +1462,9 @@ def save_eod_summary(eod_summary, today_dir, report_date, success_count, fail_co
         log(f"  ⚠️ 摘要保存失败: {e}", "WARN")
 
 
-def print_eod_summary(success_count, fail_count, report_date, next_trade_date, today_dir):
+def print_eod_summary(
+    success_count, fail_count, report_date, next_trade_date, today_dir
+):
     """打印 EOD 工作流总结"""
     log("\n" + "=" * 60)
     log("║  每日收盘工作流完成                                    ║")
@@ -1260,6 +1478,7 @@ def print_eod_summary(success_count, fail_count, report_date, next_trade_date, t
 # ═══════════════════════════════════════════════════════════════
 # Shadow 数据完整性守卫 (2026-08-18 防异常清空)
 # ═══════════════════════════════════════════════════════════════
+
 
 def run_shadow_data_guard() -> bool:
     """阶段零之前: Shadow 数据完整性守卫.
@@ -1317,6 +1536,7 @@ def backup_shadow_data() -> None:
 # 主流程
 # ═══════════════════════════════════════════════════════════════
 
+
 def main():
     args = parse_eod_args()
     run_p0_system_check(args)
@@ -1330,7 +1550,9 @@ def main():
         log(">>> 试运行模式, 以下仅显示将要执行的步骤 <<<")
         log(f"  阶段一: 生成收盘报告    {GENERATE_REPORT_SCRIPT} {report_date}")
         log(f"  阶段二: 生成次日计划    {GENERATE_TRADE_PLAN_SCRIPT}")
-        log(f"  阶段三: 应用LLM决策     {APPLY_LLM_SCRIPT} {report_date} {next_trade_date}")
+        log(
+            f"  阶段三: 应用LLM决策     {APPLY_LLM_SCRIPT} {report_date} {next_trade_date}"
+        )
         log(f"  阶段四: EOD 风控守卫    {RUN_DAILY_EOD_SCRIPT} --date {report_date}")
         log(f"  阶段四点五: Shadow 收集 {SHADOW_FEEDER_SCRIPT} --date {report_date}")
         log(f"  阶段四点五B: 状态同步   {SHADOW_STATE_REBUILD_SCRIPT}")
@@ -1362,18 +1584,27 @@ def main():
     if not phase1_success:
         skip_phase3 = True
 
-    phase2_success = run_phase2_generate_plan(report_date, next_trade_date, eod_summary, args)
+    phase2_success = run_phase2_generate_plan(
+        report_date, next_trade_date, eod_summary, args
+    )
     success_count += phase2_success
     fail_count += not phase2_success
 
-    plan_exists, skip_phase3, skip_phase4 = validate_next_plan(next_trade_date, eod_summary)
+    plan_exists, skip_phase3, skip_phase4 = validate_next_plan(
+        next_trade_date, eod_summary
+    )
     fail_count += not plan_exists
     if not plan_exists:
         skip_phase3 = True
         skip_phase4 = True
 
     if not skip_phase3:
-        phase3_success = run_phase3_apply_llm(report_date, next_trade_date, TRADE_PLANS_DIR / f"trade_plan_{next_trade_date.replace('-', '')}.json", eod_summary)
+        phase3_success = run_phase3_apply_llm(
+            report_date,
+            next_trade_date,
+            TRADE_PLANS_DIR / f"trade_plan_{next_trade_date.replace('-', '')}.json",
+            eod_summary,
+        )
         success_count += phase3_success
         fail_count += not phase3_success
 
@@ -1387,7 +1618,9 @@ def main():
 
     # W1.3a Day 5 (2026-08-04): Shadow 状态同步 — 把 daily_returns.jsonl 同步到 shadow_state.json
     # 修复 G1 缺口延伸: feeder 写入 jsonl 后, shadow_state.json 的 daily_nav 未同步更新
-    phase_state_sync_success = run_phase4_5b_shadow_state_sync(report_date, eod_summary, args)
+    phase_state_sync_success = run_phase4_5b_shadow_state_sync(
+        report_date, eod_summary, args
+    )
     success_count += phase_state_sync_success
     fail_count += not phase_state_sync_success
 
@@ -1404,14 +1637,18 @@ def main():
 
     # 任务3 (2026-08-26): B2 shadow 每日预热 — 在 Phase B 状态回写后累积 warmup_days,
     # B2 (USE_FEEDBACK_LOOP) 启用前置 (3 天预热全 Go), 不切 flag
-    phase_b2_shadow_success = run_phase4_85_b2_shadow_warmup(report_date, eod_summary, args)
+    phase_b2_shadow_success = run_phase4_85_b2_shadow_warmup(
+        report_date, eod_summary, args
+    )
     success_count += phase_b2_shadow_success
     fail_count += not phase_b2_shadow_success
 
     # 阶段四点五五: PnL 归因报告生成 (FeedbackLoop 前置依赖, 2026-08-18)
     # 在 Shadow 数据 + 漂移检测 + Phase B 回写之后、FeedbackLoop 之前执行,
     # 生成 reports/pnl_attribution/pnl_attribution_{date}.json, 供 FeedbackLoop 消费.
-    phase_attribution_success = run_phase4_55_attribution(report_date, eod_summary, args)
+    phase_attribution_success = run_phase4_55_attribution(
+        report_date, eod_summary, args
+    )
     success_count += phase_attribution_success
     fail_count += not phase_attribution_success
 
@@ -1419,18 +1656,34 @@ def main():
     success_count += phase_feedback_success
     fail_count += not phase_feedback_success
 
-    phase_evolution_success = run_phase4_9_evolution_cycle(report_date, eod_summary, args)
+    phase_evolution_success = run_phase4_9_evolution_cycle(
+        report_date, eod_summary, args
+    )
     success_count += phase_evolution_success
     fail_count += not phase_evolution_success
+
+    # 阶段4.95: ECL旁路 (Wave10-CTX, fail-open, 不增加 fail_count)
+    try:
+        from utils.infra.ecl.bypass import run_phase4_95_ecl_bypass
+
+        run_phase4_95_ecl_bypass(report_date, eod_summary, args)
+    except (ImportError, AttributeError, RuntimeError) as e:
+        log(f">>> 阶段四点九五: ECL旁路跳过 ({e}) <<<")
 
     phase5_success = run_phase5_archive(report_date, today_dir, eod_summary, args)
     success_count += phase5_success
     fail_count += not phase5_success
 
+    phase6_success = run_phase6_audit(report_date, today_dir, eod_summary, args)
+    success_count += phase6_success
+    fail_count += not phase6_success
+
     backup_shadow_data()
 
     save_eod_summary(eod_summary, today_dir, report_date, success_count, fail_count)
-    print_eod_summary(success_count, fail_count, report_date, next_trade_date, today_dir)
+    print_eod_summary(
+        success_count, fail_count, report_date, next_trade_date, today_dir
+    )
 
     sys.exit(0 if fail_count == 0 else 1)
 

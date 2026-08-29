@@ -11,6 +11,7 @@
 - build_long_short_portfolio 多空组合
 - diagnose_weights 诊断工具
 """
+
 from __future__ import annotations
 
 import math
@@ -34,12 +35,10 @@ from utils.smart_beta_engine import (  # noqa: E402
 # 辅助构造
 # ============================================================
 
+
 def _make_factor_scores(symbols, factors=("MOM_60D", "VAL_PE", "QUA_ROE"), seed=0):
     rng = np.random.RandomState(seed)
-    return {
-        s: {f: float(rng.randn()) for f in factors}
-        for s in symbols
-    }
+    return {s: {f: float(rng.randn()) for f in factors} for s in symbols}
 
 
 def _make_cov(n, seed=0):
@@ -51,6 +50,7 @@ def _make_cov(n, seed=0):
 # ============================================================
 # 数据结构测试
 # ============================================================
+
 
 class FactorTimingInfoTest:
     def test_defaults(self):
@@ -97,6 +97,7 @@ class SmartBetaResultTest:
 # SmartBetaEngine 构造
 # ============================================================
 
+
 class SmartBetaEngineInitTest:
     def test_defaults(self):
         eng = SmartBetaEngine()
@@ -135,6 +136,7 @@ class SmartBetaEngineInitTest:
 # ============================================================
 # optimize 主入口
 # ============================================================
+
 
 class OptimizeTest:
     def test_empty_symbols_raises(self):
@@ -220,7 +222,9 @@ class OptimizeTest:
         )
         assert res.expected_volatility > 0
         # port_var = w' Σ w
-        expected_vol = math.sqrt(float(res.smart_beta_weights @ cov @ res.smart_beta_weights))
+        expected_vol = math.sqrt(
+            float(res.smart_beta_weights @ cov @ res.smart_beta_weights)
+        )
         assert res.expected_volatility == pytest.approx(expected_vol)
         # TE 用 cov 计算
         active = res.smart_beta_weights - res.market_cap_weights
@@ -280,7 +284,9 @@ class OptimizeTest:
         val_info = next(ti for ti in res.factor_timing if ti.factor_name == "VAL_PE")
         assert val_info.timing_signal < 0  # 负动量 → 负信号
         # MOM 权重应增加
-        assert mom_info.current_weight > mom_info.base_weight * 0.99 / 1.0  # 归一化后近似
+        assert (
+            mom_info.current_weight > mom_info.base_weight * 0.99 / 1.0
+        )  # 归一化后近似
 
     def test_optimize_factor_timing_history_too_short(self):
         """历史长度 < window → signal=0."""
@@ -365,7 +371,9 @@ class OptimizeTest:
         assert res.sharpe_ratio == pytest.approx(expected_sharpe)
         # IR = (expected_ret - mean(composite)*0.05) / te
         if res.tracking_error > 0:
-            expected_ir = (res.expected_return - float(np.mean(res.composite_score) * 0.05)) / res.tracking_error
+            expected_ir = (
+                res.expected_return - float(np.mean(res.composite_score) * 0.05)
+            ) / res.tracking_error
             assert res.information_ratio == pytest.approx(expected_ir)
 
     def test_optimize_alpha_vs_market(self):
@@ -388,9 +396,12 @@ class OptimizeTest:
 # _apply_factor_timing
 # ============================================================
 
+
 class ApplyFactorTimingTest:
     def test_positive_momentum_increases_weight(self):
-        eng = SmartBetaEngine(enable_factor_timing=True, timing_momentum_window=5, timing_alpha=0.3)
+        eng = SmartBetaEngine(
+            enable_factor_timing=True, timing_momentum_window=5, timing_alpha=0.3
+        )
         base = {"MOM": 0.5, "VAL": 0.5}
         history = {"MOM": [0.01] * 5, "VAL": [0.0] * 5}
         info: list[FactorTimingInfo] = []
@@ -404,7 +415,9 @@ class ApplyFactorTimingTest:
         assert mom_info.factor_momentum == pytest.approx(0.05)
 
     def test_negative_momentum_decreases_weight(self):
-        eng = SmartBetaEngine(enable_factor_timing=True, timing_momentum_window=5, timing_alpha=0.3)
+        eng = SmartBetaEngine(
+            enable_factor_timing=True, timing_momentum_window=5, timing_alpha=0.3
+        )
         base = {"MOM": 0.5, "VAL": 0.5}
         history = {"MOM": [-0.01] * 5, "VAL": [0.0] * 5}
         info: list[FactorTimingInfo] = []
@@ -412,7 +425,9 @@ class ApplyFactorTimingTest:
         assert adjusted["MOM"] < adjusted["VAL"]
 
     def test_short_history_zero_signal(self):
-        eng = SmartBetaEngine(enable_factor_timing=True, timing_momentum_window=60, timing_alpha=0.3)
+        eng = SmartBetaEngine(
+            enable_factor_timing=True, timing_momentum_window=60, timing_alpha=0.3
+        )
         base = {"MOM": 0.5}
         history = {"MOM": [0.01] * 10}  # 不足 60
         info: list[FactorTimingInfo] = []
@@ -424,7 +439,9 @@ class ApplyFactorTimingTest:
         assert info[0].current_weight == pytest.approx(info[0].base_weight)
 
     def test_normalization(self):
-        eng = SmartBetaEngine(enable_factor_timing=True, timing_momentum_window=5, timing_alpha=0.5)
+        eng = SmartBetaEngine(
+            enable_factor_timing=True, timing_momentum_window=5, timing_alpha=0.5
+        )
         base = {"A": 0.3, "B": 0.3, "C": 0.4}
         history = {"A": [0.01] * 5, "B": [-0.01] * 5, "C": [0.0] * 5}
         info: list[FactorTimingInfo] = []
@@ -432,7 +449,9 @@ class ApplyFactorTimingTest:
         assert sum(adjusted.values()) == pytest.approx(1.0)
 
     def test_missing_history_for_factor(self):
-        eng = SmartBetaEngine(enable_factor_timing=True, timing_momentum_window=5, timing_alpha=0.3)
+        eng = SmartBetaEngine(
+            enable_factor_timing=True, timing_momentum_window=5, timing_alpha=0.3
+        )
         base = {"MOM": 0.5, "VAL": 0.5}
         history = {"MOM": [0.01] * 5}  # VAL 缺失
         info: list[FactorTimingInfo] = []
@@ -445,6 +464,7 @@ class ApplyFactorTimingTest:
 # ============================================================
 # build_long_short_portfolio
 # ============================================================
+
 
 class BuildLongShortPortfolioTest:
     def setup_method(self):
@@ -544,6 +564,7 @@ class BuildLongShortPortfolioTest:
 # diagnose_weights 诊断
 # ============================================================
 
+
 class DiagnoseWeightsTest:
     def test_diagnose(self):
         eng = SmartBetaEngine(max_tracking_error=0.10)
@@ -559,9 +580,15 @@ class DiagnoseWeightsTest:
         diag = eng.diagnose_weights(res)
         assert diag["effective_n"] == res.effective_n
         assert diag["weight_concentration_hhi"] == res.weight_concentration
-        assert diag["max_weight"] == pytest.approx(float(np.max(res.smart_beta_weights)))
-        assert diag["min_weight"] == pytest.approx(float(np.min(res.smart_beta_weights)))
-        assert diag["weight_std"] == pytest.approx(float(np.std(res.smart_beta_weights)))
+        assert diag["max_weight"] == pytest.approx(
+            float(np.max(res.smart_beta_weights))
+        )
+        assert diag["min_weight"] == pytest.approx(
+            float(np.min(res.smart_beta_weights))
+        )
+        assert diag["weight_std"] == pytest.approx(
+            float(np.std(res.smart_beta_weights))
+        )
         assert diag["tracking_error"] == res.tracking_error
         assert diag["te_within_limit"] == (res.tracking_error <= 0.10)
         assert diag["information_ratio"] == res.information_ratio
@@ -569,5 +596,7 @@ class DiagnoseWeightsTest:
         assert diag["turnover_vs_market"] == res.turnover_vs_market
         assert diag["alpha_vs_market"] == res.alpha_vs_market
         # active_weight_max
-        expected_active_max = float(np.max(np.abs(res.smart_beta_weights - res.market_cap_weights)))
+        expected_active_max = float(
+            np.max(np.abs(res.smart_beta_weights - res.market_cap_weights))
+        )
         assert diag["active_weight_max"] == pytest.approx(expected_active_max)

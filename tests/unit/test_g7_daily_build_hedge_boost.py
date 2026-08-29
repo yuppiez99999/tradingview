@@ -12,6 +12,7 @@
 运行:
     python -m pytest tests/unit/test_g7_daily_build_hedge_boost.py -v
 """
+
 from __future__ import annotations
 
 import json
@@ -287,9 +288,7 @@ class TestInit:
 
     def test_init_calls_load_plan(self) -> None:
         """__init__ 必须调用 _load_plan."""
-        with patch.object(
-            DailyBuildHedgeSystem, "_load_plan"
-        ) as mock_load:
+        with patch.object(DailyBuildHedgeSystem, "_load_plan") as mock_load:
             DailyBuildHedgeSystem(target_date=date(2026, 1, 1))
         mock_load.assert_called_once()
 
@@ -307,9 +306,7 @@ class TestLoadPlan:
         )
 
         system = _make_system()
-        with patch(
-            "utils.execution.daily_build_and_hedge.BASE_DIR", tmp_path
-        ):
+        with patch("utils.execution.daily_build_and_hedge.BASE_DIR", tmp_path):
             system._load_plan()
         assert system.plan_data == {"meta": {"total_capital": 100}}
 
@@ -317,9 +314,7 @@ class TestLoadPlan:
         """两个候选路径都不存在."""
         system = _make_system()
         system.plan_data = {"existing": True}
-        with patch(
-            "utils.execution.daily_build_and_hedge.BASE_DIR", tmp_path
-        ):
+        with patch("utils.execution.daily_build_and_hedge.BASE_DIR", tmp_path):
             system._load_plan()
         # plan_data 不变 (未找到文件时不覆盖)
         assert system.plan_data == {"existing": True}
@@ -332,9 +327,7 @@ class TestLoadPlan:
         plan_file.write_text("not valid json {{{", encoding="utf-8")
 
         system = _make_system()
-        with patch(
-            "utils.execution.daily_build_and_hedge.BASE_DIR", tmp_path
-        ):
+        with patch("utils.execution.daily_build_and_hedge.BASE_DIR", tmp_path):
             system._load_plan()
         # JSON 解析失败, plan_data 保持空
         assert system.plan_data == {}
@@ -343,14 +336,10 @@ class TestLoadPlan:
         """主路径不存在时回退到 backup 路径."""
         # 不创建 trade_plans 目录, 只创建 backup 文件
         backup_file = tmp_path / "500万建仓计划_20260706.json"
-        backup_file.write_text(
-            json.dumps({"backup": True}), encoding="utf-8"
-        )
+        backup_file.write_text(json.dumps({"backup": True}), encoding="utf-8")
 
         system = _make_system()
-        with patch(
-            "utils.execution.daily_build_and_hedge.BASE_DIR", tmp_path
-        ):
+        with patch("utils.execution.daily_build_and_hedge.BASE_DIR", tmp_path):
             system._load_plan()
         assert system.plan_data == {"backup": True}
 
@@ -364,18 +353,14 @@ class TestGetActivePhase:
     """get_active_phase 方法测试."""
 
     def test_active_phase1(self) -> None:
-        system = _make_system(
-            target_date=date(2026, 7, 15), plan_data=SAMPLE_PLAN_DATA
-        )
+        system = _make_system(target_date=date(2026, 7, 15), plan_data=SAMPLE_PLAN_DATA)
         phase, key = system.get_active_phase()
         assert key == "phase1"
         assert phase is not None
         assert phase["name"] == "底仓建立与收租期"
 
     def test_active_phase2(self) -> None:
-        system = _make_system(
-            target_date=date(2027, 6, 1), plan_data=SAMPLE_PLAN_DATA
-        )
+        system = _make_system(target_date=date(2027, 6, 1), plan_data=SAMPLE_PLAN_DATA)
         phase, key = system.get_active_phase()
         assert key == "phase2"
         assert phase is not None
@@ -383,17 +368,13 @@ class TestGetActivePhase:
 
     def test_no_active_phase_completed(self) -> None:
         """日期在所有阶段之后 -> completed."""
-        system = _make_system(
-            target_date=date(2031, 1, 1), plan_data=SAMPLE_PLAN_DATA
-        )
+        system = _make_system(target_date=date(2031, 1, 1), plan_data=SAMPLE_PLAN_DATA)
         phase, key = system.get_active_phase()
         assert phase is None
         assert key == "completed"
 
     def test_date_before_all_phases(self) -> None:
-        system = _make_system(
-            target_date=date(2026, 1, 1), plan_data=SAMPLE_PLAN_DATA
-        )
+        system = _make_system(target_date=date(2026, 1, 1), plan_data=SAMPLE_PLAN_DATA)
         phase, key = system.get_active_phase()
         assert phase is None
         assert key == "completed"
@@ -415,9 +396,7 @@ class TestGetActivePhase:
                 }
             }
         }
-        system = _make_system(
-            target_date=date(2026, 7, 15), plan_data=bad_plan
-        )
+        system = _make_system(target_date=date(2026, 7, 15), plan_data=bad_plan)
         phase, key = system.get_active_phase()
         assert phase is None
         assert key == "completed"
@@ -429,9 +408,7 @@ class TestGetActivePhase:
                 "phase1": {"name": "无日期阶段"},
             }
         }
-        system = _make_system(
-            target_date=date(2026, 7, 15), plan_data=no_dates_plan
-        )
+        system = _make_system(target_date=date(2026, 7, 15), plan_data=no_dates_plan)
         phase, key = system.get_active_phase()
         assert phase is None
         assert key == "completed"
@@ -584,9 +561,7 @@ class TestAssessMarketState:
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
         mock_etf_monitor_cls.return_value.get_summary.return_value = {}
         mock_decision_cls.return_value.pre_market_decision.return_value = None
-        with patch.object(
-            system, "_fetch_index_returns", return_value=None
-        ):
+        with patch.object(system, "_fetch_index_returns", return_value=None):
             result = system.assess_market_state()
         assert result["data_degraded"] is True
         assert result["market_regime"] == "cautious"
@@ -626,9 +601,7 @@ class TestFetchIndexReturns:
     def test_timeout_returns_none(self) -> None:
         """wind_get_index_data 抛 TimeoutError 时返回 None."""
         mock_module = MagicMock()
-        mock_module.wind_get_index_data = MagicMock(
-            side_effect=TimeoutError("timeout")
-        )
+        mock_module.wind_get_index_data = MagicMock(side_effect=TimeoutError("timeout"))
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
         with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_module}):
             result = system._fetch_index_returns("000300.SH")
@@ -694,9 +667,7 @@ class TestFetchIndexReturns:
     def test_runtime_error_returns_none(self) -> None:
         """wind_get_index_data 抛异常 -> None."""
         mock_module = MagicMock()
-        mock_module.wind_get_index_data = MagicMock(
-            side_effect=RuntimeError("timeout")
-        )
+        mock_module.wind_get_index_data = MagicMock(side_effect=RuntimeError("timeout"))
 
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
         with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_module}):
@@ -937,9 +908,7 @@ class TestCalculateHedgePlan:
                 },
             ],
         }
-        system.stock_positions = {
-            "515030.SH": {"shares": 300, "est_price": 1.50}
-        }
+        system.stock_positions = {"515030.SH": {"shares": 300, "est_price": 1.50}}
         system.market_state = {"market_regime": "neutral"}
 
         mock_ghm = MagicMock()
@@ -990,9 +959,7 @@ class TestCalculateHedgePlan:
 
         mock_ghm = MagicMock()
         mock_ghm_cls.return_value = mock_ghm
-        mock_exposure = MagicMock(
-            delta=0.0, gamma=0.0, vega=0.0, theta=0.0
-        )
+        mock_exposure = MagicMock(delta=0.0, gamma=0.0, vega=0.0, theta=0.0)
         mock_ghm.calc_portfolio_greeks.return_value = mock_exposure
         mock_ghm.target_futures_delta_hedge.return_value = {"IF_futures": 0.0}
         mock_ghm.rebalance_signal.return_value = {"delta_rebalance": False}
@@ -1044,9 +1011,7 @@ class TestLoadTargetPortfolioPlan:
         )
         # 清除缓存
         system._target_plan_cache = None
-        with patch(
-            "utils.execution.daily_build_and_hedge.BASE_DIR", tmp_path
-        ):
+        with patch("utils.execution.daily_build_and_hedge.BASE_DIR", tmp_path):
             result = system._load_target_portfolio_plan()
         assert "target_portfolio" in result
         assert "510050.SH" in result["target_portfolio"]
@@ -1127,9 +1092,7 @@ class TestRenderHeader:
 
 
 class TestRenderMarketStateSection:
-    def test_with_float_returns(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_with_float_returns(self, configured_system: DailyBuildHedgeSystem) -> None:
         lines = configured_system._render_market_state_section()
         assert any("市场状态" in line for line in lines)
         assert any("neutral" in line for line in lines)
@@ -1150,9 +1113,7 @@ class TestRenderMarketStateSection:
 
 
 class TestRenderBuildPlanSection:
-    def test_full_plan(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_full_plan(self, configured_system: DailyBuildHedgeSystem) -> None:
         lines = configured_system._render_build_plan_section()
         assert any("建仓计划" in line for line in lines)
         assert any("底仓建立与收租期" in line for line in lines)
@@ -1171,9 +1132,7 @@ class TestRenderBuildPlanSection:
 
 
 class TestRenderHedgePlanSection:
-    def test_full_plan(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_full_plan(self, configured_system: DailyBuildHedgeSystem) -> None:
         lines = configured_system._render_hedge_plan_section()
         assert any("对冲计划" in line for line in lines)
         assert any("期货对冲" in line for line in lines)
@@ -1192,9 +1151,7 @@ class TestRenderHedgePlanSection:
 
 
 class TestRenderSummarySection:
-    def test_summary(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_summary(self, configured_system: DailyBuildHedgeSystem) -> None:
         lines = configured_system._render_summary_section()
         assert any("执行摘要" in line for line in lines)
         assert any("股票订单数" in line for line in lines)
@@ -1203,9 +1160,7 @@ class TestRenderSummarySection:
 
 
 class TestRenderChecklistSection:
-    def test_checklist(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_checklist(self, configured_system: DailyBuildHedgeSystem) -> None:
         lines = configured_system._render_checklist_section()
         assert any("执行检查清单" in line for line in lines)
         assert any("确认账户可用资金" in line for line in lines)
@@ -1213,18 +1168,14 @@ class TestRenderChecklistSection:
 
 
 class TestRenderFooter:
-    def test_footer(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_footer(self, configured_system: DailyBuildHedgeSystem) -> None:
         lines = configured_system._render_footer()
         assert lines[0] == "---"
         assert any("报告生成" in line for line in lines)
 
 
 class TestRenderComplianceSection:
-    def test_success(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_success(self, configured_system: DailyBuildHedgeSystem) -> None:
         mock_compliance = {
             "summary": {
                 "passed": 8,
@@ -1246,13 +1197,16 @@ class TestRenderComplianceSection:
                 }
             ],
         }
-        with patch.object(
-            configured_system,
-            "_load_target_portfolio_plan",
-            return_value={"target_portfolio": {}},
-        ), patch(
-            "utils.broad_based_etf_policy.validate_portfolio_compliance",
-            return_value=mock_compliance,
+        with (
+            patch.object(
+                configured_system,
+                "_load_target_portfolio_plan",
+                return_value={"target_portfolio": {}},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.validate_portfolio_compliance",
+                return_value=mock_compliance,
+            ),
         ):
             lines = configured_system._render_compliance_section()
         assert any("合规校验" in line for line in lines)
@@ -1260,9 +1214,7 @@ class TestRenderComplianceSection:
         assert any("588080.SH" in line for line in lines)
         assert any("需关注" in line for line in lines)
 
-    def test_exception(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_exception(self, configured_system: DailyBuildHedgeSystem) -> None:
         with patch.object(
             configured_system,
             "_load_target_portfolio_plan",
@@ -1274,9 +1226,7 @@ class TestRenderComplianceSection:
 
 
 class TestRenderEtfFlowAdjustmentSection:
-    def test_with_flow(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_with_flow(self, configured_system: DailyBuildHedgeSystem) -> None:
         target_plan = {
             "target_portfolio": {
                 "510050.SH": {"name": "上证50ETF", "base_weight": 0.06},
@@ -1285,46 +1235,51 @@ class TestRenderEtfFlowAdjustmentSection:
         flow = {
             "510050.SH": {"net_flow_yi": 5.5},
         }
-        with patch.object(
-            configured_system,
-            "_load_target_portfolio_plan",
-            return_value=target_plan,
-        ), patch(
-            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-            return_value=flow,
-        ), patch(
-            "utils.broad_based_etf_policy.get_broad_based_codes",
-            return_value=["510050.SH"],
-        ), patch(
-            "utils.broad_based_etf_policy.flow_to_adjustment",
-            return_value={"signal": "加仓", "action": "增配", "factor": 0.1},
+        with (
+            patch.object(
+                configured_system,
+                "_load_target_portfolio_plan",
+                return_value=target_plan,
+            ),
+            patch(
+                "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+                return_value=flow,
+            ),
+            patch(
+                "utils.broad_based_etf_policy.get_broad_based_codes",
+                return_value=["510050.SH"],
+            ),
+            patch(
+                "utils.broad_based_etf_policy.flow_to_adjustment",
+                return_value={"signal": "加仓", "action": "增配", "factor": 0.1},
+            ),
         ):
             lines = configured_system._render_etf_flow_adjustment_section()
         assert any("宽基ETF" in line for line in lines)
         assert any("510050.SH" in line for line in lines)
         assert any("加仓" in line for line in lines)
 
-    def test_no_flow(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
-        with patch.object(
-            configured_system,
-            "_load_target_portfolio_plan",
-            return_value={"target_portfolio": {}},
-        ), patch(
-            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-            return_value={},
-        ), patch(
-            "utils.broad_based_etf_policy.get_broad_based_codes",
-            return_value=[],
+    def test_no_flow(self, configured_system: DailyBuildHedgeSystem) -> None:
+        with (
+            patch.object(
+                configured_system,
+                "_load_target_portfolio_plan",
+                return_value={"target_portfolio": {}},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+                return_value={},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.get_broad_based_codes",
+                return_value=[],
+            ),
         ):
             lines = configured_system._render_etf_flow_adjustment_section()
         assert any("宽基ETF" in line for line in lines)
         assert any("暂不可用" in line for line in lines)
 
-    def test_exception(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_exception(self, configured_system: DailyBuildHedgeSystem) -> None:
         with patch.object(
             configured_system,
             "_load_target_portfolio_plan",
@@ -1336,9 +1291,7 @@ class TestRenderEtfFlowAdjustmentSection:
 
 
 class TestRenderRealtimeQuotesSection:
-    def test_with_quotes(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_with_quotes(self, configured_system: DailyBuildHedgeSystem) -> None:
         quotes = {
             "510050": {
                 "name": "上证50ETF",
@@ -1358,19 +1311,13 @@ class TestRenderRealtimeQuotesSection:
         assert any("510050" in line for line in lines)
         assert any("eastmoney" in line for line in lines)
 
-    def test_empty_quotes(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
-        with patch.object(
-            configured_system, "fetch_realtime_quotes", return_value={}
-        ):
+    def test_empty_quotes(self, configured_system: DailyBuildHedgeSystem) -> None:
+        with patch.object(configured_system, "fetch_realtime_quotes", return_value={}):
             lines = configured_system._render_realtime_quotes_section()
         assert any("实时行情快照" in line for line in lines)
         assert any("暂不可用" in line for line in lines)
 
-    def test_with_none_pe_pb(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_with_none_pe_pb(self, configured_system: DailyBuildHedgeSystem) -> None:
         """pe/pb 为 None 时显示 '-'."""
         quotes = {
             "588080": {
@@ -1391,9 +1338,7 @@ class TestRenderRealtimeQuotesSection:
 
 
 class TestRenderEtfFlowDecisionSection:
-    def test_success_intraday(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_success_intraday(self, configured_system: DailyBuildHedgeSystem) -> None:
         """盘中决策 (含突变信号 + 推荐 + LLM + 融合)."""
         configured_system.market_state["etf_flow_decision"] = {
             "status": "success",
@@ -1489,9 +1434,7 @@ class TestRenderEtfFlowDecisionSection:
     def test_status_not_success(self) -> None:
         """status != success -> 显示不可用."""
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
-        system.market_state = {
-            "etf_flow_decision": {"status": "error"}
-        }
+        system.market_state = {"etf_flow_decision": {"status": "error"}}
         lines = system._render_etf_flow_decision_section()
         assert any("暂不可用" in line for line in lines)
 
@@ -1511,9 +1454,7 @@ class TestRenderEtfFlowDecisionSection:
 class TestGenerateReport:
     """generate_report 方法测试."""
 
-    def test_full_report(
-        self, configured_system: DailyBuildHedgeSystem
-    ) -> None:
+    def test_full_report(self, configured_system: DailyBuildHedgeSystem) -> None:
         """完整报告生成 (etf_flow_decision 已存在, 不触发 assess_market_state)."""
         configured_system.market_state["etf_flow_decision"] = {
             "status": "success",
@@ -1530,21 +1471,25 @@ class TestGenerateReport:
             "recommendations": [],
             "fused_signals": [],
         }
-        with patch.object(
-            configured_system,
-            "_load_target_portfolio_plan",
-            return_value={"target_portfolio": {}},
-        ), patch.object(
-            configured_system, "fetch_realtime_quotes", return_value={}
-        ), patch(
-            "utils.broad_based_etf_policy.validate_portfolio_compliance",
-            return_value={"summary": {}, "holdings": []},
-        ), patch(
-            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-            return_value={},
-        ), patch(
-            "utils.broad_based_etf_policy.get_broad_based_codes",
-            return_value=[],
+        with (
+            patch.object(
+                configured_system,
+                "_load_target_portfolio_plan",
+                return_value={"target_portfolio": {}},
+            ),
+            patch.object(configured_system, "fetch_realtime_quotes", return_value={}),
+            patch(
+                "utils.broad_based_etf_policy.validate_portfolio_compliance",
+                return_value={"summary": {}, "holdings": []},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+                return_value={},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.get_broad_based_codes",
+                return_value=[],
+            ),
         ):
             report = configured_system.generate_report()
 
@@ -1565,9 +1510,7 @@ class TestGenerateReport:
     ) -> None:
         """etf_flow_decision 缺失时调用 assess_market_state."""
         configured_system.market_state["etf_flow_decision"] = None
-        with patch.object(
-            configured_system, "assess_market_state"
-        ) as mock_assess:
+        with patch.object(configured_system, "assess_market_state") as mock_assess:
             mock_assess.return_value = {
                 "market_regime": "neutral",
                 "etf_flow_decision": {"status": "success"},
@@ -1575,23 +1518,29 @@ class TestGenerateReport:
                 "index_return_20d": 0.02,
                 "macro_heat_score": 55,
             }
-            with patch.object(
-                configured_system,
-                "_load_target_portfolio_plan",
-                return_value={"target_portfolio": {}},
-            ), patch.object(
-                configured_system,
-                "fetch_realtime_quotes",
-                return_value={},
-            ), patch(
-                "utils.broad_based_etf_policy.validate_portfolio_compliance",
-                return_value={"summary": {}, "holdings": []},
-            ), patch(
-                "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-                return_value={},
-            ), patch(
-                "utils.broad_based_etf_policy.get_broad_based_codes",
-                return_value=[],
+            with (
+                patch.object(
+                    configured_system,
+                    "_load_target_portfolio_plan",
+                    return_value={"target_portfolio": {}},
+                ),
+                patch.object(
+                    configured_system,
+                    "fetch_realtime_quotes",
+                    return_value={},
+                ),
+                patch(
+                    "utils.broad_based_etf_policy.validate_portfolio_compliance",
+                    return_value={"summary": {}, "holdings": []},
+                ),
+                patch(
+                    "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+                    return_value={},
+                ),
+                patch(
+                    "utils.broad_based_etf_policy.get_broad_based_codes",
+                    return_value=[],
+                ),
             ):
                 configured_system.generate_report()
         mock_assess.assert_called_once()
@@ -1610,25 +1559,29 @@ class TestSaveReport:
         configured_system: DailyBuildHedgeSystem,
         tmp_path: Path,
     ) -> None:
-        with patch.object(
-            configured_system, "generate_report", return_value="# Test Report"
-        ), patch.object(
-            configured_system,
-            "_load_target_portfolio_plan",
-            return_value={"target_portfolio": {}},
-        ), patch(
-            "utils.broad_based_etf_policy.validate_portfolio_compliance",
-            return_value={"summary": {}, "holdings": []},
-        ), patch(
-            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-            return_value={},
-        ), patch(
-            "utils.broad_based_etf_policy.get_broad_based_codes",
-            return_value=[],
+        with (
+            patch.object(
+                configured_system, "generate_report", return_value="# Test Report"
+            ),
+            patch.object(
+                configured_system,
+                "_load_target_portfolio_plan",
+                return_value={"target_portfolio": {}},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.validate_portfolio_compliance",
+                return_value={"summary": {}, "holdings": []},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+                return_value={},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.get_broad_based_codes",
+                return_value=[],
+            ),
         ):
-            md_path, json_path = configured_system.save_report(
-                str(tmp_path)
-            )
+            md_path, json_path = configured_system.save_report(str(tmp_path))
 
         assert Path(md_path).exists()
         assert Path(json_path).exists()
@@ -1649,24 +1602,29 @@ class TestSaveReport:
         tmp_path: Path,
     ) -> None:
         """无 output_dir 时使用默认路径 (BASE_DIR/每日报告归档/...)."""
-        with patch.object(
-            configured_system, "generate_report", return_value="# Test"
-        ), patch.object(
-            configured_system,
-            "_load_target_portfolio_plan",
-            return_value={"target_portfolio": {}},
-        ), patch(
-            "utils.broad_based_etf_policy.validate_portfolio_compliance",
-            return_value={"summary": {}, "holdings": []},
-        ), patch(
-            "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
-            return_value={},
-        ), patch(
-            "utils.broad_based_etf_policy.get_broad_based_codes",
-            return_value=[],
-        ), patch(
-            "utils.execution.daily_build_and_hedge.BASE_DIR",
-            tmp_path,
+        with (
+            patch.object(configured_system, "generate_report", return_value="# Test"),
+            patch.object(
+                configured_system,
+                "_load_target_portfolio_plan",
+                return_value={"target_portfolio": {}},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.validate_portfolio_compliance",
+                return_value={"summary": {}, "holdings": []},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.fetch_national_team_flow_signals",
+                return_value={},
+            ),
+            patch(
+                "utils.broad_based_etf_policy.get_broad_based_codes",
+                return_value=[],
+            ),
+            patch(
+                "utils.execution.daily_build_and_hedge.BASE_DIR",
+                tmp_path,
+            ),
         ):
             md_path, json_path = configured_system.save_report()
 
@@ -1684,33 +1642,33 @@ class TestRun:
     """run 方法测试."""
 
     def test_success(self) -> None:
-        system = _make_system(
-            target_date=date(2026, 7, 15), plan_data=SAMPLE_PLAN_DATA
-        )
+        system = _make_system(target_date=date(2026, 7, 15), plan_data=SAMPLE_PLAN_DATA)
 
         def fake_assess():
             system.market_state = {"market_regime": "neutral"}
             return system.market_state
 
-        with patch.object(
-            system,
-            "get_active_phase",
-            return_value=(SAMPLE_PLAN_DATA["execution_plan"]["phase1"], "phase1"),
-        ), patch.object(
-            system, "assess_market_state", side_effect=fake_assess
-        ), patch.object(
-            system, "calculate_risk_budget", return_value={}
-        ), patch.object(
-            system,
-            "generate_build_instructions",
-            return_value={"morning_orders": [], "afternoon_orders": []},
-        ), patch.object(
-            system,
-            "calculate_hedge_plan",
-            return_value={
-                "futures_hedge": {"contracts": 0},
-                "option_hedge": [],
-            },
+        with (
+            patch.object(
+                system,
+                "get_active_phase",
+                return_value=(SAMPLE_PLAN_DATA["execution_plan"]["phase1"], "phase1"),
+            ),
+            patch.object(system, "assess_market_state", side_effect=fake_assess),
+            patch.object(system, "calculate_risk_budget", return_value={}),
+            patch.object(
+                system,
+                "generate_build_instructions",
+                return_value={"morning_orders": [], "afternoon_orders": []},
+            ),
+            patch.object(
+                system,
+                "calculate_hedge_plan",
+                return_value={
+                    "futures_hedge": {"contracts": 0},
+                    "option_hedge": [],
+                },
+            ),
         ):
             result = system.run()
 
@@ -1721,11 +1679,7 @@ class TestRun:
         assert "hedge_plan" in result
 
     def test_no_active_phase(self) -> None:
-        system = _make_system(
-            target_date=date(2031, 1, 1), plan_data=SAMPLE_PLAN_DATA
-        )
-        with patch.object(
-            system, "get_active_phase", return_value=(None, "completed")
-        ):
+        system = _make_system(target_date=date(2031, 1, 1), plan_data=SAMPLE_PLAN_DATA)
+        with patch.object(system, "get_active_phase", return_value=(None, "completed")):
             result = system.run()
         assert result["status"] == "no_active_phase"

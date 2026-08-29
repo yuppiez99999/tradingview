@@ -153,3 +153,14 @@
 - [ ] 对 `daily_trading_workflow.py` 进行专项重构（状态持久化、类型契约、路径配置化）
 - [ ] 补充单元测试覆盖风控状态持久化和环境检测分支
 - [ ] 将本报告链接到 `cairn/LOG.md` 和 `docs/CODE_REVIEW_*.md`
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [GLM 4.5-air LLM 驱动代码审查方法论（open-code-review + GLM 4.5-air）](code-review-glm45-llm-scan.md) (相似度 12%)
+- [open-code-review 代码审查报告（核心模块）](code-quality-review-open-code-review.md) (相似度 12%)
+- [代码质量审查 Wave6（2026-08-06）— 对冲/执行/管道/数据模块 + 待复核项复核](code-quality-review-wave6-20260806.md) (相似度 11%)
+- [代码质量修复批次 — 2026-08-13（审查报告 B1/B2/S1/S2/S3/S4/S5/N1）](code-quality-fix-batch-20260813.md) (相似度 10%)
+- [代码审查经验沉淀：量化系统 8.4 资金安全与回测可信度](code-review-lessons-v8.4.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -71,3 +71,14 @@ python scripts/verify_p3_0_gate.py --weeks 2
 - ROADMAP: P3.0 (09-03~09-05) 门禁
 - 代码: `utils/execution/fills_store.py` + `fills_pnl_bridge.py` + `shadow_account_system.py` + `scripts/verify_p3_0_gate.py`
 - 测试: `tests/unit/test_p3_0_gate.py` (10 用例) + `test_fills_pnl_bridge_unit.py` (4 断言更新) + `test_dte1_fills_store_20260824.py` (回归通过)
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [DTE-1 建仓接入 FillsStore 事实源 (2026-08-24)](dte1-build-fills-store-20260824.md) (相似度 34%)
+- [影子观察期真实性核查 (2026-08-24)](shadow-realness-audit-20260824.md) (相似度 24%)
+- [运维部署 + 灰度发布 (2026-08-24)](ops-gray-release-20260824.md) (相似度 24%)
+- [成交回报驱动 PnL：G2/G4 执行闭环补齐经验沉淀（2026-08-08）](fills-driven-pnl-lessons-20260808.md) (相似度 15%)
+- [代码审查明细 — daily_trade_executor (2026-08-24)](code-review-daily-executor-20260824.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

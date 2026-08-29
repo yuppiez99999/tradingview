@@ -17,6 +17,7 @@
     - 单一职责: 只管订单生命周期,不撮合、不计算成本
     - 复用数据类: 全量使用 utils.wt_structs.OrderData
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -146,7 +147,9 @@ class OrderQueue:
         )
         self._completed[order_id] = filled
 
-    def mark_partial(self, order_id: str, fill_price: float, fill_volume: float) -> None:
+    def mark_partial(
+        self, order_id: str, fill_price: float, fill_volume: float
+    ) -> None:
         """标记订单部分成交 — 累加 traded_volume,产出 PART_TRADED 新对象。
 
         若累计 traded_volume >= volume,自动转 ALL_TRADED。

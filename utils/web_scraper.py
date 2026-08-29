@@ -41,6 +41,7 @@ import requests
 
 try:
     import certifi
+
     _SSL_VERIFY = certifi.where()
 except ImportError:
     _SSL_VERIFY = True
@@ -83,19 +84,44 @@ logger = get_logger("web_scraper")
 
 # 允许的金融数据源域名 (含子域通配)
 ALLOWED_DOMAINS = {
-    "eastmoney.com", "np-anotice-stock.eastmoney.com", "np-cnotice-stock.eastmoney.com",
-    "reportapi.eastmoney.com", "data.eastmoney.com", "search-api-web.eastmoney.com",
-    "push2.eastmoney.com", "push2his.eastmoney.com",
-    "sina.com.cn", "search.sina.com.cn", "sinajs.cn",
-    "cninfo.com.cn", "www.cninfo.com.cn", "static.cninfo.com.cn",
-    "10jqka.com.cn", "fund.10jqka.com.cn",
+    "eastmoney.com",
+    "np-anotice-stock.eastmoney.com",
+    "np-cnotice-stock.eastmoney.com",
+    "reportapi.eastmoney.com",
+    "data.eastmoney.com",
+    "search-api-web.eastmoney.com",
+    "push2.eastmoney.com",
+    "push2his.eastmoney.com",
+    "sina.com.cn",
+    "search.sina.com.cn",
+    "sinajs.cn",
+    "cninfo.com.cn",
+    "www.cninfo.com.cn",
+    "static.cninfo.com.cn",
+    "10jqka.com.cn",
+    "fund.10jqka.com.cn",
     "10jqka.com",
-    "cls.cn", "finance.sina.com.cn", "stockstar.com",
+    "cls.cn",
+    "finance.sina.com.cn",
+    "stockstar.com",
 }
 
 # 内网/保留地址段 (禁止访问)
-_BLOCKED_NETS = ("127.", "10.", "192.168.", "172.16.", "172.17.", "172.18.",
-                 "172.19.", "172.2", "172.3", "0.", "169.254.", "::1", "localhost")
+_BLOCKED_NETS = (
+    "127.",
+    "10.",
+    "192.168.",
+    "172.16.",
+    "172.17.",
+    "172.18.",
+    "172.19.",
+    "172.2",
+    "172.3",
+    "0.",
+    "169.254.",
+    "::1",
+    "localhost",
+)
 
 
 def is_allowed_domain(url: str) -> bool:
@@ -119,6 +145,7 @@ def is_allowed_domain(url: str) -> bool:
         return False
     except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         return False
+
 
 # ============================================================
 # 数据结构
@@ -248,7 +275,9 @@ class WebScraper:
 
     def __init__(self, cache_dir: Optional[Path] = None, timeout: int = 15):
         if not HAS_BS4:
-            raise ImportError("BeautifulSoup (bs4) 未安装, 请运行: pip install beautifulsoup4")
+            raise ImportError(
+                "BeautifulSoup (bs4) 未安装, 请运行: pip install beautifulsoup4"
+            )
         self.session = _create_session()
         self.timeout = timeout
         self.cache = _TTLCache(ttl_seconds=600)
@@ -276,12 +305,21 @@ class WebScraper:
                 page = Fetcher.get(url, stealthy=True, timeout=self.timeout)
                 if page and page.status == 200:
                     return cast(str, page.body)
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.debug(f"Scrapling 抓取失败 ({url}): {e}, 回退到 requests")
 
         # P2: requests + bs4
         try:
-            resp = self.session.get(url, params=params, timeout=self.timeout, verify=_SSL_VERIFY)
+            resp = self.session.get(
+                url, params=params, timeout=self.timeout, verify=_SSL_VERIFY
+            )
             if resp.status_code == 200:
                 # 自动检测编码 (中文网站常用 gbk/utf-8)
                 if resp.encoding and resp.encoding.lower() == "iso-8859-1":
@@ -290,11 +328,20 @@ class WebScraper:
             logger.warning(f"HTTP {resp.status_code}: {url}")
         except requests.exceptions.Timeout:
             logger.warning(f"请求超时 ({self.timeout}s): {url}")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"请求失败 ({url}): {e}")
         return None
 
-    def _fetch_json(self, url: str, params: Optional[dict] = None, headers: Optional[dict] = None) -> Optional[Any]:
+    def _fetch_json(
+        self, url: str, params: Optional[dict] = None, headers: Optional[dict] = None
+    ) -> Optional[Any]:
         """获取 JSON API 响应"""
         # P3: 域名白名单校验 (防止 SSRF)
         if not is_allowed_domain(url):
@@ -314,7 +361,14 @@ class WebScraper:
             if resp.status_code == 200:
                 return resp.json()
             logger.warning(f"HTTP {resp.status_code}: {url}")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"JSON 请求失败 ({url}): {e}")
         return None
 
@@ -402,7 +456,9 @@ class WebScraper:
             art_code = row.get("art_code", "")
             published = row.get("notice_date", "") or row.get("eiTime", "")
             content_url = (
-                f"https://np-cnotice-stock.eastmoney.com/api/content/notice?art_code={art_code}" if art_code else ""
+                f"https://np-cnotice-stock.eastmoney.com/api/content/notice?art_code={art_code}"
+                if art_code
+                else ""
             )
             items.append(
                 NewsItem(
@@ -444,11 +500,20 @@ class WebScraper:
             "searchkey": "",
         }
         try:
-            resp = self.session.post(url, data=data, timeout=self.timeout, verify=_SSL_VERIFY)
+            resp = self.session.post(
+                url, data=data, timeout=self.timeout, verify=_SSL_VERIFY
+            )
             if resp.status_code != 200:
                 return []
             json_data = resp.json()
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"巨潮公告请求失败 ({symbol}): {e}")
             return []
 
@@ -456,7 +521,9 @@ class WebScraper:
         for row in json_data.get("announcements", [])[:limit]:
             title = row.get("announcementTitle", "")
             adjunct_url = row.get("adjunctUrl", "")
-            content_url = f"https://static.cninfo.com.cn/{adjunct_url}" if adjunct_url else ""
+            content_url = (
+                f"https://static.cninfo.com.cn/{adjunct_url}" if adjunct_url else ""
+            )
             published = row.get("announcementTime", "")
             # 时间戳转日期
             if isinstance(published, int):
@@ -470,7 +537,10 @@ class WebScraper:
                     category="announcement",
                     published_at=str(published),
                     symbol=symbol,
-                    raw={"sec_code": row.get("secCode", ""), "org_id": row.get("orgId", "")},
+                    raw={
+                        "sec_code": row.get("secCode", ""),
+                        "org_id": row.get("orgId", ""),
+                    },
                 )
             )
         logger.info(f"巨潮公告 ({symbol}): 获取 {len(items)} 条")
@@ -535,7 +605,11 @@ class WebScraper:
             rating_change = row.get("emRatingChangeName", "")
             published = row.get("publishDate", "") or row.get("publishTime", "")
             info_code = row.get("infoCode", "")
-            content_url = f"https://data.eastmoney.com/report/zw_stock.jshtml?infoCode={info_code}" if info_code else ""
+            content_url = (
+                f"https://data.eastmoney.com/report/zw_stock.jshtml?infoCode={info_code}"
+                if info_code
+                else ""
+            )
             # 研报内容摘要
             summary = row.get("content", "")[:500] if row.get("content") else ""
 
@@ -690,7 +764,9 @@ class WebScraper:
     # 行业/板块舆情
     # ----------------------------------------------------------
 
-    def fetch_industry_sentiment(self, industry: str, limit: int = 30) -> dict[str, Any]:
+    def fetch_industry_sentiment(
+        self, industry: str, limit: int = 30
+    ) -> dict[str, Any]:
         """抓取行业舆情汇总
 
         Args:
@@ -710,7 +786,20 @@ class WebScraper:
 
         # 提取热门关键词 (简单词频统计)
         word_count: dict[str, int] = {}
-        stop_words = {"的", "了", "在", "是", "和", "与", "及", "或", "为", "对", "由", "从"}
+        stop_words = {
+            "的",
+            "了",
+            "在",
+            "是",
+            "和",
+            "与",
+            "及",
+            "或",
+            "为",
+            "对",
+            "由",
+            "从",
+        }
         for item in news_items:
             # 从标题和内容中提取关键词
             text = item.title + " " + item.content
@@ -738,7 +827,9 @@ class WebScraper:
     # 批量抓取 (供组合分析用)
     # ----------------------------------------------------------
 
-    def fetch_portfolio_news(self, symbols: list[str], limit_per_symbol: int = 10) -> dict[str, list[NewsItem]]:
+    def fetch_portfolio_news(
+        self, symbols: list[str], limit_per_symbol: int = 10
+    ) -> dict[str, list[NewsItem]]:
         """批量抓取组合内所有标的的新闻/公告
 
         Args:
@@ -753,7 +844,14 @@ class WebScraper:
             try:
                 items = self.fetch_announcements(symbol, limit=limit_per_symbol)
                 result[symbol] = items
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.warning(f"抓取 {symbol} 失败: {e}")
                 result[symbol] = []
         return result
@@ -777,7 +875,14 @@ class WebScraper:
         try:
             with open(cache_file, encoding="utf-8") as f:
                 return json.load(f)
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"读取缓存文件失败 ({cache_file}): {e}")
             return None
 
@@ -827,7 +932,9 @@ class WebScraper:
             ]
         """
         # 缓存 key
-        cache_key = f"social_media:{keyword}:{','.join(sorted(platforms or []))}:{max_items}"
+        cache_key = (
+            f"social_media:{keyword}:{','.join(sorted(platforms or []))}:{max_items}"
+        )
 
         if use_cache:
             cached = self.cache.get(cache_key)
@@ -844,7 +951,9 @@ class WebScraper:
             # 健康检查
             health = adapter.check_health()
             if not health.get("available", False):
-                logger.debug(f"MediaCrawler 服务不可用 ({health.get('reason')}), 跳过自媒体舆情")
+                logger.debug(
+                    f"MediaCrawler 服务不可用 ({health.get('reason')}), 跳过自媒体舆情"
+                )
                 return []
 
             # 抓取数据
@@ -867,7 +976,14 @@ class WebScraper:
         except ImportError:
             logger.debug("MediaCrawlerAdapter 未安装, 跳过自媒体舆情")
             return []
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.warning(f"自媒体舆情抓取异常: {e}")
             return []
 
@@ -972,7 +1088,14 @@ def self_test() -> bool:
         logger.info(f"  - BeautifulSoup 可用: {status['bs4_available']}")
         logger.info(f"  - 超时: {status['timeout']}s")
         return True
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+    except (
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+    ) as e:
         logger.error(f"[FAIL] web_scraper.py 自检失败: {e}")
         return False
 

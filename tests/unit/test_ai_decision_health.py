@@ -14,7 +14,9 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from ai_decision.health import (
     CircuitBreaker,
@@ -28,8 +30,10 @@ from ai_decision.providers import BaseProvider, MockProvider
 # 辅助: 总是返回 None 的 Provider (模拟故障)
 # ============================================================
 
+
 class _NoneProvider(BaseProvider):
     """模拟故障 provider — generate 总是返回 None"""
+
     is_mock = False
     model_name = "none_provider"
 
@@ -39,6 +43,7 @@ class _NoneProvider(BaseProvider):
 
 class _ExceptionProvider(BaseProvider):
     """模拟异常 provider — generate 总是抛异常"""
+
     is_mock = False
     model_name = "exception_provider"
 
@@ -49,6 +54,7 @@ class _ExceptionProvider(BaseProvider):
 # ============================================================
 # 场景 1: 健康检查通过
 # ============================================================
+
 
 def test_check_healthy_with_mock_provider():
     """场景 1: 默认 MockProvider 探测成功, 返回 healthy=True"""
@@ -79,6 +85,7 @@ def test_check_healthy_records_success():
 # 场景 2: 熔断触发 (连续失败 max_failures 次)
 # ============================================================
 
+
 def test_circuit_triggers_on_consecutive_failures():
     """场景 2: 连续失败 3 次触发熔断"""
     mon = ModelHealthMonitor(max_failures=3, cooldown_seconds=300)
@@ -103,6 +110,7 @@ def test_circuit_not_triggered_below_threshold():
 # 场景 3: 自动降级 MockProvider
 # ============================================================
 
+
 def test_get_provider_fallback_returns_mock_when_open():
     """场景 3: 熔断时 get_provider_with_fallback 返回 MockProvider"""
     mon = ModelHealthMonitor(max_failures=2)
@@ -125,6 +133,7 @@ def test_get_provider_fallback_returns_real_when_closed():
 # ============================================================
 # 场景 4: 冷却恢复
 # ============================================================
+
 
 def test_circuit_resets_after_cooldown():
     """场景 4: cooldown_seconds 后熔断器自动恢复
@@ -169,12 +178,14 @@ def test_record_success_resets_failures():
 # 场景 5: 端到端 (探测失败 → 熔断 → 降级)
 # ============================================================
 
+
 def test_e2e_probe_failure_triggers_circuit_and_fallback():
     """场景 5: 探测连续失败 → 触发熔断 → get_provider_with_fallback 降级 Mock
 
     mock get_active_provider 返回 _NoneProvider 模拟故障
     """
     import ai_decision.health as health_mod
+
     original_gap = health_mod.get_active_provider
 
     mon = ModelHealthMonitor(max_failures=3, cooldown_seconds=300)
@@ -196,6 +207,7 @@ def test_e2e_probe_failure_triggers_circuit_and_fallback():
 def test_e2e_probe_exception_records_failure():
     """场景 5: 探测抛异常时 record_failure 被调用"""
     import ai_decision.health as health_mod
+
     original_gap = health_mod.get_active_provider
 
     mon = ModelHealthMonitor(max_failures=3)
@@ -228,6 +240,7 @@ def test_e2e_circuit_open_check_skips_api_call():
 # 补充: maybe_probe + get_stats + get_health_summary
 # ============================================================
 
+
 def test_maybe_probe_respects_interval():
     """maybe_probe 受 probe_interval 控制, 间隔内返回缓存"""
     mon = ModelHealthMonitor(probe_interval_seconds=60.0)
@@ -249,7 +262,9 @@ def test_maybe_probe_returns_none_for_first_unknown_role():
 
 def test_get_stats_structure():
     """get_stats 返回正确结构"""
-    mon = ModelHealthMonitor(max_failures=3, cooldown_seconds=300, probe_interval_seconds=60)
+    mon = ModelHealthMonitor(
+        max_failures=3, cooldown_seconds=300, probe_interval_seconds=60
+    )
     mon.record_failure("judge")
     stats = mon.get_stats()
     assert "roles" in stats
@@ -295,6 +310,7 @@ def test_get_health_summary():
 # 补充: CircuitBreaker dataclass 验证 (复用验证)
 # ============================================================
 
+
 def test_circuit_breaker_record_failure():
     """CircuitBreaker.record_failure 累计失败并触发熔断"""
     cb = CircuitBreaker(provider="test", max_failures=2, cooldown_seconds=60)
@@ -332,6 +348,7 @@ def test_circuit_breaker_try_reset_after_cooldown():
 # 全局单例
 # ============================================================
 
+
 def test_get_default_monitor_singleton():
     """get_default_monitor 返回全局单例"""
     mon1 = get_default_monitor()
@@ -344,18 +361,21 @@ def test_get_default_monitor_singleton():
 # 端到端: orchestrator 集成
 # ============================================================
 
+
 def test_orchestrator_with_health_monitor_no_crash():
     """端到端: run_decision 传入 health_monitor 不崩溃
 
     验证步骤 3 集成不破坏 orchestrator 主链路
     """
     import shutil
+
     # 清理审计目录
     audit_dir = os.path.join("reports", "ai_decision")
     if os.path.exists(audit_dir):
         shutil.rmtree(audit_dir, ignore_errors=True)
 
     from ai_decision.orchestrator import run_decision
+
     mon = ModelHealthMonitor(max_failures=3, cooldown_seconds=300)
     dec = run_decision("600519", mode="shadow", health_monitor=mon)
     assert dec is not None
@@ -368,4 +388,5 @@ def test_orchestrator_with_health_monitor_no_crash():
 
 if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-v"])

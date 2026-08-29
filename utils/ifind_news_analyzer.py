@@ -58,7 +58,17 @@ class IFinDNewsAnalyzer:
             from call import call as _call
 
             self._call = _call
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError, ImportError) as exc: # pragma: no cover
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+            ImportError,
+        ) as exc:  # pragma: no cover
             logger.error("iFinD call 模块导入失败: %s", exc)
             self._call = None
 
@@ -74,7 +84,11 @@ class IFinDNewsAnalyzer:
         return self._call_news("search_notice", query, size=size, days=days)
 
     def search_trending(
-        self, keyword: str, industry_name: str = "", time_scope: str = "24小时", size: int = 5
+        self,
+        keyword: str,
+        industry_name: str = "",
+        time_scope: str = "24小时",
+        size: int = 5,
     ) -> list[NewsItem]:
         """热点事件"""
         items: list[NewsItem] = []
@@ -89,11 +103,22 @@ class IFinDNewsAnalyzer:
             result = self._call("news", "search_trending_news", params)
             if result.get("ok"):
                 items = self._parse_news_result(result.get("data", {}))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             logger.error("热点事件查询失败:\n%s", traceback.format_exc())
         return items
 
-    def analyze_symbol(self, symbol: str, name: str = "", size: int = 5, days: int = 3) -> StockInsight:
+    def analyze_symbol(
+        self, symbol: str, name: str = "", size: int = 5, days: int = 3
+    ) -> StockInsight:
         """对单个标的做新闻+公告研判"""
         if not symbol:
             raise ValueError("symbol 不能为空")
@@ -114,19 +139,38 @@ class IFinDNewsAnalyzer:
         )
 
     def batch_analyze(
-        self, symbols: list[str], name_map: dict[str, str] | None = None, size: int = 4, days: int = 3
+        self,
+        symbols: list[str],
+        name_map: dict[str, str] | None = None,
+        size: int = 4,
+        days: int = 3,
     ) -> list[StockInsight]:
         """批量研判"""
         name_map = name_map or {}
         results: list[StockInsight] = []
         for symbol in symbols:
             try:
-                results.append(self.analyze_symbol(symbol, name=name_map.get(symbol, ""), size=size, days=days))
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+                results.append(
+                    self.analyze_symbol(
+                        symbol, name=name_map.get(symbol, ""), size=size, days=days
+                    )
+                )
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 logger.error("研判失败: %s", symbol, exc_info=True)
         return results
 
-    def _call_news(self, tool_name: str, query: str, size: int = 5, days: int = 3) -> list[NewsItem]:
+    def _call_news(
+        self, tool_name: str, query: str, size: int = 5, days: int = 3
+    ) -> list[NewsItem]:
         items: list[NewsItem] = []
         if self._call is None:
             return items
@@ -136,15 +180,31 @@ class IFinDNewsAnalyzer:
             if days > 0:
                 from datetime import timedelta
 
-                time_start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+                time_start = (datetime.now() - timedelta(days=days)).strftime(
+                    "%Y-%m-%d"
+                )
             result = self._call(
                 "news",
                 tool_name,
-                {"query": query, "time_start": time_start, "time_end": time_end, "size": size},
+                {
+                    "query": query,
+                    "time_start": time_start,
+                    "time_end": time_end,
+                    "size": size,
+                },
             )
             if result.get("ok"):
                 items = self._parse_news_result(result.get("data", {}))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             logger.error("%s 查询失败:\n%s", tool_name, traceback.format_exc())
         return items
 
@@ -159,7 +219,16 @@ class IFinDNewsAnalyzer:
                 if isinstance(text_content, str):
                     try:
                         parsed = json.loads(text_content)
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        AttributeError,
+                        RuntimeError,
+                        OSError,
+                        TimeoutError,
+                        ConnectionError,
+                    ):  # P2 模块 fail-safe, 待后续精确化
                         parsed = {}
             results = self._extract_results(parsed)
             for item in results:
@@ -185,7 +254,11 @@ class IFinDNewsAnalyzer:
                             or ""
                         ),
                         source=str(
-                            item.get("来源") or item.get("source") or item.get("news_source") or item.get("媒体") or ""
+                            item.get("来源")
+                            or item.get("source")
+                            or item.get("news_source")
+                            or item.get("媒体")
+                            or ""
                         ),
                         publish_time=str(
                             item.get("日期")
@@ -208,7 +281,16 @@ class IFinDNewsAnalyzer:
                         ),
                     )
                 )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             logger.error("资讯解析失败:\n%s", traceback.format_exc())
         return items
 
@@ -221,7 +303,16 @@ class IFinDNewsAnalyzer:
         if isinstance(inner, str):
             try:
                 inner = json.loads(inner)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 inner = None
         if isinstance(inner, dict):
             return self._extract_results(inner)
@@ -234,7 +325,9 @@ class IFinDNewsAnalyzer:
                 return results
         return []
 
-    def _derive_insight(self, items: list[NewsItem], symbol: str) -> tuple[str, float, list[str]]:
+    def _derive_insight(
+        self, items: list[NewsItem], symbol: str
+    ) -> tuple[str, float, list[str]]:
         if not items:
             return "neutral", 0.0, ["未检索到相关资讯"]
 
@@ -254,7 +347,19 @@ class IFinDNewsAnalyzer:
             "放量",
             "景气",
         ]
-        keywords_negative = ["预减", "下滑", "亏损", "处罚", "减持", "质押", "暴雷", "下调", "断供", "降价", "过剩"]
+        keywords_negative = [
+            "预减",
+            "下滑",
+            "亏损",
+            "处罚",
+            "减持",
+            "质押",
+            "暴雷",
+            "下调",
+            "断供",
+            "降价",
+            "过剩",
+        ]
 
         for item in items:
             text = f"{item.title} {item.snippet}".lower()
@@ -285,6 +390,15 @@ class IFinDNewsAnalyzer:
 
             for pattern in [r"\d{6}\.[A-Za-z]{2}", r"[A-Za-z]{2,4}\d{5,6}", r"\d{6}"]:
                 entities.extend(re.findall(pattern, text))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
         return entities[:10]

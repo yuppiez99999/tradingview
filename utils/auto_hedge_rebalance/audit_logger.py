@@ -120,7 +120,15 @@ class AuditLogger:
                     (record_id, timestamp, event_type, trigger_reason, details, approver, ticker)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (record_id, timestamp, event_type, trigger_reason, details_json, approver, ticker),
+                (
+                    record_id,
+                    timestamp,
+                    event_type,
+                    trigger_reason,
+                    details_json,
+                    approver,
+                    ticker,
+                ),
             )
             conn.commit()
 
@@ -266,7 +274,7 @@ class AuditLogger:
 
         where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
         sql = (
-            f"SELECT record_id, timestamp, event_type, trigger_reason, details, approver"
+            f"SELECT record_id, timestamp, event_type, trigger_reason, details, approver"  # noqa: S608 — where 条件值均参数化, 无用户输入拼接
             f" FROM audit_records{where_clause}"
             f" ORDER BY timestamp DESC LIMIT ?"
         )

@@ -38,6 +38,7 @@
     - HC-5: 配置走 ConfigManager 4 级优先级
     - HC-7: 不修改 v8.3_institutional/monitor.py (保留作为旧版骨架)
 """
+
 from __future__ import annotations
 
 # 版本号

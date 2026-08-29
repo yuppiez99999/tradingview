@@ -108,8 +108,18 @@ DEFAULT_TARGET_BETA = 0.05
 # 从 config/risk_params.yaml::quant_neutral_max_drawdown 读取 (fail-safe 兜底 0.08)
 try:
     from utils.risk_params import get_quant_neutral_max_drawdown as _get_qn_max_drawdown
+
     DEFAULT_MAX_DRAWDOWN = _get_qn_max_drawdown()
-except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+except (
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    RuntimeError,
+    OSError,
+    TimeoutError,
+    ConnectionError,
+):
     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
     DEFAULT_MAX_DRAWDOWN = 0.08
 DEFAULT_SHARPE_TARGET = 1.2
@@ -206,17 +216,39 @@ class QuantNeutralRunner:
                 cfg = loader.get_quant_neutral_config()
                 if cfg:
                     self.capital = float(cfg.get("capital", self.capital))
-                    self.gross_exposure_ratio = float(cfg.get("gross_exposure", self.capital * 2)) / self.capital
-                    self.target_long_value = float(cfg.get("gross_exposure", self.target_long_value))
+                    self.gross_exposure_ratio = (
+                        float(cfg.get("gross_exposure", self.capital * 2))
+                        / self.capital
+                    )
+                    self.target_long_value = float(
+                        cfg.get("gross_exposure", self.target_long_value)
+                    )
                     self.target_beta = float(cfg.get("target_beta", self.target_beta))
-                    self.max_net_exposure = float(cfg.get("max_net_exposure", self.max_net_exposure))
+                    self.max_net_exposure = float(
+                        cfg.get("max_net_exposure", self.max_net_exposure)
+                    )
                     self.long_count = int(cfg.get("long_count", self.long_count))
-                    self.max_drawdown = float(cfg.get("max_drawdown_pct", self.max_drawdown))
-                    self.sharpe_target = float(cfg.get("sharpe_target", self.sharpe_target))
-                    self.turnover_target = float(cfg.get("turnover_target_monthly", self.turnover_target))
+                    self.max_drawdown = float(
+                        cfg.get("max_drawdown_pct", self.max_drawdown)
+                    )
+                    self.sharpe_target = float(
+                        cfg.get("sharpe_target", self.sharpe_target)
+                    )
+                    self.turnover_target = float(
+                        cfg.get("turnover_target_monthly", self.turnover_target)
+                    )
                     if "factors" in cfg:
                         self.factor_weights = cfg["factors"]
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"v10.0 配置加载失败, 使用默认值: {e}")
 
         logger.info(
@@ -306,7 +338,9 @@ class QuantNeutralRunner:
                     composite += z * weight
                 # 提取个股 beta (用于组合 beta 计算)
                 try:
-                    stock_beta = float(row.get("beta", 1.0)) if hasattr(row, "get") else 1.0
+                    stock_beta = (
+                        float(row.get("beta", 1.0)) if hasattr(row, "get") else 1.0
+                    )
                 except (TypeError, ValueError):
                     stock_beta = 1.0
                 scores.append(
@@ -405,8 +439,11 @@ class QuantNeutralRunner:
         if total_weight == 0:
             return 1.0  # 默认 1.0
 
-        weighted_beta = sum(p.get("weight", 0) * p.get("beta", 1.0) for p in long_positions)
+        weighted_beta = sum(
+            p.get("weight", 0) * p.get("beta", 1.0) for p in long_positions
+        )
         return float(weighted_beta) / float(total_weight)
+
     # ------------------------------------------------------------
     # 月度调仓主流程
     # ------------------------------------------------------------
@@ -451,13 +488,13 @@ class QuantNeutralRunner:
         # 1. 风控检查: 连续 3 月回撤超限 → 暂停 1 月
         if consecutive_overdrawdown_months >= 3:
             result.action = "pause"
-            result.reason = (
-                f"策略连续 {consecutive_overdrawdown_months} 月回撤超限, 暂停 1 个月, 平仓所有多头和 IC 空头"
-            )
+            result.reason = f"策略连续 {consecutive_overdrawdown_months} 月回撤超限, 暂停 1 个月, 平仓所有多头和 IC 空头"
             result.drawdown_action = "pause"
             result.drawdown_pct = strategy_drawdown_pct
             logger.warning(f"[QuantNeutral] {result.reason}")
-            return self._generate_pause_order(result, current_holdings, current_ic_contracts, ic_price, trade_date)
+            return self._generate_pause_order(
+                result, current_holdings, current_ic_contracts, ic_price, trade_date
+            )
 
         # 2. 风控检查: 单月回撤超 95% 分位 → 仓位减半
         if strategy_drawdown_pct > strategy_history_95pct_drawdown:
@@ -481,7 +518,9 @@ class QuantNeutralRunner:
                 f"策略回撤 {strategy_drawdown_pct * 100:.2f}% > 最大回撤 {self.max_drawdown * 100:.0f}%, "
                 "强制暂停, 平仓所有头寸"
             )
-            return self._generate_pause_order(result, current_holdings, current_ic_contracts, ic_price, trade_date)
+            return self._generate_pause_order(
+                result, current_holdings, current_ic_contracts, ic_price, trade_date
+            )
 
         # 4. 基差警告
         if basis is not None and basis > DEFAULT_BASIS_THRESHOLD:
@@ -502,7 +541,9 @@ class QuantNeutralRunner:
             return result
 
         # 6. 构建多头组合 (等权或按综合得分加权)
-        long_positions = self._build_long_positions(selected, self.target_long_value_adjusted)
+        long_positions = self._build_long_positions(
+            selected, self.target_long_value_adjusted
+        )
         result.long_positions = long_positions
         result.long_count = len(long_positions)
         result.long_market_value = sum(p["amount"] for p in long_positions)
@@ -518,7 +559,8 @@ class QuantNeutralRunner:
                 portfolio_beta=portfolio_beta,
                 target_beta=self.target_beta,
                 ic_price=ic_price,
-                available_margin=self.capital * 0.8,  # 80% 资金可用作 IC 保证金 (保留 20% 应急)
+                available_margin=self.capital
+                * 0.8,  # 80% 资金可用作 IC 保证金 (保留 20% 应急)
                 basis=basis,
             )
             result.ic_hedge = self.ic_calc.build_hedge_order(ic_result, trade_date)
@@ -527,7 +569,15 @@ class QuantNeutralRunner:
         else:
             # 降级模式: 简单计算
             contracts = max(
-                1, min(3, int(result.long_market_value * (portfolio_beta - self.target_beta) / (200 * ic_price)))
+                1,
+                min(
+                    3,
+                    int(
+                        result.long_market_value
+                        * (portfolio_beta - self.target_beta)
+                        / (200 * ic_price)
+                    ),
+                ),
             )
             result.ic_hedge = {
                 "action": "open_short",
@@ -536,11 +586,17 @@ class QuantNeutralRunner:
                 "price": ic_price,
                 "fallback_mode": True,
             }
-            result.net_exposure = portfolio_beta - contracts * 200 * ic_price / result.long_market_value
+            result.net_exposure = (
+                portfolio_beta - contracts * 200 * ic_price / result.long_market_value
+            )
 
         # 9. 调仓指令: 当前 vs 目标
         rebalance_order = self._build_rebalance_orders(
-            current_holdings, long_positions, current_ic_contracts, result.ic_hedge, trade_date
+            current_holdings,
+            long_positions,
+            current_ic_contracts,
+            result.ic_hedge,
+            trade_date,
         )
         result.ic_hedge["rebalance"] = rebalance_order["ic_action"]
         result.action = "rebalance"
@@ -626,7 +682,12 @@ class QuantNeutralRunner:
         target_ic = ic_hedge.get("contracts", 0)
         ic_delta = target_ic - current_ic_contracts
         if ic_delta > 0:
-            ic_action = {"action": "add_short", "delta": ic_delta, "from": current_ic_contracts, "to": target_ic}
+            ic_action = {
+                "action": "add_short",
+                "delta": ic_delta,
+                "from": current_ic_contracts,
+                "to": target_ic,
+            }
         elif ic_delta < 0:
             ic_action = {
                 "action": "reduce_short",
@@ -635,10 +696,16 @@ class QuantNeutralRunner:
                 "to": target_ic,
             }
         else:
-            ic_action = {"action": "hold", "from": current_ic_contracts, "to": target_ic}
+            ic_action = {
+                "action": "hold",
+                "from": current_ic_contracts,
+                "to": target_ic,
+            }
 
         # 换手率计算
-        total_traded = sum(p["amount"] for p in to_buy) + sum(h.get("amount", 0) for h in to_sell)
+        total_traded = sum(p["amount"] for p in to_buy) + sum(
+            h.get("amount", 0) for h in to_sell
+        )
         total_traded += sum(abs(a["delta"]) for a in to_adjust)
         portfolio_value = sum(p["amount"] for p in target_positions) or 1
         turnover = total_traded / portfolio_value
@@ -692,7 +759,16 @@ class QuantNeutralRunner:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"[QuantNeutral] 报告已保存: {report_path}")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"[QuantNeutral] 报告保存失败: {e}")
 
     # ------------------------------------------------------------

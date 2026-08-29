@@ -13,6 +13,7 @@
 - run_check 单次检查接口
 - 异常容错 (fail-closed)
 """
+
 from __future__ import annotations
 
 import sys
@@ -21,8 +22,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -133,7 +132,11 @@ class RiskMonitorTest:
 
     def test_check_margin_l3(self):
         """保证金 >= L3 阈值触发 L3 熔断"""
-        cfg = _make_config(kill_switch_l1_margin=0.5, kill_switch_l2_margin=0.65, kill_switch_l3_margin=0.75)
+        cfg = _make_config(
+            kill_switch_l1_margin=0.5,
+            kill_switch_l2_margin=0.65,
+            kill_switch_l3_margin=0.75,
+        )
         monitor = RiskMonitor(config=cfg)
         mock_ks = MagicMock()
         mock_ks.get_status.return_value = {"margin_ratio": 0.80}
@@ -148,7 +151,11 @@ class RiskMonitorTest:
 
     def test_check_margin_l2(self):
         """保证金 >= L2 阈值触发 L2 强平"""
-        cfg = _make_config(kill_switch_l1_margin=0.5, kill_switch_l2_margin=0.65, kill_switch_l3_margin=0.75)
+        cfg = _make_config(
+            kill_switch_l1_margin=0.5,
+            kill_switch_l2_margin=0.65,
+            kill_switch_l3_margin=0.75,
+        )
         monitor = RiskMonitor(config=cfg)
         mock_ks = MagicMock()
         mock_ks.get_status.return_value = {"margin_ratio": 0.68}
@@ -161,7 +168,11 @@ class RiskMonitorTest:
 
     def test_check_margin_l1(self):
         """保证金 >= L1 阈值触发 L1 警戒"""
-        cfg = _make_config(kill_switch_l1_margin=0.5, kill_switch_l2_margin=0.65, kill_switch_l3_margin=0.75)
+        cfg = _make_config(
+            kill_switch_l1_margin=0.5,
+            kill_switch_l2_margin=0.65,
+            kill_switch_l3_margin=0.75,
+        )
         monitor = RiskMonitor(config=cfg)
         mock_ks = MagicMock()
         mock_ks.get_status.return_value = {"margin_ratio": 0.55}
@@ -174,13 +185,19 @@ class RiskMonitorTest:
 
     def test_check_margin_normal(self):
         """保证金低于所有阈值返回 None 或估算结果"""
-        cfg = _make_config(kill_switch_l1_margin=0.5, kill_switch_l2_margin=0.65, kill_switch_l3_margin=0.75)
+        cfg = _make_config(
+            kill_switch_l1_margin=0.5,
+            kill_switch_l2_margin=0.65,
+            kill_switch_l3_margin=0.75,
+        )
         monitor = RiskMonitor(config=cfg)
         mock_ks = MagicMock()
         mock_ks.get_status.return_value = {"margin_ratio": 0.30}
         monitor._kill_switch = mock_ks
         # 估算路径可能返回 None（无 positions.json）或 alert
-        with patch.object(monitor, "_estimate_margin_from_positions", return_value=None):
+        with patch.object(
+            monitor, "_estimate_margin_from_positions", return_value=None
+        ):
             alert = monitor._check_margin()
         assert alert is None
 
@@ -188,7 +205,9 @@ class RiskMonitorTest:
         """无 KillSwitch 时走估算降级路径"""
         monitor = RiskMonitor(config=_make_config())
         monitor._kill_switch = None
-        with patch.object(monitor, "_estimate_margin_from_positions", return_value=None):
+        with patch.object(
+            monitor, "_estimate_margin_from_positions", return_value=None
+        ):
             alert = monitor._check_margin()
         assert alert is None
 
@@ -218,19 +237,32 @@ class RiskMonitorTest:
         monitor = RiskMonitor(config=cfg)
         positions_file = tmp_path / "positions.json"
         import json
-        positions_file.write_text(json.dumps({
-            "stocks": [{"quantity": 1000, "current_price": 80}],
-            "meta": {"total_capital": 100000},
-        }), encoding="utf-8")
 
-        with patch.object(Path, "resolve", return_value=positions_file.parent), \
-             patch("builtins.open", create=True) as mock_open:
-            mock_open.return_value.__enter__.return_value.read.return_value = positions_file.read_text(encoding="utf-8")
+        positions_file.write_text(
+            json.dumps(
+                {
+                    "stocks": [{"quantity": 1000, "current_price": 80}],
+                    "meta": {"total_capital": 100000},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with (
+            patch.object(Path, "resolve", return_value=positions_file.parent),
+            patch("builtins.open", create=True) as mock_open,
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = (
+                positions_file.read_text(encoding="utf-8")
+            )
             # 直接 mock json.load 更简单
-            with patch("json.load", return_value={
-                "stocks": [{"quantity": 1000, "current_price": 80}],
-                "meta": {"total_capital": 100000},
-            }):
+            with patch(
+                "json.load",
+                return_value={
+                    "stocks": [{"quantity": 1000, "current_price": 80}],
+                    "meta": {"total_capital": 100000},
+                },
+            ):
                 with patch.object(Path, "exists", return_value=True):
                     alert = monitor._estimate_margin_from_positions()
         # margin_ratio = 80000/100000 = 0.8 >= 0.75
@@ -241,8 +273,10 @@ class RiskMonitorTest:
     def test_estimate_margin_exception(self):
         """估算保证金异常返回 None"""
         monitor = RiskMonitor(config=_make_config())
-        with patch.object(Path, "exists", return_value=True), \
-             patch("builtins.open", side_effect=OSError("disk error")):
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch("builtins.open", side_effect=OSError("disk error")),
+        ):
             alert = monitor._estimate_margin_from_positions()
         assert alert is None
 
@@ -255,7 +289,10 @@ class RiskMonitorTest:
         cfg = _make_config(max_daily_drawdown=0.05, max_total_drawdown=0.15)
         monitor = RiskMonitor(config=cfg)
         mock_rg = MagicMock()
-        mock_rg.get_status.return_value = {"daily_drawdown": 0.03, "total_drawdown": 0.16}
+        mock_rg.get_status.return_value = {
+            "daily_drawdown": 0.03,
+            "total_drawdown": 0.16,
+        }
         monitor._risk_guard = mock_rg
 
         alert = monitor._check_drawdown()
@@ -268,7 +305,10 @@ class RiskMonitorTest:
         cfg = _make_config(max_daily_drawdown=0.05, max_total_drawdown=0.15)
         monitor = RiskMonitor(config=cfg)
         mock_rg = MagicMock()
-        mock_rg.get_status.return_value = {"daily_drawdown": 0.06, "total_drawdown": 0.10}
+        mock_rg.get_status.return_value = {
+            "daily_drawdown": 0.06,
+            "total_drawdown": 0.10,
+        }
         monitor._risk_guard = mock_rg
 
         alert = monitor._check_drawdown()
@@ -281,7 +321,10 @@ class RiskMonitorTest:
         cfg = _make_config(max_daily_drawdown=0.05, max_total_drawdown=0.15)
         monitor = RiskMonitor(config=cfg)
         mock_rg = MagicMock()
-        mock_rg.get_status.return_value = {"daily_drawdown": 0.02, "total_drawdown": 0.08}
+        mock_rg.get_status.return_value = {
+            "daily_drawdown": 0.02,
+            "total_drawdown": 0.08,
+        }
         monitor._risk_guard = mock_rg
 
         alert = monitor._check_drawdown()
@@ -333,7 +376,9 @@ class RiskMonitorTest:
     def test_handle_alert_stores(self):
         """告警存储到 latest + history"""
         monitor = RiskMonitor(config=_make_config())
-        alert = RiskAlert(level=2, source="test", message="test alert", actions_taken=["a1", "a2"])
+        alert = RiskAlert(
+            level=2, source="test", message="test alert", actions_taken=["a1", "a2"]
+        )
         monitor._handle_alert(alert)
         assert monitor._latest_alert is alert
         assert monitor._alert_history[-1] is alert
@@ -393,8 +438,10 @@ class RiskMonitorTest:
     def test_run_check_success_no_alerts(self):
         """无告警时 run_check 成功"""
         monitor = RiskMonitor(config=_make_config())
-        with patch.object(monitor, "_check_margin", return_value=None), \
-             patch.object(monitor, "_check_drawdown", return_value=None):
+        with (
+            patch.object(monitor, "_check_margin", return_value=None),
+            patch.object(monitor, "_check_drawdown", return_value=None),
+        ):
             result = monitor.run_check()
         assert isinstance(result, PipelineResult)
         assert result.stage == PipelineStage.RISK_MONITOR
@@ -405,8 +452,10 @@ class RiskMonitorTest:
         """L1 告警时 success=True (L1 < 2)"""
         monitor = RiskMonitor(config=_make_config())
         l1_alert = RiskAlert(level=1, source="t", message="m")
-        with patch.object(monitor, "_check_margin", return_value=l1_alert), \
-             patch.object(monitor, "_check_drawdown", return_value=None):
+        with (
+            patch.object(monitor, "_check_margin", return_value=l1_alert),
+            patch.object(monitor, "_check_drawdown", return_value=None),
+        ):
             result = monitor.run_check()
         assert result.success is True
         assert result.metrics["alerts_count"] == 1
@@ -416,8 +465,10 @@ class RiskMonitorTest:
         """L2 告警时 success=False"""
         monitor = RiskMonitor(config=_make_config())
         l2_alert = RiskAlert(level=2, source="t", message="m")
-        with patch.object(monitor, "_check_margin", return_value=l2_alert), \
-             patch.object(monitor, "_check_drawdown", return_value=None):
+        with (
+            patch.object(monitor, "_check_margin", return_value=l2_alert),
+            patch.object(monitor, "_check_drawdown", return_value=None),
+        ):
             result = monitor.run_check()
         assert result.success is False
         assert result.metrics["max_alert_level"] == 2
@@ -426,8 +477,10 @@ class RiskMonitorTest:
         """L3 告警时 success=False"""
         monitor = RiskMonitor(config=_make_config())
         l3_alert = RiskAlert(level=3, source="t", message="m")
-        with patch.object(monitor, "_check_margin", return_value=l3_alert), \
-             patch.object(monitor, "_check_drawdown", return_value=None):
+        with (
+            patch.object(monitor, "_check_margin", return_value=l3_alert),
+            patch.object(monitor, "_check_drawdown", return_value=None),
+        ):
             result = monitor.run_check()
         assert result.success is False
         assert result.metrics["max_alert_level"] == 3
@@ -437,8 +490,10 @@ class RiskMonitorTest:
         monitor = RiskMonitor(config=_make_config())
         l1 = RiskAlert(level=1, source="t", message="m1")
         l3 = RiskAlert(level=3, source="t", message="m3")
-        with patch.object(monitor, "_check_margin", return_value=l1), \
-             patch.object(monitor, "_check_drawdown", return_value=l3):
+        with (
+            patch.object(monitor, "_check_margin", return_value=l1),
+            patch.object(monitor, "_check_drawdown", return_value=l3),
+        ):
             result = monitor.run_check()
         assert result.success is False
         assert result.metrics["alerts_count"] == 2
@@ -460,10 +515,12 @@ class RiskMonitorTest:
     def test_run_checks_dispatches(self):
         """_run_checks 调用三个检查方法"""
         monitor = RiskMonitor(config=_make_config())
-        with patch.object(monitor, "_check_margin", return_value=None) as m1, \
-             patch.object(monitor, "_check_drawdown", return_value=None) as m2, \
-             patch.object(monitor, "_check_overnight_gap", return_value=None) as m3, \
-             patch.object(monitor, "_handle_alert") as mh:
+        with (
+            patch.object(monitor, "_check_margin", return_value=None) as m1,
+            patch.object(monitor, "_check_drawdown", return_value=None) as m2,
+            patch.object(monitor, "_check_overnight_gap", return_value=None) as m3,
+            patch.object(monitor, "_handle_alert") as mh,
+        ):
             monitor._run_checks()
         m1.assert_called_once()
         m2.assert_called_once()
@@ -474,9 +531,11 @@ class RiskMonitorTest:
         """_run_checks 有告警时调用 _handle_alert"""
         monitor = RiskMonitor(config=_make_config())
         alert = RiskAlert(level=1, source="t", message="m")
-        with patch.object(monitor, "_check_margin", return_value=alert), \
-             patch.object(monitor, "_check_drawdown", return_value=None), \
-             patch.object(monitor, "_check_overnight_gap", return_value=None), \
-             patch.object(monitor, "_handle_alert") as mh:
+        with (
+            patch.object(monitor, "_check_margin", return_value=alert),
+            patch.object(monitor, "_check_drawdown", return_value=None),
+            patch.object(monitor, "_check_overnight_gap", return_value=None),
+            patch.object(monitor, "_handle_alert") as mh,
+        ):
             monitor._run_checks()
         mh.assert_called_once_with(alert)

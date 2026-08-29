@@ -3,6 +3,7 @@
 覆盖 QmtBrokerAPI 连接/下单/撤单/轮询/盘口/账户/持仓全部公开接口,
 mock xtquant (xttrader/xtconstant/xtdata), 包括未连接/异常/超时等分支.
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,10 +24,12 @@ from ms_strategy.src.execution.qmt_broker import QMT_ORDER_STATUS  # noqa: E402
 @pytest.fixture
 def qmt_env():
     """patch xtquant 环境, yield (broker, xt_trader, xt_const, xt_data)."""
-    with patch.object(qmt_mod, "XTQUANT_AVAILABLE", True), \
-         patch.object(qmt_mod, "xttrader", MagicMock(), create=True) as xt_trader, \
-         patch.object(qmt_mod, "xtconstant", MagicMock(), create=True) as xt_const, \
-         patch.object(qmt_mod, "xtdata", MagicMock(), create=True) as xt_data:
+    with (
+        patch.object(qmt_mod, "XTQUANT_AVAILABLE", True),
+        patch.object(qmt_mod, "xttrader", MagicMock(), create=True) as xt_trader,
+        patch.object(qmt_mod, "xtconstant", MagicMock(), create=True) as xt_const,
+        patch.object(qmt_mod, "xtdata", MagicMock(), create=True) as xt_data,
+    ):
         broker = qmt_mod.QmtBrokerAPI(account_id="800123", session_id=123)
         yield broker, xt_trader, xt_const, xt_data
 
@@ -166,10 +169,16 @@ class TestCallbacks:
 
     def test_on_trade_creates_fill(self, qmt_env):
         broker, _, _, _ = qmt_env
-        broker._on_trade({
-            "trade_id": "T1", "order_id": "O1", "code": "510300.SH",
-            "volume": 100, "price": 4.5, "direction": "BUY",
-        })
+        broker._on_trade(
+            {
+                "trade_id": "T1",
+                "order_id": "O1",
+                "code": "510300.SH",
+                "volume": 100,
+                "price": 4.5,
+                "direction": "BUY",
+            }
+        )
         assert len(broker.fills) == 1
         assert broker.fills[0].symbol == "510300.SH"
         assert broker.fills[0].qty == 100
@@ -327,8 +336,10 @@ class TestWaitFill:
     def test_timeout(self, qmt_env):
         broker, xt_trader, _, _ = qmt_env
         _connect(broker, xt_trader)
-        with patch.object(broker, "_query_order_detail", return_value=None), \
-             patch.object(broker, "cancel", return_value=True) as mock_cancel:
+        with (
+            patch.object(broker, "_query_order_detail", return_value=None),
+            patch.object(broker, "cancel", return_value=True) as mock_cancel,
+        ):
             order = MagicMock()
             order.order_id = "O1"
             result = broker.wait_fill(order, timeout=1)
@@ -366,7 +377,9 @@ class TestQueryOrderDetail:
     def test_exception(self, qmt_env):
         broker, xt_trader, _, _ = qmt_env
         _connect(broker, xt_trader)
-        xt_trader.XtQuantTrader.return_value.queryOrder.side_effect = RuntimeError("q fail")
+        xt_trader.XtQuantTrader.return_value.queryOrder.side_effect = RuntimeError(
+            "q fail"
+        )
         assert broker._query_order_detail("X") is None
 
     def test_build_fill_dict(self, qmt_env):
@@ -394,8 +407,13 @@ class TestGetOrderBook:
     def test_success(self, qmt_env):
         broker, _, _, xt_data = qmt_env
         xt_data.get_full_tick.return_value = {
-            "X": {"bidPrice": [4.49], "bidVol": [100],
-                  "askPrice": [4.51], "askVol": [200], "volume": 1000},
+            "X": {
+                "bidPrice": [4.49],
+                "bidVol": [100],
+                "askPrice": [4.51],
+                "askVol": [200],
+                "volume": 1000,
+            },
         }
         ob = broker.get_order_book("X")
         assert ob is not None
@@ -449,7 +467,9 @@ class TestAccount:
     def test_exception_default(self, qmt_env):
         broker, xt_trader, _, _ = qmt_env
         _connect(broker, xt_trader)
-        xt_trader.XtQuantTrader.return_value.queryAsset.side_effect = RuntimeError("fail")
+        xt_trader.XtQuantTrader.return_value.queryAsset.side_effect = RuntimeError(
+            "fail"
+        )
         info = broker.get_account_info()
         assert info == {"available": 0.0, "total": 0.0, "frozen": 0.0, "margin": 0.0}
 
@@ -476,7 +496,9 @@ class TestPositions:
     def test_exception(self, qmt_env):
         broker, xt_trader, _, _ = qmt_env
         _connect(broker, xt_trader)
-        xt_trader.XtQuantTrader.return_value.queryPosition.side_effect = RuntimeError("fail")
+        xt_trader.XtQuantTrader.return_value.queryPosition.side_effect = RuntimeError(
+            "fail"
+        )
         assert broker.get_positions() == {}
 
 

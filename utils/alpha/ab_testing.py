@@ -212,7 +212,7 @@ class ABTest:
             daily_records=d.get("daily_records", []),
             assignment_log=d.get("assignment_log", []),
             result=ABTestResult.from_dict(d["result"]) if d.get("result") else None,  # type: ignore[index]
-            )
+        )
 
 
 # ============================================================
@@ -298,7 +298,9 @@ class ABTestFramework:
         if config.name in self._tests:
             raise TestAlreadyExistsError(f"测试已存在: {config.name}")
         if not 0.0 <= config.traffic_split <= 1.0:
-            raise ABTestError(f"traffic_split 必须在 [0, 1] 范围内, got {config.traffic_split}")
+            raise ABTestError(
+                f"traffic_split 必须在 [0, 1] 范围内, got {config.traffic_split}"
+            )
         test = ABTest(config=config)
         self._tests[config.name] = test
         self._save_test(config.name)
@@ -393,11 +395,11 @@ class ABTestFramework:
             hash_val = int(hashlib.sha256(symbol.encode("utf-8")).hexdigest(), 16)
             bucket = hash_val % 100
             return "challenger" if bucket < traffic_split * 100 else "champion"
-        elif strategy == SplitStrategy.RANDOM.value:
+        if strategy == SplitStrategy.RANDOM.value:
             import random
 
             return "challenger" if random.random() < traffic_split else "champion"
-        elif strategy == SplitStrategy.ROUND_ROBIN.value:
+        if strategy == SplitStrategy.ROUND_ROBIN.value:
             # 简单轮询 (基于已有分配数)
             return "challenger"  # 简化实现, 实际应基于计数
         return "champion"
@@ -452,12 +454,18 @@ class ABTestFramework:
             raise TestNotFoundError(f"测试未找到: {test_name}")
         test = self._tests[test_name]
         if len(test.daily_records) < test.config.min_samples:
-            raise InsufficientDataError(f"样本不足: {len(test.daily_records)} < {test.config.min_samples}")
+            raise InsufficientDataError(
+                f"样本不足: {len(test.daily_records)} < {test.config.min_samples}"
+            )
 
         # 提取指标序列 (使用 DSR 或 IC 作为主指标)
         primary_metric = self._detect_primary_metric(test)
-        champion_values = [r["champion"].get(primary_metric, 0.0) for r in test.daily_records]
-        challenger_values = [r["challenger"].get(primary_metric, 0.0) for r in test.daily_records]
+        champion_values = [
+            r["champion"].get(primary_metric, 0.0) for r in test.daily_records
+        ]
+        challenger_values = [
+            r["challenger"].get(primary_metric, 0.0) for r in test.daily_records
+        ]
 
         # 计算统计量
         champion_mean = sum(champion_values) / len(champion_values)
@@ -466,8 +474,12 @@ class ABTestFramework:
         effect_size = self._cohens_d(champion_values, challenger_values)
 
         # 汇总指标 (取最后一天的或平均值)
-        champion_summary = self._summarize_metrics([r["champion"] for r in test.daily_records])
-        challenger_summary = self._summarize_metrics([r["challenger"] for r in test.daily_records])
+        champion_summary = self._summarize_metrics(
+            [r["champion"] for r in test.daily_records]
+        )
+        challenger_summary = self._summarize_metrics(
+            [r["challenger"] for r in test.daily_records]
+        )
 
         is_significant = p_value < test.config.significance_level
         challenger_better = challenger_mean > champion_mean
@@ -596,7 +608,9 @@ class ABTestFramework:
         # 检查晋升条件
         meets_criteria = True
         for key, threshold in criteria.items():
-            val = challenger_metrics.get(key.replace("_min", "").replace("_max", ""), 0.0)
+            val = challenger_metrics.get(
+                key.replace("_min", "").replace("_max", ""), 0.0
+            )
             if "_min" in key and val < threshold:
                 meets_criteria = False
                 break
@@ -632,11 +646,17 @@ class ABTestFramework:
         if test.result is None:
             raise ABTestError(f"测试 {test_name} 未评估, 请先调用 evaluate_test()")
         if test.result.recommendation != "promote":
-            raise ABTestError(f"测试 {test_name} 推荐动作为 {test.result.recommendation}, 不可晋升")
+            raise ABTestError(
+                f"测试 {test_name} 推荐动作为 {test.result.recommendation}, 不可晋升"
+            )
         # 通过 ModelRegistry 晋升 challenger
-        challenger_versions = self.model_registry.get_model_versions(test.config.challenger_model)
+        challenger_versions = self.model_registry.get_model_versions(
+            test.config.challenger_model
+        )
         if not challenger_versions:
-            raise ABTestError(f"challenger 模型 {test.config.challenger_model} 未在 registry 中找到")
+            raise ABTestError(
+                f"challenger 模型 {test.config.challenger_model} 未在 registry 中找到"
+            )
         latest = challenger_versions[0]
         promoted = self.model_registry.promote_model(
             test.config.challenger_model, latest.version, by=f"ab_test:{test_name}"
@@ -664,9 +684,13 @@ class ABTestFramework:
         if test_name not in self._tests:
             raise TestNotFoundError(f"测试未找到: {test_name}")
         test = self._tests[test_name]
-        champion_versions = self.model_registry.get_model_versions(test.config.champion_model)
+        champion_versions = self.model_registry.get_model_versions(
+            test.config.champion_model
+        )
         if not champion_versions:
-            raise ABTestError(f"champion 模型 {test.config.champion_model} 未在 registry 中找到")
+            raise ABTestError(
+                f"champion 模型 {test.config.champion_model} 未在 registry 中找到"
+            )
         # 找到 champion 的 PRODUCTION 版本 (或最新)
         champion_prod = None
         for v in champion_versions:
@@ -707,6 +731,9 @@ class ABTestFramework:
         for test in self._tests.values():
             if test.status != ABTestStatus.RUNNING.value:
                 continue
-            if test.config.champion_model == model_name or test.config.challenger_model == model_name:
+            if (
+                test.config.champion_model == model_name
+                or test.config.challenger_model == model_name
+            ):
                 return test
         return None

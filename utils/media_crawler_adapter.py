@@ -211,7 +211,9 @@ class MediaCrawlerAdapter:
             cache_ttl: 缓存 TTL (秒), 默认 30 分钟
             enabled: 是否启用, False 时所有方法返回空结果
         """
-        self.base_url = (base_url or os.environ.get("MEDIACRAWLER_BASE_URL", "http://localhost:8080")).rstrip("/")
+        self.base_url = (
+            base_url or os.environ.get("MEDIACRAWLER_BASE_URL", "http://localhost:8080")
+        ).rstrip("/")
         self.api_key = api_key or os.environ.get("MEDIACRAWLER_API_KEY", "")
         self.timeout = timeout
         self.enabled = enabled
@@ -222,7 +224,11 @@ class MediaCrawlerAdapter:
         self._session.trust_env = False
         self._session.proxies = {"http": None, "https": None}
 
-        logger.info("MediaCrawlerAdapter 初始化: base_url=%s, enabled=%s", self.base_url, self.enabled)
+        logger.info(
+            "MediaCrawlerAdapter 初始化: base_url=%s, enabled=%s",
+            self.base_url,
+            self.enabled,
+        )
 
     # ------------------------------------------------------------
     # 健康检查
@@ -234,7 +240,9 @@ class MediaCrawlerAdapter:
             return {"available": False, "reason": "feature_flag_disabled"}
 
         try:
-            resp = self._session.get(f"{self.base_url}/api/health", timeout=self.timeout)
+            resp = self._session.get(
+                f"{self.base_url}/api/health", timeout=self.timeout
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 return {"available": True, "data": data}
@@ -300,7 +308,9 @@ class MediaCrawlerAdapter:
         if use_cache:
             cached = self._cache.get(cache_key)
             if cached is not None:
-                logger.debug("MediaCrawler 命中缓存: %s @ %s", keyword, display_platform)
+                logger.debug(
+                    "MediaCrawler 命中缓存: %s @ %s", keyword, display_platform
+                )
                 cached.elapsed_ms = (time.perf_counter() - start_time) * 1000
                 return cached
 
@@ -325,7 +335,11 @@ class MediaCrawlerAdapter:
             )
 
             if start_resp.status_code not in (200, 400):
-                logger.warning("MediaCrawler 启动失败: HTTP_%s - %s", start_resp.status_code, start_resp.text[:200])
+                logger.warning(
+                    "MediaCrawler 启动失败: HTTP_%s - %s",
+                    start_resp.status_code,
+                    start_resp.text[:200],
+                )
                 return MediaCrawlerResult(
                     success=False,
                     source="MediaCrawler",
@@ -358,7 +372,10 @@ class MediaCrawlerAdapter:
                     # 任务结束, 获取数据文件
                     break
                 if status == "error":
-                    logger.warning("MediaCrawler 任务错误: %s", status_data.get("error_message", ""))
+                    logger.warning(
+                        "MediaCrawler 任务错误: %s",
+                        status_data.get("error_message", ""),
+                    )
                     break
 
                 time.sleep(self.POLL_INTERVAL)
@@ -439,7 +456,9 @@ class MediaCrawlerAdapter:
     # 读取最新数据文件
     # ------------------------------------------------------------
 
-    def _fetch_latest_data(self, platform: str, max_items: int) -> list[MediaCrawlerNewsItem]:
+    def _fetch_latest_data(
+        self, platform: str, max_items: int
+    ) -> list[MediaCrawlerNewsItem]:
         """从 MediaCrawler 数据目录读取最新抓取的数据"""
         items: list[MediaCrawlerNewsItem] = []
 
@@ -480,7 +499,16 @@ class MediaCrawlerAdapter:
                 if parsed:
                     items.append(parsed)
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug("MediaCrawler 读取数据文件异常: %s", e)
@@ -491,7 +519,9 @@ class MediaCrawlerAdapter:
     # 原始数据解析
     # ------------------------------------------------------------
 
-    def _parse_raw_item(self, raw: dict[str, Any], platform: str) -> MediaCrawlerNewsItem | None:
+    def _parse_raw_item(
+        self, raw: dict[str, Any], platform: str
+    ) -> MediaCrawlerNewsItem | None:
         """解析 MediaCrawler 原始数据为统一格式"""
         try:
             title = (
@@ -530,7 +560,13 @@ class MediaCrawlerAdapter:
                 or ""
             )
             # 发布时间
-            pub_ts = raw.get("create_time") or raw.get("publish_time") or raw.get("pub_ts") or raw.get("time") or 0
+            pub_ts = (
+                raw.get("create_time")
+                or raw.get("publish_time")
+                or raw.get("pub_ts")
+                or raw.get("time")
+                or 0
+            )
             published_at = ""
             if pub_ts:
                 try:
@@ -544,15 +580,28 @@ class MediaCrawlerAdapter:
 
             # 互动数据
             like_count = int(raw.get("liked_count") or raw.get("like_count") or 0)
-            comment_count = int(raw.get("comment_count") or raw.get("video_comment") or 0)
-            share_count = int(raw.get("share_count") or raw.get("video_share_count") or 0)
-            view_count = int(raw.get("viewed_count") or raw.get("video_play_count") or raw.get("read_count") or 0)
+            comment_count = int(
+                raw.get("comment_count") or raw.get("video_comment") or 0
+            )
+            share_count = int(
+                raw.get("share_count") or raw.get("video_share_count") or 0
+            )
+            view_count = int(
+                raw.get("viewed_count")
+                or raw.get("video_play_count")
+                or raw.get("read_count")
+                or 0
+            )
 
             # 创作者信息
-            creator_nickname = raw.get("nickname") or raw.get("user_name") or raw.get("author") or ""
+            creator_nickname = (
+                raw.get("nickname") or raw.get("user_name") or raw.get("author") or ""
+            )
 
             # 评论列表 (如有)
-            comments = raw.get("comments", []) if isinstance(raw.get("comments"), list) else []
+            comments = (
+                raw.get("comments", []) if isinstance(raw.get("comments"), list) else []
+            )
 
             return MediaCrawlerNewsItem(
                 title=str(title).strip(),
@@ -571,7 +620,16 @@ class MediaCrawlerAdapter:
                 comments=comments,
                 raw=raw,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug("MediaCrawler 解析条目失败: %s", e)
             return None

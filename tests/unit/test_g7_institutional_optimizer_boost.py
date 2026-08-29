@@ -1,6 +1,7 @@
 """
 G7 Coverage Boost: utils/institutional_optimizer.py (371 lines, 0% -> target ~80%)
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -8,7 +9,10 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 
-from utils.institutional_optimizer import InstitutionalPortfolioOptimizer, PortfolioDecision
+from utils.institutional_optimizer import (
+    InstitutionalPortfolioOptimizer,
+    PortfolioDecision,
+)
 
 
 class TestPortfolioDecision:
@@ -81,7 +85,9 @@ class TestOptimize:
 
     def test_no_expected_returns(self):
         optimizer = InstitutionalPortfolioOptimizer()
-        decision = optimizer.optimize(current_positions={"000001.SZ": {"shares": 100, "cost_price": 10.0}})
+        decision = optimizer.optimize(
+            current_positions={"000001.SZ": {"shares": 100, "cost_price": 10.0}}
+        )
         assert "000001.SZ" in decision.target_weights
         assert decision.expected_return == 0.0
 
@@ -124,7 +130,9 @@ class TestOptimize:
         impact_model.estimate.return_value = MagicMock(total_impact_bps=50.0)
         decision = optimizer.optimize(
             expected_returns={"000001.SZ": 0.1},
-            covariance_matrix=pd.DataFrame([[0.04]], index=["000001.SZ"], columns=["000001.SZ"]),
+            covariance_matrix=pd.DataFrame(
+                [[0.04]], index=["000001.SZ"], columns=["000001.SZ"]
+            ),
             current_positions={"000001.SZ": {"shares": 1000, "cost_price": 10.0}},
             impact_model=impact_model,
         )
@@ -159,7 +167,9 @@ class TestBuildCovarianceMatrix:
 
     def test_column_mismatch_fallback(self):
         optimizer = InstitutionalPortfolioOptimizer()
-        cov = pd.DataFrame([[0.04, 0.01], [0.01, 0.09]], index=["x", "y"], columns=["x", "y"])
+        cov = pd.DataFrame(
+            [[0.04, 0.01], [0.01, 0.09]], index=["x", "y"], columns=["x", "y"]
+        )
         result = optimizer._build_covariance_matrix(cov, ["000001.SZ", "000002.SZ"], 2)
         expected = np.full((2, 2), (0.25 / np.sqrt(252)) ** 2) * np.eye(2)
         np.testing.assert_allclose(result, expected)
@@ -177,7 +187,10 @@ class TestCurrentWeights:
         optimizer = InstitutionalPortfolioOptimizer()
         weights = optimizer._current_weights(
             ["000001.SZ", "000002.SZ"],
-            {"000001.SZ": {"shares": 100, "cost_price": 10.0}, "000002.SZ": {"shares": 50, "cost_price": 20.0}},
+            {
+                "000001.SZ": {"shares": 100, "cost_price": 10.0},
+                "000002.SZ": {"shares": 50, "cost_price": 20.0},
+            },
         )
         assert weights is not None
         np.testing.assert_allclose(weights, [0.5, 0.5])
@@ -192,7 +205,9 @@ class TestCurrentWeights:
 
 class TestSolveWeights:
     def test_risk_parity_with_signal(self):
-        optimizer = InstitutionalPortfolioOptimizer(min_position_weight=0.05, max_weight=0.5)
+        optimizer = InstitutionalPortfolioOptimizer(
+            min_position_weight=0.05, max_weight=0.5
+        )
         cov = np.array([[0.04, 0.01], [0.01, 0.09]])
         mu = np.array([0.1, 0.05])
         np.zeros(2)
@@ -237,9 +252,15 @@ class TestApplyConstraints:
         optimizer = InstitutionalPortfolioOptimizer(max_sector_concentration=0.5)
         weights = np.array([0.6, 0.6])
         sector_map = {"000001.SZ": "A", "000002.SZ": "A"}
-        result = optimizer._apply_constraints(weights, ["000001.SZ", "000002.SZ"], sector_map)
+        result = optimizer._apply_constraints(
+            weights, ["000001.SZ", "000002.SZ"], sector_map
+        )
         assert np.all(result >= -1e-9)
-        sector_sum = sum(result[i] for i, s in enumerate(["000001.SZ", "000002.SZ"]) if sector_map[s] == "A")
+        sector_sum = sum(
+            result[i]
+            for i, s in enumerate(["000001.SZ", "000002.SZ"])
+            if sector_map[s] == "A"
+        )
         assert sector_sum <= 0.5 + 1e-9
 
 

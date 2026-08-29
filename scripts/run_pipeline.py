@@ -59,14 +59,26 @@ def cmd_full(args: argparse.Namespace) -> int:
 def cmd_data_cleaning(args: argparse.Namespace) -> int:
     """仅数据清洗"""
     orchestrator = PipelineOrchestrator()
-    reports, result = orchestrator.run_data_cleaning_only(symbols=args.symbols.split(",") if args.symbols else None)
+    reports, result = orchestrator.run_data_cleaning_only(
+        symbols=args.symbols.split(",") if args.symbols else None
+    )
 
-    print(json.dumps({
-        "success": result.success,
-        "reports_count": len(reports),
-        "avg_quality": sum(r.quality_score for r in reports) / len(reports) if reports else 0,
-        "failed": [r.symbol for r in reports if not r.passed],
-    }, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "success": result.success,
+                "reports_count": len(reports),
+                "avg_quality": (
+                    sum(r.quality_score for r in reports) / len(reports)
+                    if reports
+                    else 0
+                ),
+                "failed": [r.symbol for r in reports if not r.passed],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0 if result.success else 1
 
 
@@ -97,13 +109,19 @@ def cmd_execution(args: argparse.Namespace) -> int:
         confirmation_token=args.confirmation_token,
     )
 
-    print(json.dumps({
-        "success": result.success,
-        "total_orders": exec_result.total_orders,
-        "filled_orders": exec_result.filled_orders,
-        "fill_rate": exec_result.fill_rate,
-        "dry_run": exec_result.dry_run,
-    }, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "success": result.success,
+                "total_orders": exec_result.total_orders,
+                "filled_orders": exec_result.filled_orders,
+                "fill_rate": exec_result.fill_rate,
+                "dry_run": exec_result.dry_run,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0 if result.success else 1
 
 

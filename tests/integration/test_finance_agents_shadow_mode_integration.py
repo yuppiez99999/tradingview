@@ -11,6 +11,7 @@
   - Mock LLM 调用 (SentimentAgent 默认 use_llm=False)
   - <5s 完成
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -35,38 +36,54 @@ def multi_symbol_context():
     return {
         "600276.SH": {
             "kline": [
-                {"close": 30 + i * 0.3, "volume": 1e7, "amount": 3e8}
-                for i in range(30)
+                {"close": 30 + i * 0.3, "volume": 1e7, "amount": 3e8} for i in range(30)
             ],
             "fundamentals": {
-                "pe": 35, "pb": 6, "roe": 0.12,
-                "pe_percentile": 0.50, "pb_percentile": 0.50,
+                "pe": 35,
+                "pb": 6,
+                "roe": 0.12,
+                "pe_percentile": 0.50,
+                "pb_percentile": 0.50,
             },
             "news_items": [
-                {"title": "恒瑞医药创新药获批", "content": "利好", "symbol": "600276.SH"},
+                {
+                    "title": "恒瑞医药创新药获批",
+                    "content": "利好",
+                    "symbol": "600276.SH",
+                },
             ],
             "macro_data": {
-                "bond_10y_yield": 0.028, "north_flow": 3e9,
-                "industry_score": 0.65, "index_return_20d": 0.02,
+                "bond_10y_yield": 0.028,
+                "north_flow": 3e9,
+                "industry_score": 0.65,
+                "index_return_20d": 0.02,
             },
             "position_weight": 0.08,
             "beta": 1.0,
         },
         "000001.SZ": {
             "kline": [
-                {"close": 15 - i * 0.1, "volume": 5e7, "amount": 7e8}
-                for i in range(30)
+                {"close": 15 - i * 0.1, "volume": 5e7, "amount": 7e8} for i in range(30)
             ],
             "fundamentals": {
-                "pe": 8, "pb": 0.7, "roe": 0.11,
-                "pe_percentile": 0.10, "pb_percentile": 0.05,
+                "pe": 8,
+                "pb": 0.7,
+                "roe": 0.11,
+                "pe_percentile": 0.10,
+                "pb_percentile": 0.05,
             },
             "news_items": [
-                {"title": "平安银行业绩稳定", "content": "净利润增长", "symbol": "000001.SZ"},
+                {
+                    "title": "平安银行业绩稳定",
+                    "content": "净利润增长",
+                    "symbol": "000001.SZ",
+                },
             ],
             "macro_data": {
-                "bond_10y_yield": 0.028, "north_flow": 3e9,
-                "industry_score": 0.50, "index_return_20d": 0.02,
+                "bond_10y_yield": 0.028,
+                "north_flow": 3e9,
+                "industry_score": 0.50,
+                "index_return_20d": 0.02,
             },
             "position_weight": 0.12,
             "beta": 1.2,
@@ -77,13 +94,18 @@ def multi_symbol_context():
                 for i in range(30)
             ],
             "fundamentals": {
-                "pe": 12, "pb": 1.3, "roe": 0.10,
-                "pe_percentile": 0.30, "pb_percentile": 0.20,
+                "pe": 12,
+                "pb": 1.3,
+                "roe": 0.10,
+                "pe_percentile": 0.30,
+                "pb_percentile": 0.20,
             },
             "news_items": [],
             "macro_data": {
-                "bond_10y_yield": 0.028, "north_flow": 3e9,
-                "industry_score": 0.60, "index_return_20d": 0.02,
+                "bond_10y_yield": 0.028,
+                "north_flow": 3e9,
+                "industry_score": 0.60,
+                "index_return_20d": 0.02,
             },
             "position_weight": 0.05,
             "beta": 1.0,
@@ -107,17 +129,21 @@ class TestShadowModeFullFlow:
         """单标的完整 Shadow Mode 流程"""
         ctx = {
             "kline": [
-                {"close": 10 + i * 0.2, "volume": 1e7, "amount": 1e8}
-                for i in range(30)
+                {"close": 10 + i * 0.2, "volume": 1e7, "amount": 1e8} for i in range(30)
             ],
             "fundamentals": {
-                "pe": 15, "pb": 2, "roe": 0.20,
-                "pe_percentile": 0.10, "pb_percentile": 0.15,
+                "pe": 15,
+                "pb": 2,
+                "roe": 0.20,
+                "pe_percentile": 0.10,
+                "pb_percentile": 0.15,
             },
             "news_items": [{"title": "业绩利好", "content": "增长", "symbol": "X"}],
             "macro_data": {
-                "bond_10y_yield": 0.024, "north_flow": 5e9,
-                "industry_score": 0.70, "index_return_20d": 0.04,
+                "bond_10y_yield": 0.024,
+                "north_flow": 5e9,
+                "industry_score": 0.70,
+                "index_return_20d": 0.04,
             },
             "position_weight": 0.05,
             "beta": 1.0,
@@ -217,8 +243,7 @@ class TestMultiAgentCollaboration:
         # 只提供 kline, 不提供 fundamentals/news/macro
         ctx = {
             "kline": [
-                {"close": 10 + i * 0.1, "volume": 1e7, "amount": 1e8}
-                for i in range(30)
+                {"close": 10 + i * 0.1, "volume": 1e7, "amount": 1e8} for i in range(30)
             ],
         }
         consensus = orchestrator.orchestrate("X", ctx)
@@ -243,7 +268,9 @@ class TestAuditLogAccumulation:
         """多交易日审计日志分别存储"""
         for trade_date in ["20260726", "20260727", "20260728"]:
             consensus = AgentConsensus(
-                symbol="X", action="hold", strength=0.1,
+                symbol="X",
+                action="hold",
+                strength=0.1,
             )
             orchestrator.save_audit_log(consensus, None, trade_date=trade_date)
 
@@ -257,7 +284,9 @@ class TestAuditLogAccumulation:
         """同日多条审计日志累积 (多标的)"""
         for symbol in ["A", "B", "C"]:
             consensus = AgentConsensus(
-                symbol=symbol, action="hold", strength=0.0,
+                symbol=symbol,
+                action="hold",
+                strength=0.0,
             )
             orchestrator.save_audit_log(consensus, None, trade_date="20260726")
 

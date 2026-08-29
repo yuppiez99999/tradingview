@@ -2,6 +2,7 @@
 单元测试: utils/astock_realtime.py
 覆盖 _secid / _tx_prefix / get_eastmoney_quotes / get_tencent_quotes / get_realtime_quotes
 """
+
 from __future__ import annotations
 
 import json
@@ -85,7 +86,9 @@ class TestGetEastmoneyQuotes:
         assert result["600519"]["source"] == "eastmoney"
 
     def test_http_failure_sets_blocked(self):
-        with patch("utils.astock_realtime._http_get", side_effect=RuntimeError("network")):
+        with patch(
+            "utils.astock_realtime._http_get", side_effect=RuntimeError("network")
+        ):
             result = ar.get_eastmoney_quotes(["600519"])
         assert result == {}
         assert ar._eastmoney_blocked is True
@@ -93,9 +96,7 @@ class TestGetEastmoneyQuotes:
     def test_change_pct_calculation(self):
         mock_response = {
             "data": {
-                "diff": [
-                    {"f12": "000001", "f14": "平安银行", "f43": 11.0, "f60": 10.0}
-                ]
+                "diff": [{"f12": "000001", "f14": "平安银行", "f43": 11.0, "f60": 10.0}]
             }
         }
         with patch("utils.astock_realtime._http_get") as mock_http:
@@ -143,8 +144,10 @@ class TestGetRealtimeQuotes:
         assert result["600519"]["price"] == 1800.0
 
     def test_fallback_to_tencent(self):
-        with patch("utils.astock_realtime.get_eastmoney_quotes") as mock_em, \
-             patch("utils.astock_realtime.get_tencent_quotes") as mock_tx:
+        with (
+            patch("utils.astock_realtime.get_eastmoney_quotes") as mock_em,
+            patch("utils.astock_realtime.get_tencent_quotes") as mock_tx,
+        ):
             mock_em.return_value = {}
             mock_tx.return_value = {"600519": {"price": 1800.0, "source": "tencent"}}
             result = ar.get_realtime_quotes(["600519"], use_cache=False)
@@ -161,8 +164,10 @@ class TestGetRealtimeQuotes:
         assert mock_em.call_count == 1
 
     def test_zero_price_triggers_fallback(self):
-        with patch("utils.astock_realtime.get_eastmoney_quotes") as mock_em, \
-             patch("utils.astock_realtime.get_tencent_quotes") as mock_tx:
+        with (
+            patch("utils.astock_realtime.get_eastmoney_quotes") as mock_em,
+            patch("utils.astock_realtime.get_tencent_quotes") as mock_tx,
+        ):
             mock_em.return_value = {"600519": {"price": 0.0}}
             mock_tx.return_value = {"600519": {"price": 1800.0, "source": "tencent"}}
             result = ar.get_realtime_quotes(["600519"], use_cache=False)

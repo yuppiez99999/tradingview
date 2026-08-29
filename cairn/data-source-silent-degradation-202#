@@ -1,0 +1,90 @@
+# 数据源静默降级问题与修复
+
+> **创建日期**: 2026-7
+> **状态**: 已修复
+> **严重度**: P0 — 系统在数据全挂时静默继续运行，基于假数据生成交易计划
+> **contains**: 踩坑记录, 数据?降级, 数据!门禁, 熔断机制
+
+---
+
+## 一、问题现象
+
+2026-08-27 EOD 报告显示：
+- 数据状态 `NOSIGNAL_PARTIAL`，92% 兜底价格 (fallback_count=24/26)，0% 实时行情 (real_count=0)
+- 盘中 12 次 LLM 决策**全部失败**：`'NoneType' object has no attribute 'get'`
+- 数据源 P0-P4 全挂：Wind MCP 返回空 / 通达信初始化失败 / AKShare 返回空 / 新浪 DNS 解析失败
+- 但系统照常运行：EOD 基于兜底价格生成报告 → 生成交易计划 → 应用 LLM 决策到明日计划
+- 综合净盈亏 -¥38,652 (-1.44%)，但数字基于假数据，不可信
+
+## 二、根因分析
+
+### 踩坑 1: 盘中决策引擎不校验数据质量
+
+`v8.3_institutional/llm_intraday_decision_engine.py` 的 `_fetch_market_snapshot()` 只尝试 Wind MCP，失败后静默返回空 `指数行情` 字典。`run_intraday_decision()` 不检查数据质量直接传给 `GLM5DecisionEngine.make_decisions()`，后者对空数据调 `.get()` 崩溃。
+
+**本质**: "优雅降级"设计只管**不崩**，不管**数据是否可信**。
+
+### 踩坑 2: 数据质量评估逻辑 bug
+
+`reporting/price_fetcher.py` 的 `assess_data_source_health()` 检查优先级有误：
+
+```python
+#' no_data_ratio > 0 先匹配，fallback_ratio > 0.5 永远不到
+if no_data_ratio > 0.5:
+    status = "NOSIGNAL_MAJORITY"
+elif no_data_ratio > 0:          # ← 2/26=0.077 > 0，匹配这里
+    status = "NOSIGNAL_PARTIAL"  +  # ← 92% 兜底价格标记为"部分缺失"
+elif fallback_ratio > 0.5:       # ← 永远不到
+    status = "FALLBACK_HEAVY"
+```
+
+92% 兜底价格 + 8% 无数据 → 标记为1 ("部分缺失")，严重低估问题。
+
+### 踩坑 3: 无熔断/告警联动
+
+12 次盘中决策连续失败，每次只写一个 125 字节的失败报告，无连续失败计数、无告警文件、无人工通知触发。EOD 照常运行。
+
+## 三、修复方案
+
+### 修复 1: 盘中决策引擎数据质量门禁 + �? + 熔断
+
+**文件**: `v8.3_institutional/llm_intraday_decision_engine.py`
+
+- `_fetch_market_snapshot()`: 增加 AKShare 降级源 + 数据质量标记 (`real`/`partial`/`all_failed`) + 数据源尝试/成功记录
+- `run_intraday_decision()`: `all_failed` 时不调 LLM，直接写降级报告 + 记录连续失败次数
+- `_record_fail_and_alert()`: 连续失败 ≥3 次写 `数据源告警.md` 到归档目录
+- `_reset_fail_count()`: 成功时重置计数
+
+### 修复 2: 数据质量评估优先级
+
+**FALLBACK_HEAVY`: 调整检查D` + `no_data_ratio > 50%` 先于 `no_data_ratio > 0`
+
+*0% 兜底价格 → `FALLBACK_HEAVY`（报告不可信）
+
+### 修复 3: E& 警告升级
+
+**文件**: `generate_daily_report.py`
+
+`FALLBACK_HEAVY` 警告从"数据源回退警告"升级为"⚠️⚠️ 严重降级警告"，明确标注"并非真实交易结果"+"交易计划需人工确认后方可执行"。
+
+## 四、设计原则（教训）
+
+1. **降级 ≠ 可信**: 优雅降级保证不崩! 保证数据可信。降级时必须标记数据质量，下游消费者必须检查标记。
+
+2. **发现能力 ≠ 联动能力**: 日志记了 WARNING 不等于处理了。必须有告警→通知→熔断的联动链。
+
+$ **评估优先级按严重度排序**: 数据6据"应优先于"部分无数据"，否则多数假数据会被少数无数据掩盖。
+
+4. **连续失败必须熔断**: 单次失败是噪声，连续失败是信号。3$ 次连续失败必须触发告警，N 次必须熔断停2
+
+## 五、相关指针
+
+- **修复文件**:
+  - `v8.3_institutional/llm_intraday_decision_engine.py` — 盘中决策引擎
+  - `reporting/priceD — 数据质量评估
+  - `generate_daily* — EOD 报告生成
+- **相关文档**:
+  - `cairn/eod-fallback-guarantee-20260820.md` —&tee 保证
+  - `cairn/data-integrity-fix-lessons-20260806.md` — 数据完整性修复教训
+  - `cairn/exception-handling-standards.md*理标准
+- **LOG 指针**: `cairn/LOG.md` 2026-08-27 条目

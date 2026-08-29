@@ -73,7 +73,13 @@ def _get_historical_kline(symbol: str, days: int = 252) -> pd.DataFrame | None:
             continue
         if close <= 0:
             continue
-        date = k.get("date") or k.get("DATE") or k.get("trade_date") or k.get("time") or k.get("TIME")
+        date = (
+            k.get("date")
+            or k.get("DATE")
+            or k.get("trade_date")
+            or k.get("time")
+            or k.get("TIME")
+        )
         records.append({"date": date, "close": close})
     if not records:
         return None
@@ -128,7 +134,6 @@ def update_returns() -> tuple[pd.DataFrame | None, pd.Series | None]:
         returns_data[symbol] = ret_series
         success_count += 1
 
-
     if returns_data:
         returns_df = pd.DataFrame(returns_data)
         returns_path = DATA_DIR / "returns_history.json"
@@ -143,8 +148,7 @@ def update_returns() -> tuple[pd.DataFrame | None, pd.Series | None]:
             market_returns.to_json(market_path, orient="split", date_format="iso")
 
         return returns_df, market_returns
-    else:
-        return None, None
+    return None, None
 
 
 def run_hedge_decision() -> dict[str, Any]:
@@ -163,13 +167,19 @@ def run_hedge_decision() -> dict[str, Any]:
     valid_items = []
     for _key, item in positions_data.items():
         code = item.get("code")
-        qty = item.get("phase1_shares") or item.get("total_shares") or item.get("shares", 0)
+        qty = (
+            item.get("phase1_shares")
+            or item.get("total_shares")
+            or item.get("shares", 0)
+        )
         if not code or not qty:
             continue
         valid_items.append((code, float(qty), item))
 
     # B2.4: 并发拉取多 position 的实时报价
-    def _fetch_quote(item_tuple: tuple[str, float, dict[str, Any]]) -> tuple[str, float, float]:
+    def _fetch_quote(
+        item_tuple: tuple[str, float, dict[str, Any]],
+    ) -> tuple[str, float, float]:
         """单 position 拉取报价; 失败回退 est_price; 返回 (code, qty, price)。"""
         code, qty, item = item_tuple
         try:
@@ -234,7 +244,6 @@ def run_hedge_decision() -> dict[str, Any]:
         bs_loss=0.0,
     )
 
-
     return plan
 
 
@@ -256,13 +265,16 @@ def generate_report(plan: dict[str, Any]) -> None:
         "summary": plan.get("summary", {}),
     }
 
-    report_path = os.path.join(report_dir, f"hedge_decision_{datetime.now().strftime('%Y%m%d')}.json")
+    report_path = os.path.join(
+        report_dir, f"hedge_decision_{datetime.now().strftime('%Y%m%d')}.json"
+    )
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
 
-
     # 生成可读报告
-    readme_path = os.path.join(report_dir, f"hedge_decision_{datetime.now().strftime('%Y%m%d')}.md")
+    readme_path = os.path.join(
+        report_dir, f"hedge_decision_{datetime.now().strftime('%Y%m%d')}.md"
+    )
     with open(readme_path, "w", encoding="utf-8") as f:
         f.write(f"# 对冲决策报告 - {report['date']}\n\n")
         f.write("## 决策结果\n\n")
@@ -280,11 +292,12 @@ def generate_report(plan: dict[str, Any]) -> None:
                 f.write(f"- 标的: {order.get('instrument', 'N/A')}\n")
                 f.write(f"- 手数: {order.get('contracts', 'N/A')}\n")
                 f.write(f"- 名义价值: {order.get('notional', 0):,.0f}\n")
-                f.write(f"- 预估成本: {order.get('estimated_cost', order.get('budget', 0)):,.0f}\n\n")
+                f.write(
+                    f"- 预估成本: {order.get('estimated_cost', order.get('budget', 0)):,.0f}\n\n"
+                )
         else:
             f.write("## 结论\n\n")
             f.write("当前无需开启额外对冲。\n")
-
 
 
 if __name__ == "__main__":
@@ -297,4 +310,3 @@ if __name__ == "__main__":
 
     # 3. 生成报告
     generate_report(plan)
-

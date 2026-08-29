@@ -5,6 +5,7 @@
 运行:
     python scripts/test_pairs_walk_forward.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -78,8 +79,10 @@ def main() -> int:
     n_days = 500
     n_pairs = 3
     price_data = generate_cointegrated_prices(n_days=n_days, n_pairs=n_pairs, seed=42)
-    print(f"\n[1] 合成数据: {len(price_data)} 标的 × {n_days} 交易日 "
-          f"({n_pairs} 协整对 + 1 噪声)")
+    print(
+        f"\n[1] 合成数据: {len(price_data)} 标的 × {n_days} 交易日 "
+        f"({n_pairs} 协整对 + 1 噪声)"
+    )
 
     # 2. 运行 Walk-Forward 验证
     validator = WalkForwardPairsValidator(
@@ -93,8 +96,10 @@ def main() -> int:
         target_sharpe=1.0,
     )
 
-    print(f"[2] Walk-Forward 配置: train={validator.train_window}d / "
-          f"test={validator.test_window}d / step={validator.step}d")
+    print(
+        f"[2] Walk-Forward 配置: train={validator.train_window}d / "
+        f"test={validator.test_window}d / step={validator.step}d"
+    )
 
     print("\n[3] 运行验证...")
     report = validator.validate(price_data)
@@ -105,25 +110,32 @@ def main() -> int:
 
     if report.windows:
         print("\n  各窗口详情:")
-        print(f"  {'ID':>3} {'Train':>12} → {'Test':>12} "
-              f"{'Pairs':>6} {'Sharpe':>8} {'Return':>8} {'Trades':>7}")
+        print(
+            f"  {'ID':>3} {'Train':>12} → {'Test':>12} "
+            f"{'Pairs':>6} {'Sharpe':>8} {'Return':>8} {'Trades':>7}"
+        )
         for w in report.windows:
-            print(f"  {w.window_id:>3} {w.train_start}→{w.train_end} "
-                  f"{w.test_start}→{w.test_end} "
-                  f"{w.n_pairs_trained:>6} {w.oos_sharpe:>8.3f} "
-                  f"{w.oos_return:>8.4%} {w.n_trades:>7}")
+            print(
+                f"  {w.window_id:>3} {w.train_start}→{w.train_end} "
+                f"{w.test_start}→{w.test_end} "
+                f"{w.n_pairs_trained:>6} {w.oos_sharpe:>8.3f} "
+                f"{w.oos_return:>8.4%} {w.n_trades:>7}"
+            )
 
     # 4. 验收
     print(f"\n[5] 验收 (OOS Sharpe ≥{report.target_sharpe}):")
     if report.passed:
         print("  ✅ PASS — Walk-Forward 验证通过")
         return 0
-    else:
-        print(f"  ⚠️  未达 Sharpe ≥{report.target_sharpe} 目标 "
-              f"(平均 {report.avg_oos_sharpe:.4f})")
-        print("  注意: 合成数据可能不充分; 实盘 A 股需更长的历史数据")
-        print(f"  StatisticalArbitrageEngine 基线 OOS Sharpe = {report.baseline_sharpe}")
-        return 0  # 合成数据不强制通过, 仅验证流程跑通
+    print(
+        f"  ⚠️  未达 Sharpe ≥{report.target_sharpe} 目标 "
+        f"(平均 {report.avg_oos_sharpe:.4f})"
+    )
+    print("  注意: 合成数据可能不充分; 实盘 A 股需更长的历史数据")
+    print(
+        f"  StatisticalArbitrageEngine 基线 OOS Sharpe = {report.baseline_sharpe}"
+    )
+    return 0  # 合成数据不强制通过, 仅验证流程跑通
 
 
 if __name__ == "__main__":

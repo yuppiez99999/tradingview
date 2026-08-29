@@ -18,6 +18,7 @@ CI 引用脚本 (tdd-guard.yml), 此前缺失导致 TDD Guard 实际失效。
 用法:
     python scripts/_tdd_guard.py --base origin/main --head HEAD [--verbose]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,8 +41,14 @@ def run_git(args: list[str]) -> str:
     env = dict(os.environ)
     env.setdefault("PYTHONUTF8", "1")
     proc = subprocess.run(
-        ["git"] + args, cwd=str(ROOT), capture_output=True, text=True,
-        encoding="utf-8", errors="replace", env=env, timeout=120,
+        ["git"] + args,
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        timeout=120,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
@@ -57,7 +64,11 @@ def get_added_files(base: str, head: str) -> list[str]:
         range_spec = f"{base}...{head}"
     # --diff-filter=A: 仅新增文件 (Added)。修改已有文件不触发 TDD Guard。
     out = run_git(["diff", "--name-only", "--diff-filter=A", range_spec])
-    return [ln.strip() for ln in out.splitlines() if ln.strip() and ln.strip().endswith(".py")]
+    return [
+        ln.strip()
+        for ln in out.splitlines()
+        if ln.strip() and ln.strip().endswith(".py")
+    ]
 
 
 def expected_test_path(prod_rel: str) -> Optional[str]:
@@ -68,7 +79,11 @@ def expected_test_path(prod_rel: str) -> Optional[str]:
         return None
     basename = parts[-1]
     # 排除: _*.py / __init__.py / test_*.py
-    if basename.startswith("_") or basename == "__init__.py" or basename.startswith("test_"):
+    if (
+        basename.startswith("_")
+        or basename == "__init__.py"
+        or basename.startswith("test_")
+    ):
         return None
     return f"{TEST_ROOT}/test_{basename}"
 

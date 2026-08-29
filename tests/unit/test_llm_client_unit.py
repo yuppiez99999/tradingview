@@ -9,6 +9,7 @@
     - chat_deep (max_tokens=4000)
     - _record_usage (落盘 jsonl, 价格计算)
 """
+
 from __future__ import annotations
 
 import json
@@ -330,11 +331,19 @@ class TestRecordUsage:
         log_path = tmp_path / "llm_usage.jsonl"
         monkeypatch.setattr(mod, "_USAGE_LOG", log_path)
 
-        mod._record_usage("glm-5", prompt_tokens=1000, completion_tokens=500,
-                          latency_ms=200, source="glm5")
+        mod._record_usage(
+            "glm-5",
+            prompt_tokens=1000,
+            completion_tokens=500,
+            latency_ms=200,
+            source="glm5",
+        )
 
         assert log_path.exists()
-        rows = [json.loads(line) for line in log_path.read_text(encoding="utf-8").strip().split("\n")]
+        rows = [
+            json.loads(line)
+            for line in log_path.read_text(encoding="utf-8").strip().split("\n")
+        ]
         assert len(rows) == 1
         row = rows[0]
         assert row["model"] == "glm-5"
@@ -352,7 +361,10 @@ class TestRecordUsage:
         monkeypatch.setattr(mod, "_USAGE_LOG", log_path)
 
         mod._record_usage("unknown-model", 1000, 0, 100, "test")
-        rows = [json.loads(line) for line in log_path.read_text(encoding="utf-8").strip().split("\n")]
+        rows = [
+            json.loads(line)
+            for line in log_path.read_text(encoding="utf-8").strip().split("\n")
+        ]
         # default input=0.01 → 1000/1000 * 0.01 = 0.01
         assert rows[0]["cost_cny"] == 0.01
 

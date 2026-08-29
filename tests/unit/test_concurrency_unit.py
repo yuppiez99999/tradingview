@@ -7,6 +7,7 @@
     - process_lock (获取/重复获取失败)
     - run_io_batch (正常/超时/异常降级/空列表)
 """
+
 from __future__ import annotations
 
 import json
@@ -158,6 +159,7 @@ class TestRunIoBatch:
     @pytest.mark.unit
     def test_exception_returns_default(self):
         """fn 抛异常 → 返回 fail_default"""
+
         def fn(x):
             if x == 2:
                 raise ValueError("bad")
@@ -188,7 +190,9 @@ class TestRunIoBatch:
         assert progress[-1] == (3, 3)
 
     @pytest.mark.unit
-    @pytest.mark.xfail(reason="concurrent.futures.TimeoutError 不是内置 TimeoutError 子类 (Py3.8), run_io_batch 超时抛异常而非降级")
+    @pytest.mark.xfail(
+        reason="concurrent.futures.TimeoutError 不是内置 TimeoutError 子类 (Py3.8), run_io_batch 超时抛异常而非降级"
+    )
     def test_timeout(self):
         """超时 → 返回 fail_default (xfail: Python 3.8 TimeoutError 类型不匹配)"""
         import time

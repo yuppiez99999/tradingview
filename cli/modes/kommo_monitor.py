@@ -33,8 +33,8 @@ def run_kommo_monitor(args):
     report = monitor.generate_report()
     print("\n" + report)
 
-    write_report_file(report, getattr(args, 'output', None))
-    archive_report(report, '康波周期监控')
+    write_report_file(report, getattr(args, "output", None))
+    archive_report(report, "康波周期监控")
 
     progress.complete(f"检测到 {len(commodity_result)} 只商品")
 

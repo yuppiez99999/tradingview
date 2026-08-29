@@ -46,6 +46,7 @@
     results = integrator.backfill_history("2026-07-23", "2026-08-07")
 =================================================================
 """
+
 from __future__ import annotations
 
 import json
@@ -68,7 +69,9 @@ logger = logging.getLogger(__name__)
 # 常量
 # ============================================================
 
-DEFAULT_DAILY_RETURNS_PATH = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+DEFAULT_DAILY_RETURNS_PATH = (
+    _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
+)
 DEFAULT_INTEGRATION_REPORTS_DIR = _PROJECT_ROOT / "reports" / "drift"
 
 # IC_IR 退化阈值 (|baseline - current| > 0.3 触发告警)
@@ -260,7 +263,9 @@ class DriftShadowIntegrator:
         self._monitor = drift_monitor
         self._tracker = label_tracker
         self._daily_returns_path = Path(daily_returns_path)
-        self._reports_dir = Path(reports_dir) if reports_dir else DEFAULT_INTEGRATION_REPORTS_DIR
+        self._reports_dir = (
+            Path(reports_dir) if reports_dir else DEFAULT_INTEGRATION_REPORTS_DIR
+        )
         self._reports_dir.mkdir(parents=True, exist_ok=True)
         self._symbol_returns_provider = symbol_returns_provider
         self._baseline_ic_ir = baseline_ic_ir
@@ -318,18 +323,14 @@ class DriftShadowIntegrator:
             return result
 
         result.daily_return = daily_return
-        logger.info(
-            "集成运行 date=%s, daily_return=%.4f%%", date, daily_return * 100
-        )
+        logger.info("集成运行 date=%s, daily_return=%.4f%%", date, daily_return * 100)
 
         # 2. 特征漂移检测 (若 panel 传入)
         if current_panel is not None:
             try:
                 drift_reports = self._monitor.run_daily_check(current_panel)
                 result.drift_reports = drift_reports or []
-                logger.info(
-                    "DriftMonitor 产出 %d 个报告", len(result.drift_reports)
-                )
+                logger.info("DriftMonitor 产出 %d 个报告", len(result.drift_reports))
                 # 检查 PSI 超阈值
                 for report in result.drift_reports:
                     psi = getattr(report, "psi", 0.0) or 0.0
@@ -352,9 +353,7 @@ class DriftShadowIntegrator:
                     predictions=current_predictions,
                     model_version=model_version,
                 )
-                logger.info(
-                    "记录预测: date=%s, n=%d", date, len(current_predictions)
-                )
+                logger.info("记录预测: date=%s, n=%d", date, len(current_predictions))
             except (RuntimeError, OSError) as e:
                 logger.warning("record_predictions_batch 失败: %s", e)
                 result.alerts.append(f"record_predictions_failed: {e}")
@@ -377,7 +376,10 @@ class DriftShadowIntegrator:
             )
 
             # 6. 检测 IC_IR 退化
-            if self._baseline_ic_ir is not None and metrics.n_observed >= MIN_SAMPLES_FOR_ALERT:
+            if (
+                self._baseline_ic_ir is not None
+                and metrics.n_observed >= MIN_SAMPLES_FOR_ALERT
+            ):
                 degradation = abs(self._baseline_ic_ir - metrics.ic_ir)
                 result.ic_degradation = degradation
                 if degradation > self._ic_degradation_threshold:
@@ -514,7 +516,11 @@ class DriftShadowIntegrator:
         freq_window_map = {"daily": 20, "weekly": 8, "monthly": 3}
         effective_window = freq_window_map.get(factor_frequency, rolling_window)
 
-        baseline = reference_panel if reference_panel is not None else getattr(self._monitor, "_baseline_panel", None)
+        baseline = (
+            reference_panel
+            if reference_panel is not None
+            else getattr(self._monitor, "_baseline_panel", None)
+        )
         if baseline is None:
             logger.warning("无基线 panel, 无法校准 PSI 阈值")
             return []
@@ -710,16 +716,16 @@ class DriftShadowIntegrator:
                 return 0
 
             # 获取当日已记录的预测
-            records = self._tracker.get_records(date=date) if hasattr(
-                self._tracker, "get_records"
-            ) else []
+            records = (
+                self._tracker.get_records(date=date)
+                if hasattr(self._tracker, "get_records")
+                else []
+            )
             if not records:
                 return 0
 
             # 用组合收益作为所有 symbol 的标签
-            labels = {
-                date: {r.symbol: daily_return for r in records}
-            }
+            labels = {date: {r.symbol: daily_return for r in records}}
             count = self._tracker.update_actual_labels_batch(labels)
             return count
         except (RuntimeError, OSError, AttributeError) as e:
@@ -759,9 +765,7 @@ class DriftShadowIntegrator:
         success_days = sum(1 for r in self._history if r.is_success)
         skipped_days = sum(1 for r in self._history if r.skipped)
         ic_values = [
-            r.delayed_metrics.ic
-            for r in self._history
-            if r.delayed_metrics is not None
+            r.delayed_metrics.ic for r in self._history if r.delayed_metrics is not None
         ]
         ic_ir_values = [
             r.delayed_metrics.ic_ir
@@ -887,7 +891,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.date:
         current_predictions = _load_latest_predictions()
         if current_predictions:
-            logger.info("已加载最新 AlphaPipeline 信号: %d 个标的", len(current_predictions))
+            logger.info(
+                "已加载最新 AlphaPipeline 信号: %d 个标的", len(current_predictions)
+            )
         else:
             logger.info("未找到 AlphaPipeline 信号报告, 跳过 predictions 记录")
         result = integrator.run_daily_integration(

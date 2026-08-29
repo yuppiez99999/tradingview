@@ -28,6 +28,7 @@ HC 合规:
     python scripts/rebuild_shadow_state_from_returns.py --dry-run
 =================================================================
 """
+
 from __future__ import annotations
 
 import argparse
@@ -81,7 +82,9 @@ def load_returns(path: Path) -> list[dict]:
     return records
 
 
-def compute_nav_series(records: list[dict], initial_capital: float) -> tuple[list[dict], float, float]:
+def compute_nav_series(
+    records: list[dict], initial_capital: float
+) -> tuple[list[dict], float, float]:
     """从 nav=1.0 开始累乘计算每日净值.
 
     Returns:
@@ -94,13 +97,15 @@ def compute_nav_series(records: list[dict], initial_capital: float) -> tuple[lis
         daily_return = float(rec["daily_return"])
         nav = nav * (1.0 + daily_return)
         capital = initial_capital * nav
-        daily_nav.append({
-            "date": date,
-            "nav": round(nav, 6),
-            "daily_return": round(daily_return, 6),
-            "capital": round(capital, 2),
-            "recorded_at": datetime.now().isoformat(),
-        })
+        daily_nav.append(
+            {
+                "date": date,
+                "nav": round(nav, 6),
+                "daily_return": round(daily_return, 6),
+                "capital": round(capital, 2),
+                "recorded_at": datetime.now().isoformat(),
+            }
+        )
     return daily_nav, nav, initial_capital * nav
 
 
@@ -140,10 +145,12 @@ def rebuild(dry_run: bool = False) -> dict:
 
     # 1. 加载真实收益
     records = load_returns(RETURNS_FILE)
-    logger.info("加载真实收益: %d 条 (%s ~ %s)",
-                len(records),
-                records[0]["date"] if records else "N/A",
-                records[-1]["date"] if records else "N/A")
+    logger.info(
+        "加载真实收益: %d 条 (%s ~ %s)",
+        len(records),
+        records[0]["date"] if records else "N/A",
+        records[-1]["date"] if records else "N/A",
+    )
 
     # 2. 加载原 state
     if not STATE_FILE.exists():
@@ -154,13 +161,21 @@ def rebuild(dry_run: bool = False) -> dict:
     initial_capital = float(state.get("initial_capital", 500000))
     old_nav_count = len(state.get("daily_nav", []))
     old_current_nav = state.get("current_nav", 1.0)
-    logger.info("原状态: daily_nav=%d 条, current_nav=%.6f, last_updated=%s",
-                old_nav_count, old_current_nav, state.get("last_updated", "N/A"))
+    logger.info(
+        "原状态: daily_nav=%d 条, current_nav=%.6f, last_updated=%s",
+        old_nav_count,
+        old_current_nav,
+        state.get("last_updated", "N/A"),
+    )
 
     # 3. 计算真实 nav 序列
     daily_nav, final_nav, final_capital = compute_nav_series(records, initial_capital)
-    logger.info("重建后: daily_nav=%d 条, final_nav=%.6f, final_capital=%.2f",
-                len(daily_nav), final_nav, final_capital)
+    logger.info(
+        "重建后: daily_nav=%d 条, final_nav=%.6f, final_capital=%.2f",
+        len(daily_nav),
+        final_nav,
+        final_capital,
+    )
 
     # 4. fail-fast 检查
     fail_fast_config = state.get("fail_fast_config", {})
@@ -191,11 +206,13 @@ def rebuild(dry_run: bool = False) -> dict:
     logger.info("逐日明细:")
     logger.info("  %-12s %-10s %-12s %-14s", "日期", "日收益", "净值", "资金")
     for entry in daily_nav:
-        logger.info("  %-12s %+.4f%%  %.6f   ¥%.2f",
-                    entry["date"],
-                    entry["daily_return"] * 100,
-                    entry["nav"],
-                    entry["capital"])
+        logger.info(
+            "  %-12s %+.4f%%  %.6f   ¥%.2f",
+            entry["date"],
+            entry["daily_return"] * 100,
+            entry["nav"],
+            entry["capital"],
+        )
     logger.info("-" * 70)
 
     # 8. 写回 state (dry_run 模式不写盘)
@@ -216,38 +233,52 @@ def rebuild(dry_run: bool = False) -> dict:
 
         if ff_triggered:
             state["status"] = "TERMINATED"
-            state["fail_fast_log"] = state.get("fail_fast_log", []) + [{
-                "terminated_at": datetime.now().isoformat(),
-                "reason": ff_reason,
-                "triggered_by": "rebuild_shadow_state_from_returns",
-            }]
+            state["fail_fast_log"] = state.get("fail_fast_log", []) + [
+                {
+                    "terminated_at": datetime.now().isoformat(),
+                    "reason": ff_reason,
+                    "triggered_by": "rebuild_shadow_state_from_returns",
+                }
+            ]
         else:
             state["status"] = "RUNNING"
 
         # 保留旧 daily_nav 作为历史参考 (可选)
         state["_legacy_daily_nav_before_rebuild"] = old_daily_nav
-        state["_rebuild_history"] = state.get("_rebuild_history", []) + [{
-            "rebuilt_at": datetime.now().isoformat(),
-            "source_file": str(RETURNS_FILE),
-            "records_used": len(records),
-            "old_nav_count": old_nav_count,
-            "new_nav_count": len(daily_nav),
-            "old_current_nav": old_current_nav,
-            "new_current_nav": round(final_nav, 6),
-            "total_return_pct": round(total_return * 100, 4),
-            "max_drawdown_pct": round(max_dd * 100, 4),
-            "fail_fast_triggered": ff_triggered,
-            "fail_fast_reason": ff_reason,
-        }]
+        state["_rebuild_history"] = state.get("_rebuild_history", []) + [
+            {
+                "rebuilt_at": datetime.now().isoformat(),
+                "source_file": str(RETURNS_FILE),
+                "records_used": len(records),
+                "old_nav_count": old_nav_count,
+                "new_nav_count": len(daily_nav),
+                "old_current_nav": old_current_nav,
+                "new_current_nav": round(final_nav, 6),
+                "total_return_pct": round(total_return * 100, 4),
+                "max_drawdown_pct": round(max_dd * 100, 4),
+                "fail_fast_triggered": ff_triggered,
+                "fail_fast_reason": ff_reason,
+            }
+        ]
 
         with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2, default=str)
         logger.info("✅ 已写入新状态: %s", STATE_FILE)
 
     # 9. 生成日志
-    log_content = _build_log(records, daily_nav, final_nav, final_capital,
-                             total_return, max_dd, ff_triggered, ff_reason,
-                             old_nav_count, old_current_nav, dry_run)
+    log_content = _build_log(
+        records,
+        daily_nav,
+        final_nav,
+        final_capital,
+        total_return,
+        max_dd,
+        ff_triggered,
+        ff_reason,
+        old_nav_count,
+        old_current_nav,
+        dry_run,
+    )
     if not dry_run:
         with open(LOG_FILE, "w", encoding="utf-8") as f:
             f.write(log_content)
@@ -266,9 +297,19 @@ def rebuild(dry_run: bool = False) -> dict:
     }
 
 
-def _build_log(records, daily_nav, final_nav, final_capital,
-               total_return, max_dd, ff_triggered, ff_reason,
-               old_nav_count, old_current_nav, dry_run) -> str:
+def _build_log(
+    records,
+    daily_nav,
+    final_nav,
+    final_capital,
+    total_return,
+    max_dd,
+    ff_triggered,
+    ff_reason,
+    old_nav_count,
+    old_current_nav,
+    dry_run,
+) -> str:
     """构建 Markdown 日志内容."""
     lines = [
         "# Shadow 状态重建日志",
@@ -342,8 +383,9 @@ def main() -> int:
         logger.info("  最终净值: %.6f", result["final_nav"])
         logger.info("  累计收益: %+.2f%%", result["total_return"] * 100)
         logger.info("  最大回撤: %.2f%%", result["max_drawdown"] * 100)
-        logger.info("  Fail-Fast: %s",
-                    "触发" if result["fail_fast_triggered"] else "未触发")
+        logger.info(
+            "  Fail-Fast: %s", "触发" if result["fail_fast_triggered"] else "未触发"
+        )
         logger.info("=" * 70)
         return 0
     except Exception as e:

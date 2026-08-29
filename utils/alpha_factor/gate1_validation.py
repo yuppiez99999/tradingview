@@ -51,7 +51,11 @@ for name in ("stdout", "stderr"):
         buffer = getattr(stream, "buffer", None)
         if buffer is not None:
             try:
-                setattr(sys, name, io.TextIOWrapper(buffer, encoding="utf-8", errors="replace"))
+                setattr(
+                    sys,
+                    name,
+                    io.TextIOWrapper(buffer, encoding="utf-8", errors="replace"),
+                )
             except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 pass
 
@@ -97,7 +101,14 @@ def fetch_tx_kline(code: str, days: int = 250) -> Optional[list[list[str]]]:
             if kline:
                 return kline
         return None
-    except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
+    except (
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+    ) as exc:
         logger.warning(f"腾讯K线失败 ({code}): {exc}")
         return None
 
@@ -107,7 +118,9 @@ _PRICE_CACHE_FILE = _PROJ / "cache" / "gate1_price.json"
 _PRICE_CACHE_TTL = 3600  # 1h
 
 
-def fetch_prices(symbols: list[str], days: int = 250, use_cache: bool = True) -> dict[str, dict[str, list[float]]]:
+def fetch_prices(
+    symbols: list[str], days: int = 250, use_cache: bool = True
+) -> dict[str, dict[str, list[float]]]:
     """批量拉取腾讯 K 线, 转为因子库 price_data 格式 (带本地缓存).
 
     Returns:
@@ -118,7 +131,14 @@ def fetch_prices(symbols: list[str], days: int = 250, use_cache: bool = True) ->
         if time.time() - _PRICE_CACHE_FILE.stat().st_mtime < _PRICE_CACHE_TTL:
             try:
                 cache = json.loads(_PRICE_CACHE_FILE.read_text(encoding="utf-8"))
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ):
                 cache = {}
 
     price_data: dict[str, dict[str, list[float]]] = {}
@@ -134,10 +154,10 @@ def fetch_prices(symbols: list[str], days: int = 250, use_cache: bool = True) ->
         if not klines:
             logger.warning(f"跳过 {sym}: 无 K 线数据")
             continue
-        closes = [float(k[2]) for k in klines]   # close
-        opens = [float(k[1]) for k in klines]    # open
-        highs = [float(k[3]) for k in klines]    # high
-        lows = [float(k[4]) for k in klines]     # low
+        closes = [float(k[2]) for k in klines]  # close
+        opens = [float(k[1]) for k in klines]  # open
+        highs = [float(k[3]) for k in klines]  # high
+        lows = [float(k[4]) for k in klines]  # low
         volumes = [float(k[5]) for k in klines]  # volume
         dates = [k[0] for k in klines]
         price_data[sym] = {
@@ -157,8 +177,17 @@ def fetch_prices(symbols: list[str], days: int = 250, use_cache: bool = True) ->
     if use_cache:
         try:
             _PRICE_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            _PRICE_CACHE_FILE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as exc:
+            _PRICE_CACHE_FILE.write_text(
+                json.dumps(cache, ensure_ascii=False), encoding="utf-8"
+            )
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as exc:
             logger.debug(f"价格缓存写入失败: {exc}")
     return price_data
 
@@ -166,6 +195,7 @@ def fetch_prices(symbols: list[str], days: int = 250, use_cache: bool = True) ->
 def load_universe() -> list[str]:
     """构建 universe: positions 持仓 + 供应链 2 阶邻居 (基准版本)."""
     from utils.supply_chain_builder import load_positions_symbols
+
     core = load_positions_symbols()
     builder = SupplyChainBuilder(symbols=core, include_themes=True, max_hops=2)
     builder.build()
@@ -174,8 +204,12 @@ def load_universe() -> list[str]:
 
 # 核心产业板块 (用于扩大 universe, 覆盖算力/半导体/医药/煤炭等主线)
 CORE_BOARDS = [
-    ("BK1036", "半导体"), ("BK0448", "通信设备"), ("BK0465", "化学制药"),
-    ("BK0437", "煤炭"), ("BK0428", "电力"), ("BK0921", "算力概念"),
+    ("BK1036", "半导体"),
+    ("BK0448", "通信设备"),
+    ("BK0465", "化学制药"),
+    ("BK0437", "煤炭"),
+    ("BK0428", "电力"),
+    ("BK0921", "算力概念"),
 ]
 
 
@@ -240,6 +274,7 @@ def calc_ic_series(
     长度-1 预留 horizon。窗口从 last_idx 往旧滚动。
     """
     import numpy as np
+
     try:
         from scipy.stats import spearmanr
     except ImportError:
@@ -299,6 +334,7 @@ def calc_icir(ic_series: list[float]) -> float:
     if len(ic_series) < 2:
         return 0.0
     import numpy as np
+
     arr = np.array(ic_series)
     std = arr.std()
     return float(arr.mean() / std) if std > 0 else 0.0
@@ -384,7 +420,9 @@ def run_long_short_ic(
     return float(arr.mean() / std * (252.0 / horizon) ** 0.5)
 
 
-def run_gate1_validation(days: int = 250, min_neighbors: int = 1, expanded: bool = True) -> dict[str, Any]:
+def run_gate1_validation(
+    days: int = 250, min_neighbors: int = 1, expanded: bool = True
+) -> dict[str, Any]:
     """执行 Gate 1 门禁验证.
 
     Args:
@@ -398,7 +436,9 @@ def run_gate1_validation(days: int = 250, min_neighbors: int = 1, expanded: bool
     logger.info("[1/5] 构建 universe ...")
     if expanded:
         universe, industries = load_expanded_universe()
-        logger.info(f"     扩展 universe: {len(universe)} 只 (板块成分股+持仓), 行业标签 {len(industries)} 个")
+        logger.info(
+            f"     扩展 universe: {len(universe)} 只 (板块成分股+持仓), 行业标签 {len(industries)} 个"
+        )
     else:
         universe = load_universe()
         industries = None
@@ -408,19 +448,29 @@ def run_gate1_validation(days: int = 250, min_neighbors: int = 1, expanded: bool
     price_data = fetch_prices(universe, days)
     logger.info(f"     成功拉取 {len(price_data)} 只")
     if len(price_data) < 10:
-        return {"error": f"数据不足: 仅 {len(price_data)} 只", "universe_size": len(universe)}
+        return {
+            "error": f"数据不足: 仅 {len(price_data)} 只",
+            "universe_size": len(universe),
+        }
 
     logger.info("[3/5] 构建供应链关系图...")
     # 用有数据的股票重建图 (剔除无数据节点)
-    builder = SupplyChainBuilder(symbols=list(price_data.keys()), include_themes=True, max_hops=2)
+    builder = SupplyChainBuilder(
+        symbols=list(price_data.keys()), include_themes=True, max_hops=2
+    )
     graph_info = builder.build()
-    logger.info(f"     图: {graph_info['node_count']} 节点 / {graph_info['edge_count']} 边")
+    logger.info(
+        f"     图: {graph_info['node_count']} 节点 / {graph_info['edge_count']} 边"
+    )
 
     logger.info("[4/5] 计算 Lead-Lag 因子 + 正交化 + 行业中性化...")
     # industries 仅取 price_data 覆盖的标的
     ind_used = {k: v for k, v in (industries or {}).items() if k in price_data}
     chain_factors = compute_lead_lag_factors(
-        price_data, builder.graph, industries=ind_used or None, min_neighbors=min_neighbors
+        price_data,
+        builder.graph,
+        industries=ind_used or None,
+        min_neighbors=min_neighbors,
     )
     # 对已有动量因子正交化, 验证「邻居信息」增量价值
     mom_factors = _compute_momentum_factors(price_data)
@@ -436,8 +486,12 @@ def run_gate1_validation(days: int = 250, min_neighbors: int = 1, expanded: bool
         # 跨时间窗 IC 序列 → IC 均值 + ICIR (稳定性)
         # 修正 B1: 滚动重算因子 (每窗口 end_idx 时点就地重算), 消除前视偏差
         ic_series = calc_ic_series(
-            price_data, builder.graph, name,
-            industries=ind_used or None, horizon=5, windows=10,
+            price_data,
+            builder.graph,
+            name,
+            industries=ind_used or None,
+            horizon=5,
+            windows=10,
             min_neighbors=min_neighbors,
         )
         ic_mean = float(sum(ic_series) / len(ic_series)) if ic_series else 0.0
@@ -452,8 +506,11 @@ def run_gate1_validation(days: int = 250, min_neighbors: int = 1, expanded: bool
         # 修正 B2: 期初因子预测整期收益, 消除因子与收益窗口重叠的前视偏差
         # 修正 B4: 多期滚动多空 → 年化夏普 (名实相符, 阈值"夏普>1.0"成立)
         ls_raw = run_long_short_ic(
-            price_data, builder.graph, name,
-            industries=ind_used or None, horizon=20,
+            price_data,
+            builder.graph,
+            name,
+            industries=ind_used or None,
+            horizon=20,
             min_neighbors=min_neighbors,
         )
         eff_ls = direction * ls_raw  # 按方向修正后的多空年化夏普
@@ -473,8 +530,11 @@ def run_gate1_validation(days: int = 250, min_neighbors: int = 1, expanded: bool
     #   eff_ic >= 0.01 AND eff_icir > 0.3 AND eff_ls > 1.0
     # 原实现 strong∩ls_pass 可能为空却仍 PASS (两个集合不相交), 现改为单因子交集.
     # 反向因子经 direction 修正后 eff_icir=abs(icir), 不再被 icir>0.3 误杀.
-    passers = [(n, ic, ir, ls) for n, ic, ir, ls in gate_results
-               if ic >= 0.01 and ir > 0.3 and ls > 1.0]
+    passers = [
+        (n, ic, ir, ls)
+        for n, ic, ir, ls in gate_results
+        if ic >= 0.01 and ir > 0.3 and ls > 1.0
+    ]
     verdict = "PASS" if passers else "FAIL"
 
     return {
@@ -490,7 +550,9 @@ def run_gate1_validation(days: int = 250, min_neighbors: int = 1, expanded: bool
     }
 
 
-def _compute_momentum_factors(price_data: dict[str, dict[str, list[float]]]) -> dict[str, FactorValue]:
+def _compute_momentum_factors(
+    price_data: dict[str, dict[str, list[float]]],
+) -> dict[str, FactorValue]:
     """计算基准动量因子 (作正交化对照).
 
     必须补全 MOM_20D / MOM_60D / MOM_REVERSAL_5D 三个锚因子, 与
@@ -512,7 +574,9 @@ def _compute_momentum_factors(price_data: dict[str, dict[str, list[float]]]) -> 
     return {
         "MOM_20D": FactorValue(name="MOM_20D", category="Momentum", values=mom20),
         "MOM_60D": FactorValue(name="MOM_60D", category="Momentum", values=mom60),
-        "MOM_REVERSAL_5D": FactorValue(name="MOM_REVERSAL_5D", category="Momentum", values=rev5),
+        "MOM_REVERSAL_5D": FactorValue(
+            name="MOM_REVERSAL_5D", category="Momentum", values=rev5
+        ),
     }
 
 
@@ -522,11 +586,14 @@ def main() -> int:
     parser.add_argument("--days", type=int, default=250, help="历史K线天数")
     parser.add_argument("--min-neighbors", type=int, default=1)
     parser.add_argument("--json", action="store_true", help="输出 JSON")
-    parser.add_argument("--baseline", action="store_true", help="用基准 universe (持仓+邻居), 默认扩展")
+    parser.add_argument(
+        "--baseline", action="store_true", help="用基准 universe (持仓+邻居), 默认扩展"
+    )
     args = parser.parse_args()
 
-    result = run_gate1_validation(days=args.days, min_neighbors=args.min_neighbors,
-                                  expanded=not args.baseline)
+    result = run_gate1_validation(
+        days=args.days, min_neighbors=args.min_neighbors, expanded=not args.baseline
+    )
     if args.json:
         logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
         return 0
@@ -538,24 +605,36 @@ def main() -> int:
     logger.info("=" * 78)
     logger.info("Gate 1 门禁验证结果 — GNN Lead-Lag 因子")
     logger.info("=" * 78)
-    logger.info(f"Universe: {result['universe_size']} 只 ({result['universe_type']}) | 有数据: {result['price_coverage']} 只 | 行业标签: {result.get('industry_coverage', 0)}")
-    logger.info(f"图: {result['graph']['node_count']} 节点 / {result['graph']['edge_count']} 边")
+    logger.info(
+        f"Universe: {result['universe_size']} 只 ({result['universe_type']}) | 有数据: {result['price_coverage']} 只 | 行业标签: {result.get('industry_coverage', 0)}"
+    )
+    logger.info(
+        f"图: {result['graph']['node_count']} 节点 / {result['graph']['edge_count']} 边"
+    )
     logger.info("-" * 78)
     # 表头: IC均值(原始) / effIC(方向修正) / ICIR(原始) / effICIR(方向修正) / 方向 / 多空夏普 / 覆盖
-    logger.info(f"{'因子':<22}{'IC均值':>8}{'effIC':>8}{'ICIR':>8}{'effICIR':>9}{'方向':>5}{'多空夏普':>10}{'覆盖':>6}")
+    logger.info(
+        f"{'因子':<22}{'IC均值':>8}{'effIC':>8}{'ICIR':>8}{'effICIR':>9}{'方向':>5}{'多空夏普':>10}{'覆盖':>6}"
+    )
     logger.info("-" * 78)
     for name, meta in sorted(result["factors"].items()):
-        logger.info(f"{name:<22}{meta['ic_mean']:>8.4f}{meta['eff_ic']:>8.4f}"
-              f"{meta['icir']:>8.3f}{meta['eff_icir']:>9.3f}"
-              f"{meta['direction']:>5}"
-              f"{meta['long_short_sharpe']:>10.3f}{meta['coverage']:>6}")
+        logger.info(
+            f"{name:<22}{meta['ic_mean']:>8.4f}{meta['eff_ic']:>8.4f}"
+            f"{meta['icir']:>8.3f}{meta['eff_icir']:>9.3f}"
+            f"{meta['direction']:>5}"
+            f"{meta['long_short_sharpe']:>10.3f}{meta['coverage']:>6}"
+        )
     logger.info("-" * 78)
     passers = result.get("gate1_passers", [])
     if passers:
         logger.info(f"通过因子: {', '.join(passers)}")
     else:
-        logger.info("通过因子: (无) — 无因子同时满足 effIC≥0.01 且 effICIR>0.3 且 多空夏普>1.0")
-    logger.info(f"Gate 1 判定: {result['gate1_verdict']} (阈值: {result['gate1_threshold']})")
+        logger.info(
+            "通过因子: (无) — 无因子同时满足 effIC≥0.01 且 effICIR>0.3 且 多空夏普>1.0"
+        )
+    logger.info(
+        f"Gate 1 判定: {result['gate1_verdict']} (阈值: {result['gate1_threshold']})"
+    )
     logger.info("=" * 78)
     return 0 if result["gate1_verdict"] == "PASS" else 1
 

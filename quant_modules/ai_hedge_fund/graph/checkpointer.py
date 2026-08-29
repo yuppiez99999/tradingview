@@ -19,7 +19,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 
 def _safe_ticker_component(ticker: str) -> str:
     """Sanitize ticker to a safe filesystem component (内联实现)."""
-    return re.sub(r'[^A-Za-z0-9._-]', '_', str(ticker))
+    return re.sub(r"[^A-Za-z0-9._-]", "_", str(ticker))
 
 
 def _db_path(data_dir: str | Path, ticker: str) -> Path:
@@ -44,7 +44,9 @@ def thread_id(ticker: str, date: str, signature: str = "") -> str:
 
 
 @contextmanager
-def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver, None, None]:
+def get_checkpointer(
+    data_dir: str | Path, ticker: str
+) -> Generator[SqliteSaver, None, None]:
     """Context manager yielding a SqliteSaver backed by a per-ticker DB."""
     db = _db_path(data_dir, ticker)
     conn = sqlite3.connect(str(db), check_same_thread=False)
@@ -56,12 +58,16 @@ def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver
         conn.close()
 
 
-def has_checkpoint(data_dir: str | Path, ticker: str, date: str, signature: str = "") -> bool:
+def has_checkpoint(
+    data_dir: str | Path, ticker: str, date: str, signature: str = ""
+) -> bool:
     """Check whether a resumable checkpoint exists for ticker+date."""
     return checkpoint_step(data_dir, ticker, date, signature) is not None
 
 
-def checkpoint_step(data_dir: str | Path, ticker: str, date: str, signature: str = "") -> int | None:
+def checkpoint_step(
+    data_dir: str | Path, ticker: str, date: str, signature: str = ""
+) -> int | None:
     """Return the step number of the latest checkpoint, or None if none exists."""
     db = _db_path(data_dir, ticker)
     if not db.exists():
@@ -86,7 +92,9 @@ def clear_all_checkpoints(data_dir: str | Path) -> int:
     return len(dbs)
 
 
-def clear_checkpoint(data_dir: str | Path, ticker: str, date: str, signature: str = "") -> None:
+def clear_checkpoint(
+    data_dir: str | Path, ticker: str, date: str, signature: str = ""
+) -> None:
     """Remove checkpoint for a specific ticker+date by deleting the thread's rows."""
     db = _db_path(data_dir, ticker)
     if not db.exists():
@@ -95,7 +103,10 @@ def clear_checkpoint(data_dir: str | Path, ticker: str, date: str, signature: st
     conn = sqlite3.connect(str(db))
     try:
         for table in ("writes", "checkpoints"):
-            conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (tid,))  # nosec B608 — table from hardcoded tuple
+            conn.execute(
+                f"DELETE FROM {table} WHERE thread_id = ?",  # noqa: S608 — table 来自硬编码元组
+                (tid,),
+            )
         conn.commit()
     except sqlite3.OperationalError:
         pass

@@ -3,6 +3,7 @@
 被测模块: utils/overnight_gap_guard.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import sys
@@ -18,6 +19,7 @@ from utils.overnight_gap_guard import OvernightGapGuard  # noqa: E402
 # __init__
 # ============================================================
 
+
 class TestInit:
     def test_default(self):
         guard = OvernightGapGuard()
@@ -26,7 +28,9 @@ class TestInit:
         assert guard.l3_threshold == 0.05
 
     def test_custom(self):
-        guard = OvernightGapGuard(l1_threshold=0.015, l2_threshold=0.025, l3_threshold=0.04)
+        guard = OvernightGapGuard(
+            l1_threshold=0.015, l2_threshold=0.025, l3_threshold=0.04
+        )
         assert guard.l1_threshold == 0.015
         assert guard.l2_threshold == 0.025
 
@@ -34,6 +38,7 @@ class TestInit:
 # ============================================================
 # check_gap
 # ============================================================
+
 
 class TestCheckGap:
     def test_normal(self):
@@ -108,6 +113,7 @@ class TestCheckGap:
 # ============================================================
 # apply_to_plan
 # ============================================================
+
 
 class TestApplyToPlan:
     def test_l0_no_change(self):
@@ -193,7 +199,11 @@ class TestApplyToPlan:
     def test_l1_does_not_override_warning(self):
         guard = OvernightGapGuard()
         status = guard.check_gap(10.25, 10.00, "A")
-        plan = {"execution_plan": {}, "market_state": {"circuit_level": "WARNING"}, "risk_guard": {}}
+        plan = {
+            "execution_plan": {},
+            "market_state": {"circuit_level": "WARNING"},
+            "risk_guard": {},
+        }
         result = guard.apply_to_plan(plan, status, {})
         assert result["market_state"]["circuit_level"] == "WARNING"
 

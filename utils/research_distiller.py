@@ -76,7 +76,16 @@ for _candidate in _LLM_CANDIDATE_PATHS:
         _LLM_CLIENT_AVAILABLE = True
         logger.info("ResearchDistiller: llm_client.py 已加载 (%s)", _candidate)
         break
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         # 继续尝试下一个候选路径
         logger.debug("ResearchDistiller: 候选路径 %s 加载失败: %s", _candidate, e)
         continue
@@ -341,7 +350,16 @@ class ResearchDistiller:
         self.cache_dir = Path(cache_dir) if cache_dir else Path("data/distilled_signals")
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("ResearchDistiller: 创建 cache_dir 失败 (%s): %s", self.cache_dir, e)
 
         # 加载持仓名称词典 (用于 NER: "恒瑞医药" → "600276.SH")
@@ -380,7 +398,16 @@ class ResearchDistiller:
                 "ResearchDistiller: 已加载 %d 个标的名称映射",
                 len(self._name_to_symbol),
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("ResearchDistiller: 加载 positions.json 失败: %s", e)
 
     # ----------------------------------------------------------
@@ -410,7 +437,16 @@ class ResearchDistiller:
                 "report",
                 source_id=pdf_path.name,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("distill_report 异常 (%s): %s", pdf_path, e)
             return []
 
@@ -442,7 +478,16 @@ class ResearchDistiller:
                 source_id=f"earnings_{normalized}",
                 forced_symbol=normalized,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("distill_earnings_call 异常 (%s): %s", symbol, e)
             return []
 
@@ -480,7 +525,16 @@ class ResearchDistiller:
             if chapter:
                 source_id = f"{source_id}#{chapter}"
             return self._distill_text(text, "book", source_id=source_id)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("distill_book_chapter 异常 (%s): %s", book_path, e)
             return []
 
@@ -514,7 +568,16 @@ class ResearchDistiller:
                     forced_symbol=forced_symbol or None,
                 )
                 signals.extend(item_signals)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("distill_news_batch: 单条新闻处理异常: %s", e)
         self._stats["signals_emitted"] += len(signals)
         return signals
@@ -565,7 +628,16 @@ class ResearchDistiller:
                 # 边界裁剪
                 avg = max(-1.0, min(1.0, avg))
                 result[symbol] = round(avg, 4)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning("to_signal_map: 聚合异常 (%s): %s", symbol, e)
         return result
 
@@ -597,7 +669,8 @@ class ResearchDistiller:
             normalized_date = self._normalize_date(trade_date)
             output_path = self.cache_dir / f"distilled_signals_{normalized_date}.json"
             # 过滤已失效信号 (基于 valid_until 字段)
-            valid_signals = [s for s in signals if self._is_signal_valid(s)]
+            # 使用传入的 trade_date 作为参考时间，以便快照与交易日语义一致
+            valid_signals = [s for s in signals if self._is_signal_valid(s, normalized_date)]
             payload = {
                 "trade_date": normalized_date,
                 "generated_at": datetime.now().isoformat(),
@@ -613,7 +686,16 @@ class ResearchDistiller:
                 output_path,
             )
             return output_path
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("save_daily_snapshot 异常: %s", e)
             return Path()
 
@@ -652,7 +734,16 @@ class ResearchDistiller:
                 input_path.name,
             )
             return result
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("load_daily_snapshot 异常: %s", e)
             return {}
 
@@ -691,7 +782,16 @@ class ResearchDistiller:
                     "_distill_text: LLM 返回空结果, 降级到规则引擎 (source_id=%s)",
                     source_id,
                 )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(
                     "_distill_text: LLM 蒸馏异常, 降级到规则引擎: %s",
                     e,
@@ -1017,7 +1117,16 @@ class ResearchDistiller:
                 "_extract_pdf_text: pdfplumber/pdfminer 未安装, 无法提取 PDF",
             )
             return ""
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning("_extract_pdf_text 异常 (%s): %s", pdf_path, e)
             return ""
 
@@ -1026,7 +1135,7 @@ class ResearchDistiller:
         days = self.VALIDITY_DAYS.get(source_type, 7)
         return (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
 
-    def _is_signal_valid(self, signal: DistilledSignal) -> bool:
+    def _is_signal_valid(self, signal: DistilledSignal, ref_date: str | None = None) -> bool:
         """检查信号是否仍然有效 (未过期)
 
         Args:
@@ -1035,11 +1144,30 @@ class ResearchDistiller:
         Returns:
             True = 信号有效 (可保存), False = 信号已过期 (过滤掉)
         """
+        return self._is_signal_valid_ref(signal, ref_date)
+
+    def _is_signal_valid_ref(self, signal: DistilledSignal, ref_date: str | None = None) -> bool:
+        """检查信号相对于参考日期是否仍然有效。
+
+        Args:
+            signal: DistilledSignal 实例
+            ref_date: 参考交易日字符串（YYYYMMDD 或 YYYY-MM-DD），为空时使用当前日期
+
+        Returns:
+            True = 信号在参考日期仍有效
+        """
+        # 如果没有有效期字段，则认为有效
         if not signal.valid_until:
             return True
         try:
             valid_date = datetime.strptime(signal.valid_until[:10], "%Y-%m-%d")
-            return valid_date.date() >= datetime.now().date()
+            if ref_date:
+                # 规范化参考日期并比较
+                nd = self._normalize_date(ref_date)
+                ref_dt = datetime.strptime(nd, "%Y%m%d").date()
+            else:
+                ref_dt = datetime.now().date()
+            return valid_date.date() >= ref_dt
         except (ValueError, TypeError):
             return True
 
@@ -1105,8 +1233,16 @@ def self_test() -> bool:
         # 测试新闻蒸馏
         signals = d.distill_news_batch(
             [
-                {"title": "恒瑞医药业绩超预期", "content": "净利润增长 30%, 强烈推荐", "symbol": "600276.SH"},
-                {"title": "某公司被立案调查", "content": "财务造假", "symbol": "000001.SZ"},
+                {
+                    "title": "恒瑞医药业绩超预期",
+                    "content": "净利润增长 30%, 强烈推荐",
+                    "symbol": "600276.SH",
+                },
+                {
+                    "title": "某公司被立案调查",
+                    "content": "财务造假",
+                    "symbol": "000001.SZ",
+                },
             ]
         )
         assert len(signals) == 2
@@ -1130,7 +1266,16 @@ def self_test() -> bool:
         # 清理测试文件
         try:
             saved_path.unlink()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
         logger.info("[OK] research_distiller.py 自检通过")
@@ -1139,7 +1284,16 @@ def self_test() -> bool:
         logger.info(f"  - 测试信号数: {len(signals)}")
         logger.info(f"  - 信号 map: {signal_map}")
         return True
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         import traceback
 
         logger.error(f"[FAIL] research_distiller.py 自检失败: {e}")

@@ -36,6 +36,7 @@ from utils.risk_constraints import (  # noqa: E402
 # enforce_hard_constraints: 单标的硬上限
 # ============================================================
 
+
 class TestEnforceSingleWeight:
     def test_within_limit_no_violation(self):
         weights = {"A": 0.05, "B": 0.05}
@@ -74,6 +75,7 @@ class TestEnforceSingleWeight:
 # enforce_hard_constraints: 板块集中度
 # ============================================================
 
+
 class TestEnforceSectorLimit:
     def test_sector_within_limit(self):
         weights = {"A": 0.08, "B": 0.07}
@@ -107,12 +109,20 @@ class TestEnforceSectorLimit:
     def test_sector_multiple_sectors_both_exceed(self):
         """多个板块同时超限, 各自独立压缩."""
         weights = {
-            "A": 0.10, "B": 0.10, "C": 0.10,  # tech 30%
-            "D": 0.10, "E": 0.10, "F": 0.10,  # fin 30%
+            "A": 0.10,
+            "B": 0.10,
+            "C": 0.10,  # tech 30%
+            "D": 0.10,
+            "E": 0.10,
+            "F": 0.10,  # fin 30%
         }
         sector_map = {
-            "A": "tech", "B": "tech", "C": "tech",
-            "D": "fin", "E": "fin", "F": "fin",
+            "A": "tech",
+            "B": "tech",
+            "C": "tech",
+            "D": "fin",
+            "E": "fin",
+            "F": "fin",
         }
         clamped, violations = enforce_hard_constraints(weights, sector_map=sector_map)
         tech_total = clamped["A"] + clamped["B"] + clamped["C"]
@@ -127,9 +137,16 @@ class TestEnforceSectorLimit:
 # enforce_hard_constraints: 归一化
 # ============================================================
 
+
 class TestEnforceNormalization:
     def test_total_exceed_100pct_normalized(self):
-        weights = {"A": 0.10, "B": 0.10, "C": 0.10, "D": 0.10, "E": 0.10}  # 合计 50% < 100%
+        weights = {
+            "A": 0.10,
+            "B": 0.10,
+            "C": 0.10,
+            "D": 0.10,
+            "E": 0.10,
+        }  # 合计 50% < 100%
         clamped, violations = enforce_hard_constraints(weights)
         # 不超 100%, 不归一化
         assert violations == []
@@ -154,6 +171,7 @@ class TestEnforceNormalization:
 # enforce_hard_constraints: BUG-04 修复 (归一化后板块二次压缩)
 # ============================================================
 
+
 class TestEnforceBug04Fix:
     def test_normalization_then_sector_recompress(self):
         """归一化后板块仍超限时二次压缩."""
@@ -169,6 +187,7 @@ class TestEnforceBug04Fix:
 # ============================================================
 # validate_risk_budget: 集中度校验
 # ============================================================
+
 
 class TestValidateRiskBudgetConcentration:
     def test_within_limits_ok(self):
@@ -222,6 +241,7 @@ class TestValidateRiskBudgetConcentration:
 # validate_risk_budget: VaR 校验
 # ============================================================
 
+
 class TestValidateRiskBudgetVar:
     def test_no_price_data_skips_var(self):
         """无 price_data 时跳过 VaR 校验."""
@@ -268,6 +288,7 @@ class TestValidateRiskBudgetVar:
 # ============================================================
 # _approx_var: 内部 VaR 近似
 # ============================================================
+
 
 class TestApproxVar:
     def test_empty_weights_returns_zero(self):
@@ -321,6 +342,7 @@ class TestApproxVar:
 # ============================================================
 # 默认常量
 # ============================================================
+
 
 class TestDefaultConstants:
     def test_default_max_sector(self):

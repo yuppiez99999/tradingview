@@ -60,10 +60,22 @@ LOSS_PAUSE_DAYS = 7  # 连续亏损暂停 7 天
 # (3 来源整合 13 品种, 见 registry.py)。保留 CONTRACT_SPECS 为兼容层 (生成自注册表),
 # 避免外部模块直接 import CONTRACT_SPECS 的引用被破坏。
 # 原硬编码 dict: CU/AU/T 9 字段已与 registry 全对齐验证 (test_registry.py)
-_CONTRACT_SPECS_SOURCES: list[tuple[str, str, str, float, float, float, str, str, str]] = [
+_CONTRACT_SPECS_SOURCES: list[
+    tuple[str, str, str, float, float, float, str, str, str]
+] = [
     ("CU", "沪铜期货", "SHFE", 5, 0.09, 10, "元/吨", "new_energy_demand", "long"),
     ("AU", "黄金期货", "SHFE", 1000, 0.06, 0.02, "元/克", "safe_haven", "long"),
-    ("T", "10年国债期货", "CFFEX", 10_000, 0.02, 0.005, "元", "rate_directional", "short"),
+    (
+        "T",
+        "10年国债期货",
+        "CFFEX",
+        10_000,
+        0.02,
+        0.005,
+        "元",
+        "rate_directional",
+        "short",
+    ),
 ]
 
 CONTRACT_SPECS: dict[str, dict[str, Any]] = {
@@ -76,7 +88,18 @@ CONTRACT_SPECS: dict[str, dict[str, Any]] = {
         "price_unit": _pun,
         "purpose": _purp,
         "default_direction": _dir,
-    } for (_prod, _name, _exc, _mult, _mrg, _tick, _pun, _purp, _dir) in _CONTRACT_SPECS_SOURCES
+    }
+    for (
+        _prod,
+        _name,
+        _exc,
+        _mult,
+        _mrg,
+        _tick,
+        _pun,
+        _purp,
+        _dir,
+    ) in _CONTRACT_SPECS_SOURCES
 }
 
 
@@ -121,7 +144,9 @@ class FuturesOrder:
     symbol: str
     name: str
     exchange: str
-    action: str = "hold"  # open_long / open_short / close_long / close_short / add / reduce / hold
+    action: str = (
+        "hold"  # open_long / open_short / close_long / close_short / add / reduce / hold
+    )
     direction: str = "flat"  # long / short / flat
     contracts: int = 0
     price: float = 0.0
@@ -196,7 +221,7 @@ class DirectionalFuturesTrader:
             signal = FuturesSignal(
                 symbol=symbol,
                 name=spec.name,
-                )
+            )
 
             if len(closes) < 60:
                 signal.direction = "flat"
@@ -239,7 +264,11 @@ class DirectionalFuturesTrader:
 
             # 置信度
             confirm_count = sum(
-                [1 for v in [trend, momentum, rsi_signal] if v == (1 if signal.direction == "long" else -1)]
+                [
+                    1
+                    for v in [trend, momentum, rsi_signal]
+                    if v == (1 if signal.direction == "long" else -1)
+                ]
             )
             signal.confidence = round(confirm_count / 3, 3)
 
@@ -304,8 +333,12 @@ class DirectionalFuturesTrader:
         macd_series = []
         for i in range(-9, 0):
             if abs(i) + 26 <= len(closes):
-                e12 = self._calc_ema(closes[: len(closes) + i + 1] if i < -1 else closes, 12)
-                e26 = self._calc_ema(closes[: len(closes) + i + 1] if i < -1 else closes, 26)
+                e12 = self._calc_ema(
+                    closes[: len(closes) + i + 1] if i < -1 else closes, 12
+                )
+                e26 = self._calc_ema(
+                    closes[: len(closes) + i + 1] if i < -1 else closes, 26
+                )
                 macd_series.append(e12 - e26)
         signal_line = sum(macd_series) / len(macd_series) if macd_series else macd_line
         return round(macd_line - signal_line, 6)
@@ -419,9 +452,19 @@ class DirectionalFuturesTrader:
             for symbol in self.symbols:
                 pos = current_positions.get(symbol, {})
                 if pos.get("contracts", 0) > 0:
-                    action = "close_long" if pos.get("direction") == "long" else "close_short"
+                    action = (
+                        "close_long"
+                        if pos.get("direction") == "long"
+                        else "close_short"
+                    )
                     orders.append(
-                        self._build_close_order(symbol, pos, prices.get(symbol, 0), trade_date, "风控暂停强制平仓")
+                        self._build_close_order(
+                            symbol,
+                            pos,
+                            prices.get(symbol, 0),
+                            trade_date,
+                            "风控暂停强制平仓",
+                        )
                     )
             return orders
 
@@ -438,11 +481,15 @@ class DirectionalFuturesTrader:
                 continue
 
             # 目标仓位
-            target_contracts, notional, margin = self.calculate_position(symbol, signal, price)
+            target_contracts, notional, margin = self.calculate_position(
+                symbol, signal, price
+            )
             target_dir = signal.direction
 
             # 止损止盈 (基于信号强度)
-            stop_loss, take_profit = self._calc_stops(symbol, price, target_dir, signal.strength)
+            stop_loss, take_profit = self._calc_stops(
+                symbol, price, target_dir, signal.strength
+            )
 
             if current_dir == target_dir:
                 # 方向一致: 调整仓位
@@ -500,7 +547,9 @@ class DirectionalFuturesTrader:
             symbol=symbol,
             name=spec.name,
             exchange=spec.exchange,
-            action="close_long" if position.get("direction") == "long" else "close_short",
+            action=(
+                "close_long" if position.get("direction") == "long" else "close_short"
+            ),
             direction="flat",
             contracts=position.get("contracts", 0),
             price=price,
@@ -583,23 +632,40 @@ class DirectionalFuturesTrader:
         result.signals = signals
 
         # 3. 指令生成
-        orders = self.generate_orders(signals, current_positions, prices, trade_date, risk_status)
+        orders = self.generate_orders(
+            signals, current_positions, prices, trade_date, risk_status
+        )
         result.orders = orders
 
         # 4. 统计
         result.total_margin_used = sum(
-            o.required_margin for o in orders if o.action in ("open_long", "open_short", "add", "reverse")
+            o.required_margin
+            for o in orders
+            if o.action in ("open_long", "open_short", "add", "reverse")
         )
         result.total_notional = sum(
-            o.notional_value for o in orders if o.action in ("open_long", "open_short", "add", "reverse")
+            o.notional_value
+            for o in orders
+            if o.action in ("open_long", "open_short", "add", "reverse")
         )
-        result.margin_usage_ratio = result.total_margin_used / self.capital if self.capital > 0 else 0
+        result.margin_usage_ratio = (
+            result.total_margin_used / self.capital if self.capital > 0 else 0
+        )
 
         # 4.1 设置 action 字段 (供 daily_workflow 消费)
         if risk_status == "paused":
             result.action = "pause"
         elif any(
-            o.action in ("open_long", "open_short", "close_long", "close_short", "add", "reduce", "reverse")
+            o.action
+            in (
+                "open_long",
+                "open_short",
+                "close_long",
+                "close_short",
+                "add",
+                "reduce",
+                "reverse",
+            )
             for o in orders
         ):
             result.action = "trade"
@@ -638,7 +704,9 @@ class DirectionalFuturesTrader:
             ]
         )
         for s in result.signals:
-            lines.append(f"  {s.symbol} ({s.name}): {s.direction} (强度 {s.strength:.2f}, 置信 {s.confidence:.2f})")
+            lines.append(
+                f"  {s.symbol} ({s.name}): {s.direction} (强度 {s.strength:.2f}, 置信 {s.confidence:.2f})"
+            )
 
         lines.extend(
             [
@@ -682,7 +750,9 @@ class DirectionalFuturesTrader:
         try:
             report_dir = Path(__file__).resolve().parent.parent / "reports"
             report_dir.mkdir(parents=True, exist_ok=True)
-            report_path = report_dir / f"directional_futures_{trade_date.isoformat()}.json"
+            report_path = (
+                report_dir / f"directional_futures_{trade_date.isoformat()}.json"
+            )
 
             report_data = {
                 "trade_date": result.trade_date,
@@ -697,7 +767,16 @@ class DirectionalFuturesTrader:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"[DirectionalFutures] 报告已保存: {report_path}")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"[DirectionalFutures] 报告保存失败: {e}")
 
 

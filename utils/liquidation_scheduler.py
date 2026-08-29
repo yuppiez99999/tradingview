@@ -84,8 +84,17 @@ class LiquidationScheduler:
             try:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
-                return cfg.get("liquidation_protocol", {}) if isinstance(cfg, dict) else {}
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+                return (
+                    cfg.get("liquidation_protocol", {}) if isinstance(cfg, dict) else {}
+                )
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.error(f"加载配置失败 (显式路径 {self.config_path}): {e}")
                 return {}
 
@@ -100,18 +109,40 @@ class LiquidationScheduler:
             # ConfigManager 全部失败, 回退到旧路径 (保底)
             with open(self.config_path, encoding="utf-8") as f:
                 fallback_cfg = yaml.safe_load(f)
-            return fallback_cfg.get("liquidation_protocol", {}) if isinstance(fallback_cfg, dict) else {}
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+            return (
+                fallback_cfg.get("liquidation_protocol", {})
+                if isinstance(fallback_cfg, dict)
+                else {}
+            )
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"ConfigManager 加载失败, 回退到旧路径: {e}", exc_info=True)
             try:
                 with open(self.config_path, encoding="utf-8") as f:
                     cfg = yaml.safe_load(f)
-                return cfg.get("liquidation_protocol", {}) if isinstance(cfg, dict) else {}
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e2:
+                return (
+                    cfg.get("liquidation_protocol", {}) if isinstance(cfg, dict) else {}
+                )
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e2:
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
-    def get_current_phase(self, today: date | None = None) -> Optional[LiquidationPhaseInfo]:
+    def get_current_phase(
+        self, today: date | None = None
+    ) -> Optional[LiquidationPhaseInfo]:
         """获取当前应执行的清仓阶段
 
         Args:
@@ -267,7 +298,14 @@ class LiquidationScheduler:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             logger.error(f"写入清仓日志失败: {e}")
 
 

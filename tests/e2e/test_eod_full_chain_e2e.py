@@ -16,6 +16,7 @@ E2E 测试金字塔顶层 (5% 测试占比):
     3. 副作用隔离: 所有写操作重定向到 tmp_path
     4. 跨模块验证: 单次调用串起 7 个 Guard + KillSwitch + HedgeEngine
 """
+
 import json
 
 import pytest
@@ -34,12 +35,8 @@ def e2e_integrator(tmp_path, monkeypatch, real_pnl_report):
         - E2E:     mock 外部 + 重定向 IO 到 tmp_path (真实写盘但隔离)
     """
     # 重定向所有 IO 路径到 tmp_path
-    monkeypatch.setattr(
-        "utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs"
-    )
-    monkeypatch.setattr(
-        "utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports"
-    )
+    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports")
     monkeypatch.setattr(
         "utils.risk_guard_integrator.TRADE_PLANS_DIR", tmp_path / "trade_plans"
     )
@@ -49,6 +46,7 @@ def e2e_integrator(tmp_path, monkeypatch, real_pnl_report):
     # 报告日期对齐真实样本
     report_date = real_pnl_report.get("meta", {}).get("report_date") or "2026-07-21"
     from utils.risk_guard_integrator import RiskGuardIntegrator
+
     integrator = RiskGuardIntegrator(report_date=report_date)
 
     # 让 _load_pnl_report 返回真实样本 (绕过文件读取)
@@ -64,19 +62,20 @@ def e2e_normal_external_data(monkeypatch):
     注意: E2E 测试不验证熔断触发逻辑(那是集成测试的责任),
     这里只验证"正常情况下 EOD 全链路不崩溃"
     """
+
     # astock_realtime: 沪深300 微跌 (L0)
     def _normal_quotes(codes):
         return {"510300": {"price": 4.04, "pre_close": 4.06, "change_pct": -0.5}}
+
     try:
-        monkeypatch.setattr(
-            "utils.astock_realtime.get_realtime_quotes", _normal_quotes
-        )
+        monkeypatch.setattr("utils.astock_realtime.get_realtime_quotes", _normal_quotes)
     except (AttributeError, ImportError):
         pass
 
     # akshare: 涨跌停家数远低阈值
     try:
         import pandas as pd
+
         mock_df = pd.DataFrame({"涨跌幅": [0.5, -0.3, 1.2, -0.8, 0.0] * 20})
         monkeypatch.setattr("akshare.stock_zh_a_spot_em", lambda: mock_df)
         monkeypatch.setattr("akshare.stock_zh_index_spot_em", lambda: mock_df)
@@ -113,8 +112,12 @@ class TestEODFullChainE2E:
 
     @pytest.mark.e2e
     def test_e2e_full_chain_does_not_crash_with_real_data(
-        self, e2e_integrator, e2e_normal_external_data,
-        sample_trade_plan, monkeypatch, tmp_path
+        self,
+        e2e_integrator,
+        e2e_normal_external_data,
+        sample_trade_plan,
+        monkeypatch,
+        tmp_path,
     ):
         """E2E 黄金路径: 真实 pnl_report + 真实 trade_plan → run_all_guards 不崩溃
 
@@ -147,8 +150,12 @@ class TestEODFullChainE2E:
 
     @pytest.mark.e2e
     def test_e2e_real_pnl_report_positions_extracted_correctly(
-        self, e2e_integrator, e2e_normal_external_data,
-        sample_trade_plan, monkeypatch, real_pnl_report
+        self,
+        e2e_integrator,
+        e2e_normal_external_data,
+        sample_trade_plan,
+        monkeypatch,
+        real_pnl_report,
     ):
         """E2E: 真实 pnl_report 中的 26 标的持仓能被正确提取
 
@@ -164,14 +171,18 @@ class TestEODFullChainE2E:
         # 真实数据应该能提取出 summary
         summary = integrator._extract_summary(real_pnl_report)
         assert isinstance(summary, dict), "真实报告的 summary 必须是 dict"
-        assert "total_market_value" in summary or "total_pnl" in summary, (
-            "真实报告 summary 应包含 total_market_value 或 total_pnl"
-        )
+        assert (
+            "total_market_value" in summary or "total_pnl" in summary
+        ), "真实报告 summary 应包含 total_market_value 或 total_pnl"
 
     @pytest.mark.e2e
     def test_e2e_trade_plan_written_to_disk(
-        self, e2e_integrator, e2e_normal_external_data,
-        sample_trade_plan, monkeypatch, tmp_path
+        self,
+        e2e_integrator,
+        e2e_normal_external_data,
+        sample_trade_plan,
+        monkeypatch,
+        tmp_path,
     ):
         """E2E: run_all_guards 完成后, trade_plan 应被写入到 tmp_path
 
@@ -186,22 +197,26 @@ class TestEODFullChainE2E:
 
         # trade_plan_20260722.json 应被写入到 tmp_path/trade_plans/
         expected_path = tmp_path / "trade_plans" / "trade_plan_20260722.json"
-        assert expected_path.exists(), (
-            f"trade_plan 应被写入 {expected_path}, 但文件不存在"
-        )
+        assert (
+            expected_path.exists()
+        ), f"trade_plan 应被写入 {expected_path}, 但文件不存在"
 
         # 写入的文件应该是有效 JSON, 且包含 risk_guard 字段
         with open(expected_path, encoding="utf-8") as f:
             written_plan = json.load(f)
         assert "risk_guard" in written_plan, "写入的 plan 必须包含 risk_guard"
-        assert "last_run" in written_plan["risk_guard"], (
-            "写入的 plan 必须包含 last_run 时间戳"
-        )
+        assert (
+            "last_run" in written_plan["risk_guard"]
+        ), "写入的 plan 必须包含 last_run 时间戳"
 
     @pytest.mark.e2e
     def test_e2e_guard_log_written_to_disk(
-        self, e2e_integrator, e2e_normal_external_data,
-        sample_trade_plan, monkeypatch, tmp_path
+        self,
+        e2e_integrator,
+        e2e_normal_external_data,
+        sample_trade_plan,
+        monkeypatch,
+        tmp_path,
     ):
         """E2E: run_all_guards 完成后, risk_guard 日志应被写入
 
@@ -228,8 +243,12 @@ class TestEODFullChainE2E:
 
     @pytest.mark.e2e
     def test_e2e_kill_switch_level_reflects_real_margin(
-        self, e2e_integrator, e2e_normal_external_data,
-        sample_trade_plan, monkeypatch, real_pnl_report
+        self,
+        e2e_integrator,
+        e2e_normal_external_data,
+        sample_trade_plan,
+        monkeypatch,
+        real_pnl_report,
     ):
         """E2E: KillSwitch 必须基于真实 pnl_report 的保证金数据, 不能默认 level=0
 
@@ -244,9 +263,9 @@ class TestEODFullChainE2E:
 
         # kill_switch 字段必须存在 (不能因崩溃而缺失)
         rg = plan["risk_guard"]
-        assert "kill_switch" in rg, (
-            "kill_switch 字段必须存在 — 回归 P0-D: 原本因 None/None 崩溃导致字段缺失"
-        )
+        assert (
+            "kill_switch" in rg
+        ), "kill_switch 字段必须存在 — 回归 P0-D: 原本因 None/None 崩溃导致字段缺失"
 
         # level 字段必须存在
         ks = rg["kill_switch"]
@@ -257,8 +276,12 @@ class TestEODFullChainE2E:
 
     @pytest.mark.e2e
     def test_e2e_hedge_execution_with_real_positions(
-        self, e2e_integrator, e2e_normal_external_data,
-        sample_trade_plan, monkeypatch, real_pnl_report
+        self,
+        e2e_integrator,
+        e2e_normal_external_data,
+        sample_trade_plan,
+        monkeypatch,
+        real_pnl_report,
     ):
         """E2E: 对冲执行引擎必须能读取真实 positions.json, 不抛 'str' has no attribute 'get'
 
@@ -273,17 +296,19 @@ class TestEODFullChainE2E:
 
         # hedge_error 不应存在 (P0-E 回归验证)
         rg = plan["risk_guard"]
-        assert "hedge_error" not in rg, (
-            f"对冲执行不应崩溃 — P0-E 回归: {rg.get('hedge_error')}"
-        )
-        assert "put_error" not in rg, (
-            f"认沽保护不应崩溃: {rg.get('put_error')}"
-        )
+        assert (
+            "hedge_error" not in rg
+        ), f"对冲执行不应崩溃 — P0-E 回归: {rg.get('hedge_error')}"
+        assert "put_error" not in rg, f"认沽保护不应崩溃: {rg.get('put_error')}"
 
     @pytest.mark.e2e
     def test_e2e_seven_guards_all_executed(
-        self, e2e_integrator, e2e_normal_external_data,
-        sample_trade_plan, monkeypatch, tmp_path
+        self,
+        e2e_integrator,
+        e2e_normal_external_data,
+        sample_trade_plan,
+        monkeypatch,
+        tmp_path,
     ):
         """E2E: 7 个 Guard 必须全部执行, 通过日志验证
 
@@ -301,9 +326,9 @@ class TestEODFullChainE2E:
 
         # 7 个 Guard 标记必须全部出现
         for i in range(1, 8):
-            assert f"[{i}/7]" in log_content, (
-                f"日志中缺少 [{i}/7] 标记 — 第 {i} 个 Guard 未执行"
-            )
+            assert (
+                f"[{i}/7]" in log_content
+            ), f"日志中缺少 [{i}/7] 标记 — 第 {i} 个 Guard 未执行"
 
         # "去重" 标记必须出现
         assert "[去重]" in log_content, "PUT 订单去重步骤未执行"
@@ -311,7 +336,9 @@ class TestEODFullChainE2E:
         # "次日计划已更新" 必须出现 (证明 _save_trade_plan 跑完)
         # 注: _write_guard_log 在 _log("完成") 之前调用, 所以用 "次日计划已更新"
         # 作为链路跑完的标记, 而非 "风控守卫集成器完成"
-        assert "次日计划已更新" in log_content, "链路未跑完 (缺少 _save_trade_plan 完成标记)"
+        assert (
+            "次日计划已更新" in log_content
+        ), "链路未跑完 (缺少 _save_trade_plan 完成标记)"
 
 
 # ============================================================
@@ -357,9 +384,7 @@ class TestEODMultiDayRegression:
             monkeypatch.setattr(
                 "utils.risk_guard_integrator.LOGS_DIR", day_tmp / "logs"
             )
-            monkeypatch.setattr(
-                "utils.risk_guard_integrator.REPORTS_DIR", day_tmp
-            )
+            monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", day_tmp)
             monkeypatch.setattr(
                 "utils.risk_guard_integrator.TRADE_PLANS_DIR", day_tmp / "trade_plans"
             )

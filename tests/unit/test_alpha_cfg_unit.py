@@ -31,6 +31,7 @@ from utils.alpha_factor.alpha_cfg import (
 # CFGGrammar 测试
 # ============================================================
 
+
 class TestCFGGrammar:
     """CFG 文法测试。"""
 
@@ -83,6 +84,7 @@ class TestCFGGrammar:
 # FactorEvaluator 测试
 # ============================================================
 
+
 class TestFactorEvaluator:
     """因子评估器测试。"""
 
@@ -128,6 +130,7 @@ class TestFactorEvaluator:
 # ============================================================
 # MCTSNode 测试
 # ============================================================
+
 
 class TestMCTSNode:
     """MCTS 节点测试。"""
@@ -180,6 +183,7 @@ class TestMCTSNode:
 # MCTSSearcher 测试
 # ============================================================
 
+
 class TestMCTSSearcher:
     """MCTS 搜索器测试。"""
 
@@ -223,6 +227,7 @@ class TestMCTSSearcher:
 # ============================================================
 # AlphaCFGDiscoverer 端到端测试
 # ============================================================
+
 
 class TestAlphaCFGDiscoverer:
     """主发现器端到端测试。"""

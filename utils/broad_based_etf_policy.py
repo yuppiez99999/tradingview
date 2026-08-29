@@ -103,7 +103,16 @@ def _import_macro():
 
             mod = importlib.import_module(modname)
             return mod
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"导入 {modname} 失败: {e}")
     return None
@@ -175,7 +184,9 @@ def validate_portfolio_compliance(target_portfolio: dict) -> dict:
             kc_score = kc_res.cycle_score
             kc_note = kc_res.note
         else:
-            kc_weight = _MACRO.KONDRATIEV_STYLE_WEIGHTS.get(style, 1.0) if _MACRO else 1.0
+            kc_weight = (
+                _MACRO.KONDRATIEV_STYLE_WEIGHTS.get(style, 1.0) if _MACRO else 1.0
+            )
             kc_score = float(kc_weight)
             kc_note = "康波中性/防御" if kc_score >= 0.95 else "康波偏弱"
 
@@ -226,7 +237,12 @@ def flow_to_adjustment(net_flow_yi: float) -> dict:
     """将单只ETF净流(亿元) 映射为加减仓信号/动作/系数。"""
     for direction, lo, hi, signal, action, factor in ADJUST_BANDS:
         if lo <= net_flow_yi < hi:
-            return {"signal": signal, "action": action, "factor": factor, "direction": direction}
+            return {
+                "signal": signal,
+                "action": action,
+                "factor": factor,
+                "direction": direction,
+            }
     # 兜底
     return {"signal": "中性", "action": "持有", "factor": 0.0, "direction": "hold"}
 
@@ -241,7 +257,9 @@ def get_broad_based_codes(plan: dict) -> list[str]:
     return codes
 
 
-def compute_broad_based_adjustments(flow_signals: dict, broad_based: list[dict] | None = None) -> list[dict]:
+def compute_broad_based_adjustments(
+    flow_signals: dict, broad_based: list[dict] | None = None
+) -> list[dict]:
     """
     根据社保国家队ETF资金流信号, 计算宽基ETF加减仓方案。
 
@@ -309,7 +327,9 @@ def apply_broad_based_adjustments_to_plan(
         info = tp[code]
         info["weight"] = target_weight
         info["target_amount"] = (
-            round(3_000_000 * target_weight, 2) if "target_amount" in info else info.get("target_amount")
+            round(3_000_000 * target_weight, 2)
+            if "target_amount" in info
+            else info.get("target_amount")
         )
         if info.get("est_price", 0) > 0:
             raw = info["target_amount"] / info["est_price"]
@@ -329,7 +349,9 @@ def apply_broad_based_adjustments_to_plan(
             for ph in pos.get("phases", []):
                 ph_base_amount = ph.get("base_amount")
                 if ph_base_amount is None:
-                    ph_base_amount = ph["target_amount"] / (pos_base if pos_base else 1.0)
+                    ph_base_amount = ph["target_amount"] / (
+                        pos_base if pos_base else 1.0
+                    )
                     ph["base_amount"] = ph_base_amount
                 ph["target_amount"] = round(ph_base_amount * scale, 2)
 
@@ -368,7 +390,16 @@ def fetch_national_team_flow_signals() -> dict:
 
         tracker = ETFRealTimeTracker()
         return tracker.get_all_etf_fund_flows()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"获取社保国家队资金流失败, 宽基ETF维持基准权重: {e}")
         return {}
@@ -384,7 +415,16 @@ def adjust_plan_with_national_team_flow(plan: dict) -> dict:
         if not flow:
             return {"applied": False, "reason": "无资金流数据", "adjustments": []}
         return apply_broad_based_adjustments_to_plan(plan, flow)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.warning(f"宽基ETF国家队加减仓执行异常, 维持基准: {e}")
         return {"applied": False, "reason": str(e), "adjustments": []}

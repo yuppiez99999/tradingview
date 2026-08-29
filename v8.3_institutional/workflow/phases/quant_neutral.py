@@ -13,6 +13,7 @@
 模块级依赖 (动态查找, 兼容 daily_workflow 作为 __main__/模块导入):
 - V10_STRATEGY_READY, V10ConfigLoader, QuantNeutralRunner
 """
+
 from __future__ import annotations
 
 import json
@@ -27,7 +28,11 @@ logger = logging.getLogger("v75.daily_workflow")
 
 # === 从 daily_workflow 模块获取模块级符号 ===
 _dw = get_dw_module()
-BASE_DIR: Path = getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent) if _dw else Path(__file__).resolve().parent.parent
+BASE_DIR: Path = (
+    getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent)
+    if _dw
+    else Path(__file__).resolve().parent.parent
+)
 
 
 # ============================================================
@@ -128,7 +133,9 @@ def phase_quant_neutral(ctx: WorkflowContext) -> dict[str, Any]:
         量化中性调仓结果
     """
     # 动态查找模块级符号 (兼容 monkeypatch 对 daily_workflow 模块的 patch)
-    V10_STRATEGY_READY = bool(getattr(_dw, "V10_STRATEGY_READY", False)) if _dw else False
+    V10_STRATEGY_READY = (
+        bool(getattr(_dw, "V10_STRATEGY_READY", False)) if _dw else False
+    )
     V10ConfigLoader = getattr(_dw, "V10ConfigLoader", None) if _dw else None
     QuantNeutralRunner = getattr(_dw, "QuantNeutralRunner", None) if _dw else None
 
@@ -176,21 +183,23 @@ def phase_quant_neutral(ctx: WorkflowContext) -> dict[str, Any]:
         # 实际生产环境应从 Wind/AKShare 获取全市场前 20% 股票
         candidate_universe = []
         for pos in stock_positions:
-            candidate_universe.append({
-                "code": pos.get("code", ""),
-                "name": pos.get("name", ""),
-                "returns_20d": 0.05,            # 占位, 实际应从行情接口获取
-                "returns_5d": -0.02,
-                "volatility_60d": 0.25,
-                "avg_turnover_amount": 50_000_000,
-                "roe": 0.15,
-                "cashflow_ratio": 0.85,
-                "revenue_growth": 0.20,
-                "profit_growth": 0.18,
-                "pe_percentile": 0.45,
-                "pb_percentile": 0.30,
-                "beta": 1.0,
-            })
+            candidate_universe.append(
+                {
+                    "code": pos.get("code", ""),
+                    "name": pos.get("name", ""),
+                    "returns_20d": 0.05,  # 占位, 实际应从行情接口获取
+                    "returns_5d": -0.02,
+                    "volatility_60d": 0.25,
+                    "avg_turnover_amount": 50_000_000,
+                    "roe": 0.15,
+                    "cashflow_ratio": 0.85,
+                    "revenue_growth": 0.20,
+                    "profit_growth": 0.18,
+                    "pe_percentile": 0.45,
+                    "pb_percentile": 0.30,
+                    "beta": 1.0,
+                }
+            )
 
         # 3. 加载当前持仓
         current_holdings = _load_quant_neutral_holdings()
@@ -202,7 +211,9 @@ def phase_quant_neutral(ctx: WorkflowContext) -> dict[str, Any]:
         basis = _get_ic_basis()
 
         # 6. 获取策略历史回撤
-        strategy_dd_pct, history_95pct_dd, consecutive_months = _load_strategy_drawdown_state("quant_neutral")
+        strategy_dd_pct, history_95pct_dd, consecutive_months = (
+            _load_strategy_drawdown_state("quant_neutral")
+        )
 
         # 7. 执行月度调仓
         if QuantNeutralRunner is None:
@@ -225,22 +236,24 @@ def phase_quant_neutral(ctx: WorkflowContext) -> dict[str, Any]:
         logger.info("\n" + summary)
 
         # 9. 更新结果
-        result.update({
-            "status": "PASS",
-            "action": qn_result.action,
-            "reason": qn_result.reason,
-            "long_count": qn_result.long_count,
-            "long_market_value": qn_result.long_market_value,
-            "portfolio_beta": qn_result.portfolio_beta,
-            "target_beta": qn_result.target_beta,
-            "net_exposure": qn_result.net_exposure,
-            "ic_hedge": qn_result.ic_hedge,
-            "drawdown_action": qn_result.drawdown_action,
-            "basis_warning": qn_result.basis_warning,
-            "turnover_achieved": qn_result.turnover_achieved,
-            "candidate_count": qn_result.candidate_count,
-            "factors_used": qn_result.factors_used,
-        })
+        result.update(
+            {
+                "status": "PASS",
+                "action": qn_result.action,
+                "reason": qn_result.reason,
+                "long_count": qn_result.long_count,
+                "long_market_value": qn_result.long_market_value,
+                "portfolio_beta": qn_result.portfolio_beta,
+                "target_beta": qn_result.target_beta,
+                "net_exposure": qn_result.net_exposure,
+                "ic_hedge": qn_result.ic_hedge,
+                "drawdown_action": qn_result.drawdown_action,
+                "basis_warning": qn_result.basis_warning,
+                "turnover_achieved": qn_result.turnover_achieved,
+                "candidate_count": qn_result.candidate_count,
+                "factors_used": qn_result.factors_used,
+            }
+        )
 
         # 10. 紧急风控: 暂停策略 → 触发清仓
         if qn_result.action == "pause":
@@ -255,9 +268,11 @@ def phase_quant_neutral(ctx: WorkflowContext) -> dict[str, Any]:
     # === 写入 state ===
     ctx.state["phases"]["quant_neutral"] = result
     logger.info("-" * 60)
-    logger.info("Phase 4.7 完成: 动作=%s, 做多=%d 只, 净敞口=%.3f",
-                result.get("action", ""),
-                result.get("long_count", 0),
-                result.get("net_exposure", 0))
+    logger.info(
+        "Phase 4.7 完成: 动作=%s, 做多=%d 只, 净敞口=%.3f",
+        result.get("action", ""),
+        result.get("long_count", 0),
+        result.get("net_exposure", 0),
+    )
     logger.info("=" * 60)
     return result

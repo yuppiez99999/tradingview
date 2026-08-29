@@ -48,8 +48,8 @@ class GATFactor:
         self.n_hidden = n_hidden
         self.n_heads = n_heads
         self.leaky_alpha = leaky_alpha
-        self.W: Optional[np.ndarray] = None      # 特征投影 [heads, n_hidden, n_features]
-        self.a: Optional[np.ndarray] = None      # 注意力向量 [heads, 2*n_hidden]
+        self.W: Optional[np.ndarray] = None  # 特征投影 [heads, n_hidden, n_features]
+        self.a: Optional[np.ndarray] = None  # 注意力向量 [heads, 2*n_hidden]
         self.n_features = 0
 
     def _init_params(self, n_features: int) -> None:
@@ -67,14 +67,20 @@ class GATFactor:
         features.shape[0]
         H = self.n_heads
         # 多头投影: proj[h] = features @ W[h]^T → [n, H, n_hidden]
-        proj = np.stack([features @ self.W[h].T for h in range(H)], axis=1)  # [n, H, n_hidden]
+        proj = np.stack(
+            [features @ self.W[h].T for h in range(H)], axis=1
+        )  # [n, H, n_hidden]
 
         # 注意力分数 [n, n, H]
         # score_ijh = leaky_relu( a_h^T [W_h h_i ∥ W_h h_j] )
         # = a_h[:nh]·(W_h h_i) + a_h[nh:]·(W_h h_j)
         # proj: [n, H, nh], a[:, :nh]: [H, nh] → einsum("nph,ph->np")
-        left = np.einsum("nph,ph->np", proj, self.a[:, :self.n_hidden])   # a_h[:nh] · W_h h_i
-        right = np.einsum("nph,ph->np", proj, self.a[:, self.n_hidden:]) # a_h[nh:] · W_h h_j
+        left = np.einsum(
+            "nph,ph->np", proj, self.a[:, : self.n_hidden]
+        )  # a_h[:nh] · W_h h_i
+        right = np.einsum(
+            "nph,ph->np", proj, self.a[:, self.n_hidden :]
+        )  # a_h[nh:] · W_h h_j
         score = left[:, None, :] + right[None, :, :]  # [n, n, H]
         score = np.where(score > 0, score, self.leaky_alpha * score)  # leaky_relu
 
@@ -156,13 +162,15 @@ class GATFactor:
         if valid.sum() < 5:
             return 0.0
         from scipy.stats import spearmanr
+
         corr, _ = spearmanr(factor[valid], labels[valid])
         if np.isnan(corr):
             return 0.0
         return -float(corr)
 
-    def _numeric_grad(self, features: np.ndarray, adj: np.ndarray,
-                      labels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _numeric_grad(
+        self, features: np.ndarray, adj: np.ndarray, labels: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """数值梯度 (有限差分) 用于注意力参数更新."""
         eps = 1e-4
         grad_a = np.zeros_like(self.a)
@@ -193,7 +201,9 @@ class GATFactor:
         return grad_a, grad_W
 
 
-def build_adjacency(graph, symbols: list[str], weight_key: str = "strength") -> tuple[np.ndarray, list[str]]:
+def build_adjacency(
+    graph, symbols: list[str], weight_key: str = "strength"
+) -> tuple[np.ndarray, list[str]]:
     """从 SupplyChainGraph 构建邻接矩阵.
 
     Args:

@@ -66,7 +66,9 @@ def test_all_github_integration_flags_registered() -> None:
 def test_all_github_integration_flags_default_false() -> None:
     """所有 5 个 flag 默认必须为 False (ADR-003 铁律)."""
     for name in EXPECTED_FLAGS:
-        assert is_enabled(name) is False, f"Flag {name} 默认值不是 False, 违反 ADR-003 铁律"
+        assert (
+            is_enabled(name) is False
+        ), f"Flag {name} 默认值不是 False, 违反 ADR-003 铁律"
 
 
 # ============================================================
@@ -79,9 +81,9 @@ def test_flag_definitions_have_required_fields() -> None:
         flag_def = flags.get_flag_def(name)
         for field in REQUIRED_FIELDS:
             assert field in flag_def, f"{name} 缺少字段: {field}"
-        assert flag_def["critical_path"] is False, (
-            f"{name} 必须非关键路径 (critical_path=False), 否则违反 Phase 1 仅配置层变更原则"
-        )
+        assert (
+            flag_def["critical_path"] is False
+        ), f"{name} 必须非关键路径 (critical_path=False), 否则违反 Phase 1 仅配置层变更原则"
         assert isinstance(flag_def["requires"], list), f"{name} requires 必须为列表"
         assert flag_def["rollback_seconds"] >= 0, f"{name} rollback_seconds 必须 >= 0"
 

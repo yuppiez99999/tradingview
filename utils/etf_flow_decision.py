@@ -93,12 +93,14 @@ SIGNAL_CONFIG = {
 # 决策结果 TypedDict (根除 logger 内 decision_result["summary"]["xxx"] [index] 报错)
 # ============================================================
 
+
 class DecisionSummary(TypedDict, total=False):
     total_etfs: int
     strong_signals: int
     medium_signals: int
     total_inflow: float
     sudden_changes: int
+
 
 class DecisionResult(TypedDict, total=False):
     status: str
@@ -140,20 +142,35 @@ class ETFFlowDecisionEngine:
         """延迟加载LLM客户端"""
         if self._local_llm_client is None:
             try:
-                llm_path = Path(__file__).parent.parent / "15_每日工作流" / "llm_client.py"
+                llm_path = (
+                    Path(__file__).parent.parent / "15_每日工作流" / "llm_client.py"
+                )
                 llm_path = llm_path.resolve()
                 if llm_path.exists():
                     import importlib.util
 
-                    spec = importlib.util.spec_from_file_location("llm_client", llm_path)
+                    spec = importlib.util.spec_from_file_location(
+                        "llm_client", llm_path
+                    )
                     # None 守卫: spec / spec.loader 都可能为 None(importlib 官方签名)
                     if spec is None or spec.loader is None:
-                        raise RuntimeError(f"无法构造 LLM 客户端 ModuleSpec: {llm_path}")
+                        raise RuntimeError(
+                            f"无法构造 LLM 客户端 ModuleSpec: {llm_path}"
+                        )
                     mod = cast(types.ModuleType, importlib.util.module_from_spec(spec))
                     spec.loader.exec_module(mod)
                     self._local_llm_client = mod
-                    logger.info("LLM客户端已加载 (DeepSeek优先降级链: DeepSeek → Ollama → GLM → 豆包)")
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+                    logger.info(
+                        "LLM客户端已加载 (DeepSeek优先降级链: DeepSeek → Ollama → GLM → 豆包)"
+                    )
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.warning(f"LLM客户端加载失败: {e}，将使用纯规则引擎")
         return self._local_llm_client
 
@@ -170,16 +187,16 @@ class ETFFlowDecisionEngine:
         try:
             result = llm_mod.chat(
                 prompt=prompt,
-                system=system or "你是一个专业的量化交易助手，擅长ETF资金流分析和投资决策。",
+                system=system
+                or "你是一个专业的量化交易助手，擅长ETF资金流分析和投资决策。",
                 temperature=0.3,
                 max_tokens=1500,
             )
             if result:
                 logger.info(f"LLM分析成功: {len(result)} 字")
                 return cast(Optional[str], result)
-            else:
-                logger.warning("LLM返回为空，降级到规则引擎")
-                return None
+            logger.warning("LLM返回为空，降级到规则引擎")
+            return None
         except (AttributeError, TypeError, ValueError, OSError) as e:
             logger.error(f"LLM调用失败: {e}")
             return None
@@ -204,7 +221,6 @@ class ETFFlowDecisionEngine:
             source = data.get("source", "unknown")
             source_confidence = {
                 "wind_mcp": 0.9,
-
                 "eastmoney_push2": 0.8,
                 "sina_http": 0.7,
                 "price_momentum": 0.5,
@@ -226,7 +242,9 @@ class ETFFlowDecisionEngine:
 
         return standardized
 
-    def _build_llm_prompt(self, flow_data: dict, realtime_data: dict, timestamp: str) -> str:
+    def _build_llm_prompt(
+        self, flow_data: dict, realtime_data: dict, timestamp: str
+    ) -> str:
         """构建LLM分析prompt"""
         # 提取关键信号
         strong_signals = []
@@ -320,7 +338,9 @@ class ETFFlowDecisionEngine:
 
         # Step 5: 生成交易建议
         logger.info("Step 5: 生成交易建议...")
-        recommendations = self._generate_recommendations(standardized_signals, realtime_data)
+        recommendations = self._generate_recommendations(
+            standardized_signals, realtime_data
+        )
 
         # Step 6: 信号融合
         logger.info("Step 6: 信号融合...")
@@ -338,9 +358,23 @@ class ETFFlowDecisionEngine:
             "elapsed_seconds": round(elapsed, 2),
             "summary": {
                 "total_etfs": len(flow_data),
-                "strong_signals": len([s for s in standardized_signals.values() if abs(s["strength"]) >= 0.6]),
-                "medium_signals": len([s for s in standardized_signals.values() if 0.3 <= abs(s["strength"]) < 0.6]),
-                "total_inflow": sum(d.get("net_flow_yi", 0) for d in flow_data.values()),
+                "strong_signals": len(
+                    [
+                        s
+                        for s in standardized_signals.values()
+                        if abs(s["strength"]) >= 0.6
+                    ]
+                ),
+                "medium_signals": len(
+                    [
+                        s
+                        for s in standardized_signals.values()
+                        if 0.3 <= abs(s["strength"]) < 0.6
+                    ]
+                ),
+                "total_inflow": sum(
+                    d.get("net_flow_yi", 0) for d in flow_data.values()
+                ),
             },
             "signals": standardized_signals,
             "fused_signals": [s.to_dict() for s in fused_signals[:10]],
@@ -385,7 +419,9 @@ class ETFFlowDecisionEngine:
             cached = self._decision_cache[cache_key]
             ts = cached.get("timestamp", 0.0)
             if time.time() - ts < refresh_interval:
-                logger.info(f"命中盘中决策缓存 (剩余 {refresh_interval - (time.time() - ts):.0f}秒)")
+                logger.info(
+                    f"命中盘中决策缓存 (剩余 {refresh_interval - (time.time() - ts):.0f}秒)"
+                )
                 return cast(dict[str, Any], cached.get("result"))
 
         # Step 1: 获取实时资金流 (东财push2实时数据)
@@ -408,14 +444,18 @@ class ETFFlowDecisionEngine:
         # Step 4: 生成交易建议
         logger.info("Step 4: 生成交易建议...")
         standardized_signals = self._parse_etf_flow_data(flow_data)
-        recommendations = self._generate_recommendations(standardized_signals, realtime_data, sudden_changes)
+        recommendations = self._generate_recommendations(
+            standardized_signals, realtime_data, sudden_changes
+        )
 
         # Step 5: LLM辅助决策 (仅在有突变信号时调用)
         llm_analysis = None
         if sudden_changes:
             logger.info("Step 5: 检测到突变信号，调用LLM辅助决策...")
             try:
-                prompt = self._build_intraday_llm_prompt(flow_data, realtime_data, sudden_changes, timestamp)
+                prompt = self._build_intraday_llm_prompt(
+                    flow_data, realtime_data, sudden_changes, timestamp
+                )
                 llm_analysis = self._call_llm_analysis(prompt)
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.warning(f"LLM分析失败: {e}")
@@ -436,8 +476,16 @@ class ETFFlowDecisionEngine:
             "summary": {
                 "total_etfs": len(flow_data),
                 "sudden_changes": len(sudden_changes),
-                "strong_signals": len([s for s in standardized_signals.values() if abs(s["strength"]) >= 0.6]),
-                "total_inflow": sum(d.get("net_flow_yi", 0) for d in flow_data.values()),
+                "strong_signals": len(
+                    [
+                        s
+                        for s in standardized_signals.values()
+                        if abs(s["strength"]) >= 0.6
+                    ]
+                ),
+                "total_inflow": sum(
+                    d.get("net_flow_yi", 0) for d in flow_data.values()
+                ),
             },
             "sudden_changes": sudden_changes,
             "signals": standardized_signals,
@@ -463,7 +511,11 @@ class ETFFlowDecisionEngine:
         return decision_result
 
     def _build_intraday_llm_prompt(
-        self, flow_data: dict, realtime_data: dict, sudden_changes: list[dict], timestamp: str
+        self,
+        flow_data: dict,
+        realtime_data: dict,
+        sudden_changes: list[dict],
+        timestamp: str,
     ) -> str:
         """构建盘中LLM分析prompt (含突变信号)"""
         prompt = f"""ETF盘中突变信号分析 ({timestamp})
@@ -523,11 +575,15 @@ class ETFFlowDecisionEngine:
         # Step 3: 评估信号有效性
         logger.info("Step 3: 评估信号有效性...")
         standardized_signals = self._parse_etf_flow_data(flow_data)
-        signal_effectiveness = self._evaluate_signal_effectiveness(standardized_signals, realtime_data)
+        signal_effectiveness = self._evaluate_signal_effectiveness(
+            standardized_signals, realtime_data
+        )
 
         # Step 4: 生成明日预配置
         logger.info("Step 4: 生成明日预配置...")
-        tomorrow_preview = self._generate_tomorrow_preview(standardized_signals, signal_effectiveness)
+        tomorrow_preview = self._generate_tomorrow_preview(
+            standardized_signals, signal_effectiveness
+        )
 
         elapsed = time.time() - start_time
         review_result = {
@@ -538,7 +594,9 @@ class ETFFlowDecisionEngine:
             "summary": {
                 "total_etfs": len(flow_data),
                 "signal_accuracy": signal_effectiveness.get("accuracy_rate", 0),
-                "total_inflow": sum(d.get("net_flow_yi", 0) for d in flow_data.values()),
+                "total_inflow": sum(
+                    d.get("net_flow_yi", 0) for d in flow_data.values()
+                ),
             },
             "signal_effectiveness": signal_effectiveness,
             "signals": standardized_signals,
@@ -557,7 +615,10 @@ class ETFFlowDecisionEngine:
     # ------------------------------------------------------------
 
     def _generate_recommendations(
-        self, signals: dict, realtime_data: dict, sudden_changes: Optional[list[dict]] = None
+        self,
+        signals: dict,
+        realtime_data: dict,
+        sudden_changes: Optional[list[dict]] = None,
     ) -> list[dict]:
         """生成交易建议"""
         recommendations = []
@@ -591,7 +652,9 @@ class ETFFlowDecisionEngine:
                 reason += " [突变信号]"
 
             # 价格-资金流背离警告
-            if (change_pct > 0 and signal["strength"] < -0.3) or (change_pct < 0 and signal["strength"] > 0.3):
+            if (change_pct > 0 and signal["strength"] < -0.3) or (
+                change_pct < 0 and signal["strength"] > 0.3
+            ):
                 reason += " ⚠️ 价格-资金流背离"
 
             recommendations.append(
@@ -608,11 +671,15 @@ class ETFFlowDecisionEngine:
             )
 
         # 按置信度和强度排序
-        recommendations.sort(key=lambda x: x["confidence"] * abs(x["strength"]), reverse=True)
+        recommendations.sort(
+            key=lambda x: x["confidence"] * abs(x["strength"]), reverse=True
+        )
 
         return recommendations
 
-    def _detect_sudden_changes(self, flow_data: dict, threshold: float = 0.5) -> list[dict]:
+    def _detect_sudden_changes(
+        self, flow_data: dict, threshold: float = 0.5
+    ) -> list[dict]:
         """检测资金流突变 (较前值变化>threshold)"""
         changes = []
         for code, data in flow_data.items():
@@ -631,7 +698,9 @@ class ETFFlowDecisionEngine:
                 )
         return changes
 
-    def _evaluate_signal_effectiveness(self, signals: dict, realtime_data: dict) -> dict:
+    def _evaluate_signal_effectiveness(
+        self, signals: dict, realtime_data: dict
+    ) -> dict:
         """评估信号有效性 (资金流方向 vs 价格变动方向)"""
         correct_predictions = 0
         total_predictions = 0
@@ -645,10 +714,14 @@ class ETFFlowDecisionEngine:
 
             total_predictions += 1
             # 资金流方向与价格方向一致 → 正确
-            if (signal["strength"] > 0 and change_pct > 0) or (signal["strength"] < 0 and change_pct < 0):
+            if (signal["strength"] > 0 and change_pct > 0) or (
+                signal["strength"] < 0 and change_pct < 0
+            ):
                 correct_predictions += 1
 
-        accuracy = correct_predictions / total_predictions if total_predictions > 0 else 0.0
+        accuracy = (
+            correct_predictions / total_predictions if total_predictions > 0 else 0.0
+        )
 
         return {
             "total_predictions": total_predictions,
@@ -672,12 +745,16 @@ class ETFFlowDecisionEngine:
 
         return {
             "top_inflow_etfs": [
-                {"code": c, "name": s.get("name", ""), "strength": s["strength"]} for c, s in top_inflow
+                {"code": c, "name": s.get("name", ""), "strength": s["strength"]}
+                for c, s in top_inflow
             ],
             "top_outflow_etfs": [
-                {"code": c, "name": s.get("name", ""), "strength": s["strength"]} for c, s in top_outflow
+                {"code": c, "name": s.get("name", ""), "strength": s["strength"]}
+                for c, s in top_outflow
             ],
-            "suggested_focus": [{"code": c, "action": "加仓"} for c, _ in top_inflow[:2]],
+            "suggested_focus": [
+                {"code": c, "action": "加仓"} for c, _ in top_inflow[:2]
+            ],
             "risk_warning": [{"code": c, "action": "减仓"} for c, _ in top_outflow[:2]],
         }
 
@@ -730,13 +807,22 @@ class ETFFlowDecisionScheduler:
                     logger.info(f"[{current_time}] 执行盘中决策...")
                     result = self.engine.intraday_decision()
                     if result.get("sudden_changes"):
-                        logger.warning(f"检测到 {len(result['sudden_changes'])} 个突变信号!")
+                        logger.warning(
+                            f"检测到 {len(result['sudden_changes'])} 个突变信号!"
+                        )
                 else:
                     time.sleep(60)  # 非交易时段，每分钟检查一次
                     continue
 
                 time.sleep(interval)
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ) as e:
                 logger.error(f"盘中监控异常: {e}")
                 time.sleep(60)
 
@@ -773,7 +859,9 @@ def post_market_review() -> dict[str, Any]:
 
 if __name__ == "__main__":
     # 测试入口 / 直接运行入口
-    parser = argparse.ArgumentParser(description="ETF资金流向盘前/盘中/盘后决策模块 v1.0")
+    parser = argparse.ArgumentParser(
+        description="ETF资金流向盘前/盘中/盘后决策模块 v1.0"
+    )
     parser.add_argument(
         "phase",
         nargs="?",
@@ -810,7 +898,9 @@ if __name__ == "__main__":
     if result.get("recommendations"):
         logger.info(f"\n【交易建议 Top {args.top}】")
         for rec in result["recommendations"][: args.top]:
-            logger.info(f"  {rec['code']} {rec['name']}: {rec['action']} ({rec['confidence']:.2f})")
+            logger.info(
+                f"  {rec['code']} {rec['name']}: {rec['action']} ({rec['confidence']:.2f})"
+            )
             logger.info(f"    原因: {rec['reason']}")
 
     if result.get("llm_analysis"):

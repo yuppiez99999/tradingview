@@ -246,7 +246,14 @@ class RiskGuardIntegrator:
                         self._log(f"[P0-FIX] 已加载盈亏报告: {json_path.name} (path={json_path.parent})")
                         data = json.load(f)
                         return data
-                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+                except (
+                    ValueError,
+                    KeyError,
+                    TypeError,
+                    AttributeError,
+                    OSError,
+                    RuntimeError,
+                ) as e:
                     self._log(f"加载盈亏报告失败 ({json_path}): {e}")
 
         self._log(f"[WARN] 未找到当日盈亏报告, 查找路径: {[str(p) for p in candidates]}")
@@ -314,7 +321,14 @@ class RiskGuardIntegrator:
         try:
             with open(plan_path, encoding="utf-8") as f:
                 return cast(dict, json.load(f))
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self._log(f"加载次日计划失败: {e}")
             return None
 
@@ -526,9 +540,9 @@ class RiskGuardIntegrator:
         plan["phase"]["vol_scale_applied"] = round(max(vol_scale, 0.30), 4)
         plan.setdefault("risk_guard", {})["vol_scale"] = vol_scale
         plan["risk_guard"]["vol_action"] = f"SCALE_DOWN_{vol_scale:.2f}"
-        plan["risk_guard"]["vol_note"] = (
-            f"波动率目标控制: vol_scale={vol_scale:.3f}, 预算 {original_budget:,.0f} → {adjusted_budget:,.0f}"
-        )
+        plan["risk_guard"][
+            "vol_note"
+        ] = f"波动率目标控制: vol_scale={vol_scale:.3f}, 预算 {original_budget:,.0f} → {adjusted_budget:,.0f}"
 
         # v8.6.8 P0-03 FIX (2026-07-26): vol_scale 必须应用到 execution_plan 订单金额
         # 原始 bug: 仅缩减 phase.daily_capital, 但 execution_plan.morning_orders/afternoon_orders
@@ -706,9 +720,11 @@ class RiskGuardIntegrator:
                     "hedge_mode": hedge_result.get("cost_summary", {}).get("hedge_mode", "OPTIONS_ONLY"),
                     "loaded": True,
                     "portfolio_beta": hedge_result.get("portfolio_status", {}).get("portfolio_beta_before", 0.0),
-                    "hedge_pct": 0.0
-                    if not futures_orders
-                    else (futures_orders[0].get("rationale", {}).get("beta_to_hedge", 0) if futures_orders else 0.0),
+                    "hedge_pct": (
+                        0.0
+                        if not futures_orders
+                        else (futures_orders[0].get("rationale", {}).get("beta_to_hedge", 0) if futures_orders else 0.0)
+                    ),
                     "execution_timing": {
                         "options_window": "09:30-10:00",
                         "futures_window": "10:30-11:00" if futures_orders else None,
@@ -726,9 +742,12 @@ class RiskGuardIntegrator:
                         "futures_margin": hedge_result.get("cost_summary", {}).get("total_margin_required", 0),
                         "safe_haven": 0,
                         "reserve_amount": hedge_result.get("cost_summary", {}).get("buffer_for_roll", 0),
-                        "remaining": hedge_capital_value - hedge_result.get("cost_summary", {}).get("total_cost", 0)
-                        if (hedge_capital_value := hedge_result.get("portfolio_status", {}).get("hedge_capital", 0)) > 0
-                        else 0,
+                        "remaining": (
+                            hedge_capital_value - hedge_result.get("cost_summary", {}).get("total_cost", 0)
+                            if (hedge_capital_value := hedge_result.get("portfolio_status", {}).get("hedge_capital", 0))
+                            > 0
+                            else 0
+                        ),
                         "within_budget": within_budget,
                     },
                     "notes": [
@@ -767,7 +786,14 @@ class RiskGuardIntegrator:
             else:
                 plan.setdefault("risk_guard", {})["hedge_action"] = "NO_CHANGE_NEEDED"
                 self._log("[对冲] 当前对冲比例正常，无需调整")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self._log(f"[对冲] 执行引擎异常: {e}")
             plan.setdefault("risk_guard", {})["hedge_action"] = f"ERROR: {e}"
 
@@ -821,7 +847,14 @@ class RiskGuardIntegrator:
             else:
                 plan.setdefault("risk_guard", {})["put_action"] = "EXISTING_PROTECTION_OK"
                 self._log(f"[认沽] {result.get('reason', '无需新建/滚仓')}")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self._log(f"[认沽] 引擎异常: {e}")
             plan.setdefault("risk_guard", {})["put_action"] = f"ERROR: {e}"
 
@@ -874,7 +907,7 @@ class RiskGuardIntegrator:
                         f"(margin_used={margin_used}, total_equity={total_equity}), "
                         f"回退到 _estimate_margin_from_positions() = {margin_usage:.1%}"
                     )
-                except Exception as e:  # noqa: BLE001  # 风控 fail-safe: 任何异常都降级为保守值, 不崩溃
+                except (TypeError, ValueError, AttributeError, RuntimeError, OSError) as e:
                     self._log(f"[KillSwitch] [P0-D FIX] 回退失败: {e}, 使用保守值 0.50")
                     margin_usage = 0.50
             else:
@@ -911,7 +944,12 @@ class RiskGuardIntegrator:
                     "action": "MARGIN_WATCH: 保证金≥50%",
                 }
             else:
-                margin_status = {"level": "OK", "can_trade": True, "can_open": True, "action": "正常"}
+                margin_status = {
+                    "level": "OK",
+                    "can_trade": True,
+                    "can_open": True,
+                    "action": "正常",
+                }
 
         self._log(f"[KillSwitch] 保证金 {margin_usage:.1%} → {margin_status['level']}: {margin_status['action']}")
 
@@ -946,7 +984,14 @@ class RiskGuardIntegrator:
                         f"({concentration_status.get('max_concentration', 0):.1%} @ "
                         f"{concentration_status.get('max_concentration_code', '')})"
                     )
-                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+                except (
+                    ValueError,
+                    KeyError,
+                    TypeError,
+                    AttributeError,
+                    OSError,
+                    RuntimeError,
+                ) as e:
                     self._log(f"[KillSwitch] 集中度检查异常: {e}")
                     concentration_status = None
 
@@ -976,9 +1021,7 @@ class RiskGuardIntegrator:
 
         # v8.6.13 P0 FIX: 集中度级别合并 (取 margin 和 concentration 较高 level)
         if concentration_status:
-            conc_level_enum = parse_kill_switch_level(
-                concentration_status.get("level", "OK"), 0.0
-            )
+            conc_level_enum = parse_kill_switch_level(concentration_status.get("level", "OK"), 0.0)
             if conc_level_enum > ks_level_enum:
                 self._log(
                     f"[KillSwitch] [WARNING] 集中度 {conc_level_enum.name} 高于保证金 "
@@ -1050,7 +1093,10 @@ class RiskGuardIntegrator:
             from utils.market_circuit_breaker import MarketCircuitBreaker
         except ImportError:
             self._log("[大盘熔断] MarketCircuitBreaker 导入失败, 跳过")
-            plan.setdefault("risk_guard", {})["market_circuit_breaker"] = {"status": "SKIP", "reason": "import_failed"}
+            plan.setdefault("risk_guard", {})["market_circuit_breaker"] = {
+                "status": "SKIP",
+                "reason": "import_failed",
+            }
             return plan
 
         try:
@@ -1067,7 +1113,14 @@ class RiskGuardIntegrator:
                 self._log(
                     f"[大盘熔断] 正常: 沪深300 跌幅 {status['hs300_change_pct']:.2%} (数据源={status['data_source']})"
                 )
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self._log(f"[大盘熔断] 检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["market_circuit_breaker_error"] = str(e)
             # fail-closed: 大盘熔断崩溃时禁止建仓
@@ -1145,9 +1198,9 @@ class RiskGuardIntegrator:
                     plan["market_state"]["circuit_level"] = "WARNING"
                 plan["risk_guard"]["liquidity_crisis"]["action"] = "DATA_UNAVAILABLE_NO_NEW_POSITIONS"
                 plan["risk_guard"]["liquidity_crisis"]["triggered"] = False
-                plan["risk_guard"]["liquidity_crisis"]["note"] = (
-                    "数据源不可用, 保守禁开仓 (不清空订单). 生产环境请检查 akshare/astock_realtime 连通性"
-                )
+                plan["risk_guard"]["liquidity_crisis"][
+                    "note"
+                ] = "数据源不可用, 保守禁开仓 (不清空订单). 生产环境请检查 akshare/astock_realtime 连通性"
                 self._log(
                     f"[流动性危机] 数据源不可用, 保守禁开仓 (不清空订单). "
                     f"建议检查数据源连通性. data_source={data_source}"
@@ -1180,7 +1233,14 @@ class RiskGuardIntegrator:
                     f"[流动性危机] 正常: 涨跌停 {total_limit} < {LIMIT_COUNT_THRESHOLD} "
                     f"(涨停 {limit_up} + 跌停 {limit_down}, 数据源={data_source})"
                 )
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self._log(f"[流动性危机] 检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["liquidity_crisis_error"] = str(e)
             # v8.6.8 P1-LIVE-05: 崩溃时仅禁开仓, 不清空订单 (避免误清仓)
@@ -1266,7 +1326,15 @@ class RiskGuardIntegrator:
                     f"涨停 {limit_up} + 跌停 {limit_down} (data_source=astock_sample, 不触发 CRITICAL)"
                 )
                 return limit_up, limit_down, "astock_sample"
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[流动性危机] astock_realtime 获取失败: {e}")
 
         # Layer 3: 数据源不可用 — 返回 0 + 标记 fail_closed
@@ -1292,7 +1360,10 @@ class RiskGuardIntegrator:
             from utils.overnight_gap_monitor import OvernightGapMonitor
         except ImportError:
             self._log("[隔夜跳空] OvernightGapMonitor 导入失败, 跳过")
-            plan.setdefault("risk_guard", {})["overnight_gap"] = {"status": "SKIP", "reason": "import_failed"}
+            plan.setdefault("risk_guard", {})["overnight_gap"] = {
+                "status": "SKIP",
+                "reason": "import_failed",
+            }
             return plan
 
         try:
@@ -1321,13 +1392,17 @@ class RiskGuardIntegrator:
                     f"触发={trigger}"
                 )
             elif risk_level == 1:
-                self._log(
-                    f"[隔夜跳空] L1 预警: S&P500 {sp500_pct:.2%}, "
-                    f"ADR偏离 {adr_pct:.2%}"
-                )
+                self._log(f"[隔夜跳空] L1 预警: S&P500 {sp500_pct:.2%}, " f"ADR偏离 {adr_pct:.2%}")
             else:
                 self._log(f"[隔夜跳空] 正常: S&P500 {sp500_pct:.2%} (数据源={data_src})")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self._log(f"[隔夜跳空] 检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["overnight_gap_error"] = str(e)
             # fail-closed: 隔夜跳空崩溃时禁止建仓
@@ -1421,7 +1496,14 @@ class RiskGuardIntegrator:
 
             # 批量研判 (size=3, days=1: 仅最近1天的最近3条新闻, 控制配额)
             insights = analyzer.batch_analyze(symbols_to_check, size=3, days=1)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self._log(f"[负面新闻] 研判异常, fail-open: {e}")
             plan.setdefault("risk_guard", {})["sentiment_breaking_news"] = {
                 "status": "ERROR",
@@ -1446,9 +1528,7 @@ class RiskGuardIntegrator:
                 )
 
         if not critical_negatives:
-            self._log(
-                f"[负面新闻] 正常: 检查 {len(insights)} 只标的, 无 confidence>=0.9 的负面新闻"
-            )
+            self._log(f"[负面新闻] 正常: 检查 {len(insights)} 只标的, 无 confidence>=0.9 的负面新闻")
             plan.setdefault("risk_guard", {})["sentiment_breaking_news"] = {
                 "status": "OK",
                 "checked_count": len(insights),
@@ -1490,9 +1570,7 @@ class RiskGuardIntegrator:
             orders = exec_plan.get(session_key, []) or []
             # 仅保留平仓方向 (SELL), 清掉建仓方向 (BUY)
             kept_orders = [
-                o
-                for o in orders
-                if str(o.get("action", o.get("direction", ""))).upper() in ("SELL", "REDUCE")
+                o for o in orders if str(o.get("action", o.get("direction", ""))).upper() in ("SELL", "REDUCE")
             ]
             removed_count = len(orders) - len(kept_orders)
             if removed_count > 0:
@@ -1509,9 +1587,7 @@ class RiskGuardIntegrator:
         notes["spot_build_allowed"] = False
         existing_reason = notes.get("reason_if_blocked", "")
         new_reason = f"重大负面新闻: {triggered_symbols}"
-        notes["reason_if_blocked"] = (
-            f"{existing_reason} | {new_reason}" if existing_reason else new_reason
-        )
+        notes["reason_if_blocked"] = f"{existing_reason} | {new_reason}" if existing_reason else new_reason
 
         return plan
 
@@ -1602,7 +1678,10 @@ class RiskGuardIntegrator:
             from hedging.correlation_hedger import CorrelationHedger
         except ImportError as e:
             self._log(f"[相关性对冲] CorrelationHedger 导入失败, 跳过: {e}")
-            plan.setdefault("risk_guard", {})["correlation_hedge"] = {"status": "SKIP", "reason": "import_failed"}
+            plan.setdefault("risk_guard", {})["correlation_hedge"] = {
+                "status": "SKIP",
+                "reason": "import_failed",
+            }
             return plan
 
         try:
@@ -1635,8 +1714,12 @@ class RiskGuardIntegrator:
                 # 生成避险资产配置订单
                 hedge_orders = self._build_safe_haven_orders(hedge_result)
                 plan["correlation_hedge_orders"] = hedge_orders
-                plan.setdefault("risk_guard", {})["correlation_hedge"]["gold_weight"] = float(hedge_result.get("gold_weight", 0))
-                plan.setdefault("risk_guard", {})["correlation_hedge"]["repo_weight"] = float(hedge_result.get("repo_weight", 0))
+                plan.setdefault("risk_guard", {})["correlation_hedge"]["gold_weight"] = float(
+                    hedge_result.get("gold_weight", 0)
+                )
+                plan.setdefault("risk_guard", {})["correlation_hedge"]["repo_weight"] = float(
+                    hedge_result.get("repo_weight", 0)
+                )
                 self._log(
                     f"[相关性对冲] 触发避险配置: ρ̄={hedge_result.get('avg_corr', 0):.3f}, "
                     f"黄金ETF {hedge_result.get('gold_weight', 0):.2%}, "
@@ -1644,7 +1727,14 @@ class RiskGuardIntegrator:
                 )
             else:
                 self._log(f"[相关性对冲] 无需对冲: {hedge_result.get('reason', '条件未满足')}")
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self._log(f"[相关性对冲] 执行崩溃: {e}")
             plan.setdefault("risk_guard", {})["correlation_hedge_error"] = str(e)
             # 相关性对冲崩溃不阻断主流程 (仅记录错误)
@@ -1720,7 +1810,14 @@ class RiskGuardIntegrator:
                     for sym in symbols:
                         returns_data[sym].append(day_returns.get(sym, 0.0))
                     valid_days += 1
-                except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+                except (
+                    ValueError,
+                    KeyError,
+                    TypeError,
+                    AttributeError,
+                    OSError,
+                    RuntimeError,
+                ):
                     continue
 
             if valid_days < 10:
@@ -1734,7 +1831,14 @@ class RiskGuardIntegrator:
         except ImportError:
             self._log("[相关性对冲] pandas 未安装, 无法构建收益率矩阵")
             return None
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as e:
             self._log(f"[相关性对冲] 构建收益率失败: {e}")
             return None
 
@@ -1818,7 +1922,11 @@ class RiskGuardIntegrator:
             o_code = self._extract_underlying_code(o.get("instrument", "") or o.get("underlying", ""))
             if o_code and o_code in protected_codes:
                 removed.append(
-                    {"instrument": o.get("instrument", "?"), "code": o_code, "order_id": o.get("order_id", "?")}
+                    {
+                        "instrument": o.get("instrument", "?"),
+                        "code": o_code,
+                        "order_id": o.get("order_id", "?"),
+                    }
                 )
             else:
                 kept_options.append(o)
@@ -1828,9 +1936,9 @@ class RiskGuardIntegrator:
             # 更新订单总数
             futures = hedge_execution.get("futures_orders", [])
             plan["hedge_execution"]["total_orders"] = len(futures) + len(kept_options)
-            plan["risk_guard"]["hedge_action"] = (
-                f"GENERATED_{len(futures) + len(kept_options)}_ORDERS(dedup_removed_{len(removed)})"
-            )
+            plan["risk_guard"][
+                "hedge_action"
+            ] = f"GENERATED_{len(futures) + len(kept_options)}_ORDERS(dedup_removed_{len(removed)})"
             plan.setdefault("risk_guard", {})["put_hedge_dedup"] = {
                 "removed_count": len(removed),
                 "removed": [r["code"] for r in removed],
@@ -1862,12 +1970,24 @@ class RiskGuardIntegrator:
         pnl_report = self._load_pnl_report()
         if not pnl_report:
             self._log("[WARN] 无法加载盈亏报告，使用空报告继续")
-            pnl_report = {"portfolio_pnl": {"summary": {"total_cost": 0, "total_market_value": 0, "total_pnl": 0}}}
+            pnl_report = {
+                "portfolio_pnl": {
+                    "summary": {
+                        "total_cost": 0,
+                        "total_market_value": 0,
+                        "total_pnl": 0,
+                    }
+                }
+            }
 
         plan = self._load_next_trade_plan(next_trade_date)
         if not plan:
             self._log("[WARN] 无法加载次日计划，风控守卫将只输出日志")
-            plan = {"phase": {"daily_capital": 150000}, "execution_plan": {}, "risk_guard": {}}
+            plan = {
+                "phase": {"daily_capital": 150000},
+                "execution_plan": {},
+                "risk_guard": {},
+            }
 
         # 按优先级执行 (重大负面新闻最高优先级, 其次 KillSwitch, 然后回撤)
         # 每个 guard 独立 try-except, 防止单个 guard 崩溃中断整个风控链路
@@ -1881,7 +2001,15 @@ class RiskGuardIntegrator:
         self._log("--- [1/8] 重大负面新闻 (P2-增强) ---")
         try:
             plan = self.guard_sentiment_breaking_news(pnl_report, plan)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[WARNING] 重大负面新闻检查崩溃 (fail-open, 不阻塞): {e}")
             plan.setdefault("risk_guard", {})["sentiment_breaking_news_error"] = str(e)
 
@@ -1889,7 +2017,15 @@ class RiskGuardIntegrator:
         self._log("--- [2/8] 保证金熔断 (KillSwitch) ---")
         try:
             plan = self.guard_kill_switch(pnl_report, plan)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[CRITICAL] 保证金熔断检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["kill_switch_error"] = str(e)
             # 风控崩溃时保守处理: 禁止开仓
@@ -1907,7 +2043,15 @@ class RiskGuardIntegrator:
         self._log("--- [3/8] 大盘熔断 (P1-H) ---")
         try:
             plan = self.guard_market_circuit_breaker(pnl_report, plan)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[CRITICAL] 大盘熔断检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["market_circuit_breaker_error"] = str(e)
             # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
@@ -1924,7 +2068,15 @@ class RiskGuardIntegrator:
         self._log("--- [4/8] 流动性危机 (P1-J) ---")
         try:
             plan = self.guard_liquidity_crisis(pnl_report, plan)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[CRITICAL] 流动性危机检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["liquidity_crisis_error"] = str(e)
             # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
@@ -1941,7 +2093,15 @@ class RiskGuardIntegrator:
         self._log("--- [5/8] 隔夜跳空 (P1-I) ---")
         try:
             plan = self.guard_overnight_gap(pnl_report, plan)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[CRITICAL] 隔夜跳空检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["overnight_gap_error"] = str(e)
             # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
@@ -1958,7 +2118,15 @@ class RiskGuardIntegrator:
         self._log("--- [6/8] 回撤检查 ---")
         try:
             plan = self.guard_drawdown(pnl_report, plan)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[CRITICAL] 回撤检查崩溃: {e}")
             plan.setdefault("risk_guard", {})["drawdown_error"] = str(e)
             # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
@@ -1974,7 +2142,15 @@ class RiskGuardIntegrator:
         self._log("--- [7/8] 波动率控制 ---")
         try:
             plan = self.guard_vol_target(pnl_report, plan)
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[CRITICAL] 波动率控制崩溃: {e}")
             plan.setdefault("risk_guard", {})["vol_target_error"] = str(e)
             # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
@@ -1989,21 +2165,45 @@ class RiskGuardIntegrator:
         self._log("--- [8/8] 对冲执行 ---")
         try:
             plan = self.guard_hedge_execution(pnl_report, plan, next_trade_date)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[CRITICAL] 对冲执行崩溃: {e}")
             plan.setdefault("risk_guard", {})["hedge_error"] = str(e)
 
         self._log("--- [7/7] 认沽保护 ---")
         try:
             plan = self.guard_protective_put(pnl_report, plan, next_trade_date)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[CRITICAL] 认沽保护崩溃: {e}")
             plan.setdefault("risk_guard", {})["put_error"] = str(e)
 
         self._log("--- [7/7] 相关性对冲 (P1-K) ---")
         try:
             plan = self.guard_correlation_hedge(pnl_report, plan)
-        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            ImportError,
+        ) as e:
             self._log(f"[CRITICAL] 相关性对冲崩溃: {e}")
             plan.setdefault("risk_guard", {})["correlation_hedge_error"] = str(e)
 
@@ -2088,7 +2288,14 @@ class RiskGuardIntegrator:
             notes["spot_build_allowed"] = ms.get("spot_build_allowed", True)
             if not ms.get("build_allowed", True) and not notes.get("reason_if_blocked"):
                 notes["reason_if_blocked"] = f"circuit_level={circuit_lvl}"
-        except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError) as _e_consistency:
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+        ) as _e_consistency:
             self._log(f"[一致性校验] 异常: {_e_consistency}")
 
         # 写入时间戳

@@ -9,6 +9,7 @@
     6. set_market_context 集成
     7. wait_fill 实际成交价格反映滑点
 """
+
 from __future__ import annotations
 
 import sys
@@ -107,8 +108,9 @@ class TestMonotonicity:
 
         # 验证单调递增
         for i in range(1, len(slips)):
-            assert slips[i] > slips[i-1], \
-                f"qty 增大但滑点未递增: slips[{i-1}]={slips[i-1]}, slips[{i}]={slips[i]}"
+            assert (
+                slips[i] > slips[i - 1]
+            ), f"qty 增大但滑点未递增: slips[{i-1}]={slips[i-1]}, slips[{i}]={slips[i]}"
 
     def test_slippage_decreases_with_adv(self):
         """ADV 越大 (流动性越好), 滑点越低 (固定 qty)."""
@@ -122,8 +124,9 @@ class TestMonotonicity:
 
         # 验证单调递减
         for i in range(1, len(slips)):
-            assert slips[i] < slips[i-1], \
-                f"ADV 增大但滑点未递减: slips[{i-1}]={slips[i-1]}, slips[{i}]={slips[i]}"
+            assert (
+                slips[i] < slips[i - 1]
+            ), f"ADV 增大但滑点未递减: slips[{i-1}]={slips[i-1]}, slips[{i}]={slips[i]}"
 
 
 class TestSlippageBounds:
@@ -219,8 +222,9 @@ class TestWaitFillIntegration:
         assert result is not None
         # 5 bps = 0.05%, 买入价 = 100 × 1.0005 = 100.05
         expected = 100.0 * 1.0005
-        assert abs(result["price"] - expected) < 0.001, \
-            f"固定滑点成交价应为 {expected}, 实际 {result['price']}"
+        assert (
+            abs(result["price"] - expected) < 0.001
+        ), f"固定滑点成交价应为 {expected}, 实际 {result['price']}"
 
 
 class TestBackwardCompatibility:

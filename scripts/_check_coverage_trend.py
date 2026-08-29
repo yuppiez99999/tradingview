@@ -22,6 +22,7 @@ R1 修复项。CI "Coverage Trend" 阶段引用本脚本, 缺失导致 CI 必然
         [--baseline-json reports/ci/coverage_baseline.json] \
         [--output reports/ci/coverage_trend.json]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -58,6 +59,7 @@ def parse_coverage_xml(path: Path) -> Optional[dict]:
         return None
     try:
         import xml.etree.ElementTree as ET
+
         tree = ET.parse(str(path))
         root = tree.getroot()
         line_rate = float(root.attrib.get("line-rate", "0"))
@@ -74,12 +76,22 @@ def parse_coverage_xml(path: Path) -> Optional[dict]:
 
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Coverage trend checker")
-    parser.add_argument("--coverage-xml", default=str(ROOT / "reports" / "coverage.xml"))
-    parser.add_argument("--min-line-rate", type=float, default=0.80,
-                        help="Sprint4 目标: line-rate ≥0.80 (v8.7 发布门禁 D9)")
-    parser.add_argument("--baseline-json",
-                        default=str(ROOT / "reports" / "ci" / "coverage_baseline.json"))
-    parser.add_argument("--output", default=str(ROOT / "reports" / "ci" / "coverage_trend.json"))
+    parser.add_argument(
+        "--coverage-xml", default=str(ROOT / "reports" / "coverage.xml")
+    )
+    parser.add_argument(
+        "--min-line-rate",
+        type=float,
+        default=0.80,
+        help="Sprint4 目标: line-rate ≥0.80 (v8.7 发布门禁 D9)",
+    )
+    parser.add_argument(
+        "--baseline-json",
+        default=str(ROOT / "reports" / "ci" / "coverage_baseline.json"),
+    )
+    parser.add_argument(
+        "--output", default=str(ROOT / "reports" / "ci" / "coverage_trend.json")
+    )
     args = parser.parse_args(argv)
 
     out_path = Path(args.output)
@@ -90,48 +102,69 @@ def main(argv: Optional[list[str]] = None) -> int:
     results: list[CovResult] = []
 
     if cov is None:
-        results.append(CovResult(
-            "COV-0", "coverage.xml present & parseable", False,
-            f"missing or unparseable: {cov_path}",
-        ))
+        results.append(
+            CovResult(
+                "COV-0",
+                "coverage.xml present & parseable",
+                False,
+                f"missing or unparseable: {cov_path}",
+            )
+        )
         _write(out_path, results, cov_path)
         return 1
 
     line_rate = cov["line_rate"]
-    results.append(CovResult(
-        "COV-1", f"overall line-rate ({line_rate:.4f}) >= {args.min_line_rate:.4f}",
-        line_rate >= args.min_line_rate,
-        f"line_rate={line_rate:.4f} min={args.min_line_rate:.4f}",
-    ))
+    results.append(
+        CovResult(
+            "COV-1",
+            f"overall line-rate ({line_rate:.4f}) >= {args.min_line_rate:.4f}",
+            line_rate >= args.min_line_rate,
+            f"line_rate={line_rate:.4f} min={args.min_line_rate:.4f}",
+        )
+    )
 
     # 关键模块覆盖
     cls_map = {fn.replace("\\", "/"): lr for fn, lr in cov["classes"]}
     for mod in CRITICAL_MODULES:
         lr = cls_map.get(mod)
         if lr is None:
-            results.append(CovResult(
-                f"COV-{mod}", f"critical module covered: {mod}", True,
-                "not in coverage report (non-blocking: maybe not imported by tests)",
-            ))
+            results.append(
+                CovResult(
+                    f"COV-{mod}",
+                    f"critical module covered: {mod}",
+                    True,
+                    "not in coverage report (non-blocking: maybe not imported by tests)",
+                )
+            )
             continue
         # 关键模块至少 1% 覆盖, 退化检测对比基线
         ok = lr >= 0.01
-        results.append(CovResult(
-            f"COV-{mod}", f"critical module {mod} line-rate={lr:.4f} >= 0.01",
-            ok, f"line_rate={lr:.4f}",
-        ))
+        results.append(
+            CovResult(
+                f"COV-{mod}",
+                f"critical module {mod} line-rate={lr:.4f} >= 0.01",
+                ok,
+                f"line_rate={lr:.4f}",
+            )
+        )
 
     # 基线退化检测
     baseline_path = Path(args.baseline_json)
     if baseline_path.exists():
         try:
-            base = json.loads(baseline_path.read_text(encoding="utf-8", errors="replace"))
+            base = json.loads(
+                baseline_path.read_text(encoding="utf-8", errors="replace")
+            )
             base_lr = base.get("line_rate", 0.0)
             degraded = line_rate < base_lr - 0.02  # 允许 2pp 波动
-            results.append(CovResult(
-                "COV-base", f"line-rate ({line_rate:.4f}) not degraded vs base ({base_lr:.4f})",
-                not degraded, f"delta={line_rate - base_lr:+.4f}",
-            ))
+            results.append(
+                CovResult(
+                    "COV-base",
+                    f"line-rate ({line_rate:.4f}) not degraded vs base ({base_lr:.4f})",
+                    not degraded,
+                    f"delta={line_rate - base_lr:+.4f}",
+                )
+            )
         except Exception:
             pass
 
@@ -148,8 +181,9 @@ def main(argv: Optional[list[str]] = None) -> int:
             "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "sprint4_threshold_met": line_rate >= 0.80,
         }
-        baseline_path.write_text(json.dumps(base_out, ensure_ascii=False, indent=2),
-                                 encoding="utf-8")
+        baseline_path.write_text(
+            json.dumps(base_out, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     return 1 if n_fail > 0 else 0
 
 
@@ -160,8 +194,9 @@ def _write(out_path: Path, results: list[CovResult], cov_path: Path) -> None:
         "fail": sum(1 for r in results if not r.passed),
         "results": [r._asdict() for r in results],
     }
-    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2),
-                        encoding="utf-8")
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 if __name__ == "__main__":

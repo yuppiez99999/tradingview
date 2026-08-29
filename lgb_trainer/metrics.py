@@ -125,7 +125,11 @@ def time_series_cv_evaluate(
     embargo_pct = max(0.005, label_horizon / max(n_samples, 1))
     from utils.purged_kfold import purged_timeseries_split
 
-    folds = list(purged_timeseries_split(n_samples=n_samples, n_splits=n_splits, embargo_pct=embargo_pct))
+    folds = list(
+        purged_timeseries_split(
+            n_samples=n_samples, n_splits=n_splits, embargo_pct=embargo_pct
+        )
+    )
 
     fold_metrics: list[dict[str, Any]] = []
     all_importances: list[np.ndarray] = []
@@ -160,9 +164,11 @@ def time_series_cv_evaluate(
                 "r2": round(r2, 4),
                 "ic": round(ic, 4),
                 "sharpe": round(sharpe, 4),
-                "best_iteration": int(model.best_iteration_)
-                if hasattr(model, "best_iteration_")
-                else config["lgb_params"]["n_estimators"],
+                "best_iteration": (
+                    int(model.best_iteration_)
+                    if hasattr(model, "best_iteration_")
+                    else config["lgb_params"]["n_estimators"]
+                ),
             }
         )
         all_importances.append(model.feature_importances_)

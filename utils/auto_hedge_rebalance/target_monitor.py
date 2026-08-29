@@ -225,7 +225,9 @@ class TargetMonitor:
 
         return CorrectionAction.NONE
 
-    def monitor(self, current_strategy_level: StrategyLevel = StrategyLevel.NORMAL) -> MonitorResult:
+    def monitor(
+        self, current_strategy_level: StrategyLevel = StrategyLevel.NORMAL
+    ) -> MonitorResult:
         """执行目标达成监控。
 
         Args:

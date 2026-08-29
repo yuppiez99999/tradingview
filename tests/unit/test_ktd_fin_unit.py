@@ -39,6 +39,7 @@ from tests.eval.ktd_fin import (
 # 枚举测试
 # ============================================================
 
+
 class TestEnums:
     """枚举测试。"""
 
@@ -61,6 +62,7 @@ class TestEnums:
 # 数据结构测试
 # ============================================================
 
+
 class TestMarketDataPoint:
     """市场数据条目测试。"""
 
@@ -70,7 +72,9 @@ class TestMarketDataPoint:
         assert point.is_future is False
 
     def test_to_dict(self):
-        point = MarketDataPoint(date="2025-01-01", ticker="A", price=10.0, is_future=True)
+        point = MarketDataPoint(
+            date="2025-01-01", ticker="A", price=10.0, is_future=True
+        )
         d = point.to_dict()
         assert d["date"] == "2025-01-01"
         assert d["is_future"] is True
@@ -109,7 +113,9 @@ class TestLeakAssessment:
 
     def test_to_dict(self):
         assessment = LeakAssessment(
-            is_leaked=True, severity=LeakSeverity.HIGH, sharpe_ratio=3.5,
+            is_leaked=True,
+            severity=LeakSeverity.HIGH,
+            sharpe_ratio=3.5,
         )
         d = assessment.to_dict()
         assert d["is_leaked"] is True
@@ -120,6 +126,7 @@ class TestLeakAssessment:
 # DataMasker 测试
 # ============================================================
 
+
 class TestDataMasker:
     """数据掩码器测试。"""
 
@@ -127,7 +134,13 @@ class TestDataMasker:
         return [
             MarketDataPoint(date="2025-01-01", ticker="A", price=10.0, return_pct=0.01),
             MarketDataPoint(date="2025-01-02", ticker="A", price=10.5, return_pct=0.02),
-            MarketDataPoint(date="2025-01-03", ticker="A", price=11.0, return_pct=0.03, is_future=True),
+            MarketDataPoint(
+                date="2025-01-03",
+                ticker="A",
+                price=11.0,
+                return_pct=0.03,
+                is_future=True,
+            ),
         ]
 
     def test_mask_zero_strategy(self):
@@ -181,6 +194,7 @@ class TestDataMasker:
 # ============================================================
 # BarraAttributor 测试
 # ============================================================
+
 
 class TestBarraAttributor:
     """Barra 风险因子归因测试。"""
@@ -243,6 +257,7 @@ class TestBarraAttributor:
 # MemoryLeakDetector 测试
 # ============================================================
 
+
 class TestMemoryLeakDetector:
     """记忆泄漏检测器测试。"""
 
@@ -264,7 +279,11 @@ class TestMemoryLeakDetector:
             masked_result={"sharpe_ratio": 5.0, "win_rate": 0.55},
         )
         assert result.is_leaked
-        assert result.severity in (LeakSeverity.MEDIUM, LeakSeverity.HIGH, LeakSeverity.CRITICAL)
+        assert result.severity in (
+            LeakSeverity.MEDIUM,
+            LeakSeverity.HIGH,
+            LeakSeverity.CRITICAL,
+        )
 
     def test_high_win_rate_leak(self):
         """高胜率泄漏。"""
@@ -312,14 +331,17 @@ class TestMemoryLeakDetector:
 # KTDFinBenchmark 测试
 # ============================================================
 
+
 class TestKTDFinBenchmark:
     """KTD-Fin 基准测试。"""
 
     def _make_data(self, n: int = 50) -> list[MarketDataPoint]:
         return [
             MarketDataPoint(
-                date=f"2025-01-{i+1:02d}", ticker="A",
-                price=10.0 + i * 0.1, return_pct=0.001,
+                date=f"2025-01-{i+1:02d}",
+                ticker="A",
+                price=10.0 + i * 0.1,
+                return_pct=0.001,
                 is_future=i >= n // 2,
             )
             for i in range(n)
@@ -376,6 +398,7 @@ class TestKTDFinBenchmark:
 # MockAgent 测试
 # ============================================================
 
+
 class TestMockAgent:
     """Mock 代理测试。"""
 
@@ -395,7 +418,9 @@ class TestMockAgent:
     def test_predict_deterministic(self):
         """相同输入相同输出。"""
         agent = MockAgent(sharpe=1.0)
-        data = [MarketDataPoint(date=f"2025-01-{i+1:02d}", ticker="A") for i in range(10)]
+        data = [
+            MarketDataPoint(date=f"2025-01-{i+1:02d}", ticker="A") for i in range(10)
+        ]
         r1 = agent.predict(data)
         r2 = agent.predict(data)
         assert r1["returns"] == r2["returns"]
@@ -404,6 +429,7 @@ class TestMockAgent:
 # ============================================================
 # 端到端集成测试
 # ============================================================
+
 
 class TestEndToEnd:
     """端到端集成测试。"""

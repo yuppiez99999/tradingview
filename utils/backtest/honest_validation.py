@@ -40,6 +40,7 @@ TRADING_DAYS = 252
 @dataclass
 class CPCVSummary:
     """CPCV 路径汇总"""
+
     n_paths: int = 0
     sharpe_mean: float = 0.0
     sharpe_std: float = 0.0
@@ -54,6 +55,7 @@ class CPCVSummary:
 @dataclass
 class HonestValidationResult:
     """诚实回测三件套综合结果"""
+
     # 三件套各自结果
     cpcv: CPCVSummary = field(default_factory=CPCVSummary)
     dsr: DSRResult | None = None
@@ -217,7 +219,9 @@ def run_honest_validation(
 
     # 1. CPCV
     result.cpcv = _compute_cpcv_sharpe_paths(
-        returns, n_groups=cpcv_n_groups, n_test_groups=cpcv_n_test_groups,
+        returns,
+        n_groups=cpcv_n_groups,
+        n_test_groups=cpcv_n_test_groups,
     )
 
     # 2. DSR (n_trials 取 max(n_trials_dsr, CPCV 路径数) 修正多重检验)
@@ -231,7 +235,9 @@ def run_honest_validation(
 
     # 3. Noise
     result.noise = _run_noise_test(
-        returns, noise_ratio=noise_ratio, n_trials=noise_n_trials,
+        returns,
+        noise_ratio=noise_ratio,
+        n_trials=noise_n_trials,
         random_seed=random_seed,
     )
 
@@ -250,7 +256,9 @@ def run_honest_validation(
     else:
         reasons = []
         if not dsr_pass:
-            reasons.append(f"DSR FAIL ({result.dsr.deflated_sharpe_ratio:.4f}<{required_dsr})")
+            reasons.append(
+                f"DSR FAIL ({result.dsr.deflated_sharpe_ratio:.4f}<{required_dsr})"
+            )
         if not noise_stable:
             reasons.append("Noise unstable")
         if not cpcv_stable:

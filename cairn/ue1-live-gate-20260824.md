@@ -66,3 +66,14 @@ argparse 补充 `--yes` (UE-1 实盘门控双签确认)。未传时 getattr 返�
 - 当前 broker.enabled=false, 门控不激活, 不影响现有模拟撮合/报告流程。
 - 接 QMT 时 (G1 完成后) 置 enabled=true, 门控自动激活, 防止裸实盘。
 - memory 23032726 双签模式落地。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [G1 QMT 真实下单接线 (2026-08-24)](g1-qmt-wiring-20260824.md) (相似度 18%)
+- [代码审查明细 — 量化策略系统_统一入口 (2026-08-24)](code-review-unified-entry-20260824.md) (相似度 17%)
+- [风控 fail-close 完整化 (2026-08-24)](risk-failclose-complete-20260824.md) (相似度 15%)
+- [Agent-Skills 集成与适配（2026-08-24）](agent-skills-integration.md) (相似度 9%)
+- [代码审查明细 — 主链路 institutional_pipeline_runner (2026-08-24)](code-review-pipeline-20260824.md) (相似度 9%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

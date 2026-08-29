@@ -72,7 +72,9 @@ class TickMatcher:
         trade_volume = order.volume - order.traded_volume
         # 限制不超过当前 Tick 成交量
         if tick.volume > 0:
-            trade_volume = min(trade_volume, tick.volume * 0.1)  # 不超过 Tick 成交量 10%
+            trade_volume = min(
+                trade_volume, tick.volume * 0.1
+            )  # 不超过 Tick 成交量 10%
 
         if trade_volume <= 0:
             return None
@@ -127,7 +129,9 @@ class TickBacktestEngine:
     ):
         self.initial_capital = initial_capital
         self.cash = initial_capital
-        self.matcher = TickMatcher(slippage_rate, commission_rate, min_commission, stamp_duty)
+        self.matcher = TickMatcher(
+            slippage_rate, commission_rate, min_commission, stamp_duty
+        )
         self.contracts = get_contracts_manager()
 
         # 状态
@@ -206,11 +210,15 @@ class TickBacktestEngine:
         self.pending_orders.append(order)
         return order_id
 
-    def buy(self, code: str, volume: float, price: float = 0, order_type: str = "LIMIT") -> str:
+    def buy(
+        self, code: str, volume: float, price: float = 0, order_type: str = "LIMIT"
+    ) -> str:
         """买入"""
         return self.send_order(code, "BUY", volume, price, order_type, "OPEN")
 
-    def sell(self, code: str, volume: float, price: float = 0, order_type: str = "LIMIT") -> str:
+    def sell(
+        self, code: str, volume: float, price: float = 0, order_type: str = "LIMIT"
+    ) -> str:
         """卖出"""
         return self.send_order(code, "SELL", volume, price, order_type, "CLOSE")
 
@@ -244,14 +252,20 @@ class TickBacktestEngine:
         pos = self.positions[trade.code]
 
         contract = self.contracts.get_contract(trade.code)
-        commission = max(trade.amount * contract.commission_rate, contract.min_commission)
+        commission = max(
+            trade.amount * contract.commission_rate, contract.min_commission
+        )
         if trade.direction == "SELL":
             commission += trade.amount * contract.stamp_duty
 
         if trade.direction == "BUY":
             # 更新多头持仓
             new_vol = pos.volume + trade.volume
-            pos.avg_price = (pos.avg_price * pos.volume + trade.price * trade.volume) / new_vol if new_vol > 0 else 0
+            pos.avg_price = (
+                (pos.avg_price * pos.volume + trade.price * trade.volume) / new_vol
+                if new_vol > 0
+                else 0
+            )
             pos.volume = new_vol
             self.cash -= trade.amount + commission
         else:
@@ -275,11 +289,19 @@ class TickBacktestEngine:
 
     def get_position_profit(self) -> float:
         """获取总持仓盈亏"""
-        return sum((pos.last_price - pos.avg_price) * pos.volume for pos in self.positions.values() if pos.volume > 0)
+        return sum(
+            (pos.last_price - pos.avg_price) * pos.volume
+            for pos in self.positions.values()
+            if pos.volume > 0
+        )
 
     def get_total_equity(self) -> float:
         """获取总权益"""
-        pos_value = sum(pos.volume * pos.last_price for pos in self.positions.values() if pos.volume > 0)
+        pos_value = sum(
+            pos.volume * pos.last_price
+            for pos in self.positions.values()
+            if pos.volume > 0
+        )
         return self.cash + pos_value
 
     def run(self) -> dict:
@@ -297,7 +319,9 @@ class TickBacktestEngine:
             all_ticks.extend(ticks)
         all_ticks.sort(key=lambda t: t.timestamp)
 
-        logger.info(f"开始 Tick 回测: {len(all_ticks)} 条 Tick, {len(self.tick_data)} 个标的")
+        logger.info(
+            f"开始 Tick 回测: {len(all_ticks)} 条 Tick, {len(self.tick_data)} 个标的"
+        )
 
         # 按日期分组用于日终结算
         daily_ticks: dict[int, list[TickData]] = defaultdict(list)
@@ -400,7 +424,9 @@ class TickBacktestEngine:
             "initial_capital": self.initial_capital,
             "final_equity": round(final_equity, 2),
             "total_return": round(total_return, 4),
-            "annual_return": round(total_return / max(len(self.daily_pnl) / 252, 0.01), 4),
+            "annual_return": round(
+                total_return / max(len(self.daily_pnl) / 252, 0.01), 4
+            ),
             "max_drawdown": round(max_dd, 4),
             "max_drawdown_date": max_dd_date,
             "sharpe_ratio": round(sharpe, 4),
@@ -411,7 +437,11 @@ class TickBacktestEngine:
             "n_trades": len(self.trades),
             "n_pending_orders": len(self.pending_orders),
             "total_commission": round(
-                sum(t.amount * self.contracts.get_contract(t.code).commission_rate for t in self.trades), 2
+                sum(
+                    t.amount * self.contracts.get_contract(t.code).commission_rate
+                    for t in self.trades
+                ),
+                2,
             ),
         }
 
@@ -452,7 +482,9 @@ def ticks_from_csv(csv_path: str, code: str, exchange: str = "SSE") -> list[Tick
     return ticks
 
 
-def bars_from_csv(csv_path: str, code: str, exchange: str = "SSE", period: str = "1d") -> list[BarData]:
+def bars_from_csv(
+    csv_path: str, code: str, exchange: str = "SSE", period: str = "1d"
+) -> list[BarData]:
     """从 CSV 加载 Bar 数据"""
     import csv
 
@@ -483,7 +515,10 @@ def bars_from_csv(csv_path: str, code: str, exchange: str = "SSE", period: str =
 
 
 def run_tick_backtest(
-    strategy: Any, tick_data: dict[str, list[TickData]], initial_capital: float = 1_000_000, slippage: float = 0.001
+    strategy: Any,
+    tick_data: dict[str, list[TickData]],
+    initial_capital: float = 1_000_000,
+    slippage: float = 0.001,
 ) -> dict:
     """便捷函数: 一行运行 Tick 回测"""
     engine = TickBacktestEngine(

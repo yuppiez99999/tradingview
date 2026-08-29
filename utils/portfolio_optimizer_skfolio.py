@@ -41,6 +41,7 @@ logger = logging.getLogger("portfolio_optimizer_skfolio")
 
 try:
     import skfolio  # noqa: F401
+
     SKFOLIO_AVAILABLE = True
 except ImportError:
     SKFOLIO_AVAILABLE = False
@@ -50,8 +51,10 @@ except ImportError:
 # 策略枚举
 # ============================================================
 
+
 class Strategy(str, Enum):
     """优化策略。"""
+
     MEAN_VARIANCE = "mean_variance"
     MAX_SHARPE = "max_sharpe"
     MIN_VARIANCE = "min_variance"
@@ -62,6 +65,7 @@ class Strategy(str, Enum):
 # ============================================================
 # 优化结果
 # ============================================================
+
 
 @dataclass
 class OptimizationResult:
@@ -76,6 +80,7 @@ class OptimizationResult:
         success: 是否成功
         message: 附加信息
     """
+
     weights: np.ndarray
     expected_return: float = 0.0
     expected_risk: float = 0.0
@@ -103,6 +108,7 @@ class OptimizationResult:
 # 核心优化器 (numpy 实现)
 # ============================================================
 
+
 class NumpyOptimizer:
     """numpy 核心优化器 (零依赖)。"""
 
@@ -114,8 +120,9 @@ class NumpyOptimizer:
 
     @staticmethod
     def mean_variance(
-        returns: np.ndarray, target_return: float | None = None,
-        risk_aversion: float = 1.0
+        returns: np.ndarray,
+        target_return: float | None = None,
+        risk_aversion: float = 1.0,
     ) -> np.ndarray:
         """均值-方差优化 (Markowitz).
 
@@ -233,15 +240,12 @@ class NumpyOptimizer:
         """准对角化 (获取叶子顺序)。"""
         if root.is_leaf():
             return [root.id]
-        return (
-            NumpyOptimizer._get_quasi_diag(root.get_left())
-            + NumpyOptimizer._get_quasi_diag(root.get_right())
-        )
+        return NumpyOptimizer._get_quasi_diag(
+            root.get_left()
+        ) + NumpyOptimizer._get_quasi_diag(root.get_right())
 
     @staticmethod
-    def _recursive_bisection(
-        cov: np.ndarray, order: list[int]
-    ) -> np.ndarray:
+    def _recursive_bisection(cov: np.ndarray, order: list[int]) -> np.ndarray:
         """递归二分分配。"""
         n = cov.shape[0]
         weights = np.ones(n) / n
@@ -264,7 +268,7 @@ class NumpyOptimizer:
                 for i in left:
                     weights[i] *= alpha
                 for i in right:
-                    weights[i] *= (1 - alpha)
+                    weights[i] *= 1 - alpha
 
                 new_clusters.append(left)
                 new_clusters.append(right)
@@ -287,6 +291,7 @@ class NumpyOptimizer:
 # skfolio 统一优化器
 # ============================================================
 
+
 @dataclass
 class SkfolioConfig:
     """优化配置。
@@ -300,6 +305,7 @@ class SkfolioConfig:
         min_weight: 单资产最小权重
         n_iters: 迭代次数 (风险平价)
     """
+
     strategy: Strategy = Strategy.MIN_VARIANCE
     risk_aversion: float = 1.0
     target_return: float | None = None
@@ -399,9 +405,7 @@ class SkfolioOptimizer:
             raise RuntimeError("需先调用 fit()")
         return float(self._result.weights @ np.mean(returns, axis=0))
 
-    def compare_strategies(
-        self, returns: np.ndarray
-    ) -> dict[str, OptimizationResult]:
+    def compare_strategies(self, returns: np.ndarray) -> dict[str, OptimizationResult]:
         """对比所有策略。"""
         results: dict[str, OptimizationResult] = {}
         for strategy in Strategy:
@@ -423,6 +427,7 @@ class SkfolioOptimizer:
 # ============================================================
 # 便捷函数
 # ============================================================
+
 
 def optimize_portfolio(
     returns: np.ndarray,
@@ -452,6 +457,7 @@ def compare_all_strategies(returns: np.ndarray) -> dict[str, dict[str, float]]:
 # ============================================================
 # CLI 入口
 # ============================================================
+
 
 def main() -> None:
     """CLI 入口: 演示 skfolio 统一优化后端。"""

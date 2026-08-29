@@ -1,6 +1,7 @@
 """
 G7 Coverage Boost: utils/ifind_news_analyzer.py (169 lines, 0% -> target ~80%)
 """
+
 from __future__ import annotations
 
 import json
@@ -52,7 +53,9 @@ class TestNewsItem:
 
 class TestStockInsight:
     def test_default_values(self):
-        insight = StockInsight(symbol="000001.SZ", name="平安银行", direction="positive", confidence=0.8)
+        insight = StockInsight(
+            symbol="000001.SZ", name="平安银行", direction="positive", confidence=0.8
+        )
         assert insight.reasons == []
         assert insight.news_count == 0
         assert isinstance(insight.updated_at, str)
@@ -150,7 +153,9 @@ class TestSearchTrending:
     def test_with_industry_and_timescope(self):
         analyzer = IFinDNewsAnalyzer.__new__(IFinDNewsAnalyzer)
         analyzer._call = MagicMock(return_value=_ok_result({"results": []}))
-        result = analyzer.search_trending("AI", industry_name="电子", time_scope="7天", size=5)
+        result = analyzer.search_trending(
+            "AI", industry_name="电子", time_scope="7天", size=5
+        )
         assert isinstance(result, list)
         call_args = analyzer._call.call_args
         request = call_args[0][2]
@@ -184,9 +189,20 @@ class TestAnalyzeSymbol:
 
     def test_analyze_with_name_and_news(self):
         analyzer = IFinDNewsAnalyzer.__new__(IFinDNewsAnalyzer)
-        analyzer._call = MagicMock(return_value=_ok_result({"results": [
-            {"title": "利好", "snippet": "好", "source": "src", "date": "2026-01-01"}
-        ]}))
+        analyzer._call = MagicMock(
+            return_value=_ok_result(
+                {
+                    "results": [
+                        {
+                            "title": "利好",
+                            "snippet": "好",
+                            "source": "src",
+                            "date": "2026-01-01",
+                        }
+                    ]
+                }
+            )
+        )
         insight = analyzer.analyze_symbol("000001.SZ", name="平安银行")
         assert insight.symbol == "000001.SZ"
         assert insight.name == "平安银行"
@@ -197,8 +213,16 @@ class TestBatchAnalyze:
     def test_batch_success(self):
         analyzer = IFinDNewsAnalyzer.__new__(IFinDNewsAnalyzer)
         analyzer._call = MagicMock(return_value=_ok_result({"results": []}))
-        with patch.object(analyzer, "analyze_symbol", return_value=StockInsight(symbol="000001.SZ", name="", direction="positive", confidence=0.5)) as mock_analyze:
-            results = analyzer.batch_analyze(["000001.SZ", "000002.SZ"], name_map={"000001.SZ": "A"})
+        with patch.object(
+            analyzer,
+            "analyze_symbol",
+            return_value=StockInsight(
+                symbol="000001.SZ", name="", direction="positive", confidence=0.5
+            ),
+        ) as mock_analyze:
+            results = analyzer.batch_analyze(
+                ["000001.SZ", "000002.SZ"], name_map={"000001.SZ": "A"}
+            )
         assert len(results) == 2
         assert mock_analyze.call_count == 2
 
@@ -237,14 +261,36 @@ class TestCallNews:
 class TestParseNewsResult:
     def test_plain_dict(self):
         analyzer = IFinDNewsAnalyzer.__new__(IFinDNewsAnalyzer)
-        data = {"data": [{"title": "t", "snippet": "s", "source": "src", "publish_time": "2026-01-01"}]}
+        data = {
+            "data": [
+                {
+                    "title": "t",
+                    "snippet": "s",
+                    "source": "src",
+                    "publish_time": "2026-01-01",
+                }
+            ]
+        }
         items = analyzer._parse_news_result(data)
         assert len(items) == 1
         assert items[0].title == "t"
 
     def test_mcp_wrapped_text(self):
         analyzer = IFinDNewsAnalyzer.__new__(IFinDNewsAnalyzer)
-        inner = json.dumps({"result": {"results": [{"title": "t", "snippet": "s", "source": "src", "date": "2026-01-01"}]}})
+        inner = json.dumps(
+            {
+                "result": {
+                    "results": [
+                        {
+                            "title": "t",
+                            "snippet": "s",
+                            "source": "src",
+                            "date": "2026-01-01",
+                        }
+                    ]
+                }
+            }
+        )
         data = {"result": {"content": [{"text": inner}]}}
         items = analyzer._parse_news_result(data)
         assert len(items) == 1
@@ -252,7 +298,16 @@ class TestParseNewsResult:
 
     def test_list_input(self):
         analyzer = IFinDNewsAnalyzer.__new__(IFinDNewsAnalyzer)
-        data = {"data": [{"title": "t", "snippet": "s", "source": "src", "publish_time": "2026-01-01"}]}
+        data = {
+            "data": [
+                {
+                    "title": "t",
+                    "snippet": "s",
+                    "source": "src",
+                    "publish_time": "2026-01-01",
+                }
+            ]
+        }
         items = analyzer._parse_news_result(data)
         assert len(items) == 1
 

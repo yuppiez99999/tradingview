@@ -8,6 +8,7 @@ P1 在 502 日数据上搜出 γ_s=0.1/γ_k=0.05 最优. 本脚本在 995 日数
 Usage:
     .venv\\Scripts\\python.exe research\\gamma_generalization_scan.py
 """
+
 from __future__ import annotations
 
 import json
@@ -41,8 +42,8 @@ def backtest_gamma(R, codes, gs, gk):  # noqa: N806
 
     t = TRAIN_WINDOW
     while t + HOLD_PERIOD <= T:
-        R_train = R[t - TRAIN_WINDOW:t]  # noqa: N806
-        R_hold = R[t:t + HOLD_PERIOD]  # noqa: N806
+        R_train = R[t - TRAIN_WINDOW : t]  # noqa: N806
+        R_hold = R[t : t + HOLD_PERIOD]  # noqa: N806
         cov = np.cov(R_train, rowvar=False) * 252
         mu_bl = bl_posterior_mu(codes, R_train, cov, w_bench)
 
@@ -65,8 +66,12 @@ def backtest_gamma(R, codes, gs, gk):  # noqa: N806
     peak = np.maximum.accumulate(cum_nav)
     max_dd = float((cum_nav / peak - 1.0).min())
     return {
-        "夏普": m["年化夏普"], "收益": m["年化收益"], "末净值": float(cum_nav[-1]),
-        "回撤": max_dd, "偏度": m["组合偏度"], "峰度": m["超额峰度"],
+        "夏普": m["年化夏普"],
+        "收益": m["年化收益"],
+        "末净值": float(cum_nav[-1]),
+        "回撤": max_dd,
+        "偏度": m["组合偏度"],
+        "峰度": m["超额峰度"],
     }
 
 
@@ -76,11 +81,15 @@ def main() -> int:
     codes = [str(c) for c in cache["codes"]]
     T, N = R.shape  # noqa: N806
     print(f"加载缓存: {T} 日 × {N} 股")
-    print(f"γ 网格搜索 (train={TRAIN_WINDOW}, 样本外={T-TRAIN_WINDOW} 日): "
-          f"{len(GAMMA_S_GRID)}×{len(GAMMA_K_GRID)}={len(GAMMA_S_GRID)*len(GAMMA_K_GRID)} 组合\n")
+    print(
+        f"γ 网格搜索 (train={TRAIN_WINDOW}, 样本外={T-TRAIN_WINDOW} 日): "
+        f"{len(GAMMA_S_GRID)}×{len(GAMMA_K_GRID)}={len(GAMMA_S_GRID)*len(GAMMA_K_GRID)} 组合\n"
+    )
 
     results = []
-    print(f"{'γ_s':<6}{'γ_k':<6}{'夏普':<10}{'净值':<10}{'收益':<10}{'回撤':<10}{'偏度':<8}{'峰度':<8}")
+    print(
+        f"{'γ_s':<6}{'γ_k':<6}{'夏普':<10}{'净值':<10}{'收益':<10}{'回撤':<10}{'偏度':<8}{'峰度':<8}"
+    )
     print("-" * 70)
     for gs in GAMMA_S_GRID:
         for gk in GAMMA_K_GRID:
@@ -88,33 +97,54 @@ def main() -> int:
             row = {"gamma_s": gs, "gamma_k": gk, **m}
             results.append(row)
             tag = " ← P1 最优" if gs == 0.1 and gk == 0.05 else ""
-            print(f"{gs:<6}{gk:<6}{m['夏普']:<10.4f}{m['末净值']:<10.4f}"
-                  f"{m['收益']:<10.4f}{m['回撤']:<10.4f}{m['偏度']:<8.3f}{m['峰度']:<8.3f}{tag}")
+            print(
+                f"{gs:<6}{gk:<6}{m['夏普']:<10.4f}{m['末净值']:<10.4f}"
+                f"{m['收益']:<10.4f}{m['回撤']:<10.4f}{m['偏度']:<8.3f}{m['峰度']:<8.3f}{tag}"
+            )
 
     # 找最优
     best_sharpe = max(results, key=lambda r: r["夏普"])
     best_nav = max(results, key=lambda r: r["末净值"])
-    p1_optimal = next(r for r in results if r["gamma_s"] == 0.1 and r["gamma_k"] == 0.05)
+    p1_optimal = next(
+        r for r in results if r["gamma_s"] == 0.1 and r["gamma_k"] == 0.05
+    )
     bl_mv = next(r for r in results if r["gamma_s"] == 0.0 and r["gamma_k"] == 0.0)
 
     print(f"\n{'='*70}")
     print("分析")
     print(f"{'='*70}")
-    print(f"BL+MV 基准 (0,0):           夏普={bl_mv['夏普']:+.4f}  净值={bl_mv['末净值']:.4f}")
-    print(f"P1 最优 (0.1,0.05):         夏普={p1_optimal['夏普']:+.4f}  净值={p1_optimal['末净值']:.4f}")
-    print(f"995 日夏普最优 ({best_sharpe['gamma_s']},{best_sharpe['gamma_k']}):  "
-          f"夏普={best_sharpe['夏普']:+.4f}  净值={best_sharpe['末净值']:.4f}")
-    print(f"995 日净值最优 ({best_nav['gamma_s']},{best_nav['gamma_k']}):  "
-          f"夏普={best_nav['夏普']:+.4f}  净值={best_nav['末净值']:.4f}")
+    print(
+        f"BL+MV 基准 (0,0):           夏普={bl_mv['夏普']:+.4f}  净值={bl_mv['末净值']:.4f}"
+    )
+    print(
+        f"P1 最优 (0.1,0.05):         夏普={p1_optimal['夏普']:+.4f}  净值={p1_optimal['末净值']:.4f}"
+    )
+    print(
+        f"995 日夏普最优 ({best_sharpe['gamma_s']},{best_sharpe['gamma_k']}):  "
+        f"夏普={best_sharpe['夏普']:+.4f}  净值={best_sharpe['末净值']:.4f}"
+    )
+    print(
+        f"995 日净值最优 ({best_nav['gamma_s']},{best_nav['gamma_k']}):  "
+        f"夏普={best_nav['夏普']:+.4f}  净值={best_nav['末净值']:.4f}"
+    )
 
     if best_sharpe["gamma_s"] == 0.1 and best_sharpe["gamma_k"] == 0.05:
-        print("\n✅ P1 最优 γ_s=0.1/γ_k=0.05 在 995 日数据上仍是最优 → 参数泛化成功, 非过拟合")
+        print(
+            "\n✅ P1 最优 γ_s=0.1/γ_k=0.05 在 995 日数据上仍是最优 → 参数泛化成功, 非过拟合"
+        )
     else:
-        print("\n⚠️ 995 日最优 γ 与 P1 不同 → γ 随数据变化, 但 P1 的 (0.1,0.05) 仍跑赢 BL+MV")
+        print(
+            "\n⚠️ 995 日最优 γ 与 P1 不同 → γ 随数据变化, 但 P1 的 (0.1,0.05) 仍跑赢 BL+MV"
+        )
         print(f"   P1 最优 vs BL+MV: Δ夏普={p1_optimal['夏普']-bl_mv['夏普']:+.4f}")
 
-    out = {"train": TRAIN_WINDOW, "网格结果": results,
-           "P1最优": p1_optimal, "995日夏普最优": best_sharpe, "BL+MV基准": bl_mv}
+    out = {
+        "train": TRAIN_WINDOW,
+        "网格结果": results,
+        "P1最优": p1_optimal,
+        "995日夏普最优": best_sharpe,
+        "BL+MV基准": bl_mv,
+    }
     out_path = _PROJECT_ROOT / "research" / "gamma_generalization_scan_result.json"
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)

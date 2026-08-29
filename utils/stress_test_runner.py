@@ -33,11 +33,31 @@ REPORT_DIR = BASE_DIR / "reports"
 # 模拟持仓 (--simulate 或显式要求时使用)。集中定义避免散落重复、便于维护。
 # 注意: 真实持仓路径在任何情况下都不得静默回退到此数据, 否则会产出"假真实"报告。
 _SIMULATED_POSITIONS = [
-    {"code": "stock", "name": "股票多头", "amount": 1_800_000, "strategy": "stock_long"},
+    {
+        "code": "stock",
+        "name": "股票多头",
+        "amount": 1_800_000,
+        "strategy": "stock_long",
+    },
     {"code": "etf", "name": "ETF组合", "amount": 500_000, "strategy": "etf"},
-    {"code": "quant", "name": "量化中性", "amount": 700_000, "strategy": "quant_neutral"},
-    {"code": "option", "name": "期权尾部", "amount": 200_000, "strategy": "options_tail"},
-    {"code": "future", "name": "期货对冲", "amount": 500_000, "strategy": "futures_hedge"},
+    {
+        "code": "quant",
+        "name": "量化中性",
+        "amount": 700_000,
+        "strategy": "quant_neutral",
+    },
+    {
+        "code": "option",
+        "name": "期权尾部",
+        "amount": 200_000,
+        "strategy": "options_tail",
+    },
+    {
+        "code": "future",
+        "name": "期货对冲",
+        "amount": 500_000,
+        "strategy": "futures_hedge",
+    },
     {"code": "cash", "name": "现金管理", "amount": 1_300_000, "strategy": "cash"},
 ]
 
@@ -210,7 +230,13 @@ class StressTestRunner:
 
             # 确定资产类别影响
             impact_pct = 0.0
-            if "stock" in strategy.lower() or pos.get("style") in ("科技", "制造", "医药", "新能源", "军工"):
+            if "stock" in strategy.lower() or pos.get("style") in (
+                "科技",
+                "制造",
+                "医药",
+                "新能源",
+                "军工",
+            ):
                 impact_pct = impacts.get("stock", 0)
             elif "etf" in strategy.lower() or "ETF" in pos.get("name", ""):
                 impact_pct = impacts.get("etf", 0)
@@ -247,9 +273,13 @@ class StressTestRunner:
         expected_dd = scenario_def.get("expected_portfolio_dd", 0)
         if with_intervention:
             if scenario_id == "slow_bear_2018":
-                expected_dd = scenario_def.get("expected_with_intervention", expected_dd)
+                expected_dd = scenario_def.get(
+                    "expected_with_intervention", expected_dd
+                )
             elif scenario_id == "liquidity_crisis":
-                expected_dd = scenario_def.get("pre_action_dd_with_intervention", expected_dd)
+                expected_dd = scenario_def.get(
+                    "pre_action_dd_with_intervention", expected_dd
+                )
 
         return {
             "scenario_id": scenario_id,
@@ -277,13 +307,26 @@ class StressTestRunner:
         也便于 assert_data_validity D1 通过 is_simulated 字段区分真实/模拟数据。
         """
         date_str = datetime.now().strftime("%Y%m%d")
-        prefix = "stress_test_SIMULATED" if results.get("is_simulated", False) else "stress_test"
+        prefix = (
+            "stress_test_SIMULATED"
+            if results.get("is_simulated", False)
+            else "stress_test"
+        )
         report_path = REPORT_DIR / f"{prefix}_{date_str}.json"
         try:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"压力测试报告已保存: {report_path}")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.error(f"保存压力测试报告失败: {e}")
         return report_path
 
@@ -301,14 +344,24 @@ if __name__ == "__main__":
         try:
             from notify import send_alert
         except ImportError:
+
             def send_alert(title: str, content: str, level: str = "warning") -> None:  # type: ignore
                 logger.error(f"[ALERT-{level}] {title}: {content}")
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     parser = argparse.ArgumentParser(description="压力测试自动化")
-    parser.add_argument("--portfolio", type=float, default=None, help="组合净值 (默认从 positions.json 读取)")
-    parser.add_argument("--simulate", action="store_true", help="使用模拟持仓测试 (默认使用 positions.json 真实持仓)")
+    parser.add_argument(
+        "--portfolio",
+        type=float,
+        default=None,
+        help="组合净值 (默认从 positions.json 读取)",
+    )
+    parser.add_argument(
+        "--simulate",
+        action="store_true",
+        help="使用模拟持仓测试 (默认使用 positions.json 真实持仓)",
+    )
     args = parser.parse_args()
 
     runner = StressTestRunner()
@@ -317,7 +370,9 @@ if __name__ == "__main__":
         # 模拟持仓: 显式标记 is_simulated, 供 assert_data_validity D1 区分真实/模拟
         positions = _SIMULATED_POSITIONS
         portfolio_value = args.portfolio or 5_000_000
-        result = runner.run_all_scenarios(positions, portfolio_value, with_intervention=True, is_simulated=True)
+        result = runner.run_all_scenarios(
+            positions, portfolio_value, with_intervention=True, is_simulated=True
+        )
         logger.warning("[SIMULATE] 使用模拟持仓, 报告不反映真实组合风险")
     else:
         # 真实持仓: 从 config/positions.json 加载并映射为压力测试格式
@@ -329,28 +384,47 @@ if __name__ == "__main__":
                 pos_data = json.load(f)
             raw_positions = pos_data.get("positions", {})
             meta = pos_data.get("meta", {})
-            portfolio_value = args.portfolio or float(meta.get("total_capital", 5_000_000))
+            portfolio_value = args.portfolio or float(
+                meta.get("total_capital", 5_000_000)
+            )
             positions = []
             for code, p in raw_positions.items():
                 amount = float(p.get("amount", 0) or 0)
                 if amount <= 0:
                     continue
                 style = p.get("style") or p.get("sector") or "other"
-                positions.append({
-                    "code": code,
-                    "name": p.get("name", code),
-                    "amount": amount,
-                    "strategy": style,
-                })
+                positions.append(
+                    {
+                        "code": code,
+                        "name": p.get("name", code),
+                        "amount": amount,
+                        "strategy": style,
+                    }
+                )
             if not positions:
                 # 空仓/初始化态: fail-close 阻断, 不产出假真实报告
-                msg = "positions.json 无有效持仓 (amount<=0), 拒绝以模拟持仓冒充真实报告"
+                msg = (
+                    "positions.json 无有效持仓 (amount<=0), 拒绝以模拟持仓冒充真实报告"
+                )
                 logger.error(msg)
                 send_alert(title="压力测试数据缺失", content=msg, level="critical")
                 sys.exit(1)
-            logger.info(f"已从 positions.json 加载 {len(positions)} 个真实持仓, 组合净值 {portfolio_value:,.0f}")
-            result = runner.run_all_scenarios(positions, portfolio_value, with_intervention=True, is_simulated=False)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            logger.info(
+                f"已从 positions.json 加载 {len(positions)} 个真实持仓, 组合净值 {portfolio_value:,.0f}"
+            )
+            result = runner.run_all_scenarios(
+                positions, portfolio_value, with_intervention=True, is_simulated=False
+            )
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 加载失败: fail-close 阻断, 不静默回退
             msg = f"加载 positions.json 失败 ({e}), 拒绝以模拟持仓冒充真实报告"
             logger.error(msg)
@@ -373,5 +447,7 @@ if __name__ == "__main__":
 
         logger.info(f"\n{'=' * 60}")
         logger.info(f"总体: {'✅ 全部通过' if result['all_pass'] else '❌ 有场景超限'}")
-        logger.info(f"最差场景: {result['worst_scenario']} (回撤 {result['worst_dd']:.1%})")
+        logger.info(
+            f"最差场景: {result['worst_scenario']} (回撤 {result['worst_dd']:.1%})"
+        )
         logger.info(f"报告: {result['report_path']}")

@@ -3,6 +3,7 @@
 被测模块: utils/momentum_reversal_engine.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,6 +31,7 @@ def _make_prices(n: int = 260, trend: float = 0.0, vol: float = 0.02):
 # ============================================================
 # generate_signals
 # ============================================================
+
 
 class TestGenerateSignals:
     def test_empty(self):
@@ -68,7 +70,12 @@ class TestGenerateSignals:
         }
         result = engine.generate_signals(data)
         assert result.bullish_count + result.bearish_count + result.neutral_count == 2
-        assert result.strategy_state in ("TRENDING_UP", "TRENDING_DOWN", "REVERSING", "NEUTRAL")
+        assert result.strategy_state in (
+            "TRENDING_UP",
+            "TRENDING_DOWN",
+            "REVERSING",
+            "NEUTRAL",
+        )
 
     def test_with_volumes(self):
         engine = MomentumReversalEngine()
@@ -87,6 +94,7 @@ class TestGenerateSignals:
 # ============================================================
 # signal properties
 # ============================================================
+
 
 class TestSignalProperties:
     def test_uptrend_positive_tsmom(self):
@@ -120,6 +128,7 @@ class TestSignalProperties:
 # filter_low_confidence
 # ============================================================
 
+
 class TestFilterLowConfidence:
     def test_filters(self):
         engine = MomentumReversalEngine()
@@ -142,6 +151,7 @@ class TestFilterLowConfidence:
 # ============================================================
 # get_position_adjustment
 # ============================================================
+
 
 class TestPositionAdjustment:
     def test_basic(self):
@@ -171,6 +181,7 @@ class TestPositionAdjustment:
 # ============================================================
 # custom weights
 # ============================================================
+
 
 class TestCustomWeights:
     def test_custom_tsmom_weights(self):

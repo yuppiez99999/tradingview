@@ -13,6 +13,7 @@
     - list_available / get_config_source / clear_cache / reload
     - 模块级快捷函数
 """
+
 from __future__ import annotations
 
 import os
@@ -64,7 +65,7 @@ def config_dir(tmp_path):
 @pytest.fixture
 def manager(config_dir, tmp_path):
     """用 extra_search_paths 注入测试配置目录的 ConfigManager.
-    project_root 设为 tmp_path 以隔离真实项目配置目录. """
+    project_root 设为 tmp_path 以隔离真实项目配置目录."""
     ConfigManager.reset_instance()
     m = ConfigManager(project_root=tmp_path, extra_search_paths=[config_dir])
     yield m
@@ -80,21 +81,25 @@ class TestNamedConfigs:
     @pytest.mark.unit
     def test_has_portfolio(self):
         from utils.config_manager import _NAMED_CONFIGS
+
         assert _NAMED_CONFIGS["portfolio"] == "portfolio.yaml"
 
     @pytest.mark.unit
     def test_has_settings(self):
         from utils.config_manager import _NAMED_CONFIGS
+
         assert _NAMED_CONFIGS["settings"] == "settings.yaml"
 
     @pytest.mark.unit
     def test_has_backtest(self):
         from utils.config_manager import _NAMED_CONFIGS
+
         assert _NAMED_CONFIGS["backtest"] == "backtest.yaml"
 
     @pytest.mark.unit
     def test_has_risk_params(self):
         from utils.config_manager import _NAMED_CONFIGS
+
         assert _NAMED_CONFIGS["risk_params"] == "risk_params.yaml"
 
 
@@ -108,6 +113,7 @@ class TestBuildSearchPaths:
     def test_env_var_included(self, tmp_path, monkeypatch):
         monkeypatch.setenv("QUANT_CONFIG_DIR", str(tmp_path))
         from utils.config_manager import _build_search_paths
+
         paths = _build_search_paths()
         assert tmp_path.resolve() in paths
 
@@ -115,6 +121,7 @@ class TestBuildSearchPaths:
     def test_no_env_var(self, monkeypatch):
         monkeypatch.delenv("QUANT_CONFIG_DIR", raising=False)
         from utils.config_manager import _build_search_paths
+
         paths = _build_search_paths()
         # 至少应包含项目默认路径 (v8.3_institutional/config 或 configs)
         assert isinstance(paths, list)
@@ -364,9 +371,7 @@ class TestKillSwitchFallback:
         d = tmp_path / "myconf"
         d.mkdir()
         (d / "portfolio.yaml").write_text(yaml.dump({"assets": []}), encoding="utf-8")
-        (d / "kill_switch.yaml").write_text(
-            yaml.dump({"L1": 0.05}), encoding="utf-8"
-        )
+        (d / "kill_switch.yaml").write_text(yaml.dump({"L1": 0.05}), encoding="utf-8")
         m = ConfigManager(project_root=tmp_path, extra_search_paths=[d])
         ks = m.get_kill_switch_config()
         assert ks["L1"] == 0.05

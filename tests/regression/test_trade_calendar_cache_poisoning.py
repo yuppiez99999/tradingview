@@ -53,6 +53,7 @@ def _weekday_only_calendar(year: int) -> set[str]:
 # L1: 缓存合理性校验
 # ============================================================
 
+
 class TestValidateYearDates:
     """`_validate_year_dates` 必须拦截三类污染数据."""
 
@@ -115,10 +116,13 @@ def _sample_valid_dates(year: int) -> list[date]:
 # L1: 污染缓存自动隔离
 # ============================================================
 
+
 class TestPoisonedCacheQuarantine:
     """污染缓存应被隔离为 .json.invalid, 而非静默采信."""
 
-    def test_poisoned_cache_is_quarantined_and_not_returned(self, tmp_path, monkeypatch):
+    def test_poisoned_cache_is_quarantined_and_not_returned(
+        self, tmp_path, monkeypatch
+    ):
         year = 2026
         monkeypatch.setattr(trade_calendar, "CACHE_DIR", tmp_path)
         cache_file = tmp_path / f"trade_dates_{year}.json"
@@ -131,8 +135,9 @@ class TestPoisonedCacheQuarantine:
 
         assert result == set(), "污染缓存绝不能被当作有效日历返回"
         assert not cache_file.exists(), "污染缓存应被改名隔离"
-        assert (tmp_path / f"trade_dates_{year}.json.invalid").exists(), \
-            "应保留 .invalid 现场供排查"
+        assert (
+            tmp_path / f"trade_dates_{year}.json.invalid"
+        ).exists(), "应保留 .invalid 现场供排查"
 
     def test_valid_cache_is_returned_intact(self, tmp_path, monkeypatch):
         year = 2026
@@ -148,6 +153,7 @@ class TestPoisonedCacheQuarantine:
 # ============================================================
 # L2: 降级模式的固定节假日兜底
 # ============================================================
+
 
 class TestDegradedModeHolidayFallback:
     """即使日历不可用而降级到"仅判周末", 也不得把固定节假日当交易日."""
@@ -170,8 +176,9 @@ class TestDegradedModeHolidayFallback:
             trade_calendar, "_fetch_trade_dates_via_akshare", lambda year: None
         )
         assert day.weekday() < 5, f"{label} 用例须取工作日才有意义"
-        assert trade_calendar.is_trading_day(day) is False, \
-            f"降级模式下 {label} {day} 不得判为交易日"
+        assert (
+            trade_calendar.is_trading_day(day) is False
+        ), f"降级模式下 {label} {day} 不得判为交易日"
 
     def test_normal_weekday_still_trading_in_degraded_mode(self, tmp_path, monkeypatch):
         """降级不得矫枉过正: 普通工作日仍应是交易日."""
@@ -198,6 +205,7 @@ class TestDegradedModeHolidayFallback:
 # L3: 降级状态可观测
 # ============================================================
 
+
 class TestCalendarStatusObservability:
     """调用方需能判断当前处于精确模式还是降级模式."""
 
@@ -205,8 +213,7 @@ class TestCalendarStatusObservability:
         monkeypatch.setattr(trade_calendar, "CACHE_DIR", tmp_path)
         st = trade_calendar.get_calendar_status(2026)
         assert st["mode"] == "degraded"
-        assert st["safe_for_trading"] is False, \
-            "降级模式必须显式标记为不适合自动交易"
+        assert st["safe_for_trading"] is False, "降级模式必须显式标记为不适合自动交易"
 
     def test_status_reports_exact_with_valid_cache(self, tmp_path, monkeypatch):
         monkeypatch.setattr(trade_calendar, "CACHE_DIR", tmp_path)
@@ -223,6 +230,7 @@ class TestCalendarStatusObservability:
 # ============================================================
 # 端到端: 原始 bug 断言
 # ============================================================
+
 
 class TestOriginalBugAssertions:
     """直接锁定历史 bug 的具体表现, 任何回归都会在此暴露."""
@@ -241,13 +249,15 @@ class TestOriginalBugAssertions:
         """使用真实缓存: 法定节假日必须为非交易日."""
         if not trade_calendar._load_year_dates(2026, allow_fetch=True):
             pytest.skip("2026 年真实日历不可用 (无缓存且 akshare 不可达)")
-        assert trade_calendar.is_trading_day(day) is False, \
-            f"{label} {day} 被误判为交易日 — P0 回归!"
+        assert (
+            trade_calendar.is_trading_day(day) is False
+        ), f"{label} {day} 被误判为交易日 — P0 回归!"
 
     def test_trading_day_count_is_realistic(self):
         """2026 年交易日总数应在合理区间, 而非 261 天."""
         dates = trade_calendar._load_year_dates(2026, allow_fetch=True)
         if not dates:
             pytest.skip("2026 年真实日历不可用")
-        assert 235 <= len(dates) <= 250, \
-            f"2026 交易日数 {len(dates)} 异常 (261 = 仅排除周末的假日历)"
+        assert (
+            235 <= len(dates) <= 250
+        ), f"2026 交易日数 {len(dates)} 异常 (261 = 仅排除周末的假日历)"

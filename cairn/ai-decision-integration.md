@@ -217,3 +217,14 @@ if os.environ.get("AI_DECISION_INTEGRATED", "0") == "1":
 - 本文件为 C 轨设计文档，W35 实现时按 §4 排期推进
 - `execution_bridge.py` 拆分 ✅ 已完成（§5.2）
 - ~~ds4 安装可行性评估为 W35 第一项任务~~ ✅ 已完成（本机不可行，不阻塞 C 轨）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [开发工作流自动化 (Dev Workflow Automation)](dev-workflow-automation.md) (相似度 19%)
+- [ds4 集成指南 (DwarfStar 推理引擎)](ds4-integration.md) (相似度 18%)
+- [v86 集成升级方案同步记录 — 2026-08-21](v86-plan-sync-20260821.md) (相似度 11%)
+- [daily_workflow.py 拆分复盘报告 (5 轮 · 2026-08-12)](daily-workflow-split-retrospective.md) (相似度 8%)
+- [Agent-Skills 集成与适配（2026-08-24）](agent-skills-integration.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

@@ -42,6 +42,7 @@
     - FAIL = 工业级硬伤 (执行断链/测试跑不起来/CI跑不起来/告警缺失)
     - WARN = 工业级短板 (环境未隔离/数据管道分层缺/dry_run)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -61,7 +62,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 class CheckResult:
     """单项判据检查结果."""
 
-    def __init__(self, code: str, name: str, status: str, detail: str, evidence: str = ""):
+    def __init__(
+        self, code: str, name: str, status: str, detail: str, evidence: str = ""
+    ):
         self.code = code  # C1-C9
         self.name = name
         self.status = status  # PASS / WARN / FAIL
@@ -92,8 +95,12 @@ def check_c1_execution_loop() -> CheckResult:
     if config_path.exists():
         try:
             config = json.loads(config_path.read_text(encoding="utf-8"))
-            broker_enabled = config.get("api_config", {}).get("broker", {}).get("enable", False)
-            dry_run = config.get("api_config", {}).get("broker", {}).get("dry_run", True)
+            broker_enabled = (
+                config.get("api_config", {}).get("broker", {}).get("enable", False)
+            )
+            dry_run = (
+                config.get("api_config", {}).get("broker", {}).get("dry_run", True)
+            )
         except (json.JSONDecodeError, KeyError):
             pass
 
@@ -102,7 +109,9 @@ def check_c1_execution_loop() -> CheckResult:
     qmt_exists = qmt_path.exists()
 
     if broker_enabled and not dry_run:
-        return CheckResult("C1", "执行闭环完整性", "PASS", "broker 已启用且 dry_run=false")
+        return CheckResult(
+            "C1", "执行闭环完整性", "PASS", "broker 已启用且 dry_run=false"
+        )
     if qmt_exists and not broker_enabled:
         return CheckResult(
             "C1",
@@ -118,7 +127,9 @@ def check_c2_data_pipeline() -> CheckResult:
     """C2 数据管道分层 — 检查 data_pipeline 是否空壳."""
     dp_dir = _PROJECT_ROOT / "data_pipeline"
     if not dp_dir.exists():
-        return CheckResult("C2", "数据管道分层", "PASS", "data_pipeline/ 已删除(逻辑在 utils/data/)")
+        return CheckResult(
+            "C2", "数据管道分层", "PASS", "data_pipeline/ 已删除(逻辑在 utils/data/)"
+        )
 
     subdirs = list(dp_dir.iterdir()) if dp_dir.exists() else []
     empty_count = sum(1 for d in subdirs if d.is_dir() and not any(d.iterdir()))
@@ -173,7 +184,9 @@ def check_c4_signal_execution_separation() -> CheckResult:
     has_selector = exec_selector.exists()
 
     if has_alpha and has_exec_algo and has_selector:
-        return CheckResult("C4", "信号执行分离", "PASS", "Alpha 层 + 执行算法 + selector 桥接均存在")
+        return CheckResult(
+            "C4", "信号执行分离", "PASS", "Alpha 层 + 执行算法 + selector 桥接均存在"
+        )
     missing = []
     if not has_alpha:
         missing.append("alpha_factor/")
@@ -191,7 +204,11 @@ def check_c5_test_collectable() -> CheckResult:
         return CheckResult("C5", "测试可运行性", "FAIL", "tests/ 目录不存在")
 
     # 快速检查: 是否有测试引用已知不存在的模块
-    known_missing = ["hedging.hedge_coordinator", "risk.portfolio_risk_assessor", "dsr_bootstrap"]
+    known_missing = [
+        "hedging.hedge_coordinator",
+        "risk.portfolio_risk_assessor",
+        "dsr_bootstrap",
+    ]
     stale_count = 0
     for py_file in tests_dir.rglob("*.py"):
         try:
@@ -231,8 +248,12 @@ def check_c6_ci_runnable() -> CheckResult:
             missing.append(ref)
 
     if missing:
-        return CheckResult("C6", "CI 可运行性", "FAIL", f"CI 引用的脚本不存在: {', '.join(missing)}")
-    return CheckResult("C6", "CI 可运行性", "PASS", f"CI 引用的 {len(refs)} 个脚本均存在")
+        return CheckResult(
+            "C6", "CI 可运行性", "FAIL", f"CI 引用的脚本不存在: {', '.join(missing)}"
+        )
+    return CheckResult(
+        "C6", "CI 可运行性", "PASS", f"CI 引用的 {len(refs)} 个脚本均存在"
+    )
 
 
 def check_c7_notify_exists() -> CheckResult:
@@ -247,7 +268,9 @@ def check_c7_notify_exists() -> CheckResult:
     has_send_sms = "def send_sms_alert" in content
 
     if has_send_alert and has_send_sms:
-        return CheckResult("C7", "监控告警实现", "PASS", "send_alert + send_sms_alert 均已定义")
+        return CheckResult(
+            "C7", "监控告警实现", "PASS", "send_alert + send_sms_alert 均已定义"
+        )
     return CheckResult("C7", "监控告警实现", "WARN", "notify.py 存在但接口不完整")
 
 
@@ -267,7 +290,9 @@ def check_c8_fills_persistence() -> CheckResult:
     """
     fills_store_path = _PROJECT_ROOT / "utils" / "execution" / "fills_store.py"
     bridge_path = _PROJECT_ROOT / "utils" / "execution" / "fills_pnl_bridge.py"
-    exec_system_path = _PROJECT_ROOT / "utils" / "execution" / "automated_execution_system.py"
+    exec_system_path = (
+        _PROJECT_ROOT / "utils" / "execution" / "automated_execution_system.py"
+    )
     daily_report_path = _PROJECT_ROOT / "generate_daily_report.py"
 
     missing = []
@@ -282,7 +307,9 @@ def check_c8_fills_persistence() -> CheckResult:
 
     if missing:
         return CheckResult(
-            "C8", "成交回报落盘", "FAIL",
+            "C8",
+            "成交回报落盘",
+            "FAIL",
             f"关键文件缺失: {', '.join(missing)}",
         )
 
@@ -295,13 +322,17 @@ def check_c8_fills_persistence() -> CheckResult:
 
     if not (has_store_class and has_record_fill):
         return CheckResult(
-            "C8", "成交回报落盘", "FAIL",
+            "C8",
+            "成交回报落盘",
+            "FAIL",
             "fills_store.py 缺少 FillsStore 类或 record_fill 方法",
             str(fills_store_path),
         )
     if not has_augment:
         return CheckResult(
-            "C8", "成交回报落盘", "FAIL",
+            "C8",
+            "成交回报落盘",
+            "FAIL",
             "fills_pnl_bridge.py 缺少 augment_market_prices 函数",
             str(bridge_path),
         )
@@ -320,11 +351,15 @@ def check_c8_fills_persistence() -> CheckResult:
 
     if evidence_parts:
         return CheckResult(
-            "C8", "成交回报落盘", "WARN",
+            "C8",
+            "成交回报落盘",
+            "WARN",
             f"fills 模块存在但接入不完整: {'; '.join(evidence_parts)}",
         )
     return CheckResult(
-        "C8", "成交回报落盘", "PASS",
+        "C8",
+        "成交回报落盘",
+        "PASS",
         "FillsStore + fills_pnl_bridge 均已接入执行链(G2)和 PnL(G4)",
     )
 
@@ -346,7 +381,9 @@ def check_c9_options_hedge_execution() -> CheckResult:
     executor_path = _PROJECT_ROOT / "hedge_order_executor.py"
     if not executor_path.exists():
         return CheckResult(
-            "C9", "期权对冲执行链", "FAIL",
+            "C9",
+            "期权对冲执行链",
+            "FAIL",
             "hedge_order_executor.py 不存在 (期权对冲只生成不执行)",
             str(executor_path),
         )
@@ -372,7 +409,9 @@ def check_c9_options_hedge_execution() -> CheckResult:
 
     if missing:
         return CheckResult(
-            "C9", "期权对冲执行链", "WARN",
+            "C9",
+            "期权对冲执行链",
+            "WARN",
             f"hedge_order_executor.py 存在但闭环不完整: 缺少 {', '.join(missing)}",
             str(executor_path),
         )
@@ -381,18 +420,26 @@ def check_c9_options_hedge_execution() -> CheckResult:
     workflow_path = _PROJECT_ROOT / "daily_trading_workflow.py"
     entry_path = _PROJECT_ROOT / "量化策略系统_统一入口_v8.6.py"
     integrated = False
-    if workflow_path.exists() and "hedge_order_executor" in workflow_path.read_text(encoding="utf-8"):
+    if workflow_path.exists() and "hedge_order_executor" in workflow_path.read_text(
+        encoding="utf-8"
+    ):
         integrated = True
-    if entry_path.exists() and "hedge_order_executor" in entry_path.read_text(encoding="utf-8"):
+    if entry_path.exists() and "hedge_order_executor" in entry_path.read_text(
+        encoding="utf-8"
+    ):
         integrated = True
 
     if not integrated:
         return CheckResult(
-            "C9", "期权对冲执行链", "WARN",
+            "C9",
+            "期权对冲执行链",
+            "WARN",
             "hedge_order_executor 未集成到 daily_trading_workflow 或统一入口",
         )
     return CheckResult(
-        "C9", "期权对冲执行链", "PASS",
+        "C9",
+        "期权对冲执行链",
+        "PASS",
         "OptionsSimBroker 撮合 + fills 落盘 + positions 更新 + TCA 归因 + 工作流集成 均完整",
     )
 
@@ -401,7 +448,9 @@ def check_c10_fills_freshness() -> CheckResult:
     """C10 fills 文件新鲜度 — 当日/最近 fills 文件是否存在且非空."""
     fills_dir = _PROJECT_ROOT / "reports" / "fills"
     if not fills_dir.exists():
-        return CheckResult("C10", "fills文件新鲜度", "WARN", "reports/fills/ 目录不存在(未运行执行链?)")
+        return CheckResult(
+            "C10", "fills文件新鲜度", "WARN", "reports/fills/ 目录不存在(未运行执行链?)"
+        )
 
     today = datetime.datetime.now().strftime("%Y-%m-%d")
     today_fill = fills_dir / f"fills_{today}.jsonl"
@@ -409,38 +458,62 @@ def check_c10_fills_freshness() -> CheckResult:
         try:
             lines = today_fill.read_text(encoding="utf-8").strip().splitlines()
             if len(lines) == 0:
-                return CheckResult("C10", "fills文件新鲜度", "WARN", f"当日 fills_{today}.jsonl 为空")
-            return CheckResult("C10", "fills文件新鲜度", "PASS", f"当日 fills 文件有 {len(lines)} 条记录")
+                return CheckResult(
+                    "C10", "fills文件新鲜度", "WARN", f"当日 fills_{today}.jsonl 为空"
+                )
+            return CheckResult(
+                "C10",
+                "fills文件新鲜度",
+                "PASS",
+                f"当日 fills 文件有 {len(lines)} 条记录",
+            )
         except OSError as e:
-            return CheckResult("C10", "fills文件新鲜度", "FAIL", f"读取 fills 文件失败: {e}")
+            return CheckResult(
+                "C10", "fills文件新鲜度", "FAIL", f"读取 fills 文件失败: {e}"
+            )
 
     # 查找最近的 fills 文件
     all_fills = sorted(fills_dir.glob("fills_*.jsonl"), reverse=True)
     if not all_fills:
-        return CheckResult("C10", "fills文件新鲜度", "WARN", "无任何 fills 文件(未运行执行链)")
+        return CheckResult(
+            "C10", "fills文件新鲜度", "WARN", "无任何 fills 文件(未运行执行链)"
+        )
 
     recent = all_fills[0]
     try:
         lines = recent.read_text(encoding="utf-8").strip().splitlines()
         recency = "今日" if recent.name == f"fills_{today}.jsonl" else "非今日"
         return CheckResult(
-            "C10", "fills文件新鲜度", "PASS" if recency == "今日" else "WARN",
-            f"最近 fills 文件: {recent.name} ({len(lines)} 条, {recency})"
+            "C10",
+            "fills文件新鲜度",
+            "PASS" if recency == "今日" else "WARN",
+            f"最近 fills 文件: {recent.name} ({len(lines)} 条, {recency})",
         )
     except OSError as e:
-        return CheckResult("C10", "fills文件新鲜度", "FAIL", f"读取 fills 文件失败: {e}")
+        return CheckResult(
+            "C10", "fills文件新鲜度", "FAIL", f"读取 fills 文件失败: {e}"
+        )
 
 
 def check_c11_pnl_bridge_dataflow() -> CheckResult:
     """C11 PnL 桥接数据流 — fills_pnl_bridge.augment_market_prices 是否可消费 fills."""
     bridge_path = _PROJECT_ROOT / "utils" / "execution" / "fills_pnl_bridge.py"
     if not bridge_path.exists():
-        return CheckResult("C11", "PnL桥接数据流", "FAIL", "fills_pnl_bridge.py 不存在", str(bridge_path))
+        return CheckResult(
+            "C11",
+            "PnL桥接数据流",
+            "FAIL",
+            "fills_pnl_bridge.py 不存在",
+            str(bridge_path),
+        )
 
     content = bridge_path.read_text(encoding="utf-8")
     has_augment = "def augment_market_prices" in content
     has_realized_pnl = "def realized_pnl" in content
-    has_fills_import = "from utils.execution.fills_store import FillsStore" in content or "FillsStore" in content
+    has_fills_import = (
+        "from utils.execution.fills_store import FillsStore" in content
+        or "FillsStore" in content
+    )
 
     if not (has_augment and has_realized_pnl and has_fills_import):
         missing = []
@@ -451,7 +524,9 @@ def check_c11_pnl_bridge_dataflow() -> CheckResult:
         if not has_fills_import:
             missing.append("FillsStore 导入")
         return CheckResult(
-            "C11", "PnL桥接数据流", "FAIL",
+            "C11",
+            "PnL桥接数据流",
+            "FAIL",
             f"fills_pnl_bridge.py 功能不完整: 缺少 {', '.join(missing)}",
             str(bridge_path),
         )
@@ -461,12 +536,16 @@ def check_c11_pnl_bridge_dataflow() -> CheckResult:
     calls_close_source = "close_source" in content
     if not (calls_latest and calls_close_source):
         return CheckResult(
-            "C11", "PnL桥接数据流", "WARN",
+            "C11",
+            "PnL桥接数据流",
+            "WARN",
             "fills_pnl_bridge 存在但数据流可能不完整 (缺 fills 读取或 close 标记)",
             str(bridge_path),
         )
     return CheckResult(
-        "C11", "PnL桥接数据流", "PASS",
+        "C11",
+        "PnL桥接数据流",
+        "PASS",
         "fills_pnl_bridge.augment_market_prices 可消费 fills 并覆盖行情 close",
     )
 
@@ -475,7 +554,13 @@ def check_c12_hedge_executor_integration() -> CheckResult:
     """C12 期权执行链集成 — hedge_order_executor 是否被 daily_trading_workflow/统一入口调用."""
     executor_path = _PROJECT_ROOT / "hedge_order_executor.py"
     if not executor_path.exists():
-        return CheckResult("C12", "期权执行链集成", "FAIL", "hedge_order_executor.py 不存在", str(executor_path))
+        return CheckResult(
+            "C12",
+            "期权执行链集成",
+            "FAIL",
+            "hedge_order_executor.py 不存在",
+            str(executor_path),
+        )
 
     # 检查集成点 (daily_trading_workflow + 统一入口 + 其他调用方)
     workflow_path = _PROJECT_ROOT / "daily_trading_workflow.py"
@@ -493,11 +578,15 @@ def check_c12_hedge_executor_integration() -> CheckResult:
 
     if not integrated:
         return CheckResult(
-            "C12", "期权执行链集成", "WARN",
+            "C12",
+            "期权执行链集成",
+            "WARN",
             "hedge_order_executor 未被 daily_trading_workflow / 统一入口 / daily_runner 调用",
         )
     return CheckResult(
-        "C12", "期权执行链集成", "PASS",
+        "C12",
+        "期权执行链集成",
+        "PASS",
         f"hedge_order_executor 已集成到: {', '.join(integration_points)}",
     )
 

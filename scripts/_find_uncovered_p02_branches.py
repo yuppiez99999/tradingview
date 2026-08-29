@@ -11,6 +11,7 @@ _find_uncovered_p02_branches.py — P0-P2 链路未覆盖分支识别器
 用法:
     python scripts/_find_uncovered_p02_branches.py [--coverage-xml reports/coverage.xml]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -44,6 +45,7 @@ _EXCLUDE_PATTERNS = ("__repr__", "__str__", "__hash__", "_log", "logger", "__ini
 @dataclass(frozen=True)
 class UncoveredBranch:
     """未覆盖分支描述."""
+
     module: str
     file: str
     line_start: int
@@ -115,25 +117,35 @@ def find_uncovered_p02_branches(coverage_xml: Path) -> list[UncoveredBranch]:
                 if _is_excluded(line_content):
                     continue
 
-                branches.append(UncoveredBranch(
-                    module=pkg_name or filename,
-                    file=filename,
-                    line_start=line_no,
-                    line_end=line_no,
-                    branch_type="branch",
-                    priority=priority,
-                ))
+                branches.append(
+                    UncoveredBranch(
+                        module=pkg_name or filename,
+                        file=filename,
+                        line_start=line_no,
+                        line_end=line_no,
+                        branch_type="branch",
+                        priority=priority,
+                    )
+                )
 
     # 按优先级排序 (P0 < P1 < P2)
     priority_order = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
-    branches.sort(key=lambda b: (priority_order.get(b.priority, 9), b.file, b.line_start))
+    branches.sort(
+        key=lambda b: (priority_order.get(b.priority, 9), b.file, b.line_start)
+    )
     return branches
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="P0-P2 未覆盖分支识别器")
-    parser.add_argument("--coverage-xml", type=Path, default=_ROOT / "reports" / "coverage.xml")
-    parser.add_argument("--output", type=Path, default=_ROOT / "reports" / "ci" / "uncovered_p02_branches.json")
+    parser.add_argument(
+        "--coverage-xml", type=Path, default=_ROOT / "reports" / "coverage.xml"
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=_ROOT / "reports" / "ci" / "uncovered_p02_branches.json",
+    )
     args = parser.parse_args()
 
     branches = find_uncovered_p02_branches(args.coverage_xml)

@@ -18,6 +18,7 @@ BL+MV / BL+MVSK, 验证 regime 切换 vs 始终单一方案的增量价值.
 Usage:
     .venv\\Scripts\\python.exe research\\regime_switch_backtest.py
 """
+
 from __future__ import annotations
 
 import json
@@ -43,7 +44,7 @@ CACHE_PATH = _PROJECT_ROOT / "research" / "mvsk_real_data_cache.npz"
 
 # 回测参数
 TRAIN_WINDOW = 252  # 训练窗口 (1 年)
-HOLD_PERIOD = 21    # 换仓周期 (约 1 月)
+HOLD_PERIOD = 21  # 换仓周期 (约 1 月)
 TURNOVER_BPS = 15.0  # 单边换仓成本 bp
 
 
@@ -67,8 +68,8 @@ def backtest_scheme(
 
     t = TRAIN_WINDOW
     while t + HOLD_PERIOD <= T:
-        R_train = R[t - TRAIN_WINDOW:t]  # noqa: N806
-        R_hold = R[t:t + HOLD_PERIOD]  # noqa: N806
+        R_train = R[t - TRAIN_WINDOW : t]  # noqa: N806
+        R_hold = R[t : t + HOLD_PERIOD]  # noqa: N806
         cov = np.cov(R_train, rowvar=False) * 252
         mu_bl = bl_posterior_mu(codes, R_train, cov, w_bench)
 
@@ -81,14 +82,16 @@ def backtest_scheme(
         elif scheme == "regime":
             assert detector is not None
             r_det = detector.detect(R_train)
-            regime_log.append({
-                "t": int(t),
-                "regime": r_det.regime.value,
-                "use_mvsk": r_det.use_mvsk,
-                "vol_rank": float(r_det.vol_quantile_rank),
-                "exkurt": float(r_det.excess_kurtosis),
-                "trigger": r_det.trigger,
-            })
+            regime_log.append(
+                {
+                    "t": int(t),
+                    "regime": r_det.regime.value,
+                    "use_mvsk": r_det.use_mvsk,
+                    "vol_rank": float(r_det.vol_quantile_rank),
+                    "exkurt": float(r_det.excess_kurtosis),
+                    "trigger": r_det.trigger,
+                }
+            )
             if r_det.use_mvsk:
                 w_new = optimize_weights(mu_bl, cov, w_bench, R_train, GAMMA_S, GAMMA_K)
             else:
@@ -136,8 +139,10 @@ def main() -> int:
     codes = [str(c) for c in cache["codes"]]
     T, N = R.shape  # noqa: N806
     print(f"加载缓存: {T} 日 × {N} 股")
-    print(f"滚动回测: train={TRAIN_WINDOW} / hold={HOLD_PERIOD} "
-          f"/ 样本外={T-TRAIN_WINDOW} 日 / 换仓={(T-TRAIN_WINDOW)//HOLD_PERIOD} 次")
+    print(
+        f"滚动回测: train={TRAIN_WINDOW} / hold={HOLD_PERIOD} "
+        f"/ 样本外={T-TRAIN_WINDOW} 日 / 换仓={(T-TRAIN_WINDOW)//HOLD_PERIOD} 次"
+    )
 
     detector = RegimeDetector(window=60, vol_quantile=0.75, kurtosis_threshold=3.0)
 
@@ -152,7 +157,9 @@ def main() -> int:
     results = {}
     for label, key in schemes:
         print(f"  跑 {label}...")
-        results[label] = backtest_scheme(R, codes, key, detector if key == "regime" else None)
+        results[label] = backtest_scheme(
+            R, codes, key, detector if key == "regime" else None
+        )
 
     # 对比表
     print("\n" + "=" * 100)
@@ -163,9 +170,11 @@ def main() -> int:
     print("-" * 100)
     for label, _ in schemes:
         m = results[label]["metrics"]
-        print(f"{label:<16}{m['末净值']:<10.4f}{m['年化收益']:<10.4f}"
-              f"{m['年化波动']:<10.4f}{m['年化夏普']:<10.4f}{m['最大回撤']:<10.4f}"
-              f"{m['组合偏度']:<8.3f}{m['超额峰度']:<8.3f}{m['平均换仓']:<10.4f}")
+        print(
+            f"{label:<16}{m['末净值']:<10.4f}{m['年化收益']:<10.4f}"
+            f"{m['年化波动']:<10.4f}{m['年化夏普']:<10.4f}{m['最大回撤']:<10.4f}"
+            f"{m['组合偏度']:<8.3f}{m['超额峰度']:<8.3f}{m['平均换仓']:<10.4f}"
+        )
     print("=" * 100)
 
     # 增量分析
@@ -173,36 +182,51 @@ def main() -> int:
     m_mv = results["始终BL+MV"]["metrics"]
     m_mvsk = results["始终BL+MVSK"]["metrics"]
     print("\n增量分析 (Regime切换 vs 始终BL+MV):")
-    print(f"  Δ夏普={m_reg['年化夏普']-m_mv['年化夏普']:+.4f}  "
-          f"Δ末净值={m_reg['末净值']-m_mv['末净值']:+.4f}  "
-          f"Δ回撤={m_reg['最大回撤']-m_mv['最大回撤']:+.4f}")
+    print(
+        f"  Δ夏普={m_reg['年化夏普']-m_mv['年化夏普']:+.4f}  "
+        f"Δ末净值={m_reg['末净值']-m_mv['末净值']:+.4f}  "
+        f"Δ回撤={m_reg['最大回撤']-m_mv['最大回撤']:+.4f}"
+    )
     print("增量分析 (Regime切换 vs 始终BL+MVSK):")
-    print(f"  Δ夏普={m_reg['年化夏普']-m_mvsk['年化夏普']:+.4f}  "
-          f"Δ末净值={m_reg['末净值']-m_mvsk['末净值']:+.4f}  "
-          f"Δ回撤={m_reg['最大回撤']-m_mvsk['最大回撤']:+.4f}")
+    print(
+        f"  Δ夏普={m_reg['年化夏普']-m_mvsk['年化夏普']:+.4f}  "
+        f"Δ末净值={m_reg['末净值']-m_mvsk['末净值']:+.4f}  "
+        f"Δ回撤={m_reg['最大回撤']-m_mvsk['最大回撤']:+.4f}"
+    )
 
     # Regime 时间线
     regime_log = results["Regime切换"]["regime_log"]
     n_mvsk = sum(1 for r in regime_log if r["use_mvsk"])
     print(f"\nRegime 时间线 ({len(regime_log)} 次换仓):")
-    print(f"  MVSK 启用: {n_mvsk}/{len(regime_log)} ({100*n_mvsk/len(regime_log):.0f}%)")
+    print(
+        f"  MVSK 启用: {n_mvsk}/{len(regime_log)} ({100*n_mvsk/len(regime_log):.0f}%)"
+    )
     print(f"  {'t':<6}{'regime':<20}{'vol_rank':<10}{'exkurt':<10}{'trigger':<10}")
     for r in regime_log:
-        print(f"  {r['t']:<6}{r['regime']:<20}{r['vol_rank']:<10.3f}"
-              f"{r['exkurt']:<10.3f}{r['trigger']:<10}")
+        print(
+            f"  {r['t']:<6}{r['regime']:<20}{r['vol_rank']:<10.3f}"
+            f"{r['exkurt']:<10.3f}{r['trigger']:<10}"
+        )
 
     # 保存
     out = {
         "参数": {
-            "train_window": TRAIN_WINDOW, "hold_period": HOLD_PERIOD,
+            "train_window": TRAIN_WINDOW,
+            "hold_period": HOLD_PERIOD,
             "turnover_bps": TURNOVER_BPS,
-            "gamma_s": GAMMA_S, "gamma_k": GAMMA_K,
+            "gamma_s": GAMMA_S,
+            "gamma_k": GAMMA_K,
             "detector": {"window": 60, "vol_quantile": 0.75, "kurtosis_threshold": 3.0},
         },
         "样本外天数": T - TRAIN_WINDOW,
-        "结果": {label: {"metrics": r["metrics"], "n_rebalance": r["n_rebalance"],
-                          "regime_log": r["regime_log"]}
-                 for label, r in results.items()},
+        "结果": {
+            label: {
+                "metrics": r["metrics"],
+                "n_rebalance": r["n_rebalance"],
+                "regime_log": r["regime_log"],
+            }
+            for label, r in results.items()
+        },
         "cum_nav": {label: r["cum_nav"] for label, r in results.items()},
     }
     out_path = _PROJECT_ROOT / "research" / "regime_switch_backtest_result.json"

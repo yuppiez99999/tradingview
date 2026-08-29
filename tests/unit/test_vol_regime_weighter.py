@@ -2,6 +2,7 @@
 VolRegimeWeighter 单元测试
 覆盖: 常量、数据类、Regime 分类、权重矩阵、约束执行、主类流程、降级路径
 """
+
 from __future__ import annotations
 
 import json
@@ -35,20 +36,25 @@ from utils.alpha.vol_regime_weighter import (
 # 常量定义测试
 # ============================================================
 
+
 class TestVolRegimeConstants:
     """常量定义测试."""
 
     def test_weight_matrix_has_four_regimes(self):
         """矩阵包含四个 regime."""
         assert set(DEFAULT_WEIGHT_MATRIX.keys()) == {
-            REGIME_BULL, REGIME_NEUTRAL, REGIME_BEAR, REGIME_CRISIS
+            REGIME_BULL,
+            REGIME_NEUTRAL,
+            REGIME_BEAR,
+            REGIME_CRISIS,
         }
 
     def test_weight_matrix_has_eight_styles(self):
         """每个 regime 包含 8 类风格."""
         for regime, styles in DEFAULT_WEIGHT_MATRIX.items():
-            assert set(styles.keys()) == set(STYLE_CATEGORIES), \
-                f"regime {regime} 缺少风格: {set(STYLE_CATEGORIES) - set(styles.keys())}"
+            assert set(styles.keys()) == set(
+                STYLE_CATEGORIES
+            ), f"regime {regime} 缺少风格: {set(STYLE_CATEGORIES) - set(styles.keys())}"
 
     def test_bull_multiplier_tech_is_1_20(self):
         """bull 档科技倍数为 1.20."""
@@ -87,6 +93,7 @@ class TestVolRegimeConstants:
 # 数据类测试
 # ============================================================
 
+
 class TestVolRegimeDataclasses:
     """数据类测试."""
 
@@ -119,8 +126,11 @@ class TestVolRegimeDataclasses:
     def test_weight_suggestion_to_dict(self):
         """WeightSuggestion.to_dict 包含完整审计字段."""
         regime = VolRegime(
-            label=REGIME_BULL, confidence=0.85, source="vix",
-            aligned_hedge_ratio=0.20, hedge_policy_key="bull_market",
+            label=REGIME_BULL,
+            confidence=0.85,
+            source="vix",
+            aligned_hedge_ratio=0.20,
+            hedge_policy_key="bull_market",
         )
         s = WeightSuggestion(
             timestamp="2026-08-05T15:30:00",
@@ -142,6 +152,7 @@ class TestVolRegimeDataclasses:
 # ============================================================
 # Regime 分类测试
 # ============================================================
+
 
 class TestRegimeClassification:
     """Regime 识别测试."""
@@ -232,8 +243,12 @@ class TestRegimeClassification:
     def test_aligned_hedge_ratio_matches_regime(self):
         """aligned_hedge_ratio 与 regime 对应."""
         w = _make_weighter(enabled=True)
-        for vix, expected_regime in [(15.0, REGIME_BULL), (25.0, REGIME_NEUTRAL),
-                                      (35.0, REGIME_BEAR), (50.0, REGIME_CRISIS)]:
+        for vix, expected_regime in [
+            (15.0, REGIME_BULL),
+            (25.0, REGIME_NEUTRAL),
+            (35.0, REGIME_BEAR),
+            (50.0, REGIME_CRISIS),
+        ]:
             r = w.sense_regime(vix_value=vix)
             assert r.aligned_hedge_ratio == ALIGNED_HEDGE_RATIOS[expected_regime]
 
@@ -241,6 +256,7 @@ class TestRegimeClassification:
 # ============================================================
 # 权重矩阵应用测试
 # ============================================================
+
 
 class TestWeightMatrix:
     """权重矩阵应用测试."""
@@ -269,9 +285,16 @@ class TestWeightMatrix:
         """差额归现金 (sum_to_one 约束)."""
         w = _make_weighter(enabled=True)
         # 构造一个总和 = 1.0 的输入
-        current = {"科技": 0.30, "新能源": 0.10, "现金": 0.05,
-                   "医药": 0.15, "金融": 0.10, "宽基": 0.10,
-                   "资源": 0.10, "防御": 0.10}
+        current = {
+            "科技": 0.30,
+            "新能源": 0.10,
+            "现金": 0.05,
+            "医药": 0.15,
+            "金融": 0.10,
+            "宽基": 0.10,
+            "资源": 0.10,
+            "防御": 0.10,
+        }
         s = w.compute_weights(current_weights=current, vix_value=35.0)  # bear
         total = sum(s.suggested_weights.values())
         assert abs(total - 1.0) < 1e-6, f"总和 {total} ≠ 1.0"
@@ -283,7 +306,9 @@ class TestWeightMatrix:
         current = {"科技": 0.50, "现金": 0.50}
         s = w.compute_weights(current_weights=current, vix_value=15.0)
         assert s.suggested_weights["科技"] <= 0.30 + 1e-6
-        assert any("max_sector" in c or "max_single" in c for c in s.constraints_applied)
+        assert any(
+            "max_sector" in c or "max_single" in c for c in s.constraints_applied
+        )
 
     def test_constraints_cash_floor(self):
         """现金 < 5% 时抬升."""
@@ -295,9 +320,16 @@ class TestWeightMatrix:
     def test_constraints_sum_to_one(self):
         """总和必须 = 1.0."""
         w = _make_weighter(enabled=True)
-        current = {"科技": 0.235, "新能源": 0.09, "医药": 0.15,
-                   "金融": 0.11, "宽基": 0.06, "资源": 0.09,
-                   "防御": 0.05, "现金": 0.05}
+        current = {
+            "科技": 0.235,
+            "新能源": 0.09,
+            "医药": 0.15,
+            "金融": 0.11,
+            "宽基": 0.06,
+            "资源": 0.09,
+            "防御": 0.05,
+            "现金": 0.05,
+        }
         for vix in [15.0, 25.0, 35.0, 50.0]:
             s = w.compute_weights(current_weights=current, vix_value=vix)
             total = sum(s.suggested_weights.values())
@@ -307,6 +339,7 @@ class TestWeightMatrix:
 # ============================================================
 # 主类流程测试
 # ============================================================
+
 
 class TestVolRegimeWeighterMain:
     """主类测试."""
@@ -348,9 +381,16 @@ class TestVolRegimeWeighterMain:
     def test_compute_weights_full_flow(self):
         """完整流程: VIX=35 → bear → 科技减仓."""
         w = _make_weighter(enabled=True)
-        current = {"科技": 0.235, "新能源": 0.09, "医药": 0.15,
-                   "金融": 0.11, "宽基": 0.06, "资源": 0.09,
-                   "防御": 0.05, "现金": 0.05}
+        current = {
+            "科技": 0.235,
+            "新能源": 0.09,
+            "医药": 0.15,
+            "金融": 0.11,
+            "宽基": 0.06,
+            "资源": 0.09,
+            "防御": 0.05,
+            "现金": 0.05,
+        }
         s = w.compute_weights(current_weights=current, vix_value=35.0)
         assert s.regime.label == REGIME_BEAR
         assert s.suggested_weights["科技"] < current["科技"]  # 减仓
@@ -360,14 +400,21 @@ class TestVolRegimeWeighterMain:
         """报告写入 JSON 文件."""
         w = _make_weighter(enabled=True, reports_dir=tmp_path)
         regime = VolRegime(
-            label=REGIME_BEAR, confidence=0.82, source="vix",
-            aligned_hedge_ratio=0.75, hedge_policy_key="bear_market",
+            label=REGIME_BEAR,
+            confidence=0.82,
+            source="vix",
+            aligned_hedge_ratio=0.75,
+            hedge_policy_key="bear_market",
         )
         s = WeightSuggestion(
-            timestamp="2026-08-05T15:30:00", regime=regime,
-            current_weights={"科技": 0.235}, suggested_weights={"科技": 0.141},
-            multipliers={"科技": 0.60}, deltas={"科技": -0.094},
-            confidence=0.82, trigger_reason="test",
+            timestamp="2026-08-05T15:30:00",
+            regime=regime,
+            current_weights={"科技": 0.235},
+            suggested_weights={"科技": 0.141},
+            multipliers={"科技": 0.60},
+            deltas={"科技": -0.094},
+            confidence=0.82,
+            trigger_reason="test",
         )
         path = w.emit_suggestion(s, reports_dir=tmp_path)
         assert path.exists()
@@ -380,7 +427,9 @@ class TestVolRegimeWeighterMain:
         """VIX 和 RV 都缺失时降级到 neutral + 低 confidence."""
         w = _make_weighter(enabled=True)
         w._vol_controller = MagicMock()
-        w._vol_controller.calc_realized_vol.return_value = 0.20  # 不会触发, 因为 daily_returns=None
+        w._vol_controller.calc_realized_vol.return_value = (
+            0.20  # 不会触发, 因为 daily_returns=None
+        )
         r = w.sense_regime(vix_value=None, daily_returns=None)
         assert r.label == REGIME_NEUTRAL
         assert r.confidence <= 0.30
@@ -397,6 +446,7 @@ class TestVolRegimeWeighterMain:
 # ============================================================
 # 集成测试 (与 EvolutionOrchestrator)
 # ============================================================
+
 
 class TestEvolutionOrchestratorIntegration:
     """与 EvolutionOrchestrator 集成测试 (mock)."""
@@ -423,7 +473,9 @@ class TestEvolutionOrchestratorIntegration:
         mock_orch = MagicMock()
 
         # 模拟旧版 log_decision 不接受 extra_payload
-        def old_log_decision(report=None, action="evaluate_only", reason="", metrics=None):
+        def old_log_decision(
+            report=None, action="evaluate_only", reason="", metrics=None
+        ):
             return True
 
         mock_orch.log_decision.side_effect = old_log_decision
@@ -441,18 +493,25 @@ class TestEvolutionOrchestratorIntegration:
 # 便捷函数测试
 # ============================================================
 
+
 class TestClassifyRegimeByVol:
     """便捷函数 classify_regime_by_vol 测试."""
 
     def test_classify_vix_bull(self):
         """VIX=15 → bull."""
-        with patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter._check_flag", return_value=True):
+        with patch(
+            "utils.alpha.vol_regime_weighter.VolRegimeWeighter._check_flag",
+            return_value=True,
+        ):
             r = classify_regime_by_vol(vix=15.0)
             assert r.label == REGIME_BULL
 
     def test_classify_vix_crisis(self):
         """VIX=50 → crisis."""
-        with patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter._check_flag", return_value=True):
+        with patch(
+            "utils.alpha.vol_regime_weighter.VolRegimeWeighter._check_flag",
+            return_value=True,
+        ):
             r = classify_regime_by_vol(vix=50.0)
             assert r.label == REGIME_CRISIS
 
@@ -461,9 +520,15 @@ class TestClassifyRegimeByVol:
 # Helper
 # ============================================================
 
-def _make_weighter(enabled: bool = True, reports_dir: Path | None = None) -> VolRegimeWeighter:
+
+def _make_weighter(
+    enabled: bool = True, reports_dir: Path | None = None
+) -> VolRegimeWeighter:
     """创建测试用 VolRegimeWeighter (绕过 Flag 检查)."""
-    with patch("utils.alpha.vol_regime_weighter.VolRegimeWeighter._check_flag", return_value=enabled):
+    with patch(
+        "utils.alpha.vol_regime_weighter.VolRegimeWeighter._check_flag",
+        return_value=enabled,
+    ):
         w = VolRegimeWeighter(reports_dir=reports_dir or Path(tempfile.mkdtemp()))
     return w
 

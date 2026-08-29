@@ -4,6 +4,7 @@ test_g7_order_lifecycle_boost.py — 订单生命周期跟踪器覆盖率补强�
 
 覆盖 P0 risk 链路: utils/risk/order_lifecycle_tracker.py
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -78,7 +79,10 @@ class TestOrderLifecycleTracker:
     def test_register_order(self) -> None:
         tracker = self._make_tracker()
         order = tracker.register(
-            order_id="o1", broker_order_id="b1",
-            symbol="sh600519", side="buy", planned_qty=100,
+            order_id="o1",
+            broker_order_id="b1",
+            symbol="sh600519",
+            side="buy",
+            planned_qty=100,
         )
         assert order.order_id == "o1"

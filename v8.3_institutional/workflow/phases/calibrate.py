@@ -6,6 +6,7 @@ Step 1: Wind MCP 拉取最新日K, 更新 returns_history.json + market_returns.
 Step 2: 计算已实现年化收益率
 Step 3: 校准 portfolio_return_projection.json 概率权重
 """
+
 from __future__ import annotations
 
 import logging
@@ -76,9 +77,7 @@ def phase_calibrate(ctx: WorkflowContext) -> bool:
                 ),
                 "market_annualized": step2.get("market_annualized", 0),
                 "market_sharpe": step2.get("market_sharpe", 0),
-                "portfolio_weight_total": step2.get(
-                    "portfolio_weight_total", 0
-                ),
+                "portfolio_weight_total": step2.get("portfolio_weight_total", 0),
             },
             "calibration": {
                 "original_weights": step3.get("original_weights"),
@@ -87,13 +86,13 @@ def phase_calibrate(ctx: WorkflowContext) -> bool:
                 "calibrated_expected_annualized": step3.get(
                     "calibrated_expected_annualized"
                 ),
-                "calibrated_expected_final": step3.get(
-                    "calibrated_expected_final"
-                ),
+                "calibrated_expected_final": step3.get("calibrated_expected_final"),
             },
         }
         if status == "DEGRADED":
-            logger.warning("Phase 1.5 完成 (降级模式): Wind 拉取失败, 使用现有历史数据校准")
+            logger.warning(
+                "Phase 1.5 完成 (降级模式): Wind 拉取失败, 使用现有历史数据校准"
+            )
         else:
             logger.info("Phase 1.5 完成: 收益预测校准成功")
         return True

@@ -13,6 +13,7 @@
 模块级依赖:
 - V10_STRATEGY_READY / DirectionalFuturesTrader 通过 get_dw_module() 从 daily_workflow 获取
 """
+
 from __future__ import annotations
 
 import json
@@ -29,7 +30,11 @@ logger = logging.getLogger("v75.daily_workflow")
 
 # === 从 daily_workflow 模块获取模块级符号 (兼容条件导入) ===
 _dw = get_dw_module()
-BASE_DIR: Path = getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent) if _dw else Path(__file__).resolve().parent.parent
+BASE_DIR: Path = (
+    getattr(_dw, "BASE_DIR", Path(__file__).resolve().parent.parent)
+    if _dw
+    else Path(__file__).resolve().parent.parent
+)
 V10_STRATEGY_READY = getattr(_dw, "V10_STRATEGY_READY", False) if _dw else False
 
 # 类 — 仅当 daily_workflow 模块中已导入时才引入
@@ -90,7 +95,9 @@ def phase_directional_futures(ctx: WorkflowContext) -> dict[str, Any]:
         prices = _get_futures_prices(market_data)
 
         # 4. 加载风控状态
-        daily_pnl_pct, weekly_loss_pct, last_pause_date = _load_directional_futures_risk_state()
+        daily_pnl_pct, weekly_loss_pct, last_pause_date = (
+            _load_directional_futures_risk_state()
+        )
 
         # 5. 调用 DirectionalFuturesTrader.run()
         trader = DirectionalFuturesTrader()
@@ -112,19 +119,27 @@ def phase_directional_futures(ctx: WorkflowContext) -> dict[str, Any]:
         orders_saved = _save_directional_futures_orders(df_result.orders)
 
         # 8. 更新结果
-        result.update({
-            "status": "PASS",
-            "action": df_result.action,
-            "signals": [asdict(s) if hasattr(s, '__dataclass_fields__') else dict(s)
-                        for s in df_result.signals],
-            "orders": [asdict(o) if hasattr(o, '__dataclass_fields__') else dict(o)
-                       for o in df_result.orders],
-            "risk_status": df_result.risk_status,
-            "total_margin_used": df_result.total_margin_used,
-            "total_notional": df_result.total_notional,
-            "pause_until": df_result.pause_until.isoformat() if df_result.pause_until else None,
-            "orders_file": orders_saved,
-        })
+        result.update(
+            {
+                "status": "PASS",
+                "action": df_result.action,
+                "signals": [
+                    asdict(s) if hasattr(s, "__dataclass_fields__") else dict(s)
+                    for s in df_result.signals
+                ],
+                "orders": [
+                    asdict(o) if hasattr(o, "__dataclass_fields__") else dict(o)
+                    for o in df_result.orders
+                ],
+                "risk_status": df_result.risk_status,
+                "total_margin_used": df_result.total_margin_used,
+                "total_notional": df_result.total_notional,
+                "pause_until": (
+                    df_result.pause_until.isoformat() if df_result.pause_until else None
+                ),
+                "orders_file": orders_saved,
+            }
+        )
 
         # 9. 风控告警
         if df_result.risk_status == "warning":
@@ -140,11 +155,13 @@ def phase_directional_futures(ctx: WorkflowContext) -> dict[str, Any]:
     # === 写入 state ===
     ctx.state["phases"]["directional_futures"] = result
     logger.info("-" * 60)
-    logger.info("Phase 4.9 完成: 动作=%s, 风控=%s, 保证金=¥%.0f, 名义=¥%.0f",
-                result.get("action", ""),
-                result.get("risk_status", ""),
-                result.get("total_margin_used", 0),
-                result.get("total_notional", 0))
+    logger.info(
+        "Phase 4.9 完成: 动作=%s, 风控=%s, 保证金=¥%.0f, 名义=¥%.0f",
+        result.get("action", ""),
+        result.get("risk_status", ""),
+        result.get("total_margin_used", 0),
+        result.get("total_notional", 0),
+    )
     logger.info("=" * 60)
     return result
 
@@ -296,7 +313,7 @@ def _save_directional_futures_orders(orders: list[Any]) -> Optional[str]:
 
         orders_data = []
         for o in orders:
-            if hasattr(o, '__dataclass_fields__'):
+            if hasattr(o, "__dataclass_fields__"):
                 orders_data.append(asdict(o))
             elif isinstance(o, dict):
                 orders_data.append(o)

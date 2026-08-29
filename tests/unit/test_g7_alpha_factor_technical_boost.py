@@ -37,6 +37,7 @@ from utils.alpha_factor.technical import (  # noqa: E402
 # _to_ohlcv_df
 # ============================================================
 
+
 class TestToOhlcvDf:
     def test_insufficient_closes(self):
         """closes < 2 → None."""
@@ -93,6 +94,7 @@ class TestToOhlcvDf:
 # _id_to_method
 # ============================================================
 
+
 class TestIdToMethod:
     def test_basic(self):
         assert _id_to_method("gtja191_004") == "alpha4"
@@ -109,6 +111,7 @@ class TestIdToMethod:
 # _compute_via_ms_strategy
 # ============================================================
 
+
 class TestComputeViaMsStrategy:
     def test_empty_df(self):
         df = pd.DataFrame({"close": [100, 105]})
@@ -118,18 +121,32 @@ class TestComputeViaMsStrategy:
 
     def test_import_error_returns_empty(self):
         """ms_strategy 不可用时返回 {}."""
-        df = pd.DataFrame({"open": [100], "high": [101], "low": [99], "close": [100], "volume": [1000], "amount": [100000]})
+        df = pd.DataFrame(
+            {
+                "open": [100],
+                "high": [101],
+                "low": [99],
+                "close": [100],
+                "volume": [1000],
+                "amount": [100000],
+            }
+        )
         with patch.dict("sys.modules", {"ms_strategy.factors.gtja191_factors": None}):
             result = _compute_via_ms_strategy(df, ["gtja191_004"])
             assert result == {}
 
     def test_valid_computation(self):
         """ms_strategy 可用时计算因子."""
-        df = pd.DataFrame({
-            "open": [100, 101, 102], "high": [102, 103, 104],
-            "low": [99, 100, 101], "close": [101, 102, 103],
-            "volume": [1000, 2000, 3000], "amount": [101000, 204000, 309000],
-        })
+        df = pd.DataFrame(
+            {
+                "open": [100, 101, 102],
+                "high": [102, 103, 104],
+                "low": [99, 100, 101],
+                "close": [101, 102, 103],
+                "volume": [1000, 2000, 3000],
+                "amount": [101000, 204000, 309000],
+            }
+        )
         result = _compute_via_ms_strategy(df, ["gtja191_004"])
         # 不强制有值 (ms_strategy 可能未安装), 但应是 dict
         assert isinstance(result, dict)
@@ -138,6 +155,7 @@ class TestComputeViaMsStrategy:
 # ============================================================
 # _compute_via_utils
 # ============================================================
+
 
 class TestComputeViaUtils:
     def test_import_error_returns_empty(self):
@@ -154,6 +172,7 @@ class TestComputeViaUtils:
 # ============================================================
 # compute_technical_factors
 # ============================================================
+
 
 class TestComputeTechnicalFactors:
     def test_empty_price_data(self):
@@ -206,7 +225,9 @@ class TestComputeTechnicalFactors:
         mock_module = MagicMock()
         mock_module.GTJA191Factors = MagicMock(side_effect=RuntimeError("forced"))
         with patch.dict("sys.modules", {"utils.gtja191_factors": mock_module}):
-            result = compute_technical_factors(price_data, all_factors=True, prefer="utils")
+            result = compute_technical_factors(
+                price_data, all_factors=True, prefer="utils"
+            )
             assert isinstance(result, dict)
 
     def test_nan_values_filtered(self):
@@ -236,6 +257,7 @@ class TestComputeTechnicalFactors:
 # ============================================================
 # list_available_factors
 # ============================================================
+
 
 class TestListAvailableFactors:
     def test_returns_list(self):

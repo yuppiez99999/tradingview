@@ -189,8 +189,10 @@ class TestTDAMClient:
             "total": 1,
         }
 
-        with patch.object(client, "_check_flag", return_value=True), \
-             patch.object(client._session, "get", return_value=mock_response):
+        with (
+            patch.object(client, "_check_flag", return_value=True),
+            patch.object(client._session, "get", return_value=mock_response),
+        ):
             result = client.search_memory("气象因子")
 
         assert result.success is True
@@ -203,9 +205,13 @@ class TestTDAMClient:
 
         client = TDAMClient(TDAMConfig(max_retries=0, timeout=1))
 
-        with patch.object(client, "_check_flag", return_value=True), \
-             patch.object(client._circuit, "can_execute", return_value=True), \
-             patch.object(client._session, "get", side_effect=req.ConnectionError("refused")):
+        with (
+            patch.object(client, "_check_flag", return_value=True),
+            patch.object(client._circuit, "can_execute", return_value=True),
+            patch.object(
+                client._session, "get", side_effect=req.ConnectionError("refused")
+            ),
+        ):
             result = client.search_memory("test")
 
         assert result.success is False

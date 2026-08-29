@@ -7,7 +7,9 @@ import os
 import shutil
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from ai_decision.decision_gate import RiskContext
 from ai_decision.execution_bridge import (
@@ -24,11 +26,18 @@ from ai_decision.models import TradingDecision
 # 辅助函数
 # ============================================================
 
-def _make_decision(action="buy", conf=0.8, strength=0.6, mode="auto", verdict_type="AUTO"):
+
+def _make_decision(
+    action="buy", conf=0.8, strength=0.6, mode="auto", verdict_type="AUTO"
+):
     """创建测试用 TradingDecision"""
     return TradingDecision(
-        symbol="600519", action=action, strength=strength,
-        confidence=conf, verdict_type=verdict_type, mode=mode
+        symbol="600519",
+        action=action,
+        strength=strength,
+        confidence=conf,
+        verdict_type=verdict_type,
+        mode=mode,
     )
 
 
@@ -46,6 +55,7 @@ def _reset_test_dirs():
 # ============================================================
 # GrayscaleState 测试
 # ============================================================
+
 
 def test_grayscale_state_load_save():
     """测试灰度状态的加载与保存"""
@@ -119,6 +129,7 @@ def test_grayscale_effective_allocation():
 # 执行计划生成测试
 # ============================================================
 
+
 def test_generate_execution_plan_buy():
     """测试生成买入执行计划"""
     decision = _make_decision(action="buy", conf=0.8, strength=0.7, verdict_type="AUTO")
@@ -167,13 +178,19 @@ def test_execution_plan_slices():
 # L2 执行层风控测试
 # ============================================================
 
+
 def test_execution_risk_check_valid():
     """测试通过的风控检查"""
     plan = {
-        "symbol": "600519", "side": "BUY", "qty": 100,
-        "limit_price": 150.0, "notional": 15000.0,
+        "symbol": "600519",
+        "side": "BUY",
+        "qty": 100,
+        "limit_price": 150.0,
+        "notional": 15000.0,
     }
-    result = _execution_risk_check(plan, market_state="normal", portfolio_value=1_000_000.0)
+    result = _execution_risk_check(
+        plan, market_state="normal", portfolio_value=1_000_000.0
+    )
     assert result.passed is True
     assert result.veto is False
 
@@ -215,11 +232,15 @@ def test_execution_risk_check_notional_limit():
 # L2 复用 L1 run_hard_risk 测试 (路线图: 不重复造轮子)
 # ============================================================
 
+
 def _make_valid_plan(symbol="600519", side="BUY"):
     """构造通过 L2 基础检查的执行计划 (notional 1万 < 2% 净值)"""
     return {
-        "symbol": symbol, "side": side, "qty": 100,
-        "limit_price": 100.0, "notional": 10000.0,
+        "symbol": symbol,
+        "side": side,
+        "qty": 100,
+        "limit_price": 100.0,
+        "notional": 10000.0,
     }
 
 
@@ -229,8 +250,11 @@ def test_execution_risk_check_blacklist_via_l1():
     decision = _make_decision(action="buy")
     rc = RiskContext(symbol="600519", blacklist=("600519",))
     result = _execution_risk_check(
-        plan, market_state="normal", portfolio_value=1_000_000.0,
-        risk_context=rc, decision=decision,
+        plan,
+        market_state="normal",
+        portfolio_value=1_000_000.0,
+        risk_context=rc,
+        decision=decision,
     )
     assert result.veto is True
     assert "[L1]" in result.veto_reason
@@ -245,7 +269,9 @@ def test_execution_risk_check_limit_up_buy_via_l1():
     decision = _make_decision(action="buy")
     rc = RiskContext(symbol="600519", is_limit_up=True)
     result = _execution_risk_check(
-        plan, risk_context=rc, decision=decision,
+        plan,
+        risk_context=rc,
+        decision=decision,
     )
     assert result.veto is True
     assert "[L1]" in result.veto_reason
@@ -258,7 +284,9 @@ def test_execution_risk_check_limit_down_sell_via_l1():
     decision = _make_decision(action="sell")
     rc = RiskContext(symbol="600519", is_limit_down=True)
     result = _execution_risk_check(
-        plan, risk_context=rc, decision=decision,
+        plan,
+        risk_context=rc,
+        decision=decision,
     )
     assert result.veto is True
     assert "[L1]" in result.veto_reason
@@ -272,8 +300,10 @@ def test_execution_risk_check_daily_cumulative_via_l1():
     decision = _make_decision(action="buy")
     rc = RiskContext(symbol="600519", daily_used_pct=0.095)
     result = _execution_risk_check(
-        plan, portfolio_value=1_000_000.0,
-        risk_context=rc, decision=decision,
+        plan,
+        portfolio_value=1_000_000.0,
+        risk_context=rc,
+        decision=decision,
     )
     assert result.veto is True
     assert "[L1]" in result.veto_reason
@@ -283,12 +313,19 @@ def test_execution_risk_check_daily_cumulative_via_l1():
 def test_execution_risk_check_l1_l2_veto_merge():
     """L1 + L2 同时否决时 veto_reason 应合并"""
     # 构造 L1 否决 (黑名单) + L2 否决 (价格异常)
-    plan = {"symbol": "600519", "side": "BUY", "qty": 100,
-            "limit_price": 0, "notional": 0}
+    plan = {
+        "symbol": "600519",
+        "side": "BUY",
+        "qty": 100,
+        "limit_price": 0,
+        "notional": 0,
+    }
     decision = _make_decision(action="buy")
     rc = RiskContext(symbol="600519", blacklist=("600519",))
     result = _execution_risk_check(
-        plan, risk_context=rc, decision=decision,
+        plan,
+        risk_context=rc,
+        decision=decision,
     )
     assert result.veto is True
     # L1 + L2 否决原因都应出现
@@ -315,8 +352,10 @@ def test_execution_risk_check_l1_pass_l2_pass():
     decision = _make_decision(action="buy")
     rc = RiskContext(symbol="600519")  # 无黑名单/无涨跌停/无累计
     result = _execution_risk_check(
-        plan, portfolio_value=1_000_000.0,
-        risk_context=rc, decision=decision,
+        plan,
+        portfolio_value=1_000_000.0,
+        risk_context=rc,
+        decision=decision,
     )
     assert result.passed is True
     assert result.veto is False
@@ -328,6 +367,7 @@ def test_execution_risk_check_l1_pass_l2_pass():
 # ============================================================
 # execute_decision 核心桥接测试
 # ============================================================
+
 
 def test_execute_decision_shadow_mode():
     """测试 shadow 模式不执行"""
@@ -351,27 +391,33 @@ def test_execute_decision_paper_mode():
 
 def test_execute_decision_auto_with_router():
     """测试 auto 模式与 order_router 集成 (模拟)"""
+
     class MockRouter:
         def route_order(self, plan, market_state):
             return {"success": True, "routed_orders": [plan], "target_pool": "ctp"}
 
     class MockBroker:
         """模拟 broker — 用于满足 auto 模式真实下单的前置条件 (router+broker 同时就绪)"""
+
         pass
 
     decision = _make_decision(mode="auto")
     router = MockRouter()
     broker = MockBroker()
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
-        order_router=router, broker=broker,
+        decision,
+        portfolio_value=1_000_000.0,
+        order_router=router,
+        broker=broker,
         price=100.0,  # 修复: auto 模式必须传有效 price, 否则触发 price_missing L2 veto
     )
     assert result["executed"] is True
     assert result["mode"] == "auto"
     # 检查消息中包含执行相关的关键词（支持中英文）
     msg = result.get("message", "")
-    assert any(keyword in msg for keyword in ["已下单", "下单成功", "executed", "success"])
+    assert any(
+        keyword in msg for keyword in ["已下单", "下单成功", "executed", "success"]
+    )
     execution_result = result.get("execution_result", {})
     assert execution_result.get("success", True) is True
 
@@ -392,7 +438,8 @@ def test_execute_decision_auto_veto_by_l1_blacklist():
     decision = _make_decision(mode="auto")
     rc = RiskContext(symbol="600519", blacklist=("600519",))
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
+        decision,
+        portfolio_value=1_000_000.0,
         risk_context=rc,
     )
     # L1 黑名单否决, 不执行
@@ -408,7 +455,8 @@ def test_execute_decision_auto_veto_by_l1_limit_up():
     decision = _make_decision(mode="auto", action="buy")
     rc = RiskContext(symbol="600519", is_limit_up=True)
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
+        decision,
+        portfolio_value=1_000_000.0,
         risk_context=rc,
     )
     assert result["executed"] is False
@@ -426,6 +474,7 @@ def test_execute_decision_force_mode_override():
 # ============================================================
 # 灰度管理工具函数测试
 # ============================================================
+
 
 def test_get_grayscale_summary():
     """获取灰度摘要"""
@@ -450,6 +499,7 @@ def test_advance_grayscale_auto_10_to_50():
 # 端到端集成测试
 # ============================================================
 
+
 def test_full_pipeline_shadow():
     """完整决策→执行桥接流程 (shadow模式)"""
     _reset_test_dirs()
@@ -459,7 +509,9 @@ def test_full_pipeline_shadow():
     result = execute_decision(decision, portfolio_value=1_000_000.0)
     assert result.get("executed") is False
     assert result.get("mode") == "shadow"
-    print(f"[PASS] shadow pipeline: executed={result.get('executed')}, mode={result.get('mode')}")
+    print(
+        f"[PASS] shadow pipeline: executed={result.get('executed')}, mode={result.get('mode')}"
+    )
 
 
 # ============================================================
@@ -470,9 +522,11 @@ def test_full_pipeline_shadow():
 # - 分支 3/4/5: veto=False + escalation=True (执行异常, 软阈值)
 # - 成功分支: veto=False + escalation=False (继承自 decision.escalation)
 
+
 def _reset_grayscale_state():
     """清理灰度状态文件, 避免测试间相互污染"""
     from ai_decision.execution_bridge import _GRAYSCALE_STATE_FILE
+
     try:
         if os.path.exists(_GRAYSCALE_STATE_FILE):
             os.remove(_GRAYSCALE_STATE_FILE)
@@ -498,7 +552,8 @@ def test_escalation_branch1_l2_veto():
     # 通过 RiskContext 黑名单触发 L1 否决 (L2 复用 L1 run_hard_risk)
     rc = RiskContext(symbol="600519", blacklist=("600519",))
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
+        decision,
+        portfolio_value=1_000_000.0,
         risk_context=rc,
     )
     assert result["executed"] is False
@@ -526,7 +581,8 @@ def test_escalation_branch2_grayscale_rollback_to_zero():
 
     decision = _make_decision(mode="auto", action="buy")
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
+        decision,
+        portfolio_value=1_000_000.0,
         force_mode="auto",
         price=100.0,  # 修复: auto 模式必须传有效 price
     )
@@ -544,10 +600,13 @@ def test_escalation_branch3_order_failed():
 
     class FailingRouter:
         """模拟 broker 拒单的 router"""
+
         def route_order(self, plan, market_state):
             return {
-                "success": False, "routed_orders": [],
-                "target_pool": "", "error": "broker rejected",
+                "success": False,
+                "routed_orders": [],
+                "target_pool": "",
+                "error": "broker rejected",
             }
 
     class MockBroker:
@@ -555,8 +614,10 @@ def test_escalation_branch3_order_failed():
 
     decision = _make_decision(mode="auto", action="buy")
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
-        order_router=FailingRouter(), broker=MockBroker(),
+        decision,
+        portfolio_value=1_000_000.0,
+        order_router=FailingRouter(),
+        broker=MockBroker(),
         force_mode="auto",
         price=100.0,  # 修复: auto 模式必须传有效 price
     )
@@ -572,6 +633,7 @@ def test_escalation_branch4_order_exception():
 
     class ExceptionRouter:
         """模拟抛异常的 router"""
+
         def route_order(self, plan, market_state):
             raise RuntimeError("connection timeout")
 
@@ -580,8 +642,10 @@ def test_escalation_branch4_order_exception():
 
     decision = _make_decision(mode="auto", action="buy")
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
-        order_router=ExceptionRouter(), broker=MockBroker(),
+        decision,
+        portfolio_value=1_000_000.0,
+        order_router=ExceptionRouter(),
+        broker=MockBroker(),
         force_mode="auto",
         price=100.0,  # 修复: auto 模式必须传有效 price
     )
@@ -597,7 +661,8 @@ def test_escalation_branch5_unknown_mode():
     _reset_grayscale_state()
     decision = _make_decision(mode="shadow")
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
+        decision,
+        portfolio_value=1_000_000.0,
         force_mode="unknown_mode",
     )
     assert result["escalation"] is True
@@ -611,7 +676,8 @@ def test_escalation_false_on_paper_success():
     _reset_grayscale_state()
     decision = _make_decision(mode="paper", action="buy")
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
+        decision,
+        portfolio_value=1_000_000.0,
         force_mode="paper",
     )
     assert result["executed"] is True
@@ -635,8 +701,10 @@ def test_escalation_false_on_auto_success():
 
     decision = _make_decision(mode="auto", action="buy")
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
-        order_router=SuccessRouter(), broker=MockBroker(),
+        decision,
+        portfolio_value=1_000_000.0,
+        order_router=SuccessRouter(),
+        broker=MockBroker(),
         force_mode="auto",
         price=100.0,  # 修复: auto 模式必须传有效 price
     )
@@ -657,7 +725,8 @@ def test_escalation_inherits_from_l1():
     decision.escalation = True
     decision.escalation_reason = "L1 已设人工确认"
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
+        decision,
+        portfolio_value=1_000_000.0,
         force_mode="paper",
     )
     # paper 模式成功执行, 但 escalation 继承自 L1
@@ -673,15 +742,22 @@ def test_execution_audit_contains_escalation_field():
     decision = _make_decision(mode="auto", action="buy")
     rc = RiskContext(symbol="600519", blacklist=("600519",))
     execute_decision(
-        decision, portfolio_value=1_000_000.0,
+        decision,
+        portfolio_value=1_000_000.0,
         risk_context=rc,
     )
     # 读取审计文件验证 escalation 字段
     from ai_decision.execution_bridge import _EXEC_AUDIT_DIR
-    audit_files = [
-        f for f in os.listdir(_EXEC_AUDIT_DIR)
-        if f.startswith("exec_") and f.endswith(".jsonl")
-    ] if os.path.exists(_EXEC_AUDIT_DIR) else []
+
+    audit_files = (
+        [
+            f
+            for f in os.listdir(_EXEC_AUDIT_DIR)
+            if f.startswith("exec_") and f.endswith(".jsonl")
+        ]
+        if os.path.exists(_EXEC_AUDIT_DIR)
+        else []
+    )
     assert len(audit_files) > 0, "审计文件未生成"
     with open(os.path.join(_EXEC_AUDIT_DIR, audit_files[0]), encoding="utf-8") as fh:
         record = json.loads(fh.readline())
@@ -699,9 +775,11 @@ def test_execution_audit_contains_escalation_field():
 # - TCA 异常 fail-safe, 主路径不阻断
 # - 事后归因仅执行成功后调用
 
+
 def _cleanup_tca_estimates():
     """清理 reports/tca/estimate_*.jsonl (测试间隔离)"""
     import glob
+
     tca_dir = os.path.join("reports", "tca")
     if os.path.exists(tca_dir):
         for f in glob.glob(os.path.join(tca_dir, "estimate_*.jsonl")):
@@ -720,6 +798,7 @@ def _enable_tca_flag(flag: str = "pre"):
         (original_pre, original_post) 用于恢复
     """
     import ai_decision.execution_bridge as eb
+
     orig_pre = eb._tca_pre_trade_enabled
     orig_post = eb._tca_post_trade_enabled
     if flag in ("pre", "both"):
@@ -732,6 +811,7 @@ def _enable_tca_flag(flag: str = "pre"):
 def _restore_tca_flag(orig_pre, orig_post):
     """恢复 TCA Feature Flag"""
     import ai_decision.execution_bridge as eb
+
     eb._tca_pre_trade_enabled = orig_pre
     eb._tca_post_trade_enabled = orig_post
 
@@ -742,14 +822,20 @@ def test_tca_disabled_by_default():
     _reset_grayscale_state()
     from utils.tca_engine import TCAManager
     from utils.tca_pre_trade_estimator import PreTradeEstimator
+
     decision = _make_decision(mode="paper", action="buy")
     estimator = PreTradeEstimator(save_to_file=False)
     result = execute_decision(
-        decision, portfolio_value=1_000_000.0,
+        decision,
+        portfolio_value=1_000_000.0,
         force_mode="paper",
         tca_pre_trade_estimator=estimator,
         tca_post_trade_manager=TCAManager(),
-        market_data_for_tca={"adv": 100_000_000, "volatility": 0.025, "market_cap": 800e8},
+        market_data_for_tca={
+            "adv": 100_000_000,
+            "volatility": 0.025,
+            "market_cap": 800e8,
+        },
     )
     # Flag 关闭: TCA 不执行, 3 字段均为空
     assert result["tca_pre_estimate"] is None
@@ -765,17 +851,21 @@ def test_tca_pre_trade_approved_when_enabled():
     _reset_grayscale_state()
     _cleanup_tca_estimates()
     from utils.tca_pre_trade_estimator import PreTradeEstimator
+
     decision = _make_decision(mode="paper", action="buy")
     # 高阈值 (100bps) → 预筛通过
     estimator = PreTradeEstimator(cost_threshold_bps=100.0, save_to_file=False)
     orig = _enable_tca_flag("pre")
     try:
         result = execute_decision(
-            decision, portfolio_value=1_000_000.0,
+            decision,
+            portfolio_value=1_000_000.0,
             force_mode="paper",
             tca_pre_trade_estimator=estimator,
             market_data_for_tca={
-                "adv": 100_000_000, "volatility": 0.025, "market_cap": 800e8,
+                "adv": 100_000_000,
+                "volatility": 0.025,
+                "market_cap": 800e8,
             },
         )
         assert result["tca_pre_estimate"] is not None
@@ -793,17 +883,21 @@ def test_tca_pre_trade_rejected_sets_escalation():
     _reset_grayscale_state()
     _cleanup_tca_estimates()
     from utils.tca_pre_trade_estimator import PreTradeEstimator
+
     decision = _make_decision(mode="paper", action="buy")
     # 极低阈值 (0.01bps) → 必然否决
     estimator = PreTradeEstimator(cost_threshold_bps=0.01, save_to_file=False)
     orig = _enable_tca_flag("pre")
     try:
         result = execute_decision(
-            decision, portfolio_value=1_000_000.0,
+            decision,
+            portfolio_value=1_000_000.0,
             force_mode="paper",
             tca_pre_trade_estimator=estimator,
             market_data_for_tca={
-                "adv": 100_000_000, "volatility": 0.025, "market_cap": 800e8,
+                "adv": 100_000_000,
+                "volatility": 0.025,
+                "market_cap": 800e8,
             },
         )
         assert result["tca_pre_estimate"] is not None
@@ -825,6 +919,7 @@ def test_tca_pre_trade_exception_does_not_block():
 
     class FailingEstimator:
         """模拟 TCA 服务故障的 estimator"""
+
         def estimate(self, *args, **kwargs):
             raise RuntimeError("TCA service unavailable")
 
@@ -832,7 +927,8 @@ def test_tca_pre_trade_exception_does_not_block():
     orig = _enable_tca_flag("pre")
     try:
         result = execute_decision(
-            decision, portfolio_value=1_000_000.0,
+            decision,
+            portfolio_value=1_000_000.0,
             force_mode="paper",
             tca_pre_trade_estimator=FailingEstimator(),
         )
@@ -855,13 +951,15 @@ def test_tca_post_trade_attribution_on_paper_success():
     _cleanup_tca_estimates()
     from utils.tca_engine import TCAManager
     from utils.tca_pre_trade_estimator import PreTradeEstimator
+
     decision = _make_decision(mode="paper", action="buy")
     estimator = PreTradeEstimator(cost_threshold_bps=100.0, save_to_file=False)
     manager = TCAManager()
     orig = _enable_tca_flag("both")
     try:
         result = execute_decision(
-            decision, portfolio_value=1_000_000.0,
+            decision,
+            portfolio_value=1_000_000.0,
             force_mode="paper",
             price=10.0,
             tca_pre_trade_estimator=estimator,
@@ -896,16 +994,20 @@ def test_tca_pre_trade_persistence_to_jsonl():
     import glob
 
     from utils.tca_pre_trade_estimator import PreTradeEstimator
+
     decision = _make_decision(mode="paper", action="buy")
     estimator = PreTradeEstimator(cost_threshold_bps=100.0, save_to_file=True)
     orig = _enable_tca_flag("pre")
     try:
         execute_decision(
-            decision, portfolio_value=1_000_000.0,
+            decision,
+            portfolio_value=1_000_000.0,
             force_mode="paper",
             tca_pre_trade_estimator=estimator,
             market_data_for_tca={
-                "adv": 100_000_000, "volatility": 0.025, "market_cap": 800e8,
+                "adv": 100_000_000,
+                "volatility": 0.025,
+                "market_cap": 800e8,
             },
         )
         # 验证 estimate jsonl 文件生成
@@ -930,31 +1032,45 @@ def test_tca_audit_record_contains_tca_fields():
     _cleanup_tca_estimates()
     from utils.tca_engine import TCAManager
     from utils.tca_pre_trade_estimator import PreTradeEstimator
+
     decision = _make_decision(mode="paper", action="buy")
     estimator = PreTradeEstimator(cost_threshold_bps=100.0, save_to_file=False)
     manager = TCAManager()
     orig = _enable_tca_flag("both")
     try:
         execute_decision(
-            decision, portfolio_value=1_000_000.0,
+            decision,
+            portfolio_value=1_000_000.0,
             force_mode="paper",
             price=10.0,
             tca_pre_trade_estimator=estimator,
             tca_post_trade_manager=manager,
             market_data_for_tca={
-                "adv": 100_000_000, "volatility": 0.025, "market_cap": 800e8,
-                "decision_price": 10.0, "arrival_price": 10.01,
-                "vwap": 10.02, "close_price": 10.05,
+                "adv": 100_000_000,
+                "volatility": 0.025,
+                "market_cap": 800e8,
+                "decision_price": 10.0,
+                "arrival_price": 10.01,
+                "vwap": 10.02,
+                "close_price": 10.05,
             },
         )
         # 读取审计文件验证 TCA 字段
         from ai_decision.execution_bridge import _EXEC_AUDIT_DIR
-        audit_files = [
-            f for f in os.listdir(_EXEC_AUDIT_DIR)
-            if f.startswith("exec_") and f.endswith(".jsonl")
-        ] if os.path.exists(_EXEC_AUDIT_DIR) else []
+
+        audit_files = (
+            [
+                f
+                for f in os.listdir(_EXEC_AUDIT_DIR)
+                if f.startswith("exec_") and f.endswith(".jsonl")
+            ]
+            if os.path.exists(_EXEC_AUDIT_DIR)
+            else []
+        )
         assert len(audit_files) > 0
-        with open(os.path.join(_EXEC_AUDIT_DIR, audit_files[-1]), encoding="utf-8") as fh:
+        with open(
+            os.path.join(_EXEC_AUDIT_DIR, audit_files[-1]), encoding="utf-8"
+        ) as fh:
             record = json.loads(fh.readline())
         assert "tca_pre_estimate" in record
         assert record["tca_pre_estimate"] is not None
@@ -978,12 +1094,15 @@ def test_tca_post_trade_skipped_on_execution_failure():
         pass
 
     from utils.tca_engine import TCAManager
+
     decision = _make_decision(mode="auto", action="buy")
     orig = _enable_tca_flag("post")
     try:
         result = execute_decision(
-            decision, portfolio_value=1_000_000.0,
-            order_router=FailingRouter(), broker=MockBroker(),
+            decision,
+            portfolio_value=1_000_000.0,
+            order_router=FailingRouter(),
+            broker=MockBroker(),
             force_mode="auto",
             tca_post_trade_manager=TCAManager(),
         )
@@ -1050,7 +1169,9 @@ def test_step5_shadow_no_advance_low_decisions():
 def test_step5_paper_advance_with_fillrate():
     """paper 满 3 天 + 成交率 >= 95% + 无 escalation → 推进到 auto_10"""
     _reset_grayscale_state()
-    gs = _make_gs_at_stage("paper", days_ago=3, paper_fill_rate=0.96, escalation_count=0)
+    gs = _make_gs_at_stage(
+        "paper", days_ago=3, paper_fill_rate=0.96, escalation_count=0
+    )
     can_advance, reason = gs._check_advance_conditions()
     assert can_advance is True
     assert reason == ""
@@ -1059,7 +1180,9 @@ def test_step5_paper_advance_with_fillrate():
 def test_step5_paper_no_advance_low_fillrate():
     """paper 满 3 天但成交率 < 95% → 不推进"""
     _reset_grayscale_state()
-    gs = _make_gs_at_stage("paper", days_ago=3, paper_fill_rate=0.90, escalation_count=0)
+    gs = _make_gs_at_stage(
+        "paper", days_ago=3, paper_fill_rate=0.90, escalation_count=0
+    )
     can_advance, reason = gs._check_advance_conditions()
     assert can_advance is False
     assert "模拟成交率" in reason
@@ -1068,7 +1191,9 @@ def test_step5_paper_no_advance_low_fillrate():
 def test_step5_paper_no_advance_with_escalation():
     """paper 满 3 天 + 成交率够但有 escalation → 不推进"""
     _reset_grayscale_state()
-    gs = _make_gs_at_stage("paper", days_ago=3, paper_fill_rate=0.98, escalation_count=2)
+    gs = _make_gs_at_stage(
+        "paper", days_ago=3, paper_fill_rate=0.98, escalation_count=2
+    )
     can_advance, reason = gs._check_advance_conditions()
     assert can_advance is False
     assert "escalation" in reason
@@ -1077,7 +1202,9 @@ def test_step5_paper_no_advance_with_escalation():
 def test_step5_auto_10_advance_with_positive_pnl():
     """auto_10 满 3 天 + 累计 PnL > 0 + 无回滚 → 推进到 auto_50"""
     _reset_grayscale_state()
-    gs = _make_gs_at_stage("auto_10", days_ago=3, cumulative_pnl=5000.0, rollback_count=0)
+    gs = _make_gs_at_stage(
+        "auto_10", days_ago=3, cumulative_pnl=5000.0, rollback_count=0
+    )
     can_advance, reason = gs._check_advance_conditions()
     assert can_advance is True
     assert reason == ""
@@ -1086,7 +1213,9 @@ def test_step5_auto_10_advance_with_positive_pnl():
 def test_step5_auto_10_no_advance_negative_pnl():
     """auto_10 满 3 天但累计 PnL <= 0 → 不推进"""
     _reset_grayscale_state()
-    gs = _make_gs_at_stage("auto_10", days_ago=3, cumulative_pnl=-1000.0, rollback_count=0)
+    gs = _make_gs_at_stage(
+        "auto_10", days_ago=3, cumulative_pnl=-1000.0, rollback_count=0
+    )
     can_advance, reason = gs._check_advance_conditions()
     assert can_advance is False
     assert "PnL" in reason
@@ -1095,7 +1224,9 @@ def test_step5_auto_10_no_advance_negative_pnl():
 def test_step5_auto_50_advance_to_auto_100():
     """auto_50 满 7 天 + PnL > 0 + 无回滚 → 推进到 auto_100"""
     _reset_grayscale_state()
-    gs = _make_gs_at_stage("auto_50", days_ago=7, cumulative_pnl=15000.0, rollback_count=0)
+    gs = _make_gs_at_stage(
+        "auto_50", days_ago=7, cumulative_pnl=15000.0, rollback_count=0
+    )
     can_advance, reason = gs._check_advance_conditions()
     assert can_advance is True
     assert reason == ""
@@ -1127,7 +1258,9 @@ def test_step5_advance_grayscale_method_shadow():
 def test_step5_advance_grayscale_method_promote():
     """advance_grayscale() 方法: 满足条件时推进并重置指标"""
     _reset_grayscale_state()
-    gs = _make_gs_at_stage("auto_10", days_ago=3, cumulative_pnl=5000.0, rollback_count=0)
+    gs = _make_gs_at_stage(
+        "auto_10", days_ago=3, cumulative_pnl=5000.0, rollback_count=0
+    )
     gs.escalation_count = 3
     gs.paper_fill_rate = 0.5
     result = gs.advance_grayscale(daily_pnl=500.0)
@@ -1208,4 +1341,5 @@ def test_step5_new_fields_persisted():
 
 if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-v"])

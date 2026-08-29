@@ -25,11 +25,13 @@ class EastMoneyDataFetcher:
         self.base_url = "https://push2.eastmoney.com/api"
         self.quote_url = "https://quote.eastmoney.com/gridtable"
         self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
-        })
+        self.session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            }
+        )
 
         logger.info("东方财富数据获取器初始化完成")
 
@@ -48,9 +50,9 @@ class EastMoneyDataFetcher:
 
             for symbol in symbols:
                 # 确定市场前缀
-                if symbol.startswith('6'):
+                if symbol.startswith("6"):
                     secid = f"1.{symbol}"
-                elif symbol.startswith(('0', '3')):
+                elif symbol.startswith(("0", "3")):
                     secid = f"0.{symbol}"
                 else:
                     secid = f"1.{symbol}"
@@ -65,42 +67,42 @@ class EastMoneyDataFetcher:
                         data = response.json()
 
                         # 解析数据
-                        if data.get('data'):
-                            stock_data = data['data'].get(secid, {})
+                        if data.get("data"):
+                            stock_data = data["data"].get(secid, {})
 
                             results[symbol] = {
-                                'code': symbol,
-                                'name': stock_data.get('f14', ''),
-                                'price': stock_data.get('f2'),
-                                'change': stock_data.get('f3'),
-                                'change_pct': stock_data.get('f3'),
-                                'volume': stock_data.get('f5'),
-                                'turnover': stock_data.get('f6'),
-                                'high': stock_data.get('f15'),
-                                'low': stock_data.get('f16'),
-                                'open': stock_data.get('f18'),
-                                'date': stock_data.get('f23', ''),
-                                'time': stock_data.get('f22', '')
+                                "code": symbol,
+                                "name": stock_data.get("f14", ""),
+                                "price": stock_data.get("f2"),
+                                "change": stock_data.get("f3"),
+                                "change_pct": stock_data.get("f3"),
+                                "volume": stock_data.get("f5"),
+                                "turnover": stock_data.get("f6"),
+                                "high": stock_data.get("f15"),
+                                "low": stock_data.get("f16"),
+                                "open": stock_data.get("f18"),
+                                "date": stock_data.get("f23", ""),
+                                "time": stock_data.get("f22", ""),
                             }
                         else:
-                            results[symbol] = {'error': '无数据'}
+                            results[symbol] = {"error": "无数据"}
 
                 except Exception as e:
                     logger.warning(f"获取 {symbol} 数据失败: {e}")
-                    results[symbol] = {'error': str(e)}
+                    results[symbol] = {"error": str(e)}
 
             return results
 
         except Exception as e:
             logger.error(f"获取实时行情失败: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
     def get_historical_klines(
         self,
         symbol: str,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        period: str = 'daily'
+        period: str = "daily",
     ) -> pd.DataFrame:
         """
         获取历史K线数据
@@ -116,14 +118,14 @@ class EastMoneyDataFetcher:
         """
         try:
             if end_date is None:
-                end_date = datetime.now().strftime('%Y-%m-%d')
+                end_date = datetime.now().strftime("%Y-%m-%d")
             if start_date is None:
-                start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+                start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
 
             # 确定市场前缀
-            if symbol.startswith('6'):
+            if symbol.startswith("6"):
                 secid = f"1.{symbol}"
-            elif symbol.startswith(('0', '3')):
+            elif symbol.startswith(("0", "3")):
                 secid = f"0.{symbol}"
             else:
                 secid = f"1.{symbol}"
@@ -139,8 +141,8 @@ class EastMoneyDataFetcher:
 
                 # 解析K线数据
                 klines = []
-                if data.get('data'):
-                    stock_data = data['data'].get(secid, {})
+                if data.get("data"):
+                    stock_data = data["data"].get(secid, {})
 
                     for _key, value in stock_data.items():
                         if isinstance(value, list):
@@ -173,9 +175,9 @@ class EastMoneyDataFetcher:
             股票基本信息字典
         """
         try:
-            if symbol.startswith('6'):
+            if symbol.startswith("6"):
                 secid = f"1.{symbol}"
-            elif symbol.startswith(('0', '3')):
+            elif symbol.startswith(("0", "3")):
                 secid = f"0.{symbol}"
             else:
                 secid = f"1.{symbol}"
@@ -188,26 +190,26 @@ class EastMoneyDataFetcher:
             if response.status_code == 200:
                 data = response.json()
 
-                if data.get('data'):
-                    stock_data = data['data'].get(secid, {})
+                if data.get("data"):
+                    stock_data = data["data"].get(secid, {})
 
                     return {
-                        'code': symbol,
-                        'name': stock_data.get('f14', ''),
-                        'current_price': stock_data.get('f2'),
-                        'market_cap': stock_data.get('f100'),
-                        'total_shares': stock_data.get('f101'),
-                        'float_shares': stock_data.get('f102'),
-                        'pe_ratio': stock_data.get('f103'),
-                        'pb_ratio': stock_data.get('f104'),
-                        'eps': stock_data.get('f105'),
+                        "code": symbol,
+                        "name": stock_data.get("f14", ""),
+                        "current_price": stock_data.get("f2"),
+                        "market_cap": stock_data.get("f100"),
+                        "total_shares": stock_data.get("f101"),
+                        "float_shares": stock_data.get("f102"),
+                        "pe_ratio": stock_data.get("f103"),
+                        "pb_ratio": stock_data.get("f104"),
+                        "eps": stock_data.get("f105"),
                     }
 
-            return {'error': '无法获取股票信息'}
+            return {"error": "无法获取股票信息"}
 
         except Exception as e:
             logger.error(f"获取股票信息失败: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
     def get_flow_data(self, symbol: str) -> dict[str, Any]:
         """
@@ -220,9 +222,9 @@ class EastMoneyDataFetcher:
             资金流向数据
         """
         try:
-            if symbol.startswith('6'):
+            if symbol.startswith("6"):
                 secid = f"1.{symbol}"
-            elif symbol.startswith(('0', '3')):
+            elif symbol.startswith(("0", "3")):
                 secid = f"0.{symbol}"
             else:
                 secid = f"1.{symbol}"
@@ -235,37 +237,37 @@ class EastMoneyDataFetcher:
             if response.status_code == 200:
                 data = response.json()
 
-                if data.get('data'):
-                    stock_data = data['data'].get(secid, {})
+                if data.get("data"):
+                    stock_data = data["data"].get(secid, {})
 
                     return {
-                        'symbol': symbol,
-                        'main_inflow': stock_data.get('f59'),
-                        'small_inflow': stock_data.get('f60'),
-                        'medium_inflow': stock_data.get('f61'),
-                        'large_inflow': stock_data.get('f62'),
-                        'super_large_inflow': stock_data.get('f63'),
+                        "symbol": symbol,
+                        "main_inflow": stock_data.get("f59"),
+                        "small_inflow": stock_data.get("f60"),
+                        "medium_inflow": stock_data.get("f61"),
+                        "large_inflow": stock_data.get("f62"),
+                        "super_large_inflow": stock_data.get("f63"),
                     }
 
-            return {'error': '无法获取资金流向数据'}
+            return {"error": "无法获取资金流向数据"}
 
         except Exception as e:
             logger.error(f"获取资金流向失败: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # 测试代码
     fetcher = EastMoneyDataFetcher()
 
     # 测试实时行情
-    test_symbols = ['600519', '000001', '300750']
+    test_symbols = ["600519", "000001", "300750"]
     quotes = fetcher.get_realtime_quotes(test_symbols)
 
     logger.info("\n东方财富实时行情测试:")
     logger.info("=" * 80)
     for symbol, quote in quotes.items():
-        if 'error' not in quote:
+        if "error" not in quote:
             logger.info(f"\n{symbol} - {quote.get('name', 'N/A')}")
             logger.info(f"  价格: {quote.get('price')}")
             logger.info(f"  涨跌幅: {quote.get('change_pct')}%")

@@ -129,11 +129,11 @@ class _TTLCache:
             return None
         return value
 
-    def set(self, key: str, value: Any, ttl: int | None = None):
+    def set(self, key: str, value: Any, ttl: int | None = None) -> None:
         actual_ttl = ttl if ttl is not None else self.ttl
         self._store[key] = (value, time.time() + actual_ttl)
 
-    def clear(self):
+    def clear(self) -> None:
         self._store.clear()
 
 
@@ -187,7 +187,9 @@ class TrendSonarAdapter:
     # 内部请求封装
     # ------------------------------------------------------------
 
-    def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    def _get(
+        self, path: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         if not self.enabled:
             return None
         try:
@@ -209,7 +211,9 @@ class TrendSonarAdapter:
             logger.warning("TrendSonar GET %s 异常: %s", path, e)
             return None
 
-    def _post(self, path: str, json_body: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    def _post(
+        self, path: str, json_body: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         if not self.enabled:
             return None
         try:

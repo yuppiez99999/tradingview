@@ -76,3 +76,14 @@ qt_account = StockAccount(self.account_id)  # account 用对象, 构造失败回
 - EX-5 印证 memory ID 23032726: QmtBrokerAPI 受 XTQUANT_AVAILABLE 门控, 真实下单待装 xtquant。
 - EX-1 呼应 memory ID 97089364/25810107: 执行系统契约一致性是实盘正确性的前提。
 - 审查纪律: 每条结论由门禁脚本 + 真实接入点验证佐证 (SOP 四步法 + code-review DoD)。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查明细 — 轻量子模块 (alpha/governance/macro/ml/monitoring) (2026-08-24)](code-review-lightweight-20260824.md) (相似度 20%)
+- [代码审查明细 — risk 模块 (2026-08-24)](code-review-risk-20260824.md) (相似度 18%)
+- [代码审查明细 — hedging 模块 (2026-08-24)](code-review-hedging-20260824.md) (相似度 17%)
+- [代码审查明细 — 主链路 institutional_pipeline_runner (2026-08-24)](code-review-pipeline-20260824.md) (相似度 16%)
+- [代码审查明细 — data 模块 (2026-08-24)](code-review-data-20260824.md) (相似度 16%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

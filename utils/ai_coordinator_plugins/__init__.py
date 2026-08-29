@@ -12,6 +12,7 @@ AI 协调器插件包 — W.C.3 deepseek-harness 插件化重构
 向后兼容: 旧 AICoordinator.route() / resolve_conflicts() API 保留,
         内部委托给 PluginRegistry, 由 feature-flag USE_PLUGIN_COORDINATOR 控制走插件还是旧路径.
 """
+
 from __future__ import annotations
 
 try:

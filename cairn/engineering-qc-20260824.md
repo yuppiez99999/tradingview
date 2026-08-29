@@ -36,3 +36,14 @@ QC-2 (mypy strict) 基线与 QC-3 (ruff 清零 + 覆盖率) 为渐进改进, 存
 - QC-2: mypy strict 推进 utils/ 目录 (基于现有基线逐步开启 strict)。
 - QC-3: 补齐 14 个 ANN 注解 + 覆盖率提升到 80%。
 - CI: 增量门禁 (ruff_incremental) 已防新债, 存量债走 nightly 全量扫描。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [B905 zip(strict=True) 全量治理 — 2026-08-24](zip-strict-gate-cleanup-20260824.md) (相似度 16%)
+- [代码质量工业级差距审计 — 2026-08-19](code-quality-industrial-gap-20260819.md) (相似度 11%)
+- [2026-08-08 代码审查修复批次经验沉淀](code-review-fix-batch-20260808.md) (相似度 11%)
+- [代码审查明细 — execution 模块 (2026-08-24)](code-review-execution-20260824.md) (相似度 9%)
+- [代码审查明细 — hedging 模块 (2026-08-24)](code-review-hedging-20260824.md) (相似度 7%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

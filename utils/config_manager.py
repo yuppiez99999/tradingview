@@ -143,14 +143,20 @@ class ConfigManager:
     _instance: ConfigManager | None = None
     _instance_lock = RLock()
 
-    def __init__(self, project_root: Path | None = None, extra_search_paths: list[Path] | None = None) -> None:
+    def __init__(
+        self,
+        project_root: Path | None = None,
+        extra_search_paths: list[Path] | None = None,
+    ) -> None:
         """
         Args:
             project_root: 项目根目录, 默认为 utils/config_manager.py 上两级
             extra_search_paths: 额外的搜索路径 (优先级最高, 用于测试注入)
         """
         self._project_root = project_root or _PROJECT_ROOT
-        self._cache: dict[str, tuple[dict, float, Path]] = {}  # name -> (config, mtime, source_path)
+        self._cache: dict[str, tuple[dict, float, Path]] = (
+            {}
+        )  # name -> (config, mtime, source_path)
         self._lock = RLock()
 
         # 构建搜索路径 (额外路径优先于默认路径)
@@ -241,14 +247,27 @@ class ConfigManager:
             if data is None:
                 return {}
             if not isinstance(data, dict):
-                logger.warning(f"[ConfigManager] 配置文件非 dict 类型: {path}, 实际类型={type(data).__name__}")
+                logger.warning(
+                    f"[ConfigManager] 配置文件非 dict 类型: {path}, 实际类型={type(data).__name__}"
+                )
                 return {}
             return data
         except yaml.YAMLError as e:
             logger.error(f"[ConfigManager] YAML 解析失败: {path}, error={e}")
             return {}
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
-            logger.error(f"[ConfigManager] 加载配置失败: {path}, error={e}", exc_info=True)
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # P2 模块 fail-safe, 待后续精确化
+            logger.error(
+                f"[ConfigManager] 加载配置失败: {path}, error={e}", exc_info=True
+            )
             return {}
 
     def _get_cached(self, name: str) -> dict | None:
@@ -266,7 +285,9 @@ class ConfigManager:
             if current_mtime == cached_mtime:
                 return config
             # mtime 变化, 缓存失效
-            logger.debug(f"[ConfigManager] 缓存失效 (mtime 变化): {name} -> {source_path}")
+            logger.debug(
+                f"[ConfigManager] 缓存失效 (mtime 变化): {name} -> {source_path}"
+            )
             del self._cache[name]
             return None
         except OSError:
@@ -326,7 +347,11 @@ class ConfigManager:
         """
         # 优先从 portfolio.yaml 的 kill_switch 节读取
         portfolio_cfg = self.get("portfolio")
-        ks_cfg = portfolio_cfg.get("kill_switch", {}) if isinstance(portfolio_cfg, dict) else {}
+        ks_cfg = (
+            portfolio_cfg.get("kill_switch", {})
+            if isinstance(portfolio_cfg, dict)
+            else {}
+        )
         if ks_cfg:
             return ks_cfg  # type: ignore[no-any-return]
 

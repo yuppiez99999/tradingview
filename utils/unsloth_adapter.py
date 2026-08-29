@@ -27,6 +27,7 @@
 
 集成日期: 2026-08-21 (v8.6, GitHub 周热门项目集成)
 """
+
 from __future__ import annotations
 
 import logging
@@ -38,7 +39,9 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 # unsloth 源码路径 (相对主系统根目录)
-_UNSLOTH_SRC = Path(__file__).resolve().parent.parent.parent / "10_第三方项目" / "unsloth"
+_UNSLOTH_SRC = (
+    Path(__file__).resolve().parent.parent.parent / "10_第三方项目" / "unsloth"
+)
 _MODEL_OUTPUT = Path(__file__).resolve().parent.parent / "models" / "unsloth_finetuned"
 
 
@@ -83,10 +86,12 @@ class UnslothAdapter:
                 if src_path not in sys.path:
                     sys.path.insert(0, src_path)
                 import unsloth  # type: ignore
+
                 self._unsloth = unsloth
                 logger.info("✓ unsloth 已加载 (源码: %s)", src_path)
             else:
                 import unsloth  # type: ignore
+
                 self._unsloth = unsloth
                 logger.info("✓ unsloth 已加载 (pip 安装)")
         except ImportError as e:
@@ -98,6 +103,7 @@ class UnslothAdapter:
 
         try:
             import torch  # type: ignore
+
             self._torch = torch
         except ImportError:
             logger.warning("torch 未安装, unsloth 推理不可用")
@@ -142,6 +148,7 @@ class UnslothAdapter:
             return None
         try:
             from unsloth import FastLanguageModel  # type: ignore
+
             model, tokenizer = FastLanguageModel.from_pretrained(
                 model_name=str(model_path),
                 max_seq_length=self.config.max_seq_length,
@@ -185,6 +192,7 @@ class UnslothAdapter:
             inputs = inputs.to(device)
 
             from unsloth import FastLanguageModel  # type: ignore
+
             outputs = FastLanguageModel.generate(
                 model=model,
                 input_ids=inputs,

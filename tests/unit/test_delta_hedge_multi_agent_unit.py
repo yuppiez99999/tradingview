@@ -41,6 +41,7 @@ from utils.delta_hedge_multi_agent import (
 # 枚举测试
 # ============================================================
 
+
 class TestEnums:
     """枚举测试。"""
 
@@ -57,6 +58,7 @@ class TestEnums:
 # ============================================================
 # 期权工具测试
 # ============================================================
+
 
 class TestOptionInstrument:
     """期权工具测试。"""
@@ -75,6 +77,7 @@ class TestOptionInstrument:
 # ============================================================
 # 希腊字母计算测试
 # ============================================================
+
 
 class TestGreeksCalculator:
     """BS 希腊字母计算测试。"""
@@ -149,6 +152,7 @@ class TestGreeksCalculator:
 # 组合希腊字母测试
 # ============================================================
 
+
 class TestPortfolioGreeks:
     """组合希腊字母测试。"""
 
@@ -176,6 +180,7 @@ class TestPortfolioGreeks:
 # ============================================================
 # 对冲智能体测试
 # ============================================================
+
 
 class TestHedgingAgent:
     """对冲智能体测试。"""
@@ -211,6 +216,7 @@ class TestHedgingAgent:
 # ============================================================
 # RL 权重优化器测试
 # ============================================================
+
 
 class TestRLWeightOptimizer:
     """RL 权重优化器测试。"""
@@ -252,6 +258,7 @@ class TestRLWeightOptimizer:
 # 多智能体协调器测试
 # ============================================================
 
+
 class TestMultiAgentCoordinator:
     """多智能体协调器测试。"""
 
@@ -287,6 +294,7 @@ class TestMultiAgentCoordinator:
 # 引擎测试
 # ============================================================
 
+
 class TestDeltaHedgeEngine:
     """集成引擎测试。"""
 
@@ -304,7 +312,9 @@ class TestDeltaHedgeEngine:
         """批量对冲。"""
         engine = DeltaHedgeEngine(use_rl_weights=False)
         exposures = [PortfolioGreeks(delta=100), PortfolioGreeks(gamma=50)]
-        instruments = [OptionInstrument(OptionType.PUT, 100, 30 / 365, 0.2, underlying=100)]
+        instruments = [
+            OptionInstrument(OptionType.PUT, 100, 30 / 365, 0.2, underlying=100)
+        ]
         results = engine.hedge_batch(exposures, instruments)
         assert len(results) == 2
 
@@ -312,7 +322,9 @@ class TestDeltaHedgeEngine:
         """统计信息。"""
         engine = DeltaHedgeEngine(use_rl_weights=False)
         pg = PortfolioGreeks(delta=100)
-        instruments = [OptionInstrument(OptionType.PUT, 100, 30 / 365, 0.2, underlying=100)]
+        instruments = [
+            OptionInstrument(OptionType.PUT, 100, 30 / 365, 0.2, underlying=100)
+        ]
         engine.hedge(pg, instruments)
         stats = engine.get_stats()
         assert stats["total"] == 1
@@ -329,6 +341,7 @@ class TestDeltaHedgeEngine:
 # ============================================================
 # 端到端集成测试
 # ============================================================
+
 
 class TestEndToEnd:
     """端到端集成测试。"""

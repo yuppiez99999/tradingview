@@ -15,6 +15,7 @@
 运行:
     python -m pytest tests/unit/test_g7_alpha_factor_gate1_validation_boost.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -69,7 +70,10 @@ class TestFetchTxKline:
         # mock requests.get 返回有效腾讯 K 线格式
         mock_response = MagicMock()
         mock_response.text = 'kline_dayqfq={"data":{"600519":{"qfqday":[["20260101","10","11","12","9","1000"]]}}}'
-        with patch("utils.alpha_factor.gate1_validation.requests.get", return_value=mock_response):
+        with patch(
+            "utils.alpha_factor.gate1_validation.requests.get",
+            return_value=mock_response,
+        ):
             kline = gv.fetch_tx_kline("600519", days=10)
             assert kline is not None
             assert kline[0][0] == "20260101"
@@ -78,24 +82,36 @@ class TestFetchTxKline:
         # qfqday 缺失 → 回退 day
         mock_response = MagicMock()
         mock_response.text = 'kline_dayqfq={"data":{"600519":{"day":[["20260101","10","11","12","9","1000"]]}}}'
-        with patch("utils.alpha_factor.gate1_validation.requests.get", return_value=mock_response):
+        with patch(
+            "utils.alpha_factor.gate1_validation.requests.get",
+            return_value=mock_response,
+        ):
             kline = gv.fetch_tx_kline("600519", days=10)
             assert kline is not None
 
     def test_no_data_returns_none(self) -> None:
         mock_response = MagicMock()
         mock_response.text = 'kline_dayqfq={"data":{}}'
-        with patch("utils.alpha_factor.gate1_validation.requests.get", return_value=mock_response):
+        with patch(
+            "utils.alpha_factor.gate1_validation.requests.get",
+            return_value=mock_response,
+        ):
             assert gv.fetch_tx_kline("600519", days=10) is None
 
     def test_exception_returns_none(self) -> None:
-        with patch("utils.alpha_factor.gate1_validation.requests.get", side_effect=OSError("network")):
+        with patch(
+            "utils.alpha_factor.gate1_validation.requests.get",
+            side_effect=OSError("network"),
+        ):
             assert gv.fetch_tx_kline("600519", days=10) is None
 
     def test_invalid_json_returns_none(self) -> None:
         mock_response = MagicMock()
         mock_response.text = "invalid json"
-        with patch("utils.alpha_factor.gate1_validation.requests.get", return_value=mock_response):
+        with patch(
+            "utils.alpha_factor.gate1_validation.requests.get",
+            return_value=mock_response,
+        ):
             assert gv.fetch_tx_kline("600519", days=10) is None
 
 
@@ -108,9 +124,11 @@ class TestFetchPrices:
     def test_fetch_and_cache(self, tmp_path) -> None:
         # mock fetch_tx_kline 返回 K 线, mock 缓存文件路径到 tmp_path
         kline = [["20260101", "10", "11", "12", "9", "1000"]]
-        with patch.object(gv, "fetch_tx_kline", return_value=kline), \
-             patch.object(gv, "_PRICE_CACHE_FILE", tmp_path / "cache.json"), \
-             patch("utils.alpha_factor.gate1_validation.time.sleep"):
+        with (
+            patch.object(gv, "fetch_tx_kline", return_value=kline),
+            patch.object(gv, "_PRICE_CACHE_FILE", tmp_path / "cache.json"),
+            patch("utils.alpha_factor.gate1_validation.time.sleep"),
+        ):
             prices = gv.fetch_prices(["600519"], days=10, use_cache=False)
             assert "600519" in prices
             assert prices["600519"]["closes"] == [11.0]
@@ -121,20 +139,34 @@ class TestFetchPrices:
 
     def test_skip_no_kline(self, tmp_path) -> None:
         # fetch_tx_kline 返回 None → 跳过该标的
-        with patch.object(gv, "fetch_tx_kline", return_value=None), \
-             patch.object(gv, "_PRICE_CACHE_FILE", tmp_path / "cache.json"):
+        with (
+            patch.object(gv, "fetch_tx_kline", return_value=None),
+            patch.object(gv, "_PRICE_CACHE_FILE", tmp_path / "cache.json"),
+        ):
             prices = gv.fetch_prices(["600519"], days=10, use_cache=False)
             assert "600519" not in prices
 
     def test_use_cache_hit(self, tmp_path) -> None:
         # 预置缓存文件 → 直接命中, 不调用 fetch_tx_kline
         import json
+
         cache_file = tmp_path / "cache.json"
-        cache_content = {"600519": {"closes": [100.0], "volumes": [1.0], "highs": [101.0], "lows": [99.0], "opens": [100.0], "dates": ["20260101"]}}
+        cache_content = {
+            "600519": {
+                "closes": [100.0],
+                "volumes": [1.0],
+                "highs": [101.0],
+                "lows": [99.0],
+                "opens": [100.0],
+                "dates": ["20260101"],
+            }
+        }
         cache_file.write_text(json.dumps(cache_content), encoding="utf-8")
 
-        with patch.object(gv, "fetch_tx_kline") as mock_fetch, \
-             patch.object(gv, "_PRICE_CACHE_FILE", cache_file):
+        with (
+            patch.object(gv, "fetch_tx_kline") as mock_fetch,
+            patch.object(gv, "_PRICE_CACHE_FILE", cache_file),
+        ):
             # 缓存刚写入, st_mtime ≈ now, time.time() - st_mtime < TTL → 命中
             prices = gv.fetch_prices(["600519"], days=10, use_cache=True)
             assert "600519" in prices
@@ -174,8 +206,8 @@ class TestCalcIcir:
 class TestComputeMomentumFactors:
     def test_three_anchor_factors(self) -> None:
         price_data = {
-            "A": {"closes": [100.0 * (1.001 ** i) for i in range(80)]},
-            "B": {"closes": [50.0 * (1.002 ** i) for i in range(80)]},
+            "A": {"closes": [100.0 * (1.001**i) for i in range(80)]},
+            "B": {"closes": [50.0 * (1.002**i) for i in range(80)]},
         }
         mom = gv._compute_momentum_factors(price_data)
         assert "MOM_20D" in mom
@@ -204,8 +236,16 @@ class TestLoadUniverse:
         mock_builder = MagicMock()
         mock_builder.graph.all_nodes = ["600519", "000001"]
         mock_builder.build.return_value = {"node_count": 2, "edge_count": 1}
-        with patch("utils.supply_chain_builder.load_positions_symbols", return_value=["600519"]), \
-             patch("utils.alpha_factor.gate1_validation.SupplyChainBuilder", return_value=mock_builder):
+        with (
+            patch(
+                "utils.supply_chain_builder.load_positions_symbols",
+                return_value=["600519"],
+            ),
+            patch(
+                "utils.alpha_factor.gate1_validation.SupplyChainBuilder",
+                return_value=mock_builder,
+            ),
+        ):
             universe = gv.load_universe()
             assert "600519" in universe
             assert "000001" in universe
@@ -217,9 +257,16 @@ class TestLoadUniverse:
             {"code": "600519", "industry": "半导体"},
             {"code": "000001", "industry": None},
         ]
-        with patch("utils.graph_data_source.get_graph_data_source", return_value=mock_ds), \
-             patch("utils.supply_chain_builder.load_positions_symbols", return_value=["300308.SZ"]), \
-             patch.object(gv, "time", MagicMock()):
+        with (
+            patch(
+                "utils.graph_data_source.get_graph_data_source", return_value=mock_ds
+            ),
+            patch(
+                "utils.supply_chain_builder.load_positions_symbols",
+                return_value=["300308.SZ"],
+            ),
+            patch.object(gv, "time", MagicMock()),
+        ):
             symbols, industries = gv.load_expanded_universe(per_board=2)
             assert "600519" in symbols
             assert "000001" in symbols
@@ -236,19 +283,26 @@ class TestLoadUniverse:
 class TestRunGate1Validation:
     def test_insufficient_data_returns_error(self) -> None:
         # mock fetch_prices 返回 < 10 只 → error
-        with patch.object(gv, "load_expanded_universe", return_value=(["600519"], {})), \
-             patch.object(gv, "fetch_prices", return_value={"600519": {"closes": [100.0]}}):
+        with (
+            patch.object(gv, "load_expanded_universe", return_value=(["600519"], {})),
+            patch.object(
+                gv, "fetch_prices", return_value={"600519": {"closes": [100.0]}}
+            ),
+        ):
             result = gv.run_gate1_validation(expanded=True)
             assert "error" in result
             assert "数据不足" in result["error"]
 
     def test_baseline_mode(self) -> None:
         # mock load_universe + fetch_prices 返回 < 10 只 → error (覆盖 baseline 分支)
-        with patch.object(gv, "load_universe", return_value=["600519"]), \
-             patch.object(gv, "fetch_prices", return_value={"600519": {"closes": [100.0]}}):
+        with (
+            patch.object(gv, "load_universe", return_value=["600519"]),
+            patch.object(
+                gv, "fetch_prices", return_value={"600519": {"closes": [100.0]}}
+            ),
+        ):
             result = gv.run_gate1_validation(expanded=False)
             assert "error" in result
-
 
 
 # ============================================================
@@ -265,8 +319,14 @@ class TestMain:
         "graph": {"node_count": 100, "edge_count": 50},
         "factors": {
             "CHAIN_MOM_20D": {
-                "ic_mean": 0.02, "icir": 0.5, "eff_ic": 0.02, "eff_icir": 0.5,
-                "direction": 1, "long_short_sharpe": 1.5, "coverage": 80, "n_windows": 10,
+                "ic_mean": 0.02,
+                "icir": 0.5,
+                "eff_ic": 0.02,
+                "eff_icir": 0.5,
+                "direction": 1,
+                "long_short_sharpe": 1.5,
+                "coverage": 80,
+                "n_windows": 10,
             },
         },
         "gate1_verdict": "PASS",
@@ -276,29 +336,41 @@ class TestMain:
 
     def test_main_pass(self) -> None:
         result = {**self._FULL_RESULT, "gate1_verdict": "PASS"}
-        with patch.object(gv, "run_gate1_validation", return_value=result), \
-             patch("sys.argv", ["gate1_validation"]):
+        with (
+            patch.object(gv, "run_gate1_validation", return_value=result),
+            patch("sys.argv", ["gate1_validation"]),
+        ):
             rc = gv.main()
             assert rc == 0
 
     def test_main_fail(self) -> None:
         result = {**self._FULL_RESULT, "gate1_verdict": "FAIL", "gate1_passers": []}
-        with patch.object(gv, "run_gate1_validation", return_value=result), \
-             patch("sys.argv", ["gate1_validation"]):
+        with (
+            patch.object(gv, "run_gate1_validation", return_value=result),
+            patch("sys.argv", ["gate1_validation"]),
+        ):
             rc = gv.main()
             assert rc == 1
 
     def test_main_error(self) -> None:
-        with patch.object(gv, "run_gate1_validation", return_value={"error": "数据不足"}), \
-             patch("sys.argv", ["gate1_validation"]):
+        with (
+            patch.object(
+                gv, "run_gate1_validation", return_value={"error": "数据不足"}
+            ),
+            patch("sys.argv", ["gate1_validation"]),
+        ):
             rc = gv.main()
             assert rc == 1
 
     def test_main_json_output(self) -> None:
         # --json 分支 (不进入打印分支, 直接返回 0)
-        with patch.object(gv, "run_gate1_validation", return_value={"gate1_verdict": "PASS"}), \
-             patch("sys.argv", ["gate1_validation", "--json"]), \
-             patch.object(gv.logger, "info") as mock_info:
+        with (
+            patch.object(
+                gv, "run_gate1_validation", return_value={"gate1_verdict": "PASS"}
+            ),
+            patch("sys.argv", ["gate1_validation", "--json"]),
+            patch.object(gv.logger, "info") as mock_info,
+        ):
             rc = gv.main()
             assert rc == 0
             assert mock_info.called
@@ -356,8 +428,13 @@ class TestCalcIcSeries:
         price_data = _make_chain_price_data(n=12, days=80)
         graph = _make_chain_graph(n=12)
         result = gv.calc_ic_series(
-            price_data, graph, "CHAIN_MOM_20D",
-            horizon=5, windows=4, window_len=30, min_neighbors=1,
+            price_data,
+            graph,
+            "CHAIN_MOM_20D",
+            horizon=5,
+            windows=4,
+            window_len=30,
+            min_neighbors=1,
         )
         # 应返回 list (可能含若干 IC 值)
         assert isinstance(result, list)
@@ -367,11 +444,14 @@ class TestCalcIcSeries:
         price_data = _make_chain_price_data(n=12, days=80)
         graph = _make_chain_graph(n=12)
         import builtins
+
         real_import = builtins.__import__
+
         def _fake_import(name, *args, **kwargs):
             if name == "scipy.stats":
                 raise ImportError("no scipy")
             return real_import(name, *args, **kwargs)
+
         with patch("builtins.__import__", side_effect=_fake_import):
             result = gv.calc_ic_series(price_data, graph, "CHAIN_MOM_20D")
             assert result == []
@@ -390,8 +470,12 @@ class TestRunLongShortIc:
         price_data = _make_chain_price_data(n=12, days=80)
         graph = _make_chain_graph(n=12)
         result = gv.run_long_short_ic(
-            price_data, graph, "CHAIN_MOM_20D",
-            horizon=20, windows=3, min_neighbors=1,
+            price_data,
+            graph,
+            "CHAIN_MOM_20D",
+            horizon=20,
+            windows=3,
+            min_neighbors=1,
         )
         # 应返回 float (可能 0.0 或非零夏普)
         assert isinstance(result, float)
@@ -415,9 +499,13 @@ class TestRunGate1ValidationSuccess:
         mock_builder.graph = graph
         mock_builder.build.return_value = {"node_count": 12, "edge_count": 11}
 
-        with patch.object(gv, "load_expanded_universe", return_value=(list(price_data.keys()), {})), \
-             patch.object(gv, "fetch_prices", return_value=price_data), \
-             patch.object(gv, "SupplyChainBuilder", return_value=mock_builder):
+        with (
+            patch.object(
+                gv, "load_expanded_universe", return_value=(list(price_data.keys()), {})
+            ),
+            patch.object(gv, "fetch_prices", return_value=price_data),
+            patch.object(gv, "SupplyChainBuilder", return_value=mock_builder),
+        ):
             result = gv.run_gate1_validation(days=80, min_neighbors=1, expanded=True)
             # 应返回完整结果 (非 error)
             assert "error" not in result

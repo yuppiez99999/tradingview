@@ -7,6 +7,7 @@
 
 对齐 tasks T1.2.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,6 +34,7 @@ from scripts.phase_b_b3_shadow_runner import (
 # 场景 1: 正常重训
 # ============================================================
 
+
 class TestNormalRetrain:
     """正常重训路径: shadow 产出有效权重 + 夏普, 降级护栏未触发."""
 
@@ -54,7 +56,9 @@ class TestNormalRetrain:
 
     def test_run_shadow_no_rollback_when_stable(self):
         result = run_shadow()
-        assert result.need_rollback is False, f"稳定路径不应回退: {result.rollback_reason}"
+        assert (
+            result.need_rollback is False
+        ), f"稳定路径不应回退: {result.rollback_reason}"
 
     def test_run_shadow_suggestion_present(self):
         result = run_shadow()
@@ -64,6 +68,7 @@ class TestNormalRetrain:
 # ============================================================
 # 场景 2: 重训失败回退
 # ============================================================
+
 
 class TestRetrainFailureRollback:
     """重训失败: need_rollback=True + rollback_reason 记录."""
@@ -75,8 +80,7 @@ class TestRetrainFailureRollback:
 
     def test_run_shadow_with_empty_baseline_rollback(self, monkeypatch):
         monkeypatch.setattr(
-            "scripts.phase_b_b3_shadow_runner._build_mock_baseline",
-            lambda: ({}, 1.52)
+            "scripts.phase_b_b3_shadow_runner._build_mock_baseline", lambda: ({}, 1.52)
         )
         result = run_shadow()
         assert result.retrain_success is False
@@ -121,6 +125,7 @@ class TestRetrainFailureRollback:
 # 场景 3: shadow 数据缺失 fail-closed
 # ============================================================
 
+
 class TestShadowDataMissingFailClosed:
     """shadow 数据缺失: observation_progress / drift_monitor 文件缺失时降级."""
 
@@ -160,6 +165,7 @@ class TestShadowDataMissingFailClosed:
 # 辅助测试: B2 状态检查 + Flag 不变式
 # ============================================================
 
+
 class TestB2StatusCheck:
     """B2 状态前置检查."""
 
@@ -186,6 +192,7 @@ class TestFlagInvariant:
 # ============================================================
 # 辅助测试: 降级护栏边界
 # ============================================================
+
 
 class TestDegradationGuardBoundary:
     """降级护栏边界条件."""

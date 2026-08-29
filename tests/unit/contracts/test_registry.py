@@ -11,6 +11,7 @@
     - ContractSpec 不可变 (frozen)
     - default_registry 单例
 """
+
 from __future__ import annotations
 
 import pytest
@@ -208,8 +209,12 @@ class TestRegisterUpdate:
     def test_register_new(self) -> None:
         reg = ContractRegistry()  # 独立实例, 不污染 default
         new_spec = ContractSpec(
-            product="ZZ", name="测试品种", exchange="CFFEX",
-            multiplier=100, margin_rate=0.10, tick_size=0.5,
+            product="ZZ",
+            name="测试品种",
+            exchange="CFFEX",
+            multiplier=100,
+            margin_rate=0.10,
+            tick_size=0.5,
         )
         reg.register(new_spec)
         assert reg.is_supported("ZZ")
@@ -218,8 +223,12 @@ class TestRegisterUpdate:
     def test_register_duplicate_raises(self) -> None:
         reg = ContractRegistry()
         dup = ContractSpec(
-            product="CU", name="覆盖铜", exchange="SHFE",
-            multiplier=999, margin_rate=0.50, tick_size=1,
+            product="CU",
+            name="覆盖铜",
+            exchange="SHFE",
+            multiplier=999,
+            margin_rate=0.50,
+            tick_size=1,
         )
         with pytest.raises(ValueError, match="已存在"):
             reg.register(dup)
@@ -227,8 +236,12 @@ class TestRegisterUpdate:
     def test_update_overrides(self) -> None:
         reg = ContractRegistry()
         updated = ContractSpec(
-            product="CU", name="沪铜期货(调整)", exchange="SHFE",
-            multiplier=5, margin_rate=0.15, tick_size=10,  # margin 调整
+            product="CU",
+            name="沪铜期货(调整)",
+            exchange="SHFE",
+            multiplier=5,
+            margin_rate=0.15,
+            tick_size=10,  # margin 调整
         )
         reg.update(updated)
         assert reg.lookup("CU").margin_rate == 0.15

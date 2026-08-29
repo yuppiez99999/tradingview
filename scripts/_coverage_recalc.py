@@ -1,4 +1,5 @@
 """计算排除废弃文件后的新覆盖率."""
+
 import xml.etree.ElementTree as ET
 from pathlib import Path
 

@@ -441,13 +441,19 @@ class MacroIndicatorManager:
 
         # Regime 参数
         self._ma_window = int(self._settings.get("ma_window", DEFAULT_MA_WINDOW))
-        self._choppy_band = float(self._settings.get("choppy_band", DEFAULT_CHOPPY_BAND))
-        self._rebound_threshold = float(self._settings.get("rebound_threshold", DEFAULT_REBOUND_THRESHOLD))
+        self._choppy_band = float(
+            self._settings.get("choppy_band", DEFAULT_CHOPPY_BAND)
+        )
+        self._rebound_threshold = float(
+            self._settings.get("rebound_threshold", DEFAULT_REBOUND_THRESHOLD)
+        )
         self._min_samples = int(self._settings.get("min_samples", DEFAULT_MIN_SAMPLES))
 
         # 仓位因子和风险预算 (从配置覆盖默认值)
         self._position_factors = dict(DEFAULT_POSITION_FACTORS)
-        self._position_factors.update(self._regime_cfg.get("position_factors", {}) or {})
+        self._position_factors.update(
+            self._regime_cfg.get("position_factors", {}) or {}
+        )
         self._risk_budget = dict(DEFAULT_RISK_BUDGET)
         self._risk_budget.update(self._regime_cfg.get("risk_budget", {}) or {})
 
@@ -463,7 +469,16 @@ class MacroIndicatorManager:
             if not cfg:
                 logger.warning("配置未找到: %s, 使用默认配置", config_name)
             return cfg
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("配置加载失败: %s (%s), 使用默认配置", config_name, e)
             return {}
 
@@ -473,7 +488,16 @@ class MacroIndicatorManager:
             from utils.infra.feature_flags import is_enabled
 
             return bool(is_enabled(self._feature_flag_name))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             return False
 
     # ===== Regime 分类接口 =====
@@ -503,8 +527,12 @@ class MacroIndicatorManager:
             min_samples=self._min_samples,
         )
         # 应用配置中的仓位因子和风险预算
-        self._last_regime.position_factor = self._position_factors.get(self._last_regime.label, 1.0)
-        self._last_regime.risk_budget = self._risk_budget.get(self._last_regime.label, 1.0)
+        self._last_regime.position_factor = self._position_factors.get(
+            self._last_regime.label, 1.0
+        )
+        self._last_regime.risk_budget = self._risk_budget.get(
+            self._last_regime.label, 1.0
+        )
         return self._last_regime
 
     def get_regime(self) -> RegimeResult:
@@ -558,7 +586,9 @@ class MacroIndicatorManager:
         rate_cat = classify_rate(rate) if rate is not None else ""
 
         # 综合评分
-        weights = {k: float(v.get("weight", 0.25)) for k, v in self._indicators_cfg.items()}
+        weights = {
+            k: float(v.get("weight", 0.25)) for k, v in self._indicators_cfg.items()
+        }
         score = compute_composite_score(cpi, pmi, m2, rate, weights)
 
         snapshot = MacroSnapshot(
@@ -584,7 +614,16 @@ class MacroIndicatorManager:
             from utils.data.data_layer import get_macro_indicators
 
             return get_macro_indicators() or {}
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
             logger.warning("DataLayer 宏观数据获取失败: %s", e)
             return {}
 
@@ -647,7 +686,16 @@ def is_macro_indicator_enabled() -> bool:
         from utils.infra.feature_flags import is_enabled
 
         return bool(is_enabled(FLAG_NAME))
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
         return False
 
 

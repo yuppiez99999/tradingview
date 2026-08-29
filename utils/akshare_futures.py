@@ -17,6 +17,7 @@ import requests
 
 try:
     import certifi
+
     _SSL_VERIFY = certifi.where()
 except ImportError:
     _SSL_VERIFY = True
@@ -37,7 +38,16 @@ def _to_float(v: Any) -> float | None:
         if v is None:
             return None
         return float(v)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # P2 模块 fail-safe, 待后续精确化
         return None
 
 
@@ -46,7 +56,16 @@ def _to_str(v: Any) -> str | None:
         if v is None:
             return None
         return str(v)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # P2 模块 fail-safe, 待后续精确化
         return None
 
 
@@ -54,7 +73,16 @@ def _normalize_ak_quotes(df) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     try:
         records = df.to_dict(orient="records") if hasattr(df, "to_dict") else []
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # P2 模块 fail-safe, 待后续精确化
         records = []
     for row in records:
         sym = row.get("symbol") or row.get("合约代码") or row.get("代码")
@@ -63,14 +91,24 @@ def _normalize_ak_quotes(df) -> dict[str, dict[str, Any]]:
         result[str(sym)] = {
             "symbol": str(sym),
             "source": "akshare",
-            "latest": _to_float(row.get("current_price") or row.get("最新价") or row.get("latest")),
+            "latest": _to_float(
+                row.get("current_price") or row.get("最新价") or row.get("latest")
+            ),
             "open": _to_float(row.get("open") or row.get("开盘价")),
             "high": _to_float(row.get("high") or row.get("最高价")),
             "low": _to_float(row.get("low") or row.get("最低价")),
-            "prev_close": _to_float(row.get("last_close") or row.get("前收盘价") or row.get("prev_close")),
+            "prev_close": _to_float(
+                row.get("last_close") or row.get("前收盘价") or row.get("prev_close")
+            ),
             "volume": _to_float(row.get("volume") or row.get("成交量")),
-            "open_interest": _to_float(row.get("hold") or row.get("持仓量") or row.get("openInterest")),
-            "settlement": _to_float(row.get("last_settle_price") or row.get("结算价") or row.get("settlement")),
+            "open_interest": _to_float(
+                row.get("hold") or row.get("持仓量") or row.get("openInterest")
+            ),
+            "settlement": _to_float(
+                row.get("last_settle_price")
+                or row.get("结算价")
+                or row.get("settlement")
+            ),
             "change_ratio": _to_float(row.get("涨跌幅") or row.get("changeRatio")),
         }
     return result
@@ -80,7 +118,16 @@ def _normalize_ak_daily(df) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     try:
         records = df.to_dict(orient="records") if hasattr(df, "to_dict") else []
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # P2 模块 fail-safe, 待后续精确化
         records = []
     for row in records:
         sym = row.get("symbol") or row.get("合约代码") or row.get("代码")
@@ -147,11 +194,29 @@ def _try_http_futures_quotes(symbols: list[str]) -> dict[str, Any]:
                     "settlement": _to_float(parts[10]),
                     "change_ratio": None,
                 }
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 continue
         if result:
             return result
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"[DEBUG] 新浪HTTP失败: {e}")
 
     # 腾讯期货
@@ -182,11 +247,29 @@ def _try_http_futures_quotes(symbols: list[str]) -> dict[str, Any]:
                     "settlement": _to_float(parts[4]),
                     "change_ratio": _to_float(parts[32]),
                 }
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ):  # P2 模块 fail-safe, 待后续精确化
                 continue
         if result:
             return result
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"[DEBUG] 腾讯HTTP失败: {e}")
 
     return {}
@@ -215,19 +298,41 @@ def _try_wind_futures_quotes(symbols: list[str]) -> dict[str, Any]:
                         "open": float(inner.get("open", 0)),
                         "high": float(inner.get("high", 0)),
                         "low": float(inner.get("low", 0)),
-                        "prev_close": float(inner.get("prev_close", 0) or inner.get("last_close", 0)),
+                        "prev_close": float(
+                            inner.get("prev_close", 0) or inner.get("last_close", 0)
+                        ),
                         "volume": float(inner.get("volume", 0)),
                         "open_interest": float(inner.get("open_interest", 0) or 0),
                         "settlement": float(inner.get("settlement", 0) or 0),
-                        "change_ratio": float(inner.get("change_pct", 0) or inner.get("pct_change", 0)),
+                        "change_ratio": float(
+                            inner.get("change_pct", 0) or inner.get("pct_change", 0)
+                        ),
                     }
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"[DEBUG] Wind MCP 期货 {sym} 失败: {e}")
                 continue
         if result:
             logger.info(f"[DEBUG] Wind MCP 期货返回 {len(result)} 个标的")
             return result
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.info(f"[DEBUG] Wind MCP 期货接口不可用: {e}")
     return {}
 
@@ -244,26 +349,58 @@ def get_futures_realtime(symbols: list[str]) -> dict[str, Any]:
         seen = set()
         candidates: list[tuple] = []
         if hasattr(ak, "futures_zh_spot"):
-            candidates.append(("futures_zh_spot", {"symbol": symbols[0].split(".")[0], "market": "CF"}))
+            candidates.append(
+                (
+                    "futures_zh_spot",
+                    {"symbol": symbols[0].split(".")[0], "market": "CF"},
+                )
+            )
             seen.add("futures_zh_spot")
         if hasattr(ak, "futures_spot_em"):
             candidates.append(("futures_spot_em", {"symbol": ", ".join(symbols)}))
             seen.add("futures_spot_em")
         if hasattr(ak, "futures_zh_realtime") and "futures_zh_spot" not in seen:
-            candidates.append(("futures_zh_realtime", {"symbol": symbols[0].split(".")[0]}))
+            candidates.append(
+                ("futures_zh_realtime", {"symbol": symbols[0].split(".")[0]})
+            )
         if hasattr(ak, "futures_zh_daily") and "futures_zh_spot" not in seen:
-            candidates.append(("futures_zh_daily", {"symbol": symbols[0].split(".")[0], "market": "CF"}))
+            candidates.append(
+                (
+                    "futures_zh_daily",
+                    {"symbol": symbols[0].split(".")[0], "market": "CF"},
+                )
+            )
 
         for func_name, kwargs in candidates:
             try:
                 df = getattr(ak, func_name)(**kwargs)
-                logger.info(f"[DEBUG] AKShare {func_name} 返回: empty={getattr(df, 'empty', 'n/a')}")
+                logger.info(
+                    f"[DEBUG] AKShare {func_name} 返回: empty={getattr(df, 'empty', 'n/a')}"
+                )
                 if df is not None and not (hasattr(df, "empty") and df.empty):
                     return _normalize_ak_quotes(df)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # P2 模块 fail-safe, 待后续精确化
                 logger.error(f"[DEBUG] AKShare {func_name} 失败: {e}")
                 continue
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"[DEBUG] AKShare 导入失败: {e}")
 
     logger.error("[DEBUG] AKShare 实时行情全部失败，回退 HTTP")
@@ -283,7 +420,16 @@ def get_futures_daily(symbol: str, market: str = "CF") -> dict[str, Any]:
         df = df.copy()
         df["symbol"] = symbol
         return _normalize_ak_daily(df)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error(f"[DEBUG] AKShare 日K 失败: {e}")
         return {}
 

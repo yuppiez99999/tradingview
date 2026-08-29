@@ -9,6 +9,7 @@
     - build_adjacency (mock graph/无向对称/缺失节点跳过)
     - gat_factor_values (端到端)
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -292,7 +293,13 @@ class TestGatFactorValues:
         features = np.random.randn(3, 2)
         labels = np.random.randn(3)
         factor, gat, losses = gat_factor_values(
-            mock_graph, symbols, features, labels, n_hidden=4, epochs=2, lr=0.01,
+            mock_graph,
+            symbols,
+            features,
+            labels,
+            n_hidden=4,
+            epochs=2,
+            lr=0.01,
         )
         assert factor.shape == (3,)
         assert isinstance(gat, GATFactor)

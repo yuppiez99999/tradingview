@@ -8,6 +8,7 @@
 运行:
     python scripts/ruff_baseline_gen.py
 """
+
 from __future__ import annotations
 
 import json
@@ -27,8 +28,18 @@ BLOCKING = "F,B,N,BLE,T"
 
 def _run_ruff(rules: str) -> str:
     proc = subprocess.run(
-        [sys.executable, "-m", "ruff", "check", "--select", rules,
-         "--output-format", "concise", "--no-cache", "."],
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "--select",
+            rules,
+            "--output-format",
+            "concise",
+            "--no-cache",
+            ".",
+        ],
         cwd=str(ROOT),
         capture_output=True,
         encoding="utf-8",
@@ -64,7 +75,9 @@ def main() -> int:
         "per_file_blocking": blocking_counts,
     }
     BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    BASELINE_PATH.write_text(json.dumps(baseline, indent=2, ensure_ascii=False), encoding="utf-8")
+    BASELINE_PATH.write_text(
+        json.dumps(baseline, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     print(f"基线已生成: {BASELINE_PATH}")
     print(f"  enforced 规则 [{ENFORCED}] 总违规: {baseline['total_enforced']}")
     print(f"  blocking 规则 [{BLOCKING}] 总违规: {baseline['total_blocking']}")

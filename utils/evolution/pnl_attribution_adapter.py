@@ -295,7 +295,16 @@ def from_factor_attribution_result(
         conv.source = "from_factor_attribution_result"
         return conv
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
         logger.warning("FactorAttributionResult 转换异常: %s", e)
@@ -313,14 +322,18 @@ def _from_factor_attribution_dict(
     """从字典格式的 FactorAttributionResult 转换."""
     try:
         style_contributions: dict[str, float] = {}
-        for fa in data.get("style_factor_attributions") or data.get("style_factors") or []:
+        for fa in (
+            data.get("style_factor_attributions") or data.get("style_factors") or []
+        ):
             name = fa.get("factor_name", "")
             contrib = fa.get("contribution_to_pnl", fa.get("contribution", 0.0))
             if name:
                 style_contributions[name] = float(contrib)
 
         sector_contributions: dict[str, float] = {}
-        for fa in data.get("sector_factor_attributions") or data.get("sector_factors") or []:
+        for fa in (
+            data.get("sector_factor_attributions") or data.get("sector_factors") or []
+        ):
             name = fa.get("factor_name", "")
             contrib = fa.get("contribution_to_pnl", fa.get("contribution", 0.0))
             if name:
@@ -338,7 +351,16 @@ def _from_factor_attribution_dict(
         conv.source = "from_factor_attribution_result(dict)"
         return conv
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
         logger.warning("FactorAttributionResult dict 转换异常: %s", e)
@@ -418,7 +440,16 @@ def from_report_file(
                 source="from_report_file(flat)",
                 original_result=data,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
             return AttributionConversionResult(
                 status=STATUS_DEGRADED,
@@ -486,7 +517,16 @@ def from_attribution_result(
             source="from_attribution_result",
         )
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
         logger.warning("AttributionResult 转换异常: %s", e)
@@ -522,7 +562,16 @@ def _from_attribution_result_dict(
             source="from_attribution_result(dict)",
         )
 
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
 
         # 数值计算/数据处理异常: 格式/类型/字段/属性/运行时/IO/超时/网络
         logger.warning("AttributionResult dict 转换异常: %s", e)
@@ -647,7 +696,9 @@ class PnLAttributionAdapter:
             AttributionConversionResult 转换结果
         """
         if source == "factor_attribution" or source.startswith("factor"):
-            result = from_factor_attribution_result(attribution_result, attribution_date)
+            result = from_factor_attribution_result(
+                attribution_result, attribution_date
+            )
         else:
             result = from_attribution_result(attribution_result, attribution_date)
 
@@ -703,4 +754,4 @@ class PnLAttributionAdapter:
         """追加历史记录 (保持 max_history)."""
         self._history.append(result)
         if len(self._history) > self._max_history:
-            self._history = self._history[-self._max_history:]
+            self._history = self._history[-self._max_history :]

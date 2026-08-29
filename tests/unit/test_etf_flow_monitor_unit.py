@@ -31,7 +31,14 @@ class TestDetectSignals:
     def test_no_signals(self):
         tracker = ETFRealTimeTracker()
         flow_data = {
-            "510300": {"net_flow_yi": 0, "name": "沪深300", "category": "宽基", "change_pct": 0, "trend": "中性", "source": "none"},
+            "510300": {
+                "net_flow_yi": 0,
+                "name": "沪深300",
+                "category": "宽基",
+                "change_pct": 0,
+                "trend": "中性",
+                "source": "none",
+            },
         }
         signals = tracker.detect_signals(flow_data)
         assert signals == []
@@ -39,7 +46,14 @@ class TestDetectSignals:
     def test_high_inflow(self):
         tracker = ETFRealTimeTracker()
         flow_data = {
-            "510300": {"net_flow_yi": 60, "name": "沪深300", "category": "宽基", "change_pct": 1.5, "trend": "流入", "source": "wind"},
+            "510300": {
+                "net_flow_yi": 60,
+                "name": "沪深300",
+                "category": "宽基",
+                "change_pct": 1.5,
+                "trend": "流入",
+                "source": "wind",
+            },
         }
         signals = tracker.detect_signals(flow_data)
         assert len(signals) == 1
@@ -49,7 +63,14 @@ class TestDetectSignals:
     def test_medium_inflow(self):
         tracker = ETFRealTimeTracker()
         flow_data = {
-            "510300": {"net_flow_yi": 15, "name": "沪深300", "category": "宽基", "change_pct": 0.5, "trend": "流入", "source": "wind"},
+            "510300": {
+                "net_flow_yi": 15,
+                "name": "沪深300",
+                "category": "宽基",
+                "change_pct": 0.5,
+                "trend": "流入",
+                "source": "wind",
+            },
         }
         signals = tracker.detect_signals(flow_data)
         assert len(signals) == 1
@@ -58,7 +79,14 @@ class TestDetectSignals:
     def test_low_inflow(self):
         tracker = ETFRealTimeTracker()
         flow_data = {
-            "510300": {"net_flow_yi": 3, "name": "沪深300", "category": "宽基", "change_pct": 0.1, "trend": "流入", "source": "wind"},
+            "510300": {
+                "net_flow_yi": 3,
+                "name": "沪深300",
+                "category": "宽基",
+                "change_pct": 0.1,
+                "trend": "流入",
+                "source": "wind",
+            },
         }
         signals = tracker.detect_signals(flow_data)
         assert len(signals) == 1
@@ -67,7 +95,14 @@ class TestDetectSignals:
     def test_high_outflow(self):
         tracker = ETFRealTimeTracker()
         flow_data = {
-            "510300": {"net_flow_yi": -60, "name": "沪深300", "category": "宽基", "change_pct": -1.5, "trend": "流出", "source": "wind"},
+            "510300": {
+                "net_flow_yi": -60,
+                "name": "沪深300",
+                "category": "宽基",
+                "change_pct": -1.5,
+                "trend": "流出",
+                "source": "wind",
+            },
         }
         signals = tracker.detect_signals(flow_data)
         assert len(signals) == 1
@@ -77,8 +112,22 @@ class TestDetectSignals:
     def test_multiple_sorted_by_confidence(self):
         tracker = ETFRealTimeTracker()
         flow_data = {
-            "510300": {"net_flow_yi": 60, "name": "A", "category": "C", "change_pct": 1, "trend": "流入", "source": "s"},
-            "510050": {"net_flow_yi": 5, "name": "B", "category": "C", "change_pct": 0.2, "trend": "流入", "source": "s"},
+            "510300": {
+                "net_flow_yi": 60,
+                "name": "A",
+                "category": "C",
+                "change_pct": 1,
+                "trend": "流入",
+                "source": "s",
+            },
+            "510050": {
+                "net_flow_yi": 5,
+                "name": "B",
+                "category": "C",
+                "change_pct": 0.2,
+                "trend": "流入",
+                "source": "s",
+            },
         }
         signals = tracker.detect_signals(flow_data)
         assert len(signals) == 2
@@ -97,8 +146,22 @@ class TestGetSignalSummary:
     def test_with_data(self):
         tracker = ETFRealTimeTracker()
         flow_data = {
-            "510300": {"net_flow_yi": 60, "name": "沪深300", "category": "宽基", "change_pct": 1.5, "trend": "流入", "source": "wind"},
-            "510050": {"net_flow_yi": -30, "name": "上证50", "category": "宽基", "change_pct": -0.8, "trend": "流出", "source": "wind"},
+            "510300": {
+                "net_flow_yi": 60,
+                "name": "沪深300",
+                "category": "宽基",
+                "change_pct": 1.5,
+                "trend": "流入",
+                "source": "wind",
+            },
+            "510050": {
+                "net_flow_yi": -30,
+                "name": "上证50",
+                "category": "宽基",
+                "change_pct": -0.8,
+                "trend": "流出",
+                "source": "wind",
+            },
         }
         summary = tracker.get_signal_summary(flow_data)
         assert summary["total_flow_yi"] == 30
@@ -109,7 +172,14 @@ class TestGetSignalSummary:
     def test_net_outflow(self):
         tracker = ETFRealTimeTracker()
         flow_data = {
-            "510300": {"net_flow_yi": -60, "name": "A", "category": "C", "change_pct": -1, "trend": "流出", "source": "s"},
+            "510300": {
+                "net_flow_yi": -60,
+                "name": "A",
+                "category": "C",
+                "change_pct": -1,
+                "trend": "流出",
+                "source": "s",
+            },
         }
         summary = tracker.get_signal_summary(flow_data)
         assert summary["overall_trend"] == "净流出"

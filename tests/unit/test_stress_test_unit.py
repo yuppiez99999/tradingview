@@ -64,7 +64,11 @@ class TestGenerateStressReport:
 
     def test_custom_scenarios(self):
         custom = {
-            "测试情景": {"equity_shock": -0.50, "volatility_spike": 3.0, "correlation_increase": 0.5},
+            "测试情景": {
+                "equity_shock": -0.50,
+                "volatility_spike": 3.0,
+                "correlation_increase": 0.5,
+            },
         }
         report = generate_stress_report(scenarios=custom)
         assert "测试情景" in report
@@ -97,14 +101,22 @@ class TestGenerateStressReport:
 
     def test_trigger_hard_stop(self):
         custom = {
-            "极端": {"equity_shock": -0.90, "volatility_spike": 5.0, "correlation_increase": 0.5},
+            "极端": {
+                "equity_shock": -0.90,
+                "volatility_spike": 5.0,
+                "correlation_increase": 0.5,
+            },
         }
         report = generate_stress_report(scenarios=custom)
         assert "🔴" in report
 
     def test_no_trigger(self):
         custom = {
-            "温和": {"equity_shock": -0.05, "volatility_spike": 1.0, "correlation_increase": 0.0},
+            "温和": {
+                "equity_shock": -0.05,
+                "volatility_spike": 1.0,
+                "correlation_increase": 0.0,
+            },
         }
         report = generate_stress_report(scenarios=custom)
         assert "🟢" in report

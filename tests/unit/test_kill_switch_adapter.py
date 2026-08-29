@@ -10,6 +10,7 @@
     7. Feature Flag 透传 (HC-1)
     8. 决策订阅注册 + 回调
 """
+
 from __future__ import annotations
 
 import sys
@@ -21,7 +22,10 @@ from unittest.mock import MagicMock, patch
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from utils.risk.kill_switch_adapter import KillSwitchAdapter, adapt_kill_switch  # noqa: E402
+from utils.risk.kill_switch_adapter import (
+    KillSwitchAdapter,
+    adapt_kill_switch,
+)  # noqa: E402
 from utils.risk.risk_bus import RiskBus  # noqa: E402
 from utils.risk.risk_event import (  # noqa: E402
     RiskAction,
@@ -47,7 +51,11 @@ class MockKillSwitch:
             "can_open": True,
             "action": "normal",
         }
-        self.execute_response: dict[str, Any] = {"executed": True, "level": 1, "actions_taken": []}
+        self.execute_response: dict[str, Any] = {
+            "executed": True,
+            "level": 1,
+            "actions_taken": [],
+        }
         self.check_calls: list[float | None] = []
         self.execute_calls: list[int] = []
 
@@ -91,7 +99,11 @@ class TestAdapterBasics:
     def test_execute_kill_switch_passthrough(self):
         """execute_kill_switch 透传."""
         mock_ks = MockKillSwitch()
-        mock_ks.execute_response = {"executed": True, "level": 2, "actions_taken": [{"action": "force_close"}]}
+        mock_ks.execute_response = {
+            "executed": True,
+            "level": 2,
+            "actions_taken": [{"action": "force_close"}],
+        }
         adapter = KillSwitchAdapter(mock_ks, publish_events=False)
 
         result = adapter.execute_kill_switch(2)
@@ -112,9 +124,11 @@ class TestAdapterBasics:
 
     def test_register_broker_callback_not_supported(self):
         """原 KillSwitch 不支持 register_broker_callback 时不抛异常."""
+
         class NoCallbackKS:
             def check_margin_status(self, margin_usage=None):
                 return {"level": 0}
+
             def execute_kill_switch(self, level):
                 return {"executed": False}
 
@@ -150,6 +164,7 @@ class TestHC2SyncPathLatency:
         """即使发布事件, 同步路径仍应快速返回 (best-effort)."""
         # 用临时 audit_log_dir 避免污染生产日志
         import tempfile
+
         with tempfile.TemporaryDirectory() as tmp:
             RiskBus.reset_instance()
             bus = RiskBus(audit_log_dir=Path(tmp))
@@ -371,6 +386,7 @@ class TestDecisionSubscriber:
 
         # 发布事件并决策
         from utils.risk.risk_event import make_margin_breach_event
+
         event = make_margin_breach_event("test", 0.78, 2)
         decision = bus.sync_decide(event)
 
@@ -387,6 +403,7 @@ class TestDecisionSubscriber:
         adapter.register_as_decision_subscriber()
 
         from utils.risk.risk_event import make_margin_breach_event
+
         event = make_margin_breach_event("test", 0.95, 3)
         decision = bus.sync_decide(event)
 
@@ -402,6 +419,7 @@ class TestDecisionSubscriber:
         adapter.register_as_decision_subscriber()
 
         from utils.risk.risk_event import make_margin_breach_event
+
         event = make_margin_breach_event("test", 0.55, 1)
         decision = bus.sync_decide(event)
 
@@ -416,6 +434,7 @@ class TestDecisionSubscriber:
         adapter.register_as_decision_subscriber()
 
         from utils.risk.risk_event import make_margin_breach_event
+
         event = make_margin_breach_event("test", 0.30, 0)
         decision = bus.sync_decide(event)
 
@@ -475,6 +494,7 @@ class TestEndToEnd:
 
         # 6. 验证 sync_decide 聚合决策
         from utils.risk.risk_event import make_margin_breach_event
+
         event = make_margin_breach_event("test", 0.78, 2)
         decision = bus.sync_decide(event)
         assert decision.action == RiskAction.FORCE_LIQUIDATE

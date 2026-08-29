@@ -92,7 +92,11 @@ class MinImpactExecutor:
         self.min_order_size = min_order_size
 
     def calculate_optimal_splits(
-        self, target_amount: float, ref_price: float, avg_daily_volume: float = 0, volatility: float = 0.02
+        self,
+        target_amount: float,
+        ref_price: float,
+        avg_daily_volume: float = 0,
+        volatility: float = 0.02,
     ) -> list[dict]:
         """计算最优拆单方案
 
@@ -120,8 +124,12 @@ class MinImpactExecutor:
                 }
             ]
 
-        adaptive = _get_adaptive_execution_params(target_amount, ref_price, avg_daily_volume, volatility)
-        max_participation_pct = adaptive.get("max_participation_pct", self.max_participation_pct)
+        adaptive = _get_adaptive_execution_params(
+            target_amount, ref_price, avg_daily_volume, volatility
+        )
+        max_participation_pct = adaptive.get(
+            "max_participation_pct", self.max_participation_pct
+        )
         delay_factor = adaptive.get("delay_factor", 1.0)
 
         if avg_daily_volume > 0:
@@ -167,7 +175,9 @@ class MinImpactExecutor:
 
         return orders
 
-    def simulate_execution(self, orders: list[dict], market_impact_factor: float = 0.001) -> dict:
+    def simulate_execution(
+        self, orders: list[dict], market_impact_factor: float = 0.001
+    ) -> dict:
         """模拟执行结果
 
         Args:
@@ -203,7 +213,11 @@ class MinImpactExecutor:
             "total_amount": round(total_amount, 2),
             "avg_execution_price": round(avg_execution_price, 4),
             "slippage_total": round(slippage_total, 2),
-            "slippage_pct": round(slippage_total / total_amount_sum * 100, 4) if total_amount_sum > 0 else 0.0,
+            "slippage_pct": (
+                round(slippage_total / total_amount_sum * 100, 4)
+                if total_amount_sum > 0
+                else 0.0
+            ),
             "num_orders": len(orders),
             "execution_time_minutes": sum(o["delay_minutes"] for o in orders),
             "start_time": start_time.isoformat(),
@@ -226,7 +240,11 @@ class TWAPExecutor:
         return self.calculate_optimal_splits(target_amount, ref_price)
 
     def calculate_optimal_splits(
-        self, target_amount: float, ref_price: float, avg_daily_volume: float = 0, volatility: float = 0.02
+        self,
+        target_amount: float,
+        ref_price: float,
+        avg_daily_volume: float = 0,
+        volatility: float = 0.02,
     ) -> list[dict]:
         """计算TWAP拆单方案
 
@@ -242,8 +260,12 @@ class TWAPExecutor:
         if target_amount <= 0 or ref_price <= 0:
             return []
 
-        adaptive = _get_adaptive_execution_params(target_amount, ref_price, avg_daily_volume, volatility)
-        execution_window_minutes = adaptive.get("execution_window_minutes", self.execution_window_minutes)
+        adaptive = _get_adaptive_execution_params(
+            target_amount, ref_price, avg_daily_volume, volatility
+        )
+        execution_window_minutes = adaptive.get(
+            "execution_window_minutes", self.execution_window_minutes
+        )
         interval_minutes = adaptive.get("interval_minutes", self.interval_minutes)
 
         target_qty = int(target_amount / ref_price)
@@ -313,38 +335,41 @@ class VWAPExecutor:
                 (55, 0.06),
                 (60, 0.05),
             ]
-        else:
-            return [
-                (0, 0.08),
-                (5, 0.10),
-                (10, 0.08),
-                (15, 0.06),
-                (20, 0.05),
-                (25, 0.04),
-                (30, 0.04),
-                (35, 0.04),
-                (40, 0.04),
-                (45, 0.04),
-                (50, 0.04),
-                (55, 0.04),
-                (60, 0.04),
-                (65, 0.04),
-                (70, 0.04),
-                (75, 0.04),
-                (80, 0.04),
-                (85, 0.04),
-                (90, 0.04),
-                (95, 0.04),
-                (100, 0.04),
-                (105, 0.04),
-                (110, 0.04),
-                (115, 0.05),
-                (120, 0.06),
-            ]
+        return [
+            (0, 0.08),
+            (5, 0.10),
+            (10, 0.08),
+            (15, 0.06),
+            (20, 0.05),
+            (25, 0.04),
+            (30, 0.04),
+            (35, 0.04),
+            (40, 0.04),
+            (45, 0.04),
+            (50, 0.04),
+            (55, 0.04),
+            (60, 0.04),
+            (65, 0.04),
+            (70, 0.04),
+            (75, 0.04),
+            (80, 0.04),
+            (85, 0.04),
+            (90, 0.04),
+            (95, 0.04),
+            (100, 0.04),
+            (105, 0.04),
+            (110, 0.04),
+            (115, 0.05),
+            (120, 0.06),
+        ]
 
-    def calculate_splits(self, target_amount: float, ref_price: float, session_type: str = "day") -> list[dict]:
+    def calculate_splits(
+        self, target_amount: float, ref_price: float, session_type: str = "day"
+    ) -> list[dict]:
         """计算VWAP拆单方案"""
-        return self.calculate_optimal_splits(target_amount, ref_price, session_type=session_type)
+        return self.calculate_optimal_splits(
+            target_amount, ref_price, session_type=session_type
+        )
 
     def calculate_optimal_splits(
         self,
@@ -369,7 +394,9 @@ class VWAPExecutor:
         if target_amount <= 0 or ref_price <= 0:
             return []
 
-        adaptive = _get_adaptive_execution_params(target_amount, ref_price, avg_daily_volume, volatility)
+        adaptive = _get_adaptive_execution_params(
+            target_amount, ref_price, avg_daily_volume, volatility
+        )
         volume_profile = self.get_volume_profile(session_type)
 
         # 根据深度和波动率动态调整权重分布
@@ -450,26 +477,39 @@ class OrderExecutor:
             from utils.transaction_cost_model import TransactionCostModel
 
             self.cost_model = TransactionCostModel()
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):  # P2 模块 fail-safe, 待后续精确化
             self.cost_model = None
+
     def _create_executor(self, algorithm: str, kwargs: dict):
         if algorithm == "min_impact":
             return MinImpactExecutor(
                 max_participation_pct=kwargs.get("max_participation_pct", 0.15),
                 min_order_size=kwargs.get("min_order_size", 100),
             )
-        elif algorithm == "twap":
+        if algorithm == "twap":
             return TWAPExecutor(
                 execution_window_minutes=kwargs.get("execution_window_minutes", 30),
                 interval_minutes=kwargs.get("interval_minutes", 5),
             )
-        elif algorithm == "vwap":
+        if algorithm == "vwap":
             return VWAPExecutor()
-        else:
-            return MinImpactExecutor()
+        return MinImpactExecutor()
 
     def split_order(
-        self, target_amount: float, ref_price: float, avg_daily_volume: float = 0, volatility: float = 0.02
+        self,
+        target_amount: float,
+        ref_price: float,
+        avg_daily_volume: float = 0,
+        volatility: float = 0.02,
     ) -> list[dict]:
         """拆分订单
 
@@ -497,33 +537,39 @@ class OrderExecutor:
             ]
 
         if isinstance(self._executor, MinImpactExecutor):
-            return self._executor.calculate_optimal_splits(target_amount, ref_price, avg_daily_volume, volatility)
-        elif isinstance(self._executor, TWAPExecutor) or isinstance(self._executor, VWAPExecutor):
+            return self._executor.calculate_optimal_splits(
+                target_amount, ref_price, avg_daily_volume, volatility
+            )
+        if isinstance(self._executor, TWAPExecutor) or isinstance(
+            self._executor, VWAPExecutor
+        ):
             return self._executor.calculate_splits(target_amount, ref_price)
-        else:
-            return []
+        return []
 
     def simulate(self, orders: list[dict]) -> dict:
         """模拟执行"""
         if isinstance(self._executor, MinImpactExecutor):
             return self._executor.simulate_execution(orders)
-        else:
-            total_qty = sum(o["qty"] for o in orders)
-            total_amount = sum(o["amount"] for o in orders)
-            return {
-                "total_qty": total_qty,
-                "total_amount": round(total_amount, 2),
-                "avg_execution_price": round(total_amount / total_qty, 4) if total_qty > 0 else 0,
-                "slippage_total": 0,
-                "slippage_pct": 0,
-                "num_orders": len(orders),
-                "execution_time_minutes": sum(o["delay_minutes"] for o in orders),
-                "start_time": datetime.now().isoformat(),
-                "end_time": datetime.now().isoformat(),
-            }
+        total_qty = sum(o["qty"] for o in orders)
+        total_amount = sum(o["amount"] for o in orders)
+        return {
+            "total_qty": total_qty,
+            "total_amount": round(total_amount, 2),
+            "avg_execution_price": (
+                round(total_amount / total_qty, 4) if total_qty > 0 else 0
+            ),
+            "slippage_total": 0,
+            "slippage_pct": 0,
+            "num_orders": len(orders),
+            "execution_time_minutes": sum(o["delay_minutes"] for o in orders),
+            "start_time": datetime.now().isoformat(),
+            "end_time": datetime.now().isoformat(),
+        }
 
     @staticmethod
-    def compare_algorithms(target_amount: float, ref_price: float, avg_daily_volume: float = 0) -> dict:
+    def compare_algorithms(
+        target_amount: float, ref_price: float, avg_daily_volume: float = 0
+    ) -> dict:
         """比较不同执行算法的效果
 
         Args:
@@ -544,8 +590,19 @@ class OrderExecutor:
             cost_info = {}
             if executor.cost_model is not None:
                 try:
-                    cost_info = executor.cost_model.estimate_total_cost(simulation["total_amount"], avg_daily_volume)
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # P2 模块 fail-safe, 待后续精确化
+                    cost_info = executor.cost_model.estimate_total_cost(
+                        simulation["total_amount"], avg_daily_volume
+                    )
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ):  # P2 模块 fail-safe, 待后续精确化
                     cost_info = {}
 
             results[algo] = {
@@ -564,15 +621,22 @@ class OrderExecutor:
         return results
 
 
-def split_order(target_amount: float, ref_price: float, algorithm: str = "min_impact", **kwargs) -> list[dict]:
+def split_order(
+    target_amount: float, ref_price: float, algorithm: str = "min_impact", **kwargs
+) -> list[dict]:
     """便捷函数：拆分订单"""
     executor = OrderExecutor(algorithm=algorithm, **kwargs)
     return executor.split_order(
-        target_amount, ref_price, kwargs.get("avg_daily_volume", 0), kwargs.get("volatility", 0.02)
+        target_amount,
+        ref_price,
+        kwargs.get("avg_daily_volume", 0),
+        kwargs.get("volatility", 0.02),
     )
 
 
-def compare_execution(target_amount: float, ref_price: float, avg_daily_volume: float = 0) -> dict:
+def compare_execution(
+    target_amount: float, ref_price: float, avg_daily_volume: float = 0
+) -> dict:
     """便捷函数：比较执行算法"""
     return OrderExecutor.compare_algorithms(target_amount, ref_price, avg_daily_volume)
 
@@ -583,7 +647,10 @@ def execute_order_with_algorithm(
     """便捷函数：使用指定算法执行订单"""
     executor = OrderExecutor(algorithm=algorithm, **kwargs)
     orders = executor.split_order(
-        target_amount, ref_price, kwargs.get("avg_daily_volume", 0), kwargs.get("volatility", 0.02)
+        target_amount,
+        ref_price,
+        kwargs.get("avg_daily_volume", 0),
+        kwargs.get("volatility", 0.02),
     )
     simulation = executor.simulate(orders)
     return {

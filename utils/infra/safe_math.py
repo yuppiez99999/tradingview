@@ -20,6 +20,7 @@
     # 替代: pct = part / total * 100
     pct = safe_pct(part, total)
 """
+
 from __future__ import annotations
 
 import logging
@@ -78,9 +79,7 @@ def safe_div(
         return float(numerator) / denom
     except (TypeError, ValueError):
         if log_warning:
-            logger.warning(
-                "safe_div: 分子类型异常 (%r) — %s", numerator, context
-            )
+            logger.warning("safe_div: 分子类型异常 (%r) — %s", numerator, context)
         return default
 
 
@@ -115,7 +114,9 @@ def safe_mean(
 
     try:
         total = sum(float(x) for x in nums)
-        return safe_div(total, len(nums), default=default, context=f"safe_mean({context})")
+        return safe_div(
+            total, len(nums), default=default, context=f"safe_mean({context})"
+        )
     except (TypeError, ValueError) as e:
         if log_warning:
             logger.warning("safe_mean: 元素非数值 (%s) — %s", e, context)
@@ -195,7 +196,13 @@ def safe_pct(
     Returns:
         百分比 (0-100), 或 default
     """
-    ratio = safe_div(part, total, default=None, log_warning=log_warning, context=f"safe_pct({context})")
+    ratio = safe_div(
+        part,
+        total,
+        default=None,
+        log_warning=log_warning,
+        context=f"safe_pct({context})",
+    )
     if ratio is None:
         return default
     return ratio * 100.0
@@ -220,7 +227,9 @@ def safe_abs_ratio(
             logger.warning("safe_abs_ratio: 类型异常 (%s) — %s", e, context)
         return default
 
-    return safe_div(abs_num, abs_denom, default=default, log_warning=log_warning, context=context)
+    return safe_div(
+        abs_num, abs_denom, default=default, log_warning=log_warning, context=context
+    )
 
 
 def safe_len(values: Iterable) -> int:

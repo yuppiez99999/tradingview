@@ -73,7 +73,16 @@ class GTJA191Factors:
         try:
             meta = self._adapter.get_meta(alpha_id)
             return meta.formula
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return ""
 
@@ -90,7 +99,16 @@ class GTJA191Factors:
                 "decay_horizon": meta.decay_horizon,
                 "notes": meta.notes,
             }
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return {"error": str(e)}
 
@@ -113,7 +131,9 @@ class GTJA191Factors:
         if df is None or len(df) < 2:
             return {}
 
-        result = self._adapter.compute_single_stock(df, factor_ids=factor_ids, zoo="gtja191")
+        result = self._adapter.compute_single_stock(
+            df, factor_ids=factor_ids, zoo="gtja191"
+        )
         return result.values
 
     def compute_series(

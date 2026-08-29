@@ -41,7 +41,9 @@ class FactorValue:
     ic_ir: float = 0.0  # IC 信息比率 (时序模式=完整序列均值/std; 单点模式=近似退化值 0)
     ic_mean_raw: float = 0.0  # U1 新增: 时序 IC 原始均值 (未取 abs, 保留方向)
     ic_n_samples: int = 0  # U1 新增: 有效 IC 样本数 (诊断用, 最少 20 天)
-    ic_mode: str = "none"  # U1 新增: "timeseries" / "single_point" / "none", 便于下游区分
+    ic_mode: str = (
+        "none"  # U1 新增: "timeseries" / "single_point" / "none", 便于下游区分
+    )
     factor_return: float = 0.0  # 因子收益率 (年化)
     turnover: float = 0.0  # 因子换手率
 
@@ -104,9 +106,14 @@ def neutralize_by_industry(
         if sym in values:
             industry_groups.setdefault(ind, []).append(values[sym])
 
-    industry_means = {ind: float(np.mean(vs)) for ind, vs in industry_groups.items() if vs}
+    industry_means = {
+        ind: float(np.mean(vs)) for ind, vs in industry_groups.items() if vs
+    }
 
-    return {sym: float(values[sym] - industry_means.get(industries.get(sym, ""), 0)) for sym in values}
+    return {
+        sym: float(values[sym] - industry_means.get(industries.get(sym, ""), 0))
+        for sym in values
+    }
 
 
 def neutralize_by_size(
@@ -139,7 +146,11 @@ def orthogonalize(
     用于如 SIZE_NON_LINEAR 对 SIZE_LOG_MCAP 正交化, 消除线性共线。
     别名: residualize (语义相同, 保留两个名字以兼容已有调用)。
     """
-    common = [s for s in values if s in control and values[s] is not None and control[s] is not None]
+    common = [
+        s
+        for s in values
+        if s in control and values[s] is not None and control[s] is not None
+    ]
     if len(common) < 3:
         return dict(values)
     x = np.array([control[s] for s in common], dtype=float)
@@ -176,7 +187,7 @@ def _forward_returns(
     的自相关伪 IC。
     """
     fwd: dict[str, float] = {}
-    for sym in (symbols or {}):
+    for sym in symbols or {}:
         closes = price_data.get(sym, {}).get("closes", [])
         # 需要至少 forward_window+1 个点, 且参考点价格非 0
         if len(closes) > forward_window and closes[-1 - forward_window] > 0:
@@ -218,7 +229,16 @@ def calc_ic(
             return 0.0
         corr, _ = spearmanr(factor_list, ret_list)
         return float(corr) if not np.isnan(corr) else 0.0
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # scipy 不可用时降级
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # scipy 不可用时降级
         return 0.0
 
 
@@ -254,9 +274,15 @@ def calc_ic_series_from_history(
     for i in range(n):
         fv = factor_history[i]
         fr = forward_returns_history[i]
-        common = [s for s in fv if s in fr
-                  if fv[s] is not None and fr[s] is not None
-                  and isinstance(fv[s], (int, float)) and isinstance(fr[s], (int, float))]
+        common = [
+            s
+            for s in fv
+            if s in fr
+            if fv[s] is not None
+            and fr[s] is not None
+            and isinstance(fv[s], (int, float))
+            and isinstance(fr[s], (int, float))
+        ]
         if len(common) < min_samples:
             ic_series.append(0.0)
             continue
@@ -284,7 +310,7 @@ def _spearman_numpy(x: list[float], y: list[float]) -> float:
     ry = _average_rank(ya)
     rx_c = rx - rx.mean()
     ry_c = ry - ry.mean()
-    den = np.sqrt(np.sum(rx_c ** 2) * np.sum(ry_c ** 2))
+    den = np.sqrt(np.sum(rx_c**2) * np.sum(ry_c**2))
     if den < 1e-12:
         return 0.0
     return float(np.sum(rx_c * ry_c) / den)
@@ -382,13 +408,23 @@ def evaluate_factors(
 
             fval.ic_ir = ic_ir
             fval.ic_mean_raw = ic_mean
-            fval.ic_n_samples = len([x for x in ic_series if x != 0.0 and np.isfinite(x)])
+            fval.ic_n_samples = len(
+                [x for x in ic_series if x != 0.0 and np.isfinite(x)]
+            )
             fval.ic_mode = "timeseries"
             # ic_5d: 最近 5 日 IC 均值; ic_1d: 最近 1 日 IC; ic_20d: 最近 20 日 IC 均值
             if ic_series:
                 fval.ic_1d = float(ic_series[-1])
-                fval.ic_5d = float(np.mean(ic_series[-5:])) if len(ic_series) >= 5 else float(np.mean(ic_series))
-                fval.ic_20d = float(np.mean(ic_series[-20:])) if len(ic_series) >= 20 else float(np.mean(ic_series))
+                fval.ic_5d = (
+                    float(np.mean(ic_series[-5:]))
+                    if len(ic_series) >= 5
+                    else float(np.mean(ic_series))
+                )
+                fval.ic_20d = (
+                    float(np.mean(ic_series[-20:]))
+                    if len(ic_series) >= 20
+                    else float(np.mean(ic_series))
+                )
             else:
                 fval.ic_5d = 0.0
                 fval.ic_20d = 0.0
@@ -427,7 +463,16 @@ def compute_factor_corr_matrix(
     try:
         df = pd.DataFrame({name: pd.Series(fv.values) for name, fv in factors.items()})
         return df.corr()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # 数据为空或形状不一致时降级返回 None
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):  # 数据为空或形状不一致时降级返回 None
         return None
 
 
@@ -471,6 +516,7 @@ def register_factor(
         **defaults: 传给装饰函数的默认参数 (会在注入前被 context 中同名字段覆盖)
     """
     import inspect
+
     def deco(fn: Callable[..., Any]) -> Callable[..., Any]:
         fn_id = name or fn.__name__
         sig = inspect.signature(fn)
@@ -483,6 +529,7 @@ def register_factor(
         }
         # 原函数透传, 保持直接调用可用
         return fn
+
     return deco
 
 
@@ -525,6 +572,7 @@ def compute_registered_factors(
         {factor_name: FactorValue} — 所有成功计算的因子 (与 compute_xxx_factors 返回格式一致)
     """
     import inspect
+
     out: dict[str, FactorValue] = {}
     for fn_id, meta in _FACTOR_REGISTRY.items():
         if select is not None and fn_id not in select:
@@ -549,7 +597,16 @@ def compute_registered_factors(
             continue
         try:
             result = fn(**kwargs)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as exc:
             logging.getLogger("alpha_factor.registry").debug(
                 "装饰器因子 %s 计算失败: %r; 已跳过", fn_id, exc
             )
@@ -559,10 +616,14 @@ def compute_registered_factors(
             out[result.name or fn_id] = result
         elif isinstance(result, dict):
             # 纯 {symbol: value} dict → 包装成 FactorValue
-            if result and all(isinstance(k, str) and isinstance(v, (int, float, type(None)))
-                               for k, v in result.items()):
+            if result and all(
+                isinstance(k, str) and isinstance(v, (int, float, type(None)))
+                for k, v in result.items()
+            ):
                 out[fn_id] = FactorValue(
-                    name=fn_id, category=meta["category"], values=result,
+                    name=fn_id,
+                    category=meta["category"],
+                    values=result,
                 )
             else:
                 # 预期是 {factor_name: FactorValue}
@@ -633,7 +694,13 @@ def build_forward_returns_history(
             closes = closes_map[sym]
             base = closes[t]
             fwd = closes[t + forward_window]
-            if base and base > 0 and fwd is not None and np.isfinite(base) and np.isfinite(fwd):
+            if (
+                base
+                and base > 0
+                and fwd is not None
+                and np.isfinite(base)
+                and np.isfinite(fwd)
+            ):
                 cross[sym] = float(fwd / base - 1.0)
         history.append(cross)
     return history
@@ -671,7 +738,11 @@ def build_factor_history_from_prices(
         需注意 forward_window 窗口; 推荐 forward_window=5 + warmup_window=25 得到同长度.)
     """
 
-    active_syms: list[str] = list(price_data.keys()) if symbols is None else [s for s in symbols if s in price_data]
+    active_syms: list[str] = (
+        list(price_data.keys())
+        if symbols is None
+        else [s for s in symbols if s in price_data]
+    )
     if not active_syms:
         return {}
 
@@ -701,7 +772,16 @@ def build_factor_history_from_prices(
         slice_pd = _slice_price(t)
         try:
             raw = factor_fn(slice_pd)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             raw = {}
         # 规范化: FactorValue → {name: values dict}
         factor_map: dict[str, dict[str, float]] = {}
@@ -709,12 +789,19 @@ def build_factor_history_from_prices(
             factor_map[raw.name] = raw.values
         elif isinstance(raw, dict):
             # {factor_name: FactorValue} / {sym: value}
-            if raw and all(isinstance(k, str) and isinstance(v, FactorValue) for k, v in raw.items()):
+            if raw and all(
+                isinstance(k, str) and isinstance(v, FactorValue)
+                for k, v in raw.items()
+            ):
                 for fname, fv in raw.items():
                     factor_map[fname] = fv.values
-            elif raw and all(isinstance(k, str) and isinstance(v, (int, float, type(None)))
-                             for k, v in raw.items()):
-                factor_map["factor"] = {k: float(v) for k, v in raw.items() if isinstance(v, (int, float))}
+            elif raw and all(
+                isinstance(k, str) and isinstance(v, (int, float, type(None)))
+                for k, v in raw.items()
+            ):
+                factor_map["factor"] = {
+                    k: float(v) for k, v in raw.items() if isinstance(v, (int, float))
+                }
         # 追加到每因子序列
         for fname, fv_dict in factor_map.items():
             if fname not in history_per_factor:

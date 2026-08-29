@@ -67,3 +67,14 @@ ruff 报告基线共 348 处违规。B905（`zip` 未指定 `strict`）占 53 �
 - `ruff.toml` 已启用 B905（默认 F 组 + B 组），新代码 `zip()` 不带 strict 会立即被 CI 拦下。
 - 新增 zip 的合规模板：`zip(a, b, strict=True)`；仅"截断是语义"处允许 `# noqa: B905` + 说明。
 - 与 `cairn/code-review-ruff-fix-batch-20260818.md`（ruff 基线治理方法论）配套，总违规基线 348→282，硬 bug 门禁（E9/F63/F7/F82/F401/F811/F821/F841）保持 0。
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [工程 CI/质量 (Wave 7-QC 衔接) (2026-08-24)](engineering-qc-20260824.md) (相似度 16%)
+- [Bug修复追踪表 v2.4](bug_fix_tracker.md) (相似度 10%)
+- [代码质量工业级差距审计 — 2026-08-19](code-quality-industrial-gap-20260819.md) (相似度 7%)
+- [代码审查 + 修复批次 标准作业流程 (SOP)](code-review-sop.md) (相似度 6%)
+- [2026-08-08 代码审查修复批次经验沉淀](code-review-fix-batch-20260808.md) (相似度 5%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

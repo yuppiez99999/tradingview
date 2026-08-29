@@ -21,6 +21,7 @@ R1 任务 (2026-08-01): 验证 utils.system_check.SystemChecker.check_fallback_p
     - 通过 monkeypatch 重定向 FUTURES_PRICES_REL_PATH, 复用 SystemChecker
     - 每个测试用例独立构造 futures_prices.py 副本, 精确控制 age_days
 """
+
 from __future__ import annotations
 
 import sys
@@ -42,6 +43,7 @@ from utils.system_check import (  # noqa: E402
 # ============================================================
 # Fixture: 构造临时 futures_prices.py
 # ============================================================
+
 
 def _make_futures_prices_module(
     tmp_path: Path,
@@ -83,7 +85,9 @@ def _make_futures_prices_module(
         lines.append(f"FALLBACK_PRICES_UPDATED = {updated_str!r}")
     if missing_prices:
         # 移除 DEFAULT_FUTURES_PRICES (不写入)
-        lines = [line for line in lines if not line.startswith("DEFAULT_FUTURES_PRICES")]
+        lines = [
+            line for line in lines if not line.startswith("DEFAULT_FUTURES_PRICES")
+        ]
     if syntax_broken:
         lines.append("def broken(:")  # 故意语法错误
 
@@ -103,9 +107,7 @@ def _run_c9(tmp_path: Path, monkeypatch, **kwargs) -> list:
     # 所以需要让 PROJECT_ROOT + rel_path 指向 tmp_path/futures_prices.py
     # 方案: monkeypatch rel_path 为绝对路径字符串, Path / "/abs" = "/abs"
     # 在 Windows 上 Path("a") / "C:\\b" 会得到 "C:\\b" (Windows behavior)
-    monkeypatch.setattr(
-        SystemChecker, "FUTURES_PRICES_REL_PATH", str(fp)
-    )
+    monkeypatch.setattr(SystemChecker, "FUTURES_PRICES_REL_PATH", str(fp))
     checker._results = []
     checker.check_fallback_price_freshness()
     return list(checker._results)
@@ -115,6 +117,7 @@ def _run_c9(tmp_path: Path, monkeypatch, **kwargs) -> list:
 # 1. 文件不存在场景
 # ============================================================
 
+
 class TestFileMissing:
     """C9.1 — 文件不存在应 ERROR FAIL"""
 
@@ -123,9 +126,7 @@ class TestFileMissing:
         checker = SystemChecker(strict=False, skip_datasource=True)
         # 指向一个不存在的文件
         non_existent = tmp_path / "nonexistent.py"
-        monkeypatch.setattr(
-            SystemChecker, "FUTURES_PRICES_REL_PATH", str(non_existent)
-        )
+        monkeypatch.setattr(SystemChecker, "FUTURES_PRICES_REL_PATH", str(non_existent))
         checker._results = []
         checker.check_fallback_price_freshness()
 
@@ -143,6 +144,7 @@ class TestFileMissing:
 # ============================================================
 # 2. 模块加载失败 (语法错误)
 # ============================================================
+
 
 class TestModuleLoadFailure:
     """C9.1 — 模块加载失败应 ERROR FAIL"""
@@ -163,6 +165,7 @@ class TestModuleLoadFailure:
 # ============================================================
 # 3. DEFAULT_FUTURES_PRICES 字段问题
 # ============================================================
+
 
 class TestDefaultPricesField:
     """C9.1 — DEFAULT_FUTURES_PRICES 字段校验"""
@@ -201,6 +204,7 @@ class TestDefaultPricesField:
 # 4. FALLBACK_PRICES_UPDATED 字段问题
 # ============================================================
 
+
 class TestUpdatedField:
     """C9.1 — FALLBACK_PRICES_UPDATED 字段校验"""
 
@@ -216,9 +220,7 @@ class TestUpdatedField:
 
     def test_invalid_date_format(self, tmp_path, monkeypatch):
         """日期格式错误 (非 YYYY-MM-DD) 应 ERROR FAIL"""
-        results = _run_c9(
-            tmp_path, monkeypatch, updated_str="2026/08/01"
-        )
+        results = _run_c9(tmp_path, monkeypatch, updated_str="2026/08/01")
         # 字段存在, 进入日期解析阶段 (C9.2)
         assert len(results) == 2
         # C9.1 通过 (字段完整)
@@ -247,6 +249,7 @@ class TestUpdatedField:
 # ============================================================
 # 5. 分级阈值 (核心测试)
 # ============================================================
+
 
 class TestAgeThresholds:
     """C9.2 — 兜底价格年龄分级判定"""
@@ -317,6 +320,7 @@ class TestAgeThresholds:
 # 6. Strict 模式下 WARN 也算阻止性
 # ============================================================
 
+
 class TestStrictMode:
     """strict 模式: WARN FAIL 也算阻止性"""
 
@@ -325,9 +329,7 @@ class TestStrictMode:
         today = datetime.now()
         warn = (today - timedelta(days=15)).strftime("%Y-%m-%d")
         fp = _make_futures_prices_module(tmp_path, updated_str=warn)
-        monkeypatch.setattr(
-            SystemChecker, "FUTURES_PRICES_REL_PATH", str(fp)
-        )
+        monkeypatch.setattr(SystemChecker, "FUTURES_PRICES_REL_PATH", str(fp))
         # strict 模式
         checker = SystemChecker(strict=True, skip_datasource=True)
         checker._results = []
@@ -340,7 +342,8 @@ class TestStrictMode:
         # 在 _build_report 中, strict 模式会把这些算作 blocking
         # 模拟该逻辑
         strict_blocking = sum(
-            1 for r in checker._results
+            1
+            for r in checker._results
             if r.status == CheckStatus.FAIL
             and r.level in (CheckLevel.ERROR, CheckLevel.WARN)
         )
@@ -350,6 +353,7 @@ class TestStrictMode:
 # ============================================================
 # 7. 价格摘要正确性
 # ============================================================
+
 
 class TestPriceSummary:
     """详情中应包含 4 个品种的价格摘要"""
@@ -365,8 +369,10 @@ class TestPriceSummary:
             "IH": 2856.7,
         }
         results = _run_c9(
-            tmp_path, monkeypatch,
-            updated_str=fresh, prices=custom_prices,
+            tmp_path,
+            monkeypatch,
+            updated_str=fresh,
+            prices=custom_prices,
         )
         r = results[1]
         assert r.status == CheckStatus.PASS
@@ -379,6 +385,7 @@ class TestPriceSummary:
 # ============================================================
 # 8. 真实文件回归测试
 # ============================================================
+
 
 class TestRealFileRegression:
     """对项目真实的 futures_prices.py 跑一遍, 验证不崩溃"""
@@ -424,6 +431,7 @@ class TestRealFileRegression:
 # 9. 幂等性测试
 # ============================================================
 
+
 class TestIdempotency:
     """同一检查可被多次调用, 结果一致 (设计原则 4)"""
 
@@ -432,9 +440,7 @@ class TestIdempotency:
         today = datetime.now()
         warn = (today - timedelta(days=15)).strftime("%Y-%m-%d")
         fp = _make_futures_prices_module(tmp_path, updated_str=warn)
-        monkeypatch.setattr(
-            SystemChecker, "FUTURES_PRICES_REL_PATH", str(fp)
-        )
+        monkeypatch.setattr(SystemChecker, "FUTURES_PRICES_REL_PATH", str(fp))
 
         results_per_call = []
         for _ in range(3):
@@ -442,9 +448,7 @@ class TestIdempotency:
             checker._results = []
             checker.check_fallback_price_freshness()
             # 序列化为可比较的 tuple
-            snapshot = [
-                (r.code, r.level, r.status, r.detail) for r in checker._results
-            ]
+            snapshot = [(r.code, r.level, r.status, r.detail) for r in checker._results]
             results_per_call.append(snapshot)
 
         # 三次调用结果应完全一致

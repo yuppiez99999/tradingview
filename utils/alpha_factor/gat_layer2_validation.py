@@ -51,7 +51,10 @@ if str(_PROJ) not in sys.path:
 if str(_UTILS) not in sys.path:
     sys.path.insert(0, str(_UTILS))
 
-from utils.alpha_factor.gat_factor_torch import GATFactorTorch, build_adjacency  # noqa: E402
+from utils.alpha_factor.gat_factor_torch import (  # noqa: E402
+    GATFactorTorch,
+    build_adjacency,
+)
 from utils.alpha_factor.gate1_validation import (  # noqa: E402
     calc_icir,
     fetch_prices,
@@ -66,7 +69,11 @@ for _name in ("stdout", "stderr"):
         _buffer = getattr(_stream, "buffer", None)
         if _buffer is not None:
             try:
-                setattr(sys, _name, io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"))
+                setattr(
+                    sys,
+                    _name,
+                    io.TextIOWrapper(_buffer, encoding="utf-8", errors="replace"),
+                )
             except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 pass
 
@@ -230,7 +237,7 @@ def run_gat_layer2_validation(
     symbols = list(price_data.keys())
     adj, _ = build_adjacency(builder.graph, symbols)  # [n, n]
     # 只保留有邻居的股票 (无邻居的节点 GAT/静态因子都无意义)
-    has_neighbor = (adj.sum(axis=1) > 0)
+    has_neighbor = adj.sum(axis=1) > 0
     valid_idx = np.where(has_neighbor)[0]
     symbols = [symbols[i] for i in valid_idx]
     adj = adj[valid_idx][:, valid_idx]
@@ -321,8 +328,7 @@ def run_gat_layer2_validation(
         gat_factor_series.append(gat_f)
         static_factor_series.append(static_f)
         ret_series.append(ret)
-        logger.info(f"     T={T}: GAT IC={gat_ic:+.4f}, 静态 IC={static_ic:+.4f}, "
-                    f"增益={gat_ic - static_ic:+.4f}")
+        logger.info(f"     T={T}: GAT IC={gat_ic:+.4f}, 静态 IC={static_ic:+.4f}, " f"增益={gat_ic - static_ic:+.4f}")
 
     logger.info("[6/6] 评估 (B3 方向修正 + B4 多空夏普)...")
     gat_mean_ic = float(np.mean(gat_ics))
@@ -339,9 +345,7 @@ def run_gat_layer2_validation(
 
     # B4 多空夏普 (方向修正后)
     gat_ls_sharpe = calc_long_short_sharpe(gat_factor_series, ret_series, horizon, gat_direction)
-    static_ls_sharpe = calc_long_short_sharpe(
-        static_factor_series, ret_series, horizon, static_direction
-    )
+    static_ls_sharpe = calc_long_short_sharpe(static_factor_series, ret_series, horizon, static_direction)
 
     # Gate 2 判定: GAT effIC > 静态 effIC 且 GAT effICIR > 静态 effICIR
     gate2_pass = (gat_eff_ic > static_eff_ic) and (gat_eff_icir > static_eff_icir)
@@ -398,6 +402,7 @@ def main() -> int:
 
     if args.json:
         import json
+
         logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
         return 0
 
@@ -410,8 +415,10 @@ def main() -> int:
     logger.info("=" * 80)
     logger.info(f"Universe: {result['universe_size']} 只 | 有效股票(有邻居): {result['valid_symbols']} 只")
     logger.info(f"图: {result['graph']['node_count']} 节点 / {result['graph']['edge_count']} 边")
-    logger.info(f"共同覆盖: {result['max_len']} 天 | horizon={result['horizon']} | "
-          f"训练时点={result['n_train_tp']} | 测试时点={result['n_test_tp']}")
+    logger.info(
+        f"共同覆盖: {result['max_len']} 天 | horizon={result['horizon']} | "
+        f"训练时点={result['n_train_tp']} | 测试时点={result['n_test_tp']}"
+    )
     logger.info(f"GAT 训练 loss: {result['train_loss_start']:.6f} → {result['train_loss_end']:.6f}")
     logger.info("-" * 80)
     logger.info(f"{'测试时点':>10}{'GAT IC':>12}{'静态 IC':>12}{'增益':>12}")
@@ -419,15 +426,21 @@ def main() -> int:
     for i, (g, s) in enumerate(zip(result["gat_ics"], result["static_ics"], strict=True)):
         logger.info(f"{'T'+str(i+1):>10}{g:>12.4f}{s:>12.4f}{g - s:>12.4f}")
     logger.info("-" * 80)
-    logger.info(f"{'均值':>10}{result['gat_mean_ic']:>12.4f}{result['static_mean_ic']:>12.4f}"
-          f"{result['gain']:>12.4f}")
+    logger.info(
+        f"{'均值':>10}{result['gat_mean_ic']:>12.4f}{result['static_mean_ic']:>12.4f}" f"{result['gain']:>12.4f}"
+    )
     logger.info("-" * 80)
-    logger.info(f"方向修正 (B3): GAT direction={result['gat_direction']}, "
-          f"静态 direction={result['static_direction']}")
-    logger.info(f"  GAT  effIC={result['gat_eff_ic']:+.4f}, effICIR={result['gat_eff_icir']:+.4f}, "
-          f"多空夏普={result['gat_long_short_sharpe']:+.3f}")
-    logger.info(f"  静态 effIC={result['static_eff_ic']:+.4f}, effICIR={result['static_eff_icir']:+.4f}, "
-          f"多空夏普={result['static_long_short_sharpe']:+.3f}")
+    logger.info(
+        f"方向修正 (B3): GAT direction={result['gat_direction']}, " f"静态 direction={result['static_direction']}"
+    )
+    logger.info(
+        f"  GAT  effIC={result['gat_eff_ic']:+.4f}, effICIR={result['gat_eff_icir']:+.4f}, "
+        f"多空夏普={result['gat_long_short_sharpe']:+.3f}"
+    )
+    logger.info(
+        f"  静态 effIC={result['static_eff_ic']:+.4f}, effICIR={result['static_eff_icir']:+.4f}, "
+        f"多空夏普={result['static_long_short_sharpe']:+.3f}"
+    )
     logger.info("-" * 80)
     logger.info(f"原始增益 (对比 +0.039): {result['gain']:+.4f}")
     logger.info(f"Gate 2 判定: {result['gate2_verdict']} (阈值: {result['gate2_threshold']})")

@@ -1,10 +1,13 @@
 """报告预览组件"""
+
 import os
 
 import streamlit as st
 
 
-def render_report_viewer(report: str, title: str = "报告预览", download_name: str = None):
+def render_report_viewer(
+    report: str, title: str = "报告预览", download_name: str = None
+):
     """渲染报告内容并提供下载按钮"""
     st.markdown(f"### 📄 {title}")
 
@@ -16,7 +19,7 @@ def render_report_viewer(report: str, title: str = "报告预览", download_name
             label=f"📥 下载 {download_name}",
             data=report,
             file_name=download_name,
-            mime="text/markdown" if download_name.endswith('.md') else "text/plain",
+            mime="text/markdown" if download_name.endswith(".md") else "text/plain",
         )
 
 
@@ -37,25 +40,27 @@ def _browse_cached(dir_path: str, pattern: str = None):
             full = os.path.join(root, f)
             rel = os.path.relpath(full, dir_path)
             stat = os.stat(full)
-            files.append({
-                'name': f,
-                'path': full,
-                'rel_path': rel,
-                'size_kb': stat.st_size / 1024,
-                'mtime': stat.st_mtime,
-            })
-    files.sort(key=lambda x: x['mtime'], reverse=True)
+            files.append(
+                {
+                    "name": f,
+                    "path": full,
+                    "rel_path": rel,
+                    "size_kb": stat.st_size / 1024,
+                    "mtime": stat.st_mtime,
+                }
+            )
+    files.sort(key=lambda x: x["mtime"], reverse=True)
     return files
 
 
 def read_report_file(filepath: str) -> str:
     """安全读取报告文件内容"""
     try:
-        with open(filepath, encoding='utf-8') as f:
+        with open(filepath, encoding="utf-8") as f:
             return f.read()
     except UnicodeDecodeError:
         try:
-            with open(filepath, encoding='gbk') as f:
+            with open(filepath, encoding="gbk") as f:
                 return f.read()
         except Exception:
             return "⚠️ 无法读取此文件（编码不支持）"

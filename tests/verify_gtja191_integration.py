@@ -71,7 +71,9 @@ def check_factor_model_integration():
         klines = {"000001": df}
 
         model = FactorModel()
-        assert "technical_alpha" in model.DEFAULT_WEIGHTS, "technical_alpha 应在默认权重中"
+        assert (
+            "technical_alpha" in model.DEFAULT_WEIGHTS
+        ), "technical_alpha 应在默认权重中"
         assert abs(sum(model.DEFAULT_WEIGHTS.values()) - 1.0) < 1e-6, "权重总和应为 1"
 
         results = model.evaluate(klines)

@@ -34,6 +34,7 @@ CRUD 操作复用.
 
 集成日期: 2026-08-25 (借鉴 google-skills Tier R/M/D 模式)
 """
+
 from __future__ import annotations
 
 import functools
@@ -66,7 +67,9 @@ class OperationContext:
     description: str
     params: dict[str, Any]
     function_name: str
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    timestamp: str = field(
+        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+    )
     confirmed_by: str = "interactive"
     outcome: str = "pending"
 
@@ -110,7 +113,9 @@ def confirm_yes_no(prompt: str, *, description: str = "") -> bool:
     非交互环境或 AUTO_CONFIRM_TIER_M=1 时自动放行.
     """
     if _env_auto_confirmed("M"):
-        logger.info("Tier M 自动放行 (AUTO_CONFIRM_TIER_M=1): %s", description or prompt)
+        logger.info(
+            "Tier M 自动放行 (AUTO_CONFIRM_TIER_M=1): %s", description or prompt
+        )
         return True
     if _is_noninteractive():
         logger.warning("Tier M 非交互环境, 默认拒绝: %s", description or prompt)
@@ -126,13 +131,17 @@ def confirm_yes_no(prompt: str, *, description: str = "") -> bool:
     return reply in {"y", "yes"}
 
 
-def confirm_destructive(prompt: str, *, description: str = "", confirm_phrase: str = "I confirm") -> bool:
+def confirm_destructive(
+    prompt: str, *, description: str = "", confirm_phrase: str = "I confirm"
+) -> bool:
     """Tier D 显式键入确认 (默认 "I confirm").
 
     非交互环境默认拒绝; AUTO_CONFIRM_TIER_D=1 时放行 (危险, 仅 CI 用).
     """
     if _env_auto_confirmed("D"):
-        logger.warning("Tier D 自动放行 (AUTO_CONFIRM_TIER_D=1, 危险): %s", description or prompt)
+        logger.warning(
+            "Tier D 自动放行 (AUTO_CONFIRM_TIER_D=1, 危险): %s", description or prompt
+        )
         return True
     if _is_noninteractive():
         logger.error("Tier D 非交互环境, 拒绝破坏性操作: %s", description or prompt)
@@ -228,7 +237,9 @@ def tier_d(
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             ctx = _make_context("D", description, func, args, kwargs, params_extractor)
             prompt = f"{description} | 参数={json.dumps(ctx.params, ensure_ascii=False, default=str)}"
-            if not confirm_destructive(prompt, description=description, confirm_phrase=confirm_phrase):
+            if not confirm_destructive(
+                prompt, description=description, confirm_phrase=confirm_phrase
+            ):
                 ctx.outcome = "rejected"
                 _append_audit(ctx)
                 logger.info("Tier D 操作被拒绝: %s", description)

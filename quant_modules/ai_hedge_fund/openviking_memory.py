@@ -33,6 +33,7 @@
 
 集成日期: 2026-08-21 (v8.6, GitHub 周热门项目集成)
 """
+
 from __future__ import annotations
 
 import logging
@@ -45,7 +46,11 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-_OPENVIKING_SRC = Path(__file__).resolve().parent.parent.parent.parent / "10_第三方项目" / "OpenViking"
+_OPENVIKING_SRC = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "10_第三方项目"
+    / "OpenViking"
+)
 
 
 @dataclass
@@ -53,25 +58,29 @@ class OpenVikingConfig:
     """OpenViking 适配配置."""
 
     server_url: str = "http://localhost:8765"
-    api_key: str = field(default_factory=lambda: os.environ.get("OPENVIKING_API_KEY", ""))
+    api_key: str = field(
+        default_factory=lambda: os.environ.get("OPENVIKING_API_KEY", "")
+    )
     collection_prefix: str = "ai_hedge_fund"  # 集合前缀 (按 agent 隔离)
     embedding_model: str = "bge-m3"  # 中文嵌入模型
     timeout_seconds: int = 30
     use_sdk: bool = True  # True=使用 sdk/python, False=仅 HTTP
 
     # Agent 记忆命名空间
-    agent_namespaces: dict[str, str] = field(default_factory=lambda: {
-        "warren_buffett": "value_investing",
-        "ben_graham": "value_investing",
-        "phil_fisher": "growth_investing",
-        "cathie_wood": "growth_investing",
-        "michael_burry": "contrarian",
-        "charlie_munger": "value_investing",
-        "peter_lynch": "growth_investing",
-        "stanley_druckenmiller": "macro",
-        "ray_dalio": "macro",
-        "bill_ackman": "activist",
-    })
+    agent_namespaces: dict[str, str] = field(
+        default_factory=lambda: {
+            "warren_buffett": "value_investing",
+            "ben_graham": "value_investing",
+            "phil_fisher": "growth_investing",
+            "cathie_wood": "growth_investing",
+            "michael_burry": "contrarian",
+            "charlie_munger": "value_investing",
+            "peter_lynch": "growth_investing",
+            "stanley_druckenmiller": "macro",
+            "ray_dalio": "macro",
+            "bill_ackman": "activist",
+        }
+    )
 
 
 @dataclass
@@ -111,6 +120,7 @@ class OpenVikingMemory:
                 if str_path not in sys.path:
                     sys.path.insert(0, str_path)
             from openviking_sdk.client import SyncHTTPClient  # type: ignore
+
             self._client = SyncHTTPClient(
                 url=self.config.server_url,
                 api_key=self.config.api_key,
@@ -261,7 +271,9 @@ class OpenVikingMemory:
 _openviking_instance: Optional[OpenVikingMemory] = None
 
 
-def get_openviking_memory(config: Optional[OpenVikingConfig] = None) -> OpenVikingMemory:
+def get_openviking_memory(
+    config: Optional[OpenVikingConfig] = None,
+) -> OpenVikingMemory:
     """获取 OpenViking 记忆适配器单例."""
     global _openviking_instance
     if _openviking_instance is None:

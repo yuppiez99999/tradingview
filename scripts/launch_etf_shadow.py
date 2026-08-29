@@ -9,6 +9,7 @@
   python scripts/launch_etf_shadow.py --backtest   # 用回测数据验证影子账户
   python scripts/launch_etf_shadow.py --daily      # 记录今日净值 (EOD 调用)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,7 +57,9 @@ def init_shadow(cfg: dict) -> dict:
         "admission_criteria": cfg.get("admission_criteria", {}),
     }
     state_path = STATE_DIR / "shadow_state.json"
-    state_path.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
+    state_path.write_text(
+        json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     return state
 
 
@@ -86,13 +89,18 @@ def show_status() -> None:
     ac = state.get("admission_criteria", {})
     if ac:
         print("\n准入标准:")
-        print(f"  年化≥{ac.get('min_annual_return', 0)*100:.0f}% / 回撤≤{ac.get('max_drawdown', 0)*100:.0f}% / Sharpe≥{ac.get('min_sharpe', 0):.2f}")
-        print(f"  DSR≥{ac.get('min_dsr', 0):.2f} / CPCV CV<{ac.get('max_cpcv_cv', 0):.2f}")
+        print(
+            f"  年化≥{ac.get('min_annual_return', 0)*100:.0f}% / 回撤≤{ac.get('max_drawdown', 0)*100:.0f}% / Sharpe≥{ac.get('min_sharpe', 0):.2f}"
+        )
+        print(
+            f"  DSR≥{ac.get('min_dsr', 0):.2f} / CPCV CV<{ac.get('max_cpcv_cv', 0):.2f}"
+        )
 
 
 def run_backtest_verify(cfg: dict) -> None:
     """用 S6 回测数据验证影子账户机制"""
     import importlib.util
+
     ref = PROJECT_ROOT / "data" / "etf_option_backtest" / "run_etf_option_backtest.py"
     spec = importlib.util.spec_from_file_location("etf_ref", str(ref))
     mod = importlib.util.module_from_spec(spec)
@@ -108,6 +116,7 @@ def run_backtest_verify(cfg: dict) -> None:
     m = mod.compute_metrics(eq, bench)
 
     from shadow_account_system import create_shadow_account
+
     cap = cfg["capital"]["shadow_initial_capital"]
     sa = create_shadow_account(
         account_id=cfg["account_id"],
@@ -137,8 +146,12 @@ def run_backtest_verify(cfg: dict) -> None:
     print(f"  Sharpe: {m['sharpe']:.3f}")
     print("\n回测基准对比:")
     bl = cfg.get("backtest_baseline", {})
-    print(f"  回测年化: {bl.get('annual_return', 0)*100:.2f}% vs 实测 {m['annual_return']*100:.2f}%")
-    print(f"  回撤: {bl.get('max_drawdown', 0)*100:.2f}% vs 实测 {m['max_drawdown']*100:.2f}%")
+    print(
+        f"  回测年化: {bl.get('annual_return', 0)*100:.2f}% vs 实测 {m['annual_return']*100:.2f}%"
+    )
+    print(
+        f"  回撤: {bl.get('max_drawdown', 0)*100:.2f}% vs 实测 {m['max_drawdown']*100:.2f}%"
+    )
     print(f"  Sharpe: {bl.get('sharpe', 0):.3f} vs 实测 {m['sharpe']:.3f}")
 
 
@@ -163,7 +176,9 @@ def main():
         print(f"初始资金: {state['initial_capital']:,.0f} 元")
         print(f"观察期: {cfg['observation']['observation_days']} 天")
         print(f"状态文件: {STATE_DIR / 'shadow_state.json'}")
-        print("\n下一步: python scripts/launch_etf_shadow.py --backtest  # 用回测数据验证")
+        print(
+            "\n下一步: python scripts/launch_etf_shadow.py --backtest  # 用回测数据验证"
+        )
 
 
 if __name__ == "__main__":

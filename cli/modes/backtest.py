@@ -21,6 +21,7 @@ def run_backtest(args):
     progress.update(1, "加载回测模块...")
     try:
         from fast_backtest import run_fast_backtest
+
         progress.update(2, "执行快速回测...")
         run_fast_backtest()
         progress.update(3, "生成报告...")
@@ -37,14 +38,18 @@ def run_backtest(args):
             if config:
                 portfolio = PortfolioConfig()
                 settings = {
-                    'capital': {'total': 1000000},
-                    'rebalance': {'threshold': 0.06, 'min_interval_days': 5},
-                    'targets': {'annual_return': 0.08, 'max_drawdown': 0.15}
+                    "capital": {"total": 1000000},
+                    "rebalance": {"threshold": 0.06, "min_interval_days": 5},
+                    "targets": {"annual_return": 0.08, "max_drawdown": 0.15},
                 }
                 engine = BacktestEngine(portfolio, settings)
 
                 progress.update(3, "查找历史数据...")
-                excel_files = [f for f in os.listdir(BASE_DIR) if f.startswith('data_extraction') and f.endswith('.xlsx')]
+                excel_files = [
+                    f
+                    for f in os.listdir(BASE_DIR)
+                    if f.startswith("data_extraction") and f.endswith(".xlsx")
+                ]
                 if excel_files:
                     result = engine.run_backtest(os.path.join(BASE_DIR, excel_files[0]))
                     print("\n✅ 回测完成")

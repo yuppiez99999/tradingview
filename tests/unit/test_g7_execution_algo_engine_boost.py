@@ -15,6 +15,7 @@
 运行:
     python -m pytest tests/unit/test_g7_execution_algo_engine_boost.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -61,8 +62,12 @@ class TestAlgoType:
 class TestExecutionSlice:
     def test_defaults(self) -> None:
         s = ExecutionSlice(
-            slice_idx=0, start_time="09:30", end_time="09:35",
-            target_shares=100, accumulated_shares=0, remaining_shares=100,
+            slice_idx=0,
+            start_time="09:30",
+            end_time="09:35",
+            target_shares=100,
+            accumulated_shares=0,
+            remaining_shares=100,
         )
         assert s.participation_rate == 0.0
         assert s.limit_price is None
@@ -89,7 +94,9 @@ class TestEngineInit:
         assert eng.min_slice_shares == 100
 
     def test_custom(self) -> None:
-        eng = ExecutionAlgoEngine(default_slice_minutes=10, max_participation_rate=0.2, min_slice_shares=50)
+        eng = ExecutionAlgoEngine(
+            default_slice_minutes=10, max_participation_rate=0.2, min_slice_shares=50
+        )
         assert eng.default_slice_minutes == 10
         assert eng.max_participation_rate == 0.2
         assert eng.min_slice_shares == 50
@@ -112,12 +119,21 @@ class TestPlanOrder:
         plan = eng.plan_order(AlgoType.TWAP, "600519", "buy", -100)
         assert plan.total_shares == 0
 
-    @pytest.mark.parametrize("algo", [
-        AlgoType.TWAP, AlgoType.VWAP, AlgoType.POV, AlgoType.IS, AlgoType.AC,
-    ])
+    @pytest.mark.parametrize(
+        "algo",
+        [
+            AlgoType.TWAP,
+            AlgoType.VWAP,
+            AlgoType.POV,
+            AlgoType.IS,
+            AlgoType.AC,
+        ],
+    )
     def test_each_algo_produces_slices(self, algo: AlgoType) -> None:
         eng = ExecutionAlgoEngine()
-        plan = eng.plan_order(algo, "600519", "buy", 10000, duration_minutes=60, slice_minutes=5)
+        plan = eng.plan_order(
+            algo, "600519", "buy", 10000, duration_minutes=60, slice_minutes=5
+        )
         assert plan.algo == algo.value
         assert plan.symbol == "600519"
         assert plan.side == "buy"
@@ -130,7 +146,9 @@ class TestPlanOrder:
     def test_dark_iceberg_produces_slices(self) -> None:
         # DARK 暗池: 每片固定 100 股, 受交易时段限制总下单量可能 < total
         eng = ExecutionAlgoEngine()
-        plan = eng.plan_order(AlgoType.DARK, "600519", "buy", 10000, duration_minutes=60, slice_minutes=5)
+        plan = eng.plan_order(
+            AlgoType.DARK, "600519", "buy", 10000, duration_minutes=60, slice_minutes=5
+        )
         assert plan.algo == "DARK"
         assert len(plan.slices) >= 1
         # 每片 (除最后一片) 应为固定 100 股
@@ -140,9 +158,14 @@ class TestPlanOrder:
     def test_current_price_estimates_slippage(self) -> None:
         eng = ExecutionAlgoEngine()
         plan = eng.plan_order(
-            AlgoType.TWAP, "600519", "buy", 10000,
-            duration_minutes=60, slice_minutes=5,
-            current_price=100.0, avg_daily_volume=1_000_000,
+            AlgoType.TWAP,
+            "600519",
+            "buy",
+            10000,
+            duration_minutes=60,
+            slice_minutes=5,
+            current_price=100.0,
+            avg_daily_volume=1_000_000,
         )
         assert plan.expected_slippage_bps > 0
         assert plan.expected_cost > 0
@@ -162,8 +185,12 @@ class TestPlanOrder:
         # 全零 volume_curve → total_weight=0 → 回退 TWAP
         eng = ExecutionAlgoEngine()
         plan = eng.plan_order(
-            AlgoType.VWAP, "600519", "buy", 1000,
-            duration_minutes=30, slice_minutes=5,
+            AlgoType.VWAP,
+            "600519",
+            "buy",
+            1000,
+            duration_minutes=30,
+            slice_minutes=5,
             volume_curve=[0.0] * 240,
         )
         assert len(plan.slices) >= 1
@@ -172,8 +199,12 @@ class TestPlanOrder:
         # risk_aversion=0 → kappa=0 → 退化为 TWAP
         eng = ExecutionAlgoEngine()
         plan = eng.plan_order(
-            AlgoType.AC, "600519", "buy", 1000,
-            duration_minutes=30, slice_minutes=5,
+            AlgoType.AC,
+            "600519",
+            "buy",
+            1000,
+            duration_minutes=30,
+            slice_minutes=5,
             risk_aversion=0.0,
         )
         assert len(plan.slices) >= 1
@@ -349,7 +380,10 @@ class TestInternalPlanners:
     def test_vwap_with_curve(self) -> None:
         eng = ExecutionAlgoEngine()
         from utils.execution_algo_engine import DEFAULT_INTRADAY_VOLUME_CURVE
-        slices = eng._plan_vwap(1000, 60, 5, MORNING_START, DEFAULT_INTRADAY_VOLUME_CURVE)
+
+        slices = eng._plan_vwap(
+            1000, 60, 5, MORNING_START, DEFAULT_INTRADAY_VOLUME_CURVE
+        )
         assert len(slices) >= 1
         assert sum(s.target_shares for s in slices) == 1000
 
@@ -363,7 +397,9 @@ class TestInternalPlanners:
 
     def test_implementation_shortfall_front_loaded(self) -> None:
         eng = ExecutionAlgoEngine()
-        slices = eng._plan_implementation_shortfall(1000, 60, 5, MORNING_START, 100.0, 0.25, 2.0)
+        slices = eng._plan_implementation_shortfall(
+            1000, 60, 5, MORNING_START, 100.0, 0.25, 2.0
+        )
         assert len(slices) >= 1
         # front-loaded: 第一片应 >= 最后一片
         assert slices[0].target_shares >= slices[-1].target_shares
@@ -388,4 +424,6 @@ class TestInternalPlanners:
         slices = eng._plan_twap(1000, 30, 5, time(11, 0))
         # 至少有一片, 且不应有 11:30-13:00 之间的 start_time
         for s in slices:
-            assert not (MORNING_END <= time.fromisoformat(s.start_time) < AFTERNOON_START)
+            assert not (
+                MORNING_END <= time.fromisoformat(s.start_time) < AFTERNOON_START
+            )

@@ -14,6 +14,7 @@ Usage:
     if result.use_mvsk:
         # 启用 MVSK 优化
 """
+
 from __future__ import annotations
 
 import math
@@ -88,12 +89,17 @@ class RegimeDetector:
         T = len(rp)
         if self.min_periods > T:
             return RegimeResult(
-                regime=Regime.LOW_VOL_NORMAL, use_mvsk=False, confidence=0.5,
-                volatility=0.0, vol_quantile_rank=0.5, excess_kurtosis=0.0,
-                skewness=0.0, trigger="normal",
+                regime=Regime.LOW_VOL_NORMAL,
+                use_mvsk=False,
+                confidence=0.5,
+                volatility=0.0,
+                vol_quantile_rank=0.5,
+                excess_kurtosis=0.0,
+                skewness=0.0,
+                trigger="normal",
             )
 
-        recent = rp[-self.window:] if self.window <= T else rp
+        recent = rp[-self.window :] if self.window <= T else rp
         vol, kurt, skew = self._compute_moments(recent)
         vol_rank = self._vol_quantile_rank(rp)
 
@@ -113,16 +119,23 @@ class RegimeDetector:
         conf = self._confidence(vol_rank, kurt, high_vol, fat_tail)
         regime = Regime.HIGH_VOL_FAT_TAIL if use_mvsk else Regime.LOW_VOL_NORMAL
         return RegimeResult(
-            regime=regime, use_mvsk=use_mvsk, confidence=conf,
-            volatility=vol, vol_quantile_rank=vol_rank,
-            excess_kurtosis=kurt, skewness=skew, trigger=trigger,
+            regime=regime,
+            use_mvsk=use_mvsk,
+            confidence=conf,
+            volatility=vol,
+            vol_quantile_rank=vol_rank,
+            excess_kurtosis=kurt,
+            skewness=skew,
+            trigger=trigger,
         )
 
     def detect_series(self, rp: np.ndarray) -> RegimeResult:
         """对组合收益序列 (1D) 检测 regime."""
         return self.detect(rp)
 
-    def detect_timeline(self, returns: np.ndarray, step: int = 20) -> list[RegimeResult]:
+    def detect_timeline(
+        self, returns: np.ndarray, step: int = 20
+    ) -> list[RegimeResult]:
         """生成 regime 时间线 (每 step 日检测一次, 用于回测)."""
         R = np.asarray(returns, dtype=float)
         if R.ndim == 1:
@@ -157,8 +170,8 @@ class RegimeDetector:
 
         rolling_vols = []
         for end in range(self.window, T + 1):
-            w = rp[end - self.window:end]
-            m2 = float(((w - w.mean())**2).mean())
+            w = rp[end - self.window : end]
+            m2 = float(((w - w.mean()) ** 2).mean())
             if m2 > 0:
                 rolling_vols.append(math.sqrt(m2) * math.sqrt(self.ann))
 
@@ -170,10 +183,16 @@ class RegimeDetector:
         return rank
 
     def _confidence(
-        self, vol_rank: float, kurt: float, high_vol: bool, fat_tail: bool,
+        self,
+        vol_rank: float,
+        kurt: float,
+        high_vol: bool,
+        fat_tail: bool,
     ) -> float:
         """置信度: 距阈值越远越高, 模糊区间 0.5."""
         vol_dist = abs(vol_rank - self.vol_quantile)
-        kurt_dist = abs(kurt - self.kurtosis_threshold) / (self.kurtosis_threshold + 1.0)
+        kurt_dist = abs(kurt - self.kurtosis_threshold) / (
+            self.kurtosis_threshold + 1.0
+        )
         base = 0.5 + 0.5 * (vol_dist + kurt_dist) / 2.0
         return min(1.0, max(0.5, base))

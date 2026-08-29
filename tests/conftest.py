@@ -7,6 +7,7 @@ P2 FIX (2026-07-22): 统一 tests/ 和 v8.3_institutional/tests/ 两套测试
   - 共享 fixture (样本数据/价格矩阵/配置)
   - Mock 工具支持
 """
+
 import os
 import sys
 import warnings
@@ -33,6 +34,7 @@ warnings.filterwarnings("ignore")
 # ============================================================
 # 共享 Fixtures
 # ============================================================
+
 
 @pytest.fixture(scope="session")
 def project_root():
@@ -75,10 +77,16 @@ def sample_ohlcv(sample_symbols):
         low = close * (1 - np.abs(np.random.randn(n) * 0.02))
         open_ = close * (1 + np.random.randn(n) * 0.005)
         volume = np.random.randint(1e6, 1e7, n)
-        df = pd.DataFrame({
-            "open": open_, "high": high, "low": low,
-            "close": close, "volume": volume,
-        }, index=pd.date_range("2026-01-01", periods=n, freq="B"))
+        df = pd.DataFrame(
+            {
+                "open": open_,
+                "high": high,
+                "low": low,
+                "close": close,
+                "volume": volume,
+            },
+            index=pd.date_range("2026-01-01", periods=n, freq="B"),
+        )
         data[sym] = df
     return data
 
@@ -118,6 +126,7 @@ def mock_config():
 # Pytest 配置
 # ============================================================
 
+
 def pytest_configure(config):
     """注册自定义标记"""
     # 原有标记
@@ -132,11 +141,18 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "p1: P1 风险缺口级 bug 回归")
     config.addinivalue_line("markers", "bug(id): 关联 bug 编号, 如 @pytest.mark.bug('P0-E')")
     # ECC GAP-7/8/6 新增标记 (2026-07-29)
-    config.addinivalue_line("markers", "reproducibility: 可复现性测试 (ECC GAP-7, 同 config+seed+dataset 重跑一致性)")
-    config.addinivalue_line("markers", "contract: 数据契约测试 (ECC GAP-8, 字段/类型/null/point-in-time 校验)")
+    config.addinivalue_line(
+        "markers",
+        "reproducibility: 可复现性测试 (ECC GAP-7, 同 config+seed+dataset 重跑一致性)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "contract: 数据契约测试 (ECC GAP-8, 字段/类型/null/point-in-time 校验)",
+    )
     config.addinivalue_line("markers", "drift: 漂移监控测试 (ECC GAP-6, sim_mode 激活 + KS/PSI + 延迟标签)")
 
     import logging
+
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
@@ -192,12 +208,30 @@ def sample_pnl_report_full():
                 "total_equity": 1_500_000,
             },
             "details": [
-                {"code": "588080.SH", "name": "科创50ETF", "market_value": 350_000,
-                 "pnl": 20_000, "daily_pnl_pct": 6.0, "cost_amount": 330_000},
-                {"code": "512880.SH", "name": "证券ETF", "market_value": 400_000,
-                 "pnl": 15_000, "daily_pnl_pct": 3.9, "cost_amount": 385_000},
-                {"code": "510050.SH", "name": "上证50ETF", "market_value": 300_000,
-                 "pnl": 15_000, "daily_pnl_pct": 5.3, "cost_amount": 285_000},
+                {
+                    "code": "588080.SH",
+                    "name": "科创50ETF",
+                    "market_value": 350_000,
+                    "pnl": 20_000,
+                    "daily_pnl_pct": 6.0,
+                    "cost_amount": 330_000,
+                },
+                {
+                    "code": "512880.SH",
+                    "name": "证券ETF",
+                    "market_value": 400_000,
+                    "pnl": 15_000,
+                    "daily_pnl_pct": 3.9,
+                    "cost_amount": 385_000,
+                },
+                {
+                    "code": "510050.SH",
+                    "name": "上证50ETF",
+                    "market_value": 300_000,
+                    "pnl": 15_000,
+                    "daily_pnl_pct": 5.3,
+                    "cost_amount": 285_000,
+                },
             ],
         },
     }
@@ -218,8 +252,18 @@ def sample_pnl_report_simplified():
             "total_pnl_pct": 5.0,
         },
         "positions": [
-            {"code": "588080.SH", "pnl": 20_000, "market_value": 350_000, "daily_pnl_pct": 6.0},
-            {"code": "512880.SH", "pnl": 20_000, "market_value": 490_000, "daily_pnl_pct": 4.2},
+            {
+                "code": "588080.SH",
+                "pnl": 20_000,
+                "market_value": 350_000,
+                "daily_pnl_pct": 6.0,
+            },
+            {
+                "code": "512880.SH",
+                "pnl": 20_000,
+                "market_value": 490_000,
+                "daily_pnl_pct": 4.2,
+            },
         ],
     }
 
@@ -232,8 +276,8 @@ def sample_pnl_report_broken_p0d():
             "summary": {
                 "total_cost": 1_000_000,
                 "total_market_value": 1_050_000,
-                "margin_used": None,       # bug 触发条件
-                "total_equity": None,      # bug 触发条件
+                "margin_used": None,  # bug 触发条件
+                "total_equity": None,  # bug 触发条件
                 "positions": {},
             }
         }
@@ -248,18 +292,31 @@ def sample_trade_plan():
         "phase": {"daily_capital": 150_000, "day_capital": 150_000},
         "execution_plan": {
             "morning_orders": [
-                {"symbol": "588080.SH", "direction": "BUY", "shares": 1000, "est_amount": 100_000},
-                {"symbol": "512880.SH", "direction": "SELL", "shares": 500, "est_amount": 50_000},
+                {
+                    "symbol": "588080.SH",
+                    "direction": "BUY",
+                    "shares": 1000,
+                    "est_amount": 100_000,
+                },
+                {
+                    "symbol": "512880.SH",
+                    "direction": "SELL",
+                    "shares": 500,
+                    "est_amount": 50_000,
+                },
             ],
             "afternoon_orders": [
-                {"symbol": "510050.SH", "direction": "BUY", "shares": 2000, "est_amount": 200_000},
+                {
+                    "symbol": "510050.SH",
+                    "direction": "BUY",
+                    "shares": 2000,
+                    "est_amount": 200_000,
+                },
             ],
         },
         "market_state": {},
         "risk_guard": {},
-        "hedge_config": {
-            "layers": {"layer1_futures": {"ratio": 0.15}}
-        },
+        "hedge_config": {"layers": {"layer1_futures": {"ratio": 0.15}}},
     }
 
 
@@ -268,12 +325,10 @@ def broken_hedge_positions_p0e():
     """P0-E bug 重现样本: hedge_positions 含字符串字段 (description/hedge_mode)"""
     return {
         "meta": {"total_capital": 5_000_000, "hedge_capital": 1_000_000},
-        "positions": {
-            "588080.SH": {"shares": 14100, "est_price": 1.95, "sector": "科技"}
-        },
+        "positions": {"588080.SH": {"shares": 14100, "est_price": 1.95, "sector": "科技"}},
         "hedge_positions": {
-            "description": "200万纯期权对冲 — 无期货空头",   # P0-E bug 触发: str
-            "hedge_mode": "OPTIONS_ONLY",                  # P0-E bug 触发: str
+            "description": "200万纯期权对冲 — 无期货空头",  # P0-E bug 触发: str
+            "hedge_mode": "OPTIONS_ONLY",  # P0-E bug 触发: str
             "ETF_put_options": {
                 "instrument": "510050 Put",
                 "exchange": "SSE",
@@ -312,14 +367,16 @@ def mock_astock_realtime(monkeypatch):
 
     返回沪深300ETF -5.2% (触发 L2) 的模拟行情
     """
+
     def _fake_quotes(codes):
         return {
             "510300": {
                 "price": 3.85,
                 "pre_close": 4.06,
-                "change_pct": -5.2,   # 触发 L2
+                "change_pct": -5.2,  # 触发 L2
             }
         }
+
     # 多种可能的导入路径
     try:
         monkeypatch.setattr("utils.astock_realtime.get_realtime_quotes", _fake_quotes)
@@ -330,8 +387,10 @@ def mock_astock_realtime(monkeypatch):
 @pytest.fixture
 def mock_akshare_unavailable(monkeypatch):
     """模拟 akshare 不可用 (触发 fail-closed 路径)"""
+
     def _raise(*args, **kwargs):
         raise ImportError("akshare not installed (mocked)")
+
     try:
         monkeypatch.setattr("akshare.stock_zh_a_spot_em", _raise, raising=False)
         monkeypatch.setattr("akshare.stock_zh_index_spot_em", _raise, raising=False)
@@ -342,8 +401,10 @@ def mock_akshare_unavailable(monkeypatch):
 @pytest.fixture
 def mock_external_data_unavailable(monkeypatch):
     """模拟 ExternalDataManager 不可用 (触发 overnight_gap fail-closed)"""
+
     def _raise(*args, **kwargs):
         raise ConnectionError("ExternalDataSource unavailable (mocked)")
+
     try:
         monkeypatch.setattr(
             "utils.external_data_source.ExternalDataManager",
@@ -371,6 +432,7 @@ def tmp_kill_switch_log(tmp_path, monkeypatch):
 
     try:
         import utils.kill_switch as ks_module
+
         monkeypatch.setattr(ks_module, "KILL_SWITCH_LOG", tmp_log)
     except ImportError:
         pass
@@ -442,3 +504,27 @@ def mock_compute_prediction_drift(monkeypatch, mock_drift_report):
     mock = MagicMock(return_value=mock_drift_report)
     monkeypatch.setattr("utils.alpha.drift_monitor.compute_prediction_drift", mock)
     return mock
+
+
+# ============================================================
+# Fallback: pytest-benchmark optional plugin
+# If pytest-benchmark is not installed in the environment, provide
+# a no-op `benchmark` fixture so performance tests still run.
+# ============================================================
+try:
+    import pytest_benchmark  # noqa: F401
+except Exception:
+
+    @pytest.fixture
+    def benchmark():
+        """No-op fallback for `benchmark(func, *args, **kwargs)`.
+
+        When `pytest-benchmark` is unavailable, this simply calls the
+        provided callable and returns its result so tests don't error
+        due to a missing fixture.
+        """
+
+        def _runner(func, *args, **kwargs):
+            return func(*args, **kwargs)
+
+        return _runner

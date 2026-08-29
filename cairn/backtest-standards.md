@@ -117,3 +117,14 @@ v7.5.0 引入的 Walk-Forward 分析法将全部历史数据分成连续的训�
 - `PurgedKFoldCV` 被自我进化框架的 `AutoRetrainScheduler` 使用，在重训前检测过拟合
 - 影子账户系统是自我进化框架 Phase 0 观察期的核心数据来源——每日 Shadow 样本驱动 DriftMonitor 的漂移检测和 StrategyEvaluator 的评分
 - FeedbackLoop 回测验证依赖本文件定义的回测标准——任何 FeedbackLoop 推荐的重训触发必须通过 Purged K-Fold 验证和样本外确认
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [代码审查经验沉淀：量化系统 8.4 资金安全与回测可信度](code-review-lessons-v8.4.md) (相似度 16%)
+- [实盘准入框架：12-31 上实盘的 7 项硬性门槛与 6 个决策门](live-trading-admission-criteria-20260811.md) (相似度 13%)
+- [MVSK 高阶矩组合优化（YAND 启发）](mvsk-higher-moment-optimization.md) (相似度 12%)
+- [qlib 选股模型回测验证与 V9 对比](qlib-backtest-validation.md) (相似度 12%)
+- [影子观察期真实性核查 (2026-08-24)](shadow-realness-audit-20260824.md) (相似度 10%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

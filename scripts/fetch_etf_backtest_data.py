@@ -81,7 +81,11 @@ def fetch_via_akshare(code_short: str) -> pd.DataFrame | None:
     # 列名映射
     df = df.rename(columns=COL_MAP)
     # 仅保留标准列
-    keep = [c for c in ["date", "open", "high", "low", "close", "volume", "amount"] if c in df.columns]
+    keep = [
+        c
+        for c in ["date", "open", "high", "low", "close", "volume", "amount"]
+        if c in df.columns
+    ]
     df = df[keep].copy()
     # date 转为 datetime
     df["date"] = pd.to_datetime(df["date"])
@@ -114,7 +118,11 @@ def fetch_via_efinance(code_short: str) -> pd.DataFrame | None:
         "成交额": "amount",
     }
     df = df.rename(columns=col_map_ef)
-    keep = [c for c in ["date", "open", "high", "low", "close", "volume", "amount"] if c in df.columns]
+    keep = [
+        c
+        for c in ["date", "open", "high", "low", "close", "volume", "amount"]
+        if c in df.columns
+    ]
     df = df[keep].copy()
     df["date"] = pd.to_datetime(df["date"])
     for c in ["open", "high", "low", "close", "volume", "amount"]:
@@ -124,7 +132,9 @@ def fetch_via_efinance(code_short: str) -> pd.DataFrame | None:
     return df
 
 
-def fetch_one(code_full: str, code_short: str, name: str) -> tuple[pd.DataFrame | None, str, str]:
+def fetch_one(
+    code_full: str, code_short: str, name: str
+) -> tuple[pd.DataFrame | None, str, str]:
     """
     拉取单只 ETF 数据，按优先级降级。
     返回 (df, data_source, error_msg)
@@ -166,7 +176,11 @@ def main() -> int:
     fail_count = 0
 
     for i, (code_full, code_short, name, category) in enumerate(ETF_LIST, 1):
-        print(f"[{i}/{len(ETF_LIST)}] {code_full} {name} ({category}) ...", end=" ", flush=True)
+        print(
+            f"[{i}/{len(ETF_LIST)}] {code_full} {name} ({category}) ...",
+            end=" ",
+            flush=True,
+        )
         t0 = time.time()
 
         df, source, err = fetch_one(code_full, code_short, name)
@@ -230,7 +244,9 @@ def main() -> int:
         all_frames.append(df_out)
 
         flag = "OK" if ok_rows else "WARN(rows<1000)"
-        print(f"{rows} rows [{date_min}~{date_max}] src={source} {flag} [{elapsed:.1f}s]")
+        print(
+            f"{rows} rows [{date_min}~{date_max}] src={source} {flag} [{elapsed:.1f}s]"
+        )
 
         # 礼貌延时，避免被限流
         time.sleep(0.3)
@@ -244,7 +260,9 @@ def main() -> int:
         merged = pd.concat(all_frames, ignore_index=True)
         merged = merged.sort_values(["code", "date"]).reset_index(drop=True)
         merged.to_parquet(merged_path, index=False, engine="pyarrow")
-        print(f"[MERGED] {merged_path}  rows={len(merged)}  codes={merged['code'].nunique()}")
+        print(
+            f"[MERGED] {merged_path}  rows={len(merged)}  codes={merged['code'].nunique()}"
+        )
     else:
         print("[MERGED] 无数据可合并")
 
@@ -274,7 +292,11 @@ def main() -> int:
             print(f"  - {r['code_full']} {r['name']}: {r['error']}")
 
     # 行数不足警告
-    low_rows = [r for r in results if r["status"] == "success" and not r.get("rows_pass_threshold", True)]
+    low_rows = [
+        r
+        for r in results
+        if r["status"] == "success" and not r.get("rows_pass_threshold", True)
+    ]
     if low_rows:
         print("\n[LOW ROWS WARNING]")
         for r in low_rows:

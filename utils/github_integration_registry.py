@@ -25,6 +25,7 @@
     - 优雅降级: 任何适配器导入失败不影响其他
     - 零侵入: 不修改适配器内部, 仅做聚合
 """
+
 from __future__ import annotations
 
 import json
@@ -109,6 +110,7 @@ class GitHubIntegrationRegistry:
         # unsloth
         try:
             from utils.unsloth_adapter import get_unsloth_adapter
+
             self._adapters["unsloth"] = get_unsloth_adapter()
         except (ImportError, RuntimeError) as e:
             logger.warning("unsloth 适配器加载失败: %s", e)
@@ -117,6 +119,7 @@ class GitHubIntegrationRegistry:
         # switchyard
         try:
             from utils.switchyard_adapter import get_switchyard_adapter
+
             self._adapters["switchyard"] = get_switchyard_adapter()
         except (ImportError, RuntimeError) as e:
             logger.warning("switchyard 适配器加载失败: %s", e)
@@ -127,6 +130,7 @@ class GitHubIntegrationRegistry:
             from quant_modules.ai_hedge_fund.openviking_memory import (
                 get_openviking_memory,
             )
+
             self._adapters["openviking"] = get_openviking_memory()
         except (ImportError, RuntimeError) as e:
             logger.warning("openviking 适配器加载失败: %s", e)
@@ -135,6 +139,7 @@ class GitHubIntegrationRegistry:
         # onnxruntime (2026-08-22 新增)
         try:
             from utils.onnxruntime_adapter import get_onnx_adapter
+
             self._adapters["onnxruntime"] = get_onnx_adapter()
         except (ImportError, RuntimeError) as e:
             logger.warning("onnxruntime 适配器加载失败: %s", e)
@@ -143,6 +148,7 @@ class GitHubIntegrationRegistry:
         # superpowers (2026-08-22 新增)
         try:
             from utils.superpowers_adapter import get_superpowers_adapter
+
             self._adapters["superpowers"] = get_superpowers_adapter()
         except (ImportError, RuntimeError) as e:
             logger.warning("superpowers 适配器加载失败: %s", e)
@@ -167,7 +173,9 @@ class GitHubIntegrationRegistry:
         try:
             available = adapter.is_ready()
             extra = adapter.get_status() if hasattr(adapter, "get_status") else {}
-            init_error = extra.pop("init_error", None) if isinstance(extra, dict) else None
+            init_error = (
+                extra.pop("init_error", None) if isinstance(extra, dict) else None
+            )
             return AdapterStatus(
                 name=name,
                 available=available,
@@ -189,7 +197,13 @@ class GitHubIntegrationRegistry:
         """查询全部适配器状态."""
         return {
             name: self.get_adapter_status(name)
-            for name in ("unsloth", "switchyard", "openviking", "onnxruntime", "superpowers")
+            for name in (
+                "unsloth",
+                "switchyard",
+                "openviking",
+                "onnxruntime",
+                "superpowers",
+            )
         }
 
     def selfcheck(self) -> SelfcheckReport:
@@ -221,7 +235,10 @@ class GitHubIntegrationRegistry:
         report = self.selfcheck()
         logger.info(
             "GitHub 集成自检: total=%d, available=%d, unavailable=%d, overall_ok=%s",
-            report.total, report.available, report.unavailable, report.overall_ok,
+            report.total,
+            report.available,
+            report.unavailable,
+            report.overall_ok,
         )
         for adapter in report.adapters:
             status_icon = "✓" if adapter["available"] else "✗"
@@ -268,5 +285,6 @@ def run_startup_selfcheck() -> SelfcheckReport:
 
 if __name__ == "__main__":
     import sys as _sys
+
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     report = run_startup_selfcheck()

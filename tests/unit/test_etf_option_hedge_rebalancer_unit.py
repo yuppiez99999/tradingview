@@ -11,6 +11,7 @@
   - 压力测试 (6场景, 含对冲后净回撤)
   - 回撤熔断触发时再平衡跳过
 """
+
 from __future__ import annotations
 
 import pytest
@@ -39,10 +40,20 @@ def target_weights(rebalancer):
 @pytest.fixture(scope="module")
 def prices():
     return {
-        "510300.SH": 3.85, "510500.SH": 5.62, "510050.SH": 2.95, "512100.SH": 2.65,
-        "588000.SH": 1.32, "159915.SZ": 1.98, "512480.SH": 1.45, "512010.SH": 0.55,
-        "512660.SH": 1.15, "515170.SH": 1.85, "159939.SZ": 0.95, "518880.SH": 5.42,
-        "511260.SH": 1.18, "510310.SH": 2.85,
+        "510300.SH": 3.85,
+        "510500.SH": 5.62,
+        "510050.SH": 2.95,
+        "512100.SH": 2.65,
+        "588000.SH": 1.32,
+        "159915.SZ": 1.98,
+        "512480.SH": 1.45,
+        "512010.SH": 0.55,
+        "512660.SH": 1.15,
+        "515170.SH": 1.85,
+        "159939.SZ": 0.95,
+        "518880.SH": 5.42,
+        "511260.SH": 1.18,
+        "510310.SH": 2.85,
     }
 
 
@@ -52,7 +63,12 @@ def positions(rebalancer, target_weights, prices):
     for code, w in target_weights.items():
         px = prices.get(code, 4.0)
         shares = int(w * rebalancer.portfolio_value / px / 100) * 100
-        pos[code] = {"shares": shares, "name": code, "category": "宽基", "daily_return": 0.001}
+        pos[code] = {
+            "shares": shares,
+            "name": code,
+            "category": "宽基",
+            "daily_return": 0.001,
+        }
     return pos
 
 
@@ -89,7 +105,14 @@ class TestTargetWeights:
 
     @pytest.mark.unit
     def test_broad_based_weights(self, target_weights):
-        broad = ["510300.SH", "510500.SH", "510050.SH", "512100.SH", "588000.SH", "159915.SZ"]
+        broad = [
+            "510300.SH",
+            "510500.SH",
+            "510050.SH",
+            "512100.SH",
+            "588000.SH",
+            "159915.SZ",
+        ]
         total_broad = sum(target_weights[c] for c in broad)
         assert abs(total_broad - 0.59) < 0.01
 
@@ -175,7 +198,9 @@ class TestOptionHedge:
 
 class TestRebalance:
     @pytest.mark.unit
-    def test_no_rebalance_when_aligned(self, rebalancer, positions, target_weights, prices):
+    def test_no_rebalance_when_aligned(
+        self, rebalancer, positions, target_weights, prices
+    ):
         orders = rebalancer.check_rebalance(positions, target_weights, prices)
         assert len(orders) == 0
 
@@ -198,7 +223,9 @@ class TestRebalance:
 class TestDailyRebalance:
     @pytest.mark.unit
     def test_normal_flow(self, rebalancer, positions, prices):
-        plan = rebalancer.run_daily_rebalance(positions, prices, "2026-08-20", current_drawdown=-0.03)
+        plan = rebalancer.run_daily_rebalance(
+            positions, prices, "2026-08-20", current_drawdown=-0.03
+        )
         assert isinstance(plan, DailyPlan)
         assert plan.trade_date == "2026-08-20"
         assert plan.risk_state is not None
@@ -206,14 +233,18 @@ class TestDailyRebalance:
 
     @pytest.mark.unit
     def test_halt_skips_rebalance(self, rebalancer, positions, prices):
-        plan = rebalancer.run_daily_rebalance(positions, prices, "2026-08-20", current_drawdown=-0.16)
+        plan = rebalancer.run_daily_rebalance(
+            positions, prices, "2026-08-20", current_drawdown=-0.16
+        )
         assert len(plan.rebalance_orders) == 0
         assert "HALT" in plan.execution_summary or "熔断" in plan.execution_summary
         assert len(plan.warning_flags) > 0
 
     @pytest.mark.unit
     def test_option_hedge_always_present(self, rebalancer, positions, prices):
-        plan = rebalancer.run_daily_rebalance(positions, prices, "2026-08-20", current_drawdown=0.0)
+        plan = rebalancer.run_daily_rebalance(
+            positions, prices, "2026-08-20", current_drawdown=0.0
+        )
         assert plan.option_hedge.get("enabled") is True
 
 

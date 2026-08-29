@@ -10,6 +10,7 @@
     5. 提前退出触发 (5%/8%/12%/15% 四级回撤)
     6. 计划外日期处理 (pre_plan / post_plan / 未定义年份)
 """
+
 import sys
 from datetime import date
 from pathlib import Path
@@ -42,7 +43,9 @@ def test_annual_phase_switching():
     assert p2026.max_drawdown == 0.08, f"2026 最大回撤错误: {p2026.max_drawdown}"
     assert p2026.leverage_target == 1.28, f"2026 杠杆目标错误: {p2026.leverage_target}"
     assert p2026.is_liquidation_year is False, "2026 不应为清仓年"
-    print(f"  ✅ 2026 建仓期 (目标 {p2026.target_return:.0%}, 回撤 {p2026.max_drawdown:.0%}, 杠杆 {p2026.leverage_target}x)")
+    print(
+        f"  ✅ 2026 建仓期 (目标 {p2026.target_return:.0%}, 回撤 {p2026.max_drawdown:.0%}, 杠杆 {p2026.leverage_target}x)"
+    )
 
     # 2027 主线兑现期
     p2027 = pm.get_current_phase(date(2027, 6, 15))
@@ -50,7 +53,9 @@ def test_annual_phase_switching():
     assert p2027.phase_name == "主线兑现期", f"主线兑现期名称失败: {p2027.phase_name}"
     assert p2027.target_return == 0.12, f"2027 目标收益错误: {p2027.target_return}"
     assert p2027.max_drawdown == 0.10, f"2027 最大回撤错误: {p2027.max_drawdown}"
-    print(f"  ✅ 2027 主线兑现期 (目标 {p2027.target_return:.0%}, 回撤 {p2027.max_drawdown:.0%})")
+    print(
+        f"  ✅ 2027 主线兑现期 (目标 {p2027.target_return:.0%}, 回撤 {p2027.max_drawdown:.0%})"
+    )
 
     # 2028 分化期
     p2028 = pm.get_current_phase(date(2028, 9, 20))
@@ -58,7 +63,9 @@ def test_annual_phase_switching():
     assert p2028.phase_name == "分化期", f"分化期名称失败: {p2028.phase_name}"
     assert p2028.target_return == 0.10, f"2028 目标收益错误: {p2028.target_return}"
     assert p2028.leverage_target == 1.20, f"2028 杠杆目标错误: {p2028.leverage_target}"
-    print(f"  ✅ 2028 分化期 (目标 {p2028.target_return:.0%}, 杠杆 {p2028.leverage_target}x)")
+    print(
+        f"  ✅ 2028 分化期 (目标 {p2028.target_return:.0%}, 杠杆 {p2028.leverage_target}x)"
+    )
 
     # 2029 去杠杆期
     p2029 = pm.get_current_phase(date(2029, 11, 10))
@@ -66,7 +73,9 @@ def test_annual_phase_switching():
     assert p2029.phase_name == "去杠杆期", f"去杠杆期名称失败: {p2029.phase_name}"
     assert p2029.target_return == 0.08, f"2029 目标收益错误: {p2029.target_return}"
     assert p2029.leverage_target == 0.96, f"2029 杠杆目标错误: {p2029.leverage_target}"
-    print(f"  ✅ 2029 去杠杆期 (目标 {p2029.target_return:.0%}, 杠杆 {p2029.leverage_target}x)")
+    print(
+        f"  ✅ 2029 去杠杆期 (目标 {p2029.target_return:.0%}, 杠杆 {p2029.leverage_target}x)"
+    )
 
     # 2030 退出期
     p2030 = pm.get_current_phase(date(2030, 5, 15))
@@ -76,7 +85,9 @@ def test_annual_phase_switching():
     assert p2030.target_return == 0.05, f"2030 目标收益错误: {p2030.target_return}"
     assert p2030.max_drawdown == 0.03, f"2030 最大回撤错误: {p2030.max_drawdown}"
     assert p2030.leverage_target == 0.40, f"2030 杠杆目标错误: {p2030.leverage_target}"
-    print(f"  ✅ 2030 退出期 (目标 {p2030.target_return:.0%}, 回撤 {p2030.max_drawdown:.0%}, 清仓年=True)")
+    print(
+        f"  ✅ 2030 退出期 (目标 {p2030.target_return:.0%}, 回撤 {p2030.max_drawdown:.0%}, 清仓年=True)"
+    )
 
     print("\n  结果: 5 年度阶段切换全部通过 ✅")
 
@@ -166,7 +177,9 @@ def test_quarterly_review():
     assert result.is_quarter_end is True, "应识别为季度末"
     assert result.stress_test_triggered is True, "应触发压力测试"
     assert len(result.actions) > 0, "动作列表不应为空"
-    print(f"  ✅ 季度末 (2026-09-29): Q3, 压测触发={result.stress_test_triggered}, 动作数={len(result.actions)}")
+    print(
+        f"  ✅ 季度末 (2026-09-29): Q3, 压测触发={result.stress_test_triggered}, 动作数={len(result.actions)}"
+    )
 
     # 非季度末
     non_quarter_end = date(2026, 7, 14)
@@ -210,14 +223,18 @@ def test_liquidation_actions():
     q1 = pm.get_liquidation_actions(date(2030, 2, 15))
     assert q1 is not None, "Q1 不应为 None"
     assert q1["name"] == "保留核心+方向性清零", f"Q1 名称错误: {q1['name']}"
-    assert q1["stock_target_pct"] == 0.50, f"Q1 股票保留 50% 错误: {q1['stock_target_pct']}"
+    assert (
+        q1["stock_target_pct"] == 0.50
+    ), f"Q1 股票保留 50% 错误: {q1['stock_target_pct']}"
     assert q1["futures_directional"] == "clear", "Q1 方向性应清零"
     print(f"  ✅ Q1: {q1['name']} (保留股票 {q1['stock_target_pct']:.0%})")
 
     q2 = pm.get_liquidation_actions(date(2030, 5, 15))
     assert q2 is not None, "Q2 不应为 None"
     assert q2["name"] == "分4周系统性清仓", f"Q2 名称错误: {q2['name']}"
-    assert q2["weekly_sell_pct"] == 0.25, f"Q2 每周卖出 25% 错误: {q2['weekly_sell_pct']}"
+    assert (
+        q2["weekly_sell_pct"] == 0.25
+    ), f"Q2 每周卖出 25% 错误: {q2['weekly_sell_pct']}"
     assert q2["stock_target_pct"] == 0.0, "Q2 股票目标应为 0"
     print(f"  ✅ Q2: {q2['name']} (每周卖出 {q2['weekly_sell_pct']:.0%})")
 
@@ -226,7 +243,9 @@ def test_liquidation_actions():
     assert q3["name"] == "全部清零+转入安全资产", f"Q3 名称错误: {q3['name']}"
     assert q3["cash_allocation"]["reverse_repo"] == 0.50, "Q3 逆回购 50% 错误"
     assert q3["cash_allocation"]["money_market_fund"] == 0.30, "Q3 货基 30% 错误"
-    print(f"  ✅ Q3: {q3['name']} (逆回购 {q3['cash_allocation']['reverse_repo']:.0%}+货基 {q3['cash_allocation']['money_market_fund']:.0%})")
+    print(
+        f"  ✅ Q3: {q3['name']} (逆回购 {q3['cash_allocation']['reverse_repo']:.0%}+货基 {q3['cash_allocation']['money_market_fund']:.0%})"
+    )
 
     q4 = pm.get_liquidation_actions(date(2030, 11, 15))
     assert q4 is not None, "Q4 不应为 None"
@@ -239,7 +258,9 @@ def test_liquidation_actions():
     assert len(order) == 6, f"清仓顺序应为 6 步, 实际 {len(order)}"
     assert order[0] == "1_illiquid_small_cap", "第1步应为小盘股"
     assert order[-1] == "6_futures_hedge_close", "最后一步应为对冲平仓"
-    print("  ✅ 清仓顺序: 6 步 (小盘股 → 量化中性 → 方向性期货 → 大盘股 → 期权 → 对冲平仓)")
+    print(
+        "  ✅ 清仓顺序: 6 步 (小盘股 → 量化中性 → 方向性期货 → 大盘股 → 期权 → 对冲平仓)"
+    )
 
     print("\n  结果: 2030 清仓 Q1-Q4 分步动作全部通过 ✅")
 
@@ -284,7 +305,9 @@ def test_early_exit_trigger():
     assert result["trigger"] == "drawdown_15pct", f"15% 触发器错误: {result['trigger']}"
     assert result["action"] == "defensive_mode", f"15% 动作错误: {result['action']}"
     assert result["target_allocation"]["cash"] == 0.60, "15% 现金目标错误"
-    print(f"  ✅ 回撤 15%: trigger={result['trigger']}, action={result['action']}, cash=60%")
+    print(
+        f"  ✅ 回撤 15%: trigger={result['trigger']}, action={result['action']}, cash=60%"
+    )
 
     # 超过 15% (如 18%)
     result = pm.check_early_exit_trigger(0.18)
@@ -333,11 +356,20 @@ def test_config_completeness():
     # 5 年度阶段全部定义
     expected_years = {"2026", "2027", "2028", "2029", "2030"}
     actual_years = set(ANNUAL_PHASES.keys())
-    assert actual_years == expected_years, f"年度阶段缺失: 期望 {expected_years}, 实际 {actual_years}"
+    assert (
+        actual_years == expected_years
+    ), f"年度阶段缺失: 期望 {expected_years}, 实际 {actual_years}"
     print(f"  ✅ 5 年度阶段全部定义: {sorted(actual_years)}")
 
     # 每个年度必填字段
-    required_fields = ["name", "target_return", "max_drawdown", "leverage_target", "actions", "risk_focus"]
+    required_fields = [
+        "name",
+        "target_return",
+        "max_drawdown",
+        "leverage_target",
+        "actions",
+        "risk_focus",
+    ]
     for year, cfg in ANNUAL_PHASES.items():
         for field_name in required_fields:
             assert field_name in cfg, f"{year} 缺少字段: {field_name}"
@@ -345,7 +377,9 @@ def test_config_completeness():
 
     # 2030 必须包含清仓顺序
     assert "liquidation_order" in ANNUAL_PHASES["2030"], "2030 应包含 liquidation_order"
-    assert len(ANNUAL_PHASES["2030"]["liquidation_order"]) == 6, "2030 清仓顺序应为 6 步"
+    assert (
+        len(ANNUAL_PHASES["2030"]["liquidation_order"]) == 6
+    ), "2030 清仓顺序应为 6 步"
     print("  ✅ 2030 清仓顺序: 6 步")
 
     # Q1-Q4 清仓动作全部定义
@@ -355,13 +389,19 @@ def test_config_completeness():
     print(f"  ✅ Q1-Q4 清仓动作全部定义: {sorted(actual_qs)}")
 
     # 目标收益递减验证 (2027 最高 → 2030 最低)
-    returns = [ANNUAL_PHASES[y]["target_return"] for y in ["2026", "2027", "2028", "2029", "2030"]]
+    returns = [
+        ANNUAL_PHASES[y]["target_return"]
+        for y in ["2026", "2027", "2028", "2029", "2030"]
+    ]
     assert returns[1] == max(returns), "2027 应为最高目标收益"
     assert returns[4] == min(returns), "2030 应为最低目标收益"
     print(f"  ✅ 目标收益趋势: 2027 最高 {returns[1]:.0%} → 2030 最低 {returns[4]:.0%}")
 
     # 杠杆目标递减验证
-    leverages = [ANNUAL_PHASES[y]["leverage_target"] for y in ["2026", "2027", "2028", "2029", "2030"]]
+    leverages = [
+        ANNUAL_PHASES[y]["leverage_target"]
+        for y in ["2026", "2027", "2028", "2029", "2030"]
+    ]
     assert leverages[0] == leverages[1] == 1.28, "2026/2027 杠杆应一致 (1.28x)"
     assert leverages[4] == 0.40, "2030 杠杆应为 0.40x"
     print(f"  ✅ 杠杆目标趋势: 2026/2027={leverages[0]}x → 2030={leverages[4]}x")

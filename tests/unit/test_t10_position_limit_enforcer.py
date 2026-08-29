@@ -1,4 +1,5 @@
 """T10 单元测试 — PositionLimitEnforcer 持仓集中度."""
+
 from __future__ import annotations
 
 import pytest
@@ -80,8 +81,12 @@ class TestSectorCap:
 
     def test_no_sectors_skips(self):
         enf = PositionLimitEnforcer(sector_cap_pct=0.01)  # 1% 超严阈值
-        snap = PositionSnapshot(total_equity=10_000_000, positions={"s1": (100_000, 100.0)})  # 1000 万单票, 但没 sectors
-        impact = OrderImpact("s1", "buy", 100, 100.0)  # 即使全仓也因无 sector 跳过该检查
+        snap = PositionSnapshot(
+            total_equity=10_000_000, positions={"s1": (100_000, 100.0)}
+        )  # 1000 万单票, 但没 sectors
+        impact = OrderImpact(
+            "s1", "buy", 100, 100.0
+        )  # 即使全仓也因无 sector 跳过该检查
         r = enf.check_after_trade(snap, impact)
         # 仅 SINGLE_NAME 拦截
         assert r.rejected
@@ -114,8 +119,8 @@ class TestGrossLeverageCap:
         PositionSnapshot(
             total_equity=10_000_000,
             positions={
-                "long": (10_000, 100.0),   # 多头 100 万
-                "short": (-5_000, 200.0),   # 空头 100 万 (市值 -100 万, 绝对值 100 万)
+                "long": (10_000, 100.0),  # 多头 100 万
+                "short": (-5_000, 200.0),  # 空头 100 万 (市值 -100 万, 绝对值 100 万)
             },
         )
         # 再加 14 万手多 → 1500 万多头 + 100 万空头 = 1600 万 gross? 用个更明显的
@@ -123,7 +128,9 @@ class TestGrossLeverageCap:
             total_equity=10_000_000,
             positions={"big_long": (150_000, 100.0)},
         )
-        impact = OrderImpact("big_long", "buy", 60_000, 100.0)  # +600 万 = 2100 万 > 2000 万
+        impact = OrderImpact(
+            "big_long", "buy", 60_000, 100.0
+        )  # +600 万 = 2100 万 > 2000 万
         r = enf.check_after_trade(snap2, impact)
         assert r.rejected
         assert any("GROSS_LEVERAGE" in s for s in r.reasons)

@@ -337,3 +337,14 @@ AST 扫描器只能解决"找"的问题,不能解决"判"的问题:
 
 - [cairn/exception-handling-standards.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/cairn/exception-handling-standards.md) — 异常处理规约(本文档的姊妹篇,同为代码质量加固规范)
 - [cairn/LOG.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/cairn/LOG.md) — 2026-08-03 表驱动化重构 + Phase 1 提取条目
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [异常处理规约 (Exception Handling Standards)](exception-handling-standards.md) (相似度 28%)
+- [daily_workflow.py 拆分计划（门禁 ≤3000 行 · 长期架构重构）](daily-workflow-split-plan.md) (相似度 18%)
+- [W6.3.3 预研 · QS-Trader 风格 secid 合约解析难点清单](w633_secid_contract_parsing_challenges.md) (相似度 17%)
+- [因子发现 Loop Engineering 升级方案](factor-discovery-loop-engineering.md) (相似度 9%)
+- [daily_workflow.py 拆分复盘报告 (5 轮 · 2026-08-12)](daily-workflow-split-retrospective.md) (相似度 8%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

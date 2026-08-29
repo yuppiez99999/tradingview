@@ -3,6 +3,7 @@
 覆盖 AlgoEngine 时段判断/TWAP/VWAP/POV/ICEBERG 拆单/批量执行/日末重置全部公开接口,
 包括配置加载失败、非交易时段、VWAP 无 profile 回退、未知算法等异常分支.
 """
+
 from __future__ import annotations
 
 import sys
@@ -232,8 +233,9 @@ class TestSplit:
 
     def test_iceberg(self):
         engine = AlgoEngine()
-        slices = engine.split(500, "BUY", AlgoType.ICEBERG,
-                              depth={"bid1_vol": 100, "ask1_vol": 200})
+        slices = engine.split(
+            500, "BUY", AlgoType.ICEBERG, depth={"bid1_vol": 100, "ask1_vol": 200}
+        )
         assert sum(s.quantity for s in slices) == 500
 
     def test_twap(self):
@@ -243,8 +245,9 @@ class TestSplit:
 
     def test_vwap_with_profile(self):
         engine = AlgoEngine()
-        slices = engine.split(900, "BUY", AlgoType.VWAP,
-                              volume_profile=[100, 200, 300, 200, 100])
+        slices = engine.split(
+            900, "BUY", AlgoType.VWAP, volume_profile=[100, 200, 300, 200, 100]
+        )
         assert sum(s.quantity for s in slices) == 900
 
     def test_vwap_no_profile_fallback_twap(self):
@@ -333,8 +336,20 @@ class TestExecuteBatch:
         sor.execute_twap.return_value = [{"f": 1}]
         engine = AlgoEngine(sor=sor)
         orders = [
-            {"symbol": "X", "qty": 1000, "side": "BUY", "decision_price": 4.5, "algo": "TWAP"},
-            {"symbol": "Y", "qty": 500, "side": "SELL", "decision_price": 6.0, "algo": "TWAP"},
+            {
+                "symbol": "X",
+                "qty": 1000,
+                "side": "BUY",
+                "decision_price": 4.5,
+                "algo": "TWAP",
+            },
+            {
+                "symbol": "Y",
+                "qty": 500,
+                "side": "SELL",
+                "decision_price": 6.0,
+                "algo": "TWAP",
+            },
         ]
         fills = engine.execute_batch(orders)
         assert len(fills) == 2

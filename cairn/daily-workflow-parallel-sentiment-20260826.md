@@ -120,3 +120,14 @@ taskschd.msc
 - [ ] 情感信号注入需端到端验证：生成舆情日报 → 运行LLM决策 → 检查`llm_overrides`是否包含情感驱动的调整
 - [ ] 盘中LLM决策引擎需在交易时段实测（当前仅语法验证）
 - [ ] 考虑将`max_workers`参数暴露到配置文件（当前硬编码=4）
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [细粒度任务分解工作流 (Fine-Grained Task Decomposition)](fine-grained-workflow.md) (相似度 14%)
+- [EOD 计划任务静默失败 + 观察期样本补录（2026-08-19）](eod-scheduled-task-fix-20260819.md) (相似度 14%)
+- [情绪因子演化：v4.0 → v4.3](sentiment-factor-evolution.md) (相似度 9%)
+- [08-21 EOD 不失败保障方案（2026-08-20）](eod-fallback-guarantee-20260820.md) (相似度 7%)
+- [LLM 输出质量控制标准 v2.0](llm-output-quality-standards.md) (相似度 6%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

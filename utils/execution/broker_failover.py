@@ -149,6 +149,7 @@ class BrokerHealthTracker:
         if not self._results:
             return 0.0
         return sum(self._results) / len(self._results)  # type: ignore
+
     @property
     def is_healthy(self) -> bool:
         """是否健康 (可下单)."""
@@ -213,20 +214,32 @@ class BrokerFailoverManager:
                 }
         """
         self.config = config
-        self._brokers: dict[str, dict[str, Any]] = {}  # name -> {adapter, tracker, priority, type, config}
+        self._brokers: dict[str, dict[str, Any]] = (
+            {}
+        )  # name -> {adapter, tracker, priority, type, config}
         self._active_broker_name: str | None = None
         self._failover_count: int = 0
-        self._max_failover_count: int = config.get("failover", {}).get("max_failover_count", 3)
-        self._auto_failover: bool = config.get("failover", {}).get("auto_failover", True)
-        self._recovery_check_interval: float = config.get("failover", {}).get("recovery_check_interval_sec", 60.0)
+        self._max_failover_count: int = config.get("failover", {}).get(
+            "max_failover_count", 3
+        )
+        self._auto_failover: bool = config.get("failover", {}).get(
+            "auto_failover", True
+        )
+        self._recovery_check_interval: float = config.get("failover", {}).get(
+            "recovery_check_interval_sec", 60.0
+        )
         self._stopped: bool = True
         self._lock = threading.RLock()
         self._health_check_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         # 审计日志
-        self._audit_log_dir = Path(config.get("audit_log_dir", "reports/broker_failover"))
+        self._audit_log_dir = Path(
+            config.get("audit_log_dir", "reports/broker_failover")
+        )
         if not self._audit_log_dir.is_absolute():
-            self._audit_log_dir = Path(__file__).resolve().parent.parent.parent / self._audit_log_dir
+            self._audit_log_dir = (
+                Path(__file__).resolve().parent.parent.parent / self._audit_log_dir
+            )
         self._audit_log_dir.mkdir(parents=True, exist_ok=True)
         # 初始化 brokers
         self._init_brokers()
@@ -252,7 +265,9 @@ class BrokerFailoverManager:
             try:
                 adapter = create_broker_adapter(broker_type, bcfg)
             except ValueError as e:
-                raise BrokerConfigError(f"broker {name} (type={broker_type}) 创建失败: {e}") from e
+                raise BrokerConfigError(
+                    f"broker {name} (type={broker_type}) 创建失败: {e}"
+                ) from e
             tracker = BrokerHealthTracker(
                 broker_name=name,
                 window_size=health_config.get("window_size", 20),
@@ -294,14 +309,23 @@ class BrokerFailoverManager:
                             "priority": info["priority"],
                         },
                     )
-                    logger.info("初始活跃 broker: %s (priority=%d)", name, info["priority"])
+                    logger.info(
+                        "初始活跃 broker: %s (priority=%d)", name, info["priority"]
+                    )
                     return
-                else:
-                    info["tracker"].record_failure()
-                    logger.warning("broker %s 连接失败, 尝试下一个", name)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-        OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
-            # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
+                info["tracker"].record_failure()
+                logger.warning("broker %s 连接失败, 尝试下一个", name)
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
                 info["tracker"].record_failure()
                 logger.exception("broker %s 连接异常: %s", name, e)
         raise NoHealthyBrokerError("所有 broker 都无法连接")
@@ -320,7 +344,9 @@ class BrokerFailoverManager:
                 raise NoHealthyBrokerError("无活跃 broker")
             info = self._brokers.get(self._active_broker_name)
             if info is None:
-                raise NoHealthyBrokerError(f"活跃 broker {self._active_broker_name} 未注册")
+                raise NoHealthyBrokerError(
+                    f"活跃 broker {self._active_broker_name} 未注册"
+                )
             return info["adapter"]
 
     def get_active_broker_name(self) -> str | None:
@@ -346,7 +372,11 @@ class BrokerFailoverManager:
             else:
                 tracker.record_failure()
                 # 检查是否需要故障切换
-                if self._auto_failover and broker_name == self._active_broker_name and not tracker.is_healthy:
+                if (
+                    self._auto_failover
+                    and broker_name == self._active_broker_name
+                    and not tracker.is_healthy
+                ):
                     logger.warning(
                         "broker %s 状态=%s, 触发故障切换",
                         broker_name,
@@ -380,7 +410,9 @@ class BrokerFailoverManager:
                 return False
             current_name = self._active_broker_name
             # 按 priority 排序, 跳过当前 broker
-            sorted_brokers = sorted(self._brokers.items(), key=lambda x: x[1]["priority"])
+            sorted_brokers = sorted(
+                self._brokers.items(), key=lambda x: x[1]["priority"]
+            )
             candidates = []
             for name, info in sorted_brokers:
                 if name == current_name:
@@ -398,8 +430,16 @@ class BrokerFailoverManager:
                     if not ok:
                         tracker.record_failure()
                         continue
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                    OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 tracker.record_failure()
                 logger.exception("连接到 %s 失败: %s", name, e)
                 continue
@@ -408,8 +448,10 @@ class BrokerFailoverManager:
             with self._lock:
                 # 二次确认: 活跃 broker 可能已被其他线程切换
                 if self._active_broker_name != current_name:
-                    logger.info("failover 中止: 活跃 broker 已被切换为 %s",
-                                self._active_broker_name)
+                    logger.info(
+                        "failover 中止: 活跃 broker 已被切换为 %s",
+                        self._active_broker_name,
+                    )
                     return True
                 self._active_broker_name = name
                 self._failover_count += 1
@@ -443,7 +485,9 @@ class BrokerFailoverManager:
         logger.error("故障切换失败: 无可用备用 broker")
         return False
 
-    def force_failover(self, target_broker: str | None = None, reason: str = "manual") -> bool:
+    def force_failover(
+        self, target_broker: str | None = None, reason: str = "manual"
+    ) -> bool:
         """强制故障切换 (人工触发).
 
         Args:
@@ -482,9 +526,17 @@ class BrokerFailoverManager:
                         reason,
                     )
                     return True
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-        OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
-            # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                    RuntimeError,
+                    OSError,
+                    TimeoutError,
+                    ConnectionError,
+                ) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                    # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
                     logger.exception("强制切换失败: %s", e)
                     return False
             else:
@@ -522,9 +574,17 @@ class BrokerFailoverManager:
         while not self._stop_event.is_set():
             try:
                 self._check_all_brokers()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-        OSError, TimeoutError, ConnectionError) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
-            # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:  # noqa: BLE001  # execution fail-safe, 交易路径不崩溃
+                # 交易路径 fail-safe 边界: 数据/类型/字段/属性/运行时/IO/超时/网络异常
                 logger.exception("健康检查异常: %s", e)
             # 等待下次检查 (支持提前唤醒)
             self._stop_event.wait(timeout=self._recovery_check_interval)
@@ -559,8 +619,16 @@ class BrokerFailoverManager:
                                     name,
                                 )
                                 self._failover_count = 0
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError,
-                    OSError, TimeoutError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
                 logger.warning("broker %s 恢复失败: %s", name, e)
 
     def reset_failover_count(self) -> int:
@@ -613,7 +681,10 @@ class BrokerFailoverManager:
             "event": event,
             **data,
         }
-        audit_file = self._audit_log_dir / f"failover_{datetime.now(UTC).strftime('%Y-%m-%d')}.jsonl"
+        audit_file = (
+            self._audit_log_dir
+            / f"failover_{datetime.now(UTC).strftime('%Y-%m-%d')}.jsonl"
+        )
         try:
             with open(audit_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
@@ -654,7 +725,9 @@ def get_failover_manager() -> BrokerFailoverManager:
     """
     global _default_manager
     if _default_manager is None:
-        raise RuntimeError("故障切换管理器未初始化, 请先调用 initialize_failover_manager()")
+        raise RuntimeError(
+            "故障切换管理器未初始化, 请先调用 initialize_failover_manager()"
+        )
     return _default_manager
 
 

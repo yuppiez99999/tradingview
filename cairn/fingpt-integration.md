@@ -71,3 +71,14 @@ response = quick_chat_with_fallback("分析茅台", task="intraday")
 - **LIT-2.6**: 对抗新闻攻击防护
 - **实际集成**: 接入 AI4Finance-Foundation/FinGPT 开源模型
 - **RLSP 训练**: 接入真实股价数据训练
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [KTD-Fin 记忆控制评估基准](ktd-fin-eval.md) (相似度 22%)
+- [对抗新闻攻击防护 (Adversarial News Attack Guard)](adversarial-news-guard.md) (相似度 16%)
+- [CN-Buzz2Portfolio 中国市场基准](cn-buzz2portfolio.md) (相似度 14%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 14%)
+- [TradingGroup 自反思机制 (Self-Reflection + Data-Synthesis + Dynamic Stops)](trading-group-reflection.md) (相似度 10%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

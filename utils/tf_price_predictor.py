@@ -61,7 +61,9 @@ class PredictionResult:
     expected_return: float = 0.0  # 预期收益率
     signal_strength: float = 0.0  # 信号强度 [-1, 1]
     method: str = "unknown"  # timesfm/tensorflow/arima/fallback
-    quantiles: dict[str, list[float]] = field(default_factory=dict)  # 分位数预测 (每个 key → horizon 长度的 list)
+    quantiles: dict[str, list[float]] = field(
+        default_factory=dict
+    )  # 分位数预测 (每个 key → horizon 长度的 list)
     forecast_timestamp: str = ""
 
     def to_dict(self) -> dict:
@@ -137,7 +139,9 @@ class TimesFMForecaster:
     def available(self) -> bool:
         return self._available
 
-    def forecast(self, prices: np.ndarray, horizon: int = 5) -> Optional[tuple[np.ndarray, np.ndarray]]:
+    def forecast(
+        self, prices: np.ndarray, horizon: int = 5
+    ) -> Optional[tuple[np.ndarray, np.ndarray]]:
         """预测未来 horizon 步
 
         Args:
@@ -214,7 +218,9 @@ class TensorflowLSTMPredictor:
             logger.info(f"TensorFlow {tf.__version__} 初始化成功 (GPU: {len(gpus)})")
         except ImportError:
             if not self.__class__._tf_warned:
-                logger.warning("tensorflow 未安装, 跳过 LSTM 预测. 安装: pip install tensorflow")
+                logger.warning(
+                    "tensorflow 未安装, 跳过 LSTM 预测. 安装: pip install tensorflow"
+                )
                 self.__class__._tf_warned = True
         except AttributeError as e:
             if not self.__class__._tf_warned:
@@ -247,7 +253,9 @@ class TensorflowLSTMPredictor:
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
         return model
 
-    def _prepare_data(self, prices: np.ndarray, horizon: int) -> tuple[np.ndarray, np.ndarray]:
+    def _prepare_data(
+        self, prices: np.ndarray, horizon: int
+    ) -> tuple[np.ndarray, np.ndarray]:
         """准备训练数据: 滑动窗口"""
         # 归一化
         mean = prices.mean()
@@ -259,12 +267,20 @@ class TensorflowLSTMPredictor:
         X, y = [], []
         for i in range(len(normalized) - self.sequence_length - horizon + 1):
             X.append(normalized[i : i + self.sequence_length])
-            y.append(normalized[i + self.sequence_length : i + self.sequence_length + horizon])
+            y.append(
+                normalized[
+                    i + self.sequence_length : i + self.sequence_length + horizon
+                ]
+            )
 
         return np.array(X), np.array(y)
 
     def train_and_predict(
-        self, prices: np.ndarray, horizon: int = 5, epochs: int = 50, batch_size: int = 32
+        self,
+        prices: np.ndarray,
+        horizon: int = 5,
+        epochs: int = 50,
+        batch_size: int = 32,
     ) -> Optional[np.ndarray]:
         """训练并预测
 
@@ -342,7 +358,9 @@ class StatisticalForecaster:
     def available(self) -> bool:
         return True  # 始终可用
 
-    def forecast(self, prices: np.ndarray, horizon: int = 5) -> tuple[np.ndarray, dict[str, list[float]]]:
+    def forecast(
+        self, prices: np.ndarray, horizon: int = 5
+    ) -> tuple[np.ndarray, dict[str, list[float]]]:
         """统计模型预测
 
         Returns:
@@ -352,7 +370,9 @@ class StatisticalForecaster:
             return self._arima_forecast(prices, horizon)
         return self._ma_momentum_forecast(prices, horizon)
 
-    def _arima_forecast(self, prices: np.ndarray, horizon: int) -> tuple[np.ndarray, dict[str, list[float]]]:
+    def _arima_forecast(
+        self, prices: np.ndarray, horizon: int
+    ) -> tuple[np.ndarray, dict[str, list[float]]]:
         """ARIMA 预测"""
         try:
             from statsmodels.tsa.arima.model import ARIMA
@@ -379,7 +399,9 @@ class StatisticalForecaster:
             logger.warning(f"ARIMA 预测失败, 回退到移动平均: {e}")
             return self._ma_momentum_forecast(prices, horizon)
 
-    def _ma_momentum_forecast(self, prices: np.ndarray, horizon: int) -> tuple[np.ndarray, dict[str, list[float]]]:
+    def _ma_momentum_forecast(
+        self, prices: np.ndarray, horizon: int
+    ) -> tuple[np.ndarray, dict[str, list[float]]]:
         """移动平均 + 动量外推 (最终兜底)"""
         # 5日均线
         ma5 = np.mean(prices[-5:]) if len(prices) >= 5 else np.mean(prices)
@@ -440,7 +462,11 @@ class PricePredictor:
         )
 
     def predict(
-        self, symbol: str, prices: np.ndarray, horizon: int = 5, current_price: Optional[float] = None
+        self,
+        symbol: str,
+        prices: np.ndarray,
+        horizon: int = 5,
+        current_price: Optional[float] = None,
     ) -> PredictionResult:
         """预测价格
 
@@ -456,7 +482,9 @@ class PricePredictor:
         prices = np.asarray(prices, dtype=np.float64)
         if len(prices) < 10:
             logger.warning(f"{symbol} 历史数据不足 ({len(prices)} < 10), 返回中性预测")
-            return self._fallback_result(symbol, horizon, current_price or prices[-1] if len(prices) else 0)
+            return self._fallback_result(
+                symbol, horizon, current_price or prices[-1] if len(prices) else 0
+            )
 
         current = float(current_price or prices[-1])
         forecast: Optional[np.ndarray] = None
@@ -491,12 +519,22 @@ class PricePredictor:
         # 优先级 3: 统计模型 (兜底)
         if forecast is None:
             forecast, quantiles = self.statistical.forecast(prices, horizon)
-            method = "arima" if self.statistical._statsmodels_available else "ma_momentum"
+            method = (
+                "arima" if self.statistical._statsmodels_available else "ma_momentum"
+            )
 
         # 构建结果
         target_price = float(forecast[-1]) if len(forecast) > 0 else current
-        price_low = float(quantiles.get("q10", [current * 0.95])[-1]) if quantiles else current * 0.95
-        price_high = float(quantiles.get("q90", [current * 1.05])[-1]) if quantiles else current * 1.05
+        price_low = (
+            float(quantiles.get("q10", [current * 0.95])[-1])
+            if quantiles
+            else current * 0.95
+        )
+        price_high = (
+            float(quantiles.get("q90", [current * 1.05])[-1])
+            if quantiles
+            else current * 1.05
+        )
 
         # 方向判断
         expected_return = (target_price - current) / current if current > 0 else 0
@@ -533,7 +571,9 @@ class PricePredictor:
             forecast_timestamp=datetime.now().isoformat(),
         )
 
-    def _fallback_result(self, symbol: str, horizon: int, current: float) -> PredictionResult:
+    def _fallback_result(
+        self, symbol: str, horizon: int, current: float
+    ) -> PredictionResult:
         """数据不足时的中性预测"""
         return PredictionResult(
             symbol=symbol,
@@ -546,7 +586,9 @@ class PricePredictor:
             forecast_timestamp=datetime.now().isoformat(),
         )
 
-    def batch_predict(self, symbols_prices: dict[str, np.ndarray], horizon: int = 5) -> dict[str, PredictionResult]:
+    def batch_predict(
+        self, symbols_prices: dict[str, np.ndarray], horizon: int = 5
+    ) -> dict[str, PredictionResult]:
         """批量预测
 
         Args:
@@ -565,7 +607,9 @@ class PricePredictor:
                 results[symbol] = self._fallback_result(symbol, horizon, 0)
         return results
 
-    def get_signal_for_fusion(self, symbol: str, prices: np.ndarray, horizon: int = 5) -> float:
+    def get_signal_for_fusion(
+        self, symbol: str, prices: np.ndarray, horizon: int = 5
+    ) -> float:
         """获取用于信号融合的标准化信号 [-1, 1]
 
         供 signal_fusion.py 调用。
@@ -596,7 +640,14 @@ def load_price_history(symbol: str, days: int = 120) -> Optional[np.ndarray]:
                         if close and close > 0:
                             prices.append(close)
                         break
-            except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
+            except (
+                ValueError,
+                KeyError,
+                TypeError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+            ):
                 continue
         if prices:
             return np.array(list(reversed(prices)))

@@ -70,3 +70,14 @@ run_mining_cycle()
 | `utils/alpha_factor/rd_agent_quant.py` | 305 | 核心实现 |
 | `utils/alpha_factor/evaluator.py` | (复用) | 真实因子评估（待接线） |
 | `utils/alpha_factor/library.py` | (复用) | 因子库管理（待接线） |
+
+<!-- AUTO-GENERATED: 相关文档 -->
+## 相关文档
+
+- [AlphaCFG 语法引导因子发现 (LIT-1.5)](alpha-cfg-discovery.md) (相似度 29%)
+- [AlphaForge 动态权重组合机制 (LIT-1.2)](alpha-forge-combiner.md) (相似度 29%)
+- [v8.7 发布 — LIT-5.6 全量集成验收](v87-release.md) (相似度 28%)
+- [FinRL-X 权重中心接口架构](finrl-x-interface.md) (相似度 16%)
+- [篮子清算最小 shortfall](basket-liquidation.md) (相似度 14%)
+
+<!-- 由 scripts/cairn_cross_ref.py 自动生成，请勿手动编辑此区块 -->

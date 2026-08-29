@@ -21,6 +21,7 @@
     - 全 mock, 不依赖外部 IO (<1s)
     - tmp_path 隔离文件系统
 """
+
 from __future__ import annotations
 
 import json
@@ -51,6 +52,7 @@ from utils.alpha.root_cause import (  # noqa: E402
 # 辅助函数
 # ============================================================
 
+
 def _make_report(
     check_time: str = "2026-08-01T12:00:00",
     items: list[dict[str, Any]] = None,
@@ -68,8 +70,11 @@ def _make_report(
 
 
 def _make_item(
-    code: str, status: str, level: str = "ERROR",
-    name: str = "", detail: str = "",
+    code: str,
+    status: str,
+    level: str = "ERROR",
+    name: str = "",
+    detail: str = "",
 ) -> dict[str, Any]:
     """构造单条检查项 dict."""
     return {
@@ -86,6 +91,7 @@ def _make_item(
 # ============================================================
 # CheckItem 不可变性
 # ============================================================
+
 
 class TestCheckItemImmutability:
     """CheckItem frozen=True."""
@@ -110,6 +116,7 @@ class TestCheckItemImmutability:
 # ============================================================
 # CheckDiff 不可变性
 # ============================================================
+
 
 class TestCheckDiffImmutability:
     """CheckDiff frozen=True."""
@@ -138,7 +145,8 @@ class TestCheckDiffImmutability:
 
     def test_to_dict(self) -> None:
         diff = CheckDiff(
-            old_check_time="t1", new_check_time="t2",
+            old_check_time="t1",
+            new_check_time="t2",
             regressions=[CheckItem(code="C1.1", status="FAIL")],
             recoveries=[CheckItem(code="C2.1", status="PASS")],
             summary="1 回归 | 1 恢复",
@@ -153,6 +161,7 @@ class TestCheckDiffImmutability:
 # ============================================================
 # diff 核心逻辑
 # ============================================================
+
 
 class TestDiffLogic:
     """diff() 对比逻辑测试."""
@@ -215,17 +224,21 @@ class TestDiffLogic:
 
     def test_mixed_scenario(self) -> None:
         """混合场景: 1 回归 + 1 恢复 + 1 新失败 + 1 稳定."""
-        old = _make_report(items=[
-            _make_item("C1.1", "PASS"),   # 将回归
-            _make_item("C2.1", "FAIL"),   # 将恢复
-            _make_item("C3.1", "PASS"),   # 稳定 PASS
-        ])
-        new = _make_report(items=[
-            _make_item("C1.1", "FAIL"),   # 回归
-            _make_item("C2.1", "PASS"),   # 恢复
-            _make_item("C3.1", "PASS"),   # 稳定
-            _make_item("C9.1", "FAIL"),   # 新失败
-        ])
+        old = _make_report(
+            items=[
+                _make_item("C1.1", "PASS"),  # 将回归
+                _make_item("C2.1", "FAIL"),  # 将恢复
+                _make_item("C3.1", "PASS"),  # 稳定 PASS
+            ]
+        )
+        new = _make_report(
+            items=[
+                _make_item("C1.1", "FAIL"),  # 回归
+                _make_item("C2.1", "PASS"),  # 恢复
+                _make_item("C3.1", "PASS"),  # 稳定
+                _make_item("C9.1", "FAIL"),  # 新失败
+            ]
+        )
         diff = SystemCheckDiff().diff(old, new)
         assert len(diff.regressions) == 1
         assert len(diff.recoveries) == 1
@@ -237,10 +250,12 @@ class TestDiffLogic:
 
     def test_check_time_preserved(self) -> None:
         """diff 保留两份报告的 check_time."""
-        old = _make_report(check_time="2026-07-30T10:00:00",
-                           items=[_make_item("C1.1", "PASS")])
-        new = _make_report(check_time="2026-07-31T10:00:00",
-                           items=[_make_item("C1.1", "FAIL")])
+        old = _make_report(
+            check_time="2026-07-30T10:00:00", items=[_make_item("C1.1", "PASS")]
+        )
+        new = _make_report(
+            check_time="2026-07-31T10:00:00", items=[_make_item("C1.1", "FAIL")]
+        )
         diff = SystemCheckDiff().diff(old, new)
         assert diff.old_check_time == "2026-07-30T10:00:00"
         assert diff.new_check_time == "2026-07-31T10:00:00"
@@ -264,14 +279,17 @@ class TestDiffLogic:
 # 归档文件 IO (HC-4 只读)
 # ============================================================
 
+
 class TestArchiveIO:
     """parse_archive / diff_archives / diff_recent 测试."""
 
     def test_parse_archive_valid(self, tmp_path: Path) -> None:
         """解析合法归档."""
         p = tmp_path / "sc.json"
-        p.write_text(json.dumps(_make_report(items=[_make_item("C1.1", "PASS")])),
-                     encoding="utf-8")
+        p.write_text(
+            json.dumps(_make_report(items=[_make_item("C1.1", "PASS")])),
+            encoding="utf-8",
+        )
         data = SystemCheckDiff.parse_archive(p)
         assert data is not None
         assert data["total"] == 1
@@ -292,14 +310,24 @@ class TestArchiveIO:
         """对比两个归档文件."""
         old_p = tmp_path / "system_check_20260730_100000.json"
         new_p = tmp_path / "system_check_20260731_100000.json"
-        old_p.write_text(json.dumps(_make_report(
-            check_time="2026-07-30T10:00:00",
-            items=[_make_item("C1.1", "PASS")],
-        )), encoding="utf-8")
-        new_p.write_text(json.dumps(_make_report(
-            check_time="2026-07-31T10:00:00",
-            items=[_make_item("C1.1", "FAIL")],
-        )), encoding="utf-8")
+        old_p.write_text(
+            json.dumps(
+                _make_report(
+                    check_time="2026-07-30T10:00:00",
+                    items=[_make_item("C1.1", "PASS")],
+                )
+            ),
+            encoding="utf-8",
+        )
+        new_p.write_text(
+            json.dumps(
+                _make_report(
+                    check_time="2026-07-31T10:00:00",
+                    items=[_make_item("C1.1", "FAIL")],
+                )
+            ),
+            encoding="utf-8",
+        )
         diff = SystemCheckDiff().diff_archives(old_p, new_p)
         assert len(diff.regressions) == 1
 
@@ -321,10 +349,15 @@ class TestArchiveIO:
         """2 份归档 → 对比最新 vs 最早."""
         for day, status in [("20260730_100000", "PASS"), ("20260731_100000", "FAIL")]:
             p = tmp_path / f"system_check_{day}.json"
-            p.write_text(json.dumps(_make_report(
-                check_time=f"2026-{day[:4]}-{day[4:6]}-{day[6:8]}T10:00:00",
-                items=[_make_item("C1.1", status)],
-            )), encoding="utf-8")
+            p.write_text(
+                json.dumps(
+                    _make_report(
+                        check_time=f"2026-{day[:4]}-{day[4:6]}-{day[6:8]}T10:00:00",
+                        items=[_make_item("C1.1", status)],
+                    )
+                ),
+                encoding="utf-8",
+            )
         diff = SystemCheckDiff().diff_recent(tmp_path, days_ago=1)
         assert len(diff.regressions) == 1
 
@@ -345,6 +378,7 @@ class TestArchiveIO:
 # ============================================================
 # to_root_causes 转换
 # ============================================================
+
 
 class TestToRootCauses:
     """to_root_causes 测试."""
@@ -445,8 +479,12 @@ class TestToRootCauses:
 
     def test_cause_id_unique(self) -> None:
         """多条根因 cause_id 唯一."""
-        old = _make_report(items=[_make_item("C1.1", "PASS"), _make_item("C1.2", "PASS")])
-        new = _make_report(items=[_make_item("C1.1", "FAIL"), _make_item("C1.2", "FAIL")])
+        old = _make_report(
+            items=[_make_item("C1.1", "PASS"), _make_item("C1.2", "PASS")]
+        )
+        new = _make_report(
+            items=[_make_item("C1.1", "FAIL"), _make_item("C1.2", "FAIL")]
+        )
         diff = SystemCheckDiff().diff(old, new)
         causes = SystemCheckDiff().to_root_causes(diff)
         ids = [c.cause_id for c in causes]
@@ -455,7 +493,9 @@ class TestToRootCauses:
     def test_evidence_structured(self) -> None:
         """evidence 是结构化 Dict (非文本)."""
         old = _make_report(items=[_make_item("C1.1", "PASS", name="myfile")])
-        new = _make_report(items=[_make_item("C1.1", "FAIL", name="myfile", detail="missing")])
+        new = _make_report(
+            items=[_make_item("C1.1", "FAIL", name="myfile", detail="missing")]
+        )
         diff = SystemCheckDiff().diff(old, new)
         causes = SystemCheckDiff().to_root_causes(diff)
         ev = causes[0].evidence
@@ -479,29 +519,34 @@ class TestToRootCauses:
 # 集成测试
 # ============================================================
 
+
 class TestIntegration:
     """端到端集成测试."""
 
     def test_full_flow_with_real_archive_format(self, tmp_path: Path) -> None:
         """使用真实归档格式端到端测试."""
         # 模拟真实归档 (含 40 项, 模拟 CLAUDE.md §8 场景)
-        old_items = [_make_item(f"C{i}.{j}", "PASS") for i in range(1, 9) for j in range(1, 6)]
+        old_items = [
+            _make_item(f"C{i}.{j}", "PASS") for i in range(1, 9) for j in range(1, 6)
+        ]
         new_items = list(old_items)
         # 制造 1 个回归: C3.1 PASS→FAIL
         new_items[10] = _make_item("C3.1", "FAIL", name="Wind MCP 主数据源 (P1)")
         old_p = tmp_path / "system_check_20260730_100000.json"
         new_p = tmp_path / "system_check_20260731_100000.json"
-        old_p.write_text(json.dumps(_make_report(
-            "2026-07-30T10:00:00", old_items)), encoding="utf-8")
-        new_p.write_text(json.dumps(_make_report(
-            "2026-07-31T10:00:00", new_items)), encoding="utf-8")
+        old_p.write_text(
+            json.dumps(_make_report("2026-07-30T10:00:00", old_items)), encoding="utf-8"
+        )
+        new_p.write_text(
+            json.dumps(_make_report("2026-07-31T10:00:00", new_items)), encoding="utf-8"
+        )
 
         differ = SystemCheckDiff()
         diff = differ.diff_recent(tmp_path, days_ago=1)
         assert diff.has_regressions
         causes = differ.to_root_causes(diff)
         assert len(causes) == 1
-        assert causes[0].code if hasattr(causes[0], 'code') else True
+        assert causes[0].code if hasattr(causes[0], "code") else True
         # C3.1 → datasource_fail
         assert causes[0].category == "datasource_fail"
         assert causes[0].severity == SEVERITY_CRITICAL

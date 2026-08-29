@@ -28,6 +28,7 @@
     - fail-fast 触发立即终止 + 回滚 (用户硬约束)
     - 所有输出走 ConfigManager + reports/shadow/ (HC-5)
 """
+
 from __future__ import annotations
 
 import json
@@ -63,7 +64,11 @@ def set_config_name(name: str | None) -> None:
     """
     global _OVERRIDE_CONFIG_NAME
     _OVERRIDE_CONFIG_NAME = name
-DEFAULT_OBSERVATION_DAYS = 21  # 与 shadow_admission.yaml settings.observation_days 对齐 (PM 决策 21 天)
+
+
+DEFAULT_OBSERVATION_DAYS = (
+    21  # 与 shadow_admission.yaml settings.observation_days 对齐 (PM 决策 21 天)
+)
 DATETIME_FMT = "%Y-%m-%dT%H:%M:%S"
 DATE_FMT = "%Y-%m-%d"
 
@@ -123,7 +128,9 @@ def _save_state(state_file: Path, state: dict[str, Any]) -> None:
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 
-def _compute_observation_progress(started_at: str, observation_days: int) -> dict[str, Any]:
+def _compute_observation_progress(
+    started_at: str, observation_days: int
+) -> dict[str, Any]:
     """计算观察期进度.
 
     Args:
@@ -151,7 +158,9 @@ def _compute_observation_progress(started_at: str, observation_days: int) -> dic
     }
 
 
-def _check_stage_2_blockers(state: dict[str, Any], criteria: dict[str, Any]) -> dict[str, Any]:
+def _check_stage_2_blockers(
+    state: dict[str, Any], criteria: dict[str, Any]
+) -> dict[str, Any]:
     """检查 Stage 2 推进条件 (HC-4 阻塞).
 
     Args:
@@ -185,6 +194,18 @@ def _check_stage_2_blockers(state: dict[str, Any], criteria: dict[str, Any]) -> 
     else:
         promoters.append("fail_fast_triggered=false")
 
+    # [2026-08-27 P0-1] 条件 2.5: trade_log 非空 (真实撮合证据)
+    # 对齐 cairn/shadow-realness-audit P0 要求: 影子账户必须基于真实成交
+    trade_log = state.get("trade_log", [])
+    if trade_log:
+        promoters.append(f"trade_log 非空 ({len(trade_log)} 笔真实成交已桥接)")
+    else:
+        blockers.append("trade_log 为空 — 影子账户未执行真实撮合 (P0-1 未达标)")
+
+    # [2026-08-27 P0-1] 真实数据源标记
+    if state.get("data_source_real", False):
+        promoters.append("data_source_real=true — 已接入 FillsStore 真实撮合成交")
+
     # 条件 3-6: 仅在观察期完成后才评估绩效指标
     if progress["is_complete"] and not state.get("fail_fast_triggered", False):
         metrics = state.get("latest_metrics", {}) or {}
@@ -194,8 +215,10 @@ def _check_stage_2_blockers(state: dict[str, Any], criteria: dict[str, Any]) -> 
         sharpe_cv = float(metrics.get("sharpe_cv", float("inf")))
 
         min_dsr = float(criteria.get("min_dsr", 5))
-        min_ar = float(criteria.get("min_annual_return", 0.15))
-        max_dd = float(criteria.get("max_drawdown", 0.10))
+        # [2026-08-27] 用户口径: 年化 >= 8% (非 15%)
+        min_ar = float(criteria.get("min_annual_return", 0.08))
+        # [2026-08-27] 用户口径: 回撤 <= 15% (非 10%)
+        max_dd = float(criteria.get("max_drawdown", 0.15))
         max_cv = float(criteria.get("max_sharpe_cv", 1.0))
 
         if dsr >= min_dsr:
@@ -242,7 +265,9 @@ def cmd_start() -> int:
         return 1
 
     settings = cfg.get("settings", {}) or {}
-    state_file = _PROJECT_ROOT / settings.get("state_file", "reports/shadow/admission_state.json")
+    state_file = _PROJECT_ROOT / settings.get(
+        "state_file", "reports/shadow/admission_state.json"
+    )
     report_dir = _PROJECT_ROOT / settings.get("report_dir", "reports/shadow")
     observation_days = int(settings.get("observation_days", DEFAULT_OBSERVATION_DAYS))
 
@@ -264,7 +289,9 @@ def cmd_start() -> int:
         "task_id": "T2.4",
         "started_at": _utcnow_iso(),
         "observation_days": observation_days,
-        "min_observation_days": int(settings.get("min_observation_days", observation_days)),
+        "min_observation_days": int(
+            settings.get("min_observation_days", observation_days)
+        ),
         "modules": [
             {
                 "name": m.get("name", ""),
@@ -289,7 +316,9 @@ def cmd_start() -> int:
     logger.info("[OK] 14 天观察期已启动")
     logger.info(f"     启动时间 (UTC): {state['started_at']}")
     logger.info(f"     观察期天数: {observation_days}")
-    logger.info(f"     预计完成 (UTC): {(datetime.utcnow() + timedelta(days=observation_days)).strftime(DATETIME_FMT)}Z")
+    logger.info(
+        f"     预计完成 (UTC): {(datetime.utcnow() + timedelta(days=observation_days)).strftime(DATETIME_FMT)}Z"
+    )
     logger.info(f"     状态文件: {state_file}")
     logger.info(f"     报告目录: {report_dir}")
     print()
@@ -301,8 +330,12 @@ def cmd_start() -> int:
     print()
     logger.info("Fail-Fast 触发器 (用户硬约束):")
     ff = cfg.get("fail_fast", {}) or {}
-    logger.info(f"  - 单日回撤 > {ff.get('daily_drawdown_threshold', 0.03):.0%} → 立即终止")
-    logger.info(f"  - 3日累计回撤 > {ff.get('cumulative_3d_drawdown_threshold', 0.05):.0%} → 立即终止")
+    logger.info(
+        f"  - 单日回撤 > {ff.get('daily_drawdown_threshold', 0.03):.0%} → 立即终止"
+    )
+    logger.info(
+        f"  - 3日累计回撤 > {ff.get('cumulative_3d_drawdown_threshold', 0.05):.0%} → 立即终止"
+    )
     print()
     logger.info("HC-4 阻塞: 14 天观察期内不可推进 Stage 2")
     print()
@@ -387,9 +420,13 @@ def _compute_real_metrics(
         adapter = ShadowAccountAdapter(
             account_id=f"shadow_T2.4_{dates[0] if dates else 'unknown'}",
             strategy_id="T2.4_modules_admission",
-            initial_capital=float(cfg.get("settings", {}).get("initial_capital", 1_000_000)),
+            initial_capital=float(
+                cfg.get("settings", {}).get("initial_capital", 1_000_000)
+            ),
             daily_dd_threshold=float(ff_cfg.get("daily_drawdown_threshold", 0.03)),
-            cumulative_3d_threshold=float(ff_cfg.get("cumulative_3d_drawdown_threshold", 0.05)),
+            cumulative_3d_threshold=float(
+                ff_cfg.get("cumulative_3d_drawdown_threshold", 0.05)
+            ),
         )
 
         # 重放历史收益率
@@ -449,7 +486,16 @@ def _compute_real_metrics(
             "is_real_data": is_real_data,
             "fail_fast_triggered": True,
         }, None
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.exception("ShadowAccountAdapter 调用失败")
         return None, f"adapter_error: {type(e).__name__}: {e}"
@@ -477,12 +523,16 @@ def cmd_daily() -> int:
         return 1
 
     settings = cfg.get("settings", {}) or {}
-    state_file = _PROJECT_ROOT / settings.get("state_file", "reports/shadow/admission_state.json")
+    state_file = _PROJECT_ROOT / settings.get(
+        "state_file", "reports/shadow/admission_state.json"
+    )
     report_dir = _PROJECT_ROOT / settings.get("report_dir", "reports/shadow")
 
     state = _load_state(state_file)
     if not state:
-        logger.info("[FAIL] 观察期未启动, 请先运行: python scripts/shadow_admission_launcher.py start")
+        logger.info(
+            "[FAIL] 观察期未启动, 请先运行: python scripts/shadow_admission_launcher.py start"
+        )
         return 1
 
     if state.get("fail_fast_triggered", False):
@@ -511,11 +561,15 @@ def cmd_daily() -> int:
                 start_dt = datetime.fromisoformat(state["started_at"].rstrip("Z"))
             except ValueError:
                 start_dt = datetime.now()
-            dates = [(start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
-                     for i in range(len(daily_returns))]
+            dates = [
+                (start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
+                for i in range(len(daily_returns))
+            ]
             is_real_data = False
             data_source = "simulated_returns (config)"
-            logger.info(f"[INFO] 使用配置中的模拟收益率 (测试模式, {len(daily_returns)} 天)")
+            logger.info(
+                f"[INFO] 使用配置中的模拟收益率 (测试模式, {len(daily_returns)} 天)"
+            )
         else:
             # 无数据: 占位模式
             data_source = "none (placeholder)"
@@ -538,7 +592,9 @@ def cmd_daily() -> int:
                 "is_real_data": is_real_data,
             }
         else:
-            logger.info(f"[OK] 真实指标已计算 (status={metrics.get('status', 'unknown')})")
+            logger.info(
+                f"[OK] 真实指标已计算 (status={metrics.get('status', 'unknown')})"
+            )
             if metrics.get("dsr") is not None:
                 logger.info(f"     DSR={metrics['dsr']:.4f}")
                 logger.info(f"     年化={metrics['annual_return']:.2%}")
@@ -598,13 +654,21 @@ def cmd_daily() -> int:
             "triggered": ff_triggered,
             "reason": ff_reason,
             "thresholds": {
-                "daily_drawdown": cfg.get("fail_fast", {}).get("daily_drawdown_threshold", 0.03),
-                "cumulative_3d": cfg.get("fail_fast", {}).get("cumulative_3d_drawdown_threshold", 0.05),
+                "daily_drawdown": cfg.get("fail_fast", {}).get(
+                    "daily_drawdown_threshold", 0.03
+                ),
+                "cumulative_3d": cfg.get("fail_fast", {}).get(
+                    "cumulative_3d_drawdown_threshold", 0.05
+                ),
             },
         },
         "config_snapshot": {
-            "single_factor": cfg.get("single_factor", {}).get("config_name", "Config_E"),
-            "factor_combination": cfg.get("factor_combination", {}).get("config_name", "Config_E_plus1"),
+            "single_factor": cfg.get("single_factor", {}).get(
+                "config_name", "Config_E"
+            ),
+            "factor_combination": cfg.get("factor_combination", {}).get(
+                "config_name", "Config_E_plus1"
+            ),
             "risk_managed": True,  # HC-3
         },
     }
@@ -617,12 +681,14 @@ def cmd_daily() -> int:
 
     # 更新状态文件
     daily_reports = state.get("daily_reports", []) or []
-    daily_reports.append({
-        "date": today,
-        "file": str(report_file.relative_to(_PROJECT_ROOT)),
-        "generated_at": dsr_report["generated_at"],
-        "metrics_status": metrics.get("status", "unknown"),
-    })
+    daily_reports.append(
+        {
+            "date": today,
+            "file": str(report_file.relative_to(_PROJECT_ROOT)),
+            "generated_at": dsr_report["generated_at"],
+            "metrics_status": metrics.get("status", "unknown"),
+        }
+    )
     state["daily_reports"] = daily_reports
     _save_state(state_file, state)
 
@@ -630,7 +696,9 @@ def cmd_daily() -> int:
     logger.info("[OK] 每日 DSR 报告已生成")
     logger.info(f"     日期: {today}")
     logger.info(f"     报告文件: {report_file}")
-    logger.info(f"     观察期进度: {progress['days_elapsed']}/{state['observation_days']} 天 ({progress['progress_pct']:.1f}%)")
+    logger.info(
+        f"     观察期进度: {progress['days_elapsed']}/{state['observation_days']} 天 ({progress['progress_pct']:.1f}%)"
+    )
     logger.info(f"     剩余天数: {progress['days_remaining']}")
     logger.info(f"     指标状态: {metrics.get('status', 'unknown')}")
     print()
@@ -660,7 +728,9 @@ def cmd_status() -> int:
         return 1
 
     settings = cfg.get("settings", {}) or {}
-    state_file = _PROJECT_ROOT / settings.get("state_file", "reports/shadow/admission_state.json")
+    state_file = _PROJECT_ROOT / settings.get(
+        "state_file", "reports/shadow/admission_state.json"
+    )
 
     state = _load_state(state_file)
     if not state:
@@ -682,7 +752,9 @@ def cmd_status() -> int:
 
     logger.info("待准入模块:")
     for m in state.get("modules", []):
-        logger.info(f"  - {m['name']} ({m['task_id']}) | flag={m['feature_flag']} | status={m['status']}")
+        logger.info(
+            f"  - {m['name']} ({m['task_id']}) | flag={m['feature_flag']} | status={m['status']}"
+        )
     print()
 
     if state.get("fail_fast_triggered", False):
@@ -697,7 +769,9 @@ def cmd_status() -> int:
     daily_reports = state.get("daily_reports", []) or []
     logger.info(f"每日报告数: {len(daily_reports)}")
     if daily_reports:
-        logger.info(f"最近报告: {daily_reports[-1]['date']} ({daily_reports[-1]['file']})")
+        logger.info(
+            f"最近报告: {daily_reports[-1]['date']} ({daily_reports[-1]['file']})"
+        )
 
     print()
     logger.info(f"状态文件: {state_file}")
@@ -721,7 +795,9 @@ def cmd_evaluate() -> int:
         return 2
 
     settings = cfg.get("settings", {}) or {}
-    state_file = _PROJECT_ROOT / settings.get("state_file", "reports/shadow/admission_state.json")
+    state_file = _PROJECT_ROOT / settings.get(
+        "state_file", "reports/shadow/admission_state.json"
+    )
 
     state = _load_state(state_file)
     if not state:
@@ -734,7 +810,9 @@ def cmd_evaluate() -> int:
 
     if not progress["is_complete"]:
         logger.info("[BLOCKED] 观察期未完成 (HC-4)")
-        logger.info(f"          已过: {progress['days_elapsed']}/{state['observation_days']} 天")
+        logger.info(
+            f"          已过: {progress['days_elapsed']}/{state['observation_days']} 天"
+        )
         logger.info(f"          剩余: {progress['days_remaining']} 天")
         return 1
 
@@ -747,7 +825,9 @@ def cmd_evaluate() -> int:
     criteria = cfg.get("admission_criteria", {}) or {}
     result = _check_stage_2_blockers(state, criteria)
 
-    logger.info(f"观察期: 已完成 ({progress['days_elapsed']}/{state['observation_days']} 天)")
+    logger.info(
+        f"观察期: 已完成 ({progress['days_elapsed']}/{state['observation_days']} 天)"
+    )
     print()
     logger.info("Stage 2 推进条件评估:")
     print()
@@ -766,16 +846,17 @@ def cmd_evaluate() -> int:
     if result["can_promote"]:
         logger.info("[PASS] 所有条件已满足, 可推进 Stage 2")
         logger.info("       下一步: 双签启用 Feature Flag (USE_LLM_REPORT_ANALYZER /")
-        logger.info("              USE_DECISION_THEORIES_FUSION / USE_MULTI_FACTOR_SIGNAL)")
+        logger.info(
+            "              USE_DECISION_THEORIES_FUSION / USE_MULTI_FACTOR_SIGNAL)"
+        )
         state["stage_2_promoted"] = True
         state["stage_2_blocked_reason"] = None
         _save_state(state_file, state)
         return 0
-    else:
-        logger.info("[BLOCKED] 仍有阻塞条件未满足, 不可推进 Stage 2 (HC-4)")
-        state["stage_2_blocked_reason"] = "; ".join(result["blockers"])
-        _save_state(state_file, state)
-        return 1
+    logger.info("[BLOCKED] 仍有阻塞条件未满足, 不可推进 Stage 2 (HC-4)")
+    state["stage_2_blocked_reason"] = "; ".join(result["blockers"])
+    _save_state(state_file, state)
+    return 1
 
 
 def main() -> int:
@@ -795,7 +876,9 @@ def main() -> int:
 
     args = sys.argv[1:]
     if not args:
-        logger.info("用法: python scripts/shadow_admission_launcher.py {start|daily|status|evaluate} [--config <name>]")
+        logger.info(
+            "用法: python scripts/shadow_admission_launcher.py {start|daily|status|evaluate} [--config <name>]"
+        )
         logger.info("  默认配置: shadow_admission (T2.4)")
         logger.info("  P3 配置:  shadow_p3_admission (T5.7/T5.8)")
         return 2
@@ -815,10 +898,20 @@ def main() -> int:
     if "--skip-system-check" not in args:
         try:
             from utils.system_check import assert_system_ready
+
             assert_system_ready()  # 失败时 sys.exit(1)
         except SystemExit:
             raise
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"[P0 自检] 异常 (容错通过): {e}")
     else:
@@ -830,17 +923,16 @@ def main() -> int:
 
     if cmd == "start":
         return cmd_start()
-    elif cmd == "daily":
+    if cmd == "daily":
         return cmd_daily()
-    elif cmd == "status":
+    if cmd == "status":
         return cmd_status()
-    elif cmd == "evaluate":
+    if cmd == "evaluate":
         return cmd_evaluate()
-    else:
-        logger.info(f"未知命令: {cmd}")
-        logger.info("可用命令: start | daily | status | evaluate")
-        logger.info("可选参数: --config <name> (默认: shadow_admission)")
-        return 2
+    logger.info(f"未知命令: {cmd}")
+    logger.info("可用命令: start | daily | status | evaluate")
+    logger.info("可选参数: --config <name> (默认: shadow_admission)")
+    return 2
 
 
 if __name__ == "__main__":

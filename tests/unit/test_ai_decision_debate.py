@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from ai_decision.debate_engine import _parse_strength_conf, run_debate
 from ai_decision.models import DebateTrigger, ModelView
@@ -13,20 +15,27 @@ from ai_decision.rag_context import build_context, context_to_prompt
 
 
 def test_debate_trigger_opposite_high_conf():
-    t = DebateTrigger(bull_strength=0.5, bear_strength=-0.4,
-                      bull_conf=0.7, bear_conf=0.8, debate_threshold=0.6)
+    t = DebateTrigger(
+        bull_strength=0.5,
+        bear_strength=-0.4,
+        bull_conf=0.7,
+        bear_conf=0.8,
+        debate_threshold=0.6,
+    )
     assert t.should_debate() is True
 
 
 def test_debate_trigger_same_direction():
-    t = DebateTrigger(bull_strength=0.5, bear_strength=0.2,
-                      bull_conf=0.9, bear_conf=0.9)
+    t = DebateTrigger(
+        bull_strength=0.5, bear_strength=0.2, bull_conf=0.9, bear_conf=0.9
+    )
     assert t.should_debate() is False  # 同方向不辩论
 
 
 def test_debate_trigger_low_conf():
-    t = DebateTrigger(bull_strength=0.5, bear_strength=-0.4,
-                      bull_conf=0.5, bear_conf=0.8)
+    t = DebateTrigger(
+        bull_strength=0.5, bear_strength=-0.4, bull_conf=0.5, bear_conf=0.8
+    )
     assert t.should_debate() is False  # 置信度不足
 
 
@@ -43,8 +52,14 @@ def test_parse_strength_conf_bear():
 
 def test_run_debate_with_mock_no_key():
     # 确保无 Key, 全走 Mock（同时也移除 OLLAMA_BASE_URL 确保 ollama 不被探测为可用）
-    for k in ("MOONSHOT_API_KEY", "CLAUDE_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY", "GLM_API_KEY",
-              "OLLAMA_BASE_URL"):
+    for k in (
+        "MOONSHOT_API_KEY",
+        "CLAUDE_API_KEY",
+        "OPENAI_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "GLM_API_KEY",
+        "OLLAMA_BASE_URL",
+    ):
         os.environ.pop(k, None)
     ctx = build_context("600519", market_data={"close": 1700, "change_pct": 1.2})
     prompt = context_to_prompt(ctx)

@@ -14,6 +14,7 @@
   - 降级安全: 任何写入失败不影响主流程
   - 与 N1 对齐: 在 _trigger_retrain_with_cooldown 中被调用记录重训经验
 """
+
 from __future__ import annotations
 
 import json
@@ -28,14 +29,18 @@ logger = logging.getLogger("skill_manager")
 # ========== 配置 ==========
 _SKILL_CONFIG = {
     "feature_flag_name": "USE_SKILL_MANAGER",
-    "max_log_entries": 1000,           # 经验日志最大条数
+    "max_log_entries": 1000,  # 经验日志最大条数
     "default_skill_file": ".claude/skills/alpha_research_skill.md",
     "default_log_dir": "logs",
     "valid_lesson_types": {
-        "retrain_success", "retrain_fail",
-        "drift_true_positive", "drift_false_positive",
-        "strategy_degradation", "signal_improvement",
-        "hyperparam_tuning", "data_quality_issue",
+        "retrain_success",
+        "retrain_fail",
+        "drift_true_positive",
+        "drift_false_positive",
+        "strategy_degradation",
+        "signal_improvement",
+        "hyperparam_tuning",
+        "data_quality_issue",
         "unknown",
     },
     "valid_impacts": {"positive", "negative", "neutral"},
@@ -47,7 +52,16 @@ def _check_feature_flag() -> bool:
     try:
         val = os.getenv(_SKILL_CONFIG["feature_flag_name"], "False")
         return val.lower() in ("true", "1", "yes", "on")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return False
 
@@ -90,7 +104,16 @@ class SkillManager:
         try:
             os.makedirs(os.path.dirname(self.skill_path), exist_ok=True)
             os.makedirs(log_dir, exist_ok=True)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"创建目录失败 (非致命): {e}")
 
@@ -104,7 +127,16 @@ class SkillManager:
                 data = json.load(f)
             if isinstance(data, list):
                 return data
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"读取经验日志失败: {e}")
         return []
@@ -202,18 +234,36 @@ class SkillManager:
             log.append(entry)
             # 限制日志大小
             if len(log) > _SKILL_CONFIG["max_log_entries"]:
-                log = log[-_SKILL_CONFIG["max_log_entries"]:]
+                log = log[-_SKILL_CONFIG["max_log_entries"] :]
             with open(self.experience_log_path, "w", encoding="utf-8") as f:
                 json.dump(log, f, ensure_ascii=False, indent=2)
             success = True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"写入经验日志失败: {e}")
 
         # 2. 追加到 Skill Markdown (独立 try, 日志失败不影响 markdown)
         try:
             self._append_skill_markdown(entry)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug(f"追加 Skill Markdown 失败 (非致命): {e}")
 
@@ -253,7 +303,16 @@ class SkillManager:
                 if entry.get("timestamp", "")[:16] in existing:
                     logger.debug(f"经验已存在, 跳过追加: {entry.get('timestamp')}")
                     return
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
 
@@ -305,7 +364,16 @@ def record_lesson(
                 "verified": verified,
             },
         )
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         logger.debug(f"记录经验失败 (非致命): {e}")
         return False
@@ -321,6 +389,7 @@ if __name__ == "__main__":
 
     # 用临时目录测试
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmpdir:
         sm = SkillManager(project_base=tmpdir)
         logger.info(f"\n项目根: {tmpdir}")
@@ -329,33 +398,47 @@ if __name__ == "__main__":
 
         # 1. 记录经验
         logger.info("\n--- 记录 3 条经验 ---")
-        sm.save_experience("688041.SH", {
-            "type": "retrain_success",
-            "description": "漂移触发重训后 CV IC 从 0.02 提升到 0.045",
-            "impact": "positive",
-            "action_taken": "adaptive_retrain",
-            "verified": True,
-        }, enabled=True)
-        sm.save_experience("601899.SH", {
-            "type": "drift_false_positive",
-            "description": "IC 单日下跌但后续恢复, 误触发重训",
-            "impact": "negative",
-            "action_taken": "增加冷却期",
-            "verified": False,
-        }, enabled=True)
-        sm.save_experience("588080.SH", {
-            "type": "signal_improvement",
-            "description": "N4 调整超参后测试集 R² 提升 15%",
-            "impact": "positive",
-            "action_taken": "hyperparam_tuning",
-            "verified": True,
-        }, enabled=True)
+        sm.save_experience(
+            "688041.SH",
+            {
+                "type": "retrain_success",
+                "description": "漂移触发重训后 CV IC 从 0.02 提升到 0.045",
+                "impact": "positive",
+                "action_taken": "adaptive_retrain",
+                "verified": True,
+            },
+            enabled=True,
+        )
+        sm.save_experience(
+            "601899.SH",
+            {
+                "type": "drift_false_positive",
+                "description": "IC 单日下跌但后续恢复, 误触发重训",
+                "impact": "negative",
+                "action_taken": "增加冷却期",
+                "verified": False,
+            },
+            enabled=True,
+        )
+        sm.save_experience(
+            "588080.SH",
+            {
+                "type": "signal_improvement",
+                "description": "N4 调整超参后测试集 R² 提升 15%",
+                "impact": "positive",
+                "action_taken": "hyperparam_tuning",
+                "verified": True,
+            },
+            enabled=True,
+        )
 
         # 2. 读取
         lessons = sm.get_recent_lessons(days=7)
         logger.info(f"\n--- 读取 {len(lessons)} 条近 7 天经验 ---")
         for lesson in lessons:
-            logger.info(f"  [{lesson['lesson_type']}] {lesson['symbol']}: {lesson['description'][:40]}...")
+            logger.info(
+                f"  [{lesson['lesson_type']}] {lesson['symbol']}: {lesson['description'][:40]}..."
+            )
 
         # 3. 统计
         s = sm.summary(days=7)

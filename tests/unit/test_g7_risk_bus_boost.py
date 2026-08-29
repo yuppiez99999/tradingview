@@ -11,6 +11,7 @@ test_g7_risk_bus_boost.py — 风控事件总线覆盖率补强测试
     - get_recent_events 事件查询
     - 订阅者异常隔离
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -76,6 +77,7 @@ class TestSubscribe:
     def test_subscribe_callable(self, bus: RiskBus) -> None:
         def handler(event: RiskEvent) -> None:
             pass
+
         bus.subscribe(RiskEventType.MARGIN_BREACH, handler)
         assert bus.get_subscriber_count(RiskEventType.MARGIN_BREACH) == 1
 
@@ -86,6 +88,7 @@ class TestSubscribe:
     def test_unsubscribe_existing(self, bus: RiskBus) -> None:
         def handler(event: RiskEvent) -> None:
             pass
+
         bus.subscribe(RiskEventType.MARGIN_BREACH, handler)
         assert bus.unsubscribe(RiskEventType.MARGIN_BREACH, handler) is True
         assert bus.get_subscriber_count(RiskEventType.MARGIN_BREACH) == 0
@@ -93,11 +96,13 @@ class TestSubscribe:
     def test_unsubscribe_nonexistent(self, bus: RiskBus) -> None:
         def handler(event: RiskEvent) -> None:
             pass
+
         assert bus.unsubscribe(RiskEventType.MARGIN_BREACH, handler) is False
 
     def test_clear_subscribers(self, bus: RiskBus) -> None:
         def handler(event: RiskEvent) -> None:
             pass
+
         bus.subscribe(RiskEventType.MARGIN_BREACH, handler)
         bus.clear_subscribers()
         assert bus.get_subscriber_count() == 0
@@ -116,6 +121,7 @@ class TestPublish:
 
         def handler(event: RiskEvent) -> None:
             called.append(event)
+
         bus.subscribe(RiskEventType.MARGIN_BREACH, handler)
         event = _make_event()
         invoked = bus.publish(event)
@@ -125,6 +131,7 @@ class TestPublish:
     def test_publish_subscriber_exception_isolated(self, bus: RiskBus) -> None:
         def bad_handler(event: RiskEvent) -> None:
             raise ValueError("test error")
+
         bus.subscribe(RiskEventType.MARGIN_BREACH, bad_handler)
         event = _make_event()
         invoked = bus.publish(event)
@@ -138,6 +145,7 @@ class TestPublish:
 
         def h2(e: RiskEvent) -> None:
             count[0] += 1
+
         bus.subscribe(RiskEventType.MARGIN_BREACH, h1)
         bus.subscribe(RiskEventType.MARGIN_BREACH, h2)
         bus.publish(_make_event())
@@ -166,6 +174,7 @@ class TestSyncDecide:
                 confidence=0.8,
                 source="test_decider",
             )
+
         bus.subscribe_decision(RiskEventType.MARGIN_BREACH, decider)
         decision = bus.sync_decide(_make_event())
         assert decision.action == RiskAction.REDUCE_POSITION
@@ -173,6 +182,7 @@ class TestSyncDecide:
     def test_decider_exception_isolated(self, bus: RiskBus) -> None:
         def bad_decider(event: RiskEvent) -> RiskDecision:
             raise RuntimeError("test error")
+
         bus.subscribe_decision(RiskEventType.MARGIN_BREACH, bad_decider)
         decision = bus.sync_decide(_make_event())
         assert decision.action == RiskAction.PASS
@@ -180,10 +190,18 @@ class TestSyncDecide:
 
     def test_aggregate_strictest(self, bus: RiskBus) -> None:
         def mild(event: RiskEvent) -> RiskDecision:
-            return RiskDecision(action=RiskAction.PASS, reason="mild", confidence=0.5, source="m")
+            return RiskDecision(
+                action=RiskAction.PASS, reason="mild", confidence=0.5, source="m"
+            )
 
         def strict(event: RiskEvent) -> RiskDecision:
-            return RiskDecision(action=RiskAction.KILL_SWITCH, reason="strict", confidence=0.9, source="s")
+            return RiskDecision(
+                action=RiskAction.KILL_SWITCH,
+                reason="strict",
+                confidence=0.9,
+                source="s",
+            )
+
         bus.subscribe_decision(RiskEventType.MARGIN_BREACH, mild)
         bus.subscribe_decision(RiskEventType.MARGIN_BREACH, strict)
         decision = bus.sync_decide(_make_event())
@@ -208,12 +226,16 @@ class TestQueryAPI:
     def test_get_subscriber_count_all(self, bus: RiskBus) -> None:
         def h(e: RiskEvent) -> None:
             pass
+
         bus.subscribe(RiskEventType.MARGIN_BREACH, h)
         bus.subscribe(RiskEventType.VAR_BREACH, h)
         assert bus.get_subscriber_count() == 2
 
     def test_get_decision_subscriber_count(self, bus: RiskBus) -> None:
         def d(e: RiskEvent) -> RiskDecision:
-            return RiskDecision(action=RiskAction.PASS, reason="", confidence=0.0, source="t")
+            return RiskDecision(
+                action=RiskAction.PASS, reason="", confidence=0.0, source="t"
+            )
+
         bus.subscribe_decision(RiskEventType.MARGIN_BREACH, d)
         assert bus.get_decision_subscriber_count(RiskEventType.MARGIN_BREACH) == 1

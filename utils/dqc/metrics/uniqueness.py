@@ -62,8 +62,16 @@ def _check_u01_primary_key_dedup(
         return events
 
     # 识别主键列
-    symbol_col = "symbol" if "symbol" in df.columns else ("code" if "code" in df.columns else None)
-    date_col = "date" if "date" in df.columns else ("datetime" if "datetime" in df.columns else None)
+    symbol_col = (
+        "symbol"
+        if "symbol" in df.columns
+        else ("code" if "code" in df.columns else None)
+    )
+    date_col = (
+        "date"
+        if "date" in df.columns
+        else ("datetime" if "datetime" in df.columns else None)
+    )
     if symbol_col is None or date_col is None:
         return events
 
@@ -75,16 +83,20 @@ def _check_u01_primary_key_dedup(
         dup_df = df[duplicates]
         # 统计每个标的的重复数
         symbol_dup_counts = dup_df.groupby(symbol_col).size().to_dict()
-        events.append(make_event(
-            metric_id="U-01",
-            level=DQCLevel.ERROR,
-            checkpoint=checkpoint,
-            value=float(dup_count),
-            threshold=0.0,
-            message=f"主键 (symbol, date) 重复 {dup_count} 行 (涉及 {len(symbol_dup_counts)} 标的)",
-            violation_count=dup_count,
-            symbol_dup_counts={str(k): int(v) for k, v in symbol_dup_counts.items()},
-        ))
+        events.append(
+            make_event(
+                metric_id="U-01",
+                level=DQCLevel.ERROR,
+                checkpoint=checkpoint,
+                value=float(dup_count),
+                threshold=0.0,
+                message=f"主键 (symbol, date) 重复 {dup_count} 行 (涉及 {len(symbol_dup_counts)} 标的)",
+                violation_count=dup_count,
+                symbol_dup_counts={
+                    str(k): int(v) for k, v in symbol_dup_counts.items()
+                },
+            )
+        )
 
     return events
 
@@ -104,7 +116,11 @@ def _check_u03_symbol_code_format(
     if df.empty:
         return events
 
-    symbol_col = "symbol" if "symbol" in df.columns else ("code" if "code" in df.columns else None)
+    symbol_col = (
+        "symbol"
+        if "symbol" in df.columns
+        else ("code" if "code" in df.columns else None)
+    )
     if symbol_col is None:
         return events
 
@@ -114,15 +130,17 @@ def _check_u03_symbol_code_format(
 
     if invalid_count > 0:
         invalid_codes = codes[invalid_mask].unique().tolist()[:10]
-        events.append(make_event(
-            metric_id="U-03",
-            level=DQCLevel.WARN,
-            checkpoint=checkpoint,
-            value=float(invalid_count),
-            threshold=0.0,
-            message=f"标的代码不规范 ({invalid_count} 行, 样例: {invalid_codes})",
-            violation_count=invalid_count,
-            invalid_codes=invalid_codes,
-        ))
+        events.append(
+            make_event(
+                metric_id="U-03",
+                level=DQCLevel.WARN,
+                checkpoint=checkpoint,
+                value=float(invalid_count),
+                threshold=0.0,
+                message=f"标的代码不规范 ({invalid_count} 行, 样例: {invalid_codes})",
+                violation_count=invalid_count,
+                invalid_codes=invalid_codes,
+            )
+        )
 
     return events

@@ -21,6 +21,7 @@
     python scripts/gradual_rollout_manager.py --rollback  # 紧急回滚
     python scripts/gradual_rollout_manager.py --auto      # 每日自动调度
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -87,7 +88,9 @@ class RolloutStatus:
     percent: int = 0
     stage_start_date: str = ""
     observation_days_required: int = DEFAULT_OBSERVATION_DAYS
-    health_thresholds: dict[str, float] = field(default_factory=lambda: dict(DEFAULT_HEALTH_THRESHOLDS))
+    health_thresholds: dict[str, float] = field(
+        default_factory=lambda: dict(DEFAULT_HEALTH_THRESHOLDS)
+    )
     last_health_check: dict[str, Any] = field(default_factory=dict)
     history: list[dict[str, Any]] = field(default_factory=list)
 
@@ -114,8 +117,12 @@ class RolloutStatus:
             stage=stage,
             percent=data.get("percent", STAGE_PERCENTS.get(stage, 0)),
             stage_start_date=data.get("stage_start_date", ""),
-            observation_days_required=data.get("observation_days_required", DEFAULT_OBSERVATION_DAYS),
-            health_thresholds=data.get("health_thresholds", dict(DEFAULT_HEALTH_THRESHOLDS)),
+            observation_days_required=data.get(
+                "observation_days_required", DEFAULT_OBSERVATION_DAYS
+            ),
+            health_thresholds=data.get(
+                "health_thresholds", dict(DEFAULT_HEALTH_THRESHOLDS)
+            ),
             last_health_check=data.get("last_health_check", {}),
             history=data.get("history", []),
         )
@@ -135,7 +142,7 @@ def should_run_on_date(date_str: str, percent: int) -> bool:
         return False
     if percent >= 100:
         return True
-    h = int(hashlib.md5(date_str.encode()).hexdigest()[:8], 16)
+    h = int(hashlib.md5(date_str.encode(), usedforsecurity=False).hexdigest()[:8], 16)
     return (h % 100) < percent
 
 
@@ -171,7 +178,15 @@ def collect_health_metrics() -> dict[str, Any]:
 
         orch = EvolutionOrchestratorV2()
         return orch.get_loop_health_metrics()
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, ImportError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        ImportError,
+    ) as e:
         logger.warning("收集健康度指标失败: %s", e)
         return {}
 
@@ -227,7 +242,9 @@ def observation_days_elapsed(status: RolloutStatus, today: str | None = None) ->
         return 0
     try:
         start = datetime.fromisoformat(status.stage_start_date).date()
-        current = datetime.fromisoformat(today or datetime.now().date().isoformat()).date()
+        current = datetime.fromisoformat(
+            today or datetime.now().date().isoformat()
+        ).date()
         return (current - start).days
     except (ValueError, TypeError) as e:
         logger.warning("计算观察天数失败: %s", e)
@@ -250,7 +267,10 @@ def advance_stage(status: RolloutStatus) -> tuple[bool, str]:
     if status.stage != RolloutStage.NOT_STARTED:
         days = observation_days_elapsed(status)
         if days < status.observation_days_required:
-            return False, f"observation_days {days} < {status.observation_days_required}"
+            return (
+                False,
+                f"observation_days {days} < {status.observation_days_required}",
+            )
 
         passed, reason = check_health(status)
         if not passed:
@@ -261,15 +281,19 @@ def advance_stage(status: RolloutStatus) -> tuple[bool, str]:
     status.stage = next_stage
     status.percent = STAGE_PERCENTS[next_stage]
     status.stage_start_date = datetime.now().date().isoformat()
-    status.history.append({
-        "action": "advance",
-        "from": old_stage.name,
-        "to": next_stage.name,
-        "percent": status.percent,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-    })
+    status.history.append(
+        {
+            "action": "advance",
+            "from": old_stage.name,
+            "to": next_stage.name,
+            "percent": status.percent,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+    )
     save_status(status)
-    logger.info("灰度发布推进: %s → %s (%d%%)", old_stage.name, next_stage.name, status.percent)
+    logger.info(
+        "灰度发布推进: %s → %s (%d%%)", old_stage.name, next_stage.name, status.percent
+    )
     return True, f"advanced_to_{next_stage.name}"
 
 
@@ -279,22 +303,34 @@ def rollback(status: RolloutStatus, reason: str = "manual_rollback") -> None:
     status.stage = RolloutStage.ROLLED_BACK
     status.percent = 0
     status.stage_start_date = ""
-    status.history.append({
-        "action": "rollback",
-        "from": old_stage.name,
-        "to": RolloutStage.ROLLED_BACK.name,
-        "reason": reason,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-    })
+    status.history.append(
+        {
+            "action": "rollback",
+            "from": old_stage.name,
+            "to": RolloutStage.ROLLED_BACK.name,
+            "reason": reason,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+    )
     save_status(status)
 
     try:
         from utils.infra.feature_flags import disable
+
         disable(FLAG_NAME, signer="rollout_manager", reason=reason)
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError) as e:
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+    ) as e:
         logger.warning("禁用 Feature Flag 失败 (容错): %s", e)
 
-    logger.warning("灰度发布已回滚: %s → ROLLED_BACK (reason: %s)", old_stage.name, reason)
+    logger.warning(
+        "灰度发布已回滚: %s → ROLLED_BACK (reason: %s)", old_stage.name, reason
+    )
 
 
 def get_current_percent() -> int:
@@ -349,7 +385,9 @@ def main() -> int:
     group.add_argument("--auto", action="store_true", help="每日自动调度")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
 
     if args.check:
         print_status()
@@ -369,7 +407,11 @@ def main() -> int:
 
     if args.auto:
         status = load_status()
-        if status.stage in (RolloutStage.NOT_STARTED, RolloutStage.STAGE_1_10PCT, RolloutStage.STAGE_2_50PCT):
+        if status.stage in (
+            RolloutStage.NOT_STARTED,
+            RolloutStage.STAGE_1_10PCT,
+            RolloutStage.STAGE_2_50PCT,
+        ):
             success, reason = advance_stage(status)
             if success:
                 logger.info("自动推进成功: %s", reason)

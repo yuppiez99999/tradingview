@@ -36,6 +36,7 @@ from utils.transaction_cost_model import (  # noqa: E402
 # classify_market_cap_tier
 # ============================================================
 
+
 class TestClassifyMarketCapTier:
     def test_none_returns_micro(self):
         assert classify_market_cap_tier(None) == MarketCapTier.MICRO
@@ -73,6 +74,7 @@ class TestClassifyMarketCapTier:
 # CostParameters
 # ============================================================
 
+
 class TestCostParameters:
     def test_defaults(self):
         params = CostParameters()
@@ -97,6 +99,7 @@ class TestCostParameters:
 # TransactionCostModel: 滑点
 # ============================================================
 
+
 class TestSlippage:
     def test_get_slippage_bps_by_tier(self):
         model = TransactionCostModel()
@@ -108,7 +111,9 @@ class TestSlippage:
     def test_estimate_slippage_basic(self):
         model = TransactionCostModel()
         # notional=1,000,000, tier=LARGE (3bps), vol=0.02 (无调整)
-        slip = model.estimate_slippage(1_000_000, volatility=0.02, tier=MarketCapTier.LARGE)
+        slip = model.estimate_slippage(
+            1_000_000, volatility=0.02, tier=MarketCapTier.LARGE
+        )
         assert slip == pytest.approx(1_000_000 * 3.0 / 10000.0)
 
     def test_estimate_slippage_with_market_cap(self):
@@ -121,8 +126,12 @@ class TestSlippage:
     def test_estimate_slippage_volatility_adjustment(self):
         """高波动放大滑点."""
         model = TransactionCostModel()
-        slip_low_vol = model.estimate_slippage(1_000_000, volatility=0.02, tier=MarketCapTier.LARGE)
-        slip_high_vol = model.estimate_slippage(1_000_000, volatility=0.10, tier=MarketCapTier.LARGE)
+        slip_low_vol = model.estimate_slippage(
+            1_000_000, volatility=0.02, tier=MarketCapTier.LARGE
+        )
+        slip_high_vol = model.estimate_slippage(
+            1_000_000, volatility=0.10, tier=MarketCapTier.LARGE
+        )
         assert slip_high_vol > slip_low_vol
 
     def test_estimate_slippage_micro_tier(self):
@@ -135,6 +144,7 @@ class TestSlippage:
 # ============================================================
 # TransactionCostModel: 佣金
 # ============================================================
+
 
 class TestCommission:
     def test_buy_no_stamp_tax(self):
@@ -174,6 +184,7 @@ class TestCommission:
 # TransactionCostModel: 市场冲击
 # ============================================================
 
+
 class TestMarketImpact:
     def test_get_impact_coeff_by_tier(self):
         model = TransactionCostModel()
@@ -204,7 +215,9 @@ class TestMarketImpact:
 
     def test_impact_with_market_cap(self):
         model = TransactionCostModel()
-        impact = model.estimate_impact(100_000, avg_daily_volume=1_000_000, market_cap=600e8)
+        impact = model.estimate_impact(
+            100_000, avg_daily_volume=1_000_000, market_cap=600e8
+        )
         assert impact > 0
 
     def test_impact_volatility_adjustment(self):
@@ -217,6 +230,7 @@ class TestMarketImpact:
 # ============================================================
 # 机会成本 / 延迟成本
 # ============================================================
+
 
 class TestOpportunityAndDelayCost:
     def test_opportunity_cost(self):
@@ -242,6 +256,7 @@ class TestOpportunityAndDelayCost:
 # ============================================================
 # 容量估算
 # ============================================================
+
 
 class TestCapacity:
     def test_estimate_capacity_default_pct(self):
@@ -292,6 +307,7 @@ class TestCapacity:
 # 综合成本
 # ============================================================
 
+
 class TestTotalCost:
     def test_estimate_total_cost_buy(self):
         model = TransactionCostModel()
@@ -335,6 +351,7 @@ class TestTotalCost:
 # 分层常量
 # ============================================================
 
+
 class TestTierConstants:
     def test_slippage_by_tier_all_present(self):
         assert len(SLIPPAGE_BY_TIER) == 4
@@ -348,6 +365,13 @@ class TestTierConstants:
 
     def test_slippage_monotonic(self):
         """滑点随市值递减: LARGE < MID < SMALL < MICRO."""
-        assert SLIPPAGE_BY_TIER[MarketCapTier.LARGE] < SLIPPAGE_BY_TIER[MarketCapTier.MID]
-        assert SLIPPAGE_BY_TIER[MarketCapTier.MID] < SLIPPAGE_BY_TIER[MarketCapTier.SMALL]
-        assert SLIPPAGE_BY_TIER[MarketCapTier.SMALL] < SLIPPAGE_BY_TIER[MarketCapTier.MICRO]
+        assert (
+            SLIPPAGE_BY_TIER[MarketCapTier.LARGE] < SLIPPAGE_BY_TIER[MarketCapTier.MID]
+        )
+        assert (
+            SLIPPAGE_BY_TIER[MarketCapTier.MID] < SLIPPAGE_BY_TIER[MarketCapTier.SMALL]
+        )
+        assert (
+            SLIPPAGE_BY_TIER[MarketCapTier.SMALL]
+            < SLIPPAGE_BY_TIER[MarketCapTier.MICRO]
+        )

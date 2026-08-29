@@ -1,4 +1,5 @@
 """test_hedge_constants_unit.py — 对冲共享常量单元测试"""
+
 from __future__ import annotations
 
 import pytest

@@ -51,7 +51,9 @@ from utils.alpha_factor.base import (
     standardize,
     winsorize,
 )
-from utils.alpha_factor.chip_distribution import compute_chip_factors  # 第 13 大类 ChipDistribution (2026-08-12)
+from utils.alpha_factor.chip_distribution import (
+    compute_chip_factors,
+)  # 第 13 大类 ChipDistribution (2026-08-12)
 from utils.alpha_factor.expectation import compute_expectation_factors
 from utils.alpha_factor.expression_engine import (  # 第 16 大类 Expression (W6.6.1)
     compute_expression_factors,
@@ -67,7 +69,9 @@ from utils.alpha_factor.graph import (
     compute_lead_lag_factors,
     orthogonalize_chain_factors,
 )
-from utils.alpha_factor.hurst import compute_hurst_factors  # 第 17 大类 Hurst (2026-08-23 P0)
+from utils.alpha_factor.hurst import (
+    compute_hurst_factors,
+)  # 第 17 大类 Hurst (2026-08-23 P0)
 from utils.alpha_factor.information_theory import (  # 第 18 大类 InformationTheory (2026-08-23 P0)
     compute_information_factors,
 )
@@ -102,13 +106,15 @@ class AlphaFactorLibrary:
         enable_expectation: bool = True,
         technical_all: bool = False,
         enable_graph: bool = True,
-        enable_decorators: bool = True,   # Wave 6 W6.1.3: 装饰器注册因子总开关
-        enable_chip: bool = True,         # 第 13 大类: CYQ 筹码分布因子总开关 (默认开)
-        chip_window: int = 150,            # 筹码分布滚动窗口 (季线级, 150 天)
+        enable_decorators: bool = True,  # Wave 6 W6.1.3: 装饰器注册因子总开关
+        enable_chip: bool = True,  # 第 13 大类: CYQ 筹码分布因子总开关 (默认开)
+        chip_window: int = 150,  # 筹码分布滚动窗口 (季线级, 150 天)
         enable_expression: bool = False,  # 第 16 大类: 表达式因子总开关 (需提供 expressions)
-        expressions: list | None = None,  # 表达式因子规格 [(name, expr_str), ...] 或 [ExpressionFactorSpec]
-        enable_hurst: bool = True,        # 第 17 大类: Hurst 指数因子 (2026-08-23 P0, 默认开)
-        enable_info: bool = True,         # 第 18 大类: 信息论因子 (2026-08-23 P0, 默认开)
+        expressions: (
+            list | None
+        ) = None,  # 表达式因子规格 [(name, expr_str), ...] 或 [ExpressionFactorSpec]
+        enable_hurst: bool = True,  # 第 17 大类: Hurst 指数因子 (2026-08-23 P0, 默认开)
+        enable_info: bool = True,  # 第 18 大类: 信息论因子 (2026-08-23 P0, 默认开)
     ):
         self.neutralize_industry = bool(neutralize_industry)
         self.neutralize_size = bool(neutralize_size)
@@ -195,7 +201,9 @@ class AlphaFactorLibrary:
             chain_factors = compute_lead_lag_factors(price_data, graph, industries)
             # 对已有动量因子正交化, 验证「邻居信息」增量价值 (消除共线)
             if chain_factors:
-                chain_factors = orthogonalize_chain_factors(chain_factors, result.factors)
+                chain_factors = orthogonalize_chain_factors(
+                    chain_factors, result.factors
+                )
             result.factors.update(chain_factors)
 
         # 13. 筹码分布因子 (CYQ, 第 13 大类 · 2026-08-12 派生升级 W6.4.5)
@@ -216,7 +224,9 @@ class AlphaFactorLibrary:
 
         # 14. factor-mining 移植因子 (Wave 6 W6.1.1, FM_ 前缀 6 个差异因子)
         fm_factors = compute_factor_mining_factors(
-            price_data, fundamentals, benchmark_returns,
+            price_data,
+            fundamentals,
+            benchmark_returns,
         )
         result.factors.update(fm_factors)
 
@@ -293,7 +303,8 @@ class AlphaFactorLibrary:
 
         # 因子有效性评估 (U1 衔接: factor_history 可用时走时序 IC/ICIR 模式)
         evaluate_factors(
-            result, price_data,
+            result,
+            price_data,
             factor_history=factor_history,
             forward_returns_history=forward_returns_history,
         )
@@ -307,7 +318,9 @@ class AlphaFactorLibrary:
     # 向后兼容: 预处理方法 (委托给 base 模块函数)
     # ------------------------------------------------------------
 
-    def _winsorize(self, values: dict[str, float], n_sigma: float = 3.0) -> dict[str, float]:
+    def _winsorize(
+        self, values: dict[str, float], n_sigma: float = 3.0
+    ) -> dict[str, float]:
         """去极值 (MAD 法)"""
         return winsorize(values, n_sigma)
 
@@ -340,7 +353,8 @@ class AlphaFactorLibrary:
     ) -> None:
         """评估因子有效性 (向后兼容委托, U1 衔接支持时序模式)"""
         evaluate_factors(
-            result, price_data,
+            result,
+            price_data,
             factor_history=factor_history,
             forward_returns_history=forward_returns_history,
         )

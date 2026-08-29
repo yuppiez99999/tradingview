@@ -108,11 +108,15 @@ def record_lgb_application(
             "timestamp": timestamp,
             "code": code,
             "name": str(order.get("name", "")),
-            "lgb_signal": round(float(lgb_signal), 4) if lgb_signal is not None else None,
+            "lgb_signal": (
+                round(float(lgb_signal), 4) if lgb_signal is not None else None
+            ),
             "lgb_multiplier": float(lgb_mult) if lgb_mult is not None else None,
             "quality_flag": lgb_info.get("quality_flag", "OK"),
             "direction": direction,
-            "original_shares": int(order.get("original_shares", order.get("shares", 0))),
+            "original_shares": int(
+                order.get("original_shares", order.get("shares", 0))
+            ),
             "final_shares": int(order.get("shares", 0)),
             "est_price": float(order.get("est_price", 0)),
             "est_amount": float(order.get("est_amount", 0)),
@@ -135,7 +139,16 @@ def _append_jsonl(event: dict[str, Any]) -> None:
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(event, ensure_ascii=False) + "\n")
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error("写入LGB监控日志失败: %s", e)
 
 
@@ -172,7 +185,16 @@ def load_history(days: int = 30) -> list[dict[str, Any]]:
                     events.append(event)
                 except json.JSONDecodeError:
                     continue
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # P2 模块 fail-safe, 待后续精确化
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:  # P2 模块 fail-safe, 待后续精确化
         logger.error("读取LGB监控日志失败: %s", e)
         return []
 
@@ -332,7 +354,9 @@ def _generate_threshold_suggestions(
             f"中看涨门槛从 0.15 提高到 0.20"
         )
     elif boost_ratio > 0.35:
-        suggestions.append(f"✓ boost比例偏高 ({boost_ratio:.1%}): 可考虑微调强看涨门槛 0.05→0.08, 保持其他不变")
+        suggestions.append(
+            f"✓ boost比例偏高 ({boost_ratio:.1%}): 可考虑微调强看涨门槛 0.05→0.08, 保持其他不变"
+        )
 
     # 2. cut 比例过高 → 风控触发过于频繁
     if cut_ratio > 0.4:
@@ -342,7 +366,9 @@ def _generate_threshold_suggestions(
             f"强看跌门槛从 -0.15 收紧到 -0.20"
         )
     elif cut_ratio > 0.25:
-        suggestions.append(f"✓ cut比例偏高 ({cut_ratio:.1%}): 可考虑微调弱看跌门槛 -0.05→-0.08")
+        suggestions.append(
+            f"✓ cut比例偏高 ({cut_ratio:.1%}): 可考虑微调弱看跌门槛 -0.05→-0.08"
+        )
 
     # 3. 中性比例过高 → 信号过于保守, 建议降低门槛
     if neutral_ratio > 0.7:
@@ -379,7 +405,9 @@ def _generate_threshold_suggestions(
 
     # 6. 样本数太少
     if total_orders < 30:
-        suggestions.append(f"ℹ️ 样本数较少 ({total_orders} < 30): 建议累积更多交易日后再次分析, 当前建议仅供参考")
+        suggestions.append(
+            f"ℹ️ 样本数较少 ({total_orders} < 30): 建议累积更多交易日后再次分析, 当前建议仅供参考"
+        )
 
     if not suggestions:
         suggestions.append(
@@ -464,7 +492,9 @@ def generate_analysis_report(analysis: dict[str, Any]) -> str:
         ]
     )
     for date, stats in sorted(analysis["per_date_stats"].items()):
-        lines.append(f"| {date} | {stats['boost']} | {stats['cut']} | {stats['neutral']} | {stats['total']} |")
+        lines.append(
+            f"| {date} | {stats['boost']} | {stats['cut']} | {stats['neutral']} | {stats['total']} |"
+        )
 
     lines.extend(
         [

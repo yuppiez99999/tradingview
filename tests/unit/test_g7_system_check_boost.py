@@ -39,6 +39,7 @@ from utils.system_check import (  # noqa: E402
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def checker_default():
     return SystemChecker(strict=False, skip_datasource=False)
@@ -62,8 +63,19 @@ def sample_report():
         blocking_failures=1,
         exit_code=1,
         results=[
-            CheckResult(code="C1.1", name="test1", level=CheckLevel.ERROR, status=CheckStatus.PASS),
-            CheckResult(code="C1.2", name="test2", level=CheckLevel.ERROR, status=CheckStatus.FAIL, remediation="fix"),
+            CheckResult(
+                code="C1.1",
+                name="test1",
+                level=CheckLevel.ERROR,
+                status=CheckStatus.PASS,
+            ),
+            CheckResult(
+                code="C1.2",
+                name="test2",
+                level=CheckLevel.ERROR,
+                status=CheckStatus.FAIL,
+                remediation="fix",
+            ),
         ],
         error_summary=["test2 failed"],
     )
@@ -72,6 +84,7 @@ def sample_report():
 # ============================================================
 # 平台检测
 # ============================================================
+
 
 class TestPlatformDetection:
     def test_is_macos_returns_bool(self):
@@ -101,17 +114,24 @@ class TestPlatformDetection:
 # CheckResult / SystemCheckReport
 # ============================================================
 
+
 class TestDataClasses:
     def test_check_result_is_blocking_error_fail(self):
-        r = CheckResult(code="C1", name="test", level=CheckLevel.ERROR, status=CheckStatus.FAIL)
+        r = CheckResult(
+            code="C1", name="test", level=CheckLevel.ERROR, status=CheckStatus.FAIL
+        )
         assert r.is_blocking is True
 
     def test_check_result_is_not_blocking_warn_fail(self):
-        r = CheckResult(code="C1", name="test", level=CheckLevel.WARN, status=CheckStatus.FAIL)
+        r = CheckResult(
+            code="C1", name="test", level=CheckLevel.WARN, status=CheckStatus.FAIL
+        )
         assert r.is_blocking is False
 
     def test_check_result_is_not_blocking_pass(self):
-        r = CheckResult(code="C1", name="test", level=CheckLevel.ERROR, status=CheckStatus.PASS)
+        r = CheckResult(
+            code="C1", name="test", level=CheckLevel.ERROR, status=CheckStatus.PASS
+        )
         assert r.is_blocking is False
 
     def test_report_all_passed_true(self, sample_report):
@@ -134,6 +154,7 @@ class TestDataClasses:
 # ============================================================
 # SystemChecker 初始化与平台适配
 # ============================================================
+
 
 class TestSystemCheckerInit:
     def test_default_init(self):
@@ -187,6 +208,7 @@ class TestSystemCheckerInit:
 # 注册辅助方法
 # ============================================================
 
+
 class TestRegisterHelpers:
     def test_pass_adds_result(self, checker_default):
         checker_default._pass("C1", "test", CheckLevel.ERROR, "ok", 1.0)
@@ -213,6 +235,7 @@ class TestRegisterHelpers:
 # ============================================================
 # C2 环境变量检查
 # ============================================================
+
 
 class TestCheckEnvVariables:
     def test_critical_var_set_shows_masked(self, checker_default, monkeypatch):
@@ -249,6 +272,7 @@ class TestCheckEnvVariables:
 # C5 Python 依赖检查
 # ============================================================
 
+
 class TestCheckPythonDependencies:
     def test_critical_module_importable(self, checker_default):
         checker_default.check_python_dependencies()
@@ -267,6 +291,7 @@ class TestCheckPythonDependencies:
 
     def test_critical_module_mocked_unavailable(self, checker_default, monkeypatch):
         import builtins
+
         real_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -286,10 +311,13 @@ class TestCheckPythonDependencies:
 # C6 磁盘与权限
 # ============================================================
 
+
 class TestCheckDiskAndPermissions:
     def test_writable_dirs_created(self, checker_default, tmp_path, monkeypatch):
         monkeypatch.setattr("utils.system_check.PROJECT_ROOT", tmp_path)
-        (tmp_path / "v8.3_institutional" / "trade_plans").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "v8.3_institutional" / "trade_plans").mkdir(
+            parents=True, exist_ok=True
+        )
         (tmp_path / "v8.3_institutional" / "reports").mkdir(parents=True, exist_ok=True)
         (tmp_path / "data_cache").mkdir(parents=True, exist_ok=True)
         (tmp_path / "每日报告归档").mkdir(parents=True, exist_ok=True)
@@ -302,10 +330,11 @@ class TestCheckDiskAndPermissions:
     def test_disk_space_check(self, checker_default, tmp_path, monkeypatch):
         monkeypatch.setattr("utils.system_check.PROJECT_ROOT", tmp_path)
         import shutil
+
         usage = MagicMock()
-        usage.free = 10 * 1024 ** 3
-        usage.total = 100 * 1024 ** 3
-        usage.used = 90 * 1024 ** 3
+        usage.free = 10 * 1024**3
+        usage.total = 100 * 1024**3
+        usage.used = 90 * 1024**3
         monkeypatch.setattr(shutil, "disk_usage", lambda _: usage)
         checker_default.check_disk_and_permissions()
         results = checker_default._results
@@ -317,6 +346,7 @@ class TestCheckDiskAndPermissions:
 # ============================================================
 # C7 子系统 Smoke
 # ============================================================
+
 
 class TestSubsystemSmoke:
     def test_smoke_runs(self, checker_default):
@@ -337,6 +367,7 @@ class TestSubsystemSmoke:
 # ============================================================
 # 主流程 run_all / format_report
 # ============================================================
+
 
 class TestRunAllAndReport:
     def test_run_all_returns_report(self, checker_default):

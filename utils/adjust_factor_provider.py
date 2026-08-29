@@ -202,7 +202,9 @@ class AdjustFactorProvider:
     # ------------------------------------------------------------
     # 因子获取
     # ------------------------------------------------------------
-    def get_hfq_factor_series(self, symbol: str, force_refresh: bool = False) -> pd.DataFrame:
+    def get_hfq_factor_series(
+        self, symbol: str, force_refresh: bool = False
+    ) -> pd.DataFrame:
         """获取完整 hfq 因子序列 (日期 + 因子值).
 
         数据源: akshare stock_zh_a_daily(symbol, adjust="hfq-factor")
@@ -220,7 +222,10 @@ class AdjustFactorProvider:
             cached = self._cache.get(cache_key)
             if not force_refresh and cached and cached.get("series") is not None:
                 fetched_at = cached.get("fetched_at")
-                if fetched_at and (datetime.now() - fetched_at).total_seconds() < self._cache_ttl:
+                if (
+                    fetched_at
+                    and (datetime.now() - fetched_at).total_seconds() < self._cache_ttl
+                ):
                     return cached["series"]
 
         series = self._fetch_hfq_factor_series(symbol)
@@ -235,7 +240,9 @@ class AdjustFactorProvider:
                 }
         return series if series is not None else pd.DataFrame()
 
-    def get_hfq_factor(self, symbol: str, date: str | None = None, force_refresh: bool = False) -> float:
+    def get_hfq_factor(
+        self, symbol: str, date: str | None = None, force_refresh: bool = False
+    ) -> float:
         """获取指定日期 (或最新) 的 hfq 累计因子.
 
         Args:
@@ -252,7 +259,11 @@ class AdjustFactorProvider:
                 cached = self._cache.get(symbol)
                 if not force_refresh and cached and "factor" in cached:
                     fetched_at = cached.get("fetched_at")
-                    if fetched_at and (datetime.now() - fetched_at).total_seconds() < self._cache_ttl:
+                    if (
+                        fetched_at
+                        and (datetime.now() - fetched_at).total_seconds()
+                        < self._cache_ttl
+                    ):
                         return float(cached["factor"])
 
         # 完整序列查询 (含历史日期)
@@ -273,7 +284,9 @@ class AdjustFactorProvider:
             # date 早于所有记录, 返回最早因子
             return float(series["hfq_factor"].iloc[0])
         except (ValueError, TypeError, KeyError) as e:
-            logger.warning("[AdjustFactorProvider] %s 日期 %s 因子查找失败: %s", symbol, date, e)
+            logger.warning(
+                "[AdjustFactorProvider] %s 日期 %s 因子查找失败: %s", symbol, date, e
+            )
             return 1.0
 
     def _fetch_hfq_factor_series(self, symbol: str) -> pd.DataFrame | None:
@@ -300,8 +313,19 @@ class AdjustFactorProvider:
                 logger.warning("[AdjustFactorProvider] %s hfq-factor 返回空", symbol)
                 return None
             return self._normalize_factor_df(df, symbol)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
-            logger.warning("[AdjustFactorProvider] %s hfq-factor 拉取失败: %s", symbol, e)
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
+            logger.warning(
+                "[AdjustFactorProvider] %s hfq-factor 拉取失败: %s", symbol, e
+            )
             return None
 
     @staticmethod
@@ -323,10 +347,14 @@ class AdjustFactorProvider:
             if date_col is None:
                 # 索引可能是日期
                 if isinstance(df.index, pd.DatetimeIndex):
-                    df = df.reset_index().rename(columns={"index": "date", df.index.name or "index": "date"})
+                    df = df.reset_index().rename(
+                        columns={"index": "date", df.index.name or "index": "date"}
+                    )
                     date_col = "date"
                 else:
-                    logger.warning("[AdjustFactorProvider] %s 因子 DataFrame 无日期列", symbol)
+                    logger.warning(
+                        "[AdjustFactorProvider] %s 因子 DataFrame 无日期列", symbol
+                    )
                     return None
 
             out = pd.DataFrame()
@@ -340,16 +368,30 @@ class AdjustFactorProvider:
                     break
 
             if factor_col is not None:
-                out["hfq_factor"] = pd.to_numeric(df[factor_col], errors="coerce").fillna(1.0)
+                out["hfq_factor"] = pd.to_numeric(
+                    df[factor_col], errors="coerce"
+                ).fillna(1.0)
             else:
                 # 反推: 若同时有 hfq close 和未复权 close, 因子 = hfq / unadjusted
-                close_cols = [c for c in df.columns if "close" in str(c).lower() or "收盘" in str(c)]
+                close_cols = [
+                    c
+                    for c in df.columns
+                    if "close" in str(c).lower() or "收盘" in str(c)
+                ]
                 if len(close_cols) >= 2:
                     # 简单取前两列之比 (akshare hfq-factor 通常只有 date + factor)
-                    logger.debug("[AdjustFactorProvider] %s 无显式因子列, 尝试反推", symbol)
-                    out["hfq_factor"] = pd.to_numeric(df[close_cols[0]], errors="coerce").fillna(1.0)
+                    logger.debug(
+                        "[AdjustFactorProvider] %s 无显式因子列, 尝试反推", symbol
+                    )
+                    out["hfq_factor"] = pd.to_numeric(
+                        df[close_cols[0]], errors="coerce"
+                    ).fillna(1.0)
                 else:
-                    logger.warning("[AdjustFactorProvider] %s 因子 DataFrame 无因子列: %s", symbol, list(df.columns))
+                    logger.warning(
+                        "[AdjustFactorProvider] %s 因子 DataFrame 无因子列: %s",
+                        symbol,
+                        list(df.columns),
+                    )
                     return None
 
             out = out.sort_values("date").reset_index(drop=True)
@@ -357,7 +399,9 @@ class AdjustFactorProvider:
             out["hfq_factor"] = out["hfq_factor"].apply(lambda x: x if x > 0 else 1.0)
             return out
         except (ValueError, TypeError, KeyError, AttributeError) as e:
-            logger.warning("[AdjustFactorProvider] %s 因子 DataFrame 归一化失败: %s", symbol, e)
+            logger.warning(
+                "[AdjustFactorProvider] %s 因子 DataFrame 归一化失败: %s", symbol, e
+            )
             return None
 
     # ------------------------------------------------------------
@@ -436,7 +480,9 @@ class AdjustFactorProvider:
                 return prev_close
 
             # 前一交易日日期: 简单回退 1 天 (get_hfq_factor 内部按 <= date 查找, 周末自动回退到周五)
-            target_date = pd.to_datetime(date) if date else pd.Timestamp.now().normalize()
+            target_date = (
+                pd.to_datetime(date) if date else pd.Timestamp.now().normalize()
+            )
             yesterday_str = (target_date - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
             yesterday_factor = self.get_hfq_factor(symbol, date=yesterday_str)
 
@@ -447,13 +493,17 @@ class AdjustFactorProvider:
             # 除权日: today != yesterday, 调整 prev_close 到今日口径
             return prev_close * (yesterday_factor / today_factor)
         except (ValueError, TypeError, KeyError) as e:
-            logger.debug("[AdjustFactorProvider] %s 对齐 prev_close 失败: %s", symbol, e)
+            logger.debug(
+                "[AdjustFactorProvider] %s 对齐 prev_close 失败: %s", symbol, e
+            )
             return prev_close
 
     # ------------------------------------------------------------
     # 批量获取
     # ------------------------------------------------------------
-    def get_factors_batch(self, symbols: list[str], force_refresh: bool = False) -> dict[str, float]:
+    def get_factors_batch(
+        self, symbols: list[str], force_refresh: bool = False
+    ) -> dict[str, float]:
         """批量获取多个标的的最新 hfq 因子.
 
         Returns:

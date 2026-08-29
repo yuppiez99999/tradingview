@@ -3,6 +3,7 @@
 被测模块: utils/portfolio_optimizer.py
 覆盖目标: >=90%
 """
+
 from __future__ import annotations
 
 import json
@@ -20,6 +21,7 @@ from utils.portfolio_optimizer import PortfolioOptimizer  # noqa: E402
 # ============================================================
 # __init__
 # ============================================================
+
 
 class TestInit:
     def test_default_signals_dir(self):
@@ -40,6 +42,7 @@ class TestInit:
 # ============================================================
 # load_factor_signals
 # ============================================================
+
 
 class TestLoadFactorSignals:
     def test_empty_trade_date(self):
@@ -90,7 +93,10 @@ class TestLoadFactorSignals:
 
     def test_none_signal(self, tmp_path):
         opt = PortfolioOptimizer(signals_dir=str(tmp_path))
-        data = {"trade_date": "2026-08-17", "signals": {"X": {"signal": None}, "Y": {"signal": 0.5}}}
+        data = {
+            "trade_date": "2026-08-17",
+            "signals": {"X": {"signal": None}, "Y": {"signal": 0.5}},
+        }
         path = tmp_path / "pipeline_factor_signals_2026-08-17.json"
         path.write_text(json.dumps(data), encoding="utf-8")
         signals = opt.load_factor_signals("2026-08-17")
@@ -99,7 +105,10 @@ class TestLoadFactorSignals:
 
     def test_non_finite_signal(self, tmp_path):
         opt = PortfolioOptimizer(signals_dir=str(tmp_path))
-        data = {"trade_date": "2026-08-17", "signals": {"X": {"signal": float("nan")}, "Y": {"signal": 0.5}}}
+        data = {
+            "trade_date": "2026-08-17",
+            "signals": {"X": {"signal": float("nan")}, "Y": {"signal": 0.5}},
+        }
         path = tmp_path / "pipeline_factor_signals_2026-08-17.json"
         path.write_text(json.dumps(data), encoding="utf-8")
         signals = opt.load_factor_signals("2026-08-17")
@@ -115,6 +124,7 @@ class TestLoadFactorSignals:
 # ============================================================
 # adjust_target_weights
 # ============================================================
+
 
 class TestAdjustTargetWeights:
     def test_basic_adjustment(self):
@@ -147,7 +157,10 @@ class TestAdjustTargetWeights:
         opt = PortfolioOptimizer()
         base = {"A": 0.1, "B": 0.2}
         adjusted = opt.adjust_target_weights(base, {"A": 1.0, "B": -1.0})
-        assert abs(adjusted["A"] - base["A"]) > 1e-6 or abs(adjusted["B"] - base["B"]) > 1e-6
+        assert (
+            abs(adjusted["A"] - base["A"]) > 1e-6
+            or abs(adjusted["B"] - base["B"]) > 1e-6
+        )
 
     def test_missing_signal_symbol(self):
         opt = PortfolioOptimizer()
@@ -159,6 +172,7 @@ class TestAdjustTargetWeights:
 # ============================================================
 # apply_risk_management
 # ============================================================
+
 
 class TestApplyRiskManagement:
     def test_empty_weights(self):
