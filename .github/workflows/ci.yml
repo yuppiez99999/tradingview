@@ -404,7 +404,19 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov pytest-xdist pyyaml pandas numpy
+          pip install pytest pytest-cov pytest-xdist pyyaml pandas numpy requests
+
+      - name: Generate CI contract files (config/positions.json + system_config.json)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path config -Force | Out-Null
+          if (-not (Test-Path config/positions.json)) {
+            '{"positions": [], "last_updated": "CI"}' | Out-File -Encoding utf8 config/positions.json
+          }
+          if (-not (Test-Path config/system_config.json)) {
+            '{"environment": "ci", "trading": {"dry_run": true}}' | Out-File -Encoding utf8 config/system_config.json
+          }
+          Write-Host "Contract files ready"
 
       - name: Select affected tests (GAP-5)
         id: select-tests
