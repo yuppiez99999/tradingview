@@ -41,19 +41,37 @@ jobs:
         with:
           python-version: "3.10"
 
+      # 原生 git diff 替代 tj-actions/changed-files (第三方 action 依赖与权限风险)
+      # 输出契约保持兼容: any_changed (true/false) + all_changed_files (空格分隔)
       - name: Get changed files
         id: changed
-        uses: tj-actions/changed-files@v44
-        with:
-          files: |
-            docs/**/*.md
-            cairn/**/*.md
-            reports/eod_guard_report_*.json
-            reports/quarterly_review_*.json
-            reports/stress_test_*.json
-            reports/rebalance_execution_orders_*.json
-          files_ignore: |
-            cairn/Reference/**
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="HEAD^"
+          fi
+
+          # 兜底: base 不存在 (首次提交/浅克隆) 时对比空树, 退化为全量文件
+          if ! git rev-parse --verify "$BASE" >/dev/null 2>&1; then
+            BASE="$(git hash-object -t tree /dev/null)"
+          fi
+
+          files=$(git diff --name-only "$BASE" HEAD \
+            | grep -E '^(docs/.+\.md|cairn/.+\.md|reports/(eod_guard_report_|quarterly_review_|stress_test_|rebalance_execution_orders_).+\.json)$' \
+            | grep -v '^cairn/Reference/' || true)
+
+          echo "all_changed_files=$files" >> "$GITHUB_OUTPUT"
+          if [ -n "$files" ]; then
+            echo "any_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "base=$BASE"
+          echo "检测到待审查文件: ${files:-<none>}"
 
       - name: Classify and run mmr deep review
         if: steps.changed.outputs.any_changed == 'true'
