@@ -46,7 +46,7 @@ def load_pipeline_config(config_path: str | Path | None = None) -> PipelineConfi
                 raw = yaml.safe_load(f)
             if raw:
                 _apply_yaml(config, raw)
-        except (OSError, ValueError, TypeError, AttributeError):
+        except (OSError, ValueError, TypeError, AttributeError, yaml.YAMLError):
             pass
     # 环境变量覆盖
     _apply_env_overrides(config)
