@@ -5,7 +5,7 @@ name: MMR Deep Review (文档 + 数据结论)
 # 触发: PR 中 .md 或 reports/*.json 变更 + 周度手动 dispatch
 # Secrets: OCR_LLM_AUTH_TOKEN (GLM), DEEPSEEK_API_KEY
 
-on:
+"on":
   pull_request:
     branches: [main, master]
     types: [opened, synchronize, reopened]
