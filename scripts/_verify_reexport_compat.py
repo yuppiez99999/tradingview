@@ -35,6 +35,7 @@ import argparse
 import ast
 import importlib.util
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple, Optional
@@ -95,6 +96,9 @@ def try_importlib_load(p: Path) -> ReexportCheck:
             f"_reexport_probe_{p.stem}", str(p)
         )
         mod = importlib.util.module_from_spec(spec)
+        # Python 3.14+ dataclass 会访问 sys.modules[__name__].__dict__,
+        # 临时注册 module 可避免 AttributeError
+        sys.modules[spec.name] = mod
         # 仅加载不执行 __main__
         spec.loader.exec_module(mod)
         return ReexportCheck(
@@ -107,6 +111,8 @@ def try_importlib_load(p: Path) -> ReexportCheck:
             False,
             f"{type(e).__name__}: {e}",
         )
+    finally:
+        sys.modules.pop(f"_reexport_probe_{p.stem}", None)
 
 
 def main(argv: Optional[list[str]] = None) -> int:

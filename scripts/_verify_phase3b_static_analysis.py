@@ -40,6 +40,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -206,11 +207,14 @@ def cluster_b_ruff(py_files: list[Path]) -> list[Assertion]:
     )
     cur_errors: list[str] = [ln for ln in cur.stdout.splitlines() if ln.strip()]
 
+    # 用正则只匹配 ruff concise 格式 `path:line:col: CODE message`,
+    # 避免把 "All checks passed!" 当作文件名 (B950 误报).
+    _file_pat = re.compile(r"^([^\s:]+(?:\\[^\s:]+)*):\d+:\d+:")
     cur_by_file: dict[str, int] = {}
     for ln in cur_errors:
-        head = ln.split(":")
-        if head:
-            cur_by_file[_norm(head[0])] = cur_by_file.get(_norm(head[0]), 0) + 1
+        m = _file_pat.match(ln)
+        if m:
+            cur_by_file[_norm(m.group(1))] = cur_by_file.get(_norm(m.group(1)), 0) + 1
 
     # 基线不存在时自动冻结当前状态 (首次运行), 标记为 WARN 不阻断
     if not has_baseline and cur_errors:

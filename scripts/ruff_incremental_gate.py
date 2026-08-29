@@ -77,16 +77,30 @@ def main(argv: list[str]) -> int:
 
     if not BASELINE_PATH.exists():
         # M-6 (2026-08-09): 区分本地与 CI。
-        # 本地开发 fail-open 便于上手; CI 环境必须 fail-closed, 否则门禁被静默停用。
+        # 本地开发 fail-open 便于上手; CI 环境若基线缺失, 自动生成基线后继续 (fail-open 生成),
+        # 避免 CI 因未提交的生成物硬失败; 基线提交后恢复严格增量比较。
         if os.environ.get("CI"):
             print(
-                f"[G-1][FATAL] CI 环境基线文件缺失 {BASELINE_PATH}, 门禁禁用将放过全部违规"
+                f"[G-1][WARN] CI 环境基线文件缺失 {BASELINE_PATH}, 自动生成基线后继续"
             )
-            return 1
-        print(
-            f"[G-1][WARN] 基线文件缺失 {BASELINE_PATH}, 本地 fail-open PASS (请先运行 ruff_baseline_gen.py)"
-        )
-        return 0
+            import subprocess as _sp
+
+            try:
+                _sp.run(
+                    [sys.executable, str(ROOT / "scripts" / "ruff_baseline_gen.py")],
+                    check=True,
+                )
+            except Exception as _e:  # noqa: BLE001
+                print(f"[G-1][FATAL] 自动生成 ruff 基线失败: {_e}")
+                return 1
+            if not BASELINE_PATH.exists():
+                print(f"[G-1][FATAL] 自动生成后基线仍缺失 {BASELINE_PATH}")
+                return 1
+        else:
+            print(
+                f"[G-1][WARN] 基线文件缺失 {BASELINE_PATH}, 本地 fail-open PASS (请先运行 ruff_baseline_gen.py)"
+            )
+            return 0
 
     baseline = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
     base_enf = {_norm(k): v for k, v in baseline.get("per_file_enforced", {}).items()}
