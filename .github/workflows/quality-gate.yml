@@ -11,9 +11,9 @@ name: Quality Gate (PR Incremental)
 
 on:
   pull_request:
-    branches: [main, master, "1"]
+    branches: [main, master]
   push:
-    branches: [main, master, "1"]
+    branches: [main, master]
 
 jobs:
   quality-gate:
