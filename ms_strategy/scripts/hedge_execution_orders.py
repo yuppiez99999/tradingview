@@ -7,10 +7,11 @@ import os
 import sys
 from datetime import datetime
 
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统7.1')
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_PROJECT_ROOT))
 
 def load_positions():
-    path = r'e:\各种PY程序\28-终极量化交易系统7.1\config\positions.json'
+    path = str(_PROJECT_ROOT / "config" / "positions.json")
     with open(path, encoding='utf-8') as f:
         data = json.load(f)['positions']
     positions = {}

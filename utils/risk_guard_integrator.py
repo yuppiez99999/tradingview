@@ -216,7 +216,18 @@ class RiskGuardIntegrator:
         try:
             logger.info(entry)
         except UnicodeEncodeError:
-            safe = entry.encode("gbk", errors="replace").decode("gbk", errors="ignore")
+            # 跨平台安全降级: 用日志处理器实际流编码 (Mac=utf-8, Win=gbk/utf-8) 重新编码,
+            # 避免把 emoji/生僻字等合法 UTF-8 字符误删 (原 gbk 编码会在 Mac 上丢字符)
+            _enc = "utf-8"
+            for _h in logger.handlers:
+                _stream = getattr(_h, "stream", None)
+                if _stream is not None:
+                    _enc = getattr(_stream, "encoding", None) or _enc
+                    break
+            try:
+                safe = entry.encode(_enc, errors="replace").decode(_enc, errors="ignore")
+            except (UnicodeEncodeError, LookupError):
+                safe = entry.encode("utf-8", errors="replace").decode("utf-8", errors="ignore")
             logger.info(safe)
 
     def _load_pnl_report(self) -> dict | None:

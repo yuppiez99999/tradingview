@@ -52,11 +52,16 @@ SCRIPTS = ROOT / "scripts"
 REPORTS = ROOT / "reports"
 RUFF_BASELINE = ROOT / "reports" / "ruff_baseline.json"
 MYPY_BASELINE = ROOT / "docs" / "mypy_baseline_v9.2.txt"
-PYTHON = os.environ.get("PYTHON_EXECUTABLE") or (
-    ROOT / ".venv" / "Scripts" / "python.exe"
-    if (ROOT / ".venv" / "Scripts" / "python.exe").exists()
-    else "python"
-)
+def _venv_python(root):
+    """跨平台选择 venv 解释器: Windows=.venv/Scripts/python.exe, 其他=.venv/bin/python。"""
+    for sub_bin, sub_py in (("Scripts", "python.exe"), ("bin", "python")):
+        cand = root / ".venv" / sub_bin / sub_py
+        if cand.exists():
+            return str(cand)
+    return "python"
+
+
+PYTHON = os.environ.get("PYTHON_EXECUTABLE") or _venv_python(ROOT)
 
 
 class Assertion(NamedTuple):

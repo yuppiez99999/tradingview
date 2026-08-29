@@ -35,11 +35,16 @@ from typing import NamedTuple, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORTS = ROOT / "reports" / "ci"
-PYTHON = os.environ.get("PYTHON_EXECUTABLE") or (
-    str(ROOT / ".venv" / "Scripts" / "python.exe")
-    if (ROOT / ".venv" / "Scripts" / "python.exe").exists()
-    else "python"
-)
+def _venv_python(root):
+    """跨平台选择 venv 解释器: Windows=.venv/Scripts/python.exe, 其他=.venv/bin/python。"""
+    for sub_bin, sub_py in (("Scripts", "python.exe"), ("bin", "python")):
+        cand = root / ".venv" / sub_bin / sub_py
+        if cand.exists():
+            return str(cand)
+    return "python"
+
+
+PYTHON = os.environ.get("PYTHON_EXECUTABLE") or _venv_python(ROOT)
 
 # V9 关键回归测试 (执行闭环 + 数据契约 + TCA 归因)
 REGRESSION_TEST_TARGETS = [

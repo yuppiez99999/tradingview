@@ -7,7 +7,8 @@ import os
 import sys
 from datetime import datetime
 
-sys.path.insert(0, r'e:\各种PY程序\28-终极量化交易系统7.1')
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_PROJECT_ROOT))
 
 TARGET_ALLOCATION = {
     '宽基': 0.25,
@@ -26,7 +27,7 @@ MIN_LOT_SIZE = 100
 TARGET_TOTAL = 5_000_000.0
 
 def load_positions():
-    path = r'e:\各种PY程序\28-终极量化交易系统7.1\config\positions.json'
+    path = str(_PROJECT_ROOT / "config" / "positions.json")
     with open(path, encoding='utf-8') as f:
         data = json.load(f)['positions']
     positions = {}
@@ -200,7 +201,7 @@ def main():
             print(f"    错误: {'; '.join(o['validation']['errors'])}")
     print('=' * 70)
 
-    out_path = r'e:\各种PY程序\28-终极量化交易系统7.1\reports\rebalance_execution_orders_20260706.json'
+    out_path = str(_PROJECT_ROOT / "reports" / "rebalance_execution_orders_20260706.json")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=2)

@@ -115,8 +115,9 @@ def get_volatility_from_ifind(code: str) -> Optional[float]:
 def get_volatility_from_wind(code: str) -> Optional[float]:
     """从 Wind MCP 获取波动率"""
     try:
-        env_file = r"E:\各种PY程序\11_量化策略\.env"
-        wind_dir = r"C:\Users\Administrator\.agents\skills\wind-mcp-skill"
+        # 跨平台: 11_量化策略 是独立项目, 路径通过环境变量覆盖 (Mac 上指向实际位置)
+        env_file = os.environ.get("QUANT11_ENV_FILE", r"E:\各种PY程序\11_量化策略\.env")
+        wind_dir = os.environ.get("WIND_MCP_SKILL_DIR", r"C:\Users\Administrator\.agents\skills\wind-mcp-skill")
         with open(env_file, encoding="utf-8") as f:
             for line in f:
                 if line.strip().startswith("WIND_API_KEY="):
@@ -332,7 +333,7 @@ def main():
     logger.info("=" * 70)
 
     # 从现有配置读取基准价格
-    existing_config_path = r"E:\各种PY程序\11_量化策略\config\stop_loss_rules_auto.yaml"
+    existing_config_path = os.environ.get("QUANT11_STOPLOSS_CONFIG", r"E:\各种PY程序\11_量化策略\config\stop_loss_rules_auto.yaml")
     base_prices = {}
     if os.path.exists(existing_config_path):
         with open(existing_config_path, encoding="utf-8") as f:

@@ -36,11 +36,16 @@ WORKFLOWS_DIR = ROOT / ".github" / "workflows"
 CI_YML = WORKFLOWS_DIR / "ci.yml"
 # 需要校验的 workflow 文件 (按 QC-1.1: ci / quality-gate / tdd-guard 引用的脚本必须存在)
 WORKFLOW_FILES = ("ci.yml", "quality-gate.yml", "tdd-guard.yml")
-PYTHON = os.environ.get("PYTHON_EXECUTABLE") or (
-    str(ROOT / ".venv" / "Scripts" / "python.exe")
-    if (ROOT / ".venv" / "Scripts" / "python.exe").exists()
-    else "python"
-)
+def _venv_python(root):
+    """跨平台选择 venv 解释器: Windows=.venv/Scripts/python.exe, 其他=.venv/bin/python。"""
+    for sub_bin, sub_py in (("Scripts", "python.exe"), ("bin", "python")):
+        cand = root / ".venv" / sub_bin / sub_py
+        if cand.exists():
+            return str(cand)
+    return "python"
+
+
+PYTHON = os.environ.get("PYTHON_EXECUTABLE") or _venv_python(ROOT)
 
 
 class ScriptRef(NamedTuple):

@@ -32,7 +32,7 @@ from qlib.utils import init_instance_by_config  # noqa: E402
 
 
 def main():
-    DATA_DIR = r"E:\各种PY程序\28-终极量化交易系统8.4\qlib_data\cn_data"  # noqa: N806
+    DATA_DIR = os.environ.get("QLIB_DATA_DIR", str(_PROJECT_ROOT / "qlib_data" / "cn_data"))  # noqa: N806
     qlib.init(provider_uri=DATA_DIR, region="cn")
     print(f"[QLib] {qlib.__version__} 初始化完成")
 

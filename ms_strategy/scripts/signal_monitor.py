@@ -9,9 +9,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-PROJECT_ROOT = Path(r"e:\各种PY程序\28-终极量化交易系统7.1")
+# 跨平台: 项目根 = <root>/ms_strategy/scripts/<file> 向上两级; 数据目录可用环境变量 QLIB_DATA_DIR 覆盖
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REPORTS_DIR = PROJECT_ROOT / "reports"
-QLIB_DATA_DIR = r"E:\各种PY程序\28-终极量化交易系统7.1\qlib_data\cn_data"
+QLIB_DATA_DIR = os.environ.get("QLIB_DATA_DIR", str(PROJECT_ROOT / "qlib_data" / "cn_data"))
 
 
 def get_latest_qlib_report():

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-QLIB_DATA_DIR = r"E:\各种PY程序\28-终极量化交易系统7.1\qlib_data\cn_data"
+QLIB_DATA_DIR = os.environ.get("QLIB_DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qlib_data", "cn_data"))
 
 PORTFOLIO_STOCKS = [
     ("002371", "SZ", "北方华创"), ("300308", "SZ", "中际旭创"),

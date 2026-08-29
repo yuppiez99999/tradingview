@@ -11,7 +11,10 @@ import subprocess
 import sys
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PY = os.path.join(BASE_DIR, "qlib_env", "Scripts", "python.exe")
+# 跨平台: venv 子目录按平台选择 Scripts (Win) / bin (macOS/Linux)
+_VENV_BIN = "Scripts" if os.name == "nt" else "bin"
+_VENV_PY = "python.exe" if os.name == "nt" else "python"
+PY = os.path.join(BASE_DIR, "qlib_env", _VENV_BIN, _VENV_PY)
 SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 
 # ===================================================================

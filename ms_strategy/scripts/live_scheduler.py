@@ -80,7 +80,8 @@ logger.addHandler(file_handler)
 # ============================================================
 RUNNING = True
 MODULE_STATUS: dict[str, dict] = {}
-PYTHON = r"C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
+# 跨平台: 直接用当前解释器 (Windows/macOS/Linux 通用), 不再写死 Windows 路径
+PYTHON = sys.executable
 LOCK_FILE = BASE_DIR / ".live_scheduler.lock"
 
 # ============================================================
