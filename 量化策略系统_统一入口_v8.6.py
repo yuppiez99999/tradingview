@@ -2007,6 +2007,51 @@ def run_rebalance_execute_mode(args: argparse.Namespace) -> dict:
     return result
 
 
+def run_factor_research(args: argparse.Namespace) -> None:
+    """因子研究模式 — Wind MCP 真实行情驱动 AutoFactorResearch 闭环 (2026-08-29)
+
+    用 Wind MCP 拉取真实日线 OHLCV, 跑完整因子研究循环 (提案→实现→评审→可选ML组合),
+    全程数据驱动、无前视偏差。要求: 环境变量 WIND_API_KEY; 标的数量建议 10-30 只才有
+    统计意义的截面 IC (evaluator 截面 IC 需 >=5 只标的)。
+    """
+    logger.info("\n🔬 因子研究模式 (Wind MCP 真实数据)")
+    symbols = [s.strip() for s in (args.factor_symbols or "").split(",") if s.strip()]
+    if not symbols:
+        logger.error(
+            "❌ 未提供标的 — 使用 --factor-symbols 600036.SH,000001.SZ,588000.SH"
+        )
+        return
+    try:
+        from utils.alpha_factor.auto_research import AutoFactorResearch
+    except Exception as e:
+        logger.error(f"❌ 因子研究模块加载失败: {e}")
+        return
+
+    ar = AutoFactorResearch(use_llm=bool(args.factor_use_llm))
+    report, price_data = ar.run_cycle_on_wind(symbols, days=int(args.factor_days))
+    if not price_data:
+        logger.error(
+            "❌ Wind MCP 未返回有效数据 (检查 WIND_API_KEY / 网络 / 代码格式如 600036.SH)"
+        )
+        return
+
+    logger.info("=" * 60)
+    logger.info(f"因子研究 (Wind MCP 真实数据) — {len(price_data)} 只标的")
+    logger.info("=" * 60)
+    logger.info(
+        f"提案={report.n_proposed} 实现={report.n_implemented} "
+        f"接受={report.n_accepted} 拒绝={report.n_rejected}"
+    )
+    for name, r in report.reviews.items():
+        logger.info(
+            f"  {name:<20} IC={r.ic_mean:>7.4f} IR={r.ic_ir:>6.3f} "
+            f"TO={r.turnover:>5.3f} {'通过' if r.passed else '拒绝'} "
+            f"{('(' + r.reason + ')') if r.reason else ''}"
+        )
+    if args.factor_combine and ar.accepted:
+        logger.info(f"ML 组合: {ar.combine_accepted()}")
+
+
 def main() -> None:
     # ── 模式注册表：flag / dest / 帮助文本 / handler ──
     MODES = [
@@ -2171,6 +2216,12 @@ def main() -> None:
             "再平衡撮合执行器 — 撮合再平衡订单并落盘成交回报 (G2/G4修复)",
             run_rebalance_execute_mode,
         ),
+        (
+            "--factor-research",
+            "factor_research",
+            "因子研究 — Wind MCP 真实行情驱动闭环 (提案/实现/评审/可选ML组合)",
+            run_factor_research,
+        ),
     ]
 
     # 由 MODES 动态生成 epilog 中的运行模式清单
@@ -2216,6 +2267,8 @@ def main() -> None:
   python "量化策略系统 v5.10.py" --hedge-rebalance --show-reasoning       # 含详细推理过程
   python "量化策略系统 v5.10.py" --hedge-rebalance --auto-execute         # 自动化执行(需二次确认)
   python "量化策略系统 v5.10.py" --hedge-detail          # 终端打印完整明细
+  python "量化策略系统 v5.10.py" --factor-research --factor-symbols 600036.SH,000001.SZ,588000.SH  # 因子研究(Wind真实数据)
+  python "量化策略系统 v5.10.py" --factor-research --factor-symbols 600036.SH,000001.SZ --factor-use-llm --factor-combine  # 含GLM-5+ML组合
   python "量化策略系统 v5.10.py" --hedge-detail --json   # JSON 输出
   python "量化策略系统 v5.10.py" --hedge-detail -o hedge.json  # 保存到文件
   python "量化策略系统 v5.10.py" --kronos --kronos-code 000001                        # 单股预测
@@ -2444,6 +2497,27 @@ def main() -> None:
         "--mlflow",
         action="store_true",
         help="训练: 启用 MLflow 实验追踪 (需 pip install mlflow)",
+    )
+
+    # 因子研究 (Wind MCP) 选项
+    parser.add_argument(
+        "--factor-symbols",
+        type=str,
+        default=None,
+        help="因子研究: 逗号分隔 Wind 代码 (如 600036.SH,000001.SZ,588000.SH)",
+    )
+    parser.add_argument(
+        "--factor-days", type=int, default=300, help="因子研究: Wind 回溯交易日数"
+    )
+    parser.add_argument(
+        "--factor-use-llm",
+        action="store_true",
+        help="因子研究: 启用 GLM-5 生成因子 (默认仅规则模板)",
+    )
+    parser.add_argument(
+        "--factor-combine",
+        action="store_true",
+        help="因子研究: 跑完后做 ML 组合阶段",
     )
 
     args = parser.parse_args()
