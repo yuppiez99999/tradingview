@@ -1,0 +1,43 @@
+# 机构级交易系统配置
+# Institutional Trading System Configuration
+
+total_capital: 5000000
+initial_capital: 5000000
+
+portfolio:
+  equity_allocation: 0.60
+  hedge_allocation: 0.40
+
+risk_control:
+  max_drawdown: 0.08
+  var_limit: 0.02
+  stop_loss_threshold: -0.10
+  position_concentration_limit: 0.20
+
+hedge_strategies:
+  delta_hedge:
+    allocation: 0.25
+    target_delta: 0.0
+  volatility_hedge:
+    allocation: 0.30
+    target_vega: 0.0
+  absolute_return:
+    allocation: 0.25
+    target_correlation: 0.0
+  volatility_arbitrage:
+    allocation: 0.15
+    max_position: 100000
+  covered_write:
+    allocation: 0.05
+    target_return: 0.08
+
+trading:
+  execution_mode: "auto"
+  daily_execution_time: "07:00"
+  order_routing: "smart"
+  max_slippage: 0.002
+
+monitoring:
+  real_time: true
+  alert_channels: ["email", "wechat", "sms"]
+  metrics_interval: 60

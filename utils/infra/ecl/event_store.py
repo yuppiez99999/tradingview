@@ -209,7 +209,8 @@ class EventStore:
             conn.row_factory = sqlite3.Row
             conn.executescript(_PRAGMA_SQL)
             rows = conn.execute(
-                f"SELECT * FROM ecl_events {where} ORDER BY id ASC",
+                # where 仅由硬编码常量子句拼接, 所有值走 params 参数化
+                f"SELECT * FROM ecl_events {where} ORDER BY id ASC",  # nosec B608
                 params,
             ).fetchall()
 

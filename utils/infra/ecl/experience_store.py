@@ -291,7 +291,8 @@ class ExperienceStore:
                     set_clause = ", ".join(f"{k}=?" for k in updates)
                     params = list(updates.values()) + [row["id"]]
                     conn.execute(
-                        f"UPDATE ecl_experiences SET {set_clause} WHERE id=?",
+                        # 列名由内部 horizon(int) 生成, 值全参数化
+                        f"UPDATE ecl_experiences SET {set_clause} WHERE id=?",  # nosec B608
                         params,
                     )
                     filled += 1

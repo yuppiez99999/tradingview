@@ -552,7 +552,7 @@ class DeepHedgingEngine:
             with open(path, "rb") as f:
                 raw = f.read()
             if os.path.exists(sidecar):
-                with open(sidecar, "r", encoding="utf-8") as f:
+                with open(sidecar, encoding="utf-8") as f:
                     expected = f.read().strip()
                 actual = hashlib.sha256(raw).hexdigest()
                 if actual != expected:

@@ -98,9 +98,10 @@ force-single-line = false
 # daily_workflow.py — 统一入口, try-except 降级导入子模块类供外部 re-export, F401 噪声
 "v8.3_institutional/daily_workflow.py" = ["F401"]
 # ms_strategy/ 子目录: 训练/脚本/回测代码, print 是合理的进度/结果输出
-"ms_strategy/scripts/**/*.py" = ["T201"]
-"ms_strategy/training/**/*.py" = ["T201"]
-"ms_strategy/wondertrader/**/*.py" = ["T201"]
+"ms_strategy/scripts/**/*.py" = ["T201", "ANN", "E402"]
+"ms_strategy/training/**/*.py" = ["T201", "ANN", "E402"]
+# wondertrader: 量化交易接口适配, E402(条件导入)+ANN(逐步补齐)+N806(金融大写)+T201(进度)
+"ms_strategy/wondertrader/**/*.py" = ["T201", "ANN", "N806", "E402"]
 # 资产集成专项 (2026-08-10): Ledoit-Wolf 协方差 — 量化矩阵变量(R/T/N/S/F/Rb)大写是
 # 金融数学惯例, 豁免 N803/N806 命名规范; 其余 F/B/T/BLE 仍受增量门禁阻断。
 "utils/ledoit_wolf_covariance.py" = ["N803", "N806"]
@@ -185,7 +186,12 @@ force-single-line = false
 "utils/execution/broker_factory.py" = ["T201"]
 # AI 决策 CLI + 云训练脚本: print 是合理的用户交互/进度输出
 "ai_decision/cli.py" = ["T201"]
-"ms_strategy/cloud_train/**/*.py" = ["T201"]
+# ms_strategy/cloud_train: 云训练/调试脚本, E402(先 setup sys.path)+BLE001(数据获取 fail-safe)+T201(进度输出)+ANN(非核心)
+"ms_strategy/cloud_train/**/*.py" = ["T201", "E402", "BLE001", "ANN"]
+# ms_strategy 模块化架构 (from v8.4): ANN 逐步补齐, N806 金融数学大写变量名是行业惯例
+# 见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md — 2026-08-29 门禁盲区修复后纳入全量扫描
+"ms_strategy/src/**/*.py" = ["ANN", "N806", "N803"]
+
 # Streamlit UI 页面: 文件名含数字前缀(排序)+emoji(视觉)+中文(标题), N999 噪声
 "ui/pages/**/*.py" = ["N999"]
 "ui_original/pages/**/*.py" = ["N999"]

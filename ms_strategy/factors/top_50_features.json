@@ -1,0 +1,585 @@
+{
+  "timestamp": "2026-07-11T19:16:15.294553",
+  "total_features": 158,
+  "top_n": 50,
+  "total_gain": 21.25590029358864,
+  "cumulative_gain": 9.467434540390968,
+  "cumulative_ratio": 0.4454026604202037,
+  "top_features": [
+    "Mean($volume, 20)/($volume+1e-12)",
+    "Sum(Greater(Ref($volume, 1)-$volume, 0), 60)/(Sum(Abs($volume-Ref($volume, 1)), 60)+1e-12)",
+    "Std(Abs($close/Ref($close, 1)-1)*$volume, 30)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 30)+1e-12)",
+    "Mean($volume, 60)/($volume+1e-12)",
+    "$open/$close",
+    "Std(Abs($close/Ref($close, 1)-1)*$volume, 10)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 10)+1e-12)",
+    "Std($volume, 30)/($volume+1e-12)",
+    "Mean($volume, 30)/($volume+1e-12)",
+    "IdxMin($low, 10)/10",
+    "IdxMax($high, 60)/60",
+    "Std(Abs($close/Ref($close, 1)-1)*$volume, 20)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 20)+1e-12)",
+    "$high/$close",
+    "Sum(Greater(Ref($volume, 1)-$volume, 0), 10)/(Sum(Abs($volume-Ref($volume, 1)), 10)+1e-12)",
+    "IdxMax($high, 20)/20",
+    "Std($close, 30)/$close",
+    "Corr($close, Log($volume+1), 60)",
+    "Slope($close, 10)/$close",
+    "IdxMax($high, 30)/30",
+    "Max($high, 10)/$close",
+    "Mean($close>Ref($close, 1), 20)",
+    "Mean($close>Ref($close, 1), 5)",
+    "Rank($close, 10)",
+    "($close-Min($low, 60))/(Max($high, 60)-Min($low, 60)+1e-12)",
+    "Std($close, 20)/$close",
+    "Std($volume, 20)/($volume+1e-12)",
+    "Max($high, 5)/$close",
+    "($high-Greater($open, $close))/($high-$low+1e-12)",
+    "Max($high, 60)/$close",
+    "Sum(Greater($volume-Ref($volume, 1), 0), 10)/(Sum(Abs($volume-Ref($volume, 1)), 10)+1e-12)",
+    "Std($close, 10)/$close",
+    "($close-Min($low, 30))/(Max($high, 30)-Min($low, 30)+1e-12)",
+    "Quantile($close, 60, 0.2)/$close",
+    "Corr($close, Log($volume+1), 30)",
+    "Rank($close, 60)",
+    "Rank($close, 20)",
+    "(IdxMax($high, 10)-IdxMin($low, 10))/10",
+    "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 60)",
+    "Sum(Greater(Ref($volume, 1)-$volume, 0), 30)/(Sum(Abs($volume-Ref($volume, 1)), 30)+1e-12)",
+    "Min($low, 30)/$close",
+    "Mean($close<Ref($close, 1), 10)",
+    "(Sum(Greater($volume-Ref($volume, 1), 0), 10)-Sum(Greater(Ref($volume, 1)-$volume, 0), 10))/(Sum(Abs($volume-Ref($volume, 1)), 10)+1e-12)",
+    "Sum(Greater($volume-Ref($volume, 1), 0), 30)/(Sum(Abs($volume-Ref($volume, 1)), 30)+1e-12)",
+    "Ref($close, 10)/$close",
+    "Rsquare($close, 30)",
+    "Rank($close, 30)",
+    "Sum(Greater($close-Ref($close, 1), 0), 10)/(Sum(Abs($close-Ref($close, 1)), 10)+1e-12)",
+    "Mean($close, 10)/$close",
+    "(2*$close-$high-$low)/($high-$low+1e-12)",
+    "$low/$close",
+    "IdxMin($low, 60)/60"
+  ],
+  "top_indices": [
+    130,
+    152,
+    141,
+    132,
+    9,
+    139,
+    136,
+    131,
+    79,
+    77,
+    140,
+    10,
+    149,
+    75,
+    26,
+    92,
+    29,
+    76,
+    44,
+    100,
+    98,
+    64,
+    72,
+    25,
+    135,
+    43,
+    4,
+    47,
+    144,
+    24,
+    71,
+    62,
+    91,
+    67,
+    65,
+    84,
+    97,
+    151,
+    51,
+    104,
+    154,
+    146,
+    14,
+    36,
+    66,
+    114,
+    19,
+    8,
+    11,
+    82
+  ],
+  "all_importance": [
+    {
+      "Mean($volume, 20)/($volume+1e-12)": 0.4132760167121887
+    },
+    {
+      "Sum(Greater(Ref($volume, 1)-$volume, 0), 60)/(Sum(Abs($volume-Ref($volume, 1)), 60)+1e-12)": 0.28963589668273926
+    },
+    {
+      "Std(Abs($close/Ref($close, 1)-1)*$volume, 30)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 30)+1e-12)": 0.2658378779888153
+    },
+    {
+      "Mean($volume, 60)/($volume+1e-12)": 0.2561287581920624
+    },
+    {
+      "$open/$close": 0.25421422719955444
+    },
+    {
+      "Std(Abs($close/Ref($close, 1)-1)*$volume, 10)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 10)+1e-12)": 0.25347235798835754
+    },
+    {
+      "Std($volume, 30)/($volume+1e-12)": 0.2502453625202179
+    },
+    {
+      "Mean($volume, 30)/($volume+1e-12)": 0.24490469694137573
+    },
+    {
+      "IdxMin($low, 10)/10": 0.2444482445716858
+    },
+    {
+      "IdxMax($high, 60)/60": 0.23508039116859436
+    },
+    {
+      "Std(Abs($close/Ref($close, 1)-1)*$volume, 20)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 20)+1e-12)": 0.20944330096244812
+    },
+    {
+      "$high/$close": 0.205762580037117
+    },
+    {
+      "Sum(Greater(Ref($volume, 1)-$volume, 0), 10)/(Sum(Abs($volume-Ref($volume, 1)), 10)+1e-12)": 0.20338967442512512
+    },
+    {
+      "IdxMax($high, 20)/20": 0.19639110565185547
+    },
+    {
+      "Std($close, 30)/$close": 0.19374120235443115
+    },
+    {
+      "Corr($close, Log($volume+1), 60)": 0.18651804327964783
+    },
+    {
+      "Slope($close, 10)/$close": 0.1858728975057602
+    },
+    {
+      "IdxMax($high, 30)/30": 0.18323621153831482
+    },
+    {
+      "Max($high, 10)/$close": 0.1791508048772812
+    },
+    {
+      "Mean($close>Ref($close, 1), 20)": 0.17900024354457855
+    },
+    {
+      "Mean($close>Ref($close, 1), 5)": 0.17572477459907532
+    },
+    {
+      "Rank($close, 10)": 0.17419502139091492
+    },
+    {
+      "($close-Min($low, 60))/(Max($high, 60)-Min($low, 60)+1e-12)": 0.17349952459335327
+    },
+    {
+      "Std($close, 20)/$close": 0.17333289980888367
+    },
+    {
+      "Std($volume, 20)/($volume+1e-12)": 0.17313049733638763
+    },
+    {
+      "Max($high, 5)/$close": 0.17310495674610138
+    },
+    {
+      "($high-Greater($open, $close))/($high-$low+1e-12)": 0.17283569276332855
+    },
+    {
+      "Max($high, 60)/$close": 0.17117084562778473
+    },
+    {
+      "Sum(Greater($volume-Ref($volume, 1), 0), 10)/(Sum(Abs($volume-Ref($volume, 1)), 10)+1e-12)": 0.1684359759092331
+    },
+    {
+      "Std($close, 10)/$close": 0.16727693378925323
+    },
+    {
+      "($close-Min($low, 30))/(Max($high, 30)-Min($low, 30)+1e-12)": 0.16710405051708221
+    },
+    {
+      "Quantile($close, 60, 0.2)/$close": 0.16596347093582153
+    },
+    {
+      "Corr($close, Log($volume+1), 30)": 0.16461467742919922
+    },
+    {
+      "Rank($close, 60)": 0.16407527029514313
+    },
+    {
+      "Rank($close, 20)": 0.16351214051246643
+    },
+    {
+      "(IdxMax($high, 10)-IdxMin($low, 10))/10": 0.1617068350315094
+    },
+    {
+      "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 60)": 0.16102588176727295
+    },
+    {
+      "Sum(Greater(Ref($volume, 1)-$volume, 0), 30)/(Sum(Abs($volume-Ref($volume, 1)), 30)+1e-12)": 0.15854157507419586
+    },
+    {
+      "Min($low, 30)/$close": 0.1575603485107422
+    },
+    {
+      "Mean($close<Ref($close, 1), 10)": 0.1569281816482544
+    },
+    {
+      "(Sum(Greater($volume-Ref($volume, 1), 0), 10)-Sum(Greater(Ref($volume, 1)-$volume, 0), 10))/(Sum(Abs($volume-Ref($volume, 1)), 10)+1e-12)": 0.1568203866481781
+    },
+    {
+      "Sum(Greater($volume-Ref($volume, 1), 0), 30)/(Sum(Abs($volume-Ref($volume, 1)), 30)+1e-12)": 0.15286040306091309
+    },
+    {
+      "Ref($close, 10)/$close": 0.14973485469818115
+    },
+    {
+      "Rsquare($close, 30)": 0.14964191615581512
+    },
+    {
+      "Rank($close, 30)": 0.14899957180023193
+    },
+    {
+      "Sum(Greater($close-Ref($close, 1), 0), 10)/(Sum(Abs($close-Ref($close, 1)), 10)+1e-12)": 0.14869847893714905
+    },
+    {
+      "Mean($close, 10)/$close": 0.14809904992580414
+    },
+    {
+      "(2*$close-$high-$low)/($high-$low+1e-12)": 0.14771248400211334
+    },
+    {
+      "$low/$close": 0.14667946100234985
+    },
+    {
+      "IdxMin($low, 60)/60": 0.14469848573207855
+    },
+    {
+      "Resi($close, 10)/$close": 0.14461001753807068
+    },
+    {
+      "Sum(Greater($close-Ref($close, 1), 0), 20)/(Sum(Abs($close-Ref($close, 1)), 20)+1e-12)": 0.14445815980434418
+    },
+    {
+      "Rsquare($close, 20)": 0.14445185661315918
+    },
+    {
+      "Ref($close, 60)/$close": 0.14350397884845734
+    },
+    {
+      "Corr($close, Log($volume+1), 10)": 0.14295348525047302
+    },
+    {
+      "Std($volume, 10)/($volume+1e-12)": 0.14173199236392975
+    },
+    {
+      "Mean($close<Ref($close, 1), 5)": 0.14119255542755127
+    },
+    {
+      "Min($low, 60)/$close": 0.1385205090045929
+    },
+    {
+      "Sum(Greater($volume-Ref($volume, 1), 0), 60)/(Sum(Abs($volume-Ref($volume, 1)), 60)+1e-12)": 0.13830062747001648
+    },
+    {
+      "Mean($close, 5)/$close": 0.13810428977012634
+    },
+    {
+      "Std($volume, 5)/($volume+1e-12)": 0.1375952512025833
+    },
+    {
+      "Quantile($close, 20, 0.8)/$close": 0.13683627545833588
+    },
+    {
+      "Std($volume, 60)/($volume+1e-12)": 0.13534745573997498
+    },
+    {
+      "Max($high, 20)/$close": 0.1344580352306366
+    },
+    {
+      "Min($low, 5)/$close": 0.13199053704738617
+    },
+    {
+      "Resi($close, 20)/$close": 0.13195393979549408
+    },
+    {
+      "(Sum(Greater($close-Ref($close, 1), 0), 30)-Sum(Greater(Ref($close, 1)-$close, 0), 30))/(Sum(Abs($close-Ref($close, 1)), 30)+1e-12)": 0.13008864223957062
+    },
+    {
+      "Sum(Greater($close-Ref($close, 1), 0), 60)/(Sum(Abs($close-Ref($close, 1)), 60)+1e-12)": 0.12991344928741455
+    },
+    {
+      "Ref($close, 30)/$close": 0.1288234442472458
+    },
+    {
+      "Std($close, 5)/$close": 0.12876181304454803
+    },
+    {
+      "Mean($close, 30)/$close": 0.12855879962444305
+    },
+    {
+      "Min($low, 10)/$close": 0.12793870270252228
+    },
+    {
+      "($close-$open)/($high-$low+1e-12)": 0.12697485089302063
+    },
+    {
+      "(Sum(Greater($volume-Ref($volume, 1), 0), 60)-Sum(Greater(Ref($volume, 1)-$volume, 0), 60))/(Sum(Abs($volume-Ref($volume, 1)), 60)+1e-12)": 0.12687170505523682
+    },
+    {
+      "($close-Min($low, 20))/(Max($high, 20)-Min($low, 20)+1e-12)": 0.12675637006759644
+    },
+    {
+      "Slope($close, 20)/$close": 0.12660916149616241
+    },
+    {
+      "(IdxMax($high, 30)-IdxMin($low, 30))/30": 0.12653052806854248
+    },
+    {
+      "Quantile($close, 10, 0.8)/$close": 0.1255546510219574
+    },
+    {
+      "Sum(Greater($close-Ref($close, 1), 0), 30)/(Sum(Abs($close-Ref($close, 1)), 30)+1e-12)": 0.12539103627204895
+    },
+    {
+      "Slope($close, 30)/$close": 0.12443969398736954
+    },
+    {
+      "Quantile($close, 30, 0.2)/$close": 0.1243920624256134
+    },
+    {
+      "Quantile($close, 10, 0.2)/$close": 0.1243305578827858
+    },
+    {
+      "($close-$open)/$open": 0.12405338138341904
+    },
+    {
+      "Sum(Greater(Ref($close, 1)-$close, 0), 30)/(Sum(Abs($close-Ref($close, 1)), 30)+1e-12)": 0.12382171303033829
+    },
+    {
+      "Std(Abs($close/Ref($close, 1)-1)*$volume, 60)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 60)+1e-12)": 0.12308134883642197
+    },
+    {
+      "(Sum(Greater($volume-Ref($volume, 1), 0), 30)-Sum(Greater(Ref($volume, 1)-$volume, 0), 30))/(Sum(Abs($volume-Ref($volume, 1)), 30)+1e-12)": 0.12283629924058914
+    },
+    {
+      "Std($close, 60)/$close": 0.12212589383125305
+    },
+    {
+      "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 10)": 0.12018658220767975
+    },
+    {
+      "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 20)": 0.11976761370897293
+    },
+    {
+      "(IdxMax($high, 60)-IdxMin($low, 60))/60": 0.11876534670591354
+    },
+    {
+      "Rsquare($close, 60)": 0.11858328431844711
+    },
+    {
+      "(Sum(Greater($close-Ref($close, 1), 0), 10)-Sum(Greater(Ref($close, 1)-$close, 0), 10))/(Sum(Abs($close-Ref($close, 1)), 10)+1e-12)": 0.11830003559589386
+    },
+    {
+      "Quantile($close, 30, 0.8)/$close": 0.11822254210710526
+    },
+    {
+      "Ref($close, 20)/$close": 0.11772470921278
+    },
+    {
+      "Mean($close>Ref($close, 1), 10)-Mean($close<Ref($close, 1), 10)": 0.11765523254871368
+    },
+    {
+      "Std(Abs($close/Ref($close, 1)-1)*$volume, 5)/(Mean(Abs($close/Ref($close, 1)-1)*$volume, 5)+1e-12)": 0.1174793615937233
+    },
+    {
+      "Mean($volume, 10)/($volume+1e-12)": 0.11676817387342453
+    },
+    {
+      "Rank($close, 5)": 0.11664023995399475
+    },
+    {
+      "(Sum(Greater($close-Ref($close, 1), 0), 20)-Sum(Greater(Ref($close, 1)-$close, 0), 20))/(Sum(Abs($close-Ref($close, 1)), 20)+1e-12)": 0.11663404852151871
+    },
+    {
+      "IdxMin($low, 5)/5": 0.11623916774988174
+    },
+    {
+      "Resi($close, 60)/$close": 0.11562956869602203
+    },
+    {
+      "Rsquare($close, 10)": 0.1142687201499939
+    },
+    {
+      "Rsquare($close, 5)": 0.11382521688938141
+    },
+    {
+      "($high-Greater($open, $close))/$open": 0.11325887590646744
+    },
+    {
+      "($close-Min($low, 10))/(Max($high, 10)-Min($low, 10)+1e-12)": 0.11306475847959518
+    },
+    {
+      "Min($low, 20)/$close": 0.11301321536302567
+    },
+    {
+      "Mean($close>Ref($close, 1), 30)-Mean($close<Ref($close, 1), 30)": 0.1122104823589325
+    },
+    {
+      "Max($high, 30)/$close": 0.11096145212650299
+    },
+    {
+      "Corr($close, Log($volume+1), 20)": 0.1106489971280098
+    },
+    {
+      "($high-$low)/$open": 0.10919482260942459
+    },
+    {
+      "Sum(Greater($close-Ref($close, 1), 0), 5)/(Sum(Abs($close-Ref($close, 1)), 5)+1e-12)": 0.10842577368021011
+    },
+    {
+      "Slope($close, 60)/$close": 0.1080465242266655
+    },
+    {
+      "Corr($close, Log($volume+1), 5)": 0.10754263401031494
+    },
+    {
+      "(Less($open, $close)-$low)/$open": 0.10657379776239395
+    },
+    {
+      "(2*$close-$high-$low)/$open": 0.10614682734012604
+    },
+    {
+      "Mean($close, 20)/$close": 0.10534222424030304
+    },
+    {
+      "Mean($close<Ref($close, 1), 60)": 0.10492958128452301
+    },
+    {
+      "Sum(Greater(Ref($close, 1)-$close, 0), 20)/(Sum(Abs($close-Ref($close, 1)), 20)+1e-12)": 0.10430634766817093
+    },
+    {
+      "Mean($close>Ref($close, 1), 60)-Mean($close<Ref($close, 1), 60)": 0.1041247546672821
+    },
+    {
+      "(Sum(Greater($close-Ref($close, 1), 0), 60)-Sum(Greater(Ref($close, 1)-$close, 0), 60))/(Sum(Abs($close-Ref($close, 1)), 60)+1e-12)": 0.10340616106987
+    },
+    {
+      "Quantile($close, 20, 0.2)/$close": 0.10254909843206406
+    },
+    {
+      "Quantile($close, 5, 0.2)/$close": 0.10253795236349106
+    },
+    {
+      "Sum(Greater($volume-Ref($volume, 1), 0), 5)/(Sum(Abs($volume-Ref($volume, 1)), 5)+1e-12)": 0.10237892717123032
+    },
+    {
+      "(IdxMax($high, 20)-IdxMin($low, 20))/20": 0.10217010229825974
+    },
+    {
+      "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 30)": 0.10181082785129547
+    },
+    {
+      "(Sum(Greater($close-Ref($close, 1), 0), 5)-Sum(Greater(Ref($close, 1)-$close, 0), 5))/(Sum(Abs($close-Ref($close, 1)), 5)+1e-12)": 0.10175570845603943
+    },
+    {
+      "Sum(Greater(Ref($close, 1)-$close, 0), 60)/(Sum(Abs($close-Ref($close, 1)), 60)+1e-12)": 0.10129385441541672
+    },
+    {
+      "Mean($close>Ref($close, 1), 60)": 0.1001594215631485
+    },
+    {
+      "Mean($volume, 5)/($volume+1e-12)": 0.09758058190345764
+    },
+    {
+      "Mean($close>Ref($close, 1), 30)": 0.0971698984503746
+    },
+    {
+      "IdxMin($low, 20)/20": 0.09666101634502411
+    },
+    {
+      "Sum(Greater(Ref($close, 1)-$close, 0), 10)/(Sum(Abs($close-Ref($close, 1)), 10)+1e-12)": 0.09632690995931625
+    },
+    {
+      "Corr($close/Ref($close,1), Log($volume/Ref($volume, 1)+1), 5)": 0.09625926613807678
+    },
+    {
+      "(IdxMax($high, 5)-IdxMin($low, 5))/5": 0.09602778404951096
+    },
+    {
+      "($close-Min($low, 5))/(Max($high, 5)-Min($low, 5)+1e-12)": 0.0935484915971756
+    },
+    {
+      "(Less($open, $close)-$low)/($high-$low+1e-12)": 0.0912298634648323
+    },
+    {
+      "Quantile($close, 60, 0.8)/$close": 0.09042107313871384
+    },
+    {
+      "Ref($close, 5)/$close": 0.0895630493760109
+    },
+    {
+      "Mean($close>Ref($close, 1), 10)": 0.08843228965997696
+    },
+    {
+      "IdxMin($low, 30)/30": 0.08787573128938675
+    },
+    {
+      "Resi($close, 5)/$close": 0.08359786123037338
+    },
+    {
+      "Slope($close, 5)/$close": 0.08202818781137466
+    },
+    {
+      "Resi($close, 30)/$close": 0.08159910142421722
+    },
+    {
+      "Mean($close<Ref($close, 1), 30)": 0.07970531284809113
+    },
+    {
+      "Mean($close, 60)/$close": 0.07946839928627014
+    },
+    {
+      "Mean($close>Ref($close, 1), 20)-Mean($close<Ref($close, 1), 20)": 0.07885318249464035
+    },
+    {
+      "Mean($close<Ref($close, 1), 20)": 0.07756517082452774
+    },
+    {
+      "Mean($close>Ref($close, 1), 5)-Mean($close<Ref($close, 1), 5)": 0.07722143083810806
+    },
+    {
+      "Sum(Greater(Ref($close, 1)-$close, 0), 5)/(Sum(Abs($close-Ref($close, 1)), 5)+1e-12)": 0.07550448179244995
+    },
+    {
+      "IdxMax($high, 10)/10": 0.0747293159365654
+    },
+    {
+      "Quantile($close, 5, 0.8)/$close": 0.07437022775411606
+    },
+    {
+      "Sum(Greater($volume-Ref($volume, 1), 0), 20)/(Sum(Abs($volume-Ref($volume, 1)), 20)+1e-12)": 0.07387519627809525
+    },
+    {
+      "(Sum(Greater($volume-Ref($volume, 1), 0), 20)-Sum(Greater(Ref($volume, 1)-$volume, 0), 20))/(Sum(Abs($volume-Ref($volume, 1)), 20)+1e-12)": 0.07136867195367813
+    },
+    {
+      "Sum(Greater(Ref($volume, 1)-$volume, 0), 5)/(Sum(Abs($volume-Ref($volume, 1)), 5)+1e-12)": 0.06776539981365204
+    },
+    {
+      "Sum(Greater(Ref($volume, 1)-$volume, 0), 20)/(Sum(Abs($volume-Ref($volume, 1)), 20)+1e-12)": 0.06615456193685532
+    },
+    {
+      "(Sum(Greater($volume-Ref($volume, 1), 0), 5)-Sum(Greater(Ref($volume, 1)-$volume, 0), 5))/(Sum(Abs($volume-Ref($volume, 1)), 5)+1e-12)": 0.06277874857187271
+    },
+    {
+      "IdxMax($high, 5)/5": 0.054378509521484375
+    }
+  ]
+}

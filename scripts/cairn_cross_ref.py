@@ -10,11 +10,11 @@ cairn 知识层自动交叉引用生成器 (GH+-2)
     python scripts/cairn_cross_ref.py --top 5   # 每篇文档关联数量 (默认 5)
 """
 
-import re
-import math
 import argparse
+import math
+import re
+from collections import Counter
 from pathlib import Path
-from collections import Counter, defaultdict
 
 CAIRN_DIR = Path(__file__).resolve().parent.parent / "cairn"
 SECTION_MARKER = "<!-- AUTO-GENERATED: 相关文档 -->"
@@ -197,7 +197,7 @@ def main():
 
         if args.check:
             print(f"  [DRY-RUN] {name}: {len(related)} 篇相关")
-            for fn, t, s in related:
+            for _fn, t, s in related:
                 print(f"    - {t} ({s:.1%})")
         else:
             (CAIRN_DIR / name).write_text(new_text, encoding="utf-8")

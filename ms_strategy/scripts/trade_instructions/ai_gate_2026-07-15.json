@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "trade_date": "2026-07-15",
+    "generated_at": "2026-07-15T12:36:54.881099",
+    "module": "ai_decision_gate",
+    "mode": "semi_auto",
+    "description": "AI 决策门审核结果，需人工确认 ai_approved=true 后才能执行"
+  },
+  "hard_limits": {
+    "max_single_order_amount": 200000,
+    "max_total_amount": 200000,
+    "max_position_concentration": 0.3,
+    "max_daily_trades": 50,
+    "min_order_amount": 100,
+    "price_protection_pct": 0.03,
+    "daily_loss_stop_pct": 0.03,
+    "portfolio_drawdown_stop_pct": 0.05,
+    "forbidden_keywords": [
+      "*ST",
+      "ST",
+      "退市"
+    ],
+    "allowed_directions": [
+      "BUY",
+      "SELL",
+      "HOLD"
+    ]
+  },
+  "fusion_result": {
+    "date": "2026-07-15",
+    "model": "NONE",
+    "error": "llm_client 不可用，使用基础指令",
+    "approved_instructions": [],
+    "rejected_instructions": [],
+    "ai_adjustments": [],
+    "risk_alerts": [
+      "LLM 未就绪"
+    ],
+    "confidence": 0.0
+  },
+  "ai_approved": false,
+  "ai_approval_time": null,
+  "notes": [
+    "人工确认步骤: 将 ai_approved 字段改为 true",
+    "审核通过的指令会自动进入 post-market 执行",
+    "硬风控规则不可突破，突破的指令会被自动拒绝"
+  ]
+}

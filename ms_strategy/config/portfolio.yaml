@@ -1,0 +1,340 @@
+# ================================================================
+# 投资组合配置 v7.7 → v8.4 同步
+# P0-3 FIX (2026-07-23): 从 configs/portfolio.yaml (v7.7 权威版) 同步
+#   原 v7.6 配置存在严重漂移:
+#     - stock_etf_capital=3M (应为4M)
+#     - hedge_capital=2M (应为1M)
+#     - 持仓列表过时 (含紫金矿业/光迅科技/国盾量子/中芯国际, 缺卓胜微)
+#   已按 configs/portfolio.yaml (v7.7 权威版) 同步修正。
+# ================================================================
+# 更新: 2026-07-12 融合Theta引擎+Gamma触发+三级熔断+清仓协议
+# ================================================================
+
+account_structure:
+  total_capital: 5000000
+  stock_etf_capital: 4000000
+  hedge_capital: 1000000
+  start_date: "2026-07-13"
+  clearance_date: "2030-12-31"
+  target_annual_return: 0.08
+  target_max_drawdown: 0.15
+  var_daily_limit: 0.03
+
+assets:
+  - code: "588080"
+    name: "科创50ETF易方达"
+    weight: 0.045
+    category: "etf"
+    style: "科技"
+    amount: 180000
+  - code: "512880"
+    name: "证券ETF国泰"
+    weight: 0.05
+    category: "etf"
+    style: "金融"
+    amount: 200000
+  - code: "510050"
+    name: "上证50ETF华夏"
+    weight: 0.06
+    category: "etf"
+    style: "宽基"
+    amount: 240000
+  - code: "512800"
+    name: "银行ETF华宝"
+    weight: 0.06
+    category: "etf"
+    style: "金融"
+    amount: 240000
+  - code: "515030"
+    name: "新能源车ETF华夏"
+    weight: 0.05
+    category: "etf"
+    style: "新能源"
+    amount: 200000
+  - code: "512760"
+    name: "半导体ETF国泰"
+    weight: 0.03
+    category: "etf"
+    style: "科技"
+    amount: 120000
+  - code: "512170"
+    name: "医疗ETF华宝"
+    weight: 0.09
+    category: "etf"
+    style: "医药"
+    amount: 360000
+  - code: "518880"
+    name: "黄金ETF华安"
+    weight: 0.05
+    category: "etf"
+    style: "资源"
+    amount: 200000
+  - code: "688041"
+    name: "海光信息"
+    weight: 0.04
+    category: "tech"
+    style: "科技"
+    amount: 160000
+  - code: "300308"
+    name: "中际旭创"
+    weight: 0.04
+    category: "tech"
+    style: "科技"
+    amount: 160000
+  - code: "002371"
+    name: "北方华创"
+    weight: 0.04
+    category: "tech"
+    style: "科技"
+    amount: 160000
+  - code: "603019"
+    name: "中科曙光"
+    weight: 0.03
+    category: "tech"
+    style: "科技"
+    amount: 120000
+  - code: "300033"
+    name: "同花顺"
+    weight: 0.04
+    category: "tech"
+    style: "科技"
+    amount: 160000
+  - code: "300782"
+    name: "卓胜微"
+    weight: 0.02
+    category: "tech"
+    style: "科技"
+    amount: 80000
+  - code: "688017"
+    name: "绿的谐波"
+    weight: 0.03
+    category: "high_end"
+    style: "制造"
+    amount: 120000
+  - code: "300274"
+    name: "阳光电源"
+    weight: 0.04
+    category: "new_energy"
+    style: "新能源"
+    amount: 160000
+  - code: "000408"
+    name: "藏格矿业"
+    weight: 0.04
+    category: "resource"
+    style: "资源"
+    amount: 160000
+  - code: "601088"
+    name: "中国神华"
+    weight: 0.03
+    category: "energy"
+    style: "顺周期"
+    amount: 120000
+  - code: "600276"
+    name: "恒瑞医药"
+    weight: 0.06
+    category: "pharma"
+    style: "医药"
+    amount: 240000
+  - code: "600900"
+    name: "长江电力"
+    weight: 0.05
+    category: "utility"
+    style: "防御"
+    amount: 200000
+  - code: "CASH"
+    name: "现金储备"
+    weight: 0.05
+    category: "cash"
+    amount: 200000
+
+hedge:
+  # === 动态对冲策略 (v8.0核心升级) ===
+  dynamic_hedge_policy:
+    bull_market:
+      hedge_ratio: 0.20
+      max_contracts: 2
+      description: "牛市: 降低对冲，保留上行收益"
+    neutral_market:
+      hedge_ratio: 0.40
+      max_contracts: 3
+      description: "中性: 中等对冲，平衡收益与风险"
+    bear_market:
+      hedge_ratio: 0.75
+      max_contracts: 4
+      description: "熊市: 提高对冲，保护下行风险"
+    crisis_mode:
+      hedge_ratio: 0.90
+      max_contracts: 5
+      description: "危机: 最大对冲，严格保护"
+
+  # === 期货对冲 (Delta管理) ===
+  futures:
+    - instrument: "IF_futures"
+      direction: "SELL"
+      target_contracts: 3
+      multiplier: 300
+      margin_rate: 0.12
+      role: "Delta管理"
+
+  # === Gamma/Vega引擎 - 尾部危机防御 ===
+  gamma_vega_engine:
+    put_options:
+      - instrument: "ETF_put_options"
+        direction: "BUY"
+        target_contracts: 20
+        strike: "OTM_5%"
+        premium_budget: 300000
+      - instrument: "510050_put_options"
+        direction: "BUY"
+        target_contracts: 10
+        strike: "OTM_5%"
+        premium_budget: 120000
+      - instrument: "159915_put_options"
+        direction: "BUY"
+        target_contracts: 10
+        strike: "OTM_5%"
+        premium_budget: 100000
+
+    triggers:
+      - name: "ma60_breakdown"
+        condition: "大盘跌破60日均线"
+        action: "自动加仓Deep OTM Put (行权价低于现价10%)"
+        budget_ratio: 0.01
+      - name: "iv_low_percentile"
+        condition: "市场IV < 10%历史分位"
+        action: "批量买入Deep OTM Put (权利金1-2%资产)"
+        budget_ratio: 0.02
+        iv_data_source: "Wind MCP option_data"
+
+    gamma_explosion:
+      target: "现货浮亏-120万 → 期权端+85万 → 净回撤-7%"
+      max_drawdown_lock: 0.15
+
+  # === Theta引擎 - 常态化备兑收租 ===
+  theta_engine:
+    enabled: true
+    underlying_collateral: 4000000
+    additional_margin_required: 0
+
+    rolling:
+      frequency: "monthly"
+      dte_range: [20, 40]
+      strike_otm_pct: [0.05, 0.08]
+      option_type: "CALL"
+
+    target_etfs:
+      - code: "588080"
+        weight_in_pool: 0.20
+      - code: "512760"
+        weight_in_pool: 0.15
+      - code: "510050"
+        weight_in_pool: 0.20
+      - code: "515030"
+        weight_in_pool: 0.15
+      - code: "512170"
+        weight_in_pool: 0.15
+      - code: "518880"
+        weight_in_pool: 0.15
+
+    expected_enhancement:
+      monthly_theta_target: [0.005, 0.008]
+      annual_cashflow_boost: [0.06, 0.09]
+      bull_market_drag: [-0.03, -0.05]
+
+    risk_control:
+      max_otm_call_ratio: 0.10
+      min_dte: 15
+      max_dte: 45
+      auto_rollover: true
+
+# === 三级熔断协议 (Kill Switch) ===
+kill_switch:
+  level_1:
+    name: "一级警戒线"
+    trigger:
+      margin_usage_ratio: 0.50
+    action:
+      - "切断所有新开仓权限"
+      - "进入'只平仓不计数'防守模式"
+    auto_execute: true
+
+  level_2:
+    name: "二级熔断线"
+    trigger:
+      margin_usage_ratio: 0.75
+    action:
+      - "触发紧急自救协议"
+      - "API中控强制平仓最深虚值期权空头"
+      - "瞬间释放账户流动性"
+    auto_execute: true
+
+  level_3:
+    name: "三级互盲机制"
+    trigger:
+      margin_call_extreme: true
+    action:
+      - "日内自动闪电变现10%高流动性红利低波ETF"
+      - "跨品种清算注入期权账户"
+      - "绝对确保期权端不被券商恶意强平"
+    auto_execute: true
+    source_etfs: ["512890", "515180"]
+
+# === 2030清仓协议 ===
+liquidation_protocol:
+  avoidance_logic: "规避十五五收官时政策兑现期踩踏, 不采取'一天切死'方式"
+
+  phase_1:
+    period: "2030-Q3"
+    name: "锁定科技利润"
+    actions:
+      - "停止科技ETF (588080/512760/588000) 的Covered Call开仓"
+      - "启动IF期货进行1:1净敞口对冲, Delta中性化"
+      - "分批TWAP算法变现科技现货, 锁定5年复合利润"
+    target: "科技板块净Delta降至0"
+
+  phase_2:
+    period: "2030-11"
+    name: "红利资产收尾"
+    actions:
+      - "红利低波资产持有至最后一次秋季分红派息"
+      - "VWAP算法在大盘平稳交易日分批变现红利现货"
+    target: "红利板块完成收尾"
+
+  phase_3:
+    period: "2030-12"
+    name: "账户归零清盘"
+    actions:
+      - "平仓全部期权/期货残存合约"
+      - "500万本息全额回归现金流账户"
+    target: "专户完成5年历史使命"
+
+risk_parameters:
+  max_single_position: 0.08
+  max_sector_exposure: 0.30
+  target_volatility: 0.10
+  max_portfolio_drawdown: 0.12
+  var_confidence: 0.95
+  rebalance_threshold: 0.05
+  stop_loss:
+    etf: -0.06
+    tech_growth: -0.08
+    defense_dividend: -0.05
+    gold_etf_half: -0.06
+    gold_etf_clear: -0.10
+  intraday_circuit_breaker:
+    stop_buy: -0.02
+    force_reduce: -0.04
+
+optimization:
+  method: "risk_parity"
+  constraints:
+    min_weight: 0.01
+    max_weight: 0.12
+    sum_to_one: true
+  objective: "max_sharpe"
+
+execution:
+  rebalance_frequency: "weekly"
+  auto_execute: true
+  pre_market_time: "07:00"
+  post_market_time: "15:30"

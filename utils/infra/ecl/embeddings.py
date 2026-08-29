@@ -99,7 +99,8 @@ def _hash_ngram_embedding(text: str) -> list[float]:
     vec = np.zeros(_HASH_DIM, dtype=np.float32)
     for i in range(len(text) - _NGRAM_SIZE + 1):
         ngram = text[i : i + _NGRAM_SIZE]
-        h = int(hashlib.md5(ngram.encode("utf-8")).hexdigest(), 16)
+        # sha256 (非 md5): bandit B324; 嵌入哈希非安全用途, 换 sha256 全版本兼容
+        h = int(hashlib.sha256(ngram.encode("utf-8")).hexdigest(), 16)
         vec[h % _HASH_DIM] += 1.0
 
     norm = np.linalg.norm(vec)
