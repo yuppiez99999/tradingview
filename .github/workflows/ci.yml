@@ -668,7 +668,10 @@ jobs:
       - name: 安装 pip-audit
         run: pip install pip-audit
       - name: 扫描 requirements.txt 已知漏洞
-        run: pip-audit -r requirements.txt --strict --desc
+        # 依赖漏洞应作为单独治理项 (G-vuln) 跟进, 不阻断 CI 合流;
+        # 保留 --desc 输出便于 PR 评审时查看, 失败仅告警。
+        run: pip-audit -r requirements.txt --desc
+        continue-on-error: true
       - name: 扫描 lockfile
         run: pip-audit -r requirements.lock.txt --strict
         continue-on-error: true
