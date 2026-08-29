@@ -29,6 +29,28 @@ updates:
     reviewers:
       - "yuppiez99999"
 
+  # === uv 依赖锁文件 (uv.lock 由主环境管理安全版本) ===
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+    target-branch: "main"
+    labels:
+      - "security"
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "security"
+      prefix-development: "chore"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    reviewers:
+      - "yuppiez99999"
+
   # === GitHub Actions 版本更新 ===
   - package-ecosystem: "github-actions"
     directory: "/"
