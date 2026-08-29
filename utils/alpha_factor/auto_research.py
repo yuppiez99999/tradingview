@@ -261,6 +261,7 @@ class AutoFactorResearch:
 
         self._cycle_count = 0
         self.accepted: dict[str, FactorValue] = {}
+        self.accepted_meta: dict[str, FactorCandidate] = {}
         self._review_cache: dict[str, ReviewResult] = {}
         # 避免 LLM 重复生成相同因子的简单去重集
         self._seen_names: set[str] = set()
@@ -562,6 +563,7 @@ class AutoFactorResearch:
                 continue
             self.accepted[name] = fv
             self._review_cache[name] = rev
+            self.accepted_meta[name] = name_to_cand.get(name)
             report.accepted.append(name)
             self._record_memory(name_to_cand.get(name), rev, "effective")
 
@@ -601,6 +603,43 @@ class AutoFactorResearch:
             )
         except _MEMORY_ERRS as e:
             logger.debug("[Manager] 记忆写入失败: %s", e)
+
+    def get_accepted_specs(self, with_stats: bool = True) -> list[dict]:
+        """导出已接受因子的可持久化规格 (名称/表达式/类别/评审指标).
+
+        用于接 AlphaFactorLibrary 持久化: 存表达式定义而非计算值,
+        使因子可在任意新 Universe 上被重新求值 (第 16 大类表达式因子机制).
+
+        Returns:
+            [{name, expression, category, hypothesis, rationale, source,
+              ic_mean, ic_ir, turnover, half_life_days, long_short}, ...]
+        """
+        specs: list[dict] = []
+        for name, cand in self.accepted_meta.items():
+            if cand is None:
+                continue
+            spec = {
+                "name": name,
+                "expression": cand.expression,
+                "category": cand.category,
+                "hypothesis": cand.hypothesis,
+                "rationale": cand.rationale,
+                "source": cand.source,
+            }
+            if with_stats:
+                rev = self._review_cache.get(name)
+                if rev is not None:
+                    spec.update(
+                        {
+                            "ic_mean": rev.ic_mean,
+                            "ic_ir": rev.ic_ir,
+                            "turnover": rev.turnover,
+                            "half_life_days": rev.half_life_days,
+                            "long_short": rev.long_short,
+                        }
+                    )
+            specs.append(spec)
+        return specs
 
     # ------------------------------------------------------------
     # 全循环

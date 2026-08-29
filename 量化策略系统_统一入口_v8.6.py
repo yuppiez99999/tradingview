@@ -2051,6 +2051,24 @@ def run_factor_research(args: argparse.Namespace) -> None:
     if args.factor_combine and ar.accepted:
         logger.info(f"ML 组合: {ar.combine_accepted()}")
 
+    # 持久化 accepted 因子到 AlphaFactorLibrary (表达式因子, 未来 compute_all 自动纳入)
+    if not args.no_factor_persist and ar.accepted:
+        try:
+            from utils.alpha_factor.library import save_research_factors
+
+            specs = ar.get_accepted_specs()
+            if specs:
+                n = save_research_factors(specs)
+                logger.info(
+                    "[持久化] 已将 %d 个 accepted 因子写入 AlphaFactorLibrary 持久化 "
+                    "(data/alpha_factor_research.json)，后续 compute_all 自动纳入",
+                    n,
+                )
+            else:
+                logger.info("[持久化] 本轮无 accepted 因子可持久化")
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[持久化] 因子持久化跳过: %s", e)
+
 
 def main() -> None:
     # ── 模式注册表：flag / dest / 帮助文本 / handler ──
@@ -2518,6 +2536,11 @@ def main() -> None:
         "--factor-combine",
         action="store_true",
         help="因子研究: 跑完后做 ML 组合阶段",
+    )
+    parser.add_argument(
+        "--no-factor-persist",
+        action="store_true",
+        help="因子研究: 跑完不将 accepted 因子写入 AlphaFactorLibrary 持久化",
     )
 
     args = parser.parse_args()

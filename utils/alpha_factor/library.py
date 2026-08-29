@@ -36,6 +36,11 @@
 
 from __future__ import annotations
 
+import json
+import logging
+import os
+from datetime import UTC, datetime
+
 import pandas as pd
 
 from utils.alpha_factor.base import (
@@ -84,6 +89,15 @@ from utils.alpha_factor.price_volume import (
 )
 from utils.alpha_factor.technical import compute_technical_factors
 
+logger = logging.getLogger(__name__)
+
+# 研究阶段 accepted 因子持久化存储 (AutoFactorResearch → AlphaFactorLibrary 闭环)
+_RESEARCH_FACTORS_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "data",
+    "alpha_factor_research.json",
+)
+
 
 class AlphaFactorLibrary:
     """Alpha 因子库 (国泰海通因子体系对标)
@@ -115,6 +129,7 @@ class AlphaFactorLibrary:
         ) = None,  # 表达式因子规格 [(name, expr_str), ...] 或 [ExpressionFactorSpec]
         enable_hurst: bool = True,  # 第 17 大类: Hurst 指数因子 (2026-08-23 P0, 默认开)
         enable_info: bool = True,  # 第 18 大类: 信息论因子 (2026-08-23 P0, 默认开)
+        enable_research: bool = True,  # 研究阶段 accepted 因子持久化自动纳入 (data/alpha_factor_research.json)
     ):
         self.neutralize_industry = bool(neutralize_industry)
         self.neutralize_size = bool(neutralize_size)
@@ -129,6 +144,19 @@ class AlphaFactorLibrary:
         self.expressions = expressions or []
         self.enable_hurst = bool(enable_hurst)
         self.enable_info = bool(enable_info)
+        # 研究阶段 accepted 因子: 自动从持久化存储加载为表达式因子 (第 16 大类),
+        # 使 --factor-research 接受的因子在后续任意 compute_all() 中被重新求值纳入.
+        self.enable_research = bool(enable_research)
+        self.research_factors: list[dict] = []
+        if self.enable_research:
+            self.research_factors = load_research_factors()
+            if self.research_factors:
+                self.expressions = list(self.expressions) + [
+                    (f["name"], f["expression"])
+                    for f in self.research_factors
+                    if f.get("name") and f.get("expression")
+                ]
+                self.enable_expression = True
 
     # ------------------------------------------------------------
     # 主入口
@@ -365,3 +393,68 @@ class AlphaFactorLibrary:
     ) -> pd.DataFrame | None:
         """计算因子间相关性矩阵"""
         return compute_factor_corr_matrix(factors)
+
+
+# ============================================================
+# 研究阶段 accepted 因子持久化 (AutoFactorResearch → AlphaFactorLibrary 闭环)
+# ============================================================
+
+
+def load_research_factors() -> list[dict]:
+    """读取研究阶段接受的因子规格 (fail-open)."""
+    try:
+        if not os.path.exists(_RESEARCH_FACTORS_PATH):
+            return []
+        with open(_RESEARCH_FACTORS_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError, TypeError) as e:
+        logger.warning("[AlphaFactorLibrary] 读取研究因子持久化失败: %s", e)
+        return []
+    if isinstance(data, dict):
+        factors = data.get("factors", [])
+    elif isinstance(data, list):
+        factors = data
+    else:
+        return []
+    return [f for f in factors if isinstance(f, dict) and f.get("name")]
+
+
+def save_research_factors(specs: list[dict], merge: bool = True) -> int:
+    """将研究阶段接受的因子规格落入持久化存储.
+
+    与已有同名因子合并 (更新指标 + cycles 计数); 返回落盘因子数.
+    落盘的是表达式定义 (而非计算值), AlphaFactorLibrary 在 __init__ 时
+    自动加载为第 16 大类表达式因子, 在任意新 Universe 上重新求值.
+
+    Args:
+        specs: get_accepted_specs() 产出的规格列表
+        merge: True 时与已有存储按 name 合并, False 时整体覆盖
+    """
+    if merge:
+        existing = {f["name"]: f for f in load_research_factors()}
+    else:
+        existing = {}
+    now = datetime.now(UTC).isoformat()
+    count = 0
+    for spec in specs or []:
+        name = spec.get("name") if isinstance(spec, dict) else None
+        if not name or not spec.get("expression"):
+            continue
+        rec = dict(spec)
+        rec["accepted_at"] = now
+        if name in existing:
+            existing[name].update(rec)
+            existing[name]["cycles"] = int(existing[name].get("cycles", 0)) + 1
+        else:
+            rec["cycles"] = 1
+            existing[name] = rec
+        count += 1
+    payload = {"version": 1, "updated_at": now, "factors": list(existing.values())}
+    try:
+        os.makedirs(os.path.dirname(_RESEARCH_FACTORS_PATH), exist_ok=True)
+        with open(_RESEARCH_FACTORS_PATH, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except (OSError, TypeError) as e:
+        logger.warning("[AlphaFactorLibrary] 研究因子持久化失败: %s", e)
+        return 0
+    return count
