@@ -11,6 +11,7 @@
     get_state(): 快照不可变性
     集成测试: 策略 on_bar 回调提交订单
 """
+
 from __future__ import annotations
 
 import pytest
@@ -32,6 +33,7 @@ from utils.wt_structs import BarData, OrderData
 # ============================================================
 # 测试辅助
 # ============================================================
+
 
 def make_bar(
     code: str = "600519.SH",
@@ -108,6 +110,12 @@ class _NoopStrategy(HedgeStrategy):
     def on_rebalance(self, ctx) -> None:  # type: ignore[override]
         pass
 
+    def on_tick(self, ctx, tick) -> None:  # type: ignore[override]
+        pass
+
+    def on_bar(self, ctx, bar) -> None:  # type: ignore[override]
+        pass
+
 
 class _BuyOnFirstBarStrategy(HedgeStrategy):
     """首个 bar 提交买入订单的策略 (用于集成测试)。"""
@@ -117,6 +125,9 @@ class _BuyOnFirstBarStrategy(HedgeStrategy):
         self.submitted = False
 
     def on_rebalance(self, ctx) -> None:  # type: ignore[override]
+        pass
+
+    def on_tick(self, ctx, tick) -> None:  # type: ignore[override]
         pass
 
     def on_bar(self, ctx, bar: BarData) -> None:  # type: ignore[override]
@@ -129,6 +140,7 @@ class _BuyOnFirstBarStrategy(HedgeStrategy):
 # ============================================================
 # PendingOrder / Position 数据类测试
 # ============================================================
+
 
 def test_pending_order_dataclass() -> None:
     """PendingOrder 数据类基础行为。"""
@@ -174,6 +186,7 @@ def test_position_apply_fill_zero_volume_noop() -> None:
 # EventDrivenEngine 初始化测试
 # ============================================================
 
+
 def test_engine_init_defaults() -> None:
     """默认参数初始化: BAR 撮合 + FixedLatency(0) + 1M 资金。"""
     engine = EventDrivenEngine(strategy=_NoopStrategy())
@@ -208,6 +221,7 @@ def test_engine_init_equity_curve_starts_with_capital() -> None:
 # ============================================================
 # submit_order 测试
 # ============================================================
+
 
 def test_submit_order_enters_latency_queue() -> None:
     """submit_order 将订单放入延迟队列。"""
@@ -261,7 +275,9 @@ def test_submit_order_uses_pending_count_for_queue_latency() -> None:
     """QueueLatency 使用 pending_count 计算延迟。"""
     engine = EventDrivenEngine(
         strategy=_NoopStrategy(),
-        latency_model=QueueLatency(base_ticks=1, per_pending_order_ticks=1.0, max_ticks=10),
+        latency_model=QueueLatency(
+            base_ticks=1, per_pending_order_ticks=1.0, max_ticks=10
+        ),
     )
 
     # 第一个订单: pending=0 → 1 + 1*0 = 1
@@ -276,6 +292,7 @@ def test_submit_order_uses_pending_count_for_queue_latency() -> None:
 # ============================================================
 # process_event 延迟语义测试
 # ============================================================
+
 
 def test_process_event_no_orders_no_change() -> None:
     """无订单时 process_event 仅增长 equity_curve。"""
@@ -373,6 +390,7 @@ def test_order_not_matched_on_different_code_event() -> None:
 # process_event 撮合与持仓测试
 # ============================================================
 
+
 def test_buy_open_creates_long_position() -> None:
     """BUY OPEN 创建多头持仓,现金减少。"""
     engine = EventDrivenEngine(
@@ -451,6 +469,7 @@ def test_commission_deducted_on_sell() -> None:
 # process_event 权益跟踪测试
 # ============================================================
 
+
 def test_equity_curve_grows_one_point_per_event() -> None:
     """每个事件增加一个权益点。"""
     engine = EventDrivenEngine(strategy=_NoopStrategy())
@@ -518,6 +537,7 @@ def test_position_last_price_marked() -> None:
 # run() 完整回测测试
 # ============================================================
 
+
 def test_run_processes_all_events() -> None:
     """run() 处理所有事件并返回 EngineSummary。"""
     engine = EventDrivenEngine(strategy=_NoopStrategy())
@@ -582,6 +602,7 @@ def test_summary_total_return_calculation() -> None:
 # get_state() 快照测试
 # ============================================================
 
+
 def test_get_state_returns_snapshot() -> None:
     """get_state 返回 EngineSnapshot 快照。"""
     engine = EventDrivenEngine(strategy=_NoopStrategy())
@@ -632,6 +653,7 @@ def test_get_state_reflects_positions() -> None:
 # ============================================================
 # 集成测试: 策略回调
 # ============================================================
+
 
 def test_strategy_on_bar_dispatched() -> None:
     """策略的 on_bar 被正确分发。"""
@@ -689,10 +711,10 @@ def test_multiple_orders_batch_matching() -> None:
 # 时间戳基准: 1 日 = 86_400_000_000_000 纳秒
 DAY_NS = 86_400_000_000_000
 # 初始日期: 2023-11-14 00:00:00 UTC+8 (随便选一个基准, 只要单调递增即可)
-TS_D0 = 1_700_000_000_000_000_000        # day 0 纳秒
-TS_D1 = TS_D0 + DAY_NS                     # day 1 纳秒
-TS_D2 = TS_D1 + DAY_NS                     # day 2 纳秒
-TS_D3 = TS_D2 + DAY_NS                     # day 3 纳秒
+TS_D0 = 1_700_000_000_000_000_000  # day 0 纳秒
+TS_D1 = TS_D0 + DAY_NS  # day 1 纳秒
+TS_D2 = TS_D1 + DAY_NS  # day 2 纳秒
+TS_D3 = TS_D2 + DAY_NS  # day 3 纳秒
 
 
 def make_bar_ts(
@@ -850,7 +872,9 @@ def test_wall_clock_not_filled_before_ready_ts() -> None:
 
     # TS_D1 + 1ns: still < ready_ts=TS_D2, 不撮合
     midday_ns = TS_D1 + 1_000_000_000  # +1秒 = 10^9 ns
-    engine.process_event(make_bar_ts(ts_event=midday_ns, close=100.0, low=95.0, open=100.0))
+    engine.process_event(
+        make_bar_ts(ts_event=midday_ns, close=100.0, low=95.0, open=100.0)
+    )
 
     state = engine.get_state()
     assert state.n_orders_filled == 0
@@ -911,7 +935,9 @@ def test_wall_clock_trade_records_have_ts_event_ns() -> None:
         event_clock_mode=EventClockMode.WALL_CLOCK_NS,
     )
     engine.process_event(make_bar_ts(ts_event=TS_D1, close=100.0))
-    engine.submit_order(make_buy_order(price=100.0, volume=100.0, order_id="fill-ts-test"))
+    engine.submit_order(
+        make_buy_order(price=100.0, volume=100.0, order_id="fill-ts-test")
+    )
     engine.process_event(make_bar_ts(ts_event=TS_D2, close=100.0, low=95.0, open=100.0))
 
     summary = engine.get_summary()

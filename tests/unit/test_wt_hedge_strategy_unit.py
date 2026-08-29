@@ -15,6 +15,13 @@ def make_strategy(config=None):
     class TestHedgeStrategy(HedgeStrategy):
         def on_rebalance(self, ctx):
             pass
+
+        def on_tick(self, ctx, tick):
+            pass
+
+        def on_bar(self, ctx, bar):
+            pass
+
     return TestHedgeStrategy("test", config=config)
 
 

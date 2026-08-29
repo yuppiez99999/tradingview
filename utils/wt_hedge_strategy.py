@@ -77,13 +77,13 @@ class HedgeStrategy(ABC):
         """再平衡回调 — 用户在此实现对冲调整逻辑"""
         pass
 
-    def on_tick(self, ctx: HedgeContext, tick: TickData) -> None:  # noqa: B027  接口占位, 子类按需覆写
-        """Tick 回调"""
-        pass
+    def on_tick(self, ctx: HedgeContext, tick: TickData) -> None:
+        """Tick 回调（默认空实现，子类按需覆盖）"""
+        return None
 
-    def on_bar(self, ctx: HedgeContext, bar: BarData) -> None:  # noqa: B027  接口占位, 子类按需覆写
-        """Bar 回调"""
-        pass
+    def on_bar(self, ctx: HedgeContext, bar: BarData) -> None:
+        """Bar 回调（默认空实现，子类按需覆盖）"""
+        return None
 
     def add_long_position(self, code: str, volume: float, price: float, beta: float = 1.0) -> None:
         """添加多头持仓"""
@@ -106,7 +106,12 @@ class HedgeStrategy(ABC):
             )
 
     def add_short_position(
-        self, code: str, volume: float, price: float, beta: float = 1.0, delta: float = -1.0
+        self,
+        code: str,
+        volume: float,
+        price: float,
+        beta: float = 1.0,
+        delta: float = -1.0,
     ) -> None:
         """添加空头对冲持仓"""
         contract = self.contracts.get_contract(code)
@@ -266,7 +271,11 @@ class HedgeContext:
         diff_hands = self.calc_target_hedge_volume(hedge_code, target_ratio)
 
         if abs(diff_hands) < 1:  # 不足1手, 跳过
-            return {"action": "SKIP", "diff_hands": diff_hands, "reason": "insufficient"}
+            return {
+                "action": "SKIP",
+                "diff_hands": diff_hands,
+                "reason": "insufficient",
+            }
 
         if diff_hands > 0:
             self.open_hedge(hedge_code, diff_hands)

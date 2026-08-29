@@ -137,18 +137,21 @@ class SpreadStrategy(ABC):
 
     @abstractmethod
     def on_spread_bar(
-        self, ctx: SpreadContext, spread_bar: tuple[float, float, float, float], leg_bars: dict[str, BarData]
+        self,
+        ctx: SpreadContext,
+        spread_bar: tuple[float, float, float, float],
+        leg_bars: dict[str, BarData],
     ) -> None:
         """价差 Bar 回调"""
         pass
 
-    def on_trade(self, ctx: SpreadContext, trade: TradeData) -> None:  # noqa: B027  接口占位, 子类按需覆写
-        """成交回调"""
-        pass
+    def on_trade(self, ctx: SpreadContext, trade: TradeData) -> None:
+        """成交回调（默认空实现，子类按需覆盖）"""
+        return None
 
-    def on_position(self, ctx: SpreadContext, position: float) -> None:  # noqa: B027  接口占位, 子类按需覆写
-        """持仓回调"""
-        pass
+    def on_position(self, ctx: SpreadContext, position: float) -> None:
+        """持仓回调（默认空实现，子类按需覆盖）"""
+        return None
 
 
 class SpreadContext:
@@ -332,7 +335,7 @@ class SpreadBacktester:
         equities = [e["equity"] for e in self.equity_curve]
         spreads = [e["spread_price"] for e in self.equity_curve]
 
-        self.ctx.cash if not self.equity_curve else (self.equity_curve[0]["equity"] - 0)  # 近似
+        (self.ctx.cash if not self.equity_curve else (self.equity_curve[0]["equity"] - 0))  # 近似
         # 用实际初始资金
         from .wt_backtest_engine import BacktestEngine
 
@@ -367,7 +370,7 @@ class SpreadBacktester:
             "sharpe_ratio": round(sharpe, 4),
             "n_ticks": len(self.equity_curve),
             "n_trades": len(self.ctx.trades),
-            "spread_price_mean": round(sum(spreads) / len(spreads), 4) if spreads else 0,
+            "spread_price_mean": (round(sum(spreads) / len(spreads), 4) if spreads else 0),
             "spread_price_std": round(np.std(spreads), 4) if spreads else 0,
         }
 

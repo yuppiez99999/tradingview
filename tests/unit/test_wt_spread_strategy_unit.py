@@ -1,4 +1,5 @@
 """wt_spread_strategy 单元测试 — WonderTrader 价差策略框架"""
+
 import pytest
 
 from utils.wt_spread_strategy import (
@@ -41,8 +42,10 @@ class TestSpreadDefinition:
 
     def test_custom(self):
         sd = SpreadDefinition(
-            name="SPD", legs=[{"code": "A"}, {"code": "B"}],
-            spread_type="diff", description="test spread"
+            name="SPD",
+            legs=[{"code": "A"}, {"code": "B"}],
+            spread_type="diff",
+            description="test spread",
         )
         assert sd.spread_type == "diff"
         assert sd.description == "test spread"
@@ -92,10 +95,26 @@ class TestSpreadCalculator:
                 {"code": "B", "ratio": 1.0, "direction": "SELL"},
             ],
         )
-        bar_a = BarData(code="A.SH", exchange="SSE", period="1d",
-                        open=10, high=11, low=9, close=10.5, volume=1000)
-        bar_b = BarData(code="B.SH", exchange="SSE", period="1d",
-                        open=8, high=8.5, low=7.5, close=8.2, volume=2000)
+        bar_a = BarData(
+            code="A.SH",
+            exchange="SSE",
+            period="1d",
+            open=10,
+            high=11,
+            low=9,
+            close=10.5,
+            volume=1000,
+        )
+        bar_b = BarData(
+            code="B.SH",
+            exchange="SSE",
+            period="1d",
+            open=8,
+            high=8.5,
+            low=7.5,
+            close=8.2,
+            volume=2000,
+        )
         bars = {"A": bar_a, "B": bar_b}
         o, h, lo, c = SpreadCalculator.calc_spread_bars(spread, bars)
         assert o == pytest.approx(2.0)
@@ -119,8 +138,16 @@ class TestSpreadContext:
         class TestStrategy(SpreadStrategy):
             def on_spread_tick(self, ctx, spread_price, leg_prices):
                 pass
+
             def on_spread_bar(self, ctx, spread_bar, leg_bars):
                 pass
+
+            def on_trade(self, ctx, trade):
+                pass
+
+            def on_position(self, ctx, position):
+                pass
+
         return TestStrategy("test", spread)
 
     def test_init(self):
@@ -212,11 +239,19 @@ class TestSpreadBacktester:
             def __init__(self, name, spread):
                 super().__init__(name, spread)
                 self.entered = False
+
             def on_spread_tick(self, ctx, spread_price, leg_prices):
                 if spread_price > 1.0 and not self.entered:
                     ctx.enter_long_spread(10, leg_prices)
                     self.entered = True
+
             def on_spread_bar(self, ctx, spread_bar, leg_bars):
+                pass
+
+            def on_trade(self, ctx, trade):
+                pass
+
+            def on_position(self, ctx, position):
                 pass
 
         strategy = MyStrategy("test", spread)
@@ -227,12 +262,28 @@ class TestSpreadBacktester:
             p_a = 5.0 + i * 0.1
             p_b = 3.0 + i * 0.05
             tick_dict = {
-                "A.SH": TickData(code="A.SH", exchange="SSE", price=p_a,
-                                 open=p_a, high=p_a, low=p_a, pre_close=p_a,
-                                 volume=100, amount=p_a * 100),
-                "B.SH": TickData(code="B.SH", exchange="SSE", price=p_b,
-                                 open=p_b, high=p_b, low=p_b, pre_close=p_b,
-                                 volume=200, amount=p_b * 200),
+                "A.SH": TickData(
+                    code="A.SH",
+                    exchange="SSE",
+                    price=p_a,
+                    open=p_a,
+                    high=p_a,
+                    low=p_a,
+                    pre_close=p_a,
+                    volume=100,
+                    amount=p_a * 100,
+                ),
+                "B.SH": TickData(
+                    code="B.SH",
+                    exchange="SSE",
+                    price=p_b,
+                    open=p_b,
+                    high=p_b,
+                    low=p_b,
+                    pre_close=p_b,
+                    volume=200,
+                    amount=p_b * 200,
+                ),
             }
             ticks.append(tick_dict)
 
@@ -243,12 +294,21 @@ class TestSpreadBacktester:
         assert "max_drawdown" in report
 
     def test_empty_ticks(self):
-        spread = SpreadDefinition(name="SPD", legs=[{"code": "A.SH", "direction": "BUY"}])
+        spread = SpreadDefinition(
+            name="SPD", legs=[{"code": "A.SH", "direction": "BUY"}]
+        )
 
         class EmptyStrategy(SpreadStrategy):
             def on_spread_tick(self, ctx, spread_price, leg_prices):
                 pass
+
             def on_spread_bar(self, ctx, spread_bar, leg_bars):
+                pass
+
+            def on_trade(self, ctx, trade):
+                pass
+
+            def on_position(self, ctx, position):
                 pass
 
         strategy = EmptyStrategy("test", spread)
