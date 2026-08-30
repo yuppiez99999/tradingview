@@ -207,7 +207,9 @@ class ParameterAdjustmentGovernor:
                 )
 
         # 5. 月度次数
-        month_count = self._count_adjustments_this_month(req.param, req.requested_at)
+        # [2026-08-30 P0-6 FIX] 月度限制应基于实际审批时间 (datetime.now()),
+        # 而非请求中可伪造/跨月的 req.requested_at, 否则请求时间跨月即可绕过月度限制.
+        month_count = self._count_adjustments_this_month(req.param, datetime.now())
         if month_count >= self.max_per_month:
             return AdjustmentResult(
                 approved=False,

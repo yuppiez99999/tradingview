@@ -1,0 +1,55 @@
+# LightGBM 增强训练配置 (权威配置源)
+# 从 lgb_enhanced_trainer.py:LGB_ENHANCED_CONFIG 硬编码迁移而来 (2026-08-30 配置显式化).
+#
+# 加载优先级 (走 ConfigManager.get_config):
+#   QUANT_CONFIG_DIR 环境变量 > v8.3_institutional/config/ > configs/ > ms_strategy/config/
+# 环境覆盖: 设置 QUANT_CONFIG_DIR=/path/to/override 即可用自定义配置目录覆盖本文件,
+#   适用于 staging/prod 环境分离 (如 GPU 不可用时改 device_type: cpu).
+#
+# 修改本文件后无需改代码, lgb_enhanced_trainer.py 在 import 时自动加载,
+# 加载失败时回退到代码内 _FALLBACK_CONFIG (保证训练永不因配置缺失而中断).
+
+# ── 训练窗口 ──
+lookback_days: 500              # 回看天数
+min_samples: 150                # 最小样本数 (不足则跳过该标的)
+test_ratio: 0.2                 # 测试集比例
+n_splits: 5                     # 时序交叉验证折数
+top_n_features: 30              # 保留 Top 30 (放宽让情绪因子有机会入选)
+feature_selection_threshold: 1  # 阈值降低到 1 (从 3 降到 1, 让弱信号特征也能入选)
+label_horizon: 5                # V6: 标签 horizon=5 日 (替代次日收益率, 提升震荡市 IC)
+retrain_interval_days: 7        # 重训间隔 (天)
+
+# ── 模型质量门槛 (低于则不持久化) ──
+model_quality_threshold:
+  min_cv_r2: -0.3
+  min_cv_ic: 0.0
+  min_cv_sharpe: 0.0
+
+# ── LightGBM 超参 ──
+lgb_params:
+  n_estimators: 2000            # 估计器数 (大幅增加)
+  learning_rate: 0.005          # 更小学习率
+  max_depth: 6
+  num_leaves: 31
+  min_child_samples: 30
+  subsample: 0.8
+  colsample_bytree: 0.8
+  reg_alpha: 0.1
+  reg_lambda: 0.5
+  random_state: 42
+  verbose: -1
+  n_jobs: -1
+  device_type: "gpu"            # v8.7 启用 GPU 加速 (LightGBM 4.3.0 OpenCL); CPU 环境改 "cpu"
+  gpu_platform_id: 0            # GPU 平台 ID
+  gpu_device_id: 0              # GPU 设备 ID
+
+early_stopping_rounds: 200      # 早停轮数 (放宽 50→200)
+
+# ── 新闻情绪因子 ──
+news_lookback_days: 250         # v4.1: 30→250 天, 匹配 OHLCV 回看, 确保滚动特征有统计意义
+news_cache_hours: 6             # 新闻缓存有效期 (小时)
+
+# ── 自适应重训 (best_iter 过低时触发) ──
+adaptive_retrain_threshold: 5           # best_iter <= 5 触发自适应重训
+adaptive_retrain_lr: 0.001              # 自适应重训学习率 (0.005→0.001)
+adaptive_retrain_n_estimators: 5000     # 配合更小学习率, 增加估计器

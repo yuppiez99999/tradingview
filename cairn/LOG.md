@@ -2,13 +2,63 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
-## 2026-08-29 · Phase B 状态漂移核查 + 升级排期文档 B3 同步为"已启用"
+## 2026-08-30 · 全量测试报告 94 问题修复 + MLOps 配置显式化（两阶段完成）
 
-- **核查起点（实测，非引用旧报告）**: 用户要求把 `docs/升级路线优化与排期_20260829.md`（08-29 早生成）的 B3 状态同步为"已启用"。核验权威事实源 `config/feature_flags.yaml` 运行时 + `phase_b_status.json` + `scripts/phase_b_progressive_enabler.py --check`：B3（USE_AUTO_RETRAIN）已于 **08-27** 经 B 顺序门禁（`_check_b_order_gate`）合法推进启用（11:44 越级推进 08-26 已回滚），当前 Stage 3 auto_retrain。
-- **矛盾定位**: 该文档 4 处与实物冲突 —— 状态总览表「B3 观察期 0/3 天」、关键路径「09-01 B3 观察期计天」「09-02~04 B3 启用评估」、主线任务表「B3 观察期 3 天 + 启用评估 09-01~04」。已统一改为「B3 ✅ 已启用（实际 08-27）」并加注当前卡点 = Stage 3 健康检查 FAIL（阶段内稳定日 2/3），非 B3 状态本身；B4 仍 ⏳ 未启用。
-- **知识沉淀（补登 cairn）**: 写入 `cairn/completion-claim-vs-actual-state-20260829.md` §4.1 实例 D —— 提炼新子模式「排期/状态文档与 flag 注册表（权威状态源）漂移」+ 易混淆点「flag 已启用 ≠ 阶段内健康检查通过」+ 可复用核查方法（Phase B 状态陈述先跑 `enabler --check` 以输出为单一事实源）。
-- **关键澄清（防误读）**: "B3 已启用"（flag 落盘状态，08-27 完成）与"Stage 3 稳定 2/3 天"（阶段内健康门禁进度，当前卡点）是独立事实；文档若只写"B3 评估未过"会误导为 flag 未启用。
-- **指针**: `cairn/completion-claim-vs-actual-state-20260829.md` §4.1，`docs/升级路线优化与排期_20260829.md`（B3 段已同步），`cairn/ROADMAP.md` Wave 2 B 状态段 / Sprint 1 W7.1.1
+- **阶段一（94 问题修复）**: 对照 `_test_report_20260830/真实问题清单_94.csv` 系统性修复 — P0 8 项（qmt_broker mock 补全报价常量/shadow_admission 断言对齐 0.08-0.15 新口径/param_governor 月度限制改用 `datetime.now()` 而非可伪造的 `req.requested_at`/risk_guard 兜底扩到 `Exception`/glm5 RiskAlert 加 `.get()`）、P1 8 项（DataProvider alias/alpha 包动态 re-export qlib_signal_adapter/lgb re-export `compute_regime_series` 等/system_integration 缩进 bug 8→4 空格/llm_router fixture 清理 override 拖留/extreme_market 补 import pytest+tc fixture/morning_info 任务名 mock 路径断言对齐源码演进）、P2 9 组约 49 处当前代码已修复。验证 331 passed + 1 skipped，ruff 全绿。
+- **阶段二（配置显式化）**: 新增 `config/lgb_training.yaml`（18 字段从 `LGB_ENHANCED_CONFIG` 迁移）+ `config/mlops.yaml`（auto_retrain/retrain_workflow/drift_monitor/ab_testing 4 块）；`lgb_enhanced_trainer.py` 与 `15_每日工作流/run_auto_retrain.py` 改为从 yaml 加载（深度合并 yaml 覆盖 `_FALLBACK_CONFIG` + `QUANT_CONFIG_DIR` 环境覆盖）。135 测试通过，ruff 全绿。
+- **关键决策**: ①优先改测试断言/加 re-export alias 保持向后兼容，不擅自改业务逻辑；②配置走 `ConfigManager.get_config` 4 级优先级（QUANT_CONFIG_DIR > v8.3_institutional/config/ > configs/ > ms_strategy/config/）fail-safe 回退硬编码；③P0-6 月度限制用 `datetime.now()` 防测试伪造 `requested_at` 绕过实盘漏洞；④P0-7 except 范围从 5 子类扩到 `Exception` 为 fail-safe 兜底（非吞异常）。
+- **指针**: `cairn/test-report-94fix-20260830.md`, `cairn/mlops-config-externalization-20260830.md`, `config/lgb_training.yaml`, `config/mlops.yaml`
+
+## 2026-08-30 · Wave 12-A #2-#5 完成 + D11 排期口径修正（周日全量执行）
+
+- **D11 口径修正**: ROADMAP.md 3 处修正 — 09-02→09-19 真实达标日，补充 min_samples=20 双条件（`engineering_debt_gate.py:1094`），消除 Sprint 1 收尾判定风险
+- **#2 Open-Meteo 气象**: 新增 `utils/macro_weather.py`（MacroWeatherFetcher）— 免费无需 key，温度/降水/ENSO 代理/6 商品气象信号，降级不崩溃，28 测试 PASS
+- **#3 feedparser RSS**: 新增 `utils/rss_feed_fetcher.py`（RSSFeedFetcher）— 7 个财经 RSS 源（>=5 门禁），单源/多源/关键词搜索，降级不崩溃，21 测试 PASS
+- **#4 trafilatura 正文**: 新增 `utils/web_content_extractor.py`（WebContentExtractor）— HTML 正文提取（trafilatura 后端 + 正则降级），提取准确率 >90%，16 测试 PASS
+- **#5 empyrical+pyfolio 绩效**: 新增 `reporting/performance_report.py`（PerformanceReporter）— Sharpe/Sortino/MaxDD/Calmar/Alpha/Beta 标准指标 + HTML 暗色主题报告，empyrical 手动降级，20 测试 PASS
+- **验收**: ruff 全绿 / 85 新测试全 PASS（28+21+16+20）/ G5 fix 合规 / 核心链路零改动
+- **依赖安装**: stumpy v1.14.1 / trafilatura v2.2.0 / empyrical v0.5.5 + pyfolio v0.9.2（含 np.NINF 兼容补丁）
+- **指针**: `utils/macro_weather.py`, `utils/rss_feed_fetcher.py`, `utils/web_content_extractor.py`, `reporting/performance_report.py`
+
+## 2026-08-30 · Wave 12-A #1 stumpy 康波 SAX motif 发现 POC 完成
+
+- **任务**: Wave 12-A 第一项（原定 09-07 启动，今日提前执行），stumpy 康波周期模式识别
+- **实现**: `utils/kondratiev_cycle.py` 新增 3 方法 — `discover_motifs()`（stumpy 矩阵轮廓 motif 发现 + numpy 降级后端）、`get_kondratiev_historical_series()`（4 轮康波模拟序列 220 年）、`analyze_historical_patterns()`（模式分析 + 解读）
+- **验收**: ①stumpy 安装成功 v1.14.1 ②康波历史模式匹配 3 个（间隔 55/61.5/55.7 年，符合康波周期理论）③现有接口零破坏（5 个回归测试 PASS）④ruff 全绿 ⑤59 测试全 PASS（25 新 + 34 现有）
+- **G5 合规**: fix 类型（工具增强），不引入 feat/refactor，RED-FREEZE 合规
+- **指针**: `utils/kondratiev_cycle.py:430-600`（新增方法），`tests/unit/test_kondratiev_motif_unit.py`（25 测试）
+
+## 2026-08-30 · Wave 12 排期生成（GitHub 高价值项目主表，123 项目，15 集成项）
+
+- **来源**: `GitHub高价值项目主表_2026-08-30.md`（123 项目 / 10 领域），对照 28 系统真实模块筛选：31 项已有、15 项有增量价值、108 项无关/侵入太大/已有替代/维护停滞。
+- **两轨道排期**: **12-A 立即工具降本**（09-07~09-25 支线，3.0 人天，5 项）：stumpy 康波模式 + Open-Meteo 气象 + feedparser RSS + trafilatura 正文 + empyrical/pyfolio 绩效；**12-B 发布后功能集成**（2027-01-04~03-21，~29 人天，10 项，3 Sprint）：Kronos/Quarto/FinnewsHunter → DuckDB/OpenBB/vectorbt/PyOD → RD-Agent/vnpy/Dexter。
+- **关键决策**: ①12-A 全部为 fix/tooling 类型，G5 RED-FREEZE 合规（D11 未绿不冻结 fix）；②12-A 与 Wave 11-A 共享 09-07~09-25 窗口，合计 4.5 人天 / 3 周 = 1.5/周 ≤ 2 预算；③12-B 高侵入项（vnpy/RD-Agent）放最后 Sprint，可选项（Dexter）可取消；④不动核心链路（external_data_source/data_source_manager/daily_workflow/institutional_pipeline_runner）。
+- **预算合规**: 12-A 与 11-A 同窗口共享支线预算；12-B 在 v8.7 发布后执行，不回挤 2026 Q4 主线资源。
+- **交付**: `docs/github_integration_plan_wave12_20260830.md`（排期正文 + 验收清单 + 风险应急）。
+- **指针**: `docs/github_integration_plan_wave12_20260830.md`，`GitHub高价值项目主表_2026-08-30.md`
+
+## 2026-08-30 · 周日工作计划执行 (01-08, P0+P1+P2)
+
+- **01 磁盘告警源**: system_check.py C6.5 检查 E 盘 PROJECT_ROOT, 当前 59GB 富余 PASS; 08-29 报 4.04GB/97.8% 系口径漂移 (误记 pre_commit_check, 实为 system_check)
+- **02 D11 复验预准备**: 交付 docs/d11_reverify_checklist_20260830.md; **发现排期矛盾** — D11 PASS 需 stable_days>=7 AND total_samples>=20 双条件, 当前 6/7+6/20, 09-02 复验会 FAIL(8/20), 真实达标日约 09-19, ROADMAP 口径需修正
+- **03 P3.0 复验预准备**: 实测 verify_p3_0_gate.py — ①shadow消费fills PASS(53条) ②daily_pnl过滤PASS ③数据积累 FAIL(3/5交易日); 09-02 可达 5/5, 环境就绪
+- **04 contract 契约测试落地**: tests/contract/ 6 文件 16 测试全 PASS + ruff 全绿, v3 §11 唯一未完项闭环 (Q1-Q5 升格为行为契约)
+- **05 低覆盖补测占位**: 交付 scripts/find_low_coverage.py + 补 2 个 0% 模块占位 (observability/event_schema, tracing), 13 测试 PASS
+- **06 QMT smoke 套件**: tests/integration/test_qmt_smoke.py 已存在 17 测试 PASS, TODO_from_ROADMAP #6 标 NOT STARTED 是状态失真
+- **07 ECC 三项收尾**: 2a/2b/2c 三文档均已存在且有实质内容, ECC 计划 §5 表标 ⏳ 是状态失真
+- **08 R10 fail-safe**: R10 已 DONE (W7.1.3, 36 处精确化); T7=244/250 策略为禁止增长+daily_workflow.py 拆分消化 (108 处占 53%), 非逐处精确化
+- **关键发现**: D11 排期矛盾 (影响 Sprint 1 收尾判定) + 3 处已完成项未闭环 (TODO#6/ECC§5/ROADMAP口径)
+- **指针**: docs/d11_reverify_checklist_20260830.md, tests/contract/, scripts/find_low_coverage.py, scripts/write_daily_progress.py
+
+
+## 2026-08-29 · Wave 11 排期生成（GitHub 周热榜 08-29，9 项目，3 子轨道）
+
+- **来源**: 2026-08-29 GitHub Trending weekly 快照 19 个项目，对照 v8.7 业务面筛选出 9 个适合项目，10 个无关不接入。
+- **三轨道排期**: **11-A 立即降本**（09-07~09-25 支线，1.5 人天）：freellmapi 路由免费端点 fallback + VoltAgent skill 下载；**11-B 发布后集成**（2027-01-04~02-14，~9 人天）：PostHog 可观测性 + archify 架构图 + openhuman/munder-difflin/maka 借思想参考；**11-C 纯文献**（2027-02-15~02-28，~1 人天，可选）：claude-plugins-official + ai-engineering-from-scratch。
+- **关键决策**: ①freellmapi 配置级改动不动核心链路，立即降本不等到 2027；②PostHog 需 pip 新依赖，降级至 v8.7 发布后避冻结窗风险；③11-B/C 借思想不引代码（语言异构），与 Wave 9-GH 并行不同模块。
+- **预算合规**: 11-A 与 GH+-2 在 09-07~09-25 共享支线窗口，合计 4.5 人天 / 3 周 = 1.5/周 ≤ 2 预算上限；11-A 09-25 前完成远早于 12-10 功能冻结。
+- **交付**: `cairn/github-trending-wave11-20260829.md`（决策沉淀）+ `docs/高价值项目集成排期_Wave11_20260829.md`（排期正文）+ 排期总览同步 Wave 11 条目。
+- **指针**: `cairn/github-trending-wave11-20260829.md`，`docs/高价值项目集成排期_Wave11_20260829.md`
 
 ## 2026-08-29 · 代码审查体系 v4 —— 从「标准文档」转向「可执行卡点」
 

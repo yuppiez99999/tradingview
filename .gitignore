@@ -148,6 +148,9 @@ utils/execution/reports/hedge_execution_orders_*.json
 # S6 纸交易配置 (无敏感数据, 因子跟踪配置)
 !config/gnn_factor/
 !config/gnn_factor/s6_paper_trading.yaml
+# MLOps 配置 (纯参数, 无敏感数据)
+!config/lgb_training.yaml
+!config/mlops.yaml
 
 # Trade executor generated files
 daily_trade_executor.log

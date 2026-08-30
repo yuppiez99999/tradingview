@@ -23,6 +23,7 @@
     system = IntegratedExecutionSystem(total_capital=5_000_000)
     system.start_system()
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -30,7 +31,6 @@ import os
 import sys
 import traceback
 from datetime import datetime, timedelta
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -87,7 +87,7 @@ EVOLUTION_CONFIG = {
 }
 
 
-def _read_retrain_lock(symbol: str) -> Optional[datetime]:
+def _read_retrain_lock(symbol: str) -> datetime | None:
     """读取标的最近重训时间 (冷却期判断)
 
     Args:
@@ -188,7 +188,10 @@ try:
     except ImportError:
         from automated_execution_system import AutomatedExecutionSystem  # type: ignore[misc]
 
-        _AUTO_SYSTEM_AVAILABLE = True
+    # P1-4 FIX: 原本 _AUTO_SYSTEM_AVAILABLE = True 缩进为 8 空格, 错误地落在 except ImportError
+    # 块内, 导致新路径导入成功时该常量永不赋值. 移到外层 try 块内 (4 空格), 两条导入路径
+    # 成功后均置 True.
+    _AUTO_SYSTEM_AVAILABLE = True
 except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
     logger.error(f"AutomatedExecutionSystem 不可用: {e}")
     AutomatedExecutionSystem = object  # type: ignore[misc]
@@ -228,7 +231,7 @@ def code_to_qlib(code: str) -> str:
     return f"sh{s}"
 
 
-def load_qlib_bin(field: str, qlib_code: str) -> Optional[pd.Series]:
+def load_qlib_bin(field: str, qlib_code: str) -> pd.Series | None:
     """读取 QLib bin 文件单字段 (close/open/high/low/volume/change/factor)
 
     QLib bin 格式: 头部 9 个 float (start_date, end_date, float_count, etc.)
@@ -339,21 +342,21 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
 
         # P0-1: 信号融合器
         self.signal_fusion = self._init_signal_fusion()
-        self.current_fused_signal: Optional[pd.Series] = None
-        self.last_signal_update: Optional[str] = None
+        self.current_fused_signal: pd.Series | None = None
+        self.last_signal_update: str | None = None
 
         # P0-2: 漂移检测器
         self.drift_detector = self._init_drift_detector()
-        self.last_drift_check: Optional[str] = None
-        self.last_retrain_trigger: Optional[dict] = None
+        self.last_drift_check: str | None = None
+        self.last_retrain_trigger: dict | None = None
 
         # 步骤4: 止损监控器
         self.stop_loss_monitor = self._init_stop_loss_monitor()
-        self.last_stop_loss_check: Optional[str] = None
+        self.last_stop_loss_check: str | None = None
 
         # P0-3: 成本感知回测
         self.cost_aware_backtest = None
-        self.last_backtest_date: Optional[str] = None
+        self.last_backtest_date: str | None = None
 
         logger.info(
             f"集成执行系统初始化完成 "
@@ -481,7 +484,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"写回 positions.json 失败: {e}")
 
-    def _init_signal_fusion(self) -> Optional[object]:
+    def _init_signal_fusion(self) -> object | None:
         """初始化 IC-based 信号融合器"""
         if not _SIGNAL_FUSION_AVAILABLE:
             return None
@@ -539,7 +542,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
 
         return weights
 
-    def _find_latest_qlib_report(self) -> Optional[str]:
+    def _find_latest_qlib_report(self) -> str | None:
         """查找最新的 QLib 训练报告"""
         if not os.path.isdir(self.report_dir):
             return None
@@ -553,7 +556,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         candidates.sort(reverse=True)
         return candidates[0][1]
 
-    def _init_drift_detector(self) -> Optional[object]:
+    def _init_drift_detector(self) -> object | None:
         """初始化漂移检测器, 并用 QLib 报告 IC 预热"""
         if not _DRIFT_DETECTOR_AVAILABLE:
             return None
@@ -618,7 +621,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             logger.warning(f"ModelDriftDetector 初始化失败: {e}")
             return None
 
-    def _init_stop_loss_monitor(self) -> Optional[object]:
+    def _init_stop_loss_monitor(self) -> object | None:
         """初始化止损监控器"""
         if not _STOP_LOSS_AVAILABLE:
             return None
@@ -772,7 +775,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             logger.warning(f"漂移检测失败: {e}")
             logger.debug(traceback.format_exc())
 
-    def _fetch_daily_ic(self) -> Optional[float]:
+    def _fetch_daily_ic(self) -> float | None:
         """获取当日 IC (多源回退, 修复 Bug-B)
 
         优先级:

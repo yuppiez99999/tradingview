@@ -66,7 +66,9 @@ from autolearn_trainer import (  # noqa: E402
 # ============================================================
 # 增强训练配置 (权威配置源, 子模块通过 configure_paths 注入)
 # ============================================================
-LGB_ENHANCED_CONFIG: dict[str, Any] = {
+# 2026-08-30 配置显式化: 优先从 config/lgb_training.yaml 加载 (走 ConfigManager 4 级优先级,
+# 支持 QUANT_CONFIG_DIR 环境覆盖); 加载失败时回退到 _FALLBACK_CONFIG, 保证训练永不中断.
+_FALLBACK_CONFIG: dict[str, Any] = {
     "lookback_days": 500,
     "min_samples": 150,
     "test_ratio": 0.2,
@@ -104,6 +106,47 @@ LGB_ENHANCED_CONFIG: dict[str, Any] = {
     "adaptive_retrain_lr": 0.001,  # 自适应重训学习率 (0.005→0.001)
     "adaptive_retrain_n_estimators": 5000,  # 配合更小学习率, 增加估计器
 }
+
+
+def _load_lgb_config() -> dict[str, Any]:
+    """从 config/lgb_training.yaml 加载训练配置, 失败回退到 _FALLBACK_CONFIG.
+
+    走 ConfigManager.get_config 4 级优先级:
+        QUANT_CONFIG_DIR 环境变量 > v8.3_institutional/config/ > configs/ > ms_strategy/config/
+    深度合并: yaml 覆盖 fallback (支持部分字段覆盖, 如仅改 device_type).
+    """
+    try:
+        from utils.config_manager import get_config
+
+        yaml_cfg = get_config("lgb_training", default=None)
+        if not yaml_cfg or not isinstance(yaml_cfg, dict):
+            return dict(_FALLBACK_CONFIG)
+
+        # 深度合并: yaml 递归覆盖 fallback (保留未覆盖的嵌套默认值, 如 lgb_params 子字段)
+        def _deep_merge(base: dict, override: dict) -> dict:
+            merged = dict(base)
+            for k, v in override.items():
+                if k in merged and isinstance(merged[k], dict) and isinstance(v, dict):
+                    merged[k] = _deep_merge(merged[k], v)
+                else:
+                    merged[k] = v
+            return merged
+
+        return _deep_merge(_FALLBACK_CONFIG, yaml_cfg)
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+        ImportError,
+    ) as e:
+        logger.warning("加载 lgb_training.yaml 失败, 回退到硬编码默认配置: %s", e)
+        return dict(_FALLBACK_CONFIG)
+
+
+LGB_ENHANCED_CONFIG: dict[str, Any] = _load_lgb_config()
 
 logger = logging.getLogger("lgb_enhanced")
 
@@ -157,8 +200,13 @@ _inject_paths_to_submodules()
 from lgb_trainer.report_generator import (  # noqa: E402
     generate_comparison_report,
 )
+
+# compute_regime_series / train_symbol_regime_specific 是有意 re-export:
+# tests/regression/test_v9_baseline.py 断言从本模块可调用 (API 契约)。
 from lgb_trainer.trainer import (  # noqa: E402
+    compute_regime_series,  # noqa: F401  # 有意 re-export (V9 baseline 契约)
     run_enhanced_training,
+    train_symbol_regime_specific,  # noqa: F401  # 有意 re-export (V9 baseline 契约)
 )
 
 

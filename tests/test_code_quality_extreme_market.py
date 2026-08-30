@@ -27,6 +27,7 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -88,6 +89,23 @@ class TestCollection:
         }
 
 
+# ────────────────────────────────────────────────────────────
+# pytest fixture: 为 test_* 函数注入 TestCollection
+# ────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def tc() -> TestCollection:
+    collection = TestCollection()
+    yield collection
+    failures = collection.failures()
+    if failures:
+        msgs = [f"[{f['name']}] {f['message']}" for f in failures]
+        pytest.fail(f"{len(failures)} 项子检查失败:\n" + "\n".join(msgs))
+
+
+# ────────────────────────────────────────────────────────────
+# 本地年化收益率实现 (标准公式, 用于基准对比)
 # ────────────────────────────────────────────────────────────
 # 本地年化收益率实现 (标准公式, 用于基准对比)
 # ────────────────────────────────────────────────────────────
@@ -919,7 +937,7 @@ def _build_markdown(sections: dict[str, TestCollection]) -> str:
         total_all += tc.total
 
     lines.append(
-        f"| **合计** | **{total_pass}** | **{total_all - total_pass}** | **{total_all}** | **{total_pass/max(total_all,1)*100:.0f}%** |"
+        f"| **合计** | **{total_pass}** | **{total_all - total_pass}** | **{total_all}** | **{total_pass/max(total_all,1)*100:.0f}%** |"  # noqa: E501
     )
     lines.append("")
 

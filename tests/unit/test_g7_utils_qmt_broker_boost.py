@@ -94,6 +94,15 @@ def mock_xtquant(monkeypatch):
     xtconstant_mod.FOK_ORDER = 3
     xtconstant_mod.STOCK_BUY = 0
     xtconstant_mod.STOCK_SELL = 1
+    # 报价类型 (place() 在 LIMIT/MARKET/FAK/FOK 分支会引用这些属性,
+    # 缺失会导致 AttributeError 被 place() 外层 except 捕获后返回 None,
+    # 误判为"下单失败". 补全以匹配 xtquant.xtconstant 真实常量.)
+    xtconstant_mod.FIX_PRICE = 11
+    xtconstant_mod.LATEST_PRICE = 5
+    xtconstant_mod.MARKET_SZ_INSTBUSI_RESTCANCEL = 23
+    xtconstant_mod.MARKET_SZ_FULL_OR_CANCEL = 24
+    xtconstant_mod.MARKET_SH_INSTBUSI_RESTCANCEL = 23
+    xtconstant_mod.MARKET_SH_FULL_OR_CANCEL = 24
 
     # xttrader.XtQuantTrader mock 类
     class MockXtQuantTrader:

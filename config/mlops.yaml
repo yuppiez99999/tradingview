@@ -1,0 +1,53 @@
+# MLOps 流水线配置 (auto_retrain / drift_monitor / ab_testing)
+# 2026-08-30 配置显式化: 从 auto_retrain_scheduler.py / run_auto_retrain.py 硬编码迁移.
+#
+# 加载优先级 (走 ConfigManager.get_config("mlops")):
+#   QUANT_CONFIG_DIR 环境变量 > v8.3_institutional/config/ > configs/ > ms_strategy/config/
+# 消费方:
+#   - utils/alpha/auto_retrain_scheduler.py → auto_retrain 块 (已对接 get_config("mlops"))
+#   - 15_每日工作流/run_auto_retrain.py    → retrain_workflow 块 (本次对接)
+#   - utils/alpha/drift_monitor.py         → drift_monitor 块 (构造函数参数, 可选覆盖)
+#   - utils/alpha/ab_testing*.py           → ab_testing 块 (构造函数参数, 可选覆盖)
+#
+# Feature Flags 联动 (config/feature_flags.yaml):
+#   USE_AUTO_RETRAIN (B3) 控制本配置是否生效
+#   USE_MLOPS_PIPELINE (B4) 控制 MLOpsPipeline Facade 是否启用
+
+# ── 自动重训调度器 (AutoRetrainScheduler) ──
+auto_retrain:
+  enabled: false                # B3 阶段由 feature_flags.USE_AUTO_RETRAIN 控制, 此处默认 false
+  drift_threshold_count: 3      # 触发重训的最小漂移告警数
+  drift_threshold_severity: "critical"  # 触发重训的最低严重级别
+  min_interval_hours: 24        # 两次重训最小间隔 (小时), 防抖
+  training_script: "qlib_v9_train.py"   # 重训脚本 (subprocess 隔离调用)
+  training_timeout_sec: 1800    # 单次训练超时 (秒) = 30 分钟
+  auto_register: true           # 训练完成自动注册到 ModelRegistry
+  auto_start_ab_test: true      # 训练完成自动启动 A/B 测试
+  ab_test_duration_days: 14     # A/B 测试持续时间 (天)
+
+# ── 重训工作流 (run_auto_retrain.py CLI) ──
+retrain_workflow:
+  max_age_days: 30              # 模型最大年龄 (超过则重训)
+  min_ic_threshold: 0.0         # IC 低于此值则重训 (性能退化)
+  min_sharpe_threshold: 0.0     # Sharpe 低于此值则重训
+  training_timeout_min: 60      # 单次训练超时 (分钟)
+  backup_old_models: true       # 重训前备份旧模型
+  archive_retrain_report: true  # 归档重训报告
+
+# ── 漂移监控 (DriftMonitor) ──
+drift_monitor:
+  alerts_dir: "reports/drift_alerts"    # 告警持久化目录 (相对项目根)
+  retrain_threshold_count: 3            # 触发重训的告警数阈值
+  retrain_threshold_severity: "critical"
+  psi_threshold: 0.2                   # PSI 漂移阈值 (特征分布)
+  ks_pvalue_threshold: 0.05             # KS 检验 p 值阈值
+  ic_degradation_threshold: 0.3         # IC 退化幅度阈值
+  adwin_delta: 0.05                     # ADWIN 漂移检测器敏感度
+
+# ── A/B 测试框架 ──
+ab_testing:
+  default_duration_days: 14             # 默认测试持续天数
+  min_samples_for_significance: 30      # 显著性检验最小样本数
+  significance_level: 0.05              # 显著性水平 (p < 0.05 视为显著)
+  auto_promote_winner: true             # 显著优势时自动推广胜者
+  traffic_split_default: 0.5            # 默认流量分割 (50/50)

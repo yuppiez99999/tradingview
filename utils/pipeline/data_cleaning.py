@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -30,7 +30,7 @@ from utils.pipeline.types import (
 logger = logging.getLogger("pipeline.data_cleaning")
 
 # 尝试导入现有模块（优雅降级）
-DataQualityMonitor: Optional[type]
+DataQualityMonitor: type | None
 try:
     from utils.data_quality_monitor import DataQualityMonitor as _DQM_impl
 
@@ -40,8 +40,8 @@ except ImportError:
     DataQualityMonitor = None
     _HAS_QUALITY_MONITOR = False
 
-DataGate: Optional[type]
-DataGateResult: Optional[type]
+DataGate: type | None
+DataGateResult: type | None
 try:
     from utils.data_gate import DataGate as _DG_impl
     from utils.data_gate import DataGateResult as _DGR_impl
@@ -234,6 +234,7 @@ class DataCleaningPipeline:
             positions = load_positions()
             return [p.get("symbol", "") for p in positions if p.get("symbol")]
         except (
+            ImportError,
             ValueError,
             TypeError,
             KeyError,
@@ -244,6 +245,7 @@ class DataCleaningPipeline:
             ConnectionError,
         ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+            # P1-1: 补 ImportError — load_positions() 模块缺失时应回退默认标的, 而非穿透
             return [
                 "300308",
                 "002371",

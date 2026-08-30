@@ -58,10 +58,25 @@ def reset_router_and_flags():
 
 @pytest.fixture
 def flag_disabled():
-    """Feature Flag 关闭 (默认状态, 透传到旧 llm_client)."""
-    # FeatureFlags 默认值即为 False (HC-1)
-    # 不需要做任何事, 仅仅是为了语义清晰
+    """Feature Flag 关闭 (主动清理 override 拖留, 保证 flag=False)."""
+    # P1-5 FIX: flag_enabled 的 cleanup (override_file.unlink()) 在 Windows 沙箱下可能失败,
+    # 导致 reports/flag_overrides/USE_LLM_REPORT_ANALYZER.json 拖留; 后续 flag_disabled 用例
+    # 经 autouse reset_router_and_flags 重新读到 override, is_enabled 返回 True → chat/chat_deep
+    # 走新路由而非透传 → 返回 None. 主动清理 override + reset_instance 保证 flag=False.
+    _ov = _PROJECT_ROOT / "reports" / "flag_overrides" / "USE_LLM_REPORT_ANALYZER.json"
+    if _ov.exists():
+        try:
+            _ov.unlink()
+        except OSError:
+            pass
+    FeatureFlags.reset_instance()
     yield
+    if _ov.exists():
+        try:
+            _ov.unlink()
+        except OSError:
+            pass
+    FeatureFlags.reset_instance()
 
 
 @pytest.fixture

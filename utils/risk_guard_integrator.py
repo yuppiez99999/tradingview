@@ -32,7 +32,7 @@ import logging
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 logger = logging.getLogger("risk_guard_integrator")
 
@@ -116,7 +116,8 @@ def parse_kill_switch_level(
 BASE_DIR = Path(__file__).resolve().parent.parent
 TRADE_PLANS_DIR = BASE_DIR / "v8.3_institutional" / "trade_plans"
 # v8.6.9 P0 FIX (2026-07-26): 报告路径修正
-# 原始 bug: REPORTS_DIR 指向 v8.3_institutional/reports/, 但生产环境实际报告在 每日报告归档/{date}/daily_pnl_report_{date}.json
+# 原始 bug: REPORTS_DIR 指向 v8.3_institutional/reports/, 但生产环境实际报告在
+# 每日报告归档/{date}/daily_pnl_report_{date}.json
 # 影响: _load_pnl_report() 永远找不到报告 → 返回 None → guard_drawdown 跳过回撤检查 ("无有效成本数据")
 #       导致回撤防护失效 + vol_target 用空数据计算
 # 修复: 保留旧路径作为回退, 优先在 每日报告归档/{date}/ 下查找
@@ -192,7 +193,7 @@ class RiskGuardIntegrator:
                 return cls.UNDERLYING_CODE_MAP[key]
         return None
 
-    def __init__(self, report_date: Optional[str] = None, total_capital: float = 5_000_000):
+    def __init__(self, report_date: str | None = None, total_capital: float = 5_000_000):
         """初始化风控守卫集成器。
 
         Args:
@@ -765,7 +766,7 @@ class RiskGuardIntegrator:
                         f"对冲模式: {hedge_result.get('cost_summary', {}).get('hedge_mode', 'OPTIONS_ONLY')}",
                         f"执行状态: {execution_status}",
                         f"订单数: {total_orders} (期货 {len(futures_orders)} + 期权 {len(options_orders)})",
-                        f"预算使用: {hedge_result.get('cost_summary', {}).get('hedge_capital_usage_pct', 0) * 100:.1f}%",
+                        f"预算使用: {hedge_result.get('cost_summary', {}).get('hedge_capital_usage_pct', 0) * 100:.1f}%",  # noqa: E501
                     ],
                     "execution_status": execution_status,
                 }
@@ -890,7 +891,7 @@ class RiskGuardIntegrator:
                原代码 pnl_summary.get("positions", ...) 可能返回 list, check_concentration 用 .items() 会 AttributeError
         """
         # 前置 Optional[Type] 注解 — 消除 import 失败分支 None 赋值 [assignment]
-        _KillSwitchCls: Optional[type[Any]]
+        _KillSwitchCls: type[Any] | None
         try:
             from utils.kill_switch import KillSwitch as _KillSwitchCls
         except ImportError:
@@ -918,7 +919,10 @@ class RiskGuardIntegrator:
                         f"(margin_used={margin_used}, total_equity={total_equity}), "
                         f"回退到 _estimate_margin_from_positions() = {margin_usage:.1%}"
                     )
-                except (TypeError, ValueError, AttributeError, RuntimeError, OSError) as e:
+                except Exception as e:  # noqa: BLE001  # P0-7: fail-safe 兜底必须捕获所有异常
+                    # [2026-08-30 P0-7 FIX] P0-D 兜底是 fail-safe 路径, 应捕获所有异常
+                    # (含 positions.json missing 等裸 Exception) 降级到保守值 0.50,
+                    # 而非让异常传播导致 EOD 流程中断. 原元组仅含 5 个子类, 漏掉 Exception 基类.
                     self._log(f"[KillSwitch] [P0-D FIX] 回退失败: {e}, 使用保守值 0.50")
                     margin_usage = 0.50
             else:

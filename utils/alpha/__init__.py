@@ -19,5 +19,29 @@ from __future__ import annotations
 
 # Re-export API (按需显式导入, 避免循环依赖)
 # T2.1: from utils.alpha.llm_router import LLMRouter, chat, chat_deep, test_connection, list_providers, reload
-# T2.2: from utils.alpha.decision_theories import TheoryFusionEngine, SorosReflexivityEngine, DalioEconomicMachine, FirstPrinciplesAnalyzer, BuffettMungerFramework
-# T2.3: from utils.alpha.multi_factor_signal import MultiFactorSignal, combine_factors, detect_inverted_factors, FactorICMetrics, CombinationResult
+# T2.2: from utils.alpha.decision_theories import TheoryFusionEngine, SorosReflexivityEngine, DalioEconomicMachine,
+# FirstPrinciplesAnalyzer, BuffettMungerFramework
+# T2.3: from utils.alpha.multi_factor_signal import MultiFactorSignal, combine_factors, detect_inverted_factors,
+# FactorICMetrics, CombinationResult
+
+# P1-2 兼容 re-export: qlib_signal_adapter 实际位于 ms_strategy/src/alpha,
+# 当 utils 路径遮蔽 ms_strategy/src 时 (sys.path 顺序), `from alpha import qlib_signal_adapter`
+# 会解析到本包 (utils/alpha) 却找不到子模块. 显式加载并注册为 alpha.qlib_signal_adapter,
+# 使两个 alpha 包都能访问该子模块, 保持审计前视偏差测试可运行.
+try:
+    from . import qlib_signal_adapter  # noqa: F401
+except ImportError:
+    import importlib.util as _ilu
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _qsa_path = (
+        _Path(__file__).resolve().parents[2]
+        / "ms_strategy" / "src" / "alpha" / "qlib_signal_adapter.py"
+    )
+    if _qsa_path.exists():
+        _spec = _ilu.spec_from_file_location("alpha.qlib_signal_adapter", _qsa_path)
+        _mod = _ilu.module_from_spec(_spec)
+        _sys.modules["alpha.qlib_signal_adapter"] = _mod
+        _spec.loader.exec_module(_mod)
+        qlib_signal_adapter = _mod  # noqa: F401

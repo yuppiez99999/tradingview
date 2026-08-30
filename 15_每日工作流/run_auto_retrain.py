@@ -72,7 +72,10 @@ VENV_PYTHON = os.environ.get("QUANT_PYTHON") or sys.executable
 # ═══════════════════════════════════════════════════════════════
 # 重训配置
 # ═══════════════════════════════════════════════════════════════
-RETRAIN_CONFIG = {
+# 2026-08-30 配置显式化: 优先从 config/mlops.yaml 的 retrain_workflow 块加载
+# (走 ConfigManager 4 级优先级, 支持 QUANT_CONFIG_DIR 环境覆盖);
+# 加载失败时回退到 _FALLBACK_RETRAIN_CONFIG, 保证重训流程永不中断.
+_FALLBACK_RETRAIN_CONFIG = {
     "max_age_days": 30,  # 模型最大年龄 (超过则重训)
     "min_ic_threshold": 0.0,  # IC 低于此值则重训 (性能退化)
     "min_sharpe_threshold": 0.0,  # Sharpe 低于此值则重训
@@ -80,6 +83,33 @@ RETRAIN_CONFIG = {
     "backup_old_models": True,  # 重训前备份旧模型
     "archive_retrain_report": True,  # 归档重训报告
 }
+
+
+def _load_retrain_config() -> dict:
+    """从 config/mlops.yaml 的 retrain_workflow 块加载, 失败回退到硬编码默认值."""
+    try:
+        import sys as _sys
+
+        if str(PROJECT_ROOT) not in _sys.path:
+            _sys.path.insert(0, str(PROJECT_ROOT))
+        from utils.config_manager import get_config
+
+        mlops_cfg = get_config("mlops", default={})
+        yaml_cfg = mlops_cfg.get("retrain_workflow", {}) if isinstance(mlops_cfg, dict) else {}
+        if not yaml_cfg or not isinstance(yaml_cfg, dict):
+            return dict(_FALLBACK_RETRAIN_CONFIG)
+        # 浅合并: yaml 覆盖 fallback (支持部分字段覆盖)
+        merged = dict(_FALLBACK_RETRAIN_CONFIG)
+        merged.update(yaml_cfg)
+        return merged
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError, ImportError) as e:
+        import sys as _sys
+
+        _sys.stderr.write(f"[WARN] 加载 mlops.yaml retrain_workflow 块失败, 回退硬编码默认: {e}\n")
+        return dict(_FALLBACK_RETRAIN_CONFIG)
+
+
+RETRAIN_CONFIG = _load_retrain_config()
 
 
 def get_python() -> str:
@@ -671,7 +701,7 @@ def run_phase3_retrain_models(to_retrain, args):
                     f"    📊 IC: {verification['old_ic']:+.3f} → {verification['new_ic']:+.3f} ({ic_imp:+.3f})"
                 )
                 log(
-                    f"    📊 Sharpe: {verification['old_sharpe']:+.2f} → {verification['new_sharpe']:+.2f} ({sh_imp:+.2f})"
+                    f"    📊 Sharpe: {verification['old_sharpe']:+.2f} → {verification['new_sharpe']:+.2f} ({sh_imp:+.2f})"  # noqa: E501
                 )
         else:
             log(

@@ -196,6 +196,10 @@ def _check_stage_2_blockers(
 
     # [2026-08-27 P0-1] 条件 2.5: trade_log 非空 (真实撮合证据)
     # 对齐 cairn/shadow-realness-audit P0 要求: 影子账户必须基于真实成交
+    # TODO(bridge): cmd_daily 需桥接 FillsStore 将真实成交写入 state["trade_log"],
+    #   当前 cmd_start/cmd_daily 均未写入 trade_log, 真实流程中本阻塞条件恒成立,
+    #   Stage2 永远 can_promote=False. 桥接落地前, 单元测试需在 fixture 中显式
+    #   提供 trade_log (见 tests/unit/test_shadow_admission_launcher.py sample_state).
     trade_log = state.get("trade_log", [])
     if trade_log:
         promoters.append(f"trade_log 非空 ({len(trade_log)} 笔真实成交已桥接)")

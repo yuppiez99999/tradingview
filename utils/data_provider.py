@@ -7,6 +7,7 @@
 - 数据缓存
 - 数据验证
 """
+from __future__ import annotations
 
 import importlib.util
 import json
@@ -14,7 +15,7 @@ import logging
 import pathlib
 import threading
 from datetime import datetime
-from typing import Any, Optional, TypedDict, cast
+from typing import Any, TypedDict, cast
 
 import pandas as pd
 
@@ -30,7 +31,7 @@ logger: Any = logging.getLogger(__name__)
 
 _SINA_SESSION = make_no_proxy_session("sina")
 
-_np: Optional[Any] = None
+_np: Any | None = None
 try:
     import numpy as _np_module
 
@@ -49,7 +50,7 @@ class SourceHealthEntry(TypedDict):
     """单数据源健康状态条目"""
 
     ok: bool
-    last_error: Optional[str]
+    last_error: str | None
 
 
 class SourceHealth(TypedDict):
@@ -118,7 +119,7 @@ class MarketDataProvider:
     def __init__(self, cache_size: int = 1000, backtest_mode: bool = False):
         self.cache_size = cache_size
         self.backtest_mode = backtest_mode
-        self._backtest_date: Optional[str] = None
+        self._backtest_date: str | None = None
         self.data_cache: dict[str, dict[str, Any]] = {}
         self.cache_lock = threading.Lock()
         self.persistent_cache_dir = (
@@ -146,14 +147,14 @@ class MarketDataProvider:
             },
         }
 
-        self._wind_mcp_client: Optional[dict[str, Any]] = None
-        self._tdx_source: Optional[Any] = None
-        self._akshare_source: Optional[Any] = None
+        self._wind_mcp_client: dict[str, Any] | None = None
+        self._tdx_source: Any | None = None
+        self._akshare_source: Any | None = None
         self._init_wind_mcp()
         self._init_tdx()
         self._init_akshare()
         logger.info(
-            "市场数据提供器初始化完成 (多数据源优先级: Wind MCP > 通达信 > AKShare > 新浪财经, 已剔除 iFinD, backtest_mode=%s)",
+            "市场数据提供器初始化完成 (多数据源优先级: Wind MCP > 通达信 > AKShare > 新浪财经, 已剔除 iFinD, backtest_mode=%s)",  # noqa: E501
             backtest_mode,
         )
 
@@ -351,7 +352,7 @@ class MarketDataProvider:
             return f"bj{s}"
         return f"sh{s}"
 
-    def _try_wind_mcp_realtime(self, symbol: str) -> Optional[dict]:
+    def _try_wind_mcp_realtime(self, symbol: str) -> dict | None:
         if not self._wind_mcp_client:
             return None
         try:
@@ -391,7 +392,7 @@ class MarketDataProvider:
 
     def _try_wind_mcp_historical(
         self, symbol: str, period: str
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         if not self._wind_mcp_client:
             return None
         try:
@@ -455,7 +456,7 @@ class MarketDataProvider:
             logger.error(f"Wind MCP 获取历史数据失败: {e}")
             return None
 
-    def _try_tdx_realtime(self, symbol: str) -> Optional[dict]:
+    def _try_tdx_realtime(self, symbol: str) -> dict | None:
         """通达信实时数据 (P3)"""
         if not self._tdx_source:
             return None
@@ -491,7 +492,7 @@ class MarketDataProvider:
             logger.error(f"通达信获取实时数据失败: {e}")
             return None
 
-    def _try_tdx_historical(self, symbol: str, period: str) -> Optional[pd.DataFrame]:
+    def _try_tdx_historical(self, symbol: str, period: str) -> pd.DataFrame | None:
         """通达信历史K线数据 (P3)"""
         if not self._tdx_source:
             return None
@@ -542,7 +543,7 @@ class MarketDataProvider:
             logger.error(f"通达信获取历史数据失败: {e}")
             return None
 
-    def _try_akshare_realtime(self, symbol: str) -> Optional[dict]:
+    def _try_akshare_realtime(self, symbol: str) -> dict | None:
         """AKShare 实时数据 (P4)"""
         if not self._akshare_source:
             return None
@@ -580,7 +581,7 @@ class MarketDataProvider:
 
     def _try_akshare_historical(
         self, symbol: str, period: str
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         """AKShare 历史K线数据 (P4)"""
         if not self._akshare_source:
             return None
@@ -635,7 +636,7 @@ class MarketDataProvider:
 
     def _try_sina_http_historical(
         self, symbol: str, period: str
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         """新浪 HTTP 历史 KLine 数据（P3，绕过系统代理）"""
         try:
             period_mapping = {
@@ -701,7 +702,7 @@ class MarketDataProvider:
             logger.error(f"新浪 HTTP 获取历史数据失败: {e}")
             return None
 
-    def _try_sina_http_realtime(self, symbol: str) -> Optional[dict]:
+    def _try_sina_http_realtime(self, symbol: str) -> dict | None:
         """新浪财经实时行情（P4，绕过系统代理）。
 
         接口: https://hq.sinajs.cn/list={sina_code}
@@ -777,7 +778,7 @@ class MarketDataProvider:
             logger.error(f"新浪 HTTP 获取实时行情失败: {e}")
             return None
 
-    def get_market_data(self, symbol: Optional[str] = None) -> dict:
+    def get_market_data(self, symbol: str | None = None) -> dict:
         cache_key = f"market_{symbol or 'SPY'}{self._cache_suffix()}"
 
         with self.cache_lock:
@@ -811,7 +812,7 @@ class MarketDataProvider:
             logger.error(f"获取市场数据失败: {e}")
             raise RuntimeError(f"获取市场数据失败 ({symbol}): {e}") from e
 
-    def _load_persistent_cache(self, cache_key: str) -> Optional[pd.DataFrame]:
+    def _load_persistent_cache(self, cache_key: str) -> pd.DataFrame | None:
         """加载持久化缓存,带过期机制(默认TTL=24小时)"""
         try:
             cache_file = self.persistent_cache_dir / f"{cache_key}.parquet"
@@ -883,7 +884,7 @@ class MarketDataProvider:
                 f"获取历史数据失败 ({symbol}, period={period}): {e}"
             ) from e
 
-    def get_sentiment_data(self, symbol: Optional[str] = None) -> Optional[dict]:
+    def get_sentiment_data(self, symbol: str | None = None) -> dict | None:
         cache_key = f"sentiment_{symbol or 'SPY'}{self._cache_suffix()}"
 
         with self.cache_lock:
@@ -893,7 +894,7 @@ class MarketDataProvider:
 
                 if cache_time and (datetime.now() - cache_time).total_seconds() < 300:
                     logger.debug(f"使用缓存的情绪数据: {cache_key}")
-                    return cast(Optional[dict], cached_data["data"])
+                    return cast(dict | None, cached_data["data"])
 
         try:
             sentiment_data = self._fetch_sentiment_data(symbol or "SPY")
@@ -1018,7 +1019,7 @@ class MarketDataProvider:
                 f"获取历史数据失败 ({symbol}, period={period}): {e}"
             ) from e
 
-    def _fetch_sentiment_data(self, symbol: str) -> Optional[dict]:
+    def _fetch_sentiment_data(self, symbol: str) -> dict | None:
         """获取情绪数据 — FinnewsHunter 事件驱动 alpha 信号 (受 feature-flag 控制)
 
         受 USE_FINNEWS_HUNTER_SIGNAL feature-flag 控制:
@@ -1197,7 +1198,7 @@ class MarketDataProvider:
 
     def _get_recent_prices_for_prediction(
         self, symbol: str, days: int = 120
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """获取近期收盘价序列 (供预测用)"""
         try:
             import numpy as np
@@ -1331,7 +1332,7 @@ class MarketDataProvider:
     # ===========================================================
     # U3: 复权因子支持 — hfq 历史价 ↔ 未复权实时价 对齐
     # ===========================================================
-    def get_hfq_factor(self, symbol: str, date: Optional[str] = None) -> float:
+    def get_hfq_factor(self, symbol: str, date: str | None = None) -> float:
         """U3: 获取 A股后复权累计因子.
 
         因子仅在除权日变化, 长缓存 (24h); akshare 不可用时降级返回 1.0.
@@ -1398,10 +1399,10 @@ class MarketDataProvider:
             return quote
 
 
-_data_provider: Optional["MarketDataProvider"] = None
+_data_provider: MarketDataProvider | None = None
 
 
-def get_market_data(symbol: Optional[str] = None) -> dict:
+def get_market_data(symbol: str | None = None) -> dict:
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
@@ -1415,7 +1416,7 @@ def get_historical_data(symbol: str, period: str = "1y") -> pd.DataFrame:
     return _data_provider.get_historical_data(symbol, period)
 
 
-def get_sentiment_data(symbol: Optional[str] = None) -> Optional[dict]:
+def get_sentiment_data(symbol: str | None = None) -> dict | None:
     global _data_provider
     if _data_provider is None:
         _data_provider = MarketDataProvider()
@@ -1467,6 +1468,12 @@ def get_ai_daily_report(symbols: list[str]) -> dict:
     if _data_provider is None:
         _data_provider = MarketDataProvider()
     return _data_provider.get_ai_daily_report(symbols)
+
+
+# P1-1 backward-compat alias: 旧名 DataProvider 已重命名为 MarketDataProvider (B3 重构),
+# 但 utils/pipeline/data_cleaning.py 与 tests/unit/test_data_cleaning_unit.py 仍引用旧名.
+# 保留 alias 避免破坏向后兼容.
+DataProvider = MarketDataProvider
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ AI 自动决策引擎 v5.8 — 量化交易系统 AI 决策模块 (多模型场�
     # 或再平衡分析
     decisions = engine.make_decisions(market_data, portfolio_data, scene="rebalancing_analysis")
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -27,7 +28,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # 添加当前目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -67,6 +68,15 @@ class RiskAlert:
     message: str
     action_required: str
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """dict 接口兼容: 允许调用方用 .get() 统一访问对象/dict 两种告警形态.
+
+        value_discipline_layer._make_alert 优先返回 RiskAlert 对象, 导入失败时 fallback 返回 dict;
+        调用方用 getattr(a, "alert_type", a.get("alert_type")) 兼容两种形态时, 因 eager evaluation
+        会先求值 a.get("alert_type"), 故 RiskAlert 需提供 .get() 方法 (委托 getattr).
+        """
+        return getattr(self, key, default)
 
 
 @dataclass
@@ -109,7 +119,7 @@ class GLM5DecisionEngine:
         "light_analysis": "轻量分析 (情感/分类)",
     }
 
-    def __init__(self, config: Optional[dict] = None, **kwargs):
+    def __init__(self, config: dict | None = None, **kwargs):
         """
         初始化决策引擎
 
@@ -295,10 +305,10 @@ class GLM5DecisionEngine:
         self,
         market_data: dict[str, Any],
         portfolio_data: dict[str, Any],
-        risk_rules: Optional[dict[str, Any]] = None,
-        macro_indicators: Optional[dict[str, Any]] = None,
+        risk_rules: dict[str, Any] | None = None,
+        macro_indicators: dict[str, Any] | None = None,
         scene: str = "intraday_decision",
-        include_fundamentals: Optional[bool] = None,
+        include_fundamentals: bool | None = None,
     ) -> DecisionResult:
         """
         生成综合交易决策 (v5.8 场景路由升级)
@@ -405,7 +415,7 @@ class GLM5DecisionEngine:
         scene: str,
         market_data: dict,
         portfolio_data: dict,
-        risk_rules: Optional[dict],
+        risk_rules: dict | None,
     ) -> DecisionResult:
         """v5.8 多模型场景路由决策"""
         system_prompt_template = self._scene_prompts.get(scene, self.system_prompt)
@@ -489,7 +499,7 @@ class GLM5DecisionEngine:
         prompt: str,
         market_data: dict,
         portfolio_data: dict,
-        risk_rules: Optional[dict],
+        risk_rules: dict | None,
     ) -> DecisionResult:
         """v5.7 旧版决策模式 (向后兼容降级)"""
         if not self.client:
@@ -528,8 +538,8 @@ class GLM5DecisionEngine:
         self,
         market_data: dict,
         portfolio_data: dict,
-        risk_rules: Optional[dict],
-        macro_indicators: Optional[dict],
+        risk_rules: dict | None,
+        macro_indicators: dict | None,
     ) -> str:
         """构建决策提示词 (v5.8+ 2026-08-07 升级: 摘要化 + few-shot + 精简表格)"""
 
@@ -608,7 +618,7 @@ class GLM5DecisionEngine:
         raw_analysis: str,
         market_data: dict,
         portfolio_data: dict,
-        risk_rules: Optional[dict],
+        risk_rules: dict | None,
         scene: str = "intraday_decision",
     ) -> DecisionResult:
         """解析 GLM-5 的输出结果"""

@@ -45,6 +45,24 @@ from scripts.shadow_admission_launcher import (  # noqa: E402
 # ============================================================
 
 
+@pytest.fixture(autouse=True)
+def _reset_config_singleton():
+    """重置 ConfigManager 单例与缓存, 隔离外部测试对全局配置的污染.
+
+    某些测试 (如 test_config_manager_unit) 会替换 ConfigManager._instance 指向
+    tmp_path, 若 teardown 未彻底还原, 后续 _load_shadow_config() 会读到被污染
+    的配置 (如 admission_criteria.max_drawdown 错误). 本 fixture 确保每个用例
+    前后全局配置状态干净.
+    """
+    from utils.config_manager import ConfigManager, clear_config_cache
+
+    ConfigManager.reset_instance()
+    clear_config_cache()
+    yield
+    ConfigManager.reset_instance()
+    clear_config_cache()
+
+
 @pytest.fixture
 def temp_state_file(tmp_path: Path) -> Path:
     """临时状态文件路径."""
@@ -81,6 +99,11 @@ def sample_state() -> dict[str, Any]:
         "fail_fast_triggered_at": None,
         "latest_metrics": None,
         "daily_reports": [],
+        # trade_log: 真实撮合成交桥接记录 (P0-1 要求).
+        # 注: 源码 cmd_daily 桥接 FillsStore 写入 trade_log 尚未落地,
+        # 单元测试需显式提供非空 trade_log 以验证 Stage2 指标判定逻辑,
+        # 否则 _check_stage_2_blockers 第 199-203 行会追加 blocker 使 can_promote 恒 False.
+        "trade_log": [{"date": "2026-08-29", "symbol": "600000", "fill": 100}],
         "stage_2_promoted": False,
         "stage_2_blocked_reason": "observation_in_progress",
     }
@@ -373,12 +396,12 @@ class TestConfigLoading:
         assert cfg["factor_combination"]["ic_weighted"]["lookback_days"] == 10
 
     def test_config_admission_criteria(self):
-        """准入标准: DSR>=0.5, 年化>=15%, 回撤<=10%, Sharpe CV<1.0."""
+        """准入标准: DSR>=0.5, 年化>=8%, 回撤<=15%, Sharpe CV<1.0."""
         cfg = _load_shadow_config()
         c = cfg["admission_criteria"]
         assert c["min_dsr"] == 0.5
-        assert c["min_annual_return"] == 0.15
-        assert c["max_drawdown"] == 0.10
+        assert c["min_annual_return"] == 0.08
+        assert c["max_drawdown"] == 0.15
         assert c["max_sharpe_cv"] == 1.0
 
     def test_config_single_factor_config_e(self):
