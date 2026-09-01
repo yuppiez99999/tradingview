@@ -1,0 +1,3 @@
+[submodule "external/airllm_src"]
+	path = external/airllm_src
+	url = https://github.com/yuppiez99999/airllm.git
