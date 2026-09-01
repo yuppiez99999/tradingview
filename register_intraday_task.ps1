@@ -5,7 +5,8 @@
 $ErrorActionPreference = 'Stop'
 
 $taskName = 'Quant_LLM_IntradayDecision'
-$python = 'C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe'
+# P0-2 修复 (2026-09-01): 原硬编码 AppData Python311 路径不存在, 统一改用项目 .venv (3.14.4)
+$python = 'E:\各种PY程序\28-终极量化交易系统8.4\.venv\Scripts\python.exe'
 $script = 'E:\各种PY程序\28-终极量化交易系统8.4\v8.3_institutional\llm_intraday_decision_engine.py'
 $logDir = 'E:\各种PY程序\28-终极量化交易系统8.4\logs'
 

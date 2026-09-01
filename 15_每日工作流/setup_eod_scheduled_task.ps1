@@ -26,7 +26,8 @@ param(
 
 # Project path configuration
 $ProjectRoot = "E:\各种PY程序\28-终极量化交易系统8.4"
-$PythonExe = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
+# P0-2 修复 (2026-09-01): 原硬编码 AppData Python311 路径不存在, 统一改用项目 .venv (3.14.4)
+$PythonExe = "E:\各种PY程序\28-终极量化交易系统8.4\.venv\Scripts\python.exe"
 $EodScript = Join-Path $ProjectRoot "15_每日工作流\run_daily_eod_workflow.py"
 
 Write-Host "============================================================" -ForegroundColor Cyan

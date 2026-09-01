@@ -7,7 +7,8 @@ echo   AutoHedge 交易日调度器
 echo ========================================
 echo.
 
-set PYTHON=C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe
+REM P0-2 修复 (2026-09-01): 原硬编码 AppData Python311 路径不存在, 改用项目 .venv
+set PYTHON=E:\各种PY程序\28-终极量化交易系统8.4\.venv\Scripts\python.exe
 set WORKDIR=%~dp0
 set LOG=%WORKDIR%logs\trading_scheduler.log
 if not exist "%WORKDIR%logs" mkdir "%WORKDIR%logs"

@@ -8,7 +8,8 @@ $ErrorActionPreference = "Stop"
 
 $projectRoot = "e:\各种PY程序\28-终极量化交易系统8.4"
 $v83Dir = Join-Path $projectRoot "v8.3_institutional"
-$pythonExe = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
+# P0-2 修复 (2026-09-01): 原硬编码 AppData Python311 路径不存在
+$pythonExe = "E:\各种PY程序\28-终极量化交易系统8.4\.venv\Scripts\python.exe"
 $logDir = Join-Path $projectRoot "logs"
 
 if (-not (Test-Path $logDir)) {

@@ -8,7 +8,8 @@
 $ErrorActionPreference = "Stop"
 
 $projectRoot = "e:\各种PY程序\28-终极量化交易系统8.4"
-$pythonExe = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
+# P0-2 修复 (2026-09-01): 原硬编码 AppData Python311 路径不存在
+$pythonExe = "E:\各种PY程序\28-终极量化交易系统8.4\.venv\Scripts\python.exe"
 $executorScript = Join-Path $projectRoot "daily_trade_executor.py"
 
 # 使用 COM 对象创建计划任务 (比 PowerShell cmdlet 更稳定)

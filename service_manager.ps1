@@ -9,7 +9,8 @@ param(
 $ErrorActionPreference = "Stop"
 $ServiceName = "AutoHedgeExecutor"
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Python = "C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe"
+# P0-2 修复 (2026-09-01): 原硬编码 AppData Python311 路径不存在, 统一改用项目 .venv (3.14.4)
+$Python = Join-Path $ProjectDir ".venv\Scripts\python.exe"
 $Wrapper = Join-Path $ProjectDir "_archive_dead_code\service_wrapper.py"  # 已归档，路径更新于 2026-07-09。如已迁移至 v8.3_institutional，请改用该目录下的对应脚本。
 
 function Write-Info($msg) { Write-Host "[INFO] $msg" -ForegroundColor Green }

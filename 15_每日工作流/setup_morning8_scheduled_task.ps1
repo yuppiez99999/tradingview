@@ -1,4 +1,4 @@
-﻿# 注册每日早8点日报+盘前交易计划定时任务
+# 注册每日早8点日报+盘前交易计划定时任务
 # 功能: 每日 08:00 执行完整早间工作流
 #   info(7项报告) → calibrate(盘前校准) → plan(交易计划) → LLM决策 → report(综合报告) → 归档
 # 非交易日: 自动只跑 info 阶段 (信息采集), 跳过决策类阶段
@@ -6,7 +6,10 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
-$BatchFile = Join-Path $ScriptDir "run_daily_morning8.bat"
+# P0-1 修复 (2026-09-01): 直调 .venv python 替代 cmd /c bat —
+# 调度会话→cmd→bat 链路在中文路径下返回 9009 (连续失败 ≥6 天), 直调 python 经验证稳定
+$PythonExe = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
+$ScriptPy = Join-Path $ScriptDir "run_daily_morning.py"
 $LogDir = Join-Path $ProjectRoot "logs"
 
 if (-not (Test-Path $LogDir)) {
@@ -20,23 +23,27 @@ Write-Host "============================================================" -Foreg
 Write-Host "  每日早8点日报+盘前交易计划 定时任务注册" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "项目根目录: $ProjectRoot"
-Write-Host "批处理文件: $BatchFile"
+Write-Host "解释器:     $PythonExe"
+Write-Host "入口脚本:   $ScriptPy"
 Write-Host "任务名称:   $TaskName"
 Write-Host "执行时间:   每日 08:00"
 Write-Host "流程:       info(7项) → calibrate → plan → LLM → report → 归档"
 Write-Host "非交易日:   仅运行 info (信息采集), 跳过决策类阶段"
 Write-Host ""
 
-if (-not (Test-Path $BatchFile)) {
-    Write-Host "[ERROR] 批处理文件不存在: $BatchFile" -ForegroundColor Red
+if (-not (Test-Path $PythonExe)) {
+    Write-Host "[ERROR] 解释器不存在: $PythonExe (请先创建 .venv)" -ForegroundColor Red
+    exit 1
+}
+if (-not (Test-Path $ScriptPy)) {
+    Write-Host "[ERROR] 入口脚本不存在: $ScriptPy" -ForegroundColor Red
     exit 1
 }
 
 # 触发器: 每日 08:00
 $trigger = New-ScheduledTaskTrigger -Daily -At 08:00
-$logFile = Join-Path $LogDir "morning8_workflow.log"
-$argStr = "/c `"$BatchFile`" >> `"$logFile`" 2>&1"
-$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument $argStr -WorkingDirectory $ProjectRoot
+# 直调 python (脚本自带文件日志 logs/daily_morning_YYYYMMDD.log, 无需 stdout 重定向)
+$action = New-ScheduledTaskAction -Execute $PythonExe -Argument "`"$ScriptPy`" --phase all" -WorkingDirectory $ProjectRoot
 
 # 设置: 电池供电也运行 / 错过自动补跑 / 失败重试3次(间隔5分钟) / 超时2小时 / 不重复启动
 $settings = New-ScheduledTaskSettingsSet `
@@ -79,7 +86,7 @@ try {
     $info = $task | Get-ScheduledTaskInfo
     Write-Host "状态:     $($task.State)" -ForegroundColor Green
     Write-Host "下次运行: $($info.NextRunTime)" -ForegroundColor Green
-    Write-Host "日志文件: $logFile" -ForegroundColor Green
+    Write-Host "日志文件: $LogDir\daily_morning_<YYYYMMDD>.log (脚本自带)" -ForegroundColor Green
 } catch {
     Write-Host "[失败] $($_.Exception.Message)" -ForegroundColor Red
     exit 1

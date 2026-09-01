@@ -8,8 +8,8 @@ echo.
 echo 正在创建 3 个交易日自动任务...
 echo.
 
-REM 盘前检查 - 每天 7:00
-schtasks /create /tn "AutoHedge_PreMarket_0700" /tr "\"C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe\" --mode pre-market --broker mock" /sc weekly /d MON,TUE,WED,THU,FRI /st 07:00 /ru "%USERNAME%" /rl HIGHEST /f
+REM 盘前检查 - 每天 7:00 (P0-2 修复 2026-09-01: 原硬编码 AppData Python311 路径不存在, 改用项目 .venv)
+schtasks /create /tn "AutoHedge_PreMarket_0700" /tr "\"E:\各种PY程序\28-终极量化交易系统8.4\.venv\Scripts\python.exe\" --mode pre-market --broker mock" /sc weekly /d MON,TUE,WED,THU,FRI /st 07:00 /ru "%USERNAME%" /rl HIGHEST /f
 echo.
 
 REM 启动盘中监控 - 每天 9:25

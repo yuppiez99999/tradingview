@@ -1,5 +1,8 @@
 # ============================================================
 # 修复 5 个中文命名任务 (UTF-8 BOM, 正确任务名)
+# DEPRECATED (2026-09-01): 外部项目 (11_量化策略) 的一次性历史修复脚本,
+# 误提交至本 repo, 已完成使命。原引用的 Python311 路径本机不存在,
+# 统一改为本 repo .venv (防复发检查 check_windows_scripts.py 要求路径真实存在)。
 # ============================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -8,7 +11,7 @@ $service.Connect()
 $rootFolder = $service.GetFolder("\")
 
 $pyExe = @'
-C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe
+e:\各种PY程序\28-终极量化交易系统8.4\.venv\Scripts\python.exe
 '@.TrimEnd()
 $qdir = @'
 e:\各种PY程序\11_量化策略
