@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-01 · mmr-deep.yml 12 天 phantom startup_failure 根因：L96 表达式内反斜杠引号非法 token
+
+- **症状**: 自 08-20 创建起, 每次 push 产生 0 秒 startup_failure (event=push), 但文件从未有过 push 触发器; 本地 PyYAML + 官方 github-workflow JSON schema 校验均 0 错误; 之前 4 轮修复 (引号 on: / 原生 git diff 替换 tj-actions / 观测性降级) 全部无效
+- **排查路径**: check-runs API 无该 workflow 条目 → 拉全部 run 确认"自出生即失败" + `-S "push:"` 确认从未有 push 触发器 → 结论指向注册级校验失败 → 官方 schema 校验排除结构问题 → 目光转向 **schema 不覆盖的层面: GitHub 表达式语法**
+- **根因** (commit 0976ca68): L96 `pr_num = '${{ github.event.pull_request.number || \"manual\" }}'` — `\"` 在 GitHub 表达式语法里是非法 token (不支持反斜杠转义); 注册时表达式预解析失败 = "workflow file issue", 触发器无法确定, GitHub 对每次 push 保守地产生 phantom startup_failure run。同文件 L141 同逻辑用单引号是正确写法, L96 是漏网之鱼
+- **验证**: push 0976ca68 后 mmr-deep 无新 run 产生 (此前 12 天每次 push 必败) — 根因确认
+- **教训**: ① workflow 内嵌表达式中的引号: 外层双引号 + 表达式内单引号, 永远不要在 `${{ }}` 里写 `\"`; ② "0 秒解析级失败 + 触发器对不上事件" = 注册级校验问题, PyYAML/schema 通过不代表 GitHub 表达式解析通过; ③ 该 workflow 实际审查逻辑 (PR 触发 docs/cairn/reports 变更) 至今从未真正执行过, 下个 PR 是首次实战
+- **指针**: `.github/workflows/mmr-deep.yml` L96; 前序 LOG (Quality Gate 30+ 连败修复)
+
 ## 2026-09-01 · Quality Gate 30+ 连败根因修复：YELLOW(rc=1) 被烟测误判 + PS 7.4 退出码传播坑
 
 - **排查路径**: 本地建精简 venv (ruff/pytest/bandit/pandas/numpy/pyyaml, 3.11.9) 复现失败未果 → 回拉 CI 失败 job 日志发现 `[UNRUNNABLE]` 明细 (此前 grep 关键词漏掉): `engineering_debt_gate.py: rc=1` 且 stderr 前 200 字符被 PreTradeGuard 自检日志占满
