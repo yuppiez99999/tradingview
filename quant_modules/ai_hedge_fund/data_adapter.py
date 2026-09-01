@@ -6,10 +6,11 @@
 
 数据源优先级: Wind > AKShare > sina > 兜底默认值
 """
+from __future__ import annotations
 
 import datetime
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -43,46 +44,46 @@ except ImportError:
         report_period: str = ""
         period: str = "ttm"
         currency: str = "CNY"
-        market_cap: Optional[float] = None
-        enterprise_value: Optional[float] = None
-        price_to_earnings_ratio: Optional[float] = None
-        price_to_book_ratio: Optional[float] = None
-        price_to_sales_ratio: Optional[float] = None
-        enterprise_value_to_ebitda_ratio: Optional[float] = None
-        enterprise_value_to_revenue_ratio: Optional[float] = None
-        free_cash_flow_yield: Optional[float] = None
-        peg_ratio: Optional[float] = None
-        gross_margin: Optional[float] = None
-        operating_margin: Optional[float] = None
-        net_margin: Optional[float] = None
-        return_on_equity: Optional[float] = None
-        return_on_assets: Optional[float] = None
-        return_on_invested_capital: Optional[float] = None
-        asset_turnover: Optional[float] = None
-        inventory_turnover: Optional[float] = None
-        receivables_turnover: Optional[float] = None
-        days_sales_outstanding: Optional[float] = None
-        operating_cycle: Optional[float] = None
-        working_capital_turnover: Optional[float] = None
-        current_ratio: Optional[float] = None
-        quick_ratio: Optional[float] = None
-        cash_ratio: Optional[float] = None
-        operating_cash_flow_ratio: Optional[float] = None
-        debt_to_equity: Optional[float] = None
-        debt_to_assets: Optional[float] = None
-        interest_coverage: Optional[float] = None
-        revenue_growth: Optional[float] = None
-        earnings_growth: Optional[float] = None
-        book_value_growth: Optional[float] = None
-        earnings_per_share_growth: Optional[float] = None
-        free_cash_flow_growth: Optional[float] = None
-        operating_income_growth: Optional[float] = None
-        ebitda_growth: Optional[float] = None
-        payout_ratio: Optional[float] = None
-        earnings_per_share: Optional[float] = None
-        book_value_per_share: Optional[float] = None
-        free_cash_flow_per_share: Optional[float] = None
-        operating_cash_flow_per_share: Optional[float] = None
+        market_cap: float | None = None
+        enterprise_value: float | None = None
+        price_to_earnings_ratio: float | None = None
+        price_to_book_ratio: float | None = None
+        price_to_sales_ratio: float | None = None
+        enterprise_value_to_ebitda_ratio: float | None = None
+        enterprise_value_to_revenue_ratio: float | None = None
+        free_cash_flow_yield: float | None = None
+        peg_ratio: float | None = None
+        gross_margin: float | None = None
+        operating_margin: float | None = None
+        net_margin: float | None = None
+        return_on_equity: float | None = None
+        return_on_assets: float | None = None
+        return_on_invested_capital: float | None = None
+        asset_turnover: float | None = None
+        inventory_turnover: float | None = None
+        receivables_turnover: float | None = None
+        days_sales_outstanding: float | None = None
+        operating_cycle: float | None = None
+        working_capital_turnover: float | None = None
+        current_ratio: float | None = None
+        quick_ratio: float | None = None
+        cash_ratio: float | None = None
+        operating_cash_flow_ratio: float | None = None
+        debt_to_equity: float | None = None
+        debt_to_assets: float | None = None
+        interest_coverage: float | None = None
+        revenue_growth: float | None = None
+        earnings_growth: float | None = None
+        book_value_growth: float | None = None
+        earnings_per_share_growth: float | None = None
+        free_cash_flow_growth: float | None = None
+        operating_income_growth: float | None = None
+        ebitda_growth: float | None = None
+        payout_ratio: float | None = None
+        earnings_per_share: float | None = None
+        book_value_per_share: float | None = None
+        free_cash_flow_per_share: float | None = None
+        operating_cash_flow_per_share: float | None = None
 
     @dataclass
     class LineItem:
@@ -90,19 +91,19 @@ except ImportError:
         report_period: str = ""
         period: str = ""
         currency: str = "CNY"
-        revenue: Optional[float] = None
-        gross_profit: Optional[float] = None
-        operating_income: Optional[float] = None
-        net_income: Optional[float] = None
-        capital_expenditure: Optional[float] = None
-        depreciation_and_amortization: Optional[float] = None
-        outstanding_shares: Optional[int] = None
-        total_assets: Optional[float] = None
-        total_liabilities: Optional[float] = None
-        shareholders_equity: Optional[float] = None
-        dividends_and_other_cash_distributions: Optional[float] = None
-        issuance_or_purchase_of_equity_shares: Optional[float] = None
-        free_cash_flow: Optional[float] = None
+        revenue: float | None = None
+        gross_profit: float | None = None
+        operating_income: float | None = None
+        net_income: float | None = None
+        capital_expenditure: float | None = None
+        depreciation_and_amortization: float | None = None
+        outstanding_shares: int | None = None
+        total_assets: float | None = None
+        total_liabilities: float | None = None
+        shareholders_equity: float | None = None
+        dividends_and_other_cash_distributions: float | None = None
+        issuance_or_purchase_of_equity_shares: float | None = None
+        free_cash_flow: float | None = None
 
     @dataclass
     class InsiderTrade:
@@ -120,7 +121,7 @@ except ImportError:
         title: str = ""
         date: str = ""
         source: str = ""
-        sentiment: Optional[float] = None
+        sentiment: float | None = None
 
 
 # ── 内置轻量缓存 ──
@@ -264,7 +265,7 @@ def _fetch_akshare_price(ticker: str, start_date: str, end_date: str) -> list[Pr
 
 
 def get_prices(
-    ticker: str, start_date: str, end_date: str, api_key: str = None
+    ticker: str, start_date: str, end_date: str, api_key: str | None = None
 ) -> list[Price]:
     """获取价格数据 — 多源回退 (sina → akshare → 空)"""
     ckey = _cache_key("prices", ticker, start_date, end_date)
@@ -303,7 +304,7 @@ def prices_to_df(prices: list[Price]) -> pd.DataFrame:
 
 
 def get_price_data(
-    ticker: str, start_date: str, end_date: str, api_key: str = None
+    ticker: str, start_date: str, end_date: str, api_key: str | None = None
 ) -> pd.DataFrame:
     """获取价格数据返回 DataFrame"""
     prices = get_prices(ticker, start_date, end_date, api_key)
@@ -479,7 +480,7 @@ def get_financial_metrics(
     end_date: str,
     period: str = "ttm",
     limit: int = 10,
-    api_key: str = None,
+    api_key: str | None = None,
 ) -> list[FinancialMetrics]:
     """获取财务指标 — 多源回退"""
     ckey = _cache_key("metrics", ticker, end_date, period, str(limit))
@@ -511,7 +512,7 @@ def search_line_items(
     end_date: str,
     period: str = "ttm",
     limit: int = 10,
-    api_key: str = None,
+    api_key: str | None = None,
 ) -> list[LineItem]:
     """获取财务明细项 — 多源回退"""
     ckey = _cache_key(
@@ -676,8 +677,8 @@ def search_line_items(
 
 
 def get_market_cap(
-    ticker: str, end_date: str = None, api_key: str = None
-) -> Optional[float]:
+    ticker: str, end_date: str | None = None, api_key: str | None = None
+) -> float | None:
     """获取市值 — 从 AKShare 或新浪获取"""
     try:
         import akshare as ak
@@ -721,9 +722,9 @@ def get_market_cap(
 def get_insider_trades(
     ticker: str,
     end_date: str,
-    start_date: str = None,
+    start_date: str | None = None,
     limit: int = 100,
-    api_key: str = None,
+    api_key: str | None = None,
 ) -> list[InsiderTrade]:
     """获取内部人交易 — A股暂无免费接口，返回空"""
     return []
@@ -732,9 +733,9 @@ def get_insider_trades(
 def get_company_news(
     ticker: str,
     end_date: str,
-    start_date: str = None,
+    start_date: str | None = None,
     limit: int = 100,
-    api_key: str = None,
+    api_key: str | None = None,
 ) -> list[CompanyNews]:
     """获取公司新闻 — 暂返回空"""
     return []
@@ -745,7 +746,7 @@ def get_company_news(
 # ═══════════════════════════════════════════════════════════════
 
 
-def _safe_float(val: Any) -> Optional[float]:
+def _safe_float(val: Any) -> float | None:
     """安全转换为 float，处理百分比和中文数字"""
     if val is None or pd.isna(val) if hasattr(val, "__iter__") else False:
         return None
@@ -762,7 +763,7 @@ def _safe_float(val: Any) -> Optional[float]:
         return None
 
 
-def _safe_float_val(row: Any, col_name: str) -> Optional[float]:
+def _safe_float_val(row: Any, col_name: str) -> float | None:
     """从 DataFrame 行中安全获取值"""
     if row is None:
         return None
@@ -803,7 +804,7 @@ def _get_shares(ticker: str) -> int:
     return 1_000_000_000
 
 
-def _infer_capex(cf_row: Any) -> Optional[float]:
+def _infer_capex(cf_row: Any) -> float | None:
     """从现金流量表推断资本支出"""
     val = _safe_float_val(cf_row, "购建固定资产")
     if val is None:

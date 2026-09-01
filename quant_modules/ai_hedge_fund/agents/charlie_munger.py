@@ -1,5 +1,5 @@
 import json
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -684,11 +684,11 @@ def analyze_predictability(financial_line_items: list) -> dict:
             # Somewhat profitable operations
             score += 1
             details.append(
-                f"Somewhat predictable operations: Operating income positive in {positive_periods}/{len(op_income)} periods"
+                f"Somewhat predictable operations: Operating income positive in {positive_periods}/{len(op_income)} periods"  # noqa: E501
             )
         else:
             details.append(
-                f"Unpredictable operations: Operating income positive in only {positive_periods}/{len(op_income)} periods"
+                f"Unpredictable operations: Operating income positive in only {positive_periods}/{len(op_income)} periods"  # noqa: E501
             )
     else:
         details.append("Insufficient operating income history")
@@ -895,14 +895,14 @@ def analyze_news_sentiment(news_items: list) -> str:
     return f"Qualitative review of {len(news_items)} recent news items would be needed"
 
 
-def _r(x: Any, n: int = 3) -> Optional[float]:
+def _r(x: Any, n: int = 3) -> float | None:
     try:
         return round(float(x), n)
     except (TypeError, ValueError):
         return None
 
 
-def make_munger_facts_bundle(analysis: dict[str, any]) -> dict[str, any]:
+def make_munger_facts_bundle(analysis: dict[str, Any]) -> dict[str, Any]:
     moat = analysis.get("moat_analysis") or {}
     mgmt = analysis.get("management_analysis") or {}
     pred = analysis.get("predictability_analysis") or {}
@@ -1007,7 +1007,7 @@ def compute_confidence(analysis: dict, signal: str) -> int:
 
 def generate_munger_output(
     ticker: str,
-    analysis_data: dict[str, any],
+    analysis_data: dict[str, Any],
     state: AgentState,
     agent_id: str,
     confidence_hint: int,

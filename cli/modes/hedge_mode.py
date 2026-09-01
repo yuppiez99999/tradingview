@@ -106,7 +106,7 @@ def run_hedge_mode(args):
     )
     print(f"  现金:          ¥{risk.cash:,.0f}")
     print(
-        f"  组合Beta:      CSI300={risk.beta_csi300:.3f} | CSI500={risk.beta_csi500:.3f} | CSI1000={risk.beta_csi1000:.3f} | SSE50={risk.beta_sse50:.3f}"
+        f"  组合Beta:      CSI300={risk.beta_csi300:.3f} | CSI500={risk.beta_csi500:.3f} | CSI1000={risk.beta_csi1000:.3f} | SSE50={risk.beta_sse50:.3f}"  # noqa: E501
     )
     print(f"  30日波动率:    {risk.volatility_30d*100:.1f}%")
     print(

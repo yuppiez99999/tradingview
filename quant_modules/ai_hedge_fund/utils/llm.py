@@ -1,3 +1,5 @@
+from typing import Any
+
 """Helper functions for LLM"""
 
 import json
@@ -10,7 +12,7 @@ from quant_modules.ai_hedge_fund.utils.progress import progress
 
 
 def call_llm(
-    prompt: any,
+    prompt: Any,
     pydantic_model: type[BaseModel],
     agent_name: str | None = None,
     state: AgentState | None = None,

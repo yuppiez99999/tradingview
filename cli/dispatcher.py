@@ -13,10 +13,11 @@ CLI 命令调度器 — v5.10 P0-9 重构第二步
     dispatcher.register('--daily', run_daily_workflow, '三阶段交易工作流')
     dispatcher.run()
 """
+from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from typing import Any, Optional
+from typing import Any
 
 
 class Dispatcher:
@@ -36,7 +37,7 @@ class Dispatcher:
         """获取所有注册的模式"""
         return list(self._modes)
 
-    def get_handler(self, dest: str) -> Optional[Callable]:
+    def get_handler(self, dest: str) -> Callable | None:
         """根据 dest 获取 handler"""
         return self._registry.get(dest)
 

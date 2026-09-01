@@ -15,7 +15,7 @@ DataConnectorManager 仅负责按优先级注册并选择"最高优先级连接�
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class DataConnectorManager:
 
     def __init__(self) -> None:
         self._connectors: list[dict[str, Any]] = []  # [{name, priority, instance, ...}]
-        self._active: Optional[dict[str, Any]] = None
+        self._active: dict[str, Any] | None = None
 
     def register(self, name: str, connector: Any, priority: int = 100) -> None:
         """注册数据源连接器。
@@ -47,7 +47,7 @@ class DataConnectorManager:
             self._active = entry
         logger.debug("连接器注册: %s (优先级 %d)", name, priority)
 
-    def get_active_connector(self) -> Optional[Any]:
+    def get_active_connector(self) -> Any | None:
         """获取最高优先级的可用连接器实例, 无可用返回 None。"""
         if self._active is None:
             return None
@@ -65,7 +65,7 @@ class DataConnectorManager:
             {"name": c["name"], "priority": c["priority"]} for c in self._connectors
         ]
 
-    def get_connector(self, name: str) -> Optional[Any]:
+    def get_connector(self, name: str) -> Any | None:
         """按名称获取连接器实例, 不存在返回 None。"""
         for c in self._connectors:
             if c["name"] == name:

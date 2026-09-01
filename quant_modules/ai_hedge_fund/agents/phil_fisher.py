@@ -1,6 +1,6 @@
 import json
 import statistics
-from typing import Literal
+from typing import Any, Literal
 
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -599,7 +599,7 @@ def analyze_sentiment(news_items: list) -> dict:
 
 def generate_fisher_output(
     ticker: str,
-    analysis_data: dict[str, any],
+    analysis_data: dict[str, Any],
     state: AgentState,
     agent_id: str,
 ) -> PhilFisherSignal:
@@ -626,9 +626,20 @@ def generate_fisher_output(
               5. Explaining competitive advantages that could sustain growth over 3-5+ years
               6. Using Phil Fisher's methodical, growth-focused, and long-term oriented voice
 
-              For example, if bullish: "This company exhibits the sustained growth characteristics we seek, with revenue increasing at 18% annually over five years. Management has demonstrated exceptional foresight by allocating 15% of revenue to R&D, which has produced three promising new product lines. The consistent operating margins of 22-24% indicate pricing power and operational efficiency that should continue to..."
+              For example, if bullish: "This company exhibits the sustained growth characteristics we seek,
+               with revenue increasing at 18% annually over five years. Management has demonstrated exceptional
+               foresight
+               by allocating 15% of revenue to R&D,
+                which has produced three promising new product lines. The consistent operating margins of 22-24%
+                indicate
+                pricing power and operational efficiency that should continue to..."
 
-              For example, if bearish: "Despite operating in a growing industry, management has failed to translate R&D investments (only 5% of revenue) into meaningful new products. Margins have fluctuated between 10-15%, showing inconsistent operational execution. The company faces increasing competition from three larger competitors with superior distribution networks. Given these concerns about long-term growth sustainability..."
+              For example, if bearish: "Despite operating in a growing industry,
+               management has failed to translate R&D investments (only 5% of revenue) into meaningful new products.
+               Margins have fluctuated between 10-15%,
+                showing inconsistent operational execution. The company faces increasing competition from three larger
+                competitors with superior distribution networks. Given these concerns about long-term growth
+                sustainability..."
 
               You must output a JSON object with:
                 - "signal": "bullish" or "bearish" or "neutral"

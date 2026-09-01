@@ -22,7 +22,7 @@ import logging
 import os
 import time
 from collections.abc import Callable
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -235,7 +235,7 @@ class StrategyRegistry:
         self._hypotheses[hyp_id] = data
         logger.info("已注册研究假设: %s", hyp_id)
 
-    def get_hypothesis(self, hyp_id: str) -> Optional[dict[str, Any]]:
+    def get_hypothesis(self, hyp_id: str) -> dict[str, Any] | None:
         """获取假设数据, 不存在返回 None。"""
         return self._hypotheses.get(hyp_id)
 
@@ -248,7 +248,7 @@ class StrategyRegistry:
         self._strategies[name] = strategy
         logger.info("已注册策略: %s", name)
 
-    def get_strategy(self, name: str) -> Optional[Any]:
+    def get_strategy(self, name: str) -> Any | None:
         """获取策略实例, 不存在返回 None。"""
         return self._strategies.get(name)
 

@@ -165,7 +165,7 @@ def sentiment_analyst_agent(
             "combined_analysis": {
                 "total_weighted_bullish": round(bullish_signals, 1),
                 "total_weighted_bearish": round(bearish_signals, 1),
-                "signal_determination": f"{'Bullish' if bullish_signals > bearish_signals else 'Bearish' if bearish_signals > bullish_signals else 'Neutral'} based on weighted signal comparison",
+                "signal_determination": f"{'Bullish' if bullish_signals > bearish_signals else 'Bearish' if bearish_signals > bullish_signals else 'Neutral'} based on weighted signal comparison",  # noqa: E501
             },
         }
 

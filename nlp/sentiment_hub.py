@@ -295,10 +295,10 @@ def _generate_trend_report(target_date: str, positions: dict[str, Any]) -> str:
         "- 新闻数据: `tools.wind_mcp_fetcher.wind_search_news` (Wind MCP financial_docs.get_financial_news)\n"
     )
     lines.append(
-        "- 可选增强: 接入 `utils.signal_sources.sentiment_signal_source.SentimentSignalSource` (需 MediaCrawlerAdapter, 自媒体 7 平台)\n"
+        "- 可选增强: 接入 `utils.signal_sources.sentiment_signal_source.SentimentSignalSource` (需 MediaCrawlerAdapter, 自媒体 7 平台)\n"  # noqa: E501
     )
     lines.append(
-        "- 可选增强: 接入 `utils.finance_agents.sentiment_agent.SentimentAgent` (需 news_items context, 可由 wind_search_news 喂入)\n"
+        "- 可选增强: 接入 `utils.finance_agents.sentiment_agent.SentimentAgent` (需 news_items context, 可由 wind_search_news 喂入)\n"  # noqa: E501
     )
     lines.append(
         "- 环境变量: SENTIMENT_HUB_USE_WIND_NEWS=1 开启 (默认) / =0 关闭 Wind MCP 新闻扫描\n"
@@ -347,7 +347,7 @@ def _generate_coal_report(target_date: str, positions: dict[str, Any]) -> str:
     lines.append("- 当前: 监控框架 (基于持仓+关键词)\n")
     lines.append("- 可选增强: 接入 Wind 动力煤现货价格、港口库存数据 (Wind MCP)\n")
     lines.append(
-        "- 可选增强: 接入 `tools.wind_mcp_fetcher.wind_search_news` 搜索动力煤/煤炭板块新闻 (query='动力煤'/'焦煤'/'煤炭')\n"
+        "- 可选增强: 接入 `tools.wind_mcp_fetcher.wind_search_news` 搜索动力煤/煤炭板块新闻 (query='动力煤'/'焦煤'/'煤炭')\n"  # noqa: E501
     )
     return "".join(lines)
 

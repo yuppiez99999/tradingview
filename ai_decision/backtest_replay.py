@@ -784,9 +784,9 @@ class BacktestReplay:
                 "## 4. 边际夏普 (增量价值)",
                 "",
                 f"- ai_debate - five_agents = **{report.marginal_sharpe_debate_vs_agents:+.4f}**"
-                f" ({'✅ 超过阈值' if report.marginal_sharpe_debate_vs_agents > MARGINAL_SHARPE_THRESHOLD else '❌ 未达阈值'} {MARGINAL_SHARPE_THRESHOLD})",
+                f" ({'✅ 超过阈值' if report.marginal_sharpe_debate_vs_agents > MARGINAL_SHARPE_THRESHOLD else '❌ 未达阈值'} {MARGINAL_SHARPE_THRESHOLD})",  # noqa: E501
                 f"- five_agents - rule_only = **{report.marginal_sharpe_agents_vs_rule:+.4f}**"
-                f" ({'✅ 超过阈值' if report.marginal_sharpe_agents_vs_rule > MARGINAL_SHARPE_THRESHOLD else '❌ 未达阈值'} {MARGINAL_SHARPE_THRESHOLD})",
+                f" ({'✅ 超过阈值' if report.marginal_sharpe_agents_vs_rule > MARGINAL_SHARPE_THRESHOLD else '❌ 未达阈值'} {MARGINAL_SHARPE_THRESHOLD})",  # noqa: E501
                 "",
                 "## 5. 上线建议",
                 "",

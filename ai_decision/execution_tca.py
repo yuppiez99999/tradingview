@@ -167,7 +167,7 @@ def _tca_report_to_dict(report: Any) -> dict[str, Any]:
 
 
 def _run_tca_pre_trade(
-    decision: "TradingDecision",
+    decision: TradingDecision,
     execution_plan: dict[str, Any],
     market_data_for_tca: dict[str, Any] | None,
     tca_pre_trade_estimator: Any,
@@ -232,7 +232,7 @@ def _run_tca_post_trade(
     execution_plan: dict[str, Any],
     execution_result: dict[str, Any] | None,
     market_data_for_tca: dict[str, Any] | None,
-    decision: "TradingDecision",
+    decision: TradingDecision,
 ) -> tuple[dict[str, Any] | None, str]:
     """TCA 事后归因
 

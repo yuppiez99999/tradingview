@@ -1,0 +1,5 @@
+# 运行时生成的索引与产物（非源码）
+index.db
+output/
+__pycache__/
+*.pyc

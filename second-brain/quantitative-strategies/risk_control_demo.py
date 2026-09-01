@@ -265,7 +265,7 @@ def demo_risk_scenarios():
         emotional_score = individual_scores.get("emotional", 0)
 
         print(
-            f"{scenario['name']:<12} {overall_score:<10.3f} {level:<8} {market_score:<8.3f} {stock_score:<8.3f} {portfolio_score:<8.3f} {operational_score:<8.3f} {emotional_score:<8.3f}"
+            f"{scenario['name']:<12} {overall_score:<10.3f} {level:<8} {market_score:<8.3f} {stock_score:<8.3f} {portfolio_score:<8.3f} {operational_score:<8.3f} {emotional_score:<8.3f}"  # noqa: E501
         )
 
     print("-" * 80)
@@ -420,7 +420,7 @@ def demo_real_time_monitoring():
     print("实时风险监控（模拟10个时间点）:")
     print("-" * 80)
     print(
-        f"{'时间点':<6} {'整体风险':<10} {'等级':<6} {'告警':<6} {'市场':<8} {'个股':<8} {'组合':<8} {'操作':<8} {'情绪':<8}"
+        f"{'时间点':<6} {'整体风险':<10} {'等级':<6} {'告警':<6} {'市场':<8} {'个股':<8} {'组合':<8} {'操作':<8} {'情绪':<8}"  # noqa: E501
     )
     print("-" * 80)
 
@@ -462,7 +462,7 @@ def demo_real_time_monitoring():
         emotional_score = individual_scores.get("emotional", 0)
 
         print(
-            f"{i+1:<6} {overall_score:<10.3f} {level:<6} {len(alerts):<6} {market_score:<8.3f} {stock_score:<8.3f} {portfolio_score:<8.3f} {operational_score:<8.3f} {emotional_score:<8.3f}"
+            f"{i+1:<6} {overall_score:<10.3f} {level:<6} {len(alerts):<6} {market_score:<8.3f} {stock_score:<8.3f} {portfolio_score:<8.3f} {operational_score:<8.3f} {emotional_score:<8.3f}"  # noqa: E501
         )
 
         # 如果出现高风险，显示告警信息

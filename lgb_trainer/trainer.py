@@ -453,7 +453,7 @@ def _train_one_regime_model(
     """
     if n_samples < min_samples_per_regime:
         logger.info(
-            f"[V9-Regime] {symbol} {regime_label} 样本不足 ({n_samples} < {min_samples_per_regime}), 跳过 {regime_label} 模型"
+            f"[V9-Regime] {symbol} {regime_label} 样本不足 ({n_samples} < {min_samples_per_regime}), 跳过 {regime_label} 模型"  # noqa: E501
         )
         return None
 

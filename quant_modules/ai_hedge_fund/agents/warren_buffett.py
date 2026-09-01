@@ -1,5 +1,5 @@
 import json
-from typing import Literal
+from typing import Any, Literal
 
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -163,7 +163,7 @@ def warren_buffett_agent(state: AgentState, agent_id: str = "warren_buffett_agen
     return {"messages": [message], "data": state["data"]}
 
 
-def analyze_fundamentals(metrics: list) -> dict[str, any]:
+def analyze_fundamentals(metrics: list) -> dict[str, Any]:
     """Analyze company fundamentals based on Buffett's criteria."""
     if not metrics:
         return {"score": 0, "details": "Insufficient fundamental data"}
@@ -224,7 +224,7 @@ def analyze_fundamentals(metrics: list) -> dict[str, any]:
     }
 
 
-def analyze_consistency(financial_line_items: list) -> dict[str, any]:
+def analyze_consistency(financial_line_items: list) -> dict[str, Any]:
     """Analyze earnings consistency and growth."""
     if len(financial_line_items) < 4:  # Need at least 4 periods for trend analysis
         return {"score": 0, "details": "Insufficient historical data"}
@@ -266,7 +266,7 @@ def analyze_consistency(financial_line_items: list) -> dict[str, any]:
     }
 
 
-def analyze_moat(metrics: list) -> dict[str, any]:
+def analyze_moat(metrics: list) -> dict[str, Any]:
     """
     Evaluate whether the company likely has a durable competitive advantage (moat).
     Enhanced to include multiple moat indicators that Buffett actually looks for:
@@ -307,7 +307,7 @@ def analyze_moat(metrics: list) -> dict[str, any]:
             moat_score += 2
             avg_roe = sum(historical_roes) / len(historical_roes)
             reasoning.append(
-                f"Excellent ROE consistency: {high_roe_periods}/{len(historical_roes)} periods >15% (avg: {avg_roe:.1%}) - indicates durable competitive advantage"
+                f"Excellent ROE consistency: {high_roe_periods}/{len(historical_roes)} periods >15% (avg: {avg_roe:.1%}) - indicates durable competitive advantage"  # noqa: E501
             )
         elif roe_consistency >= 0.6:
             moat_score += 1
@@ -406,7 +406,7 @@ def analyze_moat(metrics: list) -> dict[str, any]:
     }
 
 
-def analyze_management_quality(financial_line_items: list) -> dict[str, any]:
+def analyze_management_quality(financial_line_items: list) -> dict[str, Any]:
     """
     Checks for share dilution or consistent buybacks, and some dividend track record.
     A simplified approach:
@@ -462,7 +462,7 @@ def analyze_management_quality(financial_line_items: list) -> dict[str, any]:
     }
 
 
-def calculate_owner_earnings(financial_line_items: list) -> dict[str, any]:
+def calculate_owner_earnings(financial_line_items: list) -> dict[str, Any]:
     """
     Calculate owner earnings (Buffett's preferred measure of true earnings power).
     Enhanced methodology: Net Income + Depreciation/Amortization - Maintenance CapEx - Working Capital Changes
@@ -632,7 +632,7 @@ def estimate_maintenance_capex(financial_line_items: list) -> float:
     return max(method_1, method_2)
 
 
-def calculate_intrinsic_value(financial_line_items: list) -> dict[str, any]:
+def calculate_intrinsic_value(financial_line_items: list) -> dict[str, Any]:
     """
     Calculate intrinsic value using enhanced DCF with owner earnings.
     Uses more sophisticated assumptions and conservative approach like Buffett.
@@ -707,7 +707,7 @@ def calculate_intrinsic_value(financial_line_items: list) -> dict[str, any]:
 
     present_value = 0
     details.append(
-        f"Using three-stage DCF: Stage 1 ({stage1_growth:.1%}, {stage1_years}y), Stage 2 ({stage2_growth:.1%}, {stage2_years}y), Terminal ({terminal_growth:.1%})"
+        f"Using three-stage DCF: Stage 1 ({stage1_growth:.1%}, {stage1_years}y), Stage 2 ({stage2_growth:.1%}, {stage2_years}y), Terminal ({terminal_growth:.1%})"  # noqa: E501
     )
 
     # Stage 1: Higher growth
@@ -768,7 +768,7 @@ def calculate_intrinsic_value(financial_line_items: list) -> dict[str, any]:
     }
 
 
-def analyze_book_value_growth(financial_line_items: list) -> dict[str, any]:
+def analyze_book_value_growth(financial_line_items: list) -> dict[str, Any]:
     """Analyze book value per share growth - a key Buffett metric."""
     if len(financial_line_items) < 3:
         return {"score": 0, "details": "Insufficient data for book value analysis"}
@@ -847,7 +847,7 @@ def _calculate_book_value_cagr(book_values: list) -> tuple[int, str]:
     )
 
 
-def analyze_pricing_power(financial_line_items: list, metrics: list) -> dict[str, any]:
+def analyze_pricing_power(financial_line_items: list, metrics: list) -> dict[str, Any]:
     """
     Analyze pricing power - Buffett's key indicator of a business moat.
     Looks at ability to raise prices without losing customers (margin expansion during inflation).
@@ -913,7 +913,7 @@ def analyze_pricing_power(financial_line_items: list, metrics: list) -> dict[str
 
 def generate_buffett_output(
     ticker: str,
-    analysis_data: dict[str, any],
+    analysis_data: dict[str, Any],
     state: AgentState,
     agent_id: str = "warren_buffett_agent",
 ) -> WarrenBuffettSignal:

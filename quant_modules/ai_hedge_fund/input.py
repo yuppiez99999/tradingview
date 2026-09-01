@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import argparse
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import questionary
 from dateutil.relativedelta import relativedelta
@@ -95,7 +96,7 @@ def select_analysts(flags: dict | None = None) -> list[str]:
         choices=[
             questionary.Choice(display, value=value) for display, value in ANALYST_ORDER
         ],
-        instruction="\n\nInstructions: \n1. Press Space to select/unselect analysts.\n2. Press 'a' to select/unselect all.\n3. Press Enter when done.",
+        instruction="\n\nInstructions: \n1. Press Space to select/unselect analysts.\n2. Press 'a' to select/unselect all.\n3. Press Enter when done.",  # noqa: E501
         validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
         style=questionary.Style(
             [
@@ -227,7 +228,7 @@ class CLIInputs:
     margin_requirement: float
     show_reasoning: bool = False
     show_agent_graph: bool = False
-    raw_args: Optional[argparse.Namespace] = None
+    raw_args: argparse.Namespace | None = None
 
 
 def parse_cli_inputs(

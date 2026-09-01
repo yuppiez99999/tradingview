@@ -26,7 +26,7 @@ import os
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("ai_hedge_fund.memory")
 
@@ -69,13 +69,13 @@ class DecisionRecord:
     # 评估字段 (T+N 日后填充)
     evaluated: bool = False
     eval_date: str = ""  # 评估日期
-    forward_return_1d: Optional[float] = None
-    forward_return_5d: Optional[float] = None
-    forward_return_10d: Optional[float] = None
+    forward_return_1d: float | None = None
+    forward_return_5d: float | None = None
+    forward_return_10d: float | None = None
     # 预测正确性 (方向匹配)
-    correct_1d: Optional[bool] = None
-    correct_5d: Optional[bool] = None
-    correct_10d: Optional[bool] = None
+    correct_1d: bool | None = None
+    correct_5d: bool | None = None
+    correct_10d: bool | None = None
     # 反思文本
     reflection: str = ""
 
@@ -447,7 +447,7 @@ class MemoryReflection:
     # ------------------------------------------------------------
 
     @staticmethod
-    def _get_close_price(provider: Any, ticker: str, date_str: str) -> Optional[float]:
+    def _get_close_price(provider: Any, ticker: str, date_str: str) -> float | None:
         """从 price_data_provider 获取收盘价
 
         provider 可以是:
@@ -511,7 +511,7 @@ def make_market_price_provider(
     provider: Any = None,
     period: str = "1y",
     field: str = "close",
-) -> Callable[[str, str], Optional[dict[str, float]]]:
+) -> Callable[[str, str], dict[str, float] | None]:
     """构造 price_data_provider callable, 对接 MarketDataProvider
 
     把 MarketDataProvider.get_historical_data(symbol, period) 返回的 DataFrame
@@ -547,7 +547,7 @@ def make_market_price_provider(
     # 内部缓存: {symbol: {date_str: close_price}} 避免重复拉取
     _price_cache: dict[str, dict[str, float]] = {}
 
-    def _provider_fn(ticker: str, date_str: str) -> Optional[dict[str, float]]:
+    def _provider_fn(ticker: str, date_str: str) -> dict[str, float] | None:
         """从 MarketDataProvider 获取指定 ticker 在 date_str 的收盘价"""
         # 检查缓存
         if ticker in _price_cache:
@@ -614,8 +614,8 @@ def make_market_price_provider(
 
 
 def make_shadow_returns_provider(
-    jsonl_path: Optional[str] = None,
-) -> Callable[[str, str], Optional[dict[str, float]]]:
+    jsonl_path: str | None = None,
+) -> Callable[[str, str], dict[str, float] | None]:
     """构造基于 reports/shadow/daily_returns.jsonl 的组合收益 provider
 
     注意: daily_returns.jsonl 存储的是组合层面日度收益 (非个股),
@@ -667,7 +667,7 @@ def make_shadow_returns_provider(
         nav *= 1.0 + daily_returns[d]
         nav_by_date[d] = nav
 
-    def _provider_fn(ticker: str, date_str: str) -> Optional[dict[str, float]]:
+    def _provider_fn(ticker: str, date_str: str) -> dict[str, float] | None:
         """返回组合在 date_str 的累计净值 (作为 'close')"""
         # 精确匹配
         if date_str in nav_by_date:

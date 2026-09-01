@@ -1,5 +1,5 @@
 import json
-from typing import Literal
+from typing import Any, Literal
 
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -173,7 +173,7 @@ def rakesh_jhunjhunwala_agent(
     return {"messages": [message], "data": state["data"]}
 
 
-def analyze_profitability(financial_line_items: list) -> dict[str, any]:
+def analyze_profitability(financial_line_items: list) -> dict[str, Any]:
     """
     Analyze profitability metrics like net income, EBIT, EPS, operating income.
     Focus on strong, consistent earnings growth and operating efficiency.
@@ -271,7 +271,7 @@ def analyze_profitability(financial_line_items: list) -> dict[str, any]:
     return {"score": score, "details": "; ".join(reasoning)}
 
 
-def analyze_growth(financial_line_items: list) -> dict[str, any]:
+def analyze_growth(financial_line_items: list) -> dict[str, Any]:
     """
     Analyze revenue and net income growth trends using CAGR.
     Jhunjhunwala favored companies with strong, consistent compound growth.
@@ -366,7 +366,7 @@ def analyze_growth(financial_line_items: list) -> dict[str, any]:
     return {"score": score, "details": "; ".join(reasoning)}
 
 
-def analyze_balance_sheet(financial_line_items: list) -> dict[str, any]:
+def analyze_balance_sheet(financial_line_items: list) -> dict[str, Any]:
     """
     Check financial strength - healthy asset/liability structure, liquidity.
     Jhunjhunwala favored companies with clean balance sheets and manageable debt.
@@ -423,7 +423,7 @@ def analyze_balance_sheet(financial_line_items: list) -> dict[str, any]:
     return {"score": score, "details": "; ".join(reasoning)}
 
 
-def analyze_cash_flow(financial_line_items: list) -> dict[str, any]:
+def analyze_cash_flow(financial_line_items: list) -> dict[str, Any]:
     """
     Evaluate free cash flow and dividend behavior.
     Jhunjhunwala appreciated companies generating strong free cash flow and rewarding shareholders.
@@ -463,7 +463,7 @@ def analyze_cash_flow(financial_line_items: list) -> dict[str, any]:
     return {"score": score, "details": "; ".join(reasoning)}
 
 
-def analyze_management_actions(financial_line_items: list) -> dict[str, any]:
+def analyze_management_actions(financial_line_items: list) -> dict[str, Any]:
     """
     Look at share issuance or buybacks to assess shareholder friendliness.
     Jhunjhunwala liked managements who buy back shares or avoid dilution.
@@ -663,10 +663,10 @@ def calculate_intrinsic_value(financial_line_items: list, market_cap: float) -> 
 
 def analyze_rakesh_jhunjhunwala_style(
     financial_line_items: list,
-    owner_earnings: float = None,
-    intrinsic_value: float = None,
-    current_price: float = None,
-) -> dict[str, any]:
+    owner_earnings: float | None = None,
+    intrinsic_value: float | None = None,
+    current_price: float | None = None,
+) -> dict[str, Any]:
     """
     Comprehensive analysis in Rakesh Jhunjhunwala's investment style.
     """
@@ -723,7 +723,7 @@ def analyze_rakesh_jhunjhunwala_style(
 # ────────────────────────────────────────────────────────────────────────────────
 def generate_jhunjhunwala_output(
     ticker: str,
-    analysis_data: dict[str, any],
+    analysis_data: dict[str, Any],
     state: AgentState,
     agent_id: str,
 ) -> RakeshJhunjhunwalaSignal:
@@ -732,7 +732,8 @@ def generate_jhunjhunwala_output(
         [
             (
                 "system",
-                """You are a Rakesh Jhunjhunwala AI agent. Decide on investment signals based on Rakesh Jhunjhunwala's principles:
+                """You are a Rakesh Jhunjhunwala AI agent. Decide on investment signals based on Rakesh Jhunjhunwala's
+                principles:
                 - Circle of Competence: Only invest in businesses you understand
                 - Margin of Safety (> 30%): Buy at a significant discount to intrinsic value
                 - Economic Moat: Look for durable competitive advantages
@@ -749,8 +750,12 @@ def generate_jhunjhunwala_output(
                 4. Concluding with a Jhunjhunwala-style assessment of the investment opportunity
                 5. Using Rakesh Jhunjhunwala's voice and conversational style in your explanation
 
-                For example, if bullish: "I'm particularly impressed with the consistent growth and strong balance sheet, reminiscent of quality companies that create long-term wealth..."
-                For example, if bearish: "The deteriorating margins and high debt levels concern me - this doesn't fit the profile of companies that build lasting value..."
+                For example, if bullish: "I'm particularly impressed with the consistent growth and strong balance
+                sheet,
+                 reminiscent of quality companies that create long-term wealth..."
+                For example, if bearish: "The deteriorating margins and high debt levels concern me - this doesn't fit
+                the
+                profile of companies that build lasting value..."
 
                 Follow these guidelines strictly.
                 """,

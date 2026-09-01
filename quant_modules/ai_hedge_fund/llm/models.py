@@ -206,13 +206,13 @@ def get_models_list() -> list[dict[str, str]]:
 
 
 def get_model(
-    model_name: str, model_provider: ModelProvider, api_keys: dict = None
+    model_name: str, model_provider: ModelProvider, api_keys: dict | None = None
 ) -> Any:
     if model_provider == ModelProvider.GROQ:
         api_key = (api_keys or {}).get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
         if not api_key:
             raise ValueError(
-                "Groq API key not found.  Please make sure GROQ_API_KEY is set in your .env file or provided via API keys."
+                "Groq API key not found.  Please make sure GROQ_API_KEY is set in your .env file or provided via API keys."  # noqa: E501
             )
         return _get_groq()(model=model_name, api_key=api_key)
     if model_provider == ModelProvider.OPENAI:
@@ -220,7 +220,7 @@ def get_model(
         base_url = os.getenv("OPENAI_API_BASE")
         if not api_key:
             raise ValueError(
-                "OpenAI API key not found.  Please make sure OPENAI_API_KEY is set in your .env file or provided via API keys."
+                "OpenAI API key not found.  Please make sure OPENAI_API_KEY is set in your .env file or provided via API keys."  # noqa: E501
             )
         return ChatOpenAI(model=model_name, api_key=api_key, base_url=base_url)
     if model_provider == ModelProvider.ANTHROPIC:
@@ -229,7 +229,7 @@ def get_model(
         )
         if not api_key:
             raise ValueError(
-                "Anthropic API key not found.  Please make sure ANTHROPIC_API_KEY is set in your .env file or provided via API keys."
+                "Anthropic API key not found.  Please make sure ANTHROPIC_API_KEY is set in your .env file or provided via API keys."  # noqa: E501
             )
         return _get_anthropic()(model=model_name, api_key=api_key)
     if model_provider == ModelProvider.DEEPSEEK:
@@ -238,14 +238,14 @@ def get_model(
         )
         if not api_key:
             raise ValueError(
-                "DeepSeek API key not found.  Please make sure DEEPSEEK_API_KEY is set in your .env file or provided via API keys."
+                "DeepSeek API key not found.  Please make sure DEEPSEEK_API_KEY is set in your .env file or provided via API keys."  # noqa: E501
             )
         return _get_deepseek()(model=model_name, api_key=api_key)
     if model_provider == ModelProvider.GOOGLE:
         api_key = (api_keys or {}).get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise ValueError(
-                "Google API key not found.  Please make sure GOOGLE_API_KEY is set in your .env file or provided via API keys."
+                "Google API key not found.  Please make sure GOOGLE_API_KEY is set in your .env file or provided via API keys."  # noqa: E501
             )
         return _get_google_genai()(model=model_name, api_key=api_key)
     if model_provider == ModelProvider.OLLAMA:
@@ -261,7 +261,7 @@ def get_model(
         )
         if not api_key:
             raise ValueError(
-                "OpenRouter API key not found. Please make sure OPENROUTER_API_KEY is set in your .env file or provided via API keys."
+                "OpenRouter API key not found. Please make sure OPENROUTER_API_KEY is set in your .env file or provided via API keys."  # noqa: E501
             )
 
         site_url = os.getenv(
@@ -289,7 +289,7 @@ def get_model(
         )
         if not api_key:
             raise ValueError(
-                "Kimi API key not found. Please make sure MOONSHOT_API_KEY (or KIMI_API_KEY) is set in your .env file or provided via API keys."
+                "Kimi API key not found. Please make sure MOONSHOT_API_KEY (or KIMI_API_KEY) is set in your .env file or provided via API keys."  # noqa: E501
             )
         base_url = (
             os.getenv("MOONSHOT_BASE_URL")
@@ -314,7 +314,7 @@ def get_model(
         )
         if not api_key:
             raise ValueError(
-                "GigaChat API key not found. Please make sure GIGACHAT_API_KEY is set in your .env file or provided via API keys."
+                "GigaChat API key not found. Please make sure GIGACHAT_API_KEY is set in your .env file or provided via API keys."  # noqa: E501
             )
         return _get_gigachat()(credentials=api_key, model=model_name)
     if model_provider == ModelProvider.AZURE_OPENAI:
@@ -337,7 +337,7 @@ def get_model(
         if not azure_deployment_name:
             # Print error to console
             raise ValueError(
-                "Azure OpenAI deployment name not found.  Please make sure AZURE_OPENAI_DEPLOYMENT_NAME is set in your .env file."
+                "Azure OpenAI deployment name not found.  Please make sure AZURE_OPENAI_DEPLOYMENT_NAME is set in your .env file."  # noqa: E501
             )
         return AzureChatOpenAI(
             azure_endpoint=azure_endpoint,

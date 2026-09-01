@@ -3,13 +3,13 @@ AI Hedge Fund 编排器 — LangGraph 工作流 + LangChain Agent 协作
 
 适配量化策略 v5.6 集成，使用本地数据源替代 Financial Datasets API
 """
+from __future__ import annotations
 
 import json
 import logging
 import os
 import sys
 from datetime import datetime
-from typing import Optional
 
 logger = logging.getLogger("ai_hedge_fund.orchestrator")
 
@@ -52,7 +52,7 @@ from quant_modules.ai_hedge_fund.utils.analysts import (
 )
 
 
-def parse_hedge_fund_response(response) -> Optional[dict]:
+def parse_hedge_fund_response(response) -> dict | None:
     """解析 JSON 响应"""
     try:
         return json.loads(response)
@@ -66,7 +66,7 @@ def start(state: AgentState) -> AgentState:
     return state
 
 
-def create_workflow(selected_analysts: list[str] = None):
+def create_workflow(selected_analysts: list[str] | None = None):
     """创建 LangGraph 分析工作流"""
     if not _LANGGRAPH_AVAILABLE:
         raise RuntimeError(
@@ -160,13 +160,13 @@ def _build_historical_lessons_block(tickers: list[str]) -> str:
 
 def run_ai_hedge_fund(
     tickers: list[str],
-    start_date: str = None,
-    end_date: str = None,
-    portfolio: dict = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    portfolio: dict | None = None,
     show_reasoning: bool = False,
-    selected_analysts: list[str] = None,
-    model_name: str = None,
-    model_provider: str = None,
+    selected_analysts: list[str] | None = None,
+    model_name: str | None = None,
+    model_provider: str | None = None,
     initial_cash: float = 100_000.0,
     margin_requirement: float = 0.0,
     checkpoint_enabled: bool = False,

@@ -7,9 +7,10 @@
 依赖:
   - call_deepseek_fn: 由调用方传入的 LLM 调用函数 (原 generate_daily_report._call_deepseek)
 """
+from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 def generate_ai_recommendations(
@@ -18,7 +19,7 @@ def generate_ai_recommendations(
     net_pnl: float,
     report_date: str,
     deepseek_model: str,
-    call_deepseek_fn: Callable[..., Optional[str]],
+    call_deepseek_fn: Callable[..., str | None],
 ) -> List[str]:
     """生成AI决策建议 (DeepSeek 优先, 降级到规则引擎)
 
@@ -83,8 +84,8 @@ def generate_deepseek_recommendations(
     net_pnl: float,
     report_date: str,
     deepseek_model: str,
-    call_deepseek_fn: Callable[..., Optional[str]],
-) -> Optional[List[str]]:
+    call_deepseek_fn: Callable[..., str | None],
+) -> List[str] | None:
     """调用 DeepSeek 生成结构化交易决策建议
 
     生成包含具体操作关键词的建议, 以便 apply_llm_decisions_to_plan.py 识别:
@@ -192,7 +193,7 @@ def generate_deepseek_recommendations(
 
     user_prompt = (
         f"日期: {report_date} | 组合净{pnl_dir}: {net_pnl:.2f}\n"
-        f"组合Beta: {portfolio_beta} → 对冲后敞口: {portfolio_summary['beta_exposure']} | 对冲有效性: {hedge_summary.get('hedge_effectiveness', 0)}%\n"
+        f"组合Beta: {portfolio_beta} → 对冲后敞口: {portfolio_summary['beta_exposure']} | 对冲有效性: {hedge_summary.get('hedge_effectiveness', 0)}%\n"  # noqa: E501
         f"止损触发: {portfolio_summary['stop_loss_count']}只\n"
         f"---\n"
         f"Top5 持仓:\n{holding_lines}\n"

@@ -42,7 +42,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -103,10 +103,10 @@ class OpenVikingMemory:
         - 命名空间隔离: 不同分析师的记忆按 namespace 隔离
     """
 
-    def __init__(self, config: Optional[OpenVikingConfig] = None) -> None:
+    def __init__(self, config: OpenVikingConfig | None = None) -> None:
         self.config = config or OpenVikingConfig()
         self._client: Any = None
-        self._init_error: Optional[str] = None
+        self._init_error: str | None = None
         self._load_client()
 
     def _load_client(self) -> None:
@@ -142,7 +142,7 @@ class OpenVikingMemory:
         self,
         agent_id: str,
         content: str,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
         memory_type: str = "context",
     ) -> bool:
         """为 Agent 添加上下文记忆.
@@ -188,7 +188,7 @@ class OpenVikingMemory:
         agent_id: str,
         query: str,
         top_k: int = 5,
-        memory_type: Optional[str] = None,
+        memory_type: str | None = None,
     ) -> list[dict[str, Any]]:
         """检索 Agent 相关记忆 (RAG).
 
@@ -268,11 +268,11 @@ class OpenVikingMemory:
         }
 
 
-_openviking_instance: Optional[OpenVikingMemory] = None
+_openviking_instance: OpenVikingMemory | None = None
 
 
 def get_openviking_memory(
-    config: Optional[OpenVikingConfig] = None,
+    config: OpenVikingConfig | None = None,
 ) -> OpenVikingMemory:
     """获取 OpenViking 记忆适配器单例."""
     global _openviking_instance

@@ -70,11 +70,11 @@ def run_daily_workflow(args):
                 plan = integrator.run_full_workflow()
                 report_path = integrator.save_report(plan)
                 print(
-                    f"  ✅ 联动分析完成 v5.9 | 模式: {integrator.hedge_mode.value} | 优先级: {plan.execution_priority} | 窗口: {plan.execution_window}"
+                    f"  ✅ 联动分析完成 v5.9 | 模式: {integrator.hedge_mode.value} | 优先级: {plan.execution_priority} | 窗口: {plan.execution_window}"  # noqa: E501
                 )
                 print(f"  📄 报告: {report_path}")
                 print(
-                    f"  📊 预估: 年化{plan.estimated_annual_return*100:.1f}% | 最大回撤{plan.estimated_max_drawdown*100:.1f}% | 夏普{plan.estimated_sharpe:.2f}"
+                    f"  📊 预估: 年化{plan.estimated_annual_return*100:.1f}% | 最大回撤{plan.estimated_max_drawdown*100:.1f}% | 夏普{plan.estimated_sharpe:.2f}"  # noqa: E501
                 )
             except Exception as e:
                 print(f"  ⚠️ 联动分析跳过: {e}")

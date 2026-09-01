@@ -54,7 +54,7 @@ class ExecutionRiskResult:
 def _run_l1_checks(
     execution_plan: dict[str, Any],
     risk_context: RiskContext,
-    decision: "TradingDecision",
+    decision: TradingDecision,
     portfolio_value: float,
     checks: dict[str, Any],
     veto_reasons: list[str],
@@ -84,7 +84,7 @@ def _execution_risk_check(
     market_state: str = "normal",
     portfolio_value: float = 1_000_000.0,
     risk_context: RiskContext | None = None,
-    decision: "TradingDecision | None" = None,
+    decision: TradingDecision | None = None,
     mode: str = "shadow",
 ) -> ExecutionRiskResult:
     """L2 执行层硬风控 — 下单前最后一次拦截
@@ -182,7 +182,7 @@ def _execution_risk_check(
 
 
 def _build_l2_veto_return(
-    decision: "TradingDecision",
+    decision: TradingDecision,
     mode: str,
     risk_result: ExecutionRiskResult,
     escalation: bool,
@@ -223,7 +223,7 @@ def _build_l2_veto_return(
 
 
 def _build_grayscale_veto_return(
-    decision: "TradingDecision",
+    decision: TradingDecision,
     mode: str,
     execution_plan: dict[str, Any],
     risk_result: ExecutionRiskResult,

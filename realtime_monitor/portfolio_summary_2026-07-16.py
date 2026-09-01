@@ -247,7 +247,7 @@ def build_position_report():
     )
     for item in rows:
         lines.append(
-            f"| {item['name']} | {item['type']} | {item['style']} | {item['shares']} | {item['avg_cost']:.2f} | {item['latest']:.3f} | {item['pnl']:,.2f} | {item['weight']:.2f}% | {item['change_ratio']} | {item['source']} |"
+            f"| {item['name']} | {item['type']} | {item['style']} | {item['shares']} | {item['avg_cost']:.2f} | {item['latest']:.3f} | {item['pnl']:,.2f} | {item['weight']:.2f}% | {item['change_ratio']} | {item['source']} |"  # noqa: E501
         )
     lines.append("")
     lines.append("---")
@@ -284,7 +284,7 @@ def build_position_report():
     lines.append("|------|------|--------|----------|------|------|")
     for h in hedge_rows:
         lines.append(
-            f"| {h['instrument']} | {h['direction']} | {h['contracts']} | {h['notional']:,.2f} | {h['pnl']:,.2f} | {h['note']} |"
+            f"| {h['instrument']} | {h['direction']} | {h['contracts']} | {h['notional']:,.2f} | {h['pnl']:,.2f} | {h['note']} |"  # noqa: E501
         )
     lines.append("")
     lines.append("---")

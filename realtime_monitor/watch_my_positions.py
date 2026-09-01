@@ -145,7 +145,7 @@ def _to_sina_code(code: str) -> str:
 
 def _fetch_sina_realtime(codes):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36",  # noqa: E501
         "Referer": "https://finance.sina.com.cn/",
     }
     url = f"https://hq.sinajs.cn/list={','.join(codes)}"

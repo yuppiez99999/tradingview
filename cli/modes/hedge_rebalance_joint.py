@@ -89,7 +89,7 @@ def run_hedge_rebalance_joint(args):
         else "  股票敞口:        ¥0"
     )
     print(
-        f"  组合Beta:       CSI300={risk.beta_csi300:.2f} | CSI500={risk.beta_csi500:.2f} | CSI1000={risk.beta_csi1000:.2f}"
+        f"  组合Beta:       CSI300={risk.beta_csi300:.2f} | CSI500={risk.beta_csi500:.2f} | CSI1000={risk.beta_csi1000:.2f}"  # noqa: E501
     )
     print(f"  估算波动率:     {portfolio_volatility*100:.1f}% (年化)")
     print(f"  估算60日回撤:   {portfolio_drawdown_60d*100:.1f}%")
@@ -132,7 +132,7 @@ def run_hedge_rebalance_joint(args):
                 margin = hedge.futures_margin.get(code, 0)
                 print(f"    {code}: 做空 {n} 手| 名义¥{notional:,.0f} | 保证金¥{margin:,.0f}")
             print(
-                f"  总保证金需求:        ¥{hedge.total_margin:,.0f} (占总资产{hedge.total_margin/risk.total_value*100:.1f}%)"
+                f"  总保证金需求:        ¥{hedge.total_margin:,.0f} (占总资产{hedge.total_margin/risk.total_value*100:.1f}%)"  # noqa: E501
                 if risk.total_value > 0
                 else f"  总保证金需求:        ¥{hedge.total_margin:,.0f}"
             )
@@ -155,10 +155,10 @@ def run_hedge_rebalance_joint(args):
     print(f"  需要调整的:     {len(rebalance.positions_to_adjust)} 只")
     if rebalance.needed and rebalance.positions_to_adjust:
         print(
-            f"  总买入金额:  ¥{rebalance.total_buy_amount:,.0f} | 总卖出金额: ¥{rebalance.total_sell_amount:,.0f} | 净现金流: ¥{rebalance.net_cash_flow:,.0f}"
+            f"  总买入金额:  ¥{rebalance.total_buy_amount:,.0f} | 总卖出金额: ¥{rebalance.total_sell_amount:,.0f} | 净现金流: ¥{rebalance.net_cash_flow:,.0f}"  # noqa: E501
         )
         print(
-            f"\n  {'代码':<12s} {'名称':<10s} {'组':<8s} {'操作':<6s} {'目标权重':>8s} {'当前权重':>8s} {'偏差':>8s} {'调整额':>10s}"
+            f"\n  {'代码':<12s} {'名称':<10s} {'组':<8s} {'操作':<6s} {'目标权重':>8s} {'当前权重':>8s} {'偏差':>8s} {'调整额':>10s}"  # noqa: E501
         )
         print(f"  {'─' * 80}")
         for pw in rebalance.positions_to_adjust:

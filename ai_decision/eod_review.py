@@ -680,7 +680,7 @@ class EODReviewGenerator:
                         "severity": "WARNING",
                         "value": round(df_ratio, 4),
                         "threshold": self._alerts_cfg.tca_df_ratio,
-                        "message": f"TCA 评级 D/F 占比 {d_f_count}/{total_graded} = {df_ratio:.1%} > {self._alerts_cfg.tca_df_ratio:.0%}",
+                        "message": f"TCA 评级 D/F 占比 {d_f_count}/{total_graded} = {df_ratio:.1%} > {self._alerts_cfg.tca_df_ratio:.0%}",  # noqa: E501
                     }
                 )
 

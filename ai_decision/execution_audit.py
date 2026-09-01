@@ -54,11 +54,11 @@ def _write_execution_audit(record: dict[str, Any]) -> str:
 
 
 def _build_success_audit_record(
-    decision: "TradingDecision",
+    decision: TradingDecision,
     mode: str,
     execution_plan: dict[str, Any],
     execution_result: dict[str, Any] | None,
-    risk_result: "ExecutionRiskResult",
+    risk_result: ExecutionRiskResult,
     veto: bool,
     veto_reason: str,
     escalation: bool,
@@ -94,11 +94,11 @@ def _build_success_audit_record(
 
 
 def _build_success_return(
-    decision: "TradingDecision",
+    decision: TradingDecision,
     mode: str,
     execution_plan: dict[str, Any],
     execution_result: dict[str, Any] | None,
-    risk_result: "ExecutionRiskResult",
+    risk_result: ExecutionRiskResult,
     audit_path: str,
     msg: str,
     veto: bool,

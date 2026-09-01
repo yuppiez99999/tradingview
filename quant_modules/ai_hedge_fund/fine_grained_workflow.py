@@ -42,7 +42,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("ai_hedge_fund.fine_grained")
 
@@ -86,7 +86,7 @@ class TaskNode:
     task_type: TaskType
     analyst: str
     dependencies: list[str] = field(default_factory=list)
-    executor: Optional[Any] = None  # Callable[[dict], Any]
+    executor: Any | None = None  # Callable[[dict], Any]
     result: Any = None
     status: str = "pending"
 
@@ -118,7 +118,7 @@ class TaskGraph:
         """添加任务节点。"""
         self.nodes[task.task_id] = task
 
-    def get_task(self, task_id: str) -> Optional[TaskNode]:
+    def get_task(self, task_id: str) -> TaskNode | None:
         """获取任务节点。"""
         return self.nodes.get(task_id)
 
@@ -433,7 +433,7 @@ class FineGrainedWorkflow:
         return graph
 
     def execute(
-        self, graph: TaskGraph, context: Optional[dict[str, Any]] = None
+        self, graph: TaskGraph, context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """执行任务图 (按拓扑顺序)。
 
@@ -485,7 +485,7 @@ class FineGrainedWorkflow:
         return results
 
     def execute_parallel_groups(
-        self, graph: TaskGraph, context: Optional[dict[str, Any]] = None
+        self, graph: TaskGraph, context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """按并行分组执行任务图。
 

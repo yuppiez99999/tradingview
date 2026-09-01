@@ -27,7 +27,7 @@ import time
 from collections import OrderedDict, defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("ai_hedge_fund.rate_limiter")
 
@@ -127,7 +127,7 @@ class TTLCache:
         raw = json.dumps(args, ensure_ascii=False, sort_keys=True, default=str)
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """获取缓存值, 过期则删除"""
         with self._lock:
             if key not in self._store:
@@ -186,7 +186,7 @@ def retry_with_backoff(
 
     def decorator(fn: Callable) -> Callable:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exc: Optional[Exception] = None
+            last_exc: Exception | None = None
             for attempt in range(max_retries):
                 try:
                     return fn(*args, **kwargs)
@@ -348,10 +348,10 @@ class RateLimitedLLMCaller:
         self,
         fn: Callable,
         args: tuple = (),
-        kwargs: Optional[dict[str, Any]] = None,
+        kwargs: dict[str, Any] | None = None,
         agent_name: str = "",
         model_name: str = "",
-        cache_key: Optional[str] = None,
+        cache_key: str | None = None,
         timeout: float = 30.0,
     ) -> Any:
         """带速率限制 + 缓存 + 重试的 LLM 调用
@@ -385,7 +385,7 @@ class RateLimitedLLMCaller:
             raise RuntimeError(f"LLM 速率限制超时: {agent_name}")
 
         # 3. 指数退避重试调用
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for attempt in range(self.max_retries):
             start = time.monotonic()
             try:
@@ -441,7 +441,7 @@ class RateLimitedLLMCaller:
 # ============================================================
 
 
-_global_caller: Optional[RateLimitedLLMCaller] = None
+_global_caller: RateLimitedLLMCaller | None = None
 _global_lock = threading.Lock()
 
 

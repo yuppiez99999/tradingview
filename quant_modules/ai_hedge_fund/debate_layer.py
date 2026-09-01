@@ -31,7 +31,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -330,7 +330,7 @@ class DebateLayer:
         ticker_signals: dict[str, dict[str, Any]],
         side: Literal["bull", "bear"],
         round_num: int,
-        opponent_stance: Optional[DebateStance],
+        opponent_stance: DebateStance | None,
         state: Any = None,
     ) -> DebateStance:
         """生成单方单轮立场
@@ -382,7 +382,7 @@ class DebateLayer:
         ticker_signals: dict[str, dict[str, Any]],
         side: Literal["bull", "bear"],
         round_num: int,
-        opponent_stance: Optional[DebateStance],
+        opponent_stance: DebateStance | None,
         state: Any,
     ) -> DebateStance:
         """LLM 驱动生成立场 (TradingAgents 风格 prompt)"""
@@ -527,7 +527,7 @@ class DebateLayer:
         ticker_signals: dict[str, dict[str, Any]],
         side: Literal["bull", "bear"],
         round_num: int,
-        opponent_stance: Optional[DebateStance],
+        opponent_stance: DebateStance | None,
     ) -> DebateStance:
         """规则模式: 基于 bullish/bearish 数量统计生成立场"""
         bull_count = sum(
@@ -581,7 +581,7 @@ class DebateLayer:
             confidence=min(95, max(10, confidence)),
             key_arguments=key_args[:5],
             rebuttals=rebuttals,
-            evidence_summary=f"统计: {bull_count}看多 / {bear_count}看空 / {total - bull_count - bear_count}中性, 共{total}个分析师",
+            evidence_summary=f"统计: {bull_count}看多 / {bear_count}看空 / {total - bull_count - bear_count}中性, 共{total}个分析师",  # noqa: E501
         )
 
     # ------------------------------------------------------------

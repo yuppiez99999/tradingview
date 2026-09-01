@@ -5,10 +5,10 @@ Comps 可比公司分析模式 — v5.10 新增
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 
-def run_comps_mode(args) -> Optional[str]:
+def run_comps_mode(args) -> str | None:
     """
     执行可比公司分析，生成 Excel。
 

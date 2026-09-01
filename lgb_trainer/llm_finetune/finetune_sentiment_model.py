@@ -233,7 +233,7 @@ def _parse_label(response: str) -> str:
 @functools.lru_cache(maxsize=4)
 def _get_predictor(
     model_dir: str, base_model: str, use_4bit: bool
-) -> "SentimentPredictor":
+) -> SentimentPredictor:
     """缓存模型实例 (按 model_dir+base_model+量化配置 维度缓存).
 
     lru_cache 避免 evaluate 循环中反复加载模型 (NEW-1 修复).

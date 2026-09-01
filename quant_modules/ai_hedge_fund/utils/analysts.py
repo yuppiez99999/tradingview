@@ -30,7 +30,7 @@ ANALYST_CONFIG = {
     "aswath_damodaran": {
         "display_name": "Aswath Damodaran",
         "description": "The Dean of Valuation",
-        "investing_style": "Focuses on intrinsic value and financial metrics to assess investment opportunities through rigorous valuation analysis.",
+        "investing_style": "Focuses on intrinsic value and financial metrics to assess investment opportunities through rigorous valuation analysis.",  # noqa: E501
         "agent_func": aswath_damodaran_agent,
         "type": "analyst",
         "order": 0,
@@ -38,7 +38,7 @@ ANALYST_CONFIG = {
     "ben_graham": {
         "display_name": "Ben Graham",
         "description": "The Father of Value Investing",
-        "investing_style": "Emphasizes a margin of safety and invests in undervalued companies with strong fundamentals through systematic value analysis.",
+        "investing_style": "Emphasizes a margin of safety and invests in undervalued companies with strong fundamentals through systematic value analysis.",  # noqa: E501
         "agent_func": ben_graham_agent,
         "type": "analyst",
         "order": 1,
@@ -46,7 +46,7 @@ ANALYST_CONFIG = {
     "bill_ackman": {
         "display_name": "Bill Ackman",
         "description": "The Activist Investor",
-        "investing_style": "Seeks to influence management and unlock value through strategic activism and contrarian investment positions.",
+        "investing_style": "Seeks to influence management and unlock value through strategic activism and contrarian investment positions.",  # noqa: E501
         "agent_func": bill_ackman_agent,
         "type": "analyst",
         "order": 2,
@@ -54,7 +54,7 @@ ANALYST_CONFIG = {
     "cathie_wood": {
         "display_name": "Cathie Wood",
         "description": "The Queen of Growth Investing",
-        "investing_style": "Focuses on disruptive innovation and growth, investing in companies that are leading technological advancements and market disruption.",
+        "investing_style": "Focuses on disruptive innovation and growth, investing in companies that are leading technological advancements and market disruption.",  # noqa: E501
         "agent_func": cathie_wood_agent,
         "type": "analyst",
         "order": 3,
@@ -62,7 +62,7 @@ ANALYST_CONFIG = {
     "charlie_munger": {
         "display_name": "Charlie Munger",
         "description": "The Rational Thinker",
-        "investing_style": "Advocates for value investing with a focus on quality businesses and long-term growth through rational decision-making.",
+        "investing_style": "Advocates for value investing with a focus on quality businesses and long-term growth through rational decision-making.",  # noqa: E501
         "agent_func": charlie_munger_agent,
         "type": "analyst",
         "order": 4,
@@ -70,7 +70,7 @@ ANALYST_CONFIG = {
     "michael_burry": {
         "display_name": "Michael Burry",
         "description": "The Big Short Contrarian",
-        "investing_style": "Makes contrarian bets, often shorting overvalued markets and investing in undervalued assets through deep fundamental analysis.",
+        "investing_style": "Makes contrarian bets, often shorting overvalued markets and investing in undervalued assets through deep fundamental analysis.",  # noqa: E501
         "agent_func": michael_burry_agent,
         "type": "analyst",
         "order": 5,
@@ -78,7 +78,7 @@ ANALYST_CONFIG = {
     "mohnish_pabrai": {
         "display_name": "Mohnish Pabrai",
         "description": "The Dhandho Investor",
-        "investing_style": "Focuses on value investing and long-term growth through fundamental analysis and a margin of safety.",
+        "investing_style": "Focuses on value investing and long-term growth through fundamental analysis and a margin of safety.",  # noqa: E501
         "agent_func": mohnish_pabrai_agent,
         "type": "analyst",
         "order": 6,
@@ -86,7 +86,7 @@ ANALYST_CONFIG = {
     "nassim_taleb": {
         "display_name": "Nassim Taleb",
         "description": "The Black Swan Risk Analyst",
-        "investing_style": "Focuses on tail risk, antifragility, and asymmetric payoffs. Uses barbell strategy, avoids fragile companies via negativa, and seeks convex positions with limited downside and unlimited upside.",
+        "investing_style": "Focuses on tail risk, antifragility, and asymmetric payoffs. Uses barbell strategy, avoids fragile companies via negativa, and seeks convex positions with limited downside and unlimited upside.",  # noqa: E501
         "agent_func": nassim_taleb_agent,
         "type": "analyst",
         "order": 7,
@@ -94,7 +94,7 @@ ANALYST_CONFIG = {
     "peter_lynch": {
         "display_name": "Peter Lynch",
         "description": "The 10-Bagger Investor",
-        "investing_style": "Invests in companies with understandable business models and strong growth potential using the 'buy what you know' strategy.",
+        "investing_style": "Invests in companies with understandable business models and strong growth potential using the 'buy what you know' strategy.",  # noqa: E501
         "agent_func": peter_lynch_agent,
         "type": "analyst",
         "order": 8,
@@ -102,7 +102,7 @@ ANALYST_CONFIG = {
     "phil_fisher": {
         "display_name": "Phil Fisher",
         "description": "The Scuttlebutt Investor",
-        "investing_style": "Emphasizes investing in companies with strong management and innovative products, focusing on long-term growth through scuttlebutt research.",
+        "investing_style": "Emphasizes investing in companies with strong management and innovative products, focusing on long-term growth through scuttlebutt research.",  # noqa: E501
         "agent_func": phil_fisher_agent,
         "type": "analyst",
         "order": 9,
@@ -110,7 +110,7 @@ ANALYST_CONFIG = {
     "rakesh_jhunjhunwala": {
         "display_name": "Rakesh Jhunjhunwala",
         "description": "The Big Bull Of India",
-        "investing_style": "Leverages macroeconomic insights to invest in high-growth sectors, particularly within emerging markets and domestic opportunities.",
+        "investing_style": "Leverages macroeconomic insights to invest in high-growth sectors, particularly within emerging markets and domestic opportunities.",  # noqa: E501
         "agent_func": rakesh_jhunjhunwala_agent,
         "type": "analyst",
         "order": 10,
@@ -118,7 +118,7 @@ ANALYST_CONFIG = {
     "stanley_druckenmiller": {
         "display_name": "Stanley Druckenmiller",
         "description": "The Macro Investor",
-        "investing_style": "Focuses on macroeconomic trends, making large bets on currencies, commodities, and interest rates through top-down analysis.",
+        "investing_style": "Focuses on macroeconomic trends, making large bets on currencies, commodities, and interest rates through top-down analysis.",  # noqa: E501
         "agent_func": stanley_druckenmiller_agent,
         "type": "analyst",
         "order": 11,
@@ -126,7 +126,7 @@ ANALYST_CONFIG = {
     "warren_buffett": {
         "display_name": "Warren Buffett",
         "description": "The Oracle of Omaha",
-        "investing_style": "Seeks companies with strong fundamentals and competitive advantages through value investing and long-term ownership.",
+        "investing_style": "Seeks companies with strong fundamentals and competitive advantages through value investing and long-term ownership.",  # noqa: E501
         "agent_func": warren_buffett_agent,
         "type": "analyst",
         "order": 12,
@@ -134,7 +134,7 @@ ANALYST_CONFIG = {
     "technical_analyst": {
         "display_name": "Technical Analyst",
         "description": "Chart Pattern Specialist",
-        "investing_style": "Focuses on chart patterns and market trends to make investment decisions, often using technical indicators and price action analysis.",
+        "investing_style": "Focuses on chart patterns and market trends to make investment decisions, often using technical indicators and price action analysis.",  # noqa: E501
         "agent_func": technical_analyst_agent,
         "type": "analyst",
         "order": 13,
@@ -142,7 +142,7 @@ ANALYST_CONFIG = {
     "fundamentals_analyst": {
         "display_name": "Fundamentals Analyst",
         "description": "Financial Statement Specialist",
-        "investing_style": "Delves into financial statements and economic indicators to assess the intrinsic value of companies through fundamental analysis.",
+        "investing_style": "Delves into financial statements and economic indicators to assess the intrinsic value of companies through fundamental analysis.",  # noqa: E501
         "agent_func": fundamentals_analyst_agent,
         "type": "analyst",
         "order": 14,
@@ -150,7 +150,7 @@ ANALYST_CONFIG = {
     "growth_analyst": {
         "display_name": "Growth Analyst",
         "description": "Growth Specialist",
-        "investing_style": "Analyzes growth trends and valuation to identify growth opportunities through growth analysis.",
+        "investing_style": "Analyzes growth trends and valuation to identify growth opportunities through growth analysis.",  # noqa: E501
         "agent_func": growth_analyst_agent,
         "type": "analyst",
         "order": 15,
@@ -158,7 +158,7 @@ ANALYST_CONFIG = {
     "news_sentiment_analyst": {
         "display_name": "News Sentiment Analyst",
         "description": "News Sentiment Specialist",
-        "investing_style": "Analyzes news sentiment to predict market movements and identify opportunities through news analysis.",
+        "investing_style": "Analyzes news sentiment to predict market movements and identify opportunities through news analysis.",  # noqa: E501
         "agent_func": news_sentiment_agent,
         "type": "analyst",
         "order": 16,
@@ -166,7 +166,7 @@ ANALYST_CONFIG = {
     "sentiment_analyst": {
         "display_name": "Sentiment Analyst",
         "description": "Market Sentiment Specialist",
-        "investing_style": "Gauges market sentiment and investor behavior to predict market movements and identify opportunities through behavioral analysis.",
+        "investing_style": "Gauges market sentiment and investor behavior to predict market movements and identify opportunities through behavioral analysis.",  # noqa: E501
         "agent_func": sentiment_analyst_agent,
         "type": "analyst",
         "order": 17,
@@ -174,7 +174,7 @@ ANALYST_CONFIG = {
     "valuation_analyst": {
         "display_name": "Valuation Analyst",
         "description": "Company Valuation Specialist",
-        "investing_style": "Specializes in determining the fair value of companies, using various valuation models and financial metrics for investment decisions.",
+        "investing_style": "Specializes in determining the fair value of companies, using various valuation models and financial metrics for investment decisions.",  # noqa: E501
         "agent_func": valuation_analyst_agent,
         "type": "analyst",
         "order": 18,
@@ -182,7 +182,7 @@ ANALYST_CONFIG = {
     "hedge_analyst": {
         "display_name": "Hedge Analyst (Taleb+Burry+Druck)",
         "description": "Trinity Hedge Strategist",
-        "investing_style": "Integrates Taleb tail-risk, Burry short signals, and Druckenmiller macro to design portfolio hedging strategies using index futures and ETF options. Recommends IF/IC/IH/IM futures shorts or protective put/collar strategies.",
+        "investing_style": "Integrates Taleb tail-risk, Burry short signals, and Druckenmiller macro to design portfolio hedging strategies using index futures and ETF options. Recommends IF/IC/IH/IM futures shorts or protective put/collar strategies.",  # noqa: E501
         "agent_func": hedge_analyst_agent,
         "type": "hedge",
         "order": 19,

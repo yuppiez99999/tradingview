@@ -47,7 +47,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("qmt_connector")
 
@@ -106,7 +106,7 @@ class QmtConfig:
     account_type: str = "STOCK"
     qmt_path: str = ""
     connect_timeout: int = 10
-    audit_path: Optional[str] = None
+    audit_path: str | None = None
     initial_capital: float = 1_000_000.0
     slippage_bps: float = 2.0
     fee_bps: float = 11.5
@@ -292,10 +292,10 @@ class QmtConnector:
     扩展 get_positions/get_account/health_check 供 T15-T18 实盘验证四件套调用.
     """
 
-    def __init__(self, config: Optional[QmtConfig] = None) -> None:
+    def __init__(self, config: QmtConfig | None = None) -> None:
         self._cfg = config or QmtConfig()
         self._state = ConnectorState.IDLE
-        self._paper_book: Optional[_PaperOrderBook] = None
+        self._paper_book: _PaperOrderBook | None = None
         self._live_broker: Any = None
         self._connect_latency_ms: float = 0.0
         self._last_error: str = ""

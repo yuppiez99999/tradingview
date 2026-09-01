@@ -201,7 +201,7 @@ def safe_float(value: Any, default: float = 0.0) -> float:
 ###############################################################################
 
 
-def analyze_tail_risk(prices_df: pd.DataFrame) -> dict[str, any]:
+def analyze_tail_risk(prices_df: pd.DataFrame) -> dict[str, Any]:
     """Assess fat tails, skewness, tail ratio, and max drawdown."""
     if prices_df.empty or len(prices_df) < 20:
         return {
@@ -287,7 +287,7 @@ def analyze_tail_risk(prices_df: pd.DataFrame) -> dict[str, any]:
 
 def analyze_antifragility(
     metrics: list, line_items: list, market_cap: float | None
-) -> dict[str, any]:
+) -> dict[str, Any]:
     """Evaluate whether the company benefits from disorder: low debt, high cash, stable margins."""
     if not metrics and not line_items:
         return {
@@ -399,7 +399,7 @@ def analyze_antifragility(
 
 def analyze_convexity(
     metrics: list, line_items: list, prices_df: pd.DataFrame, market_cap: float | None
-) -> dict[str, any]:
+) -> dict[str, Any]:
     """Measure asymmetric payoff potential: R&D optionality, upside/downside ratio, cash optionality."""
     if not metrics and not line_items and prices_df.empty:
         return {
@@ -511,7 +511,7 @@ def analyze_convexity(
     return {"score": score, "max_score": 10, "details": "; ".join(reasoning)}
 
 
-def analyze_fragility(metrics: list, line_items: list) -> dict[str, any]:
+def analyze_fragility(metrics: list, line_items: list) -> dict[str, Any]:
     """Via Negativa: detect fragile companies. High score = NOT fragile."""
     if not metrics:
         return {
@@ -608,7 +608,7 @@ def analyze_fragility(metrics: list, line_items: list) -> dict[str, any]:
     return {"score": score, "max_score": 8, "details": "; ".join(reasoning)}
 
 
-def analyze_skin_in_game(insider_trades: list) -> dict[str, any]:
+def analyze_skin_in_game(insider_trades: list) -> dict[str, Any]:
     """Assess insider alignment: net insider buying signals trust."""
     if not insider_trades:
         return {
@@ -653,7 +653,7 @@ def analyze_skin_in_game(insider_trades: list) -> dict[str, any]:
     return {"score": score, "max_score": 4, "details": "; ".join(reasoning)}
 
 
-def analyze_volatility_regime(prices_df: pd.DataFrame) -> dict[str, any]:
+def analyze_volatility_regime(prices_df: pd.DataFrame) -> dict[str, Any]:
     """Volatility regime analysis. Key Taleb insight: low vol is dangerous (turkey problem)."""
     if prices_df.empty or len(prices_df) < 30:
         return {
@@ -721,7 +721,7 @@ def analyze_volatility_regime(prices_df: pd.DataFrame) -> dict[str, any]:
                 if current_vov > 2 * median_vov:
                     score += 2
                     reasoning.append(
-                        f"Highly unstable vol (vol-of-vol {current_vov:.4f} vs median {median_vov:.4f}) — regime change likely"
+                        f"Highly unstable vol (vol-of-vol {current_vov:.4f} vs median {median_vov:.4f}) — regime change likely"  # noqa: E501
                     )
                 elif current_vov > median_vov:
                     score += 1
@@ -740,7 +740,7 @@ def analyze_volatility_regime(prices_df: pd.DataFrame) -> dict[str, any]:
     return {"score": score, "max_score": 6, "details": "; ".join(reasoning)}
 
 
-def analyze_black_swan_sentinel(news: list, prices_df: pd.DataFrame) -> dict[str, any]:
+def analyze_black_swan_sentinel(news: list, prices_df: pd.DataFrame) -> dict[str, Any]:
     """Monitor for crisis signals: abnormal news sentiment, volume spikes, price dislocations."""
     score = 2  # Default: normal conditions
     reasoning = []
@@ -817,7 +817,7 @@ def analyze_black_swan_sentinel(news: list, prices_df: pd.DataFrame) -> dict[str
 
 def generate_taleb_output(
     ticker: str,
-    analysis_data: dict[str, any],
+    analysis_data: dict[str, Any],
     state: AgentState,
     agent_id: str = "nassim_taleb_agent",
 ) -> NassimTalebSignal:
@@ -864,7 +864,7 @@ def generate_taleb_output(
                 "- 30-49%: Some fragility detected, weak insider alignment\n"
                 "- 10-29%: Clearly fragile or dangerous vol regime\n"
                 "\n"
-                "Use Taleb's vocabulary: antifragile, convexity, skin in the game, via negativa, barbell, turkey problem, Lindy effect.\n"
+                "Use Taleb's vocabulary: antifragile, convexity, skin in the game, via negativa, barbell, turkey problem, Lindy effect.\n"  # noqa: E501
                 "Keep reasoning under 150 characters. Do not invent data. Return JSON only.",
             ),
             (

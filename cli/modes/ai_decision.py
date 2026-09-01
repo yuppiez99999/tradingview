@@ -11,7 +11,7 @@ def run_ai_decision(args):
     print("=" * 70)
     print(f"启动时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(
-        f"决策场景: {'盘中并行对冲' if getattr(args, 'scene', 'intraday_decision') == 'intraday_decision' else '再平衡交叉验证'}"
+        f"决策场景: {'盘中并行对冲' if getattr(args, 'scene', 'intraday_decision') == 'intraday_decision' else '再平衡交叉验证'}"  # noqa: E501
     )
     print(f"Wind MCP: {'启用' if not getattr(args, 'no_wind', False) else '禁用'}")
     print("-" * 70)

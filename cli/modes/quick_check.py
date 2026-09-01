@@ -96,7 +96,7 @@ def run_quick_check(args: Any) -> None:
     etf_config = config_manager.get("etf_monitor", "signal_high_threshold")
     if etf_config:
         print(
-            f"  ✅ 信号阈值: 高{etf_config/1e8:.0f}亿/中{config_manager.get('etf_monitor', 'signal_medium_threshold')/1e8:.0f}亿/低{config_manager.get('etf_monitor', 'signal_low_threshold')/1e8:.0f}亿"
+            f"  ✅ 信号阈值: 高{etf_config/1e8:.0f}亿/中{config_manager.get('etf_monitor', 'signal_medium_threshold')/1e8:.0f}亿/低{config_manager.get('etf_monitor', 'signal_low_threshold')/1e8:.0f}亿"  # noqa: E501
         )
 
     # 检查数据源连接器状态

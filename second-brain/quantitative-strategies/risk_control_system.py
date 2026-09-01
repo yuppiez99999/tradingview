@@ -5,10 +5,10 @@
 作者: AI Assistant
 创建日期: 2026-06-29
 """
+from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -70,7 +70,7 @@ class BaseRiskControl:
         else:
             return RiskLevel.CRITICAL
 
-    def generate_alert(self, data: dict) -> Optional[RiskAlert]:
+    def generate_alert(self, data: dict) -> RiskAlert | None:
         """生成风险告警"""
         if not self.is_active:
             return None

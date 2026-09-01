@@ -52,7 +52,7 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("ai_decision.auto_research")
 
@@ -150,14 +150,14 @@ class FactorEvaluationResult:
     candidate: FactorCandidate
     gate_status: GateStatus
     # 复用现有评估产物 (Any 避免硬依赖, 实际类型见类型提示注释)
-    tear_sheet: Optional[Any] = None  # utils.alpha_factor.evaluator.FactorTearSheet
-    engine_summary: Optional[Any] = (
+    tear_sheet: Any | None = None  # utils.alpha_factor.evaluator.FactorTearSheet
+    engine_summary: Any | None = (
         None  # utils.backtest.event_driven_engine.EngineSummary
     )
-    backtest_result: Optional[Any] = (
+    backtest_result: Any | None = (
         None  # utils.hedge_rebalance_backtest.BacktestResult
     )
-    honest_validation: Optional[Any] = (
+    honest_validation: Any | None = (
         None  # utils.backtest.honest_validation.HonestValidationResult
     )
     # 诊断字段
@@ -222,7 +222,7 @@ class FactorGenerator(ABC):
     """
 
     @abstractmethod
-    def generate(self, context: "ResearchContext") -> list[FactorCandidate]:
+    def generate(self, context: ResearchContext) -> list[FactorCandidate]:
         """生成候选因子列表.
 
         Args:
@@ -249,7 +249,7 @@ class FactorEvaluator(ABC):
     def evaluate(
         self,
         candidate: FactorCandidate,
-        context: "ResearchContext",
+        context: ResearchContext,
     ) -> FactorEvaluationResult:
         """评估单个候选因子.
 
@@ -377,7 +377,7 @@ class AutoResearchSkill:
         evaluator: FactorEvaluator,
         gates: list[FactorGate],
         registry: FactorRegistry,
-        config: Optional[AutoResearchConfig] = None,
+        config: AutoResearchConfig | None = None,
     ) -> None:
         """
         Args:
@@ -416,7 +416,7 @@ class AutoResearchSkill:
     def run_iteration(
         self,
         context: ResearchContext,
-        max_candidates: Optional[int] = None,
+        max_candidates: int | None = None,
     ) -> ResearchIteration:
         """运行单次研究迭代.
 
@@ -503,7 +503,7 @@ class AutoResearchSkill:
     def monitor_and_retire(
         self,
         active_factors: list[str],
-        decay_signals: Optional[dict[str, float]] = None,
+        decay_signals: dict[str, float] | None = None,
     ) -> list[str]:
         """衰减监控 → 自动退役.
 

@@ -1,6 +1,6 @@
 import json
 import statistics
-from typing import Literal
+from typing import Any, Literal
 
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -601,7 +601,7 @@ def analyze_druckenmiller_valuation(
 
 def generate_druckenmiller_output(
     ticker: str,
-    analysis_data: dict[str, any],
+    analysis_data: dict[str, Any],
     state: AgentState,
     agent_id: str,
 ) -> StanleyDruckenmillerSignal:
@@ -635,8 +635,19 @@ def generate_druckenmiller_output(
               5. Providing specific valuation context relative to growth prospects
               6. Using Stanley Druckenmiller's decisive, momentum-focused, and conviction-driven voice
 
-              For example, if bullish: "The company shows exceptional momentum with revenue accelerating from 22% to 35% YoY and the stock up 28% over the past three months. Risk-reward is highly asymmetric with 70% upside potential based on FCF multiple expansion and only 15% downside risk given the strong balance sheet with 3x cash-to-debt. Insider buying and positive market sentiment provide additional tailwinds..."
-              For example, if bearish: "Despite recent stock momentum, revenue growth has decelerated from 30% to 12% YoY, and operating margins are contracting. The risk-reward proposition is unfavorable with limited 10% upside potential against 40% downside risk. The competitive landscape is intensifying, and insider selling suggests waning confidence. I'm seeing better opportunities elsewhere with more favorable setups..."
+              For example, if bullish: "The company shows exceptional momentum with revenue accelerating from 22% to
+              35%
+              YoY and the stock up 28% over the past three months. Risk-reward is highly asymmetric with 70% upside
+              potential based on FCF multiple expansion and only 15% downside risk given the strong balance sheet with
+              3x
+              cash-to-debt. Insider buying and positive market sentiment provide additional tailwinds..."
+              For example, if bearish: "Despite recent stock momentum, revenue growth has decelerated from 30% to 12%
+              YoY,
+               and operating margins are contracting. The risk-reward proposition is unfavorable with limited 10%
+               upside
+               potential against 40% downside risk. The competitive landscape is intensifying,
+                and insider selling suggests waning confidence. I'm seeing better opportunities elsewhere with more
+                favorable setups..."
               """,
             ),
             (

@@ -198,7 +198,7 @@ def run_hedge_detail_mode(args):
         f"  60日回撤触发:              > {PORTFOLIO_TAIL_HEDGE_TRIGGERS['dd_trigger']*100:.0f}%"
     )
     print(
-        f"  触发后对冲范围:           {PORTFOLIO_TAIL_HEDGE_TRIGGERS['min_hedge_ratio']*100:.0f}%-{PORTFOLIO_TAIL_HEDGE_TRIGGERS['max_hedge_ratio']*100:.0f}%"
+        f"  触发后对冲范围:           {PORTFOLIO_TAIL_HEDGE_TRIGGERS['min_hedge_ratio']*100:.0f}%-{PORTFOLIO_TAIL_HEDGE_TRIGGERS['max_hedge_ratio']*100:.0f}%"  # noqa: E501
     )
 
     # ── 3. 对冲强度 ──

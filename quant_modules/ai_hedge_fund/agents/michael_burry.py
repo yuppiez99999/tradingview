@@ -374,8 +374,11 @@ def _generate_burry_output(
                 4. Mention relevant insider activity or contrarian opportunities
                 5. Use Burry's direct, number-focused communication style with minimal words
 
-                For example, if bullish: "FCF yield 12.8%. EV/EBIT 6.2. Debt-to-equity 0.4. Net insider buying 25k shares. Market missing value due to overreaction to recent litigation. Strong buy."
-                For example, if bearish: "FCF yield only 2.1%. Debt-to-equity concerning at 2.3. Management diluting shareholders. Pass."
+                For example, if bullish: "FCF yield 12.8%. EV/EBIT 6.2. Debt-to-equity 0.4. Net insider buying 25k
+                shares.
+                Market missing value due to overreaction to recent litigation. Strong buy."
+                For example, if bearish: "FCF yield only 2.1%. Debt-to-equity concerning at 2.3. Management diluting
+                shareholders. Pass."
                 """,
             ),
             (

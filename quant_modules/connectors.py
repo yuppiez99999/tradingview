@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def register_all_connectors(manager: "DataConnectorManager") -> int:
+def register_all_connectors(manager: DataConnectorManager) -> int:
     """注册所有可用数据源连接器到 manager, 返回成功注册数量。
 
     Args:

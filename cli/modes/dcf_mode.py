@@ -5,10 +5,10 @@ DCF 估值模式 — v5.10 新增
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 
-def run_dcf_mode(args) -> Optional[str]:
+def run_dcf_mode(args) -> str | None:
     """
     执行 DCF 估值分析，生成专业 Excel 模型。
 
