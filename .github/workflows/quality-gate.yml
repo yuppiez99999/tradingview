@@ -125,6 +125,9 @@ jobs:
             Write-Output "[DEBT-GATE] PASS - GREEN, all gates passed"
           } elseif ($code -eq 1) {
             Write-Output "[DEBT-GATE] WARN - YELLOW, proceed with caution"
+            # PS 7.4+: pwsh -Command 会把最后 native 命令 (python rc=1) 的
+            # $LASTEXITCODE 传播为步骤退出码, YELLOW 分支必须显式 exit 0
+            exit 0
           } else {
             Write-Output "[DEBT-GATE][FAIL] RED - blocking issues detected (exit code $code)"
             exit 1
