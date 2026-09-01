@@ -344,7 +344,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pyyaml pandas numpy scipy
+          pip install pytest pytest-timeout pyyaml pandas numpy scipy
           # 安装项目核心依赖 (smoke runner import 链需要)
           if (Test-Path requirements.txt) { pip install -r requirements.txt -q 2>$null }
 
@@ -404,7 +404,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov pytest-xdist pyyaml pandas numpy requests
+          pip install pytest pytest-cov pytest-xdist pytest-timeout pyyaml pandas numpy requests
 
       - name: Generate CI contract files (config/positions.json + system_config.json)
         shell: pwsh
@@ -505,7 +505,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov pytest-xdist pyyaml pandas numpy requests
+          pip install pytest pytest-cov pytest-xdist pytest-timeout pyyaml pandas numpy requests joblib
 
       - name: Run integration tests
         shell: pwsh
@@ -586,7 +586,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pyyaml pandas numpy
+          pip install pytest pytest-timeout pyyaml pandas numpy scipy
 
       - name: Generate CI contract files (config/positions.json + system_config.json)
         shell: pwsh
@@ -656,7 +656,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov pytest-xdist pyyaml pandas numpy
+          pip install pytest pytest-cov pytest-xdist pytest-timeout pyyaml pandas numpy
 
       - name: 全量 F821 baseline 门禁 (存量覆盖, 新增阻断)
         # G-4+ (2026-08-29): 增量门禁只扫 PR 改动文件, 存量文件未被近期修改则 F821 漏网。
