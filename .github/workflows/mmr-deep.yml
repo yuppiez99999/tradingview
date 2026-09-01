@@ -79,6 +79,9 @@ jobs:
           PYTHONUTF8: "1"
           BIGMODEL_API_KEY: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # 经 env 传递避免 bash 双引号作用域问题: python -c 的脚本整体包在 bash
+          # 双引号里, 内嵌双引号会被 bash 切断 (曾致 pr_num = manual 裸标识符)
+          PR_NUM: ${{ github.event.pull_request.number || 'manual' }}
         run: |
           # run_consensus 完整传递依赖链 (自动探测于 2026-09-01):
           # config_manager->yaml, providers->pandas, model_registry->joblib/lightgbm, omni_route_client->requests
@@ -96,7 +99,7 @@ jobs:
           try:
               from utils.alpha.llm.consensus import run_consensus
               changed = '${{ steps.changed.outputs.all_changed_files }}'.split()
-              pr_num = "${{ github.event.pull_request.number || 'manual' }}"
+              pr_num = os.environ.get('PR_NUM', 'manual')
 
               doc_files = [f for f in changed if f.endswith('.md')]
               data_files = [f for f in changed if f.endswith('.json')]
