@@ -7,6 +7,7 @@
 - **验证路径**: 表达式修复后手动 workflow_dispatch — run 33505555990 成为该 workflow **创建 12 天以来首个 success run** (此前只会 0 秒 phantom startup_failure), 全步骤绿
 - **新发现 (commit 4a920eff)**: 首跑审查步骤降级于 `No module named 'pandas'` — 原 pip install 只装 openai, 但 run_consensus 传递依赖 pandas (providers 链) + pyyaml (config_manager)。观测性降级设计正常 (不阻断, 打 WARN 后空结果退出)。修复: 必装 pandas/numpy/pyyaml, openai 保持可选
 - **二次 dispatch (run 33505803723, success)**: HEAD diff 仅 workflow 文件 → any_changed=false → 审查步骤正确跳过 — 非 PR 事件 HEAD^ diff 语义验证通过
+- **三次 dispatch (run 33505951494, success)**: 命中审查路径, pandas 错误消失但新降级于 `No module named 'joblib'` — 逐个踩坑不可持续, 改用自动化探测: 干净 venv + 循环"import→捕获 ModuleNotFoundError→pip 装→重试" 一次性测出完整依赖集 **pandas/numpy/pyyaml/joblib/lightgbm/requests** (model_registry→joblib+lightgbm, omni_route_client→requests; 深度函数内延迟 import, 静态 AST 追踪不到)
 - **状态**: workflow 注册/触发/路径过滤/降级语义全部验证; 真实 LLM 双模型审查待下个含 docs/cairn 变更的 dispatch (依赖 secrets OCR_LLM_AUTH_TOKEN/DEEPSEEK_API_KEY)
 - **指针**: `.github/workflows/mmr-deep.yml` L83-86; 前序 LOG (mmr-deep 根因修复)
 
