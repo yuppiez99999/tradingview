@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-01 · Quality Gate 30+ 连败根因修复：YELLOW(rc=1) 被烟测误判 + PS 7.4 退出码传播坑
+
+- **排查路径**: 本地建精简 venv (ruff/pytest/bandit/pandas/numpy/pyyaml, 3.11.9) 复现失败未果 → 回拉 CI 失败 job 日志发现 `[UNRUNNABLE]` 明细 (此前 grep 关键词漏掉): `engineering_debt_gate.py: rc=1` 且 stderr 前 200 字符被 PreTradeGuard 自检日志占满
+- **根因一 (commit f3d32840)**: `ci_integrity_check --strict` 用 `--help` 烟测 (rc∈{0,2} 算过), 但 engineering_debt_gate **无 argparse**, `--help` 被无视直接跑全量业务检查; CI 干净环境 T8 (coverage.xml 缺失, warn 级) 失败 → YELLOW=1 → 误判 unrunnable。本地因 reports/ 缓存齐全 GREEN=0 永远复现不出。修复: 加 `--help` 短路返回 0
+- **根因二 (commit ef198145)**: 修复一之后 debt gate 步骤首次真正执行 — D1-D11 全 OK 仅 T8 XX → 脚本正确 YELLOW=1, workflow 也正确走 WARN 分支, 但步骤仍 exit 1。**PS 7.4 破坏性变更**: `pwsh -Command` 把最后一条 native 命令 (python rc=1) 的退出码传播为进程退出码, 即使后续 cmdlet 全部成功。修复: YELLOW 分支显式 `exit 0`
+- **验证**: Quality Gate run 33503460655 **success** — 自 08-24 起 30+ 连败后首次通过
+- **教训**: ① 检查类脚本必须支持 `--help` (烟测语义=可启动, 不应依赖环境业务状态); ② GHA pwsh 步骤凡调用 native 命令后还有容错分支的, 每个分支都要显式 exit
+- **遗留**: mmr-deep.yml 每次 push 0 秒解析级失败 (workflow 注册失败标记, 非 PR 场景本不该触发)
+- **指针**: `scripts/engineering_debt_gate.py` L1306-1316; `.github/workflows/quality-gate.yml` L126-130
+
 ## 2026-09-01 · 跟踪 CI 首跑 3.14：发现并修复 pytest.ini 回归 + 存量缺依赖，主 CI 10 job 全绿
 
 - **首跑失败诊断**: push 36f62a1b 后 CI 失败, 逐一拉 job 日志定位三层原因 — ① 今日 pytest.ini 新增 `timeout=300` 依赖 pytest-timeout 插件, CI 未装的 job 全部报 `Unknown config option: timeout` (smoke 显式失败, **unit 静默空跑**: 73s vs 正常 398s, job 显绿实为 0 测试 — 隐蔽性极高); ② 存量: v9-quick 缺 scipy (DSR 测试 import 失败); ③ 存量: integration 缺 joblib (连带触发 utils.alpha "circular import" 假象)
