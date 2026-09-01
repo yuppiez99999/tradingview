@@ -25,7 +25,7 @@ req1 = urllib.request.Request(
     },
 )
 try:
-    with urllib.request.urlopen(req1, timeout=120) as resp:
+    with urllib.request.urlopen(req1, timeout=120) as resp:  # nosec B310  # 目标为本机 Ollama 服务, 固定 http scheme
         body = json.loads(resp.read().decode("utf-8"))
         print(
             "openai_compat=",
@@ -48,7 +48,7 @@ req2 = urllib.request.Request(
     url2, data=payload2, headers={"Content-Type": "application/json"}
 )
 try:
-    with urllib.request.urlopen(req2, timeout=120) as resp:
+    with urllib.request.urlopen(req2, timeout=120) as resp:  # nosec B310  # 目标为本机 Ollama 服务, 固定 http scheme
         body = json.loads(resp.read().decode("utf-8"))
         print("native_api=", body.get("response"))
 except urllib.error.HTTPError as e:

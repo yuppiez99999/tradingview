@@ -83,7 +83,7 @@ def find_uncovered_p02_branches(coverage_xml: Path) -> list[UncoveredBranch]:
         return []
 
     try:
-        tree = ET.parse(str(coverage_xml))
+        tree = ET.parse(str(coverage_xml))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
     except ET.ParseError:
         return []
 

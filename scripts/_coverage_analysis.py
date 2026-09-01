@@ -11,7 +11,7 @@ def main() -> int:
     `scripts/_verify_reexport_compat.py` 的 "importable without side-effect" 检查
     在 CI 恒定 FAIL (2026-08-29 修复)。
     """
-    tree = ET.parse(Path("reports/coverage.xml"))
+    tree = ET.parse(Path("reports/coverage.xml"))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
     root = tree.getroot()
     print(f"总体 line-rate: {root.get('line-rate')}")
     print(f"分支率: {root.get('branch-rate')}")

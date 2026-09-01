@@ -35,7 +35,7 @@ def call_api(payload):
         },
     )
     try:
-        resp = urllib.request.urlopen(req, timeout=15)
+        resp = urllib.request.urlopen(req, timeout=15)  # nosec B310  # 固定 HTTPS 官方端点 i.weread.qq.com, 非用户可控 scheme
         return json.loads(resp.read())
     except Exception as e:
         return {"error": str(e)}

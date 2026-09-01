@@ -53,7 +53,7 @@ def generate_coverage_report(
     # 读取当前覆盖率
     if coverage_xml.exists():
         try:
-            tree = ET.parse(str(coverage_xml))
+            tree = ET.parse(str(coverage_xml))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
             line_rate = float(tree.getroot().attrib.get("line-rate", "0"))
             report["line_rate"] = line_rate
             report["sprint4_threshold_met"] = line_rate >= 0.80

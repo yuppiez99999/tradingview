@@ -311,7 +311,7 @@ def _check_coverage_baseline() -> tuple[bool, str]:
         return False, f"基线 JSON 解析失败: {baseline_path.name}"
 
     try:
-        tree = ET.parse(str(cov_xml_path))
+        tree = ET.parse(str(cov_xml_path))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
         root = tree.getroot()
         cur_lr = float(root.attrib.get("line-rate", "0"))
     except (ET.ParseError, ValueError, TypeError):

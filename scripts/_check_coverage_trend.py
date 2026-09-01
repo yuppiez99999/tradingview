@@ -60,7 +60,7 @@ def parse_coverage_xml(path: Path) -> dict | None:
     try:
         import xml.etree.ElementTree as ET
 
-        tree = ET.parse(str(path))
+        tree = ET.parse(str(path))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
         root = tree.getroot()
         line_rate = float(root.attrib.get("line-rate", "0"))
         classes = []

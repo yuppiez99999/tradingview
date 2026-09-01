@@ -107,7 +107,7 @@ def http_get(path: str, timeout: int = 10) -> dict[str, Any] | None:
     url = f"{BRIDGE_URL}{path}"
     try:
         req = Request(url, method="GET")
-        with urlopen(req, timeout=timeout) as resp:
+        with urlopen(req, timeout=timeout) as resp:  # nosec B310  # 目标为本机 BRIDGE_URL (http://localhost), 非用户可控 scheme
             return json.loads(resp.read().decode("utf-8"))
     except (URLError, OSError, json.JSONDecodeError, TimeoutError) as e:
         print(f"  {RED}HTTP GET {path} 失败: {e}{RESET}")
@@ -124,7 +124,7 @@ def http_post(path: str, payload: dict, timeout: int = 130) -> dict[str, Any] | 
             method="POST",
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
-        with urlopen(req, timeout=timeout) as resp:
+        with urlopen(req, timeout=timeout) as resp:  # nosec B310  # 目标为本机 BRIDGE_URL (http://localhost), 非用户可控 scheme
             return json.loads(resp.read().decode("utf-8"))
     except (URLError, OSError, json.JSONDecodeError, TimeoutError) as e:
         print(f"  {RED}HTTP POST {path} 失败: {e}{RESET}")

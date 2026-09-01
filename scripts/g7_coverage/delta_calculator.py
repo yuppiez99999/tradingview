@@ -37,14 +37,14 @@ class DeltaReport:
 def _root_line_rate(xml_path: Path) -> float:
     if not xml_path.exists():
         return 0.0
-    root = ET.parse(str(xml_path)).getroot()
+    root = ET.parse(str(xml_path)).getroot()  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
     return float(root.get("line-rate", "0"))
 
 
 def _module_line_rate(xml_path: Path, module_path: str) -> float:
     if not xml_path.exists():
         return 0.0
-    root = ET.parse(str(xml_path)).getroot()
+    root = ET.parse(str(xml_path)).getroot()  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
     import os
 
     basename = os.path.basename(module_path)

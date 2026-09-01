@@ -141,7 +141,7 @@ def _parse_coverage_xml(xml_path: Path) -> dict[str, dict[str, object]]:
     if not xml_path.exists():
         raise CoverageReportMissingError(f"coverage.xml 不存在: {xml_path}")
     try:
-        tree = ET.parse(str(xml_path))
+        tree = ET.parse(str(xml_path))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
     except ET.ParseError as exc:
         raise CoverageReportParseError(f"coverage.xml 解析失败: {exc}") from exc
     root = tree.getroot()
@@ -258,7 +258,7 @@ def _root_line_rate(coverage_xml_path: str | None) -> float | None:
     )
     if not xml_path.exists():
         return None
-    root = ET.parse(str(xml_path)).getroot()
+    root = ET.parse(str(xml_path)).getroot()  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
     return float(root.get("line-rate", "0"))
 
 
