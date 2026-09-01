@@ -39,7 +39,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.14"
 
       # 原生 git diff 替代 tj-actions/changed-files (第三方 action 依赖与权限风险)
       # 输出契约保持兼容: any_changed (true/false) + all_changed_files (空格分隔)

@@ -123,6 +123,31 @@ def main() -> int:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         print(f"[pre-commit] 检查暂存区异常 (容错继续): {e}", file=sys.stderr)
 
+    # === 第零道门禁: Windows 脚本健康检查 (2026-09-01 P0-2/P0-4 防复发) ===
+    # bat/cmd 必须无裸 LF (cmd 解析会出错) + ps1/bat 引用的 python.exe 路径必须存在。
+    # 来源: 08-19 修过 3 个线上任务坏路径但未修源头注册脚本导致复发; LF-only bat 解析必炸。
+    # 毫秒级 (全库仅 ~20 个 bat/ps1), 命中即阻断。
+    win_scripts_check = PROJECT_ROOT / "scripts" / "check_windows_scripts.py"
+    if win_scripts_check.exists():
+        try:
+            ws_result = subprocess.run(
+                [sys.executable, str(win_scripts_check), "--quiet"],
+                cwd=str(PROJECT_ROOT),
+                timeout=30,
+                env=_utf8_env(),
+            )
+            if ws_result.returncode != 0:
+                print("[pre-commit] ❌ Windows 脚本检查失败 (bat 行尾/解释器路径),阻止提交", file=sys.stderr)
+                print("[pre-commit] 修复方法: bat 转 CRLF; 解释器路径改为 .venv\\Scripts\\python.exe", file=sys.stderr)
+                return 1
+        except subprocess.TimeoutExpired:
+            print("[pre-commit] Windows 脚本检查超时,容错通过", file=sys.stderr)
+        except (
+            ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+            OSError, TimeoutError, ConnectionError,
+        ) as e:
+            print(f"[pre-commit] Windows 脚本检查异常 (容错通过): {e}", file=sys.stderr)
+
     # === 第一道门禁: 硬编码绝对路径扫描 (v8.5+, 轻量快速) ===
     path_check_script = PROJECT_ROOT / "scripts" / "check_hardcoded_paths.py"
     if path_check_script.exists():

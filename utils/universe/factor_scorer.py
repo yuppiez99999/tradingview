@@ -168,10 +168,11 @@ def batch_compute_factors(
     if config is None:
         config = ScoringConfig()
 
-    # 延迟导入 vibe adapter
-    from utils.vibe_trading_adapter import get_vibe_adapter
+    # 延迟导入 vibe adapter (P0 后续修复 2026-09-01: 原引用不存在的 get_vibe_adapter,
+    # 实际导出为 get_adapter — 此悬挂引用导致 v84_UniverseScan 每日失败 exit 1)
+    from utils.vibe_trading_adapter import get_adapter
 
-    adapter = get_vibe_adapter()
+    adapter = get_adapter()
 
     # 1. 选因子
     logger.info("=" * 60)
