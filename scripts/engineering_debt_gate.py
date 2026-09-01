@@ -1304,4 +1304,14 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # --help 烟测支持: ci_integrity_check.py --strict 用 `--help` 验证脚本可运行性,
+    # 本脚本无参数运行业务检查时 YELLOW 会返回 1, 曾被烟测误判为 unrunnable (CI 30+ 连败)。
+    # --help 直接短路返回 0, 不依赖环境状态 (本地 reports/ 缓存 vs CI 干净环境)。
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+        print(__doc__.strip().splitlines()[0] if __doc__ else "Engineering Debt Gate")
+        print()
+        print("用法: python scripts/engineering_debt_gate.py [--help]")
+        print("无参数: 运行全部工程债务检查 (T1-T18, D1-D11 + v8.7 发布门禁汇总)")
+        print("退出码: 0=GREEN 通过 | 1=YELLOW 仅告警性失败 | 2=RED 阻断性失败")
+        sys.exit(0)
     sys.exit(main())
