@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from .alpha_pipeline import AlphaPipeline
 from .backtest_gate import BacktestGate
@@ -51,8 +51,8 @@ class PipelineStatus:
 
     def __init__(self):
         self.current_stage: PipelineStage = PipelineStage.IDLE
-        self.last_result: Optional[PipelineResult] = None
-        self.last_run_at: Optional[str] = None
+        self.last_result: PipelineResult | None = None
+        self.last_run_at: str | None = None
         self.run_count: int = 0
         self.error_count: int = 0
 
@@ -79,13 +79,13 @@ class PipelineOrchestrator:
         logger.info(result.to_dict())
     """
 
-    def __init__(self, config: Optional[PipelineConfig] = None):
+    def __init__(self, config: PipelineConfig | None = None):
         self.config = config or get_pipeline_config()
         self._status = PipelineStatus()
         self._data_reports: list[DataQualityReport] = []
-        self._alpha_result: Optional[AlphaSignalResult] = None
-        self._backtest_result: Optional[BacktestGateResult] = None
-        self._execution_result: Optional[ExecutionResult] = None
+        self._alpha_result: AlphaSignalResult | None = None
+        self._backtest_result: BacktestGateResult | None = None
+        self._execution_result: ExecutionResult | None = None
         self._risk_alerts: list[RiskAlert] = []
 
         # 初始化各阶段流水线
@@ -100,9 +100,9 @@ class PipelineOrchestrator:
     def run_full_cycle(
         self,
         mode: str = "auto",
-        market_data: Optional[dict[str, Any]] = None,
-        symbols: Optional[list[str]] = None,
-        current_positions: Optional[dict[str, float]] = None,
+        market_data: dict[str, Any] | None = None,
+        symbols: list[str] | None = None,
+        current_positions: dict[str, float] | None = None,
     ) -> PipelineResult:
         """
         执行完整闭环周期
@@ -193,8 +193,8 @@ class PipelineOrchestrator:
 
     def _run_stage_data_cleaning(
         self,
-        market_data: Optional[dict[str, Any]],
-        symbols: Optional[list[str]],
+        market_data: dict[str, Any] | None,
+        symbols: list[str] | None,
     ) -> bool:
         """执行数据清洗阶段"""
         self._status.current_stage = PipelineStage.DATA_CLEANING
@@ -223,7 +223,7 @@ class PipelineOrchestrator:
         )
         return True
 
-    def _run_stage_alpha(self, symbols: Optional[list[str]]) -> bool:
+    def _run_stage_alpha(self, symbols: list[str] | None) -> bool:
         """执行 Alpha 信号阶段"""
         self._status.current_stage = PipelineStage.ALPHA_GENERATION
         logger.info("[阶段 2/5] Alpha 信号生成...")
@@ -273,7 +273,7 @@ class PipelineOrchestrator:
 
     def _run_stage_execution(
         self,
-        current_positions: Optional[dict[str, float]],
+        current_positions: dict[str, float] | None,
     ) -> bool:
         """执行交易阶段"""
         self._status.current_stage = PipelineStage.EXECUTION
@@ -322,7 +322,7 @@ class PipelineOrchestrator:
         stage: PipelineStage,
         started_at: datetime,
         success: bool,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> PipelineResult:
         """构建 PipelineResult"""
         return PipelineResult(
@@ -386,8 +386,8 @@ class PipelineOrchestrator:
 
     def run_data_cleaning_only(
         self,
-        market_data: Optional[dict[str, Any]] = None,
-        symbols: Optional[list[str]] = None,
+        market_data: dict[str, Any] | None = None,
+        symbols: list[str] | None = None,
     ) -> tuple[list[DataQualityReport], PipelineResult]:
         """仅执行数据清洗"""
         return self._data_cleaning.run(market_data, symbols)
@@ -395,15 +395,15 @@ class PipelineOrchestrator:
     def run_alpha_only(
         self,
         force_retrain: bool = False,
-        symbols: Optional[list[str]] = None,
-    ) -> tuple[Optional[AlphaSignalResult], PipelineResult]:
+        symbols: list[str] | None = None,
+    ) -> tuple[AlphaSignalResult | None, PipelineResult]:
         """仅执行 Alpha 信号生成"""
         return self._alpha.run(force_retrain=force_retrain, symbols=symbols)
 
     def run_execution_only(
         self,
-        signal_result: Optional[AlphaSignalResult] = None,
-        current_positions: Optional[dict[str, float]] = None,
+        signal_result: AlphaSignalResult | None = None,
+        current_positions: dict[str, float] | None = None,
         dry_run: bool = True,
     ) -> tuple[ExecutionResult, PipelineResult]:
         """仅执行交易"""

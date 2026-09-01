@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from typing import Any
 
 from utils.market_rules import is_20cm_symbol
 from utils.trading_rules import is_t0_eligible
@@ -350,7 +351,7 @@ class T1FilterResult:
 
 def filter_order_t1(
     rules: AShareTradingRules,
-    order,  # type: ignore[no-untyped-def]  OrderData
+    order: Any,  # OrderData
     current_date: date,
 ) -> T1FilterResult:
     """对单个订单执行 T+1 过滤。

@@ -159,7 +159,7 @@ class MemoryRecord:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "MemoryRecord":
+    def from_dict(cls, data: dict[str, Any]) -> MemoryRecord:
         """从字典构造 (用于 JSONL 反序列化).
 
         容忍缺失字段 (向后兼容), 但 proposal_id/level/action_type 必须存在.
@@ -260,7 +260,7 @@ class EvolutionMemory:
     # 核心方法: record / query / learn / update_status
     # ============================================================
 
-    def record(self, proposal: "MemoryRecord | dict[str, Any]") -> str:
+    def record(self, proposal: MemoryRecord | dict[str, Any]) -> str:
         """记录一条进化提案, 返回 proposal_id.
 
         Args:

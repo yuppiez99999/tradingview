@@ -567,7 +567,7 @@ class DeepHedgingEngine:
                     "模型无 SHA256 侧车, 记录哈希作审计: %s sha256=%s", path, digest
                 )
 
-            model_state = pickle.loads(raw)  # noqa: S301 — SHA256 完整性已校验
+            model_state = pickle.loads(raw)  # noqa: S301 — SHA256 完整性已校验  # nosec B301
 
             self.trainer.actor.set_params(model_state["actor_params"])
             self.trainer.history = model_state.get("history", [])

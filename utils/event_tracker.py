@@ -2,12 +2,13 @@
 事件追踪器 — 借鉴 TradingAgents-CN 结构化事件日志模式
 提供操作开始/完成/错误的统一追踪，支持性能计时和Token用量记录
 """
+from __future__ import annotations
 
 import time
 from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
-from typing import Any, Optional
+from typing import Any
 
 from .logging_manager import get_logger
 
@@ -19,7 +20,7 @@ class EventTracker:
         self._logger = get_logger(logger_name)
         self._active_sessions: dict[str, dict[str, Any]] = {}
 
-    def start_session(self, session_id: str, meta: Optional[dict] = None) -> str:
+    def start_session(self, session_id: str, meta: dict | None = None) -> str:
         """开始一个追踪会话"""
         self._active_sessions[session_id] = {
             "start_time": time.time(),
@@ -41,8 +42,8 @@ class EventTracker:
     def log_operation_start(
         self,
         operation: str,
-        session_id: Optional[str] = None,
-        target: Optional[str] = None,
+        session_id: str | None = None,
+        target: str | None = None,
         **extra: Any,
     ) -> float:
         """记录操作开始 — 借鉴 log_module_start"""
@@ -76,11 +77,11 @@ class EventTracker:
     def log_operation_complete(
         self,
         operation: str,
-        start_time: Optional[float] = None,
-        session_id: Optional[str] = None,
-        target: Optional[str] = None,
+        start_time: float | None = None,
+        session_id: str | None = None,
+        target: str | None = None,
         success: bool = True,
-        result_summary: Optional[str] = None,
+        result_summary: str | None = None,
         **extra: Any,
     ) -> float:
         """记录操作完成 — 借鉴 log_module_complete"""
@@ -112,9 +113,9 @@ class EventTracker:
         self,
         operation: str,
         error: str,
-        start_time: Optional[float] = None,
-        session_id: Optional[str] = None,
-        target: Optional[str] = None,
+        start_time: float | None = None,
+        session_id: str | None = None,
+        target: str | None = None,
         **extra: Any,
     ) -> None:
         """记录操作错误 — 借鉴 log_module_error"""
@@ -148,7 +149,7 @@ class EventTracker:
         input_tokens: int,
         output_tokens: int,
         cost: float,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> None:
         """记录Token用量 — 借鉴 log_token_usage"""
         self._logger.info(
@@ -169,7 +170,7 @@ class EventTracker:
         price: float,
         source: str,
         valid: bool,
-        reason: Optional[str] = None,
+        reason: str | None = None,
     ) -> None:
         """记录价格校验"""
         level = "info" if valid else "warning"
@@ -212,7 +213,7 @@ class EventTracker:
         )
         return summary
 
-    def track(self, event_name: str, data: Optional[dict[str, Any]] = None) -> None:
+    def track(self, event_name: str, data: dict[str, Any] | None = None) -> None:
         """通用事件追踪接口 — 兼容外部调用"""
         self._logger.info(
             f"📊 [追踪] {event_name}",
@@ -226,7 +227,7 @@ class EventTracker:
 
 
 # 全局单例
-_event_tracker: Optional[EventTracker] = None
+_event_tracker: EventTracker | None = None
 
 
 def get_event_tracker() -> EventTracker:
@@ -242,7 +243,7 @@ def get_event_tracker() -> EventTracker:
 
 
 def track_event(
-    operation: Optional[str] = None, target_param: Optional[str] = None
+    operation: str | None = None, target_param: str | None = None
 ) -> Callable[..., Any]:
     """事件追踪装饰器 — 自动记录操作开始/完成/错误"""
 

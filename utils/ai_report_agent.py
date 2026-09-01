@@ -25,6 +25,7 @@ AI 报告代理 (AI Report Agent)
   - 成本控制: 批量合并 prompt, 单次调用处理多标的
   - 可审计: 每次分析记录输入/输出/模型/耗时
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -32,7 +33,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from utils.logger import get_logger
 
@@ -192,7 +193,7 @@ class AIReportAgent:
         "质押爆仓",
     ]
 
-    def __init__(self, audit_log_dir: Optional[Path] = None):
+    def __init__(self, audit_log_dir: Path | None = None):
         self.llm_available = _LLM_CLIENT_AVAILABLE
         self.audit_log_dir = audit_log_dir or Path("data/ai_audit_logs")
         self.audit_log_dir.mkdir(parents=True, exist_ok=True)
@@ -208,7 +209,7 @@ class AIReportAgent:
         system: str = "",
         temperature: float = 0.3,
         max_tokens: int = 2000,
-    ) -> Optional[str]:
+    ) -> str | None:
         """调用 LLM (失败返回 None, 触发降级)"""
         if not self.llm_available or _chat_fn is None:
             return None
@@ -295,7 +296,7 @@ class AIReportAgent:
 
     def _llm_batch_sentiment(
         self, news_items: list[dict]
-    ) -> Optional[list[SentimentResult]]:
+    ) -> list[SentimentResult] | None:
         """LLM 批量情感分析 (单次调用处理多条新闻)"""
         # 构造批量 prompt
         items_text = []
@@ -311,7 +312,7 @@ class AIReportAgent:
 
 输出格式 (严格 JSON, 不要 markdown 代码块):
 [
-  {{"index": 1, "sentiment": "positive/negative/neutral", "score": 0.8, "summary": "一句话摘要", "keywords": ["关键词1", "关键词2"]}},
+  {{"index": 1, "sentiment": "positive/negative/neutral", "score": 0.8, "summary": "一句话摘要", "keywords": ["关键词1", "关键词2"]}},  # noqa: E501
   ...
 ]
 
@@ -401,10 +402,10 @@ class AIReportAgent:
     def generate_daily_report(
         self,
         symbols: list[str],
-        positions_data: Optional[dict] = None,
-        predictions: Optional[list[dict]] = None,
-        news_items: Optional[list[dict]] = None,
-        report_date: Optional[str] = None,
+        positions_data: dict | None = None,
+        predictions: list[dict] | None = None,
+        news_items: list[dict] | None = None,
+        report_date: str | None = None,
     ) -> DailyReport:
         """生成每日投资分析报告
 
@@ -507,8 +508,8 @@ class AIReportAgent:
     def _build_daily_report_prompt(
         self,
         symbols: list[str],
-        positions_data: Optional[dict],
-        predictions: Optional[list[dict]],
+        positions_data: dict | None,
+        predictions: list[dict] | None,
         news_highlights: list[dict],
         risk_warnings: list[str],
         trade_signals: list[dict],
@@ -593,7 +594,7 @@ class AIReportAgent:
     def _rule_market_overview(
         self,
         symbols: list[str],
-        predictions: Optional[list[dict]],
+        predictions: list[dict] | None,
         risk_warnings: list[str],
     ) -> str:
         """规则引擎市场总览 (LLM 不可用时兜底)"""
@@ -612,8 +613,8 @@ class AIReportAgent:
     def _rule_portfolio_analysis(
         self,
         symbols: list[str],
-        positions_data: Optional[dict],
-        predictions: Optional[list[dict]],
+        positions_data: dict | None,
+        predictions: list[dict] | None,
     ) -> str:
         """规则引擎组合分析"""
         if not positions_data or "positions" not in positions_data:
@@ -645,14 +646,14 @@ class AIReportAgent:
         neg = sum(1 for s in sentiments if s.sentiment == "negative")
         neu = sum(1 for s in sentiments if s.sentiment == "neutral")
         avg_score = sum(s.score for s in sentiments) / len(sentiments)
-        return f"共分析 {len(sentiments)} 条新闻: 利好 {pos} 条, 利空 {neg} 条, 中性 {neu} 条, 平均情感分 {avg_score:+.2f}"
+        return f"共分析 {len(sentiments)} 条新闻: 利好 {pos} 条, 利空 {neg} 条, 中性 {neu} 条, 平均情感分 {avg_score:+.2f}"  # noqa: E501
 
     # ----------------------------------------------------------
     # 交易信号解读
     # ----------------------------------------------------------
 
     def explain_trade_signals(
-        self, predictions: list[dict], news_sentiments: Optional[list[dict]] = None
+        self, predictions: list[dict], news_sentiments: list[dict] | None = None
     ) -> str:
         """将交易信号转化为可读建议
 
@@ -727,7 +728,7 @@ class AIReportAgent:
     # ----------------------------------------------------------
 
     def save_report(
-        self, report: DailyReport, output_dir: Optional[Path] = None
+        self, report: DailyReport, output_dir: Path | None = None
     ) -> Path:
         """保存报告到文件 (JSON + Markdown)"""
         output_dir = output_dir or Path("data/ai_reports")
@@ -880,7 +881,7 @@ class AIReportAgent:
     def to_agent_decision(
         self,
         symbol: str,
-        news_items: Optional[list[dict]] = None,
+        news_items: list[dict] | None = None,
     ) -> dict[str, Any]:
         """将新闻情感分析结果适配为 AgentDecision 兼容格式
 
@@ -994,7 +995,7 @@ class AIReportAgent:
 # 便捷函数
 # ============================================================
 
-_agent_instance: Optional[AIReportAgent] = None
+_agent_instance: AIReportAgent | None = None
 
 
 def get_agent() -> AIReportAgent:

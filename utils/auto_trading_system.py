@@ -18,7 +18,7 @@ import logging
 import threading
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
 
         self.monitor_interval = 30  # 监控间隔（秒）
         self.is_running = False
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._monitor_thread: threading.Thread | None = None
 
         # 统计
         self.stats: dict[str, Any] = {
@@ -137,7 +137,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
     # --------------------------------------------------------
     # 主循环 — 主入口调用 system.run()
     # --------------------------------------------------------
-    def run(self, duration_seconds: Optional[int] = None) -> None:
+    def run(self, duration_seconds: int | None = None) -> None:
         """启动实时监控循环（阻塞式）。
 
         Args:
@@ -184,7 +184,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
             self.is_running = False
             self._print_summary()
 
-    def run_async(self, duration_seconds: Optional[int] = None) -> threading.Thread:
+    def run_async(self, duration_seconds: int | None = None) -> threading.Thread:
         """异步启动监控（非阻塞，后台线程运行）。
 
         Args:

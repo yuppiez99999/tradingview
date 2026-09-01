@@ -23,7 +23,7 @@ import sqlite3
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from utils.auto_hedge_rebalance.models import (
     AuditRecord,
@@ -94,7 +94,7 @@ class AuditLogger:
         trigger_reason: str,
         details: dict[str, Any],
         approver: str = "",
-        ticker: Optional[str] = None,
+        ticker: str | None = None,
     ) -> str:
         """写入一条审计记录。
 
@@ -236,10 +236,10 @@ class AuditLogger:
 
     def query(
         self,
-        start_time: Optional[str] = None,
-        end_time: Optional[str] = None,
-        event_type: Optional[str] = None,
-        ticker: Optional[str] = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        event_type: str | None = None,
+        ticker: str | None = None,
         limit: int = 1000,
     ) -> list[AuditRecord]:
         """查询审计记录。
@@ -274,7 +274,7 @@ class AuditLogger:
 
         where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
         sql = (
-            f"SELECT record_id, timestamp, event_type, trigger_reason, details, approver"  # noqa: S608 — where 条件值均参数化, 无用户输入拼接
+            f"SELECT record_id, timestamp, event_type, trigger_reason, details, approver"  # noqa: S608 — where 条件值均参数化, 无用户输入拼接  # nosec B608
             f" FROM audit_records{where_clause}"
             f" ORDER BY timestamp DESC LIMIT ?"
         )
@@ -305,7 +305,7 @@ class AuditLogger:
 
         return records
 
-    def count(self, event_type: Optional[str] = None) -> int:
+    def count(self, event_type: str | None = None) -> int:
         """统计审计记录总数。
 
         Args:

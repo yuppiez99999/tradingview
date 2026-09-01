@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """特征存储层 (Feature Store) — 数据管道物理分层之"特征层" (G9 架构增强).
 
 对应顶级量化系统架构铁律: 数据管道第一公民, 分层为
@@ -20,8 +19,9 @@ from __future__ import annotations
 import json
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 DEFAULT_CACHE_DIR = Path("reports/feature_cache")
 
@@ -33,7 +33,7 @@ class FeatureStore:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.ttl = ttl_seconds
-        self._mem: Dict[str, Any] = {}
+        self._mem: dict[str, Any] = {}
         self._lock = threading.Lock()
 
     @staticmethod
@@ -42,7 +42,7 @@ class FeatureStore:
         sorted_parts = "_".join(f"{k}={v}" for k, v in sorted(parts.items()))
         return f"{namespace}::{sorted_parts}" if sorted_parts else namespace
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """命中且未过期返回缓存, 否则 None."""
         with self._lock:
             if key in self._mem:

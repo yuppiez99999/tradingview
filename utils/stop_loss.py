@@ -16,11 +16,11 @@ r"""
   alerts = monitor.check_all(quotes)
   report = generate_risk_report(alerts)
 """
+from __future__ import annotations
 
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from utils.data_types import safe_float
 
@@ -74,9 +74,9 @@ class StopLossMonitor:
         base_price: float,
         stop_loss_pct: float,
         take_profit_pct: float,
-        stop_loss_price: Optional[float] = None,
-        take_profit_price: Optional[float] = None,
-        high_price: Optional[float] = None,
+        stop_loss_price: float | None = None,
+        take_profit_price: float | None = None,
+        high_price: float | None = None,
         position_weight: float = 0.0,
         risk_level: str = "medium",
         trailing_stop: bool = False,

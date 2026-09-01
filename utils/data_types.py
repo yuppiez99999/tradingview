@@ -6,17 +6,18 @@
 - 提供股票代码/市场标签标准化工具
 - 减少各模块重复实现的转换逻辑
 """
+from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 # ============================================
 # 安全类型转换
 # ============================================
 
 
-def safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
+def safe_float(val: Any, default: float | None = None) -> float | None:
     """
     安全转换为浮点数
 
@@ -55,7 +56,7 @@ def safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
         return default
 
 
-def safe_int(val: Any, default: Optional[int] = None) -> Optional[int]:
+def safe_int(val: Any, default: int | None = None) -> int | None:
     """
     安全转换为整数
 
@@ -82,7 +83,7 @@ _CN_EXCHANGE_MAP = {
 }
 
 
-def _is_etf_code(code: Optional[str]) -> bool:
+def _is_etf_code(code: str | None) -> bool:
     """
     粗略判断是否为 ETF 代码。
     该实现仅做兼容层；如需精确判断，建议接入本地持仓/行情元数据。
@@ -93,7 +94,7 @@ def _is_etf_code(code: Optional[str]) -> bool:
     return s.startswith("5") or "ETF" in s
 
 
-def normalize_stock_code(code: Optional[str]) -> str:
+def normalize_stock_code(code: str | None) -> str:
     """
     股票代码标准化
 
@@ -135,7 +136,7 @@ def normalize_stock_code(code: Optional[str]) -> str:
 # ============================================
 
 
-def get_market_tag(code: Optional[str]) -> str:
+def get_market_tag(code: str | None) -> str:
     """
     根据标准化代码推断市场标签
     返回 cn / hk / us / tw / jp / kr / unknown
@@ -163,7 +164,7 @@ def get_market_tag(code: Optional[str]) -> str:
     return "unknown"
 
 
-def get_currency_tag(code: Optional[str]) -> str:
+def get_currency_tag(code: str | None) -> str:
     """
     根据代码推断报价币种
     """
@@ -190,11 +191,11 @@ class QuoteResult:
     """
 
     code: str
-    price: Optional[float] = None
+    price: float | None = None
     raw: Any = None
     source: str = ""
     is_fallback: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
     @property
     def is_ok(self) -> bool:
@@ -214,9 +215,9 @@ class SourceHealth:
     code: str
     available: bool
     failure_count: int
-    last_error: Optional[str] = None
-    latency_ms: Optional[float] = None
-    last_checked_at: Optional[str] = None
+    last_error: str | None = None
+    latency_ms: float | None = None
+    last_checked_at: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {

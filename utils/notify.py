@@ -41,7 +41,6 @@ import json
 import logging
 import os
 import threading
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +184,7 @@ def send_alert(
     title: str,
     content: str,
     level: str = "warning",
-    channels: Optional[list] = None,
+    channels: list | None = None,
 ) -> dict:
     """发送告警到所有已配置的通道.
 

@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from utils.auto_hedge_rebalance.audit_logger import AuditLogger
 from utils.auto_hedge_rebalance.circuit_breaker import CircuitBreaker, EmergencyAction
@@ -73,9 +73,9 @@ class AutoHedgeRebalanceEngine:
         self,
         base_dir: str = ".",
         config_path: str = "config/auto_hedge_rebalance.yaml",
-        integrator: Optional[Any] = None,
-        hedge_engine: Optional[Any] = None,
-        backtest_engine: Optional[Any] = None,
+        integrator: Any | None = None,
+        hedge_engine: Any | None = None,
+        backtest_engine: Any | None = None,
         target_annual_return: float = 0.08,
         target_max_drawdown: float = 0.20,
     ) -> None:

@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -29,9 +28,9 @@ DEFAULT_VOLUME_FIELD = "volume"
 
 def check_consistency(
     df: pd.DataFrame,
-    cross_source_df: Optional[pd.DataFrame] = None,
-    history_cache: Optional[pd.DataFrame] = None,
-    expected_symbols: Optional[list[str]] = None,
+    cross_source_df: pd.DataFrame | None = None,
+    history_cache: pd.DataFrame | None = None,
+    expected_symbols: list[str] | None = None,
     checkpoint: DQCCheckpoint = DQCCheckpoint.P2_CACHE,
 ) -> list[DQCEvent]:
     """X 维度检查入口: X-01, X-02, X-03, X-05.
@@ -415,7 +414,7 @@ def _check_x03_history_invariance(
                 checkpoint=checkpoint,
                 value=float(total_violations),
                 threshold=0.0,
-                message=f"历史值不变性违反 (HC-DQC3): {total_violations} 处历史数据被修改, 字段违规数={field_violations}",
+                message=f"历史值不变性违反 (HC-DQC3): {total_violations} 处历史数据被修改, 字段违规数={field_violations}",  # noqa: E501
                 violation_count=total_violations,
                 field_violations=field_violations,
                 sample_keys=sample_keys[:5],

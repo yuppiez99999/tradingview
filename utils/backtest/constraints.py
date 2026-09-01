@@ -19,11 +19,11 @@
 
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Union
 
 from utils.wt_structs import BarData, TickData
 
-MarketEvent = Union[TickData, BarData]
+MarketEvent = Union[TickData, BarData]  # noqa: UP007  # 运行时类型别名, py38 兼容
 
 
 def _get_current_price(market_event: MarketEvent) -> float:
@@ -63,8 +63,8 @@ def is_at_limit(
     market_event: MarketEvent,
     code: str,
     direction: str,
-    limit_up_prices: Optional[dict] = None,
-    limit_down_prices: Optional[dict] = None,
+    limit_up_prices: dict | None = None,
+    limit_down_prices: dict | None = None,
 ) -> bool:
     """判断该方向的交易是否被涨跌停限制。
 
@@ -109,8 +109,8 @@ def check_tradable(
     market_event: MarketEvent,
     code: str,
     direction: str,
-    limit_up_prices: Optional[dict] = None,
-    limit_down_prices: Optional[dict] = None,
+    limit_up_prices: dict | None = None,
+    limit_down_prices: dict | None = None,
 ) -> tuple[bool, str]:
     """综合可交易性检查(停牌 + 涨跌停)。
 

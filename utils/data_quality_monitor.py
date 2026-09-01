@@ -46,12 +46,12 @@ import math
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 logger = logging.getLogger("data_quality")
 
 # numpy/pandas 前向声明 (模块级) — 根除 ImportError fallback assignment ignore
-np: Optional[type]
+np: Any
 try:
     import numpy as np_impl
 
@@ -61,7 +61,7 @@ except ImportError:
     np = None
     HAS_NUMPY = False
 
-pd: Optional[type]
+pd: Any
 try:
     import pandas as pd_impl
 

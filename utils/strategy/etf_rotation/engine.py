@@ -27,7 +27,6 @@ etf-rotation-strategy 三层验证借鉴:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -81,8 +80,8 @@ class ThreeTierReport:
     """三层验证汇总报告。"""
 
     wfo_results: list[WFOResult] = field(default_factory=list)
-    vec_result: Optional[VECResult] = None
-    bt_result: Optional[BTResult] = None
+    vec_result: VECResult | None = None
+    bt_result: BTResult | None = None
     final_lookback: int = 20
     final_holdings: int = 3
     passed: bool = False
@@ -230,8 +229,8 @@ class ThreeTierETFRotationValidator:
 
     def __init__(
         self,
-        lookback_grid: list[int] = None,
-        holdings_grid: list[int] = None,
+        lookback_grid: list[int] | None = None,
+        holdings_grid: list[int] | None = None,
         train_window: int = 120,
         test_window: int = 60,
         n_folds: int = 5,
@@ -345,7 +344,7 @@ class ThreeTierETFRotationValidator:
 
         return results
 
-    def _run_vec(self, wfo_results: list[WFOResult]) -> Optional[VECResult]:
+    def _run_vec(self, wfo_results: list[WFOResult]) -> VECResult | None:
         """VEC: 从 WFO 结果中选稳健参数 (多数票) + 统计 Sharpe 稳定性。"""
         if not wfo_results:
             return None

@@ -9,9 +9,9 @@
 - 波动率计算
 - 相关性分析
 """
+from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
 
@@ -731,8 +731,8 @@ def calculate_profit_factor(returns: np.ndarray) -> float:
 
 def calculate_performance_metrics(
     returns: np.ndarray,
-    prices: Optional[np.ndarray] = None,
-    benchmark_returns: Optional[np.ndarray] = None,
+    prices: np.ndarray | None = None,
+    benchmark_returns: np.ndarray | None = None,
     risk_free_rate: float = 0.02,
 ) -> dict:
     """

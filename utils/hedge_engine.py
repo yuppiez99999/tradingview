@@ -685,7 +685,7 @@ class HedgeEngine:
         self._beta_cache: dict[str, float] = {}
 
         # v8.7: 初始化 Deep Hedging RL 引擎 (TAIL_EVENT 时用 CVaR 优化)
-        self._deep_hedge_engine: Any = None
+        self._deep_hedge_engine: Any | None = None
         if _DEEP_HEDGE_AVAILABLE:
             try:
                 config = DeepHedgingConfig(
@@ -712,7 +712,7 @@ class HedgeEngine:
                 logger.warning("Deep Hedging RL 初始化失败, 降级到解析 delta: %s", exc)
 
         # v8.7: 初始化多智能体对冲引擎 (delta+gamma+vega)
-        self._multi_agent_engine: Any = None
+        self._multi_agent_engine: Any | None = None
         if _MULTI_AGENT_AVAILABLE:
             try:
                 self._multi_agent_engine = DeltaHedgeEngine(use_rl_weights=True)
@@ -725,7 +725,7 @@ class HedgeEngine:
         self,
         positions: dict[str, dict[str, Any]],
         prices: dict[str, float],
-        historical_returns: dict[str, list[float]] = None,
+        historical_returns: dict[str, list[float]] | None = None,
         cash: float = 0.0,
     ) -> PortfolioRisk:
         """评估组合风险 v5.10 — 协方差矩阵VaR修复 (P0-5)
@@ -858,7 +858,7 @@ class HedgeEngine:
             top_sector = (
                 max(sector_values, key=sector_values.get) if sector_values else ""
             )
-            risk.sector_concentration_warning = f"{top_sector}板块权重{risk.max_sector_weight * 100:.0f}% > {self.SECTOR_LIMIT * 100:.0f}%上限 (纯股票口径)"
+            risk.sector_concentration_warning = f"{top_sector}板块权重{risk.max_sector_weight * 100:.0f}% > {self.SECTOR_LIMIT * 100:.0f}%上限 (纯股票口径)"  # noqa: E501
 
         # P0-6: MRC (Marginal Risk Contribution) — 基于协方差矩阵
         if historical_returns:
@@ -1293,9 +1293,9 @@ class HedgeEngine:
     def determine_hedge_signal_strength(
         self,
         risk: PortfolioRisk,
-        market_signals: dict[str, Any] = None,
-        portfolio_volatility: float = None,
-        portfolio_drawdown_60d: float = None,
+        market_signals: dict[str, Any] | None = None,
+        portfolio_volatility: float | None = None,
+        portfolio_drawdown_60d: float | None = None,
         vix: float | None = None,
     ) -> tuple[HedgeSignalStrength, float]:
         """v8.7 RegimeFolio 制度感知五因子模型 — 动态阈值+动态权重
@@ -1409,8 +1409,8 @@ class HedgeEngine:
         risk: PortfolioRisk,
         hedge_strength: HedgeSignalStrength,
         method: str = "min_variance",
-        portfolio_volatility: float = None,
-        portfolio_drawdown_60d: float = None,
+        portfolio_volatility: float | None = None,
+        portfolio_drawdown_60d: float | None = None,
         vix: float | None = None,
     ) -> float:
         """v8.7 RegimeFolio 制度感知最优对冲比率 — 动态阈值
@@ -1499,7 +1499,7 @@ class HedgeEngine:
         self,
         risk: PortfolioRisk,
         hedge_ratio: float,
-        futures_prices: dict[str, float] = None,
+        futures_prices: dict[str, float] | None = None,
     ) -> dict[str, Any]:
         """v5.9 多指数Beta加权对冲方案
 
@@ -1631,7 +1631,7 @@ class HedgeEngine:
         self,
         risk: PortfolioRisk,
         hedge_ratio: float,
-        options_data: dict[str, Any] = None,
+        options_data: dict[str, Any] | None = None,
         strategy: str = "protective_put",
     ) -> dict[str, Any]:
         if hedge_ratio <= 0:
@@ -1838,13 +1838,13 @@ class HedgeEngine:
     def generate_hedge_plan(
         self,
         risk: PortfolioRisk,
-        market_signals: dict[str, Any] = None,
-        futures_prices: dict[str, float] = None,
+        market_signals: dict[str, Any] | None = None,
+        futures_prices: dict[str, float] | None = None,
         prefer_options: bool = False,
-        portfolio_volatility: float = None,
-        portfolio_drawdown_60d: float = None,
-        positions: dict[str, dict[str, Any]] = None,
-        prices: dict[str, float] = None,
+        portfolio_volatility: float | None = None,
+        portfolio_drawdown_60d: float | None = None,
+        positions: dict[str, dict[str, Any]] | None = None,
+        prices: dict[str, float] | None = None,
         vix: float | None = None,
     ) -> HedgeRecommendation:
         """v8.7 完整对冲方案 — RegimeFolio动态阈值 + Deep Hedging RL + 多智能体对冲"""
@@ -2327,7 +2327,7 @@ class HedgeEngine:
 # ── 便捷函数 ──
 
 
-def get_hedge_engine(portfolio_value: float = None) -> HedgeEngine:
+def get_hedge_engine(portfolio_value: float | None = None) -> HedgeEngine:
     return HedgeEngine(portfolio_value=portfolio_value or 1_000_000)
 
 

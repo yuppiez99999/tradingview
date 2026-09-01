@@ -21,15 +21,15 @@
   scores = model.evaluate(klines_data)
   signal = model.generate_signal(scores)
 """
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 import pandas as pd
 
-GTJA191Factors: Optional[type]
+GTJA191Factors: type | None
 try:
     from utils.gtja191_factors import GTJA191Factors as _GTJA191Factors_impl
 
@@ -76,7 +76,7 @@ class FactorModel:
         "sell": -0.30,
     }
 
-    def __init__(self, weights: Optional[dict[str, float]] = None, lookback: int = 252):
+    def __init__(self, weights: dict[str, float] | None = None, lookback: int = 252):
         """
         Args:
             weights: 因子权重，默认使用 DEFAULT_WEIGHTS
@@ -91,9 +91,9 @@ class FactorModel:
     def value_factor(
         self,
         df: pd.DataFrame,
-        pe: Optional[float] = None,
-        pb: Optional[float] = None,
-        dividend_yield: Optional[float] = None,
+        pe: float | None = None,
+        pb: float | None = None,
+        dividend_yield: float | None = None,
     ) -> float:
         """
         价值因子：低估值 + 高股息 = 高分。
@@ -126,9 +126,9 @@ class FactorModel:
     def quality_factor(
         self,
         df: pd.DataFrame,
-        roe: Optional[float] = None,
-        debt_ratio: Optional[float] = None,
-        profit_margin: Optional[float] = None,
+        roe: float | None = None,
+        debt_ratio: float | None = None,
+        profit_margin: float | None = None,
     ) -> float:
         """
         质量因子：高ROE + 低负债 + 高利润率 = 高分。
@@ -188,8 +188,8 @@ class FactorModel:
     # ============================================================
     def growth_factor(
         self,
-        revenue_growth: Optional[float] = None,
-        earnings_growth: Optional[float] = None,
+        revenue_growth: float | None = None,
+        earnings_growth: float | None = None,
     ) -> float:
         """
         增长因子：高收入/盈利增长 = 高分。
@@ -290,8 +290,8 @@ class FactorModel:
     def evaluate(
         self,
         klines: dict[str, pd.DataFrame],
-        fundamentals: Optional[dict[str, dict]] = None,
-        event_factors: Optional[dict[str, dict]] = None,
+        fundamentals: dict[str, dict] | None = None,
+        event_factors: dict[str, dict] | None = None,
     ) -> dict[str, FactorResult]:
         """
         对所有标的进行五维因子评估。

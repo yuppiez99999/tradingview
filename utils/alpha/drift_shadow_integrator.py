@@ -56,7 +56,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -109,12 +109,12 @@ class IntegrationResult:
     date: str
     daily_return: float = 0.0
     drift_reports: list[Any] = field(default_factory=list)  # list[DriftReport]
-    delayed_metrics: Optional[Any] = None  # DelayedMetrics
-    ic_degradation: Optional[float] = None
+    delayed_metrics: Any | None = None  # DelayedMetrics
+    ic_degradation: float | None = None
     alerts: list[str] = field(default_factory=list)
     symbols_updated: int = 0
     skipped: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
     @property
     def is_success(self) -> bool:
@@ -220,9 +220,9 @@ class DriftShadowIntegrator:
         drift_monitor: Any,
         label_tracker: Any,
         daily_returns_path: Path = DEFAULT_DAILY_RETURNS_PATH,
-        reports_dir: Optional[Path] = None,
-        symbol_returns_provider: Optional[Callable[[str], dict[str, float]]] = None,
-        baseline_ic_ir: Optional[float] = None,
+        reports_dir: Path | None = None,
+        symbol_returns_provider: Callable[[str], dict[str, float]] | None = None,
+        baseline_ic_ir: float | None = None,
         ic_degradation_threshold: float = DEFAULT_IC_DEGRADATION_THRESHOLD,
         verbose: bool = False,
     ) -> None:
@@ -282,9 +282,9 @@ class DriftShadowIntegrator:
     def run_daily_integration(
         self,
         date: str,
-        current_panel: Optional[Any] = None,
-        current_predictions: Optional[dict[str, float]] = None,
-        model_version: Optional[str] = None,
+        current_panel: Any | None = None,
+        current_predictions: dict[str, float] | None = None,
+        model_version: str | None = None,
     ) -> IntegrationResult:
         """每日集成运行.
 
@@ -411,9 +411,9 @@ class DriftShadowIntegrator:
         self,
         start_date: str,
         end_date: str,
-        panel_history: Optional[dict[str, Any]] = None,
-        prediction_history: Optional[dict[str, dict[str, float]]] = None,
-        model_version: Optional[str] = None,
+        panel_history: dict[str, Any] | None = None,
+        prediction_history: dict[str, dict[str, float]] | None = None,
+        model_version: str | None = None,
     ) -> list[IntegrationResult]:
         """历史回填 (用于 2026-07-23 ~ 2026-08-07 观察期).
 
@@ -479,7 +479,7 @@ class DriftShadowIntegrator:
 
     def calibrate_psi_thresholds(
         self,
-        reference_panel: Optional[Any] = None,
+        reference_panel: Any | None = None,
         target_false_positive_rate: float = 0.05,
         rolling_window: int = 20,
         factor_frequency: str = "daily",
@@ -652,7 +652,7 @@ class DriftShadowIntegrator:
     # 内部方法
     # ------------------------------------------------------------
 
-    def _read_daily_return(self, date: str) -> Optional[float]:
+    def _read_daily_return(self, date: str) -> float | None:
         """从 daily_returns.jsonl 读取指定日期的收益.
 
         Args:
@@ -845,7 +845,7 @@ def _load_latest_predictions() -> dict[str, float] | None:
         return None
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     """CLI 主入口.
 
     Returns:

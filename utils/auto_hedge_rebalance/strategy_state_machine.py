@@ -20,7 +20,6 @@ import logging
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 from utils.auto_hedge_rebalance.models import (
     CorrectionAction,
@@ -150,7 +149,7 @@ class StrategyStateMachine:
     def _now_iso(self) -> str:
         return datetime.now().isoformat(timespec="seconds")
 
-    def _parse_time(self, iso_str: str) -> Optional[datetime]:
+    def _parse_time(self, iso_str: str) -> datetime | None:
         if not iso_str:
             return None
         try:

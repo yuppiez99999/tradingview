@@ -29,7 +29,6 @@ import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +108,7 @@ class SelectionResult:
     reason: str = ""
     hardware: HardwareSpec = field(default_factory=HardwareSpec)
     recommendations: list[ModelRecommendation] = field(default_factory=list)
-    selected: Optional[ModelRecommendation] = None
+    selected: ModelRecommendation | None = None
 
     def summary(self) -> str:
         if not self.available:
@@ -130,7 +129,7 @@ def is_llmfit_available() -> bool:
     return shutil.which("llmfit") is not None
 
 
-def _run_llmfit_raw(args: list[str]) -> Optional[str]:
+def _run_llmfit_raw(args: list[str]) -> str | None:
     """调用 llmfit 子进程, 返回原始 stdout 文本.
 
     Args:
@@ -160,7 +159,7 @@ def _run_llmfit_raw(args: list[str]) -> Optional[str]:
     return proc.stdout
 
 
-def _run_llmfit_json(args: list[str]) -> Optional[dict]:
+def _run_llmfit_json(args: list[str]) -> dict | None:
     """调用 llmfit 子进程并解析 JSON 输出.
 
     Args:
@@ -184,7 +183,7 @@ def _run_llmfit_json(args: list[str]) -> Optional[dict]:
 # ============================================================
 
 
-def detect_hardware() -> Optional[HardwareSpec]:
+def detect_hardware() -> HardwareSpec | None:
     """调用 llmfit doctor 解析本机硬件.
 
     llmfit doctor 不支持 --json, 输出 Markdown 报告, 用正则解析关键字段.
@@ -305,7 +304,7 @@ def select_local_model(use_case: str = _DEFAULT_USE_CASE) -> SelectionResult:
 
 def persist_to_settings(
     result: SelectionResult,
-    settings_path: Optional[str] = None,
+    settings_path: str | None = None,
 ) -> bool:
     """将选型结果写入 settings.yaml 的 local_llm 段.
 

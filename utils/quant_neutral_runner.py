@@ -50,14 +50,14 @@ import logging
 from dataclasses import asdict, dataclass, field
 from datetime import date
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("quant_neutral")
 
 # 模块级前向声明 — 根除 ImportError fallback assignment+misc ignore
-ICHedgeCalculator: Optional[type]
-ICHedgeResult: Optional[type]
-V10ConfigLoader: Optional[type]
+ICHedgeCalculator: type | None
+ICHedgeResult: type | None
+V10ConfigLoader: type | None
 
 try:
     from utils.ic_hedge_calculator import ICHedgeCalculator as _ICHC
@@ -488,7 +488,7 @@ class QuantNeutralRunner:
         # 1. 风控检查: 连续 3 月回撤超限 → 暂停 1 月
         if consecutive_overdrawdown_months >= 3:
             result.action = "pause"
-            result.reason = f"策略连续 {consecutive_overdrawdown_months} 月回撤超限, 暂停 1 个月, 平仓所有多头和 IC 空头"
+            result.reason = f"策略连续 {consecutive_overdrawdown_months} 月回撤超限, 暂停 1 个月, 平仓所有多头和 IC 空头"  # noqa: E501
             result.drawdown_action = "pause"
             result.drawdown_pct = strategy_drawdown_pct
             logger.warning(f"[QuantNeutral] {result.reason}")

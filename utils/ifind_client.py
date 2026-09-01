@@ -7,6 +7,7 @@ iFinD MCP API 客户端 — 同花顺金融数据服务
   - 禁止在代码、配置文件或日志中明文存储 Token
   - 所有 Token 引用必须使用占位符 ${IFIND_TOKEN}
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -16,7 +17,7 @@ import re
 import threading
 import time
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -122,7 +123,7 @@ def _parse_markdown_table(text: str) -> list[dict[str, str]]:
     return rows
 
 
-def _col(row: dict[str, str], *keywords: str) -> Optional[str]:
+def _col(row: dict[str, str], *keywords: str) -> str | None:
     for k, v in row.items():
         for kw in keywords:
             if k == kw:
@@ -265,7 +266,7 @@ class IFindClient:
         self._req_ids[t] = self._req_ids.get(t, 0) + 1
         return self._req_ids[t]
 
-    def _headers(self, t: Optional[str] = None) -> dict[str, str]:
+    def _headers(self, t: str | None = None) -> dict[str, str]:
         h = {
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
@@ -401,12 +402,12 @@ class IFindClient:
         self.last_success = time.time()
         return {"ok": True, "status_code": resp.status_code, "data": data}
 
-    def get_historical_klines(self, code: str, days: int = 252) -> Optional[list[dict]]:
+    def get_historical_klines(self, code: str, days: int = 252) -> list[dict] | None:
         if code.startswith("5"):
             return self._get_fund_historical(code, days)
         return self._get_stock_historical(code, days)
 
-    def _get_stock_historical(self, code: str, days: int = 252) -> Optional[list[dict]]:
+    def _get_stock_historical(self, code: str, days: int = 252) -> list[dict] | None:
         all_rows = []
         seen_dates = set()
 
@@ -473,7 +474,7 @@ class IFindClient:
         all_rows.sort(key=lambda x: x["日期"])
         return all_rows if all_rows else None
 
-    def _get_fund_historical(self, code: str, days: int = 252) -> Optional[list[dict]]:
+    def _get_fund_historical(self, code: str, days: int = 252) -> list[dict] | None:
         etf_data = self.get_etf_historical(code, days)
         if not etf_data:
             return None
@@ -517,7 +518,7 @@ class IFindClient:
                     continue
         return quotes
 
-    def get_etf_historical(self, code: str, days: int = 252) -> Optional[list[dict]]:
+    def get_etf_historical(self, code: str, days: int = 252) -> list[dict] | None:
         result = self.call(
             "fund",
             "get_fund_market_performance",
@@ -551,7 +552,7 @@ class IFindClient:
 
     def get_index_historical(
         self, index_name: str, days: int = 252
-    ) -> Optional[list[dict]]:
+    ) -> list[dict] | None:
         all_rows = []
         seen_dates = set()
 
@@ -597,7 +598,7 @@ class IFindClient:
             all_rows.sort(key=lambda x: x["date"])
         return all_rows if all_rows else None
 
-    def get_index_latest(self, index_name: str) -> Optional[dict]:
+    def get_index_latest(self, index_name: str) -> dict | None:
         result = self.call(
             "index", "index_data", {"query": f"{index_name}最新收盘价和涨跌幅"}
         )
@@ -617,7 +618,7 @@ class IFindClient:
                 pass
         return None
 
-    def get_edb_value(self, query: str) -> Optional[float]:
+    def get_edb_value(self, query: str) -> float | None:
         result = self.call("edb", "get_edb_data", {"query": query})
         parsed = _parse_ifind_response(result)
         for row in parsed.get("tables", []):
@@ -634,12 +635,12 @@ class IFindClient:
     def get_bond_market(self, query: str) -> dict:
         return self.call("bond", "bond_market_data", {"query": query})
 
-    def get_futures_realtime(self, codes: list[str]) -> Optional[list[dict]]:
+    def get_futures_realtime(self, codes: list[str]) -> list[dict] | None:
         if not codes:
             return None
 
         codes_str = ",".join(codes)
-        fields = "tradeDate;tradeTime;ms;preClose;open;high;low;latest;latestVolume;avgPrice;volume;change;changeSettle;changeRatio;changeRatioSettle;increasePositionVol;preSettlement;sellVolume;buyVolume;dailyIncreasePosition;swing;latest_price;settlement;dealDirection;dealtype;openInterest;positionDiff;capitalFlow;capitalDeposition;amplitude;upperLimit;downLimit;dealtypecode"
+        fields = "tradeDate;tradeTime;ms;preClose;open;high;low;latest;latestVolume;avgPrice;volume;change;changeSettle;changeRatio;changeRatioSettle;increasePositionVol;preSettlement;sellVolume;buyVolume;dailyIncreasePosition;swing;latest_price;settlement;dealDirection;dealtype;openInterest;positionDiff;capitalFlow;capitalDeposition;amplitude;upperLimit;downLimit;dealtypecode"  # noqa: E501
 
         result = self.call(
             "futures",
@@ -829,8 +830,8 @@ class IFindClient:
     def get_fundamentals_batch(
         self,
         symbols: list[str],
-        indicators: Optional[list[str]] = None,
-        report_date: Optional[str] = None,
+        indicators: list[str] | None = None,
+        report_date: str | None = None,
         max_workers: int = 4,
     ) -> dict[str, dict[str, float]]:
         """批量拉取多只股票的财务指标 (PE/PB/ROE/总市值/流通市值)
@@ -958,7 +959,7 @@ class IFindClient:
         normalized: dict[str, float] = {}
         for k, v in parsed.items():
             key = k.lower().strip()
-            val: Optional[float] = None
+            val: float | None = None
             if isinstance(v, (int, float)):
                 val = float(v)
             elif isinstance(v, str):

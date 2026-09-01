@@ -9,11 +9,12 @@
   3. 社保风格与持仓风格的交叉比对
   4. 生成社保基金ETF风格追踪报告
 """
+from __future__ import annotations
 
 import logging
 import os
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +154,7 @@ class SocialSecurityStyleClassifier:
     def __init__(self):
         self.styles = SOCIAL_SECURITY_STYLES
 
-    def classify_etf(self, code: str) -> Optional[dict]:
+    def classify_etf(self, code: str) -> dict | None:
         """将ETF代码分类到社保基金风格"""
         for style_name, style_config in self.styles.items():
             for etf in style_config["matching_etfs"]:
@@ -425,7 +426,7 @@ class SocialSecurityETFTracker:
         lines.append("|---------|------|---------|--------|---------|")
         for etf in analysis["etf_classifications"][:15]:
             lines.append(
-                f"| {etf['name']} | {etf['code']} | {etf['social_style']} | {etf['match_score']} | {etf['style_weight']:.0%} |"
+                f"| {etf['name']} | {etf['code']} | {etf['social_style']} | {etf['match_score']} | {etf['style_weight']:.0%} |"  # noqa: E501
             )
         lines.append("")
 
@@ -440,7 +441,7 @@ class SocialSecurityETFTracker:
             lines.append("|---------|------|-----------|---------|--------|---------|")
             for s in analysis["signals"][:10]:
                 lines.append(
-                    f"| {s['name']} | {s['code']} | {s['net_flow_yi']:+.1f} | {s['signal_type']} | {s['confidence']} | {s['social_style']} |"
+                    f"| {s['name']} | {s['code']} | {s['net_flow_yi']:+.1f} | {s['signal_type']} | {s['confidence']} | {s['social_style']} |"  # noqa: E501
                 )
             lines.append("")
 

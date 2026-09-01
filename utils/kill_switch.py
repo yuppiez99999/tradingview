@@ -24,7 +24,6 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -43,7 +42,7 @@ class KillSwitch:
         2. 集成模式: 外部调用方传入真实 margin_usage 参数
     """
 
-    def __init__(self, config_path: Optional[Path] = None, margin_limit: float = 0.50):
+    def __init__(self, config_path: Path | None = None, margin_limit: float = 0.50):
         """
         Args:
             config_path: 配置文件路径

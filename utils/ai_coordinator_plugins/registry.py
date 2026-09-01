@@ -17,7 +17,7 @@ import importlib
 import logging
 import os
 import threading
-from typing import Any, Optional
+from typing import Any
 
 try:
     from .base import (
@@ -83,7 +83,7 @@ class PluginRegistry:
                 )
             logger.debug("插件已注册: %s (priority=%d)", name, plugin.priority)
 
-    def unregister(self, name: str) -> Optional[Plugin]:
+    def unregister(self, name: str) -> Plugin | None:
         """按名称卸载插件
 
         Returns:
@@ -127,7 +127,7 @@ class PluginRegistry:
             for p in self._conflict_plugins
         ]
 
-    def get_plugin(self, name: str) -> Optional[Plugin]:
+    def get_plugin(self, name: str) -> Plugin | None:
         """按名称获取插件"""
         return self._plugin_names.get(name)
 
@@ -136,7 +136,7 @@ class PluginRegistry:
 
     # ── 执行 ──
 
-    def resolve_routing(self, context: RoutingContext) -> Optional[RoutingResult]:
+    def resolve_routing(self, context: RoutingContext) -> RoutingResult | None:
         """遍历路由插件, 返回第一个 can_handle=True 的 handle() 结果
 
         Returns:
@@ -153,7 +153,7 @@ class PluginRegistry:
                 continue
         return None
 
-    def resolve_conflict(self, context: ConflictContext) -> Optional[ConflictResult]:
+    def resolve_conflict(self, context: ConflictContext) -> ConflictResult | None:
         """遍历冲突检测插件, 返回第一个 can_handle=True 的 handle() 结果
 
         Returns:
@@ -172,7 +172,7 @@ class PluginRegistry:
 
     # ── 从 YAML 配置加载 ──
 
-    def load_from_config(self, config_path: Optional[str] = None) -> int:
+    def load_from_config(self, config_path: str | None = None) -> int:
         """从 YAML 配置批量加载插件
 
         配置格式:
@@ -244,7 +244,7 @@ class PluginRegistry:
 
 # ── 全局单例 ──
 
-_registry: Optional[PluginRegistry] = None
+_registry: PluginRegistry | None = None
 _registry_lock = threading.Lock()
 
 

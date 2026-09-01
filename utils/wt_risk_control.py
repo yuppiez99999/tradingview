@@ -9,18 +9,19 @@ WonderTrader风格风控模块
 
 适用于增强现有系统的风控能力。
 """
+from __future__ import annotations
 
 import json
 import logging
 import math
 import os
 from datetime import datetime
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
 # scipy.stats 前向声明 (模块级) — 根除 student_t 局部 try import ignore
-scipy_stats: Optional[type]
+scipy_stats: type | None
 try:
     from scipy import stats as _scipy_stats
 
@@ -85,7 +86,7 @@ class RiskControl:
     circuit_breaker_tripped: bool
     circuit_breaker_reason: str
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         self.config = (
             cast(dict[str, Any], config)
             if config is not None
@@ -137,7 +138,7 @@ class RiskControl:
             drawdown = (self.max_equity - self.current_equity) / self.max_equity
             if drawdown >= self.config["max_portfolio_drawdown_pct"]:
                 self.circuit_breaker_tripped = True
-                self.circuit_breaker_reason = f"组合回撤 {drawdown:.2%} >= {self.config['max_portfolio_drawdown_pct']:.2%}"
+                self.circuit_breaker_reason = f"组合回撤 {drawdown:.2%} >= {self.config['max_portfolio_drawdown_pct']:.2%}"  # noqa: E501
                 return False, self.circuit_breaker_reason
 
         if self.daily_loss >= self.config["max_daily_loss_pct"] * self.max_equity:
@@ -297,7 +298,7 @@ class StopLossManager:
 
     def check_stop_loss(
         self, code: str, current_price: float
-    ) -> tuple[str, Optional[dict]]:
+    ) -> tuple[str, dict | None]:
         """检查止损条件
 
         Returns:
@@ -662,7 +663,7 @@ class RiskReportGenerator:
         risk_control: RiskControl,
         stop_loss_manager: StopLossManager,
         positions: dict,
-        sector_map: Optional[dict] = None,
+        sector_map: dict | None = None,
     ) -> str:
         """生成风险报告"""
         risk_status = risk_control.get_risk_status()
@@ -706,7 +707,7 @@ class RiskReportGenerator:
             lines.append("|------|---------|------|------|------|")
             for code, info in concentration.items():
                 lines.append(
-                    f"| {code} | ¥{info['value']:,.0f} | {info['percentage']:.2%} | {info['qty']:,} | {info['avg_cost']:.4f} |"
+                    f"| {code} | ¥{info['value']:,.0f} | {info['percentage']:.2%} | {info['qty']:,} | {info['avg_cost']:.4f} |"  # noqa: E501
                 )
         else:
             lines.append("- 无持仓")
@@ -748,7 +749,7 @@ class RiskReportGenerator:
                     "triggered_take_profit": "💰 止盈触发",
                 }
                 lines.append(
-                    f"| {code} | {order['avg_cost']:.4f} | {order['stop_price']:.4f} | {order['take_profit_price']:.4f} | {status_map.get(order['status'], order['status'])} |"
+                    f"| {code} | {order['avg_cost']:.4f} | {order['stop_price']:.4f} | {order['take_profit_price']:.4f} | {status_map.get(order['status'], order['status'])} |"  # noqa: E501
                 )
         else:
             lines.append("- 无止损单")
@@ -756,7 +757,7 @@ class RiskReportGenerator:
         return "\n".join(lines)
 
 
-def create_risk_control(config: Optional[dict] = None) -> RiskControl:
+def create_risk_control(config: dict | None = None) -> RiskControl:
     """创建风控管理器"""
     return RiskControl(config)
 

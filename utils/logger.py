@@ -8,6 +8,7 @@
 - 相对路径输出
 - 第三方库日志降噪
 """
+from __future__ import annotations
 
 import logging
 import os
@@ -15,7 +16,7 @@ import sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 LOG_FORMAT = (
     "%(asctime)s | %(levelname)-8s | %(name)s | %(pathname)s:%(lineno)d | %(message)s"
@@ -55,9 +56,9 @@ class RelativePathFormatter(logging.Formatter):
 
     def __init__(
         self,
-        fmt: Optional[str] = None,
-        datefmt: Optional[str] = None,
-        relative_to: Optional[Union[str, Path]] = None,
+        fmt: str | None = None,
+        datefmt: str | None = None,
+        relative_to: str | Path | None = None,
     ) -> None:
         super().__init__(fmt, datefmt)
         self.relative_to = Path(relative_to) if relative_to else Path.cwd()
@@ -77,7 +78,7 @@ class Logger:
         self,
         name: str,
         level: str = "INFO",
-        log_file: Optional[str] = None,  # type: ignore
+        log_file: str | None = None,  # type: ignore
         console_output: bool = True,
         max_file_size: int = 10 * 1024 * 1024,
         backup_count: int = 5,
@@ -148,7 +149,7 @@ class Logger:
         self.logger.critical(message, *args, **kwargs)
 
 
-def _resolve_log_level(raw_level: Optional[str], default: int = logging.INFO) -> int:
+def _resolve_log_level(raw_level: str | None, default: int = logging.INFO) -> int:
     if not raw_level:
         return default
     return getattr(logging, str(raw_level).upper(), default)
@@ -253,7 +254,7 @@ def get_logger(name: str, log_dir: str = DEFAULT_LOG_DIR) -> Logger:
     Returns:
         Logger 实例
     """
-    log_file: Optional[str] = None
+    log_file: str | None = None
     if log_dir:
         try:
             if not os.path.exists(log_dir):

@@ -34,7 +34,7 @@ from __future__ import annotations
 import re
 import warnings as _warnings
 from dataclasses import dataclass, field
-from typing import Literal, NewType, Optional
+from typing import Literal, NewType
 
 # ============================================================
 # NewType 定义 (运行时 = str, mypy 静态可区分)
@@ -179,8 +179,8 @@ class SymbolInfo:
     asset_type: str
     product: str
     eastmoney_secid: str
-    futures_year: Optional[int] = None
-    futures_month: Optional[int] = None
+    futures_year: int | None = None
+    futures_month: int | None = None
     warnings: list = field(default_factory=list)
 
 

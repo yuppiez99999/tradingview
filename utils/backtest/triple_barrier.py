@@ -35,7 +35,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -101,7 +100,7 @@ class TripleBarrierResult:
 
     labels: pd.Series
     events: list[BarrierEvent] = field(default_factory=list)
-    config: Optional[TripleBarrierConfig] = None
+    config: TripleBarrierConfig | None = None
 
     @property
     def label_counts(self) -> dict[str, int]:
@@ -147,7 +146,7 @@ class TripleBarrierLabeler:
         result = labeler.label(prices, events)
     """
 
-    def __init__(self, config: Optional[TripleBarrierConfig] = None) -> None:
+    def __init__(self, config: TripleBarrierConfig | None = None) -> None:
         self.config = config or TripleBarrierConfig()
 
     def _compute_volatility(self, prices: pd.Series) -> pd.Series:
@@ -160,7 +159,7 @@ class TripleBarrierLabeler:
     def _get_barrier_widths(
         self,
         entry_price: float,
-        volatility: Optional[float] = None,
+        volatility: float | None = None,
     ) -> tuple[float, float]:
         """获取上/下障碍宽度.
 
@@ -179,7 +178,7 @@ class TripleBarrierLabeler:
         self,
         prices: pd.Series,
         events: pd.DataFrame,
-        volatility: Optional[pd.Series] = None,
+        volatility: pd.Series | None = None,
     ) -> TripleBarrierResult:
         """对事件进行三重障碍标注.
 
@@ -306,9 +305,9 @@ class TripleBarrierLabeler:
     def label_simple(
         self,
         prices: pd.Series,
-        num_bars: Optional[int] = None,
-        profit_width: Optional[float] = None,
-        stop_width: Optional[float] = None,
+        num_bars: int | None = None,
+        profit_width: float | None = None,
+        stop_width: float | None = None,
     ) -> TripleBarrierResult:
         """简化标注: 每个价格点都是一个事件.
 
@@ -338,7 +337,7 @@ class TripleBarrierLabeler:
 def meta_labeling(
     primary_labels: pd.Series,
     prices: pd.Series,
-    config: Optional[TripleBarrierConfig] = None,
+    config: TripleBarrierConfig | None = None,
 ) -> pd.Series:
     """Meta-Labeling (二级分类器) — López de Prado AFML Ch.3.6.
 

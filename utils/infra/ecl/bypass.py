@@ -16,7 +16,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from utils.infra.feature_flags import FeatureFlags
+from utils.infra.feature_flags import is_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,7 @@ def run_ecl_bypass(
 
     result: dict[str, Any] = {"success": True, "date": report_date}
 
-    if FeatureFlags.is_enabled("USE_ECL_EVENT_LOG"):
+    if is_enabled("USE_ECL_EVENT_LOG"):
         try:
             result["reconcile"] = _reconcile_events(report_date, db, dec)
         except Exception as e:  # noqa: BLE001 — fail-open
@@ -149,7 +149,7 @@ def run_ecl_bypass(
     else:
         result["reconcile"] = {"step": "reconcile", "skipped": "USE_ECL_EVENT_LOG off"}
 
-    if FeatureFlags.is_enabled("USE_ECL_EXPERIENCE"):
+    if is_enabled("USE_ECL_EXPERIENCE"):
         try:
             result["derive"] = _derive_experiences(report_date, db)
         except Exception as e:  # noqa: BLE001 — fail-open
@@ -157,7 +157,7 @@ def run_ecl_bypass(
     else:
         result["derive"] = {"step": "derive", "skipped": "USE_ECL_EXPERIENCE off"}
 
-    if FeatureFlags.is_enabled("USE_ECL_RETRIEVAL"):
+    if is_enabled("USE_ECL_RETRIEVAL"):
         try:
             result["retrieval"] = _record_retrieval(report_date, db, ret)
         except Exception as e:  # noqa: BLE001 — fail-open

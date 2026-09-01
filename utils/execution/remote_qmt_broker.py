@@ -23,7 +23,6 @@ import logging
 import time
 from collections.abc import Callable
 from datetime import datetime
-from typing import Optional
 
 from ms_strategy.src.execution.broker_api import BrokerAPI, Fill, Order
 
@@ -61,7 +60,7 @@ class RemoteQmtBroker(BrokerAPI):
         self.rpc_url = rpc_url.rstrip("/")
         self.token = token
         self.timeout = timeout
-        self._client: Optional[httpx.Client] = None
+        self._client: httpx.Client | None = None
         self._connected = False
         self._last_health: float = 0.0
         self._health_interval: float = 30.0
@@ -73,7 +72,7 @@ class RemoteQmtBroker(BrokerAPI):
     def _headers(self) -> dict:
         return {"X-Token": self.token, "Content-Type": "application/json"}
 
-    def _post(self, path: str, payload: dict) -> Optional[dict]:
+    def _post(self, path: str, payload: dict) -> dict | None:
         try:
             resp = self._client.post(
                 path, json=payload, headers=self._headers(), timeout=self.timeout
@@ -86,7 +85,7 @@ class RemoteQmtBroker(BrokerAPI):
             logger.error("RPC POST %s 异常: %s", path, exc)
             return None
 
-    def _get(self, path: str) -> Optional[dict]:
+    def _get(self, path: str) -> dict | None:
         try:
             resp = self._client.get(path, headers=self._headers(), timeout=self.timeout)
             if resp.status_code == 200:
@@ -161,8 +160,8 @@ class RemoteQmtBroker(BrokerAPI):
         order_type: str = "LIMIT",
         price: float = 0.0,
         ts: str = "",
-        callback: Optional[Callable] = None,
-    ) -> Optional[Order]:
+        callback: Callable | None = None,
+    ) -> Order | None:
         if not self.is_connected:
             logger.error("RemoteQmtBroker 未连接, 无法下单")
             return None
@@ -216,7 +215,7 @@ class RemoteQmtBroker(BrokerAPI):
     # 等待成交
     # ------------------------------------------------------------
 
-    def wait_fill(self, order: Order, timeout: int = 30) -> Optional[dict]:
+    def wait_fill(self, order: Order, timeout: int = 30) -> dict | None:
         if not self.is_connected:
             return None
         # 把轮询交给 Win 侧 (它离 QMT 最近, 延迟最低)
@@ -284,7 +283,7 @@ class RemoteQmtBroker(BrokerAPI):
     # 盘口 (可选, 走 Win 侧 xtdata)
     # ------------------------------------------------------------
 
-    def get_order_book(self, symbol: str, levels: int = 5) -> Optional[dict]:
+    def get_order_book(self, symbol: str, levels: int = 5) -> dict | None:
         if not self.is_connected:
             return None
         result = self._get(f"/order_book?symbol={symbol}&levels={levels}")

@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -53,7 +52,7 @@ class TurnoverResult:
     factor_name: str
     daily_turnover: list[float]  # 每日换手率序列 (0~1)
     avg_daily_turnover: float  # 日均换手率
-    weekly_turnover: Optional[float] = None  # 5 日平均换手率 (可选)
+    weekly_turnover: float | None = None  # 5 日平均换手率 (可选)
 
 
 @dataclass
@@ -63,7 +62,7 @@ class DecayResult:
     factor_name: str
     ic_by_window: dict[int, float]  # {前瞻窗口天数: IC 均值}
     icir_by_window: dict[int, float]  # {前瞻窗口天数: ICIR}
-    half_life_days: Optional[float]  # IC 半衰期 (天数, 指数拟合, 拟合失败返回 None)
+    half_life_days: float | None  # IC 半衰期 (天数, 指数拟合, 拟合失败返回 None)
 
 
 @dataclass
@@ -79,11 +78,11 @@ class FactorTearSheet:
     ic_win_rate: float = 0.0  # IC > 0 的比例
     t_stat: float = 0.0  # IC 的 t 统计量 (显著性)
     # 分层收益
-    quantile: Optional[QuantileReturn] = None
+    quantile: QuantileReturn | None = None
     # 换手率
-    turnover: Optional[TurnoverResult] = None
+    turnover: TurnoverResult | None = None
     # 衰减曲线
-    decay: Optional[DecayResult] = None
+    decay: DecayResult | None = None
 
 
 # ============================================================
@@ -224,7 +223,7 @@ def compute_turnover(
         TurnoverResult — 日均换手率 + 完整序列
     """
     daily: list[float] = []
-    prev_set: Optional[set[str]] = None
+    prev_set: set[str] | None = None
 
     for fv in factor_history:
         valid = [
@@ -266,7 +265,7 @@ def compute_turnover(
 def compute_factor_decay(
     factor_history: list[dict[str, float]],
     forward_returns_by_window: dict[int, list[dict[str, float]]],
-    windows: Optional[list[int]] = None,
+    windows: list[int] | None = None,
     factor_name: str = "",
 ) -> DecayResult:
     """计算因子衰减曲线 (factor-mining decay.py 思路)
@@ -306,7 +305,7 @@ def compute_factor_decay(
 
     # 半衰期拟合: 指数衰减模型 IC(w) = A * exp(-λ * w)
     # 用 1,2,3,5,10 窗口 (短期) 拟合, 长窗口噪声大不参与
-    half_life: Optional[float] = None
+    half_life: float | None = None
     try:
         fit_windows = [w for w in windows if w <= 10 and ic_mean_map.get(w, 0) != 0.0]
         if len(fit_windows) >= 3:
@@ -340,12 +339,12 @@ def compute_factor_decay(
 
 def build_factor_tear_sheet(
     factor_name: str,
-    factor_history: Optional[list[dict[str, float]]] = None,
-    forward_returns_history: Optional[list[dict[str, float]]] = None,
-    latest_factor_values: Optional[dict[str, float]] = None,
-    latest_forward_returns: Optional[dict[str, float]] = None,
+    factor_history: list[dict[str, float]] | None = None,
+    forward_returns_history: list[dict[str, float]] | None = None,
+    latest_factor_values: dict[str, float] | None = None,
+    latest_forward_returns: dict[str, float] | None = None,
     forward_window: int = 5,
-    forward_returns_by_window: Optional[dict[int, list[dict[str, float]]]] = None,
+    forward_returns_by_window: dict[int, list[dict[str, float]]] | None = None,
     top_pct_for_turnover: float = 0.2,
 ) -> FactorTearSheet:
     """构造单因子完整 Tear Sheet (alphalens 风格)
@@ -430,7 +429,7 @@ def evaluate_all_factors_tear_sheets(
     latest_factor_values_by_name: dict[str, dict[str, float]],
     latest_forward_returns: dict[str, float],
     forward_window: int = 5,
-    forward_returns_by_window: Optional[dict[int, list[dict[str, float]]]] = None,
+    forward_returns_by_window: dict[int, list[dict[str, float]]] | None = None,
 ) -> dict[str, FactorTearSheet]:
     """批量构建所有因子的 Tear Sheet
 

@@ -24,7 +24,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 try:
     from ..logging_manager import get_logger
@@ -73,7 +73,7 @@ class SentimentSourceConfig:
     min_confidence: float = DEFAULT_MIN_CONFIDENCE
     news_lookback_days: int = DEFAULT_NEWS_LOOKBACK_DAYS
     enable_comments: bool = False
-    keyword_resolver: Optional[Callable[[str], str]] = None
+    keyword_resolver: Callable[[str], str] | None = None
 
 
 # ============================================================
@@ -117,9 +117,9 @@ class SentimentSignalSource:
 
     def __init__(
         self,
-        media_crawler: Optional[Any] = None,
-        sentiment_engine: Optional[Any] = None,
-        config: Optional[SentimentSourceConfig] = None,
+        media_crawler: Any | None = None,
+        sentiment_engine: Any | None = None,
+        config: SentimentSourceConfig | None = None,
     ) -> None:
         self.config = config or SentimentSourceConfig()
         self._keyword_resolver = (
@@ -302,7 +302,7 @@ class SentimentSignalSource:
             return None
 
     @staticmethod
-    def _parse_time(time_str: str) -> Optional[datetime]:
+    def _parse_time(time_str: str) -> datetime | None:
         if not time_str:
             return None
         for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):

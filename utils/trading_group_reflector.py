@@ -41,7 +41,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("trading_group_reflector")
 
@@ -97,8 +97,8 @@ class ReflectionRecord:
     ticker: str
     action: str
     entry_price: float
-    exit_price: Optional[float] = None
-    outcome_return: Optional[float] = None
+    exit_price: float | None = None
+    outcome_return: float | None = None
     error_type: ErrorType = ErrorType.NO_ERROR
     grade: ReflectionGrade = ReflectionGrade.NEUTRAL
     improvement: str = ""
@@ -183,7 +183,7 @@ class DynamicStops:
 
     stop_loss: float
     take_profit: float
-    trailing_stop: Optional[float] = None
+    trailing_stop: float | None = None
     position_size: float = 1.0
     risk_score: float = 0.0
     reason: str = ""
@@ -440,7 +440,7 @@ class TradingGroupReflector:
         self,
         decision: dict[str, Any],
         outcome: dict[str, Any],
-        market_state: Optional[dict[str, Any]] = None,
+        market_state: dict[str, Any] | None = None,
     ) -> ReflectionRecord:
         """对单次决策进行自反思。
 
@@ -491,8 +491,8 @@ class TradingGroupReflector:
         self,
         action: str,
         entry_price: float,
-        exit_price: Optional[float],
-        outcome_return: Optional[float],
+        exit_price: float | None,
+        outcome_return: float | None,
     ) -> tuple[ErrorType, ReflectionGrade, str]:
         """评估决策正确性, 返回 (错误类型, 评级, 改进建议)。
 
@@ -512,7 +512,7 @@ class TradingGroupReflector:
         return ErrorType.NO_ERROR, ReflectionGrade.NEUTRAL, "收益中性, 无明显错误"
 
     def synthesize_data(
-        self, records: Optional[list[ReflectionRecord]] = None
+        self, records: list[ReflectionRecord] | None = None
     ) -> list[SyntheticSample]:
         """合成训练数据。
 

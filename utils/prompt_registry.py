@@ -44,7 +44,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     import yaml
@@ -88,7 +88,7 @@ class PromptRecord:
     versions: dict[str, PromptVersion] = field(default_factory=dict)
     latest: int = 0
 
-    def get_version(self, version: Optional[int] = None) -> PromptVersion:
+    def get_version(self, version: int | None = None) -> PromptVersion:
         """取指定版本, None 取最新."""
         v = version if version is not None else self.latest
         if v == 0 or str(v) not in self.versions:
@@ -115,7 +115,7 @@ class PromptRegistry:
     """
 
     def __init__(
-        self, store_path: Optional[Path] = None, *, auto_confirm: bool = False
+        self, store_path: Path | None = None, *, auto_confirm: bool = False
     ):
         self.store_path = Path(store_path) if store_path else _DEFAULT_STORE
         self.auto_confirm = auto_confirm
@@ -177,7 +177,7 @@ class PromptRegistry:
         name: str,
         template: str,
         *,
-        variables: Optional[list[str]] = None,
+        variables: list[str] | None = None,
         target_model: str = "",
         description: str = "",
         notes: str = "",
@@ -228,7 +228,7 @@ class PromptRegistry:
         return new_v
 
     @tier_r("获取 prompt", params_extractor=lambda self, name, **kw: {"name": name})
-    def get(self, name: str, version: Optional[int] = None) -> PromptRecord:
+    def get(self, name: str, version: int | None = None) -> PromptRecord:
         """获取 prompt 记录 (Tier R)."""
         if name not in self._records:
             raise KeyError(f"prompt '{name}' 不存在")
@@ -268,7 +268,7 @@ class PromptRegistry:
         params_extractor=lambda self, name, **kw: {"name": name, "vars": kw},
     )
     def assemble(
-        self, name: str, version: Optional[int] = None, **variables: Any
+        self, name: str, version: int | None = None, **variables: Any
     ) -> str:
         """组装 prompt: 拉取模板 + 替换变量 (Tier R).
 

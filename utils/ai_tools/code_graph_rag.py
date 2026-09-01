@@ -26,7 +26,7 @@ import os
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     from ..logging_manager import get_logger
@@ -62,11 +62,11 @@ class SymbolLocation:
     name: str
     qualified_name: str
     file_path: str
-    line_start: Optional[int] = None
-    line_end: Optional[int] = None
-    language: Optional[str] = None
-    parent_name: Optional[str] = None
-    signature: Optional[str] = None
+    line_start: int | None = None
+    line_end: int | None = None
+    language: str | None = None
+    parent_name: str | None = None
+    signature: str | None = None
     is_test: bool = False
 
     def to_dict(self) -> dict[str, Any]:
@@ -146,11 +146,11 @@ class CodeGraphRAG:
         impact = rag.impact_analysis("utils/signal_fusion.py")
     """
 
-    def __init__(self, db_path: Optional[str] = None) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         self.db_path = db_path or _default_db_path()
         if not os.path.exists(self.db_path):
             raise FileNotFoundError(f"graph.db 不存在: {self.db_path}")
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
 
     # ------------------------------------------------------------
     # 连接管理
@@ -170,7 +170,7 @@ class CodeGraphRAG:
                 pass
             self._conn = None
 
-    def __enter__(self) -> "CodeGraphRAG":
+    def __enter__(self) -> CodeGraphRAG:
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -183,7 +183,7 @@ class CodeGraphRAG:
     def search_symbol(
         self,
         name: str,
-        kind: Optional[str] = None,
+        kind: str | None = None,
         limit: int = 20,
     ) -> list[SymbolLocation]:
         """按符号名检索 (模糊匹配)
@@ -197,7 +197,7 @@ class CodeGraphRAG:
             return []
         try:
             conn = self._get_conn()
-            sql = "SELECT kind, name, qualified_name, file_path, line_start, line_end, language, parent_name, signature, is_test FROM nodes WHERE name LIKE ?"
+            sql = "SELECT kind, name, qualified_name, file_path, line_start, line_end, language, parent_name, signature, is_test FROM nodes WHERE name LIKE ?"  # noqa: E501
             params: list[Any] = [f"%{name}%"]
             if kind:
                 sql += " AND kind = ?"
@@ -210,14 +210,14 @@ class CodeGraphRAG:
             logger.debug("search_symbol 失败 name=%s: %s", name, e)
             return []
 
-    def get_node_detail(self, qualified_name: str) -> Optional[SymbolLocation]:
+    def get_node_detail(self, qualified_name: str) -> SymbolLocation | None:
         """按 qualified_name 精确查节点"""
         if not qualified_name:
             return None
         try:
             conn = self._get_conn()
             row = conn.execute(
-                "SELECT kind, name, qualified_name, file_path, line_start, line_end, language, parent_name, signature, is_test FROM nodes WHERE qualified_name = ?",
+                "SELECT kind, name, qualified_name, file_path, line_start, line_end, language, parent_name, signature, is_test FROM nodes WHERE qualified_name = ?",  # noqa: E501
                 (qualified_name,),
             ).fetchone()
             return self._row_to_symbol(row) if row else None
@@ -271,7 +271,7 @@ class CodeGraphRAG:
             col = "target_qualified" if direction == "target" else "source_qualified"
             if col not in ("target_qualified", "source_qualified"):
                 raise ValueError(f"Invalid column: {col}")
-            sql = f"SELECT kind, source_qualified, target_qualified, file_path, line, confidence FROM edges WHERE kind = ? AND {col} LIKE ? LIMIT ?"  # noqa: S608 — col 已通过白名单校验, 值均参数化
+            sql = f"SELECT kind, source_qualified, target_qualified, file_path, line, confidence FROM edges WHERE kind = ? AND {col} LIKE ? LIMIT ?"  # noqa: S608, E501 — col 已通过白名单校验, 值均参数化  # nosec B608
             rows = conn.execute(sql, (edge_kind, f"%{name}%", limit)).fetchall()
             return [self._row_to_edge(r) for r in rows]
         except (ValueError, TypeError, KeyError, sqlite3.Error, OSError) as e:
@@ -300,7 +300,7 @@ class CodeGraphRAG:
             conn = self._get_conn()
 
             changed_nodes = conn.execute(
-                "SELECT kind, name, qualified_name, file_path, line_start, line_end, language, parent_name, signature, is_test FROM nodes WHERE file_path LIKE ?",
+                "SELECT kind, name, qualified_name, file_path, line_start, line_end, language, parent_name, signature, is_test FROM nodes WHERE file_path LIKE ?",  # noqa: E501
                 (f"%{change_path}%",),
             ).fetchall()
             result.changed_symbols = [self._row_to_symbol(r) for r in changed_nodes]
@@ -314,7 +314,7 @@ class CodeGraphRAG:
                 next_qnames: set[str] = set()
                 placeholders = ",".join("?" for _ in caller_qnames)
                 rows = conn.execute(
-                    f"SELECT kind, source_qualified, target_qualified, file_path, line, confidence FROM edges WHERE kind IN ('CALLS','IMPORTS_FROM','REFERENCES','INHERITS') AND target_qualified IN ({placeholders})",  # noqa: S608 — placeholders 为 ? 占位符, 值通过参数传入
+                    f"SELECT kind, source_qualified, target_qualified, file_path, line, confidence FROM edges WHERE kind IN ('CALLS','IMPORTS_FROM','REFERENCES','INHERITS') AND target_qualified IN ({placeholders})",  # noqa: S608, E501 — placeholders 为 ? 占位符, 值通过参数传入  # nosec B608
                     list(caller_qnames),
                 ).fetchall()
                 for r in rows:
@@ -403,7 +403,7 @@ class CodeGraphRAG:
 # 便捷函数
 # ============================================================
 
-_rag_instance: Optional[CodeGraphRAG] = None
+_rag_instance: CodeGraphRAG | None = None
 
 
 def get_code_graph_rag() -> CodeGraphRAG:

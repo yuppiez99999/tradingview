@@ -28,7 +28,6 @@ Layer 1 用静态边权重 (strength) 聚合邻居信息, 跨窗稳定性不足�
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
 
@@ -48,8 +47,8 @@ class GATFactor:
         self.n_hidden = n_hidden
         self.n_heads = n_heads
         self.leaky_alpha = leaky_alpha
-        self.W: Optional[np.ndarray] = None  # 特征投影 [heads, n_hidden, n_features]
-        self.a: Optional[np.ndarray] = None  # 注意力向量 [heads, 2*n_hidden]
+        self.W: np.ndarray | None = None  # 特征投影 [heads, n_hidden, n_features]
+        self.a: np.ndarray | None = None  # 注意力向量 [heads, 2*n_hidden]
         self.n_features = 0
 
     def _init_params(self, n_features: int) -> None:

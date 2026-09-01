@@ -25,7 +25,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -73,15 +72,15 @@ class ResultConverter:
         确保两个引擎在相同输入下偏差 < 5% (验收标准)。
     """
 
-    def __init__(self, config: Optional[ConversionConfig] = None) -> None:
+    def __init__(self, config: ConversionConfig | None = None) -> None:
         self._config = config or ConversionConfig()
 
     def convert(
         self,
         summary: EngineSummary,
-        dates: Optional[list[pd.Timestamp]] = None,
+        dates: list[pd.Timestamp] | None = None,
         name: str = "event_driven",
-        csi300_returns: Optional[list[float]] = None,
+        csi300_returns: list[float] | None = None,
     ) -> BacktestResult:
         """转换 EngineSummary 为 BacktestResult。
 
@@ -236,7 +235,7 @@ class ResultConverter:
     def _calc_yearly_stats(
         self,
         result: BacktestResult,
-        csi300_returns: Optional[list[float]] = None,
+        csi300_returns: list[float] | None = None,
     ) -> None:
         """逐年收益/波动/回撤/CSI300 对比/换手率统计。
 

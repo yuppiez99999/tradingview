@@ -31,7 +31,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 logger = logging.getLogger("hedge_execution_engine")
 
@@ -67,8 +67,8 @@ class HedgeExecutionEngine:
     PUT_ROLL_DTE = 5  # 到期前5天滚仓
 
     # 懒加载可选实例属性 — 根除 __init__ 中 = None 触发的 None 单例推断
-    _hedge_manager: Optional[Any]
-    _post_trade_attribution: Optional[Any]
+    _hedge_manager: Any | None
+    _post_trade_attribution: Any | None
     positions_data: dict
     positions_file: Path
 

@@ -29,6 +29,7 @@ LLM降级链: DeepSeek (V3/R1, 主 LLM) → Ollama本地 → GLM-5 → 豆包 �
     # 盘后复盘 (15:00-15:30)
     post_review = engine.post_market_review()
 """
+from __future__ import annotations
 
 import argparse
 import json
@@ -39,7 +40,7 @@ import time
 import types
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, TypedDict, cast
+from typing import Any, TypedDict, cast
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ class DecisionResult(TypedDict, total=False):
     sudden_changes: list[dict]
     fused_signals: list[dict[str, Any]]
     recommendations: list[dict]
-    llm_analysis: Optional[str]
+    llm_analysis: str | None
     realtime_snapshot: dict[str, Any]
 
 
@@ -125,7 +126,7 @@ class ETFFlowDecisionEngine:
     """ETF资金流向盘前/盘中/盘后决策引擎"""
 
     # 可选懒加载属性 — 根除 None 单例推断触发的 [union-attr]
-    _local_llm_client: Optional[Any]
+    _local_llm_client: Any | None
     _decision_cache: dict[str, dict[str, Any]]
     _cache_ttl: int
     tracker: Any
@@ -174,7 +175,7 @@ class ETFFlowDecisionEngine:
                 logger.warning(f"LLM客户端加载失败: {e}，将使用纯规则引擎")
         return self._local_llm_client
 
-    def _call_llm_analysis(self, prompt: str, system: str = "") -> Optional[str]:
+    def _call_llm_analysis(self, prompt: str, system: str = "") -> str | None:
         """调用本地LLM进行分析
 
         降级链: DeepSeek (V3/R1, 主 LLM) → Ollama → GLM-5 → 豆包 → 规则引擎
@@ -194,7 +195,7 @@ class ETFFlowDecisionEngine:
             )
             if result:
                 logger.info(f"LLM分析成功: {len(result)} 字")
-                return cast(Optional[str], result)
+                return cast(str | None, result)
             logger.warning("LLM返回为空，降级到规则引擎")
             return None
         except (AttributeError, TypeError, ValueError, OSError) as e:
@@ -251,7 +252,7 @@ class ETFFlowDecisionEngine:
         for code, data in flow_data.items():
             if abs(data.get("net_flow_yi", 0)) >= SIGNAL_CONFIG["medium_inflow"]:
                 strong_signals.append(
-                    f"{data.get('name', code)}: {data['trend']} {data.get('net_flow_yi', 0):+.2f}亿 (来源: {data.get('source', '-')})"
+                    f"{data.get('name', code)}: {data['trend']} {data.get('net_flow_yi', 0):+.2f}亿 (来源: {data.get('source', '-')})"  # noqa: E501
                 )
 
         signals_text = "\n".join(strong_signals) if strong_signals else "无显著信号"
@@ -618,7 +619,7 @@ class ETFFlowDecisionEngine:
         self,
         signals: dict,
         realtime_data: dict,
-        sudden_changes: Optional[list[dict]] = None,
+        sudden_changes: list[dict] | None = None,
     ) -> list[dict]:
         """生成交易建议"""
         recommendations = []
@@ -768,7 +769,7 @@ class ETFFlowDecisionScheduler:
     """ETF资金流决策定时调度器"""
 
     # 可选线程属性 — 根除 __init__ 中 = None 的 None 单例推断
-    _thread: Optional[threading.Thread]
+    _thread: threading.Thread | None
     _running: bool
     engine: ETFFlowDecisionEngine
 

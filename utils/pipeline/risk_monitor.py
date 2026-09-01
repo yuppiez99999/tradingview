@@ -26,7 +26,6 @@ import logging
 import threading
 import time
 from datetime import datetime
-from typing import Optional
 
 from .config import get_pipeline_config
 from .types import PipelineConfig, PipelineResult, PipelineStage, RiskAlert
@@ -52,11 +51,11 @@ class RiskMonitor:
         monitor.stop()
     """
 
-    def __init__(self, config: Optional[PipelineConfig] = None):
+    def __init__(self, config: PipelineConfig | None = None):
         self.config = config or get_pipeline_config()
         self._running = False
-        self._thread: Optional[threading.Thread] = None
-        self._latest_alert: Optional[RiskAlert] = None
+        self._thread: threading.Thread | None = None
+        self._latest_alert: RiskAlert | None = None
         self._alert_history: list[RiskAlert] = []
         self._lock = threading.Lock()
 
@@ -145,7 +144,7 @@ class RiskMonitor:
         if gap_alert:
             self._handle_alert(gap_alert)
 
-    def _check_margin(self) -> Optional[RiskAlert]:
+    def _check_margin(self) -> RiskAlert | None:
         """检查保证金使用率"""
         try:
             # 尝试从 KillSwitch 获取状态
@@ -196,7 +195,7 @@ class RiskMonitor:
             logger.warning(f"保证金检查失败: {e}")
             return None
 
-    def _estimate_margin_from_positions(self) -> Optional[RiskAlert]:
+    def _estimate_margin_from_positions(self) -> RiskAlert | None:
         """从 positions.json 估算保证金使用率 (降级方案)"""
         try:
             import json
@@ -250,7 +249,7 @@ class RiskMonitor:
 
         return None
 
-    def _check_drawdown(self) -> Optional[RiskAlert]:
+    def _check_drawdown(self) -> RiskAlert | None:
         """检查回撤"""
         try:
             # 尝试从 RiskGuardIntegrator 获取
@@ -299,7 +298,7 @@ class RiskMonitor:
             logger.warning(f"回撤检查失败: {e}")
             return None
 
-    def _check_overnight_gap(self) -> Optional[RiskAlert]:
+    def _check_overnight_gap(self) -> RiskAlert | None:
         """检查隔夜跳空风险 (仅盘前)"""
         # 简化实现: 检查是否在盘前时段 (9:00-9:25)
         now = datetime.now()
@@ -345,7 +344,7 @@ class RiskMonitor:
         except ImportError:
             pass
 
-    def get_latest_alert(self) -> Optional[RiskAlert]:
+    def get_latest_alert(self) -> RiskAlert | None:
         """获取最新风控告警"""
         with self._lock:
             return self._latest_alert

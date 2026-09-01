@@ -27,7 +27,6 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +56,7 @@ class IntegrationResult:
     shadow_state_written: bool = False
     admission_state_written: bool = False
     launch_state_written: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -79,7 +78,7 @@ def _utcnow_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def _parse_fill_date(fill: dict) -> Optional[str]:
+def _parse_fill_date(fill: dict) -> str | None:
     """从成交记录解析交易日 (YYYY-MM-DD). 优先 'date' 字段, 其次 'ts'."""
     d = fill.get("date")
     if d:
@@ -188,11 +187,11 @@ class ShadowFillsIntegrator:
 
     def __init__(
         self,
-        project_root: Optional[Path] = None,
-        shadow_state_path: Optional[Path] = None,
-        admission_state_path: Optional[Path] = None,
-        launch_state_path: Optional[Path] = None,
-        fills_source: Optional[Callable[[Optional[str]], Iterable[dict]]] = None,
+        project_root: Path | None = None,
+        shadow_state_path: Path | None = None,
+        admission_state_path: Path | None = None,
+        launch_state_path: Path | None = None,
+        fills_source: Callable[[str | None], Iterable[dict]] | None = None,
     ) -> None:
         self.project_root = Path(project_root or _DEFAULT_PROJECT_ROOT)
         self.shadow_state_path = Path(shadow_state_path or _DEFAULT_SHADOW_STATE)
@@ -203,7 +202,7 @@ class ShadowFillsIntegrator:
         self._fills_source = fills_source or self._default_fills_source
 
     # ---- 默认数据源: FillsStore ----
-    def _default_fills_source(self, target_date: Optional[str]) -> Iterable[dict]:
+    def _default_fills_source(self, target_date: str | None) -> Iterable[dict]:
         try:
             import glob
 
@@ -228,7 +227,7 @@ class ShadowFillsIntegrator:
             return []
 
     # ---- 主入口 ----
-    def integrate(self, target_date: Optional[str] = None) -> IntegrationResult:
+    def integrate(self, target_date: str | None = None) -> IntegrationResult:
         """执行桥接.
 
         Args:
@@ -338,7 +337,7 @@ class ShadowFillsIntegrator:
         result.launch_state_written = _save_json_atomic(self.launch_state_path, launch)
 
 
-def run_integration(target_date: Optional[str] = None) -> IntegrationResult:
+def run_integration(target_date: str | None = None) -> IntegrationResult:
     """模块级便捷入口 (供 CLI / EOD 调用)."""
     return ShadowFillsIntegrator().integrate(target_date)
 

@@ -71,7 +71,7 @@ class AuditRecord:
         return json.dumps(asdict(self), ensure_ascii=False, sort_keys=True)
 
     @staticmethod
-    def from_json_line(line: str) -> "AuditRecord | None":
+    def from_json_line(line: str) -> AuditRecord | None:
         try:
             d = json.loads(line)
         except json.JSONDecodeError:

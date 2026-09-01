@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 import os
 from collections.abc import Generator
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +16,7 @@ class LocalLLMClient:
 
     def __init__(
         self,
-        model_path: Optional[str] = None,
+        model_path: str | None = None,
         n_ctx: int = 2048,
         n_gpu_layers: int = 0,
         n_threads: int = 4,
@@ -125,8 +127,8 @@ class LocalLLMClient:
     def chat(
         self,
         messages: list[dict[str, str]],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         stream: bool = False,
     ) -> dict[str, Any]:
         """对话接口（兼容 OpenAI 格式）
@@ -186,9 +188,9 @@ class LocalLLMClient:
     def generate(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         """简化的生成接口
 
@@ -218,7 +220,7 @@ class LocalLLMClient:
 _default_client = None
 
 
-def get_local_llm() -> Optional[LocalLLMClient]:
+def get_local_llm() -> LocalLLMClient | None:
     """获取默认的本地 LLM 客户端（单例）"""
     global _default_client
 

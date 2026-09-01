@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("pipeline.order_generator")
 
@@ -72,9 +72,9 @@ class OrderGenerator:
     def generate(
         self,
         signals: dict[str, float],
-        current_positions: Optional[dict[str, float]] = None,
+        current_positions: dict[str, float] | None = None,
         total_capital: float = 1_000_000,
-        prices: Optional[dict[str, float]] = None,
+        prices: dict[str, float] | None = None,
     ) -> OrderBatch:
         """
         生成订单批次

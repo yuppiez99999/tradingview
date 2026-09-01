@@ -38,7 +38,7 @@ import dataclasses
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Optional, Union
+from typing import Union
 
 from utils.backtest.adapters import StrategyAdapter
 from utils.backtest.latency_model import FixedLatency, LatencyModel
@@ -47,7 +47,7 @@ from utils.backtest.order_queue import OrderQueue
 from utils.wt_hedge_strategy import HedgeStrategy
 from utils.wt_structs import BarData, OrderData, TickData
 
-MarketEvent = Union[TickData, BarData]
+MarketEvent = Union[TickData, BarData]  # noqa: UP007  # 运行时类型别名, py38 兼容
 
 
 # ============================================================
@@ -201,7 +201,8 @@ class EngineSummary:
         equity_curve: 权益曲线
             - MONOTONIC_INDEX: list[float]  (每个事件一个权益点, 索引 = 事件序号)
             - WALL_CLOCK_NS:    list[Tuple[int, float]]  [(ts_event_ns, equity), ...]
-        equity_timestamps_ns: list[int]  (W6.3.2: WALL_CLOCK_NS 模式下对应 equity_curve 的时间戳列表, MONOTONIC_INDEX=[])
+        equity_timestamps_ns: list[int]  (W6.3.2: WALL_CLOCK_NS 模式下对应 equity_curve 的时间戳列表,
+         MONOTONIC_INDEX=[])
         trade_records: 成交记录列表 (order_id, code, direction, price, volume)
     """
 
@@ -247,8 +248,8 @@ class EventDrivenEngine:
     def __init__(
         self,
         strategy: HedgeStrategy,
-        matching_engine: Optional[MatchingEngine] = None,
-        latency_model: Optional[LatencyModel] = None,
+        matching_engine: MatchingEngine | None = None,
+        latency_model: LatencyModel | None = None,
         initial_capital: float = 1_000_000.0,
         commission_rate: float = 0.0003,
         # W6.3.2 新增: 确定性事件时钟模式
@@ -292,8 +293,8 @@ class EventDrivenEngine:
         self._equity: float = initial_capital
 
         # 队列
-        self._latency_queue: "deque[PendingOrder]" = deque()  # 延迟中的订单
-        self._matchable_queue: "deque[OrderData]" = deque()  # 就绪待撮合订单
+        self._latency_queue: deque[PendingOrder] = deque()  # 延迟中的订单
+        self._matchable_queue: deque[OrderData] = deque()  # 就绪待撮合订单
         self._order_queue = OrderQueue()  # 订单生命周期管理 (活动/完成/撤单)
 
         # 行情与权益曲线
@@ -313,7 +314,7 @@ class EventDrivenEngine:
         self._n_rejected = 0
 
         # 最近事件 (供延迟模型参考)
-        self._last_event: Optional[MarketEvent] = None
+        self._last_event: MarketEvent | None = None
 
         # 策略适配器 — 把 self.submit_order 注入为 order_submitter
         self._adapter = StrategyAdapter(strategy, order_submitter=self.submit_order)
@@ -492,7 +493,7 @@ class EventDrivenEngine:
         if not self._latency_queue:
             return
 
-        still_pending: "deque[PendingOrder]" = deque()
+        still_pending: deque[PendingOrder] = deque()
         while self._latency_queue:
             po = self._latency_queue.popleft()
             ready = False
@@ -523,7 +524,7 @@ class EventDrivenEngine:
 
         # 筛选与本事件同 code 的订单 (不同 code 的订单保留在队列中)
         same_code: list[OrderData] = []
-        other_code: "deque[OrderData]" = deque()
+        other_code: deque[OrderData] = deque()
         while self._matchable_queue:
             order = self._matchable_queue.popleft()
             if order.code == event.code:

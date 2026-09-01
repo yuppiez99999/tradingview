@@ -10,12 +10,13 @@ AI 协调器 — v5.7 Phase 1 优化
 3. 成本管控：每日Token预算、用量追踪、超预算自动切换便宜模型
 4. 冲突解决：基于各AI系统历史胜率加权决策
 """
+from __future__ import annotations
 
 import os
 import sqlite3
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 try:
     from .logging_manager import get_logger
@@ -120,8 +121,8 @@ class AICoordinator:
     def __init__(
         self,
         daily_token_budget: int = 500000,
-        db_path: str = None,
-        pricing_path: str = None,
+        db_path: str | None = None,
+        pricing_path: str | None = None,
     ):
         if db_path is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -140,17 +141,17 @@ class AICoordinator:
         self._today = datetime.now().strftime("%Y-%m-%d")
         self._init_db()
         # W.C.3 插件化: 初始化 PluginRegistry (feature-flag 控制是否启用)
-        self._plugin_registry: Optional[Any] = None
+        self._plugin_registry: Any | None = None
         self._use_plugin_coordinator = _PLUGINS_AVAILABLE and _is_flag_enabled(
             "USE_PLUGIN_COORDINATOR"
         )
         if self._use_plugin_coordinator:
             self._init_plugin_registry()
         # LIT-2.2: TradingGroup 自反思引擎 (延迟初始化)
-        self._reflector: Optional[Any] = None
+        self._reflector: Any | None = None
 
     @staticmethod
-    def _load_pricing(pricing_path: str = None) -> dict:
+    def _load_pricing(pricing_path: str | None = None) -> dict:
         """从外置 YAML 加载价格表, 失败回退内置默认值。"""
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         candidates = []
@@ -589,7 +590,7 @@ class AICoordinator:
     ) -> dict[str, dict[str, Any]]:
         """旧路径冲突检测 — 原多数投票 (保留向后兼容)"""
         # 收集所有标的
-        all_tickers = set()
+        all_tickers: set[Any] = set()
         for decisions in decisions_by_source.values():
             all_tickers.update(decisions.keys())
 
@@ -667,7 +668,7 @@ class AICoordinator:
 
     # ── 统计与查询 ──
 
-    def get_daily_usage(self, date: str = None) -> dict[str, Any]:
+    def get_daily_usage(self, date: str | None = None) -> dict[str, Any]:
         """获取指定日期的Token使用统计"""
         date = date or datetime.now().strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
@@ -717,7 +718,7 @@ class AICoordinator:
         }
 
     def get_decision_history(
-        self, ticker: str = None, source: str = None, days: int = 7
+        self, ticker: str | None = None, source: str | None = None, days: int = 7
     ) -> list[dict[str, Any]]:
         """查询AI决策历史"""
         since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -858,8 +859,8 @@ class AICoordinator:
         self,
         decision: dict[str, Any],
         outcome: dict[str, Any],
-        market_state: Optional[dict[str, Any]] = None,
-    ) -> Optional[Any]:
+        market_state: dict[str, Any] | None = None,
+    ) -> Any | None:
         """对 AI 决策进行自反思评估。
 
         Args:
@@ -890,7 +891,7 @@ class AICoordinator:
         trend_strength: float = 0.0,
         holding_days: int = 0,
         action: str = "buy",
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """计算动态止盈止损。"""
         reflector = self.get_reflector()
         if reflector is None:
@@ -931,7 +932,7 @@ class AICoordinator:
 
 # ── 全局单例 ──
 
-_coordinator: Optional[AICoordinator] = None
+_coordinator: AICoordinator | None = None
 
 
 def get_ai_coordinator() -> AICoordinator:

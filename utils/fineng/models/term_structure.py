@@ -128,7 +128,7 @@ class NelsonSiegelModel(TermStructure):
         beta1: float | None = None,
         beta2: float | None = None,
         tau: float = 2.0,
-    ) -> "NelsonSiegelModel":
+    ) -> NelsonSiegelModel:
         """从数据点快速构造 NS 模型 (使用启发式参数)
 
         若未提供参数, 则从数据点估算:

@@ -30,12 +30,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Optional, Union
+from typing import Union
 
 from utils.backtest.constraints import check_tradable
 from utils.wt_structs import BarData, OrderData, TickData
 
-MarketEvent = Union[TickData, BarData]
+MarketEvent = Union[TickData, BarData]  # noqa: UP007  # 运行时类型别名, py38 兼容
 
 
 class MatchingMode(StrEnum):
@@ -122,12 +122,12 @@ class MatchingEngine:
         self,
         orders: list[OrderData],
         market_event: MarketEvent,
-        contracts: Optional[object] = None,
-        on_fill: Optional[Callable[[OrderData, float, float], None]] = None,
-        on_partial_fill: Optional[Callable[[OrderData, float, float], None]] = None,
-        on_reject: Optional[Callable[[OrderData, str], None]] = None,
-        limit_up_prices: Optional[dict] = None,
-        limit_down_prices: Optional[dict] = None,
+        contracts: object | None = None,
+        on_fill: Callable[[OrderData, float, float], None] | None = None,
+        on_partial_fill: Callable[[OrderData, float, float], None] | None = None,
+        on_reject: Callable[[OrderData, str], None] | None = None,
+        limit_up_prices: dict | None = None,
+        limit_down_prices: dict | None = None,
     ) -> list[FillEvent]:
         """对一批订单逐一撮合。
 
@@ -164,13 +164,13 @@ class MatchingEngine:
         self,
         order: OrderData,
         market_event: MarketEvent,
-        contracts: Optional[object],
-        on_fill: Optional[Callable],
-        on_partial_fill: Optional[Callable],
-        on_reject: Optional[Callable],
-        limit_up_prices: Optional[dict],
-        limit_down_prices: Optional[dict],
-    ) -> Optional[FillEvent]:
+        contracts: object | None,
+        on_fill: Callable | None,
+        on_partial_fill: Callable | None,
+        on_reject: Callable | None,
+        limit_up_prices: dict | None,
+        limit_down_prices: dict | None,
+    ) -> FillEvent | None:
         """撮合单个订单。"""
         # 1. 涨跌停/停牌约束检查
         if self.enforce_price_limit:
@@ -221,10 +221,10 @@ class MatchingEngine:
         self,
         order: OrderData,
         tick: TickData,
-        on_fill: Optional[Callable],
-        on_partial_fill: Optional[Callable],
-        on_reject: Optional[Callable],
-    ) -> Optional[FillEvent]:
+        on_fill: Callable | None,
+        on_partial_fill: Callable | None,
+        on_reject: Callable | None,
+    ) -> FillEvent | None:
         """TICK 模式撮合: 消费五档 bid/ask。"""
         if order.direction == "BUY":
             return self._match_tick_buy(
@@ -240,10 +240,10 @@ class MatchingEngine:
         self,
         order: OrderData,
         tick: TickData,
-        on_fill: Optional[Callable[[OrderData, float, float], None]],
-        on_partial_fill: Optional[Callable[[OrderData, float, float], None]],
-        on_reject: Optional[Callable[[OrderData, str], None]],
-    ) -> Optional[FillEvent]:
+        on_fill: Callable[[OrderData, float, float], None] | None,
+        on_partial_fill: Callable[[OrderData, float, float], None] | None,
+        on_reject: Callable[[OrderData, str], None] | None,
+    ) -> FillEvent | None:
         """TICK 买入撮合: 消费 ask_prices/ask_volumes。"""
         if not tick.ask_prices or not tick.ask_volumes:
             return self._reject(order, on_reject, RejectReason.NO_LIQUIDITY)
@@ -284,10 +284,10 @@ class MatchingEngine:
         self,
         order: OrderData,
         tick: TickData,
-        on_fill: Optional[Callable[[OrderData, float, float], None]],
-        on_partial_fill: Optional[Callable[[OrderData, float, float], None]],
-        on_reject: Optional[Callable[[OrderData, str], None]],
-    ) -> Optional[FillEvent]:
+        on_fill: Callable[[OrderData, float, float], None] | None,
+        on_partial_fill: Callable[[OrderData, float, float], None] | None,
+        on_reject: Callable[[OrderData, str], None] | None,
+    ) -> FillEvent | None:
         """TICK 卖出撮合: 消费 bid_prices/bid_volumes。"""
         if not tick.bid_prices or not tick.bid_volumes:
             return self._reject(order, on_reject, RejectReason.NO_LIQUIDITY)
@@ -330,10 +330,10 @@ class MatchingEngine:
         self,
         order: OrderData,
         bar: BarData,
-        on_fill: Optional[Callable],
-        on_partial_fill: Optional[Callable],
-        on_reject: Optional[Callable],
-    ) -> Optional[FillEvent]:
+        on_fill: Callable | None,
+        on_partial_fill: Callable | None,
+        on_reject: Callable | None,
+    ) -> FillEvent | None:
         """BAR 模式撮合: 基于 [low, high] 区间。"""
         if order.direction == "BUY":
             return self._match_bar_buy(order, bar, on_fill, on_partial_fill, on_reject)
@@ -345,10 +345,10 @@ class MatchingEngine:
         self,
         order: OrderData,
         bar: BarData,
-        on_fill: Optional[Callable[[OrderData, float, float], None]],
-        on_partial_fill: Optional[Callable[[OrderData, float, float], None]],
-        on_reject: Optional[Callable[[OrderData, str], None]],
-    ) -> Optional[FillEvent]:
+        on_fill: Callable[[OrderData, float, float], None] | None,
+        on_partial_fill: Callable[[OrderData, float, float], None] | None,
+        on_reject: Callable[[OrderData, str], None] | None,
+    ) -> FillEvent | None:
         """BAR 买入撮合: order.price >= bar.low 则成交于 max(order.price, bar.open)。"""
         # 限价单: 出价低于 bar.low 则不成交
         if order.order_type == OrderType.LIMIT and order.price < bar.low:
@@ -380,10 +380,10 @@ class MatchingEngine:
         self,
         order: OrderData,
         bar: BarData,
-        on_fill: Optional[Callable[[OrderData, float, float], None]],
-        on_partial_fill: Optional[Callable[[OrderData, float, float], None]],
-        on_reject: Optional[Callable[[OrderData, str], None]],
-    ) -> Optional[FillEvent]:
+        on_fill: Callable[[OrderData, float, float], None] | None,
+        on_partial_fill: Callable[[OrderData, float, float], None] | None,
+        on_reject: Callable[[OrderData, str], None] | None,
+    ) -> FillEvent | None:
         """BAR 卖出撮合: order.price <= bar.high 则成交于 min(order.price, bar.open)。"""
         # 限价单: 要价高于 bar.high 则不成交
         if order.order_type == OrderType.LIMIT and order.price > bar.high:
@@ -418,9 +418,9 @@ class MatchingEngine:
         order: OrderData,
         fill_price: float,
         fill_volume: float,
-        on_fill: Optional[Callable],
-        on_partial_fill: Optional[Callable],
-        on_reject: Optional[Callable],
+        on_fill: Callable | None,
+        on_partial_fill: Callable | None,
+        on_reject: Callable | None,
     ) -> FillEvent:
         """统一处理成交结果: 全成/部分成/FOK 拒单/FAK 部分成。"""
         is_partial = fill_volume < order.volume
@@ -453,7 +453,7 @@ class MatchingEngine:
     def _reject(
         self,
         order: OrderData,
-        on_reject: Optional[Callable],
+        on_reject: Callable | None,
         reason: str,
     ) -> FillEvent:
         """统一拒单处理。"""
@@ -464,7 +464,7 @@ class MatchingEngine:
     def _reject_unknown(
         self,
         order: OrderData,
-        on_reject: Optional[Callable],
+        on_reject: Callable | None,
     ) -> FillEvent:
         """未知事件类型拒单。"""
         return self._reject(order, on_reject, RejectReason.UNKNOWN_EVENT)

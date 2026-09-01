@@ -34,7 +34,7 @@ import logging
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +71,11 @@ class UnslothAdapter:
         - 薄包装: 不重写 unsloth API, 仅做场景适配
     """
 
-    def __init__(self, config: Optional[UnslothConfig] = None) -> None:
+    def __init__(self, config: UnslothConfig | None = None) -> None:
         self.config = config or UnslothConfig()
         self._unsloth: Any = None
         self._torch: Any = None
-        self._init_error: Optional[str] = None
+        self._init_error: str | None = None
         self._load_unsloth()
 
     def _load_unsloth(self) -> None:
@@ -129,7 +129,7 @@ class UnslothAdapter:
         except (RuntimeError, AttributeError) as e:
             return {"available": False, "reason": str(e)}
 
-    def load_finetuned(self, model_tag: str) -> Optional[tuple[Any, Any]]:
+    def load_finetuned(self, model_tag: str) -> tuple[Any, Any] | None:
         """加载已微调模型.
 
         Args:
@@ -213,10 +213,10 @@ class UnslothAdapter:
         return [p.name for p in self.config.finetuned_dir.iterdir() if p.is_dir()]
 
 
-_unsloth_instance: Optional[UnslothAdapter] = None
+_unsloth_instance: UnslothAdapter | None = None
 
 
-def get_unsloth_adapter(config: Optional[UnslothConfig] = None) -> UnslothAdapter:
+def get_unsloth_adapter(config: UnslothConfig | None = None) -> UnslothAdapter:
     """获取 unsloth 适配器单例."""
     global _unsloth_instance
     if _unsloth_instance is None:

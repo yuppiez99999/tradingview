@@ -39,11 +39,12 @@
   - Feature Flag: USE_DECISION_THEORIES_FUSION (默认 False)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
+from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("utils.alpha.decision_theories")
 
@@ -101,7 +102,7 @@ class SorosReflexivityEngine:
         "EQUILIBRIUM": "均衡期 — 价格与基本面大致吻合，无显著偏见",
     }
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         self.config = config or {}
         self.reflexivity_threshold = self.config.get("reflexivity_threshold", 0.6)
         self.zscore_extreme = self.config.get("zscore_extreme", 2.0)
@@ -111,9 +112,9 @@ class SorosReflexivityEngine:
     def compute_reflexivity_score(
         self,
         price_data: dict[str, Any],
-        volume_data: Optional[dict[str, Any]] = None,
-        sentiment_data: Optional[dict[str, Any]] = None,
-        valuation_data: Optional[dict[str, Any]] = None,
+        volume_data: dict[str, Any] | None = None,
+        sentiment_data: dict[str, Any] | None = None,
+        valuation_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         计算每只标的的反身性得分
@@ -270,7 +271,7 @@ class SorosReflexivityEngine:
 
         if accelerating_count > len(scores) * 0.4:
             signal = "HOLD"  # 趋势中，持有但警惕
-            summary = f"反身性平均得分{avg_score:.2f}，{accelerating_count}只标的正处于自我强化期，趋势可能持续但需警惕逆转"
+            summary = f"反身性平均得分{avg_score:.2f}，{accelerating_count}只标的正处于自我强化期，趋势可能持续但需警惕逆转"  # noqa: E501
             conviction = "MEDIUM"
         elif reversal_count > len(scores) * 0.3:
             signal = "SELL"
@@ -344,14 +345,14 @@ class DalioEconomicMachine:
         "commodities": 0.075,
     }
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         self.config = config or {}
         self.debt_warning_threshold = self.config.get("debt_warning_threshold", 0.6)
 
     def classify_economic_regime(
         self,
-        growth_data: Optional[dict[str, float]] = None,
-        inflation_data: Optional[dict[str, float]] = None,
+        growth_data: dict[str, float] | None = None,
+        inflation_data: dict[str, float] | None = None,
     ) -> dict[str, Any]:
         """
         经济环境四象限分类
@@ -438,7 +439,7 @@ class DalioEconomicMachine:
 
     def assess_debt_cycle(
         self,
-        debt_data: Optional[dict[str, float]] = None,
+        debt_data: dict[str, float] | None = None,
     ) -> dict[str, Any]:
         """
         债务周期阶段评估
@@ -516,7 +517,7 @@ class DalioEconomicMachine:
 
     def compute_risk_parity_weights(
         self,
-        asset_volatilities: Optional[dict[str, float]] = None,
+        asset_volatilities: dict[str, float] | None = None,
     ) -> dict[str, float]:
         """
         风险平价权重计算
@@ -565,7 +566,7 @@ class DalioEconomicMachine:
         elif debt_score > 0.5 and regime == "RECESSION":
             signal = "HOLD"
             conviction = "MEDIUM"
-            summary = f"达利奥框架: 经济处于{regime_result.get('regime_name', '')}，债务评分{debt_score:.2f}，保持防御姿态"
+            summary = f"达利奥框架: 经济处于{regime_result.get('regime_name', '')}，债务评分{debt_score:.2f}，保持防御姿态"  # noqa: E501
         elif regime == "REFLEXIVITY" and debt_score < 0.5:
             signal = "BUY"
             conviction = "HIGH"
@@ -653,7 +654,7 @@ class FirstPrinciplesAnalyzer:
         },
     }
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         self.config = config or {}
 
     def decompose_value_drivers(
@@ -820,7 +821,7 @@ class FirstPrinciplesAnalyzer:
     def generate_decision(
         self,
         driver_results: dict[str, Any],
-        market_narratives: Optional[dict[str, str]] = None,
+        market_narratives: dict[str, str] | None = None,
     ) -> TheoryDecision:
         """生成第一性原理综合决策"""
         if not driver_results:
@@ -907,7 +908,7 @@ class BuffettMungerFramework:
         "电信": 35,
     }
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         self.config = config or {}
         self.moat_passing_score = self.config.get("moat_passing_score", 50)
 
@@ -1171,8 +1172,8 @@ class BuffettMungerFramework:
     def generate_decision(
         self,
         moat_results: dict[str, Any],
-        margin_results: Optional[dict[str, Any]] = None,
-        quality_results: Optional[dict[str, Any]] = None,
+        margin_results: dict[str, Any] | None = None,
+        quality_results: dict[str, Any] | None = None,
     ) -> TheoryDecision:
         """生成巴菲特芒格框架综合决策"""
         if not moat_results:
@@ -1271,7 +1272,7 @@ class TheoryFusionEngine:
 
     SIGNAL_SCORES = {"BUY": 1.0, "HOLD": 0.5, "SELL": 0.0, "NEUTRAL": 0.5}
 
-    def __init__(self, weights: Optional[dict[str, float]] = None):
+    def __init__(self, weights: dict[str, float] | None = None):
         self.weights = weights or self.DEFAULT_WEIGHTS
 
     def fuse_decisions(
@@ -1424,9 +1425,9 @@ class TheoryFusionEngine:
 # ============================================================
 def run_full_theory_analysis(
     price_data: dict[str, Any],
-    macro_data: Optional[dict[str, Any]] = None,
-    financial_data: Optional[dict[str, Any]] = None,
-    sector_map: Optional[dict[str, str]] = None,
+    macro_data: dict[str, Any] | None = None,
+    financial_data: dict[str, Any] | None = None,
+    sector_map: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """
     一键运行四大理论完整分析

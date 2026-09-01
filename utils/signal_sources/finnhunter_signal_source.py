@@ -27,7 +27,7 @@ import logging
 import math
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 try:
     from ..logging_manager import get_logger
@@ -105,8 +105,8 @@ class FinnewsHunterSignalSource:
 
     def __init__(
         self,
-        llm_callable: Optional[Callable[[str], str]] = None,
-        news_fetcher: Optional[Callable[[str, int], list[dict]]] = None,
+        llm_callable: Callable[[str], str] | None = None,
+        news_fetcher: Callable[[str, int], list[dict]] | None = None,
         min_confidence: float = DEFAULT_MIN_CONFIDENCE,
         news_limit: int = DEFAULT_NEWS_LIMIT,
         recency_days: int = DEFAULT_RECENCY_DAYS,

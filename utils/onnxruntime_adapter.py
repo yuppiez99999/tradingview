@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -73,10 +73,10 @@ class OnnxRuntimeAdapter:
         - 薄包装: 不重写 onnxruntime API, 仅做场景适配
     """
 
-    def __init__(self, config: Optional[OnnxConfig] = None) -> None:
+    def __init__(self, config: OnnxConfig | None = None) -> None:
         self.config = config or OnnxConfig()
         self._ort: Any = None
-        self._init_error: Optional[str] = None
+        self._init_error: str | None = None
         self._load_ort()
 
     def _load_ort(self) -> None:
@@ -107,7 +107,7 @@ class OnnxRuntimeAdapter:
             logger.warning("获取 providers 失败: %s", e)
             return []
 
-    def load_session(self, model_path: str | Path) -> Optional[Any]:
+    def load_session(self, model_path: str | Path) -> Any | None:
         """加载 ONNX 推理会话.
 
         Args:
@@ -210,10 +210,10 @@ class OnnxRuntimeAdapter:
         }
 
 
-_onnx_instance: Optional[OnnxRuntimeAdapter] = None
+_onnx_instance: OnnxRuntimeAdapter | None = None
 
 
-def get_onnx_adapter(config: Optional[OnnxConfig] = None) -> OnnxRuntimeAdapter:
+def get_onnx_adapter(config: OnnxConfig | None = None) -> OnnxRuntimeAdapter:
     """获取 ONNX 适配器单例."""
     global _onnx_instance
     if _onnx_instance is None:

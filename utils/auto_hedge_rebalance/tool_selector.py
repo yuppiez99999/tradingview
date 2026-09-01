@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from enum import StrEnum
-from typing import Any, Optional
+from typing import Any
 
 from utils.auto_hedge_rebalance.cost_benefit_filter import PortfolioRisk
 from utils.auto_hedge_rebalance.models import (
@@ -78,9 +78,9 @@ class HedgeToolSelector:
 
     def __init__(
         self,
-        hedge_engine: Optional[Any] = None,
-        data_fetcher: Optional[Any] = None,
-        config: Optional[dict[str, Any]] = None,
+        hedge_engine: Any | None = None,
+        data_fetcher: Any | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         """初始化对冲工具自动选择器。
 
@@ -98,8 +98,8 @@ class HedgeToolSelector:
         regime: MarketRegime,
         risk: PortfolioRisk,
         hedge_ratio: float,
-        prices: Optional[dict[str, float]] = None,
-        iv_level: Optional[float] = None,
+        prices: dict[str, float] | None = None,
+        iv_level: float | None = None,
     ) -> ToolSelection:
         """按市场状态+组合 Beta 选择对冲工具。
 
@@ -181,8 +181,8 @@ class HedgeToolSelector:
         self,
         regime: MarketRegime,
         beta: float,
-        iv_level: Optional[float] = None,
-    ) -> tuple[HedgeToolType, list[str], Optional[OptionsStrategy]]:
+        iv_level: float | None = None,
+    ) -> tuple[HedgeToolType, list[str], OptionsStrategy | None]:
         """按市场状态+Beta 决策表选择工具类型。
 
         v8.7 改进: HIGH 状态区别于 MILD — IV 低时增配期权保护, IV 高时仅用期货.
@@ -227,8 +227,8 @@ class HedgeToolSelector:
     def _select_by_tail_event(
         self,
         beta: float,
-        iv_level: Optional[float] = None,
-    ) -> tuple[HedgeToolType, list[str], Optional[OptionsStrategy]]:
+        iv_level: float | None = None,
+    ) -> tuple[HedgeToolType, list[str], OptionsStrategy | None]:
         """TAIL_EVENT 状态工具选择。
 
         v8.7 改进: IV 感知策略选择 —
@@ -306,7 +306,7 @@ class HedgeToolSelector:
         self,
         instruments: list[str],
         hedge_ratio: float,
-        options_strategy: Optional[OptionsStrategy],
+        options_strategy: OptionsStrategy | None,
     ) -> list[dict[str, Any]]:
         """生成期权对冲方案 (复用 HedgeEngine)。"""
         if self.hedge_engine is None:

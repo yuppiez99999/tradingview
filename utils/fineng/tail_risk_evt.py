@@ -324,7 +324,7 @@ def fit_evt(
             empirical_es_99=float("nan"),
             evt_vs_empirical_ratio=float("nan"),
             converged=False,
-            error_message=f"超越样本不足: {n_excess} < 40 (阈值={threshold_percentile}, 需要更宽松的阈值或更多历史数据)",
+            error_message=f"超越样本不足: {n_excess} < 40 (阈值={threshold_percentile}, 需要更宽松的阈值或更多历史数据)",  # noqa: E501
         )
 
     # ---- GPD 拟合 ----

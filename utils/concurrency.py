@@ -39,7 +39,7 @@ _UNSET = object()
 _PATH_LOCKS: dict[str, threading.Lock] = {}
 _REGISTRY_LOCK = threading.Lock()
 
-PathLike = Union[str, Path]
+PathLike = Union[str, Path]  # noqa: UP007  # 运行时类型别名, py38 兼容
 
 
 def _normalize(path: PathLike) -> str:

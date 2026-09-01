@@ -23,6 +23,24 @@ from utils.feature_store.config import FeatureStoreConfig
 
 logger = logging.getLogger("FeatureStore")
 
+# 存储层精确异常集合:
+# ImportError(后端缺失) / OSError(文件IO) / ValueError(含 pyarrow ArrowInvalid·json.JSONDecodeError)
+# TypeError·KeyError(解析) / RuntimeError(后端内部) + duckdb.Error (条件并入, 保持 fail-closed)
+_STORE_EXC_TYPES: tuple = (
+    ImportError,
+    ValueError,
+    TypeError,
+    KeyError,
+    RuntimeError,
+    OSError,
+)
+try:
+    import duckdb as _duckdb_module
+
+    _STORE_EXC_TYPES = _STORE_EXC_TYPES + (_duckdb_module.Error,)
+except ImportError:
+    pass
+
 
 class OfflineStore:
     """离线特征存储 — 回测对齐 + 增量更新.
@@ -60,7 +78,7 @@ class OfflineStore:
                 )
             """)
             logger.info("[FeatureStore] OfflineStore duckdb connected: %s", db_path)
-        except Exception as e:
+        except _STORE_EXC_TYPES as e:
             logger.warning(
                 "[FeatureStore] OfflineStore duckdb init failed (%s), falling back to parquet",
                 e,
@@ -125,7 +143,7 @@ class OfflineStore:
                     [feature_name, date_key, json.dumps(record, default=str)],
                 )
                 count += 1
-            except Exception as e:
+            except _STORE_EXC_TYPES as e:
                 logger.warning("[FeatureStore] OfflineStore duckdb write failed: %s", e)
         return count
 
@@ -153,7 +171,7 @@ class OfflineStore:
             if start_date <= date_key <= end_date:
                 try:
                     frames.append(pd.read_parquet(parquet_file))
-                except Exception as e:
+                except _STORE_EXC_TYPES as e:
                     logger.warning(
                         "[FeatureStore] OfflineStore parquet read failed %s: %s",
                         parquet_file,
@@ -185,7 +203,7 @@ class OfflineStore:
                 record.setdefault("date", date_key)
                 records.append(record)
             return pd.DataFrame(records)
-        except Exception as e:
+        except _STORE_EXC_TYPES as e:
             logger.warning("[FeatureStore] OfflineStore duckdb read failed: %s", e)
             return pd.DataFrame()
 
@@ -210,7 +228,7 @@ class OfflineStore:
                         record = {"data": record}
                     record.setdefault("date", date_key)
                     return pd.DataFrame([record])
-            except Exception as e:
+            except _STORE_EXC_TYPES as e:
                 logger.warning(
                     "[FeatureStore] OfflineStore duckdb read_latest failed: %s", e
                 )
@@ -222,7 +240,7 @@ class OfflineStore:
             return pd.DataFrame()
         try:
             return pd.read_parquet(files[0])
-        except Exception as e:
+        except _STORE_EXC_TYPES as e:
             logger.warning(
                 "[FeatureStore] OfflineStore parquet read_latest failed: %s", e
             )
@@ -237,7 +255,7 @@ class OfflineStore:
                     "DELETE FROM features WHERE feature_name = ?", [feature_name]
                 )
                 count += result.fetchone()[0] if result else 0
-            except Exception as e:
+            except _STORE_EXC_TYPES as e:
                 logger.warning(
                     "[FeatureStore] OfflineStore duckdb delete failed: %s", e
                 )
@@ -261,7 +279,7 @@ class OfflineStore:
                     "SELECT DISTINCT feature_name FROM features"
                 ).fetchall()
                 features.update(r[0] for r in result)
-            except Exception as e:
+            except _STORE_EXC_TYPES as e:
                 logger.warning("[FeatureStore] OfflineStore duckdb list failed: %s", e)
         if self._root.exists():
             for d in self._root.iterdir():

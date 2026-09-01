@@ -36,9 +36,35 @@ except (ImportError, AttributeError):
 # 跨市场代理标的（特征工程依赖）
 _CROSS_MARKET_PROXY_SYMBOLS = ["518880", "600036", "588000", "515180"]
 
+# 数据管道精确异常集合:
+# ImportError(数据源/pyarrow 缺失) / OSError(文件IO+网络) / ValueError(含 pyarrow ArrowInvalid)
+# TypeError·KeyError·IndexError·AttributeError(数据解析) / ZeroDivisionError(指标计算) / RuntimeError
+_PIPELINE_EXC_TYPES: tuple = (
+    ImportError,
+    ValueError,
+    TypeError,
+    KeyError,
+    IndexError,
+    AttributeError,
+    ZeroDivisionError,
+    RuntimeError,
+    OSError,
+)
+
 
 class DataMixin:
     """数据加载 Mixin — 历史数据 + 快照 + Alpha 信号构建。"""
+
+    data_provider: Any
+    ctx: Any
+    _historical_cache: Any
+    _cache_lock: Any
+    _sym_locks: Any
+    _sym_locks_lock: Any
+    _compute_alpha_components: Any
+    _fuse_with_lgb_signal: Any
+    _compose_momentum_signal: Any
+    _load_symbol_close_volume: Any
 
     def _load_base_cache(self, symbol: str) -> pd.DataFrame | None:
         """读取预下载的 5y 基础缓存（_base.parquet），绕过 data_provider 的 24h TTL。
@@ -53,7 +79,7 @@ class DataMixin:
             df = pd.read_parquet(base_file)
             if df is not None and not df.empty:
                 return df
-        except Exception as e:
+        except _PIPELINE_EXC_TYPES as e:
             logger.debug("[Pipeline] 读取 _base 缓存失败 %s: %s", symbol, e)
         return None
 
@@ -70,7 +96,7 @@ class DataMixin:
         if (df is None or df.empty) and self.data_provider is not None:
             try:
                 df = self.data_provider.get_historical_data(symbol, period=period)
-            except Exception as e:
+            except _PIPELINE_EXC_TYPES as e:
                 logger.debug("[Pipeline] 在线拉取失败 %s: %s", symbol, e)
                 df = None
         if df is None or df.empty:
@@ -165,7 +191,7 @@ class DataMixin:
             try:
                 df = self._load_and_truncate(symbol, "5y", cutoff)
                 return (symbol, df)
-            except Exception as e:
+            except _PIPELINE_EXC_TYPES as e:
                 if symbol in self.ctx.symbols:
                     logger.warning("[Pipeline] 预加载失败 %s: %s", symbol, e)
                 else:
@@ -206,8 +232,10 @@ class DataMixin:
             price = data.get("index_price") or data.get("close") or data.get("price")
             try:
                 price = float(price)
-            except Exception:
-                logger.debug("[Pipeline] 价格转换失败 symbol=%s raw=%r", symbol, price)
+            except (ValueError, TypeError) as _float_err:
+                logger.debug(
+                    "[Pipeline] 价格转换失败 symbol=%s raw=%r", symbol, price
+                )
                 price = None
             if not price or not math.isfinite(price) or price <= 0:
                 return self._mock_snapshot(symbol)
@@ -217,7 +245,7 @@ class DataMixin:
                 "timestamp": data.get("timestamp") or datetime.now().isoformat(),
                 "source": data.get("source") or "data_provider",
             }
-        except Exception as e:
+        except _PIPELINE_EXC_TYPES as e:
             logger.warning("[Pipeline] 获取真实数据失败: %s", e)
             return self._mock_snapshot(symbol)
 
@@ -313,7 +341,7 @@ class DataMixin:
             # 真正拉取 (只一个线程执行此代码块)
             try:
                 df = self.data_provider.get_historical_data(symbol, period="5y")
-            except Exception as e:
+            except _PIPELINE_EXC_TYPES as e:
                 logger.debug("[Pipeline] 拉取历史数据失败 %s: %s", symbol, e)
                 return None
             if df is None or df.empty:
@@ -347,7 +375,7 @@ class DataMixin:
                 cutoff = cutoff.tz_localize(None)
             df_trunc = df_trunc[df_trunc.index <= cutoff]
             return df_trunc if not df_trunc.empty else None
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.debug("[Pipeline] 日期截断失败 %s: %s", symbol, e)
             return df
 
@@ -367,7 +395,7 @@ class DataMixin:
                     symbol, mom_strength, mom_confidence
                 )
                 return (symbol, {"strength": strength, "confidence": confidence})
-            except Exception as e:
+            except _PIPELINE_EXC_TYPES as e:
                 logger.warning("[Pipeline] 真实alpha信号获取失败 %s: %s", symbol, e)
                 return (symbol, {"strength": 0.0, "confidence": 0.2})
 

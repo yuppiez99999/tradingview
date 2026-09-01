@@ -27,7 +27,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 try:
     from .logging_manager import get_logger
@@ -127,9 +127,9 @@ class NewsIntelligenceEngine:
 
     def __init__(
         self,
-        web_scraper: Optional[Any] = None,
-        llm_client: Optional[Any] = None,
-        sentiment_engine: Optional[Any] = None,
+        web_scraper: Any | None = None,
+        llm_client: Any | None = None,
+        sentiment_engine: Any | None = None,
         lookback_days: int = DEFAULT_LOOKBACK_DAYS,
         article_limit: int = DEFAULT_ARTICLE_LIMIT,
         min_confidence: float = DEFAULT_MIN_CONFIDENCE,
@@ -257,7 +257,7 @@ class NewsIntelligenceEngine:
         return articles
 
     @staticmethod
-    def _convert_to_article(item: Any) -> Optional[NewsArticle]:
+    def _convert_to_article(item: Any) -> NewsArticle | None:
         """WebScraper.NewsItem / dict → NewsArticle"""
         try:
             if isinstance(item, dict):
@@ -285,7 +285,7 @@ class NewsIntelligenceEngine:
 
     def _analyze_with_llm(
         self, code: str, articles: list[NewsArticle]
-    ) -> Optional[NewsIntelligenceReport]:
+    ) -> NewsIntelligenceReport | None:
         """用 LLM 分析新闻, 返回结构化报告"""
         try:
             client = self._get_llm_client()
@@ -345,7 +345,7 @@ class NewsIntelligenceEngine:
 
     def _parse_llm_response(
         self, code: str, content: str, article_count: int
-    ) -> Optional[NewsIntelligenceReport]:
+    ) -> NewsIntelligenceReport | None:
         """解析 LLM 返回的 JSON, 构造 NewsIntelligenceReport"""
         json_str = self._extract_json(content)
         if not json_str:
@@ -393,7 +393,7 @@ class NewsIntelligenceEngine:
             return None
 
     @staticmethod
-    def _extract_json(text: str) -> Optional[str]:
+    def _extract_json(text: str) -> str | None:
         """从 LLM 输出中提取 JSON (支持 markdown 代码块包裹)"""
         if not text:
             return None

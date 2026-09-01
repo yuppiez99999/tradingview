@@ -19,7 +19,7 @@ import os
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 try:
     from .logging_manager import get_logger
@@ -102,7 +102,7 @@ class SignalFusionEngine:
 
     def __init__(
         self,
-        db_path: str = None,
+        db_path: str | None = None,
         research_distilled_weight: float = 0.03,
         pipeline_factor_weight: float = 0.05,
     ):
@@ -126,7 +126,7 @@ class SignalFusionEngine:
     # ── 数据源注册 ──
 
     def register_source(
-        self, name: str, getter: callable, initial_weight: float = None
+        self, name: str, getter: callable, initial_weight: float | None = None
     ) -> None:
         """注册一个信号源。
 
@@ -192,7 +192,7 @@ class SignalFusionEngine:
             return {k: v / total for k, v in accuracies.items()}
         return {k: 1.0 / len(accuracies) for k in accuracies}
 
-    def _get_source_accuracy(self, source: str, since_date: str) -> Optional[float]:
+    def _get_source_accuracy(self, source: str, since_date: str) -> float | None:
         """从数据库读取信号源近期准确率"""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -308,7 +308,7 @@ class SignalFusionEngine:
     def bayesian_shrinkage_weights(
         self,
         base_weights: dict[str, float],
-        correlation_matrix: dict[str, dict[str, float]] = None,
+        correlation_matrix: dict[str, dict[str, float]] | None = None,
         shrinkage_factor: float = 0.3,
     ) -> dict[str, float]:
         """v5.10 贝叶斯收缩估计权重 (P0-4修复)
@@ -325,6 +325,8 @@ class SignalFusionEngine:
         """
         if not base_weights:
             n = len(self._sources)
+            if n == 0:
+                return {}
             return dict.fromkeys(self._sources, 1.0 / n)
 
         n = len(base_weights)
@@ -343,7 +345,7 @@ class SignalFusionEngine:
     def residual_fusion(
         self,
         individual: dict[str, SignalResult],
-        correlation_matrix: dict[str, dict[str, float]] = None,
+        correlation_matrix: dict[str, dict[str, float]] | None = None,
         threshold: float = 0.3,
     ) -> dict[str, float]:
         """v5.10 残差化融合 (P0-4修复核心)
@@ -505,7 +507,7 @@ class SignalFusionEngine:
         return fused
 
     def get_fused_signals_batch(
-        self, codes: list[str], names: dict[str, str] = None
+        self, codes: list[str], names: dict[str, str] | None = None
     ) -> dict[str, FusedSignal]:
         """批量融合多只标的的信号"""
         names = names or {}
@@ -517,7 +519,7 @@ class SignalFusionEngine:
     # ── v8.6.9 Post-mix 融合接口 (fuse / inject_*_signals) ──
 
     def inject_research_distilled_signals(
-        self, signals: Optional[dict[str, float]]
+        self, signals: dict[str, float] | None
     ) -> None:
         """注入研究蒸馏信号 (第 6 信号源)。
 
@@ -538,7 +540,7 @@ class SignalFusionEngine:
                 self._research_distilled_signals[symbol] = float(value)
 
     def inject_pipeline_factor_signals(
-        self, signals: Optional[dict[str, float]]
+        self, signals: dict[str, float] | None
     ) -> None:
         """注入管线因子信号 (第 7 信号源)。
 
@@ -566,7 +568,7 @@ class SignalFusionEngine:
         return True
 
     def fuse(
-        self, alpha_signals: Optional[dict[str, dict[str, float]]] = None, **kwargs: Any
+        self, alpha_signals: dict[str, dict[str, float]] | None = None, **kwargs: Any
     ) -> list[FusedSignalV2]:
         """Post-mix 融合接口。
 
@@ -831,7 +833,7 @@ class SignalFusionEngine:
             logger.warning(f"记录审计失败: {e}")
 
     def evaluate_past_signals(
-        self, days_ago: int = 5, price_getter: callable = None
+        self, days_ago: int = 5, price_getter: callable | None = None
     ) -> dict[str, Any]:
         """评估N天前的信号准确率。
 
@@ -899,8 +901,8 @@ class SignalFusionEngine:
         }
 
     def _get_actual_outcome(
-        self, code: str, date: str, price_getter: callable = None
-    ) -> Optional[str]:
+        self, code: str, date: str, price_getter: callable | None = None
+    ) -> str | None:
         """获取实际涨跌结果"""
         # 简化版：默认返回 None（需要接入真实价格数据）
         if price_getter:
@@ -996,7 +998,7 @@ class SignalFusionEngine:
 # ── 便捷函数 ──
 
 # 全局单例
-_fusion_engine: Optional[SignalFusionEngine] = None
+_fusion_engine: SignalFusionEngine | None = None
 
 
 def get_fusion_engine() -> SignalFusionEngine:
@@ -1033,7 +1035,7 @@ def _get_fast_signal_source(code: str) -> SignalResult:
                 score=fast_signal.confidence,
                 action=fast_signal.action,
                 confidence=fast_signal.confidence,
-                reason=f"快速技术指标信号: {fast_signal.action} (RSI={fast_signal.rsi:.2f}, MACD={fast_signal.macd_signal:.4f})",
+                reason=f"快速技术指标信号: {fast_signal.action} (RSI={fast_signal.rsi:.2f}, MACD={fast_signal.macd_signal:.4f})",  # noqa: E501
                 timestamp=datetime.now().isoformat(),
             )
         # 快速信号不满足条件，返回空
@@ -1171,7 +1173,7 @@ def _get_hedge_signal_source(code: str) -> SignalResult:
             score=sig_score,
             action=action,
             confidence=confidence,
-            reason=f"对冲信号: {strength_names[strength.value]} (Beta={risk.beta_csi300:.2f}, VaR={risk.var_95_daily:,.0f})",
+            reason=f"对冲信号: {strength_names[strength.value]} (Beta={risk.beta_csi300:.2f}, VaR={risk.var_95_daily:,.0f})",  # noqa: E501
             timestamp=datetime.now().isoformat(),
         )
 
@@ -1210,7 +1212,7 @@ def is_hedge_signal_enabled() -> bool:
 # ── GTJA191 信号源集成 ──
 
 
-def _get_gtja191_signal_source(code: str) -> Optional[SignalResult]:
+def _get_gtja191_signal_source(code: str) -> SignalResult | None:
     """GTJA191 量价因子信号源 — 当前实现 Alpha144
 
     基于短周期价量特征，只统计下跌日“收益率绝对值/成交额”的效率。
@@ -1283,7 +1285,7 @@ def is_gtja191_signal_enabled() -> bool:
 # ── 舆情情感信号源集成 (v8.7 W.A.1, docs/1 OpenBiliClaw 接入) ──
 
 
-def _get_sentiment_signal_source(code: str) -> Optional[SignalResult]:
+def _get_sentiment_signal_source(code: str) -> SignalResult | None:
     """舆情情感信号源 — MediaCrawler 7 平台采集 + NewsSentimentEngine 打分
 
     受 USE_SENTIMENT_SIGNAL_SOURCE feature-flag 控制, 关闭时返回 None.
@@ -1357,7 +1359,7 @@ def is_sentiment_signal_enabled() -> bool:
 # ── 新闻智能信号源集成 (S1, TradingAgents 启发) ──
 
 
-def _get_news_intelligence_signal_source(code: str) -> Optional[SignalResult]:
+def _get_news_intelligence_signal_source(code: str) -> SignalResult | None:
     """新闻智能信号源 — 财经新闻采集 + LLM 深度解读
 
     受 USE_NEWS_INTELLIGENCE_SIGNAL feature-flag 控制, 关闭时返回 None.
@@ -1435,7 +1437,7 @@ def is_news_intelligence_signal_enabled() -> bool:
 # ── FinnewsHunter 事件驱动 alpha 信号源集成 (2026-08-26, FinnewsHunter 启发) ──
 
 
-def _get_finnhunter_signal_source(code: str) -> Optional[SignalResult]:
+def _get_finnhunter_signal_source(code: str) -> SignalResult | None:
     """FinnewsHunter 信号源 — 金融新闻事件类型 → alpha 强度
 
     受 USE_FINNEWS_HUNTER_SIGNAL feature-flag 控制, 关闭时返回 None.

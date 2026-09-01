@@ -34,7 +34,7 @@ import math
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class VixDataSource:
     CACHE_PATH = _CACHE_PATH
     CACHE_TTL_SECONDS = _CACHE_TTL_SECONDS
 
-    def __init__(self, cache_path: Optional[Path] = None) -> None:
+    def __init__(self, cache_path: Path | None = None) -> None:
         """初始化, 确保缓存目录存在.
 
         Args:
@@ -79,7 +79,7 @@ class VixDataSource:
         # 确保缓存目录存在
         Path(self.CACHE_PATH).parent.mkdir(parents=True, exist_ok=True)
 
-    def fetch_vix(self, use_cache: bool = True) -> Optional[float]:
+    def fetch_vix(self, use_cache: bool = True) -> float | None:
         """获取 VIX 替代值 (降级链: shadow_state RV → 510050 K线 → 缓存 → None).
 
         Args:
@@ -120,7 +120,7 @@ class VixDataSource:
     # ============================================================
     # 主数据源: shadow_state.json → realized_vol → VIX proxy
     # ============================================================
-    def _fetch_from_shadow_state_rv(self) -> Optional[float]:
+    def _fetch_from_shadow_state_rv(self) -> float | None:
         """从 shadow_state.json 的 daily_nav 计算 20 日已实现波动率.
 
         VIX_proxy = realized_vol * 100 (realized_vol 已年化, 如 0.25 → 25)
@@ -196,7 +196,7 @@ class VixDataSource:
     # ============================================================
     # 备选数据源: Wind MCP 510050 K 线
     # ============================================================
-    def _fetch_from_wind_kline(self) -> Optional[float]:
+    def _fetch_from_wind_kline(self) -> float | None:
         """从 Wind MCP 获取 510050 近 30 日 K 线, 计算波动率作为 VIX 替代.
 
         Returns:
@@ -300,7 +300,7 @@ class VixDataSource:
         except (OSError, ValueError, TypeError) as e:
             logger.warning("写入 VIX 缓存失败: %s", e)
 
-    def _load_cache(self) -> Optional[dict[str, Any]]:
+    def _load_cache(self) -> dict[str, Any] | None:
         """读取 VIX 缓存 (检查 TTL).
 
         Returns:
@@ -342,7 +342,7 @@ class VixDataSource:
 # ============================================================
 # 便捷函数
 # ============================================================
-def fetch_vix(use_cache: bool = True) -> Optional[float]:
+def fetch_vix(use_cache: bool = True) -> float | None:
     """便捷函数: 获取 VIX 替代值.
 
     Args:

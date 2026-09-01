@@ -10,6 +10,7 @@
 `reports/fills/fills_{date}.jsonl`, 每行为一条独立 JSON 记录, 供 FillsPnLBridge
 与 TCA 归因复用。设计为 fail-open: 落盘失败只记日志, 绝不阻断执行链路。
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -18,7 +19,7 @@ import threading
 from collections.abc import Collection
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ class FillsStore:
       meta          额外上下文 (滑点/延迟/venue 数等)
     """
 
-    _instance: Optional["FillsStore"] = None
+    _instance: FillsStore | None = None
     _lock = threading.Lock()
 
     def __new__(cls):
@@ -74,8 +75,8 @@ class FillsStore:
         is_live: bool = False,
         strategy: str = "rebalance",
         source: str = "sim_route",
-        date: Optional[str] = None,
-        meta: Optional[dict[str, Any]] = None,
+        date: str | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """记录一笔成交并落盘。返回记录 dict (便于调用方复用)。
 
@@ -106,8 +107,8 @@ class FillsStore:
 
     def load_day(
         self,
-        date: Optional[str] = None,
-        strategies: Optional[Collection[str]] = None,
+        date: str | None = None,
+        strategies: Collection[str] | None = None,
     ) -> list[dict[str, Any]]:
         """读取某交易日全部成交 (文件为事实源, 内存仅含落盘失败兜底记录)。
 
@@ -150,8 +151,8 @@ class FillsStore:
 
     def latest_avg_price_by_symbol(
         self,
-        date: Optional[str] = None,
-        strategies: Optional[Collection[str]] = None,
+        date: str | None = None,
+        strategies: Collection[str] | None = None,
     ) -> dict[str, float]:
         """返回每个标的当日最新成交均价 (按记录顺序末次覆盖)。"""
         result: dict[str, float] = {}
@@ -161,8 +162,8 @@ class FillsStore:
 
     def realized_pnl(
         self,
-        date: Optional[str] = None,
-        strategies: Optional[Collection[str]] = None,
+        date: str | None = None,
+        strategies: Collection[str] | None = None,
     ) -> dict[str, float]:
         """估算当日已实现 PnL: SELL 成交价 vs 上一笔 BUY 均价 (简化 FIFO 近似)。
 
@@ -207,8 +208,8 @@ def record_fill(*args: Any, **kwargs: Any) -> dict[str, Any]:
 
 
 def load_day(
-    date: Optional[str] = None,
-    strategies: Optional[Collection[str]] = None,
+    date: str | None = None,
+    strategies: Collection[str] | None = None,
 ) -> list[dict[str, Any]]:
     return _store.load_day(date, strategies=strategies)
 

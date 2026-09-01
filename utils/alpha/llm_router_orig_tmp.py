@@ -40,7 +40,7 @@ import urllib.request
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 # 复用 ConfigManager 4 级优先级 (HC-5)
 from utils.config_manager import get_config
@@ -127,7 +127,7 @@ class ProviderNotConfiguredError(LLMRouterError):
 # ============================================================
 
 # Provider 调用函数签名: (prompt, system, temperature, max_tokens, timeout) -> Optional[str]
-ProviderFn = Callable[..., Optional[str]]
+ProviderFn = Callable[..., str | None]
 
 
 class CallRecord:
@@ -416,10 +416,10 @@ class LLMRouter:
                 mod = importlib.import_module(self._passthrough_module)
                 fn = getattr(mod, "chat_deep", None)
                 if fn:
-                    return cast(Optional[str], fn(prompt, system))
+                    return cast(str | None, fn(prompt, system))
                 # 没有 chat_deep, 用 chat
                 fn = getattr(mod, self._passthrough_function)
-                return cast(Optional[str], fn(prompt, system))
+                return cast(str | None, fn(prompt, system))
             except (
                 ValueError,
                 TypeError,
@@ -674,7 +674,7 @@ class LLMRouter:
                 kwargs["temperature"] = temperature
             if max_tokens is not None:
                 kwargs["max_tokens"] = max_tokens
-            return cast(Optional[str], fn(prompt, system, **kwargs))
+            return cast(str | None, fn(prompt, system, **kwargs))
         except ImportError as e:
             logger.error("透传失败: 无法导入 %s: %s", self._passthrough_module, e)
             return None

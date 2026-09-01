@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import yaml
@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ForecastResult:
     point: np.ndarray
-    p10: Optional[np.ndarray] = None
-    p50: Optional[np.ndarray] = None
-    p90: Optional[np.ndarray] = None
+    p10: np.ndarray | None = None
+    p50: np.ndarray | None = None
+    p90: np.ndarray | None = None
     available: bool = True
     model: str = "timesfm-2.5"
     horizon: int = 0
@@ -200,8 +200,8 @@ class TimesFMPredictor:
     def forecast_with_covariates(
         self,
         series: np.ndarray,
-        xreg_dynamic: Optional[np.ndarray] = None,
-        xreg_static: Optional[dict[str, float]] = None,
+        xreg_dynamic: np.ndarray | None = None,
+        xreg_static: dict[str, float] | None = None,
         horizon: int = 0,
     ) -> ForecastResult:
         """协变量预测 (XReg, 需 timesfm[xreg])。降级到普通 forecast。"""

@@ -86,7 +86,7 @@ def load_model_safe(path, expected_sha256=None):
         actual = _sha256_file(path)
         if actual != expected_sha256:
             raise ValueError(
-                f"模型完整性校验失败: {path} (expected={expected_sha256[:12]}..., actual={actual[:12]}...) — 文件可能被篡改, 拒绝加载"
+                f"模型完整性校验失败: {path} (expected={expected_sha256[:12]}..., actual={actual[:12]}...) — 文件可能被篡改, 拒绝加载"  # noqa: E501
             )
     else:
         digest = _sha256_file(path)
@@ -95,7 +95,7 @@ def load_model_safe(path, expected_sha256=None):
         )
 
     with open(path, "rb") as f:
-        return pickle.load(f)  # noqa: S301 — SHA256 完整性已校验
+        return pickle.load(f)  # noqa: S301 — SHA256 完整性已校验  # nosec B301
 
 
 DATA_DIR = Path(

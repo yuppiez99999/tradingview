@@ -475,7 +475,7 @@ def print_forecast(forecast: dict[str, Any]) -> None:
 
     target = forecast.get("target", {})
     print(
-        f"目标: 年化 >= {target.get('annual_return', 0):.2%} | 最大回撤 < {target.get('max_drawdown', 0):.2%} | RF = {target.get('rf_rate', 0):.2%}"
+        f"目标: 年化 >= {target.get('annual_return', 0):.2%} | 最大回撤 < {target.get('max_drawdown', 0):.2%} | RF = {target.get('rf_rate', 0):.2%}"  # noqa: E501
     )
     print()
 
@@ -491,7 +491,7 @@ def print_forecast(forecast: dict[str, Any]) -> None:
 
     print("多情景测算 (建仓完成度 90%):")
     print(
-        f"{'情景':<10} {'现货':>7} {'现货贡献':>9} {'对冲':>7} {'CC贡献':>8} {'现金':>7} {'综合':>8} {'夏普':>7} {'回撤':>7} {'达标':>5} {'回撤合规':>8}"
+        f"{'情景':<10} {'现货':>7} {'现货贡献':>9} {'对冲':>7} {'CC贡献':>8} {'现金':>7} {'综合':>8} {'夏普':>7} {'回撤':>7} {'达标':>5} {'回撤合规':>8}"  # noqa: E501
     )
     print("-" * 95)
     for s in forecast.get("scenarios", []):
@@ -514,25 +514,25 @@ def print_forecast(forecast: dict[str, Any]) -> None:
     if summary:
         print("综合结论:")
         print(
-            f"  最佳/最差/平均收益: {summary.get('best_case', 0):+.2%} / {summary.get('worst_case', 0):+.2%} / {summary.get('average', 0):+.2%}"
+            f"  最佳/最差/平均收益: {summary.get('best_case', 0):+.2%} / {summary.get('worst_case', 0):+.2%} / {summary.get('average', 0):+.2%}"  # noqa: E501
         )
         print(f"  最佳夏普比率:       {summary.get('best_sharpe', 0):.3f}")
         print(f"  最差回撤:           {summary.get('worst_drawdown', 0):+.2%}")
         print(
-            f"  达标情景:           {summary.get('scenarios_meeting_target', 0)} / {summary.get('scenarios_total', 0)} ({summary.get('target_achievement_rate', 0):.0%})"
+            f"  达标情景:           {summary.get('scenarios_meeting_target', 0)} / {summary.get('scenarios_total', 0)} ({summary.get('target_achievement_rate', 0):.0%})"  # noqa: E501
         )
 
         hc = summary.get("hard_constraints", {})
         print()
         print("硬约束验证 (必须全部为 True):")
         print(
-            f"  {'✅' if hc.get('annual_return_8pct_met') else '🚨'} 年化 8% 目标 (保守+中性情景): {hc.get('annual_return_8pct_met', False)}"
+            f"  {'✅' if hc.get('annual_return_8pct_met') else '🚨'} 年化 8% 目标 (保守+中性情景): {hc.get('annual_return_8pct_met', False)}"  # noqa: E501
         )
         print(
-            f"  {'✅' if hc.get('drawdown_under_15pct') else '🚨'} 回撤 < 15% (所有情景):          {hc.get('drawdown_under_15pct', False)}"
+            f"  {'✅' if hc.get('drawdown_under_15pct') else '🚨'} 回撤 < 15% (所有情景):          {hc.get('drawdown_under_15pct', False)}"  # noqa: E501
         )
         print(
-            f"  {'✅' if hc.get('all_constraints_met') else '🚨'} 全部约束达成:                    {hc.get('all_constraints_met', False)}"
+            f"  {'✅' if hc.get('all_constraints_met') else '🚨'} 全部约束达成:                    {hc.get('all_constraints_met', False)}"  # noqa: E501
         )
     print()
 

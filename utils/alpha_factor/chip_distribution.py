@@ -41,7 +41,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -220,8 +219,8 @@ class ChipDistributionEngine:
         highs: list[float],
         lows: list[float],
         volumes: list[float],
-        free_float_shares: Optional[float] = None,
-    ) -> Optional[ChipSnapshot]:
+        free_float_shares: float | None = None,
+    ) -> ChipSnapshot | None:
         """推进到当前 bar, 返回筹码快照. 窗口不足返回 None.
 
         稳定轴策略 (核心修复 v2: 解决窗口 H/L 漂移导致每日重置的问题):
@@ -347,7 +346,7 @@ def compute_chip_factors(
     price_data: dict[str, dict[str, list[float]]],
     window: int = 150,
     n_bins: int = 150,
-    free_float_shares: Optional[dict[str, float]] = None,
+    free_float_shares: dict[str, float] | None = None,
 ) -> dict[str, FactorValue]:
     """计算 4 个筹码分布因子 (第 13 大类 · ChipDistribution)
 

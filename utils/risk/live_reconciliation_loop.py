@@ -205,7 +205,7 @@ class LiveReconciliationLoop:
                 if report.verdict == "halt"
                 else ("WARN" if report.verdict == "warn" else "INFO")
             ),
-            reason=f"盘中对账 verdict={report.verdict} issues={report.issues_count} drifts={report.drift_count} halts={report.halt_count}",
+            reason=f"盘中对账 verdict={report.verdict} issues={report.issues_count} drifts={report.drift_count} halts={report.halt_count}",  # noqa: E501
         )
 
         logger.info(

@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import dataclasses
 from collections import deque
-from typing import Optional
 
 from utils.wt_structs import OrderData
 
@@ -71,7 +70,7 @@ class OrderQueue:
 
     def __init__(self) -> None:
         # 活动订单 FIFO 队列: 等待撮合
-        self._pending: "deque[OrderData]" = deque()
+        self._pending: deque[OrderData] = deque()
         # 活动订单索引: order_id -> OrderData (O(1) 查找/撤单)
         self._active: dict[str, OrderData] = {}
         # 已完成订单: order_id -> OrderData (终态: ALL_TRADED/REJECTED)
@@ -114,7 +113,7 @@ class OrderQueue:
         self._pending = deque(o for o in self._pending if o.order_id != order_id)
         return True
 
-    def pop_next(self) -> Optional[OrderData]:
+    def pop_next(self) -> OrderData | None:
         """弹出下一个活动订单(FIFO)。
 
         跳过已不在 _active 中的订单(如被撤单)。
@@ -222,7 +221,7 @@ class OrderQueue:
         """已撤单订单数。"""
         return len(self._cancelled)
 
-    def get_order(self, order_id: str) -> Optional[OrderData]:
+    def get_order(self, order_id: str) -> OrderData | None:
         """查询订单(活动/已完成/已撤单)。"""
         if order_id in self._active:
             return self._active[order_id]
@@ -232,14 +231,14 @@ class OrderQueue:
             return self._cancelled[order_id]
         return None
 
-    def all_active(self) -> "list[OrderData]":
+    def all_active(self) -> list[OrderData]:
         """返回所有活动订单(快照)。"""
         return list(self._active.values())
 
-    def all_completed(self) -> "list[OrderData]":
+    def all_completed(self) -> list[OrderData]:
         """返回所有已完成订单(快照)。"""
         return list(self._completed.values())
 
-    def all_cancelled(self) -> "list[OrderData]":
+    def all_cancelled(self) -> list[OrderData]:
         """返回所有已撤单订单(快照)。"""
         return list(self._cancelled.values())

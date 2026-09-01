@@ -63,7 +63,7 @@ def init_qlib():
 def load_qlib_data(
     instruments: str = "csi500",
     start_time: str = "2020-01-01",
-    end_time: str = None,
+    end_time: str | None = None,
 ) -> pd.DataFrame:
     """从 QLib 加载全市场量价数据
 
@@ -875,7 +875,7 @@ def run_enhanced_discovery(
         logger.info("  TOP 有效因子:")
         for i, r in enumerate(eff[:5]):
             logger.info(
-                f"    {i+1}. {r.factor_name} (IC={r.ic_mean:.4f}, IR={r.ic_ir:.3f}, 多空={r.long_short_return*100:.3f}%/日)"
+                f"    {i+1}. {r.factor_name} (IC={r.ic_mean:.4f}, IR={r.ic_ir:.3f}, 多空={r.long_short_return*100:.3f}%/日)"  # noqa: E501
             )
     logger.info("=" * 60)
 

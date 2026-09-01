@@ -23,7 +23,7 @@ import json
 import logging
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional, TypedDict, cast
+from typing import TypedDict, cast
 
 import yaml
 
@@ -142,7 +142,7 @@ class LiquidationScheduler:
 
     def get_current_phase(
         self, today: date | None = None
-    ) -> Optional[LiquidationPhaseInfo]:
+    ) -> LiquidationPhaseInfo | None:
         """获取当前应执行的清仓阶段
 
         Args:
@@ -250,7 +250,7 @@ class LiquidationScheduler:
             },
         ]
 
-    def check_alert(self, days_threshold: int = 30) -> Optional[dict]:
+    def check_alert(self, days_threshold: int = 30) -> dict | None:
         """检查是否需要清仓预警
 
         Args:

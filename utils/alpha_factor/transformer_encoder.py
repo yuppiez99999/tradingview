@@ -20,14 +20,14 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
 logger = logging.getLogger("alpha_factor.transformer")
 
-torch: Optional[type]
-nn: Optional[type]
+torch: type | None
+nn: type | None
 _TORCH_AVAILABLE = False
 try:  # pragma: no cover - 依赖环境差异
     import torch as _torch_impl
@@ -59,7 +59,7 @@ class FactorEncodingResult:
     # 股票顺序列表 (与 embeddings 行号对齐)
     stocks: list[str]
     # 平均注意力权重矩阵 (None = numpy 影子模式未计算)
-    attn_weights: Optional[np.ndarray] = None
+    attn_weights: np.ndarray | None = None
     # 使用的后端 ("torch" / "numpy")
     backend: str = "numpy"
     # 调试信息 (输入维度/层数等)
@@ -124,7 +124,7 @@ class NumpyFactorEncoder:
     # ------------------------------------------------------------
     def _self_attn_shadow(
         self, Z: np.ndarray
-    ) -> tuple[np.ndarray, Optional[np.ndarray]]:
+    ) -> tuple[np.ndarray, np.ndarray | None]:
         """N×D 影子自注意力: QKV 近似 + softmax + 残差"""
         qkv = Z @ self.W_qkv  # [N, 3D]
         D = self.d_model
@@ -142,7 +142,7 @@ class NumpyFactorEncoder:
     # ------------------------------------------------------------
     def encode(
         self, factor_matrix: np.ndarray
-    ) -> tuple[np.ndarray, Optional[np.ndarray]]:
+    ) -> tuple[np.ndarray, np.ndarray | None]:
         """前向编码: X ∈ R^{N×F} → Z ∈ R^{N×D}"""
         N, F = factor_matrix.shape
         if self.n_factors != F:
@@ -222,7 +222,7 @@ def build_factor_encoder(
     n_heads: int = 4,
     n_layers: int = 2,
     dropout: float = 0.1,
-    force_backend: Optional[str] = None,
+    force_backend: str | None = None,
     seed: int = 42,
 ):
     """构建因子编码器 (可选后端, 优先 torch, 降级 numpy 影子)
@@ -252,7 +252,7 @@ def build_factor_encoder(
 
 def factors_to_matrix(
     factors: dict[str, Any],
-    stocks: Optional[list[str]] = None,
+    stocks: list[str] | None = None,
 ) -> tuple[np.ndarray, list[str]]:
     """把 AlphaFactorLibrary 输出的 factors 字典 → 截面矩阵 X ∈ R^{N×F}
 
@@ -329,13 +329,13 @@ def factors_to_matrix(
 
 def encode_factor_frame(
     factors: dict[str, Any],
-    stocks: Optional[list[str]] = None,
+    stocks: list[str] | None = None,
     *,
     encoder=None,
     d_model: int = 64,
     n_heads: int = 4,
     n_layers: int = 2,
-    force_backend: Optional[str] = None,
+    force_backend: str | None = None,
     seed: int = 42,
 ) -> FactorEncodingResult:
     """对 AlphaFactorLibrary 的输出做一次性端到端编码 (POC 主入口)
@@ -371,7 +371,7 @@ def encode_factor_frame(
             meta={"n_factors": F, "d_model": d_model, "warning": "empty_input"},
         )
 
-    attn: Optional[np.ndarray] = None
+    attn: np.ndarray | None = None
     backend = "numpy"
     emb: np.ndarray
 

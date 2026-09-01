@@ -25,10 +25,10 @@
   push2his.eastmoney.com, push2.eastmoney.com, eastmoney.com,
   sinajs.cn, sina.com.cn, 127.0.0.1, localhost, mcp.wind.com.cn
 """
+from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -57,7 +57,7 @@ _DEFAULT_UA = (
 )
 
 
-def ensure_no_proxy_env(domains: Optional[str] = None) -> str:
+def ensure_no_proxy_env(domains: str | None = None) -> str:
     """确保 NO_PROXY 环境变量已设置 (在导入 akshare/requests 前调用)
 
     若已存在 NO_PROXY 且非空, 保留原值; 否则设置默认域名白名单。
@@ -81,9 +81,9 @@ def ensure_no_proxy_env(domains: Optional[str] = None) -> str:
 
 
 def make_no_proxy_session(
-    name: Optional[str] = None,
+    name: str | None = None,
     max_retries: int = 3,
-    user_agent: Optional[str] = None,
+    user_agent: str | None = None,
     pool_connections: int = 10,
     pool_maxsize: int = 10,
 ) -> requests.Session:

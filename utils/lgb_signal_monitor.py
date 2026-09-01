@@ -423,7 +423,7 @@ def _generate_threshold_suggestions(
 def generate_analysis_report(analysis: dict[str, Any]) -> str:
     """生成 Markdown 分析报告"""
     if analysis.get("empty"):
-        return f"# LGB信号实盘监控报告\n\n**分析时间**: {datetime.now():%Y-%m-%d %H:%M:%S}\n\n{analysis.get('message', '无数据')}\n\n**日志文件**: `{analysis.get('log_file', LOG_FILE)}`\n"
+        return f"# LGB信号实盘监控报告\n\n**分析时间**: {datetime.now():%Y-%m-%d %H:%M:%S}\n\n{analysis.get('message', '无数据')}\n\n**日志文件**: `{analysis.get('log_file', LOG_FILE)}`\n"  # noqa: E501
 
     lines = [
         "# LGB信号实盘监控报告",
@@ -479,7 +479,7 @@ def generate_analysis_report(analysis: dict[str, Any]) -> str:
     for code, stats in sorted(analysis["per_symbol_stats"].items()):
         boost_ratio = stats["boost"] / stats["total"] if stats["total"] > 0 else 0
         lines.append(
-            f"| {code} | {stats['boost']} | {stats['cut']} | {stats['neutral']} | {stats['total']} | {boost_ratio:.1%} |"
+            f"| {code} | {stats['boost']} | {stats['cut']} | {stats['neutral']} | {stats['total']} | {boost_ratio:.1%} |"  # noqa: E501
         )
 
     lines.extend(

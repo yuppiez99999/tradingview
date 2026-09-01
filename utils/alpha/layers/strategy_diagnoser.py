@@ -440,7 +440,7 @@ class StrategyDiagnoser:
                             requires_human_approval=True,
                             remediation_commands=[
                                 "# 回滚策略到上一个稳定版本 (人工审批后执行)",
-                                f"python scripts/run_strategy_rollback.py --reason private_score_low --score {private_score}",
+                                f"python scripts/run_strategy_rollback.py --reason private_score_low --score {private_score}",  # noqa: E501
                             ],
                         ),
                         confidence=0.8,
@@ -506,7 +506,7 @@ class StrategyDiagnoser:
                             requires_human_approval=True,
                             remediation_commands=[
                                 "# 定位并修复未来函数 (人工审核)",
-                                'python -c "from v8.3_institutional.src.validation.pit_checker import PITChecker; PITChecker().generate_report()"',
+                                'python -c "from v8.3_institutional.src.validation.pit_checker import PITChecker; PITChecker().generate_report()"',  # noqa: E501
                             ],
                         ),
                         confidence=0.95,

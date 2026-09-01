@@ -505,7 +505,7 @@ class FifteenFivePlanAnalyzer:
 
     # ---------- 持仓适配分析 ----------
 
-    def analyze_holdings(self, positions: dict = None) -> list[dict]:
+    def analyze_holdings(self, positions: dict | None = None) -> list[dict]:
         """
         分析持仓与十五五规划的对齐度
 
@@ -550,7 +550,7 @@ class FifteenFivePlanAnalyzer:
 
     # ---------- 权重调整建议 ----------
 
-    def get_weight_adjustments(self, positions: dict = None) -> list[dict]:
+    def get_weight_adjustments(self, positions: dict | None = None) -> list[dict]:
         """
         基于十五五适配评分生成权重调整建议
         借鉴 QuantDinger policy 矩阵的配置推荐逻辑
@@ -597,7 +597,7 @@ class FifteenFivePlanAnalyzer:
 
     # ---------- 报告生成 ----------
 
-    def generate_report(self, positions: dict = None, save_dir: str = None) -> str:
+    def generate_report(self, positions: dict | None = None, save_dir: str | None = None) -> str:
         """生成十五五适配分析报告"""
         overview = self.get_policy_overview()
         analysis = self.analyze_holdings(positions)
@@ -635,7 +635,7 @@ class FifteenFivePlanAnalyzer:
             top = a["top_policies"]
             top_str = " / ".join(f"{p[0]}({p[1]})" for p in top)
             lines.append(
-                f"| **{a['name']}** | {a['code']} | {a['overall_score']} | {a['grade']} | {top_str} | {a['rationale']} |"
+                f"| **{a['name']}** | {a['code']} | {a['overall_score']} | {a['grade']} | {top_str} | {a['rationale']} |"  # noqa: E501
             )
         lines.append("")
 
@@ -648,7 +648,7 @@ class FifteenFivePlanAnalyzer:
         for adj in adjustments:
             direction = "+" if adj["weight_adjust_pct"] > 0 else ""
             lines.append(
-                f"| {adj['name']} | {adj['fifteen_score']} | {adj['deviation_from_avg']:+.1f} | **{adj['suggestion']}** | {direction}{adj['weight_adjust_pct']:.1f}% |"
+                f"| {adj['name']} | {adj['fifteen_score']} | {adj['deviation_from_avg']:+.1f} | **{adj['suggestion']}** | {direction}{adj['weight_adjust_pct']:.1f}% |"  # noqa: E501
             )
         lines.append("")
 

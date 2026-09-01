@@ -27,7 +27,6 @@ B1-B5 全套无偏验证后 +0.039 增益被证伪 (实际 +0.0017/+0.0064, 不�
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
 import torch
@@ -123,8 +122,8 @@ class GATFactorTorch:
         self.lr = lr
         self.device = torch.device(device)
         self.n_features = 0
-        self.gat: Optional[GATLayer] = None
-        self.head: Optional[nn.Linear] = None
+        self.gat: GATLayer | None = None
+        self.head: nn.Linear | None = None
         self.optimizer = None
 
     def _init(self, n_features: int) -> None:

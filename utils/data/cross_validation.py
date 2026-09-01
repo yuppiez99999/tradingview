@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """多源交叉校验 (Cross-Source Validation) — 数据管道"接入层"增强 (G14 架构升级).
 
 对应量化铁律: 糟糕的数据比没有数据更危险, 数据必须经过多源交叉校验.
@@ -16,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +25,7 @@ class ValidationResult:
 
     symbol: str
     ok: bool
-    sources: Dict[str, float] = field(default_factory=dict)
+    sources: dict[str, float] = field(default_factory=dict)
     median: float = 0.0
     max_rel_deviation: float = 0.0
     worst_pair: tuple = ("", "")
@@ -52,7 +50,7 @@ class CrossSourceValidator:
         self.max_rel_deviation = max_rel_deviation
         self.min_sources = min_sources
 
-    def check(self, symbol: str, quotes: Dict[str, float]) -> ValidationResult:
+    def check(self, symbol: str, quotes: dict[str, float]) -> ValidationResult:
         """对单标的多源报价做一致性校验."""
         valid = {k: float(v) for k, v in quotes.items() if v is not None and v == v and v != 0}
         result = ValidationResult(symbol=symbol, ok=True, sources=valid)
@@ -92,6 +90,6 @@ class CrossSourceValidator:
             result.message = "交叉校验通过"
         return result
 
-    def check_batch(self, batch: Dict[str, Dict[str, float]]) -> Dict[str, ValidationResult]:
+    def check_batch(self, batch: dict[str, dict[str, float]]) -> dict[str, ValidationResult]:
         """批量校验, 返回 {symbol: ValidationResult}."""
         return {sym: self.check(sym, quotes) for sym, quotes in batch.items()}

@@ -22,7 +22,6 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
@@ -65,9 +64,9 @@ class P2CacheQualityGate:
         self,
         target_date: date,
         symbols: list[str],
-        df: Optional[pd.DataFrame] = None,
-        data_arrival_time: Optional[datetime] = None,
-        cache_path: Optional[Path] = None,
+        df: pd.DataFrame | None = None,
+        data_arrival_time: datetime | None = None,
+        cache_path: Path | None = None,
     ) -> tuple[bool, list[DQCEvent]]:
         """执行 P2 检查.
 
@@ -170,8 +169,8 @@ class P2CacheQualityGate:
     # 内部方法
     # ============================================================
     def _load_cache(
-        self, target_date: date, cache_path: Optional[Path]
-    ) -> Optional[pd.DataFrame]:
+        self, target_date: date, cache_path: Path | None
+    ) -> pd.DataFrame | None:
         """从缓存文件加载数据."""
         if cache_path is None or not cache_path.exists():
             return None
@@ -287,9 +286,9 @@ class P2CacheQualityGate:
 def run_p2_gate(
     target_date: date,
     symbols: list[str],
-    df: Optional[pd.DataFrame] = None,
-    data_arrival_time: Optional[datetime] = None,
-    cache_path: Optional[Path] = None,
+    df: pd.DataFrame | None = None,
+    data_arrival_time: datetime | None = None,
+    cache_path: Path | None = None,
 ) -> tuple[bool, list[DQCEvent]]:
     """执行 P2 检查 (便捷入口).
 

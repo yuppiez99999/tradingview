@@ -24,6 +24,7 @@
   - 本地缓存: 避免重复请求
   - 环境变量管理API Key
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -33,7 +34,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import requests
 
@@ -56,7 +57,7 @@ DEFAULT_TIMEOUT = 15  # 秒
 _CACHE_LOCK = threading.Lock()
 
 
-def _parse_api_float(value: Any) -> Optional[float]:
+def _parse_api_float(value: Any) -> float | None:
     """安全解析 API 返回的数值字段。
 
     P1-T1 修复 (2026-07-29): FRED 缺失值返回 ".", 其它 API 可能返回
@@ -93,8 +94,8 @@ class MacroIndicator:
     unit: str
     date: str
     source: str
-    previous: Optional[float] = None
-    change: Optional[float] = None
+    previous: float | None = None
+    change: float | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -117,11 +118,11 @@ class FREDApi:
 
     BASE_URL = "https://api.stlouisfed.org/fred"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.environ.get("FRED_API_KEY", "")
         self.available = bool(self.api_key)
 
-    def get_indicator(self, series_id: str) -> Optional[MacroIndicator]:
+    def get_indicator(self, series_id: str) -> MacroIndicator | None:
         """获取经济指标最新值
 
         常用 series_id:
@@ -228,7 +229,7 @@ class EcondbApi:
     def __init__(self):
         self.available = True
 
-    def get_indicator(self, ticker: str) -> Optional[MacroIndicator]:
+    def get_indicator(self, ticker: str) -> MacroIndicator | None:
         """获取经济指标
 
         常用 ticker:
@@ -363,11 +364,11 @@ class AlphaVantageApi:
 
     BASE_URL = "https://www.alphavantage.co/query"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.environ.get("ALPHAVANTAGE_API_KEY", "")
         self.available = bool(self.api_key)
 
-    def get_global_quote(self, symbol: str) -> Optional[dict]:
+    def get_global_quote(self, symbol: str) -> dict | None:
         """获取全球股票报价
 
         Args:
@@ -427,11 +428,11 @@ class FinnhubApi:
 
     BASE_URL = "https://finnhub.io/api/v1"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.environ.get("FINNHUB_API_KEY", "")
         self.available = bool(self.api_key)
 
-    def get_quote(self, symbol: str) -> Optional[dict]:
+    def get_quote(self, symbol: str) -> dict | None:
         """获取股票报价 (美股/港股)"""
         if not self.available:
             return None
@@ -543,7 +544,7 @@ class CoinGeckoApi:
 
     def get_price(
         self, coin_id: str = "bitcoin", vs_currency: str = "usd"
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """获取加密货币价格
 
         Args:
@@ -588,7 +589,7 @@ class CoinGeckoApi:
             logger.error(f"CoinGecko 获取 {coin_id} 失败: {e}")
             return None
 
-    def get_global_market(self) -> Optional[dict]:
+    def get_global_market(self) -> dict | None:
         """获取加密货币全球市场数据 (作为风险情绪指标)"""
         try:
             url = f"{self.BASE_URL}/global"
@@ -651,7 +652,7 @@ class ExternalDataManager:
         safe_key = key.replace("/", "_").replace("\\", "_")
         return CACHE_DIR / f"{category}_{safe_key}.json"
 
-    def _load_cache(self, category: str, key: str) -> Optional[Any]:
+    def _load_cache(self, category: str, key: str) -> Any | None:
         """加载缓存"""
         cache_file = self._cache_path(category, key)
         if not cache_file.exists():
@@ -732,7 +733,7 @@ class ExternalDataManager:
 
         return snapshot
 
-    def get_global_stock(self, symbol: str) -> Optional[dict]:
+    def get_global_stock(self, symbol: str) -> dict | None:
         """获取全球股票行情
 
         优先级: Finnhub > Alpha Vantage
@@ -759,7 +760,7 @@ class ExternalDataManager:
 
         return quote
 
-    def get_crypto_price(self, coin_id: str = "bitcoin") -> Optional[dict]:
+    def get_crypto_price(self, coin_id: str = "bitcoin") -> dict | None:
         """获取加密货币价格"""
         cached = self._load_cache("crypto", coin_id)
         if cached:

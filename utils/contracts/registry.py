@@ -36,7 +36,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from utils.contracts.symbols import SymbolParseError, parse_symbol
 
@@ -302,7 +301,7 @@ class ContractRegistry:
         """
         self._specs[spec.product.upper()] = spec
 
-    def lookup(self, product: str) -> Optional[ContractSpec]:
+    def lookup(self, product: str) -> ContractSpec | None:
         """按品种代码查询合约规格。
 
         Args:
@@ -313,7 +312,7 @@ class ContractRegistry:
         """
         return self._specs.get(product.upper())
 
-    def lookup_by_symbol(self, wind_code: str) -> Optional[ContractSpec]:
+    def lookup_by_symbol(self, wind_code: str) -> ContractSpec | None:
         """按完整合约代码查询 (如 "CU2508.SHFE" → 查 "CU")。
 
         自动从 wind_code 中提取品种代码 (字母前缀), 然后查 registry。

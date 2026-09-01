@@ -19,9 +19,25 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# 数据源降级链精确异常集合:
+# ImportError(模块缺失) / OSError(网络+文件, 含 requests.RequestException)
+# ValueError(含 json.JSONDecodeError / pandas ParserError) / KeyError·TypeError·IndexError(解析)
+# AttributeError / ZeroDivisionError(数值处理) / RuntimeError(数据源内部)
+_FETCH_EXC_TYPES: tuple = (
+    ImportError,
+    ValueError,
+    TypeError,
+    KeyError,
+    IndexError,
+    AttributeError,
+    ZeroDivisionError,
+    RuntimeError,
+    OSError,
+)
 
 
 # ============================================================================
@@ -62,7 +78,7 @@ class HedgeToolDataFetcher:
 
     def __init__(
         self,
-        config: Optional[dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
         cache_path: str = "data/hedge_tool_price_cache.json",
     ) -> None:
         """初始化对冲工具行情获取器。
@@ -98,7 +114,7 @@ class HedgeToolDataFetcher:
     # 期货行情获取
     # ========================================================================
 
-    def fetch_futures(self, codes: Optional[list[str]] = None) -> dict[str, float]:
+    def fetch_futures(self, codes: list[str] | None = None) -> dict[str, float]:
         """获取股指期货行情。
 
         复用 HedgeEngine.get_live_futures_prices() 内置降级链:
@@ -127,7 +143,7 @@ class HedgeToolDataFetcher:
             ]
             if missing:
                 self._add_flag(f"期货行情部分缺失: {','.join(missing)}，使用兜底价格")
-        except Exception as exc:
+        except _FETCH_EXC_TYPES as exc:
             logger.error("期货行情获取失败: %s", exc)
             self._add_flag(f"期货行情获取异常: {exc}，使用兜底价格")
             result = {k: _FALLBACK_FUTURES_PRICES.get(k, 0.0) for k in target_codes}
@@ -140,7 +156,7 @@ class HedgeToolDataFetcher:
 
     def fetch_etf_options(
         self,
-        codes: Optional[list[str]] = None,
+        codes: list[str] | None = None,
     ) -> dict[str, dict[str, dict[str, Any]]]:
         """获取 ETF 期权 T 型报价。
 
@@ -206,7 +222,7 @@ class HedgeToolDataFetcher:
             data = get_etf_option_quote(code)
             if data and len(data) > 0:
                 return data
-        except Exception as exc:
+        except _FETCH_EXC_TYPES as exc:
             logger.debug("Wind MCP 获取ETF期权%s失败: %s", code, exc)
         return {}
 
@@ -218,7 +234,7 @@ class HedgeToolDataFetcher:
             df = ak.option_finance_board(symbol=code, end_month="")
             if df is not None and len(df) > 0:
                 return self._parse_akshare_option_df(code, df)
-        except Exception as exc:
+        except _FETCH_EXC_TYPES as exc:
             logger.debug("AKShare 获取ETF期权%s失败: %s", code, exc)
         return {}
 
@@ -251,7 +267,7 @@ class HedgeToolDataFetcher:
                     "expiry": expiry,
                     "source": "akshare",
                 }
-        except Exception as exc:
+        except _FETCH_EXC_TYPES as exc:
             logger.warning("解析AKShare期权数据失败: %s", exc)
             self._add_flag(f"ETF期权{code}AKShare数据解析异常")
         return result
@@ -266,7 +282,7 @@ class HedgeToolDataFetcher:
             option_cache = cache.get("etf_options", {}).get(code, {})
             if option_cache:
                 return option_cache
-        except Exception as exc:
+        except _FETCH_EXC_TYPES as exc:
             logger.debug("缓存获取ETF期权%s失败: %s", code, exc)
         return {}
 
@@ -289,7 +305,7 @@ class HedgeToolDataFetcher:
 
     def fetch_reverse_etf(
         self,
-        codes: Optional[list[str]] = None,
+        codes: list[str] | None = None,
     ) -> dict[str, float]:
         """获取反向 ETF 行情。
 
@@ -353,7 +369,7 @@ class HedgeToolDataFetcher:
             from quant_modules.wind_mcp import get_etf_price
 
             return float(get_etf_price(code) or 0)
-        except Exception as exc:
+        except _FETCH_EXC_TYPES as exc:
             logger.debug("Wind获取反向ETF %s失败: %s", code, exc)
         return 0.0
 
@@ -365,7 +381,7 @@ class HedgeToolDataFetcher:
             df = ak.fund_etf_hist_em(symbol=code, period="daily", adjust="qfq")
             if df is not None and len(df) > 0:
                 return float(df.iloc[-1].get("收盘", 0) or 0)
-        except Exception as exc:
+        except _FETCH_EXC_TYPES as exc:
             logger.debug("AKShare获取反向ETF %s失败: %s", code, exc)
         return 0.0
 
@@ -375,7 +391,7 @@ class HedgeToolDataFetcher:
             from quant_modules.sina_api_helper import get_realtime_quote
 
             return float(get_realtime_quote(code) or 0)
-        except Exception as exc:
+        except _FETCH_EXC_TYPES as exc:
             logger.debug("Sina获取反向ETF %s失败: %s", code, exc)
         return 0.0
 
@@ -387,7 +403,7 @@ class HedgeToolDataFetcher:
             with open(self.cache_path, encoding="utf-8") as f:
                 cache = json.load(f)
             return float(cache.get("reverse_etf", {}).get(code, 0) or 0)
-        except Exception as exc:
+        except _FETCH_EXC_TYPES as exc:
             logger.debug("缓存获取反向ETF %s失败: %s", code, exc)
         return 0.0
 
@@ -397,9 +413,9 @@ class HedgeToolDataFetcher:
 
     def fetch_all(
         self,
-        futures_codes: Optional[list[str]] = None,
-        etf_option_codes: Optional[list[str]] = None,
-        reverse_etf_codes: Optional[list[str]] = None,
+        futures_codes: list[str] | None = None,
+        etf_option_codes: list[str] | None = None,
+        reverse_etf_codes: list[str] | None = None,
     ) -> dict[str, Any]:
         """一次性获取三类对冲工具行情。
 

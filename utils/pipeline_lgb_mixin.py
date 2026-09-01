@@ -43,6 +43,24 @@ except (ImportError, AttributeError) as _lgb_import_err:
     POSITION_SYMBOLS = []
     logger.warning(f"LightGBM 导入失败, LGB Mixin 降级: {_lgb_import_err}")
 
+# LGB 管线精确异常集合: pandas 特征工程/训练常见失败类型 + LightGBMError (可用时)
+_LGB_EXC_TYPES: tuple = (
+    ValueError,
+    TypeError,
+    KeyError,
+    IndexError,
+    AttributeError,
+    ZeroDivisionError,
+    RuntimeError,
+    OSError,
+)
+try:
+    from lightgbm import LightGBMError as _LightGBMError
+
+    _LGB_EXC_TYPES = _LGB_EXC_TYPES + (_LightGBMError,)
+except ImportError:
+    pass
+
 # Walk-forward 训练配置（加速版：月度重训无需 2000 轮）
 WALKFORWARD_LGB_CONFIG = (
     {
@@ -108,7 +126,7 @@ class LGBMixin:
             try:
                 df_feat = add_technical_features(df)
                 featured_dict[symbol] = df_feat
-            except Exception as e:
+            except _LGB_EXC_TYPES as e:
                 logger.debug("[LGB-WF] 技术因子失败 %s: %s", symbol, e)
                 featured_dict[symbol] = df.copy()
 
@@ -116,29 +134,29 @@ class LGBMixin:
         try:
             featured_dict = add_mean_reversion_features(featured_dict)
             logger.debug("[LGB-WF] 均值回归特征已添加 (9个特征/标的)")
-        except Exception as e:
+        except _LGB_EXC_TYPES as e:
             logger.warning("[LGB-WF] 均值回归特征失败: %s", e)
 
         # Step 3: 截面 + 行业 + 资金流向 + 跨市场 + 情绪
         try:
             featured_dict = add_cross_sectional_features(featured_dict)
-        except Exception as e:
+        except _LGB_EXC_TYPES as e:
             logger.debug("[LGB-WF] 截面因子失败: %s", e)
         try:
             featured_dict = add_industry_relative_strength_features(featured_dict)
-        except Exception as e:
+        except _LGB_EXC_TYPES as e:
             logger.debug("[LGB-WF] 行业相对强度失败: %s", e)
         try:
             featured_dict = add_capital_flow_features(featured_dict)
-        except Exception as e:
+        except _LGB_EXC_TYPES as e:
             logger.debug("[LGB-WF] 资金流向失败: %s", e)
         try:
             featured_dict = add_cross_market_features(featured_dict)
-        except Exception as e:
+        except _LGB_EXC_TYPES as e:
             logger.debug("[LGB-WF] 跨市场失败: %s", e)
         try:
             featured_dict = add_sentiment_features(featured_dict, {})
-        except Exception as e:
+        except _LGB_EXC_TYPES as e:
             logger.debug("[LGB-WF] 情绪因子失败: %s", e)
 
         return featured_dict
@@ -182,7 +200,7 @@ class LGBMixin:
                 proxy_code,
             )
             return regime_series
-        except Exception as e:
+        except _LGB_EXC_TYPES as e:
             logger.warning("[V9-Regime] regime 序列计算异常: %s", e)
             return None
 
@@ -245,7 +263,7 @@ class LGBMixin:
                 # 释放当前标的的特征 DataFrame, 减少内存压力
                 del df
                 gc.collect()
-            except Exception as e:
+            except _LGB_EXC_TYPES as e:
                 failed += 1
                 logger.warning(
                     "[LGB-WF] %s 训练失败 (重试 %d 次后): %s",
@@ -302,7 +320,7 @@ class LGBMixin:
                 else:
                     result = train_symbol_enhanced(code, df, config)
                 break
-            except Exception as e:
+            except _LGB_EXC_TYPES as e:
                 last_err = e
                 if attempt < _LGB_TRAIN_MAX_RETRIES:
                     logger.warning(

@@ -115,7 +115,7 @@ def _expected_max_sr(
         + (skewness / 6) * (z_max**2 - 1)
         + ((kurtosis - 3) / 24) * (z_max**3 - 3 * z_max)
     )
-    return float(z_max * correction / np.sqrt(max(n_observations, 1)))
+    return float(max(z_max * correction / np.sqrt(max(n_observations, 1)), 0.0))
 
 
 def deflated_sharpe_ratio(
@@ -149,18 +149,27 @@ def deflated_sharpe_ratio(
             n_observations=n,
         )
 
-    # Sharpe Ratio
+    # Sharpe Ratio (年化, 仅用于展示/verdict)
     sr = _compute_sharpe(returns, risk_free_rate)
 
     # 偏度和峰度
     skew = float(0.0 if n < 3 else _safe_skew(returns))
     kurt = float(3.0 if n < 4 else _safe_kurt(returns))
 
-    # E[SR_max]
+    # E[SR_max] (日频口径)
     e_max = _expected_max_sr(n_trials, n, skew, kurt)
 
-    # DSR = Φ((SR - E[SR_max]) * sqrt(T-1))
-    z_score = (sr - e_max) * np.sqrt(max(n - 1, 1))
+    # 日频未年化 SR — PSR/DSR 公式口径, 必须与 sqrt(T-1) 配套
+    # (修复: 原实现误用年化 SR 参与 z_score, z 被放大 sqrt(252) 倍, DSR 系统性高估 → 恒 PASS)
+    daily_rf = risk_free_rate / TRADING_DAYS
+    std_daily = float(np.std(returns, ddof=1))
+    sr_daily = (float(np.mean(returns)) - daily_rf) / std_daily if std_daily >= 1e-12 else 0.0
+
+    # PSR 分母: 偏度/峰度对 SR 方差的修正 (Bailey & López de Prado 2014)
+    denom = np.sqrt(max(1.0 - skew * sr_daily + (kurt - 1.0) / 4.0 * sr_daily**2, 1e-12))
+
+    # DSR = Φ((SR_daily - E[SR_max]) * sqrt(T-1) / denom)
+    z_score = (sr_daily - e_max) * np.sqrt(max(n - 1, 1)) / denom
     dsr = float(norm.cdf(z_score))
 
     # p_value = 1 - DSR (单尾检验)

@@ -207,9 +207,9 @@ class VolTargetController:
         if vol_scale >= self.VOL_SCALE_THRESHOLD:
             recommendation = f"正常建仓: 波动率({realized_vol * 100:.1f}%)在合理范围内"
         elif vol_scale >= 0.5:
-            recommendation = f"适度缩仓至{vol_scale * 100:.0f}%: 波动率偏高({realized_vol * 100:.1f}% vs 目标{self.TARGET_ANNUAL_VOL * 100:.0f}%)"
+            recommendation = f"适度缩仓至{vol_scale * 100:.0f}%: 波动率偏高({realized_vol * 100:.1f}% vs 目标{self.TARGET_ANNUAL_VOL * 100:.0f}%)"  # noqa: E501
         else:
-            recommendation = f"大幅缩仓至{vol_scale * 100:.0f}%: 波动率过高({realized_vol * 100:.1f}% vs 目标{self.TARGET_ANNUAL_VOL * 100:.0f}%)"
+            recommendation = f"大幅缩仓至{vol_scale * 100:.0f}%: 波动率过高({realized_vol * 100:.1f}% vs 目标{self.TARGET_ANNUAL_VOL * 100:.0f}%)"  # noqa: E501
 
         result = {
             "original_budget": original_budget,

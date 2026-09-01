@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("dqc.event")
 
@@ -147,7 +147,7 @@ class DQCEvent:
     value: float
     threshold: float
     message: str
-    symbol: Optional[str] = None
+    symbol: str | None = None
     timestamp: str = ""
     context: dict[str, Any] = field(default_factory=dict)
 
@@ -204,7 +204,7 @@ def make_event(
     value: float,
     threshold: float,
     message: str,
-    symbol: Optional[str] = None,
+    symbol: str | None = None,
     **context: Any,
 ) -> DQCEvent:
     """便捷构造 DQCEvent.

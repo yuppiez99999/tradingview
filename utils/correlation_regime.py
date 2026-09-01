@@ -11,7 +11,6 @@ endpoint. Descriptive risk context — not a trading signal.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -126,15 +125,15 @@ def _aligned_returns(price_series: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
 def _fused_episodes(
     dates: list[str], fused: list[int]
-) -> list[dict[str, Optional[str]]]:
+) -> list[dict[str, str | None]]:
     """Contiguous FUSED intervals within the returned window.
 
     ``end`` is the last date observed FUSED, or None while the final bar is
     still FUSED (episode ongoing).
     """
-    episodes: list[dict[str, Optional[str]]] = []
-    start: Optional[str] = None
-    last_fused: Optional[str] = None
+    episodes: list[dict[str, str | None]] = []
+    start: str | None = None
+    last_fused: str | None = None
     for date, state in zip(dates, fused, strict=True):
         if state:
             if start is None:

@@ -108,7 +108,7 @@ class KnowledgeBase:
         """
         verdict = verdict or {}
         entry = KnowledgeEntry(
-            entry_id=f"kb_{datetime.now().strftime('%Y%m%d%H%M%S')}_{hypothesis.id[-6:] if hasattr(hypothesis, 'id') else 'unknown'}",
+            entry_id=f"kb_{datetime.now().strftime('%Y%m%d%H%M%S')}_{hypothesis.id[-6:] if hasattr(hypothesis, 'id') else 'unknown'}",  # noqa: E501
             timestamp=datetime.now().isoformat(timespec="seconds"),
             hypothesis_id=getattr(hypothesis, "id", ""),
             description=getattr(hypothesis, "description", ""),

@@ -93,7 +93,7 @@ class CVaRConfig:
     feature_flag_name: str = "USE_CVAR_RISK_METRIC"
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any] | None) -> "CVaRConfig":
+    def from_dict(cls, data: dict[str, Any] | None) -> CVaRConfig:
         if not data:
             return cls()
         kwargs: dict[str, Any] = {}
@@ -156,7 +156,7 @@ class CVaRConfig:
         return cls(**kwargs)
 
     @classmethod
-    def from_system_config(cls) -> "CVaRConfig":
+    def from_system_config(cls) -> CVaRConfig:
         try:
             import json
             from pathlib import Path

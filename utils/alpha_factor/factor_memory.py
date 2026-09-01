@@ -32,7 +32,7 @@ import sqlite3
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     from utils.logging_manager import get_logger
@@ -108,7 +108,7 @@ class FactorMemory:
         print(history[0].conclusion)
     """
 
-    def __init__(self, db_path: Optional[str] = None) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         if db_path is None:
             base = Path(__file__).resolve().parent.parent.parent
             db_path = str(base / "data" / "factor_memory.db")
@@ -188,7 +188,7 @@ class FactorMemory:
     def query_factor(
         self,
         factor_name: str,
-        conclusion: Optional[str] = None,
+        conclusion: str | None = None,
         limit: int = 50,
     ) -> list[FactorExperiment]:
         """查询因子历史实验"""
@@ -216,7 +216,7 @@ class FactorMemory:
         self,
         factor_name: str,
         conclusion: str,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
     ) -> bool:
         """是否已有相同结论的实验 (避免重复回测)"""
         existing = self.query_factor(factor_name, conclusion=conclusion)

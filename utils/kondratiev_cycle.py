@@ -16,6 +16,16 @@ import logging
 import os
 from datetime import datetime
 
+import numpy as np
+
+try:
+    import stumpy
+
+    _STUMPY_AVAILABLE = True
+except ImportError:
+    stumpy = None
+    _STUMPY_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -175,9 +185,7 @@ class KondratievCycleAnalyzer:
             "progress_pct": estimate["progress_pct"],
             "confidence": estimate["confidence"],
             "next_phase": self._get_next_phase(phase),
-            "estimated_transition": self._estimate_transition_date(
-                estimate["progress_pct"]
-            ),
+            "estimated_transition": self._estimate_transition_date(estimate["progress_pct"]),
             "recommended_sectors": allocation.get("sectors", []),
             "recommended_commodities": allocation.get("commodities", []),
             "recommended_style": allocation.get("style", ""),
@@ -232,13 +240,9 @@ class KondratievCycleAnalyzer:
                     "kondratiev_phase": phase["phase"],
                     "kondratiev_favorability": kondratiev_score,
                     "fifteen_five_weight": fifteen_weight,
-                    "combined_score": round(
-                        kondratiev_score * 0.6 + fifteen_weight * 100 * 0.4, 1
-                    ),
+                    "combined_score": round(kondratiev_score * 0.6 + fifteen_weight * 100 * 0.4, 1),
                     "recommendation": (
-                        "超配"
-                        if kondratiev_score >= 85
-                        else "标配" if kondratiev_score >= 70 else "低配"
+                        "超配" if kondratiev_score >= 85 else "标配" if kondratiev_score >= 70 else "低配"
                     ),
                 }
             )
@@ -295,9 +299,7 @@ class KondratievCycleAnalyzer:
                     "name": comm,
                     "driver": role["driver"],
                     "phase_sensitivity": role["phase_sensitivity"],
-                    "kondratiev_recommendation": (
-                        "推荐" if comm in recommended else "观望"
-                    ),
+                    "kondratiev_recommendation": ("推荐" if comm in recommended else "观望"),
                     "current_signal": role["current_signal"],
                 }
             )
@@ -328,7 +330,7 @@ class KondratievCycleAnalyzer:
 
     # ---------- 报告生成 ----------
 
-    def generate_report(self, save_dir: str = None) -> str:
+    def generate_report(self, save_dir: str | None = None) -> str:
         """生成康波周期+十五五交叠分析报告"""
         phase = self.get_current_phase()
         sectors = self.get_sector_allocation()
@@ -372,7 +374,7 @@ class KondratievCycleAnalyzer:
         lines.append("|------|-----------|-----------|---------|------|")
         for s in sectors:
             lines.append(
-                f"| {s['sector']} | {s['kondratiev_favorability']} | {s['fifteen_five_weight']:.0%} | {s['combined_score']} | **{s['recommendation']}** |"
+                f"| {s['sector']} | {s['kondratiev_favorability']} | {s['fifteen_five_weight']:.0%} | {s['combined_score']} | **{s['recommendation']}** |"  # noqa: E501
             )
         lines.append("")
 
@@ -384,7 +386,7 @@ class KondratievCycleAnalyzer:
         lines.append("|------|-----------|-----------|---------|---------|")
         for c in commodities:
             lines.append(
-                f"| {c['name']} | {c['driver']} | {c['phase_sensitivity']} | {c['kondratiev_recommendation']} | {c['current_signal']} |"
+                f"| {c['name']} | {c['driver']} | {c['phase_sensitivity']} | {c['kondratiev_recommendation']} | {c['current_signal']} |"  # noqa: E501
             )
         lines.append("")
 
@@ -399,9 +401,7 @@ class KondratievCycleAnalyzer:
         lines.append("| 行业 | 十五五权重 | 康波评分 | 投资逻辑 |")
         lines.append("|------|-----------|---------|---------|")
         for s in overlay["synergy_sectors"]:
-            lines.append(
-                f"| {s['sector']} | {s['fifteen_weight']:.0%} | {s['kondratiev_score']} | {s['rationale']} |"
-            )
+            lines.append(f"| {s['sector']} | {s['fifteen_weight']:.0%} | {s['kondratiev_score']} | {s['rationale']} |")
         lines.append("")
         lines.append("### 投资建议")
         lines.append(f"> {overlay['investment_implication']}")
@@ -415,14 +415,183 @@ class KondratievCycleAnalyzer:
 
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
-            filepath = os.path.join(
-                save_dir, f"康波周期分析_{datetime.now().strftime('%Y%m%d')}.md"
-            )
+            filepath = os.path.join(save_dir, f"康波周期分析_{datetime.now().strftime('%Y%m%d')}.md")
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report)
             logger.info(f"[Kondratiev] 报告已保存: {filepath}")
 
         return report
+
+    # ---------- SAX Motif 发现 (stumpy POC, Wave 12-A #1) ----------
+
+    def discover_motifs(
+        self,
+        timeseries: np.ndarray,
+        window_size: int = 60,
+        max_motifs: int = 3,
+    ) -> list[dict]:
+        """使用 stumpy SAX motif 发现识别时序中的重复模式.
+
+        Args:
+            timeseries: 一维时序数据.
+            window_size: 模式窗口大小（月度数据默认 60 ≈ 5 年）.
+            max_motifs: 最大返回模式数.
+
+        Returns:
+            list[dict]: 每个模式包含 motif_idx/match_idx/distance/window_size.
+        """
+        ts = np.asarray(timeseries, dtype=np.float64).ravel()
+        n = len(ts)
+        if n < 2 * window_size:
+            logger.warning(
+                "[Kondratiev] 时序长度 %d 不足 2×window_size=%d，无法发现 motif",
+                n,
+                2 * window_size,
+            )
+            return []
+
+        if _STUMPY_AVAILABLE:
+            return self._discover_motifs_stumpy(ts, window_size, max_motifs)
+        return self._discover_motifs_numpy(ts, window_size, max_motifs)
+
+    def _discover_motifs_stumpy(self, ts: np.ndarray, m: int, k: int) -> list[dict]:
+        """stumpy 后端：矩阵轮廓 motif 发现."""
+        mp = stumpy.stump(ts, m)
+        distances = mp[:, 0].astype(float)
+        motif_indices = []
+
+        used_positions = set()
+        for _ in range(k):
+            remaining = [
+                i
+                for i in range(len(distances))
+                if i not in used_positions and not any(abs(i - u) < m for u in used_positions)
+            ]
+            if not remaining:
+                break
+            best_idx = min(remaining, key=lambda i: distances[i])
+            if not np.isfinite(distances[best_idx]) or distances[best_idx] == np.inf:
+                break
+            match_idx = int(mp[best_idx, 1])
+            motif_indices.append(
+                {
+                    "motif_idx": int(best_idx),
+                    "match_idx": match_idx,
+                    "distance": float(distances[best_idx]),
+                    "window_size": m,
+                    "backend": "stumpy",
+                }
+            )
+            used_positions.update(range(best_idx, best_idx + m))
+            used_positions.update(range(match_idx, match_idx + m))
+
+        return motif_indices
+
+    def _discover_motifs_numpy(self, ts: np.ndarray, m: int, k: int) -> list[dict]:
+        """numpy 降级后端：滑动窗口 + 欧氏距离 motif 发现."""
+        n = len(ts)
+        windows = np.array([ts[i : i + m] for i in range(n - m + 1)])
+        motif_indices = []
+        used_positions = set()
+
+        for _ in range(k):
+            best_dist = np.inf
+            best_i, best_j = -1, -1
+            for i in range(len(windows)):
+                if i in used_positions:
+                    continue
+                diffs = windows - windows[i]
+                dists = np.sqrt(np.sum(diffs * diffs, axis=1))
+                dists[i] = np.inf
+                for u in used_positions:
+                    if u < len(dists):
+                        dists[u] = np.inf
+                j = int(np.argmin(dists))
+                if dists[j] < best_dist:
+                    best_dist = float(dists[j])
+                    best_i, best_j = i, j
+
+            if best_i < 0:
+                break
+            motif_indices.append(
+                {
+                    "motif_idx": best_i,
+                    "match_idx": best_j,
+                    "distance": best_dist,
+                    "window_size": m,
+                    "backend": "numpy",
+                }
+            )
+            used_positions.update(range(best_i, best_i + m))
+            used_positions.update(range(best_j, best_j + m))
+
+        return motif_indices
+
+    def get_kondratiev_historical_series(self) -> np.ndarray:
+        """生成康波历史模拟序列（基于康波理论 4 轮完整周期）.
+
+        每轮康波约 55 年，包含衰退→复苏→繁荣→滞胀四阶段。
+        用正弦波 + 微噪声模拟，不同轮次振幅/周期略有变化。
+
+        Returns:
+            np.ndarray: 康波历史模拟序列（月度数据，约 220 年 ≈ 2640 点）.
+        """
+        rng = np.random.default_rng(seed=42)
+        months_per_year = 12
+        waves = 4
+        years_per_wave = 55
+        total_months = waves * years_per_wave * months_per_year
+
+        series = np.zeros(total_months, dtype=np.float64)
+        for w in range(waves):
+            start = w * years_per_wave * months_per_year
+            end = start + years_per_wave * months_per_year
+            local_t = np.arange(end - start, dtype=np.float64)
+            amplitude = 1.0 + 0.15 * w
+            period = years_per_wave * months_per_year * (1.0 + 0.02 * w)
+            phase_shift = 0.1 * w
+            noise = rng.normal(0, 0.05, size=end - start)
+            series[start:end] = amplitude * np.sin(2 * np.pi * local_t / period + phase_shift) + noise
+
+        return series
+
+    def analyze_historical_patterns(self, window_size: int = 60, max_motifs: int = 3) -> dict:
+        """分析康波历史模式，返回模式匹配结果.
+
+        Args:
+            window_size: 模式窗口大小（月度数据默认 60 ≈ 5 年）.
+            max_motifs: 最大返回模式数.
+
+        Returns:
+            dict: 包含 series_length/motifs/pattern_count/interpretation/backend.
+        """
+        series = self.get_kondratiev_historical_series()
+        motifs = self.discover_motifs(series, window_size=window_size, max_motifs=max_motifs)
+
+        backend = "stumpy" if _STUMPY_AVAILABLE else "numpy"
+        interpretation = self._interpret_motifs(motifs, window_size)
+
+        return {
+            "series_length": int(len(series)),
+            "series_years": round(len(series) / 12, 1),
+            "motifs": motifs,
+            "pattern_count": len(motifs),
+            "window_size": window_size,
+            "backend": backend,
+            "interpretation": interpretation,
+        }
+
+    def _interpret_motifs(self, motifs: list[dict], window_size: int) -> str:
+        """解读 motif 发现结果."""
+        if not motifs:
+            return "未发现显著重复模式"
+        parts = [f"发现 {len(motifs)} 个重复模式（窗口={window_size} 月）"]
+        for i, m in enumerate(motifs, 1):
+            years_apart = round(abs(m["motif_idx"] - m["match_idx"]) / 12, 1)
+            parts.append(
+                f"模式{i}: 位置 {m['motif_idx']} ↔ {m['match_idx']}（间隔 {years_apart} 年，距离 {m['distance']:.4f}）"
+            )
+        return "；".join(parts)
 
 
 # ============================================================
@@ -439,15 +608,11 @@ if __name__ == "__main__":
 
     logger.info("\n=== 行业配置建议 ===")
     for s in analyzer.get_sector_allocation():
-        logger.info(
-            f"  {s['sector']}: 综合得分={s['combined_score']}, 建议={s['recommendation']}"
-        )
+        logger.info(f"  {s['sector']}: 综合得分={s['combined_score']}, 建议={s['recommendation']}")
 
     logger.info("\n=== 大宗商品信号 ===")
     for c in analyzer.get_commodity_signals():
-        logger.info(
-            f"  {c['name']}: 信号={c['current_signal']}, 康波建议={c['kondratiev_recommendation']}"
-        )
+        logger.info(f"  {c['name']}: 信号={c['current_signal']}, 康波建议={c['kondratiev_recommendation']}")
 
     logger.info("\n=== 十五五与康波交叠 ===")
     overlay = analyzer.get_fifteen_five_overlay()

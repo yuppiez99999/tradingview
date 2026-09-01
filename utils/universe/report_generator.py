@@ -232,7 +232,7 @@ def _generate_markdown_report(
         "",
         f"**交易日期**: {portfolio.trade_date}",
         f"**股票池**: {portfolio.universe_size} 只 → 风险过滤后 {portfolio.filtered_size} 只",
-        f"**最终持仓**: {len(portfolio.holdings)} 只 (短线 {sum(1 for h in portfolio.holdings if h.layer == 'short')} + 中线 {sum(1 for h in portfolio.holdings if h.layer == 'mid')} + 长线 {sum(1 for h in portfolio.holdings if h.layer == 'long')})",
+        f"**最终持仓**: {len(portfolio.holdings)} 只 (短线 {sum(1 for h in portfolio.holdings if h.layer == 'short')} + 中线 {sum(1 for h in portfolio.holdings if h.layer == 'mid')} + 长线 {sum(1 for h in portfolio.holdings if h.layer == 'long')})",  # noqa: E501
         "",
         "## 风险过滤统计",
         "",

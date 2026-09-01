@@ -19,6 +19,7 @@
 - 权重变化趋势分析
 
 """
+from __future__ import annotations
 
 import sqlite3
 import threading
@@ -27,7 +28,7 @@ import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -70,7 +71,7 @@ except ImportError:
                     setattr(self, k, v)
 
         class SignalFusionEngine:
-            def __init__(self, db_path: Optional[str] = None) -> None:
+            def __init__(self, db_path: str | None = None) -> None:
                 self.db_path = db_path or ":memory:"
                 self._sources = {}
                 self._source_weights = {}
@@ -79,7 +80,7 @@ except ImportError:
                 self,
                 name: str,
                 getter: callable,
-                initial_weight: Optional[float] = None,
+                initial_weight: float | None = None,
             ) -> None:
                 self._sources[name] = getter
                 self._source_weights[name] = initial_weight or 1.0 / max(
@@ -151,7 +152,7 @@ class WeightAdjustmentConfig:
 class EnhancedSignalFusionEngine(SignalFusionEngine):
     """增强版信号融合引擎 - 动态权重升级"""
 
-    def __init__(self, db_path: str = None, config: WeightAdjustmentConfig = None):
+    def __init__(self, db_path: str | None = None, config: WeightAdjustmentConfig | None = None):
         super().__init__(db_path)
         self.config = config or WeightAdjustmentConfig()
         self._performance_metrics: dict[str, SourcePerformanceMetrics] = {}
@@ -234,8 +235,8 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         self,
         name: str,
         getter: callable,
-        initial_weight: Optional[float] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        initial_weight: float | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """注册增强版信号源"""
         super().register_source(name, getter, initial_weight)
@@ -579,7 +580,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         source_name: str,
         actual_outcome: str,
         predicted_action: str,
-        response_time: Optional[float] = None,
+        response_time: float | None = None,
     ) -> None:
         """更新信号源性能指标"""
         if source_name not in self._performance_metrics:
@@ -877,7 +878,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 # ── 便捷函数和集成 ──
 
 # 全局单例
-_enhanced_fusion_engine: Optional[EnhancedSignalFusionEngine] = None
+_enhanced_fusion_engine: EnhancedSignalFusionEngine | None = None
 
 
 def get_enhanced_fusion_engine() -> EnhancedSignalFusionEngine:
@@ -922,7 +923,7 @@ def _get_enhanced_fast_signal_source(code: str) -> SignalResult:
                 score=fast_signal.confidence,
                 action=fast_signal.action,
                 confidence=fast_signal.confidence,
-                reason=f"增强版快速技术指标信号: {fast_signal.action} (RSI={fast_signal.rsi:.2f}, MACD={fast_signal.macd_signal:.4f})",
+                reason=f"增强版快速技术指标信号: {fast_signal.action} (RSI={fast_signal.rsi:.2f}, MACD={fast_signal.macd_signal:.4f})",  # noqa: E501
                 timestamp=datetime.now().isoformat(),
             )
 

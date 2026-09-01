@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +81,9 @@ class SuperpowersAdapter:
         - 薄包装: 仅读取技能内容, 不执行技能逻辑
     """
 
-    def __init__(self, config: Optional[SuperpowersConfig] = None) -> None:
+    def __init__(self, config: SuperpowersConfig | None = None) -> None:
         self.config = config or SuperpowersConfig()
-        self._init_error: Optional[str] = None
+        self._init_error: str | None = None
         if not self.config.skills_dir.exists():
             self._init_error = f"skills 目录不存在: {self.config.skills_dir}"
             logger.warning(self._init_error)
@@ -98,7 +98,7 @@ class SuperpowersAdapter:
             return []
         return [p.name for p in self.config.skills_dir.iterdir() if p.is_dir()]
 
-    def load_skill(self, skill_name: str) -> Optional[str]:
+    def load_skill(self, skill_name: str) -> str | None:
         """加载技能内容.
 
         Args:
@@ -156,11 +156,11 @@ class SuperpowersAdapter:
         }
 
 
-_superpowers_instance: Optional[SuperpowersAdapter] = None
+_superpowers_instance: SuperpowersAdapter | None = None
 
 
 def get_superpowers_adapter(
-    config: Optional[SuperpowersConfig] = None,
+    config: SuperpowersConfig | None = None,
 ) -> SuperpowersAdapter:
     """获取 superpowers 适配器单例."""
     global _superpowers_instance

@@ -20,13 +20,13 @@ v8.7 新增:
   S5: S2动态再平衡 + 组合自触发尾部对冲 (v2.0新增, v5.9固定阈值)
   S6: S2动态再平衡 + v8.7 RegimeFolio动态阈值尾部对冲 (v8.7新增)
 """
+from __future__ import annotations
 
 import logging
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -263,7 +263,7 @@ STOCK_BETAS = {
 
 
 class BacktestDataLoader:
-    def __init__(self, cache_dir: Optional[str] = None) -> None:
+    def __init__(self, cache_dir: str | None = None) -> None:
         if cache_dir is None:
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             self.cache_dir = os.path.join(base, "..", "data", "cache")
@@ -271,7 +271,7 @@ class BacktestDataLoader:
             self.cache_dir = cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
         self._price_data: dict[str, pd.DataFrame] = {}
-        self._csi300: Optional[pd.DataFrame] = None
+        self._csi300: pd.DataFrame | None = None
         self._index_data: dict[str, pd.Series] = {}  # v2.0 多指数数据
 
     def load_or_download(
@@ -338,7 +338,7 @@ class BacktestDataLoader:
 
     def _load_index_data(
         self, bs_code: str, cache_name: str, start: str, end: str
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         cpath = os.path.join(self.cache_dir, f"kline_{cache_name}_daily.parquet")
         if os.path.exists(cpath):
             df = pd.read_parquet(cpath)
@@ -651,7 +651,7 @@ class HedgeRebalanceBacktest:
         self,
         price_df: pd.DataFrame,
         csi300_ret: pd.Series,
-        index_rets: Optional[dict[str, pd.Series]] = None,
+        index_rets: dict[str, pd.Series] | None = None,
     ) -> None:
         self.price_df = price_df
         self.csi300_ret = csi300_ret
@@ -1917,7 +1917,7 @@ def format_comparison_report(multi: MultiStrategyResult) -> str:
     return "\n".join(lines)
 
 
-def save_report(report: str, output_dir: Optional[str] = None) -> str:
+def save_report(report: str, output_dir: str | None = None) -> str:
     if output_dir is None:
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         output_dir = os.path.join(base, "..", "reports")
@@ -1935,7 +1935,7 @@ def save_report(report: str, output_dir: Optional[str] = None) -> str:
 def run_backtest(
     start: str = START_DATE,
     end: str = END_DATE,
-    output_dir: Optional[str] = None,
+    output_dir: str | None = None,
     force_dl: bool = False,
 ) -> tuple[MultiStrategyResult, str]:
     import time

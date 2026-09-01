@@ -16,7 +16,6 @@ from __future__ import annotations
 import logging
 import shutil
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("cli_helpers")
 
@@ -106,7 +105,7 @@ def log_execution_summary(mode_name: str, summary_dict: dict) -> None:
         print(f"  {key}: {value}")
 
 
-def get_ml_signal_section(code: str = None, return_raw: bool = False) -> Optional[str]:
+def get_ml_signal_section(code: str = None, return_raw: bool = False) -> str | None:
     """获取 ML 信号部分 (降级: 返回空字符串或 None)
 
     与 量化策略系统_统一入口_v8.6.py 中的完整版签名对齐, 支持 return_raw 参数.

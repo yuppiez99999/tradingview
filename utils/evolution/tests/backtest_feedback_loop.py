@@ -593,7 +593,7 @@ def generate_report(result: BacktestResult) -> str:
         f"{result.baseline_final_annualized:.2%} | "
         f"{result.improvement_annual_return:+.2%} | "
         f"提升 0.5-1.5% | "
-        f"{'✅ PASS' if 0.005 <= result.improvement_annual_return <= 0.015 else '⚠️ 部分达标' if result.improvement_annual_return > 0 else '❌ FAIL'} |"
+        f"{'✅ PASS' if 0.005 <= result.improvement_annual_return <= 0.015 else '⚠️ 部分达标' if result.improvement_annual_return > 0 else '❌ FAIL'} |"  # noqa: E501
     )
     lines.append(
         f"| 最大回撤 | {result.feedback_max_drawdown:.2%} | "
@@ -607,7 +607,7 @@ def generate_report(result: BacktestResult) -> str:
         f"{result.baseline_sharpe:.3f} | "
         f"{result.feedback_sharpe - result.baseline_sharpe:+.3f} | "
         f"提升 | "
-        f"{'✅ PASS' if result.feedback_sharpe > result.baseline_sharpe else '⚠️ 持平' if abs(result.feedback_sharpe - result.baseline_sharpe) < 0.05 else '❌ FAIL'} |"
+        f"{'✅ PASS' if result.feedback_sharpe > result.baseline_sharpe else '⚠️ 持平' if abs(result.feedback_sharpe - result.baseline_sharpe) < 0.05 else '❌ FAIL'} |"  # noqa: E501
     )
     lines.append(
         f"| 年化波动率 | {result.feedback_volatility:.2%} | "
@@ -656,7 +656,7 @@ def generate_report(result: BacktestResult) -> str:
     lines.append("|----------|------|------|")
     lines.append(
         f"| 1. 提升年化收益 0.5-1.5% | "
-        f"{'✅ PASS' if 0.005 <= result.improvement_annual_return <= 0.015 else '⚠️ 部分达标' if result.improvement_annual_return > 0 else '❌ FAIL'} | "
+        f"{'✅ PASS' if 0.005 <= result.improvement_annual_return <= 0.015 else '⚠️ 部分达标' if result.improvement_annual_return > 0 else '❌ FAIL'} | "  # noqa: E501
         f"实际提升 {result.improvement_annual_return:+.2%} |"
     )
     lines.append(

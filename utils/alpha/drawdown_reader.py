@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,7 @@ class DrawdownReader:
 
     SHADOW_STATE_PATH = _SHADOW_STATE_PATH
 
-    def __init__(self, state_path: Optional[Path] = None) -> None:
+    def __init__(self, state_path: Path | None = None) -> None:
         """初始化.
 
         Args:
@@ -49,7 +48,7 @@ class DrawdownReader:
         """
         self._state_path = state_path or _SHADOW_STATE_PATH
 
-    def get_current_drawdown(self) -> Optional[float]:
+    def get_current_drawdown(self) -> float | None:
         """返回当前回撤百分比 (正数, 如 0.0352 表示 3.52%).
 
         计算逻辑:
@@ -75,7 +74,7 @@ class DrawdownReader:
         # 处理浮点精度: 当前值略高于峰值时回撤为负, 取 0
         return abs(max(drawdown, 0.0))
 
-    def get_peak_and_current(self) -> Optional[tuple[float, float]]:
+    def get_peak_and_current(self) -> tuple[float, float] | None:
         """返回 (peak_nav, current_nav) 元组.
 
         Returns:
@@ -132,7 +131,7 @@ class DrawdownReader:
             logger.warning("读取 shadow_state.json 失败: %s", e)
             return None
 
-    def get_drawdown_details(self) -> Optional[dict]:
+    def get_drawdown_details(self) -> dict | None:
         """返回回撤详情 (调试用).
 
         Returns:
@@ -200,7 +199,7 @@ class DrawdownReader:
 # ============================================================
 # 便捷函数
 # ============================================================
-def get_current_drawdown() -> Optional[float]:
+def get_current_drawdown() -> float | None:
     """便捷函数: 获取当前回撤百分比.
 
     Returns:

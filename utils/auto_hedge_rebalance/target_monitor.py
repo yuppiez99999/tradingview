@@ -20,7 +20,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from utils.auto_hedge_rebalance.models import (
     CorrectionAction,
@@ -56,8 +56,8 @@ class TargetMonitor:
         target_annual_return: float = 0.08,
         target_max_drawdown: float = 0.20,
         min_sample_days: int = 30,
-        backtest_engine: Optional[Any] = None,
-        config: Optional[dict[str, Any]] = None,
+        backtest_engine: Any | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         """初始化目标达成监控器。
 
@@ -99,7 +99,7 @@ class TargetMonitor:
             logger.warning("加载净值历史失败: %s", exc)
             return []
 
-    def update_nav_history(self, nav: float, date: Optional[str] = None) -> None:
+    def update_nav_history(self, nav: float, date: str | None = None) -> None:
         """增量更新净值历史。
 
         Args:

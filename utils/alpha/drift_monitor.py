@@ -31,7 +31,7 @@ import threading
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 logger = logging.getLogger("drift_monitor")
 
@@ -501,7 +501,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 # scipy.stats 前向声明 (模块级) — 根除 ImportError fallback 时 assignment ignore
-_scipy_stats: Optional[type]
+_scipy_stats: type | None
 try:
     from scipy import stats as _scipy_stats_impl
 
@@ -854,8 +854,8 @@ class SimModeDriftMonitor:
     """
 
     # 类级可选属性显式注解 — 根除 __init__ 中 =None 触发的 None 单例推断/窄化
-    _baseline_panel: Optional[pd.DataFrame]
-    _baseline_predictions: Optional[np.ndarray]
+    _baseline_panel: pd.DataFrame | None
+    _baseline_predictions: np.ndarray | None
     _feature_columns: list[str]
     _alert_owners: dict[str, Any]
     _history: list[DriftReport]

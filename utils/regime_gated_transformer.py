@@ -517,7 +517,7 @@ def main() -> None:
     for hint in [0.0, 0.3, 0.5, 0.7, 1.0]:
         r = model.forward(features, regime_hint=hint)
         print(
-            f"  hint={hint:.1f}: regime={r.regime.value:>10s}, conf={r.regime_confidence:.2%}, pred={r.predictions:+.4f}"
+            f"  hint={hint:.1f}: regime={r.regime.value:>10s}, conf={r.regime_confidence:.2%}, pred={r.predictions:+.4f}"  # noqa: E501
         )
 
     # === 5. 批量前向传播 ===

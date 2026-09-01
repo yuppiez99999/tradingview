@@ -27,6 +27,7 @@
   research_reports = scraper.fetch_research_reports("688041")  # 海光信息研报
   news = scraper.fetch_news("半导体")  # 半导体行业新闻
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -35,7 +36,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import requests
 
@@ -52,7 +53,7 @@ logger = logging.getLogger(__name__)
 
 # BeautifulSoup 前向声明(模块级) — 根除 ImportError fallback 时 =None 触发 [assignment]
 # 此声明与 try/except 的成功/失败分支独立，保证 mypy 看到的类型永远是 Optional[type]
-BeautifulSoup: Optional[type]
+BeautifulSoup: type | None
 
 try:
     from bs4 import BeautifulSoup  # noqa: F811
@@ -204,7 +205,7 @@ class _TTLCache:
         self.ttl = ttl_seconds
         self._store: dict[str, tuple] = {}  # key -> (value, expire_at)
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         entry = self._store.get(key)
         if entry is None:
             return None
@@ -214,7 +215,7 @@ class _TTLCache:
             return None
         return value
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None):
+    def set(self, key: str, value: Any, ttl: int | None = None):
         actual_ttl = ttl if ttl is not None else self.ttl
         self._store[key] = (value, time.time() + actual_ttl)
 
@@ -273,7 +274,7 @@ class WebScraper:
         "news": 600,  # 新闻 10 分钟
     }
 
-    def __init__(self, cache_dir: Optional[Path] = None, timeout: int = 15):
+    def __init__(self, cache_dir: Path | None = None, timeout: int = 15):
         if not HAS_BS4:
             raise ImportError(
                 "BeautifulSoup (bs4) 未安装, 请运行: pip install beautifulsoup4"
@@ -293,7 +294,7 @@ class WebScraper:
     # HTTP 请求 (降级链)
     # ----------------------------------------------------------
 
-    def _fetch_html(self, url: str, params: Optional[dict] = None) -> Optional[str]:
+    def _fetch_html(self, url: str, params: dict | None = None) -> str | None:
         """获取 HTML 内容 (降级链: Scrapling → requests)"""
         # P3: 域名白名单校验 (防止 SSRF)
         if not is_allowed_domain(url):
@@ -340,8 +341,8 @@ class WebScraper:
         return None
 
     def _fetch_json(
-        self, url: str, params: Optional[dict] = None, headers: Optional[dict] = None
-    ) -> Optional[Any]:
+        self, url: str, params: dict | None = None, headers: dict | None = None
+    ) -> Any | None:
         """获取 JSON API 响应"""
         # P3: 域名白名单校验 (防止 SSRF)
         if not is_allowed_domain(url):
@@ -376,7 +377,7 @@ class WebScraper:
     # HTML 解析
     # ----------------------------------------------------------
 
-    def _parse_html(self, html: str) -> Optional[BeautifulSoup]:
+    def _parse_html(self, html: str) -> BeautifulSoup | None:
         if not html:
             return None
         try:
@@ -385,13 +386,13 @@ class WebScraper:
             logger.warning(f"HTML 解析失败: {e}")
             return None
 
-    def _extract_text(self, soup: Optional[BeautifulSoup], selector: str) -> str:
+    def _extract_text(self, soup: BeautifulSoup | None, selector: str) -> str:
         if soup is None:
             return ""
         el = soup.select_one(selector)
         return el.get_text(strip=True) if el else ""
 
-    def _extract_items(self, soup: Optional[BeautifulSoup], selector: str) -> list:
+    def _extract_items(self, soup: BeautifulSoup | None, selector: str) -> list:
         if soup is None:
             return []
         return soup.select(selector)
@@ -867,7 +868,7 @@ class WebScraper:
             json.dump(data, f, ensure_ascii=False, indent=2, default=str)
         return cache_file
 
-    def load_from_cache_file(self, key: str) -> Optional[Any]:
+    def load_from_cache_file(self, key: str) -> Any | None:
         """从 JSON 缓存文件加载"""
         cache_file = self.cache_dir / f"{key}.json"
         if not cache_file.exists():
@@ -893,7 +894,7 @@ class WebScraper:
     def fetch_social_media_news(
         self,
         keyword: str,
-        platforms: Optional[list[str]] = None,
+        platforms: list[str] | None = None,
         max_items: int = 50,
         use_cache: bool = True,
     ) -> list[dict[str, Any]]:
@@ -1020,7 +1021,7 @@ class WebScraper:
 # 便捷函数
 # ============================================================
 
-_scraper_instance: Optional[WebScraper] = None
+_scraper_instance: WebScraper | None = None
 
 
 def get_scraper() -> WebScraper:

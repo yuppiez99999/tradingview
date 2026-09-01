@@ -37,7 +37,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -80,11 +80,11 @@ class SwitchyardAdapter:
         - 薄包装: 不重写 Switchyard API, 仅做场景适配
     """
 
-    def __init__(self, config: Optional[SwitchyardConfig] = None) -> None:
+    def __init__(self, config: SwitchyardConfig | None = None) -> None:
         self.config = config or SwitchyardConfig()
         self._binding: Any = None
-        self._bridge_python: Optional[str] = None  # Python 3.12 路径 (跨版本桥接)
-        self._init_error: Optional[str] = None
+        self._bridge_python: str | None = None  # Python 3.12 路径 (跨版本桥接)
+        self._init_error: str | None = None
         self._load_binding()
 
     def _load_binding(self) -> None:
@@ -142,10 +142,10 @@ class SwitchyardAdapter:
         self,
         messages: list[dict[str, str]],
         model: str = "auto",
-        strategy: Optional[str] = None,
+        strategy: str | None = None,
         max_tokens: int = 3000,
         temperature: float = 0.3,
-        scene: Optional[str] = None,
+        scene: str | None = None,
     ) -> dict[str, Any]:
         """路由 LLM 请求.
 
@@ -235,7 +235,7 @@ class SwitchyardAdapter:
     def benchmark_models(
         self,
         test_prompts: list[str],
-        models: Optional[list[str]] = None,
+        models: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """对比多个模型在测试 prompt 上的性能 (供 AICoordinator 选型).
 
@@ -277,11 +277,11 @@ class SwitchyardAdapter:
         }
 
 
-_switchyard_instance: Optional[SwitchyardAdapter] = None
+_switchyard_instance: SwitchyardAdapter | None = None
 
 
 def get_switchyard_adapter(
-    config: Optional[SwitchyardConfig] = None,
+    config: SwitchyardConfig | None = None,
 ) -> SwitchyardAdapter:
     """获取 Switchyard 适配器单例."""
     global _switchyard_instance

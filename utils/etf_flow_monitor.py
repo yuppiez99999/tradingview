@@ -9,12 +9,13 @@
 - 更新 positions.json 中的 etf_flow_signal 和 etf_inflow 字段
 - 集成到每日交易执行流程
 """
+from __future__ import annotations
 
 import json
 import os
 import urllib.request
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 # W6.3.3 Step 1: 统一合约代码解析入口 (替代 _to_wind_code + 行内 secid 拼接)
 from utils.contracts.symbols import to_eastmoney_secid, to_wind_code
@@ -135,7 +136,7 @@ class ETFRealTimeTracker:
         """
         return to_wind_code(etf_code)
 
-    def _fetch_wind_fund_flow(self, etf_code: str) -> Optional[dict]:
+    def _fetch_wind_fund_flow(self, etf_code: str) -> dict | None:
         if not self._wind_mcp_client or not self.wind_mcp_available:
             return None
         try:
@@ -181,7 +182,7 @@ class ETFRealTimeTracker:
             logger.error(f"Wind MCP 获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
-    def _fetch_eastmoney_fund_flow(self, etf_code: str) -> Optional[dict]:
+    def _fetch_eastmoney_fund_flow(self, etf_code: str) -> dict | None:
         """东财 push2 真实主力净流入 (元 -> 亿), 零 key 不封 IP。
 
         来自 A股全栈数据 skill 验证过的 fflow/kline 接口, 比新浪成交额近似更准,
@@ -237,7 +238,7 @@ class ETFRealTimeTracker:
             logger.warning(f"东财 push2 获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
-    def _fetch_price_based_flow(self, etf_code: str) -> Optional[dict]:
+    def _fetch_price_based_flow(self, etf_code: str) -> dict | None:
         """价格动量代理资金流: 用腾讯实时涨跌% 映射为净流信号 (东财 push2 被封时的可用真实源)。
 
         东财 push2 资金流接口当前出口 IP 被反爬限流, 改用实时涨跌% 作为加减仓信号代理:
@@ -279,7 +280,7 @@ class ETFRealTimeTracker:
             logger.warning(f"价格动量代理资金流失败 ({etf_code}): {e}")
             return None
 
-    def _fetch_sina_fund_flow(self, etf_code: str) -> Optional[dict]:
+    def _fetch_sina_fund_flow(self, etf_code: str) -> dict | None:
         try:
             import requests as _requests
 
@@ -361,7 +362,7 @@ class ETFRealTimeTracker:
             logger.error(f"新浪财经获取ETF资金流失败 ({etf_code}): {e}")
             return None
 
-    def get_etf_fund_flow(self, etf_code: str) -> Optional[dict]:
+    def get_etf_fund_flow(self, etf_code: str) -> dict | None:
         flow_data = self._fetch_wind_fund_flow(etf_code)
         if flow_data:
             return flow_data
@@ -578,7 +579,7 @@ class ETFRealTimeTracker:
             return {"status": "error", "message": str(e)}
 
 
-def refresh_etf_flow_signals(positions_file: Optional[str] = None) -> dict[str, Any]:
+def refresh_etf_flow_signals(positions_file: str | None = None) -> dict[str, Any]:
     if positions_file is None:
         positions_file = os.path.join(
             os.path.dirname(__file__), "..", "config", "positions.json"

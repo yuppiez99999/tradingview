@@ -30,7 +30,7 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -77,7 +77,7 @@ class WaitFillReq(BaseModel):
 # ============================================================
 
 
-def _verify_token(x_token: Optional[str] = Header(None, alias="X-Token")) -> None:
+def _verify_token(x_token: str | None = Header(None, alias="X-Token")) -> None:
     expected = os.environ.get("QMT_RPC_TOKEN", "")
     if not expected:
         raise HTTPException(

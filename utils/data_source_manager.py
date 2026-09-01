@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from .logging_manager import get_logger
 
@@ -140,11 +140,11 @@ class PriorityDataSourceManager:
         result = manager.fetch_with_fallback('601088', default={'price': 0})
     """
 
-    def __init__(self, registry: DataSourceRegistry = None):
+    def __init__(self, registry: DataSourceRegistry | None = None):
         self._sources: dict[str, Callable] = {}  # name -> fetch function
         self._priorities: dict[str, int] = {}
         self._registry = registry or DataSourceRegistry()
-        self._last_successful_source: Optional[str] = None
+        self._last_successful_source: str | None = None
         self._logger = get_logger("data_source")
 
     def register_source(
@@ -156,7 +156,7 @@ class PriorityDataSourceManager:
         self._registry.register(name, priority)
 
     def fetch_with_fallback(
-        self, *args: Any, default: Any = None, log_target: str = None, **kwargs: Any
+        self, *args: Any, default: Any | None = None, log_target: str | None = None, **kwargs: Any
     ) -> Any:
         """按优先级尝试所有数据源，失败自动回退 — 借鉴 TradingAgents-CN 模式
 
@@ -214,12 +214,12 @@ class PriorityDataSourceManager:
         return self._registry.get_status_report()
 
     @property
-    def last_successful_source(self) -> Optional[str]:
+    def last_successful_source(self) -> str | None:
         return self._last_successful_source
 
 
 # 全局单例
-_data_source_manager: Optional[PriorityDataSourceManager] = None
+_data_source_manager: PriorityDataSourceManager | None = None
 
 
 def get_data_source_manager() -> PriorityDataSourceManager:

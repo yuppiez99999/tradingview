@@ -53,7 +53,7 @@ def setup_utf8_console() -> None:
             # chcp 65001 = UTF-8, 不检查返回值 (非 Windows 终端可能失败)
             # 命令为常量列表, 无用户输入, 无注入风险
             subprocess.run(
-                ["chcp", "65001"], capture_output=True, check=False
+                ["chcp", "65001"], capture_output=True, shell=False, check=False
             )
         except (OSError, subprocess.SubprocessError):
             pass

@@ -3,10 +3,11 @@
 源自 ai-berkshire "5句话说不完整 = 不买" 纪律。
 LLM 失败时降级为通过 (不阻塞主流程)。
 """
+from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 def mirror_test(
     thesis: str,
     max_sentences: int = 5,
-    llm_caller: Optional[Any] = None,
+    llm_caller: Any | None = None,
     fallback: bool = True,
 ) -> bool:
     """判断 thesis 能否压缩到 max_sentences 句且保留核心论点。

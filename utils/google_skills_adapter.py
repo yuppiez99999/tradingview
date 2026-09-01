@@ -28,7 +28,7 @@ eval_flywheel / experience_rag) 桥接到本系统现有模块, 集中管理集�
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from .eval_flywheel import EvalCase, EvalFlywheel, EvalMetric
 from .experience_rag import ExperienceRAG
@@ -36,9 +36,9 @@ from .prompt_registry import PromptRegistry
 
 logger = logging.getLogger("google_skills_adapter")
 
-_PROMPT_REGISTRY: Optional[PromptRegistry] = None
-_EXPERIENCE_RAG: Optional[ExperienceRAG] = None
-_EVAL_FLYWHEEL: Optional[EvalFlywheel] = None
+_PROMPT_REGISTRY: PromptRegistry | None = None
+_EXPERIENCE_RAG: ExperienceRAG | None = None
+_EVAL_FLYWHEEL: EvalFlywheel | None = None
 
 
 # ============================================================
@@ -76,10 +76,10 @@ def chat_with_prompt(
     client: Any,
     prompt_name: str,
     *,
-    version: Optional[int] = None,
-    history: Optional[list[dict[str, str]]] = None,
-    temperature: Optional[float] = None,
-    max_tokens: Optional[int] = None,
+    version: int | None = None,
+    history: list[dict[str, str]] | None = None,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
     **prompt_vars: Any,
 ) -> dict[str, Any]:
     """从 prompt_registry 拉模板 + 组装变量 + 调 GLM5Client.chat.
@@ -123,9 +123,9 @@ def chat_with_prompt(
 def evaluate_with_flywheel(
     evaluator: Any,
     factor_library_result: Any,
-    forward_returns: Optional[dict[str, float]] = None,
+    forward_returns: dict[str, float] | None = None,
     *,
-    metrics: Optional[list[EvalMetric]] = None,
+    metrics: list[EvalMetric] | None = None,
 ) -> dict[str, Any]:
     """把 alpha_evaluator 输出转 EvalCase → 进飞轮迭代.
 

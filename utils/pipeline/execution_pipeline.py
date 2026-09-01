@@ -18,11 +18,12 @@
 作者: 终极量化交易系统 v8.4
 日期: 2026-08-02
 """
+from __future__ import annotations
 
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from .types import (
     AlphaSignalResult,
@@ -46,7 +47,7 @@ class ExecutionPipeline:
         result, meta = pipeline.run(signal_result, dry_run=True)
     """
 
-    def __init__(self, config: Optional[PipelineConfig] = None):
+    def __init__(self, config: PipelineConfig | None = None):
         self.config = config or PipelineConfig()
         self._order_generator = None
         self._execution_router = None
@@ -119,9 +120,9 @@ class ExecutionPipeline:
     def run(
         self,
         signal_result: AlphaSignalResult,
-        current_positions: Optional[dict[str, float]] = None,
-        dry_run: Optional[bool] = None,
-        confirmation_token: Optional[str] = None,
+        current_positions: dict[str, float] | None = None,
+        dry_run: bool | None = None,
+        confirmation_token: str | None = None,
     ) -> tuple[ExecutionResult, PipelineResult]:
         """
         执行交易流水线
@@ -346,7 +347,7 @@ class ExecutionPipeline:
         self,
         orders: list[dict],
         dry_run: bool,
-        confirmation_token: Optional[str],
+        confirmation_token: str | None,
         batch_id: str,
     ) -> ExecutionResult:
         """执行订单"""

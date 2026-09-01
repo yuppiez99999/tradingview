@@ -47,7 +47,7 @@ import logging
 import re
 import sqlite3
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -140,7 +140,7 @@ class ReviewResult:
     ic_ir: float = 0.0
     ic_win_rate: float = 0.0
     turnover: float = 0.0
-    half_life_days: Optional[float] = None
+    half_life_days: float | None = None
     long_short: float = 0.0
     monotonicity: float = 0.0
     passed: bool = False
@@ -272,8 +272,8 @@ class AutoFactorResearch:
 
     def propose_candidates(
         self,
-        market_state: Optional[dict[str, Any]] = None,
-        existing: Optional[list[str]] = None,
+        market_state: dict[str, Any] | None = None,
+        existing: list[str] | None = None,
     ) -> list[FactorCandidate]:
         """生成候选因子: 规则模板 + 可选 GLM-5 (fail-open)."""
         existing_set = set(existing or [])
@@ -299,7 +299,7 @@ class AutoFactorResearch:
         return candidates
 
     def _llm_propose(
-        self, market_state: Optional[dict[str, Any]]
+        self, market_state: dict[str, Any] | None
     ) -> list[FactorCandidate]:
         """调用 GLM-5 生成额外因子表达式 (可选, 异常即降级为空).
 
@@ -362,7 +362,7 @@ class AutoFactorResearch:
         self,
         candidates: list[FactorCandidate],
         price_data: dict[str, dict[str, list[float]]],
-        fundamentals: Optional[dict[str, dict[str, float]]] = None,
+        fundamentals: dict[str, dict[str, float]] | None = None,
     ) -> dict[str, FactorValue]:
         """把候选表达式编译为真实 FactorValue (snapshot 用)."""
         if not candidates:
@@ -389,7 +389,7 @@ class AutoFactorResearch:
         self,
         candidates: list[FactorCandidate],
         price_data: dict[str, dict[str, list[float]]],
-        fundamentals: Optional[dict[str, dict[str, float]]] = None,
+        fundamentals: dict[str, dict[str, float]] | None = None,
     ) -> dict[str, ReviewResult]:
         """对候选因子计算真实评估指标 (滚动 replay, 无前视)."""
         reviews: dict[str, ReviewResult] = {}
@@ -418,7 +418,7 @@ class AutoFactorResearch:
         self,
         cand: FactorCandidate,
         price_data: dict[str, dict[str, list[float]]],
-        fundamentals: Optional[dict[str, dict[str, float]]],
+        fundamentals: dict[str, dict[str, float]] | None,
         fwd_hist: list[dict[str, float]],
     ) -> ReviewResult:
         empty = ReviewResult(name=cand.name)
@@ -572,7 +572,7 @@ class AutoFactorResearch:
         return report
 
     def _record_memory(
-        self, cand: Optional[FactorCandidate], rev: ReviewResult, conclusion: str
+        self, cand: FactorCandidate | None, rev: ReviewResult, conclusion: str
     ) -> None:
         if self.memory is None:
             return
@@ -648,8 +648,8 @@ class AutoFactorResearch:
     def run_cycle(
         self,
         price_data: dict[str, dict[str, list[float]]],
-        fundamentals: Optional[dict[str, dict[str, float]]] = None,
-        market_state: Optional[dict[str, Any]] = None,
+        fundamentals: dict[str, dict[str, float]] | None = None,
+        market_state: dict[str, Any] | None = None,
     ) -> CycleReport:
         """运行一次完整研究循环: 提案 → 实现 → 评审 → 管理."""
         logger.info("[AutoResearch] 启动第 %d 轮研究循环", self._cycle_count + 1)
@@ -680,8 +680,8 @@ class AutoFactorResearch:
         symbols: list[str],
         days: int = 300,
         adjust: int = 1,
-        market_state: Optional[dict[str, Any]] = None,
-        is_fund_fn: Optional[Any] = None,
+        market_state: dict[str, Any] | None = None,
+        is_fund_fn: Any | None = None,
     ) -> tuple:
         """用 Wind MCP 真实行情跑一次完整研究循环 (闭环替换 synthetic 数据).
 
@@ -912,7 +912,7 @@ def _infer_field_map(keys: list[str]) -> dict[str, str]:
 
 def _records_to_price_data(
     records: list[dict], symbol: str
-) -> Optional[dict[str, list[float]]]:
+) -> dict[str, list[float]] | None:
     """把 Wind K 线记录列表转为 auto_research 的 price_data 格式.
 
     返回 {closes, opens, highs, lows, volumes}; 缺失的 O/H/L 用 close 兜底。
@@ -974,7 +974,7 @@ def fetch_price_data_via_wind(
     symbols: list[str],
     days: int = 300,
     adjust: int = 1,
-    is_fund_fn: Optional[Any] = None,
+    is_fund_fn: Any | None = None,
     max_symbols: int = 80,
 ) -> dict[str, dict[str, list[float]]]:
     """通过 Wind MCP 拉取真实日线 OHLCV, 转换为因子研究用 price_data 格式.

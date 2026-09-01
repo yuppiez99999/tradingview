@@ -495,7 +495,7 @@ class FactorValidator:
     IR_STRONG_THRESHOLD = 0.5
     IR_EFFECTIVE_THRESHOLD = 0.2
 
-    def __init__(self, forward_days: list[int] = None):
+    def __init__(self, forward_days: list[int] | None = None):
         self.forward_days = forward_days or [1, 5, 10, 20]
 
     def validate_all(

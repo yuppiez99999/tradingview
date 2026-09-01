@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from typing import Optional
 
 import pandas as pd
 
@@ -73,7 +72,7 @@ class P3FactorQualityGate:
         factor_df: pd.DataFrame,
         baseline_df: pd.DataFrame,
         factor_cols: list[str],
-        symbols: Optional[list[str]] = None,
+        symbols: list[str] | None = None,
     ) -> tuple[bool, list[DQCEvent]]:
         """执行 P3 检查.
 
@@ -396,7 +395,7 @@ def run_p3_gate(
     factor_df: pd.DataFrame,
     baseline_df: pd.DataFrame,
     factor_cols: list[str],
-    symbols: Optional[list[str]] = None,
+    symbols: list[str] | None = None,
 ) -> tuple[bool, list[DQCEvent]]:
     """执行 P3 检查 (便捷入口).
 

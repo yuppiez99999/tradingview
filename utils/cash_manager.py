@@ -249,7 +249,7 @@ class CashManager:
         if current_repo_rate > HIGH_RATE_THRESHOLD:
             # 高利率期: 加大投放
             repo_amount = min(idle_cash, base_repo * HIGH_RATE_BOOST_PCT)
-            result.reason += f" | 高利率 {current_repo_rate * 100:.2f}% > {HIGH_RATE_THRESHOLD * 100:.0f}%, 加大逆回购投放"
+            result.reason += f" | 高利率 {current_repo_rate * 100:.2f}% > {HIGH_RATE_THRESHOLD * 100:.0f}%, 加大逆回购投放"  # noqa: E501
         else:
             repo_amount = min(idle_cash, base_repo)
 

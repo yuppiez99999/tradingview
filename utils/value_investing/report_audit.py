@@ -29,6 +29,7 @@ import re
 import sys
 from decimal import ROUND_HALF_EVEN, Context
 from random import Random
+from typing import Any
 
 _CTX = Context(prec=28, rounding=ROUND_HALF_EVEN)
 
@@ -186,7 +187,7 @@ def extract_data_points(md_text: str) -> list:
     返回 list of dict：
       {id, label, reported_value, unit, raw_text, line_number}
     """
-    points = []
+    points: list[Any] = []
     seen = set()
 
     def _add(label, val, unit, lineno, raw):
@@ -260,7 +261,7 @@ def extract_data_points(md_text: str) -> list:
     return points
 
 
-def sample_points(points: list, ratio: float = 0.15, seed: int = None) -> list:
+def sample_points(points: list, ratio: float = 0.15, seed: int | None = None) -> list:
     """随机抽取 ratio 比例的数据点，最少 3 个，最多 30 个。"""
     n = max(3, min(30, math.ceil(len(points) * ratio)))
     n = min(n, len(points))

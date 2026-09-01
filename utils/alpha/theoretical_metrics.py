@@ -38,7 +38,6 @@ import logging
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -139,7 +138,7 @@ class LyapunovStabilityMeter:
         self.stability_threshold = stability_threshold
         self.min_consecutive_days = min_consecutive_days
         self._history: list[LyapunovState] = []
-        self._prev_v: Optional[float] = None
+        self._prev_v: float | None = None
 
     def compute_lyapunov_value(
         self,
@@ -371,7 +370,7 @@ class FeedbackPhaseAnalyzer:
     def compute_phase_margin(
         self,
         total_delay_hours: float,
-        retrain_period_hours: Optional[float] = None,
+        retrain_period_hours: float | None = None,
     ) -> float:
         """计算相位裕度.
 
@@ -396,7 +395,7 @@ class FeedbackPhaseAnalyzer:
         detection_delay_hours: float = 1.0,
         retrain_delay_hours: float = 4.0,
         validation_delay_hours: float = 2.0,
-        retrain_period_hours: Optional[float] = None,
+        retrain_period_hours: float | None = None,
     ) -> FeedbackDelayMeasurement:
         """测量一次反馈延迟.
 
@@ -617,7 +616,7 @@ class VariationSelectionBalancer:
         factors_generated: int,
         factors_passed: int,
         time_window_days: float = 1.0,
-        custom_selection_pressure: Optional[float] = None,
+        custom_selection_pressure: float | None = None,
     ) -> VariationSelectionState:
         """更新变异-选择状态.
 

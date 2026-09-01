@@ -418,7 +418,7 @@ class DataContract:
 
     def _check_entity_grain(self, panel: pd.DataFrame) -> list[Violation]:
         """检查实体粒度 (主键唯一性)."""
-        violations = []
+        violations: list[Any] = []
         grain_cols = [c for c in self.entity_grain if c in panel.columns]
         if not grain_cols:
             return violations
@@ -441,7 +441,7 @@ class DataContract:
         self, panel: pd.DataFrame, current_date: datetime
     ) -> list[Violation]:
         """检查 point-in-time 切片正确性 (无未来信息泄漏)."""
-        violations = []
+        violations: list[Any] = []
         if "date" not in panel.columns:
             return violations
 

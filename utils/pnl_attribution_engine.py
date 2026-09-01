@@ -255,7 +255,7 @@ class PnLAttributionEngine:
         result.summary = self._build_summary(result)
 
         logger.info(
-            "[PnLAttribution] %s 总收益 %.2f%% (¥%.0f) | Alpha %.2f%% | Beta %.2f%% | Style %.2f%% | Sector %.2f%% | Timing %.2f%%",
+            "[PnLAttribution] %s 总收益 %.2f%% (¥%.0f) | Alpha %.2f%% | Beta %.2f%% | Style %.2f%% | Sector %.2f%% | Timing %.2f%%",  # noqa: E501
             attribution_date,
             total_return_pct * 100,
             total_pnl,

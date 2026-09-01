@@ -34,7 +34,7 @@ import sqlite3
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     from utils.logging_manager import get_logger
@@ -68,7 +68,7 @@ class Document:
     title: str
     content: str
     metadata: dict[str, Any] = field(default_factory=dict)
-    embedding: Optional[list[float]] = None
+    embedding: list[float] | None = None
     created_at: float = field(default_factory=time.time)
 
 
@@ -142,7 +142,7 @@ class SQLiteVectorStore(VectorStore):
     检索: 暴力余弦相似度 (W9-B POC 足够, 09-06 后换 faiss)
     """
 
-    def __init__(self, db_path: Optional[str] = None) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         if db_path is None:
             base = Path(__file__).resolve().parent.parent.parent
             db_path = str(base / "data" / "research_rag.db")
@@ -233,8 +233,8 @@ class ResearchRAG:
 
     def __init__(
         self,
-        embedder: Optional[Embedder] = None,
-        store: Optional[VectorStore] = None,
+        embedder: Embedder | None = None,
+        store: VectorStore | None = None,
     ) -> None:
         self.embedder = embedder or HashEmbedder()
         self.store = store or SQLiteVectorStore()
@@ -244,7 +244,7 @@ class ResearchRAG:
         source: str,
         title: str,
         content: str,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Document:
         """摄入文档 (自动计算 Embedding)"""
         doc_id = hashlib.md5(

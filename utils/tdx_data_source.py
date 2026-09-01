@@ -9,7 +9,7 @@ import logging
 import threading
 import time
 from datetime import datetime
-from typing import Any, Optional, TypedDict
+from typing import Any, TypedDict
 
 import pandas as pd
 
@@ -23,19 +23,19 @@ class SourceHealthEntry(TypedDict):
     """单数据源健康状态条目"""
 
     ok: bool
-    last_error: Optional[str]
-    last_success: Optional[str]
+    last_error: str | None
+    last_success: str | None
 
 
 class TDXDataSource:
     """通达信数据源适配器，提供实时行情和历史K线数据"""
 
     # 显式类型声明 — 消除 __init__ 赋值 [assignment] + 跨方法 [union-attr]
-    _api: Optional[Any]
-    _api_cls: Optional[Any]
-    _ex_api_cls: Optional[Any]
+    _api: Any | None
+    _api_cls: Any | None
+    _ex_api_cls: Any | None
     _connected: bool
-    _last_connect_time: Optional[float]
+    _last_connect_time: float | None
     _reconnect_interval: int
     source_health: dict[str, SourceHealthEntry]
 
@@ -227,7 +227,7 @@ class TDXDataSource:
             return 2  # 北京
         return 0
 
-    def get_realtime_quote(self, symbol: str) -> Optional[dict]:
+    def get_realtime_quote(self, symbol: str) -> dict | None:
         """获取实时行情"""
         if not self._ensure_connected():
             return None
@@ -301,7 +301,7 @@ class TDXDataSource:
 
     def get_historical_klines(
         self, symbol: str, period: str = "1d", count: int = 252
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         """获取历史K线数据
 
         Args:
@@ -381,7 +381,7 @@ class TDXDataSource:
             logger.error(f"通达信获取历史K线失败: {e}")
             return None
 
-    def get_financial_data(self, symbol: str) -> Optional[dict]:
+    def get_financial_data(self, symbol: str) -> dict | None:
         """获取财务数据（如需要）"""
         if not self._ensure_connected():
             return None
@@ -471,7 +471,7 @@ class TDXDataSource:
             self._api = None
 
 
-def safe_float(value: Any, default: Optional[float] = None) -> Optional[float]:
+def safe_float(value: Any, default: float | None = None) -> float | None:
     """安全转换为float"""
     if value is None:
         return default
@@ -487,7 +487,7 @@ _tdx_instance = None
 _tdx_instance_lock = threading.Lock()
 
 
-def get_tdx_source() -> Optional[TDXDataSource]:
+def get_tdx_source() -> TDXDataSource | None:
     """获取通达信数据源单例 (双重检查锁定)"""
     global _tdx_instance
     if _tdx_instance is None:

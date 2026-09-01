@@ -448,7 +448,7 @@ if __name__ == "__main__":
         logger.info(f"\n{args.stock} 全策略分析 ({len(signals)} 个):")
         for s in signals:
             logger.info(
-                f"  [{s['strategy']}] {s['direction']} (conf={s['confidence']:.2f}, score={s['score']}) - {s['reasoning'][:60]}"
+                f"  [{s['strategy']}] {s['direction']} (conf={s['confidence']:.2f}, score={s['score']}) - {s['reasoning'][:60]}"  # noqa: E501
             )
         consensus = adapter.get_consensus(args.stock)
         logger.info(

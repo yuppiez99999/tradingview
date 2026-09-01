@@ -161,7 +161,7 @@ def confirm_destructive(
 # ============================================================
 
 
-ParamsExtractor = Optional[Callable[..., dict[str, Any]]]
+ParamsExtractor = Optional[Callable[..., dict[str, Any]]]  # noqa: UP045  # 运行时类型别名, py38 兼容
 
 
 def _make_context(
@@ -264,7 +264,7 @@ def dry_run(description: str, params: dict[str, Any]) -> None:
     print(f"  参数: {json.dumps(params, ensure_ascii=False, default=str)}")
 
 
-def recent_audit(limit: int = 20, tier: Optional[str] = None) -> list[dict[str, Any]]:
+def recent_audit(limit: int = 20, tier: str | None = None) -> list[dict[str, Any]]:
     """读取最近审计记录 (只读, 不门禁)."""
     if not _AUDIT_LOG.exists():
         return []

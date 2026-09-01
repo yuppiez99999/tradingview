@@ -15,7 +15,7 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import Any, Optional, TypedDict
+from typing import Any, TypedDict
 
 import pandas as pd
 
@@ -36,8 +36,8 @@ class SourceHealthEntry(TypedDict):
     """单数据源健康状态条目"""
 
     ok: bool
-    last_error: Optional[str]
-    last_success: Optional[str]
+    last_error: str | None
+    last_success: str | None
 
 
 def _safe_float(val: Any, default: float = 0.0) -> float:
@@ -52,9 +52,9 @@ class AKShareDataSource:
     """AKShare 数据源适配器，提供实时行情和历史K线数据"""
 
     # 显式类型声明 — 消除 __init__ 赋值 [assignment] + 跨方法 [union-attr]
-    _ak: Optional[Any]
+    _ak: Any | None
     _connected: bool
-    _last_connect_time: Optional[float]
+    _last_connect_time: float | None
     _spot_cache: dict[str, Any]
     _spot_cache_time: float
     _spot_cache_ttl: int
@@ -184,7 +184,7 @@ class AKShareDataSource:
         ) as e:  # P2 模块 fail-safe, 待后续精确化
             logger.debug(f"AKShare 缓存全市场数据失败: {e}")
 
-    def get_realtime_quote(self, symbol: str) -> Optional[dict]:
+    def get_realtime_quote(self, symbol: str) -> dict | None:
         """获取实时行情"""
         if not self._ensure_connected():
             return None
@@ -247,7 +247,7 @@ class AKShareDataSource:
 
     def get_historical_klines(
         self, symbol: str, period: str = "1d", count: int = 252
-    ) -> Optional[pd.DataFrame]:
+    ) -> pd.DataFrame | None:
         """获取历史K线数据
 
         Args:
@@ -378,7 +378,7 @@ class AKShareDataSource:
             logger.error(f"AKShare 获取历史K线失败: {e}")
             return None
 
-    def get_financial_report(self, symbol: str) -> Optional[dict]:
+    def get_financial_report(self, symbol: str) -> dict | None:
         """获取财务报表数据"""
         if not self._ensure_connected():
             return None

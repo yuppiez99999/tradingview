@@ -34,7 +34,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -174,8 +174,8 @@ class EvalFlywheel:
 
     def __init__(
         self,
-        artifact_dir: Optional[Path] = None,
-        pass_threshold: Optional[dict[str, float]] = None,
+        artifact_dir: Path | None = None,
+        pass_threshold: dict[str, float] | None = None,
     ):
         self.artifact_dir = Path(artifact_dir) if artifact_dir else _ARTIFACT_DIR
         self.artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -187,8 +187,8 @@ class EvalFlywheel:
 
     def prepare_data(
         self,
-        cases: Optional[list[EvalCase]] = None,
-        df: Optional[Any] = None,
+        cases: list[EvalCase] | None = None,
+        df: Any | None = None,
         *,
         source: str = "manual",
     ) -> EvalDataset:

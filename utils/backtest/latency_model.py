@@ -21,11 +21,11 @@ from __future__ import annotations
 
 import random
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import Union
 
 from utils.wt_structs import BarData, OrderData, TickData
 
-MarketEvent = Union[TickData, BarData]
+MarketEvent = Union[TickData, BarData]  # noqa: UP007  # 运行时类型别名, py38 兼容
 
 
 class LatencyModel(ABC):
@@ -39,7 +39,7 @@ class LatencyModel(ABC):
         self,
         order: OrderData,
         pending_count: int = 0,
-        market_event: Optional[MarketEvent] = None,
+        market_event: MarketEvent | None = None,
     ) -> int:
         """计算订单延迟(事件数)。
 
@@ -71,7 +71,7 @@ class FixedLatency(LatencyModel):
         self,
         order: OrderData,
         pending_count: int = 0,
-        market_event: Optional[MarketEvent] = None,
+        market_event: MarketEvent | None = None,
     ) -> int:
         """返回固定的 latency_ticks,忽略其他参数。"""
         return self.latency_ticks
@@ -100,7 +100,7 @@ class RandomLatency(LatencyModel):
         self,
         order: OrderData,
         pending_count: int = 0,
-        market_event: Optional[MarketEvent] = None,
+        market_event: MarketEvent | None = None,
     ) -> int:
         """返回 [min_ticks, max_ticks] 范围内的随机整数。"""
         return self._rng.randint(self.min_ticks, self.max_ticks)
@@ -135,7 +135,7 @@ class QueueLatency(LatencyModel):
         self,
         order: OrderData,
         pending_count: int = 0,
-        market_event: Optional[MarketEvent] = None,
+        market_event: MarketEvent | None = None,
     ) -> int:
         """计算基于队列积压的延迟,clamp 到 [base_ticks, max_ticks]。"""
         raw_latency = self.base_ticks + self.per_pending_order_ticks * pending_count

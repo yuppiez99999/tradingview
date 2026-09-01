@@ -181,6 +181,7 @@ class SystemChecker:
     # 关键环境变量
     CRITICAL_ENV_VARS = [
         ("WIND_API_KEY", "Wind MCP 认证密钥 (P1 数据源)"),
+        ("IFIND_TOKEN", "同花顺 iFinD 认证令牌 (P1 数据源)"),
     ]
     OPTIONAL_ENV_VARS = [
         ("TS_TOKEN", "Tushare 令牌 (国内期货/CPI)"),
@@ -788,12 +789,12 @@ class SystemChecker:
                 self._pass(
                     code, f"{desc} ({mod_name})", CheckLevel.WARN, detail="可导入"
                 )
-            except ImportError:
+            except Exception as e:  # noqa: BLE001
                 self._fail(
                     code,
                     f"{desc} ({mod_name})",
                     CheckLevel.WARN,
-                    detail="未安装 (可选)",
+                    detail=f"未安装或加载失败 (可选): {type(e).__name__}",
                     remediation=f"pip install {mod_name}",
                 )
 

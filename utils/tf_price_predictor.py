@@ -28,13 +28,14 @@
   - statsmodels (P2, ARIMA 统计模型, 兜底)
   - numpy/pandas (P3, 必需基础库)
 """
+from __future__ import annotations
 
 import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, ClassVar, Optional, cast
+from typing import Any, ClassVar, cast
 
 import numpy as np
 
@@ -96,7 +97,7 @@ class TimesFMForecaster:
 
     def __init__(self, model_id: str = "google/timesfm-2.5-200m-pytorch"):
         self.model_id = model_id
-        self._model: Optional[Any] = None
+        self._model: Any | None = None
         self._available: bool = False
         self._initialize()
 
@@ -132,7 +133,7 @@ class TimesFMForecaster:
 
         except ImportError:
             logger.warning("timesfm 未安装, 跳过. 安装: pip install timesfm[torch]")
-        except AttributeError as e:
+        except (AttributeError, OSError, RuntimeError) as e:
             logger.warning(f"TimesFM 初始化失败: {e}")
 
     @property
@@ -141,7 +142,7 @@ class TimesFMForecaster:
 
     def forecast(
         self, prices: np.ndarray, horizon: int = 5
-    ) -> Optional[tuple[np.ndarray, np.ndarray]]:
+    ) -> tuple[np.ndarray, np.ndarray] | None:
         """预测未来 horizon 步
 
         Args:
@@ -199,8 +200,8 @@ class TensorflowLSTMPredictor:
 
     def __init__(self, sequence_length: int = 60):
         self.sequence_length: int = sequence_length
-        self._tf: Optional[Any] = None
-        self._model: Optional[Any] = None
+        self._tf: Any | None = None
+        self._model: Any | None = None
         self._available: bool = False
         self._initialize()
 
@@ -222,7 +223,7 @@ class TensorflowLSTMPredictor:
                     "tensorflow 未安装, 跳过 LSTM 预测. 安装: pip install tensorflow"
                 )
                 self.__class__._tf_warned = True
-        except AttributeError as e:
+        except (AttributeError, OSError, RuntimeError) as e:
             if not self.__class__._tf_warned:
                 logger.warning(f"TensorFlow 初始化失败: {e}")
                 self.__class__._tf_warned = True
@@ -281,7 +282,7 @@ class TensorflowLSTMPredictor:
         horizon: int = 5,
         epochs: int = 50,
         batch_size: int = 32,
-    ) -> Optional[np.ndarray]:
+    ) -> np.ndarray | None:
         """训练并预测
 
         Args:
@@ -466,7 +467,7 @@ class PricePredictor:
         symbol: str,
         prices: np.ndarray,
         horizon: int = 5,
-        current_price: Optional[float] = None,
+        current_price: float | None = None,
     ) -> PredictionResult:
         """预测价格
 
@@ -487,7 +488,7 @@ class PricePredictor:
             )
 
         current = float(current_price or prices[-1])
-        forecast: Optional[np.ndarray] = None
+        forecast: np.ndarray | None = None
         quantiles: dict[str, list[float]] = {}
         method = "fallback"
 
@@ -618,7 +619,7 @@ class PricePredictor:
         return result.signal_strength
 
 
-def load_price_history(symbol: str, days: int = 120) -> Optional[np.ndarray]:
+def load_price_history(symbol: str, days: int = 120) -> np.ndarray | None:
     """从本地缓存加载历史价格
 
     优先级:

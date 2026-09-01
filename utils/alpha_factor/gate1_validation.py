@@ -22,7 +22,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -77,7 +77,7 @@ def to_tx_code(code: str) -> str:
     return f"sz{c}"
 
 
-def fetch_tx_kline(code: str, days: int = 250) -> Optional[list[list[str]]]:
+def fetch_tx_kline(code: str, days: int = 250) -> list[list[str]] | None:
     """腾讯历史 K 线 (前复权日线).
 
     Returns:
@@ -254,7 +254,7 @@ def calc_ic_series(
     price_data: dict[str, dict[str, list[float]]],
     graph,
     factor_name: str,
-    industries: Optional[dict[str, str]] = None,
+    industries: dict[str, str] | None = None,
     horizon: int = 5,
     windows: int = 12,
     window_len: int = 30,
@@ -344,7 +344,7 @@ def run_long_short_ic(
     price_data: dict[str, dict[str, list[float]]],
     graph,
     factor_name: str,
-    industries: Optional[dict[str, str]] = None,
+    industries: dict[str, str] | None = None,
     horizon: int = 20,
     min_neighbors: int = 1,
     windows: int = 6,
@@ -606,7 +606,7 @@ def main() -> int:
     logger.info("Gate 1 门禁验证结果 — GNN Lead-Lag 因子")
     logger.info("=" * 78)
     logger.info(
-        f"Universe: {result['universe_size']} 只 ({result['universe_type']}) | 有数据: {result['price_coverage']} 只 | 行业标签: {result.get('industry_coverage', 0)}"
+        f"Universe: {result['universe_size']} 只 ({result['universe_type']}) | 有数据: {result['price_coverage']} 只 | 行业标签: {result.get('industry_coverage', 0)}"  # noqa: E501
     )
     logger.info(
         f"图: {result['graph']['node_count']} 节点 / {result['graph']['edge_count']} 边"

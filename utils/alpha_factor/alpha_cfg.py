@@ -50,7 +50,6 @@ import logging
 import math
 import random
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger("alpha_cfg")
 
@@ -262,8 +261,8 @@ class MCTSNode:
 
     expression: str
     depth: int
-    parent: Optional["MCTSNode"] = None
-    children: list["MCTSNode"] = field(default_factory=list)
+    parent: MCTSNode | None = None
+    children: list[MCTSNode] = field(default_factory=list)
     visits: int = 0
     total_reward: float = 0.0
     is_terminal: bool = False
@@ -283,7 +282,7 @@ class MCTSNode:
         exploration = c * math.sqrt(2 * math.log(self.parent.visits) / self.visits)
         return exploitation + exploration
 
-    def best_child(self, c: float = DEFAULT_UCB_C) -> Optional["MCTSNode"]:
+    def best_child(self, c: float = DEFAULT_UCB_C) -> MCTSNode | None:
         """选择 UCB1 值最大的子节点。"""
         if not self.children:
             return None

@@ -27,7 +27,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 
 from utils.llm_gateway.types import (
     SCENE_TEMPERATURE_MAP,
@@ -179,8 +179,8 @@ class LiteLLMRouter:
         self,
         prompt: str,
         system: str = "",
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         scene: str = "default",
     ) -> str | None:
         """简化对话接口 (向后兼容旧 LLMRouter.chat 签名).
@@ -354,8 +354,8 @@ class LiteLLMRouter:
 def chat(
     prompt: str,
     system: str = "",
-    temperature: Optional[float] = None,
-    max_tokens: Optional[int] = None,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
     scene: str = "default",
 ) -> str | None:
     """快捷函数: LiteLLM-style 对话.

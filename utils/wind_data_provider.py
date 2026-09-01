@@ -13,11 +13,11 @@ v8.6.14 统一指向 utils/data_provider.py 的 MarketDataProvider
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_provider_instance: Optional["WindDataProvider"] = None
+_provider_instance: WindDataProvider | None = None
 
 
 class WindDataProvider:

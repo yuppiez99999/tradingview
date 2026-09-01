@@ -14,7 +14,7 @@ import logging
 from collections import deque
 from datetime import datetime, timedelta
 from datetime import time as datetime_time
-from typing import Any, Optional, TypedDict
+from typing import Any, TypedDict
 
 import numpy as np
 
@@ -124,7 +124,7 @@ class TradingCalendar:
 
         logger.info("交易日历初始化完成")
 
-    def is_trading_day(self, date: Optional[datetime] = None) -> bool:
+    def is_trading_day(self, date: datetime | None = None) -> bool:
         """判断是否为交易日"""
         if date is None:
             date = datetime.now()
@@ -174,7 +174,7 @@ class TradingCalendar:
 
         return False, "不在执行窗口内"
 
-    def get_next_execution_time(self) -> Optional[datetime]:
+    def get_next_execution_time(self) -> datetime | None:
         """获取下次执行时间"""
         now = datetime.now()
 

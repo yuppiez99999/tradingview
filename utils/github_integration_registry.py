@@ -33,7 +33,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class AdapterStatus:
     available: bool
     enabled: bool
     adapter_path: str
-    init_error: Optional[str] = None
+    init_error: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -88,7 +88,7 @@ class GitHubIntegrationRegistry:
     聚合三个适配器的状态, 提供统一查询和自检入口.
     """
 
-    def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self._config = config or self._load_config()
         self._adapters: dict[str, Any] = {}
         self._load_adapters()
@@ -264,7 +264,7 @@ class GitHubIntegrationRegistry:
         return self._adapters.get("openviking")
 
 
-_registry_instance: Optional[GitHubIntegrationRegistry] = None
+_registry_instance: GitHubIntegrationRegistry | None = None
 
 
 def get_registry() -> GitHubIntegrationRegistry:

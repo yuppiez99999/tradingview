@@ -189,7 +189,7 @@ class MinImpactExecutor:
         """
         total_executed = 0
         total_amount = 0
-        avg_execution_price = 0
+        avg_execution_price = 0.0
         slippage_total = 0
         start_time = datetime.now()
 
@@ -454,8 +454,8 @@ class VWAPExecutor:
         if total_qty < target_qty:
             remaining = target_qty - total_qty
             if orders:
-                orders[-1]["qty"] += float(remaining)
-                orders[-1]["amount"] = float(round(orders[-1]["qty"] * ref_price, 2))
+                orders[-1]["qty"] = float(orders[-1]["qty"]) + float(remaining)  # type: ignore[arg-type]
+                orders[-1]["amount"] = float(round(float(orders[-1]["qty"]) * ref_price, 2))  # type: ignore[arg-type]
                 orders[-1]["cumulative_qty"] = target_qty
                 orders[-1]["cumulative_amount"] = round(target_qty * ref_price, 2)
 

@@ -30,7 +30,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ class GLM5Client:
         print(resp["content"])
     """
 
-    def __init__(self, config: Optional[GLM5Config] = None, **kwargs: Any) -> None:
+    def __init__(self, config: GLM5Config | None = None, **kwargs: Any) -> None:
         self.config = config or GLM5Config(**kwargs)
         self._router: Any = None
         logger.info(
@@ -142,10 +142,10 @@ class GLM5Client:
     def chat(
         self,
         message: str,
-        history: Optional[list[dict[str, str]]] = None,
-        system_prompt: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        history: list[dict[str, str]] | None = None,
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
         """对话接口 (向后兼容旧 API).
@@ -263,7 +263,7 @@ class GLM5Client:
 # 单例 + 快捷函数 (向后兼容)
 # ============================================================
 
-_glm5_instance: Optional[GLM5Client] = None
+_glm5_instance: GLM5Client | None = None
 
 
 def get_glm5_client(**kwargs: Any) -> GLM5Client:

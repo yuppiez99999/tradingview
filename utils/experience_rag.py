@@ -39,7 +39,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -209,7 +209,7 @@ class ExperienceRAG:
         use_glm5: True 用 GLM-5 embedding API, False 直接用 hash 桶.
     """
 
-    def __init__(self, store_dir: Optional[Path] = None, *, use_glm5: bool = True):
+    def __init__(self, store_dir: Path | None = None, *, use_glm5: bool = True):
         self.store_dir = Path(store_dir) if store_dir else _STORE_DIR
         self.store_dir.mkdir(parents=True, exist_ok=True)
         self.embedder = _make_embedder(use_glm5)
@@ -309,7 +309,7 @@ class ExperienceRAG:
         *,
         source: str = "",
         title: str = "",
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> RagDocument:
         """添加文档 (自动嵌入, Tier M)."""
         if corpus not in self._corpora:

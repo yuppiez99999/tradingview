@@ -27,7 +27,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -141,10 +141,10 @@ class JointPlan:
     portfolio_value: float = 0.0
     stock_exposure: float = 0.0
 
-    hedge: Optional[HedgeDecision] = None
+    hedge: HedgeDecision | None = None
     after_hedge_exposure: float = 0.0
 
-    rebalance: Optional[RebalanceDecision] = None
+    rebalance: RebalanceDecision | None = None
 
     execution_window: str = ""
     execution_priority: str = ""
@@ -258,7 +258,7 @@ DEFAULT_SECTOR_WEIGHTS = {
 # ============================================================
 
 
-def _load_yaml(filepath: str) -> Optional[dict]:
+def _load_yaml(filepath: str) -> dict | None:
     try:
         import yaml
 
@@ -268,7 +268,7 @@ def _load_yaml(filepath: str) -> Optional[dict]:
         return None
 
 
-def _load_json(filepath: str) -> Optional[dict]:
+def _load_json(filepath: str) -> dict | None:
     try:
         with open(filepath, encoding="utf-8") as f:
             return json.load(f)
@@ -304,9 +304,9 @@ class HedgeRebalanceIntegrator:
 
     def __init__(
         self,
-        base_dir: str = None,
-        portfolio_value: float = None,
-        config_dir: str = None,
+        base_dir: str | None = None,
+        portfolio_value: float | None = None,
+        config_dir: str | None = None,
         hedge_mode: HedgeMode = HedgeMode.TAIL_ONLY,
     ):
         """
@@ -633,8 +633,8 @@ class HedgeRebalanceIntegrator:
     def _determine_market_regime(
         self,
         risk: PortfolioRisk,
-        portfolio_volatility: float = None,
-        portfolio_drawdown_60d: float = None,
+        portfolio_volatility: float | None = None,
+        portfolio_drawdown_60d: float | None = None,
     ) -> MarketRegime:
         """v5.9: 组合自身波动率和回撤驱动市场状态
 
@@ -661,8 +661,8 @@ class HedgeRebalanceIntegrator:
 
     def _compute_tail_hedge_ratio(
         self,
-        portfolio_volatility: float = None,
-        portfolio_drawdown_60d: float = None,
+        portfolio_volatility: float | None = None,
+        portfolio_drawdown_60d: float | None = None,
         vix: float | None = None,
     ) -> float:
         """v8.7: 计算尾部对冲比率 — RegimeFolio 动态阈值
@@ -720,8 +720,8 @@ class HedgeRebalanceIntegrator:
     def decide_hedge(
         self,
         risk: PortfolioRisk,
-        portfolio_volatility: float = None,
-        portfolio_drawdown_60d: float = None,
+        portfolio_volatility: float | None = None,
+        portfolio_drawdown_60d: float | None = None,
         vix: float | None = None,
     ) -> HedgeDecision:
         """v8.7: Phase 2 对冲决策 — VIX regime 感知
@@ -959,7 +959,7 @@ class HedgeRebalanceIntegrator:
     def check_rebalance(
         self,
         risk: PortfolioRisk,
-        portfolio_volatility: float = None,
+        portfolio_volatility: float | None = None,
     ) -> RebalanceDecision:
         """Phase 3: 再平衡检查"""
         prices = self.load_prices()
@@ -1057,7 +1057,7 @@ class HedgeRebalanceIntegrator:
                 needed=False,
                 rebalance_type="none",
                 threshold=threshold,
-                reasoning=f"所有标的偏离度在{threshold * 100:.0f}%阈值内。波动率{portfolio_vol * 100:.1f}%，检查频率{check_freq}",
+                reasoning=f"所有标的偏离度在{threshold * 100:.0f}%阈值内。波动率{portfolio_vol * 100:.1f}%，检查频率{check_freq}",  # noqa: E501
             )
         if max(pw.deviation_pct for pw in to_adjust) > threshold * 2.0:
             return RebalanceDecision(
@@ -1068,7 +1068,7 @@ class HedgeRebalanceIntegrator:
                 total_buy_amount=total_buy,
                 total_sell_amount=total_sell,
                 net_cash_flow=net_cash,
-                reasoning=f"{len(to_adjust)}只标的严重偏离(最大{max(pw.deviation_pct for pw in to_adjust) * 100:.1f}%)，战略再平衡",
+                reasoning=f"{len(to_adjust)}只标的严重偏离(最大{max(pw.deviation_pct for pw in to_adjust) * 100:.1f}%)，战略再平衡",  # noqa: E501
             )
         return RebalanceDecision(
             needed=True,
@@ -1160,8 +1160,8 @@ class HedgeRebalanceIntegrator:
         risk: PortfolioRisk,
         hedge: HedgeDecision,
         rebalance: RebalanceDecision,
-        warnings: list[str] = None,
-        stress_tests: dict[str, dict[str, Any]] = None,
+        warnings: list[str] | None = None,
+        stress_tests: dict[str, dict[str, Any]] | None = None,
     ) -> JointPlan:
         """Phase 5: 生成联合执行计划"""
         now = datetime.now()
@@ -1235,8 +1235,8 @@ class HedgeRebalanceIntegrator:
 
     def run_full_workflow(
         self,
-        portfolio_volatility: float = None,
-        portfolio_drawdown_60d: float = None,
+        portfolio_volatility: float | None = None,
+        portfolio_drawdown_60d: float | None = None,
     ) -> JointPlan:
         """v5.9 完整五阶段工作流 — 组合自触发驱动"""
         logger.info("=" * 60)
@@ -1446,7 +1446,7 @@ class HedgeRebalanceIntegrator:
 
         return "\n".join(lines)
 
-    def save_report(self, plan: JointPlan, output_dir: str = None) -> str:
+    def save_report(self, plan: JointPlan, output_dir: str | None = None) -> str:
         if output_dir is None:
             output_dir = os.path.join(self.base_dir, "..", "reports")
         os.makedirs(output_dir, exist_ok=True)

@@ -20,6 +20,7 @@ AI 自动决策引擎 v5.8 — 量化交易系统 AI 决策模块 (多模型场�
     # 或再平衡分析
     decisions = engine.make_decisions(market_data, portfolio_data, scene="rebalancing_analysis")
 """
+
 from __future__ import annotations
 
 import json
@@ -69,7 +70,7 @@ class RiskAlert:
     action_required: str
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str, default: Any | None = None) -> Any:
         """dict 接口兼容: 允许调用方用 .get() 统一访问对象/dict 两种告警形态.
 
         value_discipline_layer._make_alert 优先返回 RiskAlert 对象, 导入失败时 fallback 返回 dict;
@@ -601,7 +602,7 @@ class GLM5DecisionEngine:
 {chr(10).join(holding_lines) if holding_lines else '| - | 无持仓 | - | - |'}
 
 ## 六、风控约束
-- 单标 ≤ {risk_rules.get('max_single_position', 0.10) * 100:.0f}% | 板块 ≤ 25%
+- 单标 ≤ {(risk_rules or {}).get('max_single_position', 0.10) * 100:.0f}% | 板块 ≤ 25%
 - 止损: 个股 -8% | 止盈 +20%
 - 现金 ≥ 5% | VaR95 ≤ 1.5%
 
@@ -918,7 +919,7 @@ class GLM5DecisionEngine:
             },
         )
 
-    def export_decisions(self, decision: DecisionResult, output_dir: str = None) -> str:
+    def export_decisions(self, decision: DecisionResult, output_dir: str | None = None) -> str:
         """
         导出决策结果为 Markdown 文件
 

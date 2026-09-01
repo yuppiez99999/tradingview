@@ -63,7 +63,7 @@ class DelistedStockRecord:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, str]) -> "DelistedStockRecord":
+    def from_dict(cls, d: dict[str, str]) -> DelistedStockRecord:
         return cls(
             code=d.get("code", ""),
             name=d.get("name", ""),

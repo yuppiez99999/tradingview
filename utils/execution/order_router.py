@@ -17,6 +17,7 @@
 5. 异常处理：全面的异常处理和恢复机制
 6. 性能监控：执行性能监控和分析
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -26,7 +27,7 @@ import threading
 import uuid
 from collections import deque
 from datetime import datetime
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 logger = logging.getLogger(__name__)
 
@@ -282,7 +283,7 @@ class OrderRouter:
         # 实际应该查询真实的账户余额
         return True
 
-    def _find_available_pool(self) -> Optional[ExecutionPoolEntry]:
+    def _find_available_pool(self) -> ExecutionPoolEntry | None:
         """查找可用的执行池"""
         for pool in self.execution_pools.values():
             if self._check_pool_availability(pool):
@@ -612,7 +613,7 @@ class OrderRouter:
         ) as e:
             return {"success": False, "error": str(e)}
 
-    def _get_reference_price(self, symbol: str) -> Optional[float]:
+    def _get_reference_price(self, symbol: str) -> float | None:
         """获取参考价格 (用于市价单回测时 fallback)
 
         从持仓文件或行情接口获取标的参考价格,

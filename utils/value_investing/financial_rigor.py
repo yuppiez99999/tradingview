@@ -9,8 +9,10 @@ Requires Python >= 3.7.
 
 Usage (called automatically by Skills, no manual execution needed):
     python3 tools/financial_rigor.py verify-market-cap --price 510 --shares 9.11e9 --reported 4.65e12 --currency HKD
-    python3 tools/financial_rigor.py verify-valuation --price 510 --eps 23.5 --bvps 120 --fcf-per-share 18 --dividend 2.4
-    python3 tools/financial_rigor.py cross-validate --field revenue --values '{"年报": 7518, "Yahoo": 7500, "StockAnalysis": 7520}' --unit 亿
+    python3 tools/financial_rigor.py verify-valuation --price 510 --eps 23.5 --bvps 120 --fcf-per-share 18 --dividend
+    2.4
+    python3 tools/financial_rigor.py cross-validate --field revenue --values '{"年报": 7518, "Yahoo": 7500,
+     "StockAnalysis": 7520}' --unit 亿
     python3 tools/financial_rigor.py benford --values '[1234, 2345, 3456, ...]'
     python3 tools/financial_rigor.py calc --expr '510 * 9.11e9'
 """
@@ -21,6 +23,7 @@ import json
 import math
 import operator
 from decimal import ROUND_HALF_EVEN, Context, Decimal
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Exact Decimal Engine (no floating-point drift)
@@ -198,7 +201,7 @@ def benford_check(values: list):
         return None
 
     # Observed distribution
-    counts = {}
+    counts: dict[str, Any] = {}
     for d in digits:
         counts[d] = counts.get(d, 0) + 1
     observed = {d: counts.get(d, 0) / n for d in range(1, 10)}

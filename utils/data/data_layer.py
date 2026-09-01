@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """L2 数据层 — 统一数据降级链 P0-P6.
 
 模块整合 8.4 — ARCHITECTURE §2.1 / TASK T1.7
@@ -38,10 +37,11 @@ import json
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 import pandas as pd
 
@@ -63,11 +63,11 @@ _FALLBACK_LOG_DIR = _PROJECT_ROOT / "reports" / "data_layer"
 _P6_CACHE_DIR = _PROJECT_ROOT / "data_cache" / "data_layer_p6"
 
 # 降级链级别 (P0=最高优先级, P6=最低)
-PROVIDER_LEVELS: List[str] = ["P0", "P1", "P2", "P3", "P4", "P5", "P6"]
+PROVIDER_LEVELS: list[str] = ["P0", "P1", "P2", "P3", "P4", "P5", "P6"]
 
 # 默认降级链配置 (优先级: 高 → 低, 已剔除 iFinD)
 # 与 MarketDataProvider 现有降级链对齐: Wind MCP > 通达信 > AKShare > 新浪
-_DEFAULT_FALLBACK_CHAIN: List[Dict[str, Any]] = [
+_DEFAULT_FALLBACK_CHAIN: list[dict[str, Any]] = [
     {"level": "P0", "name": "wind_mcp", "description": "Wind MCP (生产主源)"},
     {"level": "P1", "name": "tdx", "description": "通达信本地客户端"},
     {"level": "P2", "name": "akshare", "description": "AKShare 开源"},
@@ -92,7 +92,7 @@ STALE_QUALITY_SCORE: float = 0.0
 class DataLayerError(Exception):
     """DataLayer 基础异常."""
 
-    def __init__(self, message: str, *, level: Optional[str] = None, cause: Optional[Exception] = None) -> None:
+    def __init__(self, message: str, *, level: str | None = None, cause: Exception | None = None) -> None:
         super().__init__(message)
         self.level = level
         self.cause = cause
@@ -126,7 +126,7 @@ class FallbackRecord:
     error_message: str
     latency_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "symbol": self.symbol,
@@ -150,10 +150,10 @@ class QueryResult:
     provider_name: str  # 实际命中的 provider, 如 "wind_mcp"
     from_cache: bool = False  # 是否来自 P6 缓存兜底
     quality_score: float = 100.0  # DataGate 评分
-    fallback_chain_used: List[str] = field(default_factory=list)  # 经过的降级路径
+    fallback_chain_used: list[str] = field(default_factory=list)  # 经过的降级路径
     latency_ms: float = 0.0
 
-    def to_meta(self) -> Dict[str, Any]:
+    def to_meta(self) -> dict[str, Any]:
         return {
             "provider_level": self.provider_level,
             "provider_name": self.provider_name,
@@ -195,14 +195,14 @@ class DataLayer:
     def __init__(
         self,
         *,
-        fallback_chain: Optional[List[Dict[str, Any]]] = None,
-        providers: Optional[Dict[str, ProviderFn]] = None,
+        fallback_chain: list[dict[str, Any]] | None = None,
+        providers: dict[str, ProviderFn] | None = None,
         enable_data_gate: bool = True,
         cache_ttl_seconds: int = DEFAULT_CACHE_TTL_SECONDS,
         feature_flag_name: str = "USE_INTEGRATED_DATA_LAYER",
-        feature_flag_check: Optional[Callable[[], bool]] = None,
-        fallback_log_dir: Optional[Path] = None,
-        p6_cache_dir: Optional[Path] = None,
+        feature_flag_check: Callable[[], bool] | None = None,
+        fallback_log_dir: Path | None = None,
+        p6_cache_dir: Path | None = None,
         auto_register_providers: bool = True,
     ) -> None:
         """初始化 DataLayer.
@@ -222,10 +222,10 @@ class DataLayer:
 
         # 降级链配置 (走 ConfigManager 4 级优先级, HC-5)
         # 配置优先级: 显式传参 > ConfigManager 加载 > 默认值
-        self.fallback_chain: List[Dict[str, Any]] = fallback_chain or self._load_fallback_chain_from_config()
+        self.fallback_chain: list[dict[str, Any]] = fallback_chain or self._load_fallback_chain_from_config()
 
         # providers 字典
-        self._providers: Dict[str, ProviderFn] = {}
+        self._providers: dict[str, ProviderFn] = {}
         if providers:
             self._providers.update(providers)
 
@@ -240,7 +240,7 @@ class DataLayer:
             try:
                 from utils.data_gate import DataGate
                 self._data_gate = DataGate()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
                 logger.warning(f"DataGate 加载失败, 数据质量门控禁用: {e}")
                 self.enable_data_gate = False
 
@@ -272,8 +272,8 @@ class DataLayer:
     def get_ohlcv(
         self,
         symbol: str,
-        start: Optional[str] = None,
-        end: Optional[str] = None,
+        start: str | None = None,
+        end: str | None = None,
         period: str = "1y",
         **kwargs: Any,
     ) -> pd.DataFrame:
@@ -306,7 +306,7 @@ class DataLayer:
             df = pd.DataFrame()
         return df
 
-    def get_snapshot(self, symbol: str, **kwargs: Any) -> Dict[str, Any]:
+    def get_snapshot(self, symbol: str, **kwargs: Any) -> dict[str, Any]:
         """获取实时行情快照.
 
         Args:
@@ -327,7 +327,7 @@ class DataLayer:
             data = {}
         return data
 
-    def get_macro_indicators(self, **kwargs: Any) -> Dict[str, Any]:
+    def get_macro_indicators(self, **kwargs: Any) -> dict[str, Any]:
         """获取宏观指标 (CPI/PMI/M2/利率).
 
         Returns:
@@ -343,7 +343,7 @@ class DataLayer:
             data = {}
         return data
 
-    def list_providers(self) -> List[Dict[str, Any]]:
+    def list_providers(self) -> list[dict[str, Any]]:
         """列出降级链中所有 provider 的健康状态."""
         with self._lock:
             return [
@@ -376,12 +376,12 @@ class DataLayer:
         try:
             from utils.infra.feature_flags import FeatureFlags
             return FeatureFlags.get_instance().is_enabled(self._feature_flag_name)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
             # FeatureFlags 不可用, 默认走旧路径 (保守)
             logger.debug(f"FeatureFlags 检查失败, 默认走旧路径: {e}")
             return False
 
-    def _load_fallback_chain_from_config(self) -> List[Dict[str, Any]]:
+    def _load_fallback_chain_from_config(self) -> list[dict[str, Any]]:
         """从 ConfigManager 加载降级链配置 (HC-5)."""
         try:
             cfg = get_config("data_layer")
@@ -390,7 +390,7 @@ class DataLayer:
                 if isinstance(chain, list) and chain:
                     logger.info(f"从 ConfigManager 加载降级链: {len(chain)} 级")
                     return chain
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
             logger.debug(f"ConfigManager 加载 data_layer 配置失败, 使用默认值: {e}")
         return list(_DEFAULT_FALLBACK_CHAIN)
 
@@ -442,7 +442,7 @@ class DataLayer:
                 self._providers[name] = _make_delegator("get_ohlcv")  # 占位, 实际调用按 operation 路由
             # P6 缓存兜底
             self._providers["cache"] = self._p6_cache_lookup
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"默认 provider 注册失败: {e}, DataLayer 将走 MarketDataProvider 透传")
             self._market_data_provider = None
 
@@ -463,8 +463,8 @@ class DataLayer:
             return self._passthrough_to_market_provider(operation, symbol, query_fn, start_ts)
 
         # flag 开启: 走新降级链
-        fallback_chain_used: List[str] = []
-        last_error: Optional[Exception] = None
+        fallback_chain_used: list[str] = []
+        last_error: Exception | None = None
 
         # 锁收窄 (缺陷6修复): 不包裹整个降级循环 (含网络 IO 的 query_fn),
         # 只在写共享状态 (P6 缓存 / fallback 日志) 时加锁, 避免跨线程查询串行阻塞.
@@ -522,7 +522,7 @@ class DataLayer:
                 )
                 return result
 
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
                 last_error = e
                 # 记录 fallback 日志 (加锁保护共享日志状态)
                 next_level, next_name = self._find_next_provider(level)
@@ -561,7 +561,7 @@ class DataLayer:
         name: str,
         operation: str,
         registered_fn: ProviderFn,
-    ) -> Optional[ProviderFn]:
+    ) -> ProviderFn | None:
         """根据 operation 路由到正确的 provider 函数.
 
         由于 _register_default_providers 中所有 P0-P5 都注册为 get_ohlcv 委托,
@@ -643,14 +643,14 @@ class DataLayer:
                 fallback_chain_used=["PASSTHROUGH"],
                 latency_ms=latency_ms,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
             raise DataLayerError(
                 f"透传失败: operation={operation}, symbol={symbol}, error={e}",
                 level="PASSTHROUGH",
                 cause=e,
             ) from e
 
-    def _find_next_provider(self, current_level: str) -> Tuple[Optional[str], Optional[str]]:
+    def _find_next_provider(self, current_level: str) -> tuple[str | None, str | None]:
         """找到当前级别的下一个 provider."""
         try:
             idx = PROVIDER_LEVELS.index(current_level)
@@ -670,7 +670,7 @@ class DataLayer:
             return 100.0
         try:
             # 将数据转为 snapshot 字典供 DataGate 评估
-            snapshot: Dict[str, Any] = {}
+            snapshot: dict[str, Any] = {}
             if operation == "get_snapshot" and isinstance(data, dict):
                 snapshot = data
             elif operation == "get_ohlcv" and isinstance(data, pd.DataFrame) and not data.empty:
@@ -694,7 +694,7 @@ class DataLayer:
             return result.quality_score
         except DataQualityBlockedError:
             raise
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"DataGate 评估失败, 跳过门控: {e}")
             return 100.0
 
@@ -720,7 +720,7 @@ class DataLayer:
             }
             with open(cache_file, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, default=str)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
             logger.debug(f"P6 缓存写入失败 (不影响业务): symbol={symbol}, op={operation}, err={e}")
 
     def _p6_cache_lookup(self, symbol: str, **kwargs: Any) -> Any:
@@ -735,9 +735,9 @@ class DataLayer:
             raise RuntimeError(f"P6 缓存不存在: symbol={symbol}, op={operation}")
 
         try:
-            with open(cache_file, "r", encoding="utf-8") as f:
+            with open(cache_file, encoding="utf-8") as f:
                 payload = json.load(f)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
             raise RuntimeError(f"P6 缓存读取失败: {e}") from e
 
         # 检查 TTL
@@ -775,7 +775,7 @@ class DataLayer:
                 df = df.set_index("index")
                 try:
                     df.index = pd.to_datetime(df.index)
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
                     pass
             return df
         return data
@@ -790,7 +790,7 @@ class DataLayer:
             log_file = self.get_fallback_log_path()
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record.to_dict(), ensure_ascii=False) + "\n")
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001  # P2 模块 fail-safe, 待后续精确化
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e: # noqa: BLE001, E501  # P2 模块 fail-safe, 待后续精确化
             logger.warning(f"fallback 日志写入失败 (不影响业务): {e}")
 
 
@@ -799,7 +799,7 @@ class DataLayer:
 # ============================================================
 
 
-_DataLayer_singleton: Optional[DataLayer] = None
+_DataLayer_singleton: DataLayer | None = None
 _DataLayer_lock = threading.RLock()
 
 
@@ -824,16 +824,16 @@ def reset_data_layer_singleton() -> None:
 # ============================================================
 
 
-def get_ohlcv(symbol: str, start: Optional[str] = None, end: Optional[str] = None, **kwargs: Any) -> pd.DataFrame:
+def get_ohlcv(symbol: str, start: str | None = None, end: str | None = None, **kwargs: Any) -> pd.DataFrame:
     """便捷函数: 获取 OHLCV."""
     return get_data_layer().get_ohlcv(symbol, start=start, end=end, **kwargs)
 
 
-def get_snapshot(symbol: str, **kwargs: Any) -> Dict[str, Any]:
+def get_snapshot(symbol: str, **kwargs: Any) -> dict[str, Any]:
     """便捷函数: 获取快照."""
     return get_data_layer().get_snapshot(symbol, **kwargs)
 
 
-def get_macro_indicators(**kwargs: Any) -> Dict[str, Any]:
+def get_macro_indicators(**kwargs: Any) -> dict[str, Any]:
     """便捷函数: 获取宏观指标."""
     return get_data_layer().get_macro_indicators(**kwargs)

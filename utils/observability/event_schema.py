@@ -6,7 +6,7 @@
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -34,7 +34,7 @@ class ObservabilityEvent(BaseModel):
     event_type: str = Field(..., description="事件类型标识")
     message: str = Field(default="", description="人类可读消息")
     context: dict[str, Any] = Field(default_factory=dict, description="扩展上下文")
-    trace_id: Optional[str] = Field(
+    trace_id: str | None = Field(
         default=None, description="追踪 ID (后续 OpenTelemetry 接入)"
     )
 
@@ -47,7 +47,7 @@ class OrderEvent(ObservabilityEvent):
     symbol: str = Field(..., description="标的代码")
     side: str = Field(..., description="买卖方向")
     qty: float = Field(..., description="数量")
-    price: Optional[float] = Field(default=None, description="价格")
+    price: float | None = Field(default=None, description="价格")
     filled_qty: float = Field(default=0.0, description="已成交数量")
 
 
@@ -67,7 +67,7 @@ class ExecutionEvent(ObservabilityEvent):
 
     event_type: str = "execution"
     phase: str = Field(..., description="执行阶段")
-    duration_ms: Optional[float] = Field(default=None, description="耗时 (毫秒)")
+    duration_ms: float | None = Field(default=None, description="耗时 (毫秒)")
 
 
 class PipelineEvent(ObservabilityEvent):
@@ -76,4 +76,4 @@ class PipelineEvent(ObservabilityEvent):
     event_type: str = "pipeline"
     pipeline_name: str = Field(..., description="管线名称")
     step: str = Field(..., description="管线步骤")
-    step_index: Optional[int] = Field(default=None, description="步骤序号")
+    step_index: int | None = Field(default=None, description="步骤序号")

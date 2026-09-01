@@ -16,12 +16,13 @@ broker_factory — 统一券商接口装配点 (G1 QMT 真实下单接线, 2026-
 5. enabled=true 且 dry_run=false 且
    TRADING_ENV=production 且 QMT connect 成功 → QmtBrokerAPI (本地直连, Win 实盘机自跑)
 """
+from __future__ import annotations
 
 import json
 import logging
 import os
 import sys
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ def _load_broker_config() -> dict:
     return default
 
 
-def get_broker(config: Optional[dict] = None) -> Any:
+def get_broker(config: dict | None = None) -> Any:
     """
     统一 broker 装配入口.
 

@@ -239,12 +239,20 @@ class FastBacktest:
         metrics = self._compute_basic_metrics(returns)
 
         # 3. DSR
+        # PSR/DSR 公式要求日频未年化 SR (与 sqrt(T-1) 配套)。
+        # 修复 (2026-08-31): 原 metrics["sharpe"] 为年化口径, 参与 z_score 被放大
+        # sqrt(252) 倍, DSR 系统性高估 → 弱策略恒 PASS。
+        sr_daily = (
+            metrics["sharpe"] / math.sqrt(self.config.trading_days)
+            if metrics["sharpe"] != 0.0
+            else 0.0
+        )
         dsr = self._compute_dsr(
-            sharpe_ratio=metrics["sharpe"],
+            sharpe_ratio=sr_daily,
             n_trials=max(n_trials, 1),
             n_observations=len(returns),
             skewness=float(returns.skew()) if hasattr(returns, "skew") else 0.0,
-            kurtosis=float(returns.kurt()) if hasattr(returns, "kurt") else 3.0,
+            kurtosis=(float(returns.kurt()) + 3.0) if hasattr(returns, "kurt") else 3.0,
         )
 
         # 4. IC_IR (可选)
@@ -368,10 +376,13 @@ class FastBacktest:
         公式 (对齐 v8.3/src/backtest/metrics.py DeflatedSharpeRatio):
             E[SR_max] = Z_max * (1 + skew/6 * (Z_max^2 - 1) + (kurt-3)/24 * (Z_max^3 - 3*Z_max)) / sqrt(T)
             Z_max = sqrt(2 * log(n_trials))
-            DSR = Φ((SR - E[SR_max]) * sqrt(T - 1))
+            DSR = Φ((SR - E[SR_max]) * sqrt(T - 1) / sqrt(1 - skew·SR + (kurt-1)/4·SR²))
+
+        注意: sharpe_ratio 必须为**日频未年化**口径 (与 sqrt(T-1) 配套)。
+        年化 SR 参与 z_score 会被放大 sqrt(252) 倍导致 DSR 系统性高估。
 
         Args:
-            sharpe_ratio: 观察到的 Sharpe Ratio
+            sharpe_ratio: 观察到的 Sharpe Ratio (日频未年化口径)
             n_trials: 尝试的策略数
             n_observations: 样本量
             skewness: 偏度
@@ -392,10 +403,19 @@ class FastBacktest:
             + (skewness / 6) * (z_max**2 - 1)
             + ((kurtosis - 3) / 24) * (z_max**3 - 3 * z_max)
         )
-        e_max_sr = z_max * correction / math.sqrt(max(n_observations, 1))
+        e_max_sr = max(z_max * correction / math.sqrt(max(n_observations, 1)), 0.0)
+
+        # PSR 分母: 偏度/峰度对 SR 方差的修正
+        denom = math.sqrt(
+            max(
+                1.0 - skewness * sharpe_ratio
+                + (kurtosis - 1.0) / 4.0 * sharpe_ratio**2,
+                1e-12,
+            )
+        )
 
         # DSR
-        z_score = (sharpe_ratio - e_max_sr) * math.sqrt(max(n_observations - 1, 1))
+        z_score = (sharpe_ratio - e_max_sr) * math.sqrt(max(n_observations - 1, 1)) / denom
         dsr = float(norm.cdf(z_score))
 
         # V9 标准使用 DSR * 10 (DSR >= 5 对应原始 DSR >= 0.5)

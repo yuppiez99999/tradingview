@@ -29,8 +29,8 @@ from typing import Optional, Union
 
 logger = logging.getLogger("safe_math")
 
-Number = Union[int, float, complex]
-NumberOrNone = Optional[Number]
+Number = Union[int, float, complex]  # noqa: UP007  # 运行时类型别名, py38 兼容
+NumberOrNone = Optional[Number]  # noqa: UP045  # 运行时类型别名, py38 兼容
 
 # 数值安全阈值: 小于此值视为 0 (避免浮点精度问题)
 _EPSILON = 1e-10

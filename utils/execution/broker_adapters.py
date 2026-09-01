@@ -39,15 +39,15 @@ import os
 import sys
 from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _BASE_AVAILABLE = False
-_BASE_LOAD_ERROR: Optional[str] = None  # 记录加载失败原因, 供诊断
+_BASE_LOAD_ERROR: str | None = None  # 记录加载失败原因, 供诊断
 BrokerAdapter = object  # 降级占位符 (HC-1 透传, 不阻塞导入)
-BrokerOrder = None
-OrderSide = None
-OrderStatus = None
-OrderType = None
+BrokerOrder: Any = None
+OrderSide: Any = None
+OrderStatus: Any = None
+OrderType: Any = None
 
 # 定位 v8.3_institutional/src/bridges/broker_adapter.py 的绝对路径
 # 使用 __file__ 绝对路径解析, 不依赖 sys.path 或 cwd, 避免测试间污染
@@ -159,7 +159,7 @@ class _BaseLiveAdapter(BrokerAdapter):
             config.get("circuit_breaker_threshold", 0.03)
         )
         self._daily_trade_amount: float = 0.0
-        self._daily_trade_date: Optional[str] = None
+        self._daily_trade_date: str | None = None
         # 审计日志 (JSONL)
         self._audit_log_dir = Path(config.get("audit_log_dir", "reports/broker_audit"))
         if not self._audit_log_dir.is_absolute():
@@ -432,7 +432,7 @@ class _BaseLiveAdapter(BrokerAdapter):
         amount = float(order.quantity) * order_price
         if self._daily_trade_amount + amount > self.daily_trade_limit:
             order.status = OrderStatus.REJECTED
-            order.rejection_reason = f"超出单日交易限额 {self.daily_trade_limit} (已交易 {self._daily_trade_amount:.2f}, 本次 {amount:.2f})"
+            order.rejection_reason = f"超出单日交易限额 {self.daily_trade_limit} (已交易 {self._daily_trade_amount:.2f}, 本次 {amount:.2f})"  # noqa: E501
             self._audit(
                 "risk_reject_limit",
                 {
@@ -457,7 +457,7 @@ class _BaseLiveAdapter(BrokerAdapter):
             return False
         return True
 
-    def _get_reference_price(self, symbol: str) -> Optional[float]:
+    def _get_reference_price(self, symbol: str) -> float | None:
         """获取参考价格 (用于市价单金额估算). 子类可重写以接入实时行情."""
         return None
 

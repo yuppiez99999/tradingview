@@ -50,7 +50,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -150,7 +150,7 @@ class FeedResult:
     warnings: list[str] = field(default_factory=list)
     written: bool = False
     skipped: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
     @property
     def is_success(self) -> bool:
@@ -228,7 +228,7 @@ class HistoryFeedSummary:
     avg_daily_return: float = 0.0
     max_daily_return: float = 0.0
     min_daily_return: float = 0.0
-    cache_stats: Optional[CacheStats] = None
+    cache_stats: CacheStats | None = None
     elapsed_sec: float = 0.0
 
 
@@ -276,7 +276,7 @@ class ShadowRealDataFeeder:
         self,
         data_provider: Any,
         weights_source: str = "auto",
-        weights_path: Optional[Path] = None,
+        weights_path: Path | None = None,
         output_path: Path = DEFAULT_OUTPUT_PATH,
         source_tag: str = DEFAULT_SOURCE_TAG,
         skip_weekend: bool = True,
@@ -363,7 +363,7 @@ class ShadowRealDataFeeder:
     def feed_single_date(
         self,
         date: str,
-        target_weights: Optional[dict[str, float]] = None,
+        target_weights: dict[str, float] | None = None,
     ) -> FeedResult:
         """注入单日真实收益.
 
@@ -450,7 +450,7 @@ class ShadowRealDataFeeder:
     def dry_run(
         self,
         date: str,
-        target_weights: Optional[dict[str, float]] = None,
+        target_weights: dict[str, float] | None = None,
     ) -> FeedResult:
         """离线 dry-run 模式 — 计算但不写盘, 仅返回结果.
 
@@ -520,8 +520,8 @@ class ShadowRealDataFeeder:
         self,
         start_date: str,
         end_date: str,
-        weights_history: Optional[dict[str, dict[str, float]]] = None,
-        progress_callback: Optional[Callable[[int, int, FeedResult], None]] = None,
+        weights_history: dict[str, dict[str, float]] | None = None,
+        progress_callback: Callable[[int, int, FeedResult], None] | None = None,
     ) -> list[FeedResult]:
         """注入历史日期范围的真实收益 (用于回填观察期).
 
@@ -582,7 +582,7 @@ class ShadowRealDataFeeder:
         )
 
         # 2. 预加载权重 (避免并行时多线程同时读文件)
-        weights_per_date: dict[str, Optional[dict[str, float]]] = {}
+        weights_per_date: dict[str, dict[str, float] | None] = {}
         for d in date_list:
             if weights_history is not None:
                 weights_per_date[d] = weights_history.get(d)
@@ -633,8 +633,8 @@ class ShadowRealDataFeeder:
     def _feed_history_serial(
         self,
         date_list: list[str],
-        weights_per_date: dict[str, Optional[dict[str, float]]],
-        progress_callback: Optional[Callable[[int, int, FeedResult], None]],
+        weights_per_date: dict[str, dict[str, float] | None],
+        progress_callback: Callable[[int, int, FeedResult], None] | None,
     ) -> list[FeedResult]:
         """串行执行历史回填 (Day 1 兼容路径)."""
         results: list[FeedResult] = []
@@ -653,8 +653,8 @@ class ShadowRealDataFeeder:
     def _feed_history_parallel(
         self,
         date_list: list[str],
-        weights_per_date: dict[str, Optional[dict[str, float]]],
-        progress_callback: Optional[Callable[[int, int, FeedResult], None]],
+        weights_per_date: dict[str, dict[str, float] | None],
+        progress_callback: Callable[[int, int, FeedResult], None] | None,
     ) -> list[FeedResult]:
         """并行执行历史回填 (Day 2 新增).
 
@@ -704,7 +704,7 @@ class ShadowRealDataFeeder:
         return [results_by_date[d] for d in date_list if d in results_by_date]
 
     def _preload_symbol_cache(
-        self, weights_per_date: dict[str, Optional[dict[str, float]]]
+        self, weights_per_date: dict[str, dict[str, float] | None]
     ) -> None:
         """预热 symbol 价格缓存 (Day 2 新增).
 
@@ -765,7 +765,7 @@ class ShadowRealDataFeeder:
         self,
         date: str,
         daily_return: float,
-        target_weights: Optional[dict[str, float]] = None,
+        target_weights: dict[str, float] | None = None,
         secondary_provider: Any = None,
     ) -> ValidationResult:
         """多源交叉校验 — 用不同数据源重新计算 daily_return 对比.
@@ -1337,7 +1337,7 @@ class ShadowRealDataFeeder:
         self,
         symbol: str,
         date: str,
-    ) -> tuple[Optional[float], Optional[float]]:
+    ) -> tuple[float | None, float | None]:
         """获取指定标的在 date 和前一日的收盘价 (Day 2 重构为走缓存).
 
         复用 _fix_shadow_returns.py 的查找逻辑:
@@ -1362,8 +1362,8 @@ class ShadowRealDataFeeder:
         prev_dt = target_dt - timedelta(days=1)
         prev_window_start = prev_dt - timedelta(days=2)  # 前一日 ±2 天窗口
 
-        target_close: Optional[float] = None
-        prev_close: Optional[float] = None
+        target_close: float | None = None
+        prev_close: float | None = None
 
         for idx, row in df.iterrows():
             idx_str = self._idx_date_str(idx)
@@ -1878,7 +1878,7 @@ def _build_cli_parser():
     return parser
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     """CLI 入口.
 
     Returns:

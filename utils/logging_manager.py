@@ -11,7 +11,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class ColoredFormatter(logging.Formatter):
@@ -66,7 +66,7 @@ class StructuredFormatter(logging.Formatter):
 class QuantSystemLogger:
     """量化系统统一日志管理器 — 借鉴 TradingAgents-CN TradingAgentsLogger"""
 
-    def __init__(self, config: Optional[dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or self._load_default_config()
         self._loggers: dict[str, logging.Logger] = {}
         self._setup_logging()
@@ -79,7 +79,7 @@ class QuantSystemLogger:
             "level": log_level,
             "format": {
                 "console": "%(asctime)s | %(name)-18s | %(levelname)-8s | %(message)s",
-                "file": "%(asctime)s | %(name)-18s | %(levelname)-8s | %(module)s:%(funcName)s:%(lineno)d | %(message)s",
+                "file": "%(asctime)s | %(name)-18s | %(levelname)-8s | %(module)s:%(funcName)s:%(lineno)d | %(message)s",  # noqa: E501
             },
             "handlers": {
                 "console": {"enabled": True, "colored": True, "level": log_level},
@@ -183,7 +183,7 @@ class QuantSystemLogger:
 
 
 # 全局单例
-_logger_manager: Optional[QuantSystemLogger] = None
+_logger_manager: QuantSystemLogger | None = None
 
 
 def get_logger_manager() -> QuantSystemLogger:
@@ -197,7 +197,7 @@ def get_logger(name: str) -> logging.Logger:
     return get_logger_manager().get_logger(name)
 
 
-def setup_logging(config: Optional[dict[str, Any]] = None) -> QuantSystemLogger:
+def setup_logging(config: dict[str, Any] | None = None) -> QuantSystemLogger:
     global _logger_manager
     _logger_manager = QuantSystemLogger(config)
     return _logger_manager

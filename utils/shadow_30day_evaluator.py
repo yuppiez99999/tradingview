@@ -183,7 +183,7 @@ class Shadow30DayReport:
                 f"   - MVSK: {self.mvsk.delta_sharpe:+.4f} {'✅' if self.mvsk.delta_sharpe > 0 else '❌'}",
                 f"   - qlib: {self.qlib.delta_sharpe:+.4f} {'✅' if self.qlib.delta_sharpe > 0 else '❌'}",
                 "2. 无异常换仓 (换仓成本 < 阈值)",
-                f"   - MVSK 换仓成本: {self.mvsk.turnover_cost:.6f} < {MVSK_TURNOVER_THRESHOLD} {'✅' if self.mvsk.turnover_cost < MVSK_TURNOVER_THRESHOLD else '❌'}",
+                f"   - MVSK 换仓成本: {self.mvsk.turnover_cost:.6f} < {MVSK_TURNOVER_THRESHOLD} {'✅' if self.mvsk.turnover_cost < MVSK_TURNOVER_THRESHOLD else '❌'}",  # noqa: E501
                 "3. fail-fast 未触发",
                 f"   - {'✅ 未触发' if not self.fail_fast_triggered else '❌ 触发: ' + self.fail_fast_reason}",
                 "",

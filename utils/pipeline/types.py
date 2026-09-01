@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class PipelineStage(Enum):
@@ -161,7 +161,7 @@ class ExecutionResult:
     fill_rate: float = 0.0
     dry_run: bool = True
     started_at: datetime = field(default_factory=datetime.now)
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     duration_ms: float = 0.0
     errors: list[str] = field(default_factory=list)
 

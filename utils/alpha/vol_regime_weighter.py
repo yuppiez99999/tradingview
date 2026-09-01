@@ -36,7 +36,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -244,7 +244,7 @@ class WeightSuggestion:
         }
 
     @classmethod
-    def noop(cls, reason: str = "feature_flag_disabled") -> "WeightSuggestion":
+    def noop(cls, reason: str = "feature_flag_disabled") -> WeightSuggestion:
         """Flag 关闭时的降级返回 (HC-1)."""
         return cls(
             timestamp=datetime.now().isoformat(),
@@ -283,8 +283,8 @@ class VolRegimeWeighter:
         self,
         feature_flag_name: str = "USE_VOL_REGIME_WEIGHTER",
         vol_controller: Any = None,
-        reports_dir: Optional[Path] = None,
-        config_path: Optional[Path] = None,
+        reports_dir: Path | None = None,
+        config_path: Path | None = None,
     ) -> None:
         """初始化权重建议器.
 
@@ -384,10 +384,10 @@ class VolRegimeWeighter:
 
     def sense_regime(
         self,
-        vix_value: Optional[float] = None,
-        daily_returns: Optional[list[float]] = None,
-        psi_value: Optional[float] = None,
-        current_drawdown: Optional[float] = None,
+        vix_value: float | None = None,
+        daily_returns: list[float] | None = None,
+        psi_value: float | None = None,
+        current_drawdown: float | None = None,
     ) -> VolRegime:
         """识别当前波动率 Regime.
 
@@ -406,8 +406,8 @@ class VolRegimeWeighter:
             VolRegime 对象
         """
         indicators: dict[str, float] = {}
-        vix_classification: Optional[str] = None
-        rv_classification: Optional[str] = None
+        vix_classification: str | None = None
+        rv_classification: str | None = None
         source = "fallback"
 
         # Step 1: 主指标分类
@@ -417,7 +417,7 @@ class VolRegimeWeighter:
             source = "vix"
 
         # 计算 realized_vol (复用 VolTargetController)
-        realized_vol: Optional[float] = None
+        realized_vol: float | None = None
         if daily_returns is not None and len(daily_returns) > 0:
             if self._vol_controller is not None:
                 try:
@@ -537,11 +537,11 @@ class VolRegimeWeighter:
     def compute_weights(
         self,
         current_weights: dict[str, float],
-        regime: Optional[VolRegime] = None,
-        vix_value: Optional[float] = None,
-        daily_returns: Optional[list[float]] = None,
-        psi_value: Optional[float] = None,
-        current_drawdown: Optional[float] = None,
+        regime: VolRegime | None = None,
+        vix_value: float | None = None,
+        daily_returns: list[float] | None = None,
+        psi_value: float | None = None,
+        current_drawdown: float | None = None,
     ) -> WeightSuggestion:
         """根据 regime 计算 8 类风格的建议权重.
 
@@ -732,7 +732,7 @@ class VolRegimeWeighter:
     def emit_suggestion(
         self,
         suggestion: WeightSuggestion,
-        reports_dir: Optional[Path] = None,
+        reports_dir: Path | None = None,
     ) -> Path:
         """持久化建议到 reports/evolution/vol_regime_weights_YYYY-MM-DD.json.
 
@@ -778,12 +778,12 @@ class VolRegimeWeighter:
     def run_cycle(
         self,
         portfolio_snapshot: dict[str, Any],
-        vix_value: Optional[float] = None,
-        daily_returns: Optional[list[float]] = None,
-        psi_value: Optional[float] = None,
-        current_drawdown: Optional[float] = None,
+        vix_value: float | None = None,
+        daily_returns: list[float] | None = None,
+        psi_value: float | None = None,
+        current_drawdown: float | None = None,
         orchestrator: Any = None,
-        reports_dir: Optional[Path] = None,
+        reports_dir: Path | None = None,
     ) -> dict[str, Any]:
         """端到端运行一次: sense → compute → enforce → emit → log.
 
@@ -942,10 +942,10 @@ class VolRegimeWeighter:
 
 
 def classify_regime_by_vol(
-    vix: Optional[float] = None,
-    realized_vol: Optional[float] = None,
-    psi: Optional[float] = None,
-    drawdown: Optional[float] = None,
+    vix: float | None = None,
+    realized_vol: float | None = None,
+    psi: float | None = None,
+    drawdown: float | None = None,
 ) -> VolRegime:
     """便捷函数: 直接分类 regime (无需实例化 VolRegimeWeighter).
 

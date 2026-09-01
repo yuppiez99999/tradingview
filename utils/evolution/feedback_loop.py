@@ -569,7 +569,7 @@ class FeedbackLoop:
 
         # 移动平均
         smoothed: dict[str, float] = {}
-        all_factors = set()
+        all_factors: set[Any] = set()
         for w in recent_weights:
             all_factors.update(w.keys())
 

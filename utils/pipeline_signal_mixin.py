@@ -184,7 +184,7 @@ class SignalMixin:
         if self.data_provider is None:
             return {"macro_index": {"strength": 0.0, "confidence": 0.2}}
         try:
-            sentiment = {}
+            sentiment: dict[str, Any] = {}
             macro = self.data_provider.get_external_macro()
             if isinstance(macro, dict):
                 sentiment = macro.get("risk_sentiment", {}) or {}

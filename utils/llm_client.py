@@ -30,7 +30,7 @@ import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = None
 try:
@@ -153,7 +153,7 @@ def _record_usage(
 
 def chat(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
-) -> Optional[str]:
+) -> str | None:
     """统一对话接口, 返回纯文本 (屏蔽底层 dict/str 差异)。
 
     优先 GLM5, 降级 15_每日工作流 三级链。
@@ -226,7 +226,7 @@ def chat(
 
 def generate_analysis(
     prompt: str, temperature: float = 0.3, max_tokens: int = 2000
-) -> Optional[str]:
+) -> str | None:
     """生成分析文本 (兼容旧接口), 等价于 chat(prompt, 金融分析系统提示)。"""
     return chat(
         prompt=prompt,
@@ -266,7 +266,7 @@ def quick_chat(message: str, **kwargs) -> str:
 
 def chat_deep(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4000
-) -> Optional[str]:
+) -> str | None:
     """深度思考模式 (兼容旧接口), 复用统一 chat 并放宽 max_tokens。
 
     旧 15_每日工作流/llm_client.py 的 chat_deep 使用 DeepSeek R1 推理模型;

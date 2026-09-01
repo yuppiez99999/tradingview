@@ -17,6 +17,7 @@
     router = ModelRouter()
     result = router.route("intraday_decision", prompt, system_prompt)
 """
+from __future__ import annotations
 
 import logging
 import os
@@ -27,7 +28,7 @@ from concurrent.futures import TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import requests
 import yaml
@@ -57,8 +58,8 @@ class RoutingResult:
     """路由结果"""
 
     scene: str
-    primary_result: Optional[ModelCallResult] = None
-    secondary_result: Optional[ModelCallResult] = None
+    primary_result: ModelCallResult | None = None
+    secondary_result: ModelCallResult | None = None
     merged_content: str = ""
     confidence: float = 0.0
     agreement: bool = False  # 双模型是否一致
@@ -125,7 +126,7 @@ class ModelRouter:
     5. 置信度追踪: 记录模型性能历史
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         初始化路由器
 
@@ -179,15 +180,16 @@ class ModelRouter:
         self,
         scene: str,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        extra_context: Optional[dict] = None,
-        timeout: Optional[int] = None,
+        system_prompt: str | None = None,
+        extra_context: dict | None = None,
+        timeout: int | None = None,
     ) -> RoutingResult:
         """
         根据场景路由到最优模型
 
         Args:
-            scene: 场景名称 (intraday_decision / rebalancing_analysis / macro_analysis / report_generation / light_analysis)
+            scene: 场景名称 (intraday_decision / rebalancing_analysis / macro_analysis / report_generation /
+            light_analysis)
             prompt: 用户提示词
             system_prompt: 系统提示词
             extra_context: 额外上下文 (如基本面 RAG 数据)
@@ -279,9 +281,9 @@ class ModelRouter:
         self,
         scene_config: dict,
         prompt: str,
-        system_prompt: Optional[str],
+        system_prompt: str | None,
         rag_context: str,
-        timeout: Optional[int],
+        timeout: int | None,
         start_time: float,
     ) -> RoutingResult:
         """并行对冲模式: 主备同时发出，取先返回"""
@@ -382,9 +384,9 @@ class ModelRouter:
         self,
         scene_config: dict,
         prompt: str,
-        system_prompt: Optional[str],
+        system_prompt: str | None,
         rag_context: str,
-        timeout: Optional[int],
+        timeout: int | None,
         start_time: float,
     ) -> RoutingResult:
         """交叉验证模式: 双模型并行分析，交集采纳/分歧标记"""
@@ -501,11 +503,11 @@ class ModelRouter:
         provider: str,
         model: str,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2000,
         timeout: int = 30,
-    ) -> Optional[ModelCallResult]:
+    ) -> ModelCallResult | None:
         """
         调用指定模型 API
 
@@ -622,7 +624,7 @@ class ModelRouter:
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """调用 OpenAI 兼容格式的 API (DeepSeek / Zhipu / Qwen)"""
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -655,7 +657,7 @@ class ModelRouter:
         temperature: float,
         max_tokens: int,
         timeout: int,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """调用火山引擎豆包 API (Responses 格式)"""
         api_key = os.environ.get("VOLCENGINE_API_KEY", "")
         api_base = "https://ark.cn-beijing.volces.com/api/v3/responses"
@@ -714,7 +716,7 @@ class ModelRouter:
             return cb.is_open
         return False
 
-    def _build_rag_context(self, scene: str, extra_context: Optional[dict]) -> str:
+    def _build_rag_context(self, scene: str, extra_context: dict | None) -> str:
         """构建 RAG 上下文"""
         rag_config = self.config.get("rag", {})
         disabled = rag_config.get("disabled_scenes", [])
@@ -951,7 +953,7 @@ class ModelRouter:
 
 # ==================== 全局单例 ====================
 
-_router_instance: Optional[ModelRouter] = None
+_router_instance: ModelRouter | None = None
 
 
 def get_model_router() -> ModelRouter:

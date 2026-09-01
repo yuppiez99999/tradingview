@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Optional
+from typing import Any
 
 # ============================================================================
 # 枚举定义
@@ -106,7 +106,7 @@ class ToolSelection:
     instruments: list[str] = field(default_factory=list)
     hedge_ratio: float = 0.0
     futures_contracts: dict[str, int] = field(default_factory=dict)
-    options_strategy: Optional[OptionsStrategy] = None
+    options_strategy: OptionsStrategy | None = None
     options_contracts: list[dict[str, Any]] = field(default_factory=list)
     cost_estimate: float = 0.0
     expected_benefit: float = 0.0
@@ -176,7 +176,7 @@ class MonitorResult:
     drawdown_margin: float = 0.0
     sample_insufficient: bool = False
     correction_action: CorrectionAction = CorrectionAction.NONE
-    precheck_result: Optional[PrecheckResult] = None
+    precheck_result: PrecheckResult | None = None
 
 
 @dataclass(frozen=True)
@@ -196,7 +196,7 @@ class StrategyState:
     current_level: StrategyLevel = StrategyLevel.NORMAL
     last_transition_time: str = ""
     cooldown_until: str = ""
-    pending_switch_event_id: Optional[str] = None
+    pending_switch_event_id: str | None = None
     level_min_hold_days: int = 0
 
 
@@ -245,7 +245,7 @@ class TransitionResult:
 
     new_level: StrategyLevel = StrategyLevel.NORMAL
     new_params: dict[str, Any] = field(default_factory=dict)
-    switch_event: Optional[StrategySwitchEvent] = None
+    switch_event: StrategySwitchEvent | None = None
     cooldown_active: bool = False
     blocked_reason: str = ""
 
@@ -264,9 +264,9 @@ class BreakerStatus:
     """
 
     active: bool = False
-    trigger_reason: Optional[str] = None
-    trigger_time: Optional[str] = None
-    emergency_action: Optional[str] = None
+    trigger_reason: str | None = None
+    trigger_time: str | None = None
+    emergency_action: str | None = None
 
 
 @dataclass(frozen=True)
@@ -289,12 +289,12 @@ class AutoHedgePlan:
     """
 
     timestamp: str = ""
-    joint_plan: Optional[Any] = None
-    tool_selection: Optional[ToolSelection] = None
-    filter_result: Optional[FilterResult] = None
-    monitor: Optional[MonitorResult] = None
-    strategy_state: Optional[StrategyState] = None
-    breaker_status: Optional[BreakerStatus] = None
+    joint_plan: Any | None = None
+    tool_selection: ToolSelection | None = None
+    filter_result: FilterResult | None = None
+    monitor: MonitorResult | None = None
+    strategy_state: StrategyState | None = None
+    breaker_status: BreakerStatus | None = None
     degradation_flags: list[str] = field(default_factory=list)
     audit_event_ids: list[str] = field(default_factory=list)
 
@@ -358,7 +358,7 @@ def hedge_tool_type_from_str(value: str) -> HedgeToolType:
         return HedgeToolType.NONE
 
 
-def options_strategy_from_str(value: str) -> Optional[OptionsStrategy]:
+def options_strategy_from_str(value: str) -> OptionsStrategy | None:
     """从字符串安全构造 OptionsStrategy 枚举。"""
     if not value:
         return None

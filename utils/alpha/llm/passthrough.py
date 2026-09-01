@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import importlib
 import logging
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 logger = logging.getLogger("llm_router")
 
@@ -53,7 +53,7 @@ def passthrough_to_legacy(
             kwargs["temperature"] = temperature
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
-        return cast(Optional[str], fn(prompt, system, **kwargs))
+        return cast(str | None, fn(prompt, system, **kwargs))
     except ImportError as e:
         logger.error("透传失败: 无法导入 %s: %s", passthrough_module, e)
         return None
@@ -93,10 +93,10 @@ def passthrough_deep_to_legacy(
         # 优先 chat_deep
         fn = getattr(mod, "chat_deep", None)
         if fn:
-            return cast(Optional[str], fn(prompt, system))
+            return cast(str | None, fn(prompt, system))
         # 没有 chat_deep, 用 chat
         fn = getattr(mod, passthrough_function)
-        return cast(Optional[str], fn(prompt, system))
+        return cast(str | None, fn(prompt, system))
     except (
         ValueError,
         TypeError,

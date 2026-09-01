@@ -19,7 +19,7 @@ import math
 import os
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, ClassVar, Optional, TypedDict
+from typing import Any, ClassVar, TypedDict
 
 # E1 加固: 补全 pandas 导入。wt_backtest_engine.py:543 的 `price_data: Dict[str, "pd.DataFrame"]`
 # 仅作字符串类型注解, 普通运行不求值; 但为消除 F821 未定义名隐患(审查报告 B1 降 P1 项),
@@ -46,7 +46,7 @@ class PositionDict(TypedDict):
 class BaseTradeDict(TypedDict, total=False):
     """BUY 与 SELL trade 公共字段 (两方向字段对称但不同时出现)。"""
 
-    date: Optional[str]
+    date: str | None
     code: str
     action: str  # "BUY" | "SELL"
     qty: int
@@ -122,7 +122,7 @@ class BacktestEngine:
         self.trades: list[BaseTradeDict] = []
         self.daily_pnl: list[DailyPnlDict] = []
         self.equity_curve: list[EquityPointDict] = []
-        self.current_date: Optional[str] = None
+        self.current_date: str | None = None
 
     def reset(self) -> None:
         """重置回测状态"""
@@ -232,7 +232,7 @@ class BacktestEngine:
         )
         return float(self.cash + position_value)
 
-    def record_daily_pnl(self, date: Optional[str]) -> None:
+    def record_daily_pnl(self, date: str | None) -> None:
         """记录每日盈亏。date 允许 None (启动期首条记录), 用 "" 占位以避免类型漂移。"""
         equity = self.get_total_equity()
         record_date = "" if date is None else date
@@ -270,7 +270,7 @@ class BacktestEngine:
             return bool(suspended[code])
         prices = day_data.get("prices", {})
         p = prices.get(code, 0)
-        return p <= 0
+        return bool(p <= 0)
 
     def run(
         self,
@@ -309,7 +309,7 @@ class BacktestEngine:
             limit_up_prices = day_data.get("limit_up_prices", {}) or {}
             limit_down_prices = day_data.get("limit_down_prices", {}) or {}
 
-            signals = strategy_func(day_data, self.positions)
+            signals = strategy_func(day_data, self.positions)  # type: ignore[arg-type]
 
             for signal in signals:
                 code = signal["code"]
@@ -321,7 +321,7 @@ class BacktestEngine:
                     continue
 
                 # P2-2: 停牌约束——停牌不可交易
-                if self._is_suspended(day_data, code):
+                if self._is_suspended(day_data, code):  # type: ignore[arg-type]
                     if verbose:
                         logger.info(
                             f"  {self.current_date} {code} 停牌, 跳过 {action} {qty}"
@@ -391,7 +391,7 @@ class BacktestEngine:
             sharpe_ratio = 0
 
         max_equity = self.initial_capital
-        max_drawdown = 0
+        max_drawdown = 0.0
         for point in self.equity_curve:
             max_equity = max(max_equity, point["equity"])
             drawdown = (max_equity - point["equity"]) / max_equity
@@ -452,7 +452,7 @@ class ETFSignalStrategy:
 
     def __init__(
         self,
-        signal_thresholds: Optional[SignalThresholds] = None,
+        signal_thresholds: SignalThresholds | None = None,
         max_position_pct: float = 0.3,
         validate_no_lookahead: bool = True,
     ):
@@ -542,7 +542,7 @@ class BacktestDataLoader:
 
     @staticmethod
     def load_from_positions_history(
-        positions_history_dir: str, tickers: Optional[list[str]] = None
+        positions_history_dir: str, tickers: list[str] | None = None
     ) -> list[BacktestDayData]:
         """从positions.json历史记录加载数据"""
         data: list[BacktestDayData] = []
@@ -684,13 +684,13 @@ class BacktestDataLoader:
 
             enrich_day_data_list(data)
 
-        return data
+        return data  # type: ignore[return-value]
 
     @staticmethod
     def load_from_ohlcv(
-        price_data: dict[str, "pd.DataFrame"],
-        st_codes: Optional[set[str]] = None,
-        etf_signals_by_date: Optional[dict[str, dict[str, Any]]] = None,
+        price_data: dict[str, pd.DataFrame],
+        st_codes: set[str] | None = None,
+        etf_signals_by_date: dict[str, dict[str, Any]] | None = None,
     ) -> list[BacktestDayData]:
         """U2: 从 OHLCV DataFrame 构建带涨跌停/停牌字段的回测数据.
 
@@ -708,7 +708,7 @@ class BacktestDataLoader:
         """
         from utils.price_limit_calculator import build_backtest_data_from_ohlcv
 
-        return build_backtest_data_from_ohlcv(
+        return build_backtest_data_from_ohlcv(  # type: ignore[no-any-return]
             price_data=price_data,
             st_codes=st_codes,
             etf_signals_by_date=etf_signals_by_date,
@@ -725,7 +725,7 @@ def run_etf_signal_backtest(
     def strategy_func(day_data: Any, positions: Any) -> Any:
         return strategy.generate_signals(day_data, positions)
 
-    return engine.run(data, strategy_func)
+    return engine.run(data, strategy_func)  # type: ignore[arg-type]
 
 
 def compare_strategies(
@@ -738,7 +738,7 @@ def compare_strategies(
 
     for name, strategy_func in strategies.items():
         engine = BacktestEngine(initial_capital=initial_capital)
-        result = engine.run(data, strategy_func)
+        result = engine.run(data, strategy_func)  # type: ignore[arg-type]
         results[name] = result
 
     return results
@@ -754,7 +754,7 @@ if __name__ == "__main__":
     logger.info(f"生成 {len(data)} 个交易日数据")
 
     logger.info("===== 运行ETF信号策略回测 =====")
-    result = run_etf_signal_backtest(data, initial_capital=1000000.0)
+    result = run_etf_signal_backtest(data, initial_capital=1000000.0)  # type: ignore[arg-type]
 
     logger.info(f"初始资金: ¥{result['initial_capital']:,.0f}")
     logger.info(f"最终权益: ¥{result['final_equity']:,.0f}")

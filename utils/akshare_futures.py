@@ -162,7 +162,7 @@ def _try_http_futures_quotes(symbols: list[str]) -> dict[str, Any]:
         tencent_codes.append(quote(code, safe=""))
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36",  # noqa: E501
         "Referer": "https://vip.stock.finance.sina.com.cn/",
     }
 

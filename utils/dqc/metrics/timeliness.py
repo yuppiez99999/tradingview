@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime, timedelta
-from typing import Optional
 
 import pandas as pd
 
@@ -27,7 +26,7 @@ def check_timeliness(
     df: pd.DataFrame,
     target_date: date,
     checkpoint: DQCCheckpoint = DQCCheckpoint.P1_SOURCE,
-    data_arrival_time: Optional[datetime] = None,
+    data_arrival_time: datetime | None = None,
 ) -> list[DQCEvent]:
     """执行所有时效性检查 (T-01 ~ T-05).
 
@@ -66,7 +65,7 @@ def _check_t01_data_latency(
     df: pd.DataFrame,
     target_date: date,
     checkpoint: DQCCheckpoint,
-    arrival_time: Optional[datetime],
+    arrival_time: datetime | None,
 ) -> list[DQCEvent]:
     """T-01: 数据延迟 = now() - 数据时间戳.
 
@@ -148,7 +147,7 @@ def _check_t02_latest_date(
 def _check_t03_eod_arrival(
     target_date: date,
     checkpoint: DQCCheckpoint,
-    arrival_time: Optional[datetime],
+    arrival_time: datetime | None,
 ) -> list[DQCEvent]:
     """T-03: EOD 到位时间 — 15:30 收盘后 60 分钟内应完成全部数据落盘."""
     events: list[DQCEvent] = []

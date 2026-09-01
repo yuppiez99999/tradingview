@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 from utils.auto_hedge_rebalance.models import FilterResult, HedgeToolType, ToolSelection
 
@@ -103,7 +102,7 @@ class CostBenefitFilter:
         self,
         selection: ToolSelection,
         risk: PortfolioRisk,
-        prices: Optional[dict[str, float]] = None,
+        prices: dict[str, float] | None = None,
     ) -> FilterResult:
         """执行成本效益过滤。
 

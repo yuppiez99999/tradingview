@@ -21,7 +21,6 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from threading import RLock
-from typing import Optional
 
 from utils.dqc.event_types import DQCLevel
 
@@ -55,8 +54,8 @@ class AlertState:
     first_seen: datetime
     last_seen: datetime
     emit_count: int = 0
-    last_emit: Optional[datetime] = None
-    symbol: Optional[str] = None  # 区分不同标的的同指标
+    last_emit: datetime | None = None
+    symbol: str | None = None  # 区分不同标的的同指标
 
     def is_stale(self, now: datetime, window: timedelta = timedelta(hours=1)) -> bool:
         """是否过期 (1 小时未更新)."""
@@ -77,17 +76,17 @@ class AlertAggregator:
            清理过期状态
     """
 
-    _instance: Optional["AlertAggregator"] = None
+    _instance: AlertAggregator | None = None
     _lock: RLock = RLock()
 
     def __init__(self) -> None:
         """初始化聚合器."""
         # key: (metric_id, symbol_or_None)
-        self._states: dict[tuple[str, Optional[str]], AlertState] = {}
+        self._states: dict[tuple[str, str | None], AlertState] = {}
         self._rlock = RLock()
 
     @classmethod
-    def get_instance(cls) -> "AlertAggregator":
+    def get_instance(cls) -> AlertAggregator:
         """获取单例."""
         with cls._lock:
             if cls._instance is None:
@@ -98,8 +97,8 @@ class AlertAggregator:
         self,
         metric_id: str,
         level: DQCLevel,
-        symbol: Optional[str] = None,
-    ) -> tuple[bool, Optional[str]]:
+        symbol: str | None = None,
+    ) -> tuple[bool, str | None]:
         """判断是否应该发送通知.
 
         Args:
@@ -148,8 +147,8 @@ class AlertAggregator:
     def record_emit(
         self,
         metric_id: str,
-        symbol: Optional[str] = None,
-        level: Optional[DQCLevel] = None,
+        symbol: str | None = None,
+        level: DQCLevel | None = None,
     ) -> None:
         """记录已发送通知."""
         with self._rlock:
@@ -172,8 +171,8 @@ class AlertAggregator:
     def check_escalation(
         self,
         metric_id: str,
-        symbol: Optional[str] = None,
-    ) -> Optional[DQCLevel]:
+        symbol: str | None = None,
+    ) -> DQCLevel | None:
         """检查是否应升级 (基于持续时间).
 
         规则:
@@ -220,13 +219,13 @@ class AlertAggregator:
             return len(stale_keys)
 
     def get_state(
-        self, metric_id: str, symbol: Optional[str] = None
-    ) -> Optional[AlertState]:
+        self, metric_id: str, symbol: str | None = None
+    ) -> AlertState | None:
         """获取某指标的当前状态."""
         with self._rlock:
             return self._states.get((metric_id, symbol))
 
-    def all_states(self) -> dict[tuple[str, Optional[str]], AlertState]:
+    def all_states(self) -> dict[tuple[str, str | None], AlertState]:
         """获取所有状态 (快照)."""
         with self._rlock:
             return dict(self._states)

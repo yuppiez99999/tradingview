@@ -624,7 +624,7 @@ class AlphaPipeline:
 
             engine = SignalFusionEngine()
 
-            def _pipeline_getter(code: str) -> "SignalResult":
+            def _pipeline_getter(code: str) -> SignalResult:
                 sig = signal_result.signals.get(code)
                 if sig is not None:
                     return SignalResult(

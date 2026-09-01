@@ -50,7 +50,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("fingpt_integration")
 
@@ -161,9 +161,9 @@ class FinGPTConfig:
 
 # 金融领域 prompt 模板
 FINANCIAL_PROMPT_TEMPLATES: dict[str, str] = {
-    "analysis": "作为金融分析师，请分析以下内容：\n\n{content}\n\n请提供：\n1. 基本面分析\n2. 技术面分析\n3. 风险评估\n4. 投资建议",
+    "analysis": "作为金融分析师，请分析以下内容：\n\n{content}\n\n请提供：\n1. 基本面分析\n2. 技术面分析\n3. 风险评估\n4. 投资建议",  # noqa: E501
     "sentiment": "请分析以下金融文本的市场情绪（看多/看空/中性）：\n\n{content}",
-    "trading": "基于以下市场信息，请给出交易建议（买入/卖出/持有）：\n\n{content}\n\n请包含：\n1. 建议方向\n2. 建议仓位\n3. 止损止盈",
+    "trading": "基于以下市场信息，请给出交易建议（买入/卖出/持有）：\n\n{content}\n\n请包含：\n1. 建议方向\n2. 建议仓位\n3. 止损止盈",  # noqa: E501
     "risk": "请评估以下投资组合的风险：\n\n{content}\n\n请包含：\n1. VaR 估算\n2. 最大回撤\n3. 风险因子暴露",
 }
 
@@ -176,7 +176,7 @@ class FinGPTClient:
         response = client.chat("分析茅台走势")
     """
 
-    def __init__(self, config: Optional[FinGPTConfig] = None) -> None:
+    def __init__(self, config: FinGPTConfig | None = None) -> None:
         self.config = config or FinGPTConfig()
         self._available = self._check_availability()
 
@@ -184,7 +184,7 @@ class FinGPTClient:
         """检查 FinGPT 是否可用。"""
         return bool(self.config.api_key) or self.config.device != "auto"
 
-    def chat(self, message: str, template: Optional[str] = None, **kwargs: Any) -> str:
+    def chat(self, message: str, template: str | None = None, **kwargs: Any) -> str:
         """发送聊天请求。
 
         Args:
@@ -203,7 +203,7 @@ class FinGPTClient:
 
         return self._call_model(prompt, **kwargs)
 
-    def _build_prompt(self, message: str, template: Optional[str]) -> str:
+    def _build_prompt(self, message: str, template: str | None) -> str:
         """构建 prompt。"""
         if template and template in FINANCIAL_PROMPT_TEMPLATES:
             return FINANCIAL_PROMPT_TEMPLATES[template].format(content=message)
@@ -293,7 +293,7 @@ class RLSPTrainer:
     奖励函数: reward = excess_return - risk_penalty × volatility
     """
 
-    def __init__(self, config: Optional[RLSPConfig] = None) -> None:
+    def __init__(self, config: RLSPConfig | None = None) -> None:
         self.config = config or RLSPConfig()
         self._history: list[TrainingRecord] = []
         self._is_ready = False
@@ -432,7 +432,7 @@ class ModelRouter:
             ModelType.DOUBAO: doubao_available,
         }
 
-    def route(self, task: TaskCategory) -> Optional[ModelType]:
+    def route(self, task: TaskCategory) -> ModelType | None:
         """路由任务到最佳模型。
 
         Args:

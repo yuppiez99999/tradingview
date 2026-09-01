@@ -14,7 +14,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # ============================================================
 # 项目根定位 (比硬编码 parent.parent.parent 更健壮)
@@ -98,7 +98,7 @@ class ProviderNotConfiguredError(LLMRouterError):
 # ============================================================
 
 # Provider 调用函数签名: (prompt, system, temperature, max_tokens, timeout) -> Optional[str]
-ProviderFn = Callable[..., Optional[str]]
+ProviderFn = Callable[..., str | None]
 
 
 # ============================================================

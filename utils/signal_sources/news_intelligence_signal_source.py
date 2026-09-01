@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 try:
     from ..logging_manager import get_logger
@@ -81,7 +81,7 @@ class NewsIntelligenceSignalSource:
 
     def __init__(
         self,
-        engine: Optional[Any] = None,
+        engine: Any | None = None,
         min_confidence: float = DEFAULT_MIN_CONFIDENCE,
         lookback_days: int = DEFAULT_LOOKBACK_DAYS,
         article_limit: int = DEFAULT_ARTICLE_LIMIT,

@@ -128,13 +128,13 @@ class AdjustFactorProvider:
     降级策略: akshare 不可用 → factor=1.0 (不调整, 等同未复权)
     """
 
-    _instance: "AdjustFactorProvider | None" = None
+    _instance: AdjustFactorProvider | None = None
     _instance_lock = threading.Lock()
 
     # 默认缓存 TTL (秒): 因子仅在除权日变化, 24h 足够
     DEFAULT_CACHE_TTL = 86400
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> "AdjustFactorProvider":
+    def __new__(cls, *args: Any, **kwargs: Any) -> AdjustFactorProvider:
         if cls._instance is None:
             with cls._instance_lock:
                 if cls._instance is None:

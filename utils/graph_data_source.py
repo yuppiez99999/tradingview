@@ -26,7 +26,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -134,7 +134,7 @@ class GraphDataSource:
         self,
         url: str,
         params: dict[str, Any],
-        headers: Optional[dict[str, Any]] = None,
+        headers: dict[str, Any] | None = None,
         source: str = "eastmoney_push2",
         timeout: int = 10,
     ) -> Any:
@@ -206,7 +206,7 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # 东财 push2 — 行业 / 概念 / 板块
     # ----------------------------------------------------------
-    def get_industry_relationship(self, code: str) -> Optional[dict[str, Any]]:
+    def get_industry_relationship(self, code: str) -> dict[str, Any] | None:
         """获取个股行业归属与概念板块.
 
         数据源: 东财 push2 slist/get spt=3 (实测稳定, 返回所属行业+概念+地域+指数全板块).
@@ -216,7 +216,7 @@ class GraphDataSource:
             {name, code, industry, industry_code, region, concepts(str)} 或 None
         """
 
-        def _fetch() -> Optional[dict[str, Any]]:
+        def _fetch() -> dict[str, Any] | None:
             boards = self.get_stock_boards(code)
             if not boards:
                 return None
@@ -318,7 +318,7 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # 同花顺 — 题材归因
     # ----------------------------------------------------------
-    def get_themes(self, date: Optional[str] = None) -> list[dict[str, Any]]:
+    def get_themes(self, date: str | None = None) -> list[dict[str, Any]]:
         """获取指定日期同花顺强势股题材归因.
 
         Returns:
@@ -330,7 +330,7 @@ class GraphDataSource:
             f"https://zx.10jqka.com.cn/event/api/getharden/"
             f"date/{date}/orderby/date/orderway/desc/charset/GBK/"
         )
-        params = {}
+        params: dict[str, Any] = {}
 
         def _fetch() -> list[dict[str, Any]]:
             d = self._get(url, params, headers=_THS_HEADERS, source="ths_hot_reason")
@@ -456,7 +456,7 @@ class GraphDataSource:
     # ----------------------------------------------------------
     # 东财 F10 主营构成 (供应商-客户边增强: 分产品/分行业标签)
     # ----------------------------------------------------------
-    def fetch_main_business(self, code: str) -> Optional[dict[str, Any]]:
+    def fetch_main_business(self, code: str) -> dict[str, Any] | None:
         """东财 F10 主营构成 (zygcfx), 提取分产品/分行业标签.
 
         免费数据源无法直接获取「前五大客户/供应商名单」, 但主营构成
@@ -475,9 +475,9 @@ class GraphDataSource:
             f"https://emweb.securities.eastmoney.com/PC_HSF10/"
             f"BusinessAnalysis/PageAjax?code={f10_code}"
         )
-        params = {}
+        params: dict[str, Any] = {}
 
-        def _fetch() -> Optional[dict[str, Any]]:
+        def _fetch() -> dict[str, Any] | None:
             d = self._get(url, params, source="eastmoney_push2", timeout=15)
             if not d:
                 return None
@@ -627,7 +627,7 @@ class GraphDataSource:
         return edges
 
     def build_thematic_edges(
-        self, date: Optional[str] = None, min_shared: int = 1
+        self, date: str | None = None, min_shared: int = 1
     ) -> list[dict[str, Any]]:
         """基于当日题材共享构建 PARTNER 边（同题材两两连边）.
 
@@ -726,7 +726,7 @@ class GraphDataSource:
         symbols: list[str],
         include_themes: bool = True,
         include_main_business: bool = True,
-        date: Optional[str] = None,
+        date: str | None = None,
     ) -> list[dict[str, Any]]:
         """一键构建 GNN 关系网全部边（行业 + 概念 + 题材 + 主营构成）.
 
@@ -749,7 +749,7 @@ class GraphDataSource:
 # ----------------------------------------------------------
 # 单例
 # ----------------------------------------------------------
-_graph_data_source: Optional[GraphDataSource] = None
+_graph_data_source: GraphDataSource | None = None
 
 
 def get_graph_data_source() -> GraphDataSource:

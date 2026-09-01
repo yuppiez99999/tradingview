@@ -127,9 +127,9 @@ class EclEventSink:
         flag off 时 noop (return True); 失败时 return False (禁止抛出).
         """
         try:
-            from utils.infra.feature_flags import FeatureFlags
+            from utils.infra.feature_flags import is_enabled
 
-            if not FeatureFlags.is_enabled("USE_ECL_EVENT_LOG"):
+            if not is_enabled("USE_ECL_EVENT_LOG"):
                 return True
         except Exception as e:  # noqa: BLE001 — flag 框架不可用时 noop
             logger.debug("ECL sink flag 检查失败(noop): %s", e)

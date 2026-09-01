@@ -31,7 +31,6 @@ import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Optional
 
 from utils.http_session import make_no_proxy_session
 
@@ -80,7 +79,7 @@ class DownloadTask:
 
     url: str
     dest: str
-    filename: Optional[str] = None
+    filename: str | None = None
     status: DownloadStatus = DownloadStatus.PENDING
     progress: float = 0.0
     size_total: int = -1
@@ -90,8 +89,8 @@ class DownloadTask:
     max_retries: int = 3
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
-    error: Optional[str] = None
-    checksum: Optional[str] = None
+    error: str | None = None
+    checksum: str | None = None
 
     @property
     def dest_path(self) -> Path:
@@ -124,7 +123,7 @@ class DownloadManager:
 
     def __init__(
         self,
-        default_dest: Optional[str] = None,
+        default_dest: str | None = None,
         max_retries: int = 3,
         chunk_size: int = 1 << 16,  # 64 KB
         timeout: int = 60,
@@ -141,9 +140,9 @@ class DownloadManager:
     def submit(
         self,
         url: str,
-        dest: Optional[str] = None,
-        filename: Optional[str] = None,
-        checksum: Optional[str] = None,
+        dest: str | None = None,
+        filename: str | None = None,
+        checksum: str | None = None,
     ) -> DownloadTask:
         """提交下载任务 (不入队执行, 需调用 run)"""
         task = DownloadTask(
@@ -241,7 +240,7 @@ class DownloadManager:
 
 
 def download(
-    url: str, dest: Optional[str] = None, filename: Optional[str] = None
+    url: str, dest: str | None = None, filename: str | None = None
 ) -> DownloadTask:
     """一次性下载便捷函数"""
     mgr = DownloadManager()

@@ -26,7 +26,7 @@ import os
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 try:
     from ..logging_manager import get_logger
@@ -61,7 +61,7 @@ class Lesson:
     lesson_text: str
     context: str = ""
     decision: str = ""
-    outcome: Optional[str] = None  # correct / incorrect1d / correct5d / unknown
+    outcome: str | None = None  # correct / incorrect1d / correct5d / unknown
     confidence: float = 0.0
     created_at: str = ""
 
@@ -129,13 +129,13 @@ class TeamMemoryHub:
         USE_TEAM_MEMORY_HUB=True 启用, False 时所有操作降级为 no-op
     """
 
-    def __init__(self, db_path: Optional[str] = None) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         if db_path is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             db_path = os.path.join(base_dir, "data", "team_memory.db")
         self.db_path = db_path
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         self._init_db()
 
     # ------------------------------------------------------------
@@ -188,9 +188,9 @@ class TeamMemoryHub:
         lesson_text: str,
         context: str = "",
         decision: str = "",
-        outcome: Optional[str] = None,
+        outcome: str | None = None,
         confidence: float = 0.0,
-    ) -> Optional[str]:
+    ) -> str | None:
         """分析师把教训写入共享池
 
         Args:
@@ -267,7 +267,7 @@ class TeamMemoryHub:
 
         try:
             conn = self._get_conn()
-            sql = "SELECT lesson_id, agent_name, ticker, lesson_text, context, decision, outcome, confidence, created_at FROM team_lessons WHERE created_at >= ?"
+            sql = "SELECT lesson_id, agent_name, ticker, lesson_text, context, decision, outcome, confidence, created_at FROM team_lessons WHERE created_at >= ?"  # noqa: E501
             params: list[Any] = [
                 (datetime.now() - timedelta(days=days_back)).isoformat()
             ]
@@ -361,7 +361,7 @@ class TeamMemoryHub:
         try:
             conn = self._get_conn()
             row = conn.execute(
-                "SELECT COUNT(*) as total, SUM(CASE WHEN outcome LIKE 'correct%' THEN 1 ELSE 0 END) as correct, SUM(CASE WHEN outcome LIKE 'wrong%' THEN 1 ELSE 0 END) as wrong FROM team_lessons WHERE agent_name = ?",
+                "SELECT COUNT(*) as total, SUM(CASE WHEN outcome LIKE 'correct%' THEN 1 ELSE 0 END) as correct, SUM(CASE WHEN outcome LIKE 'wrong%' THEN 1 ELSE 0 END) as wrong FROM team_lessons WHERE agent_name = ?",  # noqa: E501
                 (agent_name,),
             ).fetchone()
             profile.total_lessons = row["total"] if row else 0
@@ -369,7 +369,7 @@ class TeamMemoryHub:
             profile.wrong_count = (row["wrong"] if row else 0) or 0
 
             recent_rows = conn.execute(
-                "SELECT lesson_id, agent_name, ticker, lesson_text, context, decision, outcome, confidence, created_at FROM team_lessons WHERE agent_name = ? ORDER BY created_at DESC LIMIT ?",
+                "SELECT lesson_id, agent_name, ticker, lesson_text, context, decision, outcome, confidence, created_at FROM team_lessons WHERE agent_name = ? ORDER BY created_at DESC LIMIT ?",  # noqa: E501
                 (agent_name, recent_n),
             ).fetchall()
             profile.recent_lessons = [self._row_to_lesson(r) for r in recent_rows]
@@ -440,7 +440,7 @@ class TeamMemoryHub:
                 pass
             self._conn = None
 
-    def __enter__(self) -> "TeamMemoryHub":
+    def __enter__(self) -> TeamMemoryHub:
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -451,7 +451,7 @@ class TeamMemoryHub:
 # 便捷函数
 # ============================================================
 
-_hub_instance: Optional[TeamMemoryHub] = None
+_hub_instance: TeamMemoryHub | None = None
 
 
 def get_team_memory_hub() -> TeamMemoryHub:

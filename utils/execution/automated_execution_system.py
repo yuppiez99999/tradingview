@@ -17,6 +17,7 @@
 5. 异常处理：全面的异常处理和恢复机制
 6. 性能监控：执行性能监控和分析
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -25,7 +26,7 @@ import time
 from collections import deque
 from datetime import datetime
 from datetime import time as datetime_time
-from typing import Any, Optional, TypedDict, cast
+from typing import Any, TypedDict, cast
 
 import numpy as np
 import pandas as pd
@@ -116,7 +117,7 @@ except ImportError:
     #         否则 mypy [misc] "conditional function variants must have identical signatures"。
     logger = logging.getLogger("automated_execution_system")
 
-    def safe_float(val: object, default: Optional[float] = None) -> Optional[float]:
+    def safe_float(val: object, default: float | None = None) -> float | None:
         return val if val is not None else default
 
 
@@ -189,14 +190,17 @@ class AutomatedExecutionSystem:
         self.is_running = False
         # W6.3.3: 显式标注为 Optional[threading.Thread], 消除 start_system() 中
         # 三处 [union-attr] / 裸 ignore (原 = None 让 mypy 推断为 None 单例类型)。
-        self.execution_thread: Optional[threading.Thread] = None
+        self.execution_thread: threading.Thread | None = None
+        # G-20260830: stop 信号事件, 让 _execution_loop 的 sleep 可被 stop_system()
+        # 立即唤醒 (原 sleep(60) 导致 join 阻塞最长 60 秒, 停机不可靠)。
+        self._stop_event = threading.Event()
 
         # 对冲模块
         self.hedge_enabled = False
         # W6.3.3: 标注为 Optional[HedgeCoordinator], 消除 _run_hedge_decision 中
         # .coordinate() 的裸 ignore (原 = None 让 mypy 无法收窄实例属性)。
-        self.hedge_coordinator: Optional["HedgeCoordinator"] = None
-        self.last_hedge_plan: Optional[dict] = None
+        self.hedge_coordinator: HedgeCoordinator | None = None
+        self.last_hedge_plan: dict | None = None
         if _HEDGE_AVAILABLE:
             try:
                 self.hedge_coordinator = HedgeCoordinator()
@@ -229,6 +233,7 @@ class AutomatedExecutionSystem:
         if not self.system_enabled:
             self.system_enabled = True
             self.is_running = True
+            self._stop_event.clear()
 
             # 启动执行线程
             # W6.3.3: execution_thread 已标注为 Optional[threading.Thread],
@@ -258,43 +263,52 @@ class AutomatedExecutionSystem:
 
     def stop_system(self) -> None:
         """停止系统"""
+        self._stop_event.set()
         self.is_running = False
         self.system_enabled = False
 
         if self.execution_thread:
-            self.execution_thread.join()
+            # G-20260830: join 带超时, 避免线程异常导致停机永久阻塞
+            self.execution_thread.join(timeout=10)
 
         logger.info("自动化执行系统停止")
 
     def _execution_loop(self) -> None:
         """执行循环"""
-        while self.is_running:
+        # is_running 保持原停止语义 (兼容外部置 False), _stop_event 用于
+        # 唤醒休眠中的线程, 两者取与确保任何一方置停都退出。
+        while self.is_running and not self._stop_event.is_set():
             try:
                 next_execution = self.trading_calendar.get_next_execution_time()
                 if not next_execution:
-                    time.sleep(60)
+                    if self._stop_event.wait(60):
+                        break
                     continue
 
                 current_time = datetime.now()
                 if current_time < next_execution:
                     sleep_time = (next_execution - current_time).total_seconds()
-                    time.sleep(min(sleep_time, 60))
+                    if self._stop_event.wait(min(sleep_time, 60)):
+                        break
                     continue
 
                 matched_execution = self._match_current_execution(current_time)
                 if not matched_execution:
-                    time.sleep(60)
+                    if self._stop_event.wait(60):
+                        break
                     continue
 
                 logger.info(f"进入执行窗口: {matched_execution}")
                 self._execute_daily_trading(matched_execution)
-                time.sleep(60)
+                if self._stop_event.wait(60):
+                    break
 
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.error(f"执行循环错误: {e}")
-                time.sleep(60)
+                if self._stop_event.wait(60):
+                    break
 
-    def _match_current_execution(self, current_time: datetime) -> Optional[str]:
+    def _match_current_execution(self, current_time: datetime) -> str | None:
         """根据当前时间匹配应触发的执行项"""
         execution_map = {
             "daily_execution": (datetime_time(6, 30), datetime_time(8, 0)),
@@ -315,7 +329,7 @@ class AutomatedExecutionSystem:
 
     def _execute_daily_trading(
         self, execution_name: str = "daily_execution"
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """执行每日交易"""
         try:
             logger.info(f"开始每日交易执行: {execution_name}")
@@ -372,7 +386,7 @@ class AutomatedExecutionSystem:
             # 3. 对冲决策（可选）
             # W6.3.3: 显式标注 hedge_plan: Optional[Dict], 与 last_hedge_plan 类型一致,
             # 消除 [assignment] ignore (原 hedge_plan = None 让 mypy 推断为 None 单例)。
-            hedge_plan: Optional[dict] = None
+            hedge_plan: dict | None = None
             if self.hedge_enabled and self.hedge_coordinator is not None:
                 hedge_plan = self._run_hedge_decision(market_data, market_state_data)
                 hedge_plan = self._apply_hedge_triggers(market_data, hedge_plan)
@@ -524,7 +538,7 @@ class AutomatedExecutionSystem:
 
     def _run_hedge_decision(
         self, market_data: dict, market_state_data: dict
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """运行对冲决策"""
         try:
             # 1. 读取真实持仓与价格
@@ -804,8 +818,8 @@ class AutomatedExecutionSystem:
             logger.warning("历史收益率自动更新异常: %s", e)
 
     def _apply_hedge_triggers(
-        self, market_data: dict, hedge_plan: Optional[dict]
-    ) -> Optional[dict]:
+        self, market_data: dict, hedge_plan: dict | None
+    ) -> dict | None:
         """基于 VIX / 回撤 / 市场状态做强制触发覆盖"""
         if not hedge_plan:
             return hedge_plan
@@ -831,8 +845,8 @@ class AutomatedExecutionSystem:
         return plan
 
     def _generate_hedge_execution_orders(
-        self, hedge_plan: Optional[dict]
-    ) -> Optional[dict]:
+        self, hedge_plan: dict | None
+    ) -> dict | None:
         """根据对冲决策生成可执行订单文件"""
         try:
             positions_path = os.path.join(
@@ -1389,7 +1403,7 @@ class AutomatedExecutionSystem:
         """获取执行计划"""
         return self.trading_calendar.get_execution_schedule(days_ahead)
 
-    def _generate_rebalance_orders(self) -> Optional[dict]:
+    def _generate_rebalance_orders(self) -> dict | None:
         """生成再平衡执行订单"""
         try:
             # T3.6 迁移修正: 使用绝对路径导入, 不再 sys.path.insert

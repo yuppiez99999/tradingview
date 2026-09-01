@@ -854,7 +854,7 @@ class ResearchDistiller:
 5. 仅输出 JSON, 不要其他解释
 
 {symbol_hint}输出格式:
-{{"signals": [{{"symbol": "600276.SH", "strength": 0.6, "confidence": 0.8, "reasoning": "...", "key_factors": ["ROE提升"]}}]}}
+{{"signals": [{{"symbol": "600276.SH", "strength": 0.6, "confidence": 0.8, "reasoning": "...", "key_factors": ["ROE提升"]}}]}}  # noqa: E501
 
 {source_label}内容:
 {text}
@@ -1257,7 +1257,7 @@ def self_test() -> bool:
         assert "000001.SZ" in signal_map
 
         # 测试持久化 (用临时日期避免污染真实数据)
-        test_date = "20990101"  # 远未来日期, 不影响真实快照
+        test_date = datetime.now().strftime("%Y%m%d")  # 当天日期, 保存后立即清理
         saved_path = d.save_daily_snapshot(signals, test_date)
         assert saved_path.exists()
         loaded = d.load_daily_snapshot(test_date)

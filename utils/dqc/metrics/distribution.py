@@ -204,7 +204,7 @@ def _check_f02_mean_drift(
             checkpoint=checkpoint,
             value=drift_ratio,
             threshold=0.5,
-            message=f"因子 {factor} 均值漂移 {drift_ratio:.3f}σ (baseline mean={mean_base:.4f}, current mean={mean_cur:.4f})",
+            message=f"因子 {factor} 均值漂移 {drift_ratio:.3f}σ (baseline mean={mean_base:.4f}, current mean={mean_cur:.4f})",  # noqa: E501
             factor=factor,
             drift_ratio=drift_ratio,
             baseline_mean=mean_base,
@@ -255,7 +255,7 @@ def _check_f03_variance_drift(
             checkpoint=checkpoint,
             value=ratio,
             threshold=2.0,
-            message=f"因子 {factor} 方差{direction} {ratio:.3f}x (baseline std={std_base:.4f}, current std={std_cur:.4f})",
+            message=f"因子 {factor} 方差{direction} {ratio:.3f}x (baseline std={std_base:.4f}, current std={std_cur:.4f})",  # noqa: E501
             factor=factor,
             variance_ratio=ratio,
             baseline_std=std_base,
@@ -310,7 +310,7 @@ def _check_f04_extreme_freq(
             checkpoint=checkpoint,
             value=extreme_freq,
             threshold=0.05,
-            message=f"因子 {factor} 极值频率 {extreme_freq:.1%} ({extreme_count}/{len(current)} 超出基线 {EXTREME_SIGMA}σ)",
+            message=f"因子 {factor} 极值频率 {extreme_freq:.1%} ({extreme_count}/{len(current)} 超出基线 {EXTREME_SIGMA}σ)",  # noqa: E501
             factor=factor,
             extreme_freq=extreme_freq,
             extreme_count=extreme_count,

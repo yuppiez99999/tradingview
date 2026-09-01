@@ -357,7 +357,7 @@ class BacktestGate:
             logger.debug(f"[回测网关] 提取 {symbol} 收盘价失败: {e}")
             return None
 
-    def _load_close_prices(self, symbols: list[str]) -> dict[str, "pd.Series"]:
+    def _load_close_prices(self, symbols: list[str]) -> dict[str, pd.Series]:
         """批量加载信号股票的收盘价序列"""
         provider = self._get_data_provider()
         if provider is None:
@@ -385,7 +385,7 @@ class BacktestGate:
 
     @staticmethod
     def _signal_date(
-        signal: AlphaSignalResult, prices: dict[str, "pd.Series"]
+        signal: AlphaSignalResult, prices: dict[str, pd.Series]
     ) -> pd.Timestamp | None:
         """确定信号基准日：优先 training_date，否则取价格序列的最后共同交易日"""
         raw = getattr(signal, "training_date", "") or ""
@@ -402,9 +402,9 @@ class BacktestGate:
     def _forward_returns(
         self,
         signal: AlphaSignalResult,
-        prices: dict[str, "pd.Series"],
+        prices: dict[str, pd.Series],
         horizon: int,
-    ) -> "pd.Series":
+    ) -> pd.Series:
         """计算各股票自信号日起 horizon 个交易日的远期收益"""
         sig_date = self._signal_date(signal, prices)
         if sig_date is None:
@@ -424,9 +424,9 @@ class BacktestGate:
     def _portfolio_returns(
         self,
         signal: AlphaSignalResult,
-        prices: dict[str, "pd.Series"],
+        prices: dict[str, pd.Series],
         window_days: int = 126,
-    ) -> "pd.Series":
+    ) -> pd.Series:
         """信号加权（多头）组合的日收益序列，取信号日前的 window_days 窗口"""
         values = pd.Series(signal.signals, dtype=float)
         weights = values.clip(lower=0.0)

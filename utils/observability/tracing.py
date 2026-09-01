@@ -12,10 +12,11 @@
         # 下单逻辑
         ...
 """
+from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Optional
+from typing import Any
 
 try:
     from opentelemetry import trace
@@ -35,8 +36,8 @@ except (
     # 此处再包一层使 tracing 模块本身可独立导入, 避免测试收集崩溃).
     _OTEL_AVAILABLE = False
 
-_TRACER_PROVIDER: Optional[Any] = None
-tracer: Any
+_TRACER_PROVIDER: Any | None = None
+tracer: Any = None
 
 
 def setup_tracing(service_name: str = "quant-trading-system") -> Any:
@@ -52,7 +53,9 @@ def setup_tracing(service_name: str = "quant-trading-system") -> Any:
 
     if not _OTEL_AVAILABLE:
         # 可选依赖缺失: 返回 no-op tracer, 调用方无需感知降级
-        tracer = _NoOpTracer()
+        if tracer is None:
+            tracer = _NoOpTracer()
+        _TRACER_PROVIDER = "noop"
         return tracer
 
     provider = TracerProvider()
@@ -69,7 +72,7 @@ class _NoOpSpan:
     def set_attribute(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def __enter__(self) -> "_NoOpSpan":
+    def __enter__(self) -> _NoOpSpan:
         return self
 
     def __exit__(self, *exc: Any) -> None:
@@ -108,8 +111,8 @@ def trace_order(
     symbol: str,
     side: str,
     qty: float,
-    order_id: Optional[str] = None,
-    price: Optional[float] = None,
+    order_id: str | None = None,
+    price: float | None = None,
 ) -> Iterator[trace.Span]:
     """订单链路 span 埋点."""
     attrs: dict[str, Any] = {

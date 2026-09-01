@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -66,8 +66,8 @@ class ChatRequest:
 
     prompt: str
     system: str = ""
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
+    temperature: float | None = None
+    max_tokens: int | None = None
     scene: str = "default"  # 场景路由: intraday/rebalance/report/default
     messages: list[ChatMessage] = field(default_factory=list)
 
@@ -75,8 +75,8 @@ class ChatRequest:
     def from_messages(
         cls,
         messages: list[ChatMessage],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         scene: str = "default",
     ) -> ChatRequest:
         """从 messages 列表构造 (提取 system 与首条 user)."""
@@ -107,7 +107,7 @@ class ChatResponse:
     content: str
     provider: ProviderInfo
     usage: Usage = field(default_factory=Usage)
-    raw: Optional[Any] = None  # 原始 provider 返回 (调试用)
+    raw: Any | None = None  # 原始 provider 返回 (调试用)
 
     @property
     def success(self) -> bool:

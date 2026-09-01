@@ -12,10 +12,10 @@
   - 不修改 pnl_calculator 内部契约, 只在调用前增强传入的 market_prices。
   - 仅覆盖当日有成交的标的, 无成交标的仍走行情估算, 避免数据断链。
 """
+from __future__ import annotations
 
 import logging
 from collections.abc import Collection
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,8 @@ except ImportError:  # 兼容不同工作目录调用
 
 def augment_market_prices(
     market_prices: dict[str, dict],
-    date: Optional[str] = None,
-    strategies: Optional[Collection[str]] = None,
+    date: str | None = None,
+    strategies: Collection[str] | None = None,
 ) -> dict[str, dict]:
     """用当日真实成交均价覆盖 market_prices 中的 close。
 
@@ -81,8 +81,8 @@ def augment_market_prices(
 
 
 def realized_pnl(
-    date: Optional[str] = None,
-    strategies: Optional[Collection[str]] = None,
+    date: str | None = None,
+    strategies: Collection[str] | None = None,
 ) -> dict[str, float]:
     """返回当日已实现 PnL 汇总 (fail-open)。"""
     try:

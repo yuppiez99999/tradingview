@@ -34,7 +34,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 import pandas as pd
 
@@ -397,7 +396,7 @@ class VectorBtBridge:
         closes: pd.Series,
         opens: pd.Series,
         signals: list[str],
-    ) -> "object":
+    ) -> object:
         """用 vectorbt 运行 MA 交叉策略。
 
         信号对齐:
@@ -450,7 +449,7 @@ class VectorBtBridge:
         opens: pd.Series,
         fast_window: int = 5,
         slow_window: int = 20,
-        target_code: Optional[str] = None,
+        target_code: str | None = None,
     ) -> ComparisonReport:
         """一键运行 G15 + vectorbt MA 交叉对照。
 

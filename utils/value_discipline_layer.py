@@ -5,6 +5,7 @@
 
 详见 docs/集成记录/S3/spec-design_20260821.md
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -12,7 +13,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -38,13 +39,13 @@ class MasterView:
 class DisciplinedSignal:
     signal: Any  # 增强后的 TradingSignal
     verdict: str = "grey"  # pass / fail / grey
-    price_band: Optional[tuple[float, float]] = None
+    price_band: tuple[float, float] | None = None
     tier_advice: dict[str, str] = field(default_factory=dict)
     masters: dict[str, MasterView] = field(default_factory=dict)
     consensus: float = 0.0
     mirror_pass: bool = True
     info_grade: str = "B"
-    quality_screen: Optional[ScreenResult] = None
+    quality_screen: ScreenResult | None = None
     extra_alerts: list[Any] = field(default_factory=list)
 
 
@@ -54,7 +55,7 @@ class ValueDisciplineLayer:
     def __init__(self, config_path: str = "config/value_discipline.yaml"):
         self.config: dict[str, Any] = {}
         self.enabled = False
-        self._llm_caller: Optional[Any] = None
+        self._llm_caller: Any | None = None
         try:
             cfg_path = Path(config_path)
             if not cfg_path.is_absolute():
@@ -69,7 +70,7 @@ class ValueDisciplineLayer:
         except Exception as exc:
             logger.warning("价值纪律层初始化失败, 旁路: %s", exc)
 
-    def _init_llm(self) -> Optional[Any]:
+    def _init_llm(self) -> Any | None:
         """复用主系统 LLM, 失败返回 None (四大师将标记 unavailable)。"""
         try:
             from utils.glm5_client import GLM5Client
@@ -254,7 +255,7 @@ class ValueDisciplineLayer:
 
     @staticmethod
     def _decide_verdict(
-        screen: Optional[ScreenResult], consensus: float, mirror_ok: bool
+        screen: ScreenResult | None, consensus: float, mirror_ok: bool
     ) -> str:
         if screen is not None and screen.hard_fail:
             return "fail"
@@ -269,7 +270,7 @@ class ValueDisciplineLayer:
     @staticmethod
     def _extract_advice(
         masters: dict[str, MasterView], signal: Any
-    ) -> tuple[Optional[tuple[float, float]], dict[str, str]]:
+    ) -> tuple[tuple[float, float] | None, dict[str, str]]:
         price = getattr(signal, "price", 0.0) or 0.0
         band = None
         if price > 0:
@@ -296,7 +297,7 @@ class ValueDisciplineLayer:
         verdict: str,
         consensus: float,
         mirror_ok: bool,
-        screen: Optional[ScreenResult],
+        screen: ScreenResult | None,
         extra_alerts: list[Any],
     ) -> Any:
         base_conf = float(getattr(signal, "confidence", 0.0))
