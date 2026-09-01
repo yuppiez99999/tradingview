@@ -81,8 +81,22 @@ def download_ohlcv(
     if skip_if_exists and parquet_path.exists():
         try:
             df_existing = pd.read_parquet(parquet_path)
-            if len(df_existing) >= days * 0.85:  # 容许 15% 缺失（节假日等）
+            # P2-1 修复 (2026-09-01): 双校验 — 行数按交易日口径 (原 days*0.85 用日历天数,
+            # 730 天实际约 490 个交易日, 永远达不到 620 阈值 → skip_if_exists 从不生效);
+            # 并加新鲜度校验 (最后一行距今 ≤ 7 天历日, 防陈旧文件被直接复用)
+            min_rows = int(days * 252 / 365 * 0.85)  # 预期交易日数, 容许 15% 缺失
+            fresh_cutoff = pd.Timestamp.now() - pd.Timedelta(days=7)
+            last_date = pd.to_datetime(df_existing.index[-1])
+            if len(df_existing) >= min_rows and last_date >= fresh_cutoff:
                 return df_existing
+            logger.info(
+                "[Download] %s 缓存不达标, 重新下载: rows=%d (需≥%d), last=%s (cutoff=%s)",
+                symbol,
+                len(df_existing),
+                min_rows,
+                last_date.date() if hasattr(last_date, "date") else last_date,
+                fresh_cutoff.date(),
+            )
         except Exception:  # noqa: BLE001
             pass  # 文件损坏, 重新下载
 

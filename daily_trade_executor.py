@@ -1021,12 +1021,27 @@ def _allocate_position(
     # 估算购买数量 (100股整数倍)
     est_qty = int(allocated / max_buy_price / 100) * 100
     if est_qty <= 0:
-        est_qty = 100  # 最小 100 股
+        if allocated >= min_lot_cost:
+            # 高价股路径: 上方已确保 remaining_budget >= min_lot_cost, 按一手执行
+            est_qty = 100
+        else:
+            # P2-2 修复 (2026-09-01): 预算不足一手时跳过 (原强制 100 股属超预算下单)
+            logger.warning(
+                "[SKIP] %s 预算不足一手: allocated=%.2f < 一手成本≈%.2f",
+                code_clean, allocated, min_lot_cost,
+            )
+            return None
 
     actual_amount = round(est_qty * ref_price, 2)
 
-    # 如果实际金额超过剩余预算, 跳过
-    if actual_amount > remaining_budget:
+    # P2-2 修复: 预算守卫按价格带上限 (最坏成交成本) 校验,
+    # 原用 ref_price 低估 — 若实际按带内高价成交会超预算
+    worst_case_amount = round(est_qty * max_buy_price, 2)
+    if worst_case_amount > remaining_budget:
+        logger.warning(
+            "[SKIP] %s 最坏成本超预算: %d股×%.2f(带顶)=%.2f > 剩余%.2f",
+            code_clean, est_qty, max_buy_price, worst_case_amount, remaining_budget,
+        )
         return None
 
     # 评估ETF信号 + 预测信号摘要 (供人工审核参考)

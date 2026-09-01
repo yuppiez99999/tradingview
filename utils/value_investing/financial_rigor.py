@@ -23,7 +23,7 @@ import json
 import math
 import operator
 from decimal import ROUND_HALF_EVEN, Context, Decimal
-from typing import Any
+from typing import Any, Callable
 
 # ---------------------------------------------------------------------------
 # Exact Decimal Engine (no floating-point drift)
@@ -226,19 +226,30 @@ def benford_check(values: list):
         conformity = "Nonconforming (不符合 ⚠️)"
 
     # Digit distribution table
+    # P2-3 修复 (2026-09-01): 原循环体为裸表达式 (结果直接丢弃), 分布明细表
+    # 功能丢失; 且 is_ok 双空分支无意义。重建分布表并入返回 dict。
+    distribution: dict[int, dict[str, Any]] = {}
     for d in range(1, 10):
         obs = observed.get(d, 0)
         exp = _BENFORD[d]
         dev = obs - exp
-        " ⚠️" if abs(dev) > 0.03 else ""
+        distribution[d] = {
+            "observed": round(obs, 4),
+            "expected": round(exp, 4),
+            "deviation": round(dev, 4),
+            "flag": "⚠️" if abs(dev) > 0.03 else "",
+        }
 
     is_ok = mad < 0.015
-    if is_ok:
-        pass
-    else:
-        pass
 
-    return {"mad": mad, "chi2": chi2, "conformity": conformity, "is_conforming": is_ok}
+    return {
+        "mad": mad,
+        "chi2": chi2,
+        "conformity": conformity,
+        "is_conforming": is_ok,
+        "distribution": distribution,
+        "n_samples": n,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -246,13 +257,15 @@ def benford_check(values: list):
 # ---------------------------------------------------------------------------
 
 # 安全算术求值 — 仅允许数字和 + - * / () 运算 (CWE-95 防护)
-_ALLOWED_BINOPS = {
+# P2-3 修复 (2026-09-01): 显式注解 — operator.pos/neg 为单参函数, 原按二元
+# Callable[[Any, Any], Any] 推断导致 mypy call-arg 误报 (此文件曾为 mypy 崩溃点)
+_ALLOWED_BINOPS: dict[type, Callable[[Any, Any], Any]] = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
     ast.Mult: operator.mul,
     ast.Div: operator.truediv,
 }
-_ALLOWED_UNARYOPS = {
+_ALLOWED_UNARYOPS: dict[type, Callable[[Any], Any]] = {
     ast.UAdd: operator.pos,
     ast.USub: operator.neg,
 }
