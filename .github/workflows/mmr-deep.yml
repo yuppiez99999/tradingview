@@ -93,7 +93,7 @@ jobs:
           try:
               from utils.alpha.llm.consensus import run_consensus
               changed = '${{ steps.changed.outputs.all_changed_files }}'.split()
-              pr_num = '${{ github.event.pull_request.number || \"manual\" }}'
+              pr_num = "${{ github.event.pull_request.number || 'manual' }}"
 
               doc_files = [f for f in changed if f.endswith('.md')]
               data_files = [f for f in changed if f.endswith('.json')]
