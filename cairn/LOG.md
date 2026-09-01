@@ -2,6 +2,79 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-01 · P2-4 收尾：CI/本地 Python 版本统一至 3.14（本轮扫描最后一项遗留清零）
+
+- **实测漂移比预期严重**: 本地生产 `.venv` = Python **3.14.4**（当日全部修复与 173 项测试在其上验证通过），而 CI 双重漂移 — ci/tdd-guard 用 3.11、quality-gate/mmr-deep/mmr-judge 硬编码 3.10、ocr 两工作流无 Python 步骤
+- **决策**: CI 升 3.14 对齐生产（改 YAML 零风险），而非降级 .venv 至 3.11（需重装全部依赖 + 所有计划任务中断 + 完整回归，风险高）；requires-python>=3.10 无需改动
+- **改动**: 5 个工作流（ci.yml/tdd-guard.yml 的 PYTHON_VERSION env + quality-gate/mmr-deep/mmr-judge 的 python-version 字面量）→ 3.14；7 个 YAML 语法验证全部通过
+- **注**: shell 默认 python 仍为 3.8.9（PATH 问题），生产链路均已走绝对路径 .venv 不受影响
+- **指针**: `docs/代码质量Bug扫描与修复方案_20260901.md` P2-4 — **本报告全部 P0/P1/P2/P3 处置完毕，无遗留项**
+
+## 2026-09-01 · 防复发与告警基建：pre-commit 新门禁 + 任务健康检查告警 + UniverseScan 处置
+
+- **pre-commit 门禁**: 新增 `scripts/check_windows_scripts.py`（bat/cmd 裸 LF + ps1/bat 解释器路径存在性双校验）挂入 pre_commit_check.py 第零道门禁（毫秒级）；首跑抓到 `repair_cn_tasks.ps1` 漏网坏路径（外部项目一次性脚本, 按 DEPRECATED 惯例修为 .venv）
+- **任务告警**: 新增 `scripts/check_scheduled_tasks_health.py`（v84 任务 FAILED/STALE 判定 + 钉钉/飞书告警 + 快照落盘 reports/scheduled_tasks_health.json）；注册 `V84_TaskHealthCheck` 每日 09:05（pywin32 COM 直传 XML, 规避 schtasks UTF-16 与 PowerShell CIM 已知坑）；设计要点: 排除自身防自我告警死循环/跳过禁用任务/1999-11-30 视为从未运行; 端到端验证: 检出异常 exit 1 + 告警发出 → 处置后 16/16 OK
+- **UniverseScan 从未工作**: 健康检查首跑抓到 v84_UniverseScan 每天 exit 1; 深挖发现 `factor_scorer.py` 引用的 `VibeFactorAdapter` **从未存在过**（git 历史确认, 外部 Vibe-Trading 亦无）, 输出无生产消费方 → **任务已禁用**; 5 处 `get_vibe_adapter` 悬挂 import 修正为真实 `get_adapter`（函数内延迟导入躲过 dangling_refs 门禁 — **已知盲区: 门禁不扫函数内 import**）
+- **踩坑**: win32com 动态派发设置 DailyTrigger 类型化属性报 AttributeError → 改用 `root.RegisterTask` 直传 XML 字符串（BSTR 无文件编码坑）; PowerShell 控制台 GBK 打不出 emoji → 脚本统一 `sys.stdout.reconfigure(encoding="utf-8")`
+- **指针**: `docs/代码质量Bug扫描与修复方案_20260901.md` 第八章
+
+## 2026-09-01 · P3 修复：ruff 全库清零 + hedge 去重键补日期（P0-P3 全部清零）
+
+- **P3-1** `backtests/_etf_rotation_2014/**` 34 处按 per-file-ignores 惯例豁免（研究性回测，与 research/ 同类）；顺带清掉全库其余 4 处 — P1-1 测试 F841（真修）、system_check.py UP036/UP042（Py3.8 polyfill 有意设计豁免）、financial_rigor.py UP035（P2-3 引入的 typing.Callable，保兼容豁免）；**全库 `ruff check .` All checks passed**
+- **P3-2** `hedge_order_executor.py` fallback 去重键补 date 前缀：`{date}-{instrument}-{contracts}-{strike_rule}`，不同交易日同参数订单不再误去重（原依赖无 order_id 的 fallback 路径，漏单概率低但存在）
+- **验证**: ruff 全库 0 error、hedge_order_executor 导入 OK、P1-1 测试 3/3 复绿
+- **指针**: `docs/代码质量Bug扫描与修复方案_20260901.md` P3 段 — **本报告 P0/P1/P2/P3 至此全部处置完毕**（唯一遗留流程项：CI/本地统一 py -3.11）
+
+## 2026-09-01 · P2 批次修复：缓存校验/下单守卫/benford 死代码/测试健康度
+
+- **P2-1** `cache/data_downloader.py`: skip_if_exists 阈值从日历天数（days*0.85, 永不达标）改为交易日口径（days*252/365*0.85）+ 新鲜度校验（末行距今 ≤7 天），不达标打诊断日志后重下
+- **P2-2** `daily_trade_executor.py`: 预算守卫改按最坏成本 `est_qty*max_buy_price`（原 ref_price 低估）；est_qty=0 时区分高价股一手路径（allocated≥min_lot_cost 保留）与预算不足一手（改为跳过+告警，原强制 100 股超预算）
+- **P2-3** `financial_rigor.py`: benford 死代码（裸表达式+双空分支）重建为 distribution 表入返回 dict；BINOPS/UNARYOPS 显式注解修 mypy 崩溃点；500 样本验证 mad=0.0069
+- **P2-4**: pytest.ini 加 timeout=300(thread) 防挂起 + 注册 network marker；MockBroker 降级失效修复（`create("mock")` 不存在且缺 config → `create("simulated", config={})`，冒烟 broker=SimulatedBroker）；核查确认网络用例已有 integration 标记隔离；遗留：CI 统一 py -3.11（流程项）
+- **验证**: 4 文件 py_compile OK + trade_executor/stop_loss 既有测试 173/173 绿
+- **指针**: `docs/代码质量Bug扫描与修复方案_20260901.md` P2 段；P0-P2 全部清零，仅剩 P3（ruff 实验目录 36 处 + hedge 去重键缺日期）
+
+## 2026-09-01 · P1-2 修复：移动止损水位线持久化（重启后 trailing stop 不再回落）
+
+- **Bug**: `stop_loss_monitor.py` 的 `_high_water_mark`/`_low_water_mark` 纯内存，监控进程重启后丢失 → 盈利持仓的移动止损线从高点回落到成本价（如 120×0.88=105.6 → 100×0.88=88），锁盈保护静默失效；空头 LWM 同理
+- **修复**: 持久化到 `reports/stop_loss_water_marks.json`（复用 `utils.concurrency.atomic_write_json`）；`__init__` 新增 `water_mark_file` 参数 + `_load_water_marks()` 启动恢复（缺失/损坏容错为空）；3 个更新点（多头 HWM/空头 LWM/清仓清除）更新即落盘
+- **TDD**: 追加 `TestWaterMarkPersistence` 6 例（多/空头重启恢复后触发验证、清仓清除持久化、损坏容错、首跑无文件）6 红 → 修复 → 17 绿；真实 `__init__` 冒烟通过（19 条规则）
+- **设计注意**: 水位线更新即落盘（监控为分钟级轮询，写频可接受）；测试 fixture 跳过真实 `__init__`，故 `_load/_save` 用 `getattr(self, '_water_mark_file', None)` 兼容
+- **顺带发现**: `_create_mock_broker` 的 `BrokerFactory.create()` 缺 config 参数 → MockBroker 降级路径自身也失败（broker=NoneType），归入 P2-4 关联待修
+- **指针**: `docs/代码质量Bug扫描与修复方案_20260901.md` P1-2；P0/P1 至此全部清零
+
+## 2026-09-01 · P1-1 修复：LGB「当前信号」滞后 bug（trainer + tscv 同构）
+
+- **Bug**: `lgb_trainer/trainer.py` 与 `lgb_tscv_trainer.py` 均在构造 `target=pct_change(h).shift(-h)` 后 `dropna()`（丢弃末 h 行）再用 `iloc[-1:]` 取"最新行"→ 实际取 T-h 行，当前信号滞后 5/1 个交易日且预测已实现收益；信号经 `_generate_integrated_signals` 写入 `lgb_enhanced_signals.json` 供决策层消费
+- **修复**: dropna 前保存 `latest_raw = df.iloc[[-1]]`，推理改用该行（自适应重训路径复用 latest_features 自动正确）；tscv 顺带补 nan_to_num 与训练口径一致
+- **TDD 过程**: 新增 `tests/unit/test_lgb_latest_signal_fix.py`（末行敏感性设计：末行不参与训练，两次训练仅末行特征不同 → 信号必须不同）3 红 → 修复 → 17 绿（含既有 post_train_callback 14 例）；**首轮测试因预测值容差 1e-5 > 实际差异 4e-6 假绿**，靠诊断脚本定位后改敏感性设计 — 树模型输出分段常数，黑盒预测值断言容差难定，敏感性设计更本质
+- **踩坑**: 同文件两处 Edit 并行提交会互相覆盖（第一处被第二处回写覆盖丢失）→ 同文件多处修改必须串行
+- **指针**: `docs/代码质量Bug扫描与修复方案_20260901.md` P1-1
+
+## 2026-09-01 · P0-3 修复：v84_EOD_Fallback 改用 .venv（py311 SYSTEM 会话缺依赖）
+
+- **根因**: 任务以 SYSTEM 账户跑 py311（裸系统环境），SYSTEM 会话无 Administrator user site → 缺 urllib3/typing_extensions（torch DLL 亦损坏）→ EOD 重跑 4 阶段失败（DeepSeek 报告/LLM 决策/Shadow Feeder `No module urllib3`/Drift 级联）→ exit 1；08-26/08-28/09-01 三次同模式；脚本头 08-21 的 `ADMIN_USER_SITE` PYTHONPATH 补丁因环境变量从未设置而失效
+- **修复**: 任务重注册为 `.venv\Scripts\python.exe scripts\eod_health_check_and_rerun.py`（SYSTEM/工作日 16:00 保留，超时 72h→1h + 失败重试）；脚本 `VENV_PYTHON=sys.executable` 使重跑子进程自动继承 .venv
+- **验证**: 手动触发 LastResult=0（原 1），`✅ shadow 最新日期 2026-09-01 >= 目标`；今日 shadow 数据已由 .venv 宿主的 EOD 运行补写（17:56）
+- **踩坑**: Write 工具写的 XML 实为 UTF-8 字节 — 声明 UTF-16 直接注册会把中文路径写坏（乱码 `鍚勖PY绋嬪簭`）；必须 PowerShell 读 UTF-8 → 转写 UTF-16 → 再 schtasks 注册（P0-1 已验证流程）
+- **P0 全部清零**（P0-1/2/3/4 均修复并验证）；指针: `docs/代码质量Bug扫描与修复方案_20260901.md`
+
+## 2026-09-01 · P0-2/P0-4 修复：解释器路径统一 .venv + bat 行尾全库清零
+
+- **P0-2**: 全库扫描发现 **10 个**代码文件硬编码不存在的 `AppData\...\Python311\python.exe`（初审仅 4 个：含 15_每日工作流 setup_eod/setup_retrain、scripts/deploy_trading_schedule.bat、trading_scheduler.bat、2 个 DEPRECATED 注册脚本）→ 全部统一改为 `.venv\Scripts\python.exe` (3.14.4)；`repair_cn_tasks.ps1` 系外部项目一次性脚本保留原样；复扫代码文件零残留
+- **P0-4**: 全库 .bat 行尾扫描发现 **6 个** LF-only/混合文件（run_eod_workflow.bat、run_eod_with_env.bat、×2 run_weekly_report.bat、cleanup_v7x_legacy_tasks.bat、trading_scheduler.bat）→ 字节级统一转 CRLF（保原编码），复扫清零
+- **教训**: 08-19 曾修过 3 个线上任务的坏路径（LOG#1611）但未修源头注册脚本 → 同类问题复发；本次源头+线上双向修，并建议把「.bat 行尾 + 解释器路径存在性」检查加进 pre_commit_check.py 防回归
+- **指针**: `docs/代码质量Bug扫描与修复方案_20260901.md`（P0-2/P0-4 已标记 ✅）
+
+## 2026-09-01 · 第二轮代码质量 Bug 扫描：发现晨报任务连续失败等 4 个 P0
+
+- **P0-1**: `V84_DailyMorning8Report` 计划任务 ≥08/26 连续 9009 失败（晨报/盘前计划全没跑）；实机排除法锁定「调度会话→cmd→bat」层（同 bat 交互式运行 exit 0，直调 .venv python 的其他任务全正常）→ 修复为任务直调 python.exe
+- **P0-2/3/4**: 4 个 ps1/bat 硬编码不存在的 AppData Python311 路径；v84_EOD_Fallback LastResult=1；run_eod_workflow.bat LF-only（cmd 解析必炸，已复现）
+- **P1**: ① lgb_trainer 信号滞后 5 交易日（dropna 截断后 iloc[-1] 取到 T-5 行，"当前信号"预测已实现收益）② stop_loss_monitor 移动止损水位线不持久化，重启后盈利持仓止损线下移
+- **P2**: OHLCV 缓存阈值口径错（日历 vs 交易日）致 skip_if_exists 永不生效且无新鲜度校验；daily_trade_executor 预算守卫 ref_price/max_buy_price 基准不一致+强制最小手数；benford_check 死代码（mypy 崩溃点）；测试套件内嵌 pytdx 真实网络调用无 timeout
+- **正面确认**: Purged K-Fold/DSR/回测引擎/绩效公式均正确；ruff 36 处全在实验目录
+- **指针**: `docs/代码质量Bug扫描与修复方案_20260901.md`（含逐项修复方案与排期）
+
 ## 2026-09-01 · ETF 对冲子模型多资产重构收尾：S12 纯防御风险平价为诚实下限
 
 - **背景**: 纯 ETF 组合 S1-S8 收益天花板 ≈5% (P2.2 已结论)。S9/S10 引入纳指/标普/红利低波 (P2 17 资产池) 试图突破，但 S10 年化 8.98%/Sharpe 0.789 系全样本后视选资产 → 三件套 DSR≈0 证实为拟合幻觉

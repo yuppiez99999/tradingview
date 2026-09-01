@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录本模块的实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-01 · P0-1 修复: V84_DailyMorning8Report 计划任务连续 9009 失败
+
+- **故障**: 任务 ≥08/26 每天 08:00 退出码 9009（晨报/盘前计划全没跑）；排除法锁定「调度会话→cmd→bat」层 — 同一 bat 交互式运行 exit 0，直调 .venv python 的其他 v84 任务全正常
+- **修复**: 任务重注册为直调 `.venv\Scripts\python.exe run_daily_morning.py --phase all`（WorkingDirectory=项目根；XML 重建经 schtasks 注册，schtasks 要求 UTF-16）；顺带吸收 setup 脚本健壮性设置（超时 72h→2h、失败重试 3×5min、StartWhenAvailable）
+- **验证**: 手动触发 LastResult=0，工作流 5 阶段全成功、归档 3 文件（~107s）；脚本自带日志 `logs/daily_morning_YYYYMMDD.log`，无 bat stdout 重定向也不丢日志
+- **持久化**: `setup_morning8_scheduled_task.ps1` 同步改为直调 python 注册（防重注册回退 bat 模式）；`run_daily_morning8.bat` 保留为手动入口
+- **踩坑**: ① schtasks /xml 导出经 PowerShell 重定向会损坏中文路径，勿直接改后重导入，应从零重建 ② schtasks /create /xml 仅接受 UTF-16 文件 ③ 本机 ScheduledTasks PowerShell 模块 (Get/Register-ScheduledTask) 在沙箱 shell 下抛 CIM 异常，用 schtasks.exe 替代
+- **指针**: `docs/代码质量Bug扫描与修复方案_20260901.md` P0-1；待办 P0-2 (repair_scheduled_tasks.ps1 等硬编码不存在解释器路径)
+
 ## 2026-08-27 · EOD 收盘审核阶段 (phase6) 集成
 
 - **任务**: 每天收盘自动审核数据质量+盘中决策情况，生成审核报告
