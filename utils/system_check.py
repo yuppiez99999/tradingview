@@ -50,20 +50,20 @@ import os
 import platform
 import shutil
 import sys
-
-# Py3.8 compat: StrEnum (3.11+) and datetime.UTC (3.11+) polyfill
-import sys as _sys  # noqa: E402
 import traceback
 from dataclasses import asdict, dataclass, field
+
+# Py3.8 compat polyfills: StrEnum (3.11+) and datetime.UTC (3.11+)
+# Must live BEFORE any other datetime/StrEnum imports in this module.
 from enum import Enum
 from pathlib import Path
 
-if _sys.version_info >= (3, 11):
+if sys.version_info >= (3, 11):
     from datetime import UTC  # noqa: F401
     from enum import StrEnum  # noqa: F401
 else:
     class StrEnum(str, Enum):  # type: ignore[no-redef]
-        """Py3.8 polyfill for StrEnum."""
+        """Py3.8 polyfill for enum.StrEnum (PEP 673)."""
     UTC = UTC  # type: ignore[no-redef]
 
 # 项目根目录 (此模块位于 utils/system_check.py, 父目录即项目根)
@@ -71,7 +71,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # 日志 (避免循环导入,使用独立 logger)
 import logging  # noqa: E402
-from datetime import UTC
 
 logger = logging.getLogger("system_check")
 
