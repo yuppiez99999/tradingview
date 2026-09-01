@@ -345,7 +345,7 @@ class IntradayMonitor:
                         "source": "wind_mcp",
                         "name": "",
                     }
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
         return result
@@ -504,7 +504,7 @@ class IntradayMonitor:
         for cb in self._callbacks:
             try:
                 cb(adjustment, alert)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.error("回调执行失败: %s", e)
 
@@ -1035,7 +1035,7 @@ class IntradayMonitor:
                     len(alerts),
                     len(self.adjustments),
                 )
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 self.watch_errors.append({
                     "round": self.watch_round,

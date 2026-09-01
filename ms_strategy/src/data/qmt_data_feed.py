@@ -149,7 +149,7 @@ class QmtDataFeed:
             logger.info("QmtDataFeed 连接成功: %d 个标的已订阅", len(self._symbols))
             return True
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._connection_error = str(exc)
@@ -228,11 +228,11 @@ class QmtDataFeed:
             for cb in self._on_tick_callbacks:
                 try:
                     cb(data)
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     pass
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("Tick 回调异常: %s", exc, exc_info=True)
@@ -283,7 +283,7 @@ class QmtDataFeed:
             for cb in self._on_disconnect_callbacks:
                 try:
                     cb()
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     pass
 
@@ -314,7 +314,7 @@ class QmtDataFeed:
             self._reconnect_count = 0
             logger.info("QmtDataFeed 重连成功")
             return True
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("QmtDataFeed 重连失败: %s", exc)
             return self._try_reconnect()  # 递归重试
@@ -386,7 +386,7 @@ class QmtDataFeed:
                 count=count,
             )
             return data
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("获取历史数据 %s 异常: %s", symbol, exc)
             return None

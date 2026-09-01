@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -22,12 +23,12 @@ logger = logging.getLogger("verify")
 logger.setLevel(logging.INFO)
 
 # Mock网络调用，避免ETF资金流获取超时
-import utils.broad_based_etf_policy as _etf_policy_mod
+import utils.broad_based_etf_policy as _etf_policy_mod  # noqa: E402
 
 _etf_policy_mod.fetch_national_team_flow_signals = lambda: {}
 
-from etf_option_hedge_rebalancer import ETFOptionHedgeRebalancer
-from utils.signal_fusion import FusedSignalV2
+from etf_option_hedge_rebalancer import ETFOptionHedgeRebalancer  # noqa: E402
+from utils.signal_fusion import FusedSignalV2  # noqa: E402
 
 prices_df = pd.read_parquet(PROJECT_ROOT / "data" / "etf_option_backtest" / "all_etf_daily.parquet")
 prices_df["date"] = pd.to_datetime(prices_df["date"])
@@ -35,7 +36,7 @@ prices_df["code"] = prices_df["code"].str.split(".").str[0]
 prices_pivot = prices_df.pivot_table(index="date", columns="code", values="close").sort_index()
 
 cfg_path = PROJECT_ROOT / "config" / "etf_option_subportfolio.yaml"
-import yaml
+import yaml  # noqa: E402
 
 with open(cfg_path, encoding="utf-8") as f:
     cfg = yaml.safe_load(f)
@@ -50,7 +51,7 @@ rebalancer = ETFOptionHedgeRebalancer()
 # Mock信号融合: 让fuse()返回基于target_weights的模拟信号
 if rebalancer.signal_fusion:
     _target_codes = list(target_weights.keys())
-    def _mock_fuse(alpha_signals=None, **kwargs):
+    def _mock_fuse(alpha_signals: object = None, **kwargs: Any) -> list:
         rng = np.random.default_rng(hash(str(pd.Timestamp.now().date())) % 2**32)
         signals = []
         for code in _target_codes[:6]:
@@ -101,7 +102,7 @@ for i, date in enumerate(test_dates):
 
     try:
         plan = rebalancer.run_daily_rebalance(positions, prices_dict, date_str, dd)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("第%d日运行失败: %s", i, e)
         continue
 
@@ -132,7 +133,7 @@ for i, date in enumerate(test_dates):
     })
 
 
-for d, old, new in regime_changes[:5]:
+for _d, _old, _new in regime_changes[:5]:
     pass
 if len(regime_changes) > 5:
     pass
@@ -144,7 +145,7 @@ if fused_days:
 if rebalancer.drift_monitor:
     try:
         status = rebalancer.drift_monitor.get_status()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
 if rebalancer.memory_reflection:
@@ -156,13 +157,13 @@ if rebalancer.memory_reflection:
         pass
     try:
         ctx = rebalancer.memory_reflection.get_reflection_context(days=30)
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
 if rebalancer.evolution_orchestrator:
     try:
         status = rebalancer.evolution_orchestrator.get_status()
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
 
 rebalance_days = [r for r in results_log if r["n_rebalance"] > 0]
@@ -178,7 +179,7 @@ checks = [
     ("再平衡执行", rebalance_total > 0),
     ("期权对冲", len(hedge_days) > 0),
 ]
-for name, ok in checks:
+for _name, _ok in checks:
     pass
 
 all_ok = all(ok for _, ok in checks)

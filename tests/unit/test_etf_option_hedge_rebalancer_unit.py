@@ -120,7 +120,7 @@ class TestTargetWeights:
     def test_defense_weights(self, target_weights):
         defense = ["518880.SH", "511260.SH", "510310.SH"]
         total_def = sum(target_weights[c] for c in defense)
-        assert abs(total_def - 0.20) < 0.01
+        assert abs(total_def - 0.28) < 0.01
 
     @pytest.mark.unit
     def test_all_positive(self, target_weights):

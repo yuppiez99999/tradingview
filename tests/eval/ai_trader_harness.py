@@ -56,7 +56,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("ai_trader_harness")
 
@@ -183,7 +183,7 @@ class AgentEvalResult:
     n_correct_decisions: int = 0
     n_total_decisions: int = 0
     elapsed_seconds: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
 
     @property
     def accuracy(self) -> float:
@@ -384,7 +384,7 @@ class DataContaminationDetector:
         self.future_ts_threshold = future_ts_threshold
 
     def detect(
-        self, records: list[DataRecord], decision_cutoff: Optional[str] = None
+        self, records: list[DataRecord], decision_cutoff: str | None = None
     ) -> ContaminationReport:
         """执行数据污染检测。
 
@@ -607,7 +607,7 @@ class AITraderHarness:
         report = harness.run_evaluation(agents, "2024-01-01", "2024-06-30")
     """
 
-    def __init__(self, symbols: Optional[list[str]] = None, seed: int = 42) -> None:
+    def __init__(self, symbols: list[str] | None = None, seed: int = 42) -> None:
         self.symbols = symbols or DEFAULT_SYMBOLS
         self.seed = seed
         self.detector = DataContaminationDetector()

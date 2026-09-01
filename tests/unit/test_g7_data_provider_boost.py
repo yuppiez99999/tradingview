@@ -936,7 +936,7 @@ class TestSentimentAndTechnical:
         with caplog.at_level(logging.WARNING):
             data = provider.get_sentiment_data("600519")
         assert data is None
-        assert any("无真实情绪数据源可用" in r.message for r in caplog.records)
+        assert any("情绪数据不可用" in r.message for r in caplog.records)
 
     def test_get_sentiment_data_cache_hit(self, provider: MarketDataProvider) -> None:
         provider.data_cache["sentiment_600519"] = {

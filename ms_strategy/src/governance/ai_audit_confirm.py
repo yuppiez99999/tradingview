@@ -389,7 +389,7 @@ class AIAuditor:
         # LLM 可用时调用 (此处为占位, 实际集成 llm_client)
         try:
             return self._call_llm_audit(orders, portfolio, strategy_context)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("LLM 审核失败, 回退到启发式: %s", e)
             return self._heuristic_audit(orders, portfolio, strategy_context)
@@ -613,7 +613,7 @@ class AIAuditConfirmer:
                 json.dumps(log_entry, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("保存审计日志失败: %s", e)
 
@@ -629,7 +629,7 @@ class AIAuditConfirmer:
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 logs.append(data)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
         return logs

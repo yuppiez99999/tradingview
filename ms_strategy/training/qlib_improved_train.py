@@ -506,7 +506,7 @@ def main():
                     avg = stock_pred.mean()
                     rank = int(ranked.get(cv, ranked.get(cv.lower(), 0)))
                     direction = "看多" if latest > 0 else ("看空" if latest < 0 else "中性")
-                    print(f"{symbol:<12} {name:<10} {latest:>10.6f} {direction:>6} {avg:>10.6f} {rank:>6}/{len(latest_preds)}")
+                    print(f"{symbol:<12} {name:<10} {latest:>10.6f} {direction:>6} {avg:>10.6f} {rank:>6}/{len(latest_preds)}")  # noqa: E501
                     results.append({
                         "code": symbol, "name": name,
                         "latest_signal": round(float(latest), 6),

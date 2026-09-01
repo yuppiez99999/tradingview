@@ -22,7 +22,7 @@ lines = []
 lines.append("# ETF期权对冲子组合 — v1 vs v2 对比报告")
 lines.append("")
 lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-lines.append(f"**回测区间**: {v1['start_date']} ~ {v1['end_date']} | **初始资金**: {v1['initial_capital']:,}元 | **交易日**: {v1['n_days']}")
+lines.append(f"**回测区间**: {v1['start_date']} ~ {v1['end_date']} | **初始资金**: {v1['initial_capital']:,}元 | **交易日**: {v1['n_days']}")  # noqa: E501
 lines.append("")
 lines.append("## 1. 核心改进")
 lines.append("")
@@ -52,10 +52,10 @@ comparisons = [
 for label, v1_key, v2_key in comparisons:
     if v1_key in v1r:
         m1 = v1r[v1_key]
-        lines.append(f"| {label} | **v1** | {m1['annual_return']*100:.2f} | {m1['max_drawdown']*100:.2f} | {m1['sharpe']:.3f} | {m1['final_value']:,.0f} | {m1.get('transaction_costs',0):,.0f} | - |")
+        lines.append(f"| {label} | **v1** | {m1['annual_return']*100:.2f} | {m1['max_drawdown']*100:.2f} | {m1['sharpe']:.3f} | {m1['final_value']:,.0f} | {m1.get('transaction_costs',0):,.0f} | - |")  # noqa: E501
     if v2_key in v2r:
         m2 = v2r[v2_key]
-        lines.append(f"| {label} | **v2** | {m2['annual_return']*100:.2f} | {m2['max_drawdown']*100:.2f} | {m2['sharpe']:.3f} | {m2['final_value']:,.0f} | {m2.get('total_premium_paid',0):,.0f} | {m2.get('total_premium_recovered',0):,.0f} |")
+        lines.append(f"| {label} | **v2** | {m2['annual_return']*100:.2f} | {m2['max_drawdown']*100:.2f} | {m2['sharpe']:.3f} | {m2['final_value']:,.0f} | {m2.get('total_premium_paid',0):,.0f} | {m2.get('total_premium_recovered',0):,.0f} |")  # noqa: E501
 
 lines.append("")
 lines.append("### 2.2 改进幅度")
@@ -96,9 +96,9 @@ lines.append("### 4.1 S5尾部对冲达到年化8%目标")
 lines.append("")
 s5 = v2r["S5 尾部对冲(回撤加码)"]
 lines.append(f"- **年化收益**: {s5['annual_return']*100:.2f}% (目标>=8% ✅)")
-lines.append(f"- **最大回撤**: {s5['max_drawdown']*100:.2f}% (目标<15% ❌，但vs v1降低{34.90-s5['max_drawdown']*100:.2f}pp)")
+lines.append(f"- **最大回撤**: {s5['max_drawdown']*100:.2f}% (目标<15% ❌，但vs v1降低{34.90-s5['max_drawdown']*100:.2f}pp)")  # noqa: E501
 lines.append(f"- **Sharpe**: {s5['sharpe']:.3f} (目标>=0.80 ❌)")
-lines.append(f"- **期权保护率**: {s5['total_premium_recovered']/s5['total_premium_paid']*100:.1f}% (赔付{ s5['total_premium_recovered']:,.0f} / 权利金{ s5['total_premium_paid']:,.0f})")
+lines.append(f"- **期权保护率**: {s5['total_premium_recovered']/s5['total_premium_paid']*100:.1f}% (赔付{ s5['total_premium_recovered']:,.0f} / 权利金{ s5['total_premium_paid']:,.0f})")  # noqa: E501
 lines.append(f"- **vs v1 S5**: 年化 {s5['annual_return']*100:.2f}% vs 4.58% (+{s5['annual_return']*100-4.58:.2f}pp)")
 lines.append("")
 lines.append("### 4.2 真实期权保护 vs 固定成本模型")
@@ -152,7 +152,7 @@ lines.append("4. **动态OTM**: 高波动时OTM 3%（更紧保护），低波动
 lines.append("5. **Wind MCP真实期权数据**: 接入真实期权Tiker替换BS定价（当前IV为估算）")
 lines.append("")
 lines.append("### 5.4 推荐生产策略")
-lines.append(f"**S5 尾部对冲(回撤加码)** — 年化{s5['annual_return']*100:.2f}%/回撤{s5['max_drawdown']*100:.2f}%/Sharpe{s5['sharpe']:.3f}")
+lines.append(f"**S5 尾部对冲(回撤加码)** — 年化{s5['annual_return']*100:.2f}%/回撤{s5['max_drawdown']*100:.2f}%/Sharpe{s5['sharpe']:.3f}")  # noqa: E501
 lines.append("- 6%阈值再平衡 + 真实认沽保护 + 回撤分级加码(>10%:0.75x / >15%:1.0x)")
 lines.append("- 年化期权成本约1.0%（权利金16.8万/5年/200万）")
 lines.append("- 适合作为ETF期权子组合的主策略")

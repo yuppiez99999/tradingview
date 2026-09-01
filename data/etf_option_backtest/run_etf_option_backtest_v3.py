@@ -20,7 +20,6 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -91,8 +90,8 @@ def norm_cdf(x: float) -> float:
 def bs_put_price(spot: float, strike: float, dte: int, iv: float, r: float = 0.02) -> float:
     if spot <= 0 or strike <= 0 or dte <= 0 or iv <= 0:
         return 0.0
-    T = dte / 365.0
-    sqrtT = math.sqrt(T)
+    T = dte / 365.0  # noqa: N806
+    sqrtT = math.sqrt(T)  # noqa: N806
     d1 = (math.log(spot / strike) + (r + 0.5 * iv * iv) * T) / (iv * sqrtT)
     d2 = d1 - iv * sqrtT
     return strike * math.exp(-r * T) * norm_cdf(-d2) - spot * norm_cdf(-d1)
@@ -101,8 +100,8 @@ def bs_put_price(spot: float, strike: float, dte: int, iv: float, r: float = 0.0
 def bs_call_price(spot: float, strike: float, dte: int, iv: float, r: float = 0.02) -> float:
     if spot <= 0 or strike <= 0 or dte <= 0 or iv <= 0:
         return 0.0
-    T = dte / 365.0
-    sqrtT = math.sqrt(T)
+    T = dte / 365.0  # noqa: N806
+    sqrtT = math.sqrt(T)  # noqa: N806
     d1 = (math.log(spot / strike) + (r + 0.5 * iv * iv) * T) / (iv * sqrtT)
     d2 = d1 - iv * sqrtT
     return spot * norm_cdf(d1) - strike * math.exp(-r * T) * norm_cdf(d2)
@@ -317,7 +316,7 @@ def init_positions(state: BacktestState, tw: dict[str, float],
 
 def roll_options(state: BacktestState, px: dict[str, float], iv_row: pd.Series,
                  current_i: int, hedge_ratio: float = HEDGE_RATIO_BASE,
-                 collar: bool = False, conditional_vol: Optional[float] = None,
+                 collar: bool = False, conditional_vol: float | None = None,
                  vol_threshold: float = 0.18) -> None:
     for opt in state.option_positions:
         if current_i >= opt.expiry_date:
@@ -393,7 +392,7 @@ def roll_options(state: BacktestState, px: dict[str, float], iv_row: pd.Series,
         ))
 
 
-def run_strategy(prices: pd.DataFrame, tw: dict[str, float], iv_df: pd.DataFrame,
+def run_strategy(prices: pd.DataFrame, tw: dict[str, float], iv_df: pd.DataFrame,  # noqa: C901
                  strategy: str) -> tuple[list[float], BacktestState]:
     codes = [c for c in tw if c in prices.columns]
     state = BacktestState()
@@ -401,7 +400,7 @@ def run_strategy(prices: pd.DataFrame, tw: dict[str, float], iv_df: pd.DataFrame
     first = True
     peak = INITIAL_CAPITAL
 
-    for i, (date, row) in enumerate(prices.iterrows()):
+    for i, (_date, row) in enumerate(prices.iterrows()):
         px = {c: row[c] for c in codes if c in row and not np.isnan(row[c])}
         iv_row = iv_df.iloc[i] if i < len(iv_df) else None
 
@@ -552,11 +551,11 @@ def format_report(results: dict, prices: pd.DataFrame, states: dict, tw_used: di
     lines.append("  ETF期权对冲子组合 — 最优方案回测 v3 (回撤控制<20% + 十五五规划对齐)")
     lines.append("=" * 120)
     lines.append(f"  回测区间: {prices.index[0].date()} ~ {prices.index[-1].date()} | 初始资金: {INITIAL_CAPITAL:,}元")
-    lines.append(f"  ETF数: {len(prices.columns)} | 期权标的: {sorted(OPTION_UNDERLYING_ETFS)} | 期权预算: {ANNUAL_OPTION_BUDGET*100:.1f}%")
+    lines.append(f"  ETF数: {len(prices.columns)} | 期权标的: {sorted(OPTION_UNDERLYING_ETFS)} | 期权预算: {ANNUAL_OPTION_BUDGET*100:.1f}%")  # noqa: E501
     lines.append(f"  回撤熔断: >12%→70%敞口 / >15%→50% / >18%→30% | 恢复阈值: {DRAWDOWN_RECOVERY_THRESHOLD*100:.0f}%")
     lines.append("  再平衡阈值: 4% (v2为6%) | 十五五高评分增配: 科创50(92)+2pp / 创业板(85)+1pp / 中证1000(82)+1pp")
     lines.append("")
-    lines.append(f"{'策略':<34} {'年化%':>7} {'回撤%':>7} {'Sharpe':>7} {'Sortino':>7} {'Calmar':>7} {'胜率%':>6} {'期末':>12} {'熔断次数':>8}")
+    lines.append(f"{'策略':<34} {'年化%':>7} {'回撤%':>7} {'Sharpe':>7} {'Sortino':>7} {'Calmar':>7} {'胜率%':>6} {'期末':>12} {'熔断次数':>8}")  # noqa: E501
     lines.append("-" * 100)
     for name, m in results.items():
         s = states.get(name)
@@ -576,15 +575,15 @@ def format_report(results: dict, prices: pd.DataFrame, states: dict, tw_used: di
     candidates = {k: v for k, v in results.items() if k != "基准 沪深300ETF"}
     best_dd = min(candidates.items(), key=lambda x: x[1]["max_drawdown"])
     best_sharpe = max(candidates.items(), key=lambda x: x[1]["sharpe"])
-    lines.append(f"  最低回撤: {best_dd[0]} — 回撤 {best_dd[1]['max_drawdown']*100:.2f}% / 年化 {best_dd[1]['annual_return']*100:.2f}%")
-    lines.append(f"  最高Sharpe: {best_sharpe[0]} — Sharpe {best_sharpe[1]['sharpe']:.3f} / 年化 {best_sharpe[1]['annual_return']*100:.2f}%")
+    lines.append(f"  最低回撤: {best_dd[0]} — 回撤 {best_dd[1]['max_drawdown']*100:.2f}% / 年化 {best_dd[1]['annual_return']*100:.2f}%")  # noqa: E501
+    lines.append(f"  最高Sharpe: {best_sharpe[0]} — Sharpe {best_sharpe[1]['sharpe']:.3f} / 年化 {best_sharpe[1]['annual_return']*100:.2f}%")  # noqa: E501
     dd_ok = best_dd[1]["max_drawdown"] < 0.20
     lines.append(f"  回撤<20%达标: {'是' if dd_ok else '否'}")
     lines.append("")
     return "\n".join(lines)
 
 
-def main():
+def main() -> None:
     logger.info("加载配置 %s", CONFIG_PATH)
     cfg = load_config()
     tw_original = extract_target_weights(cfg)

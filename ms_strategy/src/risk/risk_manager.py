@@ -4,11 +4,11 @@ v7.5 风控管理器 —— 三级回撤 + 风险预算 + 对冲联动
 整合 RiskBudgeter (风险预算) 与 AutoHedger (三联对冲)，
 作为整个 v7.5 系统的风险中枢。
 """
+from __future__ import annotations
 
 import logging
 from collections import deque
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -69,7 +69,7 @@ class RiskManager:
     # ============================================================
 
     def update_drawdown(self, equity: float,
-                        ts: Optional[datetime] = None) -> str:
+                        ts: datetime | None = None) -> str:
         """更新回撤，返回当前模式"""
         return self.budgeter.update_drawdown(equity, ts)
 
@@ -141,7 +141,7 @@ class RiskManager:
                    portfolio_beta: float,
                    vix_level: float,
                    avg_correlation: float = 0.5,
-                   portfolio_value: Optional[float] = None) -> list[dict]:
+                   portfolio_value: float | None = None) -> list[dict]:
         """三联对冲触发：Beta + VIX + Correlation"""
         actions = []
         V = portfolio_value or self.capital  # noqa: N806
@@ -211,7 +211,7 @@ class RiskManager:
                 result = self.hedger.execute(action)
                 results.append(result)
                 logger.info(f"对冲执行: {action['type']} -> {result.get('status', 'unknown')}")
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.error(f"对冲执行失败 [{action['type']}]: {e}")
                 results.append({'type': action['type'], 'status': 'failed', 'error': str(e)})
@@ -228,7 +228,7 @@ class RiskManager:
                        avg_correlation: float,
                        positions: dict[str, float],
                        returns: pd.DataFrame,
-                       ts: Optional[datetime] = None) -> dict:
+                       ts: datetime | None = None) -> dict:
         """执行完整风控周期"""
 
         # 1. 回撤更新

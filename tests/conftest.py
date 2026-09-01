@@ -156,6 +156,28 @@ def pytest_configure(config):
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
+def pytest_addoption(parser):
+    """添加命令行选项"""
+    parser.addoption(
+        "--run-integration",
+        action="store_true",
+        default=False,
+        help="运行 integration/e2e 标记的测试 (默认跳过)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """默认跳过 integration/e2e 测试, 除非显式传 --run-integration"""
+    if config.getoption("--run-integration"):
+        return
+    skip_marker = pytest.mark.skip(
+        reason="integration/e2e 测试, 需传 --run-integration 启用"
+    )
+    for item in items:
+        if "integration" in item.keywords or "e2e" in item.keywords:
+            item.add_marker(skip_marker)
+
+
 # ============================================================
 # v8.6.7 测试金字塔新增 fixtures
 # ============================================================

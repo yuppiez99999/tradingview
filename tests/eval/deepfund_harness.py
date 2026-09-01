@@ -48,7 +48,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("deepfund_harness")
 
@@ -157,7 +157,7 @@ class EvalResult:
     metrics: Metrics = field(default_factory=Metrics)
     leakage: LeakageReport = field(default_factory=LeakageReport)
     elapsed_seconds: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
@@ -217,7 +217,7 @@ class LLMAdapter:
     """
 
     def __init__(
-        self, provider: str, model: str, name: str = "", mock: Optional[bool] = None
+        self, provider: str, model: str, name: str = "", mock: bool | None = None
     ) -> None:
         self.provider = provider
         self.model = model
@@ -425,7 +425,7 @@ class TimeLeakageDetector:
         self,
         decisions: list[Decision],
         metrics: Metrics,
-        benchmark_metrics: Optional[Metrics] = None,
+        benchmark_metrics: Metrics | None = None,
     ) -> LeakageReport:
         """执行时间穿越检测, 返回泄漏报告。"""
         reasons: list[str] = []
@@ -525,7 +525,7 @@ class DeepFundHarness:
         report = harness.run_evaluation(adapters, "2024-01-01", "2024-06-30")
     """
 
-    def __init__(self, symbols: Optional[list[str]] = None, seed: int = 42) -> None:
+    def __init__(self, symbols: list[str] | None = None, seed: int = 42) -> None:
         self.symbols = symbols or DEFAULT_SYMBOLS
         self.seed = seed
         self.detector = TimeLeakageDetector()

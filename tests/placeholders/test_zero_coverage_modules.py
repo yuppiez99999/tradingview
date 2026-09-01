@@ -23,6 +23,8 @@ sys.path.insert(0, os.path.abspath(BASE))
         "ai_tools/research_rag.py",
         "alpha_factor/factor_memory.py",
         "observability/structured_logger.py",
+        "observability/event_schema.py",
+        "observability/tracing.py",
     ],
 )
 def test_file_exists(rel_path):
@@ -38,6 +40,8 @@ def test_file_exists(rel_path):
         "alpha.llm.consensus",
         "observability.structured_logger",
         "alpha_factor.factor_memory",
+        "observability.event_schema",
+        "observability.tracing",
     ],
 )
 def test_module_importable(module_name):

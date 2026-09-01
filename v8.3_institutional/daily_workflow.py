@@ -515,11 +515,11 @@ class DailyWorkflow:
 
     def __init__(
         self,
-        trade_date: Optional[str] = None,
+        trade_date: str | None = None,
         capital: float = WorkflowConfig.TOTAL_CAPITAL,
         dry_run: bool = False,
         sim_mode: bool = False,
-        external_reports_dir: Optional[str] = None,
+        external_reports_dir: str | None = None,
     ) -> None:
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.capital = capital
@@ -584,7 +584,7 @@ class DailyWorkflow:
 
         # 十五五阶段管理器 (5 年度阶段 + 季度评估 + 2030 清仓)
         self.phase_manager = None
-        self.current_phase_info: Optional[PhaseInfo] = None
+        self.current_phase_info: PhaseInfo | None = None
         if PHASE_MANAGER_READY:
             try:
                 self.phase_manager = PhaseManager()
@@ -605,10 +605,10 @@ class DailyWorkflow:
                 self.phase_manager = None
 
         # 对冲基金视角模块
-        self.exec_algo_engine: Optional[ExecutionAlgoEngine] = None
-        self.pnl_attribution_engine: Optional[PnLAttributionEngine] = None
-        self.data_quality_monitor: Optional[DataQualityMonitor] = None
-        self.strategy_coordinator: Optional[MultiStrategyCoordinator] = None
+        self.exec_algo_engine: ExecutionAlgoEngine | None = None
+        self.pnl_attribution_engine: PnLAttributionEngine | None = None
+        self.data_quality_monitor: DataQualityMonitor | None = None
+        self.strategy_coordinator: MultiStrategyCoordinator | None = None
         if HEDGE_FUND_MODULES_READY:
             try:
                 self.exec_algo_engine = ExecutionAlgoEngine()
@@ -624,9 +624,9 @@ class DailyWorkflow:
                 logger.warning("对冲基金模块初始化失败: %s", exc)
 
         # 机构级配置模块 (Black-Litterman / TCA / Barra)
-        self.bl_optimizer: Optional[BlackLittermanOptimizer] = None
-        self.tca_manager: Optional[TCAManager] = None
-        self.barra_decomposer: Optional[BarraRiskDecomposer] = None
+        self.bl_optimizer: BlackLittermanOptimizer | None = None
+        self.tca_manager: TCAManager | None = None
+        self.barra_decomposer: BarraRiskDecomposer | None = None
         if INSTITUTIONAL_MODULES_READY:
             try:
                 self.bl_optimizer = BlackLittermanOptimizer(
@@ -641,9 +641,9 @@ class DailyWorkflow:
                 logger.warning("机构级模块初始化失败: %s", exc)
 
         # 顶级风险管理模块 (Ledoit-Wolf / 风险预算约束 / 压力测试)
-        self.lw_cov_estimator: Optional[LedoitWolfCovariance] = None
-        self.risk_budget_opt: Optional[RiskBudgetOptimizer] = None
-        self.stress_test_engine: Optional[StressTestEngine] = None
+        self.lw_cov_estimator: LedoitWolfCovariance | None = None
+        self.risk_budget_opt: RiskBudgetOptimizer | None = None
+        self.stress_test_engine: StressTestEngine | None = None
         if RISK_MGT_MODULES_READY:
             try:
                 self.lw_cov_estimator = LedoitWolfCovariance(annualize=True)
@@ -662,9 +662,9 @@ class DailyWorkflow:
                 logger.warning("风险管理模块初始化失败: %s", exc)
 
         # 顶级 Alpha 生成模块 (Alpha 因子库 / 动量反转 / Smart Beta)
-        self.alpha_factor_lib: Optional[AlphaFactorLibrary] = None
-        self.momentum_engine: Optional[MomentumReversalEngine] = None
-        self.smart_beta_engine: Optional[SmartBetaEngine] = None
+        self.alpha_factor_lib: AlphaFactorLibrary | None = None
+        self.momentum_engine: MomentumReversalEngine | None = None
+        self.smart_beta_engine: SmartBetaEngine | None = None
         if ALPHA_MODULES_READY:
             try:
                 self.alpha_factor_lib = AlphaFactorLibrary()
@@ -677,9 +677,9 @@ class DailyWorkflow:
                 logger.warning("Alpha 生成模块初始化失败: %s", exc)
 
         # 顶级执行层模块 (执行算法 / 市场冲击 / 智能路由)
-        self.execution_algo_engine: Optional[InstitutionExecAlgoEngine] = None
-        self.market_impact_model: Optional[MarketImpactModel] = None
-        self.smart_order_router_inst: Optional[InstitutionSmartRouter] = None
+        self.execution_algo_engine: InstitutionExecAlgoEngine | None = None
+        self.market_impact_model: MarketImpactModel | None = None
+        self.smart_order_router_inst: InstitutionSmartRouter | None = None
         if EXECUTION_MODULES_READY:
             try:
                 self.execution_algo_engine = InstitutionExecAlgoEngine()
@@ -690,9 +690,9 @@ class DailyWorkflow:
                 logger.warning("执行层模块初始化失败: %s", exc)
 
         # 顶级另类数据模块 (新闻情感 / 供应链 / 另类数据)
-        self.news_sentiment_engine: Optional[NewsSentimentEngine] = None
-        self.supply_chain_graph: Optional[SupplyChainGraph] = None
-        self.alt_data_indicators: Optional[AltDataIndicators] = None
+        self.news_sentiment_engine: NewsSentimentEngine | None = None
+        self.supply_chain_graph: SupplyChainGraph | None = None
+        self.alt_data_indicators: AltDataIndicators | None = None
         if ALT_DATA_MODULES_READY:
             try:
                 self.news_sentiment_engine = NewsSentimentEngine()
@@ -1028,7 +1028,7 @@ class DailyWorkflow:
             return {}
 
     def _get_edb_futures_data(
-        self, names: Optional[list[str]] = None
+        self, names: list[str] | None = None
     ) -> dict[str, dict[str, Any]]:
         """获取 EDB 期货/商品数据 (委托至 workflow.phases.hedge)"""
         from workflow.phases.hedge import _get_edb_futures_data as _impl
@@ -1261,7 +1261,7 @@ class DailyWorkflow:
 
         return _impl()
 
-    def _get_ic_basis(self) -> Optional[float]:
+    def _get_ic_basis(self) -> float | None:
         """获取 IC 基差 (委托至 workflow.phases.quant_neutral)"""
         from workflow.phases.quant_neutral import _get_ic_basis as _impl
 
@@ -1390,8 +1390,8 @@ class DailyWorkflow:
         qlib_signals: dict[str, Any],
         ifind_insights: dict[str, Any],
         external_factor: float = 1.0,
-        regime_weights: Optional[dict[str, Any]] = None,
-        lgb_signals: Optional[dict[str, Any]] = None,
+        regime_weights: dict[str, Any] | None = None,
+        lgb_signals: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """四源融合调整订单 (委托至 workflow.phases.signal)"""
         from workflow.phases.signal import apply_fused_qlib_ifind_adjustments
@@ -1845,9 +1845,9 @@ class DailyWorkflow:
     # --------------------------------------------------------
     def run(
         self,
-        only_phase: Optional[str] = None,
-        phase_start: Optional[str] = None,
-        phase_end: Optional[str] = None,
+        only_phase: str | None = None,
+        phase_start: str | None = None,
+        phase_end: str | None = None,
     ) -> dict[str, Any]:
         """执行完整工作流
 

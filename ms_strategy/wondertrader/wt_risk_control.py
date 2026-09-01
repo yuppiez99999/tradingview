@@ -9,10 +9,10 @@ WonderTrader风格风控模块
 
 适用于增强现有系统的风控能力。
 """
+from __future__ import annotations
 
 import math
 from datetime import datetime
-from typing import Optional
 
 
 class RiskControl:
@@ -66,7 +66,7 @@ class RiskControl:
             drawdown = (self.max_equity - self.current_equity) / self.max_equity
             if drawdown >= self.config["max_portfolio_drawdown_pct"]:
                 self.circuit_breaker_tripped = True
-                self.circuit_breaker_reason = f"组合回撤 {drawdown:.2%} >= {self.config['max_portfolio_drawdown_pct']:.2%}"
+                self.circuit_breaker_reason = f"组合回撤 {drawdown:.2%} >= {self.config['max_portfolio_drawdown_pct']:.2%}"  # noqa: E501
                 return False, self.circuit_breaker_reason
 
         if self.daily_loss >= self.config["max_daily_loss_pct"] * self.max_equity:
@@ -199,7 +199,7 @@ class StopLossManager:
             "created_at": datetime.now().isoformat(),
         }
 
-    def check_stop_loss(self, code: str, current_price: float) -> tuple[str, Optional[dict]]:
+    def check_stop_loss(self, code: str, current_price: float) -> tuple[str, dict | None]:
         """检查止损条件
 
         Returns:
@@ -271,7 +271,7 @@ class PortfolioRiskAnalyzer:
         """计算条件在险价值(CVaR)"""
         total_value = sum(pos["qty"] * pos["avg_cost"] for pos in positions.values())
         z_score = 1.645 if confidence_level == 0.95 else 2.33 if confidence_level == 0.99 else 1.28
-        cvar_factor = volatility * (z_score * math.exp(-z_score ** 2 / 2) / (math.sqrt(2 * math.pi) * (1 - confidence_level)))
+        cvar_factor = volatility * (z_score * math.exp(-z_score ** 2 / 2) / (math.sqrt(2 * math.pi) * (1 - confidence_level)))  # noqa: E501
         return total_value * cvar_factor
 
     @staticmethod
@@ -365,7 +365,7 @@ class RiskReportGenerator:
             lines.append("| 标的 | 持仓金额 | 占比 | 数量 | 成本 |")
             lines.append("|------|---------|------|------|------|")
             for code, info in concentration.items():
-                lines.append(f"| {code} | ¥{info['value']:,.0f} | {info['percentage']:.2%} | {info['qty']:,} | {info['avg_cost']:.4f} |")
+                lines.append(f"| {code} | ¥{info['value']:,.0f} | {info['percentage']:.2%} | {info['qty']:,} | {info['avg_cost']:.4f} |")  # noqa: E501
         else:
             lines.append("- 无持仓")
 
@@ -399,7 +399,7 @@ class RiskReportGenerator:
                     "triggered_stop_loss": "❌ 止损触发",
                     "triggered_take_profit": "💰 止盈触发",
                 }
-                lines.append(f"| {code} | {order['avg_cost']:.4f} | {order['stop_price']:.4f} | {order['take_profit_price']:.4f} | {status_map.get(order['status'], order['status'])} |")
+                lines.append(f"| {code} | {order['avg_cost']:.4f} | {order['stop_price']:.4f} | {order['take_profit_price']:.4f} | {status_map.get(order['status'], order['status'])} |")  # noqa: E501
         else:
             lines.append("- 无止损单")
 

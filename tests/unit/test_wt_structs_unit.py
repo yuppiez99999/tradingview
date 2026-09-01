@@ -1,6 +1,7 @@
 """
 单元测试: utils/wt_structs.py
-覆盖 TickData / BarData / OrderData / TradeData / PositionData / ContractData / tick_to_dict / bar_to_dict / strict_symbol_validation
+覆盖 TickData / BarData / OrderData / TradeData / PositionData / ContractData / tick_to_dict / bar_to_dict /
+strict_symbol_validation
 """
 
 from __future__ import annotations

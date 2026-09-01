@@ -109,6 +109,13 @@ PHASE_B_ENABLER_SCRIPT = PROJECT_ROOT / "scripts" / "phase_b_progressive_enabler
 # USE_FEEDBACK_LOOP 保持 False), 累积 b2_shadow_status.json 的 warmup_days (目标 3 天)。
 # 修复断链: 此前 b2_shadow_runner 从未接入任何调度, 预热永远卡 0/3, B2 永远无法启用。
 PHASE_B_B2_SHADOW_SCRIPT = PROJECT_ROOT / "scripts" / "phase_b_b2_shadow_runner.py"
+# 阶段四点八六: B4 shadow 每日预热 (MLOps 管线 LLM 反馈闭环验证, 2026-09-01)
+# 在 B2 shadow (4.85) 之后执行: 运行 phase_b_b4_shadow_runner.py (不切 flag,
+# USE_MLOPS_PIPELINE 保持 False), 累积 b4_shadow_status.json 的 warmup_days (目标 7 天)。
+# 修复断链: 此前 b4_shadow_runner 从未接入任何调度, 预热永远卡 0/7, B4 永远无法启用
+# (与 B2 shadow 08-26 同型断链)。B3 前置口径修正 (2026-09-01): b3_shadow_status.json
+# 缺失时回退 enabler 阶段轨判定, 不再阻断 B4 shadow 启动。
+PHASE_B_B4_SHADOW_SCRIPT = PROJECT_ROOT / "scripts" / "phase_b_b4_shadow_runner.py"
 # 阶段零: 年化收益预测校准 (生成 portfolio_return_projection.json, 供阶段一报告引用)
 CALIBRATE_PROJECTION_SCRIPT = (
     PROJECT_ROOT / "v8.3_institutional" / "calibrate_returns_projection.py"
@@ -201,7 +208,7 @@ def run_step(
     script: Path,
     args: list,
     timeout_minutes: int = 30,
-    allowed_exit_codes: list = None,
+    allowed_exit_codes: list | None = None,
 ) -> tuple:
     """
     运行一个工作流步骤
@@ -874,7 +881,7 @@ def run_phase4_5b_shadow_state_sync(report_date, eod_summary, args):
     phase_bridge_success, _ = run_step(
         "Shadow Fills Integration",
         shadow_integrator_script,
-        ["--date", report_date],
+        [report_date],
         timeout_minutes=5,
     )
     eod_summary["phases"]["phase4_5b1_shadow_fills_bridge"] = {
@@ -1391,6 +1398,85 @@ def run_phase4_85_b2_shadow_warmup(report_date, eod_summary, args):
     return b2_success
 
 
+def run_phase4_86_b4_shadow_warmup(report_date, eod_summary, args):
+    """阶段四点八六: B4 shadow 每日预热 (MLOps 管线 LLM 反馈闭环验证, 2026-09-01).
+
+    在 B2 shadow (4.85) 之后执行:
+        1. 调用 scripts/phase_b_b4_shadow_runner.py (每日 shadow 验证 LLM 反馈闭环, 不切 flag)
+        2. 累积 reports/shadow/b4_shadow_status.json 的 warmup_days (目标 7 天)
+        3. B4 flag (USE_MLOPS_PIPELINE) 保持 False — shadow 模式硬约束
+
+    修复断链 (2026-09-01): b4_shadow_runner.py 此前从未接入任何调度 (定时任务/EOD 均无),
+    预热永远卡 0/7 天, B4 永远无法满足启用前置 — 与 B2 shadow 08-26 同型断链。
+
+    HC 合规:
+        - HC-1: shadow 模式不切 Flag (USE_MLOPS_PIPELINE=False 不变式由 runner 自检)
+        - fail-safe: 失败不中断 EOD 主流程 (仅 WARN + summary 记录)
+    """
+    if args.skip_shadow:
+        log("\n>>> 阶段四点八六: 跳过 B4 shadow 预热 (--skip-shadow) <<<")
+        eod_summary["phases"]["phase4_86_b4_shadow"] = {"skipped": True}
+        return False
+
+    if not PHASE_B_B4_SHADOW_SCRIPT.exists():
+        log(
+            f"\n>>> 阶段四点八六: 跳过 B4 shadow 预热 (脚本不存在: {PHASE_B_B4_SHADOW_SCRIPT}) <<<",
+            "WARN",
+        )
+        eod_summary["phases"]["phase4_86_b4_shadow"] = {
+            "skipped": True,
+            "reason": "script not found",
+        }
+        return False
+
+    # B4 已启用后 (USE_MLOPS_PIPELINE=True), 预热使命完成, 不再调用 runner
+    # (其不变式硬要求 flag=False, 会每日 FAIL)。读 system_config.json 判定。
+    try:
+        _sc = json.loads(
+            (PROJECT_ROOT / "system_config.json").read_text(
+                encoding="utf-8", errors="replace"
+            )
+        )
+        _evolution = _sc.get("evolution", _sc)
+        _mlops_enabled = bool(
+            (_evolution.get("feature_flags") or {}).get("USE_MLOPS_PIPELINE", False)
+        )
+    except Exception:  # noqa: BLE001
+        _mlops_enabled = False
+
+    if _mlops_enabled:
+        log(
+            "\n>>> 阶段四点八六: B4 已启用 (USE_MLOPS_PIPELINE=True), 跳过 shadow 预热 (使命完成) <<<"
+        )
+        eod_summary["phases"]["phase4_86_b4_shadow"] = {
+            "skipped": True,
+            "reason": "B4 already enabled, warmup complete",
+            "flag_invariant": "USE_MLOPS_PIPELINE=True (post-warmup)",
+        }
+        return True
+
+    log("\n>>> 阶段四点八六: B4 shadow 每日预热 (USE_MLOPS_PIPELINE=False 不变式) <<<")
+    log(f"  日期: {report_date}")
+    b4_success, _ = run_step(
+        "B4 Shadow Warmup",
+        PHASE_B_B4_SHADOW_SCRIPT,
+        ["--date", str(report_date)],
+        timeout_minutes=3,
+        allowed_exit_codes=[0],
+    )
+    eod_summary["phases"]["phase4_86_b4_shadow"] = {
+        "success": b4_success,
+        "script": str(PHASE_B_B4_SHADOW_SCRIPT),
+        "date": report_date,
+        "flag_invariant": "USE_MLOPS_PIPELINE=False",
+    }
+    if b4_success:
+        log("  ✅ B4 shadow 预热已累积 (见 reports/shadow/b4_shadow_status.json)")
+    else:
+        log("  ⚠️ B4 shadow 预热失败, 不影响 EOD 主流程 (fail-open)", "WARN")
+    return b4_success
+
+
 def run_phase5_archive(report_date, today_dir, eod_summary, args):
     """阶段五：归档报告"""
     if args.skip_archive:
@@ -1642,6 +1728,15 @@ def main():
     )
     success_count += phase_b2_shadow_success
     fail_count += not phase_b2_shadow_success
+
+    # 2026-09-01: B4 shadow 每日预热 — 在 B2 shadow 后累积 warmup_days (目标 7 天),
+    # B4 (USE_MLOPS_PIPELINE) 启用前置, 不切 flag。修复 b4_shadow_runner 从未接入调度断链。
+    phase_b4_shadow_success = run_phase4_86_b4_shadow_warmup(
+
+        report_date, eod_summary, args
+    )
+    success_count += phase_b4_shadow_success
+    fail_count += not phase_b4_shadow_success
 
     # 阶段四点五五: PnL 归因报告生成 (FeedbackLoop 前置依赖, 2026-08-18)
     # 在 Shadow 数据 + 漂移检测 + Phase B 回写之后、FeedbackLoop 之前执行,

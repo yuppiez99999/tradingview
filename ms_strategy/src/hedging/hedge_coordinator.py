@@ -109,7 +109,7 @@ class HedgeCoordinator:
             try:
                 portfolio_vol = float(returns.std().mean() * (252 ** 0.5))
                 portfolio_vol = 0.0 if not np.isfinite(portfolio_vol) else portfolio_vol
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 portfolio_vol = 0.0
         else:

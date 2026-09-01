@@ -2,7 +2,7 @@
 v7.5 PerformanceMetrics — Sortino / Calmar / DSR 等绩效指标
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §4.1, §4.5
 """
-from typing import Optional
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
@@ -77,7 +77,7 @@ class PerformanceMetrics:
         dd = abs(self.max_drawdown())
         return ann_ret / dd if dd > 0 else 0.0
 
-    def objective(self, weights: Optional[np.ndarray] = None) -> float:
+    def objective(self, weights: np.ndarray | None = None) -> float:
         """
         目标函数: J = Sortino + 0.5 * Calmar - λ * ||w||²
         """
@@ -152,9 +152,12 @@ class DeflatedSharpeRatio:
     """
     Deflated Sharpe Ratio (Bailey & López de Prado)
 
-    DSR = Φ((SR_hat - E[SR_max]) * sqrt(T-1))
+    DSR = Φ((SR_hat - E[SR_max]) * sqrt(T-1) / sqrt(1 - γ3·SR + (γ4-1)/4·SR²))
 
     若 DSR < 0.95，则不能拒绝"策略 Sharpe 系随机取得"的原假设。
+
+    注意: sharpe_ratio 必须为**日频未年化**口径 (与 sqrt(T-1) 配套)。
+    年化 SR 参与 z_score 会被放大 sqrt(252) 倍导致 DSR 系统性高估。
     """
 
     def __init__(self, sharpe_ratio: float, n_trials: int,
@@ -162,7 +165,7 @@ class DeflatedSharpeRatio:
                  kurtosis: float = 3.0):
         """
         Args:
-            sharpe_ratio: 策略的经验 Sharpe Ratio
+            sharpe_ratio: 策略的经验 Sharpe Ratio (日频未年化口径)
             n_trials: 尝试的策略数量（若含数据窥探）
             n_observations: 样本量
             skewness: 收益偏度
@@ -187,12 +190,16 @@ class DeflatedSharpeRatio:
         # 考虑偏度/峰度修正
         correction = 1 + (self.skew / 6) * (Z_max**2 - 1) + \
                      ((self.kurt - 3) / 24) * (Z_max**3 - 3 * Z_max)
-        return Z_max * correction / np.sqrt(max(self.T, 1))
+        return max(Z_max * correction / np.sqrt(max(self.T, 1)), 0.0)
 
     def compute(self) -> float:
-        """计算 DSR"""
+        """计算 DSR (含偏度/峰度 PSR 分母修正)"""
         e_max = self.expected_max_sr()
-        z_score = (self.sr - e_max) * np.sqrt(max(self.T - 1, 1))
+        denom = np.sqrt(max(
+            1.0 - self.skew * self.sr + (self.kurt - 1.0) / 4.0 * self.sr**2,
+            1e-12,
+        ))
+        z_score = (self.sr - e_max) * np.sqrt(max(self.T - 1, 1)) / denom
         dsr = norm.cdf(z_score)
         return float(dsr)
 

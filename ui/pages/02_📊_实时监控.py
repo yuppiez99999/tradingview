@@ -2,6 +2,7 @@
 
 import os
 import sys
+from typing import Any
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
@@ -172,7 +173,7 @@ if pos:
     styled = df.style.map(color_pnl, subset=["未实现盈亏", "盈亏%"])
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
-    style_counts = {}
+    style_counts: dict[str, Any] = {}
     for d in table_data:
         s = d["风格"]
         style_counts[s] = style_counts.get(s, 0) + 1
@@ -266,7 +267,7 @@ if pos:
 
     with chart_right:
         st.subheader("📊 风格市值分布")
-        style_mv = {}
+        style_mv: dict[str, Any] = {}
         for code, pdata in pos.items():
             shares = pdata.get("shares", 0)
             price = prices.get(code, 0) or pdata.get("avg_cost", 0)

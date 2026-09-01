@@ -3,10 +3,11 @@ v7.5 WalkForward — 滚动样本外回测
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §4.2
 train 24m / test 3m / step 3m, 5-fold CV
 """
+from __future__ import annotations
+
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -28,7 +29,7 @@ class WalkForwardResult:
     annual_return: float = 0.0
     annual_vol: float = 0.0
     sharpe: float = 0.0
-    test_returns: Optional[np.ndarray] = None
+    test_returns: np.ndarray | None = None
     params: dict = field(default_factory=dict)
 
 
@@ -87,11 +88,11 @@ class WalkForward:
 
     # ---------- 执行 ----------
     def run(self, data: pd.DataFrame,
-            strategy_fn: Optional[Callable] = None,
-            date_col: Optional[str] = None,
-            train_func: Optional[Callable] = None,
-            test_func: Optional[Callable] = None,
-            param_grid: Optional[dict] = None,
+            strategy_fn: Callable | None = None,
+            date_col: str | None = None,
+            train_func: Callable | None = None,
+            test_func: Callable | None = None,
+            param_grid: dict | None = None,
             objective: str = 'sortino',
             verbose: bool = True):
         """
@@ -221,7 +222,7 @@ class WalkForward:
             try:
                 train_data = data.loc[tr_s:tr_e]
                 test_data = data.loc[te_s:te_e]
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # 按位置回退
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError): # 按位置回退  # noqa: E501
                 train_days = self.train_months * 21
                 test_days = self.test_months * 21
                 step_days = self.step_months * 21
@@ -266,7 +267,7 @@ class WalkForward:
                 if verbose:
                     logger.info(f"Window {i}: {te_s}~{te_e} | "
                                 f"Sortino={result.sortino:.3f} Calmar={result.calmar:.3f}")
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.error(f"Window {i} 执行失败: {e}")
                 continue
@@ -302,7 +303,7 @@ class WalkForward:
                     if score > best_score:
                         best_score = score
                         best_params = params.copy()
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.debug(f"CV 失败: {param_name}={val}, {e}")
 

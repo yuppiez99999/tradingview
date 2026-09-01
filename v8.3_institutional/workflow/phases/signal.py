@@ -32,7 +32,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from workflow.context import WorkflowContext, get_dw_module
 from workflow.phases.signal_ifind import (
@@ -94,8 +94,8 @@ def apply_fused_qlib_ifind_adjustments(
     qlib_signals: dict[str, float],
     ifind_insights: dict[str, Any],
     external_factor: float = 1.0,
-    regime_weights: Optional[dict[str, float]] = None,
-    lgb_signals: Optional[dict[str, dict[str, Any]]] = None,
+    regime_weights: dict[str, float] | None = None,
+    lgb_signals: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """融合 Qlib 信号、iFinD 新闻研判与外部报告，统一调整订单
 
@@ -447,7 +447,7 @@ def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
                 ctx.state["phases"]["signal"] = {
                     "status": "PASS",
                     "action": "PAUSED",
-                    "reason": f"重大负面新闻暂停建仓: {insight.symbol} {insight.direction} confidence={insight.confidence:.2f}",
+                    "reason": f"重大负面新闻暂停建仓: {insight.symbol} {insight.direction} confidence={insight.confidence:.2f}",  # noqa: E501
                 }
                 return {"action": "PAUSED", "reason": "重大负面新闻暂停建仓"}
 

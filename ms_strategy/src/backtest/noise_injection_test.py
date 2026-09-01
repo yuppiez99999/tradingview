@@ -16,11 +16,12 @@ v8.4 T08 (2026-07-28): 1000 次噪音注入, 验证策略非过拟合产物.
     - SR 均值相对原始 SR 的偏差 < 20%
     - MaxDD 在噪音下恶化不超过 50%
 """
+from __future__ import annotations
+
 import logging
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -103,7 +104,7 @@ def run_noise_injection_test(
     daily_returns: Sequence[float],
     noise_ratio: float = 0.1,
     n_trials: int = 1000,
-    random_seed: Optional[int] = 42,
+    random_seed: int | None = 42,
     required_pct_positive: float = 0.95,
     required_pct_above_half: float = 0.50,
 ) -> NoiseInjectionResult:

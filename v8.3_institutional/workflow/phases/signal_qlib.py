@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from workflow.context import WorkflowContext
 
@@ -211,7 +211,7 @@ def generate_qlib_signals(ctx: WorkflowContext) -> dict[str, float]:
     return signals
 
 
-def generate_mock_ohlcv(symbol: str, days: int = 120) -> Optional[Any]:
+def generate_mock_ohlcv(symbol: str, days: int = 120) -> Any | None:
     """生成模拟 OHLCV 数据 (用于 Qlib 演示)
 
     Args:

@@ -184,7 +184,7 @@ def task_sentiment(archive: Path, target_date: str, force: bool) -> bool:
         )
         return bool(result.get("ok"))
     except ImportError:
-        placeholder = f"# 舆情综合日报 {target_date}\n\n> ⚠️ 舆情模块 `nlp.sentiment_hub` 导入失败，本报告为占位。\n> 该模块已实现 (规则引擎 + Wind MCP 新闻扫描, 受 SENTIMENT_HUB_USE_WIND_NEWS 环境变量控制)。\n> 排查方向: 确认 nlp/ 目录在 sys.path 且 sentiment_hub.py 无语法错误。\n\n生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}\n"
+        placeholder = f"# 舆情综合日报 {target_date}\n\n> ⚠️ 舆情模块 `nlp.sentiment_hub` 导入失败，本报告为占位。\n> 该模块已实现 (规则引擎 + Wind MCP 新闻扫描, 受 SENTIMENT_HUB_USE_WIND_NEWS 环境变量控制)。\n> 排查方向: 确认 nlp/ 目录在 sys.path 且 sentiment_hub.py 无语法错误。\n\n生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}\n"  # noqa: E501
         sentiment_md.write_text(placeholder, encoding="utf-8")
         coal_md.write_text(
             f"# 动力煤舆情日报 {target_date}\n\n> ⚠️ 占位（同舆情综合日报，sentiment_hub 导入失败）\n",
@@ -864,7 +864,7 @@ def _run_task(name_fn_tuple, archive, target_date, force):
         return name, False
 
 
-def run_all(target_date: str = None, force: bool = False, max_workers: int = 4) -> dict:
+def run_all(target_date: str | None = None, force: bool = False, max_workers: int = 4) -> dict:
     """运行全部信息采集任务 (两阶段并行)
 
     阶段1: 并行执行任务 1-6 (彼此独立)

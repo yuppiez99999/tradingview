@@ -234,7 +234,7 @@ def main():
     print(f"    Rust 预估节省: {elapsed_a*0.9:.3f}s")
     rust_threshold_a = 5.0  # 5s 阈值
     print(
-        f"    阈值 (≥5s 才推荐): {'✅ 达标' if elapsed_a >= rust_threshold_a else '❌ 未达标'} → {'⚠️ 跳过' if elapsed_a < rust_threshold_a else '✅ POC'}"
+        f"    阈值 (≥5s 才推荐): {'✅ 达标' if elapsed_a >= rust_threshold_a else '❌ 未达标'} → {'⚠️ 跳过' if elapsed_a < rust_threshold_a else '✅ POC'}"  # noqa: E501
     )
     print()
     print("  分钟级 (600,000 事件):")
@@ -244,7 +244,7 @@ def main():
     )
     rust_threshold_b = 300.0  # 5min 阈值
     print(
-        f"    阈值 (≥5min 才推荐): {'✅ 达标' if elapsed_b_full >= rust_threshold_b else '❌ 未达标'} → {'✅ POC' if elapsed_b_full >= rust_threshold_b else '⚠️ 跳过'}"
+        f"    阈值 (≥5min 才推荐): {'✅ 达标' if elapsed_b_full >= rust_threshold_b else '❌ 未达标'} → {'✅ POC' if elapsed_b_full >= rust_threshold_b else '⚠️ 跳过'}"  # noqa: E501
     )
     print()
     print("  TICK 级 (240 事件):")
@@ -252,7 +252,7 @@ def main():
     print(f"    Rust 预估节省: {elapsed_c*0.9:.6f}s")
     rust_threshold_c = 1.0  # 1s 阈值
     print(
-        f"    阈值 (≥1s 才推荐): {'✅ 达标' if elapsed_c >= rust_threshold_c else '❌ 未达标'} → {'⚠️ 跳过' if elapsed_c < rust_threshold_c else '✅ POC'}"
+        f"    阈值 (≥1s 才推荐): {'✅ 达标' if elapsed_c >= rust_threshold_c else '❌ 未达标'} → {'⚠️ 跳过' if elapsed_c < rust_threshold_c else '✅ POC'}"  # noqa: E501
     )
     print()
 
@@ -267,7 +267,7 @@ def main():
         f"  修正幅度: {abs(elapsed_b_full/60 - 40) / 40 * 100:.1f}% {'高估' if elapsed_b_full/60 < 40 else '低估'}"
     )
     print(
-        f"  最终建议: {'✅ 推荐 Rust POC (分钟级达标)' if overall_recommend_poc else '⚠️ 维持跳过 (分钟级未达标, FFI 回调开销会进一步抵消收益)'}"
+        f"  最终建议: {'✅ 推荐 Rust POC (分钟级达标)' if overall_recommend_poc else '⚠️ 维持跳过 (分钟级未达标, FFI 回调开销会进一步抵消收益)'}"  # noqa: E501
     )
     print()
     print("  详细报告: tests/perf_matching_engine_benchmark.py")

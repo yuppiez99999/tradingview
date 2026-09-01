@@ -20,7 +20,8 @@
 
 运行:
     python -m pytest tests/unit/test_g7_automated_execution_boost.py -q
-    python -m pytest tests/unit/test_g7_automated_execution_boost.py -v --tb=short --cov=utils.execution.automated_execution_system
+    python -m pytest tests/unit/test_g7_automated_execution_boost.py -v --tb=short
+    --cov=utils.execution.automated_execution_system
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
 import time
 import uuid
 from collections import deque
@@ -471,7 +473,7 @@ class TestOrderExecutionFlow:
     ):
         """_FILLS_STORE_AVAILABLE=False → 立即 return, 无副作用."""
         monkeypatch.setattr(
-            "utils.execution.automated_execution_system._FILLS_STORE_AVAILABLE",
+            "utils.execution.order_router._FILLS_STORE_AVAILABLE",
             False,
         )
         order = {"symbol": "600519.SH", "side": "BUY"}
@@ -482,12 +484,12 @@ class TestOrderExecutionFlow:
     def test_record_fill_for_order_invalid_args_skips(self, fresh_router, monkeypatch):
         """symbol空/qty=0/price=0 → 不调用 store.record_fill."""
         monkeypatch.setattr(
-            "utils.execution.automated_execution_system._FILLS_STORE_AVAILABLE",
+            "utils.execution.order_router._FILLS_STORE_AVAILABLE",
             True,
         )
         mock_store_cls = MagicMock()
         with patch(
-            "utils.execution.automated_execution_system.FillsStore",
+            "utils.execution.order_router.FillsStore",
             mock_store_cls,
         ):
             # 空 symbol
@@ -515,12 +517,12 @@ class TestOrderExecutionFlow:
     ):
         """有效订单 → 调用 FillsStore.record_fill."""
         monkeypatch.setattr(
-            "utils.execution.automated_execution_system._FILLS_STORE_AVAILABLE",
+            "utils.execution.order_router._FILLS_STORE_AVAILABLE",
             True,
         )
         mock_store = MagicMock()
         with patch(
-            "utils.execution.automated_execution_system.FillsStore",
+            "utils.execution.order_router.FillsStore",
             return_value=mock_store,
         ):
             fresh_router._record_fill_for_order(
@@ -545,13 +547,13 @@ class TestOrderExecutionFlow:
     def test_record_fill_for_order_exception_safe(self, fresh_router, monkeypatch):
         """落盘异常 → 只记日志, 不向上抛."""
         monkeypatch.setattr(
-            "utils.execution.automated_execution_system._FILLS_STORE_AVAILABLE",
+            "utils.execution.order_router._FILLS_STORE_AVAILABLE",
             True,
         )
         mock_store = MagicMock()
         mock_store.record_fill.side_effect = RuntimeError("DB down")
         with patch(
-            "utils.execution.automated_execution_system.FillsStore",
+            "utils.execution.order_router.FillsStore",
             return_value=mock_store,
         ):
             # 不抛异常
@@ -1114,7 +1116,7 @@ class TestPositionSync:
         }
         (config_dir / "positions.json").write_text(json.dumps(data), encoding="utf-8")
         monkeypatch.setattr(
-            "utils.execution.automated_execution_system._PROJECT_ROOT",
+            "utils.execution.order_router._PROJECT_ROOT",
             str(tmp_path),
         )
         # 传 "600519.SH", key 是 "600519.SH_abc" → "600519.SH" in "600519.SH_abc" → True
@@ -1303,11 +1305,14 @@ class TestExceptionFallback:
             return datetime.now() + timedelta(days=1)
 
         fresh_system.trading_calendar.get_next_execution_time = fake_get_next
-        sleep_calls = []
-        monkeypatch.setattr(time, "sleep", lambda s: sleep_calls.append(s))
+        wait_calls = []
+        # G-20260830: 循环休眠已改为 _stop_event.wait (可中断), 测试随实现适配
+        monkeypatch.setattr(
+            threading.Event, "wait", lambda self, timeout: wait_calls.append(timeout)
+        )
         fresh_system._execution_loop()
-        # 异常后 sleep(60) 再继续
-        assert 60 in sleep_calls
+        # 异常后等待 60 秒再继续
+        assert 60 in wait_calls
 
     def test_execution_loop_no_next_execution_sleeps(self, fresh_system, monkeypatch):
         """get_next_execution_time() 返回 None → sleep 60."""
@@ -1322,10 +1327,13 @@ class TestExceptionFallback:
                 fresh_system.is_running = False
 
         fresh_system.trading_calendar.get_next_execution_time = fake_next
-        sleep_calls = []
-        monkeypatch.setattr(time, "sleep", lambda s: sleep_calls.append(s))
+        wait_calls = []
+        # G-20260830: 循环休眠已改为 _stop_event.wait (可中断), 测试随实现适配
+        monkeypatch.setattr(
+            threading.Event, "wait", lambda self, timeout: wait_calls.append(timeout)
+        )
         fresh_system._execution_loop()
-        assert 60 in sleep_calls
+        assert 60 in wait_calls
 
     def test_perf_monitor_loop_success_rate_low_warns(self, fresh_system, monkeypatch):
         """执行成功率 < 0.8 → warning 日志."""

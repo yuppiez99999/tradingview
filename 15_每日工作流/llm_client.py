@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # 导入依赖
 import json
 import os
@@ -7,7 +9,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # ============================================================
 # 项目根目录与 .env 加载
@@ -204,7 +206,7 @@ def _request_chat_completion(
     max_tokens: int = 2000,
     timeout: int = 60,
     endpoint_path: str = "/v1/chat/completions",
-) -> Optional[str]:
+) -> str | None:
     # MC1 修复: 各 provider 的 base_url 已含版本路径时, endpoint_path 应为 "/chat/completions"
     # - DeepSeek: base_url=https://api.deepseek.com → endpoint=/v1/chat/completions (默认)
     # - 豆包: base_url=https://ark.cn-beijing.volces.com/api/v3 → endpoint=/chat/completions
@@ -255,7 +257,7 @@ def _request_qianfan_chat(
     temperature: float = 0.3,
     max_tokens: int = 2000,
     timeout: int = 60,
-) -> Optional[str]:
+) -> str | None:
     try:
         url = base_url.rstrip("/")
         headers = {
@@ -292,7 +294,7 @@ def _request_qianfan_chat(
 
 def _chat_qianfan(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
-) -> Optional[str]:
+) -> str | None:
     if not QIANFAN_API_KEY:
         return None
     return _request_qianfan_chat(
@@ -309,7 +311,7 @@ def _chat_qianfan(
 
 def _chat_hy3(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
-) -> Optional[str]:
+) -> str | None:
     if not HY3_API_KEY:
         return None
     # MC1 修复: HY3 base_url 已含 /v1, endpoint 应为 /chat/completions
@@ -327,7 +329,7 @@ def _chat_hy3(
 
 def _chat_glm(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
-) -> Optional[str]:
+) -> str | None:
     if not GLM_API_KEY:
         return None
     # MC1 修复: GLM base_url 已含 /api/paas/v4, endpoint 应为 /chat/completions
@@ -345,7 +347,7 @@ def _chat_glm(
 
 def _chat_doubao(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
-) -> Optional[str]:
+) -> str | None:
     # MC1 修复: 豆包 base_url 已含 /api/v3, endpoint 应为 /chat/completions
     # 原代码拼接 /api/v3 + /v1/chat/completions = /api/v3/v1/chat/completions (404)
     try:
@@ -365,7 +367,7 @@ def _chat_doubao(
 
 def _chat_deepseek(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
-) -> Optional[str]:
+) -> str | None:
     """DeepSeek V3 对话 (主 LLM)"""
     if not DEEPSEEK_API_KEY:
         return None
@@ -382,7 +384,7 @@ def _chat_deepseek(
 
 def _chat_deepseek_reasoner(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4000
-) -> Optional[str]:
+) -> str | None:
     """DeepSeek R1 推理模型 (深度思考, 主 deep 模型)
 
     适用于复杂交易决策 (对冲/仓位/多标的联动)、多维度风险评估、长周期趋势研判。
@@ -436,8 +438,8 @@ def _chat_ollama(
     system: str = "",
     temperature: float = 0.3,
     max_tokens: int = 2000,
-    model: Optional[str] = None,
-) -> Optional[str]:
+    model: str | None = None,
+) -> str | None:
     try:
         _start_ollama_server()
         env = os.environ.copy()
@@ -469,8 +471,8 @@ def _chat_ollama_api(
     system: str = "",
     temperature: float = 0.3,
     max_tokens: int = 2000,
-    model: Optional[str] = None,
-) -> Optional[str]:
+    model: str | None = None,
+) -> str | None:
     try:
         _start_ollama_server()
         use_model = model or OLLAMA_MODEL
@@ -494,7 +496,7 @@ def _chat_ollama_api(
 
 def chat(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
-) -> Optional[str]:
+) -> str | None:
     """多级降级聊天调用 (DeepSeek 优先 + MC2 熔断器)
 
     MC2 修复:
@@ -529,7 +531,7 @@ def chat(
 
 def generate_analysis(
     prompt: str, temperature: float = 0.3, max_tokens: int = 2000
-) -> Optional[str]:
+) -> str | None:
     """生成分析文本（兼容旧接口）"""
     return chat(
         prompt=prompt,
@@ -541,7 +543,7 @@ def generate_analysis(
 
 def chat_deep(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4000
-) -> Optional[str]:
+) -> str | None:
     """深度思考模式：使用 DeepSeek R1 (deepseek-reasoner) 推理模型进行复杂决策分析
 
     适用于：
@@ -578,7 +580,7 @@ def chat_deep(
 
 def _chat_ollama_deep_api(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4000
-) -> Optional[str]:
+) -> str | None:
     """深度推理模型的 API 调用，支持提取 reasoning_content"""
     try:
         _start_ollama_server()

@@ -21,7 +21,6 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -57,8 +56,8 @@ def norm_cdf(x: float) -> float:
 def bs_put_price(spot: float, strike: float, dte: int, iv: float, r: float = 0.02) -> float:
     if spot <= 0 or strike <= 0 or dte <= 0 or iv <= 0:
         return 0.0
-    T = dte / 365.0
-    sqrtT = math.sqrt(T)
+    T = dte / 365.0  # noqa: N806
+    sqrtT = math.sqrt(T)  # noqa: N806
     d1 = (math.log(spot / strike) + (r + 0.5 * iv * iv) * T) / (iv * sqrtT)
     d2 = d1 - iv * sqrtT
     return strike * math.exp(-r * T) * norm_cdf(-d2) - spot * norm_cdf(-d1)
@@ -67,8 +66,8 @@ def bs_put_price(spot: float, strike: float, dte: int, iv: float, r: float = 0.0
 def bs_call_price(spot: float, strike: float, dte: int, iv: float, r: float = 0.02) -> float:
     if spot <= 0 or strike <= 0 or dte <= 0 or iv <= 0:
         return 0.0
-    T = dte / 365.0
-    sqrtT = math.sqrt(T)
+    T = dte / 365.0  # noqa: N806
+    sqrtT = math.sqrt(T)  # noqa: N806
     d1 = (math.log(spot / strike) + (r + 0.5 * iv * iv) * T) / (iv * sqrtT)
     d2 = d1 - iv * sqrtT
     return spot * norm_cdf(d1) - strike * math.exp(-r * T) * norm_cdf(d2)
@@ -219,7 +218,7 @@ def total_value(state: BacktestState, px: dict[str, float], codes: list[str]) ->
 
 def roll_options(state: BacktestState, px: dict[str, float], iv_row: pd.Series,
                  current_i: int, hedge_ratio: float = HEDGE_RATIO_BASE,
-                 collar: bool = False, conditional_vol: Optional[float] = None,
+                 collar: bool = False, conditional_vol: float | None = None,
                  vol_threshold: float = 0.18) -> None:
     for opt in state.option_positions:
         if current_i >= opt.expiry_date:
@@ -295,7 +294,7 @@ def roll_options(state: BacktestState, px: dict[str, float], iv_row: pd.Series,
         ))
 
 
-def run_strategy(prices: pd.DataFrame, tw: dict[str, float], iv_df: pd.DataFrame,
+def run_strategy(prices: pd.DataFrame, tw: dict[str, float], iv_df: pd.DataFrame,  # noqa: C901
                  strategy: str) -> tuple[list[float], BacktestState]:
     codes = [c for c in tw if c in prices.columns]
     state = BacktestState()
@@ -304,7 +303,7 @@ def run_strategy(prices: pd.DataFrame, tw: dict[str, float], iv_df: pd.DataFrame
     peak = INITIAL_CAPITAL
     list(prices.index)
 
-    for i, (date, row) in enumerate(prices.iterrows()):
+    for i, (_date, row) in enumerate(prices.iterrows()):
         px = {c: row[c] for c in codes if c in row and not np.isnan(row[c])}
         iv_row = iv_df.iloc[i] if i < len(iv_df) else None
 
@@ -416,10 +415,10 @@ def format_report(results: dict, prices: pd.DataFrame, states: dict) -> str:
     lines.append("  ETF期权对冲子组合 — 最优方案回测 v2 (真实期权保护模拟 + 动态IV)")
     lines.append("=" * 110)
     lines.append(f"  回测区间: {prices.index[0].date()} ~ {prices.index[-1].date()} | 初始资金: {INITIAL_CAPITAL:,}元")
-    lines.append(f"  ETF数: {len(prices.columns)} | 期权标的: {sorted(OPTION_UNDERLYING_ETFS)} | 期权乘数: {OPTION_MULTIPLIER}")
+    lines.append(f"  ETF数: {len(prices.columns)} | 期权标的: {sorted(OPTION_UNDERLYING_ETFS)} | 期权乘数: {OPTION_MULTIPLIER}")  # noqa: E501
     lines.append(f"  OTM: {OTM_PCT*100:.0f}% | 滚仓周期: {OPTION_ROLL_DAYS}天 | 基准: {BENCHMARK}")
     lines.append("")
-    lines.append(f"{'策略':<32} {'年化%':>7} {'回撤%':>7} {'Sharpe':>7} {'Sortino':>7} {'Calmar':>7} {'胜率%':>6} {'期末':>12} {'权利金':>10} {'赔付':>10}")
+    lines.append(f"{'策略':<32} {'年化%':>7} {'回撤%':>7} {'Sharpe':>7} {'Sortino':>7} {'Calmar':>7} {'胜率%':>6} {'期末':>12} {'权利金':>10} {'赔付':>10}")  # noqa: E501
     lines.append("-" * 115)
     for name, m in results.items():
         s = states.get(name)
@@ -437,7 +436,7 @@ def format_report(results: dict, prices: pd.DataFrame, states: dict) -> str:
         key=lambda k: results[k]["sharpe"],
     )
     best = results[best_name]
-    lines.append(f"  最优策略(Sharpe): {best_name} — 年化 {best['annual_return']*100:.2f}% / 回撤 {best['max_drawdown']*100:.2f}% / Sharpe {best['sharpe']:.3f}")
+    lines.append(f"  最优策略(Sharpe): {best_name} — 年化 {best['annual_return']*100:.2f}% / 回撤 {best['max_drawdown']*100:.2f}% / Sharpe {best['sharpe']:.3f}")  # noqa: E501
     target_achieved = best["annual_return"] >= 0.08 and best["max_drawdown"] < 0.15
     lines.append(f"  达标: {'是' if target_achieved else '否'} (年化>8% 且 回撤<15%)")
     lines.append("")
@@ -458,7 +457,7 @@ def format_report(results: dict, prices: pd.DataFrame, states: dict) -> str:
     return "\n".join(lines)
 
 
-def main():
+def main() -> None:
     logger.info("加载配置 %s", CONFIG_PATH)
     cfg = load_config()
     tw = extract_target_weights(cfg)

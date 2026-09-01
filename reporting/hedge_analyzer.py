@@ -5,10 +5,11 @@
   - calculate_hedge_effectiveness: 计算对冲有效性
   - analyze_hedge_positions_plan: 分析期货期权计划头寸
 """
+from __future__ import annotations
 
 import math
 from datetime import datetime as _dt
-from typing import Any, Optional
+from typing import Any
 
 from reporting.price_fetcher import fetch_sina_realtime
 
@@ -61,8 +62,8 @@ def _estimate_option_expiry() -> str:
 
 
 def _resolve_option_underlying_price(
-    underlying: str, market_prices: Optional[dict]
-) -> Optional[float]:
+    underlying: str, market_prices: dict | None
+) -> float | None:
     """从 market_prices 解析期权标的今日收盘价。
 
     fill 文件中 underlying 可能为 '510300' / '510300.SH' / '510050'，
@@ -194,7 +195,7 @@ def _fetch_if_close_from_provider(
 
 
 def analyze_hedge_position(
-    hedge_data: dict[str, Any], data_provider=None, market_prices: Optional[dict] = None
+    hedge_data: dict[str, Any], data_provider=None, market_prices: dict | None = None
 ) -> dict[str, Any]:
     """分析对冲头寸
 

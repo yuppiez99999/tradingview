@@ -55,7 +55,7 @@ class TestFetchFutures:
         # Arrange & Act
         with patch(
             "utils.hedge_engine.get_live_futures_prices",
-            side_effect=Exception("连接失败"),
+            side_effect=RuntimeError("连接失败"),
         ):
             result = fetcher.fetch_futures(["IF", "IC"])
         # Assert
@@ -215,7 +215,8 @@ class TestFallbackStatus:
     def test_flags_reset_on_each_fetch(self, fetcher: HedgeToolDataFetcher) -> None:
         # Arrange — 第一次获取产生降级标记
         with patch(
-            "utils.hedge_engine.get_live_futures_prices", side_effect=Exception("失败")
+            "utils.hedge_engine.get_live_futures_prices",
+            side_effect=RuntimeError("失败"),
         ):
             fetcher.fetch_futures(["IF"])
         assert len(fetcher.get_fallback_status()) > 0
@@ -251,7 +252,7 @@ class TestFetchAll:
         # Arrange & Act — 全链失效时返回兜底价格并标记降级
         with patch(
             "utils.hedge_engine.get_live_futures_prices",
-            side_effect=Exception("全链失效"),
+            side_effect=RuntimeError("全链失效"),
         ):
             result = fetcher.fetch_all(
                 futures_codes=["IF"], etf_option_codes=["510300"], reverse_etf_codes=[]

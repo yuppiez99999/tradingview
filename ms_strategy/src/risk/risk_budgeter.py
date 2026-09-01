@@ -10,11 +10,11 @@ v7.5 风险预算器 —— Risk Parity + 改进 Kelly + 三级回撤防御
 与 v7.4 的关系：替代 enhanced_risk_manager.py 中的固定阈值方法，
 引入完整的风险预算框架。
 """
+from __future__ import annotations
 
 import logging
 from collections import deque
 from datetime import datetime, timedelta
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -49,7 +49,7 @@ class RiskBudgeter:
             self.hwm_window.append(total_capital)
         self.mode = "NORMAL"                # NORMAL / DEFENSE / CIRCUIT_BREAKER
         self.position_multiplier = 1.0
-        self.circuit_break_until: Optional[datetime] = None
+        self.circuit_break_until: datetime | None = None
 
         # 历史记录
         self.dd_history = deque(maxlen=252)
@@ -63,7 +63,7 @@ class RiskBudgeter:
     # ============================================================
 
     def update_drawdown(self, equity: float,
-                        ts: Optional[datetime] = None) -> str:
+                        ts: datetime | None = None) -> str:
         """更新回撤并返回当前模式"""
         self.hwm_window.append(equity)
         self.hwm = max(self.hwm_window) if self.hwm_window else max(self.hwm, equity)

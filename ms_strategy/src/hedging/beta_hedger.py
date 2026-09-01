@@ -206,7 +206,7 @@ class BetaHedger:
                 if rt and rt.get("index_price"):
                     logger.debug("AKShare 期货实时价格 %s = %s", symbol, rt["index_price"])
                     return float(rt["index_price"])
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("AKShare 期货价格获取失败 %s: %s", symbol, e)
         # HG-1: AKShare 实时价格不可用时回退到硬编码配置价 (IF=3800/IC=5500/IM=5800)。

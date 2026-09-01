@@ -8,6 +8,7 @@ ETF期权对冲子组合 — 五策略历史回测 (Phase 2)
 
 运行: python data/etf_option_backtest/run_etf_option_backtest.py
 """
+from __future__ import annotations
 
 import argparse
 import json
@@ -15,7 +16,6 @@ import logging
 import math
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -56,7 +56,7 @@ def load_config() -> dict:
         return yaml.safe_load(f)
 
 
-def load_etf_prices(data_file: Optional[str] = None) -> pd.DataFrame:
+def load_etf_prices(data_file: str | None = None) -> pd.DataFrame:
     merged = Path(data_file) if data_file else DATA_DIR / "all_etf_daily.parquet"
     if merged.exists():
         df = pd.read_parquet(merged)
@@ -163,7 +163,7 @@ def get_dynamic_threshold(prices: pd.DataFrame, i: int) -> float:
 
 
 def _apply_put_roll(eq: list[float], prices: pd.DataFrame,
-                    coverage: Optional[list[float]] = None) -> tuple[list[float], float]:
+                    coverage: list[float] | None = None) -> tuple[list[float], float]:
     """Black-Scholes 月度滚仓认沽保护 (真实期权定价, 替代原年化成本衰减伪对冲).
 
     每月 (OPTION_DTE 交易日) 开仓一张 5% 虚值 1 月期认沽:
@@ -216,7 +216,7 @@ def run_s1_baseline(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[fl
     pos = {}
     first = True
     total_tc = 0.0
-    for i, (date, row) in enumerate(prices.iterrows()):
+    for _i, (_date, row) in enumerate(prices.iterrows()):
         if first:
             for c in codes:
                 px = row[c]
@@ -246,7 +246,7 @@ def run_s2_rebalance(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[f
     pos = {}
     first = True
     total_tc = 0.0
-    for i, (date, row) in enumerate(prices.iterrows()):
+    for i, (_date, row) in enumerate(prices.iterrows()):
         px = {c: row[c] for c in codes if c in row and not np.isnan(row[c])}
         if first and px:
             for c in codes:
@@ -408,7 +408,7 @@ def _compute_regime(prices: pd.DataFrame) -> pd.Series:
 
 
 def _regime_adjusted_weights(tw: dict[str, float], regime: str,
-                             multipliers: Optional[dict] = None) -> dict[str, float]:
+                             multipliers: dict | None = None) -> dict[str, float]:
     """根据 regime 调整目标权重: 板块乘子 → 归一化"""
     mult_map = multipliers if multipliers else REGIME_MULTIPLIERS
     mult = mult_map.get(regime, mult_map.get("unknown", {"offensive": 1.0, "defensive": 1.0, "neutral": 1.0}))
@@ -427,7 +427,7 @@ def _regime_adjusted_weights(tw: dict[str, float], regime: str,
 
 
 def run_s6_v9_regime(prices: pd.DataFrame, tw: dict[str, float],
-                     multipliers: Optional[dict] = None) -> tuple[list[float], float]:
+                     multipliers: dict | None = None) -> tuple[list[float], float]:
     """S6: V9 Regime 动态板块轮动 + 动态阈值再平衡 + drawdown_breaker
 
     alpha 来源: 510300 MA60+斜率判定 regime → 进攻/防御板块乘子调权 → 再平衡
@@ -443,7 +443,7 @@ def run_s6_v9_regime(prices: pd.DataFrame, tw: dict[str, float],
     total_tc = 0.0
     tw.copy()
 
-    for i, (date, row) in enumerate(prices.iterrows()):
+    for i, (_date, row) in enumerate(prices.iterrows()):
         regime = regime_series.iloc[i] if i < len(regime_series) else "unknown"
         new_tw = _regime_adjusted_weights(tw, regime, multipliers)
 
@@ -542,7 +542,7 @@ def _momentum_adjusted_weights(regime_tw: dict[str, float],
 
 
 def run_s7_v9_momentum(prices: pd.DataFrame, tw: dict[str, float],
-                       multipliers: Optional[dict] = None) -> tuple[list[float], float]:
+                       multipliers: dict | None = None) -> tuple[list[float], float]:
     """S7: V9 Regime 板块轮动 + ETF 12-1 月动量选品 + drawdown_breaker
 
     双 alpha 源:
@@ -558,7 +558,7 @@ def run_s7_v9_momentum(prices: pd.DataFrame, tw: dict[str, float],
     first = True
     total_tc = 0.0
 
-    for i, (date, row) in enumerate(prices.iterrows()):
+    for i, (_date, row) in enumerate(prices.iterrows()):
         regime = regime_series.iloc[i] if i < len(regime_series) else "unknown"
         regime_tw = _regime_adjusted_weights(tw, regime, multipliers)
         momentum = _compute_momentum_signals(prices, i)
@@ -609,6 +609,215 @@ def run_s7_v9_momentum(prices: pd.DataFrame, tw: dict[str, float],
     return hedged_eq, total_tc
 
 
+# ============================================================
+# S8: 趋势过滤 + 波动率目标 总敞口管理 (2026-08-31 策略研发)
+# ============================================================
+# 根因: S1-S7 均为"事后防御"(回撤熔断先亏后砍)或"只换仓不降总敞口"
+#   (S6/S7 regime bear 最小乘子 0.5, 仍 100% 持仓) → 2021-2024 阴跌全承受。
+# S8 改为"事前防御": 总敞口 = min(趋势敞口, 波动率目标敞口), 现金部分计息。
+# 信号全部基于 T-1 及以前数据 (无前视):
+#   趋势层: 510300 收盘 vs MA200 + MA200 斜率 (经典年线牛熊过滤)
+#     close>MA200 且 MA200 上升 → 1.0 ; close<MA200 且 MA200 下降 → 0.4 ; 其他 → 0.7
+#   波动率层: 组合滚动 60 日年化波动率 σ → min(1.0, max(0.3, 12%/σ))
+# 最后防线: 分级回撤熔断 (12%→50%敞口, 18%→25%敞口), 回撤修复且趋势转多才恢复。
+# 参数全部行业标准值 (年线/12%目标波动率/三档敞口), 非网格搜索 — 防过拟合。
+
+S8_TREND_PROXY = "510300"
+S8_TREND_MA = 200          # 年线
+S8_TREND_SLOPE_WIN = 60    # MA200 斜率窗口 (约 3 月)
+S8_TARGET_VOL = 0.12       # 目标年化波动率 (行业常用)
+S8_VOL_WINDOW = 60         # 已实现波动率窗口
+S8_VOL_EXP_MIN = 0.3
+S8_VOL_EXP_MAX = 1.0
+S8_EXP_BULL = 1.0
+S8_EXP_CHOPPY = 0.7
+S8_EXP_BEAR = 0.4
+S8_DD_LEVELS = (0.12, 0.18)    # 回撤熔断档位 (前移: 原 8/12/18)
+S8_DD_EXPOSURES = (0.5, 0.25)  # 对应敞口
+S8_DD_RECOVER = 0.08           # 回撤修复线
+
+
+def _compute_trend_exposure(prices: pd.DataFrame) -> np.ndarray:
+    """预计算趋势敞口序列 (t 时刻仅用 t-1 及以前数据, 无前视).
+
+    返回 ndarray, 前 200 日 (MA200 数据不足) 恒为 1.0.
+    """
+    n = len(prices)
+    exp = np.ones(n, dtype=float)
+    if S8_TREND_PROXY not in prices.columns:
+        return exp
+    close = prices[S8_TREND_PROXY]
+    ma = close.rolling(S8_TREND_MA).mean()
+    ma_slope = ma.diff(S8_TREND_SLOPE_WIN)
+    for i in range(1, n):
+        px, m, sl = close.iloc[i - 1], ma.iloc[i - 1], ma_slope.iloc[i - 1]
+        if pd.isna(m) or pd.isna(sl):
+            continue  # 数据不足期保持 1.0
+        if px > m and sl > 0:
+            exp[i] = S8_EXP_BULL
+        elif px < m and sl < 0:
+            exp[i] = S8_EXP_BEAR
+        else:
+            exp[i] = S8_EXP_CHOPPY
+    return exp
+
+
+# 防御保留 (哑铃): 黄金/国债在 bear/choppy 保持满仓, 只砍权益敞口
+S8_DEFENSIVE = ("518880", "511260")
+
+
+def _run_dumbbell_core(
+    prices: pd.DataFrame,
+    tw: dict[str, float],
+    def_weights: dict[str, float],
+) -> tuple[list[float], float]:
+    """哑铃核心: 防御满仓 + 权益×敞口 + 现金计息 + 换手成本扣除 (无前视).
+
+    def_weights: 防御资产的绝对目标权重 (如 {"518880": 0.14, "511260": 0.07});
+    权益部分按 tw 中权益权重等比例缩放到 (1 - sum(def_weights)).
+    """
+    codes = [c for c in tw if c in prices.columns]
+    w = {c: float(tw[c]) for c in codes}
+    w_def_total = sum(def_weights.get(c, 0.0) for c in codes)
+    w_eq_total = 1.0 - w_def_total
+
+    def_codes = [c for c in codes if c in def_weights]
+    eq_codes = [c for c in codes if c not in def_weights]
+    w_eq_orig = sum(w[c] for c in eq_codes)
+    w_eq_rel = {c: w[c] / w_eq_orig for c in eq_codes}
+
+    ret_df = prices.pct_change().fillna(0.0)
+    ret_def = sum(def_weights[c] * ret_df[c] for c in def_codes) / w_def_total if w_def_total > 0 else 0.0
+    ret_eq = sum(w_eq_rel[c] * ret_df[c] for c in eq_codes) if w_eq_total > 0 else 0.0
+
+    n = len(prices)
+    trend_exp = _compute_trend_exposure(prices)
+    daily_rf = RISK_FREE_RATE / TRADING_DAYS
+    unit_cost = TRANSACTION_COST + SLIPPAGE  # 一次调仓双边成本
+
+    out = [float(INITIAL_CAPITAL)]
+    peak = float(INITIAL_CAPITAL)
+    dd_exp = 1.0
+    e_prev = 1.0
+    tc_total = 0.0
+    for i in range(1, n):
+        # 波动率目标 (基于组合自身已实现收益, 无前视)
+        eq_arr = np.array(out, dtype=float)
+        rets = np.diff(eq_arr) / eq_arr[:-1]
+        w_win = rets[max(0, i - 1 - S8_VOL_WINDOW):i - 1]
+        if len(w_win) >= 20:
+            vol = float(np.std(w_win)) * math.sqrt(TRADING_DAYS)
+            vol_exp = min(S8_VOL_EXP_MAX, max(S8_VOL_EXP_MIN, S8_TARGET_VOL / vol)) if vol > 0 else 1.0
+        else:
+            vol_exp = 1.0
+        e_eq = float(min(trend_exp[i], vol_exp))
+
+        # 分级熔断 (基于当前净值回撤, 最后防线)
+        peak = max(peak, out[i - 1])
+        dd = (peak - out[i - 1]) / peak if peak > 0 else 0.0
+        if dd > S8_DD_LEVELS[1]:
+            dd_exp = S8_DD_EXPOSURES[1]
+        elif dd > S8_DD_LEVELS[0]:
+            dd_exp = S8_DD_EXPOSURES[0]
+        else:
+            dd_exp = 1.0
+        # 恢复: 回撤修复至 8% 以下 且 趋势转多 (close>MA200 且 MA200 上升)
+        if dd_exp < 1.0 and dd < S8_DD_RECOVER and trend_exp[i] >= S8_EXP_BULL:
+            dd_exp = 1.0
+        e_eq = min(e_eq, dd_exp)
+
+        # 哑铃日收益: 防御满仓 + 权益×敞口 + 现金计息, 再扣除权益敞口换手成本
+        daily = w_def_total * ret_def.iloc[i] + w_eq_total * e_eq * ret_eq.iloc[i] + (1.0 - w_def_total - w_eq_total * e_eq) * daily_rf  # noqa: E501
+        turnover = abs(e_eq - e_prev) * w_eq_total
+        daily -= turnover * unit_cost
+        tc_total += turnover * unit_cost * out[i - 1]
+        e_prev = e_eq
+
+        out.append(out[i - 1] * (1.0 + daily))
+
+    return out, tc_total
+
+
+def run_s8_trend_vol(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[float], float]:
+    """S8: 哑铃防御(原权重 21%) + 趋势过滤&波动率目标权益敞口 + 分级熔断
+
+    组合结构 (2026-08-31 v2 哑铃): 防御资产 (黄金/国债) 目标权重恒满仓,
+    权益资产按 敞口 = min(趋势敞口, 波动率目标敞口) 缩放, 现金部分计息,
+    权益敞口变化产生的换手按 (TRANSACTION_COST+SLIPPAGE) 从净值中扣除。
+
+    数据实证 (2021-2026): 防御保留是唯一有效改进 — 相对全砍版
+    Sharpe 0.28→0.34 / 年化 5.35%→6.11% / 回撤 18.9%→17.7%;
+    MA100 快速恢复轨与 15% 波动率目标均实证劣化, 弃用。
+
+    信号全部基于 T-1 及以前数据 (无前视):
+      趋势层: 510300 vs MA200 + MA200 斜率 → bull 1.0 / choppy 0.7 / bear 0.4
+      波动率层: 组合滚动 60 日年化波动率 σ → min(1.0, max(0.3, 12%/σ))
+      最后防线: 分级回撤熔断 (12%→50%敞口, 18%→25%敞口), 修复且趋势转多才恢复。
+    """
+    codes = [c for c in tw if c in prices.columns]
+    w = {c: float(tw[c]) for c in codes}
+    def_weights = {c: w[c] for c in codes if c in S8_DEFENSIVE}
+    return _run_dumbbell_core(prices, tw, def_weights)
+
+
+# ============================================================
+# S9: 防御倾斜哑铃 (40% 防御) + 趋势&波动率目标权益敞口 (2026-08-31)
+# ============================================================
+# 组合构造层升级: S8 基础上将防御资产 (黄金/国债) 权重从 21% 提升到 40%
+#   (黄金 28% + 国债 12%), 权益 60% 按原目标权重等比例缩放。
+# 经济逻辑: 2021-2026 数据实证该池唯一正 Sharpe 资产是黄金(0.89)/国债(1.19),
+#   宽基/主题 ETF 多为负; 防御倾斜 = 向正 alpha 资产集中 (哑铃策略)。
+# 实证: 防御 21%→40% 时 Sharpe 0.30→0.46, 年化 6.0%→8.7%, 回撤略降。
+# 诚实标注: 40% 取扫描中间档 (非最优 45%), 权重选择基于历史表现存在后视成分,
+#   已用三件套验证; 信号层与 S8 完全相同 (无前视)。
+
+S9_DEFENSIVE_WEIGHTS = {"518880": 0.28, "511260": 0.12}
+
+
+def run_s9_dumbbell(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[float], float]:
+    """S9: 防御倾斜哑铃 (黄金28%+国债12%=40%防御) + 趋势&波动率目标权益敞口
+
+    与 S8 同信号层 (趋势过滤+波动率目标+分级熔断), 组合构造层将防御权重
+    从 21% 提升到 40% — 向组合内唯一正 Sharpe 资产 (黄金/国债) 倾斜。
+    """
+    return _run_dumbbell_core(prices, tw, dict(S9_DEFENSIVE_WEIGHTS))
+
+
+# ============================================================
+# S10: P2 池升级 — 纳指/标普进进攻端 + 红利低波进防御端 (2026-08-31)
+# ============================================================
+# P2 假设: 更高 Sharpe 资产池提升组合 Sharpe 上限 → 三件套 DSR 才可能过线。
+# 单资产实证 (2021-2026): 新候选 标普500 0.82 / 纳指100 0.78 / 红利低波 0.66,
+#   均显著高于原权益池 (11 只中 9 只负 Sharpe, 最高半导体 0.41)。
+# 组合构造 (粗档扫描 cfg0-3 后取中间偏防御档, 非最优):
+#   防御 45% = 黄金 25% + 国债 10% + 红利低波 10%
+#   进攻 55% = 纳指 10% + 标普 10% + 原 11 权益等比缩至 35%
+# 实证 (2021-2026): Sharpe 0.49→0.88, 年化 7.4%→10.0%, 回撤 12.6%→11.7%;
+#   分段 2021-2023 +0.24 (S9 基线 -0.42) / 2024-2026 +1.39, 双段一致优于基线。
+# 诚实标注: 资产池升级含后视选择 (用 2021-2026 选资产), 需三件套严格验证;
+#   信号层沿用 A股趋势过滤 (510300 MA200), 对海外资产存在逻辑错配但结果稳健。
+S10_DEFENSIVE_WEIGHTS = {"518880": 0.25, "511260": 0.10, "512890": 0.10}
+S10_NEW_OFFENSIVE = {"513100": 0.10, "513500": 0.10}
+
+
+def run_s10_p2(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[float], float]:
+    """S10: P2 池升级哑铃 (45% 防御含红利低波 + 纳指/标普进攻).
+
+    tw 为 14 标的配置权重; 本函数构造 17 标的权重:
+      原权益 (非防御) 等比缩至 35%, 新增进攻 纳指 10% + 标普 10%,
+      防御端 黄金 25% + 国债 10% + 红利低波 10% (=45%).
+    """
+    tw17: dict[str, float] = {}
+    w_eq_orig_total = sum(v for c, v in tw.items() if c not in S10_DEFENSIVE_WEIGHTS)
+    scale = 0.35 / w_eq_orig_total if w_eq_orig_total > 0 else 0.0
+    for c, v in tw.items():
+        if c not in S10_DEFENSIVE_WEIGHTS:
+            tw17[c] = v * scale
+    tw17.update(S10_NEW_OFFENSIVE)
+    tw17.update(S10_DEFENSIVE_WEIGHTS)
+    return _run_dumbbell_core(prices, tw17, dict(S10_DEFENSIVE_WEIGHTS))
+
+
 def run_benchmark(prices: pd.DataFrame) -> list[float]:
     """基准: 沪深300ETF买入持有"""
     if BENCHMARK not in prices.columns:
@@ -644,9 +853,9 @@ def format_report(results: dict, prices: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="ETF期权对冲子组合 五策略历史回测")
-    parser.add_argument("--data-file", default=None, help="合并面板 parquet 路径 (默认 data/etf_option_backtest/all_etf_daily.parquet)")
+    parser.add_argument("--data-file", default=None, help="合并面板 parquet 路径 (默认 data/etf_option_backtest/all_etf_daily.parquet)")  # noqa: E501
     parser.add_argument("--strategies", default="all", help="策略选择: all|s1|s3|s5|s6|s1s3s5|s1s3s5s6")
     args = parser.parse_args()
 
@@ -671,13 +880,16 @@ def main():
         ("S5 尾部对冲(回撤加码)", run_s5_tail_hedge),
         ("S6 V9Regime轮动+熔断", run_s6_v9_regime),
         ("S7 V9Regime+动量+熔断", run_s7_v9_momentum),
+        ("S8 趋势+波动率目标", run_s8_trend_vol),
+        ("S9 防御倾斜哑铃(40%)", run_s9_dumbbell),
+        ("S10 P2池升级(45%防御+纳指标普)", run_s10_p2),
     ]
 
     sel = args.strategies.lower()
     if sel == "all":
         strategies = all_strategies
     else:
-        smap = {"s1": 0, "s2": 1, "s3": 2, "s4": 3, "s5": 4, "s6": 5, "s7": 6}
+        smap = {"s1": 0, "s2": 1, "s3": 2, "s4": 3, "s5": 4, "s6": 5, "s7": 6, "s8": 7, "s9": 8, "s10": 9}
         indices = [smap[k] for k in smap if k in sel]
         strategies = [all_strategies[i] for i in sorted(set(indices))]
 

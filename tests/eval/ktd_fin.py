@@ -43,7 +43,7 @@ import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 logger = logging.getLogger("ktd_fin")
 
@@ -423,7 +423,7 @@ class MemoryLeakDetector:
         self,
         original_result: dict[str, Any],
         masked_result: dict[str, Any],
-        attribution: Optional[AttributionResult] = None,
+        attribution: AttributionResult | None = None,
     ) -> LeakAssessment:
         """检测记忆泄漏。
 
@@ -526,7 +526,7 @@ class KTDFinBenchmark:
         self,
         agent: AgentProtocol,
         data: list[MarketDataPoint],
-        factor_exposures: Optional[dict[str, list[float]]] = None,
+        factor_exposures: dict[str, list[float]] | None = None,
     ) -> LeakAssessment:
         """评估代理是否存在记忆泄漏。
 

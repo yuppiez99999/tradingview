@@ -760,7 +760,8 @@ def test_execution_audit_contains_escalation_field():
     )
     assert len(audit_files) > 0, "审计文件未生成"
     with open(os.path.join(_EXEC_AUDIT_DIR, audit_files[0]), encoding="utf-8") as fh:
-        record = json.loads(fh.readline())
+        records = [json.loads(line) for line in fh if line.strip()]
+    record = records[-1]
     assert "escalation" in record
     assert record["escalation"] is True
     assert "escalation_reason" in record
@@ -1071,7 +1072,8 @@ def test_tca_audit_record_contains_tca_fields():
         with open(
             os.path.join(_EXEC_AUDIT_DIR, audit_files[-1]), encoding="utf-8"
         ) as fh:
-            record = json.loads(fh.readline())
+            records = [json.loads(line) for line in fh if line.strip()]
+        record = records[-1]
         assert "tca_pre_estimate" in record
         assert record["tca_pre_estimate"] is not None
         assert "tca_post_report" in record

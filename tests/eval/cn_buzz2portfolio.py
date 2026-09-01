@@ -36,7 +36,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("cn_buzz2portfolio")
 
@@ -333,7 +333,7 @@ class PortfolioConstructor:
         self,
         news_items: list[NewsItem],
         industry_buzz: dict[str, dict[str, float]],
-        current_weights: Optional[dict[str, float]] = None,
+        current_weights: dict[str, float] | None = None,
     ) -> PortfolioConfig:
         """构建投资组合配置。
 
@@ -432,7 +432,7 @@ class TriStageCPAAgent:
     def run(
         self,
         news_items: list[NewsItem],
-        current_weights: Optional[dict[str, float]] = None,
+        current_weights: dict[str, float] | None = None,
     ) -> PortfolioConfig:
         """运行三阶段 CPA 代理。
 
@@ -484,7 +484,7 @@ class CNBuzz2PortfolioBenchmark:
     def run(
         self,
         news_items: list[NewsItem],
-        current_weights: Optional[dict[str, float]] = None,
+        current_weights: dict[str, float] | None = None,
     ) -> PortfolioConfig:
         """运行基准测试。
 

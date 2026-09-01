@@ -12,7 +12,8 @@
     - PipelineOrchestrator.__init__(config: Optional[PipelineConfig] = None)
     - run_full_cycle(mode="auto", market_data=None, symbols=None, current_positions=None) -> PipelineResult
     - PipelineResult: stage(PipelineStage) / success / error / metrics / reports
-    - PipelineStage: IDLE / DATA_CLEANING / ALPHA_GENERATION / BACKTEST_GATE / EXECUTION / RISK_MONITOR / COMPLETED / FAILED
+    - PipelineStage: IDLE / DATA_CLEANING / ALPHA_GENERATION / BACKTEST_GATE / EXECUTION / RISK_MONITOR / COMPLETED /
+    FAILED
     - orchestrator._alpha 是 AlphaPipeline 实例 (可 monkeypatch)
     - orchestrator._status 是 PipelineStatus 实例, get_status() 返回 to_dict()
 """

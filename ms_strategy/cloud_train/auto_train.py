@@ -138,7 +138,7 @@ def download_model_files(obs_client):
             continue
         if not key.endswith((".pkl", ".lgb.txt", ".csv", ".json")):
             continue
-        if "runtime_info" in key or "global_status" in key or "pod_fault" in key or "runningCount" in key or "core-dump" in key:
+        if "runtime_info" in key or "global_status" in key or "pod_fault" in key or "runningCount" in key or "core-dump" in key:  # noqa: E501
             continue
         filename = os.path.basename(key)
         local_path = model_dir / filename

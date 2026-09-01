@@ -239,14 +239,14 @@ class BacktestEngine:
 
         total_commission = sum(t["commission"] for t in self.trades)
         total_trades = len(self.trades)
-        avg_trade_amount = sum(t.get("total_cost", t.get("total_revenue", 0)) for t in self.trades) / max(total_trades, 1)
+        avg_trade_amount = sum(t.get("total_cost", t.get("total_revenue", 0)) for t in self.trades) / max(total_trades, 1)  # noqa: E501
 
         return {
             "status": "success",
             "initial_capital": self.initial_capital,
             "final_equity": self.equity_curve[-1]["equity"],
             "total_return": total_return,
-            "annualized_return": (1 + total_return) ** (252 / len(self.daily_pnl)) - 1 if len(self.daily_pnl) > 0 else 0,
+            "annualized_return": (1 + total_return) ** (252 / len(self.daily_pnl)) - 1 if len(self.daily_pnl) > 0 else 0,  # noqa: E501
             "avg_daily_return": avg_daily_return,
             "std_daily_return": std_daily_return,
             "sharpe_ratio": sharpe_ratio,
@@ -372,7 +372,7 @@ class BacktestDataLoader:
                         "raw_data": pos_data,
                     })
 
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
 
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue

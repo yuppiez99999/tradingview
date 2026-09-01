@@ -20,13 +20,14 @@
 - 实时行情和历史数据双通道
 - 风控前置检查(实盘模式)
 """
+from __future__ import annotations
 
 import json
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("broker_adapter")
 
@@ -62,9 +63,9 @@ class BrokerOrder:
         side: OrderSide,
         order_type: OrderType,
         quantity: int,
-        price: Optional[float] = None,
+        price: float | None = None,
         strategy: str = "P0_HEDGE",
-        tags: Optional[dict[str, str]] = None,
+        tags: dict[str, str] | None = None,
     ):
         self.order_id = f"{strategy}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{symbol}_{side.value}"
         self.symbol = symbol
@@ -80,7 +81,7 @@ class BrokerOrder:
         self.submitted_at = datetime.now()
         self.filled_at = None
         self.rejection_reason = None
-        self.execution_details = []
+        self.execution_details: list[Any] = []
 
     def to_dict(self) -> dict:
         return {
@@ -108,9 +109,9 @@ class BrokerAdapter(ABC):
     def __init__(self, config: dict[str, Any]):
         self.config = config
         self.api_client = None
-        self.order_log = []
-        self.fill_log = []
-        self.error_log = []
+        self.order_log: list[Any] = []
+        self.fill_log: list[Any] = []
+        self.error_log: list[Any] = []
         self.is_live = False
 
     @abstractmethod
@@ -188,9 +189,9 @@ class SimulatedBroker(BrokerAdapter):
             "stamp_tax": 0.0005,  # 印花税(卖出)
             "transfer_fee": 0.00001,  # 过户费
         }
-        self.pending_orders = []
-        self.filled_orders = []
-        self.position_book = {}
+        self.pending_orders: list[Any] = []
+        self.filled_orders: list[Any] = []
+        self.position_book: dict[str, Any] = {}
         self.account_balance = config.get("initial_balance", 50000000)  # 初始5000万
 
     def connect(self) -> bool:
@@ -502,11 +503,11 @@ class BrokerFactory:
 
 
 # 全局券商实例
-broker_instance: Optional[BrokerAdapter] = None
+broker_instance: BrokerAdapter | None = None
 
 
 def initialize_broker(
-    mode: str = "simulated", config: Optional[dict] = None
+    mode: str = "simulated", config: dict | None = None
 ) -> BrokerAdapter:
     """
     初始化券商适配器

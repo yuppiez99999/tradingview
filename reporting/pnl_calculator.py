@@ -9,17 +9,18 @@
 
 注: assess_data_source_health 已迁至 reporting/price_fetcher.py
 """
+from __future__ import annotations
 
 import json
 from pathlib import Path as _Path
-from typing import Any, Optional
+from typing import Any
 
 
 def calculate_pnl(
     positions_data: dict[str, Any],
     market_prices: dict[str, dict],
     align_hfq: bool = False,
-    hfq_date: Optional[str] = None,
+    hfq_date: str | None = None,
 ) -> dict[str, Any]:
     """计算持仓盈亏明细
 
@@ -293,7 +294,7 @@ def calculate_volatility(returns: list[float]) -> float:
     return variance**0.5
 
 
-def _extract_return_from_report(r: dict, f_name: str) -> Optional[float]:
+def _extract_return_from_report(r: dict, f_name: str) -> float | None:
     """从报告中提取单日净收益率，优先使用报告已计算的 net_pnl_pct。"""
     net = r.get("net_performance", {})
     pct = net.get("net_pnl_pct", None)
@@ -404,7 +405,7 @@ def calculate_max_drawdown(details: list) -> float:
     Args:
         details: 当前 pnl_data['details'] (保留参数以维持原签名, 函数内部未使用)
     """
-    pnl_history = []
+    pnl_history: list[Any] = []
     MAX_DAILY_RETURN = 0.20  # 单日收益率阈值，超过视为异常值  # noqa: N806
 
     # 1) 从 v8.3_institutional/reports/ 收集历史PnL
@@ -430,7 +431,7 @@ def calculate_max_drawdown(details: list) -> float:
 
 def count_stop_loss_status(details: list) -> dict:
     """统计止损状态"""
-    status_count = {}
+    status_count: dict[str, Any] = {}
     for d in details:
         status = d["status"]
         status_count[status] = status_count.get(status, 0) + 1

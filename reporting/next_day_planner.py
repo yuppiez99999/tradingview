@@ -3,11 +3,12 @@
 提供以下纯函数:
   - generate_next_day_plan: 生成第二天交易计划 (基于 auto_trade_plan_500w_2026-2030.json 的4阶段)
 """
+from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta
 from pathlib import Path as _Path
-from typing import Any, Optional
+from typing import Any
 
 # 阶段中文名映射
 _PHASE_NAMES: dict[str, str] = {
@@ -27,8 +28,8 @@ _PHASE_KEYS: tuple[str, ...] = (
 
 
 def _compute_next_trading_day(
-    report_date: Optional[str],
-) -> tuple[str, Optional[datetime], str, Optional[str]]:
+    report_date: str | None,
+) -> tuple[str, datetime | None, str, str | None]:
     """计算下一交易日及其星期信息。
 
     Args:
@@ -57,8 +58,8 @@ def _compute_next_trading_day(
 
 
 def _load_trade_plan(
-    project_root: Optional[_Path],
-) -> tuple[Optional[dict[str, Any]], Optional[str]]:
+    project_root: _Path | None,
+) -> tuple[dict[str, Any] | None, str | None]:
     """加载 auto_trade_plan_500w_2026-2030.json。
 
     Args:
@@ -86,7 +87,7 @@ def _load_trade_plan(
 
 
 def _determine_phase(
-    exec_plan: dict[str, Any], next_day: str, next_dt: Optional[datetime]
+    exec_plan: dict[str, Any], next_day: str, next_dt: datetime | None
 ) -> tuple[str, dict[str, Any]]:
     """判断次日所属阶段并计算 day_index。
 
@@ -375,8 +376,8 @@ def _build_hedge_action(
 
 
 def generate_next_day_plan(
-    report_date: Optional[str] = None,
-    project_root: Optional[_Path] = None,
+    report_date: str | None = None,
+    project_root: _Path | None = None,
 ) -> dict[str, Any]:
     """生成第二天交易计划 (基于 auto_trade_plan_500w_2026-2030.json 的4阶段)。
 

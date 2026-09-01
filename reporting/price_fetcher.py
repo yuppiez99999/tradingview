@@ -9,8 +9,9 @@
 模块级 _SINA_SESSION 与原 generate_daily_report.py 保持一致,
 绕过系统代理以避免国内金融 API 被代理拦截。
 """
+from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 # B-4.1: 统一无代理 Session 工厂 (绕过系统代理, 避免新浪 API 被拦截)
 from utils.http_session import make_no_proxy_session
@@ -148,7 +149,7 @@ def _validate_price_range(code: str, close: Any, cost_price: float) -> bool:
 
 def _fetch_price_from_provider(
     code: str, cost_price: float, data_provider: Any
-) -> Optional[dict]:
+) -> dict | None:
     """从 data_provider 获取单个标的的价格数据, 验证后返回价格字典或 None"""
     if not data_provider:
         return None
@@ -464,8 +465,8 @@ def _correct_price_anomalies(
 
 def fetch_market_prices(
     positions_data: dict[str, Any],
-    data_provider: Optional[Any] = None,
-    init_data_provider_fn: Optional[Any] = None,
+    data_provider: Any | None = None,
+    init_data_provider_fn: Any | None = None,
 ) -> dict[str, dict]:
     """获取所有持仓标的的收盘价格
 

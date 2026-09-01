@@ -44,7 +44,7 @@ def test_annual_phase_switching():
     assert p2026.leverage_target == 1.28, f"2026 杠杆目标错误: {p2026.leverage_target}"
     assert p2026.is_liquidation_year is False, "2026 不应为清仓年"
     print(
-        f"  ✅ 2026 建仓期 (目标 {p2026.target_return:.0%}, 回撤 {p2026.max_drawdown:.0%}, 杠杆 {p2026.leverage_target}x)"
+        f"  ✅ 2026 建仓期 (目标 {p2026.target_return:.0%}, 回撤 {p2026.max_drawdown:.0%}, 杠杆 {p2026.leverage_target}x)"  # noqa: E501
     )
 
     # 2027 主线兑现期
@@ -244,7 +244,7 @@ def test_liquidation_actions():
     assert q3["cash_allocation"]["reverse_repo"] == 0.50, "Q3 逆回购 50% 错误"
     assert q3["cash_allocation"]["money_market_fund"] == 0.30, "Q3 货基 30% 错误"
     print(
-        f"  ✅ Q3: {q3['name']} (逆回购 {q3['cash_allocation']['reverse_repo']:.0%}+货基 {q3['cash_allocation']['money_market_fund']:.0%})"
+        f"  ✅ Q3: {q3['name']} (逆回购 {q3['cash_allocation']['reverse_repo']:.0%}+货基 {q3['cash_allocation']['money_market_fund']:.0%})"  # noqa: E501
     )
 
     q4 = pm.get_liquidation_actions(date(2030, 11, 15))

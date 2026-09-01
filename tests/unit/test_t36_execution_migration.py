@@ -348,8 +348,10 @@ class TestMigrationIntegrity:
     def test_migrated_files_are_large(self):
         """迁移后的文件应保留完整代码."""
         # 迁移后的文件应 > 原文件大小 * 0.9 (允许路径修正带来的微小变化)
+        # automated_execution_system.py 阈值按拆分后现状更新 (commit 6a1cba92
+        # 有意拆分 2691→1860 行, 67KB 为拆分后合理大小)
         files = [
-            ("automated_execution_system.py", 90000),
+            ("automated_execution_system.py", 60000),
             ("daily_build_and_hedge.py", 45000),
             ("rebalance_execution_orders.py", 8000),
         ]

@@ -22,7 +22,7 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 
@@ -75,10 +75,10 @@ class MockDriftMonitor:
 
     def __init__(
         self,
-        reports: Optional[list[MockDriftReport]] = None,
+        reports: list[MockDriftReport] | None = None,
         raise_on_check: bool = False,
         baseline_panel: Any = None,
-        feature_columns: Optional[list[str]] = None,
+        feature_columns: list[str] | None = None,
     ) -> None:
         self._reports = reports or []
         self._raise_on_check = raise_on_check
@@ -133,8 +133,8 @@ class MockPredictionRecord:
     model_version: str = "v9_test"
     recorded_at: str = ""
     label_date: str = ""
-    actual_label: Optional[float] = None
-    label_observed_at: Optional[str] = None
+    actual_label: float | None = None
+    label_observed_at: str | None = None
 
 
 class MockDelayedLabelTracker:
@@ -142,8 +142,8 @@ class MockDelayedLabelTracker:
 
     def __init__(
         self,
-        records: Optional[list[MockPredictionRecord]] = None,
-        metrics: Optional[MockDelayedMetrics] = None,
+        records: list[MockPredictionRecord] | None = None,
+        metrics: MockDelayedMetrics | None = None,
         raise_on_record: bool = False,
         raise_on_metrics: bool = False,
     ) -> None:
@@ -183,7 +183,7 @@ class MockDelayedLabelTracker:
         return count
 
     def compute_delayed_metrics(
-        self, model_version: Optional[str] = None
+        self, model_version: str | None = None
     ) -> MockDelayedMetrics:
         if self._raise_on_metrics:
             raise RuntimeError("mock metrics error")

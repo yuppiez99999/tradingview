@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.skip(
-        reason="research.vibe_trading_factor_analysis 已废弃删除, U1 版 utils.alpha_factor.base 为唯一实现; PipelineResult 引用的是已隔离的 research 实验版"
+        reason="research.vibe_trading_factor_analysis 已废弃删除, U1 版 utils.alpha_factor.base 为唯一实现; PipelineResult 引用的是已隔离的 research 实验版"  # noqa: E501
     ),
 ]
 

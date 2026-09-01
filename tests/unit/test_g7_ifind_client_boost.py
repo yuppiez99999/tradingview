@@ -724,7 +724,7 @@ class TestGetStockHistorical:
     def test_success_parses_klines(self, mock_sleep):
         """成功解析 K 线数据 (含日期去重与排序)."""
         client = IFindClient()
-        table_str = "| 日期 | 开盘价 | 收盘价 | 最高价 | 最低价 | 成交量 |\n|---|---|---|---|---|---|\n| 20260102 | 10.5 | 10.3 | 10.6 | 10.1 | 80000 |\n| 20260101 | 10.0 | 10.5 | 10.8 | 9.8 | 100000 |"
+        table_str = "| 日期 | 开盘价 | 收盘价 | 最高价 | 最低价 | 成交量 |\n|---|---|---|---|---|---|\n| 20260102 | 10.5 | 10.3 | 10.6 | 10.1 | 80000 |\n| 20260101 | 10.0 | 10.5 | 10.8 | 9.8 | 100000 |"  # noqa: E501
         call_result = {
             "ok": True,
             "data": {
@@ -1192,7 +1192,7 @@ class TestGetFuturesRealtime:
     def test_success_parses_futures(self):
         """成功解析期货行情数据."""
         client = IFindClient()
-        table_str = "| tradeDate | open | high | low | latest | volume |\n|---|---|---|---|---|---|\n| 20260101 | 3500 | 3550 | 3480 | 3520 | 100000 |"
+        table_str = "| tradeDate | open | high | low | latest | volume |\n|---|---|---|---|---|---|\n| 20260101 | 3500 | 3550 | 3480 | 3520 | 100000 |"  # noqa: E501
         call_result = {
             "ok": True,
             "data": {

@@ -1686,10 +1686,13 @@ class TestPreTradeCheck(unittest.TestCase):
         )
         # 今日下单应重置 (不走单日限额分支)
         self.assertTrue(adapter._pre_trade_check(order))
-        # _daily_trade_date 应被更新为今天
+        # _daily_trade_date 应被更新为今天 (CST UTC+8, 与 adapter 一致)
         from datetime import datetime as _dt
+        from datetime import timedelta as _td
+        from datetime import timezone as _tz
 
-        self.assertEqual(adapter._daily_trade_date, _dt.utcnow().strftime("%Y-%m-%d"))
+        cst_tz = _tz(_td(hours=8))
+        self.assertEqual(adapter._daily_trade_date, _dt.now(cst_tz).strftime("%Y-%m-%d"))
 
 
 class TestFactoryEdgeCases(unittest.TestCase):

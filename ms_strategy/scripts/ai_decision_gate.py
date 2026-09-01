@@ -70,7 +70,7 @@ class AIDecisionGate:
 
         # 自动闭环：读取 dynamic_risk_adjuster 输出的动态风控限值
         self.dynamic_limits_loaded = False
-        self.dynamic_limits_path = self.instructions_dir / f"dynamic_risk_limits_{self.trade_date.replace('-', '')}.json"
+        self.dynamic_limits_path = self.instructions_dir / f"dynamic_risk_limits_{self.trade_date.replace('-', '')}.json"  # noqa: E501
         self._load_dynamic_risk_limits()
 
         # 数据容器
@@ -107,7 +107,7 @@ class AIDecisionGate:
             if self.dynamic_limits_loaded:
                 print(f"[INFO] AI 决策门已加载动态风控限值: {self.dynamic_limits_path} (合并 {merged} 项)")
             return self.dynamic_limits_loaded
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             print(f"[WARN] 读取动态风控限值失败: {e}")
             return False
@@ -120,7 +120,7 @@ class AIDecisionGate:
             return {}
         try:
             return json.loads(path.read_text(encoding="utf-8"))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             print(f"[WARN] 读取失败 {path}: {e}")
             return {}
@@ -192,10 +192,10 @@ class AIDecisionGate:
         pct = self.hard_limits["price_protection_pct"]
         if direction == "BUY":
             if order_price > ref_price * (1 + pct):
-                return False, f"买入价超保护带: {order_price:.4f} > {ref_price * (1 + pct):.4f} ({ref_price:.4f} × {1+pct:.1%})"
+                return False, f"买入价超保护带: {order_price:.4f} > {ref_price * (1 + pct):.4f} ({ref_price:.4f} × {1+pct:.1%})"  # noqa: E501
         elif direction == "SELL":
             if order_price < ref_price * (1 - pct):
-                return False, f"卖出价超保护带: {order_price:.4f} < {ref_price * (1 - pct):.4f} ({ref_price:.4f} × {1-pct:.1%})"
+                return False, f"卖出价超保护带: {order_price:.4f} < {ref_price * (1 - pct):.4f} ({ref_price:.4f} × {1-pct:.1%})"  # noqa: E501
         return True, ""
 
     def _check_position_concentration(self, symbol: str, amount: float) -> tuple[bool, str]:
@@ -215,7 +215,7 @@ class AIDecisionGate:
                     total_value += qty * price
 
         if total_value > 0 and amount > total_value * self.hard_limits["max_position_concentration"]:
-            return False, f"持仓集中度超上限: {amount:,.0f} > {total_value * 0.3:,.0f} (组合总值: {total_value:,.0f} × 30%)"
+            return False, f"持仓集中度超上限: {amount:,.0f} > {total_value * 0.3:,.0f} (组合总值: {total_value:,.0f} × 30%)"  # noqa: E501
         return True, ""
 
     def validate_order(self, order: dict[str, Any]) -> dict[str, Any]:
@@ -398,7 +398,7 @@ class AIDecisionGate:
         total_amount = sum(float(o.get("amount", 0)) for o in final_approved)
         if total_amount > self.hard_limits["max_total_amount"]:
             fusion_result["risk_alerts"] = fusion_result.get("risk_alerts", [])
-            fusion_result["risk_alerts"].append(f"总额超上限: {total_amount:,.0f} > {self.hard_limits['max_total_amount']:,.0f}")
+            fusion_result["risk_alerts"].append(f"总额超上限: {total_amount:,.0f} > {self.hard_limits['max_total_amount']:,.0f}")  # noqa: E501
 
         fusion_result["approved_instructions"] = final_approved
         fusion_result["rejected_instructions"] = final_rejected
@@ -507,7 +507,7 @@ class AIDecisionGate:
                 "total_amount": self.gate_output["fusion_result"].get("total_amount", 0),
                 "dynamic_limits_loaded": self.dynamic_limits_loaded,
             }
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             print(f"[ERROR] AI 决策门运行失败: {e}")
             traceback.print_exc()

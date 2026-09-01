@@ -61,7 +61,7 @@ def test_execution_algo_engine():
     total_executed = sum(s.target_shares for s in plan_twap.slices)
     assert total_executed == 10000, f"TWAP 总股数错误: {total_executed}"
     print(
-        f"  ✅ TWAP: {plan_twap.slice_count} 片, 总计 {total_executed} 股, 滑点 {plan_twap.expected_slippage_bps:.2f}bps"
+        f"  ✅ TWAP: {plan_twap.slice_count} 片, 总计 {total_executed} 股, 滑点 {plan_twap.expected_slippage_bps:.2f}bps"  # noqa: E501
     )
 
     # VWAP
@@ -115,7 +115,7 @@ def test_execution_algo_engine():
         plan_is.slices[0].target_shares >= plan_is.slices[-1].target_shares
     ), "IS 应 front-loaded"
     print(
-        f"  ✅ IS: {plan_is.slice_count} 片, front-loaded (首片 {plan_is.slices[0].target_shares} >= 末片 {plan_is.slices[-1].target_shares})"
+        f"  ✅ IS: {plan_is.slice_count} 片, front-loaded (首片 {plan_is.slices[0].target_shares} >= 末片 {plan_is.slices[-1].target_shares})"  # noqa: E501
     )
 
     # AC (Almgren-Chriss)
@@ -359,7 +359,7 @@ def test_pnl_attribution_engine():
         f"  ✅ 分解闭合: 总 P&L={result.total_pnl:.2f}, 分解={explained:.2f}, 误差 {diff:.4f}"
     )
     print(
-        f"  ✅ Alpha={result.alpha_pnl:.0f}, Beta={result.beta_pnl:.0f}, Style={result.style_pnl:.0f}, Sector={result.sector_pnl:.0f}, Timing={result.timing_pnl:.0f}"
+        f"  ✅ Alpha={result.alpha_pnl:.0f}, Beta={result.beta_pnl:.0f}, Style={result.style_pnl:.0f}, Sector={result.sector_pnl:.0f}, Timing={result.timing_pnl:.0f}"  # noqa: E501
     )
     print(
         f"  ✅ 风格因子 {len(result.style_factors)} 个, 行业因子 {len(result.sector_factors)} 个"
@@ -458,7 +458,7 @@ def test_data_quality_monitor():
     assert report2.critical_count >= 2, f"应有 critical 问题: {report2.critical_count}"
     assert report2.error_count >= 2, f"应有 error 问题: {report2.error_count}"
     print(
-        f"  ✅ 异常数据: 综合 {report2.overall_score:.1f}/100, critical={report2.critical_count}, error={report2.error_count}, warning={report2.warning_count}"
+        f"  ✅ 异常数据: 综合 {report2.overall_score:.1f}/100, critical={report2.critical_count}, error={report2.error_count}, warning={report2.warning_count}"  # noqa: E501
     )
 
     # 检查异常类型
@@ -536,7 +536,7 @@ def test_multi_strategy_coordinator():
         f"  ✅ 正常协调: 已分配 ¥{decision.total_allocated:,.0f}, 现金缓冲 ¥{decision.cash_buffer:,.0f}"
     )
     print(
-        f"  ✅ 冲突 {len(decision.conflicts)} 个, 风险预算 ¥{decision.risk_budget_used:,.0f} / ¥{decision.risk_budget_limit:,.0f}"
+        f"  ✅ 冲突 {len(decision.conflicts)} 个, 风险预算 ¥{decision.risk_budget_used:,.0f} / ¥{decision.risk_budget_limit:,.0f}"  # noqa: E501
     )
 
     # 模拟策略失效 (相关性过高)

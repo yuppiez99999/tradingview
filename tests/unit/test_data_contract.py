@@ -378,7 +378,7 @@ class TestV9DefaultContract:
         result = V9_DEFAULT_CONTRACT.validate(clean_panel, mode="warn_only")
         assert result.passed is True, (
             f"干净 panel 应通过 V9 契约校验, 但有违规: "
-            f"{[v.field + ':' + v.message for v in result.violations if v.severity in (Severity.ERROR, Severity.CRITICAL)]}"
+            f"{[v.field + ':' + v.message for v in result.violations if v.severity in (Severity.ERROR, Severity.CRITICAL)]}"  # noqa: E501
         )
 
 

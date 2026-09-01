@@ -271,7 +271,7 @@ def main():
     print(f"{'---':<10} {'---':<12} {'---':<12} {'---':<8} {'---':<8}")
     for r in results:
         print(
-            f"{r['scenario']:<10} {r['annualized_return']*100:<11.2f}% {r['max_drawdown']*100:<11.2f}% {'✓' if r['pass_return'] else '✗':<8} {'✓' if r['pass_drawdown'] else '✗':<8}"
+            f"{r['scenario']:<10} {r['annualized_return']*100:<11.2f}% {r['max_drawdown']*100:<11.2f}% {'✓' if r['pass_return'] else '✗':<8} {'✓' if r['pass_drawdown'] else '✗':<8}"  # noqa: E501
         )
 
     all_pass = all(r["pass_return"] and r["pass_drawdown"] for r in results)

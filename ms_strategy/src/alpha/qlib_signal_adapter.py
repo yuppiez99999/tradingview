@@ -29,9 +29,12 @@ import pandas as pd
 logger = logging.getLogger("v75.qlib.adapter")
 
 # Qlib 路径
+# G-20260830: insert(0) → 条件 append。insert(0) 会把 qlib 目录置于 sys.path
+# 最前, 劫持与 qlib 子目录同名的顶层包 (如 tests → qlib/tests)。与
+# utils/pipeline/alpha_pipeline.py 的 20260812 修复保持一致。
 QLIB_ROOT = os.path.join(os.path.dirname(__file__), "..", "..", "..", "qlib")
-if QLIB_ROOT not in sys.path:
-    sys.path.insert(0, os.path.abspath(QLIB_ROOT))
+if QLIB_ROOT not in sys.path and os.path.dirname(QLIB_ROOT) not in sys.path:
+    sys.path.append(os.path.abspath(QLIB_ROOT))
 
 # Qlib 可用性标记
 _QLIB_AVAILABLE = False

@@ -21,7 +21,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # === PYTHONPATH 设置 (必须在导入 wind_mcp_fetcher 之前) ===
 # 跨平台: 用脚本自身位置推导项目根 (本文件位于 <root>/data/etf_option_backtest/)
@@ -61,7 +61,7 @@ ETFS: dict[str, str] = {
 
 # === Wind MCP 字段 -> 标准字段 映射 ===
 # Wind MCP 返回: TIME/OPEN/HIGH/LOW/MATCH(收盘)/VOLUME/TURNOVER/...
-def _normalize_wind_record(rec: dict[str, Any], windcode: str) -> Optional[dict[str, Any]]:
+def _normalize_wind_record(rec: dict[str, Any], windcode: str) -> dict[str, Any] | None:
     """把 Wind MCP 一条 K 线记录归一化为标准格式"""
     try:
         time_str = str(rec.get("TIME") or rec.get("time") or rec.get("DATE") or "")
@@ -72,7 +72,7 @@ def _normalize_wind_record(rec: dict[str, Any], windcode: str) -> Optional[dict[
         # 验证日期格式
         datetime.strptime(date_str, "%Y-%m-%d")
 
-        def _f(key: str) -> Optional[float]:
+        def _f(key: str) -> float | None:
             v = rec.get(key)
             if v is None or v == "":
                 return None
@@ -90,7 +90,7 @@ def _normalize_wind_record(rec: dict[str, Any], windcode: str) -> Optional[dict[
             "close": _f("MATCH") or _f("close") or _f("CLOSE"),
             "volume": _f("VOLUME") or _f("volume"),
         }
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
 
 
@@ -109,7 +109,7 @@ def fetch_via_wind_mcp(windcode: str) -> tuple[list[dict[str, Any]], str]:
     """通过 Wind MCP 拉取, 返回 (records, status_msg)"""
     try:
         from wind_mcp_fetcher import wind_get_kline
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return [], f"import wind_mcp_fetcher 失败: {e}"
 
     try:
@@ -124,7 +124,7 @@ def fetch_via_wind_mcp(windcode: str) -> tuple[list[dict[str, Any]], str]:
         if not records:
             return [], f"Wind MCP 返回 {len(raw)} 条但归一化后为 0"
         return records, f"Wind MCP 成功 {len(records)} 条"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return [], f"Wind MCP 异常: {e}"
 
 
@@ -137,7 +137,7 @@ def fetch_via_akshare(windcode: str) -> tuple[list[dict[str, Any]], str]:
 
     try:
         import akshare as ak
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return [], f"import akshare 失败: {e}"
 
     # 510300.SH -> 510300
@@ -167,10 +167,10 @@ def fetch_via_akshare(windcode: str) -> tuple[list[dict[str, Any]], str]:
                     "close": float(row["收盘"]),
                     "volume": float(row["成交量"]),
                 })
-            except Exception:
+            except Exception:  # noqa: BLE001
                 continue
         return records, f"AKShare 成功 {len(records)} 条"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return [], f"AKShare 异常: {e}"
 
 
@@ -188,10 +188,10 @@ def _save_parquet(records: list[dict[str, Any]], path: Path) -> bool:
         df = df[[c for c in cols if c in df.columns]]
         try:
             df.to_parquet(path, engine="pyarrow", index=False)
-        except Exception:
+        except Exception:  # noqa: BLE001
             df.to_parquet(path, engine="fastparquet", index=False)
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -224,7 +224,7 @@ def main() -> int:
     success_count = 0
     fail_count = 0
 
-    for i, (windcode, name) in enumerate(ETFS.items(), 1):
+    for _i, (windcode, name) in enumerate(ETFS.items(), 1):
         code_short = windcode.split(".")[0]
 
         # 优先 Wind MCP

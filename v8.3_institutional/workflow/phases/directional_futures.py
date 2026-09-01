@@ -22,7 +22,7 @@ import random
 from dataclasses import asdict
 from datetime import date
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from workflow.context import WorkflowContext, get_dw_module
 
@@ -272,7 +272,7 @@ def _get_futures_prices(market_data: dict[str, dict[str, Any]]) -> dict[str, flo
     return prices
 
 
-def _load_directional_futures_risk_state() -> tuple[float, float, Optional[date]]:
+def _load_directional_futures_risk_state() -> tuple[float, float, date | None]:
     """加载方向性期货风控状态
 
     Returns:
@@ -293,7 +293,7 @@ def _load_directional_futures_risk_state() -> tuple[float, float, Optional[date]
     return (0.0, 0.0, None)
 
 
-def _save_directional_futures_orders(orders: list[Any]) -> Optional[str]:
+def _save_directional_futures_orders(orders: list[Any]) -> str | None:
     """保存方向性期货交易指令到文件
 
     Args:

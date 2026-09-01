@@ -1,0 +1,150 @@
+# S10 影子账户准入流程配置 (P3 长样本候选)
+# ============================================
+# 创建: 2026-08-31 (S10 P2池升级候选策略准入评估)
+# 数据源: config/shadow_etf_s10_candidate.json (影子账户配置) + 长样本回测基准
+#
+# 用法:
+#   python scripts/shadow_admission_launcher.py start --config shadow_s10_admission
+#   python scripts/shadow_admission_launcher.py daily --config shadow_s10_admission
+#   python scripts/shadow_admission_launcher.py status --config shadow_s10_admission
+#   python scripts/shadow_admission_launcher.py evaluate --config shadow_s10_admission
+#
+# 准入流程:
+#   1. start: 初始化准入状态 (观察期 90 天)
+#   2. daily: 每日 DSR 报告 + fail-fast 检查 (17:45 由 v84_ShadowAdmissionDaily 调度)
+#   3. 90 天后 evaluate: 评估准入条件 (DSR/CPCV/绩效偏差)
+#   4. 满足 admission_criteria → 升级为生产主策略; 否则继续观察或降级
+
+# ============================================================
+# 基础设置
+# ============================================================
+settings:
+  state_file: "reports/shadow/s10_admission_state.json"
+  report_dir: "reports/shadow"
+  observation_days: 90          # 观察期 90 天 (与 shadow_etf_s10_candidate.json 一致)
+  min_observation_days: 14      # 最小观察天数 (评估前至少运行 14 天)
+  initial_capital: 2000000      # 影子资金 200 万 (与 shadow_etf_s10_candidate.json 一致)
+
+# ============================================================
+# 待准入模块
+# ============================================================
+modules:
+  - name: "S10_P2_POOL_UPGRADE"
+    task_id: "P3-S10"
+    feature_flag: "USE_S10_P2_POOL_UPGRADE"
+    fallback: "S9_DEFENSIVE_DUMBBELL (当前生产候选)"
+    status: "running"
+    description: "P2池升级哑铃: 17标的(纳指/标普/红利低波+原14) 45%防御 + 趋势过滤×波动率目标×分级熔断"
+
+# ============================================================
+# Fail-Fast 触发器 (与 shadow_etf_s10_candidate.json 一致)
+# ============================================================
+fail_fast:
+  daily_drawdown_threshold: 0.03           # 单日回撤 > 3% 立即终止
+  cumulative_3d_drawdown_threshold: 0.05   # 3 日累计回撤 > 5% 立即终止
+  description: "单日回撤>3% 或 3日累计回撤>5% 立即终止"
+  latch: true
+  action_on_trigger: "terminate_and_rollback"
+
+# ============================================================
+# 准入标准 (与 shadow_etf_s10_candidate.json admission_criteria 一致)
+# ============================================================
+admission_criteria:
+  # DSR (Deflated Sharpe Ratio) 门槛
+  min_dsr: 0.95                 # DSR >= 0.95 (严格, 修复后口径)
+  min_samples_for_dsr: 20       # 最小样本数
+  dsr_max_pass: 5               # DSR 通过次数门槛
+
+  # 绩效门槛
+  min_annual_return: 0.04       # 年化 >= 4%
+  max_drawdown: 0.20            # 最大回撤 <= 20%
+  min_sharpe: 0.20              # Sharpe >= 0.2
+  max_cpcv_cv: 0.50             # CPCV CV < 0.5 (跨时段稳定性)
+  max_sharpe_cv: 1.0            # Sharpe CV < 1.0
+
+  # 绩效偏差 (相对回测基准)
+  performance_deviation_max: 0.30   # 偏差 <= 30%
+
+  description: "DSR>=0.95, 年化>=4%, 回撤<=20%, Sharpe>=0.2, CPCV CV<0.5"
+
+# ============================================================
+# 回测基准 (S10 长样本 2015-2026, 与 shadow_etf_s10_candidate.json 一致)
+# ============================================================
+backtest_benchmark:
+  strategy_id: "S10_P2_POOL_UPGRADE"
+  period: "2015-01-05~2026-08-25"
+  n_days: 2829
+  annual_return: 0.0898         # 8.98%
+  max_drawdown: 0.1348          # 13.48%
+  sharpe: 0.789
+  dsr: 0.0002                   # 修复后口径 (n_trials=14, 需≈24年样本过0.95)
+  cpcv_cv: 0.384                # stable (< 0.5)
+  noise_stable: true
+  honest_validation: "NOT HONEST (CPCV stable ✓ / Noise stable ✓ / 仅 DSR FAIL, 数学上需≈24年样本, 待 P3 实盘证据)"
+  status: "candidate"
+
+  # 分段一致性 (2015-2020 样本外 vs 2021-2026)
+  segment_consistency:
+    out_of_sample_2015_2020:
+      sharpe: 0.789
+      consistent: true
+    in_sample_2021_2026:
+      sharpe: 0.793
+      consistent: true
+
+# ============================================================
+# 回滚触发器
+# ============================================================
+rollback_triggers:
+  - "fail_fast_terminated"
+  - "performance_deviation_exceeded"
+  - "sharpe_below_threshold"
+  - "drawdown_exceeds_2x_cagr"
+  - "cpcv_cv_above_threshold"
+
+# ============================================================
+# 灰度发布阶段
+# ============================================================
+gray_release_stages:
+  - name: "stage_1_shadow"
+    capital_pct: 0.0
+    capital_amount: 0
+    duration_days: 90
+    description: "影子跟踪 90 天观察期 (纸面, 零资金)"
+  - name: "stage_2_small_capital"
+    capital_pct: 0.1
+    capital_amount: 200000
+    duration_days: 30
+    description: "10% 资金小仓位验证 30 天"
+  - name: "stage_3_half_capital"
+    capital_pct: 0.5
+    capital_amount: 1000000
+    duration_days: 30
+    description: "50% 资金灰度发布 30 天"
+  - name: "stage_4_full"
+    capital_pct: 1.0
+    capital_amount: 2000000
+    duration_days: 0
+    description: "100% 全量上线 (替代 S9 成为生产主策略)"
+
+# ============================================================
+# P3 路径说明
+# ============================================================
+# S10 准入 5/6 已满足 (长样本回测):
+#   ✓ 年化 8.98% >= 4%
+#   ✓ 回撤 13.48% <= 20%
+#   ✓ Sharpe 0.789 >= 0.2
+#   ✓ CPCV CV 0.384 < 0.5
+#   ✓ Noise stable
+#   ✗ DSR 0.0002 < 0.95 (数学上需 ≈24 年样本, n_trials=14 门槛)
+#
+# P3 路径: 90 天实盘纸面跟踪 → 观测实际 Sharpe 与回测一致性
+#   → 若实盘 Sharpe 与回测一致 (0.79±0.2) → 以实盘证据替代回测显著性
+#   → 若实盘 Sharpe 显著偏离 → fail-fast 终止或延长观察
+#
+# 评估时间线:
+#   2026-08-31: 影子账户初始化, 首日净值计入
+#   2026-11-29: 90 天观察期结束, 运行 evaluate
+#   2026-12-29: 若 stage_2 通过, 30 天小仓位验证结束
+#   2027-01-28: 若 stage_3 通过, 30 天半仓位验证结束
+#   2027-01-28+: 若全部通过, 全量上线

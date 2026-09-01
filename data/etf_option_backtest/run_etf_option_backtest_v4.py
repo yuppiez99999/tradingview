@@ -70,8 +70,8 @@ def norm_cdf(x: float) -> float:
 def bs_put_price(spot: float, strike: float, dte: int, iv: float, r: float = 0.02) -> float:
     if spot <= 0 or strike <= 0 or dte <= 0 or iv <= 0:
         return 0.0
-    T = dte / 365.0
-    sqrtT = math.sqrt(T)
+    T = dte / 365.0  # noqa: N806
+    sqrtT = math.sqrt(T)  # noqa: N806
     d1 = (math.log(spot / strike) + (r + 0.5 * iv * iv) * T) / (iv * sqrtT)
     d2 = d1 - iv * sqrtT
     return strike * math.exp(-r * T) * norm_cdf(-d2) - spot * norm_cdf(-d1)
@@ -516,7 +516,7 @@ def analyze_yearly_returns(eq: list[float], dates: pd.DatetimeIndex) -> list[dic
     return results
 
 
-def main():
+def main() -> None:
     logger.info("加载配置和数据...")
     load_config()
     prices = load_etf_prices()
@@ -557,34 +557,34 @@ def main():
     lines.append("  自适应机制: 波动率调阈值 + MA60趋势过滤 + 波动率调权 + 自适应熔断")
     lines.append("")
     lines.append("  === 回测结果 ===")
-    lines.append(f"  年化收益: {metrics['annual_return']*100:.2f}% | 最大回撤: {metrics['max_drawdown']*100:.2f}% | Sharpe: {metrics['sharpe']:.3f}")
-    lines.append(f"  Sortino: {metrics['sortino']:.3f} | Calmar: {metrics['calmar']:.3f} | 胜率: {metrics['win_rate']*100:.1f}%")
+    lines.append(f"  年化收益: {metrics['annual_return']*100:.2f}% | 最大回撤: {metrics['max_drawdown']*100:.2f}% | Sharpe: {metrics['sharpe']:.3f}")  # noqa: E501
+    lines.append(f"  Sortino: {metrics['sortino']:.3f} | Calmar: {metrics['calmar']:.3f} | 胜率: {metrics['win_rate']*100:.1f}%")  # noqa: E501
     lines.append(f"  期末市值: {metrics['final_value']:,.0f} | 超额收益: {metrics['excess_return']*100:.2f}%")
-    lines.append(f"  基准沪深300ETF: 年化 {bench_m['annual_return']*100:.2f}% / 回撤 {bench_m['max_drawdown']*100:.2f}%")
+    lines.append(f"  基准沪深300ETF: 年化 {bench_m['annual_return']*100:.2f}% / 回撤 {bench_m['max_drawdown']*100:.2f}%")  # noqa: E501
     lines.append("")
     lines.append("  === 自适应机制触发统计 ===")
-    lines.append(f"  再平衡次数: {state.rebalance_count} | 回撤熔断: {state.breaker_count} | 趋势过滤: {state.trend_filter_count} | 波动率调权: {state.vol_adjust_count}")
+    lines.append(f"  再平衡次数: {state.rebalance_count} | 回撤熔断: {state.breaker_count} | 趋势过滤: {state.trend_filter_count} | 波动率调权: {state.vol_adjust_count}")  # noqa: E501
     lines.append(f"  期权权利金: {state.total_premium_paid:,.0f} | 期权赔付: {state.total_premium_recovered:,.0f}")
     lines.append("")
     lines.append("  === 预测年化收益 (蒙特卡洛10000路径, 3年) ===")
-    lines.append(f"  历史日收益: 均值 {prediction['historical_daily_mean']*100:.4f}% / 标准差 {prediction['historical_daily_std']*100:.3f}%")
+    lines.append(f"  历史日收益: 均值 {prediction['historical_daily_mean']*100:.4f}% / 标准差 {prediction['historical_daily_std']*100:.3f}%")  # noqa: E501
     lines.append(f"  偏度 {prediction['historical_skewness']:.3f} / 超额峰度 {prediction['historical_kurtosis']:.3f}")
-    lines.append(f"  预测年化: 均值 {prediction['predicted_mean_annual']*100:.2f}% / 中位数 {prediction['predicted_median_annual']*100:.2f}%")
+    lines.append(f"  预测年化: 均值 {prediction['predicted_mean_annual']*100:.2f}% / 中位数 {prediction['predicted_median_annual']*100:.2f}%")  # noqa: E501
     lines.append(f"  95%置信区间: [{prediction['ci_5_annual']*100:.2f}%, {prediction['ci_95_annual']*100:.2f}%]")
     lines.append(f"  50%置信区间: [{prediction['ci_25_annual']*100:.2f}%, {prediction['ci_75_annual']*100:.2f}%]")
-    lines.append(f"  概率: P(>8%) = {prediction['prob_above_8pct']*100:.1f}% / P(>0%) = {prediction['prob_above_0pct']*100:.1f}% / P(<-5%) = {prediction['prob_below_neg_5pct']*100:.1f}%")
+    lines.append(f"  概率: P(>8%) = {prediction['prob_above_8pct']*100:.1f}% / P(>0%) = {prediction['prob_above_0pct']*100:.1f}% / P(<-5%) = {prediction['prob_below_neg_5pct']*100:.1f}%")  # noqa: E501
     lines.append("")
     lines.append("  === 分年度收益分析 ===")
     lines.append(f"  {'年份':>6} {'收益率':>10} {'回撤%':>8} {'交易日':>6} {'期初':>12} {'期末':>12}")
     for yr in yearly:
-        lines.append(f"  {yr['year']:>6} {yr['return']*100:>9.2f}% {yr['max_drawdown']*100:>7.2f}% {yr['n_days']:>6} {yr['start_value']:>11,.0f} {yr['end_value']:>11,.0f}")
+        lines.append(f"  {yr['year']:>6} {yr['return']*100:>9.2f}% {yr['max_drawdown']*100:>7.2f}% {yr['n_days']:>6} {yr['start_value']:>11,.0f} {yr['end_value']:>11,.0f}")  # noqa: E501
     lines.append("")
     lines.append("  === 目标达标 ===")
-    lines.append(f"  年化 >= 8%: {'✅' if metrics['annual_return']>=0.08 else '❌'} ({metrics['annual_return']*100:.2f}%)")
+    lines.append(f"  年化 >= 8%: {'✅' if metrics['annual_return']>=0.08 else '❌'} ({metrics['annual_return']*100:.2f}%)")  # noqa: E501
     lines.append(f"  回撤 < 20%: {'✅' if metrics['max_drawdown']<0.20 else '❌'} ({metrics['max_drawdown']*100:.2f}%)")
     lines.append(f"  Sharpe >= 0.50: {'✅' if metrics['sharpe']>=0.50 else '❌'} ({metrics['sharpe']:.3f})")
     lines.append(f"  Calmar >= 0.40: {'✅' if metrics['calmar']>=0.40 else '❌'} ({metrics['calmar']:.3f})")
-    lines.append(f"  P(>8%) >= 60%: {'✅' if prediction['prob_above_8pct']>=0.60 else '❌'} ({prediction['prob_above_8pct']*100:.1f}%)")
+    lines.append(f"  P(>8%) >= 60%: {'✅' if prediction['prob_above_8pct']>=0.60 else '❌'} ({prediction['prob_above_8pct']*100:.1f}%)")  # noqa: E501
     lines.append("")
     report = "\n".join(lines)
 

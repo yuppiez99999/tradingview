@@ -290,6 +290,7 @@ class TracingTest:
 
     def test_trace_span_yields_active_span(self):
         """span 在 with 块内是当前 active span."""
+        pytest.importorskip("opentelemetry")
         from opentelemetry import trace as otel_trace
 
         with trace_span("test.active"):

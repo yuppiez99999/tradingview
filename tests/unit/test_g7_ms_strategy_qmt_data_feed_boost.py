@@ -267,7 +267,7 @@ class TestOnTick:
     def test_on_tick_default_values(self, mock_xtdata):
         feed = QmtDataFeed(symbols=["A"])
         feed._on_tick([{"code": "A"}])  # 缺所有价格字段
-        assert feed.get_price("A") == pytest.approx(0.0)
+        assert feed.get_price("A") is None
         assert feed.get_volume("A") == 0
 
     def test_on_tick_triggers_user_callback(self, mock_xtdata):

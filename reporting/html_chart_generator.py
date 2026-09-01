@@ -21,7 +21,6 @@ import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 try:
     from ..logging_manager import get_logger
@@ -126,7 +125,7 @@ class HTMLChartGenerator:
     def render_standalone(
         self,
         body: str,
-        title: Optional[str] = None,
+        title: str | None = None,
         include_mermaid: bool = False,
         include_echarts: bool = False,
     ) -> str:

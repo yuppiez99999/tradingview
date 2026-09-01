@@ -132,6 +132,8 @@ def mock_provider_with_prices():
     price_data = {
         "600276": _make_price_df(
             [
+                ("2026-07-23", 10.0),
+                ("2026-07-24", 10.0),
                 ("2026-07-25", 10.0),
                 ("2026-07-26", 10.0),
                 ("2026-07-27", 10.0),
@@ -140,6 +142,8 @@ def mock_provider_with_prices():
         ),
         "588000": _make_price_df(
             [
+                ("2026-07-23", 1.0),
+                ("2026-07-24", 1.0),
                 ("2026-07-25", 1.0),
                 ("2026-07-26", 1.0),
                 ("2026-07-27", 1.0),
@@ -631,8 +635,8 @@ class TestFetchSymbolPrices:
             output_path=tmp_path / "out.jsonl",
         )
         prev, target = feeder._fetch_symbol_prices("600276", "2026-08-04")
-        # 精确匹配失败, fallback: target=df.iloc[-1]=10.5, prev=df.iloc[-2]=10.1
-        assert target == 10.5
+        # v8.6.14: target 仅当末行日期==目标日才回退, 08-04 != 07-28 → target=None
+        assert target is None
         assert prev == 10.1
 
     def test_future_date_uses_latest_available_close(self, tmp_path):
@@ -656,8 +660,9 @@ class TestFetchSymbolPrices:
 
         prev, target = feeder._fetch_symbol_prices("600276", "2026-07-29")
 
-        assert target == 10.5
-        assert prev == 10.1
+        # v8.6.14: 未来日期不再回退 target, 07-29 != 07-28 → target=None
+        assert target is None
+        assert prev == 10.5
 
     def test_string_index_handling(self, tmp_path):
         """字符串 index 也应能处理."""

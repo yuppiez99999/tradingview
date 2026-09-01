@@ -1398,7 +1398,7 @@ class TestAllocatePosition:
     def test_basic_allocation(self):
         pos = self._make_pos()
         result = dte._allocate_position(
-            pos, "2026-08-01", 200000, 200000, {}, {}, {"positions": {}}
+            pos, "2026-08-01", 200000, 200000, {"600519": 100.0}, {}, {"positions": {}}
         )
         assert result is not None
         instruction, actual_amount = result
@@ -1431,12 +1431,11 @@ class TestAllocatePosition:
 
     def test_falls_back_to_default_10_when_unknown(self):
         pos = self._make_pos(code_clean="999999")
-        # 999999 不在 DEFAULT_PRICES → 用 10.0
+        # DTE-4: 999999 不在 DEFAULT_PRICES 且无实时行情 → 不按假价分配, 跳过该标的
         result = dte._allocate_position(
             pos, "2026-08-01", 200000, 200000, {}, {}, {"positions": {}}
         )
-        instruction, _ = result
-        assert instruction["ref_price"] == 10.0
+        assert result is None
 
     def test_price_band_computed(self):
         pos = self._make_pos()

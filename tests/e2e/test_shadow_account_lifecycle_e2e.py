@@ -12,7 +12,9 @@
     - ShadowAccountAdapter.__init__(account_id, strategy_id, initial_capital, ...) 无 risk_managed
     - run_shadow(daily_returns, dates=None, is_real_data=True) -> RunShadowResult (不抛 FailFast)
     - get_metrics() -> ShadowMetrics (dataclass; 样本不足抛 InsufficientReturnsError)
-    - RunShadowResult: success / days_processed / final_nav / fail_fast_triggered / fail_fast_reason / termination_date / error
+    - RunShadowResult: success / days_processed / final_nav / fail_fast_triggered / fail_fast_reason / termination_date
+    /
+    error
     - Fail-Fast 阈值: 单日 >3%, 3 日累计 >5%
     - MIN_SAMPLES_FOR_DSR = 20 (yaml 单事实源, cairn/observation-period-config-drift-20260809.md)
 """

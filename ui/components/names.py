@@ -1,5 +1,7 @@
 """共享标的名称映射 — 所有 UI 页面统一使用"""
 
+from typing import Any
+
 # ═══════════════════════════════════════════════════════════════
 # 完整标的名称映射（覆盖系统所有可能出现的代码）
 # 优先加载：positions.json name → portfolio.yaml → 本字典
@@ -92,7 +94,7 @@ WATCHLIST_STOCKS = {
     "603225",
 }
 
-_STYLE_CACHE = {}
+_STYLE_CACHE: dict[str, Any] = {}
 
 
 def get_style(code: str) -> tuple:
@@ -117,7 +119,7 @@ def get_style(code: str) -> tuple:
     return r
 
 
-def resolve_name(code: str, positions_name: str = "", yaml_names: dict = None) -> str:
+def resolve_name(code: str, positions_name: str = "", yaml_names: dict | None = None) -> str:
     """四级回退获取中文名"""
     if positions_name:
         return positions_name
@@ -127,7 +129,7 @@ def resolve_name(code: str, positions_name: str = "", yaml_names: dict = None) -
     return STOCK_NAME_MAP.get(code, code)
 
 
-def resolve_name_safe(code: str, record: dict = None, yaml_names: dict = None) -> str:
+def resolve_name_safe(code: str, record: dict | None = None, yaml_names: dict | None = None) -> str:
     """从record字典安全提取名称"""
     name = ""
     if record:

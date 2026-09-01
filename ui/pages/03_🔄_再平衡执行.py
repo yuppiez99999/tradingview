@@ -380,7 +380,7 @@ with tab4:
         kc2.metric("回撤达标", "✅" if kpi.get("dd_ok") else "❌")
         kc3.metric("综合评级", kpi.get("overall", "—"))
         st.caption(
-            f"阶段: {kpi.get('phase', '')} | NAV目标: {kpi.get('nav_target','')} | 回撤上限: {kpi.get('dd_target',0):.0%}"
+            f"阶段: {kpi.get('phase', '')} | NAV目标: {kpi.get('nav_target','')} | 回撤上限: {kpi.get('dd_target',0):.0%}"  # noqa: E501
         )
 
 # ═══════════════════════════════════

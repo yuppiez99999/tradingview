@@ -33,7 +33,7 @@ class StreamlitProgress:
         self._bar.progress(1.0, text=f"❌ {self.task_name} — {message}")
 
 
-def run_with_progress(task_name: str, steps: list, total_steps: int = None):
+def run_with_progress(task_name: str, steps: list, total_steps: int | None = None):
     """
     按步骤列表执行任务并显示进度。
     steps = [(step_number, message, callable), ...]

@@ -1107,7 +1107,7 @@ class TestOrderRouter:
         }
         positions_file.write_text(json.dumps(positions_data), encoding="utf-8")
         monkeypatch.setattr(
-            "utils.execution.automated_execution_system._PROJECT_ROOT",
+            "utils.execution.order_router._PROJECT_ROOT",
             str(tmp_path),
         )
         result = router._get_reference_price("600519")

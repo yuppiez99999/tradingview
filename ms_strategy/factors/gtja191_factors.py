@@ -349,7 +349,9 @@ class GTJA191Factors:
         return float((tail_up * tail_ratio).sum())
 
     def alpha43(self, df: pd.DataFrame) -> float | None:
-        """Alpha43: SUM(IF(CLOSE>DELAY(CLOSE,1), STD(CLOSE,20), 0), 20) / SUM(IF(CLOSE<=DELAY(CLOSE,1), STD(CLOSE,20), 0), 20)
+        """Alpha43: SUM(IF(CLOSE>DELAY(CLOSE,1), STD(CLOSE,20), 0), 20) / SUM(IF(CLOSE<=DELAY(CLOSE,1), STD(CLOSE,20),
+        0),
+         20)
 
         含义: 上涨日波动率之和 / 下跌日波动率之和
         高值: 上涨日波动大 (健康上涨)
@@ -433,7 +435,9 @@ class GTJA191Factors:
         return float(mean5 / mean20)
 
     def alpha24(self, df: pd.DataFrame) -> float | None:
-        """Alpha24: SUM(IF(CLOSE>DELAY(CLOSE,1), ABS(CLOSE/DELAY(CLOSE,1)-1)*VOLUME, 0), 20) / SUM(IF(CLOSE<=DELAY(CLOSE,1), ABS(CLOSE/DELAY(CLOSE,1)-1)*VOLUME, 0), 20)
+        """Alpha24: SUM(IF(CLOSE>DELAY(CLOSE,1), ABS(CLOSE/DELAY(CLOSE,1)-1)*VOLUME, 0), 20) /
+        SUM(IF(CLOSE<=DELAY(CLOSE,
+        1), ABS(CLOSE/DELAY(CLOSE,1)-1)*VOLUME, 0), 20)
 
         含义: 上涨日成交额弹性 / 下跌日成交额弹性
         高值: 上涨时单位成交额推动的涨幅大于下跌时

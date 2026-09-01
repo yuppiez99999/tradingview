@@ -270,7 +270,7 @@ h_left, h_mid, h_right = st.columns([3, 2.5, 1.5])
 
 with h_left:
     st.markdown(
-        '<div style="font-size:0.72rem;letter-spacing:0.12em;color:#8b949e;text-transform:uppercase;margin-bottom:0.15rem;">'
+        '<div style="font-size:0.72rem;letter-spacing:0.12em;color:#8b949e;text-transform:uppercase;margin-bottom:0.15rem;">'  # noqa: E501
         "量化策略系统 v5.10 · AI实时交易竞技场</div>"
         '<div style="display:flex;align-items:center;gap:0.7rem;">'
         '<div style="width:40px;height:40px;border-radius:12px;'
@@ -318,8 +318,8 @@ with c1:
         f'<div class="metric-big">¥{total_pnl:,.0f}</div>'
         '<div style="margin-top:0.55rem;display:flex;gap:1.5rem;font-size:0.82rem;">'
         f'<div><span style="color:#8b949e;">已实现盈亏</span> <span class="metric-up">+¥{realized_pnl:,}</span></div>'
-        f'<div><span style="color:#8b949e;">策略来源</span> <span style="color:#f8fafc;font-weight:600;">Mirofish v3</span></div>'
-        f'<div><span style="color:#8b949e;">交易笔数</span> <span style="color:#f8fafc;font-weight:600;">{n_trades:,}</span></div>'
+        f'<div><span style="color:#8b949e;">策略来源</span> <span style="color:#f8fafc;font-weight:600;">Mirofish v3</span></div>'  # noqa: E501
+        f'<div><span style="color:#8b949e;">交易笔数</span> <span style="color:#f8fafc;font-weight:600;">{n_trades:,}</span></div>'  # noqa: E501
         "</div>"
         '<div style="margin-top:0.5rem;display:flex;gap:1.5rem;font-size:0.82rem;">'
         '<div><span class="metric-up">+¥8,974</span> <span style="color:#8b949e;">5月14日 做多</span></div>'

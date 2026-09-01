@@ -2,9 +2,10 @@
 v7.5 FactorLibrary — 五维因子库：价值 / 质量 / 动量 / 增长 / 安全
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §6 (src/alpha/)
 """
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -275,7 +276,7 @@ class FactorLibrary:
             return pd.Series(0.0, index=series.index)
         return np.clip((series - mean) / std, -self.ZSCORE_CLIP, self.ZSCORE_CLIP)
 
-    def _build_market_returns_proxy(self, price_data: dict[str, pd.DataFrame]) -> Optional[pd.Series]:
+    def _build_market_returns_proxy(self, price_data: dict[str, pd.DataFrame]) -> pd.Series | None:
         """构建等权市场收益代理（仅用同一日截面均值，避免泄漏）"""
         if len(price_data) <= 1:
             return None
@@ -316,19 +317,19 @@ class FactorLibrary:
             try:
                 all_factors[f'{symbol}_awesome_osc'] = self.zscore(
                     self.compute_awesome_oscillator(df['high'], df['low']))
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
             try:
                 all_factors[f'{symbol}_dual_thrust'] = self.compute_dual_thrust_position(
                     df['high'], df['low'], price)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
 
     def _compute_safety_factors(self, all_factors: dict[str, pd.Series], symbol: str,
                                 price: pd.Series, returns: pd.Series,
-                                market_returns: Optional[pd.Series]) -> None:
+                                market_returns: pd.Series | None) -> None:
         """计算安全维度因子（价格类，始终计算）"""
         all_factors[f'{symbol}_max_dd_60'] = pd.Series(
             self.compute_max_dd(price.tail(60)), index=price.index
@@ -347,7 +348,7 @@ class FactorLibrary:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             pass
         try:
-            ivol_val = self.compute_ivol(returns, market_returns) if market_returns is not None else float(returns.std())
+            ivol_val = self.compute_ivol(returns, market_returns) if market_returns is not None else float(returns.std())  # noqa: E501
             all_factors[f'{symbol}_ivol'] = pd.Series(ivol_val, index=price.index)
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
@@ -452,7 +453,7 @@ class FactorLibrary:
     # ---------- 批量因子计算 ----------
     def build_all_factors(self, price_data: dict[str, pd.DataFrame],
                           fundamentals: dict[str, dict] = None,
-                          market_returns: Optional[pd.Series] = None) -> dict[str, pd.Series]:
+                          market_returns: pd.Series | None = None) -> dict[str, pd.Series]:
         """对全部标的计算五维全部 18 因子（已激活）
 
         覆盖五大维度全部因子：
@@ -507,7 +508,7 @@ class FactorLibrary:
         self._all_factors = all_factors
         return all_factors
 
-    def get_factor_matrix(self) -> Optional[pd.DataFrame]:
+    def get_factor_matrix(self) -> pd.DataFrame | None:
         """将所有因子合并为 DataFrame"""
         if not self._all_factors:
             return None

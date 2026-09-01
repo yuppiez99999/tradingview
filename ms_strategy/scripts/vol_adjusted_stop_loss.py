@@ -13,11 +13,12 @@
     python vol_adjusted_stop_loss.py
     python vol_adjusted_stop_loss.py --output config/stop_loss_vol_adjusted.yaml
 """
+from __future__ import annotations
+
 import json
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Optional
 
 import numpy as np
 import yaml
@@ -79,7 +80,7 @@ SECTOR_K = {
 }
 
 
-def get_volatility_from_ifind(code: str) -> Optional[float]:
+def get_volatility_from_ifind(code: str) -> float | None:
     """从 iFinD 获取 60 日年化波动率"""
     try:
         import importlib.util
@@ -112,7 +113,7 @@ def get_volatility_from_ifind(code: str) -> Optional[float]:
     return None
 
 
-def get_volatility_from_wind(code: str) -> Optional[float]:
+def get_volatility_from_wind(code: str) -> float | None:
     """从 Wind MCP 获取波动率"""
     try:
         # 跨平台: 11_量化策略 是独立项目, 路径通过环境变量覆盖 (Mac 上指向实际位置)
@@ -262,7 +263,7 @@ def compute_vol_adjusted_stop_loss(entry_price: float,
     }
 
 
-def generate_vol_adjusted_rules(base_prices: Optional[dict] = None) -> dict:
+def generate_vol_adjusted_rules(base_prices: dict | None = None) -> dict:
     """生成全部持仓的波动率调整止损规则
 
     Args:
@@ -333,7 +334,7 @@ def main():
     logger.info("=" * 70)
 
     # 从现有配置读取基准价格
-    existing_config_path = os.environ.get("QUANT11_STOPLOSS_CONFIG", r"E:\各种PY程序\11_量化策略\config\stop_loss_rules_auto.yaml")
+    existing_config_path = os.environ.get("QUANT11_STOPLOSS_CONFIG", r"E:\各种PY程序\11_量化策略\config\stop_loss_rules_auto.yaml")  # noqa: E501
     base_prices = {}
     if os.path.exists(existing_config_path):
         with open(existing_config_path, encoding="utf-8") as f:
@@ -373,13 +374,13 @@ def main():
         old_stop = old_stops.get(code, -12.0)
         diff = new_stop - old_stop
         diff_str = f"{diff:+.1f}%" if diff != 0 else "—"
-        logger.info(f"{code:<14} {name:<10} {vol:>7.1%} {new_stop:>7.1f}% {new_profit:>7.1f}% {old_stop:>7.1f}% {diff_str:>8}")
+        logger.info(f"{code:<14} {name:<10} {vol:>7.1%} {new_stop:>7.1f}% {new_profit:>7.1f}% {old_stop:>7.1f}% {diff_str:>8}")  # noqa: E501
 
     logger.info("─" * 70)
     logger.info(f"共 {len(rules['assets'])} 只标的\n")
 
     # 保存 (写入本子项目 ms_strategy/config/, 不再写到其他项目目录)
-    output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "stop_loss_vol_adjusted.yaml")
+    output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "stop_loss_vol_adjusted.yaml")  # noqa: E501
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(to_native(rules), f, allow_unicode=True, default_flow_style=False, sort_keys=False)
@@ -387,7 +388,7 @@ def main():
     logger.info(f"配置已保存: {output_path}")
 
     # 同时保存 JSON (写入本子项目 ms_strategy/reports/)
-    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "reports", "stop_loss_vol_adjusted.json")
+    json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "reports", "stop_loss_vol_adjusted.json")  # noqa: E501
     os.makedirs(os.path.dirname(json_path), exist_ok=True)
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(rules, f, ensure_ascii=False, indent=2, default=str)

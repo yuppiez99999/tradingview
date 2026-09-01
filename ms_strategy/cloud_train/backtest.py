@@ -141,7 +141,7 @@ def main():
     pred = model.predict(dataset, segment="test")
     if isinstance(pred, pd.DataFrame):
         pred = pred.iloc[:, 0]
-    print(f"  预测: {len(pred)} 行, 日期范围 {pred.index.get_level_values(0).min()} ~ {pred.index.get_level_values(0).max()}")
+    print(f"  预测: {len(pred)} 行, 日期范围 {pred.index.get_level_values(0).min()} ~ {pred.index.get_level_values(0).max()}")  # noqa: E501
 
     # 回测
     print("\n[2/3] 运行回测...")

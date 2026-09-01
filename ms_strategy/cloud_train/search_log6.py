@@ -13,7 +13,7 @@ tmp = Path(tempfile.gettempdir()) / f"ma_log_{job_id}.txt"
 r = obs.getObject("qt-models", key, downloadPath=str(tmp))
 text = tmp.read_text(encoding="utf-8", errors="replace")
 
-for kw in ["模型已保存", "所有文件", "pip install", "esdk-obs", "已上传", "上传失败", "错误", "Error", "Traceback", "Terminated", "Killed", "OutOfMemory", "exit with"]:
+for kw in ["模型已保存", "所有文件", "pip install", "esdk-obs", "已上传", "上传失败", "错误", "Error", "Traceback", "Terminated", "Killed", "OutOfMemory", "exit with"]:  # noqa: E501
     idx = text.rfind(kw)
     if idx >= 0:
         print(f'[{kw}] 位置 {idx}:')

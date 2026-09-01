@@ -6,6 +6,7 @@ v7.5 熔断引擎 —— 继承 v7.2 四级熔断 + 执行层滑点熔断
     2. 数据/服务熔断 (is_available/record_failure): 基于失败次数的连接熔断
     3. 滑点熔断 (SlippageCircuitBreaker): 执行层专用
 """
+from __future__ import annotations
 
 import logging
 import time
@@ -13,7 +14,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import IntEnum
 from threading import RLock
-from typing import Optional
 
 logger = logging.getLogger('v7.5.circuit_breaker')
 
@@ -55,7 +55,7 @@ class CircuitBreaker:
 
         # 市场熔断状态
         self.current_level: CircuitLevel = CircuitLevel.NORMAL
-        self.last_check_ts: Optional[datetime] = None
+        self.last_check_ts: datetime | None = None
 
     # ---------- 市场熔断 API ----------
     def check(self,
@@ -272,7 +272,7 @@ class CircuitBreaker:
             s["failures"] = 0
             s["half_open_calls"] = 0
 
-    def record_failure(self, source: str, error: Optional[str] = None):
+    def record_failure(self, source: str, error: str | None = None):
         with self._lock:
             s = self._get_state(source)
             s["failures"] += 1
@@ -284,7 +284,7 @@ class CircuitBreaker:
                 s["state"] = CircuitBreakerState.OPEN
                 logger.warning(f"[熔断] {source} 连续失败 {s['failures']} 次, 进入熔断")
 
-    def reset(self, source: Optional[str] = None):
+    def reset(self, source: str | None = None):
         with self._lock:
             if source:
                 self._states.pop(source, None)

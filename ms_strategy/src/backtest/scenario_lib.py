@@ -2,8 +2,9 @@
 v7.5 ScenarioLibrary — 三段极端行情压力测试库
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §4.3
 """
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -106,7 +107,7 @@ class ScenarioLibrary:
     def add_scenario(self, scenario: StressScenario) -> None:
         self.custom_scenarios[scenario.name] = scenario
 
-    def get_scenario(self, name: str) -> Optional[StressScenario]:
+    def get_scenario(self, name: str) -> StressScenario | None:
         return self.scenarios.get(name) or self.custom_scenarios.get(name)
 
     def list_scenarios(self) -> list[str]:

@@ -41,7 +41,7 @@ class TestTDAMConfig:
     def test_default_config(self):
         """默认配置."""
         config = TDAMConfig()
-        assert config.base_url == "http://localhost:8125"
+        assert config.base_url == "http://127.0.0.1:8420"
         assert config.timeout == 10
         assert config.max_retries == 2
         assert config.offline is False
@@ -191,7 +191,7 @@ class TestTDAMClient:
 
         with (
             patch.object(client, "_check_flag", return_value=True),
-            patch.object(client._session, "get", return_value=mock_response),
+            patch.object(client._session, "post", return_value=mock_response),
         ):
             result = client.search_memory("气象因子")
 

@@ -6,7 +6,7 @@ import streamlit as st
 
 
 def render_report_viewer(
-    report: str, title: str = "报告预览", download_name: str = None
+    report: str, title: str = "报告预览", download_name: str | None = None
 ):
     """渲染报告内容并提供下载按钮"""
     st.markdown(f"### 📄 {title}")
@@ -23,13 +23,13 @@ def render_report_viewer(
         )
 
 
-def browse_report_directory(dir_path: str, pattern: str = None):
+def browse_report_directory(dir_path: str, pattern: str | None = None):
     """浏览报告目录，返回文件列表（5分钟缓存）"""
     return _browse_cached(dir_path, pattern)
 
 
 @st.cache_data(ttl=300)
-def _browse_cached(dir_path: str, pattern: str = None):
+def _browse_cached(dir_path: str, pattern: str | None = None):
     if not os.path.exists(dir_path):
         return []
     files = []

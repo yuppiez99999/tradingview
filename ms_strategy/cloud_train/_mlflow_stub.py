@@ -56,7 +56,7 @@ def _make_mlflow():
     ml.sklearn = types.ModuleType("mlflow.sklearn")
     # 子模块占位, 满足 qlib.workflow 的 from mlflow.xxx import yyy
     entities = types.ModuleType("mlflow.entities")
-    entities.ViewType = type("ViewType", (), {"ALL": "ALL", "ACTIVE_ONLY": "ACTIVE_ONLY", "DELETED_ONLY": "DELETED_ONLY"})
+    entities.ViewType = type("ViewType", (), {"ALL": "ALL", "ACTIVE_ONLY": "ACTIVE_ONLY", "DELETED_ONLY": "DELETED_ONLY"})  # noqa: E501
     entities.RunInfo = object
     entities.Run = object
     entities.Experiment = object

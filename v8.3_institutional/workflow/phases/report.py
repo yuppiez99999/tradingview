@@ -42,7 +42,7 @@ def phase_report(ctx) -> Path:
         "",
         f"**生成时间**: {datetime.now():%Y-%m-%d %H:%M:%S}",
         f"**资金规模**: {ctx.capital:,.0f}",
-        f"**执行模式**: {'DRY-RUN' if ctx.dry_run else ('模拟盘' if getattr(ctx, '_sim_mode_requested', getattr(ctx, 'sim_mode', False)) else 'MOCK_EXECUTION')}",
+        f"**执行模式**: {'DRY-RUN' if ctx.dry_run else ('模拟盘' if getattr(ctx, '_sim_mode_requested', getattr(ctx, 'sim_mode', False)) else 'MOCK_EXECUTION')}",  # noqa: E501
         "**策略**: 康波第六轮周期 × 十五五规划 × v7.0期货期权双层对冲",
         "",
         "## 阶段执行摘要",

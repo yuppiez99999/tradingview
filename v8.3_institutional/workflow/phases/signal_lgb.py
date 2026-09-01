@@ -22,7 +22,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("v75.daily_workflow")
 
@@ -90,7 +90,7 @@ def load_lgb_enhanced_signals() -> dict[str, dict[str, Any]]:
 
 
 def lgb_confidence_multiplier(
-    signal_value: Optional[float],
+    signal_value: float | None,
     quality_flag: str = "OK",
 ) -> float:
     """将 lgb_enhanced 信号映射到置信度乘数

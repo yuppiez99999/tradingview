@@ -17,10 +17,10 @@ v7.5 尾部风险对冲引擎 — 7.4 移植版
     5. VIX>35 时 Put Delta 自动放大 1.5 倍
        (来源: protective_put_manager.py:422-423)
 """
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger('v7.5.tail_risk_hedge')
 
@@ -85,7 +85,7 @@ class TailRiskHedger:
         - VIX>35 时 Delta 放大 1.5 倍
     """
 
-    def __init__(self, config: Optional[TailRiskConfig] = None):
+    def __init__(self, config: TailRiskConfig | None = None):
         self.config = config or TailRiskConfig()
         self.current_regime = MarketRegime.NORMAL
         self.current_protection_ratio = 0.0

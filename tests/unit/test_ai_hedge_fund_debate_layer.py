@@ -32,7 +32,7 @@ import os
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -335,7 +335,7 @@ class TestLLMAvailability:
 # ============================================================
 
 
-def _get_llm_config() -> Optional[dict[str, str]]:
+def _get_llm_config() -> dict[str, str] | None:
     """从环境变量获取 LLM 配置
 
     支持的 provider:

@@ -2,6 +2,7 @@
 
 import os
 import sys
+from typing import Any
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
@@ -126,7 +127,7 @@ if files:
     st.sidebar.metric("总大小", f"{total_size_mb:.1f} MB")
 
     # 按日期分组
-    dates = {}
+    dates: dict[str, Any] = {}
     for f in files:
         d = datetime.fromtimestamp(f["mtime"]).strftime("%Y-%m-%d")
         dates[d] = dates.get(d, 0) + 1

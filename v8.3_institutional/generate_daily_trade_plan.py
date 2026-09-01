@@ -427,7 +427,7 @@ def _load_hedge_fund_overlays(trade_date: str) -> dict:
                         "iv_estimate": pos.get("iv_estimate"),
                         "order_type": "LIMIT",
                         "session": "morning",
-                        "note": f"Theta引擎月度Covered Call (DTE={theta_plan.get('dte')}天, 到期={theta_plan.get('expiry_date')})",
+                        "note": f"Theta引擎月度Covered Call (DTE={theta_plan.get('dte')}天, 到期={theta_plan.get('expiry_date')})",  # noqa: E501
                     }
                 )
 

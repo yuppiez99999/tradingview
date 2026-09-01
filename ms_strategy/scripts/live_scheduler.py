@@ -163,7 +163,7 @@ def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
                         if key in market_data and market_data[key]:
                             prices[code] = float(market_data[key])
                             break
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
 
@@ -219,7 +219,7 @@ def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
                     "deviations": deviations,
                     "exceeds_threshold": {k: v for k, v in deviations.items() if v > 0.05},
                 }
-                logger.info(f"[auto_rebalance] 权重偏差检查完成, {len(result['data']['exceeds_threshold'])} 个标的偏差>5%")
+                logger.info(f"[auto_rebalance] 权重偏差检查完成, {len(result['data']['exceeds_threshold'])} 个标的偏差>5%")  # noqa: E501
     except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         result["status"] = "FAIL"
@@ -262,7 +262,7 @@ def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
                     "portfolio_value": portfolio_value,
                     "hedge_order": order,
                 }
-                logger.info(f"[hedge_rebalance] 对冲计算完成: action={order.get('action')}, contracts={order.get('contracts', 0)}")
+                logger.info(f"[hedge_rebalance] 对冲计算完成: action={order.get('action')}, contracts={order.get('contracts', 0)}")  # noqa: E501
     except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         result["status"] = "FAIL"
@@ -286,7 +286,7 @@ def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
             try:
                 refresh_etf_flow_signals()
                 summary = get_etf_flow_summary()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning(f"[etf_flow_monitor] 刷新失败, 使用缓存数据: {e}")
 
@@ -298,7 +298,7 @@ def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
             "signal_count": summary.get("signal_count", 0),
             "signals": summary.get("signals", []),
         }
-        logger.info(f"[etf_flow_monitor] 监控完成: {len(flow_data)} 只ETF, 净流入={result['data']['total_inflow']:.2f}亿, 趋势={result['data']['overall_trend']}")
+        logger.info(f"[etf_flow_monitor] 监控完成: {len(flow_data)} 只ETF, 净流入={result['data']['total_inflow']:.2f}亿, 趋势={result['data']['overall_trend']}")  # noqa: E501
     except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         result["status"] = "FAIL"
@@ -329,7 +329,7 @@ def run_ml_signal_scan(dry_run: bool = False) -> dict[str, Any]:
                         "predicted_return": pred.get("predicted_return", 0),
                         "confidence": pred.get("confidence", 0),
                     }
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
 
@@ -422,7 +422,7 @@ class LiveScheduler:
                 "last_run": datetime.now().isoformat(),
                 "duration": result["duration"],
             }
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"[{module_name}] 任务异常: {e}")
             MODULE_STATUS[module_name] = {
@@ -611,7 +611,7 @@ def main():
             try:
                 subprocess.run(["taskkill", "/F", "/PID", str(lock["pid"])], capture_output=True)
                 logger.info(f"已停止 PID {lock['pid']}")
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.info(f"停止失败: {e}")
         _remove_lock()

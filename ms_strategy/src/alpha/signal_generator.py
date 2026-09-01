@@ -3,8 +3,9 @@ v7.5 SignalGenerator — 多因子 Alpha 信号生成
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §6 (src/alpha/)
 采用 LASSO (L1) 特征选择 + 岭回归 (L2) 权重优化
 """
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -62,7 +63,7 @@ class SignalGenerator:
         self.scaler = StandardScaler()
 
         self.selected_factors: list[str] = []
-        self.factor_weights: Optional[np.ndarray] = None
+        self.factor_weights: np.ndarray | None = None
         self.latest_signals: dict[str, float] = {}
 
     # ---------- 特征选择 ----------
@@ -132,8 +133,8 @@ class SignalGenerator:
         return ridge.coef_
 
     # ---------- 信号生成 ----------
-    def generate(self, factor_matrix: Optional[pd.DataFrame] = None,
-                 forward_returns: Optional[pd.Series] = None,
+    def generate(self, factor_matrix: pd.DataFrame | None = None,
+                 forward_returns: pd.Series | None = None,
                  retrain: bool = True,
                  asset_class: str = "STOCK") -> pd.Series:
         """

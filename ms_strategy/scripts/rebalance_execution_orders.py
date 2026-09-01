@@ -6,6 +6,7 @@ import json
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
@@ -147,7 +148,7 @@ def build_report(style_allocation: dict, target_allocation: dict, orders: list) 
     report = {
         'date': datetime.now().strftime('%Y-%m-%d'),
         'total_value': total,
-        'style_allocation': {s: {'amount': style_allocation[s]['amount'], 'weight': style_allocation[s]['weight']} for s in style_allocation},
+        'style_allocation': {s: {'amount': style_allocation[s]['amount'], 'weight': style_allocation[s]['weight']} for s in style_allocation},  # noqa: E501
         'target_allocation': target_allocation,
         'orders': orders,
         'summary': {

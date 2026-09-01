@@ -18,12 +18,13 @@
         if any(a['severity'] == 'critical' for a in alerts):
             logger.info("触发自动重训练!")
 """
+from __future__ import annotations
+
 import logging
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional
 
 import numpy as np
 
@@ -199,7 +200,7 @@ class ModelDriftDetector:
     # IC 衰减监控
     # ============================================================
 
-    def update_ic(self, date, ic_value: float) -> Optional[DriftAlert]:
+    def update_ic(self, date, ic_value: float) -> DriftAlert | None:
         """更新 IC 值并检查衰减
 
         Args:
@@ -283,7 +284,7 @@ class ModelDriftDetector:
             f"T17: 记录 IS IC: model_version={model_version}, is_ic={is_ic:.4f}"
         )
 
-    def update_oos_ic(self, date, oos_ic: float) -> Optional[DriftAlert]:
+    def update_oos_ic(self, date, oos_ic: float) -> DriftAlert | None:
         """记录样本外 IC 并检查 OOS Performance Gap (T17 新增).
 
         每日调用, 累计 OOS IC, 当累计够 oos_window 天后开始检查 gap.
@@ -303,7 +304,7 @@ class ModelDriftDetector:
 
         return self.check_oos_gap()
 
-    def check_oos_gap(self) -> Optional[DriftAlert]:
+    def check_oos_gap(self) -> DriftAlert | None:
         """检查 OOS Performance Gap (T17 新增).
 
         gap = max(0, latest_is_ic - recent_oos_ic_mean)
@@ -427,7 +428,7 @@ class ModelDriftDetector:
     # ADWIN 概念漂移
     # ============================================================
 
-    def update_adwin(self, value: float) -> Optional[DriftAlert]:
+    def update_adwin(self, value: float) -> DriftAlert | None:
         """用 ADWIN 检测概念漂移
 
         Args:

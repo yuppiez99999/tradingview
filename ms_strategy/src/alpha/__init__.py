@@ -16,4 +16,9 @@ except Exception:  # noqa: BLE001
 from .signal_fusion import SignalFusion
 from .signal_generator import SignalGenerator
 
+try:
+    from . import qlib_signal_adapter  # noqa: E402,F401
+except Exception:  # noqa: BLE001
+    pass
+
 __all__ = ["SignalFusion", "SignalGenerator"]

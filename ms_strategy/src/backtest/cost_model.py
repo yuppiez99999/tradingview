@@ -28,7 +28,7 @@ class CostConfig:
 class CostModel:
     """交易成本估算"""
 
-    def __init__(self, config: CostConfig = None):
+    def __init__(self, config: CostConfig | None = None):
         self.cfg = config or CostConfig()
 
     def commission(self, notional: float, asset_type: str = 'stock',
@@ -200,7 +200,7 @@ class AlmgrenChrissCost(CostModel):
     含永久冲击 + 临时冲击 + 波动率缩放
     """
 
-    def __init__(self, config: CostConfig = None,
+    def __init__(self, config: CostConfig | None = None,
                  permanent_impact: float = 0.1,
                  temporary_impact: float = 0.15):
         super().__init__(config)

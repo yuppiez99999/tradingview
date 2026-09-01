@@ -150,7 +150,7 @@ def main():
         curr_date = dates[i]
 
         # 用前一天的预测信号选股
-        pred_prev = pred.xs(prev_date, level=0) if prev_date in pred.index.get_level_values(0) else pd.Series(dtype=float)
+        pred_prev = pred.xs(prev_date, level=0) if prev_date in pred.index.get_level_values(0) else pd.Series(dtype=float)  # noqa: E501
         if len(pred_prev) == 0:
             # 尝试找最近的有预测的日期
             available_dates = pred.index.get_level_values(0).unique()

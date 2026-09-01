@@ -24,7 +24,7 @@ import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from workflow.context import WorkflowContext, get_dw_module
 
@@ -45,7 +45,7 @@ BASE_DIR: Path = (
 
 
 def _get_edb_futures_data(
-    ctx: WorkflowContext, names: Optional[list[str]] = None
+    ctx: WorkflowContext, names: list[str] | None = None
 ) -> dict[str, dict[str, Any]]:
     """获取 EDB 期货/商品数据 (带当日缓存)
 
@@ -765,7 +765,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
             coordinated.setdefault("orders", [])
             coordinated["orders"].append({**beta_order, "hedge_type": "BETA"})
         logger.info(
-            f"风格 Beta 代理: {style_beta:.3f}, action={beta_order.get('action')}, reason={beta_order.get('reason', '')}"
+            f"风格 Beta 代理: {style_beta:.3f}, action={beta_order.get('action')}, reason={beta_order.get('reason', '')}"  # noqa: E501
         )
 
         # 回退后重算汇总指标，避免总对冲比例/成本仍为 0

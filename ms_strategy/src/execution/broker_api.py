@@ -3,12 +3,14 @@ v7.5 BrokerAPI — 券商/期货接口抽象层
 支持 CTP 期货接口 + Wind 终端股票接口
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §3
 """
+from __future__ import annotations
+
 import logging
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -79,13 +81,13 @@ class BrokerAPI:
         return self._connected
 
     # ---------- 盘口 ----------
-    def get_order_book(self, symbol: str, levels: int = 5) -> Optional[dict]:
+    def get_order_book(self, symbol: str, levels: int = 5) -> dict | None:
         raise NotImplementedError
 
     # ---------- 下单 ----------
     def place(self, symbol: str, qty: int, side: str,
               order_type: str = 'LIMIT', price: float = 0.0,
-              ts: str = "") -> Optional[Order]:
+              ts: str = "") -> Order | None:
         raise NotImplementedError
 
     # ---------- 撤单 ----------
@@ -93,7 +95,7 @@ class BrokerAPI:
         raise NotImplementedError
 
     # ---------- 等待成交 ----------
-    def wait_fill(self, order: Order, timeout: int = 30) -> Optional[dict]:
+    def wait_fill(self, order: Order, timeout: int = 30) -> dict | None:
         raise NotImplementedError
 
     # ---------- 持仓 ----------
@@ -101,7 +103,7 @@ class BrokerAPI:
         return dict(self.positions)
 
     # ---------- 成交量 profile（用于 VWAP）----------
-    def get_volume_profile(self, symbol: str, window_minutes: int = 30) -> Optional[list[float]]:
+    def get_volume_profile(self, symbol: str, window_minutes: int = 30) -> list[float] | None:
         return None
 
     # ---------- 账户 ----------
@@ -122,7 +124,7 @@ class SimulatedBroker(BrokerAPI):
                  commission_stock: float = 0.00025,
                  commission_futures: float = 0.000023,
                  slippage_bps: float = 2.0,
-                 cost_model: Optional[Any] = None,
+                 cost_model: Any | None = None,
                  slippage_coef: float = 0.142):
         super().__init__()
         self.capital = initial_capital
@@ -139,7 +141,7 @@ class SimulatedBroker(BrokerAPI):
         self._cost_model = cost_model
 
     def set_price(self, symbol: str, price: float, volume: int = 100000,
-                  volatility: Optional[float] = None):
+                  volatility: float | None = None):
         """设置标的当前价格、成交量和波动率.
 
         Args:
@@ -206,7 +208,7 @@ class SimulatedBroker(BrokerAPI):
 
         return slip_bps
 
-    def get_order_book(self, symbol: str, levels: int = 5) -> Optional[dict]:
+    def get_order_book(self, symbol: str, levels: int = 5) -> dict | None:
         price = self._prices.get(symbol)
         if price is None:
             return None
@@ -224,7 +226,7 @@ class SimulatedBroker(BrokerAPI):
 
     def place(self, symbol: str, qty: int, side: str,
               order_type: str = 'LIMIT', price: float = 0.0,
-              ts: str = "") -> Optional[Order]:
+              ts: str = "") -> Order | None:
         order_id = f"SIM-{uuid.uuid4().hex[:8]}"
         order = Order(
             order_id=order_id,
@@ -245,7 +247,7 @@ class SimulatedBroker(BrokerAPI):
             return True
         return False
 
-    def wait_fill(self, order: Order, timeout: int = 30) -> Optional[dict]:
+    def wait_fill(self, order: Order, timeout: int = 30) -> dict | None:
         price = self._prices.get(order.symbol)
         if price is None:
             return None
@@ -298,7 +300,7 @@ class SimulatedBroker(BrokerAPI):
             'ts': fill.ts
         }
 
-    def get_volume_profile(self, symbol: str, window_minutes: int = 30) -> Optional[list[float]]:
+    def get_volume_profile(self, symbol: str, window_minutes: int = 30) -> list[float] | None:
         # 均匀分布
         return [1.0 / window_minutes] * window_minutes
 

@@ -126,7 +126,7 @@ try:
     r5 = tr.get_trading_rule("600001", product_class="STOCK")
     assert r5["price_limit_pct"] == 0.10, f"600 limit={r5['price_limit_pct']}"
     print(
-        f"  [OK] TR FUTURE/OPTION/688/300/600 limits = {r1['price_limit_pct']}/{r2['price_limit_pct']}/{r3['price_limit_pct']}/{r4['price_limit_pct']}/{r5['price_limit_pct']}"
+        f"  [OK] TR FUTURE/OPTION/688/300/600 limits = {r1['price_limit_pct']}/{r2['price_limit_pct']}/{r3['price_limit_pct']}/{r4['price_limit_pct']}/{r5['price_limit_pct']}"  # noqa: E501
     )
     passed += 1
 except Exception as e:  # noqa: BLE001

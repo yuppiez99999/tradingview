@@ -48,9 +48,13 @@ class _ImportBlocker(types.ModuleType):
 
 
 # 注入拦截器 (仅当模块未加载时).
-# 只拦崩溃链末端 qlib.contrib.model (LGBModel), 不拦 qlib 顶层:
-# 若拦截 "qlib", 会连带 qlib.tests 导入链断裂, 误伤 tests/unit/backtest 收集.
-for _mod_name in ("qlib.contrib.model", "lightgbm"):
+# 只拦崩溃链末端 qlib.contrib.model (LGBModel), 不拦 qlib 顶层与 lightgbm:
+# - 拦 "qlib" 会连带 qlib.tests 导入链断裂, 误伤 tests/unit/backtest 收集.
+# - 拦 "lightgbm" 会污染同进程所有用 lightgbm 的单测 (如 ms_strategy_coverage
+#   的 LGBMRegressor), 且 conftest 模块级注入无 teardown, 永不卸载.
+#   qlib.contrib.model 被拦后 alpha_pipeline 的 try/except 走降级, 不会走到
+#   lightgbm, 故无需再拦 lightgbm 顶层.
+for _mod_name in ("qlib.contrib.model",):
     if _mod_name not in sys.modules:
         sys.modules[_mod_name] = _ImportBlocker(_mod_name)
 

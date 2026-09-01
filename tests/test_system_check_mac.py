@@ -300,14 +300,14 @@ class TestC3DatasourceResearchMode:
         """_check_datasource_research_mode 方法应存在"""
         assert hasattr(SystemChecker, "_check_datasource_research_mode")
 
-    def test_research_mode_skips_wind_mcp(self, force_research_mode, capsys):
+    def test_research_mode_skips_wind_mcp(self, force_research_mode, caplog):
         """研究模式 C3 应跳过 Wind MCP (SKIP 状态)"""
+        caplog.set_level("INFO", logger="system_check")
         checker = SystemChecker()
         checker._check_datasource_research_mode()
-        captured = capsys.readouterr()
 
         # 应输出研究模式标识
-        assert "研究模式" in captured.out
+        assert "研究模式" in caplog.text
 
         # Wind MCP / iFinD / TDX 应为 SKIP
         skipped = [r for r in checker._results if r.status == CheckStatus.SKIP]
@@ -371,9 +371,10 @@ class TestRunAllOutput:
     """测试 run_all() 输出包含模式标识"""
 
     def test_research_mode_output_contains_label(
-        self, force_research_mode, capsys, monkeypatch
+        self, force_research_mode, caplog, monkeypatch
     ):
         """研究模式 run_all 输出应包含 '研究模式' 标识"""
+        caplog.set_level("INFO", logger="system_check")
         # 跳过数据源检查加速
         monkeypatch.setattr(
             SystemChecker, "check_datasource_connectivity", lambda self: None
@@ -384,16 +385,16 @@ class TestRunAllOutput:
 
         checker = SystemChecker(skip_datasource=True)
         checker.run_all()
-        captured = capsys.readouterr()
 
         assert (
-            "研究模式" in captured.out
-        ), f"输出应包含 '研究模式' 标识, 实际输出: {captured.out[:200]}"
+            "研究模式" in caplog.text
+        ), f"输出应包含 '研究模式' 标识, 实际日志: {caplog.text[:200]}"
 
     def test_windows_mode_output_contains_label(
-        self, force_windows_mode, capsys, monkeypatch
+        self, force_windows_mode, caplog, monkeypatch
     ):
         """Windows 实盘模式 run_all 输出应包含 '实盘模式' 标识"""
+        caplog.set_level("INFO", logger="system_check")
         monkeypatch.setattr(
             SystemChecker, "check_datasource_connectivity", lambda self: None
         )
@@ -403,11 +404,10 @@ class TestRunAllOutput:
 
         checker = SystemChecker(skip_datasource=True)
         checker.run_all()
-        captured = capsys.readouterr()
 
         assert (
-            "实盘模式" in captured.out
-        ), f"输出应包含 '实盘模式' 标识, 实际输出: {captured.out[:200]}"
+            "实盘模式" in caplog.text
+        ), f"输出应包含 '实盘模式' 标识, 实际日志: {caplog.text[:200]}"
 
 
 # ============================================================

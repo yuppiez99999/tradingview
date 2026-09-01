@@ -60,6 +60,7 @@ class TestForecast:
         assert np.all(out.point == 0)
         assert len(out.point) == 5
 
+    @patch.dict(sys.modules, {"timesfm": MagicMock(TimesFM_2p5_200M_torch=type)})
     def test_forecast_success(self):
         pred = _make_predictor(available=True)
         pred._tfm.forecast.return_value = (
@@ -130,12 +131,14 @@ class TestHybridBlend:
 
 
 class TestCovariates:
+    @patch.dict(sys.modules, {"timesfm": MagicMock(TimesFM_2p5_200M_torch=type)})
     def test_no_xreg_fallback_to_forecast(self):
         pred = _make_predictor(available=True)
         pred._tfm.forecast.return_value = (np.array([[0.1, 0.2]]), None)
         out = pred.forecast_with_covariates(np.arange(20, dtype=float), horizon=2)
         assert out.available is True
 
+    @patch.dict(sys.modules, {"timesfm": MagicMock(TimesFM_2p5_200M_torch=type)})
     def test_xreg_exception_degrade(self):
         pred = _make_predictor(available=True)
         pred._tfm.forecast.return_value = (np.array([[0.1, 0.2]]), None)

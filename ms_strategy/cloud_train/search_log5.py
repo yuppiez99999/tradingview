@@ -13,7 +13,7 @@ tmp = Path(tempfile.gettempdir()) / f"ma_log_{job_id}.txt"
 r = obs.getObject("qt-models", key, downloadPath=str(tmp))
 text = tmp.read_text(encoding="utf-8", errors="replace")
 
-for kw in ["模型已保存", "报告已保存", "LightGBM", "预测结果", "ModelArts 输出", "pickle", "save_model", "shutil", "所有文件"]:
+for kw in ["模型已保存", "报告已保存", "LightGBM", "预测结果", "ModelArts 输出", "pickle", "save_model", "shutil", "所有文件"]:  # noqa: E501
     idx = text.find(kw)
     if idx >= 0:
         print(f'[{kw}] 位置 {idx}:')

@@ -17,6 +17,7 @@
 5. 异常处理：全面的异常处理和恢复机制
 6. 性能监控：执行性能监控和分析
 """
+from __future__ import annotations
 
 import json
 import threading
@@ -24,7 +25,6 @@ import time
 from collections import deque
 from datetime import datetime, timedelta
 from datetime import time as datetime_time
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -254,7 +254,7 @@ class TradingCalendar:
 
         return False, "不在执行窗口内"
 
-    def get_next_execution_time(self) -> Optional[datetime]:
+    def get_next_execution_time(self) -> datetime | None:
         """获取下次执行时间"""
         now = datetime.now()
 
@@ -374,7 +374,7 @@ class TradingCalendar:
             'success_rate': success_rate,
             'average_duration_seconds': avg_duration,
             'execution_stats': execution_stats,
-            'next_execution_time': self.get_next_execution_time().isoformat() if self.get_next_execution_time() else None
+            'next_execution_time': self.get_next_execution_time().isoformat() if self.get_next_execution_time() else None  # noqa: E501
         }
 
 class MarketStateEvaluator:
@@ -503,7 +503,7 @@ class MarketStateEvaluator:
 
             return evaluation_report
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"市场状态评估失败: {e}")
@@ -778,7 +778,7 @@ class ExecutionStrategy:
                 'reasoning': f"基于市场状态{market_state}和交易特性选择"
             }
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"执行策略选择失败: {e}")
@@ -854,7 +854,7 @@ class ExecutionStrategy:
 
             return execution_plan
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"执行计划生成失败: {e}")
@@ -1052,7 +1052,7 @@ class OrderRouter:
                 'estimated_wait_time': self._estimate_wait_time(pool_name)
             }
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"订单路由失败: {e}")
@@ -1074,7 +1074,7 @@ class OrderRouter:
         # 实际应该查询真实的账户余额
         return True
 
-    def _find_available_pool(self) -> Optional[dict]:
+    def _find_available_pool(self) -> dict | None:
         """查找可用的执行池"""
         for pool in self.execution_pools.values():
             if self._check_pool_availability(pool):
@@ -1139,7 +1139,7 @@ class OrderRouter:
                     # 暂停处理
                     break
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"执行队列处理失败: {e}")
@@ -1184,7 +1184,7 @@ class OrderRouter:
                 'broker': self.execution_pools[order['target_pool']]['broker']
             }
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             return {
@@ -1267,7 +1267,7 @@ class AutomatedExecutionSystem:
             try:
                 self.hedge_coordinator = HedgeCoordinator()
                 self.hedge_enabled = True
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("对冲模块初始化失败: %s", exc)
 
@@ -1355,13 +1355,13 @@ class AutomatedExecutionSystem:
                 self._execute_daily_trading(matched_execution)
                 time.sleep(60)
 
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
 
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.error(f"执行循环错误: {e}")
                 time.sleep(60)
 
-    def _match_current_execution(self, current_time: datetime) -> Optional[str]:
+    def _match_current_execution(self, current_time: datetime) -> str | None:
         """根据当前时间匹配应触发的执行项"""
         execution_map = {
             'daily_execution': (datetime_time(6, 30), datetime_time(8, 0)),
@@ -1387,14 +1387,14 @@ class AutomatedExecutionSystem:
             # 0. 每日自动更新历史收益率数据（供对冲引擎使用真实Beta/相关性）
             try:
                 self._update_historical_returns()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as update_exc:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as update_exc:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("历史收益率自动更新失败: %s", update_exc)
 
             # 0.5 更新持仓实时价格
             try:
                 self._update_position_prices()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as update_exc:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as update_exc:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("持仓价格更新失败: %s", update_exc)
 
@@ -1440,7 +1440,7 @@ class AutomatedExecutionSystem:
                 self.current_market_state, trade_info
             )
             strategy_config = strategy_result['strategy_config']
-            logger.debug(f"执行策略: {strategy_result.get('strategy_name')}, 切片大小: {strategy_config.get('slice_size')}")
+            logger.debug(f"执行策略: {strategy_result.get('strategy_name')}, 切片大小: {strategy_config.get('slice_size')}")  # noqa: E501
 
             # 6. 生成执行计划
             execution_plan = self.execution_strategy.generate_execution_plan(
@@ -1494,7 +1494,7 @@ class AutomatedExecutionSystem:
             # 10. 生成对冲执行单
             try:
                 self._generate_hedge_execution_orders(hedge_plan)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("对冲执行单生成失败: %s", exc)
 
@@ -1502,11 +1502,11 @@ class AutomatedExecutionSystem:
             try:
                 rebalance_report = self._generate_rebalance_orders()
                 execution_result['rebalance_plan'] = rebalance_report
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.warning("再平衡订单生成失败: %s", exc)
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"每日交易执行失败: {e}", exc_info=True)
@@ -1519,7 +1519,7 @@ class AutomatedExecutionSystem:
             }
             self.system_history.append(failure_record)
 
-    def _run_hedge_decision(self, market_data: dict, market_state_data: dict) -> Optional[dict]:
+    def _run_hedge_decision(self, market_data: dict, market_state_data: dict) -> dict | None:
         """运行对冲决策"""
         try:
             # 1. 读取真实持仓与价格
@@ -1550,7 +1550,7 @@ class AutomatedExecutionSystem:
                     market_returns = pd.read_json(market_path, orient='split', typ='series')
                     returns.columns = returns.columns.astype(str)
                     logger.info("已加载历史收益率数据: %s 条, %s 个标的", len(market_returns), returns.shape[1])
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     logger.warning("加载历史收益率失败: %s", e)
 
@@ -1570,7 +1570,7 @@ class AutomatedExecutionSystem:
                     "红利": 0.70,
                     "成长": 1.25,
                 }
-                day_capital = float(sum(positions.get(s, 0) * prices.get(s, 0) for s in positions) or self.total_capital)
+                day_capital = float(sum(positions.get(s, 0) * prices.get(s, 0) for s in positions) or self.total_capital)  # noqa: E501
                 portfolio_beta_est = 0.0
                 for code, qty in positions.items():
                     amt = qty * prices.get(code, 0.0)
@@ -1615,7 +1615,7 @@ class AutomatedExecutionSystem:
                 float(plan.get("total_cost_pct", 0.0) or 0.0) * 100,
             )
             return plan
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"对冲决策失败: {e}")
             return None
@@ -1653,7 +1653,7 @@ class AutomatedExecutionSystem:
                             real_time_price = float(quote['price'])
                             if real_time_price > 0:
                                 price_source = 'wind_mcp'
-                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+                    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                         logger.debug("Wind MCP 获取价格失败 %s: %s", code, e)
 
@@ -1671,7 +1671,7 @@ class AutomatedExecutionSystem:
                     json.dump(data, f, ensure_ascii=False, indent=2)
 
             logger.info("持仓价格更新完成: 成功 %s, 失败 %s", update_count, fail_count)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("持仓价格更新失败: %s", e)
 
@@ -1698,7 +1698,7 @@ class AutomatedExecutionSystem:
                     if df is not None and not df.empty and "close" in df.columns:
                         df["return"] = df["close"].pct_change()
                         returns_data[symbol] = df["return"].dropna()
-                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+                except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                     # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                     continue
 
@@ -1717,11 +1717,11 @@ class AutomatedExecutionSystem:
                 market_returns.to_json(market_path, orient="split", date_format="iso")
 
             logger.info("历史收益率自动更新完成: %s 个标的", len(returns_df.columns))
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("历史收益率自动更新异常: %s", e)
 
-    def _apply_hedge_triggers(self, market_data: dict, hedge_plan: Optional[dict]) -> Optional[dict]:
+    def _apply_hedge_triggers(self, market_data: dict, hedge_plan: dict | None) -> dict | None:
         """基于 VIX / 回撤 / 市场状态做强制触发覆盖"""
         if not hedge_plan:
             return hedge_plan
@@ -1746,7 +1746,7 @@ class AutomatedExecutionSystem:
 
         return plan
 
-    def _generate_hedge_execution_orders(self, hedge_plan: Optional[dict]):
+    def _generate_hedge_execution_orders(self, hedge_plan: dict | None):
         """根据对冲决策生成可执行订单文件"""
         try:
             positions_path = os.path.join(os.path.dirname(__file__), "config", "positions.json")
@@ -1791,11 +1791,11 @@ class AutomatedExecutionSystem:
                 json.dump(orders, f, ensure_ascii=False, indent=2)
 
             logger.info("对冲执行单已生成: %s", out_path)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("生成对冲执行单失败: %s", e)
 
-    def _fetch_index_price_from_wind(self) -> Optional[float]:
+    def _fetch_index_price_from_wind(self) -> float | None:
         """从 Wind MCP 获取沪深300实时价格"""
         if not (_WIND_MCP_AVAILABLE and wind_get_quote is not None):
             return None
@@ -1803,12 +1803,12 @@ class AutomatedExecutionSystem:
             quote = wind_get_quote('510300.SH', is_fund=True)
             if quote and quote.get('price') is not None:
                 return float(quote['price'])
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug("Wind MCP 获取市场指数失败: %s", e)
         return None
 
-    def _fetch_index_price_from_history(self) -> Optional[float]:
+    def _fetch_index_price_from_history(self) -> float | None:
         """从历史数据文件获取指数价格（回退方案）"""
         try:
             base_dir = os.path.dirname(__file__)
@@ -1834,7 +1834,7 @@ class AutomatedExecutionSystem:
                 var_m = market_returns.var()
                 if var_m > 0 and not np.isnan(cov):
                     betas.append(float(cov / var_m))
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 continue
 
@@ -1843,7 +1843,7 @@ class AutomatedExecutionSystem:
             return safe_float(sum(betas) / len(betas))
         return safe_float(1.0)
 
-    def _compute_market_metrics_from_returns(self, index_price: float) -> Optional[dict]:
+    def _compute_market_metrics_from_returns(self, index_price: float) -> dict | None:
         """从历史收益率计算真实市场指标，失败返回 None"""
         try:
             base_dir = os.path.dirname(__file__)
@@ -1896,7 +1896,7 @@ class AutomatedExecutionSystem:
                 'skewness': safe_float(0.0),
                 'extreme_events': safe_float(0, default=0)
             }
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.debug("历史收益率市场数据计算失败: %s", e)
             return None
@@ -1942,7 +1942,7 @@ class AutomatedExecutionSystem:
                 return metrics
 
             return self._build_default_market_data(index_price)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning("获取市场数据失败: %s", e)
             return self._build_default_market_data(safe_float(3000))
@@ -1968,7 +1968,7 @@ class AutomatedExecutionSystem:
             logger.debug("风险预检查通过")
             return True
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"风险预检查失败: {e}")
@@ -2001,7 +2001,7 @@ class AutomatedExecutionSystem:
                     logger.debug("性能监控：暂无订单执行记录，跳过阈值告警")
 
                 time.sleep(300)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.error(f"性能监控错误: {e}")
                 time.sleep(300)
@@ -2015,8 +2015,8 @@ class AutomatedExecutionSystem:
             'enabled': self.hedge_enabled,
             'coordinator_loaded': self.hedge_coordinator is not None,
             'last_action': self.last_hedge_plan.get('action') if isinstance(self.last_hedge_plan, dict) else None,
-            'last_total_hedge_pct': self.last_hedge_plan.get('total_hedge_pct') if isinstance(self.last_hedge_plan, dict) else None,
-            'last_total_cost_pct': self.last_hedge_plan.get('total_cost_pct') if isinstance(self.last_hedge_plan, dict) else None,
+            'last_total_hedge_pct': self.last_hedge_plan.get('total_hedge_pct') if isinstance(self.last_hedge_plan, dict) else None,  # noqa: E501
+            'last_total_cost_pct': self.last_hedge_plan.get('total_cost_pct') if isinstance(self.last_hedge_plan, dict) else None,  # noqa: E501
         }
 
         return {
@@ -2080,7 +2080,7 @@ class AutomatedExecutionSystem:
             logger.info(f"再平衡订单生成完成: {valid_count}/{total_count} 有效订单")
 
             return report
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"生成再平衡订单失败: {e}")
             return None

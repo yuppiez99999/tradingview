@@ -132,7 +132,7 @@ class TestResolveKeyword:
 
 class TestEngineLLMSuccess:
     def test_llm_returns_valid_json(self):
-        llm_response = '{"score": 0.8, "action": "BUY", "confidence": 0.7, "summary": "利好消息", "key_points": ["业绩增长"], "risk_factors": ["估值偏高"]}'
+        llm_response = '{"score": 0.8, "action": "BUY", "confidence": 0.7, "summary": "利好消息", "key_points": ["业绩增长"], "risk_factors": ["估值偏高"]}'  # noqa: E501
         engine = NewsIntelligenceEngine(
             web_scraper=make_mock_scraper(make_mock_articles(3)),
             llm_client=make_mock_llm(llm_response),

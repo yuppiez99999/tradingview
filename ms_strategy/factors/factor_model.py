@@ -21,10 +21,10 @@
   scores = model.evaluate(klines_data)
   signal = model.generate_signal(scores)
 """
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -72,7 +72,7 @@ class FactorModel:
         'sell': -0.30,
     }
 
-    def __init__(self, weights: Optional[dict[str, float]] = None,
+    def __init__(self, weights: dict[str, float] | None = None,
                  lookback: int = 252):
         """
         Args:
@@ -86,9 +86,9 @@ class FactorModel:
     # 因子1: 价值因子
     # ============================================================
     def value_factor(self, df: pd.DataFrame,
-                     pe: Optional[float] = None,
-                     pb: Optional[float] = None,
-                     dividend_yield: Optional[float] = None) -> float:
+                     pe: float | None = None,
+                     pb: float | None = None,
+                     dividend_yield: float | None = None) -> float:
         """
         价值因子：低估值 + 高股息 = 高分。
 
@@ -118,9 +118,9 @@ class FactorModel:
     # 因子2: 质量因子
     # ============================================================
     def quality_factor(self, df: pd.DataFrame,
-                       roe: Optional[float] = None,
-                       debt_ratio: Optional[float] = None,
-                       profit_margin: Optional[float] = None) -> float:
+                       roe: float | None = None,
+                       debt_ratio: float | None = None,
+                       profit_margin: float | None = None) -> float:
         """
         质量因子：高ROE + 低负债 + 高利润率 = 高分。
         """
@@ -169,8 +169,8 @@ class FactorModel:
     # ============================================================
     # 因子4: 增长因子
     # ============================================================
-    def growth_factor(self, revenue_growth: Optional[float] = None,
-                      earnings_growth: Optional[float] = None) -> float:
+    def growth_factor(self, revenue_growth: float | None = None,
+                      earnings_growth: float | None = None) -> float:
         """
         增长因子：高收入/盈利增长 = 高分。
         """
@@ -251,7 +251,7 @@ class FactorModel:
             # 经验阈值做截断，避免极端值主导
             score = max(-1.0, min(1.0, 1.0 - float(value) * 1e8))
             return round(float(score), 4)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"technical_alpha_factor 计算失败: {exc}")
             return 0.0
@@ -260,8 +260,8 @@ class FactorModel:
     # 综合评估
     # ============================================================
     def evaluate(self, klines: dict[str, pd.DataFrame],
-                 fundamentals: Optional[dict[str, dict]] = None,
-                 event_factors: Optional[dict[str, dict]] = None) -> dict[str, FactorResult]:
+                 fundamentals: dict[str, dict] | None = None,
+                 event_factors: dict[str, dict] | None = None) -> dict[str, FactorResult]:
         """
         对所有标的进行五维因子评估。
 

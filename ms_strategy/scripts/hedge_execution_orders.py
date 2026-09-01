@@ -6,6 +6,7 @@ import json
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
@@ -126,14 +127,16 @@ def build_orders(plan: dict, positions: dict, prices: dict) -> dict:
 
 def main():
     positions, prices = load_positions()
-    plan_path = r'e:\各种PY程序\28-终极量化交易系统7.1\reports\hedge_decision_20260706.json'
+    reports_dir = _PROJECT_ROOT / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    plan_path = str(reports_dir / "hedge_decision_20260706.json")
     plan = {'action': 'NO_HEDGE', 'portfolio_beta': 0.0759, 'total_hedge_pct': 0.0}
     if os.path.exists(plan_path):
         with open(plan_path, encoding='utf-8') as f:
             plan = json.load(f)
 
     orders = build_orders(plan, positions, prices)
-    out_path = r'e:\各种PY程序\28-终极量化交易系统7.1\reports\hedge_execution_orders_20260706.json'
+    out_path = str(reports_dir / "hedge_execution_orders_20260706.json")
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(orders, f, ensure_ascii=False, indent=2)
 

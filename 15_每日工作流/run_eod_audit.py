@@ -175,9 +175,9 @@ def generate_audit_report(
         "| 项目 | 值 |",
         "|------|-----|",
         f"| 状态 | {dq_emoji} {dq} — {dq_label} |",
-        f"| 实时行情 | {dq_details.get('real_count', 0)}/{dq_details.get('total_positions', 0)} ({dq_details.get('real_ratio', 0):.0%}) |",
-        f"| 兜底价格 | {dq_details.get('fallback_count', 0)}/{dq_details.get('total_positions', 0)} ({dq_details.get('fallback_ratio', 0):.0%}) |",
-        f"| 无数据 | {dq_details.get('no_data_count', 0)}/{dq_details.get('total_positions', 0)} ({dq_details.get('no_data_ratio', 0):.0%}) |\n",
+        f"| 实时行情 | {dq_details.get('real_count', 0)}/{dq_details.get('total_positions', 0)} ({dq_details.get('real_ratio', 0):.0%}) |",  # noqa: E501
+        f"| 兜底价格 | {dq_details.get('fallback_count', 0)}/{dq_details.get('total_positions', 0)} ({dq_details.get('fallback_ratio', 0):.0%}) |",  # noqa: E501
+        f"| 无数据 | {dq_details.get('no_data_count', 0)}/{dq_details.get('total_positions', 0)} ({dq_details.get('no_data_ratio', 0):.0%}) |\n",  # noqa: E501
     ]
 
     if dq in ("FALLBACK_HEAVY", "NOSIGNAL_MAJORITY", "NOSIGNAL_PARTIAL"):

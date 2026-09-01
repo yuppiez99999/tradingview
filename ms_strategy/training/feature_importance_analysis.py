@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-QLIB_DATA_DIR = os.environ.get("QLIB_DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qlib_data", "cn_data"))
+QLIB_DATA_DIR = os.environ.get("QLIB_DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qlib_data", "cn_data"))  # noqa: E501
 
 PORTFOLIO_STOCKS = [
     ("002371", "SZ", "北方华创"), ("300308", "SZ", "中际旭创"),
@@ -188,7 +188,7 @@ def main():
         feature_idx = int(feature_idx_str[1:])
         feature_name = feature_names[feature_idx]
         cumulative_gain += gain
-        print(f"{i:<6} {feature_name:<45} {gain:>12.4f} {gain/total_gain*100:>7.1f}% {cumulative_gain/total_gain*100:>7.1f}%")
+        print(f"{i:<6} {feature_name:<45} {gain:>12.4f} {gain/total_gain*100:>7.1f}% {cumulative_gain/total_gain*100:>7.1f}%")  # noqa: E501
         top_features.append(feature_name)
         top_indices.append(feature_idx)
 

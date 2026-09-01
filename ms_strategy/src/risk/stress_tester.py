@@ -1,11 +1,11 @@
 """
 v7.5 压力测试引擎 —— 三段极端行情 + 蒙特卡洛 + Walk-Forward 验证
 """
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -60,7 +60,7 @@ class StressTester:
 
     def run_scenario(self, scenario: StressScenario,
                      portfolio_returns: pd.Series,
-                     market_returns: Optional[pd.Series] = None) -> dict:
+                     market_returns: pd.Series | None = None) -> dict:
         """运行单个场景压力测试"""
         mask = (portfolio_returns.index >= scenario.start) & (portfolio_returns.index <= scenario.end)
         period_returns = portfolio_returns[mask]
@@ -187,7 +187,7 @@ class StressTester:
                 initial_value: float,
                 annual_return: float = 0.08,
                 annual_vol: float = 0.15,
-                market_returns: Optional[pd.Series] = None) -> dict:
+                market_returns: pd.Series | None = None) -> dict:
         """运行全部压力测试"""
         all_scenarios = self.BUILTIN_SCENARIOS + self.custom_scenarios
         scenario_results = []

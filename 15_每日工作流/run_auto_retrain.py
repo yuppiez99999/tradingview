@@ -45,6 +45,7 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 # 强制 UTF-8 输出
 if sys.stdout.encoding != "utf-8":
@@ -141,7 +142,7 @@ def log(msg: str, level: str = "INFO") -> None:
 
 def scan_models() -> list[dict]:
     """扫描所有模型元数据, 返回模型状态列表"""
-    models = []
+    models: list[Any] = []
     if not MODELS_DIR.exists():
         log(f"模型目录不存在: {MODELS_DIR}", "WARN")
         return models

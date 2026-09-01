@@ -144,7 +144,7 @@ class QmtBrokerAPI(BrokerAPI):
                         self.account_id, self.session_id)
             return True
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             self._connection_error = str(exc)
@@ -161,7 +161,7 @@ class QmtBrokerAPI(BrokerAPI):
         if self._xt_trader:
             try:
                 self._xt_trader.stop()
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
         # P0-7 FIX: 清理所有缓存状态, 保证重连后状态机干净
@@ -192,7 +192,7 @@ class QmtBrokerAPI(BrokerAPI):
                 self._on_trade(data)
             elif data_type == "account":
                 self._on_account_update(data)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("QMT 回调处理异常: %s", exc, exc_info=True)
 
@@ -210,7 +210,7 @@ class QmtBrokerAPI(BrokerAPI):
         if cb:
             try:
                 cb(data)
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 pass
 
@@ -324,7 +324,7 @@ class QmtBrokerAPI(BrokerAPI):
                         symbol, side, order_type, qty, price, order_id)
             return order
 
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("QMT 下单异常: %s %s qty=%d: %s",
@@ -344,7 +344,7 @@ class QmtBrokerAPI(BrokerAPI):
             self.account_id, order.order_id
             )
             return result == 0
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("撤单异常: %s: %s", order.order_id, exc)
             return False
@@ -416,7 +416,7 @@ class QmtBrokerAPI(BrokerAPI):
                         "code": str(getattr(o, "stock_code", "")),
                     }
             return None
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("查询订单 %s 异常: %s", order_id, exc)
             return None
@@ -457,7 +457,7 @@ class QmtBrokerAPI(BrokerAPI):
                 "bid_volumes": [int(v) for v in (t.get("bidVol", []) or [])[:levels]],
                 "ask_volumes": [int(v) for v in (t.get("askVol", []) or [])[:levels]],
             }
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("获取盘口 %s 异常: %s", symbol, exc)
             return None
@@ -485,7 +485,7 @@ class QmtBrokerAPI(BrokerAPI):
                     }
                     self._last_account_update = now
                     return dict(self._account_cache)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("查询账户异常: %s", exc)
 
@@ -503,7 +503,7 @@ class QmtBrokerAPI(BrokerAPI):
                     if code and vol > 0:
                         result[code] = vol
                 return result
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("查询持仓异常: %s", exc)
         return {}
@@ -550,7 +550,7 @@ class QmtBrokerAPI(BrokerAPI):
                 return [1.0 / window_minutes] * window_minutes
             profile = [float(v) / total for v in vol[-window_minutes:]]
             return profile
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as exc:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error("获取成交量 profile %s 异常: %s", symbol, exc)
             return None

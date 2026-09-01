@@ -111,7 +111,7 @@ class TestQueryTaskStatus(unittest.TestCase):
     @patch("shadow_admission_watchdog.subprocess.run")
     def test_returns_error_info_on_exception(self, mock_run):
         """subprocess 抛异常时返回 error 信息而非崩溃"""
-        mock_run.side_effect = Exception("timeout")
+        mock_run.side_effect = TimeoutError("timeout")
         info = wd.query_task_status("v84_ShadowAdmissionDaily")
         self.assertIn("error", info["last_result"])
 

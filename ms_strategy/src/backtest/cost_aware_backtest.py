@@ -13,9 +13,10 @@
     bt = CostAwareBacktest(initial_capital=5_000_000)
     result = bt.run_strategy(prices, signals, target_weights)
 """
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -196,7 +197,7 @@ class CostAwareBacktest:
                      prices: pd.DataFrame,
                      target_weights: pd.DataFrame,
                      rebalance_threshold: float = 0.05,
-                     daily_volumes: Optional[pd.DataFrame] = None) -> BacktestResult:
+                     daily_volumes: pd.DataFrame | None = None) -> BacktestResult:
         """运行成本感知回测
 
         Args:
@@ -338,7 +339,7 @@ class CostAwareBacktest:
         # Sortino
         downside_returns = daily_returns[daily_returns < 0]
         downside_std = downside_returns.std() if len(downside_returns) > 0 else np.nan
-        sortino = (daily_returns.mean() * 252 - 0.02) / (downside_std * np.sqrt(252)) if np.isfinite(downside_std) and downside_std > 1e-6 else 0.0
+        sortino = (daily_returns.mean() * 252 - 0.02) / (downside_std * np.sqrt(252)) if np.isfinite(downside_std) and downside_std > 1e-6 else 0.0  # noqa: E501
 
         # Calmar
         calmar = annual_return / abs(max_dd) if max_dd < 0 else 0
@@ -398,5 +399,5 @@ class CostAwareBacktest:
             'sharpe_with_cost': result.sharpe_ratio,
             'turnover': result.turnover,
             'n_trades': result.n_trades,
-            'avg_cost_bps': result.avg_cost_per_trade / (self.capital / result.n_trades) * 10000 if result.n_trades > 0 else 0,
+            'avg_cost_bps': result.avg_cost_per_trade / (self.capital / result.n_trades) * 10000 if result.n_trades > 0 else 0,  # noqa: E501
         }

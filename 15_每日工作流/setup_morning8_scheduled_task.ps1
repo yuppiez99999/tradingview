@@ -13,7 +13,7 @@ if (-not (Test-Path $LogDir)) {
     New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 }
 
-$TaskName = "V84_DailyMorning8Workflow"
+$TaskName = "V84_DailyMorning8Report"
 $TaskDesc = "v8.6.14 每日早8点日报+盘前交易计划 (info→calibrate→plan→LLM→report)"
 
 Write-Host "============================================================" -ForegroundColor Cyan

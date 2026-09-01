@@ -1,6 +1,8 @@
 """
 单元测试: utils/cli_helpers.py
-覆盖 write_report_file / archive_report / get_stock_name / log_execution_summary / get_ml_signal_section / get_etf_flow_data / get_portfolio_quotes / get_archive_dir
+覆盖 write_report_file / archive_report / get_stock_name / log_execution_summary / get_ml_signal_section /
+get_etf_flow_data
+/ get_portfolio_quotes / get_archive_dir
 """
 
 from __future__ import annotations

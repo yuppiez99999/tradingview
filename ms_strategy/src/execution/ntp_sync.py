@@ -73,7 +73,7 @@ class NTPSync:
                 else:
                     logger.info("NTP 同步成功, offset=%.3f s (server=%s)", self.offset_seconds, srv)
                 return True
-            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+            except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 logger.debug("NTP 服务器 %s 失败: %s", srv, e)
                 continue

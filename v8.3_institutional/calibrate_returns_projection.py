@@ -493,7 +493,7 @@ def calc_realized_returns() -> dict[str, Any]:
 
         if not (MIN_ANNUALIZED <= annualized <= MAX_ANNUALIZED):
             logger.warning(
-                f"  [SKIP] {code}: 年化收益率异常 ({annualized*100:+.2f}%)，超出阈值 [{MIN_ANNUALIZED*100:.0f}%, {MAX_ANNUALIZED*100:.0f}%]"
+                f"  [SKIP] {code}: 年化收益率异常 ({annualized*100:+.2f}%)，超出阈值 [{MIN_ANNUALIZED*100:.0f}%, {MAX_ANNUALIZED*100:.0f}%]"  # noqa: E501
             )
             continue
 

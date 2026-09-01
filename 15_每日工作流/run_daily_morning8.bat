@@ -29,9 +29,13 @@ set PYTHONPATH=
 set PYTHONIOENCODING=utf-8
 set PYTHONUTF8=1
 
-REM Python 解释器: 优先 QUANT_PYTHON 环境变量, 备选 py -3, 再备选 python
+REM Python 解释器: 优先 QUANT_PYTHON 环境变量, 备选 .venv, 再备选 py -3, 最后 python
 if defined QUANT_PYTHON (
     set PYTHON_EXE=%QUANT_PYTHON%
+    goto :run
+)
+if exist "%ROOT%\.venv\Scripts\python.exe" (
+    set PYTHON_EXE=%ROOT%\.venv\Scripts\python.exe
     goto :run
 )
 for /f "delims=" %%i in ('py -3 -c "import sys; print(sys.executable)" 2^>nul') do set PYTHON_EXE=%%i

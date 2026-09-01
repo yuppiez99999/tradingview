@@ -20,7 +20,7 @@ import json
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from workflow.context import WorkflowContext, get_dw_module
 
@@ -68,7 +68,7 @@ def _get_ic_price() -> float:
     return 5500.0  # 默认 IC 价格
 
 
-def _get_ic_basis() -> Optional[float]:
+def _get_ic_basis() -> float | None:
     """获取 IC 基差 (正=贴水, 负=升水)"""
     try:
         # 从市场数据中获取 IC 基差

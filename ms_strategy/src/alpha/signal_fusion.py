@@ -6,11 +6,12 @@ P0 修复:
 2. 信号间相关性矩阵建模 — 去冗余, 防隐式杠杆
 3. IC_IR 加权 (IC 均值 / IC 标准差), 非简单命中率
 """
+from __future__ import annotations
+
 import logging
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -45,7 +46,7 @@ class SignalFusion:
     - IC_IR: IC均值/IC标准差, 衡量信号稳定性
     """
 
-    def __init__(self, weights: Optional[dict[str, float]] = None,
+    def __init__(self, weights: dict[str, float] | None = None,
                  ic_lookback: int = 20,
                  min_ic_samples: int = 5):
         """
@@ -69,7 +70,7 @@ class SignalFusion:
         # IC 追踪
         self._ic_lookback = ic_lookback
         self._min_ic_samples = min_ic_samples
-        self._forward_returns: Optional[pd.Series] = None
+        self._forward_returns: pd.Series | None = None
         self._ic_history: dict[str, deque] = {}  # {signal_name: deque([(date, rank_ic), ...])}
         self._last_dynamic_weights: dict[str, float] = {}
 
@@ -89,7 +90,7 @@ class SignalFusion:
         self._forward_returns = forward_returns
         logger.info(f"注入前置收益 {len(forward_returns)} 天, IC 计算就绪")
 
-    def _compute_rank_ic(self, signal: pd.Series, forward_ret: pd.Series) -> Optional[tuple[float, float]]:
+    def _compute_rank_ic(self, signal: pd.Series, forward_ret: pd.Series) -> tuple[float, float] | None:
         """计算 Spearman rank IC 和 sign IC
 
         rank_ic = corr(rank(signal_t), rank(return_t+1))
@@ -399,7 +400,7 @@ class SignalFusion:
             'weights': dict(self.weights),
             'dynamic_weights': dict(self._last_dynamic_weights) if self._last_dynamic_weights else None,
             'ic_info': ic_info,
-            'signal_correlation': self._compute_signal_correlation().round(3).to_dict() if len(self._signals) > 1 else None,
+            'signal_correlation': self._compute_signal_correlation().round(3).to_dict() if len(self._signals) > 1 else None,  # noqa: E501
             'signals': {name: {'mean': float(s.mean()), 'std': float(s.std())}
                         for name, s in self._signals.items()},
             'fusion_history': self._fusion_history[-5:] if self._fusion_history else [],

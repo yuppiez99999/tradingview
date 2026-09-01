@@ -22,7 +22,7 @@ lines = []
 lines.append("# ETF期权对冲子组合 — v3优化报告 (回撤控制<20% + 十五五规划对齐)")
 lines.append("")
 lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-lines.append(f"**回测区间**: {v3['start_date']} ~ {v3['end_date']} | **初始资金**: {v3['initial_capital']:,}元 | **交易日**: {v3['n_days']}")
+lines.append(f"**回测区间**: {v3['start_date']} ~ {v3['end_date']} | **初始资金**: {v3['initial_capital']:,}元 | **交易日**: {v3['n_days']}")  # noqa: E501
 lines.append("")
 
 lines.append("## 1. v3核心改进 (vs v2)")
@@ -77,10 +77,10 @@ comparisons = [
 for label, v2_key, v3_key in comparisons:
     if v2_key in v2r:
         m = v2r[v2_key]
-        lines.append(f"| {label} | **v2** | {m['annual_return']*100:.2f} | {m['max_drawdown']*100:.2f} | {m['sharpe']:.3f} | {m.get('sortino',0):.3f} | {m.get('calmar',0):.3f} | {m['final_value']:,.0f} | - |")
+        lines.append(f"| {label} | **v2** | {m['annual_return']*100:.2f} | {m['max_drawdown']*100:.2f} | {m['sharpe']:.3f} | {m.get('sortino',0):.3f} | {m.get('calmar',0):.3f} | {m['final_value']:,.0f} | - |")  # noqa: E501
     if v3_key in v3r:
         m = v3r[v3_key]
-        lines.append(f"| {label} | **v3** | {m['annual_return']*100:.2f} | {m['max_drawdown']*100:.2f} | {m['sharpe']:.3f} | {m.get('sortino',0):.3f} | {m.get('calmar',0):.3f} | {m['final_value']:,.0f} | {m.get('breaker_triggered_count',0)} |")
+        lines.append(f"| {label} | **v3** | {m['annual_return']*100:.2f} | {m['max_drawdown']*100:.2f} | {m['sharpe']:.3f} | {m.get('sortino',0):.3f} | {m.get('calmar',0):.3f} | {m['final_value']:,.0f} | {m.get('breaker_triggered_count',0)} |")  # noqa: E501
 
 lines.append("")
 lines.append("### 3.2 v3新增策略")
@@ -90,7 +90,7 @@ lines.append("|------|-------|-------|--------|---------|--------|------|-------
 for name in ["S9 回撤熔断+增强对冲", "S10 全量控制(熔断+对冲+恢复)"]:
     if name in v3r:
         m = v3r[name]
-        lines.append(f"| {name} | {m['annual_return']*100:.2f} | {m['max_drawdown']*100:.2f} | {m['sharpe']:.3f} | {m.get('sortino',0):.3f} | {m.get('calmar',0):.3f} | {m['final_value']:,.0f} | {m.get('breaker_triggered_count',0)} |")
+        lines.append(f"| {name} | {m['annual_return']*100:.2f} | {m['max_drawdown']*100:.2f} | {m['sharpe']:.3f} | {m.get('sortino',0):.3f} | {m.get('calmar',0):.3f} | {m['final_value']:,.0f} | {m.get('breaker_triggered_count',0)} |")  # noqa: E501
 
 lines.append("")
 
@@ -100,11 +100,11 @@ s9 = v3r["S9 回撤熔断+增强对冲"]
 lines.append("| 目标指标 | 目标值 | v2 S5 | v3 S9 | 达标 |")
 lines.append("|---------|--------|-------|-------|------|")
 v2_s5 = v2r["S5 尾部对冲(回撤加码)"]
-lines.append(f"| 年化收益 | >= 8% | {v2_s5['annual_return']*100:.2f}% | {s9['annual_return']*100:.2f}% | {'✅' if s9['annual_return']>=0.08 else '❌'} |")
-lines.append(f"| 最大回撤 | < 20% | {v2_s5['max_drawdown']*100:.2f}% | {s9['max_drawdown']*100:.2f}% | {'✅' if s9['max_drawdown']<0.20 else '❌'} |")
-lines.append(f"| Sharpe | >= 0.50 | {v2_s5['sharpe']:.3f} | {s9['sharpe']:.3f} | {'✅' if s9['sharpe']>=0.50 else '❌'} |")
-lines.append(f"| Sortino | >= 0.80 | {v2_s5.get('sortino',0):.3f} | {s9.get('sortino',0):.3f} | {'✅' if s9.get('sortino',0)>=0.80 else '❌'} |")
-lines.append(f"| Calmar | >= 0.40 | {v2_s5.get('calmar',0):.3f} | {s9.get('calmar',0):.3f} | {'✅' if s9.get('calmar',0)>=0.40 else '❌'} |")
+lines.append(f"| 年化收益 | >= 8% | {v2_s5['annual_return']*100:.2f}% | {s9['annual_return']*100:.2f}% | {'✅' if s9['annual_return']>=0.08 else '❌'} |")  # noqa: E501
+lines.append(f"| 最大回撤 | < 20% | {v2_s5['max_drawdown']*100:.2f}% | {s9['max_drawdown']*100:.2f}% | {'✅' if s9['max_drawdown']<0.20 else '❌'} |")  # noqa: E501
+lines.append(f"| Sharpe | >= 0.50 | {v2_s5['sharpe']:.3f} | {s9['sharpe']:.3f} | {'✅' if s9['sharpe']>=0.50 else '❌'} |")  # noqa: E501
+lines.append(f"| Sortino | >= 0.80 | {v2_s5.get('sortino',0):.3f} | {s9.get('sortino',0):.3f} | {'✅' if s9.get('sortino',0)>=0.80 else '❌'} |")  # noqa: E501
+lines.append(f"| Calmar | >= 0.40 | {v2_s5.get('calmar',0):.3f} | {s9.get('calmar',0):.3f} | {'✅' if s9.get('calmar',0)>=0.40 else '❌'} |")  # noqa: E501
 lines.append("")
 
 lines.append("## 5. 改进幅度 (v2 S5 → v3 S9)")
@@ -121,7 +121,7 @@ lines.append(f"| 最大回撤 | {v2_s5['max_drawdown']*100:.2f}% | {s9['max_draw
 lines.append(f"| Sharpe | {v2_s5['sharpe']:.3f} | {s9['sharpe']:.3f} | {d_sharpe:+.3f} |")
 lines.append(f"| Sortino | {v2_s5.get('sortino',0):.3f} | {s9.get('sortino',0):.3f} | {d_sortino:+.3f} |")
 lines.append(f"| Calmar | {v2_s5.get('calmar',0):.3f} | {s9.get('calmar',0):.3f} | {d_calmar:+.3f} |")
-lines.append(f"| 期末市值 | {v2_s5['final_value']:,.0f} | {s9['final_value']:,.0f} | {s9['final_value']-v2_s5['final_value']:+,.0f} |")
+lines.append(f"| 期末市值 | {v2_s5['final_value']:,.0f} | {s9['final_value']:,.0f} | {s9['final_value']-v2_s5['final_value']:+,.0f} |")  # noqa: E501
 lines.append("")
 
 lines.append("## 6. 十五五规划七大战略方向")
@@ -162,8 +162,8 @@ lines.append("- **十五五规划对齐**: 高评分标的(科创50/创业板/�
 lines.append("- **回撤熔断有效**: 3次触发，成功将回撤从24.72%降至19.70%")
 lines.append("")
 lines.append("### 8.2 推荐生产策略")
-lines.append(f"**S9 回撤熔断+增强对冲** — 年化{s9['annual_return']*100:.2f}%/回撤{s9['max_drawdown']*100:.2f}%/Sharpe{s9['sharpe']:.3f}")
-lines.append("- 4%阈值再平衡 + 十五五高评分权重 + 回撤熔断减仓 + 3.5%年化期权预算 + 回撤分级加码(>10%:1.0x/>12%:1.5x/>15%:2.0x)")
+lines.append(f"**S9 回撤熔断+增强对冲** — 年化{s9['annual_return']*100:.2f}%/回撤{s9['max_drawdown']*100:.2f}%/Sharpe{s9['sharpe']:.3f}")  # noqa: E501
+lines.append("- 4%阈值再平衡 + 十五五高评分权重 + 回撤熔断减仓 + 3.5%年化期权预算 + 回撤分级加码(>10%:1.0x/>12%:1.5x/>15%:2.0x)")  # noqa: E501
 lines.append("- 适合作为ETF期权子组合的主策略")
 lines.append("")
 lines.append("### 8.3 未完全达标项")

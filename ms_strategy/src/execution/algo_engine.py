@@ -2,11 +2,12 @@
 v7.5 AlgoEngine — 执行算法引擎：TWAP / VWAP / POV 策略调度
 基于 QUANT_RESEARCH_MEMO_v7.5_INSTITUTIONAL §3.2-3.4
 """
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from enum import StrEnum
-from typing import Optional
 
 import yaml
 
@@ -50,10 +51,10 @@ class AlgoConfig:
 class SliceOrder:
     """拆单后的子订单"""
     quantity: int
-    suggested_time: Optional[datetime] = None
-    price: Optional[float] = None
+    suggested_time: datetime | None = None
+    price: float | None = None
     algo: str = "TWAP"
-    limit_price: Optional[float] = None
+    limit_price: float | None = None
 
 
 class AlgoEngine:
@@ -65,7 +66,7 @@ class AlgoEngine:
         TradingSession('FUT_NIGHT2', time(0, 0), time(2, 30), 'TWAP'),
     ]
 
-    def __init__(self, sor=None, config_path: Optional[str] = None):
+    def __init__(self, sor=None, config_path: str | None = None):
         """
         Args:
             sor: SmartOrderRouter 实例 (可选，可后续通过 set_sor 注入)
@@ -90,7 +91,7 @@ class AlgoEngine:
         try:
             with open(path, encoding='utf-8') as f:
                 cfg = yaml.safe_load(f)
-        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.warning(f"加载执行配置失败: {e}，使用默认配置")
             return
@@ -120,7 +121,7 @@ class AlgoEngine:
         )
 
     # ---------- 时段判断 ----------
-    def get_current_session(self, now: Optional[time] = None) -> Optional[TradingSession]:
+    def get_current_session(self, now: time | None = None) -> TradingSession | None:
         """返回当前交易时段"""
         if now is None:
             now = datetime.now().time()
@@ -164,7 +165,7 @@ class AlgoEngine:
         """后续注入 SmartOrderRouter"""
         self.sor = sor
 
-    def _split_iceberg(self, total_qty: int, depth: Optional[dict],
+    def _split_iceberg(self, total_qty: int, depth: dict | None,
                        now: datetime) -> list[SliceOrder]:
         """ICEBERG 拆单：每片取盘口深度的 10%"""
         if depth:
@@ -219,8 +220,8 @@ class AlgoEngine:
         return slices
 
     def _split_vwap(self, total_qty: int,
-                    volume_profile: Optional[list[float]],
-                    now: datetime) -> Optional[list[SliceOrder]]:
+                    volume_profile: list[float] | None,
+                    now: datetime) -> list[SliceOrder] | None:
         """VWAP 拆单：按成交量分布分配。无有效 profile 时返回 None 以触发回退"""
         if not volume_profile or len(volume_profile) == 0:
             return None
@@ -269,9 +270,9 @@ class AlgoEngine:
               total_qty: int,
               side: str,
               algo: AlgoType = AlgoType.TWAP,
-              depth: Optional[dict] = None,
+              depth: dict | None = None,
               window_minutes: int = 30,
-              volume_profile: Optional[list[float]] = None,
+              volume_profile: list[float] | None = None,
               participation_rate: float = 0.1) -> list[SliceOrder]:
         """
         拆单算法 — 将大单拆分为多个小单
@@ -317,8 +318,8 @@ class AlgoEngine:
     # ---------- 算法执行入口 ----------
     def execute_order(self, symbol: str, target_qty: int, side: str,
                       decision_price: float,
-                      algo: Optional[str] = None,
-                      price_limit: Optional[float] = None) -> list[dict]:
+                      algo: str | None = None,
+                      price_limit: float | None = None) -> list[dict]:
         """
         按当前时段自动选择算法执行
 
