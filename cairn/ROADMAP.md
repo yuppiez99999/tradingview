@@ -3,7 +3,7 @@ type: project_topic
 status: active
 authoring_mode: ai_generated
 created: 2026-08-02
-updated: 2026-08-29
+updated: 2026-09-01
 related:
   - cairn/gnn-supply-chain-factor.md
 ---
@@ -130,6 +130,7 @@ related:
   - S5: 动态再平衡 + 组合自触发尾部对冲
 - [x] P2.3 (08-26) 诚实验证三件套 — ✅ **DONE 2026-08-26: 方案A(扩展样本2015-2026) + 方案B(V9 regime S6) + S6参数调优 → S5/S6 全部 HONEST, S6年化首破5%**。数据: 14 ETF 2015-2026 Wind MCP 前复权 (T=2829, D:\etf_data_2015_2026\)。S5: 年化4.67%/回撤15.86%/Sharpe0.269, DSR=1.0/CPCV CV=0.435/Noise=stable → **HONEST**。S6(调优后 bo=1.65/bd=0.5): 年化**5.07%**/回撤15.85%/Sharpe0.281, DSR=1.0/CPCV CV=0.414/Noise=stable → **HONEST**。关键: ①扩展T=1364→2829使DSR从0.64→1.0 ②CPCV N=6→4使CV从0.83→0.43 ③S6参数枚举54组→年化4.61%→5.07%首破5%校准线。验收: 年化≥5%[S6 PASS] / 回撤≤20%[PASS] / DSR[PASS] / CPCV[PASS] / Noise[PASS] / Sharpe≥0.38[FAIL 0.281] — 5/6验收项通过, 可顺延P3
 - **验收标准（v8.6.15 校准 2026-08-25）**：原定 ≥8%/<15%/>0.8 与组合自身风险预算冲突（`config/etf_option_subportfolio.yaml` 设计目标即 target_max_drawdown=0.20 / target_sharpe=0.38 / target_annual_return=0.095；2021-2026 实测该纯 ETF 组合收益天花板 ≈5%）。校准为：**S4或S5 年化≥5% / 回撤≤20% / Sharpe≥0.38 / 超额≥5pp / DSR通过(P2.3)**。**P2.3 最终结果 (2015-2026, T=2829, CPCV N=4)**: S6(调优后) 5/6 验收项通过 — 年化5.07%[PASS] / 回撤15.85%[PASS] / DSR=1.0[PASS] / CPCV CV=0.414[PASS] / Noise=stable[PASS] / Sharpe0.281[FAIL]. **结论: 统计诚实性已补全 + 年化/回撤达标, 仅 Sharpe 未达0.38(regime轮动结构上限, 需V9完整LGB选品alpha) — 可顺延 P3 影子账户验证**
+- **多资产重构结论 (2026-09-01)**: 为突破纯 ETF 5% 天花板引入纳指/标普/红利低波 (17 资产池)，S10 年化 8.98% 系后视选资产 (DSR≈0)，S11 滚动样本外因果重构亦 DSR=0/CPCV CV=0.824 → **17 资产池内无稳健超额**。S12 纯防御风险平价 (黄金/国债/红利低波 逆波动率月频再平衡, 无拟合) 年化 7.48%/回撤 2.60%/Sharpe 1.71，CPCV CV=0.173 稳定 + Noise 稳定，但 DSR=0.50 未过 0.95 → 为诚实下限 (控回撤+跑赢通胀，不追求 alpha)。详见 `cairn/LOG.md` 2026-09-01 条目
 
 ### Phase 3 影子账户并行运行（09-06 ~ 10-05，~1 月）
 >
