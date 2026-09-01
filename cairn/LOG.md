@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-01 · mmr-deep 首次实战验证：史上首个 success run + 补齐审查步骤缺依赖
+
+- **验证路径**: 表达式修复后手动 workflow_dispatch — run 33505555990 成为该 workflow **创建 12 天以来首个 success run** (此前只会 0 秒 phantom startup_failure), 全步骤绿
+- **新发现 (commit 4a920eff)**: 首跑审查步骤降级于 `No module named 'pandas'` — 原 pip install 只装 openai, 但 run_consensus 传递依赖 pandas (providers 链) + pyyaml (config_manager)。观测性降级设计正常 (不阻断, 打 WARN 后空结果退出)。修复: 必装 pandas/numpy/pyyaml, openai 保持可选
+- **二次 dispatch (run 33505803723, success)**: HEAD diff 仅 workflow 文件 → any_changed=false → 审查步骤正确跳过 — 非 PR 事件 HEAD^ diff 语义验证通过
+- **状态**: workflow 注册/触发/路径过滤/降级语义全部验证; 真实 LLM 双模型审查待下个含 docs/cairn 变更的 dispatch (依赖 secrets OCR_LLM_AUTH_TOKEN/DEEPSEEK_API_KEY)
+- **指针**: `.github/workflows/mmr-deep.yml` L83-86; 前序 LOG (mmr-deep 根因修复)
+
 ## 2026-09-01 · mmr-deep.yml 12 天 phantom startup_failure 根因：L96 表达式内反斜杠引号非法 token
 
 - **症状**: 自 08-20 创建起, 每次 push 产生 0 秒 startup_failure (event=push), 但文件从未有过 push 触发器; 本地 PyYAML + 官方 github-workflow JSON schema 校验均 0 错误; 之前 4 轮修复 (引号 on: / 原生 git diff 替换 tj-actions / 观测性降级) 全部无效
