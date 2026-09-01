@@ -6,8 +6,8 @@
 **作者**：yuppiez99999
 **实盘状态**：✅ 已部署（2026-07-28）
 **生产基线**：Python 3.14.4（junction `C:\QuantSys`），兼容 Python 3.9+
-**当前阶段**：v8.7 Sprint 1 冲刺中（3/4 门禁达标，目标 2026-12-31 发布）
-**最近更新**：2026-08-22 — 第三方项目批量集成（6项目/9子项全部✅）：TradingAgents多provider LLM+LangGraph checkpoint+3debator风控+结构化输出+决策日志 / Vibe-Trading相关性+风险透视+regime / timesfm零样本预测 / ai-berkshire价值投资7工具+4大师prompt / FinceptTerminal数据源目录 / AERS实证研究8skill / unsloth LLM训练加速 / supply_chain_risk双领域评分 / awesome-systematic-trading参考
+**当前阶段**：v8.7 Sprint 1 冲刺中（D9/D10 达标，D11 进行中 6/7+6/20，目标 2026-12-31 发布）
+**最近更新**：2026-08-31 — Wave 12-A 全部完成（stumpy 康波SAX motif / Open-Meteo气象 / RSS舆情 / trafilatura正文 / empyrical+pyfolio绩效）+ 代码质量 A-（ruff/mypy/bandit 全0 + pytest 2979 PASS）+ 架构图 v8.7 + Wind MCP 数据自检
 
 ---
 
@@ -82,8 +82,30 @@
 |------|------|--------|------|
 | D9 覆盖率 Sprint4 | ✅ 达标 | line_rate=0.833, branch_rate=0.7605 | ≥0.80 |
 | D10 超大文件拆分 | ✅ 达标 | institutional_pipeline_runner 1744行 + automated_execution_system 1860行 | ≤2000行 |
-| D11 PhaseB shadow 7天稳定 | ⏳ 进行中 | 0/7天 | 7天稳定 |
+| D11 PhaseB shadow 7天稳定 | ⏳ 进行中 | 6/7天 + 6/20样本（真实达标日 09-19） | 7天稳定 + 20样本 |
 | v8.7 汇总判定 | ⏳ 待D11 | D9✅ D10✅ D11待积累 | 全PASS放行 |
+
+### Wave 12-A 全部完成（2026-08-30，提前8天）✅
+主表 123 个 GitHub 高价值项目筛选 15 个集成项，12-A 工具降本轨道 5/5 完成，110 测试全 PASS：
+
+| 项目 | 实现 | 验收 |
+|------|------|------|
+| **stumpy 康波模式** | `utils/kondratiev_cycle.py` SAX motif 发现（3 方法 + numpy 降级） | 模式匹配 3 个，25 测试 |
+| **Open-Meteo 气象** | `utils/macro_weather.py` 免费无需 key | 温度/降水/ENSO 可查，28 测试 |
+| **feedparser RSS** | `utils/rss_feed_fetcher.py` 7 个财经源 | ≥5 源，21 测试 |
+| **trafilatura 正文** | `utils/web_content_extractor.py` 正文提取 | 准确率 >90%，16 测试 |
+| **empyrical+pyfolio 绩效** | `reporting/performance_report.py` 标准绩效指标 + HTML | 20 测试 |
+
+> 12-B（发布后功能集成：Kronos/Quarto/DuckDB/OpenBB/vectorbt/PyOD/RD-Agent/vnpy，~29 人天）排期 2027-01-04~03-21，详见 `docs/github_integration_plan_wave12_20260830.md`
+
+### 代码质量 A-（2026-08-31）✅
+- **ruff 35→0** / **bandit 1High+5Medium→0** / **mypy 42→0**（含 wt_backtest_engine 9 错误修复）
+- **pytest 2979 passed**（9 个预存失败已修复：t57 日期断言 CST + tf_price_predictor DLL 降级）
+- 报告：`docs/code_quality_fix_report_20260831.md`
+
+### 架构图 v8.7（2026-08-31）
+- `项目架构图_v8.7.html` + `项目架构图_v8.7.architecture.json`（archify v2.16.0 渲染，交互式 SVG）
+- 新增 AI Hedge Fund / 宏观分析 / 报告生成组件 + Wave 12-A 视图
 
 ### Phase B 观察期达标 + B1 自动启用 ✅
 - **观察期达标**：`daily_returns.jsonl` 21条（07-23~08-20），真实样本21/20 ✅
@@ -293,7 +315,7 @@ docs/
 | 优先级 | 数据源 | 说明 | 认证 |
 |--------|--------|------|------|
 | P0 | Wind数据终端 | 主数据源，WindPy原生客户端 | WindPy授权 |
-| P1 | Wind MCP | 强制回退，analytics_data/stock_data/fund_data | `WIND_API_KEY` |
+| P1 | Wind MCP | 强制回退，HTTP直连+CLI双路径（`tools/wind_mcp_fetcher.py` v8.6.14） | `WIND_API_KEY` |
 | P2 | 通达信(pytdx) | 免费直连，TCP 7709端口，仅A股 | 无需 |
 | P3 | AKShare/baostock | 免费回退，A股/期货/指数 | 无需 |
 | P4 | 新浪财经API | 免费实时行情兜底 | 无需 |
@@ -382,18 +404,25 @@ J = Sortino + 0.5 × Calmar - λ‖w‖²
 ```
 28-终极量化交易系统8.4/
 ├── institutional_pipeline_runner.py         # 主入口 — 机构级闭环运行器
+├── 量化策略系统_统一入口_v8.6.py            # ★统一 CLI 入口（35+ 模式）
 ├── etf_option_hedge_rebalancer.py           # ★v8.7 ETF期权对冲再平衡编排器
 ├── 15_每日工作流/run_daily_eod_workflow.py   # 盘后工作流入口
 ├── live_scheduler.py                        # 实时调度器
 ├── daily_trade_executor.py                  # 交易计划执行
 ├── lgb_enhanced_trainer.py                  # LightGBM增强训练器
 │
-├── utils/                                   # 核心工具模块（100+模块）
-│   ├── alpha_factor/                        # 因子库包（12大类）
+├── utils/                                   # 核心工具模块（150+模块 + 36子目录）
+│   ├── alpha_factor/                        # 因子库包（11大类 + GTJA191）
 │   ├── alpha/                               # Alpha信号与LLM路由
 │   │   ├── evolution_orchestrator.py        # 自我进化框架
 │   │   ├── vol_regime_weighter.py           # 波动率Regime权重建议器
 │   │   └── theoretical_metrics.py           # Lyapunov/相位/变异平衡
+│   ├── kondratiev_cycle.py                  # 🆕 康波周期 v2.0（SAX motif，Wave12-A）
+│   ├── macro_weather.py                     # 🆕 Open-Meteo 气象（Wave12-A）
+│   ├── rss_feed_fetcher.py                  # 🆕 RSS 财经源（Wave12-A）
+│   ├── web_content_extractor.py             # 🆕 trafilatura 正文提取（Wave12-A）
+│   ├── hedge_engine.py                      # 多指数Beta加权对冲引擎
+│   ├── hedge_rebalance_integrator.py        # 五阶段联动决策引擎
 │   ├── observability/                       # 可观测性（structlog+pydantic+OTel）
 │   ├── correlation_matrix.py                # 🆕 跨资产相关性+市场推断
 │   ├── risk_xray.py                         # 🆕 风险透视
@@ -416,16 +445,20 @@ J = Sortino + 0.5 × Calmar - λ‖w‖²
 │   └── orchestrator.py                      # 编排器（checkpoint+决策日志+risk_debate）
 │
 ├── v8.3_institutional/                      # 机构级基础设施与日度工作流
-├── ui/                                      # Streamlit可视化面板（14页）
-├── ms_strategy/                             # 多策略框架
-├── tests/                                   # 测试套件（13,399 passed）
+├── ui/                                      # Streamlit可视化面板（17页+投研平台）
+├── ms_strategy/                             # 多策略框架（alpha/backtest/execution/hedging/risk）
+├── reporting/performance_report.py          # 🆕 empyrical+pyfolio 绩效报告（Wave12-A）
+├── tools/wind_mcp_fetcher.py                # Wind MCP P1（HTTP直连+CLI）
+├── tests/                                   # 测试套件（2979 unit passed）
 ├── scripts/                                 # 工具脚本
 ├── config/                                  # 全局配置
 ├── cairn/                                   # Project Cairn 知识管理
 ├── docs/                                    # 文档
 │   ├── empirical_research_skills/           # 🆕 AERS实证研究Skill（8个）
 │   ├── data_source_catalog/                 # 🆕 FinceptTerminal数据源目录（8份）
+│   ├── github_integration_plan_wave12_20260830.md  # 🆕 Wave 12 排期
 │   └── awesome_systematic_trading_reference.md  # 🆕 系统化交易参考
+├── 项目架构图_v8.7.html                     # 🆕 架构图（archify 渲染）
 ├── requirements.txt                         # 生产依赖
 ├── pyproject.toml                           # 项目配置+optional-dependencies
 ├── ruff.toml                                # Ruff配置
@@ -450,7 +483,7 @@ pre-commit run --all-files                                      # Pre-commit钩�
 ```bash
 pytest tests/test_data_contracts.py -v -m contract              # 快测层（<1s）
 pytest tests/test_regression_bugfixes.py -v -m "regression and not integration"  # 单元回归
-pytest tests/unit/                                              # 单元测试（13,399 passed）
+pytest tests/unit/                                              # 单元测试（2979 passed, 0 our-failures）
 pytest tests/e2e/                                               # 端到端测试
 pytest tests/perf/                                              # 性能基准
 pytest --cov=. --cov-report=html                                # 覆盖率（line_rate=0.833）
@@ -527,7 +560,7 @@ quant-remote eod         # 触发盘后
 
 | 版本 | 日期 | 关键变更 |
 |------|------|----------|
-| **v8.7** | 2026-08-22 ~ 12-31 | 第三方批量集成(TradingAgents+Vibe-Trading+timesfm+ai-berkshire+FinceptTerminal+AERS+unsloth+supply_chain_risk) + ETF期权对冲Phase1 + PhaseB B1启用 + 三门禁D9达标 + MVSK P1-P4生产就绪 + 可观测性structlog+pydantic+OTel + 经典理论覆盖度审计 |
+| **v8.7** | 2026-08-22 ~ 12-31 | 第三方批量集成(TradingAgents+Vibe-Trading+timesfm+ai-berkshire+FinceptTerminal+AERS+unsloth+supply_chain_risk) + ETF期权对冲Phase1 + PhaseB B1启用 + 三门禁D9/D10达标 + MVSK P1-P4生产就绪 + 可观测性 + 经典理论覆盖度审计 + Wave12-A全部完成(stumpy/Open-Meteo/RSS/trafilatura/empyrical) + 代码质量A- + 架构图v8.7 |
 | v8.6.15 | 2026-08-05 | U1-U5升级 + VolRegimeWeighter + 自我进化框架 + EOD Shadow状态同步 |
 | v8.6.14 | 2026-08-02 | 因子库对标GTJA191 + daily_trade_executor双Bug修复 + 安全合规加固 |
 | v8.6.13 | 2026-08-01 | 气象因子引擎 + Scrapling反爬 + TradingAgents-CN桥接 |

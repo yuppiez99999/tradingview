@@ -606,7 +606,7 @@ def _generate_markdown_report(report: dict[str, Any], md_file: Path) -> None:
         "| 项目 | 结果 |",
         "|---|---|",
         f"| 对冲模式 | {ho.get('hedge_mode', 'N/A')} |",
-        f"| 期货订单 | {ho.get('futures_orders_count', 0)} 笔 {'✅ 无期货' if ho.get('futures_orders_count', 0) == 0 else '⚠️'} |",
+        f"| 期货订单 | {ho.get('futures_orders_count', 0)} 笔 {'✅ 无期货' if ho.get('futures_orders_count', 0) == 0 else '⚠️'} |",  # noqa: E501
         f"| 期权订单 | {ho.get('options_orders_count', 0)} 组 |",
         f"| 期货保证金 | {ho.get('total_margin', 0):,.0f} 元 |",
         f"| 期权权利金 | {ho.get('total_premium', 0):,.0f} 元 |",

@@ -2,6 +2,7 @@
 对冲执行单生成器 v2.1
 修复: C4 期货品种精确匹配 / C5 期货价格从配置读取 / M11 strike 类型统一 / M18 None 防御 / C9 归档路径统一
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -11,7 +12,6 @@ import sys
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +147,7 @@ def _extract_contract_yyyymm(instrument: str, as_of_yyyymm: int = 0) -> tuple[st
 
 
 def _validate_contract_expiry(
-    instrument: str, as_of: Optional[tuple] = None
+    instrument: str, as_of: tuple | None = None
 ) -> tuple[bool, str]:
     """校验期货/期权合约是否已到期 (下单前拒绝过期合约)。
 
@@ -190,8 +190,8 @@ def _validate_contract_expiry(
 def _get_futures_price(
     instrument: str,
     prices: dict,
-    cfg: Optional[dict] = None,
-    plan: Optional[dict] = None,
+    cfg: dict | None = None,
+    plan: dict | None = None,
 ) -> float:
     """C5 修复: 从多个来源获取期货价格, 不再使用单一硬编码值
 
@@ -573,7 +573,7 @@ def _build_futures_order_from_cfg(
     target: float,
     commodity_futures: set,
     existing_orders: list,
-) -> Optional[dict]:
+) -> dict | None:
     """从配置项构建期货订单。
 
     Args:

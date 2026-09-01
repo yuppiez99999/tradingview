@@ -31,7 +31,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import yaml
@@ -150,8 +150,8 @@ class RiskState:
 @dataclass
 class DailyPlan:
     trade_date: str = ""
-    risk_state: Optional[RiskState] = None
-    drawdown_decision: Optional[DrawdownDecision] = None
+    risk_state: RiskState | None = None
+    drawdown_decision: DrawdownDecision | None = None
     option_hedge: dict[str, Any] = field(default_factory=dict)
     etf_flow_adjustment: dict[str, Any] = field(default_factory=dict)
     alpha_enhancement: dict[str, Any] = field(default_factory=dict)
@@ -564,7 +564,7 @@ class ETFOptionHedgeRebalancer:
 
     def check_drawdown_circuit(
         self, current_drawdown: float
-    ) -> Optional[DrawdownDecision]:
+    ) -> DrawdownDecision | None:
         if self.drawdown_breaker is None:
             return None
         dd = -abs(float(current_drawdown))

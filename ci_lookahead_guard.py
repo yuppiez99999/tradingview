@@ -23,6 +23,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 # 项目根目录
 ROOT = Path(__file__).resolve().parent
@@ -115,7 +116,7 @@ def scan_file(filepath: Path) -> list[dict]:
     Returns:
         违规列表, 每项包含文件、行号、规则名、严重程度、代码片段
     """
-    violations = []
+    violations: list[Any] = []
     try:
         content = filepath.read_text(encoding="utf-8", errors="ignore")
     except Exception:

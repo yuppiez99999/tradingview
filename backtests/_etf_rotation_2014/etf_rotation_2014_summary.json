@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "strategy_name": "ETF动量轮动·20日动量Top3等权·社保风格11只白名单",
+    "symbol": "510300/159915/518880/512010/512880/512100/512800/512760/512170/515030/588000",
+    "start": "2014-01-01",
+    "end": "2026-09-01",
+    "initial_cash": 1000000.0,
+    "window_start_value": 988313.31,
+    "final_value": 11112568.14,
+    "market": "china_a",
+    "generated_at": "2026-09-01T10:19:53+08:00"
+  },
+  "summary": {
+    "total_return_pct": 1024.3972966427013,
+    "annual_return_pct": 21.902404688459743,
+    "max_drawdown_pct": 47.42586929153892,
+    "sharpe": 0.7547089118969388,
+    "win_rate_pct": 44.2152466367713,
+    "total_trades": 1115
+  }
+}

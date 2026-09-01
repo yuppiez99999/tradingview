@@ -11,12 +11,12 @@
 
 不重复造漂移检测轮子 — 漂移检测仍由 ModelDriftDetector 负责 (四要素齐全).
 """
+from __future__ import annotations
 
 import json
 import logging
 import os
 from datetime import date, datetime
-from typing import Optional
 
 import numpy as np
 
@@ -34,7 +34,7 @@ def _ensure_store_dir() -> None:
 def compute_ic_from_signals(
     signal_history: list[dict],
     min_samples: int = 10,
-) -> Optional[float]:
+) -> float | None:
     """从信号历史计算当日 IC (Pearson 相关)
 
     Args:
@@ -80,7 +80,7 @@ def load_ic_store() -> dict:
 
 def record_daily_ic(
     ic_value: float,
-    trade_date: Optional[date] = None,
+    trade_date: date | None = None,
     source: str = "signal_history",
 ) -> None:
     """记录当日 IC
@@ -121,7 +121,7 @@ def record_daily_ic(
         logger.warning(f"写入 IC 存储失败: {e}")
 
 
-def record_ic_from_qlib_report(report_path: str) -> Optional[float]:
+def record_ic_from_qlib_report(report_path: str) -> float | None:
     """从 QLib 训练报告提取 IC 并记录 (回退数据源)
 
     Args:

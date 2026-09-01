@@ -148,9 +148,6 @@ utils/execution/reports/hedge_execution_orders_*.json
 # S6 纸交易配置 (无敏感数据, 因子跟踪配置)
 !config/gnn_factor/
 !config/gnn_factor/s6_paper_trading.yaml
-# MLOps 配置 (纯参数, 无敏感数据)
-!config/lgb_training.yaml
-!config/mlops.yaml
 
 # Trade executor generated files
 daily_trade_executor.log
@@ -395,3 +392,10 @@ reports/ci/*
 # --- 运维工具脚本 (被 check_*.py 临时脚本规则误伤) ---
 !scripts/check_eod_status.py
 !scripts/check_trade_logic.py
+
+# --- 密钥文件 (2026-09-01 审查发现: llmkey.txt 含真实 API key, 禁止入库) ---
+llmkey.txt
+llmkey*.txt
+
+# --- 临时测试报告目录 (一次性产物) ---
+_test_report_*/

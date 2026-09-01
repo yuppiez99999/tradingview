@@ -186,8 +186,8 @@
       "USE_FEEDBACK_LOOP": true,
       "USE_FINENG_GARCH": true,
       "USE_FINENG_KALMAN_BETA": true,
-      "USE_FINENG_EVT": false,
-      "USE_FINENG_PATH_SIM": false,
+      "USE_FINENG_EVT": true,
+      "USE_FINENG_PATH_SIM": true,
       "_stage_b_plan": {
         "B1": {
           "flag": "USE_DRIFT_DETECTOR",

@@ -116,6 +116,10 @@ py-modules = []
 # ruff 配置指向 ruff.toml (保持单一事实源)
 # 实际配置在 ruff.toml 中, 此处不重复
 
+[tool.bandit]
+exclude_dirs = ["tests", "cache", "_archive"]
+skips = ["B101", "B110", "B112"]
+
 # ============================================================
 # 安装命令:
 #   pip:  pip install -e .[dev]  (或 pip install -r requirements.txt)

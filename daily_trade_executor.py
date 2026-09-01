@@ -53,7 +53,7 @@ import sys
 import threading
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -552,7 +552,7 @@ def _load_prediction_prices(symbol: str, days: int = 120) -> Any:
 # ===========================================================
 
 # 进程级缓存: 首次构建后, 同一进程内所有 fetch_prediction_signals 调用复用
-_PREDICTION_PRICES_INDEX: Optional[dict[str, list[float]]] = None
+_PREDICTION_PRICES_INDEX: dict[str, list[float]] | None = None
 _PREDICTION_PRICES_INDEX_LOCK = threading.Lock()
 
 
@@ -664,7 +664,7 @@ def adjust_allocation_by_signal(
 
 def _precheck_instructions_preconditions(
     target_date_str: str, target_date: date
-) -> Optional[dict]:
+) -> dict | None:
     """前置检查: 交易日和建仓期。
 
     Args:
@@ -699,7 +699,7 @@ def _refresh_etf_flow(positions_file: Path) -> dict:
         etf_result = refresh_etf_flow_signals(str(positions_file))
         if etf_result.get("status") == "success":
             logger.info(
-                f"[INFO] ETF资金流信号刷新成功: 更新 {etf_result['updated_count']} 个标的, 检测到 {etf_result.get('signal_count', 0)} 条信号"
+                f"[INFO] ETF资金流信号刷新成功: 更新 {etf_result['updated_count']} 个标的, 检测到 {etf_result.get('signal_count', 0)} 条信号"  # noqa: E501
             )
             return load_positions()
         logger.error(
@@ -784,7 +784,7 @@ def _run_stop_loss_check(wt_modules: dict, positions: dict) -> list:
 
 def _run_wt_risk_precheck(
     wt_modules: dict, positions_data: dict, progress: dict
-) -> Optional[dict]:
+) -> dict | None:
     """WT 风控预检查 (盘前阻断级)。
 
     P1-5 修复: 此前仅打印 risk_score 不阻断, 高风险组合仍生成指令。
@@ -949,7 +949,7 @@ def _allocate_position(
     latest_prices: dict,
     prediction_signals: dict,
     positions_data: dict,
-) -> Optional[tuple]:
+) -> tuple | None:
     """为单个标的分配预算并构建买入指令。
 
     分配策略: 按权重比例分配, 受单标的上限(当日预算30%)和价格保护带约束,
@@ -983,7 +983,7 @@ def _allocate_position(
             logger.warning(
                 "[STALE] %s 无实时行情且无兜底价, 跳过该标的 (不按假价分配)", code_clean
             )
-            return None, 0.0
+            return None
 
     max_buy_price, min_buy_price = _compute_price_band(ref_price)
     min_lot_cost = 100 * ref_price
@@ -1328,9 +1328,9 @@ def render_instructions_md(data: dict) -> str:
         "",
         "| 检查项 | 规则 | 数值 | 上限 | 状态 |",
         "|--------|------|------|------|------|",
-        f"| 单日金额上限 | {DAILY_AMOUNT_LIMIT:,} | {data['total_allocated']:,.0f} | {DAILY_AMOUNT_LIMIT:,} | {'PASS' if risk['daily_limit']['passed'] else 'FAIL'} |",
-        f"| 价格保护带 | {PRICE_PROTECTION_PCT:.0%} | - | - | {'PASS' if risk['price_protection']['passed'] else 'FAIL'} |",
-        f"| 熔断停止 | 单日-{DAILY_LOSS_STOP_PCT:.0%}/组合-{PORTFOLIO_DRAWDOWN_STOP_PCT:.0%} | 0% | - | {'PASS' if risk['circuit_breaker']['passed'] else 'FAIL'} |",
+        f"| 单日金额上限 | {DAILY_AMOUNT_LIMIT:,} | {data['total_allocated']:,.0f} | {DAILY_AMOUNT_LIMIT:,} | {'PASS' if risk['daily_limit']['passed'] else 'FAIL'} |",  # noqa: E501
+        f"| 价格保护带 | {PRICE_PROTECTION_PCT:.0%} | - | - | {'PASS' if risk['price_protection']['passed'] else 'FAIL'} |",  # noqa: E501
+        f"| 熔断停止 | 单日-{DAILY_LOSS_STOP_PCT:.0%}/组合-{PORTFOLIO_DRAWDOWN_STOP_PCT:.0%} | 0% | - | {'PASS' if risk['circuit_breaker']['passed'] else 'FAIL'} |",  # noqa: E501
         "| 人工确认 | confirm=true | - | - | PENDING |",
         "",
         "## 交易指令",
@@ -1338,7 +1338,7 @@ def render_instructions_md(data: dict) -> str:
         f"**总指令数**: {len(instructions)}",
         f"**总分配金额**: {data['total_allocated']:,.0f}",
         "",
-        "| # | 代码 | 名称 | 动作 | 数量 | 参考价 | 最高买入价 | 最低买入价 | 估算金额 | ETF信号 | 已建仓 | 剩余 | 确认 |",
+        "| # | 代码 | 名称 | 动作 | 数量 | 参考价 | 最高买入价 | 最低买入价 | 估算金额 | ETF信号 | 已建仓 | 剩余 | 确认 |",  # noqa: E501
         "|---|------|------|------|------|--------|-----------|-----------|---------|---------|--------|------|------|",
     ]
 
@@ -1455,7 +1455,7 @@ def _check_execution_preconditions(instructions_data: dict) -> tuple:
     return confirmed, None
 
 
-def _run_wt_risk_block_check(wt_modules: dict, confirmed: list) -> Optional[dict]:
+def _run_wt_risk_block_check(wt_modules: dict, confirmed: list) -> dict | None:
     """WT 风控前置检查 (单笔额度 + 日内笔数), 未通过时阻断执行。
 
     IC6 修复: 风控未通过时阻断执行 (原逻辑仅打印 WARN, 违反"风控一票否决"原则)。

@@ -266,7 +266,7 @@ def _resolve_min_annual_return(thr_file: Path) -> float:
     return min_annual
 
 
-def _enforce_advance_guards(state: dict, returns_file: "Path | None" = None) -> bool:
+def _enforce_advance_guards(state: dict, returns_file: Path | None = None) -> bool:
     """推进阶段前的额外守卫 (对齐 cairn 准入框架第 4/7 项)."""
     if not ENABLE_ADVANCE_TRADE_LOG_GUARD:
         return True

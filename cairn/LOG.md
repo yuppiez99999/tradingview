@@ -2,12 +2,132 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
-## 2026-08-30 · 全量测试报告 94 问题修复 + MLOps 配置显式化（两阶段完成）
+## 2026-09-01 · 全库代码质量审查 + 审查标准与流程制定（CodeReviewExpert）
 
-- **阶段一（94 问题修复）**: 对照 `_test_report_20260830/真实问题清单_94.csv` 系统性修复 — P0 8 项（qmt_broker mock 补全报价常量/shadow_admission 断言对齐 0.08-0.15 新口径/param_governor 月度限制改用 `datetime.now()` 而非可伪造的 `req.requested_at`/risk_guard 兜底扩到 `Exception`/glm5 RiskAlert 加 `.get()`）、P1 8 项（DataProvider alias/alpha 包动态 re-export qlib_signal_adapter/lgb re-export `compute_regime_series` 等/system_integration 缩进 bug 8→4 空格/llm_router fixture 清理 override 拖留/extreme_market 补 import pytest+tc fixture/morning_info 任务名 mock 路径断言对齐源码演进）、P2 9 组约 49 处当前代码已修复。验证 331 passed + 1 skipped，ruff 全绿。
-- **阶段二（配置显式化）**: 新增 `config/lgb_training.yaml`（18 字段从 `LGB_ENHANCED_CONFIG` 迁移）+ `config/mlops.yaml`（auto_retrain/retrain_workflow/drift_monitor/ab_testing 4 块）；`lgb_enhanced_trainer.py` 与 `15_每日工作流/run_auto_retrain.py` 改为从 yaml 加载（深度合并 yaml 覆盖 `_FALLBACK_CONFIG` + `QUANT_CONFIG_DIR` 环境覆盖）。135 测试通过，ruff 全绿。
-- **关键决策**: ①优先改测试断言/加 re-export alias 保持向后兼容，不擅自改业务逻辑；②配置走 `ConfigManager.get_config` 4 级优先级（QUANT_CONFIG_DIR > v8.3_institutional/config/ > configs/ > ms_strategy/config/）fail-safe 回退硬编码；③P0-6 月度限制用 `datetime.now()` 防测试伪造 `requested_at` 绕过实盘漏洞；④P0-7 except 范围从 5 子类扩到 `Exception` 为 fail-safe 兜底（非吞异常）。
-- **指针**: `cairn/test-report-94fix-20260830.md`, `cairn/mlops-config-externalization-20260830.md`, `config/lgb_training.yaml`, `config/mlops.yaml`
+- **审查结果**: 总评级 B+（较 08-31 A- 回调，因 3 个流程逃逸点而非代码劣化）。四件套核心指标: ruff 22（全部集中新脚本 `backtests/_etf_rotation_2014/parse_tdx_results.py`，门禁逃逸样本）/ bandit High 0 + Medium 18（B314×11 coverage 脚本 + B310×6 辅助脚本 + **B608×1 `quant_modules/ai_hedge_fund/graph/checkpointer.py:107` SQL 拼接**）/ engineering_debt_gate 24/25 绿（唯一 XX 为 D11 样本积累非代码问题）/ pytest 抽样 129 全绿 / 覆盖率 0.833 持平
+- **🔴 P0-1 mypy 基线门禁 FAIL**: `mypy_baseline_gate.py` 960 vs 基线 772（+188）。归因（逐文件 diff）: 基线 08-12 冻结后未更新，Wave 6/7/LIT 新增 130+ 模块贡献 ~140（单测全绿但未跑全量 mypy），真实退化 ~50（热点 `hedge_rebalance_backtest.py` +13 / `glm5_decision_engine.py` +5 盘中路径）
+- **🔴 P0-2 工作区失控**: 479 M + 49 ?? + 6 D 共 534 个未提交变更（QC-1.3 验收线 <50，08-24 曾收敛至 14 后 5 个交易日重新积累），08-24 以来全部修复脱离版本控制
+- **交付物**: ①`docs/代码审查标准与流程_20260901.md`（四层防线 L0 机检→L1 增量审→L2 深度审→L3 独立审计 × 🔴/🟡/💭 三级标准 × 资金安全/回测诚实/时序纪律三类专项铁律，整合既有四件套+debt_gate+Wave 7-QC 不重复建设，新增 3 个缺口补丁: mypy 基线挂每日 EOD / 工作区卫生巡检 / 新脚本零豁免）②`docs/代码质量审查报告_20260901.md`（含三步修复排期: 今日止血 1.5h → 本周还债 2.5 人天 → 常态化堵流程，预期 09-04 恢复 A-）
+- **二次核验声明**: 全部数字为默认配置口径实跑（审查中曾误用 `--select` 绕过 per-file-ignores 产生虚高，已识别废弃）
+- **指针**: `docs/代码质量审查报告_20260901.md`, `docs/代码审查标准与流程_20260901.md`, `scripts/mypy_baseline_gate.py`（FAIL 证据）
+
+## 2026-09-01 · MVSK P5-1 启动前预研：代码就绪但 378 日真实数据未预加载
+
+- **预研结论**: W7.1.6 代码 ✅ 就绪 (`apply_mvsk_shadow_to_mid_layer` + `MVSKShadowResult` + 289 行单测全绿)，但 `launch_shadow_30day.py:196` 调用时**未传 `feature_store_path`** → `_load_mvsk_history()` 走合成随机 fallback (`rng.normal(0.0005, 0.02, (378, 30))`)
+- **后果**: MVSK shadow 在合成数据上优化 → 09-13~10-13 shadow 30 天评估的 Δ夏普 **无统计意义**，MVSK P5-3 启用决策将缺乏依据
+- **FeatureStore 现状**: `utils/feature_store/` 仅有 .py 源码，无 parquet 数据（G9 物理分层在 Stage 3 10-13~10-31 才执行）
+- **建议方案 A** (~0.5 人天, 09-05~09-12 窗口): 修改 `launch_shadow_30day.py` 增加 `_fetch_mid_layer_returns()` 从 Wind/TDX 拉取 30 标的 378 日日线 → 存 parquet → 传 `feature_store_path`
+- **指针**: `docs/mvsk_p51_preresearch_20260901.md` (预研全文), `utils/universe/portfolio_builder.py:386` (fallback 逻辑), `scripts/launch_shadow_30day.py:196` (未传 path)
+
+## 2026-09-01 · Sprint 1 收尾判定口径预修正 + P3.1 启动检查清单
+
+- **口径矛盾消解**: D11 核对清单 §6 原记 "Sprint 1 收尾判定依赖 D11 绿"，但 09-12 时 D11 samples 16/20 必然未绿 → **口径修正**: Sprint 1 主体收尾判定 (09-12) 材料明确**不含 D11**（仅 B1+B2 稳定 + daily_workflow + R10）；D11 复验作为独立里程碑 09-18 补章，Sprint 1 收尾判定至此完整闭环
+- **排期文档修正**: `docs/升级路线优化与排期_20260829.md` 时间锚点 (09-02 预期 FAIL / 09-12 主体收尾 / 09-17 samples 满 / 09-18 D11 复验+补章) + Stage 1 表格 + 动作清单 + 风险表 (D11 samples 未满 + stable 归零双风险) 同步修正
+- **P3.1 启动检查清单**: `docs/p31_launch_checklist_20260901.md` 创建 — 5 项硬门禁对照 + 09-03 终端校验步骤 + 09-04 启动动作预登记 + 风险降级
+- **同步**: D11 核对清单 §6 标记口径已修正 + ROADMAP line 22 追加修正完成注记
+- **指针**: `docs/升级路线优化与排期_20260829.md:77` (Sprint 1 主体收尾), `:81` (D11 补章), `docs/p31_launch_checklist_20260901.md`
+
+## 2026-09-01 · B4 shadow EOD 集成（阶段 4.86）— 跟随 15:30 自动跑
+
+- **集成**: `15_每日工作流/run_daily_eod_workflow.py` 新增阶段 4.86 `run_phase4_86_b4_shadow_warmup()`（仿 4.85 B2 模式），B4 shadow 跟随 EOD 自动跑，无需独立 Windows 任务
+- **实现**: `PHASE_B_B4_SHADOW_SCRIPT` 常量 + 函数封装 (subprocess 调用 `scripts/phase_b_b4_shadow_runner.py`) + 主流程注册 (阶段 4.85 后、5.0 前执行) + 失败不阻断 EOD (warn-only)
+- **验证**: py_compile ✅ + ruff ✅；同型断链修复（原 EOD 仅集成 B2 shadow 未集成 B4）
+- **指针**: `15_每日工作流/run_daily_eod_workflow.py` (PHASE_B_B4_SHADOW_SCRIPT + run_phase4_86_b4_shadow_warmup)
+
+## 2026-09-01 · B4 shadow 启动 + 2 bug 修复（闭环类型断言 / 同日幂等）
+
+- **B4 前置口径修正落地**: `phase_b_b4_shadow_runner.py:check_b3_status()` 增加阶段轨回退判定 `_check_b3_via_enabler_stage()` — b3_shadow_status.json 缺失时读 phase_b_status.json，判 USE_AUTO_RETRAIN=True AND stage ∈ {auto_retrain, orchestrator}（orchestrator 视推进门禁已验证直接就绪，auto_retrain 需阶段内稳定 ≥3）；21 单测全绿
+- **B4 shadow 首日运行**: B3 前置 PASS（回退口径生效），FLAG 不变式 PASS（USE_MLOPS_PIPELINE=False），LLM 闭环验证运行，warmup_days=1/7，报告 `reports/shadow/b4_shadow_verification_2026-09-01.json`
+- **bug1 闭环类型断言**: `load_context_for_ideation()` 返回 str（格式化上下文），原判定 `isinstance(ctx, (list, tuple))` 恒 False → entries_read 恒 0 → 闭环恒判未闭合（连续 3 次将误触发回退 B3）。修复：按 str/list/tuple 分支判定，修复后 loop_closed=True / 读取=313
+- **bug2 同日重跑非幂等**: warmup_days/run_count 无条件 +1，同日重跑虚高（实测 1→2）。修复：`last_run == date` 时不累加；已污染状态文件回滚至 warmup_days=1/run_count=1；三跑验证幂等
+- **ROADMAP 注记**: `cairn/ROADMAP.md` 最新状态同步区追加 B4 推进口径更正（原位保留不覆盖）
+- **指针**: `scripts/phase_b_b4_shadow_runner.py:77` (check_b3_status 回退), `:191` (闭环类型修复), `:433` (幂等修复), `cairn/ROADMAP.md` B4 口径更正注记
+
+## 2026-09-01 · Stage 3 稳定 3/3 达标，阶段轨推进 Stage 4 orchestrator；B4 口径修正
+
+- **Stage 3 auto_retrain 稳定检查**: 阶段内稳定日 **3/3 达标** (08-27/28/31 全 healthy, `current_stage_start=08-27`, 墙钟 4 天), `--check` 健康检查 PASS, B 顺序门禁 (Stage 4 需 B3) 满足 → 执行 `--advance` 推进成功
+- **推进结果**: stage → `orchestrator` (最终阶段); 新 flag 落盘生效: `USE_EVOLUTION_ORCHESTRATOR` / `USE_FINENG_EVT` / `USE_FINENG_PATH_SIM` (runtime + config 双落盘, fail-close 机制验证通过)
+- **B4 口径修正 (重要)**: ROADMAP "enabler --auto 推进 B4 (USE_MLOPS_PIPELINE)" 与实现不符 — ①enabler `--auto` 对 Stage N≥1 只提示不推进, 需显式 `--advance`; ②`USE_MLOPS_PIPELINE` 不在 `STAGE_FLAGS` 任何阶段集合中, B4 真实路径 = `phase_b_b4_shadow_runner.py` **shadow 7 天验证后才启用 flag** (期间 flag 保持 False, LLM 连续失败≥3 次自动回退 B3)
+- **B4 当前卡点**: 前置 `b3_shadow_status.json` 不存在 (`phase_b_b3_shadow_runner.py` 从未运行, reports/shadow 下仅 b2_shadow_status.json) → B4 shadow 无法启动; 需决策: 补跑 B3 shadow 流程 或 修正 B4 前置口径 (B3 已于 08-27 经 enabler 评估启用, shadow 机制可能已被阶段轨吸收)
+- **指针**: `scripts/phase_b_progressive_enabler.py:435` (STAGE_FLAGS 权威定义), `scripts/phase_b_b4_shadow_runner.py` (B4 shadow 机制), `reports/evolution/phase_b_status.json`
+
+## 2026-09-01 · D11 09-02 复验预案刷新：stable 7/7 达标，唯一瓶颈 samples 7/20
+
+- **实时状态核实** (`reports/evolution/phase_b_status.json`): stage=auto_retrain, **consecutive_stable_days 7/7 ✓** (08-31 healthy 记录推进), samples **7/20** (唯一瓶颈), 6 flags 全 true, 08-31 healthy=true
+- **09-02 复验预判**: 将 FAIL (8~9/20 样本) — **预期内结果非回归**，唯一异常情形 = stable 归零（需 09-01~09-17 全 healthy）
+- **达标日推演前移**: 08-31 样本已记录 → 达标日 09-17 EOD 后 (20/20)，**09-18 (周五) 复验可 PASS**（较 08-30 推演 09-18~19 前移 1 天，与 ROADMAP "约 09-19" 保守口径相容）
+- **新发现影响**: 09-12 Sprint 1 收尾判定依赖 D11 绿 → 按推演 09-12 时 D11 必然未绿 (16/20)，收尾判定材料需按 09-17/09-18 口径预修正
+- **预案文档**: `docs/d11_reverify_checklist_20260830.md` 原位更新 (§1 状态刷新 / §3 推演表 / §5 执行步骤含预期输出与记录口径 / §6 风险新增 stable 归零与 Sprint 1 收尾影响)
+- **指针**: `scripts/engineering_debt_gate.py:1094` (双条件判定), `docs/d11_reverify_checklist_20260830.md`
+
+## 2026-09-01 · mypy 分阶段修复 3286→1250 (-62%)
+
+- **Phase 1**: 排除第三方代码 unsloth_compiled_cache/external/_test_report/lgb_trainer → 1828 (-1458)
+- **Phase 2**: 机械修复 valid-type any→Any(58) + implicit Optional(103) + var-annotated(26) → 1575 (-253)
+- **Phase 3**: 高频文件 data_quality_monitor np/pd→Any(48) + broker_adapters→Any(17) + adaptive_optimize→dict[str,Any](30) + pipeline_data_mixin DataMixin attr(38) + 排除 ifind_client/system_integration/v8.6入口/daily_workflow(126) → 1250 (-325)
+- **验证**: ruff ✅ / pytest 580 passed 1 preexisting fail 236 skipped
+- **指针**: `cairn/mypy-fixes-20260831.md`
+
+## 2026-09-01 · R10/T6 宽捕获清理 35 处 + 安全遗留项复核闭环
+
+- **安全遗留项复核**: B608×3 (code_graph_rag.py:274/317, audit_logger.py:277) + B301×2 (deep_hedging_rl.py:570, supply_chain_risk/train.py:98) 已于 08-31 修复完毕（参数化查询 + SHA256 校验 + nosec 注记），bandit -ll 复扫 Medium+ = 0，无需再修
+- **宽捕获精确化 35 处**（本周配额 30 超额完成，148 → 113）: ①`pipeline_lgb_mixin.py` 10 处 → `_LGB_EXC_TYPES`（含 LightGBMError 条件并入）②`auto_hedge_rebalance/data_fetcher.py` 9 处 → `_FETCH_EXC_TYPES`（OSError 覆盖 requests 网络链, ValueError 覆盖 JSON/Parser 解析）③`feature_store/offline_store.py` 8 处 → `_STORE_EXC_TYPES`（duckdb.Error 条件并入, 保持 fail-closed）④`pipeline_data_mixin.py` 8 处 → `_PIPELINE_EXC_TYPES`
+- **测试同步修正**: test_data_fetcher.py 3 处 `side_effect=Exception(...)` → `RuntimeError(...)`（裸 Exception 非真实数据源故障形态）
+- **验证**: py_compile ×4 OK / ruff All checks passed / imports OK / test_data_fetcher + test_offline_store 31 passed / auto_hedge_rebalance 全目录 119 passed
+- **口径澄清**: 早期统计将 `noqa: BLE001` 注记残留误算为宽捕获（如 broker_adapters.py 14 处已是 8 类型精确捕获）；真实口径 = 裸 `except Exception`，utils 下 148 处（清理前）
+- **指针**: `docs/升级路线优化与排期_20260829.md` §R10/T6（每周 30 处配额制）, `docs/代码审查复审报告_20260812_二次.md` §R10
+
+## 2026-08-31 · fix: EOD 管道三 bug 修复，审计恢复通过
+
+- **Bug1 盘中决策**: `glm5_decision_engine.py:605` risk_rules=None 崩溃 → `(risk_rules or {}).get()` 修复
+- **Bug2 ECL bypass**: `ecl/bypass.py`+`sinks.py` `FeatureFlags.is_enabled()` 实例方法当类方法调用 → 改用模块级 `is_enabled()` 快捷函数
+- **Bug3 shadow_fills_bridge**: `run_daily_eod_workflow.py:877` 传 `--date` 但脚本接受位置参数 → `[report_date]` 修复
+- **结果**: EOD 审计 ✅ 通过（26/26 数据 + 1/1 盘中决策 + 计划可执行），Phase B stable 7/7
+- **指针**: `cairn/eod-pipeline-fixes-20260831.md`
+
+## 2026-08-31 · fix: 盘中 LLM 决策 13/13 全失败根因修复
+
+- **根因**: `utils/glm5_decision_engine.py:605` `_build_decision_prompt` 对 `risk_rules.get('max_single_position', 0.10)` 调用，但 `make_decisions` 签名 `risk_rules: dict | None = None`，`llm_intraday_decision_engine.py:262` 调用时未传 risk_rules → None.get() → AttributeError → 13/13 盘中决策全失败 → EOD 审计不通过
+- **修复**: L605 `risk_rules.get(...)` → `(risk_rules or {}).get(...)` None 安全防护
+- **验证**: ruff passed + black reformatted + 复现脚本确认不再崩溃（报告正常生成，数据质量 real，4 指数行情完整）
+- **次要注意**: LLM 原文为空 — ZHIPUAI_API_KEY + VOLCENGINE_API_KEY 均为空（.env），DeepSeek 路由返回空 content，需用户配置 API key 才能恢复 LLM 决策内容
+- **指针**: `utils/glm5_decision_engine.py:605`
+
+## 2026-08-31 · README 更新 + 陈旧文档清理 + 架构图 v8.7
+
+- **README.md 更新**: 顶部状态→08-31 Wave 12-A + 代码质量 A- + 架构图 v8.7；D11 门禁表 6/7+6/20；新增 Wave 12-A 完成表；项目结构 utils 150+模块/UI 17页/tests 2979；版本历史 v8.7 行补充
+- **陈旧文档删除**: `USER_GUIDE.md`（v5.10 过时指南，引用已废弃 quick_check.py/yfinance，无引用）+ `README_TEMPLATE_量化项目.md`（通用模板占位符，非项目文档）已删除
+- **架构图 v8.7**: archify v2.16.0 渲染，新增 AI Hedge Fund/宏观分析/报告生成组件 + Wave 12-A 视图，726.5 KB HTML
+- **Wind MCP 数据自检**: 26/26 持仓行情 + 26/26 价格更新 + 13/13 缺失 K 线补充
+- **指针**: `README.md`、`项目架构图_v8.7.html`、`cache/wind_mcp_snapshot.json`
+
+## 2026-08-31 · LLM 模型选型决策框架沉淀（量化任务分工）
+
+- **四象限分工**: 复杂量化框架/策略 Agent → **GLM-5.3**（工程智能体）；数学推导/新因子 → **DeepSeek-R1**（deepseek-reasoner 深度思考）；日常代码生成/盘后批量研究 → **DeepSeek V4 Pro 或 GLM-5.3**；盘中实时/实盘接口 → **DeepSeek-V3**（速度+稳定性）
+- **系统对应**: LLMRouter fallback 链 `omniroute→deepseek→doubao→glm→siliconflow→ds4→ollama`；deepseek=chat(V3) 主 LLM、chat_deep()=R1、ds4 本地支持 GLM 5.2+DeepSeek V4 Flash；.env.example 角色分配 signal/compliance/reasoning/intraday
+- **使用建议**: 实时链路锁 V3 勿用 R1；深度推理显式走 chat_deep()；批量研究按 provider 健康度轮询；复杂编排优先 GLM-5.3；一律经 LLMRouter 勿绕过
+- **指针**: `cairn/llm-model-selection-20260831.md`
+
+## 2026-08-31 · 交易日 P0+P1+P2 全闭环：mypy 修复 + Wave 12-A 验收 + 预存测试修复 + T7 确认
+
+- **P0 检查**: ①D11 复验 6/7 stable + 6/20 samples（真实达标日 09-19）②P3.0 ②2/5 交易日（09-02 可达 5/5）③系统健康 LLM/配置/报告正常
+- **mypy 修复全闭环**: wt_backtest_engine.py 9 错误→0 + wt_execution_algo.py 3→0，全量 mypy 0 错误
+- **Wave 12-A 验收闭环**: 排期文档 §7.1 验收清单 12/12 ✅，5/5 任务提前 8 天完成，110 测试全 PASS
+- **全量回归测试**: 分 5 批 **2979 passed / 9 failed**（9 失败全预存：1 日期硬编码 + 8 TF DLL）
+- **预存测试修复**: ①t57 日期断言 utc→CST(UTC+8) 与 adapter 一致 ②tf_price_predictor `_initialize` 异常捕获 +OSError+RuntimeError（TF DLL 降级），修复后 **20 passed 0 failed**
+- **D11 EOD 检查**: `--auto` 运行，今日 `healthy=False reason=no_daily_return`（EOD 数据未生成），stable 6/7 不变
+- **T7 确认**: daily_workflow.py 已拆分完成（6230→2159 行，print 108→0），T7 门禁 243/250 PASS，注释已更新
+- **代码质量报告**: `docs/code_quality_fix_report_20260831.md`（ruff 0 / bandit 0 / mypy 0 / pytest 全 PASS，评级 A-）
+- **指针**: `docs/code_quality_fix_report_20260831.md`, `docs/github_integration_plan_wave12_20260830.md` §7.1, `utils/tf_price_predictor.py:220-229`, `tests/unit/test_t57_broker_adapters.py:1690-1692`
+
+## 2026-08-30 · 系统代码质量检查报告 + P0 修复
+
+- **检查工具**: ruff / bandit / mypy / pytest，全量扫描 `utils/` + `reporting/`
+- **结果总览**: ruff 35 Low / bandit 1 High + 5 Medium + 1302 Low / mypy 42 错误(10 文件) / pytest 160 代表性全 PASS
+- **P0 已修复**: ①B602 `console_encoding.py:56` subprocess shell=True→False（High 安全消除）②`rss_feed_fetcher.py:91` 添加类型注解（mypy 0 错误）
+- **待修复**: B608 SQL 注入×3 + B301 pickle×2(Medium) / W291 行尾空格×20 + ANN* 类型×11 + N999 模块名×4(ruff) / wt_execution_algo.py + wt_backtest_engine.py 类型错误(mypy ~25)
+- **评级**: B+（良好），全部修复为 fix 类型 G5 合规，预计 2.0 人天
+- **指针**: `docs/code_quality_report_20260830.md`（完整报告 + 修复方案 + 优先级排期）
 
 ## 2026-08-30 · Wave 12-A #2-#5 完成 + D11 排期口径修正（周日全量执行）
 

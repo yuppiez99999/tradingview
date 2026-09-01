@@ -99,7 +99,7 @@ def apply_industry_neutralization():
             )
             stock_signals[stock_code]["neutral_direction"] = direction
             logger.info(
-                f"    {stock_code} {stock_signals[stock_code]['name']:6s} 原始:{stock_signals[stock_code]['raw_signal']:+.4f} → 中性化:{neutral_signal:+.4f} ({direction})"
+                f"    {stock_code} {stock_signals[stock_code]['name']:6s} 原始:{stock_signals[stock_code]['raw_signal']:+.4f} → 中性化:{neutral_signal:+.4f} ({direction})"  # noqa: E501
             )
 
     def convert_code(code):

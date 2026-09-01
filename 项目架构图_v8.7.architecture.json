@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "量化策略系统 v8.7 架构",
+    "quality_profile": "showcase",
+    "viewBox": [1280, 760],
+    "views": [
+      { "id": "main-flow", "label": "主数据流", "focus": ["entry", "pipeline", "data", "factor", "signal", "ai", "hedge", "exec", "store"], "note": "EOD 全流程：入口触发 → 数据采集 → 因子计算 → 信号融合 → AI 决策 → 对冲 → 执行 → 归档" },
+      { "id": "ai-stack", "label": "AI 决策栈", "focus": ["signal", "ai", "hedge", "risk", "llm", "aihf"], "note": "GLM-5 盘中决策 + 20 位分析师 LangGraph + 五阶段对冲联动 + 风控门" },
+      { "id": "data-stack", "label": "数据采集栈", "focus": ["data", "sources", "factor", "signal"], "note": "7 级数据源降级链：Wind Terminal → Wind MCP → TDX → AKShare → 新浪 → 缓存 → 兜底价" },
+      { "id": "wave12", "label": "Wave 12 新增", "focus": ["factor", "signal", "ai", "macro", "report"], "note": "stumpy 康波 SAX motif + Open-Meteo 气象 + RSS/trafilatura 舆情 + empyrical/pyfolio 绩效" }
+    ]
+  },
+  "components": [
+    { "id": "llm", "type": "external", "label": "LLM 集群", "sublabel": "豆包/GLM-5/DeepSeek/Ollama", "pos": [860, 60], "size": [140, 60] },
+    { "id": "entry", "type": "frontend", "label": "统一入口 v8.7", "sublabel": "CLI 35+ / UI 17页", "pos": [20, 280], "size": [140, 70], "tag": "v8.7" },
+    { "id": "pipeline", "type": "backend", "label": "机构管道", "sublabel": "EOD 全流程 108KB", "pos": [220, 285], "size": [130, 60] },
+    { "id": "data", "type": "backend", "label": "数据层", "sublabel": "7 级降级 P0-P6", "pos": [410, 285], "size": [130, 60] },
+    { "id": "factor", "type": "backend", "label": "因子引擎", "sublabel": "11 类 Alpha + GTJA191", "pos": [600, 170], "size": [140, 60] },
+    { "id": "signal", "type": "backend", "label": "信号融合", "sublabel": "多源加权 + SAX motif", "pos": [600, 285], "size": [140, 60] },
+    { "id": "ai", "type": "backend", "label": "AI 决策", "sublabel": "GLM-5 盘中 + 多模型路由", "pos": [860, 170], "size": [140, 60] },
+    { "id": "aihf", "type": "backend", "label": "AI Hedge Fund", "sublabel": "20 分析师 LangGraph", "pos": [860, 285], "size": [140, 60] },
+    { "id": "hedge", "type": "backend", "label": "对冲再平衡", "sublabel": "五阶段联动 v5.9", "pos": [860, 400], "size": [140, 60] },
+    { "id": "risk", "type": "security", "label": "风险控制", "sublabel": "止损/回撤/VaR/熔断", "pos": [860, 505], "size": [140, 60] },
+    { "id": "exec", "type": "backend", "label": "交易执行", "sublabel": "实盘指令 63KB", "pos": [1070, 285], "size": [130, 60] },
+    { "id": "macro", "type": "backend", "label": "宏观分析", "sublabel": "康波+十五五+社保ETF", "pos": [410, 170], "size": [140, 60] },
+    { "id": "sources", "type": "external", "label": "数据源", "sublabel": "Wind/TDX/AKShare/sina", "pos": [410, 460], "size": [140, 60] },
+    { "id": "report", "type": "backend", "label": "报告生成", "sublabel": "empyrical+pyfolio+HTML", "pos": [1070, 400], "size": [130, 60] },
+    { "id": "store", "type": "database", "label": "模型与归档", "sublabel": "models/每日报告归档", "pos": [1070, 505], "size": [130, 60] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "AI 决策与风控层", "wraps": ["ai", "aihf", "hedge", "risk"] },
+    { "kind": "region", "label": "外部依赖", "wraps": ["sources", "llm"] }
+  ],
+  "connections": [
+    { "id": "entry-to-pipeline", "from": "entry", "to": "pipeline", "label": "触发", "variant": "emphasis" },
+    { "id": "pipeline-to-data", "from": "pipeline", "to": "data", "label": "采集" },
+    { "id": "data-to-factor", "from": "data", "to": "factor", "label": "因子计算", "fromSide": "top", "toSide": "left", "labelAt": [550, 244] },
+    { "id": "data-to-signal", "from": "data", "to": "signal", "label": "行情", "fromSide": "right", "toSide": "left", "labelAt": [575, 332] },
+    { "id": "data-to-macro", "from": "data", "to": "macro", "label": "宏观数据", "fromSide": "top", "toSide": "bottom", "labelAt": [480, 244] },
+    { "id": "macro-to-signal", "from": "macro", "to": "signal", "label": "周期信号", "fromSide": "bottom", "toSide": "top", "labelAt": [575, 252] },
+    { "id": "factor-to-signal", "from": "factor", "to": "signal", "label": "因子信号", "fromSide": "bottom", "toSide": "top", "labelAt": [670, 252] },
+    { "id": "signal-to-ai", "from": "signal", "to": "ai", "label": "AI 增强", "fromSide": "right", "toSide": "bottom", "labelAt": [780, 220] },
+    { "id": "ai-to-aihf", "from": "ai", "to": "aihf", "label": "分析师编排", "fromSide": "bottom", "toSide": "top", "labelAt": [930, 252] },
+    { "id": "aihf-to-hedge", "from": "aihf", "to": "hedge", "label": "对冲决策", "fromSide": "bottom", "toSide": "top", "labelAt": [930, 367] },
+    { "id": "hedge-to-exec", "from": "hedge", "to": "exec", "label": "执行指令", "fromSide": "right", "toSide": "left", "labelAt": [1020, 367] },
+    { "id": "exec-to-report", "from": "exec", "to": "report", "label": "报告", "fromSide": "bottom", "toSide": "top", "labelAt": [1135, 367] },
+    { "id": "report-to-store", "from": "report", "to": "store", "label": "归档", "fromSide": "bottom", "toSide": "top", "labelAt": [1135, 472] },
+    { "id": "sources-to-data", "from": "sources", "to": "data", "label": "数据供给", "variant": "emphasis", "fromSide": "top", "toSide": "bottom", "labelAt": [480, 397] },
+    { "id": "llm-to-ai", "from": "llm", "to": "ai", "label": "模型调用", "fromSide": "bottom", "toSide": "top", "labelAt": [960, 155] },
+    { "id": "hedge-to-risk", "from": "hedge", "to": "risk", "label": "风控检查", "fromSide": "bottom", "toSide": "top", "labelAt": [930, 472] },
+    { "id": "risk-to-exec", "from": "risk", "to": "exec", "label": "风控门", "fromSide": "right", "toSide": "left", "via": [[1050, 535], [1050, 315]], "labelAt": [1050, 420] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "入口与编排", "items": ["CLI 统一入口 v8.7 — 35+ 模式（cli/dispatcher + modes/）", "Streamlit UI — 17 页 + 投研平台（暗色主题）", "机构 EOD 管道 108KB — 数据→因子→信号→执行→报告", "每日交易执行器 63KB — 实盘指令生成"] },
+    { "dot": "emerald", "title": "核心引擎", "items": ["Alpha 因子引擎 — 11 大类 + GTJA191 + 表达式引擎", "信号融合 — ML + AI + 康波 SAX motif 加权", "对冲再平衡 — 五阶段联合决策引擎 v5.9", "Wind 期货 wt_* 系列 — 回测/执行/风控/价差"] },
+    { "dot": "violet", "title": "AI 与宏观", "items": ["GLM-5 盘中决策 + AI Hedge Fund 20 位分析师 LangGraph", "康波周期 v2.0 + 十五五规划 + 社保 ETF 追踪", "豆包 → GLM-5 → DeepSeek → Ollama 多模型路由", "Wave 12-A: stumpy SAX motif + Open-Meteo 气象 + RSS/trafilatura 舆情"] },
+    { "dot": "rose", "title": "风控与执行", "items": ["止损止盈 + 回撤熔断 + 涨跌停守卫 + 隔夜跳空守卫", "VaR 监控 + 压力测试 + 波动率目标控制", "Kill Switch + 全局撤单守卫 + 电路断路器", "执行算法引擎 — TWAP/VWAP/冰山/POV"] },
+    { "dot": "amber", "title": "数据源降级链 (P0-P6)", "items": ["Wind 数据终端 (P0) → Wind MCP (P1, HTTP+CLI)", "TDX 通达信 (P2) → AKShare (P3)", "新浪 API (P4) → 本地缓存 (P5) → 兜底价 (P6)", "Wave 12-A: empyrical+pyfolio 绩效报告 + HTML 暗色主题"] }
+  ]
+}

@@ -467,7 +467,7 @@ def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
                     "hedge_order": order,
                 }
                 logger.info(
-                    f"[hedge_rebalance] 对冲计算完成: action={order.get('action')}, contracts={order.get('contracts', 0)}"
+                    f"[hedge_rebalance] 对冲计算完成: action={order.get('action')}, contracts={order.get('contracts', 0)}"  # noqa: E501
                 )
     except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         result["status"] = "FAIL"
@@ -506,7 +506,7 @@ def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
             "signals": summary.get("signals", []),
         }
         logger.info(
-            f"[etf_flow_monitor] 监控完成: {len(flow_data)} 只ETF, 净流入={result['data']['total_inflow']:.2f}亿, 趋势={result['data']['overall_trend']}"
+            f"[etf_flow_monitor] 监控完成: {len(flow_data)} 只ETF, 净流入={result['data']['total_inflow']:.2f}亿, 趋势={result['data']['overall_trend']}"  # noqa: E501
         )
     except (KeyError, ValueError, TypeError, AttributeError, RuntimeError) as e:
         result["status"] = "FAIL"

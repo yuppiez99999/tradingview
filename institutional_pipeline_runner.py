@@ -834,7 +834,7 @@ class InstitutionalPipelineRunner(
     # 高价值资产集成辅助方法 (2026-08-10)
     # ------------------------------------------------------------
 
-    def _build_covariance(self, symbols: list[str]) -> "pd.DataFrame":
+    def _build_covariance(self, symbols: list[str]) -> pd.DataFrame:
         """构建组合协方差矩阵。
 
         优先使用 Ledoit-Wolf 收缩估计（基于 price_history 收益率），
@@ -870,7 +870,7 @@ class InstitutionalPipelineRunner(
             logger.warning("[LW] 收缩协方差估计失败, fail-open 回退对角矩阵: %s", e)
             return diag_cov
 
-    def _load_returns_matrix(self, symbols: list[str]) -> "np.ndarray | None":
+    def _load_returns_matrix(self, symbols: list[str]) -> np.ndarray | None:
         """从 config/price_history.jsonl 构造收益率矩阵（按 symbols 顺序对齐）。
 
         与 signal_fusion 共用同一历史缓存文件。数据缺失的标的用 0 收益率填充，
@@ -929,7 +929,7 @@ class InstitutionalPipelineRunner(
         self,
         symbols: list[str],
         expected_returns: dict[str, float],
-        cov: "pd.DataFrame",
+        cov: pd.DataFrame,
         base_weights: dict[str, float],
     ) -> None:
         """运行 BL 影子对比（观测路径 fail-open）。
@@ -968,7 +968,7 @@ class InstitutionalPipelineRunner(
         symbols: list[str],
         base_weights: dict[str, float],
         bl_weights: dict[str, float],
-        bl_result: "object",
+        bl_result: object,
     ) -> None:
         """落盘 BL 影子对比报告（不污染主报告）。
 
@@ -1003,7 +1003,7 @@ class InstitutionalPipelineRunner(
             pass
         lines.append("")
         lines.append(
-            "> 本报告仅为 BL 影子观测, 不下达任何生产决策。切换需经观察期 (建议 20 交易日) 达标后由 USE_BL_SHADOW 常开。"
+            "> 本报告仅为 BL 影子观测, 不下达任何生产决策。切换需经观察期 (建议 20 交易日) 达标后由 USE_BL_SHADOW 常开。"  # noqa: E501
         )
         try:
             with open(report_path, "w", encoding="utf-8") as f:
@@ -1319,7 +1319,7 @@ class InstitutionalPipelineRunner(
         )
 
         logger.info(
-            "[MarketRegime] %s regime=%s base=%.2f vol=%s(%.4f→%.2f) mom=%s(%+.4f→%.2f) final=%.2f exposure %.1f%%→%.1f%%",
+            "[MarketRegime] %s regime=%s base=%.2f vol=%s(%.4f→%.2f) mom=%s(%+.4f→%.2f) final=%.2f exposure %.1f%%→%.1f%%",  # noqa: E501
             self._MARKET_PROXY_SYMBOL,
             regime,
             base_factor,

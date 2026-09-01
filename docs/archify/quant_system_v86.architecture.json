@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "量化交易系统 v8.6 架构",
+    "quality_profile": "showcase",
+    "viewBox": [1380, 820],
+    "views": [
+      {
+        "id": "main-pipeline",
+        "label": "主数据管线",
+        "focus": ["cli_entry", "streamlit_ui", "pipeline_runner", "data_layer", "alpha_factor", "signal_fusion", "ai_coordinator", "trade_executor", "report_archive"],
+        "note": "从入口经机构管道到执行与归档的 EOD 全流程。"
+      },
+      {
+        "id": "ai-decision",
+        "label": "AI 决策层",
+        "focus": ["ai_coordinator", "ai_hedge_fund", "glm5_engine", "ml_trainer", "hedge_rebalance", "signal_fusion"],
+        "note": "AI 协调器路由到三路决策，结果汇入对冲再平衡联动。"
+      },
+      {
+        "id": "datasource-chain",
+        "label": "数据源降级链",
+        "focus": ["data_layer", "wind_terminal", "wind_mcp", "tdx", "akshare", "sina", "cache", "fallback"],
+        "note": "P0→P6 优先级链，逐级优雅降级，永不崩溃。"
+      },
+      {
+        "id": "hedge-risk",
+        "label": "对冲与风控",
+        "focus": ["hedge_engine", "hedge_rebalance", "stop_loss", "trade_executor", "trade_orders"],
+        "note": "五阶段联合决策生成实盘交易指令。"
+      },
+      {
+        "id": "macro-analysis",
+        "label": "宏观综合分析",
+        "focus": ["macro_analysis", "kondratiev", "five_year_plan", "social_security", "signal_fusion"],
+        "note": "康波周期、十五五规划、社保 ETF 三源汇入信号融合。"
+      }
+    ]
+  },
+  "components": [
+    { "id": "cli_entry", "type": "frontend", "label": "CLI 统一入口 v8.6", "sublabel": "35+ 模式", "pos": [300, 80], "size": [180, 60] },
+    { "id": "streamlit_ui", "type": "frontend", "label": "Streamlit UI", "sublabel": "19 页面板", "pos": [560, 80], "size": [180, 60] },
+
+    { "id": "pipeline_runner", "type": "backend", "label": "机构管道 Runner", "sublabel": "EOD 全流程", "pos": [300, 200], "size": [180, 60] },
+
+    { "id": "data_layer", "type": "backend", "label": "数据层管理器", "sublabel": "降级历史追踪", "pos": [300, 320], "size": [180, 60] },
+    { "id": "alpha_factor", "type": "backend", "label": "Alpha 因子引擎", "sublabel": "11 类 + GTJA191", "pos": [560, 320], "size": [180, 60] },
+    { "id": "signal_fusion", "type": "backend", "label": "信号融合引擎", "sublabel": "多源加权", "pos": [820, 320], "size": [180, 60] },
+
+    { "id": "ai_coordinator", "type": "backend", "label": "AI 协调器", "sublabel": "任务路由 / 成本管控", "pos": [560, 410], "size": [180, 50] },
+
+    { "id": "ai_hedge_fund", "type": "backend", "label": "AI Hedge Fund", "sublabel": "20 分析师 LangGraph", "pos": [300, 500], "size": [180, 60] },
+    { "id": "glm5_engine", "type": "backend", "label": "GLM-5 决策引擎", "sublabel": "盘中多模型", "pos": [560, 500], "size": [180, 60] },
+    { "id": "ml_trainer", "type": "backend", "label": "ML 增强训练", "sublabel": "LightGBM v2.0", "pos": [820, 500], "size": [180, 60] },
+
+    { "id": "hedge_engine", "type": "backend", "label": "对冲引擎 v5.9", "sublabel": "多指数 Beta 加权", "pos": [300, 620], "size": [180, 60] },
+    { "id": "hedge_rebalance", "type": "backend", "label": "再平衡联动", "sublabel": "五阶段联合决策", "pos": [560, 620], "size": [180, 60] },
+    { "id": "stop_loss", "type": "security", "label": "止损止盈监控", "sublabel": "风险权重分布", "pos": [820, 620], "size": [180, 60] },
+
+    { "id": "trade_executor", "type": "backend", "label": "每日交易执行器", "sublabel": "实盘指令生成", "pos": [300, 740], "size": [180, 60] },
+    { "id": "report_archive", "type": "database", "label": "报告归档", "sublabel": "每日 Markdown", "pos": [560, 740], "size": [180, 60] },
+    { "id": "trade_orders", "type": "database", "label": "交易指令", "sublabel": "Excel 驱动", "pos": [820, 740], "size": [180, 60] },
+
+    { "id": "wind_terminal", "type": "external", "label": "Wind Terminal", "sublabel": "P0 主源", "pos": [40, 200], "size": [170, 50] },
+    { "id": "wind_mcp", "type": "cloud", "label": "Wind MCP", "sublabel": "P1 强制回退", "pos": [40, 275], "size": [170, 50] },
+    { "id": "tdx", "type": "external", "label": "TDX 通达信", "sublabel": "P2 免费直连", "pos": [40, 350], "size": [170, 50] },
+    { "id": "akshare", "type": "external", "label": "AKShare", "sublabel": "P3 免费", "pos": [40, 425], "size": [170, 50] },
+    { "id": "sina", "type": "external", "label": "新浪 API", "sublabel": "P4 兜底", "pos": [40, 500], "size": [170, 50] },
+    { "id": "cache", "type": "database", "label": "本地缓存", "sublabel": "P5 Parquet", "pos": [40, 575], "size": [170, 50] },
+    { "id": "fallback", "type": "database", "label": "兜底价格", "sublabel": "P6 永不崩溃", "pos": [40, 650], "size": [170, 50] },
+
+    { "id": "macro_analysis", "type": "backend", "label": "宏观综合分析", "sublabel": "一键三大", "pos": [1080, 200], "size": [180, 60] },
+    { "id": "kondratiev", "type": "backend", "label": "康波周期", "sublabel": "行业轮动", "pos": [1080, 300], "size": [180, 50] },
+    { "id": "five_year_plan", "type": "backend", "label": "十五五规划", "sublabel": "政策对齐", "pos": [1080, 370], "size": [180, 50] },
+    { "id": "social_security", "type": "backend", "label": "社保基金 ETF", "sublabel": "国家队信号", "pos": [1080, 440], "size": [180, 50] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "数据源优先级链 P0→P6", "wraps": ["wind_terminal", "wind_mcp", "tdx", "akshare", "sina", "cache", "fallback"] },
+    { "kind": "region", "label": "AI 决策层", "wraps": ["ai_hedge_fund", "glm5_engine", "ml_trainer"] },
+    { "kind": "region", "label": "对冲与风控", "wraps": ["hedge_engine", "hedge_rebalance", "stop_loss"] },
+    { "kind": "region", "label": "宏观分析模块", "wraps": ["macro_analysis", "kondratiev", "five_year_plan", "social_security"] }
+  ],
+  "connections": [
+    { "from": "cli_entry", "to": "pipeline_runner", "label": "启动", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelAt": [440, 185] },
+    { "from": "streamlit_ui", "to": "pipeline_runner", "label": "调用", "fromSide": "bottom", "toSide": "top", "via": [[650, 170], [390, 170]] },
+
+    { "from": "pipeline_runner", "to": "data_layer", "label": "采集", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelAt": [420, 290] },
+    { "from": "pipeline_runner", "to": "alpha_factor", "label": "计算因子", "fromSide": "right", "toSide": "top", "via": [[650, 230]] },
+
+    { "from": "alpha_factor", "to": "signal_fusion", "label": "因子输入", "variant": "emphasis", "fromSide": "right", "toSide": "left" },
+    { "from": "signal_fusion", "to": "ai_coordinator", "label": "融合信号", "variant": "emphasis", "fromSide": "left", "toSide": "right", "via": [[780, 350], [780, 435]] },
+
+    { "from": "ai_coordinator", "to": "ai_hedge_fund", "label": "路由", "fromSide": "bottom", "toSide": "top", "via": [[650, 475], [390, 475]] },
+    { "from": "ai_coordinator", "to": "glm5_engine", "label": "路由", "fromSide": "bottom", "toSide": "top", "labelAt": [700, 495] },
+    { "from": "ai_coordinator", "to": "ml_trainer", "label": "路由", "fromSide": "bottom", "toSide": "top", "via": [[650, 475], [910, 475]] },
+
+    { "from": "ai_hedge_fund", "to": "hedge_rebalance", "label": "决策", "fromSide": "bottom", "toSide": "top", "via": [[390, 595], [650, 595]] },
+    { "from": "glm5_engine", "to": "hedge_rebalance", "label": "决策", "fromSide": "bottom", "toSide": "top", "labelAt": [680, 590] },
+    { "from": "hedge_engine", "to": "hedge_rebalance", "label": "对冲输入", "variant": "emphasis", "fromSide": "right", "toSide": "left" },
+
+    { "from": "hedge_rebalance", "to": "trade_executor", "label": "执行计划", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "via": [[650, 705], [390, 705]] },
+    { "from": "stop_loss", "to": "trade_executor", "label": "风控约束", "fromSide": "left", "toSide": "top", "via": [[750, 650], [750, 715], [390, 715]], "labelAt": [570, 725] },
+
+    { "from": "trade_executor", "to": "report_archive", "label": "归档", "fromSide": "right", "toSide": "left" },
+    { "from": "trade_executor", "to": "trade_orders", "label": "生成指令", "variant": "emphasis", "fromSide": "bottom", "toSide": "bottom", "via": [[390, 810], [910, 810]], "labelAt": [650, 822] },
+
+
+    { "from": "data_layer", "to": "wind_terminal", "label": "P0", "variant": "emphasis", "fromSide": "left", "toSide": "right", "via": [[255, 350], [255, 225]] },
+    { "from": "wind_terminal", "to": "wind_mcp", "label": "降级", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "labelAt": [155, 262] },
+    { "from": "wind_mcp", "to": "tdx", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "from": "tdx", "to": "akshare", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "from": "akshare", "to": "sina", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "from": "sina", "to": "cache", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "from": "cache", "to": "fallback", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+
+    { "from": "macro_analysis", "to": "signal_fusion", "label": "宏观信号", "variant": "dashed", "fromSide": "left", "toSide": "top", "via": [[910, 230]], "labelAt": [995, 218] },
+    { "from": "kondratiev", "to": "macro_analysis", "fromSide": "top", "toSide": "bottom" },
+    { "from": "five_year_plan", "to": "macro_analysis", "fromSide": "right", "toSide": "top", "via": [[1300, 395], [1300, 185], [1170, 185]] },
+    { "from": "social_security", "to": "macro_analysis", "fromSide": "right", "toSide": "right", "via": [[1320, 465], [1320, 230]] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "系统定位", "items": ["A股量化交易系统 v8.6 统一版", "多因子选股 + LightGBM 增强 + 策略回测 + 风控", "v5.10 AI/对冲/宏观 + v8.4 机构架构/CI/因子"] },
+    { "dot": "emerald", "title": "数据源优先级链", "items": ["Wind Terminal (P0) → Wind MCP (P1) → TDX (P2)", "AKShare (P3) → 新浪 (P4) → 缓存 (P5) → 兜底 (P6)", "逐级优雅降级，永不崩溃"] },
+    { "dot": "violet", "title": "AI 决策架构", "items": ["AI Hedge Fund: 20 位分析师 LangGraph 编排", "GLM-5: 盘中多模型实时决策", "ML v2.0: 四维优化 + 贝叶斯超参"] },
+    { "dot": "rose", "title": "对冲与风控", "items": ["对冲引擎 v5.9: 多指数 Beta 加权 + 成本过滤", "再平衡联动: 五阶段联合决策", "止损止盈 + 风险权重分布监控"] },
+    { "dot": "amber", "title": "EOD 管道", "items": ["机构管道 Runner: 数据→因子→信号→执行→报告", "每日交易执行器生成实盘指令", "报告归档至每日 Markdown + Excel 驱动交易指令"] }
+  ]
+}

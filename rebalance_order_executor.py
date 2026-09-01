@@ -37,7 +37,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from utils.path_config import setup_sys_path
 
@@ -78,7 +78,7 @@ def _validate_date(date: str) -> bool:
     return True
 
 
-def _load_rebalance_report(date: str) -> Optional[dict[str, Any]]:
+def _load_rebalance_report(date: str) -> dict[str, Any] | None:
     """读取当日再平衡执行单报告 (已生成产物)。
 
     无报告时返回 None, 供调用方决定是否现场生成。
@@ -286,7 +286,7 @@ def _run_tca_on_fills(fills: list[dict[str, Any]], date: str) -> dict[str, Any]:
 
 
 def execute_rebalance_orders(
-    date: Optional[str] = None, dry_run: bool = False
+    date: str | None = None, dry_run: bool = False
 ) -> dict[str, Any]:
     """执行再平衡撮合闭环。返回汇总 dict。
 

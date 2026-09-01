@@ -409,7 +409,7 @@ def render_markdown(
         add("")
         add("> 建议检查网络连接后重试；若需手工验证，可直接访问：  ")
         add(
-            f"> [HN Algolia 查询链接]({ALGOLIA_SEARCH_URL}?{urlencode({'tags': 'story', 'numericFilters': 'points>5,num_comments>0', 'hitsPerPage': 30})})"
+            f"> [HN Algolia 查询链接]({ALGOLIA_SEARCH_URL}?{urlencode({'tags': 'story', 'numericFilters': 'points>5,num_comments>0', 'hitsPerPage': 30})})"  # noqa: E501
         )
         add("")
         return "\n".join(lines)
@@ -466,7 +466,7 @@ def render_markdown_enhanced(
         add("")
         add("> 建议检查网络连接后重试；若需手工验证，可直接访问：  ")
         add(
-            f"> [HN Algolia 查询链接]({ALGOLIA_SEARCH_URL}?{urlencode({'tags': 'story', 'numericFilters': 'points>5,num_comments>0', 'hitsPerPage': 30})})"
+            f"> [HN Algolia 查询链接]({ALGOLIA_SEARCH_URL}?{urlencode({'tags': 'story', 'numericFilters': 'points>5,num_comments>0', 'hitsPerPage': 30})})"  # noqa: E501
         )
         add("")
         return "\n".join(lines)

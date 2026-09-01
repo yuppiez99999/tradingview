@@ -4,6 +4,7 @@
 - 盘中自主决策支持
 - 严谨高效的持仓盈亏明细
 """
+from __future__ import annotations
 
 import atexit
 import json
@@ -12,7 +13,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path as _Path
-from typing import Any, Optional
+from typing import Any
 
 import requests as _requests
 
@@ -165,7 +166,7 @@ def _call_deepseek(
     user_prompt: str,
     temperature: float = 0.4,
     max_tokens: int = 1500,
-) -> Optional[str]:
+) -> str | None:
     """调用 LLM 生成文本 (B3.4.4: 统一走 LLMRouter)
 
     保留原函数签名以维持向后兼容。内部委托给 utils.alpha.llm_router.LLMRouter:
@@ -208,7 +209,7 @@ def _call_deepseek(
 # ═══════════════════════════════════════════════════════════════
 
 
-def _load_trade_plan_prices(trade_plan_path: Optional[str]) -> dict[str, float]:
+def _load_trade_plan_prices(trade_plan_path: str | None) -> dict[str, float]:
     """加载 trade_plan 获取 est_price，返回 {code_num: est_price}"""
     plan_prices = {}
     if not trade_plan_path:
@@ -323,7 +324,7 @@ class PortfolioAnalyzer:
             "actual_avg_cost": sv.get("avg_price", 0),
         }
 
-    def _apply_positions_snapshot(self, snapshot_path: str, trade_plan_path: Optional[str] = None) -> None:
+    def _apply_positions_snapshot(self, snapshot_path: str, trade_plan_path: str | None = None) -> None:
         """加载 sim_snapshots/positions_{date}.json 并构建实际持仓视图
 
         注意: 此方法会修改 self.positions_data 中的持仓字段 (actual_shares,
@@ -419,7 +420,7 @@ class PortfolioAnalyzer:
         """[B3.2 委托] 判断持仓状态 — 止损线由调用方保证为负值（如 -0.15）"""
         return _pnl_get_position_status(pnl_pct, stop_loss)
 
-    def analyze_hedge_position(self, market_prices: Optional[dict[str, dict]] = None) -> dict[str, Any]:
+    def analyze_hedge_position(self, market_prices: dict[str, dict] | None = None) -> dict[str, Any]:
         """[B3.2 委托] 分析对冲头寸
 
         Args:
@@ -442,7 +443,7 @@ class PortfolioAnalyzer:
         """
         return _hedge_analyze_positions_plan(self.positions_data)
 
-    def generate_report(self, report_date: Optional[str] = None) -> dict[str, Any]:
+    def generate_report(self, report_date: str | None = None) -> dict[str, Any]:
         """[B3.2 委托] 生成完整收盘报告
 
         Args:
@@ -547,7 +548,7 @@ class PortfolioAnalyzer:
         )
         return {
             "concentration_risk": f"{max_name} {max_weight:.0%} (最大单标的), 共 {len(positions)} 只持仓",
-            "volatility_risk": f"高波动标的 ({'/'.join(high_vol_hits[:3])}) 占比 {sum(positions[c].get('amount', 0) for c in positions if any(hv in c for hv in high_vol_codes)) / total_amount:.0%}",
+            "volatility_risk": f"高波动标的 ({'/'.join(high_vol_hits[:3])}) 占比 {sum(positions[c].get('amount', 0) for c in positions if any(hv in c for hv in high_vol_codes)) / total_amount:.0%}",  # noqa: E501
             "hedge_coverage": hedge_desc,
             "policy_risk": "十五五规划落地节奏、半导体出口管制、AI 监管、医保集采",
             "liquidity_risk": "500 万规模对个股冲击成本约 0.1-0.3%",
@@ -585,7 +586,7 @@ class PortfolioAnalyzer:
 
     def _generate_deepseek_recommendations(
         self, pnl_data: dict, hedge_data: dict, net_pnl: float
-    ) -> Optional[list[str]]:
+    ) -> list[str] | None:
         """[B3.2 委托] 调用 DeepSeek 生成结构化交易决策建议
 
         生成包含具体操作关键词的建议, 以便 apply_llm_decisions_to_plan.py 识别:
@@ -602,7 +603,7 @@ class PortfolioAnalyzer:
             call_deepseek_fn=_call_deepseek,
         )
 
-    def generate_next_day_plan(self, report_date: Optional[str] = None) -> dict[str, Any]:
+    def generate_next_day_plan(self, report_date: str | None = None) -> dict[str, Any]:
         """[B3.2 委托] 生成第二天交易计划 (基于 auto_trade_plan_500w_2026-2030.json 的4阶段)
 
         根据 auto_trade_plan_500w_2026-2030.json 的 4 阶段执行计划,
@@ -700,7 +701,7 @@ def _render_position_details(details: list[dict]) -> str:
         else:
             mode_label = "计划"
         pnl_display = f"{d['daily_pnl_pct']:.2f}%" if d["daily_pnl_pct"] is not None else "N/A"
-        md += f"| {d['code']} | {d['name']} | {d['shares']} | {d['cost_price']} | {d['close_price']} | {pnl_display} | {d['pnl']:,.0f} | {mode_label} | {status_icon} |\n"
+        md += f"| {d['code']} | {d['name']} | {d['shares']} | {d['cost_price']} | {d['close_price']} | {pnl_display} | {d['pnl']:,.0f} | {mode_label} | {status_icon} |\n"  # noqa: E501
     return md
 
 
@@ -710,11 +711,14 @@ def _render_hedge_details(details: list[dict]) -> str:
     for h in details:
         cost_bd = h.get("cost_breakdown") or {}
         cost_note = cost_bd.get("cost_note", "")
-        md += f"""| 合约 | 方向 | 手数 | 开仓价 | 收盘价 | 对冲盈亏 | Beta降低 |
+        md += (
+            f"""| 合约 | 方向 | 手数 | 开仓价 | 收盘价 | 对冲盈亏 | Beta降低 |
 |------|------|------|------|------|------|------|
-| {h["instrument"]} | {h["direction"]} | {h["contracts"]} | {h["entry_price"]} | {h["close_price"]} | {h["hedge_pnl"]:,.0f} | {h["beta_reduced"]:.3f} |
+| {h["instrument"]} | {h["direction"]} | {h["contracts"]} | {h["entry_price"]} | {h["close_price"]} | """
+            f"""{h["hedge_pnl"]:,.0f} | {h["beta_reduced"]:.3f} |
 
 """
+        )
         if cost_bd:
             md += f"""| 成本项 | 数值 |
 |------|------|
@@ -739,8 +743,8 @@ def _render_hedge_plan(plan: dict) -> str:
     if not plan_details:
         return "> ⚠️ positions.json 中未配置 hedge_positions\n\n"
 
-    md += "| # | 工具 | 交易所 | 方向 | 目标手数 | 合约乘数 | 保证金率 | 目标Beta降低 | 行权价 | 权利金预算 | 估算名义价值 | 估算成本 | 说明 |\n"
-    md += "|---|------|--------|------|---------|---------|---------|------------|--------|-----------|------------|---------|------|\n"
+    md += "| # | 工具 | 交易所 | 方向 | 目标手数 | 合约乘数 | 保证金率 | 目标Beta降低 | 行权价 | 权利金预算 | 估算名义价值 | 估算成本 | 说明 |\n"  # noqa: E501
+    md += "|---|------|--------|------|---------|---------|---------|------------|--------|-----------|------------|---------|------|\n"  # noqa: E501
     for i, p in enumerate(plan_details, 1):
         strike_str = p.get("strike") or "-"
         premium_str = f"¥{p.get('premium_budget', 0):,}" if p.get("is_option") else "¥0"
@@ -792,7 +796,7 @@ def _render_next_day_stock_plan(stock_acc: dict, next_day_plan: dict) -> str:
             reason = pos.get("reason", "")
             inflow_str = f"{etf_inflow:.2f}" if isinstance(etf_inflow, (int, float)) else str(etf_inflow)
             reason_short = reason[:50] + "..." if len(reason) > 50 else reason
-            md += f"| {idx} | {code} | {name} | {ptype} | {action} | {weight:.0%} | {amount:,.0f} | {daily_amt:,.0f} | {style} | {etf_sig} | {inflow_str} | {reason_short} |\n"
+            md += f"| {idx} | {code} | {name} | {ptype} | {action} | {weight:.0%} | {amount:,.0f} | {daily_amt:,.0f} | {style} | {etf_sig} | {inflow_str} | {reason_short} |\n"  # noqa: E501
     return md
 
 
@@ -807,13 +811,13 @@ def _render_next_day_hedge_plan(hedge_acc: dict) -> str:
     md += "| 工具 | 方向 | 目标手数 | 说明 |\n"
     md += "|------|------|---------|------|\n"
     for inst in hedge_acc.get("instruments", []):
-        md += f"| {inst.get('instrument', '')} | {inst.get('direction', '')} | {inst.get('target_contracts', 0)} | {inst.get('reason', '')} |\n"
+        md += f"| {inst.get('instrument', '')} | {inst.get('direction', '')} | {inst.get('target_contracts', 0)} | {inst.get('reason', '')} |\n"  # noqa: E501
 
     hedge_positions_detail = hedge_acc.get("hedge_positions_detail", [])
     if hedge_positions_detail:
         md += "\n**期货期权对冲仓位明细** (来自 positions.json):\n\n"
-        md += "| # | 工具 | 交易所 | 方向 | 目标手数 | 合约乘数 | 保证金率 | 目标Beta降低 | 行权价 | 权利金预算 | 估算名义价值 | 说明 |\n"
-        md += "|---|------|--------|------|---------|---------|---------|------------|--------|-----------|------------|------|\n"
+        md += "| # | 工具 | 交易所 | 方向 | 目标手数 | 合约乘数 | 保证金率 | 目标Beta降低 | 行权价 | 权利金预算 | 估算名义价值 | 说明 |\n"  # noqa: E501
+        md += "|---|------|--------|------|---------|---------|---------|------------|--------|-----------|------------|------|\n"  # noqa: E501
         for idx, hp in enumerate(hedge_positions_detail, 1):
             instrument = hp.get("instrument", "")
             exchange = hp.get("exchange", "")
@@ -826,7 +830,7 @@ def _render_next_day_hedge_plan(hedge_acc: dict) -> str:
             premium = hp.get("premium_budget", 0)
             notional = hp.get("estimated_notional", 0)
             reason = hp.get("reason", "")[:60]
-            md += f"| {idx} | {instrument} | {exchange} | {direction} | {contracts} | {multiplier} | {margin_rate:.2%} | {beta_red:.2f} | {strike} | ¥{premium:,} | ¥{notional:,} | {reason} |\n"
+            md += f"| {idx} | {instrument} | {exchange} | {direction} | {contracts} | {multiplier} | {margin_rate:.2%} | {beta_red:.2f} | {strike} | ¥{premium:,} | ¥{notional:,} | {reason} |\n"  # noqa: E501
         total_notional = sum(hp.get("estimated_notional", 0) for hp in hedge_positions_detail)
         total_beta_red = sum(hp.get("target_beta_reduction", 0) for hp in hedge_positions_detail)
         md += f"| **合计** | - | - | - | - | - | - | **{total_beta_red:.2f}** | - | - | **¥{total_notional:,}** | - |\n"
@@ -919,7 +923,8 @@ def _render_return_projection_section(proj: dict) -> str:
             f"| {icon} {sc.get('label', s_key)} | {prob:.0%} | {ann:.2f}% | {cum:.2f}% | ¥{fin:,.0f} | {profit_str} |\n"
         )
 
-    md += f"""
+    md += (
+        f"""
 #### 加权期望
 
 | 指标 | 数值 |
@@ -927,7 +932,9 @@ def _render_return_projection_section(proj: dict) -> str:
 | **加权期望年化** | **{proj_expected.get("expected_annualized", 0):.2f}%** |
 | 加权期望累计 | {proj_expected.get("expected_cumulative", 0):.2f}% |
 | 加权期望期末金额 | ¥{proj_expected.get("expected_final_amount", 0):,.0f} |
-| 加权期望盈亏 | {"+" if proj_expected.get("expected_profit", 0) >= 0 else ""}¥{proj_expected.get("expected_profit", 0):,.0f} |
+| 加权期望盈亏 | """
+        f"""{"+" if proj_expected.get("expected_profit", 0) >= 0 else ""}¥"""
+        f"""{proj_expected.get("expected_profit", 0):,.0f} |
 
 #### 风险披露
 
@@ -939,6 +946,7 @@ def _render_return_projection_section(proj: dict) -> str:
 | 政策风险 | {proj_risk.get("policy_risk", "-")} |
 | 流动性风险 | {proj_risk.get("liquidity_risk", "-")} |
 """
+    )
     return md
 
 
@@ -960,7 +968,7 @@ def generate_markdown_report(report: dict) -> str:
     data_health = report.get("meta", {}).get("data_source_health", {})
     data_integrity_warning = _build_data_integrity_warning(data_health)
 
-    md = f"""# 📊 综合盈亏统计报告（含期货期权对冲）
+    md = (f"""# 📊 综合盈亏统计报告（含期货期权对冲）
 
 **日期**: {report["meta"]["report_date"]}
 **阶段**: {report["meta"]["phase"]}
@@ -985,11 +993,13 @@ def generate_markdown_report(report: dict) -> str:
 
 | 账户类型 | 投入资金 | 当前价值 | 浮盈 | 浮盈率 |
 |---------|---------|---------|------|--------|
-| 现货账户 | ¥{total_cost:,.2f} | ¥{total_market_value:,.2f} | {"-" if portfolio_pnl < 0 else "+"}¥{abs(portfolio_pnl):,.2f} | {pnl_summary["total_pnl_pct"]:+.2f}% |
+| 现货账户 | ¥{total_cost:,.2f} | ¥{total_market_value:,.2f} | """
+    f"""{"-" if portfolio_pnl < 0 else "+"}¥{abs(portfolio_pnl):,.2f} | {pnl_summary["total_pnl_pct"]:+.2f}% |
 | 期货对冲 | - | - | {"-" if hedge_pnl < 0 else "+"}¥{abs(hedge_pnl):,.2f} | {hedge_pnl_pct:+.2f}% |
 | 期权保护（计划中） | - | - | ¥0.00 | - |
 | 对冲成本 | - | - | -¥{hedge_cost:,.2f} | - |
-| **综合净盈亏** | **¥{total_cost:,.2f}** | **¥{current_value:,.2f}** | **{"-" if net_pnl < 0 else "+"}¥{abs(net_pnl):,.2f}** | **{net_pnl_pct:+.2f}%** |
+| **综合净盈亏** | **¥{total_cost:,.2f}** | **¥{current_value:,.2f}** | """
+    f"""**{"-" if net_pnl < 0 else "+"}¥{abs(net_pnl):,.2f}** | **{net_pnl_pct:+.2f}%** |
 
 ### 2.2 盈亏计算公式
 
@@ -1019,7 +1029,7 @@ def generate_markdown_report(report: dict) -> str:
 
 ### 3.2 持仓明细
 
-"""
+""")
     md += _render_position_details(report["portfolio_pnl"]["details"])
 
     md += """
@@ -1030,13 +1040,17 @@ def generate_markdown_report(report: dict) -> str:
 """
     md += _render_hedge_details(report["hedge_position"]["details"])
 
-    md += f"""### 4.2 对冲效果评估
+    _beta_gap = abs(
+        report["hedge_position"]["summary"]["current_portfolio_beta"]
+        - report["risk_metrics"]["beta_exposure"]
+    )
+    md += (f"""### 4.2 对冲效果评估
 
 | 指标 | 数值 |
 |------|------|
 | 现货组合 Beta | {report["hedge_position"]["summary"]["current_portfolio_beta"]:.3f} |
 | 目标 Beta | {report["hedge_position"]["summary"]["target_beta"]:.3f} |
-| 已实现 Beta 降低 | ~{abs(report["hedge_position"]["summary"]["current_portfolio_beta"] - report["risk_metrics"]["beta_exposure"]):.2f} |
+| 已实现 Beta 降低 | ~{_beta_gap:.2f} |
 | 现货亏损 | {"-" if portfolio_pnl < 0 else "+"}¥{abs(portfolio_pnl):,.2f} |
 | 期货盈亏 | {"-" if hedge_pnl < 0 else "+"}¥{abs(hedge_pnl):,.2f} |
 | **净对冲收益** | **{"-" if (hedge_pnl - portfolio_pnl) < 0 else "+"}¥{abs(hedge_pnl - abs(portfolio_pnl)):,.2f}** |
@@ -1044,19 +1058,25 @@ def generate_markdown_report(report: dict) -> str:
 
 ### 4.3 期货期权计划头寸 (来自 positions.json)
 
-"""
+""")
     md += _render_hedge_plan(report.get("hedge_position_plan") or {})
 
-    md += f"""---
+    _mdd = report["risk_metrics"]["max_drawdown_pct"]
+    _mdd_val = f"{_mdd:.2f}% (组合层面)" if _mdd is not None else "N/A (历史数据不足)"
+    _mdd_rating = "安全" if _mdd is not None and _mdd > -5 else "N/A" if _mdd is None else "关注"
+    md += (f"""---
 
 ## 五、风险指标
 
 | 指标 | 数值 | 评级 |
 |------|------|------|
-| 日均收益 | {report["risk_metrics"]["avg_daily_return_pct"]:.2f}% | {("良好" if report["risk_metrics"]["avg_daily_return_pct"] > 0.3 else "中性")} |
-| 波动率 | {report["risk_metrics"]["portfolio_volatility_pct"]:.2f}% | {("可控" if report["risk_metrics"]["portfolio_volatility_pct"] < 1.0 else "偏高")} |
-| 最大回撤 | {f"{report['risk_metrics']['max_drawdown_pct']:.2f}% (组合层面)" if report["risk_metrics"]["max_drawdown_pct"] is not None else "N/A (历史数据不足)"} | {("安全" if report["risk_metrics"]["max_drawdown_pct"] is not None and report["risk_metrics"]["max_drawdown_pct"] > -5 else "N/A" if report["risk_metrics"]["max_drawdown_pct"] is None else "关注")} |
-| Beta敞口 | {report["risk_metrics"]["beta_exposure"]:.3f} | {("达标" if report["risk_metrics"]["beta_exposure"] < 0.5 else "偏高")} |
+| 日均收益 | {report["risk_metrics"]["avg_daily_return_pct"]:.2f}% | """
+    f"""{("良好" if report["risk_metrics"]["avg_daily_return_pct"] > 0.3 else "中性")} |
+| 波动率 | {report["risk_metrics"]["portfolio_volatility_pct"]:.2f}% | """
+    f"""{("可控" if report["risk_metrics"]["portfolio_volatility_pct"] < 1.0 else "偏高")} |
+| 最大回撤 | {_mdd_val} | {_mdd_rating} |
+| Beta敞口 | {report["risk_metrics"]["beta_exposure"]:.3f} | """
+    f"""{("达标" if report["risk_metrics"]["beta_exposure"] < 0.5 else "偏高")} |
 
 ---
 
@@ -1064,32 +1084,36 @@ def generate_markdown_report(report: dict) -> str:
 
 ### 6.1 对冲效果总结
 
-"""
+""")
     _hedge_plan = report.get("hedge_position_plan") or {}
     _hedge_summary = _hedge_plan.get("summary", {})
     _beta_reduced = _hedge_summary.get("total_beta_reduction", 0) or 0
     _current_beta = report["hedge_position"]["summary"].get("current_portfolio_beta", 0) or 0
     _target_beta = 0.3
     if net_pnl > 0 and hedge_pnl > 0:
-        md += f"""✅ **对冲策略运行良好**：期货空头在市场下跌时有效保护了组合
-- 现货{"亏损" if portfolio_pnl < 0 else "盈利"} {"-" if portfolio_pnl < 0 else "+"}¥{abs(portfolio_pnl):,.0f} 被期货盈利 +¥{abs(hedge_pnl):,.0f} {"完全覆盖" if hedge_pnl > abs(portfolio_pnl) else "部分覆盖"}
+        md += (f"""✅ **对冲策略运行良好**：期货空头在市场下跌时有效保护了组合
+- 现货{"亏损" if portfolio_pnl < 0 else "盈利"} {"-" if portfolio_pnl < 0 else "+"}¥{abs(portfolio_pnl):,.0f} """
+            f"""被期货盈利 +¥{abs(hedge_pnl):,.0f} {"完全覆盖" if hedge_pnl > abs(portfolio_pnl) else "部分覆盖"}
 - 净收益达 +¥{abs(net_pnl):,.0f}，综合净收益率 {net_pnl_pct:+.2f}%
-"""
+""")
     elif net_pnl > 0 and hedge_pnl == 0:
         md += f"""ℹ️ **现货盈利，对冲头寸待执行**：当前期货/期权对冲未实际触发盈亏
 - 现货盈利 +¥{abs(portfolio_pnl):,.0f}，期货对冲盈亏 ¥0
 - 净收益 +¥{abs(net_pnl):,.0f}，综合净收益率 {net_pnl_pct:+.2f}%
 """
     else:
-        md += f"""⚠️ **今日市场波动**：
-- 现货{"亏损" if portfolio_pnl < 0 else "盈利"} {"-" if portfolio_pnl < 0 else "+"}¥{abs(portfolio_pnl):,.0f}，期货{"盈利" if hedge_pnl > 0 else "亏损"} {"+" if hedge_pnl > 0 else ""}¥{abs(hedge_pnl):,.0f}
-- 净{"亏损" if net_pnl < 0 else "收益"} {"-" if net_pnl < 0 else "+"}¥{abs(net_pnl):,.0f}，综合净收益率 {net_pnl_pct:+.2f}%
-"""
+        md += (f"""⚠️ **今日市场波动**：
+- 现货{"亏损" if portfolio_pnl < 0 else "盈利"} {"-" if portfolio_pnl < 0 else "+"}¥{abs(portfolio_pnl):,.0f}，"""
+            f"""期货{"盈利" if hedge_pnl > 0 else "亏损"} {"+" if hedge_pnl > 0 else ""}¥{abs(hedge_pnl):,.0f}
+- 净{"亏损" if net_pnl < 0 else "收益"} {"-" if net_pnl < 0 else "+"}¥{abs(net_pnl):,.0f}，"""
+            f"""综合净收益率 {net_pnl_pct:+.2f}%
+""")
 
     if _beta_reduced > 0.01:
-        md += f"""
-- Beta 从 {_current_beta:.3f} 降低 {_beta_reduced:.3f} 至 ~{_current_beta - _beta_reduced:.3f}（目标 {_target_beta:.3f}）
-"""
+        md += (f"""
+- Beta 从 {_current_beta:.3f} 降低 {_beta_reduced:.3f} 至 ~{_current_beta - _beta_reduced:.3f}"""
+            f"""（目标 {_target_beta:.3f}）
+""")
     else:
         md += f"""
 - Beta 当前 {_current_beta:.3f}，对冲未生效（目标降至 {_target_beta:.3f}，已配置头寸待执行）
@@ -1126,12 +1150,14 @@ def generate_markdown_report(report: dict) -> str:
     plan = report.get("hedge_position_plan") or {}
     premium_total = plan.get("summary", {}).get("total_premium_budget", 0)
     if premium_total > 0:
-        md += f"""⏳ **期权保护待启动**：
-- 当前 VIX {report["market_overview"]["vix_estimate"]}，处于{"偏低" if report["market_overview"]["vix_estimate"] < 13 else "偏高" if report["market_overview"]["vix_estimate"] >= 22 else "正常"}区间
+        _vix_est = report["market_overview"]["vix_estimate"]
+        _vix_zone = "偏低" if _vix_est < 13 else "偏高" if _vix_est >= 22 else "正常"
+        md += (f"""⏳ **期权保护待启动**：
+- 当前 VIX {_vix_est}，处于{_vix_zone}区间
 - 预留 ¥{premium_total:,} 预算，VIX >= 18 触发轻量建仓 (PUT_SPREAD)
 - 可优先建仓上证50ETF Put，覆盖宽基尾部风险
 
-"""
+""")
     else:
         md += "> ⚠️ 期权保护未配置，建议根据市场风险评估配置 Put 期权\n\n"
 
@@ -1149,19 +1175,20 @@ def generate_markdown_report(report: dict) -> str:
         else 0
     )
 
-    md += f"""| 类别 | 金额 | 占比 |
+    md += (f"""| 类别 | 金额 | 占比 |
 |------|------|------|
 | 现货持仓 | ¥{total_market_value:,.0f} | {total_market_value / total_capital * 100:.1f}% |
 | 期货保证金 | ¥{futures_margin:,.0f} | {futures_margin / total_capital * 100:.1f}% |
 | 期权预算 | ¥{premium_total:,.0f} | {premium_total / total_capital * 100:.1f}% |
-| 剩余现金 | ¥{(total_capital - total_market_value - futures_margin - premium_total):,.0f} | {(total_capital - total_market_value - futures_margin - premium_total) / total_capital * 100:.1f}% |
+| 剩余现金 | ¥{(total_capital - total_market_value - futures_margin - premium_total):,.0f} | """
+    f"""{(total_capital - total_market_value - futures_margin - premium_total) / total_capital * 100:.1f}% |
 | **合计** | **¥{total_capital:,.0f}** | **100%** |
 
 ---
 
 ## 七、AI决策建议
 
-"""
+""")
     for i, rec in enumerate(report["ai_recommendations"], 1):
         md += f"{i}. {rec}\n"
 

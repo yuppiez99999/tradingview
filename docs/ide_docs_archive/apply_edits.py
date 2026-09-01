@@ -5,8 +5,8 @@ with open(p, encoding="utf-8") as f:
     content = f.read()
 
 # Edit 1: 第 333 行注释
-old1 = "# 交易日数: 30 (7/13 周一 ~ 8/21 周五, 跳过周末)\n# 每日建仓: 150,000 元 (现货)\n# 总建仓金额: 3,000,000 元 (60%)"
-new1 = "# 交易日数: 30 (7/13 周一 ~ 8/21 周五, 跳过周末)\n# 每日建仓: 200,000 元 (现货)\n# 总建仓金额: 3,000,000 元 (60%)"
+old1 = "# 交易日数: 30 (7/13 周一 ~ 8/21 周五, 跳过周末)\n# 每日建仓: 150,000 元 (现货)\n# 总建仓金额: 3,000,000 元 (60%)"  # noqa: E501
+new1 = "# 交易日数: 30 (7/13 周一 ~ 8/21 周五, 跳过周末)\n# 每日建仓: 200,000 元 (现货)\n# 总建仓金额: 3,000,000 元 (60%)"  # noqa: E501
 assert old1 in content, "Edit 1 old string not found"
 content = content.replace(old1, new1, 1)
 
@@ -17,8 +17,8 @@ assert old2 in content, "Edit 2 old string not found"
 content = content.replace(old2, new2, 1)
 
 # Edit 3: 第 649 行 day_capital 计算 bug
-old3 = '"daily_capital": phase.get("daily_capital", round(phase["phase_capital"] / phase["duration_days"], 2)),\n            "day_capital": round(phase["phase_capital"] / phase["duration_days"], 2),'
-new3 = '"daily_capital": phase.get("daily_capital", round(phase["phase_capital"] / phase["duration_days"], 2)),\n            "day_capital": phase.get("daily_capital", round(phase["phase_capital"] / phase["duration_days"], 2)),'
+old3 = '"daily_capital": phase.get("daily_capital", round(phase["phase_capital"] / phase["duration_days"], 2)),\n            "day_capital": round(phase["phase_capital"] / phase["duration_days"], 2),'  # noqa: E501
+new3 = '"daily_capital": phase.get("daily_capital", round(phase["phase_capital"] / phase["duration_days"], 2)),\n            "day_capital": phase.get("daily_capital", round(phase["phase_capital"] / phase["duration_days"], 2)),'  # noqa: E501
 assert old3 in content, "Edit 3 old string not found"
 content = content.replace(old3, new3, 1)
 

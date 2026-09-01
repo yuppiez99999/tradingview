@@ -23,6 +23,10 @@ extend-exclude = [
     # 见 docs/CODE_REVIEW_COMPREHENSIVE_20260808.md B7.
     "external/airllm_src",
     "unsloth_compiled_cache",
+    # 临时分析产物目录 (2026-08-30): 一次性报告/日志/分析脚本, 非生产代码。
+    # 该类目录为未跟踪产物, CI 的 git diff 不会纳入; 本地全量验证会因
+    # 一行流分析脚本 (E701/E702/T201) 产生阻断级假阳性, 故按目录模式排除。
+    "_test_report_*",
 ]
 
 [lint]

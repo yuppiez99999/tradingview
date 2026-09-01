@@ -87,6 +87,7 @@
   - 时序预测: Transformer模型骨架集成 (新增)
   - LSEG集成: 国际金融市场全维度数据 (股票/债券/FX/期权/宏观) ⭐
 """
+from __future__ import annotations
 
 import argparse
 import glob
@@ -97,7 +98,6 @@ import sys
 import time
 from collections.abc import Callable
 from datetime import datetime
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -467,7 +467,7 @@ run_comps_mode = _deprecated_mode_stub("可比公司分析", "--comps")
 # ============================================================
 # 通用辅助函数 — 消除各 run_* 模式中的重复样板
 # ============================================================
-def write_report_file(report: str, filename: Optional[str]) -> None:
+def write_report_file(report: str, filename: str | None) -> None:
     """可选：将报告写入 BASE_DIR/reports/<filename>（filename 为空则跳过）。"""
     if not filename:
         return
@@ -500,8 +500,8 @@ def get_stock_name(code: str) -> str:
 
 
 def get_ml_signal_section(
-    external_signals: dict = None, return_raw: bool = False, use_enhanced: bool = True
-) -> Optional[str]:
+    external_signals: dict | None = None, return_raw: bool = False, use_enhanced: bool = True
+) -> str | None:
     """
     运行 ML 模型信号扫描，返回 Markdown 格式的信号报告段落。
     若 ML 模块不可用或扫描失败，返回 None。
@@ -871,7 +871,7 @@ def _get_portfolio_quotes() -> dict[str, dict[str, float]]:
     return result
 
 
-def _build_etf_flow_data(flow_monitor: object) -> Optional[dict]:
+def _build_etf_flow_data(flow_monitor: object) -> dict | None:
     """将 ETFFundFlowMonitor.flow_data 转为 SocialSecurityETFTracker 需要的格式（无数据返回 None）。"""
     if not flow_monitor.flow_data:
         return None
@@ -886,7 +886,7 @@ def _build_etf_flow_data(flow_monitor: object) -> Optional[dict]:
     }
 
 
-def get_etf_flow_data(connector_manager: object = None) -> Optional[dict]:
+def get_etf_flow_data(connector_manager: object = None) -> dict | None:
     """获取ETF资金流数据（带错误处理和降级）。"""
     if connector_manager is None:
         connector_manager = globals().get("connector_manager")
@@ -1243,7 +1243,7 @@ def run_quick_check(args: argparse.Namespace) -> None:
     if etf_config:
         try:
             logger.info(
-                f"  ✅ 信号阈值: 高{etf_config/1e8:.0f}亿/中{config_manager.get('etf_monitor', 'signal_medium_threshold')/1e8:.0f}亿/低{config_manager.get('etf_monitor', 'signal_low_threshold')/1e8:.0f}亿"
+                f"  ✅ 信号阈值: 高{etf_config/1e8:.0f}亿/中{config_manager.get('etf_monitor', 'signal_medium_threshold')/1e8:.0f}亿/低{config_manager.get('etf_monitor', 'signal_low_threshold')/1e8:.0f}亿"  # noqa: E501
             )
         except (TypeError, ValueError) as e:
             logger.warning(f"  ⚠️ ETF信号阈值配置格式异常, 跳过: {e}")
@@ -1393,7 +1393,7 @@ def run_model_training(args: argparse.Namespace) -> None:
     )
 
 
-def run_enhanced_training_mode(args: argparse.Namespace) -> Optional[dict]:
+def run_enhanced_training_mode(args: argparse.Namespace) -> dict | None:
     """ML增强训练 v2.0 — 四维优化管线"""
     if not ML_ENHANCED_TRAINER_AVAILABLE:
         logger.error("\n❌ 增强训练引擎未安装")
@@ -1464,7 +1464,7 @@ def run_enhanced_training_mode(args: argparse.Namespace) -> Optional[dict]:
 # ============================================================
 
 
-def run_enhanced_prediction_mode(args: argparse.Namespace) -> Optional[dict]:
+def run_enhanced_prediction_mode(args: argparse.Namespace) -> dict | None:
     """ML增强预测 v2.0"""
     if not ML_ENHANCED_PREDICTOR_AVAILABLE:
         logger.error("\n❌ 增强预测器不可用")
@@ -1601,7 +1601,7 @@ def run_hypothesis_test(args: argparse.Namespace) -> None:
 
 
 def _log_execution_summary(
-    mode_name: str, duration_sec: float, success: bool, result: Optional[dict] = None
+    mode_name: str, duration_sec: float, success: bool, result: dict | None = None
 ) -> None:
     """记录每个CLI模式执行的统一结构化日志。
 
@@ -1866,7 +1866,7 @@ def run_stop_loss_config_mode(args: argparse.Namespace) -> None:
 
     logger.info("-" * 70)
     logger.info(
-        f"\n风险分布: 高风险 {risk_summary.get('high', 0)} | 中风险 {risk_summary.get('medium', 0)} | 低风险 {risk_summary.get('low', 0)}"
+        f"\n风险分布: 高风险 {risk_summary.get('high', 0)} | 中风险 {risk_summary.get('medium', 0)} | 低风险 {risk_summary.get('low', 0)}"  # noqa: E501
     )
     logger.info(f"\n配置位置: {config_path}")
     logger.info("\n更新命令: python scripts/generate_stop_loss_rules.py --regenerate")
@@ -2285,13 +2285,13 @@ def main() -> None:
   python "量化策略系统 v5.10.py" --hedge-rebalance --show-reasoning       # 含详细推理过程
   python "量化策略系统 v5.10.py" --hedge-rebalance --auto-execute         # 自动化执行(需二次确认)
   python "量化策略系统 v5.10.py" --hedge-detail          # 终端打印完整明细
-  python "量化策略系统 v5.10.py" --factor-research --factor-symbols 600036.SH,000001.SZ,588000.SH  # 因子研究(Wind真实数据)
-  python "量化策略系统 v5.10.py" --factor-research --factor-symbols 600036.SH,000001.SZ --factor-use-llm --factor-combine  # 含GLM-5+ML组合
+  python "量化策略系统 v5.10.py" --factor-research --factor-symbols 600036.SH,000001.SZ,588000.SH  # 因子研究(Wind真实数据)  # noqa: E501
+  python "量化策略系统 v5.10.py" --factor-research --factor-symbols 600036.SH,000001.SZ --factor-use-llm --factor-combine  # 含GLM-5+ML组合  # noqa: E501
   python "量化策略系统 v5.10.py" --hedge-detail --json   # JSON 输出
   python "量化策略系统 v5.10.py" --hedge-detail -o hedge.json  # 保存到文件
   python "量化策略系统 v5.10.py" --kronos --kronos-code 000001                        # 单股预测
   python "量化策略系统 v5.10.py" --kronos --kronos-code 600519 --kronos-name 茅台     # 单股预测(带名称)
-  python "量化策略系统 v5.10.py" --kronos --kronos-batch '[{{"code":"000001","name":"平安银行"}},{{"code":"600519","name":"贵州茅台"}}]'  # 批量预测
+  python "量化策略系统 v5.10.py" --kronos --kronos-batch '[{{"code":"000001","name":"平安银行"}},{{"code":"600519","name":"贵州茅台"}}]'  # 批量预测  # noqa: E501
   python "量化策略系统 v5.10.py" --gemma --gemma-news '央行宣布降息25个基点'                       # 新闻情绪分析
   python "量化策略系统 v5.10.py" --gemma --gemma-stock 600519                                      # 股票基本面分析
   python "量化策略系统 v5.10.py" --gemma --gemma-prompt '分析当前A股市场走势'                       # 自定义分析

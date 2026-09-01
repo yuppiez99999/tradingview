@@ -14,7 +14,7 @@ import os
 import threading
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("alpha_hedge_engine")
 
@@ -606,7 +606,7 @@ class AlphaHedgeEngine:
         logger.warning("[期权乘数] 无法识别合约品种 %s, 使用默认乘数 10000", symbol)
         return 10000
 
-    def run_daily_routine(self, current_drawdown: Optional[float] = None) -> None:
+    def run_daily_routine(self, current_drawdown: float | None = None) -> None:
         logger.info(
             "[%s] 启动宏观对冲专户执行引擎...", time.strftime("%Y-%m-%d %H:%M:%S")
         )

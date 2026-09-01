@@ -32,7 +32,7 @@ import sys
 import traceback
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 # Windows编码修复
 if sys.platform == "win32":
@@ -74,8 +74,8 @@ class StepResult:
     def __init__(self, name: str):
         self.name = name
         self.success = False
-        self.start_time: Optional[datetime] = None
-        self.end_time: Optional[datetime] = None
+        self.start_time: datetime | None = None
+        self.end_time: datetime | None = None
         self.output = ""
         self.error = ""
         self.duration_seconds = 0

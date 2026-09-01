@@ -51,7 +51,6 @@
         "orders": [ { fill 明细 } ]
     }
 """
-
 from __future__ import annotations
 
 import argparse
@@ -62,7 +61,7 @@ import re
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from utils.path_config import setup_sys_path
 
@@ -169,7 +168,7 @@ class OptionsSimBroker:
         self._orders[oid] = dict(order)
         return oid
 
-    def wait_fill(self, oid: str) -> Optional[dict[str, Any]]:
+    def wait_fill(self, oid: str) -> dict[str, Any] | None:
         """撮合成交, 返回 fill."""
         order = self._orders.get(oid)
         if order is None:
@@ -257,7 +256,7 @@ def _atomic_write_json(path: Path, data: dict) -> None:
     os.replace(tmp, path)
 
 
-def _resolve_date(trade_date: Optional[str]) -> str:
+def _resolve_date(trade_date: str | None) -> str:
     """解析目标日期. 默认当前日期."""
     if trade_date:
         return trade_date

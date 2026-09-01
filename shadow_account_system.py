@@ -46,7 +46,7 @@ from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +81,8 @@ class FailFastMonitor:
 
     # 内部状态
     _triggered: bool = field(default=False, init=False)
-    _reason: Optional[str] = field(default=None, init=False)
-    _triggered_date: Optional[str] = field(default=None, init=False)
+    _reason: str | None = field(default=None, init=False)
+    _triggered_date: str | None = field(default=None, init=False)
 
     def check(self, nav_history: list[dict], date: str, nav: float) -> bool:
         """检查是否触发 fail-fast.

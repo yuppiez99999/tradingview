@@ -22,7 +22,7 @@ import os
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from utils.data_types import normalize_stock_code, safe_float, safe_int
 
@@ -50,7 +50,7 @@ class TradeOrder:
     style: str = ""
     risk: str = ""
     note: str = ""
-    technical_alpha: Optional[float] = None  # GTJA191 Alpha144 技术因子得分
+    technical_alpha: float | None = None  # GTJA191 Alpha144 技术因子得分
 
 
 @dataclass
@@ -103,9 +103,9 @@ class BuildPlanExecutor:
         "default": 1.00,
     }
 
-    def __init__(self, plan_path: Optional[str] = None):
+    def __init__(self, plan_path: str | None = None):
         self.plan_path = plan_path or PLAN_FILE
-        self.plan_data: Optional[dict] = None
+        self.plan_data: dict | None = None
         self._load_plan()
 
     def _load_plan(self) -> None:
@@ -120,8 +120,8 @@ class BuildPlanExecutor:
     # ---------------------------------------------------------------
 
     def get_active_phase(
-        self, target_date: Optional[date] = None
-    ) -> tuple[Optional[dict], int, str]:
+        self, target_date: date | None = None
+    ) -> tuple[dict | None, int, str]:
         """
         获取指定日期的活跃建仓阶段
 
@@ -202,7 +202,7 @@ class BuildPlanExecutor:
         return total_shares, warnings
 
     def _check_price_deviation(
-        self, current_price: Optional[float], est_price: float, code: str, name: str
+        self, current_price: float | None, est_price: float, code: str, name: str
     ) -> tuple[bool, str]:
         """价格偏离检查：返回 (是否暂停, 暂停原因)"""
         if current_price is None or est_price <= 0:
@@ -254,7 +254,7 @@ class BuildPlanExecutor:
             est_amount=round(shares * est_price, 2),
             style=info.get("style", ""),
             risk=info.get("risk", ""),
-            note=f"{'上午' if session == 'morning' else '下午'}批次 {'09:30-10:30' if session == 'morning' else '14:00-14:30'}",
+            note=f"{'上午' if session == 'morning' else '下午'}批次 {'09:30-10:30' if session == 'morning' else '14:00-14:30'}",  # noqa: E501
             technical_alpha=self._calc_technical_alpha(code),
         )
 
@@ -355,8 +355,8 @@ class BuildPlanExecutor:
 
     def generate_daily_orders(
         self,
-        target_date: Optional[date] = None,
-        price_quotes: Optional[dict[str, float]] = None,
+        target_date: date | None = None,
+        price_quotes: dict[str, float] | None = None,
         capital_multiplier: float = 1.0,
     ) -> DailyTradeSheet:
         """
@@ -422,7 +422,7 @@ class BuildPlanExecutor:
     # ---------------------------------------------------------------
 
     @staticmethod
-    def _calc_technical_alpha(code: str) -> Optional[float]:
+    def _calc_technical_alpha(code: str) -> float | None:
         """
         计算 GTJA191 Alpha144 映射后的 technical_alpha 得分。
 
@@ -652,7 +652,7 @@ class BuildPlanExecutor:
     # ---------------------------------------------------------------
 
     def save_trade_sheet(
-        self, sheet: DailyTradeSheet, output_dir: Optional[str] = None
+        self, sheet: DailyTradeSheet, output_dir: str | None = None
     ) -> tuple[str, str]:
         """保存交易指令单到文件"""
         out_dir = output_dir or OUTPUT_DIR
@@ -1037,9 +1037,9 @@ class BuildPlanExecutor:
 
     def generate_complete_plan(
         self,
-        target_date: Optional[date] = None,
-        price_quotes: Optional[dict[str, float]] = None,
-        market_state: Optional[dict] = None,
+        target_date: date | None = None,
+        price_quotes: dict[str, float] | None = None,
+        market_state: dict | None = None,
         capital_multiplier: float = 1.0,
     ) -> dict:
         """

@@ -17,6 +17,7 @@
     monitor = StopLossMonitor(broker=mock_broker)
     monitor.check_and_execute()
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -25,7 +26,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -85,8 +86,8 @@ class StopLossMonitor:
 
     def __init__(
         self,
-        rules_file: Optional[str] = None,
-        positions_file: Optional[str] = None,
+        rules_file: str | None = None,
+        positions_file: str | None = None,
         broker: Any = None,
     ):
         """
@@ -264,7 +265,7 @@ class StopLossMonitor:
                 return data.get("positions", {})
         return {}
 
-    def _get_current_price(self, code: str) -> Optional[float]:
+    def _get_current_price(self, code: str) -> float | None:
         """获取实时价格 (多源回退)"""
         pure_code = code.split(".")[0]
 
@@ -327,7 +328,7 @@ class StopLossMonitor:
         entry_price: float,
         current_price: float,
         rule: dict,
-    ) -> Optional[TriggerRecord]:
+    ) -> TriggerRecord | None:
         """评估空头持仓的止损/止盈 (S2 修复).
 
         空头语义与多头镜像: 价格上涨=亏损 (止损线在上方), 价格下跌=盈利 (止盈线在下方)。
@@ -397,7 +398,7 @@ class StopLossMonitor:
 
         return None
 
-    def check_position(self, code: str, position: dict) -> Optional[TriggerRecord]:
+    def check_position(self, code: str, position: dict) -> TriggerRecord | None:
         """检查单个持仓是否触发止损/止盈
 
         Args:

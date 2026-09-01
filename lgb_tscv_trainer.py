@@ -860,8 +860,8 @@ def _build_cv_details_section(result: dict) -> list[str]:
         "",
         "## 三、CV 详情 (特征选择后)",
         "",
-        "| 标的 | 名称 | Fold 数 | CV R² (mean±std) | CV IC (mean±std) | CV Sharpe | 最终 R² | 最终 IC | 信号 | 特征数 |",
-        "|------|------|---------|------------------|------------------|-----------|---------|--------|------|--------|",
+        "| 标的 | 名称 | Fold 数 | CV R² (mean±std) | CV IC (mean±std) | CV Sharpe | 最终 R² | 最终 IC | 信号 | 特征数 |",  # noqa: E501
+        "|------|------|---------|------------------|------------------|-----------|---------|--------|------|--------|",  # noqa: E501
     ]
     for code, r in result["results"].items():
         if r.get("status") != "OK":

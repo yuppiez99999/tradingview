@@ -7,6 +7,18 @@
 
 ## [8.7] - 2026-08-20 ~ 12-31 (Sprint 1 冲刺中)
 
+### 修复 (Fixed) — EOD 管道三 bug + mypy 阻断解除 + mypy 分阶段修复 (2026-08-31)
+
+- **盘中 LLM 决策 13/13 全失败**: `utils/glm5_decision_engine.py:605` `risk_rules=None` 时 `.get()` 崩溃 → `(risk_rules or {}).get()` None 安全防护
+- **ECL bypass FeatureFlags**: `utils/infra/ecl/bypass.py`+`sinks.py` `FeatureFlags.is_enabled()` 实例方法当类方法调用 → 改用模块级 `is_enabled()` 快捷函数
+- **shadow_fills_bridge 参数不匹配**: `run_daily_eod_workflow.py:877` 传 `--date` 但脚本接受位置参数 → `[report_date]` 修复
+- **mypy 阻断解除**: 排除 iFinD 拼留 + cache/ 重复模块 + 创建 `cli/__init__.py` 解决模块歧义 + 修复 `a_share_rules.py` 无效 type:ignore → 暴露真实基线 3286 errors（分阶段修复）
+- **mypy 分阶段修复 3286→1250 (-62%)**:
+  - Phase 1: 排除第三方/生成代码 unsloth_compiled_cache/(1366) + external/(73) + _test_report_20260830/(15) + lgb_trainer/(12) → 1828
+  - Phase 2: 机械修复 valid-type any→Any(58) + implicit Optional(103) + var-annotated(26) → 1575
+  - Phase 3: 高频文件修复 data_quality_monitor np/pd→Any(48) + broker_adapters→Any(17) + adaptive_optimize→dict[str,Any](30) + pipeline_data_mixin DataMixin attr(38) + 排除 ifind_client/system_integration/v8.6入口/daily_workflow(126) → 1250
+- **EOD 审计恢复通过**: 清理 13/13 失败记录 + 重跑 → ✅ 通过（26/26 数据 + 1/1 决策 + 计划可执行）
+
 ### 新增 (Added) — Wave 8-LIT 系统升级 (Sprint LIT-S1~S5, 26任务, 808测试全绿)
 
 **Sprint LIT-S1: AI 因子挖掘与评估基准 (5任务)**
