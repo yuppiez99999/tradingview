@@ -80,6 +80,8 @@ jobs:
           BIGMODEL_API_KEY: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
+          # run_consensus 传递依赖 (config_manager->yaml, providers->pandas); 必装
+          pip install -q pandas numpy pyyaml
           # openai 为可选依赖; 安装失败不阻断观测性审查
           pip install -q openai || echo "[MMR-DEEP] openai install skipped, proceeding anyway"
           mkdir -p reports/mmr_reviews/docs reports/mmr_reviews/data
