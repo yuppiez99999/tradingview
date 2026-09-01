@@ -177,6 +177,10 @@ def train_symbol_enhanced(
     # 权衡: 损失最后5天训练样本 (500天数据仅损失1%), 可接受。
     label_horizon = config.get("label_horizon", 5)
     df["target"] = df["close"].pct_change(label_horizon).shift(-label_horizon)
+    # P1-1 修复 (2026-09-01): dropna 会丢弃 target=NaN 的最后 label_horizon 行,
+    # 之后 iloc[-1:] 取到的是 T-h 行而非最新行 → 当前信号滞后 h 个交易日且
+    # 预测的是已实现收益。先保存真实最新行 (整行, selected_features 稍后才确定)。
+    latest_raw = df.iloc[[-1]]
     df = df.dropna()
 
     if len(df) < config["min_samples"]:
@@ -230,7 +234,8 @@ def train_symbol_enhanced(
     final_ic = _ic_score(y_test, y_pred)
     final_sharpe = _signal_sharpe(y_test, y_pred)
 
-    latest_features = np.asarray(df[selected_features].iloc[-1:].values, dtype=np.float64)
+    # P1-1 修复: 用 dropna 前保存的真实最新行 (T) 生成当前信号, 而非被截断 df 的 T-h 行
+    latest_features = np.asarray(latest_raw[selected_features].values, dtype=np.float64)
     latest_features = np.nan_to_num(latest_features, nan=0.0, posinf=0.0, neginf=0.0)
     latest_pred = float(final_model.predict(latest_features)[0])
     signal = float(np.tanh(latest_pred * 100))

@@ -89,12 +89,14 @@ class StopLossMonitor:
         rules_file: str | None = None,
         positions_file: str | None = None,
         broker: Any = None,
+        water_mark_file: str | None = None,
     ):
         """
         Args:
             rules_file: 止损规则 YAML 文件路径
             positions_file: 持仓 JSON 文件路径
             broker: BrokerAdapter 实例 (MockBrokerAdapter 或 QMT)
+            water_mark_file: 水位线状态文件路径 (None 用默认)
         """
         # 规则文件: 本项目 config/ (P3-3: 移除已删除的 11_量化策略 历史回退路径)
         if rules_file is None:
@@ -137,12 +139,66 @@ class StopLossMonitor:
         # 最低价记录 (空头移动止损用, S2 修复)
         self._low_water_mark: dict[str, float] = {}
 
+        # P1-2 修复 (2026-09-01): 水位线持久化 — 此前纯内存, 监控进程重启后
+        # 盈利持仓的移动止损线大幅回落 (HWM 丢失 → trailing stop 从高点回落到成本价),
+        # 锁盈保护失效。重启时从状态文件恢复。
+        self._water_mark_file = water_mark_file or os.path.join(
+            _BASE, "reports", "stop_loss_water_marks.json"
+        )
+        self._load_water_marks()
+
         # 触发历史
         self.trigger_history: list[TriggerRecord] = []
 
         logger.info(
             f"止损监控器初始化: {len(self.rules)} 条规则, broker={self.broker.__class__.__name__}"
         )
+
+    def _load_water_marks(self) -> None:
+        """从状态文件恢复移动止损水位线 (P1-2).
+
+        容错: 文件不存在 (首次运行) 或损坏时静默使用空水位线, 不阻断启动。
+        """
+        path = getattr(self, "_water_mark_file", None)
+        if not path or not os.path.exists(path):
+            return
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            self._high_water_mark = {
+                str(k): float(v) for k, v in (data.get("high_water_marks") or {}).items()
+            }
+            self._low_water_mark = {
+                str(k): float(v) for k, v in (data.get("low_water_marks") or {}).items()
+            }
+            logger.info(
+                "水位线状态已恢复: %d 多头 / %d 空头 (来源: %s)",
+                len(self._high_water_mark),
+                len(self._low_water_mark),
+                path,
+            )
+        except (OSError, ValueError, TypeError):
+            logger.exception("[StopLoss] 水位线状态文件加载失败, 使用空水位线: %s", path)
+            self._high_water_mark = {}
+            self._low_water_mark = {}
+
+    def _save_water_marks(self) -> None:
+        """水位线落盘 (原子写)。失败仅告警, 不影响监控主流程。"""
+        path = getattr(self, "_water_mark_file", None)
+        if not path:
+            return
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            _atomic_write_json(
+                path,
+                {
+                    "updated_at": datetime.now().isoformat(),
+                    "high_water_marks": self._high_water_mark,
+                    "low_water_marks": self._low_water_mark,
+                },
+            )
+        except Exception:  # noqa: BLE001  # fail-safe, 待后续精确化
+            logger.exception("[StopLoss] 水位线状态保存失败: %s", path)
 
     @staticmethod
     def _sanitize_numpy_tags(text: str) -> str:
@@ -245,11 +301,14 @@ class StopLossMonitor:
             return 0.08
 
     def _create_mock_broker(self) -> Any:
-        """创建 MockBroker"""
+        """创建 MockBroker (模拟盘适配器)"""
         try:
             from bridges.broker_adapter import BrokerFactory
 
-            return BrokerFactory.create("mock")
+            # P2-4 修复 (2026-09-01): 原调用 BrokerFactory.create("mock") 双重错误 —
+            # ① "mock" 不在工厂注册表 (仅 "simulated") ② 缺少必填的 config 参数
+            # → MockBroker 降级路径自身必然失败 (broker=NoneType), 降级形同虚设
+            return BrokerFactory.create("simulated", config={})
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.error(f"创建 MockBroker 失败: {e}")
             return None
@@ -353,6 +412,7 @@ class StopLossMonitor:
                 low_mark = entry_price
             low_mark = min(low_mark, current_price)
             self._low_water_mark[pure_code] = low_mark
+            self._save_water_marks()  # P1-2: 水位线更新即落盘, 重启后不回落
             # 移动止损线 = 最低价 × (1 - stop_loss_pct) (上方且随下跌收紧)
             trailing_stop_price = low_mark * (1 - stop_loss_pct)
             # 空头取更低 (更紧) 的上方止损线
@@ -417,6 +477,7 @@ class StopLossMonitor:
         if shares == 0:
             self._high_water_mark.pop(pure_code, None)  # 清仓后重置最高价记录
             self._low_water_mark.pop(pure_code, None)
+            self._save_water_marks()  # P1-2: 清仓同步清除持久化状态
             return None
         is_short = shares < 0  # S2 修复: 空头持仓 (shares<0) 需反向止损/止盈
 
@@ -463,6 +524,7 @@ class StopLossMonitor:
             self._high_water_mark[pure_code] = max(
                 self._high_water_mark[pure_code], current_price
             )
+            self._save_water_marks()  # P1-2: 水位线更新即落盘, 重启后不回落
             high = self._high_water_mark[pure_code]
             # 移动止损线 = 最高价 × (1 + stop_loss_pct)
             trailing_stop_price = high * (1 + stop_loss_pct)

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -255,3 +256,105 @@ class TestEdgeCases:
         )
         assert "600519" not in monitor._low_water_mark
         assert "600519" not in monitor._high_water_mark
+
+
+# ==================== P1-2: 水位线持久化 ====================
+
+
+def _make_monitor_with_file(tmp_path, rules=None):
+    """构造带独立水位线状态文件的 monitor (互不污染)."""
+    with patch.object(slm.StopLossMonitor, "__init__", lambda self: None):
+        m = slm.StopLossMonitor()
+    m.rules = rules or {
+        "600519": {
+            "code": "600519.SH",
+            "name": "贵州茅台",
+            "entry_price": 100.0,
+            "stop_loss_pct": -12.0,
+            "take_profit_pct": 25.0,
+            "trailing_stop": True,
+            "atr_stop_loss_price": 0,
+        }
+    }
+    m._high_water_mark = {}
+    m._low_water_mark = {}
+    m.trigger_history = []
+    m._water_mark_file = str(tmp_path / "stop_loss_water_marks.json")
+    return m
+
+
+class TestWaterMarkPersistence:
+    """P1-2 (2026-09-01): 移动止损水位线必须持久化, 重启后恢复.
+
+    Bug 场景: 持仓涨到 120 后监控进程重启, HWM 内存清零 →
+    trailing stop 从 120*0.88=105.6 回落至 100*0.88=88, 锁盈保护失效.
+    """
+
+    def test_hwm_saved_on_update(self, tmp_path):
+        m = _make_monitor_with_file(tmp_path)
+        m.check_position(
+            "600519", {"shares": 100, "avg_cost": 100.0, "name": "MT", "current_price": 120.0}
+        )
+        assert m._high_water_mark.get("600519") == 120.0
+        assert os.path.exists(m._water_mark_file), "水位线更新后必须落盘"
+
+    def test_hwm_restored_on_restart(self, tmp_path):
+        m1 = _make_monitor_with_file(tmp_path)
+        m1.check_position(
+            "600519", {"shares": 100, "avg_cost": 100.0, "name": "MT", "current_price": 120.0}
+        )
+
+        # 模拟重启: 新实例从状态文件恢复
+        m2 = _make_monitor_with_file(tmp_path)
+        m2._load_water_marks()
+        assert m2._high_water_mark.get("600519") == 120.0
+
+        # 关键: 回落到 103 (> entry, < trailing stop 105.6) 必须触发 TRAILING_STOP
+        # bug 场景下 HWM 丢失 → trailing stop 回落到 88, 103 不触发 → 锁盈失效
+        r = m2.check_position(
+            "600519", {"shares": 100, "avg_cost": 100.0, "name": "MT", "current_price": 103.0}
+        )
+        assert r is not None, "重启后 trailing stop 线不得回落 (P1-2 bug)"
+        assert r.trigger_type == TriggerType.TRAILING_STOP
+        assert r.action == "SELL"
+
+    def test_lwm_restored_on_restart(self, tmp_path):
+        m1 = _make_monitor_with_file(tmp_path)
+        m1.check_position(
+            "600519", {"shares": -100, "avg_cost": 100.0, "name": "MT", "current_price": 80.0}
+        )
+        assert m1._low_water_mark.get("600519") == 80.0
+
+        m2 = _make_monitor_with_file(tmp_path)
+        m2._load_water_marks()
+        assert m2._low_water_mark.get("600519") == 80.0
+
+        # 空头: 反弹到 90 (>= LWM*1.12=89.6) 必须触发; bug 场景下 LWM 丢失 → 线回到 112 不触发
+        r = m2.check_position(
+            "600519", {"shares": -100, "avg_cost": 100.0, "name": "MT", "current_price": 90.0}
+        )
+        assert r is not None, "重启后空头 trailing stop 线不得回落 (P1-2 bug)"
+
+    def test_flat_clears_persisted_marks(self, tmp_path):
+        m1 = _make_monitor_with_file(tmp_path)
+        m1.check_position(
+            "600519", {"shares": 100, "avg_cost": 100.0, "name": "MT", "current_price": 120.0}
+        )
+        m1.check_position(
+            "600519", {"shares": 0, "avg_cost": 100.0, "name": "MT", "current_price": 120.0}
+        )
+
+        m2 = _make_monitor_with_file(tmp_path)
+        m2._load_water_marks()
+        assert "600519" not in m2._high_water_mark, "清仓后持久化状态也必须清除"
+
+    def test_corrupt_state_file_ignored(self, tmp_path):
+        m = _make_monitor_with_file(tmp_path)
+        Path(m._water_mark_file).write_text("{not valid json", encoding="utf-8")
+        m._load_water_marks()  # 不得抛异常
+        assert m._high_water_mark == {}
+
+    def test_no_state_file_ok(self, tmp_path):
+        m = _make_monitor_with_file(tmp_path)
+        m._load_water_marks()  # 首次运行无文件, 不得抛异常
+        assert m._high_water_mark == {}

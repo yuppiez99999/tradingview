@@ -361,6 +361,10 @@ def train_symbol_with_cv(
     # 构造目标: 次日收益率
     df = df.copy()
     df["target"] = df["close"].pct_change().shift(-1)
+    # P1-1 修复 (2026-09-01): dropna 丢弃 target=NaN 的最后 1 行,
+    # 之后 iloc[-1:] 取到 T-1 行 → 当前信号滞后 1 个交易日。
+    # 先保存真实最新行 (整行, selected_features 稍后才确定)。
+    latest_raw = df.iloc[[-1]]
     df = df.dropna()
 
     if len(df) < config["min_samples"]:
@@ -421,7 +425,9 @@ def train_symbol_with_cv(
     final_sharpe = _signal_sharpe(y_test, y_pred)
 
     # 最新信号
-    latest_features = np.asarray(df[selected_features].iloc[-1:].values, dtype=np.float64)
+    # P1-1 修复: 用 dropna 前保存的真实最新行 (T), 并做与训练一致的 nan/inf 清洗
+    latest_features = np.asarray(latest_raw[selected_features].values, dtype=np.float64)
+    latest_features = np.nan_to_num(latest_features, nan=0.0, posinf=0.0, neginf=0.0)
     latest_pred = float(final_model.predict(latest_features)[0])
     signal = float(np.tanh(latest_pred * 100))
 
