@@ -243,7 +243,7 @@ sequenceDiagram
     M->>S: 每日交易数据 + 模型表现
     S->>S: 漂移检测 + 因子失效 + Regime切换
     S->>D: 进化信号(漂移事件/IC衰减/新因子)
-    
+
     alt L2 级信号(模型漂移)
         D->>A: 触发 AutoRetrain
         A->>P: 影子账户训练新模型
@@ -257,7 +257,7 @@ sequenceDiagram
         D->>A: 触发 AutoFix
         A->>P: 配置回滚/降级
     end
-    
+
     A->>L: 记录进化结果 (EvolutionMemory)
     L->>L: 更新进化策略权重
     L->>S: 下轮感知携带进化记忆
@@ -484,7 +484,7 @@ def update_factor_weight(
 ) -> float:
     """
     贝叶斯式权重更新 — 近期表现好的因子增权,差的减权
-    
+
     约束:
     - 单日调整 ≤ 10%
     - 权重范围 [0, 0.3] (单因子上限 30%)
@@ -493,13 +493,13 @@ def update_factor_weight(
     performance_score = 0.6 * normalize(factor_ic) + 0.4 * normalize(factor_pnl_contribution)
     adjustment = confidence * performance_score
     new_weight = current_weight * (1 + adjustment)
-    
+
     # 单日调整幅度限制
     max_change = 0.10
-    new_weight = clip(new_weight, 
+    new_weight = clip(new_weight,
                       current_weight * (1 - max_change),
                       current_weight * (1 + max_change))
-    
+
     return clip(new_weight, 0, 0.3)
 ```
 
@@ -525,26 +525,26 @@ def update_factor_weight(
 def assert_system_ready(auto_fix: bool = False):
     """
     P0 自检 — 新增 auto_fix 参数
-    
+
     auto_fix=False (默认): 仅检测,失败则 sys.exit(1)
     auto_fix=True: 检测 + L0/L1 自动修复,修复后重检
     """
     results = run_all_checks()
     failures = [r for r in results if not r.passed]
-    
+
     if not failures:
         return  # 全部通过
-    
+
     if auto_fix:
         for failure in failures:
             fix_result = AutoFixEngine.try_fix(failure)
             if fix_result.fixed:
                 log_audit(f"自动修复: {failure.check_id} → {fix_result.action}")
-    
+
     # 修复后重检
     results = run_all_checks()
     failures = [r for r in results if not r.passed]
-    
+
     if failures:
         raise SystemExit(1)  # 仍有失败,阻断
 ```
@@ -568,11 +568,11 @@ def assert_system_ready(auto_fix: bool = False):
 ```python
 class EvolutionGuard:
     """进化守卫 — 五道硬约束,防止进化失控"""
-    
+
     DAILY_EVOLUTION_LIMIT = 1        # 同模块日进化上限
     MAX_WEIGHT_CHANGE = 0.10         # 单次权重调整上限
     SHADOW_DAYS_REQUIRED = 5         # 影子账户最短运行天数
-    
+
     def check_proposal(self, proposal: EvolutionProposal) -> tuple[bool, str]:
         """检查提案是否通过所有防线"""
         checks = [

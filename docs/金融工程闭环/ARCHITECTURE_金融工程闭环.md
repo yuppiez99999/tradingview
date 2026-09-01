@@ -186,7 +186,7 @@ pipeline:
   # 模式
   mode: auto                          # auto / manual / dry_run
   interval_minutes: 15                # 流水线执行间隔
-  
+
   # 数据清洗
   data_cleaning:
     enabled: true
@@ -194,7 +194,7 @@ pipeline:
     multi_source_check: true          # 多源交叉验证
     outlier_z_threshold: 3.0          # Z-score 异常阈值
     gap_fill_max_days: 3              # 最大补缺天数
-  
+
   # Alpha 信号
   alpha:
     enabled: false                    # Feature Flag: 默认 False
@@ -202,7 +202,7 @@ pipeline:
     train_interval_days: 20           # 重训间隔
     retrain_on_drift: true            # DriftMonitor 触发重训
     horizon: 5                        # 预测周期 T+5
-  
+
   # 回测验证
   backtest_gate:
     enabled: false
@@ -210,14 +210,14 @@ pipeline:
     min_dsr: 1.0
     max_drawdown: 0.15
     walk_forward_windows: 6
-  
+
   # 执行
   execution:
     enabled: false
     algo: auto                        # auto / twap / vwap / is / pov
     max_slippage_bps: 10.0
     slice_minutes: 5
-  
+
   # 风控
   risk_monitor:
     enabled: true                     # 默认开启（防御层）
@@ -227,7 +227,7 @@ pipeline:
     kill_switch_l3_margin: 0.75
     max_daily_drawdown: 0.05          # 单日最大回撤
     max_total_drawdown: 0.15          # 累计最大回撤
-  
+
   # 日志
   logging:
     level: INFO

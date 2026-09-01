@@ -53,6 +53,7 @@ SHADOW_REPORT_DIR = Path(_PROJECT_ROOT) / "reports" / "shadow"
 SHADOW_STATUS_FILE = SHADOW_REPORT_DIR / "shadow_30day_status.json"
 MVSK_DIFF_FILE = SHADOW_REPORT_DIR / "mvsk_p5_daily_diff.jsonl"
 QLIB_DIFF_FILE = SHADOW_REPORT_DIR / "qlib_lgb_v2_daily.jsonl"
+MVSK_RETURNS_CACHE = SHADOW_REPORT_DIR / "mvsk_mid_layer_returns_378d.parquet"
 
 VALIDATION_WINDOW_DAYS = 30
 DEFAULT_MID_SYMBOLS = ["510300", "510500", "513100", "512890"]
@@ -179,6 +180,108 @@ def _build_signal_fusion_engine():
     return engine
 
 
+def _fetch_mid_layer_returns(
+    symbols: list[str], days_required: int = 378
+) -> Path | None:
+    """拉取 mid-layer 标的 378 日收益率矩阵 → 存 parquet → 返回路径.
+
+    方案 A (2026-09-01): 替代 _load_historical_returns 的合成随机 fallback,
+    从 MarketDataProvider (Wind MCP > TDX > AKShare > sina) 拉取真实历史数据.
+
+    Args:
+        symbols: mid-layer 标的代码列表
+        days_required: 需要的历史天数 (默认 378)
+
+    Returns:
+        Path: parquet 文件路径 (含 ≥days_required 行), 或 None (数据不足/获取失败)
+    """
+    import pandas as pd
+
+    if MVSK_RETURNS_CACHE.exists():
+        try:
+            cached = pd.read_parquet(MVSK_RETURNS_CACHE)
+            if len(cached) >= days_required:
+                logger.info(
+                    "MVSK 收益率矩阵使用缓存: %s (%d 行 >= %d)",
+                    MVSK_RETURNS_CACHE,
+                    len(cached),
+                    days_required,
+                )
+                return MVSK_RETURNS_CACHE
+        except (ValueError, OSError, TypeError) as e:
+            logger.warning("MVSK 收益率缓存读取失败, 重新拉取: %s", e)
+
+    try:
+        from utils.data_provider import MarketDataProvider
+
+        provider = MarketDataProvider()
+        returns_dict: dict[str, pd.Series] = {}
+
+        for sym in symbols:
+            df = provider.get_historical_data(sym, period="2y")
+            if df is None or df.empty:
+                logger.warning("MVSK: %s 历史数据为空, 跳过", sym)
+                continue
+            close_col = "close" if "close" in df.columns else "收盘"
+            if close_col not in df.columns:
+                logger.warning(
+                    "MVSK: %s 无 close 列, 跳过 (cols=%s)",
+                    sym,
+                    list(df.columns),
+                )
+                continue
+            close = df[close_col].astype(float)
+            returns = close.pct_change().dropna()
+            if len(returns) < days_required:
+                logger.warning(
+                    "MVSK: %s 收益率不足 %d < %d, 跳过",
+                    sym,
+                    len(returns),
+                    days_required,
+                )
+                continue
+            returns_dict[sym] = returns
+
+        if not returns_dict:
+            logger.error(
+                "MVSK: 所有标的历史数据获取失败, 返回 None (将 fallback 到合成随机)"
+            )
+            return None
+
+        if len(returns_dict) < len(symbols):
+            logger.warning(
+                "MVSK: 仅 %d/%d 标的获取成功, 用可用数据继续",
+                len(returns_dict),
+                len(symbols),
+            )
+
+        returns_df = pd.DataFrame(returns_dict).dropna()
+        returns_df = returns_df.iloc[-days_required:]
+
+        if len(returns_df) < days_required:
+            logger.warning(
+                "MVSK: 对齐后收益率矩阵仅 %d 行 < %d, 返回 None",
+                len(returns_df),
+                days_required,
+            )
+            return None
+
+        SHADOW_REPORT_DIR.mkdir(parents=True, exist_ok=True)
+        returns_df.reset_index(drop=True).to_parquet(
+            MVSK_RETURNS_CACHE, index=False
+        )
+        logger.info(
+            "MVSK 收益率矩阵已保存: %s (%d 行 x %d 列)",
+            MVSK_RETURNS_CACHE,
+            len(returns_df),
+            len(returns_df.columns),
+        )
+        return MVSK_RETURNS_CACHE
+    except (ValueError, KeyError, TypeError, OSError, RuntimeError) as e:
+        logger.error("MVSK 收益率矩阵拉取失败: %s", e)
+        return None
+
+
 def _run_mvsk_shadow(trade_date: str) -> tuple[bool, float, str]:
     """运行 MVSK P5-2 shadow.
 
@@ -193,12 +296,15 @@ def _run_mvsk_shadow(trade_date: str) -> tuple[bool, float, str]:
         from utils.universe.portfolio_builder import apply_mvsk_shadow_to_mid_layer
 
         portfolio = _load_mid_layer_portfolio(trade_date)
+        mid_symbols = [h.symbol for h in portfolio.holdings if h.layer == "mid"]
+        feature_store_path = _fetch_mid_layer_returns(mid_symbols)
         _, result = apply_mvsk_shadow_to_mid_layer(
             portfolio=portfolio,
             trade_date=trade_date,
             use_mvsk=True,
             mvsk_mode="shadow",
             kill_switch_triggered=False,
+            feature_store_path=feature_store_path,
         )
         return result.success, result.weight_diff_l2, result.error_message
     except Exception as e:

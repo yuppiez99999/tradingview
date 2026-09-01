@@ -4,7 +4,7 @@ date: {{date}}
 type: project
 tags: [{{tags}}]
 status: active
-deadline: 
+deadline:
 ---
 
 # {{title}}
@@ -26,10 +26,10 @@ deadline:
 | {{date}} | 项目启动 |
 
 ## ⚠️ 风险与阻碍
-- 
+-
 
 ## 💡 备注
 -
 
 ## 🔗 相关链接
-- 
+-

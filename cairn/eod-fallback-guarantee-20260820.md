@@ -98,7 +98,7 @@ endlocal
 
 ```
 15:30  v84_PostMarket 触发 → wrapper bat → PYTHONPATH 设置 → EOD 12 阶段
-       ├─ 阶段一 收盘报告 (urllib3 ✅) 
+       ├─ 阶段一 收盘报告 (urllib3 ✅)
        ├─ 阶段四 EOD 四 Guard
        ├─ 阶段四点五 Shadow Real Data Feeder (urllib3 ✅) → daily_returns.jsonl +1 条
        └─ exit 0

@@ -137,7 +137,7 @@ python -c "import torch; print(torch.__version__); print('MPS 可用:', torch.ba
 # 方式：U 盘/exFAT 或 git clone；中文路径用引号
 mkdir -p ~/"28-终极量化交易系统8.4"
 # 示例（U 盘方式）：
-# cp -R "/Volumes/U盘名/28-终极量化交易系统8.4" ~/ 
+# cp -R "/Volumes/U盘名/28-终极量化交易系统8.4" ~/
 cd ~/"28-终极量化交易系统8.4"
 ls        # 应见 pyproject.toml、ms_strategy/、qlib/、config/ 等
 ```

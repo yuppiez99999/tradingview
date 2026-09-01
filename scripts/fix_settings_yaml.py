@@ -46,7 +46,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -373,7 +372,7 @@ def write_settings(path: Path, content: str, dry_run: bool = False) -> bool:
     """写入 settings.yaml (创建父目录)"""
     if dry_run:
         print(f"[DRY-RUN] 将写入: {path}")
-        print(f"[DRY-RUN] 内容预览 (前 50 行):")
+        print("[DRY-RUN] 内容预览 (前 50 行):")
         for i, line in enumerate(content.split("\n")[:50], 1):
             print(f"  {i:3d} | {line}")
         if len(content.split("\n")) > 50:
@@ -571,7 +570,7 @@ def _print_human_report(report: dict[str, Any]) -> None:
     """人类可读报告"""
     path = report["path"]
     print("=" * 70)
-    print(f"  config/settings.yaml 修复报告")
+    print("  config/settings.yaml 修复报告")
     print("=" * 70)
     print(f"  路径: {path}")
     print(f"  存在: {'✅' if report['exists'] else '❌'}")

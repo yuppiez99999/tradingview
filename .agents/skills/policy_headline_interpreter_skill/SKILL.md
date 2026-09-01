@@ -166,4 +166,3 @@ npx skills add https://gitee.com/wind_info/wind-skills.git --skill wind-mcp-skil
 4. 影响路径: 短期 / 中期 / 兑现所需条件
 5. 误判风险: 最容易误判的点 / 后续关键验证 / 推翻因素
 ```
-

@@ -34,7 +34,7 @@
 
 ### 2.1 `FUTURES_CODE_PATTERN` 与 `managers` 元数据不兼容
 
-- `futures_rollover_manager.py:66` 正则:  
+- `futures_rollover_manager.py:66` 正则:
   `re.compile(r"^([A-Za-z]+)(\d{2})(\d{2})\.(CFFEX|SHF|DCE|ZCE|GFEX|CZCE)$")`
 - `managers.py:51-58` 商品期货表:
   - 上期所 `SHFE` (3 字符) → 正则只接受 `SHF` (2 字符) ❌

@@ -818,6 +818,203 @@ def run_s10_p2(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[float],
     return _run_dumbbell_core(prices, tw17, dict(S10_DEFENSIVE_WEIGHTS))
 
 
+# ============================================================
+# S11: 滚动样本外 (WFO) 多资产重构 — 因果权重哑铃 (2026-09-01)
+# ============================================================
+# 针对 S9/S10 的根因: 组合构造层"选资产/定权重"用全样本后视拟合 → DSR≈0。
+# S11 把权益端相对权重改为"滚动 12M 风险调整动量", 只用 ≤t-1 数据, 月频重算:
+#   防御端固定 45% = 黄金 25% + 国债 10% + 红利低波 10% (预先声明的静态 risk-off
+#     结构, 内部比例不参与拟合; 仅权益端做因果优化)
+#   权益端 55% 按滚动 12M 风险调整动量 (momentum/vol) 长仓分配, 负分归零, 全负等权
+# 信号层 (趋势过滤/波动率目标/分级熔断) 与 S8-S10 完全一致 (无前视)。
+# 诚实标注: 换手成本同时计入 总敞口变动 + 权益端再平衡 (月频)。
+S11_DEFENSIVE_WEIGHTS = {"518880": 0.25, "511260": 0.10, "512890": 0.10}
+S11_REBAL_FREQ = 21            # 权益相对权重重算频率 (交易日, 约月频)
+S11_MOM_LOOKBACK = 252         # 动量回看窗口 (约 12 月)
+S11_EQUITY_VOL_WINDOW = 60     # 风险调整波动率窗口 (日)
+
+
+def _causal_equity_weights(
+    prices: pd.DataFrame, eq_codes: list[str], i: int
+) -> dict[str, float]:
+    """t 时刻 (索引 i) 用 ≤i-1 数据算滚动风险调整动量, 返回 sum=1 的权益相对权重.
+
+    无前视: 每个资产的动量/波动率只用 [0, i-1] 的收盘价; 前导 NaN (未上市) 自动跳过.
+    """
+    n_eq = len(eq_codes)
+    if i <= 1 or n_eq == 0:
+        return {c: 1.0 / n_eq for c in eq_codes} if n_eq else {}
+
+    scores: dict[str, float] = {}
+    for c in eq_codes:
+        px = prices[c].iloc[:i].dropna()  # 截至 i-1 的有效收盘
+        if len(px) < 2:
+            scores[c] = 0.0
+            continue
+        look = min(S11_MOM_LOOKBACK, len(px) - 1)
+        p1 = px.iloc[-1]
+        p0 = px.iloc[-1 - look]
+        mom = (p1 / p0 - 1.0) if p0 > 0 else 0.0
+        rets = px.pct_change().iloc[-min(S11_EQUITY_VOL_WINDOW, len(px) - 1):].dropna()
+        vol = float(rets.std() * math.sqrt(TRADING_DAYS)) if len(rets) >= 2 else 0.0
+        scores[c] = mom / vol if vol > 1e-9 else 0.0
+
+    w = {c: max(0.0, scores[c]) for c in eq_codes}
+    tot = sum(w.values())
+    if tot <= 0:
+        return {c: 1.0 / n_eq for c in eq_codes}
+    return {c: w[c] / tot for c in eq_codes}
+
+
+def run_s11_wfo(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[float], float]:
+    """S11: 滚动样本外多资产重构 (因果动量权重哑铃).
+
+    tw 仅保持与其它策略签名一致; 实际组合由 固定资产池 (prices.columns)
+    + 固定防御 45% + 权益端滚动 12M 风险调整动量 因果构建, 消除全样本后视.
+    """
+    codes = [c for c in prices.columns]
+    def_weights = {c: v for c, v in S11_DEFENSIVE_WEIGHTS.items() if c in codes}
+    w_def_total = sum(def_weights.values())
+    def_codes = list(def_weights)
+    eq_codes = [c for c in codes if c not in def_weights]
+    w_eq_total = 1.0 - w_def_total
+
+    ret_df = prices.pct_change().fillna(0.0)
+    ret_def = (
+        sum(def_weights[c] * ret_df[c] for c in def_codes) / w_def_total
+        if w_def_total > 0 else 0.0
+    )
+
+    n = len(prices)
+    trend_exp = _compute_trend_exposure(prices)
+    daily_rf = RISK_FREE_RATE / TRADING_DAYS
+    unit_cost = TRANSACTION_COST + SLIPPAGE
+
+    n_eq = len(eq_codes)
+    w_eq_rel = {c: 1.0 / n_eq for c in eq_codes} if n_eq else {}
+
+    out = [float(INITIAL_CAPITAL)]
+    peak = float(INITIAL_CAPITAL)
+    dd_exp = 1.0
+    e_prev = 1.0
+    tc_total = 0.0
+    for i in range(1, n):
+        # 波动率目标 (组合自身已实现收益, 无前视)
+        eq_arr = np.array(out, dtype=float)
+        rets = np.diff(eq_arr) / eq_arr[:-1]
+        w_win = rets[max(0, i - 1 - S8_VOL_WINDOW):i - 1]
+        if len(w_win) >= 20:
+            vol = float(np.std(w_win)) * math.sqrt(TRADING_DAYS)
+            vol_exp = min(S8_VOL_EXP_MAX, max(S8_VOL_EXP_MIN, S8_TARGET_VOL / vol)) if vol > 0 else 1.0  # noqa: E501
+        else:
+            vol_exp = 1.0
+        e_eq = float(min(trend_exp[i], vol_exp))
+
+        # 分级熔断 (最后防线)
+        peak = max(peak, out[i - 1])
+        dd = (peak - out[i - 1]) / peak if peak > 0 else 0.0
+        if dd > S8_DD_LEVELS[1]:
+            dd_exp = S8_DD_EXPOSURES[1]
+        elif dd > S8_DD_LEVELS[0]:
+            dd_exp = S8_DD_EXPOSURES[0]
+        else:
+            dd_exp = 1.0
+        if dd_exp < 1.0 and dd < S8_DD_RECOVER and trend_exp[i] >= S8_EXP_BULL:
+            dd_exp = 1.0
+        e_eq = min(e_eq, dd_exp)
+
+        # 权益相对权重月频重算 (用 ≤i-1 数据, 无前视)
+        turnover_w = 0.0
+        if n_eq and i % S11_REBAL_FREQ == 0:
+            new_w = _causal_equity_weights(prices, eq_codes, i)
+            turnover_w = 0.5 * sum(abs(new_w[c] - w_eq_rel[c]) for c in eq_codes)
+            w_eq_rel = new_w
+
+        # 权益端当日收益 (时变权重)
+        ret_eq_day = (
+            sum(w_eq_rel[c] * ret_df[c].iloc[i] for c in eq_codes) if n_eq else 0.0
+        )
+
+        daily = (
+            w_def_total * ret_def.iloc[i]
+            + w_eq_total * e_eq * ret_eq_day
+            + (1.0 - w_def_total - w_eq_total * e_eq) * daily_rf
+        )
+        turnover = abs(e_eq - e_prev) * w_eq_total + w_eq_total * turnover_w
+        daily -= turnover * unit_cost
+        tc_total += turnover * unit_cost * out[i - 1]
+        e_prev = e_eq
+
+        out.append(out[i - 1] * (1.0 + daily))
+
+    return out, tc_total
+
+
+# ============================================================
+# S12: 纯防御风险平价 (黄金/国债/红利低波) — 因果逆波动率权重 (2026-09-01)
+# ============================================================
+# 三件套证实 2021-2026 + 17 ETF 池内无稳健超额 (S1/S10/S11 DSR 全 0) →
+# 退回诚实下限: 只持防御三资产, 按逆波动率 (风险平价近似) 月频再平衡。
+# 无前视: 波动率只用 ≤t-1 数据; 不做趋势择时/动量 (避免再引入拟合与后视)。
+# 目标定位: 控回撤 + 跑赢通胀, 不追求 alpha。
+S12_UNIVERSE = ("518880", "511260", "512890")  # 黄金 / 国债 / 红利低波
+S12_VOL_WINDOW = 60      # 滚动波动率窗口 (日)
+S12_REBAL_FREQ = 21      # 再平衡频率 (交易日, 约月频)
+
+
+def _inverse_vol_weights(
+    prices: pd.DataFrame, codes: list[str], i: int
+) -> dict[str, float]:
+    """t 时刻 (索引 i) 用 ≤i-1 数据算逆波动率权重 (风险平价近似), 返回 sum=1.
+
+    无前视: 每资产波动率只用 [0, i-1] 收盘; 未上市 (前导 NaN) 自动跳过.
+    """
+    n = len(codes)
+    if i <= 1 or n == 0:
+        return {c: 1.0 / n for c in codes} if n else {}
+
+    inv: dict[str, float] = {}
+    for c in codes:
+        px = prices[c].iloc[:i].dropna()
+        if len(px) < 2:
+            inv[c] = 0.0
+            continue
+        rets = px.pct_change().iloc[-min(S12_VOL_WINDOW, len(px) - 1):].dropna()
+        vol = float(rets.std()) if len(rets) >= 2 else 0.0
+        inv[c] = 1.0 / vol if vol > 1e-9 else 0.0
+
+    tot = sum(inv.values())
+    if tot <= 0:
+        return {c: 1.0 / n for c in codes}
+    return {c: inv[c] / tot for c in codes}
+
+
+def run_s12_defensive_rp(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[float], float]:
+    """S12: 纯防御风险平价 (黄金/国债/红利低波 逆波动率权重, 月频再平衡)."""
+    codes = [c for c in S12_UNIVERSE if c in prices.columns]
+    ret_df = prices.pct_change().fillna(0.0)
+    unit_cost = TRANSACTION_COST + SLIPPAGE
+    n_c = len(codes)
+    w = {c: 1.0 / n_c for c in codes} if n_c else {}
+
+    n = len(prices)
+    out = [float(INITIAL_CAPITAL)]
+    tc_total = 0.0
+    for i in range(1, n):
+        turnover = 0.0
+        if n_c and i % S12_REBAL_FREQ == 0:
+            new_w = _inverse_vol_weights(prices, codes, i)
+            turnover = 0.5 * sum(abs(new_w[c] - w[c]) for c in codes)
+            w = new_w
+
+        ret_day = sum(w[c] * ret_df[c].iloc[i] for c in codes) if n_c else 0.0
+        daily = ret_day - turnover * unit_cost
+        tc_total += turnover * unit_cost * out[i - 1]
+        out.append(out[i - 1] * (1.0 + daily))
+
+    return out, tc_total
+
+
 def run_benchmark(prices: pd.DataFrame) -> list[float]:
     """基准: 沪深300ETF买入持有"""
     if BENCHMARK not in prices.columns:
@@ -883,13 +1080,15 @@ def main() -> None:
         ("S8 趋势+波动率目标", run_s8_trend_vol),
         ("S9 防御倾斜哑铃(40%)", run_s9_dumbbell),
         ("S10 P2池升级(45%防御+纳指标普)", run_s10_p2),
+        ("S11 滚动样本外重构(因果动量)", run_s11_wfo),
+        ("S12 纯防御风险平价(黄金/国债/红利低波)", run_s12_defensive_rp),
     ]
 
     sel = args.strategies.lower()
     if sel == "all":
         strategies = all_strategies
     else:
-        smap = {"s1": 0, "s2": 1, "s3": 2, "s4": 3, "s5": 4, "s6": 5, "s7": 6, "s8": 7, "s9": 8, "s10": 9}
+        smap = {"s1": 0, "s2": 1, "s3": 2, "s4": 3, "s5": 4, "s6": 5, "s7": 6, "s8": 7, "s9": 8, "s10": 9, "s11": 10, "s12": 11}
         indices = [smap[k] for k in smap if k in sel]
         strategies = [all_strategies[i] for i in sorted(set(indices))]
 

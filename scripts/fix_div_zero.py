@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 除零风险智能分类修复工具 v1.0
 
@@ -16,7 +15,6 @@
   python scripts/fix_div_zero.py --fix --dry-run     # 生成补丁(不应用)
   python scripts/fix_div_zero.py --fix --apply       # 生成并应用补丁(需确认)
 """
-import ast
 import json
 import os
 import re
@@ -24,7 +22,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROD_SCAN = PROJECT_ROOT / "scripts" / "_prod_bug_scan_results.json"
@@ -72,13 +70,13 @@ class DivZeroEntry:
     category: str = "UNCLASSIFIED"
     denominator_expr: str = ""
     fix_suggestion: str = ""
-    context_before: List[str] = field(default_factory=list)
-    context_after: List[str] = field(default_factory=list)
+    context_before: list[str] = field(default_factory=list)
+    context_after: list[str] = field(default_factory=list)
 
 
-def load_scan_results(scan_file: Path) -> Dict[str, List]:
+def load_scan_results(scan_file: Path) -> dict[str, list]:
     """加载扫描结果JSON."""
-    with open(scan_file, "r", encoding="utf-8") as f:
+    with open(scan_file, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -110,7 +108,7 @@ def is_prod_file(file_path: str) -> bool:
     return False
 
 
-def read_file_lines(file_path: str, center_line: int, context: int = 5) -> Tuple[List[str], str, List[str]]:
+def read_file_lines(file_path: str, center_line: int, context: int = 5) -> tuple[list[str], str, list[str]]:
     """读取文件指定行及上下文."""
     resolved = PROJECT_ROOT / normalize_path(file_path)
     if not resolved.exists():
@@ -120,7 +118,7 @@ def read_file_lines(file_path: str, center_line: int, context: int = 5) -> Tuple
             return [], "", []
 
     try:
-        with open(resolved, "r", encoding="utf-8") as f:
+        with open(resolved, encoding="utf-8") as f:
             all_lines = f.readlines()
     except (UnicodeDecodeError, OSError):
         return [], "", []
@@ -137,9 +135,9 @@ def read_file_lines(file_path: str, center_line: int, context: int = 5) -> Tuple
     return before, center, after
 
 
-def find_real_division_target(before: List[str], center: str, after: List[str], flagged_line: int) -> Tuple[int, str, str, str]:
+def find_real_division_target(before: list[str], center: str, after: list[str], flagged_line: int) -> tuple[int, str, str, str]:
     """在上下文中查找真正的除法操作.
-    
+
     返回: (实际除法行号, 代码行, 操作符, 分母表达式) 或 (0, '', '', '')
     """
     # 构建上下文: before + center + after, 带行号
@@ -274,7 +272,7 @@ def suggest_fix(entry: DivZeroEntry) -> str:
     return f"# FIX: 除零风险 — 代码 '{code}' 需人工审核"
 
 
-def process_entries(scan_file: Path, prod_only: bool = True) -> List[DivZeroEntry]:
+def process_entries(scan_file: Path, prod_only: bool = True) -> list[DivZeroEntry]:
     """处理扫描结果中的所有除零条目."""
     data = load_scan_results(scan_file)
     entries = data.get("DIV_ZERO_RISK", [])
@@ -323,7 +321,7 @@ def process_entries(scan_file: Path, prod_only: bool = True) -> List[DivZeroEntr
     return results
 
 
-def print_summary(results: List[DivZeroEntry]):
+def print_summary(results: list[DivZeroEntry]):
     """打印统计摘要."""
     cats = defaultdict(list)
     for e in results:
@@ -358,7 +356,7 @@ def print_summary(results: List[DivZeroEntry]):
     print()
 
 
-def save_report(results: List[DivZeroEntry], output_path: Path):
+def save_report(results: list[DivZeroEntry], output_path: Path):
     """保存结构化报告."""
     report = {
         "generated_at": "2026-08-02",
@@ -390,7 +388,7 @@ def save_report(results: List[DivZeroEntry], output_path: Path):
     print(f"  详细报告已保存: {output_path}")
 
 
-def generate_fix_patches(results: List[DivZeroEntry], output_dir: Optional[Path] = None):
+def generate_fix_patches(results: list[DivZeroEntry], output_dir: Optional[Path] = None):
     """为 REAL_DIV_ZERO 条目生成补丁文件."""
     if output_dir is None:
         output_dir = PROJECT_ROOT / "scripts" / "div_zero_patches"
@@ -408,7 +406,7 @@ def generate_fix_patches(results: List[DivZeroEntry], output_dir: Optional[Path]
         resolved = PROJECT_ROOT / file_path
         if not resolved.exists():
             continue
-        with open(resolved, "r", encoding="utf-8") as f:
+        with open(resolved, encoding="utf-8") as f:
             source_lines = f.readlines()
 
         for entry in entries:

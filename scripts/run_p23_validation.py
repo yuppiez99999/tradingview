@@ -257,6 +257,14 @@ def main() -> int:
         logger.info("运行 S10 P2 池升级...")
         eq, _ = mod.run_s10_p2(wind, tws)
         strategy_eqs.append(("S10 P2池升级(45%防御+纳指标普)", eq))
+    if "s11" in sel or sel == "all":
+        logger.info("运行 S11 滚动样本外重构...")
+        eq, _ = mod.run_s11_wfo(wind, tws)
+        strategy_eqs.append(("S11 滚动样本外重构(因果动量)", eq))
+    if "s12" in sel or sel == "all":
+        logger.info("运行 S12 纯防御风险平价...")
+        eq, _ = mod.run_s12_defensive_rp(wind, tws)
+        strategy_eqs.append(("S12 纯防御风险平价(黄金/国债/红利低波)", eq))
 
     strategies = [(name, eq, bench_eq) for name, eq in strategy_eqs]
     n_trials_dsr = args.n_trials

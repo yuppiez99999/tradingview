@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-01 · MVSK P5-1 方案 A 落地：真实 378 日数据预加载
+
+- **问题**: `launch_shadow_30day.py:196` 调用 `apply_mvsk_shadow_to_mid_layer()` 未传 `feature_store_path` → `_load_historical_returns()` 走合成随机 fallback (`rng.normal(0.0005, 0.02, (378, n))`) → shadow 30 天评估 Δ夏普无统计意义
+- **修复**: ① 新增 `_fetch_mid_layer_returns(symbols, days_required=378)` — 从 `MarketDataProvider` (Wind>TDX>AKShare>sina) 拉取 2y 历史日线 → 计算 `pct_change` → 对齐 → 存 parquet (`reports/shadow/mvsk_mid_layer_returns_378d.parquet`) → 返回 Path；含同日缓存机制 ② `_run_mvsk_shadow()` 提取 mid_symbols + 调 `_fetch_mid_layer_returns()` + 传 `feature_store_path`
+- **测试**: 2 新单测 (`test_load_historical_returns_sufficient_from_parquet` + `test_mvsk_shadow_sufficient_data_from_parquet`) 验证真实 parquet → data_sufficient=True；23 全绿
+- **验证**: py_compile ✅ + ruff ✅ + pytest 23 passed
+- **指针**: `scripts/launch_shadow_30day.py` (`_fetch_mid_layer_returns` + `_run_mvsk_shadow` 修改), `docs/mvsk_p51_preresearch_20260901.md` (预研+方案 A 全文)
+
 ## 2026-09-01 · 全库代码质量审查 + 审查标准与流程制定（CodeReviewExpert）
 
 - **审查结果**: 总评级 B+（较 08-31 A- 回调，因 3 个流程逃逸点而非代码劣化）。四件套核心指标: ruff 22（全部集中新脚本 `backtests/_etf_rotation_2014/parse_tdx_results.py`，门禁逃逸样本）/ bandit High 0 + Medium 18（B314×11 coverage 脚本 + B310×6 辅助脚本 + **B608×1 `quant_modules/ai_hedge_fund/graph/checkpointer.py:107` SQL 拼接**）/ engineering_debt_gate 24/25 绿（唯一 XX 为 D11 样本积累非代码问题）/ pytest 抽样 129 全绿 / 覆盖率 0.833 持平
@@ -2580,7 +2588,7 @@
 
 - **背景**: 08-13 主报告 6 项修复 (B1/B2/S1/S2/S3/S4/S5/N1) 已落地, 深度复核发现 S2 为半截修复 + 3 Medium + 2 Low Bug + 5 质量问题. 本轮验证 Bug-1~6 全部已在工作区修复, 并完成 Q-1~Q-5 + F401 回归清理.
 - **Bug-1~6 验证** (均已在工作区修复, 173 测试全绿):
-  - Bug-1 [High] 空头止损执行断裂 → `stop_loss_monitor.py:499` 支持 BUY + `_execute_close(side)` 
+  - Bug-1 [High] 空头止损执行断裂 → `stop_loss_monitor.py:499` 支持 BUY + `_execute_close(side)`
   - Bug-2 [Med] 合约月份硬编码 → `hedge_execution_orders.py:548` 动态 `_active_months`
   - Bug-3 [Med] signal_monitor 类型不一致 → L234 改用 `numeric_signals`
   - Bug-4 [Med] 对冲订单误匹配 → `hedge_order_executor.py:592` 加 `not oid and not fill_oid` 守卫

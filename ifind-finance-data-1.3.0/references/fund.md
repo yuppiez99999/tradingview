@@ -51,4 +51,3 @@ call("fund", "fund_highfreq_quotes", {
     "interval": 1
 })
 ```
-

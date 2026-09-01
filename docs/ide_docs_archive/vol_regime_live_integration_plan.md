@@ -80,16 +80,16 @@
 ```python
 class VixDataSource:
     """VIX 数据源 (510050 期权 IV + RV 备选 + 缓存)."""
-    
+
     CACHE_PATH = Path("reports/volatility/vix_cache.json")
     CACHE_TTL_SECONDS = 300  # 5 分钟缓存（盘中监控周期 30s，避免重复请求）
-    
+
     def fetch_vix(self, use_cache: bool = True) -> float | None:
         """获取 VIX 替代值 (降级链: Wind 期权IV → RV → 缓存 → None).
-        
+
         Args:
             use_cache: 是否使用缓存（盘中 True，EOD False）
-        
+
         Returns:
             VIX 数值 (如 25.3) 或 None
         """
@@ -98,31 +98,31 @@ class VixDataSource:
         if vix is not None:
             self._save_cache(vix, source="wind_option_iv")
             return vix
-        
+
         # 2. 备选: 从 shadow_state.json 计算 realized_vol * 缩放因子
         vix = self._fetch_from_realized_vol()
         if vix is not None:
             self._save_cache(vix, source="realized_vol_proxy")
             return vix
-        
+
         # 3. 缓存兜底
         if use_cache:
             cached = self._load_cache()
             if cached is not None:
                 logger.warning("VIX 数据源全失败, 使用缓存值: %s", cached)
                 return cached
-        
+
         return None
-    
+
     def _fetch_from_wind_option_iv(self) -> float | None:
         """从 Wind MCP 获取 510050 期权 IV."""
         # sys.path 添加 tools/ 目录
         # 调用 wind_get_option_iv("510050.SH")
         # 返回 iv_value 或 None
-    
+
     def _fetch_from_realized_vol(self) -> float | None:
         """从 shadow_state.json 计算 20 日已实现波动率, 转换为 VIX 替代.
-        
+
         VIX_proxy = realized_vol * sqrt(252) * 100
         """
         # 1. 读取 output/shadow_account/shadow_state.json
@@ -147,12 +147,12 @@ class VixDataSource:
 ```python
 class DrawdownReader:
     """从 shadow_state.json 读取并计算当前组合回撤."""
-    
+
     SHADOW_STATE_PATH = Path("output/shadow_account/shadow_state.json")
-    
+
     def get_current_drawdown(self) -> float | None:
         """返回当前回撤百分比 (正数, 如 0.0352 表示 3.52%).
-        
+
         Returns:
             drawdown_pct 或 None (数据不可用时)
         """
@@ -162,7 +162,7 @@ class DrawdownReader:
         # 4. current = nav_series[-1]
         # 5. drawdown = (peak - current) / peak
         # 6. 返回 abs(drawdown)
-    
+
     def get_peak_and_current(self) -> tuple[float, float] | None:
         """返回 (peak_nav, current_nav) 元组, 供 DrawdownController 复用."""
 ```
@@ -183,13 +183,13 @@ class DrawdownReader:
    def _run_vol_regime_weighter(self, metrics: Any) -> dict[str, Any]:
        from utils.alpha.vol_regime_weighter import VolRegimeWeighter
        from utils.alpha.drawdown_reader import DrawdownReader  # 新增
-       
+
        weighter = VolRegimeWeighter()
        portfolio_snapshot = self._read_portfolio_snapshot()
        daily_returns = self._extract_daily_returns(metrics)
        vix_value = self._fetch_vix()
        current_drawdown = DrawdownReader().get_current_drawdown()  # 新增
-       
+
        return weighter.run_cycle(
            portfolio_snapshot=portfolio_snapshot,
            vix_value=vix_value,
@@ -217,7 +217,7 @@ class DrawdownReader:
    ```python
    def _check_vol_regime(self) -> None:
        """波动率 Regime 监控 (Phase 0 只读建议).
-       
+
        - Feature Flag USE_VOL_REGIME_WEIGHTER=False 时直接跳过
        - 启用时调用 VolRegimeWeighter.run_cycle, 输出告警到日志
        - 不调仓, 不修改 portfolio.yaml (HC-4)
@@ -228,22 +228,22 @@ class DrawdownReader:
            if not is_enabled("USE_VOL_REGIME_WEIGHTER"):
                logger.info("  ℹ️  VolRegimeWeighter 未启用 (USE_VOL_REGIME_WEIGHTER=False)")
                return
-           
+
            from utils.alpha.vol_regime_weighter import VolRegimeWeighter
            from utils.alpha.vix_data_source import VixDataSource
            from utils.alpha.drawdown_reader import DrawdownReader
            from pathlib import Path
            import yaml
-           
+
            # 读取 portfolio 快照
            portfolio_path = Path("configs/portfolio.yaml")
            with portfolio_path.open("r", encoding="utf-8") as f:
                portfolio_snapshot = yaml.safe_load(f) or {}
-           
+
            # 获取 VIX 和回撤
            vix_value = VixDataSource().fetch_vix(use_cache=True)  # 盘中用缓存
            current_drawdown = DrawdownReader().get_current_drawdown()
-           
+
            # 调用 VolRegimeWeighter (不传 orchestrator, 盘中不写 decisions.jsonl)
            weighter = VolRegimeWeighter()
            result = weighter.run_cycle(
@@ -253,7 +253,7 @@ class DrawdownReader:
                current_drawdown=current_drawdown,
                orchestrator=None,  # 不写决策日志
            )
-           
+
            # 输出告警
            regime = result.get("regime", "unknown")
            confidence = result.get("confidence", 0.0)
@@ -261,11 +261,11 @@ class DrawdownReader:
                        regime, confidence,
                        f"{vix_value:.2f}" if vix_value else "N/A",
                        f"{current_drawdown:.2%}" if current_drawdown else "N/A")
-           
+
            # 危机档告警
            if regime in ("bear", "crisis"):
                logger.warning("  ⚠️  波动率告警: %s 档, 建议减仓进攻类, 加仓防御类", regime)
-       
+
        except ImportError as e:
            logger.info("  ℹ️  VolRegimeWeighter 模块未加载: %s", e)
        except Exception as e:  # noqa: BLE001
@@ -322,18 +322,18 @@ data_source:
     rv_annualization_factor: 252     # 年化因子
     cache_ttl_seconds: 300           # 缓存有效期 (盘中用)
     cache_path: "reports/volatility/vix_cache.json"
-  
+
   drawdown:
     source: "shadow_state"           # 回撤数据源
     path: "output/shadow_account/shadow_state.json"
-  
+
   # 盘中监控配置
   live_monitoring:
     enabled_flag: "USE_VOL_REGIME_WEIGHTER"
     check_interval_seconds: 30       # 对齐 monitor_interval
     use_cache: true                  # 盘中启用缓存
     alert_regimes: ["bear", "crisis"] # 触发告警的 Regime
-  
+
   # EOD 报告配置
   eod_report:
     use_cache: false                 # EOD 强制刷新

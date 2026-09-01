@@ -1,8 +1,8 @@
 # 🏛️ 顶级对冲基金视角：GitHub 热门项目战略整合白皮书
 
-**机密等级：内部仅限**  
-**编制单位：量化投资委员会 + 技术战略部联席**  
-**适用版本：v8.4 → v9.0 战略升级**  
+**机密等级：内部仅限**
+**编制单位：量化投资委员会 + 技术战略部联席**
+**适用版本：v8.4 → v9.0 战略升级**
 **编制日期：2026年7月25日**
 
 ---
@@ -10,14 +10,14 @@
 ## 执行摘要（Executive Summary）
 
 > **核心判断**：这四个项目不是"工具"，而是**三次范式升级的入场券**。
-> 
+>
 > - Vibe-Trading = 因子工程的工业化升级（从 50 → 500+ 因子）
 > - ai-hedge-fund = 决策治理的结构化升级（从单模型 → 多 Agent 投资委员会）
 > - TradingAgents = 学术研究的基础设施升级（从经验驱动 → 可复现的 Agent 实验）
 > - TradingAgents-astock = A 股本土化的认知升级（从普适因子 → 中国市场特化因子）
-> 
+>
 > **整合路线**：**3 个阶段 / 90 天 / 零生产中断**。第一阶段只读接入，第二阶段影子运行，第三阶段受控放量。
-> 
+>
 > **预期收益**：Alpha IC 提升 15-25%、Walk-Forward Sharpe CV 降至 0.35 以下、极端月收益回撤收窄 30%。
 > **最大风险**：因子过拟合 + Agent 决策不可解释 → 需用影子账户 + 纵深防御解决。
 
@@ -70,7 +70,7 @@
 ### 2.1 顶层设计原则
 
 > **黄金法则：现有系统是生产主干，外部项目是可插拔增强模块。**
-> 
+>
 > - 不替换、不重构、不破坏现有生产链路
 > - 所有新增能力通过 **Adapter 层** 接入
 > - 数据流向必须是**单向可读**（外部项目不能写入生产数据）
@@ -113,16 +113,16 @@
 # 设计模式：适配器 + 策略模式
 class VibeTradingFactorAdapter:
     """Vibe-Trading 因子库适配器
-    
+
     安全契约：
     - 只读：不修改任何生产数据
     - 隔离：因子计算在独立进程中运行
     - 审计：所有因子输出自动记录溯源链
     """
-    
+
     def compute_candidate_factors(self, ohlcv: pd.DataFrame) -> FactorLibraryResult:
         """计算候选因子，不直接用于交易
-        
+
         因子进入生产的四道关卡：
         1. 正交性检查：与现有 50 因子的相关性 < 0.7
         2. IC 稳定性：Walk-Forward IC_IR > 0.5
@@ -140,14 +140,14 @@ class VibeTradingFactorAdapter:
 # 设计模式：观察者 + 策略模式
 class HedgeFundGovernanceAdapter:
     """多 Agent 投资委员会适配器
-    
+
     工作模式：影子审查（Shadow Review）
     - 现有系统生成交易计划后，提交给委员会
     - 19 个 Agent 独立给出评级和理由
     - 如果 ≥4 个 Agent 强烈反对 → 触发人工复核
     - 不否决现有系统决策，只提供"反对票"作为预警
     """
-    
+
     def shadow_review(self, trade_plan: TradePlan) -> GovernanceReview:
         """影子审查：不干预决策，只记录分歧
         分歧度 > 60% 时触发风控预警
@@ -163,7 +163,7 @@ class HedgeFundGovernanceAdapter:
 # 设计模式：工厂 + 模板方法
 class TradingAgentsResearchBridge:
     """Agent 研究实验基础设施
-    
+
     价值：把"拍脑袋试策略"变成"系统化实验"
     - 每个策略实验自动记录：数据、参数、Agent 配置
     - 结果自动与历史实验对比排名
@@ -291,7 +291,7 @@ class TradingAgentsResearchBridge:
 1. **P0：建立 Vibe-Trading 因子分析项目**
    - 在 `research/` 下创建 `vibe_trading_factor_analysis/`
    - 首批目标：筛选 50 个与现有因子低相关的新因子
-   
+
 2. **P1：启动 ai-hedge-fund 影子审查实验**
    - 拿过去 6 个月的交易计划做批量回测
    - 验证：多 Agent 分歧度是否能提前预警大回撤
@@ -312,5 +312,5 @@ class TradingAgentsResearchBridge:
 
 ---
 
-*文档版本：v1.0*  
+*文档版本：v1.0*
 *下次评审：2026年8月1日（阶段一中期评估）*

@@ -65,16 +65,16 @@ logger.info(f"目标权重计算: {len(target_weights)} 个标的, 总暴露={su
 ```python
 class PortfolioOptimizer:
     """组合优化器 — 消费 PipelineResult.factor_combinations 调整目标权重
-    
+
     职责:
     - 加载离线生成的因子信号 JSON
     - 用因子信号调整目标权重（保守权重 0.05）
     - 提供 run_offline_pipeline() 离线触发接口
     """
-    
+
     def __init__(self, signals_dir: str = "models/pipeline_factor_signals"): ...
     def load_factor_signals(self, trade_date: str) -> Dict[str, float]: ...
-    def adjust_target_weights(self, base_weights: Dict[str, float], 
+    def adjust_target_weights(self, base_weights: Dict[str, float],
                               factor_signals: Dict[str, float],
                               alpha: float = 0.05) -> Dict[str, float]: ...
     def run_offline_pipeline(self, price_data, fundamentals, ...) -> bool: ...

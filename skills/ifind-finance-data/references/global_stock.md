@@ -56,4 +56,3 @@ call("global_stock", "global_stock_financial", {"query": "Google和Meta在最新
 # 港美股公告事件
 call("global_stock", "global_stock_events", {"query": "minimax的IPO日期、数量、价格及保荐人"})
 ```
-

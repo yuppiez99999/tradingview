@@ -3,7 +3,7 @@ title: "{{title}}"
 date: {{date}}
 type: resource
 tags: [{{tags}}]
-source: 
+source:
 ---
 
 # {{title}}
@@ -15,13 +15,13 @@ source:
 （内容）
 
 ## 要点
-- 
+-
 
 ## 💡 我的想法/启发
 -
 
 ## 行动项
-- [ ] 
+- [ ]
 
 ## 🔗 相关链接
 -

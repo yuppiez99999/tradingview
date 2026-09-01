@@ -1,8 +1,8 @@
 # 国产LLM模型API选型报告：顶级对冲基金决策引擎视角
 
-**评估日期**: 2026年7月25日  
-**评估框架**: 世界顶级对冲基金（Citadel/Renaissance/Two Sigma）的LLM基础设施选型标准  
-**适用场景**: A股量化交易系统的AI决策引擎（信号解释、风险研判、多空判别、组合建议）  
+**评估日期**: 2026年7月25日
+**评估框架**: 世界顶级对冲基金（Citadel/Renaissance/Two Sigma）的LLM基础设施选型标准
+**适用场景**: A股量化交易系统的AI决策引擎（信号解释、风险研判、多空判别、组合建议）
 
 ---
 
@@ -96,11 +96,11 @@
 
 **月度成本估算**（1500次调用，每次2K tokens输出）：
 
-DeepSeek V4 Flash（峰时段）：¥18.0/月  
-DeepSeek V4 Flash（非峰时段）：¥9.0/月  
-Qwen3-Plus：¥4.8/月  
-GLM-4-Flash：**¥0/月**（免费额度内）  
-GLM-5.2：¥48-60/月  
+DeepSeek V4 Flash（峰时段）：¥18.0/月
+DeepSeek V4 Flash（非峰时段）：¥9.0/月
+Qwen3-Plus：¥4.8/月
+GLM-4-Flash：**¥0/月**（免费额度内）
+GLM-5.2：¥48-60/月
 
 **关键洞察**：DeepSeek V4的峰谷定价是一个严重问题。A股交易时段（9:30-11:30，13:00-15:00）完美覆盖峰时定价窗口（9:00-12:00，14:00-18:00），意味着所有盘中实时决策调用都需要支付翻倍价格。虽然绝对金额不大（每月仅增加¥9），但这个设计反映了DeepSeek在交易时段的容量压力——API在盘中高负载时的响应质量和稳定性可能下降。
 
@@ -195,23 +195,23 @@ FinQA数值推理：DeepSeek V4 Pro（87.0）超越GPT-5.5（82.0）和Claude Op
 
 经过上述多维度的严格评估，没有任何一个国产模型API可以在所有维度上满足顶级对冲基金的生产标准。解决方案不是选出最好的模型，而是设计一个三层分级架构，不同层级使用最适合的模型：
 
-**Tier 1 — 盘中实时决策层（延迟敏感，可靠性关键）**  
-调用场景：多空信号判断、风险敞口快速评估、异常行情研判  
-延迟要求：TTFT <200ms，端到端 <2.5s，P99 <500ms  
-可靠性要求：SLA ≥99.9%，交易时段必有热备  
-月调用量：约600次  
+**Tier 1 — 盘中实时决策层（延迟敏感，可靠性关键）**
+调用场景：多空信号判断、风险敞口快速评估、异常行情研判
+延迟要求：TTFT <200ms，端到端 <2.5s，P99 <500ms
+可靠性要求：SLA ≥99.9%，交易时段必有热备
+月调用量：约600次
 
-**Tier 2 — 盘前盘后深度分析层（质量敏感）**  
-调用场景：多Agent分析、技术面/基本面/情绪面三位一体研判、研报解读  
-延迟要求：端到端 <10s  
-可靠性要求：SLA ≥99.5%  
-月调用量：约700次  
+**Tier 2 — 盘前盘后深度分析层（质量敏感）**
+调用场景：多Agent分析、技术面/基本面/情绪面三位一体研判、研报解读
+延迟要求：端到端 <10s
+可靠性要求：SLA ≥99.5%
+月调用量：约700次
 
-**Tier 3 — 离线批量处理层（成本敏感）**  
-调用场景：历史数据标注、策略回测辅助、因子解释生成  
-延迟要求：无硬性要求  
-可靠性要求：SLA ≥99.0%  
-月调用量：约200次  
+**Tier 3 — 离线批量处理层（成本敏感）**
+调用场景：历史数据标注、策略回测辅助、因子解释生成
+延迟要求：无硬性要求
+可靠性要求：SLA ≥99.0%
+月调用量：约200次
 
 ### 4.2 推荐配置：方案A（最优平衡）
 
@@ -310,16 +310,16 @@ A股交易时段与DeepSeek峰时定价窗口的重叠是一个可规避的问�
 
 ## 参考文献
 
-1. [FinanceBenchmark — Financial AI Leaderboard 2026](https://financebenchmark.ai/)  
-2. [DeepSeek V4: Tiered API Pricing for Enterprise Reliability](https://i10x.ai/news/deepseek-v4-tiered-api-pricing-enterprise-impact)  
-3. [DeepSeek API 稳定性深度测评 — HolySheep AI](https://www.holysheep.ai/articles/zh-deepseek-api-stability-uptime-and-reliability-metr-2026-04-28-0017.html)  
-4. [阿里云百炼 Qwen3.7-Max 上线](https://developer.aliyun.com/article/1736226)  
-5. [通义千问 API 价格与购买建议 — API知识站](https://www.apiuspro.cn/api-review/tongyi)  
-6. [GLM-5.2 金融大模型实测数据出炉 — 新浪新闻](https://www.sina.cn/news/detail/5315806233889643.html)  
-7. [GLM-5.2 深度解析 — CSDN](https://blog.csdn.net/nmdbbzcl/article/details/162077925)  
-8. [全球 API 延迟对比 2026 — Global-APIs](https://global-apis.com/zh/blog/ai-api-latency-comparison-2026)  
-9. [2026年国产大模型 API 价格对比 — UUAIHub](https://www.uuaihub.com/blog/domestic-llm-api-pricing-2026)  
-10. [幻方量化 AI 投资方法技术拆解 — 搜狐](https://www.sohu.com/a/953456765_632634)  
+1. [FinanceBenchmark — Financial AI Leaderboard 2026](https://financebenchmark.ai/)
+2. [DeepSeek V4: Tiered API Pricing for Enterprise Reliability](https://i10x.ai/news/deepseek-v4-tiered-api-pricing-enterprise-impact)
+3. [DeepSeek API 稳定性深度测评 — HolySheep AI](https://www.holysheep.ai/articles/zh-deepseek-api-stability-uptime-and-reliability-metr-2026-04-28-0017.html)
+4. [阿里云百炼 Qwen3.7-Max 上线](https://developer.aliyun.com/article/1736226)
+5. [通义千问 API 价格与购买建议 — API知识站](https://www.apiuspro.cn/api-review/tongyi)
+6. [GLM-5.2 金融大模型实测数据出炉 — 新浪新闻](https://www.sina.cn/news/detail/5315806233889643.html)
+7. [GLM-5.2 深度解析 — CSDN](https://blog.csdn.net/nmdbbzcl/article/details/162077925)
+8. [全球 API 延迟对比 2026 — Global-APIs](https://global-apis.com/zh/blog/ai-api-latency-comparison-2026)
+9. [2026年国产大模型 API 价格对比 — UUAIHub](https://www.uuaihub.com/blog/domestic-llm-api-pricing-2026)
+10. [幻方量化 AI 投资方法技术拆解 — 搜狐](https://www.sohu.com/a/953456765_632634)
 
 ---
 

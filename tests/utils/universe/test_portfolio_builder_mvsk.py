@@ -248,6 +248,48 @@ class TestColdStartInsufficientData:
     def test_warmup_days_constant(self):
         assert MVSK_WARMUP_DAYS_REQUIRED == 378
 
+    def test_load_historical_returns_sufficient_from_parquet(self, tmp_path):
+        """feature_store_path 指向充足 parquet 时返回真实数据 (非 fallback)."""
+        n_days = 400
+        n_symbols = 4
+        real_data = np.random.default_rng(99).normal(0.001, 0.02, (n_days, n_symbols))
+        parquet_path = tmp_path / "mid_returns.parquet"
+        pd.DataFrame(real_data, columns=["A", "B", "C", "D"]).to_parquet(
+            parquet_path, index=False
+        )
+        returns = _load_historical_returns(
+            ["A", "B", "C", "D"],
+            feature_store_path=parquet_path,
+        )
+        assert returns is not None
+        assert returns.shape == (MVSK_WARMUP_DAYS_REQUIRED, n_symbols)
+        assert np.allclose(returns, real_data[-MVSK_WARMUP_DAYS_REQUIRED:])
+
+    def test_mvsk_shadow_sufficient_data_from_parquet(self, tmp_path):
+        """apply_mvsk_shadow_to_mid_layer 传入真实 parquet → data_sufficient=True."""
+        n_days = 400
+        n_symbols = 4
+        real_data = np.random.default_rng(77).normal(0.001, 0.02, (n_days, n_symbols))
+        parquet_path = tmp_path / "mid_returns.parquet"
+        pd.DataFrame(real_data, columns=["510300", "510500", "513100", "512890"]).to_parquet(
+            parquet_path, index=False
+        )
+        portfolio = LayeredPortfolio(
+            trade_date="2026-09-01",
+            holdings=[
+                Holding(symbol=s, name=s, layer="mid", weight=0.25)
+                for s in ["510300", "510500", "513100", "512890"]
+            ],
+        )
+        _, result = apply_mvsk_shadow_to_mid_layer(
+            portfolio,
+            trade_date="2026-09-01",
+            use_mvsk=True,
+            mvsk_mode="shadow",
+            feature_store_path=parquet_path,
+        )
+        assert result.data_sufficient is True
+
 
 # ============================================================
 # 场景 4: kill_switch 降级

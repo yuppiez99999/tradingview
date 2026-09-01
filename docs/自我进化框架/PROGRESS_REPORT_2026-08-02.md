@@ -1,8 +1,8 @@
 # 量化系统自我进化框架 — 进度报告
 
-**报告日期：2026-08-02（周日）**  
-**报告周期：Phase 0 启动至当前**  
-**整体完成率：100%（29/29 任务全部交付，691 单测全绿）**  
+**报告日期：2026-08-02（周日）**
+**报告周期：Phase 0 启动至当前**
+**整体完成率：100%（29/29 任务全部交付，691 单测全绿）**
 **技术债务修复：G1-G3 + T0.1/T0.2/T1.6 已于当日完成**
 
 ---
@@ -126,16 +126,16 @@
 
 观察期满后按 B1→B2→B3→B4 渐进推进，每阶段 3 天健康观察，使用已交付的 `scripts/phase_b_progressive_enabler.py --auto` 自动调度。
 
-**B1：USE_DRIFT_DETECTOR=true（仅告警，3 天）**  
+**B1：USE_DRIFT_DETECTOR=true（仅告警，3 天）**
 校准 IC/ADWIN/KS/PSI 阈值，仅告警不阻断。
 
-**B2：评估器 → ABTest 自动接入（3 天）**  
+**B2：评估器 → ABTest 自动接入（3 天）**
 新因子经 StrategyEvaluator 打分自动进入 AB 桶，无需人工搬运。
 
-**B3：USE_AUTO_RETRAIN=true + 降级护栏（3 天）**  
+**B3：USE_AUTO_RETRAIN=true + 降级护栏（3 天）**
 重训失败自动回退、超容量自动拒绝。
 
-**B4：Orchestrator 完整外层循环（1 周）**  
+**B4：Orchestrator 完整外层循环（1 周）**
 周周期进化循环（评估→AB→重训→回滚评审），L3 高风险仍走人工审批。
 
 里程碑 M6 进化闭环启用 — 2026-08-31。
@@ -155,16 +155,16 @@
 
 复用 `utils/alpha/llm/` 基础设施（router/providers/audit）：
 
-**D1：LLM 策略 Ideation 接入**  
+**D1：LLM 策略 Ideation 接入**
 Shadow 模式生成候选因子/策略，audit 全留痕，初始仅产出不执行。
 
-**D2：假设验证框架**  
+**D2：假设验证框架**
 RankIC/ICIR 显著性检验 + 效应量估计 + Purged K-Fold 样本外验证。
 
-**D3：知识沉淀库**  
+**D3：知识沉淀库**
 `knowledge_base.jsonl`，沉淀已验证/已证伪的假设，反馈给下轮 Ideation。
 
-**D4：双层闭环无人值守**  
+**D4：双层闭环无人值守**
 LLM 假设生成层 + B4 进化执行层形成闭环，Shadow 运行不少于 1 周。
 
 里程碑 M7 LLM 智能进化 — 2026-10-31。

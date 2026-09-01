@@ -124,7 +124,7 @@ USE_VOL_REGIME_WEIGHTER:
 2. `run_observation_cycle()` 末尾新增 vol_regime 分支：
    ```python
    # 现有 collect → evaluate → log 流程不变（第 549-569 行）
-   
+
    # 新增：vol_regime 权重建议（flag 控制可选）
    if is_enabled("USE_VOL_REGIME_WEIGHTER"):
        try:

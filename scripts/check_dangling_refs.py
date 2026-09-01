@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 删除时下游依赖检查 (Dangling Reference Check)
 ================================================

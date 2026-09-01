@@ -16,6 +16,9 @@ repos:
         entry: python -m py_compile
         language: system
         files: \.py$
+        # 排除: 测试文件 (含 Python 3.10+ with(...) 语法)
+        # + unsloth 编译缓存 + mlruns/ 运行日志 (不可人工维护)
+        exclude: "(^|/)(tests/.*\\.py$|unsloth_compiled_cache/|mlruns/|node_modules/|qlib_env/)"
         pass_filenames: true
       - id: pre_commit_check
         name: P0 三道门禁+P0 print 检查
@@ -32,9 +35,9 @@ repos:
         files: ^(ms_strategy/src/(execution|backtest|data)/|utils/|cli/).*\.py$
         # 当前仅 warning, 试点无误报后升阻断
 
-  # ruff: 本地增量 lint (Python 3.8+)
+  # ruff: 本地增量 lint (Python 3.8+) — 2026-09-01 bump 到 v0.16.1 对齐 venv, 修复 UP045 等规则 unknown
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.16.1
     hooks:
       - id: ruff
         args: [--fix, --exit-zero]

@@ -587,13 +587,13 @@
        set -e
        export HUAWEICLOUD_AK=$(security find-generic-password -a "$USER" -s "HUAWEICLOUD_AK" -w 2>/dev/null || echo $HUAWEICLOUD_AK)
        export HUAWEICLOUD_SK=$(security find-generic-password -a "$USER" -s "HUAWEICLOUD_SK" -w 2>/dev/null || echo $HUAWEICLOUD_SK)
-       
+
        WEEK=$(date +%Y%m%d)
        JOB_NAME="qt-weekly-${WEEK}"
-       
+
        # 用华为云 CLI 提交作业（命令见第三部分脚本）
        python3.11 ~/28-终极量化交易系统8.4/scripts/submit_train.py --job-name $JOB_NAME --market csi300 --boost-round 500
-       
+
        echo "$(date) 提交了 $JOB_NAME" >> ~/28-终极量化交易系统8.4/logs/weekly_train.log
 
    给执行权限：

@@ -9,6 +9,8 @@ WonderTrader风格执行算法模块
 适用于300万ETF建仓计划的大单拆分执行，降低市场冲击成本。
 """
 
+from __future__ import annotations  # noqa: F401  (Py3.8 compat for list[dict] etc.)
+
 import logging
 import math
 import time

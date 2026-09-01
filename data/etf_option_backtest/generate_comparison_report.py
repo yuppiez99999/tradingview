@@ -161,4 +161,3 @@ report = "\n".join(lines)
 report_path = DATA_DIR / f"v1_vs_v2_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
 with open(report_path, "w", encoding="utf-8") as f:
     f.write(report)
-

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 渲染 ETF 动量轮动回测 HTML dashboard (单文件, 中文)。
 

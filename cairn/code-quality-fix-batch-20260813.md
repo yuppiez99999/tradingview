@@ -1,7 +1,7 @@
 # 代码质量修复批次 — 2026-08-13（审查报告 B1/B2/S1/S2/S3/S4/S5/N1）
 
-> 来源：`代码质量与缺陷审查报告_20260813.md` 全量修复  
-> 沉淀日期：2026-08-13  
+> 来源：`代码质量与缺陷审查报告_20260813.md` 全量修复
+> 沉淀日期：2026-08-13
 > 状态：✅ 已完成，30 tests 全绿，门禁无回退
 
 ---
@@ -10,10 +10,10 @@
 
 ### 1.1 B1 — `daily_trading_workflow.py` 缺 `import os`（guaranteed NameError）
 
-**根因**：模块级 `_resolve_path()` 使用 `os.sep`，但 import 区仅有 `json/random/logging/datetime/pathlib/typing`，无 `os`。  
+**根因**：模块级 `_resolve_path()` 使用 `os.sep`，但 import 区仅有 `json/random/logging/datetime/pathlib/typing`，无 `os`。
 任何调用 `_resolve_path()` 的路径（如 `config/positions.json`）会立即抛 `NameError`。
 
-**修复**：L19 补 `import os`。  
+**修复**：L19 补 `import os`。
 **验证**：`ruff --select F821` → 0；B1 smoke test PASS。
 
 **踩坑**：`os` 是 stdlib 最基础模块之一，F821 静态检查应能在 CI 捕获此类问题。当前 ruff baseline 未覆盖 F821 → 建议 baseline 逐步纳入。
@@ -49,10 +49,10 @@
 
 ### 2.1 S4 — 期权最小名义阈值
 
-**根因**：`hedge_execution_orders.py:352` `contracts = max(1, int(alloc_notional / (est_price * multiplier)))`  
+**根因**：`hedge_execution_orders.py:352` `contracts = max(1, int(alloc_notional / (est_price * multiplier)))`
 极小 `alloc_notional`（如 10000 元）不足 1 张合约名义（如 40000 元），但 `max(1, ...)` 强制开 1 张 → 名义暴露远超预算，过度对冲。
 
-**修复**：`one_contract_notional = est_price * multiplier`，`min_notional = item_cfg.get("min_notional") or one_contract_notional`。  
+**修复**：`one_contract_notional = est_price * multiplier`，`min_notional = item_cfg.get("min_notional") or one_contract_notional`。
 `alloc_notional < min_notional` → `logger.info` + `continue`，跳过该期权。
 
 **设计决策**：阈值来源优先读配置（`item_cfg.get("min_notional")`），兜底为 1 张名义。与文件内已有 `premium_budget` 配置读取模式一致。
@@ -61,10 +61,10 @@
 
 ### 2.2 S5 — 期货 instrument/multiplier 配置化
 
-**根因**：`_build_beta_futures_order` 硬编码 `instrument = "IF"`，`multiplier = 300`。  
+**根因**：`_build_beta_futures_order` 硬编码 `instrument = "IF"`，`multiplier = 300`。
 系统需支持 IC/IH/IM 等品种，硬编码导致无法切换。
 
-**修复**：`instrument = futures_cfg.get("instrument", "IF")`，`multiplier = int(futures_cfg.get("multiplier", 300) or 300)`。  
+**修复**：`instrument = futures_cfg.get("instrument", "IF")`，`multiplier = int(futures_cfg.get("multiplier", 300) or 300)`。
 与文件内 L546/L658 已有 `cfg.get("multiplier")` 模式一致。
 
 ---
@@ -73,8 +73,8 @@
 
 ### 3.1 S2 — 空头止损
 
-**根因**：`stop_loss_monitor.py:304-307` `if shares <= 0: return None`  
-空头持仓（`shares < 0`）被当作 flat 处理，无止损/止盈逻辑。  
+**根因**：`stop_loss_monitor.py:304-307` `if shares <= 0: return None`
+空头持仓（`shares < 0`）被当作 flat 处理，无止损/止盈逻辑。
 若未来接入融券做空策略，空头将无风控保护。
 
 **修复设计**：
@@ -91,7 +91,7 @@
 
 ### 3.2 S3 — live_scheduler 日志加固
 
-**根因**：L170/745 两处 `except Exception` 仅 `logger.debug(...)`，生产环境默认日志级别 INFO+，debug 消息被静默吞掉。  
+**根因**：L170/745 两处 `except Exception` 仅 `logger.debug(...)`，生产环境默认日志级别 INFO+，debug 消息被静默吞掉。
 行情获取失败/策略退化告警记录失败等异常在生产中完全不可见。
 
 **修复**：`logger.debug` → `logger.warning`，确保异常在标准生产日志中可见。
@@ -100,7 +100,7 @@
 
 ### 3.3 N1 — 期权乘数 instrument 感知
 
-**根因**：`hedge_order_executor.py:84` `OPTION_MULTIPLIER = 10000` 仅适用于 ETF 期权（上交所/深交所 1 张 = 10000 份）。  
+**根因**：`hedge_order_executor.py:84` `OPTION_MULTIPLIER = 10000` 仅适用于 ETF 期权（上交所/深交所 1 张 = 10000 份）。
 股指期权（IO/MO/HO，中金所）乘数为 100，硬编码 10000 会导致名义金额和 Delta 计算错误。
 
 **修复**：新增 `_default_option_multiplier(instrument)` 函数，按 instrument 前缀返回：
@@ -114,7 +114,7 @@
 
 ### 4.1 `hedge_execution_orders.py` Python 3.8 类型注解兼容
 
-**根因**：`_extract_contract_yyyymm` 和 `_validate_contract_expiry` 使用 `tuple[str, int]` 和 `tuple[bool, str]` 语法。  
+**根因**：`_extract_contract_yyyymm` 和 `_validate_contract_expiry` 使用 `tuple[str, int]` 和 `tuple[bool, str]` 语法。
 Python 3.8 不支持内置类型 subscript，导致模块导入抛 `TypeError: 'type' object is not subscriptable`，所有依赖此模块的测试无法收集。
 
 **修复**：`tuple[str, int]` → `Tuple[str, int]`，`tuple[bool, str]` → `Tuple[bool, str]`；补 `from typing import Tuple`。
@@ -137,7 +137,7 @@ Python 3.8 不支持内置类型 subscript，导致模块导入抛 `TypeError: '
 
 ### 5.2 陈旧测试修复
 
-修复前 `TestExecuteSingleInstruction` 6/6 FAIL（滑点代码存在但断言未同步）。  
+修复前 `TestExecuteSingleInstruction` 6/6 FAIL（滑点代码存在但断言未同步）。
 修复后 6/6 PASS + 3 个 SELL 新测试 PASS = 9/9 PASS。
 
 **教训**：交易成本/滑点等数值敏感特性引入后，必须审计所有相关测试的硬编码期望值。

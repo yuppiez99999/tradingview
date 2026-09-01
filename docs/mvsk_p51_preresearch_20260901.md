@@ -54,12 +54,14 @@ return returns
 
 **推荐方案 A**：在 09-05~09-12 窗口内执行（原 P5-1 排期窗口），不超支线预算。
 
+**✅ 方案 A 已于 2026-09-01 落地**：`_fetch_mid_layer_returns()` 实现 + `_run_mvsk_shadow()` 传 `feature_store_path` + 2 新单测 (23 全绿)。
+
 ## 5. 09-05 启动前检查清单
 
-- [ ] 方案 A 落地：`launch_shadow_30day.py` 增加 `_fetch_mid_layer_returns()` + 传 `feature_store_path`
-- [ ] 验证：`_load_mvsk_history()` 返回真实数据 (非 fallback)，`returns.shape == (378, 30)`
-- [ ] 确认 mid-layer 30 标的列表 (从 `config/portfolio.yaml` 或运行时 portfolio 提取)
-- [ ] 单测：`test_portfolio_builder_mvsk.py` 增加 "真实 feature_store_path" 场景
+- [x] 方案 A 落地：`launch_shadow_30day.py` 增加 `_fetch_mid_layer_returns()` + 传 `feature_store_path` — ✅ DONE 2026-09-01
+- [x] 验证：`_load_historical_returns()` 返回真实数据 (非 fallback)，`returns.shape == (378, n_symbols)` — ✅ 单测通过
+- [x] 单测：`test_portfolio_builder_mvsk.py` 增加 "真实 feature_store_path" 场景 (2 新测试, 23 全绿)
+- [ ] 确认 mid-layer 30 标的列表 (从 `config/portfolio.yaml` 或运行时 portfolio 提取) — 运行时从 `_load_mid_layer_portfolio` 提取, 当前 DEFAULT_MID_SYMBOLS=4 ETF, positions.json 可扩展至 30
 
 ## 6. 风险
 
@@ -67,5 +69,5 @@ return returns
 - G9 FeatureStore 物理分层 (Stage 3, 10-13~10-31) 与方案 A 不冲突 — 方案 A 是临时 parquet，G9 是正式 offline/online 分层
 
 ---
-更新者: CodeArts (2026-09-01 预研)
+更新者: CodeArts (2026-09-01 预研 + 方案 A 落地)
 下一步: 09-05~09-12 窗口执行方案 A (Sprint 1 后半); 09-13 shadow 30 天 cron 启动前验证真实数据加载

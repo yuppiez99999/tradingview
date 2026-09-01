@@ -155,4 +155,3 @@ npx skills add https://gitee.com/wind_info/wind-skills.git --skill wind-mcp-skil
 3. 质量矩阵: 事件强度/量价匹配/持续概率/回落风险 (高/中/低)
 4. 应对重点: 确认信号 + 失效信号 + 一句话结论
 ```
-

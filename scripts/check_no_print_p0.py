@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """P0 生产交易文件 print() 检查器.
 
 配套文档: docs/CODE_REVIEW_STANDARD.md §2.1
@@ -23,11 +22,12 @@
 
 兼容 Python 3.8 (ruff.toml: target-version = "py38")。
 """
+from __future__ import annotations  # noqa: F401  (Py3.8 compat for list[tuple[...]] etc.)
+
 import argparse
 import ast
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 # P0 生产交易路径文件, 与 docs/CODE_REVIEW_STANDARD.md §4 保持一致
 # G-2 修复 (2026-08-08): 补充重构后的真正下单引擎 + 回测引擎, 关闭门禁盲区.
@@ -57,19 +57,19 @@ P0_FILES = frozenset({
 ALLOW_MARKER = "allow-print"
 
 
-def find_prints(path: Path) -> List[Tuple[int, str]]:
+def find_prints(path: Path) -> list[tuple[int, str]]:
     """返回 [(行号, 源码行)]。解析失败时返回空列表并告警。"""
     try:
         source = path.read_text(encoding="utf-8", errors="ignore")
     except OSError as exc:
-        print("[warn] 无法读取 {}: {}".format(path, exc), file=sys.stderr)
+        print(f"[warn] 无法读取 {path}: {exc}", file=sys.stderr)
         return []
 
     try:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError as exc:
         # 语法错误单独报, 不当作 print 违规
-        print("[warn] {} 语法错误 (line {}): {}".format(path, exc.lineno, exc.msg),
+        print(f"[warn] {path} 语法错误 (line {exc.lineno}): {exc.msg}",
               file=sys.stderr)
         return []
 
@@ -89,7 +89,7 @@ def find_prints(path: Path) -> List[Tuple[int, str]]:
     return hits
 
 
-def resolve_targets(argv_files: List[str], repo_root: Path) -> List[Path]:
+def resolve_targets(argv_files: list[str], repo_root: Path) -> list[Path]:
     """确定要检查的文件: 传参则过滤出 P0, 未传参则全量 P0。"""
     if argv_files:
         out = []
@@ -126,19 +126,19 @@ def main() -> int:
         return 0
 
     print("=" * 68)
-    print("P0 生产交易文件发现 {} 处 print()".format(total))
+    print(f"P0 生产交易文件发现 {total} 处 print()")
     print("=" * 68)
     for path, hits in detail:
         try:
             shown = path.relative_to(repo_root)
         except ValueError:
             shown = path
-        print("\n  {}  ({} 处)".format(shown, len(hits)))
+        print(f"\n  {shown}  ({len(hits)} 处)")
         for lineno, raw in hits[:5]:
             snippet = raw if len(raw) <= 76 else raw[:73] + "..."
-            print("    :{:<6} {}".format(lineno, snippet))
+            print(f"    :{lineno:<6} {snippet}")
         if len(hits) > 5:
-            print("    ... 另有 {} 处".format(len(hits) - 5))
+            print(f"    ... 另有 {len(hits) - 5} 处")
 
     print("\n" + "-" * 68)
     print("原因: P0 文件由定时任务驱动, print() 输出不进日志, 故障无法追溯。")

@@ -1,774 +1,960 @@
-
-utils\trading_rules.py:170:36: error: Incompatible types in assignment
-utils\pipeline\config.py:173:39: error: "object" not callable  [operator]
-utils\wt_execution_algo.py:430:17: error: Unsupported operand types for +
-utils\wt_execution_algo.py:431:46: error: Unsupported operand types for *
-utils\vibe_trading_adapter.py:180:54: error: Argument 1 to "len" has
-utils\vibe_trading_adapter.py:202:26: error: "None" has no attribute "items" 
-utils\vibe_trading_adapter.py:235:22: error: "None" not callable  [misc]
-utils\tdx_data_source.py:56:55: error: Incompatible types in assignment
-utils\tdx_data_source.py:89:69: error: Incompatible types in assignment
-utils\tdx_data_source.py:102:55: error: Incompatible types in assignment
-utils\tdx_data_source.py:202:57: error: Incompatible types in assignment
-utils\tdx_data_source.py:207:55: error: Incompatible types in assignment
-utils\tdx_data_source.py:268:57: error: Incompatible types in assignment
-utils\tdx_data_source.py:273:55: error: Incompatible types in assignment
-utils\tdx_data_source.py:306:55: error: Incompatible types in assignment
-utils\supply_chain_graph.py:366:13: error: Dict entry 0 has incompatible type
-utils\supply_chain_builder.py:206:9: error: Returning Any from function
-utils\stop_loss.py:122:67: error: Unsupported operand types for / ("None" and
-utils\social_security_etf.py:105:24: error: "object" has no attribute
-utils\social_security_etf.py:124:24: error: "object" has no attribute
-utils\social_security_etf.py:150:34: error: Argument 1 to "len" has
-utils\social_security_etf.py:151:36: error: Argument 1 to "len" has
-utils\social_security_etf.py:152:49: error: Value of type "object" is not
-utils\social_security_etf.py:153:31: error: Value of type "object" is not
-utils\social_security_etf.py:198:30: error: Unsupported operand type for unary
-utils\social_security_etf.py:201:30: error: Unsupported operand type for unary
-utils\social_security_etf.py:204:30: error: Unsupported operand type for unary
-utils\social_security_etf.py:249:13: error: Unsupported operand types for +
-utils\social_security_etf.py:252:17: error: Unsupported operand types for +
-utils\social_security_etf.py:254:17: error: Unsupported operand types for +
-utils\social_security_etf.py:256:13: error: "object" has no attribute "append" 
-utils\social_security_etf.py:260:16: error: Unsupported operand types for <=
-utils\social_security_etf.py:262:18: error: Unsupported operand types for >=
-utils\social_security_etf.py:264:18: error: Unsupported operand types for <
-utils\social_security_etf.py:286:41: error: Incompatible default for parameter
-utils\social_security_etf.py:307:17: error: Argument 1 to
-utils\social_security_etf.py:311:13: error: "Collection[Any]" has no attribute
-utils\social_security_etf.py:316:54: error: Value of type "object" is not
-utils\social_security_etf.py:321:49: error: Incompatible default for parameter
-utils\social_security_etf.py:321:71: error: Incompatible default for parameter
+quant_modules\ai_hedge_fund\utils\api_key.py:7:12: error: Incompatible return
+utils\alpha\__init__.py:32:5: error: Module "utils.alpha" has no attribute
+utils\alpha\__init__.py:44:38: error: Argument 1 to "module_from_spec" has
+utils\alpha\__init__.py:46:9: error: Item "None" of "ModuleSpec | None" has no
+utils\alpha\__init__.py:46:9: error: Item "None" of "Loader | Any | None" has
+utils\value_investing\financial_rigor.py:206:16: error: Invalid index type
+utils\value_investing\financial_rigor.py:206:21: error: No overload variant of
+utils\value_investing\financial_rigor.py:207:20: error: No overload variant of
+utils\value_investing\financial_rigor.py:214:10: error: No overload variant of
+utils\value_investing\financial_rigor.py:278:18: error: Incompatible types in
+utils\value_investing\financial_rigor.py:281:20: error: Too few arguments
+utils\value_investing\financial_rigor.py:284:5: error: Returning Any from
+utils\value_investing\morningstar_fair_value.py:39:5: error: Returning Any from
+utils\value_investing\momentum_backtest_v2.py:374:21: error: "Collection[str]"
+utils\pipeline\config.py:189:39: error: "object" not callable  [operator]
+quant_modules\ai_hedge_fund\llm_clients\openai_client.py:314:24: error:
+quant_modules\ai_hedge_fund\llm_clients\openai_client.py:352:51: error:
+scripts\adaptive_optimize.py:394:9: error: Unsupported target for indexed
+scripts\adaptive_optimize.py:398:9: error: Unsupported target for indexed
+scripts\adaptive_optimize.py:404:9: error: Unsupported target for indexed
+scripts\adaptive_optimize.py:437:16: error: Value of type "object" is not
+scripts\adaptive_optimize.py:438:17: error: Value of type "object" is not
+scripts\adaptive_optimize.py:439:17: error: Value of type "object" is not
+utils\wt_execution_algo.py:490:31: error: Incompatible types in assignment
+utils\web_content_extractor.py:127:13: error: Returning Any from function
+utils\v10_config_loader.py:82:9: error: Returning Any from function declared to
+utils\v10_config_loader.py:99:9: error: Returning Any from function declared to
+utils\v10_config_loader.py:104:9: error: Returning Any from function declared
+utils\v10_config_loader.py:109:9: error: Returning Any from function declared
+utils\v10_config_loader.py:114:9: error: Returning Any from function declared
+utils\v10_config_loader.py:164:9: error: Returning Any from function declared
+utils\v10_config_loader.py:169:9: error: Returning Any from function declared
+utils\v10_config_loader.py:174:9: error: Returning Any from function declared
+utils\v10_config_loader.py:179:9: error: Returning Any from function declared
+utils\v10_config_loader.py:184:9: error: Returning Any from function declared
+utils\v10_config_loader.py:189:9: error: Returning Any from function declared
+utils\v10_config_loader.py:194:9: error: Returning Any from function declared
+utils\trade_plan_validator.py:483:5: error: No return value expected
+utils\switchyard_adapter.py:204:21: error: Returning Any from function declared
+utils\switchyard_adapter.py:224:13: error: Returning Any from function declared
+utils\supply_chain_graph.py:388:13: error: Dict entry 0 has incompatible type
+utils\supply_chain_builder.py:237:9: error: Returning Any from function
+utils\stop_loss.py:124:36: error: Unsupported operand types for / ("None" and
+utils\shadow_30day_evaluator.py:358:34: error: Argument 1 to "_max" has
 utils\risk_attribution.py:90:13: error: Returning Any from function declared to
-utils\protective_put_engine.py:167:17: error: Returning Any from function
-utils\protective_put_engine.py:282:45: error: Argument 1 to
-utils\protective_put_engine.py:291:29: error: Unsupported operand types for *
+utils\protective_put_engine.py:130:34: error: Incompatible types in assignment
 utils\param_adjustment_governor.py:85:9: error: Returning Any from function
-utils\param_adjustment_governor.py:189:24: error: Unsupported left operand type
-utils\param_adjustment_governor.py:204:69: error: Argument 2 to
-utils\multi_strategy_coordinator.py:432:33: error: Incompatible types in
-utils\local_llm.py:60:35: error: Incompatible types in assignment (expression
-utils\local_llm.py:64:31: error: Incompatible types in assignment (expression
-utils\local_llm.py:68:31: error: Incompatible types in assignment (expression
-utils\local_llm.py:72:31: error: Incompatible types in assignment (expression
-utils\local_llm.py:156:20: error: Incompatible return value type (got
-utils\local_llm.py:213:9: error: Returning Any from function declared to return
-utils\kondratiev_cycle.py:136:17: error: Value of type "object" is not
-utils\kondratiev_cycle.py:139:22: error: "object" has no attribute "get" 
-utils\kondratiev_cycle.py:145:29: error: Value of type "object" is not
-utils\kondratiev_cycle.py:146:27: error: Value of type "object" is not
-utils\kondratiev_cycle.py:148:68: error: Value of type "object" is not
-utils\kondratiev_cycle.py:153:22: error: "object" has no attribute "get" 
-utils\kondratiev_cycle.py:180:22: error: "object" has no attribute "get" 
-utils\kondratiev_cycle.py:186:48: error: "object" has no attribute "__iter__";
-utils\kondratiev_cycle.py:210:22: error: "object" has no attribute "get" 
-utils\kondratiev_cycle.py:260:47: error: Incompatible default for parameter
-utils\five_year_plan.py:392:29: error: Value of type "object" is not indexable 
-utils\five_year_plan.py:400:50: error: Incompatible default for parameter
-utils\five_year_plan.py:424:21: error: "object" has no attribute "items" 
-utils\five_year_plan.py:430:16: error: Unsupported operand types for <= ("int"
-utils\five_year_plan.py:432:18: error: Unsupported operand types for <= ("int"
-utils\five_year_plan.py:434:18: error: Unsupported operand types for <= ("int"
-utils\five_year_plan.py:441:26: error: Argument "key" to "sort" of "list" has
-utils\five_year_plan.py:441:36: error: Incompatible return value type (got
-utils\five_year_plan.py:446:56: error: Incompatible default for parameter
-utils\five_year_plan.py:491:49: error: Incompatible default for parameter
-utils\five_year_plan.py:491:71: error: Incompatible default for parameter
-utils\external_strategy_adapter.py:170:28: error: "None" not callable  [misc]
-utils\cli_helpers.py:90:17: error: Returning Any from function declared to
-utils\cli_helpers.py:109:39: error: Incompatible default for parameter "code"
-utils\akshare_data_source.py:59:61: error: Incompatible types in assignment
-utils\akshare_data_source.py:62:59: error: Incompatible types in assignment
-utils\akshare_data_source.py:65:59: error: Incompatible types in assignment
-utils\akshare_data_source.py:124:41: error: Incompatible types in assignment
-utils\akshare_data_source.py:160:61: error: Incompatible types in assignment
-utils\akshare_data_source.py:177:59: error: Incompatible types in assignment
-utils\akshare_data_source.py:287:61: error: Incompatible types in assignment
-utils\akshare_data_source.py:292:59: error: Incompatible types in assignment
-utils\universe\risk_filter.py:201:26: error: Incompatible types in assignment
-utils\infra\safe_math.py:66:23: error: Argument 1 to "float" has incompatible
-utils\infra\safe_math.py:78:22: error: Argument 1 to "float" has incompatible
-utils\infra\safe_math.py:117:21: error: Generator has incompatible item type
-utils\infra\safe_math.py:117:27: error: Argument 1 to "float" has incompatible
-utils\infra\safe_math.py:143:23: error: Argument 1 to "float" has incompatible
-utils\infra\safe_math.py:165:23: error: Argument 1 to "float" has incompatible
-utils\infra\safe_math.py:198:43: error: Argument "default" to "safe_div" has
-utils\infra\safe_math.py:216:29: error: Argument 1 to "float" has incompatible
-utils\infra\safe_math.py:217:31: error: Argument 1 to "float" has incompatible
-utils\infra\safe_math.py:231:20: error: Argument 1 to "len" has incompatible
-utils\fineng\tail_risk_evt.py:373:9: error: Returning Any from function
+utils\param_adjustment_governor.py:194:24: error: Unsupported left operand type
+utils\onnxruntime_adapter.py:105:13: error: Returning Any from function
+utils\multi_strategy_coordinator.py:452:33: error: Incompatible types in
+utils\local_model_selector.py:175:9: error: Returning Any from function
+utils\local_llm.py:61:35: error: Incompatible types in assignment (expression
+utils\local_llm.py:66:31: error: Incompatible types in assignment (expression
+utils\local_llm.py:70:31: error: Incompatible types in assignment (expression
+utils\local_llm.py:74:31: error: Incompatible types in assignment (expression
+utils\local_llm.py:158:20: error: Incompatible return value type (got
+utils\local_llm.py:217:9: error: Returning Any from function declared to return
+utils\five_year_plan.py:499:33: error: Value of type "object" is not indexable
+utils\five_year_plan.py:532:21: error: "object" has no attribute "items"
+utils\five_year_plan.py:537:16: error: Unsupported operand types for <= ("int"
+utils\five_year_plan.py:539:18: error: Unsupported operand types for <= ("int"
+utils\five_year_plan.py:541:18: error: Unsupported operand types for <= ("int"
+utils\five_year_plan.py:548:26: error: Argument "key" to "sort" of "list" has
+utils\five_year_plan.py:548:36: error: Incompatible return value type (got
+utils\external_strategy_adapter.py:195:28: error: "None" not callable  [misc]
+utils\execution_algo_engine.py:594:13: error: Name "slice_end" already defined
+utils\execution_algo_engine.py:601:29: error: Incompatible types in assignment
+utils\execution_algo_engine.py:611:30: error: "int" has no attribute "strftime"
+utils\execution_algo_engine.py:618:29: error: Incompatible types in assignment
+utils\cli_helpers.py:89:17: error: Returning Any from function declared to
+utils\cli_helpers.py:108:39: error: Incompatible default for parameter "code"
+utils\universe\risk_filter.py:220:9: error: Incompatible types in assignment
+utils\risk\risk_event.py:278:20: error: Missing type arguments for generic type
+utils\risk\risk_audit_logger.py:68:14: error: Missing type arguments for
+utils\risk\risk_audit_logger.py:122:18: error: Missing type arguments for
+utils\risk\kill_switch_manager.py:51:14: error: Missing type arguments for
+utils\risk\intraday_circuit_breaker.py:124:27: error: Missing type arguments
+utils\llm_evolution\hypothesis_verifier.py:294:9: error: Returning Any from
+utils\infra\safe_math.py:67:23: error: Argument 1 to "float" has incompatible
+utils\infra\safe_math.py:79:22: error: Argument 1 to "float" has incompatible
+utils\infra\safe_math.py:116:21: error: Generator has incompatible item type
+utils\infra\safe_math.py:116:27: error: Argument 1 to "float" has incompatible
+utils\infra\safe_math.py:144:23: error: Argument 1 to "float" has incompatible
+utils\infra\safe_math.py:166:23: error: Argument 1 to "float" has incompatible
+utils\infra\safe_math.py:202:17: error: Argument "default" to "safe_div" has
+utils\infra\safe_math.py:223:29: error: Argument 1 to "float" has incompatible
+utils\infra\safe_math.py:224:31: error: Argument 1 to "float" has incompatible
+utils\infra\safe_math.py:240:20: error: Argument 1 to "len" has incompatible
+utils\infra\ecl\event_store.py:136:17: error: Returning Any from function
+utils\infra\ecl\event_store.py:145:24: error: Argument 1 to "int" has
+utils\fineng\tail_risk_evt.py:371:9: error: Returning Any from function
 utils\fineng\tail_risk_evt.py:496:9: error: Dict entry 5 has incompatible type
-utils\execution\broker_adapters.py:139:9: error: Too many arguments for
-utils\execution\broker_adapters.py:188:35: error: Variable
-utils\execution\broker_adapters.py:197:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:197:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:198:53: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:202:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:211:33: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:213:31: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:220:37: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:222:59: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:227:74: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:228:32: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:234:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:234:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:235:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:239:33: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:322:39: error: Variable
-utils\execution\broker_adapters.py:338:29: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:340:51: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:345:66: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:349:21: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:351:24: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:353:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:353:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:354:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:360:33: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:369:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:369:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:370:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:374:33: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:398:39: error: Variable
-utils\execution\broker_adapters.py:534:39: error: Variable
-utils\execution\broker_adapters.py:543:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:544:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:545:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:546:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:548:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:548:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:555:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:556:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:557:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:558:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:560:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:560:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:562:9: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:562:24: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:563:9: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:668:39: error: Variable
-utils\execution\broker_adapters.py:671:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:671:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:672:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:680:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:681:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:682:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:683:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:685:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:685:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:690:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:690:32: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:691:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:698:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:699:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:700:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:701:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:703:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:703:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:705:9: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:705:24: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:706:9: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:846:39: error: Variable
-utils\execution\broker_adapters.py:849:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:849:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:850:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:858:32: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:860:36: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:863:36: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:864:43: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:873:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:873:32: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:874:17: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:876:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:876:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:879:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:879:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:880:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:885:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:885:28: error: Item "None" of "Any | None"
-utils\execution\broker_adapters.py:886:13: error: BrokerOrder? has no attribute
-utils\execution\broker_adapters.py:903:13: error: Returning Any from function
-utils\alpha\data_contract.py:406:9: error: Need type annotation for
-utils\alpha\data_contract.py:427:9: error: Need type annotation for
-utils\directional_futures_trader.py:190:22: error: Argument "name" to
-utils\directional_futures_trader.py:464:22: error: Argument "name" to
-utils\directional_futures_trader.py:465:26: error: Argument "exchange" to
-utils\directional_futures_trader.py:493:18: error: Argument "name" to
-utils\directional_futures_trader.py:494:22: error: Argument "exchange" to
-utils\directional_futures_trader.py:713:27: error: Argument 1 to "append" of
+utils\execution\broker_adapters.py:152:9: error: Too many arguments for
+utils\execution\broker_adapters.py:1049:13: error: Returning Any from function
+utils\auto_hedge_rebalance\target_monitor.py:97:17: error: Returning Any from
+utils\auto_hedge_rebalance\audit_logger.py:325:13: error: Returning Any from
+utils\alpha\model_registry.py:584:17: error: Incompatible types in assignment
+utils\value_investing\report_audit.py:72:16: error: Incompatible return value
 utils\fineng\path_simulator.py:200:13: error: Returning Any from function
 utils\fineng\path_simulator.py:209:13: error: Returning Any from function
 utils\fineng\path_simulator.py:215:34: error: Argument 1 to "_box_muller" of
-ms_strategy\src\execution\smart_order_router.py:190:9: error: Need type
-ms_strategy\src\execution\smart_order_router.py:272:27: error: "BrokerAPI" has
-ms_strategy\src\execution\smart_order_router.py:299:32: error: Argument 1 to
-ms_strategy\src\execution\smart_order_router.py:372:30: error: Item "None" of
-ms_strategy\src\execution\smart_order_router.py:385:23: error: "BrokerAPI" has
-ms_strategy\src\execution\smart_order_router.py:394:26: error: Item "None" of
-utils\logging_manager.py:115:25: error: Incompatible types in assignment
+utils\alpha_factor\alpha_cfg.py:406:23: error: Incompatible types in assignment
+utils\value_investing\momentum_backtest.py:487:27: error: "Collection[str]" has
+utils\value_investing\momentum_backtest.py:566:30: error: "Collection[str]" has
+utils\alpha\omni_route_client.py:307:13: error: Returning Any from function
+utils\alpha\omni_route_client.py:513:5: error: Returning Any from function
+ms_strategy\src\execution\smart_order_router.py:208:9: error: Need type
+ms_strategy\src\execution\smart_order_router.py:317:32: error: Argument 1 to
+ms_strategy\src\execution\smart_order_router.py:418:30: error: Item "None" of
+ms_strategy\src\execution\smart_order_router.py:440:26: error: Item "None" of
+utils\logging_manager.py:131:25: error: Incompatible types in assignment
 utils\gtja191_factors.py:28:1: error: Module "utils.vibe_trading_adapter" has
 utils\gtja191_factors.py:69:9: error: Returning Any from function declared to
 utils\gtja191_factors.py:75:13: error: Returning Any from function declared to
-utils\gtja191_factors.py:117:9: error: Returning Any from function declared to
-utils\phase_manager.py:710:49: error: Item "None" of "dict[Any, Any] | None"
-utils\phase_manager.py:711:38: error: Item "None" of "dict[Any, Any] | None"
-utils\phase_manager.py:713:27: error: Item "None" of "dict[Any, Any] | None"
-utils\wt_backtest_engine.py:45:9: error: Need type annotation for "positions"
-utils\wt_backtest_engine.py:46:9: error: Need type annotation for "trades"
-utils\wt_backtest_engine.py:47:9: error: Need type annotation for "daily_pnl"
-utils\wt_backtest_engine.py:48:9: error: Need type annotation for
-utils\wt_backtest_engine.py:194:9: error: Returning Any from function declared
-utils\wt_backtest_engine.py:455:25: error: "type[BacktestDataLoader]" has no
-utils\liquidation_scheduler.py:281:12: error: Item "None" of
-utils\liquidation_scheduler.py:285:12: error: Item "None" of
+utils\gtja191_factors.py:137:9: error: Returning Any from function declared to
+utils\prompt_registry.py:293:13: error: Returning Any from function declared to
+utils\prompt_registry.py:302:46: error: Function
+utils\prompt_registry.py:306:37: error: Function
+utils\prompt_registry.py:331:9: error: Returning Any from function declared to
+utils\universe\stock_universe.py:322:26: error: Item "None" of "Any | None" has
+utils\universe\stock_universe.py:341:34: error: Item "None" of "Any | None" has
+utils\universe\stock_universe.py:444:26: error: Item "None" of "Any | None" has
+utils\wt_backtest_engine.py:711:16: error: Incompatible return value type (got
+utils\limit_pool_provider.py:147:40: error: Incompatible types in assignment
+utils\limit_pool_provider.py:226:21: error: Returning Any from function
 utils\adjust_factor_provider.py:168:40: error: Incompatible types in assignment
-utils\alpha\omni_route_client.py:287:13: error: Returning Any from function
-utils\alpha\omni_route_client.py:471:5: error: Returning Any from function
-utils\event_tracker.py:37:69: error: Incompatible default for parameter
-utils\event_tracker.py:38:43: error: Incompatible default for parameter
-utils\event_tracker.py:66:74: error: Incompatible default for parameter
-utils\event_tracker.py:67:50: error: Incompatible default for parameter
-utils\event_tracker.py:67:70: error: Incompatible default for parameter
-utils\event_tracker.py:68:76: error: Incompatible default for parameter
-utils\event_tracker.py:95:83: error: Incompatible default for parameter
-    ...tion_error(self, operation: str, error: str, start_time: float = None,
-utils\event_tracker.py:96:47: error: Incompatible default for parameter
-utils\event_tracker.py:96:67: error: Incompatible default for parameter
-utils\event_tracker.py:119:76: error: Incompatible default for parameter
-utils\event_tracker.py:131:52: error: Incompatible default for parameter
-utils\event_tracker.py:160:61: error: Incompatible default for parameter "data"
-utils\event_tracker.py:183:34: error: Incompatible default for parameter
-utils\event_tracker.py:183:60: error: Incompatible default for parameter
-utils\data_source_manager.py:132:55: error: Incompatible default for parameter
-utils\data_source_manager.py:145:74: error: Incompatible default for parameter
-utils\ai_coordinator.py:79:33: error: Incompatible default for parameter
-utils\ai_coordinator.py:79:59: error: Incompatible default for parameter
-utils\ai_coordinator.py:98:43: error: Incompatible default for parameter
-utils\ai_coordinator.py:306:9: error: Need type annotation for "all_tickers"
-utils\ai_coordinator.py:349:43: error: Incompatible default for parameter
-utils\ai_coordinator.py:389:50: error: Incompatible default for parameter
-utils\ai_coordinator.py:389:70: error: Incompatible default for parameter
+utils\risk\order_lifecycle_tracker.py:138:15: error: Missing type arguments for
+utils\risk\order_lifecycle_tracker.py:232:19: error: Missing type arguments for
+utils\risk\gradual_rollout_orchestrator.py:126:19: error: Missing type
+utils\risk\live_order_executor.py:97:15: error: Missing type arguments for
+shadow_account_system.py:369:17: error: Argument 1 to "len" has incompatible
+utils\alpha\shadow_fills_integrator.py:118:13: error: Returning Any from
+utils\stress_test_runner.py:345:13: error: Name "send_alert" already defined
 utils\research_distiller.py:49:10: error: Incompatible types in assignment
-utils\astock_realtime.py:157:17: error: Returning Any from function declared to
-utils\annual_return_forecast.py:48:5: error: Item "TextIO" of "TextIO | Any"
+utils\astock_realtime.py:187:17: error: Returning Any from function declared to
 utils\annual_return_forecast.py:49:5: error: Item "TextIO" of "TextIO | Any"
-utils\annual_return_forecast.py:131:13: error: Returning Any from function
-utils\evolution\feedback_loop.py:548:9: error: Need type annotation for
-utils\alpha\strategy_evaluator.py:438:9: error: Returning Any from function
-utils\alpha\strategy_evaluator.py:618:9: error: Returning Any from function
-utils\execution\broker_factory.py:34:9: error: Missing positional argument
-utils\universe\stock_universe.py:275:26: error: Item "None" of "Any | None" has
-utils\universe\stock_universe.py:294:34: error: Item "None" of "Any | None" has
-utils\universe\stock_universe.py:377:26: error: Item "None" of "Any | None" has
-utils\evolution\eod_feedback_integration.py:310:18: error: Unexpected keyword
-utils\evolution\tests\backtest_feedback_loop.py:292:5: error: Returning Any
-utils\attribution\daily_panel.py:867:13: error: Unsupported left operand type
-utils\pipeline\execution_pipeline.py:63:37: error: Incompatible types in
-utils\pipeline\execution_pipeline.py:73:38: error: Incompatible types in
-utils\pipeline\execution_pipeline.py:83:32: error: Incompatible types in
-utils\positions_loader.py:57:9: error: Returning Any from function declared to
-utils\positions_loader.py:66:17: error: Returning Any from function declared to
-utils\positions_loader.py:67:13: error: Returning Any from function declared to
-utils\positions_loader.py:71:17: error: Returning Any from function declared to
-utils\positions_loader.py:74:9: error: Returning Any from function declared to
-utils\positions_loader.py:115:16: error: Incompatible return value type (got
-utils\risk\kill_switch_adapter.py:209:13: error: Name "level" already defined
-utils\risk\kill_switch_adapter.py:214:23: error: Argument "level" to
-utils\risk\kill_switch_adapter.py:215:60: error: Unsupported operand types for
-utils\weather_data_adapter.py:65:17: error: Incompatible types in assignment
-utils\weather_data_adapter.py:206:24: error: Dict entry 0 has incompatible type
-utils\weather_data_adapter.py:206:38: error: Dict entry 1 has incompatible type
-utils\weather_data_adapter.py:255:30: error: Cannot determine type of
-utils\weather_data_adapter.py:301:17: error: Returning Any from function
-utils\weather_data_adapter.py:328:13: error: Returning Any from function
-utils\weather_data_adapter.py:340:13: error: Returning Any from function
-utils\weather_data_adapter.py:361:17: error: Returning Any from function
-utils\weather_data_adapter.py:460:20: error: Incompatible types in assignment
-utils\weather_data_adapter.py:559:20: error: Incompatible types in assignment
-utils\theta_engine.py:225:13: error: Incompatible types in assignment
-utils\tdam_client.py:352:28: error: Dict entry 0 has incompatible type "str":
-utils\tdam_client.py:352:42: error: Dict entry 1 has incompatible type "str":
-utils\tdam_client.py:761:17: error: Returning Any from function declared to
-utils\tdam_client.py:861:13: error: Returning Any from function declared to
-utils\multi_model_router.py:134:27: error: Incompatible types in assignment
-utils\multi_model_router.py:136:19: error: Argument 1 to "open" has
-utils\multi_model_router.py:566:65: error: Argument "json" to "post" of
-utils\multi_model_router.py:613:65: error: Argument "json" to "post" of
-utils\media_crawler_adapter.py:223:34: error: Dict entry 0 has incompatible
-utils\media_crawler_adapter.py:223:48: error: Dict entry 1 has incompatible
-utils\media_crawler_adapter.py:305:17: error: Returning Any from function
-utils\media_crawler_adapter.py:468:24: error: Argument "params" to "get" of
+utils\annual_return_forecast.py:50:5: error: Item "TextIO" of "TextIO | Any"
+utils\annual_return_forecast.py:134:13: error: Returning Any from function
+utils\attribution\factor_attribution.py:462:13: error: Incompatible types in
+utils\attribution\factor_attribution.py:468:13: error: Incompatible types in
+utils\alpha\strategy_evaluator.py:479:9: error: Returning Any from function
+utils\alpha\strategy_evaluator.py:674:9: error: Returning Any from function
+utils\feature_store\online_store.py:52:13: error: "None" has no attribute
+utils\feature_store\online_store.py:100:13: error: "None" has no attribute
+utils\feature_store\online_store.py:135:13: error: Returning Any from function
+utils\feature_store\online_store.py:142:19: error: "None" has no attribute
+utils\feature_store\online_store.py:145:13: error: Returning Any from function
+utils\feature_store\offline_store.py:72:13: error: "None" has no attribute
+utils\feature_store\offline_store.py:141:17: error: "None" has no attribute
+utils\feature_store\offline_store.py:190:22: error: "None" has no attribute
+quant_modules\ai_hedge_fund\utils\progress.py:61:60: error: Dict entry 1 has
+quant_modules\ai_hedge_fund\utils\progress.py:76:13: error: Too many arguments
+utils\phase_manager.py:484:13: error: Dict entry 0 has incompatible type "str":
+utils\ai_coordinator.py:35:5: error: All conditional function variants must
+utils\ai_coordinator.py:282:17: error: Incompatible types in assignment
+utils\ai_coordinator.py:360:18: error: Item "None" of "Any | None" has no
+utils\ai_coordinator.py:380:9: error: Returning Any from function declared to
+utils\ai_coordinator.py:642:18: error: Item "None" of "Any | None" has no
+utils\ai_coordinator.py:667:9: error: Returning Any from function declared to
+utils\ai_coordinator.py:885:9: error: Returning Any from function declared to
+utils\market_circuit_breaker.py:260:26: error: Argument 1 to "float" has
+utils\market_circuit_breaker.py:264:26: error: Argument 1 to "float" has
+utils\evolution\tests\backtest_feedback_loop.py:302:5: error: Returning Any
+utils\attribution\daily_panel.py:1099:17: error: "type" has no attribute
+utils\attribution\daily_panel.py:1111:25: error: "type" has no attribute
+utils\attribution\daily_panel.py:1122:25: error: "type" has no attribute
+utils\attribution\daily_panel.py:1132:17: error: "type" has no attribute
+utils\attribution\daily_panel.py:1271:21: error: "type" has no attribute
+utils\pipeline\execution_pipeline.py:64:37: error: Incompatible types in
+utils\pipeline\execution_pipeline.py:84:38: error: Incompatible types in
+utils\pipeline\execution_pipeline.py:104:32: error: Incompatible types in
+utils\backtest\event_driven_engine.py:453:13: error: Name "curve" already
+utils\backtest\event_driven_engine.py:454:13: error: Name "timestamps" already
+utils\backtest\event_driven_engine.py:626:23: error: Incompatible types in
+utils\backtest\event_driven_engine.py:639:23: error: Incompatible types in
+utils\backtest\vectorbt_bridge.py:177:18: error: Incompatible types in
+utils\backtest\vectorbt_bridge.py:480:28: error: "object" has no attribute
+quant_modules\ai_hedge_fund\utils\llm.py:107:42: error: Incompatible types in
+quant_modules\ai_hedge_fund\utils\llm.py:109:42: error: Incompatible types in
+quant_modules\ai_hedge_fund\utils\llm.py:112:17: error: Item "None" of
+quant_modules\ai_hedge_fund\utils\llm.py:114:42: error: Incompatible types in
+quant_modules\ai_hedge_fund\utils\llm.py:118:46: error: Item "None" of
+quant_modules\ai_hedge_fund\utils\llm.py:120:46: error: Incompatible types in
+quant_modules\ai_hedge_fund\agents\hedge_analyst.py:170:19: error: Argument
+quant_modules\ai_hedge_fund\agents\hedge_analyst.py:181:44: error: "BaseModel"
+quant_modules\ai_hedge_fund\agents\hedge_analyst.py:182:27: error: "BaseModel"
+quant_modules\ai_hedge_fund\agents\hedge_analyst.py:183:28: error: "BaseModel"
+quant_modules\ai_hedge_fund\agents\hedge_analyst.py:184:30: error: "BaseModel"
+quant_modules\ai_hedge_fund\agents\hedge_analyst.py:185:26: error: "BaseModel"
+utils\llm_gateway\litellm_router.py:324:13: error: Returning Any from function
+utils\alpha\llm\consensus.py:147:9: error: Returning Any from function declared
+utils\alpha\llm\consensus.py:152:17: error: Returning Any from function
+utils\alpha\llm\consensus.py:197:17: error: Returning Any from function
+utils\alpha\llm\consensus.py:205:17: error: Returning Any from function
+utils\alpha\llm\consensus.py:213:17: error: Returning Any from function
+utils\risk\risk_bus.py:117:28: error: Missing type arguments for generic type
+utils\risk\risk_bus.py:118:36: error: Missing type arguments for generic type
+utils\positions_loader.py:58:9: error: Returning Any from function declared to
+utils\positions_loader.py:67:17: error: Returning Any from function declared to
+utils\positions_loader.py:68:13: error: Returning Any from function declared to
+utils\positions_loader.py:72:17: error: Returning Any from function declared to
+utils\positions_loader.py:75:9: error: Returning Any from function declared to
+utils\positions_loader.py:116:16: error: Incompatible return value type (got
+utils\pipeline_signal_mixin.py:29:14: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:175:40: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:184:12: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:188:21: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:192:29: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:205:34: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:218:25: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:243:12: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:244:70: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:248:34: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:258:37: error: Argument 1 to "float" has
+utils\pipeline_signal_mixin.py:271:30: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:297:13: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:307:12: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:308:70: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:356:27: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:374:30: error: "SignalMixin" has no attribute
+utils\pipeline_signal_mixin.py:391:13: error: "SignalMixin" has no attribute
+utils\risk\kill_switch_adapter.py:218:13: error: Name "level" already defined
+utils\risk\kill_switch_adapter.py:227:23: error: Argument "level" to
+utils\risk\kill_switch_adapter.py:228:60: error: Unsupported operand types for
+utils\risk\cvar.py:287:34: error: Missing type arguments for generic type
+utils\risk\cvar.py:339:39: error: Missing type arguments for generic type
+quant_modules\ai_hedge_fund\data_adapter.py:33:5: error: Name "Price" already
+quant_modules\ai_hedge_fund\data_adapter.py:42:5: error: Name
+quant_modules\ai_hedge_fund\data_adapter.py:89:5: error: Name "LineItem"
+quant_modules\ai_hedge_fund\data_adapter.py:109:5: error: Name "InsiderTrade"
+quant_modules\ai_hedge_fund\data_adapter.py:119:5: error: Name "CompanyNews"
+quant_modules\ai_hedge_fund\data_adapter.py:369:31: error: Argument 1 to
+quant_modules\ai_hedge_fund\data_adapter.py:369:31: error: Argument 1 to
+tools\wind_mcp_fetcher.py:179:22: error: Argument "json" to "post" has
+tools\wind_mcp_fetcher.py:181:26: error: Dict entry 0 has incompatible type
+tools\wind_mcp_fetcher.py:181:40: error: Dict entry 1 has incompatible type
+tools\wind_mcp_fetcher.py:269:22: error: Argument "json" to "post" has
+tools\wind_mcp_fetcher.py:271:26: error: Dict entry 0 has incompatible type
+tools\wind_mcp_fetcher.py:271:40: error: Dict entry 1 has incompatible type
+tools\wind_mcp_fetcher.py:394:24: error: Incompatible types in assignment
+tools\wind_mcp_fetcher.py:400:24: error: Incompatible types in assignment
+tools\wind_mcp_fetcher.py:661:36: error: Incompatible types in assignment
+utils\weather_data_adapter.py:63:17: error: Incompatible types in assignment
+utils\weather_data_adapter.py:210:24: error: Dict entry 0 has incompatible type
+utils\weather_data_adapter.py:210:38: error: Dict entry 1 has incompatible type
+utils\weather_data_adapter.py:262:30: error: Cannot determine type of
+utils\weather_data_adapter.py:322:17: error: Returning Any from function
+utils\weather_data_adapter.py:352:13: error: Returning Any from function
+utils\weather_data_adapter.py:373:13: error: Returning Any from function
+utils\weather_data_adapter.py:398:17: error: Returning Any from function
+utils\weather_data_adapter.py:505:20: error: Incompatible types in assignment
+utils\weather_data_adapter.py:629:20: error: Incompatible types in assignment
+utils\trendsonar_adapter.py:178:34: error: Dict entry 0 has incompatible type
+utils\trendsonar_adapter.py:178:48: error: Dict entry 1 has incompatible type
+utils\trendsonar_adapter.py:202:17: error: Returning Any from function declared
+utils\trendsonar_adapter.py:226:17: error: Returning Any from function declared
+utils\trendsonar_adapter.py:332:17: error: Returning Any from function declared
+utils\trendsonar_adapter.py:404:17: error: Returning Any from function declared
+utils\trendsonar_adapter.py:458:17: error: Returning Any from function declared
+utils\trendsonar_adapter.py:519:17: error: Returning Any from function declared
+utils\trendsonar_adapter.py:591:24: error: Argument "params" to "get" of
+utils\trendsonar_adapter.py:657:17: error: Returning Any from function declared
+utils\theta_engine.py:291:13: error: Incompatible types in assignment
+utils\tdam_client.py:359:28: error: Dict entry 0 has incompatible type "str":
+utils\tdam_client.py:359:42: error: Dict entry 1 has incompatible type "str":
+utils\tdam_client.py:797:17: error: Returning Any from function declared to
+utils\tdam_client.py:906:13: error: Returning Any from function declared to
+utils\multi_model_router.py:140:27: error: Incompatible types in assignment
+utils\multi_model_router.py:142:19: error: Argument 1 to "open" has
+utils\multi_model_router.py:642:45: error: Argument "json" to "post" of
+utils\multi_model_router.py:690:45: error: Argument "json" to "post" of
+utils\media_crawler_adapter.py:225:34: error: Dict entry 0 has incompatible
+utils\media_crawler_adapter.py:225:48: error: Dict entry 1 has incompatible
+utils\media_crawler_adapter.py:315:17: error: Returning Any from function
+utils\media_crawler_adapter.py:487:24: error: Argument "params" to "get" of
+utils\macro_weather.py:146:46: error: Argument 1 to "get_temperature" of
+utils\macro_weather.py:146:58: error: Argument 2 to "get_temperature" of
+utils\macro_weather.py:195:46: error: Argument 1 to "get_temperature" of
+utils\macro_weather.py:195:58: error: Argument 2 to "get_temperature" of
+utils\macro_weather.py:196:50: error: Argument 1 to "get_precipitation" of
+utils\macro_weather.py:196:62: error: Argument 2 to "get_precipitation" of
+utils\macro_weather.py:225:13: error: Returning Any from function declared to
+utils\macro_weather.py:234:59: error: Item "None" of "Response | None" has no
 utils\http_session.py:110:24: error: Dict entry 0 has incompatible type "str":
 utils\http_session.py:110:38: error: Dict entry 1 has incompatible type "str":
-utils\hedge_execution_engine.py:98:48: error: Incompatible types in assignment
-utils\hedge_execution_engine.py:127:13: error: "None" has no attribute "record"
-utils\hedge_execution_engine.py:158:35: error: Incompatible types in assignment
-utils\graph_data_source.py:156:28: error: Incompatible types in assignment
-utils\graph_data_source.py:166:28: error: Incompatible types in assignment
-utils\graph_data_source.py:226:9: error: Returning Any from function declared
-utils\graph_data_source.py:292:9: error: Returning Any from function declared
-utils\graph_data_source.py:309:9: error: Need type annotation for "params"
-utils\graph_data_source.py:320:9: error: Returning Any from function declared
-utils\graph_data_source.py:379:9: error: Returning Any from function declared
-utils\graph_data_source.py:436:9: error: Need type annotation for "params"
-utils\graph_data_source.py:480:13: error: Returning Any from function declared
-utils\graph_data_source.py:486:51: error: Argument 2 to "_save_board_cache" of
-utils\graph_data_source.py:489:9: error: Returning Any from function declared
-utils\glm5_client.py:70:29: error: Incompatible types in assignment (expression
-utils\glm5_client.py:72:29: error: Incompatible types in assignment (expression
-utils\glm5_client.py:74:25: error: Incompatible types in assignment (expression
-utils\glm5_client.py:76:30: error: Incompatible types in assignment (expression
-utils\glm5_client.py:78:30: error: Incompatible types in assignment (expression
-utils\glm5_client.py:80:36: error: Incompatible types in assignment (expression
-utils\glm5_client.py:82:42: error: Argument 1 to "int" has incompatible type
-utils\glm5_client.py:86:1: error: Need type annotation for "_model_cache"
-utils\glm5_client.py:286:5: error: Missing return statement  [return]
-utils\glm5_client.py:347:33: error: Item "None" of "Any | None" has no
-utils\glm5_client.py:459:32: error: Item "None" of "Any | None" has no
-utils\glm5_client.py:604:22: error: Item "None" of "Any | None" has no
-utils\glm5_client.py:671:9: error: Returning Any from function declared to
-utils\glm5_client.py:708:9: error: Returning Any from function declared to
-utils\glm5_client.py:769:5: error: Returning Any from function declared to
-utils\glm5_client.py:776:5: error: Returning Any from function declared to
-utils\external_data_source.py:50:21: error: Dict entry 0 has incompatible type
-utils\external_data_source.py:50:35: error: Dict entry 1 has incompatible type
-utils\external_data_source.py:149:45: error: Argument "params" to "get" of
-utils\external_data_source.py:289:45: error: Argument "params" to "get" of
-utils\external_data_source.py:632:43: error: Incompatible types in assignment
-utils\akshare_futures.py:157:24: error: Dict entry 0 has incompatible type
-utils\akshare_futures.py:157:38: error: Dict entry 1 has incompatible type
-ms_strategy\src\backtest\cost_model.py:31:45: error: Incompatible default for
-ms_strategy\src\backtest\cost_model.py:195:45: error: Incompatible default for
-utils\wt_spread_strategy.py:130:49: error: Key expression in dictionary
-utils\wt_spread_strategy.py:131:48: error: Key expression in dictionary
-utils\wt_spread_strategy.py:143:21: error: No overload variant of "get" of
-utils\wt_spread_strategy.py:171:26: error: Argument "code" to "TradeData" has
-utils\wt_spread_strategy.py:173:31: error: Argument "direction" to "TradeData"
-utils\wt_spread_strategy.py:195:21: error: No overload variant of "get" of
-utils\wt_spread_strategy.py:215:26: error: Argument "code" to "TradeData" has
-utils\wt_risk_control.py:409:13: error: Returning Any from function declared to
-utils\wt_risk_control.py:462:49: error: Incompatible types in assignment
-utils\wt_risk_control.py:662:64: error: Argument 3 to "set_stop_loss" of
-utils\vol_target_controller.py:299:13: error: Returning Any from function
-utils\tf_price_predictor.py:123:13: error: "None" has no attribute "compile" 
-utils\tf_price_predictor.py:213:17: error: "type[TensorflowLSTMPredictor]" has
-utils\tf_price_predictor.py:217:17: error: "type[TensorflowLSTMPredictor]" has
-utils\tf_price_predictor.py:226:17: error: "None" has no attribute "keras" 
-utils\tf_price_predictor.py:228:17: error: "None" has no attribute "keras" 
-utils\tf_price_predictor.py:287:13: error: "None" has no attribute "fit" 
-utils\tf_price_predictor.py:303:37: error: "None" has no attribute "predict" 
-utils\tf_price_predictor.py:398:20: error: Incompatible types in assignment
+utils\graph_data_source.py:168:28: error: Incompatible types in assignment
+utils\graph_data_source.py:187:28: error: Incompatible types in assignment
+utils\graph_data_source.py:248:9: error: Returning Any from function declared
+utils\graph_data_source.py:316:9: error: Returning Any from function declared
+utils\graph_data_source.py:344:9: error: Returning Any from function declared
+utils\graph_data_source.py:406:9: error: Returning Any from function declared
+utils\graph_data_source.py:532:13: error: Returning Any from function declared
+utils\graph_data_source.py:538:51: error: Argument 2 to "_save_board_cache" of
+utils\graph_data_source.py:541:9: error: Returning Any from function declared
+utils\external_data_source.py:51:21: error: Dict entry 0 has incompatible type
+utils\external_data_source.py:51:35: error: Dict entry 1 has incompatible type
+utils\external_data_source.py:150:45: error: Argument "params" to "get" of
+utils\external_data_source.py:312:45: error: Argument "params" to "get" of
+utils\etf_flow_monitor.py:289:32: error: Dict entry 0 has incompatible type
+utils\etf_flow_monitor.py:289:46: error: Dict entry 1 has incompatible type
+utils\akshare_futures.py:23:19: error: Incompatible types in assignment
+utils\akshare_futures.py:154:24: error: Dict entry 0 has incompatible type
+utils\akshare_futures.py:154:38: error: Dict entry 1 has incompatible type
+utils\glm5_client.py:259:9: error: Returning Any from function declared to
+utils\glm5_client.py:285:5: error: Returning Any from function declared to
+lgb_trainer\news_sentiment.py:252:9: error: Name "wind_search_news_fn" already
+utils\wt_risk_control.py:476:25: error: "type" has no attribute "t"
+utils\wt_risk_control.py:786:64: error: Argument 3 to "set_stop_loss" of
+utils\risk_xray.py:396:5: error: Returning Any from function declared to return
 utils\risk_metrics.py:22:10: error: Incompatible types in assignment
-utils\risk_metrics.py:438:9: error: Returning Any from function declared to
-utils\market_impact_model.py:273:24: error: Incompatible types in assignment
-utils\market_impact_model.py:276:26: error: Unsupported operand type for unary
-utils\market_impact_model.py:290:18: error: Incompatible types in assignment
-utils\market_impact_model.py:314:22: error: "list[Any]" has no attribute
-utils\market_impact_model.py:316:20: error: "list[Any]" has no attribute
-utils\hedge_rebalance_backtest.py:202:41: error: Incompatible default for
-utils\hedge_rebalance_backtest.py:207:13: error: Cannot determine type of
-utils\hedge_rebalance_backtest.py:208:21: error: Cannot determine type of
-utils\hedge_rebalance_backtest.py:217:34: error: Cannot determine type of
-utils\hedge_rebalance_backtest.py:229:38: error: Cannot determine type of
-utils\hedge_rebalance_backtest.py:274:30: error: Cannot determine type of
-utils\hedge_rebalance_backtest.py:326:42: error: Cannot determine type of
-utils\hedge_rebalance_backtest.py:548:9: error: Need type annotation for "pos"
-utils\hedge_rebalance_backtest.py:609:50: error: Argument "equity_curve" to
-utils\hedge_rebalance_backtest.py:619:9: error: Need type annotation for "pos"
-utils\hedge_rebalance_backtest.py:698:50: error: Argument "equity_curve" to
-utils\hedge_rebalance_backtest.py:710:9: error: Need type annotation for "pos"
-utils\hedge_rebalance_backtest.py:726:17: error: Incompatible types in
-utils\hedge_rebalance_backtest.py:728:17: error: Incompatible types in
-utils\hedge_rebalance_backtest.py:731:23: error: Argument 1 to "append" of
-utils\hedge_rebalance_backtest.py:775:9: error: Incompatible types in
-utils\hedge_rebalance_backtest.py:797:9: error: Need type annotation for "pos"
-utils\hedge_rebalance_backtest.py:858:21: error: Incompatible types in
-utils\hedge_rebalance_backtest.py:863:17: error: Incompatible types in
-utils\hedge_rebalance_backtest.py:866:23: error: Argument 1 to "append" of
-utils\hedge_rebalance_backtest.py:949:9: error: Incompatible types in
-utils\hedge_rebalance_backtest.py:974:9: error: Need type annotation for "pos"
-utils\hedge_rebalance_backtest.py:994:47: error: Argument 1 to
-utils\hedge_rebalance_backtest.py:1038:21: error: Incompatible types in
-utils\hedge_rebalance_backtest.py:1043:17: error: Incompatible types in
-utils\hedge_rebalance_backtest.py:1046:23: error: Argument 1 to "append" of
-utils\hedge_rebalance_backtest.py:1123:9: error: Incompatible types in
-utils\universe\factor_scorer.py:86:9: error: Module
-utils\universe\factor_scorer.py:159:5: error: Module
-utils\evolution\strategy_generator.py:581:21: error: Value of type
-utils\evolution\strategy_generator.py:581:21: error: Unsupported target for
-utils\evolution\strategy_generator.py:729:9: error: Returning Any from function
-utils\alpha_factor\gat_factor_torch.py:138:19: error: "None" not callable 
-utils\alpha_factor\gat_factor_torch.py:139:16: error: "None" not callable 
-utils\alpha_factor\gat_factor_torch.py:153:9: error: Returning Any from
-utils\alpha_factor\gat_factor_torch.py:158:47: error: Item "None" of
-utils\alpha_factor\gat_factor_torch.py:159:49: error: Item "None" of
-utils\alpha_factor\gat_factor_torch.py:160:50: error: Item "None" of
-utils\alpha_factor\gat_factor_torch.py:161:68: error: Item "None" of
-utils\alpha_factor\gat_factor_torch.py:178:9: error: Item "None" of
-utils\alpha_factor\gat_factor_torch.py:179:9: error: Item "None" of
-utils\alpha_factor\gat_factor_torch.py:181:13: error: "None" has no attribute
-utils\alpha_factor\gat_factor_torch.py:186:13: error: "None" has no attribute
-utils\alpha_factor\gat_factor.py:69:37: error: Value of type
-utils\alpha_factor\gat_factor.py:75:46: error: Value of type
-utils\alpha_factor\gat_factor.py:76:47: error: Value of type
-utils\alpha_factor\gat_factor.py:91:9: error: Returning Any from function
-utils\alpha_factor\gat_factor.py:107:9: error: Returning Any from function
-utils\alpha_factor\gat_factor.py:147:13: error: No overload variant of
-utils\alpha_factor\gat_factor.py:148:13: error: No overload variant of
-utils\alpha_factor\gat_factor.py:171:18: error: Item "None" of
-utils\alpha_factor\gat_factor.py:182:18: error: Item "None" of
-utils\alpha_factor\base.py:327:31: error: Unsupported right operand type for in
-utils\alpha_factor\base.py:329:18: error: Value of type
-utils\alpha_factor\base.py:330:57: error: Argument 2 to
+utils\risk_metrics.py:532:9: error: Returning Any from function declared to
+utils\regime_gated_transformer.py:310:9: error: Returning Any from function
+utils\regime_gated_transformer.py:320:9: error: Returning Any from function
+utils\regime_aware_allocator.py:162:9: error: Returning Any from function
+utils\regime_aware_allocator.py:345:13: error: Returning Any from function
+utils\regime_aware_allocator.py:346:9: error: Returning Any from function
+utils\portfolio_optimizer_skfolio.py:138:9: error: Returning Any from function
+utils\portfolio_optimizer_skfolio.py:157:9: error: Returning Any from function
+utils\portfolio_optimizer_skfolio.py:175:13: error: Returning Any from function
+utils\portfolio_optimizer_skfolio.py:176:9: error: Returning Any from function
+utils\portfolio_optimizer_skfolio.py:205:9: error: Returning Any from function
+utils\portfolio_optimizer_skfolio.py:277:9: error: Returning Any from function
+utils\market_impact_model.py:444:9: error: Name "holdings" already defined on
+utils\market_impact_model.py:447:24: error: Incompatible types in assignment
+utils\market_impact_model.py:449:24: error: Incompatible types in assignment
+utils\market_impact_model.py:452:26: error: Unsupported operand type for unary
+utils\market_impact_model.py:458:63: error: Unsupported operand type for unary
+utils\market_impact_model.py:466:18: error: Incompatible types in assignment
+utils\market_impact_model.py:492:43: error: Unsupported operand types for **
+utils\market_impact_model.py:506:22: error: "list[Any]" has no attribute
+utils\market_impact_model.py:508:20: error: "list[Any]" has no attribute
+utils\kondratiev_cycle.py:176:17: error: Value of type "object" is not
+utils\kondratiev_cycle.py:179:22: error: "object" has no attribute "get"
+utils\kondratiev_cycle.py:185:29: error: Value of type "object" is not
+utils\kondratiev_cycle.py:186:27: error: Value of type "object" is not
+utils\kondratiev_cycle.py:188:68: error: Value of type "object" is not
+utils\kondratiev_cycle.py:193:22: error: "object" has no attribute "get"
+utils\kondratiev_cycle.py:225:22: error: "object" has no attribute "get"
+utils\kondratiev_cycle.py:230:48: error: "object" has no attribute "__iter__";
+utils\kondratiev_cycle.py:258:22: error: "object" has no attribute "get"
+utils\kondratiev_cycle.py:463:9: error: Need type annotation for
+utils\kondratiev_cycle.py:495:9: error: Need type annotation for
+utils\iv_surface_deep_hedge.py:174:9: error: Returning Any from function
+utils\iv_surface_deep_hedge.py:192:9: error: Returning Any from function
+utils\iv_surface_deep_hedge.py:399:45: error: Argument 2 to
+utils\factor_model.py:265:23: error: "None" not callable  [misc]
+utils\eval_flywheel.py:380:9: error: Need type annotation for "all_metrics"
+utils\delta_hedge_multi_agent.py:107:9: error: Returning Any from function
+utils\delta_hedge_multi_agent.py:113:9: error: Returning Any from function
+utils\delta_hedge_multi_agent.py:121:9: error: Returning Any from function
+utils\delta_hedge_multi_agent.py:142:9: error: Returning Any from function
+utils\delta_hedge_multi_agent.py:152:9: error: Returning Any from function
+utils\delta_hedge_multi_agent.py:181:9: error: Returning Any from function
+utils\delta_hedge_multi_agent.py:218:9: error: Returning Any from function
+utils\delta_hedge_multi_agent.py:222:9: error: Returning Any from function
+utils\delta_hedge_multi_agent.py:286:20: error: Argument 1 to "abs" has
+utils\delta_hedge_multi_agent.py:289:24: error: Unsupported operand types for /
+utils\delta_hedge_multi_agent.py:291:38: error: Unsupported operand types for *
+utils\deep_hedging_rl.py:222:9: error: Returning Any from function declared to
+utils\data_quality_monitor.py:1004:9: error: Name "pd" already defined on line
+utils\universe\factor_scorer.py:88:9: error: Module
+utils\universe\factor_scorer.py:172:5: error: Module
+utils\supply_chain_risk\train.py:397:28: error: Item "None" of "Any | None" has
+utils\supply_chain_risk\train.py:515:22: error: Incompatible types in
+utils\supply_chain_risk\train.py:522:26: error: "list[Any]" has no attribute
+utils\supply_chain_risk\train.py:523:25: error: "list[Any]" has no attribute
+utils\strategy_lib\pairs_trading.py:297:29: error: Argument "key" to "sort" of
+utils\strategy_lib\pairs_trading.py:297:39: error: Incompatible return value
+utils\strategy\etf_rotation\engine.py:353:9: error: Need type annotation for
+utils\strategy\etf_rotation\engine.py:354:9: error: Need type annotation for
+utils\strategy\etf_rotation\engine.py:362:39: error: Argument "key" to "max"
+utils\strategy\etf_rotation\engine.py:363:37: error: Argument "key" to "max"
+utils\infra\ecl\embeddings.py:118:15: error: "object" has no attribute "encode"
+utils\infra\ecl\embeddings.py:119:9: error: Returning Any from function
+utils\evolution\strategy_generator.py:626:21: error: Value of type
+utils\evolution\strategy_generator.py:626:21: error: Unsupported target for
+utils\evolution\strategy_generator.py:786:9: error: Returning Any from function
+utils\alpha_factor\gat_factor.py:70:25: error: Value of type
+utils\alpha_factor\gat_factor.py:78:33: error: Value of type
+utils\alpha_factor\gat_factor.py:81:33: error: Value of type
+utils\alpha_factor\gat_factor.py:97:9: error: Returning Any from function
+utils\alpha_factor\gat_factor.py:113:9: error: Returning Any from function
+utils\alpha_factor\gat_factor.py:153:13: error: No overload variant of
+utils\alpha_factor\gat_factor.py:154:13: error: No overload variant of
+utils\alpha_factor\gat_factor.py:179:18: error: Item "None" of
+utils\alpha_factor\gat_factor.py:190:18: error: Item "None" of
+utils\alpha_factor\base.py:403:31: error: Unsupported right operand type for in
+utils\alpha_factor\base.py:405:18: error: Value of type
+utils\alpha_factor\base.py:406:57: error: Argument 2 to
+utils\alpha_factor\base.py:797:41: error: "float" has no attribute "values"
+utils\alpha_factor\alpha_forge_combiner.py:76:9: error: Returning Any from
 utils\alpha\vibe_backtest_bridge.py:47:5: error: Module
 utils\alpha\vibe_backtest_bridge.py:146:13: error: Module
-utils\alpha\vibe_backtest_bridge.py:475:21: error: Dict entry 0 has
-utils\alpha\ml_enhanced_selector.py:159:24: error: Incompatible types in
-utils\alpha\ml_enhanced_selector.py:169:53: error: Unsupported operand types
-utils\alpha\ml_enhanced_selector.py:208:16: error: Redundant cast to
-utils\alpha\ml_enhanced_selector.py:506:16: error: Redundant cast to
-utils\weather_factor_engine.py:67:13: error: Returning Any from function
-utils\weather_factor_engine.py:205:13: error: Returning Any from function
-utils\weather_factor_engine.py:463:30: error: Incompatible types in assignment
-utils\weather_factor_engine.py:915:9: error: Returning Any from function
-utils\weather_factor_engine.py:951:9: error: Returning Any from function
-utils\weather_factor_engine.py:1013:21: error: Returning Any from function
-utils\web_scraper.py:53:5: error: Cannot assign to a type  [misc]
-utils\web_scraper.py:71:10: error: Incompatible types in assignment (expression
-utils\web_scraper.py:205:18: error: Dict entry 0 has incompatible type "str":
-utils\web_scraper.py:205:32: error: Dict entry 1 has incompatible type "str":
-utils\web_scraper.py:600:33: error: Argument 1 to "_parse_html" of "WebScraper"
-utils\web_scraper.py:827:17: error: Returning Any from function declared to
-utils\ifind_client.py:163:17: error: "Sequence[str]" has no attribute "append" 
-utils\ifind_client.py:172:21: error: "Sequence[str]" has no attribute "extend" 
-utils\ifind_client.py:180:25: error: "Sequence[str]" has no attribute "extend" 
-utils\ifind_client.py:185:17: error: "Sequence[str]" has no attribute "extend" 
-utils\ifind_client.py:287:22: error: Argument "json" to "post" of "Session" has
-utils\ifind_client.py:338:26: error: Argument "json" to "post" of "Session" has
-utils\ifind_client.py:366:23: error: Item "None" of
-utils\ifind_client.py:540:27: error: Argument "key" to "sort" of "list" has
-utils\ifind_client.py:540:37: error: Incompatible return value type (got
-utils\ifind_client.py:605:39: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:611:37: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:614:41: error: Argument 1 to "int" has incompatible type
-utils\ifind_client.py:620:43: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:623:42: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:626:48: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:629:50: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:632:44: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:637:52: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:641:43: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:644:41: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:649:43: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:652:43: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:655:42: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:658:48: error: Argument 1 to "float" has incompatible
-utils\ifind_client.py:662:41: error: Argument 1 to "float" has incompatible
-utils\llm_client.py:41:14: error: Incompatible types in assignment (expression
-utils\llm_client.py:66:9: error: Item "None" of "Logger | None" has no
-utils\llm_client.py:81:9: error: Item "None" of "Logger | None" has no
-utils\llm_client.py:156:21: error: Returning Any from function declared to
-utils\llm_client.py:158:13: error: Item "None" of "Logger | None" has no
-utils\llm_client.py:168:17: error: Returning Any from function declared to
-utils\llm_client.py:170:13: error: Item "None" of "Logger | None" has no
-utils\glm5_decision_engine.py:142:27: error: Incompatible types in assignment
-utils\glm5_decision_engine.py:163:27: error: Incompatible types in assignment
-utils\glm5_decision_engine.py:552:15: error: Item "None" of
-utils\glm5_decision_engine.py:799:76: error: Incompatible default for parameter
-utils\glm5_decision_engine.py:815:26: error: Incompatible types in assignment
-utils\glm5_decision_engine.py:817:9: error: "str" has no attribute "mkdir" 
-utils\glm5_decision_engine.py:820:23: error: Unsupported left operand type for
-utils\overnight_gap_monitor.py:383:16: error: Unsupported operand types for >=
-utils\overnight_gap_monitor.py:390:28: error: Unsupported operand types for >=
-utils\overnight_gap_monitor.py:404:16: error: Unsupported operand types for >=
-utils\overnight_gap_monitor.py:413:28: error: Unsupported operand types for /
-utils\overnight_gap_monitor.py:413:29: error: Unsupported operand types for -
-utils\overnight_gap_monitor.py:413:29: error: Unsupported operand types for -
-utils\overnight_gap_monitor.py:413:29: error: Unsupported left operand type for
-ms_strategy\src\hedging\hedge_coordinator.py:160:33: error: Argument 1 to
-ms_strategy\src\hedging\hedge_coordinator.py:161:40: error: Argument 1 to
-ms_strategy\src\backtest\walk_forward.py:301:24: error: Unsupported operand
-ms_strategy\src\backtest\walk_forward.py:302:38: error: Incompatible types in
-ms_strategy\src\backtest\walk_forward.py:316:9: error: Need type annotation for
-utils\hedge_engine.py:30:5: error: Cannot assign to a type  [misc]
-utils\hedge_engine.py:30:32: error: Incompatible types in assignment
-utils\hedge_engine.py:228:52: error: Argument 1 to "module_from_spec" has
-utils\hedge_engine.py:229:13: error: Item "None" of "ModuleSpec | None" has no
-utils\hedge_engine.py:229:13: error: Item "None" of "Loader | Any | None" has
-utils\hedge_engine.py:247:9: error: Returning Any from function declared to
-utils\hedge_engine.py:254:5: error: Need type annotation for "results" (hint:
-utils\hedge_engine.py:473:54: error: Incompatible default for parameter
-utils\hedge_engine.py:587:49: error: Argument "key" to "max" has incompatible
-utils\hedge_engine.py:751:32: error: Unsupported operand types for * ("float"
-utils\hedge_engine.py:752:32: error: Unsupported operand types for * ("float"
-utils\hedge_engine.py:753:32: error: Unsupported operand types for * ("float"
-utils\hedge_engine.py:754:32: error: Unsupported operand types for * ("float"
-utils\hedge_engine.py:759:38: error: Unsupported operand type for unary -
-utils\hedge_engine.py:830:43: error: Invalid index type
-utils\hedge_engine.py:838:13: error: Incompatible types in assignment
-utils\hedge_engine.py:843:39: error: Invalid index type
-utils\hedge_engine.py:846:43: error: Invalid index type
-utils\hedge_engine.py:851:30: error: No overload variant of "range" matches
-utils\hedge_engine.py:859:29: error: Value of type "float" is not indexable 
-utils\hedge_engine.py:970:42: error: Incompatible default for parameter
-utils\hedge_engine.py:971:39: error: Incompatible default for parameter
-utils\hedge_engine.py:972:41: error: Incompatible default for parameter
-utils\hedge_engine.py:1065:39: error: Incompatible default for parameter
-utils\hedge_engine.py:1066:41: error: Incompatible default for parameter
-utils\hedge_engine.py:1139:44: error: Incompatible default for parameter
-utils\hedge_engine.py:1198:38: error: Unsupported operand types for * ("float"
-utils\hedge_engine.py:1201:33: error: Unsupported operand types for * ("float"
-utils\hedge_engine.py:1215:30: error: Generator has incompatible item type
-utils\hedge_engine.py:1216:28: error: Generator has incompatible item type
-utils\hedge_engine.py:1228:20: error: Incompatible types in assignment
-utils\hedge_engine.py:1251:40: error: Incompatible default for parameter
-utils\hedge_engine.py:1266:48: error: Unsupported operand types for * ("int"
-utils\hedge_engine.py:1268:59: error: Unsupported operand types for * ("float"
-utils\hedge_engine.py:1288:48: error: Unsupported operand types for * ("int"
-utils\hedge_engine.py:1290:65: error: Unsupported operand types for * ("float"
-utils\hedge_engine.py:1308:48: error: Unsupported operand types for * ("int"
-utils\hedge_engine.py:1310:71: error: Unsupported operand types for * ("float"
-utils\hedge_engine.py:1325:69: error: Incompatible default for parameter
-utils\hedge_engine.py:1326:44: error: Incompatible default for parameter
-utils\hedge_engine.py:1327:39: error: Incompatible default for parameter
-utils\hedge_engine.py:1327:77: error: Incompatible default for parameter
-utils\hedge_engine.py:1328:48: error: Incompatible default for parameter
-utils\hedge_engine.py:1329:36: error: Incompatible default for parameter
-utils\hedge_engine.py:1464:17: error: Incompatible types in assignment
-utils\hedge_engine.py:1581:39: error: Invalid index type
-utils\hedge_engine.py:1587:43: error: Invalid index type
-utils\hedge_engine.py:1591:30: error: No overload variant of "range" matches
-utils\hedge_engine.py:1595:9: error: Need type annotation for "corr_matrix"
-utils\hedge_engine.py:1702:9: error: Need type annotation for "sectors" (hint:
-utils\hedge_engine.py:1746:47: error: Incompatible default for parameter
-utils\alpha\vol_regime_weighter.py:399:21: error: Dict entry 1 has incompatible
-utils\alpha\vol_regime_weighter.py:400:21: error: Dict entry 2 has incompatible
-utils\alpha\vol_regime_weighter.py:401:21: error: Dict entry 3 has incompatible
-utils\alpha\vol_regime_weighter.py:407:28: error: Dict entry 0 has incompatible
-utils\alpha\vol_regime_weighter.py:411:28: error: Dict entry 0 has incompatible
-utils\alpha\vol_regime_weighter.py:416:28: error: Dict entry 0 has incompatible
-utils\institutional_optimizer.py:157:5: error: Missing return statement 
-utils\alpha_factor\technical.py:250:9: error: Incompatible import of
-utils\alpha_factor\technical.py:251:9: error: Returning Any from function
-utils\alpha_factor\technical.py:251:16: error: "GTJA191Factors" has no
-utils\alpha_factor\price_volume.py:353:15: error: Incompatible types in
-utils\alpha_factor\price_volume.py:354:18: error: Incompatible types in
-utils\alpha_factor\price_volume.py:354:32: error: Argument 1 to "orthogonalize"
-utils\alpha_factor\price_volume.py:354:54: error: Argument 1 to "len" has
-utils\alpha_factor\price_volume.py:439:22: error: Incompatible types in
+utils\alpha\vibe_backtest_bridge.py:501:21: error: Dict entry 0 has
+utils\alpha\ml_enhanced_selector.py:160:24: error: Incompatible types in
+utils\alpha\ml_enhanced_selector.py:170:53: error: Unsupported operand types
+utils\alpha\ml_enhanced_selector.py:209:16: error: Redundant cast to
+utils\alpha\ml_enhanced_selector.py:520:16: error: Redundant cast to
+utils\alpha\drift_monitor.py:218:13: error: Returning Any from function
+utils\alpha\drift_monitor.py:240:13: error: Returning Any from function
+utils\alpha\drift_monitor.py:452:13: error: Returning Any from function
+utils\alpha\drift_monitor.py:731:26: error: Item "type" of "type | None" has no
+utils\alpha\drift_monitor.py:731:26: error: Item "None" of "type | None" has no
+utils\alpha\drift_monitor.py:1054:9: error: Returning Any from function
+quant_modules\ai_hedge_fund\agents\warren_buffett.py:30:38: error: Argument 1
+quant_modules\ai_hedge_fund\agents\warren_buffett.py:520:30: error: Unsupported
+quant_modules\ai_hedge_fund\agents\warren_buffett.py:521:31: error: Unsupported
+quant_modules\ai_hedge_fund\agents\warren_buffett.py:994:12: error:
+quant_modules\ai_hedge_fund\agents\valuation.py:35:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\valuation.py:234:17: error: Dict entry 4 has
+quant_modules\ai_hedge_fund\agents\valuation.py:281:22: error: Unsupported
+quant_modules\ai_hedge_fund\agents\valuation.py:281:22: error: Unsupported
+quant_modules\ai_hedge_fund\agents\valuation.py:281:22: error: Unsupported left
+quant_modules\ai_hedge_fund\agents\valuation.py:281:22: error: Unsupported
+quant_modules\ai_hedge_fund\agents\valuation.py:483:9: error: Incompatible
+quant_modules\ai_hedge_fund\agents\valuation.py:491:9: error: Incompatible
+quant_modules\ai_hedge_fund\agents\technicals.py:50:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\technicals.py:159:21: error: Unsupported
+quant_modules\ai_hedge_fund\agents\stanley_druckenmiller.py:45:38: error:
+quant_modules\ai_hedge_fund\agents\stanley_druckenmiller.py:682:12: error:
+quant_modules\ai_hedge_fund\agents\sentiment.py:24:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\sentiment.py:28:19: error: Item "None" of
+quant_modules\ai_hedge_fund\agents\sentiment.py:34:22: error: Argument
+quant_modules\ai_hedge_fund\agents\sentiment.py:52:49: error: Argument 2 to
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:32:38: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:86:75: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:244:13: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:253:12: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:254:26: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:290:13: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:298:12: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:299:30: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:322:13: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:330:12: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:331:29: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:352:13: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:352:51: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:556:13: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:561:13: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:561:54: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:580:16: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:587:20: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:594:17: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:607:12: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:608:34: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:661:16: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:698:75: error:
+quant_modules\ai_hedge_fund\agents\rakesh_jhunjhunwala.py:793:12: error:
+quant_modules\ai_hedge_fund\agents\phil_fisher.py:42:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\phil_fisher.py:679:12: error: Incompatible
+quant_modules\ai_hedge_fund\agents\peter_lynch.py:48:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\peter_lynch.py:555:12: error: Incompatible
+quant_modules\ai_hedge_fund\agents\news_sentiment.py:23:19: error: Incompatible
+quant_modules\ai_hedge_fund\agents\news_sentiment.py:53:38: error: Argument 1
+quant_modules\ai_hedge_fund\agents\news_sentiment.py:56:19: error: Item "None"
+quant_modules\ai_hedge_fund\agents\news_sentiment.py:60:22: error: Argument
+quant_modules\ai_hedge_fund\agents\news_sentiment.py:129:42: error: "BaseModel"
+quant_modules\ai_hedge_fund\agents\news_sentiment.py:130:59: error: "BaseModel"
+quant_modules\ai_hedge_fund\agents\nassim_taleb.py:38:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\nassim_taleb.py:379:30: error: Generator has
+quant_modules\ai_hedge_fund\agents\nassim_taleb.py:379:55: error: Unsupported
+quant_modules\ai_hedge_fund\agents\nassim_taleb.py:896:12: error: Incompatible
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:30:38: error: Argument 1
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:200:26: error: Argument 1
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:201:21: error: Argument 1
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:202:31: error: Unsupported
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:244:26: error: Argument 1
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:324:26: error: Argument 1
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:325:25: error: Argument 1
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:326:12: error: Unsupported
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:327:27: error: Unsupported
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:336:26: error: Argument 1
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:337:25: error: Argument 1
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:339:27: error: Unsupported
+quant_modules\ai_hedge_fund\agents\mohnish_pabrai.py:423:12: error:
+quant_modules\ai_hedge_fund\agents\michael_burry.py:36:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\michael_burry.py:414:12: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:27:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\growth_agent.py:183:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:185:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:187:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:192:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:194:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:196:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:201:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:203:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:227:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:229:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:234:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:236:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:238:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:259:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:261:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:266:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:268:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:272:9: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:274:13: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:308:17: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:310:17: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:312:17: error: Incompatible
+quant_modules\ai_hedge_fund\agents\growth_agent.py:314:17: error: Incompatible
+quant_modules\ai_hedge_fund\agents\fundamentals.py:19:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\charlie_munger.py:37:38: error: Argument 1
+quant_modules\ai_hedge_fund\agents\charlie_munger.py:106:35: error: Argument 2
+quant_modules\ai_hedge_fund\agents\charlie_munger.py:925:17: error: Unsupported
+quant_modules\ai_hedge_fund\agents\charlie_munger.py:929:17: error: Unsupported
+quant_modules\ai_hedge_fund\agents\charlie_munger.py:929:17: error: Unsupported
+quant_modules\ai_hedge_fund\agents\charlie_munger.py:1054:12: error:
+quant_modules\ai_hedge_fund\agents\cathie_wood.py:36:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\cathie_wood.py:85:35: error: Argument 2 to
+quant_modules\ai_hedge_fund\agents\cathie_wood.py:455:9: error: Incompatible
+quant_modules\ai_hedge_fund\agents\cathie_wood.py:565:12: error: Incompatible
+quant_modules\ai_hedge_fund\agents\bill_ackman.py:34:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\bill_ackman.py:85:70: error: Argument 2 to
+quant_modules\ai_hedge_fund\agents\bill_ackman.py:411:9: error: Incompatible
+quant_modules\ai_hedge_fund\agents\bill_ackman.py:508:12: error: Incompatible
+quant_modules\ai_hedge_fund\agents\ben_graham.py:37:38: error: Argument 1 to
+quant_modules\ai_hedge_fund\agents\ben_graham.py:80:77: error: Argument 2 to
+quant_modules\ai_hedge_fund\agents\ben_graham.py:428:12: error: Incompatible
+quant_modules\ai_hedge_fund\agents\aswath_damodaran.py:39:38: error: Argument 1
+quant_modules\ai_hedge_fund\agents\aswath_damodaran.py:438:12: error:
+utils\option_data_fetcher.py:136:17: error: Returning Any from function
+utils\weather_factor_engine.py:68:13: error: Returning Any from function
+utils\weather_factor_engine.py:233:13: error: Returning Any from function
+utils\weather_factor_engine.py:511:30: error: Incompatible types in assignment
+utils\weather_factor_engine.py:970:9: error: Returning Any from function
+utils\weather_factor_engine.py:1005:9: error: Returning Any from function
+utils\weather_factor_engine.py:1067:21: error: Returning Any from function
+utils\web_scraper.py:48:19: error: Incompatible types in assignment (expression
+utils\web_scraper.py:80:10: error: Incompatible types in assignment (expression
+utils\web_scraper.py:240:18: error: Dict entry 0 has incompatible type "str":
+utils\web_scraper.py:240:32: error: Dict entry 1 has incompatible type "str":
+utils\web_scraper.py:380:41: error: Variable "utils.web_scraper.BeautifulSoup"
+utils\web_scraper.py:384:13: error: Returning Any from function declared to
+utils\web_scraper.py:384:20: error: "None" not callable  [misc]
+utils\web_scraper.py:389:35: error: Variable "utils.web_scraper.BeautifulSoup"
+utils\web_scraper.py:395:36: error: Variable "utils.web_scraper.BeautifulSoup"
+utils\web_scraper.py:944:17: error: Returning Any from function declared to
+utils\overnight_gap_monitor.py:354:26: error: Argument 1 to "float" has
+utils\overnight_gap_monitor.py:360:26: error: Argument 1 to "float" has
+utils\overnight_gap_monitor.py:364:26: error: Argument 1 to "float" has
+utils\overnight_gap_monitor.py:407:16: error: Unsupported operand types for >=
+utils\overnight_gap_monitor.py:416:28: error: Unsupported operand types for >=
+utils\overnight_gap_monitor.py:439:16: error: Unsupported operand types for >=
+utils\overnight_gap_monitor.py:448:28: error: Unsupported operand types for /
+utils\overnight_gap_monitor.py:448:29: error: Unsupported operand types for -
+utils\overnight_gap_monitor.py:448:29: error: Unsupported operand types for -
+utils\overnight_gap_monitor.py:448:29: error: Unsupported left operand type for
+utils\llm_client.py:43:14: error: Incompatible types in assignment (expression
+utils\llm_client.py:77:9: error: Item "None" of "Logger | None" has no
+utils\llm_client.py:101:9: error: Item "None" of "Logger | None" has no
+utils\llm_client.py:185:21: error: Returning Any from function declared to
+utils\llm_client.py:194:13: error: Item "None" of "Logger | None" has no
+utils\llm_client.py:213:17: error: Returning Any from function declared to
+utils\llm_client.py:222:13: error: Item "None" of "Logger | None" has no
+utils\experience_rag.py:176:17: error: Returning Any from function declared to
+ms_strategy\src\hedging\hedge_coordinator.py:159:33: error: Argument 1 to
+ms_strategy\src\hedging\hedge_coordinator.py:160:40: error: Argument 1 to
+ms_strategy\src\backtest\walk_forward.py:303:24: error: Unsupported operand
+ms_strategy\src\backtest\walk_forward.py:304:38: error: Incompatible types in
+ms_strategy\src\backtest\walk_forward.py:318:9: error: Need type annotation for
+utils\alpha\vol_regime_weighter.py:453:21: error: Dict entry 1 has incompatible
+utils\alpha\vol_regime_weighter.py:454:21: error: Dict entry 2 has incompatible
+utils\alpha\vol_regime_weighter.py:455:21: error: Dict entry 3 has incompatible
+utils\alpha\vol_regime_weighter.py:461:28: error: Dict entry 0 has incompatible
+utils\alpha\vol_regime_weighter.py:465:28: error: Dict entry 0 has incompatible
+utils\alpha\vol_regime_weighter.py:470:28: error: Dict entry 0 has incompatible
+utils\universe\portfolio_builder.py:412:13: error: Returning Any from function
+utils\basket_liquidation.py:109:9: error: Returning Any from function declared
+utils\basket_liquidation.py:352:44: error: Argument 2 to "liquidate" of
+utils\basket_liquidation.py:352:52: error: Argument 3 to "liquidate" of
+utils\basket_liquidation.py:379:48: error: Argument 2 to "liquidate" of
+utils\basket_liquidation.py:379:58: error: Argument 3 to "liquidate" of
+utils\execution\tt_dac_ps.py:175:9: error: Returning Any from function declared
+utils\hedge_engine.py:26:5: error: Cannot assign to a type  [misc]
+utils\hedge_engine.py:26:32: error: Incompatible types in assignment
+utils\hedge_engine.py:35:26: error: Incompatible types in assignment
+utils\hedge_engine.py:36:5: error: Cannot assign to a type  [misc]
+utils\hedge_engine.py:36:15: error: Incompatible types in assignment
+utils\hedge_engine.py:859:40: error: Argument "key" to "max" has incompatible
+utils\hedge_engine.py:1057:32: error: Unsupported operand types for * ("float"
+utils\hedge_engine.py:1058:34: error: Unsupported operand types for * ("float"
+utils\hedge_engine.py:1059:34: error: Unsupported operand types for * ("float"
+utils\hedge_engine.py:1060:34: error: Unsupported operand types for * ("float"
+utils\hedge_engine.py:1065:38: error: Unsupported operand type for unary -
+utils\hedge_engine.py:1160:43: error: Invalid index type
+utils\hedge_engine.py:1168:13: error: Incompatible types in assignment
+utils\hedge_engine.py:1173:39: error: Invalid index type
+utils\hedge_engine.py:1176:43: error: Invalid index type
+utils\hedge_engine.py:1180:74: error: No overload variant of "range" matches
+utils\hedge_engine.py:1188:29: error: Value of type "float" is not indexable
+utils\hedge_engine.py:1577:38: error: Unsupported operand types for * ("float"
+utils\hedge_engine.py:1580:33: error: Unsupported operand types for * ("float"
+utils\hedge_engine.py:1594:30: error: Generator has incompatible item type
+utils\hedge_engine.py:1595:28: error: Generator has incompatible item type
+utils\hedge_engine.py:1607:20: error: Incompatible types in assignment
+utils\hedge_engine.py:1650:48: error: Unsupported operand types for * ("int"
+utils\hedge_engine.py:1652:59: error: Unsupported operand types for * ("float"
+utils\hedge_engine.py:1678:48: error: Unsupported operand types for * ("int"
+utils\hedge_engine.py:1680:65: error: Unsupported operand types for * ("float"
+utils\hedge_engine.py:1704:48: error: Unsupported operand types for * ("int"
+utils\hedge_engine.py:1706:71: error: Unsupported operand types for * ("float"
+utils\hedge_engine.py:2035:17: error: Incompatible types in assignment
+utils\hedge_engine.py:2161:39: error: Invalid index type
+utils\hedge_engine.py:2167:43: error: Invalid index type
+utils\hedge_engine.py:2170:74: error: No overload variant of "range" matches
+utils\hedge_engine.py:2174:9: error: Need type annotation for "corr_matrix"
+utils\hedge_engine.py:2283:9: error: Need type annotation for "sectors" (hint:
+utils\execution\order_router.py:65:5: error: Cannot assign to a type  [misc]
+utils\execution\order_router.py:65:18: error: Incompatible types in assignment
+utils\execution\order_router.py:120:9: error: Need type annotation for
+utils\execution\order_router.py:454:37: error: "object" has no attribute
+utils\execution\order_router.py:490:30: error: "object" has no attribute
+utils\execution\order_router.py:494:27: error: "object" has no attribute
+utils\execution\order_router.py:503:25: error: "object" has no attribute
+utils\execution\order_router.py:578:63: error: Argument 2 to "get" of "dict"
+utils\backtest\honest_validation.py:128:10: error: Incompatible types in
+utils\backtest\honest_validation.py:131:17: error: Unsupported operand types
+utils\backtest\honest_validation.py:137:19: error: Argument "sharpe_cv" to
+utils\timing\directional_change.py:204:16: error: Unsupported operand types for
+utils\timing\directional_change.py:206:25: error: Unsupported operand types for
+utils\timing\directional_change.py:211:35: error: Argument "extreme_price" to
+utils\alpha_factor\technical.py:327:9: error: Incompatible import of
+utils\alpha_factor\technical.py:329:9: error: Returning Any from function
+utils\alpha_factor\technical.py:329:16: error: "GTJA191Factors" has no
+utils\alpha_factor\price_volume.py:354:15: error: Incompatible types in
+utils\alpha_factor\price_volume.py:355:18: error: Incompatible types in
+utils\alpha_factor\price_volume.py:355:32: error: Argument 1 to "orthogonalize"
+utils\alpha_factor\price_volume.py:355:54: error: Argument 1 to "len" has
+utils\alpha_factor\price_volume.py:443:22: error: Incompatible types in
+utils\alpha_factor\price_volume.py:560:35: error: Incompatible types in
+utils\alpha_factor\price_volume.py:568:20: error: Incompatible types in
 utils\alpha_factor\expectation.py:57:23: error: Incompatible types in
-utils\alpha\auto_retrain_scheduler.py:188:13: error: Returning Any from
-utils\alpha\drift_shadow_integrator.py:589:17: error: Returning Any from
-utils\alpha\drift_shadow_integrator.py:614:13: error: Returning Any from
-utils\alpha\drift_shadow_integrator.py:805:19: error: Incompatible types in
-utils\finance_agents\weather_agent.py:46:32: error: Incompatible types in
-utils\scrapling_adapter.py:317:17: error: Returning Any from function declared
-utils\scrapling_adapter.py:319:17: error: Returning Any from function declared
-utils\etf_flow_monitor.py:276:32: error: Dict entry 0 has incompatible type
-utils\etf_flow_monitor.py:276:46: error: Dict entry 1 has incompatible type
-utils\ai_report_agent.py:41:10: error: Incompatible types in assignment
-utils\ai_report_agent.py:49:5: error: Cannot assign to a type  [misc]
-utils\ai_report_agent.py:61:5: error: Incompatible import of "_chat_fn"
-utils\ai_report_agent.py:62:5: error: Incompatible import of
-utils\ai_report_agent.py:63:5: error: Incompatible import of
-utils\risk_guard_integrator.py:188:13: error: Returning Any from function
-utils\risk_guard_integrator.py:204:9: error: Need type annotation for
-utils\risk_guard_integrator.py:256:9: error: Returning Any from function
-utils\risk_guard_integrator.py:304:9: error: Returning Any from function
-utils\risk_guard_integrator.py:1679:28: error: Need type annotation for
-utils\evolution\tests\test_pnl_attribution_adapter.py:346:16: error: Need type
-utils\evolution\tests\test_auto_fix_engine.py:432:9: error: Cannot assign to a
-utils\evolution\tests\test_auto_fix_engine.py:439:13: error: Cannot assign to a
-utils\evolution\tests\test_ab_testing.py:43: error: The return type of a
-utils\signal_fusion.py:81:39: error: Incompatible default for parameter
-utils\signal_fusion.py:90:34: error: Function "builtins.callable" is not valid
-utils\signal_fusion.py:103:50: error: Function "builtins.callable" is not valid
-utils\signal_fusion.py:103:84: error: Incompatible default for parameter
-utils\signal_fusion.py:174:17: error: Returning Any from function declared to
-utils\signal_fusion.py:200:28: error: Need type annotation for
-utils\signal_fusion.py:253:87: error: Incompatible default for parameter
-utils\signal_fusion.py:285:76: error: Incompatible default for parameter
-utils\signal_fusion.py:358:26: error: callable? not callable  [misc]
-utils\signal_fusion.py:435:58: error: Incompatible default for parameter
-utils\signal_fusion.py:715:46: error: Function "builtins.callable" is not valid
-utils\signal_fusion.py:771:43: error: Function "builtins.callable" is not valid
-utils\signal_fusion.py:776:26: error: callable? not callable  [misc]
-utils\signal_fusion.py:891:20: error: Incompatible return value type (got
-utils\signal_fusion.py:895:16: error: Incompatible return value type (got
-utils\signal_fusion.py:1014:16: error: Incompatible return value type (got
-utils\hedge_rebalance_integrator.py:60:47: error: Argument 1 to
-utils\hedge_rebalance_integrator.py:61:9: error: Item "None" of
-utils\hedge_rebalance_integrator.py:61:9: error: Item "None" of
-utils\hedge_rebalance_integrator.py:79:9: error: Returning Any from function
-utils\hedge_rebalance_integrator.py:86:5: error: Need type annotation for
-utils\hedge_rebalance_integrator.py:279:13: error: Returning Any from function
-utils\hedge_rebalance_integrator.py:287:13: error: Returning Any from function
-utils\hedge_rebalance_integrator.py:318:31: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:318:62: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:319:27: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:357:33: error: Incompatible types in
-utils\hedge_rebalance_integrator.py:577:39: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:578:41: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:596:45: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:596:83: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:630:39: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:631:41: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:645:26: error: Incompatible types in
-utils\hedge_rebalance_integrator.py:648:26: error: No overload variant of "max"
-utils\hedge_rebalance_integrator.py:690:17: error: Unsupported left operand
-utils\hedge_rebalance_integrator.py:710:29: error: "object" has no attribute
-utils\hedge_rebalance_integrator.py:720:23: error: Argument "reasoning" to
-utils\hedge_rebalance_integrator.py:734:16: error: Incompatible return value
-utils\hedge_rebalance_integrator.py:755:17: error: Returning Any from function
-utils\hedge_rebalance_integrator.py:774:39: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:871:9: error: Need type annotation for
-utils\hedge_rebalance_integrator.py:927:31: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:928:51: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:988:45: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:988:83: error: Incompatible default for
-utils\hedge_rebalance_integrator.py:1148:62: error: Incompatible default for
-utils\alpha\evolution_orchestrator.py:743:21: error: Returning Any from
-utils\alpha_factor\gate1_validation.py:151:13: error: Dict entry 5 has
-utils\news_sentiment_engine.py:428:16: error: Unexpected keyword argument
-utils\news_sentiment_engine.py:428:16: error: Unexpected keyword argument "raw"
-utils\data_provider.py:42:10: error: Incompatible types in assignment
-utils\data_provider.py:97:9: error: Need type annotation for "data_cache"
-utils\data_provider.py:126:31: error: Incompatible types in assignment
-utils\data_provider.py:159:17: error: Incompatible types in assignment
-utils\data_provider.py:173:21: error: Incompatible types in assignment
-utils\data_provider.py:178:37: error: Incompatible types in assignment
-utils\data_provider.py:185:60: error: Incompatible types in assignment
-utils\data_provider.py:193:32: error: Incompatible types in assignment
-utils\data_provider.py:198:59: error: Incompatible types in assignment
-utils\data_provider.py:201:55: error: Incompatible types in assignment
-utils\data_provider.py:204:55: error: Incompatible types in assignment
-utils\data_provider.py:212:36: error: Incompatible types in assignment
-utils\data_provider.py:217:63: error: Incompatible types in assignment
-utils\data_provider.py:220:59: error: Incompatible types in assignment
-utils\data_provider.py:223:59: error: Incompatible types in assignment
-utils\data_provider.py:571:65: error: Incompatible types in assignment
-utils\data_provider.py:576:65: error: Incompatible types in assignment
-utils\data_provider.py:597:65: error: Incompatible types in assignment
-utils\data_provider.py:618:61: error: Incompatible types in assignment
-utils\data_provider.py:632:21: error: Returning Any from function declared to
-utils\data_provider.py:635:54: error: Argument 1 to "_fetch_real_time_data" of
-utils\data_provider.py:727:21: error: Returning Any from function declared to
-utils\data_provider.py:730:57: error: Argument 1 to "_fetch_sentiment_data" of
-utils\pipeline\risk_monitor.py:76:33: error: Incompatible types in assignment
+utils\alpha_factor\evaluator.py:191:26: error: Argument 1 to "_rank_corr" has
+utils\alpha_factor\chip_distribution.py:210:9: error: Returning Any from
+utils\alpha_factor\chip_distribution.py:366:13: error: Need type annotation for
+utils\alpha\auto_retrain_scheduler.py:190:13: error: Returning Any from
+utils\alpha\drift_shadow_integrator.py:705:17: error: Returning Any from
+utils\alpha\drift_shadow_integrator.py:730:13: error: Returning Any from
+utils\alpha\drift_shadow_integrator.py:921:19: error: Incompatible types in
+quant_modules\ai_hedge_fund\utils\analysts.py:195:59: error: Argument "key" to
+quant_modules\ai_hedge_fund\utils\analysts.py:195:69: error: Incompatible
+lgb_trainer\feature_engineering.py:259:17: error: Item "None" of "Any | None"
+lgb_trainer\feature_engineering.py:262:17: error: Item "None" of "Any | None"
+lgb_trainer\feature_engineering.py:377:44: error: Item "None" of "Any | None"
+utils\finance_agents\weather_agent.py:47:32: error: Incompatible types in
+utils\scrapling_adapter.py:369:17: error: Returning Any from function declared
+utils\scrapling_adapter.py:371:17: error: Returning Any from function declared
+utils\risk_guard_integrator.py:260:25: error: Returning Any from function
+utils\risk_guard_integrator.py:277:9: error: Returning Any from function
+utils\risk_guard_integrator.py:324:13: error: Returning Any from function
+utils\risk_guard_integrator.py:326:9: error: Returning Any from function
+utils\risk_guard_integrator.py:1794:53: error: Key expression in dictionary
+utils\risk_guard_integrator.py:1826:38: error: Invalid index type "Any | None"
+ai_decision\providers.py:104:5: error: Cannot override writeable attribute with
+ai_decision\providers.py:119:17: error: Name "chat" already defined (possibly
+ai_decision\providers.py:119:17: error: Name "chat_deep" already defined
+ai_decision\providers.py:496:20: error: Incompatible types in assignment
+ai_decision\providers.py:500:20: error: Incompatible types in assignment
+ai_decision\providers.py:505:24: error: Incompatible types in assignment
+utils\ai_report_agent.py:42:10: error: Incompatible types in assignment
+utils\ai_report_agent.py:51:5: error: Cannot assign to a type  [misc]
+utils\ai_report_agent.py:63:5: error: Incompatible import of "_chat_fn"
+utils\ai_report_agent.py:64:5: error: Incompatible import of
+utils\google_skills_adapter.py:101:9: error: Returning Any from function
+utils\google_skills_adapter.py:110:9: error: Returning Any from function
+utils\evolution\tests\test_system_check_autofix_integration.py:180:20: error:
+utils\evolution\tests\test_system_check_autofix_integration.py:204:20: error:
+utils\evolution\tests\test_system_check_autofix_integration.py:236:20: error:
+utils\evolution\tests\test_pnl_attribution_adapter.py:347:16: error: Need type
+utils\evolution\tests\test_auto_fix_engine.py:437:9: error: Cannot assign to a
+utils\evolution\tests\test_auto_fix_engine.py:444:13: error: Cannot assign to a
+utils\evolution\tests\test_ab_testing.py:42: error: The return type of a
+utils\evolution\tests\test_feedback_loop.py:79:13: error: Returning Any from
+utils\evolution\tests\test_feedback_loop.py:674:19: error: Item "None" of
+utils\evolution\tests\test_feedback_loop.py:1060:16: error: Item "None" of
+utils\alpha\evolution_orchestrator.py:845:21: error: Returning Any from
+utils\hedge_rebalance_integrator.py:266:13: error: Returning Any from function
+utils\hedge_rebalance_integrator.py:274:13: error: Returning Any from function
+utils\hedge_rebalance_integrator.py:361:33: error: Incompatible types in
+utils\hedge_rebalance_integrator.py:768:26: error: Incompatible types in
+utils\hedge_rebalance_integrator.py:773:26: error: No overload variant of "max"
+utils\hedge_rebalance_integrator.py:834:17: error: Unsupported left operand
+utils\hedge_rebalance_integrator.py:862:29: error: "object" has no attribute
+utils\hedge_rebalance_integrator.py:873:17: error: Argument "reasoning" to
+utils\hedge_rebalance_integrator.py:890:16: error: Incompatible return value
+utils\hedge_rebalance_integrator.py:912:17: error: Returning Any from function
+utils\hedge_rebalance_integrator.py:1092:9: error: Need type annotation for
+utils\hedge_rebalance_backtest.py:715:9: error: Need type annotation for "pos"
+utils\hedge_rebalance_backtest.py:763:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:776:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:783:26: error: Argument "equity_curve" to
+utils\hedge_rebalance_backtest.py:785:38: error: Argument 1 to "_rets" of
+utils\hedge_rebalance_backtest.py:798:9: error: Need type annotation for "pos"
+utils\hedge_rebalance_backtest.py:864:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:877:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:888:26: error: Argument "equity_curve" to
+utils\hedge_rebalance_backtest.py:890:38: error: Argument 1 to "_rets" of
+utils\hedge_rebalance_backtest.py:906:9: error: Need type annotation for "pos"
+utils\hedge_rebalance_backtest.py:926:17: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:928:17: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:931:23: error: Argument 1 to "append" of
+utils\hedge_rebalance_backtest.py:961:25: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:972:25: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:981:9: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1009:9: error: Need type annotation for "pos"
+utils\hedge_rebalance_backtest.py:1094:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1099:17: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1102:23: error: Argument 1 to "append" of
+utils\hedge_rebalance_backtest.py:1168:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1182:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1191:9: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1225:9: error: Need type annotation for "pos"
+utils\hedge_rebalance_backtest.py:1249:47: error: Argument 1 to
+utils\hedge_rebalance_backtest.py:1305:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1310:17: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1313:23: error: Argument 1 to "append" of
+utils\hedge_rebalance_backtest.py:1373:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1387:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1396:9: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1435:9: error: Need type annotation for "pos"
+utils\hedge_rebalance_backtest.py:1466:47: error: Argument 1 to
+utils\hedge_rebalance_backtest.py:1548:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1553:17: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1556:23: error: Argument 1 to "append" of
+utils\hedge_rebalance_backtest.py:1613:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1626:21: error: Incompatible types in
+utils\hedge_rebalance_backtest.py:1635:9: error: Incompatible types in
+utils\auto_hedge_rebalance\data_fetcher.py:224:17: error: Returning Any from
+utils\auto_hedge_rebalance\data_fetcher.py:284:17: error: Returning Any from
+utils\alpha_factor\gate1_validation.py:169:13: error: Dict entry 5 has
+utils\news_sentiment_engine.py:459:16: error: Unexpected keyword argument
+utils\news_sentiment_engine.py:459:16: error: Unexpected keyword argument "raw"
+utils\pipeline\risk_monitor.py:75:33: error: Incompatible types in assignment
 utils\pipeline\risk_monitor.py:84:32: error: Incompatible types in assignment
-utils\pipeline\risk_monitor.py:329:28: error: Argument "started_at" to
-utils\pipeline\risk_monitor.py:330:30: error: Argument "completed_at" to
-utils\pipeline\risk_monitor.py:346:28: error: Argument "started_at" to
-utils\pipeline\risk_monitor.py:347:30: error: Argument "completed_at" to
-utils\etf_flow_decision.py:57:10: error: Incompatible types in assignment
-utils\etf_flow_decision.py:101:30: error: Unexpected keyword argument
-utils\etf_flow_decision.py:101:30: error: Unexpected keyword argument
-utils\etf_flow_decision.py:101:30: error: Unexpected keyword argument
-utils\etf_flow_decision.py:101:30: error: Unexpected keyword argument
-utils\etf_flow_decision.py:101:30: error: Unexpected keyword argument
-utils\etf_flow_decision.py:315:31: error: "FusedSignalV2" has no attribute
-utils\etf_flow_decision.py:323:15: error: Value of type "object" is not
-utils\etf_flow_decision.py:354:17: error: Returning Any from function declared
-utils\etf_flow_decision.py:409:31: error: "FusedSignalV2" has no attribute
-utils\etf_flow_decision.py:672:24: error: Incompatible types in assignment
-utils\etf_flow_decision.py:677:9: error: "None" has no attribute "start" 
-utils\enhanced_signal_fusion.py:47:9: error: Name "get_logger" already defined
-utils\enhanced_signal_fusion.py:49:9: error: Name "SignalResult" already
-utils\enhanced_signal_fusion.py:49:9: error: Name "FusedSignal" already defined
-utils\enhanced_signal_fusion.py:49:9: error: Name "SignalFusionEngine" already
-utils\enhanced_signal_fusion.py:91:39: error: Incompatible default for
-utils\enhanced_signal_fusion.py:91:78: error: Incompatible default for
-utils\enhanced_signal_fusion.py:163:59: error: Function "builtins.callable" is
-utils\enhanced_signal_fusion.py:163:93: error: Incompatible default for
-utils\enhanced_signal_fusion.py:164:59: error: Incompatible default for
-utils\enhanced_signal_fusion.py:422:80: error: Incompatible default for
-utils\enhanced_signal_fusion.py:487:27: error: Unsupported operand types for -
-utils\enhanced_signal_fusion.py:487:27: error: Unsupported operand types for -
-utils\enhanced_signal_fusion.py:736:20: error: Incompatible return value type
-utils\enhanced_signal_fusion.py:740:16: error: Incompatible return value type
-utils\alpha_factor_library.py:88:13: error: Dict entry 5 has incompatible type
-utils\alpha_factor_library.py:89:13: error: Dict entry 6 has incompatible type
-utils\dqc\checkpoints\p3_factor_quality.py:163:9: error: Assignment to variable
-utils\dqc\checkpoints\p3_factor_quality.py:164:27: error: Trying to read
-utils\dqc\checkpoints\p3_factor_quality.py:310:13: error: Module
-utils\dqc\checkpoints\p2_cache_quality.py:134:9: error: Assignment to variable
-utils\dqc\checkpoints\p2_cache_quality.py:135:27: error: Trying to read deleted
-utils\dqc\checkpoints\p2_cache_quality.py:202:13: error: Module
-utils\evolution\tests\test_feedback_loop.py:80:13: error: Returning Any from
-utils\evolution\tests\test_feedback_loop.py:655:19: error: Item "None" of
-utils\evolution\tests\test_feedback_loop.py:1029:16: error: Item "None" of
-utils\free_stockdb_adapter.py:176:13: error: Name "_fs_client" is not defined 
-utils\free_stockdb_adapter.py:406:22: error: Name "_fs_client" is not defined 
-utils\pipeline\data_cleaning.py:178:13: error: Module "utils.data_provider" has
-utils\pipeline\data_cleaning.py:198:21: error: "str" has no attribute "get" 
-utils\pipeline\data_cleaning.py:218:21: error: Dict entry 0 has incompatible
-utils\pipeline\data_cleaning.py:220:21: error: Dict entry 2 has incompatible
-utils\pipeline\data_cleaning.py:348:9: error: Need type annotation for "result"
-utils\pipeline\data_cleaning.py:418:13: error: Module "utils.data_provider" has
-utils\pipeline\data_cleaning.py:424:21: error: Returning Any from function
-utils\pipeline\backtest_gate.py:72:38: error: Incompatible types in assignment
-utils\pipeline\backtest_gate.py:80:39: error: Incompatible types in assignment
-utils\pipeline\backtest_gate.py:210:47: error: Argument 1 to
-utils\pipeline\backtest_gate.py:254:39: error: Incompatible types in assignment
-utils\execution\automated_execution_system.py:40:16: error: Incompatible types
-utils\execution\automated_execution_system.py:60:5: error: Cannot assign to a
-utils\execution\automated_execution_system.py:60:18: error: Incompatible types
-utils\execution\automated_execution_system.py:68:5: error: Cannot assign to a
-utils\execution\automated_execution_system.py:68:24: error: Incompatible types
-utils\execution\automated_execution_system.py:78:18: error: Incompatible types
-utils\execution\automated_execution_system.py:88:14: error: Incompatible types
-utils\execution\automated_execution_system.py:239:20: error: Incompatible
-utils\execution\automated_execution_system.py:320:21: error: "object" has no
-utils\execution\automated_execution_system.py:390:36: error: Item "None" of
-utils\execution\automated_execution_system.py:1157:43: error: No overload
-utils\execution\automated_execution_system.py:1159:9: error: Returning Any from
-utils\execution\automated_execution_system.py:1237:28: error: Unsupported
-utils\execution\automated_execution_system.py:1589:37: error: Incompatible
-utils\execution\automated_execution_system.py:1721:32: error: Need type
-utils\execution\automated_execution_system.py:2085:66: error: Argument 1 to
-utils\execution\automated_execution_system.py:2086:21: error: Item "None" of
-utils\execution\automated_execution_system.py:2086:21: error: Item "None" of
-utils\execution\automated_execution_system.py:2091:32: error: Item "None" of
-utils\execution\automated_execution_system.py:2092:34: error: Item "None" of
-utils\execution\automated_execution_system.py:2623:13: error: Unexpected
-utils\alpha\shadow_real_data_feeder.py:1375:25: error: Returning Any from
-utils\alpha\shadow_real_data_feeder.py:1584:25: error: Incompatible types in
-utils\factor_research\factor_discovery_enhanced.py:53:21: error: Incompatible
-utils\factor_research\factor_discovery_enhanced.py:269:5: error: Need type
-utils\factor_research\factor_discovery_enhanced.py:373:5: error: Need type
-utils\factor_research\factor_discovery_enhanced.py:421:5: error: Need type
+utils\pipeline\risk_monitor.py:378:28: error: Argument "started_at" to
+utils\pipeline\risk_monitor.py:379:30: error: Argument "completed_at" to
+utils\pipeline\risk_monitor.py:404:28: error: Argument "started_at" to
+utils\pipeline\risk_monitor.py:405:30: error: Argument "completed_at" to
+ai_decision\health.py:229:35: error: Variable
+ai_decision\health.py:239:52: error: Variable
+ai_decision\health.py:280:9: error: CircuitBreaker? has no attribute
+ai_decision\health.py:281:12: error: CircuitBreaker? has no attribute "is_open"
+ai_decision\health.py:281:27: error: CircuitBreaker? has no attribute
+ai_decision\health.py:285:17: error: CircuitBreaker? has no attribute
+ai_decision\health.py:296:9: error: CircuitBreaker? has no attribute
+ai_decision\health.py:426:17: error: CircuitBreaker? has no attribute
+ai_decision\health.py:468:41: error: CircuitBreaker? has no attribute
+ai_decision\health.py:469:33: error: CircuitBreaker? has no attribute
+ai_decision\health.py:470:37: error: CircuitBreaker? has no attribute
+ai_decision\health.py:471:38: error: CircuitBreaker? has no attribute
+utils\alpha\health_metrics.py:635:36: error: Dict entry 1 has incompatible type
+utils\alpha\layers\strategy_health.py:228:21: error: Returning Any from
+utils\alpha\layers\code_health.py:223:20: error: Item "str" of "Any | str" has
+utils\alpha\layers\code_health.py:229:17: error: Generator has incompatible
+utils\alpha\layers\code_health.py:231:20: error: Item "str" of "Any | str" has
+utils\alpha_factor_library.py:98:13: error: Dict entry 5 has incompatible type
+utils\alpha_factor_library.py:99:13: error: Dict entry 6 has incompatible type
+utils\dqc\checkpoints\p3_factor_quality.py:164:9: error: Assignment to variable
+utils\dqc\checkpoints\p3_factor_quality.py:165:27: error: Trying to read
+utils\dqc\checkpoints\p3_factor_quality.py:326:13: error: Module
+utils\dqc\checkpoints\p2_cache_quality.py:140:9: error: Assignment to variable
+utils\dqc\checkpoints\p2_cache_quality.py:141:27: error: Trying to read deleted
+utils\dqc\checkpoints\p2_cache_quality.py:213:13: error: Module
+utils\factor_research\factor_discovery_enhanced.py:300:5: error: Need type
 utils\factor_research\factor_discovery_enhanced.py:422:5: error: Need type
-utils\evolution\tests\test_orchestrator_v2.py:136:9: error: Returning Any from
-utils\factor_research\factor_discovery.py:133:9: error: Need type annotation
-utils\factor_research\factor_discovery.py:372:50: error: Incompatible default
-utils\factor_research\factor_discovery.py:448:9: error: Need type annotation
-utils\factor_research\factor_discovery.py:449:9: error: Need type annotation
-utils\factor_research\factor_discovery.py:655:5: error: "DiscoveryReport" has
-utils\execution\daily_build_and_hedge.py:600:9: error: Need type annotation for
-utils\tradingagents_bridge.py:152:33: error: Item "None" of
-utils\tradingagents_bridge.py:194:13: error: Returning Any from function
-utils\tradingagents_bridge.py:225:49: error: Argument 2 to "_neutral_result" of
-utils\tradingagents_bridge.py:352:17: error: Returning Any from function
-utils\tradingagents_bridge.py:382:17: error: Returning Any from function
-utils\finance_agent_orchestrator.py:233:46: error: Incompatible types in
-utils\finance_agent_orchestrator.py:239:18: error: "None" has no attribute
-utils\evolution\auto_factor_factory.py:309:38: error: Incompatible types in
-utils\evolution\auto_factor_factory.py:311:38: error: Incompatible types in
-utils\universe\report_generator.py:77:16: error: Argument "colors" to "pie" of
-utils\evolution\tests\test_strategy_generator.py:86: error: The return type of
+utils\factor_research\factor_discovery_enhanced.py:475:5: error: Need type
+utils\factor_research\factor_discovery_enhanced.py:476:5: error: Need type
+utils\auto_hedge_rebalance\engine.py:269:30: error: Unexpected keyword argument
+utils\evolution\tests\test_orchestrator_v2.py:130:9: error: Returning Any from
+utils\factor_research\factor_discovery.py:195:9: error: Need type annotation
+utils\factor_research\factor_discovery.py:585:9: error: Need type annotation
+utils\factor_research\factor_discovery.py:586:9: error: Need type annotation
+utils\factor_research\factor_discovery.py:824:5: error: "DiscoveryReport" has
+utils\signal_fusion.py:115:34: error: Function "builtins.callable" is not valid
+utils\signal_fusion.py:129:34: error: Function "builtins.callable" is not valid
+utils\signal_fusion.py:212:17: error: Returning Any from function declared to
+utils\signal_fusion.py:249:28: error: Need type annotation for
+utils\signal_fusion.py:424:26: error: callable? not callable  [misc]
+utils\signal_fusion.py:836:48: error: Function "builtins.callable" is not valid
+utils\signal_fusion.py:904:51: error: Function "builtins.callable" is not valid
+utils\signal_fusion.py:910:26: error: callable? not callable  [misc]
+utils\signal_fusion.py:1042:16: error: Incompatible return value type (got
+utils\signal_fusion.py:1046:16: error: Incompatible return value type (got
+utils\signal_fusion.py:1189:16: error: Incompatible return value type (got
+utils\signal_fusion.py:1306:9: error: Returning Any from function declared to
+utils\signal_fusion.py:1383:9: error: Returning Any from function declared to
+utils\signal_fusion.py:1459:9: error: Returning Any from function declared to
+utils\signal_fusion.py:1707:25: error: callable? not callable  [misc]
+utils\signal_sources\sentiment_signal_source.py:33:5: error: All conditional
+utils\signal_sources\finnhunter_signal_source.py:198:19: error: Unexpected
+utils\signal_sources\finnhunter_signal_source.py:244:16: error: "None" not
+utils\pipeline_report_mixin.py:70:28: error: "PipelineReportMixin" has no
+utils\pipeline_report_mixin.py:77:34: error: Incompatible types in assignment
+utils\pipeline_report_mixin.py:87:30: error: Incompatible types in assignment
+utils\pipeline_report_mixin.py:103:44: error: Incompatible types in assignment
+utils\pipeline_report_mixin.py:153:47: error: Incompatible types in assignment
+utils\pipeline_report_mixin.py:179:16: error: "PipelineReportMixin" has no
+utils\pipeline_report_mixin.py:180:16: error: "PipelineReportMixin" has no
+utils\pipeline_report_mixin.py:181:23: error: "PipelineReportMixin" has no
+utils\pipeline_report_mixin.py:187:55: error: "PipelineReportMixin" has no
+utils\pipeline_report_mixin.py:188:26: error: "PipelineReportMixin" has no
+utils\pipeline_report_mixin.py:261:9: error: Returning Any from function
+utils\pipeline_report_mixin.py:288:63: error: "PipelineReportMixin" has no
+utils\tradingagents_bridge.py:153:33: error: Item "None" of
+utils\tradingagents_bridge.py:200:13: error: Returning Any from function
+utils\tradingagents_bridge.py:231:49: error: Argument 2 to "_neutral_result" of
+utils\tradingagents_bridge.py:376:17: error: Returning Any from function
+utils\tradingagents_bridge.py:415:17: error: Returning Any from function
+utils\finance_agent_orchestrator.py:242:46: error: Incompatible types in
+utils\finance_agent_orchestrator.py:248:18: error: "None" has no attribute
+utils\execution\remote_qmt_broker.py:77:20: error: Item "None" of
+utils\execution\remote_qmt_broker.py:81:17: error: Returning Any from function
+utils\execution\remote_qmt_broker.py:90:20: error: Item "None" of
+utils\execution\remote_qmt_broker.py:92:17: error: Returning Any from function
+utils\alpha_factor\auto_research.py:443:29: error: Argument 2 to
+utils\alpha_factor\auto_research.py:566:40: error: Incompatible types in
+utils\alpha_factor\auto_research.py:634:29: error: Dict entry 0 has
+utils\alpha_factor\auto_research.py:635:29: error: Dict entry 1 has
+utils\alpha_factor\auto_research.py:636:29: error: Dict entry 2 has
+utils\alpha_factor\auto_research.py:637:29: error: Dict entry 3 has
+utils\alpha_factor\auto_research.py:638:29: error: Dict entry 4 has
+utils\alpha_factor\auto_research.py:830:13: error: Returning Any from function
+utils\alpha_factor\auto_research.py:833:9: error: Returning Any from function
+utils\alpha_factor\auto_research.py:937:23: error: Argument 1 to "float" has
+utils\evolution\auto_factor_factory.py:335:38: error: Incompatible types in
+utils\evolution\auto_factor_factory.py:337:38: error: Incompatible types in
+utils\etf_flow_decision.py:59:10: error: Incompatible types in assignment
+utils\etf_flow_decision.py:161:27: error: Redundant cast to Module
+utils\enhanced_signal_fusion.py:43:9: error: Name "get_logger" already defined
+utils\enhanced_signal_fusion.py:55:9: error: Name "FusedSignal" already defined
+utils\enhanced_signal_fusion.py:55:9: error: Name "SignalFusionEngine" already
+utils\enhanced_signal_fusion.py:55:9: error: Name "SignalResult" already
+utils\enhanced_signal_fusion.py:63:9: error: Name "SignalResult" already
+utils\enhanced_signal_fusion.py:68:9: error: Name "FusedSignal" already defined
+utils\enhanced_signal_fusion.py:73:9: error: Name "SignalFusionEngine" already
+utils\enhanced_signal_fusion.py:76:17: error: Need type annotation for
+utils\enhanced_signal_fusion.py:77:17: error: Need type annotation for
+utils\enhanced_signal_fusion.py:82:25: error: Function "builtins.callable" is
+utils\enhanced_signal_fusion.py:237:17: error: Function "builtins.callable" is
+utils\enhanced_signal_fusion.py:653:27: error: Unsupported operand types for -
+utils\enhanced_signal_fusion.py:653:27: error: Unsupported operand types for -
+utils\enhanced_signal_fusion.py:937:16: error: Incompatible return value type
+utils\enhanced_signal_fusion.py:941:16: error: Incompatible return value type
+utils\universe\report_generator.py:88:16: error: Argument "colors" to "pie" of
+utils\evolution\tests\test_factor_approval_executor.py:108: error: The return
+utils\evolution\tests\test_strategy_generator.py:79: error: The return type of
+utils\unsloth_adapter.py:204:13: error: Returning Any from function declared to
+utils\timesfm_predictor.py:163:53: error: Item "object" of "Any | object" has
+utils\timesfm_predictor.py:220:37: error: Item "object" of "Any | object" has
+utils\timesfm_forecast.py:123:30: error: Argument 1 to "forecast_series" has
+utils\alpha_factor\transformer_encoder.py:36:13: error: Incompatible types in
+utils\alpha_factor\transformer_encoder.py:37:10: error: Incompatible types in
+utils\alpha_factor\transformer_encoder.py:116:9: error: Returning Any from
+utils\alpha_factor\transformer_encoder.py:122:9: error: Returning Any from
+utils\alpha_factor\transformer_encoder.py:178:31: error: Name "nn.Module" is
+utils\alpha_factor\transformer_encoder.py:196:25: error: Item "type" of
+utils\alpha_factor\transformer_encoder.py:196:25: error: Item "None" of
+utils\alpha_factor\transformer_encoder.py:197:25: error: Item "type" of
+utils\alpha_factor\transformer_encoder.py:197:25: error: Item "None" of
+utils\alpha_factor\transformer_encoder.py:204:28: error: Item "type" of
+utils\alpha_factor\transformer_encoder.py:204:28: error: Item "None" of
+utils\alpha_factor\transformer_encoder.py:205:23: error: Item "type" of
+utils\alpha_factor\transformer_encoder.py:205:23: error: Item "None" of
+utils\alpha_factor\transformer_encoder.py:207:30: error: Name "torch.Tensor" is
+utils\alpha_factor\transformer_encoder.py:394:14: error: Item "type" of
+utils\alpha_factor\transformer_encoder.py:394:14: error: Item "None" of
+utils\alpha_factor\transformer_encoder.py:395:18: error: Item "type" of
+utils\alpha_factor\transformer_encoder.py:395:18: error: Item "None" of
+utils\alpha_factor\gat_factor_torch.py:135:26: error: Incompatible types in
+utils\alpha_factor\gat_factor_torch.py:148:19: error: "None" not callable
+utils\alpha_factor\gat_factor_torch.py:149:9: error: Returning Any from
+utils\alpha_factor\gat_factor_torch.py:149:16: error: "None" not callable
+utils\alpha_factor\gat_factor_torch.py:167:47: error: Item "None" of
+utils\alpha_factor\gat_factor_torch.py:168:49: error: Item "None" of
+utils\alpha_factor\gat_factor_torch.py:169:50: error: Item "None" of
+utils\alpha_factor\gat_factor_torch.py:170:68: error: Item "None" of
+utils\alpha_factor\gat_factor_torch.py:193:9: error: Item "None" of
+utils\alpha_factor\gat_factor_torch.py:194:9: error: Item "None" of
+utils\alpha_factor\gat_factor_torch.py:196:13: error: "None" has no attribute
+utils\alpha_factor\gat_factor_torch.py:201:13: error: "None" has no attribute
 utils\universe\scheduler.py:68:36: error: Incompatible types in assignment
-utils\universe\scheduler.py:82:40: error: Incompatible types in assignment
-utils\pipeline\alpha_pipeline.py:250:25: error: "None" not callable  [misc]
-utils\pipeline\alpha_pipeline.py:337:28: error: Dict entry 0 has incompatible
-utils\pipeline\alpha_pipeline.py:419:20: error: "DriftMonitor" has no attribute
-utils\pipeline\alpha_pipeline.py:459:13: error: Module "utils.signal_fusion"
-utils\pipeline\alpha_pipeline.py:471:13: error: "SignalFusionEngine" has no
-utils\pipeline\orchestrator.py:374:27: error: Argument "signal_result" to "run"
-utils\evolution\tests\test_system_check_autofix_integration.py:173:20: error:
-utils\evolution\tests\test_system_check_autofix_integration.py:195:20: error:
-utils\evolution\tests\test_system_check_autofix_integration.py:226:20: error:
-utils\alpha\health_metrics.py:511:36: error: Dict entry 1 has incompatible type
-utils\alpha\layers\strategy_health.py:187:21: error: Returning Any from
-utils\alpha\layers\code_health.py:179:50: error: Item "str" of "Any | str" has
-utils\alpha\layers\code_health.py:183:26: error: Generator has incompatible
-utils\alpha\layers\code_health.py:183:52: error: Item "str" of "Any | str" has
-
+utils\universe\scheduler.py:91:40: error: Incompatible types in assignment
+utils\execution\qmt_rpc_server.py:358:9: error: Returning Any from function
+utils\github_integration_registry.py:103:13: error: Returning Any from function
+utils\data_provider.py:251:37: error: No overload variant of "get" of "dict"
+utils\data_provider.py:279:41: error: No overload variant of "get" of "dict"
+utils\free_stockdb_adapter.py:203:13: error: Name "_fs_client" is not defined
+utils\free_stockdb_adapter.py:475:22: error: Name "_fs_client" is not defined
+utils\pipeline\data_cleaning.py:67:33: error: "None" not callable  [misc]
+utils\pipeline\data_cleaning.py:68:27: error: "None" not callable  [misc]
+utils\pipeline\data_cleaning.py:210:32: error: "MarketDataProvider" has no
+utils\pipeline\data_cleaning.py:235:21: error: "str" has no attribute "get"
+utils\pipeline\data_cleaning.py:274:21: error: Dict entry 0 has incompatible
+utils\pipeline\data_cleaning.py:276:21: error: Dict entry 2 has incompatible
+utils\pipeline\data_cleaning.py:439:9: error: Need type annotation for "result"
+utils\pipeline\data_cleaning.py:521:18: error: "MarketDataProvider" has no
+utils\pipeline\data_cleaning.py:529:21: error: Returning Any from function
+utils\pipeline\backtest_gate.py:74:38: error: Incompatible types in assignment
+utils\pipeline\backtest_gate.py:83:39: error: Incompatible types in assignment
+utils\pipeline\backtest_gate.py:254:47: error: Argument 1 to
+utils\pipeline\backtest_gate.py:316:39: error: Incompatible types in assignment
+utils\execution\automated_execution_system.py:63:16: error: Incompatible types
+utils\execution\automated_execution_system.py:85:5: error: Cannot assign to a
+utils\execution\automated_execution_system.py:85:18: error: Incompatible types
+utils\execution\automated_execution_system.py:93:5: error: Cannot assign to a
+utils\execution\automated_execution_system.py:93:24: error: Incompatible types
+utils\execution\automated_execution_system.py:103:18: error: Incompatible types
+utils\execution\automated_execution_system.py:113:14: error: Incompatible types
+utils\execution\automated_execution_system.py:120:5: error: All conditional
+utils\execution\automated_execution_system.py:121:16: error: Incompatible
+utils\execution\automated_execution_system.py:330:5: error: Missing return
+utils\execution\automated_execution_system.py:384:21: error: Return value
+utils\execution\automated_execution_system.py:847:5: error: Missing return
+utils\execution\automated_execution_system.py:1565:13: error: Unexpected
+utils\alpha\shadow_real_data_feeder.py:1333:13: error: Returning Any from
+utils\alpha\shadow_real_data_feeder.py:1446:25: error: Returning Any from
+utils\alpha\shadow_real_data_feeder.py:1666:25: error: Incompatible types in
+etf_option_hedge_rebalancer.py:271:41: error: Incompatible types in assignment
+etf_option_hedge_rebalancer.py:347:13: error: Need type annotation for
+etf_option_hedge_rebalancer.py:397:43: error: Incompatible types in assignment
+etf_option_hedge_rebalancer.py:400:43: error: Incompatible types in assignment
+etf_option_hedge_rebalancer.py:404:43: error: Incompatible types in assignment
+etf_option_hedge_rebalancer.py:497:20: error: "EvolutionOrchestratorV2" has no
+utils\execution\daily_build_and_hedge.py:1257:16: error: Incompatible return
+utils\execution\daily_build_and_hedge.py:1360:30: error: Unpacking a string is
+utils\glm5_decision_engine.py:154:27: error: Incompatible types in assignment
+utils\glm5_decision_engine.py:164:34: error: Incompatible types in assignment
+utils\glm5_decision_engine.py:184:27: error: Incompatible types in assignment
+utils\glm5_decision_engine.py:659:25: error: Argument 1 to "append" of "list"
+utils\glm5_decision_engine.py:679:27: error: Need type annotation for "fin_map"
+utils\glm5_decision_engine.py:680:28: error: Need type annotation for
+utils\glm5_decision_engine.py:936:26: error: Incompatible types in assignment
+utils\glm5_decision_engine.py:938:26: error: Incompatible types in assignment
+utils\glm5_decision_engine.py:940:9: error: Item "str" of "str | None" has no
+utils\glm5_decision_engine.py:940:9: error: Item "None" of "str | None" has no
+utils\glm5_decision_engine.py:943:23: error: Unsupported left operand type for
+utils\glm5_decision_engine.py:943:23: error: Unsupported left operand type for
+utils\pipeline\alpha_pipeline.py:331:17: error: "None" not callable  [misc]
+utils\pipeline\alpha_pipeline.py:449:28: error: Dict entry 0 has incompatible
+utils\pipeline\alpha_pipeline.py:558:20: error: "DriftMonitor" has no attribute
+utils\pipeline\alpha_pipeline.py:633:31: error: "float" has no attribute "get"
+utils\pipeline\alpha_pipeline.py:634:32: error: "float" has no attribute "get"
+utils\pipeline\alpha_pipeline.py:635:36: error: "float" has no attribute "get"
+lgb_trainer\metrics.py:145:31: error: "None" not callable  [misc]
+lgb_trainer\trainer.py:104:80: error: Argument "callbacks" to "fit" of
+lgb_trainer\trainer.py:118:72: error: Argument "callbacks" to "fit" of
+lgb_trainer\trainer.py:828:13: error: Name "adaptive_optimize" already defined
+utils\pipeline\orchestrator.py:414:27: error: Argument "signal_result" to "run"
+utils\pipeline_lgb_mixin.py:58:5: error: Module "lightgbm" has no attribute
+utils\pipeline_lgb_mixin.py:113:27: error: "LGBMixin" has no attribute
+utils\pipeline_lgb_mixin.py:178:20: error: "LGBMixin" has no attribute
+utils\pipeline_lgb_mixin.py:220:12: error: "LGBMixin" has no attribute "ctx"
+utils\pipeline_lgb_mixin.py:225:13: error: "LGBMixin" has no attribute "ctx"
+utils\pipeline_lgb_mixin.py:260:17: error: "LGBMixin" has no attribute
+utils\pipeline_lgb_mixin.py:285:24: error: "LGBMixin" has no attribute
+utils\pipeline_lgb_mixin.py:403:22: error: "LGBMixin" has no attribute
+utils\pipeline_data_mixin.py:234:31: error: Argument 1 to "float" has
+utils\pipeline_data_mixin.py:298:13: error: Returning Any from function
+utils\pipeline_data_mixin.py:304:13: error: Returning Any from function

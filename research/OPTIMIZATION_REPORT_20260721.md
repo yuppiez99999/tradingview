@@ -1,7 +1,7 @@
 # 🔧 量化系统优化报告 (2026-07-21)
 
-**优化目标**: 在满足十五五规划和康波周期策略前提下，真正实现年化≥8%、最大回撤<15%  
-**优化版本**: v8.2 → v8.3 (风控强制执行版)  
+**优化目标**: 在满足十五五规划和康波周期策略前提下，真正实现年化≥8%、最大回撤<15%
+**优化版本**: v8.2 → v8.3 (风控强制执行版)
 **核心变化**: 从"纸面风控规则"升级为"代码强制执行"
 
 ---
@@ -52,8 +52,8 @@ MAX_ANNUAL_OPTION_COST_PCT = 0.025  # 期权年成本<2.5%
 
 **执行链路**:
 ```
-run_daily_eod.py (16:00) 
-  → generate_daily_report() 
+run_daily_eod.py (16:00)
+  → generate_daily_report()
   → RiskGuardIntegrator.run_all_guards()
     → Guard 1: 回撤检查（强制修改次日计划）
     → Guard 2: 波动率控制（缩减建仓预算）
@@ -152,7 +152,7 @@ rgi = RiskGuardIntegrator(report_date=report_date, total_capital=5_000_000)
 result = rgi.run_all_guards(next_trade_date=next_trading_day)
 ```
 
-**执行时机**: 每个交易日 16:00，由 Windows Task Scheduler `v75_EOD_Report` 触发  
+**执行时机**: 每个交易日 16:00，由 Windows Task Scheduler `v75_EOD_Report` 触发
 **失败降级**: 风控模块异常不阻塞报告生成（try/except 包裹）
 
 ---
@@ -199,6 +199,6 @@ result = rgi.run_all_guards(next_trade_date=next_trading_day)
 
 ---
 
-**报告生成时间**: 2026-07-21 13:04  
-**十五五主线**: 保持不变（新质生产力+健康中国+双碳+数字中国）  
+**报告生成时间**: 2026-07-21 13:04
+**十五五主线**: 保持不变（新质生产力+健康中国+双碳+数字中国）
 **康波周期**: 保持不变（第六轮复苏→繁荣，资源+科技+资本品）

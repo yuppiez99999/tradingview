@@ -2,9 +2,9 @@
 
 > **文档状态**: 2026-08-10 初稿，基于门禁三件套实测值制定
 > **计划周期**: 2026-08-11 ~ 2026-12-31 (8个Sprint + 实盘准入)
-> **核心目标**: 
+> **核心目标**:
 > - 08-22 中期工业级达标 (11 PASS / 1 WARN / 0 FAIL)
-> - 09-30 全面达标 (12 PASS / 0 WARN / 0 FAIL)  
+> - 09-30 全面达标 (12 PASS / 0 WARN / 0 FAIL)
 > - 10-31 工程基础层就位 (uv/Prefect/LiteLLM/DuckDB/pytest 护城河)
 > - 12-31 实盘准入 (门禁三件套连续21天0 FAIL + 影子账户2周 + 灰度发布完成)
 
@@ -292,7 +292,7 @@ e:\各种PY程序\10_第三方项目\ECC\             # ECC 源码 (Agent skills
 
 ### 08-22 中期工业级达标 (Sprint 2 结束)
 - ✅ 门禁三件套: industrial_grade_check 11 PASS / 1 WARN / 0 FAIL
-- ✅ assert_data_validity 12 PASS / 0 FAIL  
+- ✅ assert_data_validity 12 PASS / 0 FAIL
 - ✅ engineering_debt_gate GREEN
 - ✅ 观察期 21 天达标
 - ✅ Phase B Stage1 启用

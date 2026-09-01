@@ -1,8 +1,8 @@
 # OCR 扫描代码评论落地（2026-08-11）
 
-> 来源：`logs/_ocr_scan_chunk2.log`  
-> 扫描目标：`daily_trading_workflow.py`（分块为 `_ocr_chunks/chunk2_dailyworkflow_core.py`）  
-> 扫描时间：2026-07-28 18:11  
+> 来源：`logs/_ocr_scan_chunk2.log`
+> 扫描目标：`daily_trading_workflow.py`（分块为 `_ocr_chunks/chunk2_dailyworkflow_core.py`）
+> 扫描时间：2026-07-28 18:11
 > 产出评论：19 条
 
 ---

@@ -52,7 +52,7 @@
             # 计算回撤逻辑
             peak = max(peak, current_equity)
             self.current_dd = (peak - current_equity) / peak
-            
+
             if self.current_dd > 0.10:
                 self.mode = "DEFENSE"  # 防御模式
                 self.position_size *= 0.5

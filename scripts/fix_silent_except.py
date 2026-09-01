@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 静默异常处理正态化工具 v1.0
 
@@ -15,16 +14,14 @@
   python scripts/fix_silent_except.py --fix              # 生成补丁
   python scripts/fix_silent_except.py --fix --apply      # 应用补丁
 """
-import ast
 import json
 import os
 import re
 import sys
-import textwrap
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROD_SCAN = PROJECT_ROOT / "scripts" / "_prod_bug_scan_results.json"
@@ -53,13 +50,13 @@ class SilentExceptEntry:
     file: str
     line: int
     except_stmt: str
-    body_lines: List[str] = field(default_factory=list)
+    body_lines: list[str] = field(default_factory=list)
     category: str = "UNCLASSIFIED"
     fix_suggestion: str = ""
 
 
-def load_scan_results(scan_file: Path) -> Dict[str, List]:
-    with open(scan_file, "r", encoding="utf-8") as f:
+def load_scan_results(scan_file: Path) -> dict[str, list]:
+    with open(scan_file, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -84,7 +81,7 @@ def is_prod_file(file_path: str) -> bool:
     return False
 
 
-def read_except_block(file_path: str, except_line: int, max_body: int = 10) -> Tuple[str, List[str]]:
+def read_except_block(file_path: str, except_line: int, max_body: int = 10) -> tuple[str, list[str]]:
     """读取 except 语句及其块体."""
     resolved = PROJECT_ROOT / normalize_path(file_path)
     if not resolved.exists():
@@ -94,7 +91,7 @@ def read_except_block(file_path: str, except_line: int, max_body: int = 10) -> T
             return "", []
 
     try:
-        with open(resolved, "r", encoding="utf-8") as f:
+        with open(resolved, encoding="utf-8") as f:
             all_lines = f.readlines()
     except (UnicodeDecodeError, OSError):
         return "", []
@@ -131,7 +128,7 @@ def read_except_block(file_path: str, except_line: int, max_body: int = 10) -> T
     return except_stmt, body
 
 
-def classify_except(except_stmt: str, body_lines: List[str]) -> str:
+def classify_except(except_stmt: str, body_lines: list[str]) -> str:
     """分类 except 块."""
     # 提取块体中有意义的行 (非空非纯注释)
     meaningful = [l for l in body_lines if l.strip() and not l.strip().startswith("#")]
@@ -186,7 +183,7 @@ def suggest_fix(entry: SilentExceptEntry) -> str:
     return '    # TODO: 人工审核此异常处理'
 
 
-def process_entries(scan_file: Path, prod_only: bool = True) -> List[SilentExceptEntry]:
+def process_entries(scan_file: Path, prod_only: bool = True) -> list[SilentExceptEntry]:
     data = load_scan_results(scan_file)
     entries = data.get("BROAD_EXCEPT_SILENT", [])
     results = []
@@ -217,7 +214,7 @@ def process_entries(scan_file: Path, prod_only: bool = True) -> List[SilentExcep
     return results
 
 
-def print_summary(results: List[SilentExceptEntry]):
+def print_summary(results: list[SilentExceptEntry]):
     cats = defaultdict(list)
     for e in results:
         cats[e.category].append(e)
@@ -255,7 +252,7 @@ def print_summary(results: List[SilentExceptEntry]):
             print(f"    {e.file}:{e.line}  [{e.category}] {body_preview[:60]}")
 
 
-def save_report(results: List[SilentExceptEntry], output_path: Path):
+def save_report(results: list[SilentExceptEntry], output_path: Path):
     report = {
         "generated_at": "2026-08-02",
         "total_entries": len(results),
@@ -277,7 +274,7 @@ def save_report(results: List[SilentExceptEntry], output_path: Path):
     print(f"\n  详细报告已保存: {output_path}")
 
 
-def generate_patches(results: List[SilentExceptEntry], output_dir: Optional[Path] = None):
+def generate_patches(results: list[SilentExceptEntry], output_dir: Optional[Path] = None):
     if output_dir is None:
         output_dir = PATCH_DIR
     output_dir = Path(output_dir)
@@ -293,7 +290,7 @@ def generate_patches(results: List[SilentExceptEntry], output_dir: Optional[Path
         resolved = PROJECT_ROOT / file_path
         if not resolved.exists():
             continue
-        with open(resolved, "r", encoding="utf-8") as f:
+        with open(resolved, encoding="utf-8") as f:
             source_lines = f.readlines()
 
         for entry in sorted(entries, key=lambda x: x.line):

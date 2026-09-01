@@ -1,8 +1,8 @@
 # 最优计划：v9.x 工业级达标与 12-31 上实盘
 
-> 生成日期：2026-08-11  
-> 当前基线：assert_data_validity 12P/0F、industrial_grade_check 11P/1W/0F、engineering_debt_gate GREEN、代码审查积压 0  
-> 硬 deadline：2026-12-31 上实盘  
+> 生成日期：2026-08-11
+> 当前基线：assert_data_validity 12P/0F、industrial_grade_check 11P/1W/0F、engineering_debt_gate GREEN、代码审查积压 0
+> 硬 deadline：2026-12-31 上实盘
 > 计划周期：08-11 ~ 12-31（20 周）
 
 > **🔧 08-12 二次更正（v3）**：G15 事件驱动回测的"完全不存在"判断已**证伪**。

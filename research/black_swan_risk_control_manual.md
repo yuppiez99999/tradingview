@@ -1,7 +1,7 @@
 # 黑天鹅风控手册（可执行版）
 
-> 目标：黑天鹅/极端市场下，500 万账户最多亏损不超过 30%，剩余资金不低于 350 万。  
-> 适用系统：`e:\各种PY程序\28-终极量化交易系统7.1`  
+> 目标：黑天鹅/极端市场下，500 万账户最多亏损不超过 30%，剩余资金不低于 350 万。
+> 适用系统：`e:\各种PY程序\28-终极量化交易系统7.1`
 > 关联文件：`config.py`、`black_swan_optimizer.py`、`tail_risk_hedge.py`、`comprehensive_quant_system_v7.py`、`generate_500w_build_plan.py`
 
 ---
@@ -179,7 +179,7 @@ if alert.level.value >= 2:
     # 触发减仓 + 期货加仓
     reduce_equity_to(target=alert.level)
     increase_futures_hedge(to=alert.level)
-    
+
 if alert.level.value >= 3:
     # 期权加厚
     trades = tail.execute_protection_strategy(protection_needed, market_data)
