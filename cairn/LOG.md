@@ -9,7 +9,8 @@
 - **二次 dispatch (run 33505803723, success)**: HEAD diff 仅 workflow 文件 → any_changed=false → 审查步骤正确跳过 — 非 PR 事件 HEAD^ diff 语义验证通过
 - **三次 dispatch (run 33505951494, success)**: 命中审查路径, pandas 错误消失但新降级于 `No module named 'joblib'` — 逐个踩坑不可持续, 改用自动化探测: 干净 venv + 循环"import→捕获 ModuleNotFoundError→pip 装→重试" 一次性测出完整依赖集 **pandas/numpy/pyyaml/joblib/lightgbm/requests** (model_registry→joblib+lightgbm, omni_route_client→requests; 深度函数内延迟 import, 静态 AST 追踪不到)
 - **四次 dispatch (run 33507115544, success)**: 依赖集补全生效 (缺模块报错消失), 但暴露前轮表达式修复引入的**bash 引号作用域 bug**: `python -c` 脚本整体包在 bash 双引号里, 修复用的外层双引号被 bash 切断, `manual` 裸露成 Python 裸标识符 → `name 'manual' is not defined` 降级。修复: PR 号改经 env `PR_NUM` 传递 (canonical 安全模式, 彻底绕开引号作用域), 内层 `os.environ.get('PR_NUM', 'manual')`
-- **状态**: workflow 注册/触发/路径过滤/降级语义/依赖集全部验证; 真实 LLM 双模型审查待下个含 docs/cairn 变更的 dispatch (依赖 secrets OCR_LLM_AUTH_TOKEN/DEEPSEEK_API_KEY)
+- **五次 dispatch (run 33507377655, success) — 完整闭环达成**: `cairn/LOG.md | lens=product | confirmed=0 | mode=no_findings, Total: 1 artifacts reviewed` — **该 workflow 创建 12 天以来首次真实执行审查**并成功上传 artifact (非降级)。至此 mmr-deep 全链路 (注册/触发/路径过滤/依赖/pr_num/审查/上传) 全部修复并实证
+- **状态**: ✅ 全链路修复完成。下个 PR 将首次在真实场景运行 (Comment PR 步骤此前从未执行过)
 - **指针**: `.github/workflows/mmr-deep.yml` L83-86; 前序 LOG (mmr-deep 根因修复)
 
 ## 2026-09-01 · mmr-deep.yml 12 天 phantom startup_failure 根因：L96 表达式内反斜杠引号非法 token
