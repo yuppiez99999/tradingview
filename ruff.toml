@@ -183,8 +183,10 @@ force-single-line = false
 "utils/feature_store/online_store.py" = ["BLE001"]
 "utils/feature_store/offline_store.py" = ["BLE001"]
 # CLI 辅助/系统检查/自检入口: print 是合理的用户交互
+# UP036/UP042 (2026-09-01): Py3.8 StrEnum/UTC polyfill 的 version block 与
+# str+Enum 继承是有意设计 (与 UP042 既有豁免惯例同例), 不做现代化改写
 "utils/cli_helpers.py" = ["T201"]
-"utils/system_check.py" = ["T201", "ANN", "E402"]
+"utils/system_check.py" = ["T201", "ANN", "E402", "UP036", "UP042"]
 "utils/execution/fills_store.py" = ["T201"]
 "utils/execution/fills_pnl_bridge.py" = ["T201"]
 "utils/execution/broker_factory.py" = ["T201"]
@@ -299,6 +301,10 @@ force-single-line = false
 # UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
 "tests/eval/cn_buzz2portfolio.py" = ["UP042"]
 
+# P3-1 (2026-09-01): 2014 ETF 轮动回测实验目录 — 一次性研究性回测代码,
+# print 是进度输出, 金融大写变量名/宽松注解/未用导入是实验代码常态 (与 research/ 同类)
+"backtests/_etf_rotation_2014/**/*.py" = ["T201", "ANN", "N806", "N802", "N803", "F401", "F841"]
+
 # LIT-2.4: KTD-Fin 记忆控制评估
 # UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
 "tests/eval/ktd_fin.py" = ["UP042"]
@@ -378,7 +384,8 @@ force-single-line = false
 # llmfit 集成 (2026-08-23): 本地 LLM 模型选型器, __main__ 自检入口 print 是合理的
 "utils/local_model_selector.py" = ["T201"]
 # value_investing: 研究性回测代码, ANN/BLE001/C901/B007/E741 豁免 (与 research/ 同类)
-"utils/value_investing/**/*.py" = ["ANN", "BLE001", "C901", "B007", "E741", "N806"]
+# UP035 (2026-09-01): financial_rigor 用 typing.Callable 保 Py3.8 兼容 (文件头声明 >= 3.7)
+"utils/value_investing/**/*.py" = ["ANN", "BLE001", "C901", "B007", "E741", "N806", "UP035"]
 
 # ============================================================
 # 代码质量审查 (2026-08-24): BLE001 泄漏补豁免

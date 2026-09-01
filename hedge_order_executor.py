@@ -294,9 +294,11 @@ def _collect_pending_orders(plan: dict) -> list[dict[str, Any]]:
         )
         if not is_option:
             return
+        # P3-2 修复 (2026-09-01): fallback 去重键补 date — 原键 {instrument}-{contracts}-{strike_rule}
+        # 不含日期, 不同交易日的同参数订单会被误去重导致漏单
         oid = (
             order.get("order_id")
-            or f"{order.get('instrument')}-{order.get('contracts')}-{order.get('strike_rule')}"
+            or f"{order.get('date', '')}-{order.get('instrument')}-{order.get('contracts')}-{order.get('strike_rule')}"
         )
         if oid in seen_ids:
             return

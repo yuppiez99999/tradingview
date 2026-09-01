@@ -245,10 +245,10 @@ class TestFactorPerformance(unittest.TestCase):
 
     def test_single_stock_factor_compute(self):
         """单股 458 因子计算应在 5 秒内"""
-        from utils.vibe_trading_adapter import get_vibe_adapter
+        from utils.vibe_trading_adapter import get_adapter
 
         df = _make_mock_kline(300)
-        adapter = get_vibe_adapter()
+        adapter = get_adapter()
         start = time.time()
         result = adapter.compute_single_stock(df)
         elapsed = time.time() - start

@@ -32,9 +32,9 @@ df = pd.DataFrame(
     index=dates,
 )
 
-from utils.vibe_trading_adapter import get_vibe_adapter  # noqa: E402
+from utils.vibe_trading_adapter import get_adapter  # noqa: E402
 
-adapter = get_vibe_adapter()
+adapter = get_adapter()
 
 print("=" * 70)
 print("Alpha101 (WorldQuant) 完整 101 因子测试")

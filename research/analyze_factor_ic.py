@@ -123,10 +123,10 @@ def _prepare_factor_setup(kline_count: int):
     """初始化 K 线加载器与因子适配器，返回 (loader, adapter, theme_factors, all_factor_ids)"""
     # 2. K 线加载器 + 因子适配器
     from utils.universe.scheduler import KlinesLoader  # noqa: E402
-    from utils.vibe_trading_adapter import get_vibe_adapter  # noqa: E402
+    from utils.vibe_trading_adapter import get_adapter  # noqa: E402
 
     loader = KlinesLoader(count=kline_count)
-    adapter = get_vibe_adapter()
+    adapter = get_adapter()
     config = ScoringConfig(kline_count=kline_count)
     theme_factors = select_factor_ids(adapter, config)
     all_factor_ids = sorted({fid for fids in theme_factors.values() for fid in fids})

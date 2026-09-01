@@ -78,9 +78,9 @@ print("=" * 60)
 print("方式2: Vibe-Trading 适配器测试")
 print("=" * 60)
 
-from utils.vibe_trading_adapter import get_vibe_adapter  # noqa: E402
+from utils.vibe_trading_adapter import get_adapter  # noqa: E402
 
-adapter = get_vibe_adapter()
+adapter = get_adapter()
 
 print(f"注册表健康状态: {adapter.health}")
 
