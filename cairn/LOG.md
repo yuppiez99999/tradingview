@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-01 · 跟踪 CI 首跑 3.14：发现并修复 pytest.ini 回归 + 存量缺依赖，主 CI 10 job 全绿
+
+- **首跑失败诊断**: push 36f62a1b 后 CI 失败, 逐一拉 job 日志定位三层原因 — ① 今日 pytest.ini 新增 `timeout=300` 依赖 pytest-timeout 插件, CI 未装的 job 全部报 `Unknown config option: timeout` (smoke 显式失败, **unit 静默空跑**: 73s vs 正常 398s, job 显绿实为 0 测试 — 隐蔽性极高); ② 存量: v9-quick 缺 scipy (DSR 测试 import 失败); ③ 存量: integration 缺 joblib (连带触发 utils.alpha "circular import" 假象)
+- **修复** (commit 52d415d9): ci.yml 5 处 pip install 补 pytest-timeout; v9-quick 补 scipy; integration 补 joblib
+- **验证**: run 33501410802 **主 CI 10/10 job 全绿** ("CI 全部通过 — 可以合并"), unit 398s 真实执行; Python 3.14 与生产 .venv 3.14.4 完全对齐验证成功
+- **遗留 (存量, 非本轮引入)**: ① Quality Gate (PR Incremental) 工作流自 08-24 起 30+ 连败于 `ci_integrity_check --strict` (CI 环境 unrunnable=1, 本地复现全绿 — CI 精简依赖环境特有); ② mmr-deep.yml 每次 push 0 秒解析级失败; ③ 教训: 改 pytest.ini/门禁配置属"全环境契约", 须同步核对 CI 安装清单
+- **指针**: `.github/workflows/ci.yml`; 上轮 LOG 条目 (CI 统一 3.14)
+
 ## 2026-09-01 · P2-4 收尾：CI/本地 Python 版本统一至 3.14（本轮扫描最后一项遗留清零）
 
 - **实测漂移比预期严重**: 本地生产 `.venv` = Python **3.14.4**（当日全部修复与 173 项测试在其上验证通过），而 CI 双重漂移 — ci/tdd-guard 用 3.11、quality-gate/mmr-deep/mmr-judge 硬编码 3.10、ocr 两工作流无 Python 步骤
