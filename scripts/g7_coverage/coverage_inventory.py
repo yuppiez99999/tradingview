@@ -15,7 +15,6 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -168,7 +167,7 @@ def _parse_coverage_xml(xml_path: Path) -> dict[str, dict[str, object]]:
 
 def _match_module(
     module_path: str, file_map: dict[str, dict[str, object]]
-) -> Optional[dict[str, object]]:
+) -> dict[str, object] | None:
     if module_path in file_map:
         return file_map[module_path]
     basename = os.path.basename(module_path)
@@ -181,9 +180,9 @@ def _match_module(
 class CoverageInventory:
     @staticmethod
     def scan(
-        coverage_xml_path: Optional[str] = None,
-        coveragerc_path: Optional[str] = None,
-        p0_module_spec: Optional[dict[str, list[str]]] = None,
+        coverage_xml_path: str | None = None,
+        coveragerc_path: str | None = None,
+        p0_module_spec: dict[str, list[str]] | None = None,
     ) -> list[ModuleCoverageRecord]:
         xml_path = (
             Path(coverage_xml_path)
@@ -230,8 +229,8 @@ class CoverageInventory:
 
     @staticmethod
     def scan_and_archive(
-        output_dir: Optional[str] = None,
-        coverage_xml_path: Optional[str] = None,
+        output_dir: str | None = None,
+        coverage_xml_path: str | None = None,
     ) -> str:
         records = CoverageInventory.scan(coverage_xml_path=coverage_xml_path)
         out_dir = Path(output_dir) if output_dir else PROJECT_ROOT / "reports" / "ci"
@@ -251,7 +250,7 @@ class CoverageInventory:
         return str(out_path)
 
 
-def _root_line_rate(coverage_xml_path: Optional[str]) -> Optional[float]:
+def _root_line_rate(coverage_xml_path: str | None) -> float | None:
     xml_path = (
         Path(coverage_xml_path)
         if coverage_xml_path

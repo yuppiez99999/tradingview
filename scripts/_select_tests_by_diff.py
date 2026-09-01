@@ -33,7 +33,6 @@ import subprocess
 import sys
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -118,7 +117,7 @@ def collect_py_roots(roots: list[str]) -> list[Path]:
     return out
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="AST-based smart test selection")
     parser.add_argument("--base", default="origin/main")
     parser.add_argument("--head", default="HEAD")

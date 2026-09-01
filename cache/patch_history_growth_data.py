@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P2.2 改进补丁脚本：为现有 100 个 *_history.json 缓存补齐 revenue/yoy_pni 字段
 
 需求背景：
@@ -25,8 +24,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from cache.data_downloader import download_fundamentals_history_batch
-from cache.symbol_universe import get_universe
+from cache.data_downloader import download_fundamentals_history_batch  # noqa: E402
+from cache.symbol_universe import get_universe  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,7 +56,7 @@ def main() -> int:
         force_refresh=False,
     )
 
-    print()
+    print()  # noqa: T201
     logger.info("=" * 70)
     logger.info("补齐完成")
     logger.info("=" * 70)
@@ -73,16 +72,16 @@ def main() -> int:
         sample_path = _PROJECT_ROOT / "cache" / "fundamentals" / f"{universe[0]}_history.json"
         if sample_path.exists():
             import json
-            with open(sample_path, "r", encoding="utf-8") as f:
+            with open(sample_path, encoding="utf-8") as f:
                 sample = json.load(f)
             schema_v = sample.get("schema_version", 1)
             quarters = sample.get("quarters", [])
             latest_q = quarters[0] if quarters else {}
-            print()
+            print()  # noqa: T201
             logger.info(f"样本验证（{universe[0]}）:")
             logger.info(f"  schema_version: {schema_v}")
             logger.info(f"  n_valid: {len(quarters)}")
-            print(f"  最新季度字段: revenue={latest_q.get('revenue', 'N/A')}, "
+            print(f"  最新季度字段: revenue={latest_q.get('revenue', 'N/A')}, "  # noqa: T201
                   f"yoy_pni={latest_q.get('yoy_pni', 'N/A')}, "
                   f"yoy_ni={latest_q.get('yoy_ni', 'N/A')}")
 

@@ -26,7 +26,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -71,7 +70,7 @@ def get_added_files(base: str, head: str) -> list[str]:
     ]
 
 
-def expected_test_path(prod_rel: str) -> Optional[str]:
+def expected_test_path(prod_rel: str) -> str | None:
     """生产文件路径 -> 期望的测试文件路径; 不符合规则返回 None。"""
     norm = prod_rel.replace("\\", "/")
     parts = norm.split("/")
@@ -88,7 +87,7 @@ def expected_test_path(prod_rel: str) -> Optional[str]:
     return f"{TEST_ROOT}/test_{basename}"
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="TDD Guard (GAP-4)")
     parser.add_argument("--base", default="origin/main")
     parser.add_argument("--head", default="HEAD")

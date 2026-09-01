@@ -11,7 +11,6 @@ import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 import sys as _sys
@@ -59,9 +58,9 @@ def _module_line_rate(xml_path: Path, module_path: str) -> float:
 class DeltaCalculator:
     @staticmethod
     def calculate(
-        before_xml_path: Optional[str] = None,
-        after_xml_path: Optional[str] = None,
-        p0_module_spec: Optional[dict[str, list[str]]] = None,
+        before_xml_path: str | None = None,
+        after_xml_path: str | None = None,
+        p0_module_spec: dict[str, list[str]] | None = None,
     ) -> DeltaReport:
         before = (
             Path(before_xml_path)
@@ -144,9 +143,9 @@ class DeltaCalculator:
 
     @staticmethod
     def calculate_and_archive(
-        before_xml_path: Optional[str] = None,
-        after_xml_path: Optional[str] = None,
-        output_dir: Optional[str] = None,
+        before_xml_path: str | None = None,
+        after_xml_path: str | None = None,
+        output_dir: str | None = None,
     ) -> str:
         report = DeltaCalculator.calculate(
             before_xml_path=before_xml_path, after_xml_path=after_xml_path
@@ -167,7 +166,7 @@ def main() -> int:
     report = DeltaCalculator.calculate()
     print(f"增量核算完成, 归档至: {out_path}")
     print(
-        f"整体 line-rate: {report.overall_line_rate_before} → {report.overall_line_rate_after} (Δ={report.overall_delta_pp}pp)"
+        f"整体 line-rate: {report.overall_line_rate_before} → {report.overall_line_rate_after} (Δ={report.overall_delta_pp}pp)"  # noqa: E501
     )
     print("\n按链路段:")
     for stage, vals in report.by_stage.items():

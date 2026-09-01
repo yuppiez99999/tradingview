@@ -44,7 +44,7 @@ import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 # ---- 路径锚定 -------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
@@ -386,7 +386,7 @@ def cluster_c_mypy() -> list[Assertion]:
     return results
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Phase 3-B static analysis verifier")
     parser.add_argument("--report-dir", default=str(REPORTS / "ci"))
     args = parser.parse_args(argv)

@@ -3,13 +3,14 @@ Wind MCP Fetcher
 
 提供 Wind MCP 的实时行情、批量行情、K线数据获取能力。
 """
+from __future__ import annotations
 
 import json
 import os
 import re
 import subprocess
 import sys
-from typing import Any, Optional
+from typing import Any
 
 import requests as _requests
 
@@ -22,7 +23,7 @@ WIND_FUND_ENDPOINT = "https://mcp.wind.com.cn/vserver_fund_data/mcp/"
 WIND_FINANCIAL_DOCS_ENDPOINT = "https://mcp.wind.com.cn/vserver_financial_docs/mcp/"
 
 
-def _ensure_wind_cli() -> Optional[str]:
+def _ensure_wind_cli() -> str | None:
     if not os.path.isfile(CLI_PATH):
         return None
     node = (
@@ -38,7 +39,7 @@ def _ensure_wind_cli() -> Optional[str]:
     return None
 
 
-def _parse_sse_generic(text: str) -> Optional[dict]:
+def _parse_sse_generic(text: str) -> dict | None:
     """通用 SSE 解析: 提取 "data: {json}" 行并解析为 dict
 
     Wind MCP 的 initialize/tools/list 等 RPC 返回 SSE 格式:
@@ -61,7 +62,7 @@ def _parse_sse_generic(text: str) -> Optional[dict]:
     return None
 
 
-def _parse_sse_minute_quote(text: str) -> Optional[dict]:
+def _parse_sse_minute_quote(text: str) -> dict | None:
     """解析 Wind MCP stock_data.get_stock_quote 返回的 SSE 分钟级行情，并打包成 OHLCV。"""
     m = re.search(r"data:\s*(\{.*\})\s*$", text, re.S)
     if not m:
@@ -321,7 +322,7 @@ def _wind_http_generic(
 _WIND_API_KEY_CACHE = None
 
 
-def _get_wind_api_key() -> Optional[str]:
+def _get_wind_api_key() -> str | None:
     global _WIND_API_KEY_CACHE
     if _WIND_API_KEY_CACHE is not None:
         return _WIND_API_KEY_CACHE
@@ -414,7 +415,7 @@ def _call_wind(
     return {"ok": False, "error": last_err or "wind_cli_failed"}
 
 
-def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[dict]:
+def wind_get_quote(windcode: str, is_fund: bool = False) -> dict | None:
     """获取股票/ETF 实时行情快照
 
     使用 get_stock_price_indicators 工具 (实时快照), 而非 get_stock_quote (分钟级时间序列)。
@@ -517,7 +518,7 @@ def wind_get_quote(windcode: str, is_fund: bool = False) -> Optional[dict]:
     }
 
 
-def _extract_price_indicators(data: dict) -> Optional[dict]:
+def _extract_price_indicators(data: dict) -> dict | None:
     """从 get_stock_price_indicators 响应中提取价格数据
 
     Wind MCP 返回结构 (SSE 或普通 JSON):
@@ -605,7 +606,7 @@ def _extract_price_indicators(data: dict) -> Optional[dict]:
 
 def wind_get_batch_quotes(
     windcodes: list[str], is_fund: bool = False
-) -> dict[str, Optional[dict]]:
+) -> dict[str, dict | None]:
     result = {}
     for code in windcodes:
         quote = wind_get_quote(code, is_fund=is_fund)
@@ -624,8 +625,8 @@ def wind_get_kline(
     windcode: str,
     days: int = 2,
     is_fund: bool = False,
-    adjust: Optional[int] = KLINE_ADJUST_QFQ,
-) -> Optional[list[dict]]:
+    adjust: int | None = KLINE_ADJUST_QFQ,
+) -> list[dict] | None:
     """获取股票/ETF 历史 K 线数据
 
     v8.6.14 FIX (2026-08-25 复权口径修复):
@@ -654,7 +655,7 @@ def wind_get_kline(
         "end_date": end_date.strftime("%Y%m%d"),
     }
 
-    def _fetch_with(price_type: Optional[int]) -> Optional[list[dict]]:
+    def _fetch_with(price_type: int | None) -> list[dict] | None:
         params = dict(base_params)
         if price_type is not None:
             params["price_type"] = price_type
@@ -748,7 +749,7 @@ def _extract_kline_records(data: dict) -> list[dict]:
     return []
 
 
-def fetch_realtime_price(windcode: str) -> Optional[float]:
+def fetch_realtime_price(windcode: str) -> float | None:
     """获取实时价格的便捷接口 (兼容旧调用方)
 
     Args:

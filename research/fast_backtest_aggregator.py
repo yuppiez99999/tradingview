@@ -160,7 +160,7 @@ def run_fast_backtest(start: str = "2024-01-01", end: str = "2024-12-31") -> dic
             }
         )
         print(
-            f"回测 {date.strftime('%Y-%m-%d')} ~ {next_date.strftime('%Y-%m-%d')}: return={port_return*100:.2f}% weights={weights}"
+            f"回测 {date.strftime('%Y-%m-%d')} ~ {next_date.strftime('%Y-%m-%d')}: return={port_return*100:.2f}% weights={weights}"  # noqa: E501
         )
 
     if not results:

@@ -12,7 +12,6 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 import sys as _sys
@@ -71,8 +70,8 @@ def _test_file_path(module_path: str) -> str:
 class BoostPrioritizer:
     @staticmethod
     def prioritize(
-        records: Optional[Sequence[ModuleCoverageRecord]] = None,
-        chain_order: Optional[Sequence[str]] = None,
+        records: Sequence[ModuleCoverageRecord] | None = None,
+        chain_order: Sequence[str] | None = None,
     ) -> list[BoostTask]:
         if records is None:
             records = CoverageInventory.scan()
@@ -105,7 +104,7 @@ class BoostPrioritizer:
 
     @staticmethod
     def prioritize_and_archive(
-        output_dir: Optional[str] = None,
+        output_dir: str | None = None,
     ) -> str:
         tasks = BoostPrioritizer.prioritize()
         out_dir = Path(output_dir) if output_dir else PROJECT_ROOT / "reports" / "ci"

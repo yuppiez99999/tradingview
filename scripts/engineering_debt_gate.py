@@ -202,14 +202,14 @@ def _check_fail_safe_broad_except() -> tuple[bool, str]:
 
 # T7 阈值: 裸 except Exception (无 # fail-safe / # noqa: BLE001 标记) 站点数
 # 这类是真正的"静默吞异常"独立债, 不在 R10 治理范围 (R10 只清偿带标记的 346 处)
-# 当前基线 (2026-08-12 实测): 200 处
-#   - v8.3_institutional/daily_workflow.py: 108 处 (53%, 6230 行大型 orchestrator fail-safe 降级, 拆分中)
+# 当前基线 (2026-08-31 实测): 243 处
+#   - v8.3_institutional/daily_workflow.py: 0 处 (已拆分: 6230→2159 行, print 108→0, W6.6.4 完成)
 #   - quant_modules/ai_hedge_fund/: 31 处 (LLM/数据降级)
 #   - scripts/: 26 处 (运维脚本)
 #   - utils/: 15 处 (event_tracker/concurrency/notify 等基础设施)
 #   - ai_decision/: 0 处
-# 阈值 = 250 (留 50 缓冲, 禁止增长而非清零; 配套 T02 pylint --fail-on=broad-except 阻断新增)
-# 治理路径: daily_workflow.py 拆分 (W6.6.4-W6.6.x) 逐步消化 108 处; ai_hedge_fund 独立立项
+# 阈值 = 250 (留 7 缓冲, 禁止增长而非清零; 配套 T02 pylint --fail-on=broad-except 阻断新增)
+# 治理路径: daily_workflow.py 拆分已完成 (W6.6.4); ai_hedge_fund 独立立项
 _BARE_BROAD_EXCEPT_WARN_THRESHOLD = 250
 
 
@@ -819,7 +819,7 @@ def _check_d5_auto_research_skill() -> tuple[bool, str]:
 
     return (
         True,
-        f"D5 AutoResearchSkill 迭代+退役自检 ✓ (候选 {len(iteration.candidates_generated)}, 入库 {len(iteration.promoted_factors)})",
+        f"D5 AutoResearchSkill 迭代+退役自检 ✓ (候选 {len(iteration.candidates_generated)}, 入库 {len(iteration.promoted_factors)})",  # noqa: E501
     )
 
 

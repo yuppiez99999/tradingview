@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Baostock 数据下载器（P1.1 + P1.2 + P1.3 改进）
 
 数据源：baostock（免费、无配额、稳定）
@@ -25,7 +24,6 @@ import logging
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -68,7 +66,7 @@ def download_ohlcv(
     symbol: str,
     days: int = 730,
     skip_if_exists: bool = True,
-) -> Optional[pd.DataFrame]:
+) -> pd.DataFrame | None:
     """下载单只标的的 OHLCV
 
     Args:
@@ -85,7 +83,7 @@ def download_ohlcv(
             df_existing = pd.read_parquet(parquet_path)
             if len(df_existing) >= days * 0.85:  # 容许 15% 缺失（节假日等）
                 return df_existing
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass  # 文件损坏, 重新下载
 
     import baostock as bs
@@ -106,7 +104,7 @@ def download_ohlcv(
         logger.warning("[Download] %s (%s) 失败: %s", symbol, bs_code, rs.error_msg)
         return None
 
-    rows: List[List[str]] = []
+    rows: list[list[str]] = []
     while (rs.error_code == '0') and rs.next():
         rows.append(rs.get_row_data())
 
@@ -137,11 +135,11 @@ def download_ohlcv(
 
 
 def download_ohlcv_batch(
-    symbols: List[str],
+    symbols: list[str],
     days: int = 730,
     skip_if_exists: bool = True,
     progress_every: int = 10,
-) -> Tuple[int, int, List[str]]:
+) -> tuple[int, int, list[str]]:
     """批量下载 OHLCV
 
     Returns:
@@ -155,7 +153,7 @@ def download_ohlcv_batch(
         return 0, len(symbols), list(symbols)
 
     success = 0
-    failed: List[str] = []
+    failed: list[str] = []
     try:
         for i, sym in enumerate(symbols, 1):
             try:
@@ -164,7 +162,7 @@ def download_ohlcv_batch(
                     success += 1
                 else:
                     failed.append(sym)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("[Download] %s 异常: %s", sym, e)
                 failed.append(sym)
 
@@ -185,7 +183,7 @@ def download_ohlcv_batch(
 def download_benchmark(
     days: int = 730,
     skip_if_exists: bool = True,
-) -> Optional[pd.DataFrame]:
+) -> pd.DataFrame | None:
     """下载沪深 300 指数作为基准（P1.3 改进：替代 510300 ETF）
 
     baostock 不支持 ETF 数据, 改用沪深 300 指数 (sh.000300) 作为基准
@@ -245,7 +243,7 @@ def download_benchmark(
         bs.logout()
 
 
-def compute_benchmark_returns() -> List[float]:
+def compute_benchmark_returns() -> list[float]:
     """从沪深 300 指数计算基准日收益率（替代等权代理）
 
     Returns:
@@ -277,7 +275,7 @@ def compute_benchmark_returns() -> List[float]:
 def _find_latest_valid_quarter(
     bs_code: str,
     max_lookback: int = 8,
-) -> Optional[Tuple[int, int, Dict, Dict]]:
+) -> tuple[int, int, dict, dict] | None:
     """搜索最新一个有数据的财报季度
 
     baostock query_profit_data / query_balance_data 在财报未公布时返回空行，
@@ -299,24 +297,24 @@ def _find_latest_valid_quarter(
 
     for _ in range(max_lookback):
         # 先试 profit_data
-        profit_data: Dict = {}
+        profit_data: dict = {}
         rs = bs.query_profit_data(code=bs_code, year=year, quarter=quarter)
         if rs.error_code == '0':
             rows = []
             while rs.next():
                 rows.append(rs.get_row_data())
             if rows:
-                profit_data = dict(zip(rs.fields, rows[0]))
+                profit_data = dict(zip(rs.fields, rows[0], strict=False))
 
         # 再试 balance_data
-        balance_data: Dict = {}
+        balance_data: dict = {}
         rs = bs.query_balance_data(code=bs_code, year=year, quarter=quarter)
         if rs.error_code == '0':
             rows = []
             while rs.next():
                 rows.append(rs.get_row_data())
             if rows:
-                balance_data = dict(zip(rs.fields, rows[0]))
+                balance_data = dict(zip(rs.fields, rows[0], strict=False))
 
         # 判断是否有有效数据（ROE 非空 或 负债率非空）
         roe_val = profit_data.get("roeAvg", "")
@@ -341,13 +339,13 @@ def _find_latest_valid_quarter(
     return None
 
 
-def download_fundamentals(
+def download_fundamentals(  # noqa: C901
     symbol: str,
-    year: Optional[int] = None,
-    quarter: Optional[int] = None,
+    year: int | None = None,
+    quarter: int | None = None,
     skip_if_exists: bool = True,
     force_refresh: bool = False,
-) -> Optional[Dict]:
+) -> dict | None:
     """下载单只标的的财务指标（P1.2 改进版：自动多季度回退）
 
     Args:
@@ -366,7 +364,7 @@ def download_fundamentals(
     # 检查是否需要重新下载
     if skip_if_exists and not force_refresh and json_path.exists():
         try:
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 existing = json.load(f)
             # P1.2 修复：旧文件如果 ROE=0（即下载时取了未公布季度），需要重新下载
             if existing.get("roe", 0) != 0 or existing.get("gross_margin", 0) != 0:
@@ -385,7 +383,7 @@ def download_fundamentals(
     import baostock as bs
     bs_code = to_baostock_code(symbol)
 
-    result: Dict = {
+    result: dict = {
         "symbol": symbol,
         "bs_code": bs_code,
         "data_quality": "real",  # baostock 是真实财务数据
@@ -395,22 +393,22 @@ def download_fundamentals(
         # 1. 搜索最新可用财报季度
         if year is not None and quarter is not None:
             # 显式指定季度
-            profit_data: Dict = {}
-            balance_data: Dict = {}
+            profit_data: dict = {}
+            balance_data: dict = {}
             rs = bs.query_profit_data(code=bs_code, year=year, quarter=quarter)
             if rs.error_code == '0':
                 rows = []
                 while rs.next():
                     rows.append(rs.get_row_data())
                 if rows:
-                    profit_data = dict(zip(rs.fields, rows[0]))
+                    profit_data = dict(zip(rs.fields, rows[0], strict=False))
             rs = bs.query_balance_data(code=bs_code, year=year, quarter=quarter)
             if rs.error_code == '0':
                 rows = []
                 while rs.next():
                     rows.append(rs.get_row_data())
                 if rows:
-                    balance_data = dict(zip(rs.fields, rows[0]))
+                    balance_data = dict(zip(rs.fields, rows[0], strict=False))
         else:
             # 自动搜索最新可用季度
             found = _find_latest_valid_quarter(bs_code, max_lookback=8)
@@ -424,7 +422,7 @@ def download_fundamentals(
         result["report_year"] = year
         result["report_quarter"] = quarter
 
-        def _to_float(s) -> float:
+        def _to_float(s: object) -> float:
             try:
                 if s is None or s == "":
                     return 0.0
@@ -470,7 +468,7 @@ def download_fundamentals(
                 while rs_prev.next():
                     rows_prev.append(rs_prev.get_row_data())
                 if rows_prev:
-                    prev_data = dict(zip(rs_prev.fields, rows_prev[0]))
+                    prev_data = dict(zip(rs_prev.fields, rows_prev[0], strict=False))
                     prev_net_profit = _to_float(prev_data.get("netProfit"))
                     cur_net_profit = result.get("net_profit", 0)
                     logger.info(
@@ -498,7 +496,7 @@ def download_fundamentals(
                 )
                 result["profit_growth"] = 0.0
                 result["revenue_growth"] = 0.0
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning("[Fundamentals] %s YoY growth 计算失败: %s", symbol, e)
             result["profit_growth"] = 0.0
             result["revenue_growth"] = 0.0
@@ -518,7 +516,7 @@ def download_fundamentals(
             while rs.next():
                 rows.append(rs.get_row_data())
             if rows:
-                val_data = dict(zip(rs.fields, rows[-1]))  # 取最新一天
+                val_data = dict(zip(rs.fields, rows[-1], strict=False))  # 取最新一天
                 result["pe"] = _to_float(val_data.get("peTTM"))
                 result["pb"] = _to_float(val_data.get("pbMRQ"))
                 result["ps"] = _to_float(val_data.get("psTTM"))
@@ -578,19 +576,19 @@ def download_fundamentals(
             )
         return result
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("[Fundamentals] %s (%s) 异常: %s", symbol, bs_code, e)
         return None
 
 
 def download_fundamentals_batch(
-    symbols: List[str],
-    year: Optional[int] = None,
-    quarter: Optional[int] = None,
+    symbols: list[str],
+    year: int | None = None,
+    quarter: int | None = None,
     skip_if_exists: bool = True,
     progress_every: int = 10,
     refresh_stale: bool = True,
-) -> Tuple[int, int, List[str]]:
+) -> tuple[int, int, list[str]]:
     """批量下载财务指标
 
     Args:
@@ -606,7 +604,7 @@ def download_fundamentals_batch(
         return 0, len(symbols), list(symbols)
 
     success = 0
-    failed: List[str] = []
+    failed: list[str] = []
     try:
         for i, sym in enumerate(symbols, 1):
             try:
@@ -620,7 +618,7 @@ def download_fundamentals_batch(
                     success += 1
                 else:
                     failed.append(sym)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("[Fundamentals] %s 异常: %s", sym, e)
                 failed.append(sym)
 
@@ -637,12 +635,12 @@ def download_fundamentals_batch(
 # ============================================================
 # P2.2 质量变化类因子支持：历史季度数据下载
 # ============================================================
-def download_fundamentals_history(
+def download_fundamentals_history(  # noqa: C901
     symbol: str,
     n_quarters: int = 8,
     skip_if_exists: bool = True,
     force_refresh: bool = False,
-) -> Dict:
+) -> dict:
     """下载单只标的的过去 N 个季度财务指标历史（P2.2 质量变化因子支持）
 
     用于计算 ROE/毛利率/负债率/增长率的 YoY 变化（Q vs Q-4）。
@@ -679,10 +677,10 @@ def download_fundamentals_history(
 
     # 缓存检查（P2.2 改进：除 n_valid >= 4 外，还验证最新季度是否已含 revenue/yoy_pni 字段）
     # 用 schema_version 字段避免无限重下：标记为 v2 表示已尝试过补齐新字段
-    SCHEMA_VERSION = 2
+    SCHEMA_VERSION = 2  # noqa: N806
     if skip_if_exists and not force_refresh and cache_path.exists():
         try:
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, encoding="utf-8") as f:
                 cached = json.load(f)
             if cached.get("n_valid", 0) >= 4:
                 # P2.2 改进：检查 schema_version，v2 表示已尝试补齐 revenue/yoy_pni
@@ -721,7 +719,7 @@ def download_fundamentals_history(
                 while rs.next():
                     rows.append(rs.get_row_data())
                 if rows:
-                    pd = dict(zip(rs.fields, rows[0]))
+                    pd = dict(zip(rs.fields, rows[0], strict=False))
                     q_data["roe"] = _safe_float(pd.get("roeAvg"))
                     q_data["net_margin"] = _safe_float(pd.get("npMargin"))
                     q_data["gross_margin"] = _safe_float(pd.get("gpMargin"))
@@ -729,7 +727,7 @@ def download_fundamentals_history(
                     q_data["eps_ttm"] = _safe_float(pd.get("epsTTM"))
                     # P2.2 新增：营收字段（用于计算营收增长率加速）
                     q_data["revenue"] = _safe_float(pd.get("MBRevenue"))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("[FundHistory] %s Q%d %d profit 异常: %s", symbol, quarter, year, e)
 
         # balance_data
@@ -740,10 +738,10 @@ def download_fundamentals_history(
                 while rs.next():
                     rows.append(rs.get_row_data())
                 if rows:
-                    bd = dict(zip(rs.fields, rows[0]))
+                    bd = dict(zip(rs.fields, rows[0], strict=False))
                     q_data["debt_to_equity"] = _safe_float(bd.get("liabilityToAsset"))
                     q_data["current_ratio"] = _safe_float(bd.get("currentRatio"))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("[FundHistory] %s Q%d %d balance 异常: %s", symbol, quarter, year, e)
 
         # P2.2 新增：growth_data（含扣非净利润同比增长率 YOYPNI）
@@ -754,14 +752,14 @@ def download_fundamentals_history(
                 while rs.next():
                     rows.append(rs.get_row_data())
                 if rows:
-                    gd = dict(zip(rs.fields, rows[0]))
+                    gd = dict(zip(rs.fields, rows[0], strict=False))
                     # YOYPNI: 归母扣非净利润同比增长率(%)
                     q_data["yoy_pni"] = _safe_float(gd.get("YOYPNI"))
                     # YOYNI: 净利润同比增长率(%)
                     q_data["yoy_ni"] = _safe_float(gd.get("YOYNI"))
                     # YOYEPSBasic: 基本每股收益同比增长率(%)
                     q_data["yoy_eps"] = _safe_float(gd.get("YOYEPSBasic"))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("[FundHistory] %s Q%d %d growth 异常: %s", symbol, quarter, year, e)
 
         # 只保留有有效数据的季度（ROE 或 毛利率 非零）
@@ -781,19 +779,19 @@ def download_fundamentals_history(
     try:
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False, default=str)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("[FundHistory] %s 持久化失败: %s", symbol, e)
 
     return result
 
 
 def download_fundamentals_history_batch(
-    symbols: List[str],
+    symbols: list[str],
     n_quarters: int = 8,
     skip_if_exists: bool = True,
     progress_every: int = 10,
     force_refresh: bool = False,
-) -> Tuple[int, int, List[str]]:
+) -> tuple[int, int, list[str]]:
     """批量下载历史季度财务指标（P2.2 质量变化因子支持）
 
     Args:
@@ -809,7 +807,7 @@ def download_fundamentals_history_batch(
         return 0, len(symbols), list(symbols)
 
     success = 0
-    failed: List[str] = []
+    failed: list[str] = []
     try:
         for i, sym in enumerate(symbols, 1):
             try:
@@ -822,7 +820,7 @@ def download_fundamentals_history_batch(
                     success += 1
                 else:
                     failed.append(sym)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("[FundHistory] %s 异常: %s", sym, e)
                 failed.append(sym)
 
@@ -836,7 +834,7 @@ def download_fundamentals_history_batch(
     return success, len(failed), failed
 
 
-def _safe_float(s) -> float:
+def _safe_float(s: object) -> float:
     """安全转换为 float，失败返回 0.0"""
     try:
         if s is None or s == "":
@@ -850,12 +848,12 @@ def _safe_float(s) -> float:
 # 主入口
 # ============================================================
 def download_all(
-    symbols: List[str],
+    symbols: list[str],
     days: int = 730,
     include_benchmark: bool = True,
     include_fundamentals: bool = True,
     skip_if_exists: bool = True,
-) -> Dict:
+) -> dict:
     """下载全部数据（OHLCV + 基准 + 财务）
 
     Returns:
@@ -869,7 +867,7 @@ def download_all(
     logger.info(f"Baostock 数据下载（标的 {len(symbols)} 个, {days} 天历史）")
     logger.info("=" * 70)
 
-    result: Dict = {}
+    result: dict = {}
 
     # 1. OHLCV
     logger.info(f"\n[1/3] 下载 OHLCV（{len(symbols)} 个标的）")
@@ -915,7 +913,7 @@ if __name__ == "__main__":
         format="%(asctime)s [%(name)s] %(levelname)s | %(message)s",
     )
 
-    from cache.symbol_universe import get_universe, get_industry_distribution
+    from cache.symbol_universe import get_industry_distribution, get_universe
 
     universe = get_universe()
     logger.info(f"标的池: {len(universe)} 个")

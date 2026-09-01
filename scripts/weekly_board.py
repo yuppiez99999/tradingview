@@ -218,7 +218,8 @@ def render(data: dict) -> str:
       <div class="k">{bl} 行</div></div>
   </div>
 
-  <div class="foot">依据 docs/CODE_REVIEW_STANDARD.md §5 ｜ 由 <code>scripts/weekly_board.py</code> 渲染 ｜ 每周一 10:30 (北京时间) 自动刷新</div>
+  <div class="foot">依据 docs/CODE_REVIEW_STANDARD.md §5 ｜ 由 <code>scripts/weekly_board.py</code>
+   渲染 ｜ 每周一 10:30 (北京时间) 自动刷新</div>
 </div></body></html>
 """.format(
         ts=escape(ts),

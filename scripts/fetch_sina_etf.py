@@ -9,7 +9,7 @@ import pandas as pd
 import requests
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",  # noqa: E501
     "Referer": "https://finance.sina.com.cn/",
 }
 
@@ -68,8 +68,8 @@ _sina_rate_limiter = SinaRateLimiter(min_interval=0.5)
 def fetch_sina_etf(symbol: str, name: str) -> pd.DataFrame:
     """请求新浪财经 ETF 日线接口(带速率限制)"""
     urls = [
-        f"https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={symbol}&scale=240&ma=no&datalen=1023",
-        f"https://stock.finance.sina.com.cn/fundinfo/api/jsonp.php/IO.XSRV2.CallbackList['{symbol}']/NetValueInfo.getKLineData?symbol={symbol}&scale=240&ma=no&datalen=1023",
+        f"https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={symbol}&scale=240&ma=no&datalen=1023",  # noqa: E501
+        f"https://stock.finance.sina.com.cn/fundinfo/api/jsonp.php/IO.XSRV2.CallbackList['{symbol}']/NetValueInfo.getKLineData?symbol={symbol}&scale=240&ma=no&datalen=1023",  # noqa: E501
     ]
     for url in urls:
         try:
@@ -137,7 +137,7 @@ def main():
             json.dump(payload, f, ensure_ascii=False, indent=2)
         saved += 1
         print(
-            f"saved {symbol[2:]} {name}: {len(df)} days, {df['日期'].iloc[0].date()} ~ {df['日期'].iloc[-1].date()}, end={df['收盘'].iloc[-1]}"
+            f"saved {symbol[2:]} {name}: {len(df)} days, {df['日期'].iloc[0].date()} ~ {df['日期'].iloc[-1].date()}, end={df['收盘'].iloc[-1]}"  # noqa: E501
         )
 
     print(f"\n已保存 {saved} 个标的")

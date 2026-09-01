@@ -174,7 +174,7 @@ def main() -> int:
     bench_ann_ret = float(rp_bench.mean() * 252)
     bench_ann_vol = float(rp_bench.std() * np.sqrt(252))
     print(
-        f"等权基准: 年化收益={bench_ann_ret:.4f}  年化波动={bench_ann_vol:.4f}  偏度={bench_skew:.4f}  超额峰度={bench_kurt:.4f}"
+        f"等权基准: 年化收益={bench_ann_ret:.4f}  年化波动={bench_ann_vol:.4f}  偏度={bench_skew:.4f}  超额峰度={bench_kurt:.4f}"  # noqa: E501
     )
 
     # 三组实验

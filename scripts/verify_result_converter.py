@@ -168,7 +168,7 @@ assert deviation_rets < 1e-9, f"daily_returns 偏差过大: {deviation_rets}"
 manual_total_return = (eq_arr[-1] - eq_arr[0]) / eq_arr[0]
 dev = abs(manual_total_return - result.total_return)
 print(
-    f"  ✓ total_return:               RC={result.total_return:.8%}  |  手动={manual_total_return:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"
+    f"  ✓ total_return:               RC={result.total_return:.8%}  |  手动={manual_total_return:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"  # noqa: E501
 )
 assert dev < 1e-9
 
@@ -177,7 +177,7 @@ n_years = n_days / 252
 manual_annual_return = (1 + manual_total_return) ** (1 / max(n_years, 0.5)) - 1
 dev = abs(manual_annual_return - result.annual_return)
 print(
-    f"  ✓ annual_return:              RC={result.annual_return:.8%}  |  手动={manual_annual_return:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"
+    f"  ✓ annual_return:              RC={result.annual_return:.8%}  |  手动={manual_annual_return:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"  # noqa: E501
 )
 assert dev < 1e-9
 
@@ -185,7 +185,7 @@ assert dev < 1e-9
 manual_annual_vol = float(np.std(manual_daily_rets_arr) * np.sqrt(252))
 dev = abs(manual_annual_vol - result.annual_volatility)
 print(
-    f"  ✓ annual_volatility:          RC={result.annual_volatility:.8%}  |  手动={manual_annual_vol:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"
+    f"  ✓ annual_volatility:          RC={result.annual_volatility:.8%}  |  手动={manual_annual_vol:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"  # noqa: E501
 )
 assert dev < 1e-9
 
@@ -194,7 +194,7 @@ RISK_FREE = 0.03
 manual_sharpe = (manual_annual_return - RISK_FREE) / max(manual_annual_vol, 0.001)
 dev = abs(manual_sharpe - result.sharpe_ratio)
 print(
-    f"  ✓ sharpe_ratio:               RC={result.sharpe_ratio:.6f}  |  手动={manual_sharpe:.6f}  |  偏差={dev:.2e} (需 < 1e-9)"
+    f"  ✓ sharpe_ratio:               RC={result.sharpe_ratio:.6f}  |  手动={manual_sharpe:.6f}  |  偏差={dev:.2e} (需 < 1e-9)"  # noqa: E501
 )
 assert dev < 1e-9
 
@@ -204,7 +204,7 @@ dd_manual = (eq_arr - peak_manual) / peak_manual
 manual_max_dd = float(abs(np.min(dd_manual)))
 dev = abs(manual_max_dd - result.max_drawdown)
 print(
-    f"  ✓ max_drawdown:               RC={result.max_drawdown:.8%}  |  手动={manual_max_dd:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"
+    f"  ✓ max_drawdown:               RC={result.max_drawdown:.8%}  |  手动={manual_max_dd:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"  # noqa: E501
 )
 assert dev < 1e-9
 
@@ -212,7 +212,7 @@ assert dev < 1e-9
 manual_calmar = manual_annual_return / max(manual_max_dd, 0.001)
 dev = abs(manual_calmar - result.calmar_ratio)
 print(
-    f"  ✓ calmar_ratio:               RC={result.calmar_ratio:.6f}  |  手动={manual_calmar:.6f}  |  偏差={dev:.2e} (需 < 1e-9)"
+    f"  ✓ calmar_ratio:               RC={result.calmar_ratio:.6f}  |  手动={manual_calmar:.6f}  |  偏差={dev:.2e} (需 < 1e-9)"  # noqa: E501
 )
 assert dev < 1e-9
 
@@ -222,7 +222,7 @@ manual_win_rate = float(
 )
 dev = abs(manual_win_rate - result.win_rate)
 print(
-    f"  ✓ win_rate:                   RC={result.win_rate:.8%}  |  手动={manual_win_rate:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"
+    f"  ✓ win_rate:                   RC={result.win_rate:.8%}  |  手动={manual_win_rate:.8%}  |  偏差={dev:.2e} (需 < 1e-9)"  # noqa: E501
 )
 assert dev < 1e-9
 

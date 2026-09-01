@@ -170,11 +170,11 @@ def main() -> int:
     up_big_profit = snapshots["UP_BIG"].profit_ratio
     down_big_profit = snapshots["DOWN_BIG"].profit_ratio
     print(
-        f"\n[断言1] 单边趋势获利盘: UP_BIG={up_big_profit:.3f} vs DOWN_BIG={down_big_profit:.3f} (预期 UP > DOWN, 差>0.15)"
+        f"\n[断言1] 单边趋势获利盘: UP_BIG={up_big_profit:.3f} vs DOWN_BIG={down_big_profit:.3f} (预期 UP > DOWN, 差>0.15)"  # noqa: E501
     )
     assert (
         up_big_profit - down_big_profit > 0.15
-    ), f"上升获利盘应显著高于下跌 (UP={up_big_profit:.3f}, DOWN={down_big_profit:.3f}, 差={up_big_profit-down_big_profit:+.3f})"
+    ), f"上升获利盘应显著高于下跌 (UP={up_big_profit:.3f}, DOWN={down_big_profit:.3f}, 差={up_big_profit-down_big_profit:+.3f})"  # noqa: E501
     print("  ✓ 获利盘方向符合 (UP > DOWN)")
 
     # 断言 2: 成本偏离方向: UP>0 (当前价>平均成本), DOWN<0 (当前价<平均成本)

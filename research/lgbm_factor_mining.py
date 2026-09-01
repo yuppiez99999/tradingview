@@ -3,12 +3,13 @@ LightGBM 因子挖掘 - 训练模型识别有效因子
 从本地缓存数据计算 50+ 因子，训练 LightGBM 预测未来收益，
 提取特征重要性排序，发现新的有效因子。
 """
+from __future__ import annotations
 
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -237,8 +238,8 @@ def build_factor_panel(start_date: str = "2023-01-01", step: int = 10):
 
 def train_and_analyze(
     panel: pd.DataFrame,
-    config: Optional[TrainingConfig] = None,
-) -> Optional[tuple[pd.DataFrame, list]]:
+    config: TrainingConfig | None = None,
+) -> tuple[pd.DataFrame, list] | None:
     """训练 LightGBM 并分析特征重要性.
 
     ECC GAP-7 修改:
@@ -424,7 +425,7 @@ def main():
         report_lines.append("|------|--------|--------|-------|-------|")
         for i, row in imp_df.head(20).iterrows():
             report_lines.append(
-                f"| {i+1} | {row['factor']} | {row['importance']:.2f} | {row['importance_pct']:.2f} | {row['cum_pct']:.2f} |"
+                f"| {i+1} | {row['factor']} | {row['importance']:.2f} | {row['importance_pct']:.2f} | {row['cum_pct']:.2f} |"  # noqa: E501
             )
         report_lines.append("")
 
@@ -495,7 +496,7 @@ def main():
                 elif "PROXY" in row["factor"] or "STABILITY" in row["factor"]:
                     desc = "基本面代理因子 - 从量价衍生"
                 report_lines.append(
-                    f"| {imp_df[imp_df['factor']==row['factor']].index[0]+1} | {row['factor']} | {row['importance']:.2f} | {row['importance_pct']:.2f} | {desc} |"
+                    f"| {imp_df[imp_df['factor']==row['factor']].index[0]+1} | {row['factor']} | {row['importance']:.2f} | {row['importance_pct']:.2f} | {desc} |"  # noqa: E501
                 )
         else:
             report_lines.append("暂无新因子候选")

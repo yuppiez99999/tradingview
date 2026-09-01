@@ -38,7 +38,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -115,7 +115,7 @@ def try_importlib_load(p: Path) -> ReexportCheck:
         sys.modules.pop(f"_reexport_probe_{p.stem}", None)
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Re-export compatibility verifier")
     parser.add_argument("--scripts-dir", default=str(ROOT / "scripts"))
     parser.add_argument(

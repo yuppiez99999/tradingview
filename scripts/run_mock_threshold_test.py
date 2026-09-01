@@ -362,13 +362,13 @@ def main() -> int:
     dataset = build_mock_dataset()
     print(f"\nMock 数据集大小: {len(dataset)} 条")
     print(
-        f"  20cm 标的涨停/跌停:    {sum(1 for d in dataset if is_20cm_symbol(d['symbol']) and 20 <= abs(d['ret_pct']) < 30)} 条"
+        f"  20cm 标的涨停/跌停:    {sum(1 for d in dataset if is_20cm_symbol(d['symbol']) and 20 <= abs(d['ret_pct']) < 30)} 条"  # noqa: E501
     )
     print(
-        f"  20cm 标的真实异常:     {sum(1 for d in dataset if is_20cm_symbol(d['symbol']) and abs(d['ret_pct']) >= 30)} 条"
+        f"  20cm 标的真实异常:     {sum(1 for d in dataset if is_20cm_symbol(d['symbol']) and abs(d['ret_pct']) >= 30)} 条"  # noqa: E501
     )
     print(
-        f"  10cm 标的跌停/异常:    {sum(1 for d in dataset if not is_20cm_symbol(d['symbol']) and abs(d['ret_pct']) >= 10)} 条"
+        f"  10cm 标的跌停/异常:    {sum(1 for d in dataset if not is_20cm_symbol(d['symbol']) and abs(d['ret_pct']) >= 10)} 条"  # noqa: E501
     )
 
     results = [evaluate(tc) for tc in dataset]
@@ -498,7 +498,7 @@ def main() -> int:
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "thresholds": {
             "old": f"±{int(ABNORMAL_RETURN_THRESHOLD_INTERNAL * 100)}% (统一)",
-            "new": f"10cm: ±{int(ABNORMAL_RETURN_THRESHOLD_INTERNAL * 100)}%  |  20cm: ±{int(ABNORMAL_RETURN_THRESHOLD_20CM * 100)}%",
+            "new": f"10cm: ±{int(ABNORMAL_RETURN_THRESHOLD_INTERNAL * 100)}%  |  20cm: ±{int(ABNORMAL_RETURN_THRESHOLD_20CM * 100)}%",  # noqa: E501
             "source": "utils.market_rules",
         },
         "summary": {
@@ -575,7 +575,7 @@ def main() -> int:
     for r in results:
         if r["new_flagged"]:
             md.append(
-                f"| {r['symbol']} | {r['name']} | {r['ret_pct']:+.2f}% | {r['board']} | {r['threshold_new']} | {r['scenario']} |"
+                f"| {r['symbol']} | {r['name']} | {r['ret_pct']:+.2f}% | {r['board']} | {r['threshold_new']} | {r['scenario']} |"  # noqa: E501
             )
     md.append("")
 

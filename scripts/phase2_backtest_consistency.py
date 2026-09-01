@@ -431,7 +431,7 @@ def compare_results(py38_path: str, py314_path: str) -> None:
                     failed = [m for m in case.metrics if not m.passed]
                     for m in failed:
                         print(
-                            f"  ❌ {case.name}/{m.name}: py38={m.py38_value:.6f} vs py314={m.py314_value:.6f} (rel_diff={m.rel_diff:.4%})"
+                            f"  ❌ {case.name}/{m.name}: py38={m.py38_value:.6f} vs py314={m.py314_value:.6f} (rel_diff={m.rel_diff:.4%})"  # noqa: E501
                         )
 
     # 保存对比报告

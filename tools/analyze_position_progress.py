@@ -76,7 +76,7 @@ for style, stats in sorted(
     target_pct = stats["target_amount"] / target_total * 100 if target_total > 0 else 0
     deviation = current_pct - target_pct
     print(
-        f"{style:<10} ¥{stats['current_value']:>12,.0f} ¥{stats['target_amount']:>12,.0f} {current_pct:>8.1f}% {target_pct:>8.1f}% {deviation:>+8.1f}%"
+        f"{style:<10} ¥{stats['current_value']:>12,.0f} ¥{stats['target_amount']:>12,.0f} {current_pct:>8.1f}% {target_pct:>8.1f}% {deviation:>+8.1f}%"  # noqa: E501
     )
 
 print("\n" + "=" * 80)
@@ -102,7 +102,7 @@ for code, pos in sorted_positions:
     target_amount = pos.get("amount", 0)
     completion = current_value / target_amount * 100 if target_amount > 0 else 0
     print(
-        f"{code:<12} {pos['name'][:16]:<16} {shares:<10} ¥{current_value:>10,.0f} ¥{target_amount:>10,.0f} {completion:>6.1f}% {pos.get('style', '其他'):<8}"
+        f"{code:<12} {pos['name'][:16]:<16} {shares:<10} ¥{current_value:>10,.0f} ¥{target_amount:>10,.0f} {completion:>6.1f}% {pos.get('style', '其他'):<8}"  # noqa: E501
     )
 
 print("\n" + "=" * 80)
@@ -118,11 +118,11 @@ for style, stats in style_stats.items():
     if abs(current_pct - target_pct) > 10:
         if current_pct > target_pct:
             print(
-                f"⚠️ {style}超配: 实际{current_pct:.1f}% vs 目标{target_pct:.1f}%, 超配{current_pct-target_pct:.1f}个百分点"
+                f"⚠️ {style}超配: 实际{current_pct:.1f}% vs 目标{target_pct:.1f}%, 超配{current_pct-target_pct:.1f}个百分点"  # noqa: E501
             )
         else:
             print(
-                f"⚠️ {style}低配: 实际{current_pct:.1f}% vs 目标{target_pct:.1f}%, 低配{target_pct-current_pct:.1f}个百分点"
+                f"⚠️ {style}低配: 实际{current_pct:.1f}% vs 目标{target_pct:.1f}%, 低配{target_pct-current_pct:.1f}个百分点"  # noqa: E501
             )
 
 for _code, pos in positions["positions"].items():

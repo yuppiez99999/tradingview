@@ -251,7 +251,7 @@ def print_summary(snapshot: dict) -> None:
     print()
     print("  [观察期进度]")
     print(
-        f"    起始: {obs['start_date']}  → 目前 {obs['days_completed']}/{obs['required_days']} 天 ({obs['progress_pct']}%)"
+        f"    起始: {obs['start_date']}  → 目前 {obs['days_completed']}/{obs['required_days']} 天 ({obs['progress_pct']}%)"  # noqa: E501
     )
     print(
         f"    剩余: {obs['days_remaining']} 天 (预计 {obs['estimated_completion']} 完成)"
@@ -260,7 +260,7 @@ def print_summary(snapshot: dict) -> None:
     print()
     print("  [数据收集]")
     print(
-        f"    Shadow 样本: {obs['samples_collected']}/{obs['min_samples']} ({'OK' if obs['samples_collected'] >= obs['min_samples'] else 'NOK'})"
+        f"    Shadow 样本: {obs['samples_collected']}/{obs['min_samples']} ({'OK' if obs['samples_collected'] >= obs['min_samples'] else 'NOK'})"  # noqa: E501
     )
     print(f"    累计收益: {shadow['cumulative_return']}%")
     print(f"    数据记录: {shadow['total_records']} 条 / {shadow['unique_dates']} 天")

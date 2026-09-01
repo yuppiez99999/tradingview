@@ -491,7 +491,7 @@ def generate_daily_briefing(drift: dict, eval_result: dict, obs: dict) -> str:
                 "",
                 "## 3. 观察期进度 (T-NEXT-1.3)",
                 "",
-                f"- **进度**: {o.get('days_completed', 0)}/{o.get('required_days', 14)} 天 ({o.get('progress_pct', 0):.1f}%)",
+                f"- **进度**: {o.get('days_completed', 0)}/{o.get('required_days', 14)} 天 ({o.get('progress_pct', 0):.1f}%)",  # noqa: E501
                 f"- **样本**: {o.get('samples_collected', 0)}/{o.get('min_samples', 20)} 条",
                 f"- **预计完成**: {o.get('estimated_completion', 'N/A')}",
                 f"- **就绪**: {'YES' if o.get('ready_for_phase_b') else 'NO'}",

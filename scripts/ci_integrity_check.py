@@ -29,7 +29,7 @@ import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS_DIR = ROOT / ".github" / "workflows"
@@ -51,7 +51,7 @@ PYTHON = os.environ.get("PYTHON_EXECUTABLE") or _venv_python(ROOT)
 class ScriptRef(NamedTuple):
     ref: str
     exists: bool
-    runnable: Optional[bool]
+    runnable: bool | None
     detail: str
 
 
@@ -105,7 +105,7 @@ def smoke(ref: str) -> (bool, str):
         return False, f"{type(e).__name__}: {e}"
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="CI integrity check")
     parser.add_argument(
         "--strict", action="store_true", help="额外对每个脚本做 --help 烟测 (可运行性)"

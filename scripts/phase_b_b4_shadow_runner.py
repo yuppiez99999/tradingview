@@ -75,11 +75,17 @@ class B3Status:
 
 
 def check_b3_status() -> B3Status:
-    """读取 b3_shadow_status.json 确认 B3 shadow 已跑满 7 天且稳定."""
+    """确认 B3 已就绪 (优先 b3_shadow_status.json, 缺失时回退 enabler 阶段轨判定).
+
+    口径修正 (2026-09-01): B3 (USE_AUTO_RETRAIN) 已于 08-27 经 enabler 阶段轨评估
+    启用 (阶段内稳定 3/3 达标后推进 Stage 4), b3_shadow_runner 独立 shadow 机制
+    已被阶段轨吸收 — b3_shadow_status.json 缺失不再阻断 B4 shadow 启动.
+    指针: cairn/LOG.md 2026-09-01 条目
+    """
     b3_status_file = SHADOW_REPORT_DIR / "b3_shadow_status.json"
+    if not b3_status_file.exists():
+        return _check_b3_via_enabler_stage()
     try:
-        if not b3_status_file.exists():
-            return B3Status(False, False, 0, f"B3 状态文件不存在: {b3_status_file}")
         with open(b3_status_file, encoding="utf-8") as f:
             data = json.load(f)
         warmup_days = data.get("warmup_days", 0)
@@ -96,6 +102,62 @@ def check_b3_status() -> B3Status:
         )
     except (json.JSONDecodeError, OSError) as e:
         return B3Status(False, False, 0, f"读取 B3 状态失败: {e}")
+
+
+_PHASE_B_STATUS_FILE = _PROJECT_ROOT / "reports" / "evolution" / "phase_b_status.json"
+
+
+def _check_b3_via_enabler_stage() -> B3Status:
+    """B3 前置回退判定 (口径修正 2026-09-01): 读 phase_b_status.json 阶段轨状态.
+
+    判定条件:
+        1. USE_AUTO_RETRAIN=True (B3 flag 未被回滚)
+        2. stage ∈ {auto_retrain, orchestrator} (B3 阶段已到达或已越过)
+        3. auto_retrain 阶段需阶段内稳定日 >= 3; orchestrator 视为推进门禁
+           已验证 (阶段轨吸收), 直接就绪
+    """
+    try:
+        if not _PHASE_B_STATUS_FILE.exists():
+            return B3Status(False, False, 0, "B3 前置失败: phase_b_status.json 不存在")
+        data = json.loads(
+            _PHASE_B_STATUS_FILE.read_text(encoding="utf-8", errors="replace")
+        )
+        flags = data.get("flags_enabled", {})
+        stage = str(data.get("stage", ""))
+        if not flags.get("USE_AUTO_RETRAIN", False):
+            return B3Status(False, False, 0, "B3 前置失败: USE_AUTO_RETRAIN 未启用")
+        if stage not in ("auto_retrain", "orchestrator"):
+            return B3Status(
+                False, False, 0, f"B3 前置失败: 当前阶段 {stage} 未到达 auto_retrain"
+            )
+        if stage == "orchestrator":
+            return B3Status(
+                True,
+                True,
+                -1,
+                "B3 经 enabler 阶段轨就绪 (已推进 orchestrator, 推进门禁已验证 B3 稳定)",
+            )
+        stage_start = str(data.get("current_stage_start", ""))
+        stage_stable_days = sum(
+            1
+            for rec in data.get("daily_health_log", [])
+            if str(rec.get("date", "")) >= stage_start and rec.get("healthy")
+        )
+        if stage_stable_days >= 3:
+            return B3Status(
+                True,
+                True,
+                stage_stable_days,
+                f"B3 经 enabler 阶段轨就绪 (阶段内稳定 {stage_stable_days}/3)",
+            )
+        return B3Status(
+            False,
+            False,
+            stage_stable_days,
+            f"B3 阶段内稳定 {stage_stable_days}/3 不足",
+        )
+    except (json.JSONDecodeError, OSError, TypeError) as e:
+        return B3Status(False, False, 0, f"B3 阶段轨状态读取失败: {e}")
 
 
 # ============================================================
@@ -191,8 +253,18 @@ def _validate_llm_feedback_loop(
         try:
             ctx = kb.load_context_for_ideation()
             kb_read_success = True
-            entries_read = len(ctx) if isinstance(ctx, (list, tuple)) else 0
-            ideation_feedback_received = entries_read > 0
+            # 修复 (2026-09-01): load_context_for_ideation 返回 str (格式化上下文文本),
+            # 原判定 isinstance(ctx, (list, tuple)) 恒 False → entries_read 恒 0 →
+            # 闭环恒判未闭合 (连续 3 次将误触发回退 B3)。改为按实际返回类型判定。
+            if isinstance(ctx, (list, tuple)):
+                entries_read = len(ctx)
+                ideation_feedback_received = entries_read > 0
+            elif isinstance(ctx, str):
+                entries_read = len(ctx)
+                ideation_feedback_received = bool(ctx.strip())
+            else:
+                entries_read = 0
+                ideation_feedback_received = False
         except Exception as e:
             kb_read_success = False
             entries_read = 0
@@ -358,9 +430,13 @@ def update_shadow_status(result: B4ShadowResult, date: str) -> dict:
     if len(history) > 30:
         history = history[-30:]
 
-    status["run_count"] = status.get("run_count", 0) + 1
+    # 修复 (2026-09-01): 同日重跑幂等 — last_run == date 时不累加 warmup_days/run_count
+    # (避免手动调试或 cron 重试导致预热天数虚高, 误判 7 天达标提前)
+    is_same_day = status.get("last_run") == date
+    if not is_same_day:
+        status["run_count"] = status.get("run_count", 0) + 1
+        status["warmup_days"] = status.get("warmup_days", 0) + 1
     status["last_run"] = date
-    status["warmup_days"] = status.get("warmup_days", 0) + 1
 
     if not result.loop_closed:
         status["consecutive_failures"] = status.get("consecutive_failures", 0) + 1
@@ -462,7 +538,7 @@ def main() -> int:
     if args.check_invariant:
         ok = check_flag_invariant()
         print(
-            f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}"
+            f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}"  # noqa: E501
         )
         return 0 if ok else 1
 
@@ -546,7 +622,7 @@ def main() -> int:
 
     print(f"\n[B4 Shadow 完成] 日期={date_str}")
     print(
-        f"[LLM 闭环] {'闭合' if run_result.loop_closed else '未闭合'} / LLM {'可用' if run_result.llm_available else '降级'}"
+        f"[LLM 闭环] {'闭合' if run_result.loop_closed else '未闭合'} / LLM {'可用' if run_result.llm_available else '降级'}"  # noqa: E501
     )
     print(
         f"[知识库] 写入={run_result.entries_written} / 读取={run_result.entries_read}"

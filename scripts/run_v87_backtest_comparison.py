@@ -77,7 +77,7 @@ def format_v87_comparison(s5, s6, vix_stats) -> str:
     lines.append("[1] VIX Regime 分布统计")
     lines.append("-" * 90)
     lines.append(
-        f"  VIX 均值: {vix_stats['vix_mean']:.1f} | 范围: [{vix_stats['vix_min']:.1f}, {vix_stats['vix_max']:.1f}] | 标准差: {vix_stats['vix_std']:.1f}"
+        f"  VIX 均值: {vix_stats['vix_mean']:.1f} | 范围: [{vix_stats['vix_min']:.1f}, {vix_stats['vix_max']:.1f}] | 标准差: {vix_stats['vix_std']:.1f}"  # noqa: E501
     )
     lines.append("")
     lines.append(
@@ -140,16 +140,16 @@ def format_v87_comparison(s5, s6, vix_stats) -> str:
         f"  {'对冲激活天数':20s} | {s5.hedge_days:>16d} | {s6.hedge_days:>16d} | {s6.hedge_days - s5.hedge_days:>12d}"
     )
     lines.append(
-        f"  {'对冲总盈亏':20s} | {s5.hedge_pnl_total:>16,.0f} | {s6.hedge_pnl_total:>16,.0f} | {s6.hedge_pnl_total - s5.hedge_pnl_total:>12,.0f}"
+        f"  {'对冲总盈亏':20s} | {s5.hedge_pnl_total:>16,.0f} | {s6.hedge_pnl_total:>16,.0f} | {s6.hedge_pnl_total - s5.hedge_pnl_total:>12,.0f}"  # noqa: E501
     )
     lines.append(
-        f"  {'对冲成本':20s} | {s5_hedge_cost:>16,.0f} | {s6_hedge_cost:>16,.0f} | {s6_hedge_cost - s5_hedge_cost:>12,.0f}"
+        f"  {'对冲成本':20s} | {s5_hedge_cost:>16,.0f} | {s6_hedge_cost:>16,.0f} | {s6_hedge_cost - s5_hedge_cost:>12,.0f}"  # noqa: E501
     )
     lines.append(
-        f"  {'交易成本':20s} | {sum(s5.transaction_costs):>16,.0f} | {sum(s6.transaction_costs):>16,.0f} | {sum(s6.transaction_costs) - sum(s5.transaction_costs):>12,.0f}"
+        f"  {'交易成本':20s} | {sum(s5.transaction_costs):>16,.0f} | {sum(s6.transaction_costs):>16,.0f} | {sum(s6.transaction_costs) - sum(s5.transaction_costs):>12,.0f}"  # noqa: E501
     )
     lines.append(
-        f"  {'总成本':20s} | {s5_total_cost:>16,.0f} | {s6_total_cost:>16,.0f} | {s6_total_cost - s5_total_cost:>12,.0f}"
+        f"  {'总成本':20s} | {s5_total_cost:>16,.0f} | {s6_total_cost:>16,.0f} | {s6_total_cost - s5_total_cost:>12,.0f}"  # noqa: E501
     )
     lines.append(
         f"  {'交易次数':20s} | {s5.trade_count:>16d} | {s6.trade_count:>16d} | {s6.trade_count - s5.trade_count:>12d}"
@@ -157,7 +157,7 @@ def format_v87_comparison(s5, s6, vix_stats) -> str:
     s5_daily_pnl = s5.hedge_pnl_total / s5.hedge_days if s5.hedge_days > 0 else 0.0
     s6_daily_pnl = s6.hedge_pnl_total / s6.hedge_days if s6.hedge_days > 0 else 0.0
     lines.append(
-        f"  {'对冲日均盈亏':20s} | {s5_daily_pnl:>16,.0f} | {s6_daily_pnl:>16,.0f} | {s6_daily_pnl - s5_daily_pnl:>12,.0f}"
+        f"  {'对冲日均盈亏':20s} | {s5_daily_pnl:>16,.0f} | {s6_daily_pnl:>16,.0f} | {s6_daily_pnl - s5_daily_pnl:>12,.0f}"  # noqa: E501
     )
     lines.append("")
 
@@ -165,7 +165,7 @@ def format_v87_comparison(s5, s6, vix_stats) -> str:
     lines.append("-" * 90)
     if s5.yearly_stats and s6.yearly_stats:
         lines.append(
-            f"  {'年份':6s} | {'S5年化':>8s} {'S5回撤':>8s} {'S5夏普':>8s} | {'S6年化':>8s} {'S6回撤':>8s} {'S6夏普':>8s} | {'Δ夏普':>8s}"
+            f"  {'年份':6s} | {'S5年化':>8s} {'S5回撤':>8s} {'S5夏普':>8s} | {'S6年化':>8s} {'S6回撤':>8s} {'S6夏普':>8s} | {'Δ夏普':>8s}"  # noqa: E501
         )
         lines.append("  " + "-" * 80)
         for ys5, ys6 in zip(s5.yearly_stats, s6.yearly_stats, strict=False):
@@ -210,7 +210,7 @@ def format_v87_comparison(s5, s6, vix_stats) -> str:
         f"  对冲激活天数: S5={s5.hedge_days} vs S6={s6.hedge_days} (v8.7动态阈值更敏感)"
     )
     lines.append(
-        f"  VIX regime分布: 低波{vix_stats['regime_pct']['low_vol'] * 100:.1f}% / 正常{vix_stats['regime_pct']['normal'] * 100:.1f}% / 高波{vix_stats['regime_pct']['high_vol'] * 100:.1f}% / 危机{vix_stats['regime_pct']['crisis'] * 100:.1f}%"
+        f"  VIX regime分布: 低波{vix_stats['regime_pct']['low_vol'] * 100:.1f}% / 正常{vix_stats['regime_pct']['normal'] * 100:.1f}% / 高波{vix_stats['regime_pct']['high_vol'] * 100:.1f}% / 危机{vix_stats['regime_pct']['crisis'] * 100:.1f}%"  # noqa: E501
     )
     lines.append("")
     lines.append("=" * 90)

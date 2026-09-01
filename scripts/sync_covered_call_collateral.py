@@ -112,7 +112,7 @@ def main():
             data = json.load(f)
     print(f"[{r510300['code']}]")
     print(
-        f"  原持仓: {r510300.get('old_shares')} -> 补仓: {r510300.get('topup_shares')} -> 新持仓: {r510300.get('new_shares')}"
+        f"  原持仓: {r510300.get('old_shares')} -> 补仓: {r510300.get('topup_shares')} -> 新持仓: {r510300.get('new_shares')}"  # noqa: E501
     )
     print(f"  avg_cost: {r510300.get('old_avg_cost')} -> {r510300.get('new_avg_cost')}")
     print(f"  补仓价: {r510300.get('topup_price')}")

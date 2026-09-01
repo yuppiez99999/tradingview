@@ -131,7 +131,7 @@ def _build_markdown_report(
         technical_alpha = _calc_technical_alpha(item["code"])
         alpha_str = f"{technical_alpha:.4f}" if technical_alpha is not None else "N/A"
         lines.append(
-            f"| {item['code']} | {item['name']} | {emoji} {insight.direction} | {insight.confidence:.2f} | {insight.news_count} | {alpha_str} | {'；'.join(insight.reasons[:2])} |"
+            f"| {item['code']} | {item['name']} | {emoji} {insight.direction} | {insight.confidence:.2f} | {insight.news_count} | {alpha_str} | {'；'.join(insight.reasons[:2])} |"  # noqa: E501
         )
     lines.extend(
         [

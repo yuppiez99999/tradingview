@@ -20,6 +20,7 @@ T1.6 增强 (2026-08-02):
 
 对比 Day 1 N1: N1 专注漂移检测+重训触发; N2 专注静态策略评估。两者独立运行, 结果可被 N6 调度器聚合。
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -28,7 +29,7 @@ import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Any
 
 # ========== 配置 (复用 Day 1 EVOLUTION_CONFIG) ==========
 EVOLUTION_CONFIG = {
@@ -103,7 +104,7 @@ class ScoreReport:
     degraded_reason: str = ""
     evaluated_at: str = ""
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["return_metrics"] = asdict(self.return_metrics)
         d["divers_metrics"] = asdict(self.divers_metrics)
@@ -353,8 +354,8 @@ class StrategyEvaluator:
 
     def evaluate(
         self,
-        daily_returns_path: Optional[str] = None,
-        pos_path: Optional[str] = None,
+        daily_returns_path: str | None = None,
+        pos_path: str | None = None,
         use_shadow_data: bool = True,
     ) -> ScoreReport:
         """执行完整评分.
@@ -438,8 +439,8 @@ class StrategyEvaluator:
 
     def _compute_return_metrics_ext(
         self,
-        daily_returns_path: Optional[str],
-        pos_path: Optional[str],
+        daily_returns_path: str | None,
+        pos_path: str | None,
         use_shadow_data: bool,
     ) -> tuple[ReturnMetrics, list[float]]:
         """计算资金回报指标并返回原始日回报序列 (T1.6 扩展, 供 WF 分析)."""
@@ -667,8 +668,8 @@ class StrategyEvaluator:
 
 # ========== 便捷接口 ==========
 def evaluate_strategy_simple(
-    daily_returns_path: Optional[str] = None,
-    pos_path: Optional[str] = None,
+    daily_returns_path: str | None = None,
+    pos_path: str | None = None,
 ) -> ScoreReport:
     """便捷调用函数.
     注意: Feature Flag 默认为 False, 需先在 config/features.json 或 env 中启用.
@@ -713,7 +714,7 @@ if __name__ == "__main__":
     logger.info(f"  Test Sharpe:  {report.wf_result.test_sharpe:.4f}")
     logger.info(f"  Sharp Drop:   {report.wf_result.sharpe_drop_pct:.1f}%")
     logger.info(
-        f"  过拟合标记:   {report.wf_result.overfit_flag} {'— ' + report.wf_result.overfit_reason if report.wf_result.overfit_flag else ''}"
+        f"  过拟合标记:   {report.wf_result.overfit_flag} {'— ' + report.wf_result.overfit_reason if report.wf_result.overfit_flag else ''}"  # noqa: E501
     )
     logger.info(f"\n建议: {report.recommendation} — {report.reason}")
     logger.info(f"评估时间: {report.evaluated_at}")

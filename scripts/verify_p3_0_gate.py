@@ -77,7 +77,7 @@ def verify_3_data_accumulation(
     return {
         "name": "③ 数据积累",
         "passed": passed,
-        "detail": f"有 strategy={strategies} 成交的交易日 = {days_with_fills} (要求 >= {min_days}), 总记录 = {total_fills}",
+        "detail": f"有 strategy={strategies} 成交的交易日 = {days_with_fills} (要求 >= {min_days}), 总记录 = {total_fills}",  # noqa: E501
         "days_with_fills": days_with_fills,
         "total_fills": total_fills,
         "min_days_required": min_days,
@@ -152,7 +152,7 @@ def verify_2_daily_pnl_filtered(dates: list[str], strategies: tuple[str, ...]) -
     return {
         "name": "② daily_pnl 过滤消费",
         "passed": passed,
-        "detail": f"strategies={strategies} 取到成交均价的交易日 = {len(dates_with_build_prices)}, 覆盖标的总数 = {total_symbols_covered}",
+        "detail": f"strategies={strategies} 取到成交均价的交易日 = {len(dates_with_build_prices)}, 覆盖标的总数 = {total_symbols_covered}",  # noqa: E501
         "dates_with_coverage": dates_with_build_prices,
         "total_symbols_covered": total_symbols_covered,
     }

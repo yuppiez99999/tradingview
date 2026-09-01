@@ -35,7 +35,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORTS = ROOT / "reports" / "ci"
@@ -149,7 +149,7 @@ def run_pytest_smoke(smoke_dir: Path) -> list[Check]:
     return out
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="GAP-1 smoke test runner")
     parser.add_argument("--smoke-dir", default=str(ROOT / "tests" / "smoke"))
     parser.add_argument("--skip-pytest", action="store_true")

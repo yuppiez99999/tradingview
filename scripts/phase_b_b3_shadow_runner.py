@@ -512,7 +512,7 @@ def main() -> int:
     if args.check_invariant:
         ok = check_flag_invariant()
         print(
-            f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}"
+            f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}"  # noqa: E501
         )
         return 0 if ok else 1
 
@@ -588,7 +588,7 @@ def main() -> int:
 
     print(f"\n[B3 Shadow 完成] 日期={date_str}")
     print(
-        f"[夏普] shadow={run_result.shadow_sharpe:.4f} / prod={run_result.prod_sharpe:.4f} / 退化={run_result.sharpe_degradation:.6f}"
+        f"[夏普] shadow={run_result.shadow_sharpe:.4f} / prod={run_result.prod_sharpe:.4f} / 退化={run_result.sharpe_degradation:.6f}"  # noqa: E501
     )
     print(f"[权重漂移] {run_result.weight_drift:.6f} (阈值 {WEIGHT_DRIFT_THRESHOLD})")
     print(f"[降级护栏] {'触发回退' if run_result.need_rollback else '未触发'}")

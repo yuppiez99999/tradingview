@@ -29,10 +29,10 @@ print(f"累计收益: {p(cum - 1)}")
 print(f"盈利天数: {len(pos_days)} ({len(pos_days)/len(records)*100:.0f}%)")
 print(f"亏损天数: {len(neg_days)} ({len(neg_days)/len(records)*100:.0f}%)")
 print(
-    f"最大单日盈利: {max(r['daily_return'] for r in records)*100:+.4f}% ({max(records, key=lambda r: r['daily_return'])['date']})"
+    f"最大单日盈利: {max(r['daily_return'] for r in records)*100:+.4f}% ({max(records, key=lambda r: r['daily_return'])['date']})"  # noqa: E501
 )
 print(
-    f"最大单日亏损: {min(r['daily_return'] for r in records)*100:+.4f}% ({min(records, key=lambda r: r['daily_return'])['date']})"
+    f"最大单日亏损: {min(r['daily_return'] for r in records)*100:+.4f}% ({min(records, key=lambda r: r['daily_return'])['date']})"  # noqa: E501
 )
 print(f"平均日收益: {sum(returns)/len(returns)*100:+.4f}%")
 print()
@@ -63,7 +63,7 @@ for code, v in sorted_pos[:10]:
     mv = v["shares"] * v.get("est_price", 0)
     weight = mv / total_value if total_value > 0 else 0
     print(
-        f"  {code:12s} {v.get('name',''):16s} {v['shares']:>6d}股 @ {v.get('est_price',0):>8.3f} = ¥{mv:>10,.0f} ({weight*100:5.1f}%)"
+        f"  {code:12s} {v.get('name',''):16s} {v['shares']:>6d}股 @ {v.get('est_price',0):>8.3f} = ¥{mv:>10,.0f} ({weight*100:5.1f}%)"  # noqa: E501
     )
 print()
 

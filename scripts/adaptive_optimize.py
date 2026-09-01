@@ -27,7 +27,7 @@ logger = logging.getLogger("adaptive_optimize")
 
 
 # ========== 自适应优化配置 ==========
-ADAPTIVE_OPTIMIZE_CONFIG = {
+ADAPTIVE_OPTIMIZE_CONFIG: dict[str, Any] = {
     "feature_flag_name": "USE_ADAPTIVE_OPTIMIZE",
     # 漂移强度阈值 (0-1)
     "drift_severity_threshold_light": 0.25,  # 超过此值: 轻度调整

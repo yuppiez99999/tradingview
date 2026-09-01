@@ -29,7 +29,7 @@ import argparse
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -53,7 +53,7 @@ class CovResult(NamedTuple):
     detail: str
 
 
-def parse_coverage_xml(path: Path) -> Optional[dict]:
+def parse_coverage_xml(path: Path) -> dict | None:
     """最小 Cobertura 解析, 避免额外依赖 lxml。"""
     if not path.exists():
         return None
@@ -74,7 +74,7 @@ def parse_coverage_xml(path: Path) -> Optional[dict]:
         return None
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Coverage trend checker")
     parser.add_argument(
         "--coverage-xml", default=str(ROOT / "reports" / "coverage.xml")

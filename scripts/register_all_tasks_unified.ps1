@@ -147,6 +147,19 @@ $tasks = @(
         RepetitionDuration = $null
     },
     @{
+        # 2026-08-31 新增: S10 P2池升级影子账户每日净值计入 (P3 长样本候选)
+        # 在 v84_ShadowAdmissionDaily(17:45) 之后 1 分钟运行
+        # 2026-08-31 升级: 先跑 compute_s10_nav.py 计算真实净值再计入 (替代估算值)
+        Name = "v84_ShadowS10Daily"
+        StartTime = "17:46"
+        Script = "scripts\run_s10_shadow_daily.py"
+        Args = ""
+        Timeout = "PT10M"
+        Desc = "S10 影子账户每日净值计入 17:46 (真实净值, P3 长样本候选, 90 天观察期)"
+        RepetitionInterval = $null
+        RepetitionDuration = $null
+    },
+    @{
         # 2026-08-21 新增: Phase B 每日健康检查 + consecutive_stable_days 累积
         # 在 DSR(17:45) 之后运行, 确保 daily_returns.jsonl 已更新
         Name = "v84_PhaseBAuto"

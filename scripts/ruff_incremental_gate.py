@@ -44,6 +44,11 @@ def _run_ruff(rules: str, files: list[str]) -> str:
             "--output-format",
             "concise",
             "--no-cache",
+            # (2026-08-30) ruff 的 exclude/extend-exclude 默认只作用于目录遍历发现的文件,
+            # 对命令行显式传入的文件无效 —— 会使 ruff.toml 的排除名单 (temp/qlib_env/
+            # external/airllm_src/_test_report_* 等) 在门禁场景下完全失效, 产生假阳性阻断。
+            # --force-exclude 强制排除显式入参, 保证门禁与全量扫描口径一致。
+            "--force-exclude",
             *files,
         ],
         cwd=str(ROOT),

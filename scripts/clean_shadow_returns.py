@@ -32,7 +32,7 @@ import logging
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # 路径处理 (兼容直接运行 / -m 运行)
 _DIR = Path(__file__).resolve().parent
@@ -169,8 +169,8 @@ def is_trading_day(d: date) -> bool:
 
 def detect_missing_dates(
     records: list[dict[str, Any]],
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> list[date]:
     """检测观察期内缺失的交易日.
 
@@ -214,7 +214,7 @@ def detect_missing_dates(
     return missing
 
 
-def _parse_date(value: Any) -> Optional[date]:
+def _parse_date(value: Any) -> date | None:
     """解析日期字符串 (支持 YYYY-MM-DD 格式).
 
     Args:
@@ -460,8 +460,8 @@ def write_report(
 def run_cleaning(
     input_file: Path,
     output_dir: Path,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> tuple[list[dict[str, Any]], list[date]]:
     """执行完整清洗流程.
 

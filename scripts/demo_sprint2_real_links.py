@@ -440,7 +440,7 @@ def demo_b_debate_layer_with_rate_limiter(tmp_dir: str) -> None:
     print("\n  裁决结果:")
     print(f"    胜方: {result.winner}")
     print(
-        f"    净置信度: {result.net_confidence} (Bull {result.bull_final.confidence} - Bear {result.bear_final.confidence})"
+        f"    净置信度: {result.net_confidence} (Bull {result.bull_final.confidence} - Bear {result.bear_final.confidence})"  # noqa: E501
     )
     print(f"    最终信号: {result.final_signal} (置信度={result.final_confidence})")
     print(f"    裁决理由: {result.reasoning}")
@@ -840,7 +840,7 @@ def demo_c_end_to_end_loop(tmp_dir: str) -> None:
     logger.info("统计维度数=%d", len(stats))
     for key, s in stats.items():
         logger.info(
-            "  RateLimiter统计 [%s] | total=%d, success=%d, cache_hits=%d, rate_limited=%d, failed=%d, avg_latency=%.2fms, success_rate=%.4f",
+            "  RateLimiter统计 [%s] | total=%d, success=%d, cache_hits=%d, rate_limited=%d, failed=%d, avg_latency=%.2fms, success_rate=%.4f",  # noqa: E501
             key,
             s["total_calls"],
             s["successful"],

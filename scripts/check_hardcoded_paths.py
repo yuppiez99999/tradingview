@@ -46,7 +46,8 @@ _WHITELIST: set[str] = {
     "config/",
     "research/references/Vibe-Trading/",  # 已 gitignore
     "_archive/",                          # 已归档遗留代码
-    "ms_strategy/",                       # git 子模块
+    "ms_strategy/cloud_train/",           # 云训练脚本, 需本地 qlib_data/reports 路径 (历史债务)
+    "ms_strategy/scripts/vol_adjusted_stop_loss.py",  # 环境变量覆盖设计, 默认开发机路径 (QUANT11_ENV_FILE/WIND_MCP_SKILL_DIR/QUANT11_STOPLOSS_CONFIG)
     ".trae/",                             # IDE 内部文件
     "qlib_env/",
     ".env.example",

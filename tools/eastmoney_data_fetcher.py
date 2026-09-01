@@ -7,10 +7,11 @@
 Author: Agnes-2.0 Flash Team
 Date: 2026-07-23
 """
+from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 import requests
@@ -58,7 +59,7 @@ class EastMoneyDataFetcher:
                     secid = f"1.{symbol}"
 
                 # 调用东方财富API
-                url = f"{self.base_url}/unified.wss/secapi/qq/stock?secids={secid}&fields=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f15,f16,f17,f18"
+                url = f"{self.base_url}/unified.wss/secapi/qq/stock?secids={secid}&fields=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f15,f16,f17,f18"  # noqa: E501
 
                 try:
                     response = self.session.get(url, timeout=5)
@@ -100,8 +101,8 @@ class EastMoneyDataFetcher:
     def get_historical_klines(
         self,
         symbol: str,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         period: str = "daily",
     ) -> pd.DataFrame:
         """
@@ -132,7 +133,7 @@ class EastMoneyDataFetcher:
 
             # 调用东方财富API
             fields = "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f15,f16,f17,f18"
-            url = f"{self.base_url}/kline/wss/secapi/qq/kline?secids={secid}&field1={secid}&field2=0&field3={period}&field4={start_date}&field5={end_date}&fields={fields}"
+            url = f"{self.base_url}/kline/wss/secapi/qq/kline?secids={secid}&field1={secid}&field2=0&field3={period}&field4={start_date}&field5={end_date}&fields={fields}"  # noqa: E501
 
             response = self.session.get(url, timeout=10)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """A 股标的池定义（P1.1 扩展至 100+ 标的）
 
 设计原则：
@@ -21,12 +20,10 @@
 """
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
-
 # ============================================================
 # 现有 23 个标的（保持向后兼容）
 # ============================================================
-EXISTING_SYMBOLS: List[str] = [
+EXISTING_SYMBOLS: list[str] = [
     "000333_SZ", "000408_SZ", "000425_SZ", "000680_SZ", "000975_SZ",
     "002371_SZ", "002422_SZ", "300274_SZ", "300308_SZ", "515180_SH",
     "518880_SH", "588000_SH", "600019_SH", "600036_SH", "600089_SH",
@@ -39,7 +36,7 @@ EXISTING_SYMBOLS: List[str] = [
 # 扩展标的池（按行业分类，每个行业 10-15 只）
 # ============================================================
 # 格式：(代码_SZ/SH, 行业, 板块)
-EXPANDED_UNIVERSE: List[Tuple[str, str, str]] = [
+EXPANDED_UNIVERSE: list[tuple[str, str, str]] = [
     # === 消费 - 食品饮料 (10) ===
     ("600519_SH", "食品饮料", "主板"),  # 贵州茅台
     ("000858_SZ", "食品饮料", "主板"),  # 五粮液
@@ -167,7 +164,7 @@ EXPANDED_UNIVERSE: List[Tuple[str, str, str]] = [
 ]
 
 
-def get_universe(exclude_etf: bool = False) -> List[str]:
+def get_universe(exclude_etf: bool = False) -> list[str]:
     """获取标的池
 
     Args:
@@ -176,9 +173,9 @@ def get_universe(exclude_etf: bool = False) -> List[str]:
     Returns:
         标的代码列表（如 ["600519_SH", "000858_SZ", ...]）
     """
-    symbols: List[str] = []
+    symbols: list[str] = []
     seen = set()
-    for sym, industry, board in EXPANDED_UNIVERSE:
+    for sym, _industry, board in EXPANDED_UNIVERSE:
         if sym in seen:
             continue
         if exclude_etf and board == "ETF":
@@ -188,13 +185,13 @@ def get_universe(exclude_etf: bool = False) -> List[str]:
     return symbols
 
 
-def get_universe_with_meta() -> Dict[str, Dict[str, str]]:
+def get_universe_with_meta() -> dict[str, dict[str, str]]:
     """获取带元数据的标的池
 
     Returns:
         {symbol: {"industry": str, "board": str}}
     """
-    out: Dict[str, Dict[str, str]] = {}
+    out: dict[str, dict[str, str]] = {}
     for sym, industry, board in EXPANDED_UNIVERSE:
         if sym in out:
             continue
@@ -202,41 +199,41 @@ def get_universe_with_meta() -> Dict[str, Dict[str, str]]:
     return out
 
 
-def get_industry_distribution() -> Dict[str, int]:
+def get_industry_distribution() -> dict[str, int]:
     """获取行业分布统计"""
-    dist: Dict[str, int] = {}
+    dist: dict[str, int] = {}
     for _, industry, _ in EXPANDED_UNIVERSE:
         dist[industry] = dist.get(industry, 0) + 1
     return dict(sorted(dist.items(), key=lambda kv: -kv[1]))
 
 
-def get_board_distribution() -> Dict[str, int]:
+def get_board_distribution() -> dict[str, int]:
     """获取板块分布统计"""
-    dist: Dict[str, int] = {}
+    dist: dict[str, int] = {}
     for _, _, board in EXPANDED_UNIVERSE:
         dist[board] = dist.get(board, 0) + 1
     return dict(sorted(dist.items(), key=lambda kv: -kv[1]))
 
 
 if __name__ == "__main__":
-    print("=" * 70)
-    print("A 股标的池定义（P1.1 扩展）")
-    print("=" * 70)
+    print("=" * 70)  # noqa: T201
+    print("A 股标的池定义（P1.1 扩展）")  # noqa: T201
+    print("=" * 70)  # noqa: T201
 
     universe = get_universe()
-    print(f"\n总标的数: {len(universe)}")
-    print(f"  现有标的: {len(EXISTING_SYMBOLS)}")
-    print(f"  新增标的: {len(universe) - len(EXISTING_SYMBOLS)}")
+    print(f"\n总标的数: {len(universe)}")  # noqa: T201
+    print(f"  现有标的: {len(EXISTING_SYMBOLS)}")  # noqa: T201
+    print(f"  新增标的: {len(universe) - len(EXISTING_SYMBOLS)}")  # noqa: T201
 
-    print("\n=== 行业分布 ===")
+    print("\n=== 行业分布 ===")  # noqa: T201
     for ind, cnt in get_industry_distribution().items():
-        print(f"  {ind:15s}: {cnt}")
+        print(f"  {ind:15s}: {cnt}")  # noqa: T201
 
-    print("\n=== 板块分布 ===")
+    print("\n=== 板块分布 ===")  # noqa: T201
     for board, cnt in get_board_distribution().items():
-        print(f"  {board:10s}: {cnt}")
+        print(f"  {board:10s}: {cnt}")  # noqa: T201
 
-    print("\n=== 标的列表（前 20）===")
+    print("\n=== 标的列表（前 20）===")  # noqa: T201
     for sym in universe[:20]:
-        print(f"  {sym}")
-    print(f"  ... 共 {len(universe)} 个标的")
+        print(f"  {sym}")  # noqa: T201
+    print(f"  ... 共 {len(universe)} 个标的")  # noqa: T201

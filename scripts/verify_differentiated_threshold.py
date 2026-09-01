@@ -123,7 +123,7 @@ def main() -> int:
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "thresholds": {
             "old": f"±{int(ABNORMAL_RETURN_THRESHOLD_INTERNAL * 100)}% (统一)",
-            "new": f"10cm: ±{int(ABNORMAL_RETURN_THRESHOLD_INTERNAL * 100)}%  |  20cm: ±{int(ABNORMAL_RETURN_THRESHOLD_20CM * 100)}%",
+            "new": f"10cm: ±{int(ABNORMAL_RETURN_THRESHOLD_INTERNAL * 100)}%  |  20cm: ±{int(ABNORMAL_RETURN_THRESHOLD_20CM * 100)}%",  # noqa: E501
             "source": "utils.market_rules",
         },
         "summary": {

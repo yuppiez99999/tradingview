@@ -60,7 +60,7 @@ def _run_gate(script_rel: str) -> dict:
     try:
         proc = subprocess.run(
             [
-                str(_PROJECT_ROOT / ".venv" / ("Scripts" if sys.platform == "win32" else "bin") / ("python.exe" if sys.platform == "win32" else "python")),
+                str(_PROJECT_ROOT / ".venv" / ("Scripts" if sys.platform == "win32" else "bin") / ("python.exe" if sys.platform == "win32" else "python")),  # noqa: E501
                 str(script_path),
             ],
             cwd=str(_PROJECT_ROOT),

@@ -141,7 +141,7 @@ def main() -> int:
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "thresholds": {
             "old": "±20% (统一)",
-            "new": f"10cm: ±{int(ABNORMAL_RETURN_THRESHOLD_INTERNAL * 100)}%  |  20cm: ±{int(ABNORMAL_RETURN_THRESHOLD_20CM * 100)}%",
+            "new": f"10cm: ±{int(ABNORMAL_RETURN_THRESHOLD_INTERNAL * 100)}%  |  20cm: ±{int(ABNORMAL_RETURN_THRESHOLD_20CM * 100)}%",  # noqa: E501
             "source": "utils.market_rules (单一事实源)",
         },
         "summary": {
@@ -204,7 +204,7 @@ def main() -> int:
         for d in c["details"]:
             if d["flagged_new"]:
                 md.append(
-                    f"| {c['date']} | {d['symbol']} | {d['ret_pct']:+.2f}% | {d['board']} | {d['threshold_new']} | **异常** |"
+                    f"| {c['date']} | {d['symbol']} | {d['ret_pct']:+.2f}% | {d['board']} | {d['threshold_new']} | **异常** |"  # noqa: E501
                 )
     md.append("")
 

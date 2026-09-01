@@ -586,10 +586,10 @@ class PortfolioBacktester:
         checks["overall"] = all(checks.values())
 
         checks["details"] = {
-            "annual_return": f"{metrics['annual_return']*100:.2f}% {'✅' if checks['annual_return'] else '❌'} (目标≥{self.TARGET_ANNUAL_RETURN*100:.0f}%)",
-            "max_drawdown": f"{metrics['max_drawdown']*100:.2f}% {'✅' if checks['max_drawdown'] else '❌'} (目标<{self.TARGET_MAX_DRAWDOWN*100:.0f}%)",
-            "sharpe_ratio": f"{metrics['sharpe_ratio']:.3f} {'✅' if checks['sharpe_ratio'] else '❌'} (目标≥{self.TARGET_SHARPE})",
-            "calmar_ratio": f"{metrics['calmar_ratio']:.3f} {'✅' if checks['calmar_ratio'] else '❌'} (目标≥{self.TARGET_CALMAR})",
+            "annual_return": f"{metrics['annual_return']*100:.2f}% {'✅' if checks['annual_return'] else '❌'} (目标≥{self.TARGET_ANNUAL_RETURN*100:.0f}%)",  # noqa: E501
+            "max_drawdown": f"{metrics['max_drawdown']*100:.2f}% {'✅' if checks['max_drawdown'] else '❌'} (目标<{self.TARGET_MAX_DRAWDOWN*100:.0f}%)",  # noqa: E501
+            "sharpe_ratio": f"{metrics['sharpe_ratio']:.3f} {'✅' if checks['sharpe_ratio'] else '❌'} (目标≥{self.TARGET_SHARPE})",  # noqa: E501
+            "calmar_ratio": f"{metrics['calmar_ratio']:.3f} {'✅' if checks['calmar_ratio'] else '❌'} (目标≥{self.TARGET_CALMAR})",  # noqa: E501
         }
         return checks
 
@@ -603,7 +603,7 @@ class PortfolioBacktester:
                 {
                     "type": "INCREASE_ALPHA",
                     "severity": "HIGH",
-                    "message": f"年化收益 {metrics['annual_return']*100:.2f}% < 目标 {self.TARGET_ANNUAL_RETURN*100:.0f}%",
+                    "message": f"年化收益 {metrics['annual_return']*100:.2f}% < 目标 {self.TARGET_ANNUAL_RETURN*100:.0f}%",  # noqa: E501
                     "actions": [
                         "增加高Alpha标的权重 (科技成长)",
                         "增加Theta收益 (备兑看涨策略覆盖更多标的)",
@@ -618,7 +618,7 @@ class PortfolioBacktester:
                 {
                     "type": "REDUCE_DRAWDOWN",
                     "severity": "CRITICAL",
-                    "message": f"最大回撤 {metrics['max_drawdown']*100:.2f}% > 目标 {self.TARGET_MAX_DRAWDOWN*100:.0f}%",
+                    "message": f"最大回撤 {metrics['max_drawdown']*100:.2f}% > 目标 {self.TARGET_MAX_DRAWDOWN*100:.0f}%",  # noqa: E501
                     "actions": [
                         "增加IF对冲比例 (50% → 70%)",
                         "增加低波动标的权重 (国债ETF/黄金ETF)",

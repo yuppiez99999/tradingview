@@ -447,7 +447,7 @@ def print_progress_summary(snapshot: dict, logger: logging.Logger) -> None:
     lh = snapshot.get("loop_health", {})
     if "error" not in lh:
         logger.info(
-            "[闭环健康] cycles=%s, trigger_rate=%.2f, l2_promote=%s, l2_rollback=%s, promote_rate=%.2f, avg_latency=%.1fms",
+            "[闭环健康] cycles=%s, trigger_rate=%.2f, l2_promote=%s, l2_rollback=%s, promote_rate=%.2f, avg_latency=%.1fms",  # noqa: E501
             lh.get("total_cycles", 0),
             lh.get("evolution_trigger_rate", 0.0),
             lh.get("l2_promote_count", 0),

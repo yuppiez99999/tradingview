@@ -108,7 +108,7 @@ def main():
 
         if not (min_annualized <= annualized <= max_annualized):
             print(
-                f"  [SKIP] {code}: 年化收益异常 ({annualized*100:+.2f}%)，超出阈值 [{min_annualized*100:.0f}%, {max_annualized*100:.0f}%]"
+                f"  [SKIP] {code}: 年化收益异常 ({annualized*100:+.2f}%)，超出阈值 [{min_annualized*100:.0f}%, {max_annualized*100:.0f}%]"  # noqa: E501
             )
             continue
         # 日波动率 → 年化

@@ -129,7 +129,7 @@ def main():
             json.dump(payload, f, ensure_ascii=False, indent=2)
         saved += 1
         print(
-            f"saved {code}: {len(records)} days, {records[0]['日期']} ~ {records[-1]['日期']}, end={records[-1]['收盘']}"
+            f"saved {code}: {len(records)} days, {records[0]['日期']} ~ {records[-1]['日期']}, end={records[-1]['收盘']}"  # noqa: E501
         )
 
     print(f"\n已保存 {saved} 个标的到 {FALLBACK_DIR}")

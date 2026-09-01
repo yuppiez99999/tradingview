@@ -319,7 +319,7 @@ def main() -> int:
     lines.append(f"    涉及 ETF: {len(n_all_div)} 只")
     for c, v in sorted(n_all_div.items(), key=lambda kv: -kv[1]["n_div_dates"]):
         lines.append(
-            f"      {c}: {v['n_div_dates']} 个除权日, 总收益 wind {v['total_ret_wind']*100:.1f}% vs sina {v['total_ret_sina']*100:.1f}%"
+            f"      {c}: {v['n_div_dates']} 个除权日, 总收益 wind {v['total_ret_wind']*100:.1f}% vs sina {v['total_ret_sina']*100:.1f}%"  # noqa: E501
         )
     lines.append("")
     lines.append("  === ROADMAP P2.2 验收标准核验 (v8.6.15 校准) ===")

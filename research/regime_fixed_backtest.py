@@ -184,7 +184,7 @@ def main() -> int:
         f"修正 Regime vs 始终 BL+MV:    Δ夏普={fix['夏普']-mv['夏普']:+.4f}  Δ净值={fix['末净值']-mv['末净值']:+.4f}"
     )
     print(
-        f"修正 Regime vs 始终 BL+MVSK:  Δ夏普={fix['夏普']-mvsk['夏普']:+.4f}  Δ净值={fix['末净值']-mvsk['末净值']:+.4f}"
+        f"修正 Regime vs 始终 BL+MVSK:  Δ夏普={fix['夏普']-mvsk['夏普']:+.4f}  Δ净值={fix['末净值']-mvsk['末净值']:+.4f}"  # noqa: E501
     )
     print(
         f"修正 Regime vs 原 Regime:     Δ夏普={fix['夏普']-old['夏普']:+.4f}  Δ净值={fix['末净值']-old['末净值']:+.4f}"

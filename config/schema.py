@@ -1,12 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 数据字段映射 Schema — 统一所有模块的数据契约
 
 v5.9 核心问题：positions.json 使用 avg_cost，但代码期望 cost
 本文件统一管理字段映射，所有模块必须通过此文件读取数据
 """
+from __future__ import annotations
 
-from typing import Dict, Any
+from typing import Any
 
 
 class FieldMapping:
@@ -27,7 +27,7 @@ class FieldMapping:
     }
 
 
-def get_field(data: Dict[str, Any], field_name: str, mapping: Dict[str, list], default=None):
+def get_field(data: dict[str, Any], field_name: str, mapping: dict[str, list], default: Any = None) -> Any:
     """从数据字典中获取字段值，支持多别名"""
     aliases = mapping.get(field_name, [field_name])
     for alias in aliases:
@@ -36,7 +36,7 @@ def get_field(data: Dict[str, Any], field_name: str, mapping: Dict[str, list], d
     return default
 
 
-def normalize_position(raw_position: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_position(raw_position: dict[str, Any]) -> dict[str, Any]:
     """标准化持仓数据"""
     return {
         'shares': int(get_field(raw_position, 'shares', FieldMapping.POSITION, 0)),
@@ -47,13 +47,13 @@ def normalize_position(raw_position: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def normalize_portfolio(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_portfolio(raw_data: dict[str, Any]) -> dict[str, Any]:
     """标准化组合数据"""
     positions = {}
     raw_positions = get_field(raw_data, 'positions', FieldMapping.PORTFOLIO, {})
     for code, pos in raw_positions.items():
         positions[code] = normalize_position(pos)
-    
+
     return {
         'positions': positions,
         'cash': float(get_field(raw_data, 'cash', FieldMapping.PORTFOLIO, 0.0)),

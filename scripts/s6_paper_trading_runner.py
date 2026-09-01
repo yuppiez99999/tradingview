@@ -312,7 +312,7 @@ def run_paper_trading(config: dict) -> dict:
         }
         if ls_result["status"] == "ok":
             record["note"] = (
-                f"增强={ls_result['enhanced_return']} 基准={ls_result['baseline_return']} 边际={ls_result['marginal_return']}"
+                f"增强={ls_result['enhanced_return']} 基准={ls_result['baseline_return']} 边际={ls_result['marginal_return']}"  # noqa: E501
             )
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)

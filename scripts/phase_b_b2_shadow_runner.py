@@ -333,7 +333,7 @@ def main() -> int:
     if args.check_invariant:
         ok = check_flag_invariant()
         print(
-            f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}"
+            f"\n[FLAG 不变式] {'PASS' if ok else 'FAIL'}: {FLAG_NAME}={'False' if not read_flag_default(FLAG_NAME) else 'True'}"  # noqa: E501
         )
         return 0 if ok else 1
 

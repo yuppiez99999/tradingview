@@ -260,7 +260,7 @@ def main() -> int:
         for d in c.get("abnormal_details", []):
             if d.get("flagged_new"):
                 md_lines.append(
-                    f"| {c['date']} | {d['symbol']} | {d['ret_pct']:+.2f}% | {d['board']} | ±{d['threshold_old']:.0%} | ±{d['threshold_new']:.0%} |"
+                    f"| {c['date']} | {d['symbol']} | {d['ret_pct']:+.2f}% | {d['board']} | ±{d['threshold_old']:.0%} | ±{d['threshold_new']:.0%} |"  # noqa: E501
                 )
     md_lines.append("")
 

@@ -31,7 +31,7 @@ import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORTS = ROOT / "reports" / "ci"
@@ -105,7 +105,7 @@ def run_pytest(targets: list[str]) -> Stage:
     return Stage("pytest-regression", proc.returncode == 0, tail, proc.returncode)
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="V9 regression runner")
     parser.add_argument("--pytest-root", default="tests")
     parser.add_argument("--output", default=str(REPORTS / "v9_regression.json"))

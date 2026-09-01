@@ -518,7 +518,7 @@ def generate_markdown_report(report: dict) -> str:
     ):
         md += f"| {style} | {weight:.2f}% |\n"
 
-    md += f"""
+    md += (f"""
 ---
 
 ## 二、预期收益率分析
@@ -561,16 +561,20 @@ def generate_markdown_report(report: dict) -> str:
 
 | 情景 | 概率 | 年化收益 | 最大回撤 | 5年末价值 |
 |------|------|----------|----------|-----------|
-| 基准情景 | {sa['base_case']['probability']} | {sa['base_case']['annual_return']:.2f}% | {sa['base_case']['max_drawdown']:.2f}% | {sa['base_case']['end_value']:,.2f} |
-| 乐观情景 | {sa['bull_case']['probability']} | {sa['bull_case']['annual_return']:.2f}% | {sa['bull_case']['max_drawdown']:.2f}% | {sa['bull_case']['end_value']:,.2f} |
-| 悲观情景 | {sa['bear_case']['probability']} | {sa['bear_case']['annual_return']:.2f}% | {sa['bear_case']['max_drawdown']:.2f}% | {sa['bear_case']['end_value']:,.2f} |
-| 危机情景 | {sa['crisis_case']['probability']} | {sa['crisis_case']['annual_return']:.2f}% | {sa['crisis_case']['max_drawdown']:.2f}% | {sa['crisis_case']['end_value']:,.2f} |
+| 基准情景 | {sa['base_case']['probability']} | {sa['base_case']['annual_return']:.2f}% | """
+    f"""{sa['base_case']['max_drawdown']:.2f}% | {sa['base_case']['end_value']:,.2f} |
+| 乐观情景 | {sa['bull_case']['probability']} | {sa['bull_case']['annual_return']:.2f}% | """
+    f"""{sa['bull_case']['max_drawdown']:.2f}% | {sa['bull_case']['end_value']:,.2f} |
+| 悲观情景 | {sa['bear_case']['probability']} | {sa['bear_case']['annual_return']:.2f}% | """
+    f"""{sa['bear_case']['max_drawdown']:.2f}% | {sa['bear_case']['end_value']:,.2f} |
+| 危机情景 | {sa['crisis_case']['probability']} | {sa['crisis_case']['annual_return']:.2f}% | """
+    f"""{sa['crisis_case']['max_drawdown']:.2f}% | {sa['crisis_case']['end_value']:,.2f} |
 
 ---
 
 ## 五、黑天鹅与不可抗力风险
 
-"""
+""")
 
     for risk in report["black_swan_risk"]:
         severity_icon = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}[risk["severity"]]

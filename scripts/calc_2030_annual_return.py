@@ -62,7 +62,7 @@ print("各标的盈亏 (按收益率排序)")
 print("=" * 80)
 for d in sorted(details, key=lambda x: x["pnl_pct"]):
     print(
-        f'{d["name"]:14s} {d["code"]:12s} 持{d["shares"]:>6d} 成本¥{d["avg_cost"]:.3f} 现价¥{d["est_price"]:.3f} 盈亏¥{d["pnl"]:>+10,.0f} ({d["pnl_pct"]:>+6.1f}%)'
+        f'{d["name"]:14s} {d["code"]:12s} 持{d["shares"]:>6d} 成本¥{d["avg_cost"]:.3f} 现价¥{d["est_price"]:.3f} 盈亏¥{d["pnl"]:>+10,.0f} ({d["pnl_pct"]:>+6.1f}%)'  # noqa: E501
     )
 
 print()

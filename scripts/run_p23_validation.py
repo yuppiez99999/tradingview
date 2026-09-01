@@ -153,7 +153,7 @@ def fmt_report(results: list[StrategyValidation], n_trials_dsr: int) -> str:
     lines.append("")
 
     lines.append(
-        f"  {'策略':<28} {'年化%':>6} {'回撤%':>6} {'Sharpe':>7} {'DSR':>7} {'P值':>7} {'CPCV':>7} {'Noise':>7} {'判定':>8}"
+        f"  {'策略':<28} {'年化%':>6} {'回撤%':>6} {'Sharpe':>7} {'DSR':>7} {'P值':>7} {'CPCV':>7} {'Noise':>7} {'判定':>8}"  # noqa: E501
     )
     lines.append("  " + "-" * 76)
     for v in results:
@@ -245,6 +245,18 @@ def main() -> int:
         logger.info("运行 S7 V9 Regime+动量...")
         eq, _ = mod.run_s7_v9_momentum(wind, tws)
         strategy_eqs.append(("S7 V9Regime+动量+熔断", eq))
+    if "s8" in sel or sel == "all":
+        logger.info("运行 S8 趋势+波动率目标...")
+        eq, _ = mod.run_s8_trend_vol(wind, tws)
+        strategy_eqs.append(("S8 趋势+波动率目标", eq))
+    if "s9" in sel or sel == "all":
+        logger.info("运行 S9 防御倾斜哑铃...")
+        eq, _ = mod.run_s9_dumbbell(wind, tws)
+        strategy_eqs.append(("S9 防御倾斜哑铃(40%)", eq))
+    if "s10" in sel or sel == "all":
+        logger.info("运行 S10 P2 池升级...")
+        eq, _ = mod.run_s10_p2(wind, tws)
+        strategy_eqs.append(("S10 P2池升级(45%防御+纳指标普)", eq))
 
     strategies = [(name, eq, bench_eq) for name, eq in strategy_eqs]
     n_trials_dsr = args.n_trials

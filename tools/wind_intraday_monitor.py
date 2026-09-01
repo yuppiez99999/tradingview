@@ -7,11 +7,11 @@ Wind 终端盘中标的抓取与研判
   2. 盘中异动检测（涨跌幅/成交量/价格偏离）
   3. 生成买/卖/持有研判结论
 """
+from __future__ import annotations
 
 import json
 import os
 from datetime import datetime
-from typing import Optional
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _PLAN_FILE = os.path.join(_BASE_DIR, "500万建仓计划_20260706.json")
@@ -105,7 +105,7 @@ def _import_wind():
 
 
 def _estimate_fund_flow_from_quote(
-    quote: dict, prev_close: Optional[float] = None
+    quote: dict, prev_close: float | None = None
 ) -> float:
     price = quote.get("price")
     change_pct = quote.get("change")
@@ -147,10 +147,10 @@ def _judge(row: dict) -> str:
 
 def _batch_fetch_klines(
     codes: list[str], is_fund_map: dict[str, bool], wind_get_kline, max_workers: int = 4
-) -> dict[str, Optional[float]]:
+) -> dict[str, float | None]:
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    prev_close_map: dict[str, Optional[float]] = {code: None for code in codes}
+    prev_close_map: dict[str, float | None] = {code: None for code in codes}
     if wind_get_kline is None:
         return prev_close_map
 
@@ -181,7 +181,7 @@ def _batch_fetch_klines(
     return prev_close_map
 
 
-def run(target_date: Optional[str] = None) -> dict:
+def run(target_date: str | None = None) -> dict:
     now = datetime.now()
     target_date = target_date or now.strftime("%Y-%m-%d")
     target_short = target_date.replace("-", "")
@@ -309,7 +309,7 @@ def run(target_date: Optional[str] = None) -> dict:
                 f"{r['net_flow_yi']:+.2f}" if r["net_flow_yi"] is not None else "-"
             )
             f.write(
-                f"| {r['code']} | {r['name']} | {r['style'] or '-'} | {price_str} | {est_str} | {deviation_str} | {chg_str} | {vol_str} | {flow_str} | {r['status']} | {r['judgment']} |\n"
+                f"| {r['code']} | {r['name']} | {r['style'] or '-'} | {price_str} | {est_str} | {deviation_str} | {chg_str} | {vol_str} | {flow_str} | {r['status']} | {r['judgment']} |\n"  # noqa: E501
             )
         f.write("\n")
         f.write("---\n\n")

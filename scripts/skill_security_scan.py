@@ -14,7 +14,6 @@ import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ class ScanResult:
     medium: int = 0
     low: int = 0
     blocked: bool = False
-    sarif_path: Optional[Path] = None
+    sarif_path: Path | None = None
     available: bool = True
     error: str = ""
 
@@ -114,7 +113,7 @@ def _parse_sarif(sarif_path: Path) -> tuple[int, int, int, int]:
 
 def scan_skills(
     targets: list[Path],
-    output_dir: Optional[Path] = None,
+    output_dir: Path | None = None,
     full: bool = False,
 ) -> ScanResult:
     """调用 skillspector CLI 扫描 skill 文件。
