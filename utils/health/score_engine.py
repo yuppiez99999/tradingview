@@ -58,3 +58,43 @@ def _degraded(dimension: str, reason: str) -> DimensionScore:
         degraded=True,
         detail={"reason": reason},
     )
+
+
+def score_model(project_root: Path, date: str) -> DimensionScore:
+    """模型维: drift integration 的 IC 退化与告警."""
+    path = project_root / "reports" / "drift" / f"integration_{date}.json"
+    if not path.exists():
+        return _degraded("model", "drift integration 文件不存在")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return _degraded("model", "drift integration JSON 解析失败")
+    if not isinstance(data, dict):
+        return _degraded("model", "drift integration 结构异常")
+    if data.get("skipped") or data.get("error"):
+        return _degraded("model", f"drift integration 未完成: {data.get('error')}")
+
+    try:
+        ic_deg = float(data.get("ic_degradation", 1.0))
+    except (TypeError, ValueError):
+        ic_deg = 1.0
+    score = 70.0
+    if ic_deg < 0.3:
+        score += 30.0
+    elif ic_deg < 0.6:
+        score += 15.0
+    alerts = data.get("alerts") or []
+    score = max(0.0, score - 10.0 * len(alerts))
+    dm = data.get("delayed_metrics") or {}
+    return DimensionScore(
+        score=score,
+        weight=WEIGHTS["model"],
+        degraded=False,
+        detail={
+            "ic": dm.get("ic"),
+            "rank_ic": dm.get("rank_ic"),
+            "ic_ir": dm.get("ic_ir"),
+            "ic_degradation": ic_deg,
+            "alerts": alerts,
+        },
+    )
