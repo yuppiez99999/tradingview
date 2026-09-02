@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · T2 System Health Score 聚合引擎落地（报告侧零侵入，v8.7.1 提前项）
+
+- **背景**: Production Edition 方案 T2 / v8.7.1 零侵入提前项——S12 日报仅覆盖单账户，真缺口是全系统 Health Score 聚合
+- **交付**: ①`utils/health/score_engine.py` 五维评分器（model 0.25=drift integration IC 退化分档+告警扣分 / data 0.20=当日降级条目分档 / trading 0.15=TCA 成交与预估覆盖率 / risk 0.20=vol regime 分档 / capital 0.20=shadow NAV+fail-fast）+ 聚合入口，降级语义=60 中性值+显式 degraded ②`scripts/compute_health_score.py` CLI 幂等落盘 `reports/health_score/health_score_{date}.json` ③`generate_daily_status_report.py` 头部注入"零、系统健康评分"节（缺失时不报错；--print 补 GBK 控制台 UTF-8 reconfigure）④计划任务 System_HealthScore 17:05 交易日（方案原文 17:15 调整为 17:05：注入要求评分先于 17:10 报告生成）
+- **验证**: 单测 41 用例全绿（加权/降级/分档/聚合 schema）；真实数据运行两日均产出——2026-09-01 YELLOW 73.5（model 60 因 ic_degradation=0.88+告警、data 40 因 105 条降级、risk bull 100、capital nav 1.0）、2026-09-02 RED 64.0（三维降级=当日产物未生成，17:05 任务上线后自然消除）；报告注入链路端到端数值一致；ruff 0 error
+- **已知偏差**: ①degradation_log 含测试进程条目，数据维在测试日偏低（v1 接受）②计划任务经 schtasks 注册（CIM 层 sandbox 异常），未带 3 次重试/5 分钟间隔——后续可交互式 PowerShell 补齐 ③计划文档两处笔误由子代理修正（全降级总分 60 应为 RED 非 YELLOW；用例计数 40→41）
+- **后续**: "连续 5 交易日产出"由 17:05 计划任务自然累积验收（明日查 09-02 17:05 首跑）；T5 Dashboard（Streamlit 只读页）排 12-10 冻结后
+- **指针**: `utils/health/score_engine.py`；`scripts/compute_health_score.py`；`scripts/register_health_score_task.ps1`；`docs/superpowers/plans/2026-09-02-t2-health-score-engine.md`
+
 ## 2026-09-02 · T1 Chaos 灾难演练补齐：真实风控机制覆盖（零侵入测试资产）
 
 - **背景**: Production Edition 方案 T1 验收要求六场景 fail-closed 演练；已有 `tests/chaos/test_chaos_trading.py` 30 用例覆盖探针级路径，但未演练真实 T11/T12/T16 机制（G2 设计表断言目标未完全兑现）
