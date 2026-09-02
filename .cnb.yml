@@ -1,0 +1,30 @@
+# CNB NPC 事件流水线 — 使 @CodeBuddy 可在本仓库 Issue/PR 中触发
+# 文档: https://docs.cnb.cool/zh/build/npc.html
+#
+# 用法:
+#   在仓库 Issue / PR 的描述或评论中 @CodeBuddy <你的任务>
+#   勾选「替我上班」后 NPC 可自主写代码、建分支、提 PR。
+$:
+  issue.comment@npc:
+    - docker:
+        image: cnbcool/default-npc:latest
+      stages:
+        - name: npc go
+          type: npc:go
+
+  pull_request.comment@npc:
+    - docker:
+        image: cnbcool/default-npc:latest
+      stages:
+        - name: npc go
+          type: npc:go
+
+# 可选: 按角色名覆盖事件（与 .cnb/settings.yml 中 roles[].name 一致）
+# CodeBuddy:
+#   issue.comment@npc:
+#     default:
+#       docker:
+#         image: cnbcool/default-npc:latest
+#       stages:
+#         - name: npc go
+#           type: npc:go
