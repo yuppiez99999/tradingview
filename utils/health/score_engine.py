@@ -208,3 +208,55 @@ def score_risk(project_root: Path, date: str) -> DimensionScore:
             "observation_phase": data.get("observation_phase"),
         },
     )
+
+
+def score_capital(project_root: Path, date: str) -> DimensionScore:
+    """资金维: shadow 账户状态 (NAV 合理性 + fail-fast)."""
+    path = project_root / "output" / "shadow_account" / "s12_shadow_state.json"
+    if not path.exists():
+        return _degraded("capital", "shadow 账户状态文件不存在")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return _degraded("capital", "shadow 账户状态解析失败")
+    if not isinstance(data, dict):
+        return _degraded("capital", "shadow 账户状态结构异常")
+    if data.get("fail_fast_triggered"):
+        return DimensionScore(
+            score=0.0,
+            weight=WEIGHTS["capital"],
+            degraded=False,
+            detail={"fail_fast_triggered": True},
+        )
+    try:
+        nav = float(data.get("nav", 1.0))
+    except (TypeError, ValueError):
+        nav = 1.0
+    score = 100.0 if 0.5 <= nav <= 2.0 else 50.0
+    return DimensionScore(
+        score=score,
+        weight=WEIGHTS["capital"],
+        degraded=False,
+        detail={"nav": nav, "trading_day_count": data.get("trading_day_count")},
+    )
+
+
+def compute_health_score(project_root: Path, date: str) -> dict:
+    """五维聚合 → 评分报告 dict (落盘由 CLI 负责)."""
+    scorers = {
+        "model": score_model,
+        "data": score_data,
+        "trading": score_trading,
+        "risk": score_risk,
+        "capital": score_capital,
+    }
+    dims = {name: fn(project_root, date) for name, fn in scorers.items()}
+    total = round(sum(d.score * d.weight for d in dims.values()), 1)
+    return {
+        "date": date,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "total_score": total,
+        "status": status_for(total),
+        "dimensions": {k: asdict(v) for k, v in dims.items()},
+        "degraded_dimensions": [k for k, v in dims.items() if v.degraded],
+    }

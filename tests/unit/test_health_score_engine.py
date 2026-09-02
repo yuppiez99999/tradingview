@@ -8,6 +8,8 @@ from utils.health.score_engine import (
     DEGRADED_NEUTRAL,
     WEIGHTS,
     DimensionScore,
+    compute_health_score,
+    score_capital,
     score_data,
     score_model,
     score_risk,
@@ -279,3 +281,87 @@ class TestScoreRisk:
         d.mkdir(parents=True)
         (d / f"vol_regime_weights_{self.DATE}.json").write_text("{bad", encoding="utf-8")
         assert score_risk(tmp_path, self.DATE).degraded is True
+
+
+def _write_shadow_state(root: Path, payload: dict) -> None:
+    d = root / "output" / "shadow_account"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "s12_shadow_state.json").write_text(
+        json.dumps(payload, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+def _shadow(**over) -> dict:
+    p = {
+        "account_id": "S12_SHADOW_P3",
+        "nav": 1.0,
+        "trading_day_count": 0,
+        "fail_fast_triggered": False,
+    }
+    p.update(over)
+    return p
+
+
+class TestScoreCapital:
+    def test_missing_state_degraded(self, tmp_path):
+        d = score_capital(tmp_path, "2026-09-01")
+        assert d.degraded is True
+        assert d.score == 60.0
+        assert d.weight == 0.20
+
+    def test_normal_nav_100(self, tmp_path):
+        _write_shadow_state(tmp_path, _shadow())
+        d = score_capital(tmp_path, "2026-09-01")
+        assert d.score == 100.0
+        assert d.detail["nav"] == 1.0
+
+    def test_fail_fast_zero(self, tmp_path):
+        _write_shadow_state(tmp_path, _shadow(fail_fast_triggered=True))
+        assert score_capital(tmp_path, "2026-09-01").score == 0.0
+
+    def test_nav_out_of_sane_range_50(self, tmp_path):
+        _write_shadow_state(tmp_path, _shadow(nav=3.0))
+        assert score_capital(tmp_path, "2026-09-01").score == 50.0
+
+    def test_corrupt_json_degraded(self, tmp_path):
+        d = tmp_path / "output" / "shadow_account"
+        d.mkdir(parents=True)
+        (d / "s12_shadow_state.json").write_text("{bad", encoding="utf-8")
+        assert score_capital(tmp_path, "2026-09-01").degraded is True
+
+
+class TestAggregate:
+    DATE = "2026-09-01"
+
+    def test_all_missing_all_degraded_total_60(self, tmp_path):
+        r = compute_health_score(tmp_path, self.DATE)
+        assert r["date"] == self.DATE
+        assert r["total_score"] == 60.0
+        # 60.0 < 70 → RED (计划评分规则表; 与 Task 1 status_for 单测一致)
+        assert r["status"] == "RED"
+        assert set(r["degraded_dimensions"]) == {"model", "data", "trading", "risk", "capital"}
+        assert set(r["dimensions"]) == {"model", "data", "trading", "risk", "capital"}
+
+    def test_mixed_fixture_exact_weighted_total(self, tmp_path):
+        # model 100 (ic_deg 0.1 无告警) / data 100 (0 条) / trading 60 (缺文件)
+        # risk 100 (bull) / capital 100 (nav 1.0)
+        _write_drift(tmp_path, self.DATE, {
+            "date": self.DATE, "skipped": False, "error": None,
+            "ic_degradation": 0.1, "alerts": [],
+            "delayed_metrics": {"ic": 0.05, "rank_ic": 0.06, "ic_ir": 0.8},
+        })
+        _write_degradation_log(tmp_path, [])
+        _write_vol_regime(tmp_path, self.DATE, _vol("bull"))
+        _write_shadow_state(tmp_path, _shadow())
+        r = compute_health_score(tmp_path, self.DATE)
+        # 100*0.25 + 100*0.20 + 60*0.15 + 100*0.20 + 100*0.20 = 94.0
+        assert r["total_score"] == 94.0
+        assert r["status"] == "GREEN"
+        assert r["degraded_dimensions"] == ["trading"]
+        assert r["dimensions"]["trading"]["degraded"] is True
+
+    def test_output_schema_fields(self, tmp_path):
+        r = compute_health_score(tmp_path, self.DATE)
+        assert "generated_at" in r
+        assert r["dimensions"]["model"]["weight"] == 0.25
+        assert isinstance(r["dimensions"]["data"]["detail"], dict)
