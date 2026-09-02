@@ -102,12 +102,21 @@ def render_health_section(hs: dict) -> list[str]:
     L.append("| 维度 | 得分 | 权重 | 状态 |")
     L.append("|---|---|---|---|")
     for name, d in (hs.get("dimensions") or {}).items():
-        st = "degraded" if d.get("degraded") else "ok"
+        if d.get("exempted"):
+            st = "shadow豁免"
+        elif d.get("degraded"):
+            st = "degraded"
+        else:
+            st = "ok"
         L.append(f"| {name} | {d.get('score')} | {d.get('weight')} | {st} |")
     L.append("")
     if hs.get("degraded_dimensions"):
         L.append(f"> 降级维度: {', '.join(hs['degraded_dimensions'])} "
                  "(60 分中性值, 数据不可得)")
+        L.append("")
+    if hs.get("exempted_dimensions"):
+        L.append(f"> 豁免维度: {', '.join(hs['exempted_dimensions'])} "
+                 "(shadow 阶段主链产物不适用, 不计入总分)")
         L.append("")
     return L
 

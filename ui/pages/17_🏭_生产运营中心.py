@@ -92,14 +92,22 @@ def _render_dimensions(latest: dict) -> None:
     cols = st.columns(5)
     for i, key in enumerate(DIM_ORDER):
         d = dims.get(key, {})
-        degraded = "⚠️ " if d.get("degraded") else ""
+        if d.get("exempted"):
+            flag = "🛡 "
+        elif d.get("degraded"):
+            flag = "⚠️ "
+        else:
+            flag = ""
         with cols[i]:
             st.markdown(
-                f"**{degraded}{DIM_CN.get(key, key)}** · "
+                f"**{flag}{DIM_CN.get(key, key)}** · "
                 f"{float(d.get('score', 0)):.0f} 分"
                 f"（权重 {d.get('weight', 0):.0%}）"
             )
             detail = d.get("detail", {})
+            if d.get("exempted"):
+                st.caption("shadow 阶段豁免（不计入总分）")
+                continue
             reason = detail.get("reason")
             if reason:
                 st.caption(f"原因: {reason}")

@@ -120,8 +120,8 @@ def _write_degradation_log(root: Path, records: list[dict]) -> None:
     )
 
 
-def _deg(ts: str, scope: str = "config_manager") -> dict:
-    return {"ts": ts, "scope": scope, "key": "k", "default": "d", "reason": "r"}
+def _deg(ts: str, scope: str = "mod", key: str = "k") -> dict:
+    return {"ts": ts, "scope": scope, "key": key, "default": "d", "reason": "r"}
 
 
 class TestScoreData:
@@ -150,19 +150,94 @@ class TestScoreData:
         )
         assert score_data(tmp_path, self.DATE).score == 80.0
 
-    def test_three_to_five_entries_60(self, tmp_path):
+    def test_three_to_five_distinct_events_60(self, tmp_path):
+        # 3 个不同的 (scope, key) 事件 → 60
         _write_degradation_log(
             tmp_path,
-            [_deg(f"{self.DATE}T10:0{i}:00") for i in range(3)],
+            [
+                _deg(f"{self.DATE}T10:0{i}:00", scope=f"mod{i}", key=f"k{i}")
+                for i in range(3)
+            ],
         )
-        assert score_data(tmp_path, self.DATE).score == 60.0
+        d = score_data(tmp_path, self.DATE)
+        assert d.detail["distinct_events"] == 3
+        assert d.score == 60.0
 
-    def test_six_plus_entries_40(self, tmp_path):
+    def test_six_plus_distinct_events_40(self, tmp_path):
+        # 6 个不同的 (scope, key) 事件 → 40
         _write_degradation_log(
             tmp_path,
-            [_deg(f"{self.DATE}T10:0{i}:00") for i in range(6)],
+            [
+                _deg(f"{self.DATE}T10:0{i}:00", scope=f"mod{i}", key=f"k{i}")
+                for i in range(6)
+            ],
         )
         assert score_data(tmp_path, self.DATE).score == 40.0
+
+    def test_duplicate_pairs_collapse_v2(self, tmp_path):
+        # 同一 (scope,key) 跨进程重复刷屏 → 去重后仅 1 个事件, 不应打成假 RED
+        _write_degradation_log(
+            tmp_path,
+            [_deg(f"{self.DATE}T10:0{i}:00") for i in range(30)],  # 30 条同事件
+        )
+        d = score_data(tmp_path, self.DATE)
+        assert d.detail["entries"] == 30          # 原始条目仍透明可见
+        assert d.detail["distinct_events"] == 1   # 但计分用去重数
+        assert d.score == 80.0
+
+    def test_chaos_scope_ignored_v2(self, tmp_path):
+        # 演练/测试产生的降级不计入生产健康度
+        _write_degradation_log(
+            tmp_path,
+            [_deg(f"{self.DATE}T10:00:00", scope="chaos_data", key="src"),
+             _deg(f"{self.DATE}T10:01:00", scope="chaos_exec", key="s1"),
+             _deg(f"{self.DATE}T10:02:00", scope="chaos_exec", key="s2")],
+        )
+        d = score_data(tmp_path, self.DATE)
+        assert d.detail["entries"] == 3
+        assert d.detail["distinct_events"] == 0   # 全部为 chaos_ 前缀
+        assert d.score == 100.0
+
+    def test_ignore_prefixes_customizable(self, tmp_path):
+        # 自定义忽略前缀: 关闭忽略后 chaos 事件计入
+        _write_degradation_log(
+            tmp_path,
+            [_deg(f"{self.DATE}T10:00:00", scope="chaos_data", key="src")],
+        )
+        d = score_data(tmp_path, self.DATE, ignore_scope_prefixes=())
+        assert d.detail["distinct_events"] == 1
+        assert d.score == 80.0
+
+    def test_config_manager_is_chronic_detail_only_v2(self, tmp_path):
+        # 慢性配置债 (config_manager 缺配置) 只入明细, 不把数据维打成 RED
+        _write_degradation_log(
+            tmp_path,
+            [
+                _deg(f"{self.DATE}T10:0{i}:00", scope="config_manager", key=f"cfg{i}")
+                for i in range(20)  # 20 个不同的缺失配置
+            ],
+        )
+        d = score_data(tmp_path, self.DATE)
+        assert d.detail["entries"] == 20
+        assert d.detail["distinct_events"] == 0      # 全部为慢性配置债
+        assert len(d.detail["config_missing_keys"]) == 20
+        assert d.score == 100.0
+
+    def test_runtime_plus_chronic_mix_v2(self, tmp_path):
+        # 运行时降级计分, 慢性配置债仍只入明细
+        _write_degradation_log(
+            tmp_path,
+            [
+                _deg(f"{self.DATE}T10:00:00", scope="config_manager", key="trade_execution.yaml"),
+                _deg(f"{self.DATE}T10:01:00", scope="config_manager", key="kill_switch"),
+                _deg(f"{self.DATE}T10:02:00", scope="data_layer", key="wind_mcp"),
+                _deg(f"{self.DATE}T10:03:00", scope="data_layer", key="akshare"),
+            ],
+        )
+        d = score_data(tmp_path, self.DATE)
+        assert d.detail["distinct_events"] == 2      # 2 个运行时事件
+        assert d.detail["config_missing_keys"] == ["kill_switch", "trade_execution.yaml"]
+        assert d.score == 80.0
 
     def test_detail_has_scopes(self, tmp_path):
         _write_degradation_log(
@@ -354,6 +429,64 @@ class TestScoreCapital:
         assert score_capital(tmp_path, "2026-09-01").degraded is True
 
 
+class TestShadowExemption:
+    """v3 (2026-09-02): shadow 阶段主链产物豁免 — model/trading/risk 三维的
+    数据源 (drift integration / TCA fills / vol_regime) 属实盘链产物, 纯
+    shadow 阶段不会生成 → 标记 exempted, 不计 degraded, 权重从总分剔除
+    (归一化)。实盘启动 (reports/tca 出现历史 fills) 后豁免自动失效。"""
+
+    DATE = "2026-09-02"
+
+    def test_exempt_when_shadow_phase(self, tmp_path):
+        _write_shadow_state(tmp_path, _shadow())
+        r = compute_health_score(tmp_path, self.DATE)
+        assert set(r["exempted_dimensions"]) == {"model", "trading", "risk"}
+        # degradation_log 不存在 → data degraded 60 (中性), capital 100
+        # 归一化: (60*0.20 + 100*0.20) / (0.20+0.20) = 80.0
+        assert r["total_score"] == 80.0
+        assert r["status"] == "YELLOW"
+        assert r["degraded_dimensions"] == ["data"]
+
+    def test_exempted_dimension_fields(self, tmp_path):
+        _write_shadow_state(tmp_path, _shadow())
+        d = score_model(tmp_path, self.DATE)
+        assert d.exempted is True
+        assert d.degraded is False
+        assert d.score == 100.0
+        assert d.detail["exemption"] == "shadow_phase"
+
+    def test_exempt_off_when_live_fills_exist(self, tmp_path):
+        _write_shadow_state(tmp_path, _shadow())
+        # 历史实盘成交 (QMT broker) → 实盘链已启动, 豁免失效
+        _write_tca(tmp_path, "2026-08-01", [
+            {"type": "fill", "estimate": True,
+             "fill": {"symbol": "510300", "broker": "QMT"}}])
+        r = compute_health_score(tmp_path, self.DATE)
+        assert r["exempted_dimensions"] == []
+        assert "model" in r["degraded_dimensions"]
+
+    def test_sim_fills_do_not_disable_exemption(self, tmp_path):
+        """期权对冲仿真链 (OptionsSimBroker) 的 fills 不算实盘启动."""
+        _write_shadow_state(tmp_path, _shadow())
+        _write_tca(tmp_path, "2026-09-01", [
+            {"type": "fill", "estimate": None,
+             "fill": {"symbol": "510050 Put", "broker": "OptionsSimBroker"}}])
+        r = compute_health_score(tmp_path, self.DATE)
+        assert set(r["exempted_dimensions"]) == {"model", "trading", "risk"}
+
+    def test_exempt_off_without_shadow_state(self, tmp_path):
+        r = compute_health_score(tmp_path, self.DATE)
+        assert r["exempted_dimensions"] == []
+        assert set(r["degraded_dimensions"]) == {
+            "model", "data", "trading", "risk", "capital"}
+
+    def test_schema_has_exempted_dimensions_field(self, tmp_path):
+        _write_shadow_state(tmp_path, _shadow())
+        r = compute_health_score(tmp_path, self.DATE)
+        assert "exempted_dimensions" in r
+        assert r["dimensions"]["model"]["exempted"] is True
+
+
 class TestAggregate:
     DATE = "2026-09-01"
 
@@ -369,6 +502,10 @@ class TestAggregate:
     def test_mixed_fixture_exact_weighted_total(self, tmp_path):
         # model 100 (ic_deg 0.1 无告警) / data 100 (0 条) / trading 60 (缺文件)
         # risk 100 (bull) / capital 100 (nav 1.0)
+        # 历史实盘 fills (QMT) 标记实盘已启动 → trading 缺文件按降级计 (非豁免)
+        _write_tca(tmp_path, "2026-08-01", [
+            {"type": "fill", "estimate": True,
+             "fill": {"symbol": "510300", "broker": "QMT"}}])
         _write_drift(tmp_path, self.DATE, {
             "date": self.DATE, "skipped": False, "error": None,
             "ic_degradation": 0.1, "alerts": [],
