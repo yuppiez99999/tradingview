@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · 巡检修复批次 B 执行完成（提前）：P1-4 配置落盘 + alpha 冲突收敛 + P2-2 根因修复
+
+- **P1-4**: `configs/trade_execution.yaml` 落盘（风控四参数与硬编码默认值逐项一致，configs/ 属 .gitignore 设计内本地运行时配置）→ 导入 daily_trade_executor 无降级 WARNING；test_config_present_no_new_degradation 验收测试入册
+- **P1-2 步1**: `tests/test_audit_lookahead_minunit.py` 改 importlib 按文件路径显式加载 qlib_signal_adapter，彻底摆脱 sys.path 顺序依赖；污染组合（daily_workflow_unit + audit_lookahead）复现验证通过
+- **P1-2 步2**: 收敛 5 处散布 `sys.path.insert(utils)`（system_check / generate_daily_trade_plan / research 两脚本 / pre_market_auto_check）→ 唯一入口 `utils.path_config.setup_sys_path()`；utils/ 不再入 sys.path，顶层 alpha 命名冲突消除
+- **P2-2 根因链修复**: `setup_utf8_console()` 末尾 setdefault("PYTHONIOENCODING") 副作用遗留 → 子进程 UTF-8 输出被 GBK 解码 → reader 线程崩溃 stderr=None；修复双端：渲染测试加 autouse fixture 快照/恢复环境变量 + degradation 测试 subprocess 显式 `encoding="utf-8", errors="replace"`（消除全仓 "子进程中文 + text=True" 隐性炸弹模式）
+- **验证**: 全量 tests/unit **15426 passed / 0 failed**；ruff 归零保持
+- **批次 C 待办**: er23 管道测试外置盘写入修复（09-19 Q4 稳定观察窗 / v8.7.1 窗口）
+- **指针**: `docs/代码质量与工程进度检查报告_20260902.md` 批次 B 节
+
 ## 2026-09-02 · 巡检修复批次 A 执行完成：ruff 归零 + 测试日期腐化修复 + 56 文件分三批入库
 
 - **P2-1 修复**: research/test_factor_integration.py `get_vibe_adapter()` F821 → `get_adapter()`；test_eod_backup.py 未用 json 导入删除 → **ruff 全仓归零**

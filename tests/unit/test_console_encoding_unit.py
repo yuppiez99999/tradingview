@@ -32,6 +32,25 @@ if str(PROJECT_ROOT) not in sys.path:
 from utils import console_encoding as ce  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _isolate_pythonioencoding():
+    """模块级隔离 PYTHONIOENCODING (2026-09-02 巡检 P2-2 根因修复)
+
+    setup_utf8_console 末尾无条件 setdefault("PYTHONIOENCODING","utf-8"),
+    monkeypatch 无法追踪函数副作用 — 遗留值会使后续测试的子进程以 UTF-8
+    输出 stderr, 而父进程 subprocess text=True 按 GBK 解码 → reader 线程
+    UnicodeDecodeError → stderr=None (曾致 test_strict_config_env_hard_fails
+    全量运行假红)。
+    """
+    had = "PYTHONIOENCODING" in os.environ
+    prior = os.environ.get("PYTHONIOENCODING")
+    yield
+    if not had:
+        os.environ.pop("PYTHONIOENCODING", None)
+    else:
+        os.environ["PYTHONIOENCODING"] = prior
+
+
 def _mock_stream():
     return MagicMock()
 

@@ -24,14 +24,31 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# ms_strategy/src 在 sys.path
-_MS_SRC = PROJECT_ROOT / "ms_strategy" / "src"
-if str(_MS_SRC) not in sys.path:
-    sys.path.insert(0, str(_MS_SRC))
+
+def _load_qlib_signal_adapter():
+    """按文件路径显式加载 ms_strategy/src/alpha/qlib_signal_adapter.py
+
+    2026-09-02 巡检 P1-2 修复: 顶层 `import alpha` 存在命名冲突 —
+    `utils/` 被多处插入 sys.path 后 `utils/alpha` 可被顶层导入命中,
+    与 `ms_strategy/src/alpha` 同名; 依赖 sys.path 插入顺序的导入方式
+    在全量测试运行时会被先行导入的错误包污染 (ModuleNotFoundError).
+    按文件路径加载彻底摆脱顺序依赖 (与 MinUnitFixTest 同一模式).
+    """
+    import importlib.util
+
+    qsa_path = PROJECT_ROOT / "ms_strategy" / "src" / "alpha" / "qlib_signal_adapter.py"
+    spec = importlib.util.spec_from_file_location("qlib_signal_adapter_audit", qsa_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class LookAheadBfillFixTest(unittest.TestCase):
     """AUDIT-1: 验证 bfill() 未来函数已修复"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.qsa = _load_qlib_signal_adapter()
 
     def test_no_bfill_in_technical_features(self):
         """测试 1: _add_technical_features 不再调用 bfill (前视偏差已消除)
@@ -42,9 +59,7 @@ class LookAheadBfillFixTest(unittest.TestCase):
         import inspect
         import re
 
-        from alpha import qlib_signal_adapter as qsa
-
-        source = inspect.getsource(qsa._add_technical_features)
+        source = inspect.getsource(self.qsa._add_technical_features)
         # 检查 .bfill( 方法调用形式 (带点号和左括号), 排除注释中的描述性文本
         bfill_calls = re.findall(r"\.bfill\s*\(", source)
         self.assertEqual(
@@ -63,7 +78,7 @@ class LookAheadBfillFixTest(unittest.TestCase):
             - 在第 5 行注入 NaN, ffill 会用第 4 行的值填充 (过去)
             - bfill 会用第 6 行的值填充 (未来) — 这是被禁止的
         """
-        from alpha.qlib_signal_adapter import _add_technical_features
+        _add_technical_features = self.qsa._add_technical_features
 
         # 构造 OHLCV 数据, 在 close 列第 5 行注入 NaN
         dates = pd.date_range("2026-01-01", periods=30, freq="D")
@@ -95,7 +110,7 @@ class LookAheadBfillFixTest(unittest.TestCase):
 
     def test_missing_ohlcv_raises_keyerror(self):
         """AUDIT-2: 缺少 OHLCV 列时抛出清晰的 KeyError 而非隐晦的报错"""
-        from alpha.qlib_signal_adapter import _add_technical_features
+        _add_technical_features = self.qsa._add_technical_features
 
         # 缺少 high/low 列的 DataFrame
         df_bad = pd.DataFrame(

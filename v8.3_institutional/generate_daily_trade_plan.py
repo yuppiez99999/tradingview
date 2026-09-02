@@ -311,11 +311,12 @@ def _load_hedge_execution_plan(
 # ============================================================
 HEDGE_FUND_READY = False
 try:
-    sys.path.insert(0, str(BASE.parent / "utils"))
-    from gamma_engine import GammaEngine
-    from kill_switch import KillSwitch
-    from liquidation_scheduler import LiquidationScheduler
-    from theta_engine import ThetaEngine
+    # 2026-09-02 P1-2 步骤2: 平铺导入 (依赖 utils/ 上 sys.path) 改为包限定导入,
+    # 消除 utils/alpha 被顶层 import alpha 命中的命名冲突入口
+    from utils.gamma_engine import GammaEngine
+    from utils.kill_switch import KillSwitch
+    from utils.liquidation_scheduler import LiquidationScheduler
+    from utils.theta_engine import ThetaEngine
 
     HEDGE_FUND_READY = True
 except ImportError as _e:

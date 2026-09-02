@@ -470,11 +470,13 @@ class SystemChecker:
             return
 
         sys.path.insert(0, str(PROJECT_ROOT))
-        sys.path.insert(0, str(PROJECT_ROOT / "utils"))
 
         # C3.1 MarketDataProvider 整体初始化
+        # 2026-09-02 P1-2 步骤2: 平铺导入 `from data_provider import ...` 改为包限定导入,
+        # 消除 utils/ 目录本身上 sys.path 的需要 (utils/alpha 曾因此可被顶层 import alpha 命中,
+        # 与 ms_strategy/src/alpha 命名冲突 — 见 docs/代码质量与工程进度检查报告_20260902.md)
         try:
-            from data_provider import MarketDataProvider
+            from utils.data_provider import MarketDataProvider
 
             dp = MarketDataProvider()
             health = getattr(dp, "source_health", {})

@@ -17,7 +17,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "v8.3_institutional"))
-sys.path.insert(0, str(ROOT / "utils"))
 
 from research.backtest_runner import (  # noqa: E402
     MAX_DRAWDOWN_LIMIT,

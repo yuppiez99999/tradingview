@@ -147,10 +147,23 @@ class TestConfigManagerStrict:
 
 
 class TestTradeExecutorRiskDegradation:
-    """daily_trade_executor 风控配置降级闭环"""
+    """daily_trade_executor 风控配置降级闭环
+
+    2026-09-02 巡检 P1-4: configs/trade_execution.yaml 已落盘, 缺失场景改为
+    子进程内 patch get_config 模拟 (不再依赖"文件实际不存在"这一历史事实)。
+    """
+
+    # 子进程内屏蔽 trade_execution 配置的注入代码 (模拟文件缺失)
+    _PATCH_CODE = (
+        "import utils.config_manager as cm\n"
+        "_orig = cm.get_config\n"
+        "cm.get_config = (lambda name, default=None, strict=False:\n"
+        "    {} if name == 'trade_execution'\n"
+        "    else _orig(name, default, strict))\n"
+    )
 
     def test_risk_degradation_recorded(self):
-        """trade_execution.yaml 缺失 (当前事实) 时审计落盘 (子进程隔离验证)"""
+        """trade_execution 配置不可用时审计落盘 (子进程隔离 + patch 模拟缺失)"""
         import os
         import subprocess
         import sys
@@ -161,13 +174,16 @@ class TestTradeExecutorRiskDegradation:
             [
                 sys.executable,
                 "-c",
-                "import daily_trade_executor; "
+                self._PATCH_CODE
+                + "import daily_trade_executor; "
                 "from utils.degradation_audit import pending_degradations; "
                 "import json,sys; "
                 "json.dump(pending_degradations(), sys.stdout)",
             ],
             capture_output=True,
             text=True,
+            encoding="utf-8",  # 显式解码: text=True 默认按本地 GBK, 子进程中文输出会崩 reader 线程
+            errors="replace",
             env=env,
         )
         assert r.returncode == 0, r.stderr
@@ -179,20 +195,63 @@ class TestTradeExecutorRiskDegradation:
         )
 
     def test_strict_config_env_hard_fails(self):
-        """QUANT_STRICT_CONFIG=1 时 import 即硬失败"""
+        """QUANT_STRICT_CONFIG=1 且配置不可用时 import 即硬失败 (patch 模拟缺失)"""
         import os
         import subprocess
         import sys
 
         env = {**os.environ, "QUANT_STRICT_CONFIG": "1"}
         r = subprocess.run(
-            [sys.executable, "-c", "import daily_trade_executor"],
+            [
+                sys.executable,
+                "-c",
+                self._PATCH_CODE + "import daily_trade_executor",
+            ],
             capture_output=True,
             text=True,
+            encoding="utf-8",  # 显式解码: text=True 默认按本地 GBK, 子进程中文输出会崩 reader 线程
+            errors="replace",
             env=env,
         )
         assert r.returncode != 0
         assert "QUANT_STRICT_CONFIG" in r.stderr
+
+    def test_config_present_no_new_degradation(self):
+        """P1-4 验收: configs/trade_execution.yaml 存在时 import 不新增降级事件
+
+        pending_degradations() 返回全部历史落盘条目, 故用日志行数前后对比
+        (import 前后 degradation_log.jsonl 行数不变 = 无新增)。
+        """
+        import os
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        log_path = Path(__file__).resolve().parent.parent.parent / "reports" / "degradation_log.jsonl"
+
+        def _count_lines() -> int:
+            if not log_path.exists():
+                return 0
+            with open(log_path, encoding="utf-8") as f:
+                return sum(1 for line in f if line.strip())
+
+        before = _count_lines()
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("QUANT_CONFIG_DIR", "QUANT_STRICT_CONFIG")}
+        r = subprocess.run(
+            [sys.executable, "-c", "import daily_trade_executor"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",  # 显式解码: text=True 默认按本地 GBK, 子进程中文输出会崩 reader 线程
+            errors="replace",
+            env=env,
+        )
+        assert r.returncode == 0, r.stderr
+        after = _count_lines()
+        assert after == before, (
+            f"配置已落盘 (P1-4), import daily_trade_executor 不应新增降级事件: "
+            f"日志行数 {before} -> {after}"
+        )
 
     def test_defaults_still_applied(self):
         """降级时硬编码默认值兜底 (fail-safe 行为不变)"""

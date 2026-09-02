@@ -245,7 +245,7 @@ def check_datasources() -> None:
 
     # 2.4 MarketDataProvider 路由
     try:
-        from data_provider import MarketDataProvider
+        from utils.data_provider import MarketDataProvider
 
         dp = MarketDataProvider()
         if hasattr(dp, "source_health"):
