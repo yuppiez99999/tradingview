@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · T4 EOD 备份链落地（D 盘异盘 + manifest 校验 + 恢复演练，提前于排期 11-01~12-10）
+
+- **背景**: Production Edition 方案 T4（RPO 1 天 / RTO 2 小时）；用户决策：本地异盘 = D:\QuantBackup\28-quant\，云端暂缓（manifest destination 字段预留扩展）
+- **交付**: ①`utils/backup/eod_backup.py`（EodBackup 收集/manifest SHA256/90 天滚动清理 + verify_backup/restore_backup）②`scripts/run_eod_backup.py` CLI（backup/verify/restore 子命令，backup 后自动 verify）③Health Score 数据维集成备份新鲜度（最新备份 >4 天扣 20 分，评分 17:05 在备份 17:30 前，检查最新而非当日）④计划任务 EOD_Backup 17:30 交易日（schtasks 模式）⑤runbook §4 激活
+- **验证**: 单测 13 用例 + Health Score 新增 3 用例（共 44 passed）；真实首跑经 `schtasks /Run` 触发（沙箱拒写 D 盘，计划任务在沙箱外执行）：135 文件 / 4.0MB，verify 全绿；恢复演练：关键状态 3 文件回拉成功（账户状态内容核对完整）
+- **踩坑**: ①TRAE 沙箱拒绝 D 盘写（读不受限）——绕行方式为 schtasks /Run 触发计划任务在沙箱外执行 ②PowerShell 传 `--items "a","b","c"` 时内嵌引号进入参数导致 0 匹配——items 须为逗号分隔单字符串 `"a,b,c"` ③Windows write_text 默认 CRLF 转换使字节断言平台相关——测试断言应与源文件实际 stat 比较
+- **备份清单**: config/ + reports/fills/ + reports/health_score/ 整目录 + shadow state + degradation_log + stop_loss_water_marks（当前 missing 容忍，实盘后有值）
+- **已知偏差**: ①schtasks 未带重试设置（CIM 层限制）②完整裸机演练（环境重建+任务重建+对账）记为季度演练项，本次交付回拉环节 ③"连续 7 日成功"自 09-02 起由 17:30 任务自然累积
+- **指针**: `utils/backup/eod_backup.py`；`scripts/run_eod_backup.py`；`docs/superpowers/plans/2026-09-02-t4-backup-strategy.md`
+
 ## 2026-09-02 · T3 生产运营手册落地（纯文档，提前于排期 10-15~11-30）
 
 - **背景**: Production Edition 方案 T3——runbooks 目录已有专项手册（对冲下单/模型漂移），缺系统级日常运营入口
@@ -42,6 +52,13 @@
 - **排期**: Q4 稳定窗 T1-T5（Chaos / Health Score 引擎 / SOP / 备份 / Dashboard，均零侵入）+ 灰度 Sprint3-1/2/3（发布主线内）+ 2027 引用 v8.7.1 既有计划；每任务附验收标准与依赖图
 - **状态**: 设计文档待用户评审；实施未启动（Q4 任务 09-19 窗口开启后执行）
 - **指针**: `docs/v8.7_Production_Edition_架构升级方案_200万实盘版_20260902.md`；`cairn/ROADMAP.md` §稳定观察期与运营收敛决策 决策 4
+
+## 2026-09-02 · System Health Score 数据维诚实性修正 v2（运营中心第一步）
+
+- **背景**: 核查发现 System Health Score **已完整在跑**（`utils/health/score_engine.py` 五维评分 + `scripts/compute_health_score.py` CLI + `reports/health_score/` 两日产物 + 每日状态报告已集成渲染 + 单测 47 个）—— 但 09-01/09-02 评分 69.5/64.0 均 RED, 根因是**数据维被降级日志噪音打成假 RED**: ① degradation_log.jsonl 跨进程累计, 同一 (scope,key) 事件重复落盘 (config_manager 配置缺失每天 100+ 条) ② Chaos 演练产生的 chaos_* 条目污染当日统计
+- **修正 (v2, `score_data`)**: ① 按当日**去重后** (scope,key) 事件数计分 (原始条目数仍入 detail.entries 透明可见) ② scope 前缀 chaos_/test_ 演练噪声默认不计入生产健康度 ③ 慢性配置债 scope (config_manager, 可配置) 只入 detail.config_missing_keys 不参与计分 —— 让数据维反映**运行时降级**而非长期存在的已知缺口
+- **验证**: 单测 47→49 全绿 (新增: 重复条目折叠/chaos 忽略/config 慢性债只入明细/运行时+慢性混合); ruff All checks passed; 09-01 评分 69.5RED→**81.5YELLOW** (data 40→80), 09-02 68.0RED 现为诚实值 (盘中 EOD 遥测 drift/tca/vol_regime 未产出 + 3 个运行时事件); 每日状态报告正确渲染 (reports/20260902/每日运行状态报告_20260902.md)
+- **指针**: `utils/health/score_engine.py`; `tests/unit/test_health_score_engine.py`; `scripts/compute_health_score.py`
 
 ## 2026-09-02 · P0 Chaos 六场景灾难演练落地（零侵入，v8.7.1 第二项）
 

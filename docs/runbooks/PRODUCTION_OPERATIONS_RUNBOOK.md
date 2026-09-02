@@ -54,7 +54,7 @@ schtasks /Query /TN "System_HealthScore" /FO LIST /V | Select-String "Last Resul
 | S12_Shadow_EOD | 16:30 | 0（昨交易日已跑） | 看日志手动补跑: `scripts\run_s12_shadow.py` |
 | System_HealthScore | 17:05 | 0 | 手动: `scripts\compute_health_score.py` |
 | 每日状态报告 | 17:10 | 报告落盘 | 手动: `scripts\generate_daily_status_report.py` |
-| 备份任务（T4 交付后激活） | 17:30 | 0 | 见 §4.1; **T4 未交付前此行 N/A** |
+| EOD_Backup | 17:30 | 0 | 手动: `scripts\run_eod_backup.py backup`（备份后自动 verify） |
 
 **③ 风控配置生效确认**
 
@@ -151,13 +151,18 @@ Get-Content reports\degradation_log.jsonl -Tail 5
 
 ---
 
-## 4. 备份策略（T4 交付后激活, 本节先立规程）
+## 4. 备份策略（T4 已交付, 2026-09-02）
 
-- **时点**: 每日 EOD 链完成后约 17:30, 计划任务自动执行（重试 3 次/5 分钟）.
+- **时点**: 每日 EOD 链完成后约 17:30, 计划任务 `EOD_Backup` 自动执行.
 - **内容**: 账户状态（shadow/实盘）/ `stop_loss_water_marks.json` / degradation_log / config/ / FillsStore / Health Score 历史.
-- **目的地**: ① 本地异盘（完整, 保留 90 天滚动）② 云端（关键小文件: 账户状态 + 止损水位 + 配置, 保留 30 天滚动, 用于 §3.1 场景 B）.
-- **静默失败防护**: 备份缺失会进 Health Score 数据维扣分 + 调度健康段（方案 §八 风险表）.
-- **T4 交付前状态**: 无自动备份. 人工应急: 手动复制 `output/shadow_account/` + `config/` + `reports/stop_loss_water_marks.json` 至异盘（每周至少一次）.
+- **目的地**: `D:\QuantBackup\28-quant\{YYYY-MM-DD}\`（本地异盘, 完整备份 + manifest SHA256 校验, 保留 90 天滚动）; 云端暂缓（2026-09-02 用户决策）, manifest `destination` 字段预留扩展.
+- **T4 已交付（2026-09-02）**: 计划任务 EOD_Backup 每交易日 17:30 自动执行 `scripts\run_eod_backup.py backup`（backup 后自动 verify + 90 天滚动清理）.
+- **手动操作**:
+  - 补跑: `.venv\Scripts\python.exe scripts\run_eod_backup.py backup`
+  - 校验: `.venv\Scripts\python.exe scripts\run_eod_backup.py verify`
+  - 恢复: `.venv\Scripts\python.exe scripts\run_eod_backup.py restore <目标目录> [--items a,b]`（items 为逗号分隔单字符串）
+- **静默失败防护**: 备份 >4 天未更新 → Health Score 数据维扣 20 分（detail.backup_stale）+ §1.1 ② 调度健康检查 EOD_Backup 行.
+- **已知偏差**: schtasks 注册未带重试设置（CIM 层限制, 同 System_HealthScore）——漏跑时按手动补跑处理.
 
 ---
 
