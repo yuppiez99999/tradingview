@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · T3 生产运营手册落地（纯文档，提前于排期 10-15~11-30）
+
+- **背景**: Production Edition 方案 T3——runbooks 目录已有专项手册（对冲下单/模型漂移），缺系统级日常运营入口
+- **交付**: `docs/runbooks/PRODUCTION_OPERATIONS_RUNBOOK.md`——①单人岗位职责（决策/执行分离三铁律）②三段式日常流程（开市前四查检查单/盘中巡视/收盘后 10 分钟人工检视，含 EOD 链时点表 16:30→17:05→17:10→17:30）③L1-L4 分级响应表 + 决策树 + Health Score 驱动分级口径 ④三场景恢复手册（数据源 <30min/主机 ≤2h/QMT ≤1h，挂接 T16 孤儿单与 Chaos 演练口径）⑤备份规程（T4 前人工应急条款）⑥周报/月报/检查单记录三模板（执行记录留存为 T3 验收依据）
+- **核验修正**: 初稿引用的 `utils/data_source_health.py` 不存在——已改为 degradation_log 为主信号并注明 DataSourceRegistry 为进程内状态跨进程不可查；全部命令引用经真实接口核验
+- **后续**: 开市前检查单按手册执行 5 个交易日无缺项（T3 验收后半段，记录于 reports/operations/）
+- **指针**: `docs/runbooks/PRODUCTION_OPERATIONS_RUNBOOK.md`；方案 §五/§六
+
 ## 2026-09-02 · T2 System Health Score 聚合引擎落地（报告侧零侵入，v8.7.1 提前项）
 
 - **背景**: Production Edition 方案 T2 / v8.7.1 零侵入提前项——S12 日报仅覆盖单账户，真缺口是全系统 Health Score 聚合
