@@ -2,6 +2,172 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · T1 Chaos 灾难演练补齐：真实风控机制覆盖（零侵入测试资产）
+
+- **背景**: Production Edition 方案 T1 验收要求六场景 fail-closed 演练；已有 `tests/chaos/test_chaos_trading.py` 30 用例覆盖探针级路径，但未演练真实 T11/T12/T16 机制（G2 设计表断言目标未完全兑现）
+- **交付**: 新增 `tests/chaos/test_chaos_risk_mechanisms.py` 10 用例——① T16 QMT 断开：轮询吞异常不崩溃 + 超时标 ORPHANED 无活跃残留 + 审计留痕 + 负控制 ② T11 连续失败熔断三态迁移（OPEN→冷却 HALF_OPEN→恢复 CLOSED / 再熔断）③ T12 三级熔断开平仓语义（L1 禁开放减 / L3 仅变现 + 审计计数）④ 联动：qmt_down 执行降级喂 T11 → 熔断后无新订单；实施走子代理驱动（6 任务逐个派发+主会话审查），ruff 顺手修复 import 顺序与未用 pytest import
+- **验证**: tests/chaos 全套 40 passed；ruff 0 error；相邻单测（circuit_breaker/kill_switch/lifecycle）260 passed 无回归；5 次提交（91f8ab71…04db9d4d）均过 pre-commit 门禁
+- **指针**: `tests/chaos/test_chaos_risk_mechanisms.py`；`docs/superpowers/plans/2026-09-02-t1-chaos-risk-mechanisms.md`；`docs/v8.7_Production_Edition_架构升级方案_200万实盘版_20260902.md` §7.1 T1
+
+## 2026-09-02 · 第二轮排期审查收口：运营收敛 8 项核对 + 4 项用户决策（纯文档）
+
+- **背景**: 外部排期审查《v8.7 排期计划总览优化建议（8 项）》，核心判断"收敛成可长期运营平台"——与三线收敛方向一致，战略判断采纳；逐项核对后已落实 2.5 项（ETF KPI 重定位 / GNN 降级大半 / Wave 后置基本一致）、部分存在 3.5 项、决策点 2 项
+- **事实修正**: ①"缺人每天看到什么"已部分过时——S12 每日状态报告今日上线（`generate_daily_status_report.py`），真缺口是全系统 Health Score 聚合（全库无统一实现）②核心资金链无 Decimal（仅 value_investing/price_limit_calculator），审查"资金链 Decimal/研究链 float 分离"方案采纳 ③系统内 500 万 v5.10 与 200 万 v9_200w_preset 双口径并存，需拍板
+- **4 项决策（用户拍板）**: ①Q4 稳定观察期（09-19~12-10）冻结生产写入（因子入库/flag on/preset 切换/新模块进生产），保留 shadow 研究支线——Wave 5 CHAIN_MOM_60D S6/S7 入库后置 2027，验证继续 ②Wave 11-A 推迟 2027 ③v8.7.1 零侵入两项提前 Q4：Chaos 六场景演练 + System Health Score 聚合；侵入项（风险预算/Alpha Registry/Decimal/成本核验）维持 2027-01+ ④实盘口径确立 200 万 v9_200w_preset 灰度路线为主，500 万组合降级对照观察
+- **本次改动**: 新建 `docs/排期审查回应_运营收敛_20260902.md`；`cairn/ROADMAP.md` 新增 §稳定观察期与运营收敛决策 + v8.7.1 排期铁律修订（归因修复标记已完成、Chaos 标记提前）；总览修正三处过时口径（ETF KPI 防御定位 / Wave 11-A 后置 / 一句话现状）
+- **后续**: ~~下一份设计文档待确认启动~~ → **同日已产出《v8.7 Production Edition 架构升级方案（200 万实盘版）》**（见下一条目）
+- **指针**: `docs/排期审查回应_运营收敛_20260902.md`；`cairn/ROADMAP.md` §稳定观察期与运营收敛决策
+
+## 2026-09-02 · 《v8.7 Production Edition 架构升级方案（200 万实盘版）》设计文档产出（纯文档）
+
+- **输入**: 第二轮排期审查 4 项决策 + 用户 5 项补充拍板（完整 UI Dashboard / RPO 1天·RTO 2h / 完整运营手册 / 含排期与验收标准 / Dashboard 走新增 Streamlit 页）
+- **核心设计**: ①模块冻结 = 四核心清单 + freeze-exception 双签通道，与 v8.7.1 CI 门禁衔接 ②资金分层沿用 v9_200w_preset 60/20/10/10，风险限额三层（L0-L4 仓位 / VaR 预算 / T11-T12 熔断），regime 映射只定接口留 2027 ③运营中心两层解耦——聚合引擎报告侧零侵入（Q4，17:15 衔接状态报告链）+ Dashboard 只读消费聚合 JSON（新增 Streamlit 页，Q4 末），调和"零侵入提前"与"完整 Dashboard" ④SOP = runbooks 扩展：三段式日常流程 + L1-L4 异常分级响应表 + 周月报模板 ⑤灾备：每日 17:30 自动备份（本地异盘完整 + 云端关键状态）+ 分场景恢复手册（数据源/主机/QMT）+ Chaos 验收统一"fail-closed + 2h 恢复"口径
+- **排期**: Q4 稳定窗 T1-T5（Chaos / Health Score 引擎 / SOP / 备份 / Dashboard，均零侵入）+ 灰度 Sprint3-1/2/3（发布主线内）+ 2027 引用 v8.7.1 既有计划；每任务附验收标准与依赖图
+- **状态**: 设计文档待用户评审；实施未启动（Q4 任务 09-19 窗口开启后执行）
+- **指针**: `docs/v8.7_Production_Edition_架构升级方案_200万实盘版_20260902.md`；`cairn/ROADMAP.md` §稳定观察期与运营收敛决策 决策 4
+
+## 2026-09-02 · P0 Chaos 六场景灾难演练落地（零侵入，v8.7.1 第二项）
+
+- **需求**: 用户要求运行真实 EOD 验证归因 + 补齐 P0 第二项 Chaos 六场景演练（覆盖计划文档"2026 年内不编码"自约束 —— 用户实时指令提前实施 G1/G2）
+- **新建 `utils/chaos/fault_injector.py`**: 故障注入器 `FaultInjector` + 交易探针 `ChaosTradingProbe` + `MockBroker`；零侵入, 仅复用真实安全原语 —— `utils.degradation_audit.record_degradation`(审计) / `utils.notify.send_alert`(告警) / `utils.risk.pretrade_guard.PreTradeGuard`(停牌 SUSPEND_FILTER) / `utils.backtest.event_driven_engine.NonMonotonicTimestampError`(前视拦截) / `build_plan_executor.BuildPlanExecutor.get_emergency_protocol`(数据降级→零建仓, 守护导入)
+- **六场景**: ① Wind 断开→数据降级暂停建仓(零订单) ② QMT 断开→拒单+无孤儿单+无重试 ③ 数据错一天→非单调时间戳拦截(无前视) ④ ETF 停牌→SUSPEND_FILTER 拦截该标的其余正常 ⑤ 期权无法成交→对冲降级+敞口告警+不无限重试 ⑥ 模型 NaN/全零→信号层 fail-closed 不下单
+- **新建 `tests/chaos/test_chaos_trading.py`**: 30 用例全绿, 每场景断言四项通用不变量(无未受控真实订单 / 有降级审计 / 有告警 / 无崩溃) + 参数化全场景通用不变量; 全走 mock 不依赖真实网络/账户
+- **真实归因验证 (scripts/verify_attribution_real_run.py)**: 复用 EOD 同款 `build_real_attribution_inputs`+`PnLAttributionEngine.attribute`, 真实生产数据 (config/positions.json 26 持仓 / daily_returns.jsonl 2026-09-01 组合收益 0.001541 / FillsStore 274 笔成交) —— **Wind MCP 真实行情接通 (60行×26列)**, 报告落盘 `reports/pnl_attribution/pnl_attribution_2026-09-01_VERIFY.json`
+- **真实数值证据**: 基准=-0.000213 (≠组合×0.8=0.0012328, 旧合成特征消失) / 行业真实分化(科技-1.56% 制造-3.48% 金融+1.48%...) / 因子 momentum-1.62% volatility+3.03% / 交易成本¥13023.24 (真实佣金+印花税, 不再恒0)
+- **验证**: ruff All checks passed; pytest 50 passed (Chaos 30 + 归因单测 20)
+- **指针**: `utils/chaos/fault_injector.py`; `tests/chaos/test_chaos_trading.py`; `scripts/verify_attribution_real_run.py`; `docs/v8.7.1_稳定性增强实施计划_20260902.md`(G1/G2 标记已完成)
+
+## 2026-09-02 · P0 归因数据真实性修复落地（零侵入，v8.7.1 第一项）
+
+- **根因**: `15_每日工作流/run_daily_eod_workflow.py::run_phase4_55_attribution` L1047-1078 此前把硬编码合成数据（基准=组合收益×0.8、因子/行业=组合收益×固定系数、`trading_costs=0`）喂给 `PnLAttributionEngine.attribute`，报告每天稳定产出确定但错误的结论 —— 比缺失更危险
+- **交付**: 新建 `utils/attribution/real_inputs_builder.py`，从真实数据源构建归因输入，fail-closed 不回落合成值：① 行情链 Wind MCP 前复权(主)→akshare 前复权(备) ② 基准/市场=`510300.SH` 真实日收益 ③ 行业=持仓加权真实收益 ④ 风格因子=momentum/volatility 截面多空（信号严格无前视）⑤ 交易成本=`FillsStore` 成交回报事实源（费率口径同 `utils/tca_engine.py`）⑥ valuation/growth/earnings_quality/liquidity 不可得 → 显式降级不捏造
+- **EOD 改造**: 删除全部合成常量，改调 `build_real_attribution_inputs`；基准不可得 fail-closed 跳过 + degraded 告警；`phase_result` 增加 `data_sources/degraded_reasons/trading_cost/timing_pnl` 可追溯字段
+- **回归测试**: `tests/unit/test_real_inputs_builder_unit.py` 20 个全绿，含「修复前必红」断言（基准≠组合收益×0.8、行业≠组合收益×固定系数、源码无合成系数）、无前视验证（S5 当日暴跌-10% 仍留多头组证明信号仅用历史）、交易成本含印花税
+- **验证**: ruff All checks passed；py_compile OK；pytest 20 passed
+- **已知保留局限**: `style_exposures` 仍由 EOD 按行业查表（非个股真实暴露），需个股因子库接入才是独立改造项
+- **指针**: `utils/attribution/real_inputs_builder.py`；`tests/unit/test_real_inputs_builder_unit.py`；`15_每日工作流/run_daily_eod_workflow.py:run_phase4_55_attribution`
+
+## 2026-09-02 · v8.7 路线图架构审查回应：10 项逐项代码库核对 + v8.7.1 排期收口（纯文档）
+
+- **背景**: 外部架构审查提出 10 项优化建议（生产链路冻结/风险预算/Alpha Registry/ETF 重定位/收益归因/LLM 降权/workflow 拆分/Chaos 演练/成本模型/v8.7.1 版本）。战略判断（降复杂度、提运营性，停止堆模型）与 ROADMAP 三线收敛方向一致，采纳
+- **核对结论**: 已落实 3 项（#4 ETF 重定位 / #6 LLM 降权 / #10 版本路线）、部分存在需加固 5 项（#1/#2/#3/#5/#9）、真实缺口 1 项（#8 Chaos）、信息过时 1 项（#7）
+- **四处事实纠正（均附代码证据）**: ① #5 归因不是缺失 —— `15_每日工作流/run_daily_eod_workflow.py:1744` 已挂 EOD 且有 12 份产物，但输入是硬编码合成数据（L1047-1078：基准=组合收益×0.8、因子/行业=组合收益×固定系数、`trading_costs=0.0`），**每天产出确定但错误的归因结论，比缺失更危险** ② #2 风险预算 regime 能力已存在且已启用 —— `utils/regime_aware_allocator.py` + `utils/alpha/vol_regime_weighter.py`（`config/feature_flags.yaml:36` USE_VOL_REGIME_WEIGHTER default=true），缺的是与 VaR 侧 `risk_budget_engine` 打通 + 资产大类三分类映射表 ③ #7 daily_workflow 已 2159 行达标，无需再拆 ④ #6 LLM 三条路径均为建议/报告性质（`llm_intraday_decision_engine.py:222-282` 仅写 MD 报告；`daily_build_and_hedge.py:232` 的 LLM 结果仅用于报告第九节渲染），且 `ai_decision/decision_gate.py` 已有硬风控门（单票 2%/单日 10%/置信度 0.7）+ `apply_mode(shadow/paper/auto)` + 执行层二次校验
+- **Alpha Registry 实态**: `ai_decision/auto_research_skill.py` S1-S7 门禁完整（IC≥0.03/ICIR≥0.30/多空夏普≥1.0/相关性<0.7/边际≥0.05/纸交易63日/小资金63日）+ 自动退役（ICIR<0.2 持续 6 月）；缺 Capacity/Turnover/Live 三字段（审查口径 ICIR>0.5+2年严于系统 0.30+6月，属运营决策差异）
+- **v8.7.1 收口**: 4 项真实缺口排入 2027-01~03 发布后窗口，**不挤占 12-31 发布主线**；优先级重排为「修复类优先于新建类」—— P0 归因数据真实性修复 + P0 Chaos 六场景演练（零侵入）、P1 风险预算打通（侵入，须 shadow ≥7 天）+ P1 Alpha Registry 统一化
+- **Wave 9-GH 协调**: 2027-01-04~04-30 与 v8.7.1 重叠，定 v8.7.1 优先级高于 GH（修复+稳定性 > 能力增强），P0 两项不得延后
+- **本次零代码改动**: 仅产出 `docs/架构审查回应_v8.7_20260902.md`（含证据索引）+ `cairn/ROADMAP.md` v8.7.1 章节；README/CHANGELOG 版本不动（未来版本仅由 CHANGELOG 确立）
+- **指针**: `docs/架构审查回应_v8.7_20260902.md`；`cairn/ROADMAP.md` §v8.7.1 稳定性增强版本
+
+## 2026-09-02 · Phase 3 按纯 S12 启动：P3.0 门禁全 PASS + P3.1 影子账户落地 + P3.2 计划任务运行
+
+- **P3.0 提前 PASS**: `verify_p3_0_gate.py` 三项全过（①194 笔 build fills 消费通 nav=0.9615 ②daily_pnl 过滤 5 交易日 ③数据积累 5/5 交易日），P3.1 前置门禁解除
+- **P3.1 落地**: `config/s12_shadow_config.json`（200 万虚拟资金）+ `scripts/run_s12_shadow.py` 每日运行器——与回测 `run_s12_defensive_rp` 严格同口径（逆波动率 60 日窗 ≤t-1 数据 / 21 交易日再平衡 / 成本 0.0013×turnover），数据源链 Wind MCP→akshare em→sina，状态落盘 `output/shadow_account/s12_shadow_state.json`
+- **口径验证**: 单测 9 个全绿，核心用例影子 NAV 轨迹与回测引擎逐日对齐（rtol=1e-10）；幂等补漏式设计（missed run catch-up）
+- **P3.2 启动**: Windows 计划任务 `S12_Shadow_EOD`（交易日 16:30，失败重试 3 次/5 分钟，StartWhenAvailable 补跑）；账户 2026-09-02 初始化，首日 EOD 数据落地后开始记录，30 交易日评估（P3.3）约 2026-10-10
+- **首跑闭环自动化**: 手动触发 S12_Shadow_EOD 冒烟通过（退出码 0，Wind 拉取正常，无新数据时静默无副作用）；一次性任务 `S12_Shadow_FirstRunVerify`（今日 17:00）落盘首日语义校验日志 `reports/2026-09-02/s12_shadow_first_run_verify.log`（已记录/等权/init 日志三项检查）；踩坑：.ps1 含中文必须 UTF-8 with BOM，否则 PowerShell 5.1 按 ANSI 解析直接语法崩
+- **每日状态报告自动化**: `scripts/generate_daily_status_report.py` + 计划任务 `S12_DailyReport`（交易日 17:10，重试 3 次/5 分钟，幂等覆盖）——五段式报告（账户进度/回测基准对照/调度健康/近期交易/异常标记）落盘 `reports/YYYYMMDD/每日运行状态报告_YYYYMMDD.md`；任务状态查询走 PowerShell ConvertTo-Json（无本地化解析风险）；单测 12 个（含 build_report 纯函数与异常标记矩阵）
+- **P3.3 评估脚本预写就绪**: `scripts/run_p33_evaluation.py`（2026-10-10 左右 30 交易日满后执行）——四项验收：累计收益正向 / 回撤<15% / 换手正常（次数≤2 且单次<50%）/ **回测分布带检验**（关键口径决策：30 日窗口年化噪声极大——回测滚动 1336 窗口年化 P5=-5.12%/P50=5.67%/P95=24.35%，点对点对比年化 7.48% 偏差<20% 统计上不现实；改为影子年化落在回测 30 日窗口年化分布 [P5,P95] 带内 =「同一策略的另一个样本」）；`--force` 预演链路验证通过（0 交易日边界正确 FAIL）；单测 13 个
+- **指针**: `cairn/ROADMAP.md` §Phase 3; `cairn/p3-0-gate.md`; `tests/unit/test_s12_shadow_runner_unit.py`
+
+## 2026-09-02 · S13 selection alpha 路径 A 验证完成：未通过验收，方向关闭（Phase 3 定为纯 S12）
+
+- **管线**: `scripts/build_s13_signals.py`（自包含 15 因子，因 VibeTradingAdapter 无因子能力；成分=当前快照 11 ETF，K 线=baostock 1822 只前复权，月末截面无前视）→ `s13_signals.parquet`（68 月 × 11 ETF）；S13 策略 + 4 单测 + `scripts/run_s13_validation.py` 三件套
+- **结果（n_trials=15）**: S13 年化 3.30% / 回撤 18.40% / DSR≈0 / CPCV CV=1.976，ablation **-3.41pp**——六项验收仅 noise_stable 达标。卫星仓暴露的是权益 β 而非 α，2021-2026 弱市纯拖累
+- **决策**: S13 不进 shadow，路径 B（LGB 重训）前置条件不满足不启动；**Phase 3（09-06）按纯 S12 启动**。K 线/成分缓存与验证管线保留复用
+- **指针**: `docs/S13_selection_alpha_注入设计_20260902.md` §八 执行结果；`cairn/etf-option-hedge-model.md` S13 小节；报告 `data/etf_option_backtest/s13_validation_20260902_083405.md`
+
+## 2026-09-02 · v9.0 ETF+期权 200万 preset 落地（运营决策，非技术增量）
+
+- **背景**: 评估 `v9_ETF_Option_Production_Roadmap.md`（200万 ETF现货+期权保护，年化8-12%/回撤≤15%）。结论：技术增量有限 — 路线图设想的 ETF期权保护/动态Hedge/L0-L4风控/QMT接口/Delta-Gamma 风险管理，v8.6 已全部具备且更完善（`etf_option_hedge_rebalancer.py`+`hedge_engine.py`+`hedge_rebalance_integrator.py`+`greek_hedge_manager.py`+`gamma_engine.py`+`delta_hedge_multi_agent.py`+`qmt_connector.py`，多智能体 Delta-Gamma 对冲 PACIS 2025 #37 已完成）
+- **决策**: 不新建 `etf_v9/` 目录（与现有模块重复违反 DRY）。仅落地 3 项运营增量到现有配置体系：
+  - `config/portfolio.yaml` 追加 `v9_200w_preset` 段（60/20/10/10 配置 + 期权DTE/Delta/OTM参数 + 动态Hedge市场状态 + 风险限制 + 灰度路线），不破坏现有 v5.10 500万 positions
+  - 新建 `config/alpha_factor_preset.yaml`（ETF Score 6维权重 25/20/20/15/10/10，复用现有 `utils/alpha_factor/{technical,price_volume,chip_distribution,fundamental,information_theory}.py`，不新建因子代码）
+  - `cairn/ROADMAP.md` 追加 §v9.0 ETF+期权 200万生产级 preset 段（灰度路线 Sprint3-1/2/3）
+- **灰度路线**: 20万测试 → 100万灰度 shadow 30天 → 200万正式；前置依赖 v8.7 发布门禁全绿（D11 双条件达标）后启动，避免与发布主线冲突
+- **指针**: `cairn/ROADMAP.md` §v9.0 ETF+期权 200万生产级 preset；`config/portfolio.yaml` L409+ `v9_200w_preset`；`config/alpha_factor_preset.yaml`
+
+## 2026-09-01 · "跑不通"治理收官：测试基线归零 + 总结报告落盘
+
+- 全量终验 15323 passed / 0 failed / 67 skipped（579s）；治理全程：37 failed → 0，修 9 个产品 bug，新增 ~115 单测，P0×3 + P1×2 + 存量清零 + 泄漏防护上线
+- 总结报告归档：`docs/代码质量治理总结报告_20260901.md`（根因表 / 修复明细 / 教训 / 运维速查）
+- 核心教训：静态扫描 ≠ 可运行 — 测试打外网、隐式全局依赖、硬编码相对日期会让"测试绿"掩盖运行时缺陷
+
+## 2026-09-01 · 项目外输出泄漏检测上线：check_stray_output_dirs（当场再抓一个真 bug）
+
+- **背景**: reports 泄漏目录手动清理后，为防 save_report 类"路径多拼 .."bug 复发（该类 bug 测试难暴露——沙箱拦截 ≠ 代码报错），加启动时运行时检测
+- **方案**: `utils/degradation_audit.check_stray_output_dirs()` — 扫描项目根父目录下名为 reports/output/data 的兄弟目录，含 mtime 7 天内文件即疑似泄漏：WARNING + 记降级审计；只读不写、无权限静默跳过、历史遗留不刷屏、每进程去重。接入 daily_trading_workflow.main() 启动流程（只告警不阻断）
+- **当场战果**: 端到端 dry-run 实测立即抓到新泄漏——`E:\各种PY程序\data\cache\` 下 10+ 个 kline_*.parquet（8/28 写入），根因是同模块 `BacktestDataLoader.__init__` 缓存目录同款多拼 `".."`（`base + ".." + "data/cache"`）。已修复（cache_dir 归位项目内 `data/cache`）并清理泄漏目录
+- **验证**: 新单测 4 个（近期写入检出/历史遗留不报/无目录/空目录）；degradation_audit 22/22；hedge_rebalance 回归 57 passed + dry-run 端到端正常；ruff 0 error
+- **教训**: 同一文件两处同款路径 bug 说明该模式是模块迁移时的系统性隐患——"__file__ 相对定位 + ".." 拼"是泄漏温床，新代码应用 `_PROJECT_ROOT` 绝对锚定
+- **指针**: `utils/degradation_audit.py` L103-168; `daily_trading_workflow.py` L729-733; `utils/hedge_rebalance_backtest.py` L265-273; `tests/unit/test_degradation_audit_unit.py` TestStrayOutputDetection
+
+## 2026-09-01 · 剩余 4 个存量失败清零：2 产品 bug + 2 测试问题（测试基线归零）
+
+- **#1 console_encoding（测试过期）**: 断言 shell=True，产品代码 S602 安全修复已改 shell=False — 测试同步安全行为
+- **#2 risk_guard_integrator KeyError 'phase'（产品 P0 bug）**: 波动率缩仓分支 `plan.get("phase", {})` 在 plan 无 "phase" 键时返回脱离 plan 的临时 dict — original_daily_capital 写在临时 dict 上丢失，下方 `plan["phase"][...]` 直接 KeyError 崩溃（无 phase 键的计划触发缩仓必崩）。修复: `plan.setdefault("phase", {})` 挂回 plan
+- **#3 hedge_rebalance_backtest（产品 bug + 历史泄漏）**: save_report 默认目录 `dirname(dirname(__file__))/"..", "reports"` — 模块在 utils/ 下两层 dirname 已是项目根，再 ".." 写到项目外 `E:\各种PY程序\reports\`。实锤该目录存在历史泄漏（backtest_hedge_rebalance md / shadow / ai_hedge_fund 4 个过时文件，项目内均有更新版本）。修复: 去掉 ".."；泄漏目录因沙箱限制无法自动删除，已提示用户手动清理
+- **#4 qmt_rpc（测试间污染）**: test_connect_import_error_handled 隐式依赖 "xtquant 未安装" 的全局环境事实，全量套件中其他测试改变 qmt_broker 模块状态导致单独跑过/全量跑漂移。修复: 改显式 `patch.dict(sys.modules, {"ms_strategy.src.execution.qmt_broker": None})` 模拟导入失败，测试自身确定性
+- **验证**: 全量 smoke+unit **0 failed / 15315 passed**（37→4→0 三阶段清零）；ruff 0 error
+- **教训**: ① 存量"环境问题"里往往埋着真产品 bug（#2 无 phase 键缩仓必崩、#3 项目外写盘）② 测试不应隐式依赖全局环境事实（xtquant 是否安装），要么显式 mock 要么 skipif
+- **指针**: `utils/risk_guard_integrator.py` L540-546; `utils/hedge_rebalance_backtest.py` L1920-1927; `tests/unit/test_console_encoding_unit.py` L148-157; `tests/unit/test_qmt_rpc_server_unit.py` L111-125；"跑不通"诊断全部收官（测试基线 37→0）
+
+## 2026-09-01 · P1-2 配置缺失静默降级闭环：degradation_audit + strict 模式（"跑不通"诊断第 5 项收官）
+
+- **实锤**: `config/trade_execution.yaml` 不存在 — daily_trade_executor 全部风控参数（单日限额 20 万/价格保护带 ±3%/止损熔断 -3%/回撤熔断 -5%）长期走硬编码默认值，仅一条无人看的 ConfigManager 日志；stop_loss_monitor 规则文件缺失时返回 {} = 监控器无规则可用、风控完全失效，同样静默继续
+- **方案（闭环三件套，fail-safe 行为不变）**: ① 新建 `utils/degradation_audit.py` — 统一降级审计 append-only `reports/degradation_log.jsonl`（同止损水位线持久化模式），record_degradation(scope,key,default,reason) 每进程 (scope,key) 去重，审计自身 fail-safe ② ConfigManager.get()/get_config() 加 `strict` 参数 — strict=True 配置不可用抛新异常 `ConfigNotFoundError`，所有降级路径（未找到/解析为空）记审计 ③ 两个风控关键点接入：daily_trade_executor 风控配置缺失 → 审计+醒目 WARNING+`QUANT_STRICT_CONFIG=1` 硬失败（关键任务部署防基于默认风控线交易）；stop_loss_monitor 四个规则缺失/解析失败路径 → 审计+WARNING
+- **验证**: 新单测 18 个（审计追加/去重/线程安全/写失败 fail-safe、strict 抛错/非 strict 兼容/正常加载零噪音、executor 风控审计+strict env 硬失败+默认值兜底、monitor 规则缺失审计）；受影响回归 325 passed；ruff 0 error
+- **踩坑**: ConfigManager 单例在首次 get_instance() 固化搜索路径（QUANT_CONFIG_DIR 在 import/首次访问后设置无效），测试 env 需重置 `_instance` 重建；注释里的 refresh_search_paths() 并不存在
+- **用法**: 生产默认仅记审计（可查 `reports/degradation_log.jsonl`）；计划任务加 `QUANT_STRICT_CONFIG=1` 即硬失败防裸奔；代码层安全关键配置传 `get_config(name, strict=True)`
+- **指针**: `utils/degradation_audit.py`; `utils/config_manager.py` L130-131/L299-371/L504-527; `daily_trade_executor.py` L90-118; `stop_loss_monitor.py` L239-302; `tests/unit/test_degradation_audit_unit.py`；"跑不通"诊断 5 项（P0×3 + P1-1 + P1-2）全部完成
+
+## 2026-09-01 · memory reflection forward_return=None 双根因修复（13 个存量失败测试清零）
+
+- **症状**: test_e2e_debate_memory_loop (9) + test_ai_hedge_fund_sprint2_real_links (4) 失败 — evaluate_past_decisions 返回 0、get_reflection_context total_evaluated=0、by_ticker 空
+- **根因 ①（产品 bug）**: `memory_reflection.evaluate_past_decisions` 的回溯窗口 cutoff 用 `datetime.now() - lookback_days` 计算，完全忽略 eval_date 参数 — 历史基准日评估（eval_date 早于今天）时 cutoff 随日历漂移，早期决策被错误排除。测试传 eval_date="2026-08-11"+lookback 30（语义窗口 7/12 起），但产品按 now(9/1)-30d=8/2 切割，8/1 决策被排除
+- **修复 ①**: cutoff 锚定 eval_date：`strptime(eval_date_str) - lookback_days`，非法 eval_date 时回退 now（防御）
+- **根因 ②（测试时间脆弱）**: 两个测试文件硬编码 2026-08-01/06/11 日期，写于 8 月下旬；9/1 起 8/1 决策超出 get_reflection_context 的 now-30 窗口（8/2），即使评估成功也被反思上下文排除
+- **修复 ②**: 日期动态化 — e2e 文件加模块级常量 `_D0=today-5 / _D5=today / _D10=today+5`，38 处硬编码替换（2026-06-* 为"超 lookback 窗口"边界测试保持固定）；sprint2 的 test_reflection_context_after_evaluation 同法（today-5 锚定）。mock 价格数据是假数据，周末日期无碍（_get_close_price 直接 dict key 查询无交易日校验）
+- **验证**: 两文件 37/37 passed + ruff 0 error；全量 smoke+unit 从 17 failed（基线）降至 4 failed
+- **教训**: ① 带 eval_date 参数的回溯窗口必须锚定 eval_date 而非 now（参数语义一致性）② 测试硬编码"相对今天"的日期是定时炸弹——写测试时在窗口内、日历翻页后过期，症状与产品 bug 相同极易误诊
+- **指针**: `quant_modules/ai_hedge_fund/memory_reflection.py` L210-221; `tests/unit/test_e2e_debate_memory_loop.py` L24-33; `tests/unit/test_ai_hedge_fund_sprint2_real_links.py` L342-358；剩余 4 个失败为 console_encoding(1)/g7_coverage(1)/qmt_rpc(1)/g7_hedge_rebalance(1) 存量环境问题
+
+## 2026-09-01 · P1-1 统一三态开关：utils/runtime_mode（"跑不通"诊断第 4 项）
+
+- **问题**: 运行模式散落各处互不知晓 — QUANT_OFFLINE (P0-2)、CLI --dry-run (P0-1 各脚本独立)、sim_mode (v8.3 构造参数)、KILL_SWITCH_SIM_MODE / QUANT_RESEARCH_MODE / AI_DECISION_MODE (模块私有)；无全局一键干跑入口，编程调用方漏传 dry_run 即触发实盘路径
+- **方案**: 新建 `utils/runtime_mode.py` 单一真相源 — 三态 is_offline()/is_dry_run()/is_sandbox() 对应 QUANT_OFFLINE/QUANT_DRY_RUN/QUANT_SANDBOX，互不蕴含可独立组合；优先级 编程覆盖(set_mode) > env > False；env 每次调用读取（支持 conftest 动态设置）
+- **接入**: ① external_data_source._offline_mode() 委托 is_offline()（QUANT_OFFLINE 语义不变）② 三个 P0-1 脚本 + v8.3 daily_workflow 的 --dry-run/--sim 的 argparse default 接 env_flag() 预设，解析后 set_mode() 全局广播（深层模块经 is_dry_run() 感知）③ DailyWorkflow.__init__ 与全局开关取或：`dry_run or is_dry_run()` — 全局开关兜底防漏传参数
+- **验证**: 新单测 25 个（env 变体/覆盖优先级/reset/委托/DailyWorkflow 融合）；端到端 QUANT_DRY_RUN=1 无参数跑 stop_loss_monitor 即干跑；全量 smoke+unit 17 failed（与基线一致零回归）/ 15284 passed（+25 为新测试）；ruff 0 error
+- **踩坑**: ① v8.3_institutional 目录名数字开头含点非合法包名，测试需 syspath_prepend 后 `from daily_workflow import`（同 tests/e2e/test_eod_dry_run.py 法）② sim_mode=True 在无 sim_broker_integration 的测试环境会降级 False（L794 既有行为），断言应用 _sim_mode_requested
+- **用法**: `QUANT_DRY_RUN=1 QUANT_OFFLINE=1 python any_entry.py` 一键全局干跑+断网；生产不设任何变量零影响
+- **指针**: `utils/runtime_mode.py`; `tests/unit/test_runtime_mode_unit.py`; 接入点 daily_trading_workflow.py L715-728 / stop_loss_monitor.py L746-756 / generate_daily_report.py L1286-1296 / v8.3_institutional/daily_workflow.py L1953-1964+L2069-2072+L526-535；P1-2（配置缺失静默降级闭环）待后续
+
+## 2026-09-01 · P0-3 import 副作用清零：utils 包 PEP 562 懒加载（"跑不通"诊断第 3 项）
+
+- **根因（importtime 实测）**: 慢的不是 data_provider 本体（4ms），而是两层包级 eager import——① `utils/__init__.py` eager 拉 9 个 wt_*/etf 模块（scipy.stats 2.2s + pandas 1.5s），任何 `import utils.*` 都付 5.3s；② `utils/alpha/__init__.py` eager 加载 qlib_signal_adapter（模块级 import qlib+torch+lightgbm ~5s），导致 generate_daily_report import 22.7s
+- **修复（PEP 562 module-level __getattr__，两处）**: ① `utils/__init__.py`：57 个 re-export 符号改 `_LAZY_REEXPORTS` 映射表（符号名 → (子模块, 子模块内原名)），首次访问才 import 并缓存 globals；子模块访问（utils.trade_calendar）走 importlib fallback；HC-1 re-export 契约 100% 保留 ② `utils/alpha/__init__.py`：qlib_signal_adapter 的 P1-2 兼容加载改 __getattr__，保留 sys.modules["alpha.qlib_signal_adapter"] 注册语义
+- **踩坑**: ① __getattr__ 内 `from . import X` 会再次触发 __getattr__ → RecursionError，必须用 find_spec/import_module ② flag_is_enabled 等是别名 re-export（原模块内叫 is_enabled），映射表需记录原名 ③ patch("_SESSION.get") 的 mock 兼容要求 _session_get 动态属性查找（见 P0-2）
+- **效果**: import utils 5.26s→0.01s；generate_daily_report 22.7s→0.44s；system_integration 8.4s→1.7s；utils.alpha.llm_router→0.2s；data_provider 5.3s→1.3s（剩余为 pandas 本体硬依赖）；qlib_signal_adapter 首次访问 7.1s 只在真正用 qlib 时才付
+- **验证**: _probe 脚本 9 项兼容检查（同名/别名 re-export、from import *、dir、__all__ 全解析、AttributeError 语义、sys.modules 注册、缓存）；test_audit_lookahead_minunit 8 passed；_verify_reexport_compat 17 wrappers 0 fail；ruff 0 error；全量 smoke+unit 17 failed（与 P0-2 基线完全一致，零新增）/ 15259 passed
+- **指针**: `utils/__init__.py` L32-155; `utils/alpha/__init__.py` L27-66；剩余 17 存量失败同 P0-2 记录（memory reflection 功能 bug 等，与 import 重构无关）
+
+## 2026-09-01 · P0-2 测试外网隔离：QUANT_OFFLINE 短路机制（"跑不通"诊断第 2 项）
+
+- **问题**: smoke/unit 测试直接打外网（CoinGecko/FRED 等 8 处 `_SESSION.get` 调用），test_er23 的 smoke 模式 30s 超时挂起
+- **方案**: `utils/external_data_source.py` 新增 `_offline_mode()` + `_session_get()` 统一网络入口 — `QUANT_OFFLINE=1` 时抛 ConnectionError，由各 API 类既有 fail-safe except 捕获优雅降级返回 None；8 处 `_SESSION.get(` 调用点全部替换为 `_session_get(`
+- **测试侧**: `tests/conftest.py` pytest_configure 默认 `os.environ.setdefault("QUANT_OFFLINE", "1")`（`--run-integration` 时不设，保留集成测试真网行为；外部显式设置不覆盖）；mock 网络的两个单测文件（test_external_data_source_unit / test_g7_external_data_source_boost）加 autouse fixture 清除 QUANT_OFFLINE 让 mock 响应走成功路径
+- **关键实现细节**: `_session_get` 内部经 `_SESSION.get(...)` 动态属性查找调用（非缓存方法引用），使 `patch("_SESSION.get")` 的既有单测 mock 仍生效 — 第一版用 `_ORIG_SESSION_GET` 缓存引用导致 34 个 mock 单测失败，已回滚改法
+- **验证**: test_er23 从 30s 超时 → 12 passed in 8s；全量 smoke+unit 37 failed → 17 failed（15259 passed）；mock 单测 158 passed
+- **遗留（均为存量问题，与本改动无关，已逐一验证）**: test_e2e_debate_memory_loop 9 失败 + test_ai_hedge_fund_sprint2_real_links 4 失败（memory reflection forward_return=None 同根因）、test_g7_coverage_boost KeyError 'phase'、test_console_encoding chcp 环境断言、test_qmt_rpc 单独跑通过（测试污染）、g7_hedge_rebalance 写 `..\reports\` 项目外路径被沙箱拦截
+- **指针**: `utils/external_data_source.py` L57-73; `tests/conftest.py` L154-159；生产环境不设 QUANT_OFFLINE 完全不受影响；P0-3（import 副作用清零）待后续
+
+## 2026-09-01 · P0-1 入口脚本 CLI 契约修复：argparse + --dry-run（"修完质量bug仍跑不通"诊断的后续）
+
+- **诊断背景**: 系统性排查"为什么质量修复后仍跑不通"——语法层 0 错（2187 文件仅 qlib 示例坏）、pre-commit 全过，根因是 5 个架构级动态行为问题（import 副作用/测试打外网/无 CLI 契约/降级不闭环/无 DRY_RUN 开关）；本轮修复第一项
+- **修复** (P0-1): ① `daily_trading_workflow.py` 补 argparse（--phase/--dry-run）+ run_premarket/run_postmarket/run_all 加 dry_run 参数（跳过订单撮合执行器、持仓回写、报告落盘）② `stop_loss_monitor.py` 补 argparse（--dry-run）+ check_and_execute 加 dry_run（不发平仓订单、不写触发日志）③ `generate_daily_report.py` 手工 sys.argv 解析改 argparse（位置参数 date 向后兼容计划任务调用）+ --dry-run 跳过报告落盘 ④ 统一入口 v8.6 经实测已有完整 argparse（250 行 help），无需改动
+- **验证**: 三脚本 --help 均只出用法零业务动作；dry-run 实跑后文件时间戳零变化（trade_plan/daily_report/触发日志）；回归 130 测试全绿（stop_loss 70 + workflow 60）+ ruff 0 error + py_compile OK
+- **教训**: --help 冒烟判定不能只看 stdout 非空——统一入口 12934 字符超长 help 被误判 FAIL；入口脚本"不认参数直接跑业务"的本质是缺 CLI 契约层，dry_run 参数走 keyword default 可保持既有无参调用方完全兼容
+- **指针**: `daily_trading_workflow.py` L682-736; `stop_loss_monitor.py` L589-643/L735-786; `generate_daily_report.py` L1267-1347；遗留 P0-2（测试外网 mock）/P0-3（import 副作用清零）待后续
+
 ## 2026-09-01 · mmr-deep 首次实战验证：史上首个 success run + 补齐审查步骤缺依赖
 
 - **验证路径**: 表达式修复后手动 workflow_dispatch — run 33505555990 成为该 workflow **创建 12 天以来首个 success run** (此前只会 0 秒 phantom startup_failure), 全步骤绿
