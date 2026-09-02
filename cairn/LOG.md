@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · 全系统质量与进度巡检：15430 passed / 3 failed 定位到根因，Q4 T1-T5 确认全完成
+
+- **基线**: pytest 16504 收集无错误，15430 passed / 3 failed / 10 errors(沙箱 D 盘写权限) / 1 xpassed；ruff 3 error；工程债门禁仅 D11 (9/7 天 + 9/20 样本，09-17 达标)；工业级检查 11 PASS/1 WARN(C1 shadow 设计内)
+- **P1-1 测试腐化**: test_g7_signal_fusion_boost 硬编码 2026-08-02 滑出 30 天动态权重窗口 (`signal_fusion.py:173`) — "硬编码测试日期"已知模式第 4 例
+- **P1-2 alpha 命名冲突(已复现+定位)**: `utils/` 被 setup_sys_path 等多处插入 sys.path → 顶层 `import alpha` 可命中 `utils/alpha`，与 `ms_strategy/src/alpha` 冲突；`tests/unit/test_daily_workflow_unit.py + tests/test_audit_lookahead_minunit.py` 两文件即复现。修复三步走（测试改包路径导入 → 收敛散布 sys.path.insert → 重命名登记 v8.7.1）
+- **P1-3 过程风险**: 25 M + ~30 ?? 未提交（09-01 治理 P1-2 成果已在生产运行但无版本保护），建议分三批立即提交
+- **P1-4 慢性债**: config/trade_execution.yaml 缺失，执行器风控参数硬编码兜底（降级审计闭环在，实盘前必须补齐）
+- **进度确认**: Production Edition Q4 T1-T5 全部提前完成；Phase 3 影子 1/30 交易日首日闭环 PASS；无落后工作项
+- **指针**: `docs/代码质量与工程进度检查报告_20260902.md`（含分批次修复方案 A/B/C）
+
 ## 2026-09-02 · Health Score shadow 阶段豁免 (v3) — 首日真实评分 68 RED → 78.8 YELLOW
 
 - **背景**: 首日闭环检视发现 17:05 评分 68/RED 系"shadow 语境失真"——model/trading/risk 三维数据源 (drift integration / TCA fills / vol_regime) 属主策略实盘链产物，纯 S12 shadow 期不会生成，被 60 分中性降级长期压制总分
@@ -151,7 +161,7 @@
 - **方案**: `utils/degradation_audit.check_stray_output_dirs()` — 扫描项目根父目录下名为 reports/output/data 的兄弟目录，含 mtime 7 天内文件即疑似泄漏：WARNING + 记降级审计；只读不写、无权限静默跳过、历史遗留不刷屏、每进程去重。接入 daily_trading_workflow.main() 启动流程（只告警不阻断）
 - **当场战果**: 端到端 dry-run 实测立即抓到新泄漏——`E:\各种PY程序\data\cache\` 下 10+ 个 kline_*.parquet（8/28 写入），根因是同模块 `BacktestDataLoader.__init__` 缓存目录同款多拼 `".."`（`base + ".." + "data/cache"`）。已修复（cache_dir 归位项目内 `data/cache`）并清理泄漏目录
 - **验证**: 新单测 4 个（近期写入检出/历史遗留不报/无目录/空目录）；degradation_audit 22/22；hedge_rebalance 回归 57 passed + dry-run 端到端正常；ruff 0 error
-- **教训**: 同一文件两处同款路径 bug 说明该模式是模块迁移时的系统性隐患——"__file__ 相对定位 + ".." 拼"是泄漏温床，新代码应用 `_PROJECT_ROOT` 绝对锚定
+- **教训**: 同一文件两处同款路径 bug 说明该模式是模块迁移时的系统性隐患——"**file** 相对定位 + ".." 拼"是泄漏温床，新代码应用 `_PROJECT_ROOT` 绝对锚定
 - **指针**: `utils/degradation_audit.py` L103-168; `daily_trading_workflow.py` L729-733; `utils/hedge_rebalance_backtest.py` L265-273; `tests/unit/test_degradation_audit_unit.py` TestStrayOutputDetection
 
 ## 2026-09-01 · 剩余 4 个存量失败清零：2 产品 bug + 2 测试问题（测试基线归零）
@@ -188,7 +198,7 @@
 
 - **问题**: 运行模式散落各处互不知晓 — QUANT_OFFLINE (P0-2)、CLI --dry-run (P0-1 各脚本独立)、sim_mode (v8.3 构造参数)、KILL_SWITCH_SIM_MODE / QUANT_RESEARCH_MODE / AI_DECISION_MODE (模块私有)；无全局一键干跑入口，编程调用方漏传 dry_run 即触发实盘路径
 - **方案**: 新建 `utils/runtime_mode.py` 单一真相源 — 三态 is_offline()/is_dry_run()/is_sandbox() 对应 QUANT_OFFLINE/QUANT_DRY_RUN/QUANT_SANDBOX，互不蕴含可独立组合；优先级 编程覆盖(set_mode) > env > False；env 每次调用读取（支持 conftest 动态设置）
-- **接入**: ① external_data_source._offline_mode() 委托 is_offline()（QUANT_OFFLINE 语义不变）② 三个 P0-1 脚本 + v8.3 daily_workflow 的 --dry-run/--sim 的 argparse default 接 env_flag() 预设，解析后 set_mode() 全局广播（深层模块经 is_dry_run() 感知）③ DailyWorkflow.__init__ 与全局开关取或：`dry_run or is_dry_run()` — 全局开关兜底防漏传参数
+- **接入**: ① external_data_source._offline_mode() 委托 is_offline()（QUANT_OFFLINE 语义不变）② 三个 P0-1 脚本 + v8.3 daily_workflow 的 --dry-run/--sim 的 argparse default 接 env_flag() 预设，解析后 set_mode() 全局广播（深层模块经 is_dry_run() 感知）③ DailyWorkflow.**init** 与全局开关取或：`dry_run or is_dry_run()` — 全局开关兜底防漏传参数
 - **验证**: 新单测 25 个（env 变体/覆盖优先级/reset/委托/DailyWorkflow 融合）；端到端 QUANT_DRY_RUN=1 无参数跑 stop_loss_monitor 即干跑；全量 smoke+unit 17 failed（与基线一致零回归）/ 15284 passed（+25 为新测试）；ruff 0 error
 - **踩坑**: ① v8.3_institutional 目录名数字开头含点非合法包名，测试需 syspath_prepend 后 `from daily_workflow import`（同 tests/e2e/test_eod_dry_run.py 法）② sim_mode=True 在无 sim_broker_integration 的测试环境会降级 False（L794 既有行为），断言应用 _sim_mode_requested
 - **用法**: `QUANT_DRY_RUN=1 QUANT_OFFLINE=1 python any_entry.py` 一键全局干跑+断网；生产不设任何变量零影响
@@ -197,10 +207,10 @@
 ## 2026-09-01 · P0-3 import 副作用清零：utils 包 PEP 562 懒加载（"跑不通"诊断第 3 项）
 
 - **根因（importtime 实测）**: 慢的不是 data_provider 本体（4ms），而是两层包级 eager import——① `utils/__init__.py` eager 拉 9 个 wt_*/etf 模块（scipy.stats 2.2s + pandas 1.5s），任何 `import utils.*` 都付 5.3s；② `utils/alpha/__init__.py` eager 加载 qlib_signal_adapter（模块级 import qlib+torch+lightgbm ~5s），导致 generate_daily_report import 22.7s
-- **修复（PEP 562 module-level __getattr__，两处）**: ① `utils/__init__.py`：57 个 re-export 符号改 `_LAZY_REEXPORTS` 映射表（符号名 → (子模块, 子模块内原名)），首次访问才 import 并缓存 globals；子模块访问（utils.trade_calendar）走 importlib fallback；HC-1 re-export 契约 100% 保留 ② `utils/alpha/__init__.py`：qlib_signal_adapter 的 P1-2 兼容加载改 __getattr__，保留 sys.modules["alpha.qlib_signal_adapter"] 注册语义
-- **踩坑**: ① __getattr__ 内 `from . import X` 会再次触发 __getattr__ → RecursionError，必须用 find_spec/import_module ② flag_is_enabled 等是别名 re-export（原模块内叫 is_enabled），映射表需记录原名 ③ patch("_SESSION.get") 的 mock 兼容要求 _session_get 动态属性查找（见 P0-2）
+- **修复（PEP 562 module-level **getattr**，两处）**: ① `utils/__init__.py`：57 个 re-export 符号改 `_LAZY_REEXPORTS` 映射表（符号名 → (子模块, 子模块内原名)），首次访问才 import 并缓存 globals；子模块访问（utils.trade_calendar）走 importlib fallback；HC-1 re-export 契约 100% 保留 ② `utils/alpha/__init__.py`：qlib_signal_adapter 的 P1-2 兼容加载改 **getattr**，保留 sys.modules["alpha.qlib_signal_adapter"] 注册语义
+- **踩坑**: ① **getattr** 内 `from . import X` 会再次触发 **getattr** → RecursionError，必须用 find_spec/import_module ② flag_is_enabled 等是别名 re-export（原模块内叫 is_enabled），映射表需记录原名 ③ patch("_SESSION.get") 的 mock 兼容要求 _session_get 动态属性查找（见 P0-2）
 - **效果**: import utils 5.26s→0.01s；generate_daily_report 22.7s→0.44s；system_integration 8.4s→1.7s；utils.alpha.llm_router→0.2s；data_provider 5.3s→1.3s（剩余为 pandas 本体硬依赖）；qlib_signal_adapter 首次访问 7.1s 只在真正用 qlib 时才付
-- **验证**: _probe 脚本 9 项兼容检查（同名/别名 re-export、from import *、dir、__all__ 全解析、AttributeError 语义、sys.modules 注册、缓存）；test_audit_lookahead_minunit 8 passed；_verify_reexport_compat 17 wrappers 0 fail；ruff 0 error；全量 smoke+unit 17 failed（与 P0-2 基线完全一致，零新增）/ 15259 passed
+- **验证**: _probe 脚本 9 项兼容检查（同名/别名 re-export、from import *、dir、**all** 全解析、AttributeError 语义、sys.modules 注册、缓存）；test_audit_lookahead_minunit 8 passed；_verify_reexport_compat 17 wrappers 0 fail；ruff 0 error；全量 smoke+unit 17 failed（与 P0-2 基线完全一致，零新增）/ 15259 passed
 - **指针**: `utils/__init__.py` L32-155; `utils/alpha/__init__.py` L27-66；剩余 17 存量失败同 P0-2 记录（memory reflection 功能 bug 等，与 import 重构无关）
 
 ## 2026-09-01 · P0-2 测试外网隔离：QUANT_OFFLINE 短路机制（"跑不通"诊断第 2 项）
@@ -517,7 +527,6 @@
 - **关键发现**: D11 排期矛盾 (影响 Sprint 1 收尾判定) + 3 处已完成项未闭环 (TODO#6/ECC§5/ROADMAP口径)
 - **指针**: docs/d11_reverify_checklist_20260830.md, tests/contract/, scripts/find_low_coverage.py, scripts/write_daily_progress.py
 
-
 ## 2026-08-29 · Wave 11 排期生成（GitHub 周热榜 08-29，9 项目，3 子轨道）
 
 - **来源**: 2026-08-29 GitHub Trending weekly 快照 19 个项目，对照 v8.7 业务面筛选出 9 个适合项目，10 个无关不接入。
@@ -540,7 +549,7 @@
 
 ## 2026-08-29 · 知识沉淀 + 全量同步 GitHub (commit ac8fbbf, 1641 文件)
 
-- **知识沉淀**: 新增 `cairn/completion-claim-vs-actual-state-20260829.md` —— 「完成声明 ≠ 完成」三类状态失真：**A 验证维度缺失**（pytest 全绿 ≠ 完成，工程维度 ruff/black 未跑）/** B 验收清单模板化**（门禁清单从模板复制后未回查实物，未开始的 GH+-2 也标 ✅）/** C 口径漂移**（摘要与权威原文不一致，GH+-1 第 4 条"验证结果" vs 原文"目标驱动执行"）。共同根因 = 状态声明的事实源与实物分离。
+- **知识沉淀**: 新增 `cairn/completion-claim-vs-actual-state-20260829.md` —— 「完成声明 ≠ 完成」三类状态失真：**A 验证维度缺失**（pytest 全绿 ≠ 完成，工程维度 ruff/black 未跑）/**B 验收清单模板化**（门禁清单从模板复制后未回查实物，未开始的 GH+-2 也标 ✅）/**C 口径漂移**（摘要与权威原文不一致，GH+-1 第 4 条"验证结果" vs 原文"目标驱动执行"）。共同根因 = 状态声明的事实源与实物分离。
 - **防复发 4 条**: ①完成三连（ruff --fix + black + pytest 同轮必跑，批量生成文件 black 兜底 W292）②打勾三要素（文件 + 日期/实证值 + 复现命令，模板预置 ✅ 一律视为未验证）③权威原文锚定（第三方原则类集成必须在文档中写死原文路径，"改以原文为准勿以摘要为准"）④排期/验收双向核对（正向查 ✅ 是否有实物，反向查已完成未打勾）。
 - **上传 GitHub**: `git add -A` → 单 commit **ac8fbbf**（1641 文件, +113703/-47303）→ `git push origin 1` 成功；pre-commit 门禁全过，**未使用 --no-verify**。含：CTX-A 经验上下文层实现、ECL 门禁闭环、GH+-1、排期优化、D10 拆分、black 全量格式化。
 - **上传前安全核查（可复用清单）**: 远端 `zhunbeibanjia` 实测为**私有**（未登录 404）；`.gitignore` 覆盖 `.env`/`.venv`/`qlib_env`；`git ls-files | grep .env` = 0；untracked 无 secret/credential；`system_config.json` diff 仅为 flag 开关（USE_AUTO_RETRAIN/USE_FEEDBACK_LOOP/USE_FINENG_GARCH/USE_FINENG_KALMAN_BETA → true），无账号密钥。
@@ -604,7 +613,7 @@
 ## 2026-08-28 · #3 daily_workflow.py 拆分完成 (D7门禁通过)
 
 - **拆分**: phase_execute (785行) → `workflow/phases/execute.py` (801行) + phase_report (659行) → `workflow/phases/report.py` (671行)
-- **结果**: daily_workflow.py 3589→2159行 (≤3000 D7门禁 ✓), 委托方法保持原接口, self→ctx 替换由 WorkflowContext.__getattr__ 代理
+- **结果**: daily_workflow.py 3589→2159行 (≤3000 D7门禁 ✓), 委托方法保持原接口, self→ctx 替换由 WorkflowContext.**getattr** 代理
 - **验证**: 37测试全通过 (daily_workflow/phase_execute/phase_report), ruff+black通过, 新phase文件15个except Exception全标记#fail-safe (0裸债)
 - **门禁**: D7 ✓ (2159行), T6 ✓ (19处), T7 ✓ (241处≤250), D10 ✗ (institutional_pipeline_runner 2203行>2000), D11 ✗ (shadow 6/7天)
 - **指针**: `v8.3_institutional/workflow/phases/execute.py`, `v8.3_institutional/workflow/phases/report.py`, `v8.3_institutional/daily_workflow.py:1468` (委托)
@@ -748,9 +757,9 @@
 - **任务**: 推进 W7.4.5 覆盖率 ≥80% 达标冲刺 — 补齐 `utils/risk/` 低覆盖模块
 - **基线诊断**: 包含全部 T 系列测试后 `utils/risk/` 整体 63.26% (202 测试); 仍有 5 模块 0% + 3 模块低覆盖
 - **补测**:
-  - `style_beta.py` 0%→**100%** (13 测试): STYLE_BETA_PROXY 字典完整性 + get_style_beta 已知/未知/空字符串 + DEFAULT_STYLE_BETA 常量 + __all__ 导出
-  - `risk_audit_logger.py` 47%→**93.15%** (20 测试): AuditRecord 序列化/反序列化/非法 JSON + log 写入 (无效 module/action/severity 降级) + flush 刷盘 + query_by_date/symbol/rejections 回放 + replay_stream + _iter_jsonl OSError 降级
-  - `risk_event.py` 70%→**98.28%** (31 测试): RiskEvent __post_init__ (TypeError/ValueError) + to_dict/from_dict (无效枚举降级) + RiskDecision (confidence/reduce_pct clamp + TypeError/ValueError) + make_margin_breach_event (level 推断 severity) + make_drawdown_breach_event (回撤幅度推断 severity)
+  - `style_beta.py` 0%→**100%** (13 测试): STYLE_BETA_PROXY 字典完整性 + get_style_beta 已知/未知/空字符串 + DEFAULT_STYLE_BETA 常量 + **all** 导出
+  - `risk_audit_logger.py` 47%→**93.15%** (20 测试): AuditRecord 序列化/反序列化/非法 JSON + log 写入 (无效 module/action/severity 降级) + flush 刷盘 + query_by_date/symbol/rejections 回放 + replay_stream +_iter_jsonl OSError 降级
+  - `risk_event.py` 70%→**98.28%** (31 测试): RiskEvent **post_init** (TypeError/ValueError) + to_dict/from_dict (无效枚举降级) + RiskDecision (confidence/reduce_pct clamp + TypeError/ValueError) + make_margin_breach_event (level 推断 severity) + make_drawdown_breach_event (回撤幅度推断 severity)
 - **验证**: 64/64 测试全绿 + ruff All checks passed; 累计新增 64 测试
 - **影响**: `utils/risk/` 低覆盖模块清零三模块; 距 80% 目标仍需补测 cvar(0%)/risk_module_adapters(0%)/risk_bus(54%) 等模块
 - **指针**: `tests/unit/test_style_beta_coverage.py` · `tests/unit/test_risk_audit_logger_coverage.py` · `tests/unit/test_risk_event_coverage.py` · `cairn/ROADMAP.md` W7.4.5
@@ -1616,8 +1625,6 @@
 - **知识专题更新**: `cairn/fifteen-five-policy-alignment.md` — 专项规划 14→15 个（美丽中国建设补入，正文 10→11 个）+ 未完成项标记完成 + 搜索结果归档表
 - **指针**: `cairn/fifteen-five-policy-alignment.md` §一/§六 · `cairn/Reference/美丽中国建设十五五规划全文_20260821.md`
 
-
-
 - **背景**: execution_bridge 拆分完成后，扫描 `institutional_pipeline_runner.py` run() 方法（line 266-431，6 步编排），确定 HOOK 1-4 精确注入点
 - **注入点**: HOOK1 signals → line 296 后（Step3 信号融合后）; HOOK2 review → line 403 后（Step6 执行路由后）; HOOK3 execute → line 403 后（HOOK2 后，先接 get_grayscale_summary 只读）; HOOK4 report → line 428 前（W37）
 - **设计**: 每个 hook 用 `os.environ.get("AI_DECISION_INTEGRATED","0")=="1"` feature flag 控制 + try/except 优雅降级（显式异常元组，非裸 except）+ 失败不阻塞主管道
@@ -1719,7 +1726,7 @@
 - **安装**: `npm install -g duckduckgo-mcp`（95 包 9s）✅；`.mcp.json` 加 duckduckgo 条目 ✅ JSON 有效
 - **对比 deep-research**: 免费无 key vs 付费；DuckDuckGo 搜索 vs exa 语义搜索；均有 crawl+research；缺 firecrawl 深度爬取
 - **生效**: 需 Claude Code CLI 或 CodeArts 重启加载 .mcp.json；当前会话 MCP 未连接，重启后可用
-- **指针**: `.mcp.json` · https://github.com/Nipurn123/duckduckgo-mcp
+- **指针**: `.mcp.json` · <https://github.com/Nipurn123/duckduckgo-mcp>
 
 ## 2026-08-21 · 十五五专项规划正文抓取归档
 
@@ -1807,8 +1814,8 @@
 - **1.7 7天报告**: generate_shadow_stable_report() 输出 reports/shadow/shadow_stable_7d_report_*.json
 - **2.7 D10 门禁**: _check_d10_oversized_file_split() 注册 (institutional_pipeline_runner.py 2620行 + automated_execution_system.py 2691行, 目标 ≤2000)
 - **3.1 D9 门禁**: _check_d9_coverage_sprint4_target() 注册 (line_rate 0.6855 < 0.80, Sprint4 目标)
-- **3.2-3.5 检出器**: _find_uncovered_p02_branches.py + _detect_lookahead_tests.py (检出90处) + _detect_mock_inflation.py + _detect_coverage_stagnation.py
-- **3.7-3.9 配置升级**: _check_coverage_trend.py --min-line-rate 0.05→0.80 + sprint4_threshold_met 字段 + _generate_coverage_sprint4_report.py
+- **3.2-3.5 检出器**: _find_uncovered_p02_branches.py + _detect_lookahead_tests.py (检出90处) +_detect_mock_inflation.py + _detect_coverage_stagnation.py
+- **3.7-3.9 配置升级**: _check_coverage_trend.py --min-line-rate 0.05→0.80 + sprint4_threshold_met 字段 +_generate_coverage_sprint4_report.py
 - **4.1-4.3 v8.7 汇总**: V87GateSummary frozen dataclass + check_v87_release_gate_summary() → reports/v87_release_gate_summary.json
 - **5.1/5.3/5.4 测试**: test_phase_b_shadow_stable.py (20 passed) + test_coverage_sprint4_gate.py (19 passed) + test_v87_release_gate_summary.py (12 passed)
 - **6.2 CI 配置**: quality-gate.yml 追加 Engineering debt gate 步骤 (D9+D10+D11+v8.7 summary, 退出码2阻断)
@@ -1905,11 +1912,11 @@
 ## 2026-08-19 · Phase A1+A2: torch collection 修复 + 测试回归修复
 
 - **A1**: 2 个 torch collection error → 0（13,932+2error→13,959 全收集）
-    - 根因: 全量收集时 gat_factor_torch 触发 torch 部分初始化, 后续文件看到损坏的 torch
-    - 修复: `transformer_encoder.py` + `test_gat_layer2_validation_unit.py` except 增加 AttributeError 捕获
+  - 根因: 全量收集时 gat_factor_torch 触发 torch 部分初始化, 后续文件看到损坏的 torch
+  - 修复: `transformer_encoder.py` + `test_gat_layer2_validation_unit.py` except 增加 AttributeError 捕获
 - **A2**: 3 个 test_pipeline 测试回归 → 0（硬编码100万→真实500万导致订单金额超限）
-    - 根因: 阶段1修复后 total_capital 从 positions.json 读取 500万, 订单金额=diff*5M 超 max_order_value(500K)
-    - 修复: 测试设 max_order_value=10M 确保验证订单生成逻辑而非金额限制
+  - 根因: 阶段1修复后 total_capital 从 positions.json 读取 500万, 订单金额=diff*5M 超 max_order_value(500K)
+  - 修复: 测试设 max_order_value=10M 确保验证订单生成逻辑而非金额限制
 - **覆盖率**: 基线已 68.55%（超 Sprint 1 目标 55%），核心模块测试完善(T09-T18+pipeline 96通过)
 - **commit**: `d8d9cc9c`（3文件, 30增/31删, pre-commit全通过）
 - **指针**: `cairn/code-quality-industrial-gap-20260819.md` §五 Phase A
@@ -2114,7 +2121,7 @@
 
 ## 2026-08-18 · T2 第 51 批覆盖率：vibe_trading_adapter + external_data_source ✅ 79 tests GREEN
 
-- **vibe_trading_adapter** 0%→52.42% (tests): _infer_market(A股/US/HK/韩股/空/大小写)/_normalize_symbol(别名/透传)/VibeTradingAdapter(初始化/get_ohlcv/get_batch_ohlcv/get_price_dataframe/_normalize_dataframe/_try_local_cache)/_proxy_fallback_fetch/get_adapter单例/get_ohlcv/get_price_matrix — Vibe-Trading 核心用 mock — **发现 bug**: _infer_market("0700.HK") 误判为 us_equity (US 判断 len<=5 在 HK 判断之前)
+- **vibe_trading_adapter** 0%→52.42% (tests): _infer_market(A股/US/HK/韩股/空/大小写)/_normalize_symbol(别名/透传)/VibeTradingAdapter(初始化/get_ohlcv/get_batch_ohlcv/get_price_dataframe/_normalize_dataframe/_try_local_cache)/_proxy_fallback_fetch/get_adapter单例/get_ohlcv/get_price_matrix — Vibe-Trading 核心用 mock — **发现 bug**:_infer_market("0700.HK") 误判为 us_equity (US 判断 len<=5 在 HK 判断之前)
 - **external_data_source** 0%→71.98% (tests): _parse_api_float(正常/None/FRED缺失值/N-A/空串/NaN/非法)/MacroIndicator/FREDApi(可用/成功/缺失值/HTTP错误)/EcondbApi/FedTreasuryApi/AlphaVantageApi/FinnhubApi/CoinGeckoApi/ExternalDataManager(缓存/快照/股票/加密/新闻/风险情绪) — 网络依赖用 mock
 - **enhanced_signal_fusion 跳过**: 导入失败 (NameError: SignalFusionEngine 未定义 — 依赖链 signal_fusion/fast_signal_processor/rule_engine 断裂)
 - **两模块合计**: 79 passed
@@ -2123,7 +2130,7 @@
 
 ## 2026-08-18 · T2 第 50 批覆盖率：tradingagents_bridge + wt_backtest_engine + media_crawler_adapter ✅ 118 tests GREEN
 
-- **tradingagents_bridge** 0%→88.12% (tests): TradingAgentsBridge(__init__/base_url/is_available缓存/_check_port/get_analysts/analyze/_fallback_to_local/_neutral_result/_http_get/_http_post)/get_bridge单例/analyze/is_available — HTTP 依赖用 mock
+- **tradingagents_bridge** 0%→88.12% (tests): TradingAgentsBridge(**init**/base_url/is_available缓存/_check_port/get_analysts/analyze/_fallback_to_local/_neutral_result/_http_get/_http_post)/get_bridge单例/analyze/is_available — HTTP 依赖用 mock
 - **wt_backtest_engine** 0%→91.43% (tests): BacktestEngine(初始化/重置/手续费/滑点/买入/卖出/权益/回测/涨跌停/停牌/报告)/ETFSignalStrategy(强加仓/强减仓/无信号/零价)/BacktestDataLoader(合成数据/历史加载/ticker过滤)/run_etf_signal_backtest/compare_strategies
 - **media_crawler_adapter** 0%→80.07% (tests): MediaCrawlerNewsItem/MediaCrawlerResult dataclass/normalize_platform(直接/别名/未知/大小写)/get_platform_display/_TTLCache(get/set/expire/clear/info)/MediaCrawlerAdapter(初始化/健康检查/搜索/多平台/解析/缓存)/fetch_social_news — 网络依赖用 mock
 - **三模块合计**: 118 passed
@@ -2142,7 +2149,7 @@
 ## 2026-08-18 · T2 第 48 批覆盖率：wt_hedge_strategy + external_strategy_adapter + free_stockdb_adapter ✅ 66 tests GREEN
 
 - **wt_hedge_strategy** 0%→83.63% (tests): HedgePosition/PortfolioMetrics dataclass/BetaHedgeStrategy(构造/计算beta/对冲手数/无持仓)/TailRiskHedgeStrategy(VaR/ES/触发/不触发)/DynamicHedgeStrategy(选择/降级)/HedgeStrategy基类
-- **external_strategy_adapter** 0%→85.54% (tests): ExternalStrategyAdapter(__init__/load/validate/normalize/extract_signals/回测接口)/get_adapter单例/analyze/analyze_all(批量/空)
+- **external_strategy_adapter** 0%→85.54% (tests): ExternalStrategyAdapter(**init**/load/validate/normalize/extract_signals/回测接口)/get_adapter单例/analyze/analyze_all(批量/空)
 - **free_stockdb_adapter** 0%→38.77% (tests): _strip_suffix(沪/深/北/无后缀/大小写)/_period_to_date_range(1d/5d/1y/3y/5y/无效)/_normalize_fs_dataframe(空/单行/多行/列名映射/缺失列) — DLL 依赖函数(is_available/get_historical_data)用 mock 跳过
 - **三模块合计**: 66 passed
 - **`.coveragerc`**: 移除 wt_hedge_strategy + external_strategy_adapter + free_stockdb_adapter 的 omit 排除规则
@@ -2159,8 +2166,8 @@
 
 ## 2026-08-18 · T2 第 47 批覆盖率：ifind_news_analyzer + institutional_optimizer + akshare_futures ✅ 85 tests GREEN
 
-- **ifind_news_analyzer** 0%→89.36% (tests): NewsItem/StockInsight dataclass/IFinDNewsAnalyzer(__init__/available/search_news/search_notice/search_trending/analyze_symbol/batch_analyze)/_parse_news_result(dict/MCP包装/中文键)/_extract_results(list/dict/嵌套)/_derive_insight(利好/利空/中性/无信号)/_extract_entities(代码/交易所/上限10)
-- **institutional_optimizer** 0%→90.00% (tests): PortfolioDecision.to_dict/InstitutionalPortfolioOptimizer.__init__/optimize(空/仅收益/持仓/协方差)/_build_covariance_matrix(DataFrame/默认/不匹配)/_current_weights/_risk_parity_with_signal(空/等波动/负mu)/_apply_constraints(max_weight/负值/行业集中)/_pypfopt_available — **修复 bug**: _current_weights 在 total_value==0 时不返回值(返回None)导致 _build_decision 中 weights-None 崩溃
+- **ifind_news_analyzer** 0%→89.36% (tests): NewsItem/StockInsight dataclass/IFinDNewsAnalyzer(**init**/available/search_news/search_notice/search_trending/analyze_symbol/batch_analyze)/_parse_news_result(dict/MCP包装/中文键)/_extract_results(list/dict/嵌套)/_derive_insight(利好/利空/中性/无信号)/_extract_entities(代码/交易所/上限10)
+- **institutional_optimizer** 0%→90.00% (tests): PortfolioDecision.to_dict/InstitutionalPortfolioOptimizer.**init**/optimize(空/仅收益/持仓/协方差)/_build_covariance_matrix(DataFrame/默认/不匹配)/_current_weights/_risk_parity_with_signal(空/等波动/负mu)/_apply_constraints(max_weight/负值/行业集中)/_pypfopt_available — **修复 bug**:_current_weights 在 total_value==0 时不返回值(返回None)导致 _build_decision 中 weights-None 崩溃
 - **akshare_futures** 0%→29.44% (tests): _to_float/_to_str/_normalize_ak_quotes(空/单行/多行/无symbol/英文键/异常)/_normalize_ak_daily(空/单行/无symbol/英文键/异常)
 - **三模块合计**: 85 passed
 - **`.coveragerc`**: 移除 akshare_futures (出现两次) 的 omit 排除规则
@@ -2168,8 +2175,8 @@
 
 ## 2026-08-18 · T2 第 46 批覆盖率：wt_contracts_manager + local_llm + stress_test ✅ 75 tests GREEN
 
-- **wt_contracts_manager** 0%→89.72% (tests): DEFAULT_CONTRACTS/ContractsManager.__init__/load_from_file(不存在/有效/init带文件)/get_contract(精确/期货回退/期货默认/股票默认/ETF/未知)/register_contract(新/带点code)/list_contracts(全部/交易所/品种/双过滤/无匹配)/calc_commission(买入/卖出印花税/最小手续费/期货)/calc_margin/calc_contract_value/get_contracts_manager单例
-- **local_llm** 0%→79.03% (tests): LocalLLMClient.__init__(默认/自定义/环境变量)/is_available(模型不存在/缓存/llama_cpp未装)/_format_prompt(user/system/assistant/空/未知角色)/chat(响应/自定义参数)/_stream_response/generate(带/不带system)/get_local_llm(不可用None/可用)/local_llm_available
+- **wt_contracts_manager** 0%→89.72% (tests): DEFAULT_CONTRACTS/ContractsManager.**init**/load_from_file(不存在/有效/init带文件)/get_contract(精确/期货回退/期货默认/股票默认/ETF/未知)/register_contract(新/带点code)/list_contracts(全部/交易所/品种/双过滤/无匹配)/calc_commission(买入/卖出印花税/最小手续费/期货)/calc_margin/calc_contract_value/get_contracts_manager单例
+- **local_llm** 0%→79.03% (tests): LocalLLMClient.**init**(默认/自定义/环境变量)/is_available(模型不存在/缓存/llama_cpp未装)/_format_prompt(user/system/assistant/空/未知角色)/chat(响应/自定义参数)/_stream_response/generate(带/不带system)/get_local_llm(不可用None/可用)/local_llm_available
 - **stress_test** 0%→96.77% (tests): 常量/STRESS_SCENARIOS(6个/字段/负冲击)/generate_stress_report(默认/时间戳/硬止损/尾部对冲/自定义情景/蒙特卡洛/自定义组合/空组合/VaR/表格/触发/不触发)
 - **三模块合计**: 75 passed
 - **`.coveragerc`**: 移除 wt_contracts_manager + local_llm + stress_test 的 omit 排除规则
@@ -2177,7 +2184,7 @@
 
 ## 2026-08-18 · T2 第 45 批覆盖率：graph_data_source + greek_exposure_dashboard + wt_spread_strategy ✅ 98 tests GREEN
 
-- **graph_data_source** 0%→41.67% (tests): _safe_float/_market_of/GraphDataSource.__init__/_cached(miss/hit/TTL/None不缓存)/build_concept_edges(共享/无共享/min_share/三标的)/build_industry_edges(同行业/不同/空)/build_thematic_edges/build_main_business_edges/build_graph_edges(组合/排除)/get_graph_data_source单例
+- **graph_data_source** 0%→41.67% (tests): _safe_float/_market_of/GraphDataSource.**init**/_cached(miss/hit/TTL/None不缓存)/build_concept_edges(共享/无共享/min_share/三标的)/build_industry_edges(同行业/不同/空)/build_thematic_edges/build_main_business_edges/build_graph_edges(组合/排除)/get_graph_data_source单例
 - **greek_exposure_dashboard** 0%→58.64% (tests): GreekSnapshot/GreekDashboard/load_positions(不存在/有效/shares回退/非法JSON/无code/零qty/默认beta)/_signal_level(OK/WARN/CRITICAL/零目标/负值)/_build_recommendations(无需/Delta/Gamma/Vega/Theta/负Delta买入)/compute_dashboard(无持仓/ImportError)/dashboard_to_dict
 - **wt_spread_strategy** 0%→94.78% (tests): SpreadDefinition/_leg访问器/SpreadCalculator.calc_spread_price(BUY-SELL/ratio/缺失/空)/calc_spread_bars/SpreadContext(enter_long/enter_short/exit_long/zero_price/positions/equity)/SpreadBacktester(运行/空)/ETF_PAIR_SPREADS(4个预定义)
 - **三模块合计**: 98 passed
@@ -2214,7 +2221,7 @@
 ## 2026-08-18 · T2 第 41 批覆盖率：qlib_data_bridge + var_monitor + wt_structs ✅ 64 tests GREEN
 
 - **qlib_data_bridge** 0%→92.74% (18 tests): qlib 数据桥接纯函数 — to_qlib_symbol(SH/SZ/BJ/已带前缀/非法)/from_qlib_symbol(反向/非法)/dataframe_to_qlib_record(正常/空df/缺列)/qlib_signal_to_system(正常/空/缺字段)/get_qlib_cache_root(默认/自定义env)
-- **var_monitor** 0%→93.66% (28 tests): VaR 风险监控 — calculate_var(正常/空数据/不足30日/超lookback/NaN)/calculate_var_from_positions(正常/空positions/单标的/权重和>1)/execute_breach_response(var_95/var_99/无效)/get_event_history — **修复 bug**: 空 returns_matrix 时 dates=None 导致 TypeError, 增加守卫返回 _empty_result
+- **var_monitor** 0%→93.66% (28 tests): VaR 风险监控 — calculate_var(正常/空数据/不足30日/超lookback/NaN)/calculate_var_from_positions(正常/空positions/单标的/权重和>1)/execute_breach_response(var_95/var_99/无效)/get_event_history — **修复 bug**: 空 returns_matrix 时 dates=None 导致 TypeError, 增加守卫返回_empty_result
 - **wt_structs** 0%→98.82% (18 tests): WonderTrade 结构体 — TickData/BarData/OrderData/TradeData/PositionData/ContractData 数据类(tick_to_dict/bar_to_dict/strict_symbol_validation 上下文管理器/CodeExchangeMismatchWarning/Error)
 - **三模块合计**: 64 passed, 总覆盖率 95.40%
 - **`.coveragerc`**: 移除 qlib_data_bridge / var_monitor / wt_structs 的 omit 排除规则
@@ -2266,7 +2273,7 @@
 
 - **risk_constraints** 0%→81.72% (14 tests): 硬性风险约束执行器 — enforce_hard_constraints(单标的截断/非负/板块压缩/归一化/循环收敛/无sector/空权重)/validate_risk_budget(集中度/板块/VaR/价格数据)/_approx_var(有价格/无价格/短历史)
 - **global_cancel_guard** 0%→88.72% (19 tests): 全局撤单Guard — CancelResult dataclass/GlobalCancelGuard构造/cancel_all_orders(broker未连接/无订单/正常撤单/symbols过滤/全部跳过/撤单失败/dict订单/dict orders属性/trigger_reason)/_cancel_with_retry/_get_order_id/_get_order_status/_get_order_symbol(dict+对象)
-- **limit_pool_provider** 0%→72.22% (24 tests): 涨停池/跌停池数据提供器 — LimitPoolData(构造/属性/is_limit_up/down/broken/__repr__)/LimitPoolProvider(单例/构造/_normalize_date(YYYYMMDD/YYYY-MM-DD/YYYY/MM/DD/datetime)/_is_today/_get_ttl(今天/历史))/get_pool(akshare不可用→空池)/get_limit_up/down/broken_pool/get_pools_batch(字符串+datetime)/clear_cache/get_cache_info/便捷函数
+- **limit_pool_provider** 0%→72.22% (24 tests): 涨停池/跌停池数据提供器 — LimitPoolData(构造/属性/is_limit_up/down/broken/**repr**)/LimitPoolProvider(单例/构造/_normalize_date(YYYYMMDD/YYYY-MM-DD/YYYY/MM/DD/datetime)/_is_today/_get_ttl(今天/历史))/get_pool(akshare不可用→空池)/get_limit_up/down/broken_pool/get_pools_batch(字符串+datetime)/clear_cache/get_cache_info/便捷函数
 - **三模块合计**: 57 passed, 总覆盖率 79.88%
 - **指针**: `tests/unit/test_risk_constraints_unit.py` + `tests/unit/test_global_cancel_guard_unit.py` + `tests/unit/test_limit_pool_provider_unit.py`
 
@@ -2398,7 +2405,7 @@
 ## 2026-08-18 · T2 第 29 批覆盖率：gat_factor + s5_validation + gat_factor_torch(跳过) ✅ 37 tests GREEN (3 skipped)
 
 - **gat_factor** 0%→94.74% (22 tests): 纯 numpy 图注意力因子 — GATFactor 构造/_init_params(确定性种子)/_attention(形状/非负/行和≈1/孤立节点/无边)/compute(形状/自动初始化/无边零)/_rank_loss(完全正反相关/样本不足/NaN)/train(losses)/build_adjacency(无向对称/缺失节点/weight_key)/gat_factor_values 端到端
-- **s5_validation** 0%→63.74% (15 tests): S5 组合层面检验 — _zscore(正常/零标准差/单元素)/_top_bottom_ls(正常/default/min_top_n/负收益)/_calc_annualized_sharpe(正常/样本不足/零标准差/正负)/run_s5_validation(mock _build_universe 不足10只FAIL/结构验证)
+- **s5_validation** 0%→63.74% (15 tests): S5 组合层面检验 — _zscore(正常/零标准差/单元素)/_top_bottom_ls(正常/default/min_top_n/负收益)/_calc_annualized_sharpe(正常/样本不足/零标准差/正负)/run_s5_validation(mock_build_universe 不足10只FAIL/结构验证)
 - **gat_factor_torch** 3 skipped: torch 2.4.1 DLL 加载失败 (caffe2_nvrtc.dll), 测试文件就位待 torch 环境恢复
 - **.coveragerc 更新**: 移除 gat_factor/s5_validation 排除 (已有测试), 保留 gat_factor_torch 排除 (torch 不可用)
 - **两模块合计**: 37 passed + 3 skipped, 总覆盖率 77.30%
@@ -2432,7 +2439,7 @@
 
 - **glm5_client** 0%→83.74% (15 tests): GLM-5 客户端 LiteLLMRouter 薄包装 — GLM5Config(默认/环境变量覆盖/显式优先)/chat 输入验证(空/超长/temperature/max_tokens 越界)/router 不可用空响应/router 可用 mock/is_ready/test_connection/get_stats/单例/quick_chat
 - **llm_client** 0%→76.92% (24 tests): 统一 LLM 客户端 — chat(GLM5 主路径剥 content/空 content 降级/异常降级 legacy/legacy 返回 str/legacy 异常返回 None/两者不可用 None)/generate_analysis(注入金融分析 system)/test_connection(glm5/legacy/available 三态+异常容错)/quick_chat(None→"")/chat_deep(max_tokens=4000)/_record_usage(落盘 jsonl+成本计算+未知模型 default 价+IO 异常静默)
-- **execution_router** 0%→94.32% (47 tests): 执行路由引擎 — ExecutionPlan(to_dict round 4 位/meta 独立)/ExecutionReview(__post_init__ 自动 timestamp)/_urgency(high/medium/low 边界)/_select_algorithm(IS/VWAP/TWAP 边界)/_estimate_slippage(IS 1.2x/VWAP 1x/TWAP 0.6x/base 下限 0.1)/_duration/_slices/route(完整流程/signal=None/market_state=None)/review(within/超限/零价格/负 shortfall/BUG-E1 actual_slippage 从 executed 读取/落盘)/route_with_tca(flag 关闭/启用 approved/启用 rejected/启用异常 fail-safe/market_state=None)
+- **execution_router** 0%→94.32% (47 tests): 执行路由引擎 — ExecutionPlan(to_dict round 4 位/meta 独立)/ExecutionReview(**post_init** 自动 timestamp)/_urgency(high/medium/low 边界)/_select_algorithm(IS/VWAP/TWAP 边界)/_estimate_slippage(IS 1.2x/VWAP 1x/TWAP 0.6x/base 下限 0.1)/_duration/_slices/route(完整流程/signal=None/market_state=None)/review(within/超限/零价格/负 shortfall/BUG-E1 actual_slippage 从 executed 读取/落盘)/route_with_tca(flag 关闭/启用 approved/启用 rejected/启用异常 fail-safe/market_state=None)
 - **三模块合计**: 86 passed, 总覆盖率 86.30%
 - **指针**: `tests/unit/test_glm5_client_unit.py` + `tests/unit/test_llm_client_unit.py` + `tests/unit/test_execution_router_unit.py`
 
@@ -2843,7 +2850,7 @@
 - **OnlineStore**: `utils/feature_store/online_store.py` — memory/redis 后端, TTL �惰性淘汰, <10ms 查询, 线程安全
 - **OfflineStore**: `utils/feature_store/offline_store.py` — parquet/duckdb 后端, 分区写入, 增量更新, 回测对齐
 - **测试**: 38 tests 全绿 (OnlineStore 22 + OfflineStore 16), ruff 全绿
-- **__init__.py**: 导出 FeatureStoreConfig/Registry/OnlineStore/OfflineStore 公开 API
+- ****init**.py**: 导出 FeatureStoreConfig/Registry/OnlineStore/OfflineStore 公开 API
 - **待办**: 117 因子全注册 + 双写并行 + 影子验证 + 30 天回退窗口 (W7.3.2 正式落地 10-13~10-31)
 - **指针**: `utils/feature_store/online_store.py` · `offline_store.py` · `tests/unit/test_online_store_unit.py` · `test_offline_store_unit.py`
 
@@ -3056,7 +3063,7 @@
 
 ## 2026-08-13 · 数据源升级: ifind-finance-data SKILL 1.3.0 → 1.4.0 · 完成 ✅
 
-- **来源**: 官方安装指南 https://mcp.51ifind.com/gwstatic/.../SKILL_INSTALL_GUIDE.md (7步安装法)。
+- **来源**: 官方安装指南 <https://mcp.51ifind.com/gwstatic/.../SKILL_INSTALL_GUIDE.md> (7步安装法)。
 - **动作**:
   1. 探测: 项目 `skills/ifind-finance-data/` 已有 1.3.0, 升级覆盖到 1.4.0。
   2. 下载 `ifind-finance-data-1.4.0.zip` (21291B) → 临时目录, 备份旧版 1.3.0.bak。
@@ -3114,7 +3121,7 @@
   2. `scripts/engineering_debt_gate.py` 新增 D7 检查 (~50 行) — 5 项自检: ①daily_workflow.py ≤3000 行 (实际 2828) ②_scan_func_quality.py 脚本存在 ③15 个 phase 模块完整 (check/calibrate/market/risk/hedge/hedge_fund/quant_neutral/v10_risk/cash_management/directional_futures/signal/signal_qlib/signal_ifind/signal_lgb/autolearn) ④workflow/context.py 存在 ⑤脚本可运行 (subprocess 扫描不崩溃)
 - **§7 验收标准收尾**: ⑤ `_scan_func_quality.py` 已创建 (原"非阻塞"项消除); ① ≤3000 行 (2828) ② signal.py 937行/hedge.py 884行超标已豁免 ③ pytest 零行为变更 ④ EOD 干跑已验证 ⑥ 质量门禁全过
 - **扫描结果**: workflow/phases/ 71 个函数, 1 Strong (signal.py:85 apply_fused_qlib_ifind_adjustments 长度148/CC20/参数8) + 7 Worth exploring + 10 Speculative + 53 OK
-- **Strong 函数处理**: 标注为"拆分遗留" (原代码从 daily_workflow.py 搬到 signal.py, 逻辑未变), 零行为变更约束下暂不重构, 待后续优化方向 (提取参数对象 FusionAdjustmentParams + 内部 _apply 提为模块级)
+- **Strong 函数处理**: 标注为"拆分遗留" (原代码从 daily_workflow.py 搬到 signal.py, 逻辑未变), 零行为变更约束下暂不重构, 待后续优化方向 (提取参数对象 FusionAdjustmentParams + 内部_apply 提为模块级)
 - **工程门禁升级**: engineering_debt_gate 从 24 项 → 25 项 GREEN (D7 daily_workflow 拆分收尾验收)
 - **指针**: `scripts/_scan_func_quality.py` · `scripts/engineering_debt_gate.py` L798-L845 · `cairn/daily-workflow-split-retrospective.md` §5.1
 
@@ -3172,7 +3179,7 @@
   4. T18 `gradual_rollout_orchestrator.py` — GradualRolloutOrchestrator: 4 阶段 (PAPER 0%→SHADOW 10%→PARALLEL 50%→FULL 100%, 不可跳) + 6 维准入门禁 + 4 回滚触发器 + split_capital + force_stage
 - **测试**: 99 passed 0 failed (T15 16 / T16 26 / T17 24 / T18 33)
 - **门禁**: engineering_debt_gate 18/18 GREEN (T1-T8 基础 + T9-T14 风控六件套 + T15-T18 实盘四件套); industrial_grade_check 11 PASS
-- **修复 3 bug**: T15 MockBroker 固定 fill_qty → 返回请求 qty; T15 测试 None broker 被 or 替换 → 直接构造; T16 _try_cancel False 未标 ERROR → 补 False 分支
+- **修复 3 bug**: T15 MockBroker 固定 fill_qty → 返回请求 qty; T15 测试 None broker 被 or 替换 → 直接构造; T16_try_cancel False 未标 ERROR → 补 False 分支
 - **指针**: `utils/risk/live_order_executor.py` · `utils/risk/order_lifecycle_tracker.py` · `utils/risk/live_reconciliation_loop.py` · `utils/risk/gradual_rollout_orchestrator.py` · `scripts/engineering_debt_gate.py` L403-L545
 
 ## 2026-08-12 · Wave 7 统一整合 / v8.7 升级计划设计与文档同步 · 完成 ✅
@@ -3367,14 +3374,14 @@
 - **遗留**: tracker `eval_status.next_action` 缓存文本停留在 "11/21 天, 还需 10 天" (status.json 缓存陈旧, 不影响判定, 留待后续刷新机制修复)
 - **指针**: `cairn/observation-period-config-drift-20260809.md` §5 (本次新增) · `utils/alpha/strategy_evaluator.py` L87-109 · `utils/alpha/shadow_account_adapter.py` L77-92 · `tests/e2e/conftest.py` L153-164 · `reports/shadow/daily_returns_cleaned.jsonl` · `reports/shadow/2026-08-12_dsr.json`
 
-## 2026-08-12 · daily_workflow.py 拆分第 3 轮 (hedge/hedge_fund/quant_neutral + 实现 _execute_sim_hedge_orders) · 完成 ✅
+## 2026-08-12 · daily_workflow.py 拆分第 3 轮 (hedge/hedge_fund/quant_neutral + 实现_execute_sim_hedge_orders) · 完成 ✅
 
 - **背景**: 第 2 轮 (risk/v10_risk/cash_management/directional_futures) 已完成零回归; 本轮为第 3 轮高复杂 phase 群, 并实现 TDD 规约方法 `_execute_sim_hedge_orders`
 - **交付**: 3 个新 phase 模块 (`workflow/phases/{hedge,hedge_fund,quant_neutral}.py`) + daily_workflow.py 门面转发; daily_workflow.py 从 4388 行降至 **4083 行** (累计从基线 6226 行降至 4083 行, 降幅 34.4%)
 - **拆出内容**:
-  - `hedge.py` (~760 行): phase_hedge + _get_edb_futures_data + _get_futures_scanner_summary + _compute_beta_hedge_order + **_execute_sim_hedge_orders (新增)**
+  - `hedge.py` (~760 行): phase_hedge +_get_edb_futures_data +_get_futures_scanner_summary +_compute_beta_hedge_order + **_execute_sim_hedge_orders (新增)**
   - `hedge_fund.py` (~200 行): phase_hedge_fund (Theta/Gamma/KillSwitch/LiquidationScheduler)
-  - `quant_neutral.py` (~260 行): phase_quant_neutral + 5 个私有方法 (_load_quant_neutral_holdings / _get_ic_price / _get_ic_basis / _get_current_ic_contracts / _load_strategy_drawdown_state)
+  - `quant_neutral.py` (~260 行): phase_quant_neutral + 5 个私有方法 (_load_quant_neutral_holdings / _get_ic_price /_get_ic_basis / _get_current_ic_contracts / _load_strategy_drawdown_state)
 - **_execute_sim_hedge_orders 实现** (符合 test_phase_hedge_sim_branch.py 规约):
   - 签名: `(sim_engine, mock_prices, orders)` — 不依赖完整 WorkflowContext, 适配测试中简化版 DailyWorkflow 实例
   - 路由规则: SHORT_FUTURES→execute_futures_orders / PUT_SPREAD,BUY_PUT*→execute_options_orders (按 budget_allocation 拆分) / SAFE_HAVEN_ALLOC→execute_stock_orders / DOWNGRADE→DOWNGRADED 跳过 / 未知→SKIP_UNKNOWN_ACTION / contracts=0→SKIP_NO_PRICE_OR_QTY / 异常→FAILED+error
@@ -3476,7 +3483,7 @@
 - **新增测试**: `tests/unit/test_ms_strategy_coverage.py` 追加 `TestQlibSignalAdapter` (17 用例), 覆盖纯逻辑 + 本地 LightGBM 回退路径: 常量/可用性探测、`_select_period_by_days`、`v75_to_qlib_features`(含 datetime/date 索引转换分支)、`_standardize_df_columns`、`_validate_and_clean_ohlcv`(短序列 None 分支)、`_add_technical_features`(含 KeyError 路径)、`_local_lightgbm_signal`(DataFrame 输入)、`generate_signal` 回退、`generate_qlib_signal`/`prepare_qlib_dataset` 不可用返回 None
 - **覆盖率**: ms_strategy 子包整体 **0% → 46.63%** (116 passed); alpha 子包: `qlib_signal_adapter.py` **0% → 50.53%**, `signal_generator.py` **0% → 78.05%**, `signal_fusion.py` 26.81% (前序已有)
 - **真实代码缺陷修复 · `src/alpha/signal_generator.py` L212**: `pd.Grouper(freq='M')` 在新版 pandas 已废弃 (Alias 'M' is deprecated, use 'ME'), 改为 `'ME'`; 此前 `test_compute_ic` 因此 KeyError/ValueError 失败, 修复后 passed。教训: pandas 频率别名 'M'→'ME'/'Y'→'YE' 在近期版本硬性报错, 凡硬编码月度聚合须改用 'ME'
-- **`.coveragerc` 口径收窄 (G7 门禁可执行性修复)**: 原 source=utils+ms_strategy 把整包 (含 200+ 从未被测模块: universe/*、weather_*、web_scraper、var_backtest、tradingagents_bridge、vibe_trading_adapter、wt_* 等) 计入分母, 单跑 ms_strategy 测试时整体暴跌至 3-4% 触发 fail_under=35 误杀; 现 omit 排除 `utils/wt_*.py`(0 引用死模块) + 未纳入 G7 计划的重型子系统 (universe/weather_*/web_scraper/var_backtest/tradingagents_bridge/vibe_trading_adapter/爬虫类/agent类), 使 fail_under=35 在"完整定向套件"活模块口径下可达成
+- **`.coveragerc` 口径收窄 (G7 门禁可执行性修复)**: 原 source=utils+ms_strategy 把整包 (含 200+ 从未被测模块: universe/*、weather_*、web_scraper、var_backtest、tradingagents_bridge、vibe_trading_adapter、wt_*等) 计入分母, 单跑 ms_strategy 测试时整体暴跌至 3-4% 触发 fail_under=35 误杀; 现 omit 排除 `utils/wt_*.py`(0 引用死模块) + 未纳入 G7 计划的重型子系统 (universe/weather_*/web_scraper/var_backtest/tradingagents_bridge/vibe_trading_adapter/爬虫类/agent类), 使 fail_under=35 在"完整定向套件"活模块口径下可达成
 - **产物**: `reports/coverage_ms_strategy.xml` + `reports/htmlcov_ms_strategy/` (ms_strategy 子包口径, 46.63%); 注: 全局整包门禁需在"基线同口径全量跑"环境验证 (本环境 tests/unit 全量触发 IDE 文件删除保护, 无法跑全量)
 - **待办**: data/monitoring/governance 子包仍 0%; qlib_signal_adapter 的 qlib 在线训练路径 (QLIB_AVAILABLE=True 分支) 未测 (依赖在线服务, 留白合理); 全局门禁需全量定向跑复核
 
@@ -4173,7 +4180,7 @@
 - **消除统计 (wt_spread_strategy.py 全文件)**：**28 → 0 (100%)**，`# type: ignore` 全清；`cast` / `TYPE_CHECKING` 均未引入新 ignore
 - **行为一致性 & 回归验证**:
   - Smoke 测试：`SPD.300-50` 价差=4.2-2.8=1.4，`enter_long_spread(100)` 持仓 510300→+100 / 510050→-100，cash≈999570 ✅
-  - 行为正确化：`SPD.300-IF` TradeData 自动 code=IF.CFFEX → exchange=CFFEX（与 W6.3.3 Step 4 __post_init__ 规范一致，零 warning）✅
+  - 行为正确化：`SPD.300-IF` TradeData 自动 code=IF.CFFEX → exchange=CFFEX（与 W6.3.3 Step 4 **post_init** 规范一致，零 warning）✅
   - 全量回归 **364/364 全绿**（contracts 145 + backtest 219）
 - **累计 W6.3.3 TYPE_IGNORE 落地消除更新** (vs 难点清单 §4 基线预估 ~30-40):
   - ✅ directional_futures_trader 12 → 0
@@ -4202,7 +4209,7 @@
   - ✅ Step 5: 本项 TYPE_IGNORE 基线下降报告 + Wave 3 对齐
 - **指针**: 难点清单 [w633_secid_contract_parsing_challenges.md](file:///E:/各种PY程序/28-终极量化交易系统8.4/cairn/w633_secid_contract_parsing_challenges.md); 排期 [高价值项目集成排期计划_20260811.md §4 W6.3.3](file:///E:/各种PY程序/28-终极量化交易系统8.4/docs/高价值项目集成排期计划_20260811.md#L222); Wave 3 方法学复用 [code-quality-wave3.md §3](file:///E:/各种PY程序/28-终极量化交易系统8.4/cairn/code-quality-wave3.md#L89-L107)
 
-## 2026-08-11 · Sprint 3 W6.3.3 Step 4 · wt_structs __post_init__ code/exchange 一致性校验 ✅
+## 2026-08-11 · Sprint 3 W6.3.3 Step 4 · wt_structs **post_init** code/exchange 一致性校验 ✅
 
 - **背景**: Step 3 (directional_futures_trader 类型安全迁移, 12 处 type:ignore 全清) 后, 推进 Step 4: 消灭难点清单 §4 "wt_structs 6 个数据类都有 code+exchange 两个独立字段但无运行时校验"隐患 — 错误组合 (如 `code="600519.SH"` 配 `exchange="SZSE"`) 会让撮合引擎 `order.code == event.code` 裸串比较静默跳过订单, 导致组合权益失真。
 - **交付物** ([utils/wt_structs.py](file:///E:/各种PY程序/28-终极量化交易系统8.4/utils/wt_structs.py)):
@@ -4225,7 +4232,7 @@
 - **背景**: Step 2 (ContractRegistry 单例整合 3 来源 13 品种) 292 单测全绿后, 推进 Step 3: 把 directional_futures_trader 模块内所有 `CONTRACT_SPECS[symbol]["multiplier"]  # type: ignore` 访问替换为类型安全的 `_get_spec(symbol).multiplier` 属性访问, 消除该模块全部 `# type: ignore` (难点清单 §6 Step 3)。
 - **改造点**:
   - 新增 `_get_spec(symbol: str) -> ContractSpec` 辅助函数 ([directional_futures_trader.py:83](file:///E:/各种PY程序/28-终极量化交易系统8.4/utils/directional_futures_trader.py#L83)): 内部委托 `default_registry.lookup(symbol)`, 未注册品种抛 KeyError (严格门禁, 与 W6.3.2 前视偏差门禁范式一致)
-  - **5 处 spec 来源替换**: `spec = CONTRACT_SPECS[symbol]` → `spec = _get_spec(symbol)` (generate_signals / calculate_position / generate_orders 主循环 × 2 / _build_close_order)
+  - **5 处 spec 来源替换**: `spec = CONTRACT_SPECS[symbol]` → `spec = _get_spec(symbol)` (generate_signals / calculate_position / generate_orders 主循环 × 2 /_build_close_order)
   - **11 处 dict 索引 → 属性访问 (类型安全)**: `spec["name"]` (5 处) + `spec["exchange"]` (3 处) + `spec["multiplier"]` (2 处) + `spec["default_direction"]` (1 处) → `spec.name / spec.exchange / spec.multiplier / spec.default_direction`
   - **CLI 2 处 ignore 清理** (非合约规格但顺手): `closes.append(... # type: ignore[index]` + `prices=prices, # type: ignore` → 显式类型注解 `market_data: dict[str, dict[str, list[float]]]` / `prices: dict[str, float]` / `closes: list[float]` / `base_price: float`
 - **消除统计**: directional_futures_trader.py 中 `# type: ignore` 12 → 0 (100% 消除)
@@ -4239,7 +4246,7 @@
 - **验证**:
   - 模块 CLI 主流程一次成功: CU 信号弱(flat)/AU 信号强(long 3手)/T 信号中(long 5手), 行为与基线一致 ✅
   - 单测回归: contracts 73 + backtest 219 = **292/292 全绿** (1.67s)
-- **指针**: 排期 [高价值项目集成排期计划 §4 W6.3.3 Step 3](file:///E:/各种PY程序/28-终极量化交易系统8.4/docs/高价值项目集成排期计划_20260811.md#L255); 难点清单 [w633_secid_contract_parsing_challenges.md §6 Step 3](file:///E:/各种PY程序/28-终极量化交易系统8.4/cairn/w633_secid_contract_parsing_challenges.md)。W6.3.3 剩余 Step 4 (wt_structs __post_init__ 规范化校验) + Step 5 (type ignore 基线 ≥30% 下降报告 + 与 Wave 3 对齐)。
+- **指针**: 排期 [高价值项目集成排期计划 §4 W6.3.3 Step 3](file:///E:/各种PY程序/28-终极量化交易系统8.4/docs/高价值项目集成排期计划_20260811.md#L255); 难点清单 [w633_secid_contract_parsing_challenges.md §6 Step 3](file:///E:/各种PY程序/28-终极量化交易系统8.4/cairn/w633_secid_contract_parsing_challenges.md)。W6.3.3 剩余 Step 4 (wt_structs **post_init** 规范化校验) + Step 5 (type ignore 基线 ≥30% 下降报告 + 与 Wave 3 对齐)。
 
 ## 2026-08-11 · Sprint 3 W6.3.3 Step 2 · ContractRegistry 单例整合 3 来源 ✅
 
@@ -4281,7 +4288,7 @@
 
 - **背景**: W6.3.3 预研 (难点清单) 完成后, 直接推进 Step 0: 建立 `utils/contracts/` 包, 定义 NewType 类型分层 + `parse_symbol()` 统一入口, 为 Step 1 迁移 3 处本地 secid/contract 实现做准备。
 - **交付物**:
-  - 新建 [utils/contracts/__init__.py](file:///E:/各种PY程序/28-终极量化交易系统8.4/utils/contracts/__init__.py) 包入口 (re-export 全部公开接口)
+  - 新建 [utils/contracts/**init**.py](file:///E:/各种PY程序/28-终极量化交易系统8.4/utils/contracts/__init__.py) 包入口 (re-export 全部公开接口)
   - 新建 [utils/contracts/symbols.py](file:///E:/各种PY程序/28-终极量化交易系统8.4/utils/contracts/symbols.py) (335 行, < 400 行约束 ✅)
   - 新建 [tests/unit/contracts/test_symbols.py](file:///E:/各种PY程序/28-终极量化交易系统8.4/tests/unit/contracts/test_symbols.py) (45 条测试, 10 类场景)
 - **核心设计**:
@@ -4371,16 +4378,16 @@
 - **背景**: 按 `docs/高价值项目集成排期计划_20260811.md` Wave 6=Sprint 1 启动 (原计划 2026-09-01, 提前于 08-11 试点落地, 不阻塞 Wave 2/4)。范围 = factor-mining 移植 + alphalens evaluator + EigenAlpha 装饰器注册 + Transformer 因子编码 POC。
 - **W6.1.1 factor-mining 移植 (9/14 差异因子, FM_ 前缀)**: `utils/alpha_factor/price_volume.py::compute_factor_mining_factors` 新增 5 个与现有体系**有差异**的因子: `FM_RET_1D / FM_MOM_5D / FM_MOM_20D`（纯动量, 不取反/不正交化）、`FM_IDIO_VOL`（对全市场等权收益做特质回归）、`FM_AMIHUD_AMT`（成交额版 Amihud, 非成交量版 LIQ_AMIHUD）、`FM_CIRC_MCAP`（fundamentals.negotiable_value 流通市值对数, 非 SIZE_LOG_MCAP 总市值）；其余 9 个等价因子不重复计算 (直接 alias 旧 MOM_12_1M / MOM_REVERSAL_* / VOL_20D / LIQ_TURNOVER_20D / SIZE_LOG_MCAP / LIQ_AMIHUD)。
 - **W6.1.2 evaluator.py 标准评估 (alphalens 风格)**: 新建 `utils/alpha_factor/evaluator.py`（**零新增外部依赖**, 用 numpy + scipy fallback 实现）— `QuantileReturn / TurnoverResult / DecayResult / FactorTearSheet` 数据类 + `compute_quantile_returns(n_quantiles, LS 多空收益, Spearman 单调性)` + `compute_turnover(top_pct, 日均/周均换手)` + `compute_factor_decay(windows=[1,2,3,5,10,15,20], 指数衰减半衰期拟合)` + `build_factor_tear_sheet(汇总 IC/ICIR/t_stat + quantiles + turnover + decay + quality_flags)`。与已存在 `base.py::evaluate_factors` 配合：前者做单因子完整分析报告，后者做截面 IC 强/有效因子归类。
-- **W6.1.3 装饰器系统 (EigenAlpha 风格 `@register_factor`)**: 在 `utils/alpha_factor/base.py` 新增 `register_factor(category=, name=, description=, **defaults)` + 全局 `_FACTOR_REGISTRY` + `compute_registered_factors(context)` (按参数名自动注入 `price_data/fundamentals/industries/benchmark_returns/graph/factor_history/...`，参数优先级 context > 装饰器默认值 > 函数签名默认值；必填缺失 fail-open 跳过) + `list_registered_factors()`。`FactorLibraryResult` 新增 `debug_info` 字段 (存 `decorator_factors_loaded` 元信息)。`AlphaFactorLibrary` 新增 `enable_decorators=True` 开关 + 第 14 类装饰器因子 (FM_ 后、中性化前)。在 `price_volume.py` 新增 3 个装饰器示例因子 `FM_DEMO_VOL_WEIGHTED_MOM / FM_DEMO_ZERO_TRADE_DAYS / FM_DEMO_ROE_SMOOTHED` 覆盖 (price_data) / (price_data + window) / (fundamentals + industries) 三种参数注入模式。向后兼容硬保证：旧的 compute_xxx_factors 调用路径零改动，装饰器只是增量能力。
+- **W6.1.3 装饰器系统 (EigenAlpha 风格 `@register_factor`)**: 在 `utils/alpha_factor/base.py` 新增 `register_factor(category=, name=, description=, **defaults)` + 全局 `_FACTOR_REGISTRY` + `compute_registered_factors(context)` (按参数名自动注入 `price_data/fundamentals/industries/benchmark_returns/graph/factor_history/...`，参数优先级 context > 装饰器默认值 > 函数签名默认值；必填缺失 fail-open 跳过) + `list_registered_factors()`。`FactorLibraryResult` 新增 `debug_info` 字段 (存 `decorator_factors_loaded` 元信息)。`AlphaFactorLibrary` 新增 `enable_decorators=True` 开关 + 第 14 类装饰器因子 (FM_后、中性化前)。在 `price_volume.py` 新增 3 个装饰器示例因子 `FM_DEMO_VOL_WEIGHTED_MOM / FM_DEMO_ZERO_TRADE_DAYS / FM_DEMO_ROE_SMOOTHED` 覆盖 (price_data) / (price_data + window) / (fundamentals + industries) 三种参数注入模式。向后兼容硬保证：旧的 compute_xxx_factors 调用路径零改动，装饰器只是增量能力。
 - **W6.1.4 Transformer 因子编码 POC (EigenAlpha FactorEncoder 简化)**: 新建 `utils/alpha_factor/transformer_encoder.py` (双模式)。Numpy 影子模式：参数固定随机不训练，结构 = Linear(F→D)+LN+SelfAttn(影子QKV+Softmax)+残差+LN+FFN(GELU近似)+LN × n_layers。Torch 模式：`nn.TransformerEncoder` (torch 可用时自动启用)。统一 API = `factors_to_matrix(factors) → X R^{N×F}` + `build_factor_encoder(force_backend=)` + `encode_factor_frame(factors, d_model=64) → FactorEncodingResult`。当前不参与训练/排序闭环，仅预留 EigenAlpha / TradingAgents / GNN 嵌入接入点。
-- **端到端验证 (5 股票 × 30 日最小数据)**: 语法 4 件套 PASS (base / price_volume / library / evaluator + transformer_encoder 单独)；AlphaFactorLibrary 输出 117 因子 (国泰海通 108 + GTJA191 精选 + FM_ 移植 5 + 装饰器示例 3)；强因子 37 个 / 有效因子 0 个；W6.1.1 9 个 FM_ 差异因子全在输出中；W6.1.2 FactorTearSheet 输出 IC / IR / t_stat / quantile_5 / LS / mono / avg_daily_turnover / decay windows 全非空结构；W6.1.3 debug_info 显示 decorator_factors_loaded 列表；W6.1.4 numpy 模式 5×117 → 5×32 embedding (5×5 attn 矩阵) 返回正常。
-- **关键决策**: ① alphalens 依赖不新增 (避免安装失败风险), 用 numpy + scipy fallback 自实现核心 4 项；② 装饰器系统与旧 compute_xxx_factors 函数 100% 解耦, 不强制改旧函数；③ Transformer 先用 numpy 影子模式保底、torch 可选；④ FM_ 前缀严格与国泰海通 MOM_/VOL_/SIZE_/LIQ_ 体系分开, 便于 shadow mode A/B 测试。
+- **端到端验证 (5 股票 × 30 日最小数据)**: 语法 4 件套 PASS (base / price_volume / library / evaluator + transformer_encoder 单独)；AlphaFactorLibrary 输出 117 因子 (国泰海通 108 + GTJA191 精选 + FM_移植 5 + 装饰器示例 3)；强因子 37 个 / 有效因子 0 个；W6.1.1 9 个 FM_ 差异因子全在输出中；W6.1.2 FactorTearSheet 输出 IC / IR / t_stat / quantile_5 / LS / mono / avg_daily_turnover / decay windows 全非空结构；W6.1.3 debug_info 显示 decorator_factors_loaded 列表；W6.1.4 numpy 模式 5×117 → 5×32 embedding (5×5 attn 矩阵) 返回正常。
+- **关键决策**: ① alphalens 依赖不新增 (避免安装失败风险), 用 numpy + scipy fallback 自实现核心 4 项；② 装饰器系统与旧 compute_xxx_factors 函数 100% 解耦, 不强制改旧函数；③ Transformer 先用 numpy 影子模式保底、torch 可选；④ FM_前缀严格与国泰海通 MOM_/VOL_/SIZE_/LIQ_ 体系分开, 便于 shadow mode A/B 测试。
 - **下一步 (后续 Sprint)**: 把 `evaluator.py` 接 `reports/shadow/daily_factor_analysis.py` 生成真实回测 tear sheet；把 `transformer_encoder.py` 接 `LightGBM 增强训练` (Wave 2+5) 做 embedding 替代因子合成特征；装饰器机制逐步把 117 个旧因子也注册上去（当前非必须、不强制）。
 - **指针**: 排期 `docs/高价值项目集成排期计划_20260811.md` §Sprint 1；知识专题 `cairn/github-integration-wave6.md` §Wave 6；启动前研究笔记 `cairn/wave6-prep-study-notes.md`；修改文件 [price_volume.py](file:///E:/各种PY程序/28-终极量化交易系统8.4/utils/alpha_factor/price_volume.py) [base.py](file:///E:/各种PY程序/28-终极量化交易系统8.4/utils/alpha_factor/base.py) [library.py](file:///E:/各种PY程序/28-终极量化交易系统8.4/utils/alpha_factor/library.py)；新增文件 [evaluator.py](file:///E:/各种PY程序/28-终极量化交易系统8.4/utils/alpha_factor/evaluator.py) [transformer_encoder.py](file:///E:/各种PY程序/28-终极量化交易系统8.4/utils/alpha_factor/transformer_encoder.py)。
 
 ## 2026-08-11 · 仓库过期文件清理（5 类 17313 文件 / 609 MB）📌 DONE
 
-- **范围**: 用户确认清理 5 类过期文件 — ① scripts/_* 临时脚本 63 文件 2.5MB；② qlib_env_py38_bak 备份 venv 13824 文件 497.91MB；③ config/*.bak_* 备份 26 文件 2.4KB；④ 每日报告归档/**/*.bak_* 32 文件 434KB；⑤ _archive 归档目录 3368 文件 106.01MB。总计 17313 文件 / 609.26 MB。
+- **范围**: 用户确认清理 5 类过期文件 — ① scripts/** 临时脚本 63 文件 2.5MB；② qlib_env_py38_bak 备份 venv 13824 文件 497.91MB；③ config/*.bak** 备份 26 文件 2.4KB；④ 每日报告归档/**/*.bak_* 32 文件 434KB；⑤ _archive 归档目录 3368 文件 106.01MB。总计 17313 文件 / 609.26 MB。
 - **保留项**: reports/shadow/daily_returns.jsonl.bak_20260811_symbols_fix（今日刚做的 symbols_count 修复备份）、reports/shadow/daily_returns.jsonl.bak、v8.3_institutional/trade_plans/*.bak_*（10 文件）、根目录 .live_scheduler.lock、scripts/1 + scripts/2 — 用户未选保留。
 - **执行**: 全部 5 类删除成功，0 失败 0 残留。最大单类 qlib_env_py38_bak 耗时 20.6 秒。删除前先生成精确清单存档 `docs/cleanup_manifest_20260811.txt`（含每个文件路径+大小，可追溯）。
 - **验证**: 删除后 7 项残留检查全 0；7 项保留项检查全 ✅；7 项关键生产模块检查全 ✅（量化策略系统_统一入口_v8.6.py / institutional_pipeline_runner.py / daily_trade_executor.py / utils/ / tests/ / config/ / docs/ / cairn/ 全部完好）。
@@ -4520,11 +4527,11 @@
 ## 2026-08-07 · EOD OpenBLAS 内存修复 + U9 端到端验证 + 观察期第10条样本 ✅ DONE
 
 - **EOD OpenBLAS 内存分配失败修复**: 08-07 15:30 EOD 首次运行 6/10 阶段失败，根因是 OpenBLAS "Memory allocation still failed after 10 retries"（系统可用内存仅 1.6GB，CodeBuddy+node+QClaw 占用约 6GB）。修复：设置 `OPENBLAS_NUM_THREADS=1`+`OMP_NUM_THREADS=1`+`MKL_NUM_THREADS=1` 减少线程栈内存需求。重跑 EOD 后 8/10 阶段成功。剩余 2 个失败（phase1 generate_daily_report 因 600019.SH PARAM_VALIDATION_ERROR、phase4 risk_guard 因依赖链断开）是非阻断性问题，手动重跑均成功。建议将这三个环境变量加入 EOD 定时任务（v84_PostMarket）。
-- **U9 端到端验证通过**: EOD 重跑后 `alpha_signals_20260807_164649.json` 自动产出 26 标的信号（U9 修复在 EOD 中生效）。DriftShadow `integration_2026-08-07.json`: n_predictions=58, n_observed=58, observation_rate=1.0, symbols_updated=26。U9 深层根因修复（generate_daily_trade_plan.py 中 _save_alpha_signals_for_drift）在 EOD 端到端验证通过。
+- **U9 端到端验证通过**: EOD 重跑后 `alpha_signals_20260807_164649.json` 自动产出 26 标的信号（U9 修复在 EOD 中生效）。DriftShadow `integration_2026-08-07.json`: n_predictions=58, n_observed=58, observation_rate=1.0, symbols_updated=26。U9 深层根因修复（generate_daily_trade_plan.py 中_save_alpha_signals_for_drift）在 EOD 端到端验证通过。
 - **观察期第10条样本写入**: `daily_returns.jsonl` 第10条=08-07 daily_return=+2.5721%（14/14 标的成功写入）。观察期最低10条样本要求达成。但 symbols_count=14（只有股票，不含 ETF），实际持仓 26 标的中 14 只是股票。
 - **D7 VIX 口径断言增强**: EOD 后 vix_cache 刷新为 14.55（基于 08-07 RV=+2.57% 大涨），而 vol_regime_weights 盘中值为 7.24（基于 08-06 RV）。差异 50.3% 触发 D7 FAIL。修复 D7 断言：检测 EOD 刷新场景（cache 时间 16:48 比 vol_regime 16:05 更晚），容忍 80% 差异（RV 因当日大涨大跌显著变化是正常的）。修复后 7 PASS 0 FAIL。
 - **防复发机制验证**: industrial_grade_check 6 PASS 3 WARN 0 FAIL; assert_data_validity 7 PASS 0 FAIL; 日志审计无 TypeError/NameError。
-- **指针**: OpenBLAS 修复方案（环境变量 OPENBLAS_NUM_THREADS=1+OMP_NUM_THREADS=1+MKL_NUM_THREADS=1）; D7 断言修复 `scripts/assert_data_validity.py` check_d7_vix_consistency; U9 修复代码 `v8.3_institutional/generate_daily_trade_plan.py` _save_alpha_signals_for_drift; 专题沉淀 `cairn/eod-operations-lessons-20260807.md`; 待办排期 `docs/SYSTEM_MATURITY_GAP.md` §7。
+- **指针**: OpenBLAS 修复方案（环境变量 OPENBLAS_NUM_THREADS=1+OMP_NUM_THREADS=1+MKL_NUM_THREADS=1）; D7 断言修复 `scripts/assert_data_validity.py` check_d7_vix_consistency; U9 修复代码 `v8.3_institutional/generate_daily_trade_plan.py`_save_alpha_signals_for_drift; 专题沉淀 `cairn/eod-operations-lessons-20260807.md`; 待办排期 `docs/SYSTEM_MATURITY_GAP.md` §7。
 
 ## 2026-08-06 · 今日主线：Wave6 代码审查 7 缺陷修复 + TDAM Phase 0a Windows 部署 ✅ DONE
 
@@ -4976,8 +4983,8 @@
 - **F811 修复**: 从 import 列表删除这 9 个冗余名称 (31→22), 保留本地定义 (已 logger 化, 是实际被 main() MODES 调用的版本). 添加注释说明删除原因.
 - **F841 修复**: line 808 `archive_path = archive_report(...)` 返回值未使用, 改为 `archive_report(...)` 直接调用 (归档路径由 archive_report 内部 logger 输出).
 - **验证**: ① `ruff --select F811,F841` All checks passed; ② `py_compile` 语法 OK; ③ 总 ruff 错误 74→65.
-- **⚠️ 预存在 P0 断裂发现 (非本次引入)**: 排查 F811 时发现主入口文件**当前完全无法运行** — ① line 130 `from utils.console_encoding import setup_utf8_console` 模块不存在; ② line 343 `from cli.modes import (...)` 触发 `cli/modes/__init__.py` → `cli/modes/hypothesis.py` → `from core.context import ...` → `ModuleNotFoundError: No module named 'core'` (core/context.py 不存在, cli/modes/ 30+ 文件整体断裂为死代码); ③ cli/__init__.py 不存在. F811 的"本地覆盖 import"在运行时不会发生 (import 本身就失败), 9 个本地定义是唯一可能生效的版本. 这些断裂是预存在的, 非 print 清零或 F811 修复引入.
-- **后续任务**: ① 修复主入口文件预存在断裂 (创建 utils/console_encoding.py + core/context.py + cli/__init__.py, 或评估 cli/modes/ 是否应整体废弃); ② 剩余 65 个 ruff 错误 (E402/ANN/E701/C901/N806/B007 风格问题).
+- **⚠️ 预存在 P0 断裂发现 (非本次引入)**: 排查 F811 时发现主入口文件**当前完全无法运行** — ① line 130 `from utils.console_encoding import setup_utf8_console` 模块不存在; ② line 343 `from cli.modes import (...)` 触发 `cli/modes/__init__.py` → `cli/modes/hypothesis.py` → `from core.context import ...` → `ModuleNotFoundError: No module named 'core'` (core/context.py 不存在, cli/modes/ 30+ 文件整体断裂为死代码); ③ cli/**init**.py 不存在. F811 的"本地覆盖 import"在运行时不会发生 (import 本身就失败), 9 个本地定义是唯一可能生效的版本. 这些断裂是预存在的, 非 print 清零或 F811 修复引入.
+- **后续任务**: ① 修复主入口文件预存在断裂 (创建 utils/console_encoding.py + core/context.py + cli/**init**.py, 或评估 cli/modes/ 是否应整体废弃); ② 剩余 65 个 ruff 错误 (E402/ANN/E701/C901/N806/B007 风格问题).
 
 ## 2026-08-04 · 量化策略系统_统一入口_v8.6.py PRINT 清零 ✅ DONE — 159 print→logger, 20 BLE001 noqa, T201/BLE001 门禁通过
 
@@ -5047,13 +5054,15 @@
 - **脚本**: `scripts/backfill_shadow_history.py` (新增, 复用 ShadowRealDataFeeder.feed_history + Wind MCP 真实行情).
 - **回填范围**: 2026-07-27 ~ 2026-07-31 (5 个交易日), 覆盖已存在的回测回填/修复值记录. 持仓 26 只, 覆盖率 100%, 缓存命中率 83.3%.
 - **回填前后对比** (揭示回测回填严重失真):
+
   | 日期 | 回测回填值 | 真实市场值 | 差距 |
-  |---|---|---|---|
+  | --- | --- | --- | --- |
   | 07-27 | +1.6482% | +0.3251% | 回测虚高 5 倍 |
   | 07-28 | 0.0000% (fixed) | -0.5949% | 零收益是假的 |
   | 07-29 | 0.0000% (fixed) | +0.0616% | 零收益是假的 |
   | 07-30 | -2.1334% (fixed) | -0.1683% | 回测虚低 12 倍 |
   | 07-31 | 0.0000% | +0.7295% | 零收益是假的 |
+
 - **数据质量分布**: 清洗后 `{real: 6}` (100% 真实市场数据), 此前 `{real:1, backtest:2, fixed:3}` (real 仅 16.7%).
 - **6 天累计收益**: -0.29% (复利), 简单年化约 -12.2% (6 天样本仍小, 统计意义有限).
 - **可信度升级**: ❌ 不可信 (真实数据不足 5 天) → ⚠️ 勉强可参考 (真实数据 6 天 < 20 天).
@@ -5114,14 +5123,16 @@
 - **B2 前视偏差** (`run_long_short_ic`): 原实现用 T 时点因子 (含 closes[-1]) 与 [T-horizon,T] 收益配对, 窗口末端重叠。改为期初 `entry=T-horizon` 时点重算因子预测 [entry,T] 整期收益, 严格不重叠。
 - **B5 GAT 掩码** (`gat_factor_torch.py forward + _attention_alpha`): 原实现 `score*adj` 把无边分数乘 0, softmax(0) 仍非零导致注意力泄漏到无边邻居。改为 `masked_fill(-inf)` + `nan_to_num` (孤立节点行归零)。numpy 版 (`gat_factor.py`) 原本正确 (softmax 后二次 mask), 两版现已一致。合成测试通过: 孤立节点 alpha 全 0 / 有边节点行和=1 / 无 NaN。
 - **Gate1 重测结果 (250 只扩展 universe, 247 只有数据, 7328 边)**:
+
   | 因子 | IC均值 | ICIR | 多空(20d年化) |
-  |---|---|---|---|
+  | --- | --- | --- | --- |
   | CHAIN_CONCENTRATION | 0.0063 | 0.058 | 0.845 |
   | CHAIN_MOM_20D | 0.0216 | 0.296 | -0.173 |
   | CHAIN_MOM_60D | -0.1213 | -0.636 | 1.915(反向) |
   | CHAIN_NEIGHBOR_DIFF | 0.0270 | 0.135 | 0.804 |
   | CHAIN_REVERSAL_5D | -0.1302 | -0.508 | 2.447(反向) |
   Gate1 判定: **FAIL** (阈值 IC≥0.01 且 ICIR>0.3 且 多空>1.0)
+
 - **关键结论**: 修复前 CONCENTRATION "ICIR 0.150→0.272 稳定为正最有希望" 是**前视偏差镜像**, 修复后塌至 0.058。真正有信号的是 CHAIN_MOM_20D (IC=0.0216>0.01, ICIR=0.296 逼近阈值, Lead-Lag 经济直觉成立) 与 MOM_60D/REVERSAL 的稳定负 IC (反转效应, 但 Gate 用原始 ICIR>0.3 判定, 反转因子被误杀 — 见 B3/B4 待修)。**GAT "+0.039 增益"结论因 B5 掩码错误 + 此前 IC 评估有偏, 需 Layer 2 重测后才能定论。**
 - **详见**: `cairn/gnn-supply-chain-factor.md` 踩坑章节 (contains: 前视偏差/GAT掩码)
 
@@ -5153,7 +5164,7 @@
 - **审查**: 12 核心文件 (数据/因子 + 交易/工作流), 规则=精确优先只报确认缺陷。
 - **已修复 4**:
   1. [高] `run_daily_eod_workflow.py:715-731` log() 参数错误→FeedbackLoop 成功路径抛 TypeError, EOD 误判失败。改为 f-string+正确level。
-  2. [中] `institutional_pipeline_runner.py` 5个 _mock_* 死代码删除。
+  2. [中] `institutional_pipeline_runner.py` 5个 *mock** 死代码删除。
   3. [中] `data_provider.py:718` 情绪缓存 `.seconds`→`.total_seconds()` (超1天回绕误命中)。
   4. [中] `graph_data_source.py` 主营构成缓存 dict/list 类型不匹配→缓存永久失效, 新增 `_load_json_cache_value`。
 - **已修复 5 (续)**: ⑥`data_layer.py` 锁收窄 — 原 `with self._lock` 包裹含网络IO的P0-P6降级循环 (跨线程串行), 改为仅保护 `_p6_cache_store`/`_write_fallback_log` 临界区, 网络IO锁外并行。ast.parse OK + read_lints 0错误。
@@ -5255,16 +5266,16 @@
 - **触发**: 用户请求启动 Wave 3 Round 6 处理 research/ 78 处异常 (ROADMAP 记录)
 - **验证方法**: 正则扫描 + AST 解析 + 子目录拆分 (research/ 自身 vs references/ 第三方)
 - **research/ 自身 (90 文件) 结果**: 实际 **0 处** `except Exception` (前序会话已清零). 具体类型使用得当:
-    - TOP 类型: ValueError(133) / TypeError(132) / OSError(127) / KeyError(126) / AttributeError(126) / RuntimeError(126) / TimeoutError(126) / ConnectionError(126) / ImportError(9) / AssertionError(7)
-    - 细粒度: TimeoutExpired / CalledProcessError / ManifestWriteError / SyntaxError 各 1 处
-    - 0 处裸 `except:`, 0 处 `except BaseException`
+  - TOP 类型: ValueError(133) / TypeError(132) / OSError(127) / KeyError(126) / AttributeError(126) / RuntimeError(126) / TimeoutError(126) / ConnectionError(126) / ImportError(9) / AssertionError(7)
+  - 细粒度: TimeoutExpired / CalledProcessError / ManifestWriteError / SyntaxError 各 1 处
+  - 0 处裸 `except:`, 0 处 `except BaseException`
 - **research/references/ (第三方 1290 文件) 结果**: 5 处正则匹配, 但全部不应修改:
-    - 4 处 `except BaseException` 在 Vibe-Trading agent 代码中, 全部是有意为之且符合最佳实践:
-        - `loop.py:1410`: worker 线程异常传递 (捕获 KeyboardInterrupt 等基础异常通过 queue 传回主线程), 有 `# noqa: BLE001` 注释
-        - `helpers.py:115`: 原子文件写入 fallback (确保含密钥的临时文件被清理), 注释 "Never leave a stray temp file holding the secret behind"
-        - `mcp.py:720`: 异步-同步桥接 (在线程中运行 asyncio, 捕获 CancelledError 传递回主线程重抛)
-        - `test_sdk_order_gate.py:344`: 测试中显式捕获线程失败, 注释 "test captures thread failures explicitly"
-    - 1 处 `except Exception` 在 `test_error_path_redaction.py:127` 是 docstring 文本 (非真实 except 子句), AST 解析已排除
+  - 4 处 `except BaseException` 在 Vibe-Trading agent 代码中, 全部是有意为之且符合最佳实践:
+    - `loop.py:1410`: worker 线程异常传递 (捕获 KeyboardInterrupt 等基础异常通过 queue 传回主线程), 有 `# noqa: BLE001` 注释
+    - `helpers.py:115`: 原子文件写入 fallback (确保含密钥的临时文件被清理), 注释 "Never leave a stray temp file holding the secret behind"
+    - `mcp.py:720`: 异步-同步桥接 (在线程中运行 asyncio, 捕获 CancelledError 传递回主线程重抛)
+    - `test_sdk_order_gate.py:344`: 测试中显式捕获线程失败, 注释 "test captures thread failures explicitly"
+  - 1 处 `except Exception` 在 `test_error_path_redaction.py:127` 是 docstring 文本 (非真实 except 子句), AST 解析已排除
 - **结论**: Wave 3 Round 6 ✅ DONE. research/ 自身已清零, 第三方代码 4 处 BaseException 符合最佳实践不应修改. ROADMAP "78处 TODO" 为过时记录. Wave 3 Round 5/6 全部完成, 下一步可选 Wave 3 第三/四阶段 (TYPE_IGNORE/SYS_PATH + PRINT 清零) 或 Wave 4 工程化达标
 - 详见: [ROADMAP.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/cairn/ROADMAP.md) Wave 3 §Round 6
 
@@ -5273,13 +5284,13 @@
 - **触发**: 用户请求启动 Wave 3 Round 5 处理 ms_strategy/ 122 处异常 (ROADMAP 记录)
 - **验证方法**: 正则扫描 + AST 解析双重验证, 区分真实 except 子句 vs 字符串字面量误报
 - **ms_strategy/ 结果**: 实际 **0 处** `except Exception` (前序会话已清零 131 处, ROADMAP "122 处 TODO" 为过时记录). 158 个 except 子句全部使用具体类型:
-    - TOP 类型: ValueError(128) / KeyError(127) / RuntimeError(126) / TypeError(125) / AttributeError(125) / OSError(123) / TimeoutError(123) / ConnectionError(123) / ImportError(23) / KeyboardInterrupt(3)
-    - 细粒度: FileNotFoundError / JSONDecodeError / ConstructorError / ZeroDivisionError / IndexError 各 1 处
-    - 0 处裸 `except:`, 0 处 `except BaseException`, 129 处 `except (具体类型,...)` 元组形式 (正确的 fail-safe 模式)
+  - TOP 类型: ValueError(128) / KeyError(127) / RuntimeError(126) / TypeError(125) / AttributeError(125) / OSError(123) / TimeoutError(123) / ConnectionError(123) / ImportError(23) / KeyboardInterrupt(3)
+  - 细粒度: FileNotFoundError / JSONDecodeError / ConstructorError / ZeroDivisionError / IndexError 各 1 处
+  - 0 处裸 `except:`, 0 处 `except BaseException`, 129 处 `except (具体类型,...)` 元组形式 (正确的 fail-safe 模式)
 - **scripts/ 结果**: AST 扫描确认 0 处真实 except Exception, 3 处为 `_fix_*.py` 正则字符串字面量误报 (匹配工具自身的 pattern)
 - **实际修复** (2 处裸 except 在安装脚本):
-    - `scripts/_install_all_ml.py:14`: `except:` → `except (ValueError, TypeError):` (版本字符串解析, 非数字片段如 'rc1' 跳过)
-    - `scripts/_install_scipy.py:64`: `except:` → `except OSError:` (临时文件清理, 文件占用/权限/不存在忽略)
+  - `scripts/_install_all_ml.py:14`: `except:` → `except (ValueError, TypeError):` (版本字符串解析, 非数字片段如 'rc1' 跳过)
+  - `scripts/_install_scipy.py:64`: `except:` → `except OSError:` (临时文件清理, 文件占用/权限/不存在忽略)
 - **验证**: 2 文件 py_compile 通过, AST 重扫确认 0 处真实 except Exception
 - **结论**: Wave 3 Round 5a (ms_strategy) + Round 5b (scripts) 全部 ✅ DONE. ROADMAP 已更新. 下一步可选 Round 6 (research/ 78处) 或 Wave 4 工程化达标
 - 详见: [ROADMAP.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/cairn/ROADMAP.md) Wave 3 §Round 5a/5b
@@ -5287,15 +5298,15 @@
 ## 2026-08-03 · W1.3c + W1.4 完成 — StrategyEvaluator 验证 PASS + 08-13 决策材料定稿 (推荐延长观察期至 08-20)
 
 - **W1.3c StrategyEvaluator 真实评分** (原计划 08-11~08-12, 提前至 08-03 完成):
-    - 验证脚本: `scripts/w13c_verify_real_scoring.py`, 报告: `reports/evolution/w13c_verification_20260803.json`, EXIT=0 (PASS)
-    - 3/3 验证 PASS: (1) Public/Private 分离健康 (public=0.0 vs private=0.4716, is_separated=True); (2) Flag 透传正常 (USE_STRATEGY_EVALUATOR 双签启用, signer=agent, co_signer=user); (3) 只读行为正常 (daily_returns.jsonl 未修改, size+mtime 不变)
-    - 反作弊指标健康: reward_hacking_risk=0.0, pit_violations=0, overfit_score=0.0, recommendation=continue
-    - Shadow 样本量: 5 条 (2026-07-27~07-31), valid=2, zero_return=3, 距 20 条差 15 天, 距 120 条差 115 天
+  - 验证脚本: `scripts/w13c_verify_real_scoring.py`, 报告: `reports/evolution/w13c_verification_20260803.json`, EXIT=0 (PASS)
+  - 3/3 验证 PASS: (1) Public/Private 分离健康 (public=0.0 vs private=0.4716, is_separated=True); (2) Flag 透传正常 (USE_STRATEGY_EVALUATOR 双签启用, signer=agent, co_signer=user); (3) 只读行为正常 (daily_returns.jsonl 未修改, size+mtime 不变)
+  - 反作弊指标健康: reward_hacking_risk=0.0, pit_violations=0, overfit_score=0.0, recommendation=continue
+  - Shadow 样本量: 5 条 (2026-07-27~07-31), valid=2, zero_return=3, 距 20 条差 15 天, 距 120 条差 115 天
 - **W1.4 08-13 决策材料定稿** (`docs/自我进化框架/OBSERVATION_PERIOD_DECISION.md` v1.2):
-    - §0 决策摘要: Shadow 样本 5/20 ❌ 未达标, 预计 08-13 仅 14 条, 仍 <20
-    - §1 三大问题: (1) Phase 0 出口 ⚠️ 部分达成 (样本不足但机制健康); (2) Public/Private 分离 ✅ 健康; (3) DriftMonitor 误报率 🔄 待验证 (sim_mode 无法统计)
-    - §5.4 推荐选项: **选项 B 延长观察期至 08-20** (样本不足为硬阻塞, 机制本身已验证健康, 新决策日 08-20)
-    - §6 决策规则第 1 条触发: "若 08-13 时 Shadow 真实样本 <20, 选选项 B 延长观察期"
+  - §0 决策摘要: Shadow 样本 5/20 ❌ 未达标, 预计 08-13 仅 14 条, 仍 <20
+  - §1 三大问题: (1) Phase 0 出口 ⚠️ 部分达成 (样本不足但机制健康); (2) Public/Private 分离 ✅ 健康; (3) DriftMonitor 误报率 🔄 待验证 (sim_mode 无法统计)
+  - §5.4 推荐选项: **选项 B 延长观察期至 08-20** (样本不足为硬阻塞, 机制本身已验证健康, 新决策日 08-20)
+  - §6 决策规则第 1 条触发: "若 08-13 时 Shadow 真实样本 <20, 选选项 B 延长观察期"
 - **Wave 2 顺延**: B1-B4 时间窗口由 08-13→08-31 顺延至 08-20→09-05
 - **下一步**: 08-13 用户单签确认延长观察期; 期间并行推进 Wave 3 Round 5 (ms_strategy/ 122 处异常清零); 08-20 重新评估 §1 三大问题
 - 详见: [OBSERVATION_PERIOD_DECISION.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/docs/自我进化框架/OBSERVATION_PERIOD_DECISION.md) §0/§1/§5.4 + [self-evolution-framework.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/cairn/self-evolution-framework.md) §二/§五
@@ -5303,16 +5314,16 @@
 ## 2026-08-03 · W1.3b Day 3+4 完成 — DriftShadowIntegrator EOD 集成 + 端到端验证 PASS, 任务关闭
 
 - **Day 3 (PSI 阈值校准)**: 骨架完成, 真实校准降级
-    - `calibrate_psi_thresholds()` 接口与骨架 (`utils/alpha/drift_shadow_integrator.py:477-533`)
-    - `PSICalibrationResult` 数据类 + `exceeds_industrial_2x` 过拟合护栏 (校准值不得超工业标准 2x)
-    - **降级原因**: sim_mode=True 不持久化 `_baseline_panel`, 需真实 V9 特征 panel; 08-13 B1 启用后补齐真实校准
+  - `calibrate_psi_thresholds()` 接口与骨架 (`utils/alpha/drift_shadow_integrator.py:477-533`)
+  - `PSICalibrationResult` 数据类 + `exceeds_industrial_2x` 过拟合护栏 (校准值不得超工业标准 2x)
+  - **降级原因**: sim_mode=True 不持久化 `_baseline_panel`, 需真实 V9 特征 panel; 08-13 B1 启用后补齐真实校准
 - **Day 4 (集成 + 端到端验证)**: 全部完成
-    - `scripts/drift_shadow_integrator.py` CLI 入口 (转发到 main)
-    - EOD 工作流集成: `run_phase4_7_drift_integration` 在阶段四点五后执行 (`15_每日工作流/run_daily_eod_workflow.py:659,820`)
-    - EvolutionEval 兜底: `ensure_today_drift_integration` 在 `ensure_today_shadow_data` 后 (`scripts/run_evolution_eval.py:271,428`)
-    - 端到端单日: EXIT=0, daily_return=0.0%, 持久化 646 bytes JSON (含 IC/IC_IR/RankIC/mean/std 完整指标), 告警 insufficient_samples
-    - 端到端历史回填: 5/5 交易日成功, 正确读取真实收益 (1.65%/0%/0%/-2.13%/0%), 5 个告警
-    - fail-safe 验证: 磁盘满导致持久化失败时主流程不中断 (WARNING 日志, 内存结果保留)
+  - `scripts/drift_shadow_integrator.py` CLI 入口 (转发到 main)
+  - EOD 工作流集成: `run_phase4_7_drift_integration` 在阶段四点五后执行 (`15_每日工作流/run_daily_eod_workflow.py:659,820`)
+  - EvolutionEval 兜底: `ensure_today_drift_integration` 在 `ensure_today_shadow_data` 后 (`scripts/run_evolution_eval.py:271,428`)
+  - 端到端单日: EXIT=0, daily_return=0.0%, 持久化 646 bytes JSON (含 IC/IC_IR/RankIC/mean/std 完整指标), 告警 insufficient_samples
+  - 端到端历史回填: 5/5 交易日成功, 正确读取真实收益 (1.65%/0%/0%/-2.13%/0%), 5 个告警
+  - fail-safe 验证: 磁盘满导致持久化失败时主流程不中断 (WARNING 日志, 内存结果保留)
 - **HC 合规**: HC-1 全程 USE_DRIFT_DETECTOR=False, sim_mode=True / HC-4 只读不改 V9 / HC-5 不干扰 KillSwitch 阶段
 - **验收**: 8/9 通过, 3 项降级 (V9 IC_IR 复现 / PSI 真实校准 / DriftReport 非空) 因无真实 V9 panel, 待 B1 启用后补齐
 - **磁盘告警**: E 盘 0GB / C 盘 3.33GB, 清理 .mypy_cache 148MB 缓解, 需后续清理 ModelScope-Models (12GB) 等
@@ -5323,13 +5334,13 @@
 
 - **基于**: `docs/OCR_REVIEW_2026-07-31.txt` (Open Code Review, 12 文件 53 条评论)
 - **本次修复**: 7 个文件 16 处问题 (1 Critical + 15 High/Medium)
-    - `stop_loss_monitor.py`: yaml.unsafe_load RCE → 正则预处理 + safe_load (Critical); 4 处 None 值 TypeError → `or 0` 模式
-    - `signal_monitor.py`: 4 处 (除零守卫 + .get() 防 KeyError + isinstance 类型验证 + numeric_signals 过滤)
-    - `system_health_check.py`: 6 处 (3 处 None 守卫 getattr + 硬编码路径→Path(__file__) + 单位分离 + f-string 默认值)
-    - `daily_trade_executor.py`: 2 处非原子写入 → atomic_write_json
-    - `build_plan_executor.py`: 3 处 (metadata 加载替代硬编码 + during_gap active 守卫 + 整除余数并入下午)
-    - `generate_daily_report.py`: 5 处 (零价验证 + 深拷贝备份 + 除零保护 + 警告替代硬编码 + report_date 参数透传)
-    - `run_daily_eod.py`: 2 处 (备份名含微秒 + report_date 正则校验防路径遍历)
+  - `stop_loss_monitor.py`: yaml.unsafe_load RCE → 正则预处理 + safe_load (Critical); 4 处 None 值 TypeError → `or 0` 模式
+  - `signal_monitor.py`: 4 处 (除零守卫 + .get() 防 KeyError + isinstance 类型验证 + numeric_signals 过滤)
+  - `system_health_check.py`: 6 处 (3 处 None 守卫 getattr + 硬编码路径→Path(**file**) + 单位分离 + f-string 默认值)
+  - `daily_trade_executor.py`: 2 处非原子写入 → atomic_write_json
+  - `build_plan_executor.py`: 3 处 (metadata 加载替代硬编码 + during_gap active 守卫 + 整除余数并入下午)
+  - `generate_daily_report.py`: 5 处 (零价验证 + 深拷贝备份 + 除零保护 + 警告替代硬编码 + report_date 参数透传)
+  - `run_daily_eod.py`: 2 处 (备份名含微秒 + report_date 正则校验防路径遍历)
 - **之前已修复**: 13 处 (live_scheduler 3 + alpha_hedge 5 + stop_loss 4 + run_daily_eod 1)
 - **验证**: 7 文件 py_compile 全通过; unsafe_load 已完全移除; _sanitize_numpy_tags 正则测试 3/3 通过
 - **剩余**: 24 条 Low/Medium (死代码/文档/日志性能), 不影响交易安全
@@ -5341,9 +5352,9 @@
 - **真实数据**: 读取 `reports/shadow/daily_returns.jsonl` (5 条, 2026-07-27~07-31, source=v9_phase10_real_backtest), 含 3 条 daily_return=0.0 (停牌/数据问题).
 - **Mock V9 预测**: 5 个标的 (600276/588000/510300/159915/512100) 固定预测分数, 与真实收益无相关性 (IC=0.0 预期).
 - **端到端结果**:
-    - 5/5 日成功集成, 25 个标签更新 (5 日 × 5 标的)
-    - 告警机制正常: 前 3 天 `insufficient_samples` (n<20 降级), 第 4-5 天 `ic_ir_degradation` (degradation=0.88)
-    - 持久化: 5 个 `integration_*.json` + 5 个 `delayed_labels/*.jsonl` 正确生成
+  - 5/5 日成功集成, 25 个标签更新 (5 日 × 5 标的)
+  - 告警机制正常: 前 3 天 `insufficient_samples` (n<20 降级), 第 4-5 天 `ic_ir_degradation` (degradation=0.88)
+  - 持久化: 5 个 `integration_*.json` + 5 个 `delayed_labels/*.jsonl` 正确生成
 - **HC 合规**: HC-1 sim_mode=True 不切 Flag / HC-4 只读不改 V9 基线 / 临时输出目录不污染生产.
 - **结论**: DriftShadowIntegrator 正确读取真实 daily_returns, IC/IC_IR 计算链路正常, 告警机制按预期触发. IC=0.0 是 Mock 预测导致, 真实 V9 模型应产生 IC≈0.05+.
 - 详见: [W1.3b_DRIFT_MONITOR_REAL_DATA_INTEGRATION.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/docs/自我进化框架/W1.3b_DRIFT_MONITOR_REAL_DATA_INTEGRATION.md) §Day 2.
@@ -5352,11 +5363,11 @@
 
 - W1.3a 提前完成后, W1.3b Day 1 也提前启动 (原计划 08-07, 实际 08-03 完成).
 - **DriftShadowIntegrator 骨架交付** (`utils/alpha/drift_shadow_integrator.py`, 626 行):
-    - `run_daily_integration()`: 读 daily_returns → DriftMonitor.run_daily_check → record_predictions_batch → update_actual_labels_batch → compute_delayed_metrics → IC_IR 退化检测
-    - `backfill_history()`: 历史回填, 跳过周末, 支持 panel_history + prediction_history
-    - `calibrate_psi_thresholds()` 骨架: Day 3 实现真实校准, Day 1 返回工业标准
-    - 粒度处理: symbol 级模式 + 组合级降级模式 (无 provider 时用组合收益作为所有 symbol 标签)
-    - fail-safe: 任一模块失败不中断集成
+  - `run_daily_integration()`: 读 daily_returns → DriftMonitor.run_daily_check → record_predictions_batch → update_actual_labels_batch → compute_delayed_metrics → IC_IR 退化检测
+  - `backfill_history()`: 历史回填, 跳过周末, 支持 panel_history + prediction_history
+  - `calibrate_psi_thresholds()` 骨架: Day 3 实现真实校准, Day 1 返回工业标准
+  - 粒度处理: symbol 级模式 + 组合级降级模式 (无 provider 时用组合收益作为所有 symbol 标签)
+  - fail-safe: 任一模块失败不中断集成
 - **测试**: 46 个测试 100% 通过 (`46 passed in 1.59s`), 889 行测试代码, 9 个测试类.
 - **HC 合规**: HC-1 不切 Flag (用 sim_mode=True) / HC-4 只读 / HC-5 参数注入.
 - 详见: [W1.3b_DRIFT_MONITOR_REAL_DATA_INTEGRATION.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/docs/自我进化框架/W1.3b_DRIFT_MONITOR_REAL_DATA_INTEGRATION.md) §Day 1.
@@ -5397,7 +5408,7 @@
 
 ## 2026-08-03 · 代码质量加固重构总结 — 3函数/5文件, Strong清零, 333测试无回归
 
-- 本次会话完成 3 个 Strong 级别函数重构: plan_order(表驱动化) + _execution_risk_check(提取helper) + generate_report(提取11个helper).
+- 本次会话完成 3 个 Strong 级别函数重构: plan_order(表驱动化) +_execution_risk_check(提取helper) + generate_report(提取11个helper).
 - **验证**: ruff 3个新问题已修复; 5文件导入PASS; 333测试passed 0回归; generate_report行为快照SHA256一致; 2个失败测试git stash确认预先存在.
 - **遗留环境问题**(均预先存在, 非重构引入): scipy在Python3.8的access violation(影响lightgbm导入); 3937测试OOM; 12个收集错误.
 - **建议**: 升级Python 3.10+修复scipy崩溃; 分批跑测试避免OOM.
@@ -5439,21 +5450,21 @@
 - **实际方案**: 提取 Phase 1(L1 复用块, 15 行)为独立 helper `_run_l1_checks`, 主函数只保留外层 if + 调用。
 - **效果**: 行数 99→90 (-9%), 圈复杂度 17→14 (-18%, 已低于阈值 15), 严重度 Strong→Worth exploring。
 - **验证**: 12 个 risk_check 测试全部 PASSED + 64 个 execution_bridge 完整测试套件零回归。
-- 🎯 **里程碑: 全项目 Strong 函数(三项都超标)从 2→0 清零**。本次会话两次重构(plan_order + _execution_risk_check)消除全部 Strong 函数。
+- 🎯 **里程碑: 全项目 Strong 函数(三项都超标)从 2→0 清零**。本次会话两次重构(plan_order +_execution_risk_check)消除全部 Strong 函数。
 - **教训沉淀**: 不是所有 CC>15 的函数都适合表驱动化。同构分支(plan_order 6 个 elif)→ 表驱动化收益高; 异构检查链(_execution_risk_check 5 个独立检查)→ 提取 helper 更安全。判断依据: 检查项的 checks 结构是否一致 + 检查逻辑是否同构。
 
 ## 2026-08-03 · W1.3a Day 3 完成 — 集成 ShadowRealDataFeeder 到 EOD 工作流 + EvolutionEval 兜底 + 修复 G1 根因 (daily_workflow.py 缺失)
 
 - **重大根因发现**: `run_daily_eod_workflow.py:81` 的 `DAILY_WORKFLOW_SCRIPT` 指向 `v8.3_institutional/daily_workflow.py`, 但该文件**不存在** (Python 确认全部路径 MISSING). `run_phase4_5_shadow` 调用 `run_step` 时在 `script.exists()` 检查处直接返回 `(False, "")`, **阶段四点五 Shadow 数据收集自始至终失败**, `daily_returns.jsonl` 从未被生产管道产出 — 这正是 G1 缺口的根本原因.
 - **Day 3 集成交付**:
-    - 新增 `scripts/shadow_real_data_feeder.py` CLI 入口 (转发到 `ShadowRealDataFeeder.main`, 支持 `--date` / `--start --end` / `--dry-run`).
-    - 修改 `run_daily_eod_workflow.py`: 新增 `SHADOW_FEEDER_SCRIPT` 常量, `run_phase4_5_shadow` 从调用不存在的 `daily_workflow.py --phase shadow_monitor` 改为调用 `scripts/shadow_real_data_feeder.py --date {date}` (消除根因).
-    - 修改 `run_evolution_eval.py`: 新增 `ensure_today_shadow_data()` 兜底函数, 在 `collect_progress_snapshot` 之前执行, PostMarket 失败时重试注入当日数据 (HC-1 不切 Flag, fail-safe 不影响主流程).
-    - `run_v84_postmarket.ps1` 无需修改 (调用 run_daily_eod_workflow.py, 自动获益).
+  - 新增 `scripts/shadow_real_data_feeder.py` CLI 入口 (转发到 `ShadowRealDataFeeder.main`, 支持 `--date` / `--start --end` / `--dry-run`).
+  - 修改 `run_daily_eod_workflow.py`: 新增 `SHADOW_FEEDER_SCRIPT` 常量, `run_phase4_5_shadow` 从调用不存在的 `daily_workflow.py --phase shadow_monitor` 改为调用 `scripts/shadow_real_data_feeder.py --date {date}` (消除根因).
+  - 修改 `run_evolution_eval.py`: 新增 `ensure_today_shadow_data()` 兜底函数, 在 `collect_progress_snapshot` 之前执行, PostMarket 失败时重试注入当日数据 (HC-1 不切 Flag, fail-safe 不影响主流程).
+  - `run_v84_postmarket.ps1` 无需修改 (调用 run_daily_eod_workflow.py, 自动获益).
 - **端到端验证 PASS**: 真实 MarketDataProvider (4/5 数据源可用: Wind MCP/iFinD/TDX/AKShare) + 手动权重 `{"600276":0.5, "588000":0.5}` + 临时输出路径, `feed_single_date("2026-07-31")` 完整执行:
-    - 600276 恒瑞医药: close 54.65→54.08, ret=-1.0430%
-    - 588000 华夏芯片ETF: close 1.669→1.728, ret=+3.5351%
-    - 加权 daily_return=+1.2460%, coverage=100%, jsonl 字段完整 (date/daily_return/source/updated_at/symbols_count/cross_validated/source_consistency).
+  - 600276 恒瑞医药: close 54.65→54.08, ret=-1.0430%
+  - 588000 华夏芯片ETF: close 1.669→1.728, ret=+3.5351%
+  - 加权 daily_return=+1.2460%, coverage=100%, jsonl 字段完整 (date/daily_return/source/updated_at/symbols_count/cross_validated/source_consistency).
 - **HC 合规**: HC-1 不切 Feature Flag / HC-4 只写 daily_returns.jsonl 不改 V9 基线 / HC-5 配置通过参数注入.
 - 详见: [W1.3a_G1_DATA_FEEDER_DESIGN.md](file:///e:/各种PY程序/28-终极量化交易系统8.4/docs/自我进化框架/W1.3a_G1_DATA_FEEDER_DESIGN.md) §Day 3, `scripts/shadow_real_data_feeder.py`, `15_每日工作流/run_daily_eod_workflow.py:555-592`, `scripts/run_evolution_eval.py:198-268`.
 - **W1.3a 全部完成** (Day 1+2+3): ShadowRealDataFeeder 生产化 + 集成 EOD/EvolutionEval + 端到端验证. 下一步: W1.3b (08-07~08-10) DriftMonitor 真实数据回填.
@@ -5473,15 +5484,15 @@
 
 - **Day 2 主线交付** (W1.3a 三日计划的第二天): 多源交叉校验 + 历史回填增强, 解决 Day 1 留下的 "cross_validate 占位 / feed_history 串行无缓存" 两个缺口.
 - **`cross_validate()` 双模式实现**:
-    - 模式 1 (推荐): 调用方传入 `secondary_provider` (独立 MarketDataProvider), 用其重新计算 daily_return 对比主源. 一致性分级: relative_diff <1% → high / 1~5% → medium / 5~20% → low / >20% → inconsistent.
-    - 模式 2 (降级): 无 secondary_provider 时, 仅做内部一致性检查 — 遍历 target_weights 中每个 symbol, 检测 prev_close<=0 / target_close=NaN / 单股 ret 超过 ±20% / 停牌 (prev==target).
-    - 新增辅助方法 `_cross_validate_with_secondary` / `_cross_validate_internal` / `_collect_sources_used` (从 source_health 收集 tdx/akshare 等数据源名称).
+  - 模式 1 (推荐): 调用方传入 `secondary_provider` (独立 MarketDataProvider), 用其重新计算 daily_return 对比主源. 一致性分级: relative_diff <1% → high / 1~5% → medium / 5~20% → low / >20% → inconsistent.
+  - 模式 2 (降级): 无 secondary_provider 时, 仅做内部一致性检查 — 遍历 target_weights 中每个 symbol, 检测 prev_close<=0 / target_close=NaN / 单股 ret 超过 ±20% / 停牌 (prev==target).
+  - 新增辅助方法 `_cross_validate_with_secondary` / `_cross_validate_internal` / `_collect_sources_used` (从 source_health 收集 tdx/akshare 等数据源名称).
 - **`feed_history()` 并行化与缓存增强**:
-    - **并行化**: `ThreadPoolExecutor(max_workers=4)` (上限 16), 单日异常 fail-safe 不中断整体回填, 结果按日期升序还原. 新增 `_feed_history_serial` (Day 1 兼容路径) / `_feed_history_parallel`.
-    - **Symbol 价格缓存 (OrderedDict LRU)**: `cache_enabled=True` 默认开启, TTL=3600s, max_symbols=2000, 命中时不调用 provider 减少 IO. 新增 `_get_historical_data_cached` / `clear_cache` / `get_cache_stats`.
-    - **预热机制**: feed_history 启动时串行预拉取所有 unique symbol, 并行阶段几乎全命中.
-    - **进度回调**: `progress_callback(current, total, latest_result)` 支持 CLI/监控.
-    - **jsonl 写入锁** (`_jsonl_lock`): 并行计算时保证文件写入互斥, 避免损坏.
+  - **并行化**: `ThreadPoolExecutor(max_workers=4)` (上限 16), 单日异常 fail-safe 不中断整体回填, 结果按日期升序还原. 新增 `_feed_history_serial` (Day 1 兼容路径) / `_feed_history_parallel`.
+  - **Symbol 价格缓存 (OrderedDict LRU)**: `cache_enabled=True` 默认开启, TTL=3600s, max_symbols=2000, 命中时不调用 provider 减少 IO. 新增 `_get_historical_data_cached` / `clear_cache` / `get_cache_stats`.
+  - **预热机制**: feed_history 启动时串行预拉取所有 unique symbol, 并行阶段几乎全命中.
+  - **进度回调**: `progress_callback(current, total, latest_result)` 支持 CLI/监控.
+  - **jsonl 写入锁** (`_jsonl_lock`): 并行计算时保证文件写入互斥, 避免损坏.
 - **新增数据类**: `CacheStats` (hits/misses/evictions/size/bytes_estimate + hit_rate property) / `HistoryFeedSummary` (跨日回填汇总, 含 success/skipped/failed_days + avg/max/min daily_return).
 - **新增构造参数**: `max_workers` (默认 4) / `cache_enabled` (默认 True) / `cache_max_symbols` (默认 2000), 均带参数校验.
 - **测试**: 108 个用例 100% 通过 (`108 passed in 8.21s`), 覆盖率 **94.12%** (AST 304/323 行, Day 1: 93.95% → Day 2: 94.12%). 新增 31 个测试: TestConstructorDay2(6) + TestPriceCache(7) + TestFeedHistoryParallel(5) + TestCacheStats(4) + TestHistoryFeedSummary(2) + TestCrossValidate(7, 含 Day 1 占位测试替换为真实测试).
